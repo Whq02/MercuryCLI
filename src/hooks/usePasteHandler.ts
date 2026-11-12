@@ -116,6 +116,7 @@ export function usePasteHandler({
     )
 
     if (imagePaths.length > 0 && onImagePasteRef.current) {
+      setIsPasting(true)
       void (async () => {
         let anyRead = false
         const nonImageLines: string[] = []
@@ -165,6 +166,7 @@ export function usePasteHandler({
     }
 
     if (joined === '' && onImagePasteRef.current) {
+      setIsPasting(true)
       checkClipboardImage()
       return
     }
@@ -193,13 +195,15 @@ export function usePasteHandler({
           flagged)
 
       if (treatAsPaste) {
-        if (flagged) setIsPasting(true)
         chunksRef.current.push(input)
         if (timerRef.current !== null) clearTimeout(timerRef.current)
+        if (flagged) {
+          flush()
+          return
+        }
         timerRef.current = setTimeout(flush, QUIET_FLUSH_MS)
         return
       }
-
       if (flagged || input.length > 10) setIsPasting(false)
       onInput(input, key)
     },

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, join, win32 as pathWin32 } from 'node:path'
+import { stripExtendedLengthPrefix } from '../../utils/windowsPaths.js'
 
 export const RUNTIME_PACK_PATH = 'vendor/node'
 
@@ -144,7 +145,7 @@ export function payloadVendoredRuntime(payloadDir: string): { record: VendoredRu
 
 export function runningBundlePayloadDir(argv1: string | undefined = process.argv[1]): string | null {
   if (!argv1 || !argv1.endsWith('.mjs')) return null
-  return dirname(argv1)
+  return process.platform === 'win32' ? pathWin32.dirname(stripExtendedLengthPrefix(argv1)) : dirname(argv1)
 }
 
 function sameFile(a: string, b: string, isWindows: boolean): boolean {

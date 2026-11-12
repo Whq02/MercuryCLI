@@ -224,10 +224,37 @@ const realPath = (path: string): string => {
 }
 const OWN_HOME = /^mercury-proof-home-[^/\\]+$/
 const HOME_IN_RUN_ROOT = /^mercury-proof-run\.[^/\\]{6}[/\\]mercury-proof-home-[^/\\]+$/
-function scratchHome(candidate: string, tempRoot: string): boolean {
-  const stands = (base: string, shape: RegExp): boolean => candidate.startsWith(base + sep) && shape.test(candidate.slice(base.length + 1))
+function scratchHome(candidate: string, tempRoot: string, platform: NodeJS.Platform = process.platform): boolean {
+  const sepChar = platform === 'win32' ? '\\' : sep
+  const norm = (p: string): string => (platform === 'win32' ? p.replaceAll('/', '\\').toLowerCase() : p)
+  const cand = norm(candidate)
+  const stands = (base: string, shape: RegExp): boolean => {
+    const b = norm(base).replace(/[\\/]+$/, '')
+    return cand.startsWith(b + sepChar) && shape.test(candidate.slice(b.length + 1))
+  }
   if ([tempRoot, realPath(tempRoot)].some(base => stands(base, OWN_HOME) || stands(base, HOME_IN_RUN_ROOT))) return true
-  return process.platform !== 'win32' && stands(realPath('/tmp'), HOME_IN_RUN_ROOT)
+  return platform !== 'win32' && stands(realPath('/tmp'), HOME_IN_RUN_ROOT)
+}
+function win32Tmpdir(env: NodeJS.ProcessEnv): string {
+  const raw = env.TEMP || env.TMP || `${env.SystemRoot || env.windir || ''}\\temp`
+  return raw.length > 1 && /[\\/]$/.test(raw) && !/^[A-Za-z]:[\\/]$/.test(raw) ? raw.slice(0, -1) : raw
+}
+function cleanChildEnv(
+  tempRoot: string,
+  homeDir: string,
+  extra: Record<string, string>,
+  sysRoot = process.env.SystemRoot,
+): NodeJS.ProcessEnv {
+  return {
+    PATH: process.env.PATH ?? '',
+    HOME: homeDir,
+    USERPROFILE: homeDir,
+    TMPDIR: tempRoot,
+    TEMP: tempRoot,
+    TMP: tempRoot,
+    ...(sysRoot ? { SystemRoot: sysRoot } : {}),
+    ...extra,
+  }
 }
 try {
   check(realPath(scratch).startsWith(realPath(tmpdir()) + sep), "this proof's own scratch stands in the temp dir it was given, whatever folders the machine has", `${scratch} against ${tmpdir()}`)
@@ -235,13 +262,17 @@ try {
   mkdirSync(join(home, '.mercury'), { recursive: true })
   writeFileSync(join(home, '.mercury', 'settings.json'), JSON.stringify({ engine: { model: OWNER_MODEL } }))
   const before = readdirSync(join(home, '.mercury')).sort().join(',')
-  const clean = (extra: Record<string, string>): NodeJS.ProcessEnv => ({
-    PATH: process.env.PATH ?? '',
-    HOME: home,
-    USERPROFILE: home,
-    TMPDIR: scratch,
-    ...extra,
-  })
+  const clean = (extra: Record<string, string>): NodeJS.ProcessEnv => cleanChildEnv(scratch, home, extra)
+  const winScratch = String.raw`C:\Users\op\AppData\Local\Temp\proof-machine-census-a1b2c3`
+  const winHome = String.raw`${winScratch}\home`
+  const winEnv = cleanChildEnv(winScratch, winHome, {}, String.raw`C:\Windows`)
+  const winTmp = win32Tmpdir(winEnv)
+  const winPinned = String.raw`${winTmp}\mercury-proof-home-x9y8z7`
+  check(
+    winTmp === winScratch && !winPinned.toLowerCase().startsWith(winHome.toLowerCase()) && scratchHome(winPinned, winScratch, 'win32'),
+    'the clean child environment sets TEMP and TMP beside TMPDIR so win32 os.tmpdir() places the scratch home under scratch',
+    `tmp=${winTmp} pinned=${winPinned}`,
+  )
   const preload = spawnSync(BUN, ['scripts/lib/proofHomePreload.ts'], {
     cwd: ROOT,
     env: clean({ MERCURY_CONFIG_DIR: join(home, '.mercury') }),

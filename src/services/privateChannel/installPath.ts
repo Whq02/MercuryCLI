@@ -5,6 +5,7 @@ import { basename, dirname, join } from 'node:path'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { whichSync, resolveExecutable } from '../../utils/which.js'
+import { stripExtendedLengthPrefix } from '../../utils/windowsPaths.js'
 import { pathEntryEquals, resolveLayoutRoots, type LayoutRoots } from './installLayout.js'
 import { isNpmWrapperCommand, resolveInstallProvenance } from './installProvenance.js'
 
@@ -125,12 +126,13 @@ export type CommandOnPath =
   | { state: 'absent' }
 
 export function commandOnPath(roots: LayoutRoots, resolveCommand: (name: string) => string | null = resolveExecutable): CommandOnPath {
-  const resolved = resolveCommand('mercury')
-  if (resolved === null) return { state: 'absent' }
+  const raw = resolveCommand('mercury')
+  if (raw === null) return { state: 'absent' }
+  const resolved = roots.isWindows ? stripExtendedLengthPrefix(raw) : raw
   const members = [roots.shimPath, ...(roots.shimSetPaths ?? [])]
   return members.some(member => sameFile(member, resolved, roots.isWindows))
     ? { state: 'stable', resolved }
-    : { state: 'other', resolved, npmWrapper: isNpmWrapperCommand(resolved) }
+    : { state: 'other', resolved, npmWrapper: isNpmWrapperCommand(resolved, roots.isWindows) }
 }
 
 export function npmWrapperOnPath(found: CommandOnPath): string | null {
@@ -142,18 +144,29 @@ export interface OwnCommandFacts {
   found: CommandOnPath
   node: string
   bundle: string | undefined
+  isWindows?: boolean
 }
 
 export function ownCommandWord(facts: OwnCommandFacts): string {
   if (facts.provenanceKind === 'managed' && facts.found.state === 'stable') return 'mercury'
   if ((facts.provenanceKind === 'homebrew' || facts.provenanceKind === 'npm') && facts.found.state !== 'absent') return 'mercury'
   if (facts.bundle === undefined || facts.bundle.trim() === '') return 'mercury'
+  const isWindows = facts.isWindows ?? process.platform === 'win32'
+  const node = isWindows ? stripExtendedLengthPrefix(facts.node) : facts.node
+  const bundle = isWindows ? stripExtendedLengthPrefix(facts.bundle) : facts.bundle
+  if (bundle.trim() === '') return 'mercury'
   const quote = (part: string): string => (/[\s"']/.test(part) ? JSON.stringify(part) : part)
-  return `${quote(facts.node)} ${quote(facts.bundle)}`
+  return `${quote(node)} ${quote(bundle)}`
 }
 
 export function ownCommand(roots: LayoutRoots, provenanceKind: string, resolveCommand: (name: string) => string | null = whichSync): string {
-  return ownCommandWord({ provenanceKind, found: commandOnPath(roots, resolveCommand), node: process.execPath, bundle: process.argv[1] })
+  return ownCommandWord({
+    provenanceKind,
+    found: commandOnPath(roots, resolveCommand),
+    node: process.execPath,
+    bundle: process.argv[1],
+    isWindows: roots.isWindows,
+  })
 }
 
 export function thisMercuryCommand(): string {

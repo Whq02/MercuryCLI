@@ -17,6 +17,8 @@
 # gate-watch: src/services/crew/obligations.ts src/utils/config/globalConfig.ts src/utils/cwd.ts
 # gate-watch: src/utils/suggestions/commandSuggestions.ts src/utils/truncate.ts
 # gate-watch: src/components/mercury-ui/keyHintLabel.ts src/utils/platform.ts
+# gate-watch: src/hooks/usePasteHandler.ts src/components/BaseTextInput.tsx src/daemon/controlSocket.ts scripts/streaming/ptydrive.py
+# gate-watch: src/components/App.tsx src/components/SurfaceRouter.tsx src/state/AppStateStore.ts src/context/surfaceRoute.ts src/hooks/useLayoutTier.ts src/utils/config.ts src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts src/utils/daemonStanddown.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -41,6 +43,7 @@ for p in \
   scripts/prompt-input/prove-image-paste-drive.ts \
   scripts/prompt-input/prove-image-chip-typing.ts \
   scripts/prompt-input/prove-pasted-prompt-row.ts \
+  scripts/prompt-input/prove-paste-quick-enter-drive.ts \
   scripts/prompt-input/prove-stash-carries-mode.ts \
   scripts/prompt-input/prove-edit-sanitises.ts \
   scripts/prompt-input/prove-typed-word-plain-ink.ts \

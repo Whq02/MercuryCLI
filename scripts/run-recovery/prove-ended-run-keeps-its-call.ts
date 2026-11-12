@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { createServer, type ServerResponse } from 'node:http'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { basename, delimiter, dirname, join, win32 as pathWin32 } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'ended-run-call-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'ended-run-call-daemon-'))
@@ -179,7 +179,7 @@ section('§6 the controls: what does not move')
   check('an unanswered call in the middle of a conversation that went on is dropped as before (no sent history moves)', older.loaded.turnInterruptionState.kind === 'none' && j(shapeOf(older.loaded.messages as Message[])) === j(['user:text(run the build)', 'assistant:text(Building.)', 'user:text(never mind, what time is it?)', 'assistant:text(Noon.)']), j(shapeOf(older.loaded.messages as Message[])))
   const once = await resume([prompt('run the build'), reply('msg_j', [call('toolu_j', 'Bash', { command: 'npm run build' })])])
   const bytes = readFileSync(once.file, 'utf8')
-  const again = await loadConversationForResume(once.file.split('/').at(-1)!.replace('.jsonl', ''), once.file)
+  const again = await loadConversationForResume(basename(once.file, '.jsonl'), once.file)
   check('loading writes nothing: the transcript is byte for byte what it was, and a second load reads the same conversation', readFileSync(once.file, 'utf8') === bytes && j(shapeOf((again?.messages ?? []) as Message[])) === j(shapeOf(once.loaded.messages as Message[])), j(shapeOf((again?.messages ?? []) as Message[])))
 }
 
@@ -197,9 +197,68 @@ section('§7 the built bundle: the process is stopped by signal 9 while a shell 
   const messageEnd = (stop: string): string =>
     sse('message_delta', { type: 'message_delta', delta: { stop_reason: stop, stop_sequence: null }, usage: { output_tokens: 12 } }) + sse('message_stop', { type: 'message_stop' })
 
+  const WAIT_COMMAND = 'node -e "setTimeout(() => {}, 20000)"'
+  function bundleSceneEnv(opts: {
+    home: string
+    nodeDir: string
+    port: number
+    platform?: NodeJS.Platform
+    hostEnv?: NodeJS.ProcessEnv
+  }): Record<string, string> {
+    const platform = opts.platform ?? process.platform
+    const hostEnv = opts.hostEnv ?? process.env
+    const isWin = platform === 'win32'
+    const jn = isWin ? pathWin32.join : join
+    const delim = isWin ? ';' : delimiter
+    const sysPath = isWin ? (hostEnv.PATH ?? '') : '/usr/bin:/bin'
+    const tmp = jn(opts.home, 'tmp')
+    return {
+      HOME: opts.home,
+      USERPROFILE: opts.home,
+      PATH: [opts.nodeDir, sysPath].filter(part => part !== '').join(delim),
+      TERM: 'dumb',
+      MERCURY_CONFIG_DIR: jn(opts.home, '.mercury'),
+      MERCURY_TMPDIR: tmp,
+      TEMP: tmp,
+      TMP: tmp,
+      ANTHROPIC_BASE_URL: `http://127.0.0.1:${opts.port}`,
+      ANTHROPIC_API_KEY: 'fixture-key-000',
+      MERCURY_DAEMON_DIR: jn(opts.home, 'daemon'),
+      MERCURY_LOCAL_PROBE_TARGETS: 'none',
+      MERCURY_VERIFY_EVIDENCE: '0',
+      ...(isWin
+        ? {
+            SystemRoot: hostEnv.SystemRoot ?? 'C:\\Windows',
+            COMSPEC: hostEnv.COMSPEC ?? hostEnv.ComSpec ?? 'C:\\Windows\\System32\\cmd.exe',
+            PATHEXT: hostEnv.PATHEXT ?? '.COM;.EXE;.BAT;.CMD',
+            ...(hostEnv.MERCURY_GIT_BASH_PATH ? { MERCURY_GIT_BASH_PATH: hostEnv.MERCURY_GIT_BASH_PATH } : {}),
+          }
+        : {}),
+    }
+  }
+
+  const winSample = bundleSceneEnv({
+    home: String.raw`C:\Temp\ended-run-home`,
+    nodeDir: String.raw`C:\Program Files\nodejs`,
+    port: 43210,
+    platform: 'win32',
+    hostEnv: { PATH: String.raw`C:\Windows\System32;C:\Windows`, SystemRoot: String.raw`C:\Windows` },
+  })
+  check(
+    'the bundle scene builds a portable Windows PATH (; delimiter, intact drive path, PATHEXT and TEMP) and waits with node instead of sleep',
+    winSample.PATH === String.raw`C:\Program Files\nodejs;C:\Windows\System32;C:\Windows` &&
+      !winSample.PATH.includes('/usr/bin') &&
+      winSample.USERPROFILE === String.raw`C:\Temp\ended-run-home` &&
+      winSample.TEMP === String.raw`C:\Temp\ended-run-home\tmp` &&
+      (winSample.PATHEXT ?? '').toUpperCase().includes('.EXE') &&
+      WAIT_COMMAND.startsWith('node -e '),
+    j({ PATH: winSample.PATH, WAIT_COMMAND }),
+  )
+
   const home = mkdtempSync(join(tmpdir(), 'ended-run-call-home-'))
   const cwd = mkdtempSync(join(tmpdir(), 'ended-run-call-work-'))
   mkdirSync(join(home, '.mercury'), { recursive: true })
+  mkdirSync(join(home, 'tmp'), { recursive: true })
   const note = join(cwd, 'note.txt')
   writeFileSync(note, 'the note says hello\n')
   type Wire = Array<{ role: string; content: unknown }>
@@ -229,7 +288,7 @@ section('§7 the built bundle: the process is stopped by signal 9 while a shell 
       wires.push(body.messages ?? [])
       if (phase === 1) {
         res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store' })
-        res.end(messageStart('msg_stopped') + textWhole(0, 'Reading and then waiting.') + toolWhole(1, 'toolu_read', 'Read', { file_path: note }) + toolWhole(2, 'toolu_shell', 'Bash', { command: 'sleep 20' }) + messageEnd('tool_use'))
+        res.end(messageStart('msg_stopped') + textWhole(0, 'Reading and then waiting.') + toolWhole(1, 'toolu_read', 'Read', { file_path: note }) + toolWhole(2, 'toolu_shell', 'Bash', { command: WAIT_COMMAND }) + messageEnd('tool_use'))
         return
       }
       const text = phase === 2 ? 'FIRST RESUMED REPLY.' : 'SECOND RESUMED REPLY.'
@@ -243,17 +302,11 @@ section('§7 the built bundle: the process is stopped by signal 9 while a shell 
     })
   })
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
-  const env = {
-    HOME: home,
-    PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
-    TERM: 'dumb',
-    MERCURY_CONFIG_DIR: join(home, '.mercury'),
-    ANTHROPIC_BASE_URL: `http://127.0.0.1:${(server.address() as { port: number }).port}`,
-    ANTHROPIC_API_KEY: 'fixture-key-000',
-    MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_LOCAL_PROBE_TARGETS: 'none',
-    MERCURY_VERIFY_EVIDENCE: '0',
-  }
+  const env = bundleSceneEnv({
+    home,
+    nodeDir: dirname(nodeBin),
+    port: (server.address() as { port: number }).port,
+  })
   const sid = 'facef00d-0000-4000-8000-00000000e4d0'
   const run = (args: string[], stopWhen?: (stdout: string) => boolean): Promise<{ exit: number | null; signal: string | null; stdout: string }> =>
     new Promise(resolve => {
@@ -282,7 +335,8 @@ section('§7 the built bundle: the process is stopped by signal 9 while a shell 
   const wireBlocks = (wire: Wire | undefined): Block[] => (wire ?? []).flatMap(message => (Array.isArray(message.content) ? (message.content as Block[]) : []))
   try {
     const stopped = await run(['run', 'read the note then wait', '--model', 'claude-opus-4-8', '--session-id', sid, '--mode', 'sovereign', '--format', 'rows'], stdout => stdout.includes('"type":"tool_result"') && stdout.includes('toolu_read'))
-    check('the first process was stopped by signal 9 after the read returned, while the shell call ran', stopped.signal === 'SIGKILL' && wires.length === 1 && !stopped.stdout.includes('"call_id":"toolu_shell","status"'), `signal=${stopped.signal} requests=${wires.length}`)
+    const wasKilled = stopped.signal === 'SIGKILL' || (process.platform === 'win32' && stopped.exit !== 0)
+    check('the first process was stopped by signal 9 after the read returned, while the shell call ran', wasKilled && wires.length === 1 && !stopped.stdout.includes('"call_id":"toolu_shell","status"'), `signal=${stopped.signal} exit=${stopped.exit} requests=${wires.length}`)
     phase = 2
     const first = await run(['run', 'what happened before?', '--model', 'claude-opus-4-8', '--resume', sid, '--mode', 'sovereign', '--format', 'rows'])
     const firstWire = wires[1]

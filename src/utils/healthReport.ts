@@ -21,6 +21,7 @@ import { cpus, loadavg } from 'node:os'
 import { deviceHeadroom } from './cockpit/deviceHeadroom.js'
 import { basename, dirname, join, relative, resolve as resolvePath, sep } from 'node:path'
 import { whichSync } from './which.js'
+import { stripExtendedLengthPrefix } from './windowsPaths.js'
 import { artifactIdentityLine, describeArtifactIdentity } from './artifactIdentity.js'
 import { GLYPH, branchChip } from '../components/mercury-ui/glyphs.js'
 import { crashReportDir } from './crashReport.js'
@@ -1177,7 +1178,8 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           label: 'Running build',
           run: async probeCtx => {
             const signal = probeCtx?.signal
-            const entry = process.argv[1]
+            const rawEntry = process.argv[1]
+            const entry = rawEntry && process.platform === 'win32' ? stripExtendedLengthPrefix(rawEntry) : rawEntry
             if (!entry || !existsSync(entry)) {
               return {
                 status: 'unknown',
@@ -1264,7 +1266,8 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'deployed-assets',
           label: 'Deployed assets',
           run: async () => {
-            const entry = process.argv[1]
+            const rawEntry = process.argv[1]
+            const entry = rawEntry && process.platform === 'win32' ? stripExtendedLengthPrefix(rawEntry) : rawEntry
             const root = entry ? dirname(dirname(entry)) : null
             if (
               !root ||

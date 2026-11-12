@@ -7,6 +7,7 @@ import type { AppState } from '../../state/AppState.js'
 import type { PastedContent } from '../../utils/config.js'
 import type { PromptInputMode } from '../../types/textInputTypes.js'
 import { useInputBuffer } from '../../hooks/useInputBuffer.js'
+import { bindLiveInputState, type LiveInputState } from '../../hooks/useTextInput.js'
 import { getShortcutDisplay } from '../../keybindings/shortcutFormat.js'
 import { getGlobalConfig } from '../../utils/config.js'
 import { parseReferences } from '../../history.js'
@@ -34,6 +35,7 @@ type ComposerDraft = {
   pastedContents: Record<number, PastedContent>
   stash: ReturnType<typeof pendingInput.stashedPrompt>
   cursorOffset: number
+  readLiveState: () => LiveInputState
   setCursorOffset: (offset: number) => void
   lastSelfWriteRef: React.MutableRefObject<string>
   writeDraft: (text: string) => void
@@ -80,18 +82,39 @@ export function useComposerDraft({
     }
     return input.length
   })
+  const liveCursorRef = useRef(cursorOffset)
+  const lastTrackedTextRef = useRef(input)
+  const readLiveState = useCallback((): LiveInputState => {
+    const currentText = pendingInput.text()
+    if (currentText !== lastTrackedTextRef.current) {
+      lastTrackedTextRef.current = currentText
+      liveCursorRef.current = currentText.length
+    }
+    const clamped = Math.max(0, Math.min(liveCursorRef.current, currentText.length))
+    liveCursorRef.current = clamped
+    return { value: currentText, offset: clamped }
+  }, [])
   const setCursorOffset = useCallback((offset: number): void => {
-    setCursorOffsetState(offset)
-    pendingInput.reportCursor(offset)
+    const currentText = pendingInput.text()
+    lastTrackedTextRef.current = currentText
+    const clamped = Math.max(0, Math.min(offset, currentText.length))
+    liveCursorRef.current = clamped
+    setCursorOffsetState(clamped)
+    pendingInput.reportCursor(clamped)
   }, [])
 
   const lastSelfWriteRef = useRef(input)
   const writeDraft = useCallback((text: string): void => {
     pendingInput.edit(text)
-    lastSelfWriteRef.current = pendingInput.text()
+    const after = pendingInput.text()
+    lastSelfWriteRef.current = after
+    lastTrackedTextRef.current = after
+    if (liveCursorRef.current > after.length) liveCursorRef.current = after.length
   }, [])
   if (lastSelfWriteRef.current !== input) {
     lastSelfWriteRef.current = input
+    lastTrackedTextRef.current = input
+    liveCursorRef.current = input.length
     setCursorOffsetState(input.length)
     pendingInput.reportCursor(input.length)
   }
@@ -150,6 +173,9 @@ export function useComposerDraft({
 
   const onChange = useCallback(
     (raw: string): void => {
+      const { value: input, offset: cursorOffset } = readLiveState()
+      const mode = pendingInput.mode()
+      const pastedContents = pendingInput.pastedContents()
       if (raw === '?' && input === '') {
         setHelpOpen(!helpOpen)
         return
@@ -237,8 +263,9 @@ export function useComposerDraft({
         if (changed) pendingInput.setPastedContents(next)
       }
     },
-    [input, mode, helpOpen, cursorOffset, pastedContents, buffer, speculationActive, footerSelection, setHelpOpen, setMode, setCursorOffset, removeNotification, addNotification, setAppState],
+    [input, mode, helpOpen, cursorOffset, pastedContents, buffer, speculationActive, footerSelection, readLiveState, setHelpOpen, setMode, setCursorOffset, removeNotification, addNotification, setAppState],
   )
+  bindLiveInputState(onChange, readLiveState)
 
   return {
     editGen,
@@ -247,6 +274,7 @@ export function useComposerDraft({
     pastedContents,
     stash,
     cursorOffset,
+    readLiveState,
     setCursorOffset,
     lastSelfWriteRef,
     writeDraft,

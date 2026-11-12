@@ -21,21 +21,22 @@ function pidAlive(pid: number): boolean {
   }
 }
 
+const PING_TIMEOUT_MS = 5_000
 const PING_TTL_MS = 15_000
-let pingVerdict: { ok: boolean; at: number } | null = null
-let pingInFlight = false
-function kickPing(): void {
-  if (pingInFlight) return
-  pingInFlight = true
-  void daemonControlRpc({ op: 'ping' }, { timeoutMs: 1500 })
+let pingVerdict: { key: string; ok: boolean; at: number } | null = null
+let pingInFlight: string | null = null
+function kickPing(key: string): void {
+  if (pingInFlight === key) return
+  pingInFlight = key
+  void daemonControlRpc({ op: 'ping' }, { timeoutMs: PING_TIMEOUT_MS })
     .then(r => {
-      pingVerdict = { ok: r.ok === true, at: Date.now() }
+      if (pingInFlight === key) pingVerdict = { key, ok: r.ok === true, at: Date.now() }
     })
     .catch(() => {
-      pingVerdict = { ok: false, at: Date.now() }
+      if (pingInFlight === key) pingVerdict = { key, ok: false, at: Date.now() }
     })
     .finally(() => {
-      pingInFlight = false
+      if (pingInFlight === key) pingInFlight = null
     })
 }
 
@@ -60,8 +61,9 @@ export function daemonSnapshot(): Snapshot {
           upSec != null
             ? `running · pid ${rec.pid} · v${ver} (up ${upSec}s)`
             : `running · pid ${rec.pid} · v${ver}`
-        const fresh = pingVerdict && Date.now() - pingVerdict.at <= PING_TTL_MS
-        if (!fresh) kickPing()
+        const key = `${rec.pid}:${typeof rec.startedAt === 'number' ? rec.startedAt : ''}`
+        const fresh = pingVerdict !== null && pingVerdict.key === key && Date.now() - pingVerdict.at <= PING_TTL_MS
+        if (!fresh) kickPing(key)
         if (fresh && !pingVerdict!.ok) {
           return {
             state: 'unavailable',
@@ -75,12 +77,15 @@ export function daemonSnapshot(): Snapshot {
           source: 'daemon',
         }
       }
+      pingVerdict = null
       return {
         state: 'unavailable',
         reason: `stale record · pid ${rec.pid} not running (run \`${thisMercuryCommand()} daemon\` to restart)`,
         source: 'daemon',
       }
     }
+
+    pingVerdict = null
 
     const cronReady = isSaturnSchedulingEnabled()
     return {

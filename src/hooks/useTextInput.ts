@@ -75,6 +75,17 @@ function isYankKey(input: string, key: Key): boolean {
   return Boolean((key.ctrl || key.meta) && input === 'y')
 }
 
+export type LiveInputState = { value: string; offset: number }
+
+const liveStateReaders = new WeakMap<(value: string) => void, () => LiveInputState>()
+
+export function bindLiveInputState(
+  onChange: (value: string) => void,
+  readLiveState: () => LiveInputState,
+): void {
+  liveStateReaders.set(onChange, readLiveState)
+}
+
 export function useTextInput({
   viewportStartRef,
   value,
@@ -116,6 +127,8 @@ export function useTextInput({
 
   const liveRef = useRef({ value, offset })
   liveRef.current = { value, offset }
+  const externalLiveReader = liveStateReaders.get(onChange)
+  const readLive = (): LiveInputState => (externalLiveReader ? externalLiveReader() : liveRef.current)
 
   const setOffset = (next: number): void => {
     onOffsetChange(next)
@@ -125,7 +138,7 @@ export function useTextInput({
     show => onExitMessage?.(show, 'Ctrl-C'),
     () => onExit?.(),
     () => {
-      if (value) {
+      if (readLive().value) {
         onChange('')
         setOffset(0)
         onHistoryReset?.()
@@ -137,7 +150,7 @@ export function useTextInput({
   const handleCtrlD = useDoublePress(
     show => onExitMessage?.(show, 'Ctrl-D'),
     () => {
-      if (value === '') onExit?.()
+      if (readLive().value === '') onExit?.()
     },
     undefined,
     EXIT_CHORD_WINDOW_MS,
@@ -151,8 +164,9 @@ export function useTextInput({
     () => {
       removeNotification(ESCAPE_CLEAR_NOTIFICATION_KEY)
       onClearInput?.()
-      if (value) {
-        if (value.trim() !== '') addToHistory(value)
+      const current = readLive().value
+      if (current) {
+        if (current.trim() !== '') addToHistory(current)
         onChange('')
         setOffset(0)
         onHistoryReset?.()
@@ -165,7 +179,7 @@ export function useTextInput({
       }
     },
     () => {
-      if (value) {
+      if (readLive().value) {
         addNotification({
           key: ESCAPE_CLEAR_NOTIFICATION_KEY,
           text: 'Press escape again to clear the input',
@@ -187,7 +201,7 @@ export function useTextInput({
     if (multiline) {
       const logical = cursor.upLogicalLine()
       if (!logical.equals(cursor)) {
-        const noNewlineBefore = !value.slice(0, cursor.offset).includes('\n')
+        const noNewlineBefore = !cursor.text.slice(0, cursor.offset).includes('\n')
         if (onHistoryUp && logical.offset === 0 && noNewlineBefore) {
           onHistoryUp()
           return null
@@ -242,22 +256,22 @@ export function useTextInput({
     for (let i = 0; i < delCount; i++) {
       current = current.deleteTokenBefore() ?? current.backspace()
     }
-    const live = liveRef.current
+    const live = readLive()
     if (current.offset !== cursor.offset || current.text !== live.value) {
       if (current.text !== live.value) onChange(current.text)
       if (current.offset !== live.offset) setOffset(current.offset)
-      liveRef.current = { value: current.text, offset: current.offset }
+      if (!externalLiveReader) liveRef.current = { value: current.text, offset: current.offset }
     }
   }
 
   function handleEnter(cursor: Cursor, key: Key): Cursor | null {
-    if (multiline && isBackslashContinuation(value, cursor.offset)) {
+    if (multiline && isBackslashContinuation(cursor.text, cursor.offset)) {
       markBackslashReturnUsed()
       return cursor.backspace().insert('\n')
     }
     if (key.meta || key.shift) return cursor.insert('\n')
     if (suppressEnterSubmit) return null
-    onSubmit?.(value)
+    onSubmit?.(cursor.text)
     return null
   }
 
@@ -328,7 +342,7 @@ export function useTextInput({
           handleCtrlC()
           return null
         case 'd':
-          if (value === '') {
+          if (cursor.text === '') {
             handleCtrlD()
             return null
           }
@@ -399,7 +413,7 @@ export function useTextInput({
     const filtered = inputFilter ? inputFilter(rawInput, key) : rawInput
     if (inputFilter && filtered === '' && rawInput !== '') return
 
-    const { value: liveValue, offset: liveOffset } = liveRef.current
+    const { value: liveValue, offset: liveOffset } = readLive()
     const cursor = Cursor.fromText(liveValue, columns, liveOffset)
 
     if (selectionRange) {
@@ -408,7 +422,7 @@ export function useTextInput({
         const { start, end } = r
         if (start >= 0 && start < end && end <= liveValue.length) {
           const commitRangeEdit = (result: { text: string; cursorOffset: number }): void => {
-            liveRef.current = { value: result.text, offset: result.cursorOffset }
+            if (!externalLiveReader) liveRef.current = { value: result.text, offset: result.cursorOffset }
             if (result.text === '') onClearInput?.()
             onChange(result.text)
             setOffset(result.cursorOffset)
@@ -465,9 +479,10 @@ export function useTextInput({
     if (!next) return
 
     if (next.text === '' && liveValue !== '' && isKillKey(filtered, key)) onClearInput?.()
-    if (next.text !== liveValue) onChange(next.text)
-    if (next.offset !== liveOffset) setOffset(next.offset)
-    liveRef.current = { value: next.text, offset: next.offset }
+    const textChanged = next.text !== liveValue
+    if (textChanged) onChange(next.text)
+    if (next.offset !== liveOffset || textChanged) setOffset(next.offset)
+    if (!externalLiveReader) liveRef.current = { value: next.text, offset: next.offset }
 
     if (
       !key.isPasted &&
@@ -476,7 +491,7 @@ export function useTextInput({
       !filtered.slice(0, -1).includes('\r') &&
       !isBackslashContinuation(filtered, filtered.length - 1)
     ) {
-      onSubmit?.(next.text)
+      onSubmit?.(readLive().value)
     }
   }
 
