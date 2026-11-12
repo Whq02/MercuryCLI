@@ -150,7 +150,7 @@ if (!existsSync(BIN)) {
   process.exit(1)
 }
 
-const readyFor = (cols: number, rows: number): string[] => rows <= 17 ? ['esc closes'] : [cols < 100
+const readyFor = (cols: number, rows: number): string[] => rows <= 17 ? ['esc closes'] : [cols <= 120
   ? '↑↓ select · pgup/pgdn page · ←/→ change · ↵ save · / search · esc closes'
   : '↑↓ select · pgup/pgdn page · ←/→ change · ↵ save · / search · esc or click outside closes']
 function openConfig(cols: number): Send[] {
