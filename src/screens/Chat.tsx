@@ -1735,6 +1735,39 @@ export function Chat({
   useLayoutEffect(() => {
     const restore = scrollRestoreRef.current;
     if (!restore || !flipInk) return;
+    if (!restore.sticky && scrollRef.current) {
+      const handle = scrollRef.current;
+      type ScrollNodeLike = {
+        style?: { overflowY?: string; paddingTop?: number; paddingBottom?: number };
+        scroll?: { scrollTop?: number; scrollViewportHeight?: number };
+        layoutNode?: { getComputedWidth: () => number; getComputedHeight: () => number };
+        childNodes?: ScrollNodeLike[];
+      };
+      const syncViewport = (node: ScrollNodeLike | undefined): number | undefined => {
+        if (!node) return undefined;
+        if (
+          node.style?.overflowY === 'scroll' &&
+          node.scroll !== undefined &&
+          (node.scroll.scrollTop ?? 0) === handle.getScrollTop() &&
+          (node.scroll.scrollViewportHeight ?? 0) === handle.getViewportHeight() &&
+          node.layoutNode &&
+          node.layoutNode.getComputedWidth() > 0
+        ) {
+          const inner = Math.max(0, Math.floor(node.layoutNode.getComputedHeight()) - (node.style.paddingTop ?? 0) - (node.style.paddingBottom ?? 0));
+          node.scroll.scrollViewportHeight = inner;
+          return inner;
+        }
+        for (const child of node.childNodes ?? []) {
+          const found = syncViewport(child);
+          if (found !== undefined) return found;
+        }
+        return undefined;
+      };
+      const viewport = syncViewport((flipInk as unknown as { rootNode?: ScrollNodeLike }).rootNode) ?? handle.getViewportHeight();
+      const freshHeight = handle.getFreshScrollHeight();
+      const maxAboveTail = Math.max(0, freshHeight - viewport - 1);
+      handle.scrollTo(Math.min(maxAboveTail, Math.max(0, freshHeight - viewport - restore.gap)));
+    }
     const stop = flipInk.subscribeFrame(() => {
       if (scrollRestoreRef.current !== restore) {
         stop();
