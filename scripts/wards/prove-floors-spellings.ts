@@ -1420,6 +1420,20 @@ if (runs('OWN')) {
     bash('rm -rf $(dirname build/x)'),
   ]
   for (const item of others) await expect('OWN', item, ['sovereign'], notRefused, 'is not refused by the floor')
+  const SPELLED = `${join(OWN_HOME, '.mercury', 'runtime')} is part of Mercury`
+  const spelledBy: Call[] = [
+    bash('rm -rf ~/.mercury/runtime', 'the Bash tool'),
+    call('Write', { file_path: '<HOME>/.mercury/runtime/current/mercury.mjs', content: 'x' }, 'the Write tool'),
+    call('Eval', { language: 'py', code: "import shutil\nshutil.rmtree('<HOME>/.mercury/runtime')" }, 'Eval'),
+  ]
+  for (const item of spelledBy) {
+    const told = await reading(item, 'sovereign')
+    check(`OWN · ${told.what}${item.why ? ` (${item.why})` : ''} · the refusal names the runtime folder as the disk spells it`, told.decision.behavior === 'deny' && (told.decision.message ?? '').includes(SPELLED), String(told.decision.message))
+  }
+  const shouted = bash(`rm -rf ${join(OWN_HOME, '.mercury', 'runtime').toUpperCase()}`, 'the folder spelled in another case')
+  await expect('OWN', shouted, ['sovereign', 'flow', 'default'], refused, 'is refused all the same')
+  const shoutedTold = await reading(shouted, 'sovereign')
+  check('OWN · …and the sentence still names the folder as the disk spells it, not as the line did', (shoutedTold.decision.message ?? '').includes(SPELLED), String(shoutedTold.decision.message))
   process.env.MERCURY_WARDS = '0'
   await expect('OWN', bash('kill -- -<DAEMON_PID>', 'with MERCURY_WARDS=0'), ['sovereign'], refused, 'is refused all the same')
   delete process.env.MERCURY_WARDS

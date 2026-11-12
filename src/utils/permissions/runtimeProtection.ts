@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { userInfo } from 'node:os'
 import { dirname, join, posix } from 'node:path'
 import { execFileSync } from 'node:child_process'
@@ -29,7 +29,30 @@ export function placedUnder(path: string, cwd: string | undefined): string {
   return posix.join(cwd.replace(/\\/g, '/'), word)
 }
 
+function spelledOnDisk(path: string): string {
+  if (!/^(?:\/(?!\/)|[a-z]:\/)/i.test(path)) return path
+  const parts = path.split('/').filter(part => part !== '')
+  const drive = /^[a-z]:$/i.test(parts[0] ?? '') ? parts.shift()!.toUpperCase() : ''
+  const found: string[] = []
+  for (const [index, part] of parts.entries()) {
+    let names: string[] = []
+    try {
+      names = readdirSync(`${drive}/${found.join('/')}`)
+    } catch {
+    }
+    const name = names.includes(part) ? part : names.find(entry => entry.normalize('NFC').toLowerCase() === part)
+    if (name === undefined) return `${drive}/${[...found, ...parts.slice(index)].join('/')}`
+    found.push(name)
+  }
+  return `${drive}/${found.join('/')}`
+}
+
 export function runtimeWritePath(path: string, cwd = getShellCwd(), removesTree = true): string | null {
+  const root = runtimeRootOf(path, cwd, removesTree)
+  return root === null ? null : spelledOnDisk(root)
+}
+
+function runtimeRootOf(path: string, cwd: string, removesTree: boolean): string | null {
   const roots = runtimeRoots()
   for (const candidate of protectedPathForms(placedUnder(path, cwd), cwd)) {
     const conventional = candidate.match(/^(?:\/(?:users|home)\/[^/]+|\/root|[a-z]:\/users\/[^/]+)\/\.mercury\/runtime(?=\/|$)/)?.[0]
