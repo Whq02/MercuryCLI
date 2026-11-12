@@ -1151,6 +1151,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       this.reconcileSends()
       this.retireTextRows()
       this.paint()
+      if (this.awaitingRunnerFacts || this.facts?.runner?.state === 'starting') this.readFacts()
       this.recomputeLive()
     } catch (error) {
       connectorTrace({ ev: 'tick-error', sid: this.record.sessionId, message: error instanceof Error ? error.message : String(error) })

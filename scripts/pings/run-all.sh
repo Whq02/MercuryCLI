@@ -18,6 +18,7 @@
 # gate-watch: src/services/crew/obligations.ts src/services/crew/obligationsBridge.ts
 # gate-watch: src/services/engine-connector/seatProjections.ts src/utils/*
 # gate-watch: src/services/engine-connector/focusedConnector.ts src/services/engine-connector/seatLive.ts
+# gate-watch: src/ink.ts src/utils/config/globalConfig.ts scripts/lib/seedTranscript.ts
 # gate-watch: src/components/PromptInput/useComposerModelDoors.tsx
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

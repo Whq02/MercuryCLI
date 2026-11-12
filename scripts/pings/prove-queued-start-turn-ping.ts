@@ -38,6 +38,7 @@ const {
   subscribeFocusedSessionConnector,
   subscribeThroughFocused,
 } = await import('../../src/services/engine-connector/focusedConnector.ts')
+const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 import type { SessionFactsV1 } from '../../src/services/engine-connector/seatProjections.ts'
 
 let failures = 0
@@ -320,6 +321,55 @@ try {
     feedFacts(c)
     await wait(THRESHOLD_MS + 60)
     check('7. session with no worker record at all behaves identically to today (falling edge pings once)', osc9Count() - before === 1, `delta=${osc9Count() - before}`)
+  }
+
+  {
+    const sid = '00000000-0000-4000-8000-000000000008'
+    writeWorkers({ 'concourse-w1': { sessionId: sid, lastDeliveryAt: 8000 } })
+    writeFacts(sid, {
+      busy: false,
+      runner: { state: 'starting', sinceMs: 7900, respawns: 0, maxRespawns: 3 },
+      queue: [{ uuid: '00000000-0000-4000-8000-0000000000b1', value: 'apricot', mode: 'prompt' }],
+    })
+    const c = makeConnector(sid)
+    ;(c as unknown as { attached: boolean }).attached = true
+    setFocusedSessionConnector(c)
+    await wait(20)
+    check('8. pre-tick: status reports the runner starting', c.status().runner?.state === 'starting')
+    const before = osc9Count()
+    writeWorkers({ 'concourse-w1': { sessionId: sid, lastDeliveryAt: 8000, lastTurnSettledAt: 8500 } })
+    writeFacts(sid, { busy: false, queue: [] })
+    writeFileSync(
+      c.transcriptFile(),
+      encodeSeedTranscript(
+        [
+          { isSidechain: false, entrypoint: 'cli', cwd: work, sessionId: sid, version: '1.0.10', gitBranch: 'main', parentUuid: null, type: 'user', uuid: '00000000-0000-4000-8000-0000000000b1', timestamp: '2026-11-12T17:43:38.000Z', message: { role: 'user', content: 'apricot' } },
+          { isSidechain: false, entrypoint: 'cli', cwd: work, sessionId: sid, version: '1.0.10', gitBranch: 'main', parentUuid: '00000000-0000-4000-8000-0000000000b1', type: 'assistant', uuid: '00000000-0000-4000-8000-0000000000b2', timestamp: '2026-11-12T17:43:41.000Z', message: { id: 'msg_b2', type: 'message', role: 'assistant', model: 'claude-opus-5-5', content: [{ type: 'text', text: 'Apricot, as asked.' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 4 } } },
+        ],
+        sid,
+      ),
+    )
+    await (c as unknown as { tick: () => Promise<void> }).tick()
+    const completedAfterFirstTick = c.lastTurnCompletedAtMs()
+    check('8a. transcript arrival while runner is starting refreshes facts at once, clearing "the runner is starting"', c.status().runner === null, JSON.stringify(c.status().runner))
+    await wait(THRESHOLD_MS + 60)
+    check('8b. that same refresh picks up the settled stamp and pings once without waiting for the idle facts timer', osc9Count() - before === 1, `delta=${osc9Count() - before}`)
+    writeWorkers({ 'concourse-w1': { sessionId: sid, lastDeliveryAt: 9000, lastTurnSettledAt: 9500 } })
+    writeFacts(sid, { busy: false, runner: { state: 'crashed', sinceMs: 9100, respawns: 1, maxRespawns: 3 } })
+    writeFileSync(
+      c.transcriptFile(),
+      encodeSeedTranscript(
+        [
+          { isSidechain: false, entrypoint: 'cli', cwd: work, sessionId: sid, version: '1.0.10', gitBranch: 'main', parentUuid: null, type: 'user', uuid: '00000000-0000-4000-8000-0000000000b1', timestamp: '2026-11-12T17:43:38.000Z', message: { role: 'user', content: 'apricot' } },
+          { isSidechain: false, entrypoint: 'cli', cwd: work, sessionId: sid, version: '1.0.10', gitBranch: 'main', parentUuid: '00000000-0000-4000-8000-0000000000b1', type: 'assistant', uuid: '00000000-0000-4000-8000-0000000000b2', timestamp: '2026-11-12T17:43:41.000Z', message: { id: 'msg_b2', type: 'message', role: 'assistant', model: 'claude-opus-5-5', content: [{ type: 'text', text: 'Apricot, as asked.' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 4 } } },
+          { isSidechain: false, entrypoint: 'cli', cwd: work, sessionId: sid, version: '1.0.10', gitBranch: 'main', parentUuid: '00000000-0000-4000-8000-0000000000b2', type: 'user', uuid: '00000000-0000-4000-8000-0000000000b3', timestamp: '2026-11-12T17:43:45.000Z', message: { role: 'user', content: 'next' } },
+        ],
+        sid,
+      ),
+    )
+    await (c as unknown as { tick: () => Promise<void> }).tick()
+    check('8c. once runner is no longer starting, ordinary fast transcript ticks do not re-read facts or workers', c.status().runner === null && c.lastTurnCompletedAtMs() === completedAfterFirstTick)
+    c.detach()
   }
 } finally {
   mounted.unmount()
