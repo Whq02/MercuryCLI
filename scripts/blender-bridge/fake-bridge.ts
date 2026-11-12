@@ -204,7 +204,7 @@ export function startFakeBlenderBridge(opts: FakeBlenderBridgeOpts = {}): Promis
                 frameCurrent: 1,
                 frameStart: 1,
                 frameEnd: 250,
-                engine: 'BLENDER_EEVEE_NEXT',
+                engine: 'BLENDER_EEVEE',
                 mode: 'OBJECT',
                 activeObject: 'Cube',
               },
@@ -263,7 +263,7 @@ export function startFakeBlenderBridge(opts: FakeBlenderBridgeOpts = {}): Promis
               ok: true,
               result: {
                 jobs: { render: state.renderInFlight, renderPreview: false, composite: false, objectBake: false },
-                engine: 'BLENDER_EEVEE_NEXT',
+                engine: 'BLENDER_EEVEE',
                 resolutionX: 1920,
                 resolutionY: 1080,
                 resolutionPercentage: 100,
