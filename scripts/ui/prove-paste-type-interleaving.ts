@@ -304,6 +304,21 @@ try {
   await driveSteps('paste holding lone ESC strips control without clearing draft', [[`xy${wrap('aa\x1bbb')}`, 0]], [], 'xy aabb')
   await driveSteps('paste holding ESC ESC strips controls without firing double-ESC clear', [[`xy${wrap('aa\x1b\x1bbb')}`, 0]], [], 'xy aabb')
   await driveSteps('paste holding start marker keeps literal text', [[wrap(`AAA${PS}BBB`), 0]], [], 'AAABBB')
+  await driveSteps('two start markers with typing around them + Enter sends whole text', [[`ab${PS}AAA${PS}BBB${PE}cd\r`, 0]], ['ab AAABBBcd'], '')
+  {
+    await clearComposer()
+    const beforeNoEnd = sent.length
+    m.push(`${PS}NO_END_PASTE`)
+    await waitFor(() => pending.text() === 'NO_END_PASTE', 2000)
+    m.push(' ok\r')
+    await waitFor(() => sent.length > beforeNoEnd, 1000)
+    await settle(65)
+    check(
+      'start marker with no end flushes on paste timeout and typing after it sends both',
+      JSON.stringify(sent.slice(beforeNoEnd)) === JSON.stringify(['NO_END_PASTE ok']) && expandedDraft() === '',
+      `sent=${JSON.stringify(sent.slice(beforeNoEnd))} draft=${JSON.stringify(expandedDraft())}`,
+    )
+  }
   await driveSteps('stream with end marker inside paste then BBB and CR never drops AAA', [[`${PS}AAA${PE}BBB\r`, 0]], ['AAABBB'], '')
   await driveSteps(
     'stream with end marker inside paste, BBB, CR and trailing end marker never drops AAA',
@@ -361,6 +376,31 @@ try {
         'with an image in the fake clipboard, the sent unbracketed burst carries only text pastes and no image',
         JSON.stringify(burstTypes) === JSON.stringify(['text']),
         `pasteTypes=${JSON.stringify(burstTypes)}`,
+      )
+
+      await clearComposer()
+      m.push(PE)
+      await settle(150)
+      check(
+        'with an image in the fake clipboard, a bare unmatched end marker drops its bytes and never attaches the image',
+        expandedDraft() === '' && Object.keys(pending.pastedContents()).length === 0,
+        `draft=${JSON.stringify(expandedDraft())} pastes=${JSON.stringify(pending.pastedContents())}`,
+      )
+
+      await driveSteps(
+        'with an image in the fake clipboard, typing around an unmatched end marker drops its bytes and never attaches the image',
+        [[`ab${PE}cd\r`, 0]],
+        ['abcd'],
+        '',
+        150,
+      )
+
+      await driveSteps(
+        'with an image in the fake clipboard, stream with end marker inside paste, BBB, CR and trailing end marker sends AAABBB without attaching the image',
+        [[`${PS}AAA${PE}BBB\r${PE}`, 0]],
+        ['AAABBB'],
+        '',
+        150,
       )
 
       await clearComposer()
