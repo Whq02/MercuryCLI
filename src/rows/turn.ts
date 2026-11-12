@@ -1102,6 +1102,7 @@ export class Conversation {
             void recordDelta()
           } else {
             await recordDelta()
+            if (isBoundary && !persistenceDisabled) await recordTurnStart(turnId).catch((error: unknown) => logError(error))
             if (!persistenceDisabled) await flushSessionStorage().catch(() => {})
           }
         }
