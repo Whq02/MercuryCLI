@@ -27,6 +27,7 @@ export type ReadCommand = {
   gates?: ReadonlyArray<readonly [number, number]> | undefined
   maybes?: readonly number[] | undefined
   substituted?: boolean | undefined
+  called?: 'name' | 'block' | undefined
 }
 
 export type Layer = {
@@ -851,10 +852,15 @@ type PsToken = { value: string; text: string; inner: number[]; bare: boolean }
 const PS_STATEMENT_HEAD = new RegExp(`(?:^|${UNREAD_PART})(?:foreach|for|if|elseif|while|switch|until)$`, 'i')
 const PS_LOOP_VARIABLE = new RegExp(`^(?:\\[.*\\])?\\$(?:${UNREAD_PART}|[\\p{L}\\p{N}_?^$])`, 'u')
 
+const PS_ASSIGNS = /^([^=]*?)(?:[-+*/%]|\?\?)?=([\s\S]*)$/
+const PS_VALUE_START = /^[$[('"@{]/
+
 const PS_MOVES = new Set(['cd', 'chdir', 'sl', 'set-location', 'pushd', 'push-location'])
 
 class PowerShellWalk {
   at = 0
+  typed = false
+  glued = false
   gates: ReadonlyArray<readonly [number, number]> = []
   maybes: readonly number[] = []
   previous: readonly [number, number] | undefined
@@ -922,6 +928,39 @@ class PowerShellWalk {
     return stops && !/\btrap\b/i.test(this.source) ? 'stops' : undefined
   }
 
+  valueOf(words: readonly PsToken[]): readonly PsToken[] {
+    let targets = true
+    for (const [at, word] of words.entries()) {
+      const found = word.bare ? PS_ASSIGNS.exec(word.value) : null
+      const parts = found !== null && !found[1]!.includes('(') ? found : null
+      const target = word.bare && /^[$[,]/.test(parts === null ? word.value : parts[1]!)
+      if (parts === null || parts[1] !== '') {
+        if (at > 0 && !(targets && target)) return words
+        targets = targets && target
+        if (parts === null) continue
+      } else if (at === 0 || !(targets || at === 1)) return words
+      return this.valueOf(parts[2] === '' ? words.slice(at + 1) : [{ ...word, value: parts[2]!, text: parts[2]! }, ...words.slice(at + 1)])
+    }
+    return words
+  }
+
+  handed(stages: readonly Stage[]): number[] {
+    const text = this.source
+    const made: number[] = []
+    const typed = this.typed
+    this.typed = true
+    while (this.at < text.length) {
+      this.blank(true)
+      if (this.at >= text.length || text[this.at] === ')') break
+      const part = this.token(stages)
+      if (part === undefined) this.at++
+      else made.push(...part.inner)
+    }
+    if (text[this.at] === ')') this.at++
+    this.typed = typed
+    return made
+  }
+
   asksSuccess(tokens: readonly PsToken[]): boolean {
     const head = tokens[1]
     const asked = tokens.length === 2 && head !== undefined && head.value === UNREAD_PART && head.inner.length === 1 ? this.reading.commands[head.inner[0]!] : undefined
@@ -958,7 +997,7 @@ class PowerShellWalk {
         this.blank(false)
         const ch = text[this.at]
         if (ch === undefined || ch === '\n' || ch === ';' || ch === '|' || (closer !== undefined && ch === closer) || ch === ')' || ch === '}') break
-        if (ch === '&' && (tokens.length > 0 || text[this.at + 1] === '&')) break
+        if (ch === '&' && (text[this.at + 1] === '&' || (tokens.length > 0 && this.valueOf(tokens).length > 0))) break
         const redirect = /^(?:[0-9*]?>>?(?:&[0-9])?)/.exec(text.slice(this.at, this.at + 5))
         if (redirect !== null) {
           this.at += redirect[0].length
@@ -976,14 +1015,13 @@ class PowerShellWalk {
         tokens.push(token)
       }
       const background = text[this.at] === '&' && text[this.at + 1] !== '&'
-      let words = tokens
-      if (words[0] !== undefined && words[0].bare && (words[0].value === '&' || words[0].value === '.')) words = words.slice(1)
-      const assigned = words.findIndex(word => word.bare && /^[-+*/]?=$/.test(word.value))
-      if (assigned === 1) words = words.slice(2)
-      else if (words === tokens && words.length > 2 && words[0]!.bare && PS_LOOP_VARIABLE.test(words[0]!.value) && words[1]!.bare && words[1]!.value.toLowerCase() === 'in') words = words.slice(2)
+      let words = this.valueOf(tokens)
+      if (words === tokens && words.length > 2 && words[0]!.bare && PS_LOOP_VARIABLE.test(words[0]!.value) && words[1]!.bare && words[1]!.value.toLowerCase() === 'in') words = words.slice(2)
+      const called = words[0] !== undefined && words[0].bare && (words[0].value === '&' || words[0].value === '.')
+      if (called) words = words.slice(1)
       const argv: string[] = []
       const inner: number[][] = []
-      for (const word of words) {
+      for (const word of this.typed && !called && words[0]?.bare === false ? [] : words) {
         const parts = word.bare && word.value.includes(',') && !word.value.includes(UNREAD_PART) ? word.value.split(',').filter(part => part !== '') : [word.value]
         for (const part of parts) {
           argv.push(part)
@@ -1009,6 +1047,7 @@ class PowerShellWalk {
             around: this.frame.around,
             gates: this.gates.length > 0 ? this.gates : undefined,
             maybes: this.maybes.length > 0 ? this.maybes : undefined,
+            called: called ? (words[0]?.text.startsWith('{') ? 'block' : 'name') : undefined,
           }),
         )
       if (text[this.at] === '|' && text[this.at + 1] !== '|') {
@@ -1028,10 +1067,13 @@ class PowerShellWalk {
     return made
   }
 
-  group(closer: string, stages: readonly Stage[]): number[] {
+  group(closer: string, stages: readonly Stage[], typed = this.typed): number[] {
     const before = this.reading.commands.length
     const cwd = this.reading.cwd
+    const outer = this.typed
+    this.typed = typed
     this.statements(closer, stages)
+    this.typed = outer
     if (this.source[this.at] === closer) this.at++
     this.reading.cwd = cwd
     const made: number[] = []
@@ -1042,13 +1084,18 @@ class PowerShellWalk {
   token(stages: readonly Stage[]): PsToken | undefined {
     const text = this.source
     const start = this.at
+    const glued = this.glued
+    this.glued = false
     let value = ''
     let bare = true
     const inner: number[] = []
     while (this.at < text.length) {
       const ch = text[this.at]!
       if (ch === ' ' || ch === '\t' || ch === '\r' || ch === '\n' || ch === ';' || ch === '|' || ch === ')' || ch === '}') break
-      if (ch === '&' && this.at > start) break
+      if (ch === '&') {
+        if (this.at === start) value += text[this.at++]
+        break
+      }
       if (ch === '>' && this.at > start) break
       if ((ch === '@' && (text[this.at + 1] === "'" || text[this.at + 1] === '"')) && text[this.at + 2] === '\n') {
         const quote = text[this.at + 1]!
@@ -1101,18 +1148,18 @@ class PowerShellWalk {
       if (ch === '(' && bare && PS_STATEMENT_HEAD.test(value)) break
       if (ch === '(' || ((ch === '$' || ch === '@') && text[this.at + 1] === '(')) {
         if (ch === '(' && value !== '' && /[\w\]]$/.test(value)) {
-          const open = this.at
-          let depth = 0
-          for (; this.at < text.length; this.at++) {
-            if (text[this.at] === '(') depth++
-            else if (text[this.at] === ')' && --depth === 0) break
+          if (!PS_VALUE_START.test(text[start]!)) {
+            this.glued = true
+            break
           }
-          this.at++
+          const open = this.at++
+          inner.push(...(value.endsWith(']') ? this.group(')', [], true) : this.handed(stages)))
           value += text.slice(open, this.at)
           continue
         }
+        const own = glued && this.at === start
         this.at += ch === '(' ? 1 : 2
-        inner.push(...this.group(')', []))
+        inner.push(...this.group(')', [], own || this.typed))
         value += UNREAD_PART
         continue
       }

@@ -1367,6 +1367,152 @@ if (runs('PARAMS')) {
   await expect('PARAMS', call('PowerShell', { command: 'Copy-Item .\\other ~\\.ssh\\authorized_keys -ErrorAction Stop' }, 'the whole decision of the PowerShell tool'), ['sovereign', 'flow', 'default'], refused, 'is refused')
 }
 
+if (runs('CALLS')) {
+  section('CALLS · on the PowerShell tool a command that stands in the parentheses of a cast, of a call or of the word it is glued to, in a block handed to a method, or behind an assignment in any of its spellings, is read as the command it is; text that stands there is not')
+  const floors = await import('../../src/utils/permissions/shellProtectedPaths.ts')
+  const { refusalOfShellCommand } = await import('../../src/utils/wards/wardsRefusals.ts')
+  const warded = async (line: string, from = PROJECT): Promise<string | null> => {
+    const verdict = await refusalOfShellCommand({ toolName: 'PowerShell', input: { command: line }, shellCommand: line, startingFolder: from }, from)
+    return verdict.allow ? null : verdict.rule.name
+  }
+  const deletes = [
+    '[void](Remove-Item -Recurse -Force ~)',
+    '[void](rm -r -fo $HOME)',
+    '$x = [string[]](Remove-Item -Recurse -Force ~)',
+    '[Console]::WriteLine((Remove-Item -Recurse -Force ~))',
+    '$list.Add((Remove-Item -Recurse -Force ~))',
+    '(1..2).ForEach({ Remove-Item -Recurse -Force ~ })',
+    'Write-Host(Remove-Item -Recurse -Force ~)',
+    'echo(Remove-Item -Recurse -Force ~)',
+    'return(Remove-Item -Recurse -Force ~)',
+    'throw(Remove-Item -Recurse -Force ~)',
+    '-not(Remove-Item -Recurse -Force ~)',
+    '$x = . Remove-Item -Recurse -Force ~',
+    '[string] $x = Remove-Item -Recurse -Force ~',
+    '$x, $y = Remove-Item -Recurse -Force ~',
+    '$x=Remove-Item -Recurse -Force ~',
+    '$a = $b = Remove-Item -Recurse -Force ~',
+    '@{a=Remove-Item -Recurse -Force ~}',
+    '$x = &Remove-Item -Recurse -Force ~',
+  ]
+  for (const line of deletes) {
+    const answer = await warded(line)
+    check(`CALLS · the delete ward · ${shown(line)} · is refused as a recursive delete of the home`, answer === 'no-root-recursive-delete', String(answer))
+  }
+  const harmless = [
+    '[Console]::WriteLine("rm -rf ~")',
+    '"Remove-Item -Recurse ~".Length',
+    '(Get-Date).ToString("yyyy")',
+    '[math]::Max(1, 2)',
+    '$list.Add((Get-Item .))',
+    "[string]::Join(',', $names)",
+    'Write-Host ("del " + $path)',
+    '$x = [int]"5"',
+    'if ((Test-Path x)) { Write-Output yes }',
+    'Write-Host("sudo")',
+    'Write-Output("rm -rf ~")',
+    'throw("shutdown failed")',
+    '[string]("reboot")',
+    '[void]("sudo")',
+    '[Console]::WriteLine("sudo")',
+    'param([string]$cmd = "sudo")',
+    'Write-Host("sudo " + $x)',
+    '[void](Remove-Item -Recurse -Force .\\build)',
+    '[void](New-Item -ItemType Directory out)',
+    '$out = & git status --short',
+    '$r = . .\\helpers.ps1',
+    '[string] $name = "rm -rf ~"',
+    '$a, $b = "rm", "-rf"',
+    '$files.ForEach({ $_.Name })',
+    '[void]$list.Add("rm -rf ~")',
+    'Start-Sleep(5)',
+    'Test-Path("x")',
+    '$count=(Get-ChildItem).Count',
+    '-not(Test-Path x)',
+    '[int]$n=(Get-Content count.txt)',
+    "[regex]::Match($line, 'del\\s+/s')",
+    '$sb.AppendLine("Get-ChildItem -Recurse | Get-Content")',
+  ]
+  for (const line of harmless) {
+    const ward = await warded(line)
+    const read = await floors.shellMercurySecretPath(line, true, OWN_HOME)
+    const write = await floors.shellCredentialWritePath(line, true, PROJECT)
+    const runtime = await floors.shellSelfProtectionReason(line, true, PROJECT)
+    check(`CALLS · ${shown(line)} · text or a value in a call's parentheses, behind a cast or behind an assignment is no command: the wards and the three floors do not refuse it`, ward === null && read === null && write === null && runtime === null, `ward ${ward} · read ${read} · write ${write} · runtime ${runtime}`)
+  }
+  const reads = [
+    '[void](Get-ChildItem -Recurse | Get-Content)',
+    '[string[]](gci -r | gc)',
+    '$x = [string[]](gci -r | gc)',
+    '[array](gci -r | sls canary)',
+    '(gci -r).ForEach({ Get-Content $_.FullName })',
+    "[string]::Join(',', (gci -r | gc))",
+    '[Console]::WriteLine((gci -r | gc))',
+    '$sb.Append((Get-ChildItem -Recurse | Get-Content))',
+    '$x = [IO.File]::ReadAllText((gci -r)[0].FullName)',
+    'Write-Host(gci -r | gc)',
+    'Write-Output(Get-ChildItem -Recurse | Select-String canary)',
+    'return(gci -r | gc)',
+    'Get-Content(gci -r)',
+    '[string] $x = gci -r | gc',
+    '$x, $y = gci -r | gc',
+    '$x=gci -r | gc',
+    '$x =gci -r | gc',
+    '$a = $b = gci -r | gc',
+    '$x = . gci -r | gc',
+    '@{all=gci -r | gc}',
+    'foreach ($f in gci -r) { $out = & $reader $f.FullName }',
+    'foreach ($f in gci -r) { $out = &$reader $f.FullName }',
+    'foreach ($f in gci -r) { [void](& $reader $f.FullName) }',
+  ]
+  for (const line of reads) {
+    const answer = await floors.shellMercurySecretPath(line, true, OWN_HOME)
+    check(`CALLS · the read floor, standing in the home · ${shown(line)} · is refused as a read of the credentials`, answer !== null, String(answer))
+  }
+  const listings = [
+    '[int](Get-ChildItem -Recurse | Measure-Object).Count',
+    '[string[]](Get-ChildItem -Recurse -Name)',
+    '$names=gci -r -Name',
+    'Write-Output(Get-Date)',
+    'Write-Host("gci -r | gc")',
+    '(Get-ChildItem Documents -Recurse).ForEach({ Get-Content $_.FullName })',
+    '[void](Get-ChildItem Documents -Recurse | Select-String TODO)',
+    'Get-Content(Join-Path $PWD notes.txt)',
+    '$files.Where({ $_.Length -gt 1mb })',
+  ]
+  for (const line of listings) {
+    const answer = await floors.shellMercurySecretPath(line, true, OWN_HOME)
+    check(`CALLS · the read floor, standing in the home · ${shown(line)} · a listing that is counted or kept, a folder beneath, or text: not refused by the floor`, answer === null, String(answer))
+  }
+  const writes = [
+    '$r = . Set-Content ~\\.ssh\\authorized_keys x',
+    '[string] $r = Set-Content ~\\.ssh\\authorized_keys x -PassThru',
+    '$a, $b = Set-Content ~\\.ssh\\authorized_keys x -PassThru',
+    '$r=Set-Content ~\\.ssh\\authorized_keys x',
+    '$a = $b = Set-Content ~\\.ssh\\authorized_keys x',
+    '(1..2).ForEach({ Set-Content ~\\.ssh\\authorized_keys x })',
+    '@{a=Set-Content ~\\.ssh\\authorized_keys x}',
+    '[void](Set-Content ~\\.ssh\\authorized_keys x)',
+    'Write-Host(Set-Content ~\\.ssh\\authorized_keys x -PassThru)',
+  ]
+  for (const line of writes) {
+    const answer = await floors.shellCredentialWritePath(line, true, PROJECT)
+    check(`CALLS · the credential-store floor · ${shown(line)} · is refused as a write to the credential store`, answer !== null, String(answer))
+  }
+  for (const line of ['[void](Set-Content .\\notes.txt x)', '$r = . Set-Content .\\notes.txt x', '(1..2).ForEach({ Set-Content .\\out.txt $_ })', 'Write-Host("Set-Content ~\\.ssh\\authorized_keys x")', '[Console]::WriteLine("~\\.ssh\\authorized_keys")', '$list.Add("~\\.ssh\\authorized_keys")']) {
+    const answer = await floors.shellCredentialWritePath(line, true, PROJECT)
+    check(`CALLS · the credential-store floor · ${shown(line)} · a write in the project, or text that names the path: not refused by the floor`, answer === null, String(answer))
+  }
+  for (const line of ['[void](Remove-Item -Recurse <CONFIG>\\runtime)', '$x = . Remove-Item -Recurse <CONFIG>\\runtime', '(1..2).ForEach({ Remove-Item -Recurse <CONFIG>\\runtime })', '[string] $x = Remove-Item -Recurse <CONFIG>\\runtime']) {
+    const answer = await floors.shellSelfProtectionReason(fill(line), true, PROJECT)
+    check(`CALLS · the runtime floor · ${shown(fill(line))} · is refused as a delete of the running runtime`, answer !== null, String(answer))
+  }
+  bootstrap.setCwdState(OWN_HOME)
+  await expect('CALLS · the session standing in the home', call('PowerShell', { command: '[string[]](Get-ChildItem -Recurse | Get-Content)' }, 'the whole decision of the PowerShell tool'), ['sovereign', 'flow', 'default'], refusedAsSecret, 'is refused as a read of the credentials')
+  await expect('CALLS · the session standing in the home', call('PowerShell', { command: '[string[]](Get-ChildItem -Recurse -Name)' }, 'the names alone'), ['sovereign'], notRefused, 'is not refused by the floor')
+  bootstrap.setCwdState(PROJECT)
+}
+
 if (runs('T-3.5')) {
   const state = daemonStatePath()
   section('T-3.5 floor 4: kills of the daemon and of the session, and writes into the runtime, under Sovereign and Flow')

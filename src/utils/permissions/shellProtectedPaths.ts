@@ -747,7 +747,7 @@ function readsHandedFiles(found: Layer): boolean {
 }
 
 function callsUnreadName(later: ReadCommand): boolean {
-  return later.dialect === 'powershell' && /^(?:&|\.\s)/.test(later.text) && !wordKnown(later.argv[0] ?? '') && (((later.stages.at(-1)?.stage ?? 0) > 0 && !/^(?:&|\.)\s*\{/.test(later.text)) || later.argv.slice(1).some(word => !wordKnown(word) || /^@[\w:?]+$/.test(word)))
+  return later.dialect === 'powershell' && later.called !== undefined && !wordKnown(later.argv[0] ?? '') && (((later.stages.at(-1)?.stage ?? 0) > 0 && later.called === 'name') || later.argv.slice(1).some(word => !wordKnown(word) || /^@[\w:?]+$/.test(word)))
 }
 
 function searchesText(found: Layer): boolean {
