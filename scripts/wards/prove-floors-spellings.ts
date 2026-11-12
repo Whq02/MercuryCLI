@@ -777,6 +777,10 @@ if (runs('LISTED')) {
     '& { gci -r -Name; gci -r } | sls canary',
     'if ($true) { gci -r -Name | Get-Item | sls canary }',
     'if ($true) { gci -r -Name | % { Get-Content $_ } }',
+    'gci -r | % FullName | Get-Content',
+    'gci -r | % FullName | Get-Item | sls canary',
+    'gci -r | % FullName | sls canary -Path { $_ }',
+    'gci -r | Out-String -Stream | % { gc $_.Trim() }',
   ]
   for (const line of readers) {
     const answer = await asked(line, OWN_HOME)
@@ -805,6 +809,9 @@ if (runs('LISTED')) {
     'try { Get-ChildItem -Recurse -Name | Select-String foo } catch {}',
     '1 | % { gci -r -Name } | sls foo',
     'function f { gci -r -Name | sls foo }; f',
+    'gci -r | % FullName | sls foo',
+    'gci -r | Out-String -Stream | sls foo',
+    'gci -r | ForEach-Object Name | Select-String foo',
   ]
   for (const line of listings) {
     const answer = await asked(line, OWN_HOME)
