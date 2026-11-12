@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs'
 import * as net from 'node:net'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
@@ -95,6 +95,7 @@ section('3. armed, home, nothing listening — unreachable with teaching; readin
   const session = await buildBlenderBridgeIdeSession(work)
   check('bridge unreachable with the install + ENABLE hint', session.bridge.state === 'unreachable' && /blender_bridge_install/.test(session.bridge.detail) && /enable/i.test(session.bridge.detail))
   check('install truth carried (not installed)', session.bridge.state === 'unreachable' && session.bridge.install.installed === false)
+  check('token truth carried (absent), and the read left the add-on home empty', session.bridge.state === 'unreachable' && session.bridge.tokenPresent === false && readdirSync(home).length === 0, readdirSync(home).join(','))
   check('editor truth unavailable (bridge unreachable)', session.editor.state === 'unavailable' && /unreachable/.test((session.editor as { detail: string }).detail))
   const rows = blenderBridgeReadinessRecords()
   check(

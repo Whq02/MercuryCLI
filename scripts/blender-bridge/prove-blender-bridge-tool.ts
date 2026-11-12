@@ -48,6 +48,9 @@ const bare = path.join(scratch, 'bare')
 mkdirSync(bare, { recursive: true })
 const addonHome = path.join(scratch, 'addons')
 mkdirSync(addonHome, { recursive: true })
+const noBlender = path.join(scratch, 'no-such-blender')
+const pinnedBlender = path.join(scratch, 'pinned-blender')
+writeFileSync(pinnedBlender, '#!/bin/sh\n')
 
 const hasBlender = () => getAllBaseTools().some(t => t.name === 'Blender')
 const callTool = async (op: string, args?: Record<string, unknown>): Promise<string> => {
@@ -71,11 +74,17 @@ section('§1 · OFF (default) — byte-identical absence')
 section('§2 · ARMED — catalog + teaching surfaces + the danger sentences (the double-pin)')
 {
   process.env.MERCURY_BLENDER = '1'
+  process.env.MERCURY_BLENDER_BIN = noBlender
   resetBlenderBridgeClientForTest()
   _resetBlenderBridgeContextCacheForTesting()
   check('Blender tool present beside a .blend', await runWithCwdOverride(work, async () => hasBlender()))
   _resetBlenderBridgeContextCacheForTesting()
-  check('Blender tool absent in a blend-less dir (no ghost tool)', await runWithCwdOverride(bare, async () => !hasBlender()))
+  check('Blender tool absent in a blend-less dir with no Blender located (no ghost tool)', await runWithCwdOverride(bare, async () => !hasBlender()))
+  process.env.MERCURY_BLENDER_BIN = pinnedBlender
+  _resetBlenderBridgeContextCacheForTesting()
+  check('Blender tool present in a blend-less dir once a Blender is located', await runWithCwdOverride(bare, async () => hasBlender()))
+  delete process.env.MERCURY_BLENDER_BIN
+  _resetBlenderBridgeContextCacheForTesting()
   const desc = getBlenderToolDescription()
   check('description carries the verb catalog', desc.includes('python_run') && desc.includes('objects_list') && desc.includes('blender_bridge_install'))
   check('description says once that the connection holds across opens and renders', desc.split('The connection holds across blend_open and renders.').length === 2 && !desc.includes('NO-RELOAD'))

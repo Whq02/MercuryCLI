@@ -92,6 +92,13 @@ for (const [columns, rows] of SIZES) {
       if (frameDir) writeFileSync(join(frameDir, `${columns}x${rows}-pane-${paneRows}.txt`), lines.join('\n') + '\n')
       const torn = tornRailBoxes(lines, columns, paneRows)
       check(`${columns}x${rows}, pane ${paneRows}: every rail box closes`, torn.length === 0, torn.join('; '))
+      if (columns >= 160) {
+        const rail = lines.slice(0, paneRows).map(line => line.slice((lines[0] ?? '').indexOf('╮') + 1))
+        const free = paneRows - 1 - rail.reduce((last, row, y) => (row.includes('╰') ? y : last), 0)
+        const healthShed = !rail.some(row => row.includes('HEALTH'))
+        const pointer = rail.some(row => row.includes('short height — /health'))
+        check(`${columns}x${rows}, pane ${paneRows}: the vitals rail points at what it shed exactly when a row is free for the pointer`, pointer === (healthShed && free >= 1), `${free} free, HEALTH ${healthShed ? 'shed' : 'painted'}, pointer ${pointer ? 'shown' : 'absent'}`)
+      }
       if (paneRows === 6 && columns >= 160) {
         check(`${columns}x${rows}: only the whole workbench row is published on the left`, getHelmRows('lanes').length === 1, JSON.stringify(getHelmRows('lanes')))
         if (columns >= 160) check(`${columns}x${rows}: no clipped usage row is published on the right`, getHelmRows('vitals').length === 0, JSON.stringify(getHelmRows('vitals')))

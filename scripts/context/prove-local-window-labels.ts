@@ -15,12 +15,12 @@ function check(label: string, pass: boolean, actual: string): void {
 }
 const label = contextWindowLabel as (n: number, source: 'live-current' | 'fallback', pinned: boolean, local: boolean) => string
 const picker = fmtCtx as (n: number, local: boolean) => string
-for (const [tokens, expected] of [[32768, '32k'], [65536, '64k'], [131072, '128k'], [262144, '256k'], [1048576, '1024k'], [33000, '33k']] as const) {
+for (const [tokens, expected, pickerExpected = expected, noticeExpected = pickerExpected] of [[32768, '32k'], [65536, '64k'], [131072, '128k'], [262144, '256k'], [1048576, '1024k', '1M'], [2097152, '2048k', '2M'], [1572864, '1536k'], [1000000, '1000k', '1M', '1000k'], [33000, '33k']] as const) {
   check(`${tokens}: local gauge`, label(tokens, 'live-current', false, true) === expected, label(tokens, 'live-current', false, true))
-  check(`${tokens}: local picker`, picker(tokens, true) === expected, picker(tokens, true))
+  check(`${tokens}: local picker`, picker(tokens, true) === pickerExpected, picker(tokens, true))
   const record = { server: 'ollama', contextWindow: { tokens, source: 'served' }, modelMaxContext: tokens, loaded: false } as LocalModelRecord
-  check(`${tokens}: local notice`, localWindowWords(record) === `${expected} ctx · served`, localWindowWords(record))
-  check(`${tokens}: unloaded local maximum`, localUnloadedWindowWords(record).includes(`trained maximum ${expected} ·`), localUnloadedWindowWords(record))
+  check(`${tokens}: local notice`, localWindowWords(record) === `${noticeExpected} ctx · served`, localWindowWords(record))
+  check(`${tokens}: unloaded local maximum`, localUnloadedWindowWords(record).includes(`trained maximum ${noticeExpected} ·`), localUnloadedWindowWords(record))
   const hosted = `${Math.round(tokens / 1000)}k`
   check(`${tokens}: hosted gauge unchanged`, label(tokens, 'live-current', false, false) === hosted, label(tokens, 'live-current', false, false))
   const hostedPicker = tokens >= 1_000_000 ? `${(tokens / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}M` : hosted

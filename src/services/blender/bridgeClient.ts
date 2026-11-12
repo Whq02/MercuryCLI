@@ -12,7 +12,7 @@ import {
   type BlenderBridgeResult,
 } from './bridgeProtocol.js'
 import { resolveBlenderAddonHome } from './addonHome.js'
-import { ensureBlenderBridgeToken } from './bridgeToken.js'
+import { readBlenderBridgeToken } from './bridgeToken.js'
 import { blenderBridgeTokenOverride } from '../../utils/blender/bridgeGates.js'
 
 export type { BlenderBridgeResult } from './bridgeProtocol.js'
@@ -401,7 +401,9 @@ export function getBlenderBridgeClient(): BlenderBridgeClient | null {
   } else {
     const census = resolveBlenderAddonHome()
     if (!census.home) return null
-    token = ensureBlenderBridgeToken(census.home.path)
+    const onDisk = readBlenderBridgeToken(census.home.path)
+    if (onDisk === undefined) return null
+    token = onDisk
   }
   const key = `#${port}`
   if (singleton && singleton.key === key) return singleton.client

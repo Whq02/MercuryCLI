@@ -38,7 +38,7 @@ writeFileSync(transcript, encodeSeedTranscript([
 const seed = { schema: 1, sessionId: sid, atMs: 1000, model: { effective: 'claude-sonnet-5', setting: 'claude-sonnet-5' }, pendingModel: null, busy: false, usage: noSessionConnector().usage(), identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null }, skills: [], mcp: [], workspace: { cwd: work, originalCwd: work, projectRoot: work }, queue: [] }
 const factsFile = sessionFactsPath(sid)
 mkdirSync(dirname(factsFile), { recursive: true })
-const publish = (atMs: number, model: string): void => writeFileSync(factsFile, JSON.stringify({ ...seed, atMs, model: { effective: model, setting: model } }))
+const publish = (atMs: number, model: string, runner?: Record<string, unknown>): void => writeFileSync(factsFile, JSON.stringify({ ...seed, atMs, model: { effective: model, setting: model }, ...(runner !== undefined ? { runner } : {}) }))
 const worker = { schema: 1, runnerId: 'concourse-w1', sessionId: sid, workspaceId: work, isolation: 'shared', modelKey: 'claude-opus-4-8', spawnedAt: 900, lastLiveAt: 1000, parkedAt: 1050, parkedBy: 'operator:fixture' }
 const record = (changes: Record<string, unknown> = {}): void => writeFileSync(join(daemon, 'concourse-workers.json'), JSON.stringify({ version: 1, workers: { [worker.runnerId]: { ...worker, ...changes } } }))
 let checks = 0
@@ -65,9 +65,31 @@ try {
   answer({ ok: true })
   check('the fixture admission settles', await first.admitted)
   check('admission alone is not a runner answer', words().startsWith('the runner is starting'))
+  const realNow = Date.now
+  const opened = connector.status().runner?.sinceMs ?? 0
+  try {
+    Date.now = () => opened + 3_000
+    check('three seconds into the wait the row counts three', words() === 'the runner is starting · 3s', words())
+    publish(1001, worker.modelKey, { state: 'starting', sinceMs: opened + 2_900, respawns: 0, maxRespawns: 3 })
+    connector.readFacts()
+    check("the runner's own starting fact takes the row over and the count does not run backwards", words() === 'the runner is starting · 3s', words())
+    Date.now = () => opened + 4_000
+    check('the count goes on from the start the row already showed', words() === 'the runner is starting · 4s', words())
+    publish(1001, worker.modelKey)
+    connector.readFacts()
+    check('a fresh runner answer settles the parked resume', words() === 'ready' && connector.modelFacts().effectiveSource === 'live')
+    Date.now = () => opened + 600_000
+    publish(1001, worker.modelKey, { state: 'starting', sinceMs: opened + 598_000, respawns: 1, maxRespawns: 3 })
+    connector.readFacts()
+    check("a later restart counts from its own start, never from the resume's", words() === 'the runner is restarting (1/3) · 2s', words())
+    publish(1001, worker.modelKey, { state: 'starting', sinceMs: opened + 599_000, respawns: 0, maxRespawns: 3 })
+    connector.readFacts()
+    check('a later first start with no wait before it counts from its own start too', words() === 'the runner is starting · 1s', words())
+  } finally {
+    Date.now = realNow
+  }
   publish(1001, worker.modelKey)
   connector.readFacts()
-  check('a fresh runner answer settles the parked resume', words() === 'ready' && connector.modelFacts().effectiveSource === 'live')
   releaseFocusedSessionConnector()
   publish(1002, worker.modelKey)
   record({ modelKey: 'claude-sonnet-5', parkedAt: 1100 })
@@ -92,10 +114,22 @@ try {
   record({ modelKey: 'claude-sonnet-5', parkedAt: 1200 })
   waitNextAdmission()
   const raced = await focusResumedSession(sid, transcript, { firstPaintMs: 10 })
+  const hopOpened = connector.status().runner?.sinceMs ?? 0
   record({ modelKey: 'claude-sonnet-5', parkedAt: undefined, parkedBy: undefined, pid: process.pid })
   answer({ ok: true, liveHop: true })
   await raced.admitted
   check('a confirmed live hop releases the pending resume without inventing a newer fact', words() === 'ready' && connector.modelFacts().effectiveSource === 'live', words())
+  const hopNow = Date.now
+  try {
+    Date.now = () => hopOpened + 2_000
+    publish(1004, 'claude-sonnet-5', { state: 'starting', sinceMs: hopOpened + 1_900, respawns: 0, maxRespawns: 3 })
+    connector.readFacts()
+    check("after a live hop a runner still starting keeps the clock the row showed while it waited", words() === 'the runner is starting · 2s', words())
+  } finally {
+    Date.now = hopNow
+  }
+  publish(1004, 'claude-sonnet-5')
+  connector.readFacts()
   releaseFocusedSessionConnector()
   const live = await focusResumedSession(sid, transcript, { firstPaintMs: 10 })
   check('a session with a live worker is unchanged: same connector, ready, live model', await live.admitted && focused() === connector && words() === 'ready' && connector.modelFacts().effective === 'claude-sonnet-5' && connector.modelFacts().effectiveSource === 'live')

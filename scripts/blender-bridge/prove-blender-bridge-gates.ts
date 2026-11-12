@@ -20,6 +20,7 @@ function resetEnv(): void {
   }
   Object.assign(process.env, savedEnv)
   delete process.env.MERCURY_BLENDER
+  delete process.env.MERCURY_BLENDER_BIN
   delete process.env.MERCURY_BLENDER_BRIDGE_PORT
   delete process.env.MERCURY_BLENDER_BRIDGE_TOKEN
   delete process.env.MERCURY_BLENDER_BRIDGE_ADDON_DIR
@@ -37,6 +38,9 @@ mkdirSync(proj, { recursive: true })
 writeFileSync(path.join(proj, 'scene.blend'), 'BLENDER-fake')
 const bare = path.join(scratch, 'bare')
 mkdirSync(bare, { recursive: true })
+const noBlender = path.join(scratch, 'no-such-blender')
+const pinnedBlender = path.join(scratch, 'pinned-blender')
+writeFileSync(pinnedBlender, '#!/bin/sh\n')
 
 section('1. the master polarity — the bridge rides MERCURY_BLENDER (the ruling)')
 {
@@ -48,21 +52,23 @@ section('1. the master polarity — the bridge rides MERCURY_BLENDER (the ruling
   check("'0' is not the opt-in spelling ⇒ disarmed", gates.blenderBridgeEnabled() === false)
 }
 
-section('2. the catalog gate — armed AND in a .blend context (bounded walk, cached)')
+section('2. the catalog gate — armed AND (a .blend context OR a located Blender), each cached')
 {
   resetEnv()
+  process.env.MERCURY_BLENDER_BIN = pinnedBlender
   gates._resetBlenderBridgeContextCacheForTesting()
   await runWithCwdOverride(proj, async () => {
-    check('OFF beside a .blend ⇒ no tool', gates.blenderBridgeToolCatalogEnabled() === false)
+    check('OFF beside a .blend with a Blender located ⇒ no tool', gates.blenderBridgeToolCatalogEnabled() === false)
   })
   process.env.MERCURY_BLENDER = '1'
+  process.env.MERCURY_BLENDER_BIN = noBlender
   gates._resetBlenderBridgeContextCacheForTesting()
   await runWithCwdOverride(proj, async () => {
-    check('armed beside a .blend ⇒ tool registers', gates.blenderBridgeToolCatalogEnabled() === true)
+    check('armed beside a .blend, no Blender located ⇒ tool registers', gates.blenderBridgeToolCatalogEnabled() === true)
   })
   gates._resetBlenderBridgeContextCacheForTesting()
   await runWithCwdOverride(bare, async () => {
-    check('armed in a blend-less dir ⇒ no ghost tool', gates.blenderBridgeToolCatalogEnabled() === false)
+    check('armed in a blend-less dir, no Blender located ⇒ no ghost tool', gates.blenderBridgeToolCatalogEnabled() === false)
   })
   gates._resetBlenderBridgeContextCacheForTesting()
   await runWithCwdOverride(proj, async () => {
@@ -73,6 +79,46 @@ section('2. the catalog gate — armed AND in a .blend context (bounded walk, ca
       'the context cache is cwd-keyed (a .blend hit never leaks to a bare dir)',
       gates.blenderBridgeToolCatalogEnabled() === false,
     )
+  })
+  process.env.MERCURY_BLENDER_BIN = pinnedBlender
+  gates._resetBlenderBridgeContextCacheForTesting()
+  await runWithCwdOverride(bare, async () => {
+    check(
+      'armed in a blend-less dir with a Blender located ⇒ tool registers (the first .blend can be made)',
+      gates.blenderBridgeToolCatalogEnabled() === true,
+    )
+  })
+  process.env.MERCURY_BLENDER_BIN = noBlender
+  await runWithCwdOverride(bare, async () => {
+    check(
+      'the located answer is held for its 30 s (a catalogue read does not walk the census again)',
+      gates.blenderBridgeToolCatalogEnabled() === true,
+    )
+  })
+  const realNow = Date.now
+  try {
+    Date.now = () => realNow() + 30_001
+    await runWithCwdOverride(bare, async () => {
+      check(
+        'past its 30 s the located answer is read again (a Blender that went away is seen)',
+        gates.blenderBridgeToolCatalogEnabled() === false,
+      )
+    })
+    process.env.MERCURY_BLENDER_BIN = pinnedBlender
+    Date.now = () => realNow() + 60_002
+    await runWithCwdOverride(bare, async () => {
+      check(
+        'a Blender located mid-session joins at the next read past the 30 s',
+        gates.blenderBridgeToolCatalogEnabled() === true,
+      )
+    })
+  } finally {
+    Date.now = realNow
+  }
+  delete process.env.MERCURY_BLENDER
+  gates._resetBlenderBridgeContextCacheForTesting()
+  await runWithCwdOverride(bare, async () => {
+    check('OFF in a blend-less dir with a Blender located ⇒ no tool', gates.blenderBridgeToolCatalogEnabled() === false)
   })
   resetEnv()
   gates._resetBlenderBridgeContextCacheForTesting()
@@ -133,6 +179,14 @@ section('5. registry census — the rows + the ruling’s premise')
     "the ruling's premise pinned: MERCURY_BLENDER stays opt-in ADDITIVE (a tier flip must re-argue the one-switch ruling)",
     master?.kind === 'opt-in' && master.tier === 'additive',
     `kind=${master?.kind} tier=${master?.tier}`,
+  )
+  const { STARTUP_MENU } = await import('../../src/substrate/startupMenu.js')
+  const menuRow = STARTUP_MENU.find(r => r.env === 'MERCURY_BLENDER')
+  check(
+    'the boot menu row states both doors of the catalog gate (beside .blend files, or anywhere Blender is located)',
+    (menuRow?.detail?.on ?? []).some(l =>
+      l.startsWith('the `Blender` tool joins the catalog beside .blend files, or anywhere Blender is located — '),
+    ),
   )
 }
 

@@ -271,7 +271,6 @@ export function buildVitalsModel(input: VitalsInput): VitalsModel {
 
   const shedPointers = [...(healthShed ? ['/health'] : [])]
   const shed = shedPointers.map(k => k.slice(1) as 'health')
-  const shedPointerFits = spentRows < shedCeiling
   const sections: VitalsSectionSpec[] = [
     { key: 'usage', glyph: '', label: 'USAGE', open: '/usage', rows: usageRows },
     {
@@ -303,6 +302,7 @@ export function buildVitalsModel(input: VitalsInput): VitalsModel {
     return false
   })
   if (firstClipped >= 0) sections.splice(firstClipped)
+  const shedPointerFits = paintedRows < shedCeiling
   const rows: HelmRow[] = []
   for (const s of sections) for (const r of s.rows) if ('row' in r && r.row !== undefined) rows.push(r.row)
   return {

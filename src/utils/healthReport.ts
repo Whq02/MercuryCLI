@@ -2486,7 +2486,8 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               }
             }
             const compactAt = usage.compactAtPct
-            const window = isLocalModelId(getEngineModel()) && usage.window > 0 ? contextWindowLabel(usage.window, null, false, true) : `${Math.round(usage.window / 1000)}k`
+            const { focusedSessionModelFacts } = await import('../services/engine-connector/focusedConnector.js')
+            const window = isLocalModelId(focusedSessionModelFacts()?.effective ?? getEngineModel()) && usage.window > 0 ? contextWindowLabel(usage.window, null, false, true) : `${Math.round(usage.window / 1000)}k`
             const evidence = `context ${usage.usedPct.toFixed(0)}% of ${window}${compactAt !== null ? ` · autocompact at ${compactAt}%` : ''} · ${arms}`
             if (compactAt !== null && usage.usedPct >= compactAt - 5) {
               return {

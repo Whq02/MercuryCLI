@@ -251,6 +251,7 @@ src/utils/auth.ts :: managedKeyMemoStamp :: invalidator=invalidateOnDiskChange
 src/utils/auth.ts :: signedOutOAuthMemoStamp :: invalidator=invalidateOnDiskChange
 src/utils/availableCores.ts :: memo :: static-for-process
 src/utils/blender/bridgeGates.ts :: blendContextCache :: ttl-bounded
+src/utils/blender/bridgeGates.ts :: locatedCache :: ttl-bounded
 src/utils/bootCardFacts.ts :: catalogedGroundCache :: ttl-bounded
 src/utils/bootCardFacts.ts :: currentCache :: ttl-bounded
 src/utils/caCerts.ts :: cachedResult :: static-for-process

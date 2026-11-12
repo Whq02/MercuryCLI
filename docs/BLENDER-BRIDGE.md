@@ -16,9 +16,14 @@ One switch: the **"Blender dev lanes"** Boot Menu row (`MERCURY_BLENDER=1`),
 the same flag that arms `.blend` awareness, the headless launch profiles,
 and the debugpy attach recipe. Off is byte-identical to a build without any
 of it: no tool, no client, no token file, no readiness row, no line in the
-harness map the model reads. The tool joins the catalog only in a `.blend`
-context (the bounded
-walk finds at least one `.blend` file, which is the unit of work).
+harness map the model reads. Armed, the tool joins the catalog beside `.blend`
+files (the bounded
+walk finds at least one `.blend` file, which is the unit of work) **or**
+wherever Blender is located (a `MERCURY_BLENDER_BIN` pin, a `blender` on
+`PATH`, `Blender.app` under `/Applications` or `~/Applications`, or Blender
+Foundation's folder under Program Files), so a project can make its first
+`.blend` file. Armed with neither, a project without `.blend` files or a
+located Blender stays clean.
 
 Three value knobs: `MERCURY_BLENDER_BRIDGE_PORT` (default 6012; the
 loopback dev-lane family is Godot LSP 6005 · Godot DAP 6006 · VULCAN on a port per instance ·

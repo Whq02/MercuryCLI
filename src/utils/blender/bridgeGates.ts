@@ -2,6 +2,7 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
   discoverBlendFiles,
+  locateBlender,
   mercuryBlenderEnabled,
 } from '../../services/ide/blenderProject.js'
 import { BLENDER_BRIDGE_DEFAULT_PORT } from '../../services/blender/bridgeProtocol.js'
@@ -15,9 +16,11 @@ export function blenderBridgeEnabled(): boolean {
 
 const BLEND_CONTEXT_CACHE_TTL_MS = 30_000
 let blendContextCache: { at: number; cwd: string; has: boolean } | null = null
+let locatedCache: { at: number; has: boolean } | null = null
 
 export function _resetBlenderBridgeContextCacheForTesting(): void {
   blendContextCache = null
+  locatedCache = null
 }
 
 function hasBlendContext(): boolean {
@@ -34,8 +37,18 @@ function hasBlendContext(): boolean {
   return has
 }
 
+function hasLocatedApp(): boolean {
+  if (locatedCache && Date.now() - locatedCache.at < BLEND_CONTEXT_CACHE_TTL_MS) {
+    return locatedCache.has
+  }
+  const census = locateBlender()
+  const has = census.blender !== undefined
+  locatedCache = { at: Date.now(), has }
+  return has
+}
+
 export function blenderBridgeToolCatalogEnabled(): boolean {
-  return blenderBridgeEnabled() && hasBlendContext()
+  return blenderBridgeEnabled() && (hasBlendContext() || hasLocatedApp())
 }
 
 export function blenderBridgePort(): number {

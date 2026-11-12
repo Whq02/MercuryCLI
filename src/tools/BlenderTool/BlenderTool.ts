@@ -126,7 +126,7 @@ async function runOp(input: Input): Promise<string> {
   if (fenced.refusal) return fenced.refusal
   const client = getBlenderBridgeClient()
   if (!client) {
-    return `the Blender bridge is not available here (flag off, or no addon home resolves — no token address) — op:"blender_status" explains`
+    return `the Blender bridge is not available here (flag off, no addon home resolves, or no session token on disk: op:"blender_bridge_install" writes it) — op:"blender_status" explains`
   }
   const r = await client.request(input.op, fenced.args, 30_000)
   let text: string
