@@ -58,7 +58,7 @@ function makeBody(tag: string, multiline = false): string {
 const REPLY_TOKEN = 'ACK_QUICK_PASTE_REPLY'
 const replyFor = (_n: number): string => REPLY_TOKEN
 const api = await startFixtureApi(
-  Array.from({ length: 16 }, () => ({ kind: 'paced' as const, deltas: [REPLY_TOKEN], gapMs: 0, startDelayMs: 150 })),
+  Array.from({ length: 32 }, () => ({ kind: 'paced' as const, deltas: [REPLY_TOKEN], gapMs: 0, startDelayMs: 150 })),
 )
 
 const daemonHome = join(home, 'd')
@@ -251,6 +251,71 @@ try {
       'a multiline bracketed paste ending in CRLF with no following Enter stays a draft and never auto-submits',
       afterNoEnter.length === 0,
       `requests=${afterNoEnter.length}`,
+    )
+  }
+
+  {
+    const bodyP1 = makeBody('PTY_900_TYPED')
+    const before = api.messageRequests().length
+    const runP1 = await runPty(
+      'leg-p1-900-plus-typed-enter',
+      [
+        `after:Type a prompt:80:\\x1b[200~${escapeForPtydrive(bodyP1)}\\x1b[201~ then typed words\\r`,
+        `after:${REPLY_TOKEN}:100:\\x03\\x03`,
+      ],
+      12,
+    )
+    const got = api.messageRequests().slice(before)
+    const ok = got.some(
+      r =>
+        JSON.stringify(r.body).includes('PTY_900_TYPED head') &&
+        JSON.stringify(r.body).includes('PTY_900_TYPED tail. then typed words') &&
+        !JSON.stringify(r.body).includes('[Pasted text #'),
+    )
+    check(
+      '900-char bracketed paste + " then typed words" + Enter in one PTY write sends paste and typed words whole',
+      ok,
+      `requests=${got.length} stderr=${runP1.stderr.slice(-160)}`,
+    )
+  }
+
+  {
+    const before = api.messageRequests().length
+    const runP2 = await runPty(
+      'leg-p2-small-plus-xyz-enter',
+      [
+        'after:Type a prompt:80:\\x1b[200~SMALL_PASTE_TOKEN\\x1b[201~xyz\\r',
+        `after:${REPLY_TOKEN}:100:\\x03\\x03`,
+      ],
+      12,
+    )
+    const got = api.messageRequests().slice(before)
+    const ok = got.some(r => JSON.stringify(r.body).includes('SMALL_PASTE_TOKENxyz'))
+    check(
+      'small bracketed paste + "xyz" + Enter in one PTY write sends SMALL_PASTE_TOKENxyz',
+      ok,
+      `requests=${got.length} stderr=${runP2.stderr.slice(-160)}`,
+    )
+  }
+
+  {
+    const before = api.messageRequests().length
+    const runP3 = await runPty(
+      'leg-p3-small-plus-xyz-later-enter',
+      [
+        '1080:\\x1b[200~LATER_PASTE_TOKEN\\x1b[201~xyz',
+        '1680:\\r',
+        `after:${REPLY_TOKEN}:100:\\x03\\x03`,
+      ],
+      14,
+      'Type a prompt:1000',
+    )
+    const got = api.messageRequests().slice(before)
+    const ok = got.some(r => JSON.stringify(r.body).includes('LATER_PASTE_TOKENxyz'))
+    check(
+      'small bracketed paste + "xyz" in one PTY write, Enter 600 ms later sends LATER_PASTE_TOKENxyz',
+      ok,
+      `requests=${got.length} stderr=${runP3.stderr.slice(-160)}`,
     )
   }
 } finally {

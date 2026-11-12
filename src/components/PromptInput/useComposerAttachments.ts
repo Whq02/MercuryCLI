@@ -7,6 +7,7 @@ import type { PromptInputMode } from '../../types/textInputTypes.js'
 import type { ImageDimensions } from '../../utils/imageResizer.js'
 import type { PastedContent } from '../../utils/config.js'
 import type { useInputBuffer } from '../../hooks/useInputBuffer.js'
+import type { LiveInputState } from '../../hooks/useTextInput.js'
 import { normalizePastedLines } from '../../input-core/composer-document.js'
 import { useMaybeTruncateInput } from './useMaybeTruncateInput.js'
 import { getModeFromInput, getValueFromInput } from './inputModes.js'
@@ -21,7 +22,7 @@ import { expandTabs, stripControls } from './composerText.js'
 type ComposerAttachmentsInput = {
   input: string
   cursorOffset: number
-  liveCursorRef: React.MutableRefObject<number>
+  readLiveState: () => LiveInputState
   pastedContents: Record<number, PastedContent>
   buffer: ReturnType<typeof useInputBuffer>
   messages: Message[]
@@ -63,7 +64,7 @@ export type ComposerAttachments = {
 export function useComposerAttachments({
   input: renderedInput,
   cursorOffset: renderedCursorOffset,
-  liveCursorRef,
+  readLiveState,
   pastedContents: renderedPastedContents,
   buffer,
   messages,
@@ -119,9 +120,8 @@ export function useComposerAttachments({
   }
 
   const insertAtCursor = (text: string, options?: { atomic?: boolean }): void => {
-    const input = pendingInput.text()
-    const cursorOffset = input === renderedInput ? renderedCursorOffset : liveCursorRef.current
-    const pastedContents = input === renderedInput ? renderedPastedContents : pendingInput.pastedContents()
+    const { value: input, offset: cursorOffset } = readLiveState()
+    const pastedContents = pendingInput.pastedContents()
     if (!options?.atomic) buffer.pushToBuffer(input, cursorOffset, pastedContents);
     else buffer.pushAtomic(input, cursorOffset, pastedContents);
     const range = inputSelectionRangeRef.current();
@@ -198,9 +198,8 @@ export function useComposerAttachments({
   const handleTextPaste = useCallback(
     (raw: string): void => {
       deferredSpaceArmedRef.current = false
-      const input = pendingInput.text()
-      const cursorOffset = input === renderedInput ? renderedCursorOffset : liveCursorRef.current
-      const pastedContents = input === renderedInput ? renderedPastedContents : pendingInput.pastedContents()
+      const { value: input, offset: cursorOffset } = readLiveState()
+      const pastedContents = pendingInput.pastedContents()
       const exact = stripControls(normalizePastedLines(raw))
       const text = expandTabs(exact)
       const lineCount = (text.match(/\n/g) ?? []).length + 1
@@ -235,14 +234,14 @@ export function useComposerAttachments({
       }
       insertAtCursor(expandTabs(text), { atomic: true })
     },
-    [renderedInput, rows, renderedCursorOffset, liveCursorRef, renderedPastedContents, buffer, insertAtCursor, setMode, setCursorOffset, setPastedContents],
+    [renderedInput, rows, renderedCursorOffset, readLiveState, renderedPastedContents, buffer, insertAtCursor, setMode, setCursorOffset, setPastedContents],
   )
 
   const cursorRef = useRef(renderedCursorOffset)
   cursorRef.current = renderedCursorOffset
   insertTextRef.current = {
     get cursorOffset() {
-      return cursorRef.current
+      return readLiveState().offset
     },
     insert: insertAtomic,
     setInputWithCursor: (value: string, cursor: number) => {
