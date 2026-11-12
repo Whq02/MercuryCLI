@@ -994,6 +994,9 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
     handed.set(at, answer)
     return answer
   }
+  const loopedToReader = (at: number, simple: ReadCommand): boolean =>
+    ((simple.substituted === true && !fed.has(at)) || read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => found.program === 'read'))) &&
+    read.commands.some((later, index) => index > at && layersOf(later.argv).some(found => FILE_READERS.has(found.program) && found.argv.slice(1).some(word => !wordKnown(word))))
   const whereItStays = (here: string): string => `the whole of ${here}, where this line stays if the cd before it fails (join them with && so the read runs only after the cd)`
   for (const { at, simple, here, stayed } of read.commands.flatMap((simple, at) => {
     const stands = foldersRead(read, at, cwd).folders
@@ -1023,7 +1026,7 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       const lists = layer.program === 'find' || layer.program === 'ls' || layer.program === 'get-childitem' || layer.program === 'gci' || layer.program === 'dir'
       const listing = powershell && POWERSHELL_LISTERS.has(layer.program) ? powershellListing(layer.argv) : null
       const listed = listing !== null && read.commands.some((later, index) => index > at && layersOf(later.argv).some(found => readsHandedFiles(found) && !(listing.names && searchesNamesAsText(simple, later, found)))) ? listing : null
-      const feeds = lists && (fed.has(at) || listed !== null || read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => found.wrappers.includes('xargs') || found.program === 'xargs')))
+      const feeds = lists && (fed.has(at) || listed !== null || read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => found.wrappers.includes('xargs') || found.program === 'xargs')) || (!powershell && layer.program === 'find' && loopedToReader(at, simple)))
       for (const word of [...layer.argv.slice(1), ...roots, ...(listed === null ? [] : listed.roots), ...(layer.program === 'findstr' ? findstrFolderFiles(layer.argv.slice(1)) : [])]) {
         for (const candidate of [...spellingsOf(word), ...underOtherHomes(word, read.homes)]) {
           if (mercurySecretPath(candidate, here) !== null || ((FILE_READERS.has(layer.program) || sent.has(word) || handedToReader(at, simple)) && couldNameSecret(candidate, here, homes, !wordKnown(candidate)))) return word

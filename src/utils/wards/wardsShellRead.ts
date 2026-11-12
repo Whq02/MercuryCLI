@@ -26,6 +26,7 @@ export type ReadCommand = {
   around: string | undefined
   gates?: ReadonlyArray<readonly [number, number]> | undefined
   maybes?: readonly number[] | undefined
+  substituted?: boolean | undefined
 }
 
 export type Layer = {
@@ -437,7 +438,7 @@ class Reading {
   }
 }
 
-type Frame = { background: boolean; stages: readonly Stage[]; body: string | undefined; line: number; dialect: ShellDialect; around: string | undefined; gates?: ReadonlyArray<readonly [number, number]> | undefined; maybes?: readonly number[] | undefined }
+type Frame = { background: boolean; stages: readonly Stage[]; body: string | undefined; line: number; dialect: ShellDialect; around: string | undefined; gates?: ReadonlyArray<readonly [number, number]> | undefined; maybes?: readonly number[] | undefined; substituted?: boolean | undefined }
 
 const WORD_KINDS = new Set(['word', 'number', 'raw_string', 'string', 'concatenation', 'ansi_c_string', 'translated_string', 'simple_expansion', 'expansion', 'command_substitution', 'process_substitution', 'arithmetic_expansion', 'brace_expression'])
 const WRITE_KEEPERS = new Set(['file_redirect', 'heredoc_redirect', 'herestring_redirect'])
@@ -494,9 +495,11 @@ class PosixWalk {
         this.redirected(node, frame)
         return
       case 'subshell':
+        this.isolated(() => this.children(node, frame))
+        return
       case 'command_substitution':
       case 'process_substitution':
-        this.isolated(() => this.children(node, frame))
+        this.isolated(() => this.children(node, { ...frame, substituted: true }))
         return
       case 'if_statement': {
         let body: Frame | undefined
@@ -747,6 +750,7 @@ class PosixWalk {
         around: frame.around,
         gates: frame.gates,
         maybes: frame.maybes,
+        substituted: frame.substituted,
       })
       if (first < 0) first = index
     }

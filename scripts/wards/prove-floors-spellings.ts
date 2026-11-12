@@ -757,6 +757,38 @@ if (runs('LISTED')) {
   check('LISTED · PowerShell, standing in the config home · its own files listed and handed to a reader are refused', (await asked('Get-ChildItem | Select-String canary', CONFIG_HOME)) !== null)
   check('LISTED · PowerShell, standing in the config home · the same listing counted is not refused', (await asked('Get-ChildItem | Measure-Object', CONFIG_HOME)) === null)
   for (const line of ['ls -R | grep canary', 'find . -type f | grep canary']) check(`LISTED · the Bash tool, standing in the home · ${shown(line)} · a pipe there carries the names as text: answered as before`, (await asked(line, OWN_HOME, false)) === null)
+  const loops = [
+    'for f in $(find . -type f); do cat "$f"; done',
+    'find . -type f | while read f; do cat "$f"; done',
+    'find . -type f | while IFS= read -r f; do cat "$f"; done',
+    'for f in $(find <CONFIG> -type f); do cat "$f"; done',
+    'find <CONFIG> -type f | while read f; do cat "$f"; done',
+  ]
+  for (const line of loops) {
+    for (const [folder, where] of [[OWN_HOME, 'the home'], [RUN_ROOT, 'the folder above the config home']] as const) {
+      const answer = await asked(line, folder, false)
+      check(`LISTED · the Bash tool, standing in ${where} · ${shown(line)} · a find whose names a loop hands to a reader is refused as a read of the credentials`, answer !== null, String(answer))
+    }
+  }
+  const loopsClear = [
+    'for f in $(find . -name "*.md"); do head -3 "$f"; done',
+    'for f in $(find Documents -type f); do cat "$f"; done',
+    'find Documents -type f | while read f; do cat "$f"; done',
+    'find . -type f | while read f; do echo "$f"; done',
+    'for f in $(find . -type f); do stat "$f"; done',
+    'find . -type f; cat "$FILE"',
+    'find . -type f | wc -l; cat "$FILE"',
+  ]
+  for (const line of loopsClear) {
+    const answer = await asked(line, OWN_HOME, false)
+    check(`LISTED · the Bash tool, standing in the home · ${shown(line)} · a name no credential file has, a folder beneath, a body that reads no file or a find no loop takes: not refused by the floor`, answer === null, String(answer))
+  }
+  for (const line of loops.slice(0, 3)) check(`LISTED · the Bash tool, standing in a project · ${shown(line)} · not refused by the floor`, (await asked(line, PROJECT, false)) === null)
+  bootstrap.setCwdState(OWN_HOME)
+  for (const line of loops.slice(0, 2)) await expect('LISTED · the session standing in the home', bash(line), ['sovereign', 'flow', 'default'], refusedAsSecret, 'is refused as a read of the credentials')
+  const loopTold = await reading(bash(loops[0]!), 'sovereign')
+  check('LISTED · the refusal of the loop names the folder and says to name a folder beneath it', /^Reading the whole of this folder \(name a folder beneath it\) is refused: it holds Mercury's own credentials/.test(loopTold.decision.message ?? ''), said(loopTold.decision))
+  bootstrap.setCwdState(PROJECT)
   for (const line of ['findstr /s /m canary *', 'findstr /s canary *', 'findstr /S /I canary *.json', 'findstr /spin canary *.*', 'findstr /s /c:canary *', 'cmd /c findstr /s /m canary *', 'cmd /c "findstr /s canary *"', 'findstr /s canary <HOME>/*', 'findstr /s /d:<HOME> canary *', 'findstr /d:<CONFIG> canary *', 'findstr /s canary $PWD/*', 'grep -r canary $PWD', 'rg --hidden canary $PWD', 'Copy-Item -Recurse $PWD ../out']) {
     const answer = await asked(line, OWN_HOME)
     check(`LISTED · PowerShell, standing in the home · ${shown(line)} · a search of the whole tree, by findstr's subfolder flag, by a folder flag that names the store, or by a root spelled with a variable, is refused`, answer !== null, String(answer))
