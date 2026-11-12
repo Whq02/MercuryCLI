@@ -1067,7 +1067,7 @@ function treeReadRoots(layer: Layer, fed: boolean, cwd: string, cwdHolds: boolea
 }
 
 function namesNoSecret(patterns: readonly string[], homes: readonly string[]): boolean {
-  const secrets = [...SECRET_NAME_SAMPLES, ...homes.flatMap(secretsHeld)].map(name => name.toLowerCase())
+  const secrets = [...SECRET_NAME_SAMPLES, ...homes.flatMap(secretsHeld), ...homes.flatMap(home => home.split('/')), posix.basename(defaultMercuryHome().replace(/\\/g, '/'))].filter(name => name !== '').map(name => name.toLowerCase())
   return patterns.length > 0 && patterns.every(pattern => {
     if (!wordKnown(pattern)) return false
     try {
