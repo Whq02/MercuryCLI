@@ -193,11 +193,18 @@ export async function describeBlenderBridgeStatus(): Promise<string> {
     `bridge: ${reachable ? `answering on 127.0.0.1:${port}` : `not answering on 127.0.0.1:${port} — ${blenderBridgeHint(port)}`}`,
   )
   lines.push(`client: ${client ? client.status() : 'unavailable'}`)
-  const addonPort = readAddonBridgePort(home) ?? BLENDER_BRIDGE_DEFAULT_PORT
-  if (addonPort !== port) {
-    lines.push(
-      `PORT MISMATCH: Mercury dials ${port} but the add-on listens on ${addonPort} (${path.join(BLENDER_ADDON_MODULE, 'config.json')}) — op:"blender_bridge_install" aligns them (Blender re-reads it on add-on re-enable or restart)`,
-    )
+  if (s.installed) {
+    const configuredPort = readAddonBridgePort(home)
+    const addonPort = configuredPort ?? BLENDER_BRIDGE_DEFAULT_PORT
+    if (addonPort !== port) {
+      const sourceNote =
+        configuredPort !== undefined
+          ? path.join(BLENDER_ADDON_MODULE, 'config.json')
+          : `default port; no ${path.join(BLENDER_ADDON_MODULE, 'config.json')}`
+      lines.push(
+        `PORT MISMATCH: Mercury dials ${port} but the add-on listens on ${addonPort} (${sourceNote}) — op:"blender_bridge_install" aligns them (Blender re-reads it on add-on re-enable or restart)`,
+      )
+    }
   }
   return lines.join('\n')
 }

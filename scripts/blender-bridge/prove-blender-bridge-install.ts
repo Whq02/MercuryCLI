@@ -143,6 +143,14 @@ section('6. status arms — flag, teaching, enablement honesty, reachability')
   const wireRead = ((await BlenderTool.call({ op: 'scene_info' } as never, {} as never)) as { data: { result: string } }).data.result
   check('a wire read with no token on disk says so and names the install', /no session token on disk/.test(wireRead) && /blender_bridge_install/.test(wireRead), wireRead.slice(0, 160))
   check('the wire read wrote nothing either', !existsSync(dir) && readdirSync(home).length === 0, readdirSync(home).join(','))
+  process.env.MERCURY_BLENDER_BRIDGE_PORT = '7999'
+  const offDefaultUninstalled = await installer.describeBlenderBridgeStatus()
+  delete process.env.MERCURY_BLENDER_BRIDGE_PORT
+  check(
+    'an off-default port with no add-on installed prints NO PORT MISMATCH naming a missing config.json',
+    !/PORT MISMATCH/.test(offDefaultUninstalled) && !offDefaultUninstalled.includes('config.json'),
+    offDefaultUninstalled.split('\n').find(l => l.includes('PORT MISMATCH')) ?? '',
+  )
   installer.applyBlenderBridgeInstall()
   check('the install, which asks, is what writes the token, and a client is made from it', existsSync(path.join(dir, 'token')) && getBlenderBridgeClient() !== null)
   resetBlenderBridgeClientForTest()
