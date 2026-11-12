@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -32,6 +32,7 @@ writeFileSync(join(extractedDir, 'manifest.json'), '{"node":">=24"}\n')
 writeFileSync(join(extractedDir, 'mercury.cmd'), '@echo off\r\n')
 writeFileSync(nodeExe, '')
 
+const priorCwd = process.cwd()
 const savedEnv = { ...process.env }
 const platformDesc = Object.getOwnPropertyDescriptor(process, 'platform')!
 const execPathDesc = Object.getOwnPropertyDescriptor(process, 'execPath')!
@@ -46,6 +47,7 @@ const check = (label: string, pass: boolean, detail = ''): void => {
 }
 
 try {
+  process.chdir(work)
   Object.assign(process.env, {
     HOME: home,
     USERPROFILE: home,
@@ -235,7 +237,12 @@ try {
     posixFacts.invokedPath === bundleMjs && posixCmd === '/usr/local/bin/node /Users/op/mercury/dist/mercury.mjs',
     JSON.stringify({ invokedPath: posixFacts.invokedPath, posixCmd }),
   )
+  check(
+    'the caller working directory gains no backslash-named folder while simulating win32 on POSIX',
+    readdirSync(priorCwd).every(entry => !entry.startsWith('\\')),
+  )
 } finally {
+  process.chdir(priorCwd)
   Object.defineProperty(process, 'platform', platformDesc)
   Object.defineProperty(process, 'execPath', execPathDesc)
   if (savedArgv1 === undefined) delete process.argv[1]
@@ -246,6 +253,5 @@ try {
   Object.assign(process.env, savedEnv)
   rmSync(scratch, { recursive: true, force: true })
 }
-
 console.log(`${checks - failures}/${checks} checks; ${failures} red`)
 process.exit(failures === 0 ? 0 : 1)
