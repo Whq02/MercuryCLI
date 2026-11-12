@@ -61,7 +61,7 @@ function clampNumber(value: number, min: number, max: number): number {
 }
 
 type ContentPin = { key: string; inner: number }
-type PaintedGeometry = { offsets: Float64Array; keys: readonly string[] | null; version: number; origin: number }
+type PaintedGeometry = { offsets: Float64Array; keys: readonly string[] | null; count: number; version: number; origin: number }
 
 function offsetsOf(keys: readonly string[], heights: ReadonlyMap<string, number>, into: Float64Array): Float64Array {
   const buffer = into.length < keys.length + 1 ? new Float64Array(keys.length + 1) : into
@@ -113,7 +113,7 @@ export function useVirtualScroll(
   const outOfLayoutRef = useRef(false)
   const laidOutRef = useRef(false)
   const listCommittingRef = useRef(false)
-  const paintedRef = useRef<PaintedGeometry>({ offsets: new Float64Array(0), keys: null, version: -1, origin: 0 })
+  const paintedRef = useRef<PaintedGeometry>({ offsets: new Float64Array(0), keys: null, count: 0, version: -1, origin: 0 })
   const afterLayoutRef = useRef<() => void>(() => {})
   const [, forceResolve] = useReducer((n: number) => n + 1, 0)
 
@@ -133,12 +133,11 @@ export function useVirtualScroll(
 
   function pinWhereTheViewStands(): void {
     const handle = scrollRef.current
-    const { offsets: offs, keys, origin } = paintedRef.current
-    if (!handle || !keys || keys.length === 0) return
+    const { offsets: offs, keys, count, origin } = paintedRef.current
+    if (!handle || !keys || count === 0) return
     if (handle.isSticky() || reflowHoldRef.current || handle.getViewportHeight() <= 0) return
     const committedTop = handle.getScrollTop()
     if (lastWrittenTopRef.current === committedTop) return
-    const count = keys.length
     const pos = Math.max(0, committedTop - origin)
     if (pos > offs[count]!) return
     let lo = 0
@@ -158,9 +157,10 @@ export function useVirtualScroll(
   function keepPaintedGeometry(): void {
     const painted = paintedRef.current
     painted.origin = listOriginRef.current
-    if (painted.version === offsetsVersionRef.current && painted.keys === itemKeys) return
+    if (painted.version === offsetsVersionRef.current && painted.keys === itemKeys && painted.count === itemKeys.length) return
     painted.offsets = offsetsOf(itemKeys, heightCacheRef.current, painted.offsets)
     painted.keys = itemKeys
+    painted.count = itemKeys.length
     painted.version = offsetsVersionRef.current
   }
 
