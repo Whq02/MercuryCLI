@@ -55,7 +55,10 @@ function section(title: string): void {
   console.log(`\n── ${title} ──`)
 }
 
-const fixtureTurns = Array.from({ length: 24 }, (_, i) => ({ kind: 'text' as const, text: `FIXTURE-SEAT-${i + 1}-DONE` }))
+const fixtureTurns: import('../lib/fixtureApi.ts').ScriptedTurn[] = [
+  ...['team-four', 'team-seven'].map(team => ({ kind: 'tool_use' as const, name: 'CrewBoard', whenBody: `You are captain on team ${team}.`, input: { op: 'post', kind: 'result', to: ['main'], clientOpId: `${team}-ready`, text: '@main Captain enrolled; launch the remaining seats.' } })),
+  ...Array.from({ length: 24 }, (_, i) => ({ kind: 'text' as const, text: `FIXTURE-SEAT-${i + 1}-DONE` })),
+]
 const fixture = await startFixtureApi(fixtureTurns)
 process.env.ANTHROPIC_BASE_URL = fixture.url
 process.env.ANTHROPIC_API_KEY = FIXTURE_API_KEY
@@ -400,7 +403,7 @@ function describedArguments(text: string): DescribedArgument[] {
     if (/\bLaunch\b/.test(line)) tool = AgentTool.name
     for (const span of codeSpansOf(line)) {
       if (registeredToolNames.has(span)) tool = span
-      const pair = /^([a-z_]+):\s*(.+)$/.exec(span)
+      const pair = /^([a-zA-Z_][a-zA-Z0-9_]*):\s*(.+)$/.exec(span)
       if (!pair || !tool || pair[1] === 'captain' && line.includes('never set')) continue
       try { result.push({ tool, key: pair[1]!, value: JSON.parse(pair[2]!) }) } catch {}
     }
@@ -434,7 +437,7 @@ for (const [label, before, after] of [
 function launchArguments(text: string): Record<string, unknown> {
   return Object.fromEntries(describedArguments(`\`Crewmate\`\n${text}`).filter(arg => arg.tool === 'Crewmate').map(arg => [arg.key, arg.value]))
 }
-const captainArguments = launchArguments(deepSource.split('**First message')[1]?.split('**Second message')[0] ?? '')
+const captainArguments = launchArguments(deepSource.split('**First message')[1]?.split('\n2.')[0] ?? '')
 const researcherArguments = launchArguments(deepSource.split('\n').find(line => line.includes('One `Crewmate` call per angle:')) ?? '')
 const verifierArguments = launchArguments(deepSource.split('\n').find(line => line.includes('One `Crewmate` call per verifier:')) ?? '')
 const captainBrief = deepSource.split('### Captain brief')[1]?.split('```text\n')[1]?.split('```')[0] ?? ''
@@ -453,6 +456,21 @@ check('deep-research forbids AskUserQuestion on unattended runs and bounds the l
 const commsBoundPattern = /\b(?:max|maximum|at most|under|fewer than|limit(?:ed)? to)\s+\d+\s+(?:posts?|reads?|messages?|board|tokens?|characters?|chars?|words?|lines?)\b|\bpost\s+(?:less|fewer|shorter|sparingly)\b|\bread\s+(?:less|fewer|sparingly)\b|\bkeep\s+(?:board\s+)?posts?\s+(?:short|brief|concise|under)\b/i
 check('neither skill bounds CrewBoard reads or posts by tokens, characters, or count', !commsBoundPattern.test(deepSource) && !commsBoundPattern.test(reviewSource))
 check('neither skill contains retired workflow calls or /workflows references', !/\bWorkflow\s*\(|\/workflows\b/i.test(bothTexts))
+
+const readyLine = captainBrief.split('\n').find(line => line.includes('Captain enrolled; launch the remaining seats.')) ?? ''
+check('the captain posts readiness and the lead waits for that event before launching peers', readyLine.includes('clientOpId: "<team>-ready"') && deepSource.includes('wait for the captain’s ready post'), readyLine)
+const { open: openBoard } = await import('../../src/services/crewBoard/store.ts')
+const revisionBoard = openBoard(join(SCRATCH, 'revision.sqlite'), 'revision')
+const revisionMain = { author: { sessionId: 'revision', agentId: 'main', executionId: 'main' }, name: 'main' }
+const revisionCaptain = { author: { sessionId: 'revision', agentId: 'captain', executionId: 'captain' }, name: 'captain', team: 'research-1' }
+revisionBoard.enroll(revisionMain)
+revisionBoard.enroll(revisionCaptain)
+const finalKey = /clientOpId: "([^"\n]*final-report[^"\n]*)"/.exec(captainBrief)?.[1] ?? ''
+const reportPost = (version: number) => ({ kind: 'result' as const, clientOpId: finalKey.replace('<team>', 'research-1').replace('<version>', String(version)), to: ['main'], text: `@main Report version ${version}` })
+const initialPost = revisionBoard.post(revisionCaptain, reportPost(1))
+const revisedPost = revisionBoard.post(revisionCaptain, reportPost(2))
+check('the actual report retry keys accept an initial and changed report, and identical retries replay', finalKey !== '' && initialPost.ok && revisedPost.ok && revisionBoard.post(revisionCaptain, reportPost(2)).ok, { initialPost, revisedPost })
+revisionBoard.close()
 
 section('4. Live fixture launch road: 4-seat team and 7-seat team following the one-rule captain-first launch')
 
@@ -521,7 +539,7 @@ async function runTeamLaunchProof(sessionUuid: string, teamLabel: string, resear
     const res = await AgentTool.call(
       input as never,
       context as never,
-      (async () => ({ behavior: 'allow', updatedInput: input })) as never,
+      (async (_tool: unknown, toolInput: unknown) => ({ behavior: 'allow', updatedInput: toolInput })) as never,
       { requestId: `req-${teamLabel}-${n}`, message: { id: `msg_${teamLabel}_${n}` } } as never,
     )
     return res.data as { status: string; agentId: string; agentName?: string }
@@ -538,14 +556,18 @@ async function runTeamLaunchProof(sessionUuid: string, teamLabel: string, resear
   launchedIds.push(capLaunch.agentId)
   check(`${teamLabel}: message 1 launches captain alone in background`, capLaunch.status === 'async_launched' && capLaunch.agentName === 'captain', capLaunch)
 
-  if (!board.captain(teamLabel)) {
+  const ready = () => board.view().events.some(event => event.authorName === 'captain' && event.clientOpId === `${teamLabel}-ready`)
+  if (!ready()) {
     await new Promise<void>(resolve => {
       const stop = board.subscribe(() => {
-        if (board.captain(teamLabel)) { stop(); resolve() }
+        if (ready()) { stop(); resolve() }
       })
-      if (board.captain(teamLabel)) { stop(); resolve() }
+      if (ready()) { stop(); resolve() }
     })
   }
+  const expectedReady = Object.fromEntries(describedArguments(readyLine.split(');')[0] ?? '').map(arg => [arg.key, typeof arg.value === 'string' ? fill(arg.value, 'captain') : arg.value]))
+  const scriptedReady = fixtureTurns.find(turn => turn.kind === 'tool_use' && turn.whenBody?.includes(teamLabel))
+  check(`${teamLabel}: the skill's readiness call is the one executed before peer reservations`, scriptedReady?.kind === 'tool_use' && JSON.stringify(expectedReady) === JSON.stringify(scriptedReady.input) && board.captain(teamLabel)?.name === 'captain', expectedReady)
   const otherCalls = [
     ...researcherNames.map(seatName => callCrewmate(launch(researcherArguments, seatName, researcherBrief))),
     ...verifierNames.map(seatName => callCrewmate(launch(verifierArguments, seatName, verifierBrief))),
@@ -571,7 +593,7 @@ async function runTeamLaunchProof(sessionUuid: string, teamLabel: string, resear
   )
 
   const newReqs = fixture.messageRequests().slice(beforeReqCount) as Array<{ body: { system?: unknown; messages?: unknown[]; tools?: Array<{ name?: string }> } }>
-  check(`${teamLabel}: fixture received one model request per seat (${expectedCount})`, newReqs.length === expectedCount, newReqs.length)
+  check(`${teamLabel}: fixture received one request per seat plus the captain's readiness continuation (${expectedCount + 1})`, newReqs.length === expectedCount + 1, newReqs.length)
 
   const sysTextOf = (req: (typeof newReqs)[number]): string => JSON.stringify(req.body.system ?? '')
   const msgTextOf = (req: (typeof newReqs)[number]): string => JSON.stringify(req.body.messages ?? '')
