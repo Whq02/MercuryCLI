@@ -53,7 +53,7 @@ export async function getPrompt(
   if (isCoordinator) return sections.join('\n\n')
 
   sections.push(`## Execution
-Launches in one message run concurrently; foreground launches in separate messages run sequentially and wait for the report (returned to you, not directly to the user). Tool access follows the agent definition and session permissions in both foreground and background. With swarm on, new crewmates join the live crew board with their name, team and peers, receiving [name] [team] [kind] posts between turns.`)
+Launches in one message run concurrently; foreground launches in separate messages run sequentially and wait for the report (returned to you, not directly to the user). Tool access follows the agent definition and session permissions in both foreground and background. With swarm on, a new crewmate is enrolled on the live crew board and told its name, its team and the seats already there; posts arrive as [name] [team] [kind] rows between turns.`)
 
   sections.push(`## Worktree cleanup
 The seven-day janitor removes only a clean worktree whose commits are reachable.`)
