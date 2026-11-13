@@ -27,7 +27,7 @@ const ROWS: Row[] = [
       ['scripts/dev-context/prove-root-guide.ts', "proves no second guide file sits beside this repository's AGENTS.md"],
       ['src/services/instructions/adapters/claude.ts', "the instruction engine's adapter for that tool names the project files it reads"],
       ['scripts/self-hosting/prove-format-claude.ts', "the adapter's proof builds its fixture projects from those names"],
-      ['docs/COMPATIBILITY.md', 'the formats page names the project files Mercury reads', 'pending'],
+      ['docs/COMPATIBILITY.md', 'the formats page names the project files Mercury reads'],
     ],
   },
   {
