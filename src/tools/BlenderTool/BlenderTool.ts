@@ -98,6 +98,11 @@ function fencePathArgs(
     if (check.refusal) return { refusal: check.refusal }
     next[primaryKey] = check.resolved
   }
+  if (op === 'python_run' && typeof next.script === 'string' && next.script.length > 0) {
+    const check = resolveInsideTree(op, 'script', next.script)
+    if (check.refusal) return { refusal: check.refusal }
+    next.script = check.resolved
+  }
   if (typeof next.blend === 'string') {
     const check = resolveInsideTree(op, 'blend', next.blend)
     if (check.refusal) return { refusal: check.refusal }
@@ -115,7 +120,8 @@ function readTargets(input: Input): string[] {
   const args = input.args
   const blend = typeof args?.blend === 'string' ? args.blend : undefined
   const named = typeof args?.path === 'string' && (input.op === 'blend_open' || blend === undefined) ? args.path : undefined
-  return [blend, named]
+  const script = input.op === 'python_run' && typeof args?.script === 'string' ? args.script : undefined
+  return [blend, named, script]
     .filter((target): target is string => target !== undefined && target.length > 0)
     .map(target => path.resolve(getCwd(), target))
 }
@@ -128,6 +134,59 @@ function firstSourceLine(args: Record<string, unknown> | undefined): string {
 
 function sourceBytes(args: Record<string, unknown> | undefined): number {
   return typeof args?.source === 'string' ? Buffer.byteLength(args.source, 'utf8') : 0
+}
+
+function scriptOf(args: Record<string, unknown> | undefined): string | undefined {
+  return typeof args?.script === 'string' && args.script.length > 0 ? args.script : undefined
+}
+
+function argvOf(args: Record<string, unknown> | undefined): string[] {
+  return Array.isArray(args?.argv) ? args.argv.filter((word): word is string => typeof word === 'string') : []
+}
+
+function pythonRunShapeProblem(args: Record<string, unknown> | undefined): string | undefined {
+  const hasSource = typeof args?.source === 'string' && args.source.length > 0
+  const hasScript = scriptOf(args) !== undefined
+  if (hasSource === hasScript) {
+    return `python_run takes exactly one of source (Python text) or script (a file inside the working tree; argv, a list of strings, are its arguments) — got ${hasSource ? 'both' : 'neither'}. Nothing was sent to Blender.`
+  }
+  if (args?.argv === undefined) return undefined
+  if (!hasScript) return 'python_run: argv comes only with script. Nothing was sent to Blender.'
+  if (!Array.isArray(args.argv) || args.argv.some(word => typeof word !== 'string')) {
+    return 'python_run: argv must be a list of strings. Nothing was sent to Blender.'
+  }
+  return undefined
+}
+
+function scriptCallShown(args: Record<string, unknown> | undefined, cap = 160): string {
+  const argv = argvOf(args)
+  const shown = `${scriptOf(args) ?? ''}${argv.length > 0 ? ` -- ${argv.join(' ')}` : ''}`
+  return shown.length > cap ? shown.slice(0, cap - 1) + '…' : shown
+}
+
+function scriptAsBridgeSource(script: string, argv: string[]): string {
+  return [
+    'def _mercury_run_script():',
+    '    import sys',
+    `    script = ${JSON.stringify(script)}`,
+    '    saved = sys.argv',
+    `    sys.argv = [saved[0] if saved else "blender", "--python", script, "--"] + ${JSON.stringify(argv)}`,
+    '    names = {"__name__": "__main__", "__file__": script}',
+    '    try:',
+    '        with open(script, "rb") as handle:',
+    '            code = compile(handle.read(), script, "exec")',
+    '        exec(code, names)',
+    '    finally:',
+    '        sys.argv = saved',
+    '    return names',
+    'try:',
+    '    _mercury_script_names = _mercury_run_script()',
+    '    if "result" in _mercury_script_names:',
+    '        result = _mercury_script_names["result"]',
+    '    del _mercury_script_names',
+    'finally:',
+    '    del _mercury_run_script',
+  ].join('\n')
 }
 
 function formatResult(result: unknown): string {
@@ -163,6 +222,10 @@ async function runOp(input: Input, abortSignal?: AbortSignal): Promise<string> {
   if (!spec) {
     return `unknown op "${input.op}" — the wire verbs: ${blenderBridgeVerbNames().join(', ')}; local: blender_status, blender_bridge_install, blender_bridge_uninstall (the tool description carries the full catalog)`
   }
+  if (input.op === 'python_run') {
+    const problem = pythonRunShapeProblem(input.args)
+    if (problem) return problem
+  }
   const fenced = fencePathArgs(input.op, input.args)
   if (fenced.refusal) return fenced.refusal
   if (!blenderBridgeEnabled()) {
@@ -197,7 +260,10 @@ async function runOp(input: Input, abortSignal?: AbortSignal): Promise<string> {
       return `the Blender bridge is not available here (flag off, no addon home resolves, or no session token on disk: op:"blender_bridge_install" writes it) — op:"blender_status" explains`
     }
   }
-  const r = await client.request(input.op, fenced.args, 30_000)
+  const bridgeScript = input.op === 'python_run' ? scriptOf(fenced.args) : undefined
+  const wireArgs =
+    bridgeScript !== undefined ? { source: scriptAsBridgeSource(bridgeScript, argvOf(fenced.args)) } : fenced.args
+  const r = await client.request(input.op, wireArgs, 30_000)
   let text: string
   if (r.ok) {
     text = formatResult(r.result)
@@ -282,12 +348,15 @@ export const BlenderTool = buildTool({
     }
     if (spec.cls === 'exec') {
       if (input.op === 'python_run') {
+        const script = scriptOf(input.args)
         return {
           behavior: 'ask' as const,
           message:
-            `Blender exec: python_run (${sourceBytes(input.args)} bytes) — runs Python INSIDE Blender with full bpy authority ` +
-            `(it can modify or delete scene data and write files as you; no sandbox, no preemption — a runaway script blocks Blender). ` +
-            `first line: ${firstSourceLine(input.args) || '(empty)'}`,
+            (script !== undefined
+              ? `Blender exec: python_run (script ${scriptCallShown(input.args)}) — runs the file INSIDE Blender with full bpy authority `
+              : `Blender exec: python_run (${sourceBytes(input.args)} bytes) — runs Python INSIDE Blender with full bpy authority `) +
+            `(it can modify or delete scene data and write files as you; no sandbox, no preemption — a runaway script blocks Blender).` +
+            (script !== undefined ? '' : ` first line: ${firstSourceLine(input.args) || '(empty)'}`),
         }
       }
       return {
@@ -303,6 +372,10 @@ export const BlenderTool = buildTool({
   async validateInput(input: Input) {
     if (!input.op || input.op.trim().length === 0) {
       return { result: false as const, message: 'op is required', errorCode: 1 }
+    }
+    if (input.op === 'python_run') {
+      const problem = pythonRunShapeProblem(input.args)
+      if (problem) return { result: false as const, message: problem, errorCode: 2 }
     }
     return { result: true as const }
   },

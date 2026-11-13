@@ -148,6 +148,26 @@ console.log('the refusal is the rule\'s own sentence, the one a Read of the file
   check('under the posture that answers every question the rule still refuses all eight, and no Blender starts', still.every(used => used.behavior === 'deny' && used.starts === 0), still.map(used => used.behavior).join(' '))
 }
 
+console.log('a script named to python_run is a file the tool opens: the same law')
+{
+  writeFileSync(join(project, 'secret/kit.py'), 'print("SECRET_SCRIPT_RAN")\n')
+  writeFileSync(join(project, 'open/kit.py'), 'print("OPEN_SCRIPT_RAN")\n')
+  const secretScript = join(project, 'secret/kit.py')
+  const wrong: string[] = []
+  for (const [spelling, rule] of SPELLINGS) {
+    const permission = deny(rule)
+    const used = await use('python_run', { script: 'secret/kit.py', argv: ['--unit', 'eques'] }, permission)
+    if (!(used.behavior === 'deny' && used.message === directRead(secretScript, permission).message && used.starts === 0)) wrong.push(`${spelling}: ${used.behavior}${used.answer.includes('SECRET_SCRIPT_RAN') ? ', ran it' : ''}`)
+  }
+  check('a script under the denied folder is refused in the sentence a Read of it gets, under all four spellings, and no Blender starts', wrong.length === 0, wrong.join(' | '))
+  const elsewhere = await use('python_run', { script: 'open/kit.py' }, deny('Read(secret/**)'))
+  check('a script elsewhere asks first, as every python_run does', elsewhere.behavior === 'ask' && elsewhere.starts === 0, elsewhere.behavior)
+  const sovereign = await use('python_run', { script: 'secret/kit.py' }, inMode('sovereign', deny('Read(secret/**)')))
+  check('under the posture that answers every question the rule still refuses the script, and no Blender starts', sovereign.behavior === 'deny' && sovereign.starts === 0, `${sovereign.behavior} starts=${sovereign.starts}`)
+  const ranOpen = await use('python_run', { script: 'open/kit.py' }, inMode('sovereign', deny('Read(secret/**)')))
+  check('and under that posture the script elsewhere runs', ranOpen.behavior === 'allow' && ranOpen.starts === 1 && ranOpen.answer.includes('OPEN_SCRIPT_RAN'), `${ranOpen.behavior} ${ranOpen.answer.slice(0, 120)}`)
+}
+
 console.log('the neighbours are opened as before')
 {
   const wrong: string[] = []
