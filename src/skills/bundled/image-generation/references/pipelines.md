@@ -31,4 +31,4 @@ Inspect a single-request workflow via `image_generate` (`dry: true`) or import e
 
 ## Remote execution
 
-`media.host` targets an existing SSH rental (never rents one; do not switch hosts silently to fit a render, and check model/adapter hosting + commercial terms first). Only prompts, settings and referenced inputs/adapters transfer to the host; `.pipeline.json` and finished outputs stay local (`pipeline_run` `dry: true` sends only the document, while workflow import/export can transfer referenced inputs). A disconnect does not cancel an async remote job: reconnect and query its job ID via `media_result` rather than resubmitting.
+`media.host` targets an existing SSH rental (never rents one; do not change it merely to make a render fit, and check model/adapter hosting + commercial terms first). Only prompts, settings and referenced inputs/adapters transfer to the host; `.pipeline.json` and finished outputs stay local (`pipeline_run` `dry: true` sends only the document, while workflow import/export can transfer referenced inputs). A disconnect does not cancel an async remote job: reconnect and query its job ID via `media_result` rather than resubmitting.
