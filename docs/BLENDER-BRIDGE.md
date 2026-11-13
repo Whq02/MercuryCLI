@@ -83,7 +83,8 @@ a file switch is not an undo step); renders and
 - `python_run` has no preemption: `bpy` cannot abort a running script, so a
   runaway script blocks Blender until it finishes (the client times out while
   the server cannot cancel).
-Every call asks permission carrying the code's byte count and first line.
+Every call asks permission; a source's ask carries its byte count and first
+line.
 Source is capped at 64 KiB; stdout/stderr are captured and capped at 32 KiB
 each with truncation counted; a raise answers `PYTHON_EXCEPTION` with the
 type, message, and a bounded traceback tail; a variable named `result` is
@@ -141,7 +142,10 @@ mode, script auto-execution disabled, and non-zero Python exit codes). That
 process ends when the call returns and keeps no state across calls, so each
 headless call names its `.blend` file with `blend`, `blend_open` verifies the
 file and closes with the process, and `render_still` executes synchronously
-and returns once the image is on disk.
+and returns once the image is on disk. With `show: true` that image comes back
+with the answer, as a `python_run` picture does; over the bridge, where the
+call answers before the render ends, the answer gains one line saying where
+the image will land.
 
 Python **breakpoint** debugging inside Blender stays with the Debug tool's
 debugpy recipe (the Launch tool's blender-debug row prints the listener

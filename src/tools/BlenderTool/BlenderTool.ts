@@ -132,9 +132,28 @@ function readTargets(input: Input): string[] {
 }
 
 function showEntriesOf(input: Input): ShowEntry[] {
+  if (input.op === 'render_still') {
+    const target = input.args?.show === true ? input.args.outputPath : undefined
+    return typeof target === 'string' && target.length > 0 ? [{ path: target }] : []
+  }
   if (input.op !== 'python_run') return []
   const parsed = parseShowList(input.args?.show)
   return 'entries' in parsed ? parsed.entries : []
+}
+
+type RoadTrace = { road?: 'headless' | 'bridge'; taken?: boolean }
+
+async function shownAfter(
+  input: Input,
+  entries: readonly ShowEntry[],
+  before: ReturnType<typeof stampShown>,
+  trace: RoadTrace,
+): Promise<ShownPart[]> {
+  if (entries.length === 0 || trace.road === undefined) return []
+  if (input.op === 'render_still' && trace.road === 'bridge') {
+    return trace.taken ? [{ kind: 'note', text: `show: the picture is not written yet; it will land at ${showTargets(entries)[0]}` }] : []
+  }
+  return readShown(entries, before)
 }
 
 function showNamed(entries: readonly ShowEntry[], cap = 160): string {
@@ -240,7 +259,7 @@ function withoutShow(args: Record<string, unknown> | undefined): Record<string, 
   return rest
 }
 
-async function runOp(input: Input, abortSignal?: AbortSignal, trace?: { reached: boolean }): Promise<string> {
+async function runOp(input: Input, abortSignal?: AbortSignal, trace?: RoadTrace): Promise<string> {
   if (LOCAL_OPS.has(input.op)) return runLocalOp(input.op)
   const spec = blenderBridgeVerb(input.op)
   if (!spec) {
@@ -272,7 +291,7 @@ async function runOp(input: Input, abortSignal?: AbortSignal, trace?: { reached:
           : input.op !== 'blend_open' && typeof fenced.args?.path === 'string'
             ? fenced.args.path
             : undefined
-      if (trace) trace.reached = true
+      if (trace) trace.road = 'headless'
       return runBlenderHeadlessOp({
         bin: census.blender.path,
         op: input.op,
@@ -288,8 +307,9 @@ async function runOp(input: Input, abortSignal?: AbortSignal, trace?: { reached:
   const bridgeScript = input.op === 'python_run' ? scriptOf(fenced.args) : undefined
   const wireArgs =
     bridgeScript !== undefined ? { source: scriptAsBridgeSource(bridgeScript, argvOf(fenced.args)) } : fenced.args
-  if (trace) trace.reached = true
+  if (trace) trace.road = 'bridge'
   const r = await client.request(input.op, wireArgs, 30_000, abortSignal)
+  if (trace) trace.taken = r.ok
   let text: string
   if (r.ok) {
     text = formatResult(r.result)
@@ -411,13 +431,13 @@ export const BlenderTool = buildTool({
     let result: string
     const entries = showEntriesOf(input)
     const before = entries.length > 0 ? stampShown(entries) : []
-    const trace = { reached: false }
+    const trace: RoadTrace = {}
     try {
       result = await runOp(input, context?.abortController?.signal, trace)
     } catch (err) {
       result = `${input.op} failed: ${(err as Error).message}\nhint: ${blenderBridgeHint(blenderBridgePort())}`
     }
-    const shown = entries.length > 0 && trace.reached ? await readShown(entries, before) : []
+    const shown = await shownAfter(input, entries, before, trace)
     const output: Output = { op: input.op, result, ...(shown.length > 0 ? { shown } : {}) }
     return { data: output }
   },

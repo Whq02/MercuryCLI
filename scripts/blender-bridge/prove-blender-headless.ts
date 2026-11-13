@@ -698,7 +698,7 @@ section('§8 · a script file with its arguments: python_run script + argv, the 
   const text = getBlenderToolDescriptionForScript()
   check(
     'the tool\'s text names the script form, its arguments and its place among the fenced paths, and the catalog shows both forms',
-    text.includes('or a script file inside the working tree with argv as its arguments after -- (one of the two)') &&
+    text.includes('python_run runs your source, or a script file with argv as its arguments after -- (one of the two)') &&
       text.includes("python_run's script") &&
       text.includes('python_run(source | script, argv?, show?) [exec]'),
     text.slice(0, 200),

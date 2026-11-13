@@ -207,6 +207,25 @@ console.log('a picture named to show is a file the tool opens: the same law')
   )
 }
 
+console.log('a frame render_still is asked to show is a file the tool opens: the same law; with no show a render only writes there')
+{
+  const secretFrame = join(project, 'secret/frame.png')
+  const wrong: string[] = []
+  for (const [spelling, rule] of SPELLINGS) {
+    const permission = deny(rule)
+    const used = await use('render_still', { blend: 'open/unit.blend', outputPath: 'secret/frame.png', show: true }, permission)
+    if (!(used.behavior === 'deny' && used.message === directRead(secretFrame, permission).message && used.starts === 0)) wrong.push(`${spelling}: ${used.behavior}`)
+  }
+  check('show: true on a frame under the denied folder is refused in the sentence a Read of it gets, under all four spellings, and no Blender starts', wrong.length === 0, wrong.join(' | '))
+  const moved: string[] = []
+  for (const show of [undefined, false, 'yes']) {
+    const args = { blend: 'open/unit.blend', outputPath: 'secret/frame.png', ...(show === undefined ? {} : { show }) }
+    const ruled = await verdict('render_still', args, deny('Read(secret/**)'))
+    if (ruled.behavior !== 'ask' || JSON.stringify(ruled) !== JSON.stringify(await verdict('render_still', args, null))) moved.push(`${String(show)}: ${ruled.behavior}`)
+  }
+  check('with no show, show: false, or a show that is not true, the same render asks exactly as it does with no rules at hand', moved.length === 0, moved.join(' | '))
+}
+
 console.log('the neighbours are opened as before')
 {
   const wrong: string[] = []

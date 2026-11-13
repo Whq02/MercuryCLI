@@ -27,6 +27,8 @@ for (const k of [
   'BLENDER_USER_RESOURCES',
   'FAKE_BLENDER_C_STDOUT',
   'FAKE_BLENDER_C_STDERR',
+  'FAKE_BLENDER_RENDER_PNG',
+  'FAKE_BLENDER_RENDER_SLEEP_MS',
 ]) {
   delete process.env[k]
 }
@@ -227,6 +229,113 @@ section('§6 · the bridge road: the same pictures ride a python_run a running B
   check('the add-on was sent the source and no argument it does not know', bridge.seenPython.at(-1) === 'result = 1' && sentKeys.join(',') === 'source', sentKeys.join(','))
   await bridge.close()
   resetBlenderBridgeClientForTest()
+}
+
+const still = path.join('renders', 'frame07.png')
+const stillAbs = path.join(work, still)
+const durationOut = (text: string): string => text.replace(/"durationMs": \d+/g, '"durationMs": N')
+
+section('§7 · render_still with no window: show: true returns the frame it rendered; anything else answers as it did')
+{
+  process.env.MERCURY_BLENDER_BRIDGE_PORT = String(await freshDeadPort())
+  resetBlenderBridgeClientForTest()
+  writeFileSync(path.join(work, 'unit.blend'), JSON.stringify({ custom_objects: ['Rig'], engine: 'CYCLES', frameEnd: 80 }))
+  const expected = [
+    `road: headless (${fixture.bin} -b)`,
+    'exit status: 0',
+    'state: process ended, no state kept (name blend on the next call)',
+    '{',
+    '  "finished": true,',
+    `  "outputPath": ${JSON.stringify(stillAbs)},`,
+    '  "frame": 7,',
+    '  "durationMs": N',
+    '}',
+  ].join('\n')
+  process.env.FAKE_BLENDER_RENDER_PNG = '24x16'
+  const plain = await run({ blend: 'unit.blend', outputPath: still, frame: 7 }, 'render_still')
+  check('with no show the answer is one string, line for line the one it was', typeof plain.block.content === 'string' && durationOut(String(plain.block.content)) === expected, durationOut(String(plain.block.content)))
+  const moved: string[] = []
+  for (const show of [false, 'yes', 1, [still]]) {
+    const ran = await run({ blend: 'unit.blend', outputPath: still, frame: 7, show }, 'render_still')
+    if (typeof ran.block.content !== 'string' || durationOut(ran.block.content) !== expected) moved.push(JSON.stringify(show))
+  }
+  check('show: false, or anything that is not true, answers that same string', moved.length === 0, moved.join(' '))
+  rmSync(stillAbs, { force: true })
+  fixture.clearInvocations()
+  const look = await run({ blend: 'unit.blend', outputPath: still, frame: 7, show: true }, 'render_still')
+  check(
+    'show: true: one Blender, and the answer is that string, then the caption a Read of the frame carries, then the frame',
+    fixture.invocations().length === 1 && look.parts.map(part => part.type).join(',') === 'text,text,image' && durationOut(textsOf(look)[0] ?? '') === expected && textsOf(look)[1] === `[Image: source: ${stillAbs}]`,
+    `starts=${fixture.invocations().length} ${look.parts.map(part => part.type).join(',')} ${textsOf(look)[1] ?? durationOut(look.text)}`,
+  )
+  check('the picture is the 24x16 frame of two colours the render wrote', look.images.length === 1 && look.images[0]?.width === 24 && look.images[0]?.height === 16 && look.images[0]?.colours === 2, JSON.stringify(look.images))
+  process.env.FAKE_BLENDER_RENDER_SLEEP_MS = '3000'
+  const slow = await run({ blend: 'unit.blend', outputPath: 'renders/slow.png', timeoutMs: 150, show: true }, 'render_still')
+  check('a render stopped at its ceiling: the answer says so, and one line says the frame was not written', slow.text.includes('[REQUEST_TIMEOUT]') && slow.images.length === 0 && textsOf(slow).at(-1) === 'show: renders/slow.png was not written', JSON.stringify(textsOf(slow)).slice(0, 300))
+  const before = new Date(Date.now() - 60_000)
+  utimesSync(stillAbs, before, before)
+  const stale = await run({ blend: 'unit.blend', outputPath: still, timeoutMs: 150, show: true }, 'render_still')
+  check('a frame an earlier render left at the path is shown and marked as not written by this call', stale.text.includes('[REQUEST_TIMEOUT]') && stale.images.length === 1 && (textsOf(stale)[1] ?? '').endsWith('(not written by this call)'), JSON.stringify(textsOf(stale)).slice(0, 300))
+  delete process.env.FAKE_BLENDER_RENDER_SLEEP_MS
+  delete process.env.FAKE_BLENDER_RENDER_PNG
+  const raw = await run({ blend: 'unit.blend', outputPath: 'renders/raw.png', show: true }, 'render_still')
+  check('a frame whose bytes are no picture is named and not shown, and the render\'s own answer stands', raw.text.includes('"finished": true') && raw.images.length === 0 && textsOf(raw).at(-1) === 'show: renders/raw.png is not a picture (png, jpeg, gif or webp)', JSON.stringify(textsOf(raw)).slice(0, 300))
+  fixture.clearInvocations()
+  const job = await run({ blend: 'unit.blend', outputPath: still, invoke: true, show: true }, 'render_still')
+  check('the job form, which needs a window, is turned back as before: one string and no Blender', typeof job.block.content === 'string' && job.text.includes('[WINDOW_REQUIRED]') && fixture.invocations().length === 0, job.text.slice(0, 160))
+}
+
+section('§8 · render_still over the bridge: the call answers before the frame exists, so show: true adds one line and no picture')
+{
+  const until = async (ok: () => boolean): Promise<void> => {
+    for (let i = 0; i < 300 && !ok(); i++) await new Promise(resolve => setTimeout(resolve, 10))
+  }
+  const bridge = await startFakeBlenderBridge({ token: readBlenderBridgeToken(addonHome)!, renderDurationMs: 400 })
+  process.env.MERCURY_BLENDER_BRIDGE_PORT = String(bridge.port)
+  resetBlenderBridgeClientForTest()
+  fixture.clearInvocations()
+  const plain = await run({ outputPath: still }, 'render_still')
+  check('with no show the bridge answer is one string', typeof plain.block.content === 'string' && /^road: bridge/.test(plain.text) && plain.text.includes('"started": true'), plain.text.slice(0, 120))
+  await until(() => !bridge.renderInFlight())
+  writeFileSync(stillAbs, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64'))
+  const asked = await run({ outputPath: still, show: true }, 'render_still')
+  check(
+    'show: true: the answer it gave, then the one line saying where the frame will land, and no picture though an old one lies at the path',
+    asked.parts.map(part => part.type).join(',') === 'text,text' && asked.text.includes('"started": true') && textsOf(asked)[1] === `show: the picture is not written yet; it will land at ${stillAbs}` && fixture.invocations().length === 0,
+    `${asked.parts.map(part => part.type).join(',')} ${textsOf(asked)[1] ?? asked.text.slice(0, 120)}`,
+  )
+  const sentKeys = bridge.seenArgKeys[bridge.seenOps.lastIndexOf('render_still')] ?? []
+  check('the add-on was sent outputPath and no word it does not know', sentKeys.join(',') === 'outputPath', sentKeys.join(','))
+  const busy = await run({ outputPath: 'renders/second.png', show: true }, 'render_still')
+  check('a render the bridge refuses gets no such line: its refusal is the one string', typeof busy.block.content === 'string' && busy.text.includes('[RENDER_ACTIVE]'), busy.text.slice(0, 160))
+  await until(() => !bridge.renderInFlight())
+  await bridge.close()
+  resetBlenderBridgeClientForTest()
+}
+
+section('§9 · the ask shows the word; the text says what it gives and says of an ask only what is true of it')
+{
+  type Asked = { behavior: string; message?: string }
+  const renderAsk = (await BlenderTool.checkPermissions!({ op: 'render_still', args: { blend: 'unit.blend', outputPath: still, show: true } } as never, {} as never)) as Asked
+  check('the ask for a render shows show=true among its arguments, as it shows each of them', renderAsk.behavior === 'ask' && (renderAsk.message ?? '').includes(`outputPath=${still} show=true`), renderAsk.message ?? '')
+  const text = getBlenderToolDescription()
+  check(
+    'the text says a render with no window returns its picture on show: true, the catalog lists the word, and the whole keeps its ceiling',
+    text.includes('render_still writes synchronously, and with show: true returns the picture') && text.includes('render_still(outputPath, frame?, show?) [exec]') && Buffer.byteLength(text, 'utf8') <= 2400,
+    `${Buffer.byteLength(text, 'utf8')} bytes`,
+  )
+  const sourceAsk = (await BlenderTool.checkPermissions!({ op: 'python_run', args: { source: 'import bpy\nresult = 1' } } as never, {} as never)) as Asked
+  const scriptAsk = (await BlenderTool.checkPermissions!({ op: 'python_run', args: { script: kit } } as never, {} as never)) as Asked
+  check(
+    'the text says a source\'s ask shows its size and first line, and that is what the two asks do: a source\'s shows both, a script\'s neither',
+    text.includes("a source's ask shows its size and first line, and blend_open refuses while unsaved work is open.") &&
+      !text.includes("python_run's ask carries") &&
+      /\(21 bytes\)/.test(sourceAsk.message ?? '') &&
+      (sourceAsk.message ?? '').endsWith('first line: import bpy') &&
+      !/bytes\)/.test(scriptAsk.message ?? '') &&
+      !(scriptAsk.message ?? '').includes('first line:'),
+    `${sourceAsk.message ?? ''} | ${scriptAsk.message ?? ''}`,
+  )
 }
 
 rmSync(scratch, { recursive: true, force: true })

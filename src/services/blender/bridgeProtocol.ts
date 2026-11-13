@@ -99,6 +99,7 @@ export const BLENDER_BRIDGE_VERBS = {
       outputPath:
         'absolute output image path (the tool resolves and fences before sending); the file at this path is the durable result',
       frame: 'optional number — frame to render (default: the current frame)',
+      show: 'optional true — on the headless road the image at outputPath is returned with the answer; on the bridge the image is not written when the call answers',
     },
   },
   report_tail: {
