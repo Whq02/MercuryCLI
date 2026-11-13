@@ -53,51 +53,47 @@ export function registerDebugSkill(): void {
         ? ''
         : [
             '',
-            'Debug logging was OFF until this invocation, so nothing before now was captured.',
-            `Logging is active from this point at ${logPath}. Ask the user to reproduce the issue, then re-read the log.`,
-            'To capture startup behaviour instead, they can restart with the --debug flag.',
+            `Debug logging was off until now, so earlier events were not captured. Active log: ${logPath}. Ask the user to reproduce the issue, then re-read it (for startup issues, restart with \`--debug\`).`,
             '',
           ].join('\n')
 
       let tailSection: string
       if (tail.kind === 'tail') {
         tailSection = [
-          `Last ${TAIL_LINES} lines of the log (file size ${formatFileSize(tail.totalSize)}):`,
+          `Last ${TAIL_LINES} lines (${formatFileSize(tail.totalSize)}):`,
           '```',
           tail.text,
           '```',
         ].join('\n')
       } else if (tail.kind === 'missing') {
-        tailSection = 'The debug log file does not exist yet — logging was just enabled.'
+        tailSection = 'Debug log file does not exist yet (logging was just enabled).'
       } else {
-        tailSection = `The log tail could not be read: ${tail.message}`
+        tailSection = `Could not read log tail: ${tail.message}`
       }
 
       const issueSection = args.trim()
-        ? `The user describes the issue as: ${args.trim()}`
-        : 'The user gave no issue description — summarise the notable errors yourself.'
+        ? `User issue: ${args.trim()}`
+        : 'No issue description given — summarise notable errors.'
 
       const text = [
-        'Diagnose an issue in the CURRENT Mercury session.',
+        'Diagnose an issue in the current Mercury session.',
         justEnabledSection,
-        `Debug log path: ${logPath}`,
+        `Debug log: ${logPath}`,
         '',
         tailSection,
         '',
-        `Grep the WHOLE log file for the [ERROR] and [WARN] markers, not only the ${TAIL_LINES}-line tail above.`,
-        '',
         issueSection,
         '',
-        'Settings files that may be involved:',
+        'Settings files:',
         `- user: ${getSettingsFilePathForSource('userSettings') ?? '(none)'}`,
         `- project: ${getSettingsFilePathForSource('projectSettings') ?? '(none)'}`,
         `- local: ${getSettingsFilePathForSource('localSettings') ?? '(none)'}`,
         '',
-        'Procedure:',
-        '1. Read the tail above, then grep the full log for [ERROR] and [WARN].',
-        '2. Correlate hits with what the user was doing; read the relevant settings files.',
-        `3. Invoke the ${MERCURY_DOCS_SKILL_NAME} skill when you need to understand a harness feature.`,
-        '4. Finish with plain-language findings and concrete next steps.',
+        'Steps:',
+        `1. Read the ${TAIL_LINES}-line tail above, then Grep the full log file for \`[ERROR]\` and \`[WARN]\`.`,
+        '2. Correlate hits with user actions and inspect relevant settings files.',
+        `3. Invoke \`${MERCURY_DOCS_SKILL_NAME}\` when checking harness behavior.`,
+        '4. Report plain-language findings and concrete next steps.',
       ].join('\n')
 
       return [{ type: 'text', text }]

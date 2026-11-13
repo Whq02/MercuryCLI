@@ -2,25 +2,21 @@
 
 ## Saved size, grid and palette
 
-Start at the selected row's render size and choose saved size with downsize. Reducing render dimensions changes generation, not just the final pixel count. Nearest-neighbour downsize samples without averaging and keeps the full source render; use a factor that divides the dimensions.
+Generate at the model row's native render size and set output resolution via `downsize` (integer factor dividing width and height; nearest-neighbour sampling, keeping the full render). Lowering `width`/`height` alters generation itself. `pixel-party-xl` already adds its suffix and 8x `downsize`; do not stack a second reduction unintendedly.
 
-Palette reduction runs after downsize, without dithering, preserving alpha. Selecting the most-used colours is not selecting a representative spread: background shades can displace a small subject's colours. Inspect before reducing; an explicit palette can preserve the subject/background colours that matter. Reduction is not automatic outline cleanup. Historical CODE evidence: E in `references/sources.md`.
-
-Pixel Party supplies its suffix and default 8x downsize; do not add a second reduction accidentally. Publisher P in `references/sources.md` asks for nearest reduction and says init images help. Its hosting caveat is in the family reference.
+`palette` quantizes colours without dithering while preserving alpha. Dominant background shades can crowd out small subject colours: inspect before quantizing and pass an explicit palette when subject colours must hold.
 
 ## Reference and frames
 
-Inspect the character and intended saved size. No universal strength preserves identity. Klein/Qwen add reference conditioning; Z-Image denoises a reference without that added conditioning. Change one setting at a fixed seed and compare the saved sprite, not only the full render.
+Klein and Qwen condition on `reference_image`; Z-Image only denoises it. Fix `seed`, change one setting at a time, and inspect the downsized sprite rather than only the full render.
 
 Tool: `image_generate`
 ```json
 {"model":"pixel-party-xl","prompt":"a knight in blue armour, full body, facing right, plain background","reference_image":"knight.png","seed":42}
 ```
 
-This is appropriate when Pixel Party is the selected model and the live schema exposes the reference field. A batch varies seeds; a sheet is a contact sheet, not a walk cycle. For poses/facings, inspect silhouette, features, scale and palette across outputs. Fixed seeds and references do not guarantee consistency. Matching pose controls can guide SDXL frames when available; the pipeline sheet's input order sets frame order.
+`count` varies seeds and `sheet` builds a contact sheet (pipeline `sheet` preserves input order), not a coherent walk cycle. Check silhouette, scale and palette across frames; pose `control` can guide SDXL poses when installed.
 
 ## Exact editing and enlargement
 
-Use the available sprite editor's own schema for exact corrections or animation assembly. Aseprite's batch bridge is not a visible GUI; preview and sheet export do not prove an open window. Keep a native sprite source when editability matters. Do not substitute it for a refused generator without agreement. A in `references/sources.md` names its owner.
-
-Use integer nearest-neighbour enlargement for a crisp grid. A learned upscaler reconstructs detail after palette reduction, and non-native enlargement can resample RGB; it can introduce colours and mixed pixel sizes. Inspect the saved PNG at native size, compare the full source to separate generation from downsize artifacts, and recheck palette/alpha after enlargement or hand edits. Stop when the requested sprite/grid is achieved, not after a fixed number of variants. [U, E]
+For pixel-exact fixes, layers, palette audits or animation tags, use Aseprite's batch tool schema (A in `references/sources.md`; headless batch CLI, never a live GUI window, and never a silent substitute for a refused render). Enlarge sprites with integer nearest-neighbour scaling rather than `upscale` so the pixel grid and palette stay exact, and inspect the saved PNG at 1:1.

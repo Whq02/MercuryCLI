@@ -32,12 +32,11 @@ function collectUserMessages(messages: Message[]): string {
 
 const TEMPLATE = `---
 name: <skill-name>
-description: <one-line description>
-allowed-tools: <minimum necessary, pattern-scoped rather than whole-tool>
-when-to-use: Use when <trigger conditions; include trigger phrases>
-argument-hint: <only when the skill takes parameters>
-arguments: <only when the skill takes parameters; $name substitutes in the body>
-context: <fork only for self-contained skills needing no mid-process input>
+description: Use when <triggers and key phrases>. Not for <nearest confusable task>.
+allowed-tools: <omit when only Read/Grep/Glob are used; otherwise minimum pattern-scoped grants>
+argument-hint: <only when taking parameters; <required> or [optional]>
+arguments: <only when taking parameters; $name substitutes in the body>
+context: <fork only for self-contained runs needing no mid-process input>
 ---
 
 ## Inputs
@@ -47,10 +46,9 @@ context: <fork only for self-contained skills needing no mid-process input>
 <what done looks like>
 
 ## Steps
-1. <step> — Success: <the artefact or check proving this step worked>
-2. <step> — Success: <...>
-   2a/2b. <concurrent sub-steps use sub-numbering>
-3. [HUMAN] <steps a person performs are marked in the title>
+1. <step> — Success: <artefact or check proving it worked>
+   1a/1b. <concurrent sub-steps>
+2. [HUMAN] <person-performed step> — Success: <...>
 `
 
 export function registerSkillifySkill(): void {
@@ -76,22 +74,17 @@ ${memory ?? 'No session memory summary is available — derive the process from 
 ${userMessages || '(no user messages found after the last compaction)'}
 </user_messages>
 
-FIRST, before asking anything, analyse the session: the repeatable process; its inputs and parameters; the ordered steps; the artefact proving each step succeeded; where the user corrected or steered you; the tools and permissions used; any crewmates used.
+1. Analyse the session before asking anything: identify the repeatable process, inputs/parameters, ordered steps, per-step success artefacts, user corrections, tools/permissions used, and any crewmates used.
 
-THEN interview the user ENTIRELY through the ${ASK_USER_QUESTION_TOOL_NAME} tool — never ask via plain text — across up to four rounds:
-1. Confirm the skill name and description, the high-level goal, and the success criteria.
-2. Present the identified steps as a numbered list; propose arguments; ask inline-versus-forked execution and where to save.
-3. Per-step detail: the artefacts later steps need, the proof of success, whether to confirm before proceeding (especially for irreversible actions), which steps can run in parallel, the execution mechanism, and hard constraints.
-4. When the skill should be invoked, trigger phrases, and remaining gotchas.
-Iterate with more rounds when needed; stop early for simple processes. Do not add your own "needs tweaking" option — the question tool always offers a freeform alternative.
+2. Interview the user strictly via ${ASK_USER_QUESTION_TOOL_NAME} (never plain-text questions) in up to four rounds, stopping early for simple processes (omit "needs tweaking" options — freeform is built in):
+   - Round 1: skill name, description, goal, and success criteria.
+   - Round 2: numbered steps, proposed arguments, inline vs \`context: fork\`, and save location (\`.mercury/skills/<name>/SKILL.md\` for the repo or \`~/.mercury/skills/<name>/SKILL.md\` for personal use).
+   - Round 3: per-step artefacts, verification checks, confirmation gates before irreversible actions, parallelizable steps, execution mode (direct by default, crewmate, or human-performed), and hard constraints.
+   - Round 4: trigger phrases, exclusions, and gotchas.
 
-Save-location options to offer: the repository path .mercury/skills/<name>/SKILL.md, or the personal path ~/.mercury/skills/<name>/SKILL.md.
-
-Write the SKILL.md using this template:
+3. Draft \`SKILL.md\` from this template (keep \`description\` <= 250 chars with trigger first; require a \`Success:\` check on every step; keep simple skills concise):
 ${TEMPLATE}
-Template rules: SUCCESS CRITERIA ARE REQUIRED ON EVERY STEP. Optional per-step annotations: execution mode (direct by default; task agent; crewmate; human-performed), produced artefacts, human checkpoints, hard rules. Concurrent steps use sub-numbering; human steps are marked in the title. Simple skills stay simple. allowed-tools is the minimum necessary, pattern-scoped rather than whole-tool. context: fork is only for self-contained skills needing no mid-process input. when-to-use is critical: start it with "Use when" and include trigger phrases. The arguments fields appear only when the skill takes parameters, with $name substitution in the body.
-
-Before writing: output the complete file content for review as a fenced code block, then confirm via the ${ASK_USER_QUESTION_TOOL_NAME} tool with a concise question. After writing: tell the user where it was saved, how to invoke it, and that they can edit the file directly.`
+4. Show the complete \`SKILL.md\` in a fenced block and confirm via ${ASK_USER_QUESTION_TOOL_NAME} before writing. Afterwards, report the saved path, invocation syntax, and that the file is directly editable.`
       return [{ type: 'text', text }]
     },
   })

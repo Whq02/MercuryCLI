@@ -1,11 +1,9 @@
 # Model and route facts
 
-This reference carries no model inventory: model ids, tiers and display names live in the catalogue alone (`src/services/providers/modelRegistry.ts` and the family catalogues it indexes) — read them there, never from this page.
+This reference carries no model inventory: read model IDs, tiers and display names from `src/services/providers/modelRegistry.ts`, the family `*Catalogue.ts` / `*Pins.ts` modules, and `src/services/providers/catalogueOnDemand.ts` (`src/services/providers/catalogueAdmission.ts` owns list admission). Capability, effort and pricing owners: `src/utils/model/capabilities.ts`, `src/utils/effort.ts`, `src/utils/modelCost.ts`.
 
-**CODE inspected 2026-11-04:** `src/services/providers/idSpaces.ts` (recognizeModelId) resolves qualified namespace → exact ID → cached live list → aliases/prefixes. Its `PROVIDER_ID_SPACES` and `LIVE_LIST_FAMILIES` are the inventory; do not maintain another here. `src/services/providers/routeLaw.ts` owns wire-ID grammar; strip only Mercury's carrier/annotations, not the vendor's slug.
+**CODE inspected 2026-11-13:**
+- `src/services/providers/idSpaces.ts` (`recognizeModelId`, `PROVIDER_ID_SPACES`, `LIVE_LIST_FAMILIES`) resolves qualified namespace → exact ID → cached live list → aliases/prefixes. `src/services/providers/routeLaw.ts` owns wire-ID grammar: strip only Mercury carrier prefixes/annotations, never the vendor's slug.
+- `src/services/providers/mistral/mistralPins.ts` (`MISTRAL_HOSTED_DEEPSEEK_IDS`) overrides native-looking prefixes for exact hosted IDs. `src/services/providers/homeLaneAdmission.ts` owns explicit gateway/pin admission; unrecognised IDs never enter the home lane.
 
-**CODE inspected 2026-11-04:** exact hosted IDs in `src/services/providers/mistral/mistralPins.ts` (MISTRAL_HOSTED_DEEPSEEK_IDS) can override a native-looking prefix. Check that owner and the classifier before assigning a model to its apparent publisher. `src/services/providers/homeLaneAdmission.ts` owns explicit gateway/pin admission; an unrecognised ID does not establish a home-lane identity.
-
-For the chosen family, open its `*Catalogue.ts` / `*Pins.ts` through `src/services/providers/modelRegistry.ts`; `src/services/providers/catalogueOnDemand.ts` and `src/services/providers/catalogueAdmission.ts` own list refresh and admission. Capability and effort owners are `src/utils/model/capabilities.ts` and `src/utils/effort.ts`; pricing use belongs to `src/utils/modelCost.ts`. Model facts come from the live reader, `src/services/providers/catalogueOnDemand.ts` — the current catalogue, never a copy; this skill keeps no model inventory, price or limit table.
-
-The account's offered list, the selected model and the served model are separate observations. A published model page does not prove account access. Before changing a capability or limit, read the exact model/endpoint's current source from the vendor index and record its date. Do not infer a billing API's absence from an inference page.
+Keep offered list, selected model and served model distinct (a public model page does not prove account access). Before changing capabilities or limits, read the model/endpoint's source in `live-sources.md` and stamp the date; never infer an absent billing API from an inference page.

@@ -5,26 +5,26 @@ argument-hint: "<image to make or edit>"
 ---
 # Image generation
 
-“Use Mercury image generation to make a pixel-art character from this reference” loads this skill. “How do I install Mercury or sign in?” does not: use mercury-docs. An existing PhotoCraft document, LightCraft library or FilmCraft timeline belongs to its app skill, not automatically to a generator.
+“Use Mercury image generation to make a pixel-art character from this reference” loads this skill. “How do I install Mercury or sign in?” does not: use mercury-docs. Existing PhotoCraft documents, LightCraft libraries and FilmCraft timelines belong to their app skills unless generation is requested.
 
 ## Capabilities before a render
 
-Discover the available media tools and read their live schemas. A shipped guide can describe fields the connected server does not expose. Do not send those fields or install/widen the toolset to make a recipe fit. For setup, use `docs/MEDIA.md`, which the mercury-docs skill ships, and the user's `/imagesetup` surface.
+Discover connected media tools and read their live schemas; never send unexposed fields or widen the toolset to force a recipe. For setup, use `docs/MEDIA.md` (which the mercury-docs skill ships) and `/imagesetup`.
 
-Before any render, call `media_status` then `media_models`. Use these results before choosing a model or size. Neither loads weights. Use the named model; otherwise omit `model`. A default-slot change requires the user's ask. Check the selected row's licence and hosting restrictions before commercial or remote work.
+Before any render, call `media_status` then `media_models`. Use these results before choosing a model or size (neither loads weights). Pass `model` only when named; changing the default slot requires the user's ask. Check the row's licence and hosting terms before commercial or remote use.
 
-Omit unused optional fields entirely; never send `null` or empty placeholders. For text-only generation, omit `reference_image`, `strength` and `mask`. Use the selected recipe's defaults unless testing a deliberate change. Read only the relevant reference, relative to this skill's base:
+Omit unused optional fields entirely; never send `null` or empty placeholders. For text-only generation, omit `reference_image`, `strength` and `mask`. Keep the row's recipe defaults unless deliberately testing a change. Read only the one reference needed, relative to this skill's base:
 
-- Capability and video gotchas: `references/tools.md`.
-- Selected model, guidance or adapter: `references/families.md`.
-- Sprites, grid and palette: `references/pixel-art.md`.
-- Editable pipeline, workflow import/export or remote inputs: `references/pipelines.md`.
-- Dated evidence and implementation owners: `references/sources.md`.
+- `references/tools.md` - live schema rules, postprocessing order, job clocks and video generation.
+- `references/families.md` - model rows, CFG, denoising strength, ControlNet, LoRAs, embeddings and upscalers.
+- `references/pixel-art.md` - sprite downsizing, palette reduction, reference sheets and Aseprite handoff.
+- `references/pipelines.md` - editable `.pipeline.json` files, ComfyUI workflow import/export and `media.host` execution.
+- `references/sources.md` - publisher cards, pinned runtime commits and repository owners.
 
 ## Request and inspect
 
-Inspect reference images first. Define the task's visible success conditions: composition, requested text, identity, grid or alpha as relevant. Keep a seed fixed and change one setting when comparing variants; a seed does not guarantee identity or animation consistency.
+Inspect reference images first and set visible success criteria (composition, lettering, identity, grid, alpha). Fix `seed` and vary one parameter at a time when comparing; fixed seeds do not guarantee identity or frame consistency.
 
-Keep the returned job ID and retrieve that job rather than submitting a duplicate. Inspect the actual image at native size; for video inspect the poster and sample frames before claiming motion. Compare against the requested outcome and stop when it is met. Report the saved path and relevant settings or cost, not a queued job as an existing image.
+Reuse the returned job ID rather than submitting duplicates; a queued job is not a finished image. Inspect outputs at native size (for video, inspect both poster and sample frames before claiming motion), stop when criteria are met, and report the saved path and settings/cost.
 
-For an invalid field, correct or omit it and call the same media tool again. Do not retry a permission denial or an unapproved download. Never substitute a script, drawing library or another generator without explaining the change and getting the user's agreement. A refused call made no image.
+For an invalid field, correct or omit it and call the same media tool again. Do not retry a permission denial or unapproved download. Never substitute a script, drawing library or another generator without explaining the change and getting the user's agreement.

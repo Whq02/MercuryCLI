@@ -328,7 +328,7 @@ try {
   check('schema-only calls left no weights or diffusion runtime in the scratch media root', !existsSync(join(scratch, 'media', 'models')) && !existsSync(join(scratch, 'media', 'runtime')))
   const sources = skillFiles.find(([rel]) => rel === 'references/sources.md')?.[1] ?? ''
   const manifest = JSON.parse(readFileSync(join(ROOT, 'src/extensions/bundled/mercury-media/server/manifest.json'), 'utf8')) as { version: string }
-  check('source provenance records the inspected shipped version, not the old guide basis', sources.includes('CODE inspected 2026-11-04') && sources.includes(`media ${manifest.version}`))
+  check('source provenance records the inspected shipped version, not the old guide basis', sources.includes('CODE inspected 2026-11-13') && sources.includes(`media ${manifest.version}`))
   check('tool guide delegates fields and enums to the live schema instead of copying inventories', !inventoryText.includes('## Input inventory') && !inventoryText.includes('Sampler enum:') && inventoryText.includes('live schema'))
   check('export guidance names shared sampling resolution and refusal instead of the obsolete workaround', pipelineText.includes('resolveSampling') && pipelineText.includes('custom sigma') && !pipelineText.includes('omitted CFG and sampler can fall back differently'))
 } catch (error) {
