@@ -23,7 +23,7 @@ export function buildCronCreateDescription(): string {
 }
 
 export function buildCronCreatePrompt(): string {
-  return `Schedules a prompt on this session's daemon record (visible on ${SATURN_BOARD_COMMAND}), firing on this session's model and account even when parked. Returns schedule id and next fire in local time and UTC; non-"Scheduled" replies state whether it may have landed and how to check. Fires land within 30s once idle, survive interrupts, hold with a receipt until /logins if sign-in cannot serve them, and run late after machine sleep (or record missed past the catch-up window).`
+  return `Schedules a prompt on this session's daemon record (visible on ${SATURN_BOARD_COMMAND}), firing on this session's model and account even when parked. It returns the schedule's id and its fire time in local time and UTC; non-"Scheduled" replies state whether it may have landed and how to check. Fires land within 30s only while the session is idle; a schedule outlives interrupts, holds with a receipt until /logins if sign-in cannot serve it, and runs late after machine sleep (or records missed past the catch-up window).`
 }
 
 export const CRON_DELETE_DESCRIPTION = "Take a schedule off this session's clock, by id."
