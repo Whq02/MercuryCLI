@@ -55,7 +55,7 @@ const text = (v: unknown): string => JSON.stringify(v) ?? ''
 const GPT_ID = 'gpt-5.5'
 const HAIKU_ID = 'claude-haiku-4-5-20251001'
 const ROUTED_ID = 'openrouter/nvidia/nemotron-nano-9b-v2:free'
-const fixture = await startCrossfamilyFixture({ port: 25137, seatStyle: 'instant', gptId: GPT_ID, nemotronId: ROUTED_ID })
+const fixture = await startCrossfamilyFixture({ port: Number(process.env.CROSSFAMILY_KERNEL_PORT ?? 0), seatStyle: 'instant', gptId: GPT_ID, nemotronId: ROUTED_ID })
 const captured = fixture.captured
 Object.assign(process.env, fixture.env)
 
