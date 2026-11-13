@@ -131,7 +131,7 @@ const inputSchema = lazySchema(() =>
     op: z.enum(OPS),
     objective: z.string().optional().describe('run: verification goal'),
     steps: z.array(stepSchema()).optional().describe('run: ordered steps'),
-    cleanup: z.enum(['stop-started', 'keep']).optional().describe('Default stop-started; keep leaves them running until session end'),
+    cleanup: z.enum(['stop-started', 'keep']).optional().describe('Default stop-started (stops services this journey started); keep leaves them running until session end'),
     id: z.string().optional().describe('status: jy-… id'),
   }),
 )
