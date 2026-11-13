@@ -49,11 +49,11 @@ const inputSchema = z.strictObject({
   mode: z
     .enum(['matches', 'count'])
     .optional()
-    .describe('"matches" (the default) lists each match with its captures; "count" tallies matches per file'),
+    .describe('Default "matches" (each match + captures); "count" tallies per file'),
   limit: semanticNumber(z.number().optional()).describe(
-    `Matches to return (default ${AST_BOUNDS.defaultLimit}, max ${AST_BOUNDS.maxLimit}); the rest are counted.`,
+    `Max matches (default ${AST_BOUNDS.defaultLimit}, max ${AST_BOUNDS.maxLimit}; rest counted)`,
   ),
-  offset: semanticNumber(z.number().optional()).describe('Matches to skip before the window. Default 0.'),
+  offset: semanticNumber(z.number().optional()).describe('Matches skipped before limit (default 0)'),
 })
 
 type Input = z.infer<typeof inputSchema>
