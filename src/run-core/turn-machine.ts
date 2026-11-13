@@ -229,7 +229,7 @@ const MAX_TURNS_CUT: TurnCut = { kind: 'cut', detail: 'the turn budget was spent
 
 const ANNOUNCED_STEP_NUDGE_LIMIT = 1
 
-export const ANNOUNCED_STEP_NUDGE =
+const ANNOUNCED_STEP_NUDGE =
   'You ended your turn right after announcing a next step, with no tool call: if the task still needs that step, do it now; if the task is already done, give your final answer.'
 
 const ANNOUNCED_STEP_NOTICE =
