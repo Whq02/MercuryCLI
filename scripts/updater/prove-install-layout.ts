@@ -362,12 +362,17 @@ console.log('── §7a uninstall removals route the win32 transient-lock law �
   process.env.MERCURY_UPDATE_FAULT = 'uninstall-rm'
   const unbounded = mkLayout('un-unbounded', true)
   let threw = false
+  let stuck: ReturnType<typeof uninstallLayout> | null = null
   try {
-    uninstallLayout(unbounded)
+    stuck = uninstallLayout(unbounded, { runningFrom: scratch })
   } catch {
     threw = true
   }
-  check('win32 uninstall: an unbounded transient fault surfaces (the seam is consulted)', threw && existsSync(unbounded.versionsDir))
+  check('win32 uninstall: a removal that never succeeds is reported and never thrown (the seam is consulted; the command does not die half way)',
+    !threw && stuck !== null && stuck.leftSetMembers.length === 2 && [...stuck.leftVersionMembers].sort().join() === '9.9.0-beta.1,current.txt' && !stuck.removedVersionsDir && stuck.afterExit.length === 0 && existsSync(unbounded.versionsDir), JSON.stringify(stuck))
+  const stuckLines = stuck === null ? [] : formatUninstallReport(unbounded, stuck).split('\n')
+  check('win32 uninstall: the report names the folder to delete and each launcher that stayed',
+    (stuckLines[0] ?? '').startsWith('not removed whole (a file in it is still in use, or could not be deleted) — delete it yourself: ') && (stuckLines[0] ?? '').includes(join(unbounded.versionsDir, '9.9.0-beta.1')) && stuckLines[1] === `not removed (it could not be deleted) — delete it yourself: ${unbounded.shimPath}`, stuckLines.join(' | '))
   process.env.MERCURY_UPDATE_FAULT = 'uninstall-rm:2'
   const bounded = mkLayout('un-bounded', true)
   const report = uninstallLayout(bounded)
@@ -376,15 +381,61 @@ console.log('── §7a uninstall removals route the win32 transient-lock law �
   process.env.MERCURY_UPDATE_FAULT = 'uninstall-rm:1'
   const posix = mkLayout('un-posix', false)
   let posixThrew = false
+  let once: ReturnType<typeof uninstallLayout> | null = null
   try {
-    uninstallLayout(posix)
+    once = uninstallLayout(posix)
   } catch {
     posixThrew = true
   }
-  check('POSIX uninstall keeps single-attempt semantics (a transient code is not retried off win32)', posixThrew && existsSync(posix.versionsDir))
+  check('POSIX uninstall keeps single-attempt semantics (a transient code is not retried off win32): the launcher it could not delete is reported, the versions go',
+    !posixThrew && once !== null && once.leftSetMembers.join() === posix.shimPath && existsSync(posix.shimPath) && once.removedVersionsDir && !existsSync(posix.versionsDir), JSON.stringify(once))
   delete process.env.MERCURY_UPDATE_FAULT
   const clean = uninstallLayout(posix)
-  check('with the seam cleared the POSIX uninstall completes', clean.removedVersionsDir && !existsSync(posix.versionsDir) && !existsSync(posix.shimPath))
+  check('with the seam cleared the POSIX uninstall completes', clean.removedShim && clean.leftSetMembers.length === 0 && !existsSync(posix.versionsDir) && !existsSync(posix.shimPath))
+}
+
+console.log('── §7d a Windows uninstall run from the install it removes hands what is in use to a helper that runs after it ──')
+{
+  const mkInUse = (name: string, isWindows: boolean): LayoutRoots => {
+    const bin = join(scratch, `${name}-bin`)
+    const versions = join(scratch, `${name}-versions`)
+    mkdirSync(join(versions, '9.9.0-beta.1'), { recursive: true })
+    writeFileSync(join(versions, '9.9.0-beta.1', 'mercury.mjs'), '// payload\n')
+    writeFileSync(join(versions, 'current.txt'), '9.9.0-beta.1\n')
+    mkdirSync(bin, { recursive: true })
+    const shimPath = join(bin, isWindows ? 'mercury.cmd' : 'mercury')
+    const roots: LayoutRoots = isWindows
+      ? { versionsDir: versions, binDir: bin, shimPath, shimSetPaths: [shimPath, join(bin, 'mercury')], isWindows }
+      : { versionsDir: versions, binDir: bin, shimPath, isWindows }
+    for (const p of roots.shimSetPaths ?? [shimPath]) writeFileSync(p, p.endsWith('.cmd') ? shimContent(true) : shimContent(false))
+    return roots
+  }
+  const inUse = mkInUse('inuse', true)
+  const home = join(inUse.versionsDir, '9.9.0-beta.1')
+  const handed: Array<{ paths: string[]; dir: string }> = []
+  const deferred = uninstallLayout(inUse, { runningFrom: home.toUpperCase().replace(/\//g, '\\'), removeAfterExit: (paths, dir) => { handed.push({ paths: [...paths], dir }); return true } })
+  check('in use: nothing is deleted while the command runs, so no folder is left half gone and no launcher vanishes under its own shell',
+    existsSync(join(home, 'mercury.mjs')) && existsSync(inUse.shimPath) && existsSync(join(inUse.binDir, 'mercury')) && existsSync(join(inUse.versionsDir, 'current.txt')) && deferred.removedSetMembers.length === 0 && deferred.removedVersionMembers.length === 0 && deferred.leftVersionMembers.length === 0 && deferred.leftSetMembers.length === 0)
+  check('in use: the helper is handed both launchers, the version and its pointer, and the versions folder (the running path is matched whatever its case and slashes)',
+    handed.length === 1 && handed[0]!.dir === inUse.versionsDir && [...handed[0]!.paths].sort().join() === [inUse.shimPath, join(inUse.binDir, 'mercury'), home, join(inUse.versionsDir, 'current.txt')].sort().join() && [...deferred.afterExit].sort().join() === [...handed[0]!.paths].sort().join(), JSON.stringify(handed))
+  const deferredLines = formatUninstallReport(inUse, deferred).split('\n')
+  check('in use: the report says each goes once the command has ended',
+    deferredLines[0] === `removed once this command has ended (this Mercury runs from it until then): the Mercury versions in ${inUse.versionsDir}` && deferredLines[1] === `removed once this command has ended: ${inUse.shimPath}` && deferredLines[2] === `removed once this command has ended: ${join(inUse.binDir, 'mercury')}`, deferredLines.join(' | '))
+  const noHelper = uninstallLayout(inUse, { runningFrom: home, removeAfterExit: () => false })
+  check('in use and no helper could start: the launchers go at once and the versions are removed as far as they can be',
+    noHelper.afterExit.length === 0 && noHelper.removedSetMembers.length === 2 && !existsSync(inUse.shimPath) && noHelper.removedVersionsDir && !existsSync(inUse.versionsDir))
+  const elsewhere = mkInUse('inuse-elsewhere', true)
+  let asked = 0
+  const direct = uninstallLayout(elsewhere, { runningFrom: join(scratch, 'another-build'), removeAfterExit: () => { asked++; return true } })
+  check('a Windows uninstall run from another build removes at once and asks no helper', asked === 0 && direct.afterExit.length === 0 && direct.removedVersionsDir && direct.removedSetMembers.length === 2 && !existsSync(elsewhere.versionsDir))
+  const posixInside = mkInUse('inuse-posix', false)
+  const unlinked = uninstallLayout(posixInside, { runningFrom: join(posixInside.versionsDir, '9.9.0-beta.1'), removeAfterExit: () => { asked++; return true } })
+  check('off Windows a running file can be unlinked: the uninstall removes at once and asks no helper', asked === 0 && unlinked.afterExit.length === 0 && unlinked.removedVersionsDir && unlinked.removedShim)
+  const layoutSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'privateChannel', 'installLayout.ts'), 'utf8')
+  check("the helper's command carries no path of the user's: it is handed encoded and reads its paths from its environment",
+    layoutSource.includes("'-EncodedCommand'") && layoutSource.includes('$env:MERCURY_UNINSTALL_PATHS') && layoutSource.includes('$env:MERCURY_UNINSTALL_DIR') && layoutSource.includes('-LiteralPath $p'))
+  const verbSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'installVerb.ts'), 'utf8')
+  check('the verb exits non-zero only when something of Mercury\'s could not be removed', verbSource.includes('const left = report.leftVersionMembers.length > 0 || report.leftSetMembers.length > 0') && verbSource.includes('return left ? cliError(text) : cliOk(text)'))
 }
 
 console.log('── §7b the uninstall report names every launcher-set member ──')
@@ -403,6 +454,9 @@ console.log('── §7b the uninstall report names every launcher-set member �
     preservedVersionsDir: false,
     removedShim: true,
     removedSetMembers: [join(winBin, 'mercury.cmd')],
+    leftVersionMembers: [],
+    leftSetMembers: [],
+    afterExit: [],
     preservedForeign: [join(winBin, 'mercury')],
     preservedConfigHome: join(scratch, 'report-home'),
   }).split('\n')
@@ -410,10 +464,10 @@ console.log('── §7b the uninstall report names every launcher-set member �
   check('report: the removed cmd member is named', mixed[1] === `removed: ${join(winBin, 'mercury.cmd')}`)
   check('report: the preserved foreign façade is named as preserved, never as removed', mixed[2] === `preserved (not a Mercury-managed command — left as found): ${join(winBin, 'mercury')}`)
   check('report: the config home line states the preserve law', mixed[3].startsWith(`preserved: ${join(scratch, 'report-home')} (configuration, sessions, extensions`))
-  const nothing = formatUninstallReport(winRoots, { removedVersionsDir: false, removedVersionMembers: [], preservedVersionsDir: false, removedShim: false, removedSetMembers: [], preservedForeign: [], preservedConfigHome: '/h' }).split('\n')
+  const nothing = formatUninstallReport(winRoots, { removedVersionsDir: false, removedVersionMembers: [], leftVersionMembers: [], preservedVersionsDir: false, removedShim: false, removedSetMembers: [], leftSetMembers: [], afterExit: [], preservedForeign: [], preservedConfigHome: '/h' }).split('\n')
   check('report: an empty layout says "nothing to remove" for the dir and each absent member', nothing[0].startsWith('nothing to remove at ') && nothing[1].endsWith('mercury.cmd (absent)') && nothing[2].endsWith('mercury (absent)'))
   const posixRoots: LayoutRoots = { versionsDir: join(scratch, 'rp-versions'), binDir: join(scratch, 'rp-bin'), shimPath: join(scratch, 'rp-bin', 'mercury'), isWindows: false }
-  const posix = formatUninstallReport(posixRoots, { removedVersionsDir: true, removedVersionMembers: ['current.txt'], preservedVersionsDir: false, removedShim: true, removedSetMembers: [posixRoots.shimPath], preservedForeign: [], preservedConfigHome: '/h' }).split('\n')
+  const posix = formatUninstallReport(posixRoots, { removedVersionsDir: true, removedVersionMembers: ['current.txt'], leftVersionMembers: [], preservedVersionsDir: false, removedShim: true, removedSetMembers: [posixRoots.shimPath], leftSetMembers: [], afterExit: [], preservedForeign: [], preservedConfigHome: '/h' }).split('\n')
   check('report: the POSIX set is the single sh member (3 lines)', posix.length === 3 && posix[1] === `removed: ${posixRoots.shimPath}`)
 }
 

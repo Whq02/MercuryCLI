@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
@@ -940,11 +940,19 @@ export function smokeVersion(dir: string, expectedVersion: string, primaryBundle
 export interface UninstallReport {
   removedVersionsDir: boolean
   removedVersionMembers: string[]
+  leftVersionMembers: string[]
   preservedVersionsDir: boolean
   removedShim: boolean
   removedSetMembers: string[]
+  leftSetMembers: string[]
+  afterExit: string[]
   preservedForeign: string[]
   preservedConfigHome: string
+}
+
+export interface UninstallDeps {
+  runningFrom?: string
+  removeAfterExit?: (paths: string[], versionsDir: string) => boolean
 }
 
 const LAYOUT_FILES = new Set(['current.txt', 'previous.txt', 'last-install.json', 'last-update.json'])
@@ -974,46 +982,111 @@ function layoutMembers(versionsDir: string): { members: string[]; marked: boolea
   return { members, marked }
 }
 
-export function uninstallLayout(roots: LayoutRoots): UninstallReport {
-  const removedVersionMembers: string[] = []
-  let removedVersionsDir = false
-  let preservedVersionsDir = false
-  if (existsSync(roots.versionsDir)) {
-    const { members, marked } = layoutMembers(roots.versionsDir)
-    if (marked) {
-      for (const member of members) {
-        removeWithRetry(join(roots.versionsDir, member), 'uninstall-rm', roots.isWindows)
-        removedVersionMembers.push(member)
-      }
-    }
-    if (dirMembers(roots.versionsDir).length === 0) {
-      removeWithRetry(roots.versionsDir, 'uninstall-rm', roots.isWindows)
-      removedVersionsDir = true
-    } else {
-      preservedVersionsDir = true
-    }
+function liesInside(root: string, path: string, isWindows: boolean): boolean {
+  const norm = (p: string): string => {
+    const slashed = (isWindows ? p.replace(/\\/g, '/') : p).replace(/\/+$/, '')
+    return isWindows ? slashed.toLowerCase() : slashed
   }
-  const removedSetMembers: string[] = []
+  const r = norm(root)
+  const t = norm(path)
+  return r !== '' && (t === r || t.startsWith(`${r}/`))
+}
+
+const UNINSTALL_AFTER_EXIT_SCRIPT = [
+  "$paths = $env:MERCURY_UNINSTALL_PATHS -split '\\|'",
+  'for ($i = 0; $i -lt 20; $i++) {',
+  '  Start-Sleep -Milliseconds 1500',
+  '  $left = 0',
+  '  foreach ($p in $paths) { if ($p -and (Test-Path -LiteralPath $p)) { Remove-Item -LiteralPath $p -Recurse -Force -ErrorAction SilentlyContinue; if (Test-Path -LiteralPath $p) { $left++ } } }',
+  '  if ($left -eq 0) { break }',
+  '}',
+  '$d = $env:MERCURY_UNINSTALL_DIR',
+  'if ($d -and (Test-Path -LiteralPath $d) -and -not (Get-ChildItem -LiteralPath $d -Force | Select-Object -First 1)) { Remove-Item -LiteralPath $d -Force -ErrorAction SilentlyContinue }',
+].join('\n')
+
+function removeAfterExitOnWindows(paths: string[], versionsDir: string): boolean {
+  if (process.platform !== 'win32') return false
+  try {
+    const child = spawn(
+      'powershell.exe',
+      ['-NoLogo', '-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-EncodedCommand', Buffer.from(UNINSTALL_AFTER_EXIT_SCRIPT, 'utf16le').toString('base64')],
+      {
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true,
+        cwd: homedir(),
+        env: { ...subprocessEnv(), MERCURY_UNINSTALL_PATHS: paths.join('|'), MERCURY_UNINSTALL_DIR: versionsDir },
+      },
+    )
+    child.on('error', () => {})
+    if (child.pid === undefined) return false
+    child.unref()
+    return true
+  } catch {
+    return false
+  }
+}
+
+export function uninstallLayout(roots: LayoutRoots, deps: UninstallDeps = {}): UninstallReport {
+  const ownSet: string[] = []
   const preservedForeign: string[] = []
   for (const path of shimSetPathsOf(roots)) {
     try {
-      const existing = readFileSync(path, 'utf8')
-      if (existing.includes(SHIM_MARKER_FAMILY)) {
-        removeWithRetry(path, 'uninstall-rm', roots.isWindows)
-        removedSetMembers.push(path)
-      } else {
-        preservedForeign.push(path)
+      if (readFileSync(path, 'utf8').includes(SHIM_MARKER_FAMILY)) ownSet.push(path)
+      else preservedForeign.push(path)
+    } catch {
+    }
+  }
+  const layout = existsSync(roots.versionsDir) ? layoutMembers(roots.versionsDir) : null
+  const ownMembers = layout !== null && layout.marked ? layout.members : []
+  const preservedConfigHome = getMercuryHome()
+  const pending = [...ownSet, ...ownMembers.map(member => join(roots.versionsDir, member))]
+  const inUse = roots.isWindows && liesInside(roots.versionsDir, deps.runningFrom ?? runningPayloadDir(), true)
+  if (inUse && pending.length > 0 && (deps.removeAfterExit ?? removeAfterExitOnWindows)(pending, roots.versionsDir)) {
+    return { removedVersionsDir: false, removedVersionMembers: [], leftVersionMembers: [], preservedVersionsDir: layout !== null, removedShim: false, removedSetMembers: [], leftSetMembers: [], afterExit: pending, preservedForeign, preservedConfigHome }
+  }
+  const removedSetMembers: string[] = []
+  const leftSetMembers: string[] = []
+  for (const path of ownSet) {
+    try {
+      removeWithRetry(path, 'uninstall-rm', roots.isWindows)
+      removedSetMembers.push(path)
+    } catch {
+      leftSetMembers.push(path)
+    }
+  }
+  const removedVersionMembers: string[] = []
+  const leftVersionMembers: string[] = []
+  let removedVersionsDir = false
+  let preservedVersionsDir = false
+  if (layout !== null) {
+    for (const member of ownMembers) {
+      try {
+        removeWithRetry(join(roots.versionsDir, member), 'uninstall-rm', roots.isWindows)
+        removedVersionMembers.push(member)
+      } catch {
+        leftVersionMembers.push(member)
+      }
+    }
+    preservedVersionsDir = true
+    try {
+      if (dirMembers(roots.versionsDir).length === 0) {
+        removeWithRetry(roots.versionsDir, 'uninstall-rm', roots.isWindows)
+        removedVersionsDir = true
+        preservedVersionsDir = false
       }
     } catch {
     }
   }
   const removedShim = removedSetMembers.includes(roots.shimPath)
-  return { removedVersionsDir, removedVersionMembers, preservedVersionsDir, removedShim, removedSetMembers, preservedForeign, preservedConfigHome: getMercuryHome() }
+  return { removedVersionsDir, removedVersionMembers, leftVersionMembers, preservedVersionsDir, removedShim, removedSetMembers, leftSetMembers, afterExit: [], preservedForeign, preservedConfigHome }
 }
 
 function versionsDirLine(roots: LayoutRoots, report: UninstallReport): string {
   if (report.removedVersionsDir) return `removed: ${roots.versionsDir}`
+  if (report.afterExit.some(path => liesInside(roots.versionsDir, path, roots.isWindows))) return `removed once this command has ended (this Mercury runs from it until then): the Mercury versions in ${roots.versionsDir}`
   if (!report.preservedVersionsDir) return `nothing to remove at ${roots.versionsDir}`
+  if (report.leftVersionMembers.length > 0) return `not removed whole (a file in it is still in use, or could not be deleted) — delete it yourself: ${report.leftVersionMembers.map(member => join(roots.versionsDir, member)).join(', ')}`
   if (report.removedVersionMembers.length > 0) return `removed: the Mercury versions and pointer files in ${roots.versionsDir} (its other files were left as found)`
   return `preserved (not a Mercury versions folder — left as found): ${roots.versionsDir}`
 }
@@ -1022,6 +1095,8 @@ export function formatUninstallReport(roots: LayoutRoots, report: UninstallRepor
   const lines = [versionsDirLine(roots, report)]
   for (const path of shimSetPathsOf(roots)) {
     if (report.removedSetMembers.includes(path)) lines.push(`removed: ${path}`)
+    else if (report.afterExit.includes(path)) lines.push(`removed once this command has ended: ${path}`)
+    else if (report.leftSetMembers.includes(path)) lines.push(`not removed (it could not be deleted) — delete it yourself: ${path}`)
     else if (report.preservedForeign.includes(path)) lines.push(`preserved (not a Mercury-managed command — left as found): ${path}`)
     else lines.push(`nothing to remove at ${path} (absent)`)
   }

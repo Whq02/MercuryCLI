@@ -65,9 +65,11 @@ export async function installVerb(options: InstallCliOptions = {}): Promise<neve
   if (options.uninstall) {
     const report = uninstallLayout(roots)
     const path: PathRemovalOutcome = report.preservedForeign.length > 0 ? { state: 'absent', dir: roots.binDir } : removeBinDirFromPath(roots, pathEntryIo())
-    if (options.json) return emitJson({ mode: 'uninstall', ...report, path })
+    const left = report.leftVersionMembers.length > 0 || report.leftSetMembers.length > 0
+    if (options.json) return (left ? failJson : emitJson)({ mode: 'uninstall', ...report, path })
     const pathLine = describePathRemoval(path, roots.isWindows)
-    return cliOk(pathLine === null ? formatUninstallReport(roots, report) : `${formatUninstallReport(roots, report)}\n${pathLine}`)
+    const text = pathLine === null ? formatUninstallReport(roots, report) : `${formatUninstallReport(roots, report)}\n${pathLine}`
+    return left ? cliError(text) : cliOk(text)
   }
 
   if (options.dryRun) {
