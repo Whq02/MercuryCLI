@@ -61,7 +61,7 @@ import type { WorkflowControlJournalRow, WorkflowExecutionPause } from './runCon
 import {
   getSchemaBoundStructuredOutputTool,
   STRUCTURED_OUTPUT_TOOL_NAME,
-} from './structuredOutputTool.js'
+} from '../SyntheticOutputTool/structuredOutputTool.js'
 import { formatQuietAge } from './livePulse.js'
 import {
   addWorkflowUsage,

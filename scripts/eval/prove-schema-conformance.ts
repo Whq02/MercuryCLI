@@ -20,7 +20,7 @@ section('source pin: one engine, no second validator')
   walk(SRC)
   check('exactly one `new Ajv(` under src/, in the engine', hits.length === 1 && hits[0] === 'services/schema/jsonSchemaEngine.ts', JSON.stringify(hits))
   check('the lite validator stays deleted', !existsSync(join(SRC, 'services/eval/jsonSchemaLite.ts')))
-  const workflow = readFileSync(join(SRC, 'tools/WorkflowTool/structuredOutputTool.ts'), 'utf8')
+  const workflow = readFileSync(join(SRC, 'tools/SyntheticOutputTool/structuredOutputTool.ts'), 'utf8')
   const bridge = readFileSync(join(SRC, 'services/eval/evalBridge.ts'), 'utf8')
   const synthetic = readFileSync(join(SRC, 'tools/SyntheticOutputTool/SyntheticOutputTool.ts'), 'utf8')
   check('the workflow consumer imports the engine', workflow.includes('services/schema/jsonSchemaEngine.js'))
@@ -41,7 +41,7 @@ section('source pin: one engine, no second validator')
 setup()
 const { applySchemaToReply } = await import('../../src/services/eval/evalBridge.js')
 const { getSchemaBoundStructuredOutputTool, SchemaMismatchError } = await import(
-  '../../src/tools/WorkflowTool/structuredOutputTool.js'
+  '../../src/tools/SyntheticOutputTool/structuredOutputTool.js'
 )
 const { createSyntheticOutputTool } = await import('../../src/tools/SyntheticOutputTool/SyntheticOutputTool.js')
 

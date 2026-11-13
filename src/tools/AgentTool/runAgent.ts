@@ -64,7 +64,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import {
   getSchemaBoundStructuredOutputTool,
   STRUCTURED_OUTPUT_TOOL_NAME,
-} from '../WorkflowTool/structuredOutputTool.js'
+} from '../SyntheticOutputTool/structuredOutputTool.js'
 import { armInactivityDeadline, DeadlineExceededError, minutesKnobToMs } from '../../utils/deadline.js'
 import {
   honourRecoveryWait,

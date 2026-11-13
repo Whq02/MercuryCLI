@@ -86,7 +86,7 @@ import {
   runAsyncAgentLifecycle,
   structuredResultBlock,
 } from './agentToolUtils.js'
-import { getSchemaBoundStructuredOutputTool } from '../WorkflowTool/structuredOutputTool.js'
+import { getSchemaBoundStructuredOutputTool } from '../SyntheticOutputTool/structuredOutputTool.js'
 import {
   AGENT_TOOL_NAME,
   MERCURY_CREW_AGENT_TYPE,

@@ -48,7 +48,7 @@ import {
 import { reconstructForSubagentResume } from '../../utils/toolResultStorage.js'
 import { recordedRequestContexts, restoreBoundPrefixFromMessages } from '../../services/providers/anthropic/boundPrefixRecord.js'
 import { pendingToolRosterRestore } from '../../services/providers/toolEconomy.js'
-import { getSchemaBoundStructuredOutputTool, STRUCTURED_OUTPUT_TOOL_NAME } from '../WorkflowTool/structuredOutputTool.js'
+import { getSchemaBoundStructuredOutputTool, STRUCTURED_OUTPUT_TOOL_NAME } from '../SyntheticOutputTool/structuredOutputTool.js'
 import { getCwdState, getSdkAgentProgressSummariesEnabled } from '../../bootstrap/state.js'
 import { automaticResumePending, cancelAutomaticResume, resolveWorkerTools, runAsyncAgentLifecycle } from './agentToolUtils.js'
 import { operatorPauseGate } from '../../run-core/pauseGate.js'

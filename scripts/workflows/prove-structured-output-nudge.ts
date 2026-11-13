@@ -150,7 +150,7 @@ console.log('============================================================')
 
 {
   const { getSchemaBoundStructuredOutputTool } = await import(
-    '../../src/tools/WorkflowTool/structuredOutputTool.js'
+    '../../src/tools/SyntheticOutputTool/structuredOutputTool.js'
   )
   const built = getSchemaBoundStructuredOutputTool(SCHEMA) as {
     tool?: { call: (input: unknown) => Promise<{ structured_output?: unknown }> }
