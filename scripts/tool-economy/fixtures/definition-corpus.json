@@ -1,5 +1,5 @@
 {
-  "base": "d9b3d6786189fb03a6f9ae6d60e06d7a03a7401b",
+  "base": "fc30b833fa1782fbd3af3d83340817d453b5c700",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -493,7 +493,7 @@
     },
     {
       "name": "WebSearch",
-      "description": "Searches the web on any model and returns JSON hits {title, url, snippet, source_type} with notes (≤~2,000 tokens at chars/4; withheld hits counted; provider search adds its answer as a labelled unverified note). Source order: session provider search, Brave/Tavily keys, query-routed official API, SearXNG instances, DuckDuckGo scraping (unless disabled). Sources receive query and client IP; hits are unverified; cached repeats say so.\n\nEnd answers with \"Sources:\" linking relevant hits as [Title](URL).",
+      "description": "Searches the web on any model and returns JSON hits {title, url, snippet, source_type} with notes (≤~2,000 tokens at chars/4; withheld hits counted; provider search adds its answer as a labelled unverified note). Source order: the session provider's own search, on this session's account; Brave/Tavily keys; the official API the query words select; SearXNG instances; DuckDuckGo page scraping unless the operator turned it off. Every source receives the query and the client's address; hits are unverified; cached repeats say so.\n\nEnd answers with \"Sources:\" linking relevant hits as [Title](URL).",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -526,7 +526,7 @@
     },
     {
       "name": "ProviderSearch",
-      "description": "Searches only via this session provider's native search on its account, returning JSON hits {title, url, snippet, source_type: provider} with notes (≤~2,000 tokens at chars/4; withheld hits counted; provider answer attached as a labelled unverified note). Hits are unverified.\n\nEnd answers with \"Sources:\" linking relevant hits as [Title](URL).",
+      "description": "Searches through the session provider's own search, on this session's provider account, with no other source tried, returning JSON hits {title, url, snippet, source_type: provider} with notes (≤~2,000 tokens at chars/4; withheld hits counted; provider answer attached as a labelled unverified note). Hits are unverified.\n\nEnd answers with \"Sources:\" linking relevant hits as [Title](URL).",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -1319,7 +1319,8 @@
               "writeMemory",
               "restart",
               "customRequest"
-            ]
+            ],
+            "description": "Debug operation."
           },
           "session": {
             "description": "Session name (default \"main\"; re-launch replaces it)",
@@ -2923,7 +2924,8 @@
               "info",
               "screenshot",
               "close"
-            ]
+            ],
+            "description": "Browser operation."
           },
           "url": {
             "description": "open: http/https URL",
@@ -4004,7 +4006,7 @@
         "type": "object",
         "properties": {
           "seconds": {
-            "description": "Seconds to wait (1–3600; clamped outside bounds).",
+            "description": "Seconds to wait (min 1, max 3600; clamped outside bounds).",
             "type": "number",
             "minimum": 0
           }
@@ -4018,7 +4020,7 @@
     },
     {
       "name": "CronCreate",
-      "description": "Schedules a prompt on this session's daemon record (visible on /saturn), firing on this session's model and account even when parked. Returns schedule id and next fire in local time and UTC; non-\"Scheduled\" replies state whether it may have landed and how to check. Fires land within 30s once idle, survive interrupts, hold with a receipt until /logins if sign-in cannot serve them, and run late after machine sleep (or record missed past the catch-up window).",
+      "description": "Schedules a prompt on this session's daemon record (visible on /saturn), firing on this session's model and account even when parked. It returns the schedule's id and its fire time in local time and UTC; non-\"Scheduled\" replies state whether it may have landed and how to check. Fires land within 30s only while the session is idle; a schedule outlives interrupts, holds with a receipt until /logins if sign-in cannot serve it, and runs late after machine sleep (or records missed past the catch-up window).",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -4155,7 +4157,7 @@
     },
     {
       "name": "ContextLeft",
-      "description": "Reports context-window usage (tokens used, window, percent, and tokens left before autocompact) from the operator's context gauge, marking each figure wire-measured or char-estimated. Before the first answer, usage is unknown (window still shown); a ~ window is a conservative default, not provider-stated.",
+      "description": "Reports context-window usage (tokens used, window, percent, and tokens left until autocompact) from the operator's context gauge, marking each figure wire-measured or char-estimated. Before the first answer the count is unknown (window still shown); a ~ window is a conservative default, not provider-stated.",
       "input_schema": {
         "type": "object",
         "properties": {},
