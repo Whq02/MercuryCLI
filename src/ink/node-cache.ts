@@ -70,3 +70,14 @@ export function hasReachingChild(parent: DOMElement): boolean {
   const set = reachingChildren.get(parent)
   return set !== undefined && set.size > 0
 }
+
+const nestedScrollContents = new WeakSet<DOMElement>()
+
+export function setHasNestedScroll(content: DOMElement, has: boolean): void {
+  if (has) nestedScrollContents.add(content)
+  else nestedScrollContents.delete(content)
+}
+
+export function hasNestedScroll(content: DOMElement): boolean {
+  return nestedScrollContents.has(content)
+}

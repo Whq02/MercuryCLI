@@ -6,7 +6,7 @@ import type { DOMElement as FrameNode } from './dom.js'
 import getMaxWidth from './get-max-width.js'
 import type { Rectangle } from './layout/geometry.js'
 import { LayoutDisplay, LayoutEdge, type LayoutNode } from './layout/node.js'
-import { type CachedLayout, consumeChildRemoved, hasReachingChild, nodeCache, pendingClears, setChildReach } from './node-cache.js'
+import { type CachedLayout, consumeChildRemoved, hasNestedScroll, hasReachingChild, nodeCache, pendingClears, setChildReach, setHasNestedScroll } from './node-cache.js'
 import type ComposeBuffer from './compose-buffer.js'
 import renderBorder from './render-border.js'
 import type { Screen } from './cell-grid.js'
@@ -343,7 +343,7 @@ function applyPaddingToText(node: FrameNode, text: string, softWrap?: boolean[])
 
 type RowGround = (row: number) => Color | undefined
 
-type Walk = { buffer: ComposeBuffer; signals: ComposeSignals; prevAbsoluteRects: readonly Rectangle[]; invalidRects: readonly Rectangle[]; regionScrollUsable: boolean }
+type Walk = { buffer: ComposeBuffer; signals: ComposeSignals; prevAbsoluteRects: readonly Rectangle[]; invalidRects: readonly Rectangle[]; regionScrollUsable: boolean; scrollDepth: number; sawInnerScroll: boolean }
 
 type Own = { left: number; top: number; right: number; bottom: number }
 
@@ -356,7 +356,7 @@ const floorRect = (rect: Rectangle): Rectangle => ({ x: Math.floor(rect.x), y: M
 const clipping = (mode: string | undefined): boolean => mode === 'hidden' || mode === 'scroll'
 
 export default function composeTree(root: FrameNode, buffer: ComposeBuffer, opts: ComposeOptions): ComposeSignals {
-  const walk: Walk = { buffer, signals: opts.signals ?? new ComposeSignals(), prevAbsoluteRects: opts.prevAbsoluteRects ?? [], invalidRects: opts.invalidRects ?? [], regionScrollUsable: opts.regionScrollUsable === true }
+  const walk: Walk = { buffer, signals: opts.signals ?? new ComposeSignals(), prevAbsoluteRects: opts.prevAbsoluteRects ?? [], invalidRects: opts.invalidRects ?? [], regionScrollUsable: opts.regionScrollUsable === true, scrollDepth: 0, sawInnerScroll: false }
   composeNode(root, walk, { offsetX: opts.offsetX, offsetY: opts.offsetY, prevScreen: opts.prevScreen })
   return walk.signals
 }
@@ -698,7 +698,9 @@ type RectShift = { top: number; bottom: number; delta: number; x0: number; x1: n
 
 function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: number, y: number, width: number, height: number, layoutNode: LayoutNode, y1: number | undefined, y2: number | undefined, hasRemovedChild: boolean, boxBackgroundColor: Color | undefined, own: Own, rowSampler?: RowGround): void {
   const { buffer, signals } = walk
-  const prevScreen = placement.prevScreen
+  const inOuterScroll = walk.scrollDepth > 0
+  if (inOuterScroll) walk.sawInnerScroll = true
+  const prevScreen = inOuterScroll ? undefined : placement.prevScreen
   const boxCached = nodeCache.get(node)
   const paddingTop = layoutNode.getComputedPadding(LayoutEdge.Top)
   const paddingBottom = layoutNode.getComputedPadding(LayoutEdge.Bottom)
@@ -776,7 +778,7 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
   }
   if (scrollTop !== travel) scroll.pendingScrollDelta = undefined
   const clampGap = clamped - scrollTop
-  if (scroll.pendingScrollDelta !== undefined || (clampGap !== 0 && clampGap !== (scroll.scrollClampGapPrev ?? 0))) signals.scrollDrainNode = node
+  if (!inOuterScroll && (scroll.pendingScrollDelta !== undefined || (clampGap !== 0 && clampGap !== (scroll.scrollClampGapPrev ?? 0)))) signals.scrollDrainNode = node
   scroll.scrollClampGapPrev = clampGap
   const paintTop = clamped
 
@@ -792,7 +794,7 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
   const contentWas = nodeCache.get(content)
   let regionHint: ScrollHint | null = null
   let rectShift: RectShift | null = null
-  if (contentWas && contentWas.y !== contentTop) {
+  if (!inOuterScroll && contentWas && contentWas.y !== contentTop) {
     const delta = contentWas.y - contentTop
     const regionTop = Math.floor(y + contentYoga.getComputedTop() - paddingTop)
     const regionBottom = regionTop + paddingTop + innerHeight + paddingBottom - 1
@@ -808,10 +810,10 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
         boxCached.height === height &&
         innerHeight > 0 &&
         Math.abs(delta) < innerHeight
-      if (stableForShift && prevScreen !== undefined && spansFullWidth && walk.regionScrollUsable) {
+      if (stableForShift && spansFullWidth && walk.regionScrollUsable) {
         regionHint = { top: regionTop, bottom: regionBottom, delta }
         signals.scrollHint = regionHint
-      } else if (stableForShift && prevScreen !== undefined) {
+      } else if (stableForShift) {
         rectShift = { top: regionTop, bottom: regionBottom, delta, x0: Math.floor(x), x1: Math.floor(x) + Math.floor(width) }
       } else {
         signals.markLayoutShift(() => `scroll-no-hint:${node.nodeName}`)
@@ -853,7 +855,8 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
     }
   }
   const contentHasReach = wasReaching || hasReachingChild(content)
-  const safeForFastPath = !shiftPlan || (!childRemoved && !viewportOverlapsInvalid && !contentHasReach && anchorShifted && (heightDelta === 0 || (shiftPlan.delta > 0 && heightDelta === shiftPlan.delta)))
+  const contentHasNestedScroll = inOuterScroll || hasNestedScroll(content)
+  const safeForFastPath = !shiftPlan || (!childRemoved && !viewportOverlapsInvalid && !contentHasReach && !contentHasNestedScroll && anchorShifted && (heightDelta === 0 || (shiftPlan.delta > 0 && heightDelta === shiftPlan.delta)))
   if (!safeForFastPath) {
     signals.scrollHint = null
     if (rectShift) {
@@ -862,6 +865,9 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
     }
   }
 
+  const prevSawInner = walk.sawInnerScroll
+  if (!inOuterScroll) walk.sawInnerScroll = false
+  walk.scrollDepth++
   if ((regionHint || rectShift) && prevScreen && safeForFastPath) {
     const { top, bottom, delta } = (regionHint ?? rectShift)!
     const columns = Math.floor(width)
@@ -892,16 +898,22 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
     }
   } else {
     const scrolled = contentWas !== undefined && contentWas.y !== contentTop
+    const boxMoved = boxCached !== undefined && (boxCached.x !== x || boxCached.y !== y || boxCached.width !== width || boxCached.height !== height)
+    const childPrevScreen = rowSampler !== undefined || scrolled || boxMoved || contentHasNestedScroll ? undefined : prevScreen
     if (scrolled && y1 !== undefined && y2 !== undefined) buffer.clear({ x: Math.floor(x), y: Math.floor(y1), width: Math.floor(width), height: Math.floor(y2 - y1) })
     if (rowSampler !== undefined && y1 !== undefined && y2 !== undefined && Math.floor(width) >= 1) {
       const viewTop = Math.floor(y1)
       const viewBottom = Math.floor(y2)
       for (let row = viewTop; row < viewBottom; row++) fillGround(buffer, Math.floor(x), row, Math.floor(width), 1, rowSampler(row))
-    } else if (boxBackgroundColor && y1 !== undefined && y2 !== undefined && (scrolled || !contentWas || node.style.backgroundColor !== undefined) && Math.floor(width) >= 1 && Math.floor(y2 - y1) >= 1) {
+    } else if (boxBackgroundColor && y1 !== undefined && y2 !== undefined && (scrolled || !contentWas || childPrevScreen === undefined || node.style.backgroundColor !== undefined) && Math.floor(width) >= 1 && Math.floor(y2 - y1) >= 1) {
       fillGround(buffer, Math.floor(x), Math.floor(y1), Math.floor(width), Math.floor(y2 - y1), boxBackgroundColor)
     }
-    const boxMoved = boxCached !== undefined && (boxCached.x !== x || boxCached.y !== y || boxCached.width !== width || boxCached.height !== height)
-    composeScrolledChildren(content, walk, contentLeft, contentTop, childRemoved, rowSampler !== undefined || scrolled || boxMoved ? undefined : prevScreen, bandTop, bandBottom, boxBackgroundColor, false, rowSampler, own)
+    composeScrolledChildren(content, walk, contentLeft, contentTop, childRemoved, childPrevScreen, bandTop, bandBottom, boxBackgroundColor, false, rowSampler, own)
+  }
+  walk.scrollDepth--
+  if (!inOuterScroll) {
+    setHasNestedScroll(content, walk.sawInnerScroll)
+    walk.sawInnerScroll = prevSawInner
   }
   nodeCache.set(content, { x: contentLeft, y: contentTop, width: contentYoga.getComputedWidth(), height: contentYoga.getComputedHeight() })
   settle(content)

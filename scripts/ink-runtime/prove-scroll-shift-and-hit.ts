@@ -1113,5 +1113,280 @@ console.log('\n§6 Reordering a culled reaching row preserves its reach when whe
   }
 }
 
+console.log('\n§7 Nested scroll boxes take the full path while mounted in view and restore region hints once gone')
+{
+  const cols = 40
+  const rows = 14
+  const LONG = 'is a long line that wraps past the forty columns of this box, twice over, yes it does'
+
+  let minimalBad = 0
+  let minimalDetail = ''
+  for (const bg of [undefined, '#102030']) {
+    const ctx = makeContext()
+    const buildMinimal = () => {
+      const root = createNode('ink-root')
+      applySceneStyle(root, { width: cols, height: rows, flexDirection: 'column' })
+      const head = createNode('ink-text')
+      appendChildNode(head, createTextNode('head'))
+      const foot = createNode('ink-text')
+      appendChildNode(foot, createTextNode('foot'))
+      const outerContent = createNode('ink-box')
+      applySceneStyle(outerContent, { flexDirection: 'column', flexGrow: 1, flexShrink: 0, width: cols })
+      const innerContent = createNode('ink-box')
+      applySceneStyle(innerContent, { flexDirection: 'column', flexGrow: 1, flexShrink: 0, width: cols })
+      for (let k = 0; k < 8; k++) {
+        const leaf = createNode('ink-text')
+        appendChildNode(leaf, createTextNode(`inner ${k}`))
+        const b = createNode('ink-box')
+        applySceneStyle(b, { flexDirection: 'row', flexShrink: 0, width: cols, height: 1 })
+        appendChildNode(b, leaf)
+        appendChildNode(innerContent, b)
+      }
+      const innerScroller = createNode('ink-box')
+      applySceneStyle(innerScroller, { flexDirection: 'column', width: cols, height: 4, flexShrink: 0, overflowX: 'scroll', overflowY: 'scroll' })
+      appendChildNode(innerScroller, innerContent)
+      for (let i = 0; i < 20; i++) {
+        if (i === 5) appendChildNode(outerContent, innerScroller)
+        const leaf = createNode('ink-text')
+        appendChildNode(leaf, createTextNode(`outer ${i}`))
+        const b = createNode('ink-box')
+        applySceneStyle(b, { flexDirection: 'row', flexShrink: 0, width: cols, height: 1 })
+        appendChildNode(b, leaf)
+        appendChildNode(outerContent, b)
+      }
+      const outerScroller = createNode('ink-box')
+      applySceneStyle(outerScroller, { flexDirection: 'column', width: cols, height: 10, flexShrink: 0, overflowX: 'scroll', overflowY: 'scroll' })
+      appendChildNode(outerScroller, outerContent)
+      const host = createNode('ink-box')
+      applySceneStyle(host, { width: cols, height: rows, flexDirection: 'column', ...(bg ? { backgroundColor: bg as never } : {}) })
+      appendChildNode(host, head)
+      appendChildNode(host, outerScroller)
+      appendChildNode(host, foot)
+      appendChildNode(root, host)
+      const render = createRenderer(root, ctx.stylePool)
+      let front = emptyFrame(rows, cols, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)
+      let back = emptyFrame(rows, cols, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)
+      return {
+        root,
+        outerScroller,
+        innerScroller,
+        paint(scratch: boolean) {
+          root.layoutNode!.calculateLayout(cols, rows)
+          const res = render({ frontFrame: front, backFrame: back, isTTY: true, terminalWidth: cols, terminalRows: rows, altScreen: true, prevFrameContaminated: scratch, regionScrollUsable: true })
+          back = front
+          front = res.frame
+          return res
+        },
+      }
+    }
+    const live = buildMinimal()
+    const step = (label: string, dOut: number, dIn: number) => {
+      if (dOut !== 0) {
+        ;(live.outerScroller.scroll ??= {}).pendingScrollDelta = dOut
+        live.outerScroller.scroll.stickyScroll = false
+        markDirty(live.outerScroller)
+      }
+      if (dIn !== 0) {
+        ;(live.innerScroller.scroll ??= {}).pendingScrollDelta = dIn
+        live.innerScroller.scroll.stickyScroll = false
+        markDirty(live.innerScroller)
+      }
+      const rLive = live.paint(false)
+      const fresh = buildMinimal()
+      fresh.outerScroller.scroll = { scrollTop: live.outerScroller.scroll?.scrollTop ?? 0 }
+      fresh.innerScroller.scroll = { scrollTop: live.innerScroller.scroll?.scrollTop ?? 0 }
+      const rFresh = fresh.paint(true)
+      const diff = difference(rLive.frame.screen, rFresh.frame.screen)
+      if (diff !== null) {
+        minimalBad++
+        if (!minimalDetail) minimalDetail = `${bg ? 'grounded' : 'ungrounded'} (${label}): ${diff}`
+      }
+    }
+    step('first', 0, 0)
+    step('scroll outer to 6 so nested scroll box stands partly above outer viewport', 6, 0)
+    step('wheel inner by 2 while partly clipped by outer', 0, 2)
+    step('wheel outer by 1', 1, 0)
+    step('wheel inner by -1', 0, -1)
+  }
+  check(
+    'wheeling a nested scroll box standing partly above the outer viewport never overwrites the header row (0 differing frames across both grounds)',
+    minimalBad === 0,
+    `${minimalBad} differing (${minimalDetail})`,
+  )
+
+  {
+    let walkBad = 0
+    let walkDetail = ''
+    let tailHints = 0
+    for (const bg of [undefined, '#102030']) {
+      for (let seed = 1; seed <= 20; seed++) {
+        let s = (seed * 9973 + (bg ? 19 : 0)) >>> 0
+        const rnd = (n: number) => {
+          s = (Math.imul(s, 1664525) + 1013904223) >>> 0
+          return Math.floor((s / 4294967296) * n)
+        }
+        const ctx = makeContext()
+        type Spec = { id: number; tall: boolean; rev: number; inner: boolean }
+        const specs: Spec[] = Array.from({ length: 22 }, (_, id) => ({ id, tall: rnd(4) === 0, rev: 0, inner: false }))
+        for (let k = 0; k < 6; k++) specs.push({ id: 22 + k, tall: false, rev: 0, inner: true })
+        let innerSlot: number | null = 4 + rnd(6)
+        const buildWorld = (curSpecs: Spec[], slot: number | null) => {
+          const root = createNode('ink-root')
+          applySceneStyle(root, { width: cols, height: rows, flexDirection: 'column' })
+          const head = createNode('ink-text')
+          appendChildNode(head, createTextNode('head'))
+          const foot = createNode('ink-text')
+          appendChildNode(foot, createTextNode('foot'))
+          const outerContent = createNode('ink-box')
+          applySceneStyle(outerContent, { flexDirection: 'column', flexGrow: 1, flexShrink: 0, width: cols })
+          let innerScroller: DOMElement | null = null
+          const innerRows = curSpecs.filter(x => x.inner)
+          const outerRows = curSpecs.filter(x => !x.inner)
+          const mkRow = (sp: Spec) => {
+            const txt = createTextNode(`row ${sp.id}.${sp.rev}${sp.tall ? ' ' + LONG : ''}`)
+            const leaf = createNode('ink-text')
+            appendChildNode(leaf, txt)
+            const b = createNode('ink-box')
+            applySceneStyle(b, { flexDirection: 'row', flexShrink: 0, width: cols, height: 1 })
+            appendChildNode(b, leaf)
+            return { sp, box: b, txt }
+          }
+          const outerMap = new Map<number, { box: DOMElement; txt: TextNode }>()
+          if (slot !== null) {
+            const innerContent = createNode('ink-box')
+            applySceneStyle(innerContent, { flexDirection: 'column', flexGrow: 1, flexShrink: 0, width: cols })
+            for (const ir of innerRows) {
+              const r = mkRow(ir)
+              outerMap.set(ir.id, { box: r.box, txt: r.txt })
+              appendChildNode(innerContent, r.box)
+            }
+            innerScroller = createNode('ink-box')
+            applySceneStyle(innerScroller, { flexDirection: 'column', width: cols, height: 4, flexShrink: 0, overflowX: 'scroll', overflowY: 'scroll' })
+            appendChildNode(innerScroller, innerContent)
+          }
+          const insertAt = slot === null ? -1 : Math.min(slot, Math.max(0, outerRows.length - 1))
+          outerRows.forEach((or, idx) => {
+            if (innerScroller && idx === insertAt) appendChildNode(outerContent, innerScroller)
+            const r = mkRow(or)
+            outerMap.set(or.id, { box: r.box, txt: r.txt })
+            appendChildNode(outerContent, r.box)
+          })
+          if (innerScroller && outerRows.length === 0) appendChildNode(outerContent, innerScroller)
+          const outerScroller = createNode('ink-box')
+          applySceneStyle(outerScroller, { flexDirection: 'column', width: cols, height: 10, flexShrink: 0, overflowX: 'scroll', overflowY: 'scroll' })
+          appendChildNode(outerScroller, outerContent)
+          const host = createNode('ink-box')
+          applySceneStyle(host, { width: cols, height: rows, flexDirection: 'column', ...(bg ? { backgroundColor: bg as never } : {}) })
+          appendChildNode(host, head)
+          appendChildNode(host, outerScroller)
+          appendChildNode(host, foot)
+          appendChildNode(root, host)
+          const render = createRenderer(root, ctx.stylePool)
+          let front = emptyFrame(rows, cols, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)
+          let back = emptyFrame(rows, cols, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)
+          return {
+            root,
+            outerContent,
+            outerScroller,
+            innerScroller,
+            outerMap,
+            paint(scratch: boolean) {
+              root.layoutNode!.calculateLayout(cols, rows)
+              const res = render({ frontFrame: front, backFrame: back, isTTY: true, terminalWidth: cols, terminalRows: rows, altScreen: true, prevFrameContaminated: scratch, regionScrollUsable: true })
+              back = front
+              front = res.frame
+              return res
+            },
+          }
+        }
+        const live = buildWorld(specs, innerSlot)
+        live.paint(false)
+        for (let st = 0; st < 45; st++) {
+          const pick = rnd(4)
+          if (pick === 0) {
+            const target = specs[rnd(specs.length)]!
+            target.rev++
+            const entry = live.outerMap.get(target.id)
+            if (entry) setTextNodeValue(entry.txt, `row ${target.id}.${target.rev}${target.tall ? ' ' + LONG : ''}`)
+          } else if (pick === 1 && live.innerScroller) {
+            const outers = specs.filter(x => !x.inner)
+            if (outers.length > 4) {
+              const newSlot = 2 + rnd(Math.min(10, outers.length - 2))
+              innerSlot = newSlot
+              const beforeTarget = live.outerMap.get(outers[newSlot]!.id)?.box
+              if (beforeTarget && beforeTarget !== live.innerScroller) {
+                insertBeforeNode(live.outerContent, live.innerScroller, beforeTarget)
+              }
+            }
+          }
+          const dOut = [-3, -2, -1, 0, 1, 1, 2, 3][rnd(8)]!
+          const dIn = [-2, -1, 0, 1, 2][rnd(5)]!
+          if (dOut !== 0) {
+            ;(live.outerScroller.scroll ??= {}).pendingScrollDelta = dOut
+            live.outerScroller.scroll.stickyScroll = false
+            markDirty(live.outerScroller)
+          }
+          if (dIn !== 0 && live.innerScroller) {
+            ;(live.innerScroller.scroll ??= {}).pendingScrollDelta = dIn
+            live.innerScroller.scroll.stickyScroll = false
+            markDirty(live.innerScroller)
+          }
+          const rLive = live.paint(false)
+          const fresh = buildWorld(specs, innerSlot)
+          fresh.outerScroller.scroll = { scrollTop: live.outerScroller.scroll?.scrollTop ?? 0 }
+          if (fresh.innerScroller && live.innerScroller) {
+            fresh.innerScroller.scroll = { scrollTop: live.innerScroller.scroll.scrollTop ?? 0 }
+          }
+          const rFresh = fresh.paint(true)
+          const diff = difference(rLive.frame.screen, rFresh.frame.screen)
+          if (diff !== null) {
+            walkBad++
+            if (!walkDetail) walkDetail = `${bg ? 'grounded' : 'ungrounded'} seed=${seed} step=${st}: ${diff}`
+          }
+        }
+        if (live.innerScroller) {
+          removeChildNode(live.outerContent, live.innerScroller)
+          live.innerScroller = null
+          innerSlot = null
+        }
+        for (const sp of specs) {
+          if (!sp.inner && sp.tall) {
+            sp.tall = false
+            sp.rev++
+            const entry = live.outerMap.get(sp.id)
+            if (entry) setTextNodeValue(entry.txt, `row ${sp.id}.${sp.rev}`)
+          }
+        }
+        ;(live.outerScroller.scroll ??= {}).scrollTop = 0
+        live.outerScroller.scroll.pendingScrollDelta = undefined
+        live.outerScroller.scroll.stickyScroll = false
+        markDirty(live.outerScroller)
+        live.paint(false)
+        for (let i = 0; i < 12; i++) {
+          const d = i < 8 ? 1 : -1
+          ;(live.outerScroller.scroll ??= {}).pendingScrollDelta = d
+          live.outerScroller.scroll.stickyScroll = false
+          markDirty(live.outerScroller)
+          const rLive = live.paint(false)
+          const fresh = buildWorld(specs, null)
+          fresh.outerScroller.scroll = { scrollTop: live.outerScroller.scroll?.scrollTop ?? 0 }
+          const rFresh = fresh.paint(true)
+          if (rLive.signals.scrollHint !== null) tailHints++
+          const diff = difference(rLive.frame.screen, rFresh.frame.screen)
+          if (diff !== null) {
+            walkBad++
+            if (!walkDetail) walkDetail = `${bg ? 'grounded' : 'ungrounded'} seed=${seed} tail=${i}: ${diff}`
+          }
+        }
+      }
+    }
+    check(
+      `seeded nested-scroll walks (2 grounds × 20 seeds × 45 steps + 12-wheel tail) equal fresh paint and recover region hints (${tailHints}/480)`,
+      walkBad === 0 && tailHints === 480,
+      `${walkBad} differing (${walkDetail}), hints=${tailHints}/480`,
+    )
+  }
+}
+
 console.log(`\nprove-scroll-shift-and-hit: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)
