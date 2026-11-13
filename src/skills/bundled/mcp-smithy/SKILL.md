@@ -16,4 +16,4 @@ Transports & safety (**LIVE pages read 2026-11-04:** [stdio](https://modelcontex
 
 Test with the SDK client (`tools/list` + real calls), covering malformed input, handler failure, cancellation and partial results as relevant. Validate `structuredContent` against `outputSchema`, separate `isError` from protocol/transport faults, and use raw framing probes only for transport debugging.
 
-Register only when asked: `mercury mcp add <name> --scope project -- <command> [args]` or `mercury mcp add <name> <url> --transport http --scope project`. After operator approval, verify Mercury's discovered schema and a harmless call, reporting session integration separately from SDK tests and noting any unsupported era.
+Register only when asked, in the agreed scope: `mercury mcp add <name> --scope project -- <command> [args]` or `mercury mcp add <name> <url> --transport http --scope project`. After operator approval, verify Mercury's discovered schema and a harmless call, reporting session integration separately from SDK tests and noting any unsupported era.
