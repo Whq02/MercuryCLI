@@ -149,11 +149,14 @@ export function appendChildNode(parent: DOMElement, child: DOMNode): void {
   if (child.parentNode) removeChildNode(child.parentNode, child)
   child.parentNode = parent
   parent.childNodes.push(child)
-  if (isElement(child) && child.layoutNode && parent.layoutNode) {
-    parent.layoutNode.insertChild(
-      child.layoutNode,
-      layoutIndexFor(parent, parent.childNodes.length - 1),
-    )
+  if (isElement(child)) {
+    child.dirty = true
+    if (child.layoutNode && parent.layoutNode) {
+      parent.layoutNode.insertChild(
+        child.layoutNode,
+        layoutIndexFor(parent, parent.childNodes.length - 1),
+      )
+    }
   }
   markDirty(parent)
 }
@@ -171,11 +174,14 @@ export function insertBeforeNode(
   }
   newChild.parentNode = parent
   parent.childNodes.splice(referenceIndex, 0, newChild)
-  if (isElement(newChild) && newChild.layoutNode && parent.layoutNode) {
-    parent.layoutNode.insertChild(
-      newChild.layoutNode,
-      layoutIndexFor(parent, referenceIndex),
-    )
+  if (isElement(newChild)) {
+    newChild.dirty = true
+    if (newChild.layoutNode && parent.layoutNode) {
+      parent.layoutNode.insertChild(
+        newChild.layoutNode,
+        layoutIndexFor(parent, referenceIndex),
+      )
+    }
   }
   markDirty(parent)
 }

@@ -903,5 +903,215 @@ console.log('\n§5 Hidden rows in a scroll box changing while hidden, unhiding, 
   }
 }
 
+console.log('\n§6 Reordering a culled reaching row preserves its reach when wheeled back into view (MUST 4a)')
+{
+  const cols = 40
+  const rows = 14
+  const LONG = 'is a long line that wraps past the forty columns of this box, twice over, yes it does'
+
+  let sceneBad = 0
+  let sceneDetail = ''
+  for (const bg of [undefined, '#102030']) {
+    const ctx = makeContext()
+    const buildWorld = (itemsSpec: Array<{ id: number; tall2Long: boolean }>) => {
+      const root = createNode('ink-root')
+      applySceneStyle(root, { width: cols, height: rows, flexDirection: 'column' })
+      const head = createNode('ink-text')
+      appendChildNode(head, createTextNode('head'))
+      const foot = createNode('ink-text')
+      appendChildNode(foot, createTextNode('foot'))
+      const content = createNode('ink-box')
+      applySceneStyle(content, { flexDirection: 'column', flexGrow: 1, flexShrink: 0, width: cols })
+      const rowNodes = itemsSpec.map(sp => {
+        const txt = createTextNode(sp.tall2Long ? `row ${sp.id}.0 ${LONG}` : `row ${sp.id}.0`)
+        const leaf = createNode('ink-text')
+        appendChildNode(leaf, txt)
+        const b = createNode('ink-box')
+        applySceneStyle(b, { flexDirection: 'row', flexShrink: 0, width: cols, ...(sp.tall2Long ? { height: 2 } : {}) })
+        appendChildNode(b, leaf)
+        appendChildNode(content, b)
+        return { id: sp.id, tall2Long: sp.tall2Long, box: b }
+      })
+      const scroller = createNode('ink-box')
+      applySceneStyle(scroller, { flexDirection: 'column', width: cols, height: 10, flexShrink: 0, overflowX: 'scroll', overflowY: 'scroll' })
+      appendChildNode(scroller, content)
+      const host = createNode('ink-box')
+      applySceneStyle(host, { width: cols, height: rows, flexDirection: 'column', ...(bg ? { backgroundColor: bg as never } : {}) })
+      appendChildNode(host, head)
+      appendChildNode(host, scroller)
+      appendChildNode(host, foot)
+      appendChildNode(root, host)
+      const render = createRenderer(root, ctx.stylePool)
+      let front = emptyFrame(rows, cols, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)
+      let back = emptyFrame(rows, cols, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)
+      return {
+        root,
+        content,
+        scroller,
+        rowNodes,
+        paint(scratch: boolean) {
+          root.layoutNode!.calculateLayout(cols, rows)
+          const res = render({ frontFrame: front, backFrame: back, isTTY: true, terminalWidth: cols, terminalRows: rows, altScreen: true, prevFrameContaminated: scratch, regionScrollUsable: true })
+          back = front
+          front = res.frame
+          return res
+        },
+      }
+    }
+    const spec = Array.from({ length: 24 }, (_, id) => ({ id, tall2Long: id === 3 }))
+    const live = buildWorld(spec)
+    const runStep = (label: string, delta: number, reorder?: () => void) => {
+      reorder?.()
+      if (delta !== 0) {
+        ;(live.scroller.scroll ??= {}).pendingScrollDelta = delta
+        live.scroller.scroll.stickyScroll = false
+        markDirty(live.scroller)
+      }
+      const rLive = live.paint(false)
+      const fresh = buildWorld(spec)
+      fresh.scroller.scroll = { scrollTop: live.scroller.scroll?.scrollTop ?? 0 }
+      const rFresh = fresh.paint(true)
+      const diff = difference(rLive.frame.screen, rFresh.frame.screen)
+      if (diff !== null) {
+        sceneBad++
+        if (!sceneDetail) sceneDetail = `${bg ? 'grounded' : 'ungrounded'} (${label}): ${diff}`
+      }
+    }
+    runStep('first', 0)
+    runStep('wheel 7', 7)
+    runStep('swap rows 3 and 5 while culled', 0, () => {
+      const r3 = live.rowNodes[3]!
+      const r5 = live.rowNodes[5]!
+      const after5 = live.rowNodes[6]!.box
+      const after3 = live.rowNodes[4]!.box
+      insertBeforeNode(live.content, r5.box, after3)
+      insertBeforeNode(live.content, r3.box, after5)
+      live.rowNodes[3] = r5
+      live.rowNodes[5] = r3
+      const s3 = spec[3]!
+      spec[3] = spec[5]!
+      spec[5] = s3
+    })
+    runStep('wheel -2 brings reordered reaching row into top edge', -2)
+    runStep('wheel -1', -1)
+    runStep('wheel 1', 1)
+    runStep('still', 0)
+  }
+  check(
+    'swapping a culled reaching row with a sibling preserves its reach when wheeled back into view (0 differing frames across both grounds)',
+    sceneBad === 0,
+    `${sceneBad} differing (${sceneDetail})`,
+  )
+
+  {
+    let fuzzBad = 0
+    let fuzzDetail = ''
+    for (const bg of [undefined, '#102030']) {
+      for (let seed = 1; seed <= 16; seed++) {
+        let s = (seed * 31337 + (bg ? 7 : 0)) >>> 0
+        const rnd = (n: number) => {
+          s = (Math.imul(s, 1664525) + 1013904223) >>> 0
+          return Math.floor((s / 4294967296) * n)
+        }
+        const ctx = makeContext()
+        const spec = Array.from({ length: 22 }, (_, id) => ({ id, tall: rnd(4) === 0 }))
+        const buildW = (sp: Array<{ id: number; tall: boolean }>) => {
+          const root = createNode('ink-root')
+          applySceneStyle(root, { width: cols, height: rows, flexDirection: 'column' })
+          const head = createNode('ink-text')
+          appendChildNode(head, createTextNode('head'))
+          const foot = createNode('ink-text')
+          appendChildNode(foot, createTextNode('foot'))
+          const content = createNode('ink-box')
+          applySceneStyle(content, { flexDirection: 'column', flexGrow: 1, flexShrink: 0, width: cols })
+          const nodes = sp.map(item => {
+            const leaf = createNode('ink-text')
+            appendChildNode(leaf, createTextNode(item.tall ? `row ${item.id} ${LONG}` : `row ${item.id}`))
+            const b = createNode('ink-box')
+            applySceneStyle(b, { flexDirection: 'row', flexShrink: 0, width: cols, height: item.tall ? 2 : 1 })
+            appendChildNode(b, leaf)
+            appendChildNode(content, b)
+            return b
+          })
+          const scroller = createNode('ink-box')
+          applySceneStyle(scroller, { flexDirection: 'column', width: cols, height: 10, flexShrink: 0, overflowX: 'scroll', overflowY: 'scroll' })
+          appendChildNode(scroller, content)
+          const host = createNode('ink-box')
+          applySceneStyle(host, { width: cols, height: rows, flexDirection: 'column', ...(bg ? { backgroundColor: bg as never } : {}) })
+          appendChildNode(host, head)
+          appendChildNode(host, scroller)
+          appendChildNode(host, foot)
+          appendChildNode(root, host)
+          const render = createRenderer(root, ctx.stylePool)
+          let front = emptyFrame(rows, cols, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)
+          let back = emptyFrame(rows, cols, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)
+          return {
+            root,
+            content,
+            scroller,
+            nodes,
+            paint(scratch: boolean) {
+              root.layoutNode!.calculateLayout(cols, rows)
+              const res = render({ frontFrame: front, backFrame: back, isTTY: true, terminalWidth: cols, terminalRows: rows, altScreen: true, prevFrameContaminated: scratch, regionScrollUsable: true })
+              back = front
+              front = res.frame
+              return res
+            },
+          }
+        }
+        const live = buildW(spec)
+        live.paint(false)
+        for (let st = 0; st < 40; st++) {
+          if (rnd(2) === 0) {
+            const i = rnd(spec.length)
+            const j = rnd(spec.length)
+            if (i !== j) {
+              const ni = live.nodes[i]!
+              const nj = live.nodes[j]!
+              const afterJ = live.nodes[j + 1]
+              const afterI = live.nodes[i + 1]
+              if (afterI === nj) {
+                insertBeforeNode(live.content, nj, ni)
+              } else if (afterJ === ni) {
+                insertBeforeNode(live.content, ni, nj)
+              } else {
+                if (afterI) insertBeforeNode(live.content, nj, afterI)
+                else appendChildNode(live.content, nj)
+                if (afterJ) insertBeforeNode(live.content, ni, afterJ)
+                else appendChildNode(live.content, ni)
+              }
+              live.nodes[i] = nj
+              live.nodes[j] = ni
+              const si = spec[i]!
+              spec[i] = spec[j]!
+              spec[j] = si
+            }
+          }
+          const d = [-3, -2, -1, 0, 1, 2, 3][rnd(7)]!
+          if (d !== 0) {
+            ;(live.scroller.scroll ??= {}).pendingScrollDelta = d
+            live.scroller.scroll.stickyScroll = false
+            markDirty(live.scroller)
+          }
+          const rLive = live.paint(false)
+          const fresh = buildW(spec)
+          fresh.scroller.scroll = { scrollTop: live.scroller.scroll?.scrollTop ?? 0 }
+          const rFresh = fresh.paint(true)
+          const diff = difference(rLive.frame.screen, rFresh.frame.screen)
+          if (diff !== null) {
+            fuzzBad++
+            if (!fuzzDetail) fuzzDetail = `${bg ? 'grounded' : 'ungrounded'} seed=${seed} step=${st}: ${diff}`
+          }
+        }
+      }
+    }
+    check(
+      'seeded culled-reorder + wheel walks (2 grounds × 16 seeds × 40 steps) equal fresh paint',
+      fuzzBad === 0,
+      `${fuzzBad} differing (${fuzzDetail})`,
+    )
+  }
+}
+
 console.log(`\nprove-scroll-shift-and-hit: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)
