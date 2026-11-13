@@ -576,12 +576,12 @@ if (!existsSync(DIST) || !nodeBin) {
 
     check(
       'turn 1 wire request does not advertise Blender',
-      r1 !== undefined && !messageTexts(r1).includes('Blender — Blender control'),
+      r1 !== undefined && !messageTexts(r1).includes('Blender — Blender with no window'),
     )
     const r1Len = r1?.messages?.length ?? 0
     check(
       'turn 2 wire request announces Blender in deferred_tools_delta at the tail once boot-env.json saves MERCURY_BLENDER=1',
-      r2a !== undefined && messageTexts(r2a, r1Len).includes('Blender — Blender control'),
+      r2a !== undefined && messageTexts(r2a, r1Len).includes('Blender — Blender with no window'),
       r2a ? messageTexts(r2a, r1Len).slice(0, 300) : 'missing r2a',
     )
     check(
@@ -603,7 +603,7 @@ if (!existsSync(DIST) || !nodeBin) {
       'turn 3 (unchanged boot-env.json) does not re-announce Blender and keeps system byte-identical',
       r3 !== undefined &&
         r1 !== undefined &&
-        !messageTexts(r3, r2cLen).includes('Blender — Blender control') &&
+        !messageTexts(r3, r2cLen).includes('Blender — Blender with no window') &&
         j(withoutCacheControl(r3.system)) === j(withoutCacheControl(r1.system)),
     )
     const r3Len = r3?.messages?.length ?? 0
@@ -670,7 +670,7 @@ if (!existsSync(DIST) || !nodeBin) {
     const reqs = fixture.messageRequests().filter(q => !isHandoffRequest(q)).map(q => q.body as Body)
     check(
       'wire real-env pin: MERCURY_BLENDER=0 in the runner environment wins over MERCURY_BLENDER=1 saved in boot-env.json',
-      run.exit === 0 && reqs.length === 2 && !messageTexts(reqs[1]!).includes('Blender — Blender control'),
+      run.exit === 0 && reqs.length === 2 && !messageTexts(reqs[1]!).includes('Blender — Blender with no window'),
       `exit=${run.exit} reqs=${reqs.length}`,
     )
     await fixture.close()
