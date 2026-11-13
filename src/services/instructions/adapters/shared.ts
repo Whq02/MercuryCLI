@@ -90,18 +90,18 @@ function listedPatterns(raw: unknown): string[] {
   return patterns
 }
 
-function vendorPatterns(raw: unknown): string[] {
+export function vendorPatterns(raw: unknown): string[] {
   return listedPatterns(raw)
     .map(pattern => pattern.trim().replace(/^\.?\//, ''))
     .filter(pattern => pattern !== '')
     .map(pattern => (pattern.endsWith('/') ? `${pattern}**` : pattern))
 }
 
-function scopeOf(patterns: string[]): InstructionRuleReading {
+export function scopeOf(patterns: string[]): InstructionRuleReading {
   return patterns.every(pattern => pattern === '**' || pattern === '**/*') ? { kind: 'always' } : { kind: 'scoped', globs: patterns }
 }
 
-function describedBy(frontmatter: FrontmatterData): string {
+export function describedBy(frontmatter: FrontmatterData): string {
   return typeof frontmatter.description === 'string' ? frontmatter.description.trim() : ''
 }
 
