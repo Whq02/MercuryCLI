@@ -22,48 +22,48 @@ export type JevEvalFormat = (typeof JEV_EVAL_FORMATS)[number]
 
 const idSchema = (): z.ZodString => z.string().min(1).max(JEV_EVAL_MAX_ID_CHARS).regex(JEV_EVAL_ID_PATTERN)
 const idColumnSchema = (): z.ZodOptional<z.ZodString> =>
-  z.string().min(1).optional().describe(`Row-key column (never sent; default ${JEV_EVAL_ID_COLUMN} if present, else positional)`)
+  z.string().min(1).optional().describe(`The column whose cell keys the row (the row label, never sent); absent, a column named ${JEV_EVAL_ID_COLUMN} when there is one, else the rows are keyed by position`)
 
 const fileItemSchema = () =>
   z.strictObject({
     [JEV_EVAL_FILE_KEY]: z
       .strictObject({
-        path: z.string().min(1).describe('File path (relative to cwd, ~ expands), checked against read permissions'),
+        path: z.string().min(1).describe("The file to read: an absolute path (a relative one resolves against the working directory, ~ expands), under this session's read permissions"),
         format: z
           .enum(JEV_EVAL_FORMATS)
           .optional()
           .describe(
-            'Default by extension (.tsv, .csv, .md/.markdown first pipe table, .jsonl/.ndjson, else whole-file `text`); paragraphs splits on blank lines',
+            'Absent, the extension decides: .tsv tsv, .csv csv, .md/.markdown markdown (the first pipe table), .jsonl/.ndjson jsonl (one object per line), anything else text (the whole file is one item as the fact `text`); paragraphs splits a text file on blank lines, one item each',
           ),
         id_column: idColumnSchema(),
       })
-      .describe('Evidence file (one item per table row, or one item for text)'),
+      .describe('A file of evidence: a table file is one item per row, its header naming the facts; a text file one item'),
   })
 
 const tableItemSchema = () =>
   z.strictObject({
     [JEV_EVAL_TABLE_KEY]: z
       .strictObject({
-        columns: z.array(z.string().min(1)).min(1).describe('Distinct fact column names'),
-        rows: z.array(z.array(z.string())).min(1).describe('Rows matching columns order'),
+        columns: z.array(z.string().min(1)).min(1).describe('The fact names, one per column, each once'),
+        rows: z.array(z.array(z.string())).min(1).describe('One item per row, one cell per column, in the columns\' order'),
         id_column: idColumnSchema(),
       })
-      .describe('Inline evidence table (one item per row)'),
+      .describe('An inline table: one item per row, the columns the fact names'),
   })
 
 const evidenceItemSchema = lazySchema(() =>
   z.union(
     [
-      z.string().min(1).describe(`Paragraph sent as \`${JEV_EVAL_PARAGRAPH_FACT}\` (keyed #1, #2, …)`),
+      z.string().min(1).describe(`A paragraph, sent as the one fact \`${JEV_EVAL_PARAGRAPH_FACT}\`; its row is keyed by position (#1, #2, …)`),
       fileItemSchema(),
       tableItemSchema(),
       z
         .object({
-          id: idSchema().optional().describe('Row label (never sent; default positional)'),
+          id: idSchema().optional().describe('The row label (letters, digits, _ and -); never sent to Jev; absent, the row is keyed by position'),
         })
         .catchall(z.string())
         .describe(
-          "Named facts sent verbatim under the road's data policy (omit unrelated text)",
+          "Named facts, sent verbatim as Jev's state, which leaves the machine under the selected road's data policy; unrelated material costs accuracy",
         ),
     ],
     {
@@ -89,33 +89,33 @@ function withoutMeaninglessEmpties(value: unknown): unknown {
 
 const questionFields = () =>
   z.strictObject({
-    id: idSchema().describe('Answer column handle (never sent)'),
+    id: idSchema().describe('Your handle for this answer column (letters, digits, _ and -); never sent to Jev'),
     kind: z
       .enum(JEV_EVAL_KINDS)
-      .describe('noul: p(yes) · choice: option pick · score: ordered level'),
+      .describe('noul: the probability a yes/no statement holds · choice: one of your options · score: a position on your ordered levels'),
     ask: z
       .string()
       .min(1)
-      .describe('Question text (Jev sees only ask + evidence)'),
+      .describe('The question; Jev reads only this and `evidence`'),
     options: z
       .record(z.string(), z.string().nullable())
       .optional()
-      .describe('choice: label → exact condition (null if label suffices)'),
+      .describe('choice only: label → the exact condition it stands for (null when the label says it all); an option you omit cannot be chosen'),
     levels: z
       .array(z.string().min(1))
       .min(JEV_MIN_SCORE_LEVELS)
       .max(JEV_MAX_SCORE_LEVELS)
       .optional()
-      .describe('score: 2..10 distinct ordered levels, lowest first'),
+      .describe('score only: 2..10 ordered level descriptions, lowest first, each distinct'),
     allow_none: z
       .boolean()
       .optional()
-      .describe('choice (required): true adds escape option `none`; false forces a pick'),
+      .describe('choice only, and required there: true appends the escape option `none` so Jev can say none of these fit; false forces a pick'),
     none_means: z
       .string()
       .min(1)
       .optional()
-      .describe('choice + allow_none: positive meaning of `none`'),
+      .describe('choice with allow_none true: what `none` stands for, phrased positively'),
   })
 
 const questionSchema = lazySchema(() => z.preprocess(withoutMeaninglessEmpties, questionFields()))
@@ -129,14 +129,14 @@ export const jevEvalInputSchema = lazySchema(() =>
         .string()
         .min(1)
         .max(JEV_EVAL_MAX_GOAL_CHARS)
-        .describe('One-line decision served (shown to operator, never sent)'),
+        .describe('One line: the decision this call serves (shown to the operator, not sent to Jev)'),
       evidence: z
         .array(evidenceItemSchema())
         .min(1)
         .describe(
-          `Evidence items judged in parallel against all questions (rows keyed by id/${JEV_EVAL_ID_COLUMN} or position; files/tables add ≤${JEV_EVAL_MAX_ROWS} rows, file ≤${JEV_EVAL_MAX_FILE_BYTES} B)`,
+          `The evidence items: records of named facts, paragraphs, files ({"${JEV_EVAL_FILE_KEY}":{"path":…}}) and inline tables ({"${JEV_EVAL_TABLE_KEY}":{"columns":[…],"rows":[[…]]}}), every item judged against every question, one request each, all at once; the rows come back keyed by the item's id (a record's id, a row's ${JEV_EVAL_ID_COLUMN} column, never sent) or by position. Files and tables add at most ${JEV_EVAL_MAX_ROWS} rows to one call, and a file is at most ${JEV_EVAL_MAX_FILE_BYTES} bytes`,
         ),
-      questions: z.array(questionSchema()).min(1).describe('Questions asked of every item'),
+      questions: z.array(questionSchema()).min(1).describe('The one question set, asked of every evidence item'),
     })
     .superRefine((input, ctx) => {
       const rows = new Map<string, string>()

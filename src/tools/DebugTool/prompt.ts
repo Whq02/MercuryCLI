@@ -8,7 +8,7 @@ export const DEBUG_WIRE_DESCRIPTION =
 const DEBUG_TOOL_MANUAL = `## Operations
 launch runs program (setting file + lines before the first instruction) and reports the first stop; attach joins by pid, port or program.
 threads lists threads; stack lists frames with frameId and native [ip <memoryReference>]; scopes lists frame scopes with variablesReference; variables expands one. evaluate runs an expression; an expandable result carries [variablesReference N], which variables expands.
-continue, next, stepIn and stepOut wait for the next stop; pause interrupts; restart re-runs; disconnect terminates and reaps the adapter.
+continue, next, stepIn and stepOut wait for the next stop; pause interrupts; restart re-runs; disconnect terminates the debuggee and reaps the adapter.
 output drains program/adapter output; status summarizes sessions, breakpoints and last stop.
 Breakpoint ops: breakpoints, functionBreakpoints, dataBreakpoints, instructionBreakpoints, exceptionBreakpoints.
 Inspection/mutation ops: loadedSources, modules, source (in-memory/generated), completions, setVariable, disassemble, readMemory (hex dump), writeMemory, customRequest.

@@ -85,7 +85,7 @@ const OPS = [
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
-    op: z.enum(OPS),
+    op: z.enum(OPS).describe('Debug operation.'),
     session: z
       .string()
       .optional()
