@@ -22,7 +22,7 @@ export class RemotePathError extends Error {
   }
 }
 
-export function isRemotePath(value: unknown): value is string {
+export function isRemotePath(value: unknown): boolean {
   return typeof value === 'string' && SCHEME.test(value.trimStart())
 }
 
