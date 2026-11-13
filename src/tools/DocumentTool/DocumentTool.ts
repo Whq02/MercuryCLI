@@ -14,7 +14,7 @@ const DOCUMENT_MANUAL = `Inputs, templates and images use read permissions; dest
 
 create: output (.docx, .pdf, .pptx, .xlsx, .html, .md) with markdown or blocks (local PNG/JPEG images; [^id] footnotes). csv, json or sheets create XLSX. titlePage, header, footer, metadata, paper, margin and pageNumbers configure paged outputs. template + replacements fills {{key}} in a DOCX preserving styles (never combine with blocks).
 
-convert: source + output. Converts among DOCX, PDF, HTML and Markdown; PPTX → PDF; XLSX ↔ CSV. PDF → PDF with pages extracts ranges in order (omitted keeps all); rotate turns selected pages clockwise. append:true appends markdown/blocks to source DOCX; metadata sets title/author; use a distinct output to keep source unchanged.
+convert: source + output. Converts among DOCX, PDF, HTML and Markdown; PPTX → PDF; XLSX to CSV and back. PDF → PDF with pages extracts ranges in order (omitted keeps all); rotate turns selected pages clockwise. append:true appends markdown/blocks to source DOCX; metadata sets title/author; use a distinct output to keep source unchanged.
 
 merge: ordered PDF sources → PDF output. split: PDF source → parts:[{pages,output}]. All destinations are checked before writing.
 
