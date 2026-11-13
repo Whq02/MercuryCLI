@@ -216,8 +216,8 @@ try {
   await ending({ tag: 'BLOCKED', says: 'a call asks for an answer nobody can give, and the model closes', turns: [{ kind: 'tool_use', name: 'Read', id: 'toolu_a_blocked', input: { file_path: join(scratch, 'outside-note.txt') } }, { kind: 'text', text: 'BLOCKED-CLOSING-REPLY.' }], args: ['--mode', 'implement'], status: 'blocked', olderBuildReads: 'finished' })
   await ending({
     tag: 'EMPTY',
-    says: 'a tool round, then a reply with nothing said',
-    turns: [readInside, { kind: 'text', text: '' }],
+    says: 'a tool round, then a reply with nothing said, and nothing again when the run asks once',
+    turns: [readInside, { kind: 'text', text: '' }, { kind: 'text', text: '' }],
     prepare: arena => {
       writeFileSync(join(arena.cwd, 'note.txt'), 'EMPTY-NOTE-CONTENT\n')
       readInside.input = { file_path: join(arena.cwd, 'note.txt') }

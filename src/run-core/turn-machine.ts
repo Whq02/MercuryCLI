@@ -1875,7 +1875,7 @@ async function* runEventMachine(
         endedWithoutWords(assistantMessages) &&
         runLeftAlone(toolUseContext)
 
-      if (lastMessage && emptyKind === 'silence' && !silentAlone) {
+      if (lastMessage && emptyReplyKindOf(lastMessage) === 'silence' && !silentAlone) {
         const silence = emptyReplyNoteOf(lastMessage) ?? 'the provider finished this response with nothing said; the turn ends here, not cut.'
         yield emit({ kind: 'notice', message: createSystemMessage(silence, 'info') })
       }

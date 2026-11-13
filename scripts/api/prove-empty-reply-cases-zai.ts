@@ -207,9 +207,12 @@ async function proveCase(kind: ZaiEmptyReplyCase): Promise<void> {
   if (kind === 'silence') {
     check(`${kind}: no chat line — the silence paints no words`, !texts.some(t => t.trim() !== ''), JSON.stringify(texts).slice(0, 300))
     check(`${kind}: the debug log carries the silence sentence`, debugLogLines(join(run.home, 'config')).some(line => line.includes(SILENCE_WORDS)), debugLogLines(join(run.home, 'config')).filter(l => l.includes('[zai]')).slice(0, 3).join(' | '))
-    check(`${kind}: nothing calls the reply cut`, !texts.some(t => t.includes(EMPTY_WORDS)) && !systems.some(t => t.includes(EMPTY_WORDS)), JSON.stringify(notes).slice(0, 300))
-    check(`${kind}: one request, no round trip for the same words`, run.requests.length === 1, `${run.requests.length} request(s)`)
-    check(`${kind}: no re-send notice`, !resent, JSON.stringify(systems).slice(0, 300))
+    const { EMPTY_REPLY_RECOVERY_NUDGE } = await import('../../src/services/api/errors.ts')
+    const first = run.requests[0] === undefined ? [] : messagesOf(run.requests[0])
+    const second = run.requests[1] === undefined ? [] : messagesOf(run.requests[1])
+    check(`${kind}: nobody is at this run, so the silence is asked about once: the second request carries the one-line note as its last user row and the first did not`, lastRowIsUserCarrying(second, EMPTY_REPLY_RECOVERY_NUDGE) && !lastRowIsUserCarrying(first, EMPTY_REPLY_RECOVERY_NUDGE), `${run.requests.length} request(s); last row: ${(JSON.stringify(second.at(-1)) ?? 'none').slice(0, 300)}`)
+    check(`${kind}: two requests in all — a second silence is not asked about again`, run.requests.length === 2, `${run.requests.length} request(s)`)
+    check(`${kind}: one notice says the model was asked, and none says the turn ended on an empty reply`, systems.filter(t => t.includes(EMPTY_WORDS)).length === 1 && systems.some(t => t.includes(`${RETRY_WORDS} (retry 1 of 1)`)) && !texts.some(t => t.includes(EMPTY_WORDS)), JSON.stringify(systems).slice(0, 300))
     check(`${kind}: the turn simply ends — its result carries no notice`, !resultText.includes(SILENCE_WORDS) && !resultText.includes(EMPTY_WORDS), `result: ${JSON.stringify(resultText.slice(0, 200))}`)
   } else if (kind === 'cap') {
     check(`${kind}: the note names the provider's output cap`, notes.some(t => t.includes(CAP_WORDS)), JSON.stringify(notes).slice(0, 300))
