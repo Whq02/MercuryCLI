@@ -20,6 +20,7 @@ export type InstructionSourceEntry = {
   family?: InstructionFamily
   origin?: InstructionOrigin
   root?: string
+  convention?: string
 }
 
 export type InstructionFamily = 'native' | 'shared'
@@ -35,6 +36,8 @@ export type InstructionConvention = {
   readonly id: string
   readonly family: InstructionFamily
   readonly fallback?: boolean
+  readonly label?: string
+  readonly belowHome?: boolean
   projectDirFiles(dir: string): string[]
   projectRulesDirs(dir: string): string[]
   localDirFile(dir: string): string | null
@@ -46,6 +49,7 @@ export type InstructionConvention = {
   isExcluded(filePath: string, type: MemoryType): boolean
   readonly instructionFileNames: readonly string[]
   readonly rulesPathMarkers: readonly string[]
+  folderOf?(filePath: string): string | null
 }
 
 export type InstructionAdapter = {
@@ -93,4 +97,5 @@ export type InstructionBundleEntry = {
   parent?: string
   globs?: string[]
   root?: string
+  convention?: string
 }

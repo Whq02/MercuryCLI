@@ -1,5 +1,6 @@
 import { createHash } from 'crypto'
 import memoize from 'lodash-es/memoize.js'
+import { homedir } from 'os'
 import { basename, dirname, parse, resolve } from 'path'
 
 import {
@@ -16,6 +17,7 @@ import { logForDiagnosticsNoPII } from '../../utils/diagLogs.js'
 import { normalizePathForComparison } from '../../utils/file.js'
 import { detectEncodingForResolvedPath } from '../../utils/fileRead.js'
 import type { FileStateCache } from '../../utils/fileStateCache.js'
+import { getFsImplementation, safeResolvePath } from '../../utils/fsOperations.js'
 import { findCanonicalGitRoot, findGitRoot } from '../../utils/git.js'
 import { stripBOM } from '../../utils/jsonRead.js'
 import type { MemoryType } from '../../utils/memory/types.js'
@@ -107,6 +109,11 @@ function activeConventions(): InstructionConvention[] {
 }
 
 export { conventionsForProfile } from './compositionOrder.js'
+
+function folderReader(start: string): (convention: InstructionConvention, dir: string) => boolean {
+  const home = safeResolvePath(getFsImplementation(), homedir()).resolvedPath
+  return (convention, dir) => !convention.belowHome || dir === start || !pathInWorkingPath(home, dir)
+}
 
 async function walkConventions(
   conventions: InstructionConvention[],
@@ -249,6 +256,7 @@ async function walkConventions(
       pathInWorkingPath(gitRoot, canonicalRoot)
 
     const outerFirst = dirs.reverse()
+    const reads = folderReader(chainRoot)
     const composeChain = async (set: InstructionConvention[]): Promise<void> => {
       for (const dir of outerFirst) {
         const skipProject =
@@ -257,7 +265,7 @@ async function walkConventions(
           !pathInWorkingPath(dir, gitRoot)
 
         for (const convention of set) {
-          if (isSettingSourceEnabled('projectSettings') && !skipProject) {
+          if (isSettingSourceEnabled('projectSettings') && !skipProject && reads(convention, dir)) {
             for (const projectPath of convention.projectDirFiles(dir)) {
               push(
                 await processInstructionFile(
@@ -523,8 +531,10 @@ export async function getInstructionFilesForNestedDirectory(
       ? [...active.filter(c => c.fallback), ...primary]
       : primary
   const includeExternal = getCurrentProjectConfig().hasExternalIncludesApproved ?? false
+  const reads = folderReader(resolve(getOriginalCwd()))
 
   for (const convention of conventions) {
+    if (!reads(convention, dir)) continue
     if (isSettingSourceEnabled('projectSettings')) {
       for (const projectPath of convention.projectDirFiles(dir)) {
         result.push(
@@ -667,9 +677,10 @@ export function isInstructionFilePath(
   const primary = conventions.filter(c => !c.fallback)
 
   for (const convention of conventions) {
-    if (convention.instructionFileNames.includes(name)) {
+    const folder = convention.instructionFileNames.includes(name) ? dirname(filePath) : (convention.folderOf?.(filePath) ?? null)
+    if (folder !== null) {
       if (!convention.fallback) return true
-      if (lastComposition.fallbackComposed && !hasPrimaryProjectFile(primary, [dirname(filePath)])) {
+      if (lastComposition.fallbackComposed && !hasPrimaryProjectFile(primary, [folder])) {
         return true
       }
     }
@@ -733,6 +744,7 @@ export function buildInstructionBundle(
     ...(f.parent !== undefined && { parent: f.parent }),
     ...(f.globs !== undefined && { globs: f.globs }),
     ...(f.root !== undefined && { root: f.root }),
+    ...(f.convention !== undefined && { convention: f.convention }),
   }))
   const bundleDigest = sha256(
     entries.map(e => `${e.path}\n${e.contentDigest}`).join('\n'),

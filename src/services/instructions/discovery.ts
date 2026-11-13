@@ -207,6 +207,7 @@ export async function processInstructionFile(
   if (parent) {
     memoryFile.parent = parent
   }
+  memoryFile.convention = convention.id
 
   const result: InstructionSourceEntry[] = []
 
