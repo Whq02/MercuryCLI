@@ -176,7 +176,7 @@ export function agentCwdQuestion(spelling: string, permissionContext: ToolPermis
 
 
 function effortParamDescription(): string {
-  return 'Reasoning effort; omitted uses definition effort, else configured crewmate default (high unless changed), never parent effort. Unsupported levels map to nearest served; unsupported models ignore it.'
+  return "Reasoning effort; omitted, the agent definition's effort, else the configured crewmate default (high unless the operator changed it), never the parent level. An unsupported level maps to the nearest served level; models without effort control ignore it."
 }
 
 export const inputSchema = lazySchema(() => {
@@ -188,7 +188,7 @@ export const inputSchema = lazySchema(() => {
     crewmate_type: z
       .string()
       .optional()
-      .describe(`Agent type (default ${DEFAULT_AGENT_TYPE}).`),
+      .describe(`Crewmate type (default ${DEFAULT_AGENT_TYPE}).`),
     model: z
       .string()
       .optional()
@@ -215,7 +215,7 @@ export const inputSchema = lazySchema(() => {
         'Seat name for later messages and additional work; omitted, the crewmate runs its brief once.',
       ),
     team: z.string().regex(/^[\p{L}\p{N}_][\p{L}\p{N}_.-]{0,79}$/u).refine(value => !['all', 'general'].includes(value.toLowerCase())).optional().describe('Crew-board team label (delivery only, not privacy).'),
-    captain: z.boolean().optional().describe('Appoint named seat as team captain (needs name, team, swarm, lead; required before 5th team seat).'),
+    captain: z.boolean().optional().describe('Appoint this named seat as its team captain. Requires name, team, swarm enrollment and the lead; a team of five or more needs one before its fifth seat.'),
     isolation: z
       .literal('worktree')
       .optional()
