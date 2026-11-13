@@ -13,7 +13,7 @@ const tools = getAllBaseTools()
 const selected = names.map(name => tools.find(tool => tool.name === name))
 check('the catalogue carries seven language-service tools and no callable LSP', selected.every(Boolean) && !tools.some(tool => tool.name === 'LSP'), tools.filter(tool => /lsp/i.test(tool.name)).map(tool => tool.name).join(', '))
 const required = [['operation'], ['filePath', 'line', 'character', 'newName'], ['filePath', 'line', 'character', 'targetPath'], ['filePath', 'newPath'], ['filePath', 'line', 'character'], ['filePath'], ['filePath', 'method']]
-const bytes = [1766, 1507, 1513, 1098, 2074, 1413, 876]
+const bytes = [1492, 1203, 1211, 903, 1737, 1189, 758]
 const quotes = [['filePath', 'query', 'paths'], ['filePath', 'newName'], ['filePath', 'targetPath'], ['filePath', 'newPath'], ['filePath'], ['filePath'], ['filePath']]
 for (let i = 0; i < names.length; i++) {
   const tool = selected[i]
