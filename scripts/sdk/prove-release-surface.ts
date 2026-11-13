@@ -5,7 +5,8 @@ const root = index < 0 ? resolve(import.meta.dir, '../..') : resolve(process.arg
 const sdk = await import(join(root, 'sdk/src/index.ts'))
 const pkg = JSON.parse(readFileSync(join(root, 'sdk/package.json'), 'utf8'))
 const checks: Array<[string, boolean]> = [
-  ['publishable mercury-cli-sdk 0.1.0 under Apache-2.0', pkg.name === 'mercury-cli-sdk' && pkg.version === '0.1.0' && pkg.license === 'Apache-2.0' && pkg.private !== true],
+  ['publishable mercury-cli-sdk 0.2.0 under Apache-2.0', pkg.name === 'mercury-cli-sdk' && pkg.version === '0.2.0' && sdk.VERSION === pkg.version && pkg.license === 'Apache-2.0' && pkg.private !== true],
+  ['Python distribution, import and both README versions match', readFileSync(join(root, 'sdk-py/pyproject.toml'), 'utf8').includes(`version = "${pkg.version}"`) && readFileSync(join(root, 'sdk-py/src/mercury_cli_sdk/version.py'), 'utf8').includes(`__version__ = '${pkg.version}'`) && ['sdk', 'sdk-py'].every(dir => readFileSync(join(root, dir, 'README.md'), 'utf8').includes('`mercury-cli-sdk` ' + pkg.version))],
   ['public run, runner and inline helper exports', ['run', 'connect', 'defineTool', 'serveTools', 'defineAgent'].every(k => typeof sdk[k] === 'function')],
   ['streaming input methods on run', ['sendPrompt', 'sendShell', 'sendNote', 'closeInput'].every(k => typeof sdk.MercuryRun.prototype[k] === 'function')],
   ['unknown rows are delivered', sdk.rowOf({ type: 'future_row' }).ok === true && sdk.rowOf({ type: 'future_row' }).row?.type === 'unknown_row'],

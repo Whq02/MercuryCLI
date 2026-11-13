@@ -1,6 +1,6 @@
 # Mercury CLI SDK
 
-`mercury-cli-sdk` 0.1.0 is a zero-runtime-dependency Python client for Mercury CLI, requiring Python 3.11 or later. Install Mercury separately and sign in through the CLI; the SDK uses its configuration and credentials. The package is Apache-2.0 and versioned separately from the CLI.
+`mercury-cli-sdk` 0.2.0 is a zero-runtime-dependency Python client for Mercury CLI, requiring Python 3.11 or later. Install Mercury separately and sign in through the CLI; the SDK uses its configuration and credentials. The package is Apache-2.0 and versioned separately from the CLI.
 
 ```sh
 python -m pip install mercury-cli-sdk

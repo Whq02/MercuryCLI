@@ -13,7 +13,7 @@ import path from 'node:path'
 import { execFileSync, execSync } from 'node:child_process'
 const p = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
 execSync(p.scripts.build.split(' && ')[1], { cwd: path.dirname(process.argv[2]), stdio: 'inherit' })
-if (p.name !== 'mercury-cli-sdk' || p.version !== '0.1.0' || p.private) throw new Error('unexpected package identity')
+if (p.name !== 'mercury-cli-sdk' || p.version !== '0.2.0' || p.private) throw new Error('unexpected package identity')
 const r = await fetch(`https://registry.npmjs.org/${p.name}`)
 if (r.status === 404) console.log(`${new Date().toISOString()} npm ${p.name}: free (HTTP 404)`)
 else if (r.ok) {
@@ -28,5 +28,5 @@ JS
 if $push; then
   (cd "$root/sdk" && npm publish --access public --ignore-scripts)
 else
-  printf '\nDRY RUN: would publish mercury-cli-sdk@0.1.0 to npm; nothing uploaded.\n'
+  printf '\nDRY RUN: would publish mercury-cli-sdk@0.2.0 to npm; nothing uploaded.\n'
 fi

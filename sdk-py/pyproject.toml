@@ -5,7 +5,7 @@ backend-path = ["."]
 
 [project]
 name = "mercury-cli-sdk"
-version = "0.1.0"
+version = "0.2.0"
 description = "Mercury CLI clients for Python: typed run streams, hosted sessions and zero-cost fixtures."
 readme = "README.md"
 requires-python = ">=3.11"
