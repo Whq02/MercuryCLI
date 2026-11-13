@@ -1,5 +1,5 @@
 {
-  "base": "b17b56c03dab1a3d93932c244901e6f0c21107eb",
+  "base": "ea939555c00fca1c6ca62efd1026b3b0c4565bea",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -282,7 +282,7 @@
             "type": "string"
           },
           "scale": {
-            "description": "Upscale factor for the crop, within the image output budget; requires crop.",
+            "description": "Crop upscale factor, within the image budget; whole numbers repeat pixels; requires crop.",
             "type": "number",
             "minimum": 1
           },
