@@ -60,6 +60,7 @@ const VERDICT_RUNGS = "- **CONFIRMED** — name the triggering inputs/state and 
 const RECALL_GUARD = "**Default to PLAUSIBLE** whenever a runtime state is realistic: concurrency races, rare-but-reachable nil/undefined paths (error handlers, cold caches, omitted optionals), zero treated as absent, unexcluded boundary off-by-ones, retry storms/partial failures, or unanchored regexes/allowlists.\\n\\nRule **REFUTED** only from code proof: factually wrong (quote the line), provably unreachable by type/constant/invariant, guarded in this diff (cite the guard), or purely stylistic with no observable effect."
 const QUALITY_COST_NOTE = "Use {file, line, summary} and put the concrete duplication, waste, or maintenance cost in \`failure_scenario\`. Correctness bugs outrank quality findings when capped.\\n"
 const SWEEP_TARGETS = "moved/extracted code that lost a guard or anchor; definition-time default evaluation, \`hash()\` nondeterminism, shrunk lock scopes, mutating predicates; test setup/teardown asymmetry; flipped config defaults."
+
 // ─── Schemas ───
 const BOUNDS_SCHEMA = {
   type: "object",
@@ -131,6 +132,7 @@ const scope = await agent(
   "2. List every changed file and summarize the change in one paragraph.\\n" +
   "3. Read project instruction files near the changed code (MERCURY.md, or AGENTS.md where the project keeps its conventions there) and note review-relevant conventions.\\n\\n" +
   "Return a shell-ready diffCommand via structured output only.",
+  withModel({ label: "scope", schema: BOUNDS_SCHEMA }, LANE_MODEL)
 )
 if (!scope) {
   return { error: "The scoping agent produced nothing — the review has no diff to work from." }
@@ -171,6 +173,7 @@ const verifierBrief = c =>
   "Run the scoped diff, read the involved files, and choose one verdict:\\n\\n" +
   VERDICT_RUNGS + "\\n\\n" + RECALL_GUARD + "\\n\\n" +
   "Quote or cite exact line(s) in evidence. Answer via structured output only."
+
 // ─── Duplicate filter + verification budget, shared by the stage callbacks
 // (they mutate it as lenses land; safe on one JS thread) ───
 const dedupKey = c => c.file + ":" + (c.line != null ? Math.round(c.line / 5) * 5 : "x:" + c.summary.toLowerCase().slice(0, 40))
@@ -231,6 +234,7 @@ if (SIZE.sweep) {
     "## Already on the board (do not repeat)\\n" + onTheBoard + "\\n\\n" +
     "Walk the diff and enclosing functions for defects absent above, focusing on: " + SWEEP_TARGETS + "\\n\\n" +
     "Report up to " + SWEEP_EXTRA + " new candidates (or [] if none). Answer via structured output only.",
+    withModel({ label: "sweep", phase: "Sweep", schema: LEADS_SCHEMA }, LANE_MODEL)
   )
   if (sweep && sweep.candidates.length) {
     const fresh = sweep.candidates.slice(0, SWEEP_EXTRA).filter(c => !board.has(dedupKey(c)))
@@ -281,6 +285,7 @@ const report = await agent(
   "2. Order worst-first; correctness always outranks quality.\\n" +
   "3. Cap at " + SIZE.reportCap + " findings, dropping least severe first.\\n" +
   "4. Summarize the review in 2-3 sentences.\\n\\nAnswer via structured output only.",
+  withModel({ label: "synthesize", schema: DIGEST_SCHEMA }, LANE_MODEL)
 )
 
 // If synthesis was skipped or died, ship the ruled findings uncombined
