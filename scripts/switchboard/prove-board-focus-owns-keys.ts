@@ -52,12 +52,12 @@ section('§1 the pure legend law — one resolver, every list state')
   check('the older drop-down still outranks the arm (one resolver, layered)', regionKeysFor('list', { newSession: true, selection: 'live', armed: true, olderBrowse: true }).every(k => k.label === 'bring it back'))
   check("the header's n prints exactly where the key fires: the rows, no filter typing", newSessionTabLabel({ region: 'list', filtering: false }) === '+ new session · n')
   check('…and not while the / filter captures', newSessionTabLabel({ region: 'list', filtering: true }) === '+ new session')
-  check('…nor while a composer, the rail or the split pane holds focus (n is a letter there, or nothing)', ['live', 'coordinator', 'rail', 'chat'].every(r => newSessionTabLabel({ region: r, filtering: false }) === '+ new session'))
+  check('…nor while the composer, the rail or the split pane holds focus (n is a letter there, or nothing)', ['live', 'rail', 'chat'].every(r => newSessionTabLabel({ region: r, filtering: false }) === '+ new session'))
   const { newSessionDoorWords, NEW_SESSION_DOOR_WORDS } = await import('../../src/components/concourse/ConcourseLayout.js')
   check("the New Session line's words say where n fires: on the rows, 'n starts a blank session in this project'", newSessionDoorWords({ region: 'list', filtering: false }) === NEW_SESSION_DOOR_WORDS && NEW_SESSION_DOOR_WORDS === 'n starts a blank session in this project')
-  check("…and from a focused composer, the rail, the split pane or under the filter: 'tab to the list, then n …' — never a key that types into a draft (the Air's 7R-05/8R-05)", ['live', 'coordinator', 'rail', 'chat'].every(r => newSessionDoorWords({ region: r, filtering: false }) === `tab to the list, then ${NEW_SESSION_DOOR_WORDS}`) && newSessionDoorWords({ region: 'list', filtering: true }) === `tab to the list, then ${NEW_SESSION_DOOR_WORDS}`)
+  check("…and from a focused composer, the rail, the split pane or under the filter: 'tab to the list, then n …' — never a key that types into a draft (the Air's 7R-05/8R-05)", ['live', 'rail', 'chat'].every(r => newSessionDoorWords({ region: r, filtering: false }) === `tab to the list, then ${NEW_SESSION_DOOR_WORDS}`) && newSessionDoorWords({ region: 'list', filtering: true }) === `tab to the list, then ${NEW_SESSION_DOOR_WORDS}`)
   check('the atlas key fires from the rows, the rail and the split pane whatever the drafts hold', ['list', 'rail', 'chat'].every(r => helpKeyFiresFor(r, false) && helpKeyFiresFor(r, true)))
-  check('…and from a composer only while its draft is empty', helpKeyFiresFor('live', true) && !helpKeyFiresFor('live', false) && helpKeyFiresFor('coordinator', true) && !helpKeyFiresFor('coordinator', false))
+  check('…and from the composer only while its draft is empty', helpKeyFiresFor('live', true) && !helpKeyFiresFor('live', false))
 }
 
 section('§2 the screen carries the law — no yield, one gate, no implicit focus move')
@@ -65,7 +65,7 @@ section('§2 the screen carries the law — no yield, one gate, no implicit focu
   const screen = read('src/components/concourse/ConcourseScreen.tsx')
   const layout = read('src/components/concourse/ConcourseLayout.tsx')
   check('both New Session rows (the empty board and the line above the rows) print the focus-aware words through the one resolver', layout.split('newSessionDoorWords({ region, filtering })').length === 3 && !layout.includes('>{NEW_SESSION_DOOR_WORDS}<'))
-  const GATE = "if (region !== 'coordinator' && region !== 'live') {"
+  const GATE = "if (region !== 'live') {"
   check('the letter-verb yield is gone from the screen (no module, no predicate)', !screen.includes('letterVerbsYield') && !screen.includes('verbsYield') && !existsSync(join(REPO, 'src', 'components', 'concourse', 'letterVerbYield.ts')))
   const listStart = screen.indexOf("if (region === 'list') {")
   const listEnd = screen.indexOf("if (region === 'chat') {", listStart)
@@ -74,9 +74,9 @@ section('§2 the screen carries the law — no yield, one gate, no implicit focu
     check(`the ${letter} verb guard is plain (fires in every list state)`, new RegExp(`if \\(input === '${letter}' && !key\\.ctrl && !key\\.meta && (?!!verbsYield)`).test(list))
   }
   check('the / filter, the split nudges and the mark are plain too', list.includes("if (input === '/' && !key.ctrl && !key.meta) {") && list.includes("if ((input === '[' || input === ']') && !key.ctrl && !key.meta && splitActive && pastGate())") && list.includes("if (input === ' ' && !key.ctrl && !key.meta && !reducedStage && pastGate()) {"))
-  check('the composer-focus gate stands between the rows and the type-through (after the chat pane block, before the composer side is chosen)', ordered(screen, "if (region === 'chat') {", GATE) && ordered(screen, GATE, 'const side =') && ordered(screen, GATE, 'side.edit(d => insertAt(d, payload))'))
-  check('no keystroke moves the focus by itself (the type-through never re-targets the region)', !screen.includes('if (region !== side.focus) setRegion(side.focus)'))
-  check("the atlas key decides with the one resolver the legend prints with", screen.includes("helpKeyFiresFor(region, (region === 'coordinator' ? draftRef : liveDraftRef).current.text.length === 0)") && layout.includes("helpKeyFiresFor(region, region === 'coordinator' ? coordinatorDraftEmpty : liveDraftEmpty)"))
+  check('the composer-focus gate stands between the rows and the type-through (after the chat pane block, before the first edit of the draft)', ordered(screen, "if (region === 'chat') {", GATE) && ordered(screen, GATE, 'editLiveDraft(d => insertAt(d, NL))') && ordered(screen, GATE, 'editLiveDraft(d => insertAt(d, payload))'))
+  check('no keystroke moves the focus by itself (nothing below the gate re-targets the region)', screen.indexOf(GATE) !== -1 && !screen.slice(screen.indexOf(GATE), screen.indexOf('const t = useMercuryTokens()', screen.indexOf(GATE))).includes('setRegion('))
+  check("the atlas key decides with the one resolver the legend prints with", screen.includes('helpKeyFiresFor(region, liveDraftRef.current.text.length === 0)') && layout.includes('helpKeyFiresFor(region, liveDraftEmpty)'))
   check('the armed line says tab (the words road) and, with a draft held, send', screen.includes("'armed — ↵ again enters'") && screen.includes("' · tab to message'") && screen.includes("'armed — ↵ sends the draft · → enters'") && !screen.includes('type to message'))
   check('the layout hands the arm and the held draft to the one resolver and relabels esc "disarm" while armed', layout.includes('armed: armedSelected, liveDraftHeld: !liveDraftEmpty') && /armedSelected && k\.keys === 'esc'\s*\?\s*\{ keys: k\.keys, label: 'disarm' \}/.test(layout) && !layout.includes("label: 'enters (armed)' }\n                                : k"))
   check("the header's tab label rides the one resolver", layout.includes('{newSessionTabLabel({ region, filtering })}') && !layout.includes('+ new session · n\n'))

@@ -58,9 +58,8 @@ t.section('§2 — the off-mac words (the registry vocabulary, one spelling per 
 t.section('§3 — totality over the LIVE manifest rows + the vocabulary')
 {
   const rows: string[] = [
-    ...manifest.COORDINATOR_SURFACE_KEYS.map(k => k.keys),
     manifest.CONCOURSE_HELP_KEY.keys,
-    ...(['rail', 'list', 'coordinator', 'live', 'chat'] as const).flatMap(r =>
+    ...(['rail', 'list', 'live', 'chat'] as const).flatMap(r =>
       manifest.regionKeysFor(r, { newSession: true }).map(k => k.keys)),
     ...manifest.browseKeysFor({ chatPresent: true }).map(k => k.keys),
     ...manifest.browseKeysFor({ chatPresent: false }).map(k => k.keys),

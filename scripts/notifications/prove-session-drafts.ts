@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
@@ -9,10 +9,8 @@ import {
   readConcourseDraft,
   readConcourseSessionDraft,
   readConcourseSessionDraftState,
-  readCoordinatorComposerDraft,
   writeConcourseDraft,
   writeConcourseSessionDraft,
-  writeCoordinatorComposerDraft,
 } from '../../src/services/concourse/concourseSnapshot.ts'
 
 const t = checker()
@@ -68,16 +66,23 @@ t.section('§5 — CU-05+AR-11: the caret rides beside the text (never end-of-te
   t.check('an empty write clears text AND caret', cleared.text === '' && cleared.caret === 0, `${JSON.stringify(cleared)}`)
 }
 
-t.section('§6 — CU-05: the coordinator composer draft is durable, isolated, clear-on-empty')
+t.section('§6 — a draft an earlier version left in its coordinator composer is carried through every write, read by nothing')
 {
-  await writeCoordinatorComposerDraft('ask the board something', 7, dir)
-  const d = await readCoordinatorComposerDraft(dir)
-  t.check('the coordinator draft round-trips text + caret', d.text === 'ask the board something' && d.caret === 7, `${JSON.stringify(d)}`)
+  const file = join(dir, 'concourse-draft.json')
+  const before = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>
+  writeFileSync(file, JSON.stringify({ ...before, coordinatorDraft: 'ask the board something', coordinatorDraftCaret: 7, aFieldNoVersionKnew: 'x' }))
+  await new Promise(r => setTimeout(r, 1200))
+  await writeConcourseSessionDraft('carry-session', 'a later write of another field', dir, 3)
+  const afterSession = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>
+  t.check('a session draft written later leaves the text and its caret in the file', afterSession.coordinatorDraft === 'ask the board something' && afterSession.coordinatorDraftCaret === 7, JSON.stringify({ text: afterSession.coordinatorDraft, caret: afterSession.coordinatorDraftCaret }))
+  await writeConcourseDraft('the new-session strip draft', dir)
+  const afterStrip = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>
+  t.check('…and so does a write of the new-session draft', afterStrip.coordinatorDraft === 'ask the board something' && afterStrip.coordinatorDraftCaret === 7, JSON.stringify({ text: afterStrip.coordinatorDraft, caret: afterStrip.coordinatorDraftCaret }))
+  t.check('the store drops a field its decoder does not name (why the two stay named)', afterSession.aFieldNoVersionKnew === undefined)
   t.check('it never bleeds into the new-session strip draft', (await readConcourseDraft(dir)) === 'the new-session strip draft')
   t.check('it never bleeds into a session draft', (await readConcourseSessionDraft('caret-legacy', dir)) === 'old shape')
-  await writeCoordinatorComposerDraft('', 0, dir)
-  const cleared = await readCoordinatorComposerDraft(dir)
-  t.check('the accepted-send clear empties it', cleared.text === '' && cleared.caret === 0, `${JSON.stringify(cleared)}`)
+  const snapshotSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'concourse', 'concourseSnapshot.ts'), 'utf8')
+  t.check('nothing in the store reads or writes the two fields but its decoder', !/file\.coordinatorDraft|value\.coordinatorDraft|coordinatorDraft: clamped|coordinatorDraft: undefined/.test(snapshotSrc))
 }
 
 rmSync(dir, { recursive: true, force: true })

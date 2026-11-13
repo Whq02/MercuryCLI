@@ -616,24 +616,6 @@ export function subscribeConcourseDraft(cb: () => void, dir?: string): () => voi
   return draftStore(dir).subscribe(() => cb(), { immediate: false })
 }
 
-export function subscribeCoordinatorDraftChanges(
-  cb: (change: { text: string; caret: number; cause: import('../../substrate/storeRevision.js').StoreChangeCause }) => void,
-  dir?: string,
-): () => void {
-  return draftStore(dir).subscribeChanges(
-    change => {
-      const text = change.value.coordinatorDraft ?? ''
-      const caret = change.value.coordinatorDraftCaret
-      cb({
-        text,
-        caret: caret !== undefined ? Math.max(0, Math.min(text.length, caret)) : text.length,
-        cause: change.cause,
-      })
-    },
-    { immediate: false },
-  )
-}
-
 export async function readConcourseSessionDraft(sessionId: string, dir?: string): Promise<string> {
   return (await draftStore(dir).read()).sessionDrafts?.[sessionId] ?? ''
 }
@@ -669,27 +651,6 @@ export async function writeConcourseSessionDraft(sessionId: string, text: string
       ...(Object.keys(carets).length > 0 ? { sessionDraftCarets: carets } : { sessionDraftCarets: undefined }),
     }
   })
-}
-
-export async function readCoordinatorComposerDraft(dir?: string): Promise<{ text: string; caret: number }> {
-  const file = await draftStore(dir).read()
-  const text = file.coordinatorDraft ?? ''
-  const caret = file.coordinatorDraftCaret
-  return { text, caret: caret !== undefined ? Math.max(0, Math.min(text.length, caret)) : text.length }
-}
-
-export async function writeCoordinatorComposerDraft(text: string, caret: number, dir?: string): Promise<void> {
-  const clamped = text.slice(0, 4000)
-  await draftStore(dir).mutate(prev => ({
-    ...prev,
-    updatedAtMs: Date.now(),
-    ...(clamped.length > 0
-      ? {
-          coordinatorDraft: clamped,
-          coordinatorDraftCaret: Math.max(0, Math.min(clamped.length, Math.floor(caret))),
-        }
-      : { coordinatorDraft: undefined, coordinatorDraftCaret: undefined }),
-  }))
 }
 
 export function resolveIsolationSeed(

@@ -179,9 +179,9 @@ section('§2 raw-input captures — a closed roster: the guard that scopes the c
       reason: 'the search box: while it has focus a printable is search text (the arm sits ahead of the c/e/s letter actions and the / opener); tab moves between the box and the rows; the hint row swaps to type to search · tab back to the rows, and its exit word to the search state (esc clears the search while one stands)',
     },
     'src/components/concourse/ConcourseScreen.tsx': {
-      guard: ["if (region !== 'coordinator' && region !== 'live') {", 'if (filtering) {'],
+      guard: ["if (region !== 'live') {", 'if (filtering) {'],
       legendIn: 'src/components/concourse/ConcourseLayout.tsx',
-      legend: ["'type to filter · ↵ apply · esc clear'", '{newSessionTabLabel({ region, filtering })}', "helpKeyFiresFor(region, region === 'coordinator' ? coordinatorDraftEmpty : liveDraftEmpty)"],
+      legend: ["'type to filter · ↵ apply · esc clear'", '{newSessionTabLabel({ region, filtering })}', 'helpKeyFiresFor(region, liveDraftEmpty)'],
       reason: 'the board: printables reach a composer only under its own focus (the composer-focus gate), the / filter captures modally; the header’s n and the atlas key follow the state',
     },
     'src/components/KitMenuScreen.tsx': {
@@ -326,10 +326,10 @@ section('§3 the Session Concourse board — the rows own their letters in every
   }
   check('no list letter verb disappears under the arm or a held draft (the legend never advertises a key typing would eat)', shadowed.length === 0, shadowed.join(' · '))
   check("no 'type to message' row exists in any list state", classes.every(s => !regionKeysFor('list', { newSession: true, selection: s, armed: true }).some(k => k.keys === 'type')))
-  check("the header's n prints on the rows only, never under the filter or a composer", newSessionTabLabel({ region: 'list', filtering: false }) === '+ new session · n' && newSessionTabLabel({ region: 'list', filtering: true }) === '+ new session' && newSessionTabLabel({ region: 'live', filtering: false }) === '+ new session' && newSessionTabLabel({ region: 'coordinator', filtering: false }) === '+ new session')
-  check('the atlas key follows the focused composer’s draft', helpKeyFiresFor('list', false) && helpKeyFiresFor('live', true) && !helpKeyFiresFor('live', false) && !helpKeyFiresFor('coordinator', false))
+  check("the header's n prints on the rows only, never under the filter or the composer", newSessionTabLabel({ region: 'list', filtering: false }) === '+ new session · n' && newSessionTabLabel({ region: 'list', filtering: true }) === '+ new session' && newSessionTabLabel({ region: 'live', filtering: false }) === '+ new session')
+  check('the atlas key follows the focused composer’s draft', helpKeyFiresFor('list', false) && helpKeyFiresFor('live', true) && !helpKeyFiresFor('live', false))
   const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  check('the screen keeps no yield and no implicit focus move', !screen.includes('verbsYield') && !screen.includes('if (region !== side.focus) setRegion(side.focus)') && screen.includes("if (region !== 'coordinator' && region !== 'live') {"))
+  check('the screen keeps no yield and no implicit focus move', !screen.includes('verbsYield') && screen.indexOf("if (region !== 'live') {") !== -1 && !screen.slice(screen.indexOf("if (region !== 'live') {"), screen.indexOf('const t = useMercuryTokens()', screen.indexOf("if (region !== 'live') {"))).includes('setRegion('))
 }
 
 console.log(failures === 0 ? '\nprove-declared-keys-unshadowed: EVERY DECLARED KEY STANDS' : `\nprove-declared-keys-unshadowed: ${failures} FAILURE(S)`)

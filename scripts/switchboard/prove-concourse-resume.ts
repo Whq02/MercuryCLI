@@ -198,8 +198,8 @@ console.log('A2 — capacity: ≤10 per project (one owner); live rows lead; the
   const groupsLive = snap.groups.filter(g => g.id !== 'parked').length
   for (const [cols, rows] of [[100, 30], [80, 24], [120, 40], [140, 24]] as const) {
     for (const needsYou of [0, 2]) {
-      const before = switchboardGeometry(cols, rows, needsYou, live.length, groupsLive, 1, 'mirror')
-      const after = switchboardGeometry(cols, rows, needsYou, flat.length, groupsLive + 1, 1, 'mirror')
+      const before = switchboardGeometry(cols, rows, needsYou, live.length, groupsLive, 1)
+      const after = switchboardGeometry(cols, rows, needsYou, flat.length, groupsLive + 1, 1)
       check(`${cols}x${rows} ny=${needsYou}: parked rows never shrink the list window (${before.listContentRows} → ${after.listContentRows})`, after.listContentRows >= before.listContentRows)
       const win = paneWindow(flat.length, 0, after.listContentRows)
       check(`${cols}x${rows} ny=${needsYou}: the first window keeps the first live row (start ${win.start})`, win.start === 0 && win.end > 0)

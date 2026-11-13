@@ -24,12 +24,8 @@ const quiet: Facts = {
   settingsOpen: false,
   groundPickerOpen: false,
   rowPick: false,
-  seatAsk: false,
   gitOffer: false,
   contractAsk: false,
-  managerSeatAsk: false,
-  managerCardArmed: false,
-  coordinatorFocused: false,
   helpOpen: false,
 }
 const armed = (over: Partial<Facts>): Facts => ({ ...quiet, ...over })
@@ -43,9 +39,6 @@ section('§1 mayArmBoardModal — a pointer door arms only while no other owner 
     const may = mayArmBoardModal
     check('a quiet board: the ground picker may arm', may(quiet, 'ground-picker') === true)
     check('a quiet board: the model picker may arm', may(quiet, 'settings') === true)
-    check('THE SEAT-OVERLOAD CARD STANDS ⇒ the ground picker may NOT arm (the base opened it over the card)', may(armed({ seatAsk: true }), 'ground-picker') === false)
-    check('…nor the model picker', may(armed({ seatAsk: true }), 'settings') === false)
-    check('the manager seat-ask card stands ⇒ neither picker arms', may(armed({ managerSeatAsk: true }), 'ground-picker') === false && may(armed({ managerSeatAsk: true }), 'settings') === false)
     check('the capacity ask stands ⇒ no picker arms', may(armed({ capacityAsk: true }), 'ground-picker') === false)
     check('the trust ask stands ⇒ no picker arms', may(armed({ trustAsk: true }), 'settings') === false)
     check('the row pick stands ⇒ no picker arms', may(armed({ rowPick: true }), 'ground-picker') === false)
@@ -55,9 +48,8 @@ section('§1 mayArmBoardModal — a pointer door arms only while no other owner 
     check('the model picker is open ⇒ its own door still answers', may(armed({ settingsOpen: true }), 'settings') === true)
     check('the ground picker is open ⇒ the MODEL door does not arm a second Select', may(armed({ groundPickerOpen: true }), 'settings') === false)
     check('the model picker is open ⇒ the GROUND door does not arm a second Select', may(armed({ settingsOpen: true }), 'ground-picker') === false)
-    check('a manager card with focus elsewhere ⇒ the doors answer', may(armed({ managerCardArmed: true, coordinatorFocused: false }), 'ground-picker') === true)
-    check('a focused manager card ⇒ the doors yield', may(armed({ managerCardArmed: true, coordinatorFocused: true }), 'ground-picker') === false)
-    check('the predicate is the owner table, not a second lattice', may(armed({ seatAsk: true, groundPickerOpen: true }), 'ground-picker') === (boardModalOwner(armed({ seatAsk: true, groundPickerOpen: true })) === 'ground-picker'))
+    check('the contract ask stands ⇒ no picker arms over it', may(armed({ contractAsk: true }), 'ground-picker') === false && may(armed({ contractAsk: true }), 'settings') === false)
+    check('the predicate is the owner table, not a second lattice', may(armed({ rowPick: true, groundPickerOpen: true }), 'ground-picker') === (boardModalOwner(armed({ rowPick: true, groundPickerOpen: true })) === 'ground-picker') && may(armed({ capacityAsk: true, groundPickerOpen: true }), 'ground-picker') === (boardModalOwner(armed({ capacityAsk: true, groundPickerOpen: true })) === 'ground-picker'))
   }
 }
 
@@ -70,8 +62,6 @@ section('§2 gitOfferOwnsTheKeys — the stacked card paints exactly while the t
     check('THE MODEL PICKER IS OPEN ⇒ the card does not paint over it (the base stacked it on top)', owns(armed({ gitOffer: true, settingsOpen: true })) === false)
     check('THE GROUND PICKER IS OPEN ⇒ the card does not paint over it', owns(armed({ gitOffer: true, groundPickerOpen: true })) === false)
     check('the row pick stands ⇒ the card waits', owns(armed({ gitOffer: true, rowPick: true })) === false)
-    check('the seat-overload card stands ⇒ the card waits (as before)', owns(armed({ gitOffer: true, seatAsk: true })) === false)
-    check('the manager seat ask stands ⇒ the card waits', owns(armed({ gitOffer: true, managerSeatAsk: true })) === false)
     check('the trust or capacity ask stands ⇒ the card waits', owns(armed({ gitOffer: true, trustAsk: true })) === false && owns(armed({ gitOffer: true, capacityAsk: true })) === false)
     check('the atlas is open ⇒ the card waits', owns(armed({ gitOffer: true, helpOpen: true })) === false)
     check('the picker closes ⇒ the card returns', owns(armed({ gitOffer: true, settingsOpen: false })) === true)
@@ -89,7 +79,7 @@ section('§3 the screen consults the owner at both routes')
   check('the doors read the facts at CLICK time from the refs (never a stale render)', /const modalFactsNow = \(\): BoardModalFactsV1 => \(\{[\s\S]*?capacityAskRef\.current[\s\S]*?helpOpenRef\.current/.test(src))
   const stacked = src.slice(src.indexOf('gitOfferOwnsTheKeys({'), src.indexOf('<GitOfferCard', src.indexOf('gitOfferOwnsTheKeys({')))
   check('the floating git-offer mount is gated on the owner naming it', stacked.length > 0 && /groundPickerOpen,/.test(stacked) && /helpOpen,/.test(stacked))
-  check('…and still yields to the contract ask and to the coordinator pane that shows it in place (the pane order stands)', /gitOffer !== undefined &&\s*!contractAsk &&\s*!gitOfferInPane &&/.test(src))
+  check('…and still yields to the contract ask', /gitOffer !== undefined &&\s*!contractAsk &&\s*gitOfferOwnsTheKeys\(\{/.test(src))
   check('the old unfenced stacked gate is gone', !/gitOffer !== undefined && seatAsk === null && !contractAsk && geo\.profile !== 'wide' \?/.test(src))
   check("the keyboard path still yields whole to the owner (the doors joined it, never replaced it)", /const modalOwner = boardModalOwner\(\{/.test(src))
 }

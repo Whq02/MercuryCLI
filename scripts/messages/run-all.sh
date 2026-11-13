@@ -2,7 +2,7 @@
 # gate-class: pure
 # gate-watch: scripts/lib/hermetic.ts src/services/providers/anthropic/cacheAndUsage.ts
 # gate-watch: src/screens/Chat* src/types/message* src/utils/messages/** src/rows/project.ts src/rows/content.ts src/rows/request.ts
-# gate-watch: src/components/* src/components/concourse/CoordinatorPane.tsx
+# gate-watch: src/components/*
 # gate-watch: src/components/messages/AssistantTextMessage.tsx src/components/messages/UserTextMessage.tsx
 # gate-watch: src/components/messages/UserToolResultMessage/UserToolErrorMessage.tsx
 # gate-watch: src/components/mercury-ui/glyphs.ts src/constants/figures.ts src/ink/components/StdinContext.ts src/ink/components/TerminalSizeContext.tsx src/state/store.ts

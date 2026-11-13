@@ -32,19 +32,5 @@ console.log('\n§2 the unknown-model construction names the choice and the regis
   check('managerMode.ts paints no key glyph', !mm.includes('⌃'))
 }
 
-console.log('\n§3 the truncate-end card rows lead with their keys')
-{
-  const cards = readFileSync(join(ROOT, 'src', 'components', 'concourse', 'ManagerCards.tsx'), 'utf-8')
-  check(
-    'the ask legend orders select and commit before the expendable tail',
-    /select · ↵ commit · \$\{customOrdinal\} custom answer · esc close/.test(cards),
-  )
-  check(
-    'the supervision row leads with its key (after dispatch — s switches:)',
-    cards.includes('after dispatch — s switches:'),
-  )
-  check('no trailing — s switches survives to be eaten first', !cards.includes('> — s switches</Text>'))
-}
-
 console.log(failures === 0 ? '\nprove-instruction-key-survival: all green' : `\nprove-instruction-key-survival: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

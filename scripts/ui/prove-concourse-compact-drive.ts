@@ -109,8 +109,6 @@ seedFirstRun(scratch, [REPO])
   const cfgPath = join(scratch, '.mercury.json')
   const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
   cfg['switchboardCapacity'] = { askedAt: 1754000000000, allowed: true, recommendedSeats: 5 }
-  cfg['concourseCoordinator'] = { mode: 'agent-assisted', assistModel: 'claude-opus-5' }
-  cfg['coordinatorEnabled'] = true
   cfg['customApiKeyResponses'] = { approved: ['fixture-key-000'], rejected: [] }
   writeFileSync(cfgPath, JSON.stringify(cfg))
   const fixture = referenceFixtureSnapshot() as { groups: Array<{ id: string; label: string; rows: Array<Record<string, unknown>> }>; needsYou: unknown[]; coordinator: unknown }
@@ -132,7 +130,7 @@ seedFirstRun(scratch, [REPO])
     ],
   })
   fixture.needsYou = []
-  fixture.coordinator = { mode: 'agent-assisted', assistModelLabel: 'Opus 5' }
+  fixture.coordinator = { mode: 'off' }
   writeFileSync(join(scratch, 'concourse-fixture.json'), JSON.stringify(fixture))
   const now = Date.now()
   const base = (sessionId: string, extra: Record<string, unknown>): Record<string, unknown> => ({

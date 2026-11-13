@@ -211,5 +211,5 @@ if (!process.argv.includes('--session-only')) {
   await concoursePopupFrames({ sizes: selectedSizes, wrap, mount: mountOffscreen, check, judge, save })
 }
 await releaseScratchHome(HOME)
-console.log(`popup-gutter-frames: ${checks} checks, ${failures} failed; ${selectedSizes.length} sizes; ${surfaces.length + sheets.length + 2} session/Boot surfaces plus 11 concourse surfaces and dynamic JEV growth`)
+console.log(`popup-gutter-frames: ${checks} checks, ${failures} failed; ${selectedSizes.length} sizes; ${surfaces.length + sheets.length + 2} session/Boot surfaces plus 8 concourse surfaces and dynamic JEV growth`)
 process.exit(failures === 0 ? 0 : 1)

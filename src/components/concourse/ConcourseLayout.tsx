@@ -52,7 +52,6 @@ export function rowNeedsOperator(row: { state: string; nowLabel?: string | null 
 export const CONCOURSE_TWO_PANE_MIN_COLS = 100
 export const MANAGER_MIN_COLS = 43
 const MANAGER_SHARE_PCT = 36
-export const COORDINATOR_REST_ROWS = 4
 export const REDUCED_NOTICE_ROWS = 5
 const MANAGER_FLOOR_ROWS = 8
 const LIVE_FLOOR_ROWS = 6
@@ -64,7 +63,7 @@ export function resolveConcourseProfile(cols: number, _rows?: number): Concourse
   return cols >= CONCOURSE_TWO_PANE_MIN_COLS ? 'wide' : 'stacked'
 }
 
-export type ConcourseRegion = 'rail' | 'list' | 'live' | 'coordinator' | 'chat'
+export type ConcourseRegion = 'rail' | 'list' | 'live' | 'chat'
 
 interface SwitchboardGeometry {
   constrained?: boolean
@@ -79,11 +78,10 @@ interface SwitchboardGeometry {
   statusTop: number
   helpTop: number
   liveCols: [number, number]
-  coordCols: [number, number]
   rightCols: [number, number]
   listBand: [number, number]
   mirrorBand: [number, number]
-  coordBand: [number, number]
+  thirdBand: [number, number]
   listContentRows: number
   peekRows: number
 }
@@ -117,7 +115,6 @@ export function switchboardGeometry(
   sessionRowCount: number,
   groupCount: number,
   liveDraftRows: number,
-  tallOwner: 'mirror' | 'coordinator',
   expandedRows = 0,
   focusedRegion: ConcourseRegion = 'list',
   thirdPaneRows = 0,
@@ -139,10 +136,10 @@ export function switchboardGeometry(
       railWindowRows: focusedRegion === 'rail' ? Math.min(mainRows, needsYouCount) : 0,
       mainBand: all, mainRows, liveComposerRows, liveComposerBand,
       statusTop: total + 1, helpTop: helpRows > 0 ? total : total + 1,
-      liveCols: span, coordCols: span, rightCols: span,
+      liveCols: span, rightCols: span,
       listBand: focusedRegion === 'list' || focusedRegion === 'chat' ? all : empty,
       listContentRows: focusedRegion === 'list' || focusedRegion === 'chat' ? mainRows : 0,
-      coordBand: focusedRegion === 'coordinator' && thirdPaneRows > 0 ? all : empty,
+      thirdBand: empty,
       mirrorBand: focusedRegion === 'live' && mainRows > liveComposerRows ? [1, mainRows - liveComposerRows] : empty,
       peekRows: 0,
     }
@@ -154,16 +151,12 @@ export function switchboardGeometry(
   const mainBand: [number, number] = [mainTop, mainEnd]
   const statusTop = mainTop + mainRows
   const helpTop = statusTop + 3
-  const coordTall = thirdPaneRows > 0 && tallOwner === 'coordinator'
   if (profile === 'wide') {
     const managerW = Math.max(MANAGER_MIN_COLS, Math.round((interior * MANAGER_SHARE_PCT) / 100))
     const liveW = interior - managerW - 1
     const liveCols: [number, number] = [3, 2 + liveW]
     const rightCols: [number, number] = [3 + liveW + 1, 2 + interior]
-    const coordRows = coordTall
-      ? Math.max(thirdPaneRows, Math.min(mainRows - MANAGER_FLOOR_ROWS, Math.round(mainRows * 0.6)))
-      : thirdPaneRows
-    const managerRows = mainRows - coordRows
+    const managerRows = mainRows - thirdPaneRows
     const split = managerSplitOf(managerRows, needsYouCount, expandedRows)
     const composerRows = liveComposerRowsOf(mainRows - 2, liveDraftRows)
     return {
@@ -172,19 +165,16 @@ export function switchboardGeometry(
       mainBand, mainRows,
       liveComposerRows: composerRows,
       liveComposerBand: composerRows > 0 ? [mainEnd - composerRows, mainEnd - 1] : empty,
-      statusTop, helpTop, liveCols, coordCols: rightCols, rightCols,
+      statusTop, helpTop, liveCols, rightCols,
       listBand: [mainTop, mainTop + managerRows - 1],
       mirrorBand: mainBand,
-      coordBand: coordRows > 0 ? [mainTop + managerRows, mainEnd] : empty,
+      thirdBand: thirdPaneRows > 0 ? [mainTop + managerRows, mainEnd] : empty,
       listContentRows: split.listContentRows,
       peekRows: split.peekRows,
     }
   }
   const fullCols: [number, number] = [3, 2 + interior]
-  const coordRows = coordTall
-    ? Math.max(thirdPaneRows, Math.min(Math.floor(mainRows * 0.45), mainRows - MANAGER_FLOOR_ROWS - LIVE_FLOOR_ROWS))
-    : thirdPaneRows
-  const rest = mainRows - coordRows
+  const rest = mainRows - thirdPaneRows
   const managerWant = MANAGER_CHROME_ROWS + Math.min(needsYouCount, RAIL_MAX_ROWS) + Math.max(1, sessionRowCount + Math.max(1, groupCount)) + expandedRows
   const managerRows = Math.max(MANAGER_FLOOR_ROWS, Math.min(managerWant, rest - Math.max(LIVE_FLOOR_ROWS, Math.ceil(rest / 2))))
   const liveRows = rest - managerRows
@@ -197,10 +187,10 @@ export function switchboardGeometry(
     mainBand, mainRows,
     liveComposerRows: composerRows,
     liveComposerBand: composerRows > 0 ? [liveEnd - composerRows, liveEnd - 1] : empty,
-    statusTop, helpTop, liveCols: fullCols, coordCols: fullCols, rightCols: fullCols,
+    statusTop, helpTop, liveCols: fullCols, rightCols: fullCols,
     listBand: [liveEnd + 1, liveEnd + managerRows],
     mirrorBand: [mainTop, liveEnd],
-    coordBand: coordRows > 0 ? [liveEnd + managerRows + 1, mainEnd] : empty,
+    thirdBand: thirdPaneRows > 0 ? [liveEnd + managerRows + 1, mainEnd] : empty,
     listContentRows: split.listContentRows,
     peekRows: split.peekRows,
   }
@@ -256,7 +246,6 @@ interface ConcourseLayoutWiring {
   selectObligation: (index: number) => void
   answerObligation: (obligationId: string) => void
   openObligation: (obligationId: string) => void
-  focusComposer: () => void
   focusList?: () => void
   retrySnapshot?: () => void
   withdrawObligation?: (obligationId: string) => void
@@ -275,11 +264,8 @@ export function ConcourseLayout({
   railIndex,
   boardScrollStart,
   degraded = false,
-  focusTall,
   liveDraftRows,
   liveDraftEmpty = true,
-  coordinatorDraftEmpty = true,
-  coordinatorOn = false,
   thirdPaneRows = 0,
   groundPickerOpen = false,
   rowPeekOpen = false,
@@ -289,7 +275,7 @@ export function ConcourseLayout({
   armedSelected = false,
   closeChordStaged = false,
   markedIds,
-  coordinatorNode,
+  thirdPaneNode,
   mirrorNode,
   liveComposerNode,
   wiring,
@@ -307,11 +293,8 @@ export function ConcourseLayout({
   railIndex: number
   boardScrollStart?: number | undefined
   degraded?: boolean
-  focusTall: 'mirror' | 'coordinator'
   liveDraftRows: number
   liveDraftEmpty?: boolean
-  coordinatorDraftEmpty?: boolean
-  coordinatorOn?: boolean
   thirdPaneRows?: number
   groundPickerOpen?: boolean
   rowPeekOpen?: boolean
@@ -321,7 +304,7 @@ export function ConcourseLayout({
   armedSelected?: boolean
   closeChordStaged?: boolean
   markedIds?: ReadonlySet<string>
-  coordinatorNode: (rows: number, width: number) => React.ReactNode
+  thirdPaneNode: (rows: number, width: number) => React.ReactNode
   mirrorNode: (rows: number, width: number) => React.ReactNode
   liveComposerNode?: (bandRows: number, width: number) => React.ReactNode
   wiring: ConcourseLayoutWiring
@@ -343,7 +326,6 @@ export function ConcourseLayout({
     sessionRows.length + (lineShown ? 1 : 0),
     boardGroups.filter(g => g.rows.length > 0).length,
     liveDraftRows,
-    focusTall,
     rowPeekOpen ? ROW_PEEK_DESIRED_ROWS : olderRows > 0 ? olderRows : rowChipRows,
     region,
     thirdPaneRows,
@@ -360,7 +342,7 @@ export function ConcourseLayout({
   const rightWidth = wide ? geo.rightCols[1] - geo.rightCols[0] + 1 : interior
   const listRows = geo.listBand[1] - geo.listBand[0] + 1
   const mirrorRows = geo.mirrorBand[1] - geo.mirrorBand[0] + 1
-  const coordRows = geo.coordBand[1] - geo.coordBand[0] + 1
+  const thirdRows = geo.thirdBand[1] - geo.thirdBand[0] + 1
   const listInner = geo.constrained ? interior : rightWidth - 4
   const managerFocused = region === 'list' || region === 'rail'
 
@@ -542,18 +524,6 @@ export function ConcourseLayout({
                   <Text color={t.textMuted}> — this board fills as you start them</Text>
                 </Text>
               </Box>
-              {coordinatorOn ? (
-                <Box flexShrink={0} paddingX={1}>
-                  <InteractiveRow id="concourse:board:empty-start" directActivate hoverStyle="row-fill" onActivate={() => wiring.focusComposer()}>
-                    {hover => (
-                      <Text wrap="truncate-end">
-                        <Text color={hover ? t.textPrimary : t.info}>{GLYPH.prompt} </Text>
-                        <Text color={hover ? t.textPrimary : t.info}>describe a task in the coordinator panel — ↵ starts a session</Text>
-                      </Text>
-                    )}
-                  </InteractiveRow>
-                </Box>
-              ) : null}
               {wiring.newSession !== undefined ? (
                 <Box flexShrink={0} paddingX={1}>
                   <InteractiveRow id="concourse:board:empty-new" directActivate hoverStyle="row-fill" onActivate={() => wiring.newSession?.()}>
@@ -796,16 +766,16 @@ export function ConcourseLayout({
     </Box>
   )
 
-  const coordinatorPane =
-    thirdPaneRows > 0 && coordRows > 0 ? (
+  const thirdPane =
+    thirdPaneRows > 0 && thirdRows > 0 ? (
       <Box
         flexDirection="column"
         width={wide ? rightWidth : undefined}
-        height={coordRows}
+        height={thirdRows}
         overflow="hidden"
         flexShrink={0}
       >
-        {coordinatorNode(coordRows, wide ? rightWidth : interior)}
+        {thirdPaneNode(thirdRows, wide ? rightWidth : interior)}
       </Box>
     ) : null
 
@@ -828,7 +798,7 @@ export function ConcourseLayout({
             </Box>
             {listPane}
             {livePane}
-            {coordinatorPane}
+            {thirdPane}
           </Box>
         ) : wide ? (
           <Box flexGrow={1} flexDirection="row">
@@ -840,14 +810,14 @@ export function ConcourseLayout({
             </Box>
             <Box flexDirection="column" flexShrink={0} width={rightWidth}>
               {listPane}
-              {coordinatorPane}
+              {thirdPane}
             </Box>
           </Box>
         ) : (
           <Box flexGrow={1} flexDirection="column">
             {livePane}
             {listPane}
-            {coordinatorPane}
+            {thirdPane}
           </Box>
         )}
         <Box flexDirection="column" flexShrink={0} height={geo.constrained ? 0 : 3} overflow="hidden">
@@ -912,7 +882,7 @@ export function ConcourseLayout({
                     const browseKeySet = new Set(browseKeys.map(k => k.keys))
                     const parts = [
                       ...(paneTwinsDropped ? withoutManagerPaneKeys(regionParts) : regionParts),
-                      ...(helpKeyFiresFor(region, region === 'coordinator' ? coordinatorDraftEmpty : liveDraftEmpty) ? [CONCOURSE_HELP_KEY] : []),
+                      ...(helpKeyFiresFor(region, liveDraftEmpty) ? [CONCOURSE_HELP_KEY] : []),
                       browseKeys.find(k => k.keys === 'esc')!,
                     ]
                       .map(k =>

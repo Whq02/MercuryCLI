@@ -49,46 +49,15 @@ console.log('§2 PD-2 — the digit fence and the ordinal paint read one predica
 }
 
 
-console.log('§3 MGR-2 — a tabbed-away plan card owns no key')
+console.log('§3 MGR-2 — a prompt handed isDisabled owns no key')
 {
   const prompt = read('src/components/permissions/PermissionPrompt.tsx')
   check('PermissionPrompt takes isDisabled and hands it to its Select', prompt.includes('isDisabled?: boolean') && prompt.includes('isDisabled = false,') && prompt.includes('isDisabled={isDisabled}'))
   check('its option chords are gated on the same fact', prompt.includes("{ context: 'Confirmation', isActive: !isDisabled && !inputOwnsFocus }"))
-  const cards = read('src/components/concourse/ManagerCards.tsx')
-  const plan = cards.slice(cards.indexOf('export function ManagerPlanCard'), cards.indexOf('export function ManagerSeatAskCard'))
-  check('the plan card hands the prompt its focus fact', plan.includes('isDisabled={!focused}') && plan.includes('question="Dispatch this plan?"'))
-  check("the card's own s toggle stays focus-gated (the precedent)", plan.includes('{ isActive: focused && !busy },'))
-  check('the sibling ask card keeps its own gate (one law, both cards)', cards.slice(0, cards.indexOf('export function ManagerPlanCard')).includes('isDisabled={!focused}'))
   check("the Select's raw path honours isDisabled (why the fact settles every key)", read('src/components/CustomSelect/use-select-input.ts').includes('{ isActive: !isDisabled },'))
 }
 
-console.log('§4 MGR-1 — the plan card yields its lanes block, never its prompt')
-{
-  const { planCardLayout, planCardFixedRows, laneRowsFor } = await import('../../src/components/concourse/planCardLayout.ts')
-  const lane = (n: number) => ({ title: `lane ${n}`, scope: 'x'.repeat(70), deliverables: 'y'.repeat(70), territory: `src/part${n}/**` })
-  const plan = { goal: 'a goal that fits one line', lanes: [lane(1), lane(2)], seats: '2 of 5', supervision: 'supervising' as const, state: 'proposed' as const }
-  const w = 38
-  check('no budget ⇒ the full tier, every lane', planCardLayout(plan, undefined, w).tier === 'full' && planCardLayout(plan, undefined, w).hidden === 0)
-  const fixed = planCardFixedRows(plan, w)
-  const full = plan.lanes.reduce((n, l) => n + laneRowsFor(l, 'full', w), 0)
-  check('the fixed rows count the frame, the goal, the seats, the supervision row and the PROMPT BLOCK WHOLE (marginTop + question + options + legend + bottom border — FC-063: the old four-row count let six-lane plans eat two composer rows)', fixed === 3 + 1 + 1 + 2 + 6)
-  check('a roomy budget keeps the full tier', planCardLayout(plan, fixed + full, w).tier === 'full')
-  const at120x30 = 15
-  const tight = planCardLayout(plan, at120x30, w)
-  check("the finder's 120×30 budget (~15 rows) drops to a tier that fits — the prompt survives", tight.tier !== 'full' && tight.lanesRows <= at120x30 - fixed && tight.shown === 2 && tight.hidden === 0, JSON.stringify(tight))
-  const six = { ...plan, lanes: [1, 2, 3, 4, 5, 6].map(lane) }
-  const cramped = planCardLayout(six, fixed + 4, w)
-  check('six lanes in four rows: titles tier, three shown, three counted on the tail — never zero, never silent', cramped.tier === 'titles' && cramped.shown === 3 && cramped.hidden === 3 && cramped.lanesRows === 4, JSON.stringify(cramped))
-  check('a budget below the fixed rows still paints one lane', planCardLayout(six, 2, w).shown === 1)
-  const cards = read('src/components/concourse/ManagerCards.tsx')
-  check('the card reads the fold and clips its lanes block to the granted rows', cards.includes('const layout = planCardLayout(plan, maxRows, Math.max(16, textWidth ?? 38))') && cards.includes("{...(maxRows !== undefined ? { height: layout.lanesRows, overflow: 'hidden' as const } : {})}"))
-  check('the tail line names the lanes not shown and what Yes still starts', cards.includes('more lane{layout.hidden === 1 ? \'\' : \'s\'} — not shown at this height; Yes starts all {plan.lanes.length}'))
-  check('the harmony fence paints in every tier', cards.includes("layout.tier === 'titles' ? (") && cards.includes('territory: {lane.territory}'))
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  check('the screen hands the card the slot rows minus the composer band and the pane title', screen.includes('maxRows={Math.max(8, rows - (Math.max(1, Math.min(coordBandDesired, rows - 8)) + 3) - 3)}') && screen.includes('textWidth={Math.max(16, width - 8)}'))
-}
-
-console.log('§5 PD-8 — cap-offer: one hint line, the dead enter never advertised')
+console.log('§4 PD-8 — cap-offer: one hint line, the dead enter never advertised')
 {
   const card = read('src/components/CapOfferCard.tsx')
   check('the card rides the inputGuide seam (Dialog default guide replaced)', card.includes('inputGuide={() => ('))
@@ -100,7 +69,7 @@ console.log('§5 PD-8 — cap-offer: one hint line, the dead enter never adverti
   check('POISON: the body no longer paints its own second hint line', !card.includes('? `enter opens the transition preview ${GLYPH.dot} esc stays put`'))
 }
 
-console.log('§6 PD-9 — inline model picker: keys advertised')
+console.log('§5 PD-9 — inline model picker: keys advertised')
 {
   const picker = read('src/components/ModelPicker.tsx')
   check('POISON: the bare inline return (no guide) is gone', !/if \(!isStandaloneCommand\) return body/.test(picker))
@@ -108,7 +77,7 @@ console.log('§6 PD-9 — inline model picker: keys advertised')
   check('the standalone keeps its own line (esc exit)', picker.includes("'↑↓ move · pgup/pgdn page · ↵ confirm · esc exit'"))
 }
 
-console.log('§7 PD-5 — the more-below count rides the painted window')
+console.log('§6 PD-5 — the more-below count rides the painted window')
 {
   const select = read('src/components/CustomSelect/select.tsx')
   check('the Select carries the render-state seam', select.includes('onVisibleWindowChange?: (visibleFromIndex: number, visibleToIndex: number) => void'))

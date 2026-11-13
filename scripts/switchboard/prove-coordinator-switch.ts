@@ -198,8 +198,6 @@ section("§2b an on-disk dispatched plan from 1.0.5 and the board's own gestures
   check('the supervision walker appends no land row and the waiting-lane walker starts no lane (no RPC)', appended === 0 && walked === null && ops.length === 0, JSON.stringify({ appended, walked, ops }))
   check('…the conversation file is byte-identical', readFileSync(conversationPath, 'utf8') === fixtureBytes)
   check('…and no identity or journal appeared beside the fixture', artefactsBesideTheFixture().length === 0, artefactsBesideTheFixture().join(', '))
-  const screen = src('src/components/concourse/ConcourseScreen.tsx')
-  check("the screen's manager walker effect asks the switch beside the reduced stage", /useEffect\(\(\) => \{\s*\n\s*if \(reducedStage \|\| !coordinatorOn\) return\s*\n\s*const rows = sessionRows\.map/.test(screen) && screen.includes('reducedStage, coordinatorOn, sessionRows, callbacks]'))
   const managerSrc = src('src/services/concourse/managerMode.ts')
   check('the two manager entry points ask the switch before the store is read or a lane starts', /export async function startWaitingManagerLane[\s\S]{0,400}?coordinatorEnabled\(\)\) return null/.test(managerSrc) && /export async function appendManagerSupervisionRows[\s\S]{0,200}?coordinatorEnabled\(\)\) return 0/.test(managerSrc))
   const feedBefore = feedRows()

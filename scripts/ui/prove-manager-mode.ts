@@ -9,33 +9,9 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) fail = 1;
 };
 
-const screen = readFileSync('src/components/concourse/ConcourseScreen.tsx', 'utf8');
-const cards = readFileSync('src/components/concourse/ManagerCards.tsx', 'utf8');
 const selectInput = readFileSync('src/components/CustomSelect/use-select-input.ts', 'utf8');
 const navigation = readFileSync('src/components/CustomSelect/use-select-navigation.ts', 'utf8');
 
-check('the shift+tab manager branch is guarded on the focused coordinator region + the full stage ALONE (both coordinator modes)',
-  /key\.shift && region === 'coordinator' && !reducedStage\) \{/.test(screen));
-check('POISON: no coordinatorOn gate on the toggle (the self-managed world fell to the ring step — the operator\'s report)',
-  !/key\.shift && region === 'coordinator' && coordinatorOn/.test(screen));
-const toggles = screen.match(/setManagerArmed\(arming\)/g) ?? [];
-check('exactly ONE mode toggle exists and it lives inside that guard, flipping its ref synchronously (no second door)',
-  toggles.length === 1 && !screen.includes('setManagerArmed(v => !v)') &&
-    /key\.shift && region === 'coordinator' && !reducedStage\) \{\s*const arming = !managerOnRef\.current\s*managerOnRef\.current = arming\s*setManagerArmed\(arming\)/.test(screen),
-  `toggle sites: ${toggles.length}`);
-check('every other region keeps the ring backward step (dir still forks on shift)',
-  screen.includes('const dir = key.shift ? -1 : 1'));
-check('the reduced stage derives the mode OFF; the coordinator\'s own mode is NOT a gate (L22)',
-  screen.includes('const managerOn = managerArmed && !reducedStage') &&
-    !screen.includes('managerArmed && !reducedStage && coordinatorOn'));
-check('the meta row advertises ⇧tab on the full stage in both modes (the glyph pass law)',
-  /const coordinatorKeysHint = !reducedStage\s*\?/.test(screen));
-check('a manager send in the self-managed world never direct-launches (the launch branch is fenced on !managerOnRef)',
-  screen.includes('if (!coordinatorOn && !managerOnRef.current) {'));
-check('…and reads the manager model BEFORE the send — no model ⇒ the note names the pick and the draft stays',
-  /if \(!coordinatorOn\) \{[\s\S]{0,700}?resolveManagerModel\(\)[\s\S]{0,400}?if \(!model\.ok\) \{\s*setNote\(\{ tone: 'warning', text: model\.line \}\)\s*return/.test(screen));
-check('arming in the self-managed world speaks the honest first line at once (noteManagerModel)',
-  screen.includes('if (!coordinatorOn) noteManagerModel(arming)'));
 const lane = readFileSync('src/services/concourse/coordinatorLane.ts', 'utf8');
 const mgrSrcEarly = readFileSync('src/services/concourse/managerMode.ts', 'utf8');
 check('the manager model resolves through the composed registry (validateCoordinatorModelChoice), never a guessed id',
@@ -47,27 +23,12 @@ check('no model ⇒ the pane gets a HARNESS row with the honest line + a typed n
   /if \(managerModel !== null && !managerModel\.ok\) \{[\s\S]{0,400}?harness: true[\s\S]{0,300}?outcome: 'not-assisted'/.test(lane));
 check('the assisted turn honours the manager model override without lifting the coordinator mode',
   lane.includes('deps.manager === true && deps.managerModelId !== undefined'));
-check('the composer wears the mode (the ∷ modeBand + the mode-scoped rest hint)',
-  screen.includes('GLYPH.modeManager') && screen.includes('manager mode on') &&
-  screen.includes('the manager interviews, then plans the lanes'));
-check('the meta row prints true keys in both stations (⇧tab manager / ⇧tab chat mode)',
-  screen.includes('⇧tab manager') && screen.includes('⇧tab chat mode'));
-const { GLYPH } = await import('../../src/components/mercury-ui/glyphs.js');
-check('the manager seal exists in the one glyph vocabulary (∷, width-1 dialect)',
-  GLYPH.modeManager === '∷');
 let replResidue = '';
 try {
   replResidue = execFileSync('grep', ['-rn', '-E', 'managerMode|ManagerCards|MANAGER_MODE', 'src/screens/'], { encoding: 'utf8' });
 } catch {
 }
 check('the main Chat never sees manager mode (coordinator Chat only)', replResidue.trim() === '', replResidue.trim());
-let importers = '';
-try {
-  importers = execFileSync('grep', ['-rln', 'ManagerCards.js', 'src/'], { encoding: 'utf8' });
-} catch {
-}
-check('the cards mount from the concourse screen alone',
-  importers.trim() === 'src/components/concourse/ConcourseScreen.tsx', importers.trim());
 
 const mgrEarly = await import('../../src/services/concourse/managerMode.js');
 const FIVE = { optionCount: 5, inInput: false };
@@ -86,38 +47,12 @@ check('the digit after the last option is the footer exit ("enough — plan it")
     mgrEarly.askCardKeyAction('0', FIVE).kind === 'ignore');
 check('while the custom row is typing, digits are its text — never a select move',
   ['1', '5', '6'].every(d => mgrEarly.askCardKeyAction(d, { optionCount: 5, inInput: true }).kind === 'ignore'));
-check('the card routes every digit through the one fold (askCardKeyAction) and never commits from it — the ONLY commit call is the owner’s onChange (↵)',
-  cards.includes('askCardKeyAction(input, {') && (cards.match(/commit\(/g) ?? []).length === 1 &&
-    cards.includes('const commit = ') && cards.includes('onChange={value => commit(String(value))}'),
-  `commit( call sites: ${(cards.match(/commit\(/g) ?? []).length} (must be exactly one: the owner’s onChange)`);
-check("the interview card turns the owner's digit-commit OFF (disableSelection 'numeric', indexes still painted)",
-  cards.includes(`disableSelection="numeric"`) && !cards.includes('hideIndexes'));
 check("the owner's machinery honours 'numeric' (its digit branch is fenced on it)",
   selectInput.includes(`disableSelection !== 'numeric'`));
-check('the footer ordinal ("enough — plan it") is the one digit that FIRES — an exit, not an option',
-  cards.includes('onEnough()') && cards.includes('enough — plan it'));
-check('the controlled-focus mirror keeps every differing digit press a REAL re-assert',
-  cards.includes('setFocusTarget(String(value))') && navigation.includes('}, [focusValue])'));
-check('mouse parity rides the Select’s own option boxes (no localRow arithmetic in the card)',
-  !/onClick=\{\(e: \{ localRow: number \}\)/.test(cards) &&
-  /compact-vertical'\) \{[\s\S]{0,900}onClick=\{/.test(readFileSync('src/components/CustomSelect/select.tsx', 'utf8')));
 
-check('the custom option is the trailing INPUT row of the select',
-  /type: 'input' as const,\s*\n\s*value: CUSTOM_VALUE/.test(cards));
-check("the custom ordinal falls inside the card's select range (custom = options.length + 1; the footer teaches 1–N)",
-  cards.includes('const customOrdinal = ask.options.length + 1') && cards.includes('1–${ask.options.length} select'));
 check('the owner derives typing focus from the focused input option (isInInput)',
   navigation.includes('isInInput: isInputOption(focusedItem?.option)'));
-check('an empty custom ↵ commits nothing (the card stays; no empty answer rides)',
-  /if \(value === CUSTOM_VALUE\) \{[\s\S]{0,300}?if \(text\.length === 0\) return/.test(cards));
 
-check('the Yes path gates on the PLAN demand BEFORE any dispatch op',
-  /if \(snapshot\.counts\.live \+ plan\.lanes\.length > effectiveSeatCeiling\(\)\) \{\s*setManagerSeatAsk/.test(screen));
-const noBranch = screen.slice(screen.indexOf('if (!yes) {'), screen.indexOf('const withSupervision'));
-check('No/esc dispatches NOTHING and keeps the declined draft (POISON: a dispatch in the No branch)',
-  noBranch.includes(`markManagerPlanState(entryId, { state: 'declined' })`) && !noBranch.includes('runManagerDispatch'));
-check('declining the overload ask dispatches nothing (the plan card stays)',
-  /answerManagerSeatAsk[\s\S]{0,400}?if \(!allowed\) \{\s*setNote[\s\S]{0,200}?return\s*\}\s*(?:\/\/[^\n]*\n\s*)*runManagerDispatch/.test(screen));
 
 const mgr = await import('../../src/services/concourse/managerMode.js');
 const { setCoordinatorEnabled } = await import('../../src/services/concourse/concourseEnabled.js');
@@ -249,11 +184,6 @@ check('the plan executor never spells the admit-and-deliver form (source poison:
     const targeted = src.split('targetSessionId: sessionId').length - 1;
     return dispatchSites === 1 && targeted === 1;
   })());
-check('the screen hands the executor the consented arithmetic (fits) — all lanes under the reading, ceiling − live past it',
-  screen.includes('runManagerDispatch(entryId, withSupervision, plan.lanes.length)') &&
-    screen.includes('runManagerDispatch(ask.entryId, ask.plan, Math.max(0, ask.ceiling - ask.live))'));
-check('the existing snapshot beat drives the start half (no timers; one lane per beat)',
-  screen.includes('m.startWaitingManagerLane(counts)'));
 const isBirthKey = (value: unknown): value is string => typeof value === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(value);
 const keyedOps: Op[] = [];
 const keyed = await mgr.executeManagerPlan(twoLanes, { workspaceRoot: '/tmp/x', by: 'c', rpc: makeRecorder(keyedOps), entryId: 'entry-keyed' });
@@ -280,13 +210,9 @@ check('another plan entry births its lanes under different keys',
   otherOps.filter(o => o.op === 'sessionAdmit').map(o => o.birthKey).every((k, i) => isBirthKey(k) && k !== yesKeys[i]));
 check('a plan started without an entry id sends no key (the recorder legs above stay keyless, as before)',
   ops.filter(o => o.op === 'sessionAdmit').every(o => o.birthKey === undefined));
-check('the screen threads the plan entry id into the executor so the Yes and the walker hash the same identity',
-  screen.includes('mgr.executeManagerPlan(plan, { workspaceRoot: ground, fits, entryId })'));
 
 check('a territory-less lane refuses WHOLE at decode (the harmony field is load-bearing)',
   mgr.decodeManagerPlan({ goal: 'g', lanes: [{ title: 't', scope: 's', deliverables: 'd' }] }) === null);
-check('the plan card paints the territory fence per lane',
-  cards.includes('territory: {lane.territory}'));
 check('the addendum carries the harmony law + the T4 sufficiency standard, advisory grammar',
   mgr.MANAGER_MODE_ADDENDUM.includes('NON-OVERLAPPING') &&
     mgr.MANAGER_MODE_ADDENDUM.includes('ASK, naming') &&
@@ -328,8 +254,6 @@ mgr._resetManagerSupervisionForTesting();
 const mgrSource = readFileSync('src/services/concourse/managerMode.ts', 'utf8');
 check('no watcher machinery of its own (no timers, no loops — the existing snapshot beat drives it)',
   !mgrSource.includes('setInterval') && !mgrSource.includes('setTimeout'));
-check('the screen walker rides the EXISTING snapshot revision, reduced stage and the coordinator switch excluded',
-  /useEffect\(\(\) => \{\s*if \(reducedStage \|\| !coordinatorOn\) return\s*const rows = sessionRows\.map[\s\S]{0,500}?appendManagerSupervisionRows/.test(screen));
 {
   const { mkdtempSync, rmSync } = await import('node:fs');
   const { tmpdir } = await import('node:os');
@@ -354,15 +278,5 @@ check('the screen walker rides the EXISTING snapshot revision, reduced stage and
   check('a mark on an entry that carries no plan changes nothing and says so', (await mgr.markManagerPlanState('op:1', { state: 'declined' }, dir)) === false && (await mgr.markManagerPlanState('missing', { state: 'declined' }, dir)) === false);
   rmSync(dir, { recursive: true, force: true });
 }
-
-check('the manager send threads manager:true through the ONE conversation door',
-  screen.includes('managerOnRef.current ? { manager: true } : undefined'));
-check('the card owns keys only while the coordinator panel holds focus (the interview never imprisons the board) — the focus scoping is the ONE modal owner\'s own law',
-  screen.includes('managerCardArmed: managerCardArmedRef.current,') &&
-    screen.includes("coordinatorFocused: region === 'coordinator',") &&
-    readFileSync('src/components/concourse/boardModalOwner.ts', 'utf8').includes("if (facts.managerCardArmed && facts.coordinatorFocused) return 'manager-card'"));
-check('the manager seat ask is a consent modal while armed (the seat card law), yielding AFTER the tab block through the one owner',
-  screen.includes('managerSeatAsk: managerSeatAskRef.current !== null,') &&
-    screen.includes("if (modalOwner === 'manager-seat-ask' || modalOwner === 'manager-card') return"));
 
 process.exit(fail);

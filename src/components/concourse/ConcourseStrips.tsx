@@ -26,7 +26,6 @@ export function ConcourseComposer({
   contextLine,
   onComposerClick,
   composerNote,
-  modeBand,
   keysHint,
   minimal = false,
   foot = true,
@@ -41,7 +40,6 @@ export function ConcourseComposer({
   contextLine?: { tone: 'warning' | 'info'; text: string } | null
   onComposerClick?: (visibleRow: number, col: number) => void
   composerNote?: import('./contracts.js').ControlNoteState
-  modeBand?: { symbol: string; label: string }
   keysHint?: string
   minimal?: boolean
   foot?: boolean
@@ -81,13 +79,6 @@ export function ConcourseComposer({
       width={width}
       overflow="hidden"
     >
-      {modeBand !== undefined ? (
-        <Box height={1} flexShrink={0} overflow="hidden">
-          <Text color={t.infoText} wrap="truncate-end">
-            {modeBand.symbol} {modeBand.label}
-          </Text>
-        </Box>
-      ) : null}
       <Box
         flexDirection="column"
         flexShrink={0}

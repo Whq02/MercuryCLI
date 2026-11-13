@@ -68,10 +68,6 @@ function volatileRowsVerdict(volatileCells: (row: string) => string, cells: stri
     return { same: false, environment: true, detail: `${volatile} rows differ only in the capture's volatile cells (${cells})` }
   }
 }
-const concourseDraftVerdict = volatileRowsVerdict(
-  row => row.replace(/▌/g, ' ').replace(/\b\d{2}:\d{2}:\d{2}\b/g, '00:00:00').replace(/started in \S+ */g, 'started in <checkout>'),
-  "the caret's blink phase, the send's wall-clock time, the checkout's name",
-)
 const wallClockVerdict = volatileRowsVerdict(
   row => row.replace(/\b\d{2}:\d{2}:\d{2}\b/g, '00:00:00').replace(/\b\d{2}:\d{2}\b/g, '00:00'),
   "the rows' wall-clock stamps, the status row's clock, the switch row's time",
@@ -141,7 +137,6 @@ families.push(
   { id: 'model-picker-typed', paths: currentFrames.filter(path => path.startsWith('scripts/ui/fixtures/model-picker-typed/')), script: 'scripts/ui/prove-model-picker-typed-letters.ts', args: ['--frames', '$OUT'], output: file },
   { id: 'config-thinking', paths: currentFrames.filter(path => path.startsWith('scripts/ui/fixtures/config-thinking/')), script: 'scripts/ui/prove-config-thinking-row.ts', args: ['--frames', '$OUT'], output: file },
   { id: 'appearance-digit', paths: currentFrames.filter(path => path.startsWith('scripts/ui/fixtures/appearance-digit/')), script: 'scripts/ui/prove-appearance-digit-and-config-theme.ts', args: ['--frames', '$OUT'], output: file },
-  { id: 'concourse-restored-draft', paths: currentFrames.filter(path => path.startsWith('scripts/ui/fixtures/concourse-restored-draft/')), script: 'scripts/ui/prove-concourse-restored-draft.ts', args: ['--frames', '$OUT'], output: file, judge: concourseDraftVerdict },
   { id: 'picker-effort-save', paths: currentFrames.filter(path => path.startsWith('scripts/ui/fixtures/picker-effort-save/')), script: 'scripts/ui/prove-picker-effort-save-refusal.ts', args: ['--frames', '$OUT'], output: file },
   { id: 'small-command-rows', paths: currentFrames.filter(path => path.startsWith('scripts/ui/fixtures/small-command-rows/')), script: 'scripts/ui/prove-small-command-rows.ts', args: ['--frames', '$OUT'], output: file, judge: wallClockVerdict },
   { id: 'tester-door', paths: currentFrames.filter(path => path.startsWith('scripts/ui/fixtures/tester-door/')), script: 'scripts/ui/prove-tester-door.ts', args: ['--frames', '$OUT'], output: file },

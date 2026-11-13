@@ -1052,15 +1052,6 @@ function LiveConcourse(): React.ReactNode {
       exitToChat: () => {
         if (!enterRootChat().ok) enterBootSettings()
       },
-      sendCoordinatorMessage: async (text, clientMessageId, onAccepted, opts) => {
-        const lane = await import('../../services/concourse/coordinatorLane.js')
-        await lane.runOperatorMessageTurn(text, {}, {
-          ...(clientMessageId !== undefined ? { clientMessageId } : {}),
-          ...(onAccepted !== undefined ? { onAccepted } : {}),
-          ...(opts?.manager === true ? { manager: true } : {}),
-        })
-        refresh()
-      },
     }),
     [setPeek, noteResident, refresh, noteControl, attachAndEnter],
   )

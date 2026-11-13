@@ -28,7 +28,6 @@ const { referenceFixtureSnapshot } = await import('../notifications/concourseRef
 
 type Grid = { grid: { c: string }[][] }
 const linesOf = (g: Grid): string[] => g.grid.map(r => r.map(c => c.c || ' ').join(''))
-const STAR_FRAMES = ['✶', '✸', '✹', '✺', '✷']
 
 interface Send {
   atTick?: number
@@ -50,8 +49,6 @@ function newScratch(tag: string): string {
   const cfgPath = join(scratch, '.mercury.json')
   const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
   cfg['switchboardCapacity'] = { askedAt: 1754000000000, allowed: true, recommendedSeats: 5 }
-  cfg['concourseCoordinator'] = { mode: 'agent-assisted', assistModel: 'claude-opus-5' }
-  cfg['coordinatorEnabled'] = true
   cfg['customApiKeyResponses'] = { approved: ['fixture-key-000'], rejected: [] }
   writeFileSync(cfgPath, JSON.stringify(cfg))
   return scratch
@@ -110,7 +107,7 @@ if (runLeg('git-offer')) {
   const scratch = newScratch('git-offer')
   const fixture = referenceFixtureSnapshot()
   for (const g of fixture.groups) for (const r of g.rows) r.workspaceDir = scratch
-  fixture.coordinator = { mode: 'agent-assisted', assistModelLabel: 'Opus 5' }
+  fixture.coordinator = { mode: 'off' }
   fixture.needsYou = [
     {
       obligationId: 'obl-git-1',
@@ -166,7 +163,7 @@ if (ONLY === 'diag') {
   const scratch = newScratch('diag')
   const fixture = referenceFixtureSnapshot()
   for (const g of fixture.groups) for (const r of g.rows) r.workspaceDir = scratch
-  fixture.coordinator = { mode: 'agent-assisted', assistModelLabel: 'Opus 5' }
+  fixture.coordinator = { mode: 'off' }
   fixture.needsYou = [
     { obligationId: 'obl-git-1', sessionId: `folder:${folder}`, title: 'git offer', question: `this folder has no git — start one in ${folder} so sessions can fork it?`, projectLabel: 'parser-lab', agentLabel: 'Mercury', ageLabel: '1m', ref: 'permission:git-init:abc123def456' },
   ]
@@ -231,14 +228,14 @@ if (runLeg('queued')) {
     ...fixture.groups.filter(g => g.id !== 'queued'),
   ]
   fixture.peek = null
-  fixture.coordinator = { mode: 'agent-assisted', assistModelLabel: 'Opus 5' }
+  fixture.coordinator = { mode: 'off' }
   const fixturePath = join(scratch, 'concourse-fixture.json')
   writeFileSync(fixturePath, JSON.stringify(fixture))
   const settle = { atTick: 999, awaitText: 'queued probe', minTick: 5, awaitSettleTicks: 2 }
   for (const [cols, rows] of [[120, 40], [100, 30]] as const) {
     const lines = capture('queued-enter', scratch, fixturePath, cols, rows, [{ ...settle, data: '\r' }], 60)
     check(`${cols}×${rows}: ↵ on the queued row keeps the board`, has(lines, 'SESSIONS') && has(lines, 'queued probe'))
-    check(`${cols}×${rows}: the in-place line in the coordinator pane's tail — a disclaimer in the estate's voice, whole (the seat count and the m door both on the row)`, lines.some(l => /queued · \d+\/\d+ busy · m queues a message/.test(l)), lines.find(l => l.includes('queued ')) ?? '(no queued line)')
+    check(`${cols}×${rows}: the in-place line under the live view's message box — a disclaimer in the estate's voice, whole (the seat count and the m door both on the row)`, lines.some(l => /queued · \d+\/\d+ busy · m queues a message/.test(l)), lines.find(l => l.includes('queued ')) ?? '(no queued line)')
     check(`${cols}×${rows}: the void screen did NOT open`, !has(lines, 'add a message — it delivers') && !has(lines, keyHintLabel('⇧← back to the concourse')))
   }
   const room = capture('queued-room', scratch, fixturePath, 120, 40, [{ ...settle, data: 'm' }], 70)
@@ -250,35 +247,6 @@ if (runLeg('queued')) {
 function lines120HasM(scratch: string, fixturePath: string): boolean {
   const lines = capture('queued-legend', scratch, fixturePath, 120, 40, [{ atTick: 999, awaitText: 'queued probe', minTick: 5, awaitSettleTicks: 2, data: '' }], 50)
   return lines.some(l => l.includes('m message queued'))
-}
-
-console.log('C4 the thinking token (item 6)')
-if (runLeg('thinking')) {
-  const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-  const api = await startFixtureApi([
-    { kind: 'paced', deltas: Array.from({ length: 60 }, (_, i) => `thinking-probe ${i + 1}. `), gapMs: 500, settleDelayMs: 2000 },
-    { kind: 'text', text: 'Spare.' },
-  ])
-  try {
-    const scratch = newScratch('thinking')
-    const fixture = referenceFixtureSnapshot()
-    for (const g of fixture.groups) for (const r of g.rows) r.workspaceDir = scratch
-    fixture.needsYou = []
-    fixture.coordinator = { mode: 'agent-assisted', assistModelLabel: 'Opus 5' }
-    const fixturePath = join(scratch, 'concourse-fixture.json')
-    writeFileSync(fixturePath, JSON.stringify(fixture))
-    const env = { ANTHROPIC_API_KEY: 'fixture-key-000', ANTHROPIC_BASE_URL: api.url, MERCURY_CACHE_CLOCK: '0' }
-    const toPane = { atTick: 999, awaitText: 'COORDINATOR · tab or click to focus', minTick: 5, awaitSettleTicks: 2 }
-    const settle = { atTick: 999, awaitText: 'talk to the coordinator', minTick: 5, awaitSettleTicks: 2 }
-    for (const [cols, rows] of [[120, 40], [100, 30]] as const) {
-      const lines = capture('thinking', scratch, fixturePath, cols, rows, [{ ...toPane, data: '\t' }, { ...settle, data: 'status?' }, { afterPrevTicks: 3, data: '\r' }], 75, env)
-      const row = lines.find(l => STAR_FRAMES.some(s => l.includes(s)) && /\(\d+s\)/.test(l))
-      check(`${cols}×${rows}: the pane paints the main chat's thinking row (star cadence + verb + elapsed)`, row !== undefined && /[A-Z][^…]{2,60}… \(\d+s\)/.test(row), row ?? lines.filter(l => l.trim().length > 0).slice(-12).join(' | '))
-      check(`${cols}×${rows}: the strip's old inline '↻ thinking…' token is gone`, !lines.some(l => l.includes('↻ thinking…') || l.includes(' thinking…')))
-    }
-  } finally {
-    await api.close()
-  }
 }
 
 console.log(`captures under ${OUT_DIR}`)

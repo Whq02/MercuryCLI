@@ -4,7 +4,7 @@ import { defineStore } from '../../substrate/fileStore.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { decodeManagerAsk, decodeManagerPlan, type ManagerAskV1, type ManagerPlanV1 } from './managerMode.js'
 
-export interface CoordinatorConversationReceiptV1 {
+interface CoordinatorConversationReceiptV1 {
   verb: string
   outcome: string
   label: string
@@ -22,7 +22,7 @@ export interface CoordinatorConversationEntryV1 {
   plan?: ManagerPlanV1
 }
 
-export interface CoordinatorContextGaugeV1 {
+interface CoordinatorContextGaugeV1 {
   contextTokens: number
   modelId: string
   ts: number
@@ -150,8 +150,4 @@ export async function applyCoordinatorFold(
   await store.mutate(current => ({
     entries: [marker, ...current.entries.filter(e => !foldedIds.has(e.id))].slice(-CONVERSATION_CAP),
   }))
-}
-
-export function subscribeCoordinatorConversation(cb: () => void, dir?: string): () => void {
-  return conversationStore(dir).subscribe(() => cb(), { immediate: false })
 }

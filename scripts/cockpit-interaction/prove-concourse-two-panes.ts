@@ -87,9 +87,9 @@ for (const [n, s] of SEEDED.entries()) {
 }
 process.env.MERCURY_CONFIG_DIR = chatHome
 
-const boardFixture = (mode: 'off' | 'agent-assisted'): Record<string, unknown> => {
+const boardFixture = (): Record<string, unknown> => {
   const fixture = referenceFixtureSnapshot()
-  fixture.coordinator = mode === 'off' ? { mode: 'off' } : { mode: 'agent-assisted', assistModelLabel: 'GPT-5.6 Sol' }
+  fixture.coordinator = { mode: 'off' }
   fixture.peek = { ...(fixture.peek as Record<string, unknown>), sessionId: 's-audit', title: 'Audit billing receipts', state: 'ready-to-review', modelLabel: 'Opus 5.5' }
   ;(fixture.context as Record<string, unknown>).effortLabel = 'max'
   for (const g of fixture.groups as Array<{ rows: Array<Record<string, unknown>> }>) {
@@ -122,7 +122,6 @@ const boardEnv = (fixture: Record<string, unknown>, tag: string): NodeJS.Process
   }
 }
 const DOWN = '\u001b[B'
-const TAB = '\t'
 const boardCfg = (cols: number, rows: number, readyText: string, sends: Array<Record<string, unknown>> = []): Record<string, unknown> =>
   ({ argv: ['node', BIN], sends, total: 150, readyText, readySettleTicks: 4, cols, rows })
 
@@ -190,7 +189,7 @@ function boardLaws(tag: string, lines: string[], headerLine: RegExp): void {
     legend > needs && legend === right.length - 2,
     `legend row ${legend}: ${(right[legend] ?? '').trim()}`,
   )
-  check(`${tag}·9 no COORDINATOR word, chip or ⌃s key anywhere on the board (mode off)`, !lines.some(l => COORDINATOR_WORDS.test(l)), lines.filter(l => COORDINATOR_WORDS.test(l)).map(l => l.trim()).join(' | '))
+  check(`${tag}·9 no COORDINATOR word, chip or ⌃s key anywhere on the board`, !lines.some(l => COORDINATOR_WORDS.test(l)), lines.filter(l => COORDINATOR_WORDS.test(l)).map(l => l.trim()).join(' | '))
   const status = statusRowOf(lines)
   const statusText = (lines[status] ?? '').trimEnd()
   check(
@@ -201,17 +200,17 @@ function boardLaws(tag: string, lines: string[], headerLine: RegExp): void {
   check(`${tag}·11 the legend row carries no coordinator model key`, !(lines[lines.length - 1] ?? '').includes('⌃s'), (lines[lines.length - 1] ?? '').trim())
 }
 
-console.log('W — the wide board (160×48, mode off, the list focused on entry): live view left, the session manager right')
-const wide = capture('board-wide-160x48', boardCfg(160, 48, 'STATUS & TITLE'), boardEnv(boardFixture('off'), 'wide-off'), REPO)
+console.log('W — the wide board (160×48, the list focused on entry): live view left, the session manager right')
+const wide = capture('board-wide-160x48', boardCfg(160, 48, 'STATUS & TITLE'), boardEnv(boardFixture(), 'wide-off'), REPO)
 boardLaws('W', wide, /^. Audit billing receipts · Moodle · Opus 5\.5 · max\s+↵ enter session .$/)
 
-console.log('S — the board at 110×34 (mode off): the same two panes side by side')
-const mid = capture('board-mid-110x34', boardCfg(110, 34, 'STATUS & TITLE'), boardEnv(boardFixture('off'), 'mid-off'), REPO)
+console.log('S — the board at 110×34: the same two panes side by side')
+const mid = capture('board-mid-110x34', boardCfg(110, 34, 'STATUS & TITLE'), boardEnv(boardFixture(), 'mid-off'), REPO)
 boardLaws('S', mid, /^. Audit billing receipts · Moodle · \S.*↵ enter session .$/)
 
-console.log('C — the compact board (96×30, mode off): the live view stacks on top, the session list below')
+console.log('C — the compact board (96×30): the live view stacks on top, the session list below')
 {
-  const lines = capture('board-compact-96x30', boardCfg(96, 30, 'sessions · '), boardEnv(boardFixture('off'), 'compact-off'), REPO)
+  const lines = capture('board-compact-96x30', boardCfg(96, 30, 'sessions · '), boardEnv(boardFixture(), 'compact-off'), REPO)
   const listTop = lines.findIndex(l => /^╭─sessions · \d+ /.test(l.trimStart()))
   check('C1 the first frame is the live view: the chosen session titles its top border', /^╭─Audit billing receipts · ready/.test((lines[0] ?? '').trimStart()), (lines[0] ?? '').trimEnd())
   check(
@@ -234,7 +233,7 @@ console.log('R — choosing another row switches the live view (160×48: ↓ on 
   const lines = capture(
     'board-wide-160x48-down',
     boardCfg(160, 48, 'Tracing the callback owner in src/auth.', [{ atTick: 120, awaitText: 'STATUS & TITLE', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: DOWN }]),
-    boardEnv(boardFixture('off'), 'wide-down'),
+    boardEnv(boardFixture(), 'wide-down'),
     REPO,
   )
   const cols = twoColumns(lines)
@@ -250,35 +249,6 @@ console.log('R — choosing another row switches the live view (160×48: ↓ on 
     "R2 that row is at work on a live tool: its words stand whole before the way in, where they stood, and the effort before them is the part that is cut",
     /Fix OAuth callback · Moodle · GPT-5\.6 Sol · xh… {2}[◐◓◑◒] editing src\/auth\/callback\.ts ↵ enter session/.test(left[1] ?? ''),
     (left[1] ?? '').trim(),
-  )
-}
-
-console.log("A — mode 'agent-assisted': the coordinator returns as the third pane, below the manager and in the tab cycle")
-{
-  const lines = capture('board-assisted-160x48', boardCfg(160, 48, 'STATUS & TITLE'), boardEnv(boardFixture('agent-assisted'), 'assisted'), REPO)
-  const cols = twoColumns(lines)
-  const right = cols === null ? [] : lines.map(l => l.slice(cols.right[0], cols.right[1] + 1))
-  const legend = right.findIndex(l => l.includes('↑↓ choose · ↵ enter'))
-  const third = right.findIndex(l => l.includes('COORDINATOR · tab or click to focus'))
-  check('A1 the third pane rests collapsed under the manager in the right column', legend > 0 && third > legend, `legend row ${legend}, coordinator row ${third}`)
-  const tabbed = capture(
-    'board-assisted-160x48-tab-tab',
-    boardCfg(160, 48, 'talk to the coordinator', [
-      { atTick: 120, awaitText: 'STATUS & TITLE', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: TAB },
-      { atTick: 140, awaitText: 'w withdraw', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: TAB },
-    ]),
-    boardEnv(boardFixture('agent-assisted'), 'assisted-tab'),
-    REPO,
-  )
-  check(
-    'A2 tab, tab from the list (past the NEEDS YOU block) focuses it: it opens tall with its own composer',
-    tabbed.some(l => l.includes('talk to the coordinator')) && tabbed.some(l => /│ COORDINATOR\s/.test(l)),
-    tabbed.filter(l => l.includes('COORDINATOR') || l.includes('talk to')).map(l => l.trim()).join(' | '),
-  )
-  check(
-    'A3 the status row stays the same: no coordinator chip even when it is on',
-    !(tabbed[statusRowOf(tabbed)] ?? '').toLowerCase().includes('coordinator'),
-    (tabbed[statusRowOf(tabbed)] ?? '').trim(),
   )
 }
 

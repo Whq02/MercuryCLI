@@ -42,9 +42,6 @@ const read = (rel: string): string => readFileSync(rel, 'utf8')
 }
 
 {
-  const pane = read('src/components/concourse/CoordinatorPane.tsx')
-  check('R2 negatives paint ONE middle-truncated line (fix survives at the tail)', pane.includes("negative ? 'truncate-middle'"))
-  check('R2 only an APPLIED launch row wraps', pane.includes("const carriesFacts = !negative && r.verb === 'session.launch'"))
   const lane = read('src/services/concourse/coordinatorLane.ts')
   check('R2 the lane logs the FULL refusal sentence to the debug log', lane.includes(`logForDebugging(\`[coordinator/receipt] \${r.verb} \${r.objectRef} \${r.outcome} — \${r.detail}\`)`))
 }

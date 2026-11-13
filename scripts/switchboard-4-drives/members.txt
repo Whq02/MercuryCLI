@@ -5,7 +5,6 @@
 # only by editing this list. A name listed here but missing on disk is a
 # loud red in this runner.
 prove-board-focus-owns-keys.ts
-prove-coordinator-strip-plain.ts
 prove-held-session-continue-drive.ts
 prove-one-door-drive.ts
 prove-reactivate-drive.ts

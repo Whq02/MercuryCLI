@@ -84,11 +84,10 @@ async function rowsAt(cols: number, rows: number, scene: Scene): Promise<Record<
     region: 'list',
     boardSelectedId: 's-audit',
     railIndex: 0,
-    focusTall: 'mirror',
     liveDraftRows: 1,
-    coordinatorNode: () => null,
+    thirdPaneNode: () => null,
     mirrorNode: () => null,
-    wiring: { selectSession: () => {}, enterSession: () => {}, selectObligation: () => {}, answerObligation: () => {}, openObligation: () => {}, focusComposer: () => {} },
+    wiring: { selectSession: () => {}, enterSession: () => {}, selectObligation: () => {}, answerObligation: () => {}, openObligation: () => {} },
   })
   const mounted = await mountOffscreen(h(AppStateProvider, { children: h(ThemeProvider, {}, layout) }), cols, rows)
   try {

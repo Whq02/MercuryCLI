@@ -241,10 +241,4 @@ export interface ConcourseCallbacks {
   enterBootSettings: (door?: 'logins', opener?: { family?: string; returnToOpener?: boolean }) => boolean
   exitToChat: () => void
   retrySnapshot?: () => void
-  sendCoordinatorMessage?: (
-    text: string,
-    clientMessageId?: string,
-    onAccepted?: () => void,
-    opts?: { manager?: boolean },
-  ) => Promise<void>
 }
