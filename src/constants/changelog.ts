@@ -41,6 +41,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed mercury health naming the install with the long-path prefix on Windows, and a daemon read as wedged from a stale answer.
 - Fixed an export redacting ordinary words saved beside a sign-in.
 - Fixed the screen going blank while a layout was not yet valid, a scroll box losing its background, and stale cells left under a moved overlay.
+- Fixed the ctrl+c notice on the home screen and other full-screen pages showing the end of the row beneath it.
 - Fixed MERCURY_TOOL_DEFER_PROBE=1 doing nothing behind a gateway.
 - Fixed /health reading the Blender tool as undeclared where it is offered.
 - Fixed a resumed session's starting count running backwards, and a focus switched to a busy session keeping the last turn's tip.
