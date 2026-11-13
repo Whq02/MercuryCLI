@@ -11,6 +11,9 @@ copyFileSync(join(SRC, 'tree-sitter.wasm'), join(DIR, 'tree-sitter.wasm'))
 copyFileSync(join(SRC, 'tree-sitter-python.wasm'), join(DIR, 'tree-sitter-bash.wasm'))
 copyFileSync(join(SRC, 'tree-sitter-c-sharp.wasm'), join(DIR, 'tree-sitter-c-sharp.wasm'))
 copyFileSync(join(SRC, 'tree-sitter-typescript.wasm'), join(DIR, 'tree-sitter-typescript.wasm'))
+copyFileSync(join(SRC, 'tree-sitter-python.wasm'), join(DIR, 'tree-sitter-serpent.wasm'))
+copyFileSync(join(SRC, 'tree-sitter-python.wasm'), join(DIR, 'tree-sitter-adder.wasm'))
+copyFileSync(join(SRC, 'tree-sitter-typescript.wasm'), join(DIR, 'tree-sitter-quiet.wasm'))
 process.env.MERCURY_TREESITTER_VENDOR_DIR = DIR
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -58,6 +61,21 @@ section('§3 A PRE-ABI-15 GRAMMAR IS NEVER FALSELY REJECTED')
 {
   const r = await engine.loadLanguage({ name: 'typescript', wasm: 'tree-sitter-typescript.wasm' } as never)
   check('typescript (declares no name) still loads', !isUnavailable(r), noteOf(r))
+}
+
+section('§4 A ROW MAY NAME THE GRAMMAR ITS WASM DECLARES')
+{
+  const named = await engine.loadLanguage({ name: 'serpent', wasm: 'tree-sitter-serpent.wasm', declares: 'python' } as never)
+  check('a row called serpent whose wasm declares python loads when the row says so', !isUnavailable(named), noteOf(named))
+  const wrong = await engine.loadLanguage({ name: 'adder', wasm: 'tree-sitter-adder.wasm', declares: 'ruby' } as never)
+  check('a row that names another grammar than its wasm declares is still rejected', isUnavailable(wrong), noteOf(wrong) || 'loaded')
+  check(
+    'the reject names the row and the grammar the wasm declares',
+    noteOf(wrong).includes("'adder'") && noteOf(wrong).includes("'python'"),
+    noteOf(wrong),
+  )
+  const silent = await engine.loadLanguage({ name: 'quiet', wasm: 'tree-sitter-quiet.wasm', declares: 'anything' } as never)
+  check('a wasm that declares no name still loads under a row that names one', !isUnavailable(silent), noteOf(silent))
 }
 
 console.log(failures === 0 ? '\nprove-grammar-identity: all green' : `\nprove-grammar-identity: ${failures} FAILURE(S)`)

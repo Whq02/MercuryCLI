@@ -213,7 +213,7 @@ export function loadGrammarEngine(): Promise<LoadedEngine | EngineUnavailable> {
           const declared = (loaded as { name?: unknown } | null)?.name
           if (typeof declared === 'string' && declared.length > 0) {
             const fold = (n: string): string => n.toLowerCase().replace(/[-_]/g, '')
-            if (fold(declared) !== fold(lang.name)) {
+            if (fold(declared) !== fold(lang.declares ?? lang.name)) {
               return {
                 state: 'unavailable' as const,
                 note: `grammar '${lang.name}' rejected: the wasm at ${lang.wasm} declares itself '${declared}' — wrong grammar at the expected filename`,

@@ -6,6 +6,7 @@ export interface GrammarRegistryEntry {
   basenames?: string[]
   source?: 'vscode-pack' | 'grammar-pack'
   fragile?: { reason: string }
+  declares?: string
 }
 
 export const GRAMMAR_REGISTRY: GrammarRegistryEntry[] = [
