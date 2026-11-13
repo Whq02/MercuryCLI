@@ -61,6 +61,35 @@ try {
   })
   const d3 = world.drive(p3)
   check('the guide and both rules of one name compose, AGENTS.md first', JSON.stringify(d3.paths) === JSON.stringify([join(p3, 'AGENTS.md'), join(p3, '.cursor/rules/style.mdc'), join(p3, '.cursor/rules/web/style.mdc')]), d3.paths.join(', '))
+
+  section('a rule offered by its description: one pointer line, its body only when the model reads the file')
+  const p4 = world.project({
+    '.cursor/rules/a-always.mdc': always('always-needle\n'),
+    '.cursor/rules/b-migrations.mdc': '---\ndescription: How to write and run database migrations\nalwaysApply: false\n---\noffered-body-needle\n',
+    '.cursor/rules/c-services.mdc': '---\ndescription: |\n  Conventions for the RPC services\n  of the backend\nglobs:\nalwaysApply: false\n---\nsecond-offered-body-needle\n',
+    'MERCURY.local.md': 'local-needle\n',
+    'db/001.sql': '\n',
+    'sub/.cursor/rules/nested.mdc': '---\ndescription: Nested folder conventions\n---\nnested-offered-body-needle\n',
+    'sub/a.ts': '\n',
+    'sub/b.ts': '\n',
+  })
+  const offered = (lines: string[]): string => `Rule files offered by description (not loaded; Read one when its description fits the work):\n${lines.join('\n')}`
+  const inRules = (name: string): string => join(p4, '.cursor/rules', name)
+  const d4 = world.drive(p4, { touch: [join(p4, 'db/001.sql'), join(p4, 'sub/a.ts'), join(p4, 'sub/b.ts')] })
+  const expected = [
+    contentsOf(inRules('a-always.mdc'), 'always-needle'),
+    `Contents of ${join(p4, 'MERCURY.local.md')} (user's private project instructions, not checked in):\n\nlocal-needle`,
+    offered([`- ${inRules('b-migrations.mdc')}: How to write and run database migrations`, `- ${inRules('c-services.mdc')}: Conventions for the RPC services of the backend`]),
+  ].join('\n\n')
+  check('the first request ends with one pointer line for each offered rule, below every loaded file', d4.first === expected, d4.first)
+  check('no offered body is in the first request', !d4.first.includes('offered-body-needle'))
+  check('an offered rule is not counted as read', !d4.seeded.includes(inRules('b-migrations.mdc')), d4.seeded.join(', '))
+  check('touching a file attaches no offered rule of the working directory', d4.touched[0]!.attached.length === 0, JSON.stringify(d4.touched[0]))
+  const nestedRule = join(p4, 'sub/.cursor/rules/nested.mdc')
+  check('an offered rule of a nested folder is pointed to when a file there is touched, in the same words', d4.touched[1]!.attached.length === 1 && d4.touched[1]!.attached[0]!.told.includes(offered([`- ${nestedRule}: Nested folder conventions`])) && !d4.touched[1]!.attached[0]!.told.includes('nested-offered-body-needle'), JSON.stringify(d4.touched[1]))
+  check('and once', d4.touched[2]!.attached.length === 0, JSON.stringify(d4.touched[2]))
+  const p4b = world.project({ 'MERCURY.md': 'native-needle\n', '.cursor/rules/b-migrations.mdc': '---\ndescription: How to write and run database migrations\n---\noffered-body-needle\n' })
+  check('under a MERCURY.md no rule is offered', world.drive(p4b).first === contentsOf(join(p4b, 'MERCURY.md'), 'native-needle'))
 } finally {
   world.close()
 }

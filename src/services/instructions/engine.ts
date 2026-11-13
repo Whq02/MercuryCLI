@@ -26,6 +26,7 @@ import { pathInWorkingPath } from '../../utils/permissions/filesystem.js'
 import { isSettingSourceEnabled } from '../../utils/settings/constants.js'
 import { forgetHiddenCharacters } from '../../utils/text/hiddenCharacterFindings.js'
 import { adapterForProfile, hasPrimaryProjectFile } from './adapters/index.js'
+import { offeredRulesText } from './attachedText.js'
 import { conventionsForProfile } from './compositionOrder.js'
 import type {
   InstructionBundle,
@@ -453,9 +454,14 @@ export const composeInstructionPrompt = (
   filter?: (type: MemoryType) => boolean,
 ): string => {
   const memories: string[] = []
+  const pointers: string[] = []
 
   for (const file of memoryFiles) {
     if (filter && !filter(file.type)) continue
+    if (file.offered !== undefined) {
+      pointers.push(file.content)
+      continue
+    }
     if (file.content) {
       const content = file.content.trim()
       memories.push(
@@ -463,6 +469,7 @@ export const composeInstructionPrompt = (
       )
     }
   }
+  if (pointers.length > 0) memories.push(offeredRulesText(pointers))
 
   return memories.join('\n\n')
 }

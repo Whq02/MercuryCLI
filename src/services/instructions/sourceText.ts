@@ -177,6 +177,10 @@ export function readRuleSource(
   const info: InstructionSourceEntry = { path: filePath, type, content, contentDiffersFromDisk: content !== raw }
   if (reading === null) info.dormant = 'unreadable'
   else if (reading.kind === 'scoped') info.globs = reading.globs
-  else if (reading.kind !== 'always') info.dormant = reading.kind
+  else if (reading.kind === 'offered') {
+    info.offered = reading.description.replace(/\s+/g, ' ')
+    if (content.trim() !== '') info.content = `- ${filePath}: ${info.offered}`
+    info.contentDiffersFromDisk = true
+  } else if (reading.kind !== 'always') info.dormant = reading.kind
   return { info, reading }
 }

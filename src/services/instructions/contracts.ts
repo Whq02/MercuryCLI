@@ -22,10 +22,11 @@ export type InstructionSourceEntry = {
   origin?: InstructionOrigin
   root?: string
   convention?: string
+  offered?: string
   dormant?: InstructionDormancy
 }
 
-type InstructionDormancy = 'manual' | 'offered' | 'off' | 'unsupported' | 'unreadable'
+type InstructionDormancy = 'manual' | 'off' | 'unsupported' | 'unreadable'
 
 export type InstructionRuleReading =
   | { kind: 'always' }
