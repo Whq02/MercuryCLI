@@ -139,7 +139,7 @@ section('F. the seams hold their shape (source locks)')
   check('the connector ticks through the pure merge seam', connector.includes('mergeRecordsContentKeyed('))
   check(
     'a byte-identical re-read wakes no listener (array identity kept)',
-    /if \(merge\.reusedAll\) return/.test(connector),
+    /if \(merge\.reusedAll\) (?:return|\{\s*this\.recomputeLive\(\)\s*return\s*\})/.test(connector),
   )
   const rowMemo = readFileSync(join(root, 'components/MessageRow.tsx'), 'utf8')
   check(
