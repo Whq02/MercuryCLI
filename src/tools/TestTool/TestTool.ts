@@ -74,37 +74,37 @@ function adapterUnavailable(err: unknown): { debuggerMissing: string; remedy: st
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
-    op: z.enum(OPS).describe('The test operation'),
+    op: z.enum(OPS),
     framework: z
       .enum(['pytest', 'unittest', 'node-test', 'vitest', 'jest', 'cargo', 'go'])
       .optional()
-      .describe('The runner. Default: in a Python project pytest when it is importable, else unittest; otherwise the one runner the manifest declares (package.json → node-test, vitest or jest · Cargo.toml → cargo · go.mod → go)'),
+      .describe('Default: pytest if importable, else unittest in Python; else manifest runner (package.json → node-test/vitest/jest · Cargo.toml → cargo · go.mod → go)'),
     path: z
       .string()
       .optional()
-      .describe('run: one test file or directory. A path outside the session project selects that project (its nearest manifest or Python root) for every op, and the result names the project it read'),
+      .describe('run: test file/dir; outside session project selects its nearest manifest/Python root across all ops'),
     node: z
       .string()
       .optional()
-      .describe('run: one test node id (pytest: file::test_name · unittest: module.Class.test). debug: required, the test to debug (node-test, vitest, jest: file::name, or a bare name from the latest run\'s case rows · go: TestName, TestName/subtest or dir::TestName · cargo: module::path::test_name)'),
+      .describe('Test id (run optional, debug required) — pytest: file::test · unittest: mod.Class.test · node-test/vitest/jest: file::name or bare case name · go: TestName, TestName/sub or dir::TestName · cargo: mod::path::test'),
     changed: z
       .boolean()
       .optional()
-      .describe("run: only the tests related to the working tree's changed files (vitest related · jest --findRelatedTests · the changed test files for node-test and pytest · the changed packages for go; not available for cargo)"),
+      .describe('run: tests for changed working-tree files (vitest related · jest --findRelatedTests · changed test files for node-test/pytest · changed packages for go; unsupported on cargo)'),
     profile: z
       .string()
       .optional()
-      .describe('run: a runner-profile id (rp-…) from discover'),
+      .describe('run: rp-… id from discover'),
     session: z
       .string()
       .optional()
-      .describe('debug: the name of the debugger session the call leaves open (default "test")'),
-    file: z.string().optional().describe('debug: the source file for breakpoints'),
+      .describe('debug: session name left open (default "test")'),
+    file: z.string().optional().describe('debug: breakpoint source file'),
     lines: z
       .array(semanticNumber(z.number().int().positive()))
       .optional()
       .describe('debug: breakpoint lines in file'),
-    runId: z.string().optional().describe('report: a run id (default: the latest run)'),
+    runId: z.string().optional().describe('report: run id (default latest)'),
   }),
 )
 
@@ -684,7 +684,7 @@ export const TestTool = buildTool({
     return 'Run project tests as structured transactions: discover, run, rerun failures, debug one test'
   },
   async prompt() {
-    return `Runs the project's tests from their framework's own records and returns the argv that ran, the counts, each failure with its test name, file and line, available diagnostics and a durable record at mercury://test/run/<id> (mercury://test/latest and mercury://test/failures follow the newest run); output past the result goes to an artifact reference. discover lists the test node ids or the runner profiles the manifest declares; run executes the suite, one path, one node, the tests related to the changed files, or one profile; rerunFailed repeats the failures the latest run recorded; debug starts one test under its language's debugger, stops on the test's first line and leaves that debugger session open; report reads a record. Python projects run under pytest or unittest, others under the runner their manifest declares (node-test, vitest, jest, cargo, go). A run whose exit code disagrees with its records says so in a verdictNote; a selection that matched no test returns zero counts, which is neither a pass nor a failure.`
+    return `Runs project tests from framework records, returning argv, counts, failures (name, file, line), diagnostics and a record at mercury://test/run/<id> (mercury://test/latest and mercury://test/failures track the newest; overflow output becomes an artifact ref). discover lists node ids or manifest runner profiles; rerunFailed reruns the latest failures; debug stops on one test's first line and leaves the debugger session open; report reads a record. Exit-code/record disagreements appear in verdictNote; matching zero tests returns zero counts (neither pass nor failure).`
   },
   userFacingName,
   shouldDefer: true,
