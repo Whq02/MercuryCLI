@@ -64,7 +64,7 @@ export function artAsk(input: unknown): string {
   }).join('; ')
   return `Aseprite ${p.op}: ${p.file} - ${summary} - replaces the named sprite inside the working tree`
 }
-export async function runArt(input: unknown, bin: string, fence: (label: string, value: string) => { resolved?: string; refusal?: string }): Promise<ArtResult> {
+export async function runArt(input: unknown, bin: string, fence: (label: string, value: string) => { resolved?: string; refusal?: string }, abortSignal?: AbortSignal): Promise<ArtResult> {
   const p = artSchema().parse(input)
   const file = fence(`${p.op}: file`, p.file)
   if (file.refusal) return { result: file.refusal }
@@ -97,7 +97,7 @@ export async function runArt(input: unknown, bin: string, fence: (label: string,
     writeFileSync(script, SPRITE_ART_LUA, { mode: 0o600 })
     writeFileSync(request, JSON.stringify({ ...p, save, render, report, paletteFile, colours }), { mode: 0o600 })
     const r = await runAseprite(bin, [file.resolved!, '--script-param', `request=${request}`, '--script', script], {
-      timeoutMs: 60_000, env: { ASEPRITE_USER_FOLDER: dir },
+      timeoutMs: 60_000, env: { ASEPRITE_USER_FOLDER: dir }, ...(abortSignal ? { abortSignal } : {}),
     })
     if (r.code !== 0) throw new Error(`exit ${r.code}${r.error ? ` (${r.error})` : ''}\n${r.stderr}\n${r.stdout}`)
     const value = JSON.parse(readFileSync(report, 'utf8')) as { op?: string; applied?: number; render?: { width: number; height: number; frames: number[] } }
