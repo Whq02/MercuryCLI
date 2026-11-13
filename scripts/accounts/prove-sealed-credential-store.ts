@@ -13,6 +13,8 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import(join(SRC, 'services/providers/credentialEnvSpellings.ts'))
+for (const name of ALL_PROVIDER_CREDENTIAL_ENV_VARS as readonly string[]) delete process.env[name]
 const { plainTextStorage } = await import(join(SRC, 'utils/secureStorage/plainTextStorage.ts'))
 const { setAuthScope } = await import(join(SRC, 'utils/envUtils.ts'))
 const sealedRecord = await import(join(SRC, 'utils/secureStorage/sealedRecord.ts')).catch(() => null)
