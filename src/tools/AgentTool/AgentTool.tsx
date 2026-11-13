@@ -212,7 +212,7 @@ export const inputSchema = lazySchema(() => {
           'A crewmate name must be addressable by SendMessage and ResumeCrewmate: it cannot contain "@" or be "*".',
       })
       .describe(
-        'Seat name for SendMessage/ResumeCrewmate; omitted runs once.',
+        'Seat name for later messages and additional work; omitted, the crewmate runs its brief once.',
       ),
     team: z.string().regex(/^[\p{L}\p{N}_][\p{L}\p{N}_.-]{0,79}$/u).refine(value => !['all', 'general'].includes(value.toLowerCase())).optional().describe('Crew-board team label (delivery only, not privacy).'),
     captain: z.boolean().optional().describe('Appoint named seat as team captain (needs name, team, swarm, lead; required before 5th team seat).'),
