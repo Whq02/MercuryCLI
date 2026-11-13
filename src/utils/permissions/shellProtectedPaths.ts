@@ -847,9 +847,29 @@ function receivesListing(at: number, lister: ReadCommand, later: ReadCommand, in
   return read.commands.some(loop => loop.dialect === 'powershell' && /^foreach$/i.test(loop.argv[0] ?? '') && (loop.inner[1] ?? []).includes(at) && (loop.inner[2] ?? []).includes(index))
 }
 
+const FIND_VALUED = new Set(['-maxdepth', '-mindepth', '-type', '-name', '-iname', '-newer', '-mtime', '-mmin', '-size'])
+const FIND_PLAIN = new Set(['-a', '-and', '-empty', '-print', '-print0', '(', ')'])
+
 function findMaxDepth(argv: readonly string[]): number | undefined {
-  const depth = argv[argv.indexOf('-maxdepth') + 1] ?? ''
-  return argv.includes('-maxdepth') && /^\d+$/.test(depth) ? Number(depth) : undefined
+  const depths: string[] = []
+  const kinds: string[] = []
+  let acted = false
+  let files = false
+  for (let i = 1; i < argv.length; i++) {
+    const word = argv[i]!
+    if (word === '-exec' || word === '-execdir') {
+      acted = true
+      do i++
+      while (i < argv.length && argv[i] !== ';' && !(argv[i] === '+' && argv[i - 1] === '{}'))
+    } else if (FIND_VALUED.has(word)) {
+      const value = argv[++i] ?? ''
+      if (word === '-maxdepth') depths.push(value)
+      if (word === '-type') kinds.push(value)
+      if (word === '-type' && value === 'f' && !acted) files = true
+    } else if (FIND_PLAIN.has(word)) acted ||= word === '-print' || word === '-print0'
+    else if (word.startsWith('-') || word === '!' || word === ',') return undefined
+  }
+  return depths.length === 1 && /^\d+$/.test(depths[0]!) && kinds.length === 1 && files ? Number(depths[0]) : undefined
 }
 
 function storeBelowDepth(word: string, cwd: string, homes: readonly string[], depth: number): boolean {
@@ -1328,7 +1348,7 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
       const handed = simple.input !== undefined || simple.stages.some(stage => stage.stage > 0) || simple.redirects.some(redirect => redirect.op === '<')
       const hidden = layer.program !== 'rg' || ripgrepReachesHidden(layer, simple, read)
       const held = finder !== undefined ? (finder.findRoots === undefined || finder.findRoots.length === 0 ? ['.'] : finder.findRoots) : listed !== null ? listed.roots : treeReadRoots(layer, handed, here, holdsMercuryHome('.', here, homes, hidden))
-      const depth = finder === undefined ? undefined : findMaxDepth(finder.argv)
+      const depth = finder === undefined || (layer !== finder && tree) || layers.filter(found => found.program === 'find').length !== 1 ? undefined : findMaxDepth(finder.argv)
       for (const root of held.flatMap(one => (powershell && !wordKnown(standingSpelled(one)) ? [one, '.'] : [one]))) {
         for (const candidate of [...spellingsOf(powershell ? standingSpelled(root) : root), ...underOtherHomes(root, read.homes)]) {
           if (depth !== undefined && wordKnown(candidate) && !GLOB_PART.test(candidate) && storeBelowDepth(candidate, here, homes, depth)) continue

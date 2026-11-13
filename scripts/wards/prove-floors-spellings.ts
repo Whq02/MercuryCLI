@@ -2407,6 +2407,107 @@ if (runs('EVERYDAY')) {
   }
 }
 
+if (runs('DEPTH')) {
+  section('DEPTH · a find told how deep to go is freed only where it lists files alone, one depth said once, no link followed, and what it hands them to names no tree of its own; every twin of the rule that reads the store is refused')
+  const floors = await import('../../src/utils/permissions/shellProtectedPaths.ts')
+  const read = (line: string, from: string): Promise<string | null> => floors.shellMercurySecretPath(line, false, from)
+  const twins = [
+    'find . -maxdepth 1 -maxdepth 3 -type f -exec cat {} +',
+    'find . -maxdepth 1 -maxdepth 2 -type f | while read f; do cat "$f"; done',
+    'find . -maxdepth 1 -type f -maxdepth 4 | xargs cat',
+    'find . -maxdepth 01 -maxdepth 9 -type f -exec cat {} +',
+    'find -maxdepth 1 . -maxdepth 5 -type f -exec cat {} +',
+    'find . -maxdepth 1 -exec grep -r token {} +',
+    'find . -maxdepth 1 | xargs grep -rn token',
+    'find . -maxdepth 1 -type d | while read d; do cat "$d"/*.json; done',
+    'find . -maxdepth 1 -type d -exec cp -r {} /tmp/out \\;',
+    'find . -maxdepth 1 | xargs tar czf /tmp/x.tgz',
+    'find . -maxdepth 1 -exec rg --hidden token {} +',
+    'find . -maxdepth 0 -exec grep -r token {} +',
+    'find -L . -maxdepth 1 -type f -exec cat {} +',
+    'find . -maxdepth 1 -follow -type f -exec cat {} +',
+    'find -H . -maxdepth 1 -type f -exec cat {} +',
+    'find . -depth -maxdepth 2 -type f -exec cat {} +',
+    "find . -maxdepth 2 -name '*.json' -exec cat {} +",
+    'find . -maxdepth 1 \\! -type f -exec grep -r token {} +',
+    'find . -maxdepth 1 -not -type f | xargs grep -r token',
+    'find . -maxdepth 1 \\( -type f -o -type d \\) -exec grep -r token {} +',
+    'find . -maxdepth 1 -type f -o -type d -exec grep -r token {} +',
+    'find . -maxdepth 1 -type f,d -exec grep -r token {} +',
+    'find . -maxdepth 1 -xtype f -exec cat {} +',
+    'find . -maxdepth 1 -type f , -exec grep -r token {} +',
+    'find . -maxdepth 1 -print0 -type f | xargs -0 grep -r token',
+    'find . -maxdepth 1 -exec grep -r token {} + -type f',
+    'find . -maxdepth 1 -type f -print0 -o -type d -print0 | xargs -0 grep -r token',
+    'find . -maxdepth 1 -type f -exec cat {} + -o -type d -exec grep -r token {} +',
+    'find . -maxdepth 1 -type f -exec grep -r token . \\;',
+    'find . -maxdepth 1 -type f -exec grep -r token "$PWD" \\;',
+    'find . -maxdepth 1 -type f -exec cp -r . /tmp/out \\;',
+    'find . -maxdepth 1 -type f -exec tar czf /tmp/x.tgz . \\;',
+    "find . -maxdepth 1 -type f -exec sh -c 'grep -r token .' \\;",
+    'find . -maxdepth 1 -exec find {} -type f -exec cat {} + \\;',
+    'find . -maxdepth 1 -type f -exec find . -type f -exec cat {} + \\;',
+    'find -files0-from list.txt -maxdepth 1 -type f -exec cat {} +',
+    'find . -maxdepth 1 -type f | xargs grep -r token .',
+    'find .mercury -maxdepth 1 -type f -exec cat {} +',
+    'find . .mercury -maxdepth 1 -type f -exec cat {} +',
+    'find .* -maxdepth 1 -type f -exec cat {} +',
+  ]
+  for (const line of twins) {
+    const answer = await read(line, OWN_HOME)
+    check(`DEPTH · the Bash tool, standing in the home · ${shown(line)} · a depth said twice, a find that lists more than files, a link followed, or a command that goes down by itself: refused as a read of the credentials`, answer !== null, String(answer))
+  }
+  const freed = [
+    'find . -maxdepth 1 -type f | while read f; do cat "$f"; done',
+    'find . -maxdepth 1 -type f -exec cat {} +',
+    'find . -maxdepth 1 -type f -print0 | xargs -0 wc -l',
+    'find . -type f -maxdepth 1 | xargs cat',
+    'find ~ -maxdepth 1 -type f | xargs cat',
+    'for f in $(find . -maxdepth 1 -type f); do cat "$f"; done',
+    'find . -maxdepth 1 -type f',
+    'find . -maxdepth 1 -type f -exec head -3 {} \\;',
+    'find . -maxdepth 1 -type f -newer notes.txt -exec cat {} +',
+    'find . -maxdepth 1 -type f -exec grep -l TODO {} +',
+    'find . -maxdepth 1 -type f -mtime -7 -exec cat {} +',
+    'find . -maxdepth 1 -type f -size -10k -exec cat {} +',
+    'find . -mindepth 1 -maxdepth 1 -type f -exec cat {} +',
+    'find . -maxdepth 1 -type f -print | xargs cat',
+    'find . -maxdepth 1 -type f -print0 | xargs -0 cat',
+    'find . -maxdepth 1 -type f -exec cat {} \\; -print',
+    'find . -maxdepth 1 -type f -execdir cat {} +',
+    'find . -maxdepth 1 -type f | sort | xargs cat',
+    'find . -maxdepth 1 -type f | xargs grep -rn TODO',
+    "find . -maxdepth 1 -type f -exec sh -c 'cat \"$1\"' _ {} \\;",
+    "find . -maxdepth 1 -type f \\( -name '*.txt' -a -size -10k \\) -exec cat {} +",
+    'find "$PWD" -maxdepth 1 -type f -exec cat {} +',
+    'find .. -maxdepth 1 -type f -exec cat {} +',
+  ]
+  for (const line of freed) {
+    const answer = await read(line, OWN_HOME)
+    check(`DEPTH · the Bash tool, standing in the home · ${shown(line)} · the files of one folder alone, read: not refused by the floor`, answer === null, String(answer))
+  }
+  const outside = [
+    'find . -maxdepth 3 -maxdepth 1 -type f -exec cat {} +',
+    'find . -maxdepth 1 -type f -exec grep -rn TODO {} +',
+    "find . -maxdepth 1 -type f -not -name '*.log' -exec cat {} +",
+    'find . -maxdepth 1 -type f -perm -u+x -exec cat {} +',
+    'find . -xdev -maxdepth 1 -type f -exec cat {} +',
+    'find -P . -maxdepth 1 -type f -exec cat {} +',
+  ]
+  for (const line of outside) {
+    const answer = await read(line, OWN_HOME)
+    check(`DEPTH · the Bash tool, standing in the home · ${shown(line)} · a word outside the few the rule reads, or a command with its own way down behind -exec: asked as a find that says no depth, and refused as it was before the rule`, answer !== null, String(answer))
+  }
+  for (const [line, from] of [['find . -maxdepth 1 -type f -exec cat {} +', CONFIG_HOME], ['find .. -maxdepth 2 -type f -exec cat {} +', CONFIG_HOME], ['find . -maxdepth 1 -type f | xargs cat', PROJECT]] as Array<[string, string]>) {
+    const answer = await read(line, from)
+    check(`DEPTH · the Bash tool, standing in ${from === CONFIG_HOME ? 'the config home' : 'a project'} · ${shown(line)} · ${from === CONFIG_HOME ? 'the store within the depth: refused' : 'no store beneath: not refused'}`, from === CONFIG_HOME ? answer !== null : answer === null, String(answer))
+  }
+  bootstrap.setCwdState(OWN_HOME)
+  for (const item of [bash('find . -maxdepth 1 -maxdepth 3 -type f -exec cat {} +', 'the depth said twice'), bash('find . -maxdepth 1 -exec grep -r token {} +', 'one level, and the folders handed to a search that goes down'), bash('find -L . -maxdepth 1 -type f -exec cat {} +', 'links followed')]) await expect('DEPTH · the session standing in the home', item, ['sovereign', 'default'], refusedAsSecret, 'is refused as a read of the credentials')
+  await expect('DEPTH · the session standing in the home', bash('find . -maxdepth 1 -type f -exec cat {} +', 'the files of this folder alone'), ['sovereign'], notRefused, 'is not refused by the floor')
+  bootstrap.setCwdState(PROJECT)
+}
+
 if (runs('T-3.5')) {
   const state = daemonStatePath()
   section('T-3.5 floor 4: kills of the daemon and of the session, and writes into the runtime, under Sovereign and Flow')
