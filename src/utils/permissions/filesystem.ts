@@ -898,7 +898,7 @@ function exactCredentialStoreGrant(path: string, credential: string, context: To
 }
 
 export function credentialStoreWriteRefusal(written: string, cwd: string, context: ToolPermissionContext): string | null {
-  const credential = credentialStorePath(written, cwd)
+  const credential = credentialStorePath(written.replace(/ \(Mercury could not read this command[^)]*\)$/, ''), cwd)
   if (credential !== null && context.mode !== 'apollo' && exactCredentialStoreGrant(expandPath(spelling(written), cwd), credential, context) !== undefined) return null
   return 'Writing ' + written + ' is refused: ' + (credential ?? written) + ' is a protected system or credential path.'
 }

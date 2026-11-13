@@ -283,6 +283,7 @@ function deleteOf(layer: Layer, command: ReadCommand, commands: readonly ReadCom
     }
     operands.push(word)
   }
+  if (command.dialect === 'powershell' && command.handed !== undefined && layer.argv === command.argv) operands.push(command.handed)
   return { recursive, preview, operands }
 }
 

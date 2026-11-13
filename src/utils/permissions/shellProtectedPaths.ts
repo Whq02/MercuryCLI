@@ -1,10 +1,11 @@
-import { existsSync, readdirSync, statSync } from 'node:fs'
+import { accessSync, constants, existsSync, readdirSync, statSync } from 'node:fs'
 import { homedir, userInfo } from 'node:os'
 import { posix } from 'node:path'
 import { getShellCwd } from '../Shell.js'
 import { defaultMercuryHome, getAuthScope, getMercuryHome } from '../envUtils.js'
 import { CREDENTIALS_SERVICE_SUFFIX, getMacOsKeychainStorageServiceName, getRawSpellingKeychainStorageServiceName } from '../secureStorage/macOsKeychainHelpers.js'
-import { UNREAD_PART, absolutePath, layersOf, printedBy, readShellCommands, wordKnown, type Layer, type ReadCommand, type ReadWorld, type ShellRead } from '../wards/wardsShellRead.js'
+import { shellTextOutsideFileHeredocs } from '../wards/wards.js'
+import { UNREAD_PART, absolutePath, layersOf, moveOf, printedBy, readShellCommands, wordKnown, type Layer, type ReadCommand, type ReadWorld, type ShellRead } from '../wards/wardsShellRead.js'
 import { credentialStorePath as storePathOf, mercurySecretPath as secretPathOf, protectedPathForms as pathFormsOf, spelling } from './protectedPaths.js'
 import { pinnedCommandAnalysis, peelWrappers, PARSE_ABORTED, extractHeredocs, type Node } from './decision/commandAnalysis.js'
 import { namesMercuryProcess, placedUnder, runtimeWritePath, runtimeProcessRefusal } from './runtimeProtection.js'
@@ -65,7 +66,74 @@ function unwrapCommand(argv: string[]): string[] {
   return unwrapped
 }
 
-function writeOperands(argv: string[]): string[] {
+const COPY_SWITCHES = ['force', 'recurse', 'container', 'passthru', 'verbose', 'debug', 'whatif', 'confirm']
+const COPY_VALUED = ['destination', 'erroraction', 'warningaction', 'informationaction', 'progressaction', 'errorvariable', 'warningvariable', 'informationvariable', 'outvariable', 'outbuffer', 'pipelinevariable', 'filter', 'include', 'exclude', 'credential', 'fromsession', 'tosession']
+const COPY_VALUED_ALIASES = new Set(['ea', 'wa', 'infa', 'proga', 'ev', 'wv', 'iv', 'ov', 'ob', 'pv'])
+
+function powershellCopyTargets(args: readonly string[]): string[] {
+  const loose: string[] = []
+  const valued: string[] = []
+  let sourced = false
+  let destined = false
+  let sure = true
+  for (let i = 0; i < args.length; i++) {
+    const word = args[i]!
+    if (!word.startsWith('-') || word === '-') {
+      loose.push(word)
+      continue
+    }
+    if (word.startsWith('--')) {
+      const equals = word.indexOf('=')
+      const value = equals >= 0 ? word.slice(equals + 1) : word === '--target-directory' ? args[++i] : undefined
+      if (value !== undefined) valued.push(value)
+      continue
+    }
+    const colon = word.indexOf(':')
+    const name = (colon < 0 ? word.slice(1) : word.slice(1, colon)).toLowerCase()
+    const fused = colon < 0 ? undefined : word.slice(colon + 1)
+    const named = (full: string): boolean => name !== '' && full.startsWith(name)
+    const switched = COPY_SWITCHES.some(named)
+    const takesValue = COPY_VALUED_ALIASES.has(name) || COPY_VALUED.some(named)
+    if (name === 'pspath' || name === 'lp' || named('literalpath') || (name.length > 1 && named('path'))) {
+      sourced = true
+      if (fused === undefined) i++
+    } else if (takesValue && !switched) {
+      const value = fused ?? args[++i]
+      if (value !== undefined) valued.push(value)
+      if (named('destination')) destined = true
+    } else if (takesValue || !(switched || /^[adfhinprsuvx]{1,4}$/.test(name))) {
+      sure = false
+      if (fused !== undefined) valued.push(fused)
+    }
+  }
+  return [...valued, ...(sourced || !sure ? loose : destined || loose.length < 2 ? [] : loose.slice(-1))]
+}
+
+const WRITERS = new Set([
+  'tee', 'chmod', 'icacls', 'cp', 'mv', 'copy', 'move', 'copy-item', 'move-item', 'ci', 'cpi', 'mi',
+  'sed', 'set-content', 'add-content', 'out-file', 'tee-object', 'ac', 'sc',
+  'install', 'dd', 'rsync', 'ln', 'truncate', 'rm', 'unlink', 'rmdir', 'rd', 'ri', 'del', 'erase',
+  'remove-item', 'clear-content', 'clc', 'new-item', 'ni', 'ren', 'rename', 'rename-item', 'sqlite3', 'find',
+  'export-csv', 'epcsv', 'export-clixml', 'start-transcript',
+])
+const OTHER_WRITERS = new Set(['invoke-webrequest', 'iwr', 'invoke-restmethod', 'irm', 'expand-archive', 'new-object'])
+const TREE_MOVERS = ['rm', 'unlink', 'rmdir', 'rd', 'ri', 'del', 'erase', 'remove-item', 'mv', 'move', 'move-item', 'mi', 'ren', 'rename', 'rename-item']
+const RUNTIME_WRITERS = new Set(['tar', 'bsdtar', 'gtar', 'unzip', 'curl', 'wget', 'patch', 'git', 'npm', 'pnpm', 'yarn', 'bun', 'ditto', 'chown', 'chgrp', 'chflags', 'xattr', 'touch', 'setfacl', 'lchown', 'shred'])
+const UNREAD_ADVICE = 'Mercury could not read this command, so it was not checked: write it as separate, simpler commands'
+const WRITE_REDIRECT = /(?:^|[^-=0-9&>])[0-9]?>>?(?![&=>])/
+
+function unreadWords(read: ShellRead, command: string, powershell: boolean): string[] {
+  if (read.unread === undefined) return []
+  const outside = powershell ? command : shellTextOutsideFileHeredocs(command)
+  const nested = read.unread.text === command ? '' : read.unread.text
+  return [...new Set(`${outside} ${nested}`.split(/[\s;|&<>(){}"'`=,]+/).filter(word => word !== '' && word.length < 4096))]
+}
+
+function pathLike(word: string): boolean {
+  return /[\\/]/.test(word) || /^[~$%.]/.test(word)
+}
+
+function writeOperands(argv: string[], powershell = false): string[] {
   const out: string[] = []
   const command: string[] = []
   for (let i = 0; i < argv.length; i++) {
@@ -78,14 +146,25 @@ function writeOperands(argv: string[]): string[] {
   const name = verb(unwrapped[0] ?? '')
   const args = unwrapped.slice(1)
   if (args.some(arg => /^-whatif$/i.test(arg))) return []
-  const writers = new Set([
-    'tee', 'chmod', 'icacls', 'cp', 'mv', 'copy', 'move', 'copy-item', 'move-item', 'ci', 'cpi', 'mi',
-    'sed', 'set-content', 'add-content', 'out-file', 'tee-object', 'ac', 'sc',
-    'install', 'dd', 'rsync', 'ln', 'truncate', 'rm', 'unlink', 'rmdir', 'rd', 'ri', 'del', 'erase',
-    'remove-item', 'clear-content', 'clc', 'new-item', 'ni', 'ren', 'rename', 'rename-item', 'sqlite3', 'find',
-  ])
+  const writers = WRITERS
+  const valued = (full: string, least: number): string[] =>
+    args.flatMap((arg, at) => {
+      const named = /^-([A-Za-z]+)(?::(.*))?$/.exec(arg)
+      return named !== null && named[1]!.length >= least && full.startsWith(named[1]!.toLowerCase()) ? [named[2] ?? args[at + 1] ?? ''] : []
+    })
+  if (powershell && ['invoke-webrequest', 'iwr', 'invoke-restmethod', 'irm'].includes(name)) return [...out, ...valued('outfile', 4)]
+  if (powershell && name === 'expand-archive') {
+    const named = valued('destinationpath', 1)
+    return [...out, ...(named.length > 0 ? named : args.filter(arg => !arg.startsWith('-')).slice(1, 2))]
+  }
+  if (powershell && name === 'new-object') {
+    const made = args.filter(arg => !arg.startsWith('-')).map(arg => arg.replace(/,$/, ''))
+    if (/^(?:System\.)?IO\.(?:StreamWriter|FileStream)$/i.test(made[0] ?? '') && made[1] !== undefined && !made.slice(2).some(word => /^read$/i.test(word))) out.push(made[1])
+    return out
+  }
   if (!writers.has(name)) return out
   const operands = args.filter(arg => !arg.startsWith('-') && !/^\/[sq]$/i.test(arg))
+  if (powershell) operands.push(...args.flatMap(arg => /^-[A-Za-z]+:(.+)$/.exec(arg)?.[1] ?? []))
   if (name === 'sed') {
     if (args.some(arg => /^-(?:[a-z]*i|-[iI]n-place)/.test(arg))) out.push(...operands.slice(1))
   } else if (name === 'dd') {
@@ -94,6 +173,8 @@ function writeOperands(argv: string[]): string[] {
     if (operands[0]) out.push(operands[0])
   } else if (name === 'find') {
     if (args.includes('-delete')) out.push(...operands)
+  } else if (powershell && ['cp', 'copy', 'copy-item', 'ci', 'cpi'].includes(name)) {
+    out.push(...powershellCopyTargets(args))
   } else if (['cp', 'copy', 'copy-item', 'ci', 'cpi', 'rsync', 'install', 'ln'].includes(name)) {
     const target = args.findIndex(arg => arg === '-t' || arg === '--target-directory' || /^-dest(?:ination)?$/i.test(arg))
     const fused = args.find(arg => arg.startsWith('--target-directory='))?.slice('--target-directory='.length)
@@ -141,14 +222,13 @@ function readOperands(argv: string[]): string[] {
 
 const READ_FILE_LETTERS: Record<string, string> = { xargs: 'a', grep: 'f', rg: 'f', diff: 'X', du: 'X', jq: 'fL', info: 'fd', man: 'lMC', date: 'rf', pyright: 'p', awk: 'f', sed: 'f' }
 
-function runtimeOperands(argv: string[]): Array<{ path: string; removesTree: boolean }> {
+function runtimeOperands(argv: string[], powershell = false): Array<{ path: string; removesTree: boolean }> {
   const unwrapped = unwrapCommand(argv)
   const name = verb(unwrapped[0] ?? '')
   const args = unwrapped.slice(1)
   if (args.some(arg => /^-whatif$/i.test(arg))) return []
-  const targets = writeOperands(argv).map(path => ({ path, removesTree: false }))
-  const removers = ['rm', 'unlink', 'rmdir', 'rd', 'ri', 'del', 'erase', 'remove-item', 'mv', 'move', 'move-item', 'mi', 'ren', 'rename', 'rename-item']
-  if (removers.includes(name) || (name === 'find' && args.includes('-delete'))) {
+  const targets = writeOperands(argv, powershell).map(path => ({ path, removesTree: false }))
+  if (TREE_MOVERS.includes(name) || (name === 'find' && args.includes('-delete'))) {
     targets.push(...args.filter(arg => !arg.startsWith('-') && !/^\/[sq]$/i.test(arg)).map(path => ({ path, removesTree: true })))
   }
   return targets
@@ -389,7 +469,80 @@ async function walkShellCommands(
 }
 
 export async function shellCredentialWritePath(command: string, powershell = false, cwd = getShellCwd()): Promise<string | null> {
-  return (await credentialWriteWalked(command, powershell, cwd)) ?? credentialWriteAfterMove(command, powershell, cwd)
+  return (await credentialWriteWalked(command, powershell, cwd)) ?? (await credentialWriteAfterMove(command, powershell, cwd)) ?? credentialWriteInBlocks(command, powershell, cwd)
+}
+
+const NET_WRITER = /\[(?:System\.)?IO\.(File|Directory|StreamWriter|FileStream)\]::(\w+)\s*\(/gi
+const NET_WRITTEN: Record<string, readonly number[]> = { writealltext: [0], writeallbytes: [0], writealllines: [0], appendalltext: [0], appendalllines: [0], appendtext: [0], createtext: [0], create: [0], openwrite: [0], delete: [0], copy: [1], move: [0, 1], replace: [0, 1, 2] }
+
+function callArguments(text: string, from: number): string[] {
+  const out: string[] = []
+  let depth = 0
+  let part = ''
+  for (let i = from; i < text.length; i++) {
+    const ch = text[i]!
+    if (ch === "'" || ch === '"') {
+      const end = text.indexOf(ch, i + 1)
+      const stop = end < 0 ? text.length : end
+      part += text.slice(i, stop + 1)
+      i = stop
+    } else if (ch === ')' && depth-- === 0) break
+    else if (ch === ',' && depth === 0) {
+      out.push(part.trim())
+      part = ''
+    } else {
+      if (ch === '(') depth++
+      part += ch
+    }
+  }
+  return [...out, part.trim()]
+}
+
+function netWrites(text: string): string[] {
+  const out: string[] = []
+  const bare = text.replace(/'[^']*'|"[^"]*"/g, quoted => quoted[0] + ' '.repeat(Math.max(0, quoted.length - 2)) + quoted[0])
+  for (const call of bare.matchAll(NET_WRITER)) {
+    const stream = call[1]!.toLowerCase() === 'streamwriter' || call[1]!.toLowerCase() === 'filestream'
+    const args = callArguments(text, call.index + call[0].length)
+    const reads = /^(?:['"]read['"]|\[(?:System\.)?IO\.FileAccess\]::Read)$/i.test(args[2] ?? '')
+    const written = stream ? (call[2]!.toLowerCase() === 'new' && !reads ? [0] : []) : (NET_WRITTEN[call[2]!.toLowerCase()] ?? [])
+    for (const at of written) {
+      const path = /^(['"])([^'"\r\n]+)\1$/.exec(args[at] ?? '')?.[2]
+      if (path !== undefined) out.push(path)
+    }
+  }
+  return out
+}
+
+async function credentialWriteInBlocks(command: string, powershell: boolean, cwd: string): Promise<string | null> {
+  for (const text of new Set([expandShellConstants(command, powershell), command])) {
+    const found = await credentialWriteRead(text, powershell, cwd)
+    if (found !== null) return found
+  }
+  return null
+}
+
+async function credentialWriteRead(command: string, powershell: boolean, cwd: string): Promise<string | null> {
+  const read = await readForFloors(command, powershell, cwd)
+  if (read === null) return null
+  for (const [at, simple] of read.commands.entries()) {
+    const ps = simple.dialect === 'powershell'
+    const after = foldersAfter(read, at, cwd)
+    const written = simple.redirects.flatMap(redirect => ((ps ? ['>', '>>'] : ['>', '>>', '>|', '&>', '&>>']).includes(redirect.op) ? ['>', '', redirect.target] : []))
+    const removes = ps && layersOf(simple.argv).some(layer => TREE_REMOVERS.has(layer.program) && !layer.argv.some(word => /^-whatif$/i.test(word)))
+    const listed = removes ? read.commands.filter(earlier => sharesEarlierStage(earlier, simple)).flatMap(earlier => layersOf(earlier.argv).flatMap(layer => (POWERSHELL_LISTERS.has(layer.program) ? powershellListing(layer.argv).roots : []))) : []
+    for (const path of [...layersOf(simple.argv).flatMap(layer => writeOperands([...layer.argv, ...written], ps)), ...(ps ? netWrites(simple.text) : []), ...listed]) {
+      if (/^(?:[/~$%]|[A-Za-z]:)/.test(path)) {
+        if (credentialStorePath(path, cwd) !== null) return path
+      } else if (!after.lost) {
+        for (const here of after.folders) {
+          const full = posix.join(here, path)
+          if (credentialStorePath(full, here) !== null) return full
+        }
+      }
+    }
+  }
+  return null
 }
 
 async function credentialWriteAfterMove(command: string, powershell: boolean, cwd: string): Promise<string | null> {
@@ -401,7 +554,7 @@ async function credentialWriteAfterMove(command: string, powershell: boolean, cw
     if (simple.cwd !== undefined && !GLOB_PART.test(simple.cwd) && !/^[A-Za-z]:\//.test(simple.cwd) && after.folders.length === 1) continue
     const written = simple.redirects.flatMap(redirect => (['>', '>>', '>|', '&>', '&>>'].includes(redirect.op) ? ['>', '', redirect.target] : []))
     for (const layer of layersOf(simple.argv)) {
-      for (const path of writeOperands([...layer.argv, ...written])) {
+      for (const path of writeOperands([...layer.argv, ...written], simple.dialect === 'powershell')) {
         if (/^(?:[/~]|[A-Za-z]:)/.test(path)) continue
         for (const here of after.folders) {
           const full = posix.join(here, path)
@@ -409,6 +562,10 @@ async function credentialWriteAfterMove(command: string, powershell: boolean, cw
         }
       }
     }
+  }
+  const words = unreadWords(read, command, powershell)
+  if (words.some(word => WRITERS.has(verb(word)) || OTHER_WRITERS.has(verb(word))) || (words.length > 0 && (WRITE_REDIRECT.test(command) || netWrites(command).length > 0))) {
+    for (const word of words) if (pathLike(word) && credentialStorePath(word, cwd) !== null) return `${word} (${UNREAD_ADVICE})`
   }
   return null
 }
@@ -421,7 +578,7 @@ function credentialWriteWalked(command: string, powershell: boolean, cwd: string
         if (hit !== null) return call[2]!
       }
     }
-    for (const path of writeOperands(argv)) {
+    for (const path of writeOperands(argv, ps)) {
       const hit = credentialStorePath(path, cwd)
       if (hit !== null) return path.includes('/') || path.includes('\\') ? path : hit
     }
@@ -566,6 +723,42 @@ function underOtherHomes(word: string, homes: readonly string[]): string[] {
   return homes.map(home => home + word.slice(1))
 }
 
+function gitUnindexedGrep(layer: Layer): { folder: string | undefined; rest: string[] } | undefined {
+  if (layer.program !== 'git') return undefined
+  const words = layer.argv
+  let folder: string | undefined
+  let at = 1
+  for (; at < words.length && words[at]!.startsWith('-'); at += GIT_OPTION_VALUED.has(words[at]!) ? 2 : 1) {
+    const named = words[at] === '-C' ? words[at + 1] : undefined
+    if (named !== undefined) folder = folder === undefined || /^(?:[/~]|[A-Za-z]:)/.test(named) ? named : `${folder}/${named}`
+  }
+  const rest = words.slice(at + 1)
+  return words[at] === 'grep' && rest.some(word => /^--no-ind(?:e(?:x)?)?$/.test(word)) ? { folder, rest } : undefined
+}
+
+const GIT_GREP_VALUED = /^(?:-[A-Za-z]*[efABCm]|--(?:max-depth|max-count|threads|context|after-context|before-context|parent-basename))$/
+
+function gitGrepRoots(layer: Layer, cwd: string): string[] | undefined {
+  const grep = gitUnindexedGrep(layer)
+  if (grep === undefined) return undefined
+  const { folder, rest } = grep
+  const under = (root: string): string => (folder === undefined || /^(?:[/~]|[A-Za-z]:)/.test(root) ? root : root === '.' ? folder : `${folder}/${root}`)
+  const split = rest.indexOf('--')
+  const before = split < 0 ? rest : rest.slice(0, split)
+  const loose: string[] = []
+  let patterned = false
+  for (let i = 0; i < before.length; i++) {
+    const word = before[i]!
+    if (/^-[A-Za-z]*[ef]$/.test(word)) patterned = true
+    if (GIT_GREP_VALUED.test(word)) i++
+    else if (word !== '' && !word.startsWith('-')) loose.push(word)
+  }
+  const paths = [...(patterned ? loose : loose.slice(1)), ...(split < 0 ? [] : rest.slice(split + 1).filter(word => word !== ''))]
+  const specs = paths.map(spec => under(GLOB_PART.test(spec) || spec.startsWith(':') ? '.' : spec))
+  const named = split >= 0 ? specs.length > 0 : specs.some(spec => !wordKnown(spec) || existsSync(expandPath(spelling(spec), cwd)))
+  return named ? specs : [...specs, under('.')]
+}
+
 function readsWholeTree(layer: Layer): boolean {
   const { program, argv } = layer
   const flagged = (letters: RegExp, ...long: string[]): boolean => argv.slice(1).some(word => (word.startsWith('--') ? long.includes(word.split('=')[0]!) : /^-[A-Za-z]+$/.test(word) && letters.test(word)))
@@ -601,6 +794,8 @@ function readsWholeTree(layer: Layer): boolean {
       return argv.some(word => /^-(?:exec|execdir|ok|okdir|print0|fprint|fls)$/.test(word))
     case 'findstr':
       return argv.slice(1).some(word => FINDSTR_FLAG.test(word) && /s/i.test(word.split(':')[0]!))
+    case 'git':
+      return gitUnindexedGrep(layer) !== undefined
     default:
       return false
   }
@@ -639,17 +834,103 @@ function readsHandedFiles(found: Layer): boolean {
   return PIPED_FILE_READERS.has(found.program)
 }
 
-function searchesNamesAsText(lister: ReadCommand, later: ReadCommand, found: Layer): boolean {
-  if (found.program !== 'select-string' && found.program !== 'sls') return false
-  if (found.argv.slice(1).some(word => word.includes('$') || word.includes(UNREAD_PART) || /^-(?:path|pspath|lp|lit[a-z]*)(?::|$)/i.test(word))) return false
-  const next = later.stages.length === 1 ? later.stages[0] : undefined
-  const from = lister.stages.length === 1 ? lister.stages[0] : undefined
-  return next !== undefined && from !== undefined && from.pipeline === next.pipeline && from.stage + 1 === next.stage
+function callsUnreadName(later: ReadCommand): boolean {
+  return later.dialect === 'powershell' && later.called !== undefined && !wordKnown(later.argv[0] ?? '') && (((later.stages.at(-1)?.stage ?? 0) > 0 && later.called === 'name') || later.argv.slice(1).some(word => !wordKnown(word) || /^@[\w:?]+$/.test(word)))
 }
 
-function powershellListing(argv: readonly string[]): { roots: string[]; deep: boolean; names: boolean } {
+function receivesListing(at: number, lister: ReadCommand, later: ReadCommand, index: number, read: ShellRead): boolean {
+  if (later.inner.flat().includes(at)) return true
+  const last = lister.stages.at(-1)
+  const next = later.stages[lister.stages.length - 1]
+  const beside = lister.stages.slice(0, -1).every((stage, depth) => later.stages[depth]?.pipeline === stage.pipeline && later.stages[depth]?.stage === stage.stage)
+  if (last !== undefined && next !== undefined && beside && next.pipeline === last.pipeline && next.stage === last.stage + 1) return true
+  return read.commands.some(loop => loop.dialect === 'powershell' && /^foreach$/i.test(loop.argv[0] ?? '') && (loop.inner[1] ?? []).includes(at) && (loop.inner[2] ?? []).includes(index))
+}
+
+const FIND_VALUED = new Set(['-maxdepth', '-mindepth', '-type', '-name', '-iname', '-newer', '-mtime', '-mmin', '-size'])
+const FIND_PLAIN = new Set(['-a', '-and', '-empty', '-print', '-print0', '(', ')'])
+
+function findMaxDepth(argv: readonly string[]): number | undefined {
+  const depths: string[] = []
+  const kinds: string[] = []
+  let acted = false
+  let files = false
+  for (let i = 1; i < argv.length; i++) {
+    const word = argv[i]!
+    if (word === '-exec' || word === '-execdir') {
+      acted = true
+      do i++
+      while (i < argv.length && argv[i] !== ';' && !(argv[i] === '+' && argv[i - 1] === '{}'))
+    } else if (FIND_VALUED.has(word)) {
+      const value = argv[++i] ?? ''
+      if (word === '-maxdepth') depths.push(value)
+      if (word === '-type') kinds.push(value)
+      if (word === '-type' && value === 'f' && !acted) files = true
+    } else if (FIND_PLAIN.has(word)) acted ||= word === '-print' || word === '-print0'
+    else if (word.startsWith('-') || word === '!' || word === ',') return undefined
+  }
+  return depths.length === 1 && /^\d+$/.test(depths[0]!) && kinds.length === 1 && files ? Number(depths[0]) : undefined
+}
+
+function storeBelowDepth(word: string, cwd: string, homes: readonly string[], depth: number): boolean {
+  return protectedPathForms(word, cwd).every(form => (!HOLDS_CONVENTIONAL_HOME.test(form) || depth <= 1) && homes.every(home => !home.startsWith(`${form}/`) || home.slice(form.length + 1).split(/[\\/]/).length >= depth))
+}
+
+function searchesText(found: Layer): boolean {
+  if (found.program !== 'select-string' && found.program !== 'sls') return false
+  return !found.argv.slice(1).some(word => word.includes('$') || word.includes(UNREAD_PART) || /^-(?:path|pspath|lp|lit[a-z]*)(?::|$)/i.test(word))
+}
+
+function stagesApart(lister: ReadCommand, later: ReadCommand): number | undefined {
+  const from = lister.stages
+  const next = later.stages
+  const last = from[from.length - 1]
+  const reader = next[next.length - 1]
+  if (last === undefined || reader === undefined || from.length !== next.length || last.pipeline !== reader.pipeline) return undefined
+  return next.slice(0, -1).every((stage, index) => stage.pipeline === from[index]!.pipeline && stage.stage === from[index]!.stage) ? reader.stage - last.stage : undefined
+}
+
+function makesText(layer: Layer): boolean {
+  if (layer.program === 'out-string') return true
+  return (layer.program === '%' || layer.program === 'foreach-object' || layer.program === 'foreach') && layer.argv.length === 2 && /^(?:fullname|name|basename|directoryname|extension)$/i.test(layer.argv[1]!)
+}
+
+function searchesTextOfListing(lister: ReadCommand, later: ReadCommand, found: Layer, commands: readonly ReadCommand[]): boolean {
+  if (!searchesText(found) || stagesApart(lister, later) !== 2) return false
+  const between = commands.filter(command => stagesApart(lister, command) === 1)
+  return between.length === 1 && layersOf(between[0]!.argv).every(makesText)
+}
+
+function searchesNamesAsText(lister: ReadCommand, later: ReadCommand, found: Layer, read: ShellRead): boolean {
+  if (!searchesText(found)) return false
+  if (stagesApart(lister, later) === 1) return true
+  const from = lister.stages
+  const next = later.stages
+  const last = from[from.length - 1]
+  const block = from[from.length - 2]
+  const reader = next[next.length - 1]
+  if (last === undefined || block === undefined || reader === undefined || from.length !== next.length + 1 || read.pipelineSizes[last.pipeline] !== 1) return false
+  const within = (other: ReadCommand): boolean => other.stages.length >= from.length && from.slice(0, -1).every((stage, index) => other.stages[index]!.pipeline === stage.pipeline && other.stages[index]!.stage === stage.stage)
+  if (read.commands.some(other => other !== lister && within(other))) return false
+  return next.slice(0, -1).every((stage, index) => stage.pipeline === from[index]!.pipeline && stage.stage === from[index]!.stage) && block.pipeline === reader.pipeline && block.stage + 1 === reader.stage
+}
+
+function standingSpelled(root: string): string {
+  return root.replace(/^\$\{?pwd\}?(?=[\\/]|$)/i, '.')
+}
+
+function joinedUnderStanding(word: string, inner: readonly number[] | undefined, read: ShellRead): string {
+  const joiner = word === UNREAD_PART && inner?.length === 1 ? read.commands[inner[0]!] : undefined
+  const layer = joiner === undefined ? undefined : layersOf(joiner.argv)[0]
+  if (layer === undefined || layer.program !== 'join-path') return word
+  const parts = layer.argv.slice(1).filter(part => !/^-(?:path|childpath)$/i.test(part))
+  return parts.length === 2 && /^(?:\.|\$\{?pwd\}?)$/i.test(parts[0]!) && wordKnown(parts[1]!) && !GLOB_PART.test(parts[1]!) ? `./${parts[1]}` : word
+}
+
+function powershellListing(argv: readonly string[]): { roots: string[]; deep: boolean; names: boolean; patterned: string[]; sifts: string[][] } {
   const named: string[] = []
   const loose: string[] = []
+  const sifts: string[][] = []
   let deep = false
   let unsure = false
   let names = false
@@ -672,16 +953,24 @@ function powershellListing(argv: readonly string[]): { roots: string[]; deep: bo
     }
     const value = colon < 0 ? argv[++i] : word.slice(colon + 1)
     if (value !== undefined && (valued === 'path' || valued === 'literalpath' || valued === 'pspath' || valued === 'lp')) named.push(...listOf(value))
+    if (value !== undefined && (valued === 'filter' || valued === 'include')) {
+      const patterns = listOf(value)
+      for (let next = i + 1; next < argv.length && !argv[next]!.startsWith('-'); next++) patterns.push(...listOf(argv[next]!))
+      sifts.push(valued === 'filter' ? patterns.map(pattern => `*${/\.[^.*?[\]]+$/.exec(pattern)?.[0] ?? ''}*`) : patterns)
+    }
   }
+  const patterned: string[] = []
   const roots = [...named, ...loose].map(root => {
-    const segments = root.split(/[\\/]/)
+    const segments = standingSpelled(root).split(/[\\/]/)
     const at = segments.findIndex(segment => GLOB_PART.test(segment))
     if (at < 0) return root
-    deep = true
-    return segments.slice(0, at).join('/') || (/^[\\/]/.test(root) ? '/' : '.')
+    const fixed = segments.slice(0, at).join('/')
+    patterned.push(segments.join('/'))
+    if (/[$(@]/.test(fixed) || fixed.includes(UNREAD_PART)) patterned.push(segments.slice(at).join('/'))
+    return fixed || (/^[\\/]/.test(root) ? '/' : '.')
   })
-  if (roots.length === 0 || unsure || roots.some(root => /[$(@]/.test(root) || root.includes(UNREAD_PART))) roots.push('.')
-  return { roots, deep, names }
+  if (roots.length === 0 || unsure || roots.some(root => /[$(@]/.test(standingSpelled(root)) || root.includes(UNREAD_PART))) roots.push('.')
+  return { roots, deep, names, patterned, sifts }
 }
 
 const FIND_NON_READERS = new Set(['ls', 'stat', 'echo', 'printf', 'file', 'du', 'wc', 'basename', 'dirname', 'realpath', 'readlink', 'test', '[', 'true', 'touch', 'chmod', 'chown', 'rm', 'rmdir', 'unlink', 'mv'])
@@ -693,7 +982,7 @@ function holdsMercuryHome(word: string, cwd: string, homes: readonly string[], h
 
 const GLOB_PART = /[*?[{]/
 
-function globNamesStore(word: string, cwd: string, homes: readonly string[], hidden: boolean): boolean {
+function globNamesStore(word: string, cwd: string, homes: readonly string[], hidden: boolean, dotted = false): boolean {
   if (!GLOB_PART.test(word) || word.includes(UNREAD_PART)) return false
   const expanded = spelling(word)
   const segments = expanded.split(/[\\/]/)
@@ -713,8 +1002,8 @@ function globNamesStore(word: string, cwd: string, homes: readonly string[], hid
     for (const home of [...homes, ...(HOLDS_CONVENTIONAL_HOME.test(folder) ? [under + posix.basename(defaultMercuryHome().replace(/\\/g, '/')).toLowerCase()] : [])]) {
       if (!home.startsWith(under)) continue
       const below = home.slice(under.length).split(/[\\/]/)
-      if (patterns.length > below.length) continue
-      if (!patterns.every((pattern, index) => tests[index]!.test(below[index]!) && (dotLed(pattern) || !below[index]!.startsWith('.')))) continue
+      if (patterns.length > below.length && !dotted) continue
+      if (!below.every((segment, index) => index >= patterns.length || (tests[index]!.test(segment) && (dotted || dotLed(patterns[index]!) || !segment.startsWith('.'))))) continue
       if (hidden || !below.slice(patterns.length).some(segment => segment.startsWith('.'))) return true
     }
   }
@@ -791,17 +1080,12 @@ function foldersOnDisk(pattern: string): string[] {
     } else found = next
     if (found.length === 0) return []
   }
-  return found.filter(folder => {
-    try {
-      return statSync(folder).isDirectory()
-    } catch {
-      return false
-    }
-  })
+  return found.filter(canBeEntered)
 }
 
-function standsAsFolder(path: string): boolean {
+function canBeEntered(path: string): boolean {
   try {
+    accessSync(path, constants.X_OK)
     return statSync(path).isDirectory()
   } catch {
     return false
@@ -816,20 +1100,21 @@ function foldersAfter(read: ShellRead, at: number, cwd: string): { folders: stri
   const stayed: string[] = []
   for (let index = at - 1; index >= 0; index--) {
     const turn = read.commands[index]!
-    const layer = layersOf(turn.argv)[0]
-    if (layer === undefined || !CD_PROGRAMS.has(layer.program) || turn.cwd === undefined) continue
-    const operands = layer.argv.slice(1).filter(word => !/^-[A-Za-z]+$/.test(word))
+    const move = moveOf(turn)
+    if (move === undefined || !CD_PROGRAMS.has(move.program) || turn.cwd === undefined) continue
+    const operands = move.operands
     const switched = process.platform === 'win32' && operands.length === 2 && /^\/d$/i.test(operands[0]!)
     const target = switched ? operands[1] : operands[0]
-    if (target === undefined || target === '-' || !wordKnown(target)) continue
-    const named = absolutePath(turn.dialect === 'powershell' ? target.replace(/\\/g, '/') : target, turn.cwd, floorsWorld(turn.cwd))
+    const bare = target === undefined && turn.dialect === 'powershell' && move.program !== 'pushd' && move.program !== 'push-location' ? (read.homes.at(-1) ?? floorsWorld(turn.cwd).home) : undefined
+    if (bare === undefined && (target === undefined || target === '-' || !wordKnown(target))) continue
+    const named = bare ?? absolutePath(turn.dialect === 'powershell' ? target!.replace(/\\/g, '/') : target!, turn.cwd, floorsWorld(turn.cwd))
     if (named === undefined || (stands !== named && !stands.startsWith(`${named}/`))) continue
     const gated = (simple.gates ?? []).some(([from, to]) => index >= from && index < to)
     const ran =
       !turn.background &&
       (turn.maybes ?? []).every(context => (simple.maybes ?? []).includes(context)) &&
       (turn.gates ?? []).every(([from, to]) => (simple.gates ?? []).some(([start, end]) => (start === from && end === to) || (index >= start && index < end)))
-    const moved = gated || ((operands.length === 1 || switched) && (GLOB_PART.test(named) ? foldersNamedBy(named).length > 0 : standsAsFolder(named)))
+    const moved = bare === undefined && (gated || ((operands.length === 1 || switched) && (GLOB_PART.test(named) ? foldersNamedBy(named).length > 0 : canBeEntered(named))))
     if (ran && moved) continue
     stayed.push(posix.join(turn.cwd, stands.slice(named.length)), turn.cwd)
   }
@@ -845,10 +1130,10 @@ function foldersRead(read: ShellRead, at: number, cwd: string): { folders: strin
   }
   for (let index = at - 1; index >= 0; index--) {
     const turn = read.commands[index]!
-    const layer = layersOf(turn.argv)[0]
-    if (layer === undefined || !CD_PROGRAMS.has(layer.program)) continue
+    const move = moveOf(turn)
+    if (move === undefined || !CD_PROGRAMS.has(move.program)) continue
     const before = turn.cwd ?? cwd
-    let target = layer.argv.slice(1).find(word => !/^-[A-Za-z]+$/.test(word))
+    let target = move.operands[0]
     if (target === UNREAD_PART) {
       const fed = turn.inner.flat()
       const printed = fed.length === 1 && read.commands[fed[0]!] !== undefined ? printedBy(read.commands[fed[0]!]!) : undefined
@@ -856,7 +1141,7 @@ function foldersRead(read: ShellRead, at: number, cwd: string): { folders: strin
     }
     if (target === undefined || target === '-' || target.includes(UNREAD_PART) || /[$`\s]/.test(spelling(target))) return { folders: [before], lost: true }
     const pattern = /^[A-Za-z]:\//.test(spelling(target)) ? spelling(target) : placedUnder(target, before) !== target ? placedUnder(target, before) : expandPath(spelling(target), before)
-    const named = GLOB_PART.test(pattern) ? foldersNamedBy(pattern) : standsAsFolder(pattern) ? [pattern] : []
+    const named = GLOB_PART.test(pattern) ? foldersNamedBy(pattern) : canBeEntered(pattern) ? [pattern] : []
     const gated = (simple.gates ?? []).some(([from, to]) => index >= from && index < to)
     return { folders: [...named, ...(named.includes(pattern) ? [] : [pattern]), ...(named.length > 0 || gated ? [] : [before])], lost: false }
   }
@@ -874,6 +1159,8 @@ function ripgrepReachesHidden(layer: Layer, simple: ReadCommand, read: ShellRead
 }
 
 function treeReadRoots(layer: Layer, fed: boolean, cwd: string, cwdHolds: boolean): string[] {
+  const searched = gitGrepRoots(layer, cwd)
+  if (searched !== undefined) return searched
   const words = layer.argv.slice(1)
   const plain = words.filter(word => word !== '' && !word.startsWith('-'))
   const { program } = layer
@@ -910,6 +1197,19 @@ function treeReadRoots(layer: Layer, fed: boolean, cwd: string, cwdHolds: boolea
     return fed || !cwdHolds || rest.some(word => !wordKnown(word) || existsSync(expandPath(spelling(word), cwd))) ? rest : [...rest, '.']
   }
   return plain
+}
+
+function namesNoSecret(patterns: readonly string[], homes: readonly string[]): boolean {
+  const secrets = [...SECRET_NAME_SAMPLES, ...homes.flatMap(secretsHeld), ...homes.flatMap(home => home.split(/[\\/]/)), posix.basename(defaultMercuryHome().replace(/\\/g, '/'))].filter(name => name !== '').map(name => name.toLowerCase())
+  return patterns.length > 0 && patterns.every(pattern => {
+    if (!wordKnown(pattern)) return false
+    try {
+      const test = new RegExp(`^${wildcardSource(pattern.toLowerCase())}$`)
+      return !secrets.some(secret => test.test(secret))
+    } catch {
+      return false
+    }
+  })
 }
 
 function findNamesASecret(argv: readonly string[], homes: readonly string[]): boolean {
@@ -994,12 +1294,20 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
     handed.set(at, answer)
     return answer
   }
+  const endsInside = (simple: ReadCommand): boolean => {
+    const last = read.commands.find(other => other !== simple && stagesApart(simple, other) !== undefined && other.stages.at(-1)!.stage === read.pipelineSizes[other.stages.at(-1)!.pipeline]! - 1)
+    return last !== undefined && FIND_NON_READERS.has(layersOf(last.argv)[0]?.program ?? '')
+  }
+  const loopedToReader = (at: number, simple: ReadCommand): boolean =>
+    ((simple.substituted === true && !fed.has(at) && !endsInside(simple)) || read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => found.program === 'read'))) &&
+    read.commands.some((later, index) => index > at && layersOf(later.argv).some(found => FILE_READERS.has(found.program) && found.argv.slice(1).some(word => !wordKnown(word))))
   const whereItStays = (here: string): string => `the whole of ${here}, where this line stays if the cd before it fails (join them with && so the read runs only after the cd)`
   for (const { at, simple, here, stayed } of read.commands.flatMap((simple, at) => {
     const stands = foldersRead(read, at, cwd).folders
     return foldersAfter(read, at, cwd).folders.map(here => ({ at, simple, here, stayed: !powershell && !stands.includes(here) }))
   })) {
-    const layers = layersOf(simple.argv)
+    const words = powershell ? simple.argv.map((word, index) => joinedUnderStanding(word, simple.inner[index], read)) : simple.argv
+    const layers = layersOf(words)
     const fedNames = layers.some(layer => FILE_READERS.has(layer.program) && layer.wrappers.includes('xargs'))
     for (const redirect of simple.redirects) {
       if (redirect.op !== '<') continue
@@ -1017,32 +1325,34 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
     for (const layer of layers) {
       const item = keychainItemRead(layer)
       if (item !== null) return item
-      const roots = layer.findRoots !== undefined && layer.argv !== simple.argv ? layer.findRoots : []
+      const roots = layer.findRoots !== undefined && layer.argv !== words ? layer.findRoots : []
       const tree = readsWholeTree(layer)
       const sent = filesSentOrPrinted(layer)
       const lists = layer.program === 'find' || layer.program === 'ls' || layer.program === 'get-childitem' || layer.program === 'gci' || layer.program === 'dir'
       const listing = powershell && POWERSHELL_LISTERS.has(layer.program) ? powershellListing(layer.argv) : null
-      const listed = listing !== null && read.commands.some((later, index) => index > at && layersOf(later.argv).some(found => readsHandedFiles(found) && !(listing.names && searchesNamesAsText(simple, later, found)))) ? listing : null
-      const feeds = lists && (fed.has(at) || listed !== null || read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => found.wrappers.includes('xargs') || found.program === 'xargs')))
-      for (const word of [...layer.argv.slice(1), ...roots, ...(listed === null ? [] : listed.roots), ...(layer.program === 'findstr' ? findstrFolderFiles(layer.argv.slice(1)) : [])]) {
-        for (const candidate of [...spellingsOf(word), ...underOtherHomes(word, read.homes)]) {
+      const listed = listing !== null && read.commands.some((later, index) => index > at && ((callsUnreadName(later) && receivesListing(at, simple, later, index, read)) || layersOf(later.argv).some(found => readsHandedFiles(found) && !(listing.names && searchesNamesAsText(simple, later, found, read)) && !searchesTextOfListing(simple, later, found, read.commands)))) ? listing : null
+      const feeds = lists && (fed.has(at) || listed !== null || read.commands.some(later => sharesEarlierStage(simple, later) && layersOf(later.argv).some(found => found.wrappers.includes('xargs') || found.program === 'xargs')) || (!powershell && layer.program === 'find' && loopedToReader(at, simple)))
+      for (const word of [...layer.argv.slice(1), ...roots, ...(listed === null ? [] : listed.roots), ...(layer.program === 'findstr' ? findstrFolderFiles(layer.argv.slice(1)) : []), ...(gitGrepRoots(layer, here) ?? []), ...(layer.program === 'find' && layer.findRoots?.length === 0 ? ['.'] : []), ...(!powershell && !fed.has(at) && (layer.program === 'ls' || layer.program === 'dir') && layer.argv.slice(1).every(word => word.startsWith('-')) ? ['.'] : [])]) {
+        for (const candidate of [...spellingsOf(powershell ? standingSpelled(word) : word), ...underOtherHomes(word, read.homes)]) {
           if (mercurySecretPath(candidate, here) !== null || ((FILE_READERS.has(layer.program) || sent.has(word) || handedToReader(at, simple)) && couldNameSecret(candidate, here, homes, !wordKnown(candidate)))) return word
           if ((FILE_READERS.has(layer.program) || UPLOADERS.has(layer.program) || sent.has(word)) && secretNameBehindUnread(candidate, homes)) return candidate.replaceAll(UNREAD_PART, '$(…)')
-          if ((tree || feeds) && namesMercuryHome(candidate, here, homes)) return word
+          if ((tree || feeds) && namesMercuryHome(candidate, here, homes)) return stayed && word === '.' ? whereItStays(here) : word
         }
       }
       const searcher = searcherOf(layer)
       const piped = simple.input !== undefined || simple.stages.some(stage => stage.stage > 0) || simple.redirects.some(redirect => redirect.op === '<')
       if (searcher !== undefined && !piped && namesMercuryHome('.', here, homes) && treeReadRoots(searcher, false, here, true).includes('.')) return stayed ? whereItStays(here) : '.'
       const finder = layer.program === 'find' ? layer : layer.findRoots === undefined ? undefined : layers.find(outer => outer.program === 'find')
-      const whole = finder === undefined ? tree || (listed !== null && listed.deep) : findNamesASecret(finder.argv, homes) && (layer === finder ? feeds : !FIND_NON_READERS.has(layer.program))
+      const whole = finder === undefined ? tree || (listed !== null && !listed.sifts.some(patterns => namesNoSecret(patterns, homes)) && (listed.deep || listed.patterned.some(word => globNamesStore(word, here, homes, true, true)))) : findNamesASecret(finder.argv, homes) && (layer === finder ? feeds : !FIND_NON_READERS.has(layer.program))
       if (!whole) continue
       const handed = simple.input !== undefined || simple.stages.some(stage => stage.stage > 0) || simple.redirects.some(redirect => redirect.op === '<')
       const hidden = layer.program !== 'rg' || ripgrepReachesHidden(layer, simple, read)
       const held = finder !== undefined ? (finder.findRoots === undefined || finder.findRoots.length === 0 ? ['.'] : finder.findRoots) : listed !== null ? listed.roots : treeReadRoots(layer, handed, here, holdsMercuryHome('.', here, homes, hidden))
-      for (const root of held.flatMap(one => (powershell && !wordKnown(one) ? [one, '.'] : [one]))) {
-        for (const candidate of [...spellingsOf(root), ...underOtherHomes(root, read.homes)]) {
-          if (holdsMercuryHome(candidate, here, homes, hidden) || globNamesStore(candidate, here, homes, hidden)) return stayed && root === '.' ? whereItStays(here) : `the whole of ${root === '.' ? 'this folder' : root} (name a folder beneath it)`
+      const depth = finder === undefined || (layer !== finder && tree) || layers.filter(found => found.program === 'find').length !== 1 ? undefined : findMaxDepth(finder.argv)
+      for (const root of held.flatMap(one => (powershell && !wordKnown(standingSpelled(one)) ? [one, '.'] : [one]))) {
+        for (const candidate of [...spellingsOf(powershell ? standingSpelled(root) : root), ...underOtherHomes(root, read.homes)]) {
+          if (depth !== undefined && wordKnown(candidate) && !GLOB_PART.test(candidate) && storeBelowDepth(candidate, here, homes, depth)) continue
+          if (holdsMercuryHome(candidate, here, homes, hidden) || globNamesStore(candidate, here, homes, hidden)) return stayed && root === '.' ? whereItStays(here) : `the whole of ${root === '.' || (powershell && standingSpelled(root) === '.') ? 'this folder' : root} (name a folder beneath it)`
         }
       }
     }
@@ -1052,6 +1362,19 @@ async function readSecretReach(command: string, powershell: boolean, cwd: string
     for (const word of [...simple.redirects.filter(redirect => redirect.op === '<').map(redirect => redirect.target), ...layersOf(simple.argv).flatMap(layer => layer.argv.slice(1))]) {
       if (word === '' || /^(?:[/~-]|[A-Za-z]:)/.test(word) || word.includes(UNREAD_PART)) continue
       for (const home of homes) if (mercurySecretPath(word, home) !== null) return word
+    }
+  }
+  const words = unreadWords(read, command, powershell)
+  if (words.length > 0) {
+    const stands = namesMercuryHome('.', cwd, homes)
+    const needles = [...SECRET_NAME_SAMPLES, ...homes.flatMap(secretsHeld), ...homes.map(home => posix.basename(home))].map(name => name.toLowerCase())
+    for (const word of words) {
+      const lower = word.toLowerCase()
+      if (!needles.some(needle => lower.includes(needle)) && !/^[~$%]/.test(word) && !(stands && (word === '.' || word.startsWith('./') || GLOB_PART.test(word)))) continue
+      for (const candidate of spellingsOf(powershell ? standingSpelled(word) : word)) {
+        const names = mercurySecretPath(candidate, cwd) !== null || namesMercuryHome(candidate, cwd, homes) || (wordKnown(candidate) && couldNameSecret(candidate, cwd, homes)) || (!/^(?:[/~-]|[A-Za-z]:)/.test(candidate) && homes.some(home => mercurySecretPath(candidate, home) !== null))
+        if (names) return `${word} (${UNREAD_ADVICE})`
+      }
     }
   }
   return null
@@ -1258,7 +1581,7 @@ async function readSelfProtection(command: string, powershell: boolean, cwd: str
           }
         }
       }
-      for (const target of [...runtimeTargetsOf(layer), ...runtimeOperands(layer.argv)]) {
+      for (const target of [...runtimeTargetsOf(layer), ...runtimeOperands(layer.argv, simple.dialect === 'powershell')]) {
         const hit = runtimeWritePath(target.path, here, target.removesTree)
         if (hit !== null) return changing(target.path, hit)
       }
@@ -1274,6 +1597,14 @@ async function readSelfProtection(command: string, powershell: boolean, cwd: str
           }
         }
       }
+    }
+  }
+  const words = unreadWords(read, command, powershell)
+  const removes = words.some(word => TREE_MOVERS.includes(verb(word)))
+  if (removes || words.some(word => WRITERS.has(verb(word)) || OTHER_WRITERS.has(verb(word)) || RUNTIME_WRITERS.has(verb(word))) || (words.length > 0 && WRITE_REDIRECT.test(command))) {
+    for (const word of words) {
+      const hit = pathLike(word) ? runtimeWritePath(word, cwd, removes) : null
+      if (hit !== null) return `${changing(word, hit)} ${UNREAD_ADVICE}.`
     }
   }
   return null
@@ -1294,7 +1625,7 @@ async function namedSelfProtectionReason(command: string, powershell: boolean, c
     }
     const processReason = await runtimeProcessRefusal(commands)
     if (processReason) return processReason
-    for (const target of runtimeOperands(argv)) {
+    for (const target of runtimeOperands(argv, ps)) {
       const hit = runtimeWritePath(target.path, cwd, target.removesTree)
       if (hit !== null) return 'Changing ' + target.path + ' is refused: ' + hit + ' is part of Mercury’s running runtime.'
     }
