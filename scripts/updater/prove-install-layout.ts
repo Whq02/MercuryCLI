@@ -434,6 +434,9 @@ console.log('── §7d a Windows uninstall run from the install it removes han
   const layoutSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'privateChannel', 'installLayout.ts'), 'utf8')
   check("the helper's command carries no path of the user's: it is handed encoded and reads its paths from its environment",
     layoutSource.includes("'-EncodedCommand'") && layoutSource.includes('$env:MERCURY_UNINSTALL_PATHS') && layoutSource.includes('$env:MERCURY_UNINSTALL_DIR') && layoutSource.includes('-LiteralPath $p'))
+  check('the helper waits for the uninstalling process itself to end before its first removal, however long that command still takes (the PATH entry is written after the helper starts)',
+    layoutSource.includes('MERCURY_UNINSTALL_PID: String(process.pid)') && layoutSource.includes('[int]::TryParse($env:MERCURY_UNINSTALL_PID, [ref]$owner)') && layoutSource.includes('Wait-Process -Id $owner -Timeout 120')
+      && layoutSource.indexOf('Wait-Process -Id $owner') < layoutSource.indexOf('Remove-Item -LiteralPath $p'))
   const verbSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'installVerb.ts'), 'utf8')
   check('the verb exits non-zero only when something of Mercury\'s could not be removed', verbSource.includes('const left = report.leftVersionMembers.length > 0 || report.leftSetMembers.length > 0') && verbSource.includes('return left ? cliError(text) : cliOk(text)'))
 }

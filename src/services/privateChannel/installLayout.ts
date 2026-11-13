@@ -994,6 +994,8 @@ function liesInside(root: string, path: string, isWindows: boolean): boolean {
 
 const UNINSTALL_AFTER_EXIT_SCRIPT = [
   "$paths = $env:MERCURY_UNINSTALL_PATHS -split '\\|'",
+  '$owner = 0',
+  'if ([int]::TryParse($env:MERCURY_UNINSTALL_PID, [ref]$owner) -and $owner -gt 0) { Wait-Process -Id $owner -Timeout 120 -ErrorAction SilentlyContinue }',
   'for ($i = 0; $i -lt 20; $i++) {',
   '  Start-Sleep -Milliseconds 1500',
   '  $left = 0',
@@ -1015,7 +1017,7 @@ function removeAfterExitOnWindows(paths: string[], versionsDir: string): boolean
         stdio: 'ignore',
         windowsHide: true,
         cwd: homedir(),
-        env: { ...subprocessEnv(), MERCURY_UNINSTALL_PATHS: paths.join('|'), MERCURY_UNINSTALL_DIR: versionsDir },
+        env: { ...subprocessEnv(), MERCURY_UNINSTALL_PATHS: paths.join('|'), MERCURY_UNINSTALL_DIR: versionsDir, MERCURY_UNINSTALL_PID: String(process.pid) },
       },
     )
     child.on('error', () => {})
