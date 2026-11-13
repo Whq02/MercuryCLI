@@ -39,6 +39,7 @@ export type InstructionRuleReading =
 export type InstructionRuleFormat = {
   accepts(fileName: string): boolean
   read(frontmatter: FrontmatterData, alone: boolean): InstructionRuleReading
+  readonly failsOpen?: boolean
 }
 
 export type InstructionFamily = 'native' | 'shared'
@@ -56,6 +57,7 @@ export type InstructionConvention = {
   readonly fallback?: boolean
   readonly label?: string
   readonly belowHome?: boolean
+  readonly nearestOnly?: boolean
   projectDirFiles(dir: string): string[]
   projectRulesDirs(dir: string): string[]
   localDirFile(dir: string): string | null

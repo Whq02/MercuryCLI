@@ -242,9 +242,10 @@ type RulesCase = {
   ext: string
   always(body: string): string
   scoped(patterns: string[], body: string): string
+  nearestOnly?: boolean
 }
 
-export function rulesBattery({ world, check, section, convention, folder, ext, always, scoped }: RulesCase): void {
+export function rulesBattery({ world, check, section, convention, folder, ext, always, scoped, nearestOnly = false }: RulesCase): void {
   const rule = (name: string): string => `${folder}/${name}${ext}`
   const attachedPaths = (touch: WorldTouch): string[] => touch.attached.map(a => a.path)
 
@@ -273,7 +274,8 @@ export function rulesBattery({ world, check, section, convention, folder, ext, a
   check('the attached rule is held as a partial view: its header was not shown', d1.touched[1]!.attached[0]?.partial === true)
   check('a second matching file attaches nothing more', d1.touched[2]!.attached.length === 0, JSON.stringify(d1.touched[2]))
   check('a file of the other scope attaches the other rule', JSON.stringify(attachedPaths(d1.touched[3]!)) === JSON.stringify([join(p1, rule('30-docs'))]), JSON.stringify(d1.touched[3]))
-  check('a rule whose header was stripped is not counted as read in full', !d1.seeded.includes(general), d1.seeded.join(', '))
+  if (always('x') === 'x') check('a plain rule shown whole counts as read in full', d1.seeded.includes(general), d1.seeded.join(', '))
+  else check('a rule whose header was stripped is not counted as read in full', !d1.seeded.includes(general), d1.seeded.join(', '))
 
   section(`${folder}: the vendor's patterns: no slash means the root's files, braces and lists hold`)
   const p2 = world.project({
@@ -304,9 +306,23 @@ export function rulesBattery({ world, check, section, convention, folder, ext, a
     'packages/app/main.go': '\n',
   })
   const d3 = world.drive(join(p3, 'packages/app'), { trust: p3, touch: [join(p3, 'packages/app/main.go'), join(p3, 'packages/app/lib/a.ts')] })
-  check('started below it, the always rule of the folder above composes', d3.first === contentsOf(join(p3, rule('general')), 'outer-always-needle'), d3.first)
-  check('a file neither scope names attaches nothing', d3.touched[0]!.attached.length === 0, JSON.stringify(d3.touched[0]))
-  check('each rule is matched from its own owning folder', JSON.stringify(attachedPaths(d3.touched[1]!).sort()) === JSON.stringify([join(p3, rule('packages')), join(p3, 'packages/app', rule('local'))].sort()), JSON.stringify(d3.touched[1]))
+  if (nearestOnly) {
+    check('started in a folder that holds its own, the folder above is not read: the nearest one alone', d3.first === '', d3.first)
+    check('a file neither scope names attaches nothing', d3.touched[0]!.attached.length === 0, JSON.stringify(d3.touched[0]))
+    check('only the rule of the nearest folder is matched', JSON.stringify(attachedPaths(d3.touched[1]!)) === JSON.stringify([join(p3, 'packages/app', rule('local'))]), JSON.stringify(d3.touched[1]))
+    const p3b = world.project({
+      [rule('general')]: always('outer-always-needle\n'),
+      [rule('packages')]: scoped(['packages/app/**/*.ts'], 'outer-scoped-needle\n'),
+      'packages/app/lib/a.ts': '\n',
+    })
+    const d3b = world.drive(join(p3b, 'packages/app'), { trust: p3b, touch: [join(p3b, 'packages/app/lib/a.ts')] })
+    check('started below the only one, it is found by walking up', d3b.first === contentsOf(join(p3b, rule('general')), 'outer-always-needle'), d3b.first)
+    check('and its scoped rule is matched from its own owning folder', JSON.stringify(attachedPaths(d3b.touched[0]!)) === JSON.stringify([join(p3b, rule('packages'))]), JSON.stringify(d3b.touched[0]))
+  } else {
+    check('started below it, the always rule of the folder above composes', d3.first === contentsOf(join(p3, rule('general')), 'outer-always-needle'), d3.first)
+    check('a file neither scope names attaches nothing', d3.touched[0]!.attached.length === 0, JSON.stringify(d3.touched[0]))
+    check('each rule is matched from its own owning folder', JSON.stringify(attachedPaths(d3.touched[1]!).sort()) === JSON.stringify([join(p3, rule('packages')), join(p3, 'packages/app', rule('local'))].sort()), JSON.stringify(d3.touched[1]))
+  }
 
   section(`${folder}: a rules folder in a nested folder loads with its folder`)
   const p4 = world.project({

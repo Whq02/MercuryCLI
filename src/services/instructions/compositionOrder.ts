@@ -1,5 +1,6 @@
 import { agentFoldersConvention } from './adapters/agentFolders.js'
 import { agentsMdConvention } from './adapters/agentsMd.js'
+import { clineConvention } from './adapters/cline.js'
 import { copilotConvention } from './adapters/copilot.js'
 import { cursorConvention } from './adapters/cursor.js'
 import { geminiConvention } from './adapters/gemini.js'
@@ -14,6 +15,7 @@ const SHARED_CONVENTIONS: readonly InstructionConvention[] = [
   copilotConvention,
   cursorConvention,
   windsurfConvention,
+  clineConvention,
 ]
 
 export function sharedRuleFormatOf(conventionId: string | undefined): InstructionConvention | undefined {

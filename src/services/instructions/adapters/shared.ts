@@ -10,6 +10,7 @@ type SharedFormat = {
   guides?: readonly string[]
   ruleSources?: readonly string[]
   rules?: InstructionRuleFormat
+  nearestOnly?: boolean
 }
 
 const under = (dir: string, relative: string): string => join(dir, ...relative.split('/'))
@@ -25,7 +26,7 @@ function folderAbove(filePath: string, relative: string): string | null {
   return at === -1 ? null : filePath.slice(0, at)
 }
 
-export function sharedFormat({ id, label, guides = [], ruleSources = [], rules }: SharedFormat): InstructionConvention {
+export function sharedFormat({ id, label, guides = [], ruleSources = [], rules, nearestOnly }: SharedFormat): InstructionConvention {
   const ownerOf = (source: string): string | null => {
     for (const relative of ruleSources) {
       const folder = folderHolding(source, relative)
@@ -39,6 +40,7 @@ export function sharedFormat({ id, label, guides = [], ruleSources = [], rules }
     fallback: true,
     label,
     belowHome: true,
+    nearestOnly,
     projectDirFiles: dir => guides.map(guide => under(dir, guide)),
     projectRulesDirs: dir => ruleSources.map(source => under(dir, source)),
     localDirFile: () => null,

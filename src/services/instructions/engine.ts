@@ -74,6 +74,7 @@ type InstructionCompositionState = {
   resolution: InstructionProfileResolution
   adapterId: string
   fallbackComposed: boolean
+  nearestHolders: Record<string, string>
   skippedDuplicates: { path: string; family: InstructionFamily }[]
   diagnostics: InstructionDiagnostic[]
   loadReason: string
@@ -87,6 +88,7 @@ let lastComposition: InstructionCompositionState = {
   },
   adapterId: 'mercury',
   fallbackComposed: false,
+  nearestHolders: {},
   skippedDuplicates: [],
   diagnostics: [],
   loadReason: 'session_start',
@@ -116,14 +118,20 @@ function folderReader(start: string): (convention: InstructionConvention, dir: s
   return (convention, dir) => !convention.belowHome || dir === start || !pathInWorkingPath(home, dir)
 }
 
+function holdsSources(convention: InstructionConvention, dir: string): boolean {
+  const fs = getFsImplementation()
+  return [...convention.projectDirFiles(dir), ...convention.projectRulesDirs(dir)].some(path => fs.existsSync(path))
+}
+
 async function walkConventions(
   conventions: InstructionConvention[],
   forceIncludeExternal: boolean,
   skippedDuplicates: { path: string; family: InstructionFamily }[],
   diagnostics?: InstructionDiagnostic[],
-): Promise<{ entries: InstructionSourceEntry[]; fallbackComposed: boolean }> {
+): Promise<{ entries: InstructionSourceEntry[]; fallbackComposed: boolean; nearestHolders: Record<string, string> }> {
   const result: InstructionSourceEntry[] = []
   let fallbackComposed = false
+  const nearestHolders: Record<string, string> = {}
   const processedPaths = new Set<string>()
   const composedDigests = new Set<string>()
   const config = getCurrentProjectConfig()
@@ -256,8 +264,12 @@ async function walkConventions(
         normalizePathForComparison(canonicalRoot) &&
       pathInWorkingPath(gitRoot, canonicalRoot)
 
-    const outerFirst = dirs.reverse()
     const reads = folderReader(chainRoot)
+    for (const convention of conventions.filter(c => c.nearestOnly)) {
+      const holder = dirs.find(dir => reads(convention, dir) && holdsSources(convention, dir))
+      if (holder !== undefined) nearestHolders[convention.id] = holder
+    }
+    const outerFirst = dirs.reverse()
     const composeChain = async (set: InstructionConvention[]): Promise<void> => {
       for (const dir of outerFirst) {
         const skipProject =
@@ -266,7 +278,8 @@ async function walkConventions(
           !pathInWorkingPath(dir, gitRoot)
 
         for (const convention of set) {
-          if (isSettingSourceEnabled('projectSettings') && !skipProject && reads(convention, dir)) {
+          const holds = !convention.nearestOnly || nearestHolders[convention.id] === dir
+          if (isSettingSourceEnabled('projectSettings') && !skipProject && reads(convention, dir) && holds) {
             for (const projectPath of convention.projectDirFiles(dir)) {
               push(
                 await processInstructionFile(
@@ -338,7 +351,7 @@ async function walkConventions(
 
   await walkRootChain(getOriginalCwd(), 'project-walk', true)
 
-  return { entries: result, fallbackComposed }
+  return { entries: result, fallbackComposed, nearestHolders }
 }
 
 export const getInstructionFiles = memoize(
@@ -355,7 +368,7 @@ export const getInstructionFiles = memoize(
     const skippedDuplicates: { path: string; family: InstructionFamily }[] = []
     const diagnostics: InstructionDiagnostic[] = []
 
-    const { entries: result, fallbackComposed } = await walkConventions(
+    const { entries: result, fallbackComposed, nearestHolders } = await walkConventions(
       conventionsForProfile(resolution.resolved),
       forceIncludeExternal,
       skippedDuplicates,
@@ -370,6 +383,7 @@ export const getInstructionFiles = memoize(
       resolution,
       adapterId: adapter.id,
       fallbackComposed,
+      nearestHolders,
       skippedDuplicates,
       diagnostics,
       loadReason:
@@ -625,6 +639,7 @@ export async function getConditionalInstructionRulesForCwdLevelDirectory(
   const reads = folderReader(resolve(getOriginalCwd()))
   for (const convention of activeConventions()) {
     if ((convention.fallback && !lastComposition.fallbackComposed) || !reads(convention, dir)) continue
+    if (convention.nearestOnly && lastComposition.nearestHolders[convention.id] !== resolve(dir)) continue
     for (const rulesDir of convention.projectRulesDirs(dir)) {
       const batch = await processConditionedRules(
         convention,

@@ -334,14 +334,18 @@ export async function processRuleFile(
     handleInstructionFileReadError(error, filePath)
     return []
   }
-  const { info, reading } = readRuleSource(rawContent, filePath, type, format, alone)
+  const { info, unreadable, reading } = readRuleSource(rawContent, filePath, type, format, alone)
   if (!info.content.trim()) {
     return []
   }
   info.convention = convention.id
-  if (reading === null) {
-    diagnostics?.push({ kind: 'unreadable-rule-header', path: filePath, detail: 'the header between the --- lines is not YAML: the rule is not loaded' })
-  } else if (reading.kind === 'unsupported') {
+  if (unreadable) {
+    diagnostics?.push({
+      kind: 'unreadable-rule-header',
+      path: filePath,
+      detail: `the header between the --- lines is not YAML: the rule ${reading === null ? 'is not loaded' : 'loads whole, as its tool loads it'}`,
+    })
+  } else if (reading !== null && reading.kind === 'unsupported') {
     diagnostics?.push({ kind: 'unsupported-rule-activation', path: filePath, detail: reading.detail })
   }
   if (info.dormant === undefined) {
