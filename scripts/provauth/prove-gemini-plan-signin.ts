@@ -58,6 +58,8 @@ const assist = {
   bareRefusals: 0,
   detailedRefusals: 0,
   overflowRefusals: 0,
+  windowTokens: 0,
+  charsPerToken: 3.4,
   chatBodies: [] as Array<Record<string, unknown>>,
 }
 const sse = (value: unknown): string => `data: ${JSON.stringify(value)}\n\n`
@@ -213,6 +215,7 @@ const assistServer = Bun.serve({
         assist.bareRefusals -= 1
         return Response.json({ error: { code: 400, message: 'Request contains an invalid argument.', status: 'INVALID_ARGUMENT' } }, { status: 400 })
       }
+      if (assist.windowTokens > 0 && Math.ceil(JSON.stringify(entry.body ?? {}).length / assist.charsPerToken) > assist.windowTokens) return Response.json({ error: { code: 400, message: 'The input token count exceeds the maximum number of tokens allowed 1048576.', status: 'INVALID_ARGUMENT' } }, { status: 400 })
       if (assist.overflowRefusals > 0) {
         assist.overflowRefusals -= 1
         return Response.json({ error: { code: 400, message: 'The input token count exceeds the maximum number of tokens allowed 1048576.', status: 'INVALID_ARGUMENT' } }, { status: 400 })
@@ -474,54 +477,89 @@ try {
     ;(await import('../../src/bootstrap/state.ts')).setIsInteractive(false)
     const turnModel = 'gemini-4-neon-high'
     const ask = 'operator ask: land the change and run its checks'
-    const seeded: unknown[] = []
-    for (let i = 0; i < 6; i++) {
-      seeded.push(createUserMessage({ content: `ask ${i}: adjust module ${i} ${'and keep the notes tidy '.repeat(20)}` }))
-      seeded.push({ type: 'assistant', uuid: randomUUID(), timestamp: new Date().toISOString(), requestId: `req_${i}`, message: { id: `msg_${i}`, type: 'message', role: 'assistant', model: turnModel, content: [{ type: 'text', text: `reply ${i}: module ${i} adjusted ${'and its checks pass '.repeat(20)}` }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 900 + i, output_tokens: 60, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } } })
-    }
-    seeded.push(createUserMessage({ content: ask }))
-    let appState: Record<string, unknown> = { ...(getDefaultAppState() as unknown as Record<string, unknown>), effortValue: 'high' }
-    const ctx = {
-      abortController: new AbortController(),
-      options: { commands: [], tools: [], engineModel: turnModel, thinkingConfig: { type: 'disabled' }, mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, debug: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
-      getAppState: () => appState,
-      setAppState: (f: (prev: never) => never): void => { appState = f(appState as never) as unknown as Record<string, unknown> },
-      messages: [],
-      readFileState: createFileStateCacheWithSizeLimit(100),
-      setInProgressToolUseIDs: () => {},
-      setResponseLength: () => {},
-      updateFileHistoryState: () => {},
-      updateAttributionState: () => {},
-      agentId: undefined,
-    }
-    assist.overflowRefusals = 1
-    assist.chatBodies = []
-    const yields: Array<Record<string, unknown>> = []
-    let terminal: Record<string, unknown> = {}
-    let threw: string | undefined
-    try {
-      const gen = query({ messages: seeded as never, systemPrompt: ['be brief'] as never, userContext: {}, systemContext: {}, canUseTool: (async () => ({ behavior: 'deny', message: 'no tools in this rig' })) as never, toolUseContext: ctx as never, querySource: 'sdk' as never, deps: productionDeps() })
-      let step = await gen.next()
-      while (!step.done) {
-        yields.push(step.value as Record<string, unknown>)
-        step = await gen.next()
+    const rounds = (count: number, pad: number, askPad = pad): unknown[] => {
+      const out: unknown[] = []
+      for (let i = 0; i < count; i++) {
+        out.push(createUserMessage({ content: `ask ${i}: adjust module ${i} ${'and keep the notes tidy '.repeat(askPad)}` }))
+        out.push({ type: 'assistant', uuid: randomUUID(), timestamp: new Date().toISOString(), requestId: `req_${i}`, message: { id: `msg_${i}`, type: 'message', role: 'assistant', model: turnModel, content: [{ type: 'text', text: `reply ${i}: module ${i} adjusted ${'and its checks pass '.repeat(pad)}` }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 900 + i, output_tokens: 60, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } } })
       }
-      terminal = step.value as Record<string, unknown>
-    } catch (error) {
-      threw = error instanceof Error ? error.message : String(error)
+      return out
     }
-    assist.overflowRefusals = 0
+    type Turn = { yields: Array<Record<string, unknown>>; terminal: Record<string, unknown>; threw: string | undefined; bodies: string[] }
+    const runTurn = async (messages: unknown[], tools: unknown[]): Promise<Turn> => {
+      let appState: Record<string, unknown> = { ...(getDefaultAppState() as unknown as Record<string, unknown>), effortValue: 'high' }
+      const ctx = {
+        abortController: new AbortController(),
+        options: { commands: [], tools, engineModel: turnModel, thinkingConfig: { type: 'disabled' }, mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, debug: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
+        getAppState: () => appState,
+        setAppState: (f: (prev: never) => never): void => { appState = f(appState as never) as unknown as Record<string, unknown> },
+        messages: [],
+        readFileState: createFileStateCacheWithSizeLimit(100),
+        setInProgressToolUseIDs: () => {},
+        setResponseLength: () => {},
+        updateFileHistoryState: () => {},
+        updateAttributionState: () => {},
+        agentId: undefined,
+      }
+      assist.chatBodies = []
+      const yields: Array<Record<string, unknown>> = []
+      let terminal: Record<string, unknown> = {}
+      let threw: string | undefined
+      try {
+        const gen = query({ messages: messages as never, systemPrompt: ['be brief'] as never, userContext: {}, systemContext: {}, canUseTool: (async () => ({ behavior: 'deny', message: 'no tools in this rig' })) as never, toolUseContext: ctx as never, querySource: 'sdk' as never, deps: productionDeps() })
+        let step = await gen.next()
+        while (!step.done) {
+          yields.push(step.value as Record<string, unknown>)
+          step = await gen.next()
+        }
+        terminal = step.value as Record<string, unknown>
+      } catch (error) {
+        threw = error instanceof Error ? error.message : String(error)
+      }
+      return { yields, terminal, threw, bodies: assist.chatBodies.map(body => JSON.stringify(body)) }
+    }
     const textOfRow = (m: Record<string, unknown> | undefined): string => {
       const content = (m?.message as { content?: unknown } | undefined)?.content
       return Array.isArray(content) ? (content as Array<{ type?: string; text?: string }>).filter(b => b.type === 'text').map(b => String(b.text ?? '')).join('\n') : typeof content === 'string' ? content : typeof m?.content === 'string' ? (m.content as string) : ''
     }
-    const errorRows = yields.filter(y => y.type === 'assistant' && y.isApiErrorMessage === true)
-    const boundary = yields.find(y => y.type === 'system' && (y as { subtype?: string }).subtype === 'compact_boundary') as { compactMetadata?: { trigger?: string; overflow?: { family?: string; shape?: string; limitTokens?: number } } } | undefined
-    const bodiesText = assist.chatBodies.map(body => JSON.stringify(body))
-    check('a whole turn on the plan road whose first request Google refuses as over the window: the refusal is withheld, the conversation is folded and the request sent again, and the turn completes', threw === undefined && terminal.reason === 'completed' && errorRows.length === 0 && textOfRow(yields.filter(y => y.type === 'assistant').at(-1)) === 'OK from the plan fixture', JSON.stringify({ threw: threw ?? null, terminal, errors: errorRows.map(textOfRow).map(t => t.slice(0, 160)), chats: assist.chatBodies.length }))
-    check('…in three requests: the refused one, the summary call carrying the fold prompt, the retry that still ends on the operator\'s message', assist.chatBodies.length === 3 && /summar/i.test(bodiesText[1] ?? '') && (bodiesText[2] ?? '').includes(ask), JSON.stringify({ chats: assist.chatBodies.length, second: (bodiesText[1] ?? '').slice(-200), third: (bodiesText[2] ?? '').slice(-200) }))
-    check('…and the boundary row says why: an overflow, Google\'s, with the window Google named', boundary?.compactMetadata?.trigger === 'overflow' && boundary.compactMetadata.overflow?.family === 'gemini' && boundary.compactMetadata.overflow.shape === 'input-token-limit' && boundary.compactMetadata.overflow.limitTokens === 1_048_576, JSON.stringify(boundary?.compactMetadata ?? null))
-    check('…with the notice a person reads', yields.some(y => y.type === 'system' && String(y.content ?? '').includes('context overflowed') && String(y.content ?? '').includes('folding the conversation and retrying')), JSON.stringify(yields.filter(y => y.type === 'system').map(y => String(y.content ?? '').slice(0, 160))))
+    const errorRowsOf = (turn: Turn): Array<Record<string, unknown>> => turn.yields.filter(y => y.type === 'assistant' && y.isApiErrorMessage === true)
+    const boundaryOf = (turn: Turn) => turn.yields.find(y => y.type === 'system' && (y as { subtype?: string }).subtype === 'compact_boundary') as { compactMetadata?: { trigger?: string; overflow?: { family?: string; shape?: string; limitTokens?: number } } } | undefined
+    const lastAnswer = (turn: Turn): string => textOfRow(turn.yields.filter(y => y.type === 'assistant').at(-1))
+
+    assist.overflowRefusals = 1
+    const simple = await runTurn([...rounds(6, 20), createUserMessage({ content: ask })], [])
+    assist.overflowRefusals = 0
+    check('a whole turn on the plan road whose first request Google refuses as over the window: the refusal is withheld, the conversation is folded and the request sent again, and the turn completes', simple.threw === undefined && simple.terminal.reason === 'completed' && errorRowsOf(simple).length === 0 && lastAnswer(simple) === 'OK from the plan fixture', JSON.stringify({ threw: simple.threw ?? null, terminal: simple.terminal, errors: errorRowsOf(simple).map(textOfRow).map(t => t.slice(0, 160)), chats: simple.bodies.length }))
+    check('…in three requests: the refused one, the summary call carrying the fold prompt, the retry that still ends on the operator\'s message', simple.bodies.length === 3 && /summar/i.test(simple.bodies[1] ?? '') && (simple.bodies[2] ?? '').includes(ask), JSON.stringify({ chats: simple.bodies.length, second: (simple.bodies[1] ?? '').slice(-200), third: (simple.bodies[2] ?? '').slice(-200) }))
+    check('…and the boundary row says why: an overflow, Google\'s, with the window Google named', boundaryOf(simple)?.compactMetadata?.trigger === 'overflow' && boundaryOf(simple)?.compactMetadata?.overflow?.family === 'gemini' && boundaryOf(simple)?.compactMetadata?.overflow?.shape === 'input-token-limit' && boundaryOf(simple)?.compactMetadata?.overflow?.limitTokens === 1_048_576, JSON.stringify(boundaryOf(simple)?.compactMetadata ?? null))
+    check('…with the notice a person reads', simple.yields.some(y => y.type === 'system' && String(y.content ?? '').includes('context overflowed') && String(y.content ?? '').includes('folding the conversation and retrying')), JSON.stringify(simple.yields.filter(y => y.type === 'system').map(y => String(y.content ?? '').slice(0, 160))))
+
+    const WINDOW_TOKENS = 1_048_576
+    const POSTS = 11_300
+    const board = Array.from({ length: POSTS }, (_, i) => `board-post-${i}: ${'a seat reports what it built '.repeat(3)}`).join('\n')
+    const history = rounds(400, 295, 0)
+    const measuredByGoogle = 706_491
+    const callRow = { type: 'assistant', uuid: randomUUID(), timestamp: new Date().toISOString(), requestId: 'req_board', message: { id: 'msg_board', type: 'message', role: 'assistant', model: turnModel, content: [{ type: 'tool_use', id: 'call_77', name: 'Read', input: { file_path: '/tmp/board.json' } }], stop_reason: 'tool_use', stop_sequence: null, usage: { input_tokens: measuredByGoogle, output_tokens: 40, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } }, geminiProviderTurn: (recordedTurn(77, 'Read', { file_path: '/tmp/board.json' }) as { geminiProviderTurn: unknown }).geminiProviderTurn }
+    const withBoard = [...history, createUserMessage({ content: ask }), callRow, resultRow(77, board)]
+    const mercurysCount = measuredByGoogle + 40 + Math.ceil(board.length / 4)
+    const FOLD_LINE = WINDOW_TOKENS - 20_000 - 3_000 - 20_000
+    const postsIn = (body: string): number => (body.match(/board-post-\d+: /g) ?? []).length
+    assist.windowTokens = WINDOW_TOKENS
+    const big = await runTurn(withBoard, longTools)
+    assist.windowTokens = 0
+    const sizes = big.bodies.map(body => body.length)
+    const tokensOf = (chars: number): number => Math.ceil(chars / assist.charsPerToken)
+    const retry = big.bodies.at(-1) ?? ''
+    check('control, the shape met in use: a long conversation the provider last measured at 706,491 tokens, then ONE tool result of over a million characters; counted at four characters a token the next request is under the fold line, and by the provider\'s own count it is over the window', board.length > 1_100_000 && mercurysCount < FOLD_LINE && sizes[0] !== undefined && tokensOf(sizes[0]) > WINDOW_TOKENS, JSON.stringify({ measuredByGoogle, boardChars: board.length, mercurysCount, foldLine: FOLD_LINE, firstRequestByTheProvider: sizes[0] === undefined ? null : tokensOf(sizes[0]), window: WINDOW_TOKENS }))
+    check('so the request is sent whole (no fold before it), the provider refuses it as over the window, and the turn still completes with no error row', (big.bodies[0] ?? '').includes('reply 0: module 0 adjusted') && postsIn(big.bodies[0] ?? '') === POSTS && big.threw === undefined && big.terminal.reason === 'completed' && errorRowsOf(big).length === 0 && lastAnswer(big) === 'OK from the plan fixture', JSON.stringify({ threw: big.threw ?? null, terminal: big.terminal, errors: errorRowsOf(big).map(textOfRow).map(t => t.slice(0, 220)), tokens: sizes.map(tokensOf) }))
+    const asksIn = (body: string): number => [...body.matchAll(/ask (\d+): adjust module/g)].length
+    check('room is made by folding the OLD conversation: the request that is answered is under half the window and no longer carries the early replies', tokensOf(retry.length) < WINDOW_TOKENS / 2 && !retry.includes('reply 0: module 0 adjusted') && !retry.includes('reply 200: module 200 adjusted'), JSON.stringify({ retryTokens: tokensOf(retry.length), reply0: retry.includes('reply 0: module 0 adjusted'), reply200: retry.includes('reply 200: module 200 adjusted') }))
+    check('…while every message the operator typed is still there in his own words', asksIn(retry) === 400 && retry.includes('ask 0: adjust module 0') && retry.includes('ask 399: adjust module 399'), String(asksIn(retry)))
+    check(`…and the large result rides it WHOLE: every one of its ${POSTS.toLocaleString('en-US')} posts, first to last, nothing cleared, nothing folded away and nothing cut`, postsIn(retry) === POSTS && retry.includes('board-post-0: ') && retry.includes(`board-post-${POSTS - 1}: `) && !retry.includes('content cleared') && !retry.includes('result folded into the summary'), JSON.stringify({ posts: postsIn(retry), cleared: retry.includes('content cleared'), folded: retry.includes('result folded into the summary'), retryTokens: tokensOf(retry.length) }))
+    check('…still ending on the call and its result, after the operator\'s message', retry.includes(ask) && retry.indexOf(ask) < retry.indexOf('board-post-0: '), JSON.stringify({ ask: retry.indexOf(ask), board: retry.indexOf('board-post-0: ') }))
+    check('…and the boundary row is an overflow fold', boundaryOf(big)?.compactMetadata?.trigger === 'overflow', JSON.stringify(boundaryOf(big)?.compactMetadata ?? null))
+    const keptRounds = [...retry.matchAll(/reply (\d+): module/g)].map(m => Number(m[1]))
+    console.log(`      (requests of that turn by the provider's count: ${sizes.map(n => tokensOf(n).toLocaleString('en-US')).join(' · ')}; the answered request keeps ${keptRounds.length} of 400 rounds verbatim${keptRounds.length ? `, ${Math.min(...keptRounds)} to ${Math.max(...keptRounds)}` : ''}, and ${asksIn(retry)} of the 400 asks the operator typed)`)
   }
   const heliumReplies = await driveRoad('gemini-4-helium', false)
   const heliumWords = JSON.stringify(heliumReplies.find(m => m.type === 'assistant' && (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message ?? '')
