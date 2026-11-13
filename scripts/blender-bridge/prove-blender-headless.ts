@@ -718,7 +718,7 @@ section('§8 · a script file with its arguments: python_run script + argv, the 
     overBridge.slice(0, 160),
   )
   const carriedFile = path.join(scratch, 'carried.py')
-  writeFileSync(carriedFile, `${carried}\nimport sys\nprint("AFTER " + str(sys.argv[1:]))\nprint("RESULT " + repr(result))\nprint("LEFT " + str(sorted(n for n in globals() if n.startswith("_mercury"))))\n`)
+  writeFileSync(carriedFile, `import sys\noriginal_main = sys.modules["__main__"]\n${carried}\nprint("AFTER " + str(sys.argv[1:]))\nprint("RESTORED_MAIN " + str(sys.modules["__main__"] is original_main))\nprint("RESULT " + repr(result))\nprint("LEFT " + str(sorted(n for n in globals() if n.startswith("_mercury"))))\n`)
   let carriedOut = ''
   try {
     carriedOut = execFileSync('python3', [carriedFile, 'kept-word'], { encoding: 'utf8', cwd: work })
@@ -729,12 +729,39 @@ section('§8 · a script file with its arguments: python_run script + argv, the 
     'that source, run by a Python, gives the script its arguments as __main__, hands back result, and leaves sys.argv and the namespace as it found them',
     carriedOut.includes(`ARGV ${asPythonPrints(sessionArgv)}`) &&
       carriedOut.includes('NAME __main__') &&
+      carriedOut.split('\n').includes('MAIN True') &&
+      carriedOut.includes('RESTORED_MAIN True') &&
       carriedOut.includes(`FILE ${kitAbs}`) &&
       carriedOut.includes("AFTER ['kept-word']") &&
       carriedOut.includes("RESULT {'frames': 3}") &&
       carriedOut.includes('LEFT []'),
     carriedOut.slice(0, 400),
   )
+  const raisedRel = path.join('tools', 'kit', 'raised.py')
+  writeFileSync(path.join(work, raisedRel), 'marker = "script owns main"\nfrom __main__ import marker\nraise ValueError(marker)\n')
+  await runWithCwdOverride(work, () => callTool('python_run', { script: raisedRel }))
+  const raisedSource = bridge.seenPython.at(-1) ?? ''
+  writeFileSync(carriedFile, [
+    'import sys',
+    'original_main = sys.modules["__main__"]',
+    'original_argv = sys.argv',
+    'scope = {}',
+    'try:',
+    `    exec(${JSON.stringify(raisedSource)}, scope)`,
+    'except ValueError as error:',
+    '    print("RAISED " + str(error))',
+    'print("RESTORED " + str(sys.modules["__main__"] is original_main and sys.argv is original_argv))',
+    'print("LEFT " + str(sorted(n for n in scope if n.startswith("_mercury"))))',
+    '',
+  ].join('\n'))
+  let raisedOut = ''
+  try {
+    raisedOut = execFileSync('python3', [carriedFile], { encoding: 'utf8', cwd: work, stdio: ['ignore', 'pipe', 'pipe'] })
+  } catch (err) {
+    raisedOut = `python3 failed: ${(err as Error).message}`
+  }
+  check('a script can import its own names from __main__ on the bridge road, even when it then raises', raisedOut.includes('RAISED script owns main'), raisedOut.slice(0, 400))
+  check('after that raise the bridge wrapper restores the earlier main module and argv and leaves no helper names', raisedOut.includes('RESTORED True') && raisedOut.includes('LEFT []'), raisedOut.slice(0, 400))
   check('the add-on\'s own files did not move for this', installer.blenderBridgeInstallStatus(addonHome).digestMatch === true)
   await bridge.close()
   resetBlenderBridgeClientForTest()
