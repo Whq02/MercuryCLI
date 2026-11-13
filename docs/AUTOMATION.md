@@ -163,7 +163,10 @@ they nor the row carry a `cost_usd`; the usage stays. Usage names
 `reasoning_output_tokens`, summed over the main thread and the crewmates.
 `models` breaks token usage down by model. `steps` counts only the main agent's
 model calls; model calls made by crewmates appear as their own `step` rows
-tagged with `parent_call_id`.
+tagged with `parent_call_id`. `recoveries` is included when Mercury asked the
+model again inside the turn, one entry an ask, each with its `kind`:
+`announced_step` when a reply announced a next step and ended the turn with no
+tool call.
 
 The status is `completed`, `blocked`, `refused`, `failed`, `interrupted`,
 `turn_limit`, `budget_limit`, `time_limit`, `schema_unmet` or `loop_stopped`.
@@ -199,6 +202,16 @@ recorded asks, never from the reply text, so a question written only in the
 reply finishes `completed`. An unknown slash command is `refused` with the same
 sentence the interactive screen gives (`Unknown command: /name · /help lists
 commands`) and exits 1.
+
+A reply that ends the turn right after announcing the model's own next step
+("Next I will run the tests."), with no tool call, is answered once a turn
+where nobody is at the run (a one-shot run, a runner session no screen belongs
+to, a crewmate): Mercury asks the model in one line to take the step or to give
+its final answer, and lists the ask in `recoveries` and in `notices`. A second
+such reply in the same turn ends it as any reply does, with one more line in
+`notices`. The test reads the last sentence of the reply and knows English
+only; a question, and a sentence that says it waits or stops, is never taken
+for an announcement.
 
 Pass `--input rows` with `--format rows` to send one JSON input row per line on
 `stdin`:

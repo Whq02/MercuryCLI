@@ -44,6 +44,23 @@ interface StopEvaluationInput {
 
 const MAX_EVIDENCE_DEMANDS = 2
 
+const STEP_LEAD_IN = /^(?:(?:ok(?:ay)?|alright|all right|right|great|good|perfect|now|next|then|first|so|and|finally|after that|with that(?: done)?)[,.:!]?\s+)+/i
+const STEP_INTENT = /^(?:let me|let's|let us|i['’]ll|i will|i['’]m (?:now )?going to|i am (?:now )?going to|i['’]m about to|i am about to)\b\s*/i
+const STEP_FILLER = /^(?:(?:now|then|just|next|first|also|quickly|go ahead and|proceed to|start by|begin by|try to|need to|have to)\s+)+/i
+const STEP_HELD = /^(?:not|never|know|stop|wait|pause|hold|leave|refrain|defer|skip|end|await|be|ask|need|assume|stand by|follow up|get back|report back)\b/i
+const ADDRESSES_OPERATOR = /\b(?:you|your|yours)\b/i
+
+export function announcesNextStep(reply: string): boolean {
+  const lastLine = reply.split('\n').map(line => line.trim()).filter(line => line !== '').at(-1)
+  if (lastLine === undefined) return false
+  const sentence = (lastLine.split(/(?<=[.!?])\s+/).at(-1) ?? '').replace(/^[-*>#\s]+/, '').replace(/[*_`]/g, '')
+  if (sentence.includes('?') || ADDRESSES_OPERATOR.test(sentence)) return false
+  const opening = sentence.replace(STEP_LEAD_IN, '')
+  const intent = STEP_INTENT.exec(opening)
+  if (intent === null) return false
+  return !STEP_HELD.test(opening.slice(intent[0].length).replace(STEP_FILLER, ''))
+}
+
 function satisfiedConditions(input: StopEvaluationInput): string[] {
   const s: string[] = []
   const snap = input.snapshot

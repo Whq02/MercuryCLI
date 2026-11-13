@@ -215,6 +215,9 @@ export interface OutcomeRow<T = unknown> {
   wall_ms: number
   api_ms?: number
   cost_usd?: number
+  recoveries?: Array<{
+    kind: 'announced_step'
+  }>
   usage: Usage
   models: Record<string, ModelUsageRow>
   denials: Denial[]
@@ -1228,6 +1231,23 @@ export const ROW_SCHEMAS: Readonly<Record<RowType | PartialRowType, JsonSchema>>
       "cost_usd": {
         "type": "number",
         "minimum": 0
+      },
+      "recoveries": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "announced_step"
+              ]
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        }
       },
       "usage": {
         "type": "object",

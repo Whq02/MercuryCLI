@@ -1,7 +1,7 @@
 import { z } from 'zod/v4'
 import { lazySchema } from '../utils/lazySchema.js'
 import { ASSISTANT_MESSAGE_ERRORS, type AssistantMessageError } from '../types/message.js'
-import type { Terminal } from '../query/transitions.js'
+import type { Continue, Terminal } from '../query/transitions.js'
 import type { TurnCutKind } from '../utils/messages/turnCut.js'
 import type { NonNullableUsage } from '../services/api/emptyUsage.js'
 import { formatLimit } from '../utils/deadline.js'
@@ -43,6 +43,9 @@ export type OutcomeStatus = (typeof OUTCOME_STATUSES)[number]
 
 export const STOP_WORDS = ['end_turn', 'max_tokens', 'stop_sequence', 'tool_use', 'refusal', 'pause', 'hook'] as const
 export type StopWord = (typeof STOP_WORDS)[number]
+
+export const RECOVERY_KINDS = ['announced_step'] as const
+export type RecoveryKind = (typeof RECOVERY_KINDS)[number]
 
 export const ERROR_CLASSES = [
   'model',
@@ -287,6 +290,7 @@ export const OutcomeRowSchema = lazySchema(() =>
     wall_ms: z.number().int().min(0),
     api_ms: z.number().int().min(0).optional(),
     cost_usd: z.number().min(0).optional(),
+    recoveries: z.array(z.object({ kind: z.enum(RECOVERY_KINDS) })).optional(),
     usage: UsageSchema(),
     models: z.record(z.string(), ModelUsageRowSchema()),
     denials: z.array(DenialSchema()),
@@ -543,6 +547,15 @@ export function statusOfTerminal(terminal: Terminal, cut: TurnCutKind | null): {
       return { status: 'failed', errorClass: 'refill_breaker' }
     case 'tool_calls_refused':
       return { status: 'failed', errorClass: 'model' }
+  }
+}
+
+export function recoveryKindOf(transition: Continue): RecoveryKind | undefined {
+  switch (transition.reason) {
+    case 'announced_step_nudge':
+      return 'announced_step'
+    default:
+      return undefined
   }
 }
 

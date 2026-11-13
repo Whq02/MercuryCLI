@@ -101,6 +101,7 @@ import {
 } from './project.js'
 import { errorClassOf, statusOfTerminal, toolCallsRefusedSentence, unexecutedToolCallSentence, HOOK_NOTICE_CODES, OUTCOME_SENTENCES, TERMINAL_FAILURE_SENTENCES, type Denial, type ErrorClass, type OutcomeStatus, type Usage } from './vocabulary.js'
 import { childRowsOf } from './child.js'
+import { recoveryKindOf, type RecoveryKind } from './vocabulary.js'
 
 const DEFAULT_MAX_STRUCTURED_OUTPUT_RETRIES = 5
 
@@ -364,6 +365,7 @@ export class Conversation {
     const scope: RowScope = { session_id: getSessionId(), turn: turnOrdinal }
     const scopeFor = (parentCallId: string | undefined): RowScope => (parentCallId === undefined ? scope : { ...scope, parent_call_id: parentCallId })
     const notices: Array<{ level: 'warning' | 'error'; text: string }> = []
+    const recoveries: Array<{ kind: RecoveryKind }> = []
     const hookNoticeRows = (hookRow: HookAttachment): RowDraft[] => {
       if (hookRow.outcome !== 'failed' && hookRow.outcome !== 'block' && hookRow.outcome !== 'stop' && hookRow.outcome !== 'notice') return []
       const text = hookRow.outcome === 'failed' || hookRow.outcome === 'notice' ? hookRow.words : `hook ${hookRow.name} ${hookRow.outcome === 'block' ? 'blocked' : 'stopped'} ${hookRow.event}: ${hookRow.words}`
@@ -682,6 +684,7 @@ export class Conversation {
         wallMs: Date.now() - turnStartedAt,
         ...(apiMs > 0 ? { apiMs } : {}),
         ...(costKnown ? { costUsd } : {}),
+        ...(recoveries.length > 0 ? { recoveries: [...recoveries] } : {}),
         usage,
         models: modelUsageRows(billed, hasUnknownCost),
         denials: this.denials.slice(denialsBefore),
@@ -903,6 +906,10 @@ export class Conversation {
         continue
       }
       if (event.kind === 'tool_settled') toolOutcomes.set(event.toolUseId, event.outcome)
+      if (event.kind === 'turn_settled') {
+        const recovery = recoveryKindOf(event.transition)
+        if (recovery !== undefined) recoveries.push({ kind: recovery })
+      }
       if (event.kind === 'assistant_retracted') {
         const withdrawn = (event.message as AssistantMessage).message.id
         if (config.partialRows && typeof withdrawn === 'string') yield retractedRow(scope, withdrawn)

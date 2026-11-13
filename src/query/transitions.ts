@@ -28,6 +28,7 @@ export type Continue =
   | { reason: 'empty_reply_retry'; attempt: number }
   | { reason: 'reasoning_only_recovery'; attempt: number }
   | { reason: 'chant_recovery'; attempt: number }
+  | { reason: 'announced_step_nudge'; attempt: number }
   | { reason: 'checkpoint_settle_guard' }
   | { reason: 'queued_message'; count: number }
   | { reason: 'overflow_recovery'; rung: 'prune' | 'fold'; source: 'provider' | 'estimate' }
