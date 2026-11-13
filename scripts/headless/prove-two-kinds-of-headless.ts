@@ -333,15 +333,18 @@ await guarded(async () => {
     let postureDiffers = false
     let firstLineDiff = ''
     const { computeHarnessMapLines } = await import('../../src/utils/cockpit/harnessMap.ts')
-    const mapBlock = ['', '# Mercury harness map', ...computeHarnessMapLines()]
+    const DEBUG_WITHHELD = '- The Debug tool is withheld'
+    const steadyMap = computeHarnessMapLines().filter(line => !line.startsWith(DEBUG_WITHHELD))
     let mapOnTheScreenAlone = a.requests.length > 0
     for (let i = 0; i < Math.min(a.requests.length, b.requests.length); i++) {
       const left = systemTextOf(a.requests[i]!.body).split('\n')
       const whole = systemTextOf(b.requests[i]!.body).split('\n')
       const mapAt = whole.indexOf('# Mercury harness map') - 1
-      const mapStands = mapAt >= 0 && j(whole.slice(mapAt, mapAt + mapBlock.length)) === j(mapBlock)
-      if (!mapStands || left.some(line => line === '# Mercury harness map' || mapBlock.slice(2).includes(line))) mapOnTheScreenAlone = false
-      const right = mapStands ? [...whole.slice(0, mapAt), ...whole.slice(mapAt + mapBlock.length)] : whole
+      const painted = mapAt >= 0 ? whole.slice(mapAt + 2, mapAt + 2 + steadyMap.length + 1) : []
+      const span = painted.filter(line => line.startsWith(DEBUG_WITHHELD)).length === 1 && j(painted.filter(line => !line.startsWith(DEBUG_WITHHELD))) === j(steadyMap) ? steadyMap.length + 1 : steadyMap.length
+      const mapStands = mapAt >= 0 && whole[mapAt] === '' && j(whole.slice(mapAt + 2, mapAt + 2 + span).filter(line => !line.startsWith(DEBUG_WITHHELD))) === j(steadyMap)
+      if (!mapStands || left.some(line => line === '# Mercury harness map' || line.startsWith(DEBUG_WITHHELD) || steadyMap.includes(line))) mapOnTheScreenAlone = false
+      const right = mapStands ? [...whole.slice(0, mapAt), ...whole.slice(mapAt + 2 + span)] : whole
       if (left.length !== right.length) {
         promptsEqual = false
         firstLineDiff = `request ${i + 1}: ${left.length} vs ${right.length} system prompt lines`
@@ -361,7 +364,7 @@ await guarded(async () => {
       }
       if (!promptsEqual) break
     }
-    check("the oculus session's every system prompt holds the harness map, the heading and the lines a window is given and nothing more, and the headless session's holds none of it", mapOnTheScreenAlone, j(mapBlock.map(line => line.slice(0, 40))))
+    check("the oculus session's every system prompt holds the harness map, the heading and the lines a window is given and nothing more, and the headless session's holds none of it", mapOnTheScreenAlone, j(['', '# Mercury harness map', ...steadyMap].map(line => line.slice(0, 40))))
     check('with the map taken out, every other line of every system prompt is equal byte for byte (the constitution, the environment, the memory page, the rule facts)', promptsEqual, firstLineDiff)
     check('RED ON THE BASE: the posture line is what differs', postureDiffers)
     let rowsEqual = true
