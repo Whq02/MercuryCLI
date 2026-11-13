@@ -1,4 +1,6 @@
+import { registerCodeReviewSkill } from './code-review.js'
 import { registerDebugSkill } from './debug.js'
+import { registerDeepResearchSkill } from './deep-research.js'
 import { registerKeybindingsSkill } from './keybindings.js'
 import { registerMercuryDocsSkill } from './mercuryDocs.js'
 import { registerSkillifySkill } from './skillify.js'
@@ -19,6 +21,8 @@ export function initBundledSkills(): void {
   registerSkillifySkill()
   registerMercuryDocsSkill()
 
+  registerCodeReviewSkill()
+  registerDeepResearchSkill()
   registerExtensionMakerSkill()
   registerImageGenerationSkill()
   registerMcpSmithySkill()
