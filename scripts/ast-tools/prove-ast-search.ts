@@ -166,7 +166,15 @@ section('§11 — the descriptions')
     'a declaration carries every part it has (a declared return type as ": $_" in TypeScript, " -> $_" in Python)',
   ].every(line => pattern.includes(line)) && !description.includes('$NAME'))
   check('carries no examples and no other tool: what it does and what comes back', !description.includes('e.g.') && !description.includes('Examples:') && !/\bGrep\b|\bAstEdit\b/.test(description) && description.startsWith('Searches code by its syntax') && description.includes('file:line:col'))
-  check('the lang field names every supported language; the description names none', astLanguageNames().every((n: string) => String(AstSearchTool.inputSchema.shape.lang.description).includes(n)) && !description.includes('this build carries'))
+  const langField = String(AstSearchTool.inputSchema.shape.lang.description)
+  const carriedNames = astLanguageNames() as string[]
+  const said = /this build carries (\d+) grammars, among them ([^;]+);/.exec(langField)
+  const namedInField = (said?.[2] ?? '').split(', ')
+  check('the lang field says how many grammars the build carries and names three of them, never the list; the description names none', Number(said?.[1]) === carriedNames.length && namedInField.length === 3 && namedInField.every(n => carriedNames.includes(n)) && !description.includes('this build carries'), langField)
+  check('the lang field says where the list is: in the answer to a name the build does not carry', langField.includes('a name it does not carry is answered with the list'), langField)
+  const unknown = await search({ pattern: 'print($X)', lang: 'klingon' })
+  check('and that answer carries every grammar of the build by name', unknown.isError && unknown.text.includes(`Supported languages: ${carriedNames.join(', ')}.`), unknown.text.slice(0, 300))
+  check('the lang field is shorter than three hundred characters whatever the build carries', langField.length < 300, String(langField.length))
   check('the limit field names the bound', String(AstSearchTool.inputSchema.shape.limit.description).includes('default 50, max 200'))
   const editDescription = await AstEditTool.description()
   check('AstEdit: prompt equals description', (await AstEditTool.prompt({ getToolPermissionContext: async () => ({}) })) === editDescription)
@@ -175,7 +183,7 @@ section('§11 — the descriptions')
   check('AstEdit: carries no examples: the apply and plan parameters show the two calls', (editDescription.match(/^- \{ "pattern"/gm) ?? []).length === 0 && !editDescription.includes('Examples:'))
 }
 
-section('§12 — the lang field names only the grammars the build carries')
+section('§12 — the lang field counts only the grammars the build carries')
 {
   const { execFileSync } = await import('node:child_process')
   const { GRAMMAR_REGISTRY: registry } = await import(join(REPO, 'src/services/structure/grammarRegistry.ts'))
@@ -217,18 +225,21 @@ console.log(JSON.stringify({
   })
   const probe = JSON.parse(out.trim().split('\n').at(-1)!) as { names: string[]; search: string; edit: string; langField: string; matches: number; trailer: string; single: string; pinned: string }
   check('a vscode-pack-only engine carries exactly the 16 vscode grammars', probe.names.length === vscodeNames.length && vscodeNames.every(n => probe.names.includes(n)), probe.names.join(','))
-  const advertised = (text: string): string[] => (/this build carries: ([^;]+);/.exec(text)?.[1] ?? '').split(' · ').map(s => s.trim()).filter(Boolean)
-  const langList = advertised(probe.langField)
-  check('neither description names the other tool; both tools carry the one grammar in pattern and the one carried-grammar list in lang', !probe.search.includes('AstEdit') && !probe.edit.includes('AstSearch') && advertised(probe.search).length === 0 && advertised(probe.edit).length === 0 && AstSearchTool.inputSchema.shape.lang.description === AstEditTool.inputSchema.shape.lang.description && AstSearchTool.inputSchema.shape.pattern.description === AstEditTool.inputSchema.shape.pattern.description)
-  check('the lang field advertises exactly the carried set (no grammar-pack language)', JSON.stringify(langList) === JSON.stringify(probe.names) && packNames.every(n => !langList.includes(n)), langList.join(','))
-  check('the lang field still names every carried language', vscodeNames.every(n => langList.includes(n)))
+  const counted = (text: string): { count: number; names: string[] } | null => {
+    const m = /this build carries (\d+) grammars, among them ([^;]+);/.exec(text)
+    return m ? { count: Number(m[1]), names: m[2]!.split(', ') } : null
+  }
+  const field = counted(probe.langField)
+  check('neither description names the other tool; both tools carry the one grammar in pattern and the one count of carried grammars in lang', !probe.search.includes('AstEdit') && !probe.edit.includes('AstSearch') && counted(probe.search) === null && counted(probe.edit) === null && AstSearchTool.inputSchema.shape.lang.description === AstEditTool.inputSchema.shape.lang.description && AstSearchTool.inputSchema.shape.pattern.description === AstEditTool.inputSchema.shape.pattern.description)
+  check('the lang field counts exactly the carried set and names no grammar-pack language', field !== null && field.count === probe.names.length && field.names.every(n => probe.names.includes(n)) && packNames.every(n => !field.names.includes(n)), probe.langField)
+  check('the three it names are grammars that engine carries, python first', field !== null && field.names.length === 3 && field.names[0] === 'python', probe.langField)
   check('the python file still matches; the json file is skipped as uncarried and the remedy named', probe.matches === 1 && probe.trailer.includes('whose grammar this build does not carry (.json ×1)') && probe.trailer.includes('fetch-grammars'), probe.trailer)
   check('a single uncarried file refuses by name with the remedy', probe.single.includes('this build does not carry the json grammar') && probe.single.includes('fetch-grammars'), probe.single)
   check('a lang pin on an uncarried grammar refuses by name with the remedy', probe.pinned.includes('this build does not carry the json grammar'), probe.pinned)
   const here = astLanguageNames() as string[]
   const hereField = String(AstSearchTool.inputSchema.shape.lang.description)
   const carriedHere = (registry as Array<{ wasm: string }>).filter(g => existsSync(join(engineDir, g.wasm))).length
-  check(`the composed engine here carries ${here.length} of ${(registry as unknown[]).length} registry languages and the lang field advertises exactly those`, here.every(n => hereField.includes(n)) && here.length === carriedHere, here.join(','))
+  check(`the composed engine here carries ${here.length} of ${(registry as unknown[]).length} registry languages and the lang field says ${here.length}`, counted(hereField)?.count === here.length && here.length === carriedHere, hereField)
 }
 
 finish('AST SEARCH LAWS')
