@@ -49,7 +49,7 @@ const questionSchema = z.object({
   decisionId: z.string().optional().describe('Interview record key (mercury://interview/<session>/<decisionId>)'),
   question: z
     .string()
-    .describe('Question text'),
+    .describe('Question text; phrase for multi-select when applicable'),
   header: z
     .string()
     .max(ASK_USER_QUESTION_TOOL_CHIP_WIDTH)
