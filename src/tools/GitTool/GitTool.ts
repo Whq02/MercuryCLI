@@ -120,7 +120,7 @@ const inputSchema = lazySchema(() =>
     limit: semanticNumber(z.number().int().positive().optional()).describe('hostSearch ≤50, runs ≤20 (default 10)'),
     file: z.string().optional().describe('prDiff: changed file path (omit for file list)'),
     page: semanticNumber(z.number().int().nonnegative().optional()).describe('prDiff: 0-based page (80 lines/page)'),
-    run: z.string().optional().describe('runs/runWatch: workflow run id (runWatch settles on conclusion)'),
+    run: z.string().optional().describe('runs/runWatch: workflow run id (runWatch returns at once and settles on the conclusion)'),
     cancel: z.boolean().optional().describe('runWatch: cancel active watch for run'),
   }),
 )
