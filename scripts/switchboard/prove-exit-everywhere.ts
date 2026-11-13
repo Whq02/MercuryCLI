@@ -55,8 +55,8 @@ check('ONE spelling of the notice in src (ExitChordNotice alone)',
   carriers.length === 1 && carriers[0] === 'src/components/PromptInput/ExitChordNotice.tsx', carriers.join(','))
 check('the Chat footer paints that one component (its words byte-identical)',
   footer.includes('<ExitChordNotice keyName={exitKeyName} />') && !footer.includes(SPELLING))
-check('the owner paints that one component too, sized from its own bytes',
-  owner.includes('<ExitChordNotice keyName="Ctrl-C" />') && owner.includes('exitChordNoticeText('))
+check('the owner paints that one component too, and gives it the whole of its row (sized to its own words it left the end of the row beneath showing after it)',
+  owner.includes('<ExitChordNotice keyName="Ctrl-C" />') && owner.includes('width={columns}') && !owner.includes('exitChordNoticeText('))
 check('the notice sits at the bottom-left of the host viewport (absolute, last row, column 0, opaque)',
   owner.includes('position="absolute"') && owner.includes('top={Math.max(0, rows - 1)}') && owner.includes('left={0}') && owner.includes('opaque={true}'))
 check('the Chat composer keeps its own chord (useTextInput: handleCtrlC over the same window, the notice through onExitMessage)',

@@ -97,7 +97,8 @@ for (const [cols, rows] of SIZES) {
       { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
       { atTick: 120, awaitText: wide ? 'ready · Opus 5.5 ·' : '● ready · Opus 5.5', minTick: 5, awaitSettleTicks: 6, requireAwait: true, data: PROMPT, mark: 'chat' },
       { atTick: 160, awaitText: `❯ ${PROMPT}`, minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '\r' },
-      { atTick: 220, awaitText: REPLY, minTick: 5, awaitSettleTicks: 8, requireAwait: true, data: '', mark: 'after-turn' },
+      { atTick: 220, awaitText: REPLY, minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '' },
+      { atTick: 230, awaitText: wide ? 'spend $0.00' : 'ctx 0%', minTick: 2, awaitSettleTicks: 8, requireAwait: true, data: '', mark: 'after-turn' },
     ]
     writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), DIST], cwd: realCwd, cols, rows, sends, resizes: [], readyText: REPLY, readySettleTicks: 4, total: 300, out: grid }))
     const env = { ...childEnv(leg, { MERCURY_DESKTOP_DRIVER: 'none', MERCURY_SPLASH: 'off', MERCURY_REDUCED_MOTION: '1', PATH: process.env.PATH }), VSHOT_TEE: tee }

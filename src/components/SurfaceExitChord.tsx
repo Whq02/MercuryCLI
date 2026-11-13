@@ -4,7 +4,7 @@ import { Box, useInput } from '../ink.js'
 import { EXIT_CHORD_WINDOW_MS, useDoublePress } from '../hooks/useDoublePress.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { gracefulShutdown } from '../utils/gracefulShutdown.js'
-import { ExitChordNotice, exitChordNoticeText } from './PromptInput/ExitChordNotice.js'
+import { ExitChordNotice } from './PromptInput/ExitChordNotice.js'
 
 const NOTICE_INDENT = 2
 
@@ -26,13 +26,12 @@ export function SurfaceExitChord({ onPendingChange }: { onPendingChange: (pendin
 export function SurfaceExitChordNotice({ pending }: { pending: boolean }): React.ReactNode {
   const { columns, rows } = useTerminalSize()
   if (!pending) return null
-  const width = Math.min(columns, NOTICE_INDENT + exitChordNoticeText('Ctrl-C').length)
   return (
     <Box
       position="absolute"
       top={Math.max(0, rows - 1)}
       left={0}
-      width={width}
+      width={columns}
       height={1}
       paddingLeft={NOTICE_INDENT}
       overflow="hidden"
