@@ -730,8 +730,10 @@ export async function planAstRewrite(
             refused: `${rel}:${m.startLine}: the rewrite ${substituted.refuse.replace(/^out references /, 'references ')} — every meta-variable in the rewrite must be captured by the pattern. Nothing was written.`,
           }
         }
+        const codeLength = before.slice(m.startIndex, m.endIndex).trimEnd().length
+        const codeEnd = codeLength > 0 ? m.startIndex + codeLength : m.endIndex
         if (substituted === '') {
-          const r = lineExtendedRange(before, m.startIndex, m.endIndex)
+          const r = lineExtendedRange(before, m.startIndex, codeEnd)
           edits.push({ start: r.start, end: r.end, newText: '' })
           continue
         }
@@ -758,12 +760,13 @@ export async function planAstRewrite(
             }
           }
         }
-        if (substituted === before.slice(m.startIndex, m.endIndex)) {
+        const replacement = codeEnd < m.endIndex ? substituted.trimEnd() : substituted
+        if (replacement === before.slice(m.startIndex, codeEnd)) {
           unchangedMatches++
           unchangedInFile++
           continue
         }
-        edits.push({ start: m.startIndex, end: m.endIndex, newText: substituted })
+        edits.push({ start: m.startIndex, end: codeEnd, newText: replacement })
       }
     } finally {
       tree?.delete()
