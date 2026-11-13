@@ -1,6 +1,7 @@
 import { dirname, parse, resolve } from 'path'
 
-import { getFsImplementation } from '../../../utils/fsOperations.js'
+import { normalizePathForComparison } from '../../../utils/file.js'
+import { getFsImplementation, safeResolvePath } from '../../../utils/fsOperations.js'
 import type {
   InstructionAdapter,
   InstructionConvention,
@@ -29,9 +30,21 @@ function isFile(path: string): boolean {
   }
 }
 
+const resolvedSpelling = (path: string): string =>
+  normalizePathForComparison(safeResolvePath(getFsImplementation(), path).resolvedPath)
+
+function isPersonalGuide(convention: InstructionConvention, path: string): boolean {
+  const personal = convention.userFile()
+  return personal !== null && resolvedSpelling(path) === resolvedSpelling(personal)
+}
+
+function projectGuidesAt(convention: InstructionConvention, dir: string): string[] {
+  return convention.projectDirFiles(dir).filter(path => isFile(path) && !isPersonalGuide(convention, path))
+}
+
 export function hasPrimaryProjectFile(conventions: InstructionConvention[], dirs: string[]): boolean {
   return conventions.some(
-    convention => !convention.fallback && dirs.some(dir => convention.projectDirFiles(dir).some(isFile)),
+    convention => !convention.fallback && dirs.some(dir => projectGuidesAt(convention, dir).length > 0),
   )
 }
 
@@ -48,7 +61,7 @@ function chainOf(dir: string): string[] {
 export function composedGuideFilesAt(dir: string): string[] {
   const conventions = conventionsForProfile(resolveRequestedInstructionProfile().profile)
   const primary = conventions.filter(c => !c.fallback)
-  const present = primary.flatMap(c => c.projectDirFiles(dir)).filter(isFile)
+  const present = primary.flatMap(c => projectGuidesAt(c, dir))
   if (present.length > 0) return present
   if (hasPrimaryProjectFile(primary, chainOf(dir))) return []
   return conventions

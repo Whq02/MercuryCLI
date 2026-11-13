@@ -14,7 +14,9 @@ from the project's instruction chain. When that chain contains no
 `MERCURY.md`, it loads the project's `AGENTS.md`. With both guides present,
 `MERCURY.md` decides; it can import `AGENTS.md` explicitly with `@AGENTS.md`.
 A `MERCURY.local.md` is a personal layer, loaded after the guide, so it does
-not prevent `AGENTS.md` from loading. Nested guides attach when their files
+not prevent `AGENTS.md` from loading. Neither does your own `MERCURY.md` in
+Mercury's home: it is the personal layer of every project and decides nothing
+for one. Nested guides attach when their files
 are touched under the same guide choice. The `native` profile uses Mercury
 instruction files only. `briefs.exclude` skips named paths or patterns, but
 cannot exclude managed instructions.
