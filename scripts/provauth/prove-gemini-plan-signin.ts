@@ -57,6 +57,7 @@ const assist = {
   inFlightRefusals: 0,
   bareRefusals: 0,
   detailedRefusals: 0,
+  overflowRefusals: 0,
   chatBodies: [] as Array<Record<string, unknown>>,
 }
 const sse = (value: unknown): string => `data: ${JSON.stringify(value)}\n\n`
@@ -211,6 +212,10 @@ const assistServer = Bun.serve({
       if (assist.bareRefusals > 0) {
         assist.bareRefusals -= 1
         return Response.json({ error: { code: 400, message: 'Request contains an invalid argument.', status: 'INVALID_ARGUMENT' } }, { status: 400 })
+      }
+      if (assist.overflowRefusals > 0) {
+        assist.overflowRefusals -= 1
+        return Response.json({ error: { code: 400, message: 'The input token count exceeds the maximum number of tokens allowed 1048576.', status: 'INVALID_ARGUMENT' } }, { status: 400 })
       }
       if (assist.detailedRefusals > 0) {
         assist.detailedRefusals -= 1
@@ -453,6 +458,71 @@ try {
   const detailed = await driveHistory('gemini-4-neon-high', longHistory)
   check('a 400 with detail is never retried: one request, the words say HTTP 400 with detail, not retried, and carry Google\'s words', assist.chatBodies.length === 1 && /Google refused the request on 'gemini-4-neon-high' — HTTP 400 after \d+ s, before any answer byte \(INVALID_ARGUMENT, with detail; not retried\)\. The wire said: api-INVALID_ARGUMENT: Invalid JSON payload received\. Unknown name \\"probe\\"/.test(errorWordsOf(detailed)), JSON.stringify({ chats: assist.chatBodies.length, words: errorWordsOf(detailed).slice(0, 300) }))
   assist.detailedRefusals = 0
+  assist.overflowRefusals = 1
+  assist.chatBodies = []
+  const overflowed = await driveHistory('gemini-4-neon-high', longHistory)
+  const overflowRow = overflowed.find(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage) as { overflowSignal?: { source?: string; family?: string; shape?: string; limitTokens?: number; actualTokens?: number } } | undefined
+  check('a 400 whose detail says the input is over the window is one request and its row carries the overflow stamp (Google, the input-token shape, the window Google named): the turn above can fold and send again', assist.chatBodies.length === 1 && overflowRow?.overflowSignal?.source === 'provider' && overflowRow.overflowSignal.family === 'gemini' && overflowRow.overflowSignal.shape === 'input-token-limit' && overflowRow.overflowSignal.limitTokens === 1_048_576 && overflowRow.overflowSignal.actualTokens === undefined, JSON.stringify({ chats: assist.chatBodies.length, signal: overflowRow?.overflowSignal ?? null }))
+  check('…and its words still carry Google\'s own sentence', errorWordsOf(overflowed).includes('The input token count exceeds the maximum number of tokens allowed 1048576.'), errorWordsOf(overflowed).slice(0, 300))
+  assist.overflowRefusals = 0
+  {
+    const { query } = await import('../../src/query.ts')
+    const { productionDeps } = await import('../../src/query/deps.ts')
+    const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+    const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+    const { createUserMessage } = await import('../../src/utils/messages.ts')
+    ;(await import('../../src/bootstrap/state.ts')).setIsInteractive(false)
+    const turnModel = 'gemini-4-neon-high'
+    const ask = 'operator ask: land the change and run its checks'
+    const seeded: unknown[] = []
+    for (let i = 0; i < 6; i++) {
+      seeded.push(createUserMessage({ content: `ask ${i}: adjust module ${i} ${'and keep the notes tidy '.repeat(20)}` }))
+      seeded.push({ type: 'assistant', uuid: randomUUID(), timestamp: new Date().toISOString(), requestId: `req_${i}`, message: { id: `msg_${i}`, type: 'message', role: 'assistant', model: turnModel, content: [{ type: 'text', text: `reply ${i}: module ${i} adjusted ${'and its checks pass '.repeat(20)}` }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 900 + i, output_tokens: 60, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } } })
+    }
+    seeded.push(createUserMessage({ content: ask }))
+    let appState: Record<string, unknown> = { ...(getDefaultAppState() as unknown as Record<string, unknown>), effortValue: 'high' }
+    const ctx = {
+      abortController: new AbortController(),
+      options: { commands: [], tools: [], engineModel: turnModel, thinkingConfig: { type: 'disabled' }, mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, debug: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
+      getAppState: () => appState,
+      setAppState: (f: (prev: never) => never): void => { appState = f(appState as never) as unknown as Record<string, unknown> },
+      messages: [],
+      readFileState: createFileStateCacheWithSizeLimit(100),
+      setInProgressToolUseIDs: () => {},
+      setResponseLength: () => {},
+      updateFileHistoryState: () => {},
+      updateAttributionState: () => {},
+      agentId: undefined,
+    }
+    assist.overflowRefusals = 1
+    assist.chatBodies = []
+    const yields: Array<Record<string, unknown>> = []
+    let terminal: Record<string, unknown> = {}
+    let threw: string | undefined
+    try {
+      const gen = query({ messages: seeded as never, systemPrompt: ['be brief'] as never, userContext: {}, systemContext: {}, canUseTool: (async () => ({ behavior: 'deny', message: 'no tools in this rig' })) as never, toolUseContext: ctx as never, querySource: 'sdk' as never, deps: productionDeps() })
+      let step = await gen.next()
+      while (!step.done) {
+        yields.push(step.value as Record<string, unknown>)
+        step = await gen.next()
+      }
+      terminal = step.value as Record<string, unknown>
+    } catch (error) {
+      threw = error instanceof Error ? error.message : String(error)
+    }
+    assist.overflowRefusals = 0
+    const textOfRow = (m: Record<string, unknown> | undefined): string => {
+      const content = (m?.message as { content?: unknown } | undefined)?.content
+      return Array.isArray(content) ? (content as Array<{ type?: string; text?: string }>).filter(b => b.type === 'text').map(b => String(b.text ?? '')).join('\n') : typeof content === 'string' ? content : typeof m?.content === 'string' ? (m.content as string) : ''
+    }
+    const errorRows = yields.filter(y => y.type === 'assistant' && y.isApiErrorMessage === true)
+    const boundary = yields.find(y => y.type === 'system' && (y as { subtype?: string }).subtype === 'compact_boundary') as { compactMetadata?: { trigger?: string; overflow?: { family?: string; shape?: string; limitTokens?: number } } } | undefined
+    const bodiesText = assist.chatBodies.map(body => JSON.stringify(body))
+    check('a whole turn on the plan road whose first request Google refuses as over the window: the refusal is withheld, the conversation is folded and the request sent again, and the turn completes', threw === undefined && terminal.reason === 'completed' && errorRows.length === 0 && textOfRow(yields.filter(y => y.type === 'assistant').at(-1)) === 'OK from the plan fixture', JSON.stringify({ threw: threw ?? null, terminal, errors: errorRows.map(textOfRow).map(t => t.slice(0, 160)), chats: assist.chatBodies.length }))
+    check('…in three requests: the refused one, the summary call carrying the fold prompt, the retry that still ends on the operator\'s message', assist.chatBodies.length === 3 && /summar/i.test(bodiesText[1] ?? '') && (bodiesText[2] ?? '').includes(ask), JSON.stringify({ chats: assist.chatBodies.length, second: (bodiesText[1] ?? '').slice(-200), third: (bodiesText[2] ?? '').slice(-200) }))
+    check('…and the boundary row says why: an overflow, Google\'s, with the window Google named', boundary?.compactMetadata?.trigger === 'overflow' && boundary.compactMetadata.overflow?.family === 'gemini' && boundary.compactMetadata.overflow.shape === 'input-token-limit' && boundary.compactMetadata.overflow.limitTokens === 1_048_576, JSON.stringify(boundary?.compactMetadata ?? null))
+    check('…with the notice a person reads', yields.some(y => y.type === 'system' && String(y.content ?? '').includes('context overflowed') && String(y.content ?? '').includes('folding the conversation and retrying')), JSON.stringify(yields.filter(y => y.type === 'system').map(y => String(y.content ?? '').slice(0, 160))))
+  }
   const heliumReplies = await driveRoad('gemini-4-helium', false)
   const heliumWords = JSON.stringify(heliumReplies.find(m => m.type === 'assistant' && (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message ?? '')
   const disabledOnTheWire = await driveRoad('gemini-4-helium-disabled', false)

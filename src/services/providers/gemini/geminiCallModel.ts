@@ -235,6 +235,7 @@ async function* geminiPlanCallModel(params: CallModelParams): CallModelStream {
             : `${API_ERROR_MESSAGE_PREFIX}: Google refused the request on '${model}' — ${geminiPlanRefusalPlaceWords({ status: seen, elapsedMs })} (INVALID_ARGUMENT, with detail; not retried). The wire said: ${said}`,
           error: item.error,
           errorDetails: item.errorDetails,
+          overflow: item.overflowSignal,
         })
         continue
       }
