@@ -34,7 +34,7 @@ bash scripts/run-drives.sh         # drive suites (*-drives), run once
 bun run artifact:smoke             # isolated built-bundle smoke check
 ```
 
-Iterate with the nearest suite and close with `bun run verify`. Suites use a fresh scratch config home unless `MERCURY_CONFIG_DIR` is set — never `~/.mercury`. Enable the pre-push hook with `git config core.hooksPath .githooks`. Build details live in `BUILD-NOTES.md`. Retired spellings (flags, keys, env vars, commands, words, paths) fail as unknown input with no alias, custom refusal, or migration, appearing only in the identity suite's forbidden lists.
+Iterate with the nearest suite and close with `bun run verify`. Suites use a fresh scratch config home unless `MERCURY_CONFIG_DIR` is set — never `~/.mercury`. `git config core.hooksPath .githooks` turns on the committed pre-push guard; the build never sets it. Build details live in `BUILD-NOTES.md`. Retired spellings (flags, keys, env vars, commands, words, paths) fail as unknown input with no alias, custom refusal, or migration, appearing only in the identity suite's forbidden lists.
 
 ## Reporting a problem
 
