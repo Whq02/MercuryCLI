@@ -49,6 +49,8 @@ section('§1 the verifier bundle carries the verifier and its own needs: every m
   check(`every bundled module is on the list of ${MODULES_ALLOWED.length} the verifier may carry`, unlisted.length === 0, unlisted.join(' · '))
   check('the list is exact: each listed module is bundled (a stale row is red)', MODULES_ALLOWED.every(p => inputs.includes(p)), MODULES_ALLOWED.filter(p => !inputs.includes(p)).join(' · '))
   check('no node_modules input', !inputs.some(p => p.includes('node_modules')), inputs.filter(p => p.includes('node_modules')).join(' · '))
+  const stripOf = (file: string): string => readFileSync(join(ROOT, file), 'utf8').match(/function stripExtendedLengthPrefix\(path: string\): string \{[\s\S]*?\n\}/)?.[0] ?? `absent in ${file}`
+  check("the verifier's own copy of the long-path strip reads as the product's (it may not import src/utils/windowsPaths.ts, whose imports are the substrate and lodash)", stripOf('src/services/privateChannel/vendoredRuntime.ts') === stripOf('src/utils/windowsPaths.ts') && !stripOf('src/utils/windowsPaths.ts').startsWith('absent'), `${stripOf('src/services/privateChannel/vendoredRuntime.ts')} | ${stripOf('src/utils/windowsPaths.ts')}`)
   const sourceBytes = Object.values(built.metafile?.inputs ?? {}).reduce((sum, v) => sum + v.bytes, 0)
   check(`the bundled source stays under 96 KiB (${sourceBytes} bytes over ${inputs.length} modules)`, sourceBytes < 96 * 1024)
 }

@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { dirname, join, win32 as pathWin32 } from 'node:path'
-import { stripExtendedLengthPrefix } from '../../utils/windowsPaths.js'
 
 export const RUNTIME_PACK_PATH = 'vendor/node'
 
@@ -141,6 +140,12 @@ export function payloadVendoredRuntime(payloadDir: string): { record: VendoredRu
   if (record === null || !record.vendored) return null
   const check = checkVendoredRuntime(payloadDir, record)
   return check.state === 'ok' ? { record, binaryPath: check.binaryPath } : null
+}
+
+function stripExtendedLengthPrefix(path: string): string {
+  if (/^\\\\\?\\UNC\\/i.test(path)) return '\\\\' + path.slice(8)
+  if (path.startsWith('\\\\?\\')) return path.slice(4)
+  return path
 }
 
 export function runningBundlePayloadDir(argv1: string | undefined = process.argv[1]): string | null {

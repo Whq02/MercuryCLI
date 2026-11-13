@@ -671,7 +671,9 @@ function composeBox(node: FrameNode, walk: Walk, placement: Placement, x: number
     const fills = Boolean(ownGround || isOpaque || ownRowBg !== undefined || fillRemoved)
     if (fills) fillInterior(walk, layoutNode, x, y, width, height, ownGround, rowSampler, placement.inheritedBackgroundColor)
     const fillHeld = nodeCache.has(node) && !fillRemoved && prevUniformBg === boxBackgroundColor && prevOpaque === isOpaque && rowSampler === undefined && prevRowSampler === false
-    composeChildren(node, walk, x, y, hasRemovedChild, !fills || fillHeld ? placement.prevScreen : undefined, boxBackgroundColor, rowSampler, ownWithin(placement.own, clipsAcross, clipsDown, x, y, width, height))
+    const stood = nodeCache.get(node)
+    const rectHeld = stood !== undefined && stood.x === x && stood.y === y && stood.width === width && stood.height === height
+    composeChildren(node, walk, x, y, hasRemovedChild, rectHeld && (!fills || fillHeld) ? placement.prevScreen : undefined, boxBackgroundColor, rowSampler, ownWithin(placement.own, clipsAcross, clipsDown, x, y, width, height))
   }
   if (clips) buffer.unclip()
   renderBorder(x, y, node, buffer as never, boxBackgroundColor)

@@ -27,11 +27,11 @@ check(
 )
 check(
   "the listing is the pattern's full match walk intersected with ripgrep's own non-ignored universe (a --glob override whitelists any ignored folder the pattern itself matches, so the ignore law cannot ride the match walk alone)",
-  /const universeArgs = \['--files', '--sortr=modified'\]/.test(globUtil) && /const listed = new Set\(universe\.lines\)/.test(globUtil) && /matches\.lines\.filter\(entry => listed\.has\(entry\)\)/.test(globUtil),
+  /const universeArgs = \['--files', '--sortr=modified'\]/.test(globUtil) && /const listed = new Set\(universe\.lines\)/.test(globUtil) && /const readable = matches\.lines\.filter\(entry => !denied\(located\(entry\)\)\)/.test(globUtil) && /const kept = readable\.filter\(entry => listed\.has\(entry\)\)/.test(globUtil),
 )
 check(
   "what the ignore files hid is counted for the result's tail, never listed first",
-  /ignored: complete \? matches\.lines\.length - kept\.length : 0/.test(globUtil),
+  /ignored: complete \? readable\.length - kept\.length : 0/.test(globUtil),
 )
 check(
   'no env spelling gates the ignore law any more (only the hidden toggle reads env)',

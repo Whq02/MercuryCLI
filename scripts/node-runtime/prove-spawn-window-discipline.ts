@@ -33,8 +33,8 @@ const ALLOWLIST: ReadonlyArray<{ path: string; callee: string; value: string; co
     path: 'src/utils/promptEditor.ts',
     callee: 'spawn',
     value: 'false',
-    count: 1,
-    reason: 'the external prompt editor takes over this console (stdio inherit)',
+    count: 2,
+    reason: 'the external prompt editor takes over this console (stdio inherit): the start by the system\'s own command-line rules on Windows, and the shell start elsewhere',
   },
   {
     path: 'src/substrate/directSplash.ts',
