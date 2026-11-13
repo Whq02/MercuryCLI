@@ -5,7 +5,6 @@ import { basename, join } from 'node:path'
 import { flagEnabled } from '../substrate/flagRegistry.js'
 import {
   MERCURY_CONSTITUTION,
-  MERCURY_COORDINATOR_CONTRACT,
   MERCURY_SUBAGENT_CONTRACT,
 } from '../prompt/mercuryContract.js'
 import { publishAtomic } from '../substrate/fileStore.js'
@@ -48,14 +47,11 @@ async function wrapped(
 async function runPreflight(): Promise<PreflightSummary> {
   const t0 = Date.now()
   const checks = await Promise.all([
-    wrapped('wrapper', async () => {
-      const { coordinatorEnabled } = await import('../services/concourse/concourseEnabled.js')
-      return {
-        id: 'wrapper',
-        status: 'ok' as const,
-        evidence: `the constitution ${MERCURY_CONSTITUTION.length} chars — repo-owned source; seat contracts coordinator ${coordinatorEnabled() ? MERCURY_COORDINATOR_CONTRACT.length : 'off (switch)'} · crewmate ${MERCURY_SUBAGENT_CONTRACT.length} chars`,
-      }
-    }),
+    wrapped('wrapper', async () => ({
+      id: 'wrapper',
+      status: 'ok' as const,
+      evidence: `the constitution ${MERCURY_CONSTITUTION.length} chars — repo-owned source; crewmate contract ${MERCURY_SUBAGENT_CONTRACT.length} chars`,
+    })),
     wrapped('gate', async () => {
       let raw: unknown = null
       try {

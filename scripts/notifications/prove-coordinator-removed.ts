@@ -180,9 +180,32 @@ async function main(): Promise<void> {
     check('the board over that home carries no coordinator and no seat held for one', !('coordinator' in snapshot) && !('seatsHeld' in snapshot.counts), Object.keys(snapshot).join(','))
     check('a fork an earlier version had already asked about stays off the board, one it never asked about is listed', titles.includes('mercury/never-asked') && !titles.includes('mercury/asked-about'), j(titles))
     check('the draft of the new-session row is the one it left', snapshot.newSession.draft === 'a new session, half written', j(snapshot.newSession))
+
+    const { saveGlobalConfig } = await import('../../src/utils/config.ts')
+    const schema = await import('../../src/utils/config/schema.ts')
+    check('the config no longer knows the key', !(schema.GLOBAL_CONFIG_KEYS as readonly string[]).includes('coordinatorEnabled'))
+    saveGlobalConfig(c => ({ ...c, editorMode: 'vim' as const }))
+    check('…and its writer carries the three keys through a save of something else', keysStand(w) && configOf(w).editorMode === 'vim', j(configOf(w)))
   }
 
-  section('§3 what carries the word and is not the coordinator stands')
+  section('§3 nothing advertises it')
+  {
+    const { MERCURY_CONSTITUTION, MERCURY_SUBAGENT_CONTRACT } = await import('../../src/prompt/mercuryContract.ts')
+    const sizes = `crewmate contract ${MERCURY_SUBAGENT_CONTRACT.length} chars`
+    const health = await mercury(world('health'), ['health', '--json'])
+    let wrapper = ''
+    try {
+      const certificate = JSON.parse(health.out) as { sections?: Array<{ checks?: Array<{ id?: string; evidence?: string }> }> }
+      wrapper = (certificate.sections ?? []).flatMap(section => section.checks ?? []).find(row => row.id === 'wrapper')?.evidence ?? ''
+    } catch {
+    }
+    check('mercury health: the constitution row reports the constitution and the crewmate contract, and no other seat', wrapper === `the constitution ${MERCURY_CONSTITUTION.length} chars — built-in source; ${sizes}`, j(wrapper))
+    const preflight = readFileSync(join(ROOT, 'src', 'utils', 'healthPreflight.ts'), 'utf8')
+    check('the boot preflight words its own row the same way', preflight.includes('chars — repo-owned source; crewmate contract ${MERCURY_SUBAGENT_CONTRACT.length} chars`') && !/coordinator|seat contracts/.test(preflight))
+    check('the settings list holds no row and no search word for it', !/coordinator/i.test(readFileSync(join(ROOT, 'src', 'components', 'Settings', 'Config.tsx'), 'utf8')))
+  }
+
+  section('§4 what carries the word and is not the coordinator stands')
   {
     const { AGENT_ROLES } = await import('../../src/services/crew/identity.ts')
     check('the crew\'s role vocabulary goes on accepting coordinator', (AGENT_ROLES as readonly string[]).includes('coordinator'))

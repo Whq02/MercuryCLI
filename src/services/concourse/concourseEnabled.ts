@@ -11,11 +11,3 @@ export function concourseEnabled(): boolean {
 export function setConcourseEnabled(on: boolean): void {
   saveGlobalConfig(config => (config.concourseEnabled === on ? config : { ...config, concourseEnabled: on }))
 }
-
-export function coordinatorEnabled(): boolean {
-  try {
-    return getGlobalConfig().coordinatorEnabled === true
-  } catch {
-    return false
-  }
-}

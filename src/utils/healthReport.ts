@@ -412,7 +412,6 @@ function runRemedyCmd(
 }
 import {
   MERCURY_CONSTITUTION,
-  MERCURY_COORDINATOR_CONTRACT,
   MERCURY_SUBAGENT_CONTRACT,
 } from '../prompt/mercuryContract.js'
 
@@ -1164,13 +1163,10 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         {
           id: 'wrapper',
           label: 'Mercury constitution',
-          run: async () => {
-            const { coordinatorEnabled } = await import('../services/concourse/concourseEnabled.js')
-            return {
-              status: 'ok',
-              evidence: `the constitution ${MERCURY_CONSTITUTION.length} chars — built-in source; seat contracts coordinator ${coordinatorEnabled() ? MERCURY_COORDINATOR_CONTRACT.length : 'off (switch)'} · crewmate ${MERCURY_SUBAGENT_CONTRACT.length} chars`,
-            }
-          },
+          run: async () => ({
+            status: 'ok',
+            evidence: `the constitution ${MERCURY_CONSTITUTION.length} chars — built-in source; crewmate contract ${MERCURY_SUBAGENT_CONTRACT.length} chars`,
+          }),
         },
         {
           id: 'build-fresh',

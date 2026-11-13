@@ -186,7 +186,6 @@ type Servers = {
 
 type Concourse = {
   concourseEnabled?: boolean
-  coordinatorEnabled?: boolean
   switchboardCapacity?: {
     askedAt?: number
     allowed?: boolean
@@ -321,7 +320,6 @@ export const GLOBAL_CONFIG_KEYS = [
   'defaultCritter',
   'defaultProvider',
   'concourseEnabled',
-  'coordinatorEnabled',
   'backgroundSessionsLaunchCrewmates',
   'permissionExplainerEnabled',
   'prStatusFooterEnabled',

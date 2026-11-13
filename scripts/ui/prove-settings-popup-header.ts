@@ -143,10 +143,15 @@ for (const [columns, rows] of [[120, 40], [100, 30]] as const) {
     check(`${label}: every row, the hint row with them, keeps a blank cell before the right border`, popupRight > popupLeft && flush.length === 0, flush.map(y => (after[y] ?? '').trim().slice(-48)).join(' | '))
     if (surface.view === 'config') {
       check(`${label}: a full-height popup starts its gutter on the pane's first interior row, immediately below the top border`, gutter === headerRow + 1)
-      const whole = 'off · `mercury --coordinator-on` turns it on'
-      const row = after.find(line => line.includes('Concourse coordinator')) ?? ''
-      const painted = row.slice(row.indexOf('Concourse coordinator') + 'Concourse coordinator'.length).split('│')[0]!.trim()
-      check(`${label}: a value its cell cannot hold is cut with an ellipsis, as its neighbours are`, painted === whole || (painted.endsWith('…') && whole.startsWith(painted.slice(0, -1))), JSON.stringify(painted))
+      const { PATIENCE_NORMAL, patienceWords } = await import('../../src/services/providers/patience.ts')
+      const specimen = 'Patience with a quiet model'
+      const whole = `normal · ${patienceWords(PATIENCE_NORMAL)}`
+      const row = after.find(line => line.includes(specimen))
+      if (row === undefined) check(`${label}: only the 30-row popup is too short to list the row whose value overflows`, rows === 30)
+      else {
+        const painted = row.slice(row.indexOf(specimen) + specimen.length).split('│')[0]!.trim()
+        check(`${label}: a value its cell cannot hold is cut with an ellipsis, as its neighbours are`, painted.endsWith('…') && whole.startsWith(painted.slice(0, -1)), JSON.stringify(painted))
+      }
     }
     const frame = after.join('\n') + '\n'
     const name = `${surface.view}-${columns}x${rows}.txt`

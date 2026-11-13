@@ -214,7 +214,7 @@ try {
     const scout = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-scout' } })
     check('the fixed-output scout: the constitution still leads', scout[0] === TEXT)
     check('the headless turn row composes the constitution ahead of a custom prompt', SRC('src/rows/turn.ts').includes('? [MERCURY_CONSTITUTION, config.customSystemPrompt]'))
-    const everySeat = [TEXT, contract.MERCURY_COORDINATOR_CONTRACT, contract.MERCURY_SUBAGENT_CONTRACT].join('\n')
+    const everySeat = [TEXT, contract.MERCURY_SUBAGENT_CONTRACT].join('\n')
     check('no seat text negates the identity or names an engine family', !/claim to be human|misrepresent what you are|not a person/i.test(everySeat) && !/\b(Claude|Anthropic|GPT|OpenAI|Gemini)\b/.test(everySeat))
   }
 
