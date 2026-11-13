@@ -53,10 +53,6 @@ function plainTexts(content: unknown): string[] {
   return (content as Block[]).flatMap(block => (block.type === 'text' && typeof block.text === 'string' && !block.text.trimStart().startsWith('<system-reminder>') ? [block.text] : []))
 }
 
-function carriesResult(item: Item): boolean {
-  return Array.isArray(item.content) && (item.content as Block[]).some(block => block.type === 'tool_result')
-}
-
 async function startWire(script: Script): Promise<Wire> {
   const asked: Asked[] = []
   const open = new Set<ServerResponse>()
@@ -84,7 +80,7 @@ async function startWire(script: Script): Promise<Wire> {
         n: asked.length + 1,
         streamed: body.stream === true,
         body,
-        tail: last !== undefined && last.role === 'user' && !carriesResult(last) ? plainTexts(last.content).join('\n') : '',
+        tail: last !== undefined && last.role === 'user' ? plainTexts(last.content).join('\n') : '',
         opening: users.map(item => plainTexts(item.content).join('\n')).find(text => text.trim() !== '') ?? '',
         at: Date.now(),
       }

@@ -175,6 +175,7 @@ import { emitCompactionTrace } from '../utils/observability/invocationTrace.js'
 import { flushSessionStorage, recordContentReplacement } from '../utils/sessionStorage.js'
 import { handleStopHooks } from '../query/stopHooks.js'
 import { announcesNextStep } from '../services/run/completionEvaluator.js'
+import { NO_CONTENT_MESSAGE } from '../constants/messages.js'
 import { buildRequestContextPlan, reconcileAppliedPlanUsage, type RequestContextPlan } from '../services/run/requestContextPlan.js'
 import { calibrationKeyFor } from '../services/run/contextCalibration.js'
 import { randomUUID, type UUID } from 'node:crypto'
@@ -240,6 +241,17 @@ const ANNOUNCED_STEP_AGAIN_NOTICE =
 
 function runLeftAlone(toolUseContext: ToolUseContext): boolean {
   return toolUseContext.agentId !== undefined || (getIsNonInteractiveSession() && getSessionKind() !== 'oculus')
+}
+
+function endedWithoutWords(assistantMessages: readonly AssistantMessage[]): boolean {
+  const last = assistantMessages.at(-1)
+  if (last !== undefined && last.message.stop_reason !== 'end_turn') return false
+  return assistantMessages.every(
+    message =>
+      message.isApiErrorMessage !== true &&
+      Array.isArray(message.message.content) &&
+      message.message.content.every(block => block.type === 'text' && (block.text.trim() === '' || block.text === NO_CONTENT_MESSAGE)),
+  )
 }
 
 function continuationAdded(previous: string | undefined, next: string): boolean {
@@ -1853,12 +1865,22 @@ async function* runEventMachine(
         })
       }
 
-      if (lastMessage && emptyReplyKindOf(lastMessage) === 'silence') {
+      const emptyKind = lastMessage === undefined ? undefined : emptyReplyKindOf(lastMessage)
+      const silentAlone =
+        emptyKind !== 'empty' &&
+        emptyKind !== 'cap' &&
+        chant === null &&
+        reasoningOnly === null &&
+        (state.emptyReplyRecoveryCount ?? 0) < EMPTY_REPLY_RECOVERY_LIMIT &&
+        endedWithoutWords(assistantMessages) &&
+        runLeftAlone(toolUseContext)
+
+      if (lastMessage && emptyKind === 'silence' && !silentAlone) {
         const silence = emptyReplyNoteOf(lastMessage) ?? 'the provider finished this response with nothing said; the turn ends here, not cut.'
         yield emit({ kind: 'notice', message: createSystemMessage(silence, 'info') })
       }
 
-      if (lastMessage && emptyReplyKindOf(lastMessage) === 'empty') {
+      if (emptyKind === 'empty' || silentAlone) {
         const emptyReplyRecoveryCount = state.emptyReplyRecoveryCount ?? 0
         const decision = decideEmptyReplyRecovery({ recoveryCount: emptyReplyRecoveryCount })
         if (decision.kind === 'continue') {

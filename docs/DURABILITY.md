@@ -157,11 +157,14 @@ in a note and the request is sent again once, carrying a one-line note that
 asks for the answer or the tool call, before the note ends the
 turn. On the OpenAI and Z.AI routes the note names the case. A
 response the provider completed with no words is silence: the note says so
-and the turn ends there, with no second request. A response the provider
+and the turn ends there, with no second request in a foreground session; a
+crewmate and a headless run, where nobody is there to ask again, send the
+request again once with the same one-line note, and a second silence ends
+the turn as the first does in a foreground session. A response the provider
 stopped at its own output cap before any words names the cap, and the
 reasoning tokens spent by the provider's count when the provider states
-them, and the turn ends there, with no second request. Only a stream that
-ends with nothing at all is sent again once.
+them, and the turn ends there, with no second request. Beside these, only a
+stream that ends with nothing at all is sent again once.
 
 A run is never recorded complete while a task it filed stays open, on a
 headless run or hosted session just as in the terminal UI: the stop asks for the

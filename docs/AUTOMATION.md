@@ -166,7 +166,8 @@ model calls; model calls made by crewmates appear as their own `step` rows
 tagged with `parent_call_id`. `recoveries` is included when Mercury asked the
 model again inside the turn, one entry an ask, each with its `kind`:
 `announced_step` when a reply announced a next step and ended the turn with no
-tool call.
+tool call, `empty_reply` when a reply came back with no words and no tool
+call.
 
 The status is `completed`, `blocked`, `refused`, `failed`, `interrupted`,
 `turn_limit`, `budget_limit`, `time_limit`, `schema_unmet` or `loop_stopped`.

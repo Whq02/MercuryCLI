@@ -4173,7 +4173,8 @@ export const METHODS: Record<MethodName, MethodSchema> = {
                   "kind": {
                     "type": "string",
                     "enum": [
-                      "announced_step"
+                      "announced_step",
+                      "empty_reply"
                     ]
                   }
                 },

@@ -44,7 +44,7 @@ export type OutcomeStatus = (typeof OUTCOME_STATUSES)[number]
 export const STOP_WORDS = ['end_turn', 'max_tokens', 'stop_sequence', 'tool_use', 'refusal', 'pause', 'hook'] as const
 export type StopWord = (typeof STOP_WORDS)[number]
 
-export const RECOVERY_KINDS = ['announced_step'] as const
+export const RECOVERY_KINDS = ['announced_step', 'empty_reply'] as const
 export type RecoveryKind = (typeof RECOVERY_KINDS)[number]
 
 export const ERROR_CLASSES = [
@@ -554,6 +554,8 @@ export function recoveryKindOf(transition: Continue): RecoveryKind | undefined {
   switch (transition.reason) {
     case 'announced_step_nudge':
       return 'announced_step'
+    case 'empty_reply_retry':
+      return 'empty_reply'
     default:
       return undefined
   }

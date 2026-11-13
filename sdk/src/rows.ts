@@ -216,7 +216,7 @@ export interface OutcomeRow<T = unknown> {
   api_ms?: number
   cost_usd?: number
   recoveries?: Array<{
-    kind: 'announced_step'
+    kind: 'announced_step' | 'empty_reply'
   }>
   usage: Usage
   models: Record<string, ModelUsageRow>
@@ -1240,7 +1240,8 @@ export const ROW_SCHEMAS: Readonly<Record<RowType | PartialRowType, JsonSchema>>
             "kind": {
               "type": "string",
               "enum": [
-                "announced_step"
+                "announced_step",
+                "empty_reply"
               ]
             }
           },
