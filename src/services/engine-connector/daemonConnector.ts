@@ -414,6 +414,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private rawRecords: Message[] = []
   private recordSigs: string[] = []
   private painted: readonly Message[] = []
+  private keptRecords: readonly Message[] = []
+  private answeredRows: readonly Message[] = []
   private liveState: SessionLiveV1 = IDLE_LIVE
   private factsBusy = false
   private busyStallDeadline: ReturnType<typeof armInactivityDeadline> | null = null
@@ -1456,6 +1458,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const kept = withoutRetractedReplies(projectOperatorRewinds(this.rawRecords))
     const dropped = kept.length === this.rawRecords.length ? null : new Set<Message>(kept)
     const answered = endedRunResults(kept, this.facts, this.carrierGoneAtFactsMs !== null)
+    this.keptRecords = kept
+    this.answeredRows = answered
     if (echoes.length === 0 && this.displayRows.length === 0 && dropped === null && answered.length === 0) {
       this.painted = this.rawRecords
     } else {
@@ -1615,7 +1619,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (modelMoved) emitAll(this.modelListeners, 'model')
     if (modeMoved) emitAll(this.permissionListeners, 'permission')
     if (!modelMoved) emitAll(this.modelListeners, 'model')
-    if (this.reconcileSends() || this.clearModelReceipt === undefined) this.paint()
+    const answered = endedRunResults(this.keptRecords, this.facts, this.carrierGoneAtFactsMs !== null)
+    const answeredMoved = answered.length !== this.answeredRows.length || answered.some((row, at) => row !== this.answeredRows[at])
+    if (this.reconcileSends() || this.clearModelReceipt === undefined || answeredMoved) this.paint()
     this.refreshWork()
   }
 

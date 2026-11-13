@@ -16,6 +16,7 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const React = (await import('react')).default
 const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
 const { recordTranscript, flushSessionStorage } = await import('../../src/utils/sessionStorage.ts')
 const { getTranscriptPathForSession } = await import('../../src/utils/sessionStorage/paths.ts')
@@ -45,7 +46,7 @@ const watchdog = setTimeout(() => {
 watchdog.unref?.()
 
 type Facts = { schema: 1; sessionId: string; atMs: number; busy: boolean; runnerGeneration: number; queue: unknown[]; pendingModel: null; turnStartedAt?: number; transcriptStoreFailing?: string }
-type Guts = { attached: boolean; tick: () => Promise<void>; paint: () => void; facts: Facts | null; factsBusy: boolean; carrierGoneAtFactsMs: number | null }
+type Guts = { attached: boolean; tick: () => Promise<void>; readFacts: () => void; settleCarrierGone: () => void }
 
 const sid = bootstrap.getSessionId()
 const file = getTranscriptPathForSession(sid)
@@ -58,14 +59,35 @@ const write = async (rows: unknown[]): Promise<void> => {
   await g.tick.call(connector)
   g.attached = false
 }
-const told = (facts: Facts | null, carrierGone = false): readonly Message[] => {
-  g.facts = facts
-  g.factsBusy = facts?.busy ?? false
-  g.carrierGoneAtFactsMs = carrierGone ? (facts?.atMs ?? 0) : null
-  g.paint.call(connector)
+const answer = {
+  model: { effective: 'claude-opus-4-8', setting: null },
+  usage: { totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false },
+  identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null },
+  skills: [],
+  mcp: [],
+  permissionMode: 'default' as const,
+  workspace: { cwd: '/tmp', originalCwd: '/tmp', projectRoot: '/tmp', instructionRoots: [] },
+}
+let paints = 0
+connector.subscribeRecords(() => {
+  paints++
+})
+const told = (facts: Facts): readonly Message[] => {
+  publishSessionFacts({ ...answer, ...facts } as never)
+  g.readFacts.call(connector)
+  return connector.records()
+}
+const paintsOver = (reads: Facts[]): number => {
+  const before = paints
+  for (const read of reads) told(read)
+  return paints - before
+}
+const carrierGone = (): readonly Message[] => {
+  g.settleCarrierGone.call(connector)
   return connector.records()
 }
 const facts = (busy: boolean, atMs: number, turnStartedAt?: number): Facts => ({ schema: 1, sessionId: sid, atMs, busy, runnerGeneration: 1, queue: [], pendingModel: null, ...(turnStartedAt !== undefined ? { turnStartedAt } : {}) })
+const moreAnswers = (count: number, from: number, turnStartedAt?: number): Facts[] => Array.from({ length: count }, (_, at) => facts(turnStartedAt !== undefined, from + (at + 1) * 400, turnStartedAt))
 
 const READ = 'toolu_read_note'
 const BUILD = 'toolu_run_build'
@@ -117,13 +139,14 @@ await write([
   createAssistantMessage({ content: [{ type: 'tool_use', id: BUILD, name: 'Bash', input: { command: 'sleep 20', description: 'Run the build' } }] as never }),
 ])
 const onDisk = readFileSync(file, 'utf8')
-const raw = told(null)
+const raw = connector.records()
 const replyAt = Date.parse(String((raw[callAt(raw, BUILD)] as { timestamp?: string } | undefined)?.timestamp))
 check('the scene: the record holds the build call and no result for it', callAt(raw, BUILD) >= 0 && answersTo(raw, BUILD).length === 0 && answersTo(raw, READ).length === 1 && Number.isFinite(replyAt), tail(raw))
 
 section('A — not known yet, and a turn that is live: the call paints as it does today')
 {
-  const unknown = told(null)
+  g.readFacts.call(connector)
+  const unknown = connector.records()
   check('A1 before the runner has said anything the call has no result painted', answersTo(unknown, BUILD).length === 0, tail(unknown))
   const live = told(facts(true, replyAt + 500, replyAt - 2_000))
   check('A2 a live turn that began before the call was written: the call is its own, and nothing is painted for it', answersTo(live, BUILD).length === 0, tail(live))
@@ -134,15 +157,21 @@ section('A — not known yet, and a turn that is live: the call paints as it doe
   const frame = await rowFrame(live)
   show('the build call in a live turn', frame)
   check('A5 the frame of the live call is the frame of the call with nothing known', frame === await rowFrame(unknown) && frame.includes('sleep 20'), frame)
+  const painted = paintsOver(moreAnswers(6, replyAt + 500, replyAt - 2_000))
+  console.log(`  paints over six reads of a live turn's facts: ${painted}`)
+  check('A6 six more answers from the runner inside that turn, each later than the last: the facts are read six times and nothing is painted', painted === 0 && answersTo(connector.records(), BUILD).length === 0, `paints=${painted}`)
 }
 
 section('B — the runner answers idle after the call was written: its run ended, and the window paints the result the resume gives it')
 {
-  const before = await rowFrame(told(null))
-  const beforeCard = await cardFrame(told(null))
+  const unknown = told(facts(false, replyAt - 2_000))
+  const before = await rowFrame(unknown)
+  const beforeCard = await cardFrame(unknown)
+  const paintsBefore = paints
   const idle = told(facts(false, replyAt + 1_000))
   const answers = answersTo(idle, BUILD)
-  check('B1 the call is answered once', answers.length === 1, tail(idle))
+  console.log(`  paints at the read where the answer first moves: ${paints - paintsBefore}`)
+  check('B1 the call is answered once, by the read of the facts alone', answers.length === 1 && paints - paintsBefore === 1, `${tail(idle)} paints=${paints - paintsBefore}`)
   check("B2 …by the loader's own sentence, as a failed call", answers[0]?.block.content === ENDED_RUN_TOOL_RESULT && answers[0]?.block.is_error === true, JSON.stringify(answers[0]?.block))
   check('B3 …on the row right behind the call', answers.length === 1 && idle.indexOf(answers[0]!.row) === callAt(idle, BUILD) + 1, tail(idle))
   const again = told(facts(false, replyAt + 9_000))
@@ -158,12 +187,16 @@ section('B — the runner answers idle after the call was written: its run ended
   show('the card at the resume, before', beforeCard)
   show('the card at the resume, here', afterCard)
   check('B8 the card: it says a call failed, in its own words, where it said resumed clean', beforeCard.includes('resumed clean') && afterCard.includes('resumed — 1 tool call failed') && !afterCard.includes('resumed clean'), JSON.stringify({ beforeCard, afterCard }))
+  const painted = paintsOver(moreAnswers(6, replyAt + 30_000))
+  console.log(`  paints over six more idle reads: ${painted}`)
+  check('B9 six more idle answers, each later than the last: nothing is painted again, and the call stays answered by the one row', painted === 0 && answersTo(connector.records(), BUILD)[0]?.row === answers[0]?.row, `paints=${painted}`)
 }
 
 section('C — the daemon that carried the session is gone: the same')
 {
-  const gone = told(null, true)
-  check('C1 the call is answered once, by the same sentence', answersTo(gone, BUILD).length === 1 && answersTo(gone, BUILD)[0]?.block.content === ENDED_RUN_TOOL_RESULT, tail(gone))
+  const stale = told(facts(false, replyAt - 2_000))
+  const gone = carrierGone()
+  check('C1 from an answer that left the call open, the call is answered once, by the same sentence', answersTo(stale, BUILD).length === 0 && answersTo(gone, BUILD).length === 1 && answersTo(gone, BUILD)[0]?.block.content === ENDED_RUN_TOOL_RESULT, tail(gone))
 }
 
 section('D — older damage: a call left open in the middle of a conversation that went on is painted as today')
@@ -177,14 +210,16 @@ section("E — the same run goes on and its record cannot be written: a call who
 {
   const DEPLOY = 'toolu_run_deploy'
   const UNWRITABLE = 'the session transcript store is unwritable (/tmp/p): EACCES: permission denied'
+  const turnAt = Date.now()
+  told(facts(true, turnAt, turnAt))
   await write([
     createUserMessage({ content: 'now deploy it' }),
     createAssistantMessage({ content: [{ type: 'tool_use', id: DEPLOY, name: 'Bash', input: { command: 'sleep 30', description: 'Deploy' } }] as never }),
   ])
-  const open = told(null)
+  const open = connector.records()
   const deployAt = Date.parse(String((open[callAt(open, DEPLOY)] as { timestamp?: string } | undefined)?.timestamp))
   const deployFrame = (rows: readonly Message[]): Promise<string> => rowFrame(rows, DEPLOY, 'sleep 30', 'Deploy')
-  const liveFrame = await deployFrame(told(facts(true, deployAt + 500, deployAt - 2_000)))
+  const liveFrame = await deployFrame(open)
   const ended = told(facts(false, deployAt + 1_000))
   const endedFrame = await deployFrame(ended)
   const endedCard = await cardFrame(ended)
@@ -201,7 +236,8 @@ section("E — the same run goes on and its record cannot be written: a call who
   check('E4 …and the card does not say a call failed', failingCard.includes('resumed clean') && !failingCard.includes('tool call failed'), failingCard)
   const nextTurn = told({ ...facts(true, deployAt + 20_000, deployAt + 15_000), transcriptStoreFailing: UNWRITABLE })
   check('E5 a turn that began after the call, the record still unwritable: nothing is painted', answersTo(nextTurn, DEPLOY).length === 0, tail(nextTurn))
-  const gone = told({ ...facts(false, deployAt + 1_000), transcriptStoreFailing: UNWRITABLE }, true)
+  told({ ...facts(false, deployAt + 21_000), transcriptStoreFailing: UNWRITABLE })
+  const gone = carrierGone()
   check('E6 the daemon that carried the session is gone, its last word the same: the run did end, and the call is answered as in C', answersTo(gone, DEPLOY).length === 1 && answersTo(gone, DEPLOY)[0]?.block.content === ENDED_RUN_TOOL_RESULT, tail(gone))
   await write([
     createUserMessage({ content: [{ type: 'tool_result', tool_use_id: DEPLOY, content: 'deployed' }] as never, toolUseResult: 'deployed' as never }),
@@ -213,6 +249,13 @@ section("E — the same run goes on and its record cannot be written: a call who
   const writtenFrame = await deployFrame(written)
   show('the deploy call once its result is in the record', writtenFrame)
   check('E8 …and its frame no longer waits', !writtenFrame.includes('waiting…') && writtenFrame.includes('sleep 30'), writtenFrame)
+}
+
+section('F — a session at rest: the facts are read and nothing is painted')
+{
+  const painted = paintsOver(moreAnswers(6, Date.now() + 60_000))
+  console.log(`  paints over six idle reads of a session at rest: ${painted}`)
+  check('F1 six idle answers to a session whose last turn ended whole: nothing is painted', painted === 0, `paints=${painted}`)
 }
 
 console.log(`\n${checks} checks, ${failures} failures`)
