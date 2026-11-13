@@ -108,6 +108,9 @@ const refusals: Array<[string, RegExp]> = [
   ['ssh://-l@web1/x', /begins a host or a user with a dash, which ssh would read as an option\.$/],
   ['ssh://%2DoProxyCommand=id/x', /begins a host or a user with a dash, which ssh would read as an option\.$/],
   ['ssh://we b1/x', /names no host\.$/],
+  ['ssh://./x', /names no host\.$/],
+  ['ssh://../etc/hosts', /names no host\.$/],
+  ['ssh://.web1/x', /names no host\.$/],
   ['ssh://web1/a%00b', /holds a null byte\.$/],
   ['ssh://web1/%FF%FE', /holds an escape that is not UTF-8 text\.$/],
 ]
@@ -166,6 +169,7 @@ check('a path with .. is denied by what it is written under and by where it land
 check('a path with .. is allowed by no rule', !matches('ssh://web1/srv/**', 'ssh://web1/srv/app/../../etc/shadow', 'allow') && !matches('ssh://web1/**', 'ssh://web1/srv/../x', 'allow'))
 check('a path without .. is allowed by its rule', matches('ssh://web1/srv/**', 'ssh://web1/srv/app/x', 'allow'))
 check('a malformed remote path matches no rule', (remoteRuleCandidates('ssh:///etc/hosts', 'deny') ?? ['x']).length === 0 && (remoteRuleCandidates('ssh://', 'deny') ?? ['x']).length === 0)
+check('every form a path is matched by is a relative path the matcher takes', ['ssh://web1/x', 'ssh://.hidden@web1/x', 'ssh://web1/.env', 'ssh://web1/', 'ssh://web1/~', 'ssh://[::1]:22/a/../b'].every(path => (remoteRuleCandidates(path, 'deny') ?? []).every(candidate => ignore.isPathValid(candidate))))
 
 section('§7 a configuration name and its real host are one host')
 {

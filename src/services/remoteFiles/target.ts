@@ -69,7 +69,7 @@ function parseAuthority(text: string, whole: string): RemoteAuthority {
   }
   const user = parts.user === undefined ? undefined : decodeOnce(parts.user, whole)
   const host = decodeOnce(parts.host, whole)
-  if (host === '' || /[\s/]/.test(host) || CONTROL.test(host)) throw new RemotePathError(`${whole} names no host.`)
+  if (host === '' || host.startsWith('.') || /[\s/]/.test(host) || CONTROL.test(host)) throw new RemotePathError(`${whole} names no host.`)
   if (user !== undefined && (user === '' || CONTROL.test(user))) throw new RemotePathError(`${whole} names no user before the @.`)
   if (host.startsWith('-') || user?.startsWith('-') === true) {
     throw new RemotePathError(`${whole} begins a host or a user with a dash, which ssh would read as an option.`)
