@@ -5,13 +5,8 @@ export interface BoardModalFactsV1 {
   settingsOpen?: boolean
   groundPickerOpen: boolean
   rowPick: boolean
-  seatAsk: boolean
-  forkAsk?: boolean
   gitOffer: boolean
   contractAsk: boolean
-  managerSeatAsk: boolean
-  managerCardArmed: boolean
-  coordinatorFocused: boolean
   helpOpen?: boolean
   modelDefault?: boolean
 }
@@ -23,12 +18,8 @@ export type BoardModalOwnerV1 =
   | 'settings'
   | 'ground-picker'
   | 'row-pick'
-  | 'seat-ask'
-  | 'fork-ask'
   | 'git-offer'
   | 'contract-ask'
-  | 'manager-seat-ask'
-  | 'manager-card'
   | 'help'
 
 export function boardModalOwner(facts: BoardModalFactsV1): BoardModalOwnerV1 | null {
@@ -36,15 +27,11 @@ export function boardModalOwner(facts: BoardModalFactsV1): BoardModalOwnerV1 | n
   if (facts.rowPick) return 'row-pick'
   if (facts.trustAsk) return 'trust-ask'
   if (facts.groundPickerOpen) return 'ground-picker'
-  if (facts.managerSeatAsk) return 'manager-seat-ask'
-  if (facts.seatAsk) return 'seat-ask'
-  if (facts.forkAsk === true) return 'fork-ask'
   if (facts.capacityAsk) return 'capacity-ask'
   if (facts.settingsOpen === true) return 'settings'
   if (facts.helpOpen === true) return 'help'
   if (facts.gitOffer) return 'git-offer'
   if (facts.contractAsk) return 'contract-ask'
-  if (facts.managerCardArmed && facts.coordinatorFocused) return 'manager-card'
   return null
 }
 

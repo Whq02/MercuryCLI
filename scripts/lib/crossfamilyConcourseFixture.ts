@@ -1,7 +1,7 @@
 import { appendFileSync } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 
-type FixtureLane = 'anthropic-coordinator' | 'anthropic-seat' | 'openai' | 'openai-seat' | 'zai' | 'zai-seat' | 'openrouter' | 'openrouter-seat' | 'other'
+type FixtureLane = 'anthropic-seat' | 'openai-seat' | 'zai-seat' | 'openrouter-seat' | 'other'
 interface FixtureHit {
   lane: FixtureLane
   path: string
@@ -92,65 +92,10 @@ function chatSse(kind: Emit): string {
   ].join('')
 }
 
-function boardSessionsOf(body: unknown): Array<{ sessionId?: string; title?: string }> {
-  const texts: string[] = []
-  ;(function walk(v: unknown): void {
-    if (typeof v === 'string') {
-      if (v.includes('<switchboard')) texts.push(v)
-      return
-    }
-    if (Array.isArray(v)) {
-      for (const x of v) walk(x)
-      return
-    }
-    if (v !== null && typeof v === 'object') for (const x of Object.values(v)) walk(x)
-  })(body)
-  for (let i = texts.length - 1; i >= 0; i--) {
-    const t = texts[i]!
-    const tagAt = t.lastIndexOf('<switchboard')
-    const open = t.indexOf('{', tagAt)
-    const closeTag = t.indexOf('</switchboard>', tagAt)
-    const close = t.lastIndexOf('}', closeTag >= 0 ? closeTag : t.length)
-    if (open < 0 || close <= open) continue
-    try {
-      const parsed = JSON.parse(t.slice(open, close + 1)) as { board?: { sessions?: Array<{ sessionId?: string; title?: string }> } }
-      if (parsed.board?.sessions !== undefined) return parsed.board.sessions
-    } catch {
-    }
-  }
-  return []
-}
-
-function sessionIdByTitle(body: unknown, title: string): string | undefined {
-  const sessions = boardSessionsOf(body)
-  return sessions.find(s => s.title === title)?.sessionId ?? sessions[0]?.sessionId
-}
-
-type Op = 'launch' | 'launch-pair' | 'launch-gpt' | 'launch-plain' | 'launch-glm' | 'launch-haiku' | 'launch-nemotron' | 'steer' | 'ack' | 'final'
-function routeOf(serialized: string): Op {
-  if (/tool_result|function_call_output|"role":"tool"/.test(serialized)) return 'ack'
-  const markers = ['cma-launch-pair', 'cma-launch-gpt', 'cma-launch-plain', 'cma-launch-glm', 'cma-launch-haiku', 'cma-launch-nemotron', 'cma-steer', 'cma-launch'] as const
-  let best: { at: number; op: (typeof markers)[number] } | null = null
-  for (const m of markers) {
-    const at = serialized.lastIndexOf(m)
-    if (at >= 0 && (best === null || at > best.at)) best = { at, op: m }
-  }
-  if (best === null) return 'final'
-  if (best.op === 'cma-launch-pair') return 'launch-pair'
-  if (best.op === 'cma-launch-gpt') return 'launch-gpt'
-  if (best.op === 'cma-launch-plain') return 'launch-plain'
-  if (best.op === 'cma-launch-glm') return 'launch-glm'
-  if (best.op === 'cma-launch-haiku') return 'launch-haiku'
-  if (best.op === 'cma-launch-nemotron') return 'launch-nemotron'
-  if (best.op === 'cma-steer') return 'steer'
-  return 'launch'
-}
-
 interface CrossfamilyFixtureOpts {
   port: number
   seatStyle?: 'instant' | 'paced'
   seatSleepSeconds?: number
-  launchProjects?: { plain?: string; glm?: string; gpt?: string; haiku?: string; nemotron?: string; pairOne?: string; pairTwo?: string }
   gptId?: string
   gptDisplayName?: string
   gptReasoningLevels?: readonly string[]
@@ -182,40 +127,6 @@ export async function startCrossfamilyFixture(opts: CrossfamilyFixtureOpts): Pro
   const seatStyle = opts.seatStyle ?? 'instant'
   const sleepS = opts.seatSleepSeconds ?? 6
   const seatRefusals: Array<{ status: number; message: string }> = []
-
-  function coordinatorScript(serialized: string, body: unknown, dialect: 'anthropic' | 'openai' | 'zai'): string {
-    const emit = dialect === 'anthropic' ? anthropicSse : dialect === 'openai' ? responsesSse : chatSse
-    const op = routeOf(serialized)
-    if (op === 'ack') return emit({ final: `cma-${dialect}-ack: done.` })
-    if (op === 'launch') return emit({ tool: { name: 'launch_session', input: { task: 'seat-task-alpha: work the alpha brief', title: 'CMA Alpha' } } })
-    if (op === 'launch-pair') {
-      return emit({
-        tools: [
-          { name: 'launch_session', input: { task: 'seat-task-pair-one: work the first pair brief', title: 'CMA Pair One', ...(opts.launchProjects?.pairOne !== undefined ? { project: opts.launchProjects.pairOne } : {}) } },
-          { name: 'launch_session', input: { task: 'seat-task-pair-two: work the second pair brief', title: 'CMA Pair Two', ...(opts.launchProjects?.pairTwo !== undefined ? { project: opts.launchProjects.pairTwo } : {}) } },
-        ],
-      })
-    }
-    if (op === 'launch-gpt') return emit({ tool: { name: 'launch_session', input: { task: 'seat-task-gpt: work on the gpt engine', title: 'CMA Gpt Seat', model: gptId, ...(opts.launchProjects?.gpt !== undefined ? { project: opts.launchProjects.gpt } : {}) } } })
-    if (op === 'launch-plain') {
-      return emit({ tool: { name: 'launch_session', input: { task: 'seat-task-plain: work the plain brief', title: 'CMA Plain', ...(opts.launchProjects?.plain !== undefined ? { project: opts.launchProjects.plain } : {}) } } })
-    }
-    if (op === 'launch-glm') {
-      return emit({ tool: { name: 'launch_session', input: { task: 'seat-task-beta: work the beta brief', title: 'CMA Beta', ...(opts.launchProjects?.glm !== undefined ? { project: opts.launchProjects.glm } : {}) } } })
-    }
-    if (op === 'launch-haiku') {
-      return emit({ tool: { name: 'launch_session', input: { task: 'seat-task-haiku: work the economy brief', title: 'CMA Haiku Seat', model: 'claude-haiku-4-5-20251001', ...(opts.launchProjects?.haiku !== undefined ? { project: opts.launchProjects.haiku } : {}) } } })
-    }
-    if (op === 'launch-nemotron') {
-      return emit({ tool: { name: 'launch_session', input: { task: 'seat-task-nemotron: work the routed brief', title: 'CMA Nemotron Seat', model: nemotronId, ...(opts.launchProjects?.nemotron !== undefined ? { project: opts.launchProjects.nemotron } : {}) } } })
-    }
-    if (op === 'steer') {
-      const sid = sessionIdByTitle(body, 'CMA Alpha')
-      if (sid === undefined) return emit({ final: 'cma-steer-no-session: the board shows no session.' })
-      return emit({ tool: { name: 'message_session', input: { sessionId: sid, text: CMA_STEER_TEXT } } })
-    }
-    return emit({ final: `cma-${dialect}-final.` })
-  }
 
   function seatScript(serialized: string, dialect: 'anthropic' | 'openai' | 'zai' | 'openrouter' | 'openrouter-responses' = 'anthropic'): string {
     const emit = dialect === 'anthropic' ? anthropicSse : dialect === 'openai' || dialect === 'openrouter-responses' ? responsesSse : chatSse
@@ -314,44 +225,39 @@ export async function startCrossfamilyFixture(opts: CrossfamilyFixtureOpts): Pro
         return
       }
       if (req.method === 'POST' && path.endsWith('/v1/messages')) {
-        const isCoordinator = raw.includes('<switchboard')
-        record({ lane: isCoordinator ? 'anthropic-coordinator' : 'anthropic-seat', path, model: String(body.model ?? ''), body })
-        const refusal = isCoordinator ? undefined : seatRefusals.shift()
+        record({ lane: 'anthropic-seat', path, model: String(body.model ?? ''), body })
+        const refusal = seatRefusals.shift()
         if (refusal !== undefined) {
           res.writeHead(refusal.status, { 'content-type': 'application/json' })
           res.end(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: refusal.message } }))
           return
         }
         res.writeHead(200, { 'content-type': 'text/event-stream' })
-        res.end(isCoordinator ? coordinatorScript(raw, body, 'anthropic') : seatScript(raw))
+        res.end(seatScript(raw))
         return
       }
       if (req.method === 'POST' && path === '/openai/v1/responses') {
-        const isCoordinator = raw.includes('<switchboard')
-        record({ lane: isCoordinator ? 'openai' : 'openai-seat', path, model: String(body.model ?? ''), body })
+        record({ lane: 'openai-seat', path, model: String(body.model ?? ''), body })
         res.writeHead(200, { 'content-type': 'text/event-stream' })
-        res.end(isCoordinator ? coordinatorScript(raw, body, 'openai') : seatScript(raw, 'openai'))
+        res.end(seatScript(raw, 'openai'))
         return
       }
       if (req.method === 'POST' && path === '/openrouter/api/v1/responses') {
-        const isCoordinator = raw.includes('<switchboard')
-        record({ lane: isCoordinator ? 'openrouter' : 'openrouter-seat', path, model: String(body.model ?? ''), body })
+        record({ lane: 'openrouter-seat', path, model: String(body.model ?? ''), body })
         res.writeHead(200, { 'content-type': 'text/event-stream' })
-        res.end(isCoordinator ? coordinatorScript(raw, body, 'openai') : seatScript(raw, 'openrouter-responses'))
+        res.end(seatScript(raw, 'openrouter-responses'))
         return
       }
       if (req.method === 'POST' && path === '/openrouter/api/v1/chat/completions') {
-        const isCoordinator = raw.includes('<switchboard')
-        record({ lane: isCoordinator ? 'openrouter' : 'openrouter-seat', path, model: String(body.model ?? ''), body })
+        record({ lane: 'openrouter-seat', path, model: String(body.model ?? ''), body })
         res.writeHead(200, { 'content-type': 'text/event-stream' })
-        res.end(isCoordinator ? coordinatorScript(raw, body, 'zai') : seatScript(raw, 'openrouter'))
+        res.end(seatScript(raw, 'openrouter'))
         return
       }
       if (req.method === 'POST' && path === '/zai/v4/chat/completions') {
-        const isCoordinator = raw.includes('<switchboard')
-        record({ lane: isCoordinator ? 'zai' : 'zai-seat', path, model: String(body.model ?? ''), body })
+        record({ lane: 'zai-seat', path, model: String(body.model ?? ''), body })
         res.writeHead(200, { 'content-type': 'text/event-stream' })
-        res.end(isCoordinator ? coordinatorScript(raw, body, 'zai') : seatScript(raw, 'zai'))
+        res.end(seatScript(raw, 'zai'))
         return
       }
       record({ lane: 'other', path: `${req.method} ${path}`, model: '', body })

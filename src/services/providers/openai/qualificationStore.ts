@@ -29,14 +29,6 @@ const ROLE_CAPABILITIES: Record<ApexGptRole, readonly string[]> = {
     'no-lost-input+no-duplicate-events',
   ],
   specialist: ['bounded-job-execution', 'structured-result-return', 'worktree-law', 'role-tool-denials'],
-  coordinator: [
-    'bounded-snapshot+delta-consumption',
-    'typed-management-verbs-only',
-    'single-proposal-batch-per-event',
-    'kernel-permitted-actions',
-    'receipted-settlement',
-    'no-self-approval',
-  ],
 }
 
 export function roleCapabilityDigest(role: ApexGptRole): string {
@@ -51,7 +43,7 @@ export function roleCapabilityDigest(role: ApexGptRole): string {
 }
 
 
-export interface StoredQualificationReceipt {
+interface StoredQualificationReceipt {
   modelId: string
   role: ApexGptRole
   sourceKind: OpenaiAccountSourceKind
@@ -128,7 +120,7 @@ export function recordLiveQualification(i: {
   }
 }
 
-export type ReceiptCurrency =
+type ReceiptCurrency =
   | { current: true; receipt: StoredQualificationReceipt }
   | { current: false; receipt: StoredQualificationReceipt; expiredBy: string }
 
@@ -160,7 +152,7 @@ export function describeWireEffortProbeWindow(ms: number = WIRE_EFFORT_MEMORY_PR
   return `${hours} hours`
 }
 
-export interface StoredWireEffortVocabulary {
+interface StoredWireEffortVocabulary {
   modelId: string
   sourceKind: OpenaiAccountSourceKind
   levels: string[]

@@ -62,7 +62,7 @@ check('the notice sits at the bottom-left of the host viewport (absolute, last r
 check('the Chat composer keeps its own chord (useTextInput: handleCtrlC over the same window, the notice through onExitMessage)',
   textInput.includes('const handleCtrlC = useDoublePress(') && textInput.includes("onExitMessage?.(show, 'Ctrl-C')") && textInput.includes('EXIT_CHORD_WINDOW_MS'))
 check("the concourse's first-press meaning survives (a non-empty draft clears)",
-  screen.includes("key.ctrl && input === 'c' && side.ref.current.text.length > 0"))
+  screen.includes("key.ctrl && input === 'c' && liveDraftRef.current.text.length > 0"))
 const screenFiles = [
   'src/components/SurfaceExitChord.tsx',
   'src/components/SurfaceRouter.tsx',
@@ -258,38 +258,6 @@ console.log('leg F — the window lapse (one press never exits; the notice clear
   check('F: 4 s later the notice is gone (the window lapsed)', !has(lapsed, NOTICE))
   check('F: the draft typed inside the window SURVIVES the lapse (poison: the local clear re-firing on disarm)', has(lapsed, AFTER))
   check('F: the process is ALIVE — one press never exits (poison: an exit on the first press)', c.endReason !== 'eof' && has(c.final, 'SESSIONS'), c.endReason)
-}
-
-console.log('leg I — the concourse under a manager card (the interview card owns its keys; the exit still fires)')
-{
-  const { home, fixturePath } = freshHome('manager', fixture => {
-    fixture.coordinator = { mode: 'agent-assisted' }
-  })
-  writeFileSync(
-    join(home, 'coordinator-conversation.json'),
-    JSON.stringify({
-      _v: 1,
-      entries: [
-        {
-          id: 'co:seed-ask',
-          role: 'coordinator',
-          text: 'which stack?',
-          ts: Date.now(),
-          ask: { question: 'which stack?', options: ['bun', 'node'], index: 1 },
-        },
-      ],
-    }),
-  )
-  const c = capture('I-manager', ['node', BIN], [
-    { data: '\t', requireAwait: true, awaitText: 'COORDINATOR', awaitSettleTicks: 4 },
-    { data: '\x1b[Z', requireAwait: true, awaitText: 'talk to the coordinator', awaitSettleTicks: 3 },
-    { data: CTRL_C, requireAwait: true, awaitText: 'enough — plan it', awaitSettleTicks: 3 },
-    ...armThenExit,
-  ], { cols: 120, rows: 40, total: 150, env: envFor(home, fixturePath) })
-  const armed = c.marks.get('armed') ?? []
-  check('I: the manager card stands AND the notice paints bottom-left (a manager card never imprisons the exit)',
-    noticeBottomLeft(armed) && has(armed, 'enough — plan it') && has(armed, 'manager mode on'))
-  check('I: the second press EXITS (endReason eof)', c.endReason === 'eof', c.endReason)
 }
 
 console.log('leg G — the main Chat (the control: the same words, the same exit)')

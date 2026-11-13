@@ -22,7 +22,6 @@ export const CONCOURSE_REFERENCE_DIVERGENCES = [
   'identity-color: the mock wordmark/view label is flat bright cyan; identity renders the TERRA focal ramp (flat-cyan identity is unshippable — focal-ramp identity law, prove-lockup-census)',
   'role-colors: the mock bright cyan maps to cyan_FOR_SUBAGENTS_ONLY for live-worker state and to the info/focal roles for structure; mock greens map to success TEAL — the §8.1 role table, not literal hexes',
   'resident-critter: the mock predates the peek-pane resident; the hermit region adjudicates against the critter fixture, not the mock (operator-directed design, FN-001 — the shell binds to the peeked session identity token, fallback accentSoft)',
-  'coordinator-tone: the mock paints the status-rail coordinator segment amber unconditionally; the status-spine law reserves amber for ATTENTION — live renders the mode\'s own tone (assisted=info, rules-only=textSecondary, off=textMuted) and goes amber only on a typed downgrade (B6)',
 ] as const
 
 interface ConcourseSeedSessionRow {
@@ -48,7 +47,6 @@ const CONCOURSE_REFERENCE_SEED = {
     breadcrumb: ['BOOT', 'CONCOURSE', 'MAIN Chat'] as const,
     activeCrumb: 'CONCOURSE',
     right: { project: 'Moodle', user: 'sam', clock: '08:14:20' },
-    coordinator: { state: 'Rules only', assistModel: 'GPT-5.6 Sol' },
     counts: { live: 5, needsYou: 1, balance: 'Auto balanced', seats: '4/10' },
   },
   needsYou: {
@@ -110,11 +108,10 @@ const CONCOURSE_REFERENCE_SEED = {
   },
   statusRail: {
     left: 'GPT-5.6 Sol · xhigh · Moodle',
-    center: 'coordinator rules only',
     right: '1 needs you · 5 live · 4/10 seats',
   },
   helpStrip: '↑↓ browse · tab panes · ↵ open · n new · / filter · b boot menu · esc main Chat',
-  countsReconciliation: { live: 5, working: 3, ready: 1, needsYou: 1, queued: 2, seatsHeld: 4, seatsDenominator: 10 },
+  countsReconciliation: { live: 5, working: 3, ready: 1, needsYou: 1, queued: 2, seatsDenominator: 10 },
 } as const
 
 
@@ -130,13 +127,11 @@ export function referenceFixtureSnapshot(): Record<string, unknown> {
     clock: seed.header.right.clock,
     context: { projectLabel: seed.header.right.project, operatorHandle: seed.header.right.user, effortLabel: seed.statusRail.left.split(' · ')[1] ?? 'xhigh' },
     breadcrumb: { active: 'concourse' },
-    coordinator: { mode: 'rules-only', assistModelLabel: seed.header.coordinator.assistModel },
     counts: {
       live: seed.countsReconciliation.live,
       needsYou: seed.countsReconciliation.needsYou,
       working: seed.countsReconciliation.working,
       queued: seed.countsReconciliation.queued,
-      seatsHeld: seed.countsReconciliation.seatsHeld,
       seatsDenominator: seed.countsReconciliation.seatsDenominator,
       admission: 'auto-balanced',
     },

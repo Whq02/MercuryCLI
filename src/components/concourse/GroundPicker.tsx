@@ -141,7 +141,7 @@ export function GroundPicker({
       )}
       <Box height={1} flexShrink={0} overflow="hidden">
         <Text color={t.textMuted} wrap="truncate-end">
-          ↑↓ move · pgup/pgdn page · ↵ launch here · esc close · any other path — tell the coordinator
+          ↑↓ move · pgup/pgdn page · ↵ launch here · esc close
         </Text>
       </Box>
     </Box>

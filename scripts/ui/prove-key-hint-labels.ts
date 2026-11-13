@@ -14,18 +14,15 @@ const OFF_MAC: Platform[] = ['windows', 'wsl', 'linux', 'unknown']
 const AUTHORED: ReadonlyArray<string> = [
   '⌃r retry',
   '⌃g ground',
-  '⌃s coordinator model',
   '⌃a',
   '⇧↵/⌃j',
-  '⇧tab chat mode',
-  '⇧tab manager',
+  '⇧tab previous',
   '⇧← back',
   '⇧→ concourse',
   '⌥←→ flip · /sessions',
   'Empty prompt: ⌥←→ flips sessions.',
   '↵ send · ⇧↵ newline · tab panes',
   '(⌃g trusts it)',
-  'manager mode needs a coordinator model — ⌃s (or the rail’s coordinator chip) picks one',
 ]
 
 t.section('§1 — macOS identity (the liked look never moves)')
@@ -58,9 +55,8 @@ t.section('§2 — the off-mac words (the registry vocabulary, one spelling per 
 t.section('§3 — totality over the LIVE manifest rows + the vocabulary')
 {
   const rows: string[] = [
-    ...manifest.COORDINATOR_SURFACE_KEYS.map(k => k.keys),
     manifest.CONCOURSE_HELP_KEY.keys,
-    ...(['rail', 'list', 'coordinator', 'live', 'chat'] as const).flatMap(r =>
+    ...(['rail', 'list', 'live', 'chat'] as const).flatMap(r =>
       manifest.regionKeysFor(r, { newSession: true }).map(k => k.keys)),
     ...manifest.browseKeysFor({ chatPresent: true }).map(k => k.keys),
     ...manifest.browseKeysFor({ chatPresent: false }).map(k => k.keys),
@@ -134,12 +130,6 @@ t.section('§5 — the seams are WIRED product-wide (every painted glyph hint ro
     }
   }
   t.check('every painted glyph hint in src folds (named allow rows only)', offenders.length === 0, offenders.join(' | ') || 'none')
-  const mm = await Bun.file('src/services/concourse/managerMode.ts').text()
-  t.check(
-    'managerMode paints no key glyph and so folds nothing (⌃s and the coordinator chip left the screen with the two-pane concourse)',
-    !MAC_MODIFIER_GLYPHS.some(g => mm.includes(g)) && !mm.includes('keyHintLabel('),
-    'no glyph, no fold',
-  )
   const atlasHost = await Bun.file('src/components/concourse/ConcourseScreen.tsx').text()
   t.check(
     'the atlas key column measures the RENDERED spelling (no fixed 12 clipping ctrl+ words)',

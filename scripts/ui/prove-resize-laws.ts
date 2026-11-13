@@ -164,9 +164,6 @@ console.log('§7 D3 — option clicks are the option box’s own, wrap-proof')
       /compact-vertical'\) \{[\s\S]{0,900}onClick=\{/.test(sel),
   )
   check('disabled and isDisabled stay click-dead', sel.includes('!isDisabled && !option.disabled && disableSelection !== true'))
-  const cards = read('src/components/concourse/ManagerCards.tsx')
-  check('the localRow arithmetic is gone', !cards.includes('e.localRow') || !cards.includes('selectRow(Math.max(0, Math.min(options.length - 1, e.localRow)))'))
-  check('the digit path still selects through selectRow (the ruled digit law untouched)', cards.includes('selectRow(action.index)'))
 }
 
 console.log('§8 D4 — the split partitions hover ids and the wheel at the divider')

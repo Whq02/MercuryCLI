@@ -5,7 +5,7 @@
 # gate-watch: src/services/concourse/** src/components/concourse/** src/daemon/concourseWorkers.ts
 # gate-watch: src/daemon/concourseDispatch.ts src/daemon/permissionAsks.ts src/services/switchboard/attachedSession.ts
 # gate-watch: src/components/SwitchboardTagBar.tsx src/context/surfaceRoute.ts
-# gate-watch: src/prompt/engineIdentity.ts src/constants/prompts.ts
+# gate-watch: src/constants/prompts.ts
 # gate-watch: src/components/mercury-ui/keyHintLabel.ts src/daemon/controlSocket.ts src/utils/bootCardFacts.ts
 # gate-watch: src/utils/config.ts src/utils/model/configs.ts src/utils/sessionStorage/paths.ts
 # gate-watch: src/components/Spinner/liveCounterWords.ts src/components/Spinner/seatClock.ts

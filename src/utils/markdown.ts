@@ -112,22 +112,6 @@ export function applyMarkdown(
     .trim()
 }
 
-export function stripInlineMarkdown(content: string): string {
-  return content
-    .split('\n')
-    .map(line =>
-      line
-        .replace(/^\s{0,3}#{1,6}\s+/, '')
-        .replace(/^\s{0,3}>\s?/, '')
-        .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
-        .replace(/(\*\*|__)(?=\S)([\s\S]*?\S)\1/g, '$2')
-        .replace(/(^|\W)([*_])(?=\S)([^*_]*\S)\2(?=\W|$)/g, '$1$3')
-        .replace(/~~(?=\S)([\s\S]*?\S)~~/g, '$1')
-        .replace(/`([^`]*)`/g, '$1'),
-    )
-    .join('\n')
-}
-
 
 function renderChildren(
   tokens: Token[] | undefined,

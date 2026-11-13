@@ -27,7 +27,7 @@ const {
 const { evaluateLaunchAuthority } = await import('../../src/services/switchboard/launchAuthority.js')
 
 const refusalFor = (kind: 'subagents' | 'workflows'): string =>
-  `this session is backgrounded — ${kind} wait until the operator visits it, until it holds the workflows-allowed tag (granted by asking the coordinator, choosing keep-and-background on leave, or the manual-start option), or until the operator turns on Crewmates while backgrounded (/config, or the boot menu's Agents section). Keep working on the task single-handed.`
+  `this session is backgrounded — ${kind} wait until the operator visits it, until it holds the workflows-allowed tag (granted by choosing keep-and-background on leave, or the manual-start option), or until the operator turns on Crewmates while backgrounded (/config, or the boot menu's Agents section). Keep working on the task single-handed.`
 
 const recDir = mkdtempSync(join(tmpdir(), 'switchboard-launchauth-records-'))
 const workspaceId = mkdtempSync(join(tmpdir(), 'switchboard-launchauth-ws-'))
@@ -190,7 +190,6 @@ console.log('LAW H — the wire (source pins):')
   check('settle deletes the fact with the record', settleStart !== -1 && settleBody.includes('delete rec.focusedAt') && settleBody.includes('delete rec.focusedBy'))
   const hopSrc = src('src/services/switchboard/hopIntoSession.ts')
   check('no hop mints the dead-child attach stamp (the rejected alternative stays rejected)', !hopSrc.includes("action: 'attach'") && !hopSrc.includes('attachedAt'))
-  check('the doctrine line this makes true still stands', src('src/services/concourse/coordinatorTools.ts').includes('a session with them keeps its own doctrine'))
 }
 
 console.log(failures === 0 ? '\nprove-launch-authority: ALL LAWS HOLD' : `\nprove-launch-authority: ${failures} FAILURE(S)`)

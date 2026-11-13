@@ -5,8 +5,7 @@ Mercury stores settings in JSON files, edited in `/config` or through
 
 This page covers the grouped keys you can set in a file. The Boot Menu and
 `/config` also keep machine and session choices of their own (such as
-**DuckDuckGo page scraping**, on by default, **Session concourse**, **Concourse
-coordinator**, set by `mercury --coordinator-on` and `--coordinator-off`, and
+**DuckDuckGo page scraping**, on by default, **Session concourse**, and
 **Helper model** and **Helper model for compaction** in
 [TENSORFOLD.md](TENSORFOLD.md#the-helper-model-setting)); not
 every screen row is a key in `settings.json`. In `/config`, typing any

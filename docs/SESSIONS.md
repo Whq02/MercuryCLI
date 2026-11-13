@@ -9,7 +9,7 @@ whatever screen is looking at it (the chat, the Session Concourse board, a
 live tile and the home screen render sessions and never store their state).
 This page explains how sessions are started, focused, closed and resumed, how
 the folder you start in becomes a project, and the boot switches that shape
-the navigation strip and the concourse coordinator.
+the navigation strip.
 On Windows, each frame reads the window size from the console so the terminal UI follows it even when no resize event arrives.
 
 ## A fresh boot has no chat
@@ -303,7 +303,7 @@ focused at any moment.
 Focus carries your active approval channel. The focused chat launches workflows and crewmates on
 your authority, under its own permission mode. A background session
 keeps working single-handed and waits until you visit it, until it
-holds the workflows-allowed grant (asked of the coordinator, chosen as
+holds the workflows-allowed grant (chosen as
 keep-and-background on leave, or the manual-start option), or until you turn
 on "Crewmates while backgrounded" (in `/config` or in the Boot
 Menu's Agents section; off by default). With it on, every session you have
@@ -517,9 +517,8 @@ session's, byte for byte.
 ## Headless
 
 A headless session is unattended: nobody is at a screen for it. `mercury run`
-from a script, `mercury runner` under a script or the SDK, a session a
-schedule starts ([SATURN.md](SATURN.md)), and a session the coordinator
-launches for a lane are headless. The model is told so: with a host that
+from a script, `mercury runner` under a script or the SDK, and a session a
+schedule starts ([SATURN.md](SATURN.md)) are headless. The model is told so: with a host that
 holds the asks, a tool call that needs approval is put to the host and a
 question travels the same door; with no host, an ask is denied and no
 question can reach anyone. An ask nobody answers expires on its clock (ten
@@ -643,10 +642,6 @@ is not a question: its row shows its state glyph and status word in amber until
 you open the chat again, while a turn you watched to completion in the chat
 leaves no unread mark. A question from another project opens that project's chat when you press `Enter`; an untrusted folder is never
 switched into silently (the chat still opens, and a notice states that the project scope stayed unchanged).
-
-See [CREW.md](CREW.md) for the coordinator that launches, monitors, messages
-and queues sessions from the board. It is off by default; `mercury
---coordinator-on` turns it on (its own section below).
 
 ## The folder is the project
 
@@ -892,33 +887,13 @@ With it off, the navigation strip has only the home screen and
 the chat, with no concourse stop (`Shift+→` walks only screens that exist). The
 live view of your sessions remains available through the
 home screen's concourse row (`"live view only — concourse off"`) or `/concourse`,
-showing the rows and their tiles with `Enter` to open one and no coordinator
-pane, composer or new-session tab. The home screen keeps its
+showing the rows and their tiles with `Enter` to open one and no
+composer or new-session tab. The home screen keeps its
 repositories picker either way: selecting a repository on the Sessions · Projects
 screen still opens that repo's newest chat.
 
 Both flags also accept single-dash spellings (`-chat`,
 `-concourse-off` and `-concourse-on`).
-
-## `mercury --coordinator-on`
-
-The concourse coordinator ([CREW.md](CREW.md)) is off by default.
-`--coordinator-on` turns it on for this and every later launch through the
-saved `coordinatorEnabled` setting in the global config (absent reads as
-off), written only by this flag; `--coordinator-off` turns it off again, and
-with both flags on one command line the later one wins. A coordinator mode,
-model or effort saved by an earlier version does not turn it on: only the
-switch does, and those settings apply once it is on; a home that never saved
-them gets the assisted coordinator on the first ready model of the composed
-registry (the pane needs a signed-in provider or a served local model, and
-when neither is ready manager mode reports `"manager mode needs a coordinator model — sign in to a provider or serve a local model"`).
-
-With it off, nothing coordinator-shaped runs: `n` on the board starts
-sessions directly, no coordinator turn, conversation, receipt or model choice
-happens, a refused launch or a settled session starts no coordinator work in
-the daemon, the `/config` row "Concourse coordinator" reads off and names the
-switch, and `/health`'s constitution row reads `coordinator off (switch)`.
-With it on, the coordinator behaves as before.
 
 ## Commands that never reach the model
 
@@ -989,7 +964,7 @@ that headroom anyway, the turn recovers instead of ending:
   reports the same reason with headless remedies.
 
 Each step runs at most once per stretch of work; a completed tool round
-starts a fresh one. The coordinator's chat recovers the same way. The
+starts a fresh one. The
 provider's refusal never becomes the reply. Turning Auto-compact off in
 `/config`, or setting `MERCURY_AUTO_COMPACT=0`, stops early folds while keeping
 emergency recovery active so an overflow still folds and retries. `MERCURY_COMPACT=0` disables compaction
@@ -1166,7 +1141,7 @@ a message does not end a task.
 
 ## Where the pieces live
 
-- The coordinator, crewmates and live communication: [CREW.md](CREW.md).
+- Crewmates and live communication: [CREW.md](CREW.md).
 - What a session loads (its kit, the menu, presets, and in-session toggles):
   [KIT.md](KIT.md).
 - Schedules that wake a session or start a new scheduled session:

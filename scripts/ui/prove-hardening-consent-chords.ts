@@ -42,14 +42,12 @@ const callbacks: ConcourseCallbacks = {
   enterSession: noop, peekSession: noop, answerObligation: noop, openObligation: noop, claimObligation: noop,
   withdrawObligation: noop, pauseAfterTurn: noop, resumeSession: noop, redirectSession: noop, startSessionDraft: noop,
   setDraftSeed: noop, submitSessionDraft: noop, enterBootSettings: () => false, exitToChat: noop,
-  switchCoordinatorModel: async value => ({ target: 'assist-model', value, outcome: 'no-change', inFlightTurns: 0, boundary: 'fixture' }),
-  switchCoordinatorMode: async value => ({ target: 'mode', value, outcome: 'no-change', inFlightTurns: 0, boundary: 'fixture' }),
 }
 const snapshot: ConcourseSnapshotV1 = {
   schema: 1, revision: 1, clock: '00:00:00', context: { projectLabel: 'fixture', operatorHandle: 'operator' },
-  breadcrumb: { active: 'concourse' }, coordinator: { mode: 'off' },
+  breadcrumb: { active: 'concourse' },
   focusedChat: { kind: 'non-model-controller', counted: false, submission: 'disabled-while-parked', reachedBy: 'esc' },
-  counts: { live: 0, needsYou: 0, working: 0, queued: 0, seatsHeld: 0, seatsDenominator: 4, admission: 'fixed' },
+  counts: { live: 0, needsYou: 0, working: 0, queued: 0, seatsDenominator: 4, admission: 'fixed' },
   needsYou: [], groups: [], peek: null,
   newSession: { draft: '', seeds: { projectLabel: 'fixture', agentLabel: 'operator', modelLabel: 'fixture', modelId: 'fixture', modelIsDefault: true, effortLevel: 'high', effortIsDefault: true, isolation: 'exclusive', seatsMax: 1 } },
 }

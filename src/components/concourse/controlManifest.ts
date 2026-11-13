@@ -4,7 +4,7 @@ import { SESSION_DEFAULTS_KEY_HINT } from '../../services/switchboard/sessionDef
 
 type ConcourseMode = 'browse' | 'filter-edit' | 'confirmation'
 
-type ConcourseFocusRegion = 'needs-you' | 'list' | 'live' | 'coordinator' | 'chat'
+type ConcourseFocusRegion = 'needs-you' | 'list' | 'live' | 'chat'
 
 interface ConcourseControlSpec {
   id: string
@@ -49,8 +49,8 @@ export const CONCOURSE_CONTROLS: readonly ConcourseControlSpec[] = [
   { id: 'split:chat-enter', action: 'concourse:enter-session', region: 'chat', modes: ['browse'], keys: ['return'], pointer: 'activate', receipt: 'route-transition' },
   { id: 'live:enter-selected', action: 'concourse:enter-session', region: 'live', modes: ['browse'], keys: ['return'], pointer: 'none', receipt: 'route-transition' },
   { id: 'status:project-ground', action: 'concourse:ground-picker', region: 'status', modes: ['browse'], keys: ['ctrl+g'], pointer: 'activate', receipt: 'mode-transition' },
-  { id: 'capacity-ask:allow', action: 'concourse:capacity-allow', region: 'coordinator', modes: ['confirmation'], keys: ['y'], pointer: 'activate', receipt: 'mode-transition' },
-  { id: 'capacity-ask:decline', action: 'concourse:capacity-decline', region: 'coordinator', modes: ['confirmation'], keys: ['n', 'escape'], pointer: 'activate', receipt: 'mode-transition' },
+  { id: 'capacity-ask:allow', action: 'concourse:capacity-allow', region: 'list', modes: ['confirmation'], keys: ['y'], pointer: 'activate', receipt: 'mode-transition' },
+  { id: 'capacity-ask:decline', action: 'concourse:capacity-decline', region: 'list', modes: ['confirmation'], keys: ['n', 'escape'], pointer: 'activate', receipt: 'mode-transition' },
   { id: 'compact:row', action: 'concourse:select-session', region: 'list', modes: ['browse'], keys: ['up', 'down'], pointer: 'select-then-activate', receipt: 'selection' },
   { id: 'compact:steer', action: 'concourse:focus-live', region: 'list', modes: ['browse'], keys: ['return'], pointer: 'activate', receipt: 'focus-move' },
   { id: 'compact:list-title', action: 'concourse:focus-list', region: 'list', modes: ['browse'], keys: ['tab', 'escape'], pointer: 'activate', receipt: 'focus-move' },
@@ -84,11 +84,6 @@ export const CONCOURSE_REGION_KEYS = {
     { keys: 's', label: 'split' },
   ],
   live: [
-    { keys: '⇧↵/⌃j', label: 'newline' },
-    { keys: 'pgup/pgdn', label: 'scroll' },
-  ],
-  coordinator: [
-    { keys: '↵', label: 'send' },
     { keys: '⇧↵/⌃j', label: 'newline' },
     { keys: 'pgup/pgdn', label: 'scroll' },
   ],
@@ -130,8 +125,7 @@ export function browseKeysFor(opts: {
   chatPresent: boolean
   region?: keyof typeof CONCOURSE_REGION_KEYS
 }): ReadonlyArray<{ keys: string; label: string }> {
-  const rows = opts.region === 'coordinator' ? CONCOURSE_BROWSE_KEYS.filter(k => k.keys !== '↑↓') : CONCOURSE_BROWSE_KEYS
-  return rows.map(k =>
+  return CONCOURSE_BROWSE_KEYS.map(k =>
     k.keys === 'esc'
       ? { keys: 'esc', label: opts.chatPresent ? 'focused chat' : 'boot face' }
       : k.keys === '↑↓' && opts.region === undefined
@@ -347,17 +341,11 @@ export function legendPriorityOf(keys: string, opts: { splitOn: boolean }): numb
   return 3
 }
 
-export const COORDINATOR_SURFACE_KEYS = [
-  { keys: '↵', label: 'send' },
-  { keys: '⇧↵/⌃j', label: 'newline' },
-  { keys: 'pgup/pgdn', label: 'scroll' },
-] as const
-
 export function newSessionTabLabel(opts: { region: string; filtering: boolean }): string {
   return opts.region === 'list' && !opts.filtering ? '+ new session · n' : '+ new session'
 }
 
 export function helpKeyFiresFor(region: string, focusedComposerEmpty: boolean): boolean {
-  if (region !== 'coordinator' && region !== 'live') return true
+  if (region !== 'live') return true
   return focusedComposerEmpty
 }

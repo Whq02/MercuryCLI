@@ -161,58 +161,25 @@ try {
 
 
 const BURST = 'concourse rail echo!'
-const COORDINATOR_REST = 'talk to the coordinator'
-const EMPTY_LIST_FOCUSED = 'new session · n'
+const LIST_FOCUSED = 'new session · n'
+const fixture2 = referenceFixtureSnapshot() as { needsYou: unknown; counts: Record<string, unknown> }
+fixture2.needsYou = []
+fixture2.counts['needsYou'] = 0
 const fixtureDir2 = mkdtempSync(join(tmpdir(), 'concourse-echo-'))
+const fixturePath2 = join(fixtureDir2, 'concourse-fixture.json')
+writeFileSync(fixturePath2, JSON.stringify(fixture2))
 
-let sidecarState = 'never-fired'
 const erun: ArenaRun = await runArtifactArena({
   turns: [],
-  seedHome: configDir => {
-    const cfgPath = join(configDir, '.config.json')
-    const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
-    cfg['concourseCoordinator'] = { mode: 'agent-assisted', assistModel: 'claude-opus-5-5' }
-    cfg['coordinatorEnabled'] = true
-    writeFileSync(cfgPath, JSON.stringify(cfg))
-    const draftPath = join(configDir, 'concourse-draft.json')
-    let fired = false
-    const fire = (why: string): void => {
-      if (fired) return
-      fired = true
-      try {
-        writeFileSync(draftPath, JSON.stringify({ draft: '', updatedAtMs: Date.now() }))
-        sidecarState = `fired@${new Date().toISOString().slice(11, 19)} (${why})`
-      } catch (e) {
-        sidecarState = `write-failed: ${e}`
-      }
-    }
-    const poll = setInterval(() => {
-      let onDisk = ''
-      try {
-        onDisk = readFileSync(draftPath, 'utf8')
-      } catch {
-        return
-      }
-      if (!onDisk.includes(BURST)) return
-      clearInterval(poll)
-      const beat = setTimeout(() => fire('the burst persisted'), S(1_500))
-      ;(beat as { unref?: () => void }).unref?.()
-    }, 250)
-    ;(poll as { unref?: () => void }).unref?.()
-    const fallback = setTimeout(() => {
-      clearInterval(poll)
-      fire('wall-clock fallback')
-    }, S(18_000))
-    ;(fallback as { unref?: () => void }).unref?.()
-  },
-  sends: [`after:${EMPTY_LIST_FOCUSED}:900:\r`, ...BURST.split('').map((ch, i) => `after:${COORDINATOR_REST}:${1000 + i * 30}:${ch}`)],
-  seconds: 23,
+  sends: [`after:${LIST_FOCUSED}:900:\t`, ...BURST.split('').map((ch, i) => `after:${LIST_FOCUSED}:${2400 + i * 30}:${ch}`)],
+  seconds: 12,
   cols: 200,
   rows: 38,
   keep: true,
   anchor: null,
   extraEnv: {
     MERCURY_CONCOURSE: 'always',
+    MERCURY_CONCOURSE_FIXTURE: fixturePath2,
     MERCURY_DAEMON_DIR: join(fixtureDir2, 'daemon'),
     MERCURY_CREW_DIR: join(fixtureDir2, 'crew'),
   },
@@ -220,32 +187,13 @@ const erun: ArenaRun = await runArtifactArena({
 
 try {
   const offsets: number[] = []
-  for (let ms = S(4000); ms <= S(22000); ms += S(400)) offsets.push(ms)
+  for (let ms = S(3000); ms <= S(11000); ms += S(400)) offsets.push(ms)
   const grabs = grabScreens(erun, 200, 38, offsets)
-  const withBurst = grabs.filter(g => g.rows.some(r => r.includes(BURST)))
-  const cleared = grabs.filter(
-    g => !g.rows.some(r => r.includes(BURST)) && g.rows.some(r => r.includes('COORDINATOR')),
-  )
+  const withBurst = grabs.filter(g => g.rows.some(r => r.includes('❯') && r.includes(BURST)))
 
-  t.section('§5 — the 30ms burst echoes COMPLETELY (rendered == typed) in the coordinator composer: the switch on, the drive\'s own ↵ on the empty list hands the keys to the coordinator pane')
-  t.check('the full 20-char burst painted in the coordinator composer', withBurst.length > 0, withBurst[0] ? `@${withBurst[0].atMs}` : `never seen · ${grabs.map(g => `@${g.atMs} ${g.rows.find(r => r.includes('COORDINATOR'))?.trim().slice(0, 50) ?? '(no COORDINATOR row)'}`).slice(0, 6).join(' | ')}`)
-
-  t.section('§6 — an external store clear beats the local echo (D2 §4b)')
-  const lastBurst = withBurst[withBurst.length - 1]
-  const firstCleared = cleared.find(g => lastBurst !== undefined && g.atMs > lastBurst.atMs)
-  t.check('the echo yielded to the store clear (burst gone, placeholder back)', firstCleared !== undefined, firstCleared ? `@${firstCleared.atMs}` : `cleared grabs: ${cleared.map(g => g.atMs).join(',') || 'none'}`)
-  t.check(
-    'the clear happened AFTER the burst held (order proven)',
-    lastBurst !== undefined && firstCleared !== undefined && lastBurst.atMs < firstCleared.atMs,
-    `${lastBurst?.atMs} < ${firstCleared?.atMs}`,
-  )
+  t.section('§5 — the 30ms burst echoes COMPLETELY (rendered == typed) in the live view\'s message box: tab from the list hands it the keys')
+  t.check('the full 20-char burst painted on the message box\'s prompt row', withBurst.length > 0, withBurst[0] ? `@${withBurst[0].atMs}` : `never seen · ${grabs.map(g => `@${g.atMs} ${g.rows.find(r => r.includes('❯'))?.trim().slice(0, 60) ?? '(no prompt row)'}`).slice(0, 6).join(' | ')}`)
 } finally {
-  try {
-    const draftOnDisk = readFileSync(join(erun.paths.home, '.mercury', 'concourse-draft.json'), 'utf8')
-    console.log(`    [sidecar] ${sidecarState} · draft file at run end: ${draftOnDisk.slice(0, 120)}`)
-  } catch (e) {
-    console.log(`    [sidecar] ${sidecarState} · draft file unreadable: ${e}`)
-  }
   erun.cleanup()
   rmSync(fixtureDir2, { recursive: true, force: true })
 }

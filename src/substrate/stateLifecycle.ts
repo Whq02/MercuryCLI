@@ -550,26 +550,13 @@ export const LIFECYCLE_MANIFEST: readonly LifecycleClassDecl[] = [
     prover: 'scripts/notifications/prove-launch-instrumentation.ts',
   },
   {
-    id: 'coordinator-receipt-journal',
-    lane: 'semantic-state',
-    owner: 'src/services/concourse/coordinatorReceipts.ts',
-    root: '<crew>/coordinator-receipt-journal.json',
-    kind: 'semantic',
-    liveReference:
-      'rows with seq > consumedSeq — daemon-side coordinator receipts awaiting the visible fold (pid-stamped, cursor-guarded exactly-once)',
-    terminal: 'seq ≤ consumedSeq, or evicted past the 200-row FIFO cap',
-    retention: 'bounded FIFO (cap 200) + a consumed cursor in one JSON file — self-compacting',
-    action: 'retain',
-    prover: 'scripts/notifications/prove-journal-attribution.ts',
-  },
-  {
     id: 'concourse-collision-evidence',
     lane: 'semantic-state',
     owner: 'src/daemon/concourseWorkers.ts',
     root: '<daemon>/concourse-collisions.json',
     kind: 'semantic',
     liveReference:
-      'the newest rows inside the FIFO cap — typed observed-collision and authored-retention facts the peek scope line and coordinator board read',
+      'the newest rows inside the FIFO cap — typed observed-collision and authored-retention facts the peek scope line reads',
     terminal: 'evicted past the 100-row FIFO cap (newest retained)',
     retention: 'bounded FIFO (cap 100) inside one JSON file — self-compacting by construction',
     action: 'retain',

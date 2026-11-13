@@ -507,7 +507,6 @@ const reconstructionNoted = new Set<string>()
 const foreignRecordNoted = new Set<string>()
 
 function activeApexRole(options: Options): ApexGptRole {
-  if (options.querySource === 'concourse_coordinator') return 'coordinator'
   if (options.agentId || String(options.querySource ?? '').startsWith('agent')) {
     return 'specialist'
   }

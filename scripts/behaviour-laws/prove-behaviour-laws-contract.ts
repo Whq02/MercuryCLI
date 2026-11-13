@@ -22,8 +22,8 @@ console.log('============================================================')
 section('§1 ownership — one repository owner')
 {
   const mod = readFileSync(join(ROOT, 'src/prompt/mercuryContract.ts'), 'utf8')
-  check('mercuryContract.ts owns the constitution + the two seat contracts, and no floor, doctrine or reconcile',
-    mod.includes('MERCURY_CONSTITUTION') && mod.includes('MERCURY_COORDINATOR_CONTRACT') && mod.includes('MERCURY_SUBAGENT_CONTRACT') && !mod.includes(J('MERCURY_IDENTITY', '_FLOOR')) && !mod.includes(J('MERCURY_SESSION', '_CONTRACT')) && !mod.includes(J('MERCURY_IDENTITY', '_RECONCILE')))
+  check('mercuryContract.ts owns the constitution + the seat contract, and no floor, doctrine or reconcile',
+    mod.includes('MERCURY_CONSTITUTION') && mod.includes('MERCURY_SUBAGENT_CONTRACT') && !mod.includes(J('MERCURY_IDENTITY', '_FLOOR')) && !mod.includes(J('MERCURY_SESSION', '_CONTRACT')) && !mod.includes(J('MERCURY_IDENTITY', '_RECONCILE')))
   check('no external text import (repository-owned bytes only)', !/require\(|from '[^']*\.txt'/.test(mod))
 }
 

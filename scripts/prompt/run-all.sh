@@ -25,7 +25,7 @@
 # gate-watch: src/services/providers/local/localCatalogue.ts src/services/providers/local/localDiscovery.ts
 # gate-watch: src/skills/bundled/mercuryDocs.ts src/commands/verify.ts src/tools.ts
 # gate-watch: src/rows/* src/runner/wire/* scripts/lib/rows.ts
-# gate-watch: src/prompt/mercuryContract.ts src/constants/subagentDoctrine.ts src/services/concourse/coordinatorCall.ts src/services/concourse/coordinatorPersona.ts
+# gate-watch: src/prompt/mercuryContract.ts src/constants/subagentDoctrine.ts
 # gate-watch: src/services/providers/anthropic/cacheAndUsage.ts src/substrate/flagRegistry.ts src/constants/common.ts
 # gate-watch: src/utils/systemPrompt.ts src/utils/cockpit/harnessMap.ts src/utils/sideQuery.ts
 # gate-watch: src/prompt/recordedComposition.ts scripts/lib/firstRunSeed.ts vendor/**

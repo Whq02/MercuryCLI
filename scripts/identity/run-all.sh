@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: build.ts src/constants/product* src/prompt/mercuryContract*
-# gate-watch: src/prompt/engineIdentity* package.json
+# gate-watch: package.json
 # gate-watch: docs/** *.md **/*.md .github/** .gitignore
 # gate-watch: src/** scripts/**
 set -u

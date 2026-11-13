@@ -112,7 +112,7 @@ console.log('B — row controls i/p/m: manifest, selection-aware legend, receipt
   check(
     'B4 the row pick modal (model AND effort — one grammar) is declared and owns the keys while open (through the ONE modal owner)',
     screen.includes('rowPick: rowPickRef.current !== null,') &&
-      screen.includes("if (modalOwner !== null && modalOwner !== 'manager-seat-ask' && modalOwner !== 'manager-card') return") &&
+      screen.includes('if (modalOwner !== null) return') &&
       screen.includes("import { RowPickModal } from './RowPickModal.js'") &&
       !screen.includes('function RowPickModal('),
   )
@@ -228,11 +228,11 @@ console.log('C — the L17 cut: a session ask routes INTO the chat; no board key
   )
   check(
     "C2 a needs-you permission row ROUTES into the chat — beginAnswer's permission branch opens the session, never a context",
-    screen.indexOf("if (ref.startsWith('permission:git-init:')) {") !== -1 && screen.indexOf("if (ref.startsWith('permission:')) {") > screen.indexOf("if (ref.startsWith('permission:git-init:')) {") &&
+    screen.indexOf("if (ref.startsWith('permission:git-init:')) return") !== -1 && screen.indexOf("if (ref.startsWith('permission:')) {") > screen.indexOf("if (ref.startsWith('permission:git-init:')) return") &&
       /if \(ref\.startsWith\('permission:'\)\) \{[\s\S]{0,400}?openObligationOrDoor\(obligationId\)[\s\S]{0,40}?return/.test(screen),
   )
   const answerSites = screen.split('callbacks.answerPermission?.(').length - 1
-  check('C3 poison — exactly two answer-permission call sites remain on the screen (both the git card wires)', answerSites === 2)
+  check('C3 poison — exactly one answer-permission call site remains on the screen (the git card wire)', answerSites === 1)
   const gitCard = read('src/components/concourse/GitOfferCard.tsx')
   check(
     'C3 poison — the card derives ONLY from folder-scoped git-init asks (ref + folder: subject, both required)',
@@ -317,56 +317,8 @@ console.log('D — permission ids: stable from birth to answer, across repaint/r
   )
 }
 
-console.log('E — the seat-overload ask: every time, never silent, never remembered; declining dispatches nothing')
+console.log('E — the seats cell: demand over the reading wears the warning ink; the strip paints context, receipt, hint in that order')
 {
-  const card = await import('../../src/components/concourse/SeatOverloadCard.tsx')
-  check(
-    'E1 the pure gate: at the reading the ask arms; under it nothing asks; past it it still asks',
-    card.needsSeatOverloadAsk(4, 4) === true && card.needsSeatOverloadAsk(3, 4) === false && card.needsSeatOverloadAsk(5, 4) === true && card.needsSeatOverloadAsk(0, 2) === false,
-  )
-  const cardSrc = read('src/components/concourse/SeatOverloadCard.tsx')
-  check(
-    'E2 the consent card IS PermissionDialog composed (item 7) — the estate’s real owners, verbatim, with the one reading sentence',
-    cardSrc.includes("from '../permissions/PermissionDialog.js'") &&
-      cardSrc.includes("from '../permissions/PermissionPrompt.js'") &&
-      cardSrc.includes('describeSeatReading(ceiling)'),
-  )
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  check(
-    'E3 the submit gates EVERY TIME — the gate is the pure fold at the gesture, and no answer persists anywhere',
-    screen.includes('if (needsSeatOverloadAsk(snapshot.counts.live, effectiveSeatCeiling()))') &&
-      (() => {
-        const at = screen.indexOf('const answerSeatAsk = ')
-        const body = screen.slice(at, screen.indexOf('const [capacityAsk, setCapacityAsk] = useState(false)', at))
-        return at > 0 && !body.includes('saveGlobalConfig') && !body.includes('recordCapacityDecision') && !body.includes('writeConcourse')
-      })(),
-  )
-  check(
-    'E4 declining dispatches NOTHING — the decline leg returns before any dispatch call, the draft stays',
-    (() => {
-      const at = screen.indexOf('if (!allowed) {')
-      const decline = at > 0 ? screen.slice(at, screen.indexOf('}', screen.indexOf('return', at))) : ''
-      return decline.includes('nothing dispatched') && !decline.includes('submitSessionDraft')
-    })(),
-  )
-  check(
-    'E5 allowing proceeds through the SAME pair the ungated submit rides — never a second dispatch door',
-    screen.includes('void callbacks.sendCoordinatorMessage?.(ask.text).catch(() => {})') &&
-      screen.includes('callbacks.submitSessionDraft(ask.text)'),
-  )
-  check(
-    'E6 one Select listens at a time — the git offer’s two mounts yield while the seat card stands, and the key stream has ONE declared owner (seat-ask outranks git-offer in boardModalOwner)',
-    screen.includes("gitOffer !== undefined && coordinatorOn && !reducedStage && region === 'coordinator' && geo.profile === 'wide' && !geo.constrained && seatAsk === null && forkAsk === null && !contractAsk") &&
-      /gitOffer !== undefined &&\s*\n\s*!contractAsk &&\s*\n\s*!gitOfferInPane &&/.test(screen) &&
-      screen.includes('gitOfferOwnsTheKeys({') &&
-      screen.includes('seatAsk: seatAsk !== null,') &&
-      screen.includes('seatAsk: seatAskRef.current !== null,') &&
-      screen.includes('const modalOwner = boardModalOwner({') &&
-      (() => {
-        const owner = read('src/components/concourse/boardModalOwner.ts')
-        return owner.includes("return boardModalOwner(facts) === 'git-offer'") && owner.includes("if (facts.seatAsk) return 'seat-ask'") && owner.indexOf("if (facts.seatAsk) return 'seat-ask'") < owner.indexOf("if (facts.gitOffer) return 'git-offer'")
-      })(),
-  )
   const strips = await import('../../src/components/concourse/ConcourseStrips.tsx')
   const overSnap = {
     counts: { live: 4 },
@@ -382,9 +334,9 @@ console.log('E — the seat-overload ask: every time, never silent, never rememb
       },
     ],
   } as never
-  check('E7 the demand fold counts live + seat-queued (a repo-held wait is not seat demand)', strips.seatDemandOf(overSnap) === 5)
+  check('E1 the demand fold counts live + seat-queued (a repo-held wait is not seat demand)', strips.seatDemandOf(overSnap) === 5)
   check(
-    "E7 the chip reads `5/4` while over (the warning ink carries it, no words) and the plain live/reading when the demand fits",
+    "E1 the chip reads `5/4` while over (the warning ink carries it, no words) and the plain live/reading when the demand fits",
     strips.seatsCellText(5, 4, 4).text === '5/4' &&
       strips.seatsCellText(5, 4, 4).over === true &&
       strips.seatsCellText(2, 2, 4).text === '2/4' &&
@@ -392,12 +344,12 @@ console.log('E — the seat-overload ask: every time, never silent, never rememb
   )
   const stripsSrc = read('src/components/concourse/ConcourseStrips.tsx')
   check(
-    'E7 the rail wears the over state in warning ink on the ONE seats cell',
+    'E1 the rail wears the over state in warning ink on the ONE seats cell',
     stripsSrc.includes('seatsCell.over ? t.warning : t.textSecondary') &&
       stripsSrc.includes('{seatsCell.text} seats'),
   )
   check(
-    'E8 the strip paints context > receipt > hint (a self-expiring receipt outranks the standing door hint)',
+    'E2 the strip paints context > receipt > hint (a self-expiring receipt outranks the standing door hint)',
     (() => {
       const ctx = stripsSrc.indexOf('contextLine !== null && contextLine !== undefined ? (')
       const receipt = stripsSrc.indexOf(') : composerNote !== undefined ? (')

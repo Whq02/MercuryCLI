@@ -86,13 +86,13 @@ section('3 · live-only minting (source wiring)')
 
 section('4 · role digests are distinct')
 {
-  const roles = ['primary', 'specialist', 'coordinator'] as const
+  const roles = ['primary', 'specialist'] as const
   const digests = roles.map(r => roleCapabilityDigest(r))
   check('every role digest is unique', new Set(digests).size === roles.length)
   check('digests are stable across calls', roleCapabilityDigest('primary') === roleCapabilityDigest('primary'))
   check(
-    "a RETIRED role id (an old stored receipt's 'party-tank') digests to the retired marker — expires, never crashes",
-    roleCapabilityDigest('party-' + 'tank' as never) === 'rc1-retired-role',
+    "a RETIRED role id (an old stored receipt's 'party-tank', or 'coordinator') digests to the retired marker — expires, never crashes",
+    ['party-' + 'tank', 'coordinator'].every(role => roleCapabilityDigest(role as never) === 'rc1-retired-role'),
   )
 }
 

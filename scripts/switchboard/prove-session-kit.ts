@@ -433,7 +433,7 @@ console.log("D — the daemon-side derivation: a birth the screen never saw stam
     const admit = makeConcourseAdmitHandler({ roster: () => roster as never, dir: DAEMON })
     const born = await admit({ workspaceDir: WS_D, modelKey: MODEL, bornBlank: true })
     const rec = born.ok ? recOf(born.runnerId) : undefined
-    check("D5 a birth through the admit with NO carried kit (the coordinator's road) stamps the DERIVED kit with that workspace's deltas", born.ok && rec !== undefined && rec.kit?.resolved === false && deepEq(rec.kit.deltas, derived.deltas) && deepEq(rec.kit.mcp, ['srv-on']), born.ok ? '' : born.error)
+    check("D5 a birth through the admit with NO carried kit (the kit-less road) stamps the DERIVED kit with that workspace's deltas", born.ok && rec !== undefined && rec.kit?.resolved === false && deepEq(rec.kit.deltas, derived.deltas) && deepEq(rec.kit.mcp, ['srv-on']), born.ok ? '' : born.error)
   }
   const sup = read('src/daemon/concourseWorkers.ts')
   check('D6 both mints stamp carried-else-preset-else-derived through the ONE hoisted kit (above the warm claim: gate + spec + both stamps share the value; no inline second derivation)', !sup.includes('kitStampOf(req.kit ?? deriveSessionKitForWorkspace(workspaceId))') && sup.split('const kit = req.kit ?? preset?.kit ?? deriveSessionKitForWorkspace(workspaceId)').length === 2 && sup.split('kitStampOf(kit),').length === 3 && !sup.includes('kitStampOf(req.kit)') && sup.includes('const kit = req.kit ?? preset?.kit ?? deriveSessionKitForWorkspace(workspaceId)') && sup.indexOf('const kit = req.kit ?? preset?.kit ?? deriveSessionKitForWorkspace(workspaceId)') < sup.indexOf('deps.claimWarm !== undefined'))

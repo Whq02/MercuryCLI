@@ -198,8 +198,8 @@ console.log('A2 — capacity: ≤10 per project (one owner); live rows lead; the
   const groupsLive = snap.groups.filter(g => g.id !== 'parked').length
   for (const [cols, rows] of [[100, 30], [80, 24], [120, 40], [140, 24]] as const) {
     for (const needsYou of [0, 2]) {
-      const before = switchboardGeometry(cols, rows, needsYou, live.length, groupsLive, 1, 'mirror')
-      const after = switchboardGeometry(cols, rows, needsYou, flat.length, groupsLive + 1, 1, 'mirror')
+      const before = switchboardGeometry(cols, rows, needsYou, live.length, groupsLive, 1)
+      const after = switchboardGeometry(cols, rows, needsYou, flat.length, groupsLive + 1, 1)
       check(`${cols}x${rows} ny=${needsYou}: parked rows never shrink the list window (${before.listContentRows} → ${after.listContentRows})`, after.listContentRows >= before.listContentRows)
       const win = paneWindow(flat.length, 0, after.listContentRows)
       check(`${cols}x${rows} ny=${needsYou}: the first window keeps the first live row (start ${win.start})`, win.start === 0 && win.end > 0)
@@ -327,8 +327,6 @@ console.log('A3 — ↵ reactivates through the ONE resume door; the close chord
   check('the context label rides the door (the .mercury-parent naming is the catalog\'s seam, untouched here)', builder.includes('const projectLabel = project.name'))
   const owner = read('src/utils/bootCardFacts.ts')
   check('the listing owner shares the scan\'s husk filter and its ≤10 bound', owner.includes('export const PARKED_CAP = 10') && owner.includes('if (isAuthFailureHusk(c.file, c.size)) continue') && owner.includes('export function parkedSessionsOf('))
-  const board = read('src/services/concourse/coordinatorBoard.ts')
-  check('the coordinator hears a parked row as not running, nothing to send', board.includes("case 'parked':") && board.includes('not running, nothing to send here'))
 }
 
 console.log('B — the New Session tab: declared, keyed, born in the current ground, absent on the reduced stage')

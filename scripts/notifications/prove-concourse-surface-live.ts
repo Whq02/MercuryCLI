@@ -125,7 +125,7 @@ console.log('§3 builder honesty rules')
   check('counts.live reconciles with the seat-holding rows (dead-pid row EXCLUDED)', snap.counts.live === liveCount, `${snap.counts.live} vs ${liveCount}`)
   check('…and the dead-pid row held no seat in that tally', liveCount === 2, String(liveCount))
   check(
-    '§5.5 denominator = live×2 (rules-only default: no coordinator seat)',
+    '§5.5 denominator = live×2',
     snap.counts.seatsDenominator === liveCount * 2,
     `${snap.counts.seatsDenominator} vs ${liveCount * 2}`,
   )
@@ -137,15 +137,14 @@ console.log('§3 builder honesty rules')
   saveGlobalConfig(c => ({
     ...c,
     coordinatorEnabled: true,
-    concourseCoordinator: { mode: 'agent-assisted' as const, assistModel: 'claude-sonnet-5' },
-  }))
-  const assisted = await build({ recordsDir, crewDir, draftDir, nowMs: NOW })
+    concourseCoordinator: { mode: 'agent-assisted', assistModel: 'claude-sonnet-5' },
+  }) as typeof c)
+  const kept = await build({ recordsDir, crewDir, draftDir, nowMs: NOW })
   check(
-    '§5.5 +1 iff agent-assisted (the coordinator seat joins the denominator)',
-    assisted.counts.seatsDenominator === liveCount * 2 + 1,
-    `${assisted.counts.seatsDenominator} vs ${liveCount * 2 + 1}`,
+    '§5.5 a home whose config still asks for an assisted coordinator counts no seat for one: the same denominator, no coordinator on the snapshot',
+    kept.counts.seatsDenominator === liveCount * 2 && !('coordinator' in kept) && !('seatsHeld' in kept.counts),
+    `${kept.counts.seatsDenominator} vs ${liveCount * 2} · ${Object.keys(kept).join(',')}`,
   )
-  saveGlobalConfig(c => ({ ...c, coordinatorEnabled: false, concourseCoordinator: { mode: 'rules-only' as const } }))
 }
 
 console.log('§3b paused derivation + honest actions')

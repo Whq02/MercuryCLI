@@ -191,33 +191,26 @@ console.log('§3 — one project-name owner: the rail\'s ground chip is THE name
       read('src/components/concourse/SplitChatPane.tsx').includes('{snapshot.context.projectLabel}'),
     String(namePaints),
   )
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  check('the composer hint teaches the gesture without naming the project (no second name)', screen.includes('launch two sessions on this project') && !screen.includes('launch two sessions on ${'))
 }
 
-console.log('§4 — two composers: the coordinator pane owns its box, the live pane owns its box; the strip is retired')
+console.log('§4 — one composer: the live pane owns its box; the strip is retired')
 {
   const { readFileSync } = await import('node:fs')
   const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
   const screen = read('src/components/concourse/ConcourseScreen.tsx')
   const layout = read('src/components/concourse/ConcourseLayout.tsx')
-  const pane = read('src/components/concourse/CoordinatorPane.tsx')
   const manifest = await import('../../src/components/concourse/controlManifest.ts')
   check('the full-width strip slot is gone from the layout (no composerNode, no strip band)', !layout.includes('composerNode') && !layout.includes('stripRows') && layout.includes('liveComposerBand'))
   const liveSendAt = screen.indexOf('const sendLive = (): void => {')
-  const coordSendAt = screen.indexOf('const sendCoordinator = (): void => {')
-  const liveSendBody = screen.slice(liveSendAt, coordSendAt)
-  const coordSendEnd = screen.indexOf('const noteManagerModel = (arming: boolean): void => {', coordSendAt)
-  const coordSendBody = coordSendEnd > coordSendAt ? screen.slice(coordSendAt, coordSendEnd) : ''
+  const liveSendEnd = screen.indexOf('const closeChordBlocked = (): boolean =>', liveSendAt)
+  const liveSendBody = liveSendEnd > liveSendAt ? screen.slice(liveSendAt, liveSendEnd) : ''
   check('the LIVE send exists and rides the steering door (session.redirect) with the answer/rename contexts as its own delivery', liveSendAt > 0 && liveSendBody.includes('callbacks.redirectSession(') && liveSendBody.includes("ctx.kind === 'answer'") && liveSendBody.includes("ctx.kind === 'rename'"))
-  check('POISON (live→coordinator): the live send never reaches the coordinator or the launcher', !liveSendBody.includes('sendCoordinatorMessage') && !liveSendBody.includes('submitSessionDraft'))
-  check('POISON (coordinator→session): the coordinator send never reaches a session\'s turn', coordSendAt > 0 && coordSendEnd > coordSendAt && !coordSendBody.includes('redirectSession') && !coordSendBody.includes('answerObligation'))
-  check('the screen mounts the shared composer exactly twice (the pane\'s box + the live box)', screen.split('<ConcourseComposer').length - 1 === 2 && !pane.includes('<ConcourseComposer'))
-  check('the coordinator pane hosts its composer at the foot (the mini-Chat grammar)', pane.includes('{composerNode !== undefined ? ('))
-  check('the live gate refuses in type before any edit (printables and newline both check it)', screen.split('liveGateRefusal()').length - 1 >= 2 && ordered(screen, 'const refusal = liveGateRefusal()', 'side.edit(d => insertAt(d, payload))'))
+  check('POISON (live→launcher): the live send never reaches the launcher, and the screen holds no second send', liveSendBody.length > 0 && !liveSendBody.includes('submitSessionDraft') && !screen.includes('submitSessionDraft') && !screen.includes('sendCoordinatorMessage'))
+  check('the screen mounts the shared composer exactly once (the live box)', screen.split('<ConcourseComposer').length - 1 === 1)
+  check('the live gate refuses in type before any edit (printables and newline both check it)', screen.split('liveGateRefusal()').length - 1 >= 2 && ordered(screen, 'const refusal = liveGateRefusal()', 'editLiveDraft(d => insertAt(d, NL))') && ordered(screen, 'const refusal = liveGateRefusal()', 'editLiveDraft(d => insertAt(d, payload))'))
   check('the gate names the refusal classes (parked · door · queued · attached · none)', ['no session selected', 'a door —', 'queued — m stacks', 'parked —', 'with you —'].every(s => screen.includes(s)))
-  check('the ring is panels and the manifest speaks it (live view → manager → the coordinator only while it is on)', screen.includes("['live', 'list']") && screen.includes("if (!compact && !reducedStage && coordinatorOn) ring.push('coordinator')") && !JSON.stringify(manifest.CONCOURSE_CONTROLS).includes("\"region\":\"composer\"") && !JSON.stringify(manifest.CONCOURSE_CONTROLS).includes("\"region\":\"mirror\""))
-  check('the live panel and coordinator panel key rows exist (one resolver feeds legend + atlas)', manifest.CONCOURSE_REGION_KEYS.live.some(k => k.keys === 'pgup/pgdn') && manifest.CONCOURSE_REGION_KEYS.coordinator.some(k => k.keys === '↵' && k.label === 'send'))
+  check('the ring is panels and the manifest speaks it (live view → manager, then the rail while it has rows and the split pane while it is open)', screen.includes("const ring: ConcourseRegion[] = compact || reducedStage ? ['list', 'live'] : ['live', 'list']") && screen.includes("if (!compact && snapshot.needsYou.length > 0) ring.push('rail')") && screen.includes("if (splitActive) ring.push('chat')") && screen.split('ring.push(').length - 1 === 2 && !JSON.stringify(manifest.CONCOURSE_CONTROLS).includes("\"region\":\"composer\"") && !JSON.stringify(manifest.CONCOURSE_CONTROLS).includes("\"region\":\"mirror\""))
+  check('the live panel key rows exist and the region table holds four panels (one resolver feeds legend + atlas)', manifest.CONCOURSE_REGION_KEYS.live.some(k => k.keys === 'pgup/pgdn') && Object.keys(manifest.CONCOURSE_REGION_KEYS).sort().join(',') === 'chat,list,live,rail')
   check("the live box's placeholder names the SELECTED row", screen.includes('placeholder: `message ${sel.title} · queued for its next turn`'))
 }
 
@@ -241,12 +234,6 @@ console.log('§5 — arm-then-enter: the first ↵ arms the row as the live comp
   check('a selection move disarms (the target is ALWAYS the selected chat — the operator\'s words)', screen.includes('if (boardArmed !== null && boardSel !== boardArmed) setBoardArmed(null)'))
   check('typing in the live composer ARMS the selected row (the target turns explicit)', screen.split('armSelectedForTyping()').length - 1 >= 2)
   check('the armed row SHOWS the arm on its granted line — the words road is tab (the composer’s own focus), advertised only where the gate takes words (G4; the broadcast face suppresses it too), and a held draft says send', screen.includes("'armed — ↵ again enters'") && screen.includes("liveDraft.text.trim().length === 0 && liveComposerGate(sel).ok && broadcastFaceOf(markedRows.length) === null ? ' · tab to message' : ''") && screen.includes("'armed — ↵ sends the draft · → enters'"))
-  const pane = read('src/components/concourse/CoordinatorPane.tsx')
-  check('the example walk\'s ↵ yields to a held draft (typed words outrank the example — the one precedence law)', pane.includes('&& !pending && !draftHeld) {') && screen.includes('draftHeld={draft.text.trim().length > 0}'))
-  const pickAt = screen.indexOf('onPickExample={text => {')
-  const pickBody = pickAt === -1 ? '' : screen.slice(pickAt, screen.indexOf('}}', pickAt))
-  check('the example walk\'s ↵ (and a click) FILLS the composer and never sends — the pick handler calls no send', pickAt !== -1 && pickBody.includes('setDraft(draftRef.current)') && !pickBody.includes('sendCoordinator(') && !pane.includes('onSendExample') && pane.includes('onPickExample(COORDINATOR_EXAMPLE_PROMPTS[exampleIdxRef.current]!)') && pane.includes('· ↵ fills the box'), pickBody.slice(0, 160))
-  check('the pane\'s own verbs park under ANY board modal owner (modalUp = the one boardModalOwner read, never a pairwise guard)', pane.includes('if (modalUp) return') && screen.includes('modalUp={') && screen.split('boardModalOwner({').length - 1 >= 2)
   check('the legend says the truth in both states (↵↵ unarmed · ↵ enters while armed)', layout.includes("{ keys: '↵', label: 'enters (armed)' }") && layout.includes("{ keys: '↵↵', label: 'enter session' }"))
 }
 
@@ -277,7 +264,7 @@ console.log('§6 — the lock: an open ask ⇒ the live composer refuses with "n
   const older = (regionArg?: import('../../src/components/concourse/ConcourseLayout.tsx').ConcourseRegion) =>
     liveComposerGateOf(row({ sessionId: `${OLDER_CHATS_ROW_PREFIX}/tmp/p` }), false, regionArg) as { ok: false; line: string }
   check('the older line speaks ↵ exactly where ↵ fires: the list region and the live box', older('list').line === 'older chats — ↵ unfolds the list' && older('live').line === 'older chats — ↵ unfolds the list' && older(undefined).line === 'older chats — ↵ unfolds the list')
-  check('POISON (the box\'s three identical coordinator passes): from the coordinator/rail/chat the note names the move that works from there, never a ↵ that goes to another owner', (['coordinator', 'rail', 'chat'] as const).every(r => older(r).line === 'older chats — tab to the list, ↵ unfolds it'))
+  check('POISON (a ↵ advertised where it goes to another owner): from the rail or the split pane the note names the move that works from there', (['rail', 'chat'] as const).every(r => older(r).line === 'older chats — tab to the list, ↵ unfolds it'))
   const screen = read('src/components/concourse/ConcourseScreen.tsx')
   const screenFolded = screen.replace(/\s+/g, ' ')
   check('the gate is DERIVED, never stored (the lock cannot go stale in either direction — the L17 cut\'s whole point)', screenFolded.includes('liveComposerGateOf( sel, sel !== undefined && snapshot.needsYou.some(o => o.sessionId === sel.sessionId), noteRegion, sel !== undefined ? wallLineBySession.get(sel.sessionId) : undefined, )'))
@@ -310,15 +297,14 @@ console.log('§7 — focus legibility: the focused panel\'s border takes the acc
   const { readFileSync } = await import('node:fs')
   const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
   const layout = read('src/components/concourse/ConcourseLayout.tsx')
-  const pane = read('src/components/concourse/CoordinatorPane.tsx')
   const manifest = await import('../../src/components/concourse/controlManifest.ts')
-  check('all three panels carry the ONE focus grammar (accent border focused, subtle otherwise — existing tokens, no new hex)', layout.includes('borderColor={managerFocused ? t.info : t.borderSubtle}') && layout.includes("borderColor={region === 'live' ? t.info : t.borderSubtle}") && pane.includes('borderColor={focused ? t.info : t.borderSubtle}'))
-  check('the panel titles dim with their panels', layout.includes("region === 'list' || hover ? t.infoText : t.textMuted") && pane.includes('focused || hover ? t.infoText : t.textMuted'))
+  check('both panels carry the ONE focus grammar (accent border focused, subtle otherwise — existing tokens, no new hex)', layout.includes('borderColor={managerFocused ? t.info : t.borderSubtle}') && layout.includes("borderColor={region === 'live' ? t.info : t.borderSubtle}"))
+  check('the panel titles dim with their panels', layout.includes("region === 'list' || hover ? t.infoText : t.textMuted"))
   check('the SELECTED row spells its state beside the glyph (NEEDS YOU legible at a glance, its own ink)', layout.includes('STATE_WORD[r.state] ?? r.state') && layout.includes("'needs-you': 'NEEDS YOU'"))
   const emptyAt = layout.indexOf('if (sessionRows.length === 0 && filterText.trim().length === 0) {')
   const emptyEnd = emptyAt === -1 ? -1 : layout.indexOf('if (sessionRows.length === 0) {', emptyAt)
   check('the empty state is designed: no column header over nothing; both doors clickable', emptyAt > 0 && emptyEnd > emptyAt && layout.includes('no sessions yet') && layout.includes("id=\"concourse:board:empty-new\"") && !layout.slice(emptyAt, emptyEnd).includes('columnHeaderRow'))
-  check('every Tab stop has a pointer path (the manifest census: title clicks focus panels; a click in the message box focuses the live view; the coordinator, while on, keeps its title click)', ['board:focus', 'board:empty-new'].every(id => manifest.CONCOURSE_CONTROLS.some(c => c.id === id)) && read('src/components/concourse/ConcourseScreen.tsx').includes("const onLiveComposerClick = (visibleRow: number, col: number): void => {\n    if (reducedStage) return\n    setRegion('live')") && pane.includes('id="coordinator:focus-title"'))
+  check('every Tab stop has a pointer path (the manifest census: title clicks focus panels; a click in the message box focuses the live view)', ['board:focus', 'board:empty-new'].every(id => manifest.CONCOURSE_CONTROLS.some(c => c.id === id)) && read('src/components/concourse/ConcourseScreen.tsx').includes("const onLiveComposerClick = (visibleRow: number, col: number): void => {\n    if (reducedStage) return\n    setRegion('live')"))
   check('the live panel is a real frame around the mirror + its composer (the pane rows − 2 − the composer box)', layout.includes('const mirrorInner = Math.max(1, mirrorRows - 2 - geo.liveComposerRows)') && layout.includes('mirrorNode(mirrorInner, Math.max(0, liveWidth - 4))'))
 }
 

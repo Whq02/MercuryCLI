@@ -44,7 +44,7 @@ export async function call(
     if (words === '') {
       const c = standing.contract
       if (c === undefined) {
-        onDone('No contract — /contract <words> drafts one (the concourse New Session offer and the coordinator are the other doors). Advisory always: it encourages, never fences.', { display: 'system' })
+        onDone('No contract — /contract <words> drafts one (the concourse New Session offer is the other door). Advisory always: it encourages, never fences.', { display: 'system' })
         return null
       }
       const history = c.amendments.length > 0 ? ` · ${c.amendments.length} superseded text${c.amendments.length === 1 ? '' : 's'} kept` : ''

@@ -48,7 +48,6 @@ type Store = {
   concourseCollisionsPath: (dir?: string) => string
   readCollisionEvidence: (dir?: string) => Array<Record<string, unknown>>
   recordCollisionEvidence: (row: Record<string, unknown>, dir?: string) => void
-  markCollisionEvidenceConsumed: (workspaceId: string, workerIds: readonly string[], dir?: string) => void
 }
 type DispatchStore = {
   concourseDispatchesPath: (dir?: string) => string
@@ -500,9 +499,8 @@ try {
     const cb = start('collision-add', w, ['w-b'])
     const cCodes = await Promise.all([ca.exit, cb.exit])
     check('both collision writers exit 0 after the lock frees', cCodes.every(c => c === 0), { cCodes, a: ca.out(), b: cb.out() })
-    store.markCollisionEvidenceConsumed(w, ['w-a'], dirOf(w))
     const collisions = store.readCollisionEvidence(dirOf(w))
-    check('both collision evidence rows and the consumedAt mark survive with no lingering lock', collisions.length === 2 && collisions.some(r => r.branchName === 'mercury/w-a' && typeof r.consumedAt === 'number') && collisions.some(r => r.branchName === 'mercury/w-b' && r.consumedAt === undefined) && !existsSync(collisionsLock), collisions)
+    check('both collision evidence rows survive with no lingering lock', collisions.length === 2 && collisions.some(r => r.branchName === 'mercury/w-a') && collisions.some(r => r.branchName === 'mercury/w-b') && !existsSync(collisionsLock), collisions)
 
     const opsLock = `${dispatch.concourseControlOpsPath(dirOf(w))}.lock`
     const opsOwner = `${opsLock}.owner`

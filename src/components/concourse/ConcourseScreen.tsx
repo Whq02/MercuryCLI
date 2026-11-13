@@ -39,19 +39,12 @@ import {
   OLDER_CHATS_ROW_PREFIX,
   olderChatsCensus,
   PARK_REFUSED_NOW_LEAD,
-  readCoordinatorComposerDraft,
-  subscribeCoordinatorDraftChanges,
-  writeCoordinatorComposerDraft,
   type OlderChatFact,
 } from '../../services/concourse/concourseSnapshot.js';
 import { PARKED_CAP } from '../../utils/bootCardFacts.js';
 import { paneWindow, panelWidth } from '../mercury-ui/geometry.js';
 import { MODEL_PICKER_PANEL } from '../../utils/model/modelPickerGroups.js';
-import { CoordinatorPane } from './CoordinatorPane.js';
 import { deriveGitOffer, GitOfferCard, gitOfferDescription, gitOfferFolderHeld, type GitOfferV1 } from './GitOfferCard.js';
-import { needsSeatOverloadAsk, SeatOverloadCard } from './SeatOverloadCard.js';
-import { WorktreeLaunchCard } from './WorktreeLaunchCard.js';
-import { ManagerAskCard, ManagerPlanCard, ManagerSeatAskCard } from './ManagerCards.js';
 import { CONTRACT_CARD_MIN_ROWS, ContractOfferCard } from './ContractOfferCard.js';
 import { RowPickModal } from './RowPickModal.js';
 import { MercuryModelDefaultPicker, MercurySessionModelPicker } from '../../commands/model/mercuryModel.js';
@@ -64,7 +57,6 @@ import { keyHintLabel } from '../mercury-ui/keyHintLabel.js';
 import { ConcourseComposer } from './ConcourseStrips.js';
 import {
   ConcourseLayout,
-  COORDINATOR_REST_ROWS,
   NEW_SESSION_ROW_ID,
   REDUCED_NOTICE_ROWS,
   ROW_PEEK_DESIRED_ROWS,
@@ -110,18 +102,10 @@ interface ConcourseCapsuleV2 {
   boardSel: string | null
   railSel: string | null
   boardScroll: number | null
-  managerMode?: boolean
 }
 let presentationCapsule: ConcourseCapsuleV2 | null = null
 export function _resetConcourseCapsuleForTesting(): void {
   presentationCapsule = null
-}
-
-export const RESTORED_DRAFT_LINE = keyHintLabel('restored draft · ↵↵ sends · ⌃c clears')
-export const RESTORED_DRAFT_ARMED_LINE = '↵ again sends it · esc keeps it'
-
-export function restoredDraftLine(armed: boolean): string {
-  return armed ? RESTORED_DRAFT_ARMED_LINE : RESTORED_DRAFT_LINE
 }
 
 type SignInPickerV1 = { kind: 'default' } | { kind: 'session'; sessionId: string; title: string }
@@ -179,9 +163,8 @@ export function liveComposerPaintOf(
 }
 
 function migrateCapsuleRegion(region: string | undefined): ConcourseRegion | undefined {
-  if (region === 'composer') return 'coordinator'
   if (region === 'mirror') return 'live'
-  if (region === 'rail' || region === 'list' || region === 'live' || region === 'coordinator' || region === 'chat') return region
+  if (region === 'rail' || region === 'list' || region === 'live' || region === 'chat') return region
   return undefined
 }
 
@@ -204,7 +187,6 @@ export function ConcourseScreen({
   const { isCompact } = useLayoutChrome()
   const compactProfile = isCompact ? compactConcourseProfileOf(termCols, termRows) : null
   const compact = compactProfile !== null
-  const coordinatorOn = snapshot.coordinator.mode === 'agent-assisted'
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion)
   const keyMapHint = stripKeyMapHint()
   useSyncExternalStore(subscribeSplitView, splitViewVersion, splitViewVersion)
@@ -237,13 +219,9 @@ export function ConcourseScreen({
   const [region, setRegion] = useState<ConcourseRegion>(() => {
     const carried = migrateCapsuleRegion(presentationCapsule?.region)
     if (compact) return carried === 'live' ? 'live' : 'list'
-    if (reducedStage || (carried === 'coordinator' && !coordinatorOn)) return 'list'
+    if (reducedStage) return 'list'
     return carried ?? 'list'
   })
-  const [managerArmed, setManagerArmed] = useState<boolean>(() => presentationCapsule?.managerMode ?? false)
-  const managerOn = managerArmed && !reducedStage
-  const managerOnRef = useRef(managerOn)
-  managerOnRef.current = managerOn
   const [helpOpen, setHelpOpen] = useState(false)
   const helpOpenRef = useRef(false)
   const [groundPickerOpen, setGroundPickerOpen] = useState(false)
@@ -331,7 +309,6 @@ export function ConcourseScreen({
       sessionRows.length + (newSessionLineNow() ? 1 : 0),
       boardGroupCount,
       liveDraftDesired,
-      focusTall,
       wouldAsk,
       region,
       thirdPaneRows,
@@ -438,78 +415,6 @@ export function ConcourseScreen({
     if (row && row.sessionId !== current) selectSession(row.sessionId)
   }
 
-  const [draft, setDraft] = useState<LineDraft>({ text: '', caret: 0 })
-  const draftRef = useRef<LineDraft>(draft)
-  draftRef.current = draft
-  const draftEditedRef = useRef(false)
-  const undoRef = useRef(newDraftUndo())
-  const [draftRestored, setDraftRestored] = useState(false)
-  const draftRestoredRef = useRef(false)
-  const [restoredArmed, setRestoredArmed] = useState(false)
-  const restoredArmedRef = useRef(false)
-  const regionRef = useRef(region)
-  regionRef.current = region
-  const settleRestoredDraft = (): void => {
-    draftRestoredRef.current = false
-    restoredArmedRef.current = false
-    setDraftRestored(false)
-    setRestoredArmed(false)
-  }
-  const editDraft = (op: (d: LineDraft) => LineDraft): void => {
-    draftEditedRef.current = true
-    draftRef.current = op(draftRef.current)
-    setDraft(draftRef.current)
-    if (draftRef.current.text.length === 0) settleRestoredDraft()
-  }
-  useEffect(() => {
-    if (!coordinatorOn) return
-    let cancelled = false
-    void readCoordinatorComposerDraft().then(d => {
-      if (cancelled || draftEditedRef.current || d.text.length === 0) return
-      draftRef.current = { text: d.text, caret: d.caret }
-      setDraft(draftRef.current)
-      draftRestoredRef.current = true
-      setDraftRestored(true)
-      if (regionRef.current === 'coordinator' && !compact && !reducedStage) setRegion('list')
-    })
-    return () => {
-      cancelled = true
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-  useEffect(() => {
-    if (restoredArmedRef.current) {
-      restoredArmedRef.current = false
-      setRestoredArmed(false)
-    }
-  }, [draft.text, region])
-  const pendingOwnWritesRef = useRef(0)
-  const persistDraft = (text: string, caret: number): void => {
-    pendingOwnWritesRef.current += 1
-    void writeCoordinatorComposerDraft(text, caret).finally(() => {
-      pendingOwnWritesRef.current = Math.max(0, pendingOwnWritesRef.current - 1)
-    })
-  }
-  useEffect(() => {
-    if (!draftEditedRef.current) return
-    persistDraft(draft.text, draft.caret)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draft.text, draft.caret])
-  useEffect(() => {
-    const unsub = subscribeCoordinatorDraftChanges(change => {
-      if (change.cause === 'local-commit') return
-      if (pendingOwnWritesRef.current > 0) return
-      if (change.text === '' && draftRef.current.text !== '') {
-        draftRef.current = { text: '', caret: 0 }
-        setDraft(draftRef.current)
-        undoRef.current = newDraftUndo()
-        settleRestoredDraft()
-      }
-    })
-    return unsub
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   const [liveDraft, setLiveDraft] = useState<LineDraft>({ text: '', caret: 0 })
   const liveDraftRef = useRef<LineDraft>(liveDraft)
   liveDraftRef.current = liveDraft
@@ -531,7 +436,6 @@ export function ConcourseScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveDraft.text, markedIds])
 
-  const [pending, setPending] = useState(false)
   const [note, setNote] = useState<{ tone: 'muted' | 'warning'; text: string; row?: string } | null>(null)
   useEffect(() => {
     if (note?.row === undefined) return
@@ -541,24 +445,6 @@ export function ConcourseScreen({
   const [composeContext, setComposeContext] = useState<ComposeContext>({ kind: 'chat' })
   const composeContextRef = useRef<ComposeContext>(composeContext)
   composeContextRef.current = composeContext
-  const sendIdRef = useRef<{ text: string; id: string } | null>(null)
-  const aliveRef = useRef(true)
-  useEffect(() => {
-    aliveRef.current = true
-    return () => {
-      aliveRef.current = false
-    }
-  }, [])
-
-  const clearDraft = (): void => {
-    sendIdRef.current = null
-    draftRef.current = { text: '', caret: 0 }
-    setDraft(draftRef.current)
-    undoRef.current = newDraftUndo()
-    settleRestoredDraft()
-    persistDraft('', 0)
-  }
-
   const wallLineBySession = useMemo(() => {
     const lines = new Map<string, string>()
     for (const row of sessionRows) {
@@ -577,46 +463,6 @@ export function ConcourseScreen({
       noteRegion,
       sel !== undefined ? wallLineBySession.get(sel.sessionId) : undefined,
     )
-
-  const [forkAsk, setForkAsk] = useState<{ text: string; folder: string; holderTitle: string | null } | null>(null)
-  const forkAskRef = useRef<{ text: string; folder: string; holderTitle: string | null } | null>(null)
-  forkAskRef.current = forkAsk
-  const launchPreviewBusyRef = useRef(false)
-  const dispatchDirect = (text: string): void => {
-    void callbacks.sendCoordinatorMessage?.(text).catch(() => {})
-    callbacks.submitSessionDraft(text)
-    clearDraft()
-  }
-  const launchDirect = (text: string): void => {
-    if (launchPreviewBusyRef.current) return
-    const preview = callbacks.previewLaunch
-    if (preview === undefined) {
-      dispatchDirect(text)
-      return
-    }
-    launchPreviewBusyRef.current = true
-    void preview()
-      .catch(() => null)
-      .then(p => {
-        launchPreviewBusyRef.current = false
-        if (!aliveRef.current) return
-        if (p !== null && p.forks) {
-          setForkAsk({ text, folder: p.folder, holderTitle: p.mainHolderTitle })
-          return
-        }
-        dispatchDirect(text)
-      })
-  }
-  const answerForkAsk = (allowed: boolean): void => {
-    const ask = forkAskRef.current
-    setForkAsk(null)
-    if (ask === null) return
-    if (!allowed) {
-      setNote({ tone: 'muted', text: 'kept — nothing dispatched; your draft stays' })
-      return
-    }
-    dispatchDirect(ask.text)
-  }
 
   const sendLive = (): void => {
     if (reducedStage) return
@@ -675,132 +521,6 @@ export function ConcourseScreen({
     clearLiveDraft()
   }
 
-  const sendCoordinator = (): void => {
-    if (reducedStage) return
-    const text = draftRef.current.text.trim()
-    if (text.length === 0 || pending) return
-    if (text.startsWith('/')) {
-      const cmd = text.split(/\s+/)[0]!.toLowerCase()
-      if (cmd === '/clear') {
-        clearDraft()
-        void import('../../services/concourse/coordinatorConversation.js')
-          .then(m => m.clearCoordinatorConversation())
-          .then(() => setNote({ tone: 'muted', text: 'cleared — fresh slate' }))
-          .catch(() => setNote({ tone: 'warning', text: 'clear failed — the conversation store was unreadable' }))
-        return
-      }
-      if (cmd === '/compact') {
-        clearDraft()
-        setNote({ tone: 'muted', text: 'compacting — summarizing the older turns…' })
-        void import('../../services/concourse/coordinatorCompact.js')
-          .then(m => m.summarizeCoordinatorConversation())
-          .then(r =>
-            setNote(
-              r.refused !== undefined
-                ? { tone: 'warning', text: r.refused.slice(0, 160) }
-                : {
-                    tone: 'muted',
-                    text:
-                      r.compacted > 0
-                        ? `compacted ${r.compacted} earlier turn${r.compacted === 1 ? '' : 's'} into a summary`
-                        : 'nothing to compact yet',
-                  },
-            ),
-          )
-          .catch(e => setNote({ tone: 'warning', text: `compact failed — ${String(e).slice(0, 120)}` }))
-        return
-      }
-      setNote({ tone: 'muted', text: 'plain words here — /clear and /compact are the only composer commands' })
-      return
-    }
-    if (!coordinatorOn && !managerOnRef.current) {
-      if (needsSeatOverloadAsk(snapshot.counts.live, effectiveSeatCeiling())) {
-        setSeatAsk({ text, live: snapshot.counts.live, ceiling: effectiveSeatCeiling() })
-        return
-      }
-      launchDirect(text)
-      return
-    }
-    const door = callbacks.sendCoordinatorMessage
-    if (door === undefined) {
-      setNote({ tone: 'warning', text: 'send unavailable — the coordinator lane has no delivery door here' })
-      return
-    }
-    const sendThroughDoor = (): void => {
-      setPending(true)
-      setNote(null)
-      const minted = sendIdRef.current
-      const clientMessageId =
-        minted !== null && minted.text === text
-          ? minted.id
-          : `coord-ui-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
-      sendIdRef.current = { text, id: clientMessageId }
-      let accepted = false
-      const acceptedClear = (): void => {
-        if (!aliveRef.current) return
-        accepted = true
-        clearDraft()
-      }
-      void door(text, clientMessageId, acceptedClear, managerOnRef.current ? { manager: true } : undefined)
-        .then(() => {
-          if (sendIdRef.current?.id === clientMessageId) sendIdRef.current = null
-          if (aliveRef.current && !accepted) acceptedClear()
-        })
-        .catch((e: unknown) => {
-          if (!aliveRef.current) return
-          if (accepted) {
-            sendIdRef.current = { text, id: clientMessageId }
-            draftRef.current = { text, caret: text.length }
-            setDraft(draftRef.current)
-            persistDraft(text, text.length)
-          }
-          const raw = String(e)
-          const reason =
-            raw.includes('ENOENT') || raw.includes('ECONNREFUSED')
-              ? 'the daemon that hosts background sessions is not running'
-              : raw.slice(0, 70)
-          setNote({ tone: 'warning', text: `send failed — ${reason}; your draft is kept · ↵ retries` })
-        })
-        .finally(() => {
-          if (aliveRef.current) setPending(false)
-        })
-    }
-    if (!coordinatorOn) {
-      void import('../../services/concourse/managerMode.js')
-        .then(m => m.resolveManagerModel())
-        .then(model => {
-          if (!aliveRef.current) return
-          if (!model.ok) {
-            setNote({ tone: 'warning', text: model.line })
-            return
-          }
-          sendThroughDoor()
-        })
-        .catch(() => {
-          if (aliveRef.current) {
-            setNote({ tone: 'warning', text: 'send failed — the coordinator model registry was unreadable; your draft is kept · ↵ retries' })
-          }
-        })
-      return
-    }
-    sendThroughDoor()
-  }
-
-  const noteManagerModel = (arming: boolean): void => {
-    if (!arming) {
-      setNote(null)
-      return
-    }
-    void import('../../services/concourse/managerMode.js')
-      .then(m => m.resolveManagerModel())
-      .then(model => {
-        if (!aliveRef.current) return
-        setNote(model.ok ? { tone: 'muted', text: `manager mode runs on ${model.label}` } : { tone: 'warning', text: model.line })
-      })
-      .catch(() => {
-      })
-  }
-
   const closeChordBlocked = (): boolean =>
     callbacks.daemonOfferArmed?.() === true ||
     helpOpenRef.current ||
@@ -811,13 +531,8 @@ export function ConcourseScreen({
       groundPickerOpen: groundPickerOpenRef.current,
       rowPick: rowPickRef.current !== null,
       modelDefault: modelDefaultOpenRef.current,
-      seatAsk: seatAskRef.current !== null,
-      forkAsk: forkAskRef.current !== null,
       gitOffer: gitOfferRef.current !== undefined,
       contractAsk: contractAskRef.current,
-      managerSeatAsk: managerSeatAskRef.current !== null,
-      managerCardArmed: managerCardArmedRef.current,
-      coordinatorFocused: region === 'coordinator',
     }) !== null
 
   const modalFactsNow = (): BoardModalFactsV1 => ({
@@ -825,13 +540,8 @@ export function ConcourseScreen({
     trustAsk: trustAskRef.current !== null,
     groundPickerOpen: groundPickerOpenRef.current,
     rowPick: rowPickRef.current !== null,
-    seatAsk: seatAskRef.current !== null,
-    forkAsk: forkAskRef.current !== null,
     gitOffer: gitOfferRef.current !== undefined,
     contractAsk: contractAskRef.current,
-    managerSeatAsk: managerSeatAskRef.current !== null,
-    managerCardArmed: managerCardArmedRef.current,
-    coordinatorFocused: region === 'coordinator',
     helpOpen: helpOpenRef.current,
   })
 
@@ -1035,18 +745,7 @@ export function ConcourseScreen({
       return
     }
     const ref = o.ref ?? ''
-    if (ref.startsWith('kernel:capacity:') && coordinatorOn) {
-      setRegion('coordinator')
-      setNote({
-        tone: 'muted',
-        text: `the draft is kept — edit it and ↵ resends · ${keyHintLabel('⌃x ⌃x')} on the queued row withdraws it`,
-      })
-      return
-    }
-    if (ref.startsWith('permission:git-init:')) {
-      if (coordinatorOn) setRegion('coordinator')
-      return
-    }
+    if (ref.startsWith('permission:git-init:')) return
     if (ref.startsWith('permission:')) {
       openObligationOrDoor(obligationId)
       return
@@ -1055,28 +754,11 @@ export function ConcourseScreen({
     setRegion('live')
   }
 
-  const [seatAsk, setSeatAsk] = useState<{ text: string; live: number; ceiling: number } | null>(null)
-  const seatAskRef = useRef<{ text: string; live: number; ceiling: number } | null>(null)
-  seatAskRef.current = seatAsk
-  const answerSeatAsk = (allowed: boolean): void => {
-    const ask = seatAskRef.current
-    setSeatAsk(null)
-    if (ask === null) return
-    if (!allowed) {
-      setNote({ tone: 'muted', text: 'kept — nothing dispatched; your draft stays' })
-      return
-    }
-    void callbacks.sendCoordinatorMessage?.(ask.text).catch(() => {})
-    callbacks.submitSessionDraft(ask.text)
-    clearDraft()
-  }
-
   const [contractAsk, setContractAsk] = useState(false)
   const contractAskRef = useRef(contractAsk)
   contractAskRef.current = contractAsk
   const compactCardRows = contractAsk ? CONTRACT_CARD_MIN_ROWS : 0
   const armContractAsk = (): void => {
-    if (seatAskRef.current !== null || forkAskRef.current !== null) return
     setContractAsk(true)
   }
   const answerContractAsk = (contractText: string | null): void => {
@@ -1087,140 +769,6 @@ export function ConcourseScreen({
     }
     callbacks.newSession?.({ contractText })
   }
-
-  const [convTail, setConvTail] = useState<import('../../services/concourse/coordinatorConversation.js').CoordinatorConversationEntryV1 | null>(null)
-  useEffect(() => {
-    if (reducedStage || !coordinatorOn) return
-    let alive = true
-    const load = (): void => {
-      void import('../../services/concourse/coordinatorConversation.js').then(async m => {
-        const rows = await m.readCoordinatorConversation()
-        if (!alive) return
-        const last = rows.length > 0 ? rows[rows.length - 1]! : null
-        setConvTail(prev =>
-          prev !== null && last !== null && prev.id === last.id && JSON.stringify(prev) === JSON.stringify(last) ? prev : last,
-        )
-      })
-    }
-    load()
-    let unsub: (() => void) | null = null
-    void import('../../services/concourse/coordinatorConversation.js').then(m => {
-      if (!alive) return
-      unsub = m.subscribeCoordinatorConversation(load)
-    })
-    return () => {
-      alive = false
-      unsub?.()
-    }
-  }, [reducedStage, coordinatorOn])
-  const [dismissedAskBump, setDismissedAskBump] = useState(0)
-  const dismissedAsksRef = useRef<Set<string>>(new Set())
-  const [managerPlanBusy, setManagerPlanBusy] = useState(false)
-  const [managerSeatAsk, setManagerSeatAsk] = useState<{ entryId: string; plan: import('../../services/concourse/managerMode.js').ManagerPlanV1; live: number; ceiling: number } | null>(null)
-  const managerSeatAskRef = useRef<typeof managerSeatAsk>(null)
-  managerSeatAskRef.current = managerSeatAsk
-  void dismissedAskBump
-  const managerAskArmed =
-    managerOn && !pending && convTail !== null && convTail.role === 'coordinator' && convTail.ask !== undefined && !dismissedAsksRef.current.has(convTail.id)
-      ? { entryId: convTail.id, ask: convTail.ask }
-      : null
-  const managerPlanArmed =
-    managerOn && !pending && !managerPlanBusy && managerSeatAsk === null && convTail !== null && convTail.plan !== undefined && convTail.plan.state === 'proposed'
-      ? { entryId: convTail.id, plan: convTail.plan }
-      : null
-  const managerCardArmedRef = useRef(false)
-  managerCardArmedRef.current = managerAskArmed !== null || managerPlanArmed !== null || managerPlanBusy
-  const sendManagerAnswer = (text: string): void => {
-    draftEditedRef.current = true
-    draftRef.current = { text, caret: text.length }
-    setDraft(draftRef.current)
-    sendCoordinator()
-  }
-  const runManagerDispatch = (
-    entryId: string,
-    plan: import('../../services/concourse/managerMode.js').ManagerPlanV1,
-    fits: number,
-  ): void => {
-    setManagerPlanBusy(true)
-    void (async () => {
-      try {
-        const [mgr, snap] = await Promise.all([
-          import('../../services/concourse/managerMode.js'),
-          import('../../services/concourse/concourseSnapshot.js'),
-        ])
-        const ground = await snap.resolveHarnessGround().catch(() => getOriginalCwd())
-        const done = await mgr.executeManagerPlan(plan, { workspaceRoot: ground, fits, entryId })
-        const dispatched = {
-          ...plan,
-          state: 'dispatched' as const,
-          laneSessionIds: done.laneSessionIds,
-          ...(done.laneWaiting.length > 0 ? { laneWaiting: done.laneWaiting } : {}),
-          workspaceRoot: ground,
-        }
-        await mgr.markManagerPlanState(entryId, {
-          state: 'dispatched',
-          laneSessionIds: done.laneSessionIds,
-          laneWaiting: done.laneWaiting,
-          workspaceRoot: ground,
-        })
-        mgr.registerDispatchedManagerPlan(dispatched, { entryId, workspaceRoot: ground })
-        const conv = await import('../../services/concourse/coordinatorConversation.js')
-        const started = done.laneSessionIds.filter(id => id !== null).length
-        await conv.appendCoordinatorConversation({
-          id: `mgr:dispatch:${entryId}`,
-          role: 'coordinator',
-          text: `plan dispatched — ${started} of ${plan.lanes.length} lane${plan.lanes.length === 1 ? '' : 's'} started under contract${done.laneWaiting.length > 0 ? `, ${done.laneWaiting.length} waiting for a seat` : ''}${dispatched.supervision === 'supervising' ? ' · supervising' : ' · launch-only'}`,
-          ts: Date.now(),
-          harness: true,
-          receipts: done.receipts.map(r => ({
-            verb: r.verb,
-            outcome: r.outcome,
-            label: `${r.verb} ${r.outcome}${r.detail !== undefined ? ` — ${r.detail}` : ''}`.slice(0, 220),
-          })),
-        })
-        callbacks.retrySnapshot?.()
-      } catch (e) {
-        setNote({ tone: 'warning', text: `the plan did not dispatch — ${String(e).slice(0, 80)}; the draft stays · Yes retries` })
-      } finally {
-        if (aliveRef.current) setManagerPlanBusy(false)
-      }
-    })()
-  }
-  const answerManagerPlan = (entryId: string, plan: import('../../services/concourse/managerMode.js').ManagerPlanV1, yes: boolean, supervision: 'supervising' | 'launch-only'): void => {
-    if (!yes) {
-      void import('../../services/concourse/managerMode.js').then(m => m.markManagerPlanState(entryId, { state: 'declined' }))
-      setNote({ tone: 'muted', text: 'kept as a draft — nothing dispatched; say what to change' })
-      return
-    }
-    const withSupervision = { ...plan, supervision }
-    if (snapshot.counts.live + plan.lanes.length > effectiveSeatCeiling()) {
-      setManagerSeatAsk({ entryId, plan: withSupervision, live: snapshot.counts.live, ceiling: effectiveSeatCeiling() })
-      return
-    }
-    runManagerDispatch(entryId, withSupervision, plan.lanes.length)
-  }
-  const answerManagerSeatAsk = (allowed: boolean): void => {
-    const ask = managerSeatAskRef.current
-    setManagerSeatAsk(null)
-    if (ask === null) return
-    if (!allowed) {
-      setNote({ tone: 'muted', text: 'kept — nothing dispatched; the plan card stays' })
-      return
-    }
-    runManagerDispatch(ask.entryId, ask.plan, Math.max(0, ask.ceiling - ask.live))
-  }
-  useEffect(() => {
-    if (reducedStage || !coordinatorOn) return
-    const rows = sessionRows.map(r => ({ sessionId: r.sessionId, state: r.state }))
-    const counts = { live: snapshot.counts.live, ceiling: effectiveSeatCeiling() }
-    void import('../../services/concourse/managerMode.js')
-      .then(async m => {
-        await m.appendManagerSupervisionRows(rows)
-        const startedLane = await m.startWaitingManagerLane(counts)
-        if (startedLane !== null) callbacks.retrySnapshot?.()
-      })
-      .catch(() => {})
-  }, [snapshot.revision, snapshot.counts.live, reducedStage, coordinatorOn, sessionRows, callbacks])
 
   const [capacityAsk, setCapacityAsk] = useState(false)
   const capacityAskRef = useRef(false)
@@ -1318,13 +866,8 @@ export function ConcourseScreen({
         groundPickerOpen,
         rowPick: rowPick !== null,
         modelDefault: modelDefaultOpen,
-        seatAsk: seatAsk !== null,
-        forkAsk: forkAsk !== null,
         gitOffer: gitOffer !== undefined,
         contractAsk,
-        managerSeatAsk: managerSeatAsk !== null,
-        managerCardArmed: managerAskArmed !== null || managerPlanArmed !== null || managerPlanBusy,
-        coordinatorFocused: region === 'coordinator',
       }) === null
     if (!boardOwned) return null
     const hint = closeChordHintOf(closeChordRungOf(boardSelectionClassOf(peekSelRow), closeChordStaged), peekSelRow?.newborn === true)
@@ -1355,16 +898,14 @@ export function ConcourseScreen({
     return null
   }
   const olderRows = olderList !== null ? Math.max(2, Math.min(ROW_PEEK_DESIRED_ROWS, olderList.entries.length + 1)) : 0
-  const focusTall: 'mirror' | 'coordinator' = region === 'coordinator' ? 'coordinator' : 'mirror'
-  const thirdPaneRows = reducedStage ? REDUCED_NOTICE_ROWS : coordinatorOn ? COORDINATOR_REST_ROWS : 0
-  const coordBandDesired = draftWindow(draft, 5).bandRows
+  const thirdPaneRows = reducedStage ? REDUCED_NOTICE_ROWS : 0
   const liveDraftDesired = reducedStage ? 0 : draftWindow(liveDraft, 3).bandRows
   const boardGroupCount = useMemo(() => boardGroups.filter(g => g.rows.length > 0).length, [boardGroups])
   const listPane = useMemo(() => {
-    const bare = switchboardGeometry(cols, termRows, snapshot.needsYou.length, sessionRows.length + (newSessionLine ? 1 : 0), boardGroupCount, liveDraftDesired, focusTall, 0, region, thirdPaneRows)
+    const bare = switchboardGeometry(cols, termRows, snapshot.needsYou.length, sessionRows.length + (newSessionLine ? 1 : 0), boardGroupCount, liveDraftDesired, 0, region, thirdPaneRows)
     const pane = bare.profile === 'wide' ? bare.rightCols[1] - bare.rightCols[0] + 1 : bare.interior
     return { lineWidth: Math.max(16, pane - ROW_LINE_INSET), nowCellWidth: rowNowCellWidth(bare.constrained ? bare.interior : pane - 4) }
-  }, [cols, termRows, snapshot.needsYou.length, sessionRows.length, newSessionLine, boardGroupCount, liveDraftDesired, focusTall, region, thirdPaneRows])
+  }, [cols, termRows, snapshot.needsYou.length, sessionRows.length, newSessionLine, boardGroupCount, liveDraftDesired, region, thirdPaneRows])
   const rowLineWidth = listPane.lineWidth
   const selectedRowLine = selectedRowLineOf(listPane.nowCellWidth)
   const chipRows = !rowPeekOpen && selectedRowLine !== null ? rowLineRows(selectedRowLine.words, rowLineWidth) : 0
@@ -1377,12 +918,11 @@ export function ConcourseScreen({
         sessionRows.length + (newSessionLine ? 1 : 0),
         boardGroupCount,
         liveDraftDesired,
-        focusTall,
         rowPeekOpen ? ROW_PEEK_DESIRED_ROWS : olderRows > 0 ? olderRows : chipRows,
         region,
         thirdPaneRows,
       ),
-    [cols, termRows, snapshot.needsYou.length, sessionRows.length, newSessionLine, boardGroupCount, liveDraftDesired, focusTall, rowPeekOpen, olderRows, chipRows, region, thirdPaneRows],
+    [cols, termRows, snapshot.needsYou.length, sessionRows.length, newSessionLine, boardGroupCount, liveDraftDesired, rowPeekOpen, olderRows, chipRows, region, thirdPaneRows],
   )
   const compactGeo = useMemo(
     () =>
@@ -1400,16 +940,12 @@ export function ConcourseScreen({
   const regionsInOrder = useMemo<ConcourseRegion[]>(() => {
     const ring: ConcourseRegion[] = compact || reducedStage ? ['list', 'live'] : ['live', 'list']
     if (!compact && snapshot.needsYou.length > 0) ring.push('rail')
-    if (!compact && !reducedStage && coordinatorOn) ring.push('coordinator')
     if (splitActive) ring.push('chat')
     return ring
-  }, [snapshot.needsYou.length, reducedStage, splitActive, compact, coordinatorOn])
+  }, [snapshot.needsYou.length, reducedStage, splitActive, compact])
   useEffect(() => {
     if (region === 'rail' && snapshot.needsYou.length === 0) setRegion('list')
   }, [region, snapshot.needsYou.length])
-  useEffect(() => {
-    if ((reducedStage || !coordinatorOn) && region === 'coordinator') setRegion('list')
-  }, [region, reducedStage, coordinatorOn])
   useEffect(() => {
     if (compact && region !== 'list' && region !== 'live') setRegion('list')
   }, [compact, region])
@@ -1432,7 +968,7 @@ export function ConcourseScreen({
   }, [olderList, geo.peekRows])
 
   const capsuleRef = useRef<ConcourseCapsuleV2 | null>(null)
-  capsuleRef.current = { region, filtering, filter, boardSel, railSel, boardScroll, managerMode: managerArmed }
+  capsuleRef.current = { region, filtering, filter, boardSel, railSel, boardScroll }
   useEffect(() => {
     presentationCapsule = null
     return () => {
@@ -1461,13 +997,8 @@ export function ConcourseScreen({
       groundPickerOpen: groundPickerOpenRef.current,
       rowPick: rowPickRef.current !== null,
       modelDefault: modelDefaultOpenRef.current,
-      seatAsk: seatAskRef.current !== null,
-      forkAsk: forkAskRef.current !== null,
       gitOffer: gitOfferRef.current !== undefined,
       contractAsk: contractAskRef.current,
-      managerSeatAsk: managerSeatAskRef.current !== null,
-      managerCardArmed: managerCardArmedRef.current,
-      coordinatorFocused: region === 'coordinator',
       helpOpen: helpOpenRef.current,
     })
     const plainConsent = !key.ctrl && !key.meta && !key.super
@@ -1503,17 +1034,10 @@ export function ConcourseScreen({
       else if (key.escape || (plainConsent && (input === 'n' || input === 'N'))) answerTrustAsk(false)
       return
     }
-    if (modalOwner !== null && modalOwner !== 'manager-seat-ask' && modalOwner !== 'manager-card') return
+    if (modalOwner !== null) return
     const ctx = composeContextRef.current
     if (key.tab && !filtering) {
       event.stopImmediatePropagation()
-      if (key.shift && region === 'coordinator' && !reducedStage) {
-        const arming = !managerOnRef.current
-        managerOnRef.current = arming
-        setManagerArmed(arming)
-        if (!coordinatorOn) noteManagerModel(arming)
-        return
-      }
       const dir = key.shift ? -1 : 1
       setRegion(prev => {
         const at = regionsInOrder.indexOf(prev)
@@ -1521,7 +1045,6 @@ export function ConcourseScreen({
       })
       return
     }
-    if (modalOwner === 'manager-seat-ask' || modalOwner === 'manager-card') return
     if (filtering) {
       if (key.escape) {
         event.stopImmediatePropagation()
@@ -1601,11 +1124,6 @@ export function ConcourseScreen({
       if (broadcastArmedRef.current) {
         broadcastArmedRef.current = false
         setBroadcastArmed(false)
-        return
-      }
-      if (restoredArmedRef.current) {
-        restoredArmedRef.current = false
-        setRestoredArmed(false)
         return
       }
       if (compact && region === 'live') {
@@ -1695,10 +1213,7 @@ export function ConcourseScreen({
           armContractAsk()
           return
         }
-        if (sessionRows.length === 0) {
-          if (!reducedStage && !compact && coordinatorOn) setRegion('coordinator')
-          return
-        }
+        if (sessionRows.length === 0) return
         const sel = sessionRows.find(r => r.sessionId === boardSelRef.current)
         if (sel) compactSteerOrEnter(sel)
         return
@@ -1849,7 +1364,7 @@ export function ConcourseScreen({
       input === '?' &&
       !key.ctrl &&
       !key.meta &&
-      helpKeyFiresFor(region, (region === 'coordinator' ? draftRef : liveDraftRef).current.text.length === 0)
+      helpKeyFiresFor(region, liveDraftRef.current.text.length === 0)
     ) {
       event.stopImmediatePropagation()
       helpOpenRef.current = true
@@ -1863,18 +1378,6 @@ export function ConcourseScreen({
       return
     }
     if (key.return && !key.shift) {
-      if (region === 'coordinator') {
-        if (draftRef.current.text.trim().length === 0) return
-        event.stopImmediatePropagation()
-        if (!pastGate()) return
-        if (draftRestoredRef.current && !restoredArmedRef.current) {
-          restoredArmedRef.current = true
-          setRestoredArmed(true)
-          return
-        }
-        sendCoordinator()
-        return
-      }
       if (region !== 'live') return
       event.stopImmediatePropagation()
       if (!pastGate()) return
@@ -1896,15 +1399,10 @@ export function ConcourseScreen({
     if (region === 'chat') {
       return
     }
-    if (region !== 'coordinator' && region !== 'live') {
+    if (region !== 'live') {
       return
     }
-    const side =
-      region === 'coordinator'
-        ? { ref: draftRef, undo: undoRef, edit: editDraft, focus: 'coordinator' as ConcourseRegion }
-        : { ref: liveDraftRef, undo: liveUndoRef, edit: editLiveDraft, focus: 'live' as ConcourseRegion }
     const liveGateRefusal = (): string | null => {
-      if (side.focus === 'coordinator') return null
       if (composeContextRef.current.kind !== 'chat') return null
       if (compact && selectedIsDoor()) return null
       if (broadcastFaceOf(markedRowsOf().length) !== null) return null
@@ -1912,7 +1410,7 @@ export function ConcourseScreen({
       return g.ok ? null : g.line
     }
     const armSelectedForTyping = (): void => {
-      if (side.focus !== 'live' || boardArmedRef.current !== null) return
+      if (boardArmedRef.current !== null) return
       if (broadcastFaceOf(markedRowsOf().length) !== null) return
       const selId = boardSelRef.current
       if (selId !== null) {
@@ -1928,38 +1426,32 @@ export function ConcourseScreen({
         return
       }
       armSelectedForTyping()
-      recordDraftEdit(side.undo.current, side.ref.current, 'type')
-      side.edit(d => insertAt(d, NL))
+      recordDraftEdit(liveUndoRef.current, liveDraftRef.current, 'type')
+      editLiveDraft(d => insertAt(d, NL))
       return
     }
-    if (key.ctrl && input === 'c' && side.ref.current.text.length > 0) {
+    if (key.ctrl && input === 'c' && liveDraftRef.current.text.length > 0) {
       event.stopImmediatePropagation()
-      recordDraftEdit(side.undo.current, side.ref.current, 'clear')
-      side.edit(() => ({ text: '', caret: 0 }))
+      recordDraftEdit(liveUndoRef.current, liveDraftRef.current, 'clear')
+      editLiveDraft(() => ({ text: '', caret: 0 }))
       return
     }
     if (key.ctrl && input === '_') {
       event.stopImmediatePropagation()
-      const prev = undoDraft(side.undo.current)
+      const prev = undoDraft(liveUndoRef.current)
       if (prev !== null) {
-        if (side.focus === 'coordinator') {
-          draftEditedRef.current = true
-          draftRef.current = prev
-          setDraft(prev)
-        } else {
-          liveDraftRef.current = prev
-          setLiveDraft(prev)
-        }
+        liveDraftRef.current = prev
+        setLiveDraft(prev)
       }
       return
     }
     if (key.backspace || key.delete) {
       event.stopImmediatePropagation()
-      recordDraftEdit(side.undo.current, side.ref.current, 'delete')
-      side.edit(key.backspace ? backspaceAt : deleteAt)
+      recordDraftEdit(liveUndoRef.current, liveDraftRef.current, 'delete')
+      editLiveDraft(key.backspace ? backspaceAt : deleteAt)
       return
     }
-    if (region === 'live' && key.rightArrow && !key.ctrl && !key.meta && liveDraftRef.current.text.length === 0) {
+    if (key.rightArrow && !key.ctrl && !key.meta && liveDraftRef.current.text.length === 0) {
       event.stopImmediatePropagation()
       const sel = sessionRows.find(r => r.sessionId === boardSelRef.current)
       if (sel !== undefined && sel.sessionId.startsWith(OLDER_CHATS_ROW_PREFIX)) {
@@ -1974,19 +1466,17 @@ export function ConcourseScreen({
       setRowPeekOpen(v => !v)
       return
     }
-    if (region === 'coordinator' || region === 'live') {
-      const motion = editorMotionOp(key)
-      if (motion !== null) {
-        event.stopImmediatePropagation()
-        side.edit(motion)
-        return
-      }
-      const vertical = caretVerticalOp(key, side.ref.current)
-      if (vertical !== null) {
-        event.stopImmediatePropagation()
-        side.edit(vertical)
-        return
-      }
+    const motion = editorMotionOp(key)
+    if (motion !== null) {
+      event.stopImmediatePropagation()
+      editLiveDraft(motion)
+      return
+    }
+    const vertical = caretVerticalOp(key, liveDraftRef.current)
+    if (vertical !== null) {
+      event.stopImmediatePropagation()
+      editLiveDraft(vertical)
+      return
     }
     if (input.length > 0 && !key.ctrl && !key.meta && !key.tab) {
       event.stopImmediatePropagation()
@@ -1997,8 +1487,8 @@ export function ConcourseScreen({
       }
       armSelectedForTyping()
       const payload = editorText(input)
-      recordDraftEdit(side.undo.current, side.ref.current, payload.length > 1 ? 'paste' : 'type')
-      side.edit(d => insertAt(d, payload))
+      recordDraftEdit(liveUndoRef.current, liveDraftRef.current, payload.length > 1 ? 'paste' : 'type')
+      editLiveDraft(d => insertAt(d, payload))
       return
     }
   })
@@ -2061,9 +1551,7 @@ export function ConcourseScreen({
               ? sel.waitReason === 'repo-held'
                 ? `repo held by ${sel.waitDetail ?? 'a live session'} — free the checkout to start this one`
                 : sel.waitReason === 'unblocked'
-                  ? coordinatorOn
-                    ? 'unblocked — ask the coordinator to start it · m queues a message'
-                    : `${concourseWaitCopy(sel.waitReason, sel.waitDetail)} · m queues a message`
+                  ? `${concourseWaitCopy(sel.waitReason, sel.waitDetail)} · m queues a message`
                   : sel.waitReason === 'no-repository' || sel.waitReason === 'unborn-head'
                     ? 'needs git — say yes to the offer and it starts on its own'
                     : `${concourseWaitCopy(sel.waitReason, sel.waitDetail)} — it starts when one frees · m queues a message`
@@ -2118,18 +1606,6 @@ export function ConcourseScreen({
     )
   }
 
-  const coordBounds: [number, number, number, number] = [geo.coordCols[0], geo.coordCols[1], geo.coordBand[0], geo.coordBand[1]]
-
-  const restHint = managerOn
-    ? 'one goal, one shot — the manager interviews, then plans the lanes'
-    : coordinatorOn
-      ? 'talk to the coordinator — try "launch two sessions on this project"'
-      : 'describe a task — ↵ starts a session with it as title'
-  const coordinatorKeysHint = !reducedStage
-    ? keyHintLabel(managerOn
-      ? '↵ send · ⇧↵ newline · ⇧tab chat mode · tab panes'
-      : '↵ send · ⇧↵ newline · ⇧tab manager · tab panes')
-    : undefined
   const liveKeysHint =
     liveDraft.text.length === 0
       ? reducedStage
@@ -2158,12 +1634,6 @@ export function ConcourseScreen({
     caret += Math.max(0, Math.min(lines[li]?.length ?? 0, col))
     return caret
   }
-  const onCoordinatorComposerClick = (visibleRow: number, col: number): void => {
-    if (reducedStage) return
-    setRegion('coordinator')
-    const caret = caretFromClick(draftRef.current, coordBandDesired, visibleRow, col)
-    editDraft(dd => ({ text: dd.text, caret: clampCaret(dd.text, caret) }))
-  }
   const onLiveComposerClick = (visibleRow: number, col: number): void => {
     if (reducedStage) return
     setRegion('live')
@@ -2177,7 +1647,7 @@ export function ConcourseScreen({
     const g = compactDoorSelected
       ? { ok: true as const, placeholder: COMPACT_DOOR_REST_HINT }
       : liveComposerGate(sessionRows.find(r => r.sessionId === boardSel), region)
-    const boardNote = coordinatorOn || compact ? null : note
+    const boardNote = compact ? null : note
     const paint = liveComposerPaintOf(g, liveNote ?? boardNote)
     return (
       <ConcourseComposer
@@ -2224,8 +1694,6 @@ export function ConcourseScreen({
     )
   })()
 
-  const gitOfferInPane =
-    gitOffer !== undefined && coordinatorOn && !reducedStage && region === 'coordinator' && geo.profile === 'wide' && !geo.constrained && seatAsk === null && forkAsk === null && !contractAsk
   const fullTree = (
       <ConcourseLayout
         snapshot={snapshot}
@@ -2372,133 +1840,16 @@ export function ConcourseScreen({
         railIndex={railIndex}
         boardScrollStart={boardScroll ?? undefined}
         degraded={degraded}
-        focusTall={focusTall}
         liveDraftRows={liveDraftDesired}
         liveDraftEmpty={liveDraft.text.length === 0}
-        coordinatorDraftEmpty={draft.text.length === 0}
-        coordinatorOn={coordinatorOn && !reducedStage}
         thirdPaneRows={thirdPaneRows}
         groundPickerOpen={groundPickerOpen}
-        coordinatorNode={(rows, width) => reducedStage ? (
+        thirdPaneNode={(rows, width) => (
           <Box flexDirection="column" height={rows} width={width} overflow="hidden" borderStyle={geo.constrained ? undefined : 'round'} borderColor={t.borderSubtle} paddingX={1}>
             <Text color={t.textSecondary} wrap="truncate-end">{`live view — the concourse is off${(() => { const why = plainWorldWhy(); return why !== null && why !== 'concourse off' ? ` (${why})` : '' })()}`}</Text>
             <Text color={t.textMuted} wrap="truncate-end">{`your sessions run and show here · ↵ enters one${keyMapHint.length > 0 ? ` · ${keyMapHint}` : ''}`}</Text>
             <Text color={t.textMuted} wrap="truncate-end">{concourseWayBack()}</Text>
           </Box>
-        ) : (
-          <CoordinatorPane
-            minimal={geo.constrained}
-            focused={region === 'coordinator'}
-            paneRows={rows}
-            paneWidth={width}
-            bounds={coordBounds}
-            pending={pending}
-            draftHeld={draft.text.trim().length > 0}
-            modalUp={
-              boardModalOwner({
-                capacityAsk,
-                trustAsk: trustAsk !== null,
-                groundPickerOpen,
-                rowPick: rowPick !== null,
-                modelDefault: modelDefaultOpen,
-                seatAsk: seatAsk !== null,
-                forkAsk: forkAsk !== null,
-                gitOffer: gitOffer !== undefined,
-                contractAsk,
-                managerSeatAsk: managerSeatAsk !== null,
-                managerCardArmed: managerAskArmed !== null || managerPlanArmed !== null || managerPlanBusy,
-                coordinatorFocused: region === 'coordinator',
-              }) !== null
-            }
-            {...(gitOfferInPane ? { gitOffer } : {})}
-            onAnswerGitOffer={(requestId, allow, obligationId) =>
-              callbacks.answerPermission?.(requestId, allow, obligationId)
-            }
-            {...(() => {
-              if (reducedStage || gitOffer !== undefined || seatAsk !== null || forkAsk !== null || managerSeatAsk !== null) return {}
-              if (managerAskArmed !== null) {
-                const armed = managerAskArmed
-                return {
-                  managerCardNode: (
-                    <ManagerAskCard
-                      ask={armed.ask}
-                      focused={region === 'coordinator'}
-                      onAnswer={text => sendManagerAnswer(text)}
-                      onEnough={() => sendManagerAnswer('enough — plan it')}
-                      onDismiss={typedDraft => {
-                        dismissedAsksRef.current.add(armed.entryId)
-                        setDismissedAskBump(n => n + 1)
-                        if (typedDraft !== undefined && typedDraft.length > 0) {
-                          draftEditedRef.current = true
-                          draftRef.current = { text: typedDraft, caret: typedDraft.length }
-                          setDraft(draftRef.current)
-                        }
-                      }}
-                    />
-                  ),
-                }
-              }
-              const planData =
-                managerPlanArmed ??
-                (managerPlanBusy && convTail !== null && convTail.plan !== undefined
-                  ? { entryId: convTail.id, plan: convTail.plan }
-                  : null)
-              if (planData !== null) {
-                return {
-                  managerCardNode: (
-                    <ManagerPlanCard
-                      plan={planData.plan}
-                      focused={region === 'coordinator'}
-                      busy={managerPlanBusy}
-                      maxRows={Math.max(8, rows - (Math.max(1, Math.min(coordBandDesired, rows - 8)) + 3) - 3)}
-                      textWidth={Math.max(16, width - 8)}
-                      onYes={supervision => answerManagerPlan(planData.entryId, planData.plan, true, supervision)}
-                      onNo={() => answerManagerPlan(planData.entryId, planData.plan, false, planData.plan.supervision)}
-                    />
-                  ),
-                }
-              }
-              return {}
-            })()}
-            onFocus={() => setRegion('coordinator')}
-            onPickExample={text => {
-              draftEditedRef.current = true
-              draftRef.current = { text, caret: text.length }
-              setDraft(draftRef.current)
-            }}
-            collapsed={!geo.constrained && region !== 'coordinator'}
-            tailNote={note}
-            composerNode={
-              region !== 'coordinator' ? undefined : (
-                <ConcourseComposer
-                  minimal={geo.constrained}
-                  width={geo.constrained ? Math.max(0, width) : Math.max(24, width - 4)}
-                  bandRows={geo.constrained ? Math.max(0, Math.min(coordBandDesired, rows)) : Math.max(1, Math.min(coordBandDesired, rows - 8))}
-                  focused={region === 'coordinator' && !(managerAskArmed !== null || managerPlanArmed !== null || managerPlanBusy)}
-                  draft={draft}
-                  pending={pending}
-                  note={note}
-                  restHint={
-                    managerAskArmed !== null || managerPlanArmed !== null || managerPlanBusy
-                      ? managerPlanBusy
-                        ? 'the plan is dispatching — tab moves focus'
-                        : 'the card above owns the keys — answer it, or tab moves focus'
-                      : restHint
-                  }
-                  contextLine={
-                    draftRestored && draft.text.length > 0
-                      ? { tone: 'warning', text: restoredDraftLine(restoredArmed) }
-                      : null
-                  }
-                  onComposerClick={onCoordinatorComposerClick}
-                  {...(managerOn
-                    ? { modeBand: { symbol: GLYPH.modeManager, label: 'manager mode on — goal in · interview · a plan of lanes' } }
-                    : {})}
-                  {...(coordinatorKeysHint !== undefined ? { keysHint: coordinatorKeysHint } : {})}
-                />
-              )
-            }
-          />
         )}
         mirrorNode={mirrorSlot}
         liveComposerNode={liveComposerFace}
@@ -2519,7 +1870,6 @@ export function ConcourseScreen({
           ...(callbacks.withdrawObligation !== undefined
             ? { withdrawObligation: (id: string) => callbacks.withdrawObligation?.(id) }
             : {}),
-          focusComposer: () => setRegion('coordinator'),
           focusList: () => setRegion('list'),
           openGroundPicker: () => {
             if (!mayArmBoardModal(modalFactsNow(), 'ground-picker')) return
@@ -2600,29 +1950,8 @@ export function ConcourseScreen({
         boardTree
       )}
       {}
-      {helpOpen ? <ConcourseKeyAtlas cols={termCols} rows={termRows} chat={chatPresent()} reducedStage={reducedStage} splitOn={splitActive} coordinatorOn={coordinatorOn} /> : null}
+      {helpOpen ? <ConcourseKeyAtlas cols={termCols} rows={termRows} chat={chatPresent()} reducedStage={reducedStage} splitOn={splitActive} /> : null}
       {capacityAsk ? <CapacityAskModal cols={cols} rows={termRows} onAnswer={answerCapacityAsk} /> : null}
-      {seatAsk !== null ? (
-        <FloatingPopup host={{ left: 0, top: 0, columns: cols, rows: termRows }} width={72} top={Math.floor(termRows / 2) - 7}>
-          <SeatOverloadCard live={seatAsk.live} ceiling={seatAsk.ceiling} onAnswer={answerSeatAsk} />
-        </FloatingPopup>
-      ) : null}
-      {forkAsk !== null ? (
-        <FloatingPopup host={{ left: 0, top: 0, columns: cols, rows: termRows }} width={72} top={Math.floor(termRows / 2) - 7}>
-          <WorktreeLaunchCard folder={forkAsk.folder} holderTitle={forkAsk.holderTitle} onAnswer={answerForkAsk} />
-        </FloatingPopup>
-      ) : null}
-      {managerSeatAsk !== null ? (
-        <FloatingPopup host={{ left: 0, top: 0, columns: cols, rows: termRows }} width={72} top={Math.floor(termRows / 2) - 7}>
-          <ManagerSeatAskCard
-            live={managerSeatAsk.live}
-            ceiling={managerSeatAsk.ceiling}
-            lanes={managerSeatAsk.plan.lanes.length}
-            focused={region === 'coordinator'}
-            onAnswer={answerManagerSeatAsk}
-          />
-        </FloatingPopup>
-      ) : null}
       {groundPickerOpen ? (
         <FloatingPopup host={{ left: 0, top: 0, columns: cols, rows: termRows }} width={74} top={Math.floor(termRows / 2) - 9}>
           <GroundPicker
@@ -2677,20 +2006,14 @@ export function ConcourseScreen({
       ) : null}
       {gitOffer !== undefined &&
       !contractAsk &&
-      !gitOfferInPane &&
       gitOfferOwnsTheKeys({
         capacityAsk,
         trustAsk: trustAsk !== null,
         groundPickerOpen,
         rowPick: rowPick !== null,
         modelDefault: modelDefaultOpen,
-        seatAsk: seatAsk !== null,
-        forkAsk: forkAsk !== null,
         gitOffer: true,
         contractAsk,
-        managerSeatAsk: managerSeatAsk !== null,
-        managerCardArmed: managerAskArmed !== null || managerPlanArmed !== null || managerPlanBusy,
-        coordinatorFocused: region === 'coordinator',
         helpOpen,
       }) ? (
         <FloatingPopup host={{ left: 0, top: 0, columns: cols, rows: geo.mainBand[1] + 1 }} width={geo.interior} top={geo.mainBand[1] - gitOfferCardRows(gitOffer.folder, geo.interior, gitOffer.folderHeld === true)}>
@@ -2843,7 +2166,7 @@ function CapacityAskModal({
   )
 }
 
-function ConcourseKeyAtlas({ cols, rows, chat, reducedStage = false, splitOn = false, coordinatorOn = false }: { cols: number; rows: number; chat: boolean; reducedStage?: boolean; splitOn?: boolean; coordinatorOn?: boolean }): React.ReactNode {
+function ConcourseKeyAtlas({ cols, rows, chat, reducedStage = false, splitOn = false }: { cols: number; rows: number; chat: boolean; reducedStage?: boolean; splitOn?: boolean }): React.ReactNode {
   const t = useMercuryTokens()
   useRegisterOverlay('concourse-help')
   const stage = { newSession: !reducedStage }
@@ -2851,7 +2174,6 @@ function ConcourseKeyAtlas({ cols, rows, chat, reducedStage = false, splitOn = f
     { title: 'BROWSE', keys: [...browseKeysFor({ chatPresent: chat }), CONCOURSE_HELP_KEY] },
     { title: 'NEEDS YOU (rail)', keys: regionKeysFor('rail', stage) },
     { title: 'SESSIONS (list)', keys: [...managerPaneKeysFor(stage), ...withoutManagerPaneKeys(regionKeysFor('list', stage))] },
-    ...(reducedStage || !coordinatorOn ? [] : [{ title: 'COORDINATOR (its composer)', keys: regionKeysFor('coordinator', stage) }]),
     { title: 'LIVE VIEW (its composer)', keys: regionKeysFor('live', stage) },
     ...(!reducedStage && splitAvailableAt(cols, rows)
       ? [

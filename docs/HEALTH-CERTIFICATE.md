@@ -54,8 +54,7 @@ A fast run certifies these sections (section id · title):
 | `architecture-fast` | ARCHITECTURE PRIMITIVES |
 
 IDENTITY's `Mercury constitution` (`wrapper`) row reports the built-in
-constitution and crewmate contract sizes and shows `coordinator off (switch)`
-when the concourse coordinator is off (`mercury --coordinator-on` turns it on).
+constitution and crewmate contract sizes.
 
 ### Client contract
 

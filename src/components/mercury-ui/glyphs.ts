@@ -56,7 +56,6 @@ export const GLYPH = {
   modeSovereign: '⊠',
   modeScribe: '✎',
   modeApollo: '◇',
-  modeManager: '∷',
 } as const
 
 export const SPARK = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'] as const

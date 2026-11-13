@@ -246,7 +246,7 @@ section('§P3 — THE ONE-SHOT WEAR: armed for exactly one session; the menu def
   t('P3-17 the wire carries the pure-hop fact end to end (daemon answer → protocol row → controlServer pass-through)', read('src/daemon/concourseWorkers.ts').includes('liveHop: true,') && read('src/daemon/protocol.ts').includes('liveHop?: true') && /'liveHop'/.test(wireKeys(read('src/daemon/controlServer.ts'), 'ADMIT_WIRE_KEYS')) && read('src/daemon/controlServer.ts').includes('...pickDefined(r, ADMIT_WIRE_KEYS)'))
 }
 
-section('§P4 — THE COORDINATOR DOOR: the preset derivation, the closed-roster refusals, the held replay, the receipt line')
+section('§P4 — THE DAEMON\'S PRESET DOOR: the preset derivation, the closed-roster refusals, the held replay, the receipt line')
 {
   const sk = await import('../../src/daemon/sessionKit.ts')
   const facts = await import('../../src/services/switchboard/bootBirthFacts.ts')
@@ -293,9 +293,6 @@ section('§P4 — THE COORDINATOR DOOR: the preset derivation, the closed-roster
   void dispatchMod
   const disp = read('src/daemon/concourseDispatch.ts')
   t('P4-13 the held envelope banks kitPreset and the daemon-side replay re-supplies it (type + bank + replay spreads)', disp.includes('kitPreset?: string') && disp.includes('...(req.kitPreset !== undefined ? { kitPreset: req.kitPreset } : {})') && disp.includes('...(op.kitPreset !== undefined ? { kitPreset: op.kitPreset } : {})'))
-  const tools = read('src/services/concourse/coordinatorTools.ts')
-  t('P4-14 launch_session carries the preset input with the closed-roster sentence and forwards it on BOTH roads (dispatch kitPreset · admit kitPreset)', tools.includes('A SAVED KIT PRESET the session is born wearing') && tools.includes('...(str(p.preset) !== undefined ? { kitPreset: str(p.preset) } : {})') && tools.includes('...(args.preset !== undefined ? { kitPreset: args.preset } : {})'))
-  t("P4-15 both launch receipts name the worn preset ahead of the kit-source word and carry the honesty note", (tools.match(/wearing preset '\$\{presetWorn\}'/g) ?? []).length === 2 && (tools.match(/presetNote,/g) ?? []).length === 2)
   store.deleteKitPreset('coord')
   store.deleteKitPreset('clean')
   saveGlobalConfig(current => {
@@ -324,7 +321,6 @@ section('§P5 — THE SWEEP: vocabulary lane-wide · both-directions isolation �
     'src/daemon/controlServer.ts',
     'src/daemon/protocol.ts',
     'src/daemon/concourseDispatch.ts',
-    'src/services/concourse/coordinatorTools.ts',
     'assets/splash/splash-core.mjs',
     'src/services/kitMenu/resolvedKit.ts',
     'src/services/kitMenu/menuStore.ts',

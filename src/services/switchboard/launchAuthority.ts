@@ -10,7 +10,7 @@ type LaunchAuthority =
   | { allowed: false; reason: string; cause: 'session-switch' | 'backgrounded' }
 
 export function backgroundedLaunchRefusal(kind: 'subagents' | 'workflows'): string {
-  return `this session is backgrounded — ${kind} wait until the operator visits it, until it holds the workflows-allowed tag (granted by asking the coordinator, choosing keep-and-background on leave, or the manual-start option), or until the operator turns on ${BACKGROUND_LAUNCH_LABEL} (/config, or the boot menu's Agents section). Keep working on the task single-handed.`
+  return `this session is backgrounded — ${kind} wait until the operator visits it, until it holds the workflows-allowed tag (granted by choosing keep-and-background on leave, or the manual-start option), or until the operator turns on ${BACKGROUND_LAUNCH_LABEL} (/config, or the boot menu's Agents section). Keep working on the task single-handed.`
 }
 
 export function evaluateLaunchAuthority(

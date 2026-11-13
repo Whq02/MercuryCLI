@@ -23,7 +23,7 @@
 # gate-watch: src/context/* src/hooks/* src/ink.ts src/input-core/* src/interactiveHelpers.tsx
 # gate-watch: src/keybindings/* src/native-ts/color-diff/index.ts src/screens/Chat.tsx
 # gate-watch: src/screens/ResumeConversation.tsx src/services/api/*
-# gate-watch: src/services/changeTransaction/changeSetCommit.ts src/services/concourse/managerMode.ts
+# gate-watch: src/services/changeTransaction/changeSetCommit.ts
 # gate-watch: src/services/engine-connector/* src/services/ide/projectRunners.ts src/services/kitMenu/*
 # gate-watch: src/services/lsp/serverCatalogue.ts src/services/mcp/* src/services/oauth/client.ts
 # gate-watch: src/services/privateChannel/updateService.ts src/services/projectServices/serviceManager.ts

@@ -67,13 +67,13 @@ console.log('§1 — marking (item 1): space toggles in the list region; screen 
       ordered(screen, "if (region === 'list') {", SPACE_GUARD) &&
       ordered(screen, SPACE_GUARD, "if (region === 'chat') {"),
   )
-  const COMPOSER_GATE = "if (region !== 'coordinator' && region !== 'live') {"
+  const COMPOSER_GATE = "if (region !== 'live') {"
   check(
     'POISON (a mid-sentence space toggling a mark): typing never reaches the rows’ grammar — the composer-focus gate keeps every non-composer region out of the type-through, and the mark verb never yields to a draft',
     !SPACE_GUARD.includes('verbsYield') &&
       !screen.includes('letterVerbsYield') &&
       ordered(screen, SPACE_GUARD, COMPOSER_GATE) &&
-      ordered(screen, COMPOSER_GATE, 'side.edit(d => insertAt(d, payload))'),
+      ordered(screen, COMPOSER_GATE, 'editLiveDraft(d => insertAt(d, payload))'),
   )
   check(
     'POISON (a rows-side space landing in the draft): the verb CONSUMES it above the composer gate (stop + return, never a fall-through)',
@@ -93,14 +93,14 @@ console.log('§1 — marking (item 1): space toggles in the list region; screen 
   )
   check(
     'POISON (item 1): the presentation capsule carries NO marks — the capture line is the landed six fields',
-    screen.includes('capsuleRef.current = { region, filtering, filter, boardSel, railSel, boardScroll, managerMode: managerArmed }') &&
+    screen.includes('capsuleRef.current = { region, filtering, filter, boardSel, railSel, boardScroll }') &&
       !screen.slice(screen.indexOf('interface ConcourseCapsuleV2'), screen.indexOf('let presentationCapsule')).includes('mark'),
   )
   check(
-    'POISON: no durable write ever carries the marks (the coordinator draft store stays the composers’)',
+    'POISON: no durable write ever carries the marks (the screen writes no draft store of its own)',
     screen.includes('markedIds') &&
-      !/writeCoordinatorComposerDraft\([^)]*marked/.test(screen) &&
-      !/persistDraft\([^)]*marked/.test(screen),
+      !/write[A-Z][A-Za-z]*Draft\(/.test(screen) &&
+      !/persistDraft\(/.test(screen),
   )
   check(
     'esc clears all marks as its own layer (after the peek close, before exitToChat)',
@@ -185,13 +185,13 @@ console.log('§2 — the fan (item 2): the counted placeholder; ↵ arms naming 
       !fan.includes('submitSessionDraft') &&
       !fan.includes('answerObligation') &&
       !fan.includes('answerPermission') &&
-      !fan.includes('executeKernelDecision') &&
-      !screen.includes('executeKernelDecision'),
+      !fan.includes('executeBoardControl') &&
+      !screen.includes('executeBoardControl'),
   )
-  const kernel = read('src/services/concourse/coordinatorKernel.ts')
+  const control = read('src/services/concourse/boardControl.ts')
   check(
-    "POISON (item 2's handshake law): NO new daemon verb — the kernel union carries no broadcast spelling",
-    !/verb: '[a-z.]*broadcast[a-z.]*'/.test(kernel) && kernel.includes("verb: 'session.redirect'"),
+    "POISON (item 2's handshake law): NO new daemon verb — the board's control union carries no broadcast spelling",
+    !/verb: '[a-z.]*broadcast[a-z.]*'/.test(control) && control.includes("verb: 'session.redirect'"),
   )
   check(
     'delivered rows paint their receipt on the ROW slot; skips paint the typed reason there too (receipts on every row)',

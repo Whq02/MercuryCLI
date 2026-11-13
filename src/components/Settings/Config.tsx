@@ -548,7 +548,7 @@ export function Config({
   items.push({
     id: 'concourse',
     label: 'Session concourse',
-    searchText: 'session concourse coordinator live view concourse-off chat plain world',
+    searchText: 'session concourse live view concourse-off chat plain world',
     kind: 'boolean',
     setByYou: config.concourseEnabled === false,
     value: world.chatBoot ? (
@@ -567,23 +567,6 @@ export function Config({
       writeGlobal(c => ({ ...c, concourseEnabled: next }))
       recordToggle('concourse', `set the session concourse to ${next ? 'on' : 'off (live view only)'}`)
     },
-  })
-  const coordinatorOn = config.coordinatorEnabled === true
-  items.push({
-    id: 'coordinator',
-    label: 'Concourse coordinator',
-    searchText: 'concourse coordinator switch coordinator-on coordinator-off agent-assisted',
-    kind: 'info',
-    setByYou: coordinatorOn,
-    value: (
-      <Text>
-        {boolValue(coordinatorOn)}
-        <Text color={tokens.textSecondary}>{coordinatorOn ? ' · `mercury --coordinator-off` turns it off' : ' · `mercury --coordinator-on` turns it on'}</Text>
-      </Text>
-    ),
-    warning: coordinatorOn
-      ? 'a boot switch: the assisted coordinator on the first ready model, or the stored mode and model where an earlier version saved them'
-      : 'a boot switch, off by default: n on the board starts sessions directly and no coordinator runs',
   })
   const [seatFacts, setSeatFacts] = useState<SeatCeilingFacts | null>(null)
   const configStamp = useSyncExternalStore(subscribeGlobalConfigCache, getGlobalConfigCacheStamp, getGlobalConfigCacheStamp)

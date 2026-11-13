@@ -84,7 +84,6 @@ import { CommandKeybindingHandlers } from '../hooks/useCommandKeybindings.js';
 import { GlobalKeybindingHandlers } from '../hooks/useGlobalKeybindings.js';
 import { useAgentsChange } from '../hooks/useAgentsChange.js';
 import { useApiKeyVerification } from '../hooks/useApiKeyVerification.js';
-import { useCoordinatorReceiptFold } from '../hooks/useCoordinatorReceiptFold.js';
 import { useEngineModel } from '../hooks/useEngineModel.js';
 import { useMergedCommands } from '../hooks/useMergedCommands.js';
 import { useMergedTools } from '../hooks/useMergedTools.js';
@@ -1404,7 +1403,6 @@ export function Chat({
     })();
   }, [armedMessage, landing, setAppState]);
 
-  useCoordinatorReceiptFold();
   useFinishMarks();
   useSessionTitleMint();
   useSettingsChange(() => {});

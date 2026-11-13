@@ -511,8 +511,8 @@ function LiveConcourse(): React.ReactNode {
               refresh()
               return
             }
-            const kernel = await import('../../services/concourse/coordinatorKernel.js')
-            const receipt = await kernel.executeKernelDecision({
+            const control = await import('../../services/concourse/boardControl.js')
+            const receipt = await control.executeBoardControl({
               verb: 'obligation.answer',
               obligationId,
               sessionId: row.sessionId,
@@ -520,8 +520,7 @@ function LiveConcourse(): React.ReactNode {
               answer,
               by: 'operator',
             })
-            const feed = await import('../../services/concourse/coordinatorReceipts.js')
-            feed.ingestCoordinatorReceipts([{ ...receipt, actorAgentId: 'operator' }])
+            control.noteBoardControl(receipt)
             if (receipt.outcome === 'refused') noteResident('refused', receipt.detail)
             else if (receipt.outcome === 'failed') noteResident('held', receipt.detail)
             noteControl('strip:composer', noteFromReceipt(receipt as { outcome?: string; detail?: string }))
@@ -834,9 +833,9 @@ function LiveConcourse(): React.ReactNode {
         void (async () => {
           try {
             const { randomUUID } = await import('../../utils/crypto.js')
-            const kernel = await import('../../services/concourse/coordinatorKernel.js')
+            const control = await import('../../services/concourse/boardControl.js')
             const clientOpId = mintControlOpId(`pause:${sessionId}`, `concourse-op-${randomUUID()}`)
-            const receipt = await kernel.executeKernelDecision({
+            const receipt = await control.executeBoardControl({
               verb: 'session.pause',
               sessionId,
               by: 'operator',
@@ -847,8 +846,7 @@ function LiveConcourse(): React.ReactNode {
               controlOpIdRef.current.delete(`pause:${sessionId}`)
               controlOpIdRef.current.delete(`resume:${sessionId}`)
             }
-            const feed = await import('../../services/concourse/coordinatorReceipts.js')
-            feed.ingestCoordinatorReceipts([{ ...receipt, actorAgentId: 'operator', opId: clientOpId }])
+            control.noteBoardControl(receipt, { opId: clientOpId })
             noteControl(
               `board:row-control:${sessionId}`,
               receipt.outcome === 'applied'
@@ -870,15 +868,14 @@ function LiveConcourse(): React.ReactNode {
         void (async () => {
           try {
             const { randomUUID } = await import('../../utils/crypto.js')
-            const kernel = await import('../../services/concourse/coordinatorKernel.js')
+            const control = await import('../../services/concourse/boardControl.js')
             const clientOpId = mintControlOpId(`resume:${sessionId}`, `concourse-op-${randomUUID()}`)
-            const receipt = await kernel.executeKernelDecision({ verb: 'session.resume', sessionId, by: 'operator', clientOpId })
+            const receipt = await control.executeBoardControl({ verb: 'session.resume', sessionId, by: 'operator', clientOpId })
             if (receipt.outcome !== 'failed') {
               controlOpIdRef.current.delete(`pause:${sessionId}`)
               controlOpIdRef.current.delete(`resume:${sessionId}`)
             }
-            const feed = await import('../../services/concourse/coordinatorReceipts.js')
-            feed.ingestCoordinatorReceipts([{ ...receipt, actorAgentId: 'operator', opId: clientOpId }])
+            control.noteBoardControl(receipt, { opId: clientOpId })
             noteControl(
               `board:row-control:${sessionId}`,
               receipt.outcome === 'applied'
@@ -971,12 +968,12 @@ function LiveConcourse(): React.ReactNode {
         void (async () => {
           try {
             const { randomUUID } = await import('../../utils/crypto.js')
-            const kernel = await import('../../services/concourse/coordinatorKernel.js')
+            const control = await import('../../services/concourse/boardControl.js')
             const minted = redirectIdRef.current.get(sessionId)
             const clientMessageId =
               minted !== undefined && minted.instruction === instruction ? minted.id : `concourse-redirect-${randomUUID()}`
             redirectIdRef.current.set(sessionId, { instruction, id: clientMessageId })
-            const receipt = await kernel.executeKernelDecision({
+            const receipt = await control.executeBoardControl({
               verb: 'session.redirect',
               sessionId,
               clientMessageId,
@@ -986,8 +983,7 @@ function LiveConcourse(): React.ReactNode {
             if (receipt.outcome === 'applied') redirectIdRef.current.delete(sessionId)
             else if (receipt.outcome !== 'failed' && !(receipt.detail ?? '').startsWith('session-paused'))
               redirectIdRef.current.delete(sessionId)
-            const feed = await import('../../services/concourse/coordinatorReceipts.js')
-            feed.ingestCoordinatorReceipts([{ ...receipt, actorAgentId: 'operator' }])
+            control.noteBoardControl(receipt)
             const held = (receipt.detail ?? '').startsWith('session-paused') || receipt.outcome === 'failed'
             noteResident(receipt.outcome === 'applied' ? 'wink' : held ? 'held' : 'refused', receipt.detail)
             noteControl(
@@ -1051,15 +1047,6 @@ function LiveConcourse(): React.ReactNode {
       },
       exitToChat: () => {
         if (!enterRootChat().ok) enterBootSettings()
-      },
-      sendCoordinatorMessage: async (text, clientMessageId, onAccepted, opts) => {
-        const lane = await import('../../services/concourse/coordinatorLane.js')
-        await lane.runOperatorMessageTurn(text, {}, {
-          ...(clientMessageId !== undefined ? { clientMessageId } : {}),
-          ...(onAccepted !== undefined ? { onAccepted } : {}),
-          ...(opts?.manager === true ? { manager: true } : {}),
-        })
-        refresh()
       },
     }),
     [setPeek, noteResident, refresh, noteControl, attachAndEnter],

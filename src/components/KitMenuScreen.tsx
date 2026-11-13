@@ -61,8 +61,7 @@ export function presetPromptLines(name: string, note: string | null): string[] {
     `name: ${name}▌`,
     '',
     'a preset is this record under a name —',
-    'the next session, and the coordinator,',
-    'can start from it.',
+    'the next session can start from it.',
     '',
     note ?? '↵ save · esc cancel',
   ];

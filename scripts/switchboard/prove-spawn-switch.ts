@@ -197,7 +197,6 @@ section('§4 the spawn roads — every road answers the receipt, and nothing out
   const boot = src('src/components/BootSettingsScreen.tsx')
   check('the receipt request stays live when loading becomes ready, and cancels only when closed', boot.includes("}, [apply.phase === 'closed', path]);"))
   check("the boot menu opened in-session flips a live row through the connector's one verb", boot.includes("row.applicationClass === 'live'") && boot.includes('.setSpawnSwitch(kind, spawnSwitchOnFromValue(value))') && boot.includes("action: 'set-spawn-switch'"))
-  check('the concourse coordinator never reads the switch (its launches are the estate\'s, not a session\'s)', !src('src/services/concourse/coordinatorTools.ts').includes('spawnSwitch') && !src('src/services/concourse/coordinatorTools.ts').includes('launchAuthority'))
   const owner = src('src/services/switchboard/spawnSwitches.ts')
   check('the owner attributes through realEnvPin (the one boot-env attribution owner)', owner.includes('realEnvPin(row, env) !== null'))
   const srcWalk = (dir: string): string[] => readdirSync(join(ROOT, dir), { withFileTypes: true }).flatMap(e => (e.isDirectory() ? srcWalk(join(dir, e.name)) : /\.(ts|tsx)$/.test(e.name) ? [join(dir, e.name)] : []))

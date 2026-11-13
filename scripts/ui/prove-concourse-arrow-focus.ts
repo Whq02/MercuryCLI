@@ -17,18 +17,11 @@ const check = (name: string, ok: boolean, detail = ''): void => {
     console.error(`  RED ${name}${detail ? ` — ${detail}` : ''}`)
   }
 }
-const ordered = (hay: string, a: string, b: string): boolean => {
-  const ia = hay.indexOf(a)
-  const ib = hay.indexOf(b)
-  return ia !== -1 && ib !== -1 && ia < ib
-}
 
-console.log('§1 the resolver — the coordinator legend drops the ↑↓ row, every board-side region keeps it')
+console.log('§1 the resolver — every region of the board keeps the ↑↓ row')
 {
-  const { browseKeysFor, regionKeysFor } = await import('../../src/components/concourse/controlManifest.ts')
+  const { browseKeysFor } = await import('../../src/components/concourse/controlManifest.ts')
   const keysOf = (rows: ReadonlyArray<{ keys: string; label: string }>): string[] => rows.map(k => k.keys)
-  const coordinator = browseKeysFor({ chatPresent: true, region: 'coordinator' })
-  check('the coordinator legend prints no ↑↓ row (a printed key that does not fire is a lie)', !keysOf(coordinator).includes('↑↓'), keysOf(coordinator).join(','))
   for (const region of ['list', 'live', 'chat', 'rail'] as const) {
     const rows = browseKeysFor({ chatPresent: true, region })
     check(`the ${region} legend keeps '↑↓ browse' (the key fires there)`, rows.some(k => k.keys === '↑↓' && k.label === 'browse'), keysOf(rows).join(','))
@@ -38,24 +31,14 @@ console.log('§1 the resolver — the coordinator legend drops the ↑↓ row, e
     browseKeysFor({ chatPresent: true }).find(k => k.keys === '↑↓')?.label === 'browse (list · live · split)',
   )
   check(
-    'the coordinator call keeps every other base row in order, esc still relabelled by chat presence',
-    keysOf(coordinator).join(',') === keysOf(browseKeysFor({ chatPresent: true, region: 'list' })).filter(k => k !== '↑↓').join(',') &&
-      browseKeysFor({ chatPresent: false, region: 'coordinator' }).find(k => k.keys === 'esc')?.label === 'boot face' &&
-      coordinator.find(k => k.keys === 'esc')?.label === 'focused chat',
+    'esc is relabelled by chat presence in every region',
+    (['list', 'live', 'chat', 'rail'] as const).every(region => browseKeysFor({ chatPresent: false, region }).find(k => k.keys === 'esc')?.label === 'boot face' && browseKeysFor({ chatPresent: true, region }).find(k => k.keys === 'esc')?.label === 'focused chat'),
   )
-  const own = regionKeysFor('coordinator', { newSession: true })
-  check("the coordinator's own rows never claim a board browse and still teach ↵ send", own.every(k => k.keys !== '↑↓') && own.some(k => k.keys === '↵' && k.label === 'send'))
 }
 
-console.log('§2 the screen — the board-browse arm no longer names the coordinator; the board-side arms stand')
+console.log('§2 the screen — the board-browse arms: the live panel on a single-line draft, the split pane, the rows')
 {
   const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  check(
-    'POISON: the pre-fix browse arm that named the coordinator is gone',
-    !screen.includes("(region === 'live' || region === 'coordinator') &&") &&
-      !screen.includes("(region === 'coordinator' ? draftRef : liveDraftRef).current.text.includes(NL)"),
-    'the coordinator panel still browses the board on ↑↓',
-  )
   check(
     'the board-browse arm fires from the live panel on a single-line draft (its ↵ enters the same selection)',
     screen.includes("(region === 'live' && (key.upArrow || key.downArrow) && !liveDraftRef.current.text.includes(NL))"),
@@ -72,26 +55,12 @@ console.log('§2 the screen — the board-browse arm no longer names the coordin
   const enterEnd = screen.indexOf('if (reducedStage) {', enterStart)
   const enter = screen.slice(enterStart, enterEnd)
   check(
-    "the coordinator's ↵ is still the pane's own (an empty draft leaves it to the example walk; words send) — never a board enter",
-    enterStart > 0 &&
-      enter.includes("if (region === 'coordinator') {") &&
-      enter.includes('if (draftRef.current.text.trim().length === 0) return') &&
-      enter.includes('sendCoordinator()') &&
-      !enter.slice(0, enter.indexOf("if (region !== 'live') return")).includes('enterSession('),
-  )
-  check(
     'the live panel keeps its browse because its ↵ ENTERS the selection on an empty draft (arrows and ↵ agree there)',
     enter.includes("if (region !== 'live') return") && enter.includes('if (sel) enterSession(sel.sessionId)'),
   )
   check(
-    'the browse arm names the board-side regions only (the live panel and the split chat pane; the coordinator is not one)',
+    'the browse arm names two regions only (the live panel and the split chat pane)',
     /if \(\s*\(region === 'live' && \(key\.upArrow \|\| key\.downArrow\) && !liveDraftRef\.current\.text\.includes\(NL\)\) \|\|\s*\(region === 'chat' && \(key\.upArrow \|\| key\.downArrow\)\)\s*\) \{/.test(screen),
-  )
-  const pane = read('src/components/concourse/CoordinatorPane.tsx')
-  check(
-    'the pane owns its ↑↓ only while focused (the zero-state example walk consumes them before the screen)',
-    ordered(pane, 'if (!focused) return', 'if (!minimal && entries !== null && entries.length === 0 && (key.upArrow || key.downArrow)) {') &&
-      ordered(pane, 'if (!minimal && entries !== null && entries.length === 0 && (key.upArrow || key.downArrow)) {', 'event.stopImmediatePropagation()\n      const n = COORDINATOR_EXAMPLE_PROMPTS.length'),
   )
 }
 
@@ -103,8 +72,8 @@ console.log('§3 the legend — the footer hands its region to the resolver; the
   check('the atlas reads the region-less rows (the row names where it fires)', screen.includes('keys: [...browseKeysFor({ chatPresent: chat }), CONCOURSE_HELP_KEY]'))
   const manifest = read('src/components/concourse/controlManifest.ts')
   check(
-    'the resolver drops the ↑↓ row for the coordinator and the region-less row names where the key fires',
-    manifest.includes("opts.region === 'coordinator' ? CONCOURSE_BROWSE_KEYS.filter(k => k.keys !== '↑↓')") &&
+    'the resolver filters no row out for a region and the region-less row names where the key fires',
+    !manifest.includes('CONCOURSE_BROWSE_KEYS.filter(') &&
       manifest.includes("? { keys: '↑↓', label: 'browse (list · live · split)' }"),
   )
 }
@@ -113,17 +82,15 @@ if (process.env.PROVE_ARROW_FOCUS_STATIC === '1') {
   console.log('§4 skipped (PROVE_ARROW_FOCUS_STATIC=1)')
   process.exit(failures === 0 ? 0 : 1)
 }
-const POISON_DIST = process.env.MERCURY_ARROW_FOCUS_POISON_DIST
-const BIN = POISON_DIST ?? join(REPO, 'dist', 'mercury.mjs')
+const BIN = join(REPO, 'dist', 'mercury.mjs')
 const VSHOT = join(REPO, 'scripts', 'ui', 'vshot.py')
 if (!existsSync(BIN)) {
   console.error(`✗ ${BIN} missing — run \`bun run build.ts\` first`)
   process.exit(1)
 }
-console.log(POISON_DIST === undefined ? '§4 the drive — the built bundle at 120×40' : '§4 POISON — the pre-fix bundle: the selection moves from the coordinator')
+console.log('§4 the drive — the built bundle at 120×40')
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { referenceFixtureSnapshot } = await import('../notifications/concourseReferenceSeed.ts')
-const { COORDINATOR_EXAMPLE_PROMPTS } = await import('../../src/components/concourse/CoordinatorPane.tsx')
 const OUT_DIR = process.env.ARROW_FOCUS_CAPTURE_DIR ?? join(tmpdir(), `arrow-focus-captures-${process.pid}`)
 mkdirSync(OUT_DIR, { recursive: true })
 
@@ -141,38 +108,18 @@ interface Send {
 const ESC = '\x1b'
 const DOWN = `${ESC}[B`
 
-function newScratch(tag: string, seedConversation: boolean): string {
+function newScratch(tag: string): string {
   const scratch = join(tmpdir(), `arrow-focus-${tag}-${process.pid}`)
   rmSync(scratch, { recursive: true, force: true })
   seedFirstRun(scratch, [REPO])
   const cfgPath = join(scratch, '.mercury.json')
   const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
   cfg['switchboardCapacity'] = { askedAt: 1754000000000, allowed: true, recommendedSeats: 5 }
-  cfg['concourseCoordinator'] = { mode: 'agent-assisted', assistModel: 'claude-opus-5' }
-  cfg['coordinatorEnabled'] = true
   cfg['customApiKeyResponses'] = { approved: ['fixture-key-000'], rejected: [] }
   writeFileSync(cfgPath, JSON.stringify(cfg))
-  if (seedConversation) {
-    const ts = 1754000000000
-    writeFileSync(
-      join(scratch, 'coordinator-conversation.json'),
-      JSON.stringify(
-        {
-          entries: [
-            { id: 'op:1', role: 'operator', text: 'what model are you running on?', ts },
-            { id: 'co:1', role: 'coordinator', text: 'Mercury, running on `claude-opus-5` (Opus 5) — that is the engine this seat dispatches on.', ts: ts + 1000 },
-          ],
-          _v: 1,
-        },
-        null,
-        2,
-      ) + '\n',
-    )
-  }
   const fixture = referenceFixtureSnapshot()
   for (const g of fixture.groups) for (const r of g.rows) r.workspaceDir = scratch
   fixture.needsYou = []
-  fixture.coordinator = { mode: 'agent-assisted', assistModelLabel: 'Opus 5' }
   writeFileSync(join(scratch, 'concourse-fixture.json'), JSON.stringify(fixture))
   return scratch
 }
@@ -211,16 +158,6 @@ function capture(tag: string, scratch: string, sends: Send[], total: number): st
   }
   return lines
 }
-const has = (lines: string[], needle: string): boolean => lines.some(l => l.includes(needle))
-const hasWrapped = (lines: string[], needle: string): boolean =>
-  lines
-    .map(l => (l.split('│')[1] ?? '').trim())
-    .join(' ')
-    .includes(needle)
-const paneText = (lines: string[]): string => {
-  const col = (lines.find(l => l.includes('COORDINATOR')) ?? '').indexOf('COORDINATOR')
-  return col < 0 ? '' : lines.map(l => l.slice(col).replace(/│/g, ' ').trim()).join(' ').replace(/\s+/g, ' ')
-}
 const selRow = (lines: string[]): number => lines.findIndex(l => /▸ /.test(l) && /Audit|Fix OAuth|Refactor|Update/.test(l))
 const titleOf = (line: string | undefined): string => (line ?? '').match(/(?:Audit|Fix OAuth|Refactor|Update)(?: \S+)*/)?.[0] ?? ''
 const sameTitle = (a: string, b: string): boolean => {
@@ -232,64 +169,7 @@ const settle = { atTick: 999, awaitText: 'Fix OAuth', minTick: 5, awaitSettleTic
 const scratches: string[] = []
 
 {
-  const scratch = newScratch('coord', true)
-  scratches.push(scratch)
-  const lines = capture('coord', scratch, [
-    { atTick: 999, awaitText: 'Fix OAuth', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '\t' },
-    { afterPrevTicks: 3, data: DOWN, mark: 'before' },
-    { afterPrevTicks: 3, data: '\r', mark: 'after-down' },
-    { afterPrevTicks: 3, data: '', mark: 'after-enter' },
-  ], 70)
-  const before = markOf('coord', 'before')
-  const afterDown = markOf('coord', 'after-down')
-  const afterEnter = markOf('coord', 'after-enter')
-  const rowBefore = selRow(before)
-  const rowAfter = selRow(afterDown)
-  const nextRow = before.findIndex((l, i) => i > rowBefore && titleOf(l) !== '')
-  check(
-    'coord: the pane is OUT of its zero state (conversation painted or opening — the example walk is not in play)',
-    (paneText(before).includes('what model are you running on?') || has(before, 'opening the conversation')) && !has(before, COORDINATOR_EXAMPLE_PROMPTS[0]),
-    before.find(l => l.includes('COORDINATOR'))?.trim().slice(0, 80) ?? '(no coordinator pane)',
-  )
-  check('coord: before any key the ▸ selection sits on the first session row', rowBefore >= 0 && titleOf(before[rowBefore]) !== '' && nextRow > rowBefore, `row=${rowBefore} title=${JSON.stringify(titleOf(before[rowBefore]))}`)
-  if (POISON_DIST === undefined) {
-    check(
-      'coord: ↓ with the coordinator focused leaves the ▸ selection EXACTLY where it was',
-      rowAfter === rowBefore && sameTitle(titleOf(afterDown[rowAfter]), titleOf(before[rowBefore])),
-      `before=${rowBefore}:${JSON.stringify(titleOf(before[rowBefore]))} after=${rowAfter}:${JSON.stringify(titleOf(afterDown[rowAfter]))}`,
-    )
-    check('coord: ↵ with the coordinator focused does not arm the row (the legend never says enters (armed)) and the board stays', !has(afterEnter, 'enters (armed)') && has(afterEnter, 'SESSIONS') && has(lines, 'SESSIONS'))
-    const legend = afterEnter.find(l => l.includes('tab panes')) ?? ''
-    check("coord: the coordinator-focused footer prints no '↑↓ browse' and still prints '↵ send'", legend !== '' && !legend.includes('↑↓ browse') && legend.includes('↵ send'), legend.trim().slice(0, 118))
-  } else {
-    check(
-      'POISON (pre-fix bundle): ↓ from the coordinator MOVED the ▸ selection onto the second row while ↵ still did not enter',
-      rowAfter > rowBefore && sameTitle(titleOf(afterDown[rowAfter]), titleOf(before[nextRow])) && !has(afterEnter, 'enters (armed)') && has(afterEnter, 'SESSIONS'),
-      `before=${rowBefore} after=${rowAfter}`,
-    )
-  }
-}
-
-{
-  const scratch = newScratch('zero', false)
-  scratches.push(scratch)
-  capture('zero', scratch, [
-    { atTick: 999, awaitText: 'Fix OAuth', minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '\t' },
-    { ...settle, awaitText: 'launch two sessions', data: DOWN, mark: 'before' },
-    { afterPrevTicks: 3, data: '', mark: 'after' },
-  ], 60)
-  const before = markOf('zero', 'before')
-  const after = markOf('zero', 'after')
-  const first = COORDINATOR_EXAMPLE_PROMPTS[0]
-  const second = COORDINATOR_EXAMPLE_PROMPTS[1]
-  const marked = (lines: string[], prompt: string): boolean => lines.some(l => l.includes(`▸ ${prompt.slice(0, 20)}`))
-  check('zero: the pane paints its example prompts with the first highlighted (· ↵ fills the box)', marked(before, first) && !marked(before, second), before.find(l => l.includes(first))?.trim().slice(0, 100) ?? '(no example row)')
-  check('zero: ↓ walked the highlight to the second example — the pane received the key and spent it on its own meaning', marked(after, second) && !marked(after, first), after.find(l => l.includes(second))?.trim().slice(0, 100) ?? '(no example row)')
-  check('zero: the ▸ selection stayed on the first session row', selRow(after) === selRow(before) && selRow(before) >= 0, `before=${selRow(before)} after=${selRow(after)}`)
-}
-
-{
-  const scratch = newScratch('list', true)
+  const scratch = newScratch('list')
   scratches.push(scratch)
   capture('list', scratch, [
     { ...settle, data: DOWN, mark: 'before' },

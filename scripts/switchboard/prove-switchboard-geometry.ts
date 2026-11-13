@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 
-import { COORDINATOR_REST_ROWS, MANAGER_MIN_COLS, REDUCED_NOTICE_ROWS, switchboardGeometry, resolveConcourseProfile } from '../../src/components/concourse/ConcourseLayout.js'
+import { MANAGER_MIN_COLS, REDUCED_NOTICE_ROWS, switchboardGeometry, resolveConcourseProfile } from '../../src/components/concourse/ConcourseLayout.js'
 import { RAIL_MAX_ROWS } from '../../src/components/concourse/NeedsYouRail.js'
 import { draftWindow } from '../../src/components/concourse/lineDraft.js'
 
@@ -19,14 +19,13 @@ for (const cols of [80, 100, 119, 120, 140, 200, 250]) {
       for (const sessions of [0, 1, 6, 12]) {
         for (const groups of [1, 3, 4]) {
           for (const liveAsk of [0, 1, 2, 3]) {
-            for (const tallOwner of ['mirror', 'coordinator'] as const) {
-              for (const third of [0, COORDINATOR_REST_ROWS, REDUCED_NOTICE_ROWS]) {
+              for (const third of [0, REDUCED_NOTICE_ROWS]) {
               checks += 1
-              const id = `${cols}x${rows} ny=${needsYou} s=${sessions} g=${groups} live=${liveAsk} tall=${tallOwner} third=${third}`
-              const geo = switchboardGeometry(cols, rows, needsYou, sessions, groups, liveAsk, tallOwner, 0, 'list', third)
+              const id = `${cols}x${rows} ny=${needsYou} s=${sessions} g=${groups} live=${liveAsk} third=${third}`
+              const geo = switchboardGeometry(cols, rows, needsYou, sessions, groups, liveAsk, 0, 'list', third)
               const listRows = geo.listBand[1] - geo.listBand[0] + 1
               const mirrorRows = geo.mirrorBand[1] - geo.mirrorBand[0] + 1
-              const coordRows = geo.coordBand[1] - geo.coordBand[0] + 1
+              const thirdRows = geo.thirdBand[1] - geo.thirdBand[0] + 1
               const composerRows = geo.liveComposerRows
               const mainTop = geo.mainBand[0]
               const mainEnd = geo.mainBand[1]
@@ -56,15 +55,14 @@ for (const cols of [80, 100, 119, 120, 140, 200, 250]) {
               if (geo.listContentRows < 1) fail(id, `no list row (${geo.listContentRows})`)
               if (geo.listContentRows + geo.peekRows + 6 + geo.railWindowRows > listRows)
                 fail(id, `the manager overflows: list ${geo.listContentRows} + peek ${geo.peekRows} + chrome 6 + asks ${geo.railWindowRows} > ${listRows}`)
-              if (third === 0 && coordRows !== 0) fail(id, `no third pane, yet ${coordRows} coordinator rows`)
-              if (third > 0 && tallOwner === 'mirror' && coordRows !== third) fail(id, `the resting third pane is ${coordRows}, not ${third}`)
-              if (third > 0 && tallOwner === 'coordinator' && coordRows < third) fail(id, `the focused third pane shrank to ${coordRows}`)
+              if (third === 0 && thirdRows !== 0) fail(id, `no third pane, yet ${thirdRows} rows of one`)
+              if (third > 0 && thirdRows !== third) fail(id, `the third pane is ${thirdRows}, not ${third}`)
               if (geo.profile === 'wide') {
                 if (cols < 100) fail(id, 'two panes under 100 columns')
                 if (geo.mirrorBand[0] !== mainTop || geo.mirrorBand[1] !== mainEnd) fail(id, `the live view is not the full column (${geo.mirrorBand.join('..')})`)
-                if (geo.listBand[0] !== mainTop || listRows + coordRows !== geo.mainRows)
-                  fail(id, `right column tiling list ${listRows} + coordinator ${coordRows} ≠ main ${geo.mainRows}`)
-                if (coordRows > 0 && geo.coordBand[0] !== geo.listBand[1] + 1) fail(id, 'the third pane is not under the manager')
+                if (geo.listBand[0] !== mainTop || listRows + thirdRows !== geo.mainRows)
+                  fail(id, `right column tiling list ${listRows} + third pane ${thirdRows} ≠ main ${geo.mainRows}`)
+                if (thirdRows > 0 && geo.thirdBand[0] !== geo.listBand[1] + 1) fail(id, 'the third pane is not under the manager')
                 if (geo.liveCols[0] !== 3 || geo.rightCols[0] !== geo.liveCols[1] + 2 || geo.rightCols[1] !== 2 + geo.interior)
                   fail(id, `columns ${geo.liveCols.join('..')} | ${geo.rightCols.join('..')} do not tile the interior ${geo.interior}`)
                 if (geo.rightCols[1] - geo.rightCols[0] + 1 < MANAGER_MIN_COLS) fail(id, 'the manager under its floor width')
@@ -73,9 +71,9 @@ for (const cols of [80, 100, 119, 120, 140, 200, 250]) {
                 if (cols >= 100) fail(id, 'stacked at 100 columns or more')
                 if (geo.mirrorBand[0] !== mainTop || geo.listBand[0] !== geo.mirrorBand[1] + 1)
                   fail(id, `stacked order live ${geo.mirrorBand.join('..')} then manager ${geo.listBand.join('..')}`)
-                if (mirrorRows + listRows + coordRows !== geo.mainRows)
-                  fail(id, `stacked tiling live ${mirrorRows} + manager ${listRows} + coordinator ${coordRows} ≠ main ${geo.mainRows}`)
-                if (coordRows > 0 && geo.coordBand[0] !== geo.listBand[1] + 1) fail(id, 'the third pane is not under the manager')
+                if (mirrorRows + listRows + thirdRows !== geo.mainRows)
+                  fail(id, `stacked tiling live ${mirrorRows} + manager ${listRows} + third pane ${thirdRows} ≠ main ${geo.mainRows}`)
+                if (thirdRows > 0 && geo.thirdBand[0] !== geo.listBand[1] + 1) fail(id, 'the third pane is not under the manager')
                 if (mirrorRows < 6) fail(id, `stacked live view under its floor (${mirrorRows})`)
               }
               if (failures > 25) {
@@ -84,7 +82,6 @@ for (const cols of [80, 100, 119, 120, 140, 200, 250]) {
                 process.exit(1)
               }
               }
-            }
           }
         }
       }
@@ -100,7 +97,7 @@ for (const [a, b] of [
 ] as const) {
   checks += 1
   const at = (wh: readonly [number, number]): string =>
-    JSON.stringify(switchboardGeometry(wh[0], wh[1], 2, 6, 3, 1, 'mirror', 0))
+    JSON.stringify(switchboardGeometry(wh[0], wh[1], 2, 6, 3, 1, 0))
   const before = at(a)
   at(b)
   const after = at(a)
@@ -129,18 +126,18 @@ for (let lines = 1; lines <= 8; lines += 1) {
     for (const cols of [80, 100, 120, 140, 200]) {
       for (const rows of [24, 30, 40]) {
         checks += 1
-        const g = switchboardGeometry(cols, rows, 1, 6, 2, 0, 'mirror', ask)
+        const g = switchboardGeometry(cols, rows, 1, 6, 2, 0, ask)
         if (g.peekRows < 0) fail(`grant ${cols}x${rows} ask=${ask}`, 'negative grant')
         if (g.peekRows > ask) fail(`grant ${cols}x${rows} ask=${ask}`, `grant ${g.peekRows} exceeds the ask`)
       }
     }
   }
   checks += 1
-  const atStackedMin = switchboardGeometry(80, 22, 3, 6, 2, 0, 'mirror', 8)
+  const atStackedMin = switchboardGeometry(80, 22, 3, 6, 2, 0, 8)
   if (atStackedMin.peekRows !== 0)
     fail('the 0-grant hazard at the stacked minimum', `expected 0 at 80x22 with a full ask block (the screen-guard rationale), got ${atStackedMin.peekRows} — re-read the A2 screen guard before relaxing this`)
   checks += 1
-  const atWideMin = switchboardGeometry(120, 24, 3, 6, 2, 0, 'mirror', 8)
+  const atWideMin = switchboardGeometry(120, 24, 3, 6, 2, 0, 8)
   if (atWideMin.peekRows < 2)
     fail('the full-height manager grants the older-chats drop-down at the wide minimum', `got ${atWideMin.peekRows} at 120x24 with a full ask block`)}
 

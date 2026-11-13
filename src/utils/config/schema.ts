@@ -186,19 +186,12 @@ type Servers = {
 
 type Concourse = {
   concourseEnabled?: boolean
-  coordinatorEnabled?: boolean
-  concourseCoordinator?: {
-    mode?: 'off' | 'rules-only' | 'agent-assisted'
-    assistModel?: string
-    effort?: string
-  }
   switchboardCapacity?: {
     askedAt?: number
     allowed?: boolean
     recommendedSeats?: number
     operatorSeats?: number
   }
-  hasSeenCoordinatorOffHint?: boolean
   backgroundSessionsLaunchCrewmates?: boolean
 }
 
@@ -327,7 +320,6 @@ export const GLOBAL_CONFIG_KEYS = [
   'defaultCritter',
   'defaultProvider',
   'concourseEnabled',
-  'coordinatorEnabled',
   'backgroundSessionsLaunchCrewmates',
   'permissionExplainerEnabled',
   'prStatusFooterEnabled',

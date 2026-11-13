@@ -249,7 +249,7 @@ export async function compactAdvisorContext(
   const fold = context.rows.slice(0, context.rows.length - keep)
   const tail = context.rows.slice(context.rows.length - keep)
   const summarize =
-    opts.summarize ?? (await import('../concourse/coordinatorCompact.js')).liveCoordinatorSummarizer
+    opts.summarize ?? (await import('./advisorSummarizer.js')).liveAdvisorSummarizer
   let summary: string
   try {
     summary = clipAdvisorText(

@@ -18,7 +18,7 @@ console.log('§1 CB-04 — the zero-row drop-down arm refused at the door; shrin
   const { switchboardGeometry, resolveConcourseProfile } = await import(
     '../../src/components/concourse/ConcourseLayout.tsx'
   )
-  const grant0 = switchboardGeometry(80, 22, 3, 6, 2, 0, 'mirror', 8).peekRows
+  const grant0 = switchboardGeometry(80, 22, 3, 6, 2, 0, 8).peekRows
   check('the hazard exists: the stacked minimum with a full ask block grants the 8-row ask 0 rows', grant0 === 0, `granted ${grant0}`)
   const screen = read('src/components/concourse/ConcourseScreen.tsx')
   check(
@@ -121,20 +121,6 @@ console.log("§5 A7 — the exit-grammar pair (c/d) is never eaten by a letter-v
     "both model pickers' context toggles carry the guard (PD-6's two named doors)",
     picker.includes("input === 'c' && !key.ctrl && !key.meta && focusedSupports1m") &&
       !/input === 'c' && (?!!key\.ctrl)/.test(mercuryPicker),
-  )
-}
-
-console.log('§6 D10 — a dead field never wears a live caret')
-{
-  const screen = read('src/components/concourse/ConcourseScreen.tsx')
-  check(
-    'the composer’s focus excludes every card-armed state',
-    screen.includes("focused={region === 'coordinator' && !(managerAskArmed !== null || managerPlanArmed !== null || managerPlanBusy)}"),
-  )
-  check(
-    'the rest hint names the owner while the card stands',
-    screen.includes("'the card above owns the keys — answer it, or tab moves focus'") &&
-      screen.includes("'the plan is dispatching — tab moves focus'"),
   )
 }
 

@@ -27,7 +27,6 @@ prove-gemini-guided-signin.ts
 prove-glimmer-wrap.ts
 prove-helm-center-floor.ts
 prove-hooks-order.ts
-prove-instruction-key-survival.ts
 prove-key-hint-labels.ts
 prove-lanes-shed.ts
 prove-launchripple-deletion.ts

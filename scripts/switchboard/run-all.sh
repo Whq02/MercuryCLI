@@ -5,7 +5,7 @@
 # gate-watch: src/services/concourse/** src/components/concourse/** src/daemon/concourseWorkers.ts
 # gate-watch: src/daemon/concourseDispatch.ts src/daemon/permissionAsks.ts src/services/switchboard/attachedSession.ts
 # gate-watch: src/components/SwitchboardTagBar.tsx src/context/surfaceRoute.ts src/daemon/handshake.ts src/daemon/controlSocket.ts src/daemon/protocol.ts src/utils/cockpit/motionSetting.ts src/utils/cockpit/motionGovernor.ts
-# gate-watch: src/prompt/engineIdentity.ts src/constants/prompts.ts
+# gate-watch: src/constants/prompts.ts
 # gate-watch: assets/splash/mercury-splash.mjs assets/splash/splash-core.mjs docs/CREW.md
 # gate-watch: assets/completions/_mercury assets/completions/mercury.bash assets/completions/mercury.fish
 # gate-watch: scripts/compact/overflowFixture.ts scripts/engine-durability/harness.ts scripts/lib/* scripts/daemon/dupline-world.ts

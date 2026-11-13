@@ -43,7 +43,6 @@ prove-lifecycle-teardown.ts
 prove-logins-copy-key-consumed.ts
 prove-logins-one-anthropic-row.ts
 prove-logins-one-name.ts
-prove-manager-mode.ts
 prove-mcp-notif-glyph.ts
 prove-message-actions.ts
 prove-message-cursor-store.ts

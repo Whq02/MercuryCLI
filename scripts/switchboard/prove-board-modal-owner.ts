@@ -14,12 +14,8 @@ const none: Facts = {
   settingsOpen: false,
   groundPickerOpen: false,
   rowPick: false,
-  seatAsk: false,
   gitOffer: false,
   contractAsk: false,
-  managerSeatAsk: false,
-  managerCardArmed: false,
-  coordinatorFocused: false,
 }
 const facts = (over: Partial<Facts>): Facts => ({ ...none, ...over })
 
@@ -30,10 +26,9 @@ console.log('§1 — one owner at a time, in the paint order (topmost first)')
     ['rowPick', 'row-pick'],
     ['trustAsk', 'trust-ask'],
     ['groundPickerOpen', 'ground-picker'],
-    ['managerSeatAsk', 'manager-seat-ask'],
-    ['seatAsk', 'seat-ask'],
     ['capacityAsk', 'capacity-ask'],
     ['settingsOpen', 'settings'],
+    ['helpOpen', 'help'],
     ['gitOffer', 'git-offer'],
     ['contractAsk', 'contract-ask'],
   ]
@@ -58,29 +53,18 @@ console.log('§1 — one owner at a time, in the paint order (topmost first)')
         settingsOpen: true,
         groundPickerOpen: true,
         rowPick: true,
-        seatAsk: true,
+        helpOpen: true,
         gitOffer: true,
         contractAsk: true,
-        managerSeatAsk: true,
-        managerCardArmed: true,
-        coordinatorFocused: true,
       }),
     ) === 'row-pick',
   )
 }
 
-console.log('§2 — the manager card is the one focus-scoped owner')
-{
-  check('armed + coordinator focused ⇒ manager-card owns', boardModalOwner(facts({ managerCardArmed: true, coordinatorFocused: true })) === 'manager-card')
-  check('armed + focus elsewhere ⇒ NO owner (tab away and the board stays reachable — the interview never imprisons the screen)', boardModalOwner(facts({ managerCardArmed: true, coordinatorFocused: false })) === null)
-  check('every screen-wide owner outranks it at the mount', boardModalOwner(facts({ managerCardArmed: true, coordinatorFocused: true, gitOffer: true })) === 'git-offer' && boardModalOwner(facts({ managerCardArmed: true, coordinatorFocused: true, managerSeatAsk: true })) === 'manager-seat-ask')
-  check('coordinator focus ALONE arms nothing', boardModalOwner(facts({ coordinatorFocused: true })) === null)
-}
-
-console.log('§3 — nothing armed ⇒ null; boardModalArmed mirrors the owner')
+console.log('§2 — nothing armed ⇒ null; boardModalArmed mirrors the owner')
 {
   check('the empty board answers null', boardModalOwner(none) === null)
-  check('boardModalArmed is exactly owner !== null (both directions)', boardModalArmed(none) === false && boardModalArmed(facts({ rowPick: true })) === true && boardModalArmed(facts({ managerCardArmed: true, coordinatorFocused: false })) === false)
+  check('boardModalArmed is exactly owner !== null (both directions)', boardModalArmed(none) === false && boardModalArmed(facts({ rowPick: true })) === true && boardModalArmed(facts({ contractAsk: true })) === true)
 }
 
 console.log(failures === 0 ? '\nprove-board-modal-owner: ALL GREEN' : `\nprove-board-modal-owner: ${failures} FAILURE(S)`)

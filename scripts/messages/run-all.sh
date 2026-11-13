@@ -2,7 +2,7 @@
 # gate-class: pure
 # gate-watch: scripts/lib/hermetic.ts src/services/providers/anthropic/cacheAndUsage.ts
 # gate-watch: src/screens/Chat* src/types/message* src/utils/messages/** src/rows/project.ts src/rows/content.ts src/rows/request.ts
-# gate-watch: src/components/* src/components/concourse/CoordinatorPane.tsx
+# gate-watch: src/components/*
 # gate-watch: src/components/messages/AssistantTextMessage.tsx src/components/messages/UserTextMessage.tsx
 # gate-watch: src/components/messages/UserToolResultMessage/UserToolErrorMessage.tsx
 # gate-watch: src/components/mercury-ui/glyphs.ts src/constants/figures.ts src/ink/components/StdinContext.ts src/ink/components/TerminalSizeContext.tsx src/state/store.ts
@@ -13,7 +13,7 @@
 # gate-watch: src/state/AppState.tsx src/state/AppStateStore.ts src/utils/permissions/filesystem.ts
 # gate-watch: src/daemon/sessionSeat.ts src/fabric/entryCodec.ts src/fabric/ordinal.ts
 # gate-watch: src/query/stopHooks.ts src/run-core/turn-machine.ts src/utils/wards/wards.ts
-# gate-watch: src/services/api/errors.ts src/services/api/transportEvidence.ts src/services/compact/operatorMessages.ts src/services/concourse/coordinatorCall.ts
+# gate-watch: src/services/api/errors.ts src/services/api/transportEvidence.ts src/services/compact/operatorMessages.ts src/services/advisor/advisorSummarizer.ts
 # gate-watch: src/services/engine-connector/daemonConnector.ts src/services/engine-connector/recordIdentity.ts
 # gate-watch: src/services/providers/anthropic/streamCore.ts src/services/providers/anthropic/messageParams.ts src/services/providers/openai/responsesBridge.ts src/services/providers/openai/openaiWire.ts src/services/providers/gemini/geminiCodec.ts src/services/providers/gemini/geminiClient.ts src/services/providers/zai/zaiCodec.ts src/services/providers/openaicompat/compatChatClient.ts src/services/providers/local/ollamaChatTransport.ts
 # gate-watch: src/tools.ts src/tools/SkillTool/SkillTool.ts

@@ -88,11 +88,6 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
     why: 'the instruction engine: the native convention names MERCURY.md, the shared convention AGENTS.md (composed when no MERCURY.md stands), the capture writer and the effective-size measure name the entry files',
   },
   {
-    test: (f, _n, excerpt) => f === 'src/services/concourse/coordinatorTools.ts' && excerpt.includes('MARKS'),
-    cls: 'guide-probe',
-    why: "the ground law's folder memory: MERCURY.md probed as a worked-here-before mark; the home DIR names ride PROJECT_CONFIG_DIR_NAMES",
-  },
-  {
     test: (_f, _n, excerpt) => /getMercuryHome|configHome|homeDir/.test(excerpt),
     cls: 'owner-internal',
     why: 'reads THROUGH the home owner (the basename appears beside the owner call, not as an independent join)',

@@ -80,13 +80,6 @@ export interface ConcourseSnapshotV1 {
   clock: string
   context: { projectLabel: string; operatorHandle: string; effortLabel?: string }
   breadcrumb: { active: 'boot' | 'concourse' | 'focused-chat' }
-  coordinator: {
-    mode: 'off' | 'rules-only' | 'agent-assisted'
-    assistModelLabel?: string
-    assistModelAvailability?: import('../../services/concourse/coordinatorModels.js').CoordinatorModelAvailability
-    assistModelStatus?: string
-    fallbackReason?: string
-  }
   focusedChat: {
     kind: 'non-model-controller'
     counted: false
@@ -98,7 +91,6 @@ export interface ConcourseSnapshotV1 {
     needsYou: number
     working: number
     queued: number
-    seatsHeld: number
     seatsDenominator: number
     admission: 'auto-balanced' | 'fixed'
   }
@@ -241,10 +233,4 @@ export interface ConcourseCallbacks {
   enterBootSettings: (door?: 'logins', opener?: { family?: string; returnToOpener?: boolean }) => boolean
   exitToChat: () => void
   retrySnapshot?: () => void
-  sendCoordinatorMessage?: (
-    text: string,
-    clientMessageId?: string,
-    onAccepted?: () => void,
-    opts?: { manager?: boolean },
-  ) => Promise<void>
 }

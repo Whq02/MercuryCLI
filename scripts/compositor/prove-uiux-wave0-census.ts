@@ -464,7 +464,7 @@ section('RV — reasoning depth is not answer length; one balanced default + one
   check(
     'RV-03/04/05: the stated-preferences rule is the constitution\'s; no narration or appendix rule rides any seat text',
     /stated preferences on scope, approach, delegation and communication ahead of your defaults/.test(contract.MERCURY_CONSTITUTION) &&
-      !/narration|appendix/.test([contract.MERCURY_CONSTITUTION, contract.MERCURY_COORDINATOR_CONTRACT, contract.MERCURY_SUBAGENT_CONTRACT].join('\n')),
+      !/narration|appendix/.test([contract.MERCURY_CONSTITUTION, contract.MERCURY_SUBAGENT_CONTRACT].join('\n')),
   )
   check(
     'RV-01: the concise profile is ONE settings override at the contract owner (schema key + conditional section; no knob wall)',

@@ -2047,13 +2047,6 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
-      "file": "scripts/switchboard/prove-coordinator-strip-plain.ts",
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
-      "cls": "platform-owner",
-      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
-    },
-    {
       "file": "scripts/switchboard/prove-crash-visible-drive.ts",
       "mechanism": "execSync-string",
       "excerpt": "execSync('git init -q && git -c user.email=crashvis@proof.invalid -c user.name=crashvis commit -q --allow-empty -m seed', {",
@@ -2286,13 +2279,6 @@
     },
     {
       "file": "scripts/ui/prove-concourse-compact-drive.ts",
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })",
-      "cls": "platform-owner",
-      "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
-    },
-    {
-      "file": "scripts/ui/prove-concourse-restored-draft.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })",
       "cls": "platform-owner",

@@ -44,9 +44,8 @@ validated and stamped on the session's durable record, and passed
 into the session process. Two paths feed a new session from the same record:
 the menu screen passes the freshly resolved kit to the very
 next session you start from the home screen (so an edit one keystroke before New Session is never lost to a
-stale cache), and every other session launch (from the coordinator or another
-terminal) derives the kit from the saved record at launch. Launch receipts name
-the path: `kit carried`, `kit derived`, or `kit preset`.
+stale cache), and every other session launch (from another
+terminal) derives the kit from the saved record at launch.
 
 The kit stays with the session: the pre-warmed runner behind
 New Session already holds the next session's kit, so a menu edit costs
@@ -68,9 +67,8 @@ back`).
 Selecting a preset arms it for one session: the home screen's MCPs & Skills row reads
 `next: preset '<name>'`, the next session you start uses it, and the menu's saved
 default resumes afterwards (press `Enter` on the armed row to clear it). Resuming a stopped
-transcript while a preset is armed applies the preset to that resumed session; switching into a running session leaves the armed preset untouched for the next new session. The coordinator can
-launch a session with a preset by name (the receipt reads `wearing preset
-'<name>'`), and an unknown name is refused with the list of saved presets.
+transcript while a preset is armed applies the preset to that resumed session; switching into a running session leaves the armed preset untouched for the next new session. A schedule can
+start a session with a preset by name ([SATURN.md](SATURN.md)), and an unknown name is refused with the list of saved presets.
 
 A preset's deltas resolve against the repository where the session starts: a named
 skill or extension the preset turns off stays off **by name** (including one

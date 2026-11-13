@@ -240,7 +240,7 @@ console.log("§5 — one truth: the reconnect vocabulary, the row's model, no ve
     const m = /LOGINS_FAMILY_WORDS = new Set\(\[([^\]]+)\]\)/.exec(src)
     return m?.[1]?.replace(/\s/g, '') ?? ''
   }
-  check("the /logins family words are ONE set in two files (the coordinator's refusal action and the wall's door)", setOf(wallSrc) !== '' && setOf(wallSrc) === setOf(workerSrc), `${setOf(wallSrc)} vs ${setOf(workerSrc)}`)
+  check("the /logins family words are ONE set in two files (the launch door's refusal action and the wall's door)", setOf(wallSrc) !== '' && setOf(wallSrc) === setOf(workerSrc), `${setOf(wallSrc)} vs ${setOf(workerSrc)}`)
   check("the row contract declares the record's model and the snapshot fills it", read('src/components/concourse/contracts.ts').includes('modelId?: string') && read('src/services/concourse/concourseSnapshot.ts').includes('{ modelId: rec.modelKey }'))
   check('the wall owner names no vendor by hand — the family words come from providerDisplayName', !/'(Anthropic|OpenAI|OpenRouter|Claude)'/.test(wallSrc.replace(/\/\/.*$/gm, '')) && wallSrc.includes('providerDisplayName(route)'))
   check('the owner reads facts already observed — never a fetch, never a probe', !/fetch\(|refresh[A-Z]\w*\(/.test(wallSrc))

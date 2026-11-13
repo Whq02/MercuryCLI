@@ -4,7 +4,7 @@
 # gate-watch: src/daemon/** src/substrate/flagRegistry* src/types/permissions* src/components/SwitchboardTagBar.tsx
 # gate-watch: src/utils/boxLock* src/services/resources/adapters/health*
 # gate-watch: src/services/engine-connector/seatProjections* src/utils/spawnLedger* docs/DURABILITY.md
-# gate-watch: src/services/concourse/concourseEnabled.ts src/services/concourse/managerMode.ts
+# gate-watch: src/services/concourse/concourseEnabled.ts
 # gate-watch: src/tools/MonitorTool/** src/tools/ScheduleCronTool/** src/utils/cron.ts src/services/engine-connector/seatWire.ts
 # gate-watch: src/cli/headless/turnDriver* src/cli/headless/runnerAsks.ts src/cli/run* src/services/saturn/** src/tools/ScheduleWakeupTool/**
 # gate-watch: docs/SESSIONS.md scripts/dap/mock-dap-adapter.mjs scripts/journey/switch-fixture-server.ts
@@ -19,7 +19,7 @@
 # gate-watch: src/tasks/LocalAgentTask/* src/input-core/* src/state/AppState*
 # gate-watch: src/cli/editorBridge.ts src/cli/healthProcesses.ts src/constants/tools.ts src/screens/Chat.tsx src/services/acp/childSession.ts
 # gate-watch: src/services/blender/bridgeFiles.generated.ts src/services/compact/compact.ts src/services/compact/foldStatus.ts src/services/compact/operatorMessages.ts src/services/compact/prompt.ts
-# gate-watch: src/services/concourse/coordinatorTools.ts src/services/concourse/managerMode.ts src/services/crew/adapters/ndjsonChild.ts src/services/dap/debugpyResolver.ts src/services/eval/interpreters.ts
+# gate-watch: src/services/crew/adapters/ndjsonChild.ts src/services/dap/debugpyResolver.ts src/services/eval/interpreters.ts
 # gate-watch: src/services/eval/kernelEnv.ts src/services/oauth/client.ts src/services/privateChannel/installPath.ts src/services/structure/grammarFacility.ts src/services/switchboard/bootBirthFacts.ts
 # gate-watch: src/services/switchboard/bornSession.ts src/services/switchboard/hopIntoSession.ts src/services/tcpBridge/entry.ts src/services/unity/bridgeFiles.generated.ts src/services/vulcan/addonFiles.generated.ts
 # gate-watch: src/substrate/directSplash.ts src/substrate/durablePublish.ts src/substrate/fileStore.ts src/tools/AgentTool/constants.ts src/tools/WorkflowTool/constants.ts

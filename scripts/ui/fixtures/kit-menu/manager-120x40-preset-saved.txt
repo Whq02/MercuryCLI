@@ -16,10 +16,10 @@
    │   ext:orchard-tools:db                         off (extension) │  │ name: review kit▌                          │
    │                                                                │  │                                            │
    │ Skills                                                         │  │ a preset is this record under a name —     │
-   │ ❯ deploy                                             invocable │  │ the next session, and the coordinator,     │
-   │   review                                                    on │  │ can start from it.                         │
-   │   notes                                                    off │  │                                            │
-   │   orchard-tools (extension)                                off │  │ preset 'review kit' saved (4 deltas)       │
+   │ ❯ deploy                                             invocable │  │ the next session can start from it.        │
+   │   review                                                    on │  │                                            │
+   │   notes                                                    off │  │ preset 'review kit' saved (4 deltas)       │
+   │   orchard-tools (extension)                                off │  │                                            │
    │   orchard-tools:prune                          off (extension) │  │                                            │
    │   orchard-tools:graft                          off (extension) │  ╰────────────────────────────────────────────╯
    │   skills from MCP servers appear once a session connects them  │  ╭────────────────────────────────────────────╮

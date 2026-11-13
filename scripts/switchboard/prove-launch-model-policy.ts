@@ -37,13 +37,12 @@ process.env.MERCURY_OPENAI_AUTH_BASE = 'http://127.0.0.1:1'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 console.log('============================================================')
-console.log(' launch model policy — the operator’s default, named on the receipt')
+console.log(' launch model policy — the operator’s default at the launch door')
 console.log('============================================================')
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const wm = await import('../../src/services/concourse/workerModels.ts')
-const tools = await import('../../src/services/concourse/coordinatorTools.ts')
 
 type Entry = import('../../src/services/concourse/workerModels.ts').WorkerModelEntryV1
 
@@ -98,54 +97,6 @@ section('§2 — the live composition marks and seeds the operator’s default')
   )
   const validated = await wm.validateWorkerModelChoice(undefined, 'session')
   check('…and an unnamed dispatch validates onto it', validated.ok && validated.entry.modelId === operatorDefault, JSON.stringify(validated))
-}
-
-section('§3 — the receipt names the model the session started on')
-{
-  const defs = tools.coordinatorToolSet()
-  const launch = defs.find(d => d.name === 'launch_session')!
-  const ctx = tools.createCoordinatorToolContext({
-    workspaceRoot: scratch,
-    by: 'coordinator-seat',
-    rpc: async () => ({
-      ok: true,
-      state: 'starting',
-      sessionId: 'sess-model-1',
-      runnerId: 'w-1',
-      modelId: 'claude-opus-5',
-      modelDisplayName: 'Opus 5',
-    }),
-    readWorkers: async () => ({}) as never,
-  })
-  const out = await launch.run({ task: 'fix the parser' }, ctx)
-  const body = JSON.parse(out.content) as Record<string, unknown>
-  check('the launch reported ok', body.ok === true, out.content)
-  check('the tool answer carries the resolved model id', body.model === 'claude-opus-5', out.content)
-  const receipt = (out.receipts ?? []).find(r => r.verb === 'session.launch')
-  check('a launch receipt rowed', receipt !== undefined, JSON.stringify(out.receipts))
-  check('…and it NAMES the model the session started on', String(receipt?.detail).includes('on Opus 5'), String(receipt?.detail))
-
-  const bare = tools.createCoordinatorToolContext({
-    workspaceRoot: scratch,
-    by: 'coordinator-seat',
-    rpc: async () => ({ ok: true, state: 'starting', sessionId: 'sess-model-2' }),
-    readWorkers: async () => ({}) as never,
-  })
-  const out2 = await launch.run({ task: 'fix the parser' }, bare)
-  const receipt2 = (out2.receipts ?? []).find(r => r.verb === 'session.launch')
-  check('no model on the reply ⇒ no model in the receipt (nothing invented)', !/ on /.test(String(receipt2?.detail)), String(receipt2?.detail))
-}
-
-section('§4 — the contract: leave it out, never upgrade, ask when it matters')
-{
-  const launch = tools.coordinatorToolSet().find(d => d.name === 'launch_session')!
-  const text = launch.description
-  check('the description says an omitted model runs the operator’s own default', /leave `model` out and the session starts on the operator’s own default/.test(text), text.slice(0, 200))
-  check('…forbids reaching for a pricier family or a tighter pool', /never name a pricier family or a tighter-usage pool yourself/.test(text))
-  check('…and puts an implied model to the operator as one plain question', /one plain question instead of choosing/.test(text))
-  check('the receipt duty is stated where the tool is described', /receipt names the model the session started on/.test(text))
-  const prop = (launch.inputJSONSchema as { properties?: Record<string, { description?: string }> }).properties ?? {}
-  check('the model parameter itself says when to pass it', /only when the operator named one/.test(String(prop.model?.description)), String(prop.model?.description))
 }
 
 try {

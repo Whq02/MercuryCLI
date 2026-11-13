@@ -23,12 +23,8 @@ const none: Facts = {
   settingsOpen: false,
   groundPickerOpen: false,
   rowPick: false,
-  seatAsk: false,
   gitOffer: false,
   contractAsk: false,
-  managerSeatAsk: false,
-  managerCardArmed: false,
-  coordinatorFocused: false,
 }
 
 section('§1 the sighting: a capacity ask pending BEHIND the open repo selector')
@@ -54,8 +50,6 @@ section('§2 the whole paint-order law, pairwise')
     ['rowPick', 'row-pick'],
     ['trustAsk', 'trust-ask'],
     ['groundPickerOpen', 'ground-picker'],
-    ['managerSeatAsk', 'manager-seat-ask'],
-    ['seatAsk', 'seat-ask'],
     ['capacityAsk', 'capacity-ask'],
     ['settingsOpen', 'settings'],
     ['helpOpen', 'help'],
@@ -77,13 +71,6 @@ section('§2 the whole paint-order law, pairwise')
   }
   check('for EVERY armed pair, the top-painted surface owns the keys', pairwiseHolds, broke.join(' · '))
   check('nothing armed ⇒ no owner (the regions own their grammars)', boardModalOwner(none) === null)
-  const managerScoped = boardModalOwner({ ...none, managerCardArmed: true })
-  const managerFocused = boardModalOwner({ ...none, managerCardArmed: true, coordinatorFocused: true })
-  check(
-    'the manager card stays the one focus-scoped owner',
-    managerScoped === null && managerFocused === 'manager-card',
-    `${String(managerScoped)}/${String(managerFocused)}`,
-  )
 }
 
 section("§3 the screen's arms follow the owner")

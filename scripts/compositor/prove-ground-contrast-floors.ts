@@ -36,7 +36,7 @@ t.section('§1 — text floors on the ACTUAL painted ground (the flat estate NIG
 {
   const essential: Array<[string, string]> = [
     ['textInstruction (help legend · hints · chip labels · AGE · headers)', dark.textInstruction],
-    ['infoText (pane titles · status mark · coordinator segment)', dark.infoText],
+    ['infoText (pane titles · status mark)', dark.infoText],
     ['failureText (refusal words)', dark.failureText],
     ['textSecondary', dark.textSecondary],
     ['textPrimary', dark.textPrimary],
@@ -103,14 +103,12 @@ t.section('§4 — the truecolor gate + collapsed-focus ink (source ratchets)')
     'the chalk-authority module',
   )
   const listFork = /borderColor=\{managerFocused \? t\.info : t\.borderSubtle\}/.test(layout) && layout.includes("const managerFocused = region === 'list' || region === 'rail'")
-  const coordPane = readFileSync('src/components/concourse/CoordinatorPane.tsx', 'utf8')
-  const coordFork = /borderColor=\{focused \? t\.info : t\.borderSubtle\}/.test(coordPane)
   const strips = readFileSync('src/components/concourse/ConcourseStrips.tsx', 'utf8')
   const stripFork = /borderColor=\{paletteCollapsed\(\) && focused \? t\.info : borderColor\}/.test(strips)
   t.check(
     'collapsed-palette FOCUSED pane forks wear the visible info ink (a11y-p2-04)',
-    listFork && coordFork && stripFork,
-    `list ${listFork} · coordinator ${coordFork} · strip ${stripFork} (borderSubtle quantizes to ansi BLACK at level 1)`,
+    listFork && stripFork,
+    `list ${listFork} · strip ${stripFork} (borderSubtle quantizes to ansi BLACK at level 1)`,
   )
   t.check(
     'the focused chip ink is textInverse on the pill (a11y-p2-09)',

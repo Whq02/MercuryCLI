@@ -387,7 +387,7 @@ section('§N non-session insulation (poison: a kit env appearing on a warm/utili
 
   const { spawnSync } = await import('node:child_process')
   const consumers = spawnSync('grep', ['-rln', 'consumeSessionKitPin(', join(REPO, 'src')], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean).map(p => p.slice(REPO.length + 1)).sort()
-  t('N4 the pin has exactly TWO speakers and no daemon road: sessionKitPin.ts (the owner) and main.tsx (the one consumption) — the daemon/coordinator kernel can never latch a kit', deepEq(consumers, ['src/main.tsx', 'src/services/mcp/sessionKitPin.ts']), consumers.join(','))
+  t('N4 the pin has exactly TWO speakers and no daemon road: sessionKitPin.ts (the owner) and main.tsx (the one consumption) — the daemon can never latch a kit', deepEq(consumers, ['src/main.tsx', 'src/services/mcp/sessionKitPin.ts']), consumers.join(','))
   const supSrc = readFileSync(join(REPO, 'src', 'daemon', 'concourseWorkers.ts'), 'utf8')
   t("N5 the insulation is structural in source: the worker strip list names the spelling", supSrc.includes("'MERCURY_SESSION_KIT',"))
 }

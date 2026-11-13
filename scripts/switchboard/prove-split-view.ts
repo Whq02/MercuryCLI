@@ -109,7 +109,7 @@ console.log('D — focus routing')
 {
   const screen = read('src/components/concourse/ConcourseScreen.tsx')
   check('D1 the chat pane joins the Tab ring as its LAST stop exactly while split composes', screen.includes("if (splitActive) ring.push('chat')"))
-  const composerGateAt = screen.indexOf("if (region !== 'coordinator' && region !== 'live') {")
+  const composerGateAt = screen.indexOf("if (region !== 'live') {")
   const chatInertAt = composerGateAt === -1 ? -1 : screen.lastIndexOf("if (region === 'chat') {", composerGateAt)
   const chatInert = chatInertAt === -1 ? '' : screen.slice(chatInertAt, composerGateAt).replace(/\/\/[^\n]*/g, '').replace(/\s+/g, ' ').trim()
   check(

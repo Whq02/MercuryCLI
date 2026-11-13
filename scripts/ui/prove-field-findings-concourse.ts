@@ -16,7 +16,7 @@ const check = (name: string, ok: boolean, detail?: string): void => {
   }
 }
 
-console.log('§1 the coordinator-model latch is gone with its key (no ⌃s branch, no settings layer, no picker mount)')
+console.log('§1 the board arms nothing on ⌃s or ⌃a (no settings layer, no picker mount)')
 {
   check(
     'no ⌃s branch arms anything on the board',
@@ -27,8 +27,8 @@ console.log('§1 the coordinator-model latch is gone with its key (no ⌃s branc
     !screen.includes('setSettingsOpen') && !screen.includes('settingsOpen={') && !screen.includes('CoordinatorModelPicker'),
   )
   check(
-    'no ⌃a turn-on branch remains (only the boot switch turns the coordinator on)',
-    !screen.includes("key.ctrl && input === 'a'") && !screen.includes('switchCoordinatorMode'),
+    'no ⌃a branch remains',
+    !screen.includes("key.ctrl && input === 'a'"),
   )
 }
 
@@ -67,7 +67,7 @@ console.log('§3 the ? atlas reads the resolver, stage- and width-honest')
   const atlasBody = screen.slice(screen.indexOf('function ConcourseKeyAtlas'))
   check('the SESSIONS section exists (the region that owns the board verbs: the pane legend first, then the rest)', atlasBody.includes("{ title: 'SESSIONS (list)', keys: [...managerPaneKeysFor(stage), ...withoutManagerPaneKeys(regionKeysFor('list', stage))] }"))
   check('no atlas section reads a raw region table any more', !atlasBody.includes('CONCOURSE_REGION_KEYS.'))
-  check('the COORDINATOR section is stage- and switch-gated (taught only while the coordinator is on)', atlasBody.includes("...(reducedStage || !coordinatorOn ? [] : [{ title: 'COORDINATOR (its composer)'"))
+  check('the atlas teaches four panels and the split, no fifth section', (atlasBody.match(/\{ title: '/g) ?? []).length === 6 && ["title: 'BROWSE'", "title: 'NEEDS YOU (rail)'", "title: 'SESSIONS (list)'", "title: 'LIVE VIEW (its composer)'", "title: 'SPLIT VIEW (s toggles)'"].every(title => atlasBody.includes(title)))
   check('the SPLIT section rides the split’s own width gate (one gate, one truth)', atlasBody.includes('!reducedStage && splitAvailableAt(cols, rows)'))
   check('the atlas takes the live split fact (splitOn rides splitActive)', screen.includes('splitOn={splitActive}') && atlasBody.includes('splitOn = false'))
   check("split OFF teaches the toggle only ('s split view' — no divider, no way-back)", atlasBody.includes("{ title: 'SPLIT VIEW (s toggles)', keys: [{ keys: 's', label: 'split view' }] }"))
@@ -82,7 +82,7 @@ console.log('§3 the ? atlas reads the resolver, stage- and width-honest')
   )
   const fullList = regionKeysFor('list', { newSession: true })
   check('the full-stage list keeps the whole grammar incl. marks and split', ['↵↵', 'n', 'r', '→', '/', '⌃x ⌃x', 'm', 'space', 's'].every(keys => fullList.some(k => k.keys === keys)))
-  check('the coordinator section teaches no ⌃s (the coordinator-model key is gone)', !regionKeysFor('coordinator', { newSession: true }).some(k => k.keys === '⌃s'))
+  check('no region teaches ⌃s', (['list', 'live', 'rail', 'chat'] as const).every(region => !regionKeysFor(region, { newSession: true }).some(k => k.keys === '⌃s')))
 }
 
 console.log('§3b the atlas reads the frame and clamps to it')
@@ -118,8 +118,8 @@ console.log('§4 live meta row: enter-grammar on an empty draft, send only with 
   const { CONCOURSE_REGION_KEYS } = await import('../../src/components/concourse/controlManifest.ts')
   const rows = (declared: ReadonlyArray<{ keys: string; label: string }>): ReadonlyArray<{ keys: string; label: string }> => declared
   check(
-    "the manifest leaves the live composer's ↵ to the layout (no ↵ row declared there) while the coordinator's own row says send",
-    rows(CONCOURSE_REGION_KEYS.live).every(k => k.keys !== '↵') && rows(CONCOURSE_REGION_KEYS.coordinator).some(k => k.keys === '↵' && k.label === 'send'),
+    "the manifest leaves the live composer's ↵ to the layout (no ↵ row declared there)",
+    rows(CONCOURSE_REGION_KEYS.live).every(k => k.keys !== '↵'),
   )
 }
 
