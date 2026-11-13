@@ -11,6 +11,7 @@ import { getFsImplementation, getPathsForPermissionCheck, safeResolvePath } from
 import {
   expandPath,
   getDirectoryForPath,
+  localPath,
   sanitizePath,
 } from '../path.js'
 import { getPlatform } from '../platform.js'
@@ -147,7 +148,7 @@ export function getResolvedWorkingDirPaths(path: string): string[] {
   const key = isAbsolute(path) ? path : `${base}\0${path}`
   const cached = workingDirResolutionCache.get(key)
   if (cached) return cached
-  const resolved = getPathsForPermissionCheck(path, base)
+  const resolved = getPathsForPermissionCheck(localPath(path), base)
   workingDirResolutionCache.set(key, resolved)
   if (workingDirResolutionSweep === null) {
     workingDirResolutionSweep = setTimeout(getResolvedWorkingDirPaths.clearCache, 0)

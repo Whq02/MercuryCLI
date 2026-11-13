@@ -58,6 +58,15 @@ export function expandPath(path: string, baseDir: string = defaultBaseDir()): st
   return resolve(baseDir, candidate).normalize('NFC')
 }
 
+const LOCAL_DEVICE_DRIVE = /^[\\/]{2}[?.][\\/]([A-Za-z]):(?:[\\/](.*))?$/
+const LOCAL_HOST_DRIVE = /^[\\/]{2}(?:localhost|127\.0\.0\.1|\[?::1\]?)[\\/]([A-Za-z])\$(?:[\\/](.*))?$/i
+
+export function localPath(path: string, platform: ReturnType<typeof getPlatform> = getPlatform()): string {
+  if (platform !== 'windows') return /^\/{2,}/.test(path) ? path.replace(/^\/+/, '/') : path
+  const drive = LOCAL_DEVICE_DRIVE.exec(path) ?? LOCAL_HOST_DRIVE.exec(path)
+  return drive === null ? path : `${drive[1]!.toUpperCase()}:\\${(drive[2] ?? '').replace(/\//g, '\\')}`
+}
+
 export function toRelativePath(absolutePath: string): string {
   const rel = relative(defaultBaseDir(), absolutePath)
   if (rel.startsWith('..')) return absolutePath
