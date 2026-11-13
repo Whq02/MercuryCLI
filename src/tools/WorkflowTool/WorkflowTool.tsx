@@ -207,34 +207,24 @@ export const inputSchema = lazySchema(() =>
         .string()
         .max(MAX_SCRIPT_BYTES)
         .optional()
-        .describe(
-          'Self-contained JavaScript workflow source.',
-        ),
+        .describe('Self-contained JS workflow source'),
       name: z
         .string()
         .optional()
-        .describe(
-          'Saved or built-in workflow name; used when scriptPath is absent.',
-        ),
+        .describe('Saved/built-in workflow name (when scriptPath is absent)'),
       args: z
         .unknown()
         .optional()
-        .describe(
-          'JSON value exposed as args, verbatim; omitted, undefined.',
-        ),
+        .describe('Verbatim JSON args (default undefined)'),
       scriptPath: z
         .string()
         .optional()
-        .describe(
-          'Path to a saved workflow, selected before name.',
-        ),
+        .describe('Saved workflow path (precedes name)'),
       resumeFromRunId: z
         .string()
         .regex(/^wf_[a-z0-9-]{6,}$/)
         .optional()
-        .describe(
-          'Prior run ID from this session, after that run stops.',
-        ),
+        .describe('Stopped run id from this session'),
     })
     .refine(h => h.script || h.name || h.scriptPath, {
       message: 'Must provide script, name, or scriptPath',
