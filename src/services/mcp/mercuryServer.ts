@@ -127,7 +127,7 @@ export async function createMercuryServer(): Promise<{
     {
       title: 'Take project file leases',
       description:
-        'Take project-relative file or directory ("/"-suffixed) leases for this session and agent; live holders are named and refused. Released via lease_release or when the holder ends.',
+        'Take project-relative paths for this session and agent: files, or a directory with a trailing slash, which is one lease covering everything under it. Live holders are named and refused. Released via lease_release or when the holder ends.',
       inputSchema: { paths: z.array(z.string()).min(1).describe('Project-relative files or "/"-suffixed directories (no globs).') },
       annotations: { readOnlyHint: false, destructiveHint: false },
     },
