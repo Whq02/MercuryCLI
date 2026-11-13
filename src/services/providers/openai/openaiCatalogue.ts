@@ -203,7 +203,6 @@ export function adoptOpenaiCatalogueFact(fact: unknown, env: NodeJS.ProcessEnv =
 export const APEX_GPT_ROLES = [
   'primary',
   'specialist',
-  'coordinator',
 ] as const
 export type ApexGptRole = (typeof APEX_GPT_ROLES)[number]
 

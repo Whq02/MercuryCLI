@@ -2,7 +2,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { APIUserAbortError } from '../api/sdkErrors.js'
 import { CHAT_HOLDER, seatWaitWords, type SeatNarrowing, type SeatWaitFacts } from './seatWords.js'
 
-export type PermitLane = 'foreground' | 'background-session' | 'coordinator' | 'service'
+export type PermitLane = 'foreground' | 'background-session' | 'service'
 
 export interface PermitRequest {
   lane: PermitLane

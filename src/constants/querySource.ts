@@ -33,7 +33,6 @@ type UtilitySource =
   | 'prompt_suggestion'
   | 'skill_improvement'
   | 'skill_improvement_apply'
-  | 'concourse_coordinator'
   | 'feedback'
   | 'magic_docs'
   | 'bash_extract_prefix'

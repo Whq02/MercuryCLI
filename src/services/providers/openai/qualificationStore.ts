@@ -29,14 +29,6 @@ const ROLE_CAPABILITIES: Record<ApexGptRole, readonly string[]> = {
     'no-lost-input+no-duplicate-events',
   ],
   specialist: ['bounded-job-execution', 'structured-result-return', 'worktree-law', 'role-tool-denials'],
-  coordinator: [
-    'bounded-snapshot+delta-consumption',
-    'typed-management-verbs-only',
-    'single-proposal-batch-per-event',
-    'kernel-permitted-actions',
-    'receipted-settlement',
-    'no-self-approval',
-  ],
 }
 
 export function roleCapabilityDigest(role: ApexGptRole): string {

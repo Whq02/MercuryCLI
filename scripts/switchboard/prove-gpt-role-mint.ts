@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { mkdirSync, mkdtempSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
@@ -115,6 +115,21 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 const MODEL = 'gpt-5.6-sol'
 const receiptsOf = () => q.readQualificationReceipts().filter(r => r.receipt.modelId === MODEL)
+const { APEX_ARCHITECTURE_EPOCH, OPENAI_ADAPTER_DIGEST } = await import('../../src/services/providers/openai/openaiCatalogue.ts')
+const STORE = join(home, '.apex-qualification.json')
+const EARLIER = {
+  modelId: MODEL,
+  role: 'coordinator',
+  sourceKind: 'api-key',
+  adapterDigest: OPENAI_ADAPTER_DIGEST,
+  architectureEpoch: APEX_ARCHITECTURE_EPOCH,
+  roleCapabilityDigest: 'rc1-f9fd499bd25d2b8f',
+  behaviourContractDigest: 'bc-earlier',
+  qualifiedAtMs: 1_794_000_000_000,
+}
+writeFileSync(STORE, `${JSON.stringify({ version: 1, receipts: [EARLIER] }, null, 2)}\n`)
+const earlierInFile = (): string => JSON.stringify((JSON.parse(readFileSync(STORE, 'utf8')) as { receipts: Array<{ role: string }> }).receipts.filter(r => r.role === 'coordinator'))
+const rolesOf = (): string[] => receiptsOf().map(r => String(r.receipt.role)).sort()
 const sideQuestion = async (): Promise<void> => {
   const stream = routedCallModel({
     messages: [createUserMessage({ content: 'say ok' })],
@@ -140,9 +155,11 @@ const sideQuestion = async (): Promise<void> => {
   }
 }
 
-section('§1 — before any turn the store holds no receipt for the model')
+section('§1 — before any turn the store holds the one receipt an earlier version minted, in a role this build has retired')
 {
-  check('no receipt yet', receiptsOf().length === 0, JSON.stringify(receiptsOf().map(r => r.receipt.role)))
+  const listed = receiptsOf()
+  check('the store lists it and throws nowhere', listed.length === 1 && String(listed[0]?.receipt.role) === 'coordinator', JSON.stringify(listed.map(r => r.receipt.role)))
+  check('…as a receipt whose role is retired: not current, by the role\'s contract and by nothing else', listed[0]?.current === false && /role-capability contract for 'coordinator' changed/.test((listed[0] as { expiredBy?: string }).expiredBy ?? ''), JSON.stringify(listed[0]))
 }
 
 section("§2 — a side question settles against the fixture and mints 'primary'")
@@ -152,16 +169,16 @@ section("§2 — a side question settles against the fixture and mints 'primary'
   const responses = captured.slice(before).filter(c => c.url === '/responses')
   check('exactly ONE Responses call settled the turn', responses.length === 1, String(responses.length))
   check('the wire carries the exact model id', responses[0]?.body?.model === MODEL, String(responses[0]?.body?.model))
-  const minted = receiptsOf()
-  check("ONE receipt for the model, in the role 'primary'", minted.length === 1 && minted[0]?.receipt.role === 'primary', JSON.stringify(minted.map(r => r.receipt.role)))
+  const minted = receiptsOf().filter(r => r.receipt.role === 'primary')
+  check("ONE receipt for the model in the role 'primary', beside the earlier one", minted.length === 1 && rolesOf().join(',') === 'coordinator,primary', JSON.stringify(rolesOf()))
   check('…CURRENT under the live digests', minted[0]?.current === true, JSON.stringify(minted[0]))
+  check('the earlier receipt is in the file as it was, field for field', earlierInFile() === JSON.stringify([EARLIER]), earlierInFile())
 }
 
 section('§3 — a second settled turn in the same role replaces its row, never doubles it')
 {
   await sideQuestion()
-  const minted = receiptsOf()
-  check("still ONE receipt, still 'primary'", minted.length === 1 && minted[0]?.receipt.role === 'primary', JSON.stringify(minted.map(r => r.receipt.role)))
+  check("still ONE receipt in the role 'primary', and the earlier one still beside it untouched", rolesOf().join(',') === 'coordinator,primary' && earlierInFile() === JSON.stringify([EARLIER]), JSON.stringify(rolesOf()))
 }
 
 server.close()
