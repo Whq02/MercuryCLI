@@ -1,5 +1,6 @@
 
-import { closeSync, readSync, statSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { closeSync, readSync, statSync, type Stats } from 'node:fs'
 import { openRegularFileSync } from '../../utils/regularFile.js'
 import { ideFileGeneration } from '../acp/ideToolBridge.js'
 import { runtimeKernel } from '../primitives/runtimeKernel.js'
@@ -72,16 +73,70 @@ function isRegularFileWithinBound(st: { isFile(): boolean; size: number }): bool
   return st.isFile() && st.size <= SEEN_LINES_BOUNDS.fileBytes
 }
 
-function readRegularFile(path: string, onlyOfSize?: number): { generation: string; bytes: Buffer } | null {
+const DIGEST_CHUNK = 1024 * 1024
+
+type LineFound = { text: string; whole: boolean }
+type Wanted = { lines: Map<number, number>; wholeUpTo: number }
+type Scan = { digest: string; lines: Map<number, LineFound>; whole: Buffer | null }
+
+function scanOpenFile(fd: number, size: number, wanted?: Wanted): Scan | null {
+  const hash = createHash('sha256')
+  const chunk = Buffer.allocUnsafe(size > 0 ? Math.min(size, DIGEST_CHUNK) : UNSIZED_READ_CHUNK)
+  const lines = new Map<number, LineFound>()
+  let whole: Buffer[] | null = wanted === undefined ? null : []
+  let total = 0
+  let lineNumber = 1
+  let keep = wanted?.lines.get(1)
+  let held: Buffer[] = []
+  let heldBytes = 0
+  let lineBytes = 0
+  const settleLine = (): void => {
+    if (keep !== undefined) lines.set(lineNumber, { text: Buffer.concat(held, heldBytes).toString('utf8'), whole: lineBytes === heldBytes })
+    lineNumber++
+    keep = wanted?.lines.get(lineNumber)
+    held = []
+    heldBytes = 0
+    lineBytes = 0
+  }
+  for (;;) {
+    const want = size > 0 ? Math.min(chunk.length, size - total) : chunk.length
+    const got = want === 0 ? 0 : readSync(fd, chunk, 0, want, null)
+    if (got === 0) break
+    total += got
+    if (total > SEEN_LINES_BOUNDS.fileBytes) return null
+    const piece = chunk.subarray(0, got)
+    hash.update(piece)
+    if (wanted === undefined) continue
+    if (whole !== null) {
+      if (total > wanted.wholeUpTo) whole = null
+      else whole.push(Buffer.from(piece))
+    }
+    let from = 0
+    for (;;) {
+      const newline = piece.indexOf(10, from)
+      const end = newline === -1 ? got : newline
+      if (keep !== undefined && heldBytes < keep && end > from) {
+        const take = Math.min(end - from, keep - heldBytes)
+        held.push(Buffer.from(piece.subarray(from, from + take)))
+        heldBytes += take
+      }
+      lineBytes += end - from
+      if (newline === -1) break
+      settleLine()
+      from = newline + 1
+    }
+  }
+  if (wanted !== undefined) settleLine()
+  return { digest: hash.digest('hex').slice(0, 12), lines, whole: whole === null ? null : Buffer.concat(whole, total) }
+}
+
+function withRegularFile<Read>(path: string, read: (fd: number, stats: Stats) => Read | null): Read | null {
   try {
     const early = statSync(path)
     if (!isRegularFileWithinBound(early)) return null
     const { fd, stats } = openRegularFileSync(path, early)
     try {
-      if (!isRegularFileWithinBound(stats)) return null
-      if (onlyOfSize !== undefined && stats.size !== onlyOfSize) return null
-      const bytes = readOpenFile(fd, stats.size)
-      return bytes === null ? null : { generation: `${generationOf(stats)}:${contentDigestOf(bytes)}`, bytes }
+      return isRegularFileWithinBound(stats) ? read(fd, stats) : null
     } finally {
       closeSync(fd)
     }
@@ -90,10 +145,25 @@ function readRegularFile(path: string, onlyOfSize?: number): { generation: strin
   }
 }
 
+function readRegularFile(path: string, onlyOfSize: number): { generation: string; bytes: Buffer } | null {
+  return withRegularFile(path, (fd, stats) => {
+    if (stats.size !== onlyOfSize) return null
+    const bytes = readOpenFile(fd, stats.size)
+    return bytes === null ? null : { generation: `${generationOf(stats)}:${contentDigestOf(bytes)}`, bytes }
+  })
+}
+
+function scanRegularFile(path: string, wanted?: Wanted): ({ generation: string } & Scan) | null {
+  return withRegularFile(path, (fd, stats) => {
+    const scan = scanOpenFile(fd, stats.size, wanted)
+    return scan === null ? null : { generation: `${generationOf(stats)}:${scan.digest}`, ...scan }
+  })
+}
+
 export function fileGeneration(path: string): string | null {
   const ideGen = ideFileGeneration(path)
   if (ideGen !== null) return ideGen
-  return readRegularFile(path)?.generation ?? null
+  return scanRegularFile(path)?.generation ?? null
 }
 
 function coalesce(ranges: SeenRange[]): SeenRange[] {
@@ -470,36 +540,12 @@ export function rebuildSeenLinesFromTranscript(owner: OwnerKey, messages: Readon
   const pathOfUse = new Map<string, { path: string; tool: string; content?: string }>()
   const summary = { files: 0, lines: 0 }
   const touched = new Set<string>()
-  const currentLines = new Map<string, { generation: string; lines: string[] } | null>()
-  const linesOf = (path: string): { generation: string; lines: string[] } | null => {
-    if (currentLines.has(path)) return currentLines.get(path)!
-    let state: { generation: string; lines: string[] } | null = null
-    try {
-      const file = readRegularFile(path)
-      if (file !== null) state = { generation: ideFileGeneration(path) ?? file.generation, lines: file.bytes.toString('utf8').split('\n') }
-    } catch {
-      state = null
-    }
-    currentLines.set(path, state)
-    return state
-  }
-  const credit = (path: string, shown: Map<number, string>): void => {
-    const state = linesOf(path)
-    if (state === null || shown.size === 0) return
-    for (const [line, body] of shown) {
-      if (line < 1 || line > state.lines.length) continue
-      if (TRUNCATED_TAIL.test(body)) {
-        const prefix = body.replace(TRUNCATED_TAIL, '')
-        if (state.lines[line - 1]!.startsWith(prefix) && state.lines[line - 1]!.length > prefix.length) {
-          recordSeenLines(owner, path, state.generation, line, 1, [{ line, visibleChars: prefix.length }])
-        }
-        continue
-      }
-      if (state.lines[line - 1] !== body) continue
-      recordSeenLines(owner, path, state.generation, line, 1)
-      summary.lines++
-      touched.add(path)
-    }
+  const results: Array<{ path: string; shown: Map<number, string> } | { path: string; written: string }> = []
+  const wantedOf = new Map<string, Wanted>()
+  const wantedFor = (path: string): Wanted => {
+    let wanted = wantedOf.get(path)
+    if (wanted === undefined) wantedOf.set(path, (wanted = { lines: new Map(), wholeUpTo: -1 }))
+    return wanted
   }
   for (const row of messages) {
     const message = row as { type?: string; message?: { content?: unknown } }
@@ -517,16 +563,50 @@ export function rebuildSeenLinesFromTranscript(owner: OwnerKey, messages: Readon
       if (block.type !== 'tool_result' || typeof block.tool_use_id !== 'string' || block.is_error === true || excludedResultIds?.has(block.tool_use_id)) continue
       const use = pathOfUse.get(block.tool_use_id)
       if (use === undefined) continue
+      const wanted = wantedFor(use.path)
       if (use.tool === 'Write' && use.content !== undefined) {
-        const state = linesOf(use.path)
-        if (state !== null && state.lines.join('\n') === use.content) {
-          recordWholeFileSeen(owner, use.path, state.generation, use.content)
-          summary.lines += state.lines.length
-          touched.add(use.path)
+        wanted.wholeUpTo = Math.max(wanted.wholeUpTo, Buffer.byteLength(use.content))
+        results.push({ path: use.path, written: use.content })
+        continue
+      }
+      const shown = shownLinesOf(textOfResult(block.content))
+      for (const [line, body] of shown) wanted.lines.set(line, Math.max(wanted.lines.get(line) ?? 0, 3 * body.length + 8))
+      results.push({ path: use.path, shown })
+    }
+  }
+  const current = new Map<string, ({ generation: string } & Scan) | null>()
+  const currentOf = (path: string): ({ generation: string } & Scan) | null => {
+    if (current.has(path)) return current.get(path)!
+    const scan = scanRegularFile(path, wantedFor(path))
+    const state = scan === null ? null : { ...scan, generation: ideFileGeneration(path) ?? scan.generation }
+    current.set(path, state)
+    return state
+  }
+  for (const result of results) {
+    const state = currentOf(result.path)
+    if (state === null) continue
+    if ('written' in result) {
+      if (state.whole !== null && state.whole.toString('utf8') === result.written) {
+        recordWholeFileSeen(owner, result.path, state.generation, result.written)
+        summary.lines += result.written.split('\n').length
+        touched.add(result.path)
+      }
+      continue
+    }
+    for (const [line, body] of result.shown) {
+      const found = state.lines.get(line)
+      if (found === undefined) continue
+      if (TRUNCATED_TAIL.test(body)) {
+        const prefix = body.replace(TRUNCATED_TAIL, '')
+        if (found.text.startsWith(prefix) && (!found.whole || found.text.length > prefix.length)) {
+          recordSeenLines(owner, result.path, state.generation, line, 1, [{ line, visibleChars: prefix.length }])
         }
         continue
       }
-      credit(use.path, shownLinesOf(textOfResult(block.content)))
+      if (!found.whole || found.text !== body) continue
+      recordSeenLines(owner, result.path, state.generation, line, 1)
+      summary.lines++
+      touched.add(result.path)
     }
   }
   summary.files = touched.size

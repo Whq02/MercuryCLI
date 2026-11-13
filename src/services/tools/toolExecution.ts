@@ -619,7 +619,7 @@ async function runTransactionBody(args: {
     canAnswerAsks() && toolUseContext.getAppState().toolPermissionContext.shouldAvoidPermissionPrompts !== true
   const judgement = await judgeToolCall(
     guardKeysOf(getSessionId(), toolUseContext.agentId),
-    { tool: tool.name, input: observableInput, callId: toolUseID, messages: toolUseContext.messages, toolRef: tool, asksAnswerable, offeredTools: toolUseContext.options.tools.map(offered => offered.name) },
+    { tool: tool.name, input: observableInput, callId: toolUseID, messages: toolUseContext.messages, offeredTools: toolUseContext.options.tools.map(offered => offered.name), toolRef: tool, asksAnswerable },
     signal,
   )
   hookNotes.push(...judgement.notes)
