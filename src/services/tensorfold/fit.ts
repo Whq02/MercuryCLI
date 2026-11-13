@@ -7,7 +7,7 @@ import type { TensorFoldFit, TensorFoldFitParts, TensorFoldLadderRung } from './
 import { GIB, TENSORFOLD_AGENT_FLOOR, TENSORFOLD_RAISED_LIMIT_BELOW_BYTES, TENSORFOLD_RAISED_LIMIT_REPOS, TENSORFOLD_RUNTIME_MARGIN, type TensorFoldCheckpoint } from './starting.js'
 
 const TENSORFOLD_ADMISSION_SHARE = 0.7
-const TENSORFOLD_PROMPT_CACHE_CAP_GIB = 16
+const TENSORFOLD_PROMPT_CACHE_FLOOR_GIB = 16
 const WIRED_LIMIT_MARGIN_BYTES = 4 * GIB
 const WIRED_LIMIT_OS_FLOOR_BYTES = 4 * GIB
 const WIRED_LIMIT_TIGHT_BYTES = 8 * GIB
@@ -117,14 +117,17 @@ export function gibOf(bytes: number): number {
   return bytes / GIB
 }
 
-function fitPartsOf(point: TensorFoldCheckpoint, window: number): TensorFoldFitParts {
-  const cacheCapped = point.promptCacheGib === undefined
+function promptCacheCapGib(neededBytes: number, machine: Pick<TensorFoldMachineTruth, 'platform' | 'ramBytes' | 'usableBytes'>): number {
+  const roomBytes = machine.platform === 'darwin' ? Math.round(machine.ramBytes * TENSORFOLD_ADMISSION_SHARE) - neededBytes : machine.usableBytes - neededBytes + TENSORFOLD_RUNTIME_MARGIN
+  return Math.max(TENSORFOLD_PROMPT_CACHE_FLOOR_GIB, Math.ceil(gibOf(roomBytes) * 5) / 10)
+}
+
+function fitPartsOf(point: TensorFoldCheckpoint, window: number, machine: Pick<TensorFoldMachineTruth, 'platform' | 'ramBytes' | 'usableBytes'>): TensorFoldFitParts {
   return {
     weightsGib: gibOf(point.weightsBytes),
     ...(point.drafter !== undefined ? { drafterGib: gibOf(point.drafter.weightsBytes) } : {}),
     cacheGib: gibOf(point.kvBytesPerToken * window),
-    ...(point.promptCacheGib !== undefined ? { promptCacheGib: point.promptCacheGib } : {}),
-    ...(cacheCapped ? { promptCacheCapGib: TENSORFOLD_PROMPT_CACHE_CAP_GIB } : {}),
+    ...(point.promptCacheGib !== undefined ? { promptCacheGib: point.promptCacheGib } : { promptCacheCapGib: promptCacheCapGib(tensorFoldProjectedBytes(point, window), machine) }),
     runtimeGib: gibOf(TENSORFOLD_RUNTIME_MARGIN),
   }
 }
@@ -148,7 +151,7 @@ export function wiredLimitRemedyWords(offer: WiredLimitOffer | null): string {
 
 function fitTensorFold(point: TensorFoldCheckpoint, window: number, machine: TensorFoldMachineTruth): TensorFoldFit {
   const neededBytes = tensorFoldProjectedBytes(point, window)
-  const base = { neededGib: gibOf(neededBytes), availableGib: gibOf(machine.usableBytes), estimate: true as const, parts: fitPartsOf(point, window) }
+  const base = { neededGib: gibOf(neededBytes), availableGib: gibOf(machine.usableBytes), estimate: true as const, parts: fitPartsOf(point, window, machine) }
   const admission = Math.round(machine.ramBytes * TENSORFOLD_ADMISSION_SHARE)
   if (tensorFoldFloorBytes(point) > admission) {
     return { ...base, verdict: 'too-big', reason: `its floor is past 70% of this machine's memory`, remedy: 'choose a smaller model' }

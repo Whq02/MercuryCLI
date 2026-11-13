@@ -140,6 +140,7 @@ function readGlmXml(body: string, toolOf: (name: string) => MarkupToolFacts | un
   let rest = head[2]!
   let pair: RegExpExecArray | null
   while ((pair = pairs.exec(head[2]!)) !== null) {
+    if (pair[2]!.includes('<arg_key>')) return null
     const key = pair[1]!.trim()
     args[key] = coerceValue(pair[2]!, tool, key)
     rest = rest.replace(pair[0], '')
