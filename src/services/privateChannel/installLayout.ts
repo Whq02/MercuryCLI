@@ -1,4 +1,4 @@
-import { execFileSync, spawn } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
@@ -993,6 +993,7 @@ function liesInside(root: string, path: string, isWindows: boolean): boolean {
 }
 
 const UNINSTALL_AFTER_EXIT_SCRIPT = [
+  "if ($env:MERCURY_UNINSTALL_READY) { try { [System.IO.File]::WriteAllText($env:MERCURY_UNINSTALL_READY, 'ready') } catch { } }",
   "$paths = $env:MERCURY_UNINSTALL_PATHS -split '\\|'",
   '$owner = 0',
   'if ([int]::TryParse($env:MERCURY_UNINSTALL_PID, [ref]$owner) -and $owner -gt 0) { Wait-Process -Id $owner -Timeout 120 -ErrorAction SilentlyContinue }',
@@ -1004,26 +1005,44 @@ const UNINSTALL_AFTER_EXIT_SCRIPT = [
   '}',
   '$d = $env:MERCURY_UNINSTALL_DIR',
   'if ($d -and (Test-Path -LiteralPath $d) -and -not (Get-ChildItem -LiteralPath $d -Force | Select-Object -First 1)) { Remove-Item -LiteralPath $d -Force -ErrorAction SilentlyContinue }',
+  'if ($env:MERCURY_UNINSTALL_READY) { Remove-Item -LiteralPath $env:MERCURY_UNINSTALL_READY -Force -ErrorAction SilentlyContinue }',
+].join('\n')
+
+const encodedPowerShell = (script: string): string => Buffer.from(script, 'utf16le').toString('base64')
+
+const UNINSTALL_STARTER_SCRIPT = [
+  "$ready = Join-Path ([System.IO.Path]::GetTempPath()) ('mercury-uninstall-' + [guid]::NewGuid().ToString('N') + '.ready')",
+  '$env:MERCURY_UNINSTALL_READY = $ready',
+  '$i = New-Object System.Diagnostics.ProcessStartInfo',
+  '$i.FileName = [System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName',
+  `$i.Arguments = '-NoLogo -NoProfile -NonInteractive -EncodedCommand ${encodedPowerShell(UNINSTALL_AFTER_EXIT_SCRIPT)}'`,
+  '$i.UseShellExecute = $false',
+  '$i.CreateNoWindow = $true',
+  '$p = [System.Diagnostics.Process]::Start($i)',
+  'if ($null -eq $p) { exit 3 }',
+  'for ($n = 0; $n -lt 150; $n++) {',
+  '  if (Test-Path -LiteralPath $ready) { exit 0 }',
+  '  if ($p.HasExited) { exit 4 }',
+  '  Start-Sleep -Milliseconds 100',
+  '}',
+  'exit 5',
 ].join('\n')
 
 function removeAfterExitOnWindows(paths: string[], versionsDir: string): boolean {
   if (process.platform !== 'win32') return false
   try {
-    const child = spawn(
+    const started = spawnSync(
       'powershell.exe',
-      ['-NoLogo', '-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-EncodedCommand', Buffer.from(UNINSTALL_AFTER_EXIT_SCRIPT, 'utf16le').toString('base64')],
+      ['-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', encodedPowerShell(UNINSTALL_STARTER_SCRIPT)],
       {
-        detached: true,
         stdio: 'ignore',
         windowsHide: true,
         cwd: homedir(),
+        timeout: 30_000,
         env: { ...subprocessEnv(), MERCURY_UNINSTALL_PATHS: paths.join('|'), MERCURY_UNINSTALL_DIR: versionsDir, MERCURY_UNINSTALL_PID: String(process.pid) },
       },
     )
-    child.on('error', () => {})
-    if (child.pid === undefined) return false
-    child.unref()
-    return true
+    return started.status === 0
   } catch {
     return false
   }
