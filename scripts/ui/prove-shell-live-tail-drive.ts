@@ -57,7 +57,7 @@ for (const cols of [120, 80]) {
     sends: [
       { awaitText: '│❯', afterPrevMs: 1000, text: '!' + demo },
       { awaitText: 'example.invalid', afterPrevMs: 1000, text: '\r' },
-      { awaitText: 'exit 0', afterPrevMs: 600, text: '!sh progress.sh' },
+      { awaitText: 'exit 0', afterPrevMs: 2500, text: '!sh progress.sh' },
       { awaitText: '│! sh progress.sh', afterPrevMs: 600, text: '\r' },
       { awaitText: '│❯', afterPrevMs: 11_000, text: '!sh many.sh' },
       { awaitText: '│! sh many.sh', afterPrevMs: 600, text: '\r' },
