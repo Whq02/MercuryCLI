@@ -1,12 +1,12 @@
 import { Lexer } from 'marked'
-import { dirname, extname } from 'path'
+import { basename, dirname, extname } from 'path'
 
 import { logForDebugging } from '../../utils/debug.js'
 import { parseFrontmatter, splitPathInFrontmatter } from '../../utils/frontmatterParser.js'
 import { stripBOM } from '../../utils/jsonRead.js'
 import type { MemoryType } from '../../utils/memory/types.js'
 import { expandPath } from '../../utils/path.js'
-import type { InstructionSourceEntry } from './contracts.js'
+import type { InstructionRuleFormat, InstructionRuleReading, InstructionSourceEntry } from './contracts.js'
 
 const COMPOSABLE_EXTENSIONS = {
   prose: ['.md', '.txt', '.text', '.rst', '.adoc', '.asciidoc', '.org', '.tex', '.latex'],
@@ -163,4 +163,20 @@ export function parseInstructionFileContent(
   const { content: body, paths } = parseFrontmatterPaths(raw)
   const { content, ...mentions } = readBody(body, includeBasePath)
   return { info: entryOf(filePath, type, raw, content, paths), ...mentions }
+}
+
+export function readRuleSource(
+  rawContent: string,
+  filePath: string,
+  type: MemoryType,
+  format: InstructionRuleFormat,
+): { info: InstructionSourceEntry; reading: InstructionRuleReading | null } {
+  const raw = stripBOM(rawContent)
+  const { frontmatter, content, parseError } = parseFrontmatter(raw, filePath)
+  const reading = parseError === undefined ? format.read(frontmatter, basename(filePath)) : null
+  const info: InstructionSourceEntry = { path: filePath, type, content, contentDiffersFromDisk: content !== raw }
+  if (reading === null) info.dormant = 'unreadable'
+  else if (reading.kind === 'scoped') info.globs = reading.globs
+  else if (reading.kind !== 'always') info.dormant = reading.kind
+  return { info, reading }
 }

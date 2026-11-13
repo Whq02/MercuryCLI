@@ -293,6 +293,7 @@ async function walkConventions(
                   processedPaths,
                   includeExternal,
                   conditionalRule: false,
+                  diagnostics,
                 }),
                 convention.family,
                 origin,
@@ -611,9 +612,12 @@ export async function getConditionalInstructionRulesForCwdLevelDirectory(
   processedPaths: Set<string>,
 ): Promise<InstructionSourceEntry[]> {
   if (untrustedWorkspaceHeadless()) return []
+  await getInstructionFiles()
   const results: InstructionSourceEntry[] = []
   const composedDigests = new Set<string>()
+  const reads = folderReader(resolve(getOriginalCwd()))
   for (const convention of activeConventions()) {
+    if ((convention.fallback && !lastComposition.fallbackComposed) || !reads(convention, dir)) continue
     for (const rulesDir of convention.projectRulesDirs(dir)) {
       const batch = await processConditionedRules(
         convention,

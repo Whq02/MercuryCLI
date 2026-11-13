@@ -66,5 +66,5 @@ export function composedGuideFilesAt(dir: string): string[] {
   if (hasPrimaryProjectFile(primary, chainOf(dir))) return []
   return conventions
     .filter(c => c.fallback)
-    .flatMap(c => c.projectDirFiles(dir).filter(path => isFile(path) && !c.isExcluded(path, 'Project')))
+    .flatMap(c => [...c.projectDirFiles(dir), ...c.projectRulesDirs(dir)].filter(path => isFile(path) && !c.isExcluded(path, 'Project')))
 }

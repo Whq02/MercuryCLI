@@ -18,7 +18,7 @@ type WorldEntry = {
 
 type WorldTouch = {
   file: string
-  attached: Array<{ path: string; told: string }>
+  attached: Array<{ path: string; told: string; partial: boolean }>
 }
 
 type WorldDrive = {
@@ -30,6 +30,7 @@ type WorldDrive = {
   touched: WorldTouch[]
   guides: string[]
   classified: Record<string, boolean>
+  seeded: string[]
 }
 
 type DriveOptions = {
@@ -49,7 +50,7 @@ const repo = ${JSON.stringify(repo)}
 const { enableConfigs } = await import(join(repo, 'src/utils/config/globalConfig.ts'))
 enableConfigs()
 const { getEmptyToolPermissionContext } = await import(join(repo, 'src/Tool.ts'))
-const { getInstructionFiles, getInstructionBundle, getInstructionCompositionState, isInstructionFilePath } = await import(join(repo, 'src/services/instructions/engine.ts'))
+const { getInstructionFiles, getInstructionBundle, getInstructionCompositionState, isInstructionFilePath, seedFileKnowledgeFromInjectedInstructions } = await import(join(repo, 'src/services/instructions/engine.ts'))
 const { getUserContext } = await import(join(repo, 'src/context.ts'))
 const { getNestedMemoryAttachmentsForFile } = await import(join(repo, 'src/utils/attachments/nestedMemory.ts'))
 const { normalizeAttachmentForAPI } = await import(join(repo, 'src/utils/messages/attachmentText.ts'))
@@ -68,8 +69,10 @@ const told = (attachment: unknown): string =>
 const touched = []
 for (const file of plan.touch ?? []) {
   const got = await getNestedMemoryAttachmentsForFile(file, context as never, state)
-  touched.push({ file, attached: got.map((a: any) => ({ path: a.path, told: told(a) })) })
+  touched.push({ file, attached: got.map((a: any) => ({ path: a.path, told: told(a), partial: context.readFileState.get(a.path)?.isPartialView === true })) })
 }
+const seedCache = createFileStateCacheWithSizeLimit(100)
+await seedFileKnowledgeFromInjectedInstructions(seedCache)
 writeFileSync(process.argv[2]!, JSON.stringify({
   paths: files.map((f: any) => f.path),
   first: (await getUserContext()).instructions ?? '',
@@ -79,6 +82,7 @@ writeFileSync(process.argv[2]!, JSON.stringify({
   touched,
   guides: composedGuideFilesAt(cwd),
   classified: Object.fromEntries((plan.classify ?? []).map((path: string) => [path, isInstructionFilePath(path)])),
+  seeded: files.map((f: any) => f.path).filter((path: string) => seedCache.has(path)),
 }))
 `
 
@@ -225,4 +229,146 @@ export function guideBattery({ world, check, section, file, convention }: GuideC
   const beside = world.project({ 'AGENTS.md': 'agents-needle\n', [file]: 'guide-needle\n' })
   const d9 = world.drive(beside)
   check('both compose, AGENTS.md first', JSON.stringify(d9.paths) === JSON.stringify([join(beside, 'AGENTS.md'), join(beside, file)]), d9.paths.join(', '))
+}
+
+export const governs = (path: string, patterns: string, body: string): string => `Instruction file ${path} (it governs files matching ${patterns}):\n\n${body}`
+
+type RulesCase = {
+  world: World
+  check(label: string, ok: boolean, detail?: string): void
+  section(title: string): void
+  convention: string
+  folder: string
+  ext: string
+  always(body: string): string
+  scoped(patterns: string[], body: string): string
+}
+
+export function rulesBattery({ world, check, section, convention, folder, ext, always, scoped }: RulesCase): void {
+  const rule = (name: string): string => `${folder}/${name}${ext}`
+  const attachedPaths = (touch: WorldTouch): string[] => touch.attached.map(a => a.path)
+
+  section(`${folder}: a rule that always applies reaches the first request, a scoped one does not`)
+  const p1 = world.project({
+    [rule('10-general')]: always('always-needle\n'),
+    [rule('20-typescript')]: scoped(['src/**/*.ts'], 'typescript-needle\n'),
+    [rule('30-docs')]: scoped(['docs/**'], 'docs-needle\n'),
+    'src/app/main.ts': '\n',
+    'src/app/other.ts': '\n',
+    'docs/guide.md': '\n',
+    'README.md': 'x\n',
+  })
+  const general = join(p1, rule('10-general'))
+  const typescript = join(p1, rule('20-typescript'))
+  const d1 = world.drive(p1, {
+    classify: [general, typescript],
+    touch: [join(p1, 'README.md'), join(p1, 'src/app/main.ts'), join(p1, 'src/app/other.ts'), join(p1, 'docs/guide.md')],
+  })
+  check('the first request carries the always rule alone, its header stripped, in the form a shared guide has', d1.first === contentsOf(general, 'always-needle'), d1.first)
+  const entry = d1.entries.find(e => e.path === general)
+  check('the entry is shared, from the project walk, and names its format', entry?.family === 'shared' && entry.origin === 'project-walk' && entry.convention === convention, JSON.stringify(entry))
+  check('both rule files classify as instruction files', d1.classified[general] === true && d1.classified[typescript] === true, JSON.stringify(d1.classified))
+  check('a file no pattern names attaches nothing', d1.touched[0]!.attached.length === 0, JSON.stringify(d1.touched[0]))
+  check('a matching file attaches its rule, saying what it governs', d1.touched[1]!.attached.length === 1 && d1.touched[1]!.attached[0]!.told.includes(governs(typescript, 'src/**/*.ts', 'typescript-needle')), JSON.stringify(d1.touched[1]))
+  check('the attached rule is held as a partial view: its header was not shown', d1.touched[1]!.attached[0]?.partial === true)
+  check('a second matching file attaches nothing more', d1.touched[2]!.attached.length === 0, JSON.stringify(d1.touched[2]))
+  check('a file of the other scope attaches the other rule', JSON.stringify(attachedPaths(d1.touched[3]!)) === JSON.stringify([join(p1, rule('30-docs'))]), JSON.stringify(d1.touched[3]))
+  check('a rule whose header was stripped is not counted as read in full', !d1.seeded.includes(general), d1.seeded.join(', '))
+
+  section(`${folder}: the vendor's patterns: no slash means the root's files, braces and lists hold`)
+  const p2 = world.project({
+    [rule('root-only')]: scoped(['*.ts'], 'root-only-needle\n'),
+    [rule('anywhere')]: scoped(['**/*.py'], 'anywhere-needle\n'),
+    [rule('braces')]: scoped(['web/**/*.{tsx,css}'], 'braces-needle\n'),
+    [rule('listed')]: scoped(['api/**', 'schema/*.sql'], 'listed-needle\n'),
+    [rule('folder')]: scoped(['tools/'], 'folder-needle\n'),
+    'top.ts': '\n', 'src/deep.ts': '\n', 'run.py': '\n', 'pkg/deep/run.py': '\n',
+    'web/ui/a.tsx': '\n', 'web/ui/a.css': '\n', 'web/ui/a.ts': '\n',
+    'api/v1/h.go': '\n', 'schema/a.sql': '\n', 'schema/old/a.sql': '\n', 'tools/x/y.sh': '\n',
+  })
+  const touchOne = (file: string): string[] => attachedPaths(world.drive(p2, { touch: [join(p2, file)] }).touched[0]!)
+  const names = (paths: string[]): string => paths.map(path => path.split('/').at(-1)!.replace(ext, '')).join(',')
+  check('*.ts governs a file in the root', names(touchOne('top.ts')) === 'root-only', names(touchOne('top.ts')))
+  check('*.ts does not govern a file in a folder below', names(touchOne('src/deep.ts')) === '', names(touchOne('src/deep.ts')))
+  check('**/*.py governs the root and any depth', names(touchOne('run.py')) === 'anywhere' && names(touchOne('pkg/deep/run.py')) === 'anywhere')
+  check('a brace group governs each alternative and nothing else', names(touchOne('web/ui/a.tsx')) === 'braces' && names(touchOne('web/ui/a.css')) === 'braces' && names(touchOne('web/ui/a.ts')) === '')
+  check('each pattern of a list governs its own files and no deeper than it says', names(touchOne('api/v1/h.go')) === 'listed' && names(touchOne('schema/a.sql')) === 'listed' && names(touchOne('schema/old/a.sql')) === '')
+  check('a pattern ending in a slash governs the folder', names(touchOne('tools/x/y.sh')) === 'folder', names(touchOne('tools/x/y.sh')))
+
+  section(`${folder}: found from any folder of the repository, matched from the folder that owns it`)
+  const p3 = world.project({
+    [rule('general')]: always('outer-always-needle\n'),
+    [rule('packages')]: scoped(['packages/app/**/*.ts'], 'outer-scoped-needle\n'),
+    [`packages/app/${rule('local')}`]: scoped(['lib/**'], 'inner-scoped-needle\n'),
+    'packages/app/lib/a.ts': '\n',
+    'packages/app/main.go': '\n',
+  })
+  const d3 = world.drive(join(p3, 'packages/app'), { trust: p3, touch: [join(p3, 'packages/app/main.go'), join(p3, 'packages/app/lib/a.ts')] })
+  check('started below it, the always rule of the folder above composes', d3.first === contentsOf(join(p3, rule('general')), 'outer-always-needle'), d3.first)
+  check('a file neither scope names attaches nothing', d3.touched[0]!.attached.length === 0, JSON.stringify(d3.touched[0]))
+  check('each rule is matched from its own owning folder', JSON.stringify(attachedPaths(d3.touched[1]!).sort()) === JSON.stringify([join(p3, rule('packages')), join(p3, 'packages/app', rule('local'))].sort()), JSON.stringify(d3.touched[1]))
+
+  section(`${folder}: a rules folder in a nested folder loads with its folder`)
+  const p4 = world.project({
+    'README.md': 'x\n',
+    [`sub/${rule('general')}`]: always('nested-always-needle\n'),
+    [`sub/${rule('scoped')}`]: scoped(['lib/**'], 'nested-scoped-needle\n'),
+    'sub/main.go': '\n',
+    'sub/lib/a.go': '\n',
+    'elsewhere/lib/a.go': '\n',
+  })
+  const d4 = world.drive(p4, { touch: [join(p4, 'elsewhere/lib/a.go'), join(p4, 'sub/main.go'), join(p4, 'sub/lib/a.go')] })
+  check('the first request carries neither', d4.first === '', d4.first)
+  check('a file elsewhere attaches nothing', d4.touched[0]!.attached.length === 0, JSON.stringify(d4.touched[0]))
+  check('a file in the nested folder attaches its always rule alone', JSON.stringify(attachedPaths(d4.touched[1]!)) === JSON.stringify([join(p4, 'sub', rule('general'))]), JSON.stringify(d4.touched[1]))
+  check('a file its scoped rule names, read from the nested folder, attaches that rule', JSON.stringify(attachedPaths(d4.touched[2]!)) === JSON.stringify([join(p4, 'sub', rule('scoped'))]), JSON.stringify(d4.touched[2]))
+
+  section(`${folder}: MERCURY.md decides, on every road`)
+  const p5 = world.project({
+    'MERCURY.md': 'native-needle\n',
+    [rule('general')]: always('always-needle\n'),
+    [rule('typescript')]: scoped(['src/**/*.ts'], 'typescript-needle\n'),
+    [`sub/${rule('general')}`]: always('nested-always-needle\n'),
+    'src/a.ts': '\n',
+    'sub/a.ts': '\n',
+  })
+  const d5 = world.drive(p5, { classify: [join(p5, rule('general'))], touch: [join(p5, 'src/a.ts'), join(p5, 'sub/a.ts')] })
+  check('the first request carries MERCURY.md alone', d5.first === contentsOf(join(p5, 'MERCURY.md'), 'native-needle'), d5.first)
+  check('a matching file attaches nothing', d5.touched[0]!.attached.length === 0, JSON.stringify(d5.touched[0]))
+  check('a nested rules folder attaches nothing', d5.touched[1]!.attached.length === 0, JSON.stringify(d5.touched[1]))
+  check('the rule file is an ordinary file there', d5.classified[join(p5, rule('general'))] === false)
+  const p5b = world.project({
+    [rule('typescript')]: scoped(['**/*.ts'], 'typescript-needle\n'),
+    'mixed/MERCURY.md': 'nested-native-needle\n',
+    [`mixed/${rule('general')}`]: always('nested-always-needle\n'),
+    'mixed/a.ts': '\n',
+  })
+  const d5b = world.drive(p5b, { touch: [join(p5b, 'mixed/a.ts')] })
+  check('a nested folder with its own MERCURY.md attaches that and not its rules folder', attachedPaths(d5b.touched[0]!).includes(join(p5b, 'mixed/MERCURY.md')) && !attachedPaths(d5b.touched[0]!).includes(join(p5b, 'mixed', rule('general'))), JSON.stringify(d5b.touched[0]))
+
+  section(`${folder}: the native profile, the exclusion list, an untrusted folder, the home folder`)
+  const d6 = world.drive(p1, { settings: { briefs: { profile: 'native' } }, touch: [join(p1, 'src/app/main.ts')] })
+  check('the native profile composes nothing and attaches nothing', d6.first === '' && d6.touched[0]!.attached.length === 0, JSON.stringify(d6.touched[0]))
+  const d6b = world.drive(p1, { settings: { briefs: { exclude: [`**/${folder}/**`] } }, touch: [join(p1, 'src/app/main.ts')] })
+  check('an excluded rules folder composes nothing and attaches nothing', d6b.first === '' && d6b.touched[0]!.attached.length === 0, JSON.stringify(d6b.touched[0]))
+  const d6c = world.drive(p1, { untrusted: true, touch: [join(p1, 'src/app/main.ts')] })
+  check('a folder never trusted composes nothing and attaches nothing headless', d6c.first === '' && d6c.touched[0]!.attached.length === 0, JSON.stringify(d6c.touched[0]))
+  const p6 = world.project({
+    [rule('personal')]: always('home-always-needle\n'),
+    [rule('personal-scoped')]: scoped(['**/*.ts'], 'home-scoped-needle\n'),
+    'work/proj/a.ts': '\n',
+  })
+  const d6d = world.drive(join(p6, 'work/proj'), { home: p6, trust: p6, touch: [join(p6, 'work/proj/a.ts')] })
+  check("the home folder's own rules folder neither composes nor attaches", d6d.first === '' && d6d.touched[0]!.attached.length === 0, `${d6d.first} ${JSON.stringify(d6d.touched[0])}`)
+
+  section(`${folder}: which files are rules, and in what order`)
+  const p7 = world.project({
+    [rule('b-second')]: always('second-needle\n'),
+    [rule('a-first')]: always('first-needle\n'),
+    [`${folder}/web/${`c-third${ext}`}`]: always('third-needle\n'),
+    [`${folder}/notes.txt`]: 'stray-needle\n',
+  })
+  const d7 = world.drive(p7)
+  check('rules compose in name order, a subfolder among them', JSON.stringify(d7.paths) === JSON.stringify([join(p7, rule('a-first')), join(p7, rule('b-second')), join(p7, folder, 'web', `c-third${ext}`)]), d7.paths.join(', '))
+  check('a file the format does not name is not a rule', !d7.first.includes('stray-needle'), d7.first)
 }
