@@ -37,6 +37,7 @@ import {
   remoteRulePattern,
   remoteSessionRule,
 } from '../../services/remoteFiles/target.js'
+import { remoteLocalForms } from '../../services/remoteFiles/thisMachine.js'
 
 
 const DANGEROUS_FILES: string[] = [
@@ -909,12 +910,38 @@ function ruleDecision(
 
 const REMOTE_FILE_TOOLS: ReadonlySet<string> = new Set(['Read', 'Edit', 'Write', 'Grep', 'Glob'])
 
+export function remoteFloorRefusal(
+  path: string,
+  toolType: 'edit' | 'read',
+  context: ToolPermissionContext,
+  sameMachine = false,
+): string | null {
+  for (const local of remoteLocalForms(path, sameMachine) ?? []) {
+    if (toolType === 'read') {
+      const secret = mercurySecretPath(local)
+      if (secret !== null) {
+        return `Reading ${path} is refused: ${secret} holds Mercury's own credentials; use the product's sign-in and account surfaces instead.`
+      }
+      continue
+    }
+    const runtime = runtimeWritePath(local)
+    if (runtime !== null) return 'Writing ' + path + ' is refused: ' + runtime + ' is part of Mercury’s running runtime.'
+    const credential = credentialStorePath(local)
+    if (credential !== null && (context.mode === 'apollo' || exactCredentialStoreGrant(local, credential, context) === undefined)) {
+      return 'Writing ' + path + ' is refused: ' + credential + ' is a protected system or credential path.'
+    }
+  }
+  return null
+}
+
 function checkRemotePermission(
   path: string,
   input: unknown,
   context: ToolPermissionContext,
   toolType: 'edit' | 'read',
 ): PermissionDecision {
+  const floor = remoteFloorRefusal(path, toolType, context)
+  if (floor !== null) return deny(floor, { type: 'other', reason: floor })
   const subject = `${toolType === 'read' ? 'Reading' : 'Editing'} ${path}`
   const denied = matchingRuleForInput(path, context, toolType, 'deny')
   if (denied) return ruleDecision('deny', subject, context, denied, () => matchingRulesForInput(path, context, toolType, 'deny'))
