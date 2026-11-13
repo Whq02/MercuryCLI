@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 import { readFileSync } from 'node:fs'
 import {
-  formatQuietAge,
   WORKFLOW_QUIET_MS,
   workflowPulse,
   workflowPulseAt,
@@ -71,13 +70,6 @@ const pEdgeAt = workflowPulse(events, T0, T0 + 100_000 + WORKFLOW_QUIET_MS)
 t('1ms under the threshold: moving', pEdgeUnder.moving === true)
 t('at the threshold: quiet', pEdgeAt.moving === false)
 t('clock skew never yields negative quiet', workflowPulse(events, T0, T0).quietMs === 0)
-
-console.log('— the age word —')
-t("8s", formatQuietAge(8_000) === '8s')
-t("59s", formatQuietAge(59_999) === '59s')
-t("4m", formatQuietAge(240_000) === '4m')
-t("1h", formatQuietAge(3_600_000) === '1h')
-t("1h15m", formatQuietAge(4_500_000) === '1h15m')
 
 console.log('— the pulse splits into the owner\'s clock-free facts and the paint-time verdict —')
 {

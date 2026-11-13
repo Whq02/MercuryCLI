@@ -89,6 +89,16 @@ export function formatBarElapsed(ms: number): string {
   return `${Math.floor(total / 86_400)}d${pad(Math.floor((total % 86_400) / 3600))}h`
 }
 
+export function formatQuietAge(quietMs: number): string {
+  const s = Math.floor(quietMs / 1000)
+  if (s < 60) return `${s}s`
+  const m = Math.floor(s / 60)
+  if (m < 60) return `${m}m`
+  const h = Math.floor(m / 60)
+  const rem = m % 60
+  return rem > 0 ? `${h}h${rem}m` : `${h}h`
+}
+
 
 const COMPACT_FIXED = new Intl.NumberFormat('en-US', {
   notation: 'compact',

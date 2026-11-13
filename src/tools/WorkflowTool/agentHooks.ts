@@ -62,7 +62,7 @@ import {
   getSchemaBoundStructuredOutputTool,
   STRUCTURED_OUTPUT_TOOL_NAME,
 } from '../SyntheticOutputTool/structuredOutputTool.js'
-import { formatQuietAge } from './livePulse.js'
+import { formatQuietAge } from '../../utils/format.js'
 import {
   addWorkflowUsage,
   EMPTY_WORKFLOW_USAGE,

@@ -1,8 +1,7 @@
 import type { RequestWaitV1 } from '../../services/providers/streamIdleBudget.js'
 import type { LiveTurnFactsV1 } from '../../services/engine-connector/seatLive.js'
 import { stringWidth } from '../../ink/stringWidth.js'
-import { formatDuration, formatTokens } from '../../utils/format.js'
-import { formatQuietAge } from '../../tools/WorkflowTool/livePulse.js'
+import { formatDuration, formatQuietAge, formatTokens } from '../../utils/format.js'
 
 export type LiveCounterPhase = 'thinking' | 'writing' | 'working' | 'waiting'
 

@@ -9,16 +9,13 @@ import type {
   LocalWorkflowTaskState,
   WorkflowProgressEvent,
 } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
-import {
-  formatQuietAge,
-  workflowPulse,
-} from '../../tools/WorkflowTool/livePulse.js'
+import { workflowPulse } from '../../tools/WorkflowTool/livePulse.js'
 import {
   buildAgentSummaries,
   groupAgentsByPhase,
   type WorkflowPhaseEventLite,
 } from '../../tools/WorkflowTool/runManifest.js'
-import { formatDuration } from '../../utils/format.js'
+import { formatDuration, formatQuietAge } from '../../utils/format.js'
 import { plural } from '../../utils/stringUtils.js'
 import { Byline } from '../design-system/Byline.js'
 import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'

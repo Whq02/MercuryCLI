@@ -5,11 +5,11 @@ import { Text } from '../../ink.js'
 import { AMBER, CRIMSON, FAINT, TEAL } from '../../components/mercuryPalette.js'
 import { useNowTick } from '../../components/mercury-ui/components.js'
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
-import { formatDuration, formatTokens } from '../../utils/format.js'
+import { formatDuration, formatQuietAge, formatTokens } from '../../utils/format.js'
 import { plural } from '../../utils/stringUtils.js'
 import { useFocusedWorkRows } from '../../components/tasks/useFocusedWork.js'
 import { workRowRuns } from '../../services/engine-connector/workCounts.js'
-import { formatQuietAge, workflowPulseAt } from './livePulse.js'
+import { workflowPulseAt } from './livePulse.js'
 
 const BROKEN_SCRIPT_PREVIEW_COLS = 80
 
