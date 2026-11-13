@@ -13,6 +13,7 @@ import {
   blitRegion,
   CellWidth,
   extractHyperlinkFromStyles,
+  fillRegion,
   filterOutHyperlinkStyles,
   markNoSelectRegion,
   OSC8_PREFIX,
@@ -50,6 +51,14 @@ type WriteOp = {
   text: string
   softWrap?: boolean[]
 }
+type FillOp = {
+  type: 'fill'
+  x: number
+  y: number
+  width: number
+  height: number
+  styleId: number
+}
 type ClipOp = { type: 'clip'; clip: Clip }
 type UnclipOp = { type: 'unclip' }
 type BlitOp = { type: 'blit'; src: Screen; x: number; y: number; width: number; height: number }
@@ -67,6 +76,7 @@ type ShiftRectOp = {
 
 type Operation =
   | WriteOp
+  | FillOp
   | ClipOp
   | UnclipOp
   | BlitOp
@@ -95,7 +105,7 @@ function minDefined(a: number | undefined, b: number | undefined): number | unde
   return a < b ? a : b
 }
 
-export const lastComposeCounts = { blit: 0, write: 0, clearArea: 0, ops: 0 }
+export const lastComposeCounts = { blit: 0, write: 0, fill: 0, clearArea: 0, ops: 0 }
 
 type Options = {
   width: number
@@ -112,6 +122,7 @@ export default class ComposeBuffer {
   private readonly operations: Operation[] = []
   private clusterCache: Map<string, ClusteredChar[]> = new Map()
   private sliceCache: Map<string, string> = new Map()
+  private fillStyleCache: Map<string, number> = new Map()
 
   constructor(options: Options) {
     this.width = options.width
@@ -129,11 +140,27 @@ export default class ComposeBuffer {
     resetScreen(screen, width, height)
     if (this.clusterCache.size > 16384) this.clusterCache.clear()
     if (this.sliceCache.size > 16384) this.sliceCache.clear()
+    if (this.fillStyleCache.size > 1024) this.fillStyleCache.clear()
   }
 
   write(x: number, y: number, text: string, softWrap?: boolean[]): void {
     if (!text) return
     this.operations.push({ type: 'write', x, y, text, softWrap })
+  }
+
+  fill(x: number, y: number, width: number, height: number, styledSpace?: string): void {
+    if (width <= 0 || height <= 0) return
+    let styleId = this.stylePool.none
+    if (styledSpace !== undefined) {
+      const cached = this.fillStyleCache.get(styledSpace)
+      if (cached !== undefined) {
+        styleId = cached
+      } else {
+        styleId = clusterStyledLine(styledSpace, this.stylePool)[0]?.styleId ?? this.stylePool.none
+        this.fillStyleCache.set(styledSpace, styleId)
+      }
+    }
+    this.operations.push({ type: 'fill', x, y, width, height, styleId })
   }
 
   clip(clip: Clip): void {
@@ -170,9 +197,9 @@ export default class ComposeBuffer {
     const H = this.height
     let blitCells = 0
     let writeCells = 0
+    let fillCells = 0
     let clearArea = 0
 
-    const absoluteClears: Rectangle[] = []
     for (const op of this.operations) {
       if (op.type !== 'clear') continue
       const x0 = Math.max(0, op.region.x)
@@ -183,7 +210,6 @@ export default class ComposeBuffer {
       const rect = { x: x0, y: y0, width: x1 - x0, height: y1 - y0 }
       screen.damage = screen.damage ? unionRect(screen.damage, rect) : rect
       clearArea += rect.width * rect.height
-      if (op.fromAbsolute) absoluteClears.push(rect)
     }
 
     const clips: Clip[] = []
@@ -219,30 +245,24 @@ export default class ComposeBuffer {
           const x1 = Math.min(op.x + op.width, W, op.src.width, clip?.x2 ?? Infinity)
           const y1 = Math.min(op.y + op.height, H, op.src.height, clip?.y2 ?? Infinity)
           if (x0 >= x1 || y0 >= y1) continue
-          if (absoluteClears.length === 0) {
-            blitRegion(screen, op.src, x0, y0, x1, y1)
-            blitCells += (y1 - y0) * (x1 - x0)
-            continue
-          }
-          let bandStart = y0
-          for (let row = y0; row <= y1; row++) {
-            const excluded =
-              row < y1 &&
-              absoluteClears.some(
-                r => row >= r.y && row < r.y + r.height && x0 >= r.x && x1 <= r.x + r.width,
-              )
-            if (excluded || row === y1) {
-              if (row > bandStart) {
-                blitRegion(screen, op.src, x0, bandStart, x1, row)
-                blitCells += (row - bandStart) * (x1 - x0)
-              }
-              bandStart = row + 1
-            }
-          }
+          blitRegion(screen, op.src, x0, y0, x1, y1)
+          blitCells += (y1 - y0) * (x1 - x0)
           continue
         }
         case 'write': {
           writeCells += this.applyWrite(op, clips.at(-1))
+          continue
+        }
+        case 'fill': {
+          const clip = clips.at(-1)
+          const x0 = Math.max(op.x, clip?.x1 ?? 0)
+          const y0 = Math.max(op.y, clip?.y1 ?? 0)
+          const x1 = Math.min(op.x + op.width, W, clip?.x2 ?? Infinity)
+          const y1 = Math.min(op.y + op.height, H, clip?.y2 ?? Infinity)
+          if (x0 < x1 && y0 < y1) {
+            fillRegion(screen, x0, y0, x1 - x0, y1 - y0, op.styleId)
+            fillCells += (y1 - y0) * (x1 - x0)
+          }
           continue
         }
         case 'noSelect':
@@ -264,6 +284,7 @@ export default class ComposeBuffer {
     }
     lastComposeCounts.blit = blitCells
     lastComposeCounts.write = writeCells
+    lastComposeCounts.fill = fillCells
     lastComposeCounts.clearArea = clearArea
     lastComposeCounts.ops = this.operations.length
     return screen

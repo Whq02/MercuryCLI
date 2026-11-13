@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import assert from 'node:assert/strict'
@@ -54,6 +55,37 @@ function exportedNames(root: string, files: readonly string[]): Map<string, Set<
   }))
 }
 
+type MovementRecord = { note: string; digest: string | null }
+
+const shapeDigest = (value: unknown): string => createHash('sha256').update(JSON.stringify(value)).digest('hex')
+
+function checkShapeExports(
+  before: Record<string, unknown>,
+  after: Record<string, unknown>,
+  moved: ReadonlyMap<string, MovementRecord>,
+  quiet = false,
+): number {
+  let named = 0
+  for (const [name, expected] of Object.entries(before)) {
+    assert.ok(Object.hasOwn(after, name), `export disappeared: ${name}`)
+    try {
+      assert.deepEqual(after[name], expected)
+    } catch (error) {
+      const record = moved.get(`shape:${name}`)
+      assert.ok(record, `export shape changed: ${name} — ${String(error)}`)
+      const actualDigest = shapeDigest(after[name])
+      assert.equal(
+        actualDigest,
+        record.digest,
+        `export shape drifted past its recorded movement: ${name} — expected ${record.digest}, got ${actualDigest} (${record.note})`,
+      )
+      named++
+      if (!quiet) console.log(`[NAMED] ${name} (${actualDigest.slice(0, 12)}) — ${record.note}`)
+    }
+  }
+  return named
+}
+
 const own = argument('--work-dir') === undefined
 const work = argument('--work-dir') ?? scratch('engine-contract-')
 try {
@@ -68,28 +100,28 @@ try {
   assert.equal(recorded.base, BASE)
   const before = recorded.exports as Record<string, unknown>
   const after = contract(ROOT)
-  const moved = new Map<string, string>()
+  const moved = new Map<string, MovementRecord>()
   const records = readFileSync(join(import.meta.dir, 'contract-moved.tsv'), 'utf8').trimEnd().split('\n')
-  assert.equal(records.shift(), 'kind\tname\treason\tlane\tcommit')
+  assert.equal(records.shift(), 'kind\tname\treason\tlane\tcommit\tdigest')
   for (const line of records) {
-    const [kind, name, reason, lane, commit, extra] = line.split('\t')
+    const [kind, name, reason, lane, commit, digest, extra] = line.split('\t')
     assert.ok(kind && name && reason && lane && commit && extra === undefined, `incomplete movement record: ${line}`)
     assert.ok(kind === 'shape' || kind === 'unexported', `unknown movement kind: ${line}`)
-    assert.ok(!moved.has(`${kind}:${name}`), `duplicate movement record: ${line}`)
-    moved.set(`${kind}:${name}`, `${reason} (${lane}, ${commit})`)
-  }
-  let named = 0
-  for (const [name, expected] of Object.entries(before)) {
-    assert.ok(Object.hasOwn(after, name), `export disappeared: ${name}`)
-    try {
-      assert.deepEqual(after[name], expected)
-    } catch (error) {
-      const record = moved.get(`shape:${name}`)
-      assert.ok(record, `export shape changed: ${name} — ${String(error)}`)
-      named++
-      console.log(`[NAMED] ${name} — ${record}`)
+    if (kind === 'shape') {
+      assert.ok(digest !== undefined && /^[0-9a-f]{64}$/.test(digest), `shape movement record requires a 64-hex sha256 digest: ${line}`)
+    } else {
+      assert.equal(digest, undefined, `unexported movement record carries no shape digest: ${line}`)
     }
+    assert.ok(!moved.has(`${kind}:${name}`), `duplicate movement record: ${line}`)
+    moved.set(`${kind}:${name}`, { note: `${reason} (${lane}, ${commit})`, digest: digest ?? null })
   }
+  let named = checkShapeExports(before, after, moved)
+  const driftedTarget = 'src/ink/components/ScrollBox.tsx:ScrollBoxProps'
+  const driftedAfter = { ...after, [driftedTarget]: { ...(after[driftedTarget] as Record<string, unknown>), drifted: true } }
+  assert.throws(
+    () => checkShapeExports(before, driftedAfter, moved, true),
+    /export shape drifted past its recorded movement/,
+  )
   let kept = 0
   if (hasBaseObject()) {
     const removed: Array<{ path: string; line: string }> = []
@@ -110,7 +142,7 @@ try {
       const record = moved.get(`unexported:${declared}`)
       assert.ok(record, `an exported declaration was removed or renamed: ${declared}`)
       named++
-      console.log(`[NAMED] -export ${declared} — ${record}`)
+      console.log(`[NAMED] -export ${declared} — ${record.note}`)
     }
     if (kept > 0) console.log(`[KEPT] ${kept} export line(s) rewritten in place — the same name is still exported by the same file`)
   } else {

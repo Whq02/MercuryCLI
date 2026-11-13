@@ -144,7 +144,7 @@ const sizeNode: Rule = (node, style) => {
 }
 
 const showNode: Rule = (node, style) => {
-  if ('display' in style) node.setDisplay(style.display === 'flex' ? LayoutDisplay.Flex : LayoutDisplay.None)
+  if ('display' in style) node.setDisplay(style.display === 'none' ? LayoutDisplay.None : LayoutDisplay.Flex)
 }
 
 const edgeNode: Rule = (node, style, resolved) => {

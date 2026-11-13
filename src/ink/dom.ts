@@ -1,6 +1,6 @@
 
 import measureText from './measure-text.js'
-import { addPendingClear, nodeCache, noteChildRemoved } from './node-cache.js'
+import { addPendingClear, nodeCache, noteChildRemoved, setChildReach } from './node-cache.js'
 import { createLayoutNode } from './layout/engine.js'
 import { LayoutMeasureMode, type LayoutNode } from './layout/node.js'
 import type { FocusManager } from './focus.js'
@@ -149,11 +149,14 @@ export function appendChildNode(parent: DOMElement, child: DOMNode): void {
   if (child.parentNode) removeChildNode(child.parentNode, child)
   child.parentNode = parent
   parent.childNodes.push(child)
-  if (isElement(child) && child.layoutNode && parent.layoutNode) {
-    parent.layoutNode.insertChild(
-      child.layoutNode,
-      layoutIndexFor(parent, parent.childNodes.length - 1),
-    )
+  if (isElement(child)) {
+    child.dirty = true
+    if (child.layoutNode && parent.layoutNode) {
+      parent.layoutNode.insertChild(
+        child.layoutNode,
+        layoutIndexFor(parent, parent.childNodes.length - 1),
+      )
+    }
   }
   markDirty(parent)
 }
@@ -171,11 +174,14 @@ export function insertBeforeNode(
   }
   newChild.parentNode = parent
   parent.childNodes.splice(referenceIndex, 0, newChild)
-  if (isElement(newChild) && newChild.layoutNode && parent.layoutNode) {
-    parent.layoutNode.insertChild(
-      newChild.layoutNode,
-      layoutIndexFor(parent, referenceIndex),
-    )
+  if (isElement(newChild)) {
+    newChild.dirty = true
+    if (newChild.layoutNode && parent.layoutNode) {
+      parent.layoutNode.insertChild(
+        newChild.layoutNode,
+        layoutIndexFor(parent, referenceIndex),
+      )
+    }
   }
   markDirty(parent)
 }
@@ -189,7 +195,7 @@ function collectRemovalRects(
   const absolute = inheritedAbsolute || node.style.position === 'absolute'
   const rect = nodeCache.get(node)
   if (rect) {
-    addPendingClear(parent, rect, absolute)
+    addPendingClear(parent, rect.reach ?? rect, absolute)
     nodeCache.delete(node)
   } else if (absolute) {
     addPendingClear(parent, { x: 0, y: 0, width: 0, height: 0 }, true)
@@ -201,9 +207,12 @@ function collectRemovalRects(
 
 export function removeChildNode(parent: DOMElement, node: DOMNode): void {
   collectRemovalRects(parent, node, false)
-  if (isElement(node) && node.layoutNode && parent.layoutNode) {
-    parent.layoutNode.removeChild(node.layoutNode)
-    noteChildRemoved(parent)
+  if (isElement(node)) {
+    setChildReach(parent, node, false)
+    if (node.layoutNode && parent.layoutNode) {
+      parent.layoutNode.removeChild(node.layoutNode)
+      noteChildRemoved(parent)
+    }
   }
   node.parentNode = undefined
   const index = parent.childNodes.indexOf(node)
