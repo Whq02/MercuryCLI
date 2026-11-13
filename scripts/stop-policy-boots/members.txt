@@ -7,3 +7,4 @@ prove-empty-reply-note.ts
 prove-repetition-guard-roads.ts
 prove-one-shot-open-deliverables.ts
 prove-announced-step-nudge.ts
+prove-second-chant-left-alone.ts

@@ -553,7 +553,7 @@ try {
     }
   }
 
-  section('F11 — the built bundle, a reply that repeats itself to the output ceiling, twice: the loop guard asks once for something new, the second reply repeats again, the run lets it stand and ends the turn; a second process resumes')
+  section('F11 — the built bundle, a reply that repeats itself to the output ceiling, twice: the loop guard asks once for something new, the second reply repeats again, and with nobody at the run the guard ends the turn (loop_stopped); a second process resumes')
   {
     const SID11 = 'facef00d-0000-4000-8000-0000000fc001'
     const chanted: ScriptedTurn = { kind: 'text', text: 'F11 will now go through the list again from the first item. '.repeat(14), stopReason: 'max_tokens' }
@@ -567,7 +567,7 @@ try {
       const standing = record.filter(row => row.type === 'assistant' && row.isApiErrorMessage !== true && row.retracted !== true)
       const lastReply = standing.at(-1)
       const behind = lastReply === undefined ? [] : record.slice(record.indexOf(lastReply) + 1)
-      check('F11: the run asked twice and ended the turn itself (its outcome row: failed, stop max_tokens); the record holds the second reply stamped max_tokens and, behind it, the guard\'s line that the reply stands', asked === 2 && first.stdout.includes('"status":"failed"') && first.stdout.includes('"stop":"max_tokens"') && stopOf(lastReply) === 'max_tokens' && behind.some(row => noticeSays(row, 'the reply stands')), `exit=${first.exit} asked=${asked} ${j({ stop: stopOf(lastReply), behind: behind.map(row => (row.type === 'assistant' ? `assistant${row.isApiErrorMessage === true ? ':error-row' : ''}${row.retracted === true ? ':withdrawn' : ''}` : String(row.content ?? kindOf(row)).slice(0, 160))) })}`)
+      check('F11: the run asked twice and the guard ended the turn (its outcome row: loop_stopped, exit 1); the record holds the second reply stamped max_tokens and, behind it, the guard\'s line that the turn is ended and its loop_stopped row', asked === 2 && first.exit === 1 && first.stdout.includes('"status":"loop_stopped"') && stopOf(lastReply) === 'max_tokens' && behind.some(row => noticeSays(row, 'the turn is ended (nobody is at this run)')) && behind.some(row => kindOf(row) === 'attachment:loop_stopped'), `exit=${first.exit} asked=${asked} ${j({ stop: stopOf(lastReply), behind: behind.map(row => (row.type === 'assistant' ? `assistant${row.isApiErrorMessage === true ? ':error-row' : ''}${row.retracted === true ? ':withdrawn' : ''}` : String(row.content ?? kindOf(row)).slice(0, 160))) })}`)
       const second = await run(arena, ['run', 'F11 second prompt.', '--model', MODEL, '--resume', SID11, '--format', 'rows'])
       const resumedWire = wireOf(fixture.messageRequests().filter(request => !isHandoffRequest(request)).at(-1))
       check('F11: the second process answered, and its request carries no cut-off sentence and no stand-in reply', second.exit === 0 && second.stdout.includes('F11-SECOND-REPLY.') && says(resumedWire, CONTINUATION) === 0 && says(resumedWire, NO_RESPONSE_REQUESTED) === 0 && resumedWire.at(-1)?.texts.at(-1) === 'F11 second prompt.', `exit=${second.exit} ${j(resumedWire.slice(-3).map(message => [message.role, message.texts.map(text => text.slice(0, 80))]))}`)
@@ -576,7 +576,7 @@ try {
     }
   }
 
-  section('F12 — the built bundle, a reply the loop guard cuts in mid-stream, twice: the run asks once again, cuts the second stream too, lets the reply stand and completes the turn (exit 0); a second process resumes')
+  section('F12 — the built bundle, a reply the loop guard cuts in mid-stream, twice: the run asks once again, cuts the second stream too, and with nobody at the run the guard ends the turn (loop_stopped, exit 1); a second process resumes')
   {
     const SID12 = 'facef00d-0000-4000-8000-0000000fd001'
     const streamed: ScriptedTurn = { kind: 'stream', blocks: [{ type: 'text', deltas: Array.from({ length: 230 }, () => 'F12 the same line of text over and over again, as before\n') }], gapMs: 1 }
@@ -589,8 +589,8 @@ try {
       const standing = record.filter(row => row.type === 'assistant' && row.isApiErrorMessage !== true && row.retracted !== true)
       const lastReply = standing.at(-1)
       const behind = lastReply === undefined ? [] : record.slice(record.indexOf(lastReply) + 1)
-      const closing = behind.find(row => noticeSays(row, 'the reply stands'))
-      check('F12: the run completed (exit 0, completed); the record holds the cut reply with no stop reason (its stream never ended) and, behind it, the guard\'s line that the reply stands', first.exit === 0 && first.stdout.includes('"status":"completed"') && stopOf(lastReply) === null && closing !== undefined, `exit=${first.exit} ${j({ stop: stopOf(lastReply), tail: record.slice(-5).map(row => (row.type === 'system' ? String(row.content ?? '').slice(0, 150) : kindOf(row))) })} ${first.stdout.slice(-200)}`)
+      const closing = behind.find(row => noticeSays(row, 'the turn is ended (nobody is at this run)'))
+      check('F12: the guard ended the turn (exit 1, loop_stopped); the record holds the cut reply with no stop reason (its stream never ended) and, behind it, the guard\'s line that the turn is ended and its loop_stopped row', first.exit === 1 && first.stdout.includes('"status":"loop_stopped"') && stopOf(lastReply) === null && closing !== undefined && behind.some(row => kindOf(row) === 'attachment:loop_stopped'), `exit=${first.exit} ${j({ stop: stopOf(lastReply), tail: record.slice(-5).map(row => (row.type === 'system' ? String(row.content ?? '').slice(0, 150) : kindOf(row))) })} ${first.stdout.slice(-200)}`)
       const loaded = await resumedFrom(record, SID12)
       check('F12: the loader reads the turn as finished — no cut-off sentence, no stand-in reply', loaded.state === 'none' && loaded.saysContinuation === 0 && loaded.saysSentinel === 0, j({ state: loaded.state, continuation: loaded.saysContinuation, sentinel: loaded.saysSentinel, last: loaded.lastTalk.slice(0, 80) }))
       const second = await run(arena, ['run', 'F12 second prompt.', '--model', MODEL, '--resume', SID12, '--format', 'rows'])

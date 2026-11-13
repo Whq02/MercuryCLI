@@ -1993,11 +1993,12 @@ async function* runEventMachine(
           state = next
           continue
         }
-        if (isLoopGuardStopEnabled()) {
+        const chantEnds = isLoopGuardStopEnabled() ? LOOP_GUARD_STOP_SETTING : runLeftAlone(toolUseContext) ? 'nobody is at this run' : null
+        if (chantEnds !== null) {
           yield emit({
             kind: 'notice',
             message: createSystemMessage(
-              chantNoticeLine(chant, `the reply repeated itself again after the loop notice; the turn is ended (${LOOP_GUARD_STOP_SETTING})`),
+              chantNoticeLine(chant, `the reply repeated itself again after the loop notice; the turn is ended (${chantEnds})`),
               'warning',
             ),
           })

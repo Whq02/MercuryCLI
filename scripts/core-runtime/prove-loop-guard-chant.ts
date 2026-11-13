@@ -290,6 +290,25 @@ section('P7 — streamed repetition is cut and retried without its poisoned part
   check('a second streamed loop names its own stretch on the existing row and the reply stands', spent.calls.length === 2 && rows(spent).length === 1 && String(rows(spent)[0]?.content).startsWith(`Loop guard: the reply repeated the same ${poison.length}-character stretch`) && /the reply stands/.test(String(rows(spent)[0]?.content)), JSON.stringify(rows(spent).map(r => r.content)))
 }
 
+section('P8 — LEFT ALONE (no key): a headless run and a crewmate end the turn typed at the second chant, since nobody is there to stop it')
+{
+  setStopKey(null)
+  bootstrap.setSessionKind('headless')
+  const alone = await runReplies([CHANT, CHANT, HONEST])
+  check('headless, no key: two model calls, never a third, the turn ended typed as loop_stopped for the reply', alone.calls.length === 2 && alone.terminal.reason === 'loop_stopped' && JSON.stringify((alone.terminal as { cycle?: unknown }).cycle) === JSON.stringify(['reply']), `calls=${alone.calls.length} ${JSON.stringify(alone.terminal)}`)
+  check('one loop_stopped attachment carries the guard\'s own stop text', stops(alone).length === 1 && String(stops(alone)[0]?.message).startsWith(STOP), JSON.stringify(stops(alone)))
+  check('the warning row says nobody is at this run and names no key', rows(alone).length === 2 && /the turn is ended \(nobody is at this run\)/.test(String(rows(alone)[1]?.content)) && !/turns\.loopGuard/.test(String(rows(alone)[1]?.content)), JSON.stringify(rows(alone).map(r => r.content)))
+  const single = await runReplies([CHANT, HONEST])
+  check('headless, no key: a single chant is still only cut once and the continuation completes the turn', single.calls.length === 2 && single.terminal.reason === 'completed' && stops(single).length === 0, `calls=${single.calls.length} ${JSON.stringify(single.terminal)}`)
+  const capped = await runReplies([CHANT + CAPPED, CHANT + CAPPED, HONEST])
+  check('headless, no key: a second capped chant ends the turn typed too', capped.calls.length === 2 && capped.terminal.reason === 'loop_stopped' && stops(capped).length === 1, `calls=${capped.calls.length} ${JSON.stringify(capped.terminal)}`)
+  bootstrap.setSessionKind('oculus')
+  const crewmate = await runReplies([CHANT, CHANT, HONEST], 'agent-rig-alone')
+  check('a crewmate of a session a screen belongs to, no key: its second chant ends its turn typed', crewmate.calls.length === 2 && crewmate.terminal.reason === 'loop_stopped' && stops(crewmate).length === 1, `calls=${crewmate.calls.length} ${JSON.stringify(crewmate.terminal)}`)
+  const screen = await runReplies([CHANT, CHANT, HONEST])
+  check('the session a screen belongs to, no key, is unchanged beside it: the reply stands and the turn completes', screen.calls.length === 2 && screen.terminal.reason === 'completed' && stops(screen).length === 0, `calls=${screen.calls.length} ${JSON.stringify(screen.terminal)}`)
+}
+
 console.log('\n' + '='.repeat(76))
 if (failures > 0) {
   console.log(`LOOP-GUARD-CHANT: ${failures} of ${checks} checks FAILED`)

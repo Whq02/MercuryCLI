@@ -148,8 +148,9 @@ A reply that chants (repeating the same fifty-character stretch of prose ten tim
 over within a short span, with code fences, lists, tables, headings, quotes and
 dividers left out) is answered once with the same kind of reminder and the
 model is asked to continue past it, whether the reply ended on its own or at
-the output cap; a second chant lets the reply stand by default, and ends
-the turn the same typed way under the key, with no chant handed on as a
+the output cap; a second chant lets the reply stand in a foreground session
+by default, and ends the turn the same typed way under the key, and in
+crewmates and headless runs with or without it, with no chant handed on as a
 crewmate's report.
 When a provider answers a request with no content at all, the chat says so
 in a note and the request is sent again once, carrying a one-line note that
