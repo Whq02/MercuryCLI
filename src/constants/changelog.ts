@@ -36,7 +36,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Changed a question card to name the key bound to the external editor.
 - Changed the external editor's value on Windows to be parsed by the system's own command-line rules.
 - Changed TensorFold to 1.2.7 where Mercury names, fetches and verifies the engine; a model card's prompt-cache ceiling follows the engine's rule.
-- Changed the tool descriptions, prompts and bundled skills a model reads: corrected against the product and about a tenth shorter at the start of a session.
+- Changed the tool descriptions, prompts and bundled skills a model reads: corrected against the product and shortened, by about a tenth where a session sends every tool's definition and by less where tools are loaded on demand.
 - Fixed a Homebrew install losing its mercury command after the first launch, where ~/.local/bin stands before Homebrew on PATH. An install already caught is mended by ln -sf "$(brew --prefix)/bin/mercury" ~/.local/bin/mercury.
 - Fixed mercury install --uninstall on Windows stopping half way and leaving a command that could not run: the command and its PATH entry go, and the files in use are removed once the command has ended.
 - Fixed a Gemini conversation that outgrew the model's window ending on the provider's refusal: the conversation is compacted and the request sent again.
