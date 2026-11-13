@@ -1,5 +1,5 @@
 {
-  "base": "b17b56c03dab1a3d93932c244901e6f0c21107eb",
+  "base": "fc30b833fa1782fbd3af3d83340817d453b5c700",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -10,14 +10,14 @@
         "properties": {
           "description": {
             "type": "string",
-            "description": "A short (3-5 word) summary of the task"
+            "description": "Short (3-5 word) task summary"
           },
           "prompt": {
             "type": "string",
             "description": "Task brief: objective, evidence, boundaries, acceptance criteria and whether to implement or research."
           },
           "crewmate_type": {
-            "description": "Which crewmate type to run. Omitted ⇒ the mercury-crew crewmate.",
+            "description": "Agent type (default mercury-crew).",
             "type": "string"
           },
           "model": {
@@ -25,7 +25,7 @@
             "type": "string"
           },
           "effort": {
-            "description": "Reasoning effort; omitted, the agent definition's effort, else the configured crewmate default (high unless the operator changed it), never the parent level. An unsupported level maps to the nearest served level; models without effort control ignore it. Enables extended reasoning where supported.",
+            "description": "Reasoning effort; omitted uses definition effort, else configured crewmate default (high unless changed), never parent effort. Unsupported levels map to nearest served; unsupported models ignore it.",
             "type": "string",
             "enum": [
               "low",
@@ -36,7 +36,7 @@
             ]
           },
           "run_in_background": {
-            "description": "Launch asynchronously: returns an acknowledgement now and a completion notification later.",
+            "description": "Run asynchronously: acknowledge now, notify on completion.",
             "type": "boolean"
           },
           "name": {
@@ -44,12 +44,12 @@
             "type": "string"
           },
           "team": {
-            "description": "Team label on the live crew board; teams guide delivery, never privacy.",
+            "description": "Crew-board team label (delivery only, not privacy).",
             "type": "string",
             "pattern": "^[\\p{L}\\p{N}_][\\p{L}\\p{N}_.-]{0,79}$"
           },
           "captain": {
-            "description": "Appoint this named seat as its team captain. Requires name, team, swarm enrollment and the lead; a team of five or more needs one before its fifth seat.",
+            "description": "Appoint named seat as team captain (needs name, team, swarm, lead; required before 5th team seat).",
             "type": "boolean"
           },
           "isolation": {
@@ -66,7 +66,7 @@
             "type": "string"
           },
           "review_receipt": {
-            "description": "Absolute path to an existing Markdown report outside the worktree. Its \"## Review\" section is the only permitted write; requires isolation and worktree_at.",
+            "description": "Absolute path to existing Markdown report outside worktree; only \"## Review\" may be edited (requires isolation + worktree_at).",
             "type": "string"
           },
           "output_schema": {
@@ -418,18 +418,18 @@
         "properties": {
           "notebook_path": {
             "type": "string",
-            "description": "Path of the .ipynb file; a relative path resolves against the working directory"
+            "description": ".ipynb path (relative paths resolve against working directory)"
           },
           "cell_id": {
-            "description": "Which cell to target, by id. For inserts the new cell lands just after this cell — or at the very beginning when no id is given.",
+            "description": "Target cell id; insert places after this cell (omit to insert at start)",
             "type": "string"
           },
           "new_source": {
             "type": "string",
-            "description": "The content the cell will hold"
+            "description": "New cell source"
           },
           "cell_type": {
-            "description": "Whether the cell is code or markdown; omitted, the existing cell keeps its type. Required for edit_mode=insert.",
+            "description": "Required for insert; omitted keeps existing cell type",
             "type": "string",
             "enum": [
               "code",
@@ -437,7 +437,7 @@
             ]
           },
           "edit_mode": {
-            "description": "The operation: replace, insert, or delete (replace when omitted).",
+            "description": "Default replace",
             "type": "string",
             "enum": [
               "replace",
@@ -461,12 +461,12 @@
         "type": "object",
         "properties": {
           "url": {
-            "description": "One URL to fetch; use either url or urls",
+            "description": "Single URL (use url or urls)",
             "type": "string",
             "format": "uri"
           },
           "urls": {
-            "description": "Fetch 1-3 URLs in order, each with its own result and permission; page text is bounded to 38,000 bytes each, total result 132,000 bytes",
+            "description": "1–3 URLs in order, separate permissions/results (≤38,000 B each, ≤132,000 B total)",
             "minItems": 1,
             "maxItems": 3,
             "type": "array",
@@ -477,13 +477,13 @@
             }
           },
           "from": {
-            "description": "Continue at the character offset the previous result names",
+            "description": "Continuation char offset from prior result",
             "type": "integer",
             "minimum": 0,
             "maximum": 9007199254740991
           },
           "prompt": {
-            "description": "Ask a model for a reading of the page; omit to receive the page’s own words",
+            "description": "Model reading prompt (omit for raw page Markdown)",
             "type": "string"
           }
         },
@@ -493,24 +493,24 @@
     },
     {
       "name": "WebSearch",
-      "description": "Searches the web, on any session model, and returns JSON hits {title, url, snippet, source_type} with notes, under about 2,000 tokens by a characters/4 estimate; hits withheld to fit are counted in a note, every hit names its source, and the provider's own search adds the provider's answer as a labelled, unverified note beside its links. Sources are tried in order: the session provider's own search, on this session's account; stored Brave or Tavily keys; the official API the query words select; the operator's SearXNG instances; DuckDuckGo page scraping unless the operator turned it off. Every source receives the query and the client's address. Hits are unverified evidence; a repeated query may come from the session cache and says so.\n\nEnd the answer with a \"Sources:\" section linking every relevant result as [Title](URL).",
+      "description": "Searches the web on any model and returns JSON hits {title, url, snippet, source_type} with notes (≤~2,000 tokens at chars/4; withheld hits counted; provider search adds its answer as a labelled unverified note). Source order: the session provider's own search, on this session's account; Brave/Tavily keys; the official API the query words select; SearXNG instances; DuckDuckGo page scraping unless the operator turned it off. Every source receives the query and the client's address; hits are unverified; cached repeats say so.\n\nEnd answers with \"Sources:\" linking relevant hits as [Title](URL).",
       "input_schema": {
         "type": "object",
         "properties": {
           "query": {
             "type": "string",
             "minLength": 2,
-            "description": "The search words. An error message selects Stack Exchange; npm, PyPI or crates with a package name selects that registry; GitHub selects public code; news selects Hacker News; a concept question selects Wikipedia; other wording goes to general search."
+            "description": "Search words. Error messages route to Stack Exchange; npm/PyPI/crates + package to that registry; GitHub to public code; news to Hacker News; concepts to Wikipedia; else general search."
           },
           "allowed_domains": {
-            "description": "Only include search results from these domains",
+            "description": "Restrict results to these domains",
             "type": "array",
             "items": {
               "type": "string"
             }
           },
           "blocked_domains": {
-            "description": "Never include search results from these domains",
+            "description": "Exclude these domains",
             "type": "array",
             "items": {
               "type": "string"
@@ -526,24 +526,24 @@
     },
     {
       "name": "ProviderSearch",
-      "description": "Searches the web through the session provider's own search, on this session's provider account, with no other source tried, and returns JSON hits {title, url, snippet, source_type: provider} with notes, under about 2,000 tokens by a characters/4 estimate; hits withheld to fit are counted in a note, and the provider's own answer rides as a labelled, unverified note beside its links. Hits are unverified evidence.\n\nEnd the answer with a \"Sources:\" section linking every relevant result as [Title](URL).",
+      "description": "Searches through the session provider's own search, on this session's provider account, with no other source tried, returning JSON hits {title, url, snippet, source_type: provider} with notes (≤~2,000 tokens at chars/4; withheld hits counted; provider answer attached as a labelled unverified note). Hits are unverified.\n\nEnd answers with \"Sources:\" linking relevant hits as [Title](URL).",
       "input_schema": {
         "type": "object",
         "properties": {
           "query": {
             "type": "string",
             "minLength": 2,
-            "description": "The search words."
+            "description": "Search words"
           },
           "allowed_domains": {
-            "description": "Only include search results from these domains",
+            "description": "Restrict results to these domains",
             "type": "array",
             "items": {
               "type": "string"
             }
           },
           "blocked_domains": {
-            "description": "Never include search results from these domains",
+            "description": "Exclude these domains",
             "type": "array",
             "items": {
               "type": "string"
@@ -590,21 +590,21 @@
               "type": "object",
               "properties": {
                 "id": {
-                  "description": "Stable id of the question in the answer; defaults from its position",
+                  "description": "Question id in answer (default positional)",
                   "type": "string"
                 },
                 "decisionId": {
-                  "description": "Key of the question's interview record (mercury://interview/<session>/<decisionId>); defaults when omitted",
+                  "description": "Interview record key (mercury://interview/<session>/<decisionId>)",
                   "type": "string"
                 },
                 "question": {
                   "type": "string",
-                  "description": "Question text; phrase for multi-select when applicable"
+                  "description": "Question text"
                 },
                 "header": {
                   "type": "string",
                   "maxLength": 12,
-                  "description": "Chip label, at most 12 characters"
+                  "description": "Chip label (≤12 chars)"
                 },
                 "options": {
                   "minItems": 2,
@@ -614,19 +614,19 @@
                     "type": "object",
                     "properties": {
                       "id": {
-                        "description": "Stable id of the option in the answer; defaults from its position",
+                        "description": "Answer id (default positional)",
                         "type": "string"
                       },
                       "label": {
                         "type": "string",
-                        "description": "Concise 1-5 word label for this option"
+                        "description": "1-5 word label"
                       },
                       "description": {
                         "type": "string",
-                        "description": "What choosing this option means or implies"
+                        "description": "Option meaning/implication"
                       },
                       "preview": {
-                        "description": "Rendered when the option is focused (host-format dependent)",
+                        "description": "Focused preview (host-format dependent)",
                         "type": "string"
                       }
                     },
@@ -635,10 +635,10 @@
                       "description"
                     ]
                   },
-                  "description": "Mutually exclusive unless multiSelect; an Other free-text answer is supplied automatically"
+                  "description": "Exclusive unless multiSelect; Other free-text answer is supplied automatically"
                 },
                 "multiSelect": {
-                  "description": "Allow several answers to this question",
+                  "description": "Allow several answers",
                   "default": false,
                   "type": "boolean"
                 }
@@ -681,18 +681,18 @@
     },
     {
       "name": "ApolloReview",
-      "description": "Presents the closing review card of a completed Apollo pre-flight spec to the user — the plain-language summary, the blockers, the spec files and where the prototype will run — and returns the answer they chose. With no blockers the card offers three answers: a plain yes moves the session out of Apollo Mode into the build posture (the autonomous mode when available, otherwise edit-approved) and starts the build at once; yes-but-ask-first starts it with each edit asking for confirmation; a hold keeps the session and the spec drafts in Apollo Mode. With blockers present nothing changes hands.",
+      "description": "Presents the closing review card of a completed Apollo pre-flight spec and returns the user's choice. With no blockers: yes exits Apollo Mode into the build posture (autonomous when available, else edit-approved) and starts building; yes-but-ask-first starts building with per-edit confirmation; hold keeps the session and drafts in Apollo Mode. With blockers, nothing changes mode.",
       "input_schema": {
         "type": "object",
         "properties": {
           "summary": {
             "type": "string",
             "minLength": 1,
-            "description": "The review of the completed spec in plain language; a technical term only beside its plain meaning"
+            "description": "Plain-language spec review; introduce technical terms only beside plain meanings"
           },
           "blockers": {
             "default": [],
-            "description": "What still prevents a one-shot prototype, each with a short comment; empty asks the user to begin the build",
+            "description": "Remaining blockers to a one-shot prototype with short notes; [] asks the user to start building",
             "type": "array",
             "items": {
               "type": "string",
@@ -701,14 +701,14 @@
           },
           "specFiles": {
             "default": [],
-            "description": "Absolute paths of the spec files the interview produced",
+            "description": "Absolute paths of produced spec files",
             "type": "array",
             "items": {
               "type": "string"
             }
           },
           "runNote": {
-            "description": "Where and how the prototype will be run, one plain line",
+            "description": "One plain line on where/how the prototype runs",
             "type": "string"
           }
         },
@@ -740,31 +740,31 @@
               "diagnostics",
               "serverStatus"
             ],
-            "description": "goToDefinition, findReferences, hover, goToImplementation, typeDefinition, incomingCalls and outgoingCalls read filePath, line and character; documentSymbol reads filePath; workspaceSymbol reads query and limit, with filePath choosing the server; diagnostics reads paths or filePath; serverStatus reads filePath or nothing. Other arguments are ignored"
+            "description": "documentSymbol uses filePath; workspaceSymbol uses query/limit (filePath selects server); diagnostics uses paths or filePath; serverStatus uses optional filePath; all others use filePath + line + character. Unused args are ignored"
           },
           "filePath": {
             "type": "string",
-            "description": "Absolute path of the file"
+            "description": "Absolute file path"
           },
           "line": {
             "type": "integer",
             "minimum": 1,
-            "description": "The symbol's 1-based line, as Read shows it"
+            "description": "1-based symbol line"
           },
           "character": {
             "type": "integer",
             "minimum": 1,
-            "description": "The symbol's 1-based character on that line"
+            "description": "1-based character"
           },
           "query": {
             "type": "string",
-            "description": "workspaceSymbol: a symbol name or part of one"
+            "description": "workspaceSymbol: symbol name or substring"
           },
           "limit": {
             "type": "integer",
             "minimum": 1,
             "maximum": 200,
-            "description": "workspaceSymbol: the most symbols to return (default 50)"
+            "description": "workspaceSymbol: max results (default 50)"
           },
           "paths": {
             "type": "array",
@@ -772,7 +772,7 @@
               "type": "string"
             },
             "maxItems": 50,
-            "description": "diagnostics: files or directories (a directory stands for the files under it that a server covers), at most 50"
+            "description": "diagnostics: files or directories"
           }
         },
         "required": [
@@ -790,29 +790,29 @@
         "properties": {
           "filePath": {
             "type": "string",
-            "description": "Absolute path of a file holding an occurrence of the symbol"
+            "description": "Absolute file path"
           },
           "line": {
             "type": "integer",
             "minimum": 1,
-            "description": "The occurrence's 1-based line, as Read shows it"
+            "description": "1-based symbol line"
           },
           "character": {
             "type": "integer",
             "minimum": 1,
-            "description": "The occurrence's 1-based character on that line"
+            "description": "1-based character"
           },
           "newName": {
             "type": "string",
-            "description": "What the symbol is called after the rename"
+            "description": "New symbol name"
           },
           "apply": {
             "type": "boolean",
-            "description": "true writes; omitted or false returns the edits and a plan token and writes nothing"
+            "description": "Write edits (default false previews)"
           },
           "plan": {
             "type": "string",
-            "description": "With apply: the plan token the preview returned (lsp-…); exactly those edits are written, and none if a touched file changed since the preview. Without a plan, apply writes only when this session has read the touched lines of every file as they stand"
+            "description": "Preview token (lsp-…); refuses if touched files changed. Omitted, apply requires current read coverage of touched lines"
           }
         },
         "required": [
@@ -833,29 +833,29 @@
         "properties": {
           "filePath": {
             "type": "string",
-            "description": "Absolute path of the file that holds the declaration"
+            "description": "Absolute source file path"
           },
           "line": {
             "type": "integer",
             "minimum": 1,
-            "description": "The declaration name's 1-based line, as Read shows it"
+            "description": "1-based declaration line"
           },
           "character": {
             "type": "integer",
             "minimum": 1,
-            "description": "The declaration name's 1-based character on that line"
+            "description": "1-based declaration character"
           },
           "targetPath": {
             "type": "string",
-            "description": "The file the declaration moves into: created when absent, appended to when present"
+            "description": "Destination file (created or appended)"
           },
           "apply": {
             "type": "boolean",
-            "description": "true writes; omitted or false returns the edits and a plan token and writes nothing"
+            "description": "Write edits (default false previews)"
           },
           "plan": {
             "type": "string",
-            "description": "With apply: the plan token the preview returned (lsp-…); exactly those edits are written, and none if a touched file changed since the preview. Without a plan, apply writes only when this session has read the touched lines of every file as they stand"
+            "description": "Preview token (lsp-…); refuses if touched files changed. Omitted, apply requires current read coverage of touched lines"
           }
         },
         "required": [
@@ -876,19 +876,19 @@
         "properties": {
           "filePath": {
             "type": "string",
-            "description": "Absolute path of the file or directory to move"
+            "description": "Absolute path of file or directory"
           },
           "newPath": {
             "type": "string",
-            "description": "Where it goes; must not exist yet"
+            "description": "Destination path (must not exist)"
           },
           "apply": {
             "type": "boolean",
-            "description": "true moves the path and writes the import edits; omitted or false returns the edits and, when there are any, a plan token, and moves nothing"
+            "description": "Move and write import edits (default false previews)"
           },
           "plan": {
             "type": "string",
-            "description": "With apply: the plan token the preview returned, when it returned one; nothing is written or moved if a touched file changed since the preview"
+            "description": "Preview token; refuses if touched files changed"
           }
         },
         "required": [
@@ -907,31 +907,31 @@
         "properties": {
           "filePath": {
             "type": "string",
-            "description": "Absolute path of the file"
+            "description": "Absolute file path"
           },
           "line": {
             "type": "integer",
             "minimum": 1,
-            "description": "1-based line where the range starts, as Read shows it"
+            "description": "1-based start line"
           },
           "character": {
             "type": "integer",
             "minimum": 1,
-            "description": "1-based character where the range starts"
+            "description": "1-based start character"
           },
           "endLine": {
             "type": "integer",
             "minimum": 1,
-            "description": "1-based line where the range ends (default: line)"
+            "description": "1-based end line (default line)"
           },
           "endCharacter": {
             "type": "integer",
             "minimum": 1,
-            "description": "1-based character where the range ends (default: character)"
+            "description": "1-based end character (default character)"
           },
           "kind": {
             "type": "string",
-            "description": "Only actions of this kind: quickfix, refactor or a sub-kind, or a source.* kind (source.organizeImports, source.addMissingImports, source.removeUnusedImports, source.removeUnused); with apply: true and exactly one action left, that one is applied"
+            "description": "Filter kind: quickfix, refactor.*, or source.* (organizeImports, addMissingImports, removeUnusedImports, removeUnused); apply:true applies a single match"
           },
           "actionId": {
             "type": "string",
@@ -944,11 +944,11 @@
           },
           "apply": {
             "type": "boolean",
-            "description": "true writes; omitted or false returns the edits and a plan token and writes nothing"
+            "description": "Write edits (default false previews)"
           },
           "plan": {
             "type": "string",
-            "description": "With apply: the plan token the preview returned (lsp-…); exactly those edits are written, and none if a touched file changed since the preview. Without a plan, apply writes only when this session has read the touched lines of every file as they stand"
+            "description": "Preview token (lsp-…); refuses if touched files changed. Omitted, apply requires current read coverage of touched lines"
           }
         },
         "required": [
@@ -968,29 +968,29 @@
         "properties": {
           "filePath": {
             "type": "string",
-            "description": "Absolute path of the file"
+            "description": "Absolute file path"
           },
           "line": {
             "type": "integer",
             "minimum": 1,
-            "description": "First line to format (1-based); omit line and endLine to format the whole file"
+            "description": "1-based start line (omit with endLine for whole file)"
           },
           "endLine": {
             "type": "integer",
             "minimum": 1,
-            "description": "Last line to format, included"
+            "description": "1-based inclusive end line"
           },
           "organizeImports": {
             "type": "boolean",
-            "description": "true sorts and prunes the imports instead of formatting"
+            "description": "Sort and prune imports instead of formatting"
           },
           "apply": {
             "type": "boolean",
-            "description": "true writes; omitted or false returns the edits and a plan token and writes nothing"
+            "description": "Write edits (default false previews)"
           },
           "plan": {
             "type": "string",
-            "description": "With apply: the plan token the preview returned (lsp-…); exactly those edits are written, and none if a touched file changed since the preview. Without a plan, apply writes only when this session has read the touched lines of every file as they stand"
+            "description": "Preview token (lsp-…); refuses if touched files changed. Omitted, apply requires current read coverage of touched lines"
           }
         },
         "required": [
@@ -1008,15 +1008,15 @@
         "properties": {
           "filePath": {
             "type": "string",
-            "description": "Absolute path of a file the server covers"
+            "description": "Absolute file path"
           },
           "method": {
             "type": "string",
-            "description": "The LSP method. Methods that edit are not accepted: textDocument/rename, textDocument/codeAction, codeAction/resolve, textDocument/formatting, textDocument/rangeFormatting, workspace/executeCommand, workspace/willRenameFiles, workspace/applyEdit"
+            "description": "Read-only LSP method (editing methods refused: textDocument/rename, codeAction, codeAction/resolve, formatting, rangeFormatting; workspace/executeCommand, willRenameFiles, applyEdit)"
           },
           "params": {
             "type": "string",
-            "description": "The request params as JSON text, sent exactly as given; textDocument and position are not filled in"
+            "description": "Verbatim JSON params string (textDocument/position not auto-filled)"
           }
         },
         "required": [
@@ -1063,29 +1063,29 @@
               "stop",
               "restart"
             ],
-            "description": "Service operation; restart reuses the saved start specification."
+            "description": "restart reuses saved start spec"
           },
           "name": {
-            "description": "Project-scoped service name (all ops except list)",
+            "description": "Project service name (all ops except list)",
             "type": "string"
           },
           "command": {
-            "description": "start: the executable (argv[0] — no shell parsing)",
+            "description": "start: executable (argv[0], no shell)",
             "type": "string"
           },
           "args": {
-            "description": "start: argument array",
+            "description": "start: argv",
             "type": "array",
             "items": {
               "type": "string"
             }
           },
           "cwd": {
-            "description": "start: working directory (default: session cwd)",
+            "description": "start: working directory (default session cwd)",
             "type": "string"
           },
           "env": {
-            "description": "start: environment additions",
+            "description": "start: extra env vars",
             "type": "object",
             "propertyNames": {
               "type": "string"
@@ -1210,7 +1210,7 @@
             }
           },
           "readinessMode": {
-            "description": "start: how conditions combine (default all)",
+            "description": "start: default \"all\"",
             "type": "string",
             "enum": [
               "all",
@@ -1218,7 +1218,7 @@
             ]
           },
           "restart": {
-            "description": "start: auto-restart policy (default never; bounded backoff, explicit stop always suppresses)",
+            "description": "start: default \"never\" (on-failure uses bounded backoff; stop suppresses)",
             "type": "string",
             "enum": [
               "never",
@@ -1226,7 +1226,7 @@
             ]
           },
           "lifecycle": {
-            "description": "start: session dies with this session (default); project survives it and can be stopped from any session on this project.",
+            "description": "start: \"session\" (default, ends with session) or \"project\" (survives; any project session can stop)",
             "type": "string",
             "enum": [
               "session",
@@ -1234,11 +1234,11 @@
             ]
           },
           "pty": {
-            "description": "start: use a pseudo-terminal; screen bytes become log lines and input sends keystrokes. Default false uses a pipe.",
+            "description": "start: pseudo-terminal (screen bytes logged; input sends keystrokes; default false uses pipes)",
             "type": "boolean"
           },
           "mode": {
-            "description": "input: write sends exact text and control bytes; submit adds Enter (default); eof ends input and ignores text.",
+            "description": "input: write sends raw bytes; submit adds Enter (default); eof closes stdin",
             "type": "string",
             "enum": [
               "write",
@@ -1247,29 +1247,29 @@
             ]
           },
           "timeoutMs": {
-            "description": "wait: readiness deadline in ms (default 30000, min 100, max 300000); input: how long to wait for the service's reply in ms (default 500, min 100, max 30000); a value outside the bounds is clamped to them and the result says so",
+            "description": "wait: ms deadline (default 30000, 100–300000); input: reply wait in ms (default 500, 100–30000); clamped outside bounds",
             "type": "integer",
             "minimum": 0,
             "maximum": 9007199254740991
           },
           "cursor": {
-            "description": "logs: byte cursor from a previous read (omit for the tail)",
+            "description": "logs: byte cursor from prior read (omit for tail)",
             "type": "integer",
             "minimum": 0,
             "maximum": 9007199254740991
           },
           "limitLines": {
-            "description": "logs, input: max lines (default 100)",
+            "description": "logs/input: max lines (default 100)",
             "type": "integer",
             "minimum": 1,
             "maximum": 1000
           },
           "filterRegex": {
-            "description": "logs: keep only matching lines",
+            "description": "logs: line regex filter",
             "type": "string"
           },
           "text": {
-            "description": "input: text sent to stdin; only the spawning session can send it.",
+            "description": "input: stdin text (spawning session only)",
             "type": "string"
           }
         },
@@ -1282,7 +1282,7 @@
     },
     {
       "name": "Debug",
-      "description": "Drives a real debugger over the Debug Adapter Protocol: launch or attach, breakpoints, stepping, stacks, scopes, variables, evaluate, memory and raw adapter requests, in named sessions that belong to this agent and are reaped when its run ends. A stop comes back with its reason, thread and top frames; a wait that outlasts timeoutMs comes back with the debuggee still running. launch, attach and customRequest ask permission.",
+      "description": "Drive a DAP debugger in agent-owned named sessions (reaped at run end): launch, attach, breakpoints, stepping, stacks, scopes, variables, evaluate, memory and raw requests. Stops return reason, thread and top frames; waits past timeoutMs return with the debuggee running. launch, attach and customRequest ask permission.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -1323,39 +1323,39 @@
             "description": "Debug operation."
           },
           "session": {
-            "description": "Session name (default \"main\"); a re-launch on the same name replaces that session",
+            "description": "Session name (default \"main\"; re-launch replaces it)",
             "type": "string"
           },
           "adapter": {
-            "description": "launch/attach: adapter key; inferred from the program extension when omitted",
+            "description": "launch/attach: adapter key (default inferred from extension)",
             "type": "string"
           },
           "program": {
-            "description": "launch: the program to run. attach: the running program to join",
+            "description": "launch/attach: target program",
             "type": "string"
           },
           "args": {
-            "description": "launch: program arguments",
+            "description": "launch: argv",
             "type": "array",
             "items": {
               "type": "string"
             }
           },
           "stopOnEntry": {
-            "description": "launch: stop at the first instruction",
+            "description": "launch: stop at first instruction",
             "type": "boolean"
           },
           "timeoutMs": {
-            "description": "Milliseconds to wait for the next stop (default 10000, no cap)",
+            "description": "Stop wait in ms (default 10000, uncapped)",
             "type": "number",
             "exclusiveMinimum": 0
           },
           "file": {
-            "description": "breakpoints: the source file",
+            "description": "breakpoints: source file",
             "type": "string"
           },
           "lines": {
-            "description": "breakpoints: the lines, replacing the file's set on every session; [] clears it",
+            "description": "breakpoints: replaces file lines across sessions; [] clears",
             "type": "array",
             "items": {
               "type": "integer",
@@ -1364,7 +1364,7 @@
             }
           },
           "breakpoints": {
-            "description": "breakpoints: rows with a condition, hit count or log message, in place of lines; replaces the file's set on every session, [] clears it",
+            "description": "breakpoints: conditional/hit/logpoint rows instead of lines; replaces file set across sessions; [] clears",
             "type": "array",
             "items": {
               "type": "object",
@@ -1375,15 +1375,15 @@
                   "maximum": 9007199254740991
                 },
                 "condition": {
-                  "description": "Stop only when this expression holds",
+                  "description": "Break expression",
                   "type": "string"
                 },
                 "hitCondition": {
-                  "description": "Stop on this hit count (\"3\")",
+                  "description": "Hit count (\"3\")",
                   "type": "string"
                 },
                 "logMessage": {
-                  "description": "Log this instead of stopping (a logpoint)",
+                  "description": "Logpoint message (no stop)",
                   "type": "string"
                 }
               },
@@ -1394,27 +1394,27 @@
             }
           },
           "pid": {
-            "description": "attach: the process id",
+            "description": "attach: process id",
             "type": "integer",
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991
           },
           "port": {
-            "description": "attach: the debuggee's listening debug port; alone, it selects the python adapter",
+            "description": "attach: debug port (alone implies python)",
             "type": "integer",
             "exclusiveMinimum": 0,
             "maximum": 65535
           },
           "host": {
-            "description": "attach: the debug host (default 127.0.0.1)",
+            "description": "attach: default 127.0.0.1",
             "type": "string"
           },
           "method": {
-            "description": "customRequest: the DAP command, sent verbatim",
+            "description": "customRequest: verbatim DAP command",
             "type": "string"
           },
           "body": {
-            "description": "customRequest: the request arguments as JSON text",
+            "description": "customRequest: JSON arguments string",
             "type": "string"
           },
           "functions": {
@@ -1429,15 +1429,12 @@
                   "type": "object",
                   "properties": {
                     "name": {
-                      "type": "string",
-                      "description": "The function to break on entry of"
+                      "type": "string"
                     },
                     "condition": {
-                      "description": "Stop only when this expression holds",
                       "type": "string"
                     },
                     "hitCondition": {
-                      "description": "Stop on this hit count (\"3\")",
                       "type": "string"
                     }
                   },
@@ -1450,29 +1447,28 @@
             }
           },
           "dataBreakpoints": {
-            "description": "dataBreakpoints: the variables to stop on; replaces the set, [] clears it",
+            "description": "dataBreakpoints: replaces watched set; [] clears",
             "type": "array",
             "items": {
               "type": "object",
               "properties": {
                 "name": {
-                  "type": "string",
-                  "description": "The variable to watch"
+                  "type": "string"
                 },
                 "variablesReference": {
-                  "description": "The scope or structure holding the variable (from scopes/variables)",
+                  "description": "Scope/container ref (from scopes/variables)",
                   "type": "integer",
                   "minimum": -9007199254740991,
                   "maximum": 9007199254740991
                 },
                 "frameId": {
-                  "description": "Frame for an expression-style name, when the adapter resolves by frame",
+                  "description": "Frame for expression-style names",
                   "type": "integer",
                   "minimum": -9007199254740991,
                   "maximum": 9007199254740991
                 },
                 "accessType": {
-                  "description": "Stop on read, write (default) or both",
+                  "description": "Default \"write\"",
                   "type": "string",
                   "enum": [
                     "read",
@@ -1481,11 +1477,9 @@
                   ]
                 },
                 "condition": {
-                  "description": "Stop only when this expression holds",
                   "type": "string"
                 },
                 "hitCondition": {
-                  "description": "Stop on this hit count (\"3\")",
                   "type": "string"
                 }
               },
@@ -1496,27 +1490,25 @@
             }
           },
           "instructionBreakpoints": {
-            "description": "instructionBreakpoints: the instruction addresses to stop at; replaces the set, [] clears it",
+            "description": "instructionBreakpoints: replaces set; [] clears",
             "type": "array",
             "items": {
               "type": "object",
               "properties": {
                 "instructionReference": {
                   "type": "string",
-                  "description": "A stack frame's [ip …] or an address from disassemble"
+                  "description": "Frame [ip …] or disassemble address"
                 },
                 "offset": {
-                  "description": "Byte offset from the reference",
+                  "description": "Byte offset",
                   "type": "integer",
                   "minimum": -9007199254740991,
                   "maximum": 9007199254740991
                 },
                 "condition": {
-                  "description": "Stop only when this expression holds",
                   "type": "string"
                 },
                 "hitCondition": {
-                  "description": "Stop on this hit count (\"3\")",
                   "type": "string"
                 }
               },
@@ -1527,37 +1519,37 @@
             }
           },
           "memoryReference": {
-            "description": "disassemble/readMemory/writeMemory: a memory reference (a stack frame's [ip …] or a variable's [memory …])",
+            "description": "disassemble/readMemory/writeMemory: frame [ip …] or variable [memory …]",
             "type": "string"
           },
           "count": {
-            "description": "readMemory: bytes to read (at most 4096)",
+            "description": "readMemory: bytes (≤4096)",
             "type": "integer",
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991
           },
           "offset": {
-            "description": "disassemble/readMemory/writeMemory: byte offset from the memory reference",
+            "description": "disassemble/readMemory/writeMemory: byte offset",
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991
           },
           "data": {
-            "description": "writeMemory: the bytes to write, base64-encoded",
+            "description": "writeMemory: base64 bytes",
             "type": "string"
           },
           "allowPartial": {
-            "description": "writeMemory: accept a partial write when only part of the range is writable",
+            "description": "writeMemory: allow partial write",
             "type": "boolean"
           },
           "instructionCount": {
-            "description": "disassemble: instructions to decode (default 16, at most 64)",
+            "description": "disassemble: instructions (default 16, ≤64)",
             "type": "integer",
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991
           },
           "granularity": {
-            "description": "next/stepIn: \"instruction\" steps one machine instruction",
+            "description": "next/stepIn: default \"statement\"",
             "type": "string",
             "enum": [
               "statement",
@@ -1565,13 +1557,13 @@
             ]
           },
           "threadId": {
-            "description": "Thread for stack/continue/step/pause (defaults to the stopped thread)",
+            "description": "stack/continue/step/pause thread (default stopped thread)",
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991
           },
           "frameId": {
-            "description": "Frame for scopes/evaluate/completions (from stack); evaluate defaults to the top frame of the thread that stopped last",
+            "description": "scopes/evaluate/completions frame; evaluate defaults to the top frame of the thread that stopped last",
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991
@@ -1583,17 +1575,17 @@
             "maximum": 9007199254740991
           },
           "variablesReference": {
-            "description": "Reference from scopes/variables/evaluate to expand (variables/setVariable)",
+            "description": "variables/setVariable: container ref from scopes/variables/evaluate",
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991
           },
           "expression": {
-            "description": "evaluate: the expression, run in the debuggee",
+            "description": "evaluate: expression in debuggee",
             "type": "string"
           },
           "context": {
-            "description": "evaluate: the context the adapter evaluates in (default \"repl\"; \"watch\" for a side-effect-free read, \"hover\" for a symbol under the cursor, \"clipboard\" for a copyable value, \"variables\" for a variables-view value)",
+            "description": "evaluate: default \"repl\"; \"watch\" for a side-effect-free read, \"hover\" for a symbol under the cursor, \"clipboard\" for a copyable value, \"variables\" for a variables-view value",
             "type": "string",
             "enum": [
               "repl",
@@ -1604,28 +1596,28 @@
             ]
           },
           "filters": {
-            "description": "exceptionBreakpoints: filter ids to arm; omitted, the adapter's filters are listed",
+            "description": "exceptionBreakpoints: filter ids to arm (omit to list)",
             "type": "array",
             "items": {
               "type": "string"
             }
           },
           "sourceReference": {
-            "description": "source: the sourceReference from a stack frame or loadedSources (>0)",
+            "description": "source: sourceReference (>0) from stack/loadedSources",
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991
           },
           "name": {
-            "description": "setVariable: the variable name inside variablesReference",
+            "description": "setVariable: variable name in variablesReference",
             "type": "string"
           },
           "value": {
-            "description": "setVariable: the new value expression",
+            "description": "setVariable: new value expression",
             "type": "string"
           },
           "text": {
-            "description": "completions: the partial expression to complete",
+            "description": "completions: partial expression",
             "type": "string"
           }
         },
@@ -1638,7 +1630,7 @@
     },
     {
       "name": "Test",
-      "description": "Runs the project's tests from their framework's own records and returns the argv that ran, the counts, each failure with its test name, file and line, available diagnostics and a durable record at mercury://test/run/<id> (mercury://test/latest and mercury://test/failures follow the newest run); output past the result goes to an artifact reference. discover lists the test node ids or the runner profiles the manifest declares; run executes the suite, one path, one node, the tests related to the changed files, or one profile; rerunFailed repeats the failures the latest run recorded; debug starts one test under its language's debugger, stops on the test's first line and leaves that debugger session open; report reads a record. Python projects run under pytest or unittest, others under the runner their manifest declares (node-test, vitest, jest, cargo, go). A run whose exit code disagrees with its records says so in a verdictNote; a selection that matched no test returns zero counts, which is neither a pass nor a failure.",
+      "description": "Runs project tests from framework records, returning argv, counts, failures (name, file, line), diagnostics and a record at mercury://test/run/<id> (mercury://test/latest and mercury://test/failures track the newest; overflow output becomes an artifact ref). discover lists node ids or manifest runner profiles; rerunFailed reruns the latest failures; debug stops on one test's first line and leaves the debugger session open; report reads a record. Exit-code/record disagreements appear in verdictNote; matching zero tests returns zero counts (neither pass nor failure).",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -1650,11 +1642,10 @@
               "rerunFailed",
               "debug",
               "report"
-            ],
-            "description": "The test operation"
+            ]
           },
           "framework": {
-            "description": "The runner. Default: in a Python project pytest when it is importable, else unittest; otherwise the one runner the manifest declares (package.json → node-test, vitest or jest · Cargo.toml → cargo · go.mod → go)",
+            "description": "Default: pytest if importable, else unittest in Python; else manifest runner (package.json → node-test/vitest/jest · Cargo.toml → cargo · go.mod → go)",
             "type": "string",
             "enum": [
               "pytest",
@@ -1667,27 +1658,27 @@
             ]
           },
           "path": {
-            "description": "run: one test file or directory. A path outside the session project selects that project (its nearest manifest or Python root) for every op, and the result names the project it read",
+            "description": "run: test file/dir; outside session project selects its nearest manifest/Python root across all ops",
             "type": "string"
           },
           "node": {
-            "description": "run: one test node id (pytest: file::test_name · unittest: module.Class.test). debug: required, the test to debug (node-test, vitest, jest: file::name, or a bare name from the latest run's case rows · go: TestName, TestName/subtest or dir::TestName · cargo: module::path::test_name)",
+            "description": "Test id (run optional, debug required) — pytest: file::test · unittest: mod.Class.test · node-test/vitest/jest: file::name or bare case name · go: TestName, TestName/sub or dir::TestName · cargo: mod::path::test",
             "type": "string"
           },
           "changed": {
-            "description": "run: only the tests related to the working tree's changed files (vitest related · jest --findRelatedTests · the changed test files for node-test and pytest · the changed packages for go; not available for cargo)",
+            "description": "run: tests for changed working-tree files (vitest related · jest --findRelatedTests · changed test files for node-test/pytest · changed packages for go; unsupported on cargo)",
             "type": "boolean"
           },
           "profile": {
-            "description": "run: a runner-profile id (rp-…) from discover",
+            "description": "run: rp-… id from discover",
             "type": "string"
           },
           "session": {
-            "description": "debug: the name of the debugger session the call leaves open (default \"test\")",
+            "description": "debug: session name left open (default \"test\")",
             "type": "string"
           },
           "file": {
-            "description": "debug: the source file for breakpoints",
+            "description": "debug: breakpoint source file",
             "type": "string"
           },
           "lines": {
@@ -1700,7 +1691,7 @@
             }
           },
           "runId": {
-            "description": "report: a run id (default: the latest run)",
+            "description": "report: run id (default latest)",
             "type": "string"
           }
         },
@@ -1852,11 +1843,10 @@
               "preview",
               "apply",
               "explain"
-            ],
-            "description": "The structural operation"
+            ]
           },
           "select": {
-            "description": "query: node kind.",
+            "description": "query: node kind",
             "type": "string",
             "enum": [
               "function",
@@ -1875,73 +1865,73 @@
             ]
           },
           "name": {
-            "description": "query: name filter — exact or glob with *",
+            "description": "query: exact name or * glob",
             "type": "string"
           },
           "callee": {
-            "description": "query select:call — dotted callee glob.",
+            "description": "query call: dotted callee glob",
             "type": "string"
           },
           "module": {
-            "description": "query select:import/export — module specifier glob",
+            "description": "query import/export: module glob",
             "type": "string"
           },
           "value": {
-            "description": "query select:string — literal substring",
+            "description": "query string: literal substring",
             "type": "string"
           },
           "within": {
-            "description": "query: ancestor kind or kind:name.",
+            "description": "query: ancestor kind or kind:name",
             "type": "string"
           },
           "files": {
-            "description": "query: file globs relative to the project root; .js/.jsx/.mjs/.cjs/.ts/.mts/.cts/.tsx files only.",
+            "description": "query: project-relative globs (.js/.jsx/.mjs/.cjs/.ts/.mts/.cts/.tsx only)",
             "type": "array",
             "items": {
               "type": "string"
             }
           },
           "limit": {
-            "description": "query: match bound (default 50, max 200)",
+            "description": "query: max matches (default 50, max 200)",
             "type": "number"
           },
           "queryId": {
-            "description": "preview/explain: the query record (sq-…); defaults to the latest",
+            "description": "preview/explain: sq-… id (default latest)",
             "type": "string"
           },
           "matchIds": {
-            "description": "preview: match subset (default: every match)",
+            "description": "preview: match subset (default all)",
             "type": "array",
             "items": {
               "type": "string"
             }
           },
           "replacement": {
-            "description": "preview replace · insert-before · insert-after: new text; $TEXT in replace is the original node. Inserts land on their own line at the node boundary.",
+            "description": "preview replace/insert-before/insert-after: new text ($TEXT in replace is the original node; inserts land on their own line at the node boundary)",
             "type": "string"
           },
           "to": {
-            "description": "preview rename/replace-callee: new name/callee. rename changes the token, not every symbol reference.",
+            "description": "preview rename/replace-callee: new name/callee (rename changes the token, not every symbol reference)",
             "type": "string"
           },
           "newModule": {
-            "description": "preview replace-import: the new module specifier",
+            "description": "preview replace-import: module specifier",
             "type": "string"
           },
           "newValue": {
-            "description": "preview set-value: the new property value text",
+            "description": "preview set-value: property value text",
             "type": "string"
           },
           "previewId": {
-            "description": "apply: the preview to apply (sp-…)",
+            "description": "apply: sp-… preview id",
             "type": "string"
           },
           "matchId": {
-            "description": "explain: match id (sm-…) whose AST ancestry to return.",
+            "description": "explain: sm-… match id for AST ancestry",
             "type": "string"
           },
           "action": {
-            "description": "preview: the transformation",
+            "description": "preview: transform",
             "type": "string",
             "enum": [
               "replace",
@@ -1973,11 +1963,11 @@
             "description": "One complete node written as code in the target language: a fragment that is not standalone goes inside its container, and a declaration carries every part it has (a declared return type as \": $_\" in TypeScript, \" -> $_\" in Python). $NAME matches one node and captures it; $$$NAME matches zero or more siblings and captures them; $_ and $$$ match without capturing. Names are uppercase letters, digits and underscores, a repeated name must match identical code, and spacing, line breaks and comments never matter."
           },
           "path": {
-            "description": "A file or a directory; the working directory when omitted. Dot-files and dot-folders, node_modules, dist, build, out, coverage, venv, __pycache__, vendor, target and the root .gitignore's plain entries are skipped unless named here.",
+            "description": "File or directory (default working directory). Dot-entries, node_modules, dist, build, out, coverage, venv, __pycache__, vendor, target and root .gitignore entries are skipped unless named.",
             "type": "string"
           },
           "glob": {
-            "description": "Only the files matching this glob, relative to path; {a,b} lists alternatives.",
+            "description": "Glob filter relative to path ({a,b} for alternatives).",
             "type": "string"
           },
           "lang": {
@@ -1985,7 +1975,7 @@
             "type": "string"
           },
           "mode": {
-            "description": "\"matches\" (the default) lists each match with its captures; \"count\" tallies matches per file",
+            "description": "Default \"matches\" (each match + captures); \"count\" tallies per file",
             "type": "string",
             "enum": [
               "matches",
@@ -1993,11 +1983,11 @@
             ]
           },
           "limit": {
-            "description": "Matches to return (default 50, max 200); the rest are counted.",
+            "description": "Max matches (default 50, max 200; rest counted)",
             "type": "number"
           },
           "offset": {
-            "description": "Matches to skip before the window. Default 0.",
+            "description": "Matches skipped before limit (default 0)",
             "type": "number"
           }
         },
@@ -2020,14 +2010,14 @@
           },
           "rewrite": {
             "type": "string",
-            "description": "The replacement, as code in the target language: $NAME and $$$NAME insert the captured source verbatim, and every meta-variable here must be captured by the pattern ($_ and $$$ cannot be inserted); \"\" deletes each matched node, and a node that owns its line takes the line with it."
+            "description": "Replacement code in target language: $NAME and $$$NAME insert captured source ($_/$$$ cannot be inserted; every meta-variable must be captured); \"\" deletes the node (and its line when owned)."
           },
           "path": {
-            "description": "A file or a directory; the working directory when omitted. Dot-files and dot-folders, node_modules, dist, build, out, coverage, venv, __pycache__, vendor, target and the root .gitignore's plain entries are skipped unless named here.",
+            "description": "File or directory (default working directory). Dot-entries, node_modules, dist, build, out, coverage, venv, __pycache__, vendor, target and root .gitignore entries are skipped unless named.",
             "type": "string"
           },
           "glob": {
-            "description": "Only the files matching this glob, relative to path; {a,b} lists alternatives.",
+            "description": "Glob filter relative to path ({a,b} for alternatives).",
             "type": "string"
           },
           "lang": {
@@ -2035,7 +2025,7 @@
             "type": "string"
           },
           "apply": {
-            "description": "Omitted or false: a dry run returning the diff and a plan token, nothing written. true: write the change; needs the plan from the dry run.",
+            "description": "Default false dry-runs (returns diff + plan token); true writes using plan.",
             "type": "boolean"
           },
           "plan": {
@@ -2053,7 +2043,7 @@
     },
     {
       "name": "ChangeSet",
-      "description": "Applies one set of edits, moves and deletions across existing text files as a whole: every member is checked against its read anchor before the first write and one operator decision covers the set; a drifted or invalid member refuses the whole set and nothing is written. preview builds a plan (cs-…) without writing; apply writes a plan or the changes given, verified by reread, and names any path it could not settle; status and discard manage a plan. Up to 16 files a set; a plan lives 30 minutes.",
+      "description": "Applies edits, moves and deletions across existing text files atomically: every member is checked against its read anchor before writing and one approval covers the set; a drifted or invalid member refuses the whole set and nothing is written. preview builds a plan (cs-…) without writing; apply writes a plan or changes, verified by reread, naming any unsettled path; status and discard manage a plan. Up to 16 files; plans live 30 minutes.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -2064,39 +2054,38 @@
               "apply",
               "status",
               "discard"
-            ],
-            "description": "The change-set operation"
+            ]
           },
           "changes": {
-            "description": "preview / apply: the file members, one per existing text file",
+            "description": "preview/apply: one entry per existing text file",
             "type": "array",
             "items": {
               "type": "object",
               "properties": {
                 "file_path": {
                   "type": "string",
-                  "description": "Absolute path to an existing text file"
+                  "description": "Absolute file path"
                 },
                 "expected_anchor": {
                   "type": "string",
-                  "description": "The bare fa:… or ra:… value inside the latest \"(anchor: …)\" for this file — a Read, or an Edit or Write result — without the wrapper"
+                  "description": "Bare fa:… or ra:… from this file's latest \"(anchor: …)\""
                 },
                 "hunks": {
-                  "description": "Disjoint line-addressed hunks against the anchored snapshot; a member carries hunks or edits, a move optionally, a delete neither",
+                  "description": "Disjoint hunks on the anchored snapshot; pass hunks or edits (optional on move, omitted on delete)",
                   "type": "array",
                   "items": {
                     "type": "object",
                     "properties": {
                       "lines": {
                         "type": "string",
-                        "description": "1-based original line (\"12\") or inclusive range (\"12-18\") of the anchored snapshot"
+                        "description": "1-based line (\"12\") or inclusive range (\"12-18\")"
                       },
                       "replace": {
                         "type": "string",
-                        "description": "Replacement body; \"\" deletes the range; with insert, the inserted body"
+                        "description": "Replacement text; \"\" deletes; inserted text with insert"
                       },
                       "insert": {
-                        "description": "Insert beside the single anchor line instead of replacing it",
+                        "description": "Insert beside the single line instead of replacing",
                         "type": "string",
                         "enum": [
                           "before",
@@ -2112,21 +2101,21 @@
                   }
                 },
                 "edits": {
-                  "description": "Disjoint exact-string edits against the anchored snapshot, instead of hunks",
+                  "description": "Disjoint exact-string edits instead of hunks",
                   "type": "array",
                   "items": {
                     "type": "object",
                     "properties": {
                       "old_string": {
                         "type": "string",
-                        "description": "The exact text to replace; unique in the file unless replace_all"
+                        "description": "Exact text to replace; unique unless replace_all"
                       },
                       "new_string": {
                         "type": "string",
-                        "description": "The text to replace it with; \"\" deletes old_string"
+                        "description": "Replacement text; \"\" deletes"
                       },
                       "replace_all": {
-                        "description": "Replace every occurrence of old_string",
+                        "description": "Replace all occurrences",
                         "type": "boolean"
                       }
                     },
@@ -2138,7 +2127,7 @@
                   }
                 },
                 "op": {
-                  "description": "\"edit\" (default) applies the hunks or edits; \"delete\" removes the file; \"move\" renames it to new_path after any hunks or edits",
+                  "description": "Default \"edit\"; \"move\" renames to new_path after any hunks/edits",
                   "type": "string",
                   "enum": [
                     "edit",
@@ -2147,7 +2136,7 @@
                   ]
                 },
                 "new_path": {
-                  "description": "move: the absolute destination path, which must not exist",
+                  "description": "move: absolute destination path (must not exist)",
                   "type": "string"
                 }
               },
@@ -2159,7 +2148,7 @@
             }
           },
           "plan_id": {
-            "description": "apply / status / discard: a plan id (cs-…) from a prior preview",
+            "description": "apply/status/discard: plan id (cs-…) from preview",
             "type": "string"
           }
         },
@@ -2200,15 +2189,14 @@
               "prDiff",
               "runs",
               "runWatch"
-            ],
-            "description": "The git work-graph operation"
+            ]
           },
           "cwd": {
-            "description": "the folder to run in (default: the session folder). The repository containing it is used; when it is not inside one but holds exactly one repository directly below it, that one is used",
+            "description": "Folder to run in (default session folder); uses containing repo or the sole repo directly below it",
             "type": "string"
           },
           "scope": {
-            "description": "diff: what to diff (default worktree)",
+            "description": "diff: default \"worktree\"",
             "type": "string",
             "enum": [
               "worktree",
@@ -2218,30 +2206,30 @@
             ]
           },
           "ref": {
-            "description": "diff: commit SHA or A..B range; fileAtRef/tree: source ref.",
+            "description": "diff: SHA or A..B; fileAtRef/tree: ref",
             "type": "string"
           },
           "paths": {
-            "description": "diff: limit to these paths",
+            "description": "diff: path filter",
             "type": "array",
             "items": {
               "type": "string"
             }
           },
           "sha": {
-            "description": "show: the commit",
+            "description": "show: commit",
             "type": "string"
           },
           "refA": {
-            "description": "mergebase: first ref; compare: base.",
+            "description": "mergebase: first ref; compare: base",
             "type": "string"
           },
           "refB": {
-            "description": "mergebase: second ref; compare: head.",
+            "description": "mergebase: second ref; compare: head",
             "type": "string"
           },
           "groups": {
-            "description": "plan: proposed commit groups in dependency order; previews without committing.",
+            "description": "plan: commit groups in dependency order (previews without committing)",
             "type": "array",
             "items": {
               "type": "object",
@@ -2251,10 +2239,10 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "exact repo-relative paths (a file belongs to at most one group)"
+                  "description": "Repo-relative paths (at most one group per file)"
                 },
                 "hunks": {
-                  "description": "optional per-file exact hunk-id subsets (gh-… from op:\"diff\")",
+                  "description": "Per-file hunk-id subsets (gh-… from diff)",
                   "type": "object",
                   "propertyNames": {
                     "type": "string"
@@ -2268,10 +2256,10 @@
                 },
                 "message": {
                   "type": "string",
-                  "description": "the commit message for this group"
+                  "description": "Commit message"
                 },
                 "checks": {
-                  "description": "checks associated with this group (recorded on the plan)",
+                  "description": "Associated checks recorded on plan",
                   "type": "array",
                   "items": {
                     "type": "string"
@@ -2286,18 +2274,18 @@
             }
           },
           "planId": {
-            "description": "Plan id (gp-…). apply creates commits after checking the tree digest; earlier groups stay committed if a later group fails. verify reports applicability and created commits.",
+            "description": "gp-… id: apply commits after checking tree digest (earlier groups stay committed if a later group fails); verify checks applicability",
             "type": "string"
           },
           "files": {
-            "description": "Exact repo-relative paths to stage or restore; restore unstages without changing working files.",
+            "description": "Repo-relative paths for stage/restore (restore unstages only)",
             "type": "array",
             "items": {
               "type": "string"
             }
           },
           "hunks": {
-            "description": "stage: per-file exact hunk-id subsets",
+            "description": "stage: per-file gh-… hunk ids",
             "type": "object",
             "propertyNames": {
               "type": "string"
@@ -2310,11 +2298,11 @@
             }
           },
           "path": {
-            "description": "resolve: conflicted path to resolve and stage; fileAtRef: file; tree: optional directory.",
+            "description": "resolve: conflicted file; fileAtRef: file; tree: optional directory",
             "type": "string"
           },
           "take": {
-            "description": "resolve: take one side wholesale",
+            "description": "resolve: side to take",
             "type": "string",
             "enum": [
               "ours",
@@ -2322,17 +2310,17 @@
             ]
           },
           "content": {
-            "description": "resolve: explicit resolved content (instead of take)",
+            "description": "resolve: resolved text instead of take",
             "type": "string"
           },
           "pr": {
-            "description": "reviewContext/prDiff: compose against this PR instead of the current branch (needs the gh session)",
+            "description": "reviewContext/prDiff: PR number (default current branch; uses gh)",
             "type": "integer",
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991
           },
           "findings": {
-            "description": "reviewRecord: the typed findings (empty = an honest no-findings review; inspected required)",
+            "description": "reviewRecord: findings ([] = clean review; requires inspected)",
             "type": "array",
             "items": {
               "type": "object",
@@ -2343,8 +2331,7 @@
                     "defect",
                     "question",
                     "polish"
-                  ],
-                  "description": "verified defect · open question · non-blocking polish"
+                  ]
                 },
                 "severity": {
                   "type": "string",
@@ -2356,7 +2343,7 @@
                 },
                 "path": {
                   "type": "string",
-                  "description": "exact repo-relative path inside the reviewed diff set"
+                  "description": "Repo-relative path in reviewed diff"
                 },
                 "range": {
                   "type": "string",
@@ -2364,15 +2351,14 @@
                 },
                 "claim": {
                   "type": "string",
-                  "description": "one-sentence statement of the finding"
+                  "description": "One-sentence finding"
                 },
                 "evidence": {
                   "type": "string",
-                  "description": "concise evidence backing the claim"
+                  "description": "Supporting evidence"
                 },
                 "nextAction": {
-                  "type": "string",
-                  "description": "the proposed next action"
+                  "type": "string"
                 }
               },
               "required": [
@@ -2388,18 +2374,18 @@
             }
           },
           "inspected": {
-            "description": "reviewRecord: what was actually inspected (required when findings is empty)",
+            "description": "reviewRecord: inspected items (required when findings is [])",
             "type": "array",
             "items": {
               "type": "string"
             }
           },
           "reviewNote": {
-            "description": "reviewRecord: optional bounded note",
+            "description": "reviewRecord: note",
             "type": "string"
           },
           "searchKind": {
-            "description": "hostSearch: what to search on the host",
+            "description": "hostSearch: target kind",
             "type": "string",
             "enum": [
               "code",
@@ -2409,31 +2395,31 @@
             ]
           },
           "query": {
-            "description": "hostSearch: the search query (GitHub search syntax)",
+            "description": "hostSearch: GitHub search query",
             "type": "string"
           },
           "limit": {
-            "description": "hostSearch/runs: result bound (search ≤50 default 10 · runs ≤20 default 10)",
+            "description": "hostSearch ≤50, runs ≤20 (default 10)",
             "type": "integer",
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991
           },
           "file": {
-            "description": "prDiff: one changed file's path — pages that file's diff (omit for the file list)",
+            "description": "prDiff: changed file path (omit for file list)",
             "type": "string"
           },
           "page": {
-            "description": "prDiff: 0-based page of the selected file (80 diff lines per page)",
+            "description": "prDiff: 0-based page (80 lines/page)",
             "type": "integer",
             "minimum": 0,
             "maximum": 9007199254740991
           },
           "run": {
-            "description": "Workflow-run id. runs inspects one run; runWatch returns immediately and settles on its observed conclusion.",
+            "description": "runs/runWatch: workflow run id (runWatch settles on conclusion)",
             "type": "string"
           },
           "cancel": {
-            "description": "runWatch: true cancels the live watch for `run` instead of starting one",
+            "description": "runWatch: cancel active watch for run",
             "type": "boolean"
           }
         },
@@ -2456,15 +2442,14 @@
               "run",
               "status",
               "list"
-            ],
-            "description": "Journey operation."
+            ]
           },
           "objective": {
-            "description": "run: what this journey verifies",
+            "description": "run: verification goal",
             "type": "string"
           },
           "steps": {
-            "description": "run: the ordered steps",
+            "description": "run: ordered steps",
             "type": "array",
             "items": {
               "oneOf": [
@@ -2647,7 +2632,7 @@
                     },
                     "url": {
                       "type": "string",
-                      "description": "LOOPBACK only (127.0.0.1 · localhost · ::1)"
+                      "description": "Loopback URL (127.0.0.1, localhost, ::1)"
                     },
                     "method": {
                       "type": "string"
@@ -2795,7 +2780,7 @@
                     },
                     "pattern": {
                       "type": "string",
-                      "description": "Regular expression polled against the service logs."
+                      "description": "Regex matched on service logs"
                     },
                     "label": {
                       "type": "string"
@@ -2823,7 +2808,7 @@
                       "items": {
                         "type": "string"
                       },
-                      "description": "Files to check for parse-level diagnostics."
+                      "description": "Files checked for parse diagnostics"
                     },
                     "label": {
                       "type": "string"
@@ -2847,7 +2832,7 @@
                     },
                     "jsonPath": {
                       "type": "string",
-                      "description": "Dot-separated keys from the last http.request's JSON response root (data.items.0.id); compared as text."
+                      "description": "Dot path in last http.request's JSON response (data.items.0.id), compared as text"
                     },
                     "equals": {
                       "type": "string"
@@ -2893,7 +2878,7 @@
             }
           },
           "cleanup": {
-            "description": "stop-started stops journey-started services after the run (default); keep leaves them running until this session ends.",
+            "description": "Default stop-started; keep leaves them running until session end",
             "type": "string",
             "enum": [
               "stop-started",
@@ -2901,7 +2886,7 @@
             ]
           },
           "id": {
-            "description": "status: the journey (jy-…)",
+            "description": "status: jy-… id",
             "type": "string"
           }
         },
@@ -2943,11 +2928,11 @@
             "description": "Browser operation."
           },
           "url": {
-            "description": "open: the URL to navigate to (http/https)",
+            "description": "open: http/https URL",
             "type": "string"
           },
           "waitUntil": {
-            "description": "open/reload: navigation settle condition (default load).",
+            "description": "open/reload: default load",
             "type": "string",
             "enum": [
               "domcontentloaded",
@@ -2956,11 +2941,11 @@
             ]
           },
           "selector": {
-            "description": "Element target: CSS, aria/<name>[role=\"<role>\"] with exact accessible name, text/<substring>, xpath/<expr>, or host >>> inner across shadow roots. Omitted: type uses focus; extract uses the whole page.",
+            "description": "CSS, aria/<name>[role=\"<role>\"] (exact name), text/<substring>, xpath/<expr>, or host >>> inner across shadow roots (omit: type uses focus, extract uses page)",
             "type": "string"
           },
           "frame": {
-            "description": "Frame index from extract (0 is main), or a unique URL substring. Acts use that frame origin, including secret fills.",
+            "description": "Frame index from extract (0 = main) or unique URL substring. Acts use that frame origin, including secret fills.",
             "anyOf": [
               {
                 "type": "integer",
@@ -2974,43 +2959,43 @@
             ]
           },
           "force": {
-            "description": "click: dispatch a DOM click to a covered selector target.",
+            "description": "click: DOM click to a covered selector target.",
             "type": "boolean"
           },
           "x": {
-            "description": "click: viewport x for a point click (with y; selector wins when both given)",
+            "description": "click: viewport x (with y; selector wins if both)",
             "type": "number"
           },
           "y": {
-            "description": "click: viewport y for a point click (with x)",
+            "description": "click: viewport y (with x)",
             "type": "number"
           },
           "text": {
-            "description": "type: the characters to type · waitFor: the page text to await",
+            "description": "type: characters · waitFor: page text",
             "type": "string"
           },
           "secretRef": {
-            "description": "type: operator-registered UPPER_SNAKE secret name, with selector. Credential fields require this instead of text. The value stays out of the conversation; each secret-and-origin pairing needs separate approval.",
+            "description": "type: operator-registered UPPER_SNAKE secret name, with selector. Credential fields require this instead of text; value stays out of the conversation, and each secret-and-origin pairing needs separate approval.",
             "type": "string"
           },
           "clear": {
-            "description": "type: clear the field first (selector targets only)",
+            "description": "type: clear selector target first",
             "type": "boolean"
           },
           "enter": {
-            "description": "type: press Enter after typing",
+            "description": "type: press Enter after",
             "type": "boolean"
           },
           "dy": {
-            "description": "scroll: pixel delta (positive scrolls down) when no selector is given",
+            "description": "scroll: pixel delta (+down) when no selector",
             "type": "number"
           },
           "timeoutMs": {
-            "description": "waitFor and selector actions/reads: deadline in ms (default 10000, cap 30000).",
+            "description": "waitFor/selector deadline in ms (default 10000, cap 30000)",
             "type": "number"
           },
           "state": {
-            "description": "waitFor selector: visible (default), attached even if hidden, or hidden/removed.",
+            "description": "waitFor selector: default visible",
             "type": "string",
             "enum": [
               "visible",
@@ -3019,7 +3004,7 @@
             ]
           },
           "mode": {
-            "description": "extract: text = innerText (default) · tree = accessibility-tree projection",
+            "description": "extract: default text (innerText); tree = accessibility tree",
             "type": "string",
             "enum": [
               "text",
@@ -3027,18 +3012,18 @@
             ]
           },
           "values": {
-            "description": "select: option values to choose (visible-label fallback); multiple only on a multiple select",
+            "description": "select: option values (visible-label fallback; multi only on <select multiple>)",
             "type": "array",
             "items": {
               "type": "string"
             }
           },
           "key": {
-            "description": "press: a navigation/edit key — Enter, Escape, Tab, ArrowUp/Down/Left/Right, Backspace, Delete, Home, End, PageUp, PageDown (printable characters go through type)",
+            "description": "press: Enter, Escape, Tab, ArrowUp/Down/Left/Right, Backspace, Delete, Home, End, PageUp, PageDown (use type for printable chars)",
             "type": "string"
           },
           "modifiers": {
-            "description": "press: modifiers held around the key",
+            "description": "press: held modifiers",
             "type": "array",
             "items": {
               "type": "string",
@@ -3051,23 +3036,23 @@
             }
           },
           "buildId": {
-            "description": "provision: exact Chrome-for-Testing build (default current stable).",
+            "description": "provision: Chrome-for-Testing build (default stable)",
             "type": "string"
           },
           "width": {
-            "description": "viewport: CSS px width (320-3840)",
+            "description": "viewport: CSS px (320–3840)",
             "type": "number"
           },
           "height": {
-            "description": "viewport: CSS px height (240-2160)",
+            "description": "viewport: CSS px (240–2160)",
             "type": "number"
           },
           "deviceScaleFactor": {
-            "description": "viewport: device scale, 1–3.",
+            "description": "viewport: scale 1–3",
             "type": "number"
           },
           "offset": {
-            "description": "extract: character offset for the text window.",
+            "description": "extract: text window char offset",
             "type": "number"
           },
           "limit": {
@@ -3075,11 +3060,11 @@
             "type": "number"
           },
           "fullPage": {
-            "description": "screenshot: capture the full scroll height (default viewport)",
+            "description": "screenshot: full scroll height (default viewport)",
             "type": "boolean"
           },
           "label": {
-            "description": "screenshot: artifact filename hint",
+            "description": "screenshot: filename hint",
             "type": "string"
           }
         },
@@ -3092,7 +3077,7 @@
     },
     {
       "name": "Computer",
-      "description": "Operate the desktop by screenshot coordinates or accessibility targets. Coordinates are pixels of its last screenshot; refresh after frame changes. Trees use [n] role \"title\" value rows. Terminal captures return accessibility text by default. Text fields: fill (target/ref) sets the value and reads it back; fields lists the controls.\n\nThe first act of a session asks once; tree/find/read/wait-until share its grant. Other reads never ask. Operator typing pauses automation; esc/ctrl+c releases input.\n\nAfter a click whose effect you assume (a dialog, a focus change, a page), wait with until; a sequence stops at its timeout. After the same act twice with an unchanged result, read the screen before acting again.",
+      "description": "Drive by screenshot coordinates or accessibility targets. Coordinates are pixels of its last screenshot; refresh after frame changes. Trees use [n] role \"title\" value rows. Terminal captures default to accessibility text. fill (target/ref) sets the value and reads it back; fields lists the controls.\n\nThe first act of a session asks once; tree/find/read/wait-until share its grant; other reads never ask. Operator typing pauses automation; esc/ctrl+c releases input.\n\nAfter a click whose effect you assume, wait with until; a sequence stops at its timeout. After the same act twice with an unchanged result, read the screen before acting again.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -3124,31 +3109,31 @@
             ]
           },
           "x": {
-            "description": "Last-screenshot x coordinate; paired with y.",
+            "description": "Last-screenshot x; paired with y.",
             "type": "number"
           },
           "y": {
-            "description": "Last-screenshot y coordinate; paired with x.",
+            "description": "Last-screenshot y; paired with x.",
             "type": "number"
           },
           "toX": {
-            "description": "drag: destination x coordinate.",
+            "description": "drag: destination x.",
             "type": "number"
           },
           "toY": {
-            "description": "drag: destination y coordinate.",
+            "description": "drag: destination y.",
             "type": "number"
           },
           "dx": {
-            "description": "scroll: horizontal notches, positive right.",
+            "description": "scroll: horizontal notches (+right).",
             "type": "number"
           },
           "dy": {
-            "description": "scroll: vertical notches, positive down.",
+            "description": "scroll: vertical notches (+down).",
             "type": "number"
           },
           "text": {
-            "description": "type or fill: at most 4000 characters; only newline and tab control characters.",
+            "description": "type or fill: ≤4000 chars; newline/tab are the only control chars.",
             "type": "string"
           },
           "key": {
@@ -3168,49 +3153,48 @@
             }
           },
           "durationMs": {
-            "description": "hold: 50–5000 ms; wait: default 1000, 5000 with until, maximum 10000 ms.",
+            "description": "hold: 50–5000 ms; wait: default 1000 (5000 with until), max 10000 ms.",
             "type": "number"
           },
           "display": {
-            "description": "Display number; omitted, the front window. Also applies to acts with capture:true.",
+            "description": "Display index (default front window); applies with capture:true.",
             "type": "number"
           },
           "settleMs": {
-            "description": "Post-action delay in ms, default 300, capped at 5000; not a readiness check.",
+            "description": "Post-act delay in ms (default 300, cap 5000); not readiness.",
             "type": "number"
           },
           "capture": {
-            "description": "Return an image after an act. A sequence returns one final image; screenshot steps capture in place. wait-until captures on a match. false suppresses images.",
+            "description": "Capture after act; sequence captures once at end (screenshot steps in place); wait-until on match; false suppresses.",
             "type": "boolean"
           },
           "full": {
-            "description": "Capture a display instead of the front window; also applies to acts with capture:true.",
+            "description": "Capture display instead of front window (including capture:true).",
             "type": "boolean"
           },
           "pixels": {
-            "description": "Return terminal pixels rather than accessibility text.",
+            "description": "Terminal pixels instead of accessibility text.",
             "type": "boolean"
           },
           "scale": {
-            "description": "Capture scale; default 0.5 for windows, 1 for displays/regions.",
+            "description": "Capture scale (default 0.5 window, 1 display/region).",
             "type": "number",
             "minimum": 0.25,
             "maximum": 1
           },
           "label": {
-            "description": "Capture label.",
             "type": "string"
           },
           "depth": {
-            "description": "Tree depth; default 12, clamped at 32. Targets use the cap by default.",
+            "description": "Tree depth (default 12, clamped at 32; targets default to cap).",
             "type": "number"
           },
           "limit": {
-            "description": "Tree rows; default 400, clamped at 2000. Targets use the cap by default.",
+            "description": "Tree rows (default 400, clamped at 2000; targets default to cap).",
             "type": "number"
           },
           "target": {
-            "description": "Accessibility target: exact role/name, substring text; nth selects a 1-based match.",
+            "description": "Exact role/name, substring text; 1-based nth.",
             "type": "object",
             "properties": {
               "role": {
@@ -3231,13 +3215,13 @@
             "additionalProperties": false
           },
           "ref": {
-            "description": "Node number from the latest tree or find; stale once the list changes. Choose ref, target or x/y.",
+            "description": "Node id from latest tree/find (stale once the list changes); alternative to target or x/y.",
             "type": "integer",
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991
           },
           "root": {
-            "description": "Tree root: node number or accessibility target.",
+            "description": "Tree root: ref or target.",
             "anyOf": [
               {
                 "type": "integer",
@@ -3267,19 +3251,19 @@
             ]
           },
           "all": {
-            "description": "Include hidden tree nodes.",
+            "description": "Include hidden nodes.",
             "type": "boolean"
           },
           "points": {
-            "description": "Include tree-node pixel positions.",
+            "description": "Include node pixel coordinates.",
             "type": "boolean"
           },
           "clipboard": {
-            "description": "read: use clipboard text with separate consent instead of target/ref.",
+            "description": "read: clipboard text (separate consent) instead of target/ref.",
             "type": "boolean"
           },
           "focusApp": {
-            "description": "Bring a running application forward by name or bundle id; capture screenshots after.",
+            "description": "Focus running app by name or bundle id; capture after.",
             "type": "object",
             "properties": {
               "name": {
@@ -3292,7 +3276,7 @@
             "additionalProperties": false
           },
           "toTarget": {
-            "description": "drag: destination accessibility target instead of toX/toY.",
+            "description": "drag: destination target instead of toX/toY.",
             "type": "object",
             "properties": {
               "role": {
@@ -3313,7 +3297,7 @@
             "additionalProperties": false
           },
           "until": {
-            "description": "wait: text/title/URL substring, role/name, dialog: true or focus (a role); gone waits for removal. Put it after a click whose effect you assume.",
+            "description": "wait: text/title/url substring, role/name, dialog:true or focus role; gone waits for removal.",
             "type": "object",
             "properties": {
               "role": {
@@ -3344,7 +3328,7 @@
             "additionalProperties": false
           },
           "count": {
-            "description": "click: number of clicks, 1–3.",
+            "description": "click: 1–3.",
             "type": "number"
           },
           "region": {
@@ -3373,7 +3357,7 @@
             "additionalProperties": false
           },
           "scope": {
-            "description": "Tree scope: window by default; app adds its other windows.",
+            "description": "Tree scope: window (default); app adds its other windows.",
             "type": "string",
             "enum": [
               "window",
@@ -3381,19 +3365,19 @@
             ]
           },
           "verify": {
-            "description": "Compare trees after acting; reports change, not task success.",
+            "description": "Diff trees after act (reports change, not task success).",
             "type": "boolean"
           },
           "captcha": {
-            "description": "Ask the operator before acting on a visible challenge.",
+            "description": "Ask operator before acting on a visible challenge.",
             "type": "boolean"
           },
           "path": {
-            "description": "file: absolute path of the file to upload through the native dialog.",
+            "description": "file: absolute path for native file dialog.",
             "type": "string"
           },
           "steps": {
-            "description": "Non-nested sequence; stops at first failure, a wait-until timeout included. Capture, region, scale and settleMs belong on the sequence. Step fields have the same meanings as the top-level fields.",
+            "description": "Non-nested sequence; stops on failure or wait-until timeout. Put capture/region/scale/settleMs on sequence.",
             "type": "array",
             "items": {
               "type": "object",
@@ -3493,7 +3477,6 @@
                   "type": "number"
                 },
                 "target": {
-                  "description": "role/name exact; text substring; unique match",
                   "type": "object",
                   "properties": {
                     "role": {
@@ -3678,12 +3661,12 @@
     },
     {
       "name": "EnterWorktree",
-      "description": "Creates an isolated git worktree under the project's `.mercury/worktrees/` on a new branch from the current head — outside a repository the configured hooks provide the isolation — and moves this session's working directory into it, on the user's word \"worktree\" only; a session already in a worktree it created stays where it is. The session ends with a keep-or-remove prompt for the worktree.",
+      "description": "Creates an isolated git worktree under `.mercury/worktrees/` on a new branch from HEAD (outside git, configured hooks isolate) and switches this session's cwd into it — only when the user explicitly says \"worktree\". Refuses if already in a session-created worktree; prompts keep-or-remove at session end.",
       "input_schema": {
         "type": "object",
         "properties": {
           "name": {
-            "description": "Worktree name: letters, digits, dots, underscores, and dashes within each slash-delimited segment; at most 64 characters. Omitted ⇒ a generated name.",
+            "description": "Worktree name: letters, digits, dots, underscores and dashes per /-segment, ≤64 chars (omitted auto-names).",
             "type": "string"
           }
         },
@@ -3693,7 +3676,7 @@
     },
     {
       "name": "ExitWorktree",
-      "description": "Ends the worktree session this session started and restores its original working directory, on the user's explicit ask; a worktree created by hand or by a previous session is untouched, and with no active worktree session the call says so and touches nothing. keep leaves the worktree directory and its branch on disk, and a tmux session attached to the worktree keeps running with its name returned for the user; remove deletes both and kills that tmux session. Caches that depend on the working directory are cleared.",
+      "description": "Exits the worktree this session created and restores its original cwd on the user's explicit ask (worktrees from by-hand git or earlier sessions are untouched; no-op if none active). keep leaves directory, branch and any attached tmux session (returning its name); remove deletes directory and branch and kills that tmux session. Clears cwd-dependent caches.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -3702,11 +3685,10 @@
             "enum": [
               "keep",
               "remove"
-            ],
-            "description": "\"keep\" leaves the worktree directory and its branch on disk for later; \"remove\" deletes both."
+            ]
           },
           "discard_changes": {
-            "description": "With remove: true discards the worktree's uncommitted files and unmerged commits with it, on the user's word; false (the default) removes only a worktree that has none.",
+            "description": "remove only: true discards uncommitted files and unmerged commits on the user's word; default false requires a clean worktree.",
             "type": "boolean"
           }
         },
@@ -3719,7 +3701,7 @@
     },
     {
       "name": "Checkpoint",
-      "description": "Marks the current conversation state as the checkpoint a later rewind restores, before an exploratory detour whose transcript need not stay in context; the goal is echoed back at the rewind. One checkpoint is active at a time, and a run that ends with it still active gets a settle warning. The pair touches the model context only: files, git state and the operator's visible transcript are never changed by it.",
+      "description": "Marks the current conversation state for a later rewind before an exploratory detour (echoing goal back at rewind). Only one checkpoint may be active at a time; ending a run with one active emits a settle warning. Context-only: files, git state and the operator's visible transcript are untouched.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -3738,13 +3720,13 @@
     },
     {
       "name": "Rewind",
-      "description": "Restores the model context to the active checkpoint at the end of this turn: the next model call sees the context from before the exploration plus the report, and everything between the checkpoint and the rewind leaves the model context. The operator's transcript keeps the exploration visible; files and git state are untouched.",
+      "description": "Restores model context to the active checkpoint at turn end: the next call sees pre-checkpoint context plus report, dropping intermediate messages from model context while keeping them in the operator's transcript (files and git untouched).",
       "input_schema": {
         "type": "object",
         "properties": {
           "report": {
             "type": "string",
-            "description": "The one artifact that survives the rewind, written as a handoff: findings, decisions, exact paths, next steps. Required, non-empty after trim."
+            "description": "Non-empty handoff surviving the rewind: findings, decisions, exact paths, next steps."
           }
         },
         "required": [
@@ -3790,24 +3772,24 @@
               "swarm_team",
               "swarm_captain"
             ],
-            "description": "Read/post events; lead-only swarm_team assigns a team and swarm_captain appoints its captain."
+            "description": "lead-only swarm_team assigns a team and swarm_captain appoints its captain"
           },
           "seat": {
-            "description": "Seat to assign or appoint.",
+            "description": "Seat to assign/appoint",
             "type": "string"
           },
           "team": {
-            "description": "Assignment team, or read filter; omitted on read, the general timeline.",
+            "description": "Assignment team, or read filter (omitted = general timeline)",
             "type": "string"
           },
           "clientOpId": {
-            "description": "Post retry key. Reuse only for an identical retry.",
+            "description": "Retry key. Reuse only for an identical retry.",
             "type": "string",
             "minLength": 1,
             "maxLength": 160
           },
           "kind": {
-            "description": "Post type. An ask/blocker to @main or @all, or a result/answer/correction to @main by name, wakes an idle lead in one batched turn; other posts do not.",
+            "description": "An ask/blocker to @main or @all, or result/answer/correction to @main, wakes an idle lead in one batched turn; others do not.",
             "type": "string",
             "enum": [
               "ask",
@@ -3818,17 +3800,16 @@
             ]
           },
           "corrects": {
-            "description": "Earlier event id for a correction; appends without erasing it.",
+            "description": "Earlier event id; appends without erasing.",
             "type": "string",
             "maxLength": 160
           },
           "text": {
-            "description": "Post body; @seat, @team and @all address recipients.",
+            "description": "Post body (@seat, @team, @all address recipients)",
             "type": "string",
             "minLength": 1
           },
           "threadId": {
-            "description": "Post thread id.",
             "type": "string",
             "maxLength": 160
           },
@@ -3838,12 +3819,11 @@
             "maxLength": 160
           },
           "taskId": {
-            "description": "Task the post concerns.",
             "type": "string",
             "maxLength": 160
           },
           "about": {
-            "description": "Subject text, path or URL.",
+            "description": "Subject, path or URL",
             "type": "string",
             "maxLength": 1200
           },
@@ -3862,7 +3842,6 @@
             }
           },
           "relatedTasks": {
-            "description": "Related task ids.",
             "maxItems": 16,
             "type": "array",
             "items": {
@@ -3871,7 +3850,7 @@
             }
           },
           "files": {
-            "description": "Associated paths; also filters reads.",
+            "description": "Associated paths or read filter",
             "maxItems": 32,
             "type": "array",
             "items": {
@@ -3880,7 +3859,7 @@
             }
           },
           "refs": {
-            "description": "Evidence references with their digests.",
+            "description": "Evidence refs with sha digests",
             "maxItems": 8,
             "type": "array",
             "items": {
@@ -3904,34 +3883,34 @@
             }
           },
           "since": {
-            "description": "Read after this sequence; 0 rereads from the start. Omitted, continue the enrollment cursor and skip already-presented events; skippedSeen counts them since enrollment.",
+            "description": "Read after seq (0 rereads all; omitted continues enrollment cursor, skipping seen events counted in skippedSeen)",
             "type": "integer",
             "minimum": 0,
             "maximum": 9007199254740991
           },
           "snapshot": {
-            "description": "Read snapshot sequence upper bound.",
+            "description": "Read seq upper bound",
             "type": "integer",
             "minimum": 0,
             "maximum": 9007199254740991
           },
           "thread": {
-            "description": "Read thread filter.",
+            "description": "Read thread filter",
             "type": "string",
             "maxLength": 160
           },
           "task": {
-            "description": "Read task filter.",
+            "description": "Read task filter",
             "type": "string",
             "maxLength": 160
           },
           "mentioned": {
-            "description": "Read mention filter.",
+            "description": "Read mention filter",
             "type": "string",
             "maxLength": 160
           },
           "acknowledge": {
-            "description": "Event ids to acknowledge; fetching does not acknowledge.",
+            "description": "Event ids to acknowledge (fetching does not acknowledge)",
             "maxItems": 32,
             "type": "array",
             "items": {
@@ -3995,23 +3974,23 @@
         "type": "object",
         "properties": {
           "script": {
-            "description": "Self-contained JavaScript workflow source.",
+            "description": "Self-contained JS workflow source",
             "type": "string",
             "maxLength": 524288
           },
           "name": {
-            "description": "Saved or built-in workflow name; used when scriptPath is absent.",
+            "description": "Saved/built-in workflow name (when scriptPath is absent)",
             "type": "string"
           },
           "args": {
-            "description": "JSON value exposed as args, verbatim; omitted, undefined."
+            "description": "Verbatim JSON args (default undefined)"
           },
           "scriptPath": {
-            "description": "Path to a saved workflow, selected before name.",
+            "description": "Saved workflow path (precedes name)",
             "type": "string"
           },
           "resumeFromRunId": {
-            "description": "Prior run ID from this session, after that run stops.",
+            "description": "Stopped run id from this session",
             "type": "string",
             "pattern": "^wf_[a-z0-9-]{6,}$"
           }
@@ -4022,12 +4001,12 @@
     },
     {
       "name": "Sleep",
-      "description": "Waits the given seconds without holding a shell process, returning early when the user interrupts, new input arrives, or the crewmates and background commands it tracks finish; the result says which and reports the time actually waited. Periodic check-in prompts wrapped in <tick> tags may arrive during the wait, each a nudge to look for useful work before sleeping on. Every wake is a model call, and the prompt cache lapses after 5 minutes of idleness.",
+      "description": "Waits seconds without holding a shell, returning early on user interrupt, new input, or tracked crewmate/background-command completion (reporting why and elapsed time). Periodic <tick> nudges may arrive during waits; each wake costs a model call, and prompt cache lapses after 5m idle.",
       "input_schema": {
         "type": "object",
         "properties": {
           "seconds": {
-            "description": "How many seconds to wait before returning (min 1, max 3600; a value outside the bounds is clamped to them and the result says so).",
+            "description": "Seconds to wait (min 1, max 3600; clamped outside bounds).",
             "type": "number",
             "minimum": 0
           }
@@ -4041,34 +4020,34 @@
     },
     {
       "name": "CronCreate",
-      "description": "Puts a prompt on this session's clock — one run after a delay or at a set time, or a repeating cron schedule — kept by the Mercury daemon on this session's record and fired into the session, parked or not, on this session's model and account; the operator sees every schedule on the /saturn board. The call waits for the daemon and returns the schedule's id and its fire time in local time and UTC; an answer that is not \"Scheduled\" says whether the request may have landed and how to find out. A fire lands within 30 seconds after its time, only while the session is idle; one the sign-in cannot serve is held with a receipt until /logins releases it, one due while the machine slept runs late or, past the catch-up window, is recorded as missed, and a schedule outlives interrupts.",
+      "description": "Schedules a prompt on this session's daemon record (visible on /saturn), firing on this session's model and account even when parked. It returns the schedule's id and its fire time in local time and UTC; non-\"Scheduled\" replies state whether it may have landed and how to check. Fires land within 30s only while the session is idle; a schedule outlives interrupts, holds with a receipt until /logins if sign-in cannot serve it, and runs late after machine sleep (or records missed past the catch-up window).",
       "input_schema": {
         "type": "object",
         "properties": {
           "cron": {
-            "description": "Repeating: five fields (minute hour day-of-month month day-of-week) in local time, never UTC; numbers, *, ranges (1-5), lists (1,15) and steps (*/10), no names. Pass exactly one of cron, at, delayMinutes.",
+            "description": "Repeating 5-field cron (min hr dom mon dow) in local time, never UTC; numbers, *, ranges (1-5), lists (1,15), steps (*/10), no names. Pass exactly one of cron, at, delayMinutes.",
             "type": "string"
           },
           "at": {
-            "description": "One run at a local date and time, \"YYYY-MM-DDTHH:MM\" (an offset such as \"Z\" or \"+01:00\" is accepted); must be in the future.",
+            "description": "Future one-shot local time \"YYYY-MM-DDTHH:MM\" (optional offset like \"Z\" or \"+01:00\").",
             "type": "string"
           },
           "delayMinutes": {
-            "description": "One run this many minutes from now (1 to 525600); it fires on the next whole minute at or after the delay.",
+            "description": "One-shot delay in minutes (fires on next whole minute at or after delay).",
             "type": "number",
             "minimum": 1,
             "maximum": 525600
           },
           "prompt": {
             "type": "string",
-            "description": "What runs at each fire, 1 to 20,000 characters, stored with the schedule and delivered verbatim with no memory of why it was set: self-contained, no secrets."
+            "description": "Self-contained prompt (1–20,000 chars, no secrets); delivered verbatim at each fire with no memory of why it was set."
           },
           "recurring": {
-            "description": "With cron only. Default true; false runs once at the next match, then removes itself (for one run prefer at or delayMinutes).",
+            "description": "cron only: default true; false fires once then deletes itself (prefer at or delayMinutes for one-shots).",
             "type": "boolean"
           },
           "onParked": {
-            "description": "What a fire does when the session is parked: 'wake' (default) reactivates the session and delivers; 'queue' holds the fire for the session's own next wake.",
+            "description": "When parked: 'wake' (default) reactivates and delivers; 'queue' holds until next wake.",
             "type": "string",
             "enum": [
               "wake",
@@ -4076,7 +4055,7 @@
             ]
           },
           "title": {
-            "description": "A short name for the schedule (one line of at most 200 characters), shown on its rows in the chat and the list in place of the id; the name the user gave the task, when they gave one.",
+            "description": "Short schedule name (one line of at most 200 characters) shown on chat/list rows instead of id; use the user's task name when given.",
             "type": "string"
           }
         },
@@ -4117,20 +4096,20 @@
     },
     {
       "name": "ScheduleWakeup",
-      "description": "Wakes this session once, after 60–3600 seconds, with the prompt given. The wake fires on a minute boundary once the session is idle; an operator interruption or stop drops it, a parked session keeps it. A daemon-hosted wake persists with the session; on a bare run it is a timer that ends with the run. It fires once: a loop continues only when the woken prompt schedules the next wake.",
+      "description": "Wakes this session once after 60–3600s with prompt (on a minute boundary once idle; dropped on operator interrupt/stop, kept when parked). Daemon-hosted wakes persist with the session; bare runs use an in-process timer. One-shot: loops re-arm on each wake.",
       "input_schema": {
         "type": "object",
         "properties": {
           "delaySeconds": {
             "type": "number",
-            "description": "Delay in seconds, clamped to 60–3600; the wake fires on the next minute boundary at or after it."
+            "description": "Seconds to wait (clamped to 60–3600; fires on next minute boundary)."
           },
           "prompt": {
             "type": "string",
-            "description": "The prompt to enqueue when the wake fires."
+            "description": "Prompt enqueued at wake."
           },
           "reason": {
-            "description": "A short note on why you are waking yourself; it heads the woken prompt and shows on the wake's row.",
+            "description": "Short continuity note heading the woken prompt and wake row.",
             "type": "string"
           }
         },
@@ -4178,7 +4157,7 @@
     },
     {
       "name": "ContextLeft",
-      "description": "Reports how full the context window is — the tokens used, the window, the percent, and the tokens left until autocompact folds the transcript — from the same derivation the operator's context gauge reads, each number labelled measured on the wire or estimated from characters. Until this session's first answer the count is unknown, and the answer says so while still naming the window; a window marked ~ is a conservative default, not a figure the provider stated.",
+      "description": "Reports context-window usage (tokens used, window, percent, and tokens left until autocompact) from the operator's context gauge, marking each figure wire-measured or char-estimated. Before the first answer the count is unknown (window still shown); a ~ window is a conservative default, not provider-stated.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -4188,16 +4167,16 @@
     },
     {
       "name": "RecordConvention",
-      "description": "Writes one durable project convention the user stated into the project's instruction estate — MERCURY.md at the project root, born with the first rule when absent, or the guide it points at with an explicit @import — and returns the file it wrote. An exact restatement of an existing rule writes nothing; replaces swaps the existing rule line in place wherever in the estate it lives.",
+      "description": "Writes one user-stated project convention into MERCURY.md (created when absent) or its explicit @import guide, returning the written path. Exact restatements write nothing; replaces swaps a matching rule line in place across the estate.",
       "input_schema": {
         "type": "object",
         "properties": {
           "rule": {
             "type": "string",
-            "description": "The convention, as one plain standing-order sentence"
+            "description": "Convention as one plain standing-order sentence"
           },
           "replaces": {
-            "description": "A distinctive substring of the existing rule line this one supersedes; that line is swapped in place",
+            "description": "Distinctive substring of the superseded rule line to swap in place",
             "type": "string"
           }
         },
@@ -4226,11 +4205,11 @@
                   "description": "One durable fact; content and context together may contain at most 2000 characters."
                 },
                 "context": {
-                  "description": "Where the fact came from (provenance note).",
+                  "description": "Provenance note.",
                   "type": "string"
                 },
                 "topic": {
-                  "description": "Topic routing hint (slugified).",
+                  "description": "Topic slug hint.",
                   "type": "string"
                 },
                 "pin": {
@@ -4246,8 +4225,7 @@
                 "content"
               ],
               "additionalProperties": false
-            },
-            "description": "The facts to store."
+            }
           }
         },
         "required": [
@@ -4259,20 +4237,20 @@
     },
     {
       "name": "Recall",
-      "description": "Searches project memory and returns pointers, or reads one full record. A search returns at most 20 pointers, each a stable id (seq:<n> for a fact or ruling, pending:<ts> for a staged row, ledger:<ordinal> for a session or its handoff), a kind (fact · ruling · handoff · session), a one-line title (where it lives, when, from whom, which of your words matched) and footnotes (the session it came from, the ruling it fell under, what it supersedes or was superseded by). A pointer carries no content: open the record with read before you rely on it or quote it. A read returns the entry with its breadcrumb and footnotes; a ledger read is the session's entry and its handoff verbatim. An empty result is flagged elidable: droppable context, not an error. It never writes.",
+      "description": "Searches project memory for pointers or reads one full record. Pointers return stable ids (seq:<n>, pending:<ts>, ledger:<ordinal>), kind (fact · ruling · handoff · session), a one-line title and footnotes (session, ruling, supersedes/superseded-by). A pointer carries no content: open the record with read before you rely on it or quote it. read returns the entry with breadcrumb and footnotes (or a ledger session entry and handoff verbatim). Empty searches are elidable context, not errors. Read-only.",
       "input_schema": {
         "type": "object",
         "properties": {
           "query": {
-            "description": "Words to search for across the pages, the archive, the pending observations and the lineage ledger; a phrase or regex matches literally, otherwise the words of the query are matched. A pointer is an id, a title and footnotes: open one with read to see the record.",
+            "description": "Search pages, archive, pending rows and lineage (phrases/regex match literally, else words). A pointer is an id, a title and footnotes: open one with read to see the record.",
             "type": "string"
           },
           "read": {
-            "description": "Read one full record by id: seq:<n> (a fact or ruling) · doc:<slug> (a whole page) · pending:<ts> · ledger:<ordinal> (a session's entry and its handoff).",
+            "description": "Read record by id: seq:<n>, doc:<slug>, pending:<ts>, or ledger:<ordinal> (session + handoff).",
             "type": "string"
           },
           "limit": {
-            "description": "Max pointers (default 12, at most 20).",
+            "description": "Max pointers (default 12).",
             "type": "integer",
             "minimum": 1,
             "maximum": 20
@@ -4284,7 +4262,7 @@
     },
     {
       "name": "Reflect",
-      "description": "Answers a question over project memory: one search for the query, then one bounded model call over the hits, whose synthesis cites the records it uses ([seq N] / [pending N]). A synthesis that cites nothing or invents ids, or a run with no usable model or credentials, returns the raw search instead with the reason. It never writes.",
+      "description": "Synthesizes an answer over recalled memory in one search + one model call, citing used records ([seq N] / [pending N]). Falls back to raw search with the reason if uncited, invented ids, or no usable model/credentials. Read-only.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -4306,7 +4284,7 @@
     },
     {
       "name": "Correct",
-      "description": "Changes one memory record by id: supersede replaces the fact with a new truth and moves the old one to history with a superseded-by pointer; amend fixes the record's own wording; retract marks it wrong with a reason. A consolidated fact is never deleted: its history stays. A pending row (pending:<ts>) is a draft, not yet a fact: retract strikes it and no history is kept; supersede or amend replaces it with a new pending row, and the new row keeps the old words as its history until consolidation files the fact. A rule the user asked for changes only on their answer to a card the call puts to them with the rule's words as stored and what will happen: Yes runs the op, No returns \"the user kept the rule\" and nothing changes; under the sovereign permission mode the op runs without the card and its record says so.",
+      "description": "Changes one memory record by id; supersede moves a consolidated fact to history with a superseded-by pointer (consolidated facts are never deleted). A pending row (pending:<ts>) is a draft: retract strikes it and no history is kept; supersede or amend replaces it with a new pending row, and the new row keeps the old words as its history until consolidation files the fact. A rule the user asked for changes only on their answer to a card the call puts to them with the rule's words as stored and what will happen: Yes runs the op, No returns \"the user kept the rule\" and nothing changes; under the sovereign permission mode the op runs without the card and its record says so.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -4317,23 +4295,23 @@
               "amend",
               "retract"
             ],
-            "description": "supersede = a new truth; amend = fix the wording, which needs the full record read this session; retract = mark it wrong."
+            "description": "supersede = new truth; amend = fix wording (needs full record read this session); retract = mark wrong."
           },
           "id": {
             "type": "string",
-            "description": "The record id: seq:<n> for a consolidated row, pending:<ts> for a draft still in the buffer."
+            "description": "Record id: seq:<n> (consolidated) or pending:<ts> (draft)."
           },
           "content": {
-            "description": "The new or corrected content (supersede, amend).",
+            "description": "New/corrected text (supersede, amend).",
             "type": "string"
           },
           "replacementId": {
-            "description": "supersede only: an existing seq:<n> already carrying the truth, instead of content.",
+            "description": "supersede: existing seq:<n> instead of content.",
             "type": "string"
           },
           "reason": {
             "type": "string",
-            "description": "Why; every correction carries its reason."
+            "description": "Reason for correction."
           }
         },
         "required": [
@@ -4347,13 +4325,13 @@
     },
     {
       "name": "Journal",
-      "description": "Write a brief entry into the journal: where the project is, what the queued backlog is, and what the user asked for in this session, in their words — never Mercury's own standing instructions. Plain words, concise, no longer than a sentence.\n\n- One entry per session; a later call replaces the earlier one. The entry is written to the journal when this session ends. The journal lives in the Mercury home beside the project's memory, never under the project tree, and Mercury never pushes, syncs or shares it. The next session reads the last entry only when the operator's setting (memory.journalOnEntryPage) says so; the operator reads it in /memory.\n- The rules Mercury itself works under (its git rules, its constitution) are not the user's constraints: write down only what the user said in this session.",
+      "description": "Write a brief entry into the journal: where the project is, what the queued backlog is, and what the user asked for in this session, in their words — never Mercury's own standing instructions. Plain words, concise, no longer than a sentence.\n\nOne entry per session (a later call replaces it), written at session end to the Mercury home beside project memory — never under the project tree, and never pushed, synced or shared. The next session sees the last entry only when memory.journalOnEntryPage is on; the operator reads it in /memory.",
       "input_schema": {
         "type": "object",
         "properties": {
           "entry": {
             "type": "string",
-            "description": "A brief entry: where the project is, what the queued backlog is, and what the user asked for in this session, in their words — never Mercury's own standing instructions. Plain words, concise, no longer than a sentence. Under 4000 characters."
+            "description": "One-sentence entry under 4000 characters."
           }
         },
         "required": [
@@ -4440,15 +4418,15 @@
             ]
           },
           "output": {
-            "description": "Destination file; extension selects the format",
+            "description": "Destination path; extension selects format",
             "type": "string"
           },
           "source": {
-            "description": "Input document path",
+            "description": "Input path",
             "type": "string"
           },
           "sources": {
-            "description": "merge: ordered PDF paths",
+            "description": "merge: PDF paths in order",
             "type": "array",
             "items": {
               "type": "string"
@@ -4650,11 +4628,11 @@
             }
           },
           "csv": {
-            "description": "CSV text for a worksheet",
+            "description": "CSV worksheet text",
             "type": "string"
           },
           "json": {
-            "description": "Records for a worksheet",
+            "description": "Worksheet row records",
             "type": "array",
             "items": {
               "type": "object",
@@ -4672,11 +4650,11 @@
             }
           },
           "sheet": {
-            "description": "Worksheet name, required when exporting one of several sheets",
+            "description": "Worksheet name (required when exporting one of multiple)",
             "type": "string"
           },
           "template": {
-            "description": "DOCX template path with {{key}} placeholders",
+            "description": "DOCX template with {{key}} placeholders",
             "type": "string"
           },
           "replacements": {
@@ -4689,7 +4667,7 @@
             }
           },
           "append": {
-            "description": "Append content to source DOCX, keeping existing parts",
+            "description": "Append to source DOCX",
             "type": "boolean"
           },
           "titlePage": {
@@ -4745,7 +4723,7 @@
             ]
           },
           "margin": {
-            "description": "Page margins in points; default 54",
+            "description": "Margins in points (default 54)",
             "type": "number",
             "exclusiveMinimum": 0
           },
@@ -4763,11 +4741,11 @@
             ]
           },
           "pages": {
-            "description": "1-based page ranges, for example 1-3,7; preserves order",
+            "description": "1-based ranges (e.g. 1-3,7), ordered",
             "type": "string"
           },
           "parts": {
-            "description": "split: page ranges and destination per part",
+            "description": "split: ranges and output per part",
             "type": "array",
             "items": {
               "type": "object",
@@ -4787,14 +4765,14 @@
             }
           },
           "rotate": {
-            "description": "Clockwise degrees applied to selected PDF pages",
+            "description": "Clockwise degrees on selected PDF pages",
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991,
             "multipleOf": 90
           },
           "expectedSha256": {
-            "description": "Existing output path to digest from inspect; required for replacement",
+            "description": "Existing output path -> sha256 from inspect (required to overwrite)",
             "type": "object",
             "propertyNames": {
               "type": "string"
@@ -4808,7 +4786,7 @@
             "type": "string"
           },
           "dois": {
-            "description": "DOIs to resolve through api.crossref.org, only when requested",
+            "description": "DOIs resolved via api.crossref.org when given",
             "type": "array",
             "items": {
               "type": "string"

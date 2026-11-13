@@ -2,25 +2,25 @@ import type { CompactMetadata } from '../../types/message.js'
 import { otherToolsLine, type TurnReceiptCounts } from '../../utils/cockpit/turnReceipt.js'
 import { plural } from '../../utils/stringUtils.js'
 
-const NO_TOOLS_PREAMBLE = `Reply with prose only — no tool calls of any kind. Do not invoke Read, Bash, Grep, Glob, Edit, Write, Task, or any other tool. Any tool call will be refused outright, and because you have exactly one turn, a refused call means this summarisation attempt produces nothing and fails. The conversation below already contains everything you need; there is nothing to look up.`
+const NO_TOOLS_PREAMBLE = `Reply with prose only — no tool calls of any kind. Do not invoke Read, Bash, Grep, Glob, Edit, Write, Crewmate, or any other tool: tool calls are refused, and with only one turn a refused call fails this summarisation. Everything needed is in the conversation below.`
 
 const NO_TOOLS_TRAILER = `Remember: prose only, no tool calls. Produce the summary now.`
 
-const AGENTS_IN_FLIGHT_SECTION = `10. Agents in flight: every agent still running or owed a result at the turnover — crewmates, workflow runs and their crewmates, background shells — with the name or id a message reaches it by (the SendMessage address), what it was asked, and what is owed back (a result not yet retrieved, a notification pending). A running agent is never re-spawned; a pending result is collected, not re-derived. Write "none" when nothing runs.`
+const AGENTS_IN_FLIGHT_SECTION = `10. Agents in flight: every agent still running or owed a result at turnover (crewmates, workflows and their crewmates, background shells) — SendMessage address (name or id), what was asked, and what is owed back. Never re-spawn running agents or re-derive pending results. Write "none" if none.`
 
 const SUMMARY_SECTIONS = `Your summary must contain these ten numbered sections:
 1. Operator Intent: every explicit request, in detail.
 2. Technical Ground: technologies, patterns and frameworks in play.
-3. Files and Code Touched: files examined, modified or created — with particular attention to the most recent messages, full code snippets where applicable, and a note on why each file matters.
-4. Errors and Corrections: every error hit, how it was fixed, and any operator feedback about it.
-5. Problems Worked: problems solved and any ongoing troubleshooting.
+3. Files and Code Touched: files examined, modified or created (especially recent ones), key code snippets where needed, and why each file matters.
+4. Errors and Corrections: every error hit, how it was fixed, and any operator feedback.
+5. Problems Worked: problems solved and ongoing troubleshooting.
 6. Operator Messages: every message the operator sent that is not a tool result.
 7. Open Work: work the operator explicitly asked for that is not yet done.
-8. Where Work Stands: precisely what was being worked on most recently, with file names and code snippets.
-9. Next Move (optional): the next step directly in line with the operator's most recent explicit request and the task in flight. Do not start tangential or already-completed work without confirming first. Include verbatim quotes from the most recent conversation showing exactly what task was in hand and where it stopped.
+8. Where Work Stands: what was being worked on most recently, with file names and code snippets.
+9. Next Move (optional): the immediate next step aligned with the operator's latest explicit request and active task (never start tangential or finished work without confirming), with verbatim quotes showing where work stopped.
 ${AGENTS_IN_FLIGHT_SECTION}`
 
-const OUTPUT_EXAMPLE = `Structure your output like this:
+const OUTPUT_EXAMPLE = `Output format:
 <summary>
 1. Operator Intent:
    [...]
@@ -59,9 +59,9 @@ export const SUMMARY_SECTION_TITLES: ReadonlyArray<string> = [
   'Context to Carry',
 ]
 
-const EXTRA_INSTRUCTIONS_NOTE = `The included context may contain additional summarisation instructions — for example a MERCURY.md section saying "when compacting, always preserve the full list of failing tests", or an operator note reading "focus the summary on the database migration work". Follow any such instructions when producing the summary.`
+const EXTRA_INSTRUCTIONS_NOTE = `Follow any summarisation instructions present in context (such as MERCURY.md rules or operator notes).`
 
-const BASE_TEMPLATE = `Write the running record of this conversation: a summary detailed enough that development continues without losing context. Weigh the operator's explicit requests and your own prior actions heavily, and keep the technical grain — code patterns, architectural decisions, exact detail.
+const BASE_TEMPLATE = `Summarise this conversation thoroughly enough for work to continue seamlessly, weighting explicit operator requests and prior actions heavily and preserving exact technical detail, code patterns and architectural decisions.
 
 ${SUMMARY_SECTIONS}
 
@@ -69,7 +69,7 @@ ${OUTPUT_EXAMPLE}
 
 ${EXTRA_INSTRUCTIONS_NOTE}`
 
-const RUN_CAPSULE_STEERING = `A machine-generated continuation record accompanies your summary. It already holds the factual inventories — what the run is for, the state of each deliverable, which files changed, which attempts failed, where verification stands, and what happens next — so repeating them is wasted effort. Spend your budget on what only you can supply: constraints and decisions the operator has imposed that are still binding, the reasoning that ruled out the approaches already discarded, the non-obvious context behind the approach now in flight, and pointers to the files and symbols the next turn should simply re-read. Keep verbatim fragments only where they carry weight and cannot be recovered from the repository.`
+const RUN_CAPSULE_STEERING = `A machine-generated continuation record accompanies your summary and already carries factual inventories (objective, deliverable states, changed files, failed attempts, verification state, next action) — do not repeat them. Spend your budget on what only you know: binding operator constraints/decisions, why discarded approaches were ruled out, non-obvious context for the active approach, and file/symbol pointers to re-read (quoting verbatim only what the repo does not hold).`
 
 function withCustomInstructions(body: string, customInstructions: string | undefined): string {
   const trimmed = customInstructions?.trim()
@@ -86,26 +86,26 @@ export function getCompactPrompt(
   return `${withCustomInstructions(parts.join('\n\n'), customInstructions)}\n\n${NO_TOOLS_TRAILER}`
 }
 
-const FROM_TEMPLATE = `Summarise ONLY the recent portion of this conversation — the messages after the retained earlier context. The earlier messages are being kept intact and need no summary.
+const FROM_TEMPLATE = `Summarise only the recent messages after the retained earlier context (which stays intact and needs no summary).
 
-${SUMMARY_SECTIONS.replace('the conversation', 'the recent messages')}
+${SUMMARY_SECTIONS}
 
 ${OUTPUT_EXAMPLE}
 
 ${EXTRA_INSTRUCTIONS_NOTE}`
 
-const UP_TO_TEMPLATE = `Summarise this conversation. Your summary will be placed at the START of a continuing session, with newer messages following it that you cannot see — so it must be thorough enough that someone reading only your summary plus those newer messages can continue the work.
+const UP_TO_TEMPLATE = `Summarise this prefix of the conversation: your summary will sit at the start of a continuing session ahead of newer unseen messages, so keep everything needed to continue seamlessly alongside them.
 
 Your summary must contain these ten numbered sections:
 1. Operator Intent: every explicit request, in detail.
 2. Technical Ground: technologies, patterns and frameworks in play.
-3. Files and Code Touched: files examined, modified or created — with full code snippets where applicable and a note on why each file matters.
-4. Errors and Corrections: every error hit, how it was fixed, and any operator feedback about it.
-5. Problems Worked: problems solved and any ongoing troubleshooting.
+3. Files and Code Touched: files examined, modified or created, key code snippets where needed, and why each file matters.
+4. Errors and Corrections: every error hit, how it was fixed, and any operator feedback.
+5. Problems Worked: problems solved and ongoing troubleshooting.
 6. Operator Messages: every message the operator sent that is not a tool result.
 7. Open Work: work the operator explicitly asked for that is not yet done.
-8. Delivered This Stretch: what was finished by the end of this portion of the conversation.
-9. Context to Carry: the context, decisions and state needed to understand and continue the work in the subsequent messages.
+8. Delivered This Stretch: what was finished by the end of this prefix.
+9. Context to Carry: context, decisions and state needed to understand and continue the subsequent messages.
 ${AGENTS_IN_FLIGHT_SECTION}
 
 ${OUTPUT_EXAMPLE}

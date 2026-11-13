@@ -68,11 +68,11 @@
   "reminders": [
     {
       "type": "text",
-      "text": "<system-reminder>\nThe task list has not moved in a while: if the current work benefits from tracked progress, TaskCreate adds items and TaskUpdate moves their status (in_progress on start, completed on finish); a stale list is cleaned up.\n\n\nThe current tasks:\n\n#41. [in_progress] Preserve file facts\n</system-reminder>"
+      "text": "<system-reminder>\nTask list idle: if tracked progress helps here, use TaskCreate and TaskUpdate (in_progress on start, completed on finish); clean up stale items.\n\n\nCurrent tasks:\n\n#41. [in_progress] Preserve file facts\n</system-reminder>"
     },
     {
       "type": "text",
-      "text": "<system-reminder>\nThis session runs under a contract — its work agreement, status amended (2 superseded texts in its history). It is advisory: it never blocks anything; hold yourself to it, check in through the `contract` tool when unsure, and propose an amendment there when a clause does not survive contact with the code.\n\nIt awaits your acknowledgment: restate it in your own words through the `contract` tool ({ action: \"acknowledge\", restatement }) — the restatement is what makes it stick.\n\nThe agreement:\n\nDeliver the parser with its proofs.\n</system-reminder>"
+      "text": "<system-reminder>\nSession contract (advisory work agreement, status amended (2 superseded texts)): never blocks steps; hold to it, check in via `Contract` when unsure, and propose-amend when a clause fails contact with the code.\n\nAwaits acknowledgment: restate it in your own words via `Contract` ({ action: \"acknowledge\", restatement }).\n\nAgreement:\n\nDeliver the parser with its proofs.\n</system-reminder>"
     }
   ]
 }

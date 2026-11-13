@@ -53,17 +53,13 @@ export async function getPrompt(
   if (isCoordinator) return sections.join('\n\n')
 
   sections.push(`## Execution
-Launches in one message overlap; foreground launches in separate messages run one after another. Foreground calls wait for the report. Reports return to the caller, not directly to the user.
-
-Tool access follows the selected agent definition and the session's permissions. Foreground and background launches have the same tool access.
-
-With swarm on, a new crewmate is enrolled on the live crew board and told its name, its team and the seats already there. Posts arrive as [name] [team] [kind] rows between turns.`)
+Launches in one message run concurrently; foreground launches in separate messages run sequentially and wait for the report (returned to you, not directly to the user). Tool access follows the selected agent definition and the session's permissions. Foreground and background launches have the same tool access. With swarm on, a new crewmate is enrolled on the live crew board and told its name, its team and the seats already there; posts arrive as [name] [team] [kind] rows between turns.`)
 
   sections.push(`## Worktree cleanup
 The seven-day janitor removes only a clean worktree whose commits are reachable.`)
 
   sections.push(`## Review mode
-A review receipt confines verification to bun/bash commands under scripts and bun run typecheck with sources read-only. The report ends with REVIEW: CLEAN or REVIEW: FINDINGS <count>.`)
+review_receipt confines verification to bun/bash under scripts and bun run typecheck with read-only sources. End reports with REVIEW: CLEAN or REVIEW: FINDINGS <count>.`)
 
   return sections.join('\n\n')
 }

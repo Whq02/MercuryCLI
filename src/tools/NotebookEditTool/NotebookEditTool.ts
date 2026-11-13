@@ -36,24 +36,24 @@ export const inputSchema = lazySchema(() =>
   z.strictObject({
     notebook_path: z
       .string()
-      .describe('Path of the .ipynb file; a relative path resolves against the working directory'),
+      .describe('.ipynb path (relative paths resolve against working directory)'),
     cell_id: z
       .string()
       .optional()
       .describe(
-        'Which cell to target, by id. For inserts the new cell lands just after this cell — or at the very beginning when no id is given.',
+        'Target cell id; insert places after this cell (omit to insert at start)',
       ),
-    new_source: z.string().describe('The content the cell will hold'),
+    new_source: z.string().describe('New cell source'),
     cell_type: z
       .enum(['code', 'markdown'])
       .optional()
       .describe(
-        'Whether the cell is code or markdown; omitted, the existing cell keeps its type. Required for edit_mode=insert.',
+        'Required for insert; omitted keeps existing cell type',
       ),
     edit_mode: z
       .enum(EDIT_MODES)
       .optional()
-      .describe('The operation: replace, insert, or delete (replace when omitted).'),
+      .describe('Default replace'),
   }),
 )
 type InputSchema = ReturnType<typeof inputSchema>

@@ -7,5 +7,4 @@ export const JOURNAL_DESCRIPTION = `Write a brief entry into the journal: ${JOUR
 
 export const JOURNAL_PROMPT = `Write a brief entry into the journal: ${JOURNAL_ENTRY_SHAPE}
 
-- One entry per session; a later call replaces the earlier one. The entry is written to the journal when this session ends. The journal lives in the Mercury home beside the project's memory, never under the project tree, and Mercury never pushes, syncs or shares it. The next session reads the last entry only when the operator's setting (memory.journalOnEntryPage) says so; the operator reads it in /memory.
-- The rules Mercury itself works under (its git rules, its constitution) are not the user's constraints: write down only what the user said in this session.`
+One entry per session (a later call replaces it), written at session end to the Mercury home beside project memory — never under the project tree, and never pushed, synced or shared. The next session sees the last entry only when memory.journalOnEntryPage is on; the operator reads it in /memory.`

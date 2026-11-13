@@ -33,40 +33,36 @@ function operatorDeclined(error: unknown): boolean {
 
 
 const questionOptionSchema = z.object({
-  id: z.string().optional().describe('Stable id of the option in the answer; defaults from its position'),
-  label: z.string().describe('Concise 1-5 word label for this option'),
+  id: z.string().optional().describe('Answer id (default positional)'),
+  label: z.string().describe('1-5 word label'),
   description: z
     .string()
-    .describe('What choosing this option means or implies'),
+    .describe('Option meaning/implication'),
   preview: z
     .string()
     .optional()
-    .describe('Rendered when the option is focused (host-format dependent)'),
+    .describe('Focused preview (host-format dependent)'),
 })
 
 const questionSchema = z.object({
-  id: z.string().optional().describe('Stable id of the question in the answer; defaults from its position'),
-  decisionId: z.string().optional().describe('Key of the question\'s interview record (mercury://interview/<session>/<decisionId>); defaults when omitted'),
+  id: z.string().optional().describe('Question id in answer (default positional)'),
+  decisionId: z.string().optional().describe('Interview record key (mercury://interview/<session>/<decisionId>)'),
   question: z
     .string()
-    .describe(
-      'Question text; phrase for multi-select when applicable',
-    ),
+    .describe('Question text'),
   header: z
     .string()
     .max(ASK_USER_QUESTION_TOOL_CHIP_WIDTH)
-    .describe(
-      `Chip label, at most ${ASK_USER_QUESTION_TOOL_CHIP_WIDTH} characters`,
-    ),
+    .describe(`Chip label (≤${ASK_USER_QUESTION_TOOL_CHIP_WIDTH} chars)`),
   options: z
     .array(questionOptionSchema)
     .min(2)
     .max(4)
     .describe(
-      'Mutually exclusive unless multiSelect; an Other free-text answer is supplied automatically',
+      'Exclusive unless multiSelect; Other free-text answer is supplied automatically',
     ),
   multiSelect: semanticBoolean(z.boolean().default(false)).describe(
-    'Allow several answers to this question',
+    'Allow several answers',
   ),
 })
 

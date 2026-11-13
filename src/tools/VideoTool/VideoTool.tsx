@@ -15,20 +15,20 @@ import { VideoToolResult } from './VideoToolResult.js'
 
 const aspect = () => z.enum(['adaptive', '21:9', '16:9', '4:3', '1:1', '3:4', '9:16'])
 const inputSchema = lazySchema(() => z.strictObject({
-  prompt: z.string().trim().min(1).max(7000).describe('The video to generate; sent to the configured billable provider'),
-  provider: z.string().optional().describe('The configured videoProvider entry; required when there is more than one'),
+  prompt: z.string().trim().min(1).max(7000).describe('Video prompt sent to the billable provider'),
+  provider: z.string().optional().describe('Configured videoProvider name (required if multiple)'),
   references: z.array(z.strictObject({
     path: z.string().min(1),
     role: z.enum(['first_frame', 'last_frame', 'reference_image', 'reference_video', 'reference_audio']).optional(),
-  })).optional().describe('Project-local images (first_frame, last_frame or reference_image), MP4/MOV clips (reference_video) and MP3/WAV audio (reference_audio) to send; an omitted role is the matching reference role'),
-  duration: z.number().int().min(4).max(15).optional().describe('Seconds of generated video, default 5; H3-Max needs at least 5'),
-  aspect: aspect().optional().describe('Output aspect; default 16:9 for text, adaptive with references'),
-  ratio: aspect().optional().describe('MiniMax spelling of aspect; both must agree if supplied'),
-  resolution: z.enum(['480P', '768P', '2K']).optional().describe('MiniMax resolution (default 768P); H3 takes 768P or 2K, H3-Max 480P or 768P'),
+  })).optional().describe('Project-local image, MP4/MOV or MP3/WAV refs (omitted role inferred from media type)'),
+  duration: z.number().int().min(4).max(15).optional().describe('Seconds (default 5; H3-Max ≥5)'),
+  aspect: aspect().optional().describe('Default 16:9 for text, adaptive with references'),
+  ratio: aspect().optional().describe('MiniMax alias for aspect (must match if both set)'),
+  resolution: z.enum(['480P', '768P', '2K']).optional().describe('Default 768P (H3: 768P/2K; H3-Max: 480P/768P)'),
   extra: z.strictObject({ prompt_expansion_mode: z.enum(['disabled', 'balanced', 'quality']).optional() }).optional(),
-  callback_url: z.url().optional().describe('MiniMax callback URL; task updates are also sent to this address'),
-  outputDir: z.string().min(1).optional().describe('Destination directory inside the project; default videos/'),
-  timeoutSeconds: z.number().int().min(1).max(2_147_483).optional().describe('Local deadline, default 1200 seconds; stopping locally does not cancel the vendor job'),
+  callback_url: z.url().optional().describe('MiniMax task-update callback URL'),
+  outputDir: z.string().min(1).optional().describe('Project output directory (default videos/)'),
+  timeoutSeconds: z.number().int().min(1).max(2_147_483).optional().describe('Local wait deadline in s (default 1200; local cancel does not stop vendor job)'),
 }))
 
 type Output = VideoOutput & { inlinePath?: string; inlineMediaType?: string }
