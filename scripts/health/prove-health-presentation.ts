@@ -188,12 +188,12 @@ section('§6 N-06 · THE PROFILE CONTRACT + THE VISIBLE REMEDIES')
   const engine = src('src/services/instructions/engine.ts')
   const { conventionsForProfile } = await import('../../src/services/instructions/engine.js')
   check(
-    'the profile contract is declared in source: the union is auto | native, a requested profile resolves as itself, auto adds the shared guide convention after the native one, native composes the native convention alone',
+    'the profile contract is declared in source: the union is auto | native, a requested profile resolves as itself, auto adds the shared conventions after the native one, AGENTS.md first; native composes the native convention alone',
     contracts.includes("export type InstructionProfile = 'auto' | 'native'") &&
       !contracts.includes('mapped?:') &&
       /return \{ requested, requestedOrigin, resolved: requested \}/.test(engine) &&
       JSON.stringify(conventionsForProfile('native').map(convention => convention.id)) === JSON.stringify(['mercury-native']) &&
-      JSON.stringify(conventionsForProfile('auto').map(convention => convention.id)) === JSON.stringify(['mercury-native', 'agents-md']),
+      JSON.stringify(conventionsForProfile('auto').map(convention => convention.id)) === JSON.stringify(['mercury-native', 'agents-md', 'agent-folders', 'claude', 'gemini', 'copilot', 'cursor', 'windsurf', 'cline']),
   )
   check(
     'the health instruction-profile row projects the same diagnostics (warn on findings)',
