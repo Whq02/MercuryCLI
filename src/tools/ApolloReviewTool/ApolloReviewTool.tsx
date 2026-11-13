@@ -36,32 +36,32 @@ const inputSchema = z.object({
   summary: z
     .string()
     .min(1)
-    .describe('The review of the completed spec in plain language; a technical term only beside its plain meaning'),
+    .describe('Plain-language spec review; introduce technical terms only beside plain meanings'),
   blockers: z
     .array(z.string().min(1))
     .default([])
     .describe(
-      'What still prevents a one-shot prototype, each with a short comment; empty asks the user to begin the build',
+      'Remaining blockers to a one-shot prototype with short notes; [] asks the user to start building',
     ),
   specFiles: z
     .array(z.string())
     .default([])
-    .describe('Absolute paths of the spec files the interview produced'),
+    .describe('Absolute paths of produced spec files'),
   runNote: z
     .string()
     .optional()
-    .describe('Where and how the prototype will be run, one plain line'),
+    .describe('One plain line on where/how the prototype runs'),
   decision: z
     .enum(['build', 'build-ask-first', 'more-questions'])
     .optional()
     .describe(
-      "Written by the consent card with the user's choice — never author this field",
+      'Set by consent card — never author',
     ),
   refineNote: z
     .string()
     .optional()
     .describe(
-      "Written by the consent card — the user's note on what still needs asking. Never author this field",
+      'Set by consent card — never author',
     ),
 })
 

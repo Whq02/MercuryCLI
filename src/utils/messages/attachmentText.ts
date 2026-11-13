@@ -2,6 +2,7 @@ import type { ContentBlockParam, TextBlockParam } from '../../types/wire.js'
 import type { AnyObject, Tool } from '../../Tool.js'
 import type { MessageOrigin, UserMessage } from '../../types/message.js'
 import { BashTool } from '../../tools/BashTool/BashTool.js'
+import { CONTRACT_TOOL_NAME } from '../../tools/ContractTool/prompt.js'
 import { FileReadTool, type Output as FileReadToolOutput } from '../../tools/FileReadTool/FileReadTool.js'
 import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../../tools/SendMessageTool/constants.js'
@@ -131,16 +132,16 @@ function skillListing(listing: Of<'skill_listing'>): UserMessage[] {
 }
 
 function contractRows(contract: Of<'contract_reminder'>): UserMessage[] {
-  const history = contract.amendments > 0 ? ` (${contract.amendments} superseded text${contract.amendments === 1 ? '' : 's'} in its history)` : ''
-  const acknowledgment = contract.ackOwed ? '\n\nIt awaits your acknowledgment: restate it in your own words through the `contract` tool ({ action: "acknowledge", restatement }) — the restatement is what makes it stick.' : ''
-  return reminders(`This session runs under a contract — its work agreement, status ${contract.status}${history}. It is advisory: it never blocks anything; hold yourself to it, check in through the \`contract\` tool when unsure, and propose an amendment there when a clause does not survive contact with the code.${acknowledgment}\n\nThe agreement:\n\n${contract.text}`)
+  const history = contract.amendments > 0 ? ` (${contract.amendments} superseded text${contract.amendments === 1 ? '' : 's'})` : ''
+  const acknowledgment = contract.ackOwed ? `\n\nAwaits acknowledgment: restate it in your own words via \`${CONTRACT_TOOL_NAME}\` ({ action: "acknowledge", restatement }).` : ''
+  return reminders(`Session contract (advisory work agreement, status ${contract.status}${history}): never blocks steps; hold to it, check in via \`${CONTRACT_TOOL_NAME}\` when unsure, and propose-amend when a clause fails contact with the code.${acknowledgment}\n\nAgreement:\n\n${contract.text}`)
 }
 
 function taskRows(tasks: Of<'task_reminder'>): UserMessage[] {
   if (!isTaskToolsEnabled()) return []
   const items = tasks.content.map(task => `#${task.id}. [${task.status}] ${task.subject}`).join('\n')
-  const guidance = `The task list has not moved in a while: if the current work benefits from tracked progress, ${TASK_CREATE_TOOL_NAME} adds items and ${TASK_UPDATE_TOOL_NAME} moves their status (in_progress on start, completed on finish); a stale list is cleaned up.\n`
-  return reminders(guidance + (items ? '\n\nThe current tasks:\n\n' + items : ''))
+  const guidance = `Task list idle: if tracked progress helps here, use ${TASK_CREATE_TOOL_NAME} and ${TASK_UPDATE_TOOL_NAME} (in_progress on start, completed on finish); clean up stale items.\n`
+  return reminders(guidance + (items ? '\n\nCurrent tasks:\n\n' + items : ''))
 }
 
 function rosterLine(row: Of<'agent_roster'>['rows'][number]): string {

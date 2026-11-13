@@ -36,12 +36,9 @@ export function toContextItem(result: SideQuestionResult, atMs: number): SideQue
 }
 
 export const SIDE_QUESTION_FRAMING =
-  `The user has a side question, answered by you — a separate lightweight agent spawned for this one question. ` +
-  `The main agent is not interrupted and continues independently; you share its conversation context but are a separate instance. ` +
-  `Do not present yourself as having been interrupted and do not refer to what you were "previously doing". ` +
-  `You have no tools: you cannot read files, run commands, search, or take any action, and there will be no follow-up turn. ` +
-  `Answer directly, in a single response, using only information already in the conversation context. ` +
-  `Never promise to take an action or offer to look something up. If you do not know, say so.`
+  `Side question for you — a separate lightweight agent spawned for this one question while the main agent continues uninterrupted (never say you were interrupted or refer to "previous" work). ` +
+  `You have no tools (no reads, commands, searches or actions) and no follow-up turn. ` +
+  `Answer directly in a single response from existing conversation context only; never promise actions or lookups, and say so if you do not know.`
 
 export function sideQuestionTurn(question: string, framing: string = SIDE_QUESTION_FRAMING): string {
   return `<system-reminder>\n${framing}\nSide question: ${question}\n</system-reminder>`

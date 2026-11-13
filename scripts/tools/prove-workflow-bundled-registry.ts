@@ -41,6 +41,16 @@ section('the review scope step reads the guide files Mercury reads')
 {
   const review = read('src/tools/WorkflowTool/bundled/code-review.ts')
   check("the scope step names MERCURY.md, then AGENTS.md where a project keeps its conventions there — and no other tool's guide file", review.includes('(MERCURY.md, or AGENTS.md where the project keeps its conventions there)'))
+  const dispatched = [
+    'withModel({ label: "scope", schema: BOUNDS_SCHEMA }, LANE_MODEL)',
+    'withModel({ label: lens.label, phase: "Find", schema: LEADS_SCHEMA }, LANE_MODEL)',
+    'withModel({ label: "verify:" + basename, phase: "Verify", schema: RULING_SCHEMA }, CHECK_MODEL)',
+    'withModel({ label: "sweep", phase: "Sweep", schema: LEADS_SCHEMA }, LANE_MODEL)',
+    'withModel({ label: "synthesize", schema: DIGEST_SCHEMA }, LANE_MODEL)',
+  ]
+  check('every crewmate the review dispatches carries its label, its schema and its lane model (scope, find, verify, sweep, synthesize)', dispatched.every(piece => review.includes(piece)), dispatched.filter(piece => !review.includes(piece)).join(' · '))
+  const research = read('src/tools/WorkflowTool/bundled/deep-research.ts')
+  check('every crewmate the research dispatches carries its options (plan, search, mine, skeptic, report)', (research.match(/withModel\(\{/g) ?? []).length === 5 && ['schema: PLAN_SCHEMA', 'schema: HITS_SCHEMA', 'schema: MINED_SCHEMA', 'schema: BALLOT_SCHEMA', 'schema: DIGEST_SCHEMA'].every(piece => research.includes(piece)))
 }
 
 section('the registry after startup registration: exactly the two built-ins')

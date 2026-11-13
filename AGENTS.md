@@ -1,79 +1,41 @@
 # Mercury — building and running a local copy
 
-Mercury is a terminal harness for software development. This file covers a copy
-of the source — build, run, check, report a problem — not the internals. The
-repository is https://github.com/Whq02/MercuryCLI; README.md is its front door
-and docs/README.md lists every page by task.
+Mercury is a terminal harness for software development. Repository: https://github.com/Whq02/MercuryCLI (`README.md` is the front door; `docs/README.md` indexes guides by task).
 
 ## Prerequisites
 
-A release install needs `git` only — the archive carries its own Node runtime.
-Building from source needs Node `>=24.20.0 <25` (`.node-version` pins the patch
-the archives vendor; below 24.20.0 a headless run that dispatched a tool aborts
-at exit on Windows), bun 1.4.4 (the build runtime, never vendored), and `git`.
-On Windows, run PowerShell 7 inside Windows Terminal or the VS Code integrated terminal.
+A release install needs `git` only — the archive bundles Node. Building from source needs Node `>=24.20.0 <25` (`.node-version` pins the vendored patch; below 24.20.0 a headless tool run aborts at exit on Windows), bun 1.4.4 (build runtime, never vendored), and `git`. On Windows, use PowerShell 7 in Windows Terminal or the VS Code terminal.
 
 ## Build and run
 
 ```sh
-bun run setup                      # once; bun install + the vendored packs
+bun run setup                      # once; bun install + vendored packs
 bun run build.ts                   # writes dist/mercury.mjs + dist/manifest.json
 node dist/mercury.mjs --version
 node dist/mercury.mjs
 node dist/mercury.mjs health --json
 ```
 
-`setup` fetches the vendored packs (pyright · debugpy · js-debug · grammars ·
-the platform's Node and Python runtimes · brush, the optional shell engine); with cargo it
-builds the voice capture addon, the desktop driver addon that computer use runs
-through and the local embedding addon (`native/embed`, with its 118 MB model), and
-with cmake beside cargo the on-device transcriber; the health check names a skipped pack.
+`setup` fetches the vendored packs (`pdfjs` · `pyright` · `debugpy` · `js-debug` · `grammars` · platform Node and Python · `brush` shell engine), builds the `cargo` addons (voice capture, desktop driver for computer use, `native/embed` + 118 MB model), and with `cmake` + `cargo` builds the on-device transcriber; `health` names any skipped pack.
 
-The cockpit needs a real TTY, with no minimum terminal size. The full layout
-starts at 100 columns and 26 rows; smaller windows use the compact layout.
-The first run walks theme and sign-in. Every interactive boot with no explicit
-journey lands on the Boot face — the ten-row card: New Session,
-Continue Last Session (once history exists), Boot Menu, MCPs & Skills, Agents,
-Health Check, Saturn Scheduler, Logins, Session Concourse, Sessions · Projects.
-How the screens connect and the flags that shape a boot are [docs/SESSIONS.md](docs/SESSIONS.md);
-`node dist/mercury.mjs --help` lists the headless verbs. Windows runs
-`node dist\mercury.mjs` directly; the guide is [docs/INSTALL-WINDOWS-FROM-SOURCE.md](docs/INSTALL-WINDOWS-FROM-SOURCE.md).
+Interactive sessions need a TTY (full layout from 100×26, compact below; first run walks theme and sign-in) and open on the Boot face: New Session, Continue Last Session (once history exists), Boot Menu, MCPs & Skills, Agents, Health Check, Saturn Scheduler, Logins, Session Concourse, Sessions · Projects. Screen routing and boot flags: [docs/SESSIONS.md](docs/SESSIONS.md); headless verbs: `node dist/mercury.mjs --help`; Windows source builds (`node dist\mercury.mjs`): [docs/INSTALL-WINDOWS-FROM-SOURCE.md](docs/INSTALL-WINDOWS-FROM-SOURCE.md).
 
 ## The launcher and the config home
 
-Configuration and sessions live in the config home: `~/.mercury`, or whatever
-`MERCURY_CONFIG_DIR` names; the build never writes there. To make a build your
-daily `mercury`, `scripts/ops/deploy-runtime.sh` publishes a clean-tree build to a
-fresh `<config-home>/runtime/builds/<build>` folder behind the `runtime/current`
-pointer (`runtime/dist` is the same link) and `scripts/ops/deploy-launcher.sh` installs the
-launcher at `<config-home>/bin/mercury` — put that directory on your `PATH`;
-`mercury --version` checks it. The launcher runs `MERCURY_NODE`, else the
-vendored `vendor/node` beside the build, else a PATH node, and fails loudly
-when none is there. A release install (README.md, Install) uses `mercury
-install` and `mercury update` instead; neither touches sessions.
+Config and sessions live in `~/.mercury` (or `MERCURY_CONFIG_DIR`); the build never writes there. `scripts/ops/deploy-runtime.sh` publishes a clean build to `<config-home>/runtime/builds/<build>` behind `runtime/current` (`runtime/dist`), and `scripts/ops/deploy-launcher.sh` writes `<config-home>/bin/mercury` (add to `PATH`; check with `mercury --version`). The launcher resolves `MERCURY_NODE`, else vendored `vendor/node`, else `PATH` `node`, failing loudly if none exists. Release installs use `mercury install` and `mercury update` (`README.md`, Install) without touching sessions.
 
 ## Checks
 
 ```sh
-bun run typecheck                  # strict; zero baseline
-bash scripts/<suite>/run-all.sh    # one suite; they sit side by side under scripts/
-bun run verify                     # every suite but the drives, pooled; exit 0 is green
-bash scripts/run-drives.sh         # the drive suites (*-drives), once, as a background guide
-bun run artifact:smoke             # the built bundle, isolated, outside the repo
+bun run typecheck                  # strict; zero new diagnostics
+bash scripts/<suite>/run-all.sh    # one suite under scripts/
+bun run verify                     # every non-drive suite, pooled; exit 0 is green
+bash scripts/run-drives.sh         # drive suites (*-drives), run once
+bun run artifact:smoke             # isolated built-bundle smoke check
 ```
 
-Run the suite nearest your change while iterating; `bun run verify` closes, and its exit
-status is the verdict. A suite run by hand gets a fresh scratch config home unless
-MERCURY_CONFIG_DIR names one; the operator's ~/.mercury is never a proof's home.
-`git config core.hooksPath .githooks` turns on the committed pre-push guard; the build
-never sets it. BUILD-NOTES.md covers the build itself. One convention the checks enforce:
-a retired spelling (a flag, key, environment name, command, word or path) ceases to exist
-and fails as an unknown input — no alias, no bespoke refusal line, no migration; the
-identity suite's forbidden lists are the only place a retired word may appear.
+Iterate with the nearest suite and close with `bun run verify`. Suites use a fresh scratch config home unless `MERCURY_CONFIG_DIR` is set — never `~/.mercury`. `git config core.hooksPath .githooks` turns on the committed pre-push guard; the build never sets it. Build details live in `BUILD-NOTES.md`. Retired spellings (flags, keys, env vars, commands, words, paths) fail as unknown input with no alias, custom refusal, or migration, appearing only in the identity suite's forbidden lists.
 
 ## Reporting a problem
 
-Inside Mercury, `/bug <what happened>` shows the exact report and files it
-through your own signed-in `gh`; by hand, README.md ("Reporting a problem")
-names the issue templates and what to paste. A security problem goes through
-the repository's Security tab ([SECURITY.md](SECURITY.md)), never an issue.
+Run `/bug <what happened>` inside Mercury to preview and file via signed-in `gh`, or use the issue templates in `README.md` ("Reporting a problem"). Report vulnerabilities via the GitHub Security tab ([SECURITY.md](SECURITY.md)), never a public issue.

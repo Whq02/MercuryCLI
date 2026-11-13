@@ -127,9 +127,8 @@ export async function createMercuryServer(): Promise<{
     {
       title: 'Take project file leases',
       description:
-        'Take project-relative paths for the current session and agent: files, or a directory with a trailing slash, which is one lease covering everything under it. ' +
-        'Another live holder is named and refused. Leases are released with lease_release or when the holder ends.',
-      inputSchema: { paths: z.array(z.string()).min(1).describe('Project-relative file paths, or directories ending in "/"; not globs.') },
+        'Take project-relative paths for this session and agent: files, or a directory with a trailing slash, which is one lease covering everything under it. Live holders are named and refused. Released via lease_release or when the holder ends.',
+      inputSchema: { paths: z.array(z.string()).min(1).describe('Project-relative files or "/"-suffixed directories (no globs).') },
       annotations: { readOnlyHint: false, destructiveHint: false },
     },
     async ({ paths }): Promise<CallToolResult> => {
@@ -145,11 +144,11 @@ export async function createMercuryServer(): Promise<{
     'lease_release',
     {
       title: 'Release your file leases',
-      description: 'Release the current holder’s project file leases: the named paths, or every lease it holds when none are named. The session director can name agentId to release that agent’s leases, or all: true for every holder in its own session.',
+      description: 'Release the current holder’s project leases (named paths, or all held when omitted). Session director may pass agentId or all: true for its session.',
       inputSchema: {
-        paths: z.array(z.string()).nullish().describe('Exact project-relative file paths to release; omitted or null releases every lease of the selected holder(s).'),
-        agentId: z.string().min(1).nullish().describe('Director only: release this agent’s leases in the caller’s session.'),
-        all: z.boolean().nullish().describe('Director only: release every holder’s leases in the caller’s session.'),
+        paths: z.array(z.string()).nullish().describe('Exact project-relative paths (omit/null for all held).'),
+        agentId: z.string().min(1).nullish().describe('Director only: target agent in session.'),
+        all: z.boolean().nullish().describe('Director only: release every holder in session.'),
       },
       outputSchema: {
         ok: z.boolean(),
@@ -173,10 +172,10 @@ export async function createMercuryServer(): Promise<{
     'lease_list',
     {
       title: 'List current file leases',
-      description: 'List who holds project leases: one row per holder with its count and common directory, plus the leases themselves while there are at most 100, or those of the one agent named.',
+      description: 'List project lease holders (count and common directory per holder, plus lease rows when ≤100 or when agentId is given).',
       inputSchema: {
-        agentId: z.string().min(1).nullish().describe('List this agent’s leases (its first 100 paths in order).'),
-        sessionId: z.string().min(1).nullish().describe('The session that agent belongs to; the caller’s own when omitted.'),
+        agentId: z.string().min(1).nullish().describe('List this agent’s first 100 paths.'),
+        sessionId: z.string().min(1).nullish().describe('Agent’s session (default own).'),
       },
       outputSchema: {
         ok: z.boolean(),
@@ -200,11 +199,7 @@ export async function createMercuryServer(): Promise<{
     {
       title: 'Render the Mercury TUI to a PNG image',
       description:
-        'Capture the real Mercury TUI in a PTY and return it as a PNG image. ' +
-        'Use to visually verify a UI/Ink change before claiming it works ' +
-        '(Chat/Ink changes do not show in mercury run output). ' +
-        'Args: scenario (default resume-2turn), cols (default 120), rows ' +
-        '(default 44). Returns an inline image block.',
+        'Capture the real Mercury TUI in a PTY as an inline PNG image to verify UI/Ink changes (not shown in mercury run). Defaults: scenario resume-2turn, cols 120, rows 44.',
       inputSchema: {
         scenario: z.string().optional(),
         cols: z.number().optional(),

@@ -65,12 +65,12 @@ const inputSchema = z.strictObject({
   pattern: z.string().describe(AST_PATTERN_FIELD),
   rewrite: z
     .string()
-    .describe('The replacement, as code in the target language: $NAME and $$$NAME insert the captured source verbatim, and every meta-variable here must be captured by the pattern ($_ and $$$ cannot be inserted); "" deletes each matched node, and a node that owns its line takes the line with it.'),
+    .describe('Replacement code in target language: $NAME and $$$NAME insert captured source ($_/$$$ cannot be inserted; every meta-variable must be captured); "" deletes the node (and its line when owned).'),
   path: z.string().optional().describe(AST_PATH_FIELD),
   glob: z.string().optional().describe(AST_GLOB_FIELD),
   lang: z.string().optional().describe(astLanguageField()),
   apply: semanticBoolean(z.boolean().optional()).describe(
-    'Omitted or false: a dry run returning the diff and a plan token, nothing written. true: write the change; needs the plan from the dry run.',
+    'Default false dry-runs (returns diff + plan token); true writes using plan.',
   ),
   plan: z.string().optional().describe('The plan token (ae-…) the dry run returned; apply refuses when a file, the pattern, the rewrite or the scope differs from that dry run.'),
 })

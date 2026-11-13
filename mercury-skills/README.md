@@ -1,51 +1,27 @@
 # Bundled skills
 
-The skills in this directory ship inside the Mercury build. Each is one
-directory holding a `SKILL.md`: frontmatter (`description` with the trigger
-first, `argument-hint`) plus the instructions the skill loads on invocation.
-Three skills also carry `references/` files, read on demand: `extension-maker`
-(the generated manifest contract and the source README template),
-`image-generation` (the model-family notes and the pixel-art guide) and
-`provider-apis` (one reference per API dialect, the live documentation
-sources and the model-catalogue guidance). No skill ships a helper script;
-each works through Mercury's own tools (`Read`, `Eval`, `Browser`, `Service`,
-`mercury mcp add`, `mercury extensions …`) and whatever libraries and
-renderers the project has installed, checked before use.
+The six skills in this directory compile into the Mercury build. Each directory holds a `SKILL.md` (`description` with trigger first and sibling boundary, optional `argument-hint` and `user-invocable`, plus the body loaded on invocation). Three also carry on-demand `references/` (`extension-maker`, `image-generation`, `provider-apis`). None ships helper scripts; each works through Mercury's own tools (`Read`, `Document`, `Eval`, `Browser`, `Service`, `mercury mcp add`, `mercury extensions …`) and project dependencies verified before use.
 
 | Skill | What it does |
 |---|---|
-| `extension-maker` | makes or repairs a Mercury extension or source catalogue — one manifest contributing skills, commands, agents, hooks, servers, or keybindings — validated with `mercury extensions inspect` |
-| `image-generation` | makes and edits images with Mercury image generation: reads the installed models and the live tool schema, then sets prompts, reference strength, masks, seeds and pixel-art options for the model family |
-| `mcp-smithy` | builds an MCP server for a Mercury session around a small tool contract, proves it with the SDK client, and registers it with `mercury mcp add` only when asked |
-| `provider-apis` | the reference for every provider API Mercury speaks — Anthropic Messages, OpenAI Responses, and the OpenAI-compatible chat-completions families — with request shapes, streaming, tool calls, caching, and live model sources |
-| `skill-forge` | writes and fixes a Mercury `SKILL.md` and its discovery rules, then checks discovery and expansion through the real loader |
+| `extension-maker` | scaffolds, repairs and validates a Mercury extension or source catalogue (`mercury extensions inspect`) |
+| `image-generation` | generates and edits images or video via `mercury-media`, reading live tool schemas and installed model rows |
+| `mcp-smithy` | builds an MCP server around a focused tool contract, proves it with the SDK client, and registers it with `mercury mcp add` when asked |
+| `provider-apis` | maps Mercury's provider roads (Anthropic Messages, OpenAI Responses, chat-completions and native codecs) with replay, caching, usage and proof invariants |
+| `research` | researches paper/document corpora with page-level evidence, `Document` OCR/inspection, adaptive search and cited deliverables |
+| `skill-forge` | writes or repairs a Mercury `SKILL.md`, checking discovery, hint behavior and expansion through the real loader |
 
 ## Editing and regenerating
 
-Edit here, then regenerate the compiled modules under `src/skills/bundled/`:
+Edit sources here, then regenerate `src/skills/bundled/`:
 
 ```bash
-bun run scripts/skills/gen-bundled.ts            # every skill; prunes retired output
-bun run scripts/skills/gen-bundled.ts mcp-smithy  # one skill; touches nothing else
-bun run scripts/skills/gen-bundled.ts --check    # report drift without writing
-bash scripts/skills/run-all.sh                   # the bundled-skills suite
+bun run scripts/skills/gen-bundled.ts            # regenerate all; prune retired output
+bun run scripts/skills/gen-bundled.ts mcp-smithy  # regenerate one skill
+bun run scripts/skills/gen-bundled.ts --check    # check drift without writing
+bash scripts/skills/run-all.sh                   # run the bundled-skills suite
 ```
 
-This directory is the source of truth. A full run regenerates every skill
-and removes the output of a retired one — its generated `<name>.ts` and
-`<name>Content.ts` (recognised by their first line, `export const
-GENERATED_BY = 'scripts/skills/gen-bundled.ts'` — a line of code, so a
-comment-stripped checkout keeps it — never a hand-written module) and the
-mirror directory beside them; a targeted run regenerates
-only the names given, pruning a named skill whose source is gone and
-nothing else. `--check` renders in memory and names every stale, missing or
-stray file. Any other option is refused, as is a full run that finds no
-skill here. Skill names are lowercase letters, digits, `-` and `_`. A new
-skill also needs its import and register call
-added by hand to `src/skills/bundled/index.ts`; the generator prints both
-lines.
+`mercury-skills/` is the source of truth (`[a-z0-9][a-z0-9_-]*` names). Full runs regenerate every skill and prune retired modules marked with `export const GENERATED_BY = 'scripts/skills/gen-bundled.ts'` (leaving hand-written modules untouched); targeted runs touch only the named skills. Register any newly added skill in `src/skills/bundled/index.ts` using the import and call lines `gen-bundled.ts` prints.
 
-At runtime a skill with reference files extracts them to a per-process
-temporary directory on first invocation and opens its prompt with that base
-directory; it never writes into a user's config home. A skill without
-reference files loads its body alone.
+At runtime, skills with `references/` extract them once into a per-process temporary directory (never the user's config home) and prepend that base directory; reference-free skills load their body alone.

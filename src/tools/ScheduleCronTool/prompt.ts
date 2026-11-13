@@ -23,7 +23,7 @@ export function buildCronCreateDescription(): string {
 }
 
 export function buildCronCreatePrompt(): string {
-  return `Puts a prompt on this session's clock — one run after a delay or at a set time, or a repeating cron schedule — kept by the Mercury daemon on this session's record and fired into the session, parked or not, on this session's model and account; the operator sees every schedule on the ${SATURN_BOARD_COMMAND} board. The call waits for the daemon and returns the schedule's id and its fire time in local time and UTC; an answer that is not "Scheduled" says whether the request may have landed and how to find out. A fire lands within 30 seconds after its time, only while the session is idle; one the sign-in cannot serve is held with a receipt until /logins releases it, one due while the machine slept runs late or, past the catch-up window, is recorded as missed, and a schedule outlives interrupts.`
+  return `Schedules a prompt on this session's daemon record (visible on ${SATURN_BOARD_COMMAND}), firing on this session's model and account even when parked. It returns the schedule's id and its fire time in local time and UTC; non-"Scheduled" replies state whether it may have landed and how to check. Fires land within 30s only while the session is idle; a schedule outlives interrupts, holds with a receipt until /logins if sign-in cannot serve it, and runs late after machine sleep (or records missed past the catch-up window).`
 }
 
 export const CRON_DELETE_DESCRIPTION = "Take a schedule off this session's clock, by id."

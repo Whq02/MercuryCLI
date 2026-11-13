@@ -27,15 +27,13 @@ const inputSchema = lazySchema(() =>
     delaySeconds: z
       .number()
       .describe(
-        `Delay in seconds, clamped to ${WAKEUP_MIN_DELAY_SECONDS}–${WAKEUP_MAX_DELAY_SECONDS}; the wake fires on the next minute boundary at or after it.`,
+        `Seconds to wait (clamped to ${WAKEUP_MIN_DELAY_SECONDS}–${WAKEUP_MAX_DELAY_SECONDS}; fires on next minute boundary).`,
       ),
-    prompt: z.string().describe('The prompt to enqueue when the wake fires.'),
+    prompt: z.string().describe('Prompt enqueued at wake.'),
     reason: z
       .string()
       .optional()
-      .describe(
-        'A short note on why you are waking yourself; it heads the woken prompt and shows on the wake\'s row.',
-      ),
+      .describe('Short continuity note heading the woken prompt and wake row.'),
   }),
 )
 type InputSchema = ReturnType<typeof inputSchema>

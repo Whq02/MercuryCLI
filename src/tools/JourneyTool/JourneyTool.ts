@@ -56,7 +56,7 @@ const stepSchema = () =>
     }),
     z.strictObject({
       kind: z.literal('http.request'),
-      url: z.string().describe('LOOPBACK only (127.0.0.1 · localhost · ::1)'),
+      url: z.string().describe('Loopback URL (127.0.0.1, localhost, ::1)'),
       method: z.string().optional(),
       body: z.string().optional(),
       headers: z.record(z.string(), z.string()).optional(),
@@ -101,19 +101,19 @@ const stepSchema = () =>
     z.strictObject({
       kind: z.literal('log.match'),
       service: z.string(),
-      pattern: z.string().describe('Regular expression polled against the service logs.'),
+      pattern: z.string().describe('Regex matched on service logs'),
       label: z.string().optional(),
       timeoutMs: z.number().optional(),
     }),
     z.strictObject({
       kind: z.literal('diagnostic.check'),
-      files: z.array(z.string()).describe('Files to check for parse-level diagnostics.'),
+      files: z.array(z.string()).describe('Files checked for parse diagnostics'),
       label: z.string().optional(),
       timeoutMs: z.number().optional(),
     }),
     z.strictObject({
       kind: z.literal('value.assert'),
-      jsonPath: z.string().describe("Dot-separated keys from the last http.request's JSON response root (data.items.0.id); compared as text."),
+      jsonPath: z.string().describe("Dot path in last http.request's JSON response (data.items.0.id), compared as text"),
       equals: z.string(),
       label: z.string().optional(),
       timeoutMs: z.number().optional(),
@@ -128,11 +128,11 @@ const stepSchema = () =>
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
-    op: z.enum(OPS).describe('Journey operation.'),
-    objective: z.string().optional().describe('run: what this journey verifies'),
-    steps: z.array(stepSchema()).optional().describe('run: the ordered steps'),
-    cleanup: z.enum(['stop-started', 'keep']).optional().describe('stop-started stops journey-started services after the run (default); keep leaves them running until this session ends.'),
-    id: z.string().optional().describe('status: the journey (jy-…)'),
+    op: z.enum(OPS),
+    objective: z.string().optional().describe('run: verification goal'),
+    steps: z.array(stepSchema()).optional().describe('run: ordered steps'),
+    cleanup: z.enum(['stop-started', 'keep']).optional().describe('Default stop-started (stops services this journey started); keep leaves them running until session end'),
+    id: z.string().optional().describe('status: jy-… id'),
   }),
 )
 

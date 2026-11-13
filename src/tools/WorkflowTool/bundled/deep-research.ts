@@ -3,8 +3,8 @@
 
 export const DEEP_RESEARCH_WORKFLOW_SCRIPT = `export const meta = {
   name: 'deep-research',
-  description: 'Multi-source research with adversarial fact-checking — angle fan-out, source extraction, majority-vote verification, cited synthesis.',
-  whenToUse: 'For research that needs many sources and real fact-checking. Scale with honesty: full depth runs roughly 25-40 crewmates, so save it for questions that span domains or whose claims must be checked hard — and only when the user truly asked for deep research. A personal or single-subject decision (a purchase, one comparison, one recommendation) fits the light pass (~6-8 crewmates: 2 angles, single-vote checks) — or a couple of inline WebSearches with no workflow at all. When the user never said \\"deep research\\", state the rough crewmate count and get a yes before launching. When the question is vague, ask 2-3 sharpening questions first and fold the answers in. Args: a question string (full depth); \\"light:<question>\\" for the smaller pass; or the object form {question, depth: \\"light\\"|\\"full\\", model?, verifierModel?} — the model knobs take any id or alias the session model catalog resolves, and verifierModel routes just the skeptic votes (handy for cross-provider verification).',
+  description: 'Use when multi-source web research needs adversarial fact-checking: angle fan-out, source extraction, majority-vote verification, cited synthesis. Not for paper corpora (research) or quick lookups.',
+  whenToUse: 'Scale honestly — full depth runs ~25-40 crewmates for cross-domain or high-stakes claims; single-subject decisions fit the light pass (~6-8 crewmates: 2 angles, 1 vote) or inline WebSearch. Unless the user asked for \\"deep research\\", state the crewmate count and get confirmation first; if vague, ask 2-3 sharpening questions and fold answers in. Args: \\"<question>\\" (full), \\"light:<question>\\", or {question, depth: \\"light\\"|\\"full\\", model?, verifierModel?} (any session model id/alias; verifierModel routes skeptic votes).',
   phases: [{"title":"Scope","detail":"Break the question into distinct search directions (2 light · 5 full)"},{"title":"Search","detail":"One web-search crewmate per direction, all concurrent"},{"title":"Fetch","detail":"Dedup URLs, read what survives, mine out checkable claims"},{"title":"Verify","detail":"A skeptic panel on every claim (3 seats full · 1 light)"},{"title":"Synthesize","detail":"Fold duplicate claims, grade confidence, cite everything"}],
 }
 
@@ -141,15 +141,13 @@ if (!ASK) {
 if (LIGHT) log("light pass: " + K.angles + " directions · " + K.votes + "-seat panels · " + K.fetchBudget + " fetch slots")
 
 const plan = await agent(
-  "You are planning a research sweep.\\n\\n" +
-  "## The question under study\\n" + ASK + "\\n\\n" +
-  "## What to produce\\n" +
-  "Write " + K.angles + " web search queries that attack the question from genuinely different directions, chosen to fit its domain. Direction families to consider:\\n" +
-  "- mainstream/primary coverage · scholarly or technical treatment · fresh news · the skeptic's case · what practitioners report\\n" +
-  "- health questions: mechanism · frequent explanations · dangerous differentials · authoritative guidance · warning signs\\n" +
-  "- technology questions: current state · measured benchmarks · known limits · who has adopted it · price and tradeoffs\\n\\n" +
-  "Each query should be sharp enough to pull high-signal pages, and no two should chase the same ground.\\n" +
-  "Return the question (as given, or minimally cleaned), a one-or-two sentence plan, and the direction list.\\n\\nAnswer only through the structured output.",
+  "Plan a research sweep.\\n\\n" +
+  "## Question\\n" + ASK + "\\n\\n" +
+  "Write " + K.angles + " non-overlapping web search queries from distinct directions suited to the domain:\\n" +
+  "- general: primary/mainstream · scholarly/technical · recent news · skeptic case · practitioner reports\\n" +
+  "- health: mechanism · common explanations · dangerous differentials · authoritative guidance · warning signs\\n" +
+  "- technology: current state · benchmarks · limits · adoption · price and tradeoffs\\n\\n" +
+  "Return the question (minimally cleaned if needed), a 1-2 sentence plan, and the angles list via structured output only.",
   withModel({ label: "scope", schema: PLAN_SCHEMA }, LANE_MODEL)
 )
 if (plan == null) {
@@ -181,43 +179,33 @@ let slotsLeft = K.fetchBudget
 // ─── Prompt builders ───
 const searchBrief = angle =>
   "## Search lane: " + angle.label + "\\n\\n" +
-  "The question under study: \\"" + ASK + "\\"\\n\\n" +
-  "Your direction: **" + angle.label + "** — " + (angle.rationale || "") + "\\n" +
+  "Question: \\"" + ASK + "\\"\\n" +
+  "Direction: **" + angle.label + "** — " + (angle.rationale || "") + "\\n" +
   "Starting query: \`" + angle.query + "\`\\n\\n" +
-  "## What to do\\nRun WebSearch with that query (refine it if the first pass is weak). Hand back the 4-6 strongest hits,\\n" +
-  "ordered by how much they bear on the ORIGINAL question rather than on the literal query text. Drop content-farm\\n" +
-  "and SEO filler outright. For each hit include one line on why it matters.\\n\\nAnswer only through the structured output."
+  "Run WebSearch (refining the query if hits are weak). Return the 4-6 strongest hits ranked by relevance to the original question rather than literal query text, dropping content-farm and SEO filler, with one line per hit on why it matters. Answer via structured output only."
 
 const mineBrief = (hit, angleLabel) =>
   "## Source reader\\n\\n" +
-  "The question under study: \\"" + ASK + "\\"\\n\\n" +
-  "Read this page and mine it for checkable statements:\\n" +
-  "**URL:** " + hit.url + "\\n**Title:** " + hit.title + "\\n**Surfaced by:** the " + angleLabel + " lane\\n\\n" +
-  "## What to do\\n1. WebFetch the page.\\n" +
-  "2. Grade the source: primary research or institution? secondary reporting? blog or opinion? forum? unreliable?\\n" +
-  "3. Mine out two to five FALSIFIABLE claims bearing on the question. Every claim must:\\n" +
-  "   - state something concrete a checker could confirm or knock down (no vague mood statements)\\n" +
-  "   - carry a verbatim quote from the page that backs it\\n" +
-  "   - be tagged central, supporting, or tangential to the question\\n" +
-  "4. Record the publish date when the page shows one.\\n\\n" +
-  "When the fetch errors out, the page is paywalled, or it proves irrelevant: return claims: [] with sourceQuality \\"unreliable\\".\\n\\nAnswer only through the structured output."
+  "Question: \\"" + ASK + "\\"\\n" +
+  "**URL:** " + hit.url + "\\n**Title:** " + hit.title + "\\n**Lane:** " + angleLabel + "\\n\\n" +
+  "1. WebFetch the URL.\\n" +
+  "2. Grade sourceQuality (primary, secondary, blog, forum, unreliable) and record publishDate if shown.\\n" +
+  "3. Extract 2-5 falsifiable claims bearing on the question, each with a verbatim backing quote from the page and importance (central, supporting, tangential).\\n" +
+  "On fetch error, paywall, or irrelevance, return claims: [] and sourceQuality: \\"unreliable\\". Answer via structured output only."
 
 const skepticBrief = (c, seat) =>
-  "## Claim skeptic (seat " + (seat + 1) + " of " + K.votes + ")\\n\\n" +
-  "Your job is to knock this claim down if it deserves it. " + K.killAt + " of " + K.votes + " refuting ballots sink it.\\n\\n" +
-  "## The question under study\\n" + ASK + "\\n\\n" +
-  "## The claim on trial\\n\\"" + c.claim + "\\"\\n\\n" +
-  "**From:** " + c.citedFrom + " (graded " + c.grade + ")\\n" +
-  "**Backing quote:** \\"" + c.quote + "\\"\\n\\n" +
-  "## Attack it from every side\\n" +
-  "1. Does the quote actually establish the claim, or is the claim stretching past it?\\n" +
-  "2. Run a fresh WebSearch for contrary evidence — is there a credible source that contradicts it or waters it down heavily?\\n" +
-  "3. Does the source's strength match the claim's boldness? (a bold claim needs primary backing)\\n" +
-  "4. Could it be stale? Check dates — in fast-moving areas an old claim is a suspect claim.\\n" +
-  "5. Is it marketing copy, a press release, a cherry-picked benchmark, or forum hearsay?\\n\\n" +
-  "Vote **refuted=true** when: the quote does not establish it / credible contradiction exists / the source is too weak for its strength / it is stale / it is promotional noise.\\n" +
-  "Vote **refuted=false** ONLY when the claim is well-backed, current, and the source matches its strength.\\n" +
-  "If you are torn, vote refuted=true.\\n\\nAnswer only through the structured output, and make the evidence concrete."
+  "## Claim skeptic (seat " + (seat + 1) + " of " + K.votes + "; " + K.killAt + " refuting ballots sink it)\\n\\n" +
+  "Question: " + ASK + "\\n" +
+  "Claim: \\"" + c.claim + "\\"\\n" +
+  "Source: " + c.citedFrom + " (" + c.grade + ")\\n" +
+  "Quote: \\"" + c.quote + "\\"\\n\\n" +
+  "Check:\\n" +
+  "1. Does the quote establish the claim without overreach?\\n" +
+  "2. Run WebSearch for credible contradicting or qualifying evidence.\\n" +
+  "3. Does source strength match claim boldness (bold claims need primary backing)?\\n" +
+  "4. Is it stale by date?\\n" +
+  "5. Is it marketing, press release, cherry-picked benchmark, or hearsay?\\n\\n" +
+  "Vote refuted=true on quote overreach, credible contradiction, weak source, staleness, promo/hearsay, or when torn; vote refuted=false only when well-backed, current, and source-matched. Cite concrete evidence via structured output only."
 
 // ─── pipeline: search each direction, then dedup + read as each lane lands ───
 const laneResults = await pipeline(
@@ -363,16 +351,15 @@ const sunkBlock = sunkClaims.length > 0
 
 const report = await agent(
   "## Write the research report\\n\\n" +
-  "**The question under study:** " + ASK + "\\n\\n" +
-  keptClaims.length + " claims came through a " + K.votes + "-seat skeptic panel alive. Turn them into a report.\\n\\n" +
+  "**Question:** " + ASK + "\\n\\n" +
+  keptClaims.length + " claims survived a " + K.votes + "-seat skeptic panel.\\n\\n" +
   "## Surviving claims\\n" + keptBlock + "\\n" + sunkBlock + "\\n\\n" +
-  "## How\\n" +
-  "1. Where two claims say the same thing, fold them together and pool their citations.\\n" +
-  "2. Cluster kindred claims into findings, each answering part of the question.\\n" +
-  "3. Grade each finding: high = several primary sources and unanimous panels; medium = secondary sourcing or split panels; low = one source or blog-tier backing.\\n" +
-  "4. Open with an executive answer of three to five sentences.\\n" +
-  "5. Then the caveats: what stayed uncertain, which sources were thin, what may age out.\\n" +
-  "6. Close with 2-4 questions this run surfaced but did not settle.\\n\\nAnswer only through the structured output.",
+  "1. Merge duplicate claims and pool citations.\\n" +
+  "2. Group related claims into findings answering parts of the question.\\n" +
+  "3. Grade confidence: high = multiple primary sources + unanimous panel; medium = secondary sources or split panel; low = single source or blog tier.\\n" +
+  "4. Open with a 3-5 sentence executive summary.\\n" +
+  "5. State caveats (uncertainties, thin sources, aging risks).\\n" +
+  "6. List 2-4 open questions.\\n\\nAnswer via structured output only.",
   withModel({ label: "synthesize", schema: DIGEST_SCHEMA }, LANE_MODEL)
 )
 

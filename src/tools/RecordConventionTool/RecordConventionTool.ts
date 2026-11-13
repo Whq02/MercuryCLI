@@ -23,11 +23,11 @@ const inputSchema = lazySchema(() =>
   z.strictObject({
     rule: z
       .string()
-      .describe('The convention, as one plain standing-order sentence'),
+      .describe('Convention as one plain standing-order sentence'),
     replaces: z
       .string()
       .optional()
-      .describe('A distinctive substring of the existing rule line this one supersedes; that line is swapped in place'),
+      .describe('Distinctive substring of the superseded rule line to swap in place'),
   }),
 )
 type InputSchema = ReturnType<typeof inputSchema>

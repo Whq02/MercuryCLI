@@ -4,7 +4,7 @@
 export const CODE_REVIEW_WORKFLOW_SCRIPT = `export const meta = {
   name: "code-review",
   description: "Multi-lens code review — a finder crewmate per review lens, an independent verifier on every candidate, then one ranked and capped report.",
-  whenToUse: "The /code-review skill launches this at effort high, xhigh, or max whenever workflows are enabled. String args: \\"<level> [target]\\" — level: high, xhigh, or max; target (optional): a PR number, a branch, a ref range, a path, or free-form instructions (\\"only review src/net/\\", \\"focus on concurrency\\"). Object args also work: {level?, target?, model?, verifierModel?} — the model knobs accept any id or alias the session model catalog resolves, and verifierModel routes only the verification lane (one provider can find while another checks).",
+  whenToUse: "Invoked via Workflow({name: \\"code-review\\", args}) when workflows are enabled. String args: \\"<level> [target]\\" — level: high (default), xhigh, or max; target (optional): PR number, branch, ref range, path, or instructions (\\"only review src/net/\\", \\"focus on concurrency\\"). Object args: {level?, target?, model?, verifierModel?} (any session model id/alias; verifierModel routes the verification lane).",
   phases: [{"title":"Scope","detail":"Settle the diff command, the file list, and the conventions"},{"title":"Find","detail":"A finder per lens (correctness + quality); results stream straight into verification"},{"title":"Verify","detail":"Every candidate faces its own verifier — CONFIRMED / PLAUSIBLE / REFUTED"},{"title":"Sweep","detail":"A gap hunt by one clean-context finder (xhigh/max)"},{"title":"Synthesize","detail":"Fold duplicates, rank by severity, cap the report"}],
 }
 
@@ -42,24 +42,24 @@ const withModel = (opts, m) => (m ? { ...opts, model: m } : opts)
 // ─── The review lenses ───
 // Five correctness lenses; the level picks how many lead the roster.
 const CORRECTNESS_LENSES = [
-  { label: "hunk-read", brief: "### Lens: hunk-by-hunk read\\n\\nWalk each hunk line by line, and after each hunk Read its whole enclosing\\nfunction — a defect on an untouched line of a touched function is in scope,\\nbecause the change re-exposes it. Interrogate each line: which input, which\\nstate, which timing, which platform makes it wrong? Hunt the classics: an\\ninverted or misaimed condition, off-by-one at a boundary, a null/undefined\\ndereference, a missing \`await\`, zero treated as absent, a copy-paste that\\nkept the wrong variable, a catch that eats the error, regex metacharacters\\nleft unescaped.\\n" },
-  { label: "lost-guards", brief: "### Lens: what the deletions were protecting\\n\\nFor each line the diff removes or rewrites, spell out the invariant or\\nbehavior that line was enforcing — then hunt through the new code for the\\nplace that protection lives now. If you cannot point at it, that is a candidate: a\\nguard that vanished, an error path that fell out, validation that got\\nnarrower, a test deleted while it was still covering something real.\\n" },
-  { label: "call-sites", brief: "### Lens: across file boundaries\\n\\nFor every function the diff touches, Grep out its callers and put each call\\nsite on trial against the new behavior: a precondition that did not exist\\nbefore, a changed return shape, a new throw, an ordering or timing\\nassumption. Then flip direction and check the callees — did a sibling change\\nin this same diff make one of these calls unsafe?\\n" },
-  { label: "lang-traps", brief: "### Lens: the language's own traps\\n\\nSweep the diff for the classic traps of its language and framework — for\\ninstance: JS zero-is-falsy and loose-equality coercion, a loop variable\\ncaptured by a closure; Python mutable default arguments and late-bound\\nclosures; Go writes to a nil map and range-variable capture; string-built\\nSQL; timezone and DST arithmetic; equality on floats. Flag each instance the\\ndiff INTRODUCES.\\n" },
-  { label: "delegation", brief: "### Lens: wrappers that forget to delegate\\n\\nWhen the diff adds or edits a wrapping type (a cache, proxy, decorator, or\\nadapter) around an inner one, verify each method actually routes through the\\nheld inner object — not back out through a registry, session, or global that\\nwould re-enter the wrapper or recurse (a caching layer holding \`inner\` but\\nresolving through \`session.get(...)\` instead of \`inner.get(...)\` is the\\ncanonical miss). Confirm the wrapper forwards every method its callers\\nreally use.\\n" },
+  { label: "hunk-read", brief: "### Lens: hunk-by-hunk read\\n\\nWalk each hunk line by line and Read its whole enclosing function (defects on untouched lines of a touched function are in scope when re-exposed by the change). Test each line against inputs, state, timing, and platform: inverted/misaimed conditions, boundary off-by-ones, null/undefined dereferences, missing \`await\`, zero treated as absent, copy-paste wrong variables, swallowed catches, unescaped regex metacharacters.\\n" },
+  { label: "lost-guards", brief: "### Lens: deleted protections\\n\\nFor every removed or rewritten line, identify the invariant or behavior it enforced and verify where that protection lives in the new code. Flag any vanished guard, dropped error path, narrowed validation, or deleted test that still covered real behavior.\\n" },
+  { label: "call-sites", brief: "### Lens: across file boundaries\\n\\nFor every touched function, Grep its callers and test each call site against new preconditions, changed return shapes, new throws, or ordering/timing assumptions; then check callees for sibling changes in this diff that made a call unsafe.\\n" },
+  { label: "lang-traps", brief: "### Lens: language traps\\n\\nCheck instances the diff introduces of language/framework traps: JS falsy-zero, loose-equality coercion, loop-variable closure capture; Python mutable defaults and late-bound closures; Go nil-map writes and range-variable capture; string-built SQL; timezone/DST arithmetic; float equality.\\n" },
+  { label: "delegation", brief: "### Lens: wrapper delegation\\n\\nWhen adding or editing a wrapper (cache, proxy, decorator, adapter), verify each method delegates to the held inner object rather than resolving back through a registry, session, or global that re-enters or recurses (e.g. calling \`session.get(...)\` instead of \`inner.get(...)\`), and forwards every method callers use.\\n" },
 ]
 // Four quality lenses; the labels double as finding categories downstream.
 const QUALITY_LENSES = [
-  { label: "reuse", brief: "### Reuse\\n\\nFlag fresh code that rebuilds something this codebase already owns. Grep the\\nshared and utility modules plus the files neighboring the change, and NAME\\nthe existing helper the new code should have called.\\n" },
-  { label: "simplification", brief: "### Simplification\\n\\nFlag complexity the diff adds without need: state that could be derived\\ninstead of stored, near-identical copy-paste, nesting that a guard clause\\nwould flatten, code left dead. NAME the leaner shape that achieves the same\\nthing.\\n" },
-  { label: "efficiency", brief: "### Efficiency\\n\\nFlag work the diff wastes: the same computation or I/O repeated, independent\\nsteps forced into sequence, blocking work pushed onto startup or a hot path.\\nFlag, too, any long-lived object assembled out of closures (or a captured\\nenvironment) — it pins the whole enclosing scope for as long as it lives (a\\nleak when the scope holds anything big); a small class or struct that copies\\njust the fields it needs is the fix. NAME the cheaper alternative.\\n" },
-  { label: "altitude", brief: "### Altitude\\n\\nJudge whether each change lands at the right depth or papers over the\\nproblem. Special cases bolted onto shared infrastructure are the tell that a\\nfix sits too shallow — prefer generalizing the mechanism underneath to\\nstacking exceptions on top of it.\\n" },
+  { label: "reuse", brief: "### Reuse\\n\\nFlag new code that rebuilds an existing helper. Grep shared/utility modules and neighboring files, and name the helper it should call.\\n" },
+  { label: "simplification", brief: "### Simplification\\n\\nFlag needless complexity: stored state derivable on demand, near-duplicate copy-paste, deep nesting a guard clause flattens, or dead code. Name the leaner shape.\\n" },
+  { label: "efficiency", brief: "### Efficiency\\n\\nFlag wasted work: repeated computation or I/O, independent work serialized, blocking work on startup or hot paths, or long-lived closures pinning a large enclosing scope (replace with a small class/struct holding only needed fields). Name the cheaper alternative.\\n" },
+  { label: "altitude", brief: "### Altitude\\n\\nFlag shallow fixes that bolt special cases onto shared infrastructure instead of generalizing the underlying mechanism.\\n" },
 ]
 
-const VERDICT_RUNGS = "- **CONFIRMED** — you can name the inputs or state that spring it, plus the\\n  bad result or crash that follows. Quote the guilty line.\\n- **PLAUSIBLE** — the mechanism is real but the trigger stays uncertain\\n  (timing, environment, configuration). Say what evidence would settle it.\\n- **REFUTED** — the candidate is factually wrong (the code does not say\\n  that), or something else already guards it. Quote the very line that\\n  disproves it."
-const RECALL_GUARD = "**Default to PLAUSIBLE** — striking a candidate down as \\"speculative\\" or\\n\\"runtime-dependent\\" is wrong whenever that runtime state is realistic: a\\nconcurrency race, nil/undefined on a path that is rare yet reachable (an\\nerror handler, a cold cache, a missing optional field), zero read as absent,\\nan off-by-one at a boundary the code never excludes, retry storms and\\npartial failures, a regex or allowlist that lost its anchor. Those are\\nPLAUSIBLE.\\n\\nRule **REFUTED** only on grounds you can construct from the code itself:\\nfactually wrong (quote the real line); provably unreachable (a type, a\\nconstant, an invariant — show it); already guarded inside this diff (cite\\nthe guard); or style-only with nothing observable at stake."
-const QUALITY_COST_NOTE = "Quality and altitude candidates use the identical {file, line, summary}\\nfields; put the concrete COST into \`failure_scenario\` — the duplication, the\\nwaste, the maintenance drag — rather than a crash. When the report cap\\nforces cuts, correctness bugs always survive ahead of quality findings.\\n"
-const SWEEP_TARGETS = "code that was moved or extracted and lost a guard or an anchor on the way;\\nsecond-tier traps (a default evaluated once at definition time, \`hash()\`\\nnondeterminism, a lock's scope quietly shrunk, predicate methods that\\nmutate); setup/teardown asymmetry in tests; configuration defaults that\\nflipped."
+const VERDICT_RUNGS = "- **CONFIRMED** — name the triggering inputs/state and the resulting crash or bad output; quote the guilty line.\\n- **PLAUSIBLE** — real mechanism whose trigger depends on uncertain timing, environment, or config; state what evidence settles it.\\n- **REFUTED** — factually wrong or already guarded; quote the disproving line."
+const RECALL_GUARD = "**Default to PLAUSIBLE** whenever a runtime state is realistic: concurrency races, rare-but-reachable nil/undefined paths (error handlers, cold caches, omitted optionals), zero treated as absent, unexcluded boundary off-by-ones, retry storms/partial failures, or unanchored regexes/allowlists.\\n\\nRule **REFUTED** only from code proof: factually wrong (quote the line), provably unreachable by type/constant/invariant, guarded in this diff (cite the guard), or purely stylistic with no observable effect."
+const QUALITY_COST_NOTE = "Use {file, line, summary} and put the concrete duplication, waste, or maintenance cost in \`failure_scenario\`. Correctness bugs outrank quality findings when capped.\\n"
+const SWEEP_TARGETS = "moved/extracted code that lost a guard or anchor; definition-time default evaluation, \`hash()\` nondeterminism, shrunk lock scopes, mutating predicates; test setup/teardown asymmetry; flipped config defaults."
 
 // ─── Schemas ───
 const BOUNDS_SCHEMA = {
@@ -124,15 +124,14 @@ const DIGEST_SCHEMA = {
 // ─── Scope ───
 phase("Scope")
 const scope = await agent(
-  "Set the boundaries of a code review.\\n\\n" +
+  "Scope a code review.\\n\\n" +
   (TARGET
-    ? "The user's target / instructions, verbatim: \\"" + TARGET + "\\". A PR number, a branch, a ref range, or a path means: build the git diff command that matches it. A free-form instruction (certain files only, certain concerns only) means: honor every stated restriction while building the command, and cover whatever it leaves open with the current branch's diff ('git diff @{upstream}...HEAD', or 'git diff main...HEAD', or 'git diff HEAD~1' as fallbacks).\\n"
-    : "No target was given: the review covers the current branch. Try 'git diff @{upstream}...HEAD' first; if that fails, use 'git diff main...HEAD', then 'git diff HEAD~1'. When uncommitted work exists, add 'git diff HEAD' too.\\n") +
-  "\\n1. Choose the diff command(s), then RUN them — the diff must come back non-empty.\\n" +
-  "2. List every changed file.\\n" +
-  "3. Sum up the change in a single paragraph.\\n" +
-  "4. Read the project's instruction files near the changed code (MERCURY.md, or AGENTS.md where the project keeps its conventions there) and note the conventions a reviewer needs.\\n\\n" +
-  "diffCommand must come back ready to paste into a shell. Answer only through the structured output.",
+    ? "User target/instructions: \\"" + TARGET + "\\". For a PR number, branch, ref range, or path, build the matching git diff command. For free-form instructions, honor every restriction and cover open scope with the branch diff ('git diff @{upstream}...HEAD', else 'git diff main...HEAD', else 'git diff HEAD~1').\\n"
+    : "No target given: cover the current branch ('git diff @{upstream}...HEAD', else 'git diff main...HEAD', else 'git diff HEAD~1'; include 'git diff HEAD' if uncommitted changes exist).\\n") +
+  "\\n1. Choose and RUN the diff command(s); confirm non-empty output.\\n" +
+  "2. List every changed file and summarize the change in one paragraph.\\n" +
+  "3. Read project instruction files near the changed code (MERCURY.md, or AGENTS.md where the project keeps its conventions there) and note review-relevant conventions.\\n\\n" +
+  "Return a shell-ready diffCommand via structured output only.",
   withModel({ label: "scope", schema: BOUNDS_SCHEMA }, LANE_MODEL)
 )
 if (!scope) {
@@ -154,28 +153,26 @@ const CONTEXT_BLOCK =
   // focus or exclusion binds the finders and verifiers, not just the diff
   // command that was built from it.
   (TARGET
-    ? "\\n## The user's instructions, verbatim\\n" + TARGET + "\\nStated focus areas and restrictions outrank your lens's default breadth. Anything the instructions exclude stays out of your findings.\\n"
+    ? "\\n## User instructions (outrank default lens breadth; exclude anything excluded here)\\n" + TARGET + "\\n"
     : "")
 
 // ─── Briefs ───
 const finderBrief = lens =>
   "## Review finder — " + lens.label + "\\n\\n" + CONTEXT_BLOCK + "\\n" +
-  "Start by running the diff command from the scope block, then review STRICTLY through your assigned lens:\\n\\n" +
+  "Run the scoped diff command first, then review strictly through your lens:\\n\\n" +
   lens.brief + "\\n" +
   (lens.kind === "cleanup" ? QUALITY_COST_NOTE + "\\n" : "") +
-  "Report up to " + SIZE.perLens + " candidates, each carrying file, line, a single-sentence summary, plus a failure_scenario naming the concrete crash or cost. " +
-  "Half-sure candidates go IN, not out: an independent verifier rules on every one, and silently dropping them costs recall. " +
-  "An empty list is a valid answer when nothing clears the bar.\\n\\nAnswer only through the structured output."
+  "Report up to " + SIZE.perLens + " candidates ({file, line, summary, failure_scenario}); include plausible leads (an independent verifier rules on each), or [] if none clear the bar. Answer via structured output only."
 
 const verifierBrief = c =>
   "## Review verifier\\n\\n" + CONTEXT_BLOCK + "\\n" +
-  "## The candidate\\n" +
+  "## Candidate\\n" +
   "Where: " + c.file + (c.line != null ? ":" + c.line : "") + "\\n" +
   "Claim: " + c.summary + "\\n" +
   "Predicted failure: " + c.failure_scenario + "\\n\\n" +
-  "Run the scoped diff, open the files involved, and settle on a single verdict:\\n\\n" +
+  "Run the scoped diff, read the involved files, and choose one verdict:\\n\\n" +
   VERDICT_RUNGS + "\\n\\n" + RECALL_GUARD + "\\n\\n" +
-  "Answer only through the structured output. The evidence field has to quote or point at the exact line(s)."
+  "Quote or cite exact line(s) in evidence. Answer via structured output only."
 
 // ─── Duplicate filter + verification budget, shared by the stage callbacks
 // (they mutate it as lenses land; safe on one JS thread) ───
@@ -233,11 +230,10 @@ if (SIZE.sweep) {
     ? ruled.map(c => "- " + c.file + (c.line != null ? ":" + c.line : "") + " · " + c.summary).join("\\n")
     : "(empty board)"
   const sweep = await agent(
-    "## Review sweep — only what everyone missed\\n\\n" + CONTEXT_BLOCK + "\\n" +
-    "## Candidates already on the board (do not rediscover or re-argue these)\\n" + onTheBoard + "\\n\\n" +
-    "Walk the diff once more, enclosing functions included, hunting ONLY for defects absent from that list. " +
-    "Aim where first passes go blind: " + SWEEP_TARGETS + "\\n\\n" +
-    "Report up to " + SWEEP_EXTRA + " additional candidates. Nothing new is a fine answer — an empty candidates array beats padding.\\n\\nAnswer only through the structured output.",
+    "## Review sweep — missed defects only\\n\\n" + CONTEXT_BLOCK + "\\n" +
+    "## Already on the board (do not repeat)\\n" + onTheBoard + "\\n\\n" +
+    "Walk the diff and enclosing functions for defects absent above, focusing on: " + SWEEP_TARGETS + "\\n\\n" +
+    "Report up to " + SWEEP_EXTRA + " new candidates (or [] if none). Answer via structured output only.",
     withModel({ label: "sweep", phase: "Sweep", schema: LEADS_SCHEMA }, LANE_MODEL)
   )
   if (sweep && sweep.candidates.length) {
@@ -283,13 +279,12 @@ const findingsBlock = ordered.map((c, i) =>
 ).join("\\n")
 
 const report = await agent(
-  "## Assemble the final review report\\n\\n" +
-  ordered.length + " findings stand after independent verification, at the " + LEVEL + " level.\\n\\n" + findingsBlock + "\\n" +
-  "## How\\n" +
-  "1. Findings that share a root cause become ONE finding — pool their evidence.\\n" +
-  "2. Order by severity, worst first; correctness always outranks quality findings.\\n" +
-  "3. Keep no more than " + SIZE.reportCap + " findings — the least severe fall off first.\\n" +
-  "4. Close with two or three sentences summing up the review.\\n\\nAnswer only through the structured output.",
+  "## Assemble the review report\\n\\n" +
+  ordered.length + " verified findings at level " + LEVEL + ":\\n\\n" + findingsBlock + "\\n" +
+  "1. Merge findings sharing a root cause and pool their evidence.\\n" +
+  "2. Order worst-first; correctness always outranks quality.\\n" +
+  "3. Cap at " + SIZE.reportCap + " findings, dropping least severe first.\\n" +
+  "4. Summarize the review in 2-3 sentences.\\n\\nAnswer via structured output only.",
   withModel({ label: "synthesize", schema: DIGEST_SCHEMA }, LANE_MODEL)
 )
 

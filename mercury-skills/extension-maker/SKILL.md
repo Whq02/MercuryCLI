@@ -4,10 +4,10 @@ description: Use when building or repairing a Mercury extension or catalogue. No
 ---
 # Extension maker
 
-Establish what the extension contributes. Scaffold locally with `mercury extensions scaffold <name>`; inspect the resulting `mercury-extension.json` before editing.
+Establish what the extension contributes, scaffold locally with `mercury extensions scaffold <name>`, and inspect the generated `mercury-extension.json` before editing. Declare only needed contributions.
 
-Read `references/CONTRACT.md` under the supplied skill base for manifest fields and substitutions. Declare only needed contributions and keep paths inside the root. Sensitive options belong in script environments, not model-visible text. Approval binds to contributions, needs and delivered file bytes; a version-only change preserves it.
+Read on demand under this skill's base directory:
+- `references/CONTRACT.md` — manifest and catalogue schemas, path containment, substitutions, sensitive-option environment rules and contributions-hash approval.
+- `references/README-template.md` — operator setup README template when building a source catalogue (match catalogue names and versions to each extension's manifest).
 
-Run `mercury extensions inspect <path>`. Exercise the declared contributions, not just the JSON. For a source catalogue, match names and versions to its manifests; use `references/README-template.md` for operator setup.
-
-Deliver the validated folder and the next operator action. Never add a source on their behalf; never approve an extension for them. Publication requires separate authorisation.
+Validate with `mercury extensions inspect <path>` and exercise every declared contribution, not just the JSON. Deliver the validated folder and the operator's next step: never add a source on their behalf, never approve an extension for them, and require separate authorisation before publishing.

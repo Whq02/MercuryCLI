@@ -11,12 +11,11 @@ import { CONTRACT_TOOL_NAME, CONTRACT_TOOL_PROMPT, DESCRIPTION } from './prompt.
 const inputSchema = lazySchema(() =>
   z.strictObject({
     action: z
-      .enum(['read', 'acknowledge', 'check-in', 'sufficiency', 'propose-amend', 'close-against'])
-      .describe('Contract action.'),
+      .enum(['read', 'acknowledge', 'check-in', 'sufficiency', 'propose-amend', 'close-against']),
     restatement: z.string().max(20_000).optional().describe('acknowledge: the contract in your own words.'),
     about: z.string().max(4_000).optional().describe('check-in: what you are about to do.'),
-    proposal: z.string().max(4_000).optional().describe('propose-amend: the clause that does not survive contact, and why.'),
-    report: z.string().max(20_000).optional().describe('close-against: what was delivered against the contract’s items, what was not, and why.'),
+    proposal: z.string().max(4_000).optional().describe('propose-amend: clause that does not survive contact, and why.'),
+    report: z.string().max(20_000).optional().describe('close-against: what was delivered, what was not, and why.'),
   }),
 )
 type InputSchema = ReturnType<typeof inputSchema>
@@ -187,7 +186,7 @@ export const ContractTool = buildTool({
         return {
           data: {
             message:
-              'Proposed: the operator or coordinator has a needs-you with your reasoning; once they amend, re-acknowledge. Until then the current contract remains advisory: continue work that fits it, or end your turn and ask the user.',
+              'Proposed: the operator has a needs-you with your proposal; once they amend, re-acknowledge. Until then the current contract remains advisory: continue work that fits it, or end your turn and ask the user.',
             ...facts(contract),
           },
         }

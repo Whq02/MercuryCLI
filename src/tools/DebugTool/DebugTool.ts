@@ -89,41 +89,41 @@ const inputSchema = lazySchema(() =>
     session: z
       .string()
       .optional()
-      .describe('Session name (default "main"); a re-launch on the same name replaces that session'),
+      .describe('Session name (default "main"; re-launch replaces it)'),
     adapter: z
       .string()
       .optional()
-      .describe('launch/attach: adapter key; inferred from the program extension when omitted'),
-    program: z.string().optional().describe('launch: the program to run. attach: the running program to join'),
-    args: z.array(z.string()).optional().describe('launch: program arguments'),
-    stopOnEntry: semanticBoolean(z.boolean().optional()).describe('launch: stop at the first instruction'),
-    timeoutMs: semanticNumber(z.number().positive().optional()).describe('Milliseconds to wait for the next stop (default 10000, no cap)'),
-    file: z.string().optional().describe('breakpoints: the source file'),
-    lines: z.array(semanticNumber(z.number().int().positive())).optional().describe('breakpoints: the lines, replacing the file\'s set on every session; [] clears it'),
+      .describe('launch/attach: adapter key (default inferred from extension)'),
+    program: z.string().optional().describe('launch/attach: target program'),
+    args: z.array(z.string()).optional().describe('launch: argv'),
+    stopOnEntry: semanticBoolean(z.boolean().optional()).describe('launch: stop at first instruction'),
+    timeoutMs: semanticNumber(z.number().positive().optional()).describe('Stop wait in ms (default 10000, uncapped)'),
+    file: z.string().optional().describe('breakpoints: source file'),
+    lines: z.array(semanticNumber(z.number().int().positive())).optional().describe('breakpoints: replaces file lines across sessions; [] clears'),
     breakpoints: z
       .array(
         z.strictObject({
           line: semanticNumber(z.number().int().positive()),
-          condition: z.string().optional().describe('Stop only when this expression holds'),
-          hitCondition: z.string().optional().describe('Stop on this hit count ("3")'),
-          logMessage: z.string().optional().describe('Log this instead of stopping (a logpoint)'),
+          condition: z.string().optional().describe('Break expression'),
+          hitCondition: z.string().optional().describe('Hit count ("3")'),
+          logMessage: z.string().optional().describe('Logpoint message (no stop)'),
         }),
       )
       .optional()
-      .describe('breakpoints: rows with a condition, hit count or log message, in place of lines; replaces the file\'s set on every session, [] clears it'),
-    pid: semanticNumber(z.number().int().positive().optional()).describe('attach: the process id'),
-    port: semanticNumber(z.number().int().positive().max(65_535).optional()).describe('attach: the debuggee\'s listening debug port; alone, it selects the python adapter'),
-    host: z.string().optional().describe('attach: the debug host (default 127.0.0.1)'),
-    method: z.string().optional().describe('customRequest: the DAP command, sent verbatim'),
-    body: z.string().optional().describe('customRequest: the request arguments as JSON text'),
+      .describe('breakpoints: conditional/hit/logpoint rows instead of lines; replaces file set across sessions; [] clears'),
+    pid: semanticNumber(z.number().int().positive().optional()).describe('attach: process id'),
+    port: semanticNumber(z.number().int().positive().max(65_535).optional()).describe('attach: debug port (alone implies python)'),
+    host: z.string().optional().describe('attach: default 127.0.0.1'),
+    method: z.string().optional().describe('customRequest: verbatim DAP command'),
+    body: z.string().optional().describe('customRequest: JSON arguments string'),
     functions: z
       .array(
         z.union([
           z.string(),
           z.strictObject({
-            name: z.string().describe('The function to break on entry of'),
-            condition: z.string().optional().describe('Stop only when this expression holds'),
-            hitCondition: z.string().optional().describe('Stop on this hit count ("3")'),
+            name: z.string(),
+            condition: z.string().optional(),
+            hitCondition: z.string().optional(),
           }),
         ]),
       )
@@ -132,54 +132,54 @@ const inputSchema = lazySchema(() =>
     dataBreakpoints: z
       .array(
         z.strictObject({
-          name: z.string().describe('The variable to watch'),
-          variablesReference: semanticNumber(z.number().int().optional()).describe('The scope or structure holding the variable (from scopes/variables)'),
-          frameId: semanticNumber(z.number().int().optional()).describe('Frame for an expression-style name, when the adapter resolves by frame'),
-          accessType: z.enum(['read', 'write', 'readWrite']).optional().describe('Stop on read, write (default) or both'),
-          condition: z.string().optional().describe('Stop only when this expression holds'),
-          hitCondition: z.string().optional().describe('Stop on this hit count ("3")'),
+          name: z.string().describe('Variable to watch'),
+          variablesReference: semanticNumber(z.number().int().optional()).describe('Scope/container ref (from scopes/variables)'),
+          frameId: semanticNumber(z.number().int().optional()).describe('Frame for expression-style names'),
+          accessType: z.enum(['read', 'write', 'readWrite']).optional().describe('Default "write"'),
+          condition: z.string().optional(),
+          hitCondition: z.string().optional(),
         }),
       )
       .optional()
-      .describe('dataBreakpoints: the variables to stop on; replaces the set, [] clears it'),
+      .describe('dataBreakpoints: replaces watched set; [] clears'),
     instructionBreakpoints: z
       .array(
         z.strictObject({
-          instructionReference: z.string().describe('A stack frame\'s [ip …] or an address from disassemble'),
-          offset: semanticNumber(z.number().int().optional()).describe('Byte offset from the reference'),
-          condition: z.string().optional().describe('Stop only when this expression holds'),
-          hitCondition: z.string().optional().describe('Stop on this hit count ("3")'),
+          instructionReference: z.string().describe('Frame [ip …] or disassemble address'),
+          offset: semanticNumber(z.number().int().optional()).describe('Byte offset'),
+          condition: z.string().optional(),
+          hitCondition: z.string().optional(),
         }),
       )
       .optional()
-      .describe('instructionBreakpoints: the instruction addresses to stop at; replaces the set, [] clears it'),
-    memoryReference: z.string().optional().describe('disassemble/readMemory/writeMemory: a memory reference (a stack frame\'s [ip …] or a variable\'s [memory …])'),
-    count: semanticNumber(z.number().int().positive().optional()).describe('readMemory: bytes to read (at most 4096)'),
-    offset: semanticNumber(z.number().int().optional()).describe('disassemble/readMemory/writeMemory: byte offset from the memory reference'),
-    data: z.string().optional().describe('writeMemory: the bytes to write, base64-encoded'),
-    allowPartial: semanticBoolean(z.boolean().optional()).describe('writeMemory: accept a partial write when only part of the range is writable'),
-    instructionCount: semanticNumber(z.number().int().positive().optional()).describe('disassemble: instructions to decode (default 16, at most 64)'),
+      .describe('instructionBreakpoints: replaces set; [] clears'),
+    memoryReference: z.string().optional().describe('disassemble/readMemory/writeMemory: frame [ip …] or variable [memory …]'),
+    count: semanticNumber(z.number().int().positive().optional()).describe('readMemory: bytes (≤4096)'),
+    offset: semanticNumber(z.number().int().optional()).describe('disassemble/readMemory/writeMemory: byte offset'),
+    data: z.string().optional().describe('writeMemory: base64 bytes'),
+    allowPartial: semanticBoolean(z.boolean().optional()).describe('writeMemory: allow partial write'),
+    instructionCount: semanticNumber(z.number().int().positive().optional()).describe('disassemble: instructions (default 16, ≤64)'),
     granularity: z
       .enum(['statement', 'instruction'])
       .optional()
-      .describe('next/stepIn: "instruction" steps one machine instruction'),
-    threadId: semanticNumber(z.number().int().optional()).describe('Thread for stack/continue/step/pause (defaults to the stopped thread)'),
-    frameId: semanticNumber(z.number().int().optional()).describe('Frame for scopes/evaluate/completions (from stack); evaluate defaults to the top frame of the thread that stopped last'),
+      .describe('next/stepIn: default "statement"'),
+    threadId: semanticNumber(z.number().int().optional()).describe('stack/continue/step/pause thread (default stopped thread)'),
+    frameId: semanticNumber(z.number().int().optional()).describe('scopes/evaluate/completions frame; evaluate defaults to the top frame of the thread that stopped last'),
     depth: semanticNumber(z.number().int().positive().optional()).describe('stack: number of frames to return (default 20)'),
-    variablesReference: semanticNumber(z.number().int().optional()).describe('Reference from scopes/variables/evaluate to expand (variables/setVariable)'),
-    expression: z.string().optional().describe('evaluate: the expression, run in the debuggee'),
+    variablesReference: semanticNumber(z.number().int().optional()).describe('variables/setVariable: container ref from scopes/variables/evaluate'),
+    expression: z.string().optional().describe('evaluate: expression in debuggee'),
     context: z
       .enum(['repl', 'watch', 'hover', 'clipboard', 'variables'])
       .optional()
-      .describe('evaluate: the context the adapter evaluates in (default "repl"; "watch" for a side-effect-free read, "hover" for a symbol under the cursor, "clipboard" for a copyable value, "variables" for a variables-view value)'),
+      .describe('evaluate: default "repl"; "watch" for a side-effect-free read, "hover" for a symbol under the cursor, "clipboard" for a copyable value, "variables" for a variables-view value'),
     filters: z
       .array(z.string())
       .optional()
-      .describe('exceptionBreakpoints: filter ids to arm; omitted, the adapter\'s filters are listed'),
-    sourceReference: semanticNumber(z.number().int().optional()).describe('source: the sourceReference from a stack frame or loadedSources (>0)'),
-    name: z.string().optional().describe('setVariable: the variable name inside variablesReference'),
-    value: z.string().optional().describe('setVariable: the new value expression'),
-    text: z.string().optional().describe('completions: the partial expression to complete'),
+      .describe('exceptionBreakpoints: filter ids to arm (omit to list)'),
+    sourceReference: semanticNumber(z.number().int().optional()).describe('source: sourceReference (>0) from stack/loadedSources'),
+    name: z.string().optional().describe('setVariable: variable name in variablesReference'),
+    value: z.string().optional().describe('setVariable: new value expression'),
+    text: z.string().optional().describe('completions: partial expression'),
   }),
 )
 

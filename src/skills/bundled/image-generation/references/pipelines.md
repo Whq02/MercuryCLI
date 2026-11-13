@@ -1,10 +1,10 @@
 # Editable pipelines and workflow files
 
-Use this only when the deliverable needs an editable source, import/export or remote execution. Discover the connected pipeline tools first; the shipped implementation is not a guarantee they are exposed.
+Use when the task requires an editable `.pipeline.json`, ComfyUI workflow import/export, or `media.host` execution. Confirm the pipeline tools are exposed in the session first.
 
 ## Editable source
 
-`pipeline_describe` returns the actual document and step schemas. Save a .pipeline.json with stable step IDs, validate it with `pipeline_validate`, and inspect the expanded plan with `pipeline_run` dry before an unfamiliar run. Step inputs do not take job controls such as cwd, wait, dry or resume. References point to earlier outputs; an image and an image list are not interchangeable inputs.
+Call `pipeline_describe` for the live document and step schemas. Save `.pipeline.json` with stable step IDs, check with `pipeline_validate`, and preview unfamiliar plans with `pipeline_run` (`dry: true`). Step `inputs` exclude job controls (`cwd`, `wait`, `dry`, `resume`); single-image and image-list outputs are not interchangeable.
 
 Document: `pipeline`
 ```json
@@ -19,18 +19,16 @@ Document: `pipeline`
 }
 ```
 
-Edit the source, not a completed record. Running from a step reruns it and its successors; earlier outputs are reusable only when inputs and saved hashes match. Changed/missing ancestors run again. A whole run does not imply reuse; an explicit resume needs a starting step. Result paths locate the images and separate run record under media/. Old records retain their source/settings; changing the source does not rewrite history. These are implementation rules (E in `references/sources.md`), not freshly rendered replay evidence.
+Edit `.pipeline.json`, never completed run records under `media/`. Resuming from a `step` reruns that step and its dependents, reusing earlier outputs only when inputs and hashes match (`resume` requires `step`; full runs rerun all steps).
 
 ## ComfyUI format
 
-For one request, inspect a workflow with `image_generate` dry; for editable steps, use `pipeline_import_workflow`. Read the node mapping, skipped nodes and explicit overrides before rendering. Paths resolve beside the workflow; arbitrary custom nodes are not executed. Model/CLIP LoRA strengths, branches and sampling representations must be mappable, not silently dropped.
+Inspect a single-request workflow via `image_generate` (`dry: true`) or import editable steps via `pipeline_import_workflow`, checking mapped/skipped nodes and overrides before rendering (paths resolve beside the workflow; arbitrary custom nodes do not run).
 
-**CODE inspected 2026-11-04, media 0.2.9:** `src/extensions/bundled/mercury-media/server/server.js` computes resolveSampling once and passes the same effective settings to writeExport and the render. Export refuses unknown sampling defaults and unrepresentable custom sigma schedules. Do not require explicit CFG/sampler overrides for every export or silently replace a saved schedule to obtain one. Historical 0.2.6 default-divergence advice is superseded, not a current workaround.
+**CODE inspected 2026-11-13, media 0.2.9:** `src/extensions/bundled/mercury-media/server/server.js` runs resolveSampling once for both writeExport and rendering, refusing unknown sampling defaults or unrepresentable custom sigma schedules; do not force explicit CFG/sampler overrides or drop a saved schedule just to export.
 
-`export_workflow` writes one request as API JSON, including when dry; `pipeline_export_workflow` exports only the mapper's supported steps. Downsize, palette, sheets, multiple renders and an effective Pixel Party downsize can be unrepresentable; the landscape above intentionally includes such a step. Keep the pipeline instead of deleting the user's processing to make export pass. Existing destinations refuse rather than overwrite. Inspect the saved settings and outputs; a source inspection is not a visual round-trip test.
+`export_workflow` exports one request as API JSON (even with `dry: true`); `pipeline_export_workflow` exports mappable steps only (`downsize`, `palette`, `sheet`, `count` > 1 and `pixel-party-xl` downsize refuse; keep the user's pipeline rather than stripping steps, and choose a new destination path since existing files are never overwritten).
 
 ## Remote execution
 
-`media.host` chooses an existing SSH rental; it does not rent a machine. Do not change it merely to make a render fit. Check the model/adapter's hosting terms as well as commercial-use terms before sending it there.
-
-Prompts/settings and required images, masks, maps, palettes and local adapters travel to that host; the whole project does not. Pipeline source and downloaded outputs stay local. Import/export can transfer referenced inputs even without diffusion; pipeline dry sends only the document. Runtime/weights and ongoing rental billing are remote. Disconnection does not prove an asynchronous job stopped; reconnect to retrieve its ID, never replace the host or duplicate the job silently. The entry owns model-choice/refusal authority; this section names the transfer effect. Source owners: E in `references/sources.md`.
+`media.host` targets an existing SSH rental (never rents one; do not change it merely to make a render fit, and check model/adapter hosting + commercial terms first). Only prompts, settings and referenced inputs/adapters transfer to the host; `.pipeline.json` and finished outputs stay local (`pipeline_run` `dry: true` sends only the document, while workflow import/export can transfer referenced inputs). A disconnect does not cancel an async remote job: reconnect and query its job ID via `media_result` rather than resubmitting.

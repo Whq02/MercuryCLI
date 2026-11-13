@@ -6,9 +6,9 @@ export const AST_PATTERN_FIELD =
   'One complete node written as code in the target language: a fragment that is not standalone goes inside its container, and a declaration carries every part it has (a declared return type as ": $_" in TypeScript, " -> $_" in Python). $NAME matches one node and captures it; $$$NAME matches zero or more siblings and captures them; $_ and $$$ match without capturing. Names are uppercase letters, digits and underscores, a repeated name must match identical code, and spacing, line breaks and comments never matter.'
 
 export const AST_PATH_FIELD =
-  "A file or a directory; the working directory when omitted. Dot-files and dot-folders, node_modules, dist, build, out, coverage, venv, __pycache__, vendor, target and the root .gitignore's plain entries are skipped unless named here."
+  'File or directory (default working directory). Dot-entries, node_modules, dist, build, out, coverage, venv, __pycache__, vendor, target and root .gitignore entries are skipped unless named.'
 
-export const AST_GLOB_FIELD = 'Only the files matching this glob, relative to path; {a,b} lists alternatives.'
+export const AST_GLOB_FIELD = 'Glob filter relative to path ({a,b} for alternatives).'
 
 export function astLanguageField(): string {
   return `One grammar for every file, instead of each file's extension deciding; this build carries: ${astLanguageNames().join(' · ') || '(no grammar engine)'}; a file without a grammar is skipped and counted.`

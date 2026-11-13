@@ -20,8 +20,8 @@ import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 
 
 const inputSchema = z.strictObject({
-  url: z.string().url().optional().describe('One URL to fetch; use either url or urls'),
-  urls: z.array(z.string().url().max(2000)).min(1).max(3).optional().describe('Fetch 1-3 URLs in order, each with its own result and permission; page text is bounded to 38,000 bytes each, total result 132,000 bytes'),
+  url: z.string().url().optional().describe('Single URL (use url or urls)'),
+  urls: z.array(z.string().url().max(2000)).min(1).max(3).optional().describe('1–3 URLs in order, each with its own result and permission; page text is bounded to 38,000 bytes each, total result 132,000 bytes'),
   from: z.number().int().nonnegative().optional().describe('Continue at the character offset the previous result names'),
   prompt: z.string().optional().describe('Ask a model for a reading of the page; omit to receive the page’s own words'),
 }).refine(input => (input.url === undefined) !== (input.urls === undefined), { message: 'Pass either url or urls, not both' })
