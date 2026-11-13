@@ -91,7 +91,7 @@ export function registerKeybindingsSkill(): void {
     getPromptForCommand: async args => {
       const sections = [
         [
-          'Layers (lowest to highest; later appends, last binding on a chord wins): shipped defaults → `<config-home>/keybindings.json` (`~/.mercury` or `MERCURY_CONFIG_DIR`) → `.mercury/keybindings.json`. Edits hot-apply via file watcher. `/keybindings` seeds and opens the user file; `/keys` shows and edits the effective map.',
+          'Layers (lowest to highest; later appends, last binding on a chord wins): shipped defaults → <config-home>/keybindings.json (~/.mercury or `MERCURY_CONFIG_DIR`) → .mercury/keybindings.json. Edits hot-apply via file watcher. `/keybindings` seeds and opens the user file; `/keys` shows and edits the effective map.',
           'Read the target file before editing. Keep at most one block per context (merge into an existing context block; include only contexts with changes) and write only overrides, never defaults.',
         ].join('\n'),
         [
