@@ -103,11 +103,17 @@ section('§6 THE SEVERITY CHANNEL (B9) — the loader grades what it knows')
   check('a salvaged file grades every error warning', salvagedCase.settings !== null && salvagedCase.errors.length > 0 && salvagedCase.errors.every(e => e.severity === 'warning'), JSON.stringify(salvagedCase.errors).slice(0, 200))
   const voided = parseBlob('{nope')
   check('a voided file keeps the hard default', voided.settings === null && voided.errors.length > 0 && voided.errors.every(e => e.severity !== 'warning'), JSON.stringify(voided.errors).slice(0, 200))
-  const filtered = parseBlob({ guardrails: { deny: ['Bash', 'Bash(rm -rf *'] } })
+  const filtered = parseBlob({ guardrails: { allow: ['Bash', 'Bash(rm -rf *'] } })
   check(
-    'a dropped permission rule grades warning (the filter stamp)',
+    'a dropped allow rule grades warning (the filter stamp)',
     filtered.settings !== null && filtered.errors.some(e => e.severity === 'warning' && /permission rule/.test(e.message)),
     JSON.stringify(filtered.errors).slice(0, 200),
+  )
+  const unreadDeny = parseBlob({ guardrails: { deny: ['Bash', 'Bash(rm -rf *'] } })
+  check(
+    'a deny rule nothing can read grades error, and the rules beside it stay (a protection that is not in force is said loudly)',
+    unreadDeny.settings !== null && unreadDeny.errors.some(e => e.severity === 'error' && /permission rule/.test(e.message)) && JSON.stringify(unreadDeny.settings?.guardrails?.deny) === JSON.stringify(['Bash']),
+    JSON.stringify(unreadDeny.errors).slice(0, 200),
   )
   const { readFileSync } = await import('node:fs')
   const dialog = readFileSync(new URL('../../src/components/InvalidSettingsDialog.tsx', import.meta.url), 'utf8')
