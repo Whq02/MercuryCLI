@@ -641,6 +641,19 @@ export const GitTool = buildTool({
         return { result: false as const, message: `cwd is not a folder: ${input.cwd} (${folder})`, errorCode: 2 }
       }
     }
+    const named: Array<[string, string | undefined]> = [
+      ['ref', input.ref],
+      ['sha', input.sha],
+      ['refA', input.refA],
+      ['refB', input.refB],
+      ['path', input.path],
+      ...(input.paths ?? []).map(value => ['paths', value] as [string, string]),
+      ...(input.files ?? []).map(value => ['files', value] as [string, string]),
+      ...Object.keys(input.hunks ?? {}).map(value => ['hunks', value] as [string, string]),
+      ...(input.groups ?? []).flatMap(group => group.files.map(value => ['groups.files', value] as [string, string])),
+    ]
+    const dashed = named.find(([, value]) => typeof value === 'string' && value.trimStart().startsWith('-'))
+    if (dashed) return { result: false as const, message: `${dashed[0]} may not begin with a dash`, errorCode: 1 }
     if (input.op === 'plan' && !input.groups?.length) {
       return { result: false as const, message: 'plan requires groups', errorCode: 1 }
     }
