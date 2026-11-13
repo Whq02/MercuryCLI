@@ -545,7 +545,9 @@ export class Conversation {
           const now = Date.now()
           const state = toolUpdateState.get(key)
           const hookWaitEnded = hookWaiting !== null && hookWaiting.line === undefined
-          if (!hookWaitEnded && state !== undefined && now - state.lastEmitMs < TOOL_UPDATE_BEAT_MS) return rows
+          if (!hookWaitEnded) {
+            if (state !== undefined && now - state.lastEmitMs < TOOL_UPDATE_BEAT_MS) return rows
+          }
           while (toolUpdateState.size >= TOOL_UPDATE_MAP_CAP) {
             const oldest = toolUpdateState.keys().next()
             if (oldest.done) break
