@@ -40,7 +40,7 @@ import { engageCommitGate } from '../guards/commitGate.js'
 import { registerForcedReadGuard } from '../guards/forcedRead.js'
 import { registerStructuredOutputGuard, releaseStructuredOutputGuard } from '../guards/structuredOutput.js'
 import { registerRunStopGuard } from '../guards/runStop.js'
-import { registerWardsGuard } from '../guards/wardsGuard.js'
+import { forgetWardFirings, registerWardsGuard, wardFiringsOf } from '../guards/wardsGuard.js'
 import { askNobodyAnswered, unansweredAsksBlocker } from '../services/run/unansweredAsk.js'
 import type { PermissionDecision } from '../types/permissions.js'
 import { getInMemoryErrors, logError, withoutStackFrames } from '../utils/log.js'
@@ -374,6 +374,7 @@ export class Conversation {
     const toolOutcomes = new Map<string, 'ok' | 'error' | 'aborted'>()
     const callScopes = new Map<string, RowScope>()
     const denialsBefore = this.denials.length
+    forgetWardFirings(scope.session_id)
 
     const wrappedCanUseTool: CanUseTool = (async (
       tool: { name: string },
@@ -689,6 +690,7 @@ export class Conversation {
         models: modelUsageRows(billed, hasUnknownCost),
         denials: this.denials.slice(denialsBefore),
         ...(notices.length > 0 ? { notices: [...notices] } : {}),
+        wards: wardFiringsOf(scope.session_id),
         ...extra,
       }
     }

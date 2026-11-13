@@ -148,7 +148,12 @@ Each turn ends with an `outcome` row carrying `schema`, `turn_id`, `status`,
 `steps`, `wall_ms`, `usage`, `models` and `denials`, with `answer` on
 completion or a turn limit and `error` (`message`, `class`, optional `detail`)
 on failure. `stop`, `api_ms`, `cost_usd`, requested `structured` output and
-`notices` are included when available. `wall_ms` is the turn's elapsed time.
+`notices` are included when available. `wards` is included when a ward fired in
+the turn, one entry a firing: the `ward` (its name; `project-rule` for a rule of
+a folder that is not trusted), the `tool`, the `call_id` and the `effect`,
+`refused` when the call did not run or `warned` when `MERCURY_WARDS=warn` let it
+run. A ward's refusal is not a permission denial: it is not listed in `denials`
+and does not end the turn `blocked`. `wall_ms` is the turn's elapsed time.
 `api_ms` is the sum of the durations of every model request the turn made
 (including retries and the crewmates' requests that ran alongside the main
 thread), so it can exceed `wall_ms` when requests overlapped. `cost_usd` is the

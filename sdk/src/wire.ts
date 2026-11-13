@@ -4300,6 +4300,36 @@ export const METHODS: Record<MethodName, MethodSchema> = {
                   "text"
                 ]
               }
+            },
+            "wards": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "ward": {
+                    "type": "string"
+                  },
+                  "tool": {
+                    "type": "string"
+                  },
+                  "call_id": {
+                    "type": "string"
+                  },
+                  "effect": {
+                    "type": "string",
+                    "enum": [
+                      "refused",
+                      "warned"
+                    ]
+                  }
+                },
+                "required": [
+                  "ward",
+                  "tool",
+                  "call_id",
+                  "effect"
+                ]
+              }
             }
           },
           "required": [

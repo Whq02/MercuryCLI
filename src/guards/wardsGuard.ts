@@ -4,6 +4,7 @@ import { closeSync, constants, existsSync, fstatSync, openSync, readFileSync, re
 import { dirname, isAbsolute, join, sep } from 'node:path'
 import { enqueueNotification } from '../context/notifications.js'
 import { flagEnabled, flagEnv } from '../substrate/flagRegistry.js'
+import type { WardFiring } from '../rows/vocabulary.js'
 import { untrustedWorkspaceHeadless } from '../utils/config/trust.js'
 import { getCwd } from '../utils/cwd.js'
 import { logForDebugging } from '../utils/debug.js'
@@ -202,6 +203,24 @@ function withTheRoadOffered<Refusal extends { rule: WardRule }>(refusal: Refusal
   return { ...refusal, rule: { ...refusal.rule, teach: `${refusal.rule.teach.slice(0, -1)}${ROAD_THAT_OUTLIVES_THE_RUN}` } }
 }
 
+const WARD_FIRINGS_KEPT = 256
+const wardFirings = new Map<string, WardFiring[]>()
+
+function noteWardFiring(sessionId: string, firing: WardFiring): void {
+  const kept = wardFirings.get(sessionId) ?? []
+  if (kept.length >= WARD_FIRINGS_KEPT) kept.shift()
+  kept.push(firing)
+  wardFirings.set(sessionId, kept)
+}
+
+export function wardFiringsOf(sessionId: string): WardFiring[] {
+  return [...(wardFirings.get(sessionId) ?? [])]
+}
+
+export function forgetWardFirings(sessionId: string): void {
+  wardFirings.delete(sessionId)
+}
+
 const wardsEngagedSessions = new Set<string>()
 
 export function resetWardsEngagedSessionsForTest(): void {
@@ -260,11 +279,19 @@ export function registerWardsGuard(
           }
         }
         const refusal = pending.shellCommand === undefined ? evaluateWards(REFUSAL_WARDS, pending, work) : await refusalOfShellCommand(pending, getCwd(), work)
-        if (!refusal.allow && level !== 'warn') return { allow: false, reason: buildWardDenial(withTheRoadOffered(refusal, call.offeredTools), pending.toolName) }
+        if (!refusal.allow && level !== 'warn') {
+          noteWardFiring(sessionId, { ward: refusal.rule.name, tool: pending.toolName, call_id: call.callId, effect: 'refused' })
+          return { allow: false, reason: buildWardDenial(withTheRoadOffered(refusal, call.offeredTools), pending.toolName) }
+        }
         const verdict = evaluateWards(call.asksAnswerable === true ? attendedRules : unattendedRules, pending, work)
-        if (!verdict.allow) return { allow: false, reason: projectReport.rules.includes(verdict.rule) && untrustedWorkspaceHeadless() ? buildUntrustedFolderDenial(pending.toolName) : buildWardDenial(verdict, pending.toolName) }
+        if (!verdict.allow) {
+          const nameWithheld = projectReport.rules.includes(verdict.rule) && untrustedWorkspaceHeadless()
+          noteWardFiring(sessionId, { ward: nameWithheld ? 'project-rule' : verdict.rule.name, tool: pending.toolName, call_id: call.callId, effect: 'refused' })
+          return { allow: false, reason: nameWithheld ? buildUntrustedFolderDenial(pending.toolName) : buildWardDenial(verdict, pending.toolName) }
+        }
         if (refusal.allow) return { allow: true }
         logForDebugging(`wards: warn — ${buildWardDenial(refusal, pending.toolName)}`)
+        noteWardFiring(sessionId, { ward: refusal.rule.name, tool: pending.toolName, call_id: call.callId, effect: 'warned' })
         return {
           allow: true,
           note: createSystemMessage(

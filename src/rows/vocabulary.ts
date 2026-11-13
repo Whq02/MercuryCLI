@@ -271,6 +271,16 @@ export const DenialSchema = lazySchema(() =>
 )
 export type Denial = z.infer<ReturnType<typeof DenialSchema>>
 
+export const WardFiringSchema = lazySchema(() =>
+  z.object({
+    ward: z.string(),
+    tool: z.string(),
+    call_id: z.string(),
+    effect: z.enum(['refused', 'warned']),
+  }),
+)
+export type WardFiring = z.infer<ReturnType<typeof WardFiringSchema>>
+
 export const OutcomeRowSchema = lazySchema(() =>
   z.object({
     type: z.literal('outcome'),
@@ -291,6 +301,7 @@ export const OutcomeRowSchema = lazySchema(() =>
     models: z.record(z.string(), ModelUsageRowSchema()),
     denials: z.array(DenialSchema()),
     notices: z.array(z.object({ level: z.enum(['warning', 'error']), text: z.string() })).optional(),
+    wards: z.array(WardFiringSchema()).optional(),
   }),
 )
 export type OutcomeRow = z.infer<ReturnType<typeof OutcomeRowSchema>>
