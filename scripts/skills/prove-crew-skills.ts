@@ -390,6 +390,58 @@ const sampleCallsValid = [
 ]
 check('prescribed Crewmate and CrewBoard call shapes validate against the product Zod schemas', sampleCallsValid.every(Boolean), sampleCallsValid)
 
+const joinedCodeSpans = (text: string): string => text.replace(/`([a-z_]+)`:\s*`([^`\n]+)`/g, '`$1: $2`')
+type DescribedArgument = { tool: string; key: string; value: unknown }
+function describedArguments(text: string): DescribedArgument[] {
+  const result: DescribedArgument[] = []
+  let tool = ''
+  for (const line of joinedCodeSpans(text).split('\n')) {
+    if (/^#{1,6} /.test(line)) tool = ''
+    if (/\bLaunch\b/.test(line)) tool = AgentTool.name
+    for (const span of codeSpansOf(line)) {
+      if (registeredToolNames.has(span)) tool = span
+      const pair = /^([a-z_]+):\s*(.+)$/.exec(span)
+      if (!pair || !tool || pair[1] === 'captain' && line.includes('never set')) continue
+      try { result.push({ tool, key: pair[1]!, value: JSON.parse(pair[2]!) }) } catch {}
+    }
+  }
+  return result
+}
+function argumentErrors(text: string): string[] {
+  const errors: string[] = []
+  for (const { tool, key, value } of describedArguments(text)) {
+    const schema = toolByName.get(tool)?.inputSchema as z.ZodObject | undefined
+    const property = schema?.shape?.[key] as z.ZodType | undefined
+    if (!property) { errors.push(`${tool}.${key}: absent parameter`); continue }
+    if (key === 'crewmate_type' && typeof value === 'string' && !builtInAgentTypes.has(value)) errors.push(`${tool}.${key}: unknown type ${value}`)
+    if (typeof value === 'string' && /<[^>]+>/.test(value)) continue
+    if (!property.safeParse(value).success) errors.push(`${tool}.${key}: refused ${JSON.stringify(value)}`)
+  }
+  return errors
+}
+const described = describedArguments(bothTexts)
+const describedErrors = argumentErrors(bothTexts)
+check('skill-derived arguments validate against their own tool schemas, including split key/value code spans', described.length > 80 && describedErrors.length === 0, { count: described.length, errors: describedErrors })
+for (const [label, before, after] of [
+  ['nonexistent Crewmate argument', '`run_in_background`: `true`', '`timeout`: `true`'],
+  ['nonexistent crewmate_type', '`crewmate_type`: `"mercury-crew"`', '`crewmate_type`: `"mercury-imaginary"`'],
+  ['nonexistent CrewBoard kind', '`kind: "ask"`', '`kind: "invented"`'],
+  ['Git op used on CrewBoard', '`op: "read"`', '`op: "diff"`'],
+] as const) {
+  const mutant = deepSource.replace(before, after)
+  check(`the instruction validator rejects a scratch ${label} mutation`, mutant !== deepSource && argumentErrors(mutant).length > 0, argumentErrors(mutant))
+}
+function launchArguments(text: string): Record<string, unknown> {
+  return Object.fromEntries(describedArguments(`\`Crewmate\`\n${text}`).filter(arg => arg.tool === 'Crewmate').map(arg => [arg.key, arg.value]))
+}
+const captainArguments = launchArguments(deepSource.split('**First message')[1]?.split('**Second message')[0] ?? '')
+const researcherArguments = launchArguments(deepSource.split('\n').find(line => line.includes('One `Crewmate` call per angle:')) ?? '')
+const verifierArguments = launchArguments(deepSource.split('\n').find(line => line.includes('One `Crewmate` call per verifier:')) ?? '')
+const captainBrief = deepSource.split('### Captain brief')[1]?.split('```text\n')[1]?.split('```')[0] ?? ''
+const researcherBrief = deepSource.split('### Angle researcher brief')[1]?.split('```text\n')[1]?.split('```')[0] ?? ''
+const verifierBrief = deepSource.split('### Adversarial verifier brief')[1]?.split('```text\n')[1]?.split('```')[0] ?? ''
+check('the live launch inputs and complete briefs are extracted from the skill rather than a parallel example', [captainArguments, researcherArguments, verifierArguments].every(args => args.crewmate_type && args.run_in_background === true) && [captainBrief, researcherBrief, verifierBrief].every(brief => brief.includes('@captain')), { captainArguments, researcherArguments, verifierArguments })
+
 section('3. Design invariants: captain-run vs lead-run, swarm-off, unattended, last look, and zero comms bounds')
 
 check('deep-research names and appoints a captain', deepSource.includes('`captain`: `true`') && deepSource.includes('@captain'))
@@ -475,55 +527,28 @@ async function runTeamLaunchProof(sessionUuid: string, teamLabel: string, resear
     return res.data as { status: string; agentId: string; agentName?: string }
   }
 
-  const capLaunch = await callCrewmate({
-    description: 'Captain research team',
-    name: 'captain',
+  const fill = (text: string, seat: string): string => text.replace(/<([^>]+)>/g, (_match, blank: string) => ({ team: teamLabel, scratchpad: TMP, seat_name: seat, question: 'Compare durability, concurrency and portability.', 'other-family-model-id': 'claude-opus-4-8' } as Record<string, string>)[blank] ?? `Assigned ${blank}`)
+  const launch = (args: Record<string, unknown>, seat: string, brief: string) => ({
+    ...Object.fromEntries(Object.entries(args).map(([key, value]) => [key, typeof value === 'string' ? fill(value, seat) : value])),
+    name: seat,
     team: teamLabel,
-    captain: true,
-    crewmate_type: 'mercury-crew',
-    run_in_background: true,
-    prompt: `You are captain (@captain) of team ${teamLabel}. Researchers: ${researcherNames.join(', ')}. Verifiers: ${verifierNames.join(', ')}.`,
+    prompt: `You are ${seat} on team ${teamLabel}. Your team captain is captain (@captain).\n${fill(brief, seat)}`,
   })
+  const capLaunch = await callCrewmate(launch(captainArguments, 'captain', captainBrief))
   launchedIds.push(capLaunch.agentId)
   check(`${teamLabel}: message 1 launches captain alone in background`, capLaunch.status === 'async_launched' && capLaunch.agentName === 'captain', capLaunch)
 
-  await fetch(`${fixture.url}/health`).catch(() => null)
   if (!board.captain(teamLabel)) {
     await new Promise<void>(resolve => {
       const stop = board.subscribe(() => {
-        if (board.captain(teamLabel)) {
-          stop()
-          resolve()
-        }
+        if (board.captain(teamLabel)) { stop(); resolve() }
       })
-      if (board.captain(teamLabel)) {
-        stop()
-        resolve()
-      }
+      if (board.captain(teamLabel)) { stop(); resolve() }
     })
   }
-
   const otherCalls = [
-    ...researcherNames.map(seatName =>
-      callCrewmate({
-        description: `Research ${seatName}`,
-        name: seatName,
-        team: teamLabel,
-        crewmate_type: 'mercury-crew',
-        run_in_background: true,
-        prompt: `You are ${seatName} on team ${teamLabel}. Your team captain is captain (@captain).`,
-      }),
-    ),
-    ...verifierNames.map(seatName =>
-      callCrewmate({
-        description: `Verify ${seatName}`,
-        name: seatName,
-        team: teamLabel,
-        crewmate_type: 'mercury-crew',
-        run_in_background: true,
-        prompt: `You are ${seatName} on team ${teamLabel}. Your team captain is captain (@captain).`,
-      }),
-    ),
+    ...researcherNames.map(seatName => callCrewmate(launch(researcherArguments, seatName, researcherBrief))),
+    ...verifierNames.map(seatName => callCrewmate(launch(verifierArguments, seatName, verifierBrief))),
   ]
 
   const otherResults = await Promise.all(otherCalls)
@@ -552,7 +577,7 @@ async function runTeamLaunchProof(sessionUuid: string, teamLabel: string, resear
   const msgTextOf = (req: (typeof newReqs)[number]): string => JSON.stringify(req.body.messages ?? '')
   const hasBoardTool = (req: (typeof newReqs)[number]): boolean => (req.body.tools ?? []).some(t => t.name === 'CrewBoard')
 
-  const capReq = newReqs.find(r => msgTextOf(r).includes(`You are captain (@captain) of team ${teamLabel}.`))
+  const capReq = newReqs.find(r => msgTextOf(r).includes(`You are captain on team ${teamLabel}.`))
   check(
     `${teamLabel}: captain request carries captain standing-wait brief and CrewBoard tool`,
     capReq !== undefined &&
