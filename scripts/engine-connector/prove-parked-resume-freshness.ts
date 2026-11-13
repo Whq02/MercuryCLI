@@ -51,11 +51,16 @@ function check(label: string, ok: boolean, detail = ''): void {
 const focused = () => getFocusedSessionConnector() as ReturnType<typeof getFocusedSessionConnector> & { live: () => import('../../src/services/engine-connector/seatLive.js').SessionLiveV1; status: () => import('../../src/services/engine-connector/seatLive.js').SeatStatusV1; readFacts: () => void }
 const words = (): string => statusLine(focused().live(), focused().status())
 const waitNextAdmission = (): void => { admission = new Promise(resolve => { answer = resolve }) }
+const resumed = async (): Promise<Awaited<ReturnType<typeof focusResumedSession>>> => {
+  const outcome = await focusResumedSession(sid, transcript, { firstPaintMs: 10 })
+  for (let waited = 0; typeof (getFocusedSessionConnector() as { live?: unknown }).live !== 'function' && waited < 5_000; waited += 5) await new Promise(resolve => setTimeout(resolve, 5))
+  return outcome
+}
 try {
   record()
   publish(1000, 'claude-sonnet-5')
   check('the parked fixture keeps its runner id but has no live worker', sessionOwnedByLiveWorker(sid) === null)
-  const first = await focusResumedSession(sid, transcript, { firstPaintMs: 10 })
+  const first = await resumed()
   const connector = focused()
   check('the actual parked resume waits before saying ready', words().startsWith('the runner is starting'), words())
   check('the actual parked resume names the saved worker model, not its pre-park facts', connector.modelFacts().effective === worker.modelKey && connector.modelFacts().effectiveSource === 'record', JSON.stringify(connector.modelFacts()))
@@ -96,7 +101,7 @@ try {
   waitNextAdmission()
   let modelNotices = 0
   const unsubscribe = connector.subscribeModel(() => { modelNotices++ })
-  const second = await focusResumedSession(sid, transcript, { firstPaintMs: 10 })
+  const second = await resumed()
   check('the same window reuses the same connector', focused() === connector)
   check('the cached connector re-arms readiness at the second resume', words().startsWith('the runner is starting'), words())
   check('a model changed while parked is the first shown on the second resume', connector.modelFacts().effective === 'claude-sonnet-5' && connector.modelFacts().effectiveSource === 'record', JSON.stringify(connector.modelFacts()))
@@ -113,7 +118,7 @@ try {
   releaseFocusedSessionConnector()
   record({ modelKey: 'claude-sonnet-5', parkedAt: 1200 })
   waitNextAdmission()
-  const raced = await focusResumedSession(sid, transcript, { firstPaintMs: 10 })
+  const raced = await resumed()
   const hopOpened = connector.status().runner?.sinceMs ?? 0
   record({ modelKey: 'claude-sonnet-5', parkedAt: undefined, parkedBy: undefined, pid: process.pid })
   answer({ ok: true, liveHop: true })
@@ -131,7 +136,7 @@ try {
   publish(1004, 'claude-sonnet-5')
   connector.readFacts()
   releaseFocusedSessionConnector()
-  const live = await focusResumedSession(sid, transcript, { firstPaintMs: 10 })
+  const live = await resumed()
   check('a session with a live worker is unchanged: same connector, ready, live model', await live.admitted && focused() === connector && words() === 'ready' && connector.modelFacts().effective === 'claude-sonnet-5' && connector.modelFacts().effectiveSource === 'live')
 } finally {
   releaseFocusedSessionConnector()
