@@ -8,34 +8,34 @@ const PER_SECTION_TOKEN_LIMIT = 2000
 
 const DEFAULT_SESSION_MEMORY_TEMPLATE = `
 # Session Title
-_Distinctive 5-10 word one-line title, no filler._
+_A dense one-line title, roughly 5-10 words, distinctive and free of filler._
 
 # Current State
-_Active work, pending tasks, immediate next steps._
+_The active work, the tasks still pending, and the immediate next steps._
 
 # Task specification
-_Original request, design decisions and rationale._
+_The original request, plus the design decisions and the context that explains them._
 
 # Files and Functions
-_Relevant files, what each holds and why it matters._
+_Which files matter, what each one holds, and why it is relevant here._
 
 # Workflow
-_Habitual shell commands, order, and non-obvious output notes._
+_The shell commands habitually run, the order they run in, and how to read their non-obvious output._
 
 # Errors & Corrections
-_Errors, fixes, user corrections, and failed approaches not to retry._
+_Errors and their fixes, corrections the user made, and approaches that failed and should not be retried._
 
 # Codebase and System Documentation
-_Components and how they fit together._
+_The system's components and how they fit together._
 
 # Learnings
-_What worked and failed, without repeating other sections._
+_What worked and what did not — without repeating anything already captured in another section._
 
 # Key results
-_Exact user-requested artefacts._
+_Any specific artefact the user asked for, reproduced here exactly._
 
 # Worklog
-_Terse step-by-step record of attempts and results._
+_A terse step-by-step record of what was attempted and what was done._
 `
 
 
