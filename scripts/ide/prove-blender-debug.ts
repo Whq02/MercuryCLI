@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
@@ -80,11 +80,21 @@ section('§3 · the profile row (armed only)')
   const scratch = mkdtempSync(path.join(tmpdir(), 'blender-debug-'))
   mkdirSync(scratch, { recursive: true })
   writeFileSync(path.join(scratch, 'a.blend'), '')
+  const shimBin = path.join(scratch, 'shim-blender')
+  writeFileSync(shimBin, '#!/bin/sh\necho "Blender 5.2.1"\nexit 0\n')
+  chmodSync(shimBin, 0o755)
   process.env.MERCURY_BLENDER = '1'
+  process.env.MERCURY_BLENDER_BIN = shimBin
   const d = await discoverLaunchProfiles(scratch)
   const recipeRows = d.profiles.filter(p => p.source === 'blender' && p.kind === 'debug')
   check('exactly ONE debug recipe row', recipeRows.length === 1)
   const row = recipeRows[0]
+  check(
+    'the row carries the pinned shim and its version: no Blender this machine holds answered',
+    row?.blenderHeadless?.blenderPath === shimBin &&
+      (row?.provenance ?? '').includes(`Blender 5.2.1 located (pin): ${shimBin}`),
+    row?.provenance ?? '',
+  )
   check(
     'the row rides the operator-run payload with --python-expr + the steps note',
     (row?.blenderHeadless?.args[0] ?? '') === '--python-expr' &&
