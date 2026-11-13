@@ -174,7 +174,7 @@ function projectEstateSection(toolNames: ReadonlySet<string>): string {
   return `# The project estate\n\n${prependBullets(items).join('\n')}`
 }
 
-const CREWMATE_FOLD_NOTE = 'Your context is folded automatically when it nears its window and the turn goes on after the fold: a context near full is no reason to end your turn.'
+const CREWMATE_FOLD_NOTE = 'Context folds automatically near its window limit and the turn continues: a nearly full window is never a reason to stop early.'
 
 function foldIsAutomatic(): boolean {
   try {
@@ -184,7 +184,7 @@ function foldIsAutomatic(): boolean {
   }
 }
 
-const BATCHING_INSTRUCTION = 'Default to batching: when the next step needs several independent reads, searches or checks, issue them in one response so they can run concurrently. Call dependent tools sequentially; wait for each prerequisite before starting the next call.'
+const BATCHING_INSTRUCTION = 'Default to batching: issue independent reads, searches or checks in one response to run concurrently. Call dependent tools sequentially after each prerequisite returns.'
 
 export async function enhanceSystemPromptWithEnvDetails(
   existing: string[],
@@ -205,11 +205,11 @@ export async function enhanceSystemPromptWithEnvDetails(
     'Notes:',
     ...prependBullets([
       BATCHING_INSTRUCTION,
-      `In a crewmate thread the ${BASH_TOOL_NAME} tool's working directory does not survive between calls: pass absolute paths.`,
+      `In crewmate threads ${BASH_TOOL_NAME}'s working directory resets between calls: pass absolute paths.`,
       ...(foldIsAutomatic() ? [CREWMATE_FOLD_NOTE] : []),
-      'In your final response, name the file paths that matter, always absolute. Quote code only where the literal characters carry the point — a defect you located, a signature the caller asked to see — never as a retelling of code you simply read.',
+      'Name relevant files by absolute path in your final response; quote code only where exact characters matter (a located defect or requested signature), never to retell read code.',
       'Do not use emoji.',
-      'Do not write a colon before a tool call: "Let me read the file:" followed by a read becomes "Let me read the file." with a period.',
+      'End sentences before tool calls with a period, never a colon.',
     ]),
   ].join('\n')
   const envBlock = await computeEnvInfo(model, agentId)
