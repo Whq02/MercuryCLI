@@ -39,7 +39,7 @@ setCwdState(PROJ)
 
 type Ctx = import('../../src/Tool.ts').ToolPermissionContext
 type Rules = { deny?: string[]; allow?: string[]; ask?: string[] }
-type Decision = { behavior: string; message?: string; decisionReason?: { type?: string; mode?: string; rule?: { ruleValue?: { toolName?: string; ruleContent?: string } } }; suggestions?: Array<{ type: string; mode?: string; destination?: string; behavior?: string; rules?: Array<{ toolName: string; ruleContent?: string }> }> }
+type Decision = { behavior: string; message?: string; decisionReason?: { type?: string; reason?: string; mode?: string; rule?: { ruleValue?: { toolName?: string; ruleContent?: string } } }; suggestions?: Array<{ type: string; mode?: string; destination?: string; behavior?: string; rules?: Array<{ toolName: string; ruleContent?: string }> }> }
 
 let failures = 0
 let checks = 0
@@ -103,6 +103,7 @@ for (const name of ['Read', 'Grep', 'Glob']) {
   const plain = read(name, HOSTS, context())
   check(`${name}: with no rule it is the ordinary ask, in today's sentence`, plain.behavior === 'ask' && plain.message === 'Permission to read from ssh://web1/etc/hosts has not been granted.' && plain.decisionReason?.type === 'workingDir', said(plain))
   check(`${name}: the ask offers the host for the session and nothing else`, JSON.stringify(grants(plain)) === JSON.stringify(['allow session Read(ssh://web1/**)']), JSON.stringify(grants(plain)))
+  check(`${name}: the reason the ask shows is true of a remote path`, plain.decisionReason?.reason === 'the path is on another machine', String(plain.decisionReason?.reason))
   const other = read(name, 'ssh://web2/etc/hosts', context({ allow: ['Read(ssh://web1/**)'] }))
   check(`${name}: a rule for one host says nothing of another`, other.behavior === 'ask', said(other))
 }
@@ -120,13 +121,22 @@ for (const name of ['Edit', 'Write']) {
   const plain = write(name, HOSTS, context())
   check(`${name}: with no rule it is the ordinary ask, in today's sentence`, plain.behavior === 'ask' && plain.message === 'Permission to write to ssh://web1/etc/hosts has not been granted.', said(plain))
   check(`${name}: the ask offers what an edit outside the folder offers, for the host`, JSON.stringify(grants(plain)) === JSON.stringify(['setMode implement', 'allow session Edit(ssh://web1/**)']), JSON.stringify(grants(plain)))
+  check(`${name}: the reason the ask shows is true of a remote path`, plain.decisionReason?.reason === 'the path is on another machine', String(plain.decisionReason?.reason))
+  const here = write(name, 'ssh://localhost/srv/notes.txt', context())
+  check(`${name}: and true of a remote path that names this machine`, here.behavior === 'ask' && here.decisionReason?.reason === 'the path is reached over ssh on this machine', `${said(here)} ${here.decisionReason?.reason}`)
   const implement = write(name, HOSTS, context({}, 'implement'))
   check(`${name}: the mode that accepts edits in the folder still asks for another machine`, implement.behavior === 'ask' && JSON.stringify(grants(implement)) === JSON.stringify(['allow session Edit(ssh://web1/**)']), said(implement))
   const apollo = write(name, HOSTS, context({ allow: ['Edit(ssh://web1/**)'] }, 'apollo'))
   check(`${name}: Apollo Mode refuses the write as it refuses any outside the spec files`, apollo.behavior === 'deny' && /^Apollo Mode refused writing ssh:\/\/web1\/etc\/hosts:/.test(apollo.message ?? ''), said(apollo))
 }
 
-section('§4 a tool that does not take a remote path is judged as before')
+section('§4 a local path outside the folder keeps its own reason')
+{
+  const local = read('Read', join(scratch, 'elsewhere', 'x.txt'), context())
+  check('the reason of a local ask is unchanged', local.behavior === 'ask' && local.decisionReason?.reason === 'the path is outside the starting folder', String(local.decisionReason?.reason))
+}
+
+section('§4b a tool that does not take a remote path is judged as before')
 for (const name of ['NotebookEdit', 'AstSearch', 'AstEdit', 'ChangeSet', 'LspRead']) {
   const before = read(name, HOSTS, context())
   check(`${name}: a path that begins ssh:// is still the local path it was`, before.behavior === 'allow' && before.message === undefined, said(before))

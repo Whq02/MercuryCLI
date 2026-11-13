@@ -959,7 +959,10 @@ function checkRemotePermission(
   return {
     behavior: 'ask',
     message: `Permission to ${toolType === 'read' ? 'read from' : 'write to'} ${path} has not been granted.`,
-    decisionReason: { type: 'workingDir', reason: 'the path is outside the starting folder' },
+    decisionReason: {
+      type: 'workingDir',
+      reason: remoteLocalForms(path) === null ? 'the path is on another machine' : 'the path is reached over ssh on this machine',
+    },
     suggestions: generateSuggestions(path, toolType === 'read' ? 'read' : 'write', context),
   } as unknown as PermissionDecision
 }
