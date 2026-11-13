@@ -16,7 +16,7 @@ export const REVIEW_BRIEF = `You are reviewing one committed change for Mercury,
 
 ## Your inputs
 - The reviewed commit: your working directory is detached at that commit (frozen). Read \`git show --stat HEAD\`, then the diff.
-- The job: the brief naming the objective and rules. Read it whole.
+- The job: the document the caller names, stating the objective and rules. Read it whole.
 - The receipt: the author's account at the caller-named path. Read it whole; treat every claim as unverified until checked.
 - Any named rules document (handbook or project laws): read it and hold the change to it.
 
