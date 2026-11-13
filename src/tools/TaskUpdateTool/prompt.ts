@@ -15,7 +15,7 @@ export function getVerificationNudgeNote(): string {
 }
 
 export function getPrompt(): string {
-  return `Updates or deletes a task on the shared list. Read latest state with ${TASK_GET_TOOL_NAME} first if another agent may have changed it, and check ${TASK_LIST_TOOL_NAME} for the next task after finishing one.
+  return `Updates or deletes a task on the shared list. Set owner to claim a task. Read latest state with ${TASK_GET_TOOL_NAME} first if another agent may have changed it, and check ${TASK_LIST_TOOL_NAME} for the next task after finishing one.
 
 - Completion: mark completed only when fully accomplished (or superseded). Keep status in_progress and open a blocker task if tests fail, implementation is partial, errors remain, or required files/dependencies are missing.
 - Deletion: status "deleted" permanently removes duplicates or cancelled work — never finished work.`
