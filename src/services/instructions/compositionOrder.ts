@@ -20,6 +20,10 @@ const SHARED_CONVENTIONS: readonly InstructionConvention[] = [
   clineConvention,
 ]
 
+export function sharedFormatLabel(conventionId: string | undefined): string | undefined {
+  return SHARED_CONVENTIONS.find(convention => convention.id === conventionId)?.label
+}
+
 export function otherToolFormats(): InstructionConvention[] {
   return SHARED_CONVENTIONS.filter(convention => convention.belowHome)
 }

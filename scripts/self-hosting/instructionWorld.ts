@@ -34,7 +34,7 @@ type WorldDrive = {
   rows: string[]
   listed: string[]
   listedBefore: string[]
-  words: { footer: string; centre: string }
+  words: { footer: string; centre: string; health: string }
 }
 
 type DriveOptions = {
@@ -64,12 +64,12 @@ const { composedGuideFilesAt } = await import(join(repo, 'src/services/instructi
 const plan = JSON.parse(process.env.DRV_PLAN ?? '{}')
 const cwd = process.cwd()
 const files = await getInstructionFiles()
-const screens = async (): Promise<{ rows: string[]; listed: string[]; words: { footer: string; centre: string } }> => {
+const screens = async (): Promise<{ rows: string[]; listed: string[]; words: { footer: string; centre: string; health: string } }> => {
   let listing: any
   try {
     listing = await import(join(repo, 'src/services/instructions/listing.ts'))
   } catch {
-    return { rows: [], listed: [], words: { footer: '', centre: '' } }
+    return { rows: [], listed: [], words: { footer: '', centre: '', health: '' } }
   }
   const { getRelativeMemoryPath } = await import(join(repo, 'src/components/memory/MemoryUpdateNotification.tsx'))
   const { profileStatusLine } = await import(join(repo, 'src/commands/memory/memory.tsx'))
@@ -79,7 +79,11 @@ const screens = async (): Promise<{ rows: string[]; listed: string[]; words: { f
   return {
     rows: files.filter((entry: any) => entry.parent === undefined).map((entry: any) => (listing.toolPrefixOf(entry) ?? family(entry)) + getRelativeMemoryPath(entry.path) + listing.loadedStateOf(entry)),
     listed: (await listing.getInstructionListing()).map((row: any) => listing.listingRowWords(row, getRelativeMemoryPath(row.path))),
-    words: { footer: profileStatusLine(), centre: filesRow({ count: files.length, profile: getInstructionCompositionState().resolution.resolved }).detail },
+    words: {
+      footer: profileStatusLine(),
+      centre: filesRow({ count: files.length, profile: getInstructionCompositionState().resolution.resolved }).detail,
+      health: listing.sharedSourcesNote?.((await getInstructionBundle()).entries) ?? '',
+    },
   }
 }
 const before = plan.screens ? await screens() : null
@@ -108,7 +112,7 @@ writeFileSync(process.argv[2]!, JSON.stringify({
   classified: Object.fromEntries((plan.classify ?? []).map((path: string) => [path, isInstructionFilePath(path)])),
   seeded: files.map((f: any) => f.path).filter((path: string) => seedCache.has(path)),
   listedBefore: before?.listed ?? [],
-  ...(plan.screens ? await screens() : { rows: [], listed: [], words: { footer: '', centre: '' } }),
+  ...(plan.screens ? await screens() : { rows: [], listed: [], words: { footer: '', centre: '', health: '' } }),
 }))
 `
 

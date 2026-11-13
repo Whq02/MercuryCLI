@@ -7,8 +7,9 @@ import { normalizePathForComparison } from '../../utils/file.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { decidingGuideOf, folderSources } from './adapters/index.js'
 import { ruleAttached } from './attachedText.js'
-import { otherToolFormats } from './compositionOrder.js'
-import type { InstructionConvention, InstructionSourceEntry } from './contracts.js'
+import { agentsMdConvention } from './adapters/agentsMd.js'
+import { otherToolFormats, sharedFormatLabel } from './compositionOrder.js'
+import type { InstructionBundleEntry, InstructionConvention, InstructionSourceEntry } from './contracts.js'
 import { processRulesDir } from './discovery.js'
 import { getInstructionCompositionState, getInstructionFiles, onInstructionCacheInvalidated } from './engine.js'
 
@@ -28,6 +29,20 @@ export function loadedStateOf(entry: InstructionSourceEntry): string {
 
 export function listingRowWords(row: InstructionListingRow, shownPath: string): string {
   return `${row.tool} · ${shownPath} · ${row.state}`
+}
+
+export function sharedSourcesNote(entries: InstructionBundleEntry[]): string | null {
+  const shared = entries.filter(entry => entry.family === 'shared')
+  if (shared.length === 0) return null
+  const first = agentsMdConvention.label ?? agentsMdConvention.id
+  const counts = new Map<string, number>()
+  for (const entry of shared) {
+    const label = sharedFormatLabel(entry.convention) ?? first
+    counts.set(label, (counts.get(label) ?? 0) + 1)
+  }
+  const why = 'no MERCURY.md in or above the working directory'
+  if (counts.size === 1 && counts.has(first)) return `${shared.length} ${first} source(s): ${why}`
+  return `${shared.length} source(s) from other tools (${[...counts].map(([label, count]) => `${label} ${count}`).join(' · ')}): ${why}`
 }
 
 const scopedWords = (rule: InstructionSourceEntry): string =>

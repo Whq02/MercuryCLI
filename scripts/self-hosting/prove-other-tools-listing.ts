@@ -40,6 +40,11 @@ try {
   check('the footer of the list says what the auto profile reads and that a row says when its file loads', d1.words.footer === "profile auto: MERCURY.md, or other tools' files when there is none · a row says when its file loads", d1.words.footer)
   check('the row of the memory centre says the same of the profile', d1.words.centre === "MERCURY.md, or other tools' files when there is none · editor and the memory switch", d1.words.centre)
 
+  check('the health note counts the sources by tool', d1.words.health === '4 source(s) from other tools (AGENTS.md 1 · Claude Code 1 · Cursor 2): no MERCURY.md in or above the working directory', d1.words.health)
+  const p1b = world.project({ 'AGENTS.md': 'agents-needle\n@docs/x.md\n', 'docs/x.md': 'imported-needle\n' })
+  const d1b = world.drive(p1b, { screens: true })
+  check('with AGENTS.md alone the health note keeps the words it had', d1b.words.health === '2 AGENTS.md source(s): no MERCURY.md in or above the working directory', d1b.words.health)
+
   section('under a MERCURY.md: what it imports is listed by its scope, the rest says what to do next')
   const p2 = world.project({
     'MERCURY.md': 'native-needle\n@.cursor/rules/b-scoped.mdc\n',
@@ -60,6 +65,7 @@ try {
     'Cursor · ./.cursor/rules/a-always.mdc · not loaded: MERCURY.md decides; import it with @.cursor/rules/a-always.mdc',
   ]), JSON.stringify(d2.listed))
   check('an AGENTS.md that does not load is not listed, as before', !d2.listed.some(row => row.includes('AGENTS.md')), JSON.stringify(d2.listed))
+  check('with nothing shared in the request the health note says nothing', d2.words.health === '', d2.words.health)
 
   section('the nearest holder only, and the native profile')
   const p3 = world.project({ '.clinerules/outer.md': 'outer-needle\n', 'packages/app/.clinerules/inner.md': 'inner-needle\n', 'packages/app/a.ts': '\n' })
