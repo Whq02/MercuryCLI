@@ -67,7 +67,7 @@ const inputSchema = lazySchema(() =>
   z.strictObject({
     seconds: semanticNumber(z.number().min(0))
       .describe(
-        `Seconds to wait (${MIN_SLEEP_SECONDS}–${MAX_SLEEP_SECONDS}; clamped outside bounds).`,
+        `Seconds to wait (min ${MIN_SLEEP_SECONDS}, max ${MAX_SLEEP_SECONDS}; clamped outside bounds).`,
       ),
   }),
 )
