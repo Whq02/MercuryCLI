@@ -132,7 +132,7 @@ const inputSchema = lazySchema(() =>
     dataBreakpoints: z
       .array(
         z.strictObject({
-          name: z.string(),
+          name: z.string().describe('Variable to watch'),
           variablesReference: semanticNumber(z.number().int().optional()).describe('Scope/container ref (from scopes/variables)'),
           frameId: semanticNumber(z.number().int().optional()).describe('Frame for expression-style names'),
           accessType: z.enum(['read', 'write', 'readWrite']).optional().describe('Default "write"'),
