@@ -308,7 +308,10 @@ async function walkConventions(
 
         if (isSettingSourceEnabled('localSettings')) {
           for (const convention of set) {
-            for (const localPath of own.locals(convention, dir)) {
+            const localPaths =
+              convention.localDirFiles?.(dir) ??
+              (convention.localDirFile(dir) !== null ? [convention.localDirFile(dir) as string] : [])
+            for (const localPath of own.within(convention, dir, localPaths)) {
               push(
                 await processInstructionFile(
                   convention,
@@ -562,7 +565,10 @@ export async function getInstructionFilesForNestedDirectory(
     }
 
     if (isSettingSourceEnabled('localSettings')) {
-      for (const localPath of own.locals(convention, dir)) {
+      const localPaths =
+        convention.localDirFiles?.(dir) ??
+        (convention.localDirFile(dir) !== null ? [convention.localDirFile(dir) as string] : [])
+      for (const localPath of own.within(convention, dir, localPaths)) {
         result.push(
           ...(await processInstructionFile(
             convention,

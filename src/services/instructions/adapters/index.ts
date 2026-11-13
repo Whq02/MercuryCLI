@@ -53,20 +53,19 @@ export function hasPrimaryProjectFile(conventions: InstructionConvention[], dirs
 type FolderSources = {
   guides(convention: InstructionConvention, dir: string): string[]
   rules(convention: InstructionConvention, dir: string): string[]
-  locals(convention: InstructionConvention, dir: string): string[]
+  within(convention: InstructionConvention, dir: string, paths: string[]): string[]
 }
 
 export function folderSources(start: string): FolderSources {
   const home = safeResolvePath(getFsImplementation(), homedir()).resolvedPath
-  const own = (convention: InstructionConvention, dir: string, paths: string[]): string[] => {
+  const within = (convention: InstructionConvention, dir: string, paths: string[]): string[] => {
     if (!convention.belowHome || !pathInWorkingPath(home, dir)) return paths
     return dir === start ? paths.filter(path => dirname(path) === dir) : []
   }
   return {
-    guides: (convention, dir) => own(convention, dir, convention.projectDirFiles(dir)),
-    rules: (convention, dir) => own(convention, dir, convention.projectRulesDirs(dir)),
-    locals: (convention, dir) =>
-      own(convention, dir, convention.localDirFiles?.(dir) ?? (convention.localDirFile(dir) !== null ? [convention.localDirFile(dir) as string] : [])),
+    guides: (convention, dir) => within(convention, dir, convention.projectDirFiles(dir)),
+    rules: (convention, dir) => within(convention, dir, convention.projectRulesDirs(dir)),
+    within,
   }
 }
 
