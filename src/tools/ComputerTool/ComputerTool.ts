@@ -238,7 +238,7 @@ const modelInputSchema = lazySchema(() => {
     scale: f.scale.describe('Capture scale (default 0.5 window, 1 display/region).'),
     depth: f.depth.describe(`Tree depth (default ${TREE_DEPTH_DEFAULT}, clamped at ${TREE_DEPTH_CAP}; targets default to cap).`),
     limit: f.limit.describe(`Tree rows (default ${TREE_LIMIT_DEFAULT}, clamped at ${TREE_LIMIT_CAP}; targets default to cap).`),
-    target: f.target.describe('Exact role/name, substring text; 1-based nth.'),
+    target: f.target.describe('Exact role/name, substring text; unique match, or 1-based nth.'),
     ref: f.ref.describe('Node id from latest tree/find (stale once the list changes); alternative to target or x/y.'),
     root: f.root.describe('Tree root: ref or target.'),
     all: f.all.describe('Include hidden nodes.'),
