@@ -4,7 +4,6 @@ import { closeSync, constants, existsSync, fstatSync, openSync, readFileSync, re
 import { dirname, isAbsolute, join, sep } from 'node:path'
 import { enqueueNotification } from '../context/notifications.js'
 import { flagEnabled, flagEnv } from '../substrate/flagRegistry.js'
-import type { WardFiring } from '../rows/vocabulary.js'
 import { untrustedWorkspaceHeadless } from '../utils/config/trust.js'
 import { getCwd } from '../utils/cwd.js'
 import { logForDebugging } from '../utils/debug.js'
@@ -202,6 +201,8 @@ function withTheRoadOffered<Refusal extends { rule: WardRule }>(refusal: Refusal
   if (refusal.rule.name !== 'self-daemonize' || !refusal.rule.teach.endsWith('.') || offeredTools?.includes('Service') !== true) return refusal
   return { ...refusal, rule: { ...refusal.rule, teach: `${refusal.rule.teach.slice(0, -1)}${ROAD_THAT_OUTLIVES_THE_RUN}` } }
 }
+
+type WardFiring = { ward: string; tool: string; call_id: string; effect: 'refused' | 'warned' }
 
 const WARD_FIRINGS_KEPT = 256
 const wardFirings = new Map<string, WardFiring[]>()
