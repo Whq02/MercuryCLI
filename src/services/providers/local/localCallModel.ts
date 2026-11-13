@@ -244,6 +244,7 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
     toolDeclarationRow: toolDeclarationRowInResult,
     ...(record.server === 'tensorfold'
       ? {
+          keepsReasoningHistory: () => true,
           refusesEffort: (wireEffort: string) => tensorFoldRefusesEffort(wireEffort, record.thinkingSwitch),
           outputCeiling: () => tensorFoldOutputCeiling(record),
           noteRuntime: (reading: { runtime: Parameters<typeof noteTensorFoldTurn>[0]['runtime']; usage: Parameters<typeof noteTensorFoldTurn>[0]['usage']; served: string | undefined }) => {

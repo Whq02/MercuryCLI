@@ -1,0 +1,117 @@
+export type FoldTemplate = 'every-row' | 'after-last-user'
+
+export interface FoldRow {
+  role: string
+  content?: unknown
+  reasoning_content?: unknown
+  tool_calls?: Array<{ id?: string; function?: { name?: string; arguments?: string } }>
+  tool_call_id?: string
+}
+
+export interface FoldReply {
+  reasoning?: string
+  text?: string
+  call?: { name: string; arguments: Record<string, unknown> }
+}
+
+export interface FoldRequest {
+  rows: FoldRow[]
+  rendered: string
+  promptTokens: number
+  cachedTokens: number
+}
+
+const GENERATION_PROMPT = '<|im_start|>assistant\n<think>\n'
+
+export function renderFoldPrompt(rows: readonly FoldRow[], template: FoldTemplate): string {
+  const lastUser = rows.findLastIndex(row => row.role === 'user')
+  let out = ''
+  for (const [index, row] of rows.entries()) {
+    const content = typeof row.content === 'string' ? row.content.trim() : ''
+    if (row.role === 'assistant') {
+      const reasoning = typeof row.reasoning_content === 'string' ? row.reasoning_content.trim() : ''
+      const think = template === 'every-row' || index > lastUser ? `<think>\n${reasoning}\n</think>\n\n` : ''
+      const calls = (row.tool_calls ?? []).map(call => `<tool_call>\n<function=${call.function?.name ?? ''}>\n${call.function?.arguments ?? ''}\n</function>\n</tool_call>`).join('\n')
+      out += `<|im_start|>assistant\n${think}${content}${content !== '' && calls !== '' ? '\n\n' : ''}${calls}<|im_end|>\n`
+    } else if (row.role === 'tool') {
+      out += `<|im_start|>user\n<tool_response>\n${content}\n</tool_response><|im_end|>\n`
+    } else {
+      out += `<|im_start|>${row.role}\n${content}<|im_end|>\n`
+    }
+  }
+  return out + GENERATION_PROMPT
+}
+
+export function foldTokens(rendered: string): string[] {
+  return rendered.match(/[A-Za-z0-9_]+|[^A-Za-z0-9_\s]|\s+/g) ?? []
+}
+
+export function sharedFoldTokens(earlier: readonly string[], later: readonly string[]): number {
+  let shared = 0
+  while (shared < earlier.length && shared < later.length && earlier[shared] === later[shared]) shared++
+  return shared
+}
+
+export interface TensorFoldPromptFixture {
+  root: string
+  model: string
+  requests: FoldRequest[]
+  reply(next: FoldReply): void
+  forget(): void
+  stop(): void
+}
+
+export function startTensorFoldPromptFixture(options: { model: string; template: FoldTemplate; window?: number }): TensorFoldPromptFixture {
+  const window = options.window ?? 65536
+  const requests: FoldRequest[] = []
+  const replies: FoldReply[] = []
+  let held: string[] = []
+  let calls = 0
+  const server = Bun.serve({
+    hostname: '127.0.0.1',
+    port: 0,
+    async fetch(request: Request) {
+      const path = new URL(request.url).pathname
+      const headers = { server: 'TensorFold' }
+      if (path === '/health') return Response.json({ status: 'ok', model: options.model, model_ids: [options.model], version: '1.2.7', backend: 'metal', device: 'fixture', memory: { active: 1024 }, max_batch_size: 8 }, { headers })
+      if (path === '/v1/models') return Response.json({ object: 'list', data: [{ id: options.model, object: 'model', owned_by: 'tensorfold', context_length: window, max_model_len: window, reasoning: { default_enabled: true }, capabilities: { thinking_switch: true } }] }, { headers })
+      if (path !== '/v1/chat/completions') return new Response('{}', { status: 404 })
+      const body = JSON.parse(await request.text()) as { messages?: FoldRow[] }
+      const rows = body.messages ?? []
+      const rendered = renderFoldPrompt(rows, options.template)
+      const tokens = foldTokens(rendered)
+      const cachedTokens = sharedFoldTokens(held, tokens)
+      held = tokens
+      requests.push({ rows, rendered, promptTokens: tokens.length, cachedTokens })
+      const next = replies.shift() ?? { text: 'done' }
+      const chunk = (delta: Record<string, unknown>, finish: string | null = null, extra: Record<string, unknown> = {}): string => `data: ${JSON.stringify({ id: 'chatcmpl-fixture', object: 'chat.completion.chunk', model: options.model, choices: [{ index: 0, delta, finish_reason: finish }], ...extra })}\n\n`
+      const reasoningTokens = foldTokens(next.reasoning ?? '').length
+      const completion = reasoningTokens + foldTokens(next.text ?? '').length + (next.call === undefined ? 0 : foldTokens(JSON.stringify(next.call.arguments)).length)
+      const stream = [
+        chunk({ role: 'assistant' }),
+        ...(next.reasoning !== undefined ? [chunk({ reasoning_content: next.reasoning })] : []),
+        ...(next.text !== undefined ? [chunk({ content: next.text })] : []),
+        ...(next.call !== undefined ? [chunk({ tool_calls: [{ index: 0, id: `call_${String(++calls).padStart(24, '0')}`, type: 'function', function: { name: next.call.name, arguments: JSON.stringify(next.call.arguments) } }] })] : []),
+        chunk({}, next.call !== undefined ? 'tool_calls' : 'stop', { tensorfold: { enable_thinking: true, reasoning_effort: 'high', engine: 'lanes', tokens_per_second: 100, seconds: 0.01, prefill_seconds: 0.01, time_to_first_token: 0.01 } }),
+        `data: ${JSON.stringify({ id: 'chatcmpl-fixture', object: 'chat.completion.chunk', model: options.model, choices: [], usage: { prompt_tokens: tokens.length, completion_tokens: completion, total_tokens: tokens.length + completion, prompt_tokens_details: { cached_tokens: cachedTokens }, completion_tokens_details: { reasoning_tokens: reasoningTokens } } })}\n\n`,
+        'data: [DONE]\n\n',
+      ]
+      return new Response(stream.join(''), { headers: { 'content-type': 'text/event-stream', ...headers } })
+    },
+  })
+  return {
+    root: `http://127.0.0.1:${server.port}`,
+    model: options.model,
+    requests,
+    reply: next => {
+      replies.push(next)
+    },
+    forget: () => {
+      held = []
+      requests.length = 0
+    },
+    stop: () => {
+      server.stop(true)
+    },
+  }
+}
