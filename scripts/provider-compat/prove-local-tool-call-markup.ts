@@ -55,6 +55,13 @@ section('3 · GLM XML (GLM-4.5-Air · GLM-4.7-Flash): <tool_call>Name<arg_key>�
   const out = extractToolCallMarkup('Let me read it.\n<tool_call>Read\n<arg_key>file_path</arg_key>\n<arg_value>/tmp/a.ts</arg_value>\n<arg_key>offset</arg_key>\n<arg_value>12</arg_value>\n</tool_call>', TOOLS)
   check('the shape is glm-xml, the keys and schema-typed values read', out?.shape === 'glm-xml' && JSON.stringify(args(out.calls[0]?.argumentsRaw)) === JSON.stringify({ file_path: '/tmp/a.ts', offset: 12 }), JSON.stringify(out))
   check('the prose before it stays', out?.text === 'Let me read it.', JSON.stringify(out?.text))
+  const runOn = '<tool_call>Read<arg_key>file_path</arg_key><arg_value>/tmp/a.ts<arg_key>offset</arg_key><arg_value>3</arg_value></tool_call>'
+  check('a value that runs into the next pair is no call: TensorFold 1.2.7 leaves such an envelope in the content as text, and reading it back would mint Read with the file_path "/tmp/a.ts<arg_key>offset</arg_key><arg_value>3"', extractToolCallMarkup(runOn, TOOLS) === undefined, JSON.stringify(extractToolCallMarkup(runOn, TOOLS)))
+  const literal = '<tool_call>Read<arg_key>file_path</arg_key><arg_value>/tmp/notes about <arg_key> tags.md</arg_value></tool_call>'
+  check("a value that holds the literal text <arg_key> is no call either: it cannot be told from one that ran on, which is the engine's own rule", extractToolCallMarkup(literal, TOOLS) === undefined, JSON.stringify(extractToolCallMarkup(literal, TOOLS)))
+  check('a value that never closes is no call, as before', extractToolCallMarkup('<tool_call>Read<arg_key>file_path</arg_key><arg_value>/tmp/a.ts</tool_call>', TOOLS) === undefined)
+  const marked = extractToolCallMarkup('<tool_call>Read<arg_key>file_path</arg_key><arg_value>/tmp/<b>a</b>.ts</arg_value></tool_call>', TOOLS)
+  check('any other markup inside a value is the value, byte for byte', JSON.stringify(args(marked?.calls[0]?.argumentsRaw)) === JSON.stringify({ file_path: '/tmp/<b>a</b>.ts' }), marked?.calls[0]?.argumentsRaw)
 }
 
 section('4 · Gemma 4 (ollama/ollama#15315): <|tool_call>call:name{key:<|"|>text<|"|>,n:42}<tool_call|>, and the bare call:… when the server drops the special tokens')
@@ -188,7 +195,7 @@ section('6d · the headless reader: a tool-call-shaped answer in any shape, decl
 }
 
 section('7 · settlement through the local lane on both transports: the markup becomes a gated tool_use block, the prose a text block, the stop reason tool_use')
-const script: { ollama?: Record<string, unknown>[]; compat?: unknown[] } = {}
+const script: { ollama?: Record<string, unknown>[]; compat?: unknown[]; tensorfold?: boolean } = {}
 const fixture = Bun.serve({
   hostname: '127.0.0.1',
   port: 0,
@@ -201,6 +208,8 @@ const fixture = Bun.serve({
     if (path === '/v1/chat/completions' && script.compat !== undefined) {
       return new Response(script.compat.map(chunk => `data: ${JSON.stringify(chunk)}\n\n`).join('') + 'data: [DONE]\n\n', { headers: { 'content-type': 'text/event-stream' } })
     }
+    if (script.tensorfold === true && path === '/health') return Response.json({ status: 'ok', model: 'glm-5.3-flash', version: '1.2.7', backend: 'cuda', device: 'fixture', memory: { active: 1024 }, max_batch_size: 1 }, { headers: { server: 'TensorFold' } })
+    if (script.tensorfold === true && path === '/v1/models') return Response.json({ object: 'list', data: [{ id: 'glm-5.3-flash', object: 'model', owned_by: 'tensorfold', context_length: 65536, max_model_len: 65536, reasoning: { default_enabled: true } }] }, { headers: { server: 'TensorFold' } })
     return new Response('{}', { status: 404 })
   },
 })
@@ -311,6 +320,14 @@ const doneRow = (extra: Record<string, unknown> = {}): Record<string, unknown> =
 }
 {
   script.compat = [
+    { id: 'c1', model: 'glm-4.7-flash', choices: [{ index: 0, delta: { role: 'assistant', content: `<tool_call>${READ}<arg_key>file_path</arg_key><arg_value>/tmp/a.ts<arg_key>limit</arg_key><arg_value>40</arg_value></tool_call>` }, finish_reason: null }] },
+    { id: 'c1', model: 'glm-4.7-flash', choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] },
+  ]
+  const settled = await drive(llamaRecord)
+  check('llama.cpp, a GLM envelope whose value runs into the next pair: no call is minted from it, the text stands, the turn ends', settled.toolUses.length === 0 && settled.texts.length === 1 && settled.texts[0]!.includes('<arg_value>/tmp/a.ts<arg_key>limit</arg_key>') && settled.stop === 'end_turn', JSON.stringify(settled))
+}
+{
+  script.compat = [
     { id: 'c1', model: 'glm-4.7-flash', choices: [{ index: 0, delta: { role: 'assistant', content: `<|tool_call>call:${READ}{file_path:<|"|>/tmp/a.ts<|"|>,offset:3}<tool_call|>` }, finish_reason: null }] },
     { id: 'c1', model: 'glm-4.7-flash', choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] },
   ]
@@ -394,6 +411,33 @@ section('7b · the extractor reads the gate\'s own view: a deferred tool ADMITTE
   script.ollama = [{ model: 'qwen3.5:9b', message: { role: 'assistant', content: `<tool_call>\n<function=${READ}>\n<parameter=file_path>\n/tmp/a.ts\n</parameter>\n</function>\n</tool_call>` }, done: false }, doneRow()]
   const listed = await drive(ollamaRecord, { tools: pool, messages: [createUserMessage({ content: 'read /tmp/a.ts' })] })
   check('a tool the tools term carries mints as before beside the deferred pool', listed.toolUses.length === 1 && listed.toolUses[0]!.name === READ && listed.stop === 'tool_use', JSON.stringify(listed))
+}
+
+section('8 · TensorFold 1.2.7 leaves a malformed GLM call in the content as text; on a TensorFold reply the reader also runs beside a parsed call, and it mints nothing from such text')
+{
+  script.tensorfold = true
+  process.env.MERCURY_LOCAL_PROBE_TARGETS = `tensorfold=${root}`
+  const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
+  const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
+  await refreshLocalDiscovery({ force: true })
+  const fold = localRecordFor('local/glm-5.3-flash')
+  check('the stand-in engine is discovered as a TensorFold record', fold?.server === 'tensorfold', JSON.stringify(fold))
+  const RUN_ON = `<tool_call>${READ}<arg_key>file_path</arg_key><arg_value>/tmp/a.ts<arg_key>offset</arg_key><arg_value>3</arg_value></tool_call>`
+  const chunk = (delta: Record<string, unknown>, finish: string | null = null): unknown => ({ id: 'c1', model: 'glm-5.3-flash', choices: [{ index: 0, delta, finish_reason: finish }] })
+  if (fold !== undefined) {
+    script.compat = [chunk({ role: 'assistant', content: RUN_ON }), chunk({}, 'stop')]
+    const text = await drive(fold)
+    check('the malformed call left as text: the model has made no call, the user reads the envelope as the reply, the turn ends', text.toolUses.length === 0 && text.texts.length === 1 && text.texts[0] === RUN_ON && text.stop === 'end_turn', JSON.stringify(text))
+    script.compat = [chunk({ role: 'assistant' }), chunk({ tool_calls: [{ index: 0, id: 'call_aaaaaaaaaaaaaaaaaaaaaaaa', type: 'function', function: { name: READ, arguments: '' } }] }), chunk({ tool_calls: [{ index: 0, function: { arguments: '{"file_path":"' } }] }), chunk({ tool_calls: [{ index: 0, function: { arguments: '/tmp/a.ts' } }] }), chunk({ content: RUN_ON }), chunk({}, 'stop')]
+    const pieces = await drive(fold)
+    check("the stream that had already sent the call's first pieces: one Read block, refused for its unfinished JSON and answered to the model as such, and the envelope as text; never a second call read back from the text", pieces.toolUses.length === 1 && pieces.toolUses[0]!.name === READ && JSON.stringify(pieces.toolUses[0]!.input) === '{}' && pieces.notes.some(note => note.includes('not valid JSON')) && pieces.texts.includes(RUN_ON) && pieces.stop === 'tool_use', JSON.stringify(pieces))
+    script.compat = [chunk({ role: 'assistant', content: `<tool_call>${READ}<arg_key>file_path</arg_key><arg_value>/tmp/a.ts</tool_call>` }), chunk({}, 'stop')]
+    const open = await drive(fold)
+    check('a value that never closes: text and no call, as before', open.toolUses.length === 0 && open.texts.length === 1 && open.texts[0]!.includes('<arg_value>/tmp/a.ts</tool_call>') && open.stop === 'end_turn', JSON.stringify(open))
+    script.compat = [chunk({ role: 'assistant' }), chunk({ tool_calls: [{ index: 0, id: 'call_bbbbbbbbbbbbbbbbbbbbbbbb', type: 'function', function: { name: READ, arguments: JSON.stringify({ file_path: '/tmp/a.ts' }) } }] }), chunk({ content: `<tool_call>${READ}<arg_key>file_path</arg_key><arg_value>/tmp/b.ts</arg_value></tool_call>` }), chunk({}, 'tool_calls')]
+    const both = await drive(fold)
+    check('a well-formed GLM call left beside a parsed one still mints after it, which is what the reader is there for on TensorFold', both.toolUses.map(use => JSON.stringify(use.input)).join(' ') === '{"file_path":"/tmp/a.ts"} {"file_path":"/tmp/b.ts"}' && both.stop === 'tool_use', JSON.stringify(both))
+  }
 }
 fixture.stop(true)
 
