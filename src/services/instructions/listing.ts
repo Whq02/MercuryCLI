@@ -8,7 +8,7 @@ import { getFsImplementation } from '../../utils/fsOperations.js'
 import { decidingGuideOf, folderSources } from './adapters/index.js'
 import { ruleAttached } from './attachedText.js'
 import { agentsMdConvention } from './adapters/agentsMd.js'
-import { otherToolFormats, sharedFormatLabel } from './compositionOrder.js'
+import { conventionsForProfile, otherToolFormats, sharedFormatLabel } from './compositionOrder.js'
 import type { InstructionBundleEntry, InstructionConvention, InstructionSourceEntry } from './contracts.js'
 import { processRulesDir } from './discovery.js'
 import { getInstructionCompositionState, getInstructionFiles, onInstructionCacheInvalidated } from './engine.js'
@@ -119,6 +119,32 @@ export const getInstructionListing = memoize(async (): Promise<InstructionListin
   }
   return rows
 })
+
+export async function otherToolsImportLines(): Promise<{ project: string[]; aside: string[] }> {
+  const project: string[] = []
+  const aside: string[] = []
+  if (untrustedWorkspaceHeadless()) return { project, aside }
+  await getInstructionFiles()
+  const { resolution, fallbackComposed, nearestHolders } = getInstructionCompositionState()
+  if (resolution.resolved !== 'auto' || !fallbackComposed) return { project, aside }
+  const start = resolve(getOriginalCwd())
+  const own = folderSources(start)
+  const line = (path: string): string => `@${relative(start, path).split(sep).join('/')}`
+  const stands = (path: string): boolean => getFsImplementation().existsSync(path)
+  for (const dir of chainOutward(start)) {
+    for (const convention of conventionsForProfile('auto').filter(c => c.fallback)) {
+      if (convention.nearestOnly && nearestHolders[convention.id] !== dir) continue
+      const lines = dir === start ? project : aside
+      for (const path of [...own.guides(convention, dir), ...own.rules(convention, dir)]) {
+        if (stands(path) && !convention.isExcluded(path, 'Project')) lines.push(line(path))
+      }
+      for (const path of own.within(convention, dir, convention.localDirFiles?.(dir) ?? [])) {
+        if (stands(path) && !convention.isExcluded(path, 'Local')) aside.push(line(path))
+      }
+    }
+  }
+  return { project, aside }
+}
 
 let listingInvalidationArmed = false
 function armListingInvalidation(): void {

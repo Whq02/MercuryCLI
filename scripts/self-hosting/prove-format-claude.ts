@@ -66,6 +66,11 @@ try {
     'Claude Code · ./CLAUDE.local.md · not loaded: MERCURY.md decides; import it with @CLAUDE.local.md',
     'Claude Code · ./.claude/rules/x.md · not loaded: MERCURY.md decides; import it with @.claude/rules/x.md',
   ]), JSON.stringify(d3b.listed))
+
+  section('/orient keeps what loads: the guides as lines of MERCURY.md, the local file as a line of MERCURY.local.md')
+  const p4 = world.project({ 'CLAUDE.md': 'root-guide-needle\n', '.claude/CLAUDE.md': 'folder-guide-needle\n', '.claude/rules/x.md': 'rule-needle\n', 'CLAUDE.local.md': 'local-layer-needle\n' })
+  const d4 = world.drive(p4, { orient: true })
+  check('its guides and its rules folder are the first lines of MERCURY.md and its local file belongs in MERCURY.local.md', d4.orient.endsWith("\n\nOther tools' files that load here today — the first lines of MERCURY.md:\n@CLAUDE.md\n@.claude/CLAUDE.md\n@.claude/rules\n\nA file that is personal or stands outside this project loads here today — its line belongs in MERCURY.local.md, never in MERCURY.md:\n@CLAUDE.local.md\n"), d4.orient.slice(-500))
 } finally {
   world.close()
 }

@@ -35,6 +35,7 @@ type WorldDrive = {
   listed: string[]
   listedBefore: string[]
   words: { footer: string; centre: string; health: string }
+  orient: string
 }
 
 type DriveOptions = {
@@ -45,6 +46,7 @@ type DriveOptions = {
   home?: string
   classify?: string[]
   screens?: boolean
+  orient?: boolean
 }
 
 const DRIVER = `
@@ -112,6 +114,7 @@ writeFileSync(process.argv[2]!, JSON.stringify({
   classified: Object.fromEntries((plan.classify ?? []).map((path: string) => [path, isInstructionFilePath(path)])),
   seeded: files.map((f: any) => f.path).filter((path: string) => seedCache.has(path)),
   listedBefore: before?.listed ?? [],
+  orient: plan.orient ? (await (await import(join(repo, 'src/commands/orient/orient.ts'))).default.getPromptForCommand())[0].text : '',
   ...(plan.screens ? await screens() : { rows: [], listed: [], words: { footer: '', centre: '', health: '' } }),
 }))
 `
@@ -160,7 +163,7 @@ export function openWorld(name: string): World {
           MERCURY_LOCAL_PROBE_TARGETS: 'none',
           ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key',
           ANTHROPIC_BASE_URL: 'http://127.0.0.1:1',
-          DRV_PLAN: JSON.stringify({ touch: options.touch ?? [], classify: options.classify ?? [], screens: options.screens === true }),
+          DRV_PLAN: JSON.stringify({ touch: options.touch ?? [], classify: options.classify ?? [], screens: options.screens === true, orient: options.orient === true }),
         },
         stdio: ['ignore', 'ignore', 'pipe'],
         encoding: 'utf8',
