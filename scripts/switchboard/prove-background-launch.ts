@@ -58,7 +58,7 @@ const probe = (sid: string, kind: Kind, settingOn: boolean, extra: Record<string
 const refusalRoads = (reason: string): boolean =>
   reason.startsWith('this session is backgrounded — ') &&
   reason.includes('wait until the operator visits it') &&
-  reason.includes('until it holds the workflows-allowed tag (granted by asking the coordinator, choosing keep-and-background on leave, or the manual-start option)') &&
+  reason.includes('until it holds the workflows-allowed tag (granted by choosing keep-and-background on leave, or the manual-start option)') &&
   reason.includes(`or until the operator turns on ${LABEL} (/config, or the boot menu's Agents section)`) &&
   reason.endsWith('Keep working on the task single-handed.')
 
