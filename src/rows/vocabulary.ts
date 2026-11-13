@@ -622,6 +622,12 @@ export function unexecutedToolCallSentence(tools: readonly string[]): string {
   return `The turn failed: the model answered with a tool call (${tools.join(', ')}) that was not executed`
 }
 
+const dollars = (usd: number): string => String(Number(usd >= 0.001 ? usd.toFixed(3) : usd.toPrecision(2)))
+
+export function budgetCannotPaySentence(detail: { maxBudgetUsd: number; spentUsd: number; inputFloorUsd: number }): string {
+  return `Stopped before a model call the budget of $${detail.maxBudgetUsd} could not pay: $${dollars(detail.spentUsd)} spent, and the call's input alone would cost at least $${dollars(detail.inputFloorUsd)}`
+}
+
 export const OUTCOME_SENTENCES: Record<Exclude<OutcomeStatus, 'completed' | 'refused' | 'failed'>, (detail: { maxTurns?: number; maxBudgetUsd?: number; maxTimeMs?: number; message?: string }) => string> = {
   blocked: d => d.message ?? 'Blocked on the operator',
   interrupted: () => 'Interrupted',
