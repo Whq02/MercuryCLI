@@ -26,15 +26,12 @@ import { renderToolResultMessage, renderToolUseMessage } from './UI.js'
 
 const inputSchema = z.strictObject({
   action: z
-    .enum(['keep', 'remove'])
-    .describe(
-      '"keep" leaves the worktree directory and its branch on disk for later; "remove" deletes both.',
-    ),
+    .enum(['keep', 'remove']),
   discard_changes: z
     .boolean()
     .optional()
     .describe(
-      'With remove: true discards the worktree\'s uncommitted files and unmerged commits with it, on the user\'s word; false (the default) removes only a worktree that has none.',
+      'remove only: true discards uncommitted files and unmerged commits on the user\'s word; default false requires a clean worktree.',
     ),
 })
 

@@ -39,7 +39,7 @@ const inputSchema = z
         }
       })
       .describe(
-        'Worktree name: letters, digits, dots, underscores, and dashes within each slash-delimited segment; at most 64 characters. Omitted ⇒ a generated name.',
+        'Worktree name: letters, digits, dots, underscores and dashes per /-segment, ≤64 chars (omitted auto-names).',
       ),
   })
   .strict()
