@@ -97,7 +97,7 @@ function ownNames(): Set<string> {
   return names
 }
 
-export function hostIsThisMachine(host: string): boolean {
+function hostIsThisMachine(host: string): boolean {
   const name = host.toLowerCase().replace(/\.$/, '')
   if (LOOPBACK_NAMES.has(name) || name.endsWith('.localhost')) return true
   const key = addressKey(name)
