@@ -324,9 +324,20 @@ function spawnShape(args: string[]): SpawnShape {
   const patch = PATCH_COMMANDS.has(command) || stashShow
   const insertAt = stashShow ? at + 2 : at + 1
   const summary = stashShow && !args.slice(at + 2).some(word => word.startsWith('-') && word !== '-' && !STASH_OWN_FLAGS.has(word))
-  const diff = patch ? [...(summary ? ['--stat'] : []), ...GIT_DIFF_CONFIG.filter(flag => !args.includes(flag))] : []
-  const base = args.includes('core.fsmonitor=false') ? [] : GIT_SPAWN_CONFIG
+  const ended = args.findIndex((word, index) => index > at && (word === '--' || word === '--end-of-options'))
+  const options = args.slice(at + 1, ended === -1 ? args.length : ended)
+  const diff = patch ? [...(summary ? ['--stat'] : []), ...GIT_DIFF_CONFIG.filter(flag => !options.includes(flag))] : []
+  const base = settingAmongGlobals(args, at, 'core.fsmonitor=false') ? [] : GIT_SPAWN_CONFIG
   return { command, insertAt, diff, base }
+}
+
+function settingAmongGlobals(args: string[], subcommandAt: number, setting: string): boolean {
+  for (let index = 0; index < subcommandAt; index++) {
+    if (!VALUE_GLOBALS.has(args[index]!)) continue
+    if (args[index] === '-c' && args[index + 1] === setting) return true
+    index++
+  }
+  return false
 }
 
 function assemble(args: string[], shape: SpawnShape, filters: string[], network: string[]): string[] {
