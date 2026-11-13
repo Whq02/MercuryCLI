@@ -67,7 +67,7 @@ function matchOverflowSentence(message: string): ShapeMatch | null {
   const ptl = /prompt is too long(?:[\s\S]*?(\d[\d,]*)\s*tokens\s*>\s*(\d[\d,]*))?/i.exec(message)
   if (ptl) return { shape: 'prompt-too-long', actualTokens: num(ptl[1]), limitTokens: num(ptl[2]) }
 
-  const gemini = /input token count \((\d[\d,]*)\) exceeds the maximum number of tokens allowed \((\d[\d,]*)\)/i.exec(message)
+  const gemini = /input token count(?: \((\d[\d,]*)\))? exceeds the maximum number of tokens allowed \(?(\d[\d,]*)\)?/i.exec(message)
   if (gemini) return { shape: 'input-token-limit', actualTokens: num(gemini[1]), limitTokens: num(gemini[2]) }
 
   const moonshot = /exceeded model token limit:?\s*(\d[\d,]*)/i.exec(message)

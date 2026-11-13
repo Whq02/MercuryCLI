@@ -87,6 +87,8 @@ section('S1 the phrasings — each a typed signal with the numbers it carries')
     { label: '"exceeds the maximum number of input tokens"', family: 'openai-compat', status: 400, body: { error: { message: 'The request exceeds the maximum number of input tokens for this model.' } }, shape: 'context-size' },
     { label: '"too many input tokens"', family: 'deepseek', status: 400, body: { error: { message: 'too many input tokens in this request', type: 'invalid_request_error' } }, shape: 'context-size' },
     { label: '"the conversation is too long"', family: 'moonshot', status: 400, body: { error: { message: 'Invalid request: the conversation is too long for this model', type: 'invalid_request_error' } }, shape: 'context-size' },
+    { label: 'Google, bracketed: "The input token count (N) exceeds the maximum number of tokens allowed (M)."', family: 'gemini', status: 400, body: { error: { code: 400, message: 'The input token count (1200000) exceeds the maximum number of tokens allowed (1048576).', status: 'INVALID_ARGUMENT' } }, shape: 'input-token-limit', actual: 1_200_000, limit: 1_048_576 },
+    { label: 'Google, unbracketed: "The input token count exceeds the maximum number of tokens allowed M."', family: 'gemini', status: 400, body: { error: { code: 400, message: 'The input token count exceeds the maximum number of tokens allowed 1048576.', status: 'INVALID_ARGUMENT' } }, shape: 'input-token-limit', limit: 1_048_576 },
     { label: 'a 400 "payload too large" body', family: 'openai-compat', status: 400, body: { error: { message: 'Payload too large' } }, shape: 'request-too-large' },
     { label: 'a 400 "request entity too large" body', family: 'local', status: 400, body: { error: 'request entity too large' }, shape: 'request-too-large' },
   ]
