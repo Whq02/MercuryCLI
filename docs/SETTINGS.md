@@ -195,8 +195,9 @@ The live [crew board](CREW.md#live-crew-board) reads this key from user settings
 Rules use `Tool(pattern)`: `Bash(bun run typecheck)` is one exact command,
 `Bash(bun run *)` covers that command prefix and its arguments,
 `Read(~/docs/**)` covers a path, and `WebFetch(domain:example.com)` covers a
-host. A bare tool name covers every use of that tool. `/permissions` shows
-where each rule came from.
+host. A path pattern takes alternatives in braces: `Read(~/{work,notes}/**)`
+covers both folders. A bare tool name covers every use of that tool.
+`/permissions` shows where each rule came from.
 
 ## Instructions, files and memory
 

@@ -11,6 +11,8 @@ import {
 import { getPlan, listPlans, planExpired } from '../../gitGraph/plan.js'
 import { registerResourceAdapter } from '../registry.js'
 import type { ResourceAdapter } from '../contracts.js'
+import type { ToolPermissionContext } from '../../../Tool.js'
+import { repositoryDenied, withheldLine } from '../referencePaths.js'
 
 export const gitAdapter: ResourceAdapter = {
   kind: 'git',
@@ -103,8 +105,10 @@ export const gitAdapter: ResourceAdapter = {
         }
         const treeRef = split.ref
         const subPath = split.path || undefined
-        const t = gitTreeAtRef(root, treeRef, subPath)
-        if ('state' in t) return { state: 'unavailable', note: t.note }
+        const whole = gitTreeAtRef(root, treeRef, subPath)
+        if ('state' in whole) return { state: 'unavailable', note: whole.note }
+        const denied = await repositoryDenied((ctx.getAppState?.() as { toolPermissionContext?: ToolPermissionContext } | undefined)?.toolPermissionContext, root)
+        const t = { ...whole, entries: whole.entries.filter(e => !denied(subPath ? `${subPath}/${e.name}` : e.name)) }
         return {
           state: 'ok',
           resource: {
@@ -115,7 +119,7 @@ export const gitAdapter: ResourceAdapter = {
             version: treeRef,
             mutable: false,
             structured: t,
-            text: t.entries.map(e => `${e.type}\t${e.name}${e.size !== null ? `\t${e.size}` : ''}`).join('\n'),
+            text: [...t.entries.map(e => `${e.type}\t${e.name}${e.size !== null ? `\t${e.size}` : ''}`), ...withheldLine(whole.entries.length - t.entries.length, 'entry', 'entries')].join('\n'),
           },
         }
       }

@@ -3,9 +3,10 @@ import { mkdtempSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { z } from 'zod/v4'
-import { buildTool } from '../../Tool.js'
+import { buildTool, type ToolPermissionContext } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { getCwd } from '../../utils/cwd.js'
+import { checkReadPermissionForTool, readDenialFilter } from '../../utils/permissions/filesystem.js'
 import {
   ASEPRITE_INSTALL_REMEDY,
   discoverSpriteFiles,
@@ -127,6 +128,16 @@ function fencePath(label: string, p: string): { resolved?: string; refusal?: str
     }
   }
   return { resolved }
+}
+
+function readTargets(input: Input): string[] {
+  const named = [
+    input.op === 'status' || input.op === 'create' ? undefined : input.file,
+    input.op === 'palette-check' && typeof input.palette === 'string' ? input.palette : undefined,
+  ]
+  return named
+    .filter((target): target is string => typeof target === 'string' && target.length > 0)
+    .map(target => path.resolve(getCwd(), target))
 }
 
 function asList(v: string | string[] | undefined): string[] {
@@ -257,10 +268,11 @@ function runFailure(op: string, r: { code: number; stdout: string; stderr: strin
   return parts.join('\n')
 }
 
-async function runOp(input: Input): Promise<string> {
+async function runOp(input: Input, permission?: ToolPermissionContext): Promise<string> {
   const resolution = resolveAseprite()
   if (input.op === 'status') {
-    const sprites = discoverSpriteFiles()
+    const tree = path.resolve(getCwd())
+    const sprites = discoverSpriteFiles(tree, permission === undefined ? undefined : readDenialFilter(permission, tree))
     const spriteLine =
       sprites.total === 0
         ? 'no sprite files in the working tree (bounded walk)'
@@ -422,10 +434,17 @@ export const AsepriteTool = buildTool({
   isReadOnly(input: Input) {
     return input.op === 'status' || input.op === 'info' || isArtRead(input.op)
   },
-  async checkPermissions(input: Input) {
+  async checkPermissions(input: Input, context) {
     if (isArtOp(input.op)) {
       const error = artInputError(input)
       if (error) return { behavior: 'deny' as const, message: error, decisionReason: { type: 'other' as const, reason: error } }
+    }
+    const permission = context?.getAppState?.().toolPermissionContext
+    if (permission !== undefined) {
+      for (const target of readTargets(input)) {
+        const read = checkReadPermissionForTool({ name: ASEPRITE_TOOL_NAME, getPath: () => target }, input, permission)
+        if (read.behavior === 'deny') return read
+      }
     }
     if (isArtRead(input.op)) return { behavior: 'allow' as const, updatedInput: input }
     if (isArtOp(input.op)) return { behavior: 'ask' as const, message: artAsk(input) }
@@ -463,14 +482,14 @@ export const AsepriteTool = buildTool({
     }
     return { result: true as const }
   },
-  async call(input: Input) {
+  async call(input: Input, context) {
     let result: string
     try {
       if (isArtOp(input.op)) {
         const resolution = resolveAseprite()
         if (resolution.state === 'ok') return { data: { op: input.op, ...await runArt(input, resolution.location.path, fencePath) } }
         result = `${input.op}: aseprite is unavailable — ${resolution.note}\n${ASEPRITE_INSTALL_REMEDY}`
-      } else result = await runOp(input)
+      } else result = await runOp(input, context?.getAppState?.().toolPermissionContext)
     } catch (err) {
       result = `${input.op} failed: ${(err as Error).message}${isArtOp(input.op) ? '' : `\n${ASEPRITE_INSTALL_REMEDY}`}`
     }

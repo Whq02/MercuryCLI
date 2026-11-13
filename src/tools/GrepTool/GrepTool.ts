@@ -32,17 +32,19 @@ import {
   getFileReadIgnorePatterns,
   isProjectEnvFileName,
   normalizePatternsToPath,
+  readDenialFilter,
 } from '../../utils/permissions/filesystem.js'
 import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
 import { modeBypassesPermissions } from '../../utils/permissions/PermissionMode.js'
 import { windowsPathNeedsPermission } from '../../utils/permissions/windowsPath.js'
 import { matchWildcardPattern } from '../../utils/permissions/shellRuleMatching.js'
-import { ripGrepAnswer, RipgrepUsageError, type RipgrepAnswer } from '../../utils/ripgrep.js'
+import { ripGrepAnswer, RipgrepTimeoutError, RipgrepUsageError, type RipgrepAnswer } from '../../utils/ripgrep.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { plural } from '../../utils/stringUtils.js'
-import { getDescription, GREP_TOOL_NAME } from './prompt.js'
+import { getDescription, GREP_TOOL_NAME, rankedModeEnabled } from './prompt.js'
 import { documentTypeArgs, searchDocuments } from './documentSearch.js'
+import { rankedRefusal, rankedScope, rankedSearch, renderRanked, type RankedPass } from './rankedSearch.js'
 import { isSearchableDocument, SEARCHABLE_DOCUMENT_EXTENSIONS } from '../../utils/documentText.js'
 import {
   getToolUseSummary,
@@ -55,6 +57,8 @@ import {
 
 const DEFAULT_HEAD_LIMIT = 250
 const DEFAULT_PER_FILE_MATCHES = 25
+const RANKED_CLOCK_MS = 20_000
+const RANKED_CLOCK_REASON = 'the search timed out after 20 seconds — the walk did not finish, so this ranking is PARTIAL; narrow the path or the glob'
 
 const VCS_EXCLUDED_DIRECTORIES = ['.git', '.svn', '.hg', '.bzr', '.jj', '.sl']
 
@@ -112,12 +116,22 @@ const inputSchema = z.strictObject({
   ),
 })
 
-type Input = z.infer<typeof inputSchema>
+const rankedInputSchema = inputSchema.extend({
+  output_mode: z
+    .enum(['content', 'files_with_matches', 'count', 'ranked'])
+    .optional()
+    .describe(
+      'What comes back: "files_with_matches" (the default) lists the paths that match, declarations and documents among them; "content" prints each matching line with its path — the mode for reading or counting call sites; "count" tallies matches per file; "ranked" reads pattern as plain words, not a regex, and returns the files and line ranges that hold them most densely — the mode for finding where a behaviour is implemented before its names are known.',
+    ),
+})
+
+type Input = z.infer<typeof rankedInputSchema>
 
 type Output = {
   mode?: 'content' | 'files_with_matches' | 'count'
   numFiles: number
   filenames: string[]
+  ranked?: string
   content?: string
   numLines?: number
   numMatches?: number
@@ -143,6 +157,8 @@ const outputSchema = z.object({
   withheld: z.string().optional(),
   cappedFiles: z.array(z.string()).optional(),
 })
+
+const rankedOutputSchema = outputSchema.extend({ ranked: z.string().optional() })
 
 type OutputMode = NonNullable<Output['mode']>
 
@@ -238,6 +254,27 @@ function withholdEnvFileLines(
     lines: kept,
     withheld: `Withheld: ${named.join(', ')} — Mercury asks before reading a .env file; search it by name (path or glob) to be asked.`,
   }
+}
+
+function withoutDeniedFiles(lines: string[], mode: OutputMode, denied: (file: string) => boolean): string[] {
+  const verdicts = new Map<string, boolean>()
+  const kept: string[] = []
+  for (const line of lines) {
+    if (mode === 'content' && line === '--') {
+      if (kept.length > 0 && kept[kept.length - 1] !== '--') kept.push(line)
+      continue
+    }
+    const nul = line.indexOf('\0')
+    const file = mode === 'files_with_matches' ? line : nul !== -1 ? line.slice(0, nul) : mode === 'count' && /:\d+$/.test(line) ? line.slice(0, line.lastIndexOf(':')) : null
+    if (file !== null) {
+      let verdict = verdicts.get(file)
+      if (verdict === undefined) verdicts.set(file, (verdict = denied(file)))
+      if (verdict) continue
+    }
+    kept.push(line)
+  }
+  if (mode === 'content' && kept[kept.length - 1] === '--') kept.pop()
+  return kept
 }
 
 function effectiveLimit(headLimit: number | undefined): number | undefined {
@@ -498,13 +535,63 @@ async function answerWithPcre2Fallback(
   }
 }
 
+function rankedDocumentRefusal(path: string): string {
+  return `output_mode "ranked" ranks text files, and ${path} is a document: search its text with a pattern in another mode.`
+}
+
+async function rankedCall(input: Input, context: ToolUseContext, searchRoot: string, givenRoot: string, withholding: boolean): Promise<Output> {
+  const refusal = isSearchableDocument(searchRoot) ? rankedDocumentRefusal(input.path ?? givenRoot) : rankedRefusal(input.pattern)
+  if (refusal !== null) throw new Error(refusal)
+  const signal = context.abortController.signal
+  const permission = context.getAppState().toolPermissionContext
+  const grepArgs = await buildArgs({ ...input, pattern: 'x', output_mode: 'files_with_matches', multiline: false, literal: false, '-i': false }, context, searchRoot, withholding)
+  const scope = [...rankedScope(grepArgs), ...SEARCHABLE_DOCUMENT_EXTENSIONS.flatMap(ext => ['--iglob', `!*.${ext}`])]
+  const cwd = (await stat(searchRoot)).isDirectory() ? searchRoot : dirname(searchRoot)
+  const deadline = Date.now() + RANKED_CLOCK_MS
+  const run = async (args: string[], target: string): Promise<RankedPass> => {
+    signal.throwIfAborted()
+    const left = deadline - Date.now()
+    if (left <= 0) return { lines: [], complete: false, reason: RANKED_CLOCK_REASON }
+    try {
+      const pass = await ripGrepAnswer(args, target, signal, { cwd, timeoutMs: left })
+      signal.throwIfAborted()
+      return pass.complete || Date.now() < deadline ? pass : { ...pass, reason: RANKED_CLOCK_REASON }
+    } catch (error) {
+      if (error instanceof RipgrepTimeoutError) return { lines: [], complete: false, reason: RANKED_CLOCK_REASON }
+      throw error
+    }
+  }
+  let withheld: string | undefined
+  const denied = readDenialFilter(permission, searchRoot)
+  const withhold = (files: string[]): string[] => {
+    const readable = files.filter(file => !denied(file))
+    if (!withholding) return readable
+    const kept = withholdEnvFileLines(readable, 'files_with_matches', true, permission, envFileCoverage(input.glob, searchRoot))
+    withheld = kept.withheld
+    return kept.lines
+  }
+  const answer = await rankedSearch({ pattern: input.pattern, root: searchRoot, scope, run, withhold })
+  const shown = renderRanked(answer, file => toRelativePath(searchRoot === givenRoot ? file : respellRoot(file, searchRoot, givenRoot)))
+  return {
+    numFiles: shown.rows.length,
+    filenames: shown.rows,
+    ranked: shown.text,
+    ...(answer.incomplete !== undefined ? { incomplete: answer.incomplete } : {}),
+    ...(withheld !== undefined ? { withheld } : {}),
+  }
+}
+
 export const GrepTool = buildTool({
   name: GREP_TOOL_NAME,
   strict: true,
   straightQuoteInputs: ['pattern', 'path', 'glob'],
   maxResultSizeChars: 20_000,
-  inputSchema,
-  outputSchema,
+  get inputSchema(): typeof rankedInputSchema {
+    return rankedModeEnabled() ? rankedInputSchema : (inputSchema as unknown as typeof rankedInputSchema)
+  },
+  get outputSchema(): typeof rankedOutputSchema {
+    return rankedModeEnabled() ? rankedOutputSchema : (outputSchema as unknown as typeof rankedOutputSchema)
+  },
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
   async checkPermissions(input, context): Promise<ReturnType<typeof checkReadPermissionForTool>> {
@@ -541,6 +628,10 @@ export const GrepTool = buildTool({
     return getDescription(new Set(tools.map(tool => tool.name)))
   },
   async validateInput(input: Input) {
+    if (input.output_mode === 'ranked') {
+      const refusal = rankedRefusal(input.pattern) ?? (input.path !== undefined && isSearchableDocument(input.path) ? rankedDocumentRefusal(input.path) : null)
+      if (refusal !== null) return { result: false as const, message: refusal, errorCode: 1 }
+    }
     if (input.path !== undefined) {
       const pathRefusal = controlCharacterPathRefusal(input.path)
       if (pathRefusal !== null) {
@@ -574,6 +665,7 @@ export const GrepTool = buildTool({
     const searchRoot = realSearchRoot(givenRoot)
     const permission = context.getAppState().toolPermissionContext
     const withholding = envFilesWithheld(input, permission, givenRoot)
+    if (mode === 'ranked') return { data: await rankedCall(input, context, searchRoot, givenRoot, withholding) }
     const args = await buildArgs(input, context, searchRoot, withholding)
     const offset = input.offset ?? 0
 
@@ -581,6 +673,7 @@ export const GrepTool = buildTool({
     const { answer, engine } = isSearchableDocument(searchRoot) ? { answer: { lines: [], complete: true } as RipgrepAnswer, engine: undefined } : await answerWithPcre2Fallback(input.pattern, nativeArgs, searchRoot, context.abortController.signal)
     const documents = await searchDocuments({ root: searchRoot, args, pattern: input.literal ? input.pattern : quoteTolerantPattern(input.pattern), mode, permission, signal: context.abortController.signal, search: (args, path) => answerWithPcre2Fallback(input.pattern, args, path, context.abortController.signal) })
     answer.lines.push(...documents.lines)
+    answer.lines = withoutDeniedFiles(answer.lines, mode, readDenialFilter(permission, searchRoot))
     const kept = withholding ? withholdEnvFileLines(answer.lines, mode, input['-n'] ?? true, permission, envFileCoverage(input.glob, searchRoot), mode === 'content') : { lines: answer.lines, withheld: undefined }
     const withheld = [kept.withheld, documents.note].filter(Boolean).join(' ') || undefined
     let lines = searchRoot === givenRoot ? kept.lines : kept.lines.map(line => respellRoot(line, searchRoot, givenRoot))
@@ -714,7 +807,10 @@ export const GrepTool = buildTool({
     const incompleteNote = data.incomplete !== undefined ? `\n(INCOMPLETE SEARCH — ${data.incomplete})` : ''
     const engineNote = (data.engine !== undefined ? `\n(${data.engine})` : '') + (data.withheld !== undefined ? `\n(${data.withheld})` : '')
     let text: string
-    switch (data.mode) {
+    switch (data.ranked !== undefined ? 'ranked' : data.mode) {
+      case 'ranked':
+        text = data.ranked ?? ''
+        break
       case 'content':
         text = data.content ? `${data.content}${note ? `\n${note.trim()}` : ''}` : 'No matches found'
         if (data.cappedFiles?.length) text += `\nMore than ${DEFAULT_PER_FILE_MATCHES} matches in ${data.cappedFiles.join(', ')}; pass path: ${JSON.stringify(data.cappedFiles[0])} to see that file, or head_limit: 0 for all matches.`

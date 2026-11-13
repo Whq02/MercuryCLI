@@ -1,6 +1,7 @@
 import { z } from 'zod/v4'
 
 import { lazySchema } from '../lazySchema.js'
+import { expandRuleBraces, RULE_BRACE_BOUND, ruleBracesPastBound, starredBraces } from '../permissions/ruleBraces.js'
 import { getCustomValidation, isBashPrefixTool, isFilePatternTool } from './toolValidationConfig.js'
 
 
@@ -8,6 +9,8 @@ type PermissionRuleValidation = {
   valid: boolean
   error?: string
   suggestion?: string
+  advisory?: boolean
+  readAs?: string
   examples?: string[]
 }
 
@@ -144,9 +147,19 @@ export function validatePermissionRule(rule: string): PermissionRuleValidation {
     }
 
     if (isFilePatternTool(toolName)) {
-      if (content.includes('*') && hasSuspiciousWildcardPlacement(content)) {
+      if (ruleBracesPastBound(content)) {
         return {
           valid: false,
+          advisory: true,
+          readAs: starredBraces(content),
+          error: `The braces in "${content}" expand to more than ${RULE_BRACE_BOUND} patterns`,
+          suggestion: 'Write fewer alternatives, or more than one rule',
+        }
+      }
+      if (expandRuleBraces(content).some(pattern => pattern.includes('*') && hasSuspiciousWildcardPlacement(pattern))) {
+        return {
+          valid: false,
+          advisory: true,
           error: `The wildcard placement in "${content}" may be wrong`,
           suggestion: 'Wildcards belong at path boundaries',
           examples: [`${toolName}(*.ts)`, `${toolName}(src/*)`, `${toolName}(src/**)`],

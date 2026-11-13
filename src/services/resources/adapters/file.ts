@@ -1,7 +1,9 @@
 
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import * as path from 'node:path'
-import { getOriginalCwd } from '../../../bootstrap/state.js'
+import type { ToolPermissionContext } from '../../../Tool.js'
+import { getPathsForPermissionCheck } from '../../../utils/fsOperations.js'
+import { readDenialFilter } from '../../../utils/permissions/filesystem.js'
 import { mercurySecretPath } from '../../../utils/permissions/protectedPaths.js'
 import { mintFileAnchor } from '../../changeTransaction/snapshotAnchor.js'
 import {
@@ -12,6 +14,7 @@ import {
   type ResourceContext,
   type ResourceResult,
 } from '../contracts.js'
+import { fileReferenceCandidates } from '../referencePaths.js'
 
 const DIR_ENTRY_CAP = 200
 const MAX_TEXT_BYTES = 2_000_000
@@ -21,9 +24,7 @@ export const fileAdapter: ResourceAdapter = {
   describe: 'files and directories (mercury://file/<path>?lines=A-B&q=…)',
   async resolve(ref: ParsedRef, ctx: ResourceContext): Promise<ResourceResult> {
     if (!ref.id) return { state: 'absent', note: 'file refs need a path: mercury://file/<path>' }
-    const candidates = path.isAbsolute(ref.id)
-      ? [ref.id]
-      : [...new Set([path.resolve(ctx.cwd, ref.id), path.resolve(getOriginalCwd(), ref.id)])]
+    const candidates = fileReferenceCandidates(ref.id, ctx.cwd)
     for (const candidate of candidates) {
       const secret = mercurySecretPath(candidate, ctx.cwd)
       if (secret !== null) {
@@ -53,7 +54,11 @@ export const fileAdapter: ResourceAdapter = {
     if (info.isDirectory()) {
       let entries
       try {
-        entries = readdirSync(abs, { withFileTypes: true }).filter(e => mercurySecretPath(path.join(abs, e.name), ctx.cwd) === null)
+        const rules = (ctx.getAppState?.() as { toolPermissionContext?: ToolPermissionContext } | undefined)?.toolPermissionContext
+        const denied = rules === undefined ? undefined : readDenialFilter(rules, abs)
+        entries = readdirSync(abs, { withFileTypes: true })
+          .filter(e => mercurySecretPath(path.join(abs, e.name), ctx.cwd) === null)
+          .filter(e => denied === undefined || !(e.isSymbolicLink() ? getPathsForPermissionCheck(path.join(abs, e.name)).some(form => denied(form)) : denied(path.join(abs, e.name))))
       } catch (e) {
         return { state: 'busy', note: `cannot list ${abs}: ${e instanceof Error ? e.message : String(e)}` }
       }

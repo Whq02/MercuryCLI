@@ -17,6 +17,7 @@ import {
   type ResourceContext,
   type ResourceResult,
 } from '../contracts.js'
+import { recordIdNamesNoPath } from '../referencePaths.js'
 
 export const AGENT_TAIL_READ_CAP_BYTES = 512 * 1024
 
@@ -137,6 +138,9 @@ export const agentAdapter: ResourceAdapter = {
           })),
         },
       }
+    }
+    if (!recordIdNamesNoPath(ref.id)) {
+      return { state: 'absent', note: `no crewmate/process '${ref.id}' in this session and no record on disk` }
     }
     const task = tasks.find(t => t.id === ref.id)
     const contentPath = contentPathFor(ref.id, task)

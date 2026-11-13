@@ -12,7 +12,7 @@ import {
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { getCwd } from '../../utils/cwd.js'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
+import { referenceReadDecision } from '../../services/resources/referencePaths.js'
 import {
   renderToolResultMessage,
   renderToolUseErrorMessage,
@@ -78,18 +78,8 @@ seat — mercury://seat gives this turn's model, effort, posture and session eng
     return true
   },
   async checkPermissions(input: Input, context: ToolUseContext) {
-    const trimmed = input.ref.trim()
-    if (/^mercury:\/\/file\/.+/i.test(trimmed)) {
-      const raw = trimmed.replace(/^mercury:\/\/file\//i, '').split('?')[0]!
-      let filePath = raw
-      try { filePath = decodeURIComponent(raw) } catch {}
-      return checkReadPermissionForTool(
-        { name: INSPECT_TOOL_NAME, getPath: () => filePath },
-        input,
-        context.getAppState().toolPermissionContext,
-      )
-    }
-    return { behavior: 'allow' as const, updatedInput: input }
+    const judged = await referenceReadDecision(INSPECT_TOOL_NAME, input.ref, input, context.getAppState().toolPermissionContext, getCwd())
+    return judged ?? { behavior: 'allow' as const, updatedInput: input }
   },
   async validateInput(input: Input) {
     if (!input.ref.startsWith(MERCURY_REF_SCHEME)) {

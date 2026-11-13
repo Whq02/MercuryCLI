@@ -29,7 +29,7 @@ interface SpriteDiscovery {
   truncated: number
 }
 
-export function discoverSpriteFiles(from: string = getCwd()): SpriteDiscovery {
+export function discoverSpriteFiles(from: string = getCwd(), denied?: (file: string) => boolean): SpriteDiscovery {
   const files: string[] = []
   let total = 0
   let visited = 0
@@ -48,6 +48,7 @@ export function discoverSpriteFiles(from: string = getCwd()): SpriteDiscovery {
         if (SKIP_DIRS.has(e.name) || e.name.startsWith('.')) continue
         walk(path.join(dir, e.name), rel ? `${rel}/${e.name}` : e.name)
       } else if (e.isFile() && (e.name.endsWith('.aseprite') || e.name.endsWith('.ase'))) {
+        if (denied?.(path.join(dir, e.name))) continue
         total++
         if (files.length < SPRITE_FILE_CAP) {
           files.push(rel ? `${rel}/${e.name}` : e.name)

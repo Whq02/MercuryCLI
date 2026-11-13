@@ -5,11 +5,13 @@ import ignore from 'ignore'
 import { getOriginalCwd, getSessionId } from '../../bootstrap/state.js'
 import { getCwd, getStartingCwd } from '../cwd.js'
 import { permissionRuleValueFromString } from './permissionRuleParser.js'
+import { expandRuleBraces } from './ruleBraces.js'
 import { getMercuryHome } from '../envUtils.js'
 import { getFsImplementation, getPathsForPermissionCheck, safeResolvePath } from '../fsOperations.js'
 import {
   expandPath,
   getDirectoryForPath,
+  localPath,
   sanitizePath,
 } from '../path.js'
 import { getPlatform } from '../platform.js'
@@ -146,7 +148,7 @@ export function getResolvedWorkingDirPaths(path: string): string[] {
   const key = isAbsolute(path) ? path : `${base}\0${path}`
   const cached = workingDirResolutionCache.get(key)
   if (cached) return cached
-  const resolved = getPathsForPermissionCheck(path, base)
+  const resolved = getPathsForPermissionCheck(localPath(path), base)
   workingDirResolutionCache.set(key, resolved)
   if (workingDirResolutionSweep === null) {
     workingDirResolutionSweep = setTimeout(getResolvedWorkingDirPaths.clearCache, 0)
@@ -550,11 +552,12 @@ function rulesForToolAndBehavior(
     for (const ruleString of rules) {
       const parsed = permissionRuleValueFromString(ruleString)
       if (parsed.toolName !== toolName || parsed.ruleContent === undefined) continue
-      map.set(parsed.ruleContent, {
+      const rule = {
         source: source as PermissionRule['source'],
         ruleBehavior: behavior,
         ruleValue: parsed,
-      })
+      }
+      for (const pattern of expandRuleBraces(parsed.ruleContent, behavior !== 'allow')) map.set(pattern, rule)
     }
   }
   return map
@@ -668,6 +671,7 @@ export function ruleMatcherFor(
   context: ToolPermissionContext,
   toolType: 'edit' | 'read',
   behavior: 'allow' | 'deny' | 'ask',
+  workingForms?: readonly string[],
 ): ((path: string, all?: boolean) => PermissionRule[]) | null {
   const toolNames = toolType === 'edit' ? fileEditRuleToolNames() : fileReadRuleToolNames()
   const rules = rulesForToolFamilyAndBehavior(context, toolNames, behavior)
@@ -692,7 +696,7 @@ export function ruleMatcherFor(
     const candidatePath = getPlatform() === 'windows' && expanded.includes('\\') ? toPosixPath(expanded) : expanded
     const target = candidatePath === '' ? getCwd() : candidatePath
     for (const [root, group] of groups) {
-      for (const base of root === null ? cwdForms() : [root]) {
+      for (const base of root === null ? (workingForms ?? cwdForms()) : [root]) {
         const relative = relativePath(base, target)
         if (relative === '' || relativePathEscapes(relative)) continue
         if (!group.matcher.test(relative).ignored) continue
@@ -718,33 +722,94 @@ export function pathMatchesRulePattern(path: string, pattern: string, source: Pe
   return ignore().add(stripped).test(relative).ignored
 }
 
+function ripgrepSpelling(text: string): string | null {
+  if (text.startsWith('!') || text.startsWith('#') || text.includes('\\')) return null
+  let spelled = ''
+  for (let at = 0; at < text.length; at++) {
+    const char = text[at]!
+    if (char === '{' || char === '}') spelled += `[${char}]`
+    else if (char !== '[') spelled += char
+    else {
+      const close = text.indexOf(']', at + 1)
+      const body = close === -1 ? '' : text.slice(at + 1, close).replace(/^[!^]/, '')
+      if (body === '' || body.includes('/') || [...body.matchAll(/(.)-(.)/g)].some(range => range[1]! > range[2]!)) return null
+      spelled += text.slice(at, close + 1)
+      at = close
+    }
+  }
+  return spelled
+}
+
+function ruleSegments(pattern: string): string[] | null {
+  const segments = pattern.split('/').filter(segment => segment !== '' && segment !== '.')
+  if (segments.length === 0 || segments.some(segment => segment === '..' || ripgrepSpelling(segment) === null)) return null
+  return segments
+}
+
+function segmentMatches(segment: string, name: string): boolean {
+  return GLOB_SEGMENT.test(segment) ? ignore().add(segment).test(name).ignored : segment.toLowerCase() === name.toLowerCase()
+}
+
+function segmentsBelow(segments: readonly string[], folders: readonly string[]): string[][] {
+  const reach = (from: Iterable<number>): Set<number> => {
+    const reached = new Set<number>()
+    for (let at of from) {
+      reached.add(at)
+      while (segments[at] === '**') reached.add(++at)
+    }
+    return reached
+  }
+  let states = reach([0])
+  for (const folder of folders) {
+    const next: number[] = []
+    for (const at of states) {
+      if (at === segments.length || segments[at] === '**') next.push(at)
+      else if (segmentMatches(segments[at]!, folder)) next.push(at + 1)
+    }
+    states = reach(next)
+    if (states.size === 0) return []
+  }
+  return [...states].map(at => segments.slice(at))
+}
+
+function escapeGlobSegment(name: string): string {
+  return name.replace(/[*?[\]{}!\\]/g, '\\$&')
+}
+
+function globsUnderRoot(prefix: readonly string[], segments: readonly string[], folderOnly: boolean): string[] {
+  const named = [...prefix, ...(segments[segments.length - 1] === '**' ? segments.slice(0, -1) : segments).map(segment => ripgrepSpelling(segment) ?? segment)]
+  if (named.length === 0) return ['/**']
+  return folderOnly ? [`/${named.join('/')}/**`] : [`/${named.join('/')}`, `/${named.join('/')}/**`]
+}
+
 export function normalizePatternsToPath(
   patternsByRoot: Map<string | null, string[]>,
   root: string,
 ): string[] {
   const results = new Set<string>()
-  const refRoot = getPlatform() === 'windows' ? toPosixPath(root) : root
+  const rooted = (patternRoot: string, pattern: string): void => {
+    const segments = ruleSegments(pattern)
+    if (segments === null) return
+    const folderOnly = pattern.endsWith('/')
+    const below = relativePath(root, patternRoot)
+    if (!relativePathEscapes(below)) {
+      const prefix = below === '' ? [] : below.split('/').map(escapeGlobSegment)
+      for (const glob of globsUnderRoot(prefix, segments, folderOnly)) results.add(glob)
+      return
+    }
+    const above = relativePath(patternRoot, root)
+    if (relativePathEscapes(above) || !pattern.includes('/')) return
+    for (const rest of segmentsBelow(segments, above.split('/'))) for (const glob of globsUnderRoot([], rest, folderOnly)) results.add(glob)
+  }
   for (const [patternRoot, patterns] of patternsByRoot) {
     for (const pattern of patterns) {
-      if (patternRoot === null) {
-        results.add(pattern)
+      if (patternRoot !== null) {
+        rooted(patternRoot, pattern)
         continue
       }
-      const pr = getPlatform() === 'windows' ? toPosixPath(patternRoot) : patternRoot
-      const refCmp = getPlatform() === 'windows' ? refRoot.toLowerCase() : refRoot
-      const prCmp = getPlatform() === 'windows' ? pr.toLowerCase() : pr
-      if (prCmp === refCmp) {
-        results.add(`/${pattern}`)
-        continue
-      }
-      const combined = joinPosix(pr, pattern)
-      if (combined.toLowerCase().startsWith(refCmp.toLowerCase() + '/')) {
-        results.add('/' + combined.slice(refRoot.length).replace(/^\/+/, ''))
-        continue
-      }
-      const rel = relativePath(refRoot, pr)
-      if (relativePathEscapes(rel)) continue
-      results.add(joinPosix(rel, pattern))
+      const written = ripgrepSpelling(pattern)
+      if (written !== null) results.add(written)
+      if (pattern.replace(/\/+$/, '').includes('/')) for (const base of cwdForms()) rooted(base, pattern)
     }
   }
   return [...results]
@@ -754,14 +819,43 @@ export function getFileReadIgnorePatterns(context: ToolPermissionContext): Map<s
   const rules = rulesForToolFamilyAndBehavior(context, fileReadRuleToolNames(), 'deny')
   const byRoot = new Map<string | null, string[]>()
   for (const [pattern, rule] of rules) {
-    const { root, relative } = rootForPattern(pattern, rule.source)
-    if (root === undefined) continue
-    const list = byRoot.get(root) ?? []
-    list.push(relative)
-    byRoot.set(root, list)
+    for (const form of [pattern, ...resolvedPatternForms(pattern, rule.source)]) {
+      const { root, relative } = rootForPattern(form, rule.source)
+      if (root === undefined) continue
+      const list = byRoot.get(root) ?? []
+      if (!list.includes(relative)) list.push(relative)
+      byRoot.set(root, list)
+    }
   }
   for (const [root, patterns] of mercurySecretReadIgnores()) byRoot.set(root, [...(byRoot.get(root) ?? []), ...patterns])
   return byRoot
+}
+
+const OWN_SECRET_NAME = /\.credentials\.json|\.provider-secrets\.json|-auth\.json$|^browser-secrets\.json$/i
+
+export function readDenialFilter(context: ToolPermissionContext, root: string): (file: string) => boolean {
+  const working = cwdForms()
+  const denies = ruleMatcherFor(context, 'read', 'deny', working)
+  const narrowing = readNarrowing(context, 'read')
+  const allows = narrowing === null ? null : ruleMatcherFor(narrowing.narrowed, 'read', 'allow', working)
+  const rootForms = denies === null && narrowing === null ? [] : getPathsForPermissionCheck(root)
+  const base = root.replace(/[\\/]+$/, '')
+  const joinForms = rootForms.map(form => form.replace(/[\\/]+$/, ''))
+  const formsOf = (file: string): string[] => {
+    if (file === root || file === base) return rootForms
+    const next = file.charAt(base.length)
+    if (!file.startsWith(base) || (next !== '/' && next !== '\\')) return getPathsForPermissionCheck(file)
+    return joinForms.map(form => `${form}${file.slice(base.length)}`)
+  }
+  return file => {
+    const name = file.slice(Math.max(file.lastIndexOf('/'), file.lastIndexOf('\\')) + 1)
+    if (OWN_SECRET_NAME.test(name) && mercurySecretPath(file) !== null) return true
+    if (denies === null && narrowing === null) return false
+    const forms = formsOf(file)
+    if (denies !== null && forms.some(form => denies(form).length > 0)) return true
+    if (narrowing === null) return false
+    return !(allows !== null && forms.length > 0 && forms.every(form => allows(form).length > 0))
+  }
 }
 
 
@@ -1011,12 +1105,7 @@ export function checkWritePermissionForTool(
   } as unknown as PermissionDecision
 }
 
-function toolsNarrowingDenial(
-  path: string,
-  resolutionSet: readonly string[],
-  context: ToolPermissionContext,
-  toolType: 'edit' | 'read',
-): PermissionDecision | null {
+function readNarrowing(context: ToolPermissionContext, toolType: 'edit' | 'read'): { narrowed: ToolPermissionContext; rules: PermissionRule[] } | null {
   const narrowed = {
     ...(context as object),
     alwaysAllowRules: {
@@ -1025,7 +1114,18 @@ function toolsNarrowingDenial(
   } as unknown as ToolPermissionContext
   const names = toolType === 'edit' ? fileEditRuleToolNames() : fileReadRuleToolNames()
   const rules = [...rulesForToolFamilyAndBehavior(narrowed, names, 'allow').values()]
-  if (rules.length === 0) return null
+  return rules.length === 0 ? null : { narrowed, rules }
+}
+
+function toolsNarrowingDenial(
+  path: string,
+  resolutionSet: readonly string[],
+  context: ToolPermissionContext,
+  toolType: 'edit' | 'read',
+): PermissionDecision | null {
+  const narrowing = readNarrowing(context, toolType)
+  if (narrowing === null) return null
+  const { narrowed, rules } = narrowing
   if (resolutionSet.length > 0 && resolutionSet.every(resolved => matchingRuleForInput(resolved, narrowed, toolType, 'allow') !== null)) return null
   return ruleDecision('deny', `${toolType === 'edit' ? 'Editing' : 'Reading'} ${path}`, context, rules[0]!, () => rules)
 }
@@ -1128,11 +1228,6 @@ function normalizeNfc(path: string): string {
 function joinWithSep(a: string, b: string): string {
   const trimmed = a.endsWith(platformSep) ? a.slice(0, -1) : a
   return `${trimmed}${platformSep}${b}`
-}
-
-function joinPosix(a: string, b: string): string {
-  const trimmed = a.endsWith('/') ? a.slice(0, -1) : a
-  return `${trimmed}/${b}`
 }
 
 function ensureTrailingSep(path: string): string {
