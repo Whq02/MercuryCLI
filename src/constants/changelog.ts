@@ -3,6 +3,8 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.11
 - Added a way to run the Blender tool with no window: with Blender located and no bridge answering, a call runs one background Blender process and returns its exit status, its output and its whole traceback.
+- Added script and argv to the Blender tool's python_run: it runs a script file in the project with its arguments.
+- Added show to the Blender tool: python_run returns up to four pictures the run wrote with its answer, and render_still returns the frame it rendered.
 - Added recoveries to a run's outcome: one entry each time Mercury asked the model again in an unattended run.
 - Added wards to a turn's outcome: one entry for each built-in refusal that fired in the turn.
 - Added sealing at rest for the sign-in on Windows: the credential store is kept under a key Windows protects for your account. MERCURY_CREDENTIAL_STORE=unseal writes it back in the clear.
@@ -16,6 +18,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Changed an unattended run whose model repeats itself again after the loop notice: the turn ends loop_stopped and the run exits 1.
 - Changed a run under --budget: it does not start a model call whose input alone the budget cannot pay, and its outcome says so.
 - Changed Read and the reopening of a session to open only regular files: a named pipe, a socket or a device is refused in one sentence, and a very large file is read in bounded memory.
+- Changed Read's crop of an image: a box that passes the image's edge is cut to the image, and a whole-number scale enlarges the crop pixel for pixel.
 - Changed the refusal of a detached start (nohup … &): it says when a background command ends, and names the Service tool where the session offers it.
 - Changed the hook-wait line: it appears once a hook has been waited on for a second and goes when the hook ends.
 - Changed the Blender tool to be offered wherever Blender is located, not only beside a .blend file. Reading the bridge's status writes nothing.
@@ -32,8 +35,11 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Changed the two side rails to name the sections their height dropped.
 - Changed a question card to name the key bound to the external editor.
 - Changed the external editor's value on Windows to be parsed by the system's own command-line rules.
+- Changed TensorFold to 1.2.7 where Mercury names, fetches and verifies the engine; a model card's prompt-cache ceiling follows the engine's rule.
+- Changed the tool descriptions, prompts and bundled skills a model reads: corrected against the product and about a tenth shorter at the start of a session.
 - Fixed a Homebrew install losing its mercury command after the first launch, where ~/.local/bin stands before Homebrew on PATH. An install already caught is mended by ln -sf "$(brew --prefix)/bin/mercury" ~/.local/bin/mercury.
 - Fixed mercury install --uninstall on Windows stopping half way and leaving a command that could not run: the command and its PATH entry go, and the files in use are removed once the command has ended.
+- Fixed a Gemini conversation that outgrew the model's window ending on the provider's refusal: the conversation is compacted and the request sent again.
 - Fixed a reader losing their place in the transcript at a ctrl+o flip and when a streaming reply settles.
 - Fixed a resumed session whose run ended inside a tool call: the call reads as answered, and the card says the session resumed with one failed call.
 - Fixed a resumed session reading "the runner is starting" after its admission was refused.
@@ -45,6 +51,9 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed the ctrl+c notice on the home screen and other full-screen pages showing the end of the row beneath it.
 - Fixed a start with an argument, such as mercury --model <id>, erasing eight lines of what stood in the terminal before it.
 - Fixed MERCURY_TOOL_DEFER_PROBE=1 doing nothing behind a gateway.
+- Fixed an interrupted call of the Blender tool over its bridge, or of the Aseprite tool, running on until the tool answered: the call ends at once and the Aseprite process is stopped.
+- Fixed a kill by name, such as pkill -f <pattern> 2>/dev/null, being refused when the command redirected its output.
+- Fixed a malformed tool call that a GLM model left in its reply on TensorFold being run with corrupt arguments.
 - Fixed /health reading the Blender tool as undeclared where it is offered.
 - Fixed a resumed session's starting count running backwards, and a focus switched to a busy session keeping the last turn's tip.
 - Fixed an approved project extension held off in an untrusted folder saying nothing.
