@@ -151,7 +151,15 @@ function imageMatches(pattern: string, regex: boolean, full: boolean, insensitiv
   } catch { return false }
 }
 
-function selectedImages(argv: string[]): string[] {
+function operandsBeforeRedirect(args: string[], next?: string[]): string[] {
+  const marker = args.findIndex((word, i) => (word === '>' || word === '<') && args[i + 1] === '')
+  const head = marker === -1 ? args.slice() : args.slice(0, marker)
+  const duplicated = marker === -1 && next !== undefined && next.length === 1 && /^(?:\d+|-)$/.test(next[0]!)
+  if ((marker !== -1 || duplicated) && /^\d+$/.test(head.at(-1) ?? '') && head.slice(0, -1).some(word => !word.startsWith('-'))) head.pop()
+  return head
+}
+
+function selectedImages(argv: string[], next?: string[]): string[] {
   const command = name(argv[0] ?? '')
   const args = argv.slice(1)
   if (command === 'taskkill') return optionValues(args, /^\/im$/i)
@@ -161,9 +169,9 @@ function selectedImages(argv: string[]): string[] {
     if (args.some(arg => /^-(?:id|inputobject)(?:[:=]|$)/i.test(arg))) return []
     return positionals(args, /^-(?:erroraction|ea|warningaction|wa)$/i).filter(arg => !/^\d+$/.test(arg))
   }
-  if (command === 'killall') return positionals(args, /^-(?:u|user|s|signal|t)$/i, false)
+  if (command === 'killall') return positionals(operandsBeforeRedirect(args, next), /^-(?:u|user|s|signal|t)$/i, false)
   if (command === 'pkill' || command === 'pgrep') {
-    return positionals(args, /^-(?:[ugGPUsFt]|-(?:euid|uid|group|pgroup|parent|session|terminal|pidfile|signal))$/, false).slice(-1)
+    return positionals(operandsBeforeRedirect(args, next), /^-(?:[ugGPUsFt]|-(?:euid|uid|group|pgroup|parent|session|terminal|pidfile|signal))$/, false).slice(-1)
   }
   return []
 }
@@ -221,7 +229,8 @@ export async function runtimeProcessRefusal(commands: string[][]): Promise<strin
   if (!commands.some(argv => kills.has(name(argv[0] ?? '')) || argv.some(word => kills.has(name(word))))) return null
   const pids = await protectedPids()
   const hasPipedKill = commands.some(argv => ['kill', 'stop-process', 'spps'].includes(name(argv[0] ?? '')) || (name(argv[0] ?? '') === 'xargs' && argv.some(word => name(word) === 'kill')))
-  for (const argv of commands) {
+  for (const [index, argv] of commands.entries()) {
+    const next = commands[index + 1]
     const command = name(argv[0] ?? '')
     const args = argv.slice(1)
     if (args.some(arg => /^-whatif$/i.test(arg))) continue
@@ -240,7 +249,7 @@ export async function runtimeProcessRefusal(commands: string[][]): Promise<strin
       if (command === 'pkill' && group) return 'Killing process group ' + group + ' is refused: it holds Mercury’s own process or daemon.'
       const users = optionValues(args, command === 'pkill' ? /^-(?:u|U|-euid|-uid)$/ : /^-(?:u|user)$/i)
       const user = users.find(ownUser)
-      if (user !== undefined && selectedImages(argv).length === 0) return 'Killing every process of user ' + user + ' is refused: Mercury’s own process and daemon run as that user.'
+      if (user !== undefined && selectedImages(argv, next).length === 0) return 'Killing every process of user ' + user + ' is refused: Mercury’s own process and daemon run as that user.'
     }
     const filters = command === 'taskkill' ? optionValues(args, /^\/fi$/i) : []
     const filterPids = filters.flatMap(value => /^pid\s+eq\s+(\d+)$/i.exec(value)?.slice(1) ?? [])
@@ -265,7 +274,7 @@ export async function runtimeProcessRefusal(commands: string[][]): Promise<strin
     const regex = command === 'pkill' || command === 'pgrep' || (command === 'killall' && args.some(arg => /^-(?:r|-regexp)$/.test(arg)))
     const full = regex && args.some(arg => /^-[^-]*f/.test(arg) || arg === '--full')
     const insensitive = !regex || args.some(arg => /^-[^-]*i/.test(arg) || arg === '--ignore-case')
-    const images = [...selectedImages(argv), ...filters.flatMap(value => /^imagename\s+eq\s+(.+)$/i.exec(value)?.slice(1) ?? [])]
+    const images = [...selectedImages(argv, next), ...filters.flatMap(value => /^imagename\s+eq\s+(.+)$/i.exec(value)?.slice(1) ?? [])]
     for (const image of images) {
       const exact = regex && args.some(arg => /^-(?:[a-z]*x[a-z]*|-exact)$/.test(arg))
       if (imageMatches(exact ? '^(?:' + image + ')$' : image, regex, full, insensitive, await ownProcesses(pids))) return 'Killing by image ' + image + ' is refused: it can terminate Mercury’s running process or daemon. Use the pid of the unrelated process instead.'
