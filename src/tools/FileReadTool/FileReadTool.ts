@@ -508,7 +508,7 @@ function isBlockingDevicePath(path: string): boolean {
 
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp'])
 
-function hasImageSignature(path: string): boolean {
+export function hasImageSignature(path: string): boolean {
   const fd = openSync(path, constants.O_RDONLY | constants.O_NONBLOCK)
   try {
     if (!fstatSync(fd).isFile()) return false
@@ -740,6 +740,23 @@ async function readNotebookLane(
   return { data: { type: 'notebook', file: { filePath: resolvedPath, cells } } }
 }
 
+export function imageReadCaptions(
+  resolvedPath: string,
+  dimensions: ImageDimensions | undefined,
+  cropped: { box: CropBox; asked?: CropBox; full: { width: number; height: number } } | undefined,
+  scale = 1,
+): string[] {
+  const captions: string[] = []
+  if (cropped !== undefined) {
+    captions.push(`This image is the crop [${cropped.box.join(', ')}] of ${resolvedPath}${cropped.asked === undefined ? '' : ` (the box asked for, [${cropped.asked.join(', ')}], passed the image's edge and was cut to it)`}, cut from the ${cropped.full.width}x${cropped.full.height} px original before any downscale${scale === 1 ? '' : ` and scaled by ${scale}`}; the coordinates below are the crop's own.`)
+  }
+  if (dimensions) {
+    const metadataText = createImageMetadataText(dimensions, resolvedPath)
+    if (metadataText) captions.push(metadataText)
+  }
+  return captions
+}
+
 async function readImageLane(
   resolvedPath: string,
   keyPath: string,
@@ -750,14 +767,7 @@ async function readImageLane(
 ): Promise<LaneResult> {
   const { cropped, ...data } = await readImageWithTokenBudget(resolvedPath, limits.maxTokens, undefined, crop, scale)
   context.nestedMemoryAttachmentTriggers?.add(keyPath)
-  const captions: string[] = []
-  if (cropped !== undefined) {
-    captions.push(`This image is the crop [${cropped.box.join(', ')}] of ${resolvedPath}${cropped.asked === undefined ? '' : ` (the box asked for, [${cropped.asked.join(', ')}], passed the image's edge and was cut to it)`}, cut from the ${cropped.full.width}x${cropped.full.height} px original before any downscale${scale === 1 ? '' : ` and scaled by ${scale}`}; the coordinates below are the crop's own.`)
-  }
-  if (data.file.dimensions) {
-    const metadataText = createImageMetadataText(data.file.dimensions, resolvedPath)
-    if (metadataText) captions.push(metadataText)
-  }
+  const captions = imageReadCaptions(resolvedPath, data.file.dimensions, cropped, scale)
   const ocr = await recogniseImage(Buffer.from(data.file.base64, 'base64'), context.abortController.signal)
   if (ocr.ok && ocr.text.trim()) captions.push(renderOcr(ocr))
   if (captions.length) data.file.caption = captions.join('\n')

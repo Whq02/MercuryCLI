@@ -23,6 +23,7 @@ import {
 import { locateBlender } from '../../services/ide/blenderProject.js'
 import { blenderBridgeEnabled, blenderBridgePort } from '../../utils/blender/bridgeGates.js'
 import { BLENDER_TOOL_NAME, getBlenderToolDescription } from './prompt.js'
+import { SHOWN_AT_MOST, SHOW_SHAPE_RULE, parseShowList, readShown, showTargets, stampShown, type ShowEntry, type ShownPart } from './show.js'
 import {
   renderToolResultMessage,
   renderToolUseErrorMessage,
@@ -45,6 +46,7 @@ export type Input = z.infer<SchemaType>
 export type Output = {
   op: string
   result: string
+  shown?: ShownPart[]
 }
 
 const LOCAL_OPS = new Set(['blender_status', 'blender_bridge_install', 'blender_bridge_uninstall'])
@@ -121,9 +123,23 @@ function readTargets(input: Input): string[] {
   const blend = typeof args?.blend === 'string' ? args.blend : undefined
   const named = typeof args?.path === 'string' && (input.op === 'blend_open' || blend === undefined) ? args.path : undefined
   const script = input.op === 'python_run' && typeof args?.script === 'string' ? args.script : undefined
-  return [blend, named, script]
-    .filter((target): target is string => target !== undefined && target.length > 0)
-    .map(target => path.resolve(getCwd(), target))
+  return [
+    ...[blend, named, script]
+      .filter((target): target is string => target !== undefined && target.length > 0)
+      .map(target => path.resolve(getCwd(), target)),
+    ...showTargets(showEntriesOf(input).slice(0, SHOWN_AT_MOST)),
+  ]
+}
+
+function showEntriesOf(input: Input): ShowEntry[] {
+  if (input.op !== 'python_run') return []
+  const parsed = parseShowList(input.args?.show)
+  return 'entries' in parsed ? parsed.entries : []
+}
+
+function showNamed(entries: readonly ShowEntry[], cap = 160): string {
+  const names = entries.map(entry => entry.path).join(', ')
+  return names.length > cap ? names.slice(0, cap - 1) + '…' : names
 }
 
 function firstSourceLine(args: Record<string, unknown> | undefined): string {
@@ -150,11 +166,13 @@ function pythonRunShapeProblem(args: Record<string, unknown> | undefined): strin
   if (hasSource === hasScript) {
     return `python_run takes exactly one of source (Python text) or script (a file inside the working tree; argv, a list of strings, are its arguments) — got ${hasSource ? 'both' : 'neither'}. Nothing was sent to Blender.`
   }
-  if (args?.argv === undefined) return undefined
-  if (!hasScript) return 'python_run: argv comes only with script. Nothing was sent to Blender.'
-  if (!Array.isArray(args.argv) || args.argv.some(word => typeof word !== 'string')) {
-    return 'python_run: argv must be a list of strings. Nothing was sent to Blender.'
+  if (args?.argv !== undefined) {
+    if (!hasScript) return 'python_run: argv comes only with script. Nothing was sent to Blender.'
+    if (!Array.isArray(args.argv) || args.argv.some(word => typeof word !== 'string')) {
+      return 'python_run: argv must be a list of strings. Nothing was sent to Blender.'
+    }
   }
+  if ('problem' in parseShowList(args?.show)) return `python_run: ${SHOW_SHAPE_RULE}. Nothing was sent to Blender.`
   return undefined
 }
 
@@ -216,7 +234,13 @@ async function runLocalOp(op: string): Promise<string> {
   }
 }
 
-async function runOp(input: Input, abortSignal?: AbortSignal): Promise<string> {
+function withoutShow(args: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  if (args === undefined || !('show' in args)) return args
+  const { show: _shown, ...rest } = args
+  return rest
+}
+
+async function runOp(input: Input, abortSignal?: AbortSignal, trace?: { reached: boolean }): Promise<string> {
   if (LOCAL_OPS.has(input.op)) return runLocalOp(input.op)
   const spec = blenderBridgeVerb(input.op)
   if (!spec) {
@@ -226,7 +250,7 @@ async function runOp(input: Input, abortSignal?: AbortSignal): Promise<string> {
     const problem = pythonRunShapeProblem(input.args)
     if (problem) return problem
   }
-  const fenced = fencePathArgs(input.op, input.args)
+  const fenced = fencePathArgs(input.op, withoutShow(input.args))
   if (fenced.refusal) return fenced.refusal
   if (!blenderBridgeEnabled()) {
     return `the Blender bridge is not available here (flag off, no addon home resolves, or no session token on disk: op:"blender_bridge_install" writes it) — op:"blender_status" explains`
@@ -248,6 +272,7 @@ async function runOp(input: Input, abortSignal?: AbortSignal): Promise<string> {
           : input.op !== 'blend_open' && typeof fenced.args?.path === 'string'
             ? fenced.args.path
             : undefined
+      if (trace) trace.reached = true
       return runBlenderHeadlessOp({
         bin: census.blender.path,
         op: input.op,
@@ -263,6 +288,7 @@ async function runOp(input: Input, abortSignal?: AbortSignal): Promise<string> {
   const bridgeScript = input.op === 'python_run' ? scriptOf(fenced.args) : undefined
   const wireArgs =
     bridgeScript !== undefined ? { source: scriptAsBridgeSource(bridgeScript, argvOf(fenced.args)) } : fenced.args
+  if (trace) trace.reached = true
   const r = await client.request(input.op, wireArgs, 30_000, abortSignal)
   let text: string
   if (r.ok) {
@@ -357,6 +383,7 @@ export const BlenderTool = buildTool({
               : `Blender exec: python_run (${sourceBytes(input.args)} bytes) — runs Python INSIDE Blender with full bpy authority `) +
             `(it can modify or delete scene data and write files as you; no sandbox, no preemption — a runaway script blocks Blender). ` +
             `With no bridge answering, a background Blender with no window is started for this call and ends with it.` +
+            (showEntriesOf(input).length > 0 ? ` Shows: ${showNamed(showEntriesOf(input))}.` : '') +
             (script !== undefined ? '' : ` first line: ${firstSourceLine(input.args) || '(empty)'}`),
         }
       }
@@ -382,15 +409,36 @@ export const BlenderTool = buildTool({
   },
   async call(input: Input, context) {
     let result: string
+    const entries = showEntriesOf(input)
+    const before = entries.length > 0 ? stampShown(entries) : []
+    const trace = { reached: false }
     try {
-      result = await runOp(input, context?.abortController?.signal)
+      result = await runOp(input, context?.abortController?.signal, trace)
     } catch (err) {
       result = `${input.op} failed: ${(err as Error).message}\nhint: ${blenderBridgeHint(blenderBridgePort())}`
     }
-    const output: Output = { op: input.op, result }
+    const shown = entries.length > 0 && trace.reached ? await readShown(entries, before) : []
+    const output: Output = { op: input.op, result, ...(shown.length > 0 ? { shown } : {}) }
     return { data: output }
   },
   mapToolResultToToolResultBlockParam(output: Output, toolUseId: string) {
+    if (output.shown !== undefined && output.shown.length > 0) {
+      return {
+        tool_use_id: toolUseId,
+        type: 'tool_result' as const,
+        content: [
+          { type: 'text' as const, text: output.result },
+          ...output.shown.flatMap(part =>
+            part.kind === 'note'
+              ? [{ type: 'text' as const, text: part.text }]
+              : [
+                  { type: 'text' as const, text: part.caption },
+                  { type: 'image' as const, source: { type: 'base64' as const, media_type: part.mediaType, data: part.base64 } },
+                ],
+          ),
+        ],
+      }
+    }
     return {
       tool_use_id: toolUseId,
       type: 'tool_result' as const,

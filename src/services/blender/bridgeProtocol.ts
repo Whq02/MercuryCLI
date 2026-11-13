@@ -119,8 +119,9 @@ export const BLENDER_BRIDGE_VERBS = {
       script:
         'a Python file inside the working tree, run as __main__ in place of source (the tool resolves and fences before sending; no source cap applies to a file)',
       argv: 'optional array of strings — the arguments of script, read from sys.argv after -- as on the Blender command line; only with script',
+      show: 'optional list — at most four pictures the run writes, each a path or {path, crop, scale} with crop and scale as Read takes them; returned with the answer',
     },
-    signature: 'python_run(source | script, argv?)',
+    signature: 'python_run(source | script, argv?, show?)',
   },
 } as const satisfies Record<string, BlenderBridgeVerbSpec>
 

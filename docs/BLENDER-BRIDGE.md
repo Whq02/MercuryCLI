@@ -98,6 +98,16 @@ under no source cap; the ask names the file and its arguments; a failure's
 traceback names the script's own lines. A call gives exactly one of `source`
 and `script`, and `argv` only with `script`.
 
+A call may also name `show`, a list of at most four pictures the run writes,
+each a path or `{path, crop, scale}` with `crop` and `scale` as the Read tool
+takes them. They come back with the answer, each under the caption a Read of
+it carries, so looking at what a script drew costs no second call. A picture
+the run did not write gets one line saying so and the answer itself stands;
+one left by an earlier run is shown and marked as not written by this call; a
+file that is not a png, jpeg, gif or webp is named and not shown; past four,
+the rest are listed by path. The ask lists the pictures, and a path a Read
+deny rule covers refuses the call before Blender starts.
+
 ## The no-reload law (the deliberate inverse of Unity)
 
 Blender never reloads the add-on's Python state on file opens, mode
