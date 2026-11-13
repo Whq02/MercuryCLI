@@ -59,7 +59,7 @@ Launches in one message run concurrently; foreground launches in separate messag
 The seven-day janitor removes only a clean worktree whose commits are reachable.`)
 
   sections.push(`## Review mode
-review_receipt confines verification to bun/bash under scripts and bun run typecheck with read-only sources. End reports with REVIEW: CLEAN or REVIEW: FINDINGS <count>.`)
+review_receipt confines verification to bun/bash under scripts and bun run typecheck with read-only sources. The report ends with REVIEW: CLEAN or REVIEW: FINDINGS <count>.`)
 
   return sections.join('\n\n')
 }
