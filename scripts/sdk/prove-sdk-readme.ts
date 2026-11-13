@@ -18,6 +18,7 @@ const blocksOf = (path: string) => [...readFileSync(path, 'utf8').matchAll(/```(
 const boundsRetries = (code: string) => /maxTime: '2s'|max_time='2s'/.test(code)
 for (const dir of ['sdk', 'sdk-py']) {
   const path = join(root, dir, 'README.md')
+  assert(readFileSync(path, 'utf8').includes('A built-in refusal that fired is listed in `wards`, a permission denial in `denials`; a turn can complete with a ward fired and no denial.'), `${dir}/README.md distinguishes a ward from a permission denial`)
   assert(blocksOf(path).some(block => boundsRetries(block.code) && /['"]retry['"]/.test(block.code)), `${dir}/README.md needs a bounded run example that shows retry rows`)
   assert(blocksOf(path).some(block => /MercuryOutcomeError/.test(block.code) && /error\.outcome/.test(block.code)), `${dir}/README.md needs an example that handles a non-completed outcome and retains its guidance`)
   assert.match(readFileSync(path, 'utf8'), /A CLI outcome with `status: 'refused'` (throws|raises) `MercuryRefusal`; provider refusals, authentication errors, budget stops and repeated invalid structured output instead resolve a non-completed outcome\./)

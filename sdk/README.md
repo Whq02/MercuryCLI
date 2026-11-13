@@ -214,6 +214,8 @@ try {
 
 `parseRow`, `rowOf`, `inputRowOf` and `validate` use generated schemas. `isMainThread` separates subagent rows. Unknown types become `unknown_row` with `original_type`, raw payload and envelope; known extra fields are preserved. Schema-version changes and malformed known rows are rejected.
 
+A built-in refusal that fired is listed in `wards`, a permission denial in `denials`; a turn can complete with a ward fired and no denial.
+
 A CLI outcome with `status: 'refused'` throws `MercuryRefusal`; provider refusals, authentication errors, budget stops and repeated invalid structured output instead resolve a non-completed outcome. Call `assertCompleted(outcome)` to raise `MercuryOutcomeError` for a non-completed outcome, including an unanswered permission ask; a `refused` status remains `MercuryRefusal`. Both extend `MercuryError`. `MercuryOutcomeError` retains the original `outcome`, `errorClass` and `detail`. Its message names the tool and how to grant permission or attach a host; the SDK does not grant permission automatically. Other specific subclasses are `MercuryUsageError`, `MercuryExitError`, `MercurySpawnError`, `MercuryWireError`, `MercurySchemaError`, `MercuryTimeoutError` and `MercuryConnectionError`. Exit/usage errors preserve the interface and exit receipt; RPC errors preserve code and data. Check status rather than only exit code.
 
 ```ts
