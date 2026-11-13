@@ -1,5 +1,5 @@
 import { Lexer } from 'marked'
-import { basename, dirname, extname } from 'path'
+import { dirname, extname } from 'path'
 
 import { logForDebugging } from '../../utils/debug.js'
 import { parseFrontmatter, splitPathInFrontmatter } from '../../utils/frontmatterParser.js'
@@ -170,10 +170,11 @@ export function readRuleSource(
   filePath: string,
   type: MemoryType,
   format: InstructionRuleFormat,
+  alone: boolean,
 ): { info: InstructionSourceEntry; reading: InstructionRuleReading | null } {
   const raw = stripBOM(rawContent)
   const { frontmatter, content, parseError } = parseFrontmatter(raw, filePath)
-  const reading = parseError === undefined ? format.read(frontmatter, basename(filePath)) : null
+  const reading = parseError === undefined ? format.read(frontmatter, alone) : null
   const info: InstructionSourceEntry = { path: filePath, type, content, contentDiffersFromDisk: content !== raw }
   if (reading === null) info.dormant = 'unreadable'
   else if (reading.kind === 'scoped') info.globs = reading.globs

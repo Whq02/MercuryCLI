@@ -314,6 +314,7 @@ export async function processRuleFile(
   type: MemoryType,
   processedPaths: Set<string>,
   diagnostics?: InstructionDiagnostic[],
+  alone: boolean = false,
 ): Promise<InstructionSourceEntry[]> {
   const format = convention.rules
   const normalizedPath = normalizePathForComparison(filePath)
@@ -333,7 +334,7 @@ export async function processRuleFile(
     handleInstructionFileReadError(error, filePath)
     return []
   }
-  const { info, reading } = readRuleSource(rawContent, filePath, type, format)
+  const { info, reading } = readRuleSource(rawContent, filePath, type, format, alone)
   if (!info.content.trim()) {
     return []
   }
@@ -436,7 +437,7 @@ export async function processRulesDir({
     const entries = await cachedRulesDirListing(fs, resolvedRulesDir)
     if (entries === null) {
       const standsAlone = format !== undefined && (await standsAsRuleFile(fs, resolvedRulesDir))
-      return standsAlone ? selected(await processRuleFile(convention, rulesDir, type, processedPaths, diagnostics)) : []
+      return standsAlone ? selected(await processRuleFile(convention, rulesDir, type, processedPaths, diagnostics, true)) : []
     }
     const ordered = format === undefined ? entries : [...entries].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
 

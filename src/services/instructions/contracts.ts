@@ -38,7 +38,7 @@ export type InstructionRuleReading =
 
 export type InstructionRuleFormat = {
   accepts(fileName: string): boolean
-  read(frontmatter: FrontmatterData, fileName: string): InstructionRuleReading
+  read(frontmatter: FrontmatterData, alone: boolean): InstructionRuleReading
 }
 
 export type InstructionFamily = 'native' | 'shared'

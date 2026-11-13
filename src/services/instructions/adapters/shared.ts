@@ -112,3 +112,21 @@ export function threeFields(frontmatter: FrontmatterData): InstructionRuleReadin
   const description = describedBy(frontmatter)
   return description === '' ? null : { kind: 'offered', description }
 }
+
+export function triggered(frontmatter: FrontmatterData): InstructionRuleReading | null {
+  const trigger = frontmatter.trigger
+  if (trigger === undefined || trigger === null) return null
+  if (trigger === 'always_on') return { kind: 'always' }
+  if (trigger === 'manual') return { kind: 'manual' }
+  if (trigger === 'glob') {
+    const patterns = vendorPatterns(frontmatter.globs)
+    return patterns.length > 0 ? scopeOf(patterns) : { kind: 'unsupported', detail: 'trigger: glob with no globs: the rule is not loaded' }
+  }
+  if (trigger === 'model_decision' || trigger === 'agent') {
+    const description = describedBy(frontmatter)
+    return description === ''
+      ? { kind: 'unsupported', detail: `trigger: ${trigger} with no description: the rule is not loaded` }
+      : { kind: 'offered', description }
+  }
+  return { kind: 'unsupported', detail: `trigger: ${String(trigger)} is not a word Mercury reads: the rule is not loaded` }
+}
