@@ -22,7 +22,7 @@ inspect: source only. Returns page count (where known), outline, table dimension
 
 cite: bibtex, references or dois; returns reference list and in-text keys (optional .md/.html/.docx output; basic article/book formats, Chicago author-date). Only dois contacts api.crossref.org (no redirects or retries; abstracts unused).
 
-Renderers: PDF create uses bundled browser (renderer:"browser") or plain pdf-lib ("plain", limited script coverage). convert uses installed LibreOffice or pandoc in a temporary profile when suitable ("libreoffice"|"pandoc"), keeping external links/fields/embedded programs off external converters; JS fallback reflows content without slide layout. Results report the road and warnings.`
+Renderers: PDF create uses bundled browser (renderer:"browser") or plain pdf-lib ("plain", limited script coverage). convert uses installed LibreOffice or pandoc in a temporary profile when suitable ("libreoffice"|"pandoc"), keeping external links/fields/embedded programs off external converters; JS fallback reflows content without slide layout. Results report the road and warnings. Check the exported pages before handing over a report.`
 
 export type DocumentIO = { read: (path: string) => Promise<Buffer>; signal: AbortSignal; owner?: import('../../services/run/ownerKey.js').OwnerKey }
 async function renderDocument(input: DocumentInput, io: DocumentIO): Promise<DocumentProduct> {
