@@ -388,6 +388,20 @@ export function encodePng(image: RgbaImage, options: { compressionLevel?: number
 }
 
 
+function repeatPixels(image: RgbaImage, factorX: number, factorY: number): RgbaImage {
+  const width = image.width * factorX
+  const height = image.height * factorY
+  const out = new Uint8Array(width * height * 4)
+  for (let y = 0; y < height; y++) {
+    const sourceRow = Math.floor(y / factorY) * image.width
+    for (let x = 0; x < width; x++) {
+      const from = (sourceRow + Math.floor(x / factorX)) * 4
+      out.set(image.data.subarray(from, from + 4), (y * width + x) * 4)
+    }
+  }
+  return { width, height, data: out }
+}
+
 function cropRgba(image: RgbaImage, region: { left: number; top: number; width: number; height: number }): RgbaImage {
   const out = new Uint8Array(region.width * region.height * 4)
   for (let y = 0; y < region.height; y++) {
@@ -398,7 +412,7 @@ function cropRgba(image: RgbaImage, region: { left: number; top: number; width: 
 }
 
 class JavascriptImageInstance implements SharpInstance {
-  private target: { width: number | null; height: number | null; withoutEnlargement: boolean } | null = null
+  private target: { width: number | null; height: number | null; withoutEnlargement: boolean; nearest: boolean } | null = null
   private region: { left: number; top: number; width: number; height: number } | null = null
   private compressionLevel = 6
 
@@ -410,8 +424,8 @@ class JavascriptImageInstance implements SharpInstance {
     return { width: header.width, height: header.height, format: header.format }
   }
 
-  resize(width: number | null, height?: number | null, options?: { fit?: string; withoutEnlargement?: boolean }): SharpInstance {
-    this.target = { width, height: height ?? null, withoutEnlargement: options?.withoutEnlargement ?? false }
+  resize(width: number | null, height?: number | null, options?: { fit?: string; withoutEnlargement?: boolean; kernel?: string }): SharpInstance {
+    this.target = { width, height: height ?? null, withoutEnlargement: options?.withoutEnlargement ?? false, nearest: options?.kernel === 'nearest' }
     return this
   }
 
@@ -442,6 +456,11 @@ class JavascriptImageInstance implements SharpInstance {
       const scale = Math.min(boxWidth / image.width, boxHeight / image.height)
       if (scale < 1 || !this.target.withoutEnlargement) {
         if (scale < 1) image = downscaleRgba(image, Math.round(image.width * scale), Math.round(image.height * scale))
+        else if (this.target.nearest && this.target.width !== null && this.target.height !== null) {
+          const factorX = this.target.width / image.width
+          const factorY = this.target.height / image.height
+          if (Number.isInteger(factorX) && Number.isInteger(factorY) && (factorX > 1 || factorY > 1)) image = repeatPixels(image, factorX, factorY)
+        }
       }
     }
     return encodePng(image, { compressionLevel: this.compressionLevel })

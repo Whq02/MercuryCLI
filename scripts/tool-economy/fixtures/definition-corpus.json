@@ -282,7 +282,7 @@
             "type": "string"
           },
           "scale": {
-            "description": "Upscale factor for the crop, within the image output budget; requires crop.",
+            "description": "Crop upscale factor, within the image budget; whole numbers repeat pixels; requires crop.",
             "type": "number",
             "minimum": 1
           },

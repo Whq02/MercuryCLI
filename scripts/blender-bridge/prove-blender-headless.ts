@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
+import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import * as net from 'node:net'
 import { tmpdir } from 'node:os'
@@ -66,6 +67,7 @@ const { _resetBlenderBridgeContextCacheForTesting } = await import('../../src/ut
 const installer = await import('../../src/services/blender/bridgeInstaller.js')
 const { readBlenderBridgeToken } = await import('../../src/services/blender/bridgeToken.js')
 const { startFakeBlenderBridge } = await import('./fake-bridge.js')
+const { getBlenderToolDescription: getBlenderToolDescriptionForScript } = await import('../../src/tools/BlenderTool/prompt.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'blender-headless-proof-'))
 const work = path.join(scratch, 'studio')
@@ -129,8 +131,9 @@ section('§1 · armed, Blender located, no client reachable: raising python_run 
       out.includes('WARN (bpy.rna): C-level engine warning'),
   )
   check(
-    'suppresses Blender banner structurally via -q (no banner lines in the answer)',
-    !out.includes('hash deadbeef') && !out.includes('Blender quit'),
+    'Blender\'s own banner line, which the binary prints even under -q, is not in the answer, and its quit line is not either',
+    !out.includes('(hash ') && !/^Blender \d/m.test(out) && !out.includes('Blender quit'),
+    out.split('\n').filter(line => line.includes('hash') || line.startsWith('Blender')).join(' | '),
   )
   check('wrote nothing to the user add-on home', readdirSync(addonHome).length === 0)
 }
@@ -192,6 +195,11 @@ section('§3 · python_run value, bounded stdout/stderr tails apart, Blender C-l
   )
   check('keeps script stderr apart from script stdout', bigRun.includes('script_stderr_only'))
   check('keeps Blender C-level stdout apart from script streams', bigRun.includes('Fra:1 Mem:24.00M'))
+  check(
+    'what Blender itself printed comes back under its heading without the banner line',
+    /^blender stdout:\nFra:1 Mem:24\.00M \(Peak 28\.00M\)$/m.test(bigRun) && !bigRun.includes('(hash '),
+    bigRun.slice(-160),
+  )
 
   const secondRun = await runWithCwdOverride(work, () =>
     callTool('python_run', { source: 'result = "persisted_marker" in globals()' }),
@@ -205,6 +213,23 @@ section('§3 · python_run value, bounded stdout/stderr tails apart, Blender C-l
       !pidAlive(calls[0]!.pid) &&
       !pidAlive(calls[1]!.pid),
   )
+  const quietRun = await runWithCwdOverride(work, () =>
+    callTool('python_run', { source: 'print("Blender 5.3.0 (hash 02f0899d78e3 built 2026-11-10 01:31:21)")\nresult = 1' }),
+  )
+  check(
+    'when the banner is all Blender printed, the answer carries no blender stdout heading at all',
+    !quietRun.includes('blender stdout:'),
+    quietRun.slice(-200),
+  )
+  check(
+    'a line of the same shape printed by the script is the script\'s own output and is kept',
+    quietRun.includes('Blender 5.3.0 (hash 02f0899d78e3 built 2026-11-10 01:31:21)\\n'),
+    quietRun.slice(0, 300),
+  )
+  process.env.FAKE_BLENDER_VERSION = '4.2.3 LTS'
+  const ltsRun = await runWithCwdOverride(work, () => callTool('python_run', { source: 'result = 2' }))
+  delete process.env.FAKE_BLENDER_VERSION
+  check('a banner with a release word after the number is dropped the same way', !ltsRun.includes('(hash ') && !ltsRun.includes('blender stdout:'), ltsRun.slice(-200))
 }
 
 section('§4 · headless scene/objects/render_state/report_tail/blend_open + fenced blend arg + render_still execute form & ceiling')
@@ -297,6 +322,24 @@ section('§4 · headless scene/objects/render_state/report_tail/blend_open + fen
     'a render exceeding its ceiling is terminated and leaves no Blender process running',
     timedOut.includes('[REQUEST_TIMEOUT]') && slowCall !== undefined && !pidAlive(slowCall.pid),
     timedOut.slice(0, 160),
+  )
+
+  fixture.clearInvocations()
+  const aborter = new AbortController()
+  const abortStarted = Date.now()
+  setTimeout(() => aborter.abort(), 300)
+  const abortedRun = (await runWithCwdOverride(work, () =>
+    BlenderTool.call(
+      { op: 'python_run', args: { source: 'import time\ntime.sleep(5)\nresult = 1' } } as never,
+      { abortController: aborter } as never,
+    ),
+  )) as { data: { result: string } }
+  const abortedMs = Date.now() - abortStarted
+  const abortedCall = fixture.invocations()[0]
+  check(
+    'an abort on this road ends the call and the Blender process long before the script would have ended',
+    abortedMs < 3_000 && abortedCall !== undefined && !pidAlive(abortedCall.pid) && /exit status:\s*[1-9]/.test(abortedRun.data.result),
+    `${abortedMs} ms · ${abortedRun.data.result.slice(0, 120)}`,
   )
 }
 
@@ -501,6 +544,200 @@ section('§7 · blender_status with no window (B-2, B-3): binary + source, versi
     afterUpgrade === '5.4.0',
     `after=${String(afterUpgrade)}`,
   )
+}
+
+section('§8 · a script file with its arguments: python_run script + argv, the form `blender -b --python <file> -- <arguments>`')
+{
+  process.env.MERCURY_BLENDER_BIN = fixture.bin
+  process.env.MERCURY_BLENDER_BRIDGE_PORT = String(await freshDeadPort())
+  process.env.MERCURY_BLENDER_BRIDGE_ADDON_DIR = addonHome
+  resetBlenderBridgeClientForTest()
+  _resetBlenderBridgeContextCacheForTesting()
+  const kitDir = path.join(work, 'tools', 'kit')
+  mkdirSync(kitDir, { recursive: true })
+  const kitRel = path.join('tools', 'kit', 'run.py')
+  const kitAbs = path.join(realpathSync(work), kitRel)
+  writeFileSync(
+    path.join(kitDir, 'run.py'),
+    [
+      'import json, sys',
+      'argv = sys.argv[sys.argv.index("--") + 1:]',
+      'print("ARGV " + json.dumps(argv))',
+      'print("NAME " + __name__)',
+      'print("FILE " + __file__)',
+      'print("COMMAND " + json.dumps(sys.argv[sys.argv.index("--python"): sys.argv.index("--") + 1]))',
+      'print("MAIN " + str(sys.modules["__main__"].__dict__ is globals()))',
+      'def build(unit):',
+      '    return {"unit": unit}',
+      'def pose(rig, yaw):',
+      '    if "--fail" in argv:',
+      '        return twist(rig, yaw)',
+      '    return yaw',
+      'def twist(rig, yaw):',
+      '    raise ValueError("could not broadcast input array from shape (355,198,3) into shape (357,198,3)")',
+      'rig = build(argv[argv.index("--unit") + 1])',
+      'yaws = argv[argv.index("--yaw") + 1].split(",")',
+      'for yaw in yaws:',
+      '    pose(rig, int(yaw))',
+      '    print("STAND@%s: ok" % yaw)',
+      'result = {"frames": len(yaws)}',
+      '',
+    ].join('\n'),
+  )
+  const bodyOf = (answer: string): { value?: string | null; stdout?: string } => {
+    const from = answer.indexOf('\n{')
+    const to = answer.indexOf('\n}', from)
+    if (from === -1 || to === -1) return {}
+    try {
+      return JSON.parse(answer.slice(from + 1, to + 2)) as { value?: string | null; stdout?: string }
+    } catch {
+      return {}
+    }
+  }
+  const sessionArgv = ['--unit', 'eques', '--yaw', '62,30,90']
+  const asPythonPrints = (words: string[]): string => `[${words.map(word => JSON.stringify(word)).join(', ')}]`
+
+  fixture.clearInvocations()
+  const ran = await runWithCwdOverride(work, () => callTool('python_run', { script: kitRel, argv: sessionArgv }))
+  const body = bodyOf(ran)
+  const stdout = body.stdout ?? ''
+  check('the script runs on the headless road with exit status 0, in one Blender', /road:\s*headless/.test(ran) && /exit status:\s*0\b/.test(ran) && fixture.invocations().length === 1, ran.slice(0, 200))
+  check('it reads exactly its own arguments after --', stdout.includes(`ARGV ${asPythonPrints(sessionArgv)}`), stdout.slice(0, 200))
+  check('it runs as __main__ with __file__ at the script, and is the __main__ module while it runs', stdout.includes('NAME __main__') && stdout.includes(`FILE ${kitAbs}`) && stdout.includes('MAIN True'), stdout.slice(0, 300))
+  check('sys.argv reads as Blender writes it: --python <the script> --', stdout.includes(`COMMAND ${asPythonPrints(['--python', kitAbs, '--'])}`), stdout.slice(0, 400))
+  check('its output comes back whole and a variable named result answers', stdout.includes('STAND@62: ok') && stdout.includes('STAND@90: ok') && String(body.value).includes("'frames': 3"), JSON.stringify(body).slice(0, 200))
+
+  const failed = await runWithCwdOverride(work, () => callTool('python_run', { script: kitRel, argv: [...sessionArgv, '--fail'] }))
+  check(
+    'a failure inside the script: a non-zero exit status and the exception named',
+    /exit status:\s*[1-9]/.test(failed) && failed.includes('[PYTHON_EXCEPTION] ValueError: could not broadcast input array'),
+    failed.slice(0, 200),
+  )
+  check(
+    'the traceback names the script\'s own lines and nothing of the road that ran it',
+    failed.includes(`File "${kitAbs}", line 19, in <module>`) &&
+      failed.includes(`File "${kitAbs}", line 12, in pose`) &&
+      failed.includes(`File "${kitAbs}", line 15, in twist`) &&
+      failed.includes('raise ValueError(') &&
+      !failed.includes('<frozen runpy>') &&
+      !failed.includes('<mercury_python_run>') &&
+      !failed.includes('driver.py'),
+    failed.slice(0, 900),
+  )
+  check('what the script printed before it failed is kept', failed.includes('NAME __main__') && failed.includes('ARGV '), failed.slice(0, 300))
+
+  const bigRel = path.join('tools', 'kit', 'big.py')
+  const padding = Array.from({ length: 1400 }, (_, i) => `PAD_${String(i).padStart(4, '0')} = "${'x'.repeat(40)}"`).join('\n')
+  writeFileSync(path.join(work, bigRel), `${padding}\nprint("BIG_OK")\n`)
+  const bigBytes = Buffer.byteLength(`${padding}\nprint("BIG_OK")\n`, 'utf8')
+  const big = await runWithCwdOverride(work, () => callTool('python_run', { script: bigRel }))
+  const bigAsSource = await runWithCwdOverride(work, () => callTool('python_run', { source: `${padding}\nprint("BIG_OK")\n` }))
+  check(
+    'a script file larger than the cap on inline source runs, with no argv given',
+    bigBytes > 64 * 1024 && /exit status:\s*0\b/.test(big) && (bodyOf(big).stdout ?? '').includes('BIG_OK') && bigAsSource.includes('[BAD_ARGS]') && bigAsSource.includes('cap'),
+    `${bigBytes} bytes · ${big.slice(0, 120)} · ${bigAsSource.slice(0, 160)}`,
+  )
+
+  fixture.clearInvocations()
+  const both = await runWithCwdOverride(work, () => callTool('python_run', { source: 'result = 1', script: kitRel }))
+  const neither = await runWithCwdOverride(work, () => callTool('python_run', {}))
+  const strayArgv = await runWithCwdOverride(work, () => callTool('python_run', { source: 'result = 1', argv: ['--unit', 'eques'] }))
+  const badArgv = await runWithCwdOverride(work, () => callTool('python_run', { script: kitRel, argv: ['--yaw', 62] }))
+  const rule = 'python_run takes exactly one of source (Python text) or script (a file inside the working tree; argv, a list of strings, are its arguments)'
+  check(
+    'source and script together, or neither: refused by the rule, and no Blender starts',
+    both === `${rule} — got both. Nothing was sent to Blender.` &&
+      neither === `${rule} — got neither. Nothing was sent to Blender.` &&
+      fixture.invocations().length === 0,
+    `${both} | ${neither} | starts=${fixture.invocations().length}`,
+  )
+  check(
+    'argv without script, or argv that is not a list of strings: refused, and no Blender starts',
+    strayArgv === 'python_run: argv comes only with script. Nothing was sent to Blender.' &&
+      badArgv === 'python_run: argv must be a list of strings. Nothing was sent to Blender.' &&
+      fixture.invocations().length === 0,
+    `${strayArgv} | ${badArgv}`,
+  )
+  const validated = (await BlenderTool.validateInput!({ op: 'python_run', args: { source: 'x = 1', script: kitRel } } as never, {} as never)) as {
+    result: boolean
+    message?: string
+  }
+  const validatedClean = (await BlenderTool.validateInput!({ op: 'python_run', args: { script: kitRel, argv: sessionArgv } } as never, {} as never)) as {
+    result: boolean
+  }
+  check(
+    'the same rule stands before the ask: a call with both is turned back, a script with argv passes',
+    validated.result === false && (validated.message ?? '').includes('got both') && validatedClean.result === true,
+    JSON.stringify(validated),
+  )
+
+  const outside = await runWithCwdOverride(work, () => callTool('python_run', { script: path.join('..', 'outside.py') }))
+  const missing = await runWithCwdOverride(work, () => callTool('python_run', { script: path.join('tools', 'kit', 'nope.py') }))
+  check('a script outside the working tree is refused before any Blender starts', /python_run: script must stay inside the working tree/.test(outside), outside.slice(0, 160))
+  check('a script that is not there answers BAD_ARGS naming the path', missing.includes('[BAD_ARGS] no script file at') && missing.includes('nope.py') && /exit status:\s*[1-9]/.test(missing), missing.slice(0, 200))
+
+  const perm = async (args: Record<string, unknown>) =>
+    (await BlenderTool.checkPermissions!({ op: 'python_run', args } as never, {} as never)) as { behavior: string; message?: string }
+  const scriptAsk = await perm({ script: kitRel, argv: sessionArgv })
+  const longAsk = await perm({ script: kitRel, argv: Array.from({ length: 60 }, (_, i) => `--flag-${i}`) })
+  const sourceAsk = await perm({ source: 'import bpy\nresult = 1' })
+  check(
+    'the ask for a script run names the file and its arguments, and keeps the authority words',
+    scriptAsk.behavior === 'ask' &&
+      (scriptAsk.message ?? '').startsWith(`Blender exec: python_run (script ${kitRel} -- --unit eques --yaw 62,30,90) — runs the file INSIDE Blender with full bpy authority`) &&
+      (scriptAsk.message ?? '').includes('no sandbox, no preemption') &&
+      !(scriptAsk.message ?? '').includes('first line:'),
+    scriptAsk.message ?? '',
+  )
+  check(
+    'long arguments are shown up to 160 characters; the ask for inline source still carries its size and first line',
+    /\(script .{159}…\)/.test(longAsk.message ?? '') && /\(\d+ bytes\)/.test(sourceAsk.message ?? '') && (sourceAsk.message ?? '').includes('first line: import bpy'),
+    `${longAsk.message ?? ''} | ${sourceAsk.message ?? ''}`,
+  )
+
+  const text = getBlenderToolDescriptionForScript()
+  check(
+    'the tool\'s text names the script form, its arguments and its place among the fenced paths, and the catalog shows both forms',
+    text.includes('python_run runs your source, or a script file with argv as its arguments after -- (one of the two)') &&
+      text.includes("python_run's script") &&
+      text.includes('python_run(source | script, argv?, show?) [exec]'),
+    text.slice(0, 200),
+  )
+
+  installer.applyBlenderBridgeInstall()
+  resetBlenderBridgeClientForTest()
+  const bridge = await startFakeBlenderBridge({ token: readBlenderBridgeToken(addonHome)! })
+  process.env.MERCURY_BLENDER_BRIDGE_PORT = String(bridge.port)
+  resetBlenderBridgeClientForTest()
+  fixture.clearInvocations()
+  const overBridge = await runWithCwdOverride(work, () => callTool('python_run', { script: kitRel, argv: sessionArgv }))
+  const carried = bridge.seenPython.at(-1) ?? ''
+  check(
+    'on the bridge road the script is carried as source the tool writes: no Blender is started and the add-on is sent an ordinary python_run',
+    /road:\s*bridge/.test(overBridge) && fixture.invocations().length === 0 && bridge.seenOps.at(-1) === 'python_run' && carried.includes(JSON.stringify(kitAbs)),
+    overBridge.slice(0, 160),
+  )
+  const carriedFile = path.join(scratch, 'carried.py')
+  writeFileSync(carriedFile, `${carried}\nimport sys\nprint("AFTER " + str(sys.argv[1:]))\nprint("RESULT " + repr(result))\nprint("LEFT " + str(sorted(n for n in globals() if n.startswith("_mercury"))))\n`)
+  let carriedOut = ''
+  try {
+    carriedOut = execFileSync('python3', [carriedFile, 'kept-word'], { encoding: 'utf8', cwd: work })
+  } catch (err) {
+    carriedOut = `python3 failed: ${(err as Error).message}`
+  }
+  check(
+    'that source, run by a Python, gives the script its arguments as __main__, hands back result, and leaves sys.argv and the namespace as it found them',
+    carriedOut.includes(`ARGV ${asPythonPrints(sessionArgv)}`) &&
+      carriedOut.includes('NAME __main__') &&
+      carriedOut.includes(`FILE ${kitAbs}`) &&
+      carriedOut.includes("AFTER ['kept-word']") &&
+      carriedOut.includes("RESULT {'frames': 3}") &&
+      carriedOut.includes('LEFT []'),
+    carriedOut.slice(0, 400),
+  )
+  check('the add-on\'s own files did not move for this', installer.blenderBridgeInstallStatus(addonHome).digestMatch === true)
+  await bridge.close()
+  resetBlenderBridgeClientForTest()
 }
 
 restoreEnv()

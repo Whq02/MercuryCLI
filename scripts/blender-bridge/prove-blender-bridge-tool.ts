@@ -38,6 +38,8 @@ const {
 const { getBlenderBridgeClient, resetBlenderBridgeClientForTest } = await import('../../src/services/blender/bridgeClient.js')
 const { _resetBlenderBridgeContextCacheForTesting } = await import('../../src/utils/blender/bridgeGates.js')
 const { computeHarnessMapLines } = await import('../../src/utils/cockpit/harnessMap.js')
+const { formatDeferredToolLine } = await import('../../src/tools/ToolSearchTool/prompt.js')
+const { searchToolsWithKeywords, clearToolSearchDescriptionCache } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.js')
 const { startFakeBlenderBridge } = await import('./fake-bridge.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'blender-bridge-tool-'))
@@ -85,6 +87,38 @@ section('§2 · ARMED — catalog + teaching surfaces + the danger sentences (th
   check('Blender tool present in a blend-less dir once a Blender is located', await runWithCwdOverride(bare, async () => hasBlender()))
   process.env.MERCURY_BLENDER_BIN = noBlender
   _resetBlenderBridgeContextCacheForTesting()
+  const rosterLine = formatDeferredToolLine(BlenderTool as never)
+  check(
+    'the roster line is shown whole and says the road with no window in its first words',
+    !rosterLine.endsWith('…') && rosterLine.startsWith('Blender — Blender with no window'),
+    rosterLine,
+  )
+  check(
+    'the roster line names a running Blender too, and the three things a session looks for',
+    rosterLine.includes('a running one') &&
+      rosterLine.includes('run Python or a script') &&
+      rosterLine.includes('render a still') &&
+      rosterLine.includes('read the scene'),
+    rosterLine,
+  )
+  check('the roster line no longer reads as the bridge alone', !rosterLine.includes('the Mercury bridge'), rosterLine)
+  const oneLine = await BlenderTool.description({} as never, {} as never)
+  check(
+    'the one-line description says both roads: the background with no window when no bridge answers, a running Blender when one does',
+    oneLine.includes('in the background with no window when no bridge answers') &&
+      oneLine.includes('a running Blender when one does') &&
+      !oneLine.startsWith('Drive the running Blender'),
+    oneLine,
+  )
+  clearToolSearchDescriptionCache()
+  check(
+    'a search for headless or for background finds the tool by its search words',
+    (await searchToolsWithKeywords('+headless', [BlenderTool as never], [BlenderTool as never], 5)).includes('Blender') &&
+      (await searchToolsWithKeywords('+background', [BlenderTool as never], [BlenderTool as never], 5)).includes('Blender') &&
+      (BlenderTool.searchKeywords ?? []).includes('headless') &&
+      (BlenderTool.searchKeywords ?? []).includes('background'),
+    JSON.stringify(BlenderTool.searchKeywords ?? null),
+  )
   const desc = getBlenderToolDescription()
   check('description carries the verb catalog', desc.includes('python_run') && desc.includes('objects_list') && desc.includes('blender_bridge_install'))
   check('description says once that the connection holds across opens and renders', desc.split('The connection holds across blend_open and renders.').length === 2 && !desc.includes('NO-RELOAD'))
@@ -175,6 +209,31 @@ section('§3 · the permission ladder rides the contract classes')
   check('the python_run ask names full bpy authority + no preemption', /full bpy authority/.test(py.message ?? '') && /no preemption/.test(py.message ?? ''))
   const still = await perm('render_still', { outputPath: '/tmp/x.png' })
   check('render_still ⇒ ask naming the durable file', still.behavior === 'ask' && /durable result/.test(still.message ?? ''))
+  const scriptRun = await perm('python_run', { script: 'tools/kit/run.py', argv: ['--unit', 'eques'] })
+  check(
+    'each ask that starts or changes something says in one sentence what happens with no bridge answering: python_run, by source and by script',
+    (py.message ?? '').includes(
+      'a runaway script blocks Blender). With no bridge answering, a background Blender with no window is started for this call and ends with it. first line: import bpy',
+    ) &&
+      (scriptRun.message ?? '').endsWith(
+        'a runaway script blocks Blender). With no bridge answering, a background Blender with no window is started for this call and ends with it.',
+      ),
+    `${py.message ?? ''} | ${scriptRun.message ?? ''}`,
+  )
+  check(
+    'render_still: the render is made before the call returns, and the Blender ends',
+    (still.message ?? '').endsWith(
+      '(render_finished reports the end). With no bridge answering, a background Blender with no window renders it before the call returns, and ends.',
+    ),
+    still.message ?? '',
+  )
+  check(
+    'blend_open: the file is opened to check it, and nothing stays open',
+    (open.message ?? '').endsWith(
+      'refuses with BLEND_DIRTY if there are unsaved changes). With no bridge answering, a background Blender with no window opens the file to check it and ends; nothing stays open.',
+    ),
+    open.message ?? '',
+  )
   const install = await perm('blender_bridge_install')
   check('blender_bridge_install ⇒ mutate ask naming its writes + the enable act', install.behavior === 'ask' && /user addon home/.test(install.message ?? '') && /your act/.test(install.message ?? ''))
   const uninstall = await perm('blender_bridge_uninstall')
@@ -234,7 +293,7 @@ section('§5 · the wire path through the real tool, against the fake')
   delete process.env.MERCURY_BLENDER
 }
 
-section('§6 · the contract promises no cancellation: an abort does not end a request the bridge is holding')
+section('§6 · an abort ends a call the bridge is holding, and the contract says what it sees')
 {
   process.env.MERCURY_BLENDER = '1'
   process.env.MERCURY_BLENDER_BIN = noBlender
@@ -253,22 +312,52 @@ section('§6 · the contract promises no cancellation: an abort does not end a r
   })
   const until = Date.now() + 2_000
   while (!held.seenOps.includes('scene_info') && Date.now() < until) await sleep(5)
+  const connectionsWhenHeld = held.connectionCount()
+  const abortedAt = Date.now()
   controller.abort()
   await sleep(150)
-  const pendingAfterAbort = !settled
-  await held.close()
-  const answer = await pending
+  const settledAfterAbort = settled
+  const answer = settled ? await pending : null
+  const tookMs = Date.now() - abortedAt
   check('the bridge had received the operation when the abort came', held.seenOps.includes('scene_info'))
   check(
-    'the aborted call is still waiting 150 ms later and settles only when the connection ends',
-    pendingAfterAbort && answer.data.result.includes('[CONNECTION_LOST]'),
-    `pending after abort=${pendingAfterAbort} · ${answer.data.result.split('\n').slice(0, 2).join(' | ').slice(0, 160)}`,
+    'the aborted call has returned 150 ms later, and the client has not dropped or remade its connection',
+    settledAfterAbort && held.connectionCount() === connectionsWhenHeld,
+    `settled=${settledAfterAbort} after ${tookMs} ms · connections ${connectionsWhenHeld} → ${held.connectionCount()}`,
   )
   check(
-    'so the capability contract says not-applicable, and neither cooperative nor kill',
-    BlenderTool.capability?.cancellation === 'not-applicable',
+    'its answer names the abort and says that Blender may still finish what the bridge had taken',
+    answer !== null &&
+      answer.data.result.includes('scene_info failed: [REQUEST_ABORTED] scene_info was aborted before the bridge answered') &&
+      answer.data.result.includes('Blender may still finish it'),
+    answer === null ? 'still pending' : answer.data.result.split('\n').slice(0, 3).join(' | ').slice(0, 260),
+  )
+  held.setMode('echo')
+  const next = await runWithCwdOverride(work, () => callTool('scene_info'))
+  check(
+    'the connection stands after the abort: the next call is answered over it, with no new connection made',
+    next.includes('road: bridge') && next.includes('"engine": "BLENDER_EEVEE"') && held.connectionCount() === connectionsWhenHeld,
+    `${next.split('\n')[0]} · connections ${connectionsWhenHeld} → ${held.connectionCount()}`,
+  )
+  const early = new AbortController()
+  early.abort()
+  const opsBefore = held.seenOps.length
+  const neverSent = (await runWithCwdOverride(work, () =>
+    BlenderTool.call({ op: 'objects_list' } as never, { abortController: early } as never),
+  )) as { data: { result: string } }
+  check(
+    'a call whose abort came before it was sent never reaches the bridge',
+    neverSent.data.result.includes('[REQUEST_ABORTED] objects_list was aborted before it was sent to Blender') &&
+      held.seenOps.length === opsBefore,
+    neverSent.data.result.split('\n').slice(0, 2).join(' | ').slice(0, 200),
+  )
+  if (!settled) await held.close()
+  check(
+    'so the capability contract says cooperative: an abort ends the call, and the tool does not claim to stop Blender',
+    BlenderTool.capability?.cancellation === 'cooperative',
     String(BlenderTool.capability?.cancellation),
   )
+  await held.close()
   delete process.env.MERCURY_BLENDER_BRIDGE_PORT
   delete process.env.MERCURY_BLENDER_BIN
   resetBlenderBridgeClientForTest()

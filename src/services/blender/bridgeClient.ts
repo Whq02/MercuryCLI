@@ -65,6 +65,18 @@ function err(code: string, message: string, hint?: string): BlenderBridgeResult 
   return { ok: false, error: { code, message, ...(hint ? { hint } : {}) } }
 }
 
+function abortedBeforeSending(op: string): BlenderBridgeResult {
+  return err('REQUEST_ABORTED', `${op} was aborted before it was sent to Blender`)
+}
+
+function abortedWhileHeld(op: string): BlenderBridgeResult {
+  return err(
+    'REQUEST_ABORTED',
+    `${op} was aborted before the bridge answered`,
+    'the bridge had taken the operation, and Blender may still finish it (bpy cannot abort a running script or render); op:"render_state" or op:"scene_info" reads where it stands',
+  )
+}
+
 interface Pending {
   resolve: (r: BlenderBridgeResult) => void
   timer: NodeJS.Timeout
@@ -80,7 +92,7 @@ export class BlenderBridgeClient {
   private buf = ''
   private nextId = 1
   private pending = new Map<number, Pending>()
-  private queue: Array<{ op: string; args: Record<string, unknown> | undefined; timeoutMs: number; resolve: (r: BlenderBridgeResult) => void; queueTimer: NodeJS.Timeout | null }> = []
+  private queue: Array<{ op: string; args: Record<string, unknown> | undefined; timeoutMs: number; signal: AbortSignal | undefined; resolve: (r: BlenderBridgeResult) => void; queueTimer: NodeJS.Timeout | null }> = []
   private helloTimer: NodeJS.Timeout | null = null
   private events: BlenderBridgeEvent[] = []
   private heartbeat: NodeJS.Timeout | null = null
@@ -143,9 +155,11 @@ export class BlenderBridgeClient {
     op: string,
     args?: Record<string, unknown>,
     timeoutMs: number = DEFAULT_REQUEST_TIMEOUT_MS,
+    signal?: AbortSignal,
   ): Promise<BlenderBridgeResult> {
     if (this.closed) return err('CLIENT_CLOSED', 'the Blender bridge client was closed')
-    if (this.state === 'ready') return this.send(op, args, timeoutMs)
+    if (signal?.aborted) return abortedBeforeSending(op)
+    if (this.state === 'ready') return this.send(op, args, timeoutMs, signal)
     const remaining = this.backoffRemainingMs()
     if (remaining > 0) {
       return err(
@@ -155,17 +169,28 @@ export class BlenderBridgeClient {
       )
     }
     return new Promise<BlenderBridgeResult>(resolve => {
+      const onAbort = (): void => {
+        const i = this.queue.indexOf(entry)
+        if (i < 0) return
+        this.queue.splice(i, 1)
+        if (entry.queueTimer) clearTimeout(entry.queueTimer)
+        resolve(abortedBeforeSending(op))
+      }
       const entry = {
         op,
         args,
         timeoutMs,
-        resolve,
+        signal,
+        resolve: (r: BlenderBridgeResult): void => {
+          signal?.removeEventListener('abort', onAbort)
+          resolve(r)
+        },
         queueTimer: null as NodeJS.Timeout | null,
       }
       entry.queueTimer = setTimeout(() => {
         const i = this.queue.indexOf(entry)
         if (i >= 0) this.queue.splice(i, 1)
-        resolve(
+        entry.resolve(
           err(
             'REQUEST_TIMEOUT',
             `${op} timed out after ${timeoutMs}ms waiting for the bridge connection`,
@@ -174,6 +199,7 @@ export class BlenderBridgeClient {
         )
       }, timeoutMs)
       entry.queueTimer.unref?.()
+      signal?.addEventListener('abort', onAbort, { once: true })
       this.queue.push(entry)
       if (this.state === 'disconnected') this.connect()
     })
@@ -267,7 +293,7 @@ export class BlenderBridgeClient {
         const queued = this.queue.splice(0)
         for (const q of queued) {
           if (q.queueTimer) clearTimeout(q.queueTimer)
-          void this.send(q.op, q.args, q.timeoutMs).then(q.resolve)
+          void this.send(q.op, q.args, q.timeoutMs, q.signal).then(q.resolve)
         }
       } else {
         const e = 'error' in frame ? frame.error : undefined
@@ -298,16 +324,29 @@ export class BlenderBridgeClient {
     op: string,
     args: Record<string, unknown> | undefined,
     timeoutMs: number,
+    signal?: AbortSignal,
   ): Promise<BlenderBridgeResult> {
     const socket = this.socket
     if (!socket || this.state !== 'ready') {
       return Promise.resolve(err('CONNECTION_LOST', `connection lost before ${op} was sent`))
     }
+    if (signal?.aborted) return Promise.resolve(abortedBeforeSending(op))
     const id = this.nextId++
     return new Promise<BlenderBridgeResult>(resolve => {
+      const onAbort = (): void => {
+        const held = this.pending.get(id)
+        if (!held) return
+        this.pending.delete(id)
+        clearTimeout(held.timer)
+        resolve(abortedWhileHeld(op))
+      }
+      const settle = (r: BlenderBridgeResult): void => {
+        signal?.removeEventListener('abort', onAbort)
+        resolve(r)
+      }
       const timer = setTimeout(() => {
         this.pending.delete(id)
-        resolve(
+        settle(
           err(
             'REQUEST_TIMEOUT',
             `${op} did not answer within ${timeoutMs}ms`,
@@ -316,7 +355,8 @@ export class BlenderBridgeClient {
         )
       }, timeoutMs)
       timer.unref?.()
-      this.pending.set(id, { resolve, timer, op })
+      this.pending.set(id, { resolve: settle, timer, op })
+      signal?.addEventListener('abort', onAbort, { once: true })
       socket.write(buildBlenderBridgeRequestFrame(id, op, args))
     })
   }

@@ -75,8 +75,7 @@ elif "-P" in argv:
     if idx + 1 < len(argv):
         script_path = argv[idx + 1]
 
-if not quiet:
-    os.write(1, ("Blender %s (hash deadbeef)\\n" % VERSION).encode("utf-8"))
+os.write(1, ("Blender %s (hash 02f0899d78e3 built 2026-11-10 01:31:21)\\n" % VERSION).encode("utf-8"))
 
 c_out = os.environ.get("FAKE_BLENDER_C_STDOUT", "")
 if c_out:
@@ -266,8 +265,17 @@ def install_fake_modules():
             parent = os.path.dirname(out)
             if parent:
                 os.makedirs(parent, exist_ok=True)
+            png = os.environ.get("FAKE_BLENDER_RENDER_PNG", "")
             with open(out, "wb") as fh:
-                fh.write(("FAKE-HEADLESS-PNG:%d\\n" % scn.frame_current).encode("utf-8"))
+                if png:
+                    import struct, zlib
+                    width, height = (int(n) for n in png.split("x"))
+                    rows = b"".join(b"\\x00" + b"".join(bytes((176, 46, 43)) if (x // 4 + y // 4) % 2 else bytes((78, 110, 62)) for x in range(width)) for y in range(height))
+                    def chunk(tag, data):
+                        return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data) & 0xffffffff)
+                    fh.write(b"\\x89PNG\\r\\n\\x1a\\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(rows, 9)) + chunk(b"IEND", b""))
+                else:
+                    fh.write(("FAKE-HEADLESS-PNG:%d\\n" % scn.frame_current).encode("utf-8"))
         for cb in list(handlers_ns.render_complete):
             cb(scn)
         return {"FINISHED"}

@@ -36,6 +36,7 @@ export const BLENDER_BRIDGE_CLIENT_ERROR_CODES = [
   'CONNECTION_LOST',
   'EDITOR_UNREACHABLE',
   'REQUEST_TIMEOUT',
+  'REQUEST_ABORTED',
   'CLIENT_CLOSED',
   'BAD_FRAME',
   'BRIDGE_VERSION_SKEW',
@@ -57,6 +58,7 @@ export interface BlenderBridgeVerbSpec {
   cls: BlenderBridgeVerbClass
   summary: string
   args: Readonly<Record<string, string>>
+  signature?: string
 }
 
 export const BLENDER_BRIDGE_VERBS = {
@@ -97,6 +99,7 @@ export const BLENDER_BRIDGE_VERBS = {
       outputPath:
         'absolute output image path (the tool resolves and fences before sending); the file at this path is the durable result',
       frame: 'optional number — frame to render (default: the current frame)',
+      show: 'optional true — on the headless road the image at outputPath is returned with the answer; on the bridge the image is not written when the call answers',
     },
   },
   report_tail: {
@@ -111,10 +114,15 @@ export const BLENDER_BRIDGE_VERBS = {
   python_run: {
     cls: 'exec',
     summary:
-      'Execute Python source inside Blender on the main thread (exec with a persistent namespace; a variable named `result` answers as its repr). NO sandbox, NO preemption — both sentences are contract; stdout/stderr captured and capped with truncation counted; a raise answers PYTHON_EXCEPTION honestly',
+      'Execute Python source, or a script file with its arguments, inside Blender on the main thread (exec with a persistent namespace; a variable named `result` answers as its repr). NO sandbox, NO preemption — both sentences are contract; stdout/stderr captured and capped with truncation counted; a raise answers PYTHON_EXCEPTION honestly',
     args: {
-      source: `Python source to exec inside Blender (≤ ${BLENDER_BRIDGE_PYTHON_SOURCE_CAP_BYTES} bytes; stdout/stderr each capped at ${BLENDER_BRIDGE_PYTHON_OUTPUT_CAP_BYTES} bytes, truncation counted)`,
+      source: `Python source to exec inside Blender (≤ ${BLENDER_BRIDGE_PYTHON_SOURCE_CAP_BYTES} bytes; stdout/stderr each capped at ${BLENDER_BRIDGE_PYTHON_OUTPUT_CAP_BYTES} bytes, truncation counted); exactly one of source or script`,
+      script:
+        'a Python file inside the working tree, run as __main__ in place of source (the tool resolves and fences before sending; no source cap applies to a file)',
+      argv: 'optional array of strings — the arguments of script, read from sys.argv after -- as on the Blender command line; only with script',
+      show: 'optional list — at most four pictures the run writes, each a path or {path, crop, scale} with crop and scale as Read takes them; returned with the answer',
     },
+    signature: 'python_run(source | script, argv?, show?)',
   },
 } as const satisfies Record<string, BlenderBridgeVerbSpec>
 

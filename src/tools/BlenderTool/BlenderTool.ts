@@ -23,6 +23,7 @@ import {
 import { locateBlender } from '../../services/ide/blenderProject.js'
 import { blenderBridgeEnabled, blenderBridgePort } from '../../utils/blender/bridgeGates.js'
 import { BLENDER_TOOL_NAME, getBlenderToolDescription } from './prompt.js'
+import { SHOWN_AT_MOST, SHOW_SHAPE_RULE, parseShowList, readShown, showTargets, stampShown, type ShowEntry, type ShownPart } from './show.js'
 import {
   renderToolResultMessage,
   renderToolUseErrorMessage,
@@ -45,6 +46,7 @@ export type Input = z.infer<SchemaType>
 export type Output = {
   op: string
   result: string
+  shown?: ShownPart[]
 }
 
 const LOCAL_OPS = new Set(['blender_status', 'blender_bridge_install', 'blender_bridge_uninstall'])
@@ -98,6 +100,11 @@ function fencePathArgs(
     if (check.refusal) return { refusal: check.refusal }
     next[primaryKey] = check.resolved
   }
+  if (op === 'python_run' && typeof next.script === 'string' && next.script.length > 0) {
+    const check = resolveInsideTree(op, 'script', next.script)
+    if (check.refusal) return { refusal: check.refusal }
+    next.script = check.resolved
+  }
   if (typeof next.blend === 'string') {
     const check = resolveInsideTree(op, 'blend', next.blend)
     if (check.refusal) return { refusal: check.refusal }
@@ -115,9 +122,43 @@ function readTargets(input: Input): string[] {
   const args = input.args
   const blend = typeof args?.blend === 'string' ? args.blend : undefined
   const named = typeof args?.path === 'string' && (input.op === 'blend_open' || blend === undefined) ? args.path : undefined
-  return [blend, named]
-    .filter((target): target is string => target !== undefined && target.length > 0)
-    .map(target => path.resolve(getCwd(), target))
+  const script = input.op === 'python_run' && typeof args?.script === 'string' ? args.script : undefined
+  return [
+    ...[blend, named, script]
+      .filter((target): target is string => target !== undefined && target.length > 0)
+      .map(target => path.resolve(getCwd(), target)),
+    ...showTargets(showEntriesOf(input).slice(0, SHOWN_AT_MOST)),
+  ]
+}
+
+function showEntriesOf(input: Input): ShowEntry[] {
+  if (input.op === 'render_still') {
+    const target = input.args?.show === true ? input.args.outputPath : undefined
+    return typeof target === 'string' && target.length > 0 ? [{ path: target }] : []
+  }
+  if (input.op !== 'python_run') return []
+  const parsed = parseShowList(input.args?.show)
+  return 'entries' in parsed ? parsed.entries : []
+}
+
+type RoadTrace = { road?: 'headless' | 'bridge'; taken?: boolean }
+
+async function shownAfter(
+  input: Input,
+  entries: readonly ShowEntry[],
+  before: ReturnType<typeof stampShown>,
+  trace: RoadTrace,
+): Promise<ShownPart[]> {
+  if (entries.length === 0 || trace.road === undefined) return []
+  if (input.op === 'render_still' && trace.road === 'bridge') {
+    return trace.taken ? [{ kind: 'note', text: `show: the picture is not written yet; it will land at ${showTargets(entries)[0]}` }] : []
+  }
+  return readShown(entries, before)
+}
+
+function showNamed(entries: readonly ShowEntry[], cap = 160): string {
+  const names = entries.map(entry => entry.path).join(', ')
+  return names.length > cap ? names.slice(0, cap - 1) + '…' : names
 }
 
 function firstSourceLine(args: Record<string, unknown> | undefined): string {
@@ -128,6 +169,61 @@ function firstSourceLine(args: Record<string, unknown> | undefined): string {
 
 function sourceBytes(args: Record<string, unknown> | undefined): number {
   return typeof args?.source === 'string' ? Buffer.byteLength(args.source, 'utf8') : 0
+}
+
+function scriptOf(args: Record<string, unknown> | undefined): string | undefined {
+  return typeof args?.script === 'string' && args.script.length > 0 ? args.script : undefined
+}
+
+function argvOf(args: Record<string, unknown> | undefined): string[] {
+  return Array.isArray(args?.argv) ? args.argv.filter((word): word is string => typeof word === 'string') : []
+}
+
+function pythonRunShapeProblem(args: Record<string, unknown> | undefined): string | undefined {
+  const hasSource = typeof args?.source === 'string' && args.source.length > 0
+  const hasScript = scriptOf(args) !== undefined
+  if (hasSource === hasScript) {
+    return `python_run takes exactly one of source (Python text) or script (a file inside the working tree; argv, a list of strings, are its arguments) — got ${hasSource ? 'both' : 'neither'}. Nothing was sent to Blender.`
+  }
+  if (args?.argv !== undefined) {
+    if (!hasScript) return 'python_run: argv comes only with script. Nothing was sent to Blender.'
+    if (!Array.isArray(args.argv) || args.argv.some(word => typeof word !== 'string')) {
+      return 'python_run: argv must be a list of strings. Nothing was sent to Blender.'
+    }
+  }
+  if ('problem' in parseShowList(args?.show)) return `python_run: ${SHOW_SHAPE_RULE}. Nothing was sent to Blender.`
+  return undefined
+}
+
+function scriptCallShown(args: Record<string, unknown> | undefined, cap = 160): string {
+  const argv = argvOf(args)
+  const shown = `${scriptOf(args) ?? ''}${argv.length > 0 ? ` -- ${argv.join(' ')}` : ''}`
+  return shown.length > cap ? shown.slice(0, cap - 1) + '…' : shown
+}
+
+function scriptAsBridgeSource(script: string, argv: string[]): string {
+  return [
+    'def _mercury_run_script():',
+    '    import sys',
+    `    script = ${JSON.stringify(script)}`,
+    '    saved = sys.argv',
+    `    sys.argv = [saved[0] if saved else "blender", "--python", script, "--"] + ${JSON.stringify(argv)}`,
+    '    names = {"__name__": "__main__", "__file__": script}',
+    '    try:',
+    '        with open(script, "rb") as handle:',
+    '            code = compile(handle.read(), script, "exec")',
+    '        exec(code, names)',
+    '    finally:',
+    '        sys.argv = saved',
+    '    return names',
+    'try:',
+    '    _mercury_script_names = _mercury_run_script()',
+    '    if "result" in _mercury_script_names:',
+    '        result = _mercury_script_names["result"]',
+    '    del _mercury_script_names',
+    'finally:',
+    '    del _mercury_run_script',
+  ].join('\n')
 }
 
 function formatResult(result: unknown): string {
@@ -157,13 +253,23 @@ async function runLocalOp(op: string): Promise<string> {
   }
 }
 
-async function runOp(input: Input, abortSignal?: AbortSignal): Promise<string> {
+function withoutShow(args: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  if (args === undefined || !('show' in args)) return args
+  const { show: _shown, ...rest } = args
+  return rest
+}
+
+async function runOp(input: Input, abortSignal?: AbortSignal, trace?: RoadTrace): Promise<string> {
   if (LOCAL_OPS.has(input.op)) return runLocalOp(input.op)
   const spec = blenderBridgeVerb(input.op)
   if (!spec) {
     return `unknown op "${input.op}" — the wire verbs: ${blenderBridgeVerbNames().join(', ')}; local: blender_status, blender_bridge_install, blender_bridge_uninstall (the tool description carries the full catalog)`
   }
-  const fenced = fencePathArgs(input.op, input.args)
+  if (input.op === 'python_run') {
+    const problem = pythonRunShapeProblem(input.args)
+    if (problem) return problem
+  }
+  const fenced = fencePathArgs(input.op, withoutShow(input.args))
   if (fenced.refusal) return fenced.refusal
   if (!blenderBridgeEnabled()) {
     return `the Blender bridge is not available here (flag off, no addon home resolves, or no session token on disk: op:"blender_bridge_install" writes it) — op:"blender_status" explains`
@@ -185,6 +291,7 @@ async function runOp(input: Input, abortSignal?: AbortSignal): Promise<string> {
           : input.op !== 'blend_open' && typeof fenced.args?.path === 'string'
             ? fenced.args.path
             : undefined
+      if (trace) trace.road = 'headless'
       return runBlenderHeadlessOp({
         bin: census.blender.path,
         op: input.op,
@@ -197,7 +304,12 @@ async function runOp(input: Input, abortSignal?: AbortSignal): Promise<string> {
       return `the Blender bridge is not available here (flag off, no addon home resolves, or no session token on disk: op:"blender_bridge_install" writes it) — op:"blender_status" explains`
     }
   }
-  const r = await client.request(input.op, fenced.args, 30_000)
+  const bridgeScript = input.op === 'python_run' ? scriptOf(fenced.args) : undefined
+  const wireArgs =
+    bridgeScript !== undefined ? { source: scriptAsBridgeSource(bridgeScript, argvOf(fenced.args)) } : fenced.args
+  if (trace) trace.road = 'bridge'
+  const r = await client.request(input.op, wireArgs, 30_000, abortSignal)
+  if (trace) trace.taken = r.ok
   let text: string
   if (r.ok) {
     text = formatResult(r.result)
@@ -217,11 +329,12 @@ async function runOp(input: Input, abortSignal?: AbortSignal): Promise<string> {
 export const BlenderTool = buildTool({
   name: BLENDER_TOOL_NAME,
   get searchHint() {
-    return 'Blender control (the Mercury bridge): scene/objects truth, blend opens, still renders, report tail, python_run'
+    return 'Blender with no window, or a running one: run Python or a script, render a still, read the scene'
   },
+  searchKeywords: ['headless', 'background'],
   maxResultSizeChars: 100_000,
   async description() {
-    return 'Drive the running Blender: scene and object truth, .blend opens, render state and still renders, the report tail, and python_run'
+    return 'Run Blender in the background with no window when no bridge answers, or drive a running Blender when one does: run Python or a script, render a still, read the scene and its objects, open a .blend, read the render state and the report tail'
   },
   async prompt() {
     return getBlenderToolDescription()
@@ -240,7 +353,7 @@ export const BlenderTool = buildTool({
     class: 'mutation',
     operations: [...blenderBridgeVerbNames(), ...LOCAL_OPS],
     evidence: ['artifact'],
-    cancellation: 'not-applicable',
+    cancellation: 'cooperative',
     latency: 'interactive',
     gate: 'MERCURY_BLENDER',
     conditions: [
@@ -281,41 +394,71 @@ export const BlenderTool = buildTool({
     }
     if (spec.cls === 'exec') {
       if (input.op === 'python_run') {
+        const script = scriptOf(input.args)
         return {
           behavior: 'ask' as const,
           message:
-            `Blender exec: python_run (${sourceBytes(input.args)} bytes) — runs Python INSIDE Blender with full bpy authority ` +
+            (script !== undefined
+              ? `Blender exec: python_run (script ${scriptCallShown(input.args)}) — runs the file INSIDE Blender with full bpy authority `
+              : `Blender exec: python_run (${sourceBytes(input.args)} bytes) — runs Python INSIDE Blender with full bpy authority `) +
             `(it can modify or delete scene data and write files as you; no sandbox, no preemption — a runaway script blocks Blender). ` +
-            `first line: ${firstSourceLine(input.args) || '(empty)'}`,
+            `With no bridge answering, a background Blender with no window is started for this call and ends with it.` +
+            (showEntriesOf(input).length > 0 ? ` Shows: ${showNamed(showEntriesOf(input))}.` : '') +
+            (script !== undefined ? '' : ` first line: ${firstSourceLine(input.args) || '(empty)'}`),
         }
       }
       return {
         behavior: 'ask' as const,
-        message: `Blender exec: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} — starts a render job in Blender; the durable result is the image file at outputPath (render_finished reports the end)`,
+        message: `Blender exec: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} — starts a render job in Blender; the durable result is the image file at outputPath (render_finished reports the end). With no bridge answering, a background Blender with no window renders it before the call returns, and ends.`,
       }
     }
     return {
       behavior: 'ask' as const,
-      message: `Blender mutate: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} switches the open .blend (no undo step; refuses with BLEND_DIRTY if there are unsaved changes)`,
+      message: `Blender mutate: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} switches the open .blend (no undo step; refuses with BLEND_DIRTY if there are unsaved changes). With no bridge answering, a background Blender with no window opens the file to check it and ends; nothing stays open.`,
     }
   },
   async validateInput(input: Input) {
     if (!input.op || input.op.trim().length === 0) {
       return { result: false as const, message: 'op is required', errorCode: 1 }
     }
+    if (input.op === 'python_run') {
+      const problem = pythonRunShapeProblem(input.args)
+      if (problem) return { result: false as const, message: problem, errorCode: 2 }
+    }
     return { result: true as const }
   },
   async call(input: Input, context) {
     let result: string
+    const entries = showEntriesOf(input)
+    const before = entries.length > 0 ? stampShown(entries) : []
+    const trace: RoadTrace = {}
     try {
-      result = await runOp(input, context?.abortController?.signal)
+      result = await runOp(input, context?.abortController?.signal, trace)
     } catch (err) {
       result = `${input.op} failed: ${(err as Error).message}\nhint: ${blenderBridgeHint(blenderBridgePort())}`
     }
-    const output: Output = { op: input.op, result }
+    const shown = await shownAfter(input, entries, before, trace)
+    const output: Output = { op: input.op, result, ...(shown.length > 0 ? { shown } : {}) }
     return { data: output }
   },
   mapToolResultToToolResultBlockParam(output: Output, toolUseId: string) {
+    if (output.shown !== undefined && output.shown.length > 0) {
+      return {
+        tool_use_id: toolUseId,
+        type: 'tool_result' as const,
+        content: [
+          { type: 'text' as const, text: output.result },
+          ...output.shown.flatMap(part =>
+            part.kind === 'note'
+              ? [{ type: 'text' as const, text: part.text }]
+              : [
+                  { type: 'text' as const, text: part.caption },
+                  { type: 'image' as const, source: { type: 'base64' as const, media_type: part.mediaType, data: part.base64 } },
+                ],
+          ),
+        ],
+      }
+    }
     return {
       tool_use_id: toolUseId,
       type: 'tool_result' as const,

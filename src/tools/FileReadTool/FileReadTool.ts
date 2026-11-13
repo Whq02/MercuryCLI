@@ -145,7 +145,7 @@ const stockFields = () => ({
     .describe(
       `PDF page range ("2-6"), at most ${MAX_PDF_PAGES_PER_REQUEST} pages per call; page pictures on a model with image input, text otherwise.`,
     ),
-  scale: semanticNumber(z.number().min(1).optional()).describe('Upscale factor for the crop, within the image output budget; requires crop.'),
+  scale: semanticNumber(z.number().min(1).optional()).describe('Crop upscale factor, within the image budget; whole numbers repeat pixels; requires crop.'),
   crop: z
     .array(semanticNumber(z.number().int().min(0)))
     .length(4)
@@ -508,7 +508,7 @@ function isBlockingDevicePath(path: string): boolean {
 
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp'])
 
-function hasImageSignature(path: string): boolean {
+export function hasImageSignature(path: string): boolean {
   const fd = openSync(path, constants.O_RDONLY | constants.O_NONBLOCK)
   try {
     if (!fstatSync(fd).isFile()) return false
@@ -587,11 +587,11 @@ type ImageOutput = Extract<Output, { type: 'image' }>
 
 type CropBox = readonly [number, number, number, number]
 
-async function cropImageBuffer(buffer: Buffer, crop: CropBox, filePath: string, scale = 1): Promise<{ buffer: Buffer; full: { width: number; height: number } }> {
-  const [x1, y1, x2, y2] = crop
+async function cropImageBuffer(buffer: Buffer, crop: CropBox, filePath: string, scale = 1): Promise<{ buffer: Buffer; full: { width: number; height: number }; box: CropBox }> {
+  const [x1, y1] = crop
   const box = `[${crop.join(', ')}]`
   if (crop.length !== 4 || crop.some(value => !Number.isInteger(value) || value < 0)) throw new Error(`crop refused: ${box} must be four non-negative integers in the image's own pixels (x1, y1, x2, y2)`)
-  if (x2 <= x1 || y2 <= y1) throw new Error(`crop refused: ${box} is inverted or empty — x2 must exceed x1 and y2 must exceed y1`)
+  if (crop[2] <= x1 || crop[3] <= y1) throw new Error(`crop refused: ${box} is inverted or empty — x2 must exceed x1 and y2 must exceed y1`)
   const { getImageProcessor } = await import('./imageProcessor.js')
   const { imageDimensionsFromHeader } = await import('./imageProcessorJs.js')
   const sharp = await getImageProcessor()
@@ -600,14 +600,16 @@ async function cropImageBuffer(buffer: Buffer, crop: CropBox, filePath: string, 
   const width = metadata.width ?? header?.width
   const height = metadata.height ?? header?.height
   if (width === undefined || height === undefined) throw new Error(`crop refused: the size of ${filePath} could not be read, so ${box} cannot be checked against it`)
-  if (x2 > width || y2 > height) throw new Error(`crop refused: ${box} reaches outside the image, which is ${width}x${height} px`)
+  if (x1 >= width || y1 >= height) throw new Error(`crop refused: ${box} reaches outside the image, which is ${width}x${height} px`)
+  const x2 = Math.min(crop[2], width)
+  const y2 = Math.min(crop[3], height)
   if (!Number.isFinite(scale) || scale < 1) throw new Error('scale must be a finite number of at least 1.')
   const cropWidth = x2 - x1
   const cropHeight = y2 - y1
   let processor = sharp(buffer).extract({ left: x1, top: y1, width: cropWidth, height: cropHeight })
-  if (scale !== 1) processor = processor.resize(Math.round(cropWidth * scale), Math.round(cropHeight * scale), { fit: 'fill', withoutEnlargement: false })
+  if (scale !== 1) processor = processor.resize(Math.round(cropWidth * scale), Math.round(cropHeight * scale), { fit: 'fill', withoutEnlargement: false, ...(Number.isInteger(scale) ? { kernel: 'nearest' } : {}) })
   const cropped = await processor.png({ compressionLevel: 6 }).toBuffer()
-  return { buffer: cropped, full: { width, height } }
+  return { buffer: cropped, full: { width, height }, box: [x1, y1, x2, y2] }
 }
 
 export async function readImageWithTokenBudget(
@@ -616,7 +618,7 @@ export async function readImageWithTokenBudget(
   maxBytes?: number,
   crop?: CropBox,
   scale = 1,
-): Promise<ImageOutput & { cropped?: { box: CropBox; full: { width: number; height: number } } }> {
+): Promise<ImageOutput & { cropped?: { box: CropBox; asked?: CropBox; full: { width: number; height: number } } }> {
   const file = readRegularFileSync(filePath)
   if (file.length === 0) {
     throw new Error(`Empty image file (zero bytes): ${filePath}`)
@@ -625,7 +627,8 @@ export async function readImageWithTokenBudget(
   const buffer = cut === null ? file : cut.buffer
   const detected = detectImageFormatFromBuffer(buffer)
   const detectedSubtype = detected.split('/')[1] || 'png'
-  const cropped = cut === null || crop === undefined ? {} : { cropped: { box: crop, full: cut.full } }
+  const cutShort = cut !== null && crop !== undefined && (cut.box[2] !== crop[2] || cut.box[3] !== crop[3])
+  const cropped = cut === null || crop === undefined ? {} : { cropped: { box: cut.box, ...(cutShort ? { asked: crop } : {}), full: cut.full } }
 
   let resized: { buffer: Buffer; mediaType: string; dimensions?: ImageDimensions }
   try {
@@ -737,6 +740,23 @@ async function readNotebookLane(
   return { data: { type: 'notebook', file: { filePath: resolvedPath, cells } } }
 }
 
+export function imageReadCaptions(
+  resolvedPath: string,
+  dimensions: ImageDimensions | undefined,
+  cropped: { box: CropBox; asked?: CropBox; full: { width: number; height: number } } | undefined,
+  scale = 1,
+): string[] {
+  const captions: string[] = []
+  if (cropped !== undefined) {
+    captions.push(`This image is the crop [${cropped.box.join(', ')}] of ${resolvedPath}${cropped.asked === undefined ? '' : ` (the box asked for, [${cropped.asked.join(', ')}], passed the image's edge and was cut to it)`}, cut from the ${cropped.full.width}x${cropped.full.height} px original before any downscale${scale === 1 ? '' : ` and scaled by ${scale}`}; the coordinates below are the crop's own.`)
+  }
+  if (dimensions) {
+    const metadataText = createImageMetadataText(dimensions, resolvedPath)
+    if (metadataText) captions.push(metadataText)
+  }
+  return captions
+}
+
 async function readImageLane(
   resolvedPath: string,
   keyPath: string,
@@ -747,14 +767,7 @@ async function readImageLane(
 ): Promise<LaneResult> {
   const { cropped, ...data } = await readImageWithTokenBudget(resolvedPath, limits.maxTokens, undefined, crop, scale)
   context.nestedMemoryAttachmentTriggers?.add(keyPath)
-  const captions: string[] = []
-  if (cropped !== undefined) {
-    captions.push(`This image is the crop [${cropped.box.join(', ')}] of ${resolvedPath}, cut from the ${cropped.full.width}x${cropped.full.height} px original before any downscale${scale === 1 ? '' : ` and scaled by ${scale}`}; the coordinates below are the crop's own.`)
-  }
-  if (data.file.dimensions) {
-    const metadataText = createImageMetadataText(data.file.dimensions, resolvedPath)
-    if (metadataText) captions.push(metadataText)
-  }
+  const captions = imageReadCaptions(resolvedPath, data.file.dimensions, cropped, scale)
   const ocr = await recogniseImage(Buffer.from(data.file.base64, 'base64'), context.abortController.signal)
   if (ocr.ok && ocr.text.trim()) captions.push(renderOcr(ocr))
   if (captions.length) data.file.caption = captions.join('\n')

@@ -69,7 +69,7 @@ and config.
 | `render_state` | read | per-job running truth (RENDER / RENDER_PREVIEW / COMPOSITE / OBJECT_BAKE) + engine/resolution/output/frames, readable during a render |
 | `render_still` | exec | render a frame as an editor JOB to a fenced `outputPath`; answers `{started:true}` at once; **the image file is the durable result**, `render_finished` reports the end |
 | `report_tail` | read | the add-on's honest ring (Python logging + bridge notes + lifecycle events; C-level terminal prints are out of Python's reach and the tool says so) |
-| `python_run` | exec | execute Python inside Blender (the executor verb; see below) |
+| `python_run` | exec | execute Python source, or a script file with its arguments, inside Blender (the executor verb; see below) |
 
 Reads are permission-free; `blend_open` asks (and its message notes that
 a file switch is not an undo step); renders and
@@ -83,11 +83,31 @@ a file switch is not an undo step); renders and
 - `python_run` has no preemption: `bpy` cannot abort a running script, so a
   runaway script blocks Blender until it finishes (the client times out while
   the server cannot cancel).
-Every call asks permission carrying the code's byte count and first line.
+Every call asks permission; a source's ask carries its byte count and first
+line.
 Source is capped at 64 KiB; stdout/stderr are captured and capped at 32 KiB
 each with truncation counted; a raise answers `PYTHON_EXCEPTION` with the
 type, message, and a bounded traceback tail; a variable named `result` is
 consumed by the answer as its `repr`. The namespace persists between runs.
+
+In place of `source` a call may name `script`, a Python file inside the
+working tree, with `argv`, a list of strings. The file runs as `__main__`,
+and `sys.argv` reads as Blender writes it when a script is named on its
+command line with arguments after a double dash, so a script written to be
+run by Blender itself runs unchanged and reads its own arguments. A file is
+under no source cap; the ask names the file and its arguments; a failure's
+traceback names the script's own lines. A call gives exactly one of `source`
+and `script`, and `argv` only with `script`.
+
+A call may also name `show`, a list of at most four pictures the run writes,
+each a path or `{path, crop, scale}` with `crop` and `scale` as the Read tool
+takes them. They come back with the answer, each under the caption a Read of
+it carries, so looking at what a script drew costs no second call. A picture
+the run did not write gets one line saying so and the answer itself stands;
+one left by an earlier run is shown and marked as not written by this call; a
+file that is not a png, jpeg, gif or webp is named and not shown; past four,
+the rest are listed by path. The ask lists the pictures, and a path a Read
+deny rule covers refuses the call before Blender starts.
 
 ## The no-reload law (the deliberate inverse of Unity)
 
@@ -109,7 +129,10 @@ reinstall re-aligns and no op ever crosses a version gap), `BLEND_DIRTY`
 (unsaved work is never discarded), `BLEND_NOT_FOUND`, `RENDER_ACTIVE`
 (mutate/exec during a render), `PYTHON_EXCEPTION` (your code raised and is
 reported verbatim), `EDITOR_UNREACHABLE` (Blender closed, the add-on missing
-or **not enabled**, or the port wrong; `blender_status` explains which).
+or **not enabled**, or the port wrong; `blender_status` explains which),
+`REQUEST_ABORTED` (the call was interrupted: it returns at once, the
+connection stands, and an operation the bridge had already taken may still
+finish in Blender, which cannot stop a running script or render).
 
 ## Routing
 
@@ -119,7 +142,10 @@ mode, script auto-execution disabled, and non-zero Python exit codes). That
 process ends when the call returns and keeps no state across calls, so each
 headless call names its `.blend` file with `blend`, `blend_open` verifies the
 file and closes with the process, and `render_still` executes synchronously
-and returns once the image is on disk.
+and returns once the image is on disk. With `show: true` that image comes back
+with the answer, as a `python_run` picture does; over the bridge, where the
+call answers before the render ends, the answer gains one line saying where
+the image will land.
 
 Python **breakpoint** debugging inside Blender stays with the Debug tool's
 debugpy recipe (the Launch tool's blender-debug row prints the listener

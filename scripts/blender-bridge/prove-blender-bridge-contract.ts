@@ -112,6 +112,7 @@ section('3. error-code unions — the contract’s named arms')
     'CONNECTION_LOST',
     'EDITOR_UNREACHABLE',
     'REQUEST_TIMEOUT',
+    'REQUEST_ABORTED',
     'CLIENT_CLOSED',
     'BAD_FRAME',
     'BRIDGE_VERSION_SKEW',

@@ -232,7 +232,7 @@ async function provenance(r: AsepriteResolution): Promise<string> {
 async function runLua(
   bin: string,
   lua: string,
-  opts: { file?: string; params?: Record<string, string>; timeoutMs: number },
+  opts: { file?: string; params?: Record<string, string>; timeoutMs: number; abortSignal?: AbortSignal },
 ): Promise<{ code: number; stdout: string; stderr: string; error?: string }> {
   const dir = mkdtempSync(path.join(tmpdir(), 'mercury-aseprite-'))
   const scriptPath = path.join(dir, 'program.lua')
@@ -244,7 +244,7 @@ async function runLua(
       args.push('--script-param', `${k}=${v}`)
     }
     args.push('--script', scriptPath)
-    return await runAseprite(bin, args, { timeoutMs: opts.timeoutMs })
+    return await runAseprite(bin, args, { timeoutMs: opts.timeoutMs, ...(opts.abortSignal ? { abortSignal: opts.abortSignal } : {}) })
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
@@ -268,7 +268,7 @@ function runFailure(op: string, r: { code: number; stdout: string; stderr: strin
   return parts.join('\n')
 }
 
-async function runOp(input: Input, permission?: ToolPermissionContext): Promise<string> {
+async function runOp(input: Input, permission?: ToolPermissionContext, abortSignal?: AbortSignal): Promise<string> {
   const resolution = resolveAseprite()
   if (input.op === 'status') {
     const tree = path.resolve(getCwd())
@@ -291,7 +291,7 @@ async function runOp(input: Input, permission?: ToolPermissionContext): Promise<
     if (!input.file) return 'info needs file: the sprite to census'
     const fenced = fencePath('info: file', input.file)
     if (fenced.refusal) return fenced.refusal
-    const r = await runLua(bin, SPRITE_PROBE_LUA, { file: fenced.resolved, timeoutMs: TIMEOUTS.info })
+    const r = await runLua(bin, SPRITE_PROBE_LUA, { file: fenced.resolved, timeoutMs: TIMEOUTS.info, abortSignal })
     if (r.code !== 0) return runFailure('info', r)
     const json = lastJsonLine(r.stdout)
     if (json === null) {
@@ -325,7 +325,7 @@ async function runOp(input: Input, permission?: ToolPermissionContext): Promise<
       output: output.resolved!,
       ...(dataOutput !== undefined ? { dataOutput } : {}),
     })
-    const r = await runAseprite(bin, args, { timeoutMs: TIMEOUTS.export })
+    const r = await runAseprite(bin, args, { timeoutMs: TIMEOUTS.export, ...(abortSignal ? { abortSignal } : {}) })
     if (r.code !== 0) return runFailure('export', r)
     const lines = [`exported ${input.file} → ${outputsCensus(output.resolved!)}`]
     if (dataOutput !== undefined) lines.push(`metadata → ${outputsCensus(dataOutput)}`)
@@ -351,6 +351,7 @@ async function runOp(input: Input, permission?: ToolPermissionContext): Promise<
         mode: input.colorMode ?? 'rgb',
       },
       timeoutMs: TIMEOUTS.create,
+      abortSignal,
     })
     if (r.code !== 0) return runFailure('create', r)
     const json = lastJsonLine(r.stdout)
@@ -370,6 +371,7 @@ async function runOp(input: Input, permission?: ToolPermissionContext): Promise<
     ...(file !== undefined ? { file } : {}),
     params: input.params,
     timeoutMs,
+    abortSignal,
   })
   if (r.code !== 0) return runFailure('run-script', r)
   const lines = [r.stdout.trim() || '(no output)']
@@ -487,9 +489,9 @@ export const AsepriteTool = buildTool({
     try {
       if (isArtOp(input.op)) {
         const resolution = resolveAseprite()
-        if (resolution.state === 'ok') return { data: { op: input.op, ...await runArt(input, resolution.location.path, fencePath) } }
+        if (resolution.state === 'ok') return { data: { op: input.op, ...await runArt(input, resolution.location.path, fencePath, context?.abortController?.signal) } }
         result = `${input.op}: aseprite is unavailable — ${resolution.note}\n${ASEPRITE_INSTALL_REMEDY}`
-      } else result = await runOp(input, context?.getAppState?.().toolPermissionContext)
+      } else result = await runOp(input, context?.getAppState?.().toolPermissionContext, context?.abortController?.signal)
     } catch (err) {
       result = `${input.op} failed: ${(err as Error).message}${isArtOp(input.op) ? '' : `\n${ASEPRITE_INSTALL_REMEDY}`}`
     }

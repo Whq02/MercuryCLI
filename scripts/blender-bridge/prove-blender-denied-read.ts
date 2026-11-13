@@ -148,6 +148,84 @@ console.log('the refusal is the rule\'s own sentence, the one a Read of the file
   check('under the posture that answers every question the rule still refuses all eight, and no Blender starts', still.every(used => used.behavior === 'deny' && used.starts === 0), still.map(used => used.behavior).join(' '))
 }
 
+console.log('a script named to python_run is a file the tool opens: the same law')
+{
+  writeFileSync(join(project, 'secret/kit.py'), 'print("SECRET_SCRIPT_RAN")\n')
+  writeFileSync(join(project, 'open/kit.py'), 'print("OPEN_SCRIPT_RAN")\n')
+  const secretScript = join(project, 'secret/kit.py')
+  const wrong: string[] = []
+  for (const [spelling, rule] of SPELLINGS) {
+    const permission = deny(rule)
+    const used = await use('python_run', { script: 'secret/kit.py', argv: ['--unit', 'eques'] }, permission)
+    if (!(used.behavior === 'deny' && used.message === directRead(secretScript, permission).message && used.starts === 0)) wrong.push(`${spelling}: ${used.behavior}${used.answer.includes('SECRET_SCRIPT_RAN') ? ', ran it' : ''}`)
+  }
+  check('a script under the denied folder is refused in the sentence a Read of it gets, under all four spellings, and no Blender starts', wrong.length === 0, wrong.join(' | '))
+  const elsewhere = await use('python_run', { script: 'open/kit.py' }, deny('Read(secret/**)'))
+  check('a script elsewhere asks first, as every python_run does', elsewhere.behavior === 'ask' && elsewhere.starts === 0, elsewhere.behavior)
+  const sovereign = await use('python_run', { script: 'secret/kit.py' }, inMode('sovereign', deny('Read(secret/**)')))
+  check('under the posture that answers every question the rule still refuses the script, and no Blender starts', sovereign.behavior === 'deny' && sovereign.starts === 0, `${sovereign.behavior} starts=${sovereign.starts}`)
+  const ranOpen = await use('python_run', { script: 'open/kit.py' }, inMode('sovereign', deny('Read(secret/**)')))
+  check('and under that posture the script elsewhere runs', ranOpen.behavior === 'allow' && ranOpen.starts === 1 && ranOpen.answer.includes('OPEN_SCRIPT_RAN'), `${ranOpen.behavior} ${ranOpen.answer.slice(0, 120)}`)
+}
+
+console.log('a picture named to show is a file the tool opens: the same law')
+{
+  const { encodePng } = await import(`${SRC}/tools/FileReadTool/imageProcessorJs.ts`)
+  const picture = encodePng({ width: 2, height: 2, data: new Uint8Array(16).fill(255) })
+  writeFileSync(join(project, 'secret/sheet.png'), picture)
+  writeFileSync(join(project, 'open/sheet.png'), picture)
+  const secretPicture = join(project, 'secret/sheet.png')
+  const wrong: string[] = []
+  for (const [spelling, rule] of SPELLINGS) {
+    const permission = deny(rule)
+    for (const show of [['secret/sheet.png'], [{ path: 'secret/sheet.png', scale: 2 }], ['open/sheet.png', 'secret/sheet.png']]) {
+      const used = await use('python_run', { script: 'open/kit.py', show }, permission)
+      if (!(used.behavior === 'deny' && used.message === directRead(secretPicture, permission).message && used.starts === 0)) wrong.push(`${spelling} ${JSON.stringify(show)}: ${used.behavior}`)
+    }
+  }
+  check('a picture under the denied folder, named alone, with a scale, or second, is refused in the sentence a Read of it gets, under all four spellings, and no Blender starts', wrong.length === 0, wrong.join(' | '))
+  const sovereign = inMode('sovereign', deny('Read(secret/**)'))
+  const refused = await use('python_run', { script: 'open/kit.py', show: ['secret/sheet.png'] }, sovereign)
+  check('under the posture that answers every question the rule still refuses it, and no Blender starts', refused.behavior === 'deny' && refused.starts === 0, `${refused.behavior} starts=${refused.starts}`)
+  const shownBy = async (show: unknown[]): Promise<{ behavior: string; starts: number; kinds: string; texts: string[] }> => {
+    fixture.clearInvocations()
+    const input = { op: 'python_run', args: { script: 'open/kit.py', show } }
+    const decision = (await decideToolPermission(BlenderTool, input, context(sovereign))).decision as Verdict
+    if (decision.behavior !== 'allow') return { behavior: decision.behavior, starts: fixture.invocations().length, kinds: '', texts: [] }
+    const ran = (await (BlenderTool as { call: Function }).call(decision.updatedInput ?? input, context(sovereign))) as { data: unknown }
+    const block = (BlenderTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(ran.data, 'toolu_denied') as { content: unknown }
+    const parts = (Array.isArray(block.content) ? block.content : []) as Array<{ type: string; text?: string }>
+    return { behavior: 'allow', starts: fixture.invocations().length, kinds: parts.map(part => part.type).join(','), texts: parts.flatMap(part => (typeof part.text === 'string' ? [part.text] : [])) }
+  }
+  const elsewhere = await shownBy(['open/sheet.png'])
+  check('and under that posture a picture elsewhere rides the answer of the script that ran', elsewhere.behavior === 'allow' && elsewhere.starts === 1 && elsewhere.kinds === 'text,text,image' && (elsewhere.texts[0] ?? '').includes('OPEN_SCRIPT_RAN'), `${elsewhere.behavior} ${elsewhere.kinds}`)
+  const fifth = await shownBy(['open/sheet.png', 'open/sheet.png', 'open/sheet.png', 'open/sheet.png', 'secret/sheet.png'])
+  check(
+    'a fifth picture is never opened, so the rule on it refuses nothing: the call runs, four ride, and the fifth is listed by the path the call gave',
+    fifth.behavior === 'allow' && fifth.starts === 1 && fifth.kinds.split(',').filter(kind => kind === 'image').length === 4 && fifth.texts.at(-1) === 'show: 4 pictures at most ride one answer; not shown: secret/sheet.png',
+    `${fifth.behavior} ${fifth.kinds} ${fifth.texts.at(-1) ?? ''}`,
+  )
+}
+
+console.log('a frame render_still is asked to show is a file the tool opens: the same law; with no show a render only writes there')
+{
+  const secretFrame = join(project, 'secret/frame.png')
+  const wrong: string[] = []
+  for (const [spelling, rule] of SPELLINGS) {
+    const permission = deny(rule)
+    const used = await use('render_still', { blend: 'open/unit.blend', outputPath: 'secret/frame.png', show: true }, permission)
+    if (!(used.behavior === 'deny' && used.message === directRead(secretFrame, permission).message && used.starts === 0)) wrong.push(`${spelling}: ${used.behavior}`)
+  }
+  check('show: true on a frame under the denied folder is refused in the sentence a Read of it gets, under all four spellings, and no Blender starts', wrong.length === 0, wrong.join(' | '))
+  const moved: string[] = []
+  for (const show of [undefined, false, 'yes']) {
+    const args = { blend: 'open/unit.blend', outputPath: 'secret/frame.png', ...(show === undefined ? {} : { show }) }
+    const ruled = await verdict('render_still', args, deny('Read(secret/**)'))
+    if (ruled.behavior !== 'ask' || JSON.stringify(ruled) !== JSON.stringify(await verdict('render_still', args, null))) moved.push(`${String(show)}: ${ruled.behavior}`)
+  }
+  check('with no show, show: false, or a show that is not true, the same render asks exactly as it does with no rules at hand', moved.length === 0, moved.join(' | '))
+}
+
 console.log('the neighbours are opened as before')
 {
   const wrong: string[] = []

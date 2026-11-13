@@ -149,10 +149,20 @@ function resolveHeadlessTimeoutMs(op: string, args: Record<string, unknown> | un
   return HEADLESS_DEFAULT_TIMEOUT_MS
 }
 
+const BLENDER_BANNER_LINE = /^Blender \d+\.\d+(?:\.\d+)?(?: [^()\n]+)? \(hash [0-9a-f]+ built [^()\n]+\)$/
+
+function withoutBlenderBanner(text: string): string {
+  const lines = text.split('\n')
+  const first = lines.findIndex(line => line.trim().length > 0)
+  if (first === -1 || !BLENDER_BANNER_LINE.test(lines[first]!.trim())) return text
+  lines.splice(first, 1)
+  return lines.join('\n')
+}
+
 function appendBlenderLines(lines: string[], blenderOut: string, blenderErr: string): void {
-  const out = capByteTail(blenderOut, BLENDER_BRIDGE_PYTHON_OUTPUT_CAP_BYTES)
+  const out = capByteTail(withoutBlenderBanner(blenderOut), BLENDER_BRIDGE_PYTHON_OUTPUT_CAP_BYTES)
   const err = capByteTail(blenderErr, BLENDER_BRIDGE_PYTHON_OUTPUT_CAP_BYTES)
-  if (out.text.length > 0) {
+  if (out.text.trim().length > 0) {
     lines.push(
       `blender stdout${out.truncated > 0 ? ` (truncated ${out.truncated} bytes)` : ''}:\n${out.text.trimEnd()}`,
     )

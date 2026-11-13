@@ -130,12 +130,33 @@ section('A. a crop box is cut from the original pixels before any downscale')
   check('A7 a read without a box is unchanged (the control: 8x4, no crop note)', plain.ok && sizeOf(plain.data)?.width === 8 && !plain.notes.some(note => note.includes('the crop [')), messageOf(plain))
 }
 
-section('B. refusals: outside the image, inverted, malformed, or on a text file')
+section('B. a box that passes the edge is cut to the image and says so; refusals: wholly outside, inverted, malformed, or on a text file')
 {
-  const outside = await read({ file_path: small, crop: [0, 0, 9, 4] })
-  check('B1 a box past the right edge is refused naming the image size', !outside.ok && outside.message.includes('crop refused: [0, 0, 9, 4] reaches outside the image, which is 8x4 px'), messageOf(outside))
+  const outside = await read({ file_path: small, crop: [4, 0, 9, 4] })
+  check('B1 a box past the right edge comes back cut to the image: the right 4x4, exact to the pixel', outside.ok && sizeOf(outside.data)?.width === 4 && sizeOf(outside.data)?.height === 4, messageOf(outside))
+  check(
+    'B1b the answer names the box that was cut, the box asked for, and the image size',
+    outside.ok &&
+      outside.notes.some(
+        note =>
+          note.includes("the crop [4, 0, 8, 4] of") &&
+          note.includes("(the box asked for, [4, 0, 9, 4], passed the image's edge and was cut to it)") &&
+          note.includes('8x4 px original'),
+      ),
+    messageOf(outside),
+  )
+  const exact = await read({ file_path: small, crop: [4, 0, 8, 4] })
+  check('B1c the cut box holds the same pixels as the same box asked for exactly, and that one carries no such words', outside.ok && exact.ok && outside.data.file.base64 === exact.data.file.base64 && !exact.notes.some(note => note.includes('passed the image')), messageOf(exact))
   const below = await read({ file_path: small, crop: [0, 0, 8, 5] })
-  check('B2 a box past the bottom edge is refused', !below.ok && below.message.includes('reaches outside the image'), messageOf(below))
+  check('B2 a box past the bottom edge comes back cut to the image (8x4) and says so', below.ok && sizeOf(below.data)?.width === 8 && sizeOf(below.data)?.height === 4 && below.notes.some(note => note.includes('the box asked for, [0, 0, 8, 5]')), messageOf(below))
+  const sheet = join(fixtures, 'sheet.png')
+  writeFileSync(sheet, png(1965, 1985, (x, y) => [x % 256, y % 256, 80]))
+  const session = await read({ file_path: sheet, crop: [0, 1000, 1965, 2020] })
+  check('B2b the box a session asked for, 35 px past the foot of a 1965x1985 sheet, is answered with the 985 rows there are', session.ok && sizeOf(session.data)?.width === 1965 && sizeOf(session.data)?.height === 985 && session.notes.some(note => note.includes('the crop [0, 1000, 1965, 1985] of')), messageOf(session))
+  const beyond = await read({ file_path: small, crop: [8, 0, 12, 4] })
+  check('B2c a box that starts beyond the image holds nothing of it and is refused naming the image size', !beyond.ok && beyond.message.includes('crop refused: [8, 0, 12, 4] reaches outside the image, which is 8x4 px'), messageOf(beyond))
+  const under = await read({ file_path: small, crop: [0, 4, 8, 9] })
+  check('B2d and so is one that starts below it', !under.ok && under.message.includes('reaches outside the image'), messageOf(under))
   const inverted = await read({ file_path: small, crop: [6, 0, 2, 4] })
   check('B3 an inverted box is refused', !inverted.ok && inverted.message.includes('crop refused: [6, 0, 2, 4] is inverted or empty'), messageOf(inverted))
   const empty = await read({ file_path: small, crop: [2, 2, 2, 4] })
@@ -153,6 +174,50 @@ section('B. refusals: outside the image, inverted, malformed, or on a text file'
   const onTextPages = await read({ file_path: text, pages: '1-2' })
   check('B8b pages on a text file is never refused: the file is read and one note says pages was ignored', onTextPages.ok && onTextPages.notes.some(note => note.includes('pages ignored — .txt is not a PDF')), messageOf(onTextPages))
   check('B9 the refusals wrote nothing and the image is intact', readFileSync(small).length > 0 && imageDimensionsFromHeader(readFileSync(small))?.width === 8)
+}
+
+section('E. a whole-number scale enlarges a crop pixel for pixel; a fractional one blends as before')
+{
+  const { decodePng, javascriptImageProcessor } = await import('../../src/tools/FileReadTool/imageProcessorJs.ts')
+  const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
+  const sprite = join(fixtures, 'sprite.png')
+  const colourAt = (x: number, y: number): [number, number, number] => ((x >> 2) + (y >> 2)) % 2 ? [176, 46, 43] : [78, 110, 62]
+  writeFileSync(sprite, png(16, 16, colourAt))
+  const coloursOf = (data: ImageData): Set<string> => {
+    const image = decodePng(Buffer.from(data.file.base64, 'base64'))
+    const seen = new Set<string>()
+    for (let i = 0; i < image.data.length; i += 4) seen.add(`${image.data[i]},${image.data[i + 1]},${image.data[i + 2]}`)
+    return seen
+  }
+  const exactBlocks = (data: ImageData, factor: number): boolean => {
+    const image = decodePng(Buffer.from(data.file.base64, 'base64'))
+    if (image.width !== 16 * factor || image.height !== 16 * factor) return false
+    for (let y = 0; y < image.height; y++) {
+      for (let x = 0; x < image.width; x++) {
+        const [r, g, b] = colourAt(Math.floor(x / factor), Math.floor(y / factor))
+        const at = (y * image.width + x) * 4
+        if (image.data[at] !== r || image.data[at + 1] !== g || image.data[at + 2] !== b) return false
+      }
+    }
+    return true
+  }
+  const four = await read({ file_path: sprite, crop: [0, 0, 16, 16], scale: 4 })
+  check('E1 a 16x16 sprite of two flat colours at scale 4 comes back 64x64 holding those two colours and no other', four.ok && sizeOf(four.data)?.width === 64 && coloursOf(four.data).size === 2, four.ok ? `${sizeOf(four.data)?.width}x${sizeOf(four.data)?.height}, ${coloursOf(four.data).size} colours` : four.message)
+  check('E2 every pixel of the sprite is a 4x4 block of its own colour', four.ok && exactBlocks(four.data, 4), messageOf(four))
+  const three = await read({ file_path: sprite, crop: [4, 4, 12, 12], scale: 3 })
+  check('E3 a box inside it at scale 3 is 24x24 and holds two colours', three.ok && sizeOf(three.data)?.width === 24 && sizeOf(three.data)?.height === 24 && coloursOf(three.data).size === 2, messageOf(three))
+  check('E4 the caption still says the scale', four.ok && four.notes.some(note => note.includes('and scaled by 4')), messageOf(four))
+  const half = await read({ file_path: sprite, crop: [0, 0, 16, 16], scale: 1.5 })
+  check('E5 a fractional scale blends as it did (the control: 24x24, more than two colours)', half.ok && sizeOf(half.data)?.width === 24 && coloursOf(half.data).size > 2, half.ok ? `${coloursOf(half.data).size} colours` : half.message)
+  const atEdge = await read({ file_path: sprite, crop: [8, 8, 20, 20], scale: 2 })
+  check('E6 a box that passes the edge is cut to the image and then enlarged pixel for pixel (8x8 to 16x16, two colours)', atEdge.ok && sizeOf(atEdge.data)?.width === 16 && sizeOf(atEdge.data)?.height === 16 && coloursOf(atEdge.data).size === 2, messageOf(atEdge))
+  const jsScaled = await javascriptImageProcessor(readFileSync(sprite)).extract({ left: 0, top: 0, width: 16, height: 16 }).resize(48, 48, { fit: 'fill', withoutEnlargement: false, kernel: 'nearest' }).png().toBuffer()
+  const jsImage = decodePng(jsScaled)
+  const jsColours = new Set<string>()
+  for (let i = 0; i < jsImage.data.length; i += 4) jsColours.add(`${jsImage.data[i]},${jsImage.data[i + 1]},${jsImage.data[i + 2]}`)
+  check('E7 the JavaScript road (no native processor) enlarges a whole-number scale the same way: 48x48, two colours', jsImage.width === 48 && jsImage.height === 48 && jsColours.size === 2, `${jsImage.width}x${jsImage.height}, ${jsColours.size} colours`)
+  const schema = zodToJsonSchema((FileReadTool as { inputSchema: never }).inputSchema) as { properties: { scale: { description: string } } }
+  check('E8 the parameter says it in its own words', schema.properties.scale.description.includes('whole numbers repeat pixels') && schema.properties.scale.description.includes('requires crop'), schema.properties.scale.description)
 }
 
 section('D. the zero box [0, 0, 0, 0] is no crop at all (the placeholder a model fills an unused box with)')

@@ -7,6 +7,7 @@ import re
 import sys
 import time
 import traceback
+import types
 
 import bpy
 
@@ -116,31 +117,61 @@ def _run_render_still(args, ops_mod):
     )
 
 
+def _bad_args(message):
+    return ({"ok": False, "error": {"code": "BAD_ARGS", "message": message}}, 1)
+
+
+def _script_argv(script, argv):
+    base = list(sys.argv)
+    head = base[: base.index("--python")] if "--python" in base else base[:1]
+    return head + ["--python", script, "--"] + list(argv)
+
+
 def _run_python(args, state_mod):
     source = args.get("source")
-    if not isinstance(source, str) or not source:
-        return (
-            {"ok": False, "error": {"code": "BAD_ARGS", "message": "source is required"}},
-            1,
-        )
-    if len(source.encode("utf-8")) > state_mod.PYTHON_SOURCE_CAP_BYTES:
-        return (
-            {
-                "ok": False,
-                "error": {
-                    "code": "BAD_ARGS",
-                    "message": "source exceeds the %d-byte cap" % state_mod.PYTHON_SOURCE_CAP_BYTES,
-                },
-            },
-            1,
-        )
+    script = args.get("script")
+    has_source = isinstance(source, str) and bool(source)
+    has_script = isinstance(script, str) and bool(script)
+    if has_source == has_script:
+        return _bad_args("python_run takes exactly one of source or script")
+    argv = args.get("argv")
+    if argv is None:
+        argv = []
+    elif not has_script:
+        return _bad_args("argv comes only with script")
+    if not isinstance(argv, list) or any(not isinstance(word, str) for word in argv):
+        return _bad_args("argv must be a list of strings")
+    if has_script and not os.path.isfile(script):
+        return _bad_args("no script file at %s" % script)
+    if has_source and len(source.encode("utf-8")) > state_mod.PYTHON_SOURCE_CAP_BYTES:
+        return _bad_args("source exceeds the %d-byte cap" % state_mod.PYTHON_SOURCE_CAP_BYTES)
     stdout_io = io.StringIO()
     stderr_io = io.StringIO()
-    ns = {"__name__": "__mercury_python_run__"}
+    if has_script:
+        main_module = types.ModuleType("__main__")
+        main_module.__file__ = script
+        ns = main_module.__dict__
+    else:
+        main_module = None
+        ns = {"__name__": "__mercury_python_run__"}
+    saved_argv = sys.argv
+    saved_main = sys.modules.get("__main__")
     t0 = time.monotonic()
     try:
-        with contextlib.redirect_stdout(stdout_io), contextlib.redirect_stderr(stderr_io):
-            exec(compile(source, "<mercury_python_run>", "exec"), ns)
+        try:
+            with contextlib.redirect_stdout(stdout_io), contextlib.redirect_stderr(stderr_io):
+                if main_module is not None:
+                    sys.argv = _script_argv(script, argv)
+                    sys.modules["__main__"] = main_module
+                    with open(script, "rb") as script_file:
+                        script_code = compile(script_file.read(), script, "exec")
+                    exec(script_code, ns)
+                else:
+                    exec(compile(source, "<mercury_python_run>", "exec"), ns)
+        finally:
+            sys.argv = saved_argv
+            if saved_main is not None:
+                sys.modules["__main__"] = saved_main
     except SystemExit as sys_exc:
         raw_code = sys_exc.code
         if raw_code is not None and raw_code != 0:

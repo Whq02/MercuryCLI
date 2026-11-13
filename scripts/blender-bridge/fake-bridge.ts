@@ -33,6 +33,8 @@ interface FakeBlenderBridgeOpts {
 interface FakeBlenderBridge {
   port: number
   seenOps: string[]
+  seenArgKeys: string[][]
+  seenPython: string[]
   connectionCount: () => number
   setMode: (m: FakeBridgeMode) => void
   setDirty: (dirty: boolean) => void
@@ -86,6 +88,8 @@ export function startFakeBlenderBridge(opts: FakeBlenderBridgeOpts = {}): Promis
   const state = {
     mode: opts.mode ?? ('echo' as FakeBridgeMode),
     seenOps: [] as string[],
+    seenArgKeys: [] as string[][],
+    seenPython: [] as string[],
     connections: 0,
     blendFile: opts.blendFile ?? DEFAULT_BLEND,
     isDirty: false,
@@ -174,6 +178,7 @@ export function startFakeBlenderBridge(opts: FakeBlenderBridgeOpts = {}): Promis
         const id = frame.id
         const args = (frame.args ?? {}) as Record<string, unknown>
         state.seenOps.push(op)
+        state.seenArgKeys.push(Object.keys(args))
         if (op === 'ping') {
           if (state.mode !== 'no-pong') reply({ id, ok: true, result: 'pong' })
           continue
@@ -313,6 +318,7 @@ export function startFakeBlenderBridge(opts: FakeBlenderBridgeOpts = {}): Promis
               fail(id, 'BAD_ARGS', 'source is required')
               break
             }
+            state.seenPython.push(source)
             if (Buffer.byteLength(source, 'utf8') > BLENDER_BRIDGE_PYTHON_SOURCE_CAP_BYTES) {
               fail(id, 'BAD_ARGS', `source exceeds the ${BLENDER_BRIDGE_PYTHON_SOURCE_CAP_BYTES}-byte cap`)
               break
@@ -355,6 +361,8 @@ export function startFakeBlenderBridge(opts: FakeBlenderBridgeOpts = {}): Promis
       resolve({
         port: (server.address() as net.AddressInfo).port,
         seenOps: state.seenOps,
+        seenArgKeys: state.seenArgKeys,
+        seenPython: state.seenPython,
         connectionCount: () => state.connections,
         setMode: m => {
           state.mode = m

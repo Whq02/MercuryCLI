@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
@@ -36,6 +36,19 @@ const work = path.join(scratch, 'work')
 mkdirSync(work, { recursive: true })
 writeFileSync(path.join(work, 'scene-a.blend'), '')
 writeFileSync(path.join(work, 'scene-b.blend'), '')
+const shimBin = path.join(scratch, 'shim-blender')
+writeFileSync(shimBin, '#!/bin/sh\necho "Blender 5.2.1"\nexit 0\n')
+chmodSync(shimBin, 0o755)
+type Discovery = Awaited<ReturnType<typeof discoverLaunchProfiles>>
+function answeredByTheShim(d: Discovery): boolean {
+  const rows = d.profiles.filter(p => p.source === 'blender')
+  return (
+    rows.length > 0 &&
+    rows.every(
+      p => p.blenderHeadless?.blenderPath === shimBin && p.provenance.includes(`Blender 5.2.1 located (pin): ${shimBin}`),
+    )
+  )
+}
 
 section('§1 · opt-in polarity')
 {
@@ -49,8 +62,6 @@ section('§2 · render shapes (THE ORDER LAW by index)')
 {
   restore()
   process.env.MERCURY_BLENDER = '1'
-  const shimBin = path.join(scratch, 'shim-blender')
-  writeFileSync(shimBin, '#!/bin/sh\necho "Blender 5.2.1"\nexit 0\n')
   process.env.MERCURY_BLENDER_BIN = shimBin
   const d = await discoverLaunchProfiles(work)
   const blender = d.profiles.filter(p => p.source === 'blender')
@@ -87,7 +98,13 @@ section('§3 · the hermetic python row')
 {
   restore()
   process.env.MERCURY_BLENDER = '1'
+  process.env.MERCURY_BLENDER_BIN = shimBin
   const d = await discoverLaunchProfiles(work)
+  check(
+    'every row carries the pinned shim and its version: no Blender this machine holds answered (§3)',
+    answeredByTheShim(d),
+    d.profiles.find(p => p.source === 'blender')?.provenance ?? '',
+  )
   const hermetic = d.profiles.find(
     p => p.source === 'blender' && (p.blenderHeadless?.args ?? []).includes('--factory-startup'),
   )
@@ -109,7 +126,13 @@ section('§4 · the shared operator-run refusal')
 {
   restore()
   process.env.MERCURY_BLENDER = '1'
+  process.env.MERCURY_BLENDER_BIN = shimBin
   const d = await discoverLaunchProfiles(work)
+  check(
+    'every row carries the pinned shim and its version: no Blender this machine holds answered (§4)',
+    answeredByTheShim(d),
+    d.profiles.find(p => p.source === 'blender')?.provenance ?? '',
+  )
   const row = d.profiles.find(p => p.source === 'blender')
   const refusal = row ? operatorRunRefusal(row) : null
   check(
@@ -135,8 +158,14 @@ section('§5 · the profile cap honesty')
   for (let i = 0; i < 13; i++) {
     writeFileSync(path.join(many, `f${String(i).padStart(2, '0')}.blend`), '')
   }
+  process.env.MERCURY_BLENDER_BIN = shimBin
   const d = await discoverLaunchProfiles(many)
   const blender = d.profiles.filter(p => p.source === 'blender')
+  check(
+    'every row carries the pinned shim and its version: no Blender this machine holds answered (§5)',
+    answeredByTheShim(d),
+    blender[0]?.provenance ?? '',
+  )
   check('capped: 10 files × 2 + hermetic + debug recipe = 22 rows', blender.length === 22, `${blender.length}`)
   check(
     'the overflow is a counted source note, not silence',
