@@ -264,6 +264,7 @@ const ALLOW: Array<[string, string, string]> = [
   ['scripts/bash/prove-worktree-janitor.ts', 'option-run-words', "git's own init --bare"],
   ['scripts/permissions/prove-linked-worktree-git-reads.ts', 'option-run-words', "git's own init --bare"],
   ['scripts/agents/prove-worktree-base.ts', 'option-run-words', "git's own clone --bare"],
+  ['scripts/tools/prove-git-hardening-kept.ts', 'option-run-words', "git's own init --bare"],
   ['scripts/ops/run-all.sh', 'option-run-words', 'names the launcher path it proves absent'],
   ['scripts/editor-bridge/prove-editor-door.ts', 'option-editor-link', 'names the flags it proves unknown'],
   ['scripts/updater/prove-update-journey.ts', 'verb-auth-token', 'names the gh subcommand it proves never asked'],
