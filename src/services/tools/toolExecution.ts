@@ -587,9 +587,12 @@ async function runTransactionBody(args: {
   const permissionMode = toolUseContext.getAppState().toolPermissionContext.mode
   const preHooksStartedAt = Date.now()
   let hookWaitTicker: ReturnType<typeof setInterval> | null = null
+  let takeHookWaitBack: (() => void) | null = null
   const settleHookWait = (): void => {
     if (hookWaitTicker !== null) clearInterval(hookWaitTicker)
     hookWaitTicker = null
+    takeHookWaitBack?.()
+    takeHookWaitBack = null
   }
   const announceHooks = (event: 'tool.before' | 'tool.after'): HookAnnounce => prepared => {
     settleHookWait()
@@ -602,6 +605,7 @@ async function runTransactionBody(args: {
       const elapsedS = Math.floor((now - sinceMs) / 1000)
       if (elapsedS < 1) return
       push({ message: hookProgressMessage(event, prepared.names[0] ?? '', 'waiting', toolUseID, prepared.names.length, { timeoutS, elapsedS, line: hookWaitWords(wait, now) }) })
+      takeHookWaitBack = () => push({ message: hookProgressMessage(event, prepared.names[0] ?? '', 'waiting', toolUseID, prepared.names.length) })
     }
     hookWaitTicker = setInterval(tick, 1000)
     hookWaitTicker.unref?.()
