@@ -148,12 +148,13 @@ async function shownAfter(
   entries: readonly ShowEntry[],
   before: ReturnType<typeof stampShown>,
   trace: RoadTrace,
+  readDenied: (file: string) => string | undefined,
 ): Promise<ShownPart[]> {
   if (entries.length === 0 || trace.road === undefined) return []
   if (input.op === 'render_still' && trace.road === 'bridge') {
     return trace.taken ? [{ kind: 'note', text: `show: the picture is not written yet; it will land at ${showTargets(entries)[0]}` }] : []
   }
-  return readShown(entries, before)
+  return readShown(entries, before, readDenied)
 }
 
 function showNamed(entries: readonly ShowEntry[], cap = 160): string {
@@ -445,7 +446,12 @@ export const BlenderTool = buildTool({
     } catch (err) {
       result = `${input.op} failed: ${(err as Error).message}\nhint: ${blenderBridgeHint(blenderBridgePort())}`
     }
-    const shown = await shownAfter(input, entries, before, trace)
+    const shown = await shownAfter(input, entries, before, trace, target => {
+      const permission = context?.getAppState?.().toolPermissionContext
+      if (permission === undefined) return undefined
+      const read = checkReadPermissionForTool({ name: BLENDER_TOOL_NAME, getPath: () => target }, input, permission)
+      return read.behavior === 'deny' ? read.message : undefined
+    })
     const output: Output = { op: input.op, result, ...(shown.length > 0 ? { shown } : {}) }
     return { data: output }
   },
