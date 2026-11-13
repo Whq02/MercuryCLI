@@ -14,8 +14,8 @@ import { getToolUseSummary, renderToolResultMessage, renderToolUseMessage, rende
 
 const inputSchema = z.strictObject({
   query: z.string().min(2).describe(SEARCH_QUERY_FIELD),
-  allowed_domains: z.array(z.string()).optional().describe('Only include search results from these domains'),
-  blocked_domains: z.array(z.string()).optional().describe('Never include search results from these domains'),
+  allowed_domains: z.array(z.string()).optional().describe('Restrict results to these domains'),
+  blocked_domains: z.array(z.string()).optional().describe('Exclude these domains'),
 })
 
 type Input = z.infer<typeof inputSchema>
