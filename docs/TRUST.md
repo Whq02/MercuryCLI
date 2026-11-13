@@ -248,8 +248,10 @@ shell command a floor holds in the forms that reading knows and in no others.
 The floors lower the chance of an accident or of a careless instruction and
 are not a sandbox: they do not isolate a session from the files and processes
 its user can reach. What stands between a session and a secret is the
-permission question, in the modes that ask it, and, where Mercury keeps the
-secret in the system's credential store, that store's seal at rest.
+permission question, in the modes that ask it. Where Mercury keeps the secret
+in the system's credential store, it is sealed at rest as well: no file holds
+it in the clear. The file Mercury falls back to when that store does not
+answer is a plain file.
 
 ## Non-interactive sessions
 
