@@ -2,6 +2,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
+import { nodeBinPath } from '../lib/nodeBin.ts'
 
 const root = resolve(process.env.PROOF_SUBJECT_ROOT ?? join(import.meta.dir, '../..'))
 const world = mkdtempSync(join(tmpdir(), 'proof-scratch-pin-'))
@@ -334,7 +335,7 @@ process.exit(process.argv[3] === 'red' ? 1 : 0);
           `fn=${typeof mod.reapThenRemove} pid=${childPid} alive=${stillAlive} stood=${existsSync(directDir)}`,
         )
 
-        const nodeBin = Bun.which('node') ?? process.execPath
+        const nodeBin = nodeBinPath()
         const nonZombieAlive = (pid: number): boolean => {
           if (pid <= 1) return false
           try {
