@@ -7,17 +7,17 @@ import { remoteOpening, remoteRun, RemoteConnectionError } from './connection.js
 import { remoteQuote } from './prelude.js'
 import { authorityText, formatRemotePath, noteRemoteGeneration, type RemoteAuthority, type RemoteTarget } from './target.js'
 
-export type RemoteKind = 'file' | 'folder' | 'a named pipe' | 'a socket' | 'a device' | 'other' | 'dangling'
+type RemoteKind = 'file' | 'folder' | 'a named pipe' | 'a socket' | 'a device' | 'other' | 'dangling'
 
-export type RemoteStat = { kind: RemoteKind; link: boolean; size: number; mtimeMs: number; mode: string | null }
+type RemoteStat = { kind: RemoteKind; link: boolean; size: number; mtimeMs: number; mode: string | null }
 
-export type RemoteEntry = { name: string; kind: 'file' | 'folder' | 'link' | 'other' }
+type RemoteEntry = { name: string; kind: 'file' | 'folder' | 'link' | 'other' }
 
 type RemoteHead = { size: number; mtimeMs: number; mode: string | null; lines: number; endsWithNewline: boolean; lead: string; crc: string | null }
 
 type RemoteFacts = { home: string; system: string; here: boolean }
 
-export class RemoteFileError extends Error {
+class RemoteFileError extends Error {
   readonly code: string
   constructor(code: string, message: string) {
     super(message)
@@ -117,10 +117,6 @@ export async function remoteAbsolutePath(target: RemoteTarget, signal?: AbortSig
   const home = await homeOf(target.authority, target.home, signal)
   if (target.path === '') return home
   return home === '/' ? `/${target.path}` : `${home}/${target.path}`
-}
-
-export async function remoteHomeOf(authority: RemoteAuthority, signal?: AbortSignal): Promise<string> {
-  return (await remoteFacts(authority, signal)).home
 }
 
 export async function remoteRealPath(target: RemoteTarget, signal?: AbortSignal): Promise<string> {

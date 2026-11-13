@@ -126,7 +126,7 @@ export function formatRemotePath(target: RemoteTarget): string {
   return `${head}${path.startsWith('/~') ? `/%7E${path.slice(2)}` : path}`
 }
 
-export function remoteIdentity(path: string): string {
+function remoteIdentity(path: string): string {
   try {
     const target = parseRemotePath(path)
     return target === null ? REMOTE_RULE_ROOT : formatRemotePath(target)
