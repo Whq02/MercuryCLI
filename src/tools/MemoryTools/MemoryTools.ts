@@ -68,15 +68,14 @@ const retainSchema = lazySchema(() =>
       .array(
         z.strictObject({
           content: z.string().describe('One durable fact; content and context together may contain at most 2000 characters.'),
-          context: z.string().optional().describe('Where the fact came from (provenance note).'),
-          topic: z.string().optional().describe('Topic routing hint (slugified).'),
+          context: z.string().optional().describe('Provenance note.'),
+          topic: z.string().optional().describe('Topic slug hint.'),
           pin: z.boolean().optional().describe("Pin the user's exact words as an always-loaded standing rule or preference, when they asked for that lasting rule."),
           replaces: z.string().optional().describe('Prior rule id (seq:<n>) the user explicitly replaced; keeps the old wording as history. For a user-requested rule, the user answers a yes/no card first (under sovereign, no card).'),
         }),
       )
       .min(1)
-      .max(20)
-      .describe('The facts to store.'),
+      .max(20),
   }),
 )
 type RetainSchema = ReturnType<typeof retainSchema>
@@ -199,9 +198,9 @@ export const RetainTool = buildTool({
 const recallSchema = lazySchema(() =>
   z
     .strictObject({
-      query: z.string().optional().describe('Words to search for across the pages, the archive, the pending observations and the lineage ledger; a phrase or regex matches literally, otherwise the words of the query are matched. A pointer is an id, a title and footnotes: open one with read to see the record.'),
-      read: z.string().optional().describe('Read one full record by id: seq:<n> (a fact or ruling) · doc:<slug> (a whole page) · pending:<ts> · ledger:<ordinal> (a session\'s entry and its handoff).'),
-      limit: z.number().int().min(1).max(POINTER_LIMIT).optional().describe(`Max pointers (default ${POINTER_DEFAULT_LIMIT}, at most ${POINTER_LIMIT}).`),
+      query: z.string().optional().describe('Search pages, archive, pending rows and lineage (phrases/regex match literally, else words). A pointer is an id, a title and footnotes: open one with read to see the record.'),
+      read: z.string().optional().describe('Read record by id: seq:<n>, doc:<slug>, pending:<ts>, or ledger:<ordinal> (session + handoff).'),
+      limit: z.number().int().min(1).max(POINTER_LIMIT).optional().describe(`Max pointers (default ${POINTER_DEFAULT_LIMIT}).`),
     })
     .refine(value => Boolean(value.query) !== Boolean(value.read), {
       message: 'pass exactly one of query or read',
@@ -412,11 +411,11 @@ export const ReflectTool = buildTool({
 
 const correctSchema = lazySchema(() =>
   z.strictObject({
-    op: z.enum(['supersede', 'amend', 'retract']).describe('supersede = a new truth; amend = fix the wording, which needs the full record read this session; retract = mark it wrong.'),
-    id: z.string().describe('The record id: seq:<n> for a consolidated row, pending:<ts> for a draft still in the buffer.'),
-    content: z.string().optional().describe('The new or corrected content (supersede, amend).'),
-    replacementId: z.string().optional().describe('supersede only: an existing seq:<n> already carrying the truth, instead of content.'),
-    reason: z.string().describe('Why; every correction carries its reason.'),
+    op: z.enum(['supersede', 'amend', 'retract']).describe('supersede = new truth; amend = fix wording (needs full record read this session); retract = mark wrong.'),
+    id: z.string().describe('Record id: seq:<n> (consolidated) or pending:<ts> (draft).'),
+    content: z.string().optional().describe('New/corrected text (supersede, amend).'),
+    replacementId: z.string().optional().describe('supersede: existing seq:<n> instead of content.'),
+    reason: z.string().describe('Reason for correction.'),
   }),
 )
 type CorrectSchema = ReturnType<typeof correctSchema>
