@@ -1,5 +1,5 @@
 {
-  "base": "20b4f1912b9642e4a85c12fde3747d9562fd695d",
+  "base": "29d2e7a46c786e4c93cc2cb65832688736e593f4",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -599,7 +599,7 @@
                 },
                 "question": {
                   "type": "string",
-                  "description": "Question text"
+                  "description": "Question text; phrase for multi-select when applicable"
                 },
                 "header": {
                   "type": "string",
