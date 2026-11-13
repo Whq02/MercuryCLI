@@ -436,7 +436,13 @@ console.log('── §7d a Windows uninstall run from the install it removes han
     layoutSource.includes("'-EncodedCommand'") && layoutSource.includes('$env:MERCURY_UNINSTALL_PATHS') && layoutSource.includes('$env:MERCURY_UNINSTALL_DIR') && layoutSource.includes('-LiteralPath $p'))
   check('the helper waits for the uninstalling process itself to end before its first removal, however long that command still takes (the PATH entry is written after the helper starts)',
     layoutSource.includes('MERCURY_UNINSTALL_PID: String(process.pid)') && layoutSource.includes('[int]::TryParse($env:MERCURY_UNINSTALL_PID, [ref]$owner)') && layoutSource.includes('Wait-Process -Id $owner -Timeout 120')
-      && layoutSource.indexOf('Wait-Process -Id $owner') < layoutSource.indexOf('Remove-Item -LiteralPath $p'))
+      && layoutSource.indexOf('Wait-Process -Id $owner -Timeout 120') < layoutSource.indexOf('Remove-Item -LiteralPath $p'))
+  const helperSource = layoutSource.slice(layoutSource.indexOf('const UNINSTALL_AFTER_EXIT_SCRIPT = ['), layoutSource.indexOf('export function uninstallLayout('))
+  check('the helper is not started detached (a detached powershell.exe has no console on Windows and ends at once, having removed nothing): a starter the command waits for starts it with a console of its own and no window',
+    helperSource.length > 0 && !/detached:\s*true/.test(helperSource) && helperSource.includes('spawnSync(') && helperSource.includes('$i.UseShellExecute = $false') && helperSource.includes('$i.CreateNoWindow = $true') && helperSource.includes('[System.Diagnostics.Process]::Start($i)'))
+  check('the command says the files go after it only once the helper has said it runs: the helper writes its word first, the starter answers 0 on that word alone, 4 where the helper ended without it and 5 where it never came, and the command reads that answer',
+    helperSource.includes("[System.IO.File]::WriteAllText($env:MERCURY_UNINSTALL_READY, 'ready')") && helperSource.includes('$env:MERCURY_UNINSTALL_READY = $ready') && helperSource.includes('if (Test-Path -LiteralPath $ready) { exit 0 }') && helperSource.includes('if ($p.HasExited) { exit 4 }') && helperSource.includes("'exit 5',") && helperSource.includes('return started.status === 0')
+      && helperSource.includes("WriteAllText($env:MERCURY_UNINSTALL_READY, 'ready')") && helperSource.indexOf("WriteAllText($env:MERCURY_UNINSTALL_READY, 'ready')") < helperSource.indexOf('Wait-Process -Id $owner -Timeout 120'))
   const verbSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'installVerb.ts'), 'utf8')
   check('the verb exits non-zero only when something of Mercury\'s could not be removed', verbSource.includes('const left = report.leftVersionMembers.length > 0 || report.leftSetMembers.length > 0') && verbSource.includes('return left ? cliError(text) : cliOk(text)'))
 }
