@@ -26,6 +26,7 @@ for (const k of [
 const { query } = await import('../../src/query.ts')
 const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(false)
+bootstrap.setSessionKind('oculus')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
@@ -200,7 +201,7 @@ section('P1 — a plain long reply and a reply whose repeats live in a code fenc
   check('a list whose items repeat is not chanting', listed.terminal.reason === 'completed' && listed.calls.length === 1 && rows(listed).length === 0, `calls=${listed.calls.length}`)
 }
 
-section('P2 — DEFAULT (no key): a chanting reply is cut once with the loop nudge and the model continues; a second chant lets the reply stand')
+section('P2 — DEFAULT (no key), a session a screen belongs to: a chanting reply is cut once with the loop nudge and the model continues; a second chant lets the reply stand')
 {
   setStopKey(null)
   const once = await runReplies([CHANT, HONEST])
