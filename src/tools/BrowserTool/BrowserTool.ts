@@ -135,7 +135,7 @@ export function browserToolEnabled(): boolean {
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
-    op: z.enum(OPS),
+    op: z.enum(OPS).describe('Browser operation.'),
     url: z.string().optional().describe('open: http/https URL'),
     waitUntil: z
       .enum(['domcontentloaded', 'load', 'networkidle2'])
