@@ -737,6 +737,31 @@ console.log('\n§4 Text painting beyond its layout rect (reach): grounded, ungro
     })
     check('product shape (MessageResponse height=1 overflowY=hidden in BashTool): clipped wrapping text equals fresh paint', err === null, err ?? '')
   }
+
+  {
+    const err = runPair(36, 10, ctx => {
+      const root = createNode('ink-root')
+      applySceneStyle(root, { width: 36, height: 10, flexDirection: 'column' })
+      const rail = box({ width: 12, overflow: 'hidden' }, Array.from({ length: 8 }, (_, i) => box({ flexDirection: 'row', height: 1 }, [styledText(`rail row ${i}`)])))
+      const centre = box({ flexGrow: 1, flexShrink: 1, minWidth: 0, minHeight: 0, overflow: 'hidden', borderStyle: 'round' }, [styledText('centre pane')])
+      const upper = box({ flexDirection: 'row', flexGrow: 1, flexShrink: 1, minHeight: 0, overflow: 'hidden' }, [rail, centre])
+      const cardStyle = (rows: number): Styles => ({ flexDirection: 'column', flexGrow: 0, flexShrink: 0, width: 36, height: rows, borderStyle: 'round' })
+      const card = box(cardStyle(3), [styledText('the card that takes the rows')])
+      const ground = box({ width: 36, height: 10, overflow: 'hidden', backgroundColor: '#0d181b' as never }, [upper, card])
+      appendChildNode(root, ground)
+      const resize = (rows: number) => (): void => {
+        applySceneStyle(card, cardStyle(rows))
+        markDirty(card)
+      }
+      return {
+        root,
+        render: createRenderer(root, ctx.stylePool),
+        frames: [emptyFrame(10, 36, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool), emptyFrame(10, 36, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)],
+        steps: [resize(7), resize(6), resize(5), resize(4), resize(3), resize(8), resize(3)],
+      }
+    })
+    check('product shape (the cockpit rails above a card that takes rows and gives them back): each row a clipped rail regains equals fresh paint, never the card that stood there', err === null, err ?? '')
+  }
 }
 
 console.log(`\nprove-filled-box-reuses-screen: ${checks} checks, ${failures} failed`)
