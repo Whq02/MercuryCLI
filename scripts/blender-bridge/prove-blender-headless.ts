@@ -131,8 +131,9 @@ section('§1 · armed, Blender located, no client reachable: raising python_run 
       out.includes('WARN (bpy.rna): C-level engine warning'),
   )
   check(
-    'suppresses Blender banner structurally via -q (no banner lines in the answer)',
-    !out.includes('hash deadbeef') && !out.includes('Blender quit'),
+    'Blender\'s own banner line, which the binary prints even under -q, is not in the answer, and its quit line is not either',
+    !out.includes('(hash ') && !/^Blender \d/m.test(out) && !out.includes('Blender quit'),
+    out.split('\n').filter(line => line.includes('hash') || line.startsWith('Blender')).join(' | '),
   )
   check('wrote nothing to the user add-on home', readdirSync(addonHome).length === 0)
 }
@@ -194,6 +195,11 @@ section('§3 · python_run value, bounded stdout/stderr tails apart, Blender C-l
   )
   check('keeps script stderr apart from script stdout', bigRun.includes('script_stderr_only'))
   check('keeps Blender C-level stdout apart from script streams', bigRun.includes('Fra:1 Mem:24.00M'))
+  check(
+    'what Blender itself printed comes back under its heading without the banner line',
+    /^blender stdout:\nFra:1 Mem:24\.00M \(Peak 28\.00M\)$/m.test(bigRun) && !bigRun.includes('(hash '),
+    bigRun.slice(-160),
+  )
 
   const secondRun = await runWithCwdOverride(work, () =>
     callTool('python_run', { source: 'result = "persisted_marker" in globals()' }),
@@ -207,6 +213,23 @@ section('§3 · python_run value, bounded stdout/stderr tails apart, Blender C-l
       !pidAlive(calls[0]!.pid) &&
       !pidAlive(calls[1]!.pid),
   )
+  const quietRun = await runWithCwdOverride(work, () =>
+    callTool('python_run', { source: 'print("Blender 5.3.0 (hash 02f0899d78e3 built 2026-11-10 01:31:21)")\nresult = 1' }),
+  )
+  check(
+    'when the banner is all Blender printed, the answer carries no blender stdout heading at all',
+    !quietRun.includes('blender stdout:'),
+    quietRun.slice(-200),
+  )
+  check(
+    'a line of the same shape printed by the script is the script\'s own output and is kept',
+    quietRun.includes('Blender 5.3.0 (hash 02f0899d78e3 built 2026-11-10 01:31:21)\\n'),
+    quietRun.slice(0, 300),
+  )
+  process.env.FAKE_BLENDER_VERSION = '4.2.3 LTS'
+  const ltsRun = await runWithCwdOverride(work, () => callTool('python_run', { source: 'result = 2' }))
+  delete process.env.FAKE_BLENDER_VERSION
+  check('a banner with a release word after the number is dropped the same way', !ltsRun.includes('(hash ') && !ltsRun.includes('blender stdout:'), ltsRun.slice(-200))
 }
 
 section('§4 · headless scene/objects/render_state/report_tail/blend_open + fenced blend arg + render_still execute form & ceiling')

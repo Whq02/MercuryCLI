@@ -75,8 +75,7 @@ elif "-P" in argv:
     if idx + 1 < len(argv):
         script_path = argv[idx + 1]
 
-if not quiet:
-    os.write(1, ("Blender %s (hash deadbeef)\\n" % VERSION).encode("utf-8"))
+os.write(1, ("Blender %s (hash 02f0899d78e3 built 2026-11-10 01:31:21)\\n" % VERSION).encode("utf-8"))
 
 c_out = os.environ.get("FAKE_BLENDER_C_STDOUT", "")
 if c_out:
