@@ -217,11 +217,12 @@ async function runOp(input: Input, abortSignal?: AbortSignal): Promise<string> {
 export const BlenderTool = buildTool({
   name: BLENDER_TOOL_NAME,
   get searchHint() {
-    return 'Blender control (the Mercury bridge): scene/objects truth, blend opens, still renders, report tail, python_run'
+    return 'Blender with no window, or a running one: run Python or a script, render a still, read the scene'
   },
+  searchKeywords: ['headless', 'background'],
   maxResultSizeChars: 100_000,
   async description() {
-    return 'Drive the running Blender: scene and object truth, .blend opens, render state and still renders, the report tail, and python_run'
+    return 'Run Blender in the background with no window when no bridge answers, or drive a running Blender when one does: run Python or a script, render a still, read the scene and its objects, open a .blend, read the render state and the report tail'
   },
   async prompt() {
     return getBlenderToolDescription()

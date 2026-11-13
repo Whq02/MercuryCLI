@@ -38,6 +38,8 @@ const {
 const { getBlenderBridgeClient, resetBlenderBridgeClientForTest } = await import('../../src/services/blender/bridgeClient.js')
 const { _resetBlenderBridgeContextCacheForTesting } = await import('../../src/utils/blender/bridgeGates.js')
 const { computeHarnessMapLines } = await import('../../src/utils/cockpit/harnessMap.js')
+const { formatDeferredToolLine } = await import('../../src/tools/ToolSearchTool/prompt.js')
+const { searchToolsWithKeywords, clearToolSearchDescriptionCache } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.js')
 const { startFakeBlenderBridge } = await import('./fake-bridge.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'blender-bridge-tool-'))
@@ -85,6 +87,38 @@ section('§2 · ARMED — catalog + teaching surfaces + the danger sentences (th
   check('Blender tool present in a blend-less dir once a Blender is located', await runWithCwdOverride(bare, async () => hasBlender()))
   process.env.MERCURY_BLENDER_BIN = noBlender
   _resetBlenderBridgeContextCacheForTesting()
+  const rosterLine = formatDeferredToolLine(BlenderTool as never)
+  check(
+    'the roster line is shown whole and says the road with no window in its first words',
+    !rosterLine.endsWith('…') && rosterLine.startsWith('Blender — Blender with no window'),
+    rosterLine,
+  )
+  check(
+    'the roster line names a running Blender too, and the three things a session looks for',
+    rosterLine.includes('a running one') &&
+      rosterLine.includes('run Python or a script') &&
+      rosterLine.includes('render a still') &&
+      rosterLine.includes('read the scene'),
+    rosterLine,
+  )
+  check('the roster line no longer reads as the bridge alone', !rosterLine.includes('the Mercury bridge'), rosterLine)
+  const oneLine = await BlenderTool.description({} as never, {} as never)
+  check(
+    'the one-line description says both roads: the background with no window when no bridge answers, a running Blender when one does',
+    oneLine.includes('in the background with no window when no bridge answers') &&
+      oneLine.includes('a running Blender when one does') &&
+      !oneLine.startsWith('Drive the running Blender'),
+    oneLine,
+  )
+  clearToolSearchDescriptionCache()
+  check(
+    'a search for headless or for background finds the tool by its search words',
+    (await searchToolsWithKeywords('+headless', [BlenderTool as never], [BlenderTool as never], 5)).includes('Blender') &&
+      (await searchToolsWithKeywords('+background', [BlenderTool as never], [BlenderTool as never], 5)).includes('Blender') &&
+      (BlenderTool.searchKeywords ?? []).includes('headless') &&
+      (BlenderTool.searchKeywords ?? []).includes('background'),
+    JSON.stringify(BlenderTool.searchKeywords ?? null),
+  )
   const desc = getBlenderToolDescription()
   check('description carries the verb catalog', desc.includes('python_run') && desc.includes('objects_list') && desc.includes('blender_bridge_install'))
   check('description says once that the connection holds across opens and renders', desc.split('The connection holds across blend_open and renders.').length === 2 && !desc.includes('NO-RELOAD'))
