@@ -134,6 +134,38 @@ the rewrite; a rewrite that would leave a file unparsable (the line is
 named); more than 100 files or 500 matches in one edit. Matches already in
 the rewritten form are counted and left alone.
 
+## Memory: the held grammars
+
+The JavaScript engine Mercury runs on recompiles hot WebAssembly with an
+optimising compiler. For a grammar with a very large lexer that
+recompilation costs the process resident memory out of all proportion to
+the speed it buys, so a grammar whose optimiser costs 400 MB or more is
+parsed with the optimiser held off: its own lexer stays baseline code, while
+the engine's shared runtime and every other grammar keep full speed. The
+threshold sits in a gap of the measured costs: the next grammar below it
+costs 291 MB.
+
+| Grammar | Resident memory under sustained parsing, free | Held | Parse speed held |
+| --- | --- | --- | --- |
+| swift | 3,022 MB | 94 MB | 73% |
+| powershell | 2,181 MB | 87 MB | 83% |
+| bash | 625 MB | 84 MB | 80% |
+| kotlin | 566 MB | 93 MB | 86% |
+
+These are readings of one process a grammar on macOS (Apple silicon) under
+the runtime Mercury ships: 400 parses of a small file, then a few seconds
+idle. The bash grammar also reads every Bash command for the permission
+check, so its row is memory a long session used to carry whether or not it
+searched by structure.
+
+The heavy grammars under the threshold keep the optimiser and what it
+costs: cpp about 290 MB, c 170 MB, c-sharp 155 MB, css 120 MB.
+
+`MERCURY_GRAMMAR_BASELINE=0` lets every grammar reach the optimiser: full
+parse speed for the held ones, at the memory of the "free" column. The hold
+is also off when Mercury runs on an engine other than V8, and when node was
+started with WebAssembly tiering flags of your own.
+
 ## Gate
 
 `MERCURY_STRUCTURE_POLYGLOT` (default-on; `=0` removes both tools from the

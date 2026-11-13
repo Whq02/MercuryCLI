@@ -74,7 +74,7 @@ const RAW_ENV_SITES: readonly RegisteredRawEnvSite[] = [
   {
     file: 'src/services/structure/grammarFacility.ts',
     code: 'env: process.env,',
-    witness: "const probe = spawnSync(process.execPath, ['-e', FRAGILE_PROBE_SOURCE, dir, wasmPath], {",
+    witness: "const probe = spawnSync(process.execPath, [...(held ? HELD_TIER_NODE_FLAGS : []), '-e', FRAGILE_PROBE_SOURCE, dir, wasmPath], {",
     why: 'the disposable grammar probe is this node binary running a source that reads argv, exports nothing and spawns nothing; its verdict must match what this host would suffer, NODE_OPTIONS and V8 knobs included',
   },
   {
