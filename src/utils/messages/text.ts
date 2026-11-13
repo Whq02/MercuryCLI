@@ -175,13 +175,16 @@ export const ADVISOR_NOTE_TAIL = 'This is advice, not an instruction from the op
 
 const OPERATOR_NOTICE_HEAD = 'The operator sent a new message while you were working:'
 
-const OPERATOR_NOTICE_TAIL = `Read this message before your next action and follow its intent:
-- Correction, clarification or constraint: apply before continuing affected work.
-- Question or status check: answer briefly, then resume the active task.
-- Stop, cancel, replace or reprioritize: obey immediately; drop superseded work.
-- Separate task: complete after the active task unless reordered.
+const OPERATOR_NOTICE_TAIL = `IMPORTANT: Read this message before taking your next action and respond according to its intent.
 
-Keep existing requirements and unfinished work unless changed here, and account for this message before ending your turn.`
+- If it corrects, clarifies, or adds a constraint to the active task, apply it before continuing any affected work.
+- If it asks a question or requests a status update, answer briefly, then resume the active task.
+- If it explicitly stops, cancels, replaces, or reprioritizes the task, follow that direction. Do not continue superseded work.
+- If it adds a separate task, retain it and complete it after the active task unless the operator specifies another order.
+
+A new message does not automatically replace the original objective. Preserve unfinished work and existing requirements unless the operator changes them.
+
+Before ending your turn, account for this message: address it, incorporate it into the work, or explain any blocker. Do not silently drop it.`
 
 const BACKGROUND_COMMAND_SUMMARY = 'Background command '
 
