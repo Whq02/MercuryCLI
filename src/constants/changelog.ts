@@ -10,6 +10,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Added MERCURY_EDIT_FORM (plain or full), which sends the Edit tool to every model in one named form for a run.
 - Added MERCURY_GREP_RANKED, which lets Grep rank files by the words of a description. It is off by default.
 - Added forty-four verbs to the turn spinner.
+- Changed the Session Concourse to its two panes: the coordinator, the opt-in model that launched and steered sessions from the board, is gone with its pane, its tools and its settings rows. n on the board starts a session as before, --coordinator-on and --coordinator-off are still accepted and say so in one line, and a home that had it on keeps its settings and files.
 - Changed an unattended run (mercury run, a runner with no screen, a crewmate) whose model says what it will do next and then ends its turn: it is asked once to take the step or give its final answer.
 - Changed an unattended run whose model answers with no words and no tool call: it is asked once for its answer.
 - Changed an unattended run whose model repeats itself again after the loop notice: the turn ends loop_stopped and the run exits 1.
