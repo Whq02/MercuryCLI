@@ -24,6 +24,7 @@ export type InstructionSourceEntry = {
   convention?: string
   offered?: string
   dormant?: InstructionDormancy
+  why?: string
   anchor?: string
 }
 
@@ -35,7 +36,7 @@ export type InstructionRuleReading =
   | { kind: 'offered'; description: string }
   | { kind: 'manual' }
   | { kind: 'off' }
-  | { kind: 'unsupported'; detail: string }
+  | { kind: 'unsupported'; detail: string; row?: string }
 
 export type InstructionRuleFormat = {
   accepts(fileName: string): boolean

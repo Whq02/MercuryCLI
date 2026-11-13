@@ -135,5 +135,9 @@ export function triggered(frontmatter: FrontmatterData): InstructionRuleReading 
       ? { kind: 'unsupported', detail: `trigger: ${trigger} with no description: the rule is not loaded` }
       : { kind: 'offered', description }
   }
-  return { kind: 'unsupported', detail: `trigger: ${String(trigger)} is not a word Mercury reads: the rule is not loaded` }
+  return {
+    kind: 'unsupported',
+    detail: `trigger: ${String(trigger)} is not a word Mercury reads: the rule is not loaded`,
+    row: `its trigger "${String(trigger)}" is not one Mercury reads`,
+  }
 }

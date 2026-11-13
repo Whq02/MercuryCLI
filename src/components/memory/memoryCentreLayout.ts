@@ -264,7 +264,7 @@ export function filesRow(files: OverviewFacts['files']): OverviewRow {
     count: files === null ? NO_DATE : plural(files.count, 'file'),
     newest: NO_DATE,
     state: profile,
-    detail: `${profile === 'native' ? 'MERCURY.md only' : 'MERCURY.md, or AGENTS.md when there is none'} · editor and the memory switch`,
+    detail: `${profile === 'native' ? 'MERCURY.md only' : "MERCURY.md, or other tools' files when there is none"} · editor and the memory switch`,
     action: 'open the picker',
   }
 }

@@ -25,7 +25,7 @@ import { pathInWorkingPath } from '../../utils/permissions/filesystem.js'
 import { isSettingSourceEnabled } from '../../utils/settings/constants.js'
 import { forgetHiddenCharacters } from '../../utils/text/hiddenCharacterFindings.js'
 import { adapterForProfile, folderSources, hasPrimaryProjectFile } from './adapters/index.js'
-import { offeredRulesText } from './attachedText.js'
+import { forgetAttachedRules, offeredRulesText } from './attachedText.js'
 import { conventionsForProfile } from './compositionOrder.js'
 import type {
   InstructionBundle,
@@ -452,6 +452,7 @@ export function resetInstructionFilesCache(
 ): void {
   nextEagerLoadReason = reason
   nextLoadIsEager = true
+  if (reason === 'compact') forgetAttachedRules()
   clearInstructionFileCaches()
 }
 

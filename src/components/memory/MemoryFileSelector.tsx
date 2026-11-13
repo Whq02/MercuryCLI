@@ -6,6 +6,7 @@ import { Box, Text } from '../../ink.js'
 import { useExitOnCtrlCDWithKeybindings } from '../../hooks/useExitOnCtrlCDWithKeybindings.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import { getInstructionFiles } from '../../services/instructions/engine.js'
+import { getInstructionListing, listingRowWords, loadedStateOf, toolPrefixOf } from '../../services/instructions/listing.js'
 import type { InstructionSourceEntry } from '../../services/instructions/contracts.js'
 import { openPath } from '../../utils/browser.js'
 import { getMemoryPath } from '../../utils/config.js'
@@ -46,6 +47,7 @@ export function MemoryFileSelector({
   onCancel: () => void
 }): React.ReactNode {
   const files = use(getInstructionFiles())
+  const listing = use(getInstructionListing())
 
   useExitOnCtrlCDWithKeybindings()
 
@@ -98,7 +100,7 @@ export function MemoryFileSelector({
     const projectCanonical = getMemoryPath('Project')
 
     const nativePrefix = (entry: InstructionSourceEntry | undefined) =>
-      entry?.family === 'native' ? 'Mercury-native · ' : entry?.family === 'shared' ? 'shared guide · ' : ''
+      toolPrefixOf(entry) ?? (entry?.family === 'native' ? 'Mercury-native · ' : entry?.family === 'shared' ? 'shared guide · ' : '')
 
     const result: Row[] = visible.map(entry => {
       const depth = importDepthOf(entry, byPath)
@@ -128,9 +130,12 @@ export function MemoryFileSelector({
       return {
         label: getRelativeMemoryPath(entry.path),
         value: entry.path,
-        description: `${nativePrefix(entry)}${getRelativeMemoryPath(entry.path)}`,
+        description: `${nativePrefix(entry)}${getRelativeMemoryPath(entry.path)}${loadedStateOf(entry)}`,
       }
     })
+    for (const row of listing) {
+      result.push({ label: getRelativeMemoryPath(row.path), value: row.path, description: listingRowWords(row, getRelativeMemoryPath(row.path)) })
+    }
 
     if (!byPath.has(userCanonical)) {
       result.push({
@@ -156,7 +161,7 @@ export function MemoryFileSelector({
     }
 
     return result
-  }, [files, mnemeOn])
+  }, [files, listing, mnemeOn])
 
   const preselect =
     lastSelectedPath !== null &&

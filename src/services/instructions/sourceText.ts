@@ -184,6 +184,9 @@ export function readRuleSource(
     info.offered = reading.description.replace(/\s+/g, ' ')
     if (content.trim() !== '') info.content = `- ${filePath}: ${info.offered}`
     info.contentDiffersFromDisk = true
-  } else if (reading.kind !== 'always') info.dormant = reading.kind
+  } else if (reading.kind !== 'always') {
+    info.dormant = reading.kind
+    if (reading.kind === 'unsupported' && reading.row !== undefined) info.why = reading.row
+  }
   return { info, unreadable, reading }
 }

@@ -69,6 +69,17 @@ export function folderSources(start: string): FolderSources {
   }
 }
 
+export function decidingGuideOf(start: string): string | null {
+  const primary = conventionsForProfile(resolveRequestedInstructionProfile().profile).filter(c => !c.fallback)
+  for (const dir of chainOf(start)) {
+    for (const convention of primary) {
+      const guide = projectGuidesAt(convention, dir)[0]
+      if (guide !== undefined) return guide
+    }
+  }
+  return null
+}
+
 function chainOf(dir: string): string[] {
   const dirs: string[] = []
   let current = resolve(dir)

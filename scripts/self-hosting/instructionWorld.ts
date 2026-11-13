@@ -31,6 +31,10 @@ type WorldDrive = {
   guides: string[]
   classified: Record<string, boolean>
   seeded: string[]
+  rows: string[]
+  listed: string[]
+  listedBefore: string[]
+  words: { footer: string; centre: string }
 }
 
 type DriveOptions = {
@@ -40,6 +44,7 @@ type DriveOptions = {
   trust?: string
   home?: string
   classify?: string[]
+  screens?: boolean
 }
 
 const DRIVER = `
@@ -59,6 +64,25 @@ const { composedGuideFilesAt } = await import(join(repo, 'src/services/instructi
 const plan = JSON.parse(process.env.DRV_PLAN ?? '{}')
 const cwd = process.cwd()
 const files = await getInstructionFiles()
+const screens = async (): Promise<{ rows: string[]; listed: string[]; words: { footer: string; centre: string } }> => {
+  let listing: any
+  try {
+    listing = await import(join(repo, 'src/services/instructions/listing.ts'))
+  } catch {
+    return { rows: [], listed: [], words: { footer: '', centre: '' } }
+  }
+  const { getRelativeMemoryPath } = await import(join(repo, 'src/components/memory/MemoryUpdateNotification.tsx'))
+  const { profileStatusLine } = await import(join(repo, 'src/commands/memory/memory.tsx'))
+  const { filesRow } = await import(join(repo, 'src/components/memory/memoryCentreLayout.ts'))
+  listing.getInstructionListing.cache.clear()
+  const family = (entry: any): string => (entry.family === 'native' ? 'Mercury-native · ' : entry.family === 'shared' ? 'shared guide · ' : '')
+  return {
+    rows: files.filter((entry: any) => entry.parent === undefined).map((entry: any) => (listing.toolPrefixOf(entry) ?? family(entry)) + getRelativeMemoryPath(entry.path) + listing.loadedStateOf(entry)),
+    listed: (await listing.getInstructionListing()).map((row: any) => listing.listingRowWords(row, getRelativeMemoryPath(row.path))),
+    words: { footer: profileStatusLine(), centre: filesRow({ count: files.length, profile: getInstructionCompositionState().resolution.resolved }).detail },
+  }
+}
+const before = plan.screens ? await screens() : null
 const bundle = await getInstructionBundle()
 const state = { toolPermissionContext: getEmptyToolPermissionContext() }
 const context = { readFileState: createFileStateCacheWithSizeLimit(100), loadedNestedMemoryPaths: new Set(), nestedMemoryAttachmentTriggers: new Set(), getAppState: () => state }
@@ -83,6 +107,8 @@ writeFileSync(process.argv[2]!, JSON.stringify({
   guides: composedGuideFilesAt(cwd),
   classified: Object.fromEntries((plan.classify ?? []).map((path: string) => [path, isInstructionFilePath(path)])),
   seeded: files.map((f: any) => f.path).filter((path: string) => seedCache.has(path)),
+  listedBefore: before?.listed ?? [],
+  ...(plan.screens ? await screens() : { rows: [], listed: [], words: { footer: '', centre: '' } }),
 }))
 `
 
@@ -130,7 +156,7 @@ export function openWorld(name: string): World {
           MERCURY_LOCAL_PROBE_TARGETS: 'none',
           ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key',
           ANTHROPIC_BASE_URL: 'http://127.0.0.1:1',
-          DRV_PLAN: JSON.stringify({ touch: options.touch ?? [], classify: options.classify ?? [] }),
+          DRV_PLAN: JSON.stringify({ touch: options.touch ?? [], classify: options.classify ?? [], screens: options.screens === true }),
         },
         stdio: ['ignore', 'ignore', 'pipe'],
         encoding: 'utf8',
