@@ -9,7 +9,7 @@ whatever screen is looking at it (the chat, the Session Concourse board, a
 live tile and the home screen render sessions and never store their state).
 This page explains how sessions are started, focused, closed and resumed, how
 the folder you start in becomes a project, and the boot switches that shape
-the navigation strip and the concourse coordinator.
+the navigation strip.
 On Windows, each frame reads the window size from the console so the terminal UI follows it even when no resize event arrives.
 
 ## A fresh boot has no chat
@@ -644,10 +644,6 @@ you open the chat again, while a turn you watched to completion in the chat
 leaves no unread mark. A question from another project opens that project's chat when you press `Enter`; an untrusted folder is never
 switched into silently (the chat still opens, and a notice states that the project scope stayed unchanged).
 
-See [CREW.md](CREW.md) for the coordinator that launches, monitors, messages
-and queues sessions from the board. It is off by default; `mercury
---coordinator-on` turns it on (its own section below).
-
 ## The folder is the project
 
 Open a terminal in any folder and run `mercury`: that folder is the project,
@@ -899,26 +895,6 @@ screen still opens that repo's newest chat.
 
 Both flags also accept single-dash spellings (`-chat`,
 `-concourse-off` and `-concourse-on`).
-
-## `mercury --coordinator-on`
-
-The concourse coordinator ([CREW.md](CREW.md)) is off by default.
-`--coordinator-on` turns it on for this and every later launch through the
-saved `coordinatorEnabled` setting in the global config (absent reads as
-off), written only by this flag; `--coordinator-off` turns it off again, and
-with both flags on one command line the later one wins. A coordinator mode,
-model or effort saved by an earlier version does not turn it on: only the
-switch does, and those settings apply once it is on; a home that never saved
-them gets the assisted coordinator on the first ready model of the composed
-registry (the pane needs a signed-in provider or a served local model, and
-when neither is ready manager mode reports `"manager mode needs a coordinator model — sign in to a provider or serve a local model"`).
-
-With it off, nothing coordinator-shaped runs: `n` on the board starts
-sessions directly, no coordinator turn, conversation, receipt or model choice
-happens, a refused launch or a settled session starts no coordinator work in
-the daemon, the `/config` row "Concourse coordinator" reads off and names the
-switch, and `/health`'s constitution row reads `coordinator off (switch)`.
-With it on, the coordinator behaves as before.
 
 ## Commands that never reach the model
 

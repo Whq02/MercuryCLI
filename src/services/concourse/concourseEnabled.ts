@@ -19,7 +19,3 @@ export function coordinatorEnabled(): boolean {
     return false
   }
 }
-
-export function setCoordinatorEnabled(on: boolean): void {
-  saveGlobalConfig(config => (config.coordinatorEnabled === on ? config : { ...config, coordinatorEnabled: on }))
-}
