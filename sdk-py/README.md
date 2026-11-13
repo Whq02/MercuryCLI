@@ -248,7 +248,17 @@ with connect_sync(timeout=30) as session:
 
 `parse_row`, `row_of`, `input_row_of` and `validate` use generated schemas. `is_main_thread` separates subagent rows. Unknown types become `unknown_row` with `original_type`, raw payload and envelope; known extra fields are preserved. Schema-version changes and malformed known rows are rejected.
 
-Non-completed turns resolve their outcome status (including failed authentication); refusals raise `MercuryRefusal`. Call `assert_completed(outcome)` to raise `MercuryOutcomeError` for a non-completed outcome, including an unanswered permission ask; refusals remain `MercuryRefusal`. Both extend `MercuryError`. `MercuryOutcomeError` retains the original `outcome`, `error_class` and `detail`. Its message names the tool and how to grant permission or attach a host; the SDK does not grant permission automatically. Other specific subclasses are `MercuryUsageError`, `MercuryExitError`, `MercurySpawnError`, `MercuryWireError`, `MercurySchemaError`, `MercuryTimeoutError` and `MercuryConnectionError`. Exit/usage errors preserve the interface and exit receipt; RPC errors preserve code and data. Check status rather than only exit code.
+A CLI outcome with `status: 'refused'` raises `MercuryRefusal`; provider refusals, authentication errors, budget stops and repeated invalid structured output instead resolve a non-completed outcome. Call `assert_completed(outcome)` to raise `MercuryOutcomeError` for a non-completed outcome, including an unanswered permission ask; a `refused` status remains `MercuryRefusal`. Both extend `MercuryError`. `MercuryOutcomeError` retains the original `outcome`, `error_class` and `detail`. Its message names the tool and how to grant permission or attach a host; the SDK does not grant permission automatically. Other specific subclasses are `MercuryUsageError`, `MercuryExitError`, `MercurySpawnError`, `MercuryWireError`, `MercurySchemaError`, `MercuryTimeoutError` and `MercuryConnectionError`. Exit/usage errors preserve the interface and exit receipt; RPC errors preserve code and data. Check status rather than only exit code.
+
+```python
+from mercury_cli_sdk import run_sync, assert_completed, MercuryOutcomeError
+
+try:
+    outcome = run_sync('Write a greeting to hello.txt').outcome
+    print(assert_completed(outcome).get('answer'))
+except MercuryOutcomeError as error:
+    print(error.outcome['status'], str(error))
+```
 
 `connect(timeout=seconds)` bounds initialization. `prompt(content, timeout=seconds)` bounds the whole wait, including queue acceptance; it does not stop the turn unless `interrupt_on_cancel=True` is supplied. A late acceptance still triggers that requested interrupt. `MercuryTimeoutError` carries `method` and `timeout`. Check `facts()` before resending work that may already have been accepted. Requests use the protocol's deadline unless `timeout` overrides it; initialization, prompts and `leave` have no default deadline. Use `request('session/leave', timeout=30)` to bound a leave. Python task cancellation remains `asyncio.CancelledError`.
 
