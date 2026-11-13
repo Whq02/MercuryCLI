@@ -9,7 +9,7 @@ export type SharpInstance = {
   resize(
     width: number | null,
     height?: number | null,
-    options?: { fit?: string; withoutEnlargement?: boolean },
+    options?: { fit?: string; withoutEnlargement?: boolean; kernel?: string },
   ): SharpInstance
   extract(region: { left: number; top: number; width: number; height: number }): SharpInstance
   jpeg(options?: { quality?: number }): SharpInstance

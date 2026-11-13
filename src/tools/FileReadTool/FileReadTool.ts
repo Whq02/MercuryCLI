@@ -145,7 +145,7 @@ const stockFields = () => ({
     .describe(
       `PDF page range ("2-6"), at most ${MAX_PDF_PAGES_PER_REQUEST} pages per call; page pictures on a model with image input, text otherwise.`,
     ),
-  scale: semanticNumber(z.number().min(1).optional()).describe('Upscale factor for the crop, within the image output budget; requires crop.'),
+  scale: semanticNumber(z.number().min(1).optional()).describe('Crop upscale factor, within the image budget; whole numbers repeat pixels; requires crop.'),
   crop: z
     .array(semanticNumber(z.number().int().min(0)))
     .length(4)
@@ -607,7 +607,7 @@ async function cropImageBuffer(buffer: Buffer, crop: CropBox, filePath: string, 
   const cropWidth = x2 - x1
   const cropHeight = y2 - y1
   let processor = sharp(buffer).extract({ left: x1, top: y1, width: cropWidth, height: cropHeight })
-  if (scale !== 1) processor = processor.resize(Math.round(cropWidth * scale), Math.round(cropHeight * scale), { fit: 'fill', withoutEnlargement: false })
+  if (scale !== 1) processor = processor.resize(Math.round(cropWidth * scale), Math.round(cropHeight * scale), { fit: 'fill', withoutEnlargement: false, ...(Number.isInteger(scale) ? { kernel: 'nearest' } : {}) })
   const cropped = await processor.png({ compressionLevel: 6 }).toBuffer()
   return { buffer: cropped, full: { width, height }, box: [x1, y1, x2, y2] }
 }
