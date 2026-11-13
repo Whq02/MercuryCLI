@@ -126,7 +126,7 @@ read on 2026-10-08.
 A new Anthropic model runs before its catalogue row lands: any id inside the
 first-party space (`claude-…`) starts from every door (the home screen's new
 session, `/clear`, `--model`, a saved setting, the crew and workflow seats,
-the advisor and console picks, the coordinator's assist model, and `/model` in
+the advisor and console picks, and `/model` in
 the chat) the moment the account holds an Anthropic credential, and the
 wire decides whether it serves the id; no door judges a Claude id by whether
 the picker lists it. A catalogue row adds what only a row can: the display
@@ -949,7 +949,7 @@ server (`unreachable:local` with the probe
 route). The **crew** arm carries the same verdict row for row: a crewmate is
 the same product child a session runs, so every row a session may run, a crew
 seat may run. Every refusal names its class and
-carries one machine-readable action line so the coordinator or you can see the
+carries one machine-readable action line so you can see the
 exact fix.
 
 ## Auth

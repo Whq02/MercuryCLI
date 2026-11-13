@@ -332,13 +332,4 @@ session's live view beside the session list with its running sessions, its
 parked chats and NEEDS YOU, switching into a row, the live tiles, the
 navigation strip that walks only the screens that exist, and how chats are
 started, focused, closed and resumed) is covered in
-[SESSIONS.md](SESSIONS.md). This section describes the coordinator behind
-the board.
-
-Behind the board sits the switchboard coordinator: one terminal, you,
-and your Mercury sessions running beside each other. The
-coordinator launches, watches, messages, pauses, resumes, queues and
-reconciles sessions and answers questions from the repository it sits on; it
-never does a session's work or reaches inside one, and every verb settles as
-a receipt row you see. The coordinator surface is experimental and
-says so itself on the board: trust receipts, never assumed success.
+[SESSIONS.md](SESSIONS.md).

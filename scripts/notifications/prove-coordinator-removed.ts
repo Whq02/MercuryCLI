@@ -216,6 +216,10 @@ async function main(): Promise<void> {
     const { backgroundedLaunchRefusal } = await import('../../src/services/switchboard/launchAuthority.ts')
     const refusal = backgroundedLaunchRefusal('subagents')
     check('a backgrounded session\'s refusal names the two ways its tag is granted', refusal.includes('until it holds the workflows-allowed tag (granted by choosing keep-and-background on leave, or the manual-start option), or until') && !/coordinator/i.test(refusal), refusal)
+
+    const pages = ['CREW.md', 'ENGINES.md', 'HEALTH-CERTIFICATE.md', 'KIT.md', 'MCP-SERVER.md', 'SESSIONS.md', 'SETTINGS.md']
+    const naming = pages.flatMap(page => text('docs', page).split('\n').flatMap((line, at) => (/coordinator|manager mode/i.test(line) ? [`${page}:${at + 1}`] : [])))
+    check('the six pages that described the Concourse coordinator describe it no more: the word stands on the automation server\'s page alone, for the role a client addresses', naming.length > 0 && naming.every(place => place.startsWith('MCP-SERVER.md:')), naming.join(' '))
   }
 
   section('§4 what carries the word and is not the coordinator stands')
