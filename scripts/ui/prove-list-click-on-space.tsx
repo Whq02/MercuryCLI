@@ -27,6 +27,7 @@ const HINT = '   └ npm test'
 const BODY = '└ make all'
 const BODY_LINE = `  ${BODY}`
 const PLAIN = (at: number): string => `plain row ${at}`
+const keyOf = (row: { uuid: string }): string => row.uuid
 
 let failures = 0
 let checks = 0
@@ -94,7 +95,7 @@ async function stage(): Promise<Stage> {
               messages={rows as never}
               scrollRef={scroll}
               columns={COLUMNS}
-              itemKey={row => row.uuid}
+              itemKey={keyOf}
               selectedIndex={undefined}
               renderItem={renderItem as never}
               onItemClick={toggle as never}

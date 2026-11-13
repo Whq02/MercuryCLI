@@ -22,9 +22,10 @@ const scroll = React.createRef<Scroll>()
 const jump = React.createRef<Jump>()
 let selected = -1
 const rows = [createUserMessage({ content: 'needle needle needle' })]
+const keyOf = (row: { uuid: string }): string => row.uuid
 const view = await mountOffscreen(<AppStateProvider><ThemeProvider><Box width={80} height={24}>
   <ScrollBox ref={scroll} height={20} flexDirection="column">
-    <VirtualMessageList messages={rows} scrollRef={scroll} columns={80} itemKey={row => row.uuid}
+    <VirtualMessageList messages={rows} scrollRef={scroll} columns={80} itemKey={keyOf}
       selectedIndex={undefined} jumpRef={jump} renderItem={() => <Text>needle needle needle</Text>}
       extractSearchText={() => 'needle needle needle'}
       scanElement={() => [0, 7, 14].map(col => ({ row: 0, col, length: 6 }))}

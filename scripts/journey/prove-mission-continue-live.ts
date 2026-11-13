@@ -3,9 +3,14 @@
 
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+
+const { reapDaemonFoldersSync } = createRequire(import.meta.url)('../lib/proofScratch.cjs') as {
+  reapDaemonFoldersSync: (folders: string[], graceMs?: number) => void
+}
 
 const REPO = path.resolve(import.meta.dir, '../..')
 const DIST = path.join(REPO, 'dist/mercury.mjs')
@@ -55,6 +60,10 @@ const base = `http://127.0.0.1:${port}`
 const reap = (): void => {
   try {
     fixture.kill('SIGTERM')
+  } catch {
+  }
+  try {
+    reapDaemonFoldersSync([SCRATCH])
   } catch {
   }
   if (failures === 0) {
@@ -232,8 +241,16 @@ function stageA(world: World, label: string): { armedSessionId: string | null } 
   check('the card carries the goal verbatim', armed[0]?.goal === GOAL, armed[0]?.goal)
   const debug = debugText(world)
   check('the debug log records the install', debug.includes('[mission] installed standing mission'), 'no install line')
+  reapDaemonFoldersSync([path.join(world.home, 'daemon')])
   return { armedSessionId: armed[0]?.sessionId ?? null }
 }
+
+const STAGE_B_READY = 'ready ·'
+check(
+  'stage B waits on the runner-settled status word rather than ⇧← back, which paints while the runner is still starting',
+  !'Opus 5.5 · high · the runner is starting · 5s  repo  ⇧← back'.includes(STAGE_B_READY) &&
+    'ready · Opus 5.5 · high  repo  ⇧← back'.includes(STAGE_B_READY),
+)
 
 function stageB(world: World, label: string, argvTail: string[]): void {
   section(`${label} — stage B: ${argvTail.join(' ')} re-arms and reports`)
@@ -243,7 +260,7 @@ function stageB(world: World, label: string, argvTail: string[]): void {
     `resume-${argvTail[0]!.replace(/^--/, '')}`,
     argvTail,
     [
-      { atTick: 140, minTick: 15, awaitText: '← back', awaitSettleTicks: 3, data: '/mission\r' },
+      { requireAwait: true, minTick: 15, awaitText: STAGE_B_READY, awaitSettleTicks: 3, data: '/mission\r' },
       { data: '', afterPrevTicks: 15, mark: 'after-mission' }],
     ['Standing mission'],
     240,
@@ -347,6 +364,7 @@ function stageB(world: World, label: string, argvTail: string[]): void {
       gridA.includes('reply to [[continuity turn three'),
       gridA.slice(-400),
     )
+    reapDaemonFoldersSync([path.join(world.home, 'daemon')])
 
     section('WORLD 3 — stage B: --continue restores the rows and the wire carries them')
     const gridB = drive(

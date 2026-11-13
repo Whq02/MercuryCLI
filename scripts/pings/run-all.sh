@@ -5,7 +5,7 @@
 # gate-watch: src/ink/terminalWrite.ts src/utils/settings/types.ts src/services/attention/**
 # gate-watch: src/bootstrap/state.ts src/utils/settings/settingsCache.ts scripts/settings/settings-schema.json
 # gate-watch: src/components/permissions/PermissionRequest.tsx src/components/mcp/ElicitationDialog.tsx
-# gate-watch: src/components/MercuryFrame.tsx src/services/engine-connector/daemonConnector.ts
+# gate-watch: src/components/MercuryFrame.tsx src/services/engine-connector/daemonConnector.ts src/daemon/concourseWorkers.ts
 # gate-watch: src/components/messages/SystemTextMessage.tsx
 # gate-watch: scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/ui/vshot.py
 # gate-watch: scripts/streaming/artifactArena.ts src/commands.ts
@@ -17,6 +17,8 @@
 # gate-watch: src/keybindings/actionGraph.ts src/keybindings/defaultBindings.ts src/screens/Chat.tsx
 # gate-watch: src/services/crew/obligations.ts src/services/crew/obligationsBridge.ts
 # gate-watch: src/services/engine-connector/seatProjections.ts src/utils/*
+# gate-watch: src/services/engine-connector/focusedConnector.ts src/services/engine-connector/seatLive.ts
+# gate-watch: src/ink.ts src/utils/config/globalConfig.ts scripts/lib/seedTranscript.ts
 # gate-watch: src/components/PromptInput/useComposerModelDoors.tsx
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

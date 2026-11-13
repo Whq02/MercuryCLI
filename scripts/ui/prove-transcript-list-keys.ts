@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 process.env.NODE_ENV = 'test'
 
+import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Readable, Writable } from 'node:stream'
@@ -108,6 +109,15 @@ section('§5 structural — the consumers ride the law')
   check('the focus hook detaches only on a re-point (a landing pulse without a slot change is a no-op)', hook.includes('if (focused === lastFocusedForDetach) return') && hook.includes('c.detach()'))
   const add = connector.slice(connector.indexOf('addDisplayRow(row: Message): void {'), connector.indexOf('transcriptFile(): string'))
   check('a resume recap replaces its predecessor on the same connector', add.includes("subtype === 'away_summary'") && add.includes('this.displayRows.filter('))
+  const harnesses = execFileSync('git', ['ls-files', '-z', '--', 'scripts'], { cwd: ROOT, encoding: 'utf8' })
+    .split('\0')
+    .filter(p => p.endsWith('.tsx') && readFileSync(join(ROOT, p), 'utf8').includes('<VirtualMessageList'))
+  const inlineKeyHarnesses = harnesses.filter(p => {
+    const src = readFileSync(join(ROOT, p), 'utf8')
+    const tags = src.match(/<VirtualMessageList[\s\S]*?\/>/g) ?? []
+    return tags.length === 0 || tags.some(tag => !/\bitemKey=\{[A-Za-z_$][\w$]*\}/.test(tag))
+  })
+  check('every VirtualMessageList proof harness hands one stable itemKey function, as Messages does', harnesses.length >= 3 && inlineKeyHarnesses.length === 0, inlineKeyHarnesses.join(', '))
 }
 
 section('§6 the banner-collapse face (FN-016 R3, verify-only): every retry attempt mounts fresh')

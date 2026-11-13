@@ -124,7 +124,7 @@ section('§2 — a keyless home: no neutral default, no roster, the two-door sen
 
 section('§3 — ONLY OPENAI SIGNED IN: the seat is the GPT row everywhere; a named Claude choice refuses naming the way out')
 const { startCrossfamilyFixture } = await import('../lib/crossfamilyConcourseFixture.ts')
-const fixture = await startCrossfamilyFixture({ port: 41000 + (process.pid % 10000) })
+const fixture = await startCrossfamilyFixture({ port: 0 })
 try {
   for (const key of ['MERCURY_OPENAI_API_BASE', 'MERCURY_OPENAI_CHATGPT_BASE', 'MERCURY_OPENAI_AUTH_BASE', 'OPENAI_API_KEY'] as const) {
     process.env[key] = fixture.env[key]

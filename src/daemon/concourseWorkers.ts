@@ -358,10 +358,37 @@ export type SessionWorkersSnapshot =
   | { state: 'known'; workers: Record<string, ConcourseWorkerRecordV1> }
   | { state: 'unavailable' }
 
-export function readSessionWorkersSnapshot(dir?: string): SessionWorkersSnapshot {
+function freezeWorkersDeep<T>(value: T): T {
+  if (value === null || typeof value !== 'object' || Object.isFrozen(value)) return value
+  Object.freeze(value)
+  for (const child of Object.values(value as Record<string, unknown>)) {
+    freezeWorkersDeep(child)
+  }
+  return value
+}
+
+const EMPTY_SESSION_WORKERS: SessionWorkersSnapshot = freezeWorkersDeep({ state: 'known', workers: {} })
+const UNAVAILABLE_SESSION_WORKERS: SessionWorkersSnapshot = freezeWorkersDeep({ state: 'unavailable' })
+const workersSnapshotMemo = new Map<string, { fp: string; snapshot: SessionWorkersSnapshot }>()
+
+function workersStatFingerprint(path: string): string | null {
   try {
-    const raw = JSON.parse(readFileSync(concourseWorkersPath(dir), 'utf8')) as ConcourseWorkerFileV1
-    if (!raw || raw.version !== 1 || typeof raw.workers !== 'object' || raw.workers === null || Array.isArray(raw.workers)) return { state: 'unavailable' }
+    const st = statSync(path, { bigint: true })
+    return `${st.dev}:${st.ino}:${st.size}:${st.mtimeNs}:${st.ctimeNs}`
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return 'absent'
+    return null
+  }
+}
+
+function readMutableSessionWorkersFromDisk(
+  path: string,
+): { kind: 'known'; workers: Record<string, ConcourseWorkerRecordV1> } | { kind: 'absent' } | { kind: 'unavailable' } {
+  try {
+    const raw = JSON.parse(readFileSync(path, 'utf8')) as ConcourseWorkerFileV1
+    if (!raw || raw.version !== 1 || typeof raw.workers !== 'object' || raw.workers === null || Array.isArray(raw.workers)) {
+      return { kind: 'unavailable' }
+    }
     for (const rec of Object.values(raw.workers)) {
       const legacy = rec as ConcourseWorkerRecordV1 & { workerId?: string }
       if (legacy.runnerId === undefined && typeof legacy.workerId === 'string') {
@@ -370,10 +397,37 @@ export function readSessionWorkersSnapshot(dir?: string): SessionWorkersSnapshot
       delete legacy.workerId
       if (typeof rec.workspaceId === 'string') rec.workspaceId = canonicalWorkspaceId(rec.workspaceId)
     }
-    return { state: 'known', workers: raw.workers }
+    return { kind: 'known', workers: raw.workers }
   } catch (error) {
-    return (error as NodeJS.ErrnoException).code === 'ENOENT' ? { state: 'known', workers: {} } : { state: 'unavailable' }
+    return (error as NodeJS.ErrnoException).code === 'ENOENT' ? { kind: 'absent' } : { kind: 'unavailable' }
   }
+}
+
+export function readSessionWorkersSnapshot(dir?: string): SessionWorkersSnapshot {
+  const path = concourseWorkersPath(dir)
+  const fp = workersStatFingerprint(path)
+  if (fp === null) {
+    workersSnapshotMemo.delete(path)
+    return UNAVAILABLE_SESSION_WORKERS
+  }
+  const hit = workersSnapshotMemo.get(path)
+  if (hit !== undefined && hit.fp === fp) return hit.snapshot
+  if (fp === 'absent') {
+    workersSnapshotMemo.set(path, { fp: 'absent', snapshot: EMPTY_SESSION_WORKERS })
+    return EMPTY_SESSION_WORKERS
+  }
+  const parsed = readMutableSessionWorkersFromDisk(path)
+  if (parsed.kind === 'absent') {
+    workersSnapshotMemo.delete(path)
+    return EMPTY_SESSION_WORKERS
+  }
+  if (parsed.kind === 'unavailable') {
+    workersSnapshotMemo.delete(path)
+    return UNAVAILABLE_SESSION_WORKERS
+  }
+  const snapshot: SessionWorkersSnapshot = freezeWorkersDeep({ state: 'known', workers: parsed.workers })
+  workersSnapshotMemo.set(path, { fp, snapshot })
+  return snapshot
 }
 
 export function markConcourseWorkerDelivery(runnerId: string, dir?: string): void {
@@ -681,7 +735,8 @@ export function updateConcourseWorkers(
     return sessionRecordsInFlight.workers
   }
   const workers = withDaemonStoreLock('the session records', path, dir, ({ assertStillHeld }) => {
-    const next = readSessionWorkers(dir)
+    const fresh = readMutableSessionWorkersFromDisk(path)
+    const next = fresh.kind === 'known' ? fresh.workers : {}
     const outer = sessionRecordsInFlight
     sessionRecordsInFlight = { path, workers: next }
     try {
@@ -1957,7 +2012,11 @@ export function concourseTranscriptPath(rec: Pick<ConcourseWorkerRecordV1, 'sess
   return join(getProjectDir(rec.workspaceId), `${rec.sessionId}.jsonl`)
 }
 
-export function runnerRestartReasonOf(rec: Pick<ConcourseWorkerRecordV1, 'crash' | 'turnCutAt' | 'restartReason'>): 'crash' | 'stop' | 'relaunch' | 'ended' | 'update' {
+export function runnerRestartReasonOf(
+  rec: Pick<ConcourseWorkerRecordV1, 'crash' | 'turnCutAt' | 'restartReason'>,
+  override?: ConcourseWorkerRecordV1['restartReason'],
+): 'crash' | 'stop' | 'relaunch' | 'ended' | 'update' {
+  if (override !== undefined) return override
   if (rec.restartReason !== undefined) return rec.restartReason
   if (rec.crash !== undefined) return 'crash'
   return turnCutStanding(rec) ? 'stop' : 'relaunch'
@@ -2019,7 +2078,7 @@ export function reviveConcourseWorker(
   const revivePosture = opts?.permissionMode ?? rec.permissionMode
   const reviveConsent = opts?.bypassConsent ?? rec.bypassConsent === true
   const reviveKind = opts?.kind ?? rec.kind ?? sessionKindOfAsker(by)
-  if (opts?.restartReason !== undefined) rec.restartReason = opts.restartReason
+  const restartReason = runnerRestartReasonOf(rec, opts?.restartReason)
   const spec = buildConcourseWorkerSpec({
     runnerId: rec.runnerId,
     sessionId: rec.sessionId,
@@ -2031,7 +2090,7 @@ export function reviveConcourseWorker(
     ...(reviveKit !== undefined ? { kit: reviveKit } : {}),
     ...(revivePosture !== undefined ? { permissionMode: revivePosture } : {}),
     ...(reviveConsent ? { bypassConsent: true as const } : {}),
-    restartReason: runnerRestartReasonOf(rec),
+    restartReason,
     resume: true,
     cwd: rec.worktreePath ?? rec.workspaceId,
     kind: reviveKind,
@@ -2166,7 +2225,7 @@ export async function reactivateConcourseSession(
   const effort = args.effort ?? rec.effort ?? 'high'
   const kit = args.kit ?? args.preset?.kit ?? deriveSessionKitForWorkspace(rec.workspaceId)
   const kitSource: KitStampSource = args.kit !== undefined ? 'carried' : args.preset !== undefined ? 'preset' : 'derived'
-  if (args.restartReason !== undefined) rec.restartReason = args.restartReason
+  const restartReason = runnerRestartReasonOf(rec, args.restartReason)
   if (
     deps.claimWarm !== undefined &&
     kind === 'oculus' &&
@@ -2184,7 +2243,7 @@ export async function reactivateConcourseSession(
       permissionMode: claimPosture,
       bypassConsent: args.bypassConsent === true,
       kit,
-      restartReason: runnerRestartReasonOf(rec),
+      restartReason,
       resume: true,
     })
     if (claimed.claimed) {

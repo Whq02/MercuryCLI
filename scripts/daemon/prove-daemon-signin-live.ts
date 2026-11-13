@@ -55,7 +55,7 @@ if (!existsSync(DIST)) {
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(home, [work])
 const { startCrossfamilyFixture } = await import('../lib/crossfamilyConcourseFixture.ts')
-const FIXTURE_PORT = 23000 + (process.pid % 2000)
+const FIXTURE_PORT = Number(process.env.DAEMON_SIGNIN_PORT ?? 0)
 const fixture = await startCrossfamilyFixture({ port: FIXTURE_PORT })
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')

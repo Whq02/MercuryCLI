@@ -255,7 +255,7 @@ async function openRoute(command: (typeof routes)[number], cols: number, rows: n
   ink.render(h(App, { initialState: state, getFpsMetrics: () => undefined } as never, h(Harness)))
   const lines = (): string[] => stripAnsi(ink.lastFrameText()).replace(/\n$/, '').split('\n')
   const mark = markOf(command.name)
-  const painted = await until(() => lines().some(line => mark.test(line)) && !lines().some(line => /Loading conversations|loading…|examining the harness/.test(line)) && (!markerExpected(command.name, cols, 'open', lines()) || markerPainted(lines(), command.name)))
+  const painted = await until(() => routeOpenPainted(command.name, cols, mark, lines()))
   check(`/${command.name} paints its own mark at ${cols}x${rows} (${mark.source})`, painted, lines().slice(0, 8).map(line => line.replace(/\s+$/, '')).join(' | ').slice(0, 300))
   await settled(lines)
   return {
@@ -308,6 +308,23 @@ const diffListsFiles = (lines: string[]): boolean => region(lines).some(line => 
 const markerExpected = (name: string, cols: number, stage: 'open' | 'walked', frame: string[] = []): boolean =>
   MARKER_ALWAYS.has(name) || (MARKER_AFTER_WALK.has(name) && stage === 'walked') || (MARKER_WIDE_NAV.has(name) && cols >= 177) || (name === 'diff' && diffListsFiles(frame))
 const markerPainted = (lines: string[], name = ''): boolean => glyphMarker(lines) || ((name === 'model' || name === 'tensorfold') && boxedMarker(lines))
+const LOADING_LINE = /Loading conversations|loading…|examining the harness|◐ Checking…/
+function routeOpenPainted(name: string, cols: number, mark: RegExp, frame: string[]): boolean {
+  return frame.some(line => mark.test(line)) && !frame.some(line => LOADING_LINE.test(line)) && (!markerExpected(name, cols, 'open', frame) || markerPainted(frame, name))
+}
+if (onlyRoute === undefined || onlyRoute === 'health') {
+  const checkingFrame = [
+    '╭──────────────────────────────────────────╮',
+    '│ ▖▟▆▙▗ Mercury · health                   │',
+    '│ ◐ Checking… 3/14 · x                     │',
+    '│ ▸ ✓ Mercury build      ok                │',
+    '╰──────────────────────────────────────────╯',
+  ]
+  check(
+    '/health open predicate treats a frame still holding ◐ Checking… 3/14 · x as not painted yet',
+    !routeOpenPainted('health', 177, markOf('health'), checkingFrame),
+  )
+}
 const fullFrameOpen = (lines: string[]): boolean => lines.some((line, index) => /^╭─+╮\s*$/.test(line) && /^│ .*Mercury — /.test(lines[index + 1] ?? ''))
 const fullFrameClosed = (lines: string[]): boolean => lines.some(line => /^╰─+╯\s*$/.test(line))
 const describe = (lines: string[]): string => region(lines).slice(0, 6).map(line => line.replace(/\s+$/, '')).join(' | ').slice(0, 300)

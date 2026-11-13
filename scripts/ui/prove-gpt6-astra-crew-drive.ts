@@ -30,7 +30,7 @@ const ASK = 'astra-crew: launch the survey'
 const FIXTURE_API_KEY = 'fixture-key-000'
 const BUDGET_MS = 8_000
 const SEAT_CEILING = 6
-const PORT = Number(process.env.ASTRA_CREW_PORT ?? 25181)
+const PORT = Number(process.env.ASTRA_CREW_PORT ?? 0)
 
 type SeatArm = 'deep' | 'quick' | 'cold'
 const SEATS: Record<SeatArm, { name: string; type: string; effort: string }> = {
@@ -307,9 +307,13 @@ async function startFixture(port: number): Promise<Fixture> {
       res.end(side.head + side.body + side.tail)
     })
   })
-  await new Promise<void>(resolve => server.listen(port, '127.0.0.1', resolve))
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject)
+    server.listen(port, '127.0.0.1', () => resolve())
+  })
+  const bound = (server.address() as { port: number }).port
   return {
-    base: `http://127.0.0.1:${port}`,
+    base: `http://127.0.0.1:${bound}`,
     hits,
     close: () => new Promise<void>(resolve => server.close(() => resolve())),
   }

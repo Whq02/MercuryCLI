@@ -16,7 +16,7 @@ const VENDORED_NODE = join(ROOT, 'dist', 'vendor', 'node', process.platform === 
 export function productNode(): string {
   return existsSync(VENDORED_NODE) ? VENDORED_NODE : (Bun.which('node') ?? 'node')
 }
-export const FACE_READY = '↑↓ choose'
+export const FACE_READY = 'New Session'
 export const SIZES: ReadonlyArray<{ cols: number; rows: number }> = [
   { cols: 80, rows: 24 },
   { cols: 120, rows: 40 },

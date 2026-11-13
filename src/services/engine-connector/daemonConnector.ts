@@ -104,7 +104,7 @@ import type {
   WorkspaceFactsV1,
 } from './types.js'
 import { bootBirthFacts, type BootBirthFacts } from '../switchboard/bootBirthFacts.js'
-import { seatInitialPermissionMode } from '../../daemon/concourseWorkers.js'
+import { readSessionWorkersSnapshot, seatInitialPermissionMode } from '../../daemon/concourseWorkers.js'
 import { projectOperatorRewinds } from '../compact/checkpointRewind.js'
 
 const UNKNOWN_CHECKPOINTS: CheckpointFactsV1 = Object.freeze({ capture: 'unknown' as const, restorable: Object.freeze(new Set<string>()) as ReadonlySet<string> })
@@ -532,6 +532,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private interruptPressedAtMs: number | null = null
   private lastSize = -1
   private lastLen = -1
+  private transcriptUnreadableFp: string | null = null
   private chainCursor: TranscriptChainCursor | null = null
   private readonly liveFold: LiveTurnFold = createLiveTurnFold()
   private releaseTranscript: (() => void) | null = null
@@ -546,6 +547,17 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private readonly liveListeners: Listeners = new Set()
 
   private facts: SessionFactsV1 | null
+  private workerTurnSettledAtMs: number | null = null
+  private workerTurnDeliveryAtMs: number | null = null
+  private workerRecordPresent = false
+  private completedTurnAtMs: number | null = null
+  private completionWasInFlight = false
+  private completionSawFactsBusy = false
+  private sendDemotedToQueued = false
+  private sendDeliveredTaken = false
+  private completionHighWaterMs = 0
+  private completionUnmatchedEdgeAtMs: number | null = null
+  private completionUnmatchedStampAtMs: number | null = null
   private openedAtMs = Date.now()
   private startShownSinceMs: number | null = null
   private seedFactsAtMs: number | null
@@ -606,6 +618,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   constructor(readonly record: DaemonSessionRecordV1) {
     this.transcriptPath = join(record.home, `${record.sessionId}.jsonl`)
     this.facts = readSessionFacts(record.sessionId)
+    this.factsBusy = this.facts?.busy ?? false
+    this.refreshWorkerTurnMarks()
+    this.completionHighWaterMs = this.workerTurnSettledAtMs ?? 0
+    this.completionWasInFlight = this.factsBusy
+    this.completionSawFactsBusy = this.factsBusy
     this.seedFactsAtMs = this.facts?.atMs ?? null
     this.awaitingRunnerFacts = record.runnerId === ''
     this.refreshWork()
@@ -1103,10 +1120,13 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   private async tickOnce(): Promise<void> {
     if (!this.attached) return
+    let fpNow: string | null = null
     try {
       let sizeNow = -1
       try {
-        sizeNow = statSync(this.transcriptPath).size
+        const st = statSync(this.transcriptPath, { bigint: true })
+        sizeNow = Number(st.size)
+        fpNow = `${st.dev}:${st.ino}:${st.size}:${st.mtimeNs}:${st.ctimeNs}`
       } catch {
         sizeNow = -1
       }
@@ -1120,6 +1140,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       if (this.releaseTranscript === null) this.releaseTranscript = reader.retainTranscript(this.transcriptPath)
       const chain = await reader.readTranscriptChainSince(this.transcriptPath, this.chainCursor)
       if (!this.attached) return
+      this.transcriptUnreadableFp = null
       this.chainCursor = chain.cursor
       const raw = chain.rows as unknown as Message[]
       this.lastSize = sizeNow
@@ -1136,7 +1157,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       )
       this.recordSigs = merge.sigs
       connectorTrace({ ev: 'load', sid: this.record.sessionId, rawLen: raw.length, reusedAll: merge.reusedAll, prevLen: this.rawRecords.length, since: chain.since, rewound: chain.rewound })
-      if (merge.reusedAll) return
+      if (merge.reusedAll) {
+        this.recomputeLive()
+        return
+      }
       this.rawRecords = merge.records
       if (chain.rewound) {
         this.releaseDisplayRowsPast(chain.since)
@@ -1147,9 +1171,12 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       this.reconcileSends()
       this.retireTextRows()
       this.paint()
+      if (this.awaitingRunnerFacts || this.facts?.runner?.state === 'starting') this.readFacts()
       this.recomputeLive()
     } catch (error) {
+      if (fpNow !== null) this.transcriptUnreadableFp = fpNow
       connectorTrace({ ev: 'tick-error', sid: this.record.sessionId, message: error instanceof Error ? error.message : String(error) })
+      if (this.attached) this.recomputeLive()
     }
   }
 
@@ -1214,7 +1241,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (!inFlight && this.toolBudgets.size > 0) this.toolBudgets.clear()
     this.syncLivenessTicker(inFlight)
     this.syncFeedCadence(inFlight)
-    if (!changed) {
+    const completionAdvanced = this.stepTurnCompletion(inFlight)
+    if (!changed && !completionAdvanced) {
       if (latchReleased) emitAll(this.liveListeners, 'live')
       return
     }
@@ -1227,6 +1255,106 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       turnStartedAtMs: this.facts?.turnStartedAt ?? this.liveState.turnStartedAtMs ?? null,
     }
     emitAll(this.liveListeners, 'live')
+  }
+
+  lastTurnCompletedAtMs(): number | null {
+    return this.completedTurnAtMs
+  }
+
+  private refreshWorkerTurnMarks(): void {
+    const snap = readSessionWorkersSnapshot()
+    if (snap.state !== 'known') return
+    let bestRank = -1
+    let settled: number | null = null
+    let delivery: number | null = null
+    let present = false
+    for (const rec of Object.values(snap.workers)) {
+      if (rec.sessionId !== this.record.sessionId || rec.endedAt !== undefined) continue
+      present = true
+      const s = typeof rec.lastTurnSettledAt === 'number' && Number.isFinite(rec.lastTurnSettledAt) ? rec.lastTurnSettledAt : null
+      const d = typeof rec.lastDeliveryAt === 'number' && Number.isFinite(rec.lastDeliveryAt) ? rec.lastDeliveryAt : null
+      const rank = Math.max(s ?? 0, d ?? 0)
+      if (rank >= bestRank) {
+        bestRank = rank
+        settled = s
+        delivery = d
+      }
+    }
+    this.workerRecordPresent = present
+    this.workerTurnSettledAtMs = settled
+    this.workerTurnDeliveryAtMs = delivery
+  }
+
+  private hasUnreadTranscript(): boolean {
+    if (!this.attached) return false
+    try {
+      const st = statSync(this.transcriptPath, { bigint: true })
+      const sizeNow = Number(st.size)
+      if (sizeNow <= 0 || sizeNow === this.lastSize) return false
+      const fp = `${st.dev}:${st.ino}:${st.size}:${st.mtimeNs}:${st.ctimeNs}`
+      return fp !== this.transcriptUnreadableFp
+    } catch {
+      return false
+    }
+  }
+
+  private stepTurnCompletion(inFlight: boolean): boolean {
+    const rawEdge = this.completionWasInFlight && !inFlight
+    const wasFactsBusy = this.completionSawFactsBusy
+    const demotedToQueued = this.sendDemotedToQueued
+    const deliveredTaken = this.sendDeliveredTaken
+    this.sendDemotedToQueued = false
+    this.sendDeliveredTaken = false
+    const canSettleLater = this.workerRecordPresent
+    const edge = rawEdge && !(demotedToQueued && !deliveredTaken && !wasFactsBusy && canSettleLater)
+    this.completionWasInFlight = inFlight
+    this.completionSawFactsBusy = inFlight ? (wasFactsBusy || this.factsBusy) : false
+    const settled = this.workerTurnSettledAtMs
+    const delivery = this.workerTurnDeliveryAtMs
+    if (inFlight) {
+      if (delivery !== null && this.completionUnmatchedStampAtMs !== null && delivery > this.completionUnmatchedStampAtMs) {
+        this.completionUnmatchedStampAtMs = null
+      }
+      return false
+    }
+    const stampAdvanced = settled !== null && settled > this.completionHighWaterMs
+    if ((edge || stampAdvanced) && this.hasUnreadTranscript()) {
+      if (edge) {
+        this.completionWasInFlight = true
+        this.completionSawFactsBusy = wasFactsBusy
+      }
+      void this.tick()
+      return false
+    }
+    if (edge && stampAdvanced) {
+      this.completionHighWaterMs = settled
+      this.completionUnmatchedEdgeAtMs = null
+      this.completionUnmatchedStampAtMs = null
+      this.completedTurnAtMs = Math.max(Date.now(), (this.completedTurnAtMs ?? 0) + 1)
+      return true
+    }
+    if (edge) {
+      if (this.completionUnmatchedStampAtMs !== null && (delivery === null || delivery <= this.completionUnmatchedStampAtMs)) {
+        this.completionUnmatchedStampAtMs = null
+        return false
+      }
+      const now = Date.now()
+      this.completionUnmatchedEdgeAtMs = now
+      this.completedTurnAtMs = Math.max(now, (this.completedTurnAtMs ?? 0) + 1)
+      return true
+    }
+    if (stampAdvanced) {
+      this.completionHighWaterMs = settled
+      if (this.completionUnmatchedEdgeAtMs !== null && (delivery === null || delivery <= this.completionUnmatchedEdgeAtMs)) {
+        this.completionUnmatchedEdgeAtMs = null
+        return false
+      }
+      this.completionUnmatchedEdgeAtMs = null
+      this.completionUnmatchedStampAtMs = settled
+      this.completedTurnAtMs = Math.max(Date.now(), (this.completedTurnAtMs ?? 0) + 1)
+      return true
+    }
+    return false
   }
 
   private reconcileQueuedSends(facts: SessionFactsV1): void {
@@ -1288,6 +1416,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       this.sendSeq.delete(clientMessageId)
       this.paint()
       return
+    }
+    if (current?.state === 'delivered' && state === 'queued') {
+      this.sendDemotedToQueued = true
+    } else if (current?.state === 'delivered' && state === 'taken') {
+      this.sendDeliveredTaken = true
     }
     const enqueuedUnderTheFold = current !== undefined && (current.state !== 'queued' || current.heldFor === 'compaction')
     const heldFor = state === 'queued' && this.liveStateWord === 'compacting' && enqueuedUnderTheFold ? ('compaction' as const) : undefined
@@ -1610,6 +1743,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (this.facts.busy) this.armBusyStall()
     else this.disarmBusyStall()
     this.reconcileQueuedSends(next)
+    this.refreshWorkerTurnMarks()
     this.recomputeLive()
     connectorTrace({ ev: 'facts', sid: this.record.sessionId, busy: next.busy, atMs: next.atMs, queue: next.queue?.length ?? 0, sends: this.sends.map(s => s.state).join(','), inFlight: this.effectiveLive.inFlight, interrupting: this.interrupting, hardStopping: this.hardStopping })
     if (modelMoved) emitAll(this.modelListeners, 'model')

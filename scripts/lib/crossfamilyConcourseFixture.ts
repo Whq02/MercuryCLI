@@ -359,7 +359,10 @@ export async function startCrossfamilyFixture(opts: CrossfamilyFixtureOpts): Pro
       res.end('{}')
     })
   })
-  await new Promise<void>(resolve => server.listen(opts.port, '127.0.0.1', resolve))
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject)
+    server.listen(opts.port, '127.0.0.1', () => resolve())
+  })
   const address = server.address()
   const bound = typeof address === 'object' && address !== null ? address.port : opts.port
   const base = `http://127.0.0.1:${bound}`

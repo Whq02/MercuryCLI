@@ -46,3 +46,24 @@ if (mode === 'wait') {
   writeFileSync(`${receipt}.ready`, '')
   setInterval(() => {}, 1000)
 }
+if (mode === 'dying-daemon') {
+  const { spawn } = await import('node:child_process')
+  const daemonDir = join(named, 'daemon')
+  mkdirSync(daemonDir, { recursive: true })
+  const writerCode = [
+    "const fs = require('node:fs'), path = require('node:path');",
+    'const dir = process.argv[1], tag = process.argv[2];',
+    'const writeLate = () => { try { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, tag), String(process.pid)); } catch {} };',
+    "process.on('SIGTERM', () => { setTimeout(() => { writeLate(); process.exit(0); }, 80); });",
+    'const iv = setInterval(writeLate, 60);',
+    'setTimeout(() => { clearInterval(iv); process.exit(0); }, 4000);',
+  ].join(' ')
+  const d = spawn(process.execPath, ['-e', writerCode, daemonDir, 'daemon-late.txt'], { detached: true, stdio: 'ignore' })
+  const w = spawn(process.execPath, ['-e', writerCode, daemonDir, 'worker-late.txt'], { detached: true, stdio: 'ignore' })
+  d.unref()
+  w.unref()
+  writeFileSync(join(daemonDir, 'daemon.json'), JSON.stringify({ pid: d.pid }))
+  writeFileSync(join(daemonDir, 'concourse-workers.json'), JSON.stringify({ 'concourse-w1': { pid: w.pid } }))
+  facts.dyingPids = [d.pid, w.pid]
+  writeFileSync(`${receipt}.facts`, JSON.stringify(facts))
+}

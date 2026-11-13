@@ -21,18 +21,57 @@ function unreachableProofs(text: string): number[] {
   return hits
 }
 
+function nonZeroPortValue(node: ts.Expression | undefined, source: ts.SourceFile): boolean {
+  if (!node) return false
+  if (ts.isNumericLiteral(node)) return Number(node.text) !== 0
+  if (ts.isStringLiteral(node) && /^\d+$/.test(node.text)) return Number(node.text) !== 0
+  if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken && ts.isNumericLiteral(node.left) && Number(node.left.text) !== 0 && node.right.getText(source).includes('process.pid')) return true
+  if (ts.isBinaryExpression(node) && (node.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken || node.operatorToken.kind === ts.SyntaxKind.BarBarToken) && /_PORT\b/.test(node.left.getText(source))) return nonZeroPortValue(node.right, source)
+  if (ts.isCallExpression(node) && calleeName(node) === 'Number') return nonZeroPortValue(node.arguments[0], source)
+  return false
+}
+
 function fixedFixturePorts(text: string): number[] {
   const source = ts.createSourceFile('proof.ts', text, ts.ScriptTarget.Latest, true)
   const hits: number[] = []
+  const add = (node: ts.Node): void => { hits.push(source.getLineAndCharacterOfPosition(node.getStart()).line + 1) }
   visit(source, node => {
-    if (ts.isVariableDeclaration(node) && /port$/i.test(node.name.getText(source)) && node.initializer && ts.isNumericLiteral(node.initializer) && Number(node.initializer.text) !== 0) hits.push(source.getLineAndCharacterOfPosition(node.getStart()).line + 1)
+    if (ts.isVariableDeclaration(node) && /port(?:_base)?$/i.test(node.name.getText(source)) && nonZeroPortValue(node.initializer, source)) {
+      add(node)
+      return
+    }
     if (!ts.isCallExpression(node)) return
     const name = calleeName(node)
-    const fallback = node.arguments[0]
-    if (name === 'Number' && ts.isVariableDeclaration(node.parent) && /port/i.test(node.parent.name.getText(source)) && fallback && ts.isBinaryExpression(fallback) && fallback.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken && ts.isNumericLiteral(fallback.right) && Number(fallback.right.text) !== 0) hits.push(source.getLineAndCharacterOfPosition(node.getStart()).line + 1)
-    if (name === 'listen' && node.arguments[0] && ts.isNumericLiteral(node.arguments[0]) && Number(node.arguments[0].text) !== 0) hits.push(source.getLineAndCharacterOfPosition(node.getStart()).line + 1)
-    if (!['startWorkflowAgentFixture', 'startCrossfamilyFixture', 'startFoldFamiliesFixture'].includes(name ?? '') || !node.arguments[0] || !ts.isObjectLiteralExpression(node.arguments[0])) return
-    for (const prop of node.arguments[0].properties) if (ts.isPropertyAssignment(prop) && prop.name.getText(source) === 'port' && ts.isNumericLiteral(prop.initializer) && Number(prop.initializer.text) !== 0) hits.push(source.getLineAndCharacterOfPosition(prop.getStart()).line + 1)
+    if (name === 'listen' && nonZeroPortValue(node.arguments[0], source)) add(node)
+    if (name === 'parseArgs' && node.arguments[0] && ts.isArrayLiteralExpression(node.arguments[0])) {
+      const elems = node.arguments[0].elements
+      for (let i = 0; i < elems.length - 1; i++) if (stringText(elems[i]!) === '--port' && nonZeroPortValue(elems[i + 1], source)) add(elems[i + 1]!)
+    }
+    if (!['startWorkflowAgentFixture', 'startCrossfamilyFixture', 'startFoldFamiliesFixture', 'startBenchmarkFixture'].includes(name ?? '') || !node.arguments[0] || !ts.isObjectLiteralExpression(node.arguments[0])) return
+    for (const prop of node.arguments[0].properties) if (ts.isPropertyAssignment(prop) && prop.name.getText(source) === 'port' && nonZeroPortValue(prop.initializer, source)) add(prop)
+  })
+  return hits
+}
+
+function unguardedLoopbackListens(text: string): number[] {
+  const source = ts.createSourceFile('proof.ts', text, ts.ScriptTarget.Latest, true)
+  const zeroConsts = new Set<string>()
+  visit(source, node => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer && ts.isNumericLiteral(node.initializer) && Number(node.initializer.text) === 0) zeroConsts.add(node.name.text)
+  })
+  const hits: number[] = []
+  visit(source, node => {
+    if (!ts.isCallExpression(node) || calleeName(node) !== 'listen') return
+    const portArg = node.arguments[0]
+    const hostArg = node.arguments[1]
+    if (!portArg || !hostArg || stringText(hostArg) !== '127.0.0.1' || node.arguments.length < 3) return
+    if (ts.isNumericLiteral(portArg) && Number(portArg.text) === 0) return
+    if (ts.isIdentifier(portArg) && zeroConsts.has(portArg.text)) return
+    let scope: ts.Node | undefined = node.parent
+    while (scope && !ts.isNewExpression(scope)) scope = scope.parent
+    if (!scope || calleeName(scope) !== 'Promise') return
+    const body = scope.getText(source)
+    if (!/\.(?:once|on)\(\s*['"]error['"]/.test(body)) hits.push(source.getLineAndCharacterOfPosition(node.getStart()).line + 1)
   })
   return hits
 }
@@ -68,6 +107,9 @@ assert.deepEqual(fixedFixturePorts("server.listen(0, '127.0.0.1'); startWorkflow
 assert.deepEqual(fixedFixturePorts('const PORT = Number(process.env.PROOF_PORT ?? 34931)'), [1])
 assert.deepEqual(fixedFixturePorts('const requestedPort = Number(process.env.PROOF_PORT ?? 0)'), [])
 assert.deepEqual(fixedFixturePorts('const FIXTURE_PORT = 34123; const REPORT_WINDOW_MS = 3000'), [1])
+assert.deepEqual(fixedFixturePorts("const PORT_BASE = Number(process.env.WF_CONTROLS_PORT ?? 25191); startCrossfamilyFixture({ port: 41000 + (process.pid % 10000) }); parseArgs(['--port', process.env.MERCURY_AX_PORT || '34210'])"), [1, 1, 1])
+assert.deepEqual(unguardedLoopbackListens("await new Promise<void>(resolve => server.listen(port, '127.0.0.1', resolve))"), [1])
+assert.deepEqual(unguardedLoopbackListens("await new Promise<void>((resolve, reject) => { server.once('error', reject); server.listen(port, '127.0.0.1', () => resolve()) }); await new Promise<void>(r => server.listen(0, '127.0.0.1', r))"), [])
 const borrowed = historicalBuild("execFileSync('git', ['archive', sha]); symlinkSync(join(root, 'node_modules'), join(base, 'node_modules')); spawnSync(bun, ['run', 'build.ts'])")
 assert.ok(borrowed.builds && borrowed.lent.length === 1 && !borrowed.locked)
 const own = historicalBuild("execFileSync('git', ['archive', sha]); spawnSync(bun, ['install', '--frozen-lockfile']); spawnSync(bun, ['run', 'build.ts'])")
@@ -78,10 +120,20 @@ console.log('PASS planted runner and historical-build defects are detected; comm
 const failures: string[] = []
 const runners = tracked.filter(path => /^scripts\/[^/]+\/run-all\.sh$/.test(path))
 for (const path of runners) for (const line of unreachableProofs(read(path))) failures.push(`${path}:${line}: a proof invocation after top-level exec is unreachable; keep the invocation before exec or remove the duplicate`)
+for (const sub of ['lib/crossfamilyConcourseFixture.ts', 'agent-experience/lib/fixture.ts', 'agent-experience/benchmark.ts'] as const) {
+  const path = `scripts/${sub}`
+  const source = read(path)
+  for (const line of fixedFixturePorts(source)) failures.push(`${path}:${line}: fixtures must bind an ephemeral port by default and publish the bound endpoint`)
+  for (const line of unguardedLoopbackListens(source)) failures.push(`${path}:${line}: loopback listen promises must attach an error handler so a held port rejects at once`)
+}
 let historical = 0
 for (const path of tracked.filter(path => /\/prove-[^/]+\.tsx?$/.test(path) && !path.endsWith('/prove-proof-readings-census.ts'))) {
   const source = read(path)
-  if (/^scripts\/(workflows|compact|agent-dispatch|provider-compat|search|extensions)\//.test(path)) for (const line of fixedFixturePorts(source)) failures.push(`${path}:${line}: fixtures must bind an ephemeral port by default and publish the bound endpoint`)
+  const portWatched = /^scripts\/(workflows|compact|agent-dispatch|provider-compat|search|extensions|switchboard|usage-warning|daemon|agent-experience)\//.test(path) || /^scripts\/ui\/prove-(?:workflow-controls|gpt6-astra-crew)-drive\.ts$/.test(path)
+  if (portWatched) {
+    for (const line of fixedFixturePorts(source)) failures.push(`${path}:${line}: fixtures must bind an ephemeral port by default and publish the bound endpoint`)
+    for (const line of unguardedLoopbackListens(source)) failures.push(`${path}:${line}: loopback listen promises must attach an error handler so a held port rejects at once`)
+  }
   const result = historicalBuild(source)
   if (!result.builds) continue
   historical++

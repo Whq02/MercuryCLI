@@ -123,7 +123,7 @@ if (!existsSync(dist)) {
 }
 const out = mkdtempSync(join(tmpdir(), 'mercury-ax-suite-'))
 const keep = process.env.MERCURY_AX_KEEP === '1'
-const opts = parseArgs(['--out', out, '--families', 'all', '--port', process.env.MERCURY_AX_PORT?.trim() || '34210'])
+const opts = parseArgs(['--out', out, '--families', 'all', '--port', process.env.MERCURY_AX_PORT?.trim() || '0'])
 opts.quiet = process.env.MERCURY_AX_VERBOSE !== '1'
 const result = await runBenchmark(opts)
 const tables = result.tables

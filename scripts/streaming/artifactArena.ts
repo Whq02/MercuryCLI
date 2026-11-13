@@ -9,6 +9,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -16,6 +17,10 @@ import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixt
 import { arenaBootFacePass, sendsByAuthor, type SendAuthor } from '../lib/bootFace.ts'
 import { ptyDriverPython, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
+
+const { reapDaemonFoldersSync } = createRequire(import.meta.url)('../lib/proofScratch.cjs') as {
+  reapDaemonFoldersSync: (folders: string[], graceMs?: number) => void
+}
 
 export { nodeBinPath }
 
@@ -252,6 +257,7 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
   if (!outcome.complete) console.error(`[arena] capture incomplete — ${outcome.reason}`)
 
   await fixture.close()
+  reapDaemonFoldersSync([join(home, 'daemon')])
 
   const teeLines: TeeWrite[] = existsSync(tee)
     ? readFileSync(tee, 'utf8')
@@ -288,6 +294,7 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
 
   const cleanup = (): void => {
     if (process.env.FLUX_BENCH_KEEP) return
+    reapDaemonFoldersSync([join(home, 'daemon')])
     rmSync(home, { recursive: true, force: true })
     rmSync(cwd, { recursive: true, force: true })
   }

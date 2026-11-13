@@ -36,5 +36,14 @@ while IFS= read -r name; do
   echo
 done < "$here/members.txt"
 
+echo "▶ scripts/ui/prove-window-kept.ts --poison --sizes=80x21"
+__t=$SECONDS; __rc=0
+if "$BUN" run scripts/ui/prove-window-kept.ts --poison --sizes=80x21 >/dev/null 2>&1; then
+  echo "❌ ui-3: prove-window-kept.ts --poison exited 0 — the negative control lost its teeth"
+  __rc=1; fail=1
+fi
+prover_mark "scripts/ui/prove-window-kept.ts --poison" "$__t" "$__rc"
+echo
+
 if [ "$fail" -eq 0 ]; then echo "✅ UI-3 SUITE GREEN"; else echo "❌ UI-3 SUITE RED"; fi
 exit "$fail"

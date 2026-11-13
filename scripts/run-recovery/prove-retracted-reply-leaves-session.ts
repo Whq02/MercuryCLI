@@ -200,6 +200,11 @@ async function storedRowsOf(messageId: string): Promise<Array<{ retracted?: bool
   const loaded = await loadTranscriptFile(getTranscriptPath(), { keepAllLeaves: true })
   return [...loaded.messages.values()].filter(row => row.type === 'assistant' && (row as { message?: { id?: unknown } }).message?.id === messageId) as Array<{ retracted?: boolean }>
 }
+async function storedRetryNotices(): Promise<Array<{ subtype?: unknown }>> {
+  await flushSessionStorage()
+  const loaded = await loadTranscriptFile(getTranscriptPath(), { keepAllLeaves: true })
+  return [...loaded.messages.values()].filter(row => row.type === 'system' && (row as { subtype?: unknown }).subtype === 'api_error') as Array<{ subtype?: unknown }>
+}
 async function storedRowsSaying(words: string): Promise<Array<{ retracted?: boolean }>> {
   await flushSessionStorage()
   const loaded = await loadTranscriptFile(getTranscriptPath(), { keepAllLeaves: true })
@@ -247,6 +252,8 @@ async function retractionScene(name: string, scene: Scene, opts: { persistent: b
     if (opts.persistent) {
       const stored = await storedRowsOf(scene.withdrawnMessageId)
       check(`${name}: the transcript still records the withdrawn reply, every row of it marked retracted`, stored.length > 0 && stored.every(row => row.retracted === true), j(stored.map(row => row.retracted ?? null)))
+      const retryNotices = await storedRetryNotices()
+      check(`${name}: the transcript records the retry's notice row once (the record cursor stepped back over the withdrawn reply)`, retryNotices.length === 1, String(retryNotices.length))
       const resumed = await resumedView()
       check(`${name}: a conversation resumed from that transcript has the request view the live one has, byte for byte`, resumed === liveView, `live ${liveView} resumed ${resumed}`)
     } else {

@@ -61,7 +61,7 @@ const { startCrossfamilyFixture, CMA_STEER_TEXT } = await import('../lib/crossfa
 const text = (v: unknown): string => JSON.stringify(v) ?? ''
 const STEER_TEXT = CMA_STEER_TEXT
 const fixture = await startCrossfamilyFixture({
-  port: 25137,
+  port: Number(process.env.CROSSFAMILY_KERNEL_PORT ?? 0),
   seatStyle: 'instant',
   launchProjects: { plain: work2, glm: work3, gpt: work5, haiku: work6, nemotron: work7, pairOne: workP1, pairTwo: workP2 },
 })

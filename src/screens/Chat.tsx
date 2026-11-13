@@ -1004,8 +1004,21 @@ export function Chat({
       .catch(() => {});
   }, [setAppState, themeName, getReadFileState]);
   const wasLoadingRef = useRef(false);
+  const connectorCompletedRef = useRef<{ connector: unknown; at: number | null }>({ connector: null, at: null });
+  const hasConnectorCompleted = typeof (focusedConnector as { lastTurnCompletedAtMs?: unknown }).lastTurnCompletedAtMs === 'function';
+  const connectorCompletedAt = hasConnectorCompleted ? (focusedConnector as unknown as { lastTurnCompletedAtMs: () => number | null }).lastTurnCompletedAtMs() : null;
   useEffect(() => {
-    if (wasLoadingRef.current && !isLoading) {
+    if (connectorCompletedRef.current.connector !== focusedConnector) {
+      connectorCompletedRef.current = { connector: focusedConnector, at: connectorCompletedAt };
+      if (isLoading) tipPickedThisTurnRef.current = false;
+      wasLoadingRef.current = isLoading;
+      return;
+    }
+    const completed = hasConnectorCompleted
+      ? !isLoading && connectorCompletedAt !== null && connectorCompletedAt !== connectorCompletedRef.current.at
+      : wasLoadingRef.current && !isLoading;
+    if (!isLoading) connectorCompletedRef.current.at = connectorCompletedAt;
+    if (completed) {
       setLastCompletedAt(Date.now());
       seatPausedMsRef.current = 0;
       seatPauseStartRef.current = null;
@@ -1013,7 +1026,7 @@ export function Chat({
     }
     if (isLoading) tipPickedThisTurnRef.current = false;
     wasLoadingRef.current = isLoading;
-  }, [isLoading, pickTurnTip]);
+  }, [focusedConnector, hasConnectorCompleted, connectorCompletedAt, isLoading, pickTurnTip]);
 
   const resume = useCallback(async (sessionId: UUID, log: ResumableLog, entrypoint: ResumeEntrypoint): Promise<void> => {
     void entrypoint;

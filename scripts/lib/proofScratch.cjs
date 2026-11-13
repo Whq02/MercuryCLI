@@ -9,16 +9,28 @@ const SINGLE_RUN_OWNER = 'MERCURY_SUITE_OF_ONE'
 const SIGNAL_EXITS = [['SIGTERM', 143], ['SIGINT', 130], ['SIGHUP', 129]]
 const folders = new Set()
 const kept = new Set()
+const folderBornAtMs = new Map()
 let installed = false
 let ownRoot = ''
 let madeRoot = false
 let stopped = false
+function noteScratchBirth(folder) {
+  if (!folder) return
+  const key = String(folder)
+  const now = Date.now()
+  if (!folderBornAtMs.has(key)) folderBornAtMs.set(key, now)
+  try {
+    const canon = fs.realpathSync(key)
+    if (!folderBornAtMs.has(canon)) folderBornAtMs.set(canon, now)
+  } catch {}
+}
 function keepAsked() {
   if (process.argv.some(word => word === '--keep' || word.startsWith('--keep-') || word.startsWith('--keep='))) return true
   return Object.entries(process.env).some(([name, value]) => /(?:^|_)KEEP(?:_FIXTURE|_SCRATCH)?$/.test(name) && value !== undefined && value !== '' && value !== '0' && value !== 'false')
 }
 function registerProofScratch(folder) {
   folders.add(folder)
+  noteScratchBirth(folder)
   return folder
 }
 function keepProofScratch(folder) {
@@ -119,11 +131,13 @@ function installProofScratch(options = {}) {
   const outside = adopted ? path.dirname(inherited) : inherited
   if (adopted) {
     ownRoot = inherited
+    noteScratchBirth(ownRoot)
   } else if (!guest) {
     const base = runRootBase(inherited, options.ownHome === true)
     if (base) {
       try {
         ownRoot = sync(path.join(base, RUN_ROOT_PREFIX))
+        noteScratchBirth(ownRoot)
         madeRoot = true
         process.env.TMPDIR = ownRoot
         process.env.MERCURY_TMPDIR = ownRoot
@@ -133,6 +147,7 @@ function installProofScratch(options = {}) {
     } else if (process.platform === 'win32' && !process.env.MERCURY_TMPDIR) {
       try {
         ownRoot = sync(path.join(inherited, RUN_ROOT_PREFIX))
+        noteScratchBirth(ownRoot)
         process.env.MERCURY_TMPDIR = ownRoot
       } catch {
         ownRoot = ''
@@ -175,10 +190,12 @@ function installProofScratch(options = {}) {
     if (guest) return
     if ((code !== 0 && !stopped) || keepAsked()) {
       if (ownRoot && !kept.has(ownRoot) && holdsNothingToRead()) {
+        try { reapDaemonFoldersSync([ownRoot]) } catch {}
         try { removeScratchFolder(ownRoot) } catch {}
       }
       return
     }
+    try { reapDaemonFoldersSync([...folders, ...(ownRoot ? [ownRoot] : [])]) } catch {}
     for (const folder of [...folders].reverse()) {
       try { removeScratchFolder(folder) } catch (error) {
         process.stderr.write(`proof scratch cleanup failed: ${folder}: ${error.message}\n`)
@@ -190,6 +207,276 @@ function installProofScratch(options = {}) {
       process.stderr.write(`proof scratch left behind: ${ownRoot}: ${error.message}\n`)
     }
   })
+}
+const SKIP_SCAN_DIRS = new Set(['node_modules', '.git', 'vendor'])
+const BIRTH_SLACK_MS = 1000
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+}
+function pidAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 1) return false
+  try {
+    process.kill(pid, 0)
+  } catch {
+    return false
+  }
+  if (process.platform === 'win32') return true
+  const { execFileSync } = require('node:child_process')
+  for (const ps of ['ps', '/bin/ps', '/usr/bin/ps']) {
+    try {
+      const state = execFileSync(ps, ['-o', 'state=', '-p', String(pid)], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 2000, windowsHide: true }).trim()
+      if (state) return !state.startsWith('Z')
+    } catch {}
+  }
+  return true
+}
+function win32PsExe() {
+  const rawPath = process.env.PATH || ''
+  const sep = rawPath.includes(';') && !rawPath.includes(':') ? ';' : path.delimiter
+  for (const dir of rawPath.split(sep)) {
+    if (!dir) continue
+    const candidate = path.join(dir, 'pwsh.exe')
+    try {
+      if (fs.existsSync(candidate)) return candidate
+    } catch {}
+  }
+  const fixed = path.join(process.env.ProgramFiles || 'C:\\Program Files', 'PowerShell', '7', 'pwsh.exe')
+  try {
+    if (fs.existsSync(fixed)) return fixed
+  } catch {}
+  return 'powershell.exe'
+}
+function inspectProcess(pid) {
+  if (!pidAlive(pid)) return { state: 'gone' }
+  const { execFileSync } = require('node:child_process')
+  if (process.platform === 'win32') {
+    const script = `$p = Get-CimInstance Win32_Process -Filter "ProcessId=${pid}"; if ($p) { $t = if ($p.CreationDate) { $p.CreationDate.ToUniversalTime().ToString('o') } else { '' }; Write-Output ($t + [char]9 + [string]$p.CommandLine) }`
+    let raw = ''
+    try {
+      raw = execFileSync(win32PsExe(), ['-NoProfile', '-Command', script], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 4000, windowsHide: true })
+    } catch {
+      return pidAlive(pid) ? { state: 'unreadable' } : { state: 'gone' }
+    }
+    const line = String(raw || '').replace(/\r?\n$/, '')
+    if (!line.trim()) return pidAlive(pid) ? { state: 'unreadable' } : { state: 'gone' }
+    const tab = line.indexOf('\t')
+    if (tab < 0) return pidAlive(pid) ? { state: 'unreadable' } : { state: 'gone' }
+    const bornMs = Date.parse(line.slice(0, tab).trim())
+    const command = line.slice(tab + 1).trim()
+    if (!Number.isFinite(bornMs)) return pidAlive(pid) ? { state: 'unreadable' } : { state: 'gone' }
+    return { state: 'ok', bornMs, command }
+  }
+  for (const ps of ['ps', '/bin/ps', '/usr/bin/ps']) {
+    try {
+      const out = execFileSync(ps, ['-o', 'lstart=,command=', '-p', String(pid)], {
+        encoding: 'utf8',
+        env: Object.assign({}, process.env, { LC_ALL: 'C' }),
+        stdio: ['ignore', 'pipe', 'ignore'],
+        timeout: 2000,
+        windowsHide: true,
+      }).trim()
+      if (!out) continue
+      const m = out.match(/^([A-Za-z]{3}\s+[A-Za-z]{3}\s+\d+\s+\d{2}:\d{2}:\d{2}\s+\d{4})\s+([\s\S]+)$/)
+      if (!m) continue
+      const bornMs = Date.parse(m[1])
+      if (!Number.isFinite(bornMs)) continue
+      return { state: 'ok', bornMs, command: m[2].trim() }
+    } catch {}
+  }
+  return pidAlive(pid) ? { state: 'unreadable' } : { state: 'gone' }
+}
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+function hasBoundedScratchRoot(command, root, win32) {
+  const clean = String(root || '').replace(/[\\/]+$/, '')
+  if (!clean) return false
+  if (win32) {
+    const pattern = new RegExp(escapeRegex(clean.replace(/\//g, '\\')) + '(?:\\\\|$|[\\s"\'])', 'i')
+    return pattern.test(String(command).replace(/\//g, '\\'))
+  }
+  const pattern = new RegExp(escapeRegex(clean) + '(?:/|$|[\\s"\'])')
+  return pattern.test(command)
+}
+function commandMatchesScratchOrRepo(command, roots) {
+  if (!command) return false
+  const repoRoot = path.resolve(__dirname, '..', '..')
+  if (process.platform === 'win32') {
+    const norm = s => String(s).replace(/\//g, '\\').toLowerCase().replace(/\\+$/, '')
+    const cmdNorm = String(command).replace(/\//g, '\\').toLowerCase()
+    if (roots.some(root => hasBoundedScratchRoot(command, root, true))) return true
+    return cmdNorm.includes(norm(repoRoot) + '\\')
+  }
+  if (roots.some(root => hasBoundedScratchRoot(command, root, false))) return true
+  return command.includes(repoRoot + path.sep)
+}
+function folderBirthBoundMs(list) {
+  let latest = -Infinity
+  for (const raw of list) {
+    if (!raw) continue
+    const folder = String(raw)
+    const registered = folderBornAtMs.get(folder)
+    if (typeof registered === 'number' && Number.isFinite(registered)) {
+      if (registered > latest) latest = registered
+      continue
+    }
+    try {
+      const canon = fs.realpathSync(folder)
+      const regCanon = folderBornAtMs.get(canon)
+      if (typeof regCanon === 'number' && Number.isFinite(regCanon)) {
+        if (regCanon > latest) latest = regCanon
+        continue
+      }
+    } catch {}
+    try {
+      const st = fs.statSync(folder)
+      if (typeof st.birthtimeMs === 'number' && Number.isFinite(st.birthtimeMs) && st.birthtimeMs > 0) {
+        if (st.birthtimeMs > latest) latest = st.birthtimeMs
+      }
+    } catch {}
+  }
+  return Number.isFinite(latest) ? latest : NaN
+}
+function ownedByScratch(pid, roots, notAfterMs) {
+  if (!Number.isInteger(pid) || pid <= 1 || pid === process.pid || pid === process.ppid) return false
+  if (process.env.MERCURY_SUITE_RUNNER_PID && String(pid) === process.env.MERCURY_SUITE_RUNNER_PID) return false
+  const info = inspectProcess(pid)
+  if (info.state === 'gone') return false
+  if (!Number.isFinite(notAfterMs)) {
+    process.stderr.write(`proof scratch: birth bound unavailable for pid ${pid}; leaving it untouched\n`)
+    return false
+  }
+  if (info.state === 'unreadable') {
+    process.stderr.write(`proof scratch: birth time unreadable for pid ${pid}; leaving it untouched\n`)
+    return false
+  }
+  if (info.bornMs > notAfterMs + BIRTH_SLACK_MS) return false
+  return commandMatchesScratchOrRepo(info.command, roots)
+}
+function daemonPidsInFolder(dir) {
+  const daemonEntries = []
+  const workerEntries = []
+  for (const jsonName of ['daemon.json', 'daemon.lock']) {
+    try {
+      const jf = path.join(dir, jsonName)
+      if (fs.existsSync(jf)) {
+        const mtimeMs = fs.statSync(jf).mtimeMs
+        const parsed = JSON.parse(fs.readFileSync(jf, 'utf8'))
+        if (parsed && typeof parsed === 'object' && Number.isInteger(parsed.pid) && parsed.pid > 1) {
+          daemonEntries.push({ pid: parsed.pid, notAfterMs: mtimeMs })
+        }
+      }
+    } catch {}
+  }
+  try {
+    const pidFile = path.join(dir, 'daemon.pid')
+    if (fs.existsSync(pidFile)) {
+      const mtimeMs = fs.statSync(pidFile).mtimeMs
+      const pid = Number(fs.readFileSync(pidFile, 'utf8').trim())
+      if (Number.isInteger(pid) && pid > 1) daemonEntries.push({ pid, notAfterMs: mtimeMs })
+    }
+  } catch {}
+  try {
+    for (const name of fs.readdirSync(dir)) {
+      const m = name.match(/^hermes-daemon-[^.]+\.sock\.(\d+)$/)
+      if (m) {
+        const pid = Number(m[1])
+        const mtimeMs = fs.lstatSync(path.join(dir, name)).mtimeMs
+        if (Number.isInteger(pid) && pid > 1) daemonEntries.push({ pid, notAfterMs: mtimeMs })
+      }
+    }
+  } catch {}
+  try {
+    const workersFile = path.join(dir, 'concourse-workers.json')
+    if (fs.existsSync(workersFile)) {
+      const fileMtimeMs = fs.statSync(workersFile).mtimeMs
+      const parsed = JSON.parse(fs.readFileSync(workersFile, 'utf8'))
+      if (parsed && typeof parsed === 'object') {
+        const map = parsed.workers && typeof parsed.workers === 'object' && !Array.isArray(parsed.workers) ? parsed.workers : parsed
+        for (const rec of Object.values(map)) {
+          if (rec && typeof rec === 'object' && rec.endedAt === undefined && Number.isInteger(rec.pid) && rec.pid > 1) {
+            let stampMs = NaN
+            if (typeof rec.procStart === 'string') stampMs = Date.parse(rec.procStart)
+            if (!Number.isFinite(stampMs) && typeof rec.spawnedAt === 'number' && Number.isFinite(rec.spawnedAt)) stampMs = rec.spawnedAt
+            if (!Number.isFinite(stampMs)) stampMs = fileMtimeMs
+            workerEntries.push({ pid: rec.pid, notAfterMs: stampMs })
+          }
+        }
+      }
+    }
+  } catch {}
+  return [...daemonEntries, ...workerEntries]
+}
+function findDaemonFolders(start, maxDepth = 3) {
+  const found = []
+  const MARKERS = new Set(['daemon.json', 'daemon.lock', 'daemon.pid', 'concourse-workers.json'])
+  const walk = (cur, depth) => {
+    let entries
+    try {
+      entries = fs.readdirSync(cur, { withFileTypes: true })
+    } catch {
+      return
+    }
+    if (entries.some(e => MARKERS.has(e.name) || /^hermes-daemon-[^.]+\.sock\.\d+$/.test(e.name))) found.push(cur)
+    if (depth >= maxDepth) return
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.isSymbolicLink() || SKIP_SCAN_DIRS.has(entry.name)) continue
+      walk(path.join(cur, entry.name), depth + 1)
+    }
+  }
+  walk(start, 0)
+  return found
+}
+function reapPidsSync(pids, graceMs = 1500) {
+  const unique = [...new Set(pids.filter(pidAlive))]
+  if (unique.length === 0) return
+  for (const pid of unique) {
+    try { process.kill(pid, 'SIGTERM') } catch {}
+  }
+  const deadline = Date.now() + Math.max(0, graceMs)
+  while (Date.now() < deadline && unique.some(pidAlive)) sleepSync(25)
+  const survivors = unique.filter(pidAlive)
+  if (survivors.length === 0) return
+  for (const pid of survivors) {
+    try { process.kill(pid, 'SIGKILL') } catch {}
+  }
+  const killDeadline = Date.now() + 250
+  while (Date.now() < killDeadline && survivors.some(pidAlive)) sleepSync(25)
+}
+function reapDaemonFoldersSync(targetFolders, graceMs = 1500) {
+  const roots = []
+  const daemonDirs = new Set()
+  for (const raw of targetFolders) {
+    if (!raw) continue
+    const folder = String(raw)
+    roots.push(folder)
+    try { roots.push(fs.realpathSync(folder)) } catch {}
+    for (const dir of findDaemonFolders(folder)) daemonDirs.add(dir)
+  }
+  const pids = []
+  for (const dir of daemonDirs) {
+    for (const entry of daemonPidsInFolder(dir)) {
+      if (ownedByScratch(entry.pid, roots, entry.notAfterMs)) pids.push(entry.pid)
+    }
+  }
+  reapPidsSync(pids, graceMs)
+}
+function reapThenRemove(pids, targetFolders, opts = {}) {
+  const graceMs = opts && typeof opts.graceMs === 'number' ? opts.graceMs : 1500
+  const list = Array.isArray(targetFolders) ? targetFolders : [targetFolders]
+  const notAfterMs = opts && typeof opts.notAfterMs === 'number' ? opts.notAfterMs : folderBirthBoundMs(list)
+  const roots = []
+  for (const raw of list) {
+    if (!raw) continue
+    roots.push(String(raw))
+    try { roots.push(fs.realpathSync(String(raw))) } catch {}
+  }
+  const owned = (Array.isArray(pids) ? pids : []).filter(pid => ownedByScratch(pid, roots, notAfterMs))
+  reapPidsSync(owned, graceMs)
+  reapDaemonFoldersSync(list, graceMs)
+  for (const folder of list) {
+    if (folder) removeScratchFolder(String(folder))
+  }
 }
 const RETRY_CODES = new Set(['EBUSY', 'EPERM', 'ENOTEMPTY', 'EMFILE', 'ENFILE'])
 function removeScratchFolder(folder, maxRetries = 10, retryDelayMs = 100) {
@@ -214,7 +501,7 @@ function removeScratchFolder(folder, maxRetries = 10, retryDelayMs = 100) {
 function singleRunRootMadeHere() {
   return madeRoot ? ownRoot : ''
 }
-module.exports = { installProofScratch, registerProofScratch, keepProofScratch, removeScratchFolder, singleRunRootMadeHere, SINGLE_RUN_OWNER }
+module.exports = { installProofScratch, registerProofScratch, keepProofScratch, removeScratchFolder, reapDaemonFoldersSync, reapThenRemove, singleRunRootMadeHere, SINGLE_RUN_OWNER }
 if (process.env.MERCURY_SUITE_TMPDIR) {
   try {
     installProofScratch()
