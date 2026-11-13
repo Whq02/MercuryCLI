@@ -74,7 +74,10 @@ function sshMissing(): RemoteConnectionError {
   return new RemoteConnectionError('ssh', 'ssh was not found on this machine; a path that begins ssh:// needs the OpenSSH client.')
 }
 
+let openings = 0
+
 class Connection {
+  opening = 0
   private child: ChildProcess | null = null
   private token = ''
   private queue: Promise<void> = Promise.resolve()
@@ -157,6 +160,7 @@ class Connection {
           this.child = child
           this.token = token
           this.idleWords = ''
+          this.opening = ++openings
           resolve()
           return
         }
@@ -349,6 +353,10 @@ export function remoteRun(authority: RemoteAuthority, request: RemoteRequest): P
     connections.set(key, connection)
   }
   return connection.run(request)
+}
+
+export function remoteOpening(authority: RemoteAuthority): number {
+  return connections.get(authorityText(authority))?.opening ?? 0
 }
 
 export function closeRemoteConnections(): number {

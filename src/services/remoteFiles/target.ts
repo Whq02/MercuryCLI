@@ -126,6 +126,30 @@ export function formatRemotePath(target: RemoteTarget): string {
   return `${head}${path.startsWith('/~') ? `/%7E${path.slice(2)}` : path}`
 }
 
+export function remoteIdentity(path: string): string {
+  try {
+    const target = parseRemotePath(path)
+    return target === null ? REMOTE_RULE_ROOT : formatRemotePath(target)
+  } catch {
+    return path.trim()
+  }
+}
+
+const GENERATIONS_KEPT = 4096
+const generations = new Map<string, string | null>()
+
+export function noteRemoteGeneration(path: string, generation: string | null): void {
+  const key = remoteIdentity(path)
+  generations.delete(key)
+  generations.set(key, generation)
+  if (generations.size > GENERATIONS_KEPT) generations.delete(generations.keys().next().value as string)
+}
+
+export function remoteGeneration(path: string): string | null | undefined {
+  if (!isRemotePath(path)) return undefined
+  return generations.get(remoteIdentity(path)) ?? null
+}
+
 export function remoteChild(target: RemoteTarget, name: string): RemoteTarget {
   const base = target.home === null ? (target.path === '/' ? '' : target.path) : target.path
   return { ...target, path: base === '' && target.home !== null ? name : `${base}/${name}`, folder: false }
