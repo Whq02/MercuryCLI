@@ -40,6 +40,7 @@ const {
   smokeVersion,
   sweepUpdaterResidue,
   switchCurrent,
+  startDetachedAndAwaitWord,
   uninstallLayout,
   validatePayloadDir,
   versionDirIntact,
@@ -438,11 +439,17 @@ console.log('── §7d a Windows uninstall run from the install it removes han
     layoutSource.includes('MERCURY_UNINSTALL_PID: String(process.pid)') && layoutSource.includes('[int]::TryParse($env:MERCURY_UNINSTALL_PID, [ref]$owner)') && layoutSource.includes('Wait-Process -Id $owner -Timeout 120')
       && layoutSource.indexOf('Wait-Process -Id $owner -Timeout 120') < layoutSource.indexOf('Remove-Item -LiteralPath $p'))
   const helperSource = layoutSource.slice(layoutSource.indexOf('const UNINSTALL_AFTER_EXIT_SCRIPT = ['), layoutSource.indexOf('export function uninstallLayout('))
-  check('the helper is not started detached (a detached powershell.exe has no console on Windows and ends at once, having removed nothing): a starter the command waits for starts it with a console of its own and no window',
-    helperSource.length > 0 && !/detached:\s*true/.test(helperSource) && helperSource.includes('spawnSync(') && helperSource.includes('$i.UseShellExecute = $false') && helperSource.includes('$i.CreateNoWindow = $true') && helperSource.includes('[System.Diagnostics.Process]::Start($i)'))
-  check('the command says the files go after it only once the helper has said it runs: the helper writes its word first, the starter answers 0 on that word alone, 4 where the helper ended without it and 5 where it never came, and the command reads that answer',
-    helperSource.includes("[System.IO.File]::WriteAllText($env:MERCURY_UNINSTALL_READY, 'ready')") && helperSource.includes('$env:MERCURY_UNINSTALL_READY = $ready') && helperSource.includes('if (Test-Path -LiteralPath $ready) { exit 0 }') && helperSource.includes('if ($p.HasExited) { exit 4 }') && helperSource.includes("'exit 5',") && helperSource.includes('return started.status === 0')
-      && helperSource.includes("WriteAllText($env:MERCURY_UNINSTALL_READY, 'ready')") && helperSource.indexOf("WriteAllText($env:MERCURY_UNINSTALL_READY, 'ready')") < helperSource.indexOf('Wait-Process -Id $owner -Timeout 120'))
+  check('the helper is started detached under a console host with no window (read on a Windows machine: a detached powershell.exe alone has no console and ends at once having removed nothing, and a child that is not detached ends with the command that started it)',
+    helperSource.length > 0 && helperSource.includes("'conhost.exe',") && helperSource.includes("['--headless', 'powershell.exe', '-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand',") && helperSource.includes('detached: true') && !helperSource.includes('spawnSync(') && !helperSource.includes('-WindowStyle'))
+  check("the helper says it runs before anything else, and before it waits for the command: its first line writes the word's file",
+    helperSource.includes("[System.IO.File]::WriteAllText($env:MERCURY_UNINSTALL_READY, 'ready')") && helperSource.indexOf("[System.IO.File]::WriteAllText($env:MERCURY_UNINSTALL_READY, 'ready')") < helperSource.indexOf('Wait-Process -Id $owner -Timeout 120') && helperSource.includes('return startDetachedAndAwaitWord('))
+  const wordOf = (name: string): string => join(scratch, `${name}.ready`)
+  const said = startDetachedAndAwaitWord(process.execPath, ['-e', "setTimeout(() => require('node:fs').writeFileSync(process.env.MERCURY_UNINSTALL_READY, 'ready'), 300)"], process.env, wordOf('said'), 150)
+  check('a helper that writes its word is known to run: the command may say the files go after it', said && existsSync(wordOf('said')))
+  const silentAt = Date.now()
+  const silent = startDetachedAndAwaitWord(process.execPath, ['-e', 'process.exit(0)'], process.env, wordOf('silent'), 8)
+  check('a helper that ends without its word is not believed, and the wait for it is bounded (the U-78 reading: the right words and nothing done)', !silent && !existsSync(wordOf('silent')) && Date.now() - silentAt < 5000, `${silent} after ${Date.now() - silentAt} ms`)
+  check('a helper that cannot be started is not believed', !startDetachedAndAwaitWord(join(scratch, 'no-such-program'), [], process.env, wordOf('absent'), 3))
   const verbSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'installVerb.ts'), 'utf8')
   check('the verb exits non-zero only when something of Mercury\'s could not be removed', verbSource.includes('const left = report.leftVersionMembers.length > 0 || report.leftSetMembers.length > 0') && verbSource.includes('return left ? cliError(text) : cliOk(text)'))
 }
