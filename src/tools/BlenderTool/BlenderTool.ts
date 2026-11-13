@@ -355,18 +355,19 @@ export const BlenderTool = buildTool({
             (script !== undefined
               ? `Blender exec: python_run (script ${scriptCallShown(input.args)}) — runs the file INSIDE Blender with full bpy authority `
               : `Blender exec: python_run (${sourceBytes(input.args)} bytes) — runs Python INSIDE Blender with full bpy authority `) +
-            `(it can modify or delete scene data and write files as you; no sandbox, no preemption — a runaway script blocks Blender).` +
+            `(it can modify or delete scene data and write files as you; no sandbox, no preemption — a runaway script blocks Blender). ` +
+            `With no bridge answering, a background Blender with no window is started for this call and ends with it.` +
             (script !== undefined ? '' : ` first line: ${firstSourceLine(input.args) || '(empty)'}`),
         }
       }
       return {
         behavior: 'ask' as const,
-        message: `Blender exec: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} — starts a render job in Blender; the durable result is the image file at outputPath (render_finished reports the end)`,
+        message: `Blender exec: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} — starts a render job in Blender; the durable result is the image file at outputPath (render_finished reports the end). With no bridge answering, a background Blender with no window renders it before the call returns, and ends.`,
       }
     }
     return {
       behavior: 'ask' as const,
-      message: `Blender mutate: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} switches the open .blend (no undo step; refuses with BLEND_DIRTY if there are unsaved changes)`,
+      message: `Blender mutate: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} switches the open .blend (no undo step; refuses with BLEND_DIRTY if there are unsaved changes). With no bridge answering, a background Blender with no window opens the file to check it and ends; nothing stays open.`,
     }
   },
   async validateInput(input: Input) {

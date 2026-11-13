@@ -209,6 +209,31 @@ section('§3 · the permission ladder rides the contract classes')
   check('the python_run ask names full bpy authority + no preemption', /full bpy authority/.test(py.message ?? '') && /no preemption/.test(py.message ?? ''))
   const still = await perm('render_still', { outputPath: '/tmp/x.png' })
   check('render_still ⇒ ask naming the durable file', still.behavior === 'ask' && /durable result/.test(still.message ?? ''))
+  const scriptRun = await perm('python_run', { script: 'tools/kit/run.py', argv: ['--unit', 'eques'] })
+  check(
+    'each ask that starts or changes something says in one sentence what happens with no bridge answering: python_run, by source and by script',
+    (py.message ?? '').includes(
+      'a runaway script blocks Blender). With no bridge answering, a background Blender with no window is started for this call and ends with it. first line: import bpy',
+    ) &&
+      (scriptRun.message ?? '').endsWith(
+        'a runaway script blocks Blender). With no bridge answering, a background Blender with no window is started for this call and ends with it.',
+      ),
+    `${py.message ?? ''} | ${scriptRun.message ?? ''}`,
+  )
+  check(
+    'render_still: the render is made before the call returns, and the Blender ends',
+    (still.message ?? '').endsWith(
+      '(render_finished reports the end). With no bridge answering, a background Blender with no window renders it before the call returns, and ends.',
+    ),
+    still.message ?? '',
+  )
+  check(
+    'blend_open: the file is opened to check it, and nothing stays open',
+    (open.message ?? '').endsWith(
+      'refuses with BLEND_DIRTY if there are unsaved changes). With no bridge answering, a background Blender with no window opens the file to check it and ends; nothing stays open.',
+    ),
+    open.message ?? '',
+  )
   const install = await perm('blender_bridge_install')
   check('blender_bridge_install ⇒ mutate ask naming its writes + the enable act', install.behavior === 'ask' && /user addon home/.test(install.message ?? '') && /your act/.test(install.message ?? ''))
   const uninstall = await perm('blender_bridge_uninstall')
