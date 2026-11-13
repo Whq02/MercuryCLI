@@ -19,7 +19,6 @@ import type {
   InstructionDiagnostic,
   InstructionSourceEntry,
 } from './contracts.js'
-import { sharedRuleFormats } from './compositionOrder.js'
 import { parseInstructionFileContent, readRuleSource, TEXT_FILE_EXTENSIONS } from './sourceText.js'
 
 export function pathInInstructionRoots(path: string): boolean {
@@ -321,6 +320,7 @@ async function rulesImportedAt(
   parent: string,
   diagnostics?: InstructionDiagnostic[],
 ): Promise<InstructionSourceEntry[] | null> {
+  const { sharedRuleFormats } = await import('./compositionOrder.js')
   for (const convention of sharedRuleFormats()) {
     const at = convention.ruleAt?.(path) ?? null
     if (at === null) continue

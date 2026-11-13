@@ -28,6 +28,7 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-format-cline.ts || {
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-format-claude.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-format-claude.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-rule-imports-keep-scope.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-rule-imports-keep-scope.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-other-tools-listing.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-other-tools-listing.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-instruction-modules-load-alone.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-instruction-modules-load-alone.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-project-local-owner.ts || { __rc=$?; fail=1; }; prover_mark "scripts/self-hosting/prove-project-local-owner.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-instruction-capture.ts || { __rc=$?; fail=1; }; prover_mark "scripts/self-hosting/prove-instruction-capture.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-capture-doctrine.ts || { __rc=$?; fail=1; }; prover_mark "scripts/self-hosting/prove-capture-doctrine.ts" "$__t" "$__rc"
