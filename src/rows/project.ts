@@ -34,6 +34,7 @@ import {
   type Row,
   type SamplesUpdatedRow,
   type SessionRow,
+  type WardFiring,
   type StepRow,
   type TaskRow,
   type TextDeltaRow,
@@ -296,6 +297,7 @@ export interface OutcomeFacts {
   models: Record<string, ModelUsageRow>
   denials: Denial[]
   notices?: Array<{ level: 'warning' | 'error'; text: string }>
+  wards?: WardFiring[]
 }
 
 export function outcomeRow(scope: RowScope & { turn: number }, facts: OutcomeFacts): Unstamped<OutcomeRow> {
@@ -319,6 +321,7 @@ export function outcomeRow(scope: RowScope & { turn: number }, facts: OutcomeFac
     models: facts.models,
     denials: facts.denials,
     ...(facts.notices !== undefined && facts.notices.length > 0 ? { notices: facts.notices } : {}),
+    ...(facts.wards !== undefined && facts.wards.length > 0 ? { wards: facts.wards } : {}),
   })
 }
 

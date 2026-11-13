@@ -1,10 +1,11 @@
 
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { closeSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import * as path from 'node:path'
 import type { ToolPermissionContext } from '../../../Tool.js'
 import { getPathsForPermissionCheck } from '../../../utils/fsOperations.js'
 import { readDenialFilter } from '../../../utils/permissions/filesystem.js'
 import { mercurySecretPath } from '../../../utils/permissions/protectedPaths.js'
+import { NotARegularFileError, notAFileKind, notAFileRefusal, openRegularFileSync } from '../../../utils/regularFile.js'
 import { mintFileAnchor } from '../../changeTransaction/snapshotAnchor.js'
 import {
   boundedTextView,
@@ -50,6 +51,8 @@ export const fileAdapter: ResourceAdapter = {
         note: `no such file or directory: ${candidates.join(' · ')}`,
       }
     }
+    const notAFile = notAFileKind(info)
+    if (notAFile !== null) return { state: 'unavailable', note: notAFileRefusal(abs, notAFile) }
     const version = `m${Math.floor(info.mtimeMs)}-s${info.size}`
     if (info.isDirectory()) {
       let entries
@@ -94,25 +97,51 @@ export const fileAdapter: ResourceAdapter = {
         },
       }
     }
-    let text: string
+    let held: ReturnType<typeof openRegularFileSync>
     try {
-      text = readFileSync(abs, 'utf8')
+      held = openRegularFileSync(abs, info)
     } catch (e) {
+      if (e instanceof NotARegularFileError) return { state: 'unavailable', note: e.message }
       return { state: 'busy', note: `cannot read ${abs}: ${e instanceof Error ? e.message : String(e)}` }
     }
-    const view = boundedTextView(text, ref.selectors)
-    return {
-      state: 'ok',
-      resource: {
-        ref: ref.canonical,
-        kind: 'file',
-        title: path.basename(abs),
-        summary: `file · ${info.size} bytes · anchor ${mintFileAnchor(text)}`,
-        version,
-        mutable: true,
-        text: view.text,
-        page: view.page,
-      },
+    try {
+      const size = held.stats.size
+      const heldVersion = `m${Math.floor(held.stats.mtimeMs)}-s${size}`
+      if (size > MAX_TEXT_BYTES) {
+        return {
+          state: 'ok',
+          resource: {
+            ref: ref.canonical,
+            kind: 'file',
+            title: path.basename(abs),
+            summary: `file too large for a resource view (${size} bytes) — use Read with offset/limit`,
+            version: heldVersion,
+            mutable: true,
+          },
+        }
+      }
+      let text: string
+      try {
+        text = readFileSync(held.fd, 'utf8')
+      } catch (e) {
+        return { state: 'busy', note: `cannot read ${abs}: ${e instanceof Error ? e.message : String(e)}` }
+      }
+      const view = boundedTextView(text, ref.selectors)
+      return {
+        state: 'ok',
+        resource: {
+          ref: ref.canonical,
+          kind: 'file',
+          title: path.basename(abs),
+          summary: `file · ${size} bytes · anchor ${mintFileAnchor(text)}`,
+          version: heldVersion,
+          mutable: true,
+          text: view.text,
+          page: view.page,
+        },
+      }
+    } finally {
+      closeSync(held.fd)
     }
   },
 }

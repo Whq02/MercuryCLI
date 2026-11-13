@@ -1,5 +1,5 @@
 import { stat } from 'node:fs/promises'
-import { closeSync, constants, existsSync, fstatSync, openSync, readdirSync, readSync, statSync } from 'node:fs'
+import { closeSync, constants, existsSync, fstatSync, openSync, readdirSync, readSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 
 import { z } from 'zod/v4'
@@ -31,6 +31,7 @@ import {
 } from '../../skills/loadSkillsDir.js'
 import { hasBinaryExtension } from '../../constants/files.js'
 import { PDF_TARGET_RAW_SIZE } from '../../constants/apiLimits.js'
+import { logForDebugging } from '../../utils/debug.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { isENOENT } from '../../utils/errors.js'
 import {
@@ -70,6 +71,7 @@ import { isPDFExtension, isPDFSupported, parsePDFPageRange } from '../../utils/p
 import { resolveModelCapabilities } from '../../utils/model/capabilities.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { FileTooLargeError, readFileInRange, type ReadFileRangeResult } from '../../utils/readFileInRange.js'
+import { notAFileKind, notAFileRefusal, openRegularFileSync, readRegularFile, readRegularFileSync } from '../../utils/regularFile.js'
 import { planReadThrough } from '../FileEditTool/readThrough.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
@@ -615,10 +617,7 @@ export async function readImageWithTokenBudget(
   crop?: CropBox,
   scale = 1,
 ): Promise<ImageOutput & { cropped?: { box: CropBox; full: { width: number; height: number } } }> {
-  const fsImpl = getFsImplementation()
-  const file = fsImpl.readFileBytesSync
-    ? fsImpl.readFileBytesSync(filePath)
-    : (await import('node:fs')).readFileSync(filePath)
+  const file = readRegularFileSync(filePath)
   if (file.length === 0) {
     throw new Error(`Empty image file (zero bytes): ${filePath}`)
   }
@@ -782,7 +781,7 @@ async function readPdfLane(
     let readable = selected.some(page => page.hasTextLayer)
     let ocrFailure: string | undefined
     if (selected.some(page => !page.hasTextLayer)) {
-      const bytes = await (await import('node:fs/promises')).readFile(resolvedPath)
+      const bytes = await readRegularFile(resolvedPath)
       for (const page of selected) {
         if (page.hasTextLayer) continue
         const ocr = await recognisePdfPage(resolvedPath, bytes, page.pageNumber, context.abortController.signal)
@@ -941,22 +940,21 @@ function readTailLinesReverse(
   tailCount: number,
   maxLines?: number,
 ): ReadFileRangeResult {
-  const st = statSync(resolvedPath)
-  const totalBytes = st.size
-  const mtimeMs = st.mtimeMs
-  if (totalBytes === 0) {
-    return {
-      content: '',
-      lineCount: 1,
-      totalLines: 1,
-      totalBytes: 0,
-      readBytes: 0,
-      mtimeMs,
-      endsWithNewline: false,
-    }
-  }
-  const fd = openSync(resolvedPath, 'r')
+  const { fd, stats: st } = openRegularFileSync(resolvedPath)
   try {
+    const totalBytes = st.size
+    const mtimeMs = st.mtimeMs
+    if (totalBytes === 0) {
+      return {
+        content: '',
+        lineCount: 1,
+        totalLines: 1,
+        totalBytes: 0,
+        readBytes: 0,
+        mtimeMs,
+        endsWithNewline: false,
+      }
+    }
     const chunkSize = 65536
     const chunks: Buffer[] = []
     let pos = totalBytes
@@ -1040,7 +1038,7 @@ async function readMultiRangeTextLane(
   const bom = Buffer.alloc(2)
   {
     try {
-      const fd = openSync(resolvedPath, 'r')
+      const { fd } = openRegularFileSync(resolvedPath)
       try {
         readSync(fd, bom, 0, 2, 0)
       } finally {
@@ -1442,7 +1440,7 @@ async function readTextLane(
   const bom = Buffer.alloc(2)
   {
     try {
-      const fd = openSync(resolvedPath, 'r')
+      const { fd } = openRegularFileSync(resolvedPath)
       try {
         readSync(fd, bom, 0, 2, 0)
       } finally {
@@ -1913,6 +1911,12 @@ export const FileReadTool = buildTool({
       }
     }
 
+    const notAFile = await stat(fullFilePath).then(notAFileKind, () => null)
+    if (notAFile !== null) {
+      logForDebugging(`read: ${fullFilePath} is ${notAFile}, not a file or a folder; it is not opened`)
+      throw new Error(notAFileRefusal(effectiveRawPath, notAFile))
+    }
+
     const entry = context.readFileState.get(fullFilePath)
     if (
       !ideReadTextAvailable() &&
@@ -1978,7 +1982,7 @@ export const FileReadTool = buildTool({
       if (image) {
         const crop = selectedCrop(effectiveInput.crop)
         if (effectiveInput.ocr || !resolveModelCapabilities(context.options?.engineModel ?? getEngineModel()).media.images) {
-          let bytes: Buffer = await (await import('node:fs/promises')).readFile(resolvedPath)
+          let bytes: Buffer = await readRegularFile(resolvedPath)
           if (crop) bytes = (await cropImageBuffer(bytes, crop, resolvedPath, effectiveInput.scale)).buffer
           const ocr = await recogniseImage(bytes, context.abortController.signal)
           if (!ocr.ok) throw new Error(ocr.message)

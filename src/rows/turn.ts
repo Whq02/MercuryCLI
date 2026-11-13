@@ -40,7 +40,7 @@ import { engageCommitGate } from '../guards/commitGate.js'
 import { registerForcedReadGuard } from '../guards/forcedRead.js'
 import { registerStructuredOutputGuard, releaseStructuredOutputGuard } from '../guards/structuredOutput.js'
 import { registerRunStopGuard } from '../guards/runStop.js'
-import { registerWardsGuard } from '../guards/wardsGuard.js'
+import { forgetWardFirings, registerWardsGuard, wardFiringsOf } from '../guards/wardsGuard.js'
 import { askNobodyAnswered, unansweredAsksBlocker } from '../services/run/unansweredAsk.js'
 import type { PermissionDecision } from '../types/permissions.js'
 import { getInMemoryErrors, logError, withoutStackFrames } from '../utils/log.js'
@@ -56,6 +56,8 @@ import type { HookAttachment } from '../utils/attachments/types.js'
 import { hookRowsOfResult } from '../utils/hooks/rows.js'
 import { HOOK_CUT_BUDGET_MS } from '../utils/hooks/contract.js'
 import { getEngineModel } from '../utils/model/model.js'
+import { resolveModelPricing } from '../utils/modelCost.js'
+import { getTokenUsage, messageContextFill } from '../utils/tokens.js'
 import { getModelUsage, getTotalAPIDuration, getTotalCostUSD, getUnpricedTurns } from '../bootstrap/state.js'
 import type { ModelUsage } from '../bootstrap/state.js'
 import { noteRunPhase } from '../utils/runPhases.js'
@@ -99,7 +101,7 @@ import {
   type RowScope,
   type SessionFacts,
 } from './project.js'
-import { errorClassOf, statusOfTerminal, toolCallsRefusedSentence, unexecutedToolCallSentence, HOOK_NOTICE_CODES, OUTCOME_SENTENCES, TERMINAL_FAILURE_SENTENCES, type Denial, type ErrorClass, type OutcomeStatus, type Usage } from './vocabulary.js'
+import { budgetCannotPaySentence, errorClassOf, statusOfTerminal, toolCallsRefusedSentence, unexecutedToolCallSentence, HOOK_NOTICE_CODES, OUTCOME_SENTENCES, TERMINAL_FAILURE_SENTENCES, type Denial, type ErrorClass, type OutcomeStatus, type Usage } from './vocabulary.js'
 import { childRowsOf } from './child.js'
 
 const DEFAULT_MAX_STRUCTURED_OUTPUT_RETRIES = 5
@@ -181,6 +183,19 @@ function usageSince(current: Record<string, ModelUsage>, baseline: Record<string
     if (LEDGER_COUNTERS.some(counter => delta[counter] > 0)) result[model] = delta
   }
   return result
+}
+
+function inputFloorUsd(messages: readonly Message[], model: string): number | null {
+  const pricing = resolveModelPricing(model)
+  if (pricing.basis !== 'recorded' && pricing.basis !== 'floor') return null
+  if (messageContextFill(messages, model).source !== 'usage') return null
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const usage = getTokenUsage(messages[index])
+    if (!usage) continue
+    const carried = (usage.input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0)
+    return (carried * Math.min(pricing.costs.promptCacheReadTokens, pricing.costs.inputTokens)) / 1e6
+  }
+  return null
 }
 
 const TOOL_UPDATE_BEAT_MS = 250
@@ -374,6 +389,7 @@ export class Conversation {
     const toolOutcomes = new Map<string, 'ok' | 'error' | 'aborted'>()
     const callScopes = new Map<string, RowScope>()
     const denialsBefore = this.denials.length
+    forgetWardFirings(scope.session_id)
 
     const wrappedCanUseTool: CanUseTool = (async (
       tool: { name: string },
@@ -544,7 +560,10 @@ export class Conversation {
           const key = JSON.stringify([scope.session_id, callId])
           const now = Date.now()
           const state = toolUpdateState.get(key)
-          if (state !== undefined && now - state.lastEmitMs < TOOL_UPDATE_BEAT_MS) return rows
+          const hookWaitEnded = hookWaiting !== null && hookWaiting.line === undefined
+          if (!hookWaitEnded) {
+            if (state !== undefined && now - state.lastEmitMs < TOOL_UPDATE_BEAT_MS) return rows
+          }
           while (toolUpdateState.size >= TOOL_UPDATE_MAP_CAP) {
             const oldest = toolUpdateState.keys().next()
             if (oldest.done) break
@@ -686,6 +705,7 @@ export class Conversation {
         models: modelUsageRows(billed, hasUnknownCost),
         denials: this.denials.slice(denialsBefore),
         ...(notices.length > 0 ? { notices: [...notices] } : {}),
+        wards: wardFiringsOf(scope.session_id),
         ...extra,
       }
     }
@@ -929,12 +949,23 @@ export class Conversation {
         let isBoundary = false
 
         switch (kind) {
-          case 'stream_request_start':
+          case 'stream_request_start': {
             if (!persistenceDisabled && !isBareMode()) {
               await recordDelta()
               await flushSessionStorage().catch(() => {})
             }
+            const floor = config.maxBudgetUsd === undefined ? null : inputFloorUsd(this.mutableMessages, currentStreamModel)
+            if (config.maxBudgetUsd !== undefined && floor !== null && getTotalCostUSD() + floor > config.maxBudgetUsd) {
+              if (eagerFlush) await flushSessionStorage()
+              const open = steps.flush()
+              if (open !== null) yield open
+              const sentence = budgetCannotPaySentence({ maxBudgetUsd: config.maxBudgetUsd, spentUsd: getTotalCostUSD(), inputFloorUsd: floor })
+              yield* cutOpenCalls(sentence)
+              yield* endTurn('budget_limit', { error: { message: sentence, class: 'budget_limit' } })
+              return
+            }
             break
+          }
           case 'stream_event': {
             const raw = projected as { type: 'stream_event'; event?: ApiStreamEvent }
             const streamEvent = raw.event

@@ -11,6 +11,7 @@ export type ToolCallUnderGuard = {
   messages: Message[]
   toolRef?: Tool
   asksAnswerable?: boolean
+  offeredTools?: readonly string[]
 }
 
 type ToolGuardVerdict =

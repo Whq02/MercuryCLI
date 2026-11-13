@@ -4,6 +4,7 @@ import { extname, join } from 'node:path'
 import { renderDocumentBytes } from '../tools/FileReadTool/readRichFormats.js'
 import { extractPdfText, renderPdfText } from './pdfText.js'
 import { recognisePdfPage, renderOcr } from './ocr.js'
+import { readRegularFile } from './regularFile.js'
 import { ensureToolResultsDir, getToolResultsDir } from './toolResultStorage.js'
 
 export const SEARCHABLE_DOCUMENT_EXTENSIONS = ['pdf', 'docx', 'pptx', 'xlsx', 'odt', 'ods', 'odp', 'epub', 'rtf'] as const
@@ -17,7 +18,7 @@ export async function extractDocumentText(path: string, signal?: AbortSignal): P
     const document = await extractPdfText(path, { signal })
     const pages = document.pages.map(page => ({ ...page }))
     if (pages.some(page => !page.hasTextLayer)) {
-      const bytes = await readFile(path, { signal })
+      const bytes = await readRegularFile(path, signal)
       for (const page of pages) {
         if (page.hasTextLayer) continue
         const ocr = await recognisePdfPage(path, bytes, page.pageNumber, signal)
@@ -30,7 +31,7 @@ export async function extractDocumentText(path: string, signal?: AbortSignal): P
   const info = await stat(path)
   if (!info.isFile()) throw new Error(`${path}: not a regular file.`)
   if (info.size > 16 * 1024 * 1024) throw new Error(`${path}: document exceeds the 16 MiB container limit. Split the document and read one part at a time.`)
-  const bytes = await readFile(path, { signal })
+  const bytes = await readRegularFile(path, signal, info)
   const digest = createHash('sha256').update(bytes).update(ext).digest('hex')
   const cached = join(getToolResultsDir(), `document-text-v4-${digest}.txt`)
   try { return await readFile(cached, 'utf8') } catch {}

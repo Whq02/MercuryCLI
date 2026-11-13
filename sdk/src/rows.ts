@@ -197,6 +197,12 @@ export interface Denial {
   call_id: string
   input: Record<string, unknown>
 }
+export interface WardFiring {
+  ward: string
+  tool: string
+  call_id: string
+  effect: 'refused' | 'warned'
+}
 export interface OutcomeRow<T = unknown> {
   type: 'outcome'
   seq: number
@@ -222,6 +228,7 @@ export interface OutcomeRow<T = unknown> {
     level: 'warning' | 'error'
     text: string
   }>
+  wards?: WardFiring[]
 }
 export interface CloseRow {
   type: 'close'
@@ -1362,6 +1369,36 @@ export const ROW_SCHEMAS: Readonly<Record<RowType | PartialRowType, JsonSchema>>
           "required": [
             "level",
             "text"
+          ]
+        }
+      },
+      "wards": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "ward": {
+              "type": "string"
+            },
+            "tool": {
+              "type": "string"
+            },
+            "call_id": {
+              "type": "string"
+            },
+            "effect": {
+              "type": "string",
+              "enum": [
+                "refused",
+                "warned"
+              ]
+            }
+          },
+          "required": [
+            "ward",
+            "tool",
+            "call_id",
+            "effect"
           ]
         }
       }

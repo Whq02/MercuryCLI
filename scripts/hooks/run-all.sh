@@ -20,6 +20,7 @@
 # gate-watch: src/utils/attachments/taskStatus.ts
 # gate-watch: src/tools/AgentTool/runAgent.ts
 # gate-watch: scripts/lib/settingsPopupHarness.ts src/components/design-system/ThemeProvider.tsx src/keybindings/KeybindingProviderSetup.tsx src/tools/AgentTool/AgentTool.tsx src/utils/settings/changeDetector.ts
+# gate-watch: src/daemon/sessionSeat.ts src/daemon/concourseWorkers.ts src/services/engine-connector/seatProjections.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -45,5 +46,6 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-cut.ts"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-payload-facts.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-payload-facts.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-crewmate-start-road.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-crewmate-start-road.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-turn-start-notices.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-turn-start-notices.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-wait-after-a-second.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-wait-after-a-second.ts" "$__t" "$__rc"
 if [[ "$fail" == "0" ]]; then echo "✅ HOOKS SUITE GREEN"; exit 0; else
   echo "❌ HOOKS SUITE RED"; exit 1; fi

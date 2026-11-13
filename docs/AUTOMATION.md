@@ -148,7 +148,12 @@ Each turn ends with an `outcome` row carrying `schema`, `turn_id`, `status`,
 `steps`, `wall_ms`, `usage`, `models` and `denials`, with `answer` on
 completion or a turn limit and `error` (`message`, `class`, optional `detail`)
 on failure. `stop`, `api_ms`, `cost_usd`, requested `structured` output and
-`notices` are included when available. `wall_ms` is the turn's elapsed time.
+`notices` are included when available. `wards` is included when a ward fired in
+the turn, one entry a firing: the `ward` (its name; `project-rule` for a rule of
+a folder that is not trusted), the `tool`, the `call_id` and the `effect`,
+`refused` when the call did not run or `warned` when `MERCURY_WARDS=warn` let it
+run. A ward's refusal is not a permission denial: it is not listed in `denials`
+and does not end the turn `blocked`. `wall_ms` is the turn's elapsed time.
 `api_ms` is the sum of the durations of every model request the turn made
 (including retries and the crewmates' requests that ran alongside the main
 thread), so it can exceed `wall_ms` when requests overlapped. `cost_usd` is the
@@ -169,7 +174,13 @@ The status is `completed`, `blocked`, `refused`, `failed`, `interrupted`,
 `turn_limit`, `budget_limit`, `time_limit`, `schema_unmet` or `loop_stopped`.
 A run under `--max-time` (seconds, or `10m`, `1h`) ends `time_limit` when the
 time is up: a reply still streaming or a tool still running is cut at the
-deadline, and the outcome names the limit. A completed run (`status: "completed"`) exits `0`, other outcomes exit `1`,
+deadline, and the outcome names the limit. A run under `--budget` ends
+`budget_limit` once its spend reaches the budget, and before a model call whose
+input alone would cost more than what is left, counted at the model's lowest
+rate (what the last call carried, as the provider reported it, at the cached
+rate); the last call's output, what was added since it and input billed above
+that rate can still pass the budget, and a model Mercury cannot price is not
+held to it. A completed run (`status: "completed"`) exits `0`, other outcomes exit `1`,
 and a command-line usage error exits `2`. A run whose session record could not
 be written still prints its outcome and exits `1`. A command line the parser cannot read
 (an unknown option) exits `2` with the parser's line on stderr and no row,

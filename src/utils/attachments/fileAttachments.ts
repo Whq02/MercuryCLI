@@ -141,9 +141,10 @@ export async function generateFileAttachment(filename: string, context: ToolUseC
 export async function tryGetPDFReference(filename: string): Promise<PDFReferenceAttachment | null> {
   if (!pdfPath(filename)) return null
   try {
-    const measurements = await Promise.all([getFsImplementation().stat(filename), getPDFPageCount(filename)])
-    const fileSize = measurements[0].size
-    const pageCount = measurements[1] ?? Math.ceil(fileSize / 102400)
+    const info = await getFsImplementation().stat(filename)
+    if (!info.isFile()) return null
+    const fileSize = info.size
+    const pageCount = (await getPDFPageCount(filename)) ?? Math.ceil(fileSize / 102400)
     return pageCount > PDF_AT_MENTION_INLINE_THRESHOLD
       ? { type: 'pdf_reference', filename, pageCount, fileSize, displayPath: displayOf(filename) }
       : null

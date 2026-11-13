@@ -1,4 +1,4 @@
-import { closeSync, copyFileSync, existsSync, mkdtempSync, openSync, readFileSync, readSync, rmSync, statSync } from 'node:fs'
+import { closeSync, copyFileSync, existsSync, mkdtempSync, readSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join, posix } from 'node:path'
 import { officeWord, officeSlides, officeComments, officeOdf, officeRelationships, officeSheetNames, officeSlideIds, officeSpreadsheet } from './officeText.js'
@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url'
 import { createGunzip, inflateRawSync } from 'node:zlib'
 import { hasBinaryExtension } from '../../constants/files.js'
 import { formatFileSize } from '../../utils/format.js'
+import { openRegularFileSync, readRegularFileSync } from '../../utils/regularFile.js'
 
 const ARCHIVE_EXTENSIONS = new Set(['zip', 'tar', 'tgz'])
 const SQLITE_EXTENSIONS = new Set(['sqlite', 'sqlite3', 'db'])
@@ -247,7 +248,7 @@ function verifyTarHeaderChecksum(header: Buffer): boolean {
 
 function readTarEntriesFromFile(filePath: string, wantedSubtarget?: string): ArchiveEntryMeta[] {
   const normalizedWanted = wantedSubtarget?.replace(/^\/+/, '')
-  const fd = openSync(filePath, 'r')
+  const { fd } = openRegularFileSync(filePath)
   const entries: ArchiveEntryMeta[] = []
   let pos = 0
   let pendingLongName: string | null = null
@@ -341,7 +342,7 @@ function readTarEntriesFromFile(filePath: string, wantedSubtarget?: string): Arc
 async function readTgzEntriesStreaming(filePath: string, wantedSubtarget?: string): Promise<ArchiveEntryMeta[]> {
   const normalizedWanted = wantedSubtarget?.replace(/^\/+/, '')
   const entries: ArchiveEntryMeta[] = []
-  const fd = openSync(filePath, 'r')
+  const { fd } = openRegularFileSync(filePath)
   const gunzip = createGunzip()
 
   let state: string = 'header'
@@ -562,7 +563,7 @@ export async function renderArchiveTarget(
   } else if (ext === 'tar') {
     entries = readTarEntriesFromFile(containerPath, subtarget)
   } else {
-    zipBuf = readFileSync(containerPath)
+    zipBuf = readRegularFileSync(containerPath)
     entries = readZipEntries(zipBuf, containerPath)
   }
 
@@ -917,7 +918,7 @@ function extractRtfText(rtf: string, filePath: string): string {
 
 export function renderDocumentTarget(filePath: string, ext: string): string {
   statBoundedContainer(filePath)
-  return renderDocumentBytes(readFileSync(filePath), ext, filePath)
+  return renderDocumentBytes(readRegularFileSync(filePath), ext, filePath)
 }
 
 export function renderDocumentBytes(buf: Buffer, ext: string, filePath = `document.${ext}`): string {
@@ -1135,21 +1136,28 @@ export async function renderSqliteTarget(
 ): Promise<RichRender> {
   statBoundedContainer(dbPath)
   const bunSqlite = 'bun:sqlite'
-  const openReadOnly = async (file: string): Promise<SqliteDb> =>
-    process.versions.bun
-      ? new ((await import(bunSqlite)) as { Database: new (file: string, opts?: { readonly?: boolean }) => SqliteDb }).Database(file, { readonly: true })
-      : new (await import('node:sqlite')).DatabaseSync(file, { open: true, readOnly: true } as never)
+  const openReadOnly = async (file: string, judged: string): Promise<SqliteDb> => {
+    if (process.versions.bun) {
+      const { Database } = (await import(bunSqlite)) as { Database: new (file: string, opts?: { readonly?: boolean }) => SqliteDb }
+      closeSync(openRegularFileSync(judged).fd)
+      return new Database(file, { readonly: true })
+    }
+    const { DatabaseSync } = await import('node:sqlite')
+    closeSync(openRegularFileSync(judged).fd)
+    return new DatabaseSync(file, { open: true, readOnly: true } as never)
+  }
   let scratch: string | null = null
   let db: SqliteDb
   const hasLiveJournal = existsSync(`${dbPath}-wal`) || existsSync(`${dbPath}-journal`)
   try {
-    db = await openReadOnly(hasLiveJournal ? dbPath : `${pathToFileURL(dbPath).href}?immutable=1`)
+    db = await openReadOnly(hasLiveJournal ? dbPath : `${pathToFileURL(dbPath).href}?immutable=1`, dbPath)
   } catch {
     scratch = mkdtempSync(join(tmpdir(), 'mercury-sqlite-read-'))
     const copy = join(scratch, basename(dbPath))
     try {
+      closeSync(openRegularFileSync(dbPath).fd)
       copyFileSync(dbPath, copy)
-      db = await openReadOnly(copy)
+      db = await openReadOnly(copy, copy)
     } catch (error) {
       rmSync(scratch, { recursive: true, force: true })
       throw error

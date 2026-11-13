@@ -587,9 +587,12 @@ async function runTransactionBody(args: {
   const permissionMode = toolUseContext.getAppState().toolPermissionContext.mode
   const preHooksStartedAt = Date.now()
   let hookWaitTicker: ReturnType<typeof setInterval> | null = null
+  let takeHookWaitBack: (() => void) | null = null
   const settleHookWait = (): void => {
     if (hookWaitTicker !== null) clearInterval(hookWaitTicker)
     hookWaitTicker = null
+    takeHookWaitBack?.()
+    takeHookWaitBack = null
   }
   const announceHooks = (event: 'tool.before' | 'tool.after'): HookAnnounce => prepared => {
     settleHookWait()
@@ -599,9 +602,11 @@ async function runTransactionBody(args: {
     prepared.names.forEach((name, index) => push({ message: hookProgressMessage(event, name, 'running', toolUseID, prepared.names.length, { timeoutS: prepared.timeoutsS[index] }) }))
     const tick = (): void => {
       const now = Date.now()
-      push({ message: hookProgressMessage(event, prepared.names[0] ?? '', 'waiting', toolUseID, prepared.names.length, { timeoutS, elapsedS: Math.floor((now - sinceMs) / 1000), line: hookWaitWords(wait, now) }) })
+      const elapsedS = Math.floor((now - sinceMs) / 1000)
+      if (elapsedS < 1) return
+      push({ message: hookProgressMessage(event, prepared.names[0] ?? '', 'waiting', toolUseID, prepared.names.length, { timeoutS, elapsedS, line: hookWaitWords(wait, now) }) })
+      takeHookWaitBack = () => push({ message: hookProgressMessage(event, prepared.names[0] ?? '', 'waiting', toolUseID, prepared.names.length) })
     }
-    tick()
     hookWaitTicker = setInterval(tick, 1000)
     hookWaitTicker.unref?.()
   }
@@ -614,7 +619,7 @@ async function runTransactionBody(args: {
     canAnswerAsks() && toolUseContext.getAppState().toolPermissionContext.shouldAvoidPermissionPrompts !== true
   const judgement = await judgeToolCall(
     guardKeysOf(getSessionId(), toolUseContext.agentId),
-    { tool: tool.name, input: observableInput, callId: toolUseID, messages: toolUseContext.messages, toolRef: tool, asksAnswerable },
+    { tool: tool.name, input: observableInput, callId: toolUseID, messages: toolUseContext.messages, toolRef: tool, asksAnswerable, offeredTools: toolUseContext.options.tools.map(offered => offered.name) },
     signal,
   )
   hookNotes.push(...judgement.notes)
