@@ -17,6 +17,7 @@ import { userContextReminderBody } from './userContextReminder.js'
 
 import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
 import { FILE_EDIT_TOOL_NAME } from '../tools/FileEditTool/constants.js'
+import { editFormCacheMark } from '../tools/FileEditTool/editForm.js'
 import { normalizeFileEditInput } from '../tools/FileEditTool/utils.js'
 import { FILE_WRITE_TOOL_NAME } from '../tools/FileWriteTool/prompt.js'
 import { resolveShellCwd } from './Shell.js'
@@ -152,7 +153,7 @@ export async function toolToAPISchema(
   const cache = getToolSchemaCache()
   const promptModel = options.model ?? getEngineModel()
   const caps = resolveModelCapabilities(promptModel)
-  const fingerprint = `${declaredRouteOf(promptModel) ?? 'unrecognised'}:${caps.media.pdf ? 'p' : ''}${caps.media.images ? 'i' : ''}:${deferralWireFormFor(promptModel).form}${localPromptProfileApplies(promptModel) ? ':local-profile' : ''}`
+  const fingerprint = `${declaredRouteOf(promptModel) ?? 'unrecognised'}:${caps.media.pdf ? 'p' : ''}${caps.media.images ? 'i' : ''}:${deferralWireFormFor(promptModel).form}${localPromptProfileApplies(promptModel) ? ':local-profile' : ''}${editFormCacheMark()}`
   const pool = options.tools.map(item => item.name).sort().join(',')
   const key = `${toolCacheKey(tool)}@${fingerprint}|${pool}`
   let base = cache.get(key)

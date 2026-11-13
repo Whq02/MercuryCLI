@@ -235,6 +235,12 @@ rendered on demand to an untracked path):
 - `MERCURY_LINE_ANCHORS` (default-on): the hashline layer. `=0` removes
   the `line_anchors` Read parameter, and hash spellings refuse as
   unparseable like the plain grammar.
+- `MERCURY_EDIT_FORM` (a value; unset changes nothing): the Edit definition
+  sent to a model. `plain` sends every model the string swap and append
+  alone, the definition a local model gets under the local prompt profile;
+  `full` sends every model the four shapes, a local model included. Edit
+  accepts every shape in either form, and a conversation keeps the
+  definition it began with.
 - `MERCURY_ANCHOR_PATCH` (opt-in): the patch dialect. Unset or `=0`, the
   ChangeSet schema carries no patch field, byte-identically.
 - `MERCURY_CHANGESET` (default-on; requires receipts and hunks): the

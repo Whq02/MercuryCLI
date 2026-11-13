@@ -21,6 +21,8 @@
 # gate-watch: src/bootstrap/state.ts src/mneme/ledger.ts src/mneme/paths.ts
 # gate-watch: src/services/schema/jsonSchemaEngine.ts src/services/providers/zai/zaiCodec.ts src/services/providers/openai/responsesBridge.ts src/services/providers/gemini/geminiCodec.ts src/services/structure/grammarFacility.ts src/services/structure/grammarRegistry.ts
 # gate-watch: src/services/compact/checkpointRewind.ts
+# gate-watch: src/constants/localPromptProfile.ts src/utils/model/capabilities.ts src/services/providers/idSpaces.ts src/services/providers/routeLaw.ts src/services/providers/deferralWire.ts
+# gate-watch: src/services/providers/zai/zaiAdapter.ts src/services/providers/moonshot/moonshotAdapter.ts src/services/providers/moonshot/moonshotCatalogue.ts src/services/providers/deepseek/deepseekAdapter.ts src/services/providers/huggingface/huggingfaceAdapter.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

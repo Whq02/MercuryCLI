@@ -1,0 +1,195 @@
+{
+  "full": {
+    "description": "Edits one text file in place: an exact string swapped for another, line-addressed hunks against a read snapshot, text appended, or a Markdown section replaced or appended to. Edits need current read coverage of the lines they touch; append needs none. A landed edit returns the changed lines with context, which count as read, and names any new syntax error.",
+    "strict": {
+      "type": "object",
+      "properties": {
+        "file_path": {
+          "type": "string",
+          "description": "The absolute path to the file to modify"
+        },
+        "old_string": {
+          "description": "The exact text to replace, sent with new_string; unique in the file unless replace_all",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "new_string": {
+          "description": "The text to replace it with; \"\" deletes old_string",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "replace_all": {
+          "description": "Replace every occurrence of old_string",
+          "default": false,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "expected_anchor": {
+          "description": "The bare fa:… or ra:… value inside the latest \"(anchor: …)\" for this file — a Read, or an Edit or Write result — without the wrapper",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "hunks": {
+          "description": "Line-addressed hunks against the snapshot expected_anchor names, or against the content anchors when every hunk carries one",
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "lines": {
+                    "type": "string",
+                    "description": "A 1-based line (\"12\"), an inclusive range (\"12-18\"), or the anchored spelling from a line_anchors read (\"12#ab3f\", \"12#ab3f-18#9c2e\")"
+                  },
+                  "replace": {
+                    "type": "string",
+                    "description": "The replacement body; \"\" deletes the range; with insert, the inserted body"
+                  },
+                  "insert": {
+                    "description": "Insert beside the single anchor line instead of replacing it",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "before",
+                          "after"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "lines",
+                  "replace",
+                  "insert"
+                ],
+                "additionalProperties": false
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "append": {
+          "description": "Text added on its own line at the end of the file (created when absent; no prior read needed), or at the end of `section`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "section": {
+          "description": "A Markdown heading line exactly as it stands in the file (\"## Checks\"), occurring once: with new_string the whole section, heading included, becomes new_string; with append the text is added inside it",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "file_path",
+        "old_string",
+        "new_string",
+        "replace_all",
+        "expected_anchor",
+        "hunks",
+        "append",
+        "section"
+      ],
+      "additionalProperties": false,
+      "description": "One of four shapes: old_string + new_string · hunks · append · section + new_string or append"
+    }
+  },
+  "plain": {
+    "description": "Edits one text file in place: old_string (exact text, unique in the file unless replace_all) becomes new_string, or append adds text at the end. Read the file first, except to append.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "file_path": {
+          "type": "string",
+          "description": "Absolute path of the file"
+        },
+        "old_string": {
+          "description": "Exact text to replace, unique unless replace_all",
+          "type": "string"
+        },
+        "new_string": {
+          "description": "The new text; \"\" deletes old_string",
+          "type": "string"
+        },
+        "replace_all": {
+          "description": "Replace every occurrence",
+          "default": false,
+          "type": "boolean"
+        },
+        "append": {
+          "description": "Text added on its own line at the end of the file",
+          "type": "string"
+        }
+      },
+      "required": [
+        "file_path"
+      ],
+      "additionalProperties": false,
+      "description": "old_string + new_string, or append"
+    },
+    "strict": {
+      "type": "object",
+      "properties": {
+        "file_path": {
+          "type": "string",
+          "description": "Absolute path of the file"
+        },
+        "old_string": {
+          "description": "Exact text to replace, unique unless replace_all",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "new_string": {
+          "description": "The new text; \"\" deletes old_string",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "replace_all": {
+          "description": "Replace every occurrence",
+          "default": false,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "append": {
+          "description": "Text added on its own line at the end of the file",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "file_path",
+        "old_string",
+        "new_string",
+        "replace_all",
+        "append"
+      ],
+      "additionalProperties": false,
+      "description": "old_string + new_string, or append"
+    }
+  }
+}
