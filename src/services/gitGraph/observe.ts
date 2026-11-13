@@ -302,16 +302,32 @@ function readsAsOption(revision: string): boolean {
   return revision.trimStart().startsWith('-')
 }
 
+let gitVersion: [number, number] | undefined
+
+export function forgetGitVersion(): void {
+  gitVersion = undefined
+}
+
+function endOfOptions(root: string, command: 'walk' | 'parse'): string[] {
+  if (gitVersion === undefined) {
+    const found = /(\d+)\.(\d+)/.exec(tryGit(root, ['--version']) ?? '')
+    if (found) gitVersion = [Number(found[1]), Number(found[2])]
+  }
+  if (gitVersion === undefined) return []
+  const [major, minor] = gitVersion
+  return major > 2 || (major === 2 && minor >= (command === 'parse' ? 30 : 24)) ? ['--end-of-options'] : []
+}
+
 export function gitDiff(root: string, opts: DiffOptions): GitDiff | GitUnavailable {
   if (!isGitRepo(root)) return notARepo()
   const args = ['diff', '--no-color', '--unified=3']
   if (opts.scope === 'staged') args.push('--cached')
   else if (opts.scope === 'commit') {
     if (!opts.ref || readsAsOption(opts.ref)) return { state: 'unavailable', note: "scope 'commit' needs ref (a sha)" }
-    args.splice(0, args.length, 'show', '--no-color', '--unified=3', '--format=', '--end-of-options', opts.ref)
+    args.splice(0, args.length, 'show', '--no-color', '--unified=3', '--format=', ...endOfOptions(root, 'walk'), opts.ref)
   } else if (opts.scope === 'range') {
     if (!opts.ref?.includes('..') || readsAsOption(opts.ref)) return { state: 'unavailable', note: "scope 'range' needs ref 'A..B'" }
-    args.push('--end-of-options', opts.ref)
+    args.push(...endOfOptions(root, 'walk'), opts.ref)
   }
   if (opts.paths?.length && opts.scope !== 'commit') args.push('--', ...opts.paths)
   const raw = tryGit(root, args)
@@ -323,10 +339,10 @@ export function gitDiff(root: string, opts: DiffOptions): GitDiff | GitUnavailab
 
 export function gitCommitMeta(root: string, sha: string): GitCommitMeta | GitUnavailable {
   if (!isGitRepo(root)) return notARepo()
-  const raw = readsAsOption(sha) ? null : tryGit(root, ['show', '-s', '--format=%H%x00%an%x00%ae%x00%aI%x00%P%x00%s%x00%b', '--end-of-options', sha])
+  const raw = readsAsOption(sha) ? null : tryGit(root, ['show', '-s', '--format=%H%x00%an%x00%ae%x00%aI%x00%P%x00%s%x00%b', ...endOfOptions(root, 'walk'), sha])
   if (raw === null) return { state: 'unavailable', note: `no commit '${sha}' here` }
   const [full, author, email, date, parents, subject, body] = raw.split('\0')
-  const nameStatus = tryGit(root, ['show', '--name-status', '--format=', '--end-of-options', full!.trim()]) ?? ''
+  const nameStatus = tryGit(root, ['show', '--name-status', '--format=', ...endOfOptions(root, 'walk'), full!.trim()]) ?? ''
   const files = nameStatus
     .split('\n')
     .filter(Boolean)
@@ -349,7 +365,7 @@ export function gitCommitMeta(root: string, sha: string): GitCommitMeta | GitUna
 
 export function gitMergeBase(root: string, a: string, b: string): string | GitUnavailable {
   if (!isGitRepo(root)) return notARepo()
-  const raw = readsAsOption(a) || readsAsOption(b) ? null : tryGit(root, ['merge-base', '--end-of-options', a, b])
+  const raw = readsAsOption(a) || readsAsOption(b) ? null : tryGit(root, ['merge-base', ...endOfOptions(root, 'walk'), a, b])
   if (raw === null) return { state: 'unavailable', note: `no merge base between '${a}' and '${b}'` }
   return raw.trim()
 }
@@ -431,7 +447,7 @@ export function splitRefPath(
   for (let i = 1; i <= max; i++) {
     const ref = segments.slice(0, i).join('/')
     if (readsAsOption(ref)) return null
-    if (tryGit(root, ['rev-parse', '--verify', '--quiet', '--end-of-options', `${ref}^{commit}`]) !== null) {
+    if (tryGit(root, ['rev-parse', '--verify', '--quiet', ...endOfOptions(root, 'parse'), `${ref}^{commit}`]) !== null) {
       return { ref, path: segments.slice(i).join('/') }
     }
   }
@@ -440,9 +456,9 @@ export function splitRefPath(
 
 export function gitFileAtRef(root: string, ref: string, filePath: string): GitFileAtRef | GitUnavailable {
   if (!isGitRepo(root)) return notARepo()
-  const raw: string | null = readsAsOption(ref) ? null : tryGit(root, ['show', '--end-of-options', `${ref}:${filePath}`])
+  const raw: string | null = readsAsOption(ref) ? null : tryGit(root, ['show', ...endOfOptions(root, 'walk'), `${ref}:${filePath}`])
   if (raw === null) {
-    const refOk = readsAsOption(ref) ? null : tryGit(root, ['rev-parse', '--verify', '--quiet', '--end-of-options', `${ref}^{commit}`])
+    const refOk = readsAsOption(ref) ? null : tryGit(root, ['rev-parse', '--verify', '--quiet', ...endOfOptions(root, 'parse'), `${ref}^{commit}`])
     return {
       state: 'unavailable',
       note:
@@ -480,7 +496,7 @@ interface GitTreeAtRef {
 export function gitTreeAtRef(root: string, ref: string, subPath?: string): GitTreeAtRef | GitUnavailable {
   if (!isGitRepo(root)) return notARepo()
   const spec = subPath ? `${ref}:${subPath}` : ref
-  const raw = readsAsOption(ref) ? null : tryGit(root, ['-c', 'core.quotepath=off', 'ls-tree', '-l', '--end-of-options', spec])
+  const raw = readsAsOption(ref) ? null : tryGit(root, ['-c', 'core.quotepath=off', 'ls-tree', '-l', ...endOfOptions(root, 'walk'), spec])
   if (raw === null) {
     return {
       state: 'unavailable',
@@ -516,21 +532,21 @@ interface GitCompare {
 
 export function gitCompare(root: string, base: string, head: string): GitCompare | GitUnavailable {
   if (!isGitRepo(root)) return notARepo()
-  const counts = readsAsOption(base) || readsAsOption(head) ? null : tryGit(root, ['rev-list', '--left-right', '--count', '--end-of-options', `${base}...${head}`])
+  const counts = readsAsOption(base) || readsAsOption(head) ? null : tryGit(root, ['rev-list', '--left-right', '--count', ...endOfOptions(root, 'walk'), `${base}...${head}`])
   if (counts === null) {
     return { state: 'unavailable', note: `cannot compare '${base}...${head}' — check both refs resolve here` }
   }
   const [behindRaw = '0', aheadRaw = '0'] = counts.trim().split(/\s+/)
-  const mergeBase = tryGit(root, ['merge-base', '--end-of-options', base, head])?.trim() ?? ''
+  const mergeBase = tryGit(root, ['merge-base', ...endOfOptions(root, 'walk'), base, head])?.trim() ?? ''
   const list = (range: string): { sha: string; subject: string }[] =>
-    (tryGit(root, ['log', '--format=%H%x09%s', `-${MAX_COMPARE_COMMITS}`, '--end-of-options', range]) ?? '')
+    (tryGit(root, ['log', '--format=%H%x09%s', `-${MAX_COMPARE_COMMITS}`, ...endOfOptions(root, 'walk'), range]) ?? '')
       .split('\n')
       .filter(l => l.includes('\t'))
       .map(l => {
         const tab = l.indexOf('\t')
         return { sha: l.slice(0, tab), subject: l.slice(tab + 1) }
       })
-  const numstat = tryGit(root, ['-c', 'core.quotepath=off', 'diff', '--numstat', '--end-of-options', `${base}...${head}`]) ?? ''
+  const numstat = tryGit(root, ['-c', 'core.quotepath=off', 'diff', '--numstat', ...endOfOptions(root, 'walk'), `${base}...${head}`]) ?? ''
   const fileLines = numstat.split('\n').filter(l => l.includes('\t'))
   const files = fileLines.slice(0, MAX_COMPARE_FILES).map(l => {
     const [a = '-', d = '-', ...rest] = l.split('\t')
