@@ -91,3 +91,4 @@ prove-host-list-pages.ts
 prove-status-card-key-owner.ts
 prove-sticky-prompt-header-gone.ts
 prove-rails-whole-or-absent.ts
+prove-exit-notice-owns-its-row.ts
