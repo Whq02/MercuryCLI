@@ -268,7 +268,7 @@ section('§5 · the wire path through the real tool, against the fake')
   delete process.env.MERCURY_BLENDER
 }
 
-section('§6 · the contract promises no cancellation: an abort does not end a request the bridge is holding')
+section('§6 · an abort ends a call the bridge is holding, and the contract says what it sees')
 {
   process.env.MERCURY_BLENDER = '1'
   process.env.MERCURY_BLENDER_BIN = noBlender
@@ -287,22 +287,52 @@ section('§6 · the contract promises no cancellation: an abort does not end a r
   })
   const until = Date.now() + 2_000
   while (!held.seenOps.includes('scene_info') && Date.now() < until) await sleep(5)
+  const connectionsWhenHeld = held.connectionCount()
+  const abortedAt = Date.now()
   controller.abort()
   await sleep(150)
-  const pendingAfterAbort = !settled
-  await held.close()
-  const answer = await pending
+  const settledAfterAbort = settled
+  const answer = settled ? await pending : null
+  const tookMs = Date.now() - abortedAt
   check('the bridge had received the operation when the abort came', held.seenOps.includes('scene_info'))
   check(
-    'the aborted call is still waiting 150 ms later and settles only when the connection ends',
-    pendingAfterAbort && answer.data.result.includes('[CONNECTION_LOST]'),
-    `pending after abort=${pendingAfterAbort} · ${answer.data.result.split('\n').slice(0, 2).join(' | ').slice(0, 160)}`,
+    'the aborted call has returned 150 ms later, and the client has not dropped or remade its connection',
+    settledAfterAbort && held.connectionCount() === connectionsWhenHeld,
+    `settled=${settledAfterAbort} after ${tookMs} ms · connections ${connectionsWhenHeld} → ${held.connectionCount()}`,
   )
   check(
-    'so the capability contract says not-applicable, and neither cooperative nor kill',
-    BlenderTool.capability?.cancellation === 'not-applicable',
+    'its answer names the abort and says that Blender may still finish what the bridge had taken',
+    answer !== null &&
+      answer.data.result.includes('scene_info failed: [REQUEST_ABORTED] scene_info was aborted before the bridge answered') &&
+      answer.data.result.includes('Blender may still finish it'),
+    answer === null ? 'still pending' : answer.data.result.split('\n').slice(0, 3).join(' | ').slice(0, 260),
+  )
+  held.setMode('echo')
+  const next = await runWithCwdOverride(work, () => callTool('scene_info'))
+  check(
+    'the connection stands after the abort: the next call is answered over it, with no new connection made',
+    next.includes('road: bridge') && next.includes('"engine": "BLENDER_EEVEE"') && held.connectionCount() === connectionsWhenHeld,
+    `${next.split('\n')[0]} · connections ${connectionsWhenHeld} → ${held.connectionCount()}`,
+  )
+  const early = new AbortController()
+  early.abort()
+  const opsBefore = held.seenOps.length
+  const neverSent = (await runWithCwdOverride(work, () =>
+    BlenderTool.call({ op: 'objects_list' } as never, { abortController: early } as never),
+  )) as { data: { result: string } }
+  check(
+    'a call whose abort came before it was sent never reaches the bridge',
+    neverSent.data.result.includes('[REQUEST_ABORTED] objects_list was aborted before it was sent to Blender') &&
+      held.seenOps.length === opsBefore,
+    neverSent.data.result.split('\n').slice(0, 2).join(' | ').slice(0, 200),
+  )
+  if (!settled) await held.close()
+  check(
+    'so the capability contract says cooperative: an abort ends the call, and the tool does not claim to stop Blender',
+    BlenderTool.capability?.cancellation === 'cooperative',
     String(BlenderTool.capability?.cancellation),
   )
+  await held.close()
   delete process.env.MERCURY_BLENDER_BRIDGE_PORT
   delete process.env.MERCURY_BLENDER_BIN
   resetBlenderBridgeClientForTest()

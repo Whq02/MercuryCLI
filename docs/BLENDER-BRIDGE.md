@@ -118,7 +118,10 @@ reinstall re-aligns and no op ever crosses a version gap), `BLEND_DIRTY`
 (unsaved work is never discarded), `BLEND_NOT_FOUND`, `RENDER_ACTIVE`
 (mutate/exec during a render), `PYTHON_EXCEPTION` (your code raised and is
 reported verbatim), `EDITOR_UNREACHABLE` (Blender closed, the add-on missing
-or **not enabled**, or the port wrong; `blender_status` explains which).
+or **not enabled**, or the port wrong; `blender_status` explains which),
+`REQUEST_ABORTED` (the call was interrupted: it returns at once, the
+connection stands, and an operation the bridge had already taken may still
+finish in Blender, which cannot stop a running script or render).
 
 ## Routing
 

@@ -323,6 +323,24 @@ section('§4 · headless scene/objects/render_state/report_tail/blend_open + fen
     timedOut.includes('[REQUEST_TIMEOUT]') && slowCall !== undefined && !pidAlive(slowCall.pid),
     timedOut.slice(0, 160),
   )
+
+  fixture.clearInvocations()
+  const aborter = new AbortController()
+  const abortStarted = Date.now()
+  setTimeout(() => aborter.abort(), 300)
+  const abortedRun = (await runWithCwdOverride(work, () =>
+    BlenderTool.call(
+      { op: 'python_run', args: { source: 'import time\ntime.sleep(5)\nresult = 1' } } as never,
+      { abortController: aborter } as never,
+    ),
+  )) as { data: { result: string } }
+  const abortedMs = Date.now() - abortStarted
+  const abortedCall = fixture.invocations()[0]
+  check(
+    'an abort on this road ends the call and the Blender process long before the script would have ended',
+    abortedMs < 3_000 && abortedCall !== undefined && !pidAlive(abortedCall.pid) && /exit status:\s*[1-9]/.test(abortedRun.data.result),
+    `${abortedMs} ms · ${abortedRun.data.result.slice(0, 120)}`,
+  )
 }
 
 section('§5 · window-requiring ops refused honestly · road precedence · permission parity')

@@ -263,7 +263,7 @@ async function runOp(input: Input, abortSignal?: AbortSignal): Promise<string> {
   const bridgeScript = input.op === 'python_run' ? scriptOf(fenced.args) : undefined
   const wireArgs =
     bridgeScript !== undefined ? { source: scriptAsBridgeSource(bridgeScript, argvOf(fenced.args)) } : fenced.args
-  const r = await client.request(input.op, wireArgs, 30_000)
+  const r = await client.request(input.op, wireArgs, 30_000, abortSignal)
   let text: string
   if (r.ok) {
     text = formatResult(r.result)
@@ -307,7 +307,7 @@ export const BlenderTool = buildTool({
     class: 'mutation',
     operations: [...blenderBridgeVerbNames(), ...LOCAL_OPS],
     evidence: ['artifact'],
-    cancellation: 'not-applicable',
+    cancellation: 'cooperative',
     latency: 'interactive',
     gate: 'MERCURY_BLENDER',
     conditions: [
