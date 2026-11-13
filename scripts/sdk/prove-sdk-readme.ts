@@ -15,6 +15,12 @@ const ANSWER = 'The README example answered.'
 const guard = setTimeout(() => { console.error('FAIL README examples timed out'); process.exit(1) }, 300000)
 const failures: string[] = []
 const blocksOf = (path: string) => [...readFileSync(path, 'utf8').matchAll(/```(ts|python)\n([\s\S]*?)```/g)].map(m => ({ lang: m[1]!, code: m[2]! }))
+const boundsRetries = (code: string) => /maxTime: '2s'|max_time='2s'/.test(code)
+for (const dir of ['sdk', 'sdk-py']) {
+  const path = join(root, dir, 'README.md')
+  assert(blocksOf(path).some(block => boundsRetries(block.code) && /['"]retry['"]/.test(block.code)), `${dir}/README.md needs a bounded run example that shows retry rows`)
+  assert(readFileSync(path, 'utf8').includes("Without a time bound or cancellation, persistent rate limits keep the run waiting through the CLI's retries; no outcome is available while those retries continue."), `${dir}/README.md explains an unbounded retry`)
+}
 function execute(command: string, args: string[], cwd: string, env: NodeJS.ProcessEnv): Promise<{ status: number | null; stdout: string; stderr: string }> {
   return new Promise(resolve => {
     const child = spawn(command, args, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
@@ -81,7 +87,8 @@ for name in ('client.py', 'runner.py', 'sync.py'):
     assert(blocks.length >= 4, `${dir}/README.md carries ${blocks.length} ${lang} blocks`)
     for (const [index, block] of blocks.entries()) {
       const usesTool = /defineTool|define_tool/.test(block.code)
-      const c = await context(usesTool ? [{ kind: 'tool_use', name: 'mcp__sdk-tools__greeting', input: {} }, { kind: 'text', text: ANSWER }] : Array.from({ length: 8 }, () => ({ kind: 'text' as const, text: ANSWER })))
+      const bounded = boundsRetries(block.code)
+      const c = await context(bounded ? Array.from({ length: 100 }, () => ({ kind: 'error' as const, status: 429, errorType: 'rate_limit_error', message: 'Fixture capacity reached.', headers: { 'retry-after': '0' } })) : usesTool ? [{ kind: 'tool_use', name: 'mcp__sdk-tools__greeting', input: {} }, { kind: 'text', text: ANSWER }] : Array.from({ length: 8 }, () => ({ kind: 'text' as const, text: ANSWER })))
       const label = `${dir}/README.md ${lang} block ${index + 1}: ${block.code.split('\n').find(line => /^(const|async def|with|result|from|import)/.test(line))?.slice(0, 60)}`
       try {
         const defaults = { mercury, cwd: c.cwd, env: c.env, ephemeral: true }
@@ -121,6 +128,11 @@ runpy.run_path(sys.argv[1], run_name='__main__')
         assert.equal(result.status, 0, out)
         if (/answer/.test(block.code) && !/fixtureOutcomeRow|fixture_outcome_row/.test(block.code)) assert(result.stdout.includes(ANSWER), out)
         if (usesTool) assert(c.api.requests.some(request => request.raw.includes('Hello') && request.raw.includes('tool_result')), 'the inline tool was never called by the example agent')
+        if (bounded) {
+          assert.match(result.stdout, /^Retry \d+ in \d+(?:\.\d+)? ms$/m, 'the rate-limited example prints retry progress')
+          assert.match(result.stdout, /^time_limit$/m, 'the time bound settles persistent 429 replies')
+          assert(c.api.messageRequests().length > 0, 'the example reached the scripted rate-limited model')
+        }
         console.log(`PASS ${label}`)
       } catch (error) { failures.push(label); console.error(`FAIL ${label}\n${error}`) } finally { await c.close() }
     }

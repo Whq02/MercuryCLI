@@ -19,6 +19,21 @@ console.log(result.status, result.answer)
 
 `run()` returns an async row iterator with typed listeners. Its `session`, `outcome` and `exit` are promises; `rows` retains received rows. Use one consumption style: listeners or `for await`. Whole blocks arrive as `text`; `partial: true` also streams `text_delta`. `outcome` settles after the process exits and owned tool servers close. With inline tools, `ready` resolves once the server and child have started; inspect `child` and `args` after that promise.
 
+## Bound retries and show progress
+
+```ts
+import { run } from 'mercury-cli-sdk'
+
+const task = run({ prompt: 'Explain the README', maxTime: '2s' })
+task.on('wait', row => {
+  if (row.state === 'retry') console.log('Retry', row.attempt, 'in', row.delay_ms, 'ms')
+})
+const result = await task.outcome
+console.log(result.status)
+```
+
+Without a time bound or cancellation, persistent rate limits keep the run waiting through the CLI's retries; no outcome is available while those retries continue.
+
 ## Model selection
 
 `model` uses the CLI's model ids and credentials. For a named OpenAI-compatible endpoint, pass `compat/<endpoint>/<model>` to `run` or `connect`, for example `run({ prompt: 'Explain the README', model: 'compat/my-server/model-id' })`. Replace the example with an available row from `/model` or `mercury://models`; `/llmhost` registers a server as a named compat endpoint. The same route works in `defineAgent({ description: 'Reader', prompt: 'Read the project', model: 'compat/my-server/model-id' })` and `await session.setModel('compat/my-server/model-id')`.

@@ -34,6 +34,24 @@ asyncio.run(main())
 
 `run()` returns an async row iterator with listeners. Its `session`, `outcome` and `exit` are awaitable; `rows` retains received rows. Whole blocks arrive as `text`; `partial=True` also streams `text_delta`. `outcome` settles after the process exits and owned tool servers close. `run_sync` returns `RunResult(outcome, rows, exit)`. `connect_sync` returns a typed `SyncSession` with the same control methods and blocking row iteration. Use it as a context manager; host callbacks run on its background loop and must not call the synchronous wrapper recursively.
 
+## Bound retries and show progress
+
+```python
+import asyncio
+from mercury_cli_sdk import run
+
+async def main():
+    task = await run('Explain the README', max_time='2s')
+    async for row in task:
+        if row['type'] == 'wait' and row['state'] == 'retry':
+            print('Retry', row.get('attempt'), 'in', row.get('delay_ms'), 'ms')
+    result = await task.outcome
+    print(result['status'])
+asyncio.run(main())
+```
+
+Without a time bound or cancellation, persistent rate limits keep the run waiting through the CLI's retries; no outcome is available while those retries continue.
+
 ## Model selection
 
 `model` uses the CLI's model ids and credentials. For a named OpenAI-compatible endpoint, pass `compat/<endpoint>/<model>` to `run`, `run_sync` or `connect`, for example `run_sync('Explain the README', model='compat/my-server/model-id')`. Replace the example with an available row from `/model` or `mercury://models`; `/llmhost` registers a server as a named compat endpoint. The same route works in `define_agent({'description': 'Reader', 'prompt': 'Read the project', 'model': 'compat/my-server/model-id'})` and `await session.set_model('compat/my-server/model-id')`.
