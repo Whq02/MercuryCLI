@@ -1,7 +1,9 @@
+import { homedir } from 'os'
 import { dirname, parse, resolve } from 'path'
 
 import { normalizePathForComparison } from '../../../utils/file.js'
 import { getFsImplementation, safeResolvePath } from '../../../utils/fsOperations.js'
+import { pathInWorkingPath } from '../../../utils/permissions/filesystem.js'
 import type {
   InstructionAdapter,
   InstructionConvention,
@@ -48,6 +50,26 @@ export function hasPrimaryProjectFile(conventions: InstructionConvention[], dirs
   )
 }
 
+type FolderSources = {
+  guides(convention: InstructionConvention, dir: string): string[]
+  rules(convention: InstructionConvention, dir: string): string[]
+  locals(convention: InstructionConvention, dir: string): string[]
+}
+
+export function folderSources(start: string): FolderSources {
+  const home = safeResolvePath(getFsImplementation(), homedir()).resolvedPath
+  const own = (convention: InstructionConvention, dir: string, paths: string[]): string[] => {
+    if (!convention.belowHome || !pathInWorkingPath(home, dir)) return paths
+    return dir === start ? paths.filter(path => dirname(path) === dir) : []
+  }
+  return {
+    guides: (convention, dir) => own(convention, dir, convention.projectDirFiles(dir)),
+    rules: (convention, dir) => own(convention, dir, convention.projectRulesDirs(dir)),
+    locals: (convention, dir) =>
+      own(convention, dir, convention.localDirFiles?.(dir) ?? (convention.localDirFile(dir) !== null ? [convention.localDirFile(dir) as string] : [])),
+  }
+}
+
 function chainOf(dir: string): string[] {
   const dirs: string[] = []
   let current = resolve(dir)
@@ -64,7 +86,9 @@ export function composedGuideFilesAt(dir: string): string[] {
   const present = primary.flatMap(c => projectGuidesAt(c, dir))
   if (present.length > 0) return present
   if (hasPrimaryProjectFile(primary, chainOf(dir))) return []
+  const at = resolve(dir)
+  const own = folderSources(at)
   return conventions
     .filter(c => c.fallback)
-    .flatMap(c => [...c.projectDirFiles(dir), ...c.projectRulesDirs(dir)].filter(path => isFile(path) && !c.isExcluded(path, 'Project')))
+    .flatMap(c => [...own.guides(c, at), ...own.rules(c, at)].filter(path => isFile(path) && !c.isExcluded(path, 'Project')))
 }

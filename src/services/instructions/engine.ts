@@ -1,6 +1,5 @@
 import { createHash } from 'crypto'
 import memoize from 'lodash-es/memoize.js'
-import { homedir } from 'os'
 import { basename, dirname, parse, resolve } from 'path'
 
 import {
@@ -17,7 +16,7 @@ import { logForDiagnosticsNoPII } from '../../utils/diagLogs.js'
 import { normalizePathForComparison } from '../../utils/file.js'
 import { detectEncodingForResolvedPath } from '../../utils/fileRead.js'
 import type { FileStateCache } from '../../utils/fileStateCache.js'
-import { getFsImplementation, safeResolvePath } from '../../utils/fsOperations.js'
+import { getFsImplementation } from '../../utils/fsOperations.js'
 import { findCanonicalGitRoot, findGitRoot } from '../../utils/git.js'
 import { stripBOM } from '../../utils/jsonRead.js'
 import type { MemoryType } from '../../utils/memory/types.js'
@@ -25,7 +24,7 @@ import { getEngineModel } from '../../utils/model/model.js'
 import { pathInWorkingPath } from '../../utils/permissions/filesystem.js'
 import { isSettingSourceEnabled } from '../../utils/settings/constants.js'
 import { forgetHiddenCharacters } from '../../utils/text/hiddenCharacterFindings.js'
-import { adapterForProfile, hasPrimaryProjectFile } from './adapters/index.js'
+import { adapterForProfile, folderSources, hasPrimaryProjectFile } from './adapters/index.js'
 import { offeredRulesText } from './attachedText.js'
 import { conventionsForProfile } from './compositionOrder.js'
 import type {
@@ -112,16 +111,6 @@ function activeConventions(): InstructionConvention[] {
 }
 
 export { conventionsForProfile } from './compositionOrder.js'
-
-function folderReader(start: string): (convention: InstructionConvention, dir: string) => boolean {
-  const home = safeResolvePath(getFsImplementation(), homedir()).resolvedPath
-  return (convention, dir) => !convention.belowHome || dir === start || !pathInWorkingPath(home, dir)
-}
-
-function holdsSources(convention: InstructionConvention, dir: string): boolean {
-  const fs = getFsImplementation()
-  return [...convention.projectDirFiles(dir), ...convention.projectRulesDirs(dir)].some(path => fs.existsSync(path))
-}
 
 async function walkConventions(
   conventions: InstructionConvention[],
@@ -264,9 +253,9 @@ async function walkConventions(
         normalizePathForComparison(canonicalRoot) &&
       pathInWorkingPath(gitRoot, canonicalRoot)
 
-    const reads = folderReader(chainRoot)
+    const own = folderSources(chainRoot)
     for (const convention of conventions.filter(c => c.nearestOnly)) {
-      const holder = dirs.find(dir => reads(convention, dir) && holdsSources(convention, dir))
+      const holder = dirs.find(dir => [...own.guides(convention, dir), ...own.rules(convention, dir)].some(path => getFsImplementation().existsSync(path)))
       if (holder !== undefined) nearestHolders[convention.id] = holder
     }
     const outerFirst = dirs.reverse()
@@ -279,8 +268,8 @@ async function walkConventions(
 
         for (const convention of set) {
           const holds = !convention.nearestOnly || nearestHolders[convention.id] === dir
-          if (isSettingSourceEnabled('projectSettings') && !skipProject && reads(convention, dir) && holds) {
-            for (const projectPath of convention.projectDirFiles(dir)) {
+          if (isSettingSourceEnabled('projectSettings') && !skipProject && holds) {
+            for (const projectPath of own.guides(convention, dir)) {
               push(
                 await processInstructionFile(
                   convention,
@@ -298,7 +287,7 @@ async function walkConventions(
               )
             }
 
-            for (const rulesDir of convention.projectRulesDirs(dir)) {
+            for (const rulesDir of own.rules(convention, dir)) {
               push(
                 await processRulesDir({
                   convention,
@@ -317,10 +306,7 @@ async function walkConventions(
           }
 
           if (isSettingSourceEnabled('localSettings')) {
-            const localPaths =
-              convention.localDirFiles?.(dir) ??
-              (convention.localDirFile(dir) !== null ? [convention.localDirFile(dir) as string] : [])
-            for (const localPath of localPaths) {
+            for (const localPath of own.locals(convention, dir)) {
               push(
                 await processInstructionFile(
                   convention,
@@ -553,12 +539,11 @@ export async function getInstructionFilesForNestedDirectory(
       ? [...active.filter(c => c.fallback), ...primary]
       : primary
   const includeExternal = getCurrentProjectConfig().hasExternalIncludesApproved ?? false
-  const reads = folderReader(resolve(getOriginalCwd()))
+  const own = folderSources(resolve(getOriginalCwd()))
 
   for (const convention of conventions) {
-    if (!reads(convention, dir)) continue
     if (isSettingSourceEnabled('projectSettings')) {
-      for (const projectPath of convention.projectDirFiles(dir)) {
+      for (const projectPath of own.guides(convention, dir)) {
         result.push(
           ...(await processInstructionFile(
             convention,
@@ -575,10 +560,7 @@ export async function getInstructionFilesForNestedDirectory(
     }
 
     if (isSettingSourceEnabled('localSettings')) {
-      const localPaths =
-        convention.localDirFiles?.(dir) ??
-        (convention.localDirFile(dir) !== null ? [convention.localDirFile(dir) as string] : [])
-      for (const localPath of localPaths) {
+      for (const localPath of own.locals(convention, dir)) {
         result.push(
           ...(await processInstructionFile(
             convention,
@@ -595,7 +577,7 @@ export async function getInstructionFilesForNestedDirectory(
     }
 
     const unconditionalProcessedPaths = new Set(processedPaths)
-    for (const rulesDir of convention.projectRulesDirs(dir)) {
+    for (const rulesDir of own.rules(convention, dir)) {
       result.push(
         ...(await processRulesDir({
           convention,
@@ -636,11 +618,11 @@ export async function getConditionalInstructionRulesForCwdLevelDirectory(
   await getInstructionFiles()
   const results: InstructionSourceEntry[] = []
   const composedDigests = new Set<string>()
-  const reads = folderReader(resolve(getOriginalCwd()))
+  const own = folderSources(resolve(getOriginalCwd()))
   for (const convention of activeConventions()) {
-    if ((convention.fallback && !lastComposition.fallbackComposed) || !reads(convention, dir)) continue
+    if (convention.fallback && !lastComposition.fallbackComposed) continue
     if (convention.nearestOnly && lastComposition.nearestHolders[convention.id] !== resolve(dir)) continue
-    for (const rulesDir of convention.projectRulesDirs(dir)) {
+    for (const rulesDir of own.rules(convention, dir)) {
       const batch = await processConditionedRules(
         convention,
         targetPath,

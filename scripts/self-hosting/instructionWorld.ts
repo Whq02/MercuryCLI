@@ -376,6 +376,17 @@ export function rulesBattery({ world, check, section, convention, folder, ext, a
   })
   const d6d = world.drive(join(p6, 'work/proj'), { home: p6, trust: p6, touch: [join(p6, 'work/proj/a.ts')] })
   check("the home folder's own rules folder neither composes nor attaches", d6d.first === '' && d6d.touched[0]!.attached.length === 0, `${d6d.first} ${JSON.stringify(d6d.touched[0])}`)
+  const p6b = world.project({
+    [rule('personal')]: always('home-always-needle\n'),
+    [rule('personal-scoped')]: scoped(['*.ts'], 'home-scoped-needle\n'),
+    'a.ts': '\n',
+  })
+  const d6e = world.drive(p6b, { home: p6b, touch: [join(p6b, 'a.ts')] })
+  if (folder.includes('/')) {
+    check('started in the home folder itself, the tool folder there stays personal: nothing composes, nothing attaches', d6e.first === '' && d6e.touched[0]!.attached.length === 0, `${d6e.first} ${JSON.stringify(d6e.touched[0])}`)
+  } else {
+    check('started in the home folder itself, a rules folder that is an entry of that folder is read', d6e.first === contentsOf(join(p6b, rule('personal')), 'home-always-needle') && JSON.stringify(attachedPaths(d6e.touched[0]!)) === JSON.stringify([join(p6b, rule('personal-scoped'))]), `${d6e.first} ${JSON.stringify(d6e.touched[0])}`)
+  }
 
   section(`${folder}: which files are rules, and in what order`)
   const p7 = world.project({

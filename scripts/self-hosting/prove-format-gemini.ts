@@ -85,7 +85,8 @@ try {
   const d8b = world.drive(join(p8, 'work/proj'), { trust: p8 })
   check('with the home elsewhere the same folders are plain parents and all four compose', ['personal-gemini-needle', 'home-root-gemini-needle', 'workspace-gemini-needle', 'project-gemini-needle'].every(needle => d8b.first.includes(needle)), d8b.paths.join(', '))
   const d8c = world.drive(p8, { home: p8 })
-  check('started in the home folder itself, its own files are the project', d8c.first.includes('home-root-gemini-needle') && d8c.first.includes('personal-gemini-needle'), d8c.paths.join(', '))
+  check('started in the home folder itself, its root file is read and the tool folder there stays personal', d8c.first === contents(join(p8, 'GEMINI.md'), 'home-root-gemini-needle'), d8c.first)
+  check('the guide list there names the root file alone', JSON.stringify(d8c.guides) === JSON.stringify([join(p8, 'GEMINI.md')]), JSON.stringify(d8c.guides))
 
   section('§9 beside the other shared guide: all load, identical text once')
   const p9 = world.project({ 'AGENTS.md': 'agents-needle\n', 'GEMINI.md': 'gemini-root-needle\n' })
