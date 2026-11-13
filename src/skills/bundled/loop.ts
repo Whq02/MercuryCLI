@@ -8,7 +8,6 @@ import {
 } from '../../tools/ScheduleCronTool/prompt.js'
 import { SCHEDULE_WAKEUP_TOOL_NAME } from '../../tools/ScheduleWakeupTool/prompt.js'
 import { MONITOR_TOOL_NAME } from '../../tools/MonitorTool/constants.js'
-import { TASK_LIST_TOOL_NAME } from '../../tools/TaskListTool/constants.js'
 import { TASK_STOP_TOOL_NAME } from '../../tools/TaskStopTool/prompt.js'
 import { SKILL_TOOL_NAME } from '../../tools/SkillTool/constants.js'
 import {
@@ -80,23 +79,22 @@ function clockLine(cadence: LoopCadence): string {
   return `\`cron\` = "${cadence.cron}" (${cadence.spoken}${rounded})`
 }
 
-const PARSING_RULES = `Find the interval in the input:
-1. An input that LEADS with an interval token ("5m check the deploy") names its interval up front; everything after the token is the prompt.
-2. An input that ENDS with an "every <number> <time unit>" clause ("poll the queue every 2 minutes") names it at the tail; strip the clause and keep the rest as the prompt. "Every" over anything that is not a span of time ("check every PR") belongs to the prompt and names no interval.`
+const PARSING_RULES = `Parse the interval from the input:
+1. Leading interval token ("5m check the deploy"): everything after it is the prompt.
+2. Trailing "every <number> <time unit>" ("poll the queue every 2 minutes"): strip the clause and keep the rest as the prompt. Non-time "every" ("check every PR") stays in the prompt.`
 
-const CRON_TABLE = `Interval → 5-field cron expression (local time; the scheduler's resolution is one minute):
+const CRON_TABLE = `Interval → 5-field local-time cron (1-minute resolution):
 - seconds round UP to one minute;
-- 1–59 minutes → "*/N * * * *", exact only when N divides 60 — otherwise the hour's last gap runs short, so move to the nearest divisor of 60;
-- whole hours that divide 24 → "0 */N * * *"; hour counts that do not divide 24 get the same last-gap unevenness, so move to a divisor;
-- days → "0 0 */N * *", firing at local midnight.
-Whenever the scheduled cadence differs from the words the user used, say what was actually scheduled before creating the job.`
+- 1–59 minutes → "*/N * * * *" when N divides 60, else the nearest divisor of 60;
+- hours → "0 */N * * *" when N divides 24, else the nearest divisor of 24;
+- days → "0 0 */N * *" (midnight).
+If rounded, state the scheduled cadence before creating the job.`
 
 function usageText(dynamic: boolean): string {
   return `Usage: /loop [interval] <prompt or /slash-command>
 
-Repeats a prompt or slash command on a schedule.
-Interval suffixes: s, m, h, d — 30s, 5m, 2h, 1d. One minute is the floor; seconds round up.
-${dynamic ? 'Leave the interval out and the model paces itself between ticks.' : `Leave the interval out and the default is ${DEFAULT_INTERVAL}.`}
+Repeats a prompt or slash command on a schedule. Suffixes: s, m, h, d (30s, 5m, 2h, 1d; 1-minute floor, seconds round up).
+${dynamic ? 'Omit the interval to let the model pace itself between ticks.' : `Omit the interval for the ${DEFAULT_INTERVAL} default.`}
 
 Examples:
 - /loop 10m watch the CI run and report state changes
@@ -104,35 +102,35 @@ Examples:
 - /loop 4h triage any new issues
 - /loop rebuild the search index every 30 minutes
 
-The invocation carried no prompt: show the user this usage and schedule nothing.`
+No prompt was given: show this usage and schedule nothing.`
 }
 
 function fixedIntervalPrompt(input: string): string {
-  return `The user invoked /loop with: ${input}
+  return `Invoked /loop with: ${input}
 
 ${PARSING_RULES}
-3. No interval anywhere in the input: use the default ${DEFAULT_INTERVAL}, with the whole input as the prompt.
-An empty prompt after parsing means show the usage and schedule nothing.
+3. No interval: use ${DEFAULT_INTERVAL} and treat the whole input as the prompt.
+If the parsed prompt is empty, show usage and schedule nothing.
 
 ${CRON_TABLE}
 
-Create the schedule with the ${CRON_CREATE_TOOL_NAME} tool: \`cron\` = the expression, \`prompt\` = the parsed prompt VERBATIM, \`recurring\` set. Then report what is on the clock: the cadence in plain words, the expression itself, that the ${SATURN_BOARD_COMMAND} board lists every schedule, and that ${CRON_DELETE_TOOL_NAME} with the id ${CRON_CREATE_TOOL_NAME} returned cancels early; if ${CRON_CREATE_TOOL_NAME} answered with an error or "Queued, not confirmed", do not claim the loop is on the clock. For "NOT confirmed", check ${CRON_LIST_TOOL_NAME} before retrying. Then run the parsed prompt once, now — tick one does not wait out the first interval. A /slash-command prompt runs through the ${SKILL_TOOL_NAME} tool.`
+Call ${CRON_CREATE_TOOL_NAME} with \`cron\`, verbatim \`prompt\`, and \`recurring: true\`. Report the cadence, cron expression, ${SATURN_BOARD_COMMAND} board, and early cancel via ${CRON_DELETE_TOOL_NAME} with the returned id. Do not claim it is scheduled if ${CRON_CREATE_TOOL_NAME} returns an error or "Queued, not confirmed"; on "NOT confirmed", check ${CRON_LIST_TOOL_NAME} before retrying. Run tick one immediately (via ${SKILL_TOOL_NAME} if the prompt is a /slash-command).`
 }
 
 function dynamicPrompt(input: string): string {
-  return `The user invoked /loop with: ${input}
+  return `Invoked /loop with: ${input}
 
 ${PARSING_RULES}
-3. No interval anywhere in the input: the whole input is the prompt, and the loop paces itself.
-An empty prompt after parsing means show the usage and schedule nothing.
+3. No interval: the whole input is the prompt, self-paced.
+If the parsed prompt is empty, show usage and schedule nothing.
 
 Self-paced loop:
-1. Run the parsed prompt now — that is tick one. A /slash-command prompt runs through the ${SKILL_TOOL_NAME} tool.
-2. A next tick that waits on an observable event (a build, a log line, a process exiting) deserves a watch, armed ONCE: the ${MONITOR_TOOL_NAME} tool with \`persistent\` set, or a \`run_in_background\` shell task where Monitor cannot express the condition. Watch events arrive as \`<task-notification>\` messages and wake the loop ahead of any timer. Consult ${TASK_LIST_TOOL_NAME} before arming — a loop that re-arms its watch every tick leaks tasks.
-3. Report to the user in text BEFORE scheduling the wake — the wake call is the turn's final act, so anything said after it never lands this turn. Cover: the loop self-paces, what is watching (if anything), and the fallback delay.
-4. Call ${SCHEDULE_WAKEUP_TOOL_NAME} last: \`prompt\` = the ENTIRE original invocation verbatim, prefixed with /loop, so the next fire re-enters this skill; \`delaySeconds\` chosen from the work's own rhythm — with a watch armed, lean long (1200–1800 seconds; the watch does the waking and the timer is only a heartbeat); \`reason\` = one line for your own continuity.
-5. A tick woken by a \`<task-notification>\` handles that event first, then re-arms the same wake.
-6. Ending the loop = three acts: no new wake; ${TASK_STOP_TOOL_NAME} any armed watch (${TASK_LIST_TOOL_NAME} finds its id); and a one-line outcome as the last line of your reply — skip it when the user themselves just said stop.`
+1. Run tick one now (via ${SKILL_TOOL_NAME} for a /slash-command).
+2. When the next tick waits on an event (build, log line, process exit), arm ONE watch via ${MONITOR_TOOL_NAME} (\`persistent: true\`) or a \`run_in_background\` shell task. Events arrive as \`<task-notification>\` and wake the loop early. Keep the \`taskId\` from launch (or read \`mercury://execution\`); never re-arm an active watch.
+3. Report to the user in text BEFORE calling ${SCHEDULE_WAKEUP_TOOL_NAME} (it ends the turn): state that the loop self-paces, any active watch, and the fallback delay.
+4. Call ${SCHEDULE_WAKEUP_TOOL_NAME} last: \`prompt\` = the full original invocation prefixed with \`/loop\`, \`delaySeconds\` matched to the work (1200–1800s when a watch is armed), \`reason\` = one continuity line.
+5. On a \`<task-notification>\` wake, handle that event first, then re-arm ${SCHEDULE_WAKEUP_TOOL_NAME}.
+6. To end the loop: schedule no wake, call ${TASK_STOP_TOOL_NAME} on any armed watch (\`taskId\` from launch or \`mercury://execution\`), and a one-line outcome as the last line of your reply — skip it when the user themselves just said stop.`
 }
 
 function defaultPromptBody(dynamic: boolean, cadence: LoopCadence): string {
@@ -150,7 +148,7 @@ function defaultPromptBody(dynamic: boolean, cadence: LoopCadence): string {
     logAutonomousLoopActivation()
     sentinel = dynamic ? AUTONOMOUS_LOOP_DYNAMIC_SENTINEL : AUTONOMOUS_LOOP_SENTINEL
   }
-  const sentinelRules = `Schedule the SENTINEL, not the text above: the scheduled prompt is EXACTLY the string ${sentinel}. Mercury expands it at every fire — the full instructions on the first delivery${loopFile ? ', and again in full whenever the loop file changed since the last fire' : ''}, then a short per-tick reminder while nothing changed, which keeps the long text in the conversation's cached prefix instead of repeating it. Pasting the instructions into the scheduled prompt yourself defeats that mechanism.`
+  const sentinelRules = `Schedule the SENTINEL, not the text above: pass \`prompt\` = "${sentinel}" verbatim. Mercury expands it on first fire${loopFile ? ' and whenever the loop file changes' : ''}, sending a short reminder on unchanged ticks.`
   if (dynamic) {
     return `${heading}
 
@@ -158,7 +156,7 @@ ${body}
 
 ${sentinelRules}
 
-Run tick one now. Then follow the self-paced steps: arm a watch when an observable event gates the next tick (${MONITOR_TOOL_NAME} with \`persistent\`, or a \`run_in_background\` shell task), report to the user in text, and end the turn with ${SCHEDULE_WAKEUP_TOOL_NAME} (\`delaySeconds\`, \`reason\`, \`prompt\` = the sentinel). A tick woken by a \`<task-notification>\` handles the event, then re-arms the same wake. Ending the loop = no new wake, ${TASK_STOP_TOOL_NAME} on any watch, and a one-line outcome as the last line of your reply (skipped when the user just asked for the stop).`
+Run tick one now. Arm one watch if an event gates the next tick (${MONITOR_TOOL_NAME} with \`persistent: true\` or \`run_in_background\`), report to the user before waking, and end the turn with ${SCHEDULE_WAKEUP_TOOL_NAME} (\`delaySeconds\`, \`reason\`, \`prompt\` = "${sentinel}"). On a \`<task-notification>\` wake, handle the event then re-arm the wake. Ending the loop: no new wake, ${TASK_STOP_TOOL_NAME} on any watch, and a one-line outcome as the last line of your reply (skipped when the user just asked for the stop).`
   }
   return `${heading}
 
@@ -166,7 +164,7 @@ ${body}
 
 ${sentinelRules}
 
-Create a recurring schedule with the ${CRON_CREATE_TOOL_NAME} tool: ${clockLine(cadence)}, \`prompt\` = the sentinel, \`recurring\` set. Report what is on the clock — the cadence in plain words${loopFile ? '' : ', and say plainly that this is the autonomous default loop'} — and that the ${SATURN_BOARD_COMMAND} board lists it — then run tick one now.`
+Call ${CRON_CREATE_TOOL_NAME} with ${clockLine(cadence)}, \`prompt\` = "${sentinel}", and \`recurring: true\`. Report the cadence${loopFile ? '' : ' (noting this is the autonomous default loop)'} and ${SATURN_BOARD_COMMAND}, then run tick one now.`
 }
 
 export function loopPromptForInput(args: string): string {
@@ -188,13 +186,11 @@ export function registerLoopSkill(): void {
     aliases: ['proactive'],
     description: () =>
       isDynamicLoopEnabled()
-        ? 'Run a prompt or slash command repeatedly (for example /loop 10m /health); with no interval given, the model paces itself between ticks.'
-        : `Run a prompt or slash command repeatedly (for example /loop 10m /health); with no interval given, the cadence is ${DEFAULT_INTERVAL}.`,
+        ? 'Use when work should re-run on a cadence (polling a build, watching a queue, periodic upkeep, e.g. /loop 10m /health); without an interval the model paces itself between ticks. Not for one-shot future runs (use schedule).'
+        : `Use when work should re-run on a cadence (polling a build, watching a queue, periodic upkeep, e.g. /loop 10m /health); default interval ${DEFAULT_INTERVAL}. Not for one-shot future runs (use schedule).`,
     menuDescription: 'Run a prompt on a schedule',
     argumentHint: () =>
       isLoopDefaultPromptEnabled() ? '[interval] [prompt or /slash-command]' : '[interval] <prompt or /slash-command>',
-    whenToUse:
-      'Use when work should re-run on a cadence: polling a build, watching a queue, periodic upkeep. A single future reminder is not a loop — schedule those directly as one-shot cron jobs.',
     isEnabled: () => isSaturnSchedulingEnabled(),
     getPromptForCommand: async args => [{ type: 'text', text: loopPromptForInput(args) }],
   })
