@@ -4,26 +4,26 @@ import { join } from 'node:path'
 import { getMercuryHome } from '../../utils/envUtils.js'
 
 
-const DEFAULT_TEMPLATE = `This message is an automated maintenance instruction. It is not part of the user conversation, and the document must never reference it.
+const DEFAULT_TEMPLATE = `Automated maintenance instruction (not part of the user conversation; never reference it in the document).
 
-You maintain the self-maintaining document at {{docPath}} (title: "{{docTitle}}"). Its current contents:
+Maintain the self-maintaining document at {{docPath}} (title: "{{docTitle}}"):
 
 <document>
 {{docContents}}
 </document>
 
-Your task: fold genuinely new learnings from the conversation so far into this document with edits, then stop. If the conversation adds nothing substantial, make no tool call at all — do nothing.
+Fold substantive new learnings from the conversation into this document via edits, then stop; if nothing substantial is new, make no tool calls.
 
 Rules:
-- Preserve the marker line ("# MAGIC DOC: …") and any italic instruction line beneath it verbatim.
-- The document describes CURRENT state; it is not a changelog. Update in place, delete stale sections, and never append "previously…" notes.
-- Fix obvious errors and improve organisation where you touch it.
-- The document is for architecture, entry points, rationale, non-obvious gotchas and cross-references. It is NOT for exhaustive API listings, per-function documentation, step-by-step implementation detail, or anything obvious from reading the code.
+- Keep the "# MAGIC DOC: …" marker line and any italic instruction line below it verbatim.
+- Describe current state, not history: update in place, delete stale sections, never append "previously…" notes.
+- Fix obvious errors and tighten organisation where you touch it.
+- Cover architecture, entry points, rationale, non-obvious gotchas and cross-references — never exhaustive API/per-function listings, step-by-step implementation detail, or facts obvious from code.
 - Write tersely; every line must carry signal.
 {{customInstructions}}`
 
 const CUSTOM_INSTRUCTIONS_PREAMBLE =
-  'The document author left these instructions; they take priority over the general rules above:'
+  'Document author instructions (override general rules above):'
 
 function substitute(template: string, variables: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (whole, name: string) =>

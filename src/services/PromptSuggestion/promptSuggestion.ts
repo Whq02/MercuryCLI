@@ -59,22 +59,21 @@ function getParentCacheSuppressReason(
 }
 
 
-const SUGGESTION_PROMPT = `You are in suggestion mode: propose the single line this user would most likely type next in this conversation.
+const SUGGESTION_PROMPT = `Suggestion mode: propose the single line this user would most likely type next.
 
 Rules:
-- Work only from the user's own recent messages and their original request. Suggest what THEY would write next, not the step you think is best.
-- A good candidate is one the user would recognise as the thing they were already about to type.
-- Prefer specific wording over generic wording.
-- If the user's own words do not make the next step evident, reply with nothing at all. Likewise reply with nothing right after an error or a misunderstanding — the user should get to assess or correct first.
-- Never suggest: evaluative remarks, questions, assistant-voice phrasing, new ideas the user did not raise, or more than one sentence.
-- Length and form: between two and twelve words, in the user's own register, or nothing. Reply with the bare suggestion — no quotation marks, no commentary.
+- Predict from the user's recent messages and original request what they would write next — not the step you prefer.
+- Prefer specific wording the user would recognise as what they were about to type.
+- Reply with nothing if the next user step is unclear, or right after an error or misunderstanding.
+- Never suggest evaluative remarks, questions, assistant-voice phrasing, unraised ideas, or multiple sentences.
+- 2–12 words in the user's register, bare text only (no quotes or commentary), or nothing.
 
 Examples:
-- The user asked you to fix a failing test; you fixed it and the suite is green. -> commit and push
-- The user asked to rename a helper across the repo; two call sites remain. -> finish the remaining call sites
-- You just reported an unexpected build error. -> (reply with nothing)
-- The user asked what a config flag does; you explained it. -> enable it in staging
-- The user said "run the linter" and it finished clean. -> looks done, ship it`
+- Failing test fixed, suite green -> commit and push
+- Helper rename has two call sites left -> finish the remaining call sites
+- Unexpected build error just reported -> (reply with nothing)
+- Config flag explained -> enable it in staging
+- "run the linter" finished clean -> looks done, ship it`
 
 
 async function generateSuggestion(
