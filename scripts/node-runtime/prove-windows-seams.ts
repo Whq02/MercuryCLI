@@ -416,7 +416,7 @@ section("(18) the shell-mode '!' is consumed by exactly one owner (w2-f13-02 —
   const singleBangAt = prompt.indexOf('value.slice(1) === input')
   const singleBang = prompt.slice(singleBangAt, prompt.indexOf("setMode('bash')", singleBangAt))
   check("the single-'!'-at-offset-0 branch writes the draft through the one draft-write owner before the mode flips", singleBang.includes('writeDraft(input)'))
-  check('…and that owner marks the write as its own, so the reconciliation cannot re-import the retained !', /const writeDraft = useCallback\(\(text: string\): void => \{\s*pendingInput\.edit\(text\)\s*lastSelfWriteRef\.current = (text|pendingInput\.text\(\))/.test(prompt))
+  check('…and that owner marks the write as its own, so the reconciliation cannot re-import the retained !', /const writeDraft = useCallback\(\(text: string\): void => \{\s*pendingInput\.edit\(text\)\s*(?:lastSelfWriteRef\.current = (?:text|pendingInput\.text\(\))|const after = pendingInput\.text\(\)\s*lastSelfWriteRef\.current = after\b)/.test(prompt))
 }
 
 console.log('\n============================================================')
