@@ -15,7 +15,7 @@ import { buildPostCompactMessages } from '../services/compact/compact.js'
 import { estimateContextTokens, projectTimeBasedMicrocompact } from '../services/compact/microCompact.js'
 import { fireHooks } from '../utils/hooks/fire.js'
 import { hookRowsOfResult } from '../utils/hooks/rows.js'
-import { getSessionId } from '../bootstrap/state.js'
+import { getIsNonInteractiveSession, getSessionId, getSessionKind } from '../bootstrap/state.js'
 import { swarmPresented, swarmRoad } from '../services/crewBoard/seam.js'
 import {
   classifyThinkingDrops,
@@ -174,6 +174,8 @@ import { EarlyStarts } from '../services/tools/earlyStarts.js'
 import { emitCompactionTrace } from '../utils/observability/invocationTrace.js'
 import { flushSessionStorage, recordContentReplacement } from '../utils/sessionStorage.js'
 import { handleStopHooks } from '../query/stopHooks.js'
+import { announcesNextStep } from '../services/run/completionEvaluator.js'
+import { NO_CONTENT_MESSAGE } from '../constants/messages.js'
 import { buildRequestContextPlan, reconcileAppliedPlanUsage, type RequestContextPlan } from '../services/run/requestContextPlan.js'
 import { calibrationKeyFor } from '../services/run/contextCalibration.js'
 import { randomUUID, type UUID } from 'node:crypto'
@@ -225,6 +227,32 @@ export const MAX_TURNS_CLOSING_TEXT =
   'The turn budget is spent: no further tool call will run. Answer in text only — what was done, what was found, and what remains.'
 
 const MAX_TURNS_CUT: TurnCut = { kind: 'cut', detail: 'the turn budget was spent' }
+
+const ANNOUNCED_STEP_NUDGE_LIMIT = 1
+
+const ANNOUNCED_STEP_NUDGE =
+  'You ended your turn right after announcing a next step, with no tool call: if the task still needs that step, do it now; if the task is already done, give your final answer.'
+
+const ANNOUNCED_STEP_NOTICE =
+  'The reply announced a next step and ended the turn with no tool call — asked the model once to take it or to give its final answer'
+
+const ANNOUNCED_STEP_AGAIN_NOTICE =
+  'The reply announced a next step again and ended the turn with no tool call — the model was already asked once; the turn ends here'
+
+function runLeftAlone(toolUseContext: ToolUseContext): boolean {
+  return toolUseContext.agentId !== undefined || (getIsNonInteractiveSession() && getSessionKind() !== 'oculus')
+}
+
+function endedWithoutWords(assistantMessages: readonly AssistantMessage[]): boolean {
+  const last = assistantMessages.at(-1)
+  if (last !== undefined && last.message.stop_reason !== 'end_turn') return false
+  return assistantMessages.every(
+    message =>
+      message.isApiErrorMessage !== true &&
+      Array.isArray(message.message.content) &&
+      message.message.content.every(block => block.type === 'text' && (block.text.trim() === '' || block.text === NO_CONTENT_MESSAGE)),
+  )
+}
 
 function continuationAdded(previous: string | undefined, next: string): boolean {
   if (previous === undefined) return true
@@ -1042,6 +1070,7 @@ async function* runEventMachine(
   let iterationOrdinal = 0
 
   let checkpointSettleWarned = false
+  let announcedStepNudges = 0
   const awaitingReply: ReplyMark[] = []
   const pendingMemoryWrites: RefusedToolCall[] = []
   const holdMemoryWriteRefusals = (refusals: readonly RefusedToolCall[]): void => {
@@ -1836,12 +1865,22 @@ async function* runEventMachine(
         })
       }
 
-      if (lastMessage && emptyReplyKindOf(lastMessage) === 'silence') {
+      const emptyKind = lastMessage === undefined ? undefined : emptyReplyKindOf(lastMessage)
+      const silentAlone =
+        emptyKind !== 'empty' &&
+        emptyKind !== 'cap' &&
+        chant === null &&
+        reasoningOnly === null &&
+        (state.emptyReplyRecoveryCount ?? 0) < EMPTY_REPLY_RECOVERY_LIMIT &&
+        endedWithoutWords(assistantMessages) &&
+        runLeftAlone(toolUseContext)
+
+      if (lastMessage && emptyKind === 'silence' && !silentAlone) {
         const silence = emptyReplyNoteOf(lastMessage) ?? 'the provider finished this response with nothing said; the turn ends here, not cut.'
         yield emit({ kind: 'notice', message: createSystemMessage(silence, 'info') })
       }
 
-      if (lastMessage && emptyReplyKindOf(lastMessage) === 'empty') {
+      if (emptyKind === 'empty' || silentAlone) {
         const emptyReplyRecoveryCount = state.emptyReplyRecoveryCount ?? 0
         const decision = decideEmptyReplyRecovery({ recoveryCount: emptyReplyRecoveryCount })
         if (decision.kind === 'continue') {
@@ -1976,11 +2015,12 @@ async function* runEventMachine(
           state = next
           continue
         }
-        if (isLoopGuardStopEnabled()) {
+        const chantEnds = isLoopGuardStopEnabled() ? LOOP_GUARD_STOP_SETTING : runLeftAlone(toolUseContext) ? 'nobody is at this run' : null
+        if (chantEnds !== null) {
           yield emit({
             kind: 'notice',
             message: createSystemMessage(
-              chantNoticeLine(chant, `the reply repeated itself again after the loop notice; the turn is ended (${LOOP_GUARD_STOP_SETTING})`),
+              chantNoticeLine(chant, `the reply repeated itself again after the loop notice; the turn is ended (${chantEnds})`),
               'warning',
             ),
           })
@@ -2031,6 +2071,39 @@ async function* runEventMachine(
         const terminal: Terminal = { reason: 'completed' }
         yield emit({ kind: 'run_terminal', terminal })
         return terminal
+      }
+
+      if (
+        chant === null &&
+        reasoningOnly === null &&
+        lastMessage !== undefined &&
+        lastMessage.message.stop_reason === 'end_turn' &&
+        runLeftAlone(toolUseContext) &&
+        announcesNextStep(replyTextOf(assistantMessages))
+      ) {
+        if (announcedStepNudges < ANNOUNCED_STEP_NUDGE_LIMIT) {
+          announcedStepNudges++
+          yield emit({ kind: 'notice', message: createSystemMessage(ANNOUNCED_STEP_NOTICE, 'warning') })
+          const next: TurnState = {
+            ...state,
+            messages: [
+              ...messagesForQuery,
+              ...assistantMessages.filter(m => m.isApiErrorMessage !== true),
+              createUserMessage({ content: ANNOUNCED_STEP_NUDGE, isMeta: true }),
+            ],
+            toolUseContext,
+            autoCompactTracking: tracking,
+            pendingToolUseSummary: undefined,
+            stopHookActive: undefined,
+            overflowEpisode,
+            pendingOverflow: undefined,
+            transition: { reason: 'announced_step_nudge', attempt: announcedStepNudges },
+          }
+          yield emit({ kind: 'turn_settled', transition: next.transition! })
+          state = next
+          continue
+        }
+        yield emit({ kind: 'notice', message: createSystemMessage(ANNOUNCED_STEP_AGAIN_NOTICE, 'warning') })
       }
 
       const stopHookResult = yield* runStopHookGate(

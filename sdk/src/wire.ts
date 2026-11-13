@@ -4165,6 +4165,24 @@ export const METHODS: Record<MethodName, MethodSchema> = {
               "type": "number",
               "minimum": 0
             },
+            "recoveries": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "announced_step",
+                      "empty_reply"
+                    ]
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              }
+            },
             "usage": {
               "type": "object",
               "properties": {

@@ -293,6 +293,7 @@ export interface OutcomeFacts {
   wallMs: number
   apiMs?: number
   costUsd?: number
+  recoveries?: NonNullable<OutcomeRow['recoveries']>
   usage: NonNullableUsage
   models: Record<string, ModelUsageRow>
   denials: Denial[]
@@ -317,6 +318,7 @@ export function outcomeRow(scope: RowScope & { turn: number }, facts: OutcomeFac
     wall_ms: facts.wallMs,
     ...(facts.apiMs !== undefined ? { api_ms: facts.apiMs } : {}),
     ...(facts.costUsd !== undefined ? { cost_usd: facts.costUsd } : {}),
+    ...(facts.recoveries !== undefined && facts.recoveries.length > 0 ? { recoveries: facts.recoveries } : {}),
     usage: usageOf(facts.usage),
     models: facts.models,
     denials: facts.denials,

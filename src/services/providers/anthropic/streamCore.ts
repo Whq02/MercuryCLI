@@ -95,6 +95,7 @@ import type {
   StreamCapabilityAdvertisement,
 } from '../../../types/wire.js'
 import { toolToAPISchema } from '../../../utils/api.js'
+import { isToolSearchEnabledOptimistic, isToolSearchToolAvailable, modelSupportsToolReference } from '../../../utils/toolSearch.js'
 import {
   getMergedBetas,
   modelSupportsTemperature,
@@ -503,7 +504,7 @@ async function* queryModel(
     )
   }
 
-  if (useToolSearch && plan.wireWhy === 'gateway-unprobed' && gatewayProbePolicyAllows()) {
+  if (plan.wireWhy === 'gateway-unprobed' && gatewayProbePolicyAllows() && modelSupportsToolReference(options.model) && isToolSearchToolAvailable(tools) && isToolSearchEnabledOptimistic()) {
     const host = gatewayHost()
     if (host !== null) {
       void ensureGatewayProbe(

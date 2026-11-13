@@ -217,17 +217,21 @@ async function runRoute(route: { route: string; model: string; dialect: Dialect 
   const texts = frames.filter(f => isText(f) && isMainThread(f)).map(f => String(f.text ?? ''))
   const allRequests = fixture.captured.filter(c => c.dialect === route.dialect)
   const requests = allRequests.filter(c => !isHandoffRequest(c))
-  const substantiveCount = route.route === 'zai' ? 2 : 3
+  const substantiveCount = 3
   check(`${route.route}: the substantive requests are the only ones; no marked closing ask follows them (an unattended run leaves no note)`, JSON.stringify(allRequests.map(isHandoffRequest)) === JSON.stringify(Array(substantiveCount).fill(false)), JSON.stringify(allRequests.map(isHandoffRequest)))
   const tail = stderr.split('\n').filter(l => l.trim() !== '').slice(-4).join(' | ')
   check(`${route.route}: the turn settled with a completed outcome`, exit === 0 && isCompleted(outcome), `exit ${String(exit)} ${String(outcome?.status)} ${tail}`)
   if (route.route === 'zai') {
-    check(`${route.route}: the tool round ran and the second request finished with no words`, requests.length === 2 && requests[1] !== undefined, `${requests.length} request(s)`)
+    check(`${route.route}: the tool round ran and the second request finished with no words`, requests.length >= 2 && requests[1] !== undefined, `${requests.length} request(s)`)
     check(`${route.route}: no chat line — a clean silence paints no words`, !texts.some(t => t.trim() !== '' && t !== EMPTY_REPLY_END), JSON.stringify(texts).slice(0, 300))
     check(`${route.route}: the debug log carries the silence sentence`, debugLogLines(config).some(line => line.includes(ZAI_SILENCE_WORDS)), debugLogLines(config).filter(l => l.includes('[zai]')).slice(0, 3).join(' | '))
     check(`${route.route}: nothing carries the old cut wording`, !texts.some(t => t.includes(EMPTY_REPLY_NOTE_WORDS)), JSON.stringify(texts).slice(0, 300))
-    check(`${route.route}: silence is not re-issued`, requests.length === 2, `${requests.length} request(s)`)
-    check(`${route.route}: the turn simply ends — its answer carries no notice`, !answer.includes(ZAI_SILENCE_WORDS) && !answer.includes(EMPTY_REPLY_NOTE_WORDS), `answer: ${JSON.stringify(answer.slice(0, 200))}`)
+    const { EMPTY_REPLY_RECOVERY_NUDGE } = await import('../../src/services/api/errors.ts')
+    const needle = JSON.stringify(EMPTY_REPLY_RECOVERY_NUDGE).slice(1, -1)
+    const second = requests[1] === undefined ? [] : inputOf(requests[1])
+    const third = requests[2] === undefined ? [] : inputOf(requests[2])
+    check(`${route.route}: nobody is at this run, so the silence is asked about once: a third request carries the one-line note and the second did not`, requests.length === 3 && JSON.stringify(third).includes(needle) && !JSON.stringify(second).includes(needle), `${requests.length} request(s)`)
+    check(`${route.route}: the outcome's answer is the model's answer to the ask, and carries no notice`, answer === EMPTY_REPLY_END && !answer.includes(ZAI_SILENCE_WORDS) && !answer.includes(EMPTY_REPLY_NOTE_WORDS), `answer: ${JSON.stringify(answer.slice(0, 200))}`)
   } else {
     const { EMPTY_REPLY_RECOVERY_NUDGE } = await import('../../src/services/api/errors.ts')
     const needle = JSON.stringify(EMPTY_REPLY_RECOVERY_NUDGE).slice(1, -1)
