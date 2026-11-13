@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import ts from 'typescript'
 import { spawn } from 'node:child_process'
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { BUN, PYTHON } from './runtime.ts'
@@ -15,6 +15,15 @@ const ANSWER = 'The README example answered.'
 const guard = setTimeout(() => { console.error('FAIL README examples timed out'); process.exit(1) }, 300000)
 const failures: string[] = []
 const blocksOf = (path: string) => [...readFileSync(path, 'utf8').matchAll(/```(ts|python)\n([\s\S]*?)```/g)].map(m => ({ lang: m[1]!, code: m[2]! }))
+const boundsRetries = (code: string) => /maxTime: '2s'|max_time='2s'/.test(code)
+for (const dir of ['sdk', 'sdk-py']) {
+  const path = join(root, dir, 'README.md')
+  assert(readFileSync(path, 'utf8').includes('A built-in refusal that fired is listed in `wards`, a permission denial in `denials`; a turn can complete with a ward fired and no denial.'), `${dir}/README.md distinguishes a ward from a permission denial`)
+  assert(blocksOf(path).some(block => boundsRetries(block.code) && /['"]retry['"]/.test(block.code)), `${dir}/README.md needs a bounded run example that shows retry rows`)
+  assert(blocksOf(path).some(block => /MercuryOutcomeError/.test(block.code) && /error\.outcome/.test(block.code)), `${dir}/README.md needs an example that handles a non-completed outcome and retains its guidance`)
+  assert.match(readFileSync(path, 'utf8'), /A CLI outcome with `status: 'refused'` (throws|raises) `MercuryRefusal`; provider refusals, authentication errors, budget stops and repeated invalid structured output instead resolve a non-completed outcome\./)
+  assert(readFileSync(path, 'utf8').includes("Without a time bound or cancellation, persistent rate limits keep the run waiting through the CLI's retries; no outcome is available while those retries continue."), `${dir}/README.md explains an unbounded retry`)
+}
 function execute(command: string, args: string[], cwd: string, env: NodeJS.ProcessEnv): Promise<{ status: number | null; stdout: string; stderr: string }> {
   return new Promise(resolve => {
     const child = spawn(command, args, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
@@ -25,11 +34,11 @@ function execute(command: string, args: string[], cwd: string, env: NodeJS.Proce
     child.once('close', status => { clearTimeout(timer); resolve({ status, stdout, stderr }) })
   })
 }
-async function context(turns: ScriptedTurn[]) {
+async function context(turns: ScriptedTurn[] | ((cwd: string) => ScriptedTurn[])) {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'sdk-readme-')))
   const cwd = join(home, 'project'); mkdirSync(cwd)
   seedFirstRun(home, [cwd])
-  const api = await startFixtureApi(turns)
+  const api = await startFixtureApi(typeof turns === 'function' ? turns(cwd) : turns)
   const env = { HOME: home, PATH: process.env.PATH!, TMPDIR: tmpdir(), BROWSER: '/usr/bin/true', MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DAEMON_DIR: join(home, 'daemon'), ANTHROPIC_API_KEY: 'fixture-key-000', ANTHROPIC_BASE_URL: api.url }
   return { home, cwd, api, env, close: async () => { await api.close(); rmSync(home, { recursive: true, force: true }) } }
 }
@@ -81,7 +90,9 @@ for name in ('client.py', 'runner.py', 'sync.py'):
     assert(blocks.length >= 4, `${dir}/README.md carries ${blocks.length} ${lang} blocks`)
     for (const [index, block] of blocks.entries()) {
       const usesTool = /defineTool|define_tool/.test(block.code)
-      const c = await context(usesTool ? [{ kind: 'tool_use', name: 'mcp__sdk-tools__greeting', input: {} }, { kind: 'text', text: ANSWER }] : Array.from({ length: 8 }, () => ({ kind: 'text' as const, text: ANSWER })))
+      const bounded = boundsRetries(block.code)
+      const handlesOutcome = /MercuryOutcomeError/.test(block.code)
+      const c = await context(cwd => handlesOutcome ? [{ kind: 'tool_use', name: 'Write', input: { file_path: join(cwd, 'hello.txt'), content: 'Hello\n' } }, { kind: 'text', text: ANSWER }] : bounded ? Array.from({ length: 100 }, () => ({ kind: 'error' as const, status: 429, errorType: 'rate_limit_error', message: 'Fixture capacity reached.', headers: { 'retry-after': '0' } })) : usesTool ? [{ kind: 'tool_use', name: 'mcp__sdk-tools__greeting', input: {} }, { kind: 'text', text: ANSWER }] : Array.from({ length: 8 }, () => ({ kind: 'text' as const, text: ANSWER })))
       const label = `${dir}/README.md ${lang} block ${index + 1}: ${block.code.split('\n').find(line => /^(const|async def|with|result|from|import)/.test(line))?.slice(0, 60)}`
       try {
         const defaults = { mercury, cwd: c.cwd, env: c.env, ephemeral: true }
@@ -119,8 +130,21 @@ runpy.run_path(sys.argv[1], run_name='__main__')
         }
         const out = `${result.stdout}${result.stderr}`
         assert.equal(result.status, 0, out)
-        if (/answer/.test(block.code) && !/fixtureOutcomeRow|fixture_outcome_row/.test(block.code)) assert(result.stdout.includes(ANSWER), out)
+        if (/answer/.test(block.code) && !handlesOutcome && !/fixtureOutcomeRow|fixture_outcome_row/.test(block.code)) assert(result.stdout.includes(ANSWER), out)
         if (usesTool) assert(c.api.requests.some(request => request.raw.includes('Hello') && request.raw.includes('tool_result')), 'the inline tool was never called by the example agent')
+        if (bounded) {
+          assert.match(result.stdout, /^Retry \d+ in \d+(?:\.\d+)? ms$/m, 'the rate-limited example prints retry progress')
+          assert.match(result.stdout, /^time_limit$/m, 'the time bound settles persistent 429 replies')
+          assert(c.api.messageRequests().length > 0, 'the example reached the scripted rate-limited model')
+        }
+        if (handlesOutcome) {
+          assert.match(out, /^blocked /m, 'the helper retains the non-completed outcome')
+          assert.match(out, /Write/, 'the error names the blocked tool')
+          assert.match(out, /--allowed-tools Write/, 'the error retains the grant guidance')
+          assert.match(out, /host that answers asks/, 'the error retains the host guidance')
+          assert(!existsSync(join(c.cwd, 'hello.txt')), 'the example did not grant itself write permission')
+          assert(c.api.requests.some(request => request.raw.includes('tool_result') && request.raw.includes('auto-denied')), 'the example exercised a real unanswered permission ask')
+        }
         console.log(`PASS ${label}`)
       } catch (error) { failures.push(label); console.error(`FAIL ${label}\n${error}`) } finally { await c.close() }
     }

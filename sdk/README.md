@@ -1,6 +1,6 @@
 # Mercury CLI SDK
 
-`mercury-cli-sdk` 0.1.0 is a zero-runtime-dependency TypeScript client for Mercury CLI, requiring Node.js 22 or later. Install Mercury separately and sign in through the CLI; the SDK uses its configuration and credentials. The package is Apache-2.0 and versioned separately from the CLI.
+`mercury-cli-sdk` 0.2.0 is a zero-runtime-dependency TypeScript client for Mercury CLI, requiring Node.js 22 or later. Install Mercury separately and sign in through the CLI; the SDK uses its configuration and credentials. The package is Apache-2.0 and versioned separately from the CLI.
 
 ```sh
 npm install mercury-cli-sdk
@@ -18,6 +18,21 @@ console.log(result.status, result.answer)
 ```
 
 `run()` returns an async row iterator with typed listeners. Its `session`, `outcome` and `exit` are promises; `rows` retains received rows. Use one consumption style: listeners or `for await`. Whole blocks arrive as `text`; `partial: true` also streams `text_delta`. `outcome` settles after the process exits and owned tool servers close. With inline tools, `ready` resolves once the server and child have started; inspect `child` and `args` after that promise.
+
+## Bound retries and show progress
+
+```ts
+import { run } from 'mercury-cli-sdk'
+
+const task = run({ prompt: 'Explain the README', maxTime: '2s' })
+task.on('wait', row => {
+  if (row.state === 'retry') console.log('Retry', row.attempt, 'in', row.delay_ms, 'ms')
+})
+const result = await task.outcome
+console.log(result.status)
+```
+
+Without a time bound or cancellation, persistent rate limits keep the run waiting through the CLI's retries; no outcome is available while those retries continue.
 
 ## Model selection
 
@@ -199,7 +214,21 @@ try {
 
 `parseRow`, `rowOf`, `inputRowOf` and `validate` use generated schemas. `isMainThread` separates subagent rows. Unknown types become `unknown_row` with `original_type`, raw payload and envelope; known extra fields are preserved. Schema-version changes and malformed known rows are rejected.
 
-Non-completed turns resolve their outcome status (including failed authentication); refusals throw `MercuryRefusal`. Call `assertCompleted(outcome)` to raise `MercuryOutcomeError` for a non-completed outcome, including an unanswered permission ask; refusals remain `MercuryRefusal`. Both extend `MercuryError`. `MercuryOutcomeError` retains the original `outcome`, `errorClass` and `detail`. Its message names the tool and how to grant permission or attach a host; the SDK does not grant permission automatically. Other specific subclasses are `MercuryUsageError`, `MercuryExitError`, `MercurySpawnError`, `MercuryWireError`, `MercurySchemaError`, `MercuryTimeoutError` and `MercuryConnectionError`. Exit/usage errors preserve the interface and exit receipt; RPC errors preserve code and data. Check status rather than only exit code.
+A built-in refusal that fired is listed in `wards`, a permission denial in `denials`; a turn can complete with a ward fired and no denial.
+
+A CLI outcome with `status: 'refused'` throws `MercuryRefusal`; provider refusals, authentication errors, budget stops and repeated invalid structured output instead resolve a non-completed outcome. Call `assertCompleted(outcome)` to raise `MercuryOutcomeError` for a non-completed outcome, including an unanswered permission ask; a `refused` status remains `MercuryRefusal`. Both extend `MercuryError`. `MercuryOutcomeError` retains the original `outcome`, `errorClass` and `detail`. Its message names the tool and how to grant permission or attach a host; the SDK does not grant permission automatically. Other specific subclasses are `MercuryUsageError`, `MercuryExitError`, `MercurySpawnError`, `MercuryWireError`, `MercurySchemaError`, `MercuryTimeoutError` and `MercuryConnectionError`. Exit/usage errors preserve the interface and exit receipt; RPC errors preserve code and data. Check status rather than only exit code.
+
+```ts
+import { run, assertCompleted, MercuryOutcomeError } from 'mercury-cli-sdk'
+
+try {
+  const outcome = await run({ prompt: 'Write a greeting to hello.txt' }).outcome
+  console.log(assertCompleted(outcome).answer)
+} catch (error) {
+  if (!(error instanceof MercuryOutcomeError)) throw error
+  console.error(error.outcome.status, error.message)
+}
+```
 
 `connect({ timeoutMs })` bounds initialization. `prompt(content, { timeoutMs })` bounds the whole wait, including queue acceptance; it does not stop the turn unless `interruptOnAbort: true` is supplied. A late acceptance still triggers that requested interrupt. `MercuryTimeoutError` carries `method` and `timeoutMs`. Check `facts()` before resending work that may already have been accepted. Requests use the protocol's deadline unless `deadlineMs` overrides it; initialization, prompts and `leave` have no default deadline. Use `request('session/leave', {}, { deadlineMs: 30000 })` to bound a leave.
 

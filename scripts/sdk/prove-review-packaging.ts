@@ -47,11 +47,46 @@ try {
   for (const name of ['publish-npm.sh', 'publish-pypi.sh']) cpSync(join(root, 'scripts/sdk', name), join(scratch, 'scripts/sdk', name))
   symlinkSync(join(root, 'node_modules'), join(scratch, 'node_modules'), 'junction')
   for (const dir of ['sdk', 'sdk-py']) { mkdirSync(join(scratch, dir, 'dist')); writeFileSync(join(scratch, dir, 'dist/stale.file'), 'stale') }
-  writeFileSync(join(scratch, 'registry.mjs'), `globalThis.fetch=async url=>{if(!String(url).startsWith('https://registry.npmjs.org/'))throw Error('unexpected network');return new Response('',{status:404})}`)
-  writeFileSync(join(scratch, 'sitecustomize.py'), `import urllib.request,urllib.error\ndef local(url,*args,**kwargs):\n assert url=='https://pypi.org/pypi/mercury-cli-sdk/json'\n raise urllib.error.HTTPError(url,404,'fixture',{},None)\nurllib.request.urlopen=local\n`)
-  const env = { ...process.env, NODE_OPTIONS: `--import=${join(scratch, 'registry.mjs')}`, PYTHONPATH: scratch, npm_config_cache: join(scratch, 'npm-cache'), npm_config_update_notifier: 'false' }
-  run('bash', [join(scratch, 'scripts/sdk/publish-npm.sh')], env)
-  run('bash', [join(scratch, 'scripts/sdk/publish-pypi.sh')], env)
+  const index = join(scratch, 'index.json')
+  writeFileSync(index, JSON.stringify({ status: 404 }))
+  writeFileSync(join(scratch, 'registry.mjs'), `import fs from 'node:fs'
+import childProcess from 'node:child_process'
+import { syncBuiltinESMExports } from 'node:module'
+const execFileSync = childProcess.execFileSync
+childProcess.execFileSync = (command, args, ...rest) => command === 'npm' && args[0] === 'whoami' ? 'fixture-maintainer\\n' : execFileSync(command, args, ...rest)
+syncBuiltinESMExports()
+globalThis.fetch = async url => {
+  if (String(url) !== 'https://registry.npmjs.org/mercury-cli-sdk') throw Error('unexpected network')
+  const data = JSON.parse(fs.readFileSync(${JSON.stringify(index)}, 'utf8'))
+  return new Response(JSON.stringify(data), { status: data.status })
+}
+`)
+  writeFileSync(join(scratch, 'sitecustomize.py'), `import io, json, pathlib, urllib.request, urllib.error
+def local(url, *args, **kwargs):
+    assert url == 'https://pypi.org/pypi/mercury-cli-sdk/json'
+    data = json.loads(pathlib.Path(${JSON.stringify(index)}).read_text())
+    if data['status'] == 404: raise urllib.error.HTTPError(url, 404, 'fixture', {}, None)
+    return io.BytesIO(json.dumps(data).encode())
+urllib.request.urlopen = local
+`)
+  const env = { ...process.env, NODE_OPTIONS: `--import=${join(scratch, 'registry.mjs')}`, PYTHONPATH: scratch, npm_config_cache: join(scratch, 'npm-cache'), npm_config_update_notifier: 'false', npm_config_offline: 'true' }
+  for (const name of ['pypi', 'npm']) run('bash', [join(scratch, `scripts/sdk/publish-${name}.sh`)], env)
   for (const dir of ['sdk', 'sdk-py']) assert(!existsSync(join(scratch, dir, 'dist/stale.file')))
   console.log('PASS generator output isolation, banners, package links and publish dist cleanup with mocked registry checks; nothing uploaded')
+  const previous = { status: 200, maintainers: [{ name: 'fixture-maintainer' }], versions: { '0.1.0': {} }, releases: { '0.1.0': [] } }
+  writeFileSync(index, JSON.stringify(previous))
+  for (const name of ['pypi', 'npm']) {
+    const out = run('bash', [join(scratch, `scripts/sdk/publish-${name}.sh`)], env)
+    assert(out.includes('DRY RUN: would publish mercury-cli-sdk'), out)
+  }
+  console.log('PASS both publication scripts prepare a new version of an existing project without a network request or upload')
+  writeFileSync(index, JSON.stringify({ ...previous, versions: { ...previous.versions, [pkg.version]: {} }, releases: { ...previous.releases, [pkg.version]: [] } }))
+  for (const name of ['pypi', 'npm']) {
+    const result = spawnSync('bash', [join(scratch, `scripts/sdk/publish-${name}.sh`)], { cwd: scratch, env, encoding: 'utf8', timeout: 120000 })
+    assert.equal(result.status, 1, result.stdout + result.stderr)
+    if (name === 'pypi') assert.equal(result.stderr.trim(), `mercury-cli-sdk ${pkg.version} is already published on PyPI.`)
+    else assert.match(result.stderr, /version already published/)
+    assert(!result.stdout.includes('DRY RUN: would publish'))
+  }
+  console.log('PASS both publication scripts refuse an already-published version; PyPI names that version in one sentence')
 } finally { rmSync(scratch, { recursive: true, force: true }) }
