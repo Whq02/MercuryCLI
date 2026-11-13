@@ -205,14 +205,14 @@ cleanupScenario('click-expand')
       lines.some(l => l.includes('-alpha')) && lines.some(l => l.includes('+omega')),
     )
     check(
-      'lifecycle: the unresolved Bash paints as the queued card (its command + waiting…)',
-      lines.some(l => l.includes('sleep 999')) && lines.some(l => l.includes('waiting…')),
-      lines.filter(l => l.includes('sleep 999') || l.includes('waiting')).map(l => l.trim()).join(' | ') || '(neither row painted)',
+      'lifecycle: the Bash its run left open does not stand as a queued card once the window has opened on the record (nothing waits)',
+      !lines.some(l => l.includes('waiting…')),
+      lines.filter(l => l.includes('sleep 999') || l.includes('waiting')).map(l => l.trim()).join(' | '),
     )
     check(
-      'lifecycle: the unresolved Bash is never a settled "Ran" row',
-      !lines.some(l => /Ran \d+ bash command/.test(l)),
-      lines.filter(l => /bash command/.test(l)).map(l => l.trim()).join(' | '),
+      'lifecycle: it stands answered, as a settled "Ran" row',
+      lines.some(l => /Ran \d+ bash command/.test(l)),
+      lines.filter(l => /bash command|sleep 999/.test(l)).map(l => l.trim()).join(' | ') || '(no such row painted)',
     )
   }
 }

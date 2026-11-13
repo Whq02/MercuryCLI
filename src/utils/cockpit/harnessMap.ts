@@ -8,10 +8,11 @@ import { getVulcanHarnessMapLine } from '../vulcan/vulcanGates.js'
 import { isSessionMarkedNonInteractive } from './runtimePosture.js'
 import { healthCertEnabled } from '../healthReport.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
+import { canAnswerAsks, getSessionKind } from '../../bootstrap/state.js'
 
 export function harnessMapEnabled(): boolean {
   if (!flagEnabled('MERCURY_HARNESS_MAP')) return false
-  if (isSessionMarkedNonInteractive()) return false
+  if (isSessionMarkedNonInteractive() && !(canAnswerAsks() && getSessionKind() === 'oculus')) return false
   return true
 }
 

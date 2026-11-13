@@ -68,7 +68,7 @@ import { fetchSystemPromptParts } from '../utils/queryContext.js'
 import { assertSingleRole } from '../utils/workerRole.js'
 import { flushSessionStorage, recordTranscript } from '../utils/sessionStorage.js'
 import { isEphemeralToolProgress } from '../utils/sessionStorage/paths.js'
-import { recordTurnEnd, settleTranscriptMessage } from '../utils/sessionStorage/writer.js'
+import { recordTurnEnd, recordTurnStart, settleTranscriptMessage } from '../utils/sessionStorage/writer.js'
 import { setCwd } from '../utils/Shell.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import type { ThinkingConfig } from '../utils/thinking.js'
@@ -302,6 +302,7 @@ export class Conversation {
   private turnOrdinal = 0
   private recordCursor = 0
   private recordChain: Promise<string | null> = Promise.resolve(null)
+  private turnToOpen: string | undefined
   private structuredOutput: unknown
 
   constructor(config: ConversationConfig) {
@@ -337,8 +338,10 @@ export class Conversation {
     const pending = turnMessages.slice(this.recordCursor)
     this.recordCursor = turnMessages.length
     if (pending.length === 0) return this.recordChain
+    const opening = this.turnToOpen
+    this.turnToOpen = undefined
     this.recordChain = this.recordChain.then(hint =>
-      recordTranscript(pending, (hint ?? undefined) as Parameters<typeof recordTranscript>[1], turnMessages).catch((error: unknown) => {
+      (opening === undefined ? Promise.resolve() : recordTurnStart(opening)).then(() => recordTranscript(pending, (hint ?? undefined) as Parameters<typeof recordTranscript>[1], turnMessages)).catch((error: unknown) => {
         logError(error)
         return null
       }),
@@ -375,6 +378,7 @@ export class Conversation {
     this.turnOrdinal += 1
     const turnOrdinal = options?.turn ?? this.turnOrdinal
     const turnId = randomUUID()
+    this.turnToOpen = turnId
     const promptUuid = options?.uuid ?? randomUUID()
     const scope: RowScope = { session_id: getSessionId(), turn: turnOrdinal }
     const scopeFor = (parentCallId: string | undefined): RowScope => (parentCallId === undefined ? scope : { ...scope, parent_call_id: parentCallId })
@@ -1129,6 +1133,7 @@ export class Conversation {
             void recordDelta()
           } else {
             await recordDelta()
+            if (isBoundary && !persistenceDisabled) await recordTurnStart(turnId).catch((error: unknown) => logError(error))
             if (!persistenceDisabled) await flushSessionStorage().catch(() => {})
           }
         }

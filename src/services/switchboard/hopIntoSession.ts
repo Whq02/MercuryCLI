@@ -413,7 +413,23 @@ async function paintResumeRecap(sessionId: string, launchWon: Promise<LaunchWonV
         : {}),
     }
     const { createAwaySummaryMessage } = await import('../../utils/messages/systemMessages.js')
-    connector.addDisplayRow(createAwaySummaryMessage(recap.line, enriched) as never)
+    let card = createAwaySummaryMessage(recap.line, enriched)
+    let shown = recap
+    connector.addDisplayRow(card as never)
+    const settle = connector.subscribeRecords(() => {
+      const painted = connector.records()
+      const at = painted.lastIndexOf(card as never)
+      if (at === -1 || painted.slice(at + 1).some(row => row.type === 'user' || row.type === 'assistant')) {
+        settle()
+        return
+      }
+      const now = buildAwayRecap(painted.slice(0, at), Date.now(), gitDelta)
+      if (!now || (now.toolFailures === shown.toolFailures && now.endedOnError === shown.endedOnError)) return
+      shown = now
+      const { toolFailures: _shown, ...rest } = enriched
+      card = createAwaySummaryMessage(now.line, { ...rest, endedOnError: now.endedOnError, ...(now.toolFailures > 0 ? { toolFailures: now.toolFailures } : {}) })
+      connector.addDisplayRow(card as never)
+    })
   } catch {
   }
 }

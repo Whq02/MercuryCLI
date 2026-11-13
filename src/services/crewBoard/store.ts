@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { mkdirSync, renameSync, rmSync, watch, writeFileSync, type FSWatcher } from 'node:fs'
 import { basename, dirname, resolve } from 'node:path'
 import { createRequire } from 'node:module'
-import { BOARD_PACKET_RULE, boardReachNote, boardSeatName, boardLabelKey, type BoardChannel, type BoardEvent, type BoardPacket, type BoardPost, type BoardPrincipal, type BoardReach, type BoardReceipt, type BoardSeat, type BoardStore, type BoardViewSnapshot } from './contracts.js'
+import { BOARD_PACKET_RULE, SEAT_NAME_REFUSAL, boardReachNote, boardSeatName, boardLabelKey, type BoardChannel, type BoardEvent, type BoardPacket, type BoardPost, type BoardPrincipal, type BoardReach, type BoardReceipt, type BoardSeat, type BoardStore, type BoardViewSnapshot } from './contracts.js'
 import { CHAT_OFF, type BoardChat } from './party.js'
 import type { CrewChatLifecycle } from '../../types/message.js'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
@@ -169,7 +169,7 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
   }
   const takeName = (name: string, agent: string): boolean => {
     const carries = (other: unknown): boolean => String(other).toLowerCase() === name.toLowerCase()
-    const running = (): Error => new Error(`A seat named ${name} is running on this board; stop it, or launch this one under another name.`)
+    const running = (): Error => Object.assign(new Error(`A seat named ${name} is running on this board; stop it, or launch this one under another name.`), { code: SEAT_NAME_REFUSAL })
     const launching = db.prepare('SELECT agent, name FROM enrollments').all().filter(row => row.agent !== agent && carries(row.name)).map(row => String(row.agent))
     if (launching.some(live)) throw running()
     for (const stopped of launching) {

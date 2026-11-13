@@ -2,9 +2,10 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { delimiter, dirname, join } from 'node:path'
+import { delimiter, dirname, join, relative } from 'node:path'
 import { handoffTurn, isHandoffRequest, startFixtureApi, type FixtureApi } from '../lib/fixtureApi.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
 
@@ -59,6 +60,11 @@ const quote = (value: string): string => `'${value.replaceAll("'", "'\\''")}'`
 function gateTheNextAnswerOnce(arena: Arena): void {
   const spent = join(arena.home, 'gate-spent')
   writeFileSync(join(arena.home, '.mercury', 'settings.json'), JSON.stringify({ events: { hooks: { 'turn.answer': [{ name: 'answer gate', run: `if [ ! -f ${quote(spent)} ]; then touch ${quote(spent)}; echo ${quote(ASKED_AGAIN_WORDS)} >&2; exit 2; fi; exit 0` }] } } }))
+}
+
+function gateTheAnswerThatSays(arena: Arena, words: string): void {
+  const spent = join(arena.home, 'gate-spent')
+  writeFileSync(join(arena.home, '.mercury', 'settings.json'), JSON.stringify({ events: { hooks: { 'turn.answer': [{ name: 'answer gate', run: `if grep -q ${quote(words)} && [ ! -f ${quote(spent)} ]; then touch ${quote(spent)}; echo ${quote(ASKED_AGAIN_WORDS)} >&2; exit 2; fi; exit 0` }] } } }))
 }
 
 type Arena = { home: string; cwd: string; env: Record<string, string> }
@@ -132,6 +138,10 @@ async function recordOf(file: string): Promise<StoredRow[]> {
   return [...loaded.messages.values()] as unknown as StoredRow[]
 }
 const turnEndLines = (file: string): number => file === '' ? 0 : readFileSync(file, 'utf8').split('\n').filter(line => line.includes('"metaKind":"turn-end"')).length
+const metaKindsOf = (file: string): string[] => file === '' ? [] : readFileSync(file, 'utf8').split('\n').filter(line => line.trim() !== '').map(line => {
+  const payload = ((JSON.parse(line) as { payload?: { kind?: string; metaKind?: string } }).payload ?? {})
+  return payload.kind === 'session-meta' ? `meta:${payload.metaKind}` : String(payload.kind)
+})
 type Verdict = { state: string; sentence: number }
 async function loaderOn(file: string, sessionId: string): Promise<Verdict> {
   const loaded = file === '' ? null : await loadConversationForResume(sessionId, file)
@@ -203,18 +213,26 @@ try {
     }
   }
 
-  section("C — the rule's limit: a session's first turn has no line before it")
+  section("C — a session's first turn: no turn ended before it, and the turn says that it began")
   {
     const SID = sid()
-    const fixture = await startFixtureApi([handoffTurn(), { kind: 'text', text: 'FIRST-TURN-REPLY, which the hook blocks.' }, { kind: 'hang', deltas: [] }])
+    const fixture = await startFixtureApi([handoffTurn(), { kind: 'text', text: 'FIRST-TURN-REPLY, which the hook blocks.' }, { kind: 'hang', deltas: [] }, { kind: 'text', text: 'FIRST-TURN-RESUMED-REPLY.' }])
     const arena = makeArena('first', fixture)
     try {
       gateTheNextAnswerOnce(arena)
       await runUntilAskedAgainThenKill(arena, fixture, ['run', 'FIRST-TURN prompt.', '--model', MODEL, '--session-id', SID, '--format', 'rows'], () => transcriptOf(arena, SID))
       const file = transcriptOf(arena, SID)
       const rows = await recordOf(file)
+      const kinds = metaKindsOf(file)
+      check('C1 the scene: the same cut inside the first turn of a session: no turn ended in this record, and it ends on the row the run asked the model again with', turnEndLines(file) === 0 && isTheAskAgain(lastSpoken(rows)), j({ lines: turnEndLines(file), last: lastSpoken(rows)?.type, meta: lastSpoken(rows)?.isMeta }))
+      check('C2 the turn left one line that says it began, ahead of its first conversation row', kinds.filter(kind => kind === 'meta:turn-start').length === 1 && kinds.indexOf('meta:turn-start') < kinds.findIndex(kind => kind === 'input' || kind === 'output'), j(kinds))
       const read = await loaderOn(file, SID)
-      check('C1 the same cut inside the first turn of a session: no line stands in the record, and it reads as the record of an older build does', turnEndLines(file) === 0 && isTheAskAgain(lastSpoken(rows)) && read.state === 'none' && read.sentence === 0, j({ lines: turnEndLines(file), last: lastSpoken(rows)?.type, read }))
+      check('C3 the loader reads the turn as cut, and says so once', read.state === 'interrupted_prompt' && read.sentence === 1, j(read))
+      const older = await asAnOlderBuildLeftIt(file, SID)
+      check('C4 control: the same conversation with no line anywhere (the record an older build leaves) is read as before, as a finished turn', older.state === 'none' && older.sentence === 0, j(older))
+      const second = await run(arena, ['run', 'FIRST-TURN second prompt.', '--model', MODEL, '--resume', SID, '--format', 'rows'])
+      check('C5 a second process answers, and its request tells the model once that the previous run ended before its turn finished', second.exit === 0 && second.stdout.includes('FIRST-TURN-RESUMED-REPLY.') && wireSays(lastRequest(fixture), CONTINUATION) === 1, `exit=${second.exit} said=${wireSays(lastRequest(fixture), CONTINUATION)} ${second.stderr.slice(-200)}`)
+      check('C6 …and that turn leaves its own two lines: the record reads as finished again', turnEndLines(file) === 1 && metaKindsOf(file).filter(kind => kind === 'meta:turn-start').length === 2 && (await loaderOn(file, SID)).state === 'none', j({ kinds: metaKindsOf(file).filter(kind => kind.startsWith('meta:turn-')), read: await loaderOn(file, SID) }))
     } finally {
       await fixture.close()
     }
@@ -224,10 +242,7 @@ try {
   {
     const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.ts')
     const { buildRunnerInvocation } = await import('../../src/daemon/headlessRun.ts')
-    const kindsOf = (file: string): string[] => readFileSync(file, 'utf8').split('\n').filter(line => line.trim() !== '').map(line => {
-      const payload = ((JSON.parse(line) as { payload?: { kind?: string; metaKind?: string } }).payload ?? {})
-      return payload.kind === 'session-meta' ? `meta:${payload.metaKind}` : String(payload.kind)
-    })
+    const kindsOf = metaKindsOf
     const endsOnALine = (file: string): boolean => {
       const kinds = kindsOf(file)
       return kinds.lastIndexOf('meta:turn-end') > kinds.findLastIndex(kind => kind === 'input' || kind === 'output')
@@ -265,6 +280,61 @@ try {
         await host.stop().catch(() => null)
         await fixture.close()
       }
+    }
+  }
+
+  section('E — a long session whose turn folds the conversation mid-way and keeps no tail, then is stopped by signal 9 while the model is asked again: the record read with nothing beside it')
+  {
+    const SID = sid()
+    const BLOCKED = 'which the hook blocks'
+    const fixture = await startFixtureApi([
+      handoffTurn(),
+      handoffTurn(),
+      handoffTurn(),
+      { kind: 'text', text: '<analysis>walk</analysis>\n<summary>\n1. Operator Intent: read the note.\n</summary>', whenBody: 'Produce the summary now' },
+      { kind: 'text', text: 'LONG-FIRST-REPLY.' },
+      { kind: 'tool_use', name: 'Read', id: 'toolu_long_read', input: { file_path: 'note.txt' }, usage: { input_tokens: 97_000, output_tokens: 40, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } },
+      { kind: 'text', text: `LONG-SECOND-REPLY, ${BLOCKED}.` },
+      { kind: 'hang', deltas: [] },
+      { kind: 'text', text: 'LONG-RESUMED-REPLY.' },
+      { kind: 'text', text: 'LONG-IN-PLACE-REPLY.' },
+    ])
+    const arena = makeArena('long', fixture)
+    Object.assign(arena.env, { MERCURY_AUTOCOMPACT_PCT_OVERRIDE: '9', MERCURY_COMPACT_KEEP_TAIL: '0', MERCURY_THINKING_BINDING: 'drop_block' })
+    writeFileSync(join(arena.cwd, 'note.txt'), 'LONG-NOTE-CONTENT\n')
+    try {
+      const first = await run(arena, ['run', 'LONG first prompt.', '--model', MODEL, '--session-id', SID, '--format', 'rows'])
+      const file = transcriptOf(arena, SID)
+      const queueRow = readFileSync(file, 'utf8').split('\n').find(line => line.includes('"metaKind":"queue-operation"')) ?? '{}'
+      const padding: string[] = []
+      for (let bytes = 0, ordinal = 10_000; bytes < 5.5 * 1024 * 1024; ordinal++) {
+        const line = JSON.stringify({ ...(JSON.parse(queueRow) as Record<string, unknown>), recordId: randomUUID(), creationOrdinal: String(ordinal), updateOrdinal: String(ordinal) })
+        padding.push(line)
+        bytes += line.length + 1
+      }
+      writeFileSync(file, readFileSync(file, 'utf8') + padding.join('\n') + '\n')
+      gateTheAnswerThatSays(arena, BLOCKED)
+      await runUntilAskedAgainThenKill(arena, fixture, ['run', 'LONG second prompt: read note.txt.', '--model', MODEL, '--resume', SID, '--format', 'rows', '--allowed-tools', 'Read'], () => file)
+      const kinds = metaKindsOf(file)
+      const boundaryAt = kinds.indexOf('boundary')
+      const boundary = JSON.parse(readFileSync(file, 'utf8').split('\n').find(line => line.includes('"kind":"boundary"')) ?? '{}') as { payload?: { fields?: { compactMetadata?: { preservedSegment?: unknown } } } }
+      const startIds = readFileSync(file, 'utf8').split('\n').filter(line => line.includes('"metaKind":"turn-start"')).map(line => (JSON.parse(line) as { payload: { fields: { turnId: string } } }).payload.fields.turnId)
+      check('E1 the scene: the record is past five mebibytes (a long session, here padded with queue rows of the kind every prompt leaves), its second turn folded the conversation and kept no tail, and it ends on the row the run asked the model again with', first.exit === 0 && statSync(file).size > 5 * 1024 * 1024 && kinds.filter(kind => kind === 'boundary').length === 1 && !boundary.payload?.fields?.compactMetadata?.preservedSegment && isTheAskAgain(lastSpoken(await recordOf(file))) && turnEndLines(file) === 1, j({ exit: first.exit, size: statSync(file).size, boundaries: kinds.filter(kind => kind === 'boundary').length, tail: kinds.slice(boundaryAt), ends: turnEndLines(file) }))
+      check("E2 the folding turn said that it began ahead of its rows and says it again behind the boundary, under the one turn's id", startIds.length === 3 && startIds[1] === startIds[2] && startIds[0] !== startIds[1] && kinds.indexOf('meta:turn-start', boundaryAt) === boundaryAt + 1, j({ startIds, behind: kinds.slice(boundaryAt, boundaryAt + 3) }))
+      const elsewhere: Arena = { home: join(scratch, 'long-elsewhere', 'home'), cwd: arena.cwd, env: { ...arena.env, HOME: join(scratch, 'long-elsewhere', 'home'), MERCURY_CONFIG_DIR: join(scratch, 'long-elsewhere', 'home', '.mercury'), MERCURY_DAEMON_DIR: join(scratch, 'long-elsewhere', 'home', 'daemon'), MERCURY_TMPDIR: join(scratch, 'long-elsewhere', 'tmp') } }
+      const copy = join(elsewhere.env.MERCURY_CONFIG_DIR!, relative(arena.env.MERCURY_CONFIG_DIR!, file))
+      mkdirSync(dirname(copy), { recursive: true })
+      copyFileSync(file, copy)
+      const beside = readdirSync(dirname(copy)).filter(name => name !== `${SID}.jsonl`)
+      const alone = await loaderOn(copy, SID)
+      check('E3 a copy of the record with nothing beside it (no snapshot of an earlier read) reads as cut, and says so once', beside.length === 0 && alone.state === 'interrupted_prompt' && alone.sentence === 1, j({ beside, alone }))
+      const later = await run(elsewhere, ['run', 'LONG third prompt.', '--model', MODEL, '--resume', SID, '--format', 'rows'])
+      check('E4 a later process that has only the copy answers, and its request tells the model once that the previous run ended before its turn finished', later.exit === 0 && later.stdout.includes('LONG-RESUMED-REPLY.') && wireSays(lastRequest(fixture), CONTINUATION) === 1, `exit=${later.exit} said=${wireSays(lastRequest(fixture), CONTINUATION)} ${later.stderr.slice(-200)}`)
+      const snapshots = readdirSync(dirname(file)).filter(name => name.includes('resume-snapshot'))
+      const inPlace = await run(arena, ['run', 'LONG fourth prompt.', '--model', MODEL, '--resume', SID, '--format', 'rows'])
+      check('E5 control: a later process where the record was written, beside the snapshot its own run left of an earlier read, is told once too', snapshots.length === 1 && inPlace.exit === 0 && inPlace.stdout.includes('LONG-IN-PLACE-REPLY.') && wireSays(lastRequest(fixture), CONTINUATION) === 1, `snapshots=${j(snapshots)} exit=${inPlace.exit} said=${wireSays(lastRequest(fixture), CONTINUATION)} ${inPlace.stderr.slice(-200)}`)
+    } finally {
+      await fixture.close()
     }
   }
 } finally {

@@ -40,7 +40,7 @@ import type { AgentToolProgress, ShellProgress } from '../../types/tools.js'
 import type { SetAppState } from '../../Task.js'
 import { runWithAgentContext, type AgentContext } from '../../utils/agentContext.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { mirrorSwarmNotice } from '../../services/crewBoard/seam.js'
+import { mirrorSwarmNotice, watchSwarmLaunch } from '../../services/crewBoard/seam.js'
 import { AbortError, errorMessage } from '../../utils/errors.js'
 import { flushSessionStorage } from '../../utils/sessionStorage.js'
 import type { CacheSafeParams } from '../../utils/forkedAgent.js'
@@ -120,6 +120,7 @@ type ForegroundAgentResult = {
         agentName?: string
         backgroundReason: BackgroundHandoverReason
       }
+  detached?: Promise<void>
 }
 
 type ForegroundAgentExecutionInput = {
@@ -208,6 +209,7 @@ export async function runForegroundAgentExecution(
       model: metadata.resolvedAgentModel,
       toolUseId: toolUseContext.toolUseId,
     })
+    watchSwarmLaunch(syncAgentId, foregroundTask.abortController.signal)
     backgroundRace = foregroundTask.backgroundSignal.then(() => BACKGROUNDED)
     if (name !== undefined) registerAgentName(name, syncAgentId, rootSetAppState)
   }
@@ -513,7 +515,7 @@ export async function runForegroundAgentExecution(
             backgrounded = true
             const backgroundedTaskId = foregroundTask.taskId
             const sibling = takeSiblingEnd(backgroundedTaskId)
-            void runWithAgentContext(syncAgentContext, () =>
+            const detached = runWithAgentContext(syncAgentContext, () =>
               continueDetached(backgroundedTaskId, nextPromise),
             )
             const canReadOutputFile = toolUseContext.options.tools.some(
@@ -535,6 +537,7 @@ export async function runForegroundAgentExecution(
                 backgroundReason: handedByTurnAbort ? 'turn-interrupted' : sibling !== null ? 'sibling-ended' : task.handoverReason ?? 'backgrounded',
                 ...(sibling !== null && !handedByTurnAbort ? { siblingEnd: sibling } : {}),
               },
+              detached,
             }
           }
           step = await nextPromise

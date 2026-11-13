@@ -12,7 +12,7 @@ import { getTranscriptPath, readAgentMetadata } from '../../utils/sessionStorage
 import { operatorPauseGate } from '../../run-core/pauseGate.js'
 import type { AgentId } from '../../types/ids.js'
 import type { Message } from '../../types/message.js'
-import { BOARD_PACKET_RULE, boardSeatName, type BoardEvent, type BoardModule, type BoardPrincipal, type BoardReceipt, type BoardSeat, type BoardStore, type BoardViewSnapshot, type OwnerPostInput, type OwnerPostReceipt } from './contracts.js'
+import { BOARD_PACKET_RULE, boardSeatName, isSeatNameRefusal, type BoardEvent, type BoardModule, type BoardPrincipal, type BoardReceipt, type BoardSeat, type BoardStore, type BoardViewSnapshot, type OwnerPostInput, type OwnerPostReceipt } from './contracts.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
@@ -202,7 +202,7 @@ export function swarmRoad(agentId = 'main'): boolean {
   return agentId === 'main' ? swarmSwitchOfSession() : roads.get(key(agentId))?.on === true
 }
 
-export function reserveSwarmLaunch(agentId: string, input: { name?: string; description: string; team?: string; captain?: boolean }, sender = 'main', signal?: AbortSignal): () => void {
+export function reserveSwarmLaunch(agentId: string, input: { name?: string; description: string; team?: string; captain?: boolean }, sender = 'main'): () => void {
   if (input.captain && (!input.name?.trim() || !input.team)) throw new Error('A captain launch needs name and team.')
   if (input.captain && sender !== 'main') throw new Error('Only the lead appoints a captain.')
   if (!swarmSessionEnabled()) {
@@ -214,10 +214,12 @@ export function reserveSwarmLaunch(agentId: string, input: { name?: string; desc
   if (!principal) throw new Error('This seat is not on the live crew board.')
   store.reserveEnrollment(principal, { agent: agentId, name: input.name ?? input.description, team: input.team, captain: input.captain, named: input.name !== undefined })
   const id = key(agentId)
-  pendingLaunches.set(id, signal)
+  pendingLaunches.set(id, undefined)
   return () => {
     if (!pendingLaunches.delete(id)) return
-    store.cancelEnrollment(principal, agentId)
+    try { store.cancelEnrollment(principal, agentId) } catch (error) {
+      logForDebugging(`crew board: the reservation of ${agentId} could not be released: ${error instanceof Error ? error.message : String(error)}`)
+    }
     closeIdleSwarm()
   }
 }
@@ -244,7 +246,10 @@ export async function latchSwarmAgent(agentId: string, name: string, workflow = 
   if (road.on && swarmMasterEnabled()) {
     const seat = { author: { sessionId: String(getSessionId()), agentId, executionId: road.execution }, name, team }
     if (pendingLaunches.has(key(agentId)) && signal?.aborted === true) {
-      try { swarmStore()?.enroll(seat) } catch { road.on = false }
+      try { swarmStore()?.enroll(seat) } catch (error) {
+        if (!isSeatNameRefusal(error)) throw error
+        road.on = false
+      }
     } else swarmStore()?.enroll(seat)
   }
   return road.on

@@ -15,7 +15,7 @@ delete process.env.MERCURY_HARNESS_MAP
 delete process.env.MERCURY_WORKFLOWS
 delete process.env.MERCURY_GODOT
 
-const { getHarnessMapSection, harnessMapEnabled, resetHarnessMapForTest } =
+const { getHarnessMapDelta, getHarnessMapSection, harnessMapEnabled, resetHarnessMapForTest } =
   await import('../../src/utils/cockpit/harnessMap.js')
 
 let failures = 0
@@ -143,6 +143,36 @@ check(
   check('attachmentText renders harness_map_delta', projected.length === 1 && projected[0]?.isMeta === true && typeof content === 'string' && content.includes('ADDED-SURFACE') && content.includes('REMOVED-SURFACE'))
   const nullr = readFileSync(join(import.meta.dir, '../../src/components/messages/nullRenderingAttachments.ts'), 'utf8')
   check('harness_map_delta is null-rendering (no transcript chrome)', nullr.includes("'harness_map_delta'"))
+}
+
+{
+  const posture = await import('../../src/utils/cockpit/runtimePosture.js')
+  const state = await import('../../src/bootstrap/state.js')
+  const channel = state.getAskChannel()
+  const kind = state.getSessionKind()
+  const mapOf = (asks: 'sdk' | 'none', sessionKind: 'oculus' | 'headless'): string | null => {
+    resetHarnessMapForTest()
+    posture.resetRuntimePostureForTest()
+    posture.markSessionNonInteractive()
+    state.setAskChannel(asks)
+    state.setSessionKind(sessionKind)
+    return harnessMapEnabled() ? getHarnessMapSection() : null
+  }
+  check('a mercury run, where no host answers an ask: no map', mapOf('none', 'headless') === null)
+  check("a host's own session, where a host answers the asks and no screen belongs to it: no map", mapOf('sdk', 'headless') === null)
+  check('a session marked oculus that nobody can answer is no screen: no map', mapOf('none', 'oculus') === null)
+  const hosted = mapOf('sdk', 'oculus')
+  check('a hosted window, the session a screen belongs to: the map, word for word the map of a window in its own process', hosted !== null && hosted === on, JSON.stringify(hosted))
+  resetHarnessMapForTest()
+  getHarnessMapSection()
+  process.env.MERCURY_GODOT = '1'
+  const armed = getHarnessMapDelta([])
+  check("…and the function that computes the map's update answers for it when a lane is armed after its boot", armed !== null && armed.added.some(line => line.includes('Godot')) && armed.removed.length === 0, JSON.stringify(armed))
+  delete process.env.MERCURY_GODOT
+  posture.resetRuntimePostureForTest()
+  state.setAskChannel(channel)
+  state.setSessionKind(kind)
+  resetHarnessMapForTest()
 }
 
 const registrySrc = readFileSync(

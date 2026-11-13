@@ -270,7 +270,7 @@ section('(f) wiring — the resume hop builds the recap and paints the display c
   check('the hop gates on isAwaySummaryEnabled()', hop.includes('isAwaySummaryEnabled()'))
   check("the hop builds from the session's records + git delta", /buildAwayRecap\(records, Date\.now\(\), gitDelta\)/.test(hop))
   check('the hop gates on the records actually landing (bounded wait, empty ⇒ no card)', /records\.length === 0\) return/.test(hop))
-  check('the hop paints the recap as a display row (addDisplayRow + factory)', /addDisplayRow\(createAwaySummaryMessage\(recap\.line, enriched\)/.test(hop))
+  check('the hop paints the recap as a display row (addDisplayRow + factory)', /let card = createAwaySummaryMessage\(recap\.line, enriched\)\n\s*let shown = recap\n\s*connector\.addDisplayRow\(card as never\)/.test(hop))
   check('the hop stamps toolFailures into the card metadata when the prior run had any', /toolFailures: recap\.toolFailures/.test(hop))
   check('recapMetadata reads the cert snapshot at the writer (renderer stays props-pure)', hop.includes('healthCertSnapshot()'))
   check("recapMetadata reads the branch sync at the writer (the connector owns the cwd)", hop.includes('readBranchHeadSync(connector.workspace().cwd)'))

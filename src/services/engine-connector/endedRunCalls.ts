@@ -16,9 +16,10 @@ function asksAReply(row: Message): boolean {
 
 export function endedRunResults(
   records: readonly Message[],
-  facts: Pick<SessionFactsV1, 'busy' | 'atMs' | 'turnStartedAt'> | null,
+  facts: Pick<SessionFactsV1, 'busy' | 'atMs' | 'turnStartedAt' | 'transcriptStoreFailing'> | null,
   carrierGone: boolean,
 ): Message[] {
+  if (!carrierGone && facts?.transcriptStoreFailing !== undefined) return []
   const endedBefore = carrierGone ? Number.POSITIVE_INFINITY : facts === null ? null : facts.busy ? (facts.turnStartedAt ?? null) : facts.atMs
   if (endedBefore === null) return []
   let start = records.length

@@ -8,3 +8,4 @@ prove-busy-stall-drive.ts
 prove-esc-latch-turn-drive.ts
 prove-hosted-window-says-the-store-fails-drive.ts
 prove-recall-send-drive.ts
+prove-window-at-a-resume-answers-the-ended-call-drive.ts
