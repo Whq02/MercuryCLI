@@ -130,12 +130,33 @@ section('A. a crop box is cut from the original pixels before any downscale')
   check('A7 a read without a box is unchanged (the control: 8x4, no crop note)', plain.ok && sizeOf(plain.data)?.width === 8 && !plain.notes.some(note => note.includes('the crop [')), messageOf(plain))
 }
 
-section('B. refusals: outside the image, inverted, malformed, or on a text file')
+section('B. a box that passes the edge is cut to the image and says so; refusals: wholly outside, inverted, malformed, or on a text file')
 {
-  const outside = await read({ file_path: small, crop: [0, 0, 9, 4] })
-  check('B1 a box past the right edge is refused naming the image size', !outside.ok && outside.message.includes('crop refused: [0, 0, 9, 4] reaches outside the image, which is 8x4 px'), messageOf(outside))
+  const outside = await read({ file_path: small, crop: [4, 0, 9, 4] })
+  check('B1 a box past the right edge comes back cut to the image: the right 4x4, exact to the pixel', outside.ok && sizeOf(outside.data)?.width === 4 && sizeOf(outside.data)?.height === 4, messageOf(outside))
+  check(
+    'B1b the answer names the box that was cut, the box asked for, and the image size',
+    outside.ok &&
+      outside.notes.some(
+        note =>
+          note.includes("the crop [4, 0, 8, 4] of") &&
+          note.includes("(the box asked for, [4, 0, 9, 4], passed the image's edge and was cut to it)") &&
+          note.includes('8x4 px original'),
+      ),
+    messageOf(outside),
+  )
+  const exact = await read({ file_path: small, crop: [4, 0, 8, 4] })
+  check('B1c the cut box holds the same pixels as the same box asked for exactly, and that one carries no such words', outside.ok && exact.ok && outside.data.file.base64 === exact.data.file.base64 && !exact.notes.some(note => note.includes('passed the image')), messageOf(exact))
   const below = await read({ file_path: small, crop: [0, 0, 8, 5] })
-  check('B2 a box past the bottom edge is refused', !below.ok && below.message.includes('reaches outside the image'), messageOf(below))
+  check('B2 a box past the bottom edge comes back cut to the image (8x4) and says so', below.ok && sizeOf(below.data)?.width === 8 && sizeOf(below.data)?.height === 4 && below.notes.some(note => note.includes('the box asked for, [0, 0, 8, 5]')), messageOf(below))
+  const sheet = join(fixtures, 'sheet.png')
+  writeFileSync(sheet, png(1965, 1985, (x, y) => [x % 256, y % 256, 80]))
+  const session = await read({ file_path: sheet, crop: [0, 1000, 1965, 2020] })
+  check('B2b the box a session asked for, 35 px past the foot of a 1965x1985 sheet, is answered with the 985 rows there are', session.ok && sizeOf(session.data)?.width === 1965 && sizeOf(session.data)?.height === 985 && session.notes.some(note => note.includes('the crop [0, 1000, 1965, 1985] of')), messageOf(session))
+  const beyond = await read({ file_path: small, crop: [8, 0, 12, 4] })
+  check('B2c a box that starts beyond the image holds nothing of it and is refused naming the image size', !beyond.ok && beyond.message.includes('crop refused: [8, 0, 12, 4] reaches outside the image, which is 8x4 px'), messageOf(beyond))
+  const under = await read({ file_path: small, crop: [0, 4, 8, 9] })
+  check('B2d and so is one that starts below it', !under.ok && under.message.includes('reaches outside the image'), messageOf(under))
   const inverted = await read({ file_path: small, crop: [6, 0, 2, 4] })
   check('B3 an inverted box is refused', !inverted.ok && inverted.message.includes('crop refused: [6, 0, 2, 4] is inverted or empty'), messageOf(inverted))
   const empty = await read({ file_path: small, crop: [2, 2, 2, 4] })
