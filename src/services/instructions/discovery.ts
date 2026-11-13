@@ -19,6 +19,7 @@ import type {
   InstructionDiagnostic,
   InstructionSourceEntry,
 } from './contracts.js'
+import { sharedRuleFormats } from './compositionOrder.js'
 import { parseInstructionFileContent, readRuleSource, TEXT_FILE_EXTENSIONS } from './sourceText.js'
 
 export function pathInInstructionRoots(path: string): boolean {
@@ -249,6 +250,11 @@ export async function processInstructionFile(
       })
       continue
     }
+    const importedRules = await rulesImportedAt(resolvedIncludePath, type, processedPaths, filePath, diagnostics)
+    if (importedRules !== null) {
+      result.push(...importedRules)
+      continue
+    }
     if (
       diagnostics !== undefined &&
       !processedPaths.has(normalizedInclude) &&
@@ -306,6 +312,46 @@ export async function processInstructionFile(
   }
 
   return result
+}
+
+async function rulesImportedAt(
+  path: string,
+  type: MemoryType,
+  processedPaths: Set<string>,
+  parent: string,
+  diagnostics?: InstructionDiagnostic[],
+): Promise<InstructionSourceEntry[] | null> {
+  for (const convention of sharedRuleFormats()) {
+    const at = convention.ruleAt?.(path) ?? null
+    if (at === null) continue
+    let folder: boolean
+    try {
+      folder = getFsImplementation().statSync(path).isDirectory()
+    } catch {
+      return null
+    }
+    if (folder && !at.source) return null
+    const read = folder
+      ? await processRulesDir({ convention, rulesDir: path, type, processedPaths, includeExternal: false, conditionalRule: false, every: true, diagnostics })
+      : await processRuleFile(convention, path, type, processedPaths, diagnostics, at.source)
+    const kept = read.filter(entry => entry.dormant === undefined || (!folder && entry.dormant === 'manual'))
+    for (const entry of kept) {
+      entry.parent = parent
+      delete entry.dormant
+      if (entry.globs !== undefined) entry.anchor = at.owner
+    }
+    return kept
+  }
+  return null
+}
+
+const vendorGlobMatches = (globs: string[], spelling: string): boolean =>
+  picomatch.isMatch(spelling.split(sep).join('/'), globs, { dot: true, nocase: process.platform === 'win32' })
+
+export function importedRuleGoverns(entry: InstructionSourceEntry, targetPath: string): boolean {
+  if (entry.anchor === undefined || entry.globs === undefined) return false
+  const spelling = targetSpellingUnder(entry.anchor, targetPath)
+  return spelling !== null && vendorGlobMatches(entry.globs, spelling)
 }
 
 export async function processRuleFile(
@@ -407,6 +453,7 @@ export async function processRulesDir({
   conditionalRule,
   visitedDirs = new Set(),
   diagnostics,
+  every = false,
 }: {
   convention: InstructionConvention
   rulesDir: string
@@ -416,13 +463,14 @@ export async function processRulesDir({
   conditionalRule: boolean
   visitedDirs?: Set<string>
   diagnostics?: InstructionDiagnostic[]
+  every?: boolean
 }): Promise<InstructionSourceEntry[]> {
   if (visitedDirs.has(rulesDir)) {
     return []
   }
   const format = convention.rules
   const selected = (files: InstructionSourceEntry[]): InstructionSourceEntry[] =>
-    files.filter(f => f.dormant === undefined && (conditionalRule ? f.globs : !f.globs))
+    every ? files : files.filter(f => f.dormant === undefined && (conditionalRule ? f.globs : !f.globs))
 
   try {
     const fs = getFsImplementation()
@@ -467,6 +515,7 @@ export async function processRulesDir({
             conditionalRule,
             visitedDirs,
             diagnostics,
+            every,
           })),
         )
       } else if (isFile && format !== undefined) {
@@ -511,7 +560,7 @@ function targetSpellingUnder(anchor: string, targetPath: string): string | null 
 function ruleGoverns(convention: InstructionConvention, globs: string[] | undefined, spelling: string): boolean {
   if (globs === undefined || globs.length === 0) return false
   if (convention.rules === undefined) return ignore().add(globs).ignores(spelling)
-  return picomatch.isMatch(spelling.split(sep).join('/'), globs, { dot: true, nocase: process.platform === 'win32' })
+  return vendorGlobMatches(globs, spelling)
 }
 
 export async function processConditionedRules(

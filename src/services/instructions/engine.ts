@@ -40,6 +40,7 @@ import type {
 } from './contracts.js'
 import {
   clearExcludeResolutionMemo,
+  importedRuleGoverns,
   pathInInstructionRoots,
   processConditionedRules,
   processInstructionFile,
@@ -74,6 +75,7 @@ type InstructionCompositionState = {
   adapterId: string
   fallbackComposed: boolean
   nearestHolders: Record<string, string>
+  importedScoped: InstructionSourceEntry[]
   skippedDuplicates: { path: string; family: InstructionFamily }[]
   diagnostics: InstructionDiagnostic[]
   loadReason: string
@@ -88,6 +90,7 @@ let lastComposition: InstructionCompositionState = {
   adapterId: 'mercury',
   fallbackComposed: false,
   nearestHolders: {},
+  importedScoped: [],
   skippedDuplicates: [],
   diagnostics: [],
   loadReason: 'session_start',
@@ -117,10 +120,16 @@ async function walkConventions(
   forceIncludeExternal: boolean,
   skippedDuplicates: { path: string; family: InstructionFamily }[],
   diagnostics?: InstructionDiagnostic[],
-): Promise<{ entries: InstructionSourceEntry[]; fallbackComposed: boolean; nearestHolders: Record<string, string> }> {
+): Promise<{
+  entries: InstructionSourceEntry[]
+  fallbackComposed: boolean
+  nearestHolders: Record<string, string>
+  importedScoped: InstructionSourceEntry[]
+}> {
   const result: InstructionSourceEntry[] = []
   let fallbackComposed = false
   const nearestHolders: Record<string, string> = {}
+  const importedScoped: InstructionSourceEntry[] = []
   const processedPaths = new Set<string>()
   const composedDigests = new Set<string>()
   const config = getCurrentProjectConfig()
@@ -139,6 +148,10 @@ async function walkConventions(
       f.family = family
       f.origin = origin
       if (root !== undefined) f.root = root
+      if (f.anchor !== undefined) {
+        importedScoped.push(f)
+        continue
+      }
       const digest = sha256(f.content)
       if (composedDigests.has(digest)) {
         skippedDuplicates.push({ path: f.path, family })
@@ -342,7 +355,7 @@ async function walkConventions(
 
   await walkRootChain(getOriginalCwd(), 'project-walk', true)
 
-  return { entries: result, fallbackComposed, nearestHolders }
+  return { entries: result, fallbackComposed, nearestHolders, importedScoped }
 }
 
 export const getInstructionFiles = memoize(
@@ -359,7 +372,7 @@ export const getInstructionFiles = memoize(
     const skippedDuplicates: { path: string; family: InstructionFamily }[] = []
     const diagnostics: InstructionDiagnostic[] = []
 
-    const { entries: result, fallbackComposed, nearestHolders } = await walkConventions(
+    const { entries: result, fallbackComposed, nearestHolders, importedScoped } = await walkConventions(
       conventionsForProfile(resolution.resolved),
       forceIncludeExternal,
       skippedDuplicates,
@@ -375,6 +388,7 @@ export const getInstructionFiles = memoize(
       adapterId: adapter.id,
       fallbackComposed,
       nearestHolders,
+      importedScoped,
       skippedDuplicates,
       diagnostics,
       loadReason:
@@ -491,6 +505,7 @@ export async function getManagedAndUserConditionalInstructionRules(
   targetPath: string,
   processedPaths: Set<string>,
 ): Promise<InstructionSourceEntry[]> {
+  await getInstructionFiles()
   const result: InstructionSourceEntry[] = []
 
   for (const convention of activeConventions()) {
@@ -523,6 +538,13 @@ export async function getManagedAndUserConditionalInstructionRules(
         )
       }
     }
+  }
+
+  for (const rule of lastComposition.importedScoped) {
+    const spelled = normalizePathForComparison(rule.path)
+    if (processedPaths.has(spelled) || !importedRuleGoverns(rule, targetPath)) continue
+    processedPaths.add(spelled)
+    result.push(rule)
   }
 
   return result
@@ -614,7 +636,7 @@ export async function getInstructionFilesForNestedDirectory(
     }
   }
 
-  return result
+  return result.filter(entry => entry.anchor === undefined || importedRuleGoverns(entry, targetPath))
 }
 
 export async function getConditionalInstructionRulesForCwdLevelDirectory(

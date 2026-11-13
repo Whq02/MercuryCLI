@@ -24,6 +24,7 @@ export type InstructionSourceEntry = {
   convention?: string
   offered?: string
   dormant?: InstructionDormancy
+  anchor?: string
 }
 
 type InstructionDormancy = 'manual' | 'off' | 'unsupported' | 'unreadable'
@@ -72,6 +73,7 @@ export type InstructionConvention = {
   folderOf?(filePath: string): string | null
   readonly rules?: InstructionRuleFormat
   ruleAnchor?(source: string): string
+  ruleAt?(path: string): { owner: string; source: boolean } | null
 }
 
 export type InstructionAdapter = {

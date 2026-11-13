@@ -35,6 +35,16 @@ export function sharedFormat({ id, label, guides = [], locals = [], ruleSources 
     }
     return null
   }
+  const ruleAt = (path: string): { owner: string; source: boolean } | null => {
+    const owner = ownerOf(path)
+    if (owner !== null) return { owner, source: true }
+    if (rules === undefined || !rules.accepts(basename(path))) return null
+    for (const relative of ruleSources) {
+      const folder = folderAbove(path, relative)
+      if (folder !== null) return { owner: folder, source: false }
+    }
+    return null
+  }
   return {
     id,
     family: 'shared',
@@ -55,19 +65,13 @@ export function sharedFormat({ id, label, guides = [], locals = [], ruleSources 
     rulesPathMarkers: [],
     rules,
     ruleAnchor: source => ownerOf(source) ?? join(source, '..'),
+    ruleAt,
     folderOf(filePath) {
       for (const guide of [...guides, ...locals]) {
         const folder = folderHolding(filePath, guide)
         if (folder !== null) return folder
       }
-      const alone = ownerOf(filePath)
-      if (alone !== null) return alone
-      if (rules === undefined || !rules.accepts(basename(filePath))) return null
-      for (const relative of ruleSources) {
-        const folder = folderAbove(filePath, relative)
-        if (folder !== null) return folder
-      }
-      return null
+      return ruleAt(filePath)?.owner ?? null
     },
   }
 }

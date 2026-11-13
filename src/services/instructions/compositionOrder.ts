@@ -20,8 +20,12 @@ const SHARED_CONVENTIONS: readonly InstructionConvention[] = [
   clineConvention,
 ]
 
+export function sharedRuleFormats(): InstructionConvention[] {
+  return SHARED_CONVENTIONS.filter(convention => convention.rules !== undefined)
+}
+
 export function sharedRuleFormatOf(conventionId: string | undefined): InstructionConvention | undefined {
-  return SHARED_CONVENTIONS.find(convention => convention.id === conventionId && convention.rules !== undefined)
+  return sharedRuleFormats().find(convention => convention.id === conventionId)
 }
 
 export function conventionsForProfile(profile: InstructionProfile): InstructionConvention[] {
