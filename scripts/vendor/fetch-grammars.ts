@@ -3,7 +3,7 @@
 import { createHash } from 'node:crypto'
 import { extractTarGz } from './tarExtract.ts'
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
-import { join, relative, resolve } from 'node:path'
+import { basename, join, relative, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const LOCK_PATH = join(ROOT, 'vendor', 'grammars.lock.json')
@@ -17,6 +17,8 @@ interface LockGrammar {
   sha256: string
   bytes: number
   sourceUrl?: string
+  sourceMember?: string
+  sourceSha512?: string
   sourceProvenance?: string
   upstream: { package: string; builtFromRange: string; license: string; repository: string }
 }
@@ -65,14 +67,75 @@ function readLock(): Lock {
       if (!/^https:\/\//.test(g.sourceUrl)) fail(`grammar ${g.wasm} sourceUrl is not https`)
       if (!g.sourceProvenance) fail(`grammar ${g.wasm} carries a sourceUrl but no sourceProvenance`)
     }
+    if (g.sourceMember !== undefined) {
+      if (g.sourceUrl === undefined) fail(`grammar ${g.wasm} names a sourceMember but no sourceUrl to take it from`)
+      if (!/^[0-9a-f]{128}$/.test(g.sourceSha512 ?? '')) fail(`grammar ${g.wasm} takes a member of a tarball but pins no sourceSha512 for that tarball`)
+      if (g.sourceMember.startsWith('/') || g.sourceMember.split(/[\\/]/).includes('..')) fail(`grammar ${g.wasm} sourceMember leaves the tarball: ${g.sourceMember}`)
+    } else if (g.sourceSha512 !== undefined) {
+      fail(`grammar ${g.wasm} pins a sourceSha512 but names no sourceMember`)
+    }
   }
   return lock
+}
+
+function sourceTarballPath(g: LockGrammar): string {
+  return join(TARBALL_DIR, `${g.sourceSha512!.slice(0, 16)}-${basename(new URL(g.sourceUrl!).pathname)}`)
+}
+
+async function ensureSourceTarball(g: LockGrammar): Promise<string> {
+  const cachePath = sourceTarballPath(g)
+  if (existsSync(cachePath) && !force) {
+    if (sha512(readFileSync(cachePath)) === g.sourceSha512) {
+      console.log(`fetch-grammars: reusing verified source tarball (${basename(cachePath)})`)
+      return cachePath
+    }
+    console.log(`fetch-grammars: cached source tarball for ${g.wasm} does not match the lock — re-downloading`)
+  }
+  console.log(`fetch-grammars: downloading ${g.sourceUrl}`)
+  const res = await fetch(g.sourceUrl!)
+  if (!res.ok) fail(`source tarball download failed for ${g.wasm}: HTTP ${res.status} ${res.statusText}`)
+  const buf = Buffer.from(await res.arrayBuffer())
+  const digest = sha512(buf)
+  if (digest !== g.sourceSha512) {
+    fail(`source tarball sha512 mismatch for ${g.wasm}: got ${digest.slice(0, 24)}…, lock pins ${g.sourceSha512!.slice(0, 24)}… — refusing (artifact identity changed)`)
+  }
+  writeFileSync(cachePath, buf)
+  console.log(`fetch-grammars: verified source tarball sha512 ${digest.slice(0, 12)}… (${buf.byteLength} bytes)`)
+  return cachePath
+}
+
+function readSourceMember(g: LockGrammar, tarballPath: string): Buffer {
+  const tmp = `${EXTRACT_DIR}.member-${process.pid}`
+  rmSync(tmp, { recursive: true, force: true })
+  mkdirSync(tmp, { recursive: true })
+  const tar = extractTarGz({ tarballPath, destDir: tmp })
+  if (!tar.ok) {
+    rmSync(tmp, { recursive: true, force: true })
+    fail(`tar extraction failed for the source of ${g.wasm}: ${tar.message}`)
+  }
+  const from = join(tmp, g.sourceMember!)
+  if (!existsSync(from)) {
+    rmSync(tmp, { recursive: true, force: true })
+    fail(`the source tarball of ${g.wasm} has no ${g.sourceMember} — refusing to install`)
+  }
+  const bytes = readFileSync(from)
+  rmSync(tmp, { recursive: true, force: true })
+  return bytes
 }
 
 async function ensureOverrideArtifacts(lock: Lock): Promise<Map<string, Buffer>> {
   const out = new Map<string, Buffer>()
   for (const g of lock.grammars) {
     if (!g.sourceUrl) continue
+    if (g.sourceMember !== undefined) {
+      const member = readSourceMember(g, await ensureSourceTarball(g))
+      const digest = sha256(member)
+      if (digest !== g.sha256) {
+        fail(`member sha256 mismatch for ${g.wasm}: ${g.sourceMember} is ${digest.slice(0, 16)}…, lock pins ${g.sha256.slice(0, 16)}… — refusing (artifact identity changed)`)
+      }
+      out.set(g.wasm, member)
+      continue
+    }
     const cachePath = join(TARBALL_DIR, g.wasm)
     if (existsSync(cachePath) && !force) {
       const local = readFileSync(cachePath)
