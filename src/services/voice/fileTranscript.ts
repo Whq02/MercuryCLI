@@ -1,8 +1,9 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { closeSync, constants, createReadStream, fstatSync, openSync, readSync } from 'node:fs'
-import { open, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { closeSync, constants, fstatSync, openSync, readSync } from 'node:fs'
+import { readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { extname, join } from 'node:path'
 import { spawnFfmpeg, ffmpegInstallCommand } from '../../utils/ffmpeg.js'
+import { openRegularFile } from '../../utils/regularFile.js'
 import { ensureToolResultsDir, getToolResultsDir } from '../../utils/toolResultStorage.js'
 import { prepareLocalTranscriber, transcribeWav } from './transcribe.js'
 import { mbWords, resolveWhisperModelPin } from './whisperModels.js'
@@ -42,12 +43,12 @@ export function mediaFileFormat(path: string): string | null {
 
 async function digestFile(path: string, signal: AbortSignal): Promise<string> {
   const hash = createHash('sha256')
-  for await (const chunk of createReadStream(path, { signal })) hash.update(chunk)
+  for await (const chunk of (await openRegularFile(path)).handle.createReadStream({ signal })) hash.update(chunk)
   return hash.digest('hex')
 }
 
 async function directWavRange(path: string, signal: AbortSignal): Promise<{ start: number; bytes: number } | null> {
-  const file = await open(path, 'r')
+  const { handle: file } = await openRegularFile(path)
   try {
     const size = (await file.stat()).size
     const header = Buffer.alloc(40)
@@ -83,7 +84,7 @@ export function mediaDecoderMissing(format: string, platform: string = process.p
 async function* decodedPcm(path: string, format: string, signal: AbortSignal): AsyncGenerator<Buffer> {
   const direct = await directWavRange(path, signal)
   if (direct !== null) {
-    if (direct.bytes > 0) yield* createReadStream(path, { start: direct.start, end: direct.start + direct.bytes - 1, signal })
+    if (direct.bytes > 0) yield* (await openRegularFile(path)).handle.createReadStream({ start: direct.start, end: direct.start + direct.bytes - 1, signal })
     return
   }
   const child = spawnFfmpeg(['-nostdin', '-hide_banner', '-loglevel', 'error', '-protocol_whitelist', 'file,pipe', '-format_whitelist', 'wav,mp3,mov,matroska,webm,aac,flac,ogg', '-i', path, '-map', '0:a:0', '-vn', '-sn', '-dn', '-ac', '1', '-ar', String(VOICE_SAMPLE_RATE), '-acodec', 'pcm_s16le', '-f', 's16le', 'pipe:1'], signal)

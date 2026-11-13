@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawnSync } from 'node:child_process'
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, sep } from 'node:path'
 import { deflateSync } from 'node:zlib'
 
@@ -56,7 +56,7 @@ async function runChild(args: ChildArgs): Promise<void> {
   const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
   const read = FileReadTool as unknown as { validateInput: Function; call: Function; mapToolResultToToolResultBlockParam: Function }
   const makeContext = (): Record<string, unknown> => ({ readFileState: new Map(), userModified: false, updateFileHistoryState: () => {}, dynamicSkillDirTriggers: new Set<string>(), nestedMemoryAttachmentTriggers: new Set<string>(), abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }), options: { tools: [], engineModel: 'claude-sonnet-5' } })
-  const refusal = /not a file or a folder|[Nn]ot a regular file/
+  const refusal = /not a file or a folder|[Nn]ot a regular file|cannot read binary files/
   const viaRead = async (file_path: string): Promise<string> => {
     const context = makeContext()
     const verdict = await read.validateInput({ file_path }, context)
@@ -122,6 +122,7 @@ async function runChild(args: ChildArgs): Promise<void> {
 const { bound, SCRATCH_ROOT } = await import('../daemon/dupline-world.ts')
 const { seedScratchHome } = await import('../lib/scriptedTurn.ts')
 const { pdfFixture, textPage } = await import('../document-read/fixtures.ts')
+const { localFixture } = await import('../voice/localFixture.ts')
 
 const ROOT = join(import.meta.dir, '..', '..')
 const KEEP = process.argv.includes('--keep')
@@ -168,6 +169,23 @@ function pngChunk(type: string, data: Buffer): Buffer {
   crc.writeUInt32BE(crc32(Buffer.concat([head.subarray(4), data])), 0)
   return Buffer.concat([head, data, crc])
 }
+function speechWav(seconds: number): Buffer {
+  const pcm = Buffer.alloc(seconds * 32000)
+  const head = Buffer.alloc(44)
+  head.write('RIFF', 0, 'ascii')
+  head.writeUInt32LE(36 + pcm.length, 4)
+  head.write('WAVEfmt ', 8, 'ascii')
+  head.writeUInt32LE(16, 16)
+  head.writeUInt16LE(1, 20)
+  head.writeUInt16LE(1, 22)
+  head.writeUInt32LE(16000, 24)
+  head.writeUInt32LE(32000, 28)
+  head.writeUInt16LE(2, 32)
+  head.writeUInt16LE(16, 34)
+  head.write('data', 36, 'ascii')
+  head.writeUInt32LE(pcm.length, 40)
+  return Buffer.concat([head, pcm])
+}
 function smallPng(): Buffer {
   const ihdr = Buffer.alloc(13)
   ihdr.writeUInt32BE(16, 0)
@@ -189,11 +207,20 @@ const kinds: Array<{ kind: string; name: string; make: (path: string) => void; s
   { kind: 'tar archive', name: 'sample.tar', make: path => copyFileSync(join(samples, 'sample.tar'), path), shows: 'archive: tar' },
   { kind: 'gzipped tar archive', name: 'sample.tgz', make: path => copyFileSync(join(samples, 'sample.tgz'), path), shows: 'archive: tgz' },
   { kind: 'sqlite database', name: 'sample.sqlite', make: path => copyFileSync(join(samples, 'sample.sqlite'), path), shows: 'database: sqlite' },
+  { kind: 'recording read as it stands', name: 'speech.wav', make: path => writeFileSync(path, speechWav(1)), shows: 'Transcript · ' },
+  { kind: 'recording read through the decoder program', name: 'talk.mp3', make: path => writeFileSync(path, Buffer.concat([Buffer.from([0x49, 0x44, 0x33, 4, 0, 0, 0, 0, 0, 0]), Buffer.from('encoded audio of the fixture')])), shows: 'Transcript · ' },
 ]
 for (const item of kinds) item.make(join(originals, item.name))
 
+const decoderBin = join(world, 'bin')
+mkdirSync(decoderBin, { recursive: true })
+writeFileSync(join(world, 'decoded.pcm'), Buffer.alloc(32000))
+writeFileSync(join(decoderBin, 'ffmpeg'), `#!/bin/sh\ncat '${join(world, 'decoded.pcm')}'\n`)
+chmodSync(join(decoderBin, 'ffmpeg'), 0o755)
 const childEnv: Record<string, string | undefined> = {
   ...process.env,
+  ...localFixture(join(world, 'whisper'), 'The lighthouse guides seven ships.').env,
+  PATH: `${decoderBin}:${process.env.PATH ?? ''}`,
   MERCURY_CONFIG_DIR: sceneHome,
   MERCURY_BARE: '1',
   MERCURY_CREDENTIAL_STORE: 'file',
@@ -238,7 +265,7 @@ function judge(label: string, played: Played, shows?: string): void {
   check(`${label}: with no swap the file is read as itself`, played.done && last !== undefined && last.swapped === false && asItself(last), how(played))
 }
 
-section('§1 a file that becomes a pipe after the path was looked at: Read, for each kind of file it opens')
+section('§1 a file that becomes a pipe after the path was looked at: Read, for each kind of file it opens in this process')
 for (const item of kinds) judge(`a ${item.kind}`, await walk('read', item), item.shows)
 
 section('§2 the same swap on the roads that reach a file by reference, and through a mention')
