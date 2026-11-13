@@ -365,19 +365,32 @@ function composeNode(node: FrameNode, walk: Walk, placement: Placement): boolean
   const { layoutNode } = node
   if (!layoutNode) return false
   if (layoutNode.getDisplay() === LayoutDisplay.None) {
-    if (node.parentNode) setChildReach(node.parentNode, node, false)
-    clearHidden(node, walk)
-    return false
+    return clearHidden(node, walk)
   }
   return placeNode(node, layoutNode, walk, placement)
 }
 
-function clearHidden(hidden: FrameNode, walk: Walk): void {
-  const cached = hidden.dirty ? nodeCache.get(hidden) : undefined
-  if (cached === undefined) return
-  walk.buffer.clear(floorRect(cached.reach ?? cached))
-  forgetSubtree(hidden)
-  walk.signals.markLayoutShift(() => `display-none-clear:${hidden.nodeName}`, Math.floor(cached.y))
+function clearHidden(hidden: FrameNode, walk: Walk): boolean {
+  const cached = nodeCache.get(hidden)
+  if (cached !== undefined) {
+    walk.buffer.clear(floorRect(cached.reach ?? cached))
+    walk.signals.markLayoutShift(() => `display-none-clear:${hidden.nodeName}`, Math.floor(cached.y))
+  }
+  clearHiddenSubtree(hidden)
+  return cached !== undefined
+}
+
+function clearHiddenSubtree(root: FrameNode): void {
+  const pending: FrameNode[] = [root]
+  while (pending.length > 0) {
+    const elem = pending.pop()!
+    nodeCache.delete(elem)
+    if (elem.parentNode) setChildReach(elem.parentNode, elem, false)
+    elem.dirty = false
+    for (const child of elem.childNodes) {
+      if (child.nodeName !== '#text') pending.push(child as FrameNode)
+    }
+  }
 }
 
 function placeNode(node: FrameNode, layoutNode: LayoutNode, walk: Walk, placement: Placement): boolean {
@@ -795,10 +808,10 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
         boxCached.height === height &&
         innerHeight > 0 &&
         Math.abs(delta) < innerHeight
-      if (stableForShift && spansFullWidth && walk.regionScrollUsable) {
+      if (stableForShift && prevScreen !== undefined && spansFullWidth && walk.regionScrollUsable) {
         regionHint = { top: regionTop, bottom: regionBottom, delta }
         signals.scrollHint = regionHint
-      } else if (stableForShift) {
+      } else if (stableForShift && prevScreen !== undefined) {
         rectShift = { top: regionTop, bottom: regionBottom, delta, x0: Math.floor(x), x1: Math.floor(x) + Math.floor(width) }
       } else {
         signals.markLayoutShift(() => `scroll-no-hint:${node.nodeName}`)
@@ -809,10 +822,25 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
   const contentHeightWas = contentWas?.height ?? contentHeight
   const heightDelta = contentHeight - contentHeightWas
   const shiftPlan = regionHint ?? rectShift
-  const firstCached = shiftPlan ? (content.childNodes as FrameNode[]).find(ch => ch.layoutNode !== undefined && nodeCache.has(ch)) : undefined
+  const contentChildren = content.childNodes as FrameNode[]
+  const newlyHiddenCached = shiftPlan !== null && contentChildren.some(ch => ch.layoutNode?.getDisplay() === LayoutDisplay.None && nodeCache.has(ch))
+  const firstCached = shiftPlan ? contentChildren.find(ch => ch.layoutNode !== undefined && ch.layoutNode.getDisplay() !== LayoutDisplay.None && nodeCache.has(ch)) : undefined
+  let lastCached: FrameNode | undefined
+  if (shiftPlan) {
+    for (let i = contentChildren.length - 1; i >= 0; i--) {
+      const ch = contentChildren[i]!
+      if (ch.layoutNode !== undefined && ch.layoutNode.getDisplay() !== LayoutDisplay.None && nodeCache.has(ch)) {
+        lastCached = ch
+        break
+      }
+    }
+  }
   const anchorShifted =
-    firstCached === undefined ||
-    Math.floor(nodeCache.get(firstCached)!.y) - shiftPlan!.delta === Math.floor(contentTop + firstCached.layoutNode!.getComputedTop())
+    !newlyHiddenCached &&
+    (firstCached === undefined ||
+      Math.floor(nodeCache.get(firstCached)!.y) - shiftPlan!.delta === Math.floor(contentTop + firstCached.layoutNode!.getComputedTop())) &&
+    (lastCached === undefined ||
+      Math.floor(nodeCache.get(lastCached)!.y) - shiftPlan!.delta === Math.floor(contentTop + lastCached.layoutNode!.getComputedTop()))
   const viewportOverlapsInvalid = shiftPlan !== null && rectsOverlap(x, shiftPlan.top, width, shiftPlan.bottom - shiftPlan.top + 1, walk.invalidRects)
   const wasReaching = hasReachingChild(content)
   if (shiftPlan !== null && content.dirty) {
@@ -919,7 +947,7 @@ function repairStableRows(content: FrameNode, walk: Walk, dirtyChildren: Set<Fra
   for (const entry of content.childNodes) {
     const child = entry as FrameNode
     const layout = child.layoutNode
-    if (!layout) continue
+    if (!layout || layout.getDisplay() === LayoutDisplay.None) continue
     const childTop = layout.getComputedTop()
     const childHeight = layout.getComputedHeight()
     const childBottom = childTop + childHeight
@@ -947,11 +975,12 @@ function composeChildren(node: FrameNode, walk: Walk, offsetX: number, offsetY: 
   const children = node.childNodes as FrameNode[]
   let offer: ScreenOffer = hasRemovedChild || children.some(reachMoves) ? 'closed' : 'open'
   for (const child of children) {
-    const wasDirty = child.dirty
+    const hidden = child.layoutNode?.getDisplay() === LayoutDisplay.None
+    const wasDirty = !hidden && child.dirty
     const floating = child.style.position === 'absolute'
     const seeThrough = floating && !child.style.opaque && child.style.backgroundColor === undefined
     const repainted = composeNode(child, walk, { offsetX, offsetY, prevScreen: offer === 'closed' ? undefined : prevScreen, skipSelfBlit: offer === 'clipped' && seeThrough, inheritedBackgroundColor, inheritedRowBg, own: floating ? undefined : own })
-    if ((wasDirty || repainted) && offer !== 'closed') offer = !floating && clipsBothAxes(child) ? 'clipped' : 'closed'
+    if ((wasDirty || repainted) && offer !== 'closed') offer = !floating && !hidden && clipsBothAxes(child) ? 'clipped' : 'closed'
   }
 }
 
@@ -1094,9 +1123,13 @@ function composeScrolledChildren(node: FrameNode, walk: Walk, offsetX: number, o
   let offerOpen = !hasRemovedChild && !children.some(reachMoves)
   for (const child of children) {
     const layout = child.layoutNode
-    const culled = layout !== undefined && outsideBand(layout, scrollTopY, scrollBottomY)
+    if (layout === undefined || layout.getDisplay() === LayoutDisplay.None) {
+      if (layout !== undefined && clearHidden(child, walk)) offerOpen = false
+      continue
+    }
+    const culled = outsideBand(layout, scrollTopY, scrollBottomY)
     if (culled && !preserveCulledCache) {
-      if (child.dirty && layout !== undefined) {
+      if (child.dirty) {
         setChildReach(node, child, childStillReaches(child, offsetX + layout.getComputedLeft(), offsetY + layout.getComputedTop(), walk.buffer.width))
       }
       forgetSubtree(child)

@@ -587,5 +587,321 @@ console.log('\n§4 Scroll region-hint recovery after a reaching child is removed
   }
 }
 
+console.log('\n§5 Hidden rows in a scroll box changing while hidden, unhiding, or hiding while reaching never wipe visible rows (MUST 4b)')
+{
+  const cols = 40
+  const rows = 14
+  const LONG = 'is a long line that wraps past the forty columns of this box, twice over, yes it does'
+
+  function runHiddenWipeScenes(): { bad: number; detail: string; hintsOnWheel: number } {
+    let bad = 0
+    let firstDetail = ''
+    let hintsOnWheel = 0
+    for (const bg of [undefined, '#102030']) {
+      for (const tallKind of [false, true]) {
+        const buildOne = (ctx: ComposeContext) => {
+          const root = createNode('ink-root')
+          applySceneStyle(root, { width: cols, height: rows, flexDirection: 'column' })
+          const head = createNode('ink-text')
+          appendChildNode(head, createTextNode('head'))
+          const foot = createNode('ink-text')
+          appendChildNode(foot, createTextNode('foot'))
+          const content = createNode('ink-box')
+          applySceneStyle(content, { flexDirection: 'column', flexGrow: 1, flexShrink: 0, width: cols })
+          const rowBoxes: DOMElement[] = []
+          const rowTexts: TextNode[] = []
+          for (let i = 0; i < 22; i++) {
+            const isTarget = i === 12
+            const txt = createTextNode(isTarget && tallKind ? `row ${i}.0 ${LONG}` : `row ${i}.0`)
+            const leaf = createNode('ink-text')
+            appendChildNode(leaf, txt)
+            const b = createNode('ink-box')
+            applySceneStyle(b, { flexDirection: 'row', flexShrink: 0, width: cols, ...(isTarget && tallKind ? { height: 1 } : {}) })
+            appendChildNode(b, leaf)
+            appendChildNode(content, b)
+            rowBoxes.push(b)
+            rowTexts.push(txt)
+          }
+          const scroller = createNode('ink-box')
+          applySceneStyle(scroller, { flexDirection: 'column', width: cols, height: 10, flexShrink: 0, overflowX: 'scroll', overflowY: 'scroll' })
+          appendChildNode(scroller, content)
+          const host = createNode('ink-box')
+          applySceneStyle(host, { width: cols, height: rows, flexDirection: 'column', ...(bg ? { backgroundColor: bg as never } : {}) })
+          appendChildNode(host, head)
+          appendChildNode(host, scroller)
+          appendChildNode(host, foot)
+          appendChildNode(root, host)
+          const render = createRenderer(root, ctx.stylePool)
+          let front = emptyFrame(rows, cols, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)
+          let back = emptyFrame(rows, cols, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)
+          return {
+            root,
+            scroller,
+            rowBoxes,
+            rowTexts,
+            paint(scratch: boolean) {
+              root.layoutNode!.calculateLayout(cols, rows)
+              const res = render({ frontFrame: front, backFrame: back, isTTY: true, terminalWidth: cols, terminalRows: rows, altScreen: true, prevFrameContaminated: scratch, regionScrollUsable: true })
+              back = front
+              front = res.frame
+              return res
+            },
+          }
+        }
+        const live = buildOne(makeContext())
+        const fresh = buildOne(makeContext())
+        const step = (label: string, delta: number, mutate?: (w: ReturnType<typeof buildOne>) => void): boolean => {
+          for (const w of [live, fresh]) {
+            mutate?.(w)
+            if (delta !== 0) {
+              ;(w.scroller.scroll ??= {}).pendingScrollDelta = delta
+              w.scroller.scroll.stickyScroll = false
+              markDirty(w.scroller)
+            }
+          }
+          const rLive = live.paint(false)
+          if (live.scroller.scroll) fresh.scroller.scroll = { scrollTop: live.scroller.scroll.scrollTop }
+          const rFresh = fresh.paint(true)
+          const diff = difference(rLive.frame.screen, rFresh.frame.screen)
+          if (diff !== null) {
+            bad++
+            if (!firstDetail) firstDetail = `${bg ? 'grounded' : 'ungrounded'} tall=${tallKind} (${label}): ${diff}`
+          }
+          return rLive.signals.scrollHint !== null
+        }
+        step('first', 0)
+        step('wheel 4', 4)
+        step('hide row 12', 0, w => applySceneStyle(w.rowBoxes[12]!, { flexDirection: 'row', flexShrink: 0, width: cols, ...(tallKind ? { height: 1 } : {}), display: 'none' }))
+        step('wheel -4', -4)
+        step('wheel 4 again', 4)
+        step('still', 0)
+        if (step('change hidden row text + wheel 1', 1, w => setTextNodeValue(w.rowTexts[12]!, tallKind ? 'row 12.1' : `row 12.1 ${LONG}`))) {
+          hintsOnWheel++
+        }
+        step('wheel -3', -3)
+        step('still end', 0)
+      }
+    }
+    return { bad, detail: firstDetail, hintsOnWheel }
+  }
+
+  const sceneRes = runHiddenWipeScenes()
+  check(
+    `hidden plain and reaching rows changing on a wheel shift never wipe a visible row (0 differing frames across 4 scenes, ${sceneRes.hintsOnWheel}/4 hinted)`,
+    sceneRes.bad === 0 && sceneRes.hintsOnWheel === 4,
+    `${sceneRes.bad} differing (${sceneRes.detail}), hints=${sceneRes.hintsOnWheel}`,
+  )
+
+  {
+    let bad = 0
+    let firstDetail = ''
+    let recoveredHints = 0
+    for (const bg of [undefined, '#102030']) {
+      for (let seed = 1; seed <= 20; seed++) {
+        let s = (seed * 7919 + (bg ? 13 : 0)) >>> 0
+        const rnd = (n: number) => {
+          s = (Math.imul(s, 1664525) + 1013904223) >>> 0
+          return Math.floor((s / 4294967296) * n)
+        }
+        type Kind = 'plain' | 'tall' | 'deep' | 'clip' | 'zero'
+        const KINDS: Kind[] = ['plain', 'plain', 'tall', 'deep', 'clip', 'zero']
+        type Entry = { id: number; kind: Kind; long: boolean; hidden: boolean; rev: number; box: DOMElement; inner1?: DOMElement; inner2?: DOMElement; txt?: TextNode }
+        const makeDomRow = (id: number, kind: Kind, long: boolean, hidden: boolean, rev: number): Entry => {
+          const hideStyle: Styles = hidden ? { display: 'none' } : {}
+          const words = `row ${id}.${rev}${long ? ' ' + LONG : ''}`
+          const b = createNode('ink-box')
+          if (kind === 'zero') {
+            applySceneStyle(b, { flexDirection: 'row', flexShrink: 0, width: cols, height: 0, ...hideStyle })
+            return { id, kind, long, hidden, rev, box: b }
+          }
+          const txt = createTextNode(words)
+          const leaf = createNode('ink-text')
+          appendChildNode(leaf, txt)
+          if (kind === 'deep') {
+            const in2 = createNode('ink-box')
+            applySceneStyle(in2, { flexDirection: 'row', flexShrink: 0 })
+            appendChildNode(in2, leaf)
+            const in1 = createNode('ink-box')
+            applySceneStyle(in1, { flexDirection: 'row', flexShrink: 0, height: 1, width: cols })
+            appendChildNode(in1, in2)
+            applySceneStyle(b, { flexDirection: 'row', flexShrink: 0, height: 1, width: cols, ...hideStyle })
+            appendChildNode(b, in1)
+            return { id, kind, long, hidden, rev, box: b, inner1: in1, inner2: in2, txt }
+          }
+          applySceneStyle(b, {
+            flexDirection: 'row',
+            flexShrink: 0,
+            width: cols,
+            ...(kind === 'tall' || kind === 'clip' ? { height: 1 } : {}),
+            ...(kind === 'clip' ? { overflowX: 'hidden', overflowY: 'hidden' } : {}),
+            ...hideStyle,
+          })
+          appendChildNode(b, leaf)
+          return { id, kind, long, hidden, rev, box: b, txt }
+        }
+        const syncEntry = (e: Entry) => {
+          const hideStyle: Styles = e.hidden ? { display: 'none' } : { display: undefined }
+          if (e.kind === 'zero') {
+            applySceneStyle(e.box, { flexDirection: 'row', flexShrink: 0, width: cols, height: 0, ...hideStyle })
+            return
+          }
+          if (e.txt) setTextNodeValue(e.txt, `row ${e.id}.${e.rev}${e.long ? ' ' + LONG : ''}`)
+          applySceneStyle(e.box, {
+            flexDirection: 'row',
+            flexShrink: 0,
+            width: cols,
+            ...(e.kind === 'tall' || e.kind === 'deep' || e.kind === 'clip' ? { height: 1 } : {}),
+            ...(e.kind === 'clip' ? { overflowX: 'hidden', overflowY: 'hidden' } : {}),
+            ...hideStyle,
+          })
+        }
+        const buildWalk = (ctx: ComposeContext, initialSpecs: Array<{ id: number; kind: Kind; long: boolean; hidden: boolean; rev: number }>) => {
+          const root = createNode('ink-root')
+          applySceneStyle(root, { width: cols, height: rows, flexDirection: 'column' })
+          const head = createNode('ink-text')
+          appendChildNode(head, createTextNode('head'))
+          const foot = createNode('ink-text')
+          appendChildNode(foot, createTextNode('foot'))
+          const content = createNode('ink-box')
+          applySceneStyle(content, { flexDirection: 'column', flexGrow: 1, flexShrink: 0, width: cols })
+          const entries = initialSpecs.map(sp => {
+            const e = makeDomRow(sp.id, sp.kind, sp.long, sp.hidden, sp.rev)
+            appendChildNode(content, e.box)
+            return e
+          })
+          const scroller = createNode('ink-box')
+          applySceneStyle(scroller, { flexDirection: 'column', width: cols, height: 10, flexShrink: 0, overflowX: 'scroll', overflowY: 'scroll' })
+          appendChildNode(scroller, content)
+          const host = createNode('ink-box')
+          applySceneStyle(host, { width: cols, height: rows, flexDirection: 'column', ...(bg ? { backgroundColor: bg as never } : {}) })
+          appendChildNode(host, head)
+          appendChildNode(host, scroller)
+          appendChildNode(host, foot)
+          appendChildNode(root, host)
+          const render = createRenderer(root, ctx.stylePool)
+          let front = emptyFrame(rows, cols, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)
+          let back = emptyFrame(rows, cols, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)
+          return {
+            root,
+            content,
+            scroller,
+            entries,
+            paint(scratch: boolean) {
+              root.layoutNode!.calculateLayout(cols, rows)
+              const res = render({ frontFrame: front, backFrame: back, isTTY: true, terminalWidth: cols, terminalRows: rows, altScreen: true, prevFrameContaminated: scratch, regionScrollUsable: true })
+              back = front
+              front = res.frame
+              return res
+            },
+          }
+        }
+        const freshFromSpecs = (ctx: ComposeContext, entries: Entry[], scrollTop: number): Screen => {
+          const w = buildWalk(
+            ctx,
+            entries.map(e => ({ id: e.id, kind: e.kind, long: e.long, hidden: e.hidden, rev: e.rev })),
+          )
+          w.scroller.scroll = { scrollTop }
+          return w.paint(true).frame.screen
+        }
+        const freshCtx = makeContext()
+        let nextId = 22
+        const specs = Array.from({ length: 22 }, (_, id) => ({ id, kind: KINDS[rnd(KINDS.length)]!, long: rnd(3) === 0, hidden: false, rev: 0 }))
+        const live = buildWalk(freshCtx, specs)
+        live.paint(false)
+        for (let st = 0; st < 55; st++) {
+          const pick = rnd(7)
+          const n = live.entries.length
+          if (pick === 0 && n > 0) {
+            const idx = rnd(n)
+            const e = live.entries[idx]!
+            e.hidden = !e.hidden
+            syncEntry(e)
+          } else if (pick === 1 && n > 0) {
+            const hiddenIdx = live.entries.map((e, idx) => (e.hidden ? idx : -1)).filter(idx => idx >= 0)
+            const idx = hiddenIdx.length > 0 ? hiddenIdx[rnd(hiddenIdx.length)]! : rnd(n)
+            const flipLong = rnd(2) === 0
+            const e = live.entries[idx]!
+            e.rev++
+            if (flipLong) e.long = !e.long
+            syncEntry(e)
+          } else if (pick === 2 && n > 10) {
+            const hiddenIdx = live.entries.map((e, idx) => (e.hidden ? idx : -1)).filter(idx => idx >= 0)
+            const idx = hiddenIdx.length > 0 ? hiddenIdx[rnd(hiddenIdx.length)]! : rnd(n)
+            const [gone] = live.entries.splice(idx, 1)
+            removeChildNode(live.content, gone!.box)
+          } else if (pick === 3) {
+            const id = nextId++
+            const kind = KINDS[rnd(KINDS.length)]!
+            const long = rnd(2) === 0
+            const hidden = rnd(4) === 0
+            const at = rnd(n + 1)
+            const e = makeDomRow(id, kind, long, hidden, 0)
+            if (at >= live.entries.length) appendChildNode(live.content, e.box)
+            else insertBeforeNode(live.content, e.box, live.entries[at]!.box)
+            live.entries.splice(at, 0, e)
+          } else if (pick === 4 && n > 0) {
+            const idx = rnd(n)
+            const e = live.entries[idx]!
+            e.long = !e.long
+            e.rev++
+            syncEntry(e)
+          }
+          const wheel = rnd(4) === 0 ? 0 : [-3, -2, -1, 1, 1, 2, 3][rnd(7)]!
+          if (wheel !== 0) {
+            ;(live.scroller.scroll ??= {}).pendingScrollDelta = wheel
+            live.scroller.scroll.stickyScroll = false
+            markDirty(live.scroller)
+          }
+          const rLive = live.paint(false)
+          const rFresh = freshFromSpecs(freshCtx, live.entries, live.scroller.scroll?.scrollTop ?? 0)
+          const diff = difference(rLive.frame.screen, rFresh)
+          if (diff !== null) {
+            bad++
+            if (!firstDetail) firstDetail = `${bg ? 'grounded' : 'ungrounded'} seed=${seed} step=${st}: ${diff}`
+          }
+        }
+        for (const e of live.entries) {
+          if (e.kind === 'tall' || e.kind === 'deep') {
+            if (seed % 2 === 0) e.hidden = true
+            else e.long = false
+            e.rev++
+            syncEntry(e)
+          }
+        }
+        while (live.entries.filter(e => !e.hidden && e.kind !== 'zero').length < 22) {
+          const id = nextId++
+          const e = makeDomRow(id, 'plain', false, false, 0)
+          appendChildNode(live.content, e.box)
+          live.entries.push(e)
+        }
+        ;(live.scroller.scroll ??= {}).scrollTop = 0
+        live.scroller.scroll.pendingScrollDelta = undefined
+        live.scroller.scroll.stickyScroll = false
+        markDirty(live.scroller)
+        live.paint(false)
+        for (let i = 0; i < 12; i++) {
+          const d = i < 8 ? 1 : -1
+          ;(live.scroller.scroll ??= {}).pendingScrollDelta = d
+          live.scroller.scroll.stickyScroll = false
+          markDirty(live.scroller)
+          const rLive = live.paint(false)
+          const rFresh = freshFromSpecs(freshCtx, live.entries, live.scroller.scroll?.scrollTop ?? 0)
+          if (rLive.signals.scrollHint !== null) recoveredHints++
+          const diff = difference(rLive.frame.screen, rFresh)
+          if (diff !== null) {
+            bad++
+            if (!firstDetail) firstDetail = `${bg ? 'grounded' : 'ungrounded'} seed=${seed} tail=${i}: ${diff}`
+          }
+        }
+      }
+    }
+    check(
+      `seeded hiding walks (2 grounds × 20 seeds × 55 steps + 12-wheel tail) equal fresh paint and recover region hints (${recoveredHints}/480)`,
+      bad === 0 && recoveredHints === 480,
+      `${bad} differing (${firstDetail}), hints=${recoveredHints}/480`,
+    )
+  }
+}
+
 console.log(`\nprove-scroll-shift-and-hit: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

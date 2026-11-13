@@ -327,6 +327,7 @@ class CellLayoutNode implements LayoutNode {
   }
   setDisplay(display: LayoutDisplay): void {
     this.display = display
+    if (display === LayoutDisplay.None) this.zeroSubtree()
     this.markSubtreeDirty()
   }
   getDisplay(): LayoutDisplay {
@@ -670,6 +671,10 @@ class CellLayoutNode implements LayoutNode {
   private zeroSubtree(): void {
     this.final = { left: 0, top: 0, width: 0, height: 0 }
     this.rounded = { left: 0, top: 0, width: 0, height: 0 }
+    this.measureEntries.length = 0
+    this.layoutEntry = null
+    this.fbGen = -1
+    this.measRecGen = -1
     for (const c of this.children) c.zeroSubtree()
   }
 
@@ -709,6 +714,9 @@ class CellLayoutNode implements LayoutNode {
     const crossGap = this.crossGap(axis)
     const isWrapStyle = this.flexWrap !== 'nowrap'
 
+    for (const c of this.children) {
+      if (c.display === LayoutDisplay.None) c.zeroSubtree()
+    }
     const flow = this.children.filter(
       c => c.positionType !== 'absolute' && c.display !== LayoutDisplay.None,
     )

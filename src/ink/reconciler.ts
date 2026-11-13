@@ -304,6 +304,7 @@ const reconciler = createReconciler<
             newStyle,
           )
           if (styleDiff) applyStyles(instance.layoutNode, styleDiff, newStyle)
+          if (instance.isHidden) applyStyles(instance.layoutNode, { display: 'none' })
         }
         continue
       }
@@ -333,7 +334,9 @@ const reconciler = createReconciler<
   unhideInstance: instance => {
     instance.isHidden = false
     if (instance.layoutNode) {
-      applyStyles(instance.layoutNode, { display: 'flex' })
+      applyStyles(instance.layoutNode, {
+        display: instance.style.display === 'none' ? 'none' : 'flex',
+      })
     }
     markDirty(instance)
   },
