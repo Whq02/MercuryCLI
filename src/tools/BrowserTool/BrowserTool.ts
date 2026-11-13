@@ -135,80 +135,74 @@ export function browserToolEnabled(): boolean {
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
-    op: z
-      .enum(OPS)
-      .describe(
-        'Browser operation.',
-      ),
-    url: z.string().optional().describe('open: the URL to navigate to (http/https)'),
+    op: z.enum(OPS),
+    url: z.string().optional().describe('open: http/https URL'),
     waitUntil: z
       .enum(['domcontentloaded', 'load', 'networkidle2'])
       .optional()
-      .describe('open/reload: navigation settle condition (default load).'),
+      .describe('open/reload: default load'),
     selector: z
       .string()
       .optional()
       .describe(
-        'Element target: CSS, aria/<name>[role="<role>"] with exact accessible name, text/<substring>, xpath/<expr>, or host >>> inner across shadow roots. Omitted: type uses focus; extract uses the whole page.',
+        'CSS, aria/<name>[role="<role>"] (exact name), text/<substring>, xpath/<expr>, or host >>> inner across shadow roots (omit: type uses focus, extract uses page)',
       ),
-    frame: z.union([z.number().int().nonnegative(), z.string().min(1)]).optional().describe('Frame index from extract (0 is main), or a unique URL substring. Acts use that frame origin, including secret fills.'),
-    force: z.boolean().optional().describe('click: dispatch a DOM click to a covered selector target.'),
-    x: z.number().optional().describe('click: viewport x for a point click (with y; selector wins when both given)'),
-    y: z.number().optional().describe('click: viewport y for a point click (with x)'),
-    text: z.string().optional().describe('type: the characters to type · waitFor: the page text to await'),
+    frame: z.union([z.number().int().nonnegative(), z.string().min(1)]).optional().describe('Frame index from extract (0 = main) or unique URL substring. Acts use that frame origin, including secret fills.'),
+    force: z.boolean().optional().describe('click: DOM click to a covered selector target.'),
+    x: z.number().optional().describe('click: viewport x (with y; selector wins if both)'),
+    y: z.number().optional().describe('click: viewport y (with x)'),
+    text: z.string().optional().describe('type: characters · waitFor: page text'),
     secretRef: z
       .string()
       .optional()
       .describe(
-        'type: operator-registered UPPER_SNAKE secret name, with selector. Credential fields require this instead of text. The value stays out of the conversation; each secret-and-origin pairing needs separate approval.',
+        'type: operator-registered UPPER_SNAKE secret name, with selector. Credential fields require this instead of text; value stays out of the conversation, and each secret-and-origin pairing needs separate approval.',
       ),
-    clear: z.boolean().optional().describe('type: clear the field first (selector targets only)'),
-    enter: z.boolean().optional().describe('type: press Enter after typing'),
-    dy: z.number().optional().describe('scroll: pixel delta (positive scrolls down) when no selector is given'),
+    clear: z.boolean().optional().describe('type: clear selector target first'),
+    enter: z.boolean().optional().describe('type: press Enter after'),
+    dy: z.number().optional().describe('scroll: pixel delta (+down) when no selector'),
     timeoutMs: z
       .number()
       .optional()
       .describe(
-        `waitFor and selector actions/reads: deadline in ms (default ${WAIT_DEFAULT_MS}, cap ${WAIT_CAP_MS}).`,
+        `waitFor/selector deadline in ms (default ${WAIT_DEFAULT_MS}, cap ${WAIT_CAP_MS})`,
       ),
     state: z
       .enum(['visible', 'attached', 'hidden'])
       .optional()
-      .describe(
-        'waitFor selector: visible (default), attached even if hidden, or hidden/removed.',
-      ),
+      .describe('waitFor selector: default visible'),
     mode: z
       .enum(['text', 'tree'])
       .optional()
-      .describe('extract: text = innerText (default) · tree = accessibility-tree projection'),
+      .describe('extract: default text (innerText); tree = accessibility tree'),
     values: z
       .array(z.string())
       .optional()
-      .describe('select: option values to choose (visible-label fallback); multiple only on a multiple select'),
+      .describe('select: option values (visible-label fallback; multi only on <select multiple>)'),
     key: z
       .string()
       .optional()
       .describe(
-        'press: a navigation/edit key — Enter, Escape, Tab, ArrowUp/Down/Left/Right, Backspace, Delete, Home, End, PageUp, PageDown (printable characters go through type)',
+        'press: Enter, Escape, Tab, ArrowUp/Down/Left/Right, Backspace, Delete, Home, End, PageUp, PageDown (use type for printable chars)',
       ),
     modifiers: z
       .array(z.enum(['Shift', 'Control', 'Alt', 'Meta']))
       .optional()
-      .describe('press: modifiers held around the key'),
+      .describe('press: held modifiers'),
     buildId: z
       .string()
       .optional()
-      .describe('provision: exact Chrome-for-Testing build (default current stable).'),
-    width: z.number().optional().describe('viewport: CSS px width (320-3840)'),
-    height: z.number().optional().describe('viewport: CSS px height (240-2160)'),
-    deviceScaleFactor: z.number().optional().describe('viewport: device scale, 1–3.'),
+      .describe('provision: Chrome-for-Testing build (default stable)'),
+    width: z.number().optional().describe('viewport: CSS px (320–3840)'),
+    height: z.number().optional().describe('viewport: CSS px (240–2160)'),
+    deviceScaleFactor: z.number().optional().describe('viewport: scale 1–3'),
     offset: z
       .number()
       .optional()
-      .describe('extract: character offset for the text window.'),
+      .describe('extract: text window char offset'),
     limit: z.number().optional().describe('console: last N entries (default 50)'),
-    fullPage: z.boolean().optional().describe('screenshot: capture the full scroll height (default viewport)'),
-    label: z.string().optional().describe('screenshot: artifact filename hint'),
+    fullPage: z.boolean().optional().describe('screenshot: full scroll height (default viewport)'),
+    label: z.string().optional().describe('screenshot: filename hint'),
   }),
 )
 
@@ -928,26 +922,21 @@ export const BrowserTool = buildTool({
   async prompt() {
     return `## Operations
 status reports browser resolution (operator pin, then managed Chrome-for-Testing), versions and session state without launching. Installed browsers are not driven.
-open launches on first use and navigates. Its navigation deadline reaches ${NAVIGATION_CAP_MS / 1000}s.
-click acts on an element or viewport point after actionability checks. A click that opens a new tab closes it unadopted; the result carries its URL.
-type focuses a selector target before entering text; editable inputs, textarea and contenteditable are supported.
-scroll brings a selector target into view or scrolls by a pixel delta.
-waitFor observes a selector, text, or navigation when neither is supplied. Text matching is case-insensitive with normalized whitespace. A navigation already completed during the previous act returns immediately.
-back navigates history; reload refreshes the page.
-select changes native dropdown options; press sends a key; hover moves over an element.
-viewport resizes the render surface; the initial size is 1280×800.
-extract returns text or indented role/name/state rows, including iframe content and frame indices/URLs. Output windows hold ${EXTRACT_CAP} characters.
-console returns an ordered ring of ${CONSOLE_RING_CAP} entries: logs, page errors, failed requests, HTTP errors, navigation dividers and dialogs. Dialogs are auto-dismissed; beforeunload is auto-accepted.
-info reports URL, title and approval state.
-screenshot saves a PNG artifact and attaches an image when the engine supports image input.
-close ends the session. Protocol calls have a ${BROWSER_PROTOCOL_TIMEOUT_MS / 1000}s deadline; close has ${BROWSER_CLOSE_BOUND_MS / 1000}s before the process is ended.
-provision asks before installing Chrome-for-Testing.
+open launches on first use and navigates (${NAVIGATION_CAP_MS / 1000}s deadline).
+click checks actionability; any new tab opened is closed unadopted and its URL returned.
+type focuses a selector target (editable inputs, textarea, contenteditable).
+waitFor watches a selector, case-insensitive whitespace-normalized text, or navigation when neither is given (returns immediately if navigation already finished during the prior act).
+viewport resizes the surface (initial 1280×800); back, reload, scroll, select, press and hover act on history or elements; info reports URL, title and approval state.
+extract returns ${EXTRACT_CAP}-char windows of text or indented role/name/state rows, including iframe content and frame indices/URLs.
+console returns a ${CONSOLE_RING_CAP}-entry ring of logs, page/HTTP/request errors, navigation dividers and dialogs (dialogs auto-dismiss; beforeunload auto-accepts).
+screenshot saves a PNG artifact and attaches an image when supported.
+close ends the session (${BROWSER_PROTOCOL_TIMEOUT_MS / 1000}s protocol deadline; ${BROWSER_CLOSE_BOUND_MS / 1000}s close bound). provision asks before installing Chrome-for-Testing.
 
 ## Targeting
-Selector actions wait for present and visible elements; scoped extract waits for attachment, so it can read hidden content. Frame-targeted click, scroll and screenshot require selectors; coordinate clicks stay in the main viewport.
+Selector actions wait for visibility; scoped extract waits for attachment (reads hidden content). Frame click, scroll and screenshot require selectors; coordinate clicks stay in the main viewport.
 
 ## Session lifetime
-The default cap is 3 child browsers per parent session plus a reserved lead slot. Each browser closes after 5 minutes idle; running operations do not expire, and completion renews the lease. Page-initiated downloads and file uploads are not performed here. The driver needs node >= 22.12.`
+Default cap: 3 child browsers per session plus a reserved lead slot; 5 minutes idle closes a browser (active ops do not expire; completion renews the lease). Downloads and file uploads are not performed here. The driver needs node >= 22.12.`
   },
   userFacingName,
   shouldDefer: true,
