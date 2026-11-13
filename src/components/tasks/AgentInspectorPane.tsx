@@ -7,7 +7,7 @@ import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { getWorkflowTranscriptDir } from '../../utils/sessionStorage.js'
 import { plural } from '../../utils/stringUtils.js'
 import type { LocalWorkflowTaskState } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
-import { agentTranscriptFile } from '../../tools/WorkflowTool/agentTranscriptReader.js'
+import { agentTranscriptFile } from '../../utils/crew/agentTranscriptReader.js'
 import {
   buildAgentSummaries,
   type WorkflowRunAgentSummary,

@@ -19,7 +19,7 @@
 # gate-watch: src/skills/bundled/loop.ts src/services/loopFire.ts docs/CREW.md src/tools/ResumeAgentTool/** src/tools/SendMessageTool/**
 # gate-watch: src/tools/AgentTool/* src/tools/BashTool/BashTool.tsx src/tools/FileEditTool/FileEditTool.ts
 # gate-watch: src/tools/SendMessageTool/SendMessageTool.ts src/tools/TaskStopTool/TaskStopTool.ts
-# gate-watch: src/tools/WorkflowTool/agentTranscriptReader.ts src/tools/WorkflowTool/structuredOutputTool.ts
+# gate-watch: src/utils/crew/agentTranscriptReader.ts src/tools/WorkflowTool/structuredOutputTool.ts
 # gate-watch: src/tasks/LocalAgentTask/launchReceipts.ts src/tasks/LocalAgentTask/LocalAgentTask.tsx src/tasks.ts src/Task.ts src/services/api/mediaRefusal.ts
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/tools/BashTool/readOnlyValidation.ts scripts/providers/lib/llmhostFixture.ts

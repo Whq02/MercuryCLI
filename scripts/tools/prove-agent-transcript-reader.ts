@@ -13,7 +13,7 @@ import {
   readAgentMeta,
   readAgentTranscript,
   summarizeToolInput,
-} from '../../src/tools/WorkflowTool/agentTranscriptReader.ts'
+} from '../../src/utils/crew/agentTranscriptReader.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -25,7 +25,7 @@ function section(t: string): void {
 }
 
 console.log('============================================================')
-console.log(' workflow agent-transcript reader — inspector data source')
+console.log(' agent-transcript reader — a crewmate transcript read from disk')
 console.log('============================================================')
 
 const tmp = mkdtempSync(join(tmpdir(), 'wf-reader-proof-'))

@@ -3,7 +3,7 @@ import { getOriginalCwd, getSessionId, getSessionProjectDir } from '../bootstrap
 import type { SetAppState, TaskKillReceipt, TaskStateBase, TaskType } from '../Task.js'
 import type { AppState } from '../state/AppState.js'
 import { getTaskByType } from '../tasks.js'
-import { readAgentTranscript } from '../tools/WorkflowTool/agentTranscriptReader.js'
+import { readAgentTranscript } from '../utils/crew/agentTranscriptReader.js'
 import { asAgentId } from '../types/ids.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getAgentTranscriptPath } from '../utils/sessionStorage/paths.js'

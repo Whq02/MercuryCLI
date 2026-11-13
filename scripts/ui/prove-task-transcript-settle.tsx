@@ -18,12 +18,12 @@ const deferred = <T,>() => {
 }
 
 await import('../../src/tools/AgentTool/AgentTool.js')
-const reader = await import('../../src/tools/WorkflowTool/agentTranscriptReader.js')
+const reader = await import('../../src/utils/crew/agentTranscriptReader.js')
 let transcriptText = 'initial transcript'
 let transcriptCalls = 0
 let heldView: ReturnType<typeof deferred<Awaited<ReturnType<typeof reader.readAgentTranscript>>>> | null = null
 const viewOf = (text: string): Awaited<ReturnType<typeof reader.readAgentTranscript>> => ({ finalText: text } as never)
-mock.module('../../src/tools/WorkflowTool/agentTranscriptReader.js', () => ({
+mock.module('../../src/utils/crew/agentTranscriptReader.js', () => ({
   ...reader,
   readAgentTranscript: async () => {
     transcriptCalls++

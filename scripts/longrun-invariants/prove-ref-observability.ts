@@ -12,7 +12,7 @@ import { parseMercuryRef, type ResourceContext, type ResourceAdapter } from '../
 import { formatEnvelopeBlock } from '../../src/services/agentResults/normalize.js'
 import type { AgentResultEnvelope } from '../../src/services/agentResults/contracts.js'
 import { makeOwnerKey } from '../../src/services/run/ownerKey.js'
-import { OUTCOME_CAP_CHARS } from '../../src/tools/WorkflowTool/agentTranscriptReader.js'
+import { OUTCOME_CAP_CHARS } from '../../src/utils/crew/agentTranscriptReader.js'
 import { workflowRunsRoot, RUN_MANIFEST_VERSION } from '../../src/tools/WorkflowTool/runManifest.js'
 import { getOriginalCwd, setOriginalCwd } from '../../src/bootstrap/state.js'
 import { entryToRecord } from '../../src/fabric/entryCodec.js'

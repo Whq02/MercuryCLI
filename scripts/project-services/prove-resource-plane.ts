@@ -234,7 +234,7 @@ section("W. workflow adapter (manifest fixtures) — runs live beside the sessio
 
   const { entryToRecord } = await import('../../src/fabric/entryCodec.js')
   const { ordinalOf } = await import('../../src/fabric/ordinal.js')
-  const { OUTCOME_CAP_CHARS } = await import('../../src/tools/WorkflowTool/agentTranscriptReader.js')
+  const { OUTCOME_CAP_CHARS } = await import('../../src/utils/crew/agentTranscriptReader.js')
   const sentinel = 'END-OF-THE-LONG-OUTCOME'
   let ordinal = 0
   const encode = (entry: unknown): string =>

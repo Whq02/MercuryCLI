@@ -19,7 +19,7 @@ const { LocalFileJournal, indexJournal } = await import(
   '../../src/tools/WorkflowTool/agentHooks.js'
 )
 const { resolveAgentTranscriptFile, agentTranscriptFile } = await import(
-  '../../src/tools/WorkflowTool/agentTranscriptReader.js'
+  '../../src/utils/crew/agentTranscriptReader.js'
 )
 const { recordSidechainTranscript, registerAgentTranscriptDestination, getProject } =
   await import('../../src/utils/sessionStorage/writer.js')

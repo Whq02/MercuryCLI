@@ -120,7 +120,7 @@ section('C the census: every reader that recognised an interrupt result still do
 
 section('D the workflow transcript reader')
 {
-  const { readAgentTranscript } = await import('../../src/tools/WorkflowTool/agentTranscriptReader.ts')
+  const { readAgentTranscript } = await import('../../src/utils/crew/agentTranscriptReader.ts')
   const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
   const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
   const dir = mkdtempSync(join(tmpdir(), 'interrupt-result-'))
@@ -169,7 +169,7 @@ section('E the source census over every recogniser of the interrupt text')
     ['src/utils/messages/rejectionText.ts', '[INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE].some(marker => text.startsWith(marker) || lines.includes(marker))'],
     ['src/utils/messages/rejectionText.ts', 'isInterruptedResultText(text)'],
     ['src/utils/transcriptSearch.ts', 'return isTurnCutText(text)'],
-    ['src/tools/WorkflowTool/agentTranscriptReader.ts', 'turnCutOfText(text)'],
+    ['src/utils/crew/agentTranscriptReader.ts', 'turnCutOfText(text)'],
     ['src/tools/SkillTool/SkillTool.ts', 'texts.includes(INTERRUPT_MESSAGE)'],
     ['src/run-core/turn-machine.ts', 'turnCutResultText(turnCutOf(cutReason))'],
   ]

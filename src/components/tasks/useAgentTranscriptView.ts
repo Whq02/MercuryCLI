@@ -7,7 +7,7 @@ import {
   readAgentTranscript,
   resolveAgentTranscriptFile,
   type AgentTranscriptView,
-} from '../../tools/WorkflowTool/agentTranscriptReader.js'
+} from '../../utils/crew/agentTranscriptReader.js'
 
 const REREAD_THROTTLE_MS = 2000
 

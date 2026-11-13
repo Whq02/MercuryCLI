@@ -4,7 +4,7 @@ import {
   readAgentTranscript,
   transcriptEndWords,
   type AgentTranscriptView,
-} from '../../../tools/WorkflowTool/agentTranscriptReader.js'
+} from '../../../utils/crew/agentTranscriptReader.js'
 import type { AgentId } from '../../../types/ids.js'
 import { getAgentTranscriptPath } from '../../../utils/sessionStorage/paths.js'
 import { getTaskOutputPath } from '../../../utils/task/diskOutput.js'

@@ -46,7 +46,7 @@ const { enableConfigs } = await import('${REPO}/src/utils/config/globalConfig.js
 enableConfigs()
 const { WorkflowTool } = await import('${REPO}/src/tools/WorkflowTool/WorkflowTool.js')
 const { getDefaultAppState } = await import('${REPO}/src/state/AppStateStore.js')
-const { readAgentTranscript, resolveAgentTranscriptFile } = await import('${REPO}/src/tools/WorkflowTool/agentTranscriptReader.js')
+const { readAgentTranscript, resolveAgentTranscriptFile } = await import('${REPO}/src/utils/crew/agentTranscriptReader.js')
 const { decodeTranscriptBuffer } = await import('${REPO}/src/fabric/transcriptDecode.js')
 const emit = (o: unknown) => console.log('@@' + JSON.stringify(o))
 

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { getOriginalCwd } from '../../../bootstrap/state.js'
 import { statSync } from 'node:fs'
-import { readAgentTranscript, resolveAgentTranscriptFile } from '../../../tools/WorkflowTool/agentTranscriptReader.js'
+import { readAgentTranscript, resolveAgentTranscriptFile } from '../../../utils/crew/agentTranscriptReader.js'
 import { agentPulse, agentPulseWord } from '../../../tools/WorkflowTool/livePulse.js'
 import {
   groupAgentsByPhase,
