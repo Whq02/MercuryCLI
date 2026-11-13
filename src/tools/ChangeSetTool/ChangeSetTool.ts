@@ -87,57 +87,57 @@ export const CHANGESET_TOOL_NAME = 'ChangeSet'
 const OPS = ['preview', 'apply', 'status', 'discard'] as const
 
 const baseShape = () => ({
-  op: z.enum(OPS).describe('The change-set operation'),
+  op: z.enum(OPS),
   changes: z
     .array(
       z.strictObject({
-        file_path: z.string().describe('Absolute path to an existing text file'),
+        file_path: z.string().describe('Absolute file path'),
         expected_anchor: z
           .string()
-          .describe('The bare fa:… or ra:… value inside the latest "(anchor: …)" for this file — a Read, or an Edit or Write result — without the wrapper'),
+          .describe('Bare fa:… or ra:… from this file\'s latest "(anchor: …)"'),
         hunks: z
           .array(
             z.strictObject({
               lines: z
                 .string()
-                .describe('1-based original line ("12") or inclusive range ("12-18") of the anchored snapshot'),
+                .describe('1-based line ("12") or inclusive range ("12-18")'),
               replace: z
                 .string()
-                .describe('Replacement body; "" deletes the range; with insert, the inserted body'),
+                .describe('Replacement text; "" deletes; inserted text with insert'),
               insert: z
                 .enum(['before', 'after'])
                 .optional()
-                .describe('Insert beside the single anchor line instead of replacing it'),
+                .describe('Insert beside the single line instead of replacing'),
             }),
           )
           .optional()
-          .describe('Disjoint line-addressed hunks against the anchored snapshot; a member carries hunks or edits, a move optionally, a delete neither'),
+          .describe('Disjoint hunks on the anchored snapshot; pass hunks or edits (optional on move, omitted on delete)'),
         edits: z
           .array(
             z.strictObject({
-              old_string: z.string().describe('The exact text to replace; unique in the file unless replace_all'),
-              new_string: z.string().describe('The text to replace it with; "" deletes old_string'),
-              replace_all: semanticBoolean(z.boolean().optional()).describe('Replace every occurrence of old_string'),
+              old_string: z.string().describe('Exact text to replace; unique unless replace_all'),
+              new_string: z.string().describe('Replacement text; "" deletes'),
+              replace_all: semanticBoolean(z.boolean().optional()).describe('Replace all occurrences'),
             }),
           )
           .optional()
-          .describe('Disjoint exact-string edits against the anchored snapshot, instead of hunks'),
+          .describe('Disjoint exact-string edits instead of hunks'),
         op: z
           .enum(['edit', 'delete', 'move'])
           .optional()
-          .describe('"edit" (default) applies the hunks or edits; "delete" removes the file; "move" renames it to new_path after any hunks or edits'),
+          .describe('Default "edit"; "move" renames to new_path after any hunks/edits'),
         new_path: z
           .string()
           .optional()
-          .describe('move: the absolute destination path, which must not exist'),
+          .describe('move: absolute destination path (must not exist)'),
       }),
     )
     .optional()
-    .describe('preview / apply: the file members, one per existing text file'),
+    .describe('preview/apply: one entry per existing text file'),
   plan_id: z
     .string()
     .optional()
-    .describe('apply / status / discard: a plan id (cs-…) from a prior preview'),
+    .describe('apply/status/discard: plan id (cs-…) from preview'),
 })
 
 const widestSchemaFactory = () =>
@@ -146,9 +146,7 @@ const widestSchemaFactory = () =>
     patch: z
       .string()
       .optional()
-      .describe(
-        'preview / apply: ONE anchored patch string instead of changes[] — file sections with replace/insert/delete/cut/paste/move-to/delete-file ops over the "(anchor: …)" values from Read (the dialect is spelled out in the tool description)',
-      ),
+      .describe('preview/apply: anchored patch string instead of changes'),
   })
 
 type WidestSchema = ReturnType<typeof widestSchemaFactory>
@@ -1109,7 +1107,7 @@ export const ChangeSetTool = buildTool({
     return 'Prepare, review, and apply one anchored text change across several existing files'
   },
   async prompt() {
-    return `Applies one set of edits, moves and deletions across existing text files as a whole: every member is checked against its read anchor before the first write and one operator decision covers the set; a drifted or invalid member refuses the whole set and nothing is written. preview builds a plan (cs-…) without writing; apply writes a plan or the changes given, verified by reread, and names any path it could not settle; status and discard manage a plan. Up to ${CHANGESET_BOUNDS.maxFiles} files a set; a plan lives ${Math.round(CHANGESET_BOUNDS.planTtlMs / 60_000)} minutes.${
+    return `Applies edits, moves and deletions across existing text files atomically: every member is checked against its read anchor before writing and one approval covers the set; a drifted or invalid member refuses the whole set and nothing is written. preview builds a plan (cs-…) without writing; apply writes a plan or changes, verified by reread, naming any unsettled path; status and discard manage a plan. Up to ${CHANGESET_BOUNDS.maxFiles} files; plans live ${Math.round(CHANGESET_BOUNDS.planTtlMs / 60_000)} minutes.${
       anchorPatchEnabled() ? `\n\n${ANCHOR_PATCH_TEACHING}` : ''
     }`
   },
