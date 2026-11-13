@@ -489,6 +489,17 @@ const chosenBase = reviewSource.slice(0, 700).includes('@{upstream}...HEAD') ? h
 check('a published feature whose upstream equals its head is compared with its integration base, not itself', git('diff', `${chosenBase}...HEAD`).includes('+export const counter = 2'))
 check('a missing PR head uses patch-only evidence rather than freezing unrelated HEAD', reviewSource.includes('patch-only') && !reviewSource.includes('set `<head_sha>` to `HEAD`') && reviewSource.includes('`file: "<path>"`') && reviewSource.includes('`page: 0`'))
 
+const { finalizeAgentTool } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
+const { createAssistantMessage } = await import('../../src/utils/messages.ts')
+const missingOutput = createAssistantMessage({ content: [{ type: 'text', text: 'Looks fine overall.' }] as never })
+missingOutput.message.stop_reason = 'end_turn'
+for (const [name, source] of [['deep-research', deepSource], ['code-review', reviewSource]] as const) {
+  const mode = /`schema_mode: "(strict|permissive)"`/.exec(source)?.[1] === 'strict' ? 'strict' : 'permissive'
+  const result = finalizeAgentTool([missingOutput], `missing-${name}`, { prompt: 'Return findings', resolvedAgentModel: 'claude-opus-4-8', isBuiltInAgent: true, startTime: Date.now(), agentType: 'mercury-crew', isAsync: false, structuredSpec: { mode, source: 'dispatch' } })
+  check(`${name}: the prescribed structured launch does not count absent output as completed`, result.outcome?.status === 'failed' && result.structured?.data === undefined, result.outcome)
+}
+check('all review candidates have a batch and a ruling, including beyond three verifier batches', reviewSource.includes('every candidate exactly once') && reviewSource.includes('successive foreground rounds') && reviewSource.includes('missing rulings as `UNPROVEN`'))
+
 const readyLine = captainBrief.split('\n').find(line => line.includes('Captain enrolled; launch the remaining seats.')) ?? ''
 check('the captain posts readiness and the lead waits for that event before launching peers', readyLine.includes('clientOpId: "<team>-ready"') && deepSource.includes('wait for the captain’s ready post'), readyLine)
 const { open: openBoard } = await import('../../src/services/crewBoard/store.ts')
