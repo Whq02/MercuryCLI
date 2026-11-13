@@ -25,10 +25,14 @@ function words(text: string, powershell: boolean): Array<string | { op?: string 
   }) : []
 }
 
-function groups(text: string, powershell: boolean): string[][] {
+function groups(text: string, powershell: boolean, operandEnds?: Map<string[], number>): string[][] {
   const result: string[][] = []
   let group: string[] = []
   for (const word of words(text, powershell)) {
+    if (operandEnds !== undefined && typeof word !== 'string' && ['>', '>>', '>|', '&>', '<', '>&', '<&'].includes(word.op ?? '') && !operandEnds.has(group)) {
+      const descriptor = /^\d+$/.test(group.at(-1) ?? '') && group.slice(1, -1).some(part => !part.startsWith('-'))
+      operandEnds.set(group, group.length - (descriptor ? 1 : 0))
+    }
     if (typeof word === 'string') group.push(word)
     else if (word.op === '>' || word.op === '>>' || word.op === '>|' || word.op === '&>') group.push('>', '')
     else if (word.op === '<') group.push('<', '')
@@ -269,7 +273,7 @@ function expandShellConstants(text: string, powershell: boolean): string {
   })
 }
 
-function expandSubcommands(commands: string[][]): string[][] {
+function expandSubcommands(commands: string[][], operandEnds?: Map<string[], number>): string[][] {
   const out: string[][] = [...commands]
   for (let i = 0; i < commands.length; i++) {
     const argv = commands[i]!
@@ -281,7 +285,13 @@ function expandSubcommands(commands: string[][]): string[][] {
         const roots = argv.slice(1, firstFlag > 0 ? firstFlag : execIdx)
         const sub = argv.slice(execIdx + 1).filter(w => w !== ';' && w !== '\\;' && w !== '+')
         for (const r of roots.length ? roots : ['.']) {
-          out.push(unwrapCommand(sub.map(w => w === '{}' ? r : w.replace(/\{\}/g, r))))
+          const expanded = unwrapCommand(sub.map(w => w === '{}' ? r : w.replace(/\{\}/g, r)))
+          const end = operandEnds?.get(argv)
+          if (end !== undefined) {
+            const prefix = argv.slice(execIdx + 1, end).filter(w => w !== ';' && w !== '\\;' && w !== '+')
+            operandEnds!.set(expanded, unwrapCommand(prefix.map(w => w === '{}' ? r : w.replace(/\{\}/g, r))).length)
+          }
+          out.push(expanded)
         }
       }
     } else if (name === 'xargs') {
@@ -300,7 +310,12 @@ function expandSubcommands(commands: string[][]): string[][] {
         const prevName = verb(prev[0] ?? '')
         if (['echo', 'printf', 'write-output'].includes(prevName)) {
           const piped = prev.slice(1).filter(w => !w.startsWith('-') && !(prevName === 'printf' && w.includes('%')))
-          if (piped.length > 0) out.push(unwrapCommand([...sub, ...piped]))
+          if (piped.length > 0) {
+            const expanded = unwrapCommand([...sub, ...piped])
+            const end = operandEnds?.get(argv)
+            if (end !== undefined) operandEnds!.set(expanded, unwrapCommand(argv.slice(1 + j, end)).length)
+            out.push(expanded)
+          }
         }
       }
     }
@@ -394,7 +409,7 @@ function updateTrackedCwd(argv: string[], cwd: string): string {
 async function walkShellCommands(
   command: string,
   powershell: boolean,
-  visitor: (state: { argv: string[]; commands: string[][]; cwd: string; text: string; powershell: boolean }) => Promise<string | null> | string | null,
+  visitor: (state: { argv: string[]; commands: string[][]; operandEnds: ReadonlyMap<string[], number>; cwd: string; text: string; powershell: boolean }) => Promise<string | null> | string | null,
   cwd: string,
 ): Promise<string | null> {
   const pending = [{ text: command, cwd, powershell }]
@@ -435,18 +450,25 @@ async function walkShellCommands(
         for (const simple of parsed.commands) {
           const argv = unwrapCommand([...simple.argv, ...simple.redirects.flatMap(redirect => ['>', '>>', '>|', '&>', '&>>'].includes(redirect.op) ? ['>', '', redirect.target] : redirect.op === '<' ? ['<', '', redirect.target] : [])])
           cwd = updateTrackedCwd(argv, cwd)
-          const hit = await visitor({ argv, commands: [argv], cwd, text: current.text, powershell: current.powershell })
+          const operandEnds = new Map([[argv, unwrapCommand(simple.argv).length]])
+          const hit = await visitor({ argv, commands: [argv], operandEnds, cwd, text: current.text, powershell: current.powershell })
           if (hit !== null) return hit
         }
       }
     }
     let cwd = current.cwd
     for (const view of views) {
-      const rawCommands = groups(view, current.powershell).map(unwrapCommand)
-      const commands = expandSubcommands(rawCommands)
+      const operandEnds = new Map<string[], number>()
+      const rawCommands = groups(view, current.powershell, operandEnds).map(group => {
+        const argv = unwrapCommand(group)
+        const end = operandEnds.get(group)
+        if (end !== undefined) operandEnds.set(argv, unwrapCommand(group.slice(0, end)).length)
+        return argv
+      })
+      const commands = expandSubcommands(rawCommands, operandEnds)
       for (const argv of commands) {
         cwd = updateTrackedCwd(argv, cwd)
-        const hit = await visitor({ argv, commands, cwd, text: current.text, powershell: current.powershell })
+        const hit = await visitor({ argv, commands, operandEnds, cwd, text: current.text, powershell: current.powershell })
         if (hit !== null) return hit
         const name = verb(argv[0] ?? '')
         if (/^(?:bash|sh|zsh|dash|ksh|pwsh|powershell|cmd)$/.test(name)) {
@@ -1616,14 +1638,14 @@ export async function shellSelfProtectionReason(command: string, powershell = fa
 }
 
 async function namedSelfProtectionReason(command: string, powershell: boolean, cwd: string): Promise<string | null> {
-  return walkShellCommands(command, powershell, async ({ argv, commands, cwd, text, powershell: ps }) => {
+  return walkShellCommands(command, powershell, async ({ argv, commands, operandEnds, cwd, text, powershell: ps }) => {
     if (ps) {
       for (const call of text.matchAll(/(?:^|[;\n])\s*\[(?:System\.)?IO\.(?:File|Directory)\]::(?:WriteAllText|WriteAllBytes|AppendAllText|AppendAllLines|Delete|Move|Create|OpenWrite)\s*\(\s*(['"])([^'"\r\n]+)\1/gi)) {
         const hit = runtimeWritePath(call[2]!, cwd, true)
         if (hit) return 'Changing ' + call[2] + ' is refused: ' + hit + ' is part of Mercury’s running runtime.'
       }
     }
-    const processReason = await runtimeProcessRefusal(commands)
+    const processReason = await runtimeProcessRefusal(commands, operandEnds)
     if (processReason) return processReason
     for (const target of runtimeOperands(argv, ps)) {
       const hit = runtimeWritePath(target.path, cwd, target.removesTree)

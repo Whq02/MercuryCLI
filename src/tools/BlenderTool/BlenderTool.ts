@@ -148,12 +148,13 @@ async function shownAfter(
   entries: readonly ShowEntry[],
   before: ReturnType<typeof stampShown>,
   trace: RoadTrace,
+  readDenied: (file: string) => string | undefined,
 ): Promise<ShownPart[]> {
   if (entries.length === 0 || trace.road === undefined) return []
   if (input.op === 'render_still' && trace.road === 'bridge') {
     return trace.taken ? [{ kind: 'note', text: `show: the picture is not written yet; it will land at ${showTargets(entries)[0]}` }] : []
   }
-  return readShown(entries, before)
+  return readShown(entries, before, readDenied)
 }
 
 function showNamed(entries: readonly ShowEntry[], cap = 160): string {
@@ -204,17 +205,25 @@ function scriptCallShown(args: Record<string, unknown> | undefined, cap = 160): 
 function scriptAsBridgeSource(script: string, argv: string[]): string {
   return [
     'def _mercury_run_script():',
-    '    import sys',
+    '    import sys, types',
     `    script = ${JSON.stringify(script)}`,
     '    saved = sys.argv',
-    `    sys.argv = [saved[0] if saved else "blender", "--python", script, "--"] + ${JSON.stringify(argv)}`,
-    '    names = {"__name__": "__main__", "__file__": script}',
+    '    saved_main = sys.modules.get("__main__")',
+    '    main = types.ModuleType("__main__")',
+    '    main.__file__ = script',
+    '    names = main.__dict__',
     '    try:',
+    `        sys.argv = [saved[0] if saved else "blender", "--python", script, "--"] + ${JSON.stringify(argv)}`,
+    '        sys.modules["__main__"] = main',
     '        with open(script, "rb") as handle:',
     '            code = compile(handle.read(), script, "exec")',
     '        exec(code, names)',
     '    finally:',
     '        sys.argv = saved',
+    '        if saved_main is None:',
+    '            sys.modules.pop("__main__", None)',
+    '        else:',
+    '            sys.modules["__main__"] = saved_main',
     '    return names',
     'try:',
     '    _mercury_script_names = _mercury_run_script()',
@@ -437,7 +446,12 @@ export const BlenderTool = buildTool({
     } catch (err) {
       result = `${input.op} failed: ${(err as Error).message}\nhint: ${blenderBridgeHint(blenderBridgePort())}`
     }
-    const shown = await shownAfter(input, entries, before, trace)
+    const shown = await shownAfter(input, entries, before, trace, target => {
+      const permission = context?.getAppState?.().toolPermissionContext
+      if (permission === undefined) return undefined
+      const read = checkReadPermissionForTool({ name: BLENDER_TOOL_NAME, getPath: () => target }, input, permission)
+      return read.behavior === 'deny' ? read.message : undefined
+    })
     const output: Output = { op: input.op, result, ...(shown.length > 0 ? { shown } : {}) }
     return { data: output }
   },

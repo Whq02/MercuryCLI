@@ -226,6 +226,86 @@ console.log('a frame render_still is asked to show is a file the tool opens: the
   check('with no show, show: false, or a show that is not true, the same render asks exactly as it does with no rules at hand', moved.length === 0, moved.join(' | '))
 }
 
+console.log('a show path is checked again after the operation, when a new link may name a denied picture')
+{
+  const permission = inMode('sovereign', deny('Read(secret/**)'))
+  const linked = join(project, 'open/after.png')
+  const partsOf = (data: unknown): Array<{ type: string; text?: string }> => {
+    const block = (BlenderTool as { mapToolResultToToolResultBlockParam: Function }).mapToolResultToToolResultBlockParam(data, 'toolu_after') as { content: unknown }
+    return Array.isArray(block.content) ? block.content : []
+  }
+  const input = { op: 'python_run', args: { source: 'import os\nos.symlink("../secret/sheet.png", "open/after.png")\nprint("SCRIPT_FINISHED")', show: ['open/after.png', 'open/sheet.png'] } }
+  const before = (await decideToolPermission(BlenderTool, input, context(permission))).decision as Verdict
+  const ran = await (BlenderTool as { call: Function }).call(input, context(permission))
+  settle()
+  const after = directRead(linked, permission)
+  const parts = partsOf(ran.data)
+  check('headless: the missing show path allows the call, the script finishes, and a direct Read of its new link is denied', before.behavior === 'allow' && ran.data.result.includes('SCRIPT_FINISHED') && after.behavior === 'deny', JSON.stringify({ before: before.behavior, after: after.behavior }))
+  check('headless: the rule\'s own denial replaces that picture, while the script answer and allowed picture beside it survive', parts.map(part => part.type).join(',') === 'text,text,text,image' && parts[0]?.text === ran.data.result && parts[1]?.text === after.message, JSON.stringify(parts.map(part => part.type)))
+  rmSync(linked)
+  settle()
+
+  const sockets = new Set<net.Socket>()
+  const { BLENDER_BRIDGE_PROTOCOL_VERSION } = await import(`${SRC}/services/blender/bridgeProtocol.ts`)
+  const server = net.createServer(socket => {
+    sockets.add(socket)
+    socket.on('close', () => sockets.delete(socket))
+    let buffer = ''
+    socket.on('data', chunk => {
+      buffer += chunk.toString('utf8')
+      let newline: number
+      while ((newline = buffer.indexOf('\n')) >= 0) {
+        const frame = JSON.parse(buffer.slice(0, newline)) as { id?: number; op: string }
+        buffer = buffer.slice(newline + 1)
+        if (frame.op === 'hello') socket.write(JSON.stringify({ ok: true, result: { version: BLENDER_BRIDGE_PROTOCOL_VERSION } }) + '\n')
+        else {
+          if (frame.op === 'python_run') symlinkSync('../secret/sheet.png', linked)
+          socket.write(JSON.stringify({ id: frame.id, ok: true, result: 'BRIDGE_FINISHED' }) + '\n')
+        }
+      }
+    })
+  })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  process.env.MERCURY_BLENDER_BRIDGE_PORT = String((server.address() as net.AddressInfo).port)
+  process.env.MERCURY_BLENDER_BRIDGE_TOKEN = 'tok'
+  resetBlenderBridgeClientForTest()
+  try {
+    fixture.clearInvocations()
+    const accepted = (await decideToolPermission(BlenderTool, input, context(permission))).decision as Verdict
+    const reply = await (BlenderTool as { call: Function }).call(input, context(permission))
+    settle()
+    const read = directRead(linked, permission)
+    const shown = partsOf(reply.data)
+    check('bridge: the absent path allows the call, the bridge creates the link and answers, and no Blender starts', accepted.behavior === 'allow' && reply.data.result.includes('road: bridge') && reply.data.result.includes('BRIDGE_FINISHED') && fixture.invocations().length === 0 && read.behavior === 'deny', JSON.stringify({ accepted: accepted.behavior, read: read.behavior }))
+    check('bridge: the same denial replaces the linked picture, not the answer or the allowed picture', shown.map(part => part.type).join(',') === 'text,text,text,image' && shown[0]?.text === reply.data.result && shown[1]?.text === read.message, JSON.stringify(shown.map(part => part.type)))
+  } finally {
+    resetBlenderBridgeClientForTest()
+    for (const socket of sockets) socket.destroy()
+    await new Promise<void>(resolve => server.close(() => resolve()))
+    process.env.MERCURY_BLENDER_BRIDGE_PORT = String(deadPort)
+    delete process.env.MERCURY_BLENDER_BRIDGE_TOKEN
+    rmSync(linked, { force: true })
+    settle()
+  }
+
+  const render = { op: 'render_still', args: { blend: 'open/unit.blend', outputPath: 'open/after.png', show: true } }
+  const accepted = (await decideToolPermission(BlenderTool, render, context(permission))).decision as Verdict
+  symlinkSync('../secret/sheet.png', linked)
+  process.env.FAKE_BLENDER_RENDER_PNG = '2x2'
+  try {
+    const reply = await (BlenderTool as { call: Function }).call(render, context(permission))
+    settle()
+    const read = directRead(linked, permission)
+    const shown = partsOf(reply.data)
+    check('render: a path replaced after permission still renders and answers, and the final path is denied to Read', accepted.behavior === 'allow' && reply.data.result.includes('"finished": true') && read.behavior === 'deny', JSON.stringify({ accepted: accepted.behavior, read: read.behavior, answer: reply.data.result }))
+    check('render: show returns the render answer and the rule\'s denial, never the denied frame', shown.map(part => part.type).join(',') === 'text,text' && shown[0]?.text === reply.data.result && shown[1]?.text === read.message, JSON.stringify(shown.map(part => part.type)))
+  } finally {
+    delete process.env.FAKE_BLENDER_RENDER_PNG
+    rmSync(linked, { force: true })
+    settle()
+  }
+}
+
 console.log('the neighbours are opened as before')
 {
   const wrong: string[] = []

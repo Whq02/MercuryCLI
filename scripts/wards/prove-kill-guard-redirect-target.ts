@@ -95,6 +95,17 @@ for (const [command, names] of [
   check(`refused: ${command}`, answered !== null && answered.includes(names) && answered.includes(' is refused'), answered ?? 'not refused')
 }
 
+section('quoted redirect words and an empty quoted operand are arguments, with or without a real redirect later')
+for (const literal of ['>', '<']) {
+  for (const suffix of ['', ' 2>/dev/null']) {
+    const byPattern = await reason(`pkill -f '${literal}' '' ${OWN_WORD}${suffix}`)
+    check(`a quoted ${literal} and empty operand do not hide the protected pattern${suffix}`, byPattern !== null && byPattern.includes(`Killing by image ${OWN_WORD} is refused`), byPattern ?? 'not refused')
+    const executable = process.execPath.split(/[\\/]/).at(-1)!
+    const byName = await reason(`killall '${literal}' '' ${executable}${suffix}`)
+    check(`a quoted ${literal} and empty operand do not hide the protected executable${suffix}`, byName !== null && byName.includes(`Killing by image ${executable} is refused`), byName ?? 'not refused')
+  }
+}
+
 section('C. the body of a quoted here-document is data: words in it that spell a kill are not read as one')
 {
   const prose = `cat >> notes.md <<'EOF'\nthe session ran: pkill -f ${OWN_WORD} 2>/dev/null\nand then: killall -u $USER\nEOF`

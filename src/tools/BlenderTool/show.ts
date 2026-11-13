@@ -80,10 +80,15 @@ function isPicture(file: string): boolean {
   }
 }
 
-export async function readShown(entries: readonly ShowEntry[], before: readonly FileStamp[]): Promise<ShownPart[]> {
+export async function readShown(entries: readonly ShowEntry[], before: readonly FileStamp[], readDenied: (file: string) => string | undefined): Promise<ShownPart[]> {
   const parts: ShownPart[] = []
   const files = showTargets(entries.slice(0, SHOWN_AT_MOST))
   for (const [index, file] of files.entries()) {
+    const denial = readDenied(file)
+    if (denial !== undefined) {
+      parts.push({ kind: 'note', text: denial })
+      continue
+    }
     const entry = entries[index]!
     const after = stampOf(file)
     if (after === null) {
