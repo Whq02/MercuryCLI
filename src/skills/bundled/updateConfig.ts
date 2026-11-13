@@ -48,7 +48,7 @@ const HOOK_CONSTRUCTION_FLOW = `## Building and proving a hook
 1. Read the target settings file first. If a hook already matches the same event and target, ask the user whether to replace it or add beside it.
 2. Inspect the repository's package manager and tooling rather than guessing. Extract stdin fields into quoted variables (\`f=$(jq -r .input.file_path)\`, then \`"$f"\`), never unquoted word-splitting. End \`run\` commands with \`; true\` unless non-blocking failures should surface as hook errors on every fire (any exit other than 0 or 2 is reported).
 3. Pipe-test before saving: pipe a sample event JSON payload to the command and verify both exit code and side effect (exit 2 blocks the event, so a formatter exiting 2 on unformatted code would block edits).
-4. Merge into existing JSON, extending hook arrays without dropping other hooks or keys. If creating \`.mercury/settings.local.json\` directly, add it to gitignore (Mercury gitignores it automatically only when its own writer creates it).
+4. Merge into existing JSON, extending hook arrays without dropping other hooks or keys. If creating .mercury/settings.local.json directly, add it to gitignore (Mercury gitignores it automatically only when its own writer creates it).
 5. Validate JSON syntax (\`jq . <file>\`) and check against the generated schema below. Unparseable files at startup drop out of the merge; mid-session parse errors keep the last valid settings and surface once.
 6. Prove live firing: add a temporary sentinel (\`echo x >> <scratch>/hook-proof\`) or observable transform, trigger the event once, verify, and remove the sentinel regardless of outcome.
 7. If pipe-test passed but live firing did not, check \`/hooks\`: project/local hooks stay off in untrusted workspaces, \`events.disabled\` or \`events.managedOnly\` may apply, or the file-watcher settle window has not elapsed.
@@ -59,9 +59,9 @@ const FULL_PROMPT = `Configure Mercury through its settings files.
 Event-driven automation ("after every edit…", "when a session starts…", "before bash…") requires a hook in settings; memory and instruction files never execute commands. Map format-on-write to \`tool.after\`, command logging to \`tool.before\`, end-of-turn notices to \`turn.answer\` or \`turn.end\`, and session attention alerts to \`session.state\`.
 
 ## Settings layers (lowest to highest priority)
-- \`user\`: \`<config-home>/settings.json\` (\`~/.mercury\`, or \`MERCURY_CONFIG_DIR\`) — all projects.
-- \`project\`: \`.mercury/settings.json\` — committed, shared.
-- \`local\`: \`.mercury/settings.local.json\` — personal, gitignored.
+- \`user\`: <config-home>/settings.json (~/.mercury, or \`MERCURY_CONFIG_DIR\`) — all projects.
+- \`project\`: .mercury/settings.json — committed, shared.
+- \`local\`: .mercury/settings.local.json — personal, gitignored.
 - \`flag\` / \`managed\`: CLI settings file and \`managed-settings.json\` + drop-ins — policy, do not edit here.
 Merge rule: objects deep-merge (later wins); arrays concatenate and de-duplicate (project \`allow\` adds to user \`allow\`, never subtracts). Edits hot-apply via file watcher.
 
