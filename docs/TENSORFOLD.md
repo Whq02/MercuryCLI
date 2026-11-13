@@ -161,8 +161,10 @@ For `qwen3_5` checkpoints where prompt caching is opt-in (`Qwen3.5 2B` and
 other non-27B `qwen3_5` checkpoints), Mercury passes `--prompt-cache-gib 1` and
 includes that 1 GiB in the memory projection (`service   tensorfold · started by Mercury · prompt cache 1 GiB`).
 For `Qwen3.8 27B` and `Nemotron Lightning`, Mercury omits `--prompt-cache-gib`
-so TensorFold allocates its prompt cache from the room remaining under its
-70%-of-RAM cap (`prompt cache ≤16 GiB`). If TensorFold refuses an explicit
+so TensorFold sizes its prompt cache from the room remaining under its
+70%-of-RAM cap: all of it up to 16 GiB, and half of it where more than 32 GiB
+remains (`prompt cache ≤16 GiB`, a larger figure on a machine with that much
+room). If TensorFold refuses an explicit
 `--prompt-cache-gib` budget because it would cross 70% of system memory, the
 next start leaves the prompt cache to the engine default.
 

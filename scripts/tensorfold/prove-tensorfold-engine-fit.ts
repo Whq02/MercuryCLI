@@ -103,6 +103,18 @@ section('fit: the floor, the ladder, every verdict an estimate')
   const parts = l27[2]!.fit.parts!
   check('the memory parts at 128k: weights 15 + drafter 3.6 + cache 8 + runtime 2, the prompt cache capped at 16', parts.weightsGib.toFixed(0) === '15' && parts.drafterGib!.toFixed(1) === '3.6' && parts.cacheGib === 8 && parts.runtimeGib === 2 && parts.promptCacheCapGib === 16 && parts.promptCacheGib === undefined, JSON.stringify(parts))
   check('every verdict is labelled an estimate', l27.every(rung => rung.fit.estimate === true))
+  const mac = (ramGb: number): typeof MAC_48 => ({ ...MAC_48, ramBytes: ramGb * GIB, usableBytes: Math.round(ramGb * GIB * 0.75), chip: 'Apple M5 Max' })
+  const capOf = (point: typeof QWEN_27B, machine: typeof MAC_48, window: number): number | undefined => fit.tensorFoldLadder(point, machine).find(rung => rung.window === window)?.fit.parts?.promptCacheCapGib
+  const caps64 = [capOf(QWEN_27B, MAC_32, 32_768), capOf(NEMOTRON_LIGHTNING, MAC_48, 262_144), capOf(QWEN_27B, MAC_48, 262_144), capOf(QWEN_27B, mac(64), 131_072), capOf(QWEN_27B, mac(64), 262_144), capOf(NEMOTRON_LIGHTNING, mac(64), 131_072), capOf(NEMOTRON_LIGHTNING, mac(64), 262_144)]
+  check("the ceiling of the engine's default prompt cache stays 16 GiB on every Mac up to 64 GB: under 70% of RAM no more than 32 GiB is left past the projection (the 27B at 128k on 64 GB leaves 16.3, Lightning at 128k 24.8), and where the projection passes the cap", caps64.every(cap => cap === 16), JSON.stringify(caps64))
+  const caps128 = [capOf(NEMOTRON_LIGHTNING, mac(128), 262_144), capOf(QWEN_27B, mac(128), 262_144)]
+  check("a 128 GB Mac: half the room past the projection, rounded up to a tenth — Lightning at 256k ≤34.5 GiB (68.85 GiB of room; TensorFold's own test of 1.2.7 keeps 34.425 GiB for its Nemotron server holding 18.75 GiB on a 128 GB Mac, where 1.2.5 kept 16) and the 27B at 256k ≤26.6 GiB (53.1 of room)", caps128[0] === 34.5 && caps128[1] === 26.6, JSON.stringify(caps128))
+  const caps96 = [capOf(NEMOTRON_LIGHTNING, mac(96), 262_144), capOf(QWEN_27B, mac(96), 131_072), capOf(QWEN_27B, mac(96), 262_144)]
+  check('a 96 GB Mac: Lightning at 256k ≤23.3 GiB (46.4 of room), the 27B at 128k ≤19.4 GiB (38.7), and the 27B at 256k still 16 (30.7 of room is under 32)', caps96[0] === 23.3 && caps96[1] === 19.4 && caps96[2] === 16, JSON.stringify(caps96))
+  const card96: typeof RTX_4090 = { ...RTX_4090, usableBytes: 93 * GIB, chip: 'NVIDIA RTX PRO 6000', gpu: { name: 'NVIDIA RTX PRO 6000', memoryBytes: 96 * GIB, driver: '580.95', cuda: '13' } }
+  const capsCuda = [capOf(NEMOTRON_LIGHTNING, RTX_4090, 262_144), capOf(QWEN_27B, RTX_4090, 32_768), capOf(NEMOTRON_LIGHTNING, card96, 262_144)]
+  check("on Linux the room is the card's: an RTX 4090 keeps 16, and a 96 GiB card (93.0 usable) serving Lightning at 256k reads ≤37.2 GiB (74.2 GiB past the weights and one stream)", capsCuda[0] === 16 && capsCuda[1] === 16 && capsCuda[2] === 37.2, JSON.stringify(capsCuda))
+  check('a checkpoint served with an explicit budget (the 2B, 1 GiB) carries no ceiling on any machine', fit.tensorFoldLadder(QWEN_2B, mac(128)).every(rung => rung.fit.parts?.promptCacheCapGib === undefined && rung.fit.parts?.promptCacheGib === 1))
   const l2b = fit.tensorFoldLadder(QWEN_2B, MAC_48)
   check('the 2B: 256k fits at 7.6 GiB (weights 1.6 + cache 3 + prompt cache 1 + runtime 2)', fit.chosenTensorFoldWindow(l2b) === 262_144 && gib1(l2b[3]!.fit.neededGib * GIB) === '7.6' && l2b[3]!.fit.parts!.promptCacheGib === 1 && l2b[3]!.fit.parts!.cacheGib === 3, JSON.stringify(l2b[3]))
   const lightning = fit.tensorFoldLadder(NEMOTRON_LIGHTNING, MAC_48)
