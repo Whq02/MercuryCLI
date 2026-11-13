@@ -1,4 +1,3 @@
-import { readFile } from 'node:fs/promises'
 
 import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
 import { formatOutput } from '../tools/BashTool/utils.js'
@@ -13,6 +12,7 @@ import type {
 } from '../types/notebook.js'
 import type { ContentBlockParam, ImageBlockParam, TextBlockParam, ToolResultBlockParam } from '../types/wire.js'
 import { expandPath } from './path.js'
+import { readRegularFile } from './regularFile.js'
 
 
 const LARGE_OUTPUT_THRESHOLD = 10_000
@@ -97,7 +97,7 @@ function processCell(cell: NotebookCell, index: number, language: string, includ
 
 export async function readNotebook(notebookPath: string, cellId?: string): Promise<NotebookCellSource[]> {
   const absolute = expandPath(notebookPath)
-  const bytes = await readFile(absolute)
+  const bytes = await readRegularFile(absolute)
   const notebook = JSON.parse(bytes.toString('utf8')) as NotebookContent
   const language = notebook.metadata?.language_info?.name ?? DEFAULT_LANGUAGE
   const cells = notebook.cells ?? []

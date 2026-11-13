@@ -1,5 +1,6 @@
 
-import { closeSync, constants, fstatSync, openSync, readSync, statSync } from 'node:fs'
+import { closeSync, readSync, statSync } from 'node:fs'
+import { openRegularFileSync } from '../../utils/regularFile.js'
 import { ideFileGeneration } from '../acp/ideToolBridge.js'
 import { runtimeKernel } from '../primitives/runtimeKernel.js'
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
@@ -73,14 +74,14 @@ function isRegularFileWithinBound(st: { isFile(): boolean; size: number }): bool
 
 function readRegularFile(path: string, onlyOfSize?: number): { generation: string; bytes: Buffer } | null {
   try {
-    if (!isRegularFileWithinBound(statSync(path))) return null
-    const fd = openSync(path, constants.O_RDONLY | constants.O_NONBLOCK)
+    const early = statSync(path)
+    if (!isRegularFileWithinBound(early)) return null
+    const { fd, stats } = openRegularFileSync(path, early)
     try {
-      const st = fstatSync(fd)
-      if (!isRegularFileWithinBound(st)) return null
-      if (onlyOfSize !== undefined && st.size !== onlyOfSize) return null
-      const bytes = readOpenFile(fd, st.size)
-      return bytes === null ? null : { generation: `${generationOf(st)}:${contentDigestOf(bytes)}`, bytes }
+      if (!isRegularFileWithinBound(stats)) return null
+      if (onlyOfSize !== undefined && stats.size !== onlyOfSize) return null
+      const bytes = readOpenFile(fd, stats.size)
+      return bytes === null ? null : { generation: `${generationOf(stats)}:${contentDigestOf(bytes)}`, bytes }
     } finally {
       closeSync(fd)
     }

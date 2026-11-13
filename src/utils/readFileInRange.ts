@@ -1,6 +1,7 @@
-import { open, readFile, stat } from 'node:fs/promises'
+import { stat, type FileHandle } from 'node:fs/promises'
 
 import { formatFileSize } from './format.js'
+import { openRegularFile } from './regularFile.js'
 
 
 export type ReadFileRangeResult = {
@@ -101,21 +102,34 @@ export async function readFileInRange(
 ): Promise<ReadFileRangeResult> {
   if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new Error('Read aborted')
   const truncateMode = options.truncateOnByteLimit === true
-  const stats = await stat(filePath)
-  if (stats.isDirectory()) {
+  const early = await stat(filePath)
+  if (early.isDirectory()) {
     throw new Error(`EISDIR: illegal operation on a directory, read '${filePath}'`)
   }
-  if (stats.isFile() && stats.size < FAST_PATH_MAX_BYTES) {
-    if (!truncateMode && maxBytes !== undefined && stats.size > maxBytes) {
-      throw new FileTooLargeError(stats.size, maxBytes)
+  const refusedForSize = (size: number): FileTooLargeError | null =>
+    !truncateMode && maxBytes !== undefined && size < FAST_PATH_MAX_BYTES && size > maxBytes ? new FileTooLargeError(size, maxBytes) : null
+  const earlyRefusal = early.isFile() ? refusedForSize(early.size) : null
+  if (earlyRefusal !== null) throw earlyRefusal
+  const { handle, stats } = await openRegularFile(filePath, early)
+  let streamed = false
+  try {
+    if (stats.isDirectory()) {
+      throw new Error(`EISDIR: illegal operation on a directory, read '${filePath}'`)
     }
-    const text = decodeWhole(await readFile(filePath, signal ? { signal } : {}))
-    if (truncateMode && maxBytes !== undefined) {
-      return truncateSelect(stripBom(text).split('\n'), offset, maxLines, maxBytes, stats.mtimeMs, stats.size, text.endsWith('\n'))
+    if (stats.size < FAST_PATH_MAX_BYTES) {
+      const refusal = refusedForSize(stats.size)
+      if (refusal !== null) throw refusal
+      const text = decodeWhole(await handle.readFile(signal ? { signal } : {}))
+      if (truncateMode && maxBytes !== undefined) {
+        return truncateSelect(stripBom(text).split('\n'), offset, maxLines, maxBytes, stats.mtimeMs, stats.size, text.endsWith('\n'))
+      }
+      return fastPath(text, offset, maxLines, stats.mtimeMs, stats.size)
     }
-    return fastPath(text, offset, maxLines, stats.mtimeMs, stats.size)
+    streamed = true
+    return await streamingPath(handle, stats.mtimeMs, offset, maxLines, maxBytes, signal, truncateMode, stats.size)
+  } finally {
+    if (!streamed) await handle.close().catch(() => undefined)
   }
-  return streamingPath(filePath, offset, maxLines, maxBytes, signal, truncateMode, stats.size)
 }
 
 function truncateSelect(
@@ -156,7 +170,8 @@ function truncateSelect(
 }
 
 async function streamingPath(
-  filePath: string,
+  handle: FileHandle,
+  mtimeMs: number,
   offset: number,
   maxLines: number | undefined,
   maxBytes: number | undefined,
@@ -164,11 +179,6 @@ async function streamingPath(
   truncateMode: boolean,
   statSizeBytes?: number,
 ): Promise<ReadFileRangeResult> {
-  const handle = await open(filePath, 'r')
-  const mtimePromise = handle
-    .stat()
-    .then(stats => stats.mtimeMs)
-    .catch(() => 0)
   const lead = Buffer.alloc(2)
   const { bytesRead: leadRead } = await handle.read(lead, 0, 2, 0)
   const encoding = encodingForLeadingBytes(leadRead > 0 ? lead[0] : undefined, leadRead > 1 ? lead[1] : undefined)
@@ -243,17 +253,15 @@ async function streamingPath(
     stream.on('end', () => {
       acceptLine(carried)
       const content = selected.join('\n')
-      void mtimePromise.then(mtimeMs => {
-        resolve({
-          content,
-          lineCount: selected.length,
-          totalLines: lineIndex,
-          totalBytes: streamedBytes,
-          readBytes: selectedBytes,
-          mtimeMs,
-          endsWithNewline,
-          ...(truncated ? { truncatedByBytes: true } : {}),
-        })
+      resolve({
+        content,
+        lineCount: selected.length,
+        totalLines: lineIndex,
+        totalBytes: streamedBytes,
+        readBytes: selectedBytes,
+        mtimeMs,
+        endsWithNewline,
+        ...(truncated ? { truncatedByBytes: true } : {}),
       })
     })
   })

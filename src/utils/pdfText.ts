@@ -7,6 +7,7 @@ import { Worker } from 'node:worker_threads'
 import { logForDebugging } from './debug.js'
 import { PDF_MAX_EXTRACT_SIZE } from '../constants/apiLimits.js'
 import { normaliseForMatch } from './text/normaliseForMatch.js'
+import { readRegularFile } from './regularFile.js'
 import { ensureToolResultsDir, getToolResultsDir } from './toolResultStorage.js'
 
 interface PdfTextPage {
@@ -71,7 +72,7 @@ export async function extractPdfText(filePath: string, options: { maxBytes?: num
   const info = await stat(filePath)
   if (!info.isFile()) throw new Error(`Not a regular file: ${filePath}`)
   if (info.size > max) throw new Error(`${filePath}: PDF exceeds the ${max}-byte text limit. Split it into smaller PDFs and read one at a time.`)
-  const bytes = await readFile(filePath, { signal: options.signal })
+  const bytes = await readRegularFile(filePath, options.signal, info)
   const digest = createHash('sha256').update(bytes).digest('hex')
   const path = join(getToolResultsDir(), `pdf-text-6.4.299-v4-${digest}.json`)
   try {

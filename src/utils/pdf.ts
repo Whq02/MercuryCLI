@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { readdir, readFile, rm, stat } from 'node:fs/promises'
+import { readdir, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -7,6 +7,7 @@ import { PDF_MAX_EXTRACT_SIZE, PDF_TARGET_RAW_SIZE } from '../constants/apiLimit
 import { execFileNoThrow } from './execFileNoThrow.js'
 import { formatFileSize } from './format.js'
 import { getFsImplementation } from './fsOperations.js'
+import { readRegularFile } from './regularFile.js'
 
 
 type PDFError = {
@@ -39,7 +40,7 @@ export async function readPDF(
     if (stats.size > PDF_TARGET_RAW_SIZE) {
       return fail('too_large', `The PDF file exceeds the ${formatFileSize(PDF_TARGET_RAW_SIZE)} limit for inline reading.`)
     }
-    const bytes = await readFile(filePath)
+    const bytes = await readRegularFile(filePath, undefined, stats)
     if (bytes.subarray(0, PDF_MAGIC.length).toString('ascii') !== PDF_MAGIC) {
       return fail('corrupted', `The file is not a valid PDF (missing the %PDF- header): ${filePath}`)
     }
