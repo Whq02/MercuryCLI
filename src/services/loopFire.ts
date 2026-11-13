@@ -3,7 +3,6 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { getProjectRoot } from '../bootstrap/state.js'
 import { MONITOR_TOOL_NAME } from '../tools/MonitorTool/constants.js'
-import { TASK_LIST_TOOL_NAME } from '../tools/TaskListTool/constants.js'
 import { TASK_STOP_TOOL_NAME } from '../tools/TaskStopTool/prompt.js'
 import { SCHEDULE_WAKEUP_TOOL_NAME } from '../tools/ScheduleWakeupTool/prompt.js'
 import { getMercuryHome, isEnvTruthy } from '../utils/envUtils.js'
@@ -62,15 +61,15 @@ function awayHintEnabled(): boolean {
 
 const PREAMBLE_STANDARD = `# Autonomous loop
 
-You are running an autonomous loop with no fixed task list. Each tick, do the most useful next thing for the current project: triage failing tests or CI, pick up the next item on an in-flight plan, review open diffs, or otherwise advance whatever work is in front of you. Keep each tick small and self-contained — finish one concrete unit, leave the tree in a clean state, and let the next tick continue.
+You are running an autonomous loop with no fixed task list. Each tick, advance the most useful next unit for this project (triage failing tests or CI, take the next in-flight plan item, review open diffs), keeping each tick small and leaving the tree clean.
 
-If there is genuinely nothing to do this tick, say so briefly and end the tick — do not invent busywork.`
+If nothing needs doing this tick, say so briefly and end the tick without inventing busywork.`
 
 const PREAMBLE_PERSISTENT = `# Autonomous loop (persistent)
 
-You are running a persistent autonomous loop with no fixed task list. Each tick, do the most useful next thing for the current project and keep the loop alive across ticks: triage failing tests or CI, advance an in-flight plan, review open diffs, or otherwise move the work forward. Keep each tick small and self-contained — finish one concrete unit and leave the tree clean for the next tick.
+You are running a persistent autonomous loop with no fixed task list. Each tick, advance the most useful next unit for this project (triage failing tests or CI, advance an in-flight plan, review open diffs), keeping each tick small and leaving the tree clean for the next tick.
 
-This loop is meant to keep running. End it only when you are newly blocked on a decision you cannot make alone, or the user tells you to stop. If a single tick has nothing to do, end that tick briefly and wait for the next — do not end the whole loop.`
+End the loop only when newly blocked on a decision you cannot make alone or when the user tells you to stop; an idle tick ends briefly and waits for the next.`
 
 export function getAutonomousLoopPreamble(): string {
   return isLoopPersistentPreambleEnabled() ? PREAMBLE_PERSISTENT : PREAMBLE_STANDARD
@@ -89,22 +88,22 @@ function sendMessageOutcomeHint(isLoopFileMode = false): string {
   return `\n\nSay so in one line of your reply when the loop can't move further without the user, or when something landed that they'd want to act on now: ${endCondition}, or a major update arrived (CI went red, a review changes the plan). Progress you made yourself isn't a trigger — the transcript covers that. One ping per state, not per tick.`
 }
 
-const DYNAMIC_PACING_FOOTER = `\n\nIf the next tick is gated on an event, prefer a ${MONITOR_TOOL_NAME} watch on the log/process/command (or, for watches it doesn't fit, a long-running \`run_in_background\` Bash task — check ${TASK_LIST_TOOL_NAME}): its events arrive as \`<task-notification>\` messages and wake this loop immediately, so keep \`delaySeconds\` at 1200–1800s — the watch is your wake signal and this is only the fallback heartbeat. If you were woken by a \`<task-notification>\`, handle the event before rescheduling. To stop the loop, also ${TASK_STOP_TOOL_NAME} that watch (use ${TASK_LIST_TOOL_NAME} to find its task ID if it is no longer in context).`
+const DYNAMIC_PACING_FOOTER = `\n\nIf the next tick waits on an event, arm one ${MONITOR_TOOL_NAME} watch with \`persistent: true\` (or a \`run_in_background\` shell task when ${MONITOR_TOOL_NAME} cannot express it; keep the \`taskId\` from launch or read \`mercury://execution\`, never re-arming an active watch): events arrive as \`<task-notification>\` messages and wake the loop early, so set \`delaySeconds\` to 1200–1800s as a fallback heartbeat. On a \`<task-notification>\` wake, handle the event before rescheduling. To stop the loop, also call ${TASK_STOP_TOOL_NAME} on that watch (\`taskId\` from launch or \`mercury://execution\`).`
 
 
 const rescheduleReminder = (sentinel: string): string =>
-  `You scheduled this tick via the ${SCHEDULE_WAKEUP_TOOL_NAME} tool (not a recurring cron). To keep the loop alive, call ${SCHEDULE_WAKEUP_TOOL_NAME} again at the end of this turn with \`prompt\` set to the literal sentinel \`${sentinel}\` — otherwise the loop ends after this tick.`
+  `Scheduled via ${SCHEDULE_WAKEUP_TOOL_NAME} (one-shot, not cron): call ${SCHEDULE_WAKEUP_TOOL_NAME} again at the end of this turn with \`prompt\` = \`${sentinel}\`, or the loop ends after this tick.`
 
 function autonomousFixedTick(): string {
   return `# Autonomous loop tick
 
-Run the autonomous check using the loop instructions established earlier in this conversation. If you cannot find them, treat this as a no-op tick. The recurring cron will fire the next tick automatically — do not call ${SCHEDULE_WAKEUP_TOOL_NAME} from this tick.${sendMessageOutcomeHint()}`
+Run the autonomous check from the loop instructions earlier in this conversation (no-op if absent). The recurring cron fires the next tick — do not call ${SCHEDULE_WAKEUP_TOOL_NAME}.${sendMessageOutcomeHint()}`
 }
 
 function autonomousDynamicTick(): string {
   return `# Autonomous loop tick (dynamic pacing)
 
-Run the autonomous check using the loop instructions established earlier in this conversation. If you cannot find them, treat this as a no-op tick.
+Run the autonomous check from the loop instructions earlier in this conversation (no-op if absent).
 
 ${rescheduleReminder(AUTONOMOUS_LOOP_DYNAMIC_SENTINEL)}${DYNAMIC_PACING_FOOTER}${sendMessageOutcomeHint()}`
 }
@@ -112,13 +111,13 @@ ${rescheduleReminder(AUTONOMOUS_LOOP_DYNAMIC_SENTINEL)}${DYNAMIC_PACING_FOOTER}$
 function loopFileFixedTick(): string {
   return `# /loop tick — loop.md tasks
 
-Work the tasks from the loop.md contents established earlier in this conversation. If you cannot find them, treat this as a no-op tick. The recurring cron will fire the next tick automatically — do not call ${SCHEDULE_WAKEUP_TOOL_NAME} from this tick.${sendMessageOutcomeHint(true)}`
+Work the tasks from loop.md earlier in this conversation (no-op if absent). The recurring cron fires the next tick — do not call ${SCHEDULE_WAKEUP_TOOL_NAME}.${sendMessageOutcomeHint(true)}`
 }
 
 function loopFileDynamicTick(): string {
   return `# /loop tick — loop.md tasks (dynamic pacing)
 
-Work the tasks from the loop.md contents established earlier in this conversation. If you cannot find them, treat this as a no-op tick.
+Work the tasks from loop.md earlier in this conversation (no-op if absent).
 
 ${rescheduleReminder(LOOP_FILE_DYNAMIC_SENTINEL)}${DYNAMIC_PACING_FOOTER}${sendMessageOutcomeHint(true)}`
 }
@@ -126,9 +125,9 @@ ${rescheduleReminder(LOOP_FILE_DYNAMIC_SENTINEL)}${DYNAMIC_PACING_FOOTER}${sendM
 function loopFileAbsentDynamicTick(): string {
   return `# /loop tick — loop.md absent (dynamic pacing)
 
-loop.md is not currently present. Run the autonomous check using the loop instructions established earlier in this conversation.
+loop.md is absent; run the autonomous check from the loop instructions earlier in this conversation.
 
-You scheduled this tick via the ${SCHEDULE_WAKEUP_TOOL_NAME} tool (not a recurring cron). To keep the loop alive — and to pick up loop.md if it is recreated — call ${SCHEDULE_WAKEUP_TOOL_NAME} again at the end of this turn with \`prompt\` set to the literal sentinel \`${LOOP_FILE_DYNAMIC_SENTINEL}\` — otherwise the loop ends after this tick.${DYNAMIC_PACING_FOOTER}${sendMessageOutcomeHint()}`
+${rescheduleReminder(LOOP_FILE_DYNAMIC_SENTINEL)}${DYNAMIC_PACING_FOOTER}${sendMessageOutcomeHint()}`
 }
 
 
