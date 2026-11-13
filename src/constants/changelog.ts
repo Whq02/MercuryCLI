@@ -32,6 +32,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Changed a question card to name the key bound to the external editor.
 - Changed the external editor's value on Windows to be parsed by the system's own command-line rules.
 - Fixed a Homebrew install losing its mercury command after the first launch, where ~/.local/bin stands before Homebrew on PATH. An install already caught is mended by ln -sf "$(brew --prefix)/bin/mercury" ~/.local/bin/mercury.
+- Fixed mercury install --uninstall on Windows stopping half way and leaving a command that could not run: the command and its PATH entry go, and the files in use are removed once the command has ended.
 - Fixed a reader losing their place in the transcript at a ctrl+o flip and when a streaming reply settles.
 - Fixed a resumed session whose run ended inside a tool call: the call reads as answered, and the card says the session resumed with one failed call.
 - Fixed a resumed session reading "the runner is starting" after its admission was refused.
