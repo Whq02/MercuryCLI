@@ -1,6 +1,6 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { delimiter, join } from 'node:path'
 import { mountOffscreen, pinSourceRef, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
 pinSourceRef()
@@ -9,15 +9,33 @@ pinSourceRef()
 const scratch = realpathSync(mkdtempSync(join(process.env.MERCURY_TMPDIR ?? tmpdir(), 'paste-interleave-')))
 const work = join(scratch, 'work')
 const daemonDir = join(scratch, 'd')
-mkdirSync(work, { recursive: true })
-mkdirSync(daemonDir, { recursive: true })
+const guardBin = join(scratch, 'clip-guard-bin')
+const realClipLog = join(scratch, 'real-clipboard-calls.log')
+const fakeClipPng = join(scratch, 'fake-clipboard.png')
+const absentClipPng = join(scratch, 'absent-clipboard.png')
+for (const dir of [work, daemonDir, guardBin]) mkdirSync(dir, { recursive: true })
+
+for (const tool of ['osascript', 'powershell', 'pwsh', 'xclip', 'wl-paste']) {
+  const shim = join(guardBin, tool)
+  writeFileSync(shim, `#!/bin/sh\necho "${tool}" >> "${realClipLog}"\nexit 1\n`)
+  chmodSync(shim, 0o755)
+}
+
+const ONE_PIXEL_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+)
+
 const priorCwd = process.cwd()
+const priorPath = process.env.PATH ?? ''
 
 Object.assign(process.env, {
+  PATH: `${guardBin}${delimiter}${priorPath}`,
   MERCURY_CONFIG_DIR: scratch,
   MERCURY_DAEMON_DIR: daemonDir,
   MERCURY_CREDENTIAL_STORE: 'file',
   MERCURY_LOCAL_PROBE_TARGETS: 'none',
+  MERCURY_CLIPBOARD_IMAGE_FILE: absentClipPng,
   MERCURY_OPERATOR: 'sam',
   ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key',
   ANTHROPIC_BASE_URL: 'http://127.0.0.1:1',
@@ -64,10 +82,13 @@ const commands = await getCommands(work)
 
 type Paste = { id: number; type: 'text' | 'image'; content: string }
 const sent: string[] = []
+const sentPasteTypes: string[][] = []
 const connector = Object.assign(new NoSessionConnector(), {
   sessionId: () => 'interleave-proof-session',
   sendWords: async (text: string, opts?: { pastedContents?: Record<number, Paste> }) => {
-    sent.push(expandPastedTextRefs(text, (opts?.pastedContents ?? {}) as never))
+    const map = opts?.pastedContents ?? {}
+    sent.push(expandPastedTextRefs(text, map as never))
+    sentPasteTypes.push(Object.values(map).map(p => p.type))
     return { state: 'accepted' as const }
   },
 })
@@ -283,8 +304,29 @@ try {
   await driveSteps('paste holding lone ESC strips control without clearing draft', [[`xy${wrap('aa\x1bbb')}`, 0]], [], 'xy aabb')
   await driveSteps('paste holding ESC ESC strips controls without firing double-ESC clear', [[`xy${wrap('aa\x1b\x1bbb')}`, 0]], [], 'xy aabb')
   await driveSteps('paste holding start marker keeps literal text', [[wrap(`AAA${PS}BBB`), 0]], [], 'AAABBB')
+  await driveSteps('two start markers with typing around them + Enter sends whole text', [[`ab${PS}AAA${PS}BBB${PE}cd\r`, 0]], ['ab AAABBBcd'], '')
+  {
+    await clearComposer()
+    const beforeNoEnd = sent.length
+    m.push(`${PS}NO_END_PASTE`)
+    await waitFor(() => pending.text() === 'NO_END_PASTE', 2000)
+    m.push(' ok\r')
+    await waitFor(() => sent.length > beforeNoEnd, 1000)
+    await settle(65)
+    check(
+      'start marker with no end flushes on paste timeout and typing after it sends both',
+      JSON.stringify(sent.slice(beforeNoEnd)) === JSON.stringify(['NO_END_PASTE ok']) && expandedDraft() === '',
+      `sent=${JSON.stringify(sent.slice(beforeNoEnd))} draft=${JSON.stringify(expandedDraft())}`,
+    )
+  }
   await driveSteps('stream with end marker inside paste then BBB and CR never drops AAA', [[`${PS}AAA${PE}BBB\r`, 0]], ['AAABBB'], '')
-  await driveSteps('stream with end marker inside paste, BBB, CR and trailing end marker never drops AAA', [[`${PS}AAA${PE}BBB\r${PE}`, 0]], ['AAABBB'], '')
+  await driveSteps(
+    'stream with end marker inside paste, BBB, CR and trailing end marker never drops AAA',
+    [[`${PS}AAA${PE}BBB\r${PE}`, 0]],
+    ['AAABBB'],
+    '',
+    150,
+  )
 
   const burst = longText('UNBRACKET_BURST')
   await driveSteps(
@@ -311,6 +353,74 @@ try {
     '',
     220,
   )
+
+  {
+    writeFileSync(fakeClipPng, ONE_PIXEL_PNG)
+    process.env.MERCURY_CLIPBOARD_IMAGE_FILE = fakeClipPng
+    try {
+      const beforeBurst = sent.length
+      await driveSteps(
+        'with an image in the fake clipboard, unbracketed burst + letters + Enter never attaches the image unasked',
+        [
+          [burst, 40],
+          ['xy', 20],
+          ['\r', 260],
+          ['\r', 0],
+        ],
+        [`${burst}xy`],
+        '',
+        220,
+      )
+      const burstTypes = sentPasteTypes[beforeBurst] ?? []
+      check(
+        'with an image in the fake clipboard, the sent unbracketed burst carries only text pastes and no image',
+        JSON.stringify(burstTypes) === JSON.stringify(['text']),
+        `pasteTypes=${JSON.stringify(burstTypes)}`,
+      )
+
+      await clearComposer()
+      m.push(PE)
+      await settle(150)
+      check(
+        'with an image in the fake clipboard, a bare unmatched end marker drops its bytes and never attaches the image',
+        expandedDraft() === '' && Object.keys(pending.pastedContents()).length === 0,
+        `draft=${JSON.stringify(expandedDraft())} pastes=${JSON.stringify(pending.pastedContents())}`,
+      )
+
+      await driveSteps(
+        'with an image in the fake clipboard, typing around an unmatched end marker drops its bytes and never attaches the image',
+        [[`ab${PE}cd\r`, 0]],
+        ['abcd'],
+        '',
+        150,
+      )
+
+      await driveSteps(
+        'with an image in the fake clipboard, stream with end marker inside paste, BBB, CR and trailing end marker sends AAABBB without attaching the image',
+        [[`${PS}AAA${PE}BBB\r${PE}`, 0]],
+        ['AAABBB'],
+        '',
+        150,
+      )
+
+      await clearComposer()
+      const beforeImg = sent.length
+      m.push(`${PS}${PE}`)
+      await waitFor(() => pending.text().includes('[Image #'), 3000)
+      m.push(' caption\r')
+      await waitFor(() => sent.length > beforeImg, 1000)
+      await settle(80)
+      const imgTypes = sentPasteTypes[beforeImg] ?? []
+      check(
+        'with an image in the fake clipboard, an empty bracketed paste attaches the fake image and typing after it sends both',
+        /^\[Image #\d+\] caption$/.test(sent[beforeImg] ?? '') && JSON.stringify(imgTypes) === JSON.stringify(['image']),
+        `sent=${JSON.stringify(sent[beforeImg])} pasteTypes=${JSON.stringify(imgTypes)}`,
+      )
+    } finally {
+      process.env.MERCURY_CLIPBOARD_IMAGE_FILE = absentClipPng
+      rmSync(fakeClipPng, { force: true })
+    }
+  }
 
   {
     await clearComposer()
@@ -348,9 +458,17 @@ try {
     )
     saveGlobalConfig(cfg => ({ ...cfg, editorMode: 'normal' }))
   }
+
+  check(
+    'the real OS clipboard reader was never called during the proof',
+    !existsSync(realClipLog),
+    existsSync(realClipLog) ? readFileSync(realClipLog, 'utf8').trim() : '',
+  )
 } finally {
   __setBurstCrHostForTest(null)
   m.unmount()
+  process.env.PATH = priorPath
+  delete process.env.MERCURY_CLIPBOARD_IMAGE_FILE
   process.chdir(priorCwd)
   rmSync(scratch, { recursive: true, force: true })
 }

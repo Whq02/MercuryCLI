@@ -123,9 +123,11 @@ export function parseMultipleKeypresses(
       inPaste = true
       pasteBuffer = ''
     } else if (token.value === PASTE_END) {
-      atoms.push(createPasteKey(pasteBuffer))
-      inPaste = false
-      pasteBuffer = ''
+      if (inPaste) {
+        atoms.push(createPasteKey(pasteBuffer))
+        inPaste = false
+        pasteBuffer = ''
+      }
     } else if (inPaste) {
       pasteBuffer += token.value
     } else {

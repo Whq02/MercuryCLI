@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { delimiter, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { mountOffscreen, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
@@ -23,16 +23,32 @@ const pythonBin = driver.python
 
 const home = realpathSync(mkdtempSync(join(process.env.MERCURY_TMPDIR ?? tmpdir(), 'paste-quick-enter-')))
 const work = join(home, 'work')
+const guardBin = join(home, 'clip-guard-bin')
+const realClipLog = join(home, 'real-clipboard-calls.log')
+const fakeClipPng = join(home, 'fake-clipboard.png')
+const absentClipPng = join(home, 'absent-clipboard.png')
 mkdirSync(work, { recursive: true })
+mkdirSync(guardBin, { recursive: true })
+for (const tool of ['osascript', 'powershell', 'pwsh', 'xclip', 'wl-paste']) {
+  const shim = join(guardBin, tool)
+  writeFileSync(shim, `#!/bin/sh\necho "${tool}" >> "${realClipLog}"\nexit 1\n`)
+  chmodSync(shim, 0o755)
+}
+const ONE_PIXEL_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+)
 const priorCwd = process.cwd()
+const priorPath = process.env.PATH ?? ''
 
+process.env.PATH = `${guardBin}${delimiter}${priorPath}`
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+process.env.MERCURY_CLIPBOARD_IMAGE_FILE = absentClipPng
 process.env.MERCURY_OPERATOR = 'sam'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
-
 let checks = 0
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -101,6 +117,7 @@ async function runPty(
   sends: string[],
   seconds = 10,
   anchor?: string,
+  envOverrides?: NodeJS.ProcessEnv,
 ): Promise<{ code: number | null; stderr: string; events: Array<Record<string, unknown>> }> {
   scenario('resume-2turn', 120, 40)
   const outPath = join(home, `${name}.jsonl`)
@@ -125,7 +142,11 @@ async function runPty(
     'claude-sonnet-5',
   ]
   const res = await new Promise<{ code: number | null; stderr: string }>(settlePty => {
-    const child = spawn(pythonBin, args, { cwd: root, env: childEnv, stdio: ['ignore', 'ignore', 'pipe'] })
+    const child = spawn(pythonBin, args, {
+      cwd: root,
+      env: envOverrides ? { ...childEnv, ...envOverrides } : childEnv,
+      stdio: ['ignore', 'ignore', 'pipe'],
+    })
     let stderr = ''
     child.stderr.on('data', c => {
       stderr += String(c)
@@ -318,6 +339,66 @@ try {
       `requests=${got.length} stderr=${runP3.stderr.slice(-160)}`,
     )
   }
+
+  {
+    writeFileSync(fakeClipPng, ONE_PIXEL_PNG)
+    try {
+      const bodyClipBurst = makeBody('CLIP_BURST_NO_IMG')
+      const beforeBurst = api.messageRequests().length
+      const runClipBurst = await runPty(
+        'leg-clip-burst-no-image',
+        [
+          `1080:${escapeForPtydrive(bodyClipBurst)}`,
+          `1120:\\r`,
+          `after:[Pasted text #:250:\\r`,
+          `after:${REPLY_TOKEN}:100:\\x03\\x03`,
+        ],
+        18,
+        'Type a prompt:1000',
+        { MERCURY_CLIPBOARD_IMAGE_FILE: fakeClipPng },
+      )
+      const gotBurst = api.messageRequests().slice(beforeBurst)
+      const matchingBurst = gotBurst.filter(r => {
+        const raw = JSON.stringify(r.body)
+        return (
+          raw.includes('CLIP_BURST_NO_IMG head') &&
+          raw.includes('CLIP_BURST_NO_IMG tail.') &&
+          !raw.includes('"type":"image"') &&
+          !raw.includes('[Image #')
+        )
+      })
+      check(
+        'with an image in the fake clipboard, an unbracketed text burst over PTY never attaches the image unasked',
+        matchingBurst.length === 1 && !runClipBurst.stderr.includes('UNFIRED-SENDS'),
+        `matching=${matchingBurst.length} total=${gotBurst.length} stderr=${runClipBurst.stderr.slice(-160)}`,
+      )
+
+      const beforeImg = api.messageRequests().length
+      const runClipImg = await runPty(
+        'leg-clip-empty-bracket-attaches',
+        [
+          'after:Type a prompt:80:\\x1b[200~\\x1b[201~',
+          'after:[Image #:120: caption from pty\\r',
+          `after:${REPLY_TOKEN}:100:\\x03\\x03`,
+        ],
+        14,
+        undefined,
+        { MERCURY_CLIPBOARD_IMAGE_FILE: fakeClipPng },
+      )
+      const gotImg = api.messageRequests().slice(beforeImg)
+      const matchingImg = gotImg.some(r => {
+        const raw = JSON.stringify(r.body)
+        return raw.includes('"type":"image"') && raw.includes('caption from pty')
+      })
+      check(
+        'with an image in the fake clipboard, an empty bracketed paste over PTY attaches the fake image and sends the typed caption',
+        matchingImg && !runClipImg.stderr.includes('UNFIRED-SENDS'),
+        `requests=${gotImg.length} stderr=${runClipImg.stderr.slice(-160)}`,
+      )
+    } finally {
+      rmSync(fakeClipPng, { force: true })
+    }
+  }
 } finally {
   try {
     await daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never)
@@ -435,9 +516,16 @@ try {
         `requests=${sentInProcess.length - before} pastes=${entries.length} draft=${JSON.stringify(pending.text())}`,
       )
     }
+    check(
+      'the real OS clipboard reader was never called across PTY and in-process legs',
+      !existsSync(realClipLog),
+      existsSync(realClipLog) ? readFileSync(realClipLog, 'utf8').trim() : '',
+    )
   } finally {
     __setBurstCrHostForTest(null)
     m.unmount()
+    process.env.PATH = priorPath
+    delete process.env.MERCURY_CLIPBOARD_IMAGE_FILE
     process.chdir(priorCwd)
     rmSync(home, { recursive: true, force: true })
   }
