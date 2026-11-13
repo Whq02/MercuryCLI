@@ -174,7 +174,7 @@ function projectEstateSection(toolNames: ReadonlySet<string>): string {
   return `# The project estate\n\n${prependBullets(items).join('\n')}`
 }
 
-const CREWMATE_FOLD_NOTE = 'Context folds automatically near its window limit and the turn continues: a nearly full window is never a reason to stop early.'
+const CREWMATE_FOLD_NOTE = 'Your context is folded automatically when it nears its window and the turn goes on after the fold: a context near full is no reason to end your turn.'
 
 function foldIsAutomatic(): boolean {
   try {
@@ -205,7 +205,7 @@ export async function enhanceSystemPromptWithEnvDetails(
     'Notes:',
     ...prependBullets([
       BATCHING_INSTRUCTION,
-      `In crewmate threads ${BASH_TOOL_NAME}'s working directory resets between calls: pass absolute paths.`,
+      `In a crewmate thread the ${BASH_TOOL_NAME} tool's working directory does not survive between calls: pass absolute paths.`,
       ...(foldIsAutomatic() ? [CREWMATE_FOLD_NOTE] : []),
       'Name relevant files by absolute path in your final response; quote code only where exact characters matter (a located defect or requested signature), never to retell read code.',
       'Do not use emoji.',
