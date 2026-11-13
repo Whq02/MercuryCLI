@@ -202,7 +202,7 @@ covers both folders. A bare tool name covers every use of that tool.
 
 | Key | What it sets |
 | --- | --- |
-| `briefs.profile` | `auto` loads a project's `AGENTS.md` when its instruction chain has no `MERCURY.md`; `native` loads Mercury instruction files only. A `MERCURY.local.md` is a personal layer; it does not stop `auto` loading `AGENTS.md`. |
+| `briefs.profile` | `auto` loads the instruction and rule files other tools left in a project when its instruction chain has no `MERCURY.md` ([COMPATIBILITY.md](COMPATIBILITY.md#project-instructions) lists them); `native` loads Mercury instruction files only. A `MERCURY.local.md` is a personal layer; it does not stop `auto` loading them. |
 | `briefs.exclude` | Instruction-file glob patterns or absolute paths to skip; managed instructions cannot be excluded. |
 | `briefs.git` | Whether the model receives Mercury's git instructions. |
 | `files.honourGitignore` | Whether file suggestions respect `.gitignore`. |
