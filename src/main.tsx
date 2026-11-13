@@ -118,7 +118,7 @@ import type { Props as ChatProps } from './screens/Chat.js'
 import type { UUID } from 'node:crypto'
 import { update as updateCli } from './cli/update.js'
 import type { ScopedMcpServerConfig } from './services/mcp/types.js'
-import { writeShimSet, resolveLayoutRoots } from './services/privateChannel/installLayout.js'
+import { reconcileManagedShims, resolveLayoutRoots } from './services/privateChannel/installLayout.js'
 import chalk from 'chalk'
 import { formatPrintsOutcomeRow, refusedOutcome } from './cli/headless/refusalEnvelope.js'
 import { inspectSessionArgs as inspectRunArgs, isSessionRunArgv as isRunArgv, readSessionOption } from './cli/sessionArgs.js'
@@ -1863,11 +1863,7 @@ async function interactiveLaunch(args: {
     await ensureExtensionsLoaded().catch(() => {})
   })
   registerBackgroundNode('shim-reconcile', async () => {
-    try {
-      writeShimSet(resolveLayoutRoots())
-    } catch (error) {
-      logForDebugging(`shim reconcile failed: ${error instanceof Error ? error.message : String(error)}`)
-    }
+    reconcileManagedShims(resolveLayoutRoots())
   })
   registerBackgroundNode('deferred-prefetches', () => {
     startDeferredPrefetches()
