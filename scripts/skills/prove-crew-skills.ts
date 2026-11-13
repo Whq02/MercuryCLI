@@ -1,5 +1,6 @@
 import { plugin } from 'bun'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod'
@@ -464,6 +465,29 @@ for (const [name, source] of [['deep-research', deepSource], ['code-review', rev
   const effort = resolveAgentEffort({ effortOverride: identity.effort === '<effort>' ? 'max' : undefined, useExactTools: false, definitionEffort: undefined, defaultEffort: 'high' })
   check(`${name}: a max-effort lead dispatches explicit identity instead of silently taking the high crewmate default`, effort === 'max' && identity.model === '<worker_model>', { identity, effort })
 }
+
+const diffProject = join(SCRATCH, 'diff-project')
+mkdirSync(diffProject)
+const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'Fixture', GIT_AUTHOR_EMAIL: 'fixture@example.invalid', GIT_COMMITTER_NAME: 'Fixture', GIT_COMMITTER_EMAIL: 'fixture@example.invalid', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' }
+const git = (...args: string[]) => execFileSync('git', args, { cwd: diffProject, env: gitEnv, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim()
+git('init', '--initial-branch=main')
+writeFileSync(join(diffProject, 'counter.ts'), 'export const counter = 1\n')
+git('add', 'counter.ts')
+const baseCommit = git('commit-tree', git('write-tree'), '-m', 'Initial fixture')
+git('update-ref', 'refs/heads/main', baseCommit)
+writeFileSync(join(diffProject, 'counter.ts'), 'export const counter = 2\n')
+const diffResult = await toolByName.get('Git')!.call({ op: 'diff', scope: 'worktree', cwd: diffProject } as never, { getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) } as never, (async () => ({ behavior: 'allow' })) as never, {} as never)
+const summary = String((diffResult.data as { result: string }).result)
+const rawDiffCommand = codeSpansOf(reviewSource).find(span => span === 'git diff --no-ext-diff --no-textconv --binary')
+const acquiredDiff = rawDiffCommand ? git(...rawDiffCommand.split(' ').slice(1)) : summary
+check('the prescribed uncommitted capture contains actual changed lines, not Git tool hunk metadata', acquiredDiff.includes('-export const counter = 1') && acquiredDiff.includes('+export const counter = 2'), acquiredDiff)
+git('add', 'counter.ts')
+const headCommit = git('commit-tree', git('write-tree'), '-p', baseCommit, '-m', 'Changed fixture')
+git('update-ref', 'refs/heads/feature', headCommit)
+git('symbolic-ref', 'HEAD', 'refs/heads/feature')
+const chosenBase = reviewSource.slice(0, 700).includes('@{upstream}...HEAD') ? headCommit : baseCommit
+check('a published feature whose upstream equals its head is compared with its integration base, not itself', git('diff', `${chosenBase}...HEAD`).includes('+export const counter = 2'))
+check('a missing PR head uses patch-only evidence rather than freezing unrelated HEAD', reviewSource.includes('patch-only') && !reviewSource.includes('set `<head_sha>` to `HEAD`') && reviewSource.includes('`file: "<path>"`') && reviewSource.includes('`page: 0`'))
 
 const readyLine = captainBrief.split('\n').find(line => line.includes('Captain enrolled; launch the remaining seats.')) ?? ''
 check('the captain posts readiness and the lead waits for that event before launching peers', readyLine.includes('clientOpId: "<team>-ready"') && deepSource.includes('wait for the captain’s ready post'), readyLine)
