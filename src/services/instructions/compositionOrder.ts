@@ -1,5 +1,6 @@
 import { agentFoldersConvention } from './adapters/agentFolders.js'
 import { agentsMdConvention } from './adapters/agentsMd.js'
+import { claudeConvention } from './adapters/claude.js'
 import { clineConvention } from './adapters/cline.js'
 import { copilotConvention } from './adapters/copilot.js'
 import { cursorConvention } from './adapters/cursor.js'
@@ -11,6 +12,7 @@ import { mercuryNativeConvention } from './nativeSource.js'
 const SHARED_CONVENTIONS: readonly InstructionConvention[] = [
   agentsMdConvention,
   agentFoldersConvention,
+  claudeConvention,
   geminiConvention,
   copilotConvention,
   cursorConvention,

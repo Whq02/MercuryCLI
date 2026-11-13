@@ -11,7 +11,7 @@
   ],
   "counts": {
     "owner-internal": 6,
-    "guide-probe": 9,
+    "guide-probe": 10,
     "baked-mirror": 3,
     "own-guard": 5
   },
@@ -29,6 +29,13 @@
       "excerpt": "export const SHARED_INSTRUCTION_FILE = 'AGENTS.md'",
       "cls": "guide-probe",
       "why": "the instruction engine: the native convention names MERCURY.md, the shared convention AGENTS.md (composed when no MERCURY.md stands), the capture writer and the effective-size measure name the entry files"
+    },
+    {
+      "file": "src/services/instructions/adapters/claude.ts",
+      "needle": "CLAUDE.md",
+      "excerpt": "guides: ['CLAUDE.md', '.claude/CLAUDE.md'],",
+      "cls": "guide-probe",
+      "why": "the instruction engine's adapter for that tool names the project guide it reads — the one file of src that may; that tool's home stays forbidden there as everywhere"
     },
     {
       "file": "src/services/instructions/nativeSource.ts",

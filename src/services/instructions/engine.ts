@@ -266,9 +266,9 @@ async function walkConventions(
           pathInWorkingPath(dir, canonicalRoot) &&
           !pathInWorkingPath(dir, gitRoot)
 
-        for (const convention of set) {
-          const holds = !convention.nearestOnly || nearestHolders[convention.id] === dir
-          if (isSettingSourceEnabled('projectSettings') && !skipProject && holds) {
+        if (isSettingSourceEnabled('projectSettings') && !skipProject) {
+          for (const convention of set) {
+            if (convention.nearestOnly && nearestHolders[convention.id] !== dir) continue
             for (const projectPath of own.guides(convention, dir)) {
               push(
                 await processInstructionFile(
@@ -304,8 +304,10 @@ async function walkConventions(
               )
             }
           }
+        }
 
-          if (isSettingSourceEnabled('localSettings')) {
+        if (isSettingSourceEnabled('localSettings')) {
+          for (const convention of set) {
             for (const localPath of own.locals(convention, dir)) {
               push(
                 await processInstructionFile(
