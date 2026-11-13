@@ -5,6 +5,7 @@ import ignore from 'ignore'
 import { getOriginalCwd, getSessionId } from '../../bootstrap/state.js'
 import { getCwd, getStartingCwd } from '../cwd.js'
 import { permissionRuleValueFromString } from './permissionRuleParser.js'
+import { expandRuleBraces } from './ruleBraces.js'
 import { getMercuryHome } from '../envUtils.js'
 import { getFsImplementation, getPathsForPermissionCheck, safeResolvePath } from '../fsOperations.js'
 import {
@@ -550,11 +551,12 @@ function rulesForToolAndBehavior(
     for (const ruleString of rules) {
       const parsed = permissionRuleValueFromString(ruleString)
       if (parsed.toolName !== toolName || parsed.ruleContent === undefined) continue
-      map.set(parsed.ruleContent, {
+      const rule = {
         source: source as PermissionRule['source'],
         ruleBehavior: behavior,
         ruleValue: parsed,
-      })
+      }
+      for (const pattern of expandRuleBraces(parsed.ruleContent, behavior !== 'allow')) map.set(pattern, rule)
     }
   }
   return map

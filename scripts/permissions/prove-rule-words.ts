@@ -121,7 +121,7 @@ section('§3 THE VALIDATOR — the star forms are legal; no sentence of its own 
     const { filterInvalidPermissionRules } = await import('../../src/utils/settings/validation.js')
     const settings = { guardrails: { deny: ['Bash(rm:*)', 'Bash(rm -rf *)'], allow: ['Bash(npm run:*)'] } }
     const faults = filterInvalidPermissionRules(settings, 'settings.json')
-    check('a settings file that carries such rules gets one fault for each and keeps the rules it can read', faults.length === 2 && faults.every(fault => fault.severity === 'warning' && /Skipped invalid permission rule/.test(fault.message) && /Write a space before the star/.test(fault.message)) && j(settings.guardrails.deny) === j(['Bash(rm -rf *)']) && j(settings.guardrails.allow) === j([]), j({ faults, settings }))
+    check('a settings file that carries such rules gets one fault for each, an error for the deny rule it cannot apply and a warning for the allow rule, and keeps the rules it can read', faults.length === 2 && faults.every(fault => fault.severity === (fault.path === 'guardrails.deny' ? 'error' : 'warning') && /Skipped invalid permission rule/.test(fault.message) && /Write a space before the star/.test(fault.message)) && j(settings.guardrails.deny) === j(['Bash(rm -rf *)']) && j(settings.guardrails.allow) === j([]), j({ faults, settings }))
   }
   for (const rule of ['Bash(npm:* run)', 'Read(src:*)', 'Edit(:*)', 'PowerShell(Get-Content -Path:*)']) {
     check(`${j(rule)} is plain content as before: the colon is no ending of a command rule there`, validatePermissionRule(rule).valid === validatePermissionRule(rule.replace('*', '%')).valid, j(validatePermissionRule(rule)))

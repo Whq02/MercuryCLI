@@ -293,7 +293,7 @@ console.log('the globs: ripgrep is kept out of a denied folder wherever the sear
     ['a bare name under its root stays that root\'s own child', HOME, '.credentials.json', world, ['/home/.credentials.json', '/home/.credentials.json/**']],
     ['a bare name is not carried into a folder below its root', HOME, '*-auth.json', join(HOME, 'tmp'), []],
     ['a folder whose name holds a glob character is escaped', join(project, 'a[1]'), '/x/**', project, ['/a\\[1\\]/x', '/a\\[1\\]/x/**']],
-    ['braces are written as the letters the direct Read takes them for', project, '/src/{secret,a}/**', project, ['/src/[{]secret,a[}]', '/src/[{]secret,a[}]/**']],
+    ['a brace that reaches the globs, its alternatives already taken at the rule\'s parse, is written as a letter', project, '/src/{secret,a}/**', project, ['/src/[{]secret,a[}]', '/src/[{]secret,a[}]/**']],
     ['a brace never closed is a letter too', project, '/src/{x/**', join(project, 'src'), ['/[{]x', '/[{]x/**']],
     ['a class goes as written, its braces untouched', project, '/src/secre[!x{]/**', project, ['/src/secre[!x{]', '/src/secre[!x{]/**']],
     ['a class never closed gives no glob: the rule matches nothing', project, '/src/[x/**', project, []],
@@ -306,7 +306,7 @@ console.log('the globs: ripgrep is kept out of a denied folder wherever the sear
   check(`${cases.length} rules and starts: each gives exactly the globs that name the denied paths below the start, and none where the rule cannot reach`, wrong.length === 0, wrong.join(' | '))
   check('a rule with no leading slash is still given as written, and is also anchored at the working folder', globs(null, 'src/secret/**', join(project, 'src')) === JSON.stringify(['/secret', '/secret/**', 'src/secret/**']), globs(null, 'src/secret/**', join(project, 'src')))
   check('a bare name with no root is given as written: any depth, as before', globs(null, 'more.ts', join(project, 'src')) === JSON.stringify(['more.ts']), globs(null, 'more.ts', join(project, 'src')))
-  check('a rule with no leading slash has its braces written as letters too', globs(null, 'src/{secret,a}/**', project) === JSON.stringify(['/src/[{]secret,a[}]', '/src/[{]secret,a[}]/**', 'src/[{]secret,a[}]/**']), globs(null, 'src/{secret,a}/**', project))
+  check('a pattern with no leading slash has a brace that reaches the globs written as a letter too', globs(null, 'src/{secret,a}/**', project) === JSON.stringify(['/src/[{]secret,a[}]', '/src/[{]secret,a[}]/**', 'src/[{]secret,a[}]/**']), globs(null, 'src/{secret,a}/**', project))
   const none = ['src/q\\?/**', '!secret/**', '#secret/**', 'src/[x/**', 'src/[a/b]/**'].filter(pattern => globs(null, pattern, project) !== '[]')
   check('a rule with no leading slash that holds a backslash, begins with a bang or a hash, or leaves a class open gives no glob', none.length === 0, none.map(pattern => `${pattern}: ${globs(null, pattern, project)}`).join(' | '))
   const platform = await import(`${SRC}/utils/platform.ts`)

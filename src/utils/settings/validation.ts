@@ -19,6 +19,7 @@ export type ValidationError = {
   suggestion?: string
   docLink?: string
   severity?: 'error' | 'warning' | 'held'
+  kept?: true
   unknownKeys?: string[]
   mcpErrorMetadata?: {
     scope: ConfigScope
@@ -171,7 +172,9 @@ export function settingsFaultLine(error: ValidationError): string {
   return `settings: ${where} — ${effect}`
 }
 
-function settingsFaultEffect(error: Pick<ValidationError, 'severity'>): string {
+function settingsFaultEffect(error: Pick<ValidationError, 'severity' | 'kept'>): string {
+  if (error.kept) return 'the rule stays in force; the rest of the file applies'
+  if (error.severity === 'error') return 'this rule is not in force until it is corrected; the rest of the file applies'
   if (error.severity === 'warning') return 'this value is skipped; the rest of the file applies'
   if (error.severity === 'held') return 'the file cannot be read; the last good settings stay in force'
   return 'the file is skipped'
@@ -245,17 +248,20 @@ export function filterInvalidPermissionRules(data: unknown, filePath: string): V
       }
       const result = validatePermissionRule(rule)
       if (!result.valid) {
-        let message = `Skipped invalid permission rule "${rule}"`
+        const stays = key !== 'allow' && result.advisory === true
+        let message = stays ? `Permission rule "${rule}"` : `Skipped invalid permission rule "${rule}"`
         if (result.error) message += `: ${result.error}`
-        if (result.suggestion) message += `. ${result.suggestion}`
+        if (stays && result.readAs !== undefined) message += `: read as ${result.readAs}`
+        else if (result.suggestion) message += `. ${result.suggestion}`
         warnings.push({
           file: filePath,
           path: `guardrails.${key}`,
           message,
           invalidValue: rule,
-          severity: 'warning',
+          severity: stays || key === 'allow' ? 'warning' : 'error',
+          ...(stays ? { kept: true as const } : {}),
         })
-        continue
+        if (!stays) continue
       }
       kept.push(rule)
     }
