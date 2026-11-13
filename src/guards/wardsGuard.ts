@@ -195,6 +195,13 @@ export function loadProjectWards(cwd: string): WardRule[] {
   return loadProjectWardsWithReport(cwd).rules
 }
 
+const ROAD_THAT_OUTLIVES_THE_RUN = '; a process that must stay up after that (a server something checks once the run has ended) is a Service with lifecycle project.'
+
+function withTheRoadOffered<Refusal extends { rule: WardRule }>(refusal: Refusal, offeredTools: readonly string[] | undefined): Refusal {
+  if (refusal.rule.name !== 'self-daemonize' || !refusal.rule.teach.endsWith('.') || offeredTools?.includes('Service') !== true) return refusal
+  return { ...refusal, rule: { ...refusal.rule, teach: `${refusal.rule.teach.slice(0, -1)}${ROAD_THAT_OUTLIVES_THE_RUN}` } }
+}
+
 const wardsEngagedSessions = new Set<string>()
 
 export function resetWardsEngagedSessionsForTest(): void {
@@ -253,7 +260,7 @@ export function registerWardsGuard(
           }
         }
         const refusal = pending.shellCommand === undefined ? evaluateWards(REFUSAL_WARDS, pending, work) : await refusalOfShellCommand(pending, getCwd(), work)
-        if (!refusal.allow && level !== 'warn') return { allow: false, reason: buildWardDenial(refusal, pending.toolName) }
+        if (!refusal.allow && level !== 'warn') return { allow: false, reason: buildWardDenial(withTheRoadOffered(refusal, call.offeredTools), pending.toolName) }
         const verdict = evaluateWards(call.asksAnswerable === true ? attendedRules : unattendedRules, pending, work)
         if (!verdict.allow) return { allow: false, reason: projectReport.rules.includes(verdict.rule) && untrustedWorkspaceHeadless() ? buildUntrustedFolderDenial(pending.toolName) : buildWardDenial(verdict, pending.toolName) }
         if (refusal.allow) return { allow: true }

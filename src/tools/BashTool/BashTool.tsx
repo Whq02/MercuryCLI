@@ -7,7 +7,7 @@ import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { isRunInputClosed } from '../../bootstrap/state.js'
-import { servicesEnabled } from '../../services/projectServices/contracts.js'
+import { SLEEP_TOOL_NAME } from '../SleepTool/prompt.js'
 import { TASK_STOP_TOOL_NAME } from '../TaskStopTool/prompt.js'
 import { exec, resolveShellCwd } from '../../utils/Shell.js'
 import { captureVerificationStart } from '../../utils/verification/verificationState.js'
@@ -139,6 +139,8 @@ export type Out = {
   backgroundPid?: number
   backgroundLifetime?: BackgroundLifetime
   stopOffered?: boolean
+  serviceOffered?: boolean
+  sleepOffered?: boolean
   backgroundOutputIsTail?: boolean
   backgroundedByUser?: boolean
   timeoutAutoBackgroundedAfterMs?: number
@@ -355,10 +357,12 @@ async function* runBash(
   let timeoutAutoBackgroundedAfterMs: number | undefined
   let foregroundTaskId: string | null = null
   let backgroundId: string | undefined
-  const backgroundFacts = (): Pick<Out, 'backgroundPid' | 'backgroundLifetime' | 'stopOffered'> => ({
+  const backgroundFacts = (): Pick<Out, 'backgroundPid' | 'backgroundLifetime' | 'stopOffered' | 'serviceOffered' | 'sleepOffered'> => ({
     ...(shellCommand.pid !== undefined ? { backgroundPid: shellCommand.pid } : {}),
     backgroundLifetime: agentId !== undefined ? 'crewmate' : isRunInputClosed() ? 'turn' : 'session',
     stopOffered: context.options.tools.some(tool => tool.name === TASK_STOP_TOOL_NAME),
+    serviceOffered: context.options.tools.some(tool => tool.name === 'Service'),
+    sleepOffered: context.options.tools.some(tool => tool.name === SLEEP_TOOL_NAME),
   })
   const outputSoFar = async (): Promise<{ stdout: string; isTail: boolean }> => {
     const window = resolveOutputBudget(readMaxOutputChars(input.max_output_chars)).effective
@@ -778,8 +782,10 @@ function backgroundNoticeFor(output: Out): string {
     return `Command timed out after ${formatDuration(output.timeoutAutoBackgroundedAfterMs)} and was moved to the background with ID: ${id}; it was not stopped. ${soFar} It is still running under an absolute deadline of ${HARD_CAP_MULTIPLIER}× the timeout (${deadline} from now), after which it will be killed.${stopNow}${until} Next time, pass a larger \`timeout\` if it needs longer, or \`run_in_background\` for a command meant to keep running.`
   }
   const pid = output.backgroundPid !== undefined ? ` Process id ${output.backgroundPid}.` : ''
-  const wait = ' If you need its result, wait for it before you finish: Sleep returns as soon as this command ends (its seconds are the ceiling), and the notice with its exit code follows.'
-  const serviceRoad = servicesEnabled() ? ' A process that must stay up after this run (a server something checks once the run has ended) is a Service with lifecycle project, not a background shell.' : ''
+  const wait = output.sleepOffered
+    ? ' If you need its result, wait for it before you finish: Sleep returns as soon as this command ends (its seconds are the ceiling), and the notice with its exit code follows.'
+    : ' If you need its result, wait for it before you finish; the notice with its exit code follows when it ends.'
+  const serviceRoad = output.serviceOffered ? ' A process that must stay up after this run (a server something checks once the run has ended) is a Service with lifecycle project, not a background shell.' : ''
   const lifetime =
     output.backgroundLifetime === 'turn'
       ? ` This run ends when your turn ends (unless a crewmate is still running) and stops this command then, so its notice reaches you only while you are still working.${serviceRoad}${wait}`
