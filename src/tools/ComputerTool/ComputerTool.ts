@@ -195,7 +195,7 @@ const baseSchema = lazySchema(() =>
     label: z.string().optional(),
     depth: z.number().optional(),
     limit: z.number().optional(),
-    target: targetSchema().optional().describe('role/name exact; text substring; unique match'),
+    target: targetSchema().optional(),
     ref: z.number().int().positive().optional(),
     root: z.union([z.number().int().positive(), targetSchema()]).optional(),
     all: z.boolean().optional(),
@@ -221,40 +221,39 @@ const modelInputSchema = lazySchema(() => {
   const step = base.extend({ action: z.enum(ACTIONS.filter(action => action !== 'sequence')) })
   const f = base.shape
   return base.extend({
-    x: f.x.describe('Last-screenshot x coordinate; paired with y.'),
-    y: f.y.describe('Last-screenshot y coordinate; paired with x.'),
-    toX: f.toX.describe('drag: destination x coordinate.'),
-    toY: f.toY.describe('drag: destination y coordinate.'),
-    dx: f.dx.describe('scroll: horizontal notches, positive right.'),
-    dy: f.dy.describe('scroll: vertical notches, positive down.'),
-    text: f.text.describe(`type or fill: at most ${TYPE_TEXT_CAP} characters; only newline and tab control characters.`),
+    x: f.x.describe('Last-screenshot x; paired with y.'),
+    y: f.y.describe('Last-screenshot y; paired with x.'),
+    toX: f.toX.describe('drag: destination x.'),
+    toY: f.toY.describe('drag: destination y.'),
+    dx: f.dx.describe('scroll: horizontal notches (+right).'),
+    dy: f.dy.describe('scroll: vertical notches (+down).'),
+    text: f.text.describe(`type or fill: ≤${TYPE_TEXT_CAP} chars; newline/tab are the only control chars.`),
     key: f.key.describe(`Key chord: ${KEY_CHORD_VOCABULARY}.`),
-    durationMs: f.durationMs.describe(`hold: ${HOLD_MIN_MS}–${HOLD_CAP_MS} ms; wait: default ${WAIT_DEFAULT_MS}, ${UNTIL_DEFAULT_MS} with until, maximum ${WAIT_CAP_MS} ms.`),
-    display: f.display.describe('Display number; omitted, the front window. Also applies to acts with capture:true.'),
-    settleMs: f.settleMs.describe(`Post-action delay in ms, default ${SETTLE_DEFAULT_MS}, capped at ${SETTLE_CAP_MS}; not a readiness check.`),
-    capture: f.capture.describe('Return an image after an act. A sequence returns one final image; screenshot steps capture in place. wait-until captures on a match. false suppresses images.'),
-    full: f.full.describe('Capture a display instead of the front window; also applies to acts with capture:true.'),
-    pixels: f.pixels.describe('Return terminal pixels rather than accessibility text.'),
-    scale: f.scale.describe('Capture scale; default 0.5 for windows, 1 for displays/regions.'),
-    label: f.label.describe('Capture label.'),
-    depth: f.depth.describe(`Tree depth; default ${TREE_DEPTH_DEFAULT}, clamped at ${TREE_DEPTH_CAP}. Targets use the cap by default.`),
-    limit: f.limit.describe(`Tree rows; default ${TREE_LIMIT_DEFAULT}, clamped at ${TREE_LIMIT_CAP}. Targets use the cap by default.`),
-    target: f.target.describe('Accessibility target: exact role/name, substring text; nth selects a 1-based match.'),
-    ref: f.ref.describe('Node number from the latest tree or find; stale once the list changes. Choose ref, target or x/y.'),
-    root: f.root.describe('Tree root: node number or accessibility target.'),
-    all: f.all.describe('Include hidden tree nodes.'),
-    points: f.points.describe('Include tree-node pixel positions.'),
-    clipboard: f.clipboard.describe('read: use clipboard text with separate consent instead of target/ref.'),
-    focusApp: f.focusApp.describe('Bring a running application forward by name or bundle id; capture screenshots after.'),
-    toTarget: f.toTarget.describe('drag: destination accessibility target instead of toX/toY.'),
-    until: f.until.describe('wait: text/title/URL substring, role/name, dialog: true or focus (a role); gone waits for removal. Put it after a click whose effect you assume.'),
-    count: f.count.describe('click: number of clicks, 1–3.'),
+    durationMs: f.durationMs.describe(`hold: ${HOLD_MIN_MS}–${HOLD_CAP_MS} ms; wait: default ${WAIT_DEFAULT_MS} (${UNTIL_DEFAULT_MS} with until), max ${WAIT_CAP_MS} ms.`),
+    display: f.display.describe('Display index (default front window); applies with capture:true.'),
+    settleMs: f.settleMs.describe(`Post-act delay in ms (default ${SETTLE_DEFAULT_MS}, cap ${SETTLE_CAP_MS}); not readiness.`),
+    capture: f.capture.describe('Capture after act; sequence captures once at end (screenshot steps in place); wait-until on match; false suppresses.'),
+    full: f.full.describe('Capture display instead of front window (including capture:true).'),
+    pixels: f.pixels.describe('Terminal pixels instead of accessibility text.'),
+    scale: f.scale.describe('Capture scale (default 0.5 window, 1 display/region).'),
+    depth: f.depth.describe(`Tree depth (default ${TREE_DEPTH_DEFAULT}, clamped at ${TREE_DEPTH_CAP}; targets default to cap).`),
+    limit: f.limit.describe(`Tree rows (default ${TREE_LIMIT_DEFAULT}, clamped at ${TREE_LIMIT_CAP}; targets default to cap).`),
+    target: f.target.describe('Exact role/name, substring text; 1-based nth.'),
+    ref: f.ref.describe('Node id from latest tree/find (stale once the list changes); alternative to target or x/y.'),
+    root: f.root.describe('Tree root: ref or target.'),
+    all: f.all.describe('Include hidden nodes.'),
+    points: f.points.describe('Include node pixel coordinates.'),
+    clipboard: f.clipboard.describe('read: clipboard text (separate consent) instead of target/ref.'),
+    focusApp: f.focusApp.describe('Focus running app by name or bundle id; capture after.'),
+    toTarget: f.toTarget.describe('drag: destination target instead of toX/toY.'),
+    until: f.until.describe('wait: text/title/url substring, role/name, dialog:true or focus role; gone waits for removal.'),
+    count: f.count.describe('click: 1–3.'),
     region: f.region.describe('Capture box in last-screenshot pixels.'),
-    scope: f.scope.describe('Tree scope: window by default; app adds its other windows.'),
-    verify: f.verify.describe('Compare trees after acting; reports change, not task success.'),
-    captcha: f.captcha.describe('Ask the operator before acting on a visible challenge.'),
-    path: f.path.describe('file: absolute path of the file to upload through the native dialog.'),
-    steps: z.array(step).optional().describe('Non-nested sequence; stops at first failure, a wait-until timeout included. Capture, region, scale and settleMs belong on the sequence. Step fields have the same meanings as the top-level fields.'),
+    scope: f.scope.describe('Tree scope: window (default); app adds its other windows.'),
+    verify: f.verify.describe('Diff trees after act (reports change, not task success).'),
+    captcha: f.captcha.describe('Ask operator before acting on a visible challenge.'),
+    path: f.path.describe('file: absolute path for native file dialog.'),
+    steps: z.array(step).optional().describe('Non-nested sequence; stops on failure or wait-until timeout. Put capture/region/scale/settleMs on sequence.'),
   })
 })
 
@@ -1325,11 +1324,11 @@ export const ComputerTool = buildTool({
     return "Drive the operator's screen: screenshot, click, type, press keys, scroll and drag in the application in front, on every model route that receives images"
   },
   async prompt() {
-    return `Operate the desktop by screenshot coordinates or accessibility targets. Coordinates are pixels of its last screenshot; refresh after frame changes. Trees use [n] role "title" value rows. Terminal captures return accessibility text by default. Text fields: fill (target/ref) sets the value and reads it back; fields lists the controls.
+    return `Drive by screenshot coordinates or accessibility targets. Coordinates are pixels of its last screenshot; refresh after frame changes. Trees use [n] role "title" value rows. Terminal captures default to accessibility text. fill (target/ref) sets the value and reads it back; fields lists the controls.
 
-The first act of a session asks once; tree/find/read/wait-until share its grant. Other reads never ask. Operator typing pauses automation; esc/ctrl+c releases input.
+The first act of a session asks once; tree/find/read/wait-until share its grant; other reads never ask. Operator typing pauses automation; esc/ctrl+c releases input.
 
-After a click whose effect you assume (a dialog, a focus change, a page), wait with until; a sequence stops at its timeout. After the same act twice with an unchanged result, read the screen before acting again.`
+After a click whose effect you assume, wait with until; a sequence stops at its timeout. After the same act twice with an unchanged result, read the screen before acting again.`
   },
   userFacingName,
   shouldDefer: true,
