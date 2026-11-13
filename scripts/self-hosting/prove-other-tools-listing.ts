@@ -10,7 +10,7 @@ try {
   section('a project with no MERCURY.md: every file is named with its tool and with when it loads')
   const p1 = world.project({
     'AGENTS.md': 'agents-needle\n',
-    'CLAUDE.md': 'guide-needle\n',
+    'GEMINI.md': 'guide-needle\n',
     '.cursor/rules/a-always.mdc': '---\nalwaysApply: true\n---\nalways-needle\n',
     '.cursor/rules/b-scoped.mdc': '---\nglobs: src/**/*.ts\nalwaysApply: false\n---\nscoped-needle\n',
     '.cursor/rules/c-offered.mdc': '---\ndescription: How migrations are written\nalwaysApply: false\n---\noffered-needle\n',
@@ -24,7 +24,7 @@ try {
   const d1 = world.drive(p1, { screens: true, touch: [join(p1, 'src/a.ts')] })
   check('the loaded rows name the tool of each file, AGENTS.md keeps its words, an offered rule says so', same(d1.rows, [
     'shared guide · ./AGENTS.md',
-    'Claude Code · ./CLAUDE.md',
+    'Gemini · ./GEMINI.md',
     'Cursor · ./.cursor/rules/a-always.mdc',
     'Cursor · ./.cursor/rules/c-offered.mdc · offered by its description',
   ]), JSON.stringify(d1.rows))
@@ -40,7 +40,7 @@ try {
   check('the footer of the list says what the auto profile reads and that a row says when its file loads', d1.words.footer === "profile auto: MERCURY.md, or other tools' files when there is none · a row says when its file loads", d1.words.footer)
   check('the row of the memory centre says the same of the profile', d1.words.centre === "MERCURY.md, or other tools' files when there is none · editor and the memory switch", d1.words.centre)
 
-  check('the health note counts the sources by tool', d1.words.health === '4 source(s) from other tools (AGENTS.md 1 · Claude Code 1 · Cursor 2): no MERCURY.md in or above the working directory', d1.words.health)
+  check('the health note counts the sources by tool', d1.words.health === '4 source(s) from other tools (AGENTS.md 1 · Gemini 1 · Cursor 2): no MERCURY.md in or above the working directory', d1.words.health)
   const p1b = world.project({ 'AGENTS.md': 'agents-needle\n@docs/x.md\n', 'docs/x.md': 'imported-needle\n' })
   const d1b = world.drive(p1b, { screens: true })
   check('with AGENTS.md alone the health note keeps the words it had', d1b.words.health === '2 AGENTS.md source(s): no MERCURY.md in or above the working directory', d1b.words.health)
@@ -48,8 +48,7 @@ try {
   section('under a MERCURY.md: what it imports is listed by its scope, the rest says what to do next')
   const p2 = world.project({
     'MERCURY.md': 'native-needle\n@.cursor/rules/b-scoped.mdc\n',
-    'CLAUDE.md': 'guide-needle\n',
-    'CLAUDE.local.md': 'local-needle\n',
+    'GEMINI.md': 'guide-needle\n',
     '.github/copilot-instructions.md': 'repository-needle\n',
     '.cursor/rules/a-always.mdc': '---\nalwaysApply: true\n---\nalways-needle\n',
     '.cursor/rules/b-scoped.mdc': '---\nglobs: src/**/*.ts\nalwaysApply: false\n---\nscoped-needle\n',
@@ -59,8 +58,7 @@ try {
   check('the loaded rows are those of Mercury itself', same(d2.rows, ['Mercury-native · ./MERCURY.md']), JSON.stringify(d2.rows))
   check('the imported rule keeps its scope and every switched-off file names its import line', same(d2.listed, [
     'Cursor · ./.cursor/rules/b-scoped.mdc · loads with src/**/*.ts',
-    'Claude Code · ./CLAUDE.md · not loaded: MERCURY.md decides; import it with @CLAUDE.md',
-    'Claude Code · ./CLAUDE.local.md · not loaded: MERCURY.md decides; import it with @CLAUDE.local.md',
+    'Gemini · ./GEMINI.md · not loaded: MERCURY.md decides; import it with @GEMINI.md',
     'Copilot · ./.github/copilot-instructions.md · not loaded: MERCURY.md decides; import it with @.github/copilot-instructions.md',
     'Cursor · ./.cursor/rules/a-always.mdc · not loaded: MERCURY.md decides; import it with @.cursor/rules/a-always.mdc',
   ]), JSON.stringify(d2.listed))

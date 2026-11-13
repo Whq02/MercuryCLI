@@ -54,6 +54,18 @@ try {
   check('the guide list there names the root guide alone', JSON.stringify(d2b.guides) === JSON.stringify([join(p2, 'CLAUDE.md')]), JSON.stringify(d2b.guides))
   const d2c = world.drive(join(p2, 'work/proj'), { trust: p2 })
   check('with the home elsewhere the same folders are plain parents and their files compose', ['personal-guide-needle', 'personal-rule-needle', 'home-root-needle', 'project-guide-needle'].every(needle => d2c.first.includes(needle)), d2c.paths.join(', '))
+
+  section('where the loaded instructions are listed, its files carry its name')
+  const d3 = world.drive(p1, { screens: true })
+  check('a loaded guide reads by its tool in /memory files', d3.rows.includes('Claude Code · ./CLAUDE.md') && d3.rows.includes('Claude Code · ./.claude/CLAUDE.md') && d3.rows.includes('Claude Code · ./CLAUDE.local.md'), JSON.stringify(d3.rows))
+  check('the health note counts its sources under its name', d3.words.health === '6 source(s) from other tools (AGENTS.md 1 · Claude Code 4 · Cursor 1): no MERCURY.md in or above the working directory', d3.words.health)
+  const d3b = world.drive(p1c, { screens: true })
+  check('under a MERCURY.md each of its files says which import brings it back', JSON.stringify(d3b.listed) === JSON.stringify([
+    'Claude Code · ./CLAUDE.md · not loaded: MERCURY.md decides; import it with @CLAUDE.md',
+    'Claude Code · ./.claude/CLAUDE.md · not loaded: MERCURY.md decides; import it with @.claude/CLAUDE.md',
+    'Claude Code · ./CLAUDE.local.md · not loaded: MERCURY.md decides; import it with @CLAUDE.local.md',
+    'Claude Code · ./.claude/rules/x.md · not loaded: MERCURY.md decides; import it with @.claude/rules/x.md',
+  ]), JSON.stringify(d3b.listed))
 } finally {
   world.close()
 }
