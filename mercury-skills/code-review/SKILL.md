@@ -13,7 +13,7 @@ Every finder and verifier runs in the foreground and reports straight to the lea
 
 Read any arguments appended after this skill:
 
-- If the leading token is an effort level (`low`, `medium`, `high`, `xhigh`, or `max`), keep it as `<effort>` and pass `effort: "<effort>"` on every `Crewmate` launch; otherwise omit `effort` so the operator's or session's effort applies. Never lower the operator's model or effort.
+- If the leading token is an effort level (`low`, `medium`, `high`, `xhigh`, or `max`), keep it as `<effort>`. Read `mercury://seat` with `Inspect` (`ref: "mercury://seat"`) for unspecified model and effort, honoring any explicit worker choices by the operator; on every `Crewmate` launch pass `model: "<worker_model>"` and `effort: "<effort>"`. Omission takes the agent definition or configured crewmate defaults, not the parent's effort. If no effort is set, omit it and disclose that default; if a specified effort cannot be represented by the offered schema, review directly rather than lower it.
 - Treat the remaining text (or the whole argument when no effort token leads) as `<target>`: a pull request (`#123`, `123`, or PR URL), a commit SHA, a ref range (`A..B` or `A...B`), a branch name, file paths, or review instructions and exclusions. Carry any user focus or exclusion verbatim into every finder and verifier brief.
 - Inspect the repository with `Git` (`op: "status"`, `op: "diff"`, `op: "show"`, `op: "mergebase"`, or `op: "reviewContext"` and `op: "prDiff"` for a pull request) and read nearby project instruction files (`MERCURY.md` or `AGENTS.md`) plus commit or PR descriptions for author intent and house rules.
 
@@ -74,7 +74,7 @@ Your lens: <lens name and instructions>
 
 1. Read every finder's output (and `Read` each `<scratchpad>/finder-*.md` receipt on the committed road). When all finders return zero candidates, inspect the diff yourself once to confirm nothing material was missed and report a clean review.
 2. Deduplicate candidates that share the same root cause and location, preserving the clearest failure scenario and noting how many finders flagged each candidate.
-3. Read `mercury://models` via `Inspect` (`ref: "mercury://models"`) or `Read` (`file_path: "mercury://models"`) and pick a signed-in model id from **another model family** than the finders' model (`<verifier_model>`), keeping `<effort>` when given. When no second family is signed in, omit `model` and state single-family verification plainly in the report.
+3. Read `mercury://models` via `Inspect` (`ref: "mercury://models"`) or `Read` (`file_path: "mercury://models"`) and, unless the operator fixed the verifier's identity, pick a reachable model from **another model family** than the finders' model (`<verifier_model>`), keeping `<effort>`. Compare model families, not hosting providers. When no second family is reachable, keep `<worker_model>` and state single-family verification plainly in the report.
 4. Group candidates into batches of up to 5 per verifier (1 verifier for 1 to 5 candidates; 2 or 3 concurrent verifiers in **one message** for larger sets). On the committed road, `Write` `<scratchpad>/verifier-<k>.md` ending with `\n## Review\n` before launching.
 5. Launch all verifier seat(s) concurrently in **one message** (foreground; `model: "<verifier_model>"` when signed in; same `isolation: "worktree"`, `worktree_at: "<head_sha>"`, `review_receipt: "<scratchpad>/verifier-<k>.md"` without `cwd` on the committed road, or `crewmate_type: "mercury-scout"` with `output_schema` on the uncommitted road).
 

@@ -20,8 +20,9 @@ Read the question appended after this skill. A leading `light:` prefix selects t
 
 ## 2. Check reachable models and swarm state
 
-1. Read `mercury://models` with `Inspect` (`ref: "mercury://models"`) or `Read` (`file_path: "mercury://models"`). Keep the session's model and effort for the captain and angle researchers; never lower the operator's model or effort. Pick a signed-in model id from a different provider family than the session's model for the adversarial verifier seat(s). When no second family is signed in, omit `model` on the verifier seat(s) and record that verification ran on one model family to disclose in the report.
-2. Check whether `CrewBoard` is among the tools this session offers, either already loaded or listed under deferred tools:
+1. Read `mercury://seat` with `Inspect` (`ref: "mercury://seat"`). Use the operator's specified worker model and effort, otherwise this session's identity; on every `Crewmate` launch pass `model: "<worker_model>"` and `effort: "<effort>"`. Omitted values use the agent definition or configured crewmate defaults, not necessarily the parent; omitted effort defaults to high. If no effort is set, omit it and disclose that default; if a specified effort cannot be represented by the offered schema, continue directly rather than lower it.
+2. Read `mercury://models` with `Inspect` (`ref: "mercury://models"`) or `Read` (`file_path: "mercury://models"`). Unless the operator fixed the verifier's identity, choose a reachable model from another model family and override only its `model`, keeping the chosen effort. Compare model families, not hosting providers: one host may serve several families. When no second family is reachable, retain `<worker_model>` for verifiers and disclose single-family verification.
+3. Check whether `CrewBoard` is among the tools this session offers, either already loaded or listed under deferred tools:
    - When `CrewBoard` is listed under deferred tools, load `CrewBoard`, `Crewmate`, and `ResumeCrewmate` with `ToolSearch` (`query: "select:CrewBoard,Crewmate,ResumeCrewmate"`).
    - When `CrewBoard` is neither loaded nor listed under deferred tools, the swarm is off: follow **6. When the swarm is off** instead of launching a captain.
 

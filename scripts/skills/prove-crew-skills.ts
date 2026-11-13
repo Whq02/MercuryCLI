@@ -457,6 +457,14 @@ const commsBoundPattern = /\b(?:max|maximum|at most|under|fewer than|limit(?:ed)
 check('neither skill bounds CrewBoard reads or posts by tokens, characters, or count', !commsBoundPattern.test(deepSource) && !commsBoundPattern.test(reviewSource))
 check('neither skill contains retired workflow calls or /workflows references', !/\bWorkflow\s*\(|\/workflows\b/i.test(bothTexts))
 
+const { resolveAgentEffort } = await import('../../src/tools/AgentTool/runAgent.ts')
+for (const [name, source] of [['deep-research', deepSource], ['code-review', reviewSource]] as const) {
+  const identityLine = source.split('\n').find(line => line.includes('on every `Crewmate` launch')) ?? ''
+  const identity = launchArguments(identityLine.slice(identityLine.indexOf('on every `Crewmate` launch')))
+  const effort = resolveAgentEffort({ effortOverride: identity.effort === '<effort>' ? 'max' : undefined, useExactTools: false, definitionEffort: undefined, defaultEffort: 'high' })
+  check(`${name}: a max-effort lead dispatches explicit identity instead of silently taking the high crewmate default`, effort === 'max' && identity.model === '<worker_model>', { identity, effort })
+}
+
 const readyLine = captainBrief.split('\n').find(line => line.includes('Captain enrolled; launch the remaining seats.')) ?? ''
 check('the captain posts readiness and the lead waits for that event before launching peers', readyLine.includes('clientOpId: "<team>-ready"') && deepSource.includes('wait for the captain’s ready post'), readyLine)
 const { open: openBoard } = await import('../../src/services/crewBoard/store.ts')
