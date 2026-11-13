@@ -5,7 +5,6 @@ import { join } from 'node:path'
 import {
   MERCURY_CONSTITUTION,
   MERCURY_COORDINATOR_CONTRACT,
-  MERCURY_COORDINATOR_SEAT,
   MERCURY_SUBAGENT_CONTRACT,
   getMercuryContractSections,
 } from '../../src/prompt/mercuryContract.js'
@@ -46,7 +45,6 @@ check('prompts.ts composes the constitution into the static group right after th
 check('prompts.ts carries no behaviour prose of its own: no tone, no communication, no care, no doing-tasks section', !/# Tone and style|# Communicating with the user|# Acting with care|# Doing tasks|# System behaviour|# Using your tools|# Session-specific guidance/.test(PROMPTS))
 
 section('the seat contracts stay beside the constitution, one per seat')
-check('the coordinator seat fact names the role and no second identity', MERCURY_COORDINATOR_SEAT.includes('"coordinator" is your role, never a second name') && !/^You are/.test(MERCURY_COORDINATOR_SEAT))
 check('the coordinator contract carries its evidence rule and its smallest-honest-question rule', /Claim only what the board or this turn's receipts show/.test(MERCURY_COORDINATOR_CONTRACT) && /ask the smallest honest question/.test(MERCURY_COORDINATOR_CONTRACT))
 check('the crewmate contract carries its evidence rule and its gate rule', /Claim only what you opened or ran shows/.test(MERCURY_SUBAGENT_CONTRACT) && /Never bypass a safety, permission, approval, or capability gate/.test(MERCURY_SUBAGENT_CONTRACT))
 check('no session contract and no doctrine tag exist beside the constitution', !new RegExp([J('MERCURY_SESSION', '_CONTRACT'), J('MERCURY_SESSION', '_DOCTRINE'), J('<mercury', '-doctrine>'), J('MERCURY_IDENTITY', '_RECONCILE')].join('|')).test(CONTRACT))

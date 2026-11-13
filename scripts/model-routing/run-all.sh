@@ -15,8 +15,8 @@
 # gate-watch: src/components/mercury-ui/EffortChip.tsx
 # gate-watch: src/constants/* src/utils/effortLadder.ts src/hooks/useDisplayedSessionModel.ts
 # gate-watch: src/main.tsx src/run-core/turn-machine.ts src/screens/Chat.tsx src/services/api/errors.ts
-# gate-watch: src/services/compact/autoCompact.ts src/services/concourse/coordinatorModels.ts
-# gate-watch: src/services/concourse/coordinatorTools.ts src/services/engine-connector/seatProjections.ts
+# gate-watch: src/services/compact/autoCompact.ts
+# gate-watch: src/services/engine-connector/seatProjections.ts
 # gate-watch: src/services/primitives/execution.ts src/services/primitives/executionCensus.ts
 # gate-watch: src/services/search/searchDoor.ts src/tools/AgentTool/*
 # gate-watch: src/tools/ToolSearchTool/ToolSearchTool.ts src/tools/WorkflowTool/agentHooks.ts

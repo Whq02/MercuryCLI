@@ -73,13 +73,8 @@ t.section('§7 — registration laws + the SEVENTH divergence class')
   const seed = await import('./concourseReferenceSeed.ts')
   t.check(
     'CONCOURSE_REFERENCE_DIVERGENCES carries the SEVENTH class (resident-critter) BEFORE any parity prover',
-    seed.CONCOURSE_REFERENCE_DIVERGENCES.length === 8 && /resident-critter/.test(seed.CONCOURSE_REFERENCE_DIVERGENCES[6] ?? ''),
+    seed.CONCOURSE_REFERENCE_DIVERGENCES.length === 7 && /resident-critter/.test(seed.CONCOURSE_REFERENCE_DIVERGENCES[6] ?? ''),
     String(seed.CONCOURSE_REFERENCE_DIVERGENCES.length),
-  )
-  t.check(
-    'and the EIGHTH (coordinator-tone: amber reserved for attention)',
-    /coordinator-tone/.test(seed.CONCOURSE_REFERENCE_DIVERGENCES[7] ?? ''),
-    seed.CONCOURSE_REFERENCE_DIVERGENCES[7]?.slice(0, 40),
   )
 }
 

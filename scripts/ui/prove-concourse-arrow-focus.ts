@@ -120,7 +120,6 @@ function newScratch(tag: string): string {
   const fixture = referenceFixtureSnapshot()
   for (const g of fixture.groups) for (const r of g.rows) r.workspaceDir = scratch
   fixture.needsYou = []
-  fixture.coordinator = { mode: 'off' }
   writeFileSync(join(scratch, 'concourse-fixture.json'), JSON.stringify(fixture))
   return scratch
 }

@@ -226,7 +226,6 @@ section('§4 event-driven, one in flight — readers on timers reuse the last va
     'src/services/workbench/currentWork.ts',
     'src/services/mission/projection.ts',
     'src/state/vitalsBus.ts',
-    'src/services/concourse/coordinatorBoard.ts',
     'src/components/HelmLanesRail.tsx',
     'src/components/concourse/ConcourseRoute.tsx',
   ]

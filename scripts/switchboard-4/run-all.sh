@@ -4,7 +4,7 @@
 # gate-watch: src/services/concourse/** src/components/concourse/** src/daemon/concourseWorkers.ts
 # gate-watch: src/daemon/concourseDispatch.ts src/daemon/permissionAsks.ts src/services/switchboard/attachedSession.ts
 # gate-watch: src/components/SwitchboardTagBar.tsx src/context/surfaceRoute.ts
-# gate-watch: src/prompt/engineIdentity.ts src/constants/prompts.ts
+# gate-watch: src/constants/prompts.ts
 # gate-watch: docs/SESSIONS.md scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts src/commands.ts
 # gate-watch: src/commands/clear/clear.ts src/commands/enablement.ts
 # gate-watch: src/components/HelmLanesRail.tsx src/components/messages/TranscriptNameplate.tsx

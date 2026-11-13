@@ -5,12 +5,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 if (process.platform === 'win32') {
-  console.log('prove-board-dirt-cached: the shim legs need a posix shell — skipped on win32')
+  console.log('prove-worktree-dirt-probe: the shim legs need a posix shell — skipped on win32')
   process.exit(0)
 }
 
 const REPO_ROOT = join(import.meta.dir, '..', '..')
-const SCRATCH = mkdtempSync(join(tmpdir(), 'board-dirt-'))
+const SCRATCH = mkdtempSync(join(tmpdir(), 'worktree-dirt-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR)
 process.env.GIT_CONFIG_GLOBAL = join(SCRATCH, 'gitconfig')
@@ -46,7 +46,6 @@ const rows = (): Row[] =>
     })
 const mark = (): number => rows().length
 const since = (n: number): Row[] => rows().slice(n)
-const isStatus = (r: Row): boolean => r.argv.includes(' status ')
 
 const repo = join(SCRATCH, 'repo')
 mkdirSync(repo)
@@ -71,54 +70,16 @@ console.log('§1 the probe is bounded')
   check("…never touching the user's index (no refresh written)", statSync(idx).mtimeMs === idxBefore && !existsSync(join(repo, '.git', 'index.lock')))
 }
 
-console.log('§2 the words are cached')
-const realNow = Date.now
+console.log('§2 the reap keeps the synchronous read')
 {
-  const n0 = mark()
-  const first = wt.cachedWorktreeDirt(repo)
-  check('the first cached read answers null (nothing claimed before the first answer)', first === null)
-  await wt._worktreeDirtRefreshForTesting(repo)
-  check('…and scheduled ONE bounded refresh', since(n0).filter(isStatus).length === 1 && since(n0).filter(isStatus)[0]!.argv === BOUNDED, since(n0).map(x => x.argv).join(' | '))
-  const second = wt.cachedWorktreeDirt(repo)
-  check('the second read paints the words (clean)', second?.kind === 'clean', JSON.stringify(second))
-  writeFileSync(join(repo, 'authored.ts'), 'export const work = 1\n')
-  const third = wt.cachedWorktreeDirt(repo)
-  await wt._worktreeDirtRefreshForTesting(repo)
-  check('inside the minute a read issues no git status, even after the tree changed', since(n0).filter(isStatus).length === 1 && third?.kind === 'clean', `${since(n0).filter(isStatus).length} status runs`)
-}
-
-console.log('§3 the refresh runs async, once per window')
-{
-  const n0 = mark()
-  Date.now = () => realNow() + 61_000
-  try {
-    const fourth = wt.cachedWorktreeDirt(repo)
-    check('past the window a read still paints the last words at once', fourth?.kind === 'clean')
-    check('…with the refresh in flight behind it (nothing awaited by the reader)', since(n0).filter(isStatus).length <= 1)
-    await wt._worktreeDirtRefreshForTesting(repo)
-    check('…ONE refresh ran', since(n0).filter(isStatus).length === 1, `${since(n0).filter(isStatus).length}`)
-    const fifth = wt.cachedWorktreeDirt(repo)
-    check('…after which the words follow the tree (authored: authored.ts)', fifth?.kind === 'authored' && fifth.files.includes('authored.ts'), JSON.stringify(fifth))
-    await wt._worktreeDirtRefreshForTesting(repo)
-    check('…and a second read in the new window schedules nothing more', since(n0).filter(isStatus).length === 1)
-  } finally {
-    Date.now = realNow
-  }
-}
-
-console.log('§4 the board paints from the cache; the reap keeps the synchronous read')
-{
-  const board = readFileSync(join(REPO_ROOT, 'src/services/concourse/coordinatorBoard.ts'), 'utf8')
-  check("the board's main-checkout words ride cachedWorktreeDirt", board.includes('wt.cachedWorktreeDirt(workspaceId)') && !board.includes('wt.classifyWorktreeDirt('))
   const src = readFileSync(join(REPO_ROOT, 'src/daemon/concourseWorktrees.ts'), 'utf8')
   check('the reap still classifies synchronously (a reap sees the tree of its moment)', /dirt \?\?= classifyWorktreeDirt\(path\)/.test(src))
-  check('one probe spelling for both roads (the sync read and the cached refresh)', (src.match(/\.\.\.dirtProbe\(path\)\)/g) ?? []).length === 2)
+  check('the synchronous read is the one road that spells the probe', (src.match(/\.\.\.dirtProbe\(path\)\)/g) ?? []).length === 1)
   check('…and that spelling ends with the boundary owner\'s pathspec tail', src.includes("'--untracked-files=normal', ...projectScopePathspec(path)]"))
 }
 
-console.log('§5 the dirt law holds through the bounded probe')
+console.log('§3 the dirt law holds through the bounded probe')
 {
-  rmSync(join(repo, 'authored.ts'))
   const runtimeHome = wt.WORKTREE_RUNTIME_HOMES[0]!
   mkdirSync(join(repo, runtimeHome), { recursive: true })
   writeFileSync(join(repo, runtimeHome, 'settings.local.json'), '{}')
@@ -135,5 +96,5 @@ console.log('§5 the dirt law holds through the bounded probe')
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
-console.log(failures === 0 ? '\nprove-board-dirt-cached: ALL LAWS HOLD' : `\nprove-board-dirt-cached: ${failures} FAILURE(S)`)
+console.log(failures === 0 ? '\nprove-worktree-dirt-probe: ALL LAWS HOLD' : `\nprove-worktree-dirt-probe: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

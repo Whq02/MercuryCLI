@@ -3,8 +3,7 @@
 # suite runs every prover NOT named by a sibling list, so a NEW prover
 # lands there automatically; a name listed here but missing on disk is a
 # loud red in this runner.
-prove-coordinator-replay.ts
-prove-crossfamily-concourse-kernel.ts
+prove-crossfamily-concourse-seats.ts
 prove-live-tiles.ts
 prove-seat-daemon-laws.ts
 prove-session-model-arms.ts

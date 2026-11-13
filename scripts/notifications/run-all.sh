@@ -7,7 +7,6 @@
 # gate-watch: scripts/staleness/prove-stale-registry.ts src/boot/launchGraph.ts src/bootstrap/state.ts
 # gate-watch: src/components/concourse/* src/components/mercury-ui/CritterArt.tsx
 # gate-watch: src/components/mercury-ui/keyHintLabel.ts src/context/surfaceRoute.ts src/daemon/*
-# gate-watch: src/hooks/useCoordinatorReceiptFold.ts
 # gate-watch: src/ink/components/App.tsx src/ink/events/input-event.ts src/ink/ink.tsx
 # gate-watch: src/ink/root/terminalModeLedger.ts src/main.tsx src/query.ts src/run-core/turn-machine.ts
 # gate-watch: src/screens/ResumeConversation.tsx src/services/api/recoveryBudget.ts

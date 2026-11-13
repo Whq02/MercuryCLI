@@ -320,26 +320,6 @@ export function recordCollisionEvidence(row: CollisionEvidenceV1, dir?: string):
   updateCollisionEvidence(rows => [...rows, row].slice(-COLLISION_EVIDENCE_CAP), dir)
 }
 
-export function markCollisionEvidenceConsumed(
-  workspaceId: string,
-  workerIds: readonly string[],
-  dir?: string,
-): void {
-  const ids = new Set(workerIds)
-  updateCollisionEvidence(
-    rows =>
-      rows.map(row =>
-        row.kind === 'authored-work-retained' &&
-        row.workspaceId === workspaceId &&
-        row.consumedAt === undefined &&
-        row.holders.some(h => ids.has(h.workerId))
-          ? { ...row, consumedAt: Date.now() }
-          : row,
-      ),
-    dir,
-  )
-}
-
 interface ConcourseWorkerFileV1 {
   version: 1
   workers: Record<string, ConcourseWorkerRecordV1>
@@ -1552,8 +1532,7 @@ export function settleConcourseWorker(runnerId: string, dir?: string): boolean {
     } catch {
     }
   }
-  const retainedInfo =
-    settled && settledRec !== undefined ? reapSettledWorktree(settledRec, dir) : undefined
+  if (settled && settledRec !== undefined) reapSettledWorktree(settledRec, dir)
   if (settled && endedSessionId !== undefined) {
     try {
       retireSeatProjections(endedSessionId, dir)
@@ -1565,77 +1544,6 @@ export function settleConcourseWorker(runnerId: string, dir?: string): boolean {
       sweepScratchpadDir(scratchpadDirFor(settledRec.worktreePath ?? settledRec.workspaceId, settledRec.sessionId))
     } catch {
     }
-  }
-  if (settled && endedSessionId !== undefined) {
-    const sid = endedSessionId
-    const rec2 = settledRec
-    let retained:
-      | {
-          workspaceId: string
-          title: string
-          branchName?: string
-          mainHolderSessionId?: string
-          batchBranches: string[]
-          batchWorkerIds: string[]
-          worktreePath?: string
-          committedAhead?: number
-          uncommittedFiles?: string[]
-        }
-      | undefined
-    if (retainedInfo !== undefined && rec2 !== undefined) {
-      const holder = Object.values(readSessionWorkers(dir)).find(
-        r =>
-          r.endedAt === undefined &&
-          r.workspaceId === rec2.workspaceId &&
-          (r.isolation ?? 'exclusive') === 'exclusive' &&
-          workerPidAlive(r),
-      )
-      const unconsumed = readCollisionEvidence(dir)
-        .filter(
-          e =>
-            e.kind === 'authored-work-retained' &&
-            e.workspaceId === rec2.workspaceId &&
-            e.consumedAt === undefined &&
-            e.branchName !== undefined,
-        )
-        .sort((a, b) => a.observedAt - b.observedAt)
-      retained = {
-        workspaceId: rec2.workspaceId,
-        title: rec2.title ?? runnerId,
-        ...(rec2.branchName !== undefined ? { branchName: rec2.branchName } : {}),
-        ...(holder !== undefined ? { mainHolderSessionId: holder.sessionId } : {}),
-        batchBranches: [...new Set(unconsumed.map(e => e.branchName as string))],
-        batchWorkerIds: [...new Set(unconsumed.flatMap(e => e.holders.map(h => h.workerId)))],
-        ...(rec2.worktreePath !== undefined ? { worktreePath: rec2.worktreePath } : {}),
-        ...(retainedInfo.committedAhead !== undefined ? { committedAhead: retainedInfo.committedAhead } : {}),
-        ...(retainedInfo.files.length > 0 ? { uncommittedFiles: retainedInfo.files.slice(0, 20) } : {}),
-      }
-    }
-    void import('../services/concourse/coordinatorKernel.js')
-      .then(k =>
-        k
-          .runCoordinatorKernel({
-            kind: 'worker-settled',
-            sessionId: sid,
-            runnerId,
-            ...(retained !== undefined ? { retained } : {}),
-          })
-          .then(receipts => {
-            if (
-              retained !== undefined &&
-              receipts.some(
-                r =>
-                  (r.verb === 'session.redirect' || r.verb === 'session.launch') &&
-                  (r.outcome === 'applied' || r.outcome === 'queued'),
-              )
-            ) {
-              markCollisionEvidenceConsumed(retained.workspaceId, retained.batchWorkerIds, dir)
-            }
-          }),
-      )
-      .catch(err => {
-        logForDebugging(`[concourse] R2 kernel ride failed for ${runnerId}: ${err}`)
-      })
   }
   return settled
 }

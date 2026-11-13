@@ -699,73 +699,16 @@ section('§C the workflow driver — scripted fan-out across every family')
     String(junkRun.result).slice(0, 300))
 }
 
-section('§D the coordinator seat — every family takes a coordinator turn')
+section('§D the receipt law — only the OpenAI family mints qualification receipts')
 {
-  const { COORDINATOR_CONTRACT, COORDINATOR_CONTRACT_VERSION } = await import('../../src/services/concourse/coordinatorLane.ts')
-  const { liveCoordinatorCallModel } = await import('../../src/services/concourse/coordinatorCall.ts')
-  const { coordinatorToolSet } = await import('../../src/services/concourse/coordinatorTools.ts')
   const q = await import('../../src/services/providers/openai/qualificationStore.ts')
-  const { composeCoordinatorModelRegistry } = await import('../../src/services/concourse/coordinatorModels.ts')
-
-  const board = {
-    counts: { running: 2 },
-    sessions: [
-      { sessionId: 'seat-openai', title: 'the gpt seat', state: 'running', means: 'working now', model: 'gpt-5.6-sol' },
-      { sessionId: 'seat-zai', title: 'the glm seat', state: 'running', means: 'working now', model: WORKER_SPELLINGS.zai.model },
-    ],
-    openObligations: [],
-  }
-  const firstToolName = coordinatorToolSet()[0]?.name ?? ''
-
-  for (const family of FAMILIES) {
-    const spelling = WORKER_SPELLINGS[family]
-    const before = captured.length
-    let reply = ''
-    let threw: string | undefined
-    try {
-      const proposal = await liveCoordinatorCallModel(
-        {
-          contractVersion: COORDINATOR_CONTRACT_VERSION,
-          contract: COORDINATOR_CONTRACT,
-          event: { kind: 'operator-message', messageId: `cf-${family}`, text: 'matrix-notool: say ok' } as never,
-          board: board as never,
-        },
-        spelling.model,
-      )
-      reply = String((proposal as { reply?: unknown }).reply ?? '')
-    } catch (error) {
-      threw = error instanceof Error ? error.message : String(error)
-    }
-    const hits = captured.slice(before)
-    const own = hits.filter(h => h.family === family)
-    check(`coordinator@${family}: the turn settled on its own endpoint with the exact id`,
-      threw === undefined && own.length >= 1 && hits.length === own.length &&
-        own.every(h => String(h.body.model) === spelling.wireId) && reply.includes(`matrix-final-${family}`),
-      `threw=${threw ?? ''} hits=${hits.map(h => h.family + ':' + String(h.body.model)).join(',')} reply=${reply.slice(0, 100)}`)
-    if (own.length === 0) continue
-    const serialized = text(own[0]!.body)
-    check(`coordinator@${family}: the coordinator seat identity rides its wire`,
-      serialized.includes(IDENTITY_ANCHOR) && serialized.includes('This seat is the Mercury coordinator'))
-    check(`coordinator@${family}: the cross-family board reaches the wire (both seats' model ids)`,
-      serialized.includes('gpt-5.6-sol') && serialized.includes(WORKER_SPELLINGS.zai.model))
-    check(`coordinator@${family}: the switchboard tools are declared on its wire`,
-      firstToolName !== '' && serialized.includes(firstToolName))
-  }
-
   const receipts = q.readQualificationReceipts()
-  check("the GPT coordinator turn minted {gpt-5.6-sol · coordinator} (CM's seam)",
-    receipts.some(r => r.receipt.modelId === 'gpt-5.6-sol' && r.receipt.role === 'coordinator'),
+  check("the matrix's GPT worker turns minted {gpt-5.6-sol · specialist}",
+    receipts.some(r => r.receipt.modelId === 'gpt-5.6-sol' && r.receipt.role === 'specialist'),
     text(receipts.map(r => [r.receipt.modelId, r.receipt.role])))
   check('no non-GPT family minted a qualification receipt (the receipt law is the OpenAI contract\'s own)',
     receipts.every(r => declaredRouteOf(r.receipt.modelId) === 'openai'),
     text(receipts.map(r => r.receipt.modelId)))
-  const registry = await composeCoordinatorModelRegistry()
-  const gptRow = registry.entries.find(e => e.modelId === 'gpt-5.6-sol')
-  check("the registry reads the qualified GPT row 'ready' on the next read",
-    gptRow?.availability === 'ready', text(gptRow))
-  check('every registry row names its own family in the routing law\'s vocabulary (no family folded into another)',
-    registry.entries.length > 0 && registry.entries.every(e => e.source === (declaredRouteOf(e.modelId) ?? 'unrecognised')),
-    text(registry.entries.slice(0, 6).map(e => [e.modelId, e.source])))
 }
 
 section('§A the dispatch boundary — the engine grammar is TOTAL over the routing law')

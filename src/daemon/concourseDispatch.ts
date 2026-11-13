@@ -954,20 +954,6 @@ export function makeConcourseDispatchHandler(
           logForDebugging(`[concourse/dispatch] collision-evidence record failed for ${req.clientMessageId}: ${err}`)
         }
       }
-      void import('../services/concourse/coordinatorKernel.js')
-        .then(k =>
-          k.runCoordinatorKernel({
-            kind: 'dispatch-refused',
-            clientMessageId: req.clientMessageId,
-            reason: admitted.error,
-            workspaceDir: req.workspaceDir,
-            promptPreview: prompt,
-            ...(req.by !== undefined ? { by: req.by } : {}),
-          }),
-        )
-        .catch(err => {
-          logForDebugging(`[concourse/dispatch] R1 kernel ride failed for ${req.clientMessageId}: ${err}`)
-        })
       return {
         ok: false,
         clientMessageId: req.clientMessageId,

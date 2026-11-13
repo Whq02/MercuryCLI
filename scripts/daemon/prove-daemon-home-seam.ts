@@ -292,12 +292,11 @@ console.log('\nW1 armed, home standing: each daemon writer meets an ENOENT from 
   type Writer = { n: string; where: string; file: string; phase: string; seed?: () => void; act: () => void | Promise<void>; landed: () => boolean }
   const writers: Writer[] = [
     { n: 'W1.1', where: 'the collision evidence', file: 'concourse-collisions.json', phase: 'create-temp', act: () => sup.recordCollisionEvidence(evidence, DAEMON_DIR), landed: () => existsSync(join(DAEMON_DIR, 'concourse-collisions.json')) },
-    { n: 'W1.2', where: 'the collision evidence', file: 'concourse-collisions.json', phase: 'create-temp', act: () => sup.markCollisionEvidenceConsumed(PROJECT, ['w1'], DAEMON_DIR), landed: () => existsSync(join(DAEMON_DIR, 'concourse-collisions.json')) },
-    { n: 'W1.3', where: 'the delta stamp', file: 'concourse-delta.json', phase: 'create-temp', act: () => void sup.updateConcourseWorkers(() => {}, DAEMON_DIR), landed: () => existsSync(join(DAEMON_DIR, 'concourse-delta.json')) },
-    { n: 'W1.4', where: 'the session records', file: 'concourse-workers.json', phase: 'create-temp', act: () => void sup.updateConcourseWorkers(() => {}, DAEMON_DIR), landed: () => existsSync(join(DAEMON_DIR, 'concourse-workers.json')) },
-    { n: 'W1.5', where: 'the box schedules', file: 'saturn-box-schedules.json', phase: 'create-temp', act: () => void box.holdBoxFire(held, DAEMON_DIR), landed: () => existsSync(join(DAEMON_DIR, 'saturn-box-schedules.json')) },
+    { n: 'W1.2', where: 'the delta stamp', file: 'concourse-delta.json', phase: 'create-temp', act: () => void sup.updateConcourseWorkers(() => {}, DAEMON_DIR), landed: () => existsSync(join(DAEMON_DIR, 'concourse-delta.json')) },
+    { n: 'W1.3', where: 'the session records', file: 'concourse-workers.json', phase: 'create-temp', act: () => void sup.updateConcourseWorkers(() => {}, DAEMON_DIR), landed: () => existsSync(join(DAEMON_DIR, 'concourse-workers.json')) },
+    { n: 'W1.4', where: 'the box schedules', file: 'saturn-box-schedules.json', phase: 'create-temp', act: () => void box.holdBoxFire(held, DAEMON_DIR), landed: () => existsSync(join(DAEMON_DIR, 'saturn-box-schedules.json')) },
     {
-      n: 'W1.6',
+      n: 'W1.5',
       where: 'the dispatch ledger',
       file: 'concourse-dispatches.json',
       phase: 'create-temp',
@@ -305,10 +304,10 @@ console.log('\nW1 armed, home standing: each daemon writer meets an ENOENT from 
       act: () => void dispatch.withdrawConcourseDispatch('m1', DAEMON_DIR),
       landed: () => !readText(join(DAEMON_DIR, 'concourse-dispatches.json')).includes('"queued"'),
     },
-    { n: 'W1.7', where: 'the control-op ledger', file: 'concourse-control-ops.json', phase: 'create-temp', act: () => dispatch.recordConcourseControlOp(op, DAEMON_DIR), landed: () => existsSync(join(DAEMON_DIR, 'concourse-control-ops.json')) },
-    { n: 'W1.8', where: 'the daemon record', file: 'daemon.json', phase: 'create-temp', act: () => control.writeDaemonState(daemon()), landed: () => existsSync(join(DAEMON_DIR, 'daemon.json')) },
+    { n: 'W1.6', where: 'the control-op ledger', file: 'concourse-control-ops.json', phase: 'create-temp', act: () => dispatch.recordConcourseControlOp(op, DAEMON_DIR), landed: () => existsSync(join(DAEMON_DIR, 'concourse-control-ops.json')) },
+    { n: 'W1.7', where: 'the daemon record', file: 'daemon.json', phase: 'create-temp', act: () => control.writeDaemonState(daemon()), landed: () => existsSync(join(DAEMON_DIR, 'daemon.json')) },
     {
-      n: 'W1.9',
+      n: 'W1.8',
       where: 'the daemon record',
       file: 'daemon.json',
       phase: 'create-temp',
@@ -316,8 +315,8 @@ console.log('\nW1 armed, home standing: each daemon writer meets an ENOENT from 
       act: () => void control.markDaemonStoppingSync(),
       landed: () => readText(join(DAEMON_DIR, 'daemon.json')).includes('"stopping"'),
     },
-    { n: 'W1.10', where: 'the control key', file: 'control.key', phase: 'create-temp', act: () => control.reassertControlKey('k'.repeat(64)), landed: () => existsSync(join(DAEMON_DIR, 'control.key')) },
-    { n: 'W1.11', where: 'the git-init asks', file: 'git-init-asks.json', phase: 'rename', act: () => void asks.mintGitInitAsk(PROJECT), landed: () => existsSync(join(DAEMON_DIR, 'git-init-asks.json')) },
+    { n: 'W1.9', where: 'the control key', file: 'control.key', phase: 'create-temp', act: () => control.reassertControlKey('k'.repeat(64)), landed: () => existsSync(join(DAEMON_DIR, 'control.key')) },
+    { n: 'W1.10', where: 'the git-init asks', file: 'git-init-asks.json', phase: 'rename', act: () => void asks.mintGitInitAsk(PROJECT), landed: () => existsSync(join(DAEMON_DIR, 'git-init-asks.json')) },
   ]
   for (const w of writers) {
     freshHome()

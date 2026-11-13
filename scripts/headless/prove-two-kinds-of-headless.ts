@@ -64,7 +64,7 @@ await guarded(async () => {
   check("the operator's own doors are a screen: by 'operator' is oculus", kinds.sessionKindOfAsker('operator') === 'oculus')
   check("a terminal-pid attribution ('operator:<pid>') is the same screen", kinds.sessionKindOfAsker('operator:4242') === 'oculus')
   check('a schedule fire asks for a headless session', kinds.sessionKindOfAsker('saturn:nightly') === 'headless')
-  check('a coordinator seat asks for a headless session', kinds.sessionKindOfAsker('concourse-w3') === 'headless')
+  check('a concourse worker asks for a headless session', kinds.sessionKindOfAsker('concourse-w3') === 'headless')
   check('nobody named asks for a headless session', kinds.sessionKindOfAsker(undefined) === 'headless')
   check('a retired or foreign spelling is no kind at all (no alias, no migration)', kinds.parseSessionKind('interactive') === undefined && kinds.parseSessionKind('OCULUS') === undefined && kinds.parseSessionKind('') === undefined)
   const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')

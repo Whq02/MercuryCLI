@@ -40,7 +40,6 @@ const { buildSubagentMercurySections } = await import('../../src/constants/subag
 const { assembleTurnSystemPrompt, buildSystemPromptBlocks } = await import('../../src/services/providers/anthropic/cacheAndUsage.ts')
 
 const TEXT: string = (contract as { MERCURY_CONSTITUTION?: string }).MERCURY_CONSTITUTION ?? ''
-const SEAT: string = (contract as { MERCURY_COORDINATOR_SEAT?: string }).MERCURY_COORDINATOR_SEAT ?? ''
 const scratch = mkdtempSync(join(tmpdir(), 'constitution-cwd-'))
 const cwd = process.cwd()
 const originalCwd = getOriginalCwd()
@@ -215,9 +214,7 @@ try {
     const scout = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-scout' } })
     check('the fixed-output scout: the constitution still leads', scout[0] === TEXT)
     check('the headless turn row composes the constitution ahead of a custom prompt', SRC('src/rows/turn.ts').includes('? [MERCURY_CONSTITUTION, config.customSystemPrompt]'))
-    check('the coordinator seat: the constitution, its seat fact, the engine line, its contract, the persona', SRC('src/services/concourse/coordinatorCall.ts').includes('asSystemPrompt([\n          MERCURY_CONSTITUTION,\n          MERCURY_COORDINATOR_SEAT,\n          engineLine,\n          MERCURY_COORDINATOR_CONTRACT,\n          input.contract,'))
-    check('the coordinator seat fact names the role, never a second identity', SEAT.length > 0 && !SEAT.startsWith('You are') && SEAT.includes('"coordinator" is your role, never a second name'))
-    const everySeat = [TEXT, SEAT, contract.MERCURY_COORDINATOR_CONTRACT, contract.MERCURY_SUBAGENT_CONTRACT].join('\n')
+    const everySeat = [TEXT, contract.MERCURY_COORDINATOR_CONTRACT, contract.MERCURY_SUBAGENT_CONTRACT].join('\n')
     check('no seat text negates the identity or names an engine family', !/claim to be human|misrepresent what you are|not a person/i.test(everySeat) && !/\b(Claude|Anthropic|GPT|OpenAI|Gemini)\b/.test(everySeat))
   }
 

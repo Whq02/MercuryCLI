@@ -28,7 +28,7 @@ console.log('§1 the board arms nothing on ⌃s or ⌃a (no settings layer, no p
   )
   check(
     'no ⌃a branch remains',
-    !screen.includes("key.ctrl && input === 'a'") && !screen.includes('switchCoordinatorMode'),
+    !screen.includes("key.ctrl && input === 'a'"),
   )
 }
 

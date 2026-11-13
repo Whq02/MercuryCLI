@@ -11,7 +11,7 @@
   ],
   "counts": {
     "owner-internal": 6,
-    "guide-probe": 10,
+    "guide-probe": 9,
     "baked-mirror": 3,
     "own-guard": 5
   },
@@ -22,13 +22,6 @@
       "excerpt": "return join(home, '.mercury')",
       "cls": "owner-internal",
       "why": "the env-less compile-cache fallback mirrors the three-rung home ladder (projectdirs prover pins it)"
-    },
-    {
-      "file": "src/services/concourse/coordinatorTools.ts",
-      "needle": "MERCURY.md",
-      "excerpt": "const MARKS = ['MERCURY.md', ...PROJECT_CONFIG_DIR_NAMES]",
-      "cls": "guide-probe",
-      "why": "the ground law's folder memory: MERCURY.md probed as a worked-here-before mark; the home DIR names ride PROJECT_CONFIG_DIR_NAMES"
     },
     {
       "file": "src/services/instructions/adapters/agentsMd.ts",

@@ -16,12 +16,10 @@ const read = (rel: string): string => readFileSync(rel, 'utf8')
 {
   const picker = read('src/components/concourse/GroundPicker.tsx')
   check('T1 the REPO picker renders the ONE worked-in source', picker.includes('workedInProjects()') && picker.includes('bootCardFacts'))
-  check('T1 the picker no longer consumes the marker-scan memory', !picker.includes('knownProjectDirs'))
   const face = read('src/components/BootSplashScreen.tsx')
   check('T1 the Boot face renders the same owner', face.includes('scanBootCardFacts'))
   const owner = read('src/utils/bootCardFacts.ts')
   check('T1 the owner derives both shapes from ONE scan', owner.includes('function scanWorkedInProjects') && owner.includes('export function workedInProjects'))
-  check('T1 the spoken-path aid survives where it belongs (coordinator ears only)', read('src/services/concourse/coordinatorTools.ts').includes('export async function knownProjectDirs'))
 }
 
 {

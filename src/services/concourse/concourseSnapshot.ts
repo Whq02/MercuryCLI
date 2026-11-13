@@ -869,51 +869,6 @@ function clockOf(nowMs: number): string {
   return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
 
-async function resolvedCoordinator(): Promise<{
-  mode: 'off' | 'rules-only' | 'agent-assisted'
-  assistModelLabel?: string
-  assistModelAvailability?: import('./coordinatorModels.js').CoordinatorModelAvailability
-  assistModelStatus?: string
-  fallbackReason?: string
-}> {
-  if (!(await import('./concourseEnabled.js')).coordinatorEnabled()) return { mode: 'off' }
-  try {
-    const { resolveEffectiveCoordinator } = await import('./coordinatorLane.js')
-    const effective = await resolveEffectiveCoordinator()
-    const mode = effective.resolution.effective
-    const fallbackReason = effective.resolution.fallbackReason
-    if (effective.assistModelId !== undefined) {
-      return {
-        mode,
-        assistModelLabel: effective.assistModelLabel ?? effective.assistModelId,
-        ...(effective.assistModelStatus !== undefined && effective.assistModelAvailability !== undefined
-          ? { assistModelAvailability: effective.assistModelAvailability, assistModelStatus: effective.assistModelStatus }
-          : {}),
-      }
-    }
-    if (mode !== 'off') {
-      const { getGlobalConfig } = await import('../../utils/config.js')
-      const cfg = getGlobalConfig().concourseCoordinator
-      if (cfg?.assistModel) {
-        const { validateCoordinatorModelChoice, coordinatorModelStatusLabel } = await import('./coordinatorModels.js')
-        const validated = await validateCoordinatorModelChoice(cfg.assistModel)
-        if (validated.ok) {
-          const status = coordinatorModelStatusLabel(validated.entry)
-          return {
-            mode,
-            assistModelLabel: validated.entry.displayName,
-            ...(status.length > 0 ? { assistModelAvailability: validated.entry.availability, assistModelStatus: status } : {}),
-            ...(fallbackReason !== undefined ? { fallbackReason } : {}),
-          }
-        }
-      }
-    }
-    return { mode, ...(fallbackReason !== undefined ? { fallbackReason } : {}) }
-  } catch {
-    return { mode: 'rules-only' }
-  }
-}
-
 export interface BuildConcourseSnapshotOpts {
   recordsDir?: string
   crewDir?: string
@@ -1232,17 +1187,6 @@ export async function buildConcourseSnapshot(
       preflight = undefined
     }
   }
-  const coordinator = await resolvedCoordinator()
-  let coordinatorHeld = 0
-  if (coordinator.mode === 'agent-assisted') {
-    try {
-      const governor = await import('../capacity/governor.js')
-      coordinatorHeld = governor.heldPermits().filter(g => g.lane === 'coordinator').length
-    } catch {
-      coordinatorHeld = 0
-    }
-  }
-
   const railModelId =
     peekRecord !== null ? await canonicalWorkerModelId(peekRecord.modelKey ?? 'fable') : chosenModelId
   const savedEffort = getInitialEffortSetting()
@@ -1271,7 +1215,6 @@ export async function buildConcourseSnapshot(
       ...(railEffort ? { effortLabel: railEffort } : {}),
     },
     breadcrumb: { active: 'concourse' },
-    coordinator,
     focusedChat: {
       kind: 'non-model-controller',
       counted: false,
@@ -1283,12 +1226,10 @@ export async function buildConcourseSnapshot(
       needsYou: openObl.length,
       working: allRows.filter(r => r.state === 'working').length,
       queued: allRows.filter(r => r.state === 'starting').length,
-      seatsHeld: coordinatorHeld,
-      seatsDenominator:
-        liveAll.reduce((sum, row) => {
-          const rec = allRecords.find(r => r.sessionId === row.sessionId)
-          return sum + (rec?.seatsMax ?? 2)
-        }, 0) + (coordinator.mode === 'agent-assisted' ? 1 : 0),
+      seatsDenominator: liveAll.reduce((sum, row) => {
+        const rec = allRecords.find(r => r.sessionId === row.sessionId)
+        return sum + (rec?.seatsMax ?? 2)
+      }, 0),
       admission: 'auto-balanced',
     },
     needsYou: openObl.map(o => {

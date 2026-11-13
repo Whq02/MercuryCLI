@@ -46,8 +46,6 @@ function seedHome(tag: string, opts: { capacityAnswered: boolean }): string {
   const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
   if (opts.capacityAnswered) cfg['switchboardCapacity'] = { askedAt: 1754000000000, allowed: true, recommendedSeats: 5 }
   else delete cfg['switchboardCapacity']
-  cfg['concourseCoordinator'] = { mode: 'off' }
-  delete cfg['coordinatorEnabled']
   cfg['customApiKeyResponses'] = { approved: ['fixture-key-000'], rejected: [] }
   writeFileSync(cfgPath, JSON.stringify(cfg))
   return home
@@ -59,7 +57,6 @@ const OLDER_ID = 'older:/tmp/notes-moodle'
 const DOOR_ID = 'project:notes-orchard'
 function boardFixture(home: string): Record<string, unknown> {
   const fixture = referenceFixtureSnapshot() as Record<string, unknown> & { groups: Array<{ id: string; label: string; rows: Array<Record<string, unknown>> }>; needsYou: unknown[]; counts: Record<string, number> }
-  fixture.coordinator = { mode: 'off' }
   fixture.needsYou = []
   fixture.peek = null
   const row = (extra: Record<string, unknown>): Record<string, unknown> => ({ ownerLabel: null, ageLabel: null, seats: null, nowLabel: null, workspaceDir: home, ...extra })
@@ -147,7 +144,7 @@ const notePlace = (lines: string[], text: string): string => {
 const noteLaw = (tag: string, lines: string[], what: string, text: string): void =>
   check(`${tag}: ${what} answers in the live view's message-box foot — "${text}" (whole, or cut in the middle where the foot is narrower)`, inLiveFoot(lines, text), notePlace(lines, text))
 
-console.log(`the board notices with the coordinator off (${COLS}×${ROWS}, two panes, the list focused): every setNote answer paints in the live view's message-box foot`)
+console.log(`the board notices (${COLS}×${ROWS}, two panes, the list focused): every setNote answer paints in the live view's message-box foot`)
 {
   const home = seedHome('notes', { capacityAnswered: true })
   const SPLIT_REFUSED = 'split needs 121 columns (board 80 + chat 40 + the divider) — this frame is 120'
@@ -190,7 +187,7 @@ console.log(`the board notices with the coordinator off (${COLS}×${ROWS}, two p
     ],
   }, boardEnv(home, boardFixture(home), 'notes-off'))
   const split = markOf('notes-off', 'split')
-  check('the board is two panes with the list focused and no coordinator pane (the switch off)', split.some(l => l.includes('+ new session · n')) && split.some(l => l.includes('STATUS & TITLE')) && !split.some(l => l.includes('COORDINATOR')), split.filter(l => /new session|COORDINATOR/.test(l)).map(l => l.trim().slice(0, 100)).join(' | '))
+  check('the board is two panes with the list focused and no coordinator pane', split.some(l => l.includes('+ new session · n')) && split.some(l => l.includes('STATUS & TITLE')) && !split.some(l => l.includes('COORDINATOR')), split.filter(l => /new session|COORDINATOR/.test(l)).map(l => l.trim().slice(0, 100)).join(' | '))
   noteLaw('split', split, 's where the frame is too narrow for the split view (the refusal)', SPLIT_REFUSED)
   noteLaw('queued', markOf('notes-off', 'queued'), '↵ on a queued row (the in-place disclaimer with the seat count and the m door)', QUEUED_NOTE)
   noteLaw('parked', markOf('notes-off', 'parked'), '⌃x ⌃x on a parked row (the arm before the delete)', ARMED_NOTE)

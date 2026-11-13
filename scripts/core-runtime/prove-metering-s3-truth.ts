@@ -42,14 +42,6 @@ section('§20 one definition of progress.tokenCount')
   check('the agent task defines the same quantity (the ledger\'s spend: input + output summed over every response)', /return tracker\.ledger\.inputTokens \+ tracker\.ledger\.outputTokens/.test(agent))
 }
 
-section('§21 the coordinator gauge counts the round\'s output')
-{
-  const src = read('src/services/concourse/coordinatorCall.ts')
-  const fn = src.slice(src.indexOf('function roundContextTokensOf'), src.indexOf('function textBlocksOf'))
-  check('the round context is the four-field total (input + cache reads + cache writes + output)', /return n\(input\) \+ n\(read\) \+ n\(write\) \+ n\(output\)/.test(fn), fn.slice(-160))
-  check('…and still declines to stamp when no input side was reported', /if \(typeof input !== 'number' && typeof read !== 'number' && typeof write !== 'number'\) return undefined/.test(fn))
-}
-
 section('§22 the compaction trace subtracts the true post figure')
 {
   const src = read('src/run-core/turn-machine.ts')

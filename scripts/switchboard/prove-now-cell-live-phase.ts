@@ -73,9 +73,7 @@ section('§1 THE TRANSCRIPT TAIL — a tool whose result landed is settled; a to
   check('RED ON THE BASE: the Glob whose result landed is marked settled', settled?.kind === 'tool' && settled.label === 'Glob · **/*' && settled.settled === true, j(settled))
   check('RED ON THE BASE: the snapshot\'s now-label reads the model\'s turn (thinking), never a finished tool', snapshot.tailActivityLabel(rec) === 'thinking', j(snapshot.tailActivityLabel(rec)))
   check('the word is the status line\'s own phase word', snapshot.MODEL_TURN_NOW_WORD === words.liveCounterPhaseOf('thinking') && snapshot.MODEL_TURN_NOW_WORD === grammar.THINKING_WORD, j({ snapshot: snapshot.MODEL_TURN_NOW_WORD, line: words.liveCounterPhaseOf('thinking'), grammar: grammar.THINKING_WORD }))
-  check('the coordinator board reads the same label through activityNowLabel', snapshot.activityNowLabel?.(settled) === 'thinking' && snapshot.activityNowLabel?.(running) === 'Glob · **/*' && snapshot.activityNowLabel?.({ label: 'done — 3 files', kind: 'text' }) === 'done — 3 files')
-  const board = read('src/services/concourse/coordinatorBoard.ts')
-  check('the coordinator board paints the activity through the one label road', board.includes('snap.activityNowLabel(activity)'))
+  check('a reader of the tail gets the same label through activityNowLabel', snapshot.activityNowLabel?.(settled) === 'thinking' && snapshot.activityNowLabel?.(running) === 'Glob · **/*' && snapshot.activityNowLabel?.({ label: 'done — 3 files', kind: 'text' }) === 'done — 3 files')
   const live = (snapshot as { nowWordsAreLive?: (activity: unknown, nowLabel: string | null) => boolean }).nowWordsAreLive
   const reply = { label: 'done — 3 files', kind: 'text' as const }
   check("a row's words are a live tool's while its tail is a tool, running or just landed, and the row shows that tool's own words", live?.(running, 'Glob · **/*') === true && live?.(settled, 'thinking') === true, j([live?.(running, 'Glob · **/*'), live?.(settled, 'thinking')]))

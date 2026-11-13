@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { mock } from 'bun:test'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -107,6 +108,29 @@ try {
     check('the fold\'s default is the advisor\'s summarizer, loaded when a fold needs it', context.includes("opts.summarize ?? (await import('./advisorSummarizer.js')).liveAdvisorSummarizer"))
     check('the advisor\'s memory names no concourse module', !/\.\.\/concourse\//.test(context) && !/\.\.\/concourse\//.test(read('src/services/advisor/advisorSummarizer.ts')))
     check('the call is filed as a fold: its query source stands in the compaction sources', read('src/services/advisor/advisorSummarizer.ts').includes("querySource: 'concourse_coordinator_compact'") && read('src/constants/querySource.ts').includes("'concourse_coordinator_compact'] as const"))
+  }
+  section('§5 A PROVIDER ERROR AFTER PARTIAL TEXT — the error row is never the summary, and the words before it are not one either')
+  {
+    const router = await import('../../src/services/providers/callModelRouter.js')
+    mock.module('../../src/services/providers/callModelRouter.js', () => ({
+      ...router,
+      async *routedCallModel() {
+        yield { type: 'assistant', message: { content: [{ type: 'text', text: 'partial summary' }] } }
+        yield { type: 'assistant', isApiErrorMessage: true, message: { content: [{ type: 'text', text: 'API Error: 529 overloaded_error' }] } }
+      },
+    }))
+    let answer = ''
+    let error = ''
+    try {
+      answer = await summarizer.liveAdvisorSummarizer({ systemPrompt: SYSTEM, transcript: TRANSCRIPT, modelId: OVERFLOW_LANES[0]!.model })
+    } catch (caught) {
+      error = caught instanceof Error ? caught.message : String(caught)
+    }
+    check('the call throws the provider\'s own words and returns no summary', answer === '' && error.includes('529 overloaded_error') && !error.includes('partial summary'), j({ answer, error }))
+    const context = await advisor.loadAdvisorContext('agent-error-after-text', { dir: join(home, 'advisor-rows') })
+    for (let i = 0; i < 8; i++) await advisor.appendAdvisorRow(context, { kind: 'note', at: `e${i}`, text: `kept row ${i}` })
+    const refused = await advisor.compactAdvisorContext(context, { model: OVERFLOW_LANES[0]!.model })
+    check('the fold refuses with those words and keeps every row', refused.compacted === 0 && String(refused.refused).includes('529 overloaded_error') && context.rows.length === 8 && context.rows.every(r => r.kind === 'note'), j({ refused, rows: context.rows.length }))
   }
 } finally {
   await fixture.close()

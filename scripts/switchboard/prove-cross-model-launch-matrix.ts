@@ -165,78 +165,13 @@ section('§4 — the CREDENTIALED world (presence = existence): the session arm 
   check('small tier: a crew seat runs it too (no tier is refused)', haikuCrew.ok === true, JSON.stringify(haikuCrew))
 }
 
-section('§5 — the launch receipt is family-neutral: model + tier named for engine ids exactly as for home ids')
+section('§5 — the stamped effort is family-neutral: a ladder word for engine ids exactly as for home ids')
 {
-  const tools = await import('../../src/services/concourse/coordinatorTools.ts')
-  const launch = tools.coordinatorToolSet().find(d => d.name === 'launch_session')!
   const cases = [
-    { modelId: 'gpt-5.2', display: 'GPT-5.2', effortAsk: 'max effort', stamped: 'max' },
-    { modelId: 'glm-4.7', display: 'GLM-4.7', effortAsk: 'x high', stamped: 'xhigh' },
-    { modelId: 'openrouter/nvidia/llama-3.1-nemotron-ultra-253b-v1', display: 'Nemotron Ultra', effortAsk: undefined, stamped: 'high' },
+    { modelId: 'gpt-5.2', stamped: 'max' },
+    { modelId: 'glm-4.7', stamped: 'xhigh' },
+    { modelId: 'openrouter/nvidia/llama-3.1-nemotron-ultra-253b-v1', stamped: 'high' },
   ] as const
-  for (const c of cases) {
-    const ctx = tools.createCoordinatorToolContext({
-      workspaceRoot: scratch,
-      by: 'coordinator-seat',
-      rpc: async req => {
-        const r = req as { model?: string; effort?: string }
-        return {
-          ok: true,
-          state: 'starting',
-          sessionId: `sess-${c.stamped}`,
-          runnerId: 'w-x',
-          modelId: r.model,
-          modelDisplayName: c.display,
-          effort: c.stamped,
-        }
-      },
-      readWorkers: async () => ({}) as never,
-    })
-    const out = await launch.run(
-      { task: 'matrix walk', model: c.modelId, ...(c.effortAsk !== undefined ? { effort: c.effortAsk } : {}) },
-      ctx,
-    )
-    const body = JSON.parse(out.content) as Record<string, unknown>
-    const receipt = (out.receipts ?? []).find(r => r.verb === 'session.launch')
-    check(`${c.modelId}: the model word rode the wire verbatim`, body.model === c.modelId, out.content.slice(0, 200))
-    check(`…the receipt names the model`, new RegExp(`on ${c.display.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(String(receipt?.detail)), String(receipt?.detail))
-    check(
-      `…and the tier the session started at — the STAMP, plain`,
-      new RegExp(`@ ${c.stamped} effort`).test(String(receipt?.detail)),
-      String(receipt?.detail),
-    )
-    check(
-      `…claiming NO cap it cannot know (the fabricated-downgrade class: 'tops at default')`,
-      !/ladder tops at/.test(String(receipt?.detail)) && body.effortRuns === undefined,
-      String(receipt?.detail),
-    )
-    if (c.effortAsk === undefined) {
-      check('…with the honest default disclaimer when no tier was asked', /no tier was asked/.test(String(receipt?.detail)), String(receipt?.detail))
-    }
-  }
-  {
-    const ctx = tools.createCoordinatorToolContext({
-      workspaceRoot: scratch,
-      by: 'coordinator-seat',
-      rpc: async () => ({
-        ok: true,
-        state: 'starting',
-        sessionId: 'sess-stepdown',
-        runnerId: 'w-s',
-        modelId: 'claude-opus-4-6',
-        modelDisplayName: 'Opus 4.6',
-        effort: 'xhigh',
-      }),
-      readWorkers: async () => ({}) as never,
-    })
-    const out = await launch.run({ task: 'matrix walk', model: 'claude-opus-4-6', effort: 'x high' }, ctx)
-    const receipt = (out.receipts ?? []).find(r => r.verb === 'session.launch')
-    check(
-      'the KNOWN step-down still speaks asked-vs-runs (ladder word to ladder word)',
-      /asked xhigh; this model's ladder tops at high/.test(String(receipt?.detail)),
-      String(receipt?.detail),
-    )
-  }
   const { resolveStampedEffortTruth, isEffortLevel } = await import('../../src/utils/effort.ts')
   for (const c of cases) {
     if (!isEffortLevel(c.stamped)) continue

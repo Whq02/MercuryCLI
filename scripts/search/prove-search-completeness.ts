@@ -119,8 +119,6 @@ section('§4 every caller propagates incompleteness')
   check('glob() returns the reason to its caller', /incomplete/.test(globUtil))
   const globTool = readFileSync(join(ROOT, 'src/tools/GlobTool/GlobTool.ts'), 'utf8')
   check('Glob renders the marker (never a bare file list)', /incomplete/.test(globTool))
-  const coordinator = readFileSync(join(ROOT, 'src/services/concourse/coordinatorTools.ts'), 'utf8')
-  check("the coordinator's grep carries it too", /ripGrepAnswer\(|incomplete/.test(coordinator))
   const loader = readFileSync(join(ROOT, 'src/utils/markdownConfigLoader.ts'), 'utf8')
   check('the config-estate discovery names a walk that stopped at its cap (never a silent partial estate)', /!\w+\.complete/.test(loader) && /addBootNote\('warn'/.test(loader), 'a partial agent/skill/command estate would read as the whole estate')
 }

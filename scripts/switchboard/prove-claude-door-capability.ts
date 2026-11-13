@@ -129,7 +129,6 @@ section('§4 the guarantee — a future Claude id starts from EVERY door, the wi
   const { resolveWorkflowRoutedModel } = await import('../../src/tools/WorkflowTool/workflowRouting.ts')
   const { setSubModel, resolveSubModel } = await import('../../src/utils/model/subModelSlots.ts')
   const { resolveAdvisorModel } = await import('../../src/services/advisor/advisorSettings.ts')
-  const { validateCoordinatorModelChoice } = await import('../../src/services/concourse/coordinatorModels.ts')
   const { validateModel } = await import('../../src/utils/model/validateModel.ts')
   const { homeLaneAdmissionRefusal } = await import('../../src/services/providers/homeLaneAdmission.ts')
   const { canonicalWireModelId } = await import('../../src/services/providers/routeLaw.ts')
@@ -151,8 +150,6 @@ section('§4 the guarantee — a future Claude id starts from EVERY door, the wi
     const console_ = setSubModel('console', id)
     check('door · the console pick', console_.ok, text(console_))
     setSubModel('console', null)
-    const coordinator = await validateCoordinatorModelChoice(id)
-    check("door · the coordinator's assist model, selectable under its family's label", coordinator.ok && coordinator.entry.modelId === id && coordinator.entry.source === 'anthropic' && coordinator.entry.availability === 'ready', text(coordinator))
   }
   check("door · the Chat's /model <id>: the validator's home-lane road admits the id and hands it to the wire (no catalogue read between)", typeof validateModel === 'function' && (() => {
     const { readFileSync } = require('node:fs') as typeof import('node:fs')
@@ -193,14 +190,13 @@ section('§5 the road census — every door reaches a capability owner; a new ju
   }
   const owners: Array<[string, string]> = [
     ['src/services/concourse/workerModels.ts', 'validateWorkerModelChoice'],
-    ['src/services/concourse/coordinatorModels.ts', 'validateCoordinatorModelChoice'],
     ['src/utils/model/subModelSlots.ts', 'setSubModel'],
   ]
   for (const [file, fn] of owners) {
     const src = read(file)
     check(`${fn} (${file}) carries the capability clause (declaredRouteOf) and no exact-id membership refusal`, src.includes('declaredRouteOf(') && !src.includes('is not an exact model id'))
   }
-  const composers = execFileSync('grep', ['-rl', '-e', 'composeWorkerModelRegistry(', '-e', 'composeSubModelRegistry(', '-e', 'composeCoordinatorModelRegistry(', 'src'], { cwd: ROOT })
+  const composers = execFileSync('grep', ['-rl', '-e', 'composeWorkerModelRegistry(', '-e', 'composeSubModelRegistry(', 'src'], { cwd: ROOT })
     .toString('utf8')
     .split('\n')
     .filter(Boolean)
@@ -208,11 +204,10 @@ section('§5 the road census — every door reaches a capability owner; a new ju
   const declared = [
     'src/components/SubModelPicker.tsx',
     'src/services/concourse/concourseSnapshot.ts',
-    'src/services/concourse/coordinatorModels.ts',
     'src/services/concourse/workerModels.ts',
     'src/utils/model/subModelSlots.ts',
   ]
-  check('every file that composes a model registry is declared here (the pickers and the snapshot paint rows; the three owners judge) — a new judge joins this list and takes the clause', JSON.stringify(composers) === JSON.stringify(declared), composers.join(' · '))
+  check('every file that composes a model registry is declared here (the pickers and the snapshot paint rows; the two owners judge) — a new judge joins this list and takes the clause', JSON.stringify(composers) === JSON.stringify(declared), composers.join(' · '))
   const docs = read('docs/ENGINES.md').replace(/\s+/g, ' ')
   check('the docs say a new Anthropic model runs before a catalogue row lands, and what a row adds', /runs before its catalogue row lands/.test(docs) && /A catalogue row adds/.test(docs) && /display name/.test(docs) && /price tier/.test(docs) && /1M twin/.test(docs) && /wire laws/.test(docs))
 }

@@ -64,22 +64,12 @@ section('§3 the sub-agent seat — element 0 is the constitution, element 1 the
   check('element 1 is the sub-agent contract inside the subagent-doctrine tag', operating === `<subagent-doctrine>\n${contract.MERCURY_SUBAGENT_CONTRACT}\n</subagent-doctrine>`)
   check('RED ON THE LONG DOCTRINE: element 1 carries three to four sentences', sentencesOf(operating).length >= 3 && sentencesOf(operating).length <= 4, `${sentencesOf(operating).length} sentences`)
   const joined = sections.join('\n')
-  check('the sub-agent prompt carries no coordinator text', !joined.includes(contract.MERCURY_COORDINATOR_CONTRACT ?? '\u0000') && !joined.includes(contract.MERCURY_COORDINATOR_SEAT ?? '\u0000'))
+  check('the sub-agent prompt carries no coordinator text', !joined.includes(contract.MERCURY_COORDINATOR_CONTRACT ?? '\u0000'))
   check('the fixed-output scout gets the same contract', buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-scout' } })[1] === operating)
+  check('the sub-agent splice names no other seat\'s text', !src('src/constants/subagentDoctrine.ts').includes('MERCURY_COORDINATOR_CONTRACT'))
 }
 
-section('§4 the coordinator seat — the constitution, its seat fact, the engine line, its contract, the persona, nowhere else')
-{
-  const call = src('src/services/concourse/coordinatorCall.ts')
-  check('coordinatorCall composes the constitution, the seat fact, the engine line, the coordinator contract, the persona in that order', call.includes('asSystemPrompt([\n          MERCURY_CONSTITUTION,\n          MERCURY_COORDINATOR_SEAT,\n          engineLine,\n          MERCURY_COORDINATOR_CONTRACT,\n          input.contract,'))
-  check('coordinatorCall names no other seat\'s contract', !call.includes('MERCURY_SUBAGENT_CONTRACT'))
-  check('the sub-agent splice names no other seat\'s text', !src('src/constants/subagentDoctrine.ts').includes('MERCURY_COORDINATOR_CONTRACT') && !src('src/constants/subagentDoctrine.ts').includes('MERCURY_COORDINATOR_SEAT'))
-  const persona = src('src/services/concourse/coordinatorPersona.ts')
-  check('the coordinator contract speaks the persona\'s two names and never "agent"', /coordinator|operator/.test(contract.MERCURY_COORDINATOR_CONTRACT ?? '') && !/agent/i.test(contract.MERCURY_COORDINATOR_CONTRACT ?? '') && persona.includes('COORDINATOR_PERSONA'))
-  check('the seat fact names the role and no second name, and states no second identity', contract.MERCURY_COORDINATOR_SEAT.includes('"coordinator" is your role, never a second name') && !contract.MERCURY_COORDINATOR_SEAT.startsWith('You are'))
-}
-
-section('§5 the same words where the seats agree')
+section('§4 the same words where the seats agree')
 {
   const [coordinator, subagent] = seats.map(([, t]) => t ?? '')
   check('both seat contracts open their evidence rule with "Claim only what"', [coordinator, subagent].every(t => t.includes('Claim only what')))

@@ -111,7 +111,7 @@ seedFirstRun(scratch, [REPO])
   cfg['switchboardCapacity'] = { askedAt: 1754000000000, allowed: true, recommendedSeats: 5 }
   cfg['customApiKeyResponses'] = { approved: ['fixture-key-000'], rejected: [] }
   writeFileSync(cfgPath, JSON.stringify(cfg))
-  const fixture = referenceFixtureSnapshot() as { groups: Array<{ id: string; label: string; rows: Array<Record<string, unknown>> }>; needsYou: unknown[]; coordinator: unknown }
+  const fixture = referenceFixtureSnapshot() as { groups: Array<{ id: string; label: string; rows: Array<Record<string, unknown>> }>; needsYou: unknown[] }
   for (const g of fixture.groups) for (const r of g.rows) r.workspaceDir = scratch
   fixture.groups.push({
     id: 'elsewhere',
@@ -130,7 +130,6 @@ seedFirstRun(scratch, [REPO])
     ],
   })
   fixture.needsYou = []
-  fixture.coordinator = { mode: 'off' }
   writeFileSync(join(scratch, 'concourse-fixture.json'), JSON.stringify(fixture))
   const now = Date.now()
   const base = (sessionId: string, extra: Record<string, unknown>): Record<string, unknown> => ({

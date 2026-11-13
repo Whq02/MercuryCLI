@@ -107,7 +107,6 @@ if (runLeg('git-offer')) {
   const scratch = newScratch('git-offer')
   const fixture = referenceFixtureSnapshot()
   for (const g of fixture.groups) for (const r of g.rows) r.workspaceDir = scratch
-  fixture.coordinator = { mode: 'off' }
   fixture.needsYou = [
     {
       obligationId: 'obl-git-1',
@@ -163,7 +162,6 @@ if (ONLY === 'diag') {
   const scratch = newScratch('diag')
   const fixture = referenceFixtureSnapshot()
   for (const g of fixture.groups) for (const r of g.rows) r.workspaceDir = scratch
-  fixture.coordinator = { mode: 'off' }
   fixture.needsYou = [
     { obligationId: 'obl-git-1', sessionId: `folder:${folder}`, title: 'git offer', question: `this folder has no git — start one in ${folder} so sessions can fork it?`, projectLabel: 'parser-lab', agentLabel: 'Mercury', ageLabel: '1m', ref: 'permission:git-init:abc123def456' },
   ]
@@ -228,7 +226,6 @@ if (runLeg('queued')) {
     ...fixture.groups.filter(g => g.id !== 'queued'),
   ]
   fixture.peek = null
-  fixture.coordinator = { mode: 'off' }
   const fixturePath = join(scratch, 'concourse-fixture.json')
   writeFileSync(fixturePath, JSON.stringify(fixture))
   const settle = { atTick: 999, awaitText: 'queued probe', minTick: 5, awaitSettleTicks: 2 }

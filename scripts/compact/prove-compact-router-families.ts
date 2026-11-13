@@ -271,7 +271,7 @@ for (const family of FAMILIES) {
 section('§3 the whole run — no hit anywhere but the three family lanes')
 {
   const stray = fixture.captured.filter(h => !EXPECTED_LANES.has(h.lane))
-  check('no coordinator-lane or unknown-path hit over the whole run', stray.length === 0, stray.map(h => `${h.lane} ${h.path}`).join(', '))
+  check('no hit outside the three family lanes over the whole run', stray.length === 0, stray.map(h => `${h.lane} ${h.path}`).join(', '))
   check(
     'each family lane was hit at least once over the whole run',
     FAMILIES.every(f => fixture.captured.some(h => h.lane === f.lane)),

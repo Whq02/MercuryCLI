@@ -36,7 +36,7 @@ t.section('§1 — text floors on the ACTUAL painted ground (the flat estate NIG
 {
   const essential: Array<[string, string]> = [
     ['textInstruction (help legend · hints · chip labels · AGE · headers)', dark.textInstruction],
-    ['infoText (pane titles · status mark · coordinator segment)', dark.infoText],
+    ['infoText (pane titles · status mark)', dark.infoText],
     ['failureText (refusal words)', dark.failureText],
     ['textSecondary', dark.textSecondary],
     ['textPrimary', dark.textPrimary],

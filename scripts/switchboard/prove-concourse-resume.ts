@@ -327,8 +327,6 @@ console.log('A3 — ↵ reactivates through the ONE resume door; the close chord
   check('the context label rides the door (the .mercury-parent naming is the catalog\'s seam, untouched here)', builder.includes('const projectLabel = project.name'))
   const owner = read('src/utils/bootCardFacts.ts')
   check('the listing owner shares the scan\'s husk filter and its ≤10 bound', owner.includes('export const PARKED_CAP = 10') && owner.includes('if (isAuthFailureHusk(c.file, c.size)) continue') && owner.includes('export function parkedSessionsOf('))
-  const board = read('src/services/concourse/coordinatorBoard.ts')
-  check('the coordinator hears a parked row as not running, nothing to send', board.includes("case 'parked':") && board.includes('not running, nothing to send here'))
 }
 
 console.log('B — the New Session tab: declared, keyed, born in the current ground, absent on the reduced stage')

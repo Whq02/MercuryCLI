@@ -99,9 +99,6 @@ Investigate failures. Starting or queuing is not completion. Name unresolved fai
 
 Provide the result, the checks and any unresolved blockers in direct, concise, plain language. Expand when requested or as needed. Avoid filler and repetition; base the work closely on the available evidence, and when possible, gather that evidence.`
 
-export const MERCURY_COORDINATOR_SEAT: string =
-  `This seat is the Mercury coordinator — Mercury's own coordinating seat in this session; "coordinator" is your role, never a second name.`
-
 export const MERCURY_COORDINATOR_CONTRACT: string =
   'You run the operator\'s sessions from the switchboard and never do a session\'s work or reach inside it, stopping one only when the operator asked for exactly that. ' +
   'When the ask is clear and the move is reversible, act without asking and never re-ask about what the receipts show you did, and when acting would mean guessing or the goal is unattainable, say so and ask the smallest honest question. ' +

@@ -1,3 +1,11 @@
+import {
+  activityIdOf,
+  ingestActivity,
+  registerActivityClassifier,
+  type AgentActivityV1,
+} from '../crew/activity.js'
+import type { CrewAgentId } from '../crew/identity.js'
+
 
 export type BoardControlV1 =
   | { verb: 'session.pause'; sessionId: string; by: string; reason: string; clientOpId?: string }
@@ -171,4 +179,64 @@ export async function executeBoardControl(
       }
     }
   }
+}
+
+const BOARD_CONTROL_EVENT_KIND = 'mercury.board-control'
+const BOARD_CONTROL_ADAPTER = 'board'
+const BOARD_CONTROL_SCOPE = 'concourse'
+const OPERATOR = 'operator' as CrewAgentId
+
+const CONTROL_VERB: Record<BoardControlV1['verb'], string> = {
+  'session.pause': 'paused session',
+  'session.resume': 'resumed session',
+  'session.redirect': 'redirected session',
+  'obligation.answer': 'answered question',
+}
+
+registerActivityClassifier({
+  name: 'board-control',
+  precedence: 331,
+  matches: input => input.event.kind === BOARD_CONTROL_EVENT_KIND,
+  lift: input => {
+    const r = input.event.payload as BoardControlOutcomeV1
+    return {
+      activityId: activityIdOf(input),
+      startedAt: input.event.atMs,
+      updatedAt: input.event.atMs,
+      evidenceRefs: [],
+      rawRefs: [`board-control:${r.verb}:${r.objectRef}`],
+      class: 'question',
+      verb: CONTROL_VERB[r.verb],
+      objectLabel: r.objectRef.slice(0, 60),
+      phase: r.outcome === 'refused' || r.outcome === 'failed' ? 'failed' : 'succeeded',
+      outcomeLabel: `${r.outcome}${r.detail ? ` — ${r.detail}` : ''}`.slice(0, 80),
+    }
+  },
+})
+
+let noteSeq = 0
+const notedOps: string[] = []
+
+export function noteBoardControl(
+  outcome: BoardControlOutcomeV1,
+  opts: { opId?: string; atMs?: number } = {},
+): AgentActivityV1[] {
+  if (opts.opId !== undefined) {
+    const key = `${outcome.verb} ${outcome.objectRef} ${opts.opId} ${outcome.outcome}`
+    if (notedOps.includes(key)) return []
+    notedOps.push(key)
+    if (notedOps.length > 200) notedOps.splice(0, notedOps.length - 200)
+  }
+  const atMs = opts.atMs ?? Date.now()
+  return ingestActivity({
+    event: {
+      sourceEventId: `board-control-${atMs}-${noteSeq++}`,
+      kind: BOARD_CONTROL_EVENT_KIND,
+      payload: outcome,
+      atMs,
+    },
+    agentId: OPERATOR,
+    sessionId: BOARD_CONTROL_SCOPE,
+    adapterKind: BOARD_CONTROL_ADAPTER,
+  })
 }

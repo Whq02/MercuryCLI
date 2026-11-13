@@ -233,7 +233,7 @@ export function foldLegacyWorkerModelKey(idOrKey: string): string {
   return idOrKey
 }
 
-export async function canonicalModelId(value: string): Promise<string> {
+async function canonicalModelId(value: string): Promise<string> {
   return parseUserSpecifiedModel(value).replace(/\[1m]$/, '')
 }
 

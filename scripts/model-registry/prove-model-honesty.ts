@@ -67,7 +67,6 @@ const {
   stripContext1m,
 } = await import('../../src/utils/model/modelOptions.ts')
 const { composeSubModelRegistry } = await import('../../src/utils/model/subModelSlots.ts')
-const { composeCoordinatorModelRegistry } = await import('../../src/services/concourse/coordinatorModels.ts')
 const { composeWorkerModelRegistry } = await import('../../src/services/concourse/workerModels.ts')
 const { anthropicCredentialPresence, providerFamilyPresences } = await import('../../src/services/providers/providerUsage.ts')
 const { primeOpenaiDiscovery } = await import('../../src/services/providers/providerDiscovery.ts')
@@ -230,7 +229,7 @@ section('§3 the sub-model picker reads the catalogue’s own words onto its sig
   setOpenai(false)
 }
 
-section('§4 the coordinator picker agrees row by row (the presence read is threaded into the catalogue)')
+section('§4 the sub-model picker agrees with /model row by row (the presence read is threaded into the catalogue)')
 {
   const presencesOf = (anthropic: boolean, openai: boolean) => (): Presence[] =>
     [
@@ -240,32 +239,28 @@ section('§4 the coordinator picker agrees row by row (the presence read is thre
   for (const anthropic of [false, true]) {
     const tag = `anthropic ${anthropic ? 'in' : 'out'}`
     const options = getModelOptions({ anthropicCredentialed: () => anthropic })
-    const registry = await composeCoordinatorModelRegistry({ presences: presencesOf(anthropic, false) })
     const subs = composeSubModelRegistry({ presences: presencesOf(anthropic, false) })
     const anthropicIds = new Set(
       anthropicRows(options)
         .filter(o => typeof o.value === 'string')
         .map(o => parseUserSpecifiedModel(String(o.value)).replace(/\[1m]$/, '')),
     )
-    check(`[${tag}] the three surfaces list the same Anthropic ids`, [...anthropicIds].every(id => registry.entries.some(e => e.modelId === id && e.source === 'anthropic') && subs.entries.some(e => e.modelId === id && e.source === 'anthropic')), [...anthropicIds].join(','))
+    check(`[${tag}] the two surfaces list the same Anthropic ids`, [...anthropicIds].every(id => subs.entries.some(e => e.modelId === id && e.source === 'anthropic')), [...anthropicIds].join(','))
     check(
-      `[${tag}] Claude Fable 5.1 rides /model, the sub-model picker and the coordinator picker as 'Fable 5.1', no description`,
+      `[${tag}] Claude Fable 5.1 rides /model and the sub-model picker as 'Fable 5.1', no description`,
       anthropicIds.has('claude-fable-5-1') &&
         anthropicIds.has(parseUserSpecifiedModel('fable').replace(/\[1m]$/, '')) &&
-        registry.entries.find(e => e.modelId === 'claude-fable-5-1')?.displayName === 'Fable 5.1' &&
-        registry.entries.find(e => e.modelId === 'claude-fable-5-1')?.description === undefined &&
         subs.entries.find(e => e.modelId === 'claude-fable-5-1')?.displayName === 'Fable 5.1' &&
         subs.entries.find(e => e.modelId === 'claude-fable-5-1')?.description === undefined,
-      JSON.stringify([registry.entries.find(e => e.modelId === 'claude-fable-5-1'), subs.entries.find(e => e.modelId === 'claude-fable-5-1')]),
+      JSON.stringify(subs.entries.find(e => e.modelId === 'claude-fable-5-1')),
     )
     for (const id of anthropicIds) {
-      const coordinator = registry.entries.find(e => e.modelId === id)!
       const sub = subs.entries.find(e => e.modelId === id)!
       const row = anthropicRows(options).find(o => typeof o.value === 'string' && parseUserSpecifiedModel(String(o.value)).replace(/\[1m]$/, '') === id)!
       const agree = anthropic
-        ? coordinator.availability === 'ready' && sub.state === 'selectable' && row.unavailable === undefined
-        : coordinator.availability === 'not-signed-in' && coordinator.detail === '/logins anthropic' && sub.state === 'signed-out' && row.unavailable === anthropicNotSignedInReason()
-      check(`[${tag}] ${id}: /model · sub-model · coordinator agree`, agree, JSON.stringify([row.unavailable, sub.state, coordinator.availability, coordinator.detail]))
+        ? sub.state === 'selectable' && row.unavailable === undefined
+        : sub.state === 'signed-out' && row.unavailable === anthropicNotSignedInReason()
+      check(`[${tag}] ${id}: /model · sub-model agree`, agree, JSON.stringify([row.unavailable, sub.state]))
     }
   }
 }
@@ -275,8 +270,6 @@ section('§5 the REAL owner, no injection — the scrubbed home gates; a credent
   check('the scrubbed home holds no Anthropic credential (the owner)', anthropicCredentialPresence().credentialed === false)
   const gated = getModelOptions()
   check('without a credential, every Anthropic model is unavailable and sign-in is offered first', anthropicRows(gated).every(o => o.unavailable === anthropicNotSignedInReason()) && gated.find(o => o.group === undefined)?.value === ANTHROPIC_CONNECT_OPTION_VALUE)
-  const registry = await composeCoordinatorModelRegistry()
-  check("the coordinator picker reads the same home 'not-signed-in — /logins anthropic'", registry.entries.filter(e => e.source === 'anthropic').every(e => e.availability === 'not-signed-in' && e.detail === '/logins anthropic'))
   const subs = composeSubModelRegistry()
   check('the sub-model picker reads the same home signed-out with the same words', subs.entries.filter(e => e.kind === 'model' && e.source === 'anthropic').every(e => e.state === 'signed-out' && e.reason === anthropicNotSignedInReason()))
 
@@ -286,8 +279,6 @@ section('§5 the REAL owner, no injection — the scrubbed home gates; a credent
   const free = getModelOptions()
   check('premium accounts also list only models and actions', free.every(o => typeof o.value === 'string' && o.value !== 'default' && o.label !== 'Recommended'))
   check('…and the very next read frees every Anthropic row, the action row gone', anthropicRows(free).every(o => o.unavailable === undefined) && !free.some(o => o.value === ANTHROPIC_CONNECT_OPTION_VALUE), JSON.stringify(anthropicRows(free).filter(o => o.unavailable).map(o => o.value)))
-  const freed = await composeCoordinatorModelRegistry()
-  check("…the coordinator picker reads 'ready' on the same read", freed.entries.filter(e => e.source === 'anthropic').every(e => e.availability === 'ready'), JSON.stringify(freed.entries.filter(e => e.source === 'anthropic').map(e => [e.modelId, e.availability])))
   check('the presence enumeration and the single-family owner are one derivation', providerFamilyPresences().find(p => (p.id as string) === 'anthropic')?.credentialLabel === anthropicCredentialPresence().credentialLabel)
   const workers = await composeWorkerModelRegistry()
   const fable51Seat = workers.entries.find(e => e.modelId === 'claude-fable-5-1')
@@ -313,9 +304,8 @@ section('§6 the wiring (structural)')
   check('the inline picker routes the sentinel to /logins anthropic', inline.includes("value === ANTHROPIC_CONNECT_OPTION_VALUE") && inline.includes("requestCommandDispatch('/logins anthropic')"))
   const options = readFileSync(join(root, 'src/utils/model/modelOptions.ts'), 'utf8')
   check('the catalogue gate reads the ONE owner (anthropicCredentialPresence)', options.includes('anthropicCredentialPresence().credentialed'))
-  const coordinator = readFileSync(join(root, 'src/services/concourse/coordinatorModels.ts'), 'utf8')
   const submodels = readFileSync(join(root, 'src/utils/model/subModelSlots.ts'), 'utf8')
-  check('both composers thread their presences into the catalogue', coordinator.includes("getModelOptions({ anthropicCredentialed: () => credentialed('anthropic') })") && submodels.includes("getModelOptions({ anthropicCredentialed: () => credentialed('anthropic') })"))
+  check('the sub-model composer threads its presences into the catalogue', submodels.includes("getModelOptions({ anthropicCredentialed: () => credentialed('anthropic') })"))
 }
 
 section('§7 the neutral catalog grammar — one description rule, vendor-blind, by predicate')

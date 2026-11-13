@@ -101,7 +101,6 @@ src/context.ts :: getGitStatus :: invalidator=applyHarnessGround
 src/context.ts :: getSystemContext :: invalidator=applyHarnessGround
 src/context.ts :: getUserContext :: invalidator=applyHarnessGround
 src/daemon/concourseDispatch.ts :: ledgerMemo :: keyed-by-truth
-src/daemon/concourseWorktrees.ts :: worktreeDirtCache :: ttl-bounded
 src/daemon/controlSocket.ts :: controlKeyMemo :: invalidator=clearControlKeyMemo
 src/daemon/daemonBuild.ts :: selfScriptMemo :: static-for-process
 src/daemon/handshake.ts :: clientMemo :: static-for-process
@@ -131,8 +130,6 @@ src/projectOnboardingState.ts :: shouldShowProjectOnboarding :: invalidator=appl
 src/services/aseprite/asepriteApp.ts :: versionCache :: ttl-bounded
 src/services/anthropicLimits.ts :: ownerCache :: ttl-bounded
 src/services/concourse/concourseSnapshot.ts :: olderFactCache :: keyed-by-truth
-src/services/concourse/coordinatorIdentity.ts :: cached :: static-for-process
-src/services/concourse/coordinatorTools.ts :: knownDirsCache :: ttl-bounded
 src/services/crew/projection.ts :: snapshot :: subscription-fed
 src/services/dap/dapClient.ts :: bashVersionMemo :: ttl-bounded
 src/services/dap/dapClient.ts :: phpModulesMemo :: ttl-bounded

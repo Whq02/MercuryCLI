@@ -63,14 +63,14 @@ section('§2 a real answer beside an api-error settlement stays the answer')
 
 section('§3 every structured consumer asks the settlement classification first')
 {
-  const coordinator = read('src/services/concourse/coordinatorCall.ts')
+  const summarizer = read('src/services/advisor/advisorSummarizer.ts')
   check(
-    'the coordinator round loop excludes api-error settlements from its reply text',
-    coordinator.includes("isApiErrorMessage !== true"),
+    'the advisor\'s summary call sorts api-error settlements away from its summary text',
+    summarizer.includes('const sink = e.isApiErrorMessage === true ? failures : texts'),
   )
   check(
-    'an error-only coordinator round throws into the fail-soft contract (never paints the refusal as words the coordinator said)',
-    coordinator.includes('realAssistants.length === 0'),
+    'an error row beside any text throws the error\'s words (the refusal is never painted as the summary)',
+    summarizer.includes('if (failure.length > 0) throw new Error('),
   )
 }
 

@@ -67,7 +67,6 @@ const localDiscovery = await import('../../src/services/providers/local/localDis
 const localCatalogue = await import('../../src/services/providers/local/localCatalogue.ts')
 const localCallModel = await import('../../src/services/providers/local/localCallModel.ts')
 const routerAnthropic = await import('../../src/services/providers/anthropic/anthropicAdapter.ts')
-const coordinatorModels = await import('../../src/services/concourse/coordinatorModels.ts')
 const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(false)
 const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.ts')
@@ -387,12 +386,6 @@ section('§5 thinking off: DeepSeek sends nothing (its thinking object spells of
   check('thinking back on: DeepSeek resolves its dial again', effort.resolveEffortTruth('deepseek-flash', 'high').wire === 'high')
   const explicit = effort.resolveEffortTruth('deepseek-flash', 'high', { thinkingEnabled: false })
   check('a caller with its own thinking-off call context suppresses regardless of the session latch', explicit.suppressedBy === 'thinking-off' && explicit.wire === undefined)
-  const detail = coordinatorModels.coordinatorEffortDetail
-  check('coordinator detail · DeepSeek: saved, not sent', String(detail('deepseek-flash', 'high')).includes('not sent'))
-  check('coordinator detail · kimi-k3 medium: runs high (the step Kimi documents, 2026-10-28)', String(detail('kimi-k3', 'medium')).includes('runs high'))
-  check('coordinator detail · opus-5 high: no clause (runs as asked)', detail('claude-opus-5', 'high') === undefined)
-  check('coordinator detail · a no-dial model: the absence word', String(detail('huggingface/openai/gpt-oss-120b', 'high')).includes(ABSENT))
-  check('coordinator detail · sonnet-4-6 xhigh: runs high', String(detail('claude-sonnet-4-6', 'xhigh')).includes('runs high'))
 }
 
 section('§6 honest absence: every no-dial id labels itself with the one word')

@@ -257,6 +257,11 @@ console.log('§9 structural no-merge — the family never writes workspace files
     [daemon, dispatch, worktrees].every(s => !/copyFileSync|cpSync|appendFileSync/.test(s)))
 }
 
+console.log('§10 the count the reap reads for a fork')
+{
+  check('a folder that is no repository answers unknown, never a throw', wt.forkCommitState(join(scratch, 'not-a-repo'), 'mercury/x').committedAhead === null)
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nPROVE-CONCOURSE-WORKTREES: PASS' : `\nPROVE-CONCOURSE-WORKTREES: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

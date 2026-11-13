@@ -365,10 +365,10 @@ section("§6c — the session's own model entry: written when the session starts
   check('the admission policy reads the resume walk for a re-admitted session', admit.includes('resumeModelKeyOf(req.resumeSessionId, req.workspaceDir, deps.dir)'))
 }
 
-section("§7 — spoken names resolve on the LAUNCH path (the coordinator's words)")
+section('§7 — spoken names resolve on the LAUNCH path')
 {
   const sonnet = await wm.validateWorkerModelChoice('sonnet 5', 'session')
-  check("'sonnet 5' (the coordinator's exact relay) resolves to claude-sonnet-5", sonnet.ok && sonnet.entry.modelId === 'claude-sonnet-5', text(sonnet))
+  check("'sonnet 5' resolves to claude-sonnet-5", sonnet.ok && sonnet.entry.modelId === 'claude-sonnet-5', text(sonnet))
   const opus = await wm.validateWorkerModelChoice('opus 5', 'session')
   check("'opus 5' resolves to claude-opus-5", opus.ok && opus.entry.modelId === 'claude-opus-5', text(opus))
   const dashed = await wm.validateWorkerModelChoice('Opus-5', 'session')

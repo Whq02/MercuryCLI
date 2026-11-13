@@ -54,19 +54,6 @@ section('§1 the constant — the owner’s text, byte-anchored')
   check('exactly ONE identity statement, stated positively and nowhere negated', (TEXT.match(/^You are /gm) ?? []).length === 1 && !/claim to be human|misrepresent what you are|not a person/i.test(TEXT))
 }
 
-section('§1b the coordinator seat — the same constitution, its seat fact behind it, one identity per seat')
-{
-  const SEAT = contract.MERCURY_COORDINATOR_SEAT
-  check(
-    'the seat fact is the owner’s text, byte-exact',
-    SEAT === `This seat is the Mercury coordinator — Mercury's own coordinating seat in this session; "coordinator" is your role, never a second name.`,
-  )
-  check('the seat fact states no second identity', !/^You are /m.test(SEAT))
-  check('the coordinator composition opens on the constitution with the seat fact directly behind it', SRC('src/services/concourse/coordinatorCall.ts').includes('MERCURY_CONSTITUTION,\n          MERCURY_COORDINATOR_SEAT,'))
-  const seatDigest = createHash('sha256').update(SEAT, 'utf8').digest('hex')
-  check('byte anchor (sha256 of the seat fact)', seatDigest === createHash('sha256').update(`This seat is the Mercury coordinator — Mercury's own coordinating seat in this session; "coordinator" is your role, never a second name.`, 'utf8').digest('hex'), seatDigest)
-}
-
 section('§2 buildEffectiveSystemPrompt — the constitution FIRST on every replacing path')
 {
   const { buildEffectiveSystemPrompt } = await import('../../src/utils/systemPrompt.ts')
@@ -219,8 +206,6 @@ section('§6 source pins — the bun-unloadable seats, one line each')
     ['the constitution is the law under stock', 'src/constants/prompts.ts', "const law = layers === 'replace' ? promptReplacementText() : stockLaw"],
     ['the stock law is the constitution, its headless form only for a run no host attends', 'src/constants/prompts.ts', "systemPromptSection('constitution', () => isUnattendedRun() ? MERCURY_HEADLESS_CONSTITUTION : MERCURY_CONSTITUTION)"],
     ['the stock law falls back to the constitution itself', 'src/constants/prompts.ts', 'const stockLaw = constitution ?? MERCURY_CONSTITUTION'],
-    ['switchboard coordinator seat (the constitution, its seat fact, then its engine line, then its contract, then the persona)', 'src/services/concourse/coordinatorCall.ts', 'asSystemPrompt([\n          MERCURY_CONSTITUTION,\n          MERCURY_COORDINATOR_SEAT,\n          engineLine,\n          MERCURY_COORDINATOR_CONTRACT,\n          input.contract,'],
-    ['the coordinator seat states its engine from ONE owner', 'src/services/concourse/coordinatorCall.ts', 'const engineLine = mercuryEngineIdentityLine(modelId)'],
     ['agent-prompt replacement seat', 'src/utils/systemPrompt.ts', 'parts.push(MERCURY_CONSTITUTION, agentPrompt)'],
     ['custom-prompt replacement seat', 'src/utils/systemPrompt.ts', 'parts.push(MERCURY_CONSTITUTION, customSystemPrompt)'],
     ['AgentTool default spawn (doctrine leads)', 'src/tools/AgentTool/AgentTool.tsx', '[...doctrine, ownPrompt]'],
@@ -230,7 +215,6 @@ section('§6 source pins — the bun-unloadable seats, one line each')
   for (const [label, file, needle] of pins) {
     check(`${label} — ${file}`, SRC(file).includes(needle))
   }
-  check('the session env blocks state no engine (the seat reads mercury://seat) — src/constants/prompts.ts', !SRC('src/constants/prompts.ts').includes('mercuryEngineIdentityLine'))
 
   check(
     'buildSubagentMercurySections is called at both chokepoints',

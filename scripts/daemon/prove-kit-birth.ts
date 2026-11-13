@@ -335,10 +335,6 @@ if (ENSURE_SKIP !== '') {
   const hop = await admit({ workspaceDir: wsQ, resumeSessionId: liveSid })
   check('A3 POISON armed: a live-hop answer carries NO kitSource (a hop stamps nothing — the answer never claims a stamp that did not happen)', hop.ok && hop.kitSource === undefined, hop.ok ? hop.kitSource ?? 'absent' : hop.error)
   const read = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
-  const coord = read('src/services/concourse/coordinatorTools.ts')
-  check('A4 the coordinator receipts speak the kit word on BOTH launch roads (contracted + plain)', coord.split('kit ${kitSource}').length === 3 && coord.split('{ kitSource }').length >= 3)
-  const mgr = read('src/services/concourse/managerMode.ts')
-  check('A4 the manager lane receipt speaks it too', mgr.includes('kit ${laneKitSource}'))
   const server = read('src/daemon/controlServer.ts')
   const wireList = (name: string): string => (server.match(new RegExp(`const ${name} = \\[([\\s\\S]*?)\\] as const`)) ?? [])[1] ?? ''
   check(
@@ -376,8 +372,6 @@ console.log('\n── §S: the identical-worlds sweep ──')
     'src/daemon/controlServer.ts',
     'src/daemon/concourseDispatch.ts',
     'src/daemon/main.ts',
-    'src/services/concourse/coordinatorTools.ts',
-    'src/services/concourse/managerMode.ts',
     'src/services/mcp/sessionKitPin.ts',
     'src/services/mcp/kitCompletion.ts',
     'src/services/acp/childSession.ts',

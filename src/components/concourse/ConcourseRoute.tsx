@@ -520,8 +520,7 @@ function LiveConcourse(): React.ReactNode {
               answer,
               by: 'operator',
             })
-            const feed = await import('../../services/concourse/coordinatorReceipts.js')
-            feed.ingestCoordinatorReceipts([{ ...receipt, actorAgentId: 'operator' }])
+            control.noteBoardControl(receipt)
             if (receipt.outcome === 'refused') noteResident('refused', receipt.detail)
             else if (receipt.outcome === 'failed') noteResident('held', receipt.detail)
             noteControl('strip:composer', noteFromReceipt(receipt as { outcome?: string; detail?: string }))
@@ -847,8 +846,7 @@ function LiveConcourse(): React.ReactNode {
               controlOpIdRef.current.delete(`pause:${sessionId}`)
               controlOpIdRef.current.delete(`resume:${sessionId}`)
             }
-            const feed = await import('../../services/concourse/coordinatorReceipts.js')
-            feed.ingestCoordinatorReceipts([{ ...receipt, actorAgentId: 'operator', opId: clientOpId }])
+            control.noteBoardControl(receipt, { opId: clientOpId })
             noteControl(
               `board:row-control:${sessionId}`,
               receipt.outcome === 'applied'
@@ -877,8 +875,7 @@ function LiveConcourse(): React.ReactNode {
               controlOpIdRef.current.delete(`pause:${sessionId}`)
               controlOpIdRef.current.delete(`resume:${sessionId}`)
             }
-            const feed = await import('../../services/concourse/coordinatorReceipts.js')
-            feed.ingestCoordinatorReceipts([{ ...receipt, actorAgentId: 'operator', opId: clientOpId }])
+            control.noteBoardControl(receipt, { opId: clientOpId })
             noteControl(
               `board:row-control:${sessionId}`,
               receipt.outcome === 'applied'
@@ -986,8 +983,7 @@ function LiveConcourse(): React.ReactNode {
             if (receipt.outcome === 'applied') redirectIdRef.current.delete(sessionId)
             else if (receipt.outcome !== 'failed' && !(receipt.detail ?? '').startsWith('session-paused'))
               redirectIdRef.current.delete(sessionId)
-            const feed = await import('../../services/concourse/coordinatorReceipts.js')
-            feed.ingestCoordinatorReceipts([{ ...receipt, actorAgentId: 'operator' }])
+            control.noteBoardControl(receipt)
             const held = (receipt.detail ?? '').startsWith('session-paused') || receipt.outcome === 'failed'
             noteResident(receipt.outcome === 'applied' ? 'wink' : held ? 'held' : 'refused', receipt.detail)
             noteControl(

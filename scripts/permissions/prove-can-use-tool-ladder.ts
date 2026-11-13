@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { EventEmitter as NodeEventEmitter } from 'node:events'
-import { mkdtempSync, realpathSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -154,6 +154,9 @@ section('§5 AUTOMATED CHECKS FIRST — with no hook decision the dialog still f
   queue[0]?.onAbort()
   await pending
   check('the queue is empty again', queue.length === 0)
+  const source = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
+  const handler = source('src/hooks/toolPermission/handlers/coordinatorHandler.ts')
+  check('the automated step is the hook runner and nothing else: it answers what the hooks rule, or nothing', handler.includes('const hookDecision = await ctx.runHooks(permissionMode, suggestions, updatedInput)') && handler.includes('if (hookDecision) return hookDecision') && handler.trimEnd().endsWith('return null\n}') && source('src/hooks/useCanUseTool.tsx').includes('const automated = await handleCoordinatorPermission({'))
 }
 
 section('§5b A WITHDRAWAL DURING THE DESCRIPTION — the description is still read; the deny never settles; the cancel decision does')

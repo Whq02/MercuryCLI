@@ -243,8 +243,6 @@ console.log('§2 — THE FOCUSED SESSION CARRIES OVER: the board filters by proj
   check('the builder scopes through the ONE predicate (inProject — main\'s filter) and adds the focused session as its one exception, by the slot\'s own fact', builder.includes('inProject(project, workspaceId) ? undefined : sanitizeLabel(projectDisplayName(workspaceId))') && builder.includes('slot.hasFocusedSession()') && builder.includes("if (workspace === undefined || inProject(project, workspace)) return [r]") && builder.includes("r.sessionId === focusedSessionId ? [{ ...r, foreignProject: foreignOf(workspace) ?? '' }] : []"))
   const router = read('src/components/SurfaceRouter.tsx')
   check('the strip\'s stop follows the slot alone (the router is STRIP\'s, untouched): present = hasFocusedSession() || landingInFlight()', router.includes('present: () => hasFocusedSession() || landingInFlight(),'))
-  const coord = read('src/services/concourse/coordinatorBoard.ts')
-  check('the coordinator hears a carried-over row as the focused chat from its own project', coord.includes('carriedFrom: row.foreignProject') && coord.includes('the focused chat, carried over from'))
   _resetSurfaceRouteForTesting()
 }
 
@@ -387,8 +385,6 @@ console.log('§4 — THE RUNNING-COUNT LINE, A DOOR: one line per other project 
   check('the contract types the door row, the group and the whole list', contracts.includes("| 'elsewhere'") && contracts.includes("| 'stopped' | 'elsewhere' | 'parked'") && contracts.includes('elsewhere?: ConcourseElsewhereV1[]') && contracts.includes("{ kind: 'switch-project'; dir: string; running: number; needsYou: number; finished: number }"))
   const builder = read('src/services/concourse/concourseSnapshot.ts')
   check('the builder pushes OTHER PROJECTS after STOPPED and before PARKED, from the one owner, name-ordered, the ★ excluded', builder.indexOf("groups.push({ id: 'stopped', label: 'STOPPED'") !== -1 && builder.indexOf("groups.push({ id: 'elsewhere', label: 'OTHER PROJECTS'") > builder.indexOf("groups.push({ id: 'stopped', label: 'STOPPED'") && builder.indexOf("groups.push({ id: 'elsewhere', label: 'OTHER PROJECTS'") !== -1 && builder.indexOf("groups.push({ id: 'elsewhere', label: 'OTHER PROJECTS'") < builder.indexOf("groups.push({ id: 'parked', label: 'PARKED'") && builder.includes("import { ELSEWHERE_CAP, elsewhereLine, projectActivity } from './projectActivity.js'") && builder.includes('.slice(0, ELSEWHERE_CAP).sort((a, b) => a.name.localeCompare(b.name))') && builder.includes('excludeSessionId: focusedSessionId,'))
-  const coord = read('src/services/concourse/coordinatorBoard.ts')
-  check('the coordinator never hears a door as a session; it hears the other projects as their own list', coord.includes('if (row.door !== undefined) continue') && coord.includes('...(elsewhere.length > 0 ? { elsewhere } : {})'))
 }
 
 console.log('§5 — THE CROSS-PROJECT DOOR: an ask in another project rows on the rail as "switch to foo", the ⚑ counts it, ↵ = switch + open')

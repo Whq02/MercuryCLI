@@ -47,7 +47,6 @@ export async function concoursePopupFrames({ sizes, wrap, mount, check, judge, s
       const snapshot = referenceFixtureSnapshot() as unknown as Snapshot
       snapshot.needsYou = surface.door === 'git' ? [{ ...snapshot.needsYou[0]!, obligationId: 'fixture-git', sessionId: 'folder:/fixture', ref: 'permission:git-init:fixture' }] : []
       snapshot.counts.live = 4
-      snapshot.coordinator = { mode: 'off' }
       const row = snapshot.groups.flatMap(g => g.rows)[0]!
       row.workspaceDir = getCwd()
       if (surface.door === 'ground' || surface.door === 'trust') {

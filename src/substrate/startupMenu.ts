@@ -880,15 +880,6 @@ export interface ConfigMenuRow {
   }
 }
 
-export type CoordinatorMenuChoice = 'on' | 'off'
-
-export async function writeCoordinatorMenuChoice(
-  choice: CoordinatorMenuChoice,
-): Promise<import('../services/concourse/coordinatorModels.js').CoordinatorSwitchReceiptV1> {
-  const { switchCoordinatorMode } = await import('../services/concourse/coordinatorModels.js')
-  return switchCoordinatorMode(choice === 'on' ? 'agent-assisted' : 'rules-only')
-}
-
 
 export type ExplicitApplyOutcome = 'applied' | 'queued' | 'refused' | 'no-change'
 

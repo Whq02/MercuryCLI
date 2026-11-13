@@ -122,8 +122,6 @@ seedFirstRun(scratch, [REPO])
   const cfgPath = join(scratch, '.mercury.json')
   const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
   cfg['switchboardCapacity'] = { askedAt: 1754000000000, allowed: true, recommendedSeats: 4 }
-  cfg['concourseCoordinator'] = { mode: 'off' }
-  delete cfg['coordinatorEnabled']
   cfg['customApiKeyResponses'] = { approved: ['fixture-key-000'], rejected: [] }
   writeFileSync(cfgPath, JSON.stringify(cfg))
 }
@@ -133,7 +131,6 @@ const RESTING = 'Refactor parser'
 const fixture = referenceFixtureSnapshot() as Record<string, unknown> & { counts: Record<string, number> }
 {
   const row = (extra: Record<string, unknown>): Record<string, unknown> => ({ ownerLabel: null, seats: null, nowLabel: null, workspaceDir: scratch, modelLabel: 'Opus 4.8', effortLabel: 'high', ...extra })
-  fixture.coordinator = { mode: 'off' }
   fixture.needsYou = []
   fixture.peek = null
   fixture.groups = [

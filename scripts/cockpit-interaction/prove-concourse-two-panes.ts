@@ -89,7 +89,6 @@ process.env.MERCURY_CONFIG_DIR = chatHome
 
 const boardFixture = (): Record<string, unknown> => {
   const fixture = referenceFixtureSnapshot()
-  fixture.coordinator = { mode: 'off' }
   fixture.peek = { ...(fixture.peek as Record<string, unknown>), sessionId: 's-audit', title: 'Audit billing receipts', state: 'ready-to-review', modelLabel: 'Opus 5.5' }
   ;(fixture.context as Record<string, unknown>).effortLabel = 'max'
   for (const g of fixture.groups as Array<{ rows: Array<Record<string, unknown>> }>) {

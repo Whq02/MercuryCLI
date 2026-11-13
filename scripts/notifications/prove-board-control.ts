@@ -170,6 +170,41 @@ console.log('§5 zero provider surface (the executor\'s import closure)')
   }
   check('the closure holds no provider or model module', offenders.length === 0, offenders.join('; '))
   check('the closure was walked (not vacuous)', seen.size >= 3, `${seen.size} modules`)
+  const loadedWithIt = [...read('src/services/concourse/boardControl.ts').matchAll(/^\} from '([^']+)'|^import [^\n]*from '([^']+)'/gm)].map(m => m[1] ?? m[2])
+  check('what loads with the module is the activity feed and one type, nothing else', JSON.stringify(loadedWithIt) === JSON.stringify(['../crew/activity.js', '../crew/identity.js']) && read('src/services/concourse/boardControl.ts').includes("import type { CrewAgentId } from '../crew/identity.js'") && !/^import (?!type)[^\n]*from/m.test(read('src/services/crew/activity.ts')), JSON.stringify(loadedWithIt))
+}
+
+console.log("§6 the operator's own act is a row of the activity feed: the line /crew activity prints for it")
+{
+  const control = await import('../../src/services/concourse/boardControl.ts')
+  const activity = await import('../../src/services/crew/activity.ts')
+  activity._resetActivityFeedForTesting()
+  const SID = '11111111-1111-4111-8111-111111111111'
+  const rows = () => activity.activityRows(activity.cachedActivityFeed())
+  const printed = (): string[] => rows().map(r => `${r.class.padEnd(17)} ${activity.activityLineOf(r)}`)
+  control.noteBoardControl({ verb: 'session.pause', objectRef: SID, outcome: 'applied', detail: 'pause requested' }, { opId: 'op-pause-1' })
+  control.noteBoardControl({ verb: 'session.resume', objectRef: SID, outcome: 'applied', detail: 'resumed' }, { opId: 'op-resume-1' })
+  control.noteBoardControl({ verb: 'session.redirect', objectRef: SID, outcome: 'refused', detail: 'session-paused — resume first' })
+  control.noteBoardControl({ verb: 'obligation.answer', objectRef: 'obl-7', outcome: 'applied', detail: 'answer delivered (working) · obligation settled' })
+  const want = [
+    `question          paused session → ${SID} → applied — pause requested`,
+    `question          resumed session → ${SID} → applied — resumed`,
+    `question          redirected session → ${SID} → refused — session-paused — resume first`,
+    'question          answered question → obl-7 → applied — answer delivered (working) · obligation settled',
+  ]
+  check('pause, resume, message and answer print the four lines the board\'s acts have always printed', JSON.stringify(printed()) === JSON.stringify(want), JSON.stringify(printed()))
+  check('a refused act is a failed row, an applied one a succeeded row', rows().map(r => r.phase).join(',') === 'succeeded,succeeded,failed,succeeded', rows().map(r => r.phase).join(','))
+  check("each row is the operator's, in the concourse scope", rows().every(r => r.agentId === 'operator' && r.sessionId === 'concourse'), JSON.stringify(rows().map(r => [r.agentId, r.sessionId])))
+  const again = control.noteBoardControl({ verb: 'session.pause', objectRef: SID, outcome: 'applied', detail: 'pause requested' }, { opId: 'op-pause-1' })
+  check('one operation noted twice is one row (a replayed pause never doubles its line)', again.length === 0 && rows().length === 4, `${again.length} / ${rows().length}`)
+  control.noteBoardControl({ verb: 'session.pause', objectRef: SID, outcome: 'applied', detail: 'pause requested' }, { opId: 'op-pause-2' })
+  check('another operation on the same session is its own row', rows().length === 5, String(rows().length))
+  control.noteBoardControl({ verb: 'session.redirect', objectRef: 'x'.repeat(90), outcome: 'failed', detail: 'd'.repeat(120) })
+  const long = rows()[rows().length - 1]!
+  check('the object is cut at 60 characters and the outcome at 80', long.objectLabel.length === 60 && (long.outcomeLabel ?? '').length === 80, `${long.objectLabel.length} / ${(long.outcomeLabel ?? '').length}`)
+  const route = read('src/components/concourse/ConcourseRoute.tsx')
+  check('the board notes each of its four acts through this module and names no other', route.split('control.noteBoardControl(').length - 1 === 4 && route.split('control.noteBoardControl(receipt, { opId: clientOpId })').length - 1 === 2 && !route.includes('coordinatorReceipts'), String(route.split('control.noteBoardControl(').length - 1))
+  activity._resetActivityFeedForTesting()
 }
 
 rmSync(scratch, { recursive: true, force: true })

@@ -303,35 +303,6 @@ export function classifyWorktreeDirt(path: string): WorktreeDirt {
   return classifyStatusRows(git(path, ...dirtProbe(path)))
 }
 
-const DIRT_CACHE_FLOOR_MS = 60_000
-const worktreeDirtCache = new Map<string, { at: number; dirt: WorktreeDirt | null; inFlight: Promise<void> | null }>()
-
-export function cachedWorktreeDirt(path: string): WorktreeDirt | null {
-  let entry = worktreeDirtCache.get(path)
-  if (!entry) {
-    entry = { at: 0, dirt: null, inFlight: null }
-    worktreeDirtCache.set(path, entry)
-  }
-  if (entry.inFlight === null && Date.now() - entry.at >= DIRT_CACHE_FLOOR_MS) {
-    const e = entry
-    e.inFlight = gitAsync(path, ...dirtProbe(path))
-      .then(res => {
-        e.dirt = classifyStatusRows(res)
-      })
-      .catch(() => {
-      })
-      .finally(() => {
-        e.at = Date.now()
-        e.inFlight = null
-      })
-  }
-  return entry.dirt
-}
-
-export function _worktreeDirtRefreshForTesting(path: string): Promise<void> {
-  return worktreeDirtCache.get(path)?.inFlight ?? Promise.resolve()
-}
-
 function classifyStatusRows(status: { ok: boolean; stdout: string; stderr: string }): WorktreeDirt {
   if (!status.ok) {
     return { kind: 'authored', files: [`<unreadable: git status failed — ${status.stderr.slice(0, 120)}>`] }
@@ -367,17 +338,6 @@ export function forkCommitState(
   const committedAhead = Number.isFinite(parsed) ? parsed : null
   const dirt = worktreePath !== undefined && existsSync(worktreePath) ? classifyWorktreeDirt(worktreePath) : null
   return { committedAhead, dirt }
-}
-
-export function describeForkCommitState(state: ForkCommitState): string {
-  const parts: string[] = []
-  if (state.committedAhead === null) parts.push('commit count unknown')
-  else if (state.committedAhead === 0) parts.push('nothing committed ahead of main')
-  else parts.push(`${state.committedAhead} commit${state.committedAhead === 1 ? '' : 's'} ahead of main`)
-  if (state.dirt === null) parts.push('worktree not on disk')
-  else if (state.dirt.kind === 'authored') parts.push(`uncommitted changes in ${state.dirt.files.length} file${state.dirt.files.length === 1 ? '' : 's'}`)
-  else parts.push('working tree clean')
-  return parts.join(' · ')
 }
 
 type WorktreeReapOutcome =

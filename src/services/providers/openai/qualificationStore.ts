@@ -51,7 +51,7 @@ export function roleCapabilityDigest(role: ApexGptRole): string {
 }
 
 
-export interface StoredQualificationReceipt {
+interface StoredQualificationReceipt {
   modelId: string
   role: ApexGptRole
   sourceKind: OpenaiAccountSourceKind
@@ -128,7 +128,7 @@ export function recordLiveQualification(i: {
   }
 }
 
-export type ReceiptCurrency =
+type ReceiptCurrency =
   | { current: true; receipt: StoredQualificationReceipt }
   | { current: false; receipt: StoredQualificationReceipt; expiredBy: string }
 
@@ -160,7 +160,7 @@ export function describeWireEffortProbeWindow(ms: number = WIRE_EFFORT_MEMORY_PR
   return `${hours} hours`
 }
 
-export interface StoredWireEffortVocabulary {
+interface StoredWireEffortVocabulary {
   modelId: string
   sourceKind: OpenaiAccountSourceKind
   levels: string[]
