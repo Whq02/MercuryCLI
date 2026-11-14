@@ -148,6 +148,16 @@ section('the verbs in-process: --version, capabilities --json (the tell, llama.c
   check('a llama-server on PATH older than b11829 is refused by name and build; the runtime folder is the pinned road', !resolved.found && resolved.refused === `${join(oldBin, 'llama-server')} is build 11146; Mercury's engine needs llama.cpp b11829 or newer`, JSON.stringify(resolved))
   const onPath = await adapterLlama.resolveLlamaServer({ env: { ...old.env, PATH: `${FAKE_BIN}:/usr/bin:/bin` }, home: old.home, platform: 'darwin' })
   check('a llama-server on PATH at b11829 or newer is accepted, marked unpinned', onPath.found && !onPath.pinned && onPath.build === '12359', JSON.stringify(onPath))
+  const builtBin = join(old.root, 'built-bin')
+  mkdirSync(builtBin, { recursive: true })
+  for (const commit of ['184f6536024668e8908ab8c86033d56708e62b40', '184f65360']) {
+    writeFileSync(join(builtBin, 'llama-server'), `#!/bin/sh\necho "version: 0.7.0-dev (build 1, commit ${commit})" >&2\n`, { mode: 0o755 })
+    const built = await adapterLlama.resolveLlamaServer({ env: { ...old.env, PATH: `${builtBin}:/usr/bin:/bin` }, home: old.home, platform: 'darwin' })
+    check(`a llama-server built from the floor's own commit, whose shallow clone counts build 1 (commit ${commit}), is accepted, marked unpinned`, built.found && !built.pinned && built.build === '1' && built.commit === commit, JSON.stringify(built))
+  }
+  writeFileSync(join(builtBin, 'llama-server'), '#!/bin/sh\necho "version: 0.6.0-dev (build 1, commit abcdef0123)" >&2\n', { mode: 0o755 })
+  const elsewhere = await adapterLlama.resolveLlamaServer({ env: { ...old.env, PATH: `${builtBin}:/usr/bin:/bin` }, home: old.home, platform: 'darwin' })
+  check('one built from any other commit with build 1 is refused by its commit, as before', !elsewhere.found && elsewhere.refused === `${join(builtBin, 'llama-server')} is commit abcdef0123; Mercury's engine needs llama.cpp b11829 or newer`, JSON.stringify(elsewhere))
 }
 
 section('the admission and the refusal lines in his grammar, read by refusal.ts')
