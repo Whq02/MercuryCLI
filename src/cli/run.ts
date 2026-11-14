@@ -637,6 +637,13 @@ export async function runHeadless(
     }
     return null
   }
+  const statusIsProgress = (status: unknown): boolean => {
+    if (status === 'compacting') return true
+    if (typeof status !== 'object' || status === null) return false
+    if ('streamActivity' in status || 'compacting' in status) return true
+    const wait = (status as { wait?: RequestWaitV1 | null }).wait
+    return wait?.kind === 'first-byte' && wait.checkedMs !== undefined
+  }
   const missionGuard = await import('../guards/mission.js')
   {
     let missionTimer: NodeJS.Timeout | null = null
@@ -1419,7 +1426,7 @@ export async function runHeadless(
             ),
           agents: activeAgents,
           setSDKStatus: (status: unknown) => {
-            if (status === 'compacting' || (typeof status === 'object' && status !== null && ('streamActivity' in status || 'compacting' in status))) turnWatchdog.touch()
+            if (statusIsProgress(status)) turnWatchdog.touch()
             const row = statusRowOf(status)
             if (row !== null) enqueueRow(row)
           },
