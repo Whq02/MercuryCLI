@@ -221,7 +221,7 @@ console.log(JSON.stringify({
   pinned: isAstRefusal(pinned) ? pinned.refused : 'ok',
 }))
 `
-  const out = execFileSync(`${process.env.HOME}/.bun/bin/bun`, ['-e', PROBE], {
+  const out = execFileSync(process.env.BUN ?? `${process.env.HOME}/.bun/bin/bun`, ['-e', PROBE], {
     cwd: REPO,
     encoding: 'utf8',
     timeout: 120_000,
