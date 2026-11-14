@@ -28,7 +28,7 @@ export function BrowserPermissionRequest({
 
   usePermissionRequestLogging(toolUseConfirm)
 
-  const input = toolUseConfirm.input as { op?: string; secretRef?: string }
+  const input = toolUseConfirm.input as { op?: string; secretRef?: string; emulation?: { headers?: unknown; credentials?: unknown } }
   const provisioning = input.op === 'provision'
   const reason =
     'decisionReason' in toolUseConfirm.permissionResult ? toolUseConfirm.permissionResult.decisionReason : undefined
@@ -41,8 +41,9 @@ export function BrowserPermissionRequest({
   const suggestedContent =
     suggestedRule && suggestedRule.type === 'addRules' ? suggestedRule.rules[0]?.ruleContent : undefined
   const askedOrigin = (ruleContent ?? suggestedContent ?? '').replace(/^origin:/, '')
+  const emulationAct = input.op === 'viewport' && (input.emulation?.headers != null || input.emulation?.credentials != null)
   const scopeLines =
-    provisioning || input.secretRef !== undefined || ruleContent?.startsWith('secret:') === true || !askedOrigin.startsWith('http')
+    provisioning || emulationAct || input.secretRef !== undefined || ruleContent?.startsWith('secret:') === true || !askedOrigin.startsWith('http')
       ? []
       : input.op === 'open'
         ? approvalScopeWords(askedOrigin)
