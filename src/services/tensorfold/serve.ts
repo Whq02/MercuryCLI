@@ -15,6 +15,7 @@ import type { OwnerKey } from '../run/ownerKey.js'
 import { detectTensorFoldApp, refuseSecondCopy, type TensorFoldAppState } from '../providers/local/tensorfoldApp.js'
 import { forgetTensorFoldHost, forgetTensorFoldPort, rememberTensorFoldHost, rememberTensorFoldPort } from '../providers/local/tensorfoldHosts.js'
 import { writeTensorFoldKeyFile } from '../providers/local/tensorfoldKeyFile.js'
+import { announceTensorFoldStopping } from '../providers/local/tensorfoldStopping.js'
 import { ADAPTER_SERVED_BY, adapterChildPidFile, isAdapterEntry, servedByAdapter } from './adapter/identity.js'
 import { adapterCheckpointOf } from './adapter/models.js'
 import type { TensorFoldEngine, TensorFoldHost, TensorFoldModelRow, TensorFoldPullProgress, TensorFoldServeRequest, TensorFoldServeRole, TensorFoldServed } from './contracts.js'
@@ -396,6 +397,7 @@ export async function stopTensorFold(name: string, io: Pick<ServeIo, 'role' | 's
   if (record === null) return
   if (record.name !== name && record.repo !== name) return
   if (roleOf(io) === 'session') endAnnouncement()
+  announceTensorFoldStopping(record.port)
   const stopped = await stopService(record.project, TENSORFOLD_SERVICES[roleOf(io)])
   if (servedByAdapter(record.servedBy) && !('error' in stopped) && stopped.note === undefined) rmSync(adapterChildPidFile(record.port), { force: true })
   writeServedRecord(null, io)

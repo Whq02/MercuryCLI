@@ -19,6 +19,11 @@ export interface FoldRequest {
   rendered: string
   promptTokens: number
   cachedTokens: number
+  background: boolean
+  maxTokens?: number
+  thinkingBudget?: number
+  aborted: boolean
+  refused: boolean
 }
 
 const GENERATION_PROMPT = '<|im_start|>assistant\n<think>\n'
@@ -52,38 +57,104 @@ export function sharedFoldTokens(earlier: readonly string[], later: readonly str
   return shared
 }
 
+export function foldReplyStarts(rendered: string): number[] {
+  const starts: number[] = []
+  const firstUser = rendered.indexOf('<|im_start|>user\n')
+  if (firstUser > 0) starts.push(foldTokens(rendered.slice(0, firstUser)).length)
+  for (let at = rendered.indexOf('<|im_start|>assistant\n'); at >= 0; at = rendered.indexOf('<|im_start|>assistant\n', at + 1)) starts.push(foldTokens(rendered.slice(0, at)).length)
+  return starts
+}
+
 export interface TensorFoldPromptFixture {
   root: string
   model: string
   requests: FoldRequest[]
   reply(next: FoldReply): void
+  holdBackground(ms: number, fromNth?: number): void
+  holdNext(ms: number): void
+  waiting(): number
   forget(): void
   stop(): void
 }
 
-export function startTensorFoldPromptFixture(options: { model: string; template: FoldTemplate; window?: number }): TensorFoldPromptFixture {
+const HELD_PROMPTS = 16
+
+export interface TensorFoldPromptFixtureOptions {
+  model: string
+  template: FoldTemplate
+  window?: number
+  capabilities?: Record<string, boolean>
+  resumesAt?: 'any-token' | 'reply-starts'
+  showsLoad?: boolean
+  refusesOpenCalls?: boolean
+  letsGoAfterMs?: number
+}
+
+export function startTensorFoldPromptFixture(options: TensorFoldPromptFixtureOptions): TensorFoldPromptFixture {
   const window = options.window ?? 65536
   const requests: FoldRequest[] = []
   const replies: FoldReply[] = []
-  let held: string[] = []
+  let held: string[][] = []
   let calls = 0
+  let backgroundHoldMs = 0
+  let backgroundHoldFrom = 1
+  let backgroundSeen = 0
+  let nextHoldMs = 0
+  let waiting = 0
+  let queued = 0
+  let backgroundHeld = 0
+  let lettingGoUntil = 0
   const server = Bun.serve({
     hostname: '127.0.0.1',
     port: 0,
     async fetch(request: Request) {
       const path = new URL(request.url).pathname
       const headers = { server: 'TensorFold' }
-      if (path === '/health') return Response.json({ status: 'ok', model: options.model, model_ids: [options.model], version: '1.2.7', backend: 'metal', device: 'fixture', memory: { active: 1024 }, max_batch_size: 8 }, { headers })
-      if (path === '/v1/models') return Response.json({ object: 'list', data: [{ id: options.model, object: 'model', owned_by: 'tensorfold', context_length: window, max_model_len: window, reasoning: { default_enabled: true }, capabilities: { thinking_switch: true } }] }, { headers })
+      if (path === '/health') return Response.json({ status: 'ok', model: options.model, model_ids: [options.model], max_batch_size: 8, memory: { active: 1024 }, ...(options.showsLoad === false ? {} : { live: { connections: waiting + queued, waiting: queued, decode_tokens_per_second: 0, prefill_tokens_per_second: 0 } }), version: '1.2.7', backend: 'metal', device: 'fixture' }, { headers })
+      if (path === '/v1/models') return Response.json({ object: 'list', data: [{ id: options.model, object: 'model', owned_by: 'tensorfold', context_length: window, max_model_len: window, reasoning: { default_enabled: true }, capabilities: { thinking_switch: true, ...(options.capabilities ?? {}) } }] }, { headers })
       if (path !== '/v1/chat/completions') return new Response('{}', { status: 404 })
-      const body = JSON.parse(await request.text()) as { messages?: FoldRow[] }
+      const body = JSON.parse(await request.text()) as { messages?: FoldRow[]; priority?: unknown; max_tokens?: unknown; thinking_budget?: unknown }
       const rows = body.messages ?? []
       const rendered = renderFoldPrompt(rows, options.template)
       const tokens = foldTokens(rendered)
-      const cachedTokens = sharedFoldTokens(held, tokens)
-      held = tokens
-      requests.push({ rows, rendered, promptTokens: tokens.length, cachedTokens })
-      const next = replies.shift() ?? { text: 'done' }
+      const shared = held.reduce((most, prompt) => Math.max(most, sharedFoldTokens(prompt, tokens)), 0)
+      const cachedTokens = options.resumesAt === 'reply-starts' ? foldReplyStarts(rendered).reduce((most, start) => (start <= shared && start > most ? start : most), 0) : shared
+      const background = body.priority === 'background'
+      const entry: FoldRequest = { rows, rendered, promptTokens: tokens.length, cachedTokens, background, ...(typeof body.max_tokens === 'number' ? { maxTokens: body.max_tokens } : {}), ...(typeof body.thinking_budget === 'number' ? { thinkingBudget: body.thinking_budget } : {}), aborted: false, refused: false }
+      requests.push(entry)
+      if (options.refusesOpenCalls === true && rows.some((row, index) => row.role === 'assistant' && (row.tool_calls?.length ?? 0) > 0 && rows[index + 1]?.role !== 'tool')) {
+        entry.refused = true
+        return Response.json({ error: { message: 'a tool call has no result after it', type: 'invalid_request_error' } }, { status: 400, headers })
+      }
+      const next = background ? { text: '.' } : replies.shift() ?? { text: 'done' }
+      if (background) backgroundSeen += 1
+      if (!background && options.letsGoAfterMs !== undefined && (backgroundHeld > 0 || Date.now() < lettingGoUntil)) {
+        if (backgroundHeld > 0) lettingGoUntil = Math.max(lettingGoUntil, Date.now() + options.letsGoAfterMs)
+        queued += 1
+        await new Promise(resolve => setTimeout(resolve, Math.max(0, lettingGoUntil - Date.now())))
+        queued -= 1
+      }
+      const holdMs = background ? (backgroundSeen >= backgroundHoldFrom ? backgroundHoldMs : 0) : nextHoldMs
+      if (!background) nextHoldMs = 0
+      if (holdMs > 0) {
+        waiting += 1
+        if (background) backgroundHeld += 1
+        await new Promise<void>(resolve => {
+          const timer = setTimeout(resolve, holdMs)
+          request.signal.addEventListener('abort', () => {
+            clearTimeout(timer)
+            resolve()
+          }, { once: true })
+        })
+        if (background) backgroundHeld -= 1
+        waiting -= 1
+      }
+      if (request.signal.aborted) {
+        entry.aborted = true
+        if (background) lettingGoUntil = Math.max(lettingGoUntil, Date.now() + (options.letsGoAfterMs ?? 0))
+        return new Response('', { status: 499 })
+      }
+      held = [...held.slice(-(HELD_PROMPTS - 1)), tokens]
       const chunk = (delta: Record<string, unknown>, finish: string | null = null, extra: Record<string, unknown> = {}): string => `data: ${JSON.stringify({ id: 'chatcmpl-fixture', object: 'chat.completion.chunk', model: options.model, choices: [{ index: 0, delta, finish_reason: finish }], ...extra })}\n\n`
       const reasoningTokens = foldTokens(next.reasoning ?? '').length
       const completion = reasoningTokens + foldTokens(next.text ?? '').length + (next.call === undefined ? 0 : foldTokens(JSON.stringify(next.call.arguments)).length)
@@ -106,9 +177,18 @@ export function startTensorFoldPromptFixture(options: { model: string; template:
     reply: next => {
       replies.push(next)
     },
+    holdBackground: (ms, fromNth = 1) => {
+      backgroundHoldMs = ms
+      backgroundHoldFrom = fromNth
+    },
+    holdNext: ms => {
+      nextHoldMs = ms
+    },
+    waiting: () => waiting,
     forget: () => {
       held = []
       requests.length = 0
+      backgroundSeen = 0
     },
     stop: () => {
       server.stop(true)
