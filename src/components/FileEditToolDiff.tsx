@@ -14,6 +14,7 @@ import {
   scanForContext,
 } from '../utils/readEditContext.js'
 import { logError } from '../utils/log.js'
+import { isRemotePath } from '../services/remoteFiles/target.js'
 import { getPatchForEdits } from '../tools/FileEditTool/utils.js'
 import { boundHunks, diffPaintWidth } from './permissions/consentBodyBudget.js'
 import { StructuredDiffList } from './StructuredDiffList.js'
@@ -49,6 +50,15 @@ async function loadDiff(
       typeof edit.old_string === 'string' && typeof edit.new_string === 'string',
   )
   if (edits.length === 0) return { hunks: [], firstLine: null }
+  if (isRemotePath(filePath)) {
+    const closed = (text: string): string => (text === '' || text.endsWith('\n') ? text : `${text}\n`)
+    const whole = edits.map(edit => ({ ...edit, old_string: closed(edit.old_string), new_string: closed(edit.new_string) }))
+    try {
+      return { hunks: getPatchForEdits({ filePath, fileContents: whole.map(edit => edit.old_string).join(''), edits: whole }).patch, firstLine: null }
+    } catch {
+      return { hunks: [], firstLine: null }
+    }
+  }
 
   try {
     if (edits.length === 1 && edits[0]!.old_string.length >= CHUNK_SIZE) {

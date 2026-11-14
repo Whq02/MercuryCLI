@@ -21,7 +21,7 @@ import {
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { ideReadTextAvailable, readRangeViaIde } from '../../services/acp/ideToolBridge.js'
 import type { RemoteRead } from '../../services/remoteFiles/bridge.js'
-import { isRemotePath, remoteIdentity, remoteShellPath } from '../../services/remoteFiles/target.js'
+import { isRemotePath, noteRemoteWholeRead, remoteIdentity, remoteShellPath } from '../../services/remoteFiles/target.js'
 import {
   countTokensWithAPI,
   roughTokenCountEstimationForFileType,
@@ -383,8 +383,9 @@ async function readRangeElsewhere(
 
 const remoteReadGenerations = new WeakMap<object, string>()
 
-function noteRemoteRead(context: ToolUseContext, path: string): void {
+function noteRemoteRead(context: ToolUseContext, path: string, whole = false): void {
   if (!isRemotePath(path)) return
+  if (whole) noteRemoteWholeRead(context.readFileState, path)
   const state = context.readFileState.get(path)
   const generation = fileGeneration(path)
   if (state !== undefined && generation !== null) remoteReadGenerations.set(state, generation)
@@ -1624,7 +1625,7 @@ async function readTextLane(
       limit: coveredWholeFile ? undefined : overCap !== undefined ? range.lineCount : (rawOffset !== undefined && rawOffset < 0 ? shown.count : input.limit),
       ...(outlineBody !== null ? { isPartialView: true } : {}),
     })
-    noteRemoteRead(context, keyPath)
+    noteRemoteRead(context, keyPath, outlineBody === null && lineOffset === 0 && range.lineCount === range.totalLines)
   }
   if (!isRemotePath(keyPath)) context.nestedMemoryAttachmentTriggers?.add(keyPath)
   notifyFileReadListeners(resolvedPath, range.content)

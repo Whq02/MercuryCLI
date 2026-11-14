@@ -163,6 +163,20 @@ export function remoteIdentity(path: string): string {
   }
 }
 
+type ReadLedger = { get(path: string): { content: string } | undefined }
+
+const wholeReads = new WeakSet<object>()
+
+export function noteRemoteWholeRead(ledger: ReadLedger, path: string): void {
+  const entry = isRemotePath(path) ? ledger.get(path) : undefined
+  if (entry !== undefined) wholeReads.add(entry)
+}
+
+export function remoteLastRead(ledger: ReadLedger | undefined, path: string): string | null {
+  const entry = isRemotePath(path) ? ledger?.get(remoteIdentity(path)) : undefined
+  return entry !== undefined && wholeReads.has(entry) ? entry.content : null
+}
+
 const GENERATIONS_KEPT = 4096
 const generations = new Map<string, string | null>()
 

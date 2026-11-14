@@ -14,7 +14,7 @@ import { getLspServerManager } from '../../services/lsp/manager.js'
 import { runtimeKernel } from '../../services/primitives/runtimeKernel.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { ideReadTextAvailable, ideWriteTextAvailable, readWholeTextViaIde, writeTextViaIdeWithReadBack } from '../../services/acp/ideToolBridge.js'
-import { isRemotePath, remoteIdentity } from '../../services/remoteFiles/target.js'
+import { isRemotePath, noteRemoteWholeRead, remoteIdentity } from '../../services/remoteFiles/target.js'
 import {
   activateConditionalSkillsForPaths,
   addSkillDirectories,
@@ -447,6 +447,7 @@ export const FileWriteTool = buildTool({
       offset: undefined,
       limit: undefined,
     })
+    noteRemoteWholeRead(context.readFileState, expandedPath)
 
     const parseError = await checkIntroducedParseError(
       expandedPath,

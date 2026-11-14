@@ -13,7 +13,14 @@
 # gate-watch: src/utils/config/globalConfig.ts
 # gate-watch: src/tools/FileReadTool/**
 # gate-watch: src/tools/FileWriteTool/**
-# gate-watch: src/components/permissions/FilePermissionDialog/permissionOptions.tsx
+# gate-watch: src/components/permissions/FilePermissionDialog/**
+# gate-watch: src/components/permissions/FileWritePermissionRequest/**
+# gate-watch: src/components/permissions/FileEditPermissionRequest/**
+# gate-watch: src/components/permissions/FilesystemPermissionRequest/**
+# gate-watch: src/components/FileEditToolDiff.tsx
+# gate-watch: src/tools/FileEditTool/**
+# gate-watch: src/state/AppState.tsx
+# gate-watch: src/ink.ts
 # gate-watch: src/utils/permissions/filesystem.ts
 # gate-watch: scripts/tools/fixtures/read-formats/**
 set -uo pipefail
