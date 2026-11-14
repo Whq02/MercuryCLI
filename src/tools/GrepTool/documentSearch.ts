@@ -10,11 +10,11 @@ import { ensureScratchpadDir } from '../../utils/scratchpad.js'
 import { normaliseForMatch } from '../../utils/text/normaliseForMatch.js'
 import { ripGrepAnswer, RipgrepUsageError, type RipgrepAnswer } from '../../utils/ripgrep.js'
 
-const MAX_DOCUMENTS = 20
+export const MAX_DOCUMENTS = 20
 const typeDefinitions = SEARCHABLE_DOCUMENT_EXTENSIONS.flatMap(ext => ['--type-add', `${ext}:*.${ext}`])
 export function documentTypeArgs(): string[] { return typeDefinitions }
 
-function discoveryArgs(args: string[], pattern: string): string[] {
+export function discoveryArgs(args: string[], pattern: string): string[] {
   const result = ['--files', ...typeDefinitions]
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!
