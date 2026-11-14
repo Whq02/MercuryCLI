@@ -9,5 +9,8 @@ in {
       description = "The Mercury package to install.";
     };
   };
-  config = lib.mkIf cfg.enable { environment.systemPackages = [ cfg.package ]; };
+  config = lib.mkIf cfg.enable {
+    environment.systemPackages = [ cfg.package ];
+    environment.pathsToLink = [ "/libexec/mercury" ];
+  };
 }

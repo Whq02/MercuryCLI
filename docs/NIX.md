@@ -53,7 +53,7 @@ On a regular Linux distribution, the wrapper first starts the archive's own Node
 
 The FHS road needs user namespaces and does not support setuid commands such as `sudo` inside Mercury's shell; run those commands in a terminal outside that environment.
 
-When Mercury was invoked through a profile, its daemon record and suggested shell command retain the profile path, so an upgrade does not leave them naming an old store output.
+When Mercury was invoked through a profile that links `libexec/mercury` beside `bin`, its daemon record and suggested shell command retain the profile path, so an upgrade does not leave them naming an old store output. A `nix profile` installation links it, and the NixOS module adds `/libexec/mercury` to `environment.pathsToLink` for the system profile; a profile that links `bin` alone is given the package's store path instead.
 
 ## Development shell
 

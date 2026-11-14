@@ -65,6 +65,14 @@ try {
     symlinkSync(join(output, 'libexec'), join(profile, 'libexec'), 'dir')
     symlinkSync(wrapper, join(binOnly, 'bin/mercury'))
     symlinkSync(join(profile, 'bin/mercury'), alias)
+    const system = join(scratch, 'nixos-profile')
+    mkdirSync(join(system, 'bin'), { recursive: true })
+    symlinkSync(wrapper, join(system, 'bin/mercury'))
+    const linked = /environment\.pathsToLink = \[([^\]]*)\]/.exec(readFileSync(join(root, 'nix/nixos-module.nix'), 'utf8'))?.[1] ?? ''
+    for (const path of [...linked.matchAll(/"([^"]+)"/g)].map(found => found[1]!)) {
+      mkdirSync(dirname(join(system, path)), { recursive: true })
+      symlinkSync(join(output, path), join(system, path), 'dir')
+    }
     const { nixInstallRoot } = await import(pathToFileURL(join(root, 'src/services/privateChannel/installProvenance.ts')).href)
     const { ownCommandWord } = await import(pathToFileURL(join(root, 'src/services/privateChannel/installPath.ts')).href)
     const env = { PATH: '/usr/bin:/bin', HOME: home, USERPROFILE: home, MERCURY_CONFIG_DIR: join(home, '.mercury'), MERCURY_LOCAL_PROBE_TARGETS: 'none', NODE_DISABLE_COMPILE_CACHE: '1', TERM: 'dumb' }
@@ -78,6 +86,7 @@ try {
       ["the package's own bin, as `nix run` starts it", wrapper, join(output, 'libexec/mercury/mercury.mjs')],
       ['a profile that links bin alone, as a NixOS system profile does unless told otherwise', join(binOnly, 'bin/mercury'), join(output, 'libexec/mercury/mercury.mjs')],
       ["a user's own link to the profile's command", alias, join(output, 'libexec/mercury/mercury.mjs')],
+      ['a system profile that links bin and what the NixOS module asks it to link', join(system, 'bin/mercury'), join(system, 'libexec/mercury/mercury.mjs')],
     ] as const) {
       const started = start(command)
       check(`${layout}: the payload starts and is handed the path beside the command that can start it again`, started.bundle === expected, started.out)
