@@ -47,6 +47,8 @@ type DriveOptions = {
   classify?: string[]
   screens?: boolean
   orient?: boolean
+  personal?: string
+  env?: Record<string, string>
 }
 
 const DRIVER = `
@@ -148,6 +150,7 @@ export function openWorld(name: string): World {
       const configHome = join(scratch, `config-${++homes}`)
       seedFirstRun(configHome, options.untrusted ? [] : [options.trust ?? cwd])
       if (options.settings) writeFileSync(join(configHome, 'settings.json'), JSON.stringify(options.settings))
+      if (options.personal !== undefined) writeFileSync(join(configHome, 'MERCURY.md'), options.personal)
       const home = options.home ?? join(scratch, `home-${homes}`)
       mkdirSync(home, { recursive: true })
       const result = join(configHome, 'result.json')
@@ -164,6 +167,7 @@ export function openWorld(name: string): World {
           ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key',
           ANTHROPIC_BASE_URL: 'http://127.0.0.1:1',
           DRV_PLAN: JSON.stringify({ touch: options.touch ?? [], classify: options.classify ?? [], screens: options.screens === true, orient: options.orient === true }),
+          ...options.env,
         },
         stdio: ['ignore', 'ignore', 'pipe'],
         encoding: 'utf8',

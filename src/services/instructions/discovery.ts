@@ -348,10 +348,12 @@ async function rulesImportedAt(
       ? await processRulesDir({ convention, rulesDir: path, type, processedPaths, includeExternal: false, conditionalRule: false, every: true, diagnostics })
       : await processRuleFile(convention, path, type, processedPaths, diagnostics, at.source)
     const kept = read.filter(entry => entry.dormant === undefined || (!folder && entry.dormant === 'manual'))
+    const start = getOriginalCwd()
+    const anchor = pathInWorkingPath(start, at.owner) || pathInWorkingPath(at.owner, start) ? at.owner : start
     for (const entry of kept) {
       entry.parent = parent
       delete entry.dormant
-      if (entry.globs !== undefined) entry.anchor = at.owner
+      if (entry.globs !== undefined) entry.anchor = anchor
     }
     return kept
   }

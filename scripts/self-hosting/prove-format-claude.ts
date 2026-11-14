@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { join } from 'node:path'
-import { checker, contentsOf, guideBattery, openWorld, rulesBattery } from './instructionWorld.ts'
+import { checker, contentsOf, count, guideBattery, openWorld, rulesBattery } from './instructionWorld.ts'
 
 const world = openWorld('format-claude')
 const { check, section, close } = checker()
@@ -54,6 +54,8 @@ try {
   check('the guide list there names the root guide alone', JSON.stringify(d2b.guides) === JSON.stringify([join(p2, 'CLAUDE.md')]), JSON.stringify(d2b.guides))
   const d2c = world.drive(join(p2, 'work/proj'), { trust: p2 })
   check('with the home elsewhere the same folders are plain parents and their files compose', ['personal-guide-needle', 'personal-rule-needle', 'home-root-needle', 'project-guide-needle'].every(needle => d2c.first.includes(needle)), d2c.paths.join(', '))
+  const d2d = world.drive(join(p2, 'work/proj'), { home: p2, trust: p2, personal: '@~/.claude/CLAUDE.md\nmy-own-needle\n' })
+  check("an @~/ line in the user's own MERCURY.md brings the personal guide in, once, beside the project's", count(d2d.first, 'personal-guide-needle') === 1 && d2d.first.includes('project-guide-needle') && !d2d.first.includes('personal-rule-needle'), d2d.paths.join(', '))
 
   section('where the loaded instructions are listed, its files carry its name')
   const d3 = world.drive(p1, { screens: true })
