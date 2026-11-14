@@ -164,7 +164,9 @@ copied whole. A crewmate starts at once and its first tool call waits for its
 copy, so a copy quicker than the model's first answer costs no time. On a Mac
 one copy is made at a time, in calls of a few thousand entries, so crewmates
 launched together have their copies ready one after another and nothing else
-on the disk waits on a copy. To keep the links instead, name a folder in
+on the disk waits on a copy, unless one folder holds tens of thousands of
+files directly in it (about half a second for fifty thousand such files). To
+keep the links instead, name a folder in
 `workspace.worktree.symlinkDirectories`, or set `MERCURY_WORKTREE_CLONE=off`
 in the environment to keep them all.
 
