@@ -811,6 +811,7 @@ export async function createAgentWorktree(
   let prepareFailure: string | undefined
   let ready: Promise<void> | undefined
   if (!created.existed) {
+    await markAgentLane(created.worktreePath, slug)
     const behindLaunch = options?.foldersBehindLaunch === true && !(await launchWaitsForFolders(gitRoot))
     if (behindLaunch) await propagateLocalSettings(gitRoot, created.worktreePath, false)
     else prepareFailure = await runPostCreationSetup(gitRoot, created.worktreePath, from, options?.permission)
@@ -1056,7 +1057,34 @@ export async function worktreeRemovalSafe(worktreePath: string, ownBranch?: stri
 }
 
 
-export const AGENT_LANE_SLUG = /^agent-a(?:[0-9a-z]{7}|[0-9a-f]{8,32})$/
+const AGENT_LANE_SLUG = /^agent-a[0-9a-f]{7,32}$/
+const CREWMATE_LANE_SLUG = /^agent-a[0-9a-z]{7}$/
+const LANE_MARKER_FILENAME = 'WORKTREE_LANE'
+
+async function markAgentLane(worktreePath: string, slug: string): Promise<void> {
+  if (!AGENT_LANE_SLUG.test(slug) && !CREWMATE_LANE_SLUG.test(slug)) return
+  const adminDir = await resolveWorktreeAdminDir(worktreePath)
+  if (adminDir === null) return
+  try {
+    await writeFile(join(adminDir, LANE_MARKER_FILENAME), `agent ${slug}\n`)
+  } catch (error) {
+    logForDebugging(`worktree lane marker not written for ${worktreePath}: ${String(error)}`)
+  }
+}
+
+export async function isAgentLane(slug: string, worktreePath: string): Promise<boolean> {
+  if (AGENT_LANE_SLUG.test(slug)) return true
+  if (!CREWMATE_LANE_SLUG.test(slug)) return false
+  const adminDir = await resolveWorktreeAdminDir(worktreePath)
+  if (adminDir === null) return false
+  try {
+    await stat(join(adminDir, LANE_MARKER_FILENAME))
+    return true
+  } catch {
+    return false
+  }
+}
+
 const EPHEMERAL_SLUG_PATTERNS: RegExp[] = [
   AGENT_LANE_SLUG,
   /^parcel-[0-9a-f]{6,32}$/,
@@ -1117,7 +1145,8 @@ export async function cleanupStaleAgentWorktrees(cutoffDate: Date): Promise<numb
   }
 
   for (const [candidatePath, slug] of candidates) {
-    if (!isEphemeralSlug(slug)) continue
+    const agentLane = await isAgentLane(slug, candidatePath)
+    if (!agentLane && !isEphemeralSlug(slug)) continue
     if (currentWorktreeSession !== null && candidatePath === currentWorktreeSession.worktreePath) continue
     let mtimeMs: number
     try {
@@ -1127,7 +1156,7 @@ export async function cleanupStaleAgentWorktrees(cutoffDate: Date): Promise<numb
     }
     if (mtimeMs >= cutoffMs) continue
 
-    if (AGENT_LANE_SLUG.test(slug)) {
+    if (agentLane) {
       if (registryReadable && !registeredPaths.has(candidatePath) && (await isDisownedWorktree(candidatePath))) continue
       const verdict = await worktreeRemovalSafe(candidatePath, worktreeBranchName(slug))
       if (!verdict.safe) {
