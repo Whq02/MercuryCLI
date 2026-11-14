@@ -205,6 +205,7 @@ export interface EmulationOutcome {
 const LAUNCH_VIEWPORT = { width: 1280, height: 800 } as const
 const emulations = new WeakMap<Page, PageEmulation>()
 const grantHolders = new WeakMap<object, Map<string, Set<Page>>>()
+const rememberedAuth = new WeakMap<object, Set<string>>()
 
 function stateOf(page: Page): PageEmulation {
   let state = emulations.get(page)
@@ -431,7 +432,7 @@ function authAnswer(state: PageEmulation, requestId: string, challenge: { source
   return { response: 'ProvideCredentials', username: held.username, password }
 }
 
-async function answerChallenges(kit: PageKit, state: PageEmulation, on: boolean): Promise<void> {
+async function answerChallenges(page: Page, kit: PageKit, state: PageEmulation, on: boolean): Promise<void> {
   const own = ownSession(kit)
   kit.fetchHeld = on
   if (!on) {
@@ -439,12 +440,43 @@ async function answerChallenges(kit: PageKit, state: PageEmulation, on: boolean)
     return
   }
   if (!state.answering) {
+    const intercepted = new Map<string, string>()
+    const answered = new Map<string, string>()
+    const forget = (requestId: string): void => {
+      answered.delete(requestId)
+      for (const [id, network] of intercepted) if (network === requestId) intercepted.delete(id)
+    }
+    const received = (requestId: string, status: number): void => {
+      const origin = answered.get(requestId)
+      if (origin !== undefined && status !== 401 && status !== 407) {
+        const browser: object = typeof page.browser === 'function' ? page.browser() : page
+        let origins = rememberedAuth.get(browser)
+        if (origins === undefined) rememberedAuth.set(browser, origins = new Set())
+        origins.add(origin)
+      }
+      forget(requestId)
+    }
+    own.on('Network.responseReceived', event => received(event.requestId, event.response.status))
+    own.on('Network.requestWillBeSent', event => {
+      if (event.redirectResponse !== undefined) received(event.requestId, event.redirectResponse.status)
+    })
+    own.on('Network.loadingFailed', event => forget(event.requestId))
     own.on('Fetch.requestPaused', event => {
+      if (event.networkId !== undefined) {
+        intercepted.set(event.requestId, event.networkId)
+        if (intercepted.size > 256) intercepted.delete(intercepted.keys().next().value!)
+      }
       void own.send('Fetch.continueRequest', { requestId: event.requestId }).catch(() => undefined)
     })
     own.on('Fetch.authRequired', event => {
+      const answer = authAnswer(state, event.requestId, event.authChallenge)
+      const network = intercepted.get(event.requestId)
+      if (answer.response === 'ProvideCredentials' && network !== undefined) {
+        answered.set(network, originOf(event.authChallenge.origin))
+        if (answered.size > 256) answered.delete(answered.keys().next().value!)
+      }
       void own
-        .send('Fetch.continueWithAuth', { requestId: event.requestId, authChallengeResponse: authAnswer(state, event.requestId, event.authChallenge) })
+        .send('Fetch.continueWithAuth', { requestId: event.requestId, authChallengeResponse: answer })
         .catch(() => undefined)
     })
     state.answering = true
@@ -459,7 +491,7 @@ async function applyAspect(aspect: Aspect, page: Page, kit: PageKit, environment
       return false
     case 'credentials':
       state.credentials = environment.credentials
-      await answerChallenges(kit, state, environment.credentials !== null)
+      await answerChallenges(page, kit, state, environment.credentials !== null)
       return false
     case 'identity':
       if (environment.identity !== null) await ownSession(kit).send('Emulation.setUserAgentOverride', environment.identity)
@@ -564,7 +596,7 @@ function describe(state: PageEmulation, kit: PageKit | null): string[] {
   if (fields.headers !== undefined) lines.push(`headers: ${Object.keys(fields.headers).map(name => name.toLowerCase()).join(', ') || 'none'}`)
   if (fields.credentials !== undefined) {
     const { username, origin, secret } = fields.credentials
-    lines.push(`credentials: ${username} answers ${origin} only (${secret !== undefined ? `secret ${secret}` : 'password withheld'})`)
+    lines.push(`credentials: ${username} answers ${origin} only (${secret !== undefined ? `secret ${secret}` : 'password withheld'}); once answered, the browser answers ${origin} in every tab until it closes`)
   }
   return lines
 }
@@ -649,7 +681,7 @@ async function settle(page: Page, kit: PageKit, state: PageEmulation, next: Fiel
   const earlier = before.credentials
   if (earlier !== undefined && state.usedFor.has(earlier.origin) && JSON.stringify(earlier) !== JSON.stringify(next.credentials)) {
     notes.push(
-      `${next.credentials === undefined ? 'no challenge is answered from now on' : 'new challenges get the new credentials'}; what the browser already answered for ${earlier.origin} stays answered until this browser closes`,
+      `${next.credentials === undefined ? 'this tab no longer answers new challenges' : 'this tab answers new challenges with the new credentials'}; what the browser already answered for ${earlier.origin} stays answered in every tab until it closes`,
     )
   }
   return { reloaded, stale, lines: describe(state, kit), failures, notes }
@@ -702,7 +734,11 @@ export function emulationActive(page: Page): boolean {
 
 export function emulationLines(page: Page): string[] {
   const state = emulations.get(page)
-  return state === undefined ? [] : describe(state, pageKitOf(page))
+  const lines = state === undefined ? [] : describe(state, pageKitOf(page))
+  for (const origin of rememberedAuth.get(typeof page.browser === 'function' ? page.browser() : page) ?? []) {
+    if (state?.fields.credentials?.origin !== origin) lines.push(`credentials: ${origin} — answered by the browser's memory until it closes`)
+  }
+  return lines
 }
 
 export function emulationSummary(page: Page): string {
