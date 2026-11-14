@@ -105,23 +105,24 @@ section('§5 THE CURE: THE VENDORED SWIFT BLOB UNDER THE PRODUCT RUNTIME')
       '(async () => {',
       '  await mod.Parser.init({ locateFile: f => path.join(dir, f) });',
       '  const parser = new mod.Parser();',
-      '  parser.setLanguage(await mod.Language.load(wasm));',
+      "  parser.setLanguage(await mod.Language.load(require('node:fs').readFileSync(wasm)));",
       "  const tree = parser.parse('func greet() { print(1) }');",
       '  if (!tree || !tree.rootNode || tree.rootNode.hasError) process.exit(8);',
       '  process.exit(0);',
-      '})().catch(() => process.exit(9));',
+      '})().catch(error => { console.error(String((error && error.stack) || error)); process.exit(9); });',
     ].join('\n')
     const swiftWasm = join(ROOT, 'vendor', 'grammars', 'extracted', 'tree-sitter-swift.wasm')
     const cure = spawnSync(nodeBin, ['-e', childSource, DIR, swiftWasm], {
       env: process.env,
       timeout: 60_000,
-      stdio: 'ignore',
+      stdio: ['ignore', 'ignore', 'pipe'],
+      encoding: 'utf8',
       windowsHide: true,
     })
     check(
       'the vendored swift wasm survives load+parse under node (the cure holds)',
       cure.status === 0 && cure.signal === null && cure.error === undefined,
-      `exit ${cure.status ?? 'null'}${cure.signal ? `, signal ${cure.signal}` : ''}${cure.error ? `, ${String(cure.error)}` : ''}`,
+      `exit ${cure.status ?? 'null'}${cure.signal ? `, signal ${cure.signal}` : ''}${cure.error ? `, ${String(cure.error)}` : ''}${cure.stderr ? ` — ${cure.stderr.slice(0, 600)}` : ''}`,
     )
     const control = spawnSync(nodeBin, ['-e', childSource, DIR, join(DIR, 'not-a-grammar.wasm')], {
       env: process.env,

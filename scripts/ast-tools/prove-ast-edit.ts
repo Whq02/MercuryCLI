@@ -209,7 +209,7 @@ section('§9 — /rewind restores the written file from the pre-write snapshot')
   const token = /plan: (ae-[0-9a-f]{12})/.exec(dry.text)?.[1] ?? ''
   const a = await drive(AstEditTool, { pattern: 'old_name($X)', rewrite: 'new_name($X)', path: 'rewind', apply: true, plan: token }, prover, { messageId: turnId })
   check('applied', !a.isError && read('rewind/r.py').includes('print(new_name(1))'), a.text.slice(0, 200))
-  check('the written file is tracked by file history', prover.fileHistory().trackedFiles.has('rewind/r.py'), [...prover.fileHistory().trackedFiles].join(','))
+  check('the written file is tracked by file history', prover.fileHistory().trackedFiles.has(join('rewind', 'r.py')), [...prover.fileHistory().trackedFiles].join(','))
   const restored = await fileHistoryRestore(prover.fileHistory(), turnId as never, { dryRun: false, ownerKey: 'ast-edit-prover' })
   check('rewind restores the original bytes', restored.ok && read('rewind/r.py') === original, JSON.stringify({ restored, bytes: read('rewind/r.py') }))
 }

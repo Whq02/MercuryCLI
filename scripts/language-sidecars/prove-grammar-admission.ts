@@ -589,7 +589,7 @@ section(`§3 — the rows: the twenty-three and the ${admitted.length} admitted,
   }
   check(`the licence text of each of the ${admitted.length} is checked in under vendor/grammar-licences, is the bytes its lock entry pins (or their LF form), was read at the entry's commit, is the licence the entry names and carries the copyright line the entry records`, untexted.length === 0, untexted.join(','))
   check(`an upstream NOTICE travels beside its licence where the grammar has one: ${NOTICE_FILES.join(', ')}`, notices.join(',') === NOTICE_FILES.join(','), notices.join(','))
-  check('those texts are kept out of line-end conversion, as the tree\'s other pinned licence texts are', readFileSync(join(ROOT, '.gitattributes'), 'utf8').split('\n').includes('vendor/grammar-licences/** -text'))
+  check('those texts are kept out of line-end conversion, as the tree\'s other pinned licence texts are', readFileSync(join(ROOT, '.gitattributes'), 'utf8').split(/\r?\n/).includes('vendor/grammar-licences/** -text'))
   const distTexts = join(ROOT, 'dist', 'vendor', 'treesitter', 'grammar-licences')
   const distNotices = join(ROOT, 'dist', 'vendor', 'treesitter', 'GRAMMAR-NOTICES.json')
   if (!existsSync(distNotices)) {
