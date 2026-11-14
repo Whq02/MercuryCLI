@@ -198,7 +198,6 @@ function seedUsedHome(): string[] {
   const agentDir = join(store, SESSION, 'subagents', 'workflows', RUN_ID)
   const files: Array<[string, string]> = [
     [join(CFG, 'workflows', 'user-flow.js'), USER_FLOW],
-    [join(CFG, 'boot-env.json'), `${JSON.stringify({ version: 1, env: { MERCURY_SESSION_WORKFLOWS: '0' } }, null, 2)}\n`],
     [join(PROJECT, '.mercury', 'workflows', 'project-flow.js'), PROJECT_FLOW],
     [join(PROJECT, '.mercury', 'settings.local.json'), `${JSON.stringify({ guardrails: { allow: ['Workflow(user-flow)'], ask: ['Workflow(project-flow)'], deny: ['Workflow(danger-flow)'] } }, null, 2)}\n`],
     [join(runDir, 'workflow.js'), USER_FLOW],
@@ -241,7 +240,7 @@ if (!existsSync(DIST)) {
     const stored = readFileSync(session, 'utf8')
     const moved = (): string[] => estate.filter(path => path !== session && digest(path) !== before.get(path)).map(path => path.replace(WORLD, ''))
 
-    section('§4 the roads of the built product: a home that used workflows, its boot profile still holding the retired row, starts clean, and no tool list holds the tool')
+    section('§4 the roads of the built product: a home that used workflows starts clean, and no tool list holds the tool')
     let plain: string[] | null = null
     let list: string[] | null = null
     for (const [label, flags] of SETTINGS) {
@@ -256,7 +255,7 @@ if (!existsSync(DIST)) {
       check(`${label}: mcp serve lists tools, and none is the Workflow tool`, offered !== null && offered.length > 0 && !offered.includes(TOOL), offered === null ? 'no list' : offered.join(', '))
       list ??= offered
       check(`${label}: its list is the one served with neither flag set`, JSON.stringify(offered) === JSON.stringify(list))
-      check(`${label}: every workflow script, run file and rule of the home, and its boot profile, is byte for byte as it was`, moved().length === 0, moved().join(', '))
+      check(`${label}: every workflow script, run file and rule of the home is byte for byte as it was`, moved().length === 0, moved().join(', '))
     }
 
     section('§5 the built product answers /workflows as a command it does not have')
@@ -284,6 +283,20 @@ if (!existsSync(DIST)) {
       check('a Workflow call the model makes there is answered as a tool the session does not have', results.length === 1 && results[0]!.is_error === true && said.includes(`No such tool available: ${TOOL}`), said.slice(0, 400))
       check('…and the turn goes on to its answer, ending 0', turn.code === 0 && outcomeOf(turn.out).answer === 'Went on.', `exit ${turn.code} · ${turn.out.slice(0, 300)}`)
       check('…with the home\'s workflow files still byte for byte as they were', moved().length === 0, moved().join(', '))
+    }
+
+    section('§7 the same home once its saved boot profile holds the retired Workflows row')
+    {
+      const profile = join(CFG, 'boot-env.json')
+      writeFileSync(profile, `${JSON.stringify({ version: 1, env: { MERCURY_SESSION_WORKFLOWS: '0' } }, null, 2)}\n`)
+      const saved = digest(profile)
+      const turn = await run(['say ready'], [{ kind: 'text', text: 'Ready.' }])
+      const tools = toolNames(turn.requests[0])
+      check('mercury run answers and ends 0, with nothing on stderr and no word of workflows', turn.code === 0 && outcomeOf(turn.out).answer === 'Ready.' && turn.err === '' && !/workflow/i.test(turn.out), `exit ${turn.code} · ${turn.out.slice(0, 300)} · stderr ${turn.err.slice(0, 300)}`)
+      check('the tools offered are the ones offered before the profile held the row', tools.length > 0 && JSON.stringify(tools) === JSON.stringify(plain), tools.join(', '))
+      const offered = await served({})
+      check('mcp serve lists what it listed before the profile held the row', offered !== null && JSON.stringify(offered) === JSON.stringify(list), offered === null ? 'no list' : offered.join(', '))
+      check('the profile is byte for byte as it was saved, and so is every workflow script, run file and rule of the home', digest(profile) === saved && moved().length === 0, moved().join(', '))
     }
   }
 }
