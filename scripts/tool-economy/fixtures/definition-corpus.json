@@ -1,5 +1,5 @@
 {
-  "base": "5a3c10ec0f2d27053751be747dc9310f22715e86",
+  "base": "1a564942f23bcab32eb3f111e1391ba4a3521faf",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -2162,7 +2162,7 @@
     },
     {
       "name": "Git",
-      "description": "Inspect local repositories and hosted review/check data, stage exact changes, or preview and apply commit groups. Returns bounded records and stable hunk/plan ids. It does not fetch, push, rewrite history or discard working-tree content.",
+      "description": "Inspect local repositories and hosted reviews/checks; stage exact changes; preview/apply commit groups. Bounded records, stable hunk/plan ids. No fetch, push, history rewrite or worktree-content discard.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -2193,11 +2193,11 @@
             ]
           },
           "cwd": {
-            "description": "Folder to run in (default session folder); uses containing repo or the sole repo directly below it",
+            "description": "Folder (default session); containing or sole child repo",
             "type": "string"
           },
           "scope": {
-            "description": "diff: default \"worktree\"",
+            "description": "diff: default worktree",
             "type": "string",
             "enum": [
               "worktree",
@@ -2211,26 +2211,26 @@
             "type": "string"
           },
           "paths": {
-            "description": "diff: path filter",
+            "description": "diff: paths",
             "type": "array",
             "items": {
               "type": "string"
             }
           },
           "sha": {
-            "description": "show: commit",
+            "description": "show: SHA",
             "type": "string"
           },
           "refA": {
-            "description": "mergebase: first ref; compare: base",
+            "description": "mergebase: first; compare: base",
             "type": "string"
           },
           "refB": {
-            "description": "mergebase: second ref; compare: head",
+            "description": "mergebase: second; compare: head",
             "type": "string"
           },
           "groups": {
-            "description": "plan: groups; dependsOn computes order (preview only)",
+            "description": "plan: dependsOn orders groups without committing",
             "type": "array",
             "items": {
               "type": "object",
@@ -2243,7 +2243,7 @@
                   "description": "Repo-relative files"
                 },
                 "hunks": {
-                  "description": "Per-file hunk-id subsets (gh-… from diff)",
+                  "description": "Per-file gh-… subsets from diff",
                   "type": "object",
                   "propertyNames": {
                     "type": "string"
@@ -2260,14 +2260,14 @@
                   "description": "Commit message"
                 },
                 "checks": {
-                  "description": "Checks recorded, not run",
+                  "description": "Recorded, not run",
                   "type": "array",
                   "items": {
                     "type": "string"
                   }
                 },
                 "dependsOn": {
-                  "description": "Prerequisites: 0-based groups",
+                  "description": "Prerequisites (0-based)",
                   "type": "array",
                   "items": {
                     "type": "integer",
@@ -2284,18 +2284,18 @@
             }
           },
           "planId": {
-            "description": "apply/verify: gp-…; checks tree digest; earlier commits stand on later failure",
+            "description": "apply/verify: gp-…; tree digest checked; earlier groups stay committed if a later group fails",
             "type": "string"
           },
           "files": {
-            "description": "Repo-relative paths for stage/restore (restore unstages only)",
+            "description": "stage/restore: repo-relative files; restore only unstages",
             "type": "array",
             "items": {
               "type": "string"
             }
           },
           "hunks": {
-            "description": "stage: per-file gh-… hunk ids",
+            "description": "stage: per-file gh-… ids",
             "type": "object",
             "propertyNames": {
               "type": "string"
@@ -2308,11 +2308,11 @@
             }
           },
           "path": {
-            "description": "resolve: conflicted file; fileAtRef: file; tree: optional directory",
+            "description": "resolve: conflict; fileAtRef: file; tree: optional directory",
             "type": "string"
           },
           "take": {
-            "description": "resolve: side to take",
+            "description": "resolve: side",
             "type": "string",
             "enum": [
               "ours",
@@ -2322,7 +2322,7 @@
             ]
           },
           "resolutions": {
-            "description": "resolve: region choices (take or content)",
+            "description": "resolve: region take/content",
             "type": "array",
             "items": {
               "type": "object",
@@ -2350,17 +2350,17 @@
             }
           },
           "content": {
-            "description": "resolve: resolved text instead of take",
+            "description": "resolve: text, not take",
             "type": "string"
           },
           "pr": {
-            "description": "reviewContext/prDiff: PR number (default current branch; uses gh)",
+            "description": "reviewContext/prDiff: PR; default current branch (gh)",
             "type": "integer",
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991
           },
           "findings": {
-            "description": "reviewRecord: findings ([] = clean review; requires inspected)",
+            "description": "reviewRecord: [] clean; needs inspected",
             "type": "array",
             "items": {
               "type": "object",
@@ -2383,19 +2383,18 @@
                 },
                 "path": {
                   "type": "string",
-                  "description": "Repo-relative path in reviewed diff"
+                  "description": "Reviewed repo-relative path"
                 },
                 "range": {
                   "type": "string",
-                  "description": "'L<start>' or 'L<start>-L<end>' (1-based)"
+                  "description": "L1 or L1-L5 (1-based)"
                 },
                 "claim": {
                   "type": "string",
-                  "description": "One-sentence finding"
+                  "description": "One-sentence claim"
                 },
                 "evidence": {
-                  "type": "string",
-                  "description": "Supporting evidence"
+                  "type": "string"
                 },
                 "nextAction": {
                   "type": "string"
@@ -2414,7 +2413,7 @@
             }
           },
           "inspected": {
-            "description": "reviewRecord: inspected items (required when findings is [])",
+            "description": "reviewRecord: required with findings:[]",
             "type": "array",
             "items": {
               "type": "string"
@@ -2425,7 +2424,7 @@
             "type": "string"
           },
           "searchKind": {
-            "description": "hostSearch: target kind",
+            "description": "hostSearch: kind",
             "type": "string",
             "enum": [
               "code",
@@ -2435,31 +2434,31 @@
             ]
           },
           "query": {
-            "description": "hostSearch: GitHub search query",
+            "description": "hostSearch: GitHub query",
             "type": "string"
           },
           "limit": {
-            "description": "hostSearch ≤50, runs ≤20 (default 10)",
+            "description": "hostSearch ≤50; runs ≤20; default 10",
             "type": "integer",
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991
           },
           "file": {
-            "description": "prDiff: changed file path (omit for file list)",
+            "description": "prDiff: file (omit for list)",
             "type": "string"
           },
           "page": {
-            "description": "prDiff: 0-based page (80 lines/page)",
+            "description": "prDiff: 0-based, 80 lines/page",
             "type": "integer",
             "minimum": 0,
             "maximum": 9007199254740991
           },
           "run": {
-            "description": "runs/runWatch: workflow run id (runWatch returns at once and settles on the conclusion)",
+            "description": "runs/runWatch: workflow run id; watch returns now, settles on conclusion",
             "type": "string"
           },
           "cancel": {
-            "description": "runWatch: cancel active watch for run",
+            "description": "runWatch: cancel watch for run",
             "type": "boolean"
           }
         },
