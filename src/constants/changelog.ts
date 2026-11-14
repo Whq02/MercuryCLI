@@ -12,6 +12,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Added MERCURY_EDIT_FORM (plain or full), which sends the Edit tool to every model in one named form for a run.
 - Added MERCURY_GREP_RANKED, which lets Grep rank files by the words of a description. It is off by default.
 - Added forty-four verbs to the turn spinner.
+- Added 34 languages to structural search and rewrite (AstSearch, AstEdit), 57 in all: YAML, Markdown, SQL, Dockerfile, Lua, Make, CMake, XML, HCL, GraphQL, Protobuf, Dart, Scala, Elixir, Zig, Haskell, OCaml, Svelte, Astro, Nix, R, Julia, Starlark, Clojure, Erlang, Objective-C, Fortran, Solidity, Verilog, Emacs Lisp, just, Odin, TLA+ and diff. A grammar is loaded only when a search or a rewrite reaches a file of its language, and release archives carry all 57 with their licence texts.
 - Added reading of the instruction and rule files other coding tools left in a project, as they stand and with no setup: AGENTS.md and the shared .agents folder, and the guides and rules of Claude Code, Gemini, Copilot, Cursor, Windsurf and Cline, with the folders COPILOT_CUSTOM_INSTRUCTIONS_DIRS names; the compatibility page names every file. A rule scoped to files reaches the model only when such a file is read, edited or searched. A MERCURY.md in or above the working directory still decides: with one, the others load only where it imports them. /memory files names each file, its tool and when it loads.
 - Added a Nix flake: packages for Linux and macOS made from the signed release archives, a development shell, an overlay, and Home Manager and NixOS modules. A Mercury that Nix installed leaves installing and updating to its flake or profile.
 - Added conflict regions to the Git tool: conflicts lists each conflict block of an unmerged file, and resolve takes ours, theirs, base, both or given text for the regions it names, staging a file once its last region is resolved. A whole file can also be taken as base or as both.
@@ -41,6 +42,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Changed the external editor's value on Windows to be parsed by the system's own command-line rules.
 - Changed TensorFold to 1.2.7 where Mercury names, fetches and verifies the engine; a model card's prompt-cache ceiling follows the engine's rule.
 - Changed the tool descriptions, prompts and bundled skills a model reads: corrected against the product and shortened, by about a tenth where a session sends every tool's definition and by less where tools are loaded on demand.
+- Changed the grammar engine to keep V8's optimising tier off while it parses with a grammar whose optimiser costs 400 MB or more of memory (Bash, PowerShell, Kotlin, Swift, Markdown, Objective-C, Fortran, Verilog, TLA+), so the process keeps its size; MERCURY_GRAMMAR_BASELINE=0 lets them reach it.
 - Changed a conversation on a local TensorFold model to be resumed where the engine left it: every earlier reply goes back with the reasoning the model wrote, and on an engine of this machine that keeps prompt states and does not read ahead itself, Mercury reads the finished turn ahead between turns. A request of the session cancels the reading ahead and waits for the part already in flight. MERCURY_LOCAL_NEXT_TURN_PREFILL=0 turns it off.
 - Changed llama.cpp to 1.0.0 (b12359) where Mercury installs it for the Windows TensorFold group and where a rented pod's engine image is built from it; a llama-server from b11829 on is still accepted.
 - Changed the Git tool's commit plan to say on its card and in its receipt that pre-commit and commit-msg hooks are not run.
@@ -65,6 +67,8 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed /health reading the Blender tool as undeclared where it is offered.
 - Fixed a resumed session's starting count running backwards, and a focus switched to a busy session keeping the last turn's tip.
 - Fixed an approved project extension held off in an untrusted folder saying nothing.
+- Fixed structural search and rewrite over a folder to apply Read deny rules to files reached through a link.
+- Fixed a valid pattern being called malformed when the only file of its language was over the size limit.
 - Fixed a one-shot mercury run ending without its report while a crewmate was parked waiting for its teammates, or between a background crewmate's end and its result.
 - Fixed a personal MERCURY.md in Mercury's home keeping a project's AGENTS.md from loading.
 - Fixed a session hanging at its start in a folder whose MERCURY.md, AGENTS.md or imported instruction file is a named pipe: the file is passed over.
