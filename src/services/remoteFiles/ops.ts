@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { unlinkSync, writeFileSync } from 'node:fs'
+import { closeSync, openSync, unlinkSync, writeFileSync, writeSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { FileTooLargeError, type ReadFileRangeResult } from '../../utils/readFileInRange.js'
@@ -9,7 +9,7 @@ import { authorityText, formatRemotePath, noteRemoteGeneration, type RemoteAutho
 
 type RemoteKind = 'file' | 'folder' | 'a named pipe' | 'a socket' | 'a device' | 'other' | 'dangling'
 
-type RemoteStat = { kind: RemoteKind; link: boolean; size: number; mtimeMs: number; mode: string | null }
+type RemoteStat = { kind: RemoteKind; link: boolean; size: number; mtimeMs: number; mode: string | null; lead: string }
 
 export type RemoteEntry = { name: string; kind: 'file' | 'folder' | 'link' | 'other'; real?: string }
 
@@ -137,14 +137,14 @@ function metaOf(fields: string[]): { size: number; mtimeMs: number; mode: string
   }
 }
 
-export async function remoteStat(target: RemoteTarget, signal?: AbortSignal): Promise<RemoteStat | null> {
+export async function remoteStat(target: RemoteTarget, signal?: AbortSignal, withLead = false): Promise<RemoteStat | null> {
   const path = await remoteAbsolutePath(target, signal)
-  const reply = await remoteRun(target.authority, { script: `m_kind ${remoteQuote(path)}`, signal })
+  const reply = await remoteRun(target.authority, { script: `m_kind ${remoteQuote(path)} ${withLead ? 1 : 0}`, signal })
   if (reply.status === 44) return null
   const fields = reply.stdout.toString('utf8').trim().split(' ')
   const kind = KINDS[fields[0] ?? '']
   if (reply.status !== 0 || kind === undefined) throw failed(target, reply.status, reply.stderr)
-  return { kind, link: fields[1] === 'l', ...metaOf(fields.slice(2)) }
+  return { kind, link: fields[1] === 'l', ...metaOf(fields.slice(2)), lead: fields[5] === undefined || fields[5] === '-' ? '' : fields[5] }
 }
 
 function headOf(line: string): RemoteHead | null {
@@ -249,13 +249,53 @@ const CRC_TABLE = (() => {
   return table
 })()
 
-export function remoteSum(bytes: Uint8Array): string {
-  let crc = 0
+function sumOver(crc: number, bytes: Uint8Array): number {
   for (const byte of bytes) crc = ((crc << 8) ^ CRC_TABLE[((crc >>> 24) ^ byte) & 0xff]!) >>> 0
-  for (let length = bytes.length; length > 0; length = Math.floor(length / 256)) {
+  return crc
+}
+
+function sumOf(crc: number, size: number): string {
+  for (let length = size; length > 0; length = Math.floor(length / 256)) {
     crc = ((crc << 8) ^ CRC_TABLE[((crc >>> 24) ^ (length & 0xff)) & 0xff]!) >>> 0
   }
-  return `${(~crc >>> 0).toString()} ${bytes.length}`
+  return `${(~crc >>> 0).toString()} ${size}`
+}
+
+export function remoteSum(bytes: Uint8Array): string {
+  return sumOf(sumOver(0, bytes), bytes.length)
+}
+
+export async function remoteFetch(target: RemoteTarget, file: string, signal?: AbortSignal): Promise<{ size: number; mtimeMs: number }> {
+  const path = await remoteAbsolutePath(target, signal)
+  for (let attempt = 0; ; attempt++) {
+    const fd = openSync(file, 'w', 0o600)
+    const got: { head: RemoteHead | null; pending: Buffer; crc: number; size: number } = { head: null, pending: Buffer.alloc(0), crc: 0, size: 0 }
+    try {
+      const reply = await remoteRun(target.authority, {
+        script: `m_page ${remoteQuote(path)} 1 -1 0`,
+        signal,
+        sink: chunk => {
+          let body = chunk
+          if (got.head === null) {
+            got.pending = Buffer.concat([got.pending, chunk])
+            const cut = got.pending.indexOf(0x0a)
+            if (cut === -1) return
+            got.head = headOf(got.pending.subarray(0, cut).toString('latin1'))
+            body = got.pending.subarray(cut + 1)
+          }
+          for (let written = 0; written < body.length; ) written += writeSync(fd, body, written)
+          got.crc = sumOver(got.crc, body)
+          got.size += body.length
+        },
+      })
+      if (reply.status !== 0 || got.head === null) throw failed(target, reply.status, reply.stderr)
+    } finally {
+      closeSync(fd)
+    }
+    const { head, size } = got
+    if (head !== null && size === head.size && (head.crc === null || sumOf(got.crc, size) === `${head.crc} ${size}`)) return { size, mtimeMs: head.mtimeMs }
+    if (attempt > 0) throw new RemoteChangedError(formatRemotePath(target), true)
+  }
 }
 
 export async function remoteReadBytes(target: RemoteTarget, signal?: AbortSignal): Promise<{ bytes: Buffer; mtimeMs: number; mode: string | null; sum: string }> {

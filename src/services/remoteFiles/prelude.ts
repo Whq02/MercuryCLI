@@ -49,7 +49,9 @@ m_kind() {
   else return 44
   fi
   m=$(m_meta "$1") && [ -n "$m" ] || m='- - -'
-  printf '%s %s %s\n' "$t" "$l" "$m"
+  h=
+  if [ "$2" = 1 ] && [ "$t" = f ]; then h=$(m_take 64 < "$1" 2>/dev/null | od -An -tx1 | tr -d ' \n'); fi
+  printf '%s %s %s %s\n' "$t" "$l" "$m" "@{h:--}"
 }
 m_real() {
   p=$1; n=0

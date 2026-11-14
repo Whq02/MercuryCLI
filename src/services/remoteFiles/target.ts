@@ -280,6 +280,18 @@ export function remoteRuleCandidates(path: string, behavior: 'allow' | 'deny' | 
   return authorities.flatMap(authority => paths.map(spelled => (spelled === '' ? authorityKey(authority) : `${authorityKey(authority)}/${spelled}`)))
 }
 
+export function remoteShellPath(path: string): { host: string; path: string } | null {
+  if (!isRemotePath(path)) return null
+  try {
+    const target = parseRemotePath(path)
+    if (target === null) return null
+    const home = target.home === '' ? '$HOME' : `~${target.home}`
+    return { host: authorityText(target.authority), path: target.home === null ? target.path : target.path === '' ? home : `${home}/${target.path}` }
+  } catch {
+    return null
+  }
+}
+
 export function remoteHostLabel(path: string): string | null {
   if (!isRemotePath(path)) return null
   try {

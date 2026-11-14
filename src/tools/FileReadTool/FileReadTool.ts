@@ -21,7 +21,7 @@ import {
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { ideReadTextAvailable, readRangeViaIde } from '../../services/acp/ideToolBridge.js'
 import type { RemoteRead } from '../../services/remoteFiles/bridge.js'
-import { isRemotePath, remoteIdentity } from '../../services/remoteFiles/target.js'
+import { isRemotePath, remoteIdentity, remoteShellPath } from '../../services/remoteFiles/target.js'
 import {
   countTokensWithAPI,
   roughTokenCountEstimationForFileType,
@@ -97,12 +97,13 @@ import {
 import {
   isRichFormatReadable,
   parseRichFormatTarget,
+  RICH_CONTAINER_MAX_BYTES,
   renderArchiveTarget,
   renderSqliteTarget,
   type ParsedRichTarget,
   type RichRender,
 } from './readRichFormats.js'
-import type { FileState } from '../../utils/fileStateCache.js'
+import { cacheKeys, type FileState } from '../../utils/fileStateCache.js'
 import {
   classifyReadTarget,
   isDirectoryTarget,
@@ -334,8 +335,10 @@ function overCapNextWords(next: OverCapNote['next']): string {
   return `Read(offset: ${next.offset}, limit: ${next.limit}) continues from there, or search for specific content instead of reading the whole file.`
 }
 
-function notebookSliceRemedy(resolvedPath: string): string {
-  return `Read a slice of the notebook from the shell instead, e.g.:
+function notebookSliceRemedy(notebookPath: string): string {
+  const far = remoteShellPath(notebookPath)
+  const resolvedPath = far?.path ?? notebookPath
+  return `Read a slice of the notebook from ${far === null ? 'the shell' : `a shell on ${far.host}`} instead, e.g.:
 - first 10 cells: jq '.cells[:10]' "${resolvedPath}"
 - a cell range: jq '.cells[10:20]' "${resolvedPath}"
 - the cell count: jq '.cells | length' "${resolvedPath}"
@@ -396,6 +399,26 @@ function remoteRangeSelector(rawPath: string): { path: string; ranges: string[] 
   const parsed = parseLineRangesList([suffix])
   if (!Array.isArray(parsed) || parsed.length === 0) return null
   return { path: rawPath.slice(0, colon), ranges: suffix.split(',').map(part => part.trim()).filter(Boolean) }
+}
+
+function remoteRichTarget(rawPath: string): ParsedRichTarget | null {
+  const slash = rawPath.indexOf('/', rawPath.indexOf('://') + 3)
+  if (slash === -1) return null
+  const rich = parseRichFormatTarget(rawPath.slice(slash))
+  return rich === null ? null : { ...rich, containerPath: `${rawPath.slice(0, slash)}${rich.containerPath}` }
+}
+
+function remoteAlso(rawPath: string): string | null {
+  const rich = remoteRichTarget(rawPath)
+  return rich?.subtarget !== undefined ? rich.containerPath : (remoteRangeSelector(rawPath)?.path ?? null)
+}
+
+function renamed<Value>(value: Value, from: string, to: string): Value {
+  if (typeof value === 'string') return (value.includes(from) ? value.replaceAll(from, to) : value) as Value
+  if (value === null || typeof value !== 'object') return value
+  const holder = value as Record<string, unknown>
+  for (const key of Object.keys(holder)) holder[key] = renamed(holder[key], from, to)
+  return value
 }
 
 function realLineTotal(range: ReadFileRangeResult): number {
@@ -763,7 +786,7 @@ async function readNotebookLane(
   const serializedBytes = Buffer.byteLength(serialized, 'utf8')
   if (serializedBytes > declared.maxSizeBytes) {
     throw new Error(
-      `Notebook content (${formatFileSize(serializedBytes)}) exceeds the maximum allowed size (${formatFileSize(declared.maxSizeBytes)}). ${notebookSliceRemedy(resolvedPath)}`,
+      `Notebook content (${formatFileSize(serializedBytes)}) exceeds the maximum allowed size (${formatFileSize(declared.maxSizeBytes)}). ${notebookSliceRemedy(keyPath)}`,
     )
   }
   const limits = reserve()
@@ -772,7 +795,7 @@ async function readNotebookLane(
     throw new MaxFileReadTokenExceededError(
       tokens,
       limits.maxTokens,
-      `no cells were returned, and a notebook Read has no line window (offset and limit do not select cells). ${notebookSliceRemedy(resolvedPath)}`,
+      `no cells were returned, and a notebook Read has no line window (offset and limit do not select cells). ${notebookSliceRemedy(keyPath)}`,
     )
   }
   const timestamp = getFileModificationTime(resolvedPath)
@@ -782,7 +805,7 @@ async function readNotebookLane(
     offset: input.offset ?? 0,
     limit: input.limit,
   })
-  context.nestedMemoryAttachmentTriggers?.add(keyPath)
+  if (!isRemotePath(keyPath)) context.nestedMemoryAttachmentTriggers?.add(keyPath)
   return { data: { type: 'notebook', file: { filePath: resolvedPath, cells } } }
 }
 
@@ -812,7 +835,7 @@ async function readImageLane(
   scale = 1,
 ): Promise<LaneResult> {
   const { cropped, ...data } = await readImageWithTokenBudget(resolvedPath, limits.maxTokens, undefined, crop, scale)
-  context.nestedMemoryAttachmentTriggers?.add(keyPath)
+  if (!isRemotePath(keyPath)) context.nestedMemoryAttachmentTriggers?.add(keyPath)
   const captions = imageReadCaptions(resolvedPath, data.file.dimensions, cropped, scale)
   const ocr = await recogniseImage(Buffer.from(data.file.base64, 'base64'), context.abortController.signal)
   if (ocr.ok && ocr.text.trim()) captions.push(renderOcr(ocr))
@@ -898,7 +921,7 @@ async function readPdfLane(
         outputDir,
       },
     }
-    context.nestedMemoryAttachmentTriggers?.add(keyPath)
+    if (!isRemotePath(keyPath)) context.nestedMemoryAttachmentTriggers?.add(keyPath)
     if (blocks.length > 0) {
       return { data, newMessages: [createUserMessage({ content: blocks, isMeta: true })] }
     }
@@ -929,7 +952,7 @@ async function readPdfLane(
   if (!result.success) {
     throw new Error(result.error.message)
   }
-  context.nestedMemoryAttachmentTriggers?.add(keyPath)
+  if (!isRemotePath(keyPath)) context.nestedMemoryAttachmentTriggers?.add(keyPath)
   const documentBlock = {
     type: 'document',
     source: {
@@ -1741,7 +1764,7 @@ export const FileReadTool = buildTool({
   async checkPermissions(input, context): Promise<ReturnType<typeof checkReadPermissionForTool>> {
     if (isRemotePath(input.file_path)) {
       const { remotePermission } = await import('../../services/remoteFiles/bridge.js')
-      return remotePermission(FILE_READ_TOOL_NAME, input.file_path, remoteRangeSelector(input.file_path.trim())?.path ?? null, input, context, 'read')
+      return remotePermission(FILE_READ_TOOL_NAME, input.file_path, remoteAlso(input.file_path.trim()), input, context, 'read')
     }
     const permissionContext = context.getAppState().toolPermissionContext
     if (readTargetsEnabled() && classifyReadTarget(input.file_path).kind === 'resource') {
@@ -1837,7 +1860,7 @@ export const FileReadTool = buildTool({
 
     if (isRemotePath(input.file_path)) {
       const { remoteValidation } = await import('../../services/remoteFiles/bridge.js')
-      return remoteValidation(input.file_path, remoteRangeSelector(input.file_path.trim())?.path ?? null, 'read', 'Reading', context, true)
+      return remoteValidation(input.file_path, remoteAlso(input.file_path.trim()), 'read', 'Reading', context, true)
     }
 
     if (readTargetsEnabled()) {
@@ -1892,10 +1915,12 @@ export const FileReadTool = buildTool({
       granted = share < declaredLimits.maxTokens ? { ...declaredLimits, maxTokens: share, room: true } : declaredLimits
       return granted
     }
+    const remoteEntry = isRemotePath(input.file_path) ? remoteRichTarget(input.file_path.trim()) : null
+    const remoteInner = remoteEntry?.subtarget !== undefined ? remoteEntry : null
     const remote: RemoteRead | null = isRemotePath(input.file_path)
       ? await (await import('../../services/remoteFiles/bridge.js')).remoteReadTarget(
-          input.file_path.trim(),
-          remoteRangeSelector(input.file_path.trim()),
+          remoteInner?.containerPath ?? input.file_path.trim(),
+          remoteInner === null ? remoteRangeSelector(input.file_path.trim()) : null,
           context,
           typeof canUseTool === 'function' && parentMessage !== undefined
             ? path => (canUseTool as CanUseToolFn)(readToolItself() as never, { ...input, file_path: path }, context, parentMessage as never, `${context.toolUseId ?? 'read'}-resolved`)
@@ -1905,9 +1930,10 @@ export const FileReadTool = buildTool({
       : null
     const rawExpanded = remote !== null ? remote.path : expandPath(input.file_path)
     const splitTarget = remote !== null ? { rawPath: remote.path, expandedPath: remote.path, ...(remote.kind === 'file' && remote.ranges !== undefined ? { ranges: remote.ranges } : {}) } : splitPathRangeSelector(input.file_path, rawExpanded)
-    const richTarget = remote !== null ? null : parseRichFormatTarget(splitTarget.rawPath)
+    const remoteRich = remote === null || remote.kind !== 'file' ? null : (remoteInner ?? remoteRichTarget(remote.path))
+    const richTarget = remote !== null ? (remoteRich === null ? null : { ...remoteRich, containerPath: remote.path }) : parseRichFormatTarget(splitTarget.rawPath)
     const effectiveRawPath = richTarget !== null ? richTarget.containerPath : splitTarget.rawPath
-    const fullFilePath = richTarget !== null ? expandPath(richTarget.containerPath) : splitTarget.expandedPath
+    const fullFilePath = remote !== null ? remote.path : richTarget !== null ? expandPath(richTarget.containerPath) : splitTarget.expandedPath
     const effectiveInput: Input =
       splitTarget.ranges !== undefined && (input.ranges === undefined || input.ranges.length === 0)
         ? { ...input, file_path: effectiveRawPath, ranges: splitTarget.ranges }
@@ -2067,16 +2093,11 @@ export const FileReadTool = buildTool({
       )
     }
 
-    const dispatch = async (resolvedPath: string): Promise<LaneResult> => {
-      if (remote !== null) {
-        if (ext !== '' && hasBinaryExtension(effectiveRawPath)) {
-          throw new Error(`This tool cannot read binary files, and .${ext} looks binary — reach for a tool built for that format instead.`)
-        }
-        if (Array.isArray(parsedRanges) && parsedRanges.length > 0) {
-          return readMultiRangeTextLane(resolvedPath, resolvedPath, effectiveInput, parsedRanges, ext, context, declaredLimits, ownRead, reserve)
-        }
-        return readTextLane(resolvedPath, resolvedPath, effectiveInput, ext, context, declaredLimits, ownRead, reserve)
-      }
+    const readAsText = (resolvedPath: string, keyPath: string): Promise<LaneResult> =>
+      Array.isArray(parsedRanges) && parsedRanges.length > 0
+        ? readMultiRangeTextLane(resolvedPath, keyPath, effectiveInput, parsedRanges, ext, context, declaredLimits, ownRead, reserve)
+        : readTextLane(resolvedPath, keyPath, effectiveInput, ext, context, declaredLimits, ownRead, reserve)
+    const dispatchHere = async (resolvedPath: string, keyPath: string): Promise<LaneResult> => {
       const media = !ideReadTextAvailable() ? mediaFileFormat(resolvedPath) : null
       if (media !== null) {
         const text = await extractMediaTranscript(resolvedPath, media, context.abortController.signal)
@@ -2085,7 +2106,7 @@ export const FileReadTool = buildTool({
       if (ext !== '' && hasBinaryExtension(effectiveRawPath) && !isPDFExtension(ext) && !IMAGE_EXTENSIONS.has(ext) && !isRichFormatReadable(splitTarget.rawPath)) {
         throw new Error(`This tool cannot read binary files, and .${ext} looks binary — reach for a tool built for that format instead.`)
       }
-      if (ext === 'ipynb') return readNotebookLane(resolvedPath, resolvedPath, effectiveInput, context, declaredLimits, reserve)
+      if (ext === 'ipynb') return readNotebookLane(resolvedPath, keyPath, effectiveInput, context, declaredLimits, reserve)
       image = IMAGE_EXTENSIONS.has(ext) || (ext === '' && !ideReadTextAvailable() && hasImageSignature(resolvedPath))
       if (image) {
         const crop = selectedCrop(effectiveInput.crop)
@@ -2096,9 +2117,9 @@ export const FileReadTool = buildTool({
           if (!ocr.ok) throw new Error(ocr.message)
           return readRichFormatLane(resolvedPath, { kind: 'document', containerPath: resolvedPath, ext }, effectiveInput, Array.isArray(parsedRanges) ? parsedRanges : null, context, declaredLimits, ownRead, reserve, { text: renderOcr(ocr), ownBytes: false })
         }
-        return readImageLane(resolvedPath, resolvedPath, context, reserve(), crop, effectiveInput.scale)
+        return readImageLane(resolvedPath, keyPath, context, reserve(), crop, effectiveInput.scale)
       }
-      if (isPDFExtension(ext)) return readPdfLane(resolvedPath, resolvedPath, effectiveInput, context, declaredLimits, ownRead, reserve)
+      if (isPDFExtension(ext)) return readPdfLane(resolvedPath, keyPath, effectiveInput, context, declaredLimits, ownRead, reserve)
       if (richTarget !== null) {
         return readRichFormatLane(
           resolvedPath,
@@ -2111,10 +2132,33 @@ export const FileReadTool = buildTool({
           reserve,
         )
       }
-      if (Array.isArray(parsedRanges) && parsedRanges.length > 0) {
-        return readMultiRangeTextLane(resolvedPath, resolvedPath, effectiveInput, parsedRanges, ext, context, declaredLimits, ownRead, reserve)
+      return readAsText(resolvedPath, keyPath)
+    }
+    const dispatch = async (resolvedPath: string): Promise<LaneResult> => {
+      if (remote === null || remote.kind !== 'file') return dispatchHere(resolvedPath, resolvedPath)
+      const bridge = await import('../../services/remoteFiles/bridge.js')
+      const asBytes =
+        (ext !== '' && hasBinaryExtension(effectiveRawPath)) ||
+        ext === 'ipynb' ||
+        richTarget !== null ||
+        bridge.remoteLeadLooks(resolvedPath, remote.lead, head => mediaFileFormat(head) !== null || (ext === '' && hasImageSignature(head)))
+      if (!asBytes) return readAsText(resolvedPath, resolvedPath)
+      if (richTarget !== null && richTarget.kind !== 'document' && remote.size > RICH_CONTAINER_MAX_BYTES) {
+        throw new Error(`Container file (${formatFileSize(remote.size)}) exceeds the maximum allowed container size (${formatFileSize(RICH_CONTAINER_MAX_BYTES)}): ${resolvedPath}`)
       }
-      return readTextLane(resolvedPath, resolvedPath, effectiveInput, ext, context, declaredLimits, ownRead, reserve)
+      return bridge.remoteCopy(resolvedPath, context.abortController.signal, async copy => {
+        try {
+          const read = await dispatchHere(copy, resolvedPath)
+          const body = resultPreRenderedBody.get(read.data)
+          if (body !== undefined) resultPreRenderedBody.set(read.data, renamed(body, copy, resolvedPath))
+          return renamed(read, copy, resolvedPath)
+        } catch (error) {
+          if (error instanceof Error) error.message = renamed(error.message, copy, resolvedPath)
+          throw error
+        } finally {
+          for (const key of cacheKeys(context.readFileState)) if (key.startsWith(copy)) context.readFileState.delete(key)
+        }
+      })
     }
 
     let lane: LaneResult

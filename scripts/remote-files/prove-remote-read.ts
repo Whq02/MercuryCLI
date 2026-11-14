@@ -223,8 +223,8 @@ async function folders(world: RemoteWorld): Promise<void> {
     check(`${name}: a named pipe is not opened, in the words a local one gets`, pipe === pipeHere.replace(fifo, remote(fifo)) && pipe.includes('it is a named pipe'), pipe)
   }
   check(`${name}: a device is not opened`, (await said({ file_path: 'ssh://box/dev/null' })).includes('is not allowed: it is a device'), await said({ file_path: 'ssh://box/dev/null' }))
-  writeFileSync(join(dir, 'picture.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]))
-  check(`${name}: a file that looks binary by its name is refused in today's words`, (await said({ file_path: remote(join(dir, 'picture.png')) })) === 'THROWN This tool cannot read binary files, and .png looks binary — reach for a tool built for that format instead.')
+  writeFileSync(join(dir, 'blob.bin'), Buffer.from([0x00, 0x01, 0xfa, 0xfb]))
+  check(`${name}: a file whose name says binary, of a kind nothing reads, is refused in today's words`, (await said({ file_path: remote(join(dir, 'blob.bin')) })) === 'THROWN This tool cannot read binary files, and .bin looks binary — reach for a tool built for that format instead.')
   writeFileSync(join(dir, 'be.txt'), Buffer.concat([Buffer.from([0xfe, 0xff]), Buffer.from('hi\n', 'utf16le').swap16()]))
   check(`${name}: a UTF-16BE file is refused in the words a local one gets`, (await said({ file_path: remote(join(dir, 'be.txt')) })) === (await said({ file_path: join(dir, 'be.txt') })) && (await said({ file_path: remote(join(dir, 'be.txt')) })).startsWith('THROWN File is UTF-16BE'))
   check(`${name}: the tool row names the path as it was written`, getToolUseSummary({ file_path: remote(join(dir, 'a.txt')) }) === remote(join(dir, 'a.txt')) || (getToolUseSummary({ file_path: remote(join(dir, 'a.txt')) }) ?? '').startsWith('ssh://box/'), String(getToolUseSummary({ file_path: remote(join(dir, 'a.txt')) })))

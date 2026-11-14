@@ -1,9 +1,12 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import type { ToolPermissionContext, ToolUseContext } from '../../Tool.js'
 import type { PermissionDecision, PermissionRule } from '../../types/permissions.js'
 import { getPathsForPermissionCheck } from '../../utils/fsOperations.js'
 import {
   checkReadPermissionForTool,
   checkWritePermissionForTool,
+  getMercuryTempDir,
   matchingRuleForInput,
   matchingRulesForInput,
   remoteFloorRefusal,
@@ -16,7 +19,7 @@ import type { ReadFileRangeResult } from '../../utils/readFileInRange.js'
 import { notAFileRefusal } from '../../utils/regularFile.js'
 import { resolveRemoteAuthority } from './connection.js'
 import { remoteHostNames, renderRemoteHosts, sshUserConfigPath } from './hosts.js'
-import { remoteAbsolutePath, remoteIsThisMachine, remoteList, remoteReadRange, remoteRealPath, remoteStat, RemoteFileError, type RemoteEntry } from './ops.js'
+import { remoteAbsolutePath, remoteFetch, remoteIsThisMachine, remoteList, remoteReadRange, remoteRealPath, remoteStat, RemoteFileError, type RemoteEntry } from './ops.js'
 import {
   authorityText,
   formatRemotePath,
@@ -39,7 +42,7 @@ type RemoteAsk = ((path: string) => Promise<PermissionDecision>) | null
 export type RemoteRead =
   | { kind: 'hosts'; path: string; content: string; numLines: number }
   | { kind: 'folder'; path: string; names: string[] | null; failure: string }
-  | { kind: 'file'; path: string; ranges?: string[] }
+  | { kind: 'file'; path: string; size: number; lead: string; ranges?: string[] }
 
 const HOSTS_ONLY_IN_READ = 'ssh:// alone is the list of hosts, which Read shows; a search needs a host: ssh://<host>/<folder>.'
 const REMOTE_RULE = /\(\s*ssh:\/\//i
@@ -273,14 +276,14 @@ export async function remoteReadTarget(
   if (target === null) return { kind: 'hosts', path: REMOTE_RULE_ROOT, ...renderRemoteHosts(remoteHostNames(file => sshConfigReadable(file, rules))) }
   await resolveNames(rules, target.authority, signal)
   let gated = await gate('Read', target, 'read', context, ask, signal)
-  let stat = await remoteStat(target, signal)
+  let stat = await remoteStat(target, signal, true)
   let ranges: string[] | undefined
   const stripped = stat === null && selector !== null ? parseRemotePath(selector.path) : null
   if (stripped !== null) {
     target = stripped
     ranges = selector!.ranges
     gated = await gate('Read', target, 'read', context, ask, signal)
-    stat = await remoteStat(target, signal)
+    stat = await remoteStat(target, signal, true)
   }
   const path = formatRemotePath(target)
   if (stat === null || stat.kind === 'dangling') throw new Error(await missingWords(target, gated.here, context, signal))
@@ -303,7 +306,44 @@ export async function remoteReadTarget(
     return { kind: 'folder', path, names, failure: '' }
   }
   if (stat.kind !== 'file') throw new Error(notAFileRefusal(path, stat.kind === 'other' ? 'a device' : stat.kind))
-  return { kind: 'file', path, ...(ranges === undefined ? {} : { ranges }) }
+  return { kind: 'file', path, size: stat.size, lead: stat.lead, ...(ranges === undefined ? {} : { ranges }) }
+}
+
+function privateFolder(): string {
+  const base = join(getMercuryTempDir(), 'remote-files')
+  mkdirSync(base, { recursive: true, mode: 0o700 })
+  return mkdtempSync(join(base, 'copy-'))
+}
+
+function localName(path: string): string {
+  const name = path.slice(path.lastIndexOf('/') + 1)
+  if (/^[A-Za-z0-9][A-Za-z0-9._ -]{0,118}$/.test(name) && !/[. ]$/.test(name) && !/^(?:con|prn|aux|nul|com[0-9]|lpt[0-9])(?:\.|$)/i.test(name)) return name
+  const ending = /(?:\.tar)?\.[A-Za-z0-9]{1,12}$/.exec(name)?.[0] ?? ''
+  return `remote${ending.toLowerCase()}`
+}
+
+export function remoteLeadLooks<Answer>(path: string, lead: string, look: (file: string) => Answer): Answer {
+  const folder = privateFolder()
+  try {
+    const file = join(folder, localName(path))
+    writeFileSync(file, Buffer.from(lead, 'hex'), { mode: 0o600 })
+    return look(file)
+  } finally {
+    rmSync(folder, { recursive: true, force: true })
+  }
+}
+
+export async function remoteCopy<Answer>(path: string, signal: AbortSignal | undefined, read: (file: string) => Promise<Answer>): Promise<Answer> {
+  const target = parseRemotePath(path)
+  if (target === null) throw new RemotePathError(`${path} names no host.`)
+  const folder = privateFolder()
+  try {
+    const file = join(folder, localName(path))
+    await remoteFetch(target, file, signal)
+    return await read(file)
+  } finally {
+    rmSync(folder, { recursive: true, force: true })
+  }
 }
 
 export async function readRangeViaRemote(
