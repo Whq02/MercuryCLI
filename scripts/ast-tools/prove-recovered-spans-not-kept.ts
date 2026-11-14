@@ -7,7 +7,7 @@ import { armEnvironment, check, drive, enterRoot, finish, makeContext, section, 
 armEnvironment()
 
 const { AstSearchTool } = await import(join(REPO, 'src/tools/AstSearchTool/AstSearchTool.ts'))
-const { resolveAstScope, searchAstPattern } = await import(join(REPO, 'src/utils/astPatterns.ts'))
+const { planAstRewrite, resolveAstScope, searchAstPattern } = await import(join(REPO, 'src/utils/astPatterns.ts'))
 
 const root = mkdtempSync(join(tmpdir(), 'ast-spans-'))
 const nine = Array.from({ length: 9 }, (_, i) => `const broken${i} = ;`).join('\n') + '\nneedle(9);\n'
@@ -50,6 +50,16 @@ section('§3 — the answer is what it was')
   const r = await drive(AstSearchTool, { pattern: 'needle($X)', path: 'one' }, prover)
   check('the trailer still counts the diagnostics it does not show', r.text.includes('Searched recovered tree: nine.ts (typescript; 1:15 syntax error; 2:15 syntax error; 3:15 syntax error; +6 more diagnostics).'), r.text)
   check('both files matched and one parse problem is counted', Number(r.data?.matchCount) === 2 && Number(r.data?.parseFailures) === 1, JSON.stringify(r.data))
+}
+
+section('§4 — a plan of several rules keeps no spans on its recovered rows either')
+{
+  const scope = resolveAstScope({ path: join(root, 'many'), cwd: root })
+  if ('refused' in scope) throw new Error(scope.refused)
+  const plan = await planAstRewrite(scope, { rules: [{ pattern: 'needle($X)', rewrite: 'found($X)' }] })
+  if ('refused' in plan) throw new Error(plan.refused)
+  const rows = (plan.search.recovered ?? []) as Recovered[]
+  check('twelve error-bearing files planned by rules: 24,000 diagnostics counted, no span kept', plan.files.length === 12 && rows.length === 12 && rows.every(f => f.diagnostics === 2000 && f.errors === undefined), `${plan.files.length} files, ${rows.length} rows, ${rows.reduce((n, f) => n + (f.errors?.length ?? 0), 0)} kept`)
 }
 
 finish('RECOVERED SPANS NOT KEPT')

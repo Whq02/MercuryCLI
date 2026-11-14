@@ -1036,7 +1036,7 @@ async function planAstBatchRewrite(
     try {
       const hasErrors = parsed.parseErrors.length > 0
       const recoveryEntry = hasErrors ? { rel: file.rel, lang: file.lang.name, errors: parsed.errorRegions ?? [], diagnostics: parsed.errorRegions?.length ?? 0, notes: parsed.parseErrors } : undefined
-      if (recoveryEntry) (recovered ??= []).push(recoveryEntry)
+      if (recoveryEntry) (recovered ??= []).push({ rel: recoveryEntry.rel, lang: recoveryEntry.lang, diagnostics: recoveryEntry.diagnostics, notes: recoveryEntry.notes })
 
       const candidates: CandidateEdit[] = []
       for (const { r, compiled } of matchingRules) {
