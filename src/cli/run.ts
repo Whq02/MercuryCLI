@@ -169,6 +169,7 @@ import {
 } from '../utils/fileStateCache.js'
 import { getLastCacheSafeParams } from '../utils/forkedAgent.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
+import { crewmateNoticeOwed } from '../tools/AgentTool/agentToolUtils.js'
 import { isBuiltInAgent } from '../tools/AgentTool/loadAgentsDir.js'
 import { gracefulShutdown, gracefulShutdownSync, isShuttingDown, markRunModeSignalsOwned, TERMINAL_GONE_EXIT_CODE } from '../utils/gracefulShutdown.js'
 import { exitNoteCharsKept, leaveNoteBeforeExit } from '../mneme/exitHandoff.js'
@@ -1644,7 +1645,7 @@ export async function runHeadless(
       if (turnReachedModel) void advisorMainTurnSettled(String(getSessionId()), command, messages, advisorRoad)
     },
     hasWaitableBackgroundTasks: () =>
-      getRunningTasks(getAppState()).some(task => !(inputClosed && isLocalShellTask(task))) || (inputClosed && swarmResumes.hasPending()),
+      getRunningTasks(getAppState()).some(task => !(inputClosed && isLocalShellTask(task))) || (inputClosed && (swarmResumes.hasPending() || crewmateNoticeOwed())),
     hasHoldableBackgroundAgents: () =>
       getRunningTasks(getAppState()).some(
         task => task.type === 'local_agent' || task.type === 'local_workflow',

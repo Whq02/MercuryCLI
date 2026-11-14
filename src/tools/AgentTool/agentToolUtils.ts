@@ -1066,6 +1066,11 @@ export async function deliverOperatorMessagesAfterStop(
   }
 }
 
+const noticesOwed = new Set<object>()
+
+export function crewmateNoticeOwed(): boolean {
+  return noticesOwed.size > 0
+}
 
 export async function runAsyncAgentLifecycle(args: {
   taskId: string
@@ -1188,6 +1193,7 @@ export async function runAsyncAgentLifecycle(args: {
     if (overloadEpisode !== null) noteOverloadDeath(overloadEpisode)
     const noticeFollows = (overloadEpisode === null || overloadDeathNotifies(overloadEpisode)) && args.replyTarget !== 'operator'
     let continuedOnGuidance = false
+    noticesOwed.add(args)
     if (declined) {
       failAgentTask(taskId, declined.error, rootSetAppState, args.abortController, { settleFrame: !noticeFollows })
       if (overload !== null) {
@@ -1328,11 +1334,13 @@ export async function runAsyncAgentLifecycle(args: {
       ...worktreeResult,
       ...(envelopeBlock ? { envelopeBlock } : {}),
     })
+    noticesOwed.delete(args)
   } catch (error) {
     if (error instanceof AbortError) {
       stopSummarization?.()
       const stopReason = agentStopReasonOf(args.abortController.signal.reason)
       const stopStatusWord = agentStopStatusWordOf(args.abortController.signal.reason)
+      noticesOwed.add(args)
       killAsyncAgent(taskId, rootSetAppState, stopReason, args.abortController)
       closeOverloadEpisode(taskId)
       const worktreeResult = await getWorktreeResult()
@@ -1367,6 +1375,7 @@ export async function runAsyncAgentLifecycle(args: {
         ...worktreeResult,
         ...(envelopeBlock ? { envelopeBlock } : {}),
       })
+      noticesOwed.delete(args)
       await deliverOperatorMessagesAfterStop(taskId, description, toolUseContext, rootSetAppState, args.canUseTool)
       return
     }
@@ -1376,6 +1385,7 @@ export async function runAsyncAgentLifecycle(args: {
     const overloadEpisode = overload !== null ? overloadEpisodeOf(taskId) : null
     if (overloadEpisode !== null) noteOverloadDeath(overloadEpisode)
     const noticeFollows = (overloadEpisode === null || overloadDeathNotifies(overloadEpisode)) && args.replyTarget !== 'operator'
+    noticesOwed.add(args)
     failAgentTask(taskId, errMsg, rootSetAppState, args.abortController, { settleFrame: !noticeFollows })
     const worktreeResult = await getWorktreeResult()
     await flushSessionStorage()
@@ -1410,6 +1420,7 @@ export async function runAsyncAgentLifecycle(args: {
       ...worktreeResult,
       ...(envelopeBlock ? { envelopeBlock } : {}),
     })
+    noticesOwed.delete(args)
     const budgetCut = recoveryBudgetCutOf(error)
     if (overload !== null) {
       armOverloadProbe({ taskId, description, registration: args.abortController, toolUseContext, rootSetAppState, canUseTool: args.canUseTool, model: metadata.resolvedAgentModel, pause: overload.pause, afterDeath: true })
@@ -1427,6 +1438,7 @@ export async function runAsyncAgentLifecycle(args: {
       })
     }
   } finally {
+    noticesOwed.delete(args)
     stopSummarization?.()
     try {
       const { clearInvokedSkillsForAgent } = await import(
