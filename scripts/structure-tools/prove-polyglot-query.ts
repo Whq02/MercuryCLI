@@ -30,7 +30,7 @@ try {
   check('matches carry the inferred language', r.matches.every(m => m.lang === 'python'))
   check('captures carry the exact source', r.matches[0]?.captures.some(c => c.key === '$X' && c.text === 'name') === true)
   check('document order', r.matches[0]!.startLine < r.matches[1]!.startLine)
-  check('broken.py reported, never matched over', r.parseFailures.some(f => f.rel === 'broken.py') && !r.matches.some(m => m.rel === 'broken.py'))
+  check('broken.py is searched over its recovered tree and reported with its two diagnostics, and gives no match', r.recovered?.some(f => f.rel === 'broken.py' && f.diagnostics === 2 && f.notes.join('; ') === '1:1-3:1 syntax error; 1:12 missing )') === true && !r.parseFailures.some(f => f.rel === 'broken.py') && !r.matches.some(m => m.rel === 'broken.py'), JSON.stringify(r.recovered))
   check('gitignored dir and suffix excluded', !r.matches.some(m => m.rel.includes('skipme') || m.rel.endsWith('.skip.py')))
   for (const [pattern, lang, file, kind] of [
     ['fmt.Println($$$A)', 'go', 'main.go', 'call_expression'],
