@@ -1,0 +1,62 @@
+import { Database } from 'bun:sqlite'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { cpuFixture, isolatedHome, readViewKit } from './readViewKit.js'
+
+const home = isolatedHome(import.meta.filename)
+const kit = await readViewKit(home)
+const { isRemotePath, parseRemotePath } = await import(`${kit.src}/services/remoteFiles/target.ts`)
+kit.check('shared source parser accepts an uppercase SSH scheme', isRemotePath('SSH://box/rows.sqlite'))
+kit.check('shared source parser keeps a dotted authority and its port', parseRemotePath('ssh://box.db:27300/rows.sqlite')?.authority.host === 'box.db')
+if (process.platform === 'win32') {
+  console.log('Remote transport fixture needs POSIX sh; the source parsing is held by the shared URI proof.')
+} else {
+  mkdirSync(join(home, 'mercury:'), { recursive: true })
+  const deniedFile = join(home, 'mercury:', 'denied.sqlite')
+  const deniedDb = new Database(deniedFile)
+  deniedDb.run("CREATE TABLE secrets(value TEXT); INSERT INTO secrets VALUES('fixture-hidden-data')")
+  deniedDb.close()
+  kit.deny(`Read(/${join(home, 'mercury:')}/**)`)
+  kit.check('literal database deny is active', !(await kit.read(deniedFile)).includes('fixture-hidden-data'))
+  const malformed = await kit.read('mercury:///denied.sqlite#read?sql=SELECT value FROM secrets')
+  kit.check('malformed resource identity never becomes a denied literal file', !malformed.includes('fixture-hidden-data'), malformed)
+  const hiddenProfile = join(home, 'mercury:', 'hidden.cpuprofile')
+  const hiddenCpu = cpuFixture()
+  hiddenCpu.nodes[3]!.callFrame.functionName = 'fixture-hidden-profile'
+  writeFileSync(hiddenProfile, JSON.stringify(hiddenCpu))
+  const goodProfile = join(home, 'good.cpuprofile')
+  writeFileSync(goodProfile, JSON.stringify(cpuFixture()))
+  kit.check('automatic profiling leaves a resource with its owner', !(await kit.read('mercury:///hidden.cpuprofile')).includes('fixture-hidden-profile'))
+  kit.check('comparison never opens a resource as a local literal', !(await kit.read(`${goodProfile}#read?view=profile&compare=mercury:///hidden.cpuprofile`)).includes('fixture-hidden-profile'))
+  mkdirSync(join(home, 'mercury:', 'file'), { recursive: true })
+  const ownedLiteral = new Database(join(home, 'mercury:', 'file', 'absent.sqlite'))
+  ownedLiteral.run("CREATE TABLE secrets(value TEXT); INSERT INTO secrets VALUES('fixture-hidden-data')")
+  ownedLiteral.close()
+  const owned = await kit.read('mercury://file/absent.sqlite')
+  const ownedQuery = await kit.read('mercury://file/absent.sqlite#read?sql=SELECT value FROM secrets')
+  kit.check('unsupported valid resource query retains its owner answer', ownedQuery === owned && !ownedQuery.includes('fixture-hidden-data'), ownedQuery)
+  const { remoteWorld, enterWorld } = await import('../remote-files/remoteKit.js')
+  const world = await remoteWorld('local', 0, { clientHome: home })
+  const leave = enterWorld(world)
+  const state = kit.context.getAppState()
+  kit.context.getAppState = () => ({ ...state, toolPermissionContext: { ...state.toolPermissionContext, alwaysAllowRules: { session: ['Read(ssh://box/**)', 'Read(ssh://box.db:27300/**)'] } } })
+  try {
+    const file = join(world.data, 'rows.sqlite')
+    const db = new Database(file)
+    db.run('CREATE TABLE rows(id INTEGER); INSERT INTO rows VALUES(7)')
+    db.close()
+    const upper = await kit.read(`SSH://box${file}#read?sql=SELECT * FROM rows`)
+    kit.check('query uses the same case-insensitive SSH scheme as Read', upper.includes('[7]'), upper)
+    const authority = await kit.read(`ssh://box.db:27300${file}#read?sql=SELECT * FROM rows`)
+    kit.check('SQLite parsing never treats authority text as a container suffix', authority.includes('[7]'), authority)
+    const profile = join(world.data, 'hot.cpuprofile')
+    writeFileSync(profile, JSON.stringify(cpuFixture()))
+    const summary = await kit.read(`SSH://box${profile}`)
+    kit.check('automatic profile uses the existing remote source identity', summary.includes('self=8 ms'), summary)
+    const compared = await kit.read(`${profile}#read?view=profile&compare=SSH://box${profile}`)
+    kit.check('comparison resolves a second remote source through the same parser', compared.includes('self delta=0 ms'), compared)
+    const { closeRemoteConnections } = await import(`${kit.src}/services/remoteFiles/connection.ts`)
+    await closeRemoteConnections()
+  } finally { leave(); await world.stop() }
+}
+kit.finish()

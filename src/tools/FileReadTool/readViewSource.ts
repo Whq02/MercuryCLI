@@ -1,5 +1,6 @@
 import { closeSync } from 'node:fs'
 import { expandPath } from '../../utils/path.js'
+import { isRemotePath } from '../../services/remoteFiles/target.js'
 import { openRegularFileSync } from '../../utils/regularFile.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { ReadQueryRequest } from './readQuery.js'
@@ -19,7 +20,7 @@ export async function withReadViewSource<T>(request: ReadQueryRequest, source: s
     if (answer.behavior !== 'allow') throw new Error(answer.message ?? decision.message)
   }
   request.context.abortController.signal.throwIfAborted()
-  if (source.startsWith('ssh://')) {
+  if (isRemotePath(source)) {
     const { remoteReadTarget, remoteCopy } = await import('../../services/remoteFiles/bridge.js')
     const target = await remoteReadTarget(source, null, request.context, ask, false)
     if (target.kind !== 'file') throw new Error(`${source} is not a file.`)

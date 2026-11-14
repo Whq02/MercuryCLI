@@ -1,12 +1,14 @@
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { copyFile, realpath, stat } from 'node:fs/promises'
 import { join } from 'node:path'
+import { isRemotePath } from '../../services/remoteFiles/target.js'
 import type { ReadQueryRequest, ReadQueryResult } from './readQuery.js'
 import { getMercuryTempDir } from '../../utils/permissions/filesystem.js'
 import { parseRichFormatTarget } from './readRichFormats.js'
 import { readViewPage, readViewWindow } from './readViewPage.js'
 import { withReadViewSource } from './readViewSource.js'
 import { runSqliteQuery } from './sqliteQueryProcess.js'
+import { classifyReadTarget } from './readTarget.js'
 
 async function remoteWal(request: ReadQueryRequest, source: string, file: string): Promise<void> {
   const { parseRemotePath } = await import('../../services/remoteFiles/target.js')
@@ -21,23 +23,26 @@ async function remoteWal(request: ReadQueryRequest, source: string, file: string
 }
 
 export async function sqliteQuery(request: ReadQueryRequest): Promise<ReadQueryResult> {
-  const parsed = parseRichFormatTarget(request.target.source)
-  const source = parsed?.kind === 'sqlite' ? parsed.containerPath : request.target.source
+  if (classifyReadTarget(request.target.source).kind !== 'file') return { content: '', numLines: 0, readSource: true }
+  const remote = isRemotePath(request.target.source)
+  const pathAt = remote ? request.target.source.indexOf('/', request.target.source.indexOf('://') + 3) : 0
+  const parsed = pathAt < 0 ? null : parseRichFormatTarget(request.target.source.slice(pathAt))
+  const source = parsed?.kind === 'sqlite' ? `${request.target.source.slice(0, pathAt)}${parsed.containerPath}` : request.target.source
   const parameters = request.target.parameters
   const table = parameters.table ?? (parsed?.kind === 'sqlite' ? parsed.subtarget : undefined)
   const window = readViewWindow(request)
   const page = await withReadViewSource(request, source, async fetched => {
-    let file = source.startsWith('ssh://') ? fetched : await realpath(fetched)
-    if (source.startsWith('ssh://')) await remoteWal(request, source, file)
+    let file = remote ? fetched : await realpath(fetched)
+    if (remote) await remoteWal(request, source, file)
     const wal = existsSync(`${file}-wal`) && (await stat(`${file}-wal`)).size > 32, journal = existsSync(`${file}-journal`)
-    if (!source.startsWith('ssh://')) {
+    if (!remote) {
       for (const suffix of ['-wal', '-shm', '-journal']) {
         if (existsSync(`${file}${suffix}`)) await withReadViewSource(request, `${file}${suffix}`, async () => {}, true)
       }
     }
     let snapshot: string | null = null
     try {
-      if (wal && !existsSync(`${file}-shm`) && !source.startsWith('ssh://')) {
+      if (wal && !existsSync(`${file}-shm`) && !remote) {
         const root = join(getMercuryTempDir(), 'sqlite-views')
         mkdirSync(root, { recursive: true, mode: 0o700 })
         snapshot = mkdtempSync(join(root, 'snapshot-'))
@@ -54,7 +59,7 @@ export async function sqliteQuery(request: ReadQueryRequest): Promise<ReadQueryR
     'This is a live result, run again on continuation, not a snapshot.',
     `SQL: ${JSON.stringify(page.sql)}`,
     `Columns: ${JSON.stringify(page.columns)}`,
-    ...(source.startsWith('ssh://') ? ['The database and any WAL were copied here before the query ran; continuation transfers them again.'] : []),
+    ...(remote ? ['The database and any WAL were copied here before the query ran; continuation transfers them again.'] : []),
   ]
   return readViewPage(request, page.privateCopy ? 'SQLite query · source-mode: private copy of leftover WAL' : 'SQLite query', headings, page.rows, window.offset + page.rows.length + (page.more ? 1 : 0), window)
 }

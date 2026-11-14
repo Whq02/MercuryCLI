@@ -1794,7 +1794,7 @@ export const FileReadTool = buildTool({
     const query = parseReadQueryTarget(input.file_path)
     const source = query?.source ?? input.file_path
     if (hasControlCharacter(source) || windowsPathNeedsPermission(source)) return
-    const expanded = isRemotePath(source) ? remoteIdentity(source) : query !== null && source.startsWith('mercury://') ? source : expandPath(source)
+    const expanded = isRemotePath(source) ? remoteIdentity(source) : query !== null && classifyReadTarget(source).kind !== 'file' ? source : expandPath(source)
     input.file_path = query === null ? expanded : `${expanded}${query.suffix}`
   },
   preparePermissionMatcher(input: Input) {
@@ -1932,13 +1932,14 @@ export const FileReadTool = buildTool({
       input = { ...input, file_path: query.source, offset: input.offset ?? 1 }
       query = null
     }
-    const automaticProfile = query === null && /\.(?:cpuprofile|sample\.txt)$/i.test(input.file_path) && input.offset === undefined && input.limit === undefined && !input.ranges?.length && !input.outline
+    const automaticProfile = query === null && classifyReadTarget(input.file_path).kind === 'file' && /\.(?:cpuprofile|sample\.txt)$/i.test(input.file_path) && input.offset === undefined && input.limit === undefined && !input.ranges?.length && !input.outline
     if (query !== null || automaticProfile) {
       const request = { target: query ?? { source: input.file_path, suffix: '#read?view=profile', parameters: { view: 'profile' } }, input, context, limits: reserve(), canUseTool, parentMessage }
       const rendered = query !== null
         ? await (await import('./readQuery.js')).readQuery(request)
         : await (await import('./readProfiles.js')).readProfiles(request, true)
-      if (rendered !== null) {
+      if (rendered?.readSource) input = { ...input, file_path: request.target.source }
+      else if (rendered !== null) {
         const data: Output = {
           type: 'text',
           file: { filePath: input.file_path, content: rendered.content, numLines: rendered.numLines, startLine: 1, totalLines: rendered.numLines },

@@ -15,6 +15,7 @@ RUN --mount=type=cache,target=/srv/mercury-source/vendor/node \
     --mount=type=cache,target=/srv/mercury-source/vendor/js-debug \
     --mount=type=cache,target=/srv/mercury-source/vendor/grammars \
     --mount=type=cache,target=/srv/mercury-source/vendor/pdfjs \
+    --mount=type=cache,target=/srv/mercury-source/vendor/json-query \
     bun run scripts/vendor/fetch-node.ts --platform linux-x64 \
  && bun run scripts/vendor/fetch-python.ts --platform linux-x64 \
  && bun run scripts/vendor/fetch-brush.ts --platform linux-x64 \
@@ -23,6 +24,7 @@ RUN --mount=type=cache,target=/srv/mercury-source/vendor/node \
  && bun run scripts/vendor/fetch-js-debug.ts \
  && bun run scripts/vendor/fetch-grammars.ts \
  && bun run scripts/vendor/fetch-pdfjs.ts \
+ && bun run scripts/vendor/fetch-json-query.ts \
  && bun run build.ts --target linux-x64 \
  && rm dist/splash.mjs dist/splash-core.mjs
 

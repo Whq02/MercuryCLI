@@ -1,20 +1,23 @@
 import { createHash } from 'node:crypto'
 import { createReadStream } from 'node:fs'
 import { stat } from 'node:fs/promises'
+import { isRemotePath } from '../../services/remoteFiles/target.js'
 import type { ReadQueryRequest, ReadQueryResult } from './readQuery.js'
 import { streamProfile } from './profileStream.js'
 import { frameKey, profileNumber, profileRows, summarizeProfile, type ProfileReading } from './profileModel.js'
 import { readViewPage, readViewWindow } from './readViewPage.js'
 import { withReadViewSource } from './readViewSource.js'
+import { classifyReadTarget } from './readTarget.js'
 
 async function sourceProfile(request: ReadQueryRequest, source: string, additional = false) {
+  if (classifyReadTarget(source).kind !== 'file') return { profile: null, identity: source }
   return withReadViewSource(request, source, async file => {
     const before = await stat(file)
     const profile = await streamProfile(file, source, request.context.abortController.signal)
     const after = await stat(file)
     if (before.size !== after.size || before.mtimeMs !== after.mtimeMs || before.ctimeMs !== after.ctimeMs) throw new Error('The profiler report changed while it was read; read it again.')
     const hash = createHash('sha256')
-    if (source.startsWith('ssh://')) {
+    if (isRemotePath(source)) {
       for await (const chunk of createReadStream(file, { signal: request.context.abortController.signal })) hash.update(chunk)
     } else hash.update(JSON.stringify([source, after.dev, after.ino, after.size, after.mtimeMs, after.ctimeMs]))
     return { profile, identity: hash.digest('hex') }
@@ -39,6 +42,7 @@ async function comparisonRows(before: ProfileReading, after: ProfileReading, sig
 }
 
 export async function readProfiles(request: ReadQueryRequest, automatic = false): Promise<ReadQueryResult | null> {
+  if (classifyReadTarget(request.target.source).kind !== 'file') return { content: '', numLines: 0, readSource: true }
   const loaded = await sourceProfile(request, request.target.source)
   const profile = loaded.profile
   if (profile === null) {
