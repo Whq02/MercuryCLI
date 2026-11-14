@@ -139,6 +139,23 @@ section('4 · a refusal of the engine\'s own: it stands where the card landed an
   await p.close()
 }
 
+section('5 · the same when the person stepped ←→ onto 256k before pressing ↵: the refusal still lands on the window that fits')
+{
+  const p = await openPanelCard({ road: 'tensorfold', label: 'Qwen3.5 2B', prefix: 'tf-refusal-stepped', free: () => 40 * GIB, serviceEnv: { FAKE_TENSORFOLD_SERVE: 'refuse-memory' } })
+  await p.press(KEY.left)
+  await p.press(KEY.right)
+  await p.press(KEY.enter)
+  await p.until(card => card.refused !== undefined, 20_000)
+  const landed = p.card()
+  const window = /\[(\d+k)\]/.exec(landed.strip)?.[1] ?? ''
+  check('stepping onto 256k and pressing ↵ still lands on the fitting window, not stuck on 256k', landed.row.includes(' refused ') && landed.refused !== undefined && window !== '' && window !== '256k' && landed.legend.includes(`↵ serve at ${window} and switch`), landed.all)
+  await p.press(KEY.left)
+  check('← from that landing clears the refusal', p.card().refused === undefined && !p.card().all.includes('refused'), p.card().all)
+  await p.press(KEY.right, 3)
+  check('→ on to 256k still shows the refusal at the window that was asked', p.card().row === 'Qwen3.5 2B local/qwen3.5-2b refused 256k ctx 7.6 GiB' && p.card().refused !== undefined && p.card().strip.includes('[256k]'), p.card().all)
+  await p.close()
+}
+
 await releaseScratchHome(home)
 console.log(`\nprove-tensorfold-refusal-window: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)
 process.exit(failures === 0 ? 0 : 1)

@@ -192,11 +192,41 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
   const tokens = useMercuryTokens()
   const currentRow = stripGptServedWindowSuffix(current)
   const [tfWindows, setTfWindows] = useState<Record<string, number>>({})
+  const [tfRowMarks, setTfRowMarks] = useState<Record<string, { serving: boolean; refused: string }>>({})
+  let activeTfWindows = tfWindows
+  if (tensorfold !== undefined) {
+    let marksMoved = false
+    const nextMarks: Record<string, { serving: boolean; refused: string }> = {}
+    const drop = new Set<string>()
+    for (const row of tensorfold.rows) {
+      if (row.startedBy === 'outside') continue
+      const act = tensorfold.acts?.[row.repo]
+      const serving = row.state === 'serving'
+      const refused = act?.phase === 'refused' ? `${act.window ?? ''}:${act.asked ?? ''}:${act.line}` : ''
+      nextMarks[row.repo] = { serving, refused }
+      const prev = tfRowMarks[row.repo]
+      if (prev === undefined) {
+        marksMoved = true
+        continue
+      }
+      if (prev.serving !== serving || prev.refused !== refused) marksMoved = true
+      if ((prev.serving && !serving) || (refused !== '' && prev.refused !== refused)) drop.add(row.repo)
+    }
+    if (Object.keys(tfRowMarks).length !== Object.keys(nextMarks).length) marksMoved = true
+    if (drop.size > 0) {
+      const trimmed = Object.fromEntries(Object.entries(tfWindows).filter(([repo]) => !drop.has(repo)))
+      if (Object.keys(trimmed).length !== Object.keys(tfWindows).length) {
+        activeTfWindows = trimmed
+        setTfWindows(trimmed)
+      }
+    }
+    if (marksMoved) setTfRowMarks(nextMarks)
+  }
   const [tfTyping, setTfTyping] = useState<TensorFoldTyping | null>(null)
   const [tfConfirm, setTfConfirm] = useState<string | null>(null)
   const tf = React.useMemo(
-    () => (tensorfold === undefined ? undefined : tensorFoldPickerRows(tensorfold, { view, current: currentRow, windows: tfWindows, ...(tfTyping !== null ? { typing: tfTyping } : {}), ...(tfConfirm !== null ? { confirmStop: tfConfirm } : {}) })),
-    [tensorfold, view, currentRow, tfWindows, tfTyping, tfConfirm],
+    () => (tensorfold === undefined ? undefined : tensorFoldPickerRows(tensorfold, { view, current: currentRow, windows: activeTfWindows, ...(tfTyping !== null ? { typing: tfTyping } : {}), ...(tfConfirm !== null ? { confirmStop: tfConfirm } : {}) })),
+    [tensorfold, view, currentRow, activeTfWindows, tfTyping, tfConfirm],
   )
   const listed = React.useMemo(() => (tf === undefined ? given : view === 'tensorfold' ? tf.rows : withTensorFoldRows(given, tf.rows)), [tf, given, view])
   const headings = React.useMemo(() => (tf === undefined ? givenHeadings : { ...givenHeadings, ...tf.headings }), [tf, givenHeadings])
