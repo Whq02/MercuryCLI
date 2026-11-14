@@ -7,6 +7,7 @@ import {
   type PolyglotLanguage,
 } from './grammarFacility.js'
 import {
+  alsoFound,
   captureKeyOf,
   compilePatternRoot,
   findExactSpanNode,
@@ -202,6 +203,12 @@ export async function compileFor(
   let split: string | null = null
   const candidates = patternCandidates(lang.name, encoded)
   let held: { pattern: CompiledPattern; hold: { delete(): void } } | null = null
+  const settle = (compiled: { pattern: CompiledPattern; hold: { delete(): void } }): { pattern: CompiledPattern; hold: { delete(): void } } => {
+    const also = alsoFound(lang.name, compiled.pattern.root.type)
+    const settled = also ? { pattern: { ...compiled.pattern, also }, hold: compiled.hold } : compiled
+    cache.set(lang.name, settled)
+    return settled
+  }
 
   const stoodIn = async (candidate: (typeof candidates)[number]): Promise<{ pattern: CompiledPattern; hold: { delete(): void }; holdsItsMembers: boolean } | null> => {
     for (const stood of standInCandidates(lang.name, candidate)) {
@@ -241,9 +248,7 @@ export async function compileFor(
       else if (stood) {
         parsed.tree.delete()
         if (recovery) recovery.hold.delete()
-        const compiled = { pattern: stood.pattern, hold: stood.hold }
-        cache.set(lang.name, compiled)
-        return compiled
+        return settle({ pattern: stood.pattern, hold: stood.hold })
       }
     }
     if (!node) {
@@ -269,9 +274,7 @@ export async function compileFor(
     if (parsed.parseErrors.length === 0) {
       if (recovery) recovery.hold.delete()
       if (held) held.hold.delete()
-      const compiled = { pattern: { ...compilePatternRoot(node, candidate.tagMetavars), ...(candidate.spansTerminator && { spansTerminator: true }) }, hold: parsed.tree }
-      cache.set(lang.name, compiled)
-      return compiled
+      return settle({ pattern: { ...compilePatternRoot(node, candidate.tagMetavars), ...(candidate.spansTerminator && { spansTerminator: true }) }, hold: parsed.tree })
     }
     firstError ??= parsed.parseErrors[0]!
     if (!recovery && !node.hasError) {
@@ -283,13 +286,9 @@ export async function compileFor(
 
   if (recovery) {
     if (held) held.hold.delete()
-    cache.set(lang.name, recovery)
-    return recovery
+    return settle(recovery)
   }
-  if (held) {
-    cache.set(lang.name, held)
-    return held
-  }
+  if (held) return settle(held)
   const refusal: PatternRefusal = {
     state: 'refused' as const,
     note: `the pattern does not parse as ${lang.name} (${split ?? firstError ?? textOnly ?? 'no parse'})`,

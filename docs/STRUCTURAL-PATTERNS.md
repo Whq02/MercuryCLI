@@ -117,10 +117,13 @@ out keeps the statement's own. A block written `{ $$$BODY }` after its head
 holds the block's statements in Dart and Zig (`if ($COND) { $$$BODY }`,
 `fn $NAME($$$PARAMS) $RET { $$$BODY }`), and `class $N { $$$MEMBERS }` holds
 a Dart class's members. So it is in Java, C#, C and C++:
-`if ($COND) { $$$BODY }` in all four, `void $NAME($$$PARAMS) { $$$BODY }` in
-Java, C and C++, `class $N { $$$MEMBERS }` in Java and C#; and a CSS rule's
+`if ($COND) { $$$BODY }` and `void $NAME($$$PARAMS) { $$$BODY }` in all
+four, `class $N { $$$MEMBERS }` in Java and C#; and a CSS rule's
 declarations (`$SEL { $$$DECLS }`) and a JSON object's pairs
-(`{ $$$PAIRS }`) are lists of the same kind. A Dart function is two nodes,
+(`{ $$$PAIRS }`) are lists of the same kind. In C# a function written
+alone finds a method of a class, a struct, an interface or a record and a
+local function alike, each with the modifiers the pattern writes
+(`public void $NAME($$$PARAMS) { $$$BODY }`). A Dart function is two nodes,
 its signature and its body, so a function written with its body is refused
 in those words: write the signature alone (`void $NAME($$$PARAMS)`) or a
 statement of the body. Written alone, `{ $$$A }` is a set or map literal in

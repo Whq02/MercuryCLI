@@ -68,6 +68,7 @@ export interface CompiledPattern {
   tagMetavars?: true
   standIn?: RegExp
   detached?: Record<string, string>
+  also?: string[]
 }
 
 const PATTERN_CONTEXTS: Record<string, string[]> = {
@@ -240,6 +241,14 @@ export function standsAsMember(pattern: TSNode, member: StoodMember): 'whole' | 
     if (node.startIndex !== from || node.endIndex !== to || node.parent === null) return null
     node = node.parent
   }
+}
+
+const ALSO_FOUND: Record<string, Record<string, string[]>> = {
+  'c-sharp': { local_function_statement: ['method_declaration'] },
+}
+
+export function alsoFound(langName: string, kind: string): string[] | undefined {
+  return ALSO_FOUND[langName]?.[kind]
 }
 
 const CLAUSE_WORDS = /^(?:if|for|while|switch|catch|else|finally|do|try)$/
@@ -451,7 +460,7 @@ export function findPatternMatches(
     }
     const node = stack.pop()!
     const state: MatchState = { captures: new Map(), tagMetavars: pattern.tagMetavars, standIn: pattern.standIn }
-    if (matchNodePair(pattern.root, node, state)) {
+    if (matchNodePair(pattern.root, node, state) || (pattern.also?.includes(node.type) === true && matchSequence(significantChildren(pattern.root), significantChildren(node), state))) {
       const captures = [...state.captures.values()].map(c => {
         if (c.endIndex <= c.startIndex) return c
         let endIndex = c.endIndex
