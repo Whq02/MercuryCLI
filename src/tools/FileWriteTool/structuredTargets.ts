@@ -476,10 +476,11 @@ function openSqliteForWrite(hostPath: string, readOnly = false): SqliteWriteDb {
   const immutable = readOnly && (!existsSync(`${hostPath}-wal`) || statSync(`${hostPath}-wal`).size <= 32) && !existsSync(`${hostPath}-journal`)
   url.search = readOnly ? `?mode=ro${immutable ? '&immutable=1' : ''}` : '?mode=rw'
   if (process.versions.bun) {
-    const { Database } = load('bun:sqlite') as {
-      Database: new (file: string, opts?: { readonly?: boolean; readwrite?: boolean; create?: boolean }) => SqliteWriteDb
+    const { Database, constants } = load('bun:sqlite') as {
+      Database: new (file: string, opts?: number | { readonly?: boolean; readwrite?: boolean; create?: boolean }) => SqliteWriteDb
+      constants: { SQLITE_OPEN_READONLY: number; SQLITE_OPEN_URI: number }
     }
-    const db = new Database(readOnly ? url.href : hostPath, readOnly ? { readonly: true, create: false } : { readwrite: true, create: false })
+    const db = new Database(readOnly ? url.href : hostPath, readOnly ? constants.SQLITE_OPEN_READONLY | constants.SQLITE_OPEN_URI : { readwrite: true, create: false })
     db.run('PRAGMA foreign_keys=ON')
     return db
   }
