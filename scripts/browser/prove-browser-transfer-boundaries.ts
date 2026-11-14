@@ -81,6 +81,8 @@ const pads = (): string[] => {
   }
   return found
 }
+const transferFolders = (): string[] => pads().flatMap(p => [join(p, 'browser-downloads'), join(p, 'browser-uploads')]).filter(folder => fs.existsSync(folder))
+const strangers = new Set(transferFolders())
 
 section('S1 unused session sends 56 protocol commands and creates no transfer folder; download requests keep full stealth')
 {
@@ -107,7 +109,7 @@ section('S1 unused session sends 56 protocol commands and creates no transfer fo
   }
   const ownCommands = sent.filter(c => c.session === undefined || knownSessions.has(c.session))
   const dlBehaviours = ownCommands.filter(c => c.method === 'Browser.setDownloadBehavior')
-  const anyFolders = pads().some(p => fs.existsSync(join(p, 'browser-downloads')) || fs.existsSync(join(p, 'browser-uploads')))
+  const anyFolders = transferFolders().some(folder => !strangers.has(folder))
   check(
     'open, screenshot, close sends 52 protocol commands on the root, driver, page-kit, and watch sessions (56 with default background targets; the one over the tabs row is the page-kit session’s auto-attach for frames of another site; 2 download-behavior commands, 0 extra) and creates no transfer folder',
     ownCommands.length === 52 && ownCommands.filter(c => c.method === 'Target.setAutoAttach' && JSON.stringify(c.params?.filter) === '[{"type":"iframe","exclude":false}]').length === 1 && dlBehaviours.length === 2 && !anyFolders,

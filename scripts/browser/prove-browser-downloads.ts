@@ -107,7 +107,9 @@ const pads = (): string[] => {
   }
   return found
 }
-const homes = (): string[] => pads().map(pad => join(pad, 'browser-downloads')).filter(folder => existsSync(folder))
+const everyHome = (): string[] => pads().map(pad => join(pad, 'browser-downloads')).filter(folder => existsSync(folder))
+const strangers = new Set(everyHome())
+const homes = (): string[] => everyHome().filter(folder => !strangers.has(folder))
 let home = ''
 const tabNames = (): string => ((sessions.browserTabs?.(ownerOf(lead)) ?? []) as Array<{ tab: string }>).map(t => t.tab).join(',')
 const NOT_SAVED = 'not saved: no act of this agent started it; op:"download" with url (the page’s address) or selector (what starts it) saves it'
