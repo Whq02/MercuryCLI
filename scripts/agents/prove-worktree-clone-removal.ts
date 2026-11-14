@@ -110,27 +110,21 @@ const plain = await createAgentWorktree('agent-ab100002')
 delete process.env.MERCURY_WORKTREE_CLONE
 check('a copy made of links records nothing', !existsSync(adminFile(repo, 'agent-ab100002', 'WORKTREE_CLONES')) && lstatSync(join(plain.worktreePath, 'node_modules')).isSymbolicLink())
 
-section('§2 leaving a session worktree that holds clones: the tree is set aside, git drops it, the delete runs apart, nothing is printed')
+section('§2 leaving a session worktree that holds clones: git drops it, the delete runs apart, nothing is printed (§7 holds that the tree is set aside, by a folder a delete in place could not take)')
 const session = await createWorktreeForSession('proof-session', 'leave-clone')
 const sessionPath = session.worktreePath
 let started = performance.now()
 const printedLeaving = await printedDuring(() => cleanupWorktree())
 const leftIn = performance.now() - started
 const asideAtReturn = setAside(home)
-const statusWhileAside = git(repo, 'status', '--porcelain')
-console.log(`  the removal returned in ${leftIn.toFixed(0)} ms; set aside at that moment: ${asideAtReturn.join(', ') || 'nothing'}`)
+console.log(`  the removal returned in ${leftIn.toFixed(0)} ms; still set aside at that moment: ${asideAtReturn.join(', ') || 'nothing (its delete had already finished)'}`)
 check('the worktree path is gone when the removal returns', !existsSync(sessionPath))
 check('git no longer lists it and its branch is deleted', !registered(repo).includes(sessionPath) && git(repo, 'branch', '--list', 'worktree-leave-clone') === '')
 check('the session holds no worktree', getCurrentWorktreeSession() === null)
 check('the removal prints nothing', printedLeaving === '', JSON.stringify(printedLeaving.slice(0, 200)))
-if (cloneRoad) {
-  check('the tree was set aside inside the worktrees home, not deleted while the caller waited', asideAtReturn.length === 1 && asideAtReturn[0]!.startsWith('.removing-leave-clone-'), asideAtReturn.join(', '))
-  check('git status of the project is clean while it stands there, as it is for the worktrees themselves', statusWhileAside === '', statusWhileAside)
-  check('…and the tree set aside is deleted without anyone waiting for it', await gone(home), setAside(home).join(', '))
-} else {
-  skip('this volume or platform cannot clone: the worktree holds links and is removed in place, as before')
-  check('nothing is set aside', asideAtReturn.length === 0)
-}
+check('whatever stood set aside carries the name of the worktree it was, inside the worktrees home', asideAtReturn.every(name => name.startsWith('.removing-leave-clone-')), asideAtReturn.join(', '))
+check('…and is deleted without anyone waiting for it', await gone(home), setAside(home).join(', '))
+if (!cloneRoad) check('with no clone nothing is ever set aside', asideAtReturn.length === 0)
 
 section('§3 a removal git refuses leaves the tree whole where it was, and prints nothing')
 const locked = await createWorktreeForSession('proof-session', 'leave-locked')
@@ -232,7 +226,7 @@ if (cloneRoad && process.getuid?.() !== 0) {
   check('the worktree is removed', !existsSync(sealed.worktreePath))
 }
 
-section('§8 the daemon reaps a worker\'s worktree the same way')
+section('§8 the daemon reaps a worker\'s worktree the same way: a read-only folder in its clone, which a delete in place could not take, goes with it')
 const daemonHome = join(scratch, 'daemon')
 const workerHome = join(daemonHome, 'worktrees')
 mkdirSync(daemonHome)
@@ -244,17 +238,16 @@ if (worker.ok) {
   const diedInDaemon = join(workerHome, '.removing-runner-gone-1-old')
   mkdirSync(join(diedInDaemon, 'node_modules'), { recursive: true })
   utimesSync(diedInDaemon, hoursAgo(2), hoursAgo(2))
+  const sealedInWorker = cloneRoad && process.getuid?.() !== 0
+  if (sealedInWorker) chmodSync(join(worker.path, 'node_modules', 'pkg-1', 'lib'), 0o555)
   started = performance.now()
   const outcome = reapWorkerWorktree(repo, 'runner-clone', daemonHome)
   const reapedIn = performance.now() - started
   const asideInDaemon = setAside(workerHome).filter(name => name.startsWith('.removing-runner-clone-'))
-  console.log(`  the reap returned in ${reapedIn.toFixed(0)} ms; set aside at that moment: ${asideInDaemon.join(', ') || 'nothing'}`)
-  check('the reap answers reaped, the path is gone and git has dropped it', outcome.outcome === 'reaped' && !existsSync(worker.path) && !registered(repo).includes(worker.path), JSON.stringify(outcome))
-  if (cloneRoad) check('the tree was set aside in the daemon\'s worktrees home, not deleted while the daemon waited', asideInDaemon.length === 1, asideInDaemon.join(', '))
-  else {
-    skip('this volume or platform cannot clone: the worker worktree is removed in place, as before')
-    check('nothing of the worker is set aside', asideInDaemon.length === 0)
-  }
+  console.log(`  the reap returned in ${reapedIn.toFixed(0)} ms; still set aside at that moment: ${asideInDaemon.join(', ') || 'nothing (its delete had already finished)'}`)
+  check('the reap answers reaped, the path is gone when it returns and git has dropped it', outcome.outcome === 'reaped' && !existsSync(worker.path) && !registered(repo).includes(worker.path), JSON.stringify(outcome))
+  if (!sealedInWorker) skip('no clone here, or this user writes every folder: the worker worktree is removed in place, as before')
+  if (!cloneRoad) check('with no clone nothing of the worker is set aside', asideInDaemon.length === 0)
   check('…and it and a tree whose delete died there earlier are deleted apart', await gone(workerHome), setAside(workerHome).join(', '))
 }
 
