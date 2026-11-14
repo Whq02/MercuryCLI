@@ -354,7 +354,7 @@ export function rulesBattery({ world, check, section, convention, folder, ext, a
     'api/v1/h.go': '\n', 'schema/a.sql': '\n', 'schema/old/a.sql': '\n', 'tools/x/y.sh': '\n',
   })
   const touchOne = (file: string): string[] => attachedPaths(world.drive(p2, { touch: [join(p2, file)] }).touched[0]!)
-  const names = (paths: string[]): string => paths.map(path => path.split('/').at(-1)!.replace(ext, '')).join(',')
+  const names = (paths: string[]): string => paths.map(path => path.split(/[\\/]/).at(-1)!.replace(ext, '')).join(',')
   check('*.ts governs a file in the root', names(touchOne('top.ts')) === 'root-only', names(touchOne('top.ts')))
   check('*.ts does not govern a file in a folder below', names(touchOne('src/deep.ts')) === '', names(touchOne('src/deep.ts')))
   check('**/*.py governs the root and any depth', names(touchOne('run.py')) === 'anywhere' && names(touchOne('pkg/deep/run.py')) === 'anywhere')
