@@ -15,4 +15,5 @@
 !vendor/*.lock.json
 !vendor/python-licences
 !vendor/document-licences
+!vendor/grammar-licences
 !sdk/src
