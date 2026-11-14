@@ -33,7 +33,7 @@ export async function gitClient(world: ReturnType<typeof gitFixture>) {
   const dist = process.env.MERCURY_PROOF_DIST ?? resolve(import.meta.dir, '../../dist/mercury.mjs')
   const reportedHome = execFileSync('node', ['-p', "require('node:os').homedir()"], { env: world.env, encoding: 'utf8' }).trim()
   if (reportedHome !== world.home) throw new Error(`wrong proof home: ${reportedHome}`)
-  const child = spawn('node', [dist, 'mcp', 'serve'], { cwd: world.root, env: world.env, stdio: ['pipe', 'pipe', 'pipe'] })
+  const child = spawn('node', [dist, 'mcp', 'serve'], { cwd: world.root, env: { ...world.env, MERCURY_LOCAL_PROBE_TARGETS: 'none' }, stdio: ['pipe', 'pipe', 'pipe'] })
   const closed = new Promise<void>(resolve => child.once('close', () => resolve()))
   let serial = 0
   let buffer = ''

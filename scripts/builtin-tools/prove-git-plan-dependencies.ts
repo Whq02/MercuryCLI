@@ -82,7 +82,7 @@ try {
       { files: ['hunks.txt'], hunks: { 'hunks.txt': [hunks[0]] }, message: 'top change' },
     ] })
     const hunkId = hunkPlan.match(/gp-[a-f0-9]+/)?.[0]
-    check('M04 shared-file hunk sequence follows resolved order', hunks.length === 2 && hunkPlan.indexOf('[group 1] top change') < hunkPlan.indexOf('[group 0] bottom change') && Boolean(hunkId), hunkPlan)
+    check('M04 shared-file hunk sequence follows resolved order', hunks.length === 2 && hunkPlan.includes('[group 1] top change') && hunkPlan.indexOf('[group 1] top change') < hunkPlan.indexOf('[group 0] bottom change') && Boolean(hunkId), hunkPlan)
     const hunkApply = await call({ op: 'apply', planId: hunkId })
     check('M04 each ordered intermediate commit contains exactly its selected hunk', hunkApply.includes('APPLIED') && world.git(['show', 'HEAD~1:hunks.txt']).includes('top\n') && !world.git(['show', 'HEAD~1:hunks.txt']).includes('bottom\n') && world.git(['show', 'HEAD:hunks.txt']).includes('bottom\n'), hunkApply)
     world.put('base.txt', 'stale before\n')

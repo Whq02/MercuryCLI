@@ -11,8 +11,8 @@ import { git, gitStatus } from './observe.js'
 import { gitArgs, gitFilterSkipMessages } from '../../utils/git/spawnArgs.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 
-export type ConflictSide = 'ours' | 'theirs' | 'base' | 'both'
-export type RegionChoice = { region: string; take?: ConflictSide; content?: string }
+type ConflictSide = 'ours' | 'theirs' | 'base' | 'both'
+type RegionChoice = { region: string; take?: ConflictSide; content?: string }
 export type ConflictRegion = {
   id: string
   path: string
@@ -106,7 +106,7 @@ export function readConflictRegions(owner: OwnerKey, root: string, file: string)
   return regions
 }
 
-export function conflictRegion(owner: OwnerKey, root: string, id: string): ConflictRegion | undefined {
+function conflictRegion(owner: OwnerKey, root: string, id: string): ConflictRegion | undefined {
   for (const regions of store.peek(owner)?.roots.get(root)?.values() ?? []) {
     const found = regions.find(r => r.id === id)
     if (found) return found
@@ -131,7 +131,7 @@ export type ResolutionPlan = {
   index: Buffer
   files: ResolutionFile[]
 }
-export type ResolutionRefusal = { state: 'refused'; reason: string }
+type ResolutionRefusal = { state: 'refused'; reason: string }
 
 export function prepareResolution(owner: OwnerKey, root: string, choices: RegionChoice[]): ResolutionPlan | ResolutionRefusal {
   const status = gitStatus(root)
