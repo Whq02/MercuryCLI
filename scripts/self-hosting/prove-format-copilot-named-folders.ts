@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { symlinkSync } from 'node:fs'
+import { readFileSync, symlinkSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { checker, contentsOf, count, governs, openWorld } from './instructionWorld.ts'
 
@@ -65,6 +65,10 @@ try {
   check('under the native profile no named file loads and none attaches', native.first === '' && native.touched[0]!.attached.length === 0, `${native.first} ${JSON.stringify(native.touched[0])}`)
   const untrusted = world.drive(project, { env, untrusted: true })
   check("in a folder never trusted, headless, the named folders load as the user's own files do and the project's do not", NAMED.every(needle => count(untrusted.first, needle) === 1) && !untrusted.first.includes('project-agents-needle'), untrusted.paths.map(path => relative(world.scratch, path)).join(', '))
+  const untrustedDecided = world.drive(decided, { env, untrusted: true })
+  check("an untrusted folder's MERCURY.md decides nothing about the user's own named sources", untrustedDecided.first === untrusted.first && !untrustedDecided.first.includes('native-needle'), untrustedDecided.first)
+  const page = readFileSync(join(import.meta.dir, '../../docs/COMPATIBILITY.md'), 'utf8').replace(/\s+/g, ' ')
+  check('the page states that untrusted project guidance cannot switch off personal sources', page.includes('An untrusted folder supplies no project instructions and decides nothing through its `MERCURY.md`; your own instruction sources still load.'))
 
   section('one file, two inventories')
   const both = world.project({ ...layout, '.github/instructions/a-always.instructions.md': rule('applyTo: "**"', 'project-always-needle\n'), '.github/instructions/scoped.instructions.md': rule('applyTo: "app/src/**"', 'project-scoped-needle\n'), 'app/src/a.py': '\n' })

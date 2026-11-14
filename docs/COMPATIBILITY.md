@@ -22,8 +22,9 @@ the personal layer of every project and decides nothing for one. Nested
 guides attach when their files are touched under the same guide choice, and
 a nested folder's own `MERCURY.md` decides for that folder. The `native`
 profile uses Mercury instruction files only. `briefs.exclude` skips named
-paths or patterns, but cannot exclude managed instructions. A folder you
-have not trusted loads none of these files.
+paths or patterns, but cannot exclude managed instructions. An untrusted
+folder supplies no project instructions and decides nothing through its
+`MERCURY.md`; your own instruction sources still load.
 
 ### The files other tools left
 
@@ -47,9 +48,9 @@ a list separated by commas, a relative entry measured from the working
 directory, `~/` your home folder. Their files load with your own
 instructions, before the project's, with their `applyTo` patterns measured
 from the working directory, and in a folder you have not trusted too. Under
-a `MERCURY.md` or the `native` profile the variable is not read. A folder
-on the working directory's own chain adds nothing: its files are the
-project's.
+a `MERCURY.md` of a trusted project, or the `native` profile, the variable
+is not read. A folder on the working directory's own chain adds nothing:
+its files are the project's.
 
 A rule reaches the model as its own tool scopes it:
 
