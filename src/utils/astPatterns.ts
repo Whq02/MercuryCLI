@@ -170,6 +170,63 @@ export const PATTERN_EXAMPLES: readonly string[] = [
   'function $NAME($$$ARGS) { $$$BODY }',
 ]
 
+export const LANGUAGE_PATTERN_EXAMPLES: Record<string, readonly string[]> = {
+  python: ['$FN($$$ARGS)', 'def $NAME($$$ARGS): $$$BODY', 'import $MODULE'],
+  go: ['$FN($$$ARGS)', 'if $COND { $$$BODY }', 'func $NAME($$$PARAMS) { $$$BODY }'],
+  rust: ['$FN($$$ARGS)', 'if $COND { $$$BODY }', 'fn $NAME($$$PARAMS) { $$$BODY }'],
+  bash: ['$CMD $$$ARGS', 'if $COND; then $$$BODY; fi', '$NAME() { $$$BODY; }'],
+  'c-sharp': ['$FN($$$ARGS)', 'if ($COND) { $$$BODY }', 'public void $NAME($$$PARAMS) { $$$BODY }'],
+  cpp: ['$FN($$$ARGS)', 'if ($COND) { $$$BODY }', 'void $NAME($$$PARAMS) { $$$BODY }'],
+  css: ['$PROP: $VALUE;', '$SEL { $$$DECLS }', '@import $URL;'],
+  java: ['$OBJ.$METHOD($$$ARGS)', 'if ($COND) { $$$BODY }', 'public void $NAME($$$PARAMS) { $$$BODY }'],
+  php: ['$FN($$$ARGS)', 'return $X;', 'echo $X;'],
+  ruby: ['$FN($$$ARGS)', '$OBJ.$METHOD($$$ARGS)', 'def $NAME($$$PARAMS) $$$BODY end'],
+  powershell: ['$CMD $$$ARGS', 'if ($COND) { $$$BODY }', 'function $NAME { $$$BODY }'],
+  ini: ['$KEY = $VALUE', '[$SECTION]'],
+  regex: ['($$$BODY)', '$A|$B'],
+  c: ['$FN($$$ARGS)', 'if ($COND) { $$$BODY }', 'void $NAME($$$PARAMS) { $$$BODY }'],
+  html: ['<ul>$$$ITEMS</ul>', '<a href=$URL>$$$CHILDREN</a>'],
+  json: ['[$$$ITEMS]', '{ $$$PAIRS }', '{"name": $VALUE}'],
+  toml: ['$KEY = $VALUE', 'name = $VALUE'],
+  kotlin: ['$FN($$$ARGS)', 'if ($COND) { $$$BODY }', 'val $NAME = $VALUE'],
+  swift: ['$FN($$$ARGS)', 'if $COND { $$$BODY }', 'let $NAME = $VALUE'],
+  vue: ['<ul>$$$ITEMS</ul>', '<template>$$$CHILDREN</template>'],
+  yaml: ['$KEY: $VALUE', '- $ITEM'],
+  markdown: ['# $TITLE', '## $TITLE'],
+  sql: ['SELECT $$$COLUMNS FROM $TABLE', 'CREATE TABLE $NAME ($$$COLUMNS)', 'COALESCE($A, $B)'],
+  dockerfile: ['FROM $IMAGE', 'WORKDIR $DIR'],
+  lua: ['$FN($$$ARGS)', 'if $COND then $$$BODY end', 'function $NAME($$$PARAMS) $$$BODY end'],
+  make: ['$NAME := $VALUE', 'include $FILE'],
+  cmake: ['$COMMAND($$$ARGS)', 'set($NAME $VALUE)'],
+  xml: ['<$TAG>$$$CHILDREN</$TAG>', '<$TAG $$$ATTRS/>'],
+  hcl: ['$KEY = $VALUE', 'resource $TYPE $NAME { $$$BODY }'],
+  graphql: ['type $NAME { $$$FIELDS }', '$FIELD: $TYPE'],
+  protobuf: ['message $NAME { $$$FIELDS }', 'rpc $NAME($REQUEST) returns ($RESPONSE);'],
+  dart: ['print($X)', 'if ($COND) { $$$BODY }', 'void $NAME($$$PARAMS)'],
+  scala: ['$FN($$$ARGS)', 'if ($COND) { $$$BODY }', 'def $NAME($$$PARAMS): $TYPE = $BODY'],
+  elixir: ['$FN($$$ARGS)', 'def $NAME($$$ARGS) do $$$BODY end'],
+  zig: ['$FN($$$ARGS)', 'if ($COND) { $$$BODY }', 'fn $NAME($$$PARAMS) $RET { $$$BODY }'],
+  haskell: ['$NAME $ARG = $BODY', 'map $F $XS'],
+  ocaml: ['let $NAME $ARG = $BODY', 'List.map $F $XS'],
+  svelte: ['<$TAG>$$$CHILDREN</$TAG>', '{#if $COND}$$$BODY{/if}'],
+  astro: ['<$TAG>$$$CHILDREN</$TAG>', '<$TAG $$$ATTRS />'],
+  nix: ['$NAME = $VALUE;', '{ $$$ATTRS }'],
+  r: ['$FN($$$ARGS)', 'if ($COND) { $$$BODY }', 'function($$$ARGS) { $$$BODY }'],
+  julia: ['$FN($$$ARGS)', 'if $COND $$$BODY end', 'function $NAME($$$ARGS) $$$BODY end'],
+  starlark: ['$FN($$$ARGS)', '$NAME = $VALUE'],
+  clojure: ['($FN $$$ARGS)', '(defn $NAME [$$$ARGS] $$$BODY)'],
+  erlang: ['$MODULE:$FN($$$ARGS)', '$NAME($$$ARGS) -> $$$BODY.'],
+  objc: ['[$OBJECT $SELECTOR]', 'if ($COND) { $$$BODY }', '- (void)$NAME { $$$BODY }'],
+  fortran: ['call $NAME($$$ARGS)', '$TARGET = $VALUE'],
+  solidity: ['$FN($$$ARGS)', 'if ($COND) { $$$BODY }', 'function $NAME($$$PARAMS) public { $$$BODY }'],
+  verilog: ['assign $TARGET = $VALUE;', 'always @(posedge $CLOCK) begin $$$BODY end'],
+  'emacs-lisp': ['($FN $$$ARGS)', '(defun $NAME ($$$ARGS) $$$BODY)'],
+  just: ['alias $NAME := $TARGET', '$NAME := $VALUE'],
+  odin: ['$FN($$$ARGS)', 'if $COND { $$$BODY }', '$NAME :: proc($$$PARAMS) { $$$BODY }'],
+  tlaplus: ['$NAME == $BODY', '$FN($$$ARGS)'],
+  diff: ['-int old(void);', '+int renamed(void);'],
+}
+
 
 export interface AstScopeFile {
   abs: string
@@ -563,10 +620,18 @@ export function patternErrorText(pattern: string, result: AstSearchResult): stri
   const where = first ? ` as ${first.lang} (${first.note.replace(/^the pattern does not parse as [^ ]+ \(/, '').replace(/\)$/, '')})` : ''
   const others = result.patternRefusals.slice(1).map(r => r.lang)
   const shown = JSON.stringify(pattern.length > 120 ? `${pattern.slice(0, 117)}…` : pattern)
+  const own = first ? LANGUAGE_PATTERN_EXAMPLES[first.lang] : undefined
   return [
     `The pattern ${shown} did not parse${where}${others.length > 0 ? `; nor as ${others.join(', ')}` : ''}.`,
-    PATTERN_GRAMMAR_LINES[0]!,
-    `Meta-variable names are UPPERCASE: $NAME for one node, $$$NAME for a sequence ($$X and $$$name are literal text). Try one of: ${PATTERN_EXAMPLES.map(e => JSON.stringify(e)).join(', ')}.`,
+    ...(own
+      ? [
+          `A pattern is ONE complete node of the target language, written as code. In ${first!.lang}: ${own.map(e => JSON.stringify(e)).join(', ')}.`,
+          'Meta-variable names are UPPERCASE: $NAME for one node, $$$NAME for a sequence ($$X and $$$name are literal text).',
+        ]
+      : [
+          PATTERN_GRAMMAR_LINES[0]!,
+          `Meta-variable names are UPPERCASE: $NAME for one node, $$$NAME for a sequence ($$X and $$$name are literal text). Try one of: ${PATTERN_EXAMPLES.map(e => JSON.stringify(e)).join(', ')}.`,
+        ]),
   ].join('\n')
 }
 
@@ -645,9 +710,9 @@ function normalisedText(node: TSNode): string {
   return node.text.replace(/\s+/g, '')
 }
 
-function sameShape(p: TSNode, r: TSNode): boolean {
-  const mp = metavarOf(p)
-  const mr = metavarOf(r)
+function sameShape(p: TSNode, r: TSNode, pStandIn?: RegExp, rStandIn?: RegExp): boolean {
+  const mp = metavarOf(p, false, pStandIn)
+  const mr = metavarOf(r, false, rStandIn)
   if (mp || mr) return mp !== null && mr !== null && mp.kind === mr.kind && mp.name === mr.name
   if (p.type !== r.type) return false
   const pk = significantChildren(p)
@@ -657,11 +722,11 @@ function sameShape(p: TSNode, r: TSNode): boolean {
     if (p.childCount === 0 && r.childCount === 0) return true
     return normalisedText(p) === normalisedText(r)
   }
-  return pk.every((child, i) => sameShape(child, rk[i]!))
+  return pk.every((child, i) => sameShape(child, rk[i]!, pStandIn, rStandIn))
 }
 
-function alignEdits(p: TSNode, r: TSNode, c: TSNode, captures: AstCapture[], out: Edit[]): boolean {
-  if (metavarOf(p)) return true
+function alignEdits(p: TSNode, r: TSNode, c: TSNode, captures: AstCapture[], out: Edit[], standIn?: RegExp): boolean {
+  if (metavarOf(p, false, standIn)) return true
   const pk = significantChildren(p)
   const rk = significantChildren(r)
   const ck = significantChildren(c)
@@ -676,7 +741,7 @@ function alignEdits(p: TSNode, r: TSNode, c: TSNode, captures: AstCapture[], out
   for (let pi = 0; pi < pk.length; pi++) {
     const pc = pk[pi]!
     const rc = rk[pi]!
-    const mv = metavarOf(pc)
+    const mv = metavarOf(pc, false, standIn)
     if (mv?.kind === 'multi') {
       if (mv.name) {
         const cap = captures.find(x => x.key === `$$$${mv.name}`)
@@ -684,7 +749,7 @@ function alignEdits(p: TSNode, r: TSNode, c: TSNode, captures: AstCapture[], out
         while (ci < ck.length && cap.endIndex > cap.startIndex && ck[ci]!.startIndex >= cap.startIndex && ck[ci]!.endIndex <= cap.endIndex) ci++
       } else {
         const rest = pk.slice(pi + 1)
-        if (rest.some(x => metavarOf(x)?.kind === 'multi')) return false
+        if (rest.some(x => metavarOf(x, false, standIn)?.kind === 'multi')) return false
         const take = ck.length - ci - rest.length
         if (take < 0) return false
         ci += take
@@ -696,7 +761,7 @@ function alignEdits(p: TSNode, r: TSNode, c: TSNode, captures: AstCapture[], out
       ci++
       continue
     }
-    if (!alignEdits(pc, rc, ck[ci]!, captures, out)) return false
+    if (!alignEdits(pc, rc, ck[ci]!, captures, out, standIn)) return false
     ci++
   }
   return ci === ck.length
@@ -843,12 +908,13 @@ async function planAstBatchRewrite(
     preToken: string | null
     patternCache: CompileCache
     rewriteCache: CompileCache
-    shapeByLang: Map<string, { pat: TSNode; rw: TSNode } | null>
+    shapeByLang: Map<string, { pat: TSNode; rw: TSNode; standIn?: RegExp } | null>
     terminatorByLang: Map<string, boolean>
     refusedLangs: Map<string, { files: number; note: string; textOnly?: boolean }>
     langFiles: Map<string, number>
     compiledSomewhere: boolean
     skippedBeforeCompile: boolean
+    matched: boolean
     changedMatches: number
     unchangedMatches: number
     filesChanged: Set<string>
@@ -868,6 +934,7 @@ async function planAstBatchRewrite(
     langFiles: new Map(),
     compiledSomewhere: false,
     skippedBeforeCompile: false,
+    matched: false,
     changedMatches: 0,
     unchangedMatches: 0,
     filesChanged: new Set(),
@@ -892,15 +959,15 @@ async function planAstBatchRewrite(
     return spans
   }
 
-  async function shapeForRule(r: RuleState, lang: PolyglotLanguage): Promise<{ pat: TSNode; rw: TSNode } | null> {
+  async function shapeForRule(r: RuleState, lang: PolyglotLanguage): Promise<{ pat: TSNode; rw: TSNode; standIn?: RegExp } | null> {
     const cached = r.shapeByLang.get(lang.name)
     if (cached !== undefined) return cached
-    let shape: { pat: TSNode; rw: TSNode } | null = null
+    let shape: { pat: TSNode; rw: TSNode; standIn?: RegExp } | null = null
     if (r.rule.rewrite.trim() !== '') {
       const pat = await compileFor(engine as Parameters<typeof compileFor>[0], lang, r.encodedPattern, r.patternCache)
       const rw = await compileFor(engine as Parameters<typeof compileFor>[0], lang, r.encodedRewrite, r.rewriteCache)
-      if (!('state' in pat) && !('state' in rw) && !pat.pattern.tagMetavars && !rw.pattern.tagMetavars && sameShape(pat.pattern.root, rw.pattern.root)) {
-        shape = { pat: pat.pattern.root, rw: rw.pattern.root }
+      if (!('state' in pat) && !('state' in rw) && !pat.pattern.tagMetavars && !rw.pattern.tagMetavars && sameShape(pat.pattern.root, rw.pattern.root, pat.pattern.standIn, rw.pattern.standIn)) {
+        shape = { pat: pat.pattern.root, rw: rw.pattern.root, ...(pat.pattern.standIn && { standIn: pat.pattern.standIn }) }
       }
     }
     r.shapeByLang.set(lang.name, shape)
@@ -1058,8 +1125,14 @@ async function planAstBatchRewrite(
       const candidates: CandidateEdit[] = []
       let left: AstLeftOutFile | null = null
       let over = false
+      const markUnreadRules = (): void => {
+        for (const { r, compiled } of matchingRules) {
+          if (!r.matched && findPatternMatches(compiled.pattern, parsed.tree.rootNode, before!, 1).matches.length > 0) r.matched = true
+        }
+      }
       for (const { r, compiled } of matchingRules) {
         const found = findPatternMatches(compiled.pattern, parsed.tree.rootNode, before, AST_BOUNDS.editMaxMatches + 1)
+        if (found.matches.length > 0) r.matched = true
         if (found.matches.length > AST_BOUNDS.editMaxMatches) {
           if (recoveryEntry) over = true
           else deferredRefusal ??= `More than ${AST_BOUNDS.editMaxMatches} matches in one edit — narrow the scope (path or glob) or the rules, then run again. Nothing was written.`
@@ -1105,7 +1178,7 @@ async function planAstBatchRewrite(
           if (shape) {
             const codeNode = locateMatchNode(parsed.tree.rootNode, m, before)
             const local: Edit[] = []
-            if (codeNode && alignEdits(shape.pat, shape.rw, codeNode, m.captures, local)) {
+            if (codeNode && alignEdits(shape.pat, shape.rw, codeNode, m.captures, local, shape.standIn)) {
               local.sort((a, b) => a.start - b.start)
               const nodeText = before.slice(m.startIndex, m.endIndex)
               const guardEdits = [...local, ...uncapturedCommentSpans(codeNode, m.captures)]
@@ -1171,10 +1244,12 @@ async function planAstBatchRewrite(
         if (deferredRefusal !== null || left) break
       }
       if (left) {
+        markUnreadRules()
         leftOut.push(left)
         continue
       }
       if (over) {
+        markUnreadRules()
         damagedOver = true
         held.push({ rel: file.rel, changed: 0 })
         continue
@@ -1371,7 +1446,7 @@ async function planAstBatchRewrite(
       }
     }
   }
-  if (plannedFiles.length === 0 && leftOut.length > 0) return { refused: leftOut[0]!.refusal }
+  if (plannedFiles.length === 0 && leftOut.length > 0 && totalUnchangedMatches === 0) return { refused: leftOut[0]!.refusal }
   if (plannedFiles.length > AST_BOUNDS.editMaxFiles) {
     return {
       refused: `Matches in ${plannedFiles.length} files, more than the ${AST_BOUNDS.editMaxFiles}-file bound for one edit — narrow the scope (path or glob), then run again. Nothing was written.`,
@@ -1393,9 +1468,7 @@ async function planAstBatchRewrite(
       .map(([lang, e]) => ({ lang, files: e.files, note: e.note })),
   }))
 
-  const unmatchedRules = ruleSummaries
-    .filter(r => r.changedMatches === 0 && r.unchangedMatches === 0)
-    .map(r => r.ruleIndex)
+  const unmatchedRules = ruleStates.filter(r => !r.matched).map(r => r.index)
 
   const attributedRefusals = ruleStates.flatMap(r =>
     [...r.refusedLangs.entries()]
@@ -1484,7 +1557,7 @@ export async function planAstRewrite(
 
   const patternCache: CompileCache = new Map()
   const rewriteCache: CompileCache = new Map()
-  const shapeByLang = new Map<string, { pat: TSNode; rw: TSNode } | null>()
+  const shapeByLang = new Map<string, { pat: TSNode; rw: TSNode; standIn?: RegExp } | null>()
   const terminatorByLang = new Map<string, boolean>()
   const encodedPattern = encodePattern(singlePattern)
   const encodedRewrite = encodePattern(singleRewrite)
@@ -1496,15 +1569,15 @@ export async function planAstRewrite(
     terminatorByLang.set(lang.name, spans)
     return spans
   }
-  async function shapeFor(lang: PolyglotLanguage): Promise<{ pat: TSNode; rw: TSNode } | null> {
+  async function shapeFor(lang: PolyglotLanguage): Promise<{ pat: TSNode; rw: TSNode; standIn?: RegExp } | null> {
     const cached = shapeByLang.get(lang.name)
     if (cached !== undefined) return cached
-    let shape: { pat: TSNode; rw: TSNode } | null = null
+    let shape: { pat: TSNode; rw: TSNode; standIn?: RegExp } | null = null
     if (singleRewrite.trim() !== '') {
       const pat = await compileFor(engine as Parameters<typeof compileFor>[0], lang, encodedPattern, patternCache)
       const rw = await compileFor(engine as Parameters<typeof compileFor>[0], lang, encodedRewrite, rewriteCache)
-      if (!('state' in pat) && !('state' in rw) && !pat.pattern.tagMetavars && !rw.pattern.tagMetavars && sameShape(pat.pattern.root, rw.pattern.root)) {
-        shape = { pat: pat.pattern.root, rw: rw.pattern.root }
+      if (!('state' in pat) && !('state' in rw) && !pat.pattern.tagMetavars && !rw.pattern.tagMetavars && sameShape(pat.pattern.root, rw.pattern.root, pat.pattern.standIn, rw.pattern.standIn)) {
+        shape = { pat: pat.pattern.root, rw: rw.pattern.root, ...(pat.pattern.standIn && { standIn: pat.pattern.standIn }) }
       }
     }
     shapeByLang.set(lang.name, shape)
@@ -1616,7 +1689,7 @@ export async function planAstRewrite(
         if (shape && tree) {
           const codeNode = locateMatchNode(tree.rootNode, m, before)
           const local: Edit[] = []
-          if (codeNode && alignEdits(shape.pat, shape.rw, codeNode, m.captures, local)) {
+          if (codeNode && alignEdits(shape.pat, shape.rw, codeNode, m.captures, local, shape.standIn)) {
             local.sort((a, b) => a.start - b.start)
             const nodeText = before.slice(m.startIndex, m.endIndex)
             const guardEdits = [...local, ...uncapturedCommentSpans(codeNode, m.captures)]
@@ -1728,7 +1801,7 @@ export async function planAstRewrite(
     })
   }
   releaseCompiled()
-  if (files.length === 0 && leftOut.length > 0) return { refused: leftOut[0]!.refusal }
+  if (files.length === 0 && leftOut.length > 0 && unchangedMatches === 0) return { refused: leftOut[0]!.refusal }
   const token = rewritePlanToken(singlePattern, singleRewrite, files.map(f => [f.rel, f.digestBefore, f.digestAfter]), leftOut.map(f => f.rel))
   return {
     token,

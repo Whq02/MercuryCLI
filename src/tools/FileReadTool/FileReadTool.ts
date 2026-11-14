@@ -38,6 +38,7 @@ import { isEnvTruthy } from '../../utils/envUtils.js'
 import { isENOENT } from '../../utils/errors.js'
 import {
   addLineNumbers,
+  displayAddressedTarget,
   FILE_NOT_FOUND_CWD_NOTE,
   findSimilarFile,
   getFileModificationTime,
@@ -291,6 +292,7 @@ const resultOutlineBodies = new WeakMap<object, string>()
 
 export const resultResolvedNames = new WeakMap<object, string>()
 const resultPreRenderedBody = new WeakMap<object, string>()
+const resultWithoutProfileHint = new WeakSet<object>()
 
 const REMINDER_TAKEN_CAP = 256
 const reminderTakenBy = new Set<string>()
@@ -1703,7 +1705,7 @@ function serializeTextResult(file: TextFile, data: object): string {
   const capNote = file.overCap === undefined ? '' : `${overCapWords(file)}\n`
   const numbered = resultOutlineBodies.get(data) ?? numberedWindow(file, resultLineAnchors.has(data))
   const anchorSuffix = file.anchor !== undefined ? `\n(anchor: ${file.anchor})` : ''
-  const profileHint = /\.(?:cpuprofile|sample\.txt)$/i.test(file.filePath) ? `\nProfile summary: Read(file_path: ${JSON.stringify(`${file.filePath}#read?view=profile`)}).` : ''
+  const profileHint = !resultWithoutProfileHint.has(data) && /\.(?:cpuprofile|sample\.txt)$/i.test(file.filePath) ? `\nProfile summary: Read(file_path: ${JSON.stringify(`${file.filePath}#read?view=profile`)}).` : ''
   return `${resolvedNote}${prefix}${capNote}${numbered}${conflictMark(file.content)}${cutMark(file)}${anchorSuffix}${queryHint}${profileHint}`
 }
 
@@ -1795,7 +1797,7 @@ export const FileReadTool = buildTool({
     const query = parseReadQueryTarget(input.file_path)
     const source = query?.source ?? input.file_path
     if (hasControlCharacter(source) || windowsPathNeedsPermission(source)) return
-    const expanded = isRemotePath(source) ? remoteIdentity(source) : query !== null && classifyReadTarget(source).kind !== 'file' ? source : expandPath(source)
+    const expanded = isRemotePath(source) ? remoteIdentity(source) : query !== null && classifyReadTarget(source).kind !== 'file' ? source : displayAddressedTarget(source, expandPath)
     input.file_path = query === null ? expanded : `${expanded}${query.suffix}`
   },
   preparePermissionMatcher(input: Input) {
@@ -1928,6 +1930,7 @@ export const FileReadTool = buildTool({
       granted = share < declaredLimits.maxTokens ? { ...declaredLimits, maxTokens: share, room: true } : declaredLimits
       return granted
     }
+    let summaryFoundNone = false
     let query = parseReadQueryTarget(input.file_path)
     if (query?.parameters.view === 'raw') {
       input = { ...input, file_path: query.source, offset: input.offset ?? 1 }
@@ -1940,7 +1943,8 @@ export const FileReadTool = buildTool({
         ? await (await import('./readQuery.js')).readQuery(request)
         : await (await import('./readProfiles.js')).readProfiles(request, true)
       if (rendered?.readSource) input = { ...input, file_path: request.target.source }
-      else if (rendered !== null) {
+      else if (rendered === null) summaryFoundNone = true
+      else {
         const data: Output = {
           type: 'text',
           file: { filePath: input.file_path, content: rendered.content, numLines: rendered.numLines, startLine: 1, totalLines: rendered.numLines },
@@ -1990,6 +1994,7 @@ export const FileReadTool = buildTool({
           ? context.options?.engineModel ? cyberRiskReminderFor(context.options.engineModel) : cyberRiskReminderForCurrentModel()
           : ''
       }
+      if (summaryFoundNone || richTarget?.subtarget !== undefined) resultWithoutProfileHint.add(lane.data)
       const newMessages = [...(lane.newMessages ?? []), ...ignoredParameterNotes()]
       return { data: lane.data, ...(newMessages.length > 0 ? { newMessages } : {}) }
     }

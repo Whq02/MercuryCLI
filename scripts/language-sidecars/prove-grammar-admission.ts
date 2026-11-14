@@ -105,8 +105,9 @@ const ADMITTED: Record<string, Admission> = {
     routes: ['sample.xml', 'sample.xsl', 'sample.xslt', 'sample.svg', 'sample.plist', 'SAMPLE.XML'],
     aliases: ['xsl', 'xslt', 'svg', 'plist'],
     pieceSkip: ['prolog'],
-    refuses: ['<item $$$ATTRS>$T</item>'],
     searches: [
+      { pattern: '<extension $$$ATTRS>$$$KIDS</extension>', count: 1, first: { '$$$ATTRS': 'enabled=\'true\' order="1"' } },
+      { pattern: '<dependency $$$ATTRS>$$$KIDS</dependency>', count: 2, first: { '$$$ATTRS': '' } },
       { pattern: '<version>$V</version>', count: 3, first: { '$V': '1.4.2' } },
       { pattern: '<artifactId>$ID</artifactId>', count: 4 },
       { pattern: 'order=$V', count: 1, first: { '$V': '"1"' } },
@@ -116,8 +117,9 @@ const ADMITTED: Record<string, Admission> = {
   hcl: {
     routes: ['sample.hcl', 'sample.tf', 'sample.tfvars', 'SAMPLE.HCL'],
     aliases: ['tf', 'tfvars', 'terraform'],
-    refuses: ['resource "aws_instance" "web" { $$$BODY }'],
     searches: [
+      { pattern: 'resource "aws_instance" "api" { $$$BODY }', count: 1 },
+      { pattern: 'variable $N { $$$BODY }', count: 2, first: { '$N': '"environment"' } },
       { pattern: 'instance_type = $T', count: 1, first: { '$T': '"t3.small"' } },
       { pattern: 'merge($$$ARGS)', count: 2 },
     ],
@@ -127,8 +129,9 @@ const ADMITTED: Record<string, Admission> = {
     routes: ['sample.graphql', 'sample.gql', 'SAMPLE.GRAPHQL'],
     aliases: ['gql'],
     pieceSkip: ['comment'],
-    refuses: ['type Query { $$$FIELDS }'],
     searches: [
+      { pattern: 'type Query { $$$FIELDS }', count: 1 },
+      { pattern: 'input $N { $$$FIELDS }', count: 2, first: { '$N': 'HarbourInput' } },
       { pattern: 'id: ID!', count: 2 },
       { pattern: 'enum $NAME {\n  $$$VALUES\n}', count: 2, first: { '$NAME': 'TideKind' } },
       { pattern: 'harbour(id: $ID) { $$$SEL }', count: 1, first: { '$ID': '$id' } },
@@ -138,8 +141,12 @@ const ADMITTED: Record<string, Admission> = {
   protobuf: {
     routes: ['sample.proto', 'SAMPLE.PROTO'],
     aliases: ['proto'],
-    refuses: ['message Ping { $$$FIELDS }', 'string id = $N;'],
+    refuses: ['string id = $N;'],
     searches: [
+      { pattern: 'message GetHarbourRequest { $$$FIELDS }', count: 1, first: { '$$$FIELDS': 'string id = 1;' } },
+      { pattern: 'message $M { $$$FIELDS }', count: 6, first: { '$M': 'Harbour' } },
+      { pattern: 'enum $E { $$$VALUES }', count: 1, first: { '$E': 'TideKind' } },
+      { pattern: 'service $S { $$$RPCS }', count: 1, first: { '$S': 'TideService' } },
       { pattern: 'string id = 1;', count: 2 },
       { pattern: 'rpc $NAME($REQ) returns ($RES);', count: 3, first: { '$NAME': 'GetHarbour', '$REQ': 'GetHarbourRequest' } },
       { pattern: 'import $PATH;', count: 2 },
@@ -150,8 +157,10 @@ const ADMITTED: Record<string, Admission> = {
     routes: ['sample.dart', 'SAMPLE.DART'],
     aliases: [],
     pieceSkip: ['function_signature', 'function_body'],
-    refuses: ['void main() { $$$BODY }', 'class $N { $$$M }'],
+    refuses: ['void main() { $$$BODY }'],
     searches: [
+      { pattern: 'class $N { $$$M }', count: 2, first: { '$N': 'Position' } },
+      { pattern: 'if ($COND) { $$$BODY }', count: 1, first: { '$COND': 'sort', '$$$BODY': '_tides.sort((a, b) => a.at.compareTo(b.at));' } },
       { pattern: 'print($X)', count: 3 },
       { pattern: 'harbour.add($$$ARGS)', count: 1 },
       { pattern: 'return $X;', count: 3 },
@@ -161,8 +170,8 @@ const ADMITTED: Record<string, Admission> = {
   scala: {
     routes: ['sample.scala', 'sample.sc', 'sample.sbt', 'SAMPLE.SCALA'],
     aliases: ['sc', 'sbt'],
-    refuses: ['def $N($$$P): $T = $B'],
     searches: [
+      { pattern: 'def $N($$$P): $T = $B', count: 4, first: { '$N': 'add', '$$$P': 'tide: Tide', '$T': 'Unit' } },
       { pattern: 'Left($X)', count: 2 },
       { pattern: 'harbour.add($X)', count: 1, first: { '$X': 'tide' } },
     ],
@@ -181,8 +190,9 @@ const ADMITTED: Record<string, Admission> = {
   zig: {
     routes: ['sample.zig', 'SAMPLE.ZIG'],
     aliases: [],
-    refuses: ['pub fn main() void { $$$BODY }'],
     searches: [
+      { pattern: 'pub fn main() !void { $$$BODY }', count: 1 },
+      { pattern: 'fn $NAME($$$PARAMS) $RET { $$$BODY }', count: 7, first: { '$NAME': 'label', '$$$PARAMS': 'self: Tide' } },
       { pattern: 'allocator.free($X)', count: 2, first: { '$X': 'out' } },
       { pattern: 'try harbour.add($X)', count: 2 },
       { pattern: '@intCast($X)', count: 1 },
@@ -233,8 +243,8 @@ const ADMITTED: Record<string, Admission> = {
   nix: {
     routes: ['sample.nix', 'SAMPLE.NIX'],
     aliases: [],
-    refuses: ['pkgs.mkShell { $$$ATTRS }'],
     searches: [
+      { pattern: 'pkgs.mkShell { $$$ATTRS }', count: 1 },
       { pattern: 'lib.optionals $C $L', count: 1, first: { '$C': 'isDarwin' } },
       { pattern: 'version = $V;', count: 1, first: { '$V': '"1.4.2"' } },
       { pattern: 'builtins.length $X', count: 1 },
@@ -292,8 +302,9 @@ const ADMITTED: Record<string, Admission> = {
   objc: {
     routes: ['sample.m', 'SAMPLE.M'],
     aliases: ['obj-c', 'objective-c', 'm', 'mm'],
-    refuses: ['- (void)$N { $$$BODY }'],
     searches: [
+      { pattern: '- (NSString *)$N { $$$BODY }', count: 1, first: { '$N': 'describe' } },
+      { pattern: 'if ($COND) { $$$BODY }', count: 2, first: { '$COND': 'self' } },
       { pattern: '[harbour addTide:$T]', count: 1, first: { '$T': 'tide' } },
       { pattern: 'NSLog($$$ARGS)', count: 2 },
       { pattern: 'return nil;', count: 1 },
@@ -303,8 +314,8 @@ const ADMITTED: Record<string, Admission> = {
   fortran: {
     routes: ['sample.f90', 'sample.f95', 'sample.f03', 'sample.f08', 'SAMPLE.F90'],
     aliases: ['f90', 'f95', 'f03', 'f08'],
-    refuses: ['do $I = $A, $B\n$$$BODY\nend do'],
     searches: [
+      { pattern: 'do $I = $A, $B\n$$$BODY\nend do', count: 2, first: { '$I': 'i', '$A': '1', '$B': 'harbour%count', '$$$BODY': 'mean = mean + harbour%tides(i)%height' } },
       { pattern: 'call add_tide($$$ARGS)', count: 1 },
       { pattern: 'trim($X)', count: 1, first: { '$X': 'name' } },
     ],
@@ -313,8 +324,10 @@ const ADMITTED: Record<string, Admission> = {
   solidity: {
     routes: ['sample.sol', 'SAMPLE.SOL'],
     aliases: ['sol'],
-    refuses: ['function $N($$$P) external { $$$BODY }', 'contract $N { $$$BODY }'],
     searches: [
+      { pattern: 'function $N($$$P) external onlyOwner { $$$BODY }', count: 1, first: { '$N': 'sweep' } },
+      { pattern: 'contract $N is IRegistry, Ownable { $$$BODY }', count: 1, first: { '$N': 'TideRegistry' } },
+      { pattern: 'struct $S { $$$MEMBERS }', count: 2, first: { '$S': 'Tide' } },
       { pattern: 'emit HarbourAdded($$$ARGS);', count: 1 },
       { pattern: 'keccak256($X)', count: 1 },
       { pattern: 'harbourIds.push($X)', count: 1, first: { '$X': 'id' } },
@@ -324,8 +337,10 @@ const ADMITTED: Record<string, Admission> = {
   verilog: {
     routes: ['sample.v', 'sample.sv', 'sample.svh', 'sample.vh', 'SAMPLE.V'],
     aliases: ['systemverilog', 'sv', 'svh', 'vh', 'v'],
-    refuses: ['module $N($$$PORTS); $$$BODY endmodule'],
     searches: [
+      { pattern: 'module tide_counter_tb; $$$BODY endmodule', count: 1 },
+      { pattern: 'always @(*) begin $$$BODY end', count: 1 },
+      { pattern: 'initial begin $$$BODY end', count: 2 },
       { pattern: 'state <= $V;', count: 2 },
       { pattern: '$display($$$ARGS);', count: 2 },
       { pattern: 'assign full = $E;', count: 1 },

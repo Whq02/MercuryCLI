@@ -23,9 +23,11 @@ function decodeTagMetavar(text: string): string {
   return encoded ? Buffer.from(encoded[1]!, 'hex').toString('ascii') : text
 }
 
-export function metavarOf(node: TSNode, tagMetavars = false): MetavarInfo | null {
+export function metavarOf(node: TSNode, tagMetavars = false, standIn?: RegExp): MetavarInfo | null {
   let text = node.text.trim()
   if (tagMetavars && node.type === 'tag_name') text = decodeTagMetavar(text)
+  const stood = standIn?.exec(text.replace(/[;,]$/, '').trimEnd())
+  if (stood) text = stood.slice(1).find(group => group !== undefined)!
   const quoted = MV_QUOTED.exec(text)
   if (quoted) text = quoted[2]!
   const single = MV_SINGLE.exec(text)
@@ -35,12 +37,12 @@ export function metavarOf(node: TSNode, tagMetavars = false): MetavarInfo | null
   return null
 }
 
-export function metavarOutsideNodes(root: TSNode, text: string, start: number, end: number, tagMetavars = false): string | null {
+export function metavarOutsideNodes(root: TSNode, text: string, start: number, end: number, tagMetavars = false, standIn?: RegExp): string | null {
   const spans: Array<[number, number]> = []
   const stack: TSNode[] = [root]
   while (stack.length > 0) {
     const node = stack.pop()!
-    if (metavarOf(node, tagMetavars)) {
+    if (metavarOf(node, tagMetavars, standIn)) {
       spans.push([node.startIndex, node.endIndex])
       continue
     }
@@ -64,6 +66,9 @@ export interface CompiledPattern {
   captureNames: string[]
   spansTerminator?: boolean
   tagMetavars?: true
+  standIn?: RegExp
+  detached?: Record<string, string>
+  also?: string[]
 }
 
 const PATTERN_CONTEXTS: Record<string, string[]> = {
@@ -121,6 +126,158 @@ interface PatternCandidate {
   length: number
   spansTerminator?: boolean
   tagMetavars?: true
+  quoted?: true
+  standIn?: RegExp
+  stood?: Array<StoodMember>
+}
+
+interface StoodMember {
+  mark: string
+  start: number
+  end: number
+  ended: number
+  within: string[]
+}
+
+const STAND_INS: Record<string, Array<{ as: string; within: string[] }>> = {
+  java: [{ as: '<M>;', within: ['block', 'constructor_body', 'switch_block_statement_group'] }, { as: 'int <M>;', within: ['class_body', 'interface_body', 'enum_body_declarations'] }, { as: 'int <M>', within: ['formal_parameters'] }],
+  'c-sharp': [{ as: '<M>();', within: ['block', 'switch_section'] }, { as: 'int <M>;', within: ['declaration_list'] }],
+  c: [{ as: '<M>;', within: ['compound_statement', 'case_statement'] }, { as: 'int <M>;', within: ['field_declaration_list'] }],
+  cpp: [{ as: '<M>;', within: ['compound_statement', 'case_statement'] }, { as: 'int <M>;', within: ['field_declaration_list', 'declaration_list'] }],
+  css: [{ as: '<M>: 0;', within: ['block'] }],
+  json: [{ as: '"<M>": 0', within: ['object'] }],
+  zig: [{ as: '<M>;', within: ['block'] }],
+  dart: [{ as: '<M>;', within: ['block', 'switch_statement_case'] }, { as: 'var <M>;', within: ['class_body', 'extension_body'] }],
+  objc: [{ as: '<M>;', within: ['compound_statement', 'case_statement'] }],
+  solidity: [{ as: '<M>;', within: ['function_body', 'block_statement'] }, { as: 'uint <M>;', within: ['contract_body', 'struct_body'] }],
+  verilog: [{ as: '<M>;', within: ['seq_block', 'par_block'] }, { as: 'wire <M>;', within: ['module_declaration', 'generate_block', 'interface_declaration'] }],
+  fortran: [{ as: 'call <M>()', within: ['program', 'subroutine', 'function', 'do_loop', 'if_statement', 'elseif_clause', 'else_clause', 'case_statement', 'block_construct', 'associate_statement', 'where_statement'] }],
+  hcl: [{ as: '<M> = 0', within: ['body', 'object'] }],
+  graphql: [{ as: '<M>: Int', within: ['fields_definition', 'input_fields_definition', 'arguments_definition', 'arguments', 'object_value'] }],
+  protobuf: [{ as: 'int32 <M> = 1;', within: ['message_body', 'oneof'] }, { as: '<M> = 0;', within: ['enum_body'] }, { as: 'rpc <M>(A) returns (B);', within: ['service'] }],
+  nix: [{ as: '<M> = 0;', within: ['binding_set'] }],
+  sql: [{ as: '<M> INT', within: ['column_definitions'] }],
+  lua: [{ as: '<M>()', within: ['block'] }],
+  cmake: [{ as: '<M>()', within: ['body'] }],
+  xml: [{ as: '<M>="0"', within: ['STag', 'EmptyElemTag'] }],
+  scala: [{ as: '<M> : Int', within: ['parameters', 'class_parameters'] }],
+}
+
+const STAND_IN_TRIES = 32
+
+export function standInCandidates(langName: string, candidate: PatternCandidate): PatternCandidate[] {
+  const templates = STAND_INS[langName]
+  if (!templates || candidate.quoted) return []
+  const from = candidate.offset
+  const marks = [...candidate.text.slice(from, from + candidate.length).matchAll(/__MVM?_[A-Za-z0-9_]*?__/g)]
+    .map(found => ({ at: from + found.index!, text: found[0] }))
+    .filter(mark => !/[.\w$]/.test(candidate.text[mark.at - 1] ?? '') && !/[.([\w$]/.test(candidate.text[mark.at + mark.text.length] ?? ''))
+  if (marks.length === 0) return []
+  const subsets: Array<typeof marks> = []
+  const tried = new Set<string>()
+  const add = (subset: typeof marks): void => {
+    const key = subset.map(mark => mark.at).join(',')
+    if (subset.length === 0 || tried.has(key) || subsets.length >= STAND_IN_TRIES) return
+    tried.add(key)
+    subsets.push(subset)
+  }
+  add(marks.filter(mark => mark.text.startsWith('__MVM_')))
+  for (let size = 1; size <= marks.length; size++) {
+    const pick = (start: number, chosen: typeof marks): void => {
+      if (chosen.length === size) {
+        add(chosen)
+        return
+      }
+      for (let i = start; i < marks.length && subsets.length < STAND_IN_TRIES; i++) pick(i + 1, [...chosen, marks[i]!])
+    }
+    pick(0, [])
+  }
+  const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const sides = (as: string): [string, string] => as.replace(/[;,]$/, '').split('<M>') as [string, string]
+  const place = (placed: Array<{ mark: (typeof marks)[number]; row: (typeof templates)[number] }>): PatternCandidate => {
+    let text = candidate.text
+    let shift = 0
+    const stood: StoodMember[] = []
+    const forms = new Map<string, Set<string>>()
+    for (const { mark, row } of placed) {
+      const [before, after] = sides(row.as)
+      const start = mark.at + shift
+      const put = row.as.replace('<M>', () => mark.text)
+      text = `${text.slice(0, start)}${put}${text.slice(start + mark.text.length)}`
+      stood.push({ mark: mark.text, start, end: start + before.length + mark.text.length + after.length, ended: start + put.length, within: row.within })
+      shift += put.length - mark.text.length
+      forms.set(row.as, (forms.get(row.as) ?? new Set<string>()).add(mark.text))
+    }
+    const standIn = new RegExp(`^(?:${[...forms].map(([as, names]) => `${escape(sides(as)[0])}(${[...names].join('|')})${escape(sides(as)[1])}`).join('|')})$`)
+    return { ...candidate, text, length: candidate.length + shift, standIn, stood }
+  }
+  const out: PatternCandidate[] = []
+  for (const row of templates) for (const subset of subsets) out.push(place(subset.map(mark => ({ mark, row }))))
+  const sequences = marks.filter(mark => mark.text.startsWith('__MVM_'))
+  if (templates.length > 1 && sequences.length > 1) {
+    const mixed: PatternCandidate[] = []
+    const assign = (chosen: number[]): void => {
+      if (mixed.length >= STAND_IN_TRIES) return
+      if (chosen.length === sequences.length) {
+        if (new Set(chosen).size > 1) mixed.push(place(sequences.map((mark, i) => ({ mark, row: templates[chosen[i]!]! }))))
+        return
+      }
+      for (let row = 0; row < templates.length; row++) assign([...chosen, row])
+    }
+    assign([])
+    out.push(...mixed)
+  }
+  return out
+}
+
+export function standsAsMember(pattern: TSNode, member: StoodMember): 'whole' | 'detached' | null {
+  const whole = findExactSpanNode(pattern, member.start, member.ended)
+  let node = whole ?? findExactSpanNode(pattern, member.start, member.end)
+  if (node === null || (node.startIndex === pattern.startIndex && node.endIndex === pattern.endIndex)) return null
+  const from = node.startIndex
+  const to = node.endIndex
+  for (;;) {
+    if (member.within.includes(node.type)) return whole !== null || member.ended === member.end ? 'whole' : 'detached'
+    if (node.startIndex !== from || node.endIndex !== to || node.parent === null) return null
+    node = node.parent
+  }
+}
+
+const ALSO_FOUND: Record<string, Record<string, string[]>> = {
+  'c-sharp': { local_function_statement: ['method_declaration'] },
+}
+
+export function alsoFound(langName: string, kind: string): string[] | undefined {
+  return ALSO_FOUND[langName]?.[kind]
+}
+
+const CLAUSE_WORDS = /^(?:if|for|while|switch|catch|else|finally|do|try)$/
+
+export function namedByAClauseWord(pattern: TSNode): boolean {
+  let leaf = pattern
+  while (leaf.childCount > 0) leaf = leaf.children[0]!
+  return leaf.isNamed && leaf.type !== leaf.text && CLAUSE_WORDS.test(leaf.text)
+}
+
+export function captureKeyOf(mark: string): string {
+  const multi = MV_MULTI.exec(mark)
+  return multi ? `$$$${multi[1]}` : `$${MV_SINGLE.exec(mark)?.[1] ?? ''}`
+}
+
+const SPLIT_DECLARATIONS: Record<string, { whole: string[]; part: string; statement: RegExp; says: string }> = {
+  dart: {
+    whole: ['lambda_expression', 'local_function_declaration'],
+    part: 'function_body',
+    statement: /^(?:if|for|while|switch|catch)\b/,
+    says: 'a function is two nodes there, its signature and its body: write the signature alone, or a statement of the body',
+  },
+}
+
+export function splitDeclaration(langName: string, node: TSNode): { says: string | null } | null {
+  const split = SPLIT_DECLARATIONS[langName]
+  if (!split) return null
+  if (!split.whole.includes(node.type) && !(node.parent === null && node.namedChildren.some(child => child.type === split.part))) return null
+  return { says: split.statement.test(node.text.trimStart()) ? null : split.says }
 }
 
 export function patternCandidates(langName: string, encoded: string): PatternCandidate[] {
@@ -129,7 +286,7 @@ export function patternCandidates(langName: string, encoded: string): PatternCan
     ? original.replace(/(<\/?)(__MVM?_[A-Za-z0-9_]*?__)(?=[\s/>])/g, (_all, open: string, marker: string) => `${open}mercurymv${Buffer.from(marker).toString('hex')}`)
     : original
   const bare = candidatesFor(langName, trimmed)
-  const quoted = /__MVM?_[A-Za-z0-9_]*?__/.test(trimmed) ? candidatesFor(langName, quotePlaceholders(trimmed)) : []
+  const quoted = /__MVM?_[A-Za-z0-9_]*?__/.test(trimmed) ? candidatesFor(langName, quotePlaceholders(trimmed)).map(candidate => ({ ...candidate, quoted: true as const })) : []
   return [...bare, ...quoted].map(candidate => trimmed === original ? candidate : { ...candidate, tagMetavars: true })
 }
 
@@ -171,19 +328,19 @@ export function findExactSpanNode(root: TSNode, start: number, end: number, text
   return found
 }
 
-function collectCaptureNames(node: TSNode, into: Set<string>, tagMetavars: boolean): void {
-  const mv = metavarOf(node, tagMetavars)
+function collectCaptureNames(node: TSNode, into: Set<string>, tagMetavars: boolean, standIn?: RegExp): void {
+  const mv = metavarOf(node, tagMetavars, standIn)
   if (mv?.name) {
     into.add(mv.kind === 'multi' ? `$$$${mv.name}` : `$${mv.name}`)
     return
   }
-  for (const child of node.namedChildren) collectCaptureNames(child, into, tagMetavars)
+  for (const child of node.namedChildren) collectCaptureNames(child, into, tagMetavars, standIn)
 }
 
-export function compilePatternRoot(patternNode: TSNode, tagMetavars = false): CompiledPattern {
+export function compilePatternRoot(patternNode: TSNode, tagMetavars = false, standIn?: RegExp, detached?: Record<string, string>): CompiledPattern {
   const names = new Set<string>()
-  collectCaptureNames(patternNode, names, tagMetavars)
-  return { root: patternNode, captureNames: [...names].sort(), ...(tagMetavars && { tagMetavars: true }) }
+  collectCaptureNames(patternNode, names, tagMetavars, standIn)
+  return { root: patternNode, captureNames: [...names].sort(), ...(tagMetavars && { tagMetavars: true }), ...(standIn && { standIn }), ...(detached && { detached }) }
 }
 
 
@@ -215,6 +372,7 @@ export function significantChildren(node: TSNode): TSNode[] {
 interface MatchState {
   captures: Map<string, CaptureSpan>
   tagMetavars?: boolean
+  standIn?: RegExp
 }
 
 function bindCapture(state: MatchState, key: string, start: number, end: number, text: string): boolean {
@@ -225,7 +383,7 @@ function bindCapture(state: MatchState, key: string, start: number, end: number,
 }
 
 function matchNodePair(pat: TSNode, code: TSNode, state: MatchState): boolean {
-  const mv = metavarOf(pat, state.tagMetavars)
+  const mv = metavarOf(pat, state.tagMetavars, state.standIn)
   if (mv) {
     if (mv.kind === 'multi') {
       return mv.name === null || bindCapture(state, `$$$${mv.name}`, code.startIndex, code.endIndex, code.text)
@@ -248,7 +406,7 @@ function matchSequence(pats: TSNode[], codes: TSNode[], state: MatchState): bool
   function step(pi: number, ci: number): boolean {
     if (pi === pats.length) return ci === codes.length
     const pat = pats[pi]!
-    const mv = metavarOf(pat, state.tagMetavars)
+    const mv = metavarOf(pat, state.tagMetavars, state.standIn)
     if (mv?.kind === 'multi') {
       for (let take = 0; ci + take <= codes.length; take++) {
         const snapshot = new Map(state.captures)
@@ -301,11 +459,19 @@ export function findPatternMatches(
       break
     }
     const node = stack.pop()!
-    const state: MatchState = { captures: new Map(), tagMetavars: pattern.tagMetavars }
-    if (matchNodePair(pattern.root, node, state)) {
-      const captures = [...state.captures.values()].map(c =>
-        c.endIndex > c.startIndex ? { ...c, text: sourceText.slice(c.startIndex, c.endIndex) } : c,
-      )
+    const state: MatchState = { captures: new Map(), tagMetavars: pattern.tagMetavars, standIn: pattern.standIn }
+    if (matchNodePair(pattern.root, node, state) || (pattern.also?.includes(node.type) === true && matchSequence(significantChildren(pattern.root), significantChildren(node), state))) {
+      const captures = [...state.captures.values()].map(c => {
+        if (c.endIndex <= c.startIndex) return c
+        let endIndex = c.endIndex
+        const closer = pattern.detached?.[c.key]
+        if (closer !== undefined) {
+          let next = endIndex
+          while (/\s/.test(sourceText[next] ?? '')) next++
+          if (sourceText[next] === closer) endIndex = next + 1
+        }
+        return { ...c, endIndex, text: sourceText.slice(c.startIndex, endIndex) }
+      })
       matches.push({ node, captures })
     }
     const kids = node.namedChildren

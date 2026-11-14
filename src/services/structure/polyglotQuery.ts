@@ -7,10 +7,16 @@ import {
   type PolyglotLanguage,
 } from './grammarFacility.js'
 import {
+  alsoFound,
+  captureKeyOf,
   compilePatternRoot,
   findExactSpanNode,
   metavarOutsideNodes,
+  namedByAClauseWord,
   patternCandidates,
+  splitDeclaration,
+  standInCandidates,
+  standsAsMember,
   type CompiledPattern,
 } from './pattern.js'
 import { normalizeFileGlobs, posixRelative } from './scanPaths.js'
@@ -194,18 +200,66 @@ export async function compileFor(
   let recovery: { pattern: CompiledPattern; hold: { delete(): void } } | null = null
   let firstError: string | null = null
   let textOnly: string | null = null
+  let split: string | null = null
+  const candidates = patternCandidates(lang.name, encoded)
+  let held: { pattern: CompiledPattern; hold: { delete(): void } } | null = null
+  const settle = (compiled: { pattern: CompiledPattern; hold: { delete(): void } }): { pattern: CompiledPattern; hold: { delete(): void } } => {
+    const also = alsoFound(lang.name, compiled.pattern.root.type)
+    const settled = also ? { pattern: { ...compiled.pattern, also }, hold: compiled.hold } : compiled
+    cache.set(lang.name, settled)
+    return settled
+  }
 
-  for (const candidate of patternCandidates(lang.name, encoded)) {
+  const stoodIn = async (candidate: (typeof candidates)[number]): Promise<{ pattern: CompiledPattern; hold: { delete(): void }; holdsItsMembers: boolean } | null> => {
+    for (const stood of standInCandidates(lang.name, candidate)) {
+      const parsed = await parsePolyglot(engine, lang, stood.text)
+      if ('state' in parsed) return null
+      const node = parsed.parseErrors.length === 0 ? findExactSpanNode(parsed.tree.rootNode, stood.offset, stood.offset + stood.length, stood.text) : null
+      const halves = node === null ? null : splitDeclaration(lang.name, node)
+      if (halves?.says) split ??= halves.says
+      const members = node === null ? [] : stood.stood!.map(member => standsAsMember(node, member))
+      if (!node || node.parent === null || halves !== null || members.includes(null) || namedByAClauseWord(node) || metavarOutsideNodes(node, stood.text, stood.offset, stood.offset + stood.length, stood.tagMetavars, stood.standIn)) {
+        parsed.tree.delete()
+        continue
+      }
+      const detached = Object.fromEntries(stood.stood!.flatMap((member, i) => (members[i] === 'detached' ? [[captureKeyOf(member.mark), stood.text[member.ended - 1]!]] : [])))
+      return {
+        pattern: { ...compilePatternRoot(node, stood.tagMetavars, stood.standIn, Object.keys(detached).length > 0 ? detached : undefined), ...(stood.spansTerminator && { spansTerminator: true }) },
+        hold: parsed.tree,
+        holdsItsMembers: stood.stood!.some(member => member.within.includes(node.type)),
+      }
+    }
+    return null
+  }
+
+  for (const candidate of candidates) {
     const parsed = await parsePolyglot(engine, lang, candidate.text)
     if ('state' in parsed) {
       const refusal = { state: 'refused' as const, note: parsed.note }
       cache.set(lang.name, refusal)
       if (recovery) recovery.hold.delete()
+      if (held) held.hold.delete()
       return refusal
     }
     const node = findExactSpanNode(parsed.tree.rootNode, candidate.offset, candidate.offset + candidate.length, candidate.text)
+    if (parsed.parseErrors.length > 0 && held === null) {
+      const stood = await stoodIn(candidate)
+      if (stood?.holdsItsMembers) held = { pattern: stood.pattern, hold: stood.hold }
+      else if (stood) {
+        parsed.tree.delete()
+        if (recovery) recovery.hold.delete()
+        return settle({ pattern: stood.pattern, hold: stood.hold })
+      }
+    }
     if (!node) {
       firstError ??= parsed.parseErrors[0] ?? 'no single node spans the pattern'
+      parsed.tree.delete()
+      continue
+    }
+    const halves = splitDeclaration(lang.name, node)
+    if (halves !== null) {
+      if (halves.says === null) firstError ??= parsed.parseErrors[0] ?? 'no single node spans the pattern'
+      else split ??= halves.says
       parsed.tree.delete()
       continue
     }
@@ -219,9 +273,8 @@ export async function compileFor(
     }
     if (parsed.parseErrors.length === 0) {
       if (recovery) recovery.hold.delete()
-      const compiled = { pattern: { ...compilePatternRoot(node, candidate.tagMetavars), ...(candidate.spansTerminator && { spansTerminator: true }) }, hold: parsed.tree }
-      cache.set(lang.name, compiled)
-      return compiled
+      if (held) held.hold.delete()
+      return settle({ pattern: { ...compilePatternRoot(node, candidate.tagMetavars), ...(candidate.spansTerminator && { spansTerminator: true }) }, hold: parsed.tree })
     }
     firstError ??= parsed.parseErrors[0]!
     if (!recovery && !node.hasError) {
@@ -232,13 +285,14 @@ export async function compileFor(
   }
 
   if (recovery) {
-    cache.set(lang.name, recovery)
-    return recovery
+    if (held) held.hold.delete()
+    return settle(recovery)
   }
+  if (held) return settle(held)
   const refusal: PatternRefusal = {
     state: 'refused' as const,
-    note: `the pattern does not parse as ${lang.name} (${firstError ?? textOnly ?? 'no parse'})`,
-    ...(firstError === null && textOnly !== null && { textOnly: true }),
+    note: `the pattern does not parse as ${lang.name} (${split ?? firstError ?? textOnly ?? 'no parse'})`,
+    ...(split === null && firstError === null && textOnly !== null && { textOnly: true }),
   }
   cache.set(lang.name, refusal)
   return refusal

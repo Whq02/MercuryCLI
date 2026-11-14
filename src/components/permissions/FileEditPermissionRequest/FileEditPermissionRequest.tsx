@@ -12,6 +12,7 @@ import {
 } from '../../../services/changeTransaction/hunks.js'
 import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js'
 import { isRemotePath, remoteLastRead } from '../../../services/remoteFiles/target.js'
+import { displayAddressedTarget } from '../../../utils/file.js'
 import { FilePermissionDialog } from '../FilePermissionDialog/FilePermissionDialog.js'
 import { planAppend, planSectionEdit } from '../../../tools/FileEditTool/sectionEdit.js'
 import type { FileEdit } from '../../../tools/FileEditTool/types.js'
@@ -143,7 +144,7 @@ export function FileEditPermissionRequest({
       onReject={onReject}
       title="Edit file"
       subtitle={
-        isRemotePath(parsed.file_path) ? <RemotePathSubtitle path={parsed.file_path} /> : relative(getFocusedSessionConnector().workspace().cwd, parsed.file_path)
+        isRemotePath(parsed.file_path) ? <RemotePathSubtitle path={parsed.file_path} /> : displayAddressedTarget(parsed.file_path, container => relative(getFocusedSessionConnector().workspace().cwd, container))
       }
       question={
         <Text bold>

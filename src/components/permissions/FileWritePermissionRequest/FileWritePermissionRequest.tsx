@@ -6,6 +6,7 @@ import { Text } from '../../../ink.js'
 import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js'
 import { isRemotePath, remoteLastRead } from '../../../services/remoteFiles/target.js'
 import { isENOENT } from '../../../utils/errors.js'
+import { displayAddressedTarget } from '../../../utils/file.js'
 import { FilePermissionDialog } from '../FilePermissionDialog/FilePermissionDialog.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
 import { RemotePathSubtitle } from '../RemotePathSubtitle.js'
@@ -55,16 +56,17 @@ function PlainFileWritePermissionRequest({
     [parsed.file_path, remote, lastRead],
   )
 
+  const row = useMemo(() => !remote && parseStructuredWriteTarget(parsed.file_path)?.kind === 'sqlite-row', [parsed.file_path, remote])
   const verb = existing.exists ? 'overwrite' : 'create'
   return (
     <FilePermissionDialog<WriteToolInput>
       toolUseConfirm={toolUseConfirm}
       onDone={onDone}
       onReject={onReject}
-      title={remote ? 'Edit file' : existing.exists ? 'Overwrite file' : 'Create file'}
-      subtitle={remote ? <RemotePathSubtitle path={parsed.file_path} /> : relative(getFocusedSessionConnector().workspace().cwd, parsed.file_path)}
+      title={remote ? 'Edit file' : row ? 'Write SQLite row' : existing.exists ? 'Overwrite file' : 'Create file'}
+      subtitle={remote ? <RemotePathSubtitle path={parsed.file_path} /> : displayAddressedTarget(parsed.file_path, container => relative(getFocusedSessionConnector().workspace().cwd, container))}
       question={
-        remote ? undefined : (
+        remote ? undefined : row ? 'Write this row?' : (
           <Text bold>
             Do you want to {verb} <Text bold>{basename(parsed.file_path)}</Text>?
           </Text>
