@@ -38,31 +38,109 @@ range, node type, source text and captures.
 
 ## Languages
 
-Detection is per file, by extension (a basename first, then the extension);
-`lang` forces one. The registry
-routes 23 languages; what a build carries is what the tools advertise:
-the descriptions list the grammars found in the engine dir the
-runtime resolves (`dist/vendor/treesitter` beside the bundle, or the
-workspace package for source runs), never the registry alone:
+Detection is per file, by its name: a basename first (`Dockerfile`), then
+the extension, then a basename prefix (`Dockerfile.dev`). `lang` forces one
+grammar on a single file whatever its name; over a directory it keeps the
+files whose names route to that grammar. The registry routes 57 languages;
+what a build carries is what the tools advertise: the `lang` field counts the
+grammars found in the engine dir the runtime resolves
+(`dist/vendor/treesitter` beside the bundle, or the workspace package for
+source runs), never the registry alone, and the answer to a name the build
+does not carry lists them:
 
 - The `@vscode/tree-sitter-wasm` pack (python · go · rust · javascript ·
   typescript · tsx · bash · c-sharp · cpp · css · java · php · ruby ·
   powershell · ini · regex) is a devDependency: `bun install` brings it,
   every build vendors it. A clean clone's local build carries these 16.
-- The grammar-pack extension (c · html · json · toml · kotlin · swift · vue)
-  is the lock-pinned `tree-sitter-wasms` cache (`vendor/grammars.lock.json`,
-  per-file sha256, tarball sha512). The swift wasm is pinned directly from
-  the grammar's own upstream release (the pack's older
-  build crashes the runtime's wasm compiler; swift is auditioned in a
-  disposable child on first use either way, and a failing blob is refused by
-  name instead of taking the process down). There is no postinstall: you
-  prepare it with `bun run scripts/vendor/fetch-grammars.ts` (the one
-  network step; `--check` validates the cache offline) and rebuild. Release
-  archives carry all 23. A local build without the cache says so at build
-  time (`vendored WITHOUT them`), the manifest records
+- The grammar cache carries the rest, each pinned in
+  `vendor/grammars.lock.json` by its own sha256 with the source it comes
+  from, the upstream commit and the licence. Of the first 23: c · html ·
+  json · toml · kotlin · vue from the `tree-sitter-wasms` pack and swift
+  from its own release. The 34 added since: yaml · markdown · dockerfile ·
+  lua · make · xml · hcl · scala · elixir · zig · haskell · ocaml · svelte ·
+  r · julia · starlark · objc · solidity · verilog · odin · tlaplus · diff
+  from the grammar's own release or npm package; sql · cmake · graphql ·
+  protobuf · dart · astro · nix · clojure · erlang · fortran · just from a
+  third party's builds, named as such in the lock, because those grammars
+  publish no build of their own (dart's own misreads a type alias); and
+  emacs-lisp from the `tree-sitter-wasms` pack. There is no postinstall:
+  you prepare the cache with `bun run scripts/vendor/fetch-grammars.ts`
+  (the one network step; `--check` validates the cache offline) and
+  rebuild. Release archives carry all 57. A local build without the cache
+  says so at build time (`vendored WITHOUT them`), the manifest records
   `degraded: structure-polyglot-extended` and `mercury health` names it; the
   artifact's own `dist/vendor/treesitter/vendor.json` lists the grammars it
-  carries.
+  carries, `GRAMMAR-NOTICES.json` beside it records each one's repository,
+  commit and copyright line, and the licence text of each cache grammar,
+  read at that commit, ships under `grammar-licences/` there.
+
+The languages added since the first 23 are read by AstSearch and AstEdit
+only: the parse note an edit gives and the outline Read draws keep to the
+first 23. Each of them, like swift, is auditioned in a disposable child the
+first time a process uses it, and a grammar file that fails there is refused
+by name instead of taking the process down.
+
+Beside code these languages cost a search nothing it did not ask for. A
+file of theirs that cannot contain the pattern's longest word is counted and
+never parsed, so its grammar is not loaded, and one of more than 6 MB is
+counted as skipped by its size and never opened. And a pattern whose
+meta-variable would be plain text in one of them (`$X` inside a Markdown
+paragraph or a YAML scalar) is refused for that language by name (`$X is
+text there, not a node`) where it would have parsed and matched nothing;
+those files are listed under `Not searched`.
+
+In these languages line endings and a missing final newline do not matter: a
+file with CRLF line endings is searched and rewritten as it stands. Markdown
+is read by its blocks (headings, lists, fenced code, tables, paragraphs);
+the text inside a paragraph is one node, so `## $TITLE` finds every
+second-level heading and a pattern cannot reach a word inside a sentence.
+
+A pattern compares the nodes a grammar names and the fields it labels; a
+keyword a grammar keeps as an unnamed token is not compared. In these
+languages that shows where one node kind has several spellings: in a
+Makefile `include $F` also finds `-include`, and in Protocol Buffers
+`import $P;` also finds `import public …;` and an `rpc` pattern also finds
+the streaming ones. A `$$$` list is refused where a member is never a bare
+word: the body of an HCL block, the fields of a GraphQL type, the body of a
+Protocol Buffers message, the attributes of an XML tag; name a member
+(`instance_type = $T`, `id: ID!`, `string id = 1;`, `order=$V`) or write the
+block out. A Protocol Buffers field number is a number, never a
+meta-variable.
+
+Dart has no call node: a call is a statement there, so `print($X)` finds
+the statement, with or without its `;`, and a rewrite that leaves the `;`
+out keeps the statement's own. A body written `{ $$$BODY }` is refused in
+Dart and Zig, as it is in Java and C#: name a statement of the body. In
+Haskell and OCaml a meta-variable reads as a lower-case name, so it stands
+for a value, a variable or a pattern and never for a module or a
+constructor: `open $M` is refused in OCaml, and `import $M` is no import
+pattern in Haskell (write the module out). A Scala parameter list is
+`name: Type` pairs, so `def $N($$$P)` is refused; `$F($$$ARGS)` finds the
+calls.
+
+Svelte and Astro files are read as markup: elements, attributes, blocks (an
+`{#if $COND}` block to its end) and text. A script, an Astro front matter
+and every `{expression}` is one node of plain text to these grammars, so a
+code pattern (`count($X)`) is refused there; `{$E}` finds an expression
+whole.
+In Nix a binding (`version = $V;`), an `inherit` and a call (`mkShell $A`)
+are patterns; an attribute set written with a `$$$` list is refused.
+
+Objective-C is read from `.m` files; a header stays C unless `lang` names
+`objc` for that one file. Its grammar does not read Foundation's enum
+macros or the nullability wrapper: a file that holds a
+`typedef NS_ENUM(…) { … };`, an `NS_OPTIONS`, or is wrapped in
+`NS_ASSUME_NONNULL_BEGIN` and `NS_ASSUME_NONNULL_END` is reported as not
+parsing and is never matched over. Verilog files (`.v`, `.sv`, `.svh`,
+`.vh`) are read by a SystemVerilog grammar. A body written `{ $$$BODY }`,
+or a block with a `$$$` body, is refused in Objective-C, Solidity, Fortran
+and Verilog too; name a statement (`[$OBJ addObject:$X]`, `emit Ran($X);`,
+`call greet($X)`, `$A <= $B;`). A diff is read line by line: a changed line
+is one node, so `-int old(void);` finds that line and `+$X` is refused. The
+recipe lines of a justfile, like a Makefile's, are text; its aliases,
+settings, variables and recipe headers are nodes. Emacs Lisp and Clojure
+forms, and calls and definitions in R, Julia, Starlark, Erlang, Odin and
+TLA+, are written as they stand.
 
 In a build that lacks a grammar the registry routes: a file of that
 language is skipped and counted by extension with the remedy named in the
@@ -72,7 +150,11 @@ skipped and counted, never text-matched; a file that does not parse is
 reported per file, never matched over. The engine is pure WASM (no native
 dependency, one vendored asset set for every platform artifact); when no
 engine resolves at all, neither tool is in the catalog. Friendly spellings
-resolve (`ts`, `js`, `py`, `rs`, `cs`, `c++`, `sh`, `rb`, `kt`, `ps1`).
+resolve (`ts`, `js`, `py`, `rs`, `cs`, `c++`, `sh`, `rb`, `kt`, `ps1`); for
+an added language every extension without its dot is a name too (`yml`,
+`md`, `tf`, `proto`, `ex`, `hs`, `ml`, `jl`, `sol`, `sv`), beside the usual
+ones (`docker`, `makefile`, `terraform`, `gql`, `objective-c`, `elisp`,
+`systemverilog`, `tla+`, `patch`).
 
 ## AstSearch
 
@@ -133,6 +215,44 @@ meta-variable the pattern does not capture; an anonymous `$$$` or `$_` in
 the rewrite; a rewrite that would leave a file unparsable (the line is
 named); more than 100 files or 500 matches in one edit. Matches already in
 the rewritten form are counted and left alone.
+
+## Memory: the held grammars
+
+The JavaScript engine Mercury runs on recompiles hot WebAssembly with an
+optimising compiler. For a grammar with a very large lexer that
+recompilation costs the process resident memory out of all proportion to
+the speed it buys, so a grammar whose optimiser costs 400 MB or more is
+parsed with the optimiser held off: its own lexer stays baseline code, while
+the engine's shared runtime and every other grammar keep full speed. The
+threshold sits in a gap of the measured costs: the next grammar below it
+costs 291 MB.
+
+| Grammar | Resident memory under sustained parsing, free | Held | Parse speed held |
+| --- | --- | --- | --- |
+| fortran | 3,052 MB | 104 MB | 97% |
+| swift | 3,022 MB | 94 MB | 73% |
+| powershell | 2,181 MB | 87 MB | 83% |
+| bash | 625 MB | 84 MB | 80% |
+| verilog | 608 MB | 149 MB | 88% |
+| kotlin | 566 MB | 93 MB | 86% |
+| objc | 558 MB | 95 MB | 80% |
+| tlaplus | 521 MB | 96 MB | 93% |
+| markdown | 505 MB | 84 MB | 91% |
+
+These are readings of one process a grammar on macOS (Apple silicon) under
+the runtime Mercury ships: 400 parses of a small file, then a few seconds
+idle. The bash grammar also reads every Bash command for the permission
+check, so its row is memory a long session used to carry whether or not it
+searched by structure.
+
+The heavy grammars under the threshold keep the optimiser and what it
+costs: cpp about 290 MB, scala 235 MB, julia 225 MB, elixir 185 MB, c
+170 MB, c-sharp 155 MB, sql 135 MB, ocaml 130 MB, css 120 MB.
+
+`MERCURY_GRAMMAR_BASELINE=0` lets every grammar reach the optimiser: full
+parse speed for the held ones, at the memory of the "free" column. The hold
+is also off when Mercury runs on an engine other than V8, and when node was
+started with WebAssembly tiering flags of your own.
 
 ## Gate
 

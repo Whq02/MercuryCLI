@@ -1,11 +1,12 @@
 #!/usr/bin/env bun
 
+import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('../../src/services/structure/grammarRegistry.ts')
-const { languageForFile, languageByName } = await import('../../src/services/structure/grammarFacility.ts')
+const { languageForFile, languageByName, patternLanguageForFile } = await import('../../src/services/structure/grammarFacility.ts')
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -39,7 +40,7 @@ function check(label: string, ok: boolean, detail = ''): void {
   const lockPath = join(ROOT, 'vendor', 'grammars.lock.json')
   check('grammar-pack lock present', existsSync(lockPath))
   if (existsSync(lockPath)) {
-    const lock = JSON.parse(readFileSync(lockPath, 'utf8')) as { grammars: Array<{ wasm: string; sha256: string; upstream?: { license?: string } }> }
+    const lock = JSON.parse(readFileSync(lockPath, 'utf8')) as { grammars: Array<{ wasm: string; sha256: string; licence?: { file: string; sha256: string; url: string }; upstream?: { license?: string; commit?: string } }> }
     const lockWasms = new Set(lock.grammars.map(g => g.wasm))
     const noLock = packEntries.filter(g => !lockWasms.has(g.wasm)).map(g => g.wasm)
     check('every grammar-pack registry entry has a lock row', noLock.length === 0, noLock.join(','))
@@ -47,6 +48,14 @@ function check(label: string, ok: boolean, detail = ''): void {
     const orphanLock = lock.grammars.filter(g => !registered.has(g.wasm)).map(g => g.wasm)
     check('every lock row has a registry entry (two-way)', orphanLock.length === 0, orphanLock.join(','))
     check('every lock row carries an upstream licence', lock.grammars.every(g => !!g.upstream?.license))
+    const unpinned = lock.grammars.filter(g => !/^[0-9a-f]{40}$/.test(g.upstream?.commit ?? '') || g.licence?.url.includes(`/blob/${g.upstream?.commit}/`) !== true).map(g => g.wasm)
+    check('every lock row records the upstream commit, and its licence text was read at that commit', unpinned.length === 0, unpinned.join(','))
+    const untexted = lock.grammars.filter(g => {
+      if (!g.licence || !existsSync(join(ROOT, 'vendor', g.licence.file))) return true
+      const read = readFileSync(join(ROOT, 'vendor', g.licence.file))
+      return ![read, Buffer.from(read.toString('latin1').replaceAll('\r\n', '\n'), 'latin1')].some(form => createHash('sha256').update(form).digest('hex') === g.licence!.sha256)
+    }).map(g => g.wasm)
+    check(`every lock row's licence text is checked in under vendor/grammar-licences and is the bytes the lock pins (${lock.grammars.length})`, untexted.length === 0, untexted.join(','))
   }
   const packDir = join(ROOT, 'vendor', 'grammars', 'extracted')
   if (existsSync(packDir)) {
@@ -81,6 +90,9 @@ function check(label: string, ok: boolean, detail = ''): void {
     if (!packDegraded) {
       check('pack LICENSE travels with the artifact', existsSync(join(dist, 'LICENSE.grammar-pack')))
       check('per-grammar provenance travels with the artifact', existsSync(join(dist, 'GRAMMAR-NOTICES.json')))
+      const lockTexts = (JSON.parse(readFileSync(join(ROOT, 'vendor', 'grammars.lock.json'), 'utf8')) as { grammars: Array<{ licence?: { file: string }; notice?: { file: string } }> }).grammars.flatMap(g => [g.licence, g.notice]).filter(t => t !== undefined).map(t => t.file.split('/').pop()!).sort()
+      const shippedTexts = existsSync(join(dist, 'grammar-licences')) ? readdirSync(join(dist, 'grammar-licences')).sort() : []
+      check(`the licence texts the lock pins travel with the artifact, those and no other (${lockTexts.length})`, JSON.stringify(shippedTexts) === JSON.stringify(lockTexts), `${shippedTexts.length} shipped`)
     }
     const pkg = JSON.parse(readFileSync(join(dist, 'package.json'), 'utf8')) as { type?: string }
     check('commonjs stamp present', pkg.type === 'commonjs')
@@ -98,13 +110,18 @@ function check(label: string, ok: boolean, detail = ''): void {
   check('.ps1 routes to powershell (S1 mapping)', languageForFile('deploy.ps1')?.name === 'powershell')
   check('.ini routes to ini (S1 mapping)', languageForFile('settings.ini')?.name === 'ini')
   check('.regex routes to regex (S1 mapping)', languageForFile('corpus.regex')?.name === 'regex')
-  check('unmapped basename stays null (Dockerfile has no grammar yet)', languageForFile('Dockerfile') === null)
+  check('unmapped basename stays null (LICENSE has no grammar)', languageForFile('LICENSE') === null && patternLanguageForFile('LICENSE') === null)
+  check('a mapped basename routes for patterns, in any case (Dockerfile, dockerfile)', patternLanguageForFile('svc/Dockerfile')?.name === 'dockerfile' && patternLanguageForFile('dockerfile')?.name === 'dockerfile')
+  check('a pattern-only row stays null for the edit note and the outline (Dockerfile, notes.md, deploy.yaml)', ['Dockerfile', 'notes.md', 'deploy.yaml'].every(f => languageForFile(f) === null && patternLanguageForFile(f)?.patternOnly === true))
+  check('every other row routes the same for both readers', GRAMMAR_REGISTRY.filter(g => !g.patternOnly).every(g => g.extensions.every(e => languageForFile(`x${e}`)?.name === g.name && patternLanguageForFile(`x${e}`)?.name === g.name)))
   check('languageByName finds every registry row', GRAMMAR_REGISTRY.every(g => languageByName(g.name)?.wasm === g.wasm))
   check('languageByName refuses unknown', languageByName('klingon') === null)
   const facility = readFileSync(join(ROOT, 'src', 'services', 'structure', 'grammarFacility.ts'), 'utf8')
   const baseIdx = facility.indexOf('BASENAME_TO_LANG.get')
   const extIdx = facility.indexOf('EXT_TO_LANG.get')
-  check('languageForFile consults basenames BEFORE extensions', baseIdx > 0 && extIdx > 0 && baseIdx < extIdx)
+  const prefixIdx = facility.indexOf('BASENAME_PREFIXES.find')
+  check('patternLanguageForFile consults basenames BEFORE extensions, and extensions before basename prefixes', baseIdx > 0 && extIdx > 0 && baseIdx < extIdx && extIdx < prefixIdx)
+  check('so a prefixed name with a known extension keeps the extension (Dockerfile.yaml is yaml, Dockerfile.dev is dockerfile)', patternLanguageForFile('Dockerfile.yaml')?.name === 'yaml' && patternLanguageForFile('Dockerfile.dev')?.name === 'dockerfile')
 }
 
 {

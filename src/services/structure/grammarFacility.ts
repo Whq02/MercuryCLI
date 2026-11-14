@@ -4,8 +4,9 @@ import { createRequire } from 'node:module'
 import { existsSync } from 'node:fs'
 import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { HELD_TIER_NODE_FLAGS, optimisingTierCanBeHeld, withOptimisingTierHeld } from './wasmTiering.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.join(__filename, '../')
@@ -56,15 +57,25 @@ export const POLYGLOT_LANGUAGES: PolyglotLanguage[] = GRAMMAR_REGISTRY
 
 const EXT_TO_LANG = new Map<string, PolyglotLanguage>()
 const BASENAME_TO_LANG = new Map<string, PolyglotLanguage>()
+const BASENAME_PREFIXES: Array<[prefix: string, lang: PolyglotLanguage]> = []
 for (const lang of POLYGLOT_LANGUAGES) {
   for (const ext of lang.extensions) EXT_TO_LANG.set(ext, lang)
   for (const base of lang.basenames ?? []) BASENAME_TO_LANG.set(base.toLowerCase(), lang)
+  for (const prefix of lang.basenamePrefixes ?? []) BASENAME_PREFIXES.push([prefix.toLowerCase(), lang])
+}
+
+export function patternLanguageForFile(fileName: string): PolyglotLanguage | null {
+  const base = path.basename(fileName).toLowerCase()
+  const byBase = BASENAME_TO_LANG.get(base)
+  if (byBase) return byBase
+  const byExt = EXT_TO_LANG.get(path.extname(fileName).toLowerCase())
+  if (byExt) return byExt
+  return BASENAME_PREFIXES.find(([prefix]) => base.startsWith(prefix))?.[1] ?? null
 }
 
 export function languageForFile(fileName: string): PolyglotLanguage | null {
-  const byBase = BASENAME_TO_LANG.get(path.basename(fileName).toLowerCase())
-  if (byBase) return byBase
-  return EXT_TO_LANG.get(path.extname(fileName).toLowerCase()) ?? null
+  const lang = patternLanguageForFile(fileName)
+  return lang && !lang.patternOnly ? lang : null
 }
 
 export function languageByName(name: string): PolyglotLanguage | null {
@@ -125,6 +136,7 @@ interface LoadedEngine {
   loadLanguage(lang: PolyglotLanguage): Promise<unknown | { state: 'unavailable'; note: string }>
   resetParser(): void
   poisoned?: boolean
+  sharedRuntimeWarm?: boolean
 }
 
 function bustLoaderCache(dir: string): void {
@@ -205,7 +217,7 @@ export function loadGrammarEngine(): Promise<LoadedEngine | EngineUnavailable> {
           return { state: 'unavailable' as const, note: `grammar '${lang.name}' missing (${lang.wasm} not in ${dir})` }
         }
         if (lang.fragile) {
-          const verdict = probeFragileGrammarOnce(lang.name, dir, wasmPath, lang.fragile.reason)
+          const verdict = probeFragileGrammarOnce(lang.name, dir, wasmPath, lang.fragile.reason, holdsOptimisingTier(lang))
           if (verdict !== null) return verdict
         }
         try {
@@ -213,7 +225,7 @@ export function loadGrammarEngine(): Promise<LoadedEngine | EngineUnavailable> {
           const declared = (loaded as { name?: unknown } | null)?.name
           if (typeof declared === 'string' && declared.length > 0) {
             const fold = (n: string): string => n.toLowerCase().replace(/[-_]/g, '')
-            if (fold(declared) !== fold(lang.name)) {
+            if (fold(declared) !== fold(lang.declares ?? lang.name)) {
               return {
                 state: 'unavailable' as const,
                 note: `grammar '${lang.name}' rejected: the wasm at ${lang.wasm} declares itself '${declared}' — wrong grammar at the expected filename`,
@@ -257,12 +269,13 @@ function probeFragileGrammarOnce(
   dir: string,
   wasmPath: string,
   reason: string,
+  held = false,
 ): { state: 'unavailable'; note: string } | null {
   const remembered = fragileProbeVerdicts.get(name)
   if (remembered !== undefined) return remembered
   let verdict: { state: 'unavailable'; note: string } | null
   try {
-    const probe = spawnSync(process.execPath, ['-e', FRAGILE_PROBE_SOURCE, dir, wasmPath], {
+    const probe = spawnSync(process.execPath, [...(held ? HELD_TIER_NODE_FLAGS : []), '-e', FRAGILE_PROBE_SOURCE, dir, wasmPath], {
       env: process.env,
       timeout: 30_000,
       stdio: 'ignore',
@@ -321,6 +334,34 @@ function collectParseErrors(root: TSNode, cap = 3): string[] {
   return errors
 }
 
+function holdsOptimisingTier(lang: PolyglotLanguage): boolean {
+  return (
+    lang.baseline === true &&
+    optimisingTierCanBeHeld({
+      versions: process.versions as Record<string, string | undefined>,
+      execArgv: process.execArgv,
+      nodeOptions: process.env.NODE_OPTIONS,
+      released: !flagEnabled('MERCURY_GRAMMAR_BASELINE'),
+    })
+  )
+}
+
+const SHARED_RUNTIME_WARMUP = 'def warm(a):\n    return [a, "s", 1.5]\n\nwarm(\n'
+
+async function warmSharedRuntime(engine: LoadedEngine): Promise<void> {
+  engine.sharedRuntimeWarm = true
+  const free = POLYGLOT_LANGUAGES.find(l => !l.baseline && !l.fragile && existsSync(path.join(engine.dir, l.wasm)))
+  if (!free) return
+  const language = await engine.loadLanguage(free)
+  if (typeof language === 'object' && language !== null && (language as { state?: string }).state === 'unavailable') return
+  try {
+    engine.parser.setLanguage(language)
+    engine.parser.parse(SHARED_RUNTIME_WARMUP)?.delete()
+    logForDebugging(`grammar engine: shared runtime warmed with ${free.name} before the first held parse`)
+  } catch {
+  }
+}
+
 export async function parsePolyglot(
   engine: LoadedEngine,
   lang: PolyglotLanguage,
@@ -335,10 +376,18 @@ export async function parsePolyglot(
   if (typeof language === 'object' && language !== null && (language as { state?: string }).state === 'unavailable') {
     return language as { state: 'unavailable'; note: string }
   }
+  const held = holdsOptimisingTier(lang)
+  if (held && !engine.sharedRuntimeWarm) await warmSharedRuntime(engine)
   let tree: TSTree | null
   try {
-    engine.parser.setLanguage(language)
-    tree = engine.parser.parse(text)
+    const parser = engine.parser
+    const source = lang.finalNewline && !text.endsWith('\n') ? `${text}\n` : text
+    const parse = (): TSTree | null => {
+      parser.setLanguage(language)
+      return parser.parse(source)
+    }
+    tree = held ? withOptimisingTierHeld(parse) : parse()
+    if (!held) engine.sharedRuntimeWarm = true
   } catch (err) {
     engine.poisoned = true
     engine.resetParser()

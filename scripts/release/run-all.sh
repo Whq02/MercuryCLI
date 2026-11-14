@@ -2,7 +2,7 @@
 # gate-class: cpu
 # gate-watch: scripts/release/** .github/workflows/private-release.yml native/windows-launcher/** src/main.tsx src/entrypoints/cli.tsx
 # gate-watch: src/services/privateChannel/artifactSigning.ts src/services/privateChannel/releaseTarget.ts vendor/*.lock.json flake.nix flake.lock nix/** docs/NIX.md
-# gate-watch: vendor/document-licences/** vendor/python-licences/**
+# gate-watch: vendor/document-licences/** vendor/python-licences/** vendor/grammar-licences/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"

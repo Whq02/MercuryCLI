@@ -6,9 +6,9 @@ import { structuredPatch } from 'diff'
 import { buildDiffHunks, type BoundedDiffHunk } from '../services/changeTransaction/diffBudget.js'
 import {
   languageByName,
-  languageForFile,
   loadGrammarEngine,
   parsePolyglot,
+  patternLanguageForFile,
   POLYGLOT_LANGUAGES,
   resolveGrammarEngineDir,
   type PolyglotLanguage,
@@ -25,7 +25,7 @@ import {
   type CaptureSpan,
   type CompiledPattern,
 } from '../services/structure/pattern.js'
-import { compileFor, discoverPolyglotFiles } from '../services/structure/polyglotQuery.js'
+import { compileFor, discoverPolyglotFiles, type PatternRefusal } from '../services/structure/polyglotQuery.js'
 import { applyEdits, digestOf, lineExtendedRange, type Edit } from '../services/structure/transform.js'
 import { clipWithEllipsis } from './stringUtils.js'
 
@@ -91,6 +91,65 @@ const LANGUAGE_ALIASES: Record<string, string> = {
   ps1: 'powershell',
   pwsh: 'powershell',
   htm: 'html',
+  yml: 'yaml',
+  md: 'markdown',
+  mdx: 'markdown',
+  docker: 'dockerfile',
+  containerfile: 'dockerfile',
+  makefile: 'make',
+  gnumake: 'make',
+  mk: 'make',
+  mak: 'make',
+  xsl: 'xml',
+  xslt: 'xml',
+  svg: 'xml',
+  plist: 'xml',
+  tf: 'hcl',
+  tfvars: 'hcl',
+  terraform: 'hcl',
+  gql: 'graphql',
+  proto: 'protobuf',
+  sc: 'scala',
+  sbt: 'scala',
+  ex: 'elixir',
+  exs: 'elixir',
+  hs: 'haskell',
+  ml: 'ocaml',
+  jl: 'julia',
+  star: 'starlark',
+  bzl: 'starlark',
+  bazel: 'starlark',
+  skylark: 'starlark',
+  clj: 'clojure',
+  cljc: 'clojure',
+  cljs: 'clojure',
+  clojurescript: 'clojure',
+  edn: 'clojure',
+  erl: 'erlang',
+  hrl: 'erlang',
+  'obj-c': 'objc',
+  'objective-c': 'objc',
+  m: 'objc',
+  mm: 'objc',
+  f90: 'fortran',
+  f95: 'fortran',
+  f03: 'fortran',
+  f08: 'fortran',
+  sol: 'solidity',
+  systemverilog: 'verilog',
+  sv: 'verilog',
+  svh: 'verilog',
+  vh: 'verilog',
+  v: 'verilog',
+  emacslisp: 'emacs-lisp',
+  elisp: 'emacs-lisp',
+  el: 'emacs-lisp',
+  justfile: 'just',
+  tla: 'tlaplus',
+  'tla+': 'tlaplus',
+  pluscal: 'tlaplus',
+  pcal: 'tlaplus',
+  patch: 'diff',
 }
 
 export function resolveAstLanguage(name: string): PolyglotLanguage | null {
@@ -191,7 +250,8 @@ export function resolveAstScope(opts: {
   glob?: string
   lang?: string
   cwd: string
-  readable?: (abs: string) => boolean
+  readable?: (abs: string, throughLink?: boolean) => boolean
+  trackLinks?: boolean
 }): AstScope | AstRefusal {
   let lang: PolyglotLanguage | undefined
   if (opts.lang !== undefined && opts.lang.trim() !== '') {
@@ -213,7 +273,7 @@ export function resolveAstScope(opts: {
     return { refused: `Path does not exist: ${display} (resolved against ${opts.cwd}).` }
   }
   if (stat.isFile()) {
-    const fileLang = lang ?? languageForFile(target)
+    const fileLang = lang ?? patternLanguageForFile(target)
     if (!fileLang) {
       const ext = path.extname(target) || '(no extension)'
       return {
@@ -244,7 +304,7 @@ export function resolveAstScope(opts: {
   const glob = opts.glob !== undefined && opts.glob.trim() !== '' ? opts.glob : undefined
   const alternatives = glob === undefined ? undefined : expandGlobAlternatives(glob)
   if (isAstRefusal(alternatives)) return alternatives
-  const discovered = discoverPolyglotFiles(target, alternatives?.map(normaliseGlob), lang ?? null)
+  const discovered = discoverPolyglotFiles(target, alternatives?.map(normaliseGlob), lang ?? null, opts.trackLinks)
   let skippedDenied = 0
   const uncarried = new Map<string, number>()
   const files: AstScopeFile[] = []
@@ -255,7 +315,7 @@ export function resolveAstScope(opts: {
       uncarried.set(ext, (uncarried.get(ext) ?? 0) + 1)
       continue
     }
-    if (opts.readable && !opts.readable(abs)) {
+    if (opts.readable && !opts.readable(abs, f.throughLink)) {
       skippedDenied++
       continue
     }
@@ -318,6 +378,7 @@ export interface AstSearchResult {
   skippedLarge: number
   truncatedParse: boolean
   languagesSearched: Array<[lang: string, files: number]>
+  compiledSomewhere: boolean
 }
 
 function preFilterToken(pattern: string): string | null {
@@ -346,7 +407,15 @@ function materialise(rel: string, abs: string, lang: string, node: TSNode, captu
   }
 }
 
-type CompileCache = Map<string, { pattern: CompiledPattern; hold: { delete(): void } } | { state: 'refused'; note: string }>
+type CompileCache = Map<string, { pattern: CompiledPattern; hold: { delete(): void } } | PatternRefusal>
+
+function farOverSizeBound(abs: string): boolean {
+  try {
+    return statSync(abs).size > AST_BOUNDS.maxFileBytes * 3
+  } catch {
+    return false
+  }
+}
 
 export async function searchAstPattern(
   scope: AstScope,
@@ -358,7 +427,7 @@ export async function searchAstPattern(
   const encoded = encodePattern(opts.pattern)
   const preToken = preFilterToken(opts.pattern)
   const compileCache: CompileCache = new Map()
-  const refusedLangs = new Map<string, { files: number; note: string }>()
+  const refusedLangs = new Map<string, { files: number; note: string; textOnly?: boolean }>()
   const captureNamesByLang = new Map<string, string[]>()
   const langFiles = new Map<string, number>()
   const matches: AstMatch[] = []
@@ -368,6 +437,7 @@ export async function searchAstPattern(
   let skippedLarge = 0
   let capped = false
   let truncatedParse = false
+  let compiledSomewhere = false
 
   for (const file of scope.files) {
     if (opts.signal?.aborted) break
@@ -379,25 +449,52 @@ export async function searchAstPattern(
       truncatedParse = true
       break
     }
+    let text: string | undefined
+    if (file.lang.patternOnly && preToken && !compileCache.has(file.lang.name)) {
+      if (farOverSizeBound(file.abs)) {
+        skippedLarge++
+        continue
+      }
+      try {
+        text = readFileSync(file.abs, 'utf8')
+      } catch {
+        continue
+      }
+      if (text.length > AST_BOUNDS.maxFileBytes) {
+        skippedLarge++
+        continue
+      }
+      if (!text.includes(preToken)) {
+        langFiles.set(file.lang.name, (langFiles.get(file.lang.name) ?? 0) + 1)
+        continue
+      }
+    }
     const compiled = await compileFor(engine, file.lang, encoded, compileCache)
     if ('state' in compiled) {
-      const entry = refusedLangs.get(file.lang.name) ?? { files: 0, note: compiled.note }
+      const entry = refusedLangs.get(file.lang.name) ?? { files: langFiles.get(file.lang.name) ?? 0, note: compiled.note, ...(compiled.textOnly && { textOnly: true }) }
       entry.files++
       refusedLangs.set(file.lang.name, entry)
+      langFiles.delete(file.lang.name)
       continue
     }
+    compiledSomewhere = true
     if (!captureNamesByLang.has(file.lang.name)) {
       captureNamesByLang.set(file.lang.name, compiled.pattern.captureNames)
     }
-    let text: string
-    try {
-      text = readFileSync(file.abs, 'utf8')
-    } catch {
-      continue
-    }
-    if (text.length > AST_BOUNDS.maxFileBytes) {
-      skippedLarge++
-      continue
+    if (text === undefined) {
+      if (file.lang.patternOnly && farOverSizeBound(file.abs)) {
+        skippedLarge++
+        continue
+      }
+      try {
+        text = readFileSync(file.abs, 'utf8')
+      } catch {
+        continue
+      }
+      if (text.length > AST_BOUNDS.maxFileBytes) {
+        skippedLarge++
+        continue
+      }
     }
     langFiles.set(file.lang.name, (langFiles.get(file.lang.name) ?? 0) + 1)
     if (preToken && !text.includes(preToken)) continue
@@ -427,16 +524,19 @@ export async function searchAstPattern(
     filesParsed,
     filesWithMatches,
     parseFailures,
-    patternRefusals: [...refusedLangs.entries()].map(([lang, e]) => ({ lang, files: e.files, note: e.note })),
+    patternRefusals: [...refusedLangs.entries()]
+      .sort((a, b) => Number(a[1].textOnly === true) - Number(b[1].textOnly === true))
+      .map(([lang, e]) => ({ lang, files: e.files, note: e.note })),
     captureNamesByLang,
     skippedLarge,
     truncatedParse,
     languagesSearched: [...langFiles.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
+    compiledSomewhere,
   }
 }
 
 export function patternRefusedEverywhere(scope: AstScope, result: AstSearchResult): boolean {
-  return result.patternRefusals.length > 0 && result.languagesSearched.length === 0 && result.filesParsed === 0 && scope.files.length > 0
+  return result.patternRefusals.length > 0 && !result.compiledSomewhere && result.filesParsed === 0 && scope.files.length > 0
 }
 
 export function patternErrorText(pattern: string, result: AstSearchResult): string {
@@ -646,8 +746,17 @@ export async function planAstRewrite(
   const patternCache: CompileCache = new Map()
   const rewriteCache: CompileCache = new Map()
   const shapeByLang = new Map<string, { pat: TSNode; rw: TSNode } | null>()
+  const terminatorByLang = new Map<string, boolean>()
   const encodedPattern = encodePattern(opts.pattern)
   const encodedRewrite = encodePattern(opts.rewrite)
+  async function spansTerminator(lang: PolyglotLanguage): Promise<boolean> {
+    const cached = terminatorByLang.get(lang.name)
+    if (cached !== undefined) return cached
+    const pat = await compileFor(engine as Parameters<typeof compileFor>[0], lang, encodedPattern, patternCache)
+    const spans = !('state' in pat) && pat.pattern.spansTerminator === true
+    terminatorByLang.set(lang.name, spans)
+    return spans
+  }
   async function shapeFor(lang: PolyglotLanguage): Promise<{ pat: TSNode; rw: TSNode } | null> {
     const cached = shapeByLang.get(lang.name)
     if (cached !== undefined) return cached
@@ -655,7 +764,7 @@ export async function planAstRewrite(
     if (opts.rewrite.trim() !== '') {
       const pat = await compileFor(engine as Parameters<typeof compileFor>[0], lang, encodedPattern, patternCache)
       const rw = await compileFor(engine as Parameters<typeof compileFor>[0], lang, encodedRewrite, rewriteCache)
-      if (!('state' in pat) && !('state' in rw) && sameShape(pat.pattern.root, rw.pattern.root)) {
+      if (!('state' in pat) && !('state' in rw) && !pat.pattern.tagMetavars && !rw.pattern.tagMetavars && sameShape(pat.pattern.root, rw.pattern.root)) {
         shape = { pat: pat.pattern.root, rw: rw.pattern.root }
       }
     }
@@ -679,7 +788,7 @@ export async function planAstRewrite(
       return { refused: 'cancelled before planning finished — nothing written.' }
     }
     const first = list[0]!
-    const lang = scope.files.find(f => f.rel === rel)?.lang ?? languageForFile(first.abs)
+    const lang = scope.files.find(f => f.rel === rel)?.lang ?? patternLanguageForFile(first.abs)
     if (!lang) {
       releaseCompiled()
       return { refused: `${rel}: no grammar for this file (it should not have matched).` }
@@ -706,6 +815,7 @@ export async function planAstRewrite(
       }
     }
     const shape = await shapeFor(lang)
+    const keepsTerminator = await spansTerminator(lang)
     let tree: { rootNode: TSNode; delete(): void } | null = null
     if (shape) {
       const parsed = await parsePolyglot(engine, lang, before)
@@ -730,8 +840,10 @@ export async function planAstRewrite(
             refused: `${rel}:${m.startLine}: the rewrite ${substituted.refuse.replace(/^out references /, 'references ')} — every meta-variable in the rewrite must be captured by the pattern. Nothing was written.`,
           }
         }
+        const codeLength = before.slice(m.startIndex, m.endIndex).trimEnd().length
+        const codeEnd = codeLength > 0 ? m.startIndex + codeLength : m.endIndex
         if (substituted === '') {
-          const r = lineExtendedRange(before, m.startIndex, m.endIndex)
+          const r = lineExtendedRange(before, m.startIndex, codeEnd)
           edits.push({ start: r.start, end: r.end, newText: '' })
           continue
         }
@@ -758,12 +870,17 @@ export async function planAstRewrite(
             }
           }
         }
-        if (substituted === before.slice(m.startIndex, m.endIndex)) {
+        let replacedEnd = codeEnd
+        if (keepsTerminator && before[codeEnd - 1] === ';' && !substituted.trimEnd().endsWith(';')) {
+          replacedEnd = m.startIndex + before.slice(m.startIndex, codeEnd - 1).trimEnd().length
+        }
+        const replacement = replacedEnd < m.endIndex ? substituted.trimEnd() : substituted
+        if (replacement === before.slice(m.startIndex, replacedEnd)) {
           unchangedMatches++
           unchangedInFile++
           continue
         }
-        edits.push({ start: m.startIndex, end: m.endIndex, newText: substituted })
+        edits.push({ start: m.startIndex, end: replacedEnd, newText: replacement })
       }
     } finally {
       tree?.delete()

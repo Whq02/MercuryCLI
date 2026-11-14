@@ -10,8 +10,14 @@ export const AST_PATH_FIELD =
 
 export const AST_GLOB_FIELD = 'Glob filter relative to path ({a,b} for alternatives).'
 
+const LANGUAGES_NAMED_FIRST = ['python', 'yaml', 'dockerfile']
+
 export function astLanguageField(): string {
-  return `One grammar for every file, instead of each file's extension deciding; this build carries: ${astLanguageNames().join(' · ') || '(no grammar engine)'}; a file without a grammar is skipped and counted.`
+  const names = astLanguageNames()
+  const first = LANGUAGES_NAMED_FIRST.filter(name => names.includes(name))
+  const named = [...first, ...names.filter(name => !first.includes(name))].slice(0, 3)
+  const carried = names.length === 0 ? 'no grammar engine' : `${names.length} grammars, among them ${named.join(', ')}`
+  return `One grammar for every file, instead of each file's name deciding; this build carries ${carried}; a name it does not carry is answered with the list; a file without a grammar is skipped and counted.`
 }
 
 export function getAstSearchDescription(): string {

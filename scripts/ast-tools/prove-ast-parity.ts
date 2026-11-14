@@ -17,6 +17,8 @@ writeLanguageFixtures(root)
 writeRenameFixture(join(root, 'rename'))
 await enterRoot(root)
 
+const STATEMENT_IS_THE_NODE = new Set(['dart'])
+
 type Loc = string
 const locate = (m: { rel: string; startIndex: number; endIndex: number; nodeType: string }): Loc => `${m.rel}@${m.startIndex}-${m.endIndex}:${m.nodeType}`
 
@@ -62,9 +64,14 @@ section('§1 — the matcher module: plan.search ≡ an independent search')
     check(`${c.label}: per-file counts agree (${[...perFileSearch.values()].join('+')} = ${plan.matchCount} changed + ${plan.unchangedMatches} unchanged)`, totalsAgree && filesSubset && exactWhenAllChange, `${JSON.stringify([...perFileSearch])} vs ${JSON.stringify([...perFilePlan])}`)
     if (plan.inPlaceMatches === 0 && plan.unchangedMatches === 0) {
       const editSpans = plan.files.flatMap(f => f.edits.map(e => `${f.rel}@${e.start}-${e.end}`)).sort()
-      const matchSpans = search.matches.map(m => `${m.rel}@${m.startIndex}-${m.endIndex}`).sort()
+      const codeLength = (m: { lang: string; text: string }): number => {
+        const code = m.text.trimEnd()
+        const keepsItsTerminator = STATEMENT_IS_THE_NODE.has(m.lang) && code.endsWith(';') && !c.rewrite.trimEnd().endsWith(';')
+        return keepsItsTerminator ? code.slice(0, -1).trimEnd().length : code.length
+      }
+      const matchSpans = search.matches.map((m: { rel: string; lang: string; startIndex: number; text: string }) => `${m.rel}@${m.startIndex}-${m.startIndex + codeLength(m)}`).sort()
       const deletion = c.rewrite === ''
-      check(`${c.label}: literal-lane edits cover exactly the matched spans`, deletion || JSON.stringify(editSpans) === JSON.stringify(matchSpans), `edits ${editSpans.join(' ')} · matches ${matchSpans.join(' ')}`)
+      check(`${c.label}: literal-lane edits cover exactly the matched code, from its first character to its last non-blank one${STATEMENT_IS_THE_NODE.has(c.label) ? ' (a statement whose rewrite leaves the ; out keeps its own)' : ''}`, deletion || JSON.stringify(editSpans) === JSON.stringify(matchSpans), `edits ${editSpans.join(' ')} · matches ${matchSpans.join(' ')}`)
     }
   }
 }

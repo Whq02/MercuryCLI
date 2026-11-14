@@ -1,14 +1,15 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import * as path from 'node:path'
 import {
-  languageForFile,
   loadGrammarEngine,
   parsePolyglot,
+  patternLanguageForFile,
   type PolyglotLanguage,
 } from './grammarFacility.js'
 import {
   compilePatternRoot,
   findExactSpanNode,
+  metavarOutsideNodes,
   patternCandidates,
   type CompiledPattern,
 } from './pattern.js'
@@ -99,22 +100,32 @@ export function discoverPolyglotFiles(
   root: string,
   fileGlobs: string[] | undefined,
   langFilter: PolyglotLanguage | null,
+  trackLinks = false,
 ): {
-  files: Array<{ rel: string; lang: PolyglotLanguage }>
+  files: Array<{ rel: string; lang: PolyglotLanguage; throughLink?: boolean }>
   scanned: number
   skippedUnsupported: number
   truncatedWalk: boolean
   skippedNoGrammar: Map<string, number>
 } {
   const rules = loadRootIgnoreRules(root)
-  const files: Array<{ rel: string; lang: PolyglotLanguage }> = []
+  const files: Array<{ rel: string; lang: PolyglotLanguage; throughLink?: boolean }> = []
   const skippedNoGrammar = new Map<string, number>()
   let scanned = 0
   let skippedUnsupported = 0
   let truncatedWalk = false
   const globs = normalizeFileGlobs(fileGlobs)
 
-  function walk(dir: string): void {
+  let rootLinked = false
+  if (trackLinks) {
+    try {
+      const resolved = realpathSync(root)
+      rootLinked = process.platform === 'win32' ? resolved.toLowerCase() !== root.toLowerCase() : resolved !== root
+    } catch {
+    }
+  }
+
+  function walk(dir: string, throughLink: boolean): void {
     if (truncatedWalk) return
     let entries: string[]
     try {
@@ -128,15 +139,20 @@ export function discoverPolyglotFiles(
       const full = path.join(dir, entry)
       const rel = posixRelative(root, full)
       let stat
+      let linked = throughLink
       try {
-        stat = statSync(full)
+        if (trackLinks) {
+          const entryStat = lstatSync(full)
+          linked ||= entryStat.isSymbolicLink()
+          stat = entryStat.isSymbolicLink() ? statSync(full) : entryStat
+        } else stat = statSync(full)
       } catch {
         continue
       }
       if (stat.isDirectory()) {
         if (SKIP_DIRS.has(entry)) continue
         if (ignoredByRules(rules, rel, true, entry)) continue
-        walk(full)
+        walk(full, linked)
       } else if (stat.isFile()) {
         scanned++
         if (scanned > MAX_FILES_SCANNED) {
@@ -145,7 +161,7 @@ export function discoverPolyglotFiles(
         }
         if (ignoredByRules(rules, rel, false, entry)) continue
         if (!admitsPolyglotFile(rel, globs)) continue
-        const lang = languageForFile(entry)
+        const lang = patternLanguageForFile(entry)
         if (!lang) {
           const ext = path.extname(entry).toLowerCase() || entry
           skippedNoGrammar.set(ext, (skippedNoGrammar.get(ext) ?? 0) + 1)
@@ -155,26 +171,29 @@ export function discoverPolyglotFiles(
           skippedUnsupported++
           continue
         }
-        files.push({ rel, lang })
+        files.push({ rel, lang, ...(trackLinks && { throughLink: linked }) })
       }
     }
   }
-  walk(root)
+  walk(root, rootLinked)
   files.sort((a, b) => a.rel.localeCompare(b.rel))
   return { files, scanned, skippedUnsupported, truncatedWalk, skippedNoGrammar }
 }
+
+export type PatternRefusal = { state: 'refused'; note: string; textOnly?: boolean }
 
 export async function compileFor(
   engine: Awaited<ReturnType<typeof loadGrammarEngine>> & { state: 'ok' },
   lang: PolyglotLanguage,
   encoded: string,
-  cache: Map<string, { pattern: CompiledPattern; hold: { delete(): void } } | { state: 'refused'; note: string }>,
-): Promise<{ pattern: CompiledPattern; hold: { delete(): void } } | { state: 'refused'; note: string }> {
+  cache: Map<string, { pattern: CompiledPattern; hold: { delete(): void } } | PatternRefusal>,
+): Promise<{ pattern: CompiledPattern; hold: { delete(): void } } | PatternRefusal> {
   const cached = cache.get(lang.name)
   if (cached) return cached
 
   let recovery: { pattern: CompiledPattern; hold: { delete(): void } } | null = null
   let firstError: string | null = null
+  let textOnly: string | null = null
 
   for (const candidate of patternCandidates(lang.name, encoded)) {
     const parsed = await parsePolyglot(engine, lang, candidate.text)
@@ -190,15 +209,23 @@ export async function compileFor(
       parsed.tree.delete()
       continue
     }
+    if (lang.patternOnly) {
+      const outside = metavarOutsideNodes(node, candidate.text, candidate.offset, candidate.offset + candidate.length, candidate.tagMetavars)
+      if (outside) {
+        textOnly ??= `${outside} is text there, not a node`
+        parsed.tree.delete()
+        continue
+      }
+    }
     if (parsed.parseErrors.length === 0) {
       if (recovery) recovery.hold.delete()
-      const compiled = { pattern: compilePatternRoot(node), hold: parsed.tree }
+      const compiled = { pattern: { ...compilePatternRoot(node, candidate.tagMetavars), ...(candidate.spansTerminator && { spansTerminator: true }) }, hold: parsed.tree }
       cache.set(lang.name, compiled)
       return compiled
     }
     firstError ??= parsed.parseErrors[0]!
     if (!recovery && !node.hasError) {
-      recovery = { pattern: compilePatternRoot(node), hold: parsed.tree }
+      recovery = { pattern: compilePatternRoot(node, candidate.tagMetavars), hold: parsed.tree }
       continue
     }
     parsed.tree.delete()
@@ -208,9 +235,10 @@ export async function compileFor(
     cache.set(lang.name, recovery)
     return recovery
   }
-  const refusal = {
+  const refusal: PatternRefusal = {
     state: 'refused' as const,
-    note: `the pattern does not parse as ${lang.name} (${firstError ?? 'no parse'})`,
+    note: `the pattern does not parse as ${lang.name} (${firstError ?? textOnly ?? 'no parse'})`,
+    ...(firstError === null && textOnly !== null && { textOnly: true }),
   }
   cache.set(lang.name, refusal)
   return refusal

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { mkdtempSync } from 'node:fs'
@@ -61,6 +61,14 @@ section('§2 — $ and $$$ captures')
   check('a reused meta-variable must match identical code ($A == $A finds x == x only)', Number(reuse.data?.matchCount) === 1 && reuse.text.includes('x == x') && !reuse.text.includes('x == y'), reuse.text.slice(0, 200))
   const anon = await search({ pattern: 'normalizeRecord($_)', path: 'rename' })
   check('$_ matches one node without capturing', Number(anon.data?.matchCount) === 2 && !anon.text.includes('captures:'), anon.text.slice(0, 200))
+  mkdirSync(join(root, 'dollars'))
+  writeFileSync(join(root, 'dollars', 'v.php'), "<?php\nfoo($name);\nfoo($$name);\n$s = preg_replace($re, '$&', $t);\n$u = preg_replace($re, 'x', $t);\n")
+  const doubled = await search({ pattern: 'foo($$name)', path: 'dollars' })
+  check('a doubled dollar is literal text wherever the pattern is tried: foo($$name) finds the variable-variable call alone', Number(doubled.data?.matchCount) === 1 && doubled.text.includes('v.php:3:1'), doubled.text.slice(0, 300))
+  const whole = await search({ pattern: "preg_replace($A, '$&', $B)", path: 'dollars' })
+  check("and so is $& inside a string: the call that passes '$&' is found alone, with both captures", Number(whole.data?.matchCount) === 1 && whole.text.includes('v.php:4:') && whole.text.includes('$A = $re') && whole.text.includes('$B = $t'), whole.text.slice(0, 300))
+  const single = await search({ pattern: 'foo($name)', path: 'dollars' })
+  check('control: the single-dollar call is found alone', Number(single.data?.matchCount) === 1 && single.text.includes('v.php:2:1'), single.text.slice(0, 300))
 }
 
 section('§3 — count mode')
@@ -107,8 +115,8 @@ section('§6 — the unsupported-language refusal names the set')
 {
   const r = await search({ pattern: 'print($X)', lang: 'klingon' })
   check('unknown lang refuses with the supported set', r.isError && r.text.includes('Unknown language "klingon"') && r.text.includes('Supported languages: python, go, rust') && r.text.includes('json'), r.text.slice(0, 300))
-  const md = await search({ pattern: 'print($X)', path: 'rename/README.md' })
-  check('a single file with no grammar refuses by extension and names the set', md.isError && md.text.includes('.md') && md.text.includes('Supported languages:'), md.text.slice(0, 300))
+  const prose = await search({ pattern: 'print($X)', path: 'rename/NOTES.txt' })
+  check('a single file with no grammar refuses by extension and names the set', prose.isError && prose.text.includes('.txt') && prose.text.includes('Supported languages:'), prose.text.slice(0, 300))
 }
 
 section('§7 — the malformed-pattern error names the failure and a fix')
@@ -128,8 +136,8 @@ section('§8 — zero matches name what was searched')
   const r = await search({ pattern: 'neverThere($X)', path: 'rename' })
   check('no-match text names the pattern', !r.isError && r.text.startsWith('No matches for "neverThere($X)"'), r.text.slice(0, 200))
   check('names the files and languages searched under the scope', r.text.includes('files under rename') && r.text.includes('typescript'), r.text.slice(0, 300))
-  check('names the skipped extension census', r.text.includes('Skipped 1 file with no grammar for the extension: .md ×1'), r.text.slice(0, 300))
-  const nothing = await search({ pattern: 'x', path: 'rename', glob: '**/*.md' })
+  check('names the skipped extension census', r.text.includes('Skipped 1 file with no grammar for the extension: .txt ×1'), r.text.slice(0, 300))
+  const nothing = await search({ pattern: 'x', path: 'rename', glob: '**/*.txt' })
   check('a scope with no supported files says nothing was searched', !nothing.isError && nothing.text.startsWith('Nothing searched:'), nothing.text.slice(0, 200))
 }
 
@@ -166,7 +174,15 @@ section('§11 — the descriptions')
     'a declaration carries every part it has (a declared return type as ": $_" in TypeScript, " -> $_" in Python)',
   ].every(line => pattern.includes(line)) && !description.includes('$NAME'))
   check('carries no examples and no other tool: what it does and what comes back', !description.includes('e.g.') && !description.includes('Examples:') && !/\bGrep\b|\bAstEdit\b/.test(description) && description.startsWith('Searches code by its syntax') && description.includes('file:line:col'))
-  check('the lang field names every supported language; the description names none', astLanguageNames().every((n: string) => String(AstSearchTool.inputSchema.shape.lang.description).includes(n)) && !description.includes('this build carries'))
+  const langField = String(AstSearchTool.inputSchema.shape.lang.description)
+  const carriedNames = astLanguageNames() as string[]
+  const said = /this build carries (\d+) grammars, among them ([^;]+);/.exec(langField)
+  const namedInField = (said?.[2] ?? '').split(', ')
+  check('the lang field says how many grammars the build carries and names three of them, never the list; the description names none', Number(said?.[1]) === carriedNames.length && namedInField.length === 3 && namedInField.every(n => carriedNames.includes(n)) && !description.includes('this build carries'), langField)
+  check('the lang field says where the list is: in the answer to a name the build does not carry', langField.includes('a name it does not carry is answered with the list'), langField)
+  const unknown = await search({ pattern: 'print($X)', lang: 'klingon' })
+  check('and that answer carries every grammar of the build by name', unknown.isError && unknown.text.includes(`Supported languages: ${carriedNames.join(', ')}.`), unknown.text.slice(0, 300))
+  check('the lang field is shorter than three hundred characters whatever the build carries', langField.length < 300, String(langField.length))
   check('the limit field names the bound', String(AstSearchTool.inputSchema.shape.limit.description).includes('default 50, max 200'))
   const editDescription = await AstEditTool.description()
   check('AstEdit: prompt equals description', (await AstEditTool.prompt({ getToolPermissionContext: async () => ({}) })) === editDescription)
@@ -175,7 +191,7 @@ section('§11 — the descriptions')
   check('AstEdit: carries no examples: the apply and plan parameters show the two calls', (editDescription.match(/^- \{ "pattern"/gm) ?? []).length === 0 && !editDescription.includes('Examples:'))
 }
 
-section('§12 — the lang field names only the grammars the build carries')
+section('§12 — the lang field counts only the grammars the build carries')
 {
   const { execFileSync } = await import('node:child_process')
   const { GRAMMAR_REGISTRY: registry } = await import(join(REPO, 'src/services/structure/grammarRegistry.ts'))
@@ -205,7 +221,7 @@ console.log(JSON.stringify({
   pinned: isAstRefusal(pinned) ? pinned.refused : 'ok',
 }))
 `
-  const out = execFileSync(`${process.env.HOME}/.bun/bin/bun`, ['-e', PROBE], {
+  const out = execFileSync(process.env.BUN ?? `${process.env.HOME}/.bun/bin/bun`, ['-e', PROBE], {
     cwd: REPO,
     encoding: 'utf8',
     timeout: 120_000,
@@ -217,18 +233,117 @@ console.log(JSON.stringify({
   })
   const probe = JSON.parse(out.trim().split('\n').at(-1)!) as { names: string[]; search: string; edit: string; langField: string; matches: number; trailer: string; single: string; pinned: string }
   check('a vscode-pack-only engine carries exactly the 16 vscode grammars', probe.names.length === vscodeNames.length && vscodeNames.every(n => probe.names.includes(n)), probe.names.join(','))
-  const advertised = (text: string): string[] => (/this build carries: ([^;]+);/.exec(text)?.[1] ?? '').split(' · ').map(s => s.trim()).filter(Boolean)
-  const langList = advertised(probe.langField)
-  check('neither description names the other tool; both tools carry the one grammar in pattern and the one carried-grammar list in lang', !probe.search.includes('AstEdit') && !probe.edit.includes('AstSearch') && advertised(probe.search).length === 0 && advertised(probe.edit).length === 0 && AstSearchTool.inputSchema.shape.lang.description === AstEditTool.inputSchema.shape.lang.description && AstSearchTool.inputSchema.shape.pattern.description === AstEditTool.inputSchema.shape.pattern.description)
-  check('the lang field advertises exactly the carried set (no grammar-pack language)', JSON.stringify(langList) === JSON.stringify(probe.names) && packNames.every(n => !langList.includes(n)), langList.join(','))
-  check('the lang field still names every carried language', vscodeNames.every(n => langList.includes(n)))
+  const counted = (text: string): { count: number; names: string[] } | null => {
+    const m = /this build carries (\d+) grammars, among them ([^;]+);/.exec(text)
+    return m ? { count: Number(m[1]), names: m[2]!.split(', ') } : null
+  }
+  const field = counted(probe.langField)
+  check('neither description names the other tool; both tools carry the one grammar in pattern and the one count of carried grammars in lang', !probe.search.includes('AstEdit') && !probe.edit.includes('AstSearch') && counted(probe.search) === null && counted(probe.edit) === null && AstSearchTool.inputSchema.shape.lang.description === AstEditTool.inputSchema.shape.lang.description && AstSearchTool.inputSchema.shape.pattern.description === AstEditTool.inputSchema.shape.pattern.description)
+  check('the lang field counts exactly the carried set and names no grammar-pack language', field !== null && field.count === probe.names.length && field.names.every(n => probe.names.includes(n)) && packNames.every(n => !field.names.includes(n)), probe.langField)
+  check('the three it names are grammars that engine carries, python first', field !== null && field.names.length === 3 && field.names[0] === 'python', probe.langField)
   check('the python file still matches; the json file is skipped as uncarried and the remedy named', probe.matches === 1 && probe.trailer.includes('whose grammar this build does not carry (.json ×1)') && probe.trailer.includes('fetch-grammars'), probe.trailer)
   check('a single uncarried file refuses by name with the remedy', probe.single.includes('this build does not carry the json grammar') && probe.single.includes('fetch-grammars'), probe.single)
   check('a lang pin on an uncarried grammar refuses by name with the remedy', probe.pinned.includes('this build does not carry the json grammar'), probe.pinned)
   const here = astLanguageNames() as string[]
   const hereField = String(AstSearchTool.inputSchema.shape.lang.description)
   const carriedHere = (registry as Array<{ wasm: string }>).filter(g => existsSync(join(engineDir, g.wasm))).length
-  check(`the composed engine here carries ${here.length} of ${(registry as unknown[]).length} registry languages and the lang field advertises exactly those`, here.every(n => hereField.includes(n)) && here.length === carriedHere, here.join(','))
+  check(`the composed engine here carries ${here.length} of ${(registry as unknown[]).length} registry languages and the lang field says ${here.length}`, counted(hereField)?.count === here.length && here.length === carriedHere, hereField)
+}
+
+section('§13 — a language read for patterns only, beside code')
+if (!['markdown', 'yaml'].every(n => (astLanguageNames() as string[]).includes(n))) {
+  skip('markdown and yaml beside TypeScript', 'this checkout\'s engine dir does not carry them (bun run scripts/vendor/fetch-grammars.ts)')
+} else {
+  mkdirSync(join(root, 'beside'))
+  writeFileSync(join(root, 'beside', 'app.ts'), 'export function run() {\n  normalizeRecord(1)\n  other(2)\n}\n')
+  writeFileSync(join(root, 'beside', 'README.md'), '# Notes\n\nCall normalizeRecord(x) first.\n\n## Install\n\nText.\n')
+  writeFileSync(join(root, 'beside', 'deploy.yaml'), 'name: tidepool\nsteps:\n  - run: build\n')
+  const code = await search({ pattern: 'normalizeRecord($X)', path: 'beside' })
+  check('a code pattern finds the code, once', !code.isError && Number(code.data?.matchCount) === 1 && code.text.includes('app.ts:2:3'), code.text.slice(0, 300))
+  check('the markdown file that names the word is not searched, and the answer says why', code.text.includes('Not searched: 1 markdown file (the pattern does not parse as markdown ($X is text there, not a node)).'), code.text.split('\n').find(l => l.startsWith('Not searched')) ?? code.text.slice(0, 300))
+  check('the yaml file cannot hold the pattern: it is counted and no grammar opens it', code.text.includes('Searched 1 of 3 files under beside — 1 typescript, 1 yaml (files that cannot contain the pattern were not parsed).'), code.text.split('\n').find(l => l.startsWith('Searched')) ?? code.text.slice(0, 300))
+  const malformed = await search({ pattern: 'normalizeRecord($X', path: 'beside' })
+  check('a malformed code pattern still refuses as an error that names the code language first', malformed.isError && /did not parse as typescript \(1:\d+ [^)]+\); nor as markdown\./.test(malformed.text) && malformed.text.includes('"$FN($$$ARGS)"'), malformed.text.slice(0, 300))
+  const nowhere = await search({ pattern: ')((neverWritten', path: 'beside' })
+  check('a malformed pattern no file of a pattern-only language can hold refuses as on a directory of code alone', nowhere.isError && nowhere.text.includes('did not parse as typescript (1:1 syntax error).'), nowhere.text.slice(0, 300))
+  const heading = await search({ pattern: '## $TITLE', path: 'beside' })
+  check('a markdown pattern finds the heading and names the code file as not searched', !heading.isError && Number(heading.data?.matchCount) === 1 && heading.text.includes('$TITLE = Install') && heading.text.includes('1 typescript file (the pattern does not parse as typescript'), heading.text.slice(0, 400))
+  const pinned = await search({ pattern: 'run: $CMD', path: 'beside', lang: 'yml' })
+  check('lang by an alias keeps the yaml file alone and captures the value', !pinned.isError && Number(pinned.data?.matchCount) === 1 && pinned.text.includes('$CMD = build'), pinned.text.slice(0, 300))
+}
+
+section('§14 — a pattern accepted by a skipped file is not refused by the languages beside it')
+{
+  const { AST_BOUNDS, isAstRefusal, resolveAstScope, searchAstPattern, patternRefusedEverywhere } = await import(join(REPO, 'src/utils/astPatterns.ts'))
+  const dir = join(root, 'size-and-pattern')
+  mkdirSync(dir)
+  writeFileSync(join(dir, 'a.css'), 'p { color: red; }\n')
+  writeFileSync(join(dir, 'large.ts'), ' '.repeat(AST_BOUNDS.maxFileBytes + 1))
+  const valid = await search({ pattern: 'foo($X)', path: dir })
+  check('a valid TypeScript pattern beside CSS is a zero-match answer when its TypeScript file is over the existing bound, not a malformed-pattern error', !valid.isError && Number(valid.data?.matchCount) === 0 && valid.text.includes('No matches for "foo($X)".') && valid.text.includes('Skipped 1 file over 2MB.') && valid.text.includes('Not searched: 1 css file (the pattern does not parse as css'), valid.text)
+  const invalid = await search({ pattern: 'foo($X', path: dir })
+  check('a pattern neither language can compile is still the pattern error and names both languages, even beside the oversized file', invalid.isError && invalid.text.includes('did not parse as css (1:1 syntax error); nor as typescript.'), invalid.text)
+  const scope = resolveAstScope({ cwd: root, path: dir })
+  if (isAstRefusal(scope)) check('the size-and-pattern scope resolves', false, scope.refused)
+  else {
+    const result = await searchAstPattern(scope, { pattern: 'foo($X' })
+    check('the refused-everywhere result retains a reason for every language that tried the pattern', !isAstRefusal(result) && patternRefusedEverywhere(scope, result) && result.patternRefusals.length === 2 && result.patternRefusals.every((r: { note: string }) => /syntax error|missing/.test(r.note)), isAstRefusal(result) ? result.refused : JSON.stringify(result.patternRefusals))
+  }
+}
+
+section('§15 — a Read deny follows a file through the directory search and rewrite')
+for (const [lang, ext, pattern, rewrite, source] of [
+  ['yaml', 'yaml', 'height: $X', 'height: changed', 'height: restricted_value\n'],
+  ['typescript', 'ts', 'height($X)', 'height(changed)', 'height(restricted_value)\n'],
+] as const) {
+  const rel = `read-links-${lang}`
+  const dir = join(root, rel)
+  mkdirSync(join(dir, 'private'), { recursive: true })
+  const secret = join(dir, `secret.${ext}`)
+  const inner = join(dir, 'private', `inner.${ext}`)
+  const alias = join(dir, `alias.${ext}`)
+  const chain = join(dir, `chain.${ext}`)
+  const allowed = join(dir, `allowed.${ext}`)
+  writeFileSync(secret, source)
+  writeFileSync(inner, source)
+  writeFileSync(allowed, source.replace('restricted_value', 'public_value'))
+  try {
+    symlinkSync(secret, alias, 'file')
+    symlinkSync(alias, chain, 'file')
+    symlinkSync(join(dir, 'private'), join(dir, 'linked-directory'), 'junction')
+  } catch (error) {
+    if (process.platform !== 'win32' || !['EPERM', 'EACCES'].includes((error as { code?: string }).code ?? '')) throw error
+    skip(`${lang}: file and directory links`, 'Windows file symlinks require Developer Mode or the symbolic-link privilege')
+    continue
+  }
+  const denied = await makeContext([AstSearchTool, AstEditTool], { mode: 'sovereign', deny: [`Read(./${rel}/secret.${ext})`, `Read(./${rel}/private/**)`] })
+  for (const target of [alias, chain, join(dir, 'linked-directory', `inner.${ext}`)]) {
+    const direct = await drive(AstSearchTool, { path: target, pattern }, denied)
+    check(`${lang}: a directly named link to the denied file is refused (${target.slice(dir.length + 1)})`, direct.isError && !direct.text.includes(source.trim()), direct.text)
+  }
+  const listed = await drive(AstSearchTool, { path: rel, pattern }, denied)
+  check(`${lang}: the walk omits the denied file, two linked aliases and both paths into the denied folder, counting all five`, !listed.isError && listed.data?.matchCount === 1 && !listed.text.includes(source.trim()) && listed.text.includes('Skipped 5 files hidden by read-deny rules.'), listed.text)
+  const unrestricted = await makeContext([AstSearchTool, AstEditTool], { mode: 'sovereign' })
+  const all = await drive(AstSearchTool, { path: rel, pattern }, unrestricted)
+  check(`${lang}: with no deny rule every one of the six paths is still searched`, !all.isError && all.data?.matchCount === 6 && all.text.includes(source.trim()), all.text)
+  const preview = await drive(AstEditTool, { path: rel, pattern, rewrite }, denied)
+  check(`${lang}: the rewrite preview reads only the allowed file`, !preview.isError && preview.data?.fileCount === 1 && preview.data?.matchCount === 1 && !preview.text.includes(source.trim()), preview.text)
+  const applied = preview.isError ? preview : await drive(AstEditTool, { path: rel, pattern, rewrite, apply: true, plan: preview.data?.plan }, denied)
+  check(`${lang}: applying the rewrite changes only the allowed file, never either denied target through its aliases`, !applied.isError && readFileSync(secret, 'utf8') === source && readFileSync(inner, 'utf8') === source && readFileSync(allowed, 'utf8') === source.replace('restricted_value', 'changed'), applied.text)
+  const plain = `read-plain-${lang}`
+  mkdirSync(join(root, plain))
+  writeFileSync(join(root, plain, `a.${ext}`), source)
+  const withoutRule = await drive(AstSearchTool, { path: plain, pattern }, unrestricted)
+  const withRule = await drive(AstSearchTool, { path: plain, pattern }, denied)
+  check(`${lang}: the ordinary folder with no denied path keeps the same answer byte for byte`, withoutRule.text === withRule.text && JSON.stringify(withoutRule.data) === JSON.stringify(withRule.data), withRule.text)
+  const nested = join(dir, 'scoped', 'nested')
+  mkdirSync(nested, { recursive: true })
+  writeFileSync(join(nested, `secret.${ext}`), source)
+  writeFileSync(join(nested, `allowed.${ext}`), source.replace('restricted_value', 'public_value'))
+  symlinkSync(join(dir, 'scoped'), join(dir, 'scoped-link'), 'junction')
+  const nestedRules = await makeContext([AstSearchTool, AstEditTool], { mode: 'sovereign', deny: [`Read(./${rel}/scoped/nested/secret.${ext})`] })
+  const nestedSearch = await drive(AstSearchTool, { path: `${rel}/scoped-link/nested`, pattern }, nestedRules)
+  check(`${lang}: a scope rooted below a linked directory retains its link ancestry`, !nestedSearch.isError && nestedSearch.data?.matchCount === 1 && !nestedSearch.text.includes(source.trim()) && nestedSearch.text.includes('Skipped 1 file hidden by read-deny rules.'), nestedSearch.text)
 }
 
 finish('AST SEARCH LAWS')
