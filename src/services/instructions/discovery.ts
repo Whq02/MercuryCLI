@@ -13,6 +13,7 @@ import type { FsOperations } from '../../utils/fsOperations.js'
 import { getFsImplementation, safeResolvePath } from '../../utils/fsOperations.js'
 import type { MemoryType } from '../../utils/memory/types.js'
 import { pathInWorkingPath } from '../../utils/permissions/filesystem.js'
+import { getPlatform } from '../../utils/platform.js'
 import { recordHiddenCharacters } from '../../utils/text/hiddenCharacterFindings.js'
 import type {
   InstructionConvention,
@@ -113,8 +114,10 @@ function resolveExcludePatterns(patterns: string[]): string[] {
     return normalized
   })
 
+  const drives = getPlatform() === 'windows'
   for (const normalized of [...expanded]) {
-    if (!normalized.startsWith('/')) {
+    const root = normalized.startsWith('/') ? '/' : drives && /^[A-Za-z]:\//.test(normalized) ? normalized.slice(0, 3) : null
+    if (root === null) {
       continue
     }
 
@@ -124,7 +127,7 @@ function resolveExcludePatterns(patterns: string[]): string[] {
       staticPrefix = normalized
     } else {
       const lastSep = normalized.lastIndexOf('/', globStart)
-      staticPrefix = lastSep <= 0 ? '/' : normalized.slice(0, lastSep)
+      staticPrefix = lastSep < root.length ? root : normalized.slice(0, lastSep)
     }
 
     const resolved = memoizedResolvedPath(fs, staticPrefix)
