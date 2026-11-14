@@ -18,16 +18,16 @@ const SAMPLES: Record<string, string> = {
   go: 'package p\nfunc f(a int) {\n\tif a > 0 { run() }\n\tg(a)\n}\n',
   rust: 'fn f(a: i32) {\n    if a > 0 { run(); }\n    g(a);\n}\n',
   bash: 'f() { echo hi; }\nif [ -f x ]; then echo y; fi\n',
-  'c-sharp': 'class C {\n  int F(int a) { var b = G(a); return b; }\n}\n',
-  cpp: '#include <vector>\nint f(int a) { return g(a); }\n',
+  'c-sharp': 'class C {\n  public void F(int a) { if (a > 0) { G(a); } }\n  void Plain() { G(0); }\n}\n',
+  cpp: 'void f(int a) { if (a > 0) { g(a); } }\n',
   css: '@import "x.css";\na { color: red; margin: 0; }\n',
-  java: 'class C {\n  int f(int a) { run(a); return this.g(a); }\n}\n',
+  java: 'class C {\n  public void f(int a) { if (a > 0) { this.g(a); } }\n  void plain() { this.g(0); }\n}\n',
   php: '<?php\nfunction f($a) { run($a); return $a; }\necho "x";\n',
   ruby: 'def f(a) run(a) end\nobj.run(1)\n',
   powershell: 'function F { Run 1 }\nif ($a) { Run 2 }\n',
   ini: '[core]\nname = value\n',
   regex: '(a|b)\n',
-  c: '#include <stdio.h>\nint f(int a) { return g(a); }\n',
+  c: 'void f(int a) { if (a > 0) { g(a); } }\n',
   html: '<html><body><a href="x">t</a><ul><li>a</li></ul></body></html>\n',
   json: '{"list": [1, 2], "one": {"name": "y"}}\n',
   toml: '[package]\nname = "x"\n',
@@ -89,6 +89,8 @@ section('§1 — every language but JavaScript, TypeScript and TSX has examples 
   check('two or three for each', Object.keys(OWN).length > 0 && counts.length === 0, counts.join(', '))
   const lines = Object.entries(OWN).filter(([, examples]) => examples.some(example => example.includes('\n'))).map(([name]) => name)
   check('each example is one line', lines.length === 0, lines.join(', '))
+  const bodiless = ['java', 'c-sharp', 'c', 'cpp', 'css', 'json'].filter(name => !(OWN[name] ?? []).some(example => /\{ \$\$\$[A-Z]+ \}/.test(example)))
+  check('the six of the first languages whose bodies and lists a meta-variable holds show one among their examples', bodiless.length === 0, bodiless.join(', '))
 }
 
 section('§2 — each example compiles in its language and finds a node in a sample of it')
@@ -111,6 +113,25 @@ for (const row of registry) {
     else if (result.matches.length === 0) fails.push(`${example}: no match in the sample`)
   }
   check(label, examples.length > 0 && fails.length === 0, fails.join('; '))
+}
+
+section('§2b — the method shown for Java and C# says public, and means it')
+for (const [lang, shown, without] of [['java', 'f', 'plain'], ['c-sharp', 'F', 'Plain']] as const) {
+  const row = registry.find(entry => entry.name === lang)!
+  if (!admitted(row)) {
+    skip(`${lang}: the method example`, `${row.wasm} not in this checkout's engine dir`)
+    continue
+  }
+  const scope = resolveAstScope({ cwd: join(root, 'samples', lang) })
+  if (isAstRefusal(scope)) throw new Error(scope.refused)
+  const named = async (pattern: string): Promise<string> => {
+    const result = await searchAstPattern(scope, { pattern })
+    return isAstRefusal(result) ? result.refused : (result.matches as Array<{ captures: Array<{ key: string; text: string }> }>).map(match => match.captures.find(capture => capture.key === '$NAME')?.text ?? '?').join(',')
+  }
+  const example = (OWN[lang] ?? []).find(text => text.includes('$NAME')) ?? ''
+  check(`${lang}: its method example is written with public`, example === 'public void $NAME($$$PARAMS) { $$$BODY }', example)
+  check(`${lang}: it finds the public method and not the one written without`, (await named(example)) === shown, await named(example))
+  check(`${lang}: the same pattern without public finds the method without it alone`, (await named('void $NAME($$$PARAMS) { $$$BODY }')) === without, await named('void $NAME($$$PARAMS) { $$$BODY }'))
 }
 
 put('zig/app.zig', 'fn f(a: i32) i32 { return a; }\n')

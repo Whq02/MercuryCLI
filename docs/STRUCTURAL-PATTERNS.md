@@ -103,7 +103,10 @@ a Makefile `include $F` also finds `-include`, in Protocol Buffers
 the streaming ones, in Zig a `fn` pattern finds a function with `pub` and
 one without, whichever the pattern says, in Lua a `function` pattern finds
 a `local function` too, and in Objective-C a method pattern finds `-` and
-`+` methods alike. A body or a list written as one `$$$` meta-variable
+`+` methods alike. Where a modifier is a node of its own (Java, C#, Kotlin,
+Swift, Rust) it is part of the pattern: `void $N() { … }` finds only a
+method written without one, and `public void $N() { … }` the public ones.
+A body or a list written as one `$$$` meta-variable
 holds its members, none, one or several, also where a member is never a
 bare word: the body of an HCL block (`resource $TYPE $NAME { $$$BODY }`),
 the fields of a GraphQL type, the body of a Protocol Buffers message, enum
