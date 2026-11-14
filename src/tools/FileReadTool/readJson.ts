@@ -85,7 +85,7 @@ export async function readJson(request: ReadQueryRequest): Promise<ReadQueryResu
         if (version(fstatSync(fd)) !== initial) throw new Error(`${target.source} changed while its query was running; Read it again.`)
         const state = run.status !== 0 ? 'partial-error' : run.hasMore ? 'page' : 'complete'
         const span = run.shown === 0 ? 'none' : `${offset + 1}-${offset + run.shown}`
-        const header = `(target: JSON query · source: ${target.source} · identity: ${identity}${run.sha256 ? ` · sha256: ${run.sha256}` : ''} · results: ${span} · state: ${state})`
+        const header = `(target: JSON query · source: ${target.source} · identity: ${identity} · results: ${span} · state: ${state})`
         const originLine = origins.length === 0 ? '' : `[source lines of values ${span}, in order (- = no single line): ${origins.map(line => line ?? '-').join(', ')}]`
         const view = await jsonQueryWindow(run.outputPath, run.outputLines, input, Math.max(0, limits.maxTokens * 3 - header.length - PROVENANCE.length - originLine.length - 1024), signal)
         const lines = [header, PROVENANCE, `Query input: ${run.sourceBytes} of ${stats.size} bytes consumed (${run.sourceReadBytes} bytes read, including buffering)${run.sourceBytes < stats.size ? '; remaining input was not evaluated' : ''}.`, ...(source.generated ? ['Input is the selected resource or archive entry, not the container file.'] : []), view.text]

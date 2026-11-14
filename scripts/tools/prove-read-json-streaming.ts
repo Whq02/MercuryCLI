@@ -122,7 +122,7 @@ if (!given) {
     const started = performance.now(), load = loadavg()
     const run = await runJsonQuery({ fd, directory, query: '.n', offset: 0, limit: 2, raw: false, compact: true }, new AbortController().signal)
     console.log(`large source: ${size} bytes; consumed ${run.sourceBytes}; physically read ${run.sourceReadBytes}; wasm heap ${run.memoryBytes}; ${(performance.now() - started).toFixed(1)} ms; load ${load.join(',')}`)
-    check('B03 a large valid JSONL first page does not read or hash the whole source', statSync(large).size === size && run.shown === 2 && run.sourceBytes < 1024 * 1024 && run.sourceReadBytes < 1024 * 1024 && run.sha256 === undefined)
+    check('B03 a large valid JSONL first page does not read the whole source', statSync(large).size === size && run.shown === 2 && run.sourceBytes < 1024 * 1024 && run.sourceReadBytes < 1024 * 1024)
     check('B03 the large-source engine stays bounded by current values, not file size', run.memoryBytes <= 64 * 1024 * 1024 && readFileSync(run.outputPath, 'utf8') === '1\n1\n')
   } finally { closeSync(fd) }
   const largePage = await read(`${large}#read?limit=2&compact=1&q=.n`)

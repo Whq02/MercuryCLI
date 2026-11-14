@@ -1,5 +1,5 @@
 import { fork } from 'node:child_process'
-import { existsSync, fstatSync, read } from 'node:fs'
+import { existsSync, read } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { nodePackPlatform, runtimeBinaryFor } from '../../services/privateChannel/vendoredRuntime.js'
@@ -14,7 +14,6 @@ interface JsonQueryRun {
   array: boolean
   sourceBytes: number
   sourceReadBytes: number
-  sha256?: string
   memoryBytes: number
   diagnostics: string
   status: number
@@ -110,7 +109,7 @@ export async function runJsonQuery(
         else resolve(reply.result)
       })
       const { fd: _fd, ...options } = request
-      child.send({ ...options, sourceSize: fstatSync(request.fd).size, pack }, error => { if (error) { kill(); reject(error) } })
+      child.send({ ...options, pack }, error => { if (error) { kill(); reject(error) } })
       pumping = pump()
       if (signal.aborted) aborted()
     })

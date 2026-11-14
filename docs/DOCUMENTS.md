@@ -24,9 +24,8 @@ for a query and needs no installed jq; it preserves numeric literals,
 while arithmetic follows jq's floating-point rules. Queries use a virtual
 filesystem and environment; the named source is the only host file available
 to a query. Each page reopens the source, and a continuation checks its file
-identity. A query that consumes the entire input also reports its SHA-256.
-Query output gives no edit anchor or source read coverage, even for the
-identity filter. A result value too large to show is retained whole in the
+identity. Query output gives no edit anchor or source read coverage, even for
+the identity filter. A result value too large to show is retained whole in the
 generated result page's file, which the answer names.
 
 ## PDFs

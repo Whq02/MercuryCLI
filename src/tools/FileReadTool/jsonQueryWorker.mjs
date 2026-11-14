@@ -4,7 +4,7 @@ import { closeSync, openSync, readFileSync, readSync, writeSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-const { pack, input, sourceSize, directory, query, offset, limit, raw, compact, sourceLines } = workerData
+const { pack, input, directory, query, offset, limit, raw, compact, sourceLines } = workerData
 const control = new Int32Array(input, 0, 2)
 const channel = new Uint8Array(input, 8)
 const pageStop = new Error('page complete')
@@ -106,7 +106,6 @@ try {
   const originsPath = sourceLines ? join(directory, 'origins.jsonl') : undefined
   const origins = sourceLines ? openOwned(originsPath, 'w') : null
   let origin = null, firstOrigin = null
-  const hash = createHash('sha256')
   let sourceBytes = 0, total = 0, firstByte = null, currentBytes = 0
   let lastLine = false, lastDepth = 0, lastQuoted = false, lastEscaped = false, lastWhole = false
   const readSource = bytes => {
@@ -117,7 +116,6 @@ try {
     if (got < 0) throw new Error('The query source stream failed.')
     if (got > 0) {
       bytes.set(channel.subarray(0, got))
-      hash.update(bytes.subarray(0, got))
       if (sourceBytes === 0) parentPort.postMessage({ started: true })
       sourceBytes += got
       if (sourceLines) {
@@ -238,8 +236,7 @@ try {
     closeOwned(group)
   }
   const hasMore = array ? arrayCount > offset + shown : firstRun.stopped || total > offset + shown
-  const sha256 = sourceBytes === sourceSize ? hash.digest('hex') : undefined
-  parentPort.postMessage({ result: { outputPath, outputBytes, outputLines, shown, hasMore, array, sourceBytes, sha256, memoryBytes, ...(originsPath ? { originsPath } : {}), diagnostics: firstRun.diagnostics, status: firstRun.status, stopped: firstRun.stopped } })
+  parentPort.postMessage({ result: { outputPath, outputBytes, outputLines, shown, hasMore, array, sourceBytes, memoryBytes, ...(originsPath ? { originsPath } : {}), diagnostics: firstRun.diagnostics, status: firstRun.status, stopped: firstRun.stopped } })
 } catch (error) {
   parentPort.postMessage({ error: error instanceof Error ? error.message : String(error) })
 } finally {

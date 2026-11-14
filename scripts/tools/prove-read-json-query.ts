@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -55,6 +56,21 @@ if (!given) {
     check('M04 a followed stream page begins at the next value', read.body.includes('{"n":5,"r":0,"big":null}') && read.body.includes('state: complete'), read.body)
   }
   check('M09 query output has neither anchor nor source coverage', !projected.body.includes('(anchor:') && !projected.ctx.readFileState.has(rows))
+  const { FileEditTool } = await import(`${src}/tools/FileEditTool/FileEditTool.ts`)
+  const digestOf = (path: string) => createHash('sha256').update(readFileSync(path)).digest('hex')
+  const edited = file('edited.json', '{"a":1}\n')
+  const consumed = await ask(edited, '.a')
+  const copied = /\b([0-9a-f]{12})[0-9a-f]{52}\b/.exec(consumed.body)
+  const change = { file_path: edited, old_string: '"a":1', new_string: '"a":2' }
+  const anchored = await FileEditTool.validateInput({ ...change, expected_anchor: `fa:${digestOf(edited).slice(0, 12)}` }, context())
+  check('M09 the fixture is real: the first twelve hex of a file digest are the anchor an unread Edit passes on', anchored.result === true, JSON.stringify(anchored))
+  const afterQuery = await FileEditTool.validateInput({ ...change, ...(copied ? { expected_anchor: `fa:${copied[1]}` } : {}) }, consumed.ctx)
+  check('M09 nothing copied from a query answer lets an Edit pass as a read', consumed.body.includes('state: complete') && afterQuery.result === false && String(afterQuery.message).includes('Read the file before editing'), `${JSON.stringify(afterQuery)} ${consumed.body}`)
+  const digestRows = file('digest.jsonl', '{"n":1}\n{"n":2}\n{"n":3}\n')
+  const digestPage = await ask(digestRows, '.n', 'limit=2')
+  const digestNext = next(digestPage.body)
+  const digestAnswers = [consumed.body, digestPage.body, digestNext ? (await invoke(digestNext)).body : '', (await ask(digestRows, '.n | error')).body, (await ask(digestRows, '.n |')).body, (await ask(digestRows, '.n', 'source=stale')).body, (await ask(digestRows, '.', '', { offset: 2, limit: 1 })).body]
+  check('M09 no query answer carries the first twelve hex of its source digest', digestNext !== null && digestAnswers.every(body => body.includes('target: JSON query') && !body.includes(digestOf(edited).slice(0, 12)) && !body.includes(digestOf(digestRows).slice(0, 12))), digestAnswers.join('\n'))
   const arrayFile = file('array.json', '[{"a":1,"b":2},{"a":3,"b":4},{"a":5,"b":6}]')
   const array = await ask(arrayFile, '.', 'offset=1&limit=1&compact=1')
   check('M04 one array is paged by elements without losing object members', array.body.includes('[{"a":3,"b":4}]') && array.body.includes('results: 2-2'), array.body)

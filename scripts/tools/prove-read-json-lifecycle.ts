@@ -37,7 +37,7 @@ if (mode === '--owner') {
     child.stderr?.destroy()
     process.send?.({ ended: true, code, elapsed: performance.now() - begun, reply }, () => process.exit(started ? 0 : 1))
   })
-  child.send({ pack, directory, sourceSize: 2, query: scenario === 'success' ? '.' : 'until(false; .)', offset: 0, limit: 100, raw: false, compact: true })
+  child.send({ pack, directory, query: scenario === 'success' ? '.' : 'until(false; .)', offset: 0, limit: 100, raw: false, compact: true })
   child.stdin!.end('{}')
 } else {
   let passed = 0, failed = 0
