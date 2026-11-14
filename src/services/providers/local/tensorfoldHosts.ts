@@ -157,6 +157,10 @@ export function rememberedTensorFoldWindow(repo: string): number | undefined {
   return readStore().windows?.[repo.toLowerCase()]
 }
 
+export function rememberedTensorFoldRepos(): readonly string[] {
+  return Object.keys(readStore().windows ?? {})
+}
+
 export function forgetTensorFoldPort(port: number): void {
   const store = readStore()
   if (!store.ports.includes(port)) return

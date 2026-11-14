@@ -217,5 +217,36 @@ console.log('\n── A5: an old exclusive record reactivates as shared ──')
   check("A5 the standing record re-claims 'shared' (the ground never re-fences)", rec?.isolation === 'shared', String(rec?.isolation))
 }
 
+console.log('\n── A6 a chat on a local model nothing serves: the screen\'s own chat is admitted on it with a note, and nothing else is ──')
+{
+  process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+  const UNSERVED = 'local/qwen3.5-2b'
+  const NEVER = `${UNSERVED} is not being served — start a local server, or set MERCURY_LOCAL_BASE_URL · /model chooses another`
+  const AGAIN = `${UNSERVED} is not being served — /tensorfold serves it again · /model chooses another`
+  const seats = new FakeRoster()
+  const unservedDir = join(SCRATCH, 'daemon-unserved')
+  mkdirSync(unservedDir, { recursive: true })
+  const admitUnserved = makeConcourseAdmitHandler({ roster: () => seats, dir: unservedDir })
+  const modelOf = (runnerId: string): string | undefined => seats.registered.findLast(r => r.short === runnerId)?.spec.model
+  const verdict = await validateWorkerModelChoice(UNSERVED, 'session')
+  check('A6 the model is one the admission\'s own reading refuses as unreachable:local (holds on the parent too)', !verdict.ok && verdict.reason === 'unreachable:local', JSON.stringify(verdict))
+  const chat = await admitUnserved({ workspaceDir: mkrepo('ws-unserved'), isolation: 'shared', bornBlank: true, modelKey: UNSERVED, by: 'operator' })
+  check('A6 the screen\'s own chat is admitted on that model', chat.ok && chat.modelId === UNSERVED, JSON.stringify(chat))
+  check('A6 its note names the model and the two ways on, in the words of a machine that never served it', chat.ok && chat.note === NEVER, chat.ok ? String(chat.note) : chat.error)
+  check('A6 one runner is registered for it, on that model, and nothing else is started', seats.registered.length === 1 && chat.ok && modelOf(chat.runnerId) === UNSERVED, `${seats.registered.length} registered: ${chat.ok ? modelOf(chat.runnerId) : ''}`)
+  mkdirSync(join(SCRATCH, 'home', 'local-setup'), { recursive: true })
+  writeFileSync(join(SCRATCH, 'home', 'local-setup', 'tensorfold-hosts.json'), JSON.stringify({ version: 1, hosts: [], ports: [], windows: { 'mlx-community/qwen3.5-2b-mlx-4bit': 32768 } }))
+  const again = await admitUnserved({ workspaceDir: mkrepo('ws-unserved-again'), isolation: 'shared', bornBlank: true, modelKey: UNSERVED, by: 'operator:screen' })
+  check('A6 where Mercury\'s engine has served that model on this machine the note names /tensorfold', again.ok && again.note === AGAIN, again.ok ? String(again.note) : again.error)
+  const held = seats.registered.length
+  for (const [who, by] of [['an asker that is no screen', 'session:a-crew-lead'], ['an admission that names no asker', undefined]] as const) {
+    const other = await admitUnserved({ workspaceDir: mkrepo(`ws-unserved-${by === undefined ? 'unnamed' : 'crew'}`), isolation: 'shared', modelKey: UNSERVED, ...(by !== undefined ? { by } : {}) })
+    check(`A6 ${who} is refused as it was, in the refusal's own words (holds on the parent too)`, !other.ok && other.error.startsWith('model refused (unreachable:local) · ask the operator to start a local server, or set MERCURY_LOCAL_BASE_URL — no local server is discovered on this box'), JSON.stringify(other))
+  }
+  const family = await admitUnserved({ workspaceDir: mkrepo('ws-unserved-family'), isolation: 'shared', bornBlank: true, modelKey: 'local', by: 'operator' })
+  check('A6 the family word with no server is refused as it was, for the screen too (holds on the parent too)', !family.ok && family.error.startsWith('model refused (unreachable:local)'), JSON.stringify(family))
+  check('A6 none of the three refusals registered a runner', seats.registered.length === held, String(seats.registered.length - held))
+}
+
 console.log(`\n${failures === 0 ? 'ALL PINS HOLD' : `${failures} PIN(S) FAILED`}`)
 process.exit(failures === 0 ? 0 : 1)

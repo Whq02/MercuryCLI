@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 export const FAKE_TENSORFOLD_VERSION = '1.2.2'
@@ -170,6 +170,7 @@ async function serve(): Promise<void> {
       if (draining) return json(response, 503, { error: { message: 'the server is shutting down', type: 'server_error', param: null, code: 'draining' } })
       inFlight += 1
       const body = await readBody(request)
+      if (env.FAKE_TENSORFOLD_LOG !== undefined) appendFileSync(env.FAKE_TENSORFOLD_LOG, `request ${body}\n`)
       let prompt = ''
       let stream = false
       try {

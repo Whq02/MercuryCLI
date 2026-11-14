@@ -266,7 +266,7 @@ section('§6 THE RESUME SIBLING — a resumed session whose retained model has n
   check('the admit answer carries the retained-model note across the control socket', /const ADMIT_WIRE_KEYS = \[[^\]]*'note'[^\]]*\]/.test(socket))
   const daemon6 = read('src/daemon/concourseWorkers.ts')
   check('the admission re-validates a refused retained model UNNAMED and mints the note on every ok road', daemon6.includes("validated.reason.startsWith('no-credential:')") && daemon6.split('retainedNote !== undefined').length >= 4)
-  check('the resume door paints the note on the screen-receipt seam', read('src/services/switchboard/hopIntoSession.ts').includes("if (typeof reply.note === 'string' && reply.note !== '') mintImmediateReceipt(`▲ ${reply.note}`, 'warning')"))
+  check('the resume door paints the note on the resumed session’s own rows', read('src/services/switchboard/hopIntoSession.ts').includes('if (refused === null && note !== undefined) void paintAdmissionNote(sessionId, note)') && read('src/services/switchboard/hopIntoSession.ts').includes("seat.getDaemonSessionConnector(sessionId)?.addDisplayRow(createSeatReceiptMessage(`▲ ${note}`, 'warning') as never)"))
   const home2 = mkdtempSync(join(tmpdir(), 'resume-keyless-home-'))
   const cwd2 = realpathSync(mkdtempSync(join(tmpdir(), 'resume-keyless-cwd-')))
   const configDir2 = join(home2, '.mercury')

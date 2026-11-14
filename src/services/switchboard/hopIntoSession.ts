@@ -4,6 +4,7 @@ import type { AwayRecapMetadata, LaunchWonV1 } from '../../types/message.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import { emitFocusedSessionConnectorChanged, hasFocusedSession, withLanding } from '../engine-connector/focusedConnector.js'
 import { armLandingWords, bootBirthFacts, carriedConsentOf, carriedKitOf, peekWornPresetKit, settleLandingWords, takeWornPresetKit } from './bootBirthFacts.js'
+import { createSeatReceiptMessage } from '../../utils/messages/systemMessages.js'
 import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
 import { validateUuid } from '../../utils/sessionStoragePortable.js'
 
@@ -82,6 +83,11 @@ async function hopIntoBoardSessionLanding(sessionId: string, opts?: { firstPaint
     .then(m => m.ensureOwnedDaemon())
     .catch(() => {})
   return { ok: true, title }
+}
+
+export async function paintAdmissionNote(sessionId: string, note: string): Promise<void> {
+  const seat = await import('../engine-connector/daemonConnector.js')
+  seat.getDaemonSessionConnector(sessionId)?.addDisplayRow(createSeatReceiptMessage(`▲ ${note}`, 'warning') as never)
 }
 
 type ResumeOutcome = HopOutcome & {
@@ -185,6 +191,7 @@ async function focusResumedSessionLanding(
     : {}
   let settleLaunchWon: (won: LaunchWonV1 | null) => void = () => {}
   const launchWon: Promise<LaunchWonV1 | null> = launchGiven ? new Promise(resolve => { settleLaunchWon = resolve }) : Promise.resolve(null)
+  let note: string | undefined
   const refusal = (async (): Promise<string | null> => {
     let won: LaunchWonV1 | null = null
     try {
@@ -201,7 +208,7 @@ async function focusResumedSessionLanding(
         ...(typeof reply.modelId === 'string' ? { model: reply.modelId } : {}),
         ...(typeof reply.effort === 'string' ? { effort: reply.effort } : {}),
       })
-      if (typeof reply.note === 'string' && reply.note !== '') mintImmediateReceipt(`▲ ${reply.note}`, 'warning')
+      if (typeof reply.note === 'string' && reply.note !== '') note = reply.note
       if (reply.liveHop === true) mintImmediateReceipt(composeHeldLine(title))
       if (worn !== null && reply.liveHop !== true) takeWornPresetKit()
       const settled = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
@@ -232,6 +239,9 @@ async function focusResumedSessionLanding(
   const pointed = seat.focusDaemonSession(connector.record)
   await Promise.race([pointed, new Promise<void>(r => setTimeout(r, opts?.firstPaintMs ?? 250))])
   void withLanding(pointed.then(() => undefined)).catch(() => {})
+  void Promise.all([refusal, pointed.catch(() => undefined)]).then(([refused]) => {
+    if (refused === null && note !== undefined) void paintAdmissionNote(sessionId, note)
+  })
   void paintResumeRecap(sessionId, launchWon)
   void paintReactivationScheduleWarn(sessionId)
   return { ok: true, title, admitted, refusal }
