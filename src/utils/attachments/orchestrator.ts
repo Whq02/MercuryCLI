@@ -100,6 +100,7 @@ export async function getAttachments(
           { inputScoped: true },
         ),
         maybe('samples_road', () => Promise.resolve(options?.operatorPrompt ? samplesRoadAttachment(input, messages) : []), { inputScoped: true }),
+        maybe('remote_files', async () => (input.includes('ssh://') ? (await import('../../services/remoteFiles/notice.js')).remoteFilesNotice(input, messages) : []), { inputScoped: true }),
         maybe(
           'agent_mentions',
           () =>

@@ -32,6 +32,7 @@
 # gate-watch: src/services/engine-connector/focusedConnector.ts
 # gate-watch: src/services/engine-connector/noSessionConnector.ts
 # gate-watch: src/utils/permissions/filesystem.ts
+# gate-watch: src/utils/attachments/orchestrator.ts
 # gate-watch: scripts/tools/fixtures/read-formats/**
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
