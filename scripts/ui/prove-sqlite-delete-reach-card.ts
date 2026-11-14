@@ -36,7 +36,7 @@ CREATE TABLE lonely(id INTEGER PRIMARY KEY, name TEXT); INSERT INTO lonely VALUE
     console.log(`CARD ${table}\n${card}\nAFTER ${table}\n${after}`)
     const flat = after.replace(/\s+/g, ' ')
     if (reaches) {
-      check('the card says what else may change, under the row and above the question', card.includes(REACH) && card.indexOf('the one shown') < card.indexOf(REACH) && card.indexOf(REACH) < card.indexOf('Delete this row?'), card)
+      check('the card says what else may change, under the row and above the question', card.includes(REACH) && card.includes('the one shown') && card.indexOf('the one shown') < card.indexOf(REACH) && card.indexOf(REACH) < card.indexOf('Delete this row?'), card)
       check('the result line counts the other rows that changed', flat.includes('Deleted one SQLite row') && flat.includes('4 other rows changed with it'), after)
     } else {
       check('a row nothing hangs from has no such line on its card', card.includes('the one shown') && card.includes('Delete this row?') && !card.includes('Other rows'), card)
