@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
 import { execFileSync } from 'node:child_process'
-import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, rmSync, statfsSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, linkSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, rmSync, statfsSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { cloneRoadExpected, volumeClones } from '../lib/cloneRoad.ts'
+import { cloneRoadExpected, contentShared, volumeClones } from '../lib/cloneRoad.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
@@ -199,9 +199,12 @@ const spaceUsed = (): number => {
   return (volume.blocks - volume.bfree) * volume.bsize
 }
 const megabytes = (bytes: number): string => `${(bytes / 1024 / 1024).toFixed(1)} MB`
-const diskRow = (road: string, cost: number): void => {
-  if (process.platform === 'darwin') check(`${road}: the least of three clones costs under a quarter of the folder, on a volume other work writes to meanwhile`, cost < bigBytes / 4, `${megabytes(cost)} of ${megabytes(bigBytes)}`)
-  else check(`${road}: the data of the eight large files is shared with the checkout, so the clone costs less than they alone would (a file small enough for the filesystem to keep inline is copied)`, cost < LARGE_BYTES, `${megabytes(cost)} of ${megabytes(LARGE_BYTES)}`)
+const asked = bigListing.filter(row => !row.endsWith('/') && !row.includes(' -> ')).map(row => row.slice(0, row.lastIndexOf(' '))).filter((rel, index) => index % 40 === 0 || rel.endsWith('bundle.bin'))
+const dataRow = (road: string, target: string, cost: number): void => {
+  if (process.platform === 'darwin') {
+    const shared = contentShared(asked.map(rel => [join(big, 'node_modules', rel), join(target, rel)] as const))
+    check(`${road}: each of ${asked.length} files asked, the eight large ones among them, carries the content identifier of the checkout's file, so APFS holds their data once (the volume's used space is a reading: other work writes to it meanwhile)`, shared !== null && shared.every(Boolean), shared === null ? 'the identifiers could not be read' : `${shared.filter(Boolean).length} of ${shared.length}`)
+  } else check(`${road}: the data of the eight large files is shared with the checkout, so the clone costs less than they alone would (a file small enough for the filesystem to keep inline is copied)`, cost < LARGE_BYTES, `${megabytes(cost)} of ${megabytes(LARGE_BYTES)}`)
 }
 if (cloneRoad && cloneModule !== null) {
   const times: number[] = []
@@ -220,7 +223,14 @@ if (cloneRoad && cloneModule !== null) {
   console.log(`  three clones: ${times.map(ms => `${ms.toFixed(0)} ms`).join(', ')}; the volume's used space moved by ${costs.map(megabytes).join(', ')}`)
   if (process.platform === 'darwin') check('ten thousand files are cloned in under a second', bigFiles >= 10_000 && best < 1000, `${best.toFixed(0)} ms`)
   else console.log('  the bound of a second is held on APFS, where one call clones the folder; here the time is read, not held')
-  diskRow('the folder cloned', Math.min(...costs))
+  dataRow('the folder cloned', join(scratch, 'timed-0', 'node_modules'), Math.min(...costs))
+  if (process.platform === 'darwin') {
+    const original = join(big, 'node_modules', asked[0]!)
+    const byteCopy = join(scratch, 'byte-copy')
+    writeFileSync(byteCopy, readFileSync(original))
+    const control = contentShared([[original, byteCopy]])
+    check('…while a byte copy of one of them carries an identifier of its own', control !== null && control[0] === false, JSON.stringify(control))
+  }
   enter(big)
   const started = performance.now()
   const whole = await createAgentWorktree('agent-a3000001')
@@ -287,7 +297,7 @@ if (volumeClones(scratch) && process.platform !== 'win32' && cloneModule !== nul
     if (round === 0) check('ten thousand files cloned file by file hold the folder whole', fileOutcome[0] === 'cloned' && JSON.stringify(listing(fileTarget)) === JSON.stringify(bigListing), String(fileOutcome[0]))
   }
   console.log(`  three clones, file by file: ${fileTimes.map(ms => `${ms.toFixed(0)} ms`).join(', ')}; the volume's used space moved by ${fileCosts.map(megabytes).join(', ')}`)
-  diskRow('the folder cloned file by file', Math.min(...fileCosts))
+  dataRow('the folder cloned file by file', join(scratch, 'timed-files-0', 'node_modules'), Math.min(...fileCosts))
   const sealedByFile = join(scratch, 'sealed-by-file')
   makeCheckout(sealedByFile, 40)
   mkdirSync(join(sealedByFile, 'node_modules', 'sealed'))
@@ -304,6 +314,74 @@ if (volumeClones(scratch) && process.platform !== 'win32' && cloneModule !== nul
   const refusedByFile = await createAgentWorktree('agent-a8000001')
   delete process.env.MERCURY_WORKTREE_CLONE
   check('the file-by-file road on a volume that cannot reflink leaves the links, as before', isLinkTo(join(refusedByFile.worktreePath, 'node_modules'), join(deps, 'node_modules')) && isLinkTo(join(refusedByFile.worktreePath, 'vendor', 'pack-a'), join(deps, 'vendor', 'pack-a')))
+}
+
+section("§5c Linux's own road, one `cp -a --reflink=always` a folder where the machine's cp takes the flag, read through MERCURY_WORKTREE_CLONE=cp with a cp of the proof's own that records what it is asked")
+if (volumeClones(scratch) && process.platform !== 'win32' && cloneModule !== null) {
+  const shims = join(scratch, 'shims')
+  const asked = join(shims, 'asked.log')
+  const realCp = execFileSync('sh', ['-c', 'command -v cp'], { encoding: 'utf8' }).trim()
+  const record = `#!/bin/bash\nprintf '%s\\n' "$*" >> ${JSON.stringify(asked)}\n`
+  const takes = 'if [ "$1" = "--reflink=always" ] && [ "$2" = "--version" ]; then exit 0; fi\n'
+  const cloneCall = '[ "$1 $2 $3 $4" = "-a --reflink=always -T --" ] || exit 64\n'
+  const doubles: Record<string, string> = {
+    taking: record + takes + cloneCall + (process.platform === 'darwin' ? `exec ${realCp} -c -R -p "$5/." "$6/"\n` : `exec ${realCp} "$@"\n`),
+    failing: record + takes + cloneCall + 'mkdir -p "$6/half"; echo x > "$6/half/file"; echo "cp: cannot clone" >&2; exit 1\n',
+    refusing: record + 'echo "cp: unrecognized option" >&2; exit 1\n',
+  }
+  for (const [name, body] of Object.entries(doubles)) {
+    mkdirSync(join(shims, name), { recursive: true })
+    writeFileSync(join(shims, name, 'cp'), body)
+    chmodSync(join(shims, name, 'cp'), 0o755)
+  }
+  const askedLines = (): string[] => read(asked).split('\n').filter(line => line !== '' && line !== '<absent>')
+  const pathBefore = process.env.PATH ?? ''
+  const byCpFixture = join(scratch, 'by-cp')
+  makeCheckout(byCpFixture, 60)
+  symlinkSync(join(byCpFixture, 'src'), join(byCpFixture, 'node_modules', 'abs-into-checkout'))
+  const byCpListing = listing(join(byCpFixture, 'node_modules'))
+  process.env.MERCURY_WORKTREE_CLONE = 'cp'
+  process.env.PATH = `${join(shims, 'taking')}:${pathBefore}`
+  const takenOne = await createAgentWorktree('agent-a9000001', { from: byCpFixture })
+  const takenTwo = await createAgentWorktree('agent-a9000002', { from: byCpFixture })
+  const afterTaking = askedLines()
+  check('the machine\'s cp is asked once whether it takes the flag, however many copies are made', afterTaking.filter(line => line === '--reflink=always --version').length === 1, afterTaking.join(' | '))
+  check('each folder is taken by one call, `cp -a --reflink=always -T --` from the checkout\'s real folder to the copy\'s', afterTaking.includes(`-a --reflink=always -T -- ${realpathSync(join(byCpFixture, 'node_modules'))} ${join(takenOne.worktreePath, 'node_modules')}`) && afterTaking.includes(`-a --reflink=always -T -- ${realpathSync(join(byCpFixture, 'vendor', 'pack-a'))} ${join(takenTwo.worktreePath, 'vendor', 'pack-a')}`) && afterTaking.length === 5, afterTaking.join(' | '))
+  check('the copy holds the folder whole as its own', isOwnDirectory(join(takenOne.worktreePath, 'node_modules')) && JSON.stringify(listing(join(takenOne.worktreePath, 'node_modules')).filter(row => !row.startsWith('abs-into-checkout'))) === JSON.stringify(byCpListing.filter(row => !row.startsWith('abs-into-checkout'))))
+  check('…and is walked afterwards: a link into the checkout names the copy', readlinkSync(join(takenOne.worktreePath, 'node_modules', 'abs-into-checkout')) === join(takenOne.worktreePath, 'src'), readlinkSync(join(takenOne.worktreePath, 'node_modules', 'abs-into-checkout')))
+  writeFileSync(join(takenOne.worktreePath, 'node_modules', 'pkg-0', 'index.js'), 'module.exports = "copy"\n')
+  check('a write in the copy does not appear in the checkout or in the other copy', read(join(byCpFixture, 'node_modules', 'pkg-0', 'index.js')) === 'module.exports = "parent"\n' && read(join(takenTwo.worktreePath, 'node_modules', 'pkg-0', 'index.js')) === 'module.exports = "parent"\n')
+  process.env.PATH = `${join(shims, 'failing')}:${pathBefore}`
+  const afterCpFailure = await createAgentWorktree('agent-a9000003', { from: byCpFixture })
+  check('a cp that fails leaves the link exactly as a failed walk does, with no half copy', isLinkTo(join(afterCpFailure.worktreePath, 'node_modules'), join(byCpFixture, 'node_modules')) && isLinkTo(join(afterCpFailure.worktreePath, 'vendor', 'pack-a'), join(byCpFixture, 'vendor', 'pack-a')) && afterCpFailure.prepareFailure === undefined)
+  rmSync(asked, { force: true })
+  process.env.PATH = `${join(shims, 'refusing')}:${pathBefore}`
+  const withoutFlag = await createAgentWorktree('agent-a9000004', { from: byCpFixture })
+  check('a cp that does not take the flag is asked once and never called: the walk takes the folder', isOwnDirectory(join(withoutFlag.worktreePath, 'node_modules')) && askedLines().join(' | ') === '--reflink=always --version', askedLines().join(' | '))
+  process.env.PATH = pathBefore
+  delete process.env.MERCURY_WORKTREE_CLONE
+} else {
+  skip("the proof's runtime cannot force a clone of one file here: Linux's road asks the filesystem first, hears that it cannot, and the links stand as in §5")
+}
+if (process.platform === 'linux' && cloneRoad) {
+  const paired = join(scratch, 'paired')
+  makeCheckout(paired, 60)
+  linkSync(join(paired, 'node_modules', 'pkg-0', 'index.js'), join(paired, 'node_modules', 'pkg-0', 'second-name.js'))
+  const realCpTakes = ((): boolean => {
+    try {
+      execFileSync('cp', ['--reflink=always', '--version'], { stdio: 'ignore' })
+      return true
+    } catch {
+      return false
+    }
+  })()
+  const byRealCp = await createAgentWorktree('agent-a9000005', { from: paired })
+  const firstName = statSync(join(byRealCp.worktreePath, 'node_modules', 'pkg-0', 'index.js'))
+  const secondName = statSync(join(byRealCp.worktreePath, 'node_modules', 'pkg-0', 'second-name.js'))
+  if (realCpTakes) check('with no seam, on this Linux filesystem, the folder is taken by the machine\'s own cp: two names of one file in the checkout are two names of one file in the copy, and not the checkout\'s file', firstName.ino === secondName.ino && firstName.ino !== statSync(join(paired, 'node_modules', 'pkg-0', 'index.js')).ino, `${firstName.ino} ${secondName.ino}`)
+  else check('with no seam and a cp that does not take the flag, the walk takes the folder: each name its own file', firstName.ino !== secondName.ino)
+} else {
+  skip('the machine\'s own cp road is Linux\'s, on a filesystem that reflinks: read there by the container reading')
 }
 
 section('§6 what is linked by the user\'s word, what is left alone, what a link out of the checkout brings, and what a failed clone leaves')
