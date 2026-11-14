@@ -42,6 +42,7 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-other-tools-cost-not
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-instruction-file-not-a-regular-file.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-instruction-file-not-a-regular-file.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-personal-files-by-import.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-personal-files-by-import.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-import-line-backslashes.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-import-line-backslashes.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-share-import-waits-for-approval.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-share-import-waits-for-approval.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-project-local-owner.ts || { __rc=$?; fail=1; }; prover_mark "scripts/self-hosting/prove-project-local-owner.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-instruction-capture.ts || { __rc=$?; fail=1; }; prover_mark "scripts/self-hosting/prove-instruction-capture.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-capture-doctrine.ts || { __rc=$?; fail=1; }; prover_mark "scripts/self-hosting/prove-capture-doctrine.ts" "$__t" "$__rc"

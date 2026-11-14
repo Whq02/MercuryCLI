@@ -10,7 +10,7 @@ import { getErrnoCode } from '../../utils/errors.js'
 import { normalizePathForComparison } from '../../utils/file.js'
 import { detectEncodingForResolvedPath } from '../../utils/fileRead.js'
 import type { FsOperations } from '../../utils/fsOperations.js'
-import { getFsImplementation, safeResolvePath } from '../../utils/fsOperations.js'
+import { getFsImplementation, isUncLikePath, safeResolvePath } from '../../utils/fsOperations.js'
 import type { MemoryType } from '../../utils/memory/types.js'
 import { pathInWorkingPath } from '../../utils/permissions/filesystem.js'
 import { getPlatform } from '../../utils/platform.js'
@@ -168,12 +168,14 @@ export function matchesInstructionExcludes(
   )
 }
 
+export type ExternalImports = boolean | { heldShares: { path: string; parent: string }[] }
+
 export async function processInstructionFile(
   convention: InstructionConvention,
   filePath: string,
   type: MemoryType,
   processedPaths: Set<string>,
-  includeExternal: boolean,
+  includeExternal: ExternalImports,
   depth: number = 0,
   parent?: string,
   diagnostics?: InstructionDiagnostic[],
@@ -247,7 +249,11 @@ export async function processInstructionFile(
     const isExternal =
       !pathInInstructionRoots(includeTarget) &&
       !pathInWorkingPath(includeTarget, dirname(resolvedPath))
-    if (isExternal && !includeExternal) {
+    const followed = includeExternal === true || (includeExternal !== false && !isUncLikePath(includeTarget))
+    if (isExternal && !followed) {
+      if (typeof includeExternal === 'object' && !includeExternal.heldShares.some(held => held.path === resolvedIncludePath)) {
+        includeExternal.heldShares.push({ path: resolvedIncludePath, parent: filePath })
+      }
       diagnostics?.push({
         kind: 'external-import-blocked',
         path: resolvedIncludePath,
@@ -481,7 +487,7 @@ export async function processRulesDir({
   rulesDir: string
   type: MemoryType
   processedPaths: Set<string>
-  includeExternal: boolean
+  includeExternal: ExternalImports
   conditionalRule: boolean
   visitedDirs?: Set<string>
   diagnostics?: InstructionDiagnostic[]
