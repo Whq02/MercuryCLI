@@ -296,6 +296,7 @@ async function settleClone(pair: AdmittedPair, scope: CloneScope): Promise<void>
     const below: Array<{ from: string; at: string; to: string }> = []
     await eachAtOnce(level, FOLDERS_AT_ONCE, async ({ from, at, to }) => {
       const folder = await lstat(at)
+      if (!folder.isDirectory()) throw new Error('the staged folder is no longer a directory')
       if ((folder.mode & 0o200) === 0) await chmod(at, (folder.mode & 0o7777) | 0o200)
       const entries = await readdir(at, { withFileTypes: true })
       if (at !== pair.staged && staysBehind(entries, pair.leaveOut)) {
@@ -383,6 +384,12 @@ async function reflinkTree(pair: AdmittedPair, scope: CloneScope, moved: () => v
     while (pending.length > 0) {
       const { from, at, to } = pending.pop() as { from: string; at: string; to: string }
       const folder = await lstat(from)
+      if (!folder.isDirectory()) {
+        if (at === pair.staged || !folder.isSymbolicLink()) return 'failed'
+        await symlink(linkTargetInCopy(await readlink(from), from, to, scope), at)
+        moved()
+        continue
+      }
       const entries = await readdir(from, { withFileTypes: true })
       if (at !== pair.staged && staysBehind(entries, pair.leaveOut)) {
         if (!pair.leaveOut) await symlink(from, at)
