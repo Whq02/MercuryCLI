@@ -54,7 +54,7 @@ type Answer = { said: string; data: Record<string, unknown> | null; extra: strin
 const contextOf = (deny: string[] = []) =>
   ({
     messages: [],
-    options: {},
+    options: { engineModel: 'claude-opus-4-8' },
     readFileState: createFileStateCacheWithSizeLimit(100),
     nestedMemoryAttachmentTriggers: new Set<string>(),
     dynamicSkillDirTriggers: new Set<string>(),
@@ -100,6 +100,26 @@ function png(width: number, height: number): Buffer {
   return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', header), chunk('IDAT', deflateSync(rows)), chunk('IEND', Buffer.alloc(0))])
 }
 
+function pdf(words: string): Buffer {
+  const stream = `BT /F1 18 Tf 20 100 Td (${words}) Tj ET`
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 144] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+  ]
+  let body = '%PDF-1.4\n'
+  const offsets: number[] = []
+  objects.forEach((object, index) => {
+    offsets.push(body.length)
+    body += `${index + 1} 0 obj\n${object}\nendobj\n`
+  })
+  const xref = body.length
+  body += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.map(offset => `${String(offset).padStart(10, '0')} 00000 n \n`).join('')}trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`
+  return Buffer.from(body, 'latin1')
+}
+
 async function formats(world: RemoteWorld): Promise<void> {
   const name = world.transport
   const dir = join(world.data, 'formats')
@@ -109,6 +129,7 @@ async function formats(world: RemoteWorld): Promise<void> {
   writeFileSync(join(dir, 'picture'), png(6, 4))
   writeFileSync(join(dir, 'book.ipynb'), JSON.stringify({ cells: [{ cell_type: 'markdown', metadata: {}, source: ['# a title'] }, { cell_type: 'code', execution_count: 1, metadata: {}, outputs: [], source: ['print(1)\n'] }], metadata: { kernelspec: { language: 'python', name: 'python3', display_name: 'Python 3' }, language_info: { name: 'python' } }, nbformat: 4, nbformat_minor: 5 }))
   writeFileSync(join(dir, 'blob.bin'), Buffer.from([0, 1, 2, 3, 250, 251, 252]))
+  writeFileSync(join(dir, 'paper.pdf'), pdf('PDF on another machine'))
   writeFileSync(join(dir, 'odd name (v2) é.zip'), statSync(join(FIXTURES, 'sample.zip')).size > 0 ? Buffer.from(await Bun.file(join(FIXTURES, 'sample.zip')).arrayBuffer()) : Buffer.alloc(0))
   const all: string[] = []
   const same = async (label: string, input: Record<string, unknown>, file: string, entry = ''): Promise<void> => {
@@ -130,6 +151,10 @@ async function formats(world: RemoteWorld): Promise<void> {
   await same('one table of it', {}, 'sample.sqlite', ':widgets')
   for (const file of ['sample.docx', 'sample.xlsx', 'sample.pptx', 'sample.odt', 'sample.epub', 'sample.rtf']) await same(`${file} as text`, {}, file)
   await same('a document read by ranges', { ranges: ['1-2'] }, 'sample.docx')
+  const paperHere = await answer({ file_path: join(dir, 'paper.pdf') })
+  const paper = await answer({ file_path: remote(join(dir, 'paper.pdf')) })
+  all.push(paper.said, paper.extra, JSON.stringify(paper.data ?? {}))
+  check(`${name}: a PDF answers what the same PDF answers here, with its text`, paper.said === paperHere.said.replaceAll(join(dir, 'paper.pdf'), remote(join(dir, 'paper.pdf'))) && paper.said.includes('PDF on another machine') && !paper.said.startsWith('THROWN'), `remote ${JSON.stringify(paper.said.replace(/<system-reminder>[\s\S]*$/, '…'))} local ${JSON.stringify(paperHere.said.replace(/<system-reminder>[\s\S]*$/, '…'))}`)
 
   section(`${name} · an image and a notebook`)
   for (const file of ['picture.png', 'picture']) {
