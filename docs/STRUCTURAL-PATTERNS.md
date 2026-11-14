@@ -71,7 +71,7 @@ does not carry lists them:
   `degraded: structure-polyglot-extended` and `mercury health` names it; the
   artifact's own `dist/vendor/treesitter/vendor.json` lists the grammars it
   carries, `GRAMMAR-NOTICES.json` beside it records each one's repository,
-  commit and copyright line, and the licence text of each added grammar,
+  commit and copyright line, and the licence text of each cache grammar,
   read at that commit, ships under `grammar-licences/` there.
 
 The languages added since the first 23 are read by AstSearch and AstEdit

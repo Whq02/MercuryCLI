@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 
+import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -39,7 +40,7 @@ function check(label: string, ok: boolean, detail = ''): void {
   const lockPath = join(ROOT, 'vendor', 'grammars.lock.json')
   check('grammar-pack lock present', existsSync(lockPath))
   if (existsSync(lockPath)) {
-    const lock = JSON.parse(readFileSync(lockPath, 'utf8')) as { grammars: Array<{ wasm: string; sha256: string; upstream?: { license?: string } }> }
+    const lock = JSON.parse(readFileSync(lockPath, 'utf8')) as { grammars: Array<{ wasm: string; sha256: string; licence?: { file: string; sha256: string; url: string }; upstream?: { license?: string; commit?: string } }> }
     const lockWasms = new Set(lock.grammars.map(g => g.wasm))
     const noLock = packEntries.filter(g => !lockWasms.has(g.wasm)).map(g => g.wasm)
     check('every grammar-pack registry entry has a lock row', noLock.length === 0, noLock.join(','))
@@ -47,6 +48,14 @@ function check(label: string, ok: boolean, detail = ''): void {
     const orphanLock = lock.grammars.filter(g => !registered.has(g.wasm)).map(g => g.wasm)
     check('every lock row has a registry entry (two-way)', orphanLock.length === 0, orphanLock.join(','))
     check('every lock row carries an upstream licence', lock.grammars.every(g => !!g.upstream?.license))
+    const unpinned = lock.grammars.filter(g => !/^[0-9a-f]{40}$/.test(g.upstream?.commit ?? '') || g.licence?.url.includes(`/blob/${g.upstream?.commit}/`) !== true).map(g => g.wasm)
+    check('every lock row records the upstream commit, and its licence text was read at that commit', unpinned.length === 0, unpinned.join(','))
+    const untexted = lock.grammars.filter(g => {
+      if (!g.licence || !existsSync(join(ROOT, 'vendor', g.licence.file))) return true
+      const read = readFileSync(join(ROOT, 'vendor', g.licence.file))
+      return ![read, Buffer.from(read.toString('latin1').replaceAll('\r\n', '\n'), 'latin1')].some(form => createHash('sha256').update(form).digest('hex') === g.licence!.sha256)
+    }).map(g => g.wasm)
+    check(`every lock row's licence text is checked in under vendor/grammar-licences and is the bytes the lock pins (${lock.grammars.length})`, untexted.length === 0, untexted.join(','))
   }
   const packDir = join(ROOT, 'vendor', 'grammars', 'extracted')
   if (existsSync(packDir)) {

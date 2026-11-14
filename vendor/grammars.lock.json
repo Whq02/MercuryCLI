@@ -19,8 +19,16 @@
       "upstream": {
         "package": "tree-sitter-c",
         "builtFromRange": "^0.20.7",
+        "resolvedVersion": "0.20.8",
+        "commit": "25ca2718aacaf0feda8b0709471332f303a0cef5",
         "license": "MIT",
-        "repository": "https://github.com/tree-sitter/tree-sitter-c"
+        "repository": "https://github.com/tree-sitter/tree-sitter-c",
+        "copyright": "2014 Max Brunsfeld"
+      },
+      "licence": {
+        "file": "grammar-licences/c.txt",
+        "sha256": "2e0110e07abef7c2548b26ec9d6969775617ca539a0dc8dbeeb14d6452c711d1",
+        "url": "https://github.com/tree-sitter/tree-sitter-c/blob/25ca2718aacaf0feda8b0709471332f303a0cef5/LICENSE"
       }
     },
     {
@@ -31,8 +39,16 @@
       "upstream": {
         "package": "tree-sitter-html",
         "builtFromRange": "^0.20.0",
+        "resolvedVersion": "0.20.4",
+        "commit": "3713d4004c2259f7658eaad367dbad1a3989429d",
         "license": "MIT",
-        "repository": "https://github.com/tree-sitter/tree-sitter-html"
+        "repository": "https://github.com/tree-sitter/tree-sitter-html",
+        "copyright": "2014 Max Brunsfeld"
+      },
+      "licence": {
+        "file": "grammar-licences/html.txt",
+        "sha256": "2e0110e07abef7c2548b26ec9d6969775617ca539a0dc8dbeeb14d6452c711d1",
+        "url": "https://github.com/tree-sitter/tree-sitter-html/blob/3713d4004c2259f7658eaad367dbad1a3989429d/LICENSE"
       }
     },
     {
@@ -43,8 +59,16 @@
       "upstream": {
         "package": "tree-sitter-json",
         "builtFromRange": "^0.20.2",
+        "resolvedVersion": "0.20.2",
+        "commit": "c5a9a9af069de3fe0ef5fa2fa001b6a2e44d75b2",
         "license": "MIT",
-        "repository": "https://github.com/tree-sitter/tree-sitter-json"
+        "repository": "https://github.com/tree-sitter/tree-sitter-json",
+        "copyright": "2014 Max Brunsfeld"
+      },
+      "licence": {
+        "file": "grammar-licences/json.txt",
+        "sha256": "2e0110e07abef7c2548b26ec9d6969775617ca539a0dc8dbeeb14d6452c711d1",
+        "url": "https://github.com/tree-sitter/tree-sitter-json/blob/c5a9a9af069de3fe0ef5fa2fa001b6a2e44d75b2/LICENSE"
       }
     },
     {
@@ -55,8 +79,16 @@
       "upstream": {
         "package": "tree-sitter-toml",
         "builtFromRange": "^0.5.1",
+        "resolvedVersion": "0.5.1",
+        "commit": "474fbbec27e27d76b45aeaf9191e8acb13a699e2",
         "license": "MIT",
-        "repository": "https://github.com/ikatyang/tree-sitter-toml"
+        "repository": "https://github.com/ikatyang/tree-sitter-toml",
+        "copyright": "Ika <ikatyang@gmail.com>"
+      },
+      "licence": {
+        "file": "grammar-licences/toml.txt",
+        "sha256": "b727eee929bee836e8102cecf749a795b199f291b58c885bcd81cae727ac5a46",
+        "url": "https://github.com/ikatyang/tree-sitter-toml/blob/474fbbec27e27d76b45aeaf9191e8acb13a699e2/LICENSE"
       }
     },
     {
@@ -67,8 +99,16 @@
       "upstream": {
         "package": "tree-sitter-kotlin",
         "builtFromRange": "^0.3.1",
+        "resolvedVersion": "0.3.8",
+        "commit": "e1a2d5ad1f61f5740677183cd4125bb071cd2f30",
         "license": "MIT",
-        "repository": "https://github.com/fwcd/tree-sitter-kotlin"
+        "repository": "https://github.com/fwcd/tree-sitter-kotlin",
+        "copyright": "2019 fwcd"
+      },
+      "licence": {
+        "file": "grammar-licences/kotlin.txt",
+        "sha256": "948495f61768f7de26bcc61113d8cd95f50bbc15adb678c28c941c6c8fcd5903",
+        "url": "https://github.com/fwcd/tree-sitter-kotlin/blob/e1a2d5ad1f61f5740677183cd4125bb071cd2f30/LICENSE"
       }
     },
     {
@@ -81,8 +121,15 @@
       "upstream": {
         "package": "tree-sitter-swift",
         "builtFromRange": "0.7.3",
+        "commit": "b8b22bffbb3441780e6471665bacfb263741c86a",
         "license": "MIT",
-        "repository": "https://github.com/alex-pinkus/tree-sitter-swift"
+        "repository": "https://github.com/alex-pinkus/tree-sitter-swift",
+        "copyright": "2021 alex-pinkus"
+      },
+      "licence": {
+        "file": "grammar-licences/swift.txt",
+        "sha256": "3533cec129bb4bba015c0d61d86dd7c3b7e82110e4d2ff7837a01eff5bad5ccc",
+        "url": "https://github.com/alex-pinkus/tree-sitter-swift/blob/b8b22bffbb3441780e6471665bacfb263741c86a/LICENSE"
       }
     },
     {
@@ -93,9 +140,15 @@
       "upstream": {
         "package": "tree-sitter-vue",
         "builtFromRange": "github:tree-sitter-grammars/tree-sitter-vue#7e48557b903a9db9c38cea3b7839ef7e1f36c693",
+        "commit": "7e48557b903a9db9c38cea3b7839ef7e1f36c693",
         "license": "MIT",
         "repository": "https://github.com/tree-sitter-grammars/tree-sitter-vue",
         "copyright": "Ika <ikatyang@gmail.com>"
+      },
+      "licence": {
+        "file": "grammar-licences/vue.txt",
+        "sha256": "b727eee929bee836e8102cecf749a795b199f291b58c885bcd81cae727ac5a46",
+        "url": "https://github.com/tree-sitter-grammars/tree-sitter-vue/blob/7e48557b903a9db9c38cea3b7839ef7e1f36c693/LICENSE"
       }
     },
     {
