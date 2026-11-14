@@ -11,12 +11,62 @@ interface QueryLock {
   license: string
   archives: Record<string, { url: string; sha256: string; integrity?: string }>
   abi: Record<string, string>
-  files: Array<{ archive: string; entry: string; path: string; sha256: string; bytes?: number }>
+  memory: { upstreamMaximum: number; maximum: number }
+  files: Array<{ archive: string; entry: string; path: string; sha256: string; bytes?: number; edit?: string; upstream?: { sha256: string; bytes: number } }>
   components: Array<{ name: string; version?: string; license: string; notice: string }>
 }
 
 const digest = (bytes: Buffer): string => createHash('sha256').update(bytes).digest('hex')
 const lockAt = (root: string): QueryLock => JSON.parse(readFileSync(join(root, 'vendor/json-query.lock.json'), 'utf8'))
+
+function leb(value: number): number[] {
+  const out: number[] = []
+  do {
+    let byte = value & 0x7f
+    value >>>= 7
+    if (value !== 0) byte |= 0x80
+    out.push(byte)
+  } while (value !== 0)
+  return out
+}
+
+export function raiseWasmMemoryMaximum(bytes: Buffer, from: number, to: number): Buffer {
+  const lost = (): never => { throw new Error('JSON query engine: the memory maximum is not where its pin expects it in the WebAssembly module') }
+  let at = 8
+  const read = (): number => {
+    let result = 0, shift = 0, byte: number
+    do {
+      if (at >= bytes.length || shift > 28) lost()
+      byte = bytes[at++]!
+      result |= (byte & 0x7f) << shift
+      shift += 7
+    } while (byte & 0x80)
+    return result >>> 0
+  }
+  if (bytes.length < 8 || bytes.readUInt32LE(0) !== 0x6d736100 || from % 65536 !== 0 || to % 65536 !== 0 || to > 2147483648) lost()
+  const parts: Buffer[] = [bytes.subarray(0, 8)]
+  let raised = 0
+  while (at < bytes.length) {
+    const start = at, id = bytes[at++]!, size = read(), end = at + size
+    if (end > bytes.length) lost()
+    if (id === 5) {
+      const count = read(), flags = read(), minimum = read(), maximum = flags === 1 ? read() : -1
+      if (count !== 1 || maximum * 65536 !== from || at !== end) lost()
+      const body = [...leb(1), ...leb(flags), ...leb(minimum), ...leb(to / 65536)]
+      parts.push(Buffer.from([5, ...leb(body.length), ...body]))
+      raised++
+    } else parts.push(bytes.subarray(start, end))
+    at = end
+  }
+  if (raised !== 1) lost()
+  return Buffer.concat(parts)
+}
+
+export function raiseLoaderMemoryMaximum(text: string, from: number, to: number): string {
+  const pinned = `getHeapMax = () => ${from};`
+  if (text.split(pinned).length !== 2 || text.split(String(from)).length !== 2) throw new Error('JSON query engine: the memory maximum is not where its pin expects it in the loader')
+  return text.replace(pinned, `getHeapMax = () => ${to};`)
+}
 
 function verify(dir: string, lock: QueryLock): void {
   for (const file of lock.files) {
@@ -39,7 +89,7 @@ export function checkJsonQuery(root: string): QueryLock {
   const dir = join(root, 'vendor/json-query/extracted')
   verify(dir, lock)
   const record = JSON.parse(readFileSync(join(dir, '.vendor-manifest.json'), 'utf8'))
-  if (record.name !== lock.name || record.version !== lock.version || JSON.stringify(record.abi) !== JSON.stringify(lock.abi) || JSON.stringify(record.files) !== JSON.stringify(lock.files)) throw new Error('JSON query pack record differs from its lock')
+  if (record.name !== lock.name || record.version !== lock.version || JSON.stringify(record.abi) !== JSON.stringify(lock.abi) || JSON.stringify(record.memory) !== JSON.stringify(lock.memory) || JSON.stringify(record.files) !== JSON.stringify(lock.files)) throw new Error('JSON query pack record differs from its lock')
   return lock
 }
 
@@ -72,7 +122,14 @@ export async function fetchJsonQuery(root: string, archives: Record<string, stri
       for (const file of lock.files.filter(file => file.archive === key)) {
         const target = join(prepared, file.path)
         mkdirSync(dirname(target), { recursive: true })
-        cpSync(join(unpacked, file.entry), target)
+        if (file.edit === undefined) cpSync(join(unpacked, file.entry), target)
+        else {
+          const upstream = readFileSync(join(unpacked, file.entry))
+          if (file.upstream === undefined || digest(upstream) !== file.upstream.sha256 || upstream.length !== file.upstream.bytes) throw new Error(`JSON query pack differs from its upstream pin: ${file.path}`)
+          if (file.edit === 'wasm-memory-maximum') writeFileSync(target, raiseWasmMemoryMaximum(upstream, lock.memory.upstreamMaximum, lock.memory.maximum))
+          else if (file.edit === 'loader-memory-maximum') writeFileSync(target, raiseLoaderMemoryMaximum(upstream.toString('utf8'), lock.memory.upstreamMaximum, lock.memory.maximum))
+          else throw new Error(`JSON query pack names an edit this fetch does not know: ${file.edit}`)
+        }
       }
     }
     verify(prepared, lock)

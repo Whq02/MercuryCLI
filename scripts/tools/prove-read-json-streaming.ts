@@ -109,10 +109,34 @@ if (!given) {
   check('B04 the same-size/mtime mutation fixture is real', statSync(mutable).size === saved.size && statSync(mutable).mtimeMs === saved.mtimeMs)
   check('B04 a continuation detects changed source rather than mixing pages', follow !== null && (await read(follow)).body.includes('state: changed'), before.body)
 
+  const memorySentence = 'jq: error: cannot allocate memory\nThe query needed more memory than the bundled engine can use (2 GiB). It holds each input document whole, a JSONL source one record at a time, and everything the filter gathers at once.'
+  const queryChildren = (): string[] => process.platform === 'win32' ? [] : spawnSync('/bin/ps', ['-axo', 'ppid=,command='], { encoding: 'utf8' }).stdout.split('\n').filter(line => line.trim().startsWith(`${process.pid} `) && line.includes('jsonQueryProcess'))
+  const gatherStarted = performance.now()
   const gathered = await read(`${mutable}#read?q=[range(1e9)]`)
   const heapMax = /getHeapMax = \(\) => (\d+)/.exec(readFileSync(resolve(dirname(script), '../../vendor/json-query/extracted/dist/index.mjs'), 'utf8'))
-  check('B03 a filter that gathers more than the engine can hold fails with the engine\'s own line and the limit', gathered.body.includes('jq: error: cannot allocate memory\nThe query needed more memory than the bundled engine can use (256 MiB). It holds each input document whole, a JSONL source one record at a time, and everything the filter gathers at once.') && !gathered.body.includes('Aborted') && !gathered.body.includes('target: JSON query'), gathered.body)
-  check('B03 the limit the sentence names is the shipped loader\'s', heapMax !== null && Number(heapMax[1]) === 256 * 1024 * 1024, String(heapMax?.[1]))
+  check('B03 a filter that gathers more than the engine can hold fails with the engine\'s own line and the limit', gathered.body.includes(memorySentence) && !gathered.body.includes('Aborted') && !gathered.body.includes('target: JSON query'), gathered.body)
+  check('B03 that failure comes in bounded time and leaves no child', performance.now() - gatherStarted < 60000 && queryChildren().length === 0, `${performance.now() - gatherStarted} ${queryChildren().join(' ')}`)
+  check('B03 the limit the sentence names is the shipped loader\'s', heapMax !== null && Number(heapMax[1]) === 2 * 1024 * 1024 * 1024, String(heapMax?.[1]))
+  const documentOf = (megabytes: number): string => {
+    const path = join(given, `document-${megabytes}.json`)
+    const writingDocument = openSync(path, 'w')
+    try {
+      const rowText = (id: number): string => JSON.stringify({ id, name: 'some name of a row', tags: ['a', 'b', 'c'], nested: { x: 1.5, y: null, ok: true } })
+      const count = Math.floor(megabytes * 1024 * 1024 / (rowText(100000).length + 1))
+      writeSync(writingDocument, '[')
+      for (let id = 0; id < count; id += 5000) writeSync(writingDocument, `${id === 0 ? '' : ','}${Array.from({ length: Math.min(5000, count - id) }, (_, n) => rowText(id + n)).join(',')}`)
+      writeSync(writingDocument, ']')
+      return `${path}#read?compact=1&q=length, (.[7] | .id)`
+    } finally { closeSync(writingDocument) }
+  }
+  const twenty = await read(documentOf(20))
+  check('B03 one JSON document of twenty megabytes of small rows is queried', /\n\d{6}\n7\n?/.test(twenty.body) && twenty.body.includes('state: complete'), twenty.body.slice(0, 600))
+  if (process.argv.includes('--large')) {
+    const eighty = await read(documentOf(80))
+    check('B03 one JSON document of eighty megabytes of small rows is queried', /\n\d{6}\n7\n?/.test(eighty.body) && eighty.body.includes('state: complete'), eighty.body.slice(0, 600))
+    const beyond = await read(documentOf(170))
+    check('B03 a document that needs more than the engine has fails with the same two lines', beyond.body.includes(memorySentence) && queryChildren().length === 0, beyond.body.slice(0, 600))
+  }
   const large = join(given, 'large.jsonl')
   const row = `{"n":1,"pad":"${'x'.repeat(4096 - Buffer.byteLength('{"n":1,"pad":""}\n'))}"}\n`
   const block = Buffer.from(row.repeat(256))

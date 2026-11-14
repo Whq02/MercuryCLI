@@ -97,7 +97,7 @@ try {
     let status = 0, stopped = false
     try { status = engine.raw('', expression, [...flags, '--']).exitCode ?? 0 }
     catch (error) {
-      if (error !== pageStop) throw exhausted ? new Error('jq: error: cannot allocate memory\nThe query needed more memory than the bundled engine can use (256 MiB). It holds each input document whole, a JSONL source one record at a time, and everything the filter gathers at once.') : error
+      if (error !== pageStop) throw exhausted ? new Error('jq: error: cannot allocate memory\nThe query needed more memory than the bundled engine can use (2 GiB). It holds each input document whole, a JSONL source one record at a time, and everything the filter gathers at once.') : error
       stopped = true
     }
     memoryBytes = Math.max(memoryBytes, memory.buffer.byteLength)

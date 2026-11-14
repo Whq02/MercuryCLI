@@ -70,6 +70,28 @@ if (existsSync(lockPath)) {
     check('stream hooks preserve exact large literals and raw trailing whitespace', result.exitCode === 0 && Buffer.concat(out).toString() === '9007199254740993123456789\nx  \n\n' && err.length === 0)
     const base = process.env.RP_SCRATCH ?? process.env.MERCURY_TMPDIR ?? process.env.MERCURY_CONFIG_DIR
     if (!base) throw new Error('The proof needs its scratch root')
+    const vendor = await import(pathToFileURL(join(root, 'scripts/vendor/jsonQuery.ts')).href)
+    const stops = (run: () => unknown): boolean => { try { run(); return false } catch (error) { return /not where its pin expects it/.test(String(error)) } }
+    const shippedWasm = readFileSync(join(pack, 'dist/build/jq.wasm')), shippedLoader = readFileSync(join(pack, 'dist/index.mjs'), 'utf8')
+    const edited = lock.files.filter((file: { edit?: string }) => file.edit !== undefined) as Array<{ sha256: string; upstream?: { sha256: string } }>
+    check('the lock pins the published and the shipped bytes of the two edited files and names both maxima', edited.length === 2 && edited.every(file => /^[0-9a-f]{64}$/.test(file.upstream?.sha256 ?? '') && file.upstream!.sha256 !== file.sha256) && lock.memory?.upstreamMaximum === 256 * 1024 * 1024 && lock.memory?.maximum === 2 * 1024 * 1024 * 1024)
+    check('the shipped module declares the raised maximum and the shipped loader agrees', vendor.raiseWasmMemoryMaximum(shippedWasm, lock.memory.maximum, lock.memory.maximum).equals(shippedWasm) && shippedLoader.includes(`getHeapMax = () => ${lock.memory.maximum};`) && !shippedLoader.includes(String(lock.memory.upstreamMaximum)))
+    check('the edit stops when the maximum is not where the pin expects it', stops(() => vendor.raiseWasmMemoryMaximum(shippedWasm, lock.memory.upstreamMaximum, lock.memory.maximum)) && stops(() => vendor.raiseWasmMemoryMaximum(Buffer.from('not a module'), lock.memory.upstreamMaximum, lock.memory.maximum)) && stops(() => vendor.raiseWasmMemoryMaximum(shippedWasm, lock.memory.maximum, 2 * lock.memory.maximum)) && stops(() => vendor.raiseLoaderMemoryMaximum(shippedLoader, lock.memory.upstreamMaximum, lock.memory.maximum)) && stops(() => vendor.raiseLoaderMemoryMaximum(`${shippedLoader}\n${shippedLoader}`, lock.memory.maximum, lock.memory.maximum)))
+    const archives = { npm: join(root, 'vendor/json-query/npm.tgz'), jq: join(root, 'vendor/json-query/jq.tgz') }
+    const refetch = async (change: (text: string) => string): Promise<string> => {
+      const again = mkdtempSync(join(base, 'query-fetch-'))
+      try {
+        mkdirSync(join(again, 'vendor'), { recursive: true })
+        writeFileSync(join(again, 'vendor/json-query.lock.json'), change(readFileSync(lockPath, 'utf8')))
+        await vendor.fetchJsonQuery(again, archives)
+        return lock.files.every((file: { path: string; sha256: string }) => createHash('sha256').update(readFileSync(join(again, 'vendor/json-query/extracted', file.path))).digest('hex') === file.sha256) ? 'fetched' : 'fetched other bytes'
+      } catch (error) { return String(error) } finally { rmSync(again, { recursive: true, force: true }) }
+    }
+    check('a fetch from the published archives yields exactly the shipped bytes', await refetch(text => text) === 'fetched')
+    const publishedWasm = lock.files.find((file: { edit?: string }) => file.edit === 'wasm-memory-maximum')
+    check('a fetch whose published bytes differ from their pin stops and says so', (await refetch(text => text.replace(publishedWasm.upstream.sha256, '0'.repeat(64)))).includes('JSON query pack differs from its upstream pin: dist/build/jq.wasm'))
+    check('a fetch whose edited bytes differ from their pin stops and says so', (await refetch(text => text.replace(publishedWasm.sha256, '0'.repeat(64)))).includes('JSON query pack differs from its lock: dist/build/jq.wasm'))
+    check('the notices say what was changed and no longer call the engine unmodified', notices.includes('memory maximum raised from 256 MiB to 2 GiB by two edits at fetch time') && !/JSON query engine[^\n]*unmodified/.test(notices))
     const scratch = mkdtempSync(join(base, 'query-pack-'))
     try {
       mkdirSync(join(scratch, 'vendor'), { recursive: true })

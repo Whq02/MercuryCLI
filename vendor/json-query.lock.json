@@ -16,9 +16,10 @@
     }
   },
   "abi": { "imports": "a", "read": "h", "write": "d", "memory": "F" },
+  "memory": { "upstreamMaximum": 268435456, "maximum": 2147483648 },
   "files": [
-    { "archive": "npm", "entry": "dist/index.mjs", "path": "dist/index.mjs", "bytes": 130484, "sha256": "2eed8c07b074476dac2e8975170fa9b4c5e9bb7bcc8c0893b81752beb12922a5" },
-    { "archive": "npm", "entry": "dist/build/jq.wasm", "path": "dist/build/jq.wasm", "bytes": 928824, "sha256": "27d493c06601e9cbc7112ef4198ee71a0dc3e9c9a4a1754e73888841da6c450a" },
+    { "archive": "npm", "entry": "dist/index.mjs", "path": "dist/index.mjs", "bytes": 130485, "sha256": "a142f0531065b169530922a44c0db879e8e1d54bd1c3668978b4619b5a0a4c48", "edit": "loader-memory-maximum", "upstream": { "sha256": "2eed8c07b074476dac2e8975170fa9b4c5e9bb7bcc8c0893b81752beb12922a5", "bytes": 130484 } },
+    { "archive": "npm", "entry": "dist/build/jq.wasm", "path": "dist/build/jq.wasm", "bytes": 928825, "sha256": "717dca6b44c8b1ea6cc4969da55cd83a8ec4b19eacb08809e2fbb67814bbde49", "edit": "wasm-memory-maximum", "upstream": { "sha256": "27d493c06601e9cbc7112ef4198ee71a0dc3e9c9a4a1754e73888841da6c450a", "bytes": 928824 } },
     { "archive": "npm", "entry": "LICENSE", "path": "LICENSE", "sha256": "10669a50b3a2b70d2c8874bbfb76d447879ccde14baa5d224ec93871aca833c9" },
     { "archive": "jq", "entry": "COPYING", "path": "LICENSE.jq", "sha256": "ad2b4a266b2268939c1446979759706077421cf906a203aa188c6f396e8cfd74" },
     { "archive": "jq", "entry": "vendor/oniguruma/COPYING", "path": "LICENSE.oniguruma", "sha256": "70ba5469ea0bab6e18a32d7009068f996503168d27be57747e08da34337ff26f" }
