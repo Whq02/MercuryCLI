@@ -219,10 +219,11 @@ async function engineLoad(offer: Offer, signal: AbortSignal): Promise<{ connecti
   return typeof live?.connections === 'number' && typeof live.waiting === 'number' ? { connections: live.connections, waiting: live.waiting } : undefined
 }
 
-function watchTheCut(offer: Offer): void {
+function watchTheCut(offer: Offer): () => void {
+  const controller = new AbortController()
   const timer = setTimeout(() => {
-    void engineLoad(offer, new AbortController().signal).then(load => {
-      if (load === undefined || load.waiting === 0) return
+    void engineLoad(offer, controller.signal).then(load => {
+      if (controller.signal.aborted || load === undefined || load.waiting === 0) return
       state.slow.add(offer.root)
       state.facts.slowed += 1
       if (state.offer !== null && state.offer.root === offer.root) cancelNextTurnPrefill('the engine is slow to let a read-ahead go')
@@ -230,6 +231,10 @@ function watchTheCut(offer: Offer): void {
     })
   }, state.io.slowCutMs ?? NEXT_TURN_SLOW_CUT_MS)
   timer.unref?.()
+  return () => {
+    clearTimeout(timer)
+    controller.abort()
+  }
 }
 
 async function engineIdle(offer: Offer, signal: AbortSignal): Promise<boolean | undefined> {
@@ -373,9 +378,10 @@ export function tensorFoldRequestBegins(
   options: RequestOptions,
 ): { transport?: (sent: CompatStreamOptions) => { events: AsyncGenerator<CompatStreamEvent>; settle(minted: readonly AssistantMessage[]): void }; ends(): void } {
   const root = record.baseUrl
+  let stopWatching: (() => void) | undefined
   if (state.offer !== null && state.offer.root === root) {
     const offer = state.offer
-    if (stop('a request needs the engine')) watchTheCut(offer)
+    if (stop('a request needs the engine')) stopWatching = watchTheCut(offer)
     if (isMainConversation(options) || options.querySource === 'compact') state.offer = null
   }
   state.inFlight.set(root, (state.inFlight.get(root) ?? 0) + 1)
@@ -383,17 +389,25 @@ export function tensorFoldRequestBegins(
   const ends = (): void => {
     if (ended) return
     ended = true
+    stopWatching?.()
     const left = (state.inFlight.get(root) ?? 1) - 1
     if (left > 0) state.inFlight.set(root, left)
     else state.inFlight.delete(root)
     if (left <= 0 && state.offer !== null && state.offer.root === root) schedule()
   }
-  if (state.slow.has(root) || !nextTurnPrefillApplies(record, options)) return { ends }
+  const canOffer = !state.slow.has(root) && nextTurnPrefillApplies(record, options)
+  if (!canOffer && stopWatching === undefined) return { ends }
   return {
     ends,
     transport: sent => ({
-      events: streamCompatChat(sent),
+      events: (async function* () {
+        for await (const event of streamCompatChat(sent)) {
+          stopWatching?.()
+          yield event
+        }
+      })(),
       settle: minted => {
+        if (!canOffer) return
         try {
           offerNextTurn(record, sent, minted, conversation, options)
         } catch (error) {

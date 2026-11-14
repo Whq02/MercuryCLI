@@ -88,6 +88,7 @@ export interface TensorFoldPromptFixtureOptions {
   showsLoad?: boolean
   refusesOpenCalls?: boolean
   letsGoAfterMs?: number
+  serialForeground?: boolean
 }
 
 export function startTensorFoldPromptFixture(options: TensorFoldPromptFixtureOptions): TensorFoldPromptFixture {
@@ -104,6 +105,7 @@ export function startTensorFoldPromptFixture(options: TensorFoldPromptFixtureOpt
   let queued = 0
   let backgroundHeld = 0
   let lettingGoUntil = 0
+  let foreground: Promise<void> | undefined
   const server = Bun.serve({
     hostname: '127.0.0.1',
     port: 0,
@@ -136,6 +138,18 @@ export function startTensorFoldPromptFixture(options: TensorFoldPromptFixtureOpt
       }
       const holdMs = background ? (backgroundSeen >= backgroundHoldFrom ? backgroundHoldMs : 0) : nextHoldMs
       if (!background) nextHoldMs = 0
+      let release: (() => void) | undefined
+      let owned: Promise<void> | undefined
+      if (!background && options.serialForeground) {
+        const before = foreground
+        owned = new Promise<void>(resolve => { release = resolve })
+        foreground = owned
+        if (before !== undefined) {
+          queued += 1
+          await before
+          queued -= 1
+        }
+      }
       if (holdMs > 0) {
         waiting += 1
         if (background) backgroundHeld += 1
@@ -149,6 +163,8 @@ export function startTensorFoldPromptFixture(options: TensorFoldPromptFixtureOpt
         if (background) backgroundHeld -= 1
         waiting -= 1
       }
+      release?.()
+      if (owned !== undefined && foreground === owned) foreground = undefined
       if (request.signal.aborted) {
         entry.aborted = true
         if (background) lettingGoUntil = Math.max(lettingGoUntil, Date.now() + (options.letsGoAfterMs ?? 0))

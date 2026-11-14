@@ -192,9 +192,9 @@ section('2 · never in the way: it waits for the session to be idle on that engi
     check('and the turn that message began is read ahead in its turn', await untilAsync(() => ahead(w).length === 2 && w.fixture.waiting() === 1, 2000, 5), `${ahead(w).length} background request(s)`)
     w.fixture.stop()
   }
-  const slow = await world('after-last-user', CAPABLE, { letsGoAfterMs: 400 })
+  const slow = await world('after-last-user', CAPABLE, { letsGoAfterMs: 700 })
   if (slow !== undefined) {
-    prefill?.__setNextTurnPrefillIoForTest({ settleMs: SETTLE_MS, lookMs: LOOK_MS, slowCutMs: 80 })
+    prefill?.__setNextTurnPrefillIoForTest({ settleMs: SETTLE_MS, lookMs: LOOK_MS })
     slow.fixture.holdBackground(1500)
     await toolTurn(slow)
     await untilAsync(() => slow.fixture.waiting() === 1, 2000, 5)
@@ -207,9 +207,44 @@ section('2 · never in the way: it waits for the session to be idle on that engi
     await callStep(slow, '/work/again.txt', FILE, MAIN, false)
     await answerStep(slow)
     await quiet(200)
-    check('an engine that keeps a request of the session waiting behind a dropped read-ahead longer than the limit: that request waits once, and nothing is read ahead on that engine again in the session', took >= 350 && ahead(slow).length === 1 && ahead(slow)[0]!.aborted && real(slow).length === 5 && facts()?.slowed === 1, `the request took ${took} ms, ${ahead(slow).length} background request(s), ${real(slow).length} real, facts ${JSON.stringify(facts())}`)
+    check('an engine that keeps a request of the session waiting behind a dropped read-ahead longer than the limit: that request waits once, and nothing is read ahead on that engine again in the session', took >= 650 && ahead(slow).length === 1 && ahead(slow)[0]!.aborted && real(slow).length === 5 && facts()?.slowed === 1, `the request took ${took} ms, ${ahead(slow).length} background request(s), ${real(slow).length} real, facts ${JSON.stringify(facts())}`)
+    const fixture = startTensorFoldPromptFixture({ model: 'qwen3.5-2b-other', template: 'after-last-user', capabilities: CAPABLE })
+    process.env.MERCURY_LOCAL_PROBE_TARGETS = `tensorfold=${slow.fixture.root},tensorfold=${fixture.root}`
+    await refreshLocalDiscovery({ force: true })
+    const record = localRecordFor('local/qwen3.5-2b-other')
+    if (record !== undefined) {
+      const otherEngine: World = { fixture, record, history: [] }
+      const completed = facts()?.completed ?? 0
+      setEngineModelOverride('local/qwen3.5-2b-other')
+      await toolTurn(otherEngine)
+      check('the slow-cut guard leaves another engine in the same session enabled', await settled(completed + 1) && ahead(otherEngine).length === 1 && facts()?.slowed === 1, JSON.stringify(facts()))
+    } else check('the slow-cut guard leaves another engine in the same session enabled', false, 'the second engine was not discovered')
+    fixture.stop()
     slow.fixture.stop()
   }
+  let falsePositives = 0
+  let rearmed = 0
+  for (let round = 0; round < 10; round++) {
+    const finished = await world('after-last-user', CAPABLE, { serialForeground: true })
+    if (finished === undefined) continue
+    prefill?.__setNextTurnPrefillIoForTest({ settleMs: SETTLE_MS, lookMs: LOOK_MS, slowCutMs: 80 })
+    finished.fixture.holdBackground(1500)
+    await toolTurn(finished)
+    await untilAsync(() => finished.fixture.waiting() === 1, 2000, 5)
+    finished.fixture.holdBackground(0)
+    await nextTurn(finished)
+    finished.fixture.holdNext(200)
+    const neighbour = another(finished)
+    await untilAsync(() => finished.fixture.waiting() === 1, 1000, 5)
+    await Promise.all([neighbour, another(finished)])
+    if ((facts()?.slowed ?? 0) > 0) falsePositives++
+    const before = ahead(finished).length
+    await nextTurn(finished)
+    if (await untilAsync(() => ahead(finished).length > before, 500, 5)) rearmed++
+    finished.fixture.stop()
+  }
+  check('a request already answered is not blamed for another session\'s queue at the cut check, over ten shared-engine rounds', falsePositives === 0, `${falsePositives} false positives of 10`)
+  check('those ten sessions can still read their later turns ahead', rearmed === 10, `${rearmed} of 10 read ahead again`)
   const busy = await world('after-last-user', CAPABLE)
   if (busy !== undefined) {
     busy.fixture.holdNext(400)
@@ -376,17 +411,18 @@ section('4 · a long turn is read ahead in pieces that each end on a reply, so a
     check('a message that comes while the last piece is in flight resumes at the piece before it, and reads the one result after it', next !== undefined && pieces.length === 3 && pieces[2]!.aborted && next.cachedTokens >= pieces[1]!.promptTokens - tail() && next.promptTokens - next.cachedTokens < 2 * result, `${next?.cachedTokens} of ${next?.promptTokens} resumed, the piece before read to ${pieces[1]?.promptTokens}, a result is ${result} tokens, ${pieces.length} piece(s) sent`)
     early.fixture.stop()
   }
-  const paused = await staged({})
-  if (paused !== undefined) {
+  for (const source of [{ querySource: 'agent:custom', agentId: 'crewmate-1' }, { querySource: 'side_question' }]) {
+    const paused = await staged({})
+    if (paused === undefined) continue
     paused.fixture.holdBackground(1500, 2)
     await toolTurn(paused, MAIN, 3)
     await untilAsync(() => paused.fixture.waiting() === 1 && ahead(paused).length === 2, 2000, 5)
     paused.fixture.holdBackground(0)
     paused.fixture.reply({ reasoning: 'A crewmate thinks.', text: 'a crewmate answers' })
-    await ask(paused.record, [createUserMessage({ content: 'a crewmate\'s own question' })], { querySource: 'agent:custom', agentId: 'crewmate-1' })
+    await ask(paused.record, [createUserMessage({ content: 'a separate question' })], source)
     const done = await settled()
     const sent = ahead(paused)
-    check('a crewmate\'s request stops the piece in flight, and once it has ended the read-ahead goes on from that piece: the piece before it is not sent again', done && sent.length === 4 && sent[1]!.aborted && !sent[2]!.aborted && sent[2]!.rows.length === sent[1]!.rows.length && sent.filter(request => request.rows.length === sent[0]!.rows.length).length === 1, JSON.stringify(sent.map(request => [request.rows.length, request.aborted])))
+    check(`${source.querySource} cancels the piece in flight, and after the request ends the read-ahead resumes that piece without repeating earlier pieces`, done && sent.length === 4 && sent[1]!.aborted && !sent[2]!.aborted && sent[2]!.rows.length === sent[1]!.rows.length && sent.filter(request => request.rows.length === sent[0]!.rows.length).length === 1, JSON.stringify(sent.map(request => [request.rows.length, request.aborted])))
     paused.fixture.stop()
   }
   const coarse = await staged({ resumesAt: 'reply-starts' })
