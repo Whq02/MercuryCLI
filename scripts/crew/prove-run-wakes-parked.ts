@@ -59,8 +59,10 @@ async function journey(kind: 'captain' | 'held' | 'deadline'): Promise<void> {
   }
   let captainStarted = false, posterStarted = false, serial = 0, captainCalls = 0, posterCalls = 0
   let moved: { from: string; to: string } | undefined
+  const session = randomUUID()
+  const board = (): string | undefined => findFiles(home, 'board.sqlite').find(path => path.includes(session))
   const moveWorktree = (): void => {
-    const path = findFiles(home, 'board.sqlite')[0]!
+    const path = board()!
     const db = new Database(path, { readonly: true })
     const captain = db.query("SELECT agent FROM members WHERE name = 'captain'").get() as { agent: string }
     db.close()
@@ -111,8 +113,8 @@ async function journey(kind: 'captain' | 'held' | 'deadline'): Promise<void> {
     return 0
   } })
   try {
-    const result = await run(DIST, home, cwd, fixture.base, kind === 'deadline' ? ['--max-time', '8s'] : [])
-    const path = findFiles(home, 'board.sqlite')[0]
+    const result = await run(DIST, home, cwd, fixture.base, ['--session-id', session, ...(kind === 'deadline' ? ['--max-time', '8s'] : [])])
+    const path = board()
     assert(path, `board was created: ${result.stderr}`)
     const db = new Database(path, { readonly: true })
     try {

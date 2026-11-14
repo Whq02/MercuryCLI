@@ -99,7 +99,9 @@ try {
     await turn()
     trigger()
     await turn()
-    const db = new Database(findFiles(scratch, 'board.sqlite')[0]!)
+    const own = findFiles(scratch, 'board.sqlite').find(path => path.includes(String(boot.getSessionId())))
+    assert(own, 'the board of this proof’s own session is on disk')
+    const db = new Database(own)
     const mine = (db.query("SELECT execution FROM members WHERE agent = 'main'").get() as { execution: string }).execution
     db.query("UPDATE members SET execution = 'another-runner' WHERE agent = 'main'").run()
     tasks.orphan!.status = 'completed'
