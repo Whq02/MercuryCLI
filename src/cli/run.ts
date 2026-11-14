@@ -1419,6 +1419,7 @@ export async function runHeadless(
             ),
           agents: activeAgents,
           setSDKStatus: (status: unknown) => {
+            if (status === 'compacting' || (typeof status === 'object' && status !== null && ('streamActivity' in status || 'compacting' in status))) turnWatchdog.touch()
             const row = statusRowOf(status)
             if (row !== null) enqueueRow(row)
           },
