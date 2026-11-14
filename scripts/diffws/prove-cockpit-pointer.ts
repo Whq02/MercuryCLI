@@ -50,7 +50,7 @@ function capture(
 const motion = (x: number, y: number): string => `\x1b[<35;${x};${y}M`
 const click = (x: number, y: number): string => `\x1b[<0;${x};${y}M\x1b[<0;${x};${y}m`
 
-type Anchors = { ctxRow: number; ctxCol: number; wfHdrRow: number; wfHdrCol: number; usageHdrRow: number }
+type Anchors = { ctxRow: number; ctxCol: number; healthHdrRow: number; healthHdrCol: number; usageHdrRow: number }
 function columnOf(row: Cell[], needle: string, from: number): number {
   let text = ''
   const starts: number[] = []
@@ -63,14 +63,14 @@ function columnOf(row: Cell[], needle: string, from: number): number {
 }
 function deriveAnchors(lines: string[], grid: Cell[][]): Anchors | null {
   const ctxRow = lines.findIndex(l => l.slice(RAIL_FROM).includes('ctx '))
-  const wfHdrRow = lines.findIndex(l => l.slice(RAIL_FROM).includes('WORKFLOW'))
+  const healthHdrRow = lines.findIndex(l => l.slice(RAIL_FROM).includes('HEALTH'))
   const usageHdrRow = lines.findIndex(l => l.slice(RAIL_FROM).includes('USAGE'))
-  if (ctxRow < 0 || wfHdrRow < 0 || usageHdrRow < 0) return null
+  if (ctxRow < 0 || healthHdrRow < 0 || usageHdrRow < 0) return null
   return {
     ctxRow,
     ctxCol: columnOf(grid[ctxRow]!, 'ctx ', RAIL_FROM),
-    wfHdrRow,
-    wfHdrCol: columnOf(grid[wfHdrRow]!, 'WORKFLOW', RAIL_FROM),
+    healthHdrRow,
+    healthHdrCol: columnOf(grid[healthHdrRow]!, 'HEALTH', RAIL_FROM),
     usageHdrRow,
   }
 }
@@ -108,7 +108,7 @@ capture('warm', [], 52)
 {
   const base = capture('sanity', [], 52)
   const a = base ? deriveAnchors(base.lines, base.grid) : null
-  check('vitals anchors present (ctx row + WORKFLOW header)', !!a, a ? `ctx=${a.ctxRow} wf=${a.wfHdrRow}` : '')
+  check('vitals anchors present (ctx row + HEALTH header)', !!a, a ? `ctx=${a.ctxRow} health=${a.healthHdrRow}` : '')
   if (base) check('rail is unfocused at rest (no ❯ vitals banner)', !base.lines.some(l => l.includes('❯ vitals')))
 }
 
@@ -135,7 +135,7 @@ leg(
   (r, a) => {
     const focusBanner = r.lines.some(l => l.includes('❯ vitals'))
     const cursorInPanel = r.lines.some((l, y) => {
-      if (y <= a.usageHdrRow || y >= a.wfHdrRow + 2) return false
+      if (y <= a.usageHdrRow || y >= a.healthHdrRow + 2) return false
       return l.slice(RAIL_FROM - 2).includes('❯')
     })
     const noSurface = !r.lines.some(l => l.includes('— deck'))
@@ -163,13 +163,13 @@ leg(
   r => r.lines.filter(l => l.trim()).slice(0, 2).join(' | '),
 )
 
-console.log('\n── D. panel HEADER: one click opens /workflows ──────────────')
+console.log('\n── D. panel HEADER: one click opens /health ─────────────────')
 leg(
   'header',
-  a => [{ atTick: 44, data: click(a.wfHdrCol + 1, a.wfHdrRow + 1) }],
+  a => [{ atTick: 44, data: click(a.healthHdrCol + 1, a.healthHdrRow + 1) }],
   74,
-  r => r.lines.some(l => l.includes('No workflow runs')),
-  'one click on the WORKFLOW header opens the /workflows board',
+  r => r.lines.some(l => l.includes('Mercury · health')),
+  'one click on the HEALTH header opens the /health page',
   r => r.lines.filter(l => l.trim()).slice(0, 2).join(' | '),
 )
 
@@ -178,7 +178,7 @@ leg(
   'draft',
   a => [
     { atTick: 40, data: 'draft survives' },
-    { atTick: 48, data: click(a.wfHdrCol + 1, a.wfHdrRow + 1) },
+    { atTick: 48, data: click(a.healthHdrCol + 1, a.healthHdrRow + 1) },
     { atTick: 62, data: '\x1b' },
   ],
   80,

@@ -9,7 +9,7 @@ import {
   type CaptureTiming, type JobsRun,
 } from '../lib/captureJobs.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
-import { HELM_BOTH_RAILS_MIN, HELM_HOME_MIN_COLS } from '../../src/utils/helmGeometry.ts'
+import { HELM_HOME_MIN_COLS } from '../../src/utils/helmGeometry.ts'
 import { DEFAULT_CRITTER_KEY } from '../../src/utils/cockpit/critterData.ts'
 
 function baselineDriverPython(): string {
@@ -135,7 +135,7 @@ function needlesSeenAt(receipt: { sendReceipts?: Array<{ atTick: number }> }, se
 
 function sceneNeedles(spec: CaptureSpec, cfg: { readyText?: string | string[] }): string[] {
   const loadedFrame = spec.scenario === 'frame' && spec.cols >= HELM_HOME_MIN_COLS ? ['ready ·', 'ctx ≈'] : []
-  return settleNeedles(cfg, cockpitReadyText(spec.cols, HELM_HOME_MIN_COLS, HELM_BOTH_RAILS_MIN), [...(SCENE_SETTLE_NEEDLES[spec.scenario] ?? []), ...loadedFrame])
+  return settleNeedles(cfg, cockpitReadyText(spec.cols, HELM_HOME_MIN_COLS), [...(SCENE_SETTLE_NEEDLES[spec.scenario] ?? []), ...loadedFrame])
 }
 
 function captureSpec(
@@ -151,7 +151,7 @@ function captureSpec(
   const gridPath = join(home, 'capture-grid.json')
   const cfgPath = join(home, 'capture-cfg.json')
   const needles = sceneNeedles(spec, cfg)
-  const settled = settleCaptureConfig({ ...cfg, out: gridPath }, needles, cockpitReadyText(spec.cols, HELM_HOME_MIN_COLS, HELM_BOTH_RAILS_MIN))
+  const settled = settleCaptureConfig({ ...cfg, out: gridPath }, needles, cockpitReadyText(spec.cols, HELM_HOME_MIN_COLS))
   writeFileSync(cfgPath, JSON.stringify(settled))
   const judge = (raw: RawGrid): { ok: boolean; reason: string } =>
     spec.colorMode === 'none' ? { ok: true, reason: '' } : mods.oracle.evaluateCapture(raw, cfg.chromeMarkers)

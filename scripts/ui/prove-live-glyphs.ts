@@ -187,9 +187,10 @@ section('adoption + hygiene pins (source greps)')
     (live.match(/view\?\.reducedMotion/g) ?? []).length >= 2,
   )
   const rail = readFileSync('src/components/HelmVitalsRail.tsx', 'utf8')
+  const lanes = readFileSync('src/components/HelmLanesRail.tsx', 'utf8')
   check(
-    'HelmVitalsRail adopts WorkingGlyph + AttentionPulse + ValueGlow',
-    rail.includes('WorkingGlyph') && rail.includes('AttentionPulse') && rail.includes('ValueGlow'),
+    'the Helm rails adopt the primitives: HelmLanesRail WorkingGlyph + AttentionPulse + ValueGlow, HelmVitalsRail ValueGlow',
+    lanes.includes('WorkingGlyph') && lanes.includes('AttentionPulse') && lanes.includes('ValueGlow') && rail.includes('ValueGlow'),
   )
   check(
     'rail countdowns ride a tick, not a render-frozen Date.now()',
@@ -197,8 +198,8 @@ section('adoption + hygiene pins (source greps)')
   )
   const deck = readFileSync('src/components/DeckPane.tsx', 'utf8')
   check(
-    'DeckPane renders WorkingGlyph; AttentionPulse rides the two Helm rails (its DeckPane row left with the two-seat surface)',
-    deck.includes('<WorkingGlyph') && rail.includes('<AttentionPulse') && readFileSync('src/components/HelmLanesRail.tsx', 'utf8').includes('<AttentionPulse'),
+    'DeckPane renders WorkingGlyph; AttentionPulse rides the lanes rail (its DeckPane row left with the two-seat surface, its vitals row with the WORKFLOW card)',
+    deck.includes('<WorkingGlyph') && lanes.includes('<AttentionPulse'),
   )
   check('deck countdowns ride the same tick', deck.includes('useNowTick(30_000)'))
   const frame = readFileSync('src/components/MercuryFrame.tsx', 'utf8')

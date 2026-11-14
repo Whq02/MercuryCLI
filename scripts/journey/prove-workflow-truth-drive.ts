@@ -287,25 +287,6 @@ function dump(label: string, frame: string | undefined): void {
   for (const row of frame.split('\n')) if (row.trim()) console.log(`│ ${row}`)
 }
 
-function panelRows(frame: string | undefined, label: string, nextLabel: string): string[] {
-  const lines = (frame ?? '').split('\n')
-  const head = lines.findIndex(l => l.includes(label))
-  if (head < 0) return []
-  const col = Math.max(0, lines[head]!.indexOf(label) - 4)
-  const out: string[] = []
-  for (let i = head + 1; i < lines.length; i++) {
-    const line = lines[i]!
-    if (line.includes(nextLabel)) break
-    out.push(line.slice(col))
-  }
-  return out
-}
-function panelCount(frame: string | undefined, label: string): number | null {
-  const head = rowsWith(frame, label)[0] ?? ''
-  const m = new RegExp(`${label}\\s*[·:]?\\s*(\\d+)`).exec(head)
-  return m ? Number(m[1]) : null
-}
-
 console.log('============================================================')
 console.log(' a running workflow is one truth on every surface — real bundle, PTY')
 console.log('============================================================')
@@ -422,16 +403,6 @@ if (cap !== null) {
   const runTwo = rowsWith(m['run'], `${SEAT_MARK}two`)
   check('W4 the run view shows both agents running', runOne.some(r => laneWords.test(r)) && runTwo.some(r => laneWords.test(r)), [...runOne, ...runTwo].map(flat).join(' | ').slice(0, 400))
 
-  console.log('\n— W1 the WORKFLOW panel at the busy moment —')
-  for (const label of ['cockpit-busy', 'cockpit-again'] as const) {
-    const panel = panelRows(m[label], 'WORKFLOW', 'HEALTH')
-    const words = panel.map(flat).filter(Boolean).join(' | ')
-    check(`W1 [${label}] the panel does not read idle while the run lives`, panel.length > 0 && !panel.some(r => /\bidle\b/.test(r)), words.slice(0, 300))
-    check(`W1 [${label}] the panel names the run`, panel.some(r => r.includes(WF_NAME)), words.slice(0, 300))
-    check(`W1 [${label}] the panel carries the agent fraction before the phase prefix (0/2 crewmates · ${PHASE.slice(0, 2)})`, panel.some(r => r.includes(`0/2 crewmates · ${PHASE.slice(0, 2)}`)), words.slice(0, 300))
-    check(`W1 [${label}] the panel's count agrees with the board (1 run)`, panelCount(m[label], 'WORKFLOW') === 1, `count ${panelCount(m[label], 'WORKFLOW')}`)
-  }
-
   console.log('\n— W2 the launch line —')
   for (const label of ['cockpit-busy', 'cockpit-again'] as const) {
     const fallback = rowsWith(m[label], 'to view dynamic workflow runs')
@@ -461,20 +432,6 @@ if (cap !== null) {
     check('W8 …and both lanes are on the run view', rowsWith(early, `${SEAT_MARK}one`).length > 0 && rowsWith(early, `${SEAT_MARK}two`).length > 0, rowsWith(early, SEAT_MARK).map(flat).join(' | ').slice(0, 300))
   }
 
-  console.log('\n— W7 the skeleton window —')
-  {
-    const fileAt = factsEdges.file ?? Number.POSITIVE_INFINITY
-    const workAt = factsEdges.work ?? Number.POSITIVE_INFINITY
-    const inWindow = (['skeleton-1', 'skeleton-2', 'skeleton-3', 'skeleton-4'] as const)
-      .map((label, i) => ({ label, ts: cap!.receipts[2 + i]?.ts ?? 0 }))
-      .filter(f => f.ts >= fileAt && f.ts < workAt)
-    const panels = inWindow.map(f => ({ label: f.label, rows: panelRows(m[f.label], 'WORKFLOW', 'HEALTH') }))
-    const words = panels.map(p => `${p.label}: ${p.rows.map(flat).filter(Boolean).join(' | ')}`).join(' ‖ ')
-    check(`W7 the window was photographed (the skeleton stood ${((workAt - fileAt) / 1000).toFixed(1)} s; ${inWindow.length} frame(s) inside it)`, inWindow.length >= 1, `file ${fileAt} · work ${workAt} · frames ${cap!.receipts.slice(2, 6).map(r => r.ts).join(',')}`)
-    check('W7 before the runner\'s first answer the panel never reads idle (a skeleton fact is not a fact)', panels.length > 0 && panels.every(p => p.rows.length > 0 && !p.rows.some(r => /\bidle\b/.test(r))), words.slice(0, 300))
-    check('W7 …it paints the unknown mark instead', panels.length > 0 && panels.every(p => p.rows.some(r => /—/.test(r))), words.slice(0, 300))
-  }
-
   console.log('\n— W6 the wait words —')
   for (const label of ['cockpit-busy', 'cockpit-again'] as const) {
     const waits = rowsWith(m[label], /waiting on/)
@@ -482,8 +439,6 @@ if (cap !== null) {
   }
 
   console.log('\n— W5 the settle —')
-  const settledPanel = panelRows(m['settled'], 'WORKFLOW', 'HEALTH')
-  check('W5 once the run settled the panel reads idle', settledPanel.some(r => /\bidle\b/.test(r)) && !settledPanel.some(r => r.includes(WF_NAME)), settledPanel.map(flat).filter(Boolean).join(' | ').slice(0, 200))
   check('W5 the launch line reads Completed with the agent count', rowsWith(m['settled'], /Completed/).some(r => /2 crewmates/.test(r)), rowsWith(m['settled'], /Completed|Running/).map(flat).join(' | ').slice(0, 300))
   check('W5 the board counts the settled run under Recent and none under Active', rowsWith(m['board-settled'], /Active \(0\)/).length > 0 && rowsWith(m['board-settled'], /Recent \(1\)/).length > 0, rowsWith(m['board-settled'], /Active|Recent/).map(flat).join(' | ').slice(0, 300))
   check('W5 the settle carried the output file (no missing-file warning in the notice)', !Object.values(m).some(f => /output file could not be written/.test(f)) && fixture.hits.some(h => h.route === 'note' && !h.lastUserText.includes('could not be written')))

@@ -49,13 +49,6 @@ export interface AgentMetaFact {
   effortOverride?: string
 }
 
-interface WorkflowDiskFact {
-  runId: string
-  title?: string
-  status: string
-  agentCount?: number
-}
-
 interface ArtifactHeadFact {
   id: string
   kind: string
@@ -83,7 +76,6 @@ export interface WorkbenchSourceInputs {
   richTasks: Map<string, RichTaskFact>
   agentMeta: Map<string, AgentMetaFact>
   laneRuns: Map<string, RunFacts>
-  workflowsDisk: WorkflowDiskFact[]
   artifacts: ArtifactHeadFact[]
   gitWorktreeLanes: Array<{ path: string; branch?: string; head?: string }>
 }

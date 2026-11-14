@@ -70,8 +70,6 @@ function homeFor(name: string, verb = name.startsWith('busy-') ? WRAP_VERB : und
 const faceEnter: Send = { requireAwait: true, awaitText: '↑↓ choose', minTick: 35, awaitSettleTicks: 4, data: '\r' }
 const WAY_BACK = keyHintLabel('⇧← back')
 const onReady = (data: string, mark: string): Send => ({ requireAwait: true, awaitText: 'ready ·', targetText: WAY_BACK, awaitSettleTicks: 6, data, mark })
-const WORK_REPORTED = '⤳ WORKFLOW[^\\n]*\\n[^\\n]*\\bidle\\b'
-const onReported = (data: string, mark: string): Send => ({ ...onReady(data, mark), awaitPattern: WORK_REPORTED })
 
 type Resize = { atTick?: number; afterMark?: string; afterMs?: number; cols: number; rows: number }
 async function capture(tag: string, world: { configHome: string; cwd: string }, cols: number, rows: number, sends: Send[], readyText: string, resizes: Resize[] = [], live = false, envPatch: Record<string, string> = {}): Promise<Capture> {
@@ -245,7 +243,7 @@ console.log('============================================================')
 try {
   if (!mountsOnly) {
   const wide = homeFor('wide')
-  const a = await capture('wide-a', wide, 178, 51, [onReported('/view on\r', 'boot')], 'Unknown command')
+  const a = await capture('wide-a', wide, 178, 51, [onReady('/view on\r', 'boot')], 'Unknown command')
   const boot = a.marks['boot']!
   const typed = a.grid
   const band = await capture('band', homeFor('band'), 80, 21, [], '1 session on')

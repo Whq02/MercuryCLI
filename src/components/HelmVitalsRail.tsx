@@ -16,17 +16,9 @@ import { usagePollTtlMs } from '../services/providers/usageFreshness.js'
 import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
 import { getUsageRecordVersion, subscribeUsageRecord } from '../services/anthropicLimits.js'
 import { getFocusedSessionConnector, subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
-import {
-  focusedSessionIdOrNull,
-  focusedWorkflowRows,
-  otherSessionRunnerPids,
-  runningWorkflowRows,
-  useFocusedWorkRoster,
-  useFocusedWorkRows,
-} from './tasks/useFocusedWork.js'
+import { focusedSessionIdOrNull, useFocusedWorkRoster } from './tasks/useFocusedWork.js'
 import { healthCertSnapshot } from '../utils/cockpit/healthCertSnapshot.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
-import { pidAlive } from '../utils/pidAlive.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { GLYPH, SPARK } from './mercury-ui/glyphs.js'
 import { requestCommandDispatch, requestHelmRowActivationByLabel, setHelmCursor } from '../utils/cockpit/helmFocus.js'
@@ -35,9 +27,7 @@ import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { RailPanel } from './mercury-ui/RailPanel.js'
 import { fitPointerRows } from '../utils/cockpit/helmLanesModel.js'
 import { Sparkline, UsageMeter, useNowTick } from './mercury-ui/components.js'
-import { CURSOR_NUDGE_MS, AttentionPulse, ValueGlow, WorkingGlyph } from './mercury-ui/LiveGlyphs.js'
-import { partitionDiskRuns } from '../tools/WorkflowTool/runManifest.js'
-import { useVitals } from '../state/vitalsBus.js'
+import { CURSOR_NUDGE_MS, ValueGlow } from './mercury-ui/LiveGlyphs.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { fluxMark } from '../utils/flux/fluxProbe.js'
 import { buildVitalsModel, type VitalsInput, type VitalsRowSpec, type VitalsSectionSpec } from '../utils/cockpit/helmVitalsModel.js'
@@ -122,14 +112,6 @@ function HelmVitalsRailImpl({ width, availRows }: { width: number; availRows?: n
   const readNow = Date.now()
   useSyncExternalStore(subscribeLiveContextUsage, getLiveContextUsageVersion, getLiveContextUsageVersion)
   const ctx = getLiveContextUsage()
-  const workRows = useFocusedWorkRows()
-  const runningWf = runningWorkflowRows(workRows)
-  const wfDisk = useVitals().workflowsDisk
-  const externalWf = React.useMemo(() => {
-    const knownRunIds = new Set(focusedWorkflowRows(workRows).map(r => r.workflowRunId ?? ''))
-    const otherPids = otherSessionRunnerPids(focusedSessionIdOrNull())
-    return partitionDiskRuns(wfDisk, knownRunIds, now, pidAlive).external.filter(m => !otherPids.has(m.ownerPid))
-  }, [wfDisk, workRows, now])
 
   const input: VitalsInput = {
     width,
@@ -140,8 +122,6 @@ function HelmVitalsRailImpl({ width, availRows }: { width: number; availRows?: n
     otherUsages,
     workRoster,
     focusedSessionId: focusedSessionIdOrNull(),
-    runningWf,
-    externalWf,
     ctx,
     ctxTurns: ctx.window > 0 && ctxForecastEnabled() ? estimateTurnsToCompact(ctx.usedPct, ctx.compactAtPct) : null,
     ctxGrowth: ctx.window > 0 ? ctxGrowthHistory() : [],
@@ -229,34 +209,6 @@ function HelmVitalsRailImpl({ width, availRows }: { width: number; availRows?: n
               <Sparkline values={spec.values} />
             </Text>
           </Box>
-        )
-      case 'wf':
-        return selectable(
-          <Text wrap="truncate-end">
-            {caret(i)}
-            <WorkingGlyph color={spec.asks > 0 ? tok.warning : tok.success} active={spec.asks === 0} />
-            <Text> </Text>
-            <Text color={tok.textPrimary}>{spec.name}</Text>
-            {spec.asks > 0 ? <AttentionPulse>{` ${spec.asks} ask${spec.asks > 1 ? 's' : ''}`}</AttentionPulse> : null}
-          </Text>,
-        )
-      case 'wfdetail':
-        return (
-          <Box key={spec.key} width={rowW}>
-            <Text wrap="truncate-end">
-              <Text color={tok.textMuted}>{'    '}</Text>
-              <Text color={tok.textMuted}>{spec.text}</Text>
-            </Text>
-          </Box>
-        )
-      case 'wfext':
-        return selectable(
-          <Text wrap="truncate-end">
-            {caret(i)}
-            <Text color={spec.wedged ? tok.warning : tok.textMuted}>{`${GLYPH.pending} `}</Text>
-            <Text color={tok.textPrimary}>{spec.name}</Text>
-            <Text color={spec.wedged ? tok.warning : tok.textMuted}>{spec.tail}</Text>
-          </Text>,
         )
       case 'health':
         return selectable(

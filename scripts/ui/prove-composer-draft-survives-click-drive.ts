@@ -172,7 +172,6 @@ const DOORS: Door[] = [
   header('usage-header', 'USAGE card header → /usage (esc closes)', 'USAGE', 'Mercury · usage'),
   { name: 'usage-header-click-outside', road: 'USAGE card header → /usage (a click outside closes)', open: [clickOn('USAGE', 1)], needle: 'Mercury · usage', close: after(CLICK_OUTSIDE, 1) },
   row('usage-row', 'usage spend row (select, then activate) → /usage', 'spend none yet', 'Mercury · usage'),
-  header('workflow-header', 'WORKFLOW card header → /workflows', 'WORKFLOW', 'Mercury — workflows'),
   header('workbench-header', 'WORKBENCH card header → /workbench', 'WORKBENCH', 'Mercury — prompts'),
   header('files-header', 'FILES card header → the files menu', 'FILES ·', 'Mercury · files'),
   row('files-row', 'FILES browse row (select, then activate) → the files menu', 'or click · browse', 'Mercury · files'),

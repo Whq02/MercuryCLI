@@ -33,10 +33,10 @@ check('the stillness window is 8 ticks (1.6 s) and the ceiling 300 ticks (60 s) 
 if (law && settle && cockpit && needlesOf) {
   const wide = cockpit(120, 100)
   const narrow = cockpit(60, 100)
-  const both = (vb.cockpitReadyText as (cols: number, wide: number, both: number) => string[])(150, 100, 150)
+  const both = cockpit(150, 100)
   check('a wide cockpit is ready when the composer and the rail scan have landed', wide.join('|') === 'Type a prompt|RECENT|○ ', wide.join('|'))
   check('a narrow cockpit is ready when the composer and the late count row have landed (the host-neutral word of that row)', narrow.join('|') === 'Type a prompt|concourse', narrow.join('|'))
-  check("a both-rails cockpit also waits for the workflow chip's idle measure, the last cell of the second rail", both.join('|') === 'Type a prompt|RECENT|○ |idle', both.join('|'))
+  check('a both-rails cockpit is ready on the same cells as a wide one: the second rail holds no cell that lands later', both.join('|') === 'Type a prompt|RECENT|○ ', both.join('|'))
 
   const frame = settle({ argv: ['node', 'x'], sends: [], total: 45, cols: 120, rows: 40 }, wide, wide)
   const chain = (frame.sends ?? []).map(s => s.awaitText)

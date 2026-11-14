@@ -3,11 +3,6 @@ import { useSyncExternalStore } from 'react'
 import { hasSeatLive } from '../services/engine-connector/seatLive.js'
 import { fluxMark } from '../utils/flux/fluxProbe.js'
 import { serialCoalescer, type SerialCoalescer } from '../services/workbench/serialCoalescer.js'
-import {
-  listWorkflowRuns,
-  type WorkflowRunManifest,
-} from '../tools/WorkflowTool/runManifest.js'
-import { getOriginalCwd } from '../bootstrap/state.js'
 import { logForDebugging } from '../utils/debug.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { getGitState, subscribeGitFacts, type GitRepoState } from '../utils/git.js'
@@ -27,7 +22,6 @@ const TRANSCRIPT_DEBOUNCE_MS = 500
 const HEARTBEAT_MS = 15_000
 const subscribeFocusedWork = subscribeThroughFocused((connector, listener) => connector.subscribeWork(listener))
 const subscribeFocusedLive = subscribeThroughFocused((connector, listener) => (hasSeatLive(connector) ? connector.subscribeLive(listener) : () => {}))
-const WORKFLOWS_DISK_MAX = 10
 
 export type SessionGlanceSnapshot =
   | { state: 'unavailable' }
@@ -40,7 +34,6 @@ export interface VitalsSnapshots {
   fleet: { state: string; crew?: string | null; conflicts: number; drifting: number }
   fleetFull: Awaited<ReturnType<typeof fleetGauge>> | null
   trace: Awaited<ReturnType<typeof traceSnapshot>> | null
-  workflowsDisk: Array<WorkflowRunManifest & { mtimeMs: number }>
   refreshedAt: number
   version: number
 }
@@ -52,7 +45,6 @@ let snapshots: VitalsSnapshots = {
   fleet: { state: 'off', conflicts: 0, drifting: 0 },
   fleetFull: null,
   trace: null,
-  workflowsDisk: [],
   refreshedAt: 0,
   version: 0,
 }
@@ -109,13 +101,6 @@ async function refreshOnce(): Promise<void> {
       .then(s => {
         next.fleetFull = s
         next.fleet = { state: s.state, crew: null, conflicts: 0, drifting: 0 }
-      })
-      .catch(() => {}),
-    listWorkflowRuns(getOriginalCwd(), { limit: WORKFLOWS_DISK_MAX * 5 })
-      .then(runs => {
-        next.workflowsDisk = runs
-          .filter(m => m.status === 'running' || m.status === 'paused')
-          .slice(0, WORKFLOWS_DISK_MAX)
       })
       .catch(() => {}),
     traceSnapshot()

@@ -53,8 +53,6 @@ export const LIVE_DIR = join(import.meta.dir, '..', '..', 'design-system', 'live
 export const GRIDS_DIR = join(LIVE_DIR, 'grids')
 export const MANIFEST_PATH = join(LIVE_DIR, 'manifest.json')
 
-export const IDLE_MEASURE_MASK = '│ {2,3}(?:idle|—) +(?=│)'
-
 export const DEFAULT_MASKS = [
   '\\b\\d{2}:\\d{2}:\\d{2}\\b',
   '\\b\\d+[smhd] ago\\b',
@@ -73,7 +71,6 @@ export const DEFAULT_MASKS = [
   'row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$',
   '(?<= · effort [^·]+ · ctx \\S+ · )\\S.*',
   'row:gate [✓◓✕·]',
-  IDLE_MEASURE_MASK,
 ]
 
 export function maskRow(row: string, masks: string[]): string {
@@ -330,11 +327,9 @@ export const SETTLE_LAW = { tickMs: 200, stillTicks: 8, ceilingTicks: 300 } as c
 export const COMPOSER_NEEDLE = 'Type a prompt'
 export const RAIL_SCAN_NEEDLES = ['RECENT', '○ '] as const
 export const NARROW_COUNT_NEEDLE = 'concourse'
-export const WORKFLOW_IDLE_NEEDLE = 'idle'
 
-export function cockpitReadyText(cols: number, wideMinCols: number, bothRailsMinCols = Number.POSITIVE_INFINITY): string[] {
-  if (cols < wideMinCols) return [COMPOSER_NEEDLE, NARROW_COUNT_NEEDLE]
-  return cols >= bothRailsMinCols ? [COMPOSER_NEEDLE, ...RAIL_SCAN_NEEDLES, WORKFLOW_IDLE_NEEDLE] : [COMPOSER_NEEDLE, ...RAIL_SCAN_NEEDLES]
+export function cockpitReadyText(cols: number, wideMinCols: number): string[] {
+  return cols < wideMinCols ? [COMPOSER_NEEDLE, NARROW_COUNT_NEEDLE] : [COMPOSER_NEEDLE, ...RAIL_SCAN_NEEDLES]
 }
 
 export type SettleSend = Record<string, unknown> & {
