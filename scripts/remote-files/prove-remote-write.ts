@@ -29,6 +29,7 @@ const { createFileStateCacheWithSizeLimit, cacheKeys } = await import('../../src
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 const { setCwdState, setOriginalCwd, setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
 const { closeRemoteConnections } = await import('../../src/services/remoteFiles/connection.ts')
+const rewindScreen = (await import('../../src/components/MessageSelector.tsx')) as { writtenElsewhereLine?: (messages: never, from: string) => string | null }
 setSessionTrustAccepted(true)
 enableConfigs()
 setOriginalCwd(project)
@@ -132,6 +133,9 @@ async function writes(world: RemoteWorld): Promise<void> {
   const same = await write(remote(file), 'name: app\nport: 8080\n', context)
   const sameHere = await write(twin, 'name: app\nport: 8080\n', contextHere)
   check(`${name}: the same content again writes nothing, and says so as here`, same.said === sameHere.said.replaceAll(twin, remote(file)) && same.said.startsWith(`No changes were made to ${remote(file)}`), same.said)
+  const span = [made.data, updated.data, same.data].map((toolUseResult, index) => ({ type: 'user', uuid: `span-${index}`, message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `toolu_${index}`, content: 'ok' }] }, toolUseResult }))
+  const stays = rewindScreen.writtenElsewhereLine === undefined ? '<the rewind screen reads no such thing>' : rewindScreen.writtenElsewhereLine(span as never, 'before-the-span')
+  check(`${name}: what those writes answered is what the rewind screen reads: the file created and the file replaced stay as written, the write that changed nothing is not named twice`, stays === `Stays as written on another machine: ${remote(fresh)} and ${remote(file)}.`, String(stays))
   const again = await write(remote(file), 'name: app\nport: 9090\n', context)
   check(`${name}: a second write after the first needs no new read`, again.said.startsWith(`The file ${remote(file)} has been updated successfully.`) && textAt(file) === 'name: app\nport: 9090\n', again.said)
   for (const path of [file, twin]) {

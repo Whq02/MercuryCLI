@@ -21,6 +21,10 @@
 # gate-watch: src/tools/FileEditTool/**
 # gate-watch: src/state/AppState.tsx
 # gate-watch: src/ink.ts
+# gate-watch: src/components/MessageSelector.tsx
+# gate-watch: src/keybindings/KeybindingProviderSetup.tsx
+# gate-watch: src/services/engine-connector/focusedConnector.ts
+# gate-watch: src/services/engine-connector/noSessionConnector.ts
 # gate-watch: src/utils/permissions/filesystem.ts
 # gate-watch: scripts/tools/fixtures/read-formats/**
 set -uo pipefail
