@@ -77,8 +77,8 @@ else {
     clearInterval(watching)
     check('M11 the private query folder and the private remote copy carry the process that made them in their names', [...privateNames].some(name => name.startsWith(`json-queries/read-${process.pid}-`)) && [...privateNames].some(name => name.startsWith(`remote-files/copy-${process.pid}-`)) && [...privateNames].every(name => /^(?:json-queries\/read|remote-files\/copy)-\d+-[A-Za-z0-9]{6}$/.test(name)), [...privateNames].join(' '))
     for (const folder of ['json-queries', 'remote-files']) {
-      const target = join(process.env.MERCURY_TMPDIR!, folder)
-      check(`M11 owned ${folder} copies are removed`, !existsSync(target) || readdirSync(target).length === 0)
+      const target = join(getMercuryTempDir(), folder)
+      check(`M11 owned ${folder} copies are removed`, existsSync(target) && readdirSync(target).length === 0, existsSync(target) ? readdirSync(target).join(' ') : `${target} was never made`)
     }
   } finally {
     await connection.closeRemoteConnections()

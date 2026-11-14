@@ -207,8 +207,9 @@ if (!given) {
   const aborted = await ask(scalar, 'until(false; .)', '', {}, abortContext)
   clearTimeout(timer)
   check('M11 a computation with no output is cancellable', aborted.error && aborted.body.includes('proof cancellation') && performance.now() - started < 5000, aborted.body)
-  const queryTemp = join(process.env.MERCURY_TMPDIR!, 'json-queries')
-  check('M11 error and cancellation leave no owned query temp files', !existsSync(queryTemp) || readdirSync(queryTemp).length === 0)
+  const { getMercuryTempDir } = await import(`${src}/utils/permissions/filesystem.ts`)
+  const queryTemp = join(getMercuryTempDir(), 'json-queries')
+  check('M11 error and cancellation leave no owned query temp files', existsSync(queryTemp) && readdirSync(queryTemp).length === 0, existsSync(queryTemp) ? readdirSync(queryTemp).join(' ') : `${queryTemp} was never made`)
   check('queries leave every source byte unchanged', readFileSync(rows, 'utf8').startsWith('\ufeff{"n":1') && readFileSync(scalar, 'utf8') === '{"n":7}')
   console.log(`${passed}/${passed + failed} checks`)
   process.exitCode = failed ? 1 : 0
