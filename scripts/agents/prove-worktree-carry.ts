@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -21,6 +21,8 @@ const skip = (label: string): void => console.log(`  [SKIP] ${label}`)
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const wait = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
+const scenario = process.argv[2]
+if (scenario !== undefined && process.env.CARRY_SCENARIO_HOME !== undefined) process.env.MERCURY_CONFIG_DIR = process.env.CARRY_SCENARIO_HOME
 const state = await import('../../src/bootstrap/state.ts')
 const config = await import('../../src/utils/config/globalConfig.ts')
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
@@ -30,6 +32,26 @@ const cloneModule = (await import('../../src/utils/worktreeClone.ts')) as unknow
 type Made = { worktreePath: string; prepareFailure?: string; ready?: Promise<void> }
 const make = (slug: string, options: Record<string, unknown> = {}): Promise<Made> => (worktree.createAgentWorktree as (slug: string, options: unknown) => Promise<Made>)(slug, options)
 const prepare = worktree.prepareWorktreeFiles as (repo: string, path: string, from?: string, preserve?: boolean, permission?: unknown, carry?: boolean) => Promise<void>
+
+if (scenario !== undefined) {
+  const dir = process.argv[3] as string
+  process.chdir(dir)
+  state.setOriginalCwd(dir)
+  state.setCwdState(dir)
+  state.setIsInteractive(true)
+  config.enableConfigs()
+  const copy = (await make('agent-ad900001')).worktreePath
+  const kind = (rel: string): string => {
+    try {
+      const entry = lstatSync(join(copy, rel))
+      return entry.isSymbolicLink() ? 'link' : entry.isDirectory() ? 'folder' : 'file'
+    } catch {
+      return 'absent'
+    }
+  }
+  console.log('RESULT ' + JSON.stringify(Object.fromEntries(process.argv.slice(4).map(rel => [rel, kind(rel)]))))
+  process.exit(0)
+}
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-carry-')))
 const outside = join(scratch, 'outside')
@@ -230,7 +252,43 @@ try {
     const sparse = await make('agent-ad750001')
     check('with workspace.worktree.sparsePaths set the copy starts with the dependency folders only', kindOf(join(sparse.worktreePath, 'node_modules')) === 'folder' && kindOf(join(sparse.worktreePath, 'dist')) === 'absent' && kindOf(join(sparse.worktreePath, '.env')) === 'absent' && kindOf(join(sparse.worktreePath, 'cache')) === 'absent', `${kindOf(join(sparse.worktreePath, 'dist'))}, ${kindOf(join(sparse.worktreePath, '.env'))}`)
 
-    section('§9 a .worktreeinclude file beside the carry')
+    section('§9 Mercury\'s own home and the user\'s home are never cloned')
+    const inChild = (name: string, dir: string, env: Record<string, string>, rels: string[]): Record<string, string> | null => {
+      const child = spawnSync(process.execPath, [import.meta.path, name, dir, ...rels], { encoding: 'utf8', timeout: 120_000, killSignal: 'SIGKILL', env: { ...process.env, ...env } })
+      const line = (child.stdout ?? '').split('\n').find(row => row.startsWith('RESULT '))
+      if (line === undefined) console.log(`  (${name}: no answer: ${`${child.stdout ?? ''}${child.stderr ?? ''}`.trim().split('\n').slice(-2).join(' | ').slice(0, 300)})`)
+      return line === undefined ? null : (JSON.parse(line.slice('RESULT '.length)) as Record<string, string>)
+    }
+    const ownHome = makeFixture('own-home', () => ({}), ['local-home/'])
+    for (const [file, body] of Object.entries({ 'local-home/.credentials.json': '{"token":"secret"}\n', 'local-home/settings.json': '{}\n', 'local-home/projects/one/session.jsonl': '{}\n' })) {
+      mkdirSync(dirname(join(ownHome, file)), { recursive: true })
+      writeFileSync(join(ownHome, file), body)
+    }
+    const withOwnHome = inChild('own-home', ownHome, { CARRY_SCENARIO_HOME: join(ownHome, 'local-home') }, ['local-home', 'local-home/.credentials.json', 'local-home/projects/one/session.jsonl', 'dist/app.js', '.env', 'node_modules'])
+    check('a Mercury home that lies inside a project with no Read rule at all, and is ignored there, is not carried: not its credentials file, not a session of it, not the folder', withOwnHome !== null && withOwnHome['local-home/.credentials.json'] === 'absent' && withOwnHome['local-home/projects/one/session.jsonl'] === 'absent' && withOwnHome['local-home'] === 'absent', JSON.stringify(withOwnHome))
+    check('…while the rest git ignores still comes', withOwnHome !== null && withOwnHome['dist/app.js'] === 'file' && withOwnHome['.env'] === 'file' && withOwnHome['node_modules'] === 'folder', JSON.stringify(withOwnHome))
+    const elsewhere = join(scratch, 'home-elsewhere')
+    const WATCHED = ['dist/app.js', '.env', 'run.log', 'cache/keep/data.bin', 'node_modules']
+    const carriedThere = (result: Record<string, string> | null): boolean => result !== null && result['dist/app.js'] === 'file' && result['.env'] === 'file' && result['run.log'] === 'file' && result['cache/keep/data.bin'] === 'file'
+    const nothingThere = (result: Record<string, string> | null): boolean => result !== null && result['dist/app.js'] === 'absent' && result['.env'] === 'absent' && result['run.log'] === 'absent' && result['cache/keep/data.bin'] === 'absent'
+    const homeIs = makeFixture('home-is-checkout', denying)
+    const atHome = inChild('home-is-checkout', homeIs, { HOME: homeIs, CARRY_SCENARIO_HOME: elsewhere }, WATCHED)
+    check('a checkout that IS the user\'s home directory is carried nothing: what it ignores is the user\'s whole home', nothingThere(atHome), JSON.stringify(atHome))
+    check('…and its dependency folder is the copy\'s own, as in any checkout', atHome !== null && atHome['node_modules'] === 'folder', JSON.stringify(atHome))
+    const homeInside = makeFixture('home-inside-checkout', denying, ['users/'])
+    mkdirSync(join(homeInside, 'users', 'me'), { recursive: true })
+    writeFileSync(join(homeInside, 'users', 'me', 'private.txt'), 'in the home\n')
+    const aroundHome = inChild('home-inside-checkout', homeInside, { HOME: join(homeInside, 'users', 'me'), CARRY_SCENARIO_HOME: elsewhere }, [...WATCHED, 'users'])
+    check('a checkout that CONTAINS the user\'s home directory is carried nothing either', nothingThere(aroundHome) && aroundHome !== null && aroundHome['users'] === 'absent', JSON.stringify(aroundHome))
+    const homeBeside = makeFixture('home-beside-checkout', denying)
+    mkdirSync(join(scratch, 'a-home-beside'), { recursive: true })
+    const besideHome = inChild('home-beside-checkout', homeBeside, { HOME: join(scratch, 'a-home-beside'), CARRY_SCENARIO_HOME: elsewhere }, WATCHED)
+    check('a checkout BESIDE the home is carried into as before', carriedThere(besideHome), JSON.stringify(besideHome))
+    const homeAbove = makeFixture('home-above-checkout', denying)
+    const underHome = inChild('home-above-checkout', homeAbove, { HOME: scratch, CARRY_SCENARIO_HOME: elsewhere }, WATCHED)
+    check('a checkout UNDER the home, where a project usually lies, is carried into as before', carriedThere(underHome), JSON.stringify(underHome))
+
+    section('§10 a .worktreeinclude file beside the carry')
     const including = makeFixture('including', denying)
     writeFileSync(join(including, '.worktreeinclude'), '.env\n.env.production\n')
     enter(including)

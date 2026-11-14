@@ -1,7 +1,8 @@
 import { spawnSync } from 'node:child_process'
 import { constants } from 'node:fs'
+import { homedir } from 'node:os'
 import { copyFile, cp, lstat, mkdir, readdir, readFile, realpath, rm, stat, symlink, utimes, writeFile } from 'node:fs/promises'
-import { basename, dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve, sep } from 'node:path'
 
 import chalk from 'chalk'
 
@@ -394,7 +395,7 @@ function checkoutRelativeName(relPath: string): string {
 
 type SessionRules = ToolPermissionContext | 'unknown'
 
-async function heldBackUnder(permission: SessionRules | undefined): Promise<((root: string) => HeldBack) | undefined> {
+async function heldBackUnder(permission: SessionRules | undefined, always = false): Promise<((root: string) => HeldBack) | undefined> {
   if (permission === 'unknown') return () => () => true
   try {
     const { readDenialFilter, ruleMatcherFor } = await import('./permissions/filesystem.js')
@@ -406,7 +407,7 @@ async function heldBackUnder(permission: SessionRules | undefined): Promise<((ro
       rules = applyPermissionRulesToPermissionContext(getEmptyToolPermissionContext(), loadAllPermissionRulesFromDisk())
     }
     const narrowing = (rules.alwaysAllowRules as Record<string, readonly string[] | undefined>).toolsNarrowing ?? []
-    if (ruleMatcherFor(rules, 'read', 'deny') === null && narrowing.length === 0) return undefined
+    if (!always && ruleMatcherFor(rules, 'read', 'deny') === null && narrowing.length === 0) return undefined
     const read = rules
     return root => readDenialFilter(read, root)
   } catch (error) {
@@ -445,8 +446,18 @@ async function ignoredEntriesOf(sourceRoot: string, worktreePath: string): Promi
   return checked.code === 0 ? checked.stdout.split('\0').filter(entry => entry !== '') : []
 }
 
-async function carryIgnoredEntries(sourceRoot: string, worktreePath: string, placed: readonly string[], held: ((root: string) => HeldBack) | undefined): Promise<boolean> {
+async function holdsUserHome(sourceRoot: string): Promise<boolean> {
+  try {
+    const [checkout, home] = await Promise.all([realpath(sourceRoot), realpath(homedir())])
+    return home === checkout || home.startsWith(checkout.endsWith(sep) ? checkout : checkout + sep)
+  } catch {
+    return true
+  }
+}
+
+async function carryIgnoredEntries(sourceRoot: string, worktreePath: string, placed: readonly string[], permission: SessionRules | undefined): Promise<boolean> {
   if (await cloneRefusedBetween(sourceRoot, worktreePath)) return false
+  if (await holdsUserHome(sourceRoot)) return false
   const [here, there] = await Promise.all([runGit(['rev-parse', 'HEAD'], worktreePath), runGit(['rev-parse', 'HEAD'], sourceRoot)])
   if (here.code !== 0 || there.code !== 0 || here.stdout.trim() === '' || here.stdout.trim() !== there.stdout.trim()) return false
   const entries = (await ignoredEntriesOf(sourceRoot, worktreePath)).filter(entry => {
@@ -454,10 +465,22 @@ async function carryIgnoredEntries(sourceRoot: string, worktreePath: string, pla
     if ((PROJECT_CONFIG_DIR_NAMES as readonly string[]).includes(name.split('/')[0] as string)) return false
     return !placed.some(kept => name === kept || name.startsWith(`${kept}/`) || kept.startsWith(`${name}/`))
   })
+  const refusedUnder = (await heldBackUnder(permission, true)) as (root: string) => HeldBack
   const instructions = await instructionFileTest()
+  const { mercurySecretReadIgnores } = await import('./permissions/protectedPaths.js')
+  const fold = (path: string): string => path.normalize('NFC').toLowerCase()
+  const ownHomes = [...mercurySecretReadIgnores().keys()].map(fold)
   const staysBehind = (root: string): HeldBack => {
-    const denied = held?.(root)
-    return path => denied?.(path) === true || instructions(path)
+    const refused = refusedUnder(root)
+    const checkout = fold(root)
+    if (ownHomes.some(own => checkout === own || checkout.startsWith(`${own}/`))) return () => true
+    const inside = ownHomes.filter(own => own.startsWith(`${checkout}/`))
+    if (inside.length === 0) return path => refused(path) || instructions(path)
+    return path => {
+      if (refused(path) || instructions(path)) return true
+      const folded = fold(path)
+      return inside.some(own => folded === own || folded.startsWith(`${own}/`))
+    }
   }
   recordWorktreeClones(worktreePath, await carryEntries(entries, sourceRoot, worktreePath, staysBehind))
   return true
@@ -556,12 +579,12 @@ async function placeCheckoutFolders(repoRoot: string, worktreePath: string, depe
   const keptAsLinks = new Set(symlinkDirectories.map(checkoutRelativeName))
   const toClone = dependencyLinks.filter(name => !keptAsLinks.has(name))
   const carries = carry && dependencyLinksFrom !== undefined && canCloneHere() && (getInitialSettings().workspace?.worktree?.sparsePaths ?? []).length === 0
-  const held = canCloneHere() && (toClone.length > 0 || carries) ? await heldBackUnder(permission) : undefined
+  const held = canCloneHere() && toClone.length > 0 ? await heldBackUnder(permission) : undefined
   const cloned = await cloneCheckoutDirectories(sourceRoot, worktreePath, toClone, held)
   recordWorktreeClones(worktreePath, cloned)
   const linked = await linkCheckoutDirectories(sourceRoot, worktreePath, [...new Set([...dependencyLinks, ...symlinkDirectories])].filter(name => !cloned.includes(name)))
   if (dependencyLinksFrom !== undefined) await hideLinksFromGit(repoRoot, worktreePath, sourceRoot, [...cloned, ...linked])
-  const carried = carries && (await carryIgnoredEntries(sourceRoot, worktreePath, [...new Set([...dependencyLinks, ...keptAsLinks])], held))
+  const carried = carries && (await carryIgnoredEntries(sourceRoot, worktreePath, [...new Set([...dependencyLinks, ...keptAsLinks])], permission))
   await copyWorktreeIncludeFiles(repoRoot, worktreePath, preserveExisting || carried)
 }
 
