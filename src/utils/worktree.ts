@@ -460,7 +460,7 @@ async function heldBackUnder(permission: SessionRules | undefined, sourceRoot: s
 
 async function cloneCheckoutDirectories(sourceRoot: string, worktreePath: string, relPaths: readonly string[], held: ((root: string) => HeldBack) | undefined): Promise<string[]> {
   if (relPaths.length === 0) return []
-  const outcomes = await cloneIntoWorktree(relPaths.map(relPath => ({ source: join(sourceRoot, ...relPath.split('/')), target: join(worktreePath, ...relPath.split('/')) })), sourceRoot, worktreePath, undefined, held)
+  const outcomes = await cloneIntoWorktree(relPaths.map(relPath => ({ source: join(sourceRoot, relPath), target: join(worktreePath, relPath) })), sourceRoot, worktreePath, undefined, held)
   return relPaths.filter((_, index) => outcomes[index] === 'cloned')
 }
 
@@ -504,7 +504,7 @@ async function carryIgnoredEntries(sourceRoot: string, worktreePath: string, pla
   if (here.code !== 0 || there.code !== 0 || here.stdout.trim() === '' || here.stdout.trim() !== there.stdout.trim()) return false
   const entries = (await ignoredEntriesOf(sourceRoot, worktreePath)).filter(entry => {
     const name = entry.endsWith('/') ? entry.slice(0, -1) : entry
-    if ((PROJECT_CONFIG_DIR_NAMES as readonly string[]).includes(name.split('/')[0] as string)) return false
+    if (PROJECT_CONFIG_DIR_NAMES.some(folder => name === folder || name.startsWith(`${folder}/`))) return false
     return !placed.some(kept => name === kept || name.startsWith(`${kept}/`) || kept.startsWith(`${name}/`))
   })
   const refusedUnder = (await heldBackUnder(permission, sourceRoot, true)) as (root: string) => HeldBack
