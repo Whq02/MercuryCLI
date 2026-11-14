@@ -423,7 +423,7 @@ async function statusReport(owner: OwnerKey, input: Input): Promise<string> {
   if (tabs.length === 0 || live !== null) {
     lines.push(
       live
-        ? `session: OPEN at ${live.page.url()} (viewport ${live.page.viewport()?.width}x${live.page.viewport()?.height})`
+        ? `session: OPEN at ${live.page.url()} (viewport ${live.page.viewport()?.width}x${live.page.viewport()?.height}${live.crashed ? '; crashed' : ''})`
         : 'session: none',
     )
   } else {

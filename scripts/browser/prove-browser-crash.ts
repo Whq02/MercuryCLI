@@ -122,4 +122,27 @@ section('S5 order, cancellation, a cancelled creation, and a secret’s approval
   check('[M07] an interrupted creation answers as interrupted and leaves no page without a tab', answer.outcome === 'failed' && answer.result.includes('open interrupted by the operator') && pages === tabs.length, `${answer.result} pages=${pages} tabs=${tabs.map(live => live.tab).join(',')}`)
 }
 
+section('S6 status of crashed tabs and of the sole main tab')
+{
+  await crash()
+  await crash('work')
+  const multi = (await run({ op: 'status' })).result.split('\n')
+  check(
+    'in a several-tab listing each crashed tab says so on its own row while healthy tabs do not',
+    multi.some(line => line.startsWith(`  main: ${A.origin}/main (`) && line.endsWith('; idle lease; crashed)')) &&
+      multi.some(line => line.startsWith(`  work: ${A.origin}/two (`) && line.endsWith('; idle lease; crashed)')) &&
+      multi.some(line => line.startsWith(`  beside: ${A.origin}/beside — beside (`) && line.endsWith('; idle lease)')),
+    multi.filter(line => line.startsWith('  ')).join(' | '),
+  )
+  await run({ op: 'reload' })
+  for (const tab of sessions.browserTabs(ownerOf(lead))) if (tab.tab !== 'main') await run({ op: 'close', tab: tab.tab })
+  const healthyLine = `session: OPEN at ${A.origin}/main (viewport 1280x800)`
+  check('the healthy single-page status is unchanged', (await run({ op: 'status' })).result.split('\n').includes(healthyLine))
+  await crash()
+  const status = await run({ op: 'status' })
+  check('the sole main tab says it crashed too', status.result.split('\n').includes(`session: OPEN at ${A.origin}/main (viewport 1280x800; crashed)`), status.result)
+  await run({ op: 'reload' })
+  check('recovery restores the unchanged healthy single-page status', (await run({ op: 'status' })).result.split('\n').includes(healthyLine))
+}
+
 await finish('prove-browser-crash')
