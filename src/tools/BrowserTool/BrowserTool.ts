@@ -38,6 +38,7 @@ import {
   emulatedPageOf,
   endedTab,
   ensureBrowserSession,
+  firstNavigation,
   isBrowserErrorPage,
   liveBrowserSessionCensus,
   noteCheckedActOrigin,
@@ -1830,11 +1831,13 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
           const openMarks = markAct(s)
           let response: Awaited<ReturnType<typeof s.page.goto>>
           try {
-            response = await s.page.goto(input.url!, {
-              waitUntil: input.waitUntil ?? 'load',
-              timeout: Math.min(Math.max(input.timeoutMs ?? 30_000, 1000), NAVIGATION_CAP_MS),
-              signal: signalFor(s),
-            })
+            response = await firstNavigation(s, input.url!, () =>
+              s.page.goto(input.url!, {
+                waitUntil: input.waitUntil ?? 'load',
+                timeout: Math.min(Math.max(input.timeoutMs ?? 30_000, 1000), NAVIGATION_CAP_MS),
+                signal: signalFor(s),
+              }),
+            )
           } catch (err) {
             const message = (err as Error).message
             if (!/net::ERR_ABORTED/.test(message)) {

@@ -97,6 +97,7 @@ interface Hold {
   downloads: DownloadHome | null
   arriving: Map<string, { notice: DownloadNotice & { finish: () => void }; wiring: Wiring }>
   unwanted: Set<string>
+  launchArrivals: { origins: Set<string> | null } | null
 }
 
 interface Birth {
@@ -1606,6 +1607,21 @@ async function watchBirths(state: OwnerBrowserState, hold: Hold, downloads: Down
   if (followed) hold.downloads = downloads
 }
 
+export async function firstNavigation<T>(session: Session, url: string, go: () => Promise<T>): Promise<T> {
+  const hold = holdOf(session)
+  const arrivals = hold.launchArrivals
+  hold.launchArrivals = null
+  if (arrivals === null || arrivals.origins === null) return go()
+  try {
+    return await go()
+  } catch (err) {
+    if (!/net::ERR_ABORTED/.test((err as Error | undefined)?.message ?? '') || arrivals.origins.has(originOf(url))) throw err
+    return await go()
+  } finally {
+    arrivals.origins = null
+  }
+}
+
 export function popupInFlight(session: Session): boolean {
   const hold = holdOf(session)
   return [...hold.births.values(), ...hold.died.values()].some(birth => birth.opener === session && birth.keep)
@@ -1806,12 +1822,14 @@ async function placeTab(
         if (hit === undefined || Date.now() - hit.at > 15_000) return null
         return hit
       }
+      const launchArrivals: NonNullable<Hold['launchArrivals']> = { origins: new Set() }
       const proxy = await startMetadataProxy(
         reason => { networkRefusal.last = reason; networkRefusal.count++ },
         (target, code) => {
           relayFailures.set(target, { code, at: Date.now() })
           if (relayFailures.size > 32) relayFailures.delete(relayFailures.keys().next().value!)
         },
+        origin => { launchArrivals.origins?.add(origin) },
       )
       proxyClose = proxy.close
       const launch: LaunchDriver =
@@ -1969,6 +1987,7 @@ async function placeTab(
         downloads: null,
         arriving: new Map(),
         unwanted: new Set(),
+        launchArrivals,
       }
     }
     const session = tabSession(state, hold, tab, page, wiring)
