@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
+import { nodeBinPath } from '../lib/nodeBin.ts'
 import { execFileSync, spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { createReadStream, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -81,7 +82,7 @@ check('a llama-server at b11829 or newer is found (the runtime folder first); th
 if (!llama.found) process.exit(1)
 console.log(`  llama-server: ${llama.binary} · ${JSON.stringify({ version: llama.version, build: llama.build, commit: llama.commit, pinned: llama.pinned })}`)
 receipt.llama = llama
-const node = [join(ROOT, 'vendor', 'node', 'extracted', `${process.platform}-${process.arch}`, 'bin', 'node'), ...(process.env.PATH ?? '').split(':').map(dir => join(dir, 'node'))].find(path => existsSync(path))
+const node = nodeBinPath()
 if (node !== undefined && existsSync(join(dist, 'tensorfold-adapter.mjs')) && existsSync(join(dist, 'mercury.mjs'))) {
   const sibling = execFileSync(node, [join(dist, 'tensorfold-adapter.mjs'), '--version'], { encoding: 'utf8' }).trim()
   const fallback = execFileSync(node, [join(dist, 'mercury.mjs'), '--tensorfold-adapter', '--version'], { encoding: 'utf8' }).trim()
