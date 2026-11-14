@@ -27,6 +27,7 @@ import { TaskOutput } from './task/TaskOutput.js'
 import { which } from './which.js'
 import { nativeCwdFromShellRecord, posixPathToWindowsPath } from './windowsPaths.js'
 import { planWindowsBatchInvocation, runWindowsBatchCommand } from './shell/windowsBatchInvocation.js'
+import { withGitPrograms } from './shell/windowsShellRoad.js'
 
 
 
@@ -324,7 +325,7 @@ export async function exec(
 
     const child = await spawnOwnedShell(spawnFile, spawnArgs, {
       cwd,
-      env: childEnv,
+      env: engineBinary === null ? childEnv : withGitPrograms(childEnv),
       stdio,
       detached: provider.detached,
       windowsHide: true,

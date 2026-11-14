@@ -24,7 +24,7 @@ import { getFsImplementation } from '../fsOperations.js'
 import { resolveBrushPackDir, type BrushPackResolution } from './brushPack.js'
 import { nativeCwdFromShellRecord } from '../windowsPaths.js'
 import { shellEngineArmWords, shellEngineRequest, type ShellEngineArm } from './shellEngineArm.js'
-import { windowsBashAbsent, windowsShellRoadActive } from './windowsShellRoad.js'
+import { windowsBashAbsent, windowsShellRoadActive, withGitPrograms } from './windowsShellRoad.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import type { ExecResult, ShellCommand } from '../ShellCommand.js'
 
@@ -299,7 +299,7 @@ async function spawnSession(binaryPath: string): Promise<LiveSession> {
   const live: LiveSession = {
     child: await spawnOwnedShell(binaryPath, [...ENGINE_FLAGS, '-c', script], {
       cwd: cwdThatResolves(),
-      env: toolShellEnv(base.env, { SHELL: binaryPath, ...envOverrides() }),
+      env: withGitPrograms(toolShellEnv(base.env, { SHELL: binaryPath, ...envOverrides() })),
       stdio: ['pipe', 'pipe', 'pipe'],
       detached: getPlatform() !== 'windows',
       windowsHide: true,
