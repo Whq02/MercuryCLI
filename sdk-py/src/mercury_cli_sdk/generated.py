@@ -852,6 +852,7 @@ SessionFactsResultQueueItem = TypedDict("SessionFactsResultQueueItem", {
     "mode": "Literal[\"bash\"] | Literal[\"prompt\"] | Literal[\"task-notification\"]",
     "origin": "NotRequired[SessionFactsResultQueueItemOriginChoice0 | SessionFactsResultQueueItemOriginChoice1 | SessionFactsResultQueueItemOriginChoice2 | SessionFactsResultQueueItemOriginChoice3 | SessionFactsResultQueueItemOriginChoice4 | SessionFactsResultQueueItemOriginChoice5 | SessionFactsResultQueueItemOriginChoice6 | SessionFactsResultQueueItemOriginChoice7 | SessionFactsResultQueueItemOriginChoice8]",
     "priority": "NotRequired[Literal[\"now\"] | Literal[\"next\"] | Literal[\"later\"]]",
+    "isMeta": "NotRequired[Literal[True]]",
 })
 
 SessionFactsResultWorkItemPhasesItemAgentsItem = TypedDict("SessionFactsResultWorkItemPhasesItemAgentsItem", {

@@ -216,6 +216,7 @@ export type SessionFactsResult = {
       via: 'mcp-server'
     }
     priority?: 'now' | 'next' | 'later'
+    isMeta?: true
   }>
   recovered_command_ids?: string[]
   work?: Array<{

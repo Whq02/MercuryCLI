@@ -4,8 +4,8 @@ import type { QueuedFactV1 } from './seatProjections.js'
 
 const NOTICE_KEY_PREFIX = 'notice:'
 
-export function isNoticeFact(entry: Pick<QueuedFactV1, 'mode'>): boolean {
-  return entry.mode === 'task-notification'
+export function isNoticeFact(entry: Pick<QueuedFactV1, 'mode' | 'isMeta'>): boolean {
+  return entry.mode === 'task-notification' && entry.isMeta !== true
 }
 
 export function noticeKeyOf(value: string): string {

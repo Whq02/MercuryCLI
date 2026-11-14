@@ -34,6 +34,7 @@ export interface QueuedFactV1 {
   mode: PromptInputMode
   origin?: import('../../types/message.js').MessageOrigin
   priority?: QueuePriority
+  isMeta?: true
 }
 
 export interface SessionFactsAnswerV1 {

@@ -210,6 +210,9 @@ const inOrder = (lines: string[], needles: string[]): boolean => {
   return true
 }
 check('each post paints as the seat\'s own row and each wake is answered, in order', inOrder(woken, [POSTS[0]!, REPLIES[0]!, POSTS[1]!, REPLIES[1]!, POSTS[2]!, REPLIES[2]!]), woken.filter(line => line.includes('poster') || line.includes('REPLY')).join(' | '))
+check('a background shell runs through all three wakes, as a crew would: the daemon asks the runner for its queue each second only while a crewmate, shell or monitor runs, and in a quiet session no wake ever reached the window', lineOf(job, `[Background] ${JOB}`) > lineOf(job, REPLIES[2]!), job.filter(line => line.includes('Background') || line.includes('REPLY')).join(' | '))
+check('live, a wake paints no notice row: woken three times, the frame holds none (the parent paints one a wake)', lineOf(woken, REPLIES[2]!) >= 0 && !woken.some(line => PLAIN_NOTICE.test(line)), woken.filter(line => PLAIN_NOTICE.test(line)).map(line => line.trim()).join(' | '))
+check('…nor does one stand once the job has finished', lineOf(job, JOB_NOTED) >= 0 && !job.some(line => PLAIN_NOTICE.test(line)), job.filter(line => PLAIN_NOTICE.test(line)).map(line => line.trim()).join(' | '))
 
 section('§2 a notice that is not a wake keeps its row: the finished job')
 const jobRow = job.find(line => line.includes(`[Background] ${JOB}`)) ?? ''
