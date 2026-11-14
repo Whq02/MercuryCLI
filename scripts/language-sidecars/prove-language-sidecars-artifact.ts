@@ -69,7 +69,7 @@ const bundle = join(stage, 'dist', 'mercury.mjs')
   const vendor = JSON.parse(readFileSync(join(stage, 'dist', 'vendor', 'treesitter', 'vendor.json'), 'utf8')) as {
     grammars: string[]
   }
-  check('isolated: 28 grammar wasms shipped', vendor.grammars.length === 28, String(vendor.grammars.length))
+  check('isolated: 34 grammar wasms shipped', vendor.grammars.length === 34, String(vendor.grammars.length))
   const probe = `
     const path = require('path');
     const dir = ${JSON.stringify(join(stage, 'dist', 'vendor', 'treesitter'))};

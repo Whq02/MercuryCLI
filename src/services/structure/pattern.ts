@@ -73,11 +73,16 @@ const PATTERN_CONTEXTS: Record<string, string[]> = {
   ini: ['[mercury_ctx]\n<P>\n'],
   sql: ['SELECT <P>', 'SELECT * FROM mercury_ctx <P>'],
   lua: ['local mercury_ctx = <P>'],
+  make: ['mercury_ctx:\n\t<P>\n'],
+  xml: ['<mercury_ctx <P>/>'],
+  hcl: ['mercury_ctx = <P>'],
+  graphql: ['type MercuryCtx {\n<P>\n}', 'query MercuryCtx {\n<P>\n}', 'query MercuryCtx { mercuryCtx(<P>) }'],
+  protobuf: ['message MercuryCtx {\n<P>\n}', 'service MercuryCtx {\n<P>\n}', 'enum MercuryCtx {\n<P>\n}'],
 }
 
 const RAW_CANDIDATE_LAST = new Set(['php', 'c'])
 
-const STATEMENT_TERMINATED = new Set(['c', 'cpp', 'c-sharp', 'java', 'php', 'rust', 'javascript', 'typescript', 'tsx', 'go', 'css'])
+const STATEMENT_TERMINATED = new Set(['c', 'cpp', 'c-sharp', 'java', 'php', 'rust', 'javascript', 'typescript', 'tsx', 'go', 'css', 'protobuf'])
 
 function quotePlaceholders(encoded: string): string {
   return encoded.replace(/__MVM?_[A-Za-z0-9_]*?__/g, m => `"${m}"`)

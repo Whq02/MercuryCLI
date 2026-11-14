@@ -96,6 +96,19 @@ const LANGUAGE_ALIASES: Record<string, string> = {
   mdx: 'markdown',
   docker: 'dockerfile',
   containerfile: 'dockerfile',
+  makefile: 'make',
+  gnumake: 'make',
+  mk: 'make',
+  mak: 'make',
+  xsl: 'xml',
+  xslt: 'xml',
+  svg: 'xml',
+  plist: 'xml',
+  tf: 'hcl',
+  tfvars: 'hcl',
+  terraform: 'hcl',
+  gql: 'graphql',
+  proto: 'protobuf',
 }
 
 export function resolveAstLanguage(name: string): PolyglotLanguage | null {

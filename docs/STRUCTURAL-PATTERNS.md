@@ -41,7 +41,7 @@ range, node type, source text and captures.
 Detection is per file, by its name: a basename first (`Dockerfile`), then
 the extension, then a basename prefix (`Dockerfile.dev`). `lang` forces one
 grammar on a single file whatever its name; over a directory it keeps the
-files whose names route to that grammar. The registry routes 28 languages;
+files whose names route to that grammar. The registry routes 34 languages;
 what a build carries is what the tools advertise: the `lang` field counts the
 grammars found in the engine dir the runtime resolves
 (`dist/vendor/treesitter` beside the bundle, or the workspace package for
@@ -54,25 +54,26 @@ does not carry lists them:
   every build vendors it. A clean clone's local build carries these 16.
 - The grammar cache carries the rest, each pinned in
   `vendor/grammars.lock.json` by its own sha256 with the source it comes
-  from, the upstream commit and the licence: c · html · json · toml ·
-  kotlin · vue from the `tree-sitter-wasms` pack; swift · yaml · markdown ·
-  dockerfile · lua from the grammar's own release or npm package; sql from a
-  third party's build, named as such in the lock, because that grammar
-  publishes no build of its own. There is no postinstall: you prepare the
-  cache with `bun run scripts/vendor/fetch-grammars.ts` (the one network
-  step; `--check` validates the cache offline) and rebuild. Release archives
-  carry all 28. A local build without the cache says so at build time
+  from, the upstream commit and the licence. Of the first 23: c · html ·
+  json · toml · kotlin · vue from the `tree-sitter-wasms` pack and swift
+  from its own release. The languages added since: yaml · markdown ·
+  dockerfile · lua · make · xml · hcl from the grammar's own release or npm
+  package, and sql · cmake · graphql · protobuf from a third party's builds,
+  named as such in the lock, because those grammars publish no build of
+  their own. There is no postinstall: you prepare the cache with
+  `bun run scripts/vendor/fetch-grammars.ts` (the one network step;
+  `--check` validates the cache offline) and rebuild. Release archives
+  carry all 34. A local build without the cache says so at build time
   (`vendored WITHOUT them`), the manifest records
   `degraded: structure-polyglot-extended` and `mercury health` names it; the
   artifact's own `dist/vendor/treesitter/vendor.json` lists the grammars it
   carries.
 
-The languages after vue in that list (yaml · markdown · sql · dockerfile ·
-lua) are read by AstSearch and AstEdit only: the parse note an edit gives
-and the outline Read draws keep to the first 23. Each of them, like swift,
-is auditioned in a disposable child the first time a process uses it, and a
-grammar file that fails there is refused by name instead of taking the
-process down.
+The languages added since the first 23 are read by AstSearch and AstEdit
+only: the parse note an edit gives and the outline Read draws keep to the
+first 23. Each of them, like swift, is auditioned in a disposable child the
+first time a process uses it, and a grammar file that fails there is refused
+by name instead of taking the process down.
 
 Beside code these languages cost a search nothing it did not ask for. A
 file of theirs that cannot contain the pattern's longest word is counted and
@@ -88,6 +89,18 @@ is read by its blocks (headings, lists, fenced code, tables, paragraphs);
 the text inside a paragraph is one node, so `## $TITLE` finds every
 second-level heading and a pattern cannot reach a word inside a sentence.
 
+A pattern compares the nodes a grammar names and the fields it labels; a
+keyword a grammar keeps as an unnamed token is not compared. In these
+languages that shows where one node kind has several spellings: in a
+Makefile `include $F` also finds `-include`, and in Protocol Buffers
+`import $P;` also finds `import public …;` and an `rpc` pattern also finds
+the streaming ones. A `$$$` list is refused where a member is never a bare
+word: the body of an HCL block, the fields of a GraphQL type, the body of a
+Protocol Buffers message, the attributes of an XML tag; name a member
+(`instance_type = $T`, `id: ID!`, `string id = 1;`, `order=$V`) or write the
+block out. A Protocol Buffers field number is a number, never a
+meta-variable.
+
 In a build that lacks a grammar the registry routes: a file of that
 language is skipped and counted by extension with the remedy named in the
 result trailer; a single such file, or a `lang` pin on it, refuses by name
@@ -97,7 +110,7 @@ reported per file, never matched over. The engine is pure WASM (no native
 dependency, one vendored asset set for every platform artifact); when no
 engine resolves at all, neither tool is in the catalog. Friendly spellings
 resolve (`ts`, `js`, `py`, `rs`, `cs`, `c++`, `sh`, `rb`, `kt`, `ps1`, `yml`,
-`md`, `docker`).
+`md`, `docker`, `makefile`, `svg`, `tf`, `gql`, `proto`).
 
 ## AstSearch
 

@@ -63,6 +63,12 @@ export const GRAMMAR_REGISTRY: GrammarRegistryEntry[] = [
     basenamePrefixes: ['Dockerfile.'],
   }),
   patternGrammar('lua', ['.lua']),
+  patternGrammar('make', ['.mk', '.mak'], { basenames: ['Makefile', 'GNUmakefile'], finalNewline: true }),
+  patternGrammar('cmake', ['.cmake'], { basenames: ['CMakeLists.txt'] }),
+  patternGrammar('xml', ['.xml', '.xsl', '.xslt', '.svg', '.plist']),
+  patternGrammar('hcl', ['.hcl', '.tf', '.tfvars']),
+  patternGrammar('graphql', ['.graphql', '.gql']),
+  patternGrammar('protobuf', ['.proto'], { declares: 'proto' }),
 ]
 
 export const GRAMMAR_ENGINE_RUNTIME_FILES = ['tree-sitter.js', 'tree-sitter.wasm'] as const

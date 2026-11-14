@@ -28,6 +28,7 @@ interface Admission {
   routes: string[]
   aliases: string[]
   pieceSkip?: string[]
+  refuses?: string[]
   searches: Array<{ pattern: string; count: number; first?: Record<string, string> }>
   rewrite: { pattern: string; rewrite: string; expect: string[]; gone?: string[] }
 }
@@ -79,12 +80,76 @@ const ADMITTED: Record<string, Admission> = {
     ],
     rewrite: { pattern: 'inv:add($$$ARGS)', rewrite: 'inv:insert($$$ARGS)', expect: ['inv:insert("nail", 40)', "inv:insert('rope')"], gone: ['inv:add'] },
   },
+  make: {
+    routes: ['sample.mk', 'sample.mak', 'SAMPLE.MK', 'Makefile', 'GNUmakefile'],
+    aliases: ['makefile', 'gnumake', 'mk', 'mak'],
+    searches: [
+      { pattern: 'CFLAGS += $FLAGS', count: 4, first: { '$FLAGS': '-Wall -Wextra -O2' } },
+      { pattern: 'include $F', count: 2, first: { '$F': 'config.mk' } },
+      { pattern: 'mkdir -p $@', count: 1 },
+    ],
+    rewrite: { pattern: 'CC ?= $V', rewrite: 'CC ?= clang', expect: ['CC ?= clang\nCFLAGS'], gone: ['CC ?= cc'] },
+  },
+  cmake: {
+    routes: ['sample.cmake', 'SAMPLE.CMAKE', 'CMakeLists.txt'],
+    aliases: [],
+    searches: [
+      { pattern: 'target_link_libraries($T PRIVATE $$$LIBS)', count: 2, first: { '$T': 'tidecore', '$$$LIBS': 'ZLIB::ZLIB' } },
+      { pattern: 'message(STATUS $MSG)', count: 2 },
+    ],
+    rewrite: { pattern: 'set(CMAKE_CXX_STANDARD $V)', rewrite: 'set(CMAKE_CXX_STANDARD 23)', expect: ['set(CMAKE_CXX_STANDARD 23)\nset(CMAKE_CXX_STANDARD_REQUIRED ON)'], gone: ['set(CMAKE_CXX_STANDARD 20)'] },
+  },
+  xml: {
+    routes: ['sample.xml', 'sample.xsl', 'sample.xslt', 'sample.svg', 'sample.plist', 'SAMPLE.XML'],
+    aliases: ['xsl', 'xslt', 'svg', 'plist'],
+    pieceSkip: ['prolog'],
+    refuses: ['<item $$$ATTRS>$T</item>'],
+    searches: [
+      { pattern: '<version>$V</version>', count: 3, first: { '$V': '1.4.2' } },
+      { pattern: '<artifactId>$ID</artifactId>', count: 4 },
+      { pattern: 'order=$V', count: 1, first: { '$V': '"1"' } },
+    ],
+    rewrite: { pattern: '<scope>test</scope>', rewrite: '<scope>provided</scope>', expect: ['<scope>provided</scope>'], gone: ['<scope>test</scope>'] },
+  },
+  hcl: {
+    routes: ['sample.hcl', 'sample.tf', 'sample.tfvars', 'SAMPLE.HCL'],
+    aliases: ['tf', 'tfvars', 'terraform'],
+    refuses: ['resource "aws_instance" "web" { $$$BODY }'],
+    searches: [
+      { pattern: 'instance_type = $T', count: 1, first: { '$T': '"t3.small"' } },
+      { pattern: 'merge($$$ARGS)', count: 2 },
+    ],
+    rewrite: { pattern: 'instance_type = $T', rewrite: 'instance_type = "t3.medium"', expect: ['instance_type = "t3.medium"'], gone: ['t3.small'] },
+  },
+  graphql: {
+    routes: ['sample.graphql', 'sample.gql', 'SAMPLE.GRAPHQL'],
+    aliases: ['gql'],
+    pieceSkip: ['comment'],
+    refuses: ['type Query { $$$FIELDS }'],
+    searches: [
+      { pattern: 'id: ID!', count: 2 },
+      { pattern: 'enum $NAME {\n  $$$VALUES\n}', count: 2, first: { '$NAME': 'TideKind' } },
+      { pattern: 'harbour(id: $ID) { $$$SEL }', count: 1, first: { '$ID': '$id' } },
+    ],
+    rewrite: { pattern: 'kind: TideKind!', rewrite: 'kind: TideKind', expect: ['kind: TideKind\n}'], gone: ['kind: TideKind!'] },
+  },
+  protobuf: {
+    routes: ['sample.proto', 'SAMPLE.PROTO'],
+    aliases: ['proto'],
+    refuses: ['message Ping { $$$FIELDS }', 'string id = $N;'],
+    searches: [
+      { pattern: 'string id = 1;', count: 2 },
+      { pattern: 'rpc $NAME($REQ) returns ($RES);', count: 3, first: { '$NAME': 'GetHarbour', '$REQ': 'GetHarbourRequest' } },
+      { pattern: 'import $PATH;', count: 2 },
+    ],
+    rewrite: { pattern: 'string id = 1;', rewrite: 'string uid = 1;', expect: ['string uid = 1;'], gone: ['string id = 1;'] },
+  },
 }
 
-const THIRD_PARTY_BUILDS = ['sql']
-const NO_RECORDED_COMMIT: string[] = []
+const THIRD_PARTY_BUILDS = ['sql', 'cmake', 'graphql', 'protobuf']
+const NO_COPYRIGHT_LINE = ['hcl']
 const HELD = ['markdown']
-const NEEDS_FINAL_NEWLINE = ['markdown']
+const NEEDS_FINAL_NEWLINE = ['markdown', 'make']
 
 const CORPUS = JSON.parse(readFileSync(join(import.meta.dir, 'fixtures', 'grammar-corpus.json'), 'utf8')) as Record<string, Record<string, string[]>>
 const corpusText = (lang: string, file: string): string => `${CORPUS[lang]![file]!.join('\n')}\n`
@@ -151,6 +216,8 @@ section('§1 — an edit\'s parse note and a read\'s outline of an admitted lang
 const facility = await import('../../src/services/structure/grammarFacility.ts')
 const { languageForFile, patternLanguageForFile, loadGrammarEngine, parsePolyglot } = facility
 const { resolveAstLanguage, resolveAstScope, searchAstPattern, planAstRewrite, isAstRefusal, astLanguageNames } = await import('../../src/utils/astPatterns.ts')
+const { compileFor } = await import('../../src/services/structure/polyglotQuery.ts')
+const { encodePattern } = await import('../../src/services/structure/pattern.ts')
 
 section('§2 — a search for code beside files of the admitted languages loads none of their grammars unless one of those files can hold the pattern')
 {
@@ -210,11 +277,11 @@ section(`§3 — the rows: the twenty-three and the ${admitted.length} admitted,
     const cached = row && existsSync(join(packDir, row.wasm)) ? readFileSync(join(packDir, row.wasm)) : null
     if (!entry || !cached || createHash('sha256').update(cached).digest('hex') !== entry.sha256 || cached.byteLength !== entry.bytes) unpinned.push(name)
     const up = entry?.upstream
-    const commitOk = NO_RECORDED_COMMIT.includes(name) ? up?.commit === undefined : /^[0-9a-f]{40}$/.test(up?.commit ?? '')
-    if (!up || !PERMISSIVE.has(up.license ?? '') || !/^https:\/\/github\.com\/[^/]+\/[^/]+$/.test(up.repository ?? '') || !up.copyright || !commitOk) unrecorded.push(name)
+    const copyrightOk = NO_COPYRIGHT_LINE.includes(name) ? up?.copyright === undefined : (up?.copyright ?? '') !== ''
+    if (!up || !PERMISSIVE.has(up.license ?? '') || !/^https:\/\/github\.com\/[^/]+\/[^/]+$/.test(up.repository ?? '') || !copyrightOk || !/^[0-9a-f]{40}$/.test(up.commit ?? '')) unrecorded.push(name)
   }
   check('each admitted grammar in the cache is the file its lock entry pins, byte for byte', unpinned.length === 0, unpinned.join(','))
-  check('each lock entry records the upstream repository, the commit, a permissive licence and the copyright line', unrecorded.length === 0, unrecorded.join(','))
+  check(`each lock entry records the upstream repository, the commit, a permissive licence and the copyright line of its licence text${NO_COPYRIGHT_LINE.length > 0 ? ` (${NO_COPYRIGHT_LINE.join(', ')}: a licence text that names no holder)` : ''}`, unrecorded.length === 0, unrecorded.join(','))
   const builders = admitted.filter(n => lock.grammars.find(g => g.wasm === rowOf(n)?.wasm)?.upstream.builder !== undefined)
   check(`the third party's builds among them are named as such, with the builder and the digest of its package: ${THIRD_PARTY_BUILDS.join(', ')}`, builders.join(',') === THIRD_PARTY_BUILDS.join(',') && builders.every(n => {
     const entry = lock.grammars.find(g => g.wasm === rowOf(n)?.wasm)!
@@ -328,6 +395,16 @@ for (const name of admitted) {
       if (ending === 'lf' && plan.files.some(f => f.after.includes('\r'))) fails.push('rewrite: a CR entered an LF file')
     }
     check(`${name} (${ending}): ${spec.searches.length} search(es) with their counts and captures, and the rewrite`, fails.length === 0, fails.join('; '))
+  }
+  if (spec.refuses) {
+    const accepted: string[] = []
+    for (const pattern of spec.refuses) {
+      const compiled = await compileFor(engine, rowOf(name)!, encodePattern(pattern), new Map())
+      if ('state' in compiled) continue
+      compiled.hold.delete()
+      accepted.push(pattern)
+    }
+    check(`${name}: the shapes the page says it refuses are refused (${spec.refuses.join(' · ')})`, accepted.length === 0, accepted.join(' · '))
   }
 }
 {

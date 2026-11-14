@@ -210,6 +210,42 @@ const FIXTURES: Record<string, Fixture> = {
     file: 'a.lua',
     pattern: 'print($$$A)',
   },
+  make: {
+    good: 'CC ?= cc\nCFLAGS += -Wall\n\nall: main.o\n\tcc -o app main.o\n',
+    broken: 'ifeq ($(A),1\nall:\n',
+    file: 'Makefile',
+    pattern: 'CFLAGS += $F',
+  },
+  cmake: {
+    good: 'cmake_minimum_required(VERSION 3.20)\nproject(demo)\nadd_executable(demo main.c)\nadd_executable(tool tool.c util.c)\n',
+    broken: 'add_executable(demo main.c\n',
+    file: 'CMakeLists.txt',
+    pattern: 'add_executable($N $$$S)',
+  },
+  xml: {
+    good: '<?xml version="1.0"?>\n<root><item id="1">one</item><item id="2">two</item></root>\n',
+    broken: '<root><item></root>\n',
+    file: 'a.xml',
+    pattern: '<item id="1">$T</item>',
+  },
+  hcl: {
+    good: 'resource "aws_instance" "web" {\n  ami           = "ami-123"\n  instance_type = "t3.small"\n}\n',
+    broken: 'resource "a" "b" {\n  ami = \n',
+    file: 'main.tf',
+    pattern: 'instance_type = $T',
+  },
+  graphql: {
+    good: 'type Query {\n  id: ID!\n  name: String\n}\n\ntype Node {\n  id: ID!\n}\n',
+    broken: 'type Query {\n  hello(: String\n',
+    file: 'a.graphql',
+    pattern: 'id: ID!',
+  },
+  protobuf: {
+    good: 'syntax = "proto3";\n\nmessage Ping {\n  string id = 1;\n}\n\nmessage Pong {\n  string id = 1;\n}\n',
+    broken: 'message Ping {\n  string id = ;\n',
+    file: 'a.proto',
+    pattern: 'string id = 1;',
+  },
 }
 
 const READS_EVERY_TEXT = new Set(['markdown'])

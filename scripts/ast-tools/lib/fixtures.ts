@@ -40,6 +40,12 @@ export const LANGUAGE_FIXTURES: LanguageFixture[] = [
   { lang: 'sql', file: 'a.sql', good: 'SELECT id, COUNT(name) FROM users WHERE id = 1;\nDELETE FROM users WHERE id = 2;\n', pattern: 'COUNT($X)', expect: 1, capture: '$X', rewrite: { rewrite: 'MAX($X)', contains: 'SELECT id, MAX(name) FROM users', inPlace: true } },
   { lang: 'dockerfile', file: 'Dockerfile', good: 'FROM alpine:3.20 AS base\nWORKDIR /app\nRUN apk add --no-cache curl\nWORKDIR /srv\n', pattern: 'WORKDIR $D', expect: 2, capture: '$D', rewrite: { rewrite: 'WORKDIR $D/sub', contains: 'WORKDIR /app/sub' } },
   { lang: 'lua', file: 'a.lua', good: 'local x = 1\nprint(x)\nprint("hi", x)\n', pattern: 'print($$$A)', expect: 2, capture: '$$$A', rewrite: { rewrite: 'log($$$A)', contains: 'log("hi", x)', inPlace: true } },
+  { lang: 'make', file: 'Makefile', good: 'CC ?= cc\nCFLAGS += -Wall\n\nall: main.o\n\tcc -o app main.o\n', pattern: 'CFLAGS += $F', expect: 1, capture: '$F', rewrite: { rewrite: 'CFLAGS += $F -O2', contains: 'CFLAGS += -Wall -O2' } },
+  { lang: 'cmake', file: 'CMakeLists.txt', good: 'cmake_minimum_required(VERSION 3.20)\nproject(demo)\nadd_executable(demo main.c)\nadd_executable(tool tool.c util.c)\n', pattern: 'add_executable($N $$$S)', expect: 2, capture: '$N', rewrite: { rewrite: 'add_library($N $$$S)', contains: 'add_library(tool tool.c util.c)', inPlace: true } },
+  { lang: 'xml', file: 'a.xml', good: '<?xml version="1.0"?>\n<root><item id="1">one</item><item id="2">two</item></root>\n', pattern: '<item id="1">$T</item>', expect: 1, capture: '$T', rewrite: { rewrite: '<item id="1">uno</item>', contains: '<item id="1">uno</item><item id="2">two</item>' } },
+  { lang: 'hcl', file: 'main.tf', good: 'resource "aws_instance" "web" {\n  ami           = "ami-123"\n  instance_type = "t3.small"\n}\n', pattern: 'instance_type = $T', expect: 1, capture: '$T', rewrite: { rewrite: 'instance_type = "t3.medium"', contains: 'instance_type = "t3.medium"' } },
+  { lang: 'graphql', file: 'a.graphql', good: 'type Query {\n  id: ID!\n  name: String\n}\n\ntype Node {\n  id: ID!\n}\n', pattern: 'id: ID!', expect: 2, rewrite: { rewrite: 'id: ID', contains: 'id: ID' } },
+  { lang: 'protobuf', file: 'a.proto', good: 'syntax = "proto3";\n\nmessage Ping {\n  string id = 1;\n}\n\nmessage Pong {\n  string id = 1;\n}\n', pattern: 'string id = 1;', expect: 2, rewrite: { rewrite: 'string uid = 1;', contains: 'string uid = 1;', inPlace: true } },
 ]
 
 export function writeLanguageFixtures(root: string): Map<string, string> {
