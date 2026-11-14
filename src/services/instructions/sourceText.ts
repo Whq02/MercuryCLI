@@ -119,12 +119,13 @@ function* readableTexts(tokens: LexedToken[], windows: boolean): Generator<strin
 
 const SENTENCE_TAIL = /[.,;:!?]+$/
 const PATH_OPENING = /^[A-Za-z0-9._-]/
+const WINDOWS_ROOT = /^~?\\/
 
-function importSpellingsIn(text: string): string[] {
+function importSpellingsIn(text: string, windows: boolean): string[] {
   const spellings: string[] = []
   for (const [, captured = ''] of text.matchAll(AT_SPELLING)) {
     const spelling = captured.split('#', 1)[0]!.replace(/\\ /g, ' ').replace(SENTENCE_TAIL, '')
-    if (spelling !== '') spellings.push(spelling)
+    if (spelling !== '') spellings.push(windows && WINDOWS_ROOT.test(spelling) ? spelling.replace(/\\/g, '/') : spelling)
   }
   return spellings
 }
@@ -142,8 +143,9 @@ function includeMentionsOf(tokens: LexedToken[], includeBasePath: string): Inclu
   const home = dirname(includeBasePath)
   const includes = new Set<string>()
   const bare = new Set<string>()
-  for (const text of readableTexts(tokens, getPlatform() === 'windows')) {
-    for (const spelling of importSpellingsIn(text).filter(isImportSpelling)) {
+  const windows = getPlatform() === 'windows'
+  for (const text of readableTexts(tokens, windows)) {
+    for (const spelling of importSpellingsIn(text, windows).filter(isImportSpelling)) {
       (carriesPathEvidence(spelling) ? includes : bare).add(expandPath(spelling, home))
     }
   }
