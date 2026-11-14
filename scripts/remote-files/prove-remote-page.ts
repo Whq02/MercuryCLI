@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
@@ -22,6 +22,7 @@ process.chdir(project)
 const { parseRemotePath } = await import('../../src/services/remoteFiles/target.ts')
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
 const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
+const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
@@ -80,6 +81,14 @@ for (const [path, meaning] of MEANINGS) check(`${path} is on the page and means 
 check('the three percent forms the page names: a space, a percent sign, a literal tilde', ['%20', '%25', '%7E'].every(form => page.includes(`\`${form}\``)) && shape('ssh://h/a%20b') === '[null,"h",null,null,"/a b"]' && shape('ssh://h/100%25') === '[null,"h",null,null,"/100%"]' && shape('ssh://h/%7Ex') === '[null,"h",null,null,"/~x"]', `${shape('ssh://h/a%20b')} ${shape('ssh://h/100%25')} ${shape('ssh://h/%7Ex')}`)
 check('a path written with a password is refused, as the page says', page.includes('A path written with a password is refused') && String(parsed('ssh://deploy:hunter2@web1/x')).startsWith('refused: ') && !String(parsed('ssh://deploy:hunter2@web1/x')).includes('hunter2'), String(parsed('ssh://deploy:hunter2@web1/x')))
 
+section('what the page says of a write whose connection is lost')
+const operations = readFileSync(join(ROOT, 'src', 'services', 'remoteFiles', 'ops.ts'), 'utf8')
+check(
+  'the three answers the page names are the three the product gives: made, not made with the file as it was, and read it before relying on it',
+  page.includes('the write was made, or that it was not made and the file holds what it held, or that the file should be read before it is relied on') &&
+    ['did not land: the file holds what it held before.', 'did not land, and the file no longer holds what was read: Read the file before relying on it.', 'was under way and its outcome could not be read: Read the file before relying on it.'].every(words => operations.includes(words)),
+)
+
 section('the rules the page writes decide what the page says they decide')
 const block = /```json\n([\s\S]*?)\n```/.exec(page)?.[1] ?? '{}'
 const example = ((): { allow: string[]; deny: string[] } => {
@@ -123,6 +132,14 @@ try {
       check('a host its example does not name asks', example.allow.length > 0 && (await read('ssh://db1/etc/hosts')) === 'ask', await read('ssh://db1/etc/hosts'))
       check('a rule that names a host covers every account and port on it, and one that names them covers them only', (await read('ssh://deploy@web1:2222/x')) === 'allow' && (await read('ssh://deploy@web1:2222/x', { allow: ['Read(ssh://deploy@web1:2222/**)'] })) === 'allow' && (await read('ssh://web1/x', { allow: ['Read(ssh://deploy@web1:2222/**)'] })) === 'ask', `${await read('ssh://deploy@web1:2222/x')} ${await read('ssh://web1/x', { allow: ['Read(ssh://deploy@web1:2222/**)'] })}`)
       check('a rule for a local path never matches a remote path: every local file allowed, and a local deny of a file name, leave the remote file to its own rules', page.includes('A rule for a local path never matches a remote path') && (await read('ssh://web1/etc/hosts', { allow: ['Read(//**)', 'Read(**)'] })) === 'ask' && (await read('ssh://web1/srv/.env', { allow: ['Read(ssh://web1/**)'], deny: ['Read(**/.env)', 'Read(//**/.env)'] })) === 'allow', `${await read('ssh://web1/etc/hosts', { allow: ['Read(//**)', 'Read(**)'] })} ${await read('ssh://web1/srv/.env', { allow: ['Read(ssh://web1/**)'], deny: ['Read(**/.env)', 'Read(//**/.env)'] })}`)
+      mkdirSync(join(world.data, 'page'), { recursive: true })
+      writeFileSync(join(world.data, 'page', 'a.txt'), 'a word to find\n')
+      const context = { ...(contextOf({ allow: ['Read(ssh://box/**)'] }) as object), getAppState: () => ({ toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'sovereign' } }) } as never
+      const found = await GrepTool.call({ pattern: 'word', path: `ssh://box${join(world.data, 'page')}` } as never, context, undefined as never, { message: { id: 'remote-page' } } as never).then(
+        result => String(GrepTool.mapToolResultToToolResultBlockParam(result.data as never, 'page').content),
+        error => `thrown: ${error instanceof Error ? error.message : String(error)}`,
+      )
+      check('a Grep of a machine with no ripgrep closes with the line the page describes: what was read, and that the machine has none', page.includes('where the remote machine has no ripgrep, the line says so') && page.includes('ripgrep 11 or later') && /\n\(read 1 file, \d+ bytes, from box: it has no ripgrep; with rg installed there the search runs on the host\)$/.test(found), found)
       check('the form the page gives for every host covers every host, and the form it warns of covers none', page.includes('`Read(ssh://*/**)` covers every host') && (await read('ssh://db1/etc/hosts', { allow: ['Read(ssh://*/**)'] })) === 'allow' && (await read('ssh://db1/etc/hosts', { allow: ['Read(ssh://**)'] })) === 'ask', `${await read('ssh://db1/etc/hosts', { allow: ['Read(ssh://*/**)'] })} ${await read('ssh://db1/etc/hosts', { allow: ['Read(ssh://**)'] })}`)
     } finally {
       closeRemoteConnections()

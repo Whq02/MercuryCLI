@@ -24,7 +24,7 @@ ssh://web1/~/notes.md
 - **Read** pages a remote file as it pages a local one: only the page asked for travels, whatever the file's size, and a folder is listed. Images, PDFs, notebooks, office documents, databases, archives and their entries are read as they are locally, from a private copy that is removed when the answer is built.
 - **Write** creates the file and its folders, or replaces a file that was read. Line endings, a byte-order mark and UTF-16 are kept; the file's mode is kept; a link is written through.
 - **Edit** works in all four ways (old and new text, hunks, append, section) on the file as the remote machine holds it at that moment.
-- **Glob** and **Grep** search a remote folder with the patterns, ignore files, types and output of a local search. The remote machine lists the names; Mercury's own ripgrep does the selecting and the searching, over the files it selected, in a private folder that is removed when the call ends. A Grep answer closes with what was read to find it, for example `(read 214 files, 3.1 MB, from web1)`.
+- **Glob** and **Grep** search a remote folder with the patterns, ignore files, types and output of a local search. The remote machine lists the names; Mercury's own ripgrep does the selecting and the searching, over the files it selected, in a private folder that is removed when the call ends. A remote machine that has ripgrep 11 or later is asked which of those files hold a match, and only they are read. A Grep answer closes with what was read to find it, for example `(read 214 files, 3.1 MB, from web1)`; where the remote machine has no ripgrep, the line says so.
 
 Found and written files are named as `ssh://` paths in the spelling the path was written in, so each can be handed to the next tool as it stands.
 
@@ -33,6 +33,8 @@ The first prompt of a conversation that holds an `ssh://` path tells the model, 
 ## Changes are checked
 
 An Edit or a Write of a file that is there needs the file to have been read in the session, as on this machine. Mercury keeps the file's time, size and checksum from that read; a file that another writer changed since is not edited or replaced, and the answer says so. The bytes are written beside the file and renamed over it only if the file still holds what was read, and the result is read back before the answer says the file was written. The check and the rename are one request to the remote machine; they are not one atomic step of its file system.
+
+If the connection is lost while a write is under way, Mercury looks at the file again over a new connection. The answer then says that the write was made, or that it was not made and the file holds what it held, or that the file should be read before it is relied on.
 
 Read a remote file before an Edit: the lines a search shows do not count as read.
 
@@ -60,6 +62,6 @@ Checkpoints, language servers, project instructions and skills are not looked fo
 ## Limits
 
 - The remote machine needs a POSIX shell (`sh`, `bash` or `zsh`) and its ordinary utilities. A machine with none is said to have none.
-- A search of a folder brings the files it selects through the connection, so a large tree is slower to search than a local one. It applies this machine's global git ignore file; the remote account's is not read.
+- A search of a folder brings the files it selects through the connection (on a machine with ripgrep, the ones that hold a match), so a large tree is slower to search than a local one. A file that matches travels whole: for one file of many gigabytes, a command run on the remote machine is quicker. The search applies this machine's global git ignore file; the remote account's is not read.
 - A name that holds a line break is not found by a search.
 - One connection per host is kept open while the session lasts and closed when it ends. A host that stops answering is said to have stopped after a minute of silence; a long command on a live connection is not cut short.
