@@ -1250,7 +1250,7 @@ export function Chat({
     }
     if (seatCommand !== undefined && seatCommand.type === 'local' && seatCommand.uiRouteAlias === undefined) {
       takeComposer();
-      void (async () => {
+      const ran = (async () => {
         try {
           if (seatCommand.interruptFirst === true && focusedNow.turnActive()) {
             focusedNow.interrupt();
@@ -1264,6 +1264,7 @@ export function Chat({
           addNotification({ key: `command-${seatCommand.name}`, text: `/${getCommandName(seatCommand)} failed — ${error instanceof Error ? error.message : String(error)}`, priority: 'high', color: 'error' as const, timeoutMs: RECEIPT_TIMEOUT_MS });
         }
       })();
+      if (options?.armedMode !== undefined) await ran;
       return;
     }
     const routeAlias = (seatCommand as { uiRouteAlias?: 'concourse' } | undefined)?.uiRouteAlias;

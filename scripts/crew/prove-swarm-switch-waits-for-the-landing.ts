@@ -159,16 +159,20 @@ const commands = (await getCommands(PROJECT)).map(command => {
 const handed: string[] = []
 const posted: Array<{ channel: string; target?: string; text: string }> = []
 const switched: Array<{ kind: string; on: boolean }> = []
+const sequence: string[] = []
 let board: BoardViewSnapshot | null = null
 const recording = Object.assign(new NoSessionConnector(), {
   sessionId: () => SESSION,
   sendWords: async (text: string) => {
     await settle(20)
     handed.push(text)
+    sequence.push(`words:${text}`)
     return { state: 'accepted' as const }
   },
   postBoard: async (post: { channel: string; target?: string; text: string }) => {
+    await settle(35)
     posted.push({ channel: post.channel, ...(post.target === undefined ? {} : { target: post.target }), text: post.text })
+    sequence.push(`board:${post.channel}:${post.text}`)
     return { ok: true as const, eventId: `event-${posted.length}`, seq: posted.length, replay: false, address: post.target ?? 'all', recipients: [] }
   },
   setSpawnSwitch: async (kind: string, on: boolean) => {
@@ -238,11 +242,40 @@ check('/title answers for the landed session, not "No chat is open"', asked.some
 check('/contract answers for the landed session, not "No chat is open"', said('contract')?.said?.startsWith('This chat is not a daemon-hosted session') === true, j(said('contract')))
 check('/crewmates on flips the landed session\'s switch, not "no chat is open"', j(switched) === j([{ kind: 'subagents', on: true }]) && said('crewmates')?.said?.includes('no chat is open') === false, `${j(switched)} · ${j(said('crewmates'))}`)
 check('every verb ran once, after the landing, on the landed session', answers.length === TYPED.length && answers.every(answer => answer.landed) && NAMES.every(name => answers.filter(answer => answer.name === name).length === 1), j(answers.map(answer => `${answer.name}:${answer.landed}`)))
-check('the dialog verbs ran in the order typed', j(answers.filter(answer => !['general', 'team', 'whisper'].includes(answer.name)).map(answer => answer.name)) === j(NAMES.filter(name => !['general', 'team', 'whisper'].includes(name))), j(answers.map(answer => answer.name)))
+check('all nine verbs ran in the exact order typed, local channel verbs included', j(answers.map(answer => answer.name)) === j(NAMES), j(answers.map(answer => answer.name)))
+check('every board post and session line reached the session in the exact order typed', j(sequence) === j(['words:/swarm on', 'words:/swarmchat main', 'board:general:hello crew', 'board:team:hello team', 'board:whisper:hello alpha', `words:${PROMPT}`]), j(sequence))
 check('still no board file and no transcript file of the window\'s own', boardFiles().length === 0 && transcriptFiles().length === 0, strays())
+
+section('§2b a prompt typed between verbs while landing, and a focused session with no landing')
+{
+  sequence.length = 0
+  answers.length = 0
+  let landBetween = (): void => {}
+  const betweenLanding = slot.withLanding(new Promise<void>(resolve => { landBetween = resolve }))
+  slot.releaseFocusedSessionConnector()
+  await settle(150)
+  for (const line of ['/general first rule', 'middle prompt', '/general second rule', '/swarm off']) {
+    await send(m, line)
+    await waitFor(() => pending.text() === '', 3000)
+    await settle(80)
+  }
+  slot.setFocusedSessionConnector(recording)
+  landBetween()
+  await betweenLanding
+  await waitFor(() => sequence.length === 4 && answers.length === 3, 5000)
+  check('with a prompt typed between held verbs, every post, prompt and switch arrives in typed order', j(sequence) === j(['board:general:first rule', 'words:middle prompt', 'board:general:second rule', 'words:/swarm off']), j(sequence))
+
+  sequence.length = 0
+  answers.length = 0
+  await send(m, '/swarm on')
+  await waitFor(() => pending.text() === '', 3000)
+  await settle(80)
+  await send(m, '/general immediate post')
+  await waitFor(() => sequence.length === 2 && answers.length === 2, 3000)
+  check('a focused session with no landing runs /swarm and /general immediately without holding', answers.every(answer => answer.landed) && j(sequence) === j(['words:/swarm on', 'board:general:immediate post']), j(sequence))
+}
 pending.edit('')
 await settle(200)
-m.unmount()
 
 section('§3 the board\'s two switches, called as the window calls them: never run on the window itself')
 {
@@ -278,6 +311,30 @@ section('§3 the board\'s two switches, called as the window calls them: never r
   const runner = await run(swarm, 'on', { options: { isNonInteractiveSession: true } })
   check('the runner, which is the session, still switches itself: its own answer and its own board', runner.said === 'Swarm on for new crewmates.' && boardFiles().length === 1, `${j(runner.said)} · ${strays()}`)
 }
+
+section('§4 a landing that fails: every held verb settles and a held prompt returns to the composer')
+{
+  answers.length = 0
+  let failLanding = (): void => {}
+  const failed = slot.withLanding(new Promise<void>(resolve => { failLanding = resolve }))
+  slot.releaseFocusedSessionConnector()
+  await settle(150)
+  for (const { line } of TYPED) {
+    await send(m, line)
+    await waitFor(() => pending.text() === '', 3000)
+    await settle(80)
+  }
+  await send(m, 'unsent prompt on failed landing')
+  await waitFor(() => pending.text() === '', 3000)
+  failLanding()
+  await failed
+  await waitFor(() => answers.length === TYPED.length && pending.text() === 'unsent prompt on failed landing', 6000)
+  check('when the landing fails, all nine held verbs settle in typed order with none dropped', j(answers.map(answer => answer.name)) === j(NAMES) && answers.every(answer => !answer.landed), j(answers))
+  check('/swarm, /swarmchat, /title, /contract and /crewmates tell the user no chat is open', ['swarm', 'swarmchat', 'title', 'contract', 'crewmates'].every(name => (answers.find(answer => answer.name === name)?.said ?? '').toLowerCase().includes('no chat is open')), j(answers))
+  check('a prompt held for the failed landing is restored to the composer rather than lost', pending.text() === 'unsent prompt on failed landing', j(pending.text()))
+}
+pending.edit('')
+m.unmount()
 
 if (failures === 0) await releaseScratchHome(HOME)
 else console.log(`scratch home kept: ${HOME}`)
