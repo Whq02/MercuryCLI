@@ -2,6 +2,16 @@ import { spawn } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { vendoredNodeBeside, selfScriptPath } from '../../daemon/daemonBuild.js'
+import { flagEnv } from '../../substrate/flagRegistry.js'
+
+const QUERY_BOUND_MS = 10 * 60_000
+
+function queryBoundMs(): number {
+  const raw = (flagEnv('MERCURY_SQLITE_QUERY_BOUND_MS') ?? '').trim()
+  if (!/^\d+$/.test(raw)) return QUERY_BOUND_MS
+  const ms = Number(raw)
+  return ms > 0 && ms <= QUERY_BOUND_MS ? ms : QUERY_BOUND_MS
+}
 
 interface SqliteQueryJob {
   file: string
@@ -128,8 +138,10 @@ export async function runSqliteQuery(job: SqliteQueryJob, signal: AbortSignal): 
   job = { ...job, artifactDirectory }
   const child = spawn(executable, ['--input-type=module', '-e', `(${sqliteQueryChild.toString()})()`], { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
   const closed = new Promise<void>(resolve => child.once('close', () => resolve()))
-  let output = '', diagnostic = '', completed = false
+  let output = '', diagnostic = '', completed = false, late = false
   const kill = () => { child.kill('SIGKILL') }
+  const bound = queryBoundMs()
+  const timer = setTimeout(() => { late = true; kill() }, bound)
   process.once('exit', kill)
   signal.addEventListener('abort', kill, { once: true })
   try {
@@ -140,6 +152,7 @@ export async function runSqliteQuery(job: SqliteQueryJob, signal: AbortSignal): 
       child.stdin.on('error', error => { if (!signal.aborted) reject(error) })
       child.once('close', code => {
         if (signal.aborted) { reject(signal.reason ?? new Error('SQLite query cancelled.')); return }
+        if (late) { reject(new Error(`The query did not finish within ${bound / 60_000} minutes and was ended. Narrow the statement, or run sqlite3 in Bash with a timeout of its own.`)); return }
         try {
           const answer = JSON.parse(output)
           if (answer.error) reject(new Error(answer.error))
@@ -151,6 +164,7 @@ export async function runSqliteQuery(job: SqliteQueryJob, signal: AbortSignal): 
       if (signal.aborted) kill()
     })
   } finally {
+    clearTimeout(timer)
     if (child.exitCode === null && child.signalCode === null) kill()
     await closed
     signal.removeEventListener('abort', kill)
