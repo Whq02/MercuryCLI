@@ -80,7 +80,7 @@ import { APPROVAL_RULE_LINE, INSTALLED_NOT_DRIVEN } from '../../services/browser
 import { ensureScratchpadDir } from '../../utils/scratchpad.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
-import { checkReadPermissionForTool, getScratchpadDir } from '../../utils/permissions/filesystem.js'
+import { checkReadPermissionForTool, checkUncPathPermission, getScratchpadDir } from '../../utils/permissions/filesystem.js'
 import { getRuleByContentsForToolName } from '../../utils/permissions/permissions.js'
 import { suggestionForExactCommand } from '../../utils/permissions/shellRuleMatching.js'
 import { ruleSentence } from '../../utils/permissions/ruleReason.js'
@@ -734,7 +734,7 @@ async function sendUpload(
       if (decision.behavior === 'deny') return refused(decision.message)
     }
   }
-  const changed = checked === null ? null : uploadSourcesChanged(checked, resolved.sources)
+  const changed = checked === null ? null : uploadSourcesChanged(checked, resolved.sources.filter(source => checked.some(seen => seen.given === source.given)))
   if (changed !== null) return refused(`${changed}; re-issue to have what is there now judged`)
   s.nav.seen = s.nav.seq
   const marks = markAct(s)
@@ -1339,14 +1339,21 @@ interface SourceAsk {
 
 function judgeUploadSources(owner: OwnerKey, input: Input, context: ToolPermissionContext | undefined): { deny: PermissionDecision } | { ask: SourceAsk } | null {
   checkedUploads.delete(owner)
-  const resolved = resolveUploadSources(input.files ?? [])
-  if ('refusal' in resolved) return null
   const rules = context ?? getEmptyToolPermissionContext()
-  const judged = resolved.sources.flatMap(source => source.members.map(member => checkReadPermissionForTool({ name: 'Read', getPath: () => member.path }, input, rules)))
-  const denied = judged.find(decision => decision.behavior === 'deny')
-  if (denied !== undefined) return { deny: denied }
-  checkedUploads.set(owner, { call: uploadCall(input), sources: resolved.sources })
-  const asks = judged.flatMap(decision => (decision.behavior === 'ask' ? [decision] : []))
+  const given = input.files ?? []
+  const shares = given.map(file => checkUncPathPermission(file, rules))
+  const refusedShare = shares.find(decision => decision?.behavior === 'deny')
+  if (refusedShare) return { deny: refusedShare }
+  const asks = shares.flatMap(decision => (decision?.behavior === 'ask' ? [decision] : []))
+  const shareAsks = asks.length
+  const resolved = resolveUploadSources(given.filter((_, index) => shares[index]?.behavior !== 'ask'))
+  if (!('refusal' in resolved)) {
+    const judged = resolved.sources.flatMap(source => source.members.map(member => checkReadPermissionForTool({ name: 'Read', getPath: () => member.path }, input, rules)))
+    const denied = judged.find(decision => decision.behavior === 'deny')
+    if (denied !== undefined) return { deny: denied }
+    checkedUploads.set(owner, { call: uploadCall(input), sources: resolved.sources })
+    asks.push(...judged.flatMap(decision => (decision.behavior === 'ask' ? [decision] : [])))
+  }
   const first = asks[0]
   if (first === undefined) return null
   const message = [...new Set(asks.map(decision => decision.message))].join('\n')
@@ -1354,7 +1361,10 @@ function judgeUploadSources(owner: OwnerKey, input: Input, context: ToolPermissi
   return {
     ask: {
       message,
-      decisionReason: reason !== undefined && (reason.type === 'rule' || reason.type === 'safetyCheck') ? reason : { type: 'safetyCheck', reason: message, operatorOnly: false },
+      decisionReason:
+        shareAsks > 0 && asks.length > shareAsks && reason?.type === 'safetyCheck'
+          ? { ...reason, reason: message }
+          : reason !== undefined && (reason.type === 'rule' || reason.type === 'safetyCheck') ? reason : { type: 'safetyCheck', reason: message, operatorOnly: false },
     },
   }
 }
