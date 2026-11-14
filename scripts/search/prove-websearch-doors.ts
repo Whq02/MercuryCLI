@@ -401,6 +401,9 @@ section('§9 THE WEBFETCH ROAD — no policy service is asked before a fetch, on
 
 section('§10 PACING — a refusal stops both endpoints without a retry or a host swap')
 {
+  const liveClock = { ...pacing.liveSearchClock }
+  let now = 0
+  Object.assign(pacing.liveSearchClock, { now: () => now, random: () => 0.5, sleep: async (ms: number) => { now += ms } })
   fixture.modes.ddgHtml = 'anomaly'
   fixture.modes.ddgLite = 'results'
   fixture.reset()
@@ -412,11 +415,12 @@ section('§10 PACING — a refusal stops both endpoints without a retry or a hos
   fixture.reset()
   run = await runTool(NEMOTRON, { query: QUERY }, { keepPacing: true })
   line = run.error?.message ?? ''
-  check('the next call inside the wait makes no request', j(run.perLane) === j({}) && /no request was made/.test(line), line)
+  check('the next call waits the short cool-down out and asks once, without retry or host swap', now === 30_000 && j(run.perLane) === j({ 'ddg-html': 1 }) && /cooling down 1m; no retry or host swap/.test(line), line)
   check('terms are once per session, not repeated in the failure', !line.includes('https://duckduckgo.com/terms'))
   fixture.reset()
   run = await runTool(NEMOTRON, { query: 'different words' }, { keepPacing: true })
   check('a different query cannot dodge the wait either', j(run.perLane) === j({}), j(run.perLane))
+  Object.assign(pacing.liveSearchClock, liveClock)
   fixture.modes.ddgHtml = 'poison'
   fixture.modes.ddgLite = 'results'
   run = await runTool(NEMOTRON, { query: QUERY })
@@ -626,9 +630,10 @@ section("§13 THE BUILT BUNDLE — a headless gpt session on dist/mercury.mjs: t
     const firstLine = results[0] ?? ''
     const secondLine = results[1] ?? ''
     check('the first refusal names the wait and terms without retrying', /rate-limited this client/.test(firstLine) && /no retry or host swap/.test(firstLine) && firstLine.includes('https://duckduckgo.com/terms'), firstLine)
-    check('the second call names the wait with no request made', /cooling down/.test(secondLine) && /no request was made/.test(secondLine) && !secondLine.includes('https://duckduckgo.com/terms'), secondLine)
+    check('the second call waits then reports its own refusal without repeating terms', /cooling down/.test(secondLine) && /no retry or host swap/.test(secondLine) && !secondLine.includes('https://duckduckgo.com/terms'), secondLine)
     census = censusNow()
-    check('the wire has one html request and no lite request for two searches', census['ddg-html'] === 1 && census['ddg-lite'] === undefined && census['openai'] === 3, j(census))
+    const knocks = ddgKnocks()
+    check('the wire has two html requests at least the first cool-down apart and no lite request', census['ddg-html'] === 2 && census['ddg-lite'] === undefined && census['openai'] === 3 && knocks.length === 2 && knocks[1]!.at - knocks[0]!.at >= 22_500, j({ census, knocks }))
     fixture.script = null
     fixture.modes.ddgHtml = 'results'
     fixture.modes.ddgLite = 'results'
