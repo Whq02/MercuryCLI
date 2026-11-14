@@ -10,7 +10,7 @@ import {
 } from '../../gitGraph/observe.js'
 import { getPlan, listPlans, planExpired } from '../../gitGraph/plan.js'
 import { registerResourceAdapter } from '../registry.js'
-import type { ResourceAdapter } from '../contracts.js'
+import { boundedTextView, type ResourceAdapter } from '../contracts.js'
 import type { ToolPermissionContext } from '../../../Tool.js'
 import { repositoryDenied, withheldLine } from '../referencePaths.js'
 
@@ -198,8 +198,10 @@ export const gitAdapter: ResourceAdapter = {
         }
       }
       case 'conflict': {
-        const all = gitConflicts(root)
-        if ('state' in all) return { state: 'unavailable', note: all.note }
+        const observed = gitConflicts(root, ctx.owner)
+        if ('state' in observed) return { state: 'unavailable', note: observed.note }
+        const denied = await repositoryDenied((ctx.getAppState?.() as { toolPermissionContext?: ToolPermissionContext } | undefined)?.toolPermissionContext, root)
+        const all = observed.filter(c => !denied(c.path))
         if (!rest) {
           return {
             state: 'ok',
@@ -217,6 +219,19 @@ export const gitAdapter: ResourceAdapter = {
             },
           }
         }
+        const regionMatch = /^(gc-[a-f0-9]+)\/(gr-[a-f0-9]+)$/.exec(rest)
+        if (regionMatch) {
+          const file = all.find(c => c.id === regionMatch[1])
+          const region = file?.regions?.find(r => r.id === regionMatch[2])
+          if (!file || !region) return { state: 'absent', note: `region ${regionMatch[2]} is absent or stale` }
+          const side = ref.selectors.child
+          if (side && !['ours', 'theirs', 'base'].includes(side)) return { state: 'absent', note: `unknown region side '${side}'` }
+          const part = side ? region[side as 'ours' | 'theirs' | 'base'] : { text: region.raw, line: region.startLine }
+          if (!part) return { state: 'absent', note: `region ${region.id} has no base section` }
+          const text = (part.text.match(/[^\n]*\n|[^\n]+$/g) ?? []).map((line, i) => `${part.line + i}\t${line.replace(/\r?\n$/, '')}`).join('\n')
+          const view = boundedTextView(text, ref.selectors, 80)
+          return { state: 'ok', resource: { ref: ref.canonical, kind: 'git', title: `${file.path} ${region.id}${side ? ` ${side}` : ''}`, summary: `source lines ${part.line}-${part.line + Math.max(0, (part.text.match(/[^\n]*\n|[^\n]+$/g) ?? []).length - 1)}`, mutable: true, text: view.text, page: view.page } }
+        }
         const hit = all.find(c => c.id === rest || conflictId(rest) === c.id || c.path === rest)
         if (!hit) return { state: 'absent', note: `no unmerged conflict '${rest}' here` }
         return {
@@ -227,7 +242,8 @@ export const gitAdapter: ResourceAdapter = {
             title: hit.path,
             summary: `base ${hit.base.length}L · ours ${hit.ours.length}L · theirs ${hit.theirs.length}L (bounded heads)`,
             mutable: true,
-            structured: hit,
+            structured: { ...hit, regions: undefined },
+            ...boundedTextView((hit.regions ?? []).map(r => `${r.id} lines ${r.startLine}-${r.endLine} — mercury://git/conflict/${hit.id}/${r.id}`).join('\n'), ref.selectors, 80),
           },
         }
       }

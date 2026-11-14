@@ -23,6 +23,10 @@ export function renderToolUseMessage(
   if ((input.op === 'apply' || input.op === 'verify') && input.planId) parts.push(input.planId);
   if ((input.op === 'stage' || input.op === 'restore') && input.files) parts.push(input.files.join(' '));
   if (input.op === 'resolve' && input.path) parts.push(input.path);
+  if (input.op === 'resolve' && input.resolutions) {
+    parts.push(`${input.resolutions.length} region(s)`);
+    if (input.resolutionPreview) parts.push(`\nExact replacements (JSON strings):\n${input.resolutionPreview}`);
+  }
   return parts.join(' ');
 }
 

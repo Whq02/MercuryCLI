@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join as joinPath } from 'node:path'
 import { gitArgs, gitArgsAsync } from '../../utils/git/spawnArgs.js'
+import { readConflictRegions } from './conflictRegions.js'
 import type {
   GitCommitMeta,
   GitConflict,
@@ -405,11 +406,11 @@ export function conflictId(path: string): string {
   return `gc-${createHash('sha1').update(path).digest('hex').slice(0, 10)}`
 }
 
-export function gitConflicts(root: string): GitConflict[] | GitUnavailable {
+export function gitConflicts(root: string, owner?: import('../run/ownerKey.js').OwnerKey): GitConflict[] | GitUnavailable {
   const status = gitStatus(root)
   if ('state' in status) return status
   const unmerged = status.files.filter(f => f.kind === 'unmerged')
-  return unmerged.slice(0, 20).map(f => {
+  return unmerged.map(f => {
     const stage = (n: number): string[] =>
       (tryGit(root, ['show', `:${n}:${f.path}`]) ?? '').split('\n').slice(0, MAX_CONFLICT_LINES)
     return {
@@ -418,6 +419,7 @@ export function gitConflicts(root: string): GitConflict[] | GitUnavailable {
       base: stage(1),
       ours: stage(2),
       theirs: stage(3),
+      ...(owner ? { regions: readConflictRegions(owner, root, f.path) } : {}),
     }
   })
 }

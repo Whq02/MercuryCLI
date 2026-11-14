@@ -1,0 +1,115 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { gitClient, gitFixture } from './gitFixture.ts'
+
+let checks = 0
+let failures = 0
+function check(label: string, ok: boolean, detail = ''): void {
+  checks++
+  if (!ok) failures++
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail}` : ''}`)
+}
+const world = gitFixture('git-regions-')
+const names = ['multi.txt', 'two.txt', 'crlf.txt', 'tail.txt', 'bad.txt', 'duplicate.txt']
+const block = (ours: string, theirs: string, base?: string, eol = '\n') => [
+  '<<<<<<< HEAD', ours, ...(base === undefined ? [] : ['||||||| base', base]), '=======', theirs, '>>>>>>> branch', '',
+].join(eol)
+const first = block('ours-one', 'theirs-one', 'base-one')
+const second = block('ours-two', 'theirs-two', 'base-two')
+let client: Awaited<ReturnType<typeof gitClient>> | undefined
+try {
+  for (const name of names) world.put(name, 'base\n')
+  world.git(['add', '--', ...names])
+  world.git(['commit', '--quiet', '-m', 'base'])
+  world.git(['switch', '--quiet', '-c', 'other'])
+  for (const name of names) world.put(name, 'theirs\n')
+  world.git(['add', '--', ...names])
+  world.git(['commit', '--quiet', '-m', 'other'])
+  world.git(['switch', '--quiet', 'main'])
+  for (const name of names) world.put(name, 'ours\n')
+  world.git(['add', '--', ...names])
+  world.git(['commit', '--quiet', '-m', 'ours'])
+  try { world.git(['merge', '--no-edit', 'other']) } catch {}
+  const initial = {
+    'multi.txt': `prefix\n${first}middle\n${second}suffix\n`,
+    'two.txt': block('OURS', 'THEIRS'),
+    'crlf.txt': `start\r\n${block('OURS', 'THEIRS', 'BASE', '\r\n')}end\r\n`,
+    'tail.txt': `before\n${first}last-no-newline`,
+    'bad.txt': ' <<<<<<< indented\nours\n=======\ntheirs\n>>>>>>> x\n<<<<<<< incomplete\nours\n',
+    'duplicate.txt': `${first}gap\n${first}`,
+  }
+  for (const [name, text] of Object.entries(initial)) world.put(name, text)
+  const initialIndex = readFileSync(join(world.root, '.git/index'))
+  client = await gitClient(world)
+  const git = (args: Record<string, unknown>) => client!.call('Git', args)
+  const conflictText = await git({ op: 'conflicts' })
+  const fileId = (file: string) => conflictText.match(new RegExp(`(gc-[a-f0-9]+) ${file.replace('.', '\\.')}`))?.[1]
+  const ids = (text: string, file: string): string[] => {
+    const at = text.indexOf(` ${file} (`)
+    if (at < 0) return []
+    return [...new Set(text.slice(at, text.indexOf('\n  gc-', at) < 0 ? undefined : text.indexOf('\n  gc-', at)).match(/gr-[a-f0-9]+/g) ?? [])]
+  }
+  const multi = ids(conflictText, 'multi.txt')
+  const two = ids(conflictText, 'two.txt')
+  const crlf = ids(conflictText, 'crlf.txt')
+  const tail = ids(conflictText, 'tail.txt')
+  const duplicates = ids(conflictText, 'duplicate.txt')
+  check('M01 every complete diff3/two-way region has an identity', multi.length === 2 && two.length === 1 && crlf.length === 1 && tail.length === 1 && duplicates.length === 2, conflictText)
+  check('M01 incomplete and indented lookalikes do not become regions', ids(conflictText, 'bad.txt').length === 0, conflictText)
+  check('M01 duplicate blocks have distinct identities', duplicates.length === 2 && duplicates[0] !== duplicates[1])
+  check('M01 source coordinates are displayed', conflictText.includes('lines 2-8'), conflictText)
+  check('M01 repeated reads preserve identities', JSON.stringify(ids(await git({ op: 'conflicts' }), 'multi.txt')) === JSON.stringify(multi) && multi.length === 2)
+  const corpus = JSON.parse(readFileSync(join(import.meta.dir, '../tool-economy/fixtures/definition-corpus.json'), 'utf8')).definitions.find((d: { name: string }) => d.name === 'Git')
+  const definition = (await client.request('tools/list', {})).result?.tools?.find(t => t.name === 'Git')
+  check('unused Git prompt stays identical; typed extension stays small', definition?.description === corpus.description && JSON.stringify(definition?.inputSchema).length - JSON.stringify(corpus.input_schema).length < 350)
+  if (multi.length === 2 && two.length === 1 && crlf.length === 1 && tail.length === 1 && duplicates.length === 2) {
+    const read = (file: string, id: string, selector = '') => client!.call('Read', { file_path: `mercury://git/conflict/${fileId(file)}/${id}${selector}` })
+    for (const [side, value] of [['ours', 'ours-one'], ['theirs', 'theirs-one'], ['base', 'base-one']]) {
+      const out = await read('multi.txt', multi[0]!, `?child=${side}`)
+      check(`M02 ${side} reads its own region with source coordinates`, out.includes(value!) && /[0-9]+\t|line|source/.test(out), out)
+    }
+    const raw = await read('multi.txt', multi[0]!, '?limit=2')
+    check('M02 raw region pages without manufacturing a partial block', raw.includes('<<<<<<< HEAD') && !raw.includes('theirs-one') && /cursor|more|page/.test(raw), raw)
+    const later = await read('multi.txt', multi[0]!, '?cursor=2&limit=2')
+    check('M02 continuation is relative to region and retains original coordinates', later.includes('||||||| base') && later.includes('base-one'), later)
+    const absent = await read('two.txt', two[0]!, '?child=base')
+    check('M02 missing base is explicit', absent.includes('no base section'), absent)
+    const resolve = (resolutions: unknown[]) => git({ op: 'resolve', resolutions })
+    check('B01 preview changes neither file nor index', world.get('multi.txt') === initial['multi.txt'] && readFileSync(join(world.root, '.git/index')).equals(initialIndex))
+    const landed = await resolve([{ region: multi[0], take: 'base' }])
+    check('M03 one region changes and clean surroundings remain', world.get('multi.txt') === `prefix\nbase-one\nmiddle\n${second}suffix\n`, landed)
+    check('B02 partial resolution leaves unmerged index unchanged', world.git(['ls-files', '--unmerged', '--', 'multi.txt']).length > 0 && readFileSync(join(world.root, '.git/index')).equals(initialIndex))
+    check('M04 receipt names the unresolved remainder and no staging', landed.includes(multi[1]!) && landed.includes('staged: (none)'), landed)
+    const reread = await git({ op: 'conflicts' })
+    check('M05 unchanged region retains its identity after line shift', ids(reread, 'multi.txt').includes(multi[1]!), reread)
+    const retired = await resolve([{ region: multi[0], take: 'ours' }])
+    check('M05 retired region cannot resolve', /absent|stale|obsolete/.test(retired), retired)
+    const repeated = 'middle\nLITERAL\nsuffix\n'
+    const final = await resolve([{ region: multi[1], content: repeated }, { region: two[0], take: 'both' }])
+    check('M03/B03 literal repetition is not trimmed', world.get('multi.txt') === `prefix\nbase-one\nmiddle\n${repeated}suffix\n`, final)
+    check('M03 both means ours followed by theirs', world.get('two.txt') === 'OURS\nTHEIRS\n', final)
+    check('B02 resolving last regions stages only those files', world.git(['ls-files', '--unmerged', '--', 'multi.txt', 'two.txt']) === '' && world.git(['show', ':multi.txt']) === world.get('multi.txt') && world.git(['ls-files', '--unmerged', '--', 'crlf.txt']).length > 0, final)
+    const oldTail = world.get('tail.txt')
+    world.put('crlf.txt', world.get('crlf.txt').replace('OURS', 'DRIFT'))
+    const beforeStaleIndex = readFileSync(join(world.root, '.git/index'))
+    const staleApply = await resolve([{ region: crlf[0], take: 'base' }, { region: tail[0], content: '' }])
+    check('B01 one stale member writes no member and preserves index', world.get('tail.txt') === oldTail && world.get('crlf.txt').includes('DRIFT') && readFileSync(join(world.root, '.git/index')).equals(beforeStaleIndex) && /stale/.test(staleApply), staleApply)
+    const obsolete = await resolve([{ region: crlf[0], take: 'ours' }])
+    check('M05 altered block rejects obsolete identity', /absent|stale|obsolete/.test(obsolete), obsolete)
+    const refreshed = ids(await git({ op: 'conflicts' }), 'crlf.txt')[0]
+    const newlineApply = await resolve([{ region: refreshed, take: 'theirs' }, { region: tail[0], content: '' }])
+    check('M06 CRLF side replacement stays CRLF', world.get('crlf.txt') === 'start\r\nTHEIRS\r\nend\r\n', newlineApply)
+    check('M03/M06 empty replacement keeps missing final newline', world.get('tail.txt') === 'before\nlast-no-newline', newlineApply)
+    await resolve([{ region: duplicates[0], take: 'ours' }])
+    check('M05 remaining identical region retains its own identity', ids(await git({ op: 'conflicts' }), 'duplicate.txt').includes(duplicates[1]!))
+    await resolve([{ region: duplicates[1], take: 'theirs' }])
+    check('M03/M05 both identical regions resolve independently', world.get('duplicate.txt') === 'ours-one\ngap\ntheirs-one\n')
+  } else {
+    for (const row of ['M02 side/raw paged reads', 'M03 individual side/literal choices', 'M04 subset remainder', 'M05 relocation/stale identity', 'M06 newlines', 'B01 frozen multi-file transaction', 'B02 truthful staging', 'B03 exact repetition']) check(row, false, 'region discovery unavailable')
+  }
+} finally {
+  await client?.close()
+  world.dispose()
+}
+console.log(`git conflict regions: ${checks - failures}/${checks}`)
+process.exitCode = failures ? 1 : 0

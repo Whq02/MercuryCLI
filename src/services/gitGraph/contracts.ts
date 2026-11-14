@@ -67,6 +67,7 @@ export interface GitConflict {
   base: string[]
   ours: string[]
   theirs: string[]
+  regions?: import('./conflictRegions.js').ConflictRegion[]
 }
 
 

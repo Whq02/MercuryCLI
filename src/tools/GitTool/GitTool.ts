@@ -15,6 +15,7 @@ import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.j
 import { repositoryDenied, repositoryReadDecision, withheldLine } from '../../services/resources/referencePaths.js'
 import { resolveRepoFolder } from '../../services/gitGraph/repoFolder.js'
 import { gitFilterSkipMessages } from '../../utils/git/spawnArgs.js'
+import { applyResolution, observableResolution, prepareResolution, resolutionPreview, storedResolution, type ResolutionPlan } from '../../services/gitGraph/conflictRegions.js'
 
 function repoHostDiscoveryEnabled(): boolean {
   return !isEnvDefinedFalsy(flagEnv('MERCURY_REPO_HOST'))
@@ -109,7 +110,8 @@ const inputSchema = lazySchema(() =>
     files: z.array(z.string()).optional().describe('Repo-relative paths for stage/restore (restore unstages only)'),
     hunks: z.record(z.string(), z.array(z.string())).optional().describe('stage: per-file gh-… hunk ids'),
     path: z.string().optional().describe('resolve: conflicted file; fileAtRef: file; tree: optional directory'),
-    take: z.enum(['ours', 'theirs']).optional().describe('resolve: side to take'),
+    take: z.enum(['ours', 'theirs', 'base', 'both']).optional().describe('resolve: side to take'),
+    resolutions: z.array(z.strictObject({ region: z.string(), take: z.enum(['ours', 'theirs', 'base', 'both']).optional(), content: z.string().optional() })).optional().describe('resolve: region choices (take or content)'),
     content: z.string().optional().describe('resolve: resolved text instead of take'),
     pr: semanticNumber(z.number().int().positive().optional()).describe('reviewContext/prDiff: PR number (default current branch; uses gh)'),
     findings: z.array(findingSchema()).optional().describe('reviewRecord: findings ([] = clean review; requires inspected)'),
@@ -126,7 +128,7 @@ const inputSchema = lazySchema(() =>
 )
 
 type SchemaType = ReturnType<typeof inputSchema>
-export type Input = z.infer<SchemaType>
+export type Input = z.infer<SchemaType> & { resolutionPlanId?: string; resolutionPreview?: string }
 export type Output = {
   op: Input['op']
   result: string
@@ -212,12 +214,12 @@ async function runOp(
       }
     }
     case 'conflicts': {
-      const all = gitConflicts(root)
+      const all = gitConflicts(root, owner)
       if ('state' in all) return { result: all.note, outcome: 'failed' }
       if (all.length === 0) return { result: 'no unmerged conflicts', outcome: 'no-change' }
       return {
-        result: all
-          .map(c => `  ${c.id} ${c.path} (base ${c.base.length}L · ours ${c.ours.length}L · theirs ${c.theirs.length}L) — mercury://git/conflict/${c.id}`)
+        result: all.filter(c => !denied(c.path))
+          .flatMap(c => [`  ${c.id} ${c.path} (base ${c.base.length}L · ours ${c.ours.length}L · theirs ${c.theirs.length}L) — mercury://git/conflict/${c.id}`, ...(c.regions ?? []).slice(0, 50).map(r => `    ${r.id} lines ${r.startLine}-${r.endLine} — mercury://git/conflict/${c.id}/${r.id}`), ...((c.regions?.length ?? 0) > 50 ? [`    … ${c.regions!.length - 50} more regions — mercury://git/conflict/${c.id}`] : [])])
           .join('\n'),
         outcome: 'no-change',
       }
@@ -285,6 +287,16 @@ async function runOp(
       return { result: out.detail, outcome: 'succeeded' }
     }
     case 'resolve': {
+      if (input.resolutions) {
+        const prepared = resolutionFor(input, root, owner)
+        if ('reason' in prepared) return { result: `resolve refused: ${prepared.reason}`, outcome: 'failed' }
+        for (const file of prepared.files) {
+          const judged = await repositoryReadDecision(GitTool.name, file.path, input, context.getAppState().toolPermissionContext, root)
+          if (judged?.behavior === 'deny') return { result: judged.message ?? 'read denied', outcome: 'failed' }
+        }
+        const out = await applyResolution(prepared, context.abortController?.signal)
+        return out.state === 'refused' ? { result: `resolve refused: ${out.reason}`, outcome: 'failed' } : { result: out.detail, outcome: 'succeeded', changedPaths: out.changedPaths }
+      }
       if (!input.path) return { result: 'resolve needs path', outcome: 'failed' }
       if (!input.take && input.content === undefined) {
         return { result: 'resolve needs take (ours|theirs) or content', outcome: 'failed' }
@@ -499,6 +511,20 @@ async function runOp(
   }
 }
 
+function resolutionFor(input: Input, root: string, owner: ReturnType<typeof ownerFromToolUseContext>) {
+  if (input.resolutionPlanId) {
+    const plan = storedResolution(owner, input.resolutionPlanId)
+    return plan && plan.root === root && plan.choices === JSON.stringify(input.resolutions)
+      ? plan : { state: 'refused' as const, reason: `${input.resolutionPlanId} is stale — nothing written` }
+  }
+  return prepareResolution(owner, root, input.resolutions ?? [])
+}
+
+function showResolution(input: Input, plan: ResolutionPlan): void {
+  input.resolutionPlanId = plan.id
+  input.resolutionPreview = resolutionPreview(plan)
+}
+
 const MUTATING_OPS = new Set<Input['op']>(['apply', 'stage', 'restore', 'resolve'])
 
 function namedFolder(input: Pick<Input, 'cwd'>): string | undefined {
@@ -589,6 +615,13 @@ export const GitTool = buildTool({
     return namedFolder(input)
   },
   backfillObservableInput(input: Input): void {
+    if (input.op === 'resolve' && input.resolutions && !input.resolutionPlanId) {
+      const placed = resolveRepoFolder(folderOf(input))
+      if (placed.state !== 'refused') {
+        const plan = observableResolution(placed.root, input.resolutions)
+        if (!('reason' in plan)) showResolution(input, plan)
+      }
+    }
     if (input.op !== 'apply' || typeof input.planId !== 'string') return
     const plan = findPlan(input.planId)
     if (!plan) return
@@ -598,6 +631,19 @@ export const GitTool = buildTool({
     }
   },
   async checkPermissions(input: Input, context: ToolUseContext): Promise<ReturnType<typeof checkReadPermissionForTool>> {
+    if (input.op === 'resolve' && input.resolutions) {
+      const placed = resolveRepoFolder(folderOf(input))
+      if (placed.state !== 'refused') {
+        const plan = resolutionFor(input, placed.root, ownerFromToolUseContext(context))
+        if (!('reason' in plan)) {
+          for (const file of plan.files) {
+            const judged = await repositoryReadDecision(GitTool.name, file.path, input, context.getAppState().toolPermissionContext, placed.root)
+            if (judged?.behavior === 'deny') return judged
+          }
+          showResolution(input, plan)
+        }
+      }
+    }
     if (typeof input.path === 'string' && input.path !== '' && (input.op === 'fileAtRef' || input.op === 'tree' || input.op === 'resolve')) {
       const placed = needsRepository(input) ? resolveRepoFolder(folderOf(input)) : null
       const root = placed !== null && placed.state !== 'refused' ? placed.root : folderOf(input)
@@ -654,6 +700,9 @@ export const GitTool = buildTool({
     ]
     const dashed = named.find(([, value]) => typeof value === 'string' && value.trimStart().startsWith('-'))
     if (dashed) return { result: false as const, message: `${dashed[0]} may not begin with a dash`, errorCode: 1 }
+    if (input.op === 'resolve' && input.resolutions && (input.path !== undefined || input.take !== undefined || input.content !== undefined)) {
+      return { result: false as const, message: 'resolve takes region choices or a whole-file path, not both', errorCode: 1 }
+    }
     if (input.op === 'plan' && !input.groups?.length) {
       return { result: false as const, message: 'plan requires groups', errorCode: 1 }
     }

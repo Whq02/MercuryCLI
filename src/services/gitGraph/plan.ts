@@ -508,14 +508,19 @@ export function resolveConflict(
   owner: OwnerKey,
   root: string,
   path: string,
-  resolution: { take: 'ours' | 'theirs' } | { content: string },
+  resolution: { take: 'ours' | 'theirs' | 'base' | 'both' } | { content: string },
 ): IndexOpOutcome | PlanRefusal {
   const status = gitStatus(root)
   if ('state' in status) return { state: 'refused', reason: status.note }
   const entry = status.files.find(f => f.path === path && f.kind === 'unmerged')
   if (!entry) return { state: 'refused', reason: `'${path}' is not an unmerged conflict here` }
   try {
-    if ('take' in resolution) {
+    if ('take' in resolution && (resolution.take === 'base' || resolution.take === 'both')) {
+      const content = resolution.take === 'base' ? git(root, ['show', `:1:${path}`]) : git(root, ['show', `:2:${path}`]) + git(root, ['show', `:3:${path}`])
+      const { writeFileSync } = require('node:fs') as typeof import('node:fs')
+      const { join } = require('node:path') as typeof import('node:path')
+      writeFileSync(join(root, path), content)
+    } else if ('take' in resolution) {
       git(root, ['checkout', resolution.take === 'ours' ? '--ours' : '--theirs', '--', path])
     } else {
       const { writeFileSync } = require('node:fs') as typeof import('node:fs')
