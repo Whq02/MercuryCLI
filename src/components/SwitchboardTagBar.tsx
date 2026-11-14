@@ -226,8 +226,12 @@ export function statusLine(live: SessionLiveV1, s: SeatStatusV1, crew: CrewClock
     if (s.wait !== null) {
       if (s.wait.kind === 'silence') return requestWaitLine(s.wait, compact)
       const ownClock = s.wait.kind === 'first-byte' && s.wait.checkedMs !== undefined
-      const waited = !ownClock && s.quietMs !== null && s.quietMs >= 10_000 ? ` · ${statusDuration(s.quietMs)} so far` : ''
       const late = s.wait.kind === 'first-byte' && s.wait.promise !== true && s.quietMs !== null && s.quietMs > s.wait.budgetMs ? ' — the budget is up; the lane reissues or aborts now' : ''
+      if (s.wait.kind === 'first-byte' && !ownClock && s.waitAgeMs !== undefined) {
+        const age = s.waitAgeMs
+        return `${requestWaitLine(s.wait, compact, s.wait.promise === true && age > s.wait.budgetMs)}${age >= 10_000 ? ` · ${statusDuration(age)} so far` : ''}${late}`
+      }
+      const waited = !ownClock && s.quietMs !== null && s.quietMs >= 10_000 ? ` · ${statusDuration(s.quietMs)} so far` : ''
       return `${requestWaitLine(s.wait, compact)}${waited}${late}`
     }
     if (live.phase === 'waiting') {
@@ -250,10 +254,14 @@ export function escBackHint(live: SessionLiveV1, s: Pick<SeatStatusV1, 'interrup
   return `${hint !== '' ? `${hint} · ` : ''}${background !== '' ? `${background} · ` : ''}${sends !== '' ? `${sends} · ` : ''}${keyHintLabel('⇧← back')}`
 }
 
+const PAST_ESTIMATE_COUNT = /^(?:waiting for the first byte from |ingesting ).*( · \d+[sm] so far)$/
+
 export function fitStatusLine(line: string, columns: number, fixedWidth: number): string {
   const budget = statusLineBudget(columns, fixedWidth)
   if (stringWidth(line) <= budget) return line
-  return line.includes(' — ') ? truncateKeepingTail(line, budget) : line
+  if (line.includes(' — ')) return truncateKeepingTail(line, budget)
+  const count = PAST_ESTIMATE_COUNT.exec(line)?.[1]
+  return count !== undefined ? truncateKeepingTail(line, budget, stringWidth(count)) : line
 }
 
 export function statusLineBudget(columns: number, fixedWidth: number): number {

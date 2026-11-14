@@ -113,7 +113,7 @@ function textAppendAccepted(route: CallModelRoute, model: string): boolean {
 
 const SELF_HOSTED_DIALECTS: ReadonlySet<string> = new Set(['vllm', 'sglang', 'llamacpp', 'ollama', 'lmstudio'])
 
-function compatEndpointIsSelfHosted(model: string, env?: Record<string, string | undefined>): boolean {
+export function compatEndpointIsSelfHosted(model: string, env?: Record<string, string | undefined>): boolean {
   try {
     const { compatModelEndpoint } = require('./openaicompat/compatAccounts.js') as typeof import('./openaicompat/compatAccounts.js')
     const endpoint = compatModelEndpoint(model, env as NodeJS.ProcessEnv | undefined)?.endpoint

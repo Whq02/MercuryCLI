@@ -41,6 +41,8 @@ async function serve(): Promise<void> {
   const ctx = Number(flagValue('--ctx-size') ?? 4096)
   const loadMs = Number(env.FAKE_LLAMA_LOAD_MS ?? 300)
   const slowMs = Number(env.FAKE_LLAMA_SLOW_MS ?? 0)
+  const ingestMs = Number(env.FAKE_LLAMA_INGEST_MS ?? 0)
+  const pingMs = Number(env.FAKE_LLAMA_PING_MS ?? 30_000)
   note(`args ${JSON.stringify(args)}`)
   note(`env ${JSON.stringify(Object.keys(env).filter(key => key.startsWith('LLAMA_')).sort())}`)
   const ready = Date.now() + loadMs
@@ -77,6 +79,17 @@ async function serve(): Promise<void> {
       response.on('close', gone)
       request.socket.on('close', gone)
       const chunk = (choices: unknown[], extra: Record<string, unknown> = {}): string => `data: ${JSON.stringify({ choices, ...base, ...extra })}\n\n`
+      if (ingestMs > 0) {
+        response.flushHeaders()
+        note(`ingesting ${ingestMs}`)
+        const ping = setInterval(() => {
+          if (!closed) response.write(':\n\n')
+        }, pingMs)
+        await new Promise(resolve => setTimeout(resolve, ingestMs))
+        clearInterval(ping)
+        if (closed) return
+        note('ingested')
+      }
       response.write(chunk([{ finish_reason: null, index: 0, delta: { role: 'assistant', content: null } }]))
       for (const word of FAKE_LLAMA_REPLY.split(' ')) {
         if (closed || response.destroyed || request.socket.destroyed) {
