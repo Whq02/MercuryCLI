@@ -88,6 +88,8 @@ class Connection {
   private onClosed: ((words: string) => void) | null = null
   private idleWords = ''
   private beatMs = 0
+  private asked = 0
+  private refused: { error: RemoteConnectionError; through: number } | null = null
 
   constructor(private readonly authority: RemoteAuthority) {}
 
@@ -96,7 +98,8 @@ class Connection {
   }
 
   run(request: RemoteRequest): Promise<RemoteReply> {
-    const next = this.queue.then(() => this.attempt(request))
+    const order = ++this.asked
+    const next = this.queue.then(() => this.attempt(request, order))
     this.queue = next.then(
       () => undefined,
       () => undefined,
@@ -115,9 +118,17 @@ class Connection {
     }
   }
 
-  private async attempt(request: RemoteRequest): Promise<RemoteReply> {
+  private async attempt(request: RemoteRequest, order: number): Promise<RemoteReply> {
     if (request.signal?.aborted) throw interrupted(request.signal)
-    if (this.child === null) await this.open(request)
+    if (this.child === null) {
+      if (this.refused !== null && order <= this.refused.through) throw this.refused.error
+      try {
+        await this.open(request)
+      } catch (error) {
+        if (error instanceof RemoteConnectionError) this.refused = { error, through: this.asked }
+        throw error
+      }
+    }
     try {
       return await this.exchange(request)
     } catch (error) {

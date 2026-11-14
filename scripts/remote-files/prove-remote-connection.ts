@@ -241,6 +241,12 @@ async function leg(world: RemoteWorld): Promise<void> {
   }
   const nobody = await failure(() => remoteRun({ host: 'nobody' }, { script: 'printf never' }))
   check(`${name}: a host that does not answer fails in ssh's own words`, nobody instanceof RemoteConnectionError && nobody.failure === 'ssh' && /^ssh could not reach nobody: .*Connection refused/.test(nobody.message), String(nobody?.message))
+  const signIns = (): number => world.argvLines().filter(line => !line.includes(' -G ') && / -- nobody /.test(line)).length
+  const signedIn = signIns()
+  const waiting = await Promise.all(Array.from({ length: 5 }, () => failure(() => remoteRun({ host: 'nobody' }, { script: 'printf never' }))))
+  check(`${name}: five requests waiting on a host that cannot be reached all fail with its one failure, after one try at it`, waiting.every(refusal => refusal instanceof RemoteConnectionError && refusal.failure === 'ssh') && new Set(waiting.map(refusal => refusal?.message)).size === 1 && signIns() - signedIn === 1, `${signIns() - signedIn} tries: ${waiting[0]?.message}`)
+  await failure(() => remoteRun({ host: 'nobody' }, { script: 'printf never' }))
+  check(`${name}: and a request made after that failure tries the host again`, signIns() - signedIn === 2, String(signIns() - signedIn))
   if (world.transport === 'local') {
     const windows = await failure(() => remoteRun({ host: 'windows' }, { script: 'printf never' }))
     check(`${name}: a remote with no POSIX shell is said to have none, after sh, bash and zsh were asked for`, windows instanceof RemoteConnectionError && windows.failure === 'shell' && windows.message === "windows has no POSIX shell that answers ('sh' is not recognized as an internal or external command, operable program or batch file.); a path that begins ssh:// needs sh, bash or zsh on the remote machine." && ['sh', 'bash', 'zsh'].every(word => world.argvLines().some(line => line.endsWith(` -- windows ${word}`))), String(windows?.message))
