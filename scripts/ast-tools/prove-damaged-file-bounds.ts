@@ -42,6 +42,10 @@ put('onlybig/damaged.ts', broken + calls(501))
 put('within/clean.ts', calls(498))
 put('within/damaged.ts', `${broken}needle(0);\nneedle(1);\n`)
 for (const dir of ['apply', 'token']) { put(`${dir}/clean.ts`, calls(500)); put(`${dir}/damaged.ts`, `${broken}needle(0);\n`) }
+for (const [file, text] of each(100)) put(`seven/${file}`, text)
+for (let i = 0; i < 7; i++) put(`seven/d${i}.ts`, `${broken}needle(0);\n`)
+put('two/clean.ts', calls(500))
+for (const file of ['d1.ts', 'd2.ts']) put(`two/${file}`, broken + calls(3))
 await enterRoot(root)
 const prover = await makeContext([AstEditTool, AstSearchTool], { mode: 'sovereign' })
 const edit = (input: Record<string, unknown>) => drive(AstEditTool, input, prover)
@@ -106,6 +110,20 @@ section('§5 — the search keeps its own cap and counts every match')
   check('counted: 500 matches in the file that parses and one in the damaged file are 501 in 2 files', !counted.isError && Number(counted.data?.matchCount) === 501 && Number(counted.data?.fileCount) === 2 && counted.data?.capped === false, `${counted.data?.matchCount} in ${counted.data?.fileCount}, capped ${counted.data?.capped}`)
   const listed = await drive(AstSearchTool, { pattern: 'needle($X)', path: 'm500' }, prover)
   check('listed: the search stops at its own 400 as it did', !listed.isError && Number(listed.data?.matchCount) === 400 && listed.data?.capped === true, `${listed.data?.matchCount}, capped ${listed.data?.capped}`)
+}
+
+section('§6 — several damaged files past a bound: each is named, five and then a count')
+{
+  const SEVEN = `Left unchanged: ${[0, 1, 2, 3, 4].map(i => `d${i}.ts (${FILES})`).join('; ')}; +2 more.`
+  const TWO = `Left unchanged: d1.ts (${MATCHES}); d2.ts (${MATCHES}).`
+  const seven = await edit({ ...single, path: 'seven' })
+  check('100 files that parse and seven damaged files: the 100 are planned, five named and two counted', !seven.isError && seven.text.startsWith('Dry run — 100 matches in 100 files would change; nothing written.') && seven.text.split('\n').at(-1) === SEVEN, ends(seven.text).slice(0, 400))
+  const sevenByRules = await edit({ rules: [single], path: 'seven' })
+  check('the same by rules', !sevenByRules.isError && sevenByRules.text.startsWith('Dry run — 100 matches in 100 files would change across 1 rule; nothing written.') && sevenByRules.text.split('\n').at(-1) === SEVEN, ends(sevenByRules.text).slice(0, 400))
+  const two = await edit({ ...single, path: 'two' })
+  check('500 matches and two damaged files of three matches each: both are named', !two.isError && two.text.startsWith('Dry run — 500 matches in 1 file would change; nothing written.') && two.text.split('\n').at(-1) === TWO, ends(two.text).slice(0, 300))
+  const twoByRules = await edit({ rules: [single], path: 'two' })
+  check('the same by rules', !twoByRules.isError && twoByRules.text.startsWith('Dry run — 500 matches in 1 file would change across 1 rule; nothing written.') && twoByRules.text.split('\n').at(-1) === TWO, ends(twoByRules.text).slice(0, 300))
 }
 
 finish('DAMAGED FILE BOUNDS')
