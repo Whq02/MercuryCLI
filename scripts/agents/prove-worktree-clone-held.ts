@@ -175,6 +175,30 @@ try {
     check('the --worktree boot hands the rules the command line gave: main to setup, setup to the worktree', mainSource.includes('    worktreePRNumber,\n    undefined,\n    toolPermissionContext,\n  )') && setupSource.includes('tmux: tmuxEnabled, rules: worktreeRules })') && setupSource.includes('await carveWorktree(slug, tmuxSessionName, ask.prNumber, ask.rules)') && setupSource.includes('...(rules !== undefined ? { permission: rules } : {})'))
     check('the --multiplex fast path, which makes the worktree before any session exists, keeps the links when the command line gives rules it cannot read yet', worktreeSource.includes("args.some(arg => arg === '--block-tools' || arg.startsWith('--block-tools=')) ? 'unknown' : undefined") && worktreeSource.includes("if (permission === 'unknown') return () => () => true"))
 
+    section('§ the daemon\'s road: a process that stands elsewhere makes a worker\'s copy of a workspace')
+    const workerOf = async (workspace: string, name: string): Promise<string> => {
+      const tree = join(scratch, `worker-${name}`)
+      git(workspace, 'worktree', 'add', '-q', '-b', `worker-${name}`, tree, 'HEAD')
+      await (worktree.prepareWorktreeFiles as (repo: string, path: string, from?: string, preserve?: boolean, permission?: unknown, carry?: boolean) => Promise<void>)(workspace, tree, workspace, true, undefined, true)
+      return tree
+    }
+    const elsewhere = join(scratch, 'elsewhere')
+    mkdirSync(elsewhere)
+    enter(elsewhere)
+    const denyingWorker = await workerOf(fixture, 'denying')
+    check('a workspace whose own settings deny a read is linked as before: the process that makes the copy reads its own settings, not the workspace\'s, and cannot tell what they name', linkTo(join(denyingWorker, 'node_modules'), join(fixture, 'node_modules')) && linkTo(join(denyingWorker, 'vendor', 'pack-open'), join(fixture, 'vendor', 'pack-open')), `${kindOf(join(denyingWorker, 'node_modules'))}, ${kindOf(join(denyingWorker, 'vendor', 'pack-open'))}`)
+    enter(denyingWorker)
+    check('…so the gate of a session that works in the worker\'s copy refuses the five files, as it does in the workspace', HELD.every(rel => refused(rules, join(denyingWorker, rel))), HELD.filter(rel => !refused(rules, join(denyingWorker, rel))).join(', '))
+    enter(elsewhere)
+    const shellOnly = makeFixture('shell-only', () => ['Bash(rm -rf *)'])
+    const shellWorker = await workerOf(shellOnly, 'shell-only')
+    check('a workspace whose settings deny only a shell command is cloned as any other', kindOf(join(shellWorker, 'node_modules')) === 'folder' && kindOf(join(shellWorker, 'node_modules', 'private', 'key.txt')) === 'file', `${kindOf(join(shellWorker, 'node_modules'))}`)
+    const unreadable = makeFixture('unreadable-settings', () => [])
+    writeFileSync(join(unreadable, '.mercury', 'settings.json'), '{ "guardrails": { "deny": [ this is not json')
+    const unreadableWorker = await workerOf(unreadable, 'unreadable')
+    check('a workspace whose settings cannot be read is linked as before', linkTo(join(unreadableWorker, 'node_modules'), join(unreadable, 'node_modules')), kindOf(join(unreadableWorker, 'node_modules')))
+    enter(fixture)
+
     section('§ a project with no Read rule: nothing is held back')
     const plain = makeFixture('plain', () => [])
     enter(plain)

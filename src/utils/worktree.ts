@@ -17,12 +17,12 @@ import { parseGitConfigValue } from './git/gitConfigParser.js'
 import { registerCleanup } from './cleanupRegistry.js'
 import { saveCurrentProjectConfig } from './config.js'
 import { containsPathTraversal } from './path.js'
-import { PROJECT_CONFIG_DIR_NAMES } from './projectConfig.js'
+import { MERCURY_PROJECT_DIR, PROJECT_CONFIG_DIR_NAMES, resolveProjectConfigPath } from './projectConfig.js'
 import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { startCommandHook } from './hooks/commandRunner.js'
 import { logError } from './log.js'
 import { projectLocalPath } from '../services/projectLocal/paths.js'
-import { getInitialSettings, getRelativeSettingsFilePathForSource } from './settings/settings.js'
+import { getInitialSettings, getRelativeSettingsFilePathForSource, getSettingsFilePathForSource } from './settings/settings.js'
 import { sleep } from './sleep.js'
 import { isInITerm2, isInsideTmuxSync } from './terminalDetection.js'
 import { canCloneHere, carryEntries, cloneIntoWorktree, cloneRefusedBetween, discardSetAside, recordWorktreeClones, returnWorktreeFromAside, setWorktreeAside, sweepSetAside, worktreeHoldsClones, type HeldBack } from './worktreeClone.js'
@@ -395,12 +395,49 @@ function checkoutRelativeName(relPath: string): string {
 
 type SessionRules = ToolPermissionContext | 'unknown'
 
-async function heldBackUnder(permission: SessionRules | undefined, always = false): Promise<((root: string) => HeldBack) | undefined> {
+async function sameFile(one: string, other: string): Promise<boolean> {
+  try {
+    return (await realpath(one)) === (await realpath(other))
+  } catch {
+    return resolve(one) === resolve(other)
+  }
+}
+
+async function ownSettingsDenyReads(sourceRoot: string): Promise<boolean> {
+  const { getEmptyToolPermissionContext } = await import('../Tool.js')
+  const { applyPermissionRulesToPermissionContext } = await import('./permissions/permissions.js')
+  const { permissionRuleValueFromString } = await import('./permissions/permissionRuleParser.js')
+  const { ruleMatcherFor } = await import('./permissions/filesystem.js')
+  for (const [source, name] of [['projectSettings', 'settings.json'], ['localSettings', 'settings.local.json']] as const) {
+    const theirs = resolveProjectConfigPath(sourceRoot, name) ?? join(sourceRoot, MERCURY_PROJECT_DIR, name)
+    const ours = getSettingsFilePathForSource(source)
+    if (ours !== undefined && (await sameFile(ours, theirs))) continue
+    let text: string
+    try {
+      text = await readFile(theirs, 'utf8')
+    } catch {
+      continue
+    }
+    try {
+      const deny = (JSON.parse(text) as { guardrails?: { deny?: unknown } } | null)?.guardrails?.deny
+      if (deny === undefined) continue
+      if (!Array.isArray(deny)) return true
+      const rules = deny.filter((entry): entry is string => typeof entry === 'string').map(entry => ({ source: 'session' as const, ruleBehavior: 'deny' as const, ruleValue: permissionRuleValueFromString(entry) }))
+      if (ruleMatcherFor(applyPermissionRulesToPermissionContext(getEmptyToolPermissionContext(), rules), 'read', 'deny') !== null) return true
+    } catch {
+      return true
+    }
+  }
+  return false
+}
+
+async function heldBackUnder(permission: SessionRules | undefined, sourceRoot: string, always = false): Promise<((root: string) => HeldBack) | undefined> {
   if (permission === 'unknown') return () => () => true
   try {
     const { readDenialFilter, ruleMatcherFor } = await import('./permissions/filesystem.js')
     let rules = permission
     if (rules === undefined) {
+      if (await ownSettingsDenyReads(sourceRoot)) return () => () => true
       const { getEmptyToolPermissionContext } = await import('../Tool.js')
       const { applyPermissionRulesToPermissionContext } = await import('./permissions/permissions.js')
       const { loadAllPermissionRulesFromDisk } = await import('./permissions/permissionsLoader.js')
@@ -465,7 +502,7 @@ async function carryIgnoredEntries(sourceRoot: string, worktreePath: string, pla
     if ((PROJECT_CONFIG_DIR_NAMES as readonly string[]).includes(name.split('/')[0] as string)) return false
     return !placed.some(kept => name === kept || name.startsWith(`${kept}/`) || kept.startsWith(`${name}/`))
   })
-  const refusedUnder = (await heldBackUnder(permission, true)) as (root: string) => HeldBack
+  const refusedUnder = (await heldBackUnder(permission, sourceRoot, true)) as (root: string) => HeldBack
   const instructions = await instructionFileTest()
   const { mercurySecretReadIgnores } = await import('./permissions/protectedPaths.js')
   const fold = (path: string): string => path.normalize('NFC').toLowerCase()
@@ -579,7 +616,7 @@ async function placeCheckoutFolders(repoRoot: string, worktreePath: string, depe
   const keptAsLinks = new Set(symlinkDirectories.map(checkoutRelativeName))
   const toClone = dependencyLinks.filter(name => !keptAsLinks.has(name))
   const carries = carry && dependencyLinksFrom !== undefined && canCloneHere() && (getInitialSettings().workspace?.worktree?.sparsePaths ?? []).length === 0
-  const held = canCloneHere() && toClone.length > 0 ? await heldBackUnder(permission) : undefined
+  const held = canCloneHere() && toClone.length > 0 ? await heldBackUnder(permission, sourceRoot) : undefined
   const cloned = await cloneCheckoutDirectories(sourceRoot, worktreePath, toClone, held)
   recordWorktreeClones(worktreePath, cloned)
   const linked = await linkCheckoutDirectories(sourceRoot, worktreePath, [...new Set([...dependencyLinks, ...symlinkDirectories])].filter(name => !cloned.includes(name)))
