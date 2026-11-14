@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -204,10 +204,26 @@ try {
     const plain = await play({ wire: 'plain-llamacpp', server: 'llamacpp', cold: true, estimate: 12_000, answersAt: 0, commentEvery: 30_000, firstTokenAt: 120_000, prompt: 12_000, cached: 0, written: 20 })
     check('its pace is remembered too: 12,000 tokens over 120 s, 100 a second', plain.ended && paceOf('plain-llamacpp') === 100 && pace.rememberedLocalPace('plain-llamacpp')?.samples === 1, remembered('plain-llamacpp'))
   }
+
+  section('S6 a pace file written before the first token was the sample’s time')
+  {
+    const OLD = 'qwen3.5-4b-kept'
+    const kept = { wire: OLD, server: 'tensorfold' as const, cold: true, estimate: 6_240 }
+    writeFileSync(pace.localPaceStorePath(), `${JSON.stringify({ version: 1, models: { [OLD]: { paceTokensPerSec: 152.7, samples: 2, lastPromptTokens: 6_048, updatedAtMs: 1 }, 'another-model': { paceTokensPerSec: 300, samples: 9, updatedAtMs: 1 } } }, null, 2)}\n`)
+    pace.__resetLocalPaceForTest()
+    check('a file of the first version is not read: nothing is remembered from it', pace.rememberedLocalPace(OLD) === null && pace.rememberedLocalPace('another-model') === null, `${remembered(OLD)} ${remembered('another-model')}`)
+    const row = rowOf(kept)
+    check('the row then promises as on a new config folder, from the size class alone', row === 'ingesting a 6k-token prompt on local/qwen3.5-4b-kept — first byte expected in about 1m 18s', row)
+    const played = await play({ ...kept, answersAt: 30_547, commentEvery: 30_000, firstTokenAt: 307_564, prompt: 6_457, cached: 0, written: 121 })
+    const written = JSON.parse(readFileSync(pace.localPaceStorePath(), 'utf8')) as { version: number; models: Record<string, { paceTokensPerSec: number; samples: number }> }
+    check('the first sample replaces the file: the second version, holding that sample alone', played.ended && written.version === 2 && JSON.stringify(Object.keys(written.models)) === JSON.stringify([OLD]) && written.models[OLD]?.paceTokensPerSec === 21 && written.models[OLD].samples === 1, JSON.stringify(written))
+    pace.__resetLocalPaceForTest()
+    check('and a file of the second version is read back', paceOf(OLD) === 21, remembered(OLD))
+  }
 } finally {
   rmSync(HOME, { recursive: true, force: true })
 }
 
-console.log(`\n${14 - failures} of 14 checks hold`)
+console.log(`\n${18 - failures} of 18 checks hold`)
 console.log(failures === 0 ? 'prove-local-pace-sample: ALL HOLD' : `prove-local-pace-sample: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

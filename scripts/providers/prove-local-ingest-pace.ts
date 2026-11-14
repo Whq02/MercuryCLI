@@ -53,7 +53,7 @@ if (pace !== null) {
     check('the next cold promise for 52k uncached tokens reads ≈143 s (52,000 ÷ 454.6 × 1.25)', Math.abs(promise - 143_000) <= 500, String(promise))
     check('the store lives in a file of its own under the config home, never the discovery record', existsSync(pace.localPaceStorePath()) && pace.localPaceStorePath().startsWith(process.env.MERCURY_CONFIG_DIR!) && pace.localPaceStorePath().endsWith('local-ingest-pace.json'), pace.localPaceStorePath())
     const onDisk = JSON.parse(readFileSync(pace.localPaceStorePath(), 'utf8')) as { version: number; models: Record<string, { paceTokensPerSec: number }> }
-    check('the file carries the pace by wire model id', onDisk.version === 1 && Math.abs(onDisk.models['qwen3.5:9b-q4_K_M']!.paceTokensPerSec - 454.6) < 0.5, JSON.stringify(onDisk))
+    check('the file carries the pace by wire model id, as the second version of the file', onDisk.version === 2 && Math.abs(onDisk.models['qwen3.5:9b-q4_K_M']!.paceTokensPerSec - 454.6) < 0.5, JSON.stringify(onDisk))
     pace.__resetLocalPaceForTest()
     check('a fresh process reads it back from the file', Math.abs((pace.rememberedLocalPace('qwen3.5:9b-q4_K_M')?.paceTokensPerSec ?? 0) - 454.6) < 0.5)
   }

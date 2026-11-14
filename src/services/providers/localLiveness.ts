@@ -68,7 +68,7 @@ export interface LocalPaceRecord {
 }
 
 interface LocalPaceStore {
-  version: 1
+  version: 2
   models: Record<string, LocalPaceRecord>
 }
 
@@ -80,10 +80,10 @@ export function localPaceStorePath(): string {
 
 function readStore(): LocalPaceStore {
   if (loaded !== null) return loaded
-  let store: LocalPaceStore = { version: 1, models: {} }
+  let store: LocalPaceStore = { version: 2, models: {} }
   try {
     const parsed = JSON.parse(readFileSync(localPaceStorePath(), 'utf8')) as Partial<LocalPaceStore>
-    if (parsed !== null && typeof parsed === 'object' && parsed.models !== null && typeof parsed.models === 'object') {
+    if (parsed !== null && typeof parsed === 'object' && parsed.version === 2 && parsed.models !== null && typeof parsed.models === 'object') {
       const models: Record<string, LocalPaceRecord> = {}
       for (const [id, raw] of Object.entries(parsed.models)) {
         const r = raw as Partial<LocalPaceRecord> | null
@@ -96,10 +96,10 @@ function readStore(): LocalPaceStore {
           updatedAtMs: typeof r.updatedAtMs === 'number' ? r.updatedAtMs : 0,
         }
       }
-      store = { version: 1, models }
+      store = { version: 2, models }
     }
   } catch {
-    store = { version: 1, models: {} }
+    store = { version: 2, models: {} }
   }
   loaded = store
   return store
@@ -137,7 +137,7 @@ export function recordLocalIngestPace(args: { wireModel: string; promptTokens: n
     lastPromptTokens: Math.max(1, Math.round(args.promptTokens)),
     updatedAtMs: args.nowMs ?? Date.now(),
   }
-  writeStore({ version: 1, models: { ...store.models, [args.wireModel]: next } })
+  writeStore({ version: 2, models: { ...store.models, [args.wireModel]: next } })
   return { ...next }
 }
 
@@ -146,7 +146,7 @@ export function noteLocalPromptSize(wireModel: string, promptTokens: number, now
   const store = readStore()
   const previous = store.models[wireModel]
   if (previous === undefined) return
-  writeStore({ version: 1, models: { ...store.models, [wireModel]: { ...previous, lastPromptTokens: Math.round(promptTokens), updatedAtMs: nowMs } } })
+  writeStore({ version: 2, models: { ...store.models, [wireModel]: { ...previous, lastPromptTokens: Math.round(promptTokens), updatedAtMs: nowMs } } })
 }
 
 export function __resetLocalPaceForTest(): void {
