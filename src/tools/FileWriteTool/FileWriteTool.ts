@@ -56,6 +56,7 @@ import {
   hostPathOfWriteTarget,
   parseStructuredWriteTarget,
   prepareSqliteDeletion,
+  sqliteRowReadRefusal,
   structuredTargetRefusal,
 } from './structuredTargets.js'
 import { DESCRIPTION, FILE_WRITE_TOOL_NAME, getWriteToolDescription } from './prompt.js'
@@ -204,6 +205,8 @@ export const FileWriteTool = buildTool({
       return { result: false as const, message: memoryRefusal, errorCode: 3 }
     }
     if (structuredTarget !== null) {
+      const unreadable = sqliteRowReadRefusal(structuredTarget, input, context)
+      if (unreadable !== null) return { result: false as const, message: unreadable.message, errorCode: unreadable.errorCode }
       const refusal = structuredTargetRefusal(structuredTarget, 'write')
       if (refusal !== null) return { result: false as const, message: refusal.message, errorCode: refusal.errorCode }
       if (structuredTarget.kind === 'sqlite-row' && structuredTarget.deleting) {

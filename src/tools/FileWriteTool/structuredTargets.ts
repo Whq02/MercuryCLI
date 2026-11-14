@@ -11,7 +11,7 @@ import { runtimeKernel } from '../../services/primitives/runtimeKernel.js'
 import { countLinesChanged, getPatchForDisplay, getPatchFromContents } from '../../utils/diff.js'
 import { getFileModificationTime } from '../../utils/file.js'
 import { cacheKeys, type FileState } from '../../utils/fileStateCache.js'
-import { getMercuryTempDir } from '../../utils/permissions/filesystem.js'
+import { checkReadPermissionForTool, getMercuryTempDir } from '../../utils/permissions/filesystem.js'
 import { formatFileSize } from '../../utils/format.js'
 import { expandPath } from '../../utils/path.js'
 import type { ToolUseContext } from '../../Tool.js'
@@ -19,6 +19,7 @@ import { modifiedSinceReadMessage, otherLiveSessionsClause, unreadExistingWriteM
 import { buildEditedLines } from '../FileEditTool/editResult.js'
 import { findActualString, getPatchForEdit, locateActualString, type ActualMatchOutcome } from '../FileEditTool/utils.js'
 import type { FileEditInput, FileEditOutput } from '../FileEditTool/types.js'
+import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
 import {
   extractZipEntryBuffer,
   findEocdOffset,
@@ -142,6 +143,12 @@ function hostIsRegularFile(hostPath: string): boolean | null {
   } catch {
     return null
   }
+}
+
+export function sqliteRowReadRefusal(target: StructuredWriteTarget, input: unknown, context: ToolUseContext): Refusal | null {
+  if (target.kind !== 'sqlite-row') return null
+  const decision = checkReadPermissionForTool({ name: FILE_READ_TOOL_NAME, getPath: () => target.hostPath }, input, context.getAppState().toolPermissionContext)
+  return decision.behavior === 'deny' ? { result: false, behavior: 'ask', message: decision.message, errorCode: 1 } : null
 }
 
 export function structuredTargetRefusal(target: StructuredWriteTarget, verb: 'write' | 'edit'): Refusal | null {
@@ -956,6 +963,8 @@ export async function validateStructuredEditTarget(
   context: ToolUseContext,
   uniqueness: UniquenessRefusal,
 ): Promise<{ result: true } | Refusal> {
+  const unreadable = sqliteRowReadRefusal(target, input, context)
+  if (unreadable !== null) return unreadable
   const refusal = structuredTargetRefusal(target, 'edit')
   if (refusal !== null) return refusal
   if (target.kind === 'refused') return { result: false, behavior: 'ask', message: target.reason, errorCode: 4 }
