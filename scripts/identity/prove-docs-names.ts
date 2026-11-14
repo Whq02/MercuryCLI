@@ -147,6 +147,8 @@ const REPO_PATHS_NOT_IN_TREE = new Map<string, string>([
   ['src/a.gd', 'a file in the reader\'s own project'],
   ['src/b.gd', 'a file in the reader\'s own project'],
   ['src/player/shield.gd', 'a file in the reader\'s own project'],
+  ['.github/copilot-instructions.md', 'a file in the reader\'s own project'],
+  ['.github/instructions', 'a folder in the reader\'s own project'],
 ])
 
 const PATH_SEGMENTS_NOT_IN_CODE = new Map<string, string>([

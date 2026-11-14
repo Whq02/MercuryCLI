@@ -66,11 +66,17 @@ const walk = (dir: string): void => {
 }
 walk(join(ROOT, 'src'))
 
+const OTHER_GUIDE_ADAPTER = 'src/services/instructions/adapters/claude.ts'
 const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boolean; cls: string; why: string }> = [
+  {
+    test: (f, needle) => needle === OTHER_GUIDE && f === OTHER_GUIDE_ADAPTER,
+    cls: 'guide-probe',
+    why: "the instruction engine's adapter for that tool names the project guide it reads — the one file of src that may; that tool's home stays forbidden there as everywhere",
+  },
   {
     test: (_f, needle) => needle === OTHER_GUIDE || needle === OTHER_HOME || needle === `${OTHER_HOME}.json`,
     cls: 'FORBIDDEN',
-    why: "another tool's home or guide file is an ordinary file — nothing in src probes, lists, protects or composes it",
+    why: "another tool's home or guide file is an ordinary file — outside that one adapter nothing in src probes, lists, protects or composes it",
   },
   {
     test: f => f === 'src/utils/env.ts' || f === 'src/utils/envUtils.ts',

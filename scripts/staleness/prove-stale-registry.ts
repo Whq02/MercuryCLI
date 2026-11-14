@@ -150,9 +150,11 @@ src/services/ide/pythonProject.ts :: profileCache :: ttl-bounded
 src/services/ide/pythonProject.ts :: selectionCache :: ttl-bounded
 src/services/ide/pythonTests.ts :: pytestProbeCache :: ttl-bounded
 src/services/instructions/discovery.ts :: excludeResolutionMemo :: invalidator=clearExcludeResolutionMemo
+src/services/instructions/discovery.ts :: ruleFileCaches :: ttl-bounded
 src/services/instructions/discovery.ts :: rulesDirListingCaches :: ttl-bounded
 src/services/instructions/engine.ts :: cacheInvalidationListeners :: static-for-process
 src/services/instructions/engine.ts :: getInstructionFiles :: invalidator=clearInstructionFileCaches
+src/services/instructions/listing.ts :: getInstructionListing :: invalidator=clearInstructionFileCaches
 src/services/localServer/localServerTruth.ts :: cached :: ttl-bounded
 src/services/localServer/localServerTruth.ts :: machineCached :: ttl-bounded
 src/services/lsp/clangdLane.ts :: probeCache :: ttl-bounded

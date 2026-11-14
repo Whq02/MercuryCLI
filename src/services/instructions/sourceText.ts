@@ -6,7 +6,7 @@ import { parseFrontmatter, splitPathInFrontmatter } from '../../utils/frontmatte
 import { stripBOM } from '../../utils/jsonRead.js'
 import type { MemoryType } from '../../utils/memory/types.js'
 import { expandPath } from '../../utils/path.js'
-import type { InstructionSourceEntry } from './contracts.js'
+import type { InstructionRuleFormat, InstructionRuleReading, InstructionSourceEntry } from './contracts.js'
 
 const COMPOSABLE_EXTENSIONS = {
   prose: ['.md', '.txt', '.text', '.rst', '.adoc', '.asciidoc', '.org', '.tex', '.latex'],
@@ -163,4 +163,30 @@ export function parseInstructionFileContent(
   const { content: body, paths } = parseFrontmatterPaths(raw)
   const { content, ...mentions } = readBody(body, includeBasePath)
   return { info: entryOf(filePath, type, raw, content, paths), ...mentions }
+}
+
+export function readRuleSource(
+  rawContent: string,
+  filePath: string,
+  type: MemoryType,
+  format: InstructionRuleFormat,
+  alone: boolean,
+): { info: InstructionSourceEntry; unreadable: boolean; reading: InstructionRuleReading | null } {
+  const raw = stripBOM(rawContent)
+  const { frontmatter, content: body, parseError } = parseFrontmatter(raw, filePath)
+  const unreadable = parseError !== undefined
+  const reading: InstructionRuleReading | null = unreadable ? (format.failsOpen ? { kind: 'always' } : null) : format.read(frontmatter, alone)
+  const content = unreadable && format.failsOpen ? raw : body
+  const info: InstructionSourceEntry = { path: filePath, type, content, contentDiffersFromDisk: content !== raw }
+  if (reading === null) info.dormant = 'unreadable'
+  else if (reading.kind === 'scoped') info.globs = reading.globs
+  else if (reading.kind === 'offered') {
+    info.offered = reading.description.replace(/\s+/g, ' ')
+    if (content.trim() !== '') info.content = `- ${filePath}: ${info.offered}`
+    info.contentDiffersFromDisk = true
+  } else if (reading.kind !== 'always') {
+    info.dormant = reading.kind
+    if (reading.kind === 'unsupported' && reading.row !== undefined) info.why = reading.row
+  }
+  return { info, unreadable, reading }
 }

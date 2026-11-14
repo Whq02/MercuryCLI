@@ -10,14 +10,106 @@ files and their grouped keys.
 ## Project instructions
 
 With `briefs.profile` set to `auto` (the default), Mercury loads `MERCURY.md`
-from the project's instruction chain. When that chain contains no
-`MERCURY.md`, it loads the project's `AGENTS.md`. With both guides present,
-`MERCURY.md` decides; it can import `AGENTS.md` explicitly with `@AGENTS.md`.
-A `MERCURY.local.md` is a personal layer, loaded after the guide, so it does
-not prevent `AGENTS.md` from loading. Nested guides attach when their files
-are touched under the same guide choice. The `native` profile uses Mercury
-instruction files only. `briefs.exclude` skips named paths or patterns, but
-cannot exclude managed instructions.
+from the project's instruction chain: the working directory and the folders
+above it. If a `MERCURY.md` stands in that chain, Mercury loads its own files
+only, and another tool's file comes in only where `MERCURY.md` imports it
+with an `@` line. If none stands, every other tool's file found there loads,
+none shadowing another, identical text once, outermost folder first.
+
+A `MERCURY.local.md` is a personal layer, loaded after the guide, so it
+decides nothing. Neither does your own `MERCURY.md` in Mercury's home: it is
+the personal layer of every project and decides nothing for one. Nested
+guides attach when their files are touched under the same guide choice, and
+a nested folder's own `MERCURY.md` decides for that folder. The `native`
+profile uses Mercury instruction files only. `briefs.exclude` skips named
+paths or patterns, but cannot exclude managed instructions. An untrusted
+folder supplies no project instructions and decides nothing through its
+`MERCURY.md`; your own instruction sources still load.
+
+### The files other tools left
+
+| Tool | Guides, in the first request | Rules |
+| --- | --- | --- |
+| AGENTS.md (Codex, OpenCode and others) | `AGENTS.md`, `.agent/AGENTS.md`, `.agents/AGENTS.md` | `.agent/rules/**`, `.agents/rules/**` (`.md`, `.mdc`) |
+| Claude Code | `CLAUDE.md`, `.claude/CLAUDE.md`; `CLAUDE.local.md` as the project's personal layer | `.claude/rules/**/*.md` (`paths`) |
+| Gemini CLI | `GEMINI.md`, `.gemini/GEMINI.md` | |
+| GitHub Copilot | `.github/copilot-instructions.md` | `.github/instructions/**/*.instructions.md` (`applyTo`) |
+| GitHub Copilot, in each folder `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` names | `AGENTS.md` | `.github/instructions/**/*.instructions.md` (`applyTo`) |
+| Cursor | | `.cursor/rules/**` (`.mdc`, `.md`: `alwaysApply`, `globs`, `description`), `.cursorrules` |
+| Windsurf | | `.windsurf/rules/**/*.md` and `.devin/rules/**/*.md` (`trigger`, `globs`, `description`), `.windsurf/global_rules.md`, `.devin/global_rules.md`, `.windsurfrules` |
+| Cline | | `.clinerules` (one file, or a folder of `.md` files), `.cline/rules/**/*.md` (`paths`) |
+
+Guides follow their `@` imports as `MERCURY.md` does. In a folder they load
+in the order of the table, before Mercury's own rules and the personal
+layers.
+
+The folders that `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` names are your own word:
+a list separated by commas, a relative entry measured from the working
+directory, `~/` your home folder. Their files load with your own
+instructions, before the project's, with their `applyTo` patterns measured
+from the working directory, and in a folder you have not trusted too. Under
+a `MERCURY.md` of a trusted project, or the `native` profile, the variable
+is not read. A folder on the working directory's own chain adds nothing:
+its files are the project's.
+
+A rule reaches the model as its own tool scopes it:
+
+- **Always** (Cursor `alwaysApply: true`; Copilot `applyTo` of `**` or
+  `**/*`; Windsurf `trigger: always_on`; a Cline or Claude Code rule with no
+  `paths`; a file that stands alone, such as `.cursorrules`): in the first
+  request.
+- **Scoped to files** (Cursor `globs`; Copilot `applyTo`; Windsurf
+  `trigger: glob`; Cline and Claude Code `paths`): nothing is sent until
+  Read, Edit, Write, Grep, ChangeSet or AstEdit lands on a matching file;
+  then the rule is attached once, with the files it governs.
+- **Offered by description** (Cursor `description` with no `globs`; Windsurf
+  `trigger: model_decision` or `agent`; a Copilot instructions file with a
+  `description` and no `applyTo`): one line naming the file and its
+  description, at the foot of the instructions. The body is sent only when
+  the model reads the file.
+- **Manual** (a Cursor rule with none of the three fields; Windsurf
+  `trigger: manual`; a Copilot instructions file with neither field): never
+  sent. Mention the file with `@` to load it.
+
+Four things differ from Mercury's own rules, or from another reader of these
+files:
+
+- A pattern means what its tool's own page says. One with no slash names
+  only the files directly in the folder that holds the tool's folder: `*.ts`
+  is the root's `.ts` files, and `**/*.ts` is all of them at any depth.
+  Copilot's `applyTo: "*"` is the root's files alone. Mercury's own rule
+  `paths` keep their gitignore reading.
+- A rule's body is sent as written: an `@file` in it is not followed. Guides
+  keep their imports.
+- A `.md` file under `.cursor/rules` is read by the same three fields as a
+  `.mdc` one (Cursor itself reads only `.mdc`). With none of them it is a
+  manual rule.
+- Only the nearest folder that holds `.clinerules` or `.cline/rules` is
+  read, as Cline reads one workspace. With both `global_rules.md` files,
+  only `.devin`'s loads, as that tool's page says.
+
+A header that is not YAML keeps its rule out (a Cline rule loads whole, as
+Cline does), and so does a scope Mercury cannot read. `/health` names each on
+the **Instruction profile** row, as `unreadable-rule-header` or
+`unsupported-rule-activation`.
+
+The walk for these files stops below your home folder, and a tool's own
+folder in the home folder is never read, even when Mercury starts there. A
+personal file of another tool comes in as any file does: by an `@~/…` line
+in your own `MERCURY.md`.
+
+### Keeping them under a MERCURY.md
+
+An `@` line that names another tool's rule keeps the rule's scope: an always
+rule comes in whole, a scoped one attaches on a matching file, an offered one
+stays one line. One line can name a whole rules folder (`@.cursor/rules`,
+`@.github/instructions`, `@.clinerules`), and each rule in it keeps its own
+scope. `/orient` writes these lines when it creates a `MERCURY.md` in a
+project where such files load; a file that is personal, or that stands above
+the project, gets its line in `MERCURY.local.md`.
+
+`/memory files` lists every file with its tool and when it loads. A file
+that a `MERCURY.md` switched off says which `@` line brings it back.
 
 ## The Claude sign-in
 

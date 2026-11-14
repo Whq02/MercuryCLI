@@ -12,6 +12,7 @@ import { TASK_STOP_TOOL_NAME } from '../../tools/TaskStopTool/prompt.js'
 import { TASK_UPDATE_TOOL_NAME } from '../../tools/TaskUpdateTool/constants.js'
 import { DiagnosticTrackingService } from '../../services/diagnosticTracking.js'
 import { operatorMessagesBlockText } from '../../services/compact/operatorMessages.js'
+import { attachedInstructionText } from '../../services/instructions/attachedText.js'
 import { type Attachment } from '../attachments.js'
 import { DEFERRED_TOOLS_ANNOUNCEMENT_HEAD } from '../attachments/deltas.js'
 import { boundHookContext } from '../hooks/contextBound.js'
@@ -211,7 +212,7 @@ const renderers: Renderers = {
   samples_road: item => reminders(samplesRoadText(item.on)),
   invoked_skills: item => item.skills.length ? reminders('These skills were invoked earlier in the session and still bind — keep following them:\n\n' + item.skills.map(skill => `### ${skill.name} (${skill.path})\n\n${skill.content}`).join('\n\n---\n\n')) : [],
   skill_listing: skillListing,
-  nested_memory: item => reminders(`Instruction file ${item.content.path} (it governs its folder):\n\n${item.content.content}`),
+  nested_memory: item => reminders(attachedInstructionText(item.content)),
   mode_pack: item => item.mode === 'apollo' ? reminders(item.text) : [],
   mode_pack_exit: item => item.mode === 'apollo' ? reminders(`## Exited Apollo mode\n\nApollo mode is off: its instructions above no longer apply, and the session's standing instructions govern again.${item.reason !== undefined ? ` What ended it: ${item.reason}.` : ''}`) : [],
   hook: hookRows,

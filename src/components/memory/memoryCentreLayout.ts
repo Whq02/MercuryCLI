@@ -1,4 +1,5 @@
 import { basename } from 'node:path'
+import wrapInkText from '../../ink/wrap-text.js'
 import { GLYPH, displayWidth, padTo, truncateToWidth } from '../mercury-ui/glyphs.js'
 import { formatTextSize } from '../../mneme/mnemeUsage.js'
 import type { LedgerEntry } from '../../mneme/types.js'
@@ -22,6 +23,29 @@ export function memoryBodySpacing(rowBudget: number): { roomy: boolean; fixedRow
   return { roomy, fixedRows: roomy ? 3 + detailLines : 2, detailLines }
 }
 
+export function memoryFileListLayout(options: Array<{ label: string; description?: string }>, width: number, rowBudget: number, firstVisible: number): { layout: 'compact' | 'compact-vertical'; visibleOptionCount: number } {
+  const room = Math.max(1, width - 1)
+  const digits = String(options.length).length
+  const labelWidth = Math.max(0, ...options.map(option => displayWidth(option.label))) + digits + 4
+  const vertical = options.some(option => labelWidth + 2 + displayWidth(option.description ?? '') > room)
+  const heights = options.map((option, index) => vertical
+    ? wrapInkText(`${String(index + 1).padEnd(digits + 1)} ${option.label}`, Math.max(1, room - 2), 'wrap').split('\n').length + (option.description ? wrapInkText(option.description, Math.max(1, room - digits - 5), 'wrap').split('\n').length : 0)
+    : 1)
+  const start = Math.min(firstVisible, Math.max(0, options.length - 1))
+  let used = 0
+  let count = 0
+  for (let index = start; index < heights.length && used + heights[index]! <= rowBudget; index++) {
+    used += heights[index]!
+    count++
+  }
+  if (start + count === heights.length) {
+    for (let index = start - 1; index >= 0 && used + heights[index]! <= rowBudget; index--) {
+      used += heights[index]!
+      count++
+    }
+  }
+  return { layout: vertical ? 'compact-vertical' : 'compact', visibleOptionCount: Math.max(1, count) }
+}
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const two = (n: number): string => String(n).padStart(2, '0')
 
@@ -264,7 +288,7 @@ export function filesRow(files: OverviewFacts['files']): OverviewRow {
     count: files === null ? NO_DATE : plural(files.count, 'file'),
     newest: NO_DATE,
     state: profile,
-    detail: `${profile === 'native' ? 'MERCURY.md only' : 'MERCURY.md, or AGENTS.md when there is none'} · editor and the memory switch`,
+    detail: `${profile === 'native' ? 'MERCURY.md only' : "MERCURY.md, or other tools' files when there is none"} · editor and the memory switch`,
     action: 'open the picker',
   }
 }

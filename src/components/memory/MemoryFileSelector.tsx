@@ -6,6 +6,8 @@ import { Box, Text } from '../../ink.js'
 import { useExitOnCtrlCDWithKeybindings } from '../../hooks/useExitOnCtrlCDWithKeybindings.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import { getInstructionFiles } from '../../services/instructions/engine.js'
+import { attachedRows, getInstructionListing, listingRowWords, loadedStateOf, toolPrefixOf } from '../../services/instructions/listing.js'
+import type { AttachedInstruction } from '../../services/instructions/attachedText.js'
 import type { InstructionSourceEntry } from '../../services/instructions/contracts.js'
 import { openPath } from '../../utils/browser.js'
 import { getMemoryPath } from '../../utils/config.js'
@@ -14,12 +16,13 @@ import { getMnemeHome, isMnemeEnabled } from '../../mneme/paths.js'
 import { updateSettingsForSource } from '../../utils/settings/settings.js'
 import { Select } from '../CustomSelect/select.js'
 import { getRelativeMemoryPath } from './MemoryUpdateNotification.js'
+import { memoryFileListLayout } from './memoryCentreLayout.js'
 
 
 let lastSelectedPath: string | null = null
 
 type Row = {
-  label: React.ReactNode
+  label: string
   value: string
   description?: string
 }
@@ -41,15 +44,25 @@ function importDepthOf(
 export function MemoryFileSelector({
   onSelect,
   onCancel,
+  held,
+  attached,
+  width = 80,
+  rowBudget = 7,
 }: {
   onSelect: (path: string) => void
   onCancel: () => void
+  held: (path: string) => boolean
+  attached?: readonly AttachedInstruction[]
+  width?: number
+  rowBudget?: number
 }): React.ReactNode {
   const files = use(getInstructionFiles())
+  const listing = use(getInstructionListing())
 
   useExitOnCtrlCDWithKeybindings()
 
   const [mnemeOn, setMnemeOn] = useState(() => isMnemeEnabled())
+  const [firstVisible, setFirstVisible] = useState(0)
 
   const toggles: Array<{
     id: 'memory'
@@ -98,7 +111,7 @@ export function MemoryFileSelector({
     const projectCanonical = getMemoryPath('Project')
 
     const nativePrefix = (entry: InstructionSourceEntry | undefined) =>
-      entry?.family === 'native' ? 'Mercury-native · ' : entry?.family === 'shared' ? 'shared guide · ' : ''
+      toolPrefixOf(entry) ?? (entry?.family === 'native' ? 'Mercury-native · ' : entry?.family === 'shared' ? 'shared guide · ' : '')
 
     const result: Row[] = visible.map(entry => {
       const depth = importDepthOf(entry, byPath)
@@ -128,9 +141,12 @@ export function MemoryFileSelector({
       return {
         label: getRelativeMemoryPath(entry.path),
         value: entry.path,
-        description: `${nativePrefix(entry)}${getRelativeMemoryPath(entry.path)}`,
+        description: `${nativePrefix(entry).replace(/ · $/, '')}${loadedStateOf(entry)}`,
       }
     })
+    for (const row of [...listing, ...attachedRows(held, [...visible.map(entry => entry.path), ...listing.map(row => row.path)], attached)]) {
+      result.push({ label: getRelativeMemoryPath(row.path), value: row.path, description: listingRowWords(row, '', held, attached === undefined ? undefined : held) })
+    }
 
     if (!byPath.has(userCanonical)) {
       result.push({
@@ -156,8 +172,9 @@ export function MemoryFileSelector({
     }
 
     return result
-  }, [files, mnemeOn])
+  }, [files, listing, mnemeOn, held, attached])
 
+  const layout = memoryFileListLayout(rows, width, Math.max(1, rowBudget - 2), firstVisible)
   const preselect =
     lastSelectedPath !== null &&
     rows.some(row => row.value === lastSelectedPath)
@@ -189,8 +206,10 @@ export function MemoryFileSelector({
         </Text>
       </Box>
       <Select
+        {...layout}
+        onVisibleWindowChange={from => setFirstVisible(from)}
         isDisabled={toggleFocused}
-        options={rows}
+        options={layout.layout === 'compact-vertical' ? rows.map(row => ({ ...row, label: ` ${row.label}` })) : rows}
         defaultFocusValue={preselect}
         onChange={activate}
         onCancel={onCancel}

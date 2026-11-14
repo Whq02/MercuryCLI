@@ -5,10 +5,11 @@ import { isProjectInstructionExcluded } from '../nativeSource.js'
 
 export const SHARED_INSTRUCTION_FILE = 'AGENTS.md'
 
-const agentsMdConvention: InstructionConvention = {
+export const agentsMdConvention: InstructionConvention = {
   id: 'agents-md',
   family: 'shared',
   fallback: true,
+  label: SHARED_INSTRUCTION_FILE,
   projectDirFiles(dir: string): string[] {
     return [join(dir, SHARED_INSTRUCTION_FILE)]
   },
@@ -36,8 +37,4 @@ const agentsMdConvention: InstructionConvention = {
   isExcluded: isProjectInstructionExcluded,
   instructionFileNames: [SHARED_INSTRUCTION_FILE],
   rulesPathMarkers: [],
-}
-
-export function foreignInstructionConventions(): InstructionConvention[] {
-  return [agentsMdConvention]
 }

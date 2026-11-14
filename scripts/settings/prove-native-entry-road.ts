@@ -11,7 +11,7 @@ import { captureProjectInstruction, followPointerLaw } from '../../src/services/
 
 const ids = (profile: 'auto' | 'native') => conventionsForProfile(profile).map(convention => convention.id)
 assert.deepEqual(ids('native'), ['mercury-native'])
-assert.deepEqual(ids('auto'), ['mercury-native', 'agents-md'])
+assert.deepEqual(ids('auto'), ['mercury-native', 'agents-md', 'agent-folders', 'claude', 'gemini', 'copilot', 'cursor', 'windsurf', 'cline'])
 for (const profile of ['native', 'auto'] as const) {
   assert.deepEqual(adapterForProfile().conventionsFor(profile), conventionsForProfile(profile))
 }

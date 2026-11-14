@@ -1,3 +1,4 @@
+import type { FrontmatterData } from '../../utils/frontmatterParser.js'
 import type { MemoryType } from '../../utils/memory/types.js'
 
 export type InstructionProfile = 'auto' | 'native'
@@ -20,6 +21,33 @@ export type InstructionSourceEntry = {
   family?: InstructionFamily
   origin?: InstructionOrigin
   root?: string
+  convention?: string
+  offered?: string
+  dormant?: InstructionDormancy
+  why?: string
+  anchor?: string
+  namedBy?: string
+}
+
+type InstructionNamedFolders = {
+  by: string
+  folders: { folder: string; guides: string[]; rules: string[] }[]
+}
+
+type InstructionDormancy = 'manual' | 'off' | 'unsupported' | 'unreadable'
+
+export type InstructionRuleReading =
+  | { kind: 'always' }
+  | { kind: 'scoped'; globs: string[] }
+  | { kind: 'offered'; description: string }
+  | { kind: 'manual' }
+  | { kind: 'off' }
+  | { kind: 'unsupported'; detail: string; row?: string }
+
+export type InstructionRuleFormat = {
+  accepts(fileName: string): boolean
+  read(frontmatter: FrontmatterData, alone: boolean): InstructionRuleReading
+  readonly failsOpen?: boolean
 }
 
 export type InstructionFamily = 'native' | 'shared'
@@ -35,6 +63,11 @@ export type InstructionConvention = {
   readonly id: string
   readonly family: InstructionFamily
   readonly fallback?: boolean
+  readonly label?: string
+  readonly belowHome?: boolean
+  readonly nearestOnly?: boolean
+  readonly entryNames?: readonly string[]
+  named?(): InstructionNamedFolders | null
   projectDirFiles(dir: string): string[]
   projectRulesDirs(dir: string): string[]
   localDirFile(dir: string): string | null
@@ -46,6 +79,10 @@ export type InstructionConvention = {
   isExcluded(filePath: string, type: MemoryType): boolean
   readonly instructionFileNames: readonly string[]
   readonly rulesPathMarkers: readonly string[]
+  folderOf?(filePath: string): string | null
+  readonly rules?: InstructionRuleFormat
+  ruleAnchor?(source: string): string
+  ruleAt?(path: string): { owner: string; source: boolean } | null
 }
 
 export type InstructionAdapter = {
@@ -68,6 +105,8 @@ export type InstructionDiagnostic = {
     | 'duplicate-content'
     | 'external-import-blocked'
     | 'unsupported-import-type'
+    | 'unreadable-rule-header'
+    | 'unsupported-rule-activation'
   path: string
   parent?: string
   detail?: string
@@ -93,4 +132,5 @@ export type InstructionBundleEntry = {
   parent?: string
   globs?: string[]
   root?: string
+  convention?: string
 }

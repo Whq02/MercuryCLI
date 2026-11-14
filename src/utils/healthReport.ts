@@ -87,6 +87,7 @@ import {
   getInstructionBundle,
   getInstructionCompositionState,
 } from '../services/instructions/engine.js'
+import { sharedSourcesNote } from '../services/instructions/listing.js'
 import { readPromptProvenance } from './cockpit/promptProvenance.js'
 import { getSettingsWithAllErrors } from './settings/allErrors.js'
 import { currentHiddenCharacterFindings, hiddenCharacterDetailLines, hiddenCharacterScanCounts } from './text/hiddenCharacterFindings.js'
@@ -2716,11 +2717,8 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const actionableDiagnostics = diagnostics.filter(
               d => d.kind !== 'duplicate-content',
             )
-            const sharedCount = bundle.entries.filter(
-              e => e.family === 'shared',
-            ).length
             const notes = [
-              sharedCount > 0 ? `${sharedCount} AGENTS.md source(s): no MERCURY.md in or above the working directory` : null,
+              sharedSourcesNote(bundle.entries),
               skippedDuplicates.length > 0
                 ? `${skippedDuplicates.length} identical-content duplicate(s) skipped`
                 : null,

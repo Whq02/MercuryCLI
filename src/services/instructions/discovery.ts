@@ -1,7 +1,7 @@
 import ignore from 'ignore'
 import { LRUCache } from 'lru-cache'
 import { homedir } from 'os'
-import { dirname, extname, isAbsolute, join, relative } from 'path'
+import { dirname, extname, isAbsolute, join, relative, sep } from 'path'
 import picomatch from 'picomatch'
 
 import { getOriginalCwd } from '../../bootstrap/state.js'
@@ -19,7 +19,7 @@ import type {
   InstructionDiagnostic,
   InstructionSourceEntry,
 } from './contracts.js'
-import { parseInstructionFileContent, TEXT_FILE_EXTENSIONS } from './sourceText.js'
+import { parseInstructionFileContent, readRuleSource, TEXT_FILE_EXTENSIONS } from './sourceText.js'
 
 export function pathInInstructionRoots(path: string): boolean {
   const fs = getFsImplementation()
@@ -62,6 +62,15 @@ export async function safelyReadInstructionFileAsync(
   } catch (error) {
     handleInstructionFileReadError(error, filePath)
     return { info: null, includePaths: [], bareMentionPaths: [] }
+  }
+}
+
+async function passedOver(filePath: string, resolved: { isSymlink: boolean; isCanonical: boolean }): Promise<boolean> {
+  if (resolved.isCanonical && !resolved.isSymlink) return false
+  try {
+    return !(await getFsImplementation().stat(filePath)).isFile()
+  } catch (error) {
+    return getErrnoCode(error) === 'ENOENT'
   }
 }
 
@@ -176,14 +185,18 @@ export async function processInstructionFile(
     return []
   }
 
-  const { resolvedPath, isSymlink } = safeResolvePath(
+  const resolved = safeResolvePath(
     getFsImplementation(),
     filePath,
   )
+  const { resolvedPath, isSymlink } = resolved
 
   processedPaths.add(normalizedPath)
   if (isSymlink) {
     processedPaths.add(normalizePathForComparison(resolvedPath))
+  }
+  if (await passedOver(filePath, resolved)) {
+    return []
   }
 
   const { info: memoryFile, includePaths: resolvedIncludePaths, bareMentionPaths } =
@@ -207,6 +220,7 @@ export async function processInstructionFile(
   if (parent) {
     memoryFile.parent = parent
   }
+  memoryFile.convention = convention.id
 
   const result: InstructionSourceEntry[] = []
 
@@ -246,6 +260,11 @@ export async function processInstructionFile(
         parent: filePath,
         detail: `include depth limit is ${MAX_INCLUDE_DEPTH}`,
       })
+      continue
+    }
+    const importedRules = await rulesImportedAt(resolvedIncludePath, type, processedPaths, filePath, diagnostics)
+    if (importedRules !== null) {
+      result.push(...importedRules)
       continue
     }
     if (
@@ -307,6 +326,99 @@ export async function processInstructionFile(
   return result
 }
 
+async function rulesImportedAt(
+  path: string,
+  type: MemoryType,
+  processedPaths: Set<string>,
+  parent: string,
+  diagnostics?: InstructionDiagnostic[],
+): Promise<InstructionSourceEntry[] | null> {
+  const { sharedRuleFormats } = await import('./compositionOrder.js')
+  for (const convention of sharedRuleFormats()) {
+    const at = convention.ruleAt?.(path) ?? null
+    if (at === null) continue
+    let folder: boolean
+    try {
+      folder = getFsImplementation().statSync(path).isDirectory()
+    } catch {
+      return null
+    }
+    if (folder && !at.source) return null
+    const read = folder
+      ? await processRulesDir({ convention, rulesDir: path, type, processedPaths, includeExternal: false, conditionalRule: false, every: true, diagnostics })
+      : await processRuleFile(convention, path, type, processedPaths, diagnostics, at.source)
+    const kept = read.filter(entry => entry.dormant === undefined || (!folder && entry.dormant === 'manual'))
+    const start = getOriginalCwd()
+    const anchor = pathInWorkingPath(start, at.owner) || pathInWorkingPath(at.owner, start) ? at.owner : start
+    for (const entry of kept) {
+      entry.parent = parent
+      delete entry.dormant
+      if (entry.globs !== undefined) entry.anchor = anchor
+    }
+    return kept
+  }
+  return null
+}
+
+const vendorGlobMatches = (globs: string[], spelling: string): boolean =>
+  picomatch.isMatch(spelling.split(sep).join('/'), globs, { dot: true, nocase: process.platform === 'win32' })
+
+export function importedRuleGoverns(entry: InstructionSourceEntry, targetPath: string): boolean {
+  if (entry.anchor === undefined || entry.globs === undefined) return false
+  const spelling = targetSpellingUnder(entry.anchor, targetPath)
+  return spelling !== null && vendorGlobMatches(entry.globs, spelling)
+}
+
+export async function processRuleFile(
+  convention: InstructionConvention,
+  filePath: string,
+  type: MemoryType,
+  processedPaths: Set<string>,
+  diagnostics?: InstructionDiagnostic[],
+  alone: boolean = false,
+): Promise<InstructionSourceEntry[]> {
+  const format = convention.rules
+  const normalizedPath = normalizePathForComparison(filePath)
+  if (format === undefined || processedPaths.has(normalizedPath) || convention.isExcluded(filePath, type)) {
+    return []
+  }
+  const resolved = safeResolvePath(getFsImplementation(), filePath)
+  const { resolvedPath, isSymlink } = resolved
+  processedPaths.add(normalizedPath)
+  if (isSymlink) {
+    processedPaths.add(normalizePathForComparison(resolvedPath))
+  }
+  if (await passedOver(filePath, resolved)) {
+    return []
+  }
+  let rawContent: string
+  try {
+    const bytes = await getFsImplementation().readFileBytes(filePath)
+    rawContent = bytes.toString(detectEncodingForResolvedPath(filePath))
+  } catch (error) {
+    handleInstructionFileReadError(error, filePath)
+    return []
+  }
+  const { info, unreadable, reading } = readRuleSource(rawContent, filePath, type, format, alone)
+  if (!info.content.trim()) {
+    return []
+  }
+  info.convention = convention.id
+  if (unreadable) {
+    diagnostics?.push({
+      kind: 'unreadable-rule-header',
+      path: filePath,
+      detail: `the header between the --- lines is not YAML: the rule ${reading === null ? 'is not loaded' : 'loads whole, as its tool loads it'}`,
+    })
+  } else if (reading !== null && reading.kind === 'unsupported') {
+    diagnostics?.push({ kind: 'unsupported-rule-activation', path: filePath, detail: reading.detail })
+  }
+  if (info.dormant === undefined) {
+    recordHiddenCharacters('instruction', filePath, rawContent)
+  }
+  return [info]
+}
+
 const RULES_DIR_LISTING_TTL_MS = 5000
 const rulesDirListingCaches = new WeakMap<object, LRUCache<string, { entries: import('fs').Dirent[] | null }>>()
 
@@ -332,6 +444,25 @@ async function cachedRulesDirListing(fsImpl: FsOperations, dir: string): Promise
   }
 }
 
+const ruleFileCaches = new WeakMap<object, LRUCache<string, { file: boolean }>>()
+
+async function standsAsRuleFile(fsImpl: FsOperations, source: string): Promise<boolean> {
+  let cache = ruleFileCaches.get(fsImpl as unknown as object)
+  if (cache === undefined) {
+    cache = new LRUCache({ max: 500, ttl: RULES_DIR_LISTING_TTL_MS })
+    ruleFileCaches.set(fsImpl as unknown as object, cache)
+  }
+  const held = cache.get(source)
+  if (held !== undefined) return held.file
+  let file = false
+  try {
+    file = (await fsImpl.stat(source)).isFile()
+  } catch {
+  }
+  cache.set(source, { file })
+  return file
+}
+
 export async function processRulesDir({
   convention,
   rulesDir,
@@ -340,6 +471,8 @@ export async function processRulesDir({
   includeExternal,
   conditionalRule,
   visitedDirs = new Set(),
+  diagnostics,
+  every = false,
 }: {
   convention: InstructionConvention
   rulesDir: string
@@ -348,10 +481,15 @@ export async function processRulesDir({
   includeExternal: boolean
   conditionalRule: boolean
   visitedDirs?: Set<string>
+  diagnostics?: InstructionDiagnostic[]
+  every?: boolean
 }): Promise<InstructionSourceEntry[]> {
   if (visitedDirs.has(rulesDir)) {
     return []
   }
+  const format = convention.rules
+  const selected = (files: InstructionSourceEntry[]): InstructionSourceEntry[] =>
+    every ? files : files.filter(f => f.dormant === undefined && (conditionalRule ? f.globs : !f.globs))
 
   try {
     const fs = getFsImplementation()
@@ -369,10 +507,12 @@ export async function processRulesDir({
     const result: InstructionSourceEntry[] = []
     const entries = await cachedRulesDirListing(fs, resolvedRulesDir)
     if (entries === null) {
-      return []
+      const standsAlone = format !== undefined && (await standsAsRuleFile(fs, resolvedRulesDir))
+      return standsAlone ? selected(await processRuleFile(convention, rulesDir, type, processedPaths, diagnostics, true)) : []
     }
+    const ordered = format === undefined ? entries : [...entries].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
 
-    for (const entry of entries) {
+    for (const entry of ordered) {
       const entryPath = join(rulesDir, entry.name)
       const { resolvedPath: resolvedEntryPath, isSymlink } = safeResolvePath(
         fs,
@@ -393,8 +533,14 @@ export async function processRulesDir({
             includeExternal,
             conditionalRule,
             visitedDirs,
+            diagnostics,
+            every,
           })),
         )
+      } else if (isFile && format !== undefined) {
+        if (format.accepts(entry.name)) {
+          result.push(...selected(await processRuleFile(convention, resolvedEntryPath, type, processedPaths, diagnostics)))
+        }
       } else if (isFile && entry.name.endsWith('.md')) {
         const files = await processInstructionFile(
           convention,
@@ -419,8 +565,9 @@ export async function processRulesDir({
   }
 }
 
-function ruleAnchorOf(type: MemoryType, rulesDir: string): string {
-  return type === 'Project' ? dirname(dirname(rulesDir)) : getOriginalCwd()
+function ruleAnchorOf(convention: InstructionConvention, type: MemoryType, rulesDir: string): string {
+  if (type !== 'Project') return getOriginalCwd()
+  return convention.ruleAnchor?.(rulesDir) ?? dirname(dirname(rulesDir))
 }
 
 function targetSpellingUnder(anchor: string, targetPath: string): string | null {
@@ -429,8 +576,11 @@ function targetSpellingUnder(anchor: string, targetPath: string): string | null 
   return judgeable ? spelling : null
 }
 
-const ruleGoverns = (globs: string[] | undefined, spelling: string): boolean =>
-  globs !== undefined && globs.length > 0 && ignore().add(globs).ignores(spelling)
+function ruleGoverns(convention: InstructionConvention, globs: string[] | undefined, spelling: string): boolean {
+  if (globs === undefined || globs.length === 0) return false
+  if (convention.rules === undefined) return ignore().add(globs).ignores(spelling)
+  return vendorGlobMatches(globs, spelling)
+}
 
 export async function processConditionedRules(
   convention: InstructionConvention,
@@ -448,6 +598,6 @@ export async function processConditionedRules(
     includeExternal,
     conditionalRule: true,
   })
-  const spelling = targetSpellingUnder(ruleAnchorOf(type, rulesDir), targetPath)
-  return spelling === null ? [] : rules.filter(rule => ruleGoverns(rule.globs, spelling))
+  const spelling = targetSpellingUnder(ruleAnchorOf(convention, type, rulesDir), targetPath)
+  return spelling === null ? [] : rules.filter(rule => ruleGoverns(convention, rule.globs, spelling))
 }

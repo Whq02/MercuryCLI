@@ -16,6 +16,7 @@ import { logForDiagnosticsNoPII } from '../../utils/diagLogs.js'
 import { normalizePathForComparison } from '../../utils/file.js'
 import { detectEncodingForResolvedPath } from '../../utils/fileRead.js'
 import type { FileStateCache } from '../../utils/fileStateCache.js'
+import { getFsImplementation, safeResolvePath } from '../../utils/fsOperations.js'
 import { findCanonicalGitRoot, findGitRoot } from '../../utils/git.js'
 import { stripBOM } from '../../utils/jsonRead.js'
 import type { MemoryType } from '../../utils/memory/types.js'
@@ -23,7 +24,8 @@ import { getEngineModel } from '../../utils/model/model.js'
 import { pathInWorkingPath } from '../../utils/permissions/filesystem.js'
 import { isSettingSourceEnabled } from '../../utils/settings/constants.js'
 import { forgetHiddenCharacters } from '../../utils/text/hiddenCharacterFindings.js'
-import { adapterForProfile, hasPrimaryProjectFile } from './adapters/index.js'
+import { adapterForProfile, folderSources, hasPrimaryProjectFile } from './adapters/index.js'
+import { offeredRulesText } from './attachedText.js'
 import { conventionsForProfile } from './compositionOrder.js'
 import type {
   InstructionBundle,
@@ -38,6 +40,7 @@ import type {
 } from './contracts.js'
 import {
   clearExcludeResolutionMemo,
+  importedRuleGoverns,
   pathInInstructionRoots,
   processConditionedRules,
   processInstructionFile,
@@ -71,10 +74,15 @@ type InstructionCompositionState = {
   resolution: InstructionProfileResolution
   adapterId: string
   fallbackComposed: boolean
+  nearestHolders: Record<string, string>
+  importedScoped: InstructionSourceEntry[]
+  namedRules: NamedRules[]
   skippedDuplicates: { path: string; family: InstructionFamily }[]
   diagnostics: InstructionDiagnostic[]
   loadReason: string
 }
+
+type NamedRules = { convention: InstructionConvention; rulesDir: string; by: string; guides: string[] }
 
 let lastComposition: InstructionCompositionState = {
   resolution: {
@@ -84,6 +92,9 @@ let lastComposition: InstructionCompositionState = {
   },
   adapterId: 'mercury',
   fallbackComposed: false,
+  nearestHolders: {},
+  importedScoped: [],
+  namedRules: [],
   skippedDuplicates: [],
   diagnostics: [],
   loadReason: 'session_start',
@@ -113,9 +124,18 @@ async function walkConventions(
   forceIncludeExternal: boolean,
   skippedDuplicates: { path: string; family: InstructionFamily }[],
   diagnostics?: InstructionDiagnostic[],
-): Promise<{ entries: InstructionSourceEntry[]; fallbackComposed: boolean }> {
+): Promise<{
+  entries: InstructionSourceEntry[]
+  fallbackComposed: boolean
+  nearestHolders: Record<string, string>
+  importedScoped: InstructionSourceEntry[]
+  namedRules: NamedRules[]
+}> {
   const result: InstructionSourceEntry[] = []
   let fallbackComposed = false
+  const nearestHolders: Record<string, string> = {}
+  const importedScoped: InstructionSourceEntry[] = []
+  const namedRules: NamedRules[] = []
   const processedPaths = new Set<string>()
   const composedDigests = new Set<string>()
   const config = getCurrentProjectConfig()
@@ -134,6 +154,10 @@ async function walkConventions(
       f.family = family
       f.origin = origin
       if (root !== undefined) f.root = root
+      if (f.anchor !== undefined) {
+        importedScoped.push(f)
+        continue
+      }
       const digest = sha256(f.content)
       if (composedDigests.has(digest)) {
         skippedDuplicates.push({ path: f.path, family })
@@ -221,12 +245,45 @@ async function walkConventions(
     }
   }
 
+  const composeNamed = async (set: InstructionConvention[], chain: string[]): Promise<void> => {
+    if (!isSettingSourceEnabled('userSettings')) return
+    for (const convention of set) {
+      const named = convention.named?.() ?? null
+      if (named === null) continue
+      const onChain = new Set(chain.map(normalizePathForComparison))
+      const seenFolders = new Set<string>()
+      const marked = (entries: InstructionSourceEntry[]): InstructionSourceEntry[] => {
+        for (const entry of entries) entry.namedBy = named.by
+        return entries
+      }
+      for (const { folder, guides, rules } of named.folders) {
+        const identity = normalizePathForComparison(safeResolvePath(getFsImplementation(), folder).resolvedPath)
+        if (onChain.has(identity) || seenFolders.has(identity)) continue
+        seenFolders.add(identity)
+        for (const guide of guides) {
+          push(marked(await processInstructionFile(convention, guide, 'User', processedPaths, true, 0, undefined, diagnostics)), convention.family, 'user')
+        }
+        for (const rulesDir of rules) {
+          namedRules.push({ convention, rulesDir, by: named.by, guides })
+          push(
+            marked(await processRulesDir({ convention, rulesDir, type: 'User', processedPaths, includeExternal: true, conditionalRule: false, diagnostics })),
+            convention.family,
+            'user-rules',
+          )
+        }
+      }
+    }
+  }
+
   const walkRootChain = async (
     root: string,
     origin: InstructionOrigin,
     ancestry: boolean,
   ): Promise<void> => {
-    if (untrustedWorkspaceHeadless()) return
+    if (untrustedWorkspaceHeadless()) {
+      await composeNamed(conventions.filter(c => c.fallback), [])
+      return
+    }
     const chainRoot = resolve(root)
     const dirs: string[] = []
     if (ancestry) {
@@ -248,6 +305,18 @@ async function walkConventions(
         normalizePathForComparison(canonicalRoot) &&
       pathInWorkingPath(gitRoot, canonicalRoot)
 
+    const own = folderSources(chainRoot)
+    const primary = conventions.filter(c => !c.fallback)
+    const fallback = conventions.filter(c => c.fallback)
+    const composeFallback = fallback.length > 0 && !hasPrimaryProjectFile(primary, dirs)
+    if (composeFallback) {
+      fallbackComposed = true
+      for (const convention of fallback.filter(c => c.nearestOnly)) {
+        const holder = dirs.find(dir => [...own.guides(convention, dir), ...own.rules(convention, dir)].some(path => getFsImplementation().existsSync(path)))
+        if (holder !== undefined) nearestHolders[convention.id] = holder
+      }
+      await composeNamed(fallback, dirs)
+    }
     const outerFirst = dirs.reverse()
     const composeChain = async (set: InstructionConvention[]): Promise<void> => {
       for (const dir of outerFirst) {
@@ -256,9 +325,11 @@ async function walkConventions(
           pathInWorkingPath(dir, canonicalRoot) &&
           !pathInWorkingPath(dir, gitRoot)
 
-        for (const convention of set) {
-          if (isSettingSourceEnabled('projectSettings') && !skipProject) {
-            for (const projectPath of convention.projectDirFiles(dir)) {
+        if (isSettingSourceEnabled('projectSettings') && !skipProject) {
+          for (const convention of set) {
+            if (!own.reads(convention, dir)) continue
+            if (convention.nearestOnly && nearestHolders[convention.id] !== dir) continue
+            for (const projectPath of own.guides(convention, dir)) {
               push(
                 await processInstructionFile(
                   convention,
@@ -276,7 +347,7 @@ async function walkConventions(
               )
             }
 
-            for (const rulesDir of convention.projectRulesDirs(dir)) {
+            for (const rulesDir of own.rules(convention, dir)) {
               push(
                 await processRulesDir({
                   convention,
@@ -285,6 +356,7 @@ async function walkConventions(
                   processedPaths,
                   includeExternal,
                   conditionalRule: false,
+                  diagnostics,
                 }),
                 convention.family,
                 origin,
@@ -292,12 +364,15 @@ async function walkConventions(
               )
             }
           }
+        }
 
-          if (isSettingSourceEnabled('localSettings')) {
+        if (isSettingSourceEnabled('localSettings')) {
+          for (const convention of set) {
+            if (!own.reads(convention, dir)) continue
             const localPaths =
               convention.localDirFiles?.(dir) ??
               (convention.localDirFile(dir) !== null ? [convention.localDirFile(dir) as string] : [])
-            for (const localPath of localPaths) {
+            for (const localPath of own.within(convention, dir, localPaths)) {
               push(
                 await processInstructionFile(
                   convention,
@@ -319,16 +394,12 @@ async function walkConventions(
       }
     }
 
-    const primary = conventions.filter(c => !c.fallback)
-    const fallback = conventions.filter(c => c.fallback)
-    const composeFallback = fallback.length > 0 && !hasPrimaryProjectFile(primary, outerFirst)
-    if (composeFallback) fallbackComposed = true
     await composeChain(composeFallback ? [...fallback, ...primary] : primary)
   }
 
   await walkRootChain(getOriginalCwd(), 'project-walk', true)
 
-  return { entries: result, fallbackComposed }
+  return { entries: result, fallbackComposed, nearestHolders, importedScoped, namedRules }
 }
 
 export const getInstructionFiles = memoize(
@@ -345,7 +416,7 @@ export const getInstructionFiles = memoize(
     const skippedDuplicates: { path: string; family: InstructionFamily }[] = []
     const diagnostics: InstructionDiagnostic[] = []
 
-    const { entries: result, fallbackComposed } = await walkConventions(
+    const { entries: result, fallbackComposed, nearestHolders, importedScoped, namedRules } = await walkConventions(
       conventionsForProfile(resolution.resolved),
       forceIncludeExternal,
       skippedDuplicates,
@@ -360,6 +431,9 @@ export const getInstructionFiles = memoize(
       resolution,
       adapterId: adapter.id,
       fallbackComposed,
+      nearestHolders,
+      importedScoped,
+      namedRules,
       skippedDuplicates,
       diagnostics,
       loadReason:
@@ -444,9 +518,14 @@ export const composeInstructionPrompt = (
   filter?: (type: MemoryType) => boolean,
 ): string => {
   const memories: string[] = []
+  const pointers: string[] = []
 
   for (const file of memoryFiles) {
     if (filter && !filter(file.type)) continue
+    if (file.offered !== undefined) {
+      pointers.push(file.content)
+      continue
+    }
     if (file.content) {
       const content = file.content.trim()
       memories.push(
@@ -454,6 +533,7 @@ export const composeInstructionPrompt = (
       )
     }
   }
+  if (pointers.length > 0) memories.push(offeredRulesText(pointers))
 
   return memories.join('\n\n')
 }
@@ -470,6 +550,7 @@ export async function getManagedAndUserConditionalInstructionRules(
   targetPath: string,
   processedPaths: Set<string>,
 ): Promise<InstructionSourceEntry[]> {
+  await getInstructionFiles()
   const result: InstructionSourceEntry[] = []
 
   for (const convention of activeConventions()) {
@@ -504,6 +585,20 @@ export async function getManagedAndUserConditionalInstructionRules(
     }
   }
 
+  for (const { convention, rulesDir, by } of lastComposition.namedRules) {
+    for (const rule of await processConditionedRules(convention, targetPath, rulesDir, 'User', processedPaths, true)) {
+      rule.namedBy = by
+      result.push(rule)
+    }
+  }
+
+  for (const rule of lastComposition.importedScoped) {
+    const spelled = normalizePathForComparison(rule.path)
+    if (processedPaths.has(spelled) || !importedRuleGoverns(rule, targetPath)) continue
+    processedPaths.add(spelled)
+    result.push(rule)
+  }
+
   return result
 }
 
@@ -523,10 +618,12 @@ export async function getInstructionFilesForNestedDirectory(
       ? [...active.filter(c => c.fallback), ...primary]
       : primary
   const includeExternal = getCurrentProjectConfig().hasExternalIncludesApproved ?? false
+  const own = folderSources(resolve(getOriginalCwd()))
 
   for (const convention of conventions) {
+    if (!own.reads(convention, dir)) continue
     if (isSettingSourceEnabled('projectSettings')) {
-      for (const projectPath of convention.projectDirFiles(dir)) {
+      for (const projectPath of own.guides(convention, dir)) {
         result.push(
           ...(await processInstructionFile(
             convention,
@@ -546,7 +643,7 @@ export async function getInstructionFilesForNestedDirectory(
       const localPaths =
         convention.localDirFiles?.(dir) ??
         (convention.localDirFile(dir) !== null ? [convention.localDirFile(dir) as string] : [])
-      for (const localPath of localPaths) {
+      for (const localPath of own.within(convention, dir, localPaths)) {
         result.push(
           ...(await processInstructionFile(
             convention,
@@ -563,7 +660,7 @@ export async function getInstructionFilesForNestedDirectory(
     }
 
     const unconditionalProcessedPaths = new Set(processedPaths)
-    for (const rulesDir of convention.projectRulesDirs(dir)) {
+    for (const rulesDir of own.rules(convention, dir)) {
       result.push(
         ...(await processRulesDir({
           convention,
@@ -592,7 +689,7 @@ export async function getInstructionFilesForNestedDirectory(
     }
   }
 
-  return result
+  return result.filter(entry => entry.anchor === undefined || importedRuleGoverns(entry, targetPath))
 }
 
 export async function getConditionalInstructionRulesForCwdLevelDirectory(
@@ -601,10 +698,14 @@ export async function getConditionalInstructionRulesForCwdLevelDirectory(
   processedPaths: Set<string>,
 ): Promise<InstructionSourceEntry[]> {
   if (untrustedWorkspaceHeadless()) return []
+  await getInstructionFiles()
   const results: InstructionSourceEntry[] = []
   const composedDigests = new Set<string>()
+  const own = folderSources(resolve(getOriginalCwd()))
   for (const convention of activeConventions()) {
-    for (const rulesDir of convention.projectRulesDirs(dir)) {
+    if (convention.fallback && !lastComposition.fallbackComposed) continue
+    if (convention.nearestOnly && lastComposition.nearestHolders[convention.id] !== resolve(dir)) continue
+    for (const rulesDir of own.rules(convention, dir)) {
       const batch = await processConditionedRules(
         convention,
         targetPath,
@@ -667,9 +768,10 @@ export function isInstructionFilePath(
   const primary = conventions.filter(c => !c.fallback)
 
   for (const convention of conventions) {
-    if (convention.instructionFileNames.includes(name)) {
+    const folder = convention.instructionFileNames.includes(name) ? dirname(filePath) : (convention.folderOf?.(filePath) ?? null)
+    if (folder !== null) {
       if (!convention.fallback) return true
-      if (lastComposition.fallbackComposed && !hasPrimaryProjectFile(primary, [dirname(filePath)])) {
+      if (lastComposition.fallbackComposed && !hasPrimaryProjectFile(primary, [folder])) {
         return true
       }
     }
@@ -733,6 +835,7 @@ export function buildInstructionBundle(
     ...(f.parent !== undefined && { parent: f.parent }),
     ...(f.globs !== undefined && { globs: f.globs }),
     ...(f.root !== undefined && { root: f.root }),
+    ...(f.convention !== undefined && { convention: f.convention }),
   }))
   const bundleDigest = sha256(
     entries.map(e => `${e.path}\n${e.contentDigest}`).join('\n'),

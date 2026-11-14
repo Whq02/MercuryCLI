@@ -20,11 +20,14 @@ const ROWS: Row[] = [
     id: 'other-guide-file',
     needle: new RegExp(J('CL', 'AUDE\\.(?:local\\.)?md')),
     scope: WIDE,
-    what: "another tool's instruction file is an ordinary file: nothing probes, lists, composes or names it",
+    what: "another tool's instruction file is named by its adapter in the instruction engine, that adapter's proof and the formats page alone: nothing else probes, lists, composes or names it",
     allow: [
       ['scripts/consistency-census/basename-census.json', 'the generated census records the needles it hunts'],
       ['scripts/consistency-census/prove-census-comment-invariance.ts', 'a planted comment fixture proves comments never count'],
       ['scripts/dev-context/prove-root-guide.ts', "proves no second guide file sits beside this repository's AGENTS.md"],
+      ['src/services/instructions/adapters/claude.ts', "the instruction engine's adapter for that tool names the project files it reads"],
+      ['scripts/self-hosting/prove-format-claude.ts', "the adapter's proof builds its fixture projects from those names"],
+      ['docs/COMPATIBILITY.md', 'the formats page names the project files Mercury reads'],
     ],
   },
   {
