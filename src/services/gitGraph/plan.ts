@@ -572,6 +572,8 @@ export function restoreStaged(root: string, files: string[]): IndexOpOutcome | P
   }
 }
 
+const SIDES_HELD: Record<string, string> = { DD: 'base', AU: 'ours', UD: 'base ours', UA: 'theirs', DU: 'base theirs', AA: 'ours theirs' }
+
 export function resolveConflict(
   owner: OwnerKey,
   root: string,
@@ -582,6 +584,11 @@ export function resolveConflict(
   if ('state' in status) return { state: 'refused', reason: status.note }
   const entry = status.files.find(f => f.path === path && f.kind === 'unmerged')
   if (!entry) return { state: 'refused', reason: `'${path}' is not an unmerged conflict here` }
+  if ('take' in resolution && (resolution.take === 'base' || resolution.take === 'both')) {
+    const held = SIDES_HELD[`${entry.staged}${entry.unstaged}`]?.split(' ')
+    const missing = held && (resolution.take === 'base' ? ['base'] : ['ours', 'theirs']).find(side => !held.includes(side))
+    if (missing) return { state: 'refused', reason: `'${path}' has no ${missing} version in this conflict — nothing written` }
+  }
   try {
     if ('take' in resolution && (resolution.take === 'base' || resolution.take === 'both')) {
       const { closeSync, openSync, readSync, writeSync } = require('node:fs') as typeof import('node:fs')
