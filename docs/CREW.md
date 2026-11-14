@@ -155,17 +155,18 @@ directory that is gone. The same note accompanies an automatic resume and
 queued guidance, and the continued crewmate receives it in its own prompt.
 
 A copy takes about a second for every hundred thousand files of what git
-ignores on a Mac and two to four on Linux, where the machine's `cp` makes it
+ignores on a Mac and one to four on Linux, where the machine's `cp` makes it
 with reflinks; ignored files and folders scattered among tracked ones cost
-about a third of a second a thousand. It takes about 300 bytes of disk a file
-on APFS and under a kilobyte on XFS; on btrfs about a kilobyte, and a file of
-two kilobytes or less is copied whole. A crewmate starts at once and its
-first tool call waits for its copy, so a copy quicker than the model's first
-answer costs no time. On a Mac one copy is made at a time, in calls of a few
-thousand entries, so crewmates launched together have their copies ready one
-after another and nothing else on the disk waits on a copy. To keep the links
-instead, name a folder in `workspace.worktree.symlinkDirectories`, or set
-`MERCURY_WORKTREE_CLONE=off` in the environment to keep them all.
+about a third of a second a thousand on a Mac and about half a second on
+Linux. It takes about 300 bytes of disk a file on APFS and under a kilobyte
+on XFS; on btrfs about a kilobyte, and a file of two kilobytes or less is
+copied whole. A crewmate starts at once and its first tool call waits for its
+copy, so a copy quicker than the model's first answer costs no time. On a Mac
+one copy is made at a time, in calls of a few thousand entries, so crewmates
+launched together have their copies ready one after another and nothing else
+on the disk waits on a copy. To keep the links instead, name a folder in
+`workspace.worktree.symlinkDirectories`, or set `MERCURY_WORKTREE_CLONE=off`
+in the environment to keep them all.
 
 Nothing is deleted automatically. A crewmate's worktree and folder stay where
 they are after it ends, and the session gets a reminder naming each leftover
