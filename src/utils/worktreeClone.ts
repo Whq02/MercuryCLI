@@ -17,9 +17,12 @@ type CloneRoad = 'clonefile' | 'cp' | 'walk'
 
 type FolderStamp = { path: string; mode: number; atime: number; mtime: number }
 
+type Quiet = 'quiet'
+
 type CloneScope = { spellings: readonly string[]; worktree: string }
 
 const CLONE_ANSWER_BOUND_MS = 120_000
+const WALK_QUIET_BOUND_MS = 10_000
 const OSASCRIPT = '/usr/bin/osascript'
 const EXDEV = 18
 const ENOTSUP = 45
@@ -224,7 +227,29 @@ async function clonefileAdmitted(admitted: readonly AdmittedPair[], outcomes: Cl
   }
 }
 
-async function reflinkTree(pair: AdmittedPair, scope: CloneScope): Promise<CloneOutcome> {
+async function unlessQuiet<T>(work: (moved: () => void) => Promise<T>, quietBoundMs: number): Promise<T | Quiet> {
+  let last = Date.now()
+  let left = false
+  let watch: ReturnType<typeof setInterval> | undefined
+  const quiet = new Promise<Quiet>(resolve => {
+    watch = setInterval(() => {
+      if (Date.now() - last >= quietBoundMs) resolve('quiet')
+    }, Math.max(20, Math.min(1000, quietBoundMs / 4)))
+  })
+  const moved = (): void => {
+    if (left) throw new Error('given up after it went quiet')
+    last = Date.now()
+  }
+  try {
+    const answer = await Promise.race([work(moved), quiet])
+    left = answer === 'quiet'
+    return answer
+  } finally {
+    clearInterval(watch)
+  }
+}
+
+async function reflinkTree(pair: AdmittedPair, scope: CloneScope, moved: () => void): Promise<CloneOutcome> {
   const folders: FolderStamp[] = []
   let reflinked = 0
   try {
@@ -233,6 +258,7 @@ async function reflinkTree(pair: AdmittedPair, scope: CloneScope): Promise<Clone
       const { from, at, to } = pending.pop() as { from: string; at: string; to: string }
       const folder = await lstat(from)
       if (at !== pair.staged) await mkdir(at)
+      moved()
       folders.push({ path: at, mode: folder.mode & 0o7777, atime: folder.atimeMs / 1000, mtime: folder.mtimeMs / 1000 })
       const files: Array<{ from: string; at: string }> = []
       for (const entry of await readdir(from, { withFileTypes: true })) {
@@ -246,11 +272,13 @@ async function reflinkTree(pair: AdmittedPair, scope: CloneScope): Promise<Clone
         await copyFile(file.from, file.at, constants.COPYFILE_FICLONE_FORCE | constants.COPYFILE_EXCL)
         await utimes(file.at, times.atimeMs / 1000, times.mtimeMs / 1000)
         reflinked++
+        moved()
       })
     }
     for (const folder of folders.reverse()) {
       await chmod(folder.path, folder.mode | 0o200)
       await utimes(folder.path, folder.atime, folder.mtime)
+      moved()
     }
     return 'cloned'
   } catch (error) {
@@ -298,27 +326,38 @@ async function cpTree(pair: AdmittedPair, scope: CloneScope, answerBoundMs: numb
   return 'cloned'
 }
 
-async function reflinkAdmitted(admitted: readonly AdmittedPair[], outcomes: CloneOutcome[], scope: CloneScope, road: 'cp' | 'walk', answerBoundMs: number): Promise<void> {
+async function reflinkAdmitted(admitted: readonly AdmittedPair[], outcomes: CloneOutcome[], scope: CloneScope, road: 'cp' | 'walk', answerBoundMs: number): Promise<boolean> {
+  const quietBoundMs = Math.min(answerBoundMs, WALK_QUIET_BOUND_MS)
+  let wentQuiet = false
   for (const pair of admitted) {
     if (volumesThatCannotClone.has(pair.volumes)) {
       outcomes[pair.index] = 'unsupported'
       continue
     }
-    let outcome: CloneOutcome = 'failed'
+    let outcome: CloneOutcome | Quiet = 'failed'
     try {
       await mkdir(pair.staged)
-      const refused = await reflinkRefused(pair)
-      if (refused === true) outcome = 'unsupported'
+      const refused = await unlessQuiet(() => reflinkRefused(pair), quietBoundMs)
+      if (refused === 'quiet') outcome = 'quiet'
+      else if (refused === true) outcome = 'unsupported'
       else if (road === 'cp' && refused === false && (await machineCpTakesReflink())) outcome = await cpTree(pair, scope, answerBoundMs)
-      else outcome = await reflinkTree(pair, scope)
+      else outcome = await unlessQuiet(moved => reflinkTree(pair, scope, moved), quietBoundMs)
     } catch (error) {
       logForDebugging(`worktree clone: ${pair.source} was not cloned (${String(error)}); the folder is linked as before`, { level: 'warn' })
+    }
+    if (outcome === 'quiet') {
+      wentQuiet = true
+      outcomes[pair.index] = 'failed'
+      volumesThatCannotClone.add(pair.volumes)
+      logForDebugging(`worktree clone: nothing of ${pair.source} was cloned for ${quietBoundMs} ms; it is given up, no clone is tried between these volumes again in this process, and the folder is linked as before`, { level: 'warn' })
+      continue
     }
     outcomes[pair.index] = outcome
     if (outcome !== 'unsupported') continue
     volumesThatCannotClone.add(pair.volumes)
     logForDebugging(`worktree clone: the filesystem of ${pair.source} cannot reflink into ${dirname(pair.target)}; the folder is linked as before`)
   }
+  return wentQuiet
 }
 
 async function moveIntoCopy(pair: AdmittedPair): Promise<CloneOutcome> {
@@ -364,12 +403,14 @@ export async function cloneIntoWorktree(pairs: readonly ClonePair[], checkoutRoo
     logForDebugging(`worktree clone: no folder to clone into beside ${worktree} (${String(error)}); the folders are linked as before`, { level: 'warn' })
     return outcomes
   }
+  let callsUnanswered = false
   try {
     if (road === 'clonefile') await clonefileAdmitted(admitted, outcomes, scope, answerBoundMs)
-    else await reflinkAdmitted(admitted, outcomes, scope, road, answerBoundMs)
+    else callsUnanswered = await reflinkAdmitted(admitted, outcomes, scope, road, answerBoundMs)
     for (const pair of admitted) if (outcomes[pair.index] === 'cloned') outcomes[pair.index] = await moveIntoCopy(pair)
   } finally {
-    await removeStaging(stage)
+    if (callsUnanswered) void removeStaging(stage)
+    else await removeStaging(stage)
   }
   return outcomes
 }
