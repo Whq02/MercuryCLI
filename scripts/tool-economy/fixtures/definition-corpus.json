@@ -1,5 +1,5 @@
 {
-  "base": "f176319a0fa0f4517a9f8862ee57a73d1dbc5ff6",
+  "base": "454dbbcdee2a8091c8fde4426be7e71d5cbc79ed",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -2925,6 +2925,8 @@
               "console",
               "info",
               "screenshot",
+              "upload",
+              "download",
               "close"
             ],
             "description": "Browser operation."
@@ -3078,6 +3080,17 @@
           "fullPage": {
             "description": "screenshot: full scroll height (default viewport)",
             "type": "boolean"
+          },
+          "downloadId": {
+            "description": "download: wait for this one",
+            "type": "string"
+          },
+          "files": {
+            "description": "upload: local paths; [] clears the input",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "label": {
             "description": "screenshot: filename hint",
