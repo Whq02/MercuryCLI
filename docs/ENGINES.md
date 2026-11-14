@@ -891,7 +891,12 @@ vLLM `/v1/models`): an answer extends the estimate and the row says so
 two unanswered probes in a row cut the request with the dead-server words
 (`no answer from Ollama at 127.0.0.1:11434 for 10 s while ingesting — the
 local server is not responding (its window, its load, or a crash); /model
-re-probes`), and that cut is never reissued. After the first byte the idle
+re-probes`), and that cut is never reissued. Beside the estimate the row
+counts the wait from the request's start (`· 36s so far`, whole minutes
+after the first), and when the estimate passes on a server that has sent its
+response headers and is still reading the prompt, the row keeps its words
+and the count and states no estimate (`waiting for the first byte from
+<model> · 3m so far`). After the first byte the idle
 watchdog follows the same law at the patience setting's quiet number (15
 minutes, the OpenAI road's): the row warns at the warning point (`no bytes
 for 7m 30s — <model>'s server is asked at 15m`), the server is asked at the

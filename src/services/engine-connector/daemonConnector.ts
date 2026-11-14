@@ -69,6 +69,7 @@ import { computeTailRelease } from '../../utils/messages/tailRetirement.js'
 import { FOLD_EXIT_LINGER_MS, decodeFoldStatus, type FoldStatusV1 } from '../compact/foldStatus.js'
 import { workChipLine, workCounts } from './workCounts.js'
 import { fluxMark } from '../../utils/flux/fluxProbe.js'
+import { compatEndpointIsSelfHosted } from '../providers/deferralWire.js'
 import { decodeRequestWait, streamIdleWarningMsOf, type RequestWaitV1 } from '../providers/streamIdleBudget.js'
 import { mcpToolsOfReply } from '../mcp/toolsAnswer.js'
 import { getFocusedSessionConnector, setFocusedSessionConnector, subscribeFocusedSessionConnector, claimHopEpoch, hopEpochIsCurrent } from './focusedConnector.js'
@@ -601,6 +602,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private foldLingerOver = false
   private readonly foldListeners = new Set<() => void>()
   private liveWait: RequestWaitV1 | null = null
+  private liveWaitOwnAge: { wait: RequestWaitV1; own: boolean } | null = null
   private hardStopping = false
 
   private lastEventAtMs: number | null = null
@@ -2709,6 +2711,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const now = Date.now()
     const quietMs = live.inFlight && this.lastEventAtMs !== null ? Math.max(0, now - this.lastEventAtMs) : null
     const wait = live.inFlight ? this.liveWait : null
+    const waitAgeMs = wait !== null && wait.kind === 'first-byte' && this.waitCountsItsOwnAge(wait) ? Math.max(0, now - wait.sinceMs) : undefined
     const watchdogMs =
       wait?.kind === 'first-byte' ? wait.budgetMs : typeof this.facts?.streamIdleTimeoutMs === 'number' ? this.facts.streamIdleTimeoutMs : null
     let phaseMs: number | null = null
@@ -2741,6 +2744,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       interrupting: this.interrupting,
       hardStopping: this.hardStopping,
       wait,
+      ...(waitAgeMs !== undefined ? { waitAgeMs } : {}),
       quietMs,
       watchdogMs,
       phaseMs,
@@ -2754,6 +2758,12 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
           : { state: 'starting', sinceMs: this.openedAtMs, respawns: 0, maxRespawns: 0 }
         : this.runnerOnTheShownClock(),
     }
+  }
+
+  private waitCountsItsOwnAge(wait: Extract<RequestWaitV1, { kind: 'first-byte' }>): boolean {
+    if (wait.promise === true) return true
+    if (this.liveWaitOwnAge?.wait !== wait) this.liveWaitOwnAge = { wait, own: compatEndpointIsSelfHosted(this.modelFacts().effective) }
+    return this.liveWaitOwnAge.own
   }
 
   private runnerOnTheShownClock(): NonNullable<SessionFactsV1['runner']> | null {

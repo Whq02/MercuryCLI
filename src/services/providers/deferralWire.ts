@@ -126,6 +126,11 @@ function compatEndpointOf(model: string, env?: Record<string, string | undefined
   }
 }
 
+export function compatEndpointIsSelfHosted(model: string, env?: Record<string, string | undefined>): boolean {
+  const endpoint = compatEndpointOf(model, env)
+  return endpoint !== undefined && (endpoint.hostPodId !== undefined || (endpoint.dialect !== undefined && SELF_HOSTED_DIALECTS.has(endpoint.dialect)))
+}
+
 export const OPENAI_NATIVE_DEFERRAL_FLOOR = { major: 5, minor: 4 } as const
 
 export const OPENAI_FIRST_PARTY_HOSTS: ReadonlySet<string> = new Set(['api.openai.com', 'chatgpt.com'])

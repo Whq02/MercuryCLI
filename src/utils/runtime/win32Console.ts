@@ -87,6 +87,7 @@ export function ensureWin32ConsoleUtf8(
   }
   const previous = parseChcpCodepage(syscalls.chcp())
   if (previous === UTF8_CODEPAGE) {
+    syscalls.chcp(String(UTF8_CODEPAGE))
     outcome = { engaged: true, previous, changed: false, restoreArmed: false }
     return outcome
   }

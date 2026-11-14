@@ -107,12 +107,27 @@ const WIN_TTY = { platform: 'win32', stdoutIsTTY: true, env: {} as Record<string
 }
 {
   _resetWin32ConsoleForTest()
-  const { calls, sys } = seam('Active code page: 65001', null)
+  const { calls, sys } = seam('Active code page: 850', 'Active code page: 65001')
   const exits: Array<() => void> = []
   const o = ensureWin32ConsoleUtf8(sys, { ...WIN_TTY, registerExit: fn => exits.push(fn) })
-  check('prev already 65001 ⇒ query-only no-op (no set, no restore)', o.engaged && o.previous === UTF8_CODEPAGE && !o.changed && !o.restoreArmed)
-  check('only the query syscall ran', calls.length === 1 && calls[0]!.arg === undefined)
-  check('no exit hook registered', exits.length === 0)
+  exits[0]?.()
+  check('chcp says 850 ⇒ set, and 850 put back at exit, as it was', o.previous === 850 && o.changed && o.restoreArmed && calls.map(call => call.arg ?? 'query').join(',') === 'query,65001,850', calls.map(call => call.arg ?? 'query').join(','))
+}
+{
+  _resetWin32ConsoleForTest()
+  const { calls, sys } = seam('Active code page: 65001', 'Active code page: 65001')
+  const exits: Array<() => void> = []
+  const o = ensureWin32ConsoleUtf8(sys, { ...WIN_TTY, registerExit: fn => exits.push(fn) })
+  check('chcp says 65001 ⇒ the set is made all the same, one call (chcp prints the INPUT page: a console can stand at input 65001 and output 850, and the output page draws)', calls.map(call => call.arg ?? 'query').join(',') === 'query,65001', calls.map(call => call.arg ?? 'query').join(','))
+  check('and nothing is put back at exit: the half that may have changed is the half nobody read', o.engaged && o.previous === UTF8_CODEPAGE && !o.changed && !o.restoreArmed && exits.length === 0)
+  restoreWin32ConsoleNow(sys)
+  check('a restore asked for by hand does nothing there either', calls.length === 2)
+}
+{
+  _resetWin32ConsoleForTest()
+  const { calls, sys } = seam('Active code page: 65001', null)
+  const o = ensureWin32ConsoleUtf8(sys, { ...WIN_TTY, registerExit: () => {} })
+  check('a set that fails there is silent: the start goes on, nothing armed', o.engaged && !o.changed && !o.restoreArmed && calls.length === 2)
 }
 {
   _resetWin32ConsoleForTest()
@@ -221,6 +236,34 @@ section('(7) the chcp spawn shape — the console must be OURS')
     .filter(l => !/^\s*(?:\/\/|\*)/.test(l))
     .join('\n')
   check('no windowsHide: true survives anywhere in the seam (code, not comments)', !win32Code.includes('windowsHide: true'))
+}
+
+section('(8) input and output pages are separate: the query sees input, the set changes both')
+for (const row of [
+  { input: 65001, output: 850, end: 65001, calls: 'query,65001' },
+  { input: 850, output: 850, end: 850, calls: 'query,65001,850' },
+  { input: 65001, output: 65001, end: 65001, calls: 'query,65001' },
+  { input: 850, output: 65001, end: 850, calls: 'query,65001,850' },
+]) {
+  _resetWin32ConsoleForTest()
+  let input = row.input
+  let output = row.output
+  const calls: string[] = []
+  const exits: Array<() => void> = []
+  const sys: Win32ConsoleSyscalls = { chcp: arg => {
+    calls.push(arg ?? 'query')
+    if (arg !== undefined) input = output = Number(arg)
+    return `Active code page: ${input}`
+  } }
+  ensureWin32ConsoleUtf8(sys, { ...WIN_TTY, registerExit: fn => exits.push(fn) })
+  check(`input ${row.input}, output ${row.output}: both UTF-8 before paint`, input === 65001 && output === 65001)
+  exits.forEach(exit => exit())
+  restoreWin32ConsoleNow(sys)
+  check(`input ${row.input}, output ${row.output}: the ruled exit and call count`, input === row.end && output === row.end && calls.join(',') === row.calls, `${input}/${output} ${calls.join(',')}`)
+}
+{
+  const doc = readFileSync(join(ROOT, 'docs', 'INSTALL-WINDOWS-FROM-SOURCE.md'), 'utf8')
+  check('the troubleshooting set does not trust the input page to describe output', doc.includes('set both code pages by hand (chcp without an argument reports only the input page):') && !doc.includes('If it prints anything other than `Active code page: 65001`'))
 }
 
 console.log('\n============================================================')

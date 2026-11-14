@@ -105,6 +105,10 @@ export function outageCauseWords(cause: OutageCause): string {
   return `network unreachable (${cause.words})`
 }
 
+export function outageIsRefusal(code: string): boolean {
+  return OUTAGE_WORDS.get(code) === 'connection refused'
+}
+
 export interface ReconnectLadder {
   readonly capMs: number
   readonly startedAtMs: number

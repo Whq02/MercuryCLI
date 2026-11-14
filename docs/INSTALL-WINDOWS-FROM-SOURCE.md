@@ -67,14 +67,7 @@ One more thing: the console must use the UTF-8 code page, or the interface's
 box-drawing renders as garbage (`ΓöÇ`-style on code page 437; accented-letter
 salad on 850, depending on the console's default). Mercury sets it itself on every
 interactive start (the release launcher and the bundle both do), so normally
-there is nothing to do. If the box-drawing still renders wrong, check and set
-it by hand:
-
-```powershell
-chcp
-```
-
-If it prints anything other than `Active code page: 65001`:
+there is nothing to do. If the box-drawing still renders wrong, set both code pages by hand (chcp without an argument reports only the input page):
 
 ```powershell
 chcp 65001

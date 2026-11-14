@@ -7,6 +7,8 @@ import { logForDebugging } from '../utils/debug.js'
 import { isUnattendedRun } from '../utils/cockpit/runtimePosture.js'
 import { runForkedAgent, type CacheSafeParams, type ForkedAgentParams } from '../utils/forkedAgent.js'
 import { EMPTY_USAGE, type NonNullableUsage } from '../services/api/emptyUsage.js'
+import { outageIsRefusal } from '../services/api/reconnectLadder.js'
+import { recoveryNoticeFacts } from '../services/api/recoveryBudget.js'
 import { accumulateUsage } from '../services/providers/anthropic/cacheAndUsage.js'
 import { createUserMessage } from '../utils/messages/factories.js'
 import { handoffReask, measureNovelty, noveltyRecord } from './handoffNovelty.js'
@@ -106,6 +108,10 @@ export async function askForHandoff(input: {
     if (input.canUseTool === undefined) return { behavior: 'allow' }
     return input.canUseTool(tool, toolInput, toolUseContext, assistantMessage, toolUseID, forceDecision)
   }
+  const onMessage = (message: Message): void => {
+    const outage = recoveryNoticeFacts(message)?.outage
+    if (outage !== undefined && outageIsRefusal(outage.code)) abortController.abort(new Error("nothing listens at the model's address"))
+  }
   try {
     const run: AskRunner = input.run ?? runForkedAgent
     const askMessage = createUserMessage({ content: ask.text, isMeta: true })
@@ -116,6 +122,7 @@ export async function askForHandoff(input: {
         canUseTool,
         querySource: 'side_question',
         forkLabel: 'handoff',
+        onMessage,
         overrides: { abortController, alwaysCallCanUseTool: true },
         maxTurns: ask.tools.size > 0 ? 4 : 2,
         skipTranscript: true,

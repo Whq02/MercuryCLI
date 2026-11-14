@@ -204,7 +204,7 @@ const seconds = (ms: number): string => {
 }
 const kTokens = (tokens: number): string => (tokens >= 1000 ? `${Math.round(tokens / 1000)}k-token` : `${tokens}-token`)
 
-export function requestWaitLine(wait: RequestWaitV1, compact = false): string {
+export function requestWaitLine(wait: RequestWaitV1, compact = false, pastEstimate = false): string {
   if (wait.kind === 'retry') {
     if (wait.reconnecting) return `${wait.silentMs === undefined ? 'connection dropped' : `no tokens for ${streamSilenceDuration(wait.silentMs)}`} · reconnecting (${wait.attempt} of ${wait.of})`
     const delay = wait.delayMs > 0 ? ` · in ${seconds(wait.delayMs)}` : ''
@@ -227,6 +227,7 @@ export function requestWaitLine(wait: RequestWaitV1, compact = false): string {
       const answered = compact ? '' : ` (its server answered at ${seconds(wait.checkedMs)})`
       return wait.cold ? `still ingesting ${prompt} — about ${more} more${answered}${again}` : `still waiting for the first byte from ${compact ? 'the model' : wait.model} — about ${more} more${answered}${again}`
     }
+    if (pastEstimate) return wait.cold ? `ingesting ${prompt}${again}` : `waiting for the first byte from ${compact ? 'the model' : wait.model}${again}`
     return wait.cold
       ? `ingesting ${prompt} — first byte expected in about ${seconds(wait.budgetMs)}${again}`
       : `waiting for the first byte from ${compact ? 'the model' : wait.model} — expected in about ${seconds(wait.budgetMs)}${again}`
@@ -235,6 +236,10 @@ export function requestWaitLine(wait: RequestWaitV1, compact = false): string {
   return wait.cold
     ? `ingesting a ${kTokens(wait.promptTokens)} prompt on ${wait.model} — first byte expected within ${seconds(wait.budgetMs)}${again}`
     : `waiting for the first byte from ${wait.model} — within ${seconds(wait.budgetMs)}${again}`
+}
+
+export function requestWaitLinePastEstimate(line: string): boolean {
+  return !line.includes(' — ') && (line.startsWith('waiting for the first byte from ') || line.startsWith('ingesting '))
 }
 
 export function firstByteTimeoutLine(wait: Extract<RequestWaitV1, { kind: 'first-byte' }>): string {

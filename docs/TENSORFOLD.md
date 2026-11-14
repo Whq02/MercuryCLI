@@ -151,7 +151,10 @@ that can free memory (`ollama stop frees its model`,
 
 The `window` strip steps across `32k`, `64k`, `128k` and `256k` (`←→` or
 `ctrl+w`). Mercury picks the largest rung that fits usable memory and never
-uses TensorFold's 8k quick-start default. Rungs that do not fit appear in amber
+uses TensorFold's 8k quick-start default. A model Mercury has served opens at
+the window it was last served at, kept per model beside the ports in
+`<config home>/local-setup/tensorfold-hosts.json`, so a stop leaves the card
+on that window. Rungs that do not fit appear in amber
 with the memory needed and the largest fitting rung (`256k needs 36.5 GiB, 36.0 GiB usable · ← 128k fits`).
 On a served row started by Mercury, stepping `←→` to another rung and pressing
 `↵` stops the service and restarts it at the new `--context` value

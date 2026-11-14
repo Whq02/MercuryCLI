@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { rememberedTensorFoldWindow } from '../providers/local/tensorfoldHosts.js'
 import { ADAPTER_CHECKPOINTS, adapterCheckpointOf } from './adapter/models.js'
 import type { TensorFoldEngine, TensorFoldModelRow, TensorFoldServed } from './contracts.js'
 import { cachedTensorFoldMachineTruth, engineServedByAdapter, type EngineIo, type TensorFoldEngineFound } from './engine.js'
@@ -25,6 +26,7 @@ export type InventoryIo = EngineIo & {
   cacheRoot?: string
   machine?: TensorFoldMachineTruth
   served?: readonly TensorFoldServed[]
+  lastWindow?: (repo: string) => number | undefined
   listDir?: (path: string) => string[]
   readText?: (path: string) => string | undefined
   sizeOf?: (path: string) => number | undefined
@@ -153,9 +155,9 @@ function checkpointOfSnapshot(snapshot: HfSnapshot, facts: ConfigFacts): TensorF
   }
 }
 
-export function rowOfCheckpoint(point: TensorFoldCheckpoint, machine: TensorFoldMachineTruth, disk: { onDisk: boolean; bytesOnDisk: number; drafterOnDisk: boolean }, served?: TensorFoldServed): TensorFoldInventoryRow {
+export function rowOfCheckpoint(point: TensorFoldCheckpoint, machine: TensorFoldMachineTruth, disk: { onDisk: boolean; bytesOnDisk: number; drafterOnDisk: boolean }, served?: TensorFoldServed, lastWindow?: number): TensorFoldInventoryRow {
   const ladder = tensorFoldLadder(point, machine)
-  const window = served?.window ?? chosenTensorFoldWindow(ladder)
+  const window = served?.window ?? (lastWindow !== undefined && ladder.some(rung => rung.window === lastWindow) ? lastWindow : chosenTensorFoldWindow(ladder))
   const fit = ladder.find(rung => rung.window === window)?.fit ?? ladder[0]!.fit
   const whole = disk.onDisk && (point.drafter === undefined || disk.drafterOnDisk)
   const missing = (disk.onDisk ? 0 : point.downloadBytes) + (point.drafter !== undefined && !disk.drafterOnDisk ? point.drafter.downloadBytes : 0)
@@ -190,10 +192,10 @@ function rankTensorFoldRows(rows: readonly TensorFoldInventoryRow[], machine: Te
   return [...serving, ...(best === null ? rest : [best as TensorFoldInventoryRow, ...rest.filter(row => row !== best)])]
 }
 
-function adapterInventory(root: string, machine: TensorFoldMachineTruth, servedOf: (repo: string) => TensorFoldServed | undefined): TensorFoldInventoryRow[] {
+function adapterInventory(root: string, machine: TensorFoldMachineTruth, servedOf: (repo: string) => TensorFoldServed | undefined, lastWindowOf: (repo: string) => number | undefined): TensorFoldInventoryRow[] {
   const rows = ADAPTER_CHECKPOINTS.map(point => {
     const disk = ggufOnDisk(root, point.gguf)
-    return { ...rowOfCheckpoint(point, machine, { onDisk: disk.complete, bytesOnDisk: disk.bytes, drafterOnDisk: true }, servedOf(point.repo)), quantisation: point.gguf.quant }
+    return { ...rowOfCheckpoint(point, machine, { onDisk: disk.complete, bytesOnDisk: disk.bytes, drafterOnDisk: true }, servedOf(point.repo), lastWindowOf(point.repo)), quantisation: point.gguf.quant }
   })
   return rankTensorFoldRows(rows, machine, ADAPTER_CHECKPOINTS)
 }
@@ -205,7 +207,8 @@ export async function readTensorFoldInventory(engine: TensorFoldEngine | null, i
   const machine = io.machine ?? (await cachedTensorFoldMachineTruth(io))
   const served = io.served ?? servedTensorFold()
   const servedOf = (repo: string): TensorFoldServed | undefined => served.find(row => row.repo.toLowerCase() === repo.toLowerCase())
-  if (engineServedByAdapter(engine)) return adapterInventory(root, machine, servedOf)
+  const lastWindowOf = io.lastWindow ?? rememberedTensorFoldWindow
+  if (engineServedByAdapter(engine)) return adapterInventory(root, machine, servedOf, lastWindowOf)
   const known = new Set((engine as TensorFoldEngineFound | null)?.families.map(family => family.id) ?? [])
   const snapshots = new Map<string, HfSnapshot | undefined>()
   const snapshotOf = (repo: string): HfSnapshot | undefined => {
@@ -222,6 +225,7 @@ export async function readTensorFoldInventory(engine: TensorFoldEngine | null, i
         machine,
         { onDisk: snapshot !== undefined && snapshot.weightsBytes > 0, bytesOnDisk: (snapshot?.weightsBytes ?? 0) + (snapshot?.incompleteBytes ?? 0), drafterOnDisk: drafter !== undefined && drafter.weightsBytes > 0 },
         servedOf(point.repo),
+        lastWindowOf(point.repo),
       ),
     )
   }
@@ -233,7 +237,7 @@ export async function readTensorFoldInventory(engine: TensorFoldEngine | null, i
     const facts = configFactsOf(snapshot.config)
     if (facts.modelType === undefined || (known.size > 0 && !known.has(facts.modelType))) continue
     const point = checkpointOfSnapshot(snapshot, facts)
-    rows.push({ ...rowOfCheckpoint(point, machine, { onDisk: true, bytesOnDisk: snapshot.weightsBytes, drafterOnDisk: true }, servedOf(repo)), ...(facts.quantisation !== undefined ? { quantisation: facts.quantisation } : {}) })
+    rows.push({ ...rowOfCheckpoint(point, machine, { onDisk: true, bytesOnDisk: snapshot.weightsBytes, drafterOnDisk: true }, servedOf(repo), lastWindowOf(repo)), ...(facts.quantisation !== undefined ? { quantisation: facts.quantisation } : {}) })
   }
   return rankTensorFoldRows(rows, machine)
 }

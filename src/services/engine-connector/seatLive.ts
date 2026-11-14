@@ -20,6 +20,7 @@ export interface SeatStatusV1 {
   interrupting: boolean
   hardStopping: boolean
   wait: RequestWaitV1 | null
+  waitAgeMs?: number
   quietMs: number | null
   watchdogMs: number | null
   phaseMs: number | null

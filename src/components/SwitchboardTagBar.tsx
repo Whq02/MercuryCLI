@@ -15,7 +15,7 @@ import { escRungHint, escRungOf } from '../input-core/interruptArity.js'
 import { SEND_NOW_HINT } from '../input-core/sendNowChord.js'
 import { crewAgentsOf, crewWaitingWords } from '../services/engine-connector/crewFacts.js'
 import { withSampleWords, workWaitingWords } from '../services/engine-connector/workCounts.js'
-import { requestWaitLine } from '../services/providers/streamIdleBudget.js'
+import { requestWaitLine, requestWaitLinePastEstimate } from '../services/providers/streamIdleBudget.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { governorTrip, idleMotionLevel, motionPosture, subscribeIdleMotion } from '../utils/cockpit/motionGovernor.js'
 import { primeMotionSetting } from '../utils/cockpit/motionSetting.js'
@@ -218,8 +218,12 @@ export function statusLine(live: SessionLiveV1, s: SeatStatusV1, crew: CrewClock
     if (s.wait !== null) {
       if (s.wait.kind === 'silence') return requestWaitLine(s.wait, compact)
       const ownClock = s.wait.kind === 'first-byte' && s.wait.checkedMs !== undefined
-      const waited = !ownClock && s.quietMs !== null && s.quietMs >= 10_000 ? ` · ${statusDuration(s.quietMs)} so far` : ''
       const late = s.wait.kind === 'first-byte' && s.wait.promise !== true && s.quietMs !== null && s.quietMs > s.wait.budgetMs ? ' — the budget is up; the lane reissues or aborts now' : ''
+      if (s.wait.kind === 'first-byte' && !ownClock && s.waitAgeMs !== undefined) {
+        const age = s.waitAgeMs
+        return `${requestWaitLine(s.wait, compact, s.wait.promise === true && age > s.wait.budgetMs)}${age >= 10_000 ? ` · ${statusDuration(age)} so far` : ''}${late}`
+      }
+      const waited = !ownClock && s.quietMs !== null && s.quietMs >= 10_000 ? ` · ${statusDuration(s.quietMs)} so far` : ''
       return `${requestWaitLine(s.wait, compact)}${waited}${late}`
     }
     if (live.phase === 'waiting') {
@@ -242,10 +246,14 @@ export function escBackHint(live: SessionLiveV1, s: Pick<SeatStatusV1, 'interrup
   return `${hint !== '' ? `${hint} · ` : ''}${background !== '' ? `${background} · ` : ''}${sends !== '' ? `${sends} · ` : ''}${keyHintLabel('⇧← back')}`
 }
 
+const WAIT_COUNT = / · \d+[sm] so far$/
+
 export function fitStatusLine(line: string, columns: number, fixedWidth: number): string {
   const budget = statusLineBudget(columns, fixedWidth)
   if (stringWidth(line) <= budget) return line
-  return line.includes(' — ') ? truncateKeepingTail(line, budget) : line
+  if (line.includes(' — ')) return truncateKeepingTail(line, budget)
+  const count = requestWaitLinePastEstimate(line) ? WAIT_COUNT.exec(line)?.[0] : undefined
+  return count !== undefined ? truncateKeepingTail(line, budget, stringWidth(count)) : line
 }
 
 export function statusLineBudget(columns: number, fixedWidth: number): number {

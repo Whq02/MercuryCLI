@@ -13,7 +13,7 @@ import type { ServiceRecord, ServiceSpec } from '../projectServices/contracts.js
 import { readRecord, reconcileRecord, startService, stopService, waitForReady } from '../projectServices/serviceManager.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { detectTensorFoldApp, refuseSecondCopy, type TensorFoldAppState } from '../providers/local/tensorfoldApp.js'
-import { forgetTensorFoldHost, forgetTensorFoldPort, rememberTensorFoldHost, rememberTensorFoldPort } from '../providers/local/tensorfoldHosts.js'
+import { forgetTensorFoldHost, forgetTensorFoldPort, rememberTensorFoldHost, rememberTensorFoldPort, rememberTensorFoldWindow } from '../providers/local/tensorfoldHosts.js'
 import { writeTensorFoldKeyFile } from '../providers/local/tensorfoldKeyFile.js'
 import { announceTensorFoldStopping } from '../providers/local/tensorfoldStopping.js'
 import { ADAPTER_SERVED_BY, adapterChildPidFile, isAdapterEntry, servedByAdapter } from './adapter/identity.js'
@@ -60,6 +60,7 @@ export type ServeIo = EngineIo & {
   app?: () => Promise<TensorFoldAppState>
   answersAs?: (port: number) => Promise<string | undefined>
   rememberPort?: (port: number) => void
+  rememberWindow?: (repo: string, window: number) => void
   forgetPort?: (port: number) => void
   rememberHost?: (host: TensorFoldSharedHost) => Promise<void>
   forgetHost?: (name: string) => Promise<void>
@@ -378,6 +379,13 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
     rememberPort(pick.port)
   } catch {
     void 0
+  }
+  if (role === 'session') {
+    try {
+      ;(io.rememberWindow ?? rememberTensorFoldWindow)(request.repo, request.window)
+    } catch {
+      void 0
+    }
   }
   if (role === 'session') endAnnouncement()
   if (key !== undefined) {

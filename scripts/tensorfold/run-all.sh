@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: src/services/tensorfold/** src/commands/tensorfold/** src/commands.ts src/services/localSetup/setupProve.ts
-# gate-watch: scripts/tensorfold/fixtures/** scripts/lib/settingsPopupHarness.ts scripts/lib/hermetic.ts
+# gate-watch: scripts/tensorfold/fixtures/** scripts/lib/settingsPopupHarness.ts scripts/lib/hermetic.ts scripts/lib/proofAccountHome.ts
 # gate-watch: src/services/projectServices/serviceManager.ts src/services/localServer/localWindowFit.ts src/utils/model/seatReceipts.ts
 # gate-watch: src/components/design-system/ThemeProvider.tsx src/ink.ts src/state/AppState.tsx src/utils/config.ts src/services/providers/local/localDiscovery.ts
 # gate-watch: src/components/MercuryModelPicker.tsx src/components/tensorfold/** src/utils/model/modelPickerGroups.ts src/utils/model/modelPickerFooter.ts scripts/ui/gridToPng.ts
