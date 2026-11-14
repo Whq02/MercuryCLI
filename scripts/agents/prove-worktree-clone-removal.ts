@@ -181,7 +181,7 @@ const orphaned = await createAgentWorktree('agent-ab500001')
 await unlockAgentWorktree(orphaned.worktreePath, repo)
 const orphanAside = setWorktreeAside?.(orphaned.worktreePath) ?? null
 git(repo, 'worktree', 'remove', orphaned.worktreePath)
-const freshAside = join(home, '.removing-agent-ab500002-1-fresh')
+const freshAside = join(home, `.removing-agent-ab500002-1-${Date.now().toString(36)}`)
 mkdirSync(join(freshAside, 'node_modules'), { recursive: true })
 check('git lists neither the path it had nor the tree set aside', orphanAside !== null && !registered(repo).some(path => path === orphaned.worktreePath || path.includes('.removing-')), registered(repo).join(' | '))
 const leftovers = await crewLeftoverWorktrees(repo, Date.now())
@@ -235,7 +235,7 @@ check('the worker worktree is made', worker.ok === true, JSON.stringify(worker))
 if (worker.ok) {
   const workerHoldsClone = lstatSync(join(worker.path, 'node_modules')).isDirectory() && !lstatSync(join(worker.path, 'node_modules')).isSymbolicLink()
   check('…with its dependency folder its own where the volume clones', workerHoldsClone === cloneRoad, String(workerHoldsClone))
-  const diedInDaemon = join(workerHome, '.removing-runner-gone-1-old')
+  const diedInDaemon = join(workerHome, `.removing-runner-gone-1-${Date.now().toString(36)}`)
   mkdirSync(join(diedInDaemon, 'node_modules'), { recursive: true })
   utimesSync(diedInDaemon, hoursAgo(2), hoursAgo(2))
   const sealedInWorker = cloneRoad && process.getuid?.() !== 0

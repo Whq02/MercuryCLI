@@ -47,6 +47,7 @@ const NAME_TAKEN_CODES: ReadonlySet<string> = new Set(['ENOTEMPTY', 'EEXIST', 'E
 const STAGING_MARK = '.cloning-'
 const SET_ASIDE_MARK = '.removing-'
 const DEBRIS_HOME = 'worktrees'
+const DEBRIS_NAME = /^(?:\.(?:cloning|removing)-.+-[0-9]+-[0-9a-z]{8,}|\.cloning-probe-[0-9]+-[0-9a-z]+)$/
 const DEBRIS_GRACE_MS = 60 * 60 * 1000
 
 const CLONEFILE_SCRIPT = [
@@ -683,7 +684,7 @@ const DISCARD_SCRIPT = [
   '  try { fs.chmodSync(dir, 0o700) } catch {}',
   '  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) if (entry.isDirectory()) open(path.join(dir, entry.name))',
   '}',
-  `if ((name.startsWith('${SET_ASIDE_MARK}') || name.startsWith('${STAGING_MARK}')) && path.basename(path.dirname(root)) === '${DEBRIS_HOME}') {`,
+  `if (${DEBRIS_NAME}.test(name) && path.basename(path.dirname(root)) === '${DEBRIS_HOME}') {`,
   '  if (!isFolder(root)) {',
   '    try { fs.unlinkSync(root) } catch {}',
   '  } else {',
@@ -722,7 +723,7 @@ export function worktreeHoldsClones(worktreePath: string): boolean {
 
 function isWorktreeDebris(path: string): boolean {
   const name = basename(path)
-  return (name.startsWith(SET_ASIDE_MARK) || name.startsWith(STAGING_MARK)) && basename(dirname(path)) === DEBRIS_HOME
+  return DEBRIS_NAME.test(name) && basename(dirname(path)) === DEBRIS_HOME
 }
 
 export function setWorktreeAside(worktreePath: string): string | null {
@@ -773,7 +774,7 @@ export function sweepSetAside(home: string): number {
   }
   let swept = 0
   for (const entry of entries) {
-    if (!entry.startsWith(SET_ASIDE_MARK) && !entry.startsWith(STAGING_MARK)) continue
+    if (!isWorktreeDebris(join(home, entry))) continue
     try {
       if (Date.now() - lstatSync(join(home, entry)).mtimeMs < DEBRIS_GRACE_MS) continue
     } catch {
