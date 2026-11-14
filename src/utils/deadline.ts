@@ -154,6 +154,31 @@ export async function withInactivityDeadline<T>(
   }
 }
 
+export function declaredWaitEnd(sinceMs: number, declaredMs: number, capMs: number): number {
+  return sinceMs + Math.max(0, Math.min(declaredMs, capMs))
+}
+
+export function holdDeadlineUntil(deadline: Pick<InactivityDeadline, 'touch'>, untilMs: number, stepMs: number, now: () => number = Date.now): { cancel(): void } {
+  let timer: ReturnType<typeof setTimeout> | null = null
+  const step = (): void => {
+    deadline.touch()
+    const left = untilMs - now()
+    if (left <= 0) {
+      timer = null
+      return
+    }
+    timer = setTimeout(step, Math.max(1, Math.min(left, stepMs)))
+    timer.unref?.()
+  }
+  step()
+  return {
+    cancel(): void {
+      if (timer !== null) clearTimeout(timer)
+      timer = null
+    },
+  }
+}
+
 export function minutesKnobToMs(raw: string | undefined, defaultMinutes: number): number {
   if (raw === undefined || raw.trim() === '') return defaultMinutes * 60_000
   const parsed = Number.parseFloat(raw)
