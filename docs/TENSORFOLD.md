@@ -541,19 +541,22 @@ and keep none of them. A long turn goes in pieces, each about five seconds of
 reading (longer where one tool result is) and each ending on one of the turn's
 replies, so a message that comes early still finds the pieces before it.
 
-The read-ahead stays out of the way. It starts only when no request of the
-session is on that engine and stops the moment one is. It reads the engine's
-`/health` for the requests the engine has, before each of its own and about
-three times a second while one runs, and leaves the turn as it is when another
-session's request is there. Where an engine keeps a request of the session
-waiting more than half a second behind a read-ahead that was dropped for it,
+The read-ahead starts only when no request of the session is on that engine.
+A new request cancels it, but the engine finishes the prompt chunk already in
+flight before switching. On Qwen3.5 2B that wait is about a tenth of a second;
+an engine with larger chunks can take longer. Mercury reads the engine's
+`/health` before each piece and about three times a second while one runs, so
+another session's request can also wait for the next look. Once that request
+is seen, the read-ahead is cancelled and the turn is left as it is. Where an
+engine keeps a request of the session waiting more than half a second behind
+a read-ahead that was dropped for it,
 Mercury reads nothing ahead on that engine for the rest of the session. While a
 piece runs, the engine's own log gains about three `GET /health` lines a
 second: those lines are the read-ahead looking, and they are expected.
 `/usage`, cost and the context figure do not count it. It goes only to an
 engine on this machine that shows its requests on `/health` (one started with
-an API key does not), never for a crewmate's conversation, and never when the
-conversation is due a fold. Set `MERCURY_LOCAL_NEXT_TURN_PREFILL=0` in your
+an API key does not). A crewmate's conversation and one due a fold are left
+alone. Set `MERCURY_LOCAL_NEXT_TURN_PREFILL=0` in your
 environment to turn it off.
 
 ## The support line and `/health`

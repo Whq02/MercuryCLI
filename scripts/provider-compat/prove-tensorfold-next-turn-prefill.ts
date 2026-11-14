@@ -175,7 +175,7 @@ section('1 · an engine that keeps prompt states and does not read the next turn
   }
 }
 
-section('2 · never in the way: it waits for the session to be idle on that engine, stops the moment a request of the session needs it, and leaves the engine to any other request')
+section('2 · cancellation: it waits for the session to be idle, cancels for real requests, and disables read-ahead after a slow cut')
 {
   const w = await world('after-last-user', CAPABLE)
   if (w !== undefined) {
@@ -188,7 +188,7 @@ section('2 · never in the way: it waits for the session to be idle on that engi
     const took = Date.now() - started
     const cut = await untilAsync(() => ahead(w).some(request => request.aborted), 1000, 5)
     check('a request of the session stops it: the engine sees that request go away', cut && facts()?.cut === 1, JSON.stringify(ahead(w).map(request => request.aborted)))
-    check('the request itself does not wait for it', took < 1000, `${took} ms beside a read-ahead held for 1,500 ms`)
+    check('the fixture releases the read-ahead before its full 1,500 ms hold elapses', took < 1000, `${took} ms beside a read-ahead held for 1,500 ms`)
     check('and the turn that message began is read ahead in its turn', await untilAsync(() => ahead(w).length === 2 && w.fixture.waiting() === 1, 2000, 5), `${ahead(w).length} background request(s)`)
     w.fixture.stop()
   }
@@ -280,7 +280,7 @@ section('2 · never in the way: it waits for the session to be idle on that engi
     const left = await untilAsync(() => ahead(joined).some(request => request.aborted), 1000, 5)
     const waited = await other
     check('another session\'s request that arrives while a read-ahead is in flight makes it go away', left && facts()?.yielded === 1 && facts()?.cut === 0, `facts ${JSON.stringify(facts())}`)
-    check('that request is answered in its own time', waited < 1000, `${waited} ms for a request held 300 ms, beside a read-ahead held for 1,500 ms`)
+    check('the neighbouring request completes before the fixture\'s full background hold elapses', waited < 1000, `${waited} ms for a request held 300 ms, beside a read-ahead held for 1,500 ms`)
     await quiet()
     check('and the read-ahead is not sent again behind it', ahead(joined).length === 1, `${ahead(joined).length} background request(s)`)
     joined.fixture.stop()
@@ -440,7 +440,7 @@ section('4 · a long turn is read ahead in pieces that each end on a reply, so a
     await toolTurn(strict, MAIN, 3)
     await settled()
     const first = ahead(strict)
-    check('an engine whose template refuses a tool call without its result: the first piece is refused and the conversation goes out whole at once', first.length === 2 && first[0]!.refused && !first[1]!.refused && first[1]!.rows.at(-2)?.content === ANSWER.text, JSON.stringify(first.map(request => [request.refused, request.rows.length])))
+    check('an engine whose template refuses a tool call without its result: the first piece is refused and the conversation goes out whole after the refusal', first.length === 2 && first[0]!.refused && !first[1]!.refused && first[1]!.rows.at(-2)?.content === ANSWER.text, JSON.stringify(first.map(request => [request.refused, request.rows.length])))
     strict.history = [...strict.history, createUserMessage({ content: 'Read them once more.' })]
     for (let n = 0; n < 3; n++) await callStep(strict, `/work/again${n + 1}.txt`, FILE, MAIN, false)
     await answerStep(strict)
