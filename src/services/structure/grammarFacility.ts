@@ -310,9 +310,36 @@ export function _resetGrammarEngineForTesting(): void {
 }
 
 
+export interface ParseErrorRegion {
+  type: string
+  missing: boolean
+  startIndex: number
+  endIndex: number
+  line: number
+  column: number
+  endLine: number
+  endColumn: number
+}
+
 interface PolyglotParse {
   tree: TSTree
   parseErrors: string[]
+  errorRegions?: ParseErrorRegion[]
+}
+
+function collectErrorRegions(root: TSNode): ParseErrorRegion[] {
+  const errors: ParseErrorRegion[] = []
+  const stack = [root]
+  while (stack.length) {
+    const node = stack.pop()!
+    if (node.type === 'ERROR' || node.isMissing) {
+      errors.push({ type: node.type, missing: node.isMissing, startIndex: node.startIndex, endIndex: node.endIndex, line: node.startPosition.row + 1, column: node.startPosition.column + 1, endLine: node.endPosition.row + 1, endColumn: node.endPosition.column + 1 })
+    }
+    if (!node.hasError && node.type !== 'ERROR' && !node.isMissing) continue
+    const children = node.children
+    for (let i = children.length - 1; i >= 0; i--) stack.push(children[i]!)
+  }
+  return errors
 }
 
 function collectParseErrors(root: TSNode, cap = 3): string[] {
@@ -366,6 +393,7 @@ export async function parsePolyglot(
   engine: LoadedEngine,
   lang: PolyglotLanguage,
   text: string,
+  opts?: { errorRegions?: boolean },
 ): Promise<PolyglotParse | { state: 'unavailable'; note: string }> {
   if (engine.poisoned) {
     const fresh = await loadGrammarEngine()
@@ -401,6 +429,12 @@ export async function parsePolyglot(
   if (!tree) return { state: 'unavailable', note: `the ${lang.name} parser returned no tree` }
   let parseErrors: string[] = []
   if (tree.rootNode.hasError) {
+    if (opts?.errorRegions) {
+      const errorRegions = collectErrorRegions(tree.rootNode)
+      parseErrors = errorRegions.slice(0, 3).map(error => `${error.line}:${error.column}${error.missing ? ` missing ${error.type}` : `${error.endLine > error.line ? `-${error.endLine}:${error.endColumn}` : ''} syntax error`}`)
+      if (parseErrors.length === 0) parseErrors = ['syntax error (recovery token; exact location unavailable)']
+      return { tree, parseErrors, errorRegions }
+    }
     parseErrors = collectParseErrors(tree.rootNode)
     if (parseErrors.length === 0) parseErrors = ['syntax error (recovery token; exact location unavailable)']
   }

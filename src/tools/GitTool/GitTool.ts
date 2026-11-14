@@ -15,6 +15,7 @@ import { checkReadPermissionForTool, checkWritePermissionForTool } from '../../u
 import { repositoryDenied, repositoryReadDecision, withheldLine } from '../../services/resources/referencePaths.js'
 import { resolveRepoFolder } from '../../services/gitGraph/repoFolder.js'
 import { gitFilterSkipMessages } from '../../utils/git/spawnArgs.js'
+import { plural } from '../../utils/stringUtils.js'
 import { applyResolution, observableResolution, prepareResolution, resolutionPreview, storedResolution, type ResolutionPlan } from '../../services/gitGraph/conflictRegions.js'
 
 function repoHostDiscoveryEnabled(): boolean {
@@ -301,9 +302,8 @@ async function runOp(
         const out = await applyResolution(prepared, context.abortController?.signal)
         return out.state === 'refused' ? { result: `resolve refused: ${out.reason}`, outcome: 'failed' } : { result: out.detail, outcome: 'succeeded', changedPaths: out.changedPaths }
       }
-      if (!input.path) return { result: 'resolve needs path', outcome: 'failed' }
-      if (!input.take && input.content === undefined) {
-        return { result: 'resolve needs take (ours|theirs) or content', outcome: 'failed' }
+      if (!input.path || (!input.take && input.content === undefined)) {
+        return { result: 'resolve needs resolutions, or path with take (ours|theirs|base|both) or content', outcome: 'failed' }
       }
       const out = resolveConflict(
         owner,
@@ -640,6 +640,7 @@ export const GitTool = buildTool({
     }
   },
   async checkPermissions(input: Input, context: ToolUseContext): Promise<ReturnType<typeof checkReadPermissionForTool>> {
+    let resolutionFiles: string[] | undefined
     if (input.op === 'resolve' && input.resolutions) {
       const placed = resolveRepoFolder(folderOf(input))
       if (placed.state !== 'refused') {
@@ -652,6 +653,7 @@ export const GitTool = buildTool({
             if (refused) return refused
           }
           showResolution(input, plan)
+          resolutionFiles = plan.files.map(file => file.path)
         }
       }
     }
@@ -676,7 +678,9 @@ export const GitTool = buildTool({
           ? `stage ${input.files?.join(', ') ?? ''}`
           : input.op === 'restore'
             ? `unstage ${input.files?.join(', ') ?? ''} (index only, working copy untouched)`
-            : `resolve conflict ${input.path ?? ''}`
+            : input.resolutions
+              ? `resolve ${input.resolutions.length} conflict ${plural(input.resolutions.length, 'region')}${resolutionFiles?.length ? ` in ${resolutionFiles.join(', ')}` : ''}`
+              : `resolve conflict ${input.path ?? ''}`
     const where = namedFolder(input) !== undefined ? ` in ${input.cwd}` : ''
     return { behavior: 'ask' as const, message: `Git ${what}${where}` }
   },

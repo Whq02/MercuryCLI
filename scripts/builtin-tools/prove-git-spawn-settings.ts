@@ -117,6 +117,12 @@ try {
   rmSync(join(root, 'external.txt'))
   plain(['checkout', '--force', '--', 'external.txt'])
   check('external smudge filter round-trips the worktree content', marked('external') && readFileSync(join(root, 'external.txt'), 'utf8') === 'red\nblue\ngreen\n', readFileSync(join(root, 'external.txt'), 'utf8'))
+  clear('local', 'external')
+  const filteredLocal = plain(gitArgs(['cat-file', '--filters', '--path=local.txt', ':local.txt'], root))
+  check('filtered blob reads skip the repository-local smudge filter', !marked('local') && filteredLocal === 'one\ntwo\nthree\n', filteredLocal)
+  const filteredExternal = plain(gitArgs(['cat-file', '--filters', '--path=external.txt', ':external.txt'], root))
+  check('filtered blob reads retain the external smudge conversion', marked('external') && filteredExternal === 'red\nblue\ngreen\n', filteredExternal)
+  check('ordinary cat-file blob reads carry no new filter configuration', !gitArgs(['cat-file', 'blob', ':local.txt'], root).some(word => word.startsWith('filter.')))
 
   const conflict = join(home, 'conflict')
   mkdirSync(conflict, { recursive: true })

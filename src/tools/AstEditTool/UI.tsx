@@ -10,7 +10,14 @@ import type { ToolResultBlockParam } from '../../types/wire.js'
 import { truncate } from '../../utils/format.js'
 
 
-type RenderInput = { pattern?: string; rewrite?: string; path?: string; glob?: string; apply?: boolean }
+type RenderInput = {
+  pattern?: string
+  rewrite?: string
+  rules?: Array<{ pattern?: string; rewrite?: string }>
+  path?: string
+  glob?: string
+  apply?: boolean
+}
 
 type RenderOutput = {
   state: 'dry-run' | 'applied' | 'no-change' | 'no-matches'
@@ -21,14 +28,40 @@ type RenderOutput = {
 }
 
 export function getToolUseSummary(input: RenderInput | undefined): string | null {
+  if (input?.rules?.length) {
+    const first = input.rules[0]
+    const head =
+      input.rules.length === 1 && first?.pattern
+        ? `${first.pattern} → ${first.rewrite ?? ''}`
+        : `${input.rules.length} rules (${first?.pattern ?? ''}…)`
+    return truncate(`${input.apply ? 'apply ' : 'dry run '}${head}`, TOOL_SUMMARY_MAX_LENGTH)
+  }
   if (!input?.pattern) return null
   const head = `${input.pattern} → ${input.rewrite ?? ''}`
   return truncate(`${input.apply ? 'apply ' : 'dry run '}${head}`, TOOL_SUMMARY_MAX_LENGTH)
 }
 
 export function renderToolUseMessage(input: RenderInput, _options: { verbose: boolean }): React.ReactNode {
-  if (!input.pattern) return null
   const where = [input.path, input.glob].filter(Boolean).join(' ')
+  if (input.rules?.length) {
+    const first = input.rules[0]
+    const more = input.rules.length > 1 ? ` +${input.rules.length - 1} more` : ''
+    return (
+      <Text>
+        {first?.pattern ?? `${input.rules.length} rules`}
+        {first?.pattern !== undefined ? (
+          <>
+            <Text dimColor> → </Text>
+            {first.rewrite === '' ? <Text dimColor>(delete)</Text> : first.rewrite}
+          </>
+        ) : null}
+        {more ? <Text dimColor>{more}</Text> : null}
+        {where ? <Text dimColor> in {where}</Text> : null}
+        <Text dimColor> {input.apply ? '(apply)' : '(dry run)'}</Text>
+      </Text>
+    )
+  }
+  if (!input.pattern) return null
   return (
     <Text>
       {input.pattern}

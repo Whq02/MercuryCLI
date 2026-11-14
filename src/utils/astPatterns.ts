@@ -12,6 +12,7 @@ import {
   POLYGLOT_LANGUAGES,
   resolveGrammarEngineDir,
   type PolyglotLanguage,
+  type ParseErrorRegion,
   type TSNode,
 } from '../services/structure/grammarFacility.js'
 import {
@@ -365,6 +366,7 @@ export interface AstMatch {
   nodeType: string
   text: string
   captures: AstCapture[]
+  hasSyntaxError?: boolean
 }
 
 export interface AstSearchResult {
@@ -373,6 +375,7 @@ export interface AstSearchResult {
   filesParsed: number
   filesWithMatches: number
   parseFailures: Array<{ rel: string; message: string }>
+  recovered?: Array<{ rel: string; lang: string; source?: string; errors?: ParseErrorRegion[]; diagnostics: number; notes: string[] }>
   patternRefusals: Array<{ lang: string; files: number; note: string }>
   captureNamesByLang: Map<string, string[]>
   skippedLarge: number
@@ -419,7 +422,7 @@ function farOverSizeBound(abs: string): boolean {
 
 export async function searchAstPattern(
   scope: AstScope,
-  opts: { pattern: string; signal?: AbortSignal; matchCap?: number },
+  opts: { pattern: string; signal?: AbortSignal; matchCap?: number; recover?: boolean; retainSource?: boolean; recoveredApart?: boolean },
 ): Promise<AstSearchResult | AstRefusal> {
   const engine = await loadGrammarEngine()
   if (engine.state === 'unavailable') return { refused: engine.note }
@@ -432,16 +435,18 @@ export async function searchAstPattern(
   const langFiles = new Map<string, number>()
   const matches: AstMatch[] = []
   const parseFailures: Array<{ rel: string; message: string }> = []
+  let recovered: AstSearchResult['recovered']
   let filesParsed = 0
   let filesWithMatches = 0
   let skippedLarge = 0
   let capped = false
   let truncatedParse = false
   let compiledSomewhere = false
+  let apart = 0
 
   for (const file of scope.files) {
     if (opts.signal?.aborted) break
-    if (matches.length >= cap) {
+    if (matches.length - apart >= cap) {
       capped = true
       break
     }
@@ -499,19 +504,32 @@ export async function searchAstPattern(
     langFiles.set(file.lang.name, (langFiles.get(file.lang.name) ?? 0) + 1)
     if (preToken && !text.includes(preToken)) continue
     filesParsed++
-    const parsed = await parsePolyglot(engine, file.lang, text)
+    const parsed = await parsePolyglot(engine, file.lang, text, opts.recover === false ? undefined : { errorRegions: true })
     if ('state' in parsed) {
       parseFailures.push({ rel: file.rel, message: parsed.note })
       continue
     }
     if (parsed.parseErrors.length > 0) {
-      parseFailures.push({ rel: file.rel, message: `does not parse as ${file.lang.name}: ${parsed.parseErrors[0]}` })
-      parsed.tree.delete()
-      continue
+      if (opts.recover === false) {
+        parseFailures.push({ rel: file.rel, message: `does not parse as ${file.lang.name}: ${parsed.parseErrors[0]}` })
+        parsed.tree.delete()
+        continue
+      }
+      ;(recovered ??= []).push({ rel: file.rel, lang: file.lang.name, diagnostics: parsed.errorRegions?.length ?? 0, notes: parsed.parseErrors })
     }
-    const found = findPatternMatches(compiled.pattern, parsed.tree.rootNode, text, cap - matches.length)
-    if (found.matches.length > 0) filesWithMatches++
-    for (const m of found.matches) matches.push(materialise(file.rel, file.abs, file.lang.name, m.node, m.captures))
+    const own = opts.recoveredApart === true && parsed.parseErrors.length > 0
+    const spent = own && matches.length >= cap
+    const found = findPatternMatches(compiled.pattern, parsed.tree.rootNode, text, own ? Math.max(1, cap - matches.length) : cap - (matches.length - apart))
+    if (found.matches.length > 0) {
+      filesWithMatches++
+      if (parsed.parseErrors.length > 0 && opts.retainSource && !spent) Object.assign(recovered![recovered!.length - 1]!, { source: text, errors: parsed.errorRegions ?? [] })
+    }
+    if (own) apart += found.matches.length
+    for (const m of found.matches) {
+      const match = materialise(file.rel, file.abs, file.lang.name, m.node, m.captures)
+      if (parsed.parseErrors.length > 0) match.hasSyntaxError = m.node.type === 'ERROR' || m.node.isMissing || m.node.hasError
+      matches.push(match)
+    }
     if (found.capped) capped = true
     parsed.tree.delete()
   }
@@ -524,6 +542,7 @@ export async function searchAstPattern(
     filesParsed,
     filesWithMatches,
     parseFailures,
+    ...(recovered ? { recovered } : {}),
     patternRefusals: [...refusedLangs.entries()]
       .sort((a, b) => Number(a[1].textOnly === true) - Number(b[1].textOnly === true))
       .map(([lang, e]) => ({ lang, files: e.files, note: e.note })),
@@ -552,6 +571,41 @@ export function patternErrorText(pattern: string, result: AstSearchResult): stri
 }
 
 
+export interface AstRewriteRule {
+  pattern: string
+  rewrite: string
+}
+
+interface AstBatchRuleSummary {
+  ruleIndex: number
+  pattern: string
+  rewrite: string
+  changedMatches: number
+  unchangedMatches: number
+  filesChanged: number
+  patternRefusals: Array<{ lang: string; files: number; note: string }>
+}
+
+interface AstBatchCoalescedEdit {
+  rel: string
+  line: number
+  col: number
+  ruleIndices: number[]
+}
+
+interface AstBatchFileChange {
+  line: number
+  col: number
+  ruleIndices: number[]
+}
+
+interface AstBatchDetails {
+  rules: AstBatchRuleSummary[]
+  coalesced: AstBatchCoalescedEdit[]
+  unmatchedRules: number[]
+  fileChanges: Map<string, AstBatchFileChange[]>
+}
+
 export interface AstRewriteFile {
   rel: string
   abs: string
@@ -569,6 +623,12 @@ export interface AstRewriteFile {
   edits: Edit[]
 }
 
+export interface AstLeftOutFile {
+  rel: string
+  note: string
+  refusal: string
+}
+
 export interface AstRewritePlan {
   token: string
   files: AstRewriteFile[]
@@ -576,6 +636,8 @@ export interface AstRewritePlan {
   unchangedMatches: number
   inPlaceMatches: number
   search: AstSearchResult
+  batch?: AstBatchDetails
+  leftOut?: AstLeftOutFile[]
 }
 
 
@@ -669,9 +731,9 @@ const ANON_IN_REWRITE = /\$\$\$(?![A-Z_])|(?<!\$)\$_(?![A-Za-z0-9_])/
 
 export { digestOf }
 
-export function rewritePlanToken(pattern: string, rewrite: string, files: Array<[rel: string, digestBefore: string, digestAfter: string]>): string {
+export function rewritePlanToken(pattern: string, rewrite: string, files: Array<[rel: string, digestBefore: string, digestAfter: string]>, leftOut: string[] = []): string {
   return `ae-${createHash('sha1')
-    .update(JSON.stringify({ p: pattern, r: rewrite, f: files }))
+    .update(JSON.stringify({ p: pattern, r: rewrite, f: files, ...(leftOut.length > 0 ? { l: leftOut } : {}) }))
     .digest('hex')
     .slice(0, 12)}`
 }
@@ -709,37 +771,714 @@ function countChangedLines(before: string, after: string, edits: Edit[]): number
   return after === before ? 0 : n
 }
 
+function touchesParseError(start: number, end: number, error: ParseErrorRegion): boolean {
+  return error.startIndex === error.endIndex
+    ? start <= error.startIndex && end >= error.startIndex
+    : start < error.endIndex && end > error.startIndex
+}
+
+function introducedParseError(before: string, after: string, edits: Edit[], previous: ParseErrorRegion[], current: ParseErrorRegion[]): ParseErrorRegion | undefined {
+  const shifted = (index: number): number => index + edits.reduce((delta, edit) => delta + (edit.end <= index ? edit.newText.length - (edit.end - edit.start) : 0), 0)
+  const key = (error: ParseErrorRegion, start = error.startIndex, end = error.endIndex) => JSON.stringify([error.type, error.missing, start, end])
+  const remaining = new Map<string, ParseErrorRegion[]>()
+  for (const error of previous) {
+    const identity = key(error, shifted(error.startIndex), shifted(error.endIndex))
+    const found = remaining.get(identity) ?? []
+    found.push(error)
+    remaining.set(identity, found)
+  }
+  for (const error of current) {
+    const original = remaining.get(key(error))?.shift()
+    if (!original || before.slice(original.startIndex, original.endIndex) !== after.slice(error.startIndex, error.endIndex)) return error
+  }
+  return undefined
+}
+
+function batchRewritePlanToken(
+  rules: ReadonlyArray<AstRewriteRule>,
+  scope: Pick<AstScope, 'target' | 'glob' | 'lang'>,
+  files: Array<[rel: string, digestBefore: string, digestAfter: string]>,
+  leftOut: string[] = [],
+): string {
+  return `ae-${createHash('sha1')
+    .update(
+      JSON.stringify({
+        rules: rules.map(r => [r.pattern, r.rewrite]),
+        scope: [scope.target, scope.glob ?? null, scope.lang?.name ?? null],
+        f: files,
+        ...(leftOut.length > 0 ? { l: leftOut } : {}),
+      }),
+    )
+    .digest('hex')
+    .slice(0, 12)}`
+}
+
+async function planAstBatchRewrite(
+  scope: AstScope,
+  rules: ReadonlyArray<AstRewriteRule>,
+  signal?: AbortSignal,
+): Promise<AstRewritePlan | AstRefusal> {
+  if (rules.length === 0) {
+    return { refused: 'Pass either pattern and rewrite for one rule, or a non-empty rules array of { pattern, rewrite } pairs, never both.' }
+  }
+  for (let i = 0; i < rules.length; i++) {
+    const rule = rules[i]!
+    if (rule.pattern.trim() === '') {
+      return { refused: `Rule ${i}: pattern is empty — give a structural pattern such as "oldName($$$ARGS)".` }
+    }
+    if (ANON_IN_REWRITE.test(rule.rewrite)) {
+      return {
+        refused: `Rule ${i} (${JSON.stringify(rule.pattern)}): The rewrite uses an anonymous meta-variable ($$$ or $_), which captures nothing and so cannot be inserted. Name it in both the pattern and the rewrite (for example $$$ARGS), or drop it from the rewrite.`,
+      }
+    }
+  }
+  const engine = await loadGrammarEngine()
+  if (engine.state === 'unavailable') return { refused: engine.note }
+
+  interface RuleState {
+    index: number
+    rule: AstRewriteRule
+    encodedPattern: ReturnType<typeof encodePattern>
+    encodedRewrite: ReturnType<typeof encodePattern>
+    preToken: string | null
+    patternCache: CompileCache
+    rewriteCache: CompileCache
+    shapeByLang: Map<string, { pat: TSNode; rw: TSNode } | null>
+    terminatorByLang: Map<string, boolean>
+    refusedLangs: Map<string, { files: number; note: string; textOnly?: boolean }>
+    langFiles: Map<string, number>
+    compiledSomewhere: boolean
+    skippedBeforeCompile: boolean
+    changedMatches: number
+    unchangedMatches: number
+    filesChanged: Set<string>
+  }
+
+  const ruleStates: RuleState[] = rules.map((rule, index) => ({
+    index,
+    rule: { pattern: rule.pattern, rewrite: rule.rewrite },
+    encodedPattern: encodePattern(rule.pattern),
+    encodedRewrite: encodePattern(rule.rewrite),
+    preToken: preFilterToken(rule.pattern),
+    patternCache: new Map(),
+    rewriteCache: new Map(),
+    shapeByLang: new Map(),
+    terminatorByLang: new Map(),
+    refusedLangs: new Map(),
+    langFiles: new Map(),
+    compiledSomewhere: false,
+    skippedBeforeCompile: false,
+    changedMatches: 0,
+    unchangedMatches: 0,
+    filesChanged: new Set(),
+  }))
+
+  const releaseCompiled = (): void => {
+    for (const r of ruleStates) {
+      for (const cache of [r.patternCache, r.rewriteCache]) {
+        for (const entry of cache.values()) {
+          if (!('state' in entry)) entry.hold.delete()
+        }
+      }
+    }
+  }
+
+  async function spansTerminatorFor(r: RuleState, lang: PolyglotLanguage): Promise<boolean> {
+    const cached = r.terminatorByLang.get(lang.name)
+    if (cached !== undefined) return cached
+    const pat = await compileFor(engine as Parameters<typeof compileFor>[0], lang, r.encodedPattern, r.patternCache)
+    const spans = !('state' in pat) && pat.pattern.spansTerminator === true
+    r.terminatorByLang.set(lang.name, spans)
+    return spans
+  }
+
+  async function shapeForRule(r: RuleState, lang: PolyglotLanguage): Promise<{ pat: TSNode; rw: TSNode } | null> {
+    const cached = r.shapeByLang.get(lang.name)
+    if (cached !== undefined) return cached
+    let shape: { pat: TSNode; rw: TSNode } | null = null
+    if (r.rule.rewrite.trim() !== '') {
+      const pat = await compileFor(engine as Parameters<typeof compileFor>[0], lang, r.encodedPattern, r.patternCache)
+      const rw = await compileFor(engine as Parameters<typeof compileFor>[0], lang, r.encodedRewrite, r.rewriteCache)
+      if (!('state' in pat) && !('state' in rw) && !pat.pattern.tagMetavars && !rw.pattern.tagMetavars && sameShape(pat.pattern.root, rw.pattern.root)) {
+        shape = { pat: pat.pattern.root, rw: rw.pattern.root }
+      }
+    }
+    r.shapeByLang.set(lang.name, shape)
+    return shape
+  }
+
+  interface CandidateEdit {
+    ruleIndex: number
+    pattern: string
+    startLine: number
+    startCol: number
+    matchStart: number
+    matchEnd: number
+    matchNewText: string
+    unchanged: boolean
+    inPlace: boolean
+    subEdits: Edit[]
+  }
+
+  interface MergedEdit extends CandidateEdit {
+    ruleIndices: number[]
+  }
+
+  const globalLangFiles = new Map<string, number>()
+  const parseFailures: Array<{ rel: string; message: string }> = []
+  let recovered: AstSearchResult['recovered']
+  const plannedFiles: AstRewriteFile[] = []
+  const coalesced: AstBatchCoalescedEdit[] = []
+  const fileChanges = new Map<string, AstBatchFileChange[]>()
+  let filesParsed = 0
+  let filesWithMatches = 0
+  let skippedLarge = 0
+  let truncatedParse = false
+  let totalChangedMatches = 0
+  let totalUnchangedMatches = 0
+  let totalInPlaceMatches = 0
+  let deferredRefusal: string | null = null
+  const leftOut: AstLeftOutFile[] = []
+  const held: Array<{ rel: string; changed: number; admit?: () => void }> = []
+  let heldMatches = 0
+  let damagedOver = false
+
+  for (const file of scope.files) {
+    if (signal?.aborted) {
+      releaseCompiled()
+      return { refused: 'cancelled before planning finished — nothing written.' }
+    }
+    if (filesParsed >= AST_BOUNDS.maxFilesParsed) {
+      truncatedParse = true
+      break
+    }
+    let before: string | undefined
+    let fileCountedLarge = false
+    let fileAcceptedByAnyRule = false
+    const compiledForFile: Array<{ r: RuleState; compiled: { pattern: CompiledPattern; hold: { delete(): void } } }> = []
+
+    for (const r of ruleStates) {
+      if (file.lang.patternOnly && r.preToken && !r.patternCache.has(file.lang.name)) {
+        if (before === undefined) {
+          if (farOverSizeBound(file.abs)) {
+            if (!fileCountedLarge) {
+              skippedLarge++
+              fileCountedLarge = true
+            }
+            r.skippedBeforeCompile = true
+            continue
+          }
+          try {
+            before = readFileSync(file.abs, 'utf8')
+          } catch (err) {
+            releaseCompiled()
+            return { refused: `${file.rel}: unreadable — ${(err as Error).message}. Nothing was written.` }
+          }
+          if (before.length > AST_BOUNDS.maxFileBytes) {
+            if (!fileCountedLarge) {
+              skippedLarge++
+              fileCountedLarge = true
+            }
+            r.skippedBeforeCompile = true
+            continue
+          }
+        }
+        if (!before.includes(r.preToken)) {
+          r.langFiles.set(file.lang.name, (r.langFiles.get(file.lang.name) ?? 0) + 1)
+          fileAcceptedByAnyRule = true
+          continue
+        }
+      }
+      const compiled = await compileFor(engine, file.lang, r.encodedPattern, r.patternCache)
+      if ('state' in compiled) {
+        const entry = r.refusedLangs.get(file.lang.name) ?? {
+          files: r.langFiles.get(file.lang.name) ?? 0,
+          note: compiled.note,
+          ...(compiled.textOnly && { textOnly: true }),
+        }
+        entry.files++
+        r.refusedLangs.set(file.lang.name, entry)
+        r.langFiles.delete(file.lang.name)
+        continue
+      }
+      r.compiledSomewhere = true
+      const subCheck = substituteRewrite(r.rule.rewrite, [], compiled.pattern.captureNames)
+      if (typeof subCheck !== 'string') {
+        releaseCompiled()
+        return {
+          refused: `Rule ${r.index} (${JSON.stringify(r.rule.pattern)} → ${JSON.stringify(r.rule.rewrite)}): the rewrite ${subCheck.refuse.replace(/^out references /, 'references ')} — every meta-variable in the rewrite must be captured by the pattern. Nothing was written.`,
+        }
+      }
+      compiledForFile.push({ r, compiled })
+    }
+
+    if (fileCountedLarge) continue
+    if (compiledForFile.length === 0) {
+      if (fileAcceptedByAnyRule && ruleStates.some(r => !r.refusedLangs.has(file.lang.name))) {
+        globalLangFiles.set(file.lang.name, (globalLangFiles.get(file.lang.name) ?? 0) + 1)
+      }
+      continue
+    }
+    if (before === undefined) {
+      if (file.lang.patternOnly && farOverSizeBound(file.abs)) {
+        skippedLarge++
+        continue
+      }
+      try {
+        before = readFileSync(file.abs, 'utf8')
+      } catch (err) {
+        releaseCompiled()
+        return { refused: `${file.rel}: unreadable — ${(err as Error).message}. Nothing was written.` }
+      }
+      if (before.length > AST_BOUNDS.maxFileBytes) {
+        skippedLarge++
+        continue
+      }
+    }
+    for (const { r } of compiledForFile) {
+      r.langFiles.set(file.lang.name, (r.langFiles.get(file.lang.name) ?? 0) + 1)
+    }
+    globalLangFiles.set(file.lang.name, (globalLangFiles.get(file.lang.name) ?? 0) + 1)
+    if (deferredRefusal !== null) continue
+
+    const matchingRules = compiledForFile.filter(({ r }) => !r.preToken || before!.includes(r.preToken))
+    if (matchingRules.length === 0) continue
+
+    filesParsed++
+    const parsed = await parsePolyglot(engine, file.lang, before, { errorRegions: true })
+    if ('state' in parsed) {
+      parseFailures.push({ rel: file.rel, message: parsed.note })
+      continue
+    }
+    try {
+      const hasErrors = parsed.parseErrors.length > 0
+      const recoveryEntry = hasErrors ? { rel: file.rel, lang: file.lang.name, errors: parsed.errorRegions ?? [], diagnostics: parsed.errorRegions?.length ?? 0, notes: parsed.parseErrors } : undefined
+      if (recoveryEntry) (recovered ??= []).push({ rel: recoveryEntry.rel, lang: recoveryEntry.lang, diagnostics: recoveryEntry.diagnostics, notes: recoveryEntry.notes })
+
+      const candidates: CandidateEdit[] = []
+      let left: AstLeftOutFile | null = null
+      let over = false
+      for (const { r, compiled } of matchingRules) {
+        const found = findPatternMatches(compiled.pattern, parsed.tree.rootNode, before, AST_BOUNDS.editMaxMatches + 1)
+        if (found.matches.length > AST_BOUNDS.editMaxMatches) {
+          if (recoveryEntry) over = true
+          else deferredRefusal ??= `More than ${AST_BOUNDS.editMaxMatches} matches in one edit — narrow the scope (path or glob) or the rules, then run again. Nothing was written.`
+          break
+        }
+        if (found.matches.length === 0) continue
+        const shape = await shapeForRule(r, file.lang)
+        const keepsTerminator = await spansTerminatorFor(r, file.lang)
+        for (const rawMatch of found.matches) {
+          const m = materialise(file.rel, file.abs, file.lang.name, rawMatch.node, rawMatch.captures)
+          const hasSyntaxError = hasErrors && (rawMatch.node.type === 'ERROR' || rawMatch.node.isMissing || rawMatch.node.hasError)
+          if (recoveryEntry && (hasSyntaxError || recoveryEntry.errors.length === 0 || recoveryEntry.errors.some(error => touchesParseError(m.startIndex, m.endIndex, error)))) {
+            left = { rel: file.rel, note: `${m.startLine}:${m.startCol} the match touches a syntax-error region`, refusal: `Cannot rewrite ${file.rel}:${m.startLine}:${m.startCol} (rule ${r.index}): the match touches a syntax-error region. Nothing was written.` }
+            break
+          }
+          const substituted = substituteRewrite(
+            r.rule.rewrite,
+            m.captures.map(c => ({ key: c.key, startIndex: 0, endIndex: 0, text: c.text })),
+            compiled.pattern.captureNames,
+          )
+          if (typeof substituted !== 'string') {
+            deferredRefusal ??= `Rule ${r.index} at ${file.rel}:${m.startLine}: the rewrite ${substituted.refuse.replace(/^out references /, 'references ')} — every meta-variable in the rewrite must be captured by the pattern. Nothing was written.`
+            break
+          }
+          const codeLength = before.slice(m.startIndex, m.endIndex).trimEnd().length
+          const codeEnd = codeLength > 0 ? m.startIndex + codeLength : m.endIndex
+          if (substituted === '') {
+            const ext = lineExtendedRange(before, m.startIndex, codeEnd)
+            candidates.push({
+              ruleIndex: r.index,
+              pattern: r.rule.pattern,
+              startLine: m.startLine,
+              startCol: m.startCol,
+              matchStart: ext.start,
+              matchEnd: ext.end,
+              matchNewText: '',
+              unchanged: false,
+              inPlace: false,
+              subEdits: [{ start: ext.start, end: ext.end, newText: '' }],
+            })
+            continue
+          }
+          if (shape) {
+            const codeNode = locateMatchNode(parsed.tree.rootNode, m, before)
+            const local: Edit[] = []
+            if (codeNode && alignEdits(shape.pat, shape.rw, codeNode, m.captures, local)) {
+              local.sort((a, b) => a.start - b.start)
+              const nodeText = before.slice(m.startIndex, m.endIndex)
+              const guardEdits = [...local, ...uncapturedCommentSpans(codeNode, m.captures)]
+                .map(e => ({ start: e.start - m.startIndex, end: e.end - m.startIndex, newText: e.newText }))
+                .sort((a, b) => a.start - b.start)
+              const overlapping = guardEdits.some((e, i) => i > 0 && e.start < guardEdits[i - 1]!.end)
+              const inPlace = overlapping ? null : applyEdits(nodeText, guardEdits)
+              if (inPlace !== null && inPlace.replace(/\s+/g, '') === substituted.replace(/\s+/g, '')) {
+                if (local.length === 0) {
+                  candidates.push({
+                    ruleIndex: r.index,
+                    pattern: r.rule.pattern,
+                    startLine: m.startLine,
+                    startCol: m.startCol,
+                    matchStart: m.startIndex,
+                    matchEnd: codeEnd,
+                    matchNewText: before.slice(m.startIndex, codeEnd),
+                    unchanged: true,
+                    inPlace: false,
+                    subEdits: [],
+                  })
+                } else {
+                  const matchNewText = applyEdits(
+                    before.slice(m.startIndex, codeEnd),
+                    local.map(e => ({ start: e.start - m.startIndex, end: e.end - m.startIndex, newText: e.newText })),
+                  )
+                  candidates.push({
+                    ruleIndex: r.index,
+                    pattern: r.rule.pattern,
+                    startLine: m.startLine,
+                    startCol: m.startCol,
+                    matchStart: m.startIndex,
+                    matchEnd: codeEnd,
+                    matchNewText,
+                    unchanged: false,
+                    inPlace: true,
+                    subEdits: local,
+                  })
+                }
+                continue
+              }
+            }
+          }
+          let replacedEnd = codeEnd
+          if (keepsTerminator && before[codeEnd - 1] === ';' && !substituted.trimEnd().endsWith(';')) {
+            replacedEnd = m.startIndex + before.slice(m.startIndex, codeEnd - 1).trimEnd().length
+          }
+          const replacement = replacedEnd < m.endIndex ? substituted.trimEnd() : substituted
+          const isUnchanged = replacement === before.slice(m.startIndex, replacedEnd)
+          candidates.push({
+            ruleIndex: r.index,
+            pattern: r.rule.pattern,
+            startLine: m.startLine,
+            startCol: m.startCol,
+            matchStart: m.startIndex,
+            matchEnd: replacedEnd,
+            matchNewText: replacement,
+            unchanged: isUnchanged,
+            inPlace: false,
+            subEdits: isUnchanged ? [] : [{ start: m.startIndex, end: replacedEnd, newText: replacement }],
+          })
+        }
+        if (deferredRefusal !== null || left) break
+      }
+      if (left) {
+        leftOut.push(left)
+        continue
+      }
+      if (over) {
+        damagedOver = true
+        held.push({ rel: file.rel, changed: 0 })
+        continue
+      }
+      if (deferredRefusal !== null || candidates.length === 0) continue
+      if (recoveryEntry && (damagedOver || totalChangedMatches + heldMatches > AST_BOUNDS.editMaxMatches || plannedFiles.length + held.length > AST_BOUNDS.editMaxFiles)) {
+        held.push({ rel: file.rel, changed: 0 })
+        continue
+      }
+
+      filesWithMatches++
+      candidates.sort((a, b) => a.matchStart - b.matchStart || a.matchEnd - b.matchEnd || a.ruleIndex - b.ruleIndex)
+      const merged: MergedEdit[] = []
+      for (const cand of candidates) {
+        let coalescedHere = false
+        for (const prev of merged) {
+          if (prev.matchStart === cand.matchStart && prev.matchEnd === cand.matchEnd && prev.matchNewText === cand.matchNewText) {
+            if (!prev.ruleIndices.includes(cand.ruleIndex)) prev.ruleIndices.push(cand.ruleIndex)
+            coalescedHere = true
+            break
+          }
+          const overlaps =
+            prev.matchStart === prev.matchEnd || cand.matchStart === cand.matchEnd
+              ? prev.matchStart <= cand.matchEnd && cand.matchStart <= prev.matchEnd
+              : prev.matchStart < cand.matchEnd && cand.matchStart < prev.matchEnd
+          if (overlaps) {
+            const firstRule = prev.ruleIndices[0]!
+            const patA = clipWithEllipsis(rules[firstRule]!.pattern.replace(/\s+/g, ' '), 60)
+            const patB = clipWithEllipsis(cand.pattern.replace(/\s+/g, ' '), 60)
+            const overlapping =
+              `Overlapping rewrites in ${file.rel}: rule ${firstRule} (${JSON.stringify(patA)}) at ${prev.startLine}:${prev.startCol} ` +
+              `and rule ${cand.ruleIndex} (${JSON.stringify(patB)}) at ${cand.startLine}:${cand.startCol} touch the same source span with different replacements. ` +
+              `Narrow the rules so their matches do not overlap. Nothing was written.`
+            if (recoveryEntry) left = { rel: file.rel, note: `${cand.startLine}:${cand.startCol} rule ${firstRule} and rule ${cand.ruleIndex} touch the same source span with different replacements`, refusal: overlapping }
+            else deferredRefusal = overlapping
+            break
+          }
+        }
+        if (deferredRefusal !== null || left) break
+        if (!coalescedHere) merged.push({ ...cand, ruleIndices: [cand.ruleIndex] })
+      }
+      if (left) {
+        leftOut.push(left)
+        continue
+      }
+      if (deferredRefusal !== null) continue
+
+      const unchangedItems = merged.filter(c => c.unchanged)
+      const changedItems = merged.filter(c => !c.unchanged)
+      for (const u of unchangedItems) {
+        totalUnchangedMatches++
+        for (const ri of u.ruleIndices) ruleStates[ri]!.unchangedMatches++
+      }
+      if (changedItems.length === 0) continue
+
+      const edits = changedItems.flatMap(c => c.subEdits).sort((a, b) => a.start - b.start)
+      for (let i = 1; i < edits.length; i++) {
+        if (edits[i]!.start < edits[i - 1]!.end) {
+          const sharing = `Ambiguous rewrite in ${file.rel}: two deletions share a line — narrow the rules so their matches do not overlap. Nothing was written.`
+          const item = changedItems.find(c => edits[i]!.start <= c.matchEnd && edits[i]!.end >= c.matchStart) ?? changedItems[0]!
+          if (recoveryEntry) left = { rel: file.rel, note: `${item.startLine}:${item.startCol} two deletions share a line`, refusal: sharing }
+          else deferredRefusal = sharing
+          break
+        }
+      }
+      if (left) {
+        leftOut.push(left)
+        continue
+      }
+      if (deferredRefusal !== null) continue
+
+      if (recoveryEntry) {
+        const touching = edits.find(edit => recoveryEntry.errors.some(error => touchesParseError(edit.start, edit.end, error)))
+        if (touching) {
+          const item = changedItems.find(c => touching.start <= c.matchEnd && touching.end >= c.matchStart) ?? changedItems[0]!
+          leftOut.push({ rel: file.rel, note: `${item.startLine}:${item.startCol} the match touches a syntax-error region`, refusal: `Cannot rewrite ${file.rel}:${item.startLine}:${item.startCol} (rule ${item.ruleIndices[0]}): the match touches a syntax-error region. Nothing was written.` })
+          continue
+        }
+      }
+
+      const after = applyEdits(before, edits)
+      if (after === before) continue
+
+      const reparsed = await parsePolyglot(engine, file.lang, after, recoveryEntry ? { errorRegions: true } : undefined)
+      if ('state' in reparsed) {
+        deferredRefusal = `${file.rel}: ${reparsed.note}. Nothing was written.`
+        continue
+      }
+      const broken = reparsed.parseErrors.length > 0
+      const firstError = reparsed.parseErrors[0]
+      reparsed.tree.delete()
+      if (recoveryEntry && broken && reparsed.errorRegions?.length) {
+        const introduced = introducedParseError(before, after, edits, recoveryEntry.errors, reparsed.errorRegions)
+        if (introduced) {
+          leftOut.push({ rel: file.rel, note: `${introduced.line}:${introduced.column} the rewrite would introduce a syntax error${introduced.missing ? `, missing ${introduced.type}` : ''}`, refusal: `The rewrite introduces a syntax error in ${file.rel} at ${introduced.line}:${introduced.column} (${introduced.missing ? `missing ${introduced.type}` : 'syntax error'}). Nothing was written.` })
+          continue
+        }
+      } else if (broken) {
+        deferredRefusal = `The rewrite would leave ${file.rel} unparsable as ${file.lang.name} (${firstError}) — adjust the rewrite so the result is valid code. Nothing was written.`
+        continue
+      }
+
+      const original = before
+      const admit = (): void => {
+        for (const item of changedItems) {
+          if (item.inPlace) totalInPlaceMatches++
+          if (item.ruleIndices.length > 1) {
+            coalesced.push({ rel: file.rel, line: item.startLine, col: item.startCol, ruleIndices: [...item.ruleIndices] })
+          }
+          for (const ri of item.ruleIndices) {
+            ruleStates[ri]!.changedMatches++
+            ruleStates[ri]!.filesChanged.add(file.rel)
+          }
+        }
+        fileChanges.set(
+          file.rel,
+          changedItems.map(item => ({ line: item.startLine, col: item.startCol, ruleIndices: [...item.ruleIndices] })),
+        )
+        const diff = unifiedDiff(file.rel, original, after)
+        const { hunks, omittedHunks } = buildDiffHunks(file.rel, original, after)
+        plannedFiles.push({
+          rel: file.rel,
+          abs: file.abs,
+          lang: file.lang.name,
+          matchCount: changedItems.length,
+          before: original,
+          after,
+          digestBefore: digestOf(original),
+          digestAfter: digestOf(after),
+          diff: diff.text,
+          diffOmittedLines: diff.omittedLines,
+          hunks,
+          omittedHunks,
+          changedLines: countChangedLines(original, after, edits),
+          edits,
+        })
+      }
+      if (recoveryEntry) {
+        heldMatches += changedItems.length
+        held.push({ rel: file.rel, changed: changedItems.length, admit })
+        continue
+      }
+      totalChangedMatches += changedItems.length
+      if (totalChangedMatches > AST_BOUNDS.editMaxMatches) {
+        deferredRefusal = `More than ${AST_BOUNDS.editMaxMatches} matches in one edit — narrow the scope (path or glob) or the rules, then run again. Nothing was written.`
+        continue
+      }
+      admit()
+    } finally {
+      parsed.tree.delete()
+    }
+  }
+
+  releaseCompiled()
+
+  if (scope.files.length > 0) {
+    for (const r of ruleStates) {
+      if (!r.compiledSomewhere && !r.skippedBeforeCompile && r.refusedLangs.size > 0) {
+        const refusals = [...r.refusedLangs.entries()]
+          .sort((a, b) => Number(a[1].textOnly === true) - Number(b[1].textOnly === true))
+          .map(([lang, e]) => ({ lang, files: e.files, note: e.note }))
+        const ruleSearch: AstSearchResult = {
+          matches: [],
+          capped: false,
+          filesParsed: 0,
+          filesWithMatches: 0,
+          parseFailures: [],
+          patternRefusals: refusals,
+          captureNamesByLang: new Map(),
+          skippedLarge: 0,
+          truncatedParse: false,
+          languagesSearched: [],
+          compiledSomewhere: false,
+        }
+        return { refused: `Rule ${r.index}: ${patternErrorText(r.rule.pattern, ruleSearch)}` }
+      }
+    }
+  }
+
+  if (deferredRefusal !== null) return { refused: deferredRefusal }
+  if (held.length > 0) {
+    const pastMatches = damagedOver || totalChangedMatches + heldMatches > AST_BOUNDS.editMaxMatches
+    if (pastMatches || plannedFiles.length + held.length > AST_BOUNDS.editMaxFiles) {
+      const refusal = pastMatches
+        ? `More than ${AST_BOUNDS.editMaxMatches} matches in one edit — narrow the scope (path or glob) or the rules, then run again. Nothing was written.`
+        : `Matches in ${plannedFiles.length + held.length} files, more than the ${AST_BOUNDS.editMaxFiles}-file bound for one edit — narrow the scope (path or glob), then run again. Nothing was written.`
+      if (plannedFiles.length === 0) return { refused: refusal }
+      const note = pastMatches ? `more than ${AST_BOUNDS.editMaxMatches} matches in one edit` : `more than the ${AST_BOUNDS.editMaxFiles}-file bound for one edit`
+      for (const file of held) leftOut.push({ rel: file.rel, note, refusal })
+    } else {
+      for (const file of held) {
+        totalChangedMatches += file.changed
+        file.admit?.()
+      }
+    }
+  }
+  if (plannedFiles.length === 0 && leftOut.length > 0) return { refused: leftOut[0]!.refusal }
+  if (plannedFiles.length > AST_BOUNDS.editMaxFiles) {
+    return {
+      refused: `Matches in ${plannedFiles.length} files, more than the ${AST_BOUNDS.editMaxFiles}-file bound for one edit — narrow the scope (path or glob), then run again. Nothing was written.`,
+    }
+  }
+
+  plannedFiles.sort((a, b) => a.rel.localeCompare(b.rel))
+  coalesced.sort((a, b) => a.rel.localeCompare(b.rel) || a.line - b.line || a.col - b.col)
+
+  const ruleSummaries: AstBatchRuleSummary[] = ruleStates.map(r => ({
+    ruleIndex: r.index,
+    pattern: r.rule.pattern,
+    rewrite: r.rule.rewrite,
+    changedMatches: r.changedMatches,
+    unchangedMatches: r.unchangedMatches,
+    filesChanged: r.filesChanged.size,
+    patternRefusals: [...r.refusedLangs.entries()]
+      .sort((a, b) => Number(a[1].textOnly === true) - Number(b[1].textOnly === true))
+      .map(([lang, e]) => ({ lang, files: e.files, note: e.note })),
+  }))
+
+  const unmatchedRules = ruleSummaries
+    .filter(r => r.changedMatches === 0 && r.unchangedMatches === 0)
+    .map(r => r.ruleIndex)
+
+  const attributedRefusals = ruleStates.flatMap(r =>
+    [...r.refusedLangs.entries()]
+      .sort((a, b) => Number(a[1].textOnly === true) - Number(b[1].textOnly === true))
+      .map(([lang, e]) => ({ lang, files: e.files, note: `rule ${r.index}: ${e.note}` })),
+  )
+
+  const search: AstSearchResult = {
+    matches: [],
+    capped: false,
+    filesParsed,
+    filesWithMatches,
+    parseFailures,
+    ...(recovered ? { recovered } : {}),
+    patternRefusals: attributedRefusals,
+    captureNamesByLang: new Map(),
+    skippedLarge,
+    truncatedParse,
+    languagesSearched: [...globalLangFiles.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
+    compiledSomewhere: ruleStates.some(r => r.compiledSomewhere),
+  }
+
+  leftOut.sort((a, b) => a.rel.localeCompare(b.rel))
+  const token = batchRewritePlanToken(rules, scope, plannedFiles.map(f => [f.rel, f.digestBefore, f.digestAfter]), leftOut.map(f => f.rel))
+  return {
+    token,
+    files: plannedFiles,
+    matchCount: totalChangedMatches,
+    unchangedMatches: totalUnchangedMatches,
+    inPlaceMatches: totalInPlaceMatches,
+    search,
+    batch: {
+      rules: ruleSummaries,
+      coalesced,
+      unmatchedRules,
+      fileChanges,
+    },
+    ...(leftOut.length > 0 ? { leftOut } : {}),
+  }
+}
+
 export async function planAstRewrite(
   scope: AstScope,
-  opts: { pattern: string; rewrite: string; signal?: AbortSignal },
+  opts: { pattern?: string; rewrite?: string; rules?: ReadonlyArray<AstRewriteRule>; signal?: AbortSignal },
 ): Promise<AstRewritePlan | AstRefusal> {
-  if (ANON_IN_REWRITE.test(opts.rewrite)) {
+  if (opts.rules !== undefined) {
+    return planAstBatchRewrite(scope, opts.rules, opts.signal)
+  }
+  const singlePattern = opts.pattern ?? ''
+  const singleRewrite = opts.rewrite ?? ''
+  if (ANON_IN_REWRITE.test(singleRewrite)) {
     return {
       refused: `The rewrite uses an anonymous meta-variable ($$$ or $_), which captures nothing and so cannot be inserted. Name it in both the pattern and the rewrite (for example $$$ARGS), or drop it from the rewrite.`,
     }
   }
   const search = await searchAstPattern(scope, {
-    pattern: opts.pattern,
+    pattern: singlePattern,
     matchCap: AST_BOUNDS.editMaxMatches + 1,
+    retainSource: true,
+    recoveredApart: true,
     ...(opts.signal !== undefined && { signal: opts.signal }),
   })
   if (isAstRefusal(search)) return search
-  if (search.matches.length > AST_BOUNDS.editMaxMatches) {
-    return {
-      refused: `More than ${AST_BOUNDS.editMaxMatches} matches in one edit — narrow the scope (path or glob) or the pattern, then run again. Nothing was written.`,
-    }
-  }
+  const tooManyMatches = `More than ${AST_BOUNDS.editMaxMatches} matches in one edit — narrow the scope (path or glob) or the pattern, then run again. Nothing was written.`
+  const tooManyFiles = (count: number): string => `Matches in ${count} files, more than the ${AST_BOUNDS.editMaxFiles}-file bound for one edit — narrow the scope (path or glob), then run again. Nothing was written.`
+  const damaged = new Set(search.recovered?.map(file => file.rel))
   const byFile = new Map<string, AstMatch[]>()
+  let parsedMatches = 0
   for (const m of search.matches) {
     const list = byFile.get(m.rel) ?? []
     list.push(m)
     byFile.set(m.rel, list)
+    if (!damaged.has(m.rel)) parsedMatches++
   }
-  if (byFile.size > AST_BOUNDS.editMaxFiles) {
-    return {
-      refused: `Matches in ${byFile.size} files, more than the ${AST_BOUNDS.editMaxFiles}-file bound for one edit — narrow the scope (path or glob), then run again. Nothing was written.`,
-    }
-  }
+  if (parsedMatches > AST_BOUNDS.editMaxMatches) return { refused: tooManyMatches }
+  const parsedFiles = [...byFile.keys()].filter(rel => !damaged.has(rel)).length
+  if (parsedFiles > AST_BOUNDS.editMaxFiles) return { refused: tooManyFiles(parsedFiles) }
+  const pastBound =
+    search.matches.length > AST_BOUNDS.editMaxMatches
+      ? { note: `more than ${AST_BOUNDS.editMaxMatches} matches in one edit`, refusal: tooManyMatches }
+      : byFile.size > AST_BOUNDS.editMaxFiles
+        ? { note: `more than the ${AST_BOUNDS.editMaxFiles}-file bound for one edit`, refusal: tooManyFiles(byFile.size) }
+        : null
   const engine = await loadGrammarEngine()
   if (engine.state === 'unavailable') return { refused: engine.note }
 
@@ -747,8 +1486,8 @@ export async function planAstRewrite(
   const rewriteCache: CompileCache = new Map()
   const shapeByLang = new Map<string, { pat: TSNode; rw: TSNode } | null>()
   const terminatorByLang = new Map<string, boolean>()
-  const encodedPattern = encodePattern(opts.pattern)
-  const encodedRewrite = encodePattern(opts.rewrite)
+  const encodedPattern = encodePattern(singlePattern)
+  const encodedRewrite = encodePattern(singleRewrite)
   async function spansTerminator(lang: PolyglotLanguage): Promise<boolean> {
     const cached = terminatorByLang.get(lang.name)
     if (cached !== undefined) return cached
@@ -761,7 +1500,7 @@ export async function planAstRewrite(
     const cached = shapeByLang.get(lang.name)
     if (cached !== undefined) return cached
     let shape: { pat: TSNode; rw: TSNode } | null = null
-    if (opts.rewrite.trim() !== '') {
+    if (singleRewrite.trim() !== '') {
       const pat = await compileFor(engine as Parameters<typeof compileFor>[0], lang, encodedPattern, patternCache)
       const rw = await compileFor(engine as Parameters<typeof compileFor>[0], lang, encodedRewrite, rewriteCache)
       if (!('state' in pat) && !('state' in rw) && !pat.pattern.tagMetavars && !rw.pattern.tagMetavars && sameShape(pat.pattern.root, rw.pattern.root)) {
@@ -780,6 +1519,8 @@ export async function planAstRewrite(
   }
 
   const files: AstRewriteFile[] = []
+  const leftOut: AstLeftOutFile[] = []
+  let leftOutMatches = 0
   let unchangedMatches = 0
   let inPlaceMatches = 0
   for (const [rel, list] of [...byFile.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
@@ -793,25 +1534,49 @@ export async function planAstRewrite(
       releaseCompiled()
       return { refused: `${rel}: no grammar for this file (it should not have matched).` }
     }
+    const recovery = search.recovered?.find(file => file.rel === rel)
+    if (recovery && pastBound) {
+      leftOut.push({ rel, ...pastBound })
+      leftOutMatches += list.length
+      continue
+    }
+    const spans = recovery?.errors ?? []
     let before: string
     try {
-      before = readFileSync(first.abs, 'utf8')
+      before = recovery?.source ?? readFileSync(first.abs, 'utf8')
     } catch (err) {
       releaseCompiled()
       return { refused: `${rel}: unreadable — ${(err as Error).message}. Nothing was written.` }
     }
     list.sort((a, b) => a.startIndex - b.startIndex || b.endIndex - a.endIndex)
+    let nested: AstLeftOutFile | null = null
     for (let i = 1; i < list.length; i++) {
       const prev = list[i - 1]!
       const cur = list[i]!
       if (cur.startIndex < prev.endIndex) {
-        releaseCompiled()
-        return {
-          refused:
-            `Ambiguous rewrite in ${rel}: the match at line ${cur.startLine} sits inside the match at line ${prev.startLine} ` +
-            `(${JSON.stringify(cur.text.split('\n')[0]!.slice(0, 60))} inside ${JSON.stringify(prev.text.split('\n')[0]!.slice(0, 60))}), ` +
-            `so rewriting both would rewrite the same bytes twice. Narrow the pattern so matches do not nest, or split the scope. Nothing was written.`,
+        const refusal =
+          `Ambiguous rewrite in ${rel}: the match at line ${cur.startLine} sits inside the match at line ${prev.startLine} ` +
+          `(${JSON.stringify(cur.text.split('\n')[0]!.slice(0, 60))} inside ${JSON.stringify(prev.text.split('\n')[0]!.slice(0, 60))}), ` +
+          `so rewriting both would rewrite the same bytes twice. Narrow the pattern so matches do not nest, or split the scope. Nothing was written.`
+        if (!recovery) {
+          releaseCompiled()
+          return { refused: refusal }
         }
+        nested = { rel, note: `${cur.startLine}:${cur.startCol} the match sits inside the match at line ${prev.startLine}`, refusal }
+        break
+      }
+    }
+    if (nested) {
+      leftOut.push(nested)
+      leftOutMatches += list.length
+      continue
+    }
+    if (recovery) {
+      const dirty = list.find(match => match.hasSyntaxError || spans.length === 0 || spans.some(error => touchesParseError(match.startIndex, match.endIndex, error)))
+      if (dirty) {
+        leftOut.push({ rel, note: `${dirty.startLine}:${dirty.startCol} the match touches a syntax-error region`, refusal: `Cannot rewrite ${rel}:${dirty.startLine}:${dirty.startCol}: the match touches a syntax-error region. Nothing was written.` })
+        leftOutMatches += list.length
+        continue
       }
     }
     const shape = await shapeFor(lang)
@@ -820,17 +1585,18 @@ export async function planAstRewrite(
     if (shape) {
       const parsed = await parsePolyglot(engine, lang, before)
       if (!('state' in parsed)) {
-        if (parsed.parseErrors.length === 0) tree = parsed.tree
+        if (parsed.parseErrors.length === 0 || recovery) tree = parsed.tree
         else parsed.tree.delete()
       }
     }
     const edits: Edit[] = []
     let unchangedInFile = 0
+    let inPlaceInFile = 0
     try {
       for (const m of list) {
         const captureNames = m.captures.map(c => c.key)
         const substituted = substituteRewrite(
-          opts.rewrite,
+          singleRewrite,
           m.captures.map(c => ({ key: c.key, startIndex: 0, endIndex: 0, text: c.text })),
           captureNames.length > 0 ? captureNames : (search.captureNamesByLang.get(lang.name) ?? []),
         )
@@ -864,6 +1630,7 @@ export async function planAstRewrite(
                 unchangedInFile++
               } else {
                 inPlaceMatches++
+                inPlaceInFile++
               }
               edits.push(...local)
               continue
@@ -886,16 +1653,39 @@ export async function planAstRewrite(
       tree?.delete()
     }
     edits.sort((a, b) => a.start - b.start)
+    let sharing: AstLeftOutFile | null = null
     for (let i = 1; i < edits.length; i++) {
       if (edits[i]!.start < edits[i - 1]!.end) {
-        releaseCompiled()
-        return { refused: `Ambiguous rewrite in ${rel}: two deletions share a line — narrow the pattern. Nothing was written.` }
+        const refusal = `Ambiguous rewrite in ${rel}: two deletions share a line — narrow the pattern. Nothing was written.`
+        if (!recovery) {
+          releaseCompiled()
+          return { refused: refusal }
+        }
+        const match = list.find(m => edits[i]!.start <= m.endIndex && edits[i]!.end >= m.startIndex) ?? first
+        sharing = { rel, note: `${match.startLine}:${match.startCol} two deletions share a line`, refusal }
+        break
+      }
+    }
+    if (sharing) {
+      leftOut.push(sharing)
+      leftOutMatches += list.length - unchangedInFile
+      inPlaceMatches -= inPlaceInFile
+      continue
+    }
+    if (recovery) {
+      const touching = edits.find(edit => spans.some(error => touchesParseError(edit.start, edit.end, error)))
+      if (touching) {
+        const match = list.find(m => touching.start <= m.endIndex && touching.end >= m.startIndex) ?? first
+        leftOut.push({ rel, note: `${match.startLine}:${match.startCol} the match touches a syntax-error region`, refusal: `Cannot rewrite ${rel}:${match.startLine}:${match.startCol}: the match touches a syntax-error region. Nothing was written.` })
+        leftOutMatches += list.length - unchangedInFile
+        inPlaceMatches -= inPlaceInFile
+        continue
       }
     }
     const after = applyEdits(before, edits)
     if (after === before) continue
     {
-      const reparsed = await parsePolyglot(engine, lang, after)
+      const reparsed = await parsePolyglot(engine, lang, after, recovery ? { errorRegions: true } : undefined)
       if ('state' in reparsed) {
         releaseCompiled()
         return { refused: `${rel}: ${reparsed.note}. Nothing was written.` }
@@ -903,7 +1693,15 @@ export async function planAstRewrite(
       const broken = reparsed.parseErrors.length > 0
       const firstError = reparsed.parseErrors[0]
       reparsed.tree.delete()
-      if (broken) {
+      if (recovery && broken && reparsed.errorRegions?.length) {
+        const introduced = introducedParseError(before, after, edits, spans, reparsed.errorRegions)
+        if (introduced) {
+          leftOut.push({ rel, note: `${introduced.line}:${introduced.column} the rewrite would introduce a syntax error${introduced.missing ? `, missing ${introduced.type}` : ''}`, refusal: `The rewrite introduces a syntax error in ${rel} at ${introduced.line}:${introduced.column} (${introduced.missing ? `missing ${introduced.type}` : 'syntax error'}). Nothing was written.` })
+          leftOutMatches += list.length - unchangedInFile
+          inPlaceMatches -= inPlaceInFile
+          continue
+        }
+      } else if (broken) {
         releaseCompiled()
         return {
           refused: `The rewrite would leave ${rel} unparsable as ${lang.name} (${firstError}) — adjust the rewrite so the result is valid code. Nothing was written.`,
@@ -930,15 +1728,22 @@ export async function planAstRewrite(
     })
   }
   releaseCompiled()
-  const token = rewritePlanToken(opts.pattern, opts.rewrite, files.map(f => [f.rel, f.digestBefore, f.digestAfter]))
+  if (files.length === 0 && leftOut.length > 0) return { refused: leftOut[0]!.refusal }
+  const token = rewritePlanToken(singlePattern, singleRewrite, files.map(f => [f.rel, f.digestBefore, f.digestAfter]), leftOut.map(f => f.rel))
   return {
     token,
     files,
-    matchCount: search.matches.length - unchangedMatches,
+    matchCount: search.matches.length - unchangedMatches - leftOutMatches,
     unchangedMatches,
     inPlaceMatches,
     search,
+    ...(leftOut.length > 0 ? { leftOut } : {}),
   }
+}
+
+export function renderLeftOut(leftOut: AstLeftOutFile[] | undefined): string[] {
+  if (!leftOut?.length) return []
+  return [`Left unchanged: ${leftOut.slice(0, 5).map(file => `${file.rel} (${file.note})`).join('; ')}${leftOut.length > 5 ? `; +${leftOut.length - 5} more` : ''}.`]
 }
 
 
@@ -967,6 +1772,13 @@ export function renderSearchTrailer(scope: AstScope, result: AstSearchResult): s
   const where = scope.singleFile ? scope.display : `under ${scope.display}${scope.glob ? ` (glob ${scope.glob})` : ''}${scope.lang ? ` (lang ${scope.lang.name})` : ''}`
   const langs = result.languagesSearched.map(([l, n]) => `${n} ${l}`).join(', ')
   out.push(`Searched ${result.filesParsed} of ${scope.files.length} files ${where}${langs ? ` — ${langs}` : ''}${result.filesParsed < scope.files.length && scope.files.length > 0 ? ' (files that cannot contain the pattern were not parsed)' : ''}.`)
+  if (result.recovered) {
+    for (const file of result.recovered.slice(0, 5)) {
+      const omitted = Math.max(0, file.diagnostics - file.notes.length)
+      out.push(`Searched recovered tree: ${file.rel} (${file.lang}; ${file.notes.join('; ')}${omitted ? `; +${omitted} more diagnostics` : ''}). Matches may include parser recovery; code inside a syntax error may go unmatched.`)
+    }
+    if (result.recovered.length > 5) out.push(`+${result.recovered.length - 5} more files searched over recovered trees.`)
+  }
   if (result.patternRefusals.length > 0) {
     out.push(`Not searched: ${result.patternRefusals.map(r => `${r.files} ${r.lang} file${r.files === 1 ? '' : 's'} (${r.note})`).join('; ')}.`)
   }

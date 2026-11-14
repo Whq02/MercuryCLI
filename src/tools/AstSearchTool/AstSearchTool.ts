@@ -238,7 +238,7 @@ export const AstSearchTool = buildTool({
       filesSearched: result.filesParsed,
       offset,
       capped: result.capped,
-      parseFailures: result.parseFailures.length,
+      parseFailures: result.parseFailures.length + (result.recovered?.length ?? 0),
     }
 
     if (scope.files.length === 0) {

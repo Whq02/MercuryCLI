@@ -4,8 +4,8 @@ Mercury searches and rewrites code by its **syntax shape**: a pattern written
 in the target language, with meta-variables standing for the parts that vary,
 is matched against the parsed syntax tree of every file in scope (never
 against raw text). Two built-in tools carry it: `AstSearch` finds, `AstEdit`
-rewrites. Both ride ONE matcher, so an edit's match set is the search's
-match set by construction.
+rewrites. Both use the same matcher; an edit also checks the source and
+the rewritten file before writing.
 
 ## The pattern grammar
 
@@ -146,8 +146,13 @@ In a build that lacks a grammar the registry routes: a file of that
 language is skipped and counted by extension with the remedy named in the
 result trailer; a single such file, or a `lang` pin on it, refuses by name
 with the remedy. A file whose extension routes to no grammar at all is
-skipped and counted, never text-matched; a file that does not parse is
-reported per file, never matched over. The engine is pure WASM (no native
+skipped and counted, never text-matched. AstSearch searches a recovered
+tree when the parser reports syntax errors. Its trailer names the file,
+language and error locations (an error that runs past its line is given
+with its end), with omitted counts for longer reports; matches may include
+parser recovery, and code inside a syntax error may go unmatched. A parser
+that returns no tree leaves the file unsearched and names the reason. The
+engine is pure WASM (no native
 dependency, one vendored asset set for every platform artifact); when no
 engine resolves at all, neither tool is in the catalog. Friendly spellings
 resolve (`ts`, `js`, `py`, `rs`, `cs`, `c++`, `sh`, `rb`, `kt`, `ps1`); for
@@ -175,10 +180,16 @@ ledger like Grep's.
 
 ## AstEdit
 
-`{ pattern, rewrite, path?, glob?, lang?, apply?, plan? }`: the rewrite is
-code in the target language; `$NAME`/`$$$NAME` insert the captured source
-verbatim; `""` deletes the matched node (a node that owns its line takes the
-line with it). Two calls, always:
+`{ pattern?, rewrite?, rules?, path?, glob?, lang?, apply?, plan? }`: pass
+either `pattern` and `rewrite` for one rule, or `rules` (`[{ pattern, rewrite }, …]`)
+for simultaneous rules evaluated in one pass over each file's original bytes
+(never both). Each rewrite is code in the target language; `$NAME`/`$$$NAME`
+insert the captured source verbatim; `""` deletes the matched node (a node that
+owns its line takes the line with it). When `rules` is used, identical computed
+edits at the same span coalesce and count once, divergent overlapping matches
+refuse before preview naming both rules and their coordinates, and the preview
+and receipt report per-rule counts, coalesced edits and rules that matched
+nothing. Two calls, always:
 
 1. **The dry run** (no `apply`) plans every match, parse-guards every planned
    file, and returns the unified diff per file plus a plan token `ae-…`
@@ -200,6 +211,23 @@ line with it). Two calls, always:
    change receipt (`file.astEdit`). Partial application is failure, never
    success.
 
+An error-bearing file can be rewritten when every matched subtree is clean
+and the replacement spans stay outside error spans and missing-token
+positions. Mercury reparses the result and compares every error's kind,
+position through the edits, and source bytes; pre-existing errors outside
+the edited spans may remain, and the preview names them with the
+recovered-tree warning. An error-bearing file that cannot be rewritten (a
+match touches an error, the rewrite would change its errors, its matches
+nest or overlap, or two deletions share a line) is left out of the plan
+whole and named (`Left unchanged: file (line:column reason)`, five files,
+then a count); the other files are planned and written, and the plan token
+covers which files were left. Error-bearing files join an edit only while
+the whole edit stays within the bounds below: when their matches would take
+it past one, each of them that holds a match is left out and named with
+that bound (`Left unchanged: file (more than 500 matches in one edit)`),
+and the files that parse are planned as they would be without them. When no
+file is left to rewrite, the edit is refused with that file's reason.
+
 The layout-keeping lane: when the rewrite parses to the same shape as the
 pattern (same node types, same children, and the same meta-variables in the
 same places), only leaf tokens differ (a callee, a keyword, a string), and
@@ -209,12 +237,13 @@ rename keeps its body, its indentation and its comments. Every other rewrite
 the template literally. The lane is taken only when its result equals the
 literal substitution modulo whitespace and out-of-capture comments.
 
-Refused by name, nothing written: a match nested inside another match (the
-pair is named; narrow the pattern or the scope); a rewrite naming a
-meta-variable the pattern does not capture; an anonymous `$$$` or `$_` in
-the rewrite; a rewrite that would leave a file unparsable (the line is
-named); more than 100 files or 500 matches in one edit. Matches already in
-the rewritten form are counted and left alone.
+Refused by name, nothing written: a match nested inside another match in a
+file that parses (the pair is named; narrow the pattern or the scope); a
+rewrite naming a meta-variable the pattern does not capture; an anonymous
+`$$$` or `$_` in the rewrite; a rewrite that leaves a file that parsed
+unparsable (the location is named); more than 100 files or 500 matches in
+one edit among the files that parse. Matches already in the rewritten form
+are counted and left alone.
 
 ## Memory: the held grammars
 

@@ -41,8 +41,13 @@ interface DecisionPorts {
 
 export const defaultDecisionPorts: DecisionPorts = {
   isToolKilled: (tool, agentType) => isToolKilled(tool, agentType),
-  resolveToolVerdict: async (tool, input, context) =>
-    tool.checkPermissions(tool.inputSchema.parse(input), context),
+  resolveToolVerdict: async (tool, input, context) => {
+    const parsed = tool.inputSchema.safeParse(input)
+    if (parsed.success) return tool.checkPermissions(parsed.data, context)
+    const verdict = await tool.checkPermissions(input, context)
+    if (verdict?.behavior === 'deny' || verdict?.behavior === 'ask') return verdict
+    throw parsed.error
+  },
 }
 
 interface DecisionOutcome<D> {

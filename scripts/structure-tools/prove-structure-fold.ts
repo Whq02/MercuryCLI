@@ -43,8 +43,8 @@ try {
     const alone = await toolToAPISchema(tool as never, { ...options, tools: [tool] as never }) as any
     const together = await toolToAPISchema(tool as never, options) as any
     check(`${tool.name}: names no companion whatever the pool offers, and its text is the same alone or together`, !alone.description.includes(companion.name) && !together.description.includes(companion.name) && alone.description === together.description)
-    const expected = tool.name === 'AstSearch' ? ['pattern', 'path', 'glob', 'lang', 'mode', 'limit', 'offset'] : ['pattern', 'rewrite', 'path', 'glob', 'lang', 'apply', 'plan']
-    check(`${tool.name}: the seven-field contract stays intact`, JSON.stringify(Object.keys(alone.input_schema.properties)) === JSON.stringify(expected) && alone.input_schema.additionalProperties === false)
+    const expected = tool.name === 'AstSearch' ? ['pattern', 'path', 'glob', 'lang', 'mode', 'limit', 'offset'] : ['pattern', 'rewrite', 'rules', 'path', 'glob', 'lang', 'apply', 'plan']
+    check(`${tool.name}: the ${expected.length}-field contract stays intact`, JSON.stringify(Object.keys(alone.input_schema.properties)) === JSON.stringify(expected) && alone.input_schema.additionalProperties === false)
   }
   for (const tools of [pool, [StructureTool]]) {
     const prover = await makeContext(tools)
