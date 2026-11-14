@@ -10,11 +10,11 @@ nix profile add github:Whq02/MercuryCLI
 mercury --version
 ```
 
-On Nix before 2.30, use `nix profile install` instead of `nix profile add`. Enable Nix's `nix-command` and `flakes` experimental features if your Nix installation has not already enabled them.
+On Nix before 2.30, use `nix profile install` instead of `nix profile add`. Add `nix-command` and `flakes` to Nix's `experimental-features` setting if your Nix installation has not already enabled them.
 
 Follow the repository's default branch, as these examples do: release pins are refreshed after the release archives are published, so a release tag's flake still names the previous release. A lock file in a consuming flake fixes the Mercury revision and therefore its archive hashes.
 
-The initial 1.0.10 pin predates Nix ownership and has no switch that disables managed installation writes: use the Nix command explicitly and manage that release through Nix rather than its `mercury install` or `mercury update` commands.
+The initial 1.0.10 pin predates Nix ownership and has no switch that disables managed installation writes: use the Nix command explicitly and manage that release through Nix; leave its `mercury install` and `mercury update` commands alone.
 
 The four package systems are `x86_64-linux`, `aarch64-linux`, `x86_64-darwin` and `aarch64-darwin`. Intel macOS uses `nixpkgs-26.05-darwin`, the last Nixpkgs release line that supports it. Each has `packages.<system>.mercury` and `.default`, and matching `apps` outputs. No release API is contacted during flake evaluation.
 
@@ -59,7 +59,7 @@ When Mercury was invoked through a profile that links `libexec/mercury` beside `
 
 `nix develop` supplies a locked development environment with Bun, Node, Rust, C/C++ build tools, Python, git and ripgrep. It runs no setup hook. The project's normal prerequisites and `bun run setup` / `bun run build.ts` still apply; this is not a reproducible Nix source build of Mercury or a source-built replacement for its signed release package.
 
-A reproducible source derivation would additionally need fixed-output JavaScript dependencies and patches, every vendor lock and platform pack, Cargo inputs for the native addons, the model artifacts and their licences, and the project's full build and packaging checks. It would be labelled as a source build, not signed with the release private key.
+A reproducible source derivation would additionally need fixed-output JavaScript dependencies and patches, every vendor lock and platform pack, Cargo inputs for the native addons, the model artifacts and their licences, and the project's full build and packaging checks. It would be labelled as a source build and would carry no signature of the release private key.
 
 ## Release pins
 
