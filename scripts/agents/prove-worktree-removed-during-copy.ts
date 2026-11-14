@@ -25,6 +25,8 @@ if (road !== undefined) {
   const env = { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@invalid' }
   const git = (...args: string[]): string => execFileSync('git', args, { cwd: repo, env, encoding: 'utf8' })
   git('init', '-q', '-b', 'main'); git('add', '.gitignore'); git('commit', '-qm', 'fixture')
+  execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: outside, env })
+  const outsideConfig = readFileSync(join(outside, '.git', 'config'), 'utf8')
   let release!: () => void
   let announce!: () => void
   const held = new Promise<void>(resolve => { release = resolve })
@@ -60,7 +62,7 @@ if (road !== undefined) {
   release()
   await made.ready
   const rootKept = action === 'gone' ? !existsSync(made.worktreePath) : action === 'link' ? lstatSync(made.worktreePath).isSymbolicLink() : readdirSync(made.worktreePath).join(',') === 'personal' && readFileSync(join(made.worktreePath, 'personal'), 'utf8') === 'keep me'
-  console.log('RESULT ' + JSON.stringify({ removed, rootKept, outsideKept: readdirSync(outside).join(',') === 'personal' && readFileSync(join(outside, 'personal'), 'utf8') === 'keep me', sourceKept: readFileSync(join(repo, 'node_modules', 'file'), 'utf8') === 'dependency', staged: readdirSync(dirname(made.worktreePath)).filter(name => name.startsWith('.cloning-')), failure: made.prepareFailure ?? null }))
+  console.log('RESULT ' + JSON.stringify({ removed, rootKept, outsideKept: readdirSync(outside).sort().join(',') === '.git,personal' && readFileSync(join(outside, 'personal'), 'utf8') === 'keep me' && readFileSync(join(outside, '.git', 'config'), 'utf8') === outsideConfig, sourceKept: readFileSync(join(repo, 'node_modules', 'file'), 'utf8') === 'dependency', staged: readdirSync(dirname(made.worktreePath)).filter(name => name.startsWith('.cloning-')), failure: made.prepareFailure ?? null }))
   process.exit(0)
 }
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-removed-copy-')))

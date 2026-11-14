@@ -619,7 +619,7 @@ async function propagateLocalSettings(repoRoot: string, worktreePath: string, pr
   }
 }
 
-async function placeCheckoutFolders(repoRoot: string, worktreePath: string, dependencyLinksFrom: string | undefined, preserveExisting: boolean, permission?: SessionRules, carry = false): Promise<void> {
+async function placeCheckoutFolders(repoRoot: string, worktreePath: string, dependencyLinksFrom: string | undefined, preserveExisting: boolean, permission?: SessionRules, carry = false): Promise<boolean> {
   const symlinkDirectories = getInitialSettings().workspace?.worktree?.symlinkDirectories ?? []
   const sourceRoot = dependencyLinksFrom !== undefined ? (findGitRoot(dependencyLinksFrom) ?? repoRoot) : repoRoot
   const dependencyLinks = dependencyLinksFrom !== undefined ? await dependencyLinkCandidates(sourceRoot) : []
@@ -628,17 +628,18 @@ async function placeCheckoutFolders(repoRoot: string, worktreePath: string, depe
   const carries = carry && dependencyLinksFrom !== undefined && canCloneHere() && (getInitialSettings().workspace?.worktree?.sparsePaths ?? []).length === 0
   const held = canCloneHere() && toClone.length > 0 ? await heldBackUnder(permission, sourceRoot) : undefined
   const cloned = await cloneCheckoutDirectories(sourceRoot, worktreePath, toClone, held)
-  if (cloned === null) return
+  if (cloned === null) return false
   recordWorktreeClones(worktreePath, cloned)
   const linked = await linkCheckoutDirectories(sourceRoot, worktreePath, [...new Set([...dependencyLinks, ...symlinkDirectories])].filter(name => !cloned.includes(name)))
   if (dependencyLinksFrom !== undefined) await hideLinksFromGit(repoRoot, worktreePath, sourceRoot, [...cloned, ...linked])
   const carried = carries && (await carryIgnoredEntries(sourceRoot, worktreePath, [...new Set([...dependencyLinks, ...keptAsLinks])], permission))
   await copyWorktreeIncludeFiles(repoRoot, worktreePath, preserveExisting || carried)
+  return true
 }
 
-export async function prepareWorktreeFiles(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string, preserveExisting = false, permission?: SessionRules, carry = false): Promise<void> {
+export async function prepareWorktreeFiles(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string, preserveExisting = false, permission?: SessionRules, carry = false): Promise<boolean> {
   await propagateLocalSettings(repoRoot, worktreePath, preserveExisting)
-  await placeCheckoutFolders(repoRoot, worktreePath, dependencyLinksFrom, preserveExisting, permission, carry)
+  return placeCheckoutFolders(repoRoot, worktreePath, dependencyLinksFrom, preserveExisting, permission, carry)
 }
 
 async function setWorktreeHooksPath(repoRoot: string, worktreePath: string): Promise<void> {
@@ -670,7 +671,7 @@ async function setWorktreeHooksPath(repoRoot: string, worktreePath: string): Pro
 }
 
 async function runPostCreationSetup(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string, permission?: SessionRules, carry = false): Promise<string | undefined> {
-  await prepareWorktreeFiles(repoRoot, worktreePath, dependencyLinksFrom, false, permission, carry)
+  if (!(await prepareWorktreeFiles(repoRoot, worktreePath, dependencyLinksFrom, false, permission, carry))) return undefined
   await setWorktreeHooksPath(repoRoot, worktreePath)
   return runWorktreePrepareCommand(worktreePath)
 }
@@ -688,7 +689,7 @@ async function launchWaitsForFolders(repoRoot: string): Promise<boolean> {
 
 function placeFoldersBehindLaunch(repoRoot: string, worktreePath: string, from: string, permission: ToolPermissionContext | undefined, carry: boolean): Promise<void> {
   const placing = (async () => {
-    await placeCheckoutFolders(repoRoot, worktreePath, from, false, permission, carry)
+    if (!(await placeCheckoutFolders(repoRoot, worktreePath, from, false, permission, carry))) return
     await setWorktreeHooksPath(repoRoot, worktreePath)
   })().catch(error => {
     logForDebugging(`the folders of ${worktreePath} were not placed: ${String(error)}`, { level: 'warn' as never })
