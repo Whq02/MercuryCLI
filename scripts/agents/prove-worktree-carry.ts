@@ -25,6 +25,7 @@ const state = await import('../../src/bootstrap/state.ts')
 const config = await import('../../src/utils/config/globalConfig.ts')
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
 const worktree = await import('../../src/utils/worktree.ts')
+const instructions = await import('../../src/services/instructions/engine.ts')
 const cloneModule = (await import('../../src/utils/worktreeClone.ts')) as unknown as { planCloneCalls: (source: string, held?: (path: string) => boolean, leaveOut?: boolean) => Promise<{ folders: string[]; clones: string[]; links: string[] }> }
 type Made = { worktreePath: string; prepareFailure?: string; ready?: Promise<void> }
 const make = (slug: string, options: Record<string, unknown> = {}): Promise<Made> => (worktree.createAgentWorktree as (slug: string, options: unknown) => Promise<Made>)(slug, options)
@@ -57,7 +58,7 @@ const enter = (dir: string): void => {
 }
 const adminOf = (path: string): string => resolve(path, readFileSync(join(path, '.git'), 'utf8').trim().slice('gitdir:'.length).trim())
 const recorded = (path: string): string[] => read(join(adminOf(path), 'WORKTREE_CLONES')).split('\n').filter(line => line !== '' && line !== '<absent>').sort()
-const IGNORES = ['node_modules/', 'dist/', '*.log', '.env', '.env.production', '__pycache__/', '.venv/', 'build/', 'cache/', 'other-trees/', 'top-tree/', 'linked-out', 'linked-in', '.mercury/']
+const IGNORES = ['node_modules/', 'dist/', '*.log', '.env', '.env.production', '__pycache__/', '.venv/', 'build/', 'cache/', 'other-trees/', 'top-tree/', 'linked-out', 'linked-in', '.mercury/', 'MERCURY.local.md', 'AGENTS.md']
 const CARRIED: Record<string, string> = {
   'dist/app.js': 'built\n',
   'dist/sub/chunk.js': 'chunk\n',
@@ -69,7 +70,7 @@ const CARRIED: Record<string, string> = {
   'cache/keep/data.bin': 'kept\n',
   'other-trees/plain/file.txt': 'plain\n',
 }
-const BEHIND = ['.venv', 'build', 'cache/cmake-out', 'other-trees/wt', 'top-tree', 'dist/secret', '.env.production', '.mercury/worktrees', '.mercury/settings.json']
+const BEHIND = ['.venv', 'build', 'cache/cmake-out', 'other-trees/wt', 'top-tree', 'dist/secret', '.env.production', '.mercury/worktrees', '.mercury/settings.json', 'MERCURY.local.md', 'src/pkg/MERCURY.local.md', 'AGENTS.md', 'cache/keep/MERCURY.md']
 
 const makeFixture = (name: string, settings: (dir: string) => Record<string, unknown>, more: string[] = []): string => {
   const dir = join(scratch, name)
@@ -97,6 +98,10 @@ const makeFixture = (name: string, settings: (dir: string) => Record<string, unk
     'other-trees/wt/file.txt': 'another tree\n',
     'top-tree/.git': 'gitdir: /nowhere/.git/worktrees/top-tree\n',
     'top-tree/file.txt': 'another tree at the top\n',
+    'MERCURY.local.md': 'private instructions for this project\n',
+    'cache/keep/MERCURY.md': 'instructions that lie inside an ignored folder\n',
+    'src/pkg/MERCURY.local.md': 'private instructions for this folder\n',
+    'AGENTS.md': 'instructions another tool reads, kept out of git here\n',
     '.mercury/settings.local.json': '{}\n',
     '.mercury/settings.json': JSON.stringify(settings(dir)),
   })) {
@@ -147,6 +152,16 @@ try {
     check('…and inside a carried folder, where the folder beside it comes', kindOf(join(copy, 'other-trees', 'wt')) === 'absent' && read(join(copy, 'other-trees', 'plain', 'file.txt')) === 'plain\n', kindOf(join(copy, 'other-trees', 'wt')))
     check('what a Read deny rule names where it lies in the checkout is not carried: a folder inside build output, a file at the top', kindOf(join(copy, 'dist', 'secret')) === 'absent' && kindOf(join(copy, '.env.production')) === 'absent', `${kindOf(join(copy, 'dist', 'secret'))}, ${kindOf(join(copy, '.env.production'))}`)
     check('Mercury\'s own folder is never carried: the copy holds its local settings and nothing else of it', readdirSync(join(copy, '.mercury')).join(',') === 'settings.local.json', readdirSync(join(copy, '.mercury')).join(','))
+    check('an ignored instruction file is not carried, at the top, beside tracked code or inside a carried folder', ['MERCURY.local.md', 'src/pkg/MERCURY.local.md', 'AGENTS.md', 'cache/keep/MERCURY.md'].every(rel => kindOf(join(copy, rel)) === 'absent' && kindOf(join(fixture, rel)) === 'file'), ['MERCURY.local.md', 'src/pkg/MERCURY.local.md', 'AGENTS.md', 'cache/keep/MERCURY.md'].map(rel => kindOf(join(copy, rel))).join(', '))
+    enter(copy)
+    instructions.clearInstructionFileCaches()
+    const composed = (await instructions.getInstructionFiles()) as Array<{ path: string; content: string }>
+    const dropped = instructions.getInstructionCompositionState().skippedDuplicates.map(entry => entry.path)
+    enter(fixture)
+    instructions.clearInstructionFileCaches()
+    const privately = composed.filter(entry => entry.content.includes('private instructions for this project'))
+    check('a session in the copy reads the checkout\'s MERCURY.local.md once, from the checkout, as before', privately.length === 1 && realpathSync((privately[0] as { path: string }).path) === realpathSync(join(fixture, 'MERCURY.local.md')), privately.map(entry => entry.path).join(', '))
+    check('…and meets no second copy of it to drop', dropped.length === 0, dropped.join(', '))
     check('an ignored link out of the checkout comes as a link to the same place, and nothing of that place is copied', kindOf(join(copy, 'linked-out')) === 'link' && realpathSync(join(copy, 'linked-out')) === realpathSync(join(outside, 'target.txt')) && readdirSync(outside).join(',') === 'target.txt', `${kindOf(join(copy, 'linked-out'))} ${kindOf(join(copy, 'linked-out')) === 'link' ? readlinkSync(join(copy, 'linked-out')) : ''}`)
     check('an ignored link into the checkout names the copy\'s own file', kindOf(join(copy, 'linked-in')) === 'link' && realpathSync(join(copy, 'linked-in')) === realpathSync(join(copy, 'src', 'pkg', 'mod.py')))
     check('the dependency folder is the copy\'s own, as before', kindOf(join(copy, 'node_modules')) === 'folder' && read(join(copy, 'node_modules', 'dep', 'index.js')) === 'module.exports = 1\n')
@@ -156,6 +171,8 @@ try {
     const treesPlan = await cloneModule.planCloneCalls(join(fixture, 'other-trees'), undefined, true)
     const cachePlan = await cloneModule.planCloneCalls(join(fixture, 'cache'), undefined, true)
     check('what stays behind inside a carried folder is left out of the calls, never cloned and then deleted', JSON.stringify(treesPlan) === JSON.stringify({ folders: [''], clones: ['/plain'], links: ['/wt'] }) && JSON.stringify(cachePlan) === JSON.stringify({ folders: [''], clones: ['/keep'], links: ['/cmake-out'] }), `${JSON.stringify(treesPlan)} ${JSON.stringify(cachePlan)}`)
+    const worktreeSource = readFileSync(join(ROOT, 'src/utils/worktree.ts'), 'utf8')
+    check('which file is an instruction file is the instruction engine\'s own answer, for every convention it knows', worktreeSource.includes("const { conventionsForProfile, isInstructionFilePath } = await import('../services/instructions/engine.js')") && worktreeSource.includes('return path => names.has(basename(path)) || isInstructionFilePath(path, conventions)'))
 
     section('§2 a copy frozen at a commit, or standing on another, starts with the dependency folders only')
     const frozen = await make('agent-ad200001', { at: 'HEAD' })

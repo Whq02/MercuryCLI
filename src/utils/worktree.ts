@@ -420,6 +420,13 @@ async function cloneCheckoutDirectories(sourceRoot: string, worktreePath: string
 
 const CARRY_LISTING_BYTES = 64 * 1024 * 1024
 
+async function instructionFileTest(): Promise<HeldBack> {
+  const { conventionsForProfile, isInstructionFilePath } = await import('../services/instructions/engine.js')
+  const conventions = conventionsForProfile('auto')
+  const names = new Set(conventions.flatMap(convention => convention.instructionFileNames))
+  return path => names.has(basename(path)) || isInstructionFilePath(path, conventions)
+}
+
 async function ignoredEntriesOf(sourceRoot: string, worktreePath: string): Promise<string[]> {
   const options = { cwd: sourceRoot, maxBuffer: CARRY_LISTING_BYTES }
   const [listing, rules] = await Promise.all([
@@ -444,7 +451,12 @@ async function carryIgnoredEntries(sourceRoot: string, worktreePath: string, pla
     if ((PROJECT_CONFIG_DIR_NAMES as readonly string[]).includes(name.split('/')[0] as string)) return false
     return !placed.some(kept => name === kept || name.startsWith(`${kept}/`) || kept.startsWith(`${name}/`))
   })
-  recordWorktreeClones(worktreePath, await carryEntries(entries, sourceRoot, worktreePath, held))
+  const instructions = await instructionFileTest()
+  const staysBehind = (root: string): HeldBack => {
+    const denied = held?.(root)
+    return path => denied?.(path) === true || instructions(path)
+  }
+  recordWorktreeClones(worktreePath, await carryEntries(entries, sourceRoot, worktreePath, staysBehind))
   return true
 }
 
