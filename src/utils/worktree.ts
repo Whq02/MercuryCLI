@@ -502,22 +502,18 @@ async function holdsUserHome(sourceRoot: string): Promise<boolean> {
   }
 }
 
-async function carryIgnoredEntries(sourceRoot: string, worktreePath: string, placed: readonly string[], permission: SessionRules | undefined): Promise<boolean> {
-  if (await cloneRefusedBetween(sourceRoot, worktreePath)) return false
-  if (await holdsUserHome(sourceRoot)) return false
-  const [here, there] = await Promise.all([runGit(['rev-parse', 'HEAD'], worktreePath), runGit(['rev-parse', 'HEAD'], sourceRoot)])
-  if (here.code !== 0 || there.code !== 0 || here.stdout.trim() === '' || here.stdout.trim() !== there.stdout.trim()) return false
-  const entries = (await ignoredEntriesOf(sourceRoot, worktreePath)).filter(entry => {
-    const name = entry.endsWith('/') ? entry.slice(0, -1) : entry
-    if (PROJECT_CONFIG_DIR_NAMES.some(folder => name === folder || name.startsWith(`${folder}/`))) return false
-    return !placed.some(kept => name === kept || name.startsWith(`${kept}/`) || kept.startsWith(`${name}/`))
-  })
+type StaysBehind = () => Promise<(root: string) => HeldBack>
+
+async function staysBehindUnder(permission: SessionRules | undefined, sourceRoot: string): Promise<(root: string) => HeldBack> {
   const refusedUnder = (await heldBackUnder(permission, sourceRoot, true)) as (root: string) => HeldBack
   const instructions = await instructionFileTest()
   const { mercurySecretReadIgnores } = await import('./permissions/protectedPaths.js')
-  const fold = (path: string): string => path.normalize('NFC').toLowerCase()
+  const fold = (path: string): string => {
+    const folded = path.normalize('NFC').toLowerCase()
+    return sep === '\\' ? folded.replaceAll('\\', '/') : folded
+  }
   const ownHomes = [...mercurySecretReadIgnores().keys()].map(fold)
-  const staysBehind = (root: string): HeldBack => {
+  return (root: string): HeldBack => {
     const refused = refusedUnder(root)
     const checkout = fold(root)
     if (ownHomes.some(own => checkout === own || checkout.startsWith(`${own}/`))) return () => true
@@ -529,11 +525,23 @@ async function carryIgnoredEntries(sourceRoot: string, worktreePath: string, pla
       return inside.some(own => folded === own || folded.startsWith(`${own}/`))
     }
   }
-  recordWorktreeClones(worktreePath, await carryEntries(entries, sourceRoot, worktreePath, staysBehind))
+}
+
+async function carryIgnoredEntries(sourceRoot: string, worktreePath: string, placed: readonly string[], staysBehind: StaysBehind): Promise<boolean> {
+  if (await cloneRefusedBetween(sourceRoot, worktreePath)) return false
+  if (await holdsUserHome(sourceRoot)) return false
+  const [here, there] = await Promise.all([runGit(['rev-parse', 'HEAD'], worktreePath), runGit(['rev-parse', 'HEAD'], sourceRoot)])
+  if (here.code !== 0 || there.code !== 0 || here.stdout.trim() === '' || here.stdout.trim() !== there.stdout.trim()) return false
+  const entries = (await ignoredEntriesOf(sourceRoot, worktreePath)).filter(entry => {
+    const name = entry.endsWith('/') ? entry.slice(0, -1) : entry
+    if (PROJECT_CONFIG_DIR_NAMES.some(folder => name === folder || name.startsWith(`${folder}/`))) return false
+    return !placed.some(kept => name === kept || name.startsWith(`${kept}/`) || kept.startsWith(`${name}/`))
+  })
+  recordWorktreeClones(worktreePath, await carryEntries(entries, sourceRoot, worktreePath, await staysBehind()))
   return true
 }
 
-async function linkCheckoutDirectories(sourceRoot: string, worktreePath: string, relPaths: readonly string[]): Promise<string[]> {
+async function linkCheckoutDirectories(sourceRoot: string, worktreePath: string, relPaths: readonly string[], staysBehind: StaysBehind): Promise<string[]> {
   const linked: string[] = []
   for (const relPath of relPaths) {
     if (containsPathTraversal(relPath)) {
@@ -554,8 +562,14 @@ async function linkCheckoutDirectories(sourceRoot: string, worktreePath: string,
         if (process.platform !== 'win32' || (code !== 'EPERM' && code !== 'EACCES')) throw error
         const present = await lstat(target).then(() => true, (probe: NodeJS.ErrnoException) => { if (probe.code !== 'ENOENT') throw probe; return false })
         if (present) throw Object.assign(new Error(`${target} already exists`), { code: 'EEXIST' })
+        const held = (await staysBehind())(sourceRoot)
+        const behind = async (path: string): Promise<boolean> => held(path) || (await realpath(path).then(real => real !== path && held(real), () => false))
+        if (await behind(source)) {
+          logForDebugging(`worktree copy skipped (it stays behind, and this account may not link it): ${relPath}`, { level: 'warn' as never })
+          continue
+        }
         try {
-          await cp(source, target, { recursive: true, dereference: true, force: false, errorOnExist: true })
+          await cp(source, target, { recursive: true, dereference: true, force: false, errorOnExist: true, filter: async from => !(await behind(from)) })
         } catch (copyError) {
           await rm(target, { recursive: true, force: true }).catch(() => {})
           throw copyError
@@ -630,9 +644,11 @@ async function placeCheckoutFolders(repoRoot: string, worktreePath: string, depe
   const cloned = await cloneCheckoutDirectories(sourceRoot, worktreePath, toClone, held)
   if (cloned === null) return false
   recordWorktreeClones(worktreePath, cloned)
-  const linked = await linkCheckoutDirectories(sourceRoot, worktreePath, [...new Set([...dependencyLinks, ...symlinkDirectories])].filter(name => !cloned.includes(name)))
+  let behind: Promise<(root: string) => HeldBack> | undefined
+  const staysBehind: StaysBehind = () => behind ??= staysBehindUnder(permission, sourceRoot)
+  const linked = await linkCheckoutDirectories(sourceRoot, worktreePath, [...new Set([...dependencyLinks, ...symlinkDirectories])].filter(name => !cloned.includes(name)), staysBehind)
   if (dependencyLinksFrom !== undefined) await hideLinksFromGit(repoRoot, worktreePath, sourceRoot, [...cloned, ...linked])
-  const carried = carries && (await carryIgnoredEntries(sourceRoot, worktreePath, [...new Set([...dependencyLinks, ...keptAsLinks])], permission))
+  const carried = carries && (await carryIgnoredEntries(sourceRoot, worktreePath, [...new Set([...dependencyLinks, ...keptAsLinks])], staysBehind))
   await copyWorktreeIncludeFiles(repoRoot, worktreePath, preserveExisting || carried)
   return true
 }
