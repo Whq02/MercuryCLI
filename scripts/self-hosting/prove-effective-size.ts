@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 
 const repo = join(import.meta.dir, '..', '..')
+const src = repo.replace(/\\/g, '/')
 
 let failures = 0
 const check = (cond: boolean, msg: string, detail = ''): void => {
@@ -53,12 +54,12 @@ check(guideOf([mk('/home/.mercury/MERCURY.md', 'User', 500), mk('/p/MERCURY.loca
 check(guideOf([mk('/p/MERCURY.local.md', 'Local', 7), mk('/p/AGENTS.md', 'Project', 600)]) === 'AGENTS.md', 'a personal layer beside an AGENTS.md guide: the guide is AGENTS.md')
 
 const driverSrc = `
-import { enableConfigs } from '${repo}/src/utils/config/globalConfig.js'
+import { enableConfigs } from '${src}/src/utils/config/globalConfig.js'
 enableConfigs()
-const { getInstructionFiles } = await import('${repo}/src/services/instructions/engine.js')
+const { getInstructionFiles } = await import('${src}/src/services/instructions/engine.js')
 const { measureEffectiveProjectInstructionLines, measuredGuideName, PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD } =
-  await import('${repo}/src/services/instructions/effectiveSize.js')
-const chip = await import('${repo}/src/components/mercury-ui/TrimChip.js')
+  await import('${src}/src/services/instructions/effectiveSize.js')
+const chip = await import('${src}/src/components/mercury-ui/TrimChip.js')
 const files = await getInstructionFiles()
 const lines = measureEffectiveProjectInstructionLines(files)
 const guide = typeof measuredGuideName === 'function' ? measuredGuideName(files) : 'MERCURY.md'

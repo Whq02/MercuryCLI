@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
 const repo = join(import.meta.dir, '..', '..')
+const src = repo.replace(/\\/g, '/')
 
 let failures = 0
 const check = (cond: boolean, msg: string, detail = ''): void => {
@@ -16,9 +17,9 @@ const check = (cond: boolean, msg: string, detail = ''): void => {
 }
 
 const driverSrc = `
-import { enableConfigs } from '${repo}/src/utils/config/globalConfig.js'
+import { enableConfigs } from '${src}/src/utils/config/globalConfig.js'
 enableConfigs()
-const { getSystemPrompt } = await import('${repo}/src/constants/prompts.js')
+const { getSystemPrompt } = await import('${src}/src/constants/prompts.js')
 const withTools = process.argv[process.argv.length - 1] === 'with-tools'
 const tools = withTools
   ? [{ name: 'RecordConvention' }, { name: 'Retain' }, { name: 'Bash' }]

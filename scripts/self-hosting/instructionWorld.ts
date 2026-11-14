@@ -59,7 +59,7 @@ type DriveOptions = {
 const DRIVER = `
 import { writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 if (homedir() !== process.env.DRV_HOME) throw new Error('the home folder is ' + homedir() + ', not the scratch home of this proof')
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
 const repo = ${JSON.stringify(repo)}
@@ -86,15 +86,16 @@ const screens = async (): Promise<{ rows: string[]; listed: string[]; attached: 
     return { rows: [], listed: [], attached: [], words: { footer: '', centre: '', health: '' } }
   }
   const { getRelativeMemoryPath } = await import(join(repo, 'src/components/memory/MemoryUpdateNotification.tsx'))
+  const shown = (path: string): string => getRelativeMemoryPath(path).split(sep).join('/')
   const { profileStatusLine } = await import(join(repo, 'src/commands/memory/memory.tsx'))
   const { filesRow } = await import(join(repo, 'src/components/memory/memoryCentreLayout.ts'))
   listing.getInstructionListing.cache.clear()
   const family = (entry: any): string => (entry.family === 'native' ? 'Mercury-native · ' : entry.family === 'shared' ? 'shared guide · ' : '')
   const listed = await listing.getInstructionListing()
   return {
-    rows: files.filter((entry: any) => entry.parent === undefined).map((entry: any) => (listing.toolPrefixOf(entry) ?? family(entry)) + getRelativeMemoryPath(entry.path) + listing.loadedStateOf(entry)),
-    listed: listed.map((row: any) => listing.listingRowWords(row, getRelativeMemoryPath(row.path), held)),
-    attached: (listing.attachedRows?.(held, [...files.map((entry: any) => entry.path), ...listed.map((row: any) => row.path)]) ?? []).map((row: any) => listing.listingRowWords(row, getRelativeMemoryPath(row.path), held)),
+    rows: files.filter((entry: any) => entry.parent === undefined).map((entry: any) => (listing.toolPrefixOf(entry) ?? family(entry)) + shown(entry.path) + listing.loadedStateOf(entry)),
+    listed: listed.map((row: any) => listing.listingRowWords(row, shown(row.path), held)),
+    attached: (listing.attachedRows?.(held, [...files.map((entry: any) => entry.path), ...listed.map((row: any) => row.path)]) ?? []).map((row: any) => listing.listingRowWords(row, shown(row.path), held)),
     words: {
       footer: profileStatusLine(),
       centre: filesRow({ count: files.length, profile: getInstructionCompositionState().resolution.resolved }).detail,
