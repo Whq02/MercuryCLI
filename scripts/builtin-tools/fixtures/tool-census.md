@@ -6,7 +6,7 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 72 built-in production tools · 204 operations · 72 with a declared capability contract.
+Census version 1 — 72 built-in production tools · 205 operations · 72 with a declared capability contract.
 
 ## Summary
 
@@ -27,7 +27,7 @@ Census version 1 — 72 built-in production tools · 204 operations · 72 with a
 | AstEdit | mutation | structural-mutation, text-mutation | — | block | yes | file +receipts | — | mercury://file, mercury://receipt | scripts/ast-tools/run-all.sh |
 | AstSearch | observation | source-reading, code-intelligence | — | block | yes | — | — | — | scripts/ast-tools/run-all.sh |
 | Bash | execution | process-execution | — | block | no | — | background-job (external-projection) | mercury://task | scripts/tools/prove-stream-watchdog.ts |
-| Browser | execution | browser-drive | 18 | cancel | yes | — | browser-session (child-execution) | — | scripts/browser/prove-browser-drive.ts |
+| Browser | execution | browser-drive | 19 | cancel | yes | — | browser-session (child-execution) | — | scripts/browser/prove-browser-drive.ts |
 | ChangeSet | mutation | text-mutation | 4 | block | yes | file +receipts | — | mercury://file, mercury://receipt | scripts/changesets/run-all.sh |
 | Checkpoint | mutation | task-coordination | — | block | yes | — | — | — | scripts/run-recovery/run-all.sh |
 | Computer | execution | desktop-drive | 22 | cancel | yes | — | desktop-session (child-execution) | — | scripts/computer/prove-computer-asks.ts |

@@ -36,7 +36,10 @@ export function renderToolUseMessage(
     parts.push(input.mode ?? 'text');
     if (input.selector) parts.push(input.selector);
   }
-  if (input.op === 'viewport') parts.push(`${input.width}x${input.height}`);
+  if (input.op === 'viewport') {
+    if (typeof input.width === 'number' || typeof input.height === 'number') parts.push(`${input.width ?? '(kept)'}x${input.height ?? '(kept)'}`);
+    if (input.emulation !== undefined) parts.push(`emulation: ${Object.keys(input.emulation).join(', ') || '(none)'}`);
+  }
   if (input.op === 'provision') parts.push(input.buildId ?? '(current stable)');
   if (input.op === 'console' && typeof input.limit === 'number') parts.push(`last ${input.limit}`);
   if (input.op === 'screenshot' && input.selector) parts.push(input.selector);

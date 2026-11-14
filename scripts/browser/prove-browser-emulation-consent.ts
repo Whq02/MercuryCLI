@@ -1,0 +1,22 @@
+#!/usr/bin/env bun
+import { BrowserTool, check, finish, pageOf, permission, requireBrowser, run, serve } from './harness.ts'
+
+await requireBrowser()
+const fixture = await serve(27290, (_req, res) => { res.end('<title>consent</title>') })
+await run({ op: 'open', url: `${fixture.origin}/` })
+const other = await serve(27291, (_req, res) => { res.end('<title>other</title>') })
+await pageOf().goto(other.origin)
+const rule = (value: { suggestions?: unknown }): string => JSON.stringify(value.suggestions)
+const headers = await permission({ op: 'viewport', emulation: { headers: { 'x-proof': 'value' } } })
+check('the header ask states every request including other origins', headers.message === `Browser viewport on ${other.origin} with extra headers sent on every request, including other origins — reached by navigation, not yet approved this session`, headers.message)
+check('the remembered header rule is still the page origin', rule(headers).includes(`origin:${other.origin}`) && !rule(headers).includes('x-proof'), rule(headers))
+const plain = await permission({ op: 'viewport', emulation: { credentials: { username: 'reader', password: 'fixture-not-shown' } } })
+check('the credential ask names the user but never the password', plain.message === `Browser viewport with basic credentials for reader on ${other.origin} — reached by navigation, not yet approved this session`, plain.message)
+check('the remembered credential rule is still the page origin', rule(plain) === rule(headers), rule(plain))
+const secret = await permission({ op: 'viewport', emulation: { credentials: { username: 'reader', secret: 'PROOF_AUTH' } } })
+check('the registered-secret ask names the same user', secret.message === `Browser answer basic authentication on ${other.origin} with secret PROOF_AUTH as reader — the value never enters the conversation; approve exactly this secret-origin pairing`, secret.message)
+check('the remembered secret rule is still exactly the pairing', rule(secret).includes(`secret:PROOF_AUTH@${other.origin}`) && !rule(secret).includes('reader'), rule(secret))
+const both = await permission({ op: 'viewport', emulation: { headers: { 'x-proof': 'value' }, credentials: { username: 'reader', secret: 'PROOF_AUTH' } } })
+check('a combined secret-and-header ask also states the header reach', both.message?.includes('extra headers sent on every request, including other origins') === true && rule(both) === rule(secret), both.message)
+check('the manual states the same header reach', (await BrowserTool.prompt({} as never)).includes('headers (every request, including other origins)'))
+await finish('prove-browser-emulation-consent')
