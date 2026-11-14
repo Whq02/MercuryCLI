@@ -529,7 +529,7 @@ async function moveIntoCopy(pair: AdmittedPair): Promise<CloneOutcome> {
   }
 }
 
-export async function cloneIntoWorktree(pairs: readonly ClonePair[], checkoutRoot: string, worktreeRoot: string, answerBoundMs: number = CLONE_ANSWER_BOUND_MS, heldUnder?: (root: string) => HeldBack): Promise<CloneOutcome[]> {
+export async function cloneIntoWorktree(pairs: readonly ClonePair[], checkoutRoot: string, worktreeRoot: string, answerBoundMs: number = CLONE_ANSWER_BOUND_MS, heldUnder?: (root: string) => HeldBack, stillHere?: () => Promise<boolean>): Promise<CloneOutcome[]> {
   if (pairs.length === 0) return []
   const road = cloneRoad()
   if (road === null) return pairs.map(() => 'unsupported')
@@ -567,8 +567,9 @@ export async function cloneIntoWorktree(pairs: readonly ClonePair[], checkoutRoo
   try {
     if (road === 'clonefile') await clonefileAdmitted(admitted, outcomes, scope, answerBoundMs, held)
     else callsUnanswered = await reflinkAdmitted(admitted, outcomes, scope, road, answerBoundMs, held)
+    const publish = stillHere === undefined || await stillHere()
     await eachAtOnce(admitted, PAIRS_AT_ONCE, async pair => {
-      if (outcomes[pair.index] === 'cloned') outcomes[pair.index] = await moveIntoCopy(pair)
+      if (outcomes[pair.index] === 'cloned') outcomes[pair.index] = publish ? await moveIntoCopy(pair) : 'failed'
     })
   } finally {
     if (callsUnanswered) void removeStaging(stage)

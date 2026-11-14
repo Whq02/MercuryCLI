@@ -458,9 +458,14 @@ async function heldBackUnder(permission: SessionRules | undefined, sourceRoot: s
   }
 }
 
-async function cloneCheckoutDirectories(sourceRoot: string, worktreePath: string, relPaths: readonly string[], held: ((root: string) => HeldBack) | undefined): Promise<string[]> {
+async function cloneCheckoutDirectories(sourceRoot: string, worktreePath: string, relPaths: readonly string[], held: ((root: string) => HeldBack) | undefined): Promise<string[] | null> {
   if (relPaths.length === 0) return []
-  const outcomes = await cloneIntoWorktree(relPaths.map(relPath => ({ source: join(sourceRoot, relPath), target: join(worktreePath, relPath) })), sourceRoot, worktreePath, undefined, held)
+  const before = canCloneHere() ? await lstat(worktreePath).catch(() => null) : undefined
+  if (before === null || (before !== undefined && !before.isDirectory())) return null
+  let checked: Promise<boolean> | undefined
+  const stillHere = before === undefined ? undefined : (): Promise<boolean> => checked ??= lstat(worktreePath).then(after => after.isDirectory() && after.dev === before.dev && after.ino === before.ino, () => false)
+  const outcomes = await cloneIntoWorktree(relPaths.map(relPath => ({ source: join(sourceRoot, relPath), target: join(worktreePath, relPath) })), sourceRoot, worktreePath, undefined, held, stillHere)
+  if (stillHere !== undefined && !(await stillHere())) return null
   return relPaths.filter((_, index) => outcomes[index] === 'cloned')
 }
 
@@ -623,6 +628,7 @@ async function placeCheckoutFolders(repoRoot: string, worktreePath: string, depe
   const carries = carry && dependencyLinksFrom !== undefined && canCloneHere() && (getInitialSettings().workspace?.worktree?.sparsePaths ?? []).length === 0
   const held = canCloneHere() && toClone.length > 0 ? await heldBackUnder(permission, sourceRoot) : undefined
   const cloned = await cloneCheckoutDirectories(sourceRoot, worktreePath, toClone, held)
+  if (cloned === null) return
   recordWorktreeClones(worktreePath, cloned)
   const linked = await linkCheckoutDirectories(sourceRoot, worktreePath, [...new Set([...dependencyLinks, ...symlinkDirectories])].filter(name => !cloned.includes(name)))
   if (dependencyLinksFrom !== undefined) await hideLinksFromGit(repoRoot, worktreePath, sourceRoot, [...cloned, ...linked])
