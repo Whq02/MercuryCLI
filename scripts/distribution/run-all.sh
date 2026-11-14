@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: sdk/package.json sdk-py/pyproject.toml
-# gate-watch: scripts/distribution/** scripts/vendor/jsonQuery.ts scripts/vendor/fetch-json-query.ts
+# gate-watch: scripts/distribution/** scripts/vendor/jsonQuery.ts scripts/vendor/fetch-json-query.ts src/tools/FileReadTool/jsonQuery*.mjs
 # gate-watch: scripts/release/release-local.sh .github/workflows/gate.yml .github/workflows/drives.yml .github/workflows/windows-launcher.yml .github/workflows/windows-ui.yml .github/workflows/shell-windows-probe.yml
 # gate-watch: sdk/README.md sdk-py/README.md sdk/LICENSE sdk-py/LICENSE .node-version
 # gate-watch: THIRD_PARTY_NOTICES.md package.json bun.lock vendor/*.lock.json

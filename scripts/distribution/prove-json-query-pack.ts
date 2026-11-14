@@ -20,6 +20,10 @@ if (existsSync(lockPath)) {
     check(`shipped bytes match the lock: ${file.path}`, ok)
     present &&= ok
   }
+  for (const script of ['jsonQueryProcess.mjs', 'jsonQueryWorker.mjs']) {
+    const copied = join(pack, script)
+    check(`shipped runner matches its source: ${script}`, existsSync(copied) && readFileSync(copied).equals(readFileSync(join(root, 'src/tools/FileReadTool', script))))
+  }
   for (const file of ['package.json', 'Dockerfile', 'scripts/release/release-local.sh', '.github/workflows/gate.yml', '.github/workflows/drives.yml', '.github/workflows/private-release.yml', '.github/workflows/windows-launcher.yml', '.github/workflows/windows-ui.yml', '.github/workflows/shell-windows-probe.yml']) {
     check(`existing preparation road fetches the engine: ${file}`, readFileSync(join(root, file), 'utf8').includes('scripts/vendor/fetch-json-query.ts'))
   }

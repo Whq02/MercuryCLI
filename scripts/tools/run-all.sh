@@ -63,6 +63,7 @@
 # gate-watch: src/services/tools/earlyStarts.ts src/hooks/toolPermission/PermissionContext.ts
 # gate-watch: scripts/lib/settingsPopupHarness.ts src/components/design-system/ThemeProvider.tsx src/components/messages/UserToolResultMessage/UserToolErrorMessage.tsx
 # gate-watch: src/services/gitGraph/observe.ts
+# gate-watch: src/services/remoteFiles/** scripts/remote-files/remoteKit.ts scripts/lib/removeScratch.ts src/services/privateChannel/vendoredRuntime.ts vendor/json-query.lock.json
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

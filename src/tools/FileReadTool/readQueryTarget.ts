@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs'
-import { expandPath } from '../../utils/path.js'
+import { homedir } from 'node:os'
+import { getCwd } from '../../utils/cwd.js'
 
 export interface ReadQueryTarget {
   source: string
@@ -10,10 +11,21 @@ export interface ReadQueryTarget {
 const TERMINAL_KEYS = new Set(['q', 'query', 'sql', 'compare'])
 const MODIFIERS = new Set(['raw', 'compact', 'offset', 'limit', 'source', 'view', 'table', 'order', 'where'])
 
+function literalExists(raw: string): boolean {
+  if (process.platform === 'win32') return false
+  const path = raw.trim()
+  return existsSync(path.startsWith('/') ? path : path.startsWith('~/') ? `${homedir()}/${path.slice(2)}` : `${getCwd()}/${path}`)
+}
+
 export function parseReadQueryTarget(raw: string): ReadQueryTarget | null {
-  const at = raw.indexOf('#read?')
+  let at = raw.indexOf('#read?')
   if (at <= 0) return null
-  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(raw) && existsSync(expandPath(raw))) return null
+  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(raw)) {
+    if (literalExists(raw)) return null
+    for (let candidate = raw.lastIndexOf('#read?'); candidate > at; candidate = raw.lastIndexOf('#read?', candidate - 1)) {
+      if (literalExists(raw.slice(0, candidate))) { at = candidate; break }
+    }
+  }
   const source = raw.slice(0, at)
   const suffix = raw.slice(at)
   const parameters: Record<string, string> = Object.create(null)
@@ -49,4 +61,12 @@ export function formatReadQueryTarget(source: string, parameters: Readonly<Recor
   const modifiers = entries.filter(([key]) => !TERMINAL_KEYS.has(key)).map(([key, value]) => `${key}=${value}`)
   if (terminal) modifiers.push(`${terminal[0]}=${terminal[1]}`)
   return `${source}#read?${modifiers.join('&')}`
+}
+
+export function jsonQueryName(path: string): boolean {
+  return /\.(?:json|jsonl|ndjson)(?:(?:\.(?:bak|backup|old|orig|save|tmp|\d+))|~)*$/i.test(path)
+}
+
+export function jsonQueryDiscovery(path: string): string {
+  return `To ask a question of it instead: Read(file_path: ${JSON.stringify(`${path}#read?q=<jq filter>`)})`
 }

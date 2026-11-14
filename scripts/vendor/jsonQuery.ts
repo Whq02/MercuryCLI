@@ -92,5 +92,6 @@ export function vendorJsonQuery(root: string, out: string): QueryLock {
   const dest = join(out, 'vendor/json-query')
   rmSync(dest, { recursive: true, force: true })
   cpSync(join(root, 'vendor/json-query/extracted'), dest, { recursive: true })
+  for (const script of ['jsonQueryWorker.mjs', 'jsonQueryProcess.mjs']) cpSync(join(root, 'src/tools/FileReadTool', script), join(dest, script))
   return lock
 }

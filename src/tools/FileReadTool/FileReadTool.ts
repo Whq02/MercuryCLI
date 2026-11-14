@@ -104,7 +104,7 @@ import {
   type RichRender,
 } from './readRichFormats.js'
 import { cacheKeys, type FileState } from '../../utils/fileStateCache.js'
-import { parseReadQueryTarget } from './readQueryTarget.js'
+import { jsonQueryDiscovery, jsonQueryName, parseReadQueryTarget } from './readQueryTarget.js'
 import {
   classifyReadTarget,
   isDirectoryTarget,
@@ -1690,8 +1690,10 @@ function serializeTextResult(file: TextFile, data: object): string {
   const resolvedName = resultResolvedNames.get(data)
   const resolvedNote = resolvedName !== undefined ? `(resolved near-miss filename to ${resolvedName})\n` : ''
   const preRendered = resultPreRenderedBody.get(data)
+  const partialJson = jsonQueryName(file.filePath) && parseReadQueryTarget(file.filePath) === null && (file.startLine > 1 || file.startLine + file.numLines - 1 < file.totalLines || file.overCap !== undefined || (!file.lossless && file.content.split('\n').some(line => line.length > MAX_DISPLAY_LINE_CHARS)))
+  const queryHint = partialJson ? `\n${jsonQueryDiscovery(file.filePath)}` : ''
   if (preRendered !== undefined) {
-    return `${resolvedNote}${preRendered}${file.anchor !== undefined ? `\n(anchor: ${file.anchor})` : ''}`
+    return `${resolvedNote}${preRendered}${file.anchor !== undefined ? `\n(anchor: ${file.anchor})` : ''}${queryHint}`
   }
   if (file.content === '') {
     if (file.totalLines > 0 && file.startLine > file.totalLines) {
@@ -1706,7 +1708,7 @@ function serializeTextResult(file: TextFile, data: object): string {
   const capNote = file.overCap === undefined ? '' : `${overCapWords(file)}\n`
   const numbered = resultOutlineBodies.get(data) ?? numberedWindow(file, resultLineAnchors.has(data))
   const anchorSuffix = file.anchor !== undefined ? `\n(anchor: ${file.anchor})` : ''
-  return `${resolvedNote}${prefix}${capNote}${numbered}${conflictMark(file.content)}${cutMark(file)}${anchorSuffix}`
+  return `${resolvedNote}${prefix}${capNote}${numbered}${conflictMark(file.content)}${cutMark(file)}${anchorSuffix}${queryHint}`
 }
 
 export function unresolvedConflictBlocks(content: string): number {
@@ -2193,6 +2195,7 @@ export const FileReadTool = buildTool({
     try {
       lane = await dispatch(fullFilePath)
     } catch (err) {
+      if (jsonQueryName(fullFilePath) && (err instanceof FileTooLargeError || err instanceof MaxFileReadTokenExceededError)) err.message += `\n${jsonQueryDiscovery(fullFilePath)}`
       if (!isENOENT(err) || remote !== null) throw err
       const alternate = resolveCanonicalNearMissPath(fullFilePath) ?? alternateScreenshotPath(fullFilePath)
       if (alternate !== null) {

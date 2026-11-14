@@ -54,6 +54,7 @@ if (!given) {
     const parsed = parseReadQueryTarget(`${file}#read?raw=1&q=.n+1 % 2`)
     check('filter preserves plus and modulo verbatim', parsed?.parameters.q === '.n+1 % 2')
     check('source is separate from selector', parsed?.source === file)
+    check('division and recursion do not normalize the filter into a directory', parseReadQueryTarget(`${file}#read?q=./../.`)?.source === file)
     const query = '.x | select(. == "a&b%3F+?#read?q=x")'
     const encoded = formatReadQueryTarget(file, { q: query, compact: '1', offset: '2' })
     check('continuation keeps the terminal filter verbatim', parseReadQueryTarget(encoded)?.parameters.q === query && encoded.endsWith(`q=${query}`))
@@ -79,6 +80,10 @@ if (!given) {
     writeFileSync(literal, 'literal punctuation wins\n')
     const text = await invoke(literal)
     check('existing literal filename beats query punctuation', text.includes('1\tliteral punctuation wins') && !text.includes('target: JSON query'), text)
+    if (existsSync(routeFile)) {
+      const { parseReadQueryTarget } = await import(routeFile)
+      check('a literal filename can itself receive a query suffix', parseReadQueryTarget(`${literal}#read?q=.n`)?.source === literal)
+    }
   }
   rules = { ...rules, alwaysDenyRules: { session: ['Read(rows.jsonl)'] } }
   const denied = await invoke(`${file}#read?q=.n`)
