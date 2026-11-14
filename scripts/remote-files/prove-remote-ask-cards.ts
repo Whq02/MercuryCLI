@@ -68,6 +68,7 @@ const REMOTE_LINK = 'ssh://web1/srv/link.yml'
 const ELSEWHERE = 'the path is on another machine'
 const OUTSIDE = 'the path is outside the starting folder'
 const NO = 'No, and tell Mercury what to do differently (esc)'
+const far = 'ssh://deploy@web1.internal.example.com:2222/srv/app/releases/2026-11-13/shared/config/environments/production.yml'
 const NOTES = '# service\n\nname: app\nport: 1\nhost: a\n\n## Checks\n\n- typecheck\n\n## Notes\n\nend\n'
 
 type Ledger = ReturnType<typeof createFileStateCacheWithSizeLimit>
@@ -86,10 +87,10 @@ const contextOf = (): Context =>
 let turns = 0
 const parent = (): unknown => ({ uuid: `00000000-0000-4000-8000-${String(turns).padStart(12, '0')}`, message: { id: `remote-ask-cards-${turns++}` } })
 
-async function card(component: unknown, tool: unknown, input: Record<string, unknown>, reason: string, context: unknown = {}): Promise<string[]> {
+async function drawn(node: unknown, columns: number, settled: (rows: string[]) => boolean): Promise<string[]> {
   const stream = new PassThrough()
   stream.resume()
-  Object.assign(stream, { columns: 100, rows: 60 })
+  Object.assign(stream, { columns, rows: 60 })
   const stdin = Object.assign(new EventEmitter(), {
     isTTY: true,
     isRaw: false,
@@ -101,6 +102,22 @@ async function card(component: unknown, tool: unknown, input: Record<string, unk
     pause() { return this },
     resume() { return this },
   })
+  const instance = await render(React.createElement(AppStateProvider as never, null, node as never), { stdout: stream as never, stdin: stdin as never, patchConsole: false })
+  const rows = (): string[] => stripAnsi(instance.lastFrame()).split('\n').map(line => line.replace(/^[│\s]+|[│\s]+$/g, ''))
+  const until = Date.now() + 5_000
+  while (Date.now() < until && !settled(rows())) await new Promise(resolve => setTimeout(resolve, 25))
+  let last = rows()
+  for (let still = false; !still && Date.now() < until; ) {
+    await new Promise(resolve => setTimeout(resolve, 150))
+    const now = rows()
+    still = now.join('\n') === last.join('\n')
+    last = now
+  }
+  instance.unmount()
+  return last
+}
+
+function card(component: unknown, tool: unknown, input: Record<string, unknown>, reason: string, context: unknown = {}, columns = 100): Promise<string[]> {
   const toolUseConfirm = {
     tool,
     input,
@@ -115,16 +132,12 @@ async function card(component: unknown, tool: unknown, input: Record<string, unk
     toolUseContext: context,
   }
   const element = React.createElement(component as never, { toolUseConfirm, onDone() {}, onReject() {}, toolUseContext: context, verbose: false } as never)
-  const instance = await render(React.createElement(AppStateProvider as never, null, element), { stdout: stream as never, stdin: stdin as never, patchConsole: false })
-  const rows = (): string[] => stripAnsi(instance.lastFrame()).split('\n').map(line => line.replace(/^[│\s]+|[│\s]+$/g, ''))
-  for (const until = Date.now() + 5_000; Date.now() < until && !(rows().some(row => row.startsWith('Do you want to')) && !rows().includes('…')); ) {
-    await new Promise(resolve => setTimeout(resolve, 25))
-  }
-  const settled = rows()
-  instance.unmount()
-  return settled
+  return drawn(element, columns, rows => rows.some(row => row.startsWith('Do you want to')) && !rows.includes('…'))
 }
-const writeCard = (path: string, content: string, reason = ELSEWHERE, context?: unknown): Promise<string[]> => card(FileWritePermissionRequest, FileWriteTool, { file_path: path, content }, reason, context)
+const refused = (tool: { renderToolUseRejectedMessage?: (input: never, options: never) => unknown }, input: Record<string, unknown>, verbose = false, awaited = 'Operator rejected'): Promise<string[]> =>
+  drawn(tool.renderToolUseRejectedMessage!(input as never, { verbose } as never), 100, rows => rows.some(row => row.includes(awaited) || /^\d+ [-+ ]/.test(row)))
+const says = (rows: string[], words: string): boolean => rows.some(row => row.replace(/^└ /, '') === words)
+const writeCard = (path: string, content: string, reason = ELSEWHERE, context?: unknown, columns?: number): Promise<string[]> => card(FileWritePermissionRequest, FileWriteTool, { file_path: path, content }, reason, context, columns)
 const editCard = (input: Record<string, unknown>, reason = ELSEWHERE, context?: unknown): Promise<string[]> => card(FileEditPermissionRequest, FileEditTool, input, reason, context)
 const readCard = (path: string): Promise<string[]> => card(FilesystemPermissionRequest, FileReadTool, { file_path: path }, ELSEWHERE)
 const subtitle = (rows: string[]): string => rows[rows.findIndex(row => row.startsWith('⦿ ')) + 1] ?? ''
@@ -141,9 +154,10 @@ async function ownWords(): Promise<void> {
   const write = await writeCard(REMOTE, 'name: app\nport: 8080\n')
   check('its title is Edit file: whether the file is there is not known before the machine is asked', write.includes('⦿ Edit file') && !write.some(row => /Overwrite file|Create file/.test(row)), write.join(' | '))
   check('it names the path as it was written', subtitle(write) === REMOTE, subtitle(write))
-  const far = 'ssh://deploy@web1.internal.example.com:2222/srv/app/releases/2026-11-13/shared/config/environments/production.yml'
-  const long = await writeCard(far, 'x\n')
-  check('a path longer than the card keeps its machine and its file name, and loses its middle', subtitle(long).startsWith('ssh://deploy@web1.internal.example.com:2222/') && subtitle(long).endsWith('/production.yml') && subtitle(long).includes('…'), subtitle(long))
+  const long = await writeCard(far, 'x\n', ELSEWHERE, undefined, 80)
+  check('a path longer than the card keeps its machine whole and loses the start of its path', subtitle(long) === 'ssh://deploy@web1.internal.example.com:2222…/environments/production.yml', subtitle(long))
+  const narrow = await writeCard(far, 'x\n', ELSEWHERE, undefined, 44)
+  check('a card narrower than the machine\'s own name keeps the start of the name', subtitle(narrow).startsWith('ssh://deploy@web1.internal.exa') && subtitle(narrow).endsWith('…'), subtitle(narrow))
   check('it shows the content to be written, and only that', same(body(write, ELSEWHERE), ['1  name: app', '2  port: 8080']), JSON.stringify(body(write, ELSEWHERE)))
   check('no line of the local file that stands at the spelling the two slashes collapse to is drawn', local(write).length === 0, local(write).join(' | '))
   check('it asks whether to proceed', write.includes('Do you want to proceed?') && !write.some(row => /Do you want to (overwrite|create)/.test(row)), write.join(' | '))
@@ -168,7 +182,17 @@ async function ownWords(): Promise<void> {
   check('a section and its new text: the heading and the text that takes its place, not the local file\'s section', same(body(sectionNew, ELSEWHERE), ['config.yml', '1  ## Checks', '2 +', '3 +- typecheck', '4 +- build']) && local(sectionNew).length === 0, JSON.stringify(body(sectionNew, ELSEWHERE)))
   const editLink = await editCard({ file_path: REMOTE_LINK, old_string: 'a', new_string: 'b' })
   check('a local link at the collapsed spelling is not followed', local(editLink).length === 0 && subtitle(editLink) === REMOTE_LINK, local(editLink).join(' | '))
+  const longEdit = await card(FileEditPermissionRequest, FileEditTool, { file_path: far, old_string: 'a', new_string: 'b' }, ELSEWHERE, {}, 80)
+  check('the edit card names a long path the same way', subtitle(longEdit) === 'ssh://deploy@web1.internal.example.com:2222…/environments/production.yml', subtitle(longEdit))
   check('each edit card offers all edits on that host for the session', [swap, hunks, appended, sectionNew].every(rows => rows.includes('2. Yes, allow all edits on web1 for this session (shift+tab)')))
+
+  section('The row left in the conversation when the user says no')
+  const noWrite = await refused(FileWriteTool, { file_path: REMOTE, content: 'name: app\nport: 8080\n' })
+  check('a refused write names the path as it was written and shows what was to be written', says(noWrite, `Operator rejected write to ${REMOTE}`) && noWrite.some(row => row.includes('name: app')) && local(noWrite).length === 0, noWrite.join(' | '))
+  const noWriteVerbose = await refused(FileWriteTool, { file_path: REMOTE, content: 'name: app\nport: 8080\n' }, true)
+  check('in the long view too, with no line of the local file at the collapsed spelling', says(noWriteVerbose, `Operator rejected write to ${REMOTE}`) && noWriteVerbose.some(row => row.includes('port: 8080')) && local(noWriteVerbose).length === 0, noWriteVerbose.join(' | '))
+  const noEdit = await refused(FileEditTool, { file_path: REMOTE, old_string: 'port: 1', new_string: 'port: 2' })
+  check('a refused edit shows the edit\'s own lines', noEdit.some(row => row.endsWith('-port: 1')) && noEdit.some(row => row.endsWith('+port: 2')) && local(noEdit).length === 0, noEdit.join(' | '))
 
   section('Read on another machine')
   const read = await readCard(REMOTE_LINK)
@@ -209,7 +233,7 @@ async function lastRead(world: RemoteWorld): Promise<void> {
   for (const [name, input, wanted] of shapes) {
     const rows = await editCard({ file_path: path, ...input }, ELSEWHERE, whole)
     check(`${name}: the lines that go out and the lines that go in, at their own numbers`, same(body(rows, ELSEWHERE), wanted) && local(rows).length === 0, JSON.stringify(body(rows, ELSEWHERE)))
-    if (name === 'hunks') check('the card names the machine and the file, whatever the length of the path', subtitle(rows).startsWith('ssh://box/') && subtitle(rows).endsWith('/notes.md'), subtitle(rows))
+    if (name === 'hunks') check('the card names the machine and the file, whatever the length of the path', subtitle(rows).startsWith('ssh://box') && subtitle(rows).endsWith('/notes.md'), subtitle(rows))
   }
   const rewritten = await writeCard(path, NOTES.replace('port: 1', 'port: 8080'), ELSEWHERE, whole)
   check('Write: the same, and the title and the question stay as they are for a file on another machine', same(body(rewritten, ELSEWHERE), ['1  # service', '2', '3  name: app', '4 -port: 1', '4 +port: 8080', '5  host: a', '6', '7  ## Checks']) && rewritten.includes('⦿ Edit file') && rewritten.includes('Do you want to proceed?') && local(rewritten).length === 0, JSON.stringify(body(rewritten, ELSEWHERE)))
@@ -266,6 +290,9 @@ async function here(): Promise<void> {
   check('an edit by hunks, planned against the file', same(body(planned, OUTSIDE), ['a.txt', '1  alpha', '2 -beta', '2 +BETA', '3  gamma']), JSON.stringify(body(planned, OUTSIDE)))
   const linked = await writeCard(join(project, 'link.txt'), 'x\n', OUTSIDE)
   check('a local link is still named with where it leads', linked.join(' ').includes(`This operation will modify ${join(outside, 'target.txt')}`) && linked.join(' ').includes('via a symlink'), linked.join(' | '))
+  const noLocal = await refused(FileWriteTool, { file_path: join(project, 'a.txt'), content: 'alpha\n' }, false, 'Operator rejected update')
+  const noNew = await refused(FileWriteTool, { file_path: join(project, 'brand-new.txt'), content: 'one\ntwo\n' })
+  check('a refused write of a local file is named from the working folder, as an update of a file that is there and a write of one that is not', says(noLocal, 'Operator rejected update to a.txt') && says(noNew, 'Operator rejected write to brand-new.txt') && noNew.some(row => row.includes('one')), `${noLocal.join(' | ')} || ${noNew.join(' | ')}`)
   const oneSlash = await writeCard('ssh:/web1/srv/config.yml', 'mine\n', OUTSIDE)
   check('a relative path under a folder named ssh: with one slash is a file here, drawn against what it holds', oneSlash.includes('⦿ Overwrite file') && oneSlash.includes('ssh:/web1/srv/config.yml') && oneSlash.includes('1 -LOCAL FILE CONTENT') && oneSlash.includes('Do you want to overwrite config.yml?'), oneSlash.join(' | '))
 }

@@ -18,6 +18,8 @@
 # gate-watch: src/components/permissions/FileEditPermissionRequest/**
 # gate-watch: src/components/permissions/FilesystemPermissionRequest/**
 # gate-watch: src/components/FileEditToolDiff.tsx
+# gate-watch: src/components/FileEditToolUseRejectedMessage.tsx
+# gate-watch: src/components/permissions/RemotePathSubtitle.tsx
 # gate-watch: src/tools/FileEditTool/**
 # gate-watch: src/state/AppState.tsx
 # gate-watch: src/ink.ts

@@ -12,6 +12,7 @@ import { MessageResponse } from '../../components/MessageResponse.js'
 import { ToolCardMarker } from '../../components/mercury-ui/toolCardMeta.js'
 import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
 import { TOOL_SUMMARY_MAX_LENGTH } from '../../constants/toolLimits.js'
+import { isRemotePath } from '../../services/remoteFiles/target.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { Box, Text } from '../../ink.js'
 import type { ToolResultBlockParam } from '../../types/wire.js'
@@ -181,9 +182,11 @@ function WriteRejectionPreview({
   verbose: boolean
 }): React.ReactNode {
   const tokens = useMercuryTokens()
-  const [preview, setPreview] = React.useState<RejectionPreviewState>({ state: 'loading' })
+  const far = isRemotePath(input.file_path)
+  const [preview, setPreview] = React.useState<RejectionPreviewState>({ state: far ? 'create' : 'loading' })
 
   React.useEffect(() => {
+    if (far) return
     let cancelled = false
     void (async () => {
       try {
@@ -212,7 +215,7 @@ function WriteRejectionPreview({
     return () => {
       cancelled = true
     }
-  }, [input.file_path, input.content])
+  }, [input.file_path, input.content, far])
 
   if (preview.state === 'error') {
     return (

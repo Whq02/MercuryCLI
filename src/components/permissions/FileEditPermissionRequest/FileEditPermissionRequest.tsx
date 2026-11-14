@@ -17,6 +17,7 @@ import { planAppend, planSectionEdit } from '../../../tools/FileEditTool/section
 import type { FileEdit } from '../../../tools/FileEditTool/types.js'
 import { getPatchForEdits } from '../../../tools/FileEditTool/utils.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
+import { RemotePathSubtitle } from '../RemotePathSubtitle.js'
 
 type EditToolInput = {
   file_path: string
@@ -142,13 +143,7 @@ export function FileEditPermissionRequest({
       onReject={onReject}
       title="Edit file"
       subtitle={
-        isRemotePath(parsed.file_path) ? (
-          <Text color="subtle" dimColor={false} wrap="truncate-middle">
-            {parsed.file_path}
-          </Text>
-        ) : (
-          relative(getFocusedSessionConnector().workspace().cwd, parsed.file_path)
-        )
+        isRemotePath(parsed.file_path) ? <RemotePathSubtitle path={parsed.file_path} /> : relative(getFocusedSessionConnector().workspace().cwd, parsed.file_path)
       }
       question={
         <Text bold>

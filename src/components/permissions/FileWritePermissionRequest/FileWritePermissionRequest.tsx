@@ -8,6 +8,7 @@ import { isRemotePath, remoteLastRead } from '../../../services/remoteFiles/targ
 import { isENOENT } from '../../../utils/errors.js'
 import { FilePermissionDialog } from '../FilePermissionDialog/FilePermissionDialog.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
+import { RemotePathSubtitle } from '../RemotePathSubtitle.js'
 import { FileWriteToolDiff } from './FileWriteToolDiff.js'
 
 type WriteToolInput = {
@@ -53,15 +54,7 @@ export function FileWritePermissionRequest({
       onDone={onDone}
       onReject={onReject}
       title={remote ? 'Edit file' : existing.exists ? 'Overwrite file' : 'Create file'}
-      subtitle={
-        remote ? (
-          <Text color="subtle" dimColor={false} wrap="truncate-middle">
-            {parsed.file_path}
-          </Text>
-        ) : (
-          relative(getFocusedSessionConnector().workspace().cwd, parsed.file_path)
-        )
-      }
+      subtitle={remote ? <RemotePathSubtitle path={parsed.file_path} /> : relative(getFocusedSessionConnector().workspace().cwd, parsed.file_path)}
       question={
         remote ? undefined : (
           <Text bold>
