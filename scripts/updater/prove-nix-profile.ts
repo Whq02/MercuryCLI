@@ -72,7 +72,7 @@ try {
     for (const spelling of ['space here', 'dollar$HOME', 'quoted\'name', 'semi;colon']) {
       const command = join(scratch, spelling, '.nix-profile/bin/mercury')
       const word = path.ownCommandWord({ provenanceKind: 'nix', found: { state: 'absent' }, node, bundle: join(scratch, spelling, '.nix-profile/libexec/mercury/mercury.mjs') })
-      const parsed = spawnSync('/bin/sh', ['-c', `set -- ${word}; printf '%s' "$1"`], { encoding: 'utf8', env: { HOME: home, PATH: '/usr/bin:/bin' } })
+      const parsed = spawnSync('/bin/sh', ['-c', `set -- ${word}; printf '%s' "$1"`], { encoding: 'utf8', env: { HOME: home, USERPROFILE: home, PATH: '/usr/bin:/bin', MERCURY_LOCAL_PROBE_TARGETS: 'none' } })
       check(`a profile path containing ${spelling} stays one literal shell word`, parsed.status === 0 && parsed.stdout === command, parsed.stdout + parsed.stderr)
     }
     const env = { PATH: `${dirname(node)}:/usr/bin:/bin`, HOME: home, USERPROFILE: home, MERCURY_CONFIG_DIR: config, MERCURY_DAEMON_DIR: daemonDir, MERCURY_DAEMON_NO_SELF_WARM: '1', MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_UPDATE_NOTICE: '0', MERCURY_EVOLUTION_LEDGER: '0', CI: '1' }
