@@ -109,6 +109,10 @@ if (!given) {
   check('B04 the same-size/mtime mutation fixture is real', statSync(mutable).size === saved.size && statSync(mutable).mtimeMs === saved.mtimeMs)
   check('B04 a continuation detects changed source rather than mixing pages', follow !== null && (await read(follow)).body.includes('state: changed'), before.body)
 
+  const gathered = await read(`${mutable}#read?q=[range(1e9)]`)
+  const heapMax = /getHeapMax = \(\) => (\d+)/.exec(readFileSync(resolve(dirname(script), '../../vendor/json-query/extracted/dist/index.mjs'), 'utf8'))
+  check('B03 a filter that gathers more than the engine can hold fails with the engine\'s own line and the limit', gathered.body.includes('jq: error: cannot allocate memory\nThe query needed more memory than the bundled engine can use (256 MiB). It holds each input document whole, a JSONL source one record at a time, and everything the filter gathers at once.') && !gathered.body.includes('Aborted') && !gathered.body.includes('target: JSON query'), gathered.body)
+  check('B03 the limit the sentence names is the shipped loader\'s', heapMax !== null && Number(heapMax[1]) === 256 * 1024 * 1024, String(heapMax?.[1]))
   const large = join(given, 'large.jsonl')
   const row = `{"n":1,"pad":"${'x'.repeat(4096 - Buffer.byteLength('{"n":1,"pad":""}\n'))}"}\n`
   const block = Buffer.from(row.repeat(256))

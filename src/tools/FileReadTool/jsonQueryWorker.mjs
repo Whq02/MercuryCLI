@@ -54,6 +54,7 @@ try {
     let memory
     let diagnostics = ''
     let diagnosticBytes = 0
+    let exhausted = false
     const engine = await loadJq({ instantiateWasm(imports, ready) {
       const host = imports[lock.abi.imports]
       if (!host || typeof host[lock.abi.read] !== 'function' || typeof host[lock.abi.write] !== 'function') throw new Error('The JSON query engine streaming ABI differs from its pin.')
@@ -79,6 +80,7 @@ try {
           const bytes = Buffer.from(memory.buffer, start, size)
           if (channel === 1) output(bytes)
           else {
+            if (bytes.includes('cannot allocate memory')) exhausted = true
             diagnosticBytes += size
             if (diagnostics.length < 8192) diagnostics += bytes.subarray(0, Math.max(0, 8192 - diagnostics.length)).toString('utf8')
           }
@@ -94,7 +96,10 @@ try {
     } })
     let status = 0, stopped = false
     try { status = engine.raw('', expression, [...flags, '--']).exitCode ?? 0 }
-    catch (error) { if (error !== pageStop) throw error; stopped = true }
+    catch (error) {
+      if (error !== pageStop) throw exhausted ? new Error('jq: error: cannot allocate memory\nThe query needed more memory than the bundled engine can use (256 MiB). It holds each input document whole, a JSONL source one record at a time, and everything the filter gathers at once.') : error
+      stopped = true
+    }
     memoryBytes = Math.max(memoryBytes, memory.buffer.byteLength)
     return { status, stopped, diagnostics: clean(diagnostics) + (diagnosticBytes > 8192 ? '\n[diagnostic truncated]' : '') }
   }
