@@ -1939,6 +1939,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
             outcome = 'failed'
             break
           }
+          if (input.emulation !== undefined) signalFor(s).throwIfAborted()
           const held = heldDevice(s.page)
           if (input.emulation === undefined && held === null) {
             const width = Math.min(Math.max(Math.floor(input.width!), 320), 3840)
