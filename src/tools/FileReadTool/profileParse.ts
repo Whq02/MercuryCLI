@@ -92,7 +92,7 @@ export function parseSampleProfile(text: string): ProfileReading | null {
     reading.quality.add(`Sampling interval: ${interval[1]} ms; sample counts are not verified scheduler time.`)
   }
   reading.quality.add('Symbol display is best-effort; the original symbol and module remain authoritative.')
-  let graph = false, thread = '', id = 0
+  let graph = false, thread = '', id = 0, heading = -1
   const stack: { depth: number; node: ProfileNode }[] = []
   for (const line of text.split(/\r?\n/)) {
     if (/^Call graph:/.test(line)) { graph = true; continue }
@@ -101,7 +101,7 @@ export function parseSampleProfile(text: string): ProfileReading | null {
     const match = /^([\s+|!:]*)(\d+)\s+(.+)$/.exec(line)
     if (!match) continue
     const count = Number(match[2]), body = match[3]!
-    if (/^(?:Thread_|thread |DispatchQueue_)/i.test(body)) { thread = body; stack.length = 0; continue }
+    if (/^(?:Thread_|Thread |DispatchQueue_)/.test(body) && (heading < 0 || match[1]!.length === heading)) { heading = match[1]!.length; thread = body; stack.length = 0; continue }
     const module = /\s+\(in ([^)]+)\)/.exec(body)
     const name = body.slice(0, module?.index ?? body.length).replace(/\s+\+\s+\d+.*$|\s+\[0x[0-9a-f]+\].*$/i, '').trim()
     const node: ProfileNode = { id: ++id, frame: { function: name, display: symbolDisplay(name), module: module?.[1] ?? '', file: '', line: null, column: null }, self: count, hits: count, children: [], thread }
