@@ -19,6 +19,7 @@
 # gate-watch: scripts/lib/removeScratch.ts scripts/lib/platformPath.ts
 # gate-watch: src/daemon/ownerWatch.ts src/daemon/processSweep.ts src/daemon/processSweepRun.ts src/daemon/processSweepPosix.ts src/daemon/processSweepWindows.ts src/daemon/daemonBuild.ts
 # gate-watch: src/daemon/headlessRun.ts src/services/acp/childSession.ts src/services/host/jobs.ts src/services/projectServices/serviceManager.ts
+# gate-watch: src/components/Feedback.tsx docs/NIX.md
 # gate-watch: .gitignore scripts/lib/treeIgnore.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

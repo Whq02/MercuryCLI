@@ -224,9 +224,11 @@ function installLine(): string {
               ? 'Homebrew (brew install Whq02/mercury/mercury)'
               : p.kind === 'npm'
                 ? 'npm (npm install -g mercury-tech-cli)'
-                : p.invokedPath.startsWith(join(getMercuryHome(), 'runtime'))
-                  ? 'The mercury launcher over a deployed runtime'
-                  : 'Unrecognized install shape'
+                : p.kind === 'nix'
+                  ? 'Nix (nix profile add github:Whq02/MercuryCLI)'
+                  : p.invokedPath.startsWith(join(getMercuryHome(), 'runtime'))
+                    ? 'The mercury launcher over a deployed runtime'
+                    : 'Unrecognized install shape'
     return `${option} — ${provenanceLine(p)}`
   } catch {
     return 'unknown — the install probe threw'
