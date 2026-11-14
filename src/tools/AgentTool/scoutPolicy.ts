@@ -59,7 +59,7 @@ async function shellNotReadOnly(input: Record<string, unknown>): Promise<NotRead
   }
 }
 
-export async function scoutRefusal(tool: Tool, input: Record<string, unknown>): Promise<string | null> {
+export async function scoutRefusal(tool: Tool, input: Record<string, unknown>, atCall = false): Promise<string | null> {
   if (SCOUT_DENIED_TOOLS.has(tool.name)) return scoutToolRefusal(tool.name)
   if (tool.name === BASH_TOOL_NAME) {
     if (input._simulatedSedEdit !== undefined) {
@@ -67,6 +67,7 @@ export async function scoutRefusal(tool: Tool, input: Record<string, unknown>): 
     }
     await tool.prepare?.(input)
     if (readsOnly(tool, input)) return null
+    if (atCall && await (await import('./reviewerPolicy.js')).hardenedGitRead(tool, input)) return null
     return scoutShellRefusal(await shellNotReadOnly(input))
   }
   if (tool.name === SKILL_TOOL_NAME) return null
@@ -83,7 +84,7 @@ export function restrictScoutTools(tools: Tools): Tools {
   return tools.filter(scoutOffersTool).map(tool => ({
     ...tool,
     async call(...args: Parameters<Tool['call']>) {
-      const refusal = await scoutRefusal(tool, args[0])
+      const refusal = await scoutRefusal(tool, args[0], true)
       if (refusal !== null) throw new Error(refusal)
       return tool.call(...args)
     },

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DIST, SCRATCH_ROOT, makeTally } from '../daemon/dupline-world.ts'
 import { runScriptedTurn, startScriptedFixture, type ScriptedTurn, type WireBlock } from '../lib/scriptedTurn.ts'
@@ -20,12 +20,16 @@ const outside = join(scratch, 'outside')
 mkdirSync(home)
 for (const repo of [project, outside]) {
   mkdirSync(join(repo, 'src'), { recursive: true })
+  mkdirSync(join(repo, 'tools'))
   git(repo, 'init', '-q', '-b', 'main')
   writeFileSync(join(repo, '.gitignore'), '.mercury/\n')
+  writeFileSync(join(repo, 'tools', 'guard.sh'), '#!/bin/sh\ncat\n')
+  chmodSync(join(repo, 'tools', 'guard.sh'), 0o755)
   writeFileSync(join(repo, 'src', 'calc.ts'), 'export function total(items: number[]): number {\n  let sum = 0\n  for (const item of items) sum += item\n  return sum\n}\n')
   git(repo, 'add', '-A')
   git(repo, 'commit', '-q', '-m', 'sum the items')
 }
+git(project, 'config', 'filter.guard.clean', 'tools/guard.sh')
 const BASE = git(project, 'rev-parse', 'HEAD')
 writeFileSync(join(project, 'src', 'calc.ts'), 'export function total(items: number[]): number {\n  let sum = 0\n  for (let i = 0; i <= items.length; i++) sum += items[i] as number\n  return sum\n}\n')
 git(project, 'commit', '-q', '-am', 'loop by index')
@@ -42,6 +46,8 @@ const READS: Array<[string, (out: string) => boolean]> = [
   ['git blame src/calc.ts', out => out.includes('for (let i = 0')],
   ['git log --oneline -3 | head -1', out => out.includes('loop by index') && !out.includes('sum the items')],
   ['git diff --no-ext-diff --no-textconv HEAD~1 HEAD', out => out.includes('+  for (let i = 0')],
+  ['git stash list', out => !out.includes('stash@')],
+  ['bash -c "git log --oneline -1"', out => out.includes('loop by index')],
 ]
 const REFUSED = [
   'git -c core.pager=/bin/echo log',

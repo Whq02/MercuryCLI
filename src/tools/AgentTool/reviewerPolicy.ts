@@ -6,7 +6,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getCwd } from '../../utils/cwd.js'
 import { resolveShellCwd } from '../../utils/Shell.js'
 import { gitArgs, gitSubcommandIndex } from '../../utils/git/spawnArgs.js'
-import { parseForSecurity, checkSemantics, preparedCommandRoot, preparedSecurityParse, shellCommandText, withBashParseScope, type Node } from '../../utils/permissions/decision/commandAnalysis.js'
+import { parseForSecurity, checkSemantics, extractShellCScript, preparedCommandRoot, preparedSecurityParse, prepareShellCScripts, shellCommandText, withBashParseScope, SHELL_C_MAX_DEPTH, type Node } from '../../utils/permissions/decision/commandAnalysis.js'
 import { boxLockDirOfScript } from '../../utils/boxLock.js'
 import { quote } from '../../utils/bash/shellQuote.js'
 import { rewriteReadOnlyGitCommand } from '../BashTool/bashPermissions.js'
@@ -133,17 +133,20 @@ const GIT_READ_INSERTS = new Set(['--stat', '--no-ext-diff', '--no-textconv'])
 function plainGitArgs(hardened: string[], cwd: string, text: string): string[] | null {
   const base = gitArgs([], cwd)
   if (base.length === 0 || base.some((word, index) => hardened[index] !== word)) return null
-  const rest = hardened.slice(base.length)
-  const after = gitSubcommandIndex(rest) + 1
-  const inserted = [after, after + 1, after + 2, after + 3].filter(index => GIT_READ_INSERTS.has(rest[index] ?? ''))
-  for (let taken = (1 << inserted.length) - 1; taken >= 0; taken--) {
-    const plain = rest.filter((_, index) => !inserted.some((position, bit) => position === index && (taken & (1 << bit)) !== 0))
-    if (shellCommandText(['git', ...gitArgs(plain, cwd)]) === text) return plain
+  for (let own = base.length; ; own += 2) {
+    const rest = hardened.slice(own)
+    const after = gitSubcommandIndex(rest) + 1
+    const inserted = [after, after + 1, after + 2, after + 3].filter(index => GIT_READ_INSERTS.has(rest[index] ?? ''))
+    for (let taken = (1 << inserted.length) - 1; taken >= 0; taken--) {
+      const plain = rest.filter((_, index) => !inserted.some((position, bit) => position === index && (taken & (1 << bit)) !== 0))
+      if (shellCommandText(['git', ...gitArgs(plain, cwd)]) === text) return plain
+    }
+    if (hardened[own] !== '-c') return null
   }
-  return null
 }
 
-function plainGitSpelling(command: string, cwd: string): string {
+function plainGitSpelling(command: string, cwd: string, depth = 0): string {
+  if (depth > SHELL_C_MAX_DEPTH) return command
   const root = preparedCommandRoot(command)
   if (!root || root.type === 'ERROR') return command
   const spans: Array<{ start: number; end: number; text: string }> = []
@@ -151,8 +154,14 @@ function plainGitSpelling(command: string, cwd: string): string {
     if (node.type === 'command') {
       const parsed = preparedSecurityParse(node.text)
       const simple = parsed.kind === 'simple' && parsed.commands.length === 1 ? parsed.commands[0] : undefined
-      const plain = simple?.argv[0] === 'git' ? plainGitArgs(simple.argv.slice(1), cwd, node.text) : null
-      if (plain !== null) spans.push({ start: node.startIndex, end: node.endIndex, text: shellCommandText(['git', ...plain]) })
+      if (simple?.argv[0] === 'git') {
+        const plain = plainGitArgs(simple.argv.slice(1), cwd, node.text)
+        if (plain !== null) spans.push({ start: node.startIndex, end: node.endIndex, text: shellCommandText(['git', ...plain]) })
+      } else if (simple) {
+        const script = extractShellCScript(simple)
+        const plain = script === null ? null : plainGitSpelling(script, cwd, depth + 1)
+        if (plain !== null && plain !== script) spans.push({ start: node.startIndex, end: node.endIndex, text: shellCommandText([simple.argv[0] as string, simple.argv[1] as string, plain]) })
+      }
     }
     for (const child of node.children) visit(child)
   }
@@ -162,11 +171,11 @@ function plainGitSpelling(command: string, cwd: string): string {
   return plain
 }
 
-async function hardenedGitRead(tool: Tool, input: Record<string, unknown>): Promise<boolean> {
+export async function hardenedGitRead(tool: Tool, input: Record<string, unknown>): Promise<boolean> {
   const given = input.command
   if (tool.name !== BASH_TOOL_NAME || typeof given !== 'string') return false
   return withBashParseScope(async () => {
-    await parseForSecurity(given)
+    await prepareShellCScripts(await parseForSecurity(given))
     const cwd = resolveShellCwd(typeof input.cwd === 'string' ? input.cwd : undefined)
     const plain = { ...input, command: plainGitSpelling(given, cwd) }
     if (plain.command === given) return false
