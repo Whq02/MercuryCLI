@@ -279,6 +279,7 @@
         "press",
         "hover",
         "viewport",
+        "devices",
         "provision",
         "extract",
         "console",
@@ -302,7 +303,8 @@
           "read the page console and errors",
           "capture a screenshot of a web page",
           "check which browser mercury can drive and its provenance",
-          "close the driven browser session"
+          "close the driven browser session",
+          "emulate a phone or tablet, a timezone, a locale, a slow or offline network"
         ],
         "units": [
           "browser-drive"
@@ -321,6 +323,7 @@
           "press",
           "hover",
           "viewport",
+          "devices",
           "provision",
           "extract",
           "console",

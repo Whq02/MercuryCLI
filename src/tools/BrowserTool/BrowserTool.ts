@@ -29,10 +29,12 @@ import {
   closeBrowserSessionDetailed,
   consumeCheckedActOrigin,
   driverVersion,
+  emulatedPageOf,
   ensureBrowserSession,
   isBrowserErrorPage,
   liveBrowserSessionCensus,
   noteCheckedActOrigin,
+  noteEmulatedPage,
   originApproved,
   originOf,
   approveSecretPairing,
@@ -40,6 +42,19 @@ import {
   secretPairingApproved,
   sessionGoneAt,
 } from '../../services/browser/browserSession.js'
+import {
+  EMULATION_FIELD_WORDS,
+  applyEmulation,
+  carryEmulation,
+  deviceNames,
+  emulationActive,
+  emulationLines,
+  emulationSummary,
+  heldDevice,
+  notePlainSize,
+  parseEmulation,
+  type EmulationOutcome,
+} from '../../services/browser/browserEmulation.js'
 import {
   BROWSER_SECRET_REF_GRAMMAR,
   resolveBrowserSecret,
@@ -72,6 +87,7 @@ const OPS = [
   'press',
   'hover',
   'viewport',
+  'devices',
   'provision',
   'extract',
   'console',
@@ -196,6 +212,10 @@ const inputSchema = lazySchema(() =>
     width: z.number().optional().describe('viewport: CSS px (320–3840)'),
     height: z.number().optional().describe('viewport: CSS px (240–2160)'),
     deviceScaleFactor: z.number().optional().describe('viewport: scale 1–3'),
+    emulation: z
+      .looseObject({})
+      .optional()
+      .describe('viewport: overrides; omitted stays, null clears, reset restores launch defaults'),
     offset: z
       .number()
       .optional()
@@ -484,6 +504,11 @@ function pageWhere(s: LiveSession): string {
 function failedNavigationWords(op: string, s: LiveSession, wanted: string): string {
   const failed = s.navFailure.last
   return `${op} failed: ${failed ? `${failed.errorText} at ${failed.url}` : `${wanted} did not load`} — the browser shows its own error page (${s.page.url()}), not the site; the server is down or refusing connections`
+}
+
+function viewportWords(s: LiveSession): string {
+  const vp = s.page.viewport()
+  return `viewport: ${vp?.width}x${vp?.height}${vp?.deviceScaleFactor ? ` @${vp.deviceScaleFactor}x` : ''}${vp?.isMobile ? ' mobile' : ''}${vp?.hasTouch ? ' touch' : ''}${vp?.isLandscape ? ' landscape' : ''}`
 }
 
 function bytesWords(n: number): string {
@@ -887,6 +912,8 @@ export const BrowserTool = buildTool({
     'log in', 'page', 'reproduce', 'UI bug', 'click', 'type', 'scroll', 'wait', 'selector', 'text',
     'navigation', 'extract', 'render', 'accessibility tree', 'DOM', 'console errors', 'screenshot',
     'headless', 'chrome', 'edge', 'chromium', 'provenance', 'status',
+    'emulate', 'emulation', 'mobile', 'device', 'iphone', 'android', 'responsive', 'timezone', 'locale',
+    'geolocation', 'offline', 'throttle', 'dark mode',
   ],
   capability: {
     intents: [
@@ -901,6 +928,7 @@ export const BrowserTool = buildTool({
       'capture a screenshot of a web page',
       'check which browser mercury can drive and its provenance',
       'close the driven browser session',
+      'emulate a phone or tablet, a timezone, a locale, a slow or offline network',
     ],
     units: ['browser-drive'],
     class: 'execution',
@@ -928,7 +956,8 @@ open launches on first use and navigates (${NAVIGATION_CAP_MS / 1000}s deadline)
 click checks actionability; any new tab opened is closed unadopted and its URL returned.
 type focuses a selector target (editable inputs, textarea, contenteditable).
 waitFor watches a selector, case-insensitive whitespace-normalized text, or navigation when neither is given (returns immediately if navigation already finished during the prior act).
-viewport resizes the surface (initial 1280×800); back, reload, scroll, select, press and hover act on history or elements; info reports URL, title and approval state.
+viewport resizes the surface (initial 1280×800); a plain resize keeps an active device. Its emulation, kept by the page until reset with sizes as given, takes ${EMULATION_FIELD_WORDS}; devices lists the names.
+back, reload, scroll, select, press and hover act on history or elements; info reports URL, title, approval state and emulation.
 extract returns ${EXTRACT_CAP}-char windows of text or indented role/name/state rows, including iframe content and frame indices/URLs.
 console returns a ${CONSOLE_RING_CAP}-entry ring of logs, page/HTTP/request errors, navigation dividers and dialogs (dialogs auto-dismiss; beforeunload auto-accepts).
 screenshot saves a PNG artifact and attaches an image when supported.
@@ -958,7 +987,8 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
       input?.op === 'extract' ||
       input?.op === 'console' ||
       input?.op === 'info' ||
-      input?.op === 'viewport'
+      input?.op === 'viewport' ||
+      input?.op === 'devices'
     )
   },
   interruptBehavior() {
@@ -1170,7 +1200,12 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
     if (input.op === 'hover' && !input.selector) {
       return { result: false as const, message: 'hover requires selector', errorCode: 1 }
     }
-    if (input.op === 'viewport' && (typeof input.width !== 'number' || typeof input.height !== 'number')) {
+    if (input.emulation !== undefined) {
+      if (input.op !== 'viewport') return { result: false as const, message: 'emulation requires op viewport', errorCode: 1 }
+      const parsed = parseEmulation(input.emulation)
+      if ('refusal' in parsed) return { result: false as const, message: parsed.refusal, errorCode: 1 }
+    }
+    if (input.op === 'viewport' && input.emulation === undefined && (typeof input.width !== 'number' || typeof input.height !== 'number')) {
       return { result: false as const, message: 'viewport requires width and height (CSS px)', errorCode: 1 }
     }
     return { result: true as const }
@@ -1210,6 +1245,22 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
             outcome = 'failed'
             break
           }
+          const earlier = emulatedPageOf(owner)
+          let environment = ''
+          if (earlier !== null && earlier !== s.page) {
+            if (earlier === sessionAtEntry?.page) {
+              const carried = await carryEmulation(earlier, s.page)
+              if (carried !== null) {
+                environment = [
+                  `\n  note: this page is in another browser; the emulation came with it before it loaded (${emulationSummary(s.page) || 'nothing'})`,
+                  ...carried.failures.map(line => `\n  note: ${line}`),
+                ].join('')
+              }
+            } else {
+              environment = `\n  note: the earlier browser is gone and its emulation with it (${emulationSummary(earlier)}) — this page starts at the launch baseline`
+            }
+            noteEmulatedPage(owner, emulationActive(s.page) ? s.page : null)
+          }
           s.nav.seen = s.nav.seq
           const ringMark = s.consoleRing.length
           const openMarks = markAct(s)
@@ -1245,7 +1296,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
               : `\n  page: ${textLen} chars of body text${errs > 0 ? `, ${errs} page error(s) — op:"console" reads them` : ''}${
                   textLen === 0 ? ' (the app may still be rendering — waitFor a selector or text)' : ''
                 }`
-          result = `open: ${s.page.url()}${statusBit} — ${await s.page.title()} (${s.resolution.source}: ${s.resolution.label})${
+          result = `open: ${s.page.url()}${statusBit} — ${await s.page.title()} (${s.resolution.source}: ${s.resolution.label})${environment}${
             landed !== target && landed.startsWith('http')
               ? `\n  note: landed on ${landed} (a redirect crossed origins — acts there will ask)`
               : ''
@@ -1823,14 +1874,69 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
             outcome = 'failed'
             break
           }
-          const width = Math.min(Math.max(Math.floor(input.width!), 320), 3840)
-          const height = Math.min(Math.max(Math.floor(input.height!), 240), 2160)
-          const dsf =
-            input.deviceScaleFactor !== undefined ? Math.min(Math.max(input.deviceScaleFactor, 1), 3) : undefined
-          await s.page.setViewport({ width, height, ...(dsf !== undefined ? { deviceScaleFactor: dsf } : {}) })
-          const vp = s.page.viewport()
-          result = `viewport: ${vp?.width}x${vp?.height}${vp?.deviceScaleFactor ? ` @${vp.deviceScaleFactor}x` : ''} at ${pageWhere(s)}`
-          outcome = 'succeeded'
+          const held = heldDevice(s.page)
+          if (input.emulation === undefined && held === null) {
+            const width = Math.min(Math.max(Math.floor(input.width!), 320), 3840)
+            const height = Math.min(Math.max(Math.floor(input.height!), 240), 2160)
+            const dsf =
+              input.deviceScaleFactor !== undefined ? Math.min(Math.max(input.deviceScaleFactor, 1), 3) : undefined
+            await s.page.setViewport({ width, height, ...(dsf !== undefined ? { deviceScaleFactor: dsf } : {}) })
+            notePlainSize(s.page, width, height, dsf)
+            const vp = s.page.viewport()
+            result = `viewport: ${vp?.width}x${vp?.height}${vp?.deviceScaleFactor ? ` @${vp.deviceScaleFactor}x` : ''} at ${pageWhere(s)}`
+            outcome = 'succeeded'
+            break
+          }
+          let applied: EmulationOutcome
+          if (input.emulation === undefined) {
+            applied = await applyEmulation(s.page, {}, {
+              width: Math.min(Math.max(Math.floor(input.width!), 320), 3840),
+              height: Math.min(Math.max(Math.floor(input.height!), 240), 2160),
+              ...(input.deviceScaleFactor !== undefined ? { scale: Math.min(Math.max(input.deviceScaleFactor, 1), 3) } : {}),
+            })
+          } else {
+            const parsed = parseEmulation(input.emulation)
+            if ('refusal' in parsed) {
+              result = `viewport refused: ${parsed.refusal}`
+              outcome = 'failed'
+              break
+            }
+            applied = await applyEmulation(s.page, parsed.request, {
+              ...(input.width !== undefined ? { width: input.width } : {}),
+              ...(input.height !== undefined ? { height: input.height } : {}),
+              ...(input.deviceScaleFactor !== undefined ? { scale: input.deviceScaleFactor } : {}),
+            })
+          }
+          if (applied.refusal !== undefined) {
+            result = `viewport refused: ${applied.refusal} — nothing changed`
+            outcome = 'failed'
+            break
+          }
+          if (applied.reloaded) s.nav.seen = s.nav.seq
+          noteEmulatedPage(owner, emulationActive(s.page) ? s.page : null)
+          const kept =
+            input.emulation === undefined && held !== null
+              ? [
+                  held.device === null
+                    ? 'kept: the emulated mobile, touch and orientation'
+                    : `kept: device ${held.device} with its mobile, touch${input.deviceScaleFactor === undefined ? ', scale' : ''} and user agent`,
+                ]
+              : []
+          const state =
+            input.emulation?.reset === true && applied.lines.length === 0 && applied.failures.length === 0
+              ? ['emulation: none, the launch baseline is restored']
+              : []
+          const stale = applied.stale ? ['note: this document was fetched before the user agent changed; op:"reload" asks the server again'] : []
+          result = [
+            `${viewportWords(s)} at ${pageWhere(s)}${applied.reloaded ? ' (the page was reloaded: mobile or touch changed)' : ''}`,
+            ...[...kept, ...state, ...(input.emulation === undefined ? [] : applied.lines), ...applied.failures, ...stale].map(line => `  ${line}`),
+          ].join('\n')
+          outcome = applied.failures.length > 0 ? 'failed' : 'succeeded'
+          break
+        }
+        case 'devices': {
+          const names = await deviceNames()
+          result = `devices: ${names.length} profiles in puppeteer-core ${driverVersion()} — pass one as emulation.device with op:"viewport"\n${names.join(', ')}`
           break
         }
         case 'extract': {
@@ -1889,12 +1995,13 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
             : isBrowserErrorPage(s.page.url())
               ? ` (${errorPageWords(s)})`
               : ''
-          const vp = s.page.viewport()
+          const active = emulationLines(s.page)
           result = [
             `url: ${s.page.url()}`,
             `title: ${await s.page.title()}`,
             `origin: ${origin}${approval}`,
-            `viewport: ${vp?.width}x${vp?.height}${vp?.deviceScaleFactor ? ` @${vp.deviceScaleFactor}x` : ''}`,
+            viewportWords(s),
+            ...(active.length > 0 ? ['emulation:', ...active.map(line => `  ${line}`)] : []),
           ].join('\n')
           break
         }
@@ -1933,6 +2040,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
           break
         }
         case 'close': {
+          noteEmulatedPage(owner, null)
           const closed = await closeBrowserSessionDetailed(owner)
           result =
             closed.outcome === 'closed'

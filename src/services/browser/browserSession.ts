@@ -3,7 +3,7 @@ import { ChildProcess } from 'node:child_process'
 import { chromeNetErrorFor, startMetadataProxy } from './metadataProxy.js'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import type { Browser as DriverBrowser, HTTPRequest, LaunchOptions, Page } from 'puppeteer-core'
+import type { Browser as DriverBrowser, CDPSession, HTTPRequest, LaunchOptions, Page, Protocol } from 'puppeteer-core'
 import puppeteerPkg from 'puppeteer-core/package.json' with { type: 'json' }
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { endProcessTree } from '../../utils/processGroup.js'
@@ -79,6 +79,7 @@ interface OwnerBrowserState {
   goneAt: number | null
   activeCalls: number
   idleTimer: ReturnType<typeof setTimeout> | null
+  emulatedPage: Page | null
 }
 
 export const BROWSER_CLOSE_BOUND_MS = 3_000
@@ -212,9 +213,11 @@ const ownerStates = new OwnerScopedStore<OwnerBrowserState>({
     goneAt: null,
     activeCalls: 0,
     idleTimer: null,
+    emulatedPage: null,
   }),
   dispose: async state => {
     state.disposed = true
+    state.emulatedPage = null
     clearIdleLease(state)
     state.approvedOrigins.clear()
     state.approvedSecretPairings.clear()
@@ -279,6 +282,15 @@ export function consumeCheckedActOrigin(owner: OwnerKey, op: string): string | n
   const held = state.checkedActOrigin
   state.checkedActOrigin = null
   return held !== null && held.op === op ? held.origin : null
+}
+
+export function noteEmulatedPage(owner: OwnerKey, page: Page | null): void {
+  const state = page === null ? ownerStates.peek(owner) : ownerStates.get(owner)
+  if (state) state.emulatedPage = page
+}
+
+export function emulatedPageOf(owner: OwnerKey): Page | null {
+  return ownerStates.peek(owner)?.emulatedPage ?? null
 }
 
 export function originApproved(owner: OwnerKey, origin: string): boolean {
@@ -785,6 +797,31 @@ function pageStealthInit(langs: string[]): void {
   })
 }
 
+export type PageIdentity = Protocol.Emulation.SetUserAgentOverrideRequest
+
+export interface PageKit {
+  cdp: CDPSession | null
+  identity: PageIdentity | null
+  languages: string[]
+  timeZone: string
+  stealthScript: string | null
+}
+
+const pageKits = new WeakMap<Page, PageKit>()
+
+export function pageKitOf(page: Page): PageKit | null {
+  return pageKits.get(page) ?? null
+}
+
+export async function setPageLanguages(page: Page, languages: string[]): Promise<void> {
+  const kit = pageKits.get(page)
+  if (!kit || typeof page.evaluateOnNewDocument !== 'function') return
+  const registration = await page.evaluateOnNewDocument(pageStealthInit, languages)
+  if (kit.stealthScript !== null) await page.removeScriptToEvaluateOnNewDocument(kit.stealthScript).catch(() => undefined)
+  kit.stealthScript = registration?.identifier ?? null
+  await Promise.all(page.frames().map(frame => frame.evaluate(pageStealthInit, languages).catch(() => undefined)))
+}
+
 export async function ensureBrowserSession(
   owner: OwnerKey,
   opts: EnsureBrowserSessionOptions = {},
@@ -955,8 +992,12 @@ async function launchOwnerSession(
     unhanded = browser
     const pages = await browser.pages()
     const page = pages[0] ?? (await browser.newPage())
+    const kit: PageKit = { cdp: null, identity: null, languages: hostLang.languages, timeZone: hostTimeZone, stealthScript: null }
     if (typeof page.evaluateOnNewDocument === 'function') {
-      await page.evaluateOnNewDocument(pageStealthInit, hostLang.languages).catch(() => undefined)
+      kit.stealthScript = await page.evaluateOnNewDocument(pageStealthInit, hostLang.languages).then(
+        registration => registration?.identifier ?? null,
+        () => null,
+      )
       await page.evaluate(pageStealthInit, hostLang.languages).catch(() => undefined)
     }
     const consoleRing: ConsoleEntry[] = []
@@ -1001,6 +1042,8 @@ async function launchOwnerSession(
     })
     const cdp =
       typeof page.createCDPSession === 'function' ? await page.createCDPSession().catch(() => null) : null
+    kit.cdp = cdp
+    pageKits.set(page, kit)
     if (cdp !== null) {
       const requests = new Map<string, string>()
       await cdp.send('Network.enable').catch(() => undefined)
@@ -1039,33 +1082,32 @@ async function launchOwnerSession(
             ? '10.0.0'
             : '6.5.0'
         const architecture = process.arch === 'arm64' ? 'arm' : 'x86'
-        await cdp
-          .send('Emulation.setUserAgentOverride', {
-            userAgent: cleanUa,
-            acceptLanguage: hostLang.acceptLanguage,
-            platform: navigatorPlatform,
-            userAgentMetadata: {
-              brands: [
-                { brand: 'Not(A:Brand', version: '24' },
-                { brand: 'Chromium', version: major },
-                { brand: 'Google Chrome', version: major },
-              ],
-              fullVersionList: [
-                { brand: 'Not(A:Brand', version: '24.0.0.0' },
-                { brand: 'Chromium', version: fullVersion },
-                { brand: 'Google Chrome', version: fullVersion },
-              ],
-              fullVersion,
-              platform: chPlatform,
-              platformVersion: chPlatformVersion,
-              architecture,
-              bitness: '64',
-              model: '',
-              mobile: false,
-              wow64: false,
-            },
-          })
-          .catch(() => undefined)
+        kit.identity = {
+          userAgent: cleanUa,
+          acceptLanguage: hostLang.acceptLanguage,
+          platform: navigatorPlatform,
+          userAgentMetadata: {
+            brands: [
+              { brand: 'Not(A:Brand', version: '24' },
+              { brand: 'Chromium', version: major },
+              { brand: 'Google Chrome', version: major },
+            ],
+            fullVersionList: [
+              { brand: 'Not(A:Brand', version: '24.0.0.0' },
+              { brand: 'Chromium', version: fullVersion },
+              { brand: 'Google Chrome', version: fullVersion },
+            ],
+            fullVersion,
+            platform: chPlatform,
+            platformVersion: chPlatformVersion,
+            architecture,
+            bitness: '64',
+            model: '',
+            mobile: false,
+            wow64: false,
+          },
+        }
+        await cdp.send('Emulation.setUserAgentOverride', kit.identity).catch(() => undefined)
       }
       cdp.on('Browser.downloadWillBegin', event => {
         let finish = (): void => {}
