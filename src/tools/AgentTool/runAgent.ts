@@ -199,7 +199,6 @@ export type RunAgentParams = {
   onQueryProgress?: (message: Message) => void
   onWait?: (words: string | null) => void
   onPendingAsks?: (count: number) => void
-  onResolvedIdentity?: (identity: { model: string; effort?: string }) => void
   structuredOutputSpec?: {
     schema: Record<string, unknown>
     mode: 'permissive' | 'strict'
@@ -604,7 +603,6 @@ export async function* runAgent(
     onQueryProgress,
     onWait,
     onPendingAsks,
-    onResolvedIdentity,
     structuredOutputSpec,
   } = params
 
@@ -626,7 +624,6 @@ export async function* runAgent(
     definitionEffort: agentDefinition.effort,
     defaultEffort: subagentDefaultEffort(),
   })
-  onResolvedIdentity?.({ model: resolvedAgentModel, ...(resolvedEffort !== undefined ? { effort: String(resolvedEffort) } : {}) })
 
   const agentRouteVerdict = classifyModelRoute(resolvedAgentModel)
   if (agentRouteVerdict.kind === 'route' && agentRouteVerdict.route === 'openai') {
