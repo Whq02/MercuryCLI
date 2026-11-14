@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { appendFileSync, existsSync, readFileSync, renameSync, utimesSync } from 'node:fs'
+import { appendFileSync, existsSync, lstatSync, lutimesSync, readdirSync, readFileSync, renameSync } from 'node:fs'
 import { lstat, mkdir, realpath, rm, stat } from 'node:fs/promises'
 import { basename, dirname, join, resolve, sep } from 'node:path'
 
@@ -136,18 +136,30 @@ export async function cloneIntoWorktree(pairs: readonly ClonePair[], checkoutRoo
 
 const CLONES_FILENAME = 'WORKTREE_CLONES'
 const SET_ASIDE_MARK = '.removing-'
+const SET_ASIDE_HOME = 'worktrees'
+const SET_ASIDE_GRACE_MS = 60 * 60 * 1000
 const DISCARD_SCRIPT = [
   "const fs = require('node:fs')",
   "const path = require('node:path')",
   'const root = process.argv[1]',
+  'const isFolder = entry => {',
+  '  try { return fs.lstatSync(entry).isDirectory() } catch { return false }',
+  '}',
   'const open = dir => {',
+  '  if (!isFolder(dir)) return',
   '  try { fs.chmodSync(dir, 0o700) } catch {}',
   '  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) if (entry.isDirectory()) open(path.join(dir, entry.name))',
   '}',
-  'try {',
-  '  fs.rmSync(root, { recursive: true, force: true })',
-  '} catch {',
-  '  try { open(root); fs.rmSync(root, { recursive: true, force: true }) } catch {}',
+  `if (path.basename(root).startsWith('${SET_ASIDE_MARK}') && path.basename(path.dirname(root)) === '${SET_ASIDE_HOME}') {`,
+  '  if (!isFolder(root)) {',
+  '    try { fs.unlinkSync(root) } catch {}',
+  '  } else {',
+  '    try {',
+  '      fs.rmSync(root, { recursive: true, force: true })',
+  '    } catch {',
+  '      try { open(root); fs.rmSync(root, { recursive: true, force: true }) } catch {}',
+  '    }',
+  '  }',
   '}',
 ].join('\n')
 
@@ -175,9 +187,13 @@ export function worktreeHoldsClones(worktreePath: string): boolean {
   return adminDir !== null && existsSync(join(adminDir, CLONES_FILENAME))
 }
 
+function isSetAside(path: string): boolean {
+  return basename(path).startsWith(SET_ASIDE_MARK) && basename(dirname(path)) === SET_ASIDE_HOME
+}
+
 export function setWorktreeAside(worktreePath: string): string | null {
-  const home = dirname(worktreePath)
-  const aside = join(dirname(home), `${basename(home)}${SET_ASIDE_MARK}${basename(worktreePath)}-${process.pid}-${Date.now().toString(36)}`)
+  const aside = join(dirname(worktreePath), `${SET_ASIDE_MARK}${basename(worktreePath)}-${process.pid}-${Date.now().toString(36)}`)
+  if (!isSetAside(aside)) return null
   try {
     renameSync(worktreePath, aside)
     return aside
@@ -196,13 +212,13 @@ export function returnWorktreeFromAside(aside: string, worktreePath: string): vo
 }
 
 export function discardSetAside(aside: string): void {
-  if (!basename(aside).includes(SET_ASIDE_MARK)) return
+  if (!isSetAside(aside)) return
   const inProcess = (): void => {
     void rm(aside, { recursive: true, force: true }).catch(() => {})
   }
   try {
     const now = new Date()
-    utimesSync(aside, now, now)
+    lutimesSync(aside, now, now)
   } catch {
   }
   try {
@@ -212,4 +228,25 @@ export function discardSetAside(aside: string): void {
   } catch {
     inProcess()
   }
+}
+
+export function sweepSetAside(home: string): number {
+  let entries: string[]
+  try {
+    entries = readdirSync(home)
+  } catch {
+    return 0
+  }
+  let swept = 0
+  for (const entry of entries) {
+    if (!entry.startsWith(SET_ASIDE_MARK)) continue
+    try {
+      if (Date.now() - lstatSync(join(home, entry)).mtimeMs < SET_ASIDE_GRACE_MS) continue
+    } catch {
+      continue
+    }
+    discardSetAside(join(home, entry))
+    swept++
+  }
+  return swept
 }

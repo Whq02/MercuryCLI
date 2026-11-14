@@ -21,7 +21,7 @@ import { projectLocalPath } from '../services/projectLocal/paths.js'
 import { getInitialSettings, getRelativeSettingsFilePathForSource } from './settings/settings.js'
 import { sleep } from './sleep.js'
 import { isInITerm2, isInsideTmuxSync } from './terminalDetection.js'
-import { cloneIntoWorktree, discardSetAside, recordWorktreeClones, returnWorktreeFromAside, setWorktreeAside, worktreeHoldsClones } from './worktreeClone.js'
+import { cloneIntoWorktree, discardSetAside, recordWorktreeClones, returnWorktreeFromAside, setWorktreeAside, sweepSetAside, worktreeHoldsClones } from './worktreeClone.js'
 
 
 
@@ -1094,12 +1094,13 @@ export async function cleanupStaleAgentWorktrees(cutoffDate: Date): Promise<numb
     const removed = await removeAgentWorktree(candidatePath, worktreeBranchName(slug), gitRoot)
     if (removed) removedCount++
   }
+  removedCount += sweepSetAside(home)
 
   try {
     const parent = dirname(home)
     const homeName = basename(home)
     for (const entry of await readdir(parent)) {
-      if (!entry.startsWith(`${homeName}.adopting-`) && !entry.startsWith(`${homeName}.removing-`)) continue
+      if (!entry.startsWith(`${homeName}.adopting-`)) continue
       const debrisPath = join(parent, entry)
       try {
         if ((await stat(debrisPath)).mtimeMs < cutoffMs) {

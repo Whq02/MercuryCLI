@@ -9,7 +9,7 @@ import { gitInitRefusal, projectScopePathspec } from '../utils/projectBoundary.j
 import { daemonDir } from './controlSocket.js'
 import { ensureDirInDaemonHome } from './daemonHome.js'
 import { gitArgs, gitArgsAsync } from '../utils/git/spawnArgs.js'
-import { discardSetAside, setWorktreeAside, worktreeHoldsClones } from '../utils/worktreeClone.js'
+import { discardSetAside, setWorktreeAside, sweepSetAside, worktreeHoldsClones } from '../utils/worktreeClone.js'
 
 export const WORKTREE_RUNTIME_HOMES: readonly string[] = PROJECT_CONFIG_DIR_NAMES
 
@@ -385,5 +385,6 @@ export function reapWorkerWorktree(
     }
   }
   git(workspaceId, 'worktree', 'prune')
+  sweepSetAside(dirname(path))
   return { outcome: 'reaped' }
 }
