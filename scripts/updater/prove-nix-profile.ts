@@ -75,7 +75,9 @@ try {
       const parsed = spawnSync('/bin/sh', ['-c', `set -- ${word}; printf '%s' "$1"`], { encoding: 'utf8', env: { HOME: home, PATH: '/usr/bin:/bin' } })
       check(`a profile path containing ${spelling} stays one literal shell word`, parsed.status === 0 && parsed.stdout === command, parsed.stdout + parsed.stderr)
     }
-    const env = { PATH: `${dirname(node)}:/usr/bin:/bin`, HOME: home, MERCURY_CONFIG_DIR: config, MERCURY_DAEMON_DIR: daemonDir, MERCURY_DAEMON_NO_SELF_WARM: '1', MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_UPDATE_NOTICE: '0', MERCURY_EVOLUTION_LEDGER: '0', CI: '1' }
+    const env = { PATH: `${dirname(node)}:/usr/bin:/bin`, HOME: home, USERPROFILE: home, MERCURY_CONFIG_DIR: config, MERCURY_DAEMON_DIR: daemonDir, MERCURY_DAEMON_NO_SELF_WARM: '1', MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_UPDATE_NOTICE: '0', MERCURY_EVOLUTION_LEDGER: '0', CI: '1' }
+    const homeCheck = spawnSync(node, ['-e', 'if (require("node:os").homedir() !== process.env.HOME) throw new Error("Nix profile proof runtime has the wrong home")'], { env, encoding: 'utf8' })
+    if (homeCheck.status !== 0) throw new Error(homeCheck.stderr || 'Nix profile proof runtime did not confirm its scratch home')
     const recordPath = join(daemonDir, 'daemon.json')
     const child = spawn(node, [logical, 'daemon', 'run', scratch], { env, cwd: scratch, stdio: ['ignore', 'pipe', 'pipe'] })
     let log = ''

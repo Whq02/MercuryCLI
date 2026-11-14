@@ -89,7 +89,9 @@ try {
             : args.includes('--status')
               ? `installed by Nix at ${payload} — update the flake input or the profile that provides it`
               : 'this Mercury was installed by Nix; update the flake input or the profile that provides it'
-        const env = { PATH: `${dirname(node)}:/usr/bin:/bin`, HOME: home, MERCURY_CONFIG_DIR: config, MERCURY_VERSIONS_DIR: versionDir, MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_UPDATE_API_BASE_URL: 'http://127.0.0.1:1', MERCURY_GH_CMD: JSON.stringify([node, gh]), CI: '1', TERM: 'dumb' }
+        const env = { PATH: `${dirname(node)}:/usr/bin:/bin`, HOME: home, USERPROFILE: home, MERCURY_CONFIG_DIR: config, MERCURY_VERSIONS_DIR: versionDir, MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_UPDATE_API_BASE_URL: 'http://127.0.0.1:1', MERCURY_GH_CMD: JSON.stringify([node, gh]), CI: '1', TERM: 'dumb' }
+        const homeCheck = spawnSync(node, ['-e', 'if (require("node:os").homedir() !== process.env.HOME) throw new Error("Nix proof runtime has the wrong home")'], { env, encoding: 'utf8' })
+        if (homeCheck.status !== 0) throw new Error(homeCheck.stderr || 'Nix proof runtime did not confirm its scratch home')
         const run = spawnSync(node, [entry, ...args], { env, encoding: 'utf8', timeout: 30_000 })
         check(`${resident ? 'co-resident' : 'empty'} home: ${args.join(' ')} answers with the owner sentence and the package-manager exit`, run.status === (rollback ? 1 : 0) && (rollback ? run.stderr : run.stdout).trim() === sentence, `${run.status}: ${run.stdout} ${run.stderr}`)
         const json = spawnSync(node, [entry, ...args, '--json'], { env, encoding: 'utf8', timeout: 30_000 })
