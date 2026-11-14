@@ -89,6 +89,7 @@ export interface TensorFoldPromptFixtureOptions {
   refusesOpenCalls?: boolean
   letsGoAfterMs?: number
   serialForeground?: boolean
+  earlyRole?: boolean
 }
 
 export function startTensorFoldPromptFixture(options: TensorFoldPromptFixtureOptions): TensorFoldPromptFixture {
@@ -186,8 +187,29 @@ export function startTensorFoldPromptFixture(options: TensorFoldPromptFixtureOpt
       return new Response(stream.join(''), { headers: { 'content-type': 'text/event-stream', ...headers } })
     },
   })
+  const proxy = options.earlyRole ? Bun.serve({
+    hostname: '127.0.0.1',
+    port: 0,
+    async fetch(request: Request) {
+      const body = request.method === 'POST' ? await request.text() : undefined
+      const upstream = fetch(`http://127.0.0.1:${server.port}${new URL(request.url).pathname}`, { method: request.method, headers: request.headers, ...(body !== undefined ? { body } : {}), signal: request.signal })
+      if (body === undefined || JSON.parse(body).priority === 'background') return upstream
+      return new Response(new ReadableStream<Uint8Array>({
+        async start(controller) {
+          controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ model: options.model, choices: [{ index: 0, delta: { role: 'assistant' }, finish_reason: null }] })}\n\n`))
+          try {
+            const response = await upstream
+            if (response.body !== null) for await (const chunk of response.body) controller.enqueue(chunk)
+            controller.close()
+          } catch (error) {
+            controller.error(error)
+          }
+        },
+      }), { headers: { 'content-type': 'text/event-stream' } })
+    },
+  }) : undefined
   return {
-    root: `http://127.0.0.1:${server.port}`,
+    root: `http://127.0.0.1:${proxy?.port ?? server.port}`,
     model: options.model,
     requests,
     reply: next => {
@@ -207,6 +229,7 @@ export function startTensorFoldPromptFixture(options: TensorFoldPromptFixtureOpt
       backgroundSeen = 0
     },
     stop: () => {
+      proxy?.stop(true)
       server.stop(true)
     },
   }

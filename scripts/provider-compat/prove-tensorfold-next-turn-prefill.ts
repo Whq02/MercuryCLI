@@ -192,8 +192,9 @@ section('2 · cancellation: it waits for the session to be idle, cancels for rea
     check('and the turn that message began is read ahead in its turn', await untilAsync(() => ahead(w).length === 2 && w.fixture.waiting() === 1, 2000, 5), `${ahead(w).length} background request(s)`)
     w.fixture.stop()
   }
-  const slow = await world('after-last-user', CAPABLE, { letsGoAfterMs: 700 })
-  if (slow !== undefined) {
+  for (const earlyRole of [false, true]) {
+    const slow = await world('after-last-user', CAPABLE, { letsGoAfterMs: 700, earlyRole })
+    if (slow === undefined) continue
     prefill?.__setNextTurnPrefillIoForTest({ settleMs: SETTLE_MS, lookMs: LOOK_MS })
     slow.fixture.holdBackground(1500)
     await toolTurn(slow)
@@ -207,7 +208,7 @@ section('2 · cancellation: it waits for the session to be idle, cancels for rea
     await callStep(slow, '/work/again.txt', FILE, MAIN, false)
     await answerStep(slow)
     await quiet(200)
-    check('an engine that keeps a request of the session waiting behind a dropped read-ahead longer than the limit: that request waits once, and nothing is read ahead on that engine again in the session', took >= 650 && ahead(slow).length === 1 && ahead(slow)[0]!.aborted && real(slow).length === 5 && facts()?.slowed === 1, `the request took ${took} ms, ${ahead(slow).length} background request(s), ${real(slow).length} real, facts ${JSON.stringify(facts())}`)
+    check(`a request held beyond the cut limit${earlyRole ? ' after a role-only stream opener' : ''} waits once, and no later turn on that engine is read ahead`, took >= 650 && ahead(slow).length === 1 && ahead(slow)[0]!.aborted && real(slow).length === 5 && facts()?.slowed === 1, `the request took ${took} ms, ${ahead(slow).length} background request(s), ${real(slow).length} real, facts ${JSON.stringify(facts())}`)
     const fixture = startTensorFoldPromptFixture({ model: 'qwen3.5-2b-other', template: 'after-last-user', capabilities: CAPABLE })
     process.env.MERCURY_LOCAL_PROBE_TARGETS = `tensorfold=${slow.fixture.root},tensorfold=${fixture.root}`
     await refreshLocalDiscovery({ force: true })

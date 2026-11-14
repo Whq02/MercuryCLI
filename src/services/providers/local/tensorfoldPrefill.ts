@@ -402,7 +402,7 @@ export function tensorFoldRequestBegins(
     transport: sent => ({
       events: (async function* () {
         for await (const event of streamCompatChat(sent)) {
-          stopWatching?.()
+          if (event.type !== 'served-model') stopWatching?.()
           yield event
         }
       })(),
