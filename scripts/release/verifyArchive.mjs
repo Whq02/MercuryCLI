@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { checkBundledVendorPacks, unsignedArchiveName } from './payloadContract.mjs'
+import { checkBundledVendorPacks, checkJsonQueryPack, unsignedArchiveName } from './payloadContract.mjs'
 import { checkReleaseDocuments } from './releaseDocuments.mjs'
 import { checkWindowsLauncher } from './windowsLauncher.mjs'
 
@@ -89,6 +89,9 @@ try {
     if (!member || member.role !== 'launcher' || member.bytes !== exe.bytes || member.sha256 !== exe.sha256) fail('mercury.exe does not match its releaseLayout member')
     console.log(`${basename(archive)}: mercury.exe is a ${shippedTarget} console PE image (${exe.bytes} bytes)`)
   }
+  const query = checkJsonQueryPack(payload)
+  if (!query.ok) fail(`the archive's JSON query engine: ${query.findings.join('; ')}`)
+  console.log(`${basename(archive)}: jq-wasm ${query.version} and its licences match the pinned pack`)
   const bundled = checkBundledVendorPacks(payload, shippedTarget)
   if (!bundled.ok) fail(`the archive's bundled packs: ${bundled.findings.join('; ')}`)
   for (const pack of bundled.packs) console.log(`${basename(archive)}: bundled ${pack.name} ${pack.version} rides at ${pack.dir} — ${pack.binary}, its record and its licence files, the binary's digest matching the record`)

@@ -967,6 +967,16 @@ let imagePackMeta: { platform: string; packages: string[]; sharp: string; libvip
     console.warn(`no prebuilt image processor for ${packPlatform} under node_modules/@img${CROSS ? ` or vendor/platform-packages (prepare it: bun run scripts/vendor/fetch-platform-packages.ts --target ${TARGET_ARG})` : ''} — the artifact ships WITHOUT it (degraded: image-processing; the runtime takes the pure-JavaScript image road: PNG/BMP shrink, other formats pass through unshrunk).`);
   }
 }
+const jsonQueryRelPath = 'vendor/json-query';
+let jsonQueryMeta: Awaited<ReturnType<typeof import('./scripts/vendor/jsonQuery.ts')['vendorJsonQuery']>> | null = null;
+if (existsSync(resolve(ROOT, 'vendor/json-query/extracted'))) {
+  const { vendorJsonQuery } = await import('./scripts/vendor/jsonQuery.ts');
+  jsonQueryMeta = vendorJsonQuery(ROOT, OUT);
+  console.log(`VENDORED JSON query engine ${jsonQueryMeta.engine} (pinned jq-wasm, sha256-verified cache)\n  -> ${resolve(OUT, jsonQueryRelPath)}`);
+} else {
+  rmSync(resolve(OUT, jsonQueryRelPath), { recursive: true, force: true });
+  console.warn('JSON query pack missing — degraded: json-query; prepare it with bun run scripts/vendor/fetch-json-query.ts');
+}
 
 const treesitterRelPath = 'vendor/treesitter';
 let treesitterVendored = false;
@@ -1179,6 +1189,9 @@ if (buildTree) {
 
 const manifest = {
   schema: 2,
+  jsonQuery: jsonQueryMeta
+    ? { vendored: true, path: jsonQueryRelPath, name: jsonQueryMeta.name, version: jsonQueryMeta.version, engine: jsonQueryMeta.engine, files: jsonQueryMeta.files, abi: jsonQueryMeta.abi }
+    : { vendored: false, path: jsonQueryRelPath, remedy: 'bun run scripts/vendor/fetch-json-query.ts, then rebuild' },
   name: 'mercury',
   version: MACRO_VERSION,
   buildTime: MACRO.BUILD_TIME,
@@ -1423,6 +1436,7 @@ const manifest = {
       },
   documentLibraries,
   degraded: [
+    ...(jsonQueryMeta ? [] : ['json-query']),
     ...(rgVendored ? [] : ['search']),
     ...(debugpyVendored ? [] : ['python-debugger']),
     ...(pyrightVendored ? [] : ['python-intelligence']),

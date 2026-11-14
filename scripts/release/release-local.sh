@@ -181,6 +181,8 @@ const m = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"))
 const t = m.target && typeof m.target === "object" ? m.target.release : null
 console.log(`manifest: target ${t} · runtime ${m.runtime && m.runtime.vendored ? `node ${m.runtime.version} ${m.runtime.platform}` : "NONE"} · degraded ${JSON.stringify(m.degraded ?? [])} · buildTree ${m.buildTree}`)
 if (t !== process.argv[2]) { console.error(`the build declares ${t}, not ${process.argv[2]}`); process.exit(1) }
+if (!m.jsonQuery?.vendored) { console.error("the build has no JSON query engine"); process.exit(1) }
+console.log(`JSON query engine: ${m.jsonQuery.engine} · ${m.jsonQuery.path}`)
 ' "$ROOT/dist/manifest.json" "$TARGET"
 }
 with_node() {
@@ -222,7 +224,7 @@ rosetta_archive_step() {
 step install 0 bun install --frozen-lockfile
 HOST_PACK_FETCH=''
 [ "$CROSS" = 1 ] && HOST_PACK_FETCH="--platform $HOST_PACK"
-step fetch 0 sh -c 'bun run scripts/vendor/fetch-pdfjs.ts && bun run scripts/vendor/fetch-pyright.ts && bun run scripts/vendor/fetch-debugpy.ts && bun run scripts/vendor/fetch-js-debug.ts && bun run scripts/vendor/fetch-grammars.ts && bun run scripts/vendor/fetch-node.ts --platform "$1" $3 && bun run scripts/vendor/fetch-python.ts --platform "$1" && bun run scripts/vendor/fetch-platform-packages.ts --target "$2"' fetch "$NODE_PACK" "$TARGET" "$HOST_PACK_FETCH"
+step fetch 0 sh -c 'bun run scripts/vendor/fetch-pdfjs.ts && bun run scripts/vendor/fetch-json-query.ts && bun run scripts/vendor/fetch-pyright.ts && bun run scripts/vendor/fetch-debugpy.ts && bun run scripts/vendor/fetch-js-debug.ts && bun run scripts/vendor/fetch-grammars.ts && bun run scripts/vendor/fetch-node.ts --platform "$1" $3 && bun run scripts/vendor/fetch-python.ts --platform "$1" && bun run scripts/vendor/fetch-platform-packages.ts --target "$2"' fetch "$NODE_PACK" "$TARGET" "$HOST_PACK_FETCH"
 step node-pin 0 node_pin
 [ "$CROSS" = 1 ] && step rosetta 0 rosetta_check
 step shell-engine 0 bun run scripts/vendor/fetch-brush.ts --platform "$NODE_PACK"

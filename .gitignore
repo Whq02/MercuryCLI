@@ -19,6 +19,7 @@ dist/
 vendor/debugpy
 vendor/pyright
 vendor/pdfjs
+vendor/json-query
 vendor/grammars
 vendor/js-debug
 vendor/node

@@ -1,0 +1,33 @@
+{
+  "name": "jq-wasm",
+  "version": "3.0.0-jq-1.8.2",
+  "engine": "jq-1.8.2",
+  "license": "MIT",
+  "repository": "https://github.com/owenthereal/jq-wasm",
+  "archives": {
+    "npm": {
+      "url": "https://registry.npmjs.org/jq-wasm/-/jq-wasm-3.0.0-jq-1.8.2.tgz",
+      "sha256": "ef502068f5cb0ca5fd557550cc94a1aedf39143da89aea4182bcdf4640de9bd0",
+      "integrity": "sha512-jgWSEBJSd0lYR4Q5Fw8333MxQS5jCRI+g9KwAGL7yK1spwzTJy8C5uOS08wbpKE0Gz8oQYLlRpNLE/W70Ksp2g=="
+    },
+    "jq": {
+      "url": "https://github.com/jqlang/jq/releases/download/jq-1.8.2/jq-1.8.2.tar.gz",
+      "sha256": "71b8d6e8f5fe81f6c6d0d110e3892251f6ce76ed095abd315e26e6e1193af3af"
+    }
+  },
+  "abi": { "imports": "a", "read": "h", "write": "d", "memory": "F" },
+  "files": [
+    { "archive": "npm", "entry": "dist/index.mjs", "path": "dist/index.mjs", "bytes": 130484, "sha256": "2eed8c07b074476dac2e8975170fa9b4c5e9bb7bcc8c0893b81752beb12922a5" },
+    { "archive": "npm", "entry": "dist/build/jq.wasm", "path": "dist/build/jq.wasm", "bytes": 928824, "sha256": "27d493c06601e9cbc7112ef4198ee71a0dc3e9c9a4a1754e73888841da6c450a" },
+    { "archive": "npm", "entry": "LICENSE", "path": "LICENSE", "sha256": "10669a50b3a2b70d2c8874bbfb76d447879ccde14baa5d224ec93871aca833c9" },
+    { "archive": "jq", "entry": "COPYING", "path": "LICENSE.jq", "sha256": "ad2b4a266b2268939c1446979759706077421cf906a203aa188c6f396e8cfd74" },
+    { "archive": "jq", "entry": "vendor/oniguruma/COPYING", "path": "LICENSE.oniguruma", "sha256": "70ba5469ea0bab6e18a32d7009068f996503168d27be57747e08da34337ff26f" }
+  ],
+  "components": [
+    { "name": "jq-wasm", "version": "3.0.0-jq-1.8.2", "license": "MIT", "notice": "LICENSE" },
+    { "name": "jq", "version": "1.8.2", "license": "MIT", "notice": "LICENSE.jq" },
+    { "name": "Oniguruma", "license": "BSD-2-Clause", "notice": "LICENSE.oniguruma" },
+    { "name": "decNumber", "license": "ICU", "notice": "LICENSE.jq" },
+    { "name": "dtoa, g_fmt, NetBSD string functions", "license": "LicenseRef-jq-components", "notice": "LICENSE.jq" }
+  ]
+}
