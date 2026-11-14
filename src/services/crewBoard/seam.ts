@@ -144,9 +144,11 @@ export function watchSwarmBoard(check: () => void): () => void {
   return () => { leadChecks.delete(check) }
 }
 
-export function watchSwarmResumes(context: () => ToolUseContext | null, canUseTool: CanUseToolFn, ready: () => boolean, resume?: typeof import('../../tools/AgentTool/resumeAgent.js').resumeAgentBackground): { check: () => void; stop: () => void } {
+export function watchSwarmResumes(context: () => ToolUseContext | null, canUseTool: CanUseToolFn, ready: () => boolean, resume?: typeof import('../../tools/AgentTool/resumeAgent.js').resumeAgentBackground): { check: () => void; hasPending: () => boolean; waitingSeats: () => number; stop: () => void } {
   const leadContext = AsyncLocalStorage.snapshot()
-  let running = false, pending = false, stopped = false
+  let running = false, pending = false, stopped = false, dispatching = false, faulted = false
+  let resumeRefusal: typeof import('../../tools/AgentTool/resumeAgent.js').boardResumeRefusal | undefined
+  let admitting: string | undefined
   const check = (): void => leadContext(() => {
     if (stopped) return
     pending = true
@@ -158,19 +160,24 @@ export function watchSwarmResumes(context: () => ToolUseContext | null, canUseTo
     try {
       while (pending && !stopped) {
         pending = false
+        faulted = false
         if (!ready() || !swarmMasterEnabled() || operatorPauseGate.holds('main')) continue
         const store = swarmStore(false)
         if (!store || !store.pendingWakes().length) continue
+        dispatching = true
         const { boardResumeRefusal, resumeAgentBackground, BoardResumeDirectoryError } = await import('../../tools/AgentTool/resumeAgent.js')
+        resumeRefusal = boardResumeRefusal
         await flushSessionStorage()
         if (stopped || !ready()) continue
         for (const wake of store.pendingWakes()) {
+          if (stopped || !ready()) break
           const current = context()
           if (!current || boardResumeRefusal(wake.agent, current.getAppState().tasks) !== null) continue
           const principal = swarmPrincipal()
           if (!principal) continue
           const claim = store.claimWake(principal, wake)
           if (!claim) continue
+          admitting = wake.agent
           try {
             const packet = store.wakePacket(principal, claim)
             if (!packet?.eventIds.includes(wake.eventId)) throw new Error('The triggering post could not be delivered; the lead can resume this crewmate.')
@@ -183,19 +190,39 @@ export function watchSwarmResumes(context: () => ToolUseContext | null, canUseTo
             if (held) enqueueBoardWake()
             logForDebugging(`crew board: ${wake.agent} could not resume: ${reason}`)
           }
+          admitting = undefined
         }
       }
     } catch (error) {
+      faulted = true
       logForDebugging(`crew board: wake dispatch failed: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
       running = false
+      dispatching = false
+      admitting = undefined
       if (pending && !stopped) check()
     }
+  }
+  const waitingSeats = (): number => {
+    const current = context()
+    if (stopped || !ready() || !swarmMasterEnabled() || operatorPauseGate.holds('main') || faulted || !current || !swarmPrincipal()) return 0
+    const tasks = current.getAppState().tasks
+    const seats = new Set<string>()
+    for (const wake of swarmStore(false)?.pendingWakes() ?? []) if (resumeRefusal === undefined || resumeRefusal(wake.agent, tasks) === null) seats.add(wake.agent)
+    if (admitting !== undefined && tasks[admitting]?.status !== 'running') seats.add(admitting)
+    return seats.size
+  }
+  const hasPending = (): boolean => {
+    if (stopped || !ready() || !swarmMasterEnabled() || operatorPauseGate.holds('main')) return false
+    if (dispatching) return true
+    const waiting = waitingSeats() > 0
+    if (waiting) check()
+    return waiting
   }
   const unwatch = watchSwarmBoard(check)
   const unpause = operatorPauseGate.subscribe(check)
   check()
-  return { check, stop: () => { stopped = true; unwatch(); unpause() } }
+  return { check, hasPending, waitingSeats, stop: () => { stopped = true; unwatch(); unpause() } }
 }
 
 export function swarmRoad(agentId = 'main'): boolean {

@@ -169,6 +169,7 @@ import {
 } from '../utils/fileStateCache.js'
 import { getLastCacheSafeParams } from '../utils/forkedAgent.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
+import { crewmateNoticeOwed } from '../tools/AgentTool/agentToolUtils.js'
 import { isBuiltInAgent } from '../tools/AgentTool/loadAgentsDir.js'
 import { gracefulShutdown, gracefulShutdownSync, isShuttingDown, markRunModeSignalsOwned, TERMINAL_GONE_EXIT_CODE } from '../utils/gracefulShutdown.js'
 import { exitNoteCharsKept, leaveNoteBeforeExit } from '../mneme/exitHandoff.js'
@@ -1644,13 +1645,13 @@ export async function runHeadless(
       if (turnReachedModel) void advisorMainTurnSettled(String(getSessionId()), command, messages, advisorRoad)
     },
     hasWaitableBackgroundTasks: () =>
-      getRunningTasks(getAppState()).some(task => !(inputClosed && isLocalShellTask(task))),
+      getRunningTasks(getAppState()).some(task => !(inputClosed && isLocalShellTask(task))) || (inputClosed && (swarmResumes.hasPending() || crewmateNoticeOwed())),
     hasHoldableBackgroundAgents: () =>
       getRunningTasks(getAppState()).some(
         task => task.type === 'local_agent' || task.type === 'local_workflow',
       ),
     waitableBackgroundTaskCount: () =>
-      getRunningTasks(getAppState()).filter(task => !(inputClosed && isLocalShellTask(task))).length,
+      getRunningTasks(getAppState()).filter(task => !(inputClosed && isLocalShellTask(task))).length + (inputClosed ? swarmResumes.waitingSeats() : 0),
     onAgentWait: (count, turnId) => {
       enqueueRow(turnWaitingRow({ session_id: getSessionId(), turn: turnsRun }, { turnId, agents: count }))
     },
@@ -1744,7 +1745,7 @@ export async function runHeadless(
   const swarmResumes = watchSwarmResumes(
     () => getLastCacheSafeParams()?.toolUseContext as ToolUseContext | undefined ?? null,
     canUseTool,
-    () => sessionInitialized && !inputClosed && !isShuttingDown(),
+    () => sessionInitialized && !quiescence.committed && !isShuttingDown(),
   )
   const swarmLead = watchSwarmLead(
     () => sessionInitialized && !inputClosed && !isShuttingDown() && inFlightAbort === null,

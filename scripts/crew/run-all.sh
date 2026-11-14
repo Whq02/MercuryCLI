@@ -49,7 +49,7 @@
 # gate-watch: src/utils/hooks/hookEvents.ts src/utils/hooks/fire.ts src/services/oauth/client.ts
 # gate-watch: src/utils/tasks.ts src/utils/agentContext.ts
 # gate-watch: src/commands/tasks/index.ts src/components/tasks/BackgroundTasksDialog.tsx src/services/crew/identity.ts
-# gate-watch: scripts/lib/scriptedTurn.ts src/utils/crew/crewStart.ts src/utils/crew/crewWorktreeReminder.ts
+# gate-watch: scripts/lib/scriptedTurn.ts scripts/lib/processGroup.ts src/utils/crew/crewStart.ts src/utils/crew/crewWorktreeReminder.ts
 # gate-watch: src/utils/crew/crewAccountChange.ts
 # gate-watch: docs/CREW.md docs/ENGINES.md README.md src/main.tsx src/setup.ts src/components/Settings/Config.tsx src/utils/config/schema.ts
 # gate-watch: scripts/lib/rows.ts
