@@ -62,7 +62,7 @@ export async function readJson(request: ReadQueryRequest): Promise<ReadQueryResu
   signal.throwIfAborted()
   const base = join(getMercuryTempDir(), 'json-queries')
   mkdirSync(base, { recursive: true, mode: 0o700 })
-  const directory = mkdtempSync(join(base, 'read-'))
+  const directory = mkdtempSync(join(base, `read-${process.pid}-`))
   const artifacts: string[] = []
   let complete = false
   try {

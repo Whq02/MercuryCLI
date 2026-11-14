@@ -15,6 +15,8 @@ import { join } from 'node:path'
 
 const HOME = mkdtempSync(join(tmpdir(), 'lifecycle-collector-'))
 process.env.MERCURY_CONFIG_DIR = HOME
+process.env.MERCURY_TMPDIR = join(HOME, 'tmp')
+mkdirSync(process.env.MERCURY_TMPDIR, { recursive: true })
 process.env.NODE_ENV = 'test'
 delete process.env.MERCURY_CREW_DIR
 delete process.env.MERCURY_DAEMON_DIR
@@ -87,6 +89,21 @@ section('§1 COLLECTOR CLASSES')
   backdate(oldSkeleton, 10 * DAY)
   backdate(fullDir, 10 * DAY)
 
+  const { getMercuryTempDir } = await import('../../src/utils/permissions/filesystem.ts')
+  const queryCopies = join(getMercuryTempDir(), 'json-queries')
+  const remoteCopies = join(getMercuryTempDir(), 'remote-files')
+  const copyOf = (root: string, name: string): string => {
+    mkdirSync(join(root, name), { recursive: true })
+    writeFileSync(join(root, name, 'input.json'), '{}')
+    return join(root, name)
+  }
+  const deadQuery = copyOf(queryCopies, `read-${DEAD_PID}-AbCd12`)
+  const liveQuery = copyOf(queryCopies, `read-${process.pid}-AbCd13`)
+  const deadRemote = copyOf(remoteCopies, `copy-${DEAD_PID}-AbCd14`)
+  const liveRemote = copyOf(remoteCopies, `copy-${process.pid}-AbCd15`)
+  const otherForms = [copyOf(queryCopies, 'read-AbCd16'), copyOf(queryCopies, `copy-${DEAD_PID}-AbCd17`), copyOf(remoteCopies, `read-${DEAD_PID}-AbCd18`), copyOf(remoteCopies, `copy-${DEAD_PID}-AbCd19-more`), copyOf(queryCopies, `read-${DEAD_PID}x-AbCd20`), copyOf(join(getMercuryTempDir(), 'other-folder'), `read-${DEAD_PID}-AbCd21`)]
+  writeFileSync(join(queryCopies, `read-${DEAD_PID}-AbCd22`), 'a file, not a folder')
+
   let receipt = await pass({ budgetMs: 60_000, maxRemovals: 1000 })
   while (!receipt.cycleComplete) receipt = await pass({ budgetMs: 60_000, maxRemovals: 1000 })
 
@@ -99,6 +116,9 @@ section('§1 COLLECTOR CLASSES')
   check('old empty crew skeleton collected', !existsSync(oldSkeleton))
   check('crew records NEVER collected (non-empty retained)', existsSync(join(fullDir, 'record.json')))
   check('fresh empty skeleton retained', existsSync(freshSkeleton))
+  check("a dead process's private query folder and private remote copy are collected", !existsSync(deadQuery) && !existsSync(deadRemote))
+  check("a live process's private query folder and private remote copy are retained", existsSync(join(liveQuery, 'input.json')) && existsSync(join(liveRemote, 'input.json')))
+  check('nothing outside the two name forms is touched', otherForms.every(path => existsSync(join(path, 'input.json'))) && existsSync(join(queryCopies, `read-${DEAD_PID}-AbCd22`)))
   check('cycle failures zero on the clean sweep', receipt.cycleFailures === 0, `failures=${receipt.cycleFailures}`)
 }
 

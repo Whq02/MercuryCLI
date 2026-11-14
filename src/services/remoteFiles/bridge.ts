@@ -312,7 +312,7 @@ export async function remoteReadTarget(
 function privateFolder(): string {
   const base = join(getMercuryTempDir(), 'remote-files')
   mkdirSync(base, { recursive: true, mode: 0o700 })
-  return mkdtempSync(join(base, 'copy-'))
+  return mkdtempSync(join(base, `copy-${process.pid}-`))
 }
 
 function localName(path: string): string {

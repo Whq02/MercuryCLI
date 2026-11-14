@@ -62,11 +62,20 @@ else {
     writeFileSync(invalid, '{}\n{bad}')
     const error = await read(`ssh://box${invalid}#read?q=.`)
     check('M07 remote parse failure names the public source and no temporary input', error.text.includes('partial-error') && error.text.includes(`source: ssh://box${invalid}`) && !error.text.includes('/copy-'), error.text)
+    const { getMercuryTempDir } = await import('../../src/utils/permissions/filesystem.ts')
+    const privateNames = new Set<string>()
+    const watching = setInterval(() => {
+      for (const folder of ['json-queries', 'remote-files']) {
+        try { for (const name of readdirSync(join(getMercuryTempDir(), folder))) privateNames.add(`${folder}/${name}`) } catch {}
+      }
+    }, 10)
     const abortContext = context()
     const timer = setTimeout(() => abortContext.abortController.abort(new Error('remote query cancelled')), 350)
     const cancelled = await read(`ssh://box${invalid}#read?q=until(false; .)`, abortContext)
     clearTimeout(timer)
     check('M11 cancellation is not an empty remote-query success', cancelled.text.includes('remote query cancelled') && !cancelled.text.includes('state: complete'), cancelled.text)
+    clearInterval(watching)
+    check('M11 the private query folder and the private remote copy carry the process that made them in their names', [...privateNames].some(name => name.startsWith(`json-queries/read-${process.pid}-`)) && [...privateNames].some(name => name.startsWith(`remote-files/copy-${process.pid}-`)) && [...privateNames].every(name => /^(?:json-queries\/read|remote-files\/copy)-\d+-[A-Za-z0-9]{6}$/.test(name)), [...privateNames].join(' '))
     for (const folder of ['json-queries', 'remote-files']) {
       const target = join(process.env.MERCURY_TMPDIR!, folder)
       check(`M11 owned ${folder} copies are removed`, !existsSync(target) || readdirSync(target).length === 0)

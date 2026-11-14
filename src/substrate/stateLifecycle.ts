@@ -466,6 +466,32 @@ async function collectIdleScratchpads(budget: LifecycleBudget): Promise<Lifecycl
   return receipt
 }
 
+const PRIVATE_COPY_FOLDERS: ReadonlyArray<[string, RegExp]> = [
+  ['json-queries', /^read-(\d+)-[A-Za-z0-9]{6}$/],
+  ['remote-files', /^copy-(\d+)-[A-Za-z0-9]{6}$/],
+]
+
+async function collectPrivateCopies(budget: LifecycleBudget): Promise<LifecycleClassReceipt> {
+  const receipt = emptyReceipt('private-copies')
+  const { getMercuryTempDir } = await import('../utils/permissions/filesystem.js')
+  for (const [folder, named] of PRIVATE_COPY_FOLDERS) {
+    const root = join(getMercuryTempDir(), folder)
+    for (const entry of await listDir(root)) {
+      if (overBudget(budget)) return receipt
+      const owner = entry.isDir ? named.exec(entry.name) : null
+      if (owner === null) continue
+      receipt.visited++
+      if (pidAlive(Number(owner[1]))) {
+        receipt.retained++
+        continue
+      }
+      await removePath(root, join(root, entry.name), 'dir', receipt, budget)
+    }
+  }
+  receipt.done = true
+  return receipt
+}
+
 
 export const LIFECYCLE_MANIFEST: readonly LifecycleClassDecl[] = [
   {
@@ -684,6 +710,19 @@ export const LIFECYCLE_MANIFEST: readonly LifecycleClassDecl[] = [
     action: 'remove',
     prover: 'scripts/health/prove-session-scratch-retention.ts',
     collect: collectIdleScratchpads,
+  },
+  {
+    id: 'private-copies',
+    lane: 'semantic-state',
+    owner: 'src/tools/FileReadTool/readJson.ts · src/services/remoteFiles/bridge.ts',
+    root: '<temp root>/json-queries/read-<pid>-<id>/ · <temp root>/remote-files/copy-<pid>-<id>/',
+    kind: 'temp',
+    liveReference: 'the process whose id the folder name carries is running',
+    terminal: 'that process is gone; a folder whose name does not carry a process id in that form, and anything else in the two folders, is never collected here',
+    retention: 'removed by the call that made it when the call ends, on success, failure and cancel; the folder a killed process left goes at the next cleanup cycle',
+    action: 'remove',
+    prover: 'scripts/substrate/prove-lifecycle-collector.ts',
+    collect: collectPrivateCopies,
   },
   {
     id: 'review-artifacts',
