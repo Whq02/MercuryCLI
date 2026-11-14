@@ -566,6 +566,12 @@ export async function remoteMirror(
 type RemoteFound = { sum: string; mode: string | null }
 
 export function remoteEntryRefusal(rawPath: string): string | null {
+  try {
+    parseRemotePath(rawPath)
+  } catch (error) {
+    if (error instanceof RemotePathError) return error.message
+    throw error
+  }
   const slash = rawPath.indexOf('/', rawPath.indexOf('://') + 3)
   const rich = slash === -1 ? null : parseRichFormatTarget(rawPath.slice(slash))
   return rich?.subtarget === undefined ? null : `${rawPath} names an entry inside an archive or a database on another machine, which Write and Edit do not change.`

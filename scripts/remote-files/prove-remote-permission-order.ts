@@ -84,6 +84,15 @@ try {
       writeFileSync(join(store, '.credentials.json'), '{"secret":"not-read"}')
       for (const tool of tools) {
         const name = tool.name
+        for (const suffix of ['notes.txt', 'archive.zip:entry', 'database.db:table']) {
+          const password = 'synthetic-password-value'
+          const input = inputOf(name, `ssh://reader:${password}@box/${suffix}`)
+          const start = world.argvLines().length
+          const valid = await tool.validateInput!(input as never, contextOf())
+          const decision = await decideToolPermission(tool as never, input, contextOf())
+          const written = JSON.stringify({ valid, decision })
+          check(`${name}: a password before ${suffix} is refused without echoing it or starting ssh`, valid.result === false && decision.decision.behavior === 'deny' && !written.includes(password) && world.argvLines().length === start, written)
+        }
         const pathFor = (host: string, suffix: string): string => `ssh://${host}${name === 'Glob' || name === 'Grep' ? data : name === 'Read' ? join(data, 'a.txt') : join(data, suffix)}`
         for (const mode of ['default', 'sovereign']) {
           const deniedHost = `box-denied-${name}-${mode}`
