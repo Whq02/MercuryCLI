@@ -186,13 +186,11 @@ export function pauseGateKeyOf(context: { agentId?: unknown }): string {
 
 export type PauseGateCarrier = {
   agentId?: unknown
-  pauseGate?: PauseGate
 }
 
 export function closedPauseGateOf(context: PauseGateCarrier): PauseGate | null {
   const key = pauseGateKeyOf(context)
   if (operatorPauseGate.holds(key)) return operatorPauseGate
-  if (context.pauseGate !== undefined && context.pauseGate.holds(key)) return context.pauseGate
   return null
 }
 
@@ -223,7 +221,7 @@ export function parkFrameTaskOf(context: ParkFrameCarrier): ParkFrameTask | null
   return null
 }
 
-export function requestParkFrame(context: ParkFrameCarrier): boolean {
+function requestParkFrame(context: ParkFrameCarrier): boolean {
   const task = parkFrameTaskOf(context)
   if (task === null) return false
   emitTaskProgress({

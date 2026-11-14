@@ -241,7 +241,6 @@ export function createSubagentContext(parentContext: ToolUseContext, overrides: 
     standingRule: overrides.standingRule,
     requireCanUseTool: overrides.requireCanUseTool,
     alwaysCallCanUseTool: overrides.alwaysCallCanUseTool ?? parentContext.alwaysCallCanUseTool,
-    pauseGate: parentContext.pauseGate,
   }
 }
 
