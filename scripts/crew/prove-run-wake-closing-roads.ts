@@ -55,7 +55,10 @@ async function retiring(): Promise<void> {
     const committed = await host.request('session/quiesce', { action: 'commit', token })
     const posted = await host.request('session/board_post', { client_op_id: 'owner-after-commit', channel: 'team', target: 'research', text: 'OWNER-AFTER-COMMIT' }).catch((error: unknown) => ({ ok: false as const, reason: String(error) }))
     const code = await host.exited
-    const db = new Database(findFiles(home, 'board.sqlite')[0]!, { readonly: true })
+    const session = String((host.rows.find(row => typeof (row as { session_id?: unknown }).session_id === 'string') as { session_id?: string } | undefined)?.session_id)
+    const own = findFiles(home, 'board.sqlite').find(path => path.includes(session))
+    assert(own, `the board of the runner’s own session is on disk: ${session}`)
+    const db = new Database(own, { readonly: true })
     try {
       const dispatches = Number((db.query('SELECT COUNT(*) AS n FROM wake_dispatches').get() as { n: number }).n)
       const claims = Number((db.query('SELECT COUNT(*) AS n FROM wake_claims').get() as { n: number }).n)
