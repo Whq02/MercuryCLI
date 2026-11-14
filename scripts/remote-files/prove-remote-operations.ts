@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
-import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { enterWorld, localTransportUnavailable, remoteWorld, sshdUnavailable, type RemoteWorld } from './remoteKit.ts'
@@ -237,6 +237,47 @@ async function writes(world: RemoteWorld): Promise<void> {
   check(`${name}: and the file is gone again`, readdirSync(tmpdir()).filter(file => file.startsWith('.mercury-remote-')).length === probesBefore)
 }
 
+async function underAChange(world: RemoteWorld): Promise<void> {
+  section('local · a file that changes between the count of its lines and the page')
+  const realSed = Bun.which('sed')
+  if (realSed === null) {
+    console.log('  [SKIP] no sed on this machine: a file changing under a page was not read')
+    return
+  }
+  const grow = join(world.scratch, 'grow-this')
+  const shrink = join(world.scratch, 'shrink-this')
+  writeFileSync(
+    join(world.scratch, 'bin', 'sed'),
+    [
+      '#!/bin/sh',
+      `if [ -e '${grow}' ]; then printf 'a line that arrived late\\n' >> "$(cat '${grow}')"; fi`,
+      `if [ -e '${shrink}' ]; then f=$(cat '${shrink}'); '${realSed}' '$d' "$f" > "$f.less" && cat "$f.less" > "$f"; fi`,
+      `exec '${realSed}' "$@"`,
+      '',
+    ].join('\n'),
+    { mode: 0o755 },
+  )
+  closeRemoteConnections()
+  const log = join(world.data, 'growing.log')
+  writeFileSync(log, 'one\ntwo\nthree\n')
+  const asItStood = await readFileInRange(log, 0, 100)
+  writeFileSync(grow, log)
+  const grown = await ops.remoteReadRange(at(log), 0, 100).catch((error: Error) => error)
+  rmSync(grow)
+  check('a file that grew under the page is read as it stood when its lines were counted', !(grown instanceof Error) && grown.content === asItStood.content && grown.lineCount === asItStood.lineCount && grown.totalLines === asItStood.totalLines && readFileSync(log, 'utf8').split('\n').length > 4, grown instanceof Error ? grown.message : JSON.stringify({ content: grown.content, lines: grown.totalLines, now: readFileSync(log, 'utf8') }))
+  const tail = join(world.data, 'shrinking.log')
+  writeFileSync(tail, Array.from({ length: 40 }, (_, index) => `row ${index + 1}`).join('\n') + '\n')
+  writeFileSync(shrink, tail)
+  const shrunk = await failure(() => ops.remoteReadRange(at(tail), 30, 100))
+  rmSync(shrink)
+  check('a file that lost lines under the page, twice running, is said to have changed, and how to go on', shrunk instanceof ops.RemoteChangedError && shrunk.message === `ssh://box${tail} changed on the remote machine while it was being read; Read it again.`, String(shrunk?.message))
+  const settledNow = await ops.remoteReadRange(at(tail), 30, 100)
+  const local = await readFileInRange(tail, 30, 100)
+  check('and the next read of it, the file at rest, is the local read again', settledNow.content === local.content && settledNow.totalLines === local.totalLines, JSON.stringify(settledNow.content))
+  rmSync(join(world.scratch, 'bin', 'sed'))
+  closeRemoteConnections()
+}
+
 for (const transport of ['local', 'sshd'] as const) {
   const unavailable = transport === 'local' ? localTransportUnavailable() : sshdUnavailable()
   if (unavailable !== null) {
@@ -248,6 +289,7 @@ for (const transport of ['local', 'sshd'] as const) {
   try {
     await reads(world)
     await writes(world)
+    if (transport === 'local') await underAChange(world)
   } finally {
     closeRemoteConnections()
     leave()

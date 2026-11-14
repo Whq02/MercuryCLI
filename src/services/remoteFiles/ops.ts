@@ -27,8 +27,8 @@ class RemoteFileError extends Error {
 }
 
 export class RemoteChangedError extends Error {
-  constructor(path: string) {
-    super(`${path} changed on the remote machine after it was read.`)
+  constructor(path: string, underARead = false) {
+    super(underARead ? `${path} changed on the remote machine while it was being read; Read it again.` : `${path} changed on the remote machine after it was read.`)
     this.name = 'RemoteChangedError'
   }
 }
@@ -217,10 +217,10 @@ export async function remoteReadRange(
     let text = read.body.toString('utf8')
     if (offset === 0 && text.charCodeAt(0) === 0xfeff) text = text.slice(1)
     if (text.endsWith('\n')) text = text.slice(0, -1)
-    const pieces = expected === 0 ? [] : text.split('\n')
+    const pieces = expected === 0 ? [] : text.split('\n').slice(0, expected)
     if (pieces.length !== expected && wanted !== 0) {
       if (attempt === 0) continue
-      throw new RemoteChangedError(formatRemotePath(target))
+      throw new RemoteChangedError(formatRemotePath(target), true)
     }
     if ((head.endsWithNewline || head.size === 0) && offset <= head.lines && end > head.lines) pieces.push('')
     const selected = pieces.map(line => (line.endsWith('\r') ? line.slice(0, -1) : line))
