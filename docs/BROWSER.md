@@ -20,6 +20,8 @@ Each tab keeps its own page, history, console ring, viewport, emulation and curs
 
 A tab that the agent's own act opens (a click, a key, a submitted form, a page it opened) is kept as a tab named `popup`, then `popup-2` and so on, and the act's answer names it and the address it landed on. It keeps what only that window holds: its opener, and the answer to a form that was posted into it. It starts with the identity its opener presents, emulation included, and its first request already carries it. No approval comes with it: an origin the agent has not approved asks at the first act there. A tab that no act opened is closed, and a new tab that turns out to be a download is reported as a download.
 
+A tab whose page crashed says so at once: a call on it answers that the page crashed, and a wait that was running on it ends with the same words. `reload` or `open` loads the page again and says what the fresh load lost, form values and script state, and what stayed, history, cookies and stored data. The tabs beside it are not touched.
+
 `status` lists the tabs when there is more than `main`: name, address, title, page number, viewport and whether the tab is kept past the lease. The page number changes when a tab gets a new page. A long list continues with `offset`.
 
 `close` with `tab` closes that tab alone, and closing the last tab ends the session; `close` without `tab` ends the session with every tab. The number of tabs has no limit, and tabs do not count against `MERCURY_BROWSER_MAX_SESSIONS`.

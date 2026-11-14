@@ -323,6 +323,20 @@ export function errorChainText(err: unknown): string {
 }
 
 const BROWSER_GONE_ERROR = 'BrowserGoneError'
+const PAGE_CRASHED_ERROR = 'PageCrashedError'
+const CRASH_OPEN_OPS: ReadonlySet<string> = new Set(['status', 'devices', 'provision', 'open', 'reload', 'close', 'console'])
+
+function pageCrashedError(): Error {
+  const err = new Error('the page crashed (its process exited mid-op)')
+  err.name = PAGE_CRASHED_ERROR
+  return err
+}
+
+function crashedWords(s: LiveSession, named: boolean, op?: string): string {
+  return `${op === undefined ? '' : `${op}: `}${named ? `tab ${s.tab}` : 'the page'} crashed (its process exited${op === undefined ? '' : ' mid-op'}) — op:"reload" loads it again with its form values and script state gone; op:"close"${named ? ` with tab:"${s.tab}" drops it` : ' ends the session'}`
+}
+
+const RECOVERED_NOTE = '\n  note: the page had crashed and this is a fresh load: form values and script state are gone; history, cookies and stored data stay'
 
 function browserGoneError(): Error {
   const err = new Error('the browser is gone (its process exited mid-op)')
@@ -340,16 +354,19 @@ function openOpLife(s: LiveSession, outer: AbortSignal | undefined): OpLife {
   const life = new AbortController()
   const onOuter = (): void => life.abort(outer?.reason)
   const onGone = (): void => life.abort(browserGoneError())
+  const onCrash = (): void => life.abort(pageCrashedError())
   if (outer?.aborted) life.abort(outer.reason)
   else outer?.addEventListener('abort', onOuter, { once: true })
   if (s.browser.connected) s.browser.on('disconnected', onGone)
   else onGone()
+  s.page.on('error', onCrash)
   return {
     signal: life.signal,
     browser: s.browser,
     release: (): void => {
       outer?.removeEventListener('abort', onOuter)
       s.browser.off('disconnected', onGone)
+      if (typeof s.page.off === 'function') s.page.off('error', onCrash)
     },
   }
 }
@@ -365,10 +382,10 @@ function preview(text: string, cap = 40): string {
 }
 
 async function tabLine(live: LiveSession): Promise<string> {
-  const title = await Promise.race([live.page.title().catch(() => ''), bounded(1000).then(() => '')])
+  const title = live.crashed ? '' : await Promise.race([live.page.title().catch(() => ''), bounded(1000).then(() => '')])
   const vp = live.page.viewport()
   const device = heldDevice(live.page)?.device
-  const facts = [`page ${live.serial}`, `viewport ${vp?.width}x${vp?.height}`, device ? `device ${device}` : '', live.persist ? 'persist' : 'idle lease'].filter(Boolean)
+  const facts = [`page ${live.serial}`, `viewport ${vp?.width}x${vp?.height}`, device ? `device ${device}` : '', live.persist ? 'persist' : 'idle lease', live.crashed ? 'crashed' : ''].filter(Boolean)
   return `${live.tab}: ${pageWhere(live)}${title ? ` — ${title}` : ''} (${facts.join('; ')})`
 }
 
@@ -1166,7 +1183,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
       }
     }
     const s = activeSession(owner, input.tab ?? MAIN_TAB)
-    if (!s) return { behavior: 'allow' as const, updatedInput: input }
+    if (!s || (s.crashed && !CRASH_OPEN_OPS.has(input.op))) return { behavior: 'allow' as const, updatedInput: input }
     let origin: string
     let bound: CheckedTarget
     try {
@@ -1388,10 +1405,16 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
       s.acting++
       s.actOp = input.op
     }
+    const crashedAtEntry = sessionAtEntry?.crashed === true
     try {
       if (sessionAtEntry !== null && ACT_OPS.has(input.op)) acting(sessionAtEntry)
-      if (sessionAtEntry !== null && FRONT_OPS.has(input.op)) await bringTabToFront(sessionAtEntry)
-      switch (input.op) {
+      if (sessionAtEntry !== null && !crashedAtEntry && FRONT_OPS.has(input.op)) await bringTabToFront(sessionAtEntry)
+      switch (crashedAtEntry && !CRASH_OPEN_OPS.has(input.op) ? 'crashed' : input.op) {
+        case 'crashed': {
+          result = crashedWords(sessionAtEntry!, input.tab !== undefined)
+          outcome = 'failed'
+          break
+        }
         case 'status': {
           result = await statusReport(owner, input)
           break
@@ -1486,7 +1509,8 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
             landed !== target && landed.startsWith('http')
               ? `\n  note: landed on ${landed} (a redirect crossed origins — acts there will ask)`
               : ''
-          }${census}${lease}`
+          }${census}${lease}${crashedAtEntry && s === sessionAtEntry ? RECOVERED_NOTE : ''}`
+          if (s === sessionAtEntry) s.crashed = false
           outcome = 'succeeded'
           break
         }
@@ -1924,7 +1948,8 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
               : reloadResponse.status() >= 400
                 ? ` — HTTP ${reloadResponse.status()} ${reloadResponse.statusText()}`
                 : ` [${reloadResponse.status()}]`
-          result = `reload: ${s.page.url()}${reloadStatus} — ${await s.page.title()}`
+          result = `reload: ${s.page.url()}${reloadStatus} — ${await s.page.title()}${crashedAtEntry ? RECOVERED_NOTE : ''}`
+          s.crashed = false
           outcome = 'succeeded'
           break
         }
@@ -2312,6 +2337,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
       const interrupted = context.abortController?.signal.aborted === true
       const goneMidOp = e.name === BROWSER_GONE_ERROR || (life !== null && !life.browser.connected)
       const chainText = errorChainText(e)
+      const crashedMidOp = sessionAtEntry !== null && !crashedAtEntry && !goneMidOp && (e.name === PAGE_CRASHED_ERROR || sessionAtEntry.crashed)
       const blockedUrl = /net::ERR_BLOCKED_BY_CLIENT at (\S+)/.exec(chainText)?.[1] ?? input.url
       const blocked = blockedUrl === undefined ? undefined : activeSession(owner, tab)?.policyBlocks.get(blockedUrl.split('?')[0]!)
       result =
@@ -2319,7 +2345,9 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
           ? `${input.op} interrupted by the operator — the wait was released, nothing further was done`
           : goneMidOp
             ? browserGoneMidOpWords(input.op)
-            : (driverFailureWords(input.op, chainText, blocked !== undefined && blocked.at >= startedAt ? blocked.reason : undefined) ?? `${input.op} failed: ${e.message}`)
+            : crashedMidOp
+              ? crashedWords(sessionAtEntry!, input.tab !== undefined, input.op)
+              : (driverFailureWords(input.op, chainText, blocked !== undefined && blocked.at >= startedAt ? blocked.reason : undefined) ?? `${input.op} failed: ${e.message}`)
       outcome = 'failed'
     }
     try {

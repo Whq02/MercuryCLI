@@ -103,6 +103,7 @@ interface Session {
   serial: number
   persist: boolean
   openedBy: { tab: string; op: string; posted: boolean } | null
+  crashed: boolean
   acting: number
   actOp: string
   left: boolean
@@ -1102,6 +1103,7 @@ function tabSession(state: OwnerBrowserState, hold: Hold, tab: string, page: Pag
     serial: ++state.pages,
     persist: false,
     openedBy: null,
+    crashed: false,
     acting: 0,
     actOp: '',
     left: false,
@@ -1264,6 +1266,10 @@ function listenPage(state: OwnerBrowserState, session: Session, wiring: Wiring):
     })
   })
   page.on('close', () => tabClosed(state, session))
+  page.on('error', () => {
+    session.crashed = true
+    capture('crash', 'the page crashed (its process exited); op:"reload" loads it again')
+  })
 }
 
 function downloadInNewTab(wiring: Wiring, download: DownloadNotice): void {
