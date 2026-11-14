@@ -19,6 +19,10 @@ type FolderStamp = { path: string; mode: number; atime: number; mtime: number }
 
 type Quiet = 'quiet'
 
+type CloneCalls = { folders: string[]; clones: string[] }
+
+type ListedFolder = { rel: string; parent: number; direct: number; total: number; folders: number[] }
+
 type CloneScope = { spellings: readonly string[]; worktree: string }
 
 const CLONE_ANSWER_BOUND_MS = 120_000
@@ -28,6 +32,8 @@ const EXDEV = 18
 const ENOTSUP = 45
 const REFLINKS_AT_ONCE = 16
 const FOLDERS_AT_ONCE = 8
+const ENTRIES_A_CALL = 4096
+const DIRECT_SHARE = 8
 const NO_REFLINK_CODES: ReadonlySet<string> = new Set(['ENOTSUP', 'EOPNOTSUPP', 'EXDEV', 'EINVAL', 'ENOSYS', 'ENOTTY'])
 const NAME_TAKEN_CODES: ReadonlySet<string> = new Set(['ENOTEMPTY', 'EEXIST', 'ENOTDIR', 'EISDIR'])
 const STAGING_MARK = '.cloning-'
@@ -39,11 +45,19 @@ const CLONEFILE_SCRIPT = [
   'function run() {',
   "  ObjC.import('Foundation')",
   "  ObjC.bindFunction('clonefile', ['int', ['char *', 'char *', 'int']])",
+  "  ObjC.bindFunction('copyfile', ['int', ['char *', 'char *', 'void *', 'int']])",
+  "  ObjC.bindFunction('mkdir', ['int', ['char *', 'int']])",
   "  ObjC.bindFunction('__error', ['int *', []])",
   '  var data = $.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile',
-  '  var pairs = JSON.parse(ObjC.unwrap($.NSString.alloc.initWithDataEncoding(data, $.NSUTF8StringEncoding)))',
+  '  var jobs = JSON.parse(ObjC.unwrap($.NSString.alloc.initWithDataEncoding(data, $.NSUTF8StringEncoding)))',
   '  var codes = []',
-  '  for (var i = 0; i < pairs.length; i++) codes.push($.clonefile(pairs[i][0], pairs[i][1], 1) === 0 ? 0 : ($.__error()[0] || -1))',
+  '  for (var i = 0; i < jobs.length; i++) {',
+  '    var job = jobs[i], code = 0, at',
+  '    for (at = 0; code === 0 && at < job.folders.length; at++) if ($.mkdir(job.to + job.folders[at], 448) !== 0) code = $.__error()[0] || -1',
+  '    for (at = 0; code === 0 && at < job.clones.length; at++) if ($.clonefile(job.from + job.clones[at], job.to + job.clones[at], 1) !== 0) code = $.__error()[0] || -1',
+  '    for (at = 0; code === 0 && at < job.folders.length; at++) if ($.copyfile(job.from + job.folders[at], job.to + job.folders[at], null, 262151) !== 0) code = $.__error()[0] || -1',
+  '    codes.push(code)',
+  '  }',
   '  return JSON.stringify(codes)',
   '}',
 ].join('\n')
@@ -51,6 +65,16 @@ const CLONEFILE_SCRIPT = [
 const volumesThatCannotClone = new Set<string>()
 const cpAnswers = new Map<string, Promise<boolean>>()
 let stagings = 0
+let helperTurn: Promise<void> = Promise.resolve()
+
+function inTurn<T>(work: () => Promise<T>): Promise<T> {
+  const mine = helperTurn.then(work)
+  helperTurn = mine.then(
+    () => {},
+    () => {},
+  )
+  return mine
+}
 
 function cloneRoad(): CloneRoad | null {
   const seam = process.env.MERCURY_WORKTREE_CLONE
@@ -126,9 +150,47 @@ async function admitPair(pair: ClonePair, index: number, checkout: string, road:
   return { index, source, target: pair.target, staged: join(stage, String(index)), volumes }
 }
 
-async function clonefileEach(admitted: readonly AdmittedPair[], answerBoundMs: number): Promise<number[] | null> {
+export async function planCloneCalls(source: string): Promise<CloneCalls> {
+  const listed: ListedFolder[] = [{ rel: '', parent: -1, direct: 0, total: 1, folders: [] }]
+  let level = [0]
+  while (level.length > 0) {
+    const below: number[] = []
+    await eachAtOnce(level, FOLDERS_AT_ONCE, async at => {
+      const folder = listed[at] as ListedFolder
+      for (const entry of await readdir(source + folder.rel, { withFileTypes: true })) {
+        folder.direct++
+        if (!entry.isDirectory()) {
+          folder.total++
+          continue
+        }
+        folder.folders.push(listed.push({ rel: `${folder.rel}/${entry.name}`, parent: at, direct: 0, total: 1, folders: [] }) - 1)
+        below.push(listed.length - 1)
+      }
+    })
+    level = below
+  }
+  for (let at = listed.length - 1; at > 0; at--) {
+    const folder = listed[at] as ListedFolder
+    ;(listed[folder.parent] as ListedFolder).total += folder.total
+  }
+  const calls: CloneCalls = { folders: [], clones: [] }
+  const pending = [0]
+  while (pending.length > 0) {
+    const folder = listed[pending.pop() as number] as ListedFolder
+    if (folder.total <= ENTRIES_A_CALL || folder.direct * DIRECT_SHARE > folder.total) {
+      calls.clones.push(folder.rel)
+      continue
+    }
+    calls.folders.push(folder.rel)
+    for (const entry of await readdir(source + folder.rel, { withFileTypes: true })) if (entry.isFile() || entry.isSymbolicLink()) calls.clones.push(`${folder.rel}/${entry.name}`)
+    for (const child of folder.folders) pending.push(child)
+  }
+  return calls
+}
+
+async function clonefileEach(planned: ReadonlyArray<{ pair: AdmittedPair; calls: CloneCalls }>, answerBoundMs: number): Promise<number[] | null> {
   const answer = await execFileNoThrowWithCwd(OSASCRIPT, ['-l', 'JavaScript', '-e', CLONEFILE_SCRIPT], {
-    input: JSON.stringify(admitted.map(pair => [pair.source, pair.staged])),
+    input: JSON.stringify(planned.map(({ pair, calls }) => ({ from: pair.source, to: pair.staged, folders: calls.folders, clones: calls.clones }))),
     timeout: answerBoundMs,
     maxBuffer: 16 * 1024 * 1024,
   })
@@ -138,7 +200,7 @@ async function clonefileEach(admitted: readonly AdmittedPair[], answerBoundMs: n
   }
   try {
     const codes: unknown = JSON.parse(answer.stdout.trim())
-    if (Array.isArray(codes) && codes.length === admitted.length && codes.every(code => Number.isInteger(code))) return codes as number[]
+    if (Array.isArray(codes) && codes.length === planned.length && codes.every(code => Number.isInteger(code))) return codes as number[]
   } catch {
   }
   logForDebugging(`worktree clone: osascript answered something else than its codes: ${answer.stdout.trim().slice(0, 120)}`, { level: 'warn' })
@@ -205,8 +267,19 @@ async function settleClone(pair: AdmittedPair, scope: CloneScope): Promise<void>
 }
 
 async function clonefileAdmitted(admitted: readonly AdmittedPair[], outcomes: CloneOutcome[], scope: CloneScope, answerBoundMs: number): Promise<void> {
-  const codes = await clonefileEach(admitted, answerBoundMs)
-  for (const [at, pair] of admitted.entries()) {
+  const planned: Array<{ pair: AdmittedPair; calls: CloneCalls }> = []
+  await Promise.all(
+    admitted.map(async pair => {
+      try {
+        planned.push({ pair, calls: await planCloneCalls(pair.source) })
+      } catch (error) {
+        logForDebugging(`worktree clone: ${pair.source} could not be listed for cloning (${String(error)}); the folder is linked as before`, { level: 'warn' })
+      }
+    }),
+  )
+  if (planned.length === 0) return
+  const codes = await inTurn(() => clonefileEach(planned, answerBoundMs))
+  for (const [at, { pair }] of planned.entries()) {
     const code = codes === null ? null : (codes[at] as number)
     if (code === 0) {
       try {
