@@ -2415,6 +2415,7 @@ export async function runHeadless(
           mode: command.mode,
           ...(command.origin !== undefined ? { origin: command.origin } : {}),
           ...(command.priority !== undefined ? { priority: command.priority } : {}),
+          ...(command.isMeta === true ? { isMeta: true as const } : {}),
         })),
         work: projectWorkRoster(state.tasks),
         pauseGate: { paused: operatorPauseGate.paused(), parked: operatorPauseGate.parked().length },

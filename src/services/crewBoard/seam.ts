@@ -135,8 +135,7 @@ export function watchSwarmLead(idle: () => boolean, wake: () => void, paint: (ev
 }
 
 export function enqueueBoardWake(advice?: string): void {
-  const words = advice === undefined ? BOARD_PACKET_RULE : `${BOARD_PACKET_RULE} ${advice}`
-  enqueuePendingNotification({ value: wrapInSystemReminder(words), mode: 'task-notification', priority: 'next', isMeta: true })
+  enqueuePendingNotification({ value: wrapInSystemReminder(advice ?? BOARD_PACKET_RULE), mode: 'task-notification', priority: 'next', isMeta: true })
 }
 
 export function watchSwarmBoard(check: () => void): () => void {

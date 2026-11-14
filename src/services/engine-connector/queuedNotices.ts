@@ -4,8 +4,8 @@ import type { QueuedFactV1 } from './seatProjections.js'
 
 const NOTICE_KEY_PREFIX = 'notice:'
 
-export function isNoticeFact(entry: Pick<QueuedFactV1, 'mode'>): boolean {
-  return entry.mode === 'task-notification'
+export function isNoticeFact(entry: Pick<QueuedFactV1, 'mode' | 'isMeta'>): boolean {
+  return entry.mode === 'task-notification' && entry.isMeta !== true
 }
 
 export function noticeKeyOf(value: string): string {
@@ -112,6 +112,11 @@ export function noticeRowLanded(row: Message, value: string, notBeforeMs?: numbe
   const id = noticeTaskId(value)
   if (id === undefined) return text === value
   return text.includes(`<task-id>${id}</task-id>`) && text.includes(value)
+}
+
+export function foldClockOf(rows: readonly Message[]): number {
+  const fold = rows.findLast(row => row.type === 'system' && row.subtype === 'compact_boundary')
+  return fold === undefined ? Number.NaN : Date.parse(fold.timestamp)
 }
 
 export function queueOrderedSends<T extends { clientMessageId: string }>(sends: readonly T[], queue: readonly QueuedFactV1[]): T[] {
