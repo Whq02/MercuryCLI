@@ -1,9 +1,12 @@
+import type { Message } from '../../types/message.js'
+import { normalizePathForComparison } from '../../utils/file.js'
+import { getMessagesAfterCompactBoundary } from '../../utils/messages/systemMessages.js'
 import { sharedRuleFormatOf } from './compositionOrder.js'
 import type { InstructionSourceEntry } from './contracts.js'
 
 const OFFERED_RULES_HEAD = 'Rule files offered by description (not loaded; Read one when its description fits the work):'
 
-type AttachedInstruction = { path: string; convention?: string; globs?: string[] }
+export type AttachedInstruction = { path: string; convention?: string; globs?: string[] }
 
 const attached = new Map<string, AttachedInstruction>()
 
@@ -11,6 +14,16 @@ export function attachedInstructions(): AttachedInstruction[] {
   return [...attached.values()]
 }
 
+export function instructionsInMessages(messages: readonly Message[]): AttachedInstruction[] {
+  const entries = new Map<string, AttachedInstruction>()
+  for (const message of getMessagesAfterCompactBoundary([...messages])) {
+    if (message.type !== 'attachment' || message.attachment.type !== 'nested_memory') continue
+    const entry = message.attachment.content
+    if (entry.offered !== undefined) continue
+    entries.set(normalizePathForComparison(entry.path), { path: entry.path, convention: entry.convention, globs: entry.globs })
+  }
+  return [...entries.values()]
+}
 export function instructionAttached(path: string): boolean {
   return attached.has(path)
 }

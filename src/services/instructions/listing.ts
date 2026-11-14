@@ -7,7 +7,7 @@ import { normalizePathForComparison } from '../../utils/file.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { toTildePath } from '../../utils/path.js'
 import { decidingGuideOf, folderSources } from './adapters/index.js'
-import { attachedInstructions, instructionAttached } from './attachedText.js'
+import { attachedInstructions, instructionAttached, type AttachedInstruction } from './attachedText.js'
 import { agentsMdConvention } from './adapters/agentsMd.js'
 import { conventionsForProfile, otherToolFormats, sharedFormatLabel } from './compositionOrder.js'
 import type { InstructionBundleEntry, InstructionConvention, InstructionSourceEntry } from './contracts.js'
@@ -33,15 +33,15 @@ export function loadedStateOf(entry: InstructionSourceEntry): string {
   return `${entry.offered === undefined ? '' : ' · offered by its description'}${namedWords(entry.namedBy)}`
 }
 
-export function listingRowWords(row: InstructionListingRow, shownPath: string, held: Held): string {
-  const state = row.globs === undefined ? row.state : `${instructionAttached(row.path) && held(row.path) ? 'loaded' : 'loads'} with ${row.globs.join(', ')}${namedWords(row.named)}`
-  return `${row.tool} · ${shownPath} · ${state}`
+export function listingRowWords(row: InstructionListingRow, shownPath: string, held: Held, wasAttached: Held = instructionAttached): string {
+  const state = row.globs === undefined ? row.state : `${wasAttached(row.path) && held(row.path) ? 'loaded' : 'loads'} with ${row.globs.join(', ')}${namedWords(row.named)}`
+  return [row.tool, shownPath, state].filter(part => part !== '').join(' · ')
 }
 
-export function attachedRows(held: Held, listed: readonly string[]): InstructionListingRow[] {
+export function attachedRows(held: Held, listed: readonly string[], entries: readonly AttachedInstruction[] = attachedInstructions()): InstructionListingRow[] {
   const known = new Set(listed.map(normalizePathForComparison))
   const rows: InstructionListingRow[] = []
-  for (const { path, convention, globs } of attachedInstructions()) {
+  for (const { path, convention, globs } of entries) {
     if (known.has(normalizePathForComparison(path)) || !held(path)) continue
     const tool = otherToolFormats().find(format => format.id === convention)?.label ?? (convention === undefined || convention === mercuryNativeConvention.id ? 'Mercury-native' : 'shared guide')
     rows.push({ path, tool, state: globs === undefined ? 'loaded with its folder' : `loaded with ${globs.join(', ')}` })

@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { Suspense, useCallback, useLayoutEffect, useState } from 'react'
 import { writeFileSync, mkdirSync } from 'node:fs'
-import { Box, Text } from '../../ink.js'
+import { Box, Text, wrapText } from '../../ink.js'
 import { MemoryCentreView } from '../../components/memory/MemoryCentreView.js'
 import { MemoryFileSelector } from '../../components/memory/MemoryFileSelector.js'
 import {
@@ -21,6 +21,8 @@ import {
   getInstructionCompositionState,
   getInstructionFiles,
 } from '../../services/instructions/engine.js'
+import { instructionsInMessages, type AttachedInstruction } from '../../services/instructions/attachedText.js'
+import { normalizePathForComparison } from '../../utils/file.js'
 import type { ToolUseContext } from '../../Tool.js'
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
 import { openSettingsPopup, type SettingsPopupGeometry, type SettingsPopupRequest } from '../../utils/cockpit/settingsPopup.js'
@@ -82,18 +84,20 @@ type Settle = (...args: Parameters<LocalJSXCommandOnDone>) => void
 
 type Held = (path: string) => boolean
 
-function MemoryFilesRoute({ direct, onPick, onCancel, held }: { direct: boolean; onPick: (path: string) => void; onCancel: () => void; held: Held }): React.ReactNode {
+function MemoryFilesRoute({ direct, onPick, onCancel, held, attached, width, rowBudget }: { direct: boolean; onPick: (path: string) => void; onCancel: () => void; held: Held; attached?: readonly AttachedInstruction[]; width: number; rowBudget: number }): React.ReactNode {
   const frame = useSettingsPopupFrame()
   const tokens = useMercuryTokens()
+  const footer = profileStatusLine()
+  const footerRows = wrapText(footer, Math.max(1, width), 'wrap').split('\n').length
   useLayoutEffect(() => {
     frame.setHint(memoryFooter({ kind: 'files', direct }))
   }, [frame, direct])
   return (
     <Box flexDirection="column">
       <Suspense>
-        <MemoryFileSelector onSelect={onPick} onCancel={onCancel} held={held} />
+        <MemoryFileSelector onSelect={onPick} onCancel={onCancel} held={held} attached={attached} width={width} rowBudget={rowBudget - footerRows} />
       </Suspense>
-      <Text color={tokens.textMuted} wrap="truncate-end">{profileStatusLine()}</Text>
+      <Text color={tokens.textMuted} wrap="wrap">{footer}</Text>
     </Box>
   )
 }
@@ -103,11 +107,13 @@ export function MemoryPopupBody({
   initialRoute,
   settle,
   held,
+  attached,
 }: {
   geometry: SettingsPopupGeometry
   initialRoute: MemoryRoute
   settle: Settle
   held: Held
+  attached?: readonly AttachedInstruction[]
 }): React.ReactNode {
   const frame = useSettingsPopupFrame()
   const [route, setRoute] = useState<MemoryRoute>(initialRoute)
@@ -144,7 +150,10 @@ export function MemoryPopupBody({
   }
   return (
     <MemoryFilesRoute
+      width={geometry.inner}
+      rowBudget={geometry.rowBudget}
       held={held}
+      attached={attached}
       direct={initialRoute === 'files'}
       onPick={path => {
         void openMemoryFile(path, (text, options) => close(text, options))
@@ -161,7 +170,7 @@ export function memoryPopupLineNow(): string {
   return memoryPopupLine(getProjectRoot(), toTildePath(getMnemeHome()))
 }
 
-export function memoryPopupRequest(initialRoute: MemoryRoute, onDone: LocalJSXCommandOnDone, held: Held = () => false): SettingsPopupRequest {
+export function memoryPopupRequest(initialRoute: MemoryRoute, onDone: LocalJSXCommandOnDone, held: Held = () => false, attached?: readonly AttachedInstruction[]): SettingsPopupRequest {
   let settled = false
   const settle: Settle = (text, options) => {
     if (settled) return
@@ -174,7 +183,7 @@ export function memoryPopupRequest(initialRoute: MemoryRoute, onDone: LocalJSXCo
     rows: MEMORY_POPUP_ROWS,
     line: memoryPopupLineNow(),
     hint: memoryFooter(initialRoute === 'files' ? { kind: 'files', direct: true } : { kind: 'overview', action: null }),
-    body: geometry => <MemoryPopupBody geometry={geometry} initialRoute={initialRoute} settle={settle} held={held} />,
+    body: geometry => <MemoryPopupBody geometry={geometry} initialRoute={initialRoute} settle={settle} held={held} attached={attached} />,
   }
 }
 
@@ -209,7 +218,7 @@ async function enqueueReply(): Promise<string> {
 
 export async function call(
   onDone: LocalJSXCommandOnDone,
-  context: Pick<ToolUseContext, 'readFileState'>,
+  context: Pick<ToolUseContext, 'readFileState' | 'messages'>,
   args: string,
 ): Promise<React.ReactNode> {
   const trimmed = args.trim()
@@ -229,6 +238,9 @@ export async function call(
   clearInstructionFileCaches()
   await getInstructionFiles()
   const route: MemoryRoute = trimmed === 'files' ? 'files' : 'centre'
-  openSettingsPopup(memoryPopupRequest(route, onDone, path => context.readFileState.has(path)))
+  const attached = context.messages === undefined ? undefined : instructionsInMessages(context.messages)
+  const paths = new Set(attached?.map(entry => normalizePathForComparison(entry.path)))
+  const held = attached === undefined ? (path: string) => context.readFileState.has(path) : (path: string) => paths.has(normalizePathForComparison(path))
+  openSettingsPopup(memoryPopupRequest(route, onDone, held, attached))
   return null
 }
