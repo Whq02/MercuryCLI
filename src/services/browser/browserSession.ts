@@ -236,12 +236,11 @@ export async function disposeBrowserOwner(owner: OwnerKey): Promise<void> {
   await ownerStates.disposeAsync(owner)
 }
 
-export const BROWSER_SESSION_CAP_DEFAULT = 3
-export function browserSessionCap(): number {
+export function browserSessionCap(): number | null {
   const raw = flagEnv('MERCURY_BROWSER_MAX_SESSIONS')
-  if (raw === undefined || raw.trim() === '') return BROWSER_SESSION_CAP_DEFAULT
+  if (raw === undefined || raw.trim() === '') return null
   const parsed = Number.parseInt(raw, 10)
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : BROWSER_SESSION_CAP_DEFAULT
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
 }
 
 export function liveBrowserSessionCensus(): Array<{ owner: OwnerKey; lane: string; url: string | null }> {
@@ -854,7 +853,7 @@ async function launchOwnerSession(
     const other = parseOwnerKey(row.owner)
     return other.workspace === identity.workspace && other.sessionId === identity.sessionId && other.lane !== 'main'
   })
-  if (identity.lane !== 'main' && others.length >= cap) {
+  if (cap !== null && identity.lane !== 'main' && others.length >= cap) {
     const lanes = others.map(row => row.lane).join(', ')
     return {
       state: 'at-capacity',

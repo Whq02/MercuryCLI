@@ -4,7 +4,7 @@ Browser drives a separate browser for each agent. An approval belongs to that ag
 
 ## Sessions
 
-Each parent session allows three child browsers by default, with an additional slot reserved for the lead. `MERCURY_BROWSER_MAX_SESSIONS` changes the child allowance. Children cannot consume the lead's slot, and separate parent sessions have separate allowances.
+Child browsers are not counted by default: every crewmate that opens a page gets its own, and the machine is the limit. Setting `MERCURY_BROWSER_MAX_SESSIONS` to a positive number caps the child browsers of one parent session at that number, with an additional slot reserved for the lead. Children cannot consume the lead's slot, and separate parent sessions have separate allowances.
 
 A browser closes after five minutes without an operation. This leaves time to read and reason between acts while releasing unused browsers. Running operations keep their browser alive; the five-minute lease starts again when the last operation finishes. Closing or expiry clears origin approvals and secret-fill approvals. Use `op:"open"` to start another browser, or `op:"close"` to release one immediately.
 
