@@ -97,17 +97,19 @@ section('§2b the EnterWorktree tool anchors on the canonical root from inside a
 const linked = join(scratch, 'linked')
 git(repo, 'worktree', 'add', '-q', linked, '-b', 'linked-branch')
 const { EnterWorktreeTool } = await import('../../src/tools/EnterWorktreeTool/EnterWorktreeTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const toolContext = { getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) }
 process.chdir(scratch)
 state.setOriginalCwd(linked)
 state.setCwdState(linked)
 let refusedCreate = ''
 try {
-  await EnterWorktreeTool.call({ name: 'not a slug!' } as never, {} as never)
+  await EnterWorktreeTool.call({ name: 'not a slug!' } as never, toolContext as never)
 } catch (error) {
   refusedCreate = String((error as Error).message ?? error)
 }
 check('a refused create throws, leaves the process cwd where it was and enters no worktree', refusedCreate !== '' && realpathSync(process.cwd()) === scratch && getCurrentWorktreeSession() === null, `${refusedCreate.slice(0, 80)} · cwd ${process.cwd()}`)
-const entered = await EnterWorktreeTool.call({ name: 'links-proof-3' } as never, {} as never)
+const entered = await EnterWorktreeTool.call({ name: 'links-proof-3' } as never, toolContext as never)
 const enteredPath = (entered.data as { worktreePath: string }).worktreePath
 check('from inside a linked worktree the new worktree lands under the canonical repository root, never under the linked tree', enteredPath.startsWith(join(repo, '.mercury', 'worktrees')) && !enteredPath.startsWith(join(linked, '.mercury')), enteredPath)
 check('the session records the linked worktree as where it came from, and now works in the new one', getCurrentWorktreeSession()?.originalCwd === linked && realpathSync(process.cwd()) === realpathSync(enteredPath), JSON.stringify({ originalCwd: getCurrentWorktreeSession()?.originalCwd, cwd: process.cwd() }))
