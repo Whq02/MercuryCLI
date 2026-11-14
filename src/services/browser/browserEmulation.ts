@@ -1,6 +1,6 @@
 import type { Device, Frame, Page, Viewport } from 'puppeteer-core'
 import { resolveBrowserSecret } from './browserSecrets.js'
-import { driverVersion, originOf, pageKitOf, setPageLanguages, type PageIdentity, type PageKit } from './browserSession.js'
+import { driverVersion, originOf, pageKitOf, type PageIdentity, type PageKit } from './browserSession.js'
 
 const NETWORK_PRESETS = { slow3g: 'Slow 3G', fast3g: 'Fast 3G', slow4g: 'Slow 4G', fast4g: 'Fast 4G' } as const
 type NetworkPreset = keyof typeof NETWORK_PRESETS
@@ -140,11 +140,10 @@ export function parseEmulation(raw: unknown): { request: EmulationRequest } | { 
   return { request: raw as EmulationRequest }
 }
 
-type Aspect = 'identity' | 'languages' | 'locale' | 'viewport' | 'timezone' | 'cpu' | 'media' | 'network' | 'geolocation' | 'headers' | 'credentials'
-const ASPECTS: readonly Aspect[] = ['identity', 'languages', 'locale', 'timezone', 'cpu', 'media', 'network', 'geolocation', 'headers', 'credentials', 'viewport']
+type Aspect = 'identity' | 'locale' | 'viewport' | 'timezone' | 'cpu' | 'media' | 'network' | 'geolocation' | 'headers' | 'credentials'
+const ASPECTS: readonly Aspect[] = ['identity', 'locale', 'timezone', 'cpu', 'media', 'network', 'geolocation', 'headers', 'credentials', 'viewport']
 const ASPECT_FIELDS: Record<Aspect, readonly FieldName[]> = {
   identity: ['device', 'userAgent', 'locale'],
-  languages: ['locale'],
   locale: ['locale'],
   viewport: ['device', 'width', 'height', 'scale', 'mobile', 'touch', 'landscape'],
   timezone: ['timezone'],
@@ -157,7 +156,6 @@ const ASPECT_FIELDS: Record<Aspect, readonly FieldName[]> = {
 }
 const ASPECT_WORDS: Record<Aspect, string> = {
   identity: 'user agent',
-  languages: 'languages',
   locale: 'locale',
   viewport: 'viewport',
   timezone: 'timezone',
@@ -351,8 +349,6 @@ function sliceOf(aspect: Aspect, environment: Environment): unknown {
   switch (aspect) {
     case 'identity':
       return environment.identity
-    case 'languages':
-      return environment.languages
     case 'locale':
       return environment.locale
     case 'viewport':
@@ -464,9 +460,6 @@ async function applyAspect(aspect: Aspect, page: Page, kit: PageKit, environment
       return false
     case 'identity':
       if (environment.identity !== null) await ownSession(kit).send('Emulation.setUserAgentOverride', environment.identity)
-      return false
-    case 'languages':
-      await setPageLanguages(page, environment.languages)
       return false
     case 'locale':
       await ownSession(kit).send('Emulation.setLocaleOverride', environment.locale === null ? {} : { locale: environment.locale })

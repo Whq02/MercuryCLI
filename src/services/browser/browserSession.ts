@@ -459,18 +459,25 @@ function pageStealthInit(langs: string[]): void {
       delete (navigator as unknown as Record<string, unknown>).webdriver
     } catch {}
   }
-  const frozenLangs = Object.freeze([...langs])
-  const primaryLang = frozenLangs[0] ?? 'en-US'
+  const nativeLanguages = Object.getOwnPropertyDescriptor(navProto, 'languages')?.get
+  let frozenLangs = Object.freeze([...langs])
+  const currentLanguages = (): readonly string[] => {
+    const current = nativeLanguages?.call(navigator) as string[] | undefined
+    if (current?.length && (current.length !== frozenLangs.length || current.some((value, index) => value !== frozenLangs[index]))) {
+      frozenLangs = Object.freeze([...current])
+    }
+    return frozenLangs
+  }
   Object.defineProperty(navProto, 'language', {
     get: markNative(function language() {
-      return primaryLang
+      return currentLanguages()[0] ?? 'en-US'
     }, 'get language'),
     enumerable: true,
     configurable: true,
   })
   Object.defineProperty(navProto, 'languages', {
     get: markNative(function languages() {
-      return frozenLangs
+      return currentLanguages()
     }, 'get languages'),
     enumerable: true,
     configurable: true,
@@ -804,22 +811,12 @@ export interface PageKit {
   identity: PageIdentity | null
   languages: string[]
   timeZone: string
-  stealthScript: string | null
 }
 
 const pageKits = new WeakMap<Page, PageKit>()
 
 export function pageKitOf(page: Page): PageKit | null {
   return pageKits.get(page) ?? null
-}
-
-export async function setPageLanguages(page: Page, languages: string[]): Promise<void> {
-  const kit = pageKits.get(page)
-  if (!kit || typeof page.evaluateOnNewDocument !== 'function') return
-  const registration = await page.evaluateOnNewDocument(pageStealthInit, languages)
-  if (kit.stealthScript !== null) await page.removeScriptToEvaluateOnNewDocument(kit.stealthScript).catch(() => undefined)
-  kit.stealthScript = registration?.identifier ?? null
-  await Promise.all(page.frames().map(frame => frame.evaluate(pageStealthInit, languages).catch(() => undefined)))
 }
 
 export async function ensureBrowserSession(
@@ -992,12 +989,9 @@ async function launchOwnerSession(
     unhanded = browser
     const pages = await browser.pages()
     const page = pages[0] ?? (await browser.newPage())
-    const kit: PageKit = { cdp: null, identity: null, languages: hostLang.languages, timeZone: hostTimeZone, stealthScript: null }
+    const kit: PageKit = { cdp: null, identity: null, languages: hostLang.languages, timeZone: hostTimeZone }
     if (typeof page.evaluateOnNewDocument === 'function') {
-      kit.stealthScript = await page.evaluateOnNewDocument(pageStealthInit, hostLang.languages).then(
-        registration => registration?.identifier ?? null,
-        () => null,
-      )
+      await page.evaluateOnNewDocument(pageStealthInit, hostLang.languages).catch(() => undefined)
       await page.evaluate(pageStealthInit, hostLang.languages).catch(() => undefined)
     }
     const consoleRing: ConsoleEntry[] = []
