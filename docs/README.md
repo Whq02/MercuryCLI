@@ -7,6 +7,7 @@ the guides by task; each page describes the installed product.
 
 - [The README](../README.md): the one-page overview, install one-liners, capabilities and slash-command table.
 - [INSTALL.md](INSTALL.md): installation methods and paths, `mercury update`, release verification, requirements and building from source.
+- [NIX.md](NIX.md): Mercury through its flake: `nix run`, a profile install, the overlay, the Home Manager and NixOS modules and the development shell, how a Nix install is updated, and the release's pin step.
 - [AGENTS.md](../AGENTS.md): build, run and check a source checkout.
 - [INSTALL-WINDOWS-FROM-SOURCE.md](INSTALL-WINDOWS-FROM-SOURCE.md): the release route on Windows is one line in PowerShell 7 (`irm … | iex` in the README's Install section) and needs Git and nothing else; this guide builds Mercury from source on Windows with a check after each step.
 - [WINDOWS-GLYPH-FIELD-CHECK.md](WINDOWS-GLYPH-FIELD-CHECK.md): what to look at on Windows after updating, and what to report if a mark looks wrong.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-watch: scripts/updater/prove-install-path.ts src/services/privateChannel/installPath.ts src/cli/installVerb.ts scripts/lib/nodeBin.ts
+# gate-watch: scripts/updater/prove-install-path.ts scripts/updater/prove-nix-ownership.ts scripts/streaming/artifactArena.ts src/services/privateChannel/installPath.ts src/cli/installVerb.ts scripts/lib/nodeBin.ts
 # gate-watch: scripts/release/launcherTemplates.mjs scripts/release/package.mjs
 # gate-watch: package.json scripts/computer/computerDriveKit.ts scripts/lib/captureDriver.ts
 # gate-watch: scripts/lib/firstRunSeed.ts scripts/release/payloadContract.mjs
@@ -11,8 +11,9 @@
 # gate-watch: src/components/mercury-ui/keyHintLabel.ts
 # gate-watch: src/components/BootSplashScreen.tsx
 # gate-watch: scripts/updater/fixture-release-server.mjs scripts/updater/journeyFixtures.ts scripts/updater/prove-update-plain-command.ts
-# gate-watch: src/services/privateChannel/artifactSigning.ts src/services/privateChannel/channelCore.ts
+# gate-watch: src/services/privateChannel/artifactSigning.ts src/services/privateChannel/channelCore.ts src/services/privateChannel/installProvenance.ts src/services/privateChannel/installLayout.ts src/services/privateChannel/quietUpdateNotice.ts src/cli/update.ts
 # gate-watch: scripts/lib/removeScratch.ts
+# gate-watch: src/components/Feedback.tsx docs/README.md docs/NIX.md
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

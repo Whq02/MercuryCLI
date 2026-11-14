@@ -1,0 +1,25 @@
+{
+  "version": "1.0.10",
+  "systems": {
+    "x86_64-linux": {
+      "target": "linux-x64",
+      "url": "https://github.com/Whq02/MercuryCLI/releases/download/v1.0.10/mercury-v1.0.10-linux-x64.tar.gz",
+      "sha256": "22cfb42571a517227bdaa198e824f68d18860fee33c07ea16e7eb08252ad3605"
+    },
+    "aarch64-linux": {
+      "target": "linux-arm64",
+      "url": "https://github.com/Whq02/MercuryCLI/releases/download/v1.0.10/mercury-v1.0.10-linux-arm64.tar.gz",
+      "sha256": "4f5855af7c0f7205e226c78f5bf34048b4795ec7135ab92a634f0aacc69c7624"
+    },
+    "x86_64-darwin": {
+      "target": "macos-x64",
+      "url": "https://github.com/Whq02/MercuryCLI/releases/download/v1.0.10/mercury-v1.0.10-macos-x64.tar.gz",
+      "sha256": "b917cf84a46638bf372f1d2a091ca2b2e1a86541d79bd325162975246a3424ee"
+    },
+    "aarch64-darwin": {
+      "target": "macos-arm64",
+      "url": "https://github.com/Whq02/MercuryCLI/releases/download/v1.0.10/mercury-v1.0.10-macos-arm64.tar.gz",
+      "sha256": "9a670fc286a8f35df8e72e3b25da4ae9b5cbb05c1f63e1951a85d5fd47d0a5a1"
+    }
+  }
+}

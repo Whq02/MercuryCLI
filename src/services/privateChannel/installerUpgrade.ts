@@ -3,15 +3,20 @@ import { createInterface } from 'node:readline'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import type { LayoutRoots } from './installLayout.js'
 import { commandOnPath } from './installPath.js'
-import type { ForeignInstaller } from './installProvenance.js'
+import { NIX_UPDATE_WORDS, type ForeignInstaller } from './installProvenance.js'
 
 const CONSENT_SUFFIX = ' [y/N] '
 
-export function installerConsentQuestion(installer: ForeignInstaller): string {
+export function installerConsentQuestion(installer: ForeignInstaller & { updateCommand: string }): string {
   return `This Mercury was installed by ${installer.name}. Run \`${installer.updateCommand}\` now?`
 }
 
-export function installerRoadWords(installer: ForeignInstaller): string {
+export function installerRoadWords(installer: ForeignInstaller, action: 'update' | 'rollback' | 'install' = 'update'): string {
+  if (installer.updateCommand === null) return action === 'rollback'
+    ? 'roll back the flake input or the profile that provides it'
+    : action === 'install'
+      ? 'manage it through the flake or the profile that provides it'
+      : NIX_UPDATE_WORDS
   return `\`mercury update\` runs \`${installer.updateCommand}\``
 }
 
@@ -53,7 +58,7 @@ function startCommand(argv: string[], stdio: StdioOptions): ReturnType<typeof sp
   return spawn(file ?? '', args, { stdio, env, windowsHide: true })
 }
 
-export function runInstallerUpgrade(installer: ForeignInstaller, opts: { stdoutTo: 'inherit' | 'stderr' }): Promise<InstallerRunOutcome> {
+export function runInstallerUpgrade(installer: ForeignInstaller & { updateCommand: string }, opts: { stdoutTo: 'inherit' | 'stderr' }): Promise<InstallerRunOutcome> {
   const argv = installer.updateCommand.split(' ')
   return new Promise(resolve => {
     const child = startCommand(argv, ['inherit', opts.stdoutTo === 'stderr' ? 'pipe' : 'inherit', 'inherit'])
