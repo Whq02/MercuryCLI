@@ -9,6 +9,7 @@
 # gate-watch: scripts/language-sidecars/**
 # gate-watch: scripts/lib/executionProfile.ts src/ink/cell-grid.ts src/services/lsp/tsSidecar/entry.ts
 # gate-watch: src/utils/cwd.ts src/utils/healthReport.ts src/utils/astPatterns.ts
+# gate-watch: scripts/ast-tools/lib/fixtures.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
