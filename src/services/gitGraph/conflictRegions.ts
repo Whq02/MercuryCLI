@@ -48,13 +48,13 @@ function parseRegions(file: string, text: string): ConflictRegion[] {
     const marker = /^(<{7,}|\|{7,}|={7,}|>{7,})(?: .*)?$/.exec(line)
     if (!marker) continue
     const chars = marker[1]!
+    if (start !== -1 && chars.length !== width) continue
     if (chars[0] === '<') {
       if (start !== -1) { malformed = true; continue }
       start = i; base = -1; middle = -1; width = chars.length; malformed = false
       continue
     }
     if (start === -1) continue
-    if (chars.length !== width) { malformed = true; continue }
     if (chars[0] === '|') {
       if (base !== -1 || middle !== -1) malformed = true
       else base = i

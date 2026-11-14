@@ -10,12 +10,14 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail}` : ''}`)
 }
 const world = gitFixture('git-regions-')
-const names = ['multi.txt', 'two.txt', 'crlf.txt', 'tail.txt', 'bad.txt', 'duplicate.txt']
+const names = ['multi.txt', 'two.txt', 'crlf.txt', 'tail.txt', 'bad.txt', 'duplicate.txt', 'wide.txt']
 const block = (ours: string, theirs: string, base?: string, eol = '\n') => [
   '<<<<<<< HEAD', ours, ...(base === undefined ? [] : ['||||||| base', base]), '=======', theirs, '>>>>>>> branch', '',
 ].join(eol)
 const first = block('ours-one', 'theirs-one', 'base-one')
 const second = block('ours-two', 'theirs-two', 'base-two')
+const nested = '<<<<<<<<< Temporary merge branch 1\nx\n=========\ny\n>>>>>>>>> Temporary merge branch 2\n'
+const wide = `<<<<<<< HEAD\nTitle\n==========\nours\n||||||| base\n${nested}=======\nTitle\n==========\ntheirs\n>>>>>>> branch\n`
 let client: Awaited<ReturnType<typeof gitClient>> | undefined
 try {
   for (const name of names) world.put(name, 'base\n')
@@ -37,6 +39,7 @@ try {
     'tail.txt': `before\n${first}last-no-newline`,
     'bad.txt': ' <<<<<<< indented\nours\n=======\ntheirs\n>>>>>>> x\n<<<<<<< incomplete\nours\n',
     'duplicate.txt': `${first}gap\n${first}`,
+    'wide.txt': `${wide}gap\n${block('a', 'b')}`,
   }
   for (const [name, text] of Object.entries(initial)) world.put(name, text)
   const initialIndex = readFileSync(join(world.root, '.git/index'))
@@ -54,10 +57,12 @@ try {
   const crlf = ids(conflictText, 'crlf.txt')
   const tail = ids(conflictText, 'tail.txt')
   const duplicates = ids(conflictText, 'duplicate.txt')
+  const wider = ids(conflictText, 'wide.txt')
   check('M01 every complete diff3/two-way region has an identity', multi.length === 2 && two.length === 1 && crlf.length === 1 && tail.length === 1 && duplicates.length === 2, conflictText)
   check('M01 incomplete and indented lookalikes do not become regions', ids(conflictText, 'bad.txt').length === 0, conflictText)
   check('M01 duplicate blocks have distinct identities', duplicates.length === 2 && duplicates[0] !== duplicates[1])
   check('M01 source coordinates are displayed', conflictText.includes('lines 2-8'), conflictText)
+  check('M01 a line of marker characters longer than the marker is content of its side, not a marker', wider.length === 2 && conflictText.includes(`${wider[0]} lines 1-15`), conflictText)
   check('M01 repeated reads preserve identities', JSON.stringify(ids(await git({ op: 'conflicts' }), 'multi.txt')) === JSON.stringify(multi) && multi.length === 2)
   const corpus = JSON.parse(readFileSync(join(import.meta.dir, '../tool-economy/fixtures/definition-corpus.json'), 'utf8')).definitions.find((d: { name: string }) => d.name === 'Git')
   const definition = (await client.request('tools/list', {})).result?.tools?.find(t => t.name === 'Git')
@@ -104,6 +109,8 @@ try {
     check('M05 remaining identical region retains its own identity', ids(await git({ op: 'conflicts' }), 'duplicate.txt').includes(duplicates[1]!))
     await resolve([{ region: duplicates[1], take: 'theirs' }])
     check('M03/M05 both identical regions resolve independently', world.get('duplicate.txt') === 'ours-one\ngap\ntheirs-one\n')
+    const underlined = wider.length === 2 ? await resolve([{ region: wider[0], take: 'ours' }, { region: wider[1], take: 'theirs' }]) : 'the wider region is not listed'
+    check('M03 a side holding longer marker characters is taken whole and the file is staged without a marker', world.get('wide.txt') === 'Title\n==========\nours\ngap\nb\n' && world.git(['ls-files', '--unmerged', '--', 'wide.txt']) === '', underlined)
   } else {
     for (const row of ['M02 side/raw paged reads', 'M03 individual side/literal choices', 'M04 subset remainder', 'M05 relocation/stale identity', 'M06 newlines', 'B01 frozen multi-file transaction', 'B02 truthful staging', 'B03 exact repetition']) check(row, false, 'region discovery unavailable')
   }
