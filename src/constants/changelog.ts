@@ -75,6 +75,8 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed /health reading the Blender tool as undeclared where it is offered.
 - Fixed a resumed session's starting count running backwards, and a focus switched to a busy session keeping the last turn's tip.
 - Fixed an approved project extension held off in an untrusted folder saying nothing.
+- Fixed a command typed while a new chat is still starting being answered by the window instead of the chat: /swarm, /swarmchat, /general, /team, /whisper, /rename, /title, /contract and /crewmates now wait for the session and reach it in the order typed, so /swarm off typed before the first prompt holds.
+- Fixed notices that arrive in the same turn painting twice, and a monitor's line, a scheduled wake, a hook's notice, a failed or stopped crewmate and an operator's note to a crewmate being introduced to the model as a crewmate's completed task.
 - Fixed the status row's count during a long wait on a local model: it counts from the request's start and no longer starts again every thirty seconds while llama.cpp or TensorFold reads the prompt, and once the estimate has passed the row drops it and keeps the count.
 - Fixed the /tensorfold card after a start refused for memory: the refused line stays with the window it was computed for, so moving the window with the arrow keys shows that window's own card, and a stopped model opens at the window it was last served at instead of going back to its largest.
 - Fixed a garbled first screen on Windows when Mercury is started without its launcher in a console another program had left with only its input code page at UTF-8: the start now sets the console to UTF-8 whatever chcp reports.
