@@ -27,6 +27,7 @@ export function SqliteDeletePermissionRequest({ toolUseConfirm, onDone, onReject
       content={state.error !== null ? <Text>{state.error}</Text> : state.preview?.exists ? (
         <Box flexDirection="column">
           <FileWriteToolDiff file_path={state.preview.path} content="" fileExists={true} oldContent={state.preview.content} />
+          {state.preview.reach === '' ? null : <Text>{state.preview.reach}</Text>}
           <Text>{SQLITE_ROW_NOT_CHECKPOINTED}</Text>
         </Box>
       ) : <Text>Row not found; nothing will be deleted.</Text>}

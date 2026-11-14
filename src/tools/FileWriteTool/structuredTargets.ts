@@ -539,6 +539,24 @@ interface SqliteDeletionPreview {
   content: string
   schema: string
   identity: string | null
+  reach: string
+}
+
+function sqliteDeletionReach(db: SqliteWriteDb, table: string): string {
+  const objects = db.prepare(`SELECT type, name, tbl_name, sql FROM sqlite_master WHERE type IN ('table', 'trigger')`).all() as { type: string; name: string; tbl_name: string; sql: string | null }[]
+  const edges = objects.filter(object => object.type === 'table').flatMap(object => (db.prepare(`PRAGMA foreign_key_list("${object.name.replaceAll('"', '""')}")`).all() as { table: string; on_delete: string }[]).map(key => ({ child: object.name, parent: key.table.toLowerCase(), action: key.on_delete.toUpperCase() })))
+  const tables: string[] = [], emptied = [table.toLowerCase()]
+  for (let at = 0; at < emptied.length; at++) {
+    for (const edge of edges) {
+      if (edge.parent !== emptied[at] || !['CASCADE', 'SET NULL', 'SET DEFAULT'].includes(edge.action)) continue
+      if (!tables.includes(edge.child)) tables.push(edge.child)
+      if (edge.action === 'CASCADE' && !emptied.includes(edge.child.toLowerCase())) emptied.push(edge.child.toLowerCase())
+    }
+  }
+  const triggers = objects.filter(object => object.type === 'trigger' && emptied.includes(object.tbl_name.toLowerCase()) && /\bDELETE\s+ON\b/i.test((object.sql ?? '').split(/\bBEGIN\b/i)[0]!)).map(object => object.name)
+  const named = (names: string[]) => names.length > 3 ? `${names.slice(0, 3).join(', ')} and ${names.length - 3} more` : names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0]!
+  const parts = [...(tables.length ? [`foreign keys in ${named(tables)}`] : []), ...(triggers.length ? [`${triggers.length === 1 ? 'trigger' : 'triggers'} ${named(triggers)}`] : [])]
+  return parts.length ? `Other rows may change with it: ${parts.join('; ')}.` : ''
 }
 
 let deletionPreviews: WeakMap<ToolUseContext, Map<string, SqliteDeletionPreview>> | undefined
@@ -560,7 +578,7 @@ export function previewSqliteDeletion(rawPath: string): SqliteDeletionPreview {
     const db = openSqliteForWrite(file, true)
     try {
       const state = readSqliteRowState(db, target.hostPath, target.table, target.selector)
-      return { path: target.canonicalPath.slice(0, -7), exists: state.row !== null, content: state.text, schema: state.schema, identity: state.identity }
+      return { path: target.canonicalPath.slice(0, -7), exists: state.row !== null, content: state.text, schema: state.schema, identity: state.identity, reach: state.row === null ? '' : sqliteDeletionReach(db, target.table) }
     } finally { db.close() }
   } finally { if (scratch !== null) rmSync(scratch, { recursive: true, force: true }) }
 }
@@ -897,6 +915,7 @@ async function deleteSqliteRow(
   const rowPath = target.canonicalPath.slice(0, -7)
   try {
     return await withSqliteRow(target, async (db, state) => {
+      let others = 0
       const deleted = db.transaction(() => {
         context.abortController.signal.throwIfAborted()
         const fresh = readSqliteRowState(db, target.hostPath, target.table, target.selector)
@@ -909,8 +928,11 @@ async function deleteSqliteRow(
         if (evidence !== 'known') throw new Error(evidence === 'stale' ? modifiedSinceReadMessage() : unreadExistingWriteMessage())
         const q = (name: string) => `"${name.replaceAll('"', '""')}"`
         keepPreviousRow(fresh)
+        const changed = () => Number((db.prepare('SELECT total_changes() AS n').all()[0] as { n: number | bigint }).n)
+        const before = changed()
         const result = db.run(`DELETE FROM ${q(target.table)} WHERE ${q(fresh.matchColumn)} = ?`, sqliteKeyBinding(target.selector.value)) as { changes: number }
         if (result.changes !== 1) throw new Error(`The deletion touched ${result.changes} rows of "${target.table}" instead of one; rolled back.`)
+        others = changed() - before - 1
         if (readSqliteRowState(db, target.hostPath, target.table, target.selector).row !== null) throw new Error(`The row of "${target.table}" is still present after deletion; rolled back.`)
         return true
       })()
@@ -920,8 +942,8 @@ async function deleteSqliteRow(
       const patch = deleted ? getPatchForDisplay({ filePath: rowPath, fileContents: state.text, edits: [{ old_string: state.text, new_string: '' }] }) : []
       if (deleted) countLinesChanged(patch)
       return {
-        data: { type: deleted ? 'delete' : 'not-found', filePath: rowPath, content: '', structuredPatch: patch, originalFile: deleted ? state.text : null },
-        effect: { outcome: deleted ? 'succeeded' : 'no-change', operation: 'file.write', changedPaths: deleted ? [target.hostPath] : [], evidence: deleted ? `deleted one row from ${target.table} of ${target.hostPath}; read-back found no row` : `no row at ${rowPath}; nothing was deleted`, startedAt, completedAt: Date.now() },
+        data: { type: deleted ? 'delete' : 'not-found', filePath: rowPath, content: deleted && others > 0 ? `${others} other row${others === 1 ? '' : 's'} changed with it` : '', structuredPatch: patch, originalFile: deleted ? state.text : null },
+        effect: { outcome: deleted ? 'succeeded' : 'no-change', operation: 'file.write', changedPaths: deleted ? [target.hostPath] : [], evidence: deleted ? `deleted one row from ${target.table} of ${target.hostPath}; read-back found no row${others > 0 ? `; ${others} other row${others === 1 ? '' : 's'} changed with it` : ''}` : `no row at ${rowPath}; nothing was deleted`, startedAt, completedAt: Date.now() },
       }
     })
   } finally { held?.delete(target.canonicalPath) }

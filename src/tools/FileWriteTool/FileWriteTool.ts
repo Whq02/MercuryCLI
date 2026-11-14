@@ -528,7 +528,7 @@ export const FileWriteTool = buildTool({
     if (data.type === 'delete' || data.type === 'not-found') return {
       tool_use_id: toolUseID,
       type: 'tool_result' as const,
-      content: data.type === 'delete' ? `Deleted one SQLite row at ${data.filePath}; the row is absent on read-back. ${sqliteRowRewindNote(data.originalFile)}` : `Row not found at ${data.filePath}; nothing was deleted.`,
+      content: data.type === 'delete' ? `Deleted one SQLite row at ${data.filePath}; the row is absent on read-back.${data.content === '' ? '' : ` ${data.content} through foreign keys or triggers.`} ${sqliteRowRewindNote(data.originalFile)}` : `Row not found at ${data.filePath}; nothing was deleted.`,
     }
     if (data.type === 'no-change') {
       const guidance = data.noChange?.guidance ?? ''

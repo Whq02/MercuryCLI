@@ -185,8 +185,10 @@ To delete a previously read row, call `Write` with
 Empty content never deletes a row, and an ordinary empty-file write still
 writes an empty file. In modes that ask, the ordinary permission card shows
 the current row as a removal before approval. The transaction rechecks the
-row, schema and prior read, requires one affected row and verifies its absence;
-foreign-key restrictions roll back and declared cascades are enforced.
+row, schema and prior read, requires one affected row and verifies its absence.
+A foreign-key restriction rolls the deletion back. Declared cascades and DELETE
+triggers run: the card names the tables and triggers through which other rows
+may change, and the result counts the other rows that did.
 The result distinguishes a deleted row from a missing-row no-op and gives no
 empty-file edit anchor. A row change is never checkpointed: a rewind does not
 restore it. The card and the result say so, and the result repeats the row as
