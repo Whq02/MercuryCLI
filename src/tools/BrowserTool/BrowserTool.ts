@@ -43,6 +43,7 @@ import {
   originApproved,
   originOf,
   approveSecretPairing,
+  pageKitOf,
   popupInFlight,
   popupsSettled,
   screenshotPath,
@@ -633,6 +634,9 @@ async function errorPageSettled(s: LiveSession): Promise<void> {
   await Promise.race([new Promise<void>(wake => s.navWatch.waiters.push(wake)), bounded(1000)])
 }
 
+function firstRequestWords(s: LiveSession): string {
+  return `tab ${s.tab}: its first request was not armed with the presented browser identity; the page stayed open`
+}
 async function popupWords(owner: OwnerKey, s: LiveSession, since: number): Promise<string> {
   await popupsSettled(s)
   const fresh = s.popups.count - since
@@ -656,6 +660,7 @@ async function popupWords(owner: OwnerKey, s: LiveSession, since: number): Promi
         carried === null ? '' : `; the emulation came with it (${emulationSummary(kept.page) || 'nothing'})${carried.reloaded ? ', and it was reloaded for mobile or touch' : ''}`
       }`,
     )
+    if (pageKitOf(kept.page)?.firstRequestUnarmed) notes.push(firstRequestWords(kept))
     for (const line of [...(carried?.failures ?? []), ...(carried?.notes ?? [])]) notes.push(`tab ${kept.tab}: ${line}`)
   }
   return notes.map(n => `\n  note: ${n}`).join('')
@@ -2258,6 +2263,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
             `origin: ${origin}${approval}`,
             viewportWords(s),
             ...(active.length > 0 ? ['emulation:', ...active.map(line => `  ${line}`)] : []),
+            ...(pageKitOf(s.page)?.firstRequestUnarmed ? [`note: ${firstRequestWords(s)}`] : []),
           ].join('\n')
           break
         }
@@ -2361,6 +2367,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
       result = scrubSecretFromText(result!, secretInPlay.value, secretInPlay.ref)
     }
     const sessionAtExit = activeSession(owner, tab)
+    if (input.op === 'open' && sessionAtExit !== null && pageKitOf(sessionAtExit.page)?.firstRequestUnarmed) result += `\n  note: ${firstRequestWords(sessionAtExit)}`
     const refusedNetwork = sessionAtExit?.networkRefusal
     const refusalMark = sessionAtExit === sessionAtEntry ? networkMark : 0
     if (refusedNetwork !== undefined && refusedNetwork.count > refusalMark) {

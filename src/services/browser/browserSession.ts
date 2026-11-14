@@ -1007,6 +1007,7 @@ export interface PageKit {
   presented: PagePresented | null
   born: PagePresented | null
   fetchHeld: boolean
+  firstRequestUnarmed?: boolean
 }
 
 const pageKits = new WeakMap<Page, PageKit>()
@@ -1299,6 +1300,36 @@ function hintHeaders(identity: PageIdentity): Map<string, string> | null {
   ])
 }
 
+function observeFirstRequest(kit: PageKit, presented: PagePresented, targetId: string): void {
+  const cdp = kit.cdp!
+  let first: string | null = null
+  const early = new Map<string, Protocol.Network.Headers>()
+  const inspect = (headers: Protocol.Network.Headers): void => {
+    const identity = (kit.presented ?? presented).identity
+    if (identity !== null) {
+      const sent = new Map(Object.entries(headers).map(([name, value]) => [name.toLowerCase(), String(value)]))
+      const hints = hintHeaders(identity)
+      kit.firstRequestUnarmed = sent.get('user-agent') !== identity.userAgent ||
+        [...sent].some(([name, value]) => name.startsWith('sec-ch-ua') && (hints === null || (hints.has(name) && hints.get(name) !== value)))
+    }
+    cdp.off('Network.requestWillBeSent', onRequest)
+    cdp.off('Network.requestWillBeSentExtraInfo', onHeaders)
+    early.clear()
+  }
+  const onRequest = (event: Protocol.Network.RequestWillBeSentEvent): void => {
+    if (first !== null || event.type !== 'Document' || event.frameId !== targetId) return
+    first = event.requestId
+    const headers = early.get(first)
+    if (headers !== undefined) inspect(headers)
+  }
+  const onHeaders = (event: Protocol.Network.RequestWillBeSentExtraInfoEvent): void => {
+    if (event.requestId === first) inspect(event.headers)
+    else if (first === null) early.set(event.requestId, event.headers)
+  }
+  cdp.on('Network.requestWillBeSent', onRequest)
+  cdp.on('Network.requestWillBeSentExtraInfo', onHeaders)
+}
+
 function mendFirstRequest(birth: Birth, identity: PageIdentity): void {
   const { cdp, kit } = birth
   const hints = hintHeaders(identity)
@@ -1345,6 +1376,7 @@ function bornPage(hold: Hold, cdp: CDPSession, info: Protocol.Target.TargetInfo)
   void cdp.send('Network.enable').catch(quiet)
   void cdp.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(quiet)
   listenProtocol(birth.wiring, cdp)
+  observeFirstRequest(kit, presented, info.targetId)
   if (info.openerId !== undefined && presented.identity !== null) mendFirstRequest(birth, presented.identity)
   void cdp.send('Runtime.runIfWaitingForDebugger').catch(quiet)
   if (info.openerId !== undefined && opener === null) {
