@@ -94,6 +94,7 @@ interface Birth {
   opener: Session | null
   keep: boolean
   posted: boolean
+  handover: () => void
   settled: Promise<void>
   settle: () => void
 }
@@ -1209,6 +1210,7 @@ function listenPage(state: OwnerBrowserState, session: Session, wiring: Wiring):
         pageKits.set(popup, born.kit)
         const kept = tabSession(state, hold, name, popup, born.wiring)
         kept.openedBy = { tab: session.tab, op: session.actOp, posted: born.posted }
+        born.handover()
         listenPage(state, kept, born.wiring)
         hold.tabs.add(kept)
         hold.front = kept
@@ -1233,6 +1235,7 @@ function listenPage(state: OwnerBrowserState, session: Session, wiring: Wiring):
       if (name === null) await popup.close().catch(() => {})
       if (born !== undefined && id !== null) {
         hold.births.delete(id)
+        born.handover()
         born.settle()
       }
     })()
@@ -1356,6 +1359,44 @@ function mendFirstRequest(birth: Birth, identity: PageIdentity): void {
   void cdp.send('Fetch.enable', { patterns: [{ resourceType: 'Document', requestStage: 'Request' }] }).catch(() => undefined)
 }
 
+function observeBirthNavigation(hold: Hold, wiring: Wiring, cdp: CDPSession, targetId: string): () => void {
+  const requests = new Map<string, { method: string; url: string }>()
+  const onRequest = (event: Protocol.Network.RequestWillBeSentEvent): void => {
+    if (event.type !== 'Document' || event.frameId !== targetId) return
+    requests.set(event.requestId, { method: event.request.method, url: event.request.url })
+    if (requests.size > 16) requests.delete(requests.keys().next().value!)
+  }
+  const onFailed = (event: Protocol.Network.LoadingFailedEvent): void => {
+    const entry = requests.get(event.requestId)
+    requests.delete(event.requestId)
+    if (entry === undefined) return
+    const chromeText = event.errorText
+    const relay = chromeText === 'net::ERR_ABORTED' ? null : hold.relayFailureFor(entry.url)
+    const errorText = relay === null ? chromeText : `net::${chromeNetErrorFor(relay.code)}`
+    if (errorText === 'net::ERR_ABORTED') wiring.navWatch.abortedAt = Date.now()
+    else wiring.navFailure.last = { url: redactUrl(entry.url), errorText, at: Date.now() }
+    wiring.capture('net', `${entry.method} ${redactUrl(entry.url)} FAILED ${errorText} (document)`)
+  }
+  const onNavigated = (event: Protocol.Page.FrameNavigatedEvent): void => {
+    if (event.frame.parentId !== undefined) return
+    wiring.nav.seq++
+    if (!isBrowserErrorPage(event.frame.url)) wiring.navFailure.last = null
+    wiring.capture('nav', `navigated to ${redactUrl(event.frame.url)}`)
+  }
+  cdp.on('Network.requestWillBeSent', onRequest)
+  cdp.on('Network.loadingFailed', onFailed)
+  cdp.on('Page.frameNavigated', onNavigated)
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    cdp.off('Network.requestWillBeSent', onRequest)
+    cdp.off('Network.loadingFailed', onFailed)
+    cdp.off('Page.frameNavigated', onNavigated)
+    requests.clear()
+  }
+}
+
 function bornPage(hold: Hold, cdp: CDPSession, info: Protocol.Target.TargetInfo): void {
   const opener = info.openerId === undefined ? null : (hold.owned.get(info.openerId) ?? null)
   const inherited = opener === null ? null : (pageKits.get(opener.page)?.presented ?? null)
@@ -1366,7 +1407,9 @@ function bornPage(hold: Hold, cdp: CDPSession, info: Protocol.Target.TargetInfo)
   const settled = new Promise<void>(resolve => {
     settle = resolve
   })
-  const birth: Birth = { cdp, kit, wiring: newWiring(), opener, keep: opener !== null && opener.acting > 0, posted: false, settled, settle }
+  const wiring = newWiring()
+  const handover = observeBirthNavigation(hold, wiring, cdp, info.targetId)
+  const birth: Birth = { cdp, kit, wiring, opener, keep: opener !== null && opener.acting > 0, posted: false, handover, settled, settle }
   if (presented.identity !== null) void cdp.send('Emulation.setUserAgentOverride', presented.identity).catch(quiet)
   void cdp.send('Emulation.setTimezoneOverride', { timezoneId: presented.timeZone }).catch(quiet)
   if (presented.locale !== null) void cdp.send('Emulation.setLocaleOverride', { locale: presented.locale }).catch(quiet)
@@ -1380,6 +1423,7 @@ function bornPage(hold: Hold, cdp: CDPSession, info: Protocol.Target.TargetInfo)
   if (info.openerId !== undefined && presented.identity !== null) mendFirstRequest(birth, presented.identity)
   void cdp.send('Runtime.runIfWaitingForDebugger').catch(quiet)
   if (info.openerId !== undefined && opener === null) {
+    handover()
     void hold.watch?.send('Target.closeTarget', { targetId: info.targetId }).catch(quiet)
     return
   }
@@ -1407,6 +1451,7 @@ async function watchBirths(hold: Hold): Promise<void> {
     for (const [id, birth] of hold.births) {
       if (birth.cdp.id() !== event.sessionId) continue
       hold.births.delete(id)
+      birth.handover()
       const download = birth.wiring.downloads.last
       const wiring = birth.opener === null ? undefined : sessionWirings.get(birth.opener)
       if (download !== null && wiring !== undefined) downloadInNewTab(wiring, download)
@@ -1473,6 +1518,7 @@ async function newHoldPage(hold: Hold): Promise<{ page: Page; wiring: Wiring }> 
       const born = id === null ? undefined : hold.births.get(id)
       if (born !== undefined && id !== null) {
         hold.births.delete(id)
+        born.handover()
         pageKits.set(page, born.kit)
         return { page, wiring: born.wiring }
       }
