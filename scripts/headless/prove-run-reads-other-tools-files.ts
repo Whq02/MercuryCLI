@@ -17,7 +17,7 @@ const check = (label: string, ok: boolean, detail = ''): void => { checks++; con
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'run-reads-other-tools-')))
 type World = { home: string; cwd: string; env: Record<string, string> }
-function world(name: string, files: Record<string, string>, options: { untrusted?: boolean; settings?: object } = {}): World {
+function world(name: string, files: Record<string, string>, options: { untrusted?: boolean; settings?: object; env?: Record<string, string> } = {}): World {
   const home = join(scratch, name, 'home')
   const cwd = join(scratch, name, 'project')
   mkdirSync(join(home, 'tmp'), { recursive: true })
@@ -28,7 +28,7 @@ function world(name: string, files: Record<string, string>, options: { untrusted
     mkdirSync(dirname(join(cwd, file)), { recursive: true })
     writeFileSync(join(cwd, file), text)
   }
-  return { home, cwd, env: { HOME: home, PATH: process.env.PATH ?? '', TERM: 'dumb', TMPDIR: join(home, 'tmp'), MERCURY_TMPDIR: join(home, 'tmp'), MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DAEMON_DIR: join(home, 'daemon'), ANTHROPIC_API_KEY: FIXTURE_API_KEY } }
+  return { home, cwd, env: { HOME: home, PATH: process.env.PATH ?? '', TERM: 'dumb', TMPDIR: join(home, 'tmp'), MERCURY_TMPDIR: join(home, 'tmp'), MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DAEMON_DIR: join(home, 'daemon'), ANTHROPIC_API_KEY: FIXTURE_API_KEY, ...options.env } }
 }
 
 type Ran = { code: number | null; stderr: string; asks: string[] }
@@ -137,6 +137,51 @@ try {
     check('the rule file that stands alone is named with its direction override', said('.cursorrules', /line 1, column 8: a direction override \(U\+202E\)/), shown)
     check('each is said once and each line says the file was loaded as written', lines.length === 2 && lines.every(line => line.includes('loaded as written, nothing changed')), `${lines.length} line(s): ${shown}`)
     check('the model is sent each file as written', ['Keep it\u200B short', 'A plain\u202E rule'].every(text => (ran.asks[0] ?? '').includes(text) || (ran.asks[0] ?? '').includes(esc(text)) || (ran.asks[0] ?? '').includes(esc(text).replace(/\\u[0-9A-Fa-f]{4}/g, code => code.toLowerCase()))), `${(ran.asks[0] ?? '').length} chars`)
+  }
+
+  console.log('\n§6 a crewmate is sent them as the lead is, and a file it reads attaches a rule to its own requests')
+  {
+    const w = world('crew', PROJECT)
+    const CHILD = 'crew-child-ask: read the main file and say what it holds'
+    const ran = await run(w, [
+      { kind: 'tool_use', name: 'Crewmate', input: { description: 'the reader', prompt: CHILD } },
+      read(w, 'src/app/main.ts'),
+      { kind: 'text', text: 'child done' },
+      done,
+    ])
+    const said = (words: string): string => JSON.stringify({ text: words }).slice(1, -1)
+    const lead = ran.asks.filter(ask => ask.includes(said('go on')))
+    const crew = ran.asks.filter(ask => !ask.includes(said('go on')) && ask.includes('crew-child-ask'))
+    check('the run completed, the lead asking twice and the crewmate twice', ran.code === 0 && lead.length === 2 && crew.length === 2, `exit ${ran.code}, lead ${lead.length}, crewmate ${crew.length}, of ${ran.asks.length} ${ran.stderr.slice(-300)}`)
+    const [first = '', second = ''] = crew
+    check("the crewmate's first request carries each guide and always rule exactly as often as it carries AGENTS.md, once", ALWAYS.every(needle => times(first, needle) === 1), ALWAYS.map(needle => `${needle} ${times(first, needle)}`).join(', '))
+    check('and the offered rule as its one line, with no scoped rule', first.includes(offered(w, '.cursor/rules/migrations.mdc', 'How to write a database migration')) && absent(first, LATER), present(first, LATER))
+    check('after the crewmate read a matching file its next request carries the rule once', times(second, 'typescript-needle') === 1 && second.includes(governs(w, '.cursor/rules/example.mdc', 'src/**/*.ts')), `${times(second, 'typescript-needle')} time(s)`)
+    check("the lead's own next request does not carry what its crewmate attached", lead.length === 2 && !lead[1]!.includes(governs(w, '.cursor/rules/example.mdc', 'src/**/*.ts')), String(lead.length))
+  }
+
+  console.log('\n§7 the folders the Copilot variable names')
+  {
+    const named = join(scratch, 'named-folder')
+    mkdirSync(join(named, '.github', 'instructions'), { recursive: true })
+    writeFileSync(join(named, 'AGENTS.md'), 'named-agents-needle\n')
+    writeFileSync(join(named, '.github', 'instructions', 'ts.instructions.md'), '---\napplyTo: "src/**/*.ts"\n---\nnamed-scoped-needle\n')
+    const env = { COPILOT_CUSTOM_INSTRUCTIONS_DIRS: named }
+    const w = world('named', PROJECT, { env })
+    const ran = await run(w, [read(w, 'src/app/main.ts'), done])
+    const [first = '', second = ''] = ran.asks
+    check('the run completed in two requests', ran.code === 0 && ran.asks.length === 2, `exit ${ran.code}, ${ran.asks.length} request(s) ${ran.stderr.slice(-300)}`)
+    check("the first request carries the named folder's guide once, as the user's own, before the project's files", times(first, 'named-agents-needle') === 1 && first.includes(esc(`Contents of ${join(named, 'AGENTS.md')} (user's private global instructions for all projects):`)) && first.indexOf('named-agents-needle') < first.indexOf('agents-needle\\n\\nContents'), `${times(first, 'named-agents-needle')} time(s)`)
+    check('its scoped rule is absent at the start and attached once when a matching file is read', !first.includes('named-scoped-needle') && times(second, 'named-scoped-needle') === 1, `${times(first, 'named-scoped-needle')} then ${times(second, 'named-scoped-needle')}`)
+    const decided = world('named-decided', { ...PROJECT, 'MERCURY.md': 'native-needle\n' }, { env })
+    const under = await run(decided, [read(decided, 'src/app/main.ts'), done])
+    check('under a MERCURY.md nothing of the named folder reaches any request', under.code === 0 && under.asks.length === 2 && absent(under.asks.join('\n'), ['named-agents-needle', 'named-scoped-needle']), present(under.asks.join('\n'), ['named-agents-needle', 'named-scoped-needle']))
+    const bare = world('named-unset', { 'README.md': 'readme-text\n' })
+    const empty = world('named-empty', { 'README.md': 'readme-text\n' }, { env: { COPILOT_CUSTOM_INSTRUCTIONS_DIRS: ' , ' } })
+    const plain = (text: string, w: World): string => text.replaceAll(w.cwd, '<project>').replaceAll(w.home, '<home>').replaceAll(w.cwd.replace(/[^A-Za-z0-9]/g, '-'), '<slug>').replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '<uuid>')
+    const unsetAsk = (await run(bare, [done])).asks[0] ?? ''
+    const emptyAsk = (await run(empty, [done])).asks[0] ?? 'none'
+    check('an empty list sends the request an unset variable sends, byte for byte once the scratch folder is taken out', plain(unsetAsk, bare) === plain(emptyAsk, empty), `${plain(unsetAsk, bare).length} against ${plain(emptyAsk, empty).length} chars`)
   }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
