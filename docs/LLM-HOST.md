@@ -562,7 +562,8 @@ reported by the server.
   `llama.cpp` and top-level `reasoning_effort` on `vLLM`, `SGLang`, `Ollama` and
   `Kimi K3`. If a server rejects a reasoning parameter or value, Mercury keeps
   your selected effort and thinking, reports the server remedy and does not retry
-  at default effort.
+  at default effort. With thinking off, a `llama.cpp` request carries top-level
+  `reasoning_effort: none` and no level.
 - **Multi-turn reasoning replay:** SGLang, vLLM, llama.cpp and Kimi K3
   conversations keep assistant `reasoning_content` across tool turns and
   continuations, and SGLang requests set
