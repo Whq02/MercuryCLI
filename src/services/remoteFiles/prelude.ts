@@ -126,8 +126,11 @@ m_has() { for f; do if [ -e "$f" ]; then printf 1; else printf 0; fi; done; }
 m_cat() {
   k=$1; shift
   while [ $# -gt 1 ]; do
-    if [ "$1" = s ] && [ "$(m_take 512 < "$2" 2>/dev/null | tr -d '\000' | wc -c)" -lt 512 ]; then m_take 512 < "$2" 2>/dev/null
-    else cat "$2" 2>/dev/null; fi
+    w=c
+    if [ "$1" = s ] && [ "$(m_take 512 < "$2" 2>/dev/null | tr -d '\000' | wc -c)" -lt 512 ]; then
+      case $(m_take 2 < "$2" 2>/dev/null | od -An -tx1 | tr -d ' \n') in fffe|feff) ;; *) w=s ;; esac
+    fi
+    if [ $w = s ]; then m_take 512 < "$2" 2>/dev/null; else cat "$2" 2>/dev/null; fi
     printf '\n%s %s\n' "$k" $?
     shift 2
   done
