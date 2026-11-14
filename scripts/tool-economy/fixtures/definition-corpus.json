@@ -1,5 +1,5 @@
 {
-  "base": "99522a523e261b441df34229ddc00bd582e76b5e",
+  "base": "76b9247f9fca7da1be2119a3f9a02459de98f080",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -1029,7 +1029,7 @@
     },
     {
       "name": "Inspect",
-      "description": "Read Mercury records by reference. Returns bounded pages and distinct absent, expired or unavailable states. Omitting the id lists objects of that kind.\n\nKinds: agent, artifact, evidence, execution, file, git, health, ide, journey, mission, models, owner, project, receipt, repo, run, seat, service, structure, task, test, transaction, transcript, workbench, workflow.\nmodels — mercury://models lists reachable models live; mercury://models/known lists this build's pin tables, not reachability.\nseat — mercury://seat gives this turn's model, effort, posture and session engine history with switch times.",
+      "description": "Read Mercury records by reference. Returns bounded pages and distinct absent, expired or unavailable states. Omitting the id lists objects of that kind.\n\nKinds: agent, artifact, evidence, execution, file, git, health, ide, journey, mission, models, owner, project, receipt, repo, run, seat, service, structure, task, test, transaction, transcript, workbench.\nmodels — mercury://models lists reachable models live; mercury://models/known lists this build's pin tables, not reachability.\nseat — mercury://seat gives this turn's model, effort, posture and session engine history with switch times.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -3965,38 +3965,6 @@
           "to",
           "message"
         ]
-      },
-      "eager_input_streaming": true
-    },
-    {
-      "name": "Workflow",
-      "description": "Run a deterministic JavaScript script coordinating crewmates. Returns a task ID immediately and notifies on completion. Launch only on the user's workflow request or an executing skill's direction.",
-      "input_schema": {
-        "type": "object",
-        "properties": {
-          "script": {
-            "description": "Self-contained JS workflow source",
-            "type": "string",
-            "maxLength": 524288
-          },
-          "name": {
-            "description": "Saved/built-in workflow name (when scriptPath is absent)",
-            "type": "string"
-          },
-          "args": {
-            "description": "Verbatim JSON args (default undefined)"
-          },
-          "scriptPath": {
-            "description": "Saved workflow path (precedes name)",
-            "type": "string"
-          },
-          "resumeFromRunId": {
-            "description": "Stopped run id from this session",
-            "type": "string",
-            "pattern": "^wf_[a-z0-9-]{6,}$"
-          }
-        },
-        "additionalProperties": false
       },
       "eager_input_streaming": true
     },
