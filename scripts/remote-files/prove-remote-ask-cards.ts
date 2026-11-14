@@ -298,13 +298,16 @@ async function here(): Promise<void> {
 }
 
 try {
-  await ownWords()
   const unavailable = localTransportUnavailable()
-  if (unavailable !== null) console.log(`  [SKIP] the local transport: ${unavailable}`)
-  else {
+  if (unavailable !== null) {
+    await ownWords()
+    console.log(`  [SKIP] the local transport: ${unavailable}`)
+  } else {
     const world = await remoteWorld('local', 0, { clientHome: HOME })
     const leave = enterWorld(world)
     try {
+      await ownWords()
+      check('the unread cards and their subtitles start no ssh, including -G', world.argvLines().length === 0, world.argvLines().join(' | '))
       await lastRead(world)
     } finally {
       closeRemoteConnections()

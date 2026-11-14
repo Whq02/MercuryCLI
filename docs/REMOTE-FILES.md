@@ -51,7 +51,7 @@ A rule whose pattern begins `ssh://` is a rule for a remote path, in the same li
 - A rule that names a host covers every account and port on it; `user@` and `:port` narrow it. A `Host` name of your ssh configuration and its `HostName` are one host. Two names for one machine that your ssh configuration does not relate, such as a DNS alias, are two hosts to a rule.
 - A rule for a local path never matches a remote path, and the reverse: a deny of `**/.env` on this machine does not cover a remote `.env`, which `Read(ssh://*/**/.env)` does.
 - `Read(ssh://*/**)` covers every host. `Read(ssh://**)` covers none: write the host part, even as `*`.
-- A deny is read against the path as written before anything connects, and against the path the remote machine resolves it to (a link, a `..`) before a byte is read or written. Search answers leave out what a deny covers.
+- The path as written is judged before any ssh process starts. After permission is granted, ssh evaluates the configuration and Mercury checks the resolved host against the rules and this machine's floors before connecting. An allow rule for a resolved host can therefore need the ordinary first ask when the written alias has not been resolved yet. A deny is checked again against the path the remote machine resolves (a link, a `..`) before a byte is read or written. Search answers leave out what a deny covers.
 - In the default mode the first use of a host asks, as any path outside the project does, and one of its answers allows the host for the session. In sovereign mode nothing is asked; a deny still refuses.
 - When the host is this machine, Mercury's own store and runtime are refused through it as they are directly.
 

@@ -117,7 +117,6 @@ export async function remoteValidation(
   }
   if (target === null) return hostList ? { result: true } : { result: false, message: toolType === 'edit' ? HOSTS_NOT_A_FILE : HOSTS_ONLY_IN_READ, errorCode: 1 }
   const rules = context.getAppState().toolPermissionContext
-  await resolveNames(rules, target.authority, context.abortController.signal)
   for (const form of also === null ? [written] : [written, also]) {
     const denied = matchingRuleForInput(form, rules, toolType, 'deny')
     if (denied) return { result: false, message: ruleSentence(`${verb} ${written.trim()}`, 'deny', denied), errorCode: 1 }
@@ -148,7 +147,6 @@ export async function remotePermission(
     return { behavior: 'deny', message, decisionReason: { type: 'other', reason: message } }
   }
   if (target === null) return hostListPermission(input, rules)
-  await resolveNames(rules, target.authority, context.abortController.signal)
   const decisions = (also === null ? [written] : [written, also]).map(form => judge(toolName, form, input, rules, toolType))
   return decisions.find(decision => decision.behavior === 'deny') ?? decisions.find(decision => decision.behavior === 'ask') ?? decisions[0]!
 }
@@ -184,12 +182,22 @@ async function gate(
   signal: AbortSignal | undefined,
 ): Promise<{ here: boolean; spellings: string[][] }> {
   const rules = context.getAppState().toolPermissionContext
+  const written = formatRemotePath(target)
+  const answered = new Set(matchingRulesForInput(written, rules, toolType, 'ask').map(ruleKey))
+  await resolveNames(rules, target.authority, signal)
+  const decision = judge(toolName, written, {}, rules, toolType)
+  if (decision.behavior === 'deny') throw new Error(decision.message)
+  const reason = decision.decisionReason
+  if (decision.behavior === 'ask' && reason?.type === 'rule' && !answered.has(ruleKey(reason.rule))) {
+    answered.add(ruleKey(reason.rule))
+    const answer = ask === null ? decision : await ask(written)
+    if (answer.behavior !== 'allow') throw new Error((answer as { message?: string }).message ?? decision.message)
+  }
   const here = await remoteIsThisMachine(target.authority, signal)
   const absolute = await remoteAbsolutePath(target, signal)
   const ruled = remoteRulePatterns(rules).length > 0
   const real = here || ruled ? await remoteRealPath(target, signal) : absolute
   const spellings = spelled(target.authority, [absolute, real], await homeOf(target.authority, signal))
-  const answered = new Set(matchingRulesForInput(formatRemotePath(target), rules, toolType, 'ask').map(ruleKey))
   for (const forms of spellings) {
     if (here) {
       for (const form of forms) {
@@ -297,7 +305,6 @@ export async function remoteReadTarget(
   const rules = context.getAppState().toolPermissionContext
   let target = parseRemotePath(written)
   if (target === null) return { kind: 'hosts', path: REMOTE_RULE_ROOT, ...renderRemoteHosts(remoteHostNames(file => sshConfigReadable(file, rules))) }
-  await resolveNames(rules, target.authority, signal)
   let gated = await gate('Read', target, 'read', context, ask, signal)
   let stat = await remoteStat(target, signal, true)
   let ranges: string[] | undefined
@@ -422,7 +429,6 @@ export async function remoteMirror(
   const rules = context.getAppState().toolPermissionContext
   const given = parseRemotePath(written)
   if (given === null) throw new Error(HOSTS_ONLY_IN_READ)
-  await resolveNames(rules, given.authority, signal)
   const outer = await gate(toolName, given, 'read', context, ask, signal)
   const host = authorityText(given.authority)
   const stat = await remoteStat(given, signal)
@@ -573,7 +579,6 @@ export async function remoteWriteTarget(
   const signal = context.abortController.signal
   const target = parseRemotePath(written)
   if (target === null) throw new Error(HOSTS_NOT_A_FILE)
-  await resolveNames(context.getAppState().toolPermissionContext, target.authority, signal)
   const gated = await gate(toolName, target, 'edit', context, ask, signal)
   const stat = await remoteStat(target, signal)
   return {

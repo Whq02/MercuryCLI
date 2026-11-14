@@ -264,7 +264,7 @@ async function rulesAndFloors(world: RemoteWorld): Promise<void> {
   const openInput = { file_path: remote(join(data, 'open.txt')) }
   const valid = await validated(openInput)
   const ask = await decided(openInput)
-  check(`${name}: checking the input and reading the rules ask the ssh configuration what the name resolves to, and start no connection`, valid.result === true && world.connectLines().length === connected && world.argvLines().slice(started).some(line => line === '-G -- box'), world.argvLines().slice(started).join(' | '))
+  check(`${name}: checking the input and reading the rules start no ssh, including a question to its configuration`, valid.result === true && world.connectLines().length === connected && world.argvLines().length === started, world.argvLines().slice(started).join(' | '))
   check(`${name}: with no rule, the default mode asks, and offers the host for the session`, ask.behavior === 'ask' && ask.decisionReason?.type === 'workingDir' && JSON.stringify(ask.suggestions?.[0]?.rules) === JSON.stringify([{ toolName: 'Read', ruleContent: 'ssh://box/**' }]), JSON.stringify(ask))
   const allowed = await decided(openInput, { allow: ['Read(ssh://box/**)'] })
   check(`${name}: a rule for the host allows`, allowed.behavior === 'allow', JSON.stringify(allowed))
@@ -296,8 +296,14 @@ async function rulesAndFloors(world: RemoteWorld): Promise<void> {
     const refused = await said({ file_path: remote(path) }, contextOf(deny))
     check(`${name}: ${how}: the written path names no denied folder, and the read is refused once the remote machine has said where it leads`, passes.result === true && refused.startsWith('THROWN Reading ') && refused.includes('is denied by the rule') && !refused.includes('THE-KEY'), refused)
   }
-  const byAddress = await validated({ file_path: remote(join(secretDir, 'key.txt')) }, { deny: [`Read(ssh://127.0.0.1/**)`] })
-  check(`${name}: a rule written for the address the name resolves to holds for the name`, byAddress.result === false, String(byAddress.message))
+  const addressStarts = world.argvLines().length
+  const addressInput = { file_path: remote(join(secretDir, 'key.txt')) }
+  const addressRules = { deny: ['Read(ssh://127.0.0.1/**)'] }
+  await validated(addressInput, addressRules)
+  const addressValidated = world.argvLines().length === addressStarts
+  const addressConnections = world.connectLines().length
+  const addressAnswer = await said(addressInput, contextOf(addressRules))
+  check(`${name}: a rule written for the address the name resolves to holds at execution before connecting, with no resolution during validation`, addressValidated && addressAnswer.includes('is denied by the rule Read(ssh://127.0.0.1/**)') && world.connectLines().length === addressConnections, addressAnswer)
   const home = world.remoteHome
   mkdirSync(join(home, 'private'), { recursive: true })
   writeFileSync(join(home, 'private', 'p.txt'), 'PRIVATE\n')

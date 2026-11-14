@@ -35,6 +35,7 @@
 # gate-watch: src/services/engine-connector/focusedConnector.ts
 # gate-watch: src/services/engine-connector/noSessionConnector.ts
 # gate-watch: src/utils/permissions/filesystem.ts
+# gate-watch: src/utils/permissions/decision/engine.ts
 # gate-watch: src/utils/attachments/orchestrator.ts
 # gate-watch: scripts/tools/fixtures/read-formats/**
 # gate-watch: docs/REMOTE-FILES.md
