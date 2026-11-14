@@ -162,8 +162,8 @@ try {
 }
 check('bun run typecheck exits 0 in the copy', typecheck.includes('typecheck-ok'), typecheck.slice(0, 200))
 check('the copy is still a git worktree on its own branch at the checkout\'s commit', git(first.worktreePath, 'rev-parse', '--abbrev-ref', 'HEAD') === 'worktree-agent-a1000001' && git(first.worktreePath, 'rev-parse', 'HEAD') === git(deps, 'rev-parse', 'HEAD') && first.headCommit === git(deps, 'rev-parse', 'HEAD'))
-const removed = git(deps, 'worktree', 'unlock', first.worktreePath) === '' && git(deps, 'worktree', 'remove', '--force', first.worktreePath) === ''
-check('git removes the copy as it removes any worktree', removed && !existsSync(first.worktreePath))
+const removed = git(deps, 'worktree', 'unlock', first.worktreePath) === '' && git(deps, 'worktree', 'remove', first.worktreePath) === ''
+check('an ordinary git worktree remove takes the copy, its cloned folders with it', removed && !existsSync(first.worktreePath))
 
 section('§3 two crewmates at once build in their own folders')
 const [left, right] = await Promise.all([createAgentWorktree('agent-a2000001'), createAgentWorktree('agent-a2000002')])

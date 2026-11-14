@@ -9,6 +9,7 @@ import { gitInitRefusal, projectScopePathspec } from '../utils/projectBoundary.j
 import { daemonDir } from './controlSocket.js'
 import { ensureDirInDaemonHome } from './daemonHome.js'
 import { gitArgs, gitArgsAsync } from '../utils/git/spawnArgs.js'
+import { discardSetAside, setWorktreeAside, worktreeHoldsClones } from '../utils/worktreeClone.js'
 
 export const WORKTREE_RUNTIME_HOMES: readonly string[] = PROJECT_CONFIG_DIR_NAMES
 
@@ -373,8 +374,10 @@ export function reapWorkerWorktree(
     logForDebugging(`[concourse/worktrees] RETAINED ${runnerId}: authored work present (${dirt.files.slice(0, 5).join(', ')}${dirt.files.length > 5 ? ', …' : ''})`)
     return { outcome: 'retained', files: dirt.files }
   }
+  const aside = worktreeHoldsClones(path) ? setWorktreeAside(path) : null
   const remove = git(workspaceId, 'worktree', 'remove', '--force', path)
-  if (!remove.ok) {
+  if (aside !== null) discardSetAside(aside)
+  else if (!remove.ok) {
     try {
       rmSync(path, { recursive: true, force: true })
     } catch (err) {

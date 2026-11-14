@@ -1,8 +1,11 @@
+import { spawn } from 'node:child_process'
+import { appendFileSync, existsSync, readFileSync, renameSync, utimesSync } from 'node:fs'
 import { lstat, mkdir, realpath, rm, stat } from 'node:fs/promises'
-import { dirname, sep } from 'node:path'
+import { basename, dirname, join, resolve, sep } from 'node:path'
 
 import { logForDebugging } from './debug.js'
 import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
+import { subprocessEnv } from './subprocessEnv.js'
 
 export type CloneOutcome = 'cloned' | 'present' | 'missing' | 'outside' | 'unsupported' | 'failed'
 
@@ -129,4 +132,84 @@ export async function cloneIntoWorktree(pairs: readonly ClonePair[], checkoutRoo
     logForDebugging(`worktree clone: ${pair.source} was not cloned (${code === null ? 'no answer' : `errno ${code}`}); the folder is linked as before`, { level: 'warn' })
   }
   return outcomes
+}
+
+const CLONES_FILENAME = 'WORKTREE_CLONES'
+const SET_ASIDE_MARK = '.removing-'
+const DISCARD_SCRIPT = [
+  "const fs = require('node:fs')",
+  "const path = require('node:path')",
+  'const root = process.argv[1]',
+  'const open = dir => {',
+  '  try { fs.chmodSync(dir, 0o700) } catch {}',
+  '  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) if (entry.isDirectory()) open(path.join(dir, entry.name))',
+  '}',
+  'try {',
+  '  fs.rmSync(root, { recursive: true, force: true })',
+  '} catch {',
+  '  try { open(root); fs.rmSync(root, { recursive: true, force: true }) } catch {}',
+  '}',
+].join('\n')
+
+function worktreeAdminDir(worktreePath: string): string | null {
+  try {
+    const pointer = readFileSync(join(worktreePath, '.git'), 'utf8').trim()
+    return pointer.startsWith('gitdir:') ? resolve(worktreePath, pointer.slice('gitdir:'.length).trim()) : null
+  } catch {
+    return null
+  }
+}
+
+export function recordWorktreeClones(worktreePath: string, relPaths: readonly string[]): void {
+  const adminDir = worktreeAdminDir(worktreePath)
+  if (adminDir === null || relPaths.length === 0) return
+  try {
+    appendFileSync(join(adminDir, CLONES_FILENAME), relPaths.map(relPath => `${relPath}\n`).join(''))
+  } catch (error) {
+    logForDebugging(`worktree clone: the record of what ${worktreePath} holds as clones was not written: ${String(error)}`, { level: 'warn' })
+  }
+}
+
+export function worktreeHoldsClones(worktreePath: string): boolean {
+  const adminDir = worktreeAdminDir(worktreePath)
+  return adminDir !== null && existsSync(join(adminDir, CLONES_FILENAME))
+}
+
+export function setWorktreeAside(worktreePath: string): string | null {
+  const home = dirname(worktreePath)
+  const aside = join(dirname(home), `${basename(home)}${SET_ASIDE_MARK}${basename(worktreePath)}-${process.pid}-${Date.now().toString(36)}`)
+  try {
+    renameSync(worktreePath, aside)
+    return aside
+  } catch (error) {
+    logForDebugging(`worktree clone: ${worktreePath} could not be set aside and is removed in place: ${String(error)}`)
+    return null
+  }
+}
+
+export function returnWorktreeFromAside(aside: string, worktreePath: string): void {
+  try {
+    renameSync(aside, worktreePath)
+  } catch (error) {
+    logForDebugging(`worktree clone: ${aside} could not be moved back to ${worktreePath}: ${String(error)}`, { level: 'warn' })
+  }
+}
+
+export function discardSetAside(aside: string): void {
+  if (!basename(aside).includes(SET_ASIDE_MARK)) return
+  const inProcess = (): void => {
+    void rm(aside, { recursive: true, force: true }).catch(() => {})
+  }
+  try {
+    const now = new Date()
+    utimesSync(aside, now, now)
+  } catch {
+  }
+  try {
+    const child = spawn(process.execPath, ['-e', DISCARD_SCRIPT, aside], { detached: true, stdio: 'ignore', windowsHide: true, env: subprocessEnv() })
+    child.on('error', inProcess)
+    child.unref()
+  } catch {
+    inProcess()
+  }
 }

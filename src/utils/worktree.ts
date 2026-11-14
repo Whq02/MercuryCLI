@@ -21,7 +21,7 @@ import { projectLocalPath } from '../services/projectLocal/paths.js'
 import { getInitialSettings, getRelativeSettingsFilePathForSource } from './settings/settings.js'
 import { sleep } from './sleep.js'
 import { isInITerm2, isInsideTmuxSync } from './terminalDetection.js'
-import { cloneIntoWorktree } from './worktreeClone.js'
+import { cloneIntoWorktree, discardSetAside, recordWorktreeClones, returnWorktreeFromAside, setWorktreeAside, worktreeHoldsClones } from './worktreeClone.js'
 
 
 
@@ -483,6 +483,7 @@ export async function prepareWorktreeFiles(repoRoot: string, worktreePath: strin
   const dependencyLinks = dependencyLinksFrom !== undefined ? await dependencyLinkCandidates(sourceRoot) : []
   const keptAsLinks = new Set(symlinkDirectories.map(checkoutRelativeName))
   const cloned = await cloneCheckoutDirectories(sourceRoot, worktreePath, dependencyLinks.filter(name => !keptAsLinks.has(name)))
+  recordWorktreeClones(worktreePath, cloned)
   const linked = await linkCheckoutDirectories(sourceRoot, worktreePath, [...new Set([...dependencyLinks, ...symlinkDirectories])].filter(name => !cloned.includes(name)))
   if (dependencyLinksFrom !== undefined) await hideLinksFromGit(repoRoot, worktreePath, sourceRoot, [...cloned, ...linked])
   await copyWorktreeIncludeFiles(repoRoot, worktreePath, preserveExisting)
@@ -641,6 +642,19 @@ export async function keepWorktree(): Promise<void> {
   }
 }
 
+async function removeWorktreeTree(worktreePath: string, cwd: string): Promise<{ code: number; stdout: string; stderr: string }> {
+  const aside = worktreeHoldsClones(worktreePath) ? setWorktreeAside(worktreePath) : null
+  if (aside !== null) {
+    const dropped = await runGit(['worktree', 'remove', '--force', worktreePath], cwd)
+    if (dropped.code === 0) {
+      discardSetAside(aside)
+      return dropped
+    }
+    returnWorktreeFromAside(aside, worktreePath)
+  }
+  return runGit(['worktree', 'remove', '--force', worktreePath], cwd)
+}
+
 export async function cleanupWorktree(): Promise<void> {
   const session = currentWorktreeSession
   if (session === null) return
@@ -652,7 +666,7 @@ export async function cleanupWorktree(): Promise<void> {
   }
   try {
     {
-      const removal = await runGit(['worktree', 'remove', '--force', session.worktreePath], session.originalCwd)
+      const removal = await removeWorktreeTree(session.worktreePath, session.originalCwd)
       if (removal.code !== 0) {
         throw new Error(removal.stderr.trim() || removal.stdout.trim() || `git worktree remove exited ${removal.code}`)
       }
@@ -776,7 +790,7 @@ async function removeAgentWorktree(
     return false
   }
   await unlockAgentWorktree(worktreePath, gitRoot)
-  const removal = await runGit(['worktree', 'remove', '--force', worktreePath], gitRoot)
+  const removal = await removeWorktreeTree(worktreePath, gitRoot)
   if (removal.code !== 0) {
     logForDebugging(`agent worktree remove failed: ${removal.stderr.trim()}`)
     return false
@@ -1085,7 +1099,7 @@ export async function cleanupStaleAgentWorktrees(cutoffDate: Date): Promise<numb
     const parent = dirname(home)
     const homeName = basename(home)
     for (const entry of await readdir(parent)) {
-      if (!entry.startsWith(`${homeName}.adopting-`)) continue
+      if (!entry.startsWith(`${homeName}.adopting-`) && !entry.startsWith(`${homeName}.removing-`)) continue
       const debrisPath = join(parent, entry)
       try {
         if ((await stat(debrisPath)).mtimeMs < cutoffMs) {
