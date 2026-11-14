@@ -32,6 +32,7 @@ for (const name of proofs) {
 const kit = readFileSync(join(here, 'remoteKit.ts'), 'utf8')
 check('the kit gives the home to a child in its environment, where the runtime reads it', /env: \{ \.\.\.process\.env, HOME: home, USERPROFILE: home, REMOTE_KIT_HOME: home \}/.test(kit))
 check('and refuses to go on where the runtime did not take it', /if \(homedir\(\) === given\) return given\n[^\n]*\[FAIL\][^\n]*\n\s*process\.exit\(1\)/.test(kit))
+check('the private sshd uses its own keys and runs neither the account\'s ssh rc nor an authorized-keys command', kit.includes("'PermitUserRC no',") && kit.includes("'PermitUserEnvironment no',") && kit.includes("'AuthorizedKeysCommand none',") && kit.includes('`AuthorizedKeysFile ${authorized}`') && kit.includes("const authorized = join(keys, 'authorized_keys')") && kit.includes('`HostKey ${hostKey}`') && kit.includes("`PidFile ${join(scratch, 'sshd.pid')}`"))
 const scratchRoot = tmpdir().replace(/[\\/]+$/, '')
 check('this run: the home the runtime answers is the scratch folder it was given, under the temporary folder, and holds no .ssh', homedir() === HOME && HOME.includes(`${sep}remote-files-home-`) && (HOME.startsWith(scratchRoot + sep) || HOME.startsWith(`/private${scratchRoot}${sep}`)) && !existsSync(join(HOME, '.ssh')), `${homedir()} against ${HOME} under ${scratchRoot}`)
 
