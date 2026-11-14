@@ -18,13 +18,11 @@ process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_TMPDIR = TMP
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-process.env.MERCURY_WORKFLOWS = '0'
 process.env.NODE_ENV = 'test'
 delete process.env.MERCURY_HOME
 delete process.env.MERCURY_CRITTER
 delete process.env.MERCURY_SESSION_KIT
 delete process.env.MERCURY_SKILL_CHAR_BUDGET
-delete process.env.MERCURY_SESSION_WORKFLOWS
 
 const guard = setTimeout(() => {
   console.error('TIMEOUT: prove-crew-skills exceeded 120s')
@@ -106,7 +104,7 @@ type AppState = ReturnType<typeof getDefaultAppState>
 initBundledSkills()
 clearCommandsCache()
 
-section('1. Discovery, listing fit, argument hints, and expansion with MERCURY_WORKFLOWS=0')
+section('1. Discovery, listing fit, argument hints, and expansion')
 
 const allCommands = await getCommands(PROJ)
 const skillCommands = await getSkillToolCommands(PROJ)
@@ -114,8 +112,8 @@ const bySkillName = new Map(skillCommands.map(cmd => [cmd.name, cmd]))
 const deepCmd = bySkillName.get('deep-research')
 const reviewCmd = bySkillName.get('code-review')
 
-check('deep-research is discovered through getCommands and getSkillToolCommands with MERCURY_WORKFLOWS=0', deepCmd !== undefined && allCommands.some(c => c.name === 'deep-research'))
-check('code-review is discovered through getCommands and getSkillToolCommands with MERCURY_WORKFLOWS=0', reviewCmd !== undefined && allCommands.some(c => c.name === 'code-review'))
+check('deep-research is discovered through getCommands and getSkillToolCommands', deepCmd !== undefined && allCommands.some(c => c.name === 'deep-research'))
+check('code-review is discovered through getCommands and getSkillToolCommands', reviewCmd !== undefined && allCommands.some(c => c.name === 'code-review'))
 check(
   'neither command is backed by the retired workflow road',
   deepCmd?.kind !== 'workflow' && reviewCmd?.kind !== 'workflow' && deepCmd?.loadedFrom === 'bundled' && reviewCmd?.loadedFrom === 'bundled',

@@ -17,7 +17,6 @@ delete process.env.MERCURY_BARE
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
 process.env.BROWSER = '/usr/bin/true'
-process.env.MERCURY_WORKFLOWS = '0'
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
