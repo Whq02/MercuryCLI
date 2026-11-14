@@ -91,7 +91,8 @@ m_list() {
   if [ ! -r "$1" ] || [ ! -x "$1" ]; then return 47; fi
   ( cd "$1" || exit 47
     for f in * .[!.]* ..?*; do
-      if [ -L "$f" ]; then t=l; elif [ -d "$f" ]; then t=d; elif [ -f "$f" ]; then t=f; elif [ -e "$f" ]; then t=o; else continue; fi
+      if [ -L "$f" ]; then t=l; if [ "$2" = 1 ]; then t=l$(m_real "$1/$f"); fi
+      elif [ -d "$f" ]; then t=d; elif [ -f "$f" ]; then t=f; elif [ -e "$f" ]; then t=o; else continue; fi
       printf '%s\0%s\0' "$t" "$f"
     done )
 }

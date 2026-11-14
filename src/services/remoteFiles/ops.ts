@@ -11,7 +11,7 @@ type RemoteKind = 'file' | 'folder' | 'a named pipe' | 'a socket' | 'a device' |
 
 type RemoteStat = { kind: RemoteKind; link: boolean; size: number; mtimeMs: number; mode: string | null }
 
-type RemoteEntry = { name: string; kind: 'file' | 'folder' | 'link' | 'other' }
+type RemoteEntry = { name: string; kind: 'file' | 'folder' | 'link' | 'other'; real?: string }
 
 type RemoteHead = { size: number; mtimeMs: number; mode: string | null; lines: number; endsWithNewline: boolean; lead: string; crc: string | null }
 
@@ -265,17 +265,18 @@ export async function remoteReadBytes(target: RemoteTarget, signal?: AbortSignal
   return { bytes: read.body, mtimeMs: read.head.mtimeMs, mode: read.head.mode, sum }
 }
 
-export async function remoteList(target: RemoteTarget, signal?: AbortSignal): Promise<RemoteEntry[]> {
+export async function remoteList(target: RemoteTarget, signal?: AbortSignal, resolveLinks = false): Promise<RemoteEntry[]> {
   const path = await remoteAbsolutePath(target, signal)
-  const reply = await remoteRun(target.authority, { script: `m_list ${remoteQuote(path)}`, signal })
+  const reply = await remoteRun(target.authority, { script: `m_list ${remoteQuote(path)} ${resolveLinks ? 1 : 0}`, signal })
   if (reply.status === 46) throw new RemoteFileError('ENOTDIR', `ENOTDIR: not a directory, scandir '${formatRemotePath(target)}'`)
   if (reply.status === 47) throw new RemoteFileError('EACCES', `EACCES: permission denied, scandir '${formatRemotePath(target)}'`)
   if (reply.status !== 0) throw failed(target, reply.status, reply.stderr)
   const fields = reply.stdout.toString('utf8').split('\0')
   const entries: RemoteEntry[] = []
   for (let at = 0; at + 1 < fields.length; at += 2) {
-    const kind = fields[at] === 'd' ? 'folder' : fields[at] === 'f' ? 'file' : fields[at] === 'l' ? 'link' : 'other'
-    entries.push({ name: fields[at + 1]!, kind })
+    const mark = fields[at]!
+    const kind = mark === 'd' ? 'folder' : mark === 'f' ? 'file' : mark.startsWith('l') ? 'link' : 'other'
+    entries.push({ name: fields[at + 1]!, kind, ...(mark.length > 1 ? { real: mark.slice(1) } : {}) })
   }
   return entries
 }
