@@ -1,10 +1,10 @@
 import { parentPort, workerData } from 'node:worker_threads'
-import { createHash } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { closeSync, openSync, readFileSync, readSync, writeSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-const { pack, input, sourceSize, directory, query, offset, limit, raw, compact } = workerData
+const { pack, input, sourceSize, directory, query, offset, limit, raw, compact, sourceLines } = workerData
 const control = new Int32Array(input, 0, 2)
 const channel = new Uint8Array(input, 8)
 const pageStop = new Error('page complete')
@@ -13,6 +13,34 @@ const openOwned = (path, mode) => { const handle = openSync(path, mode, 0o600); 
 const closeOwned = handle => { closeSync(handle); owned.delete(handle) }
 const write = (handle, bytes) => { let at = 0; while (at < bytes.length) at += writeSync(handle, bytes, at, bytes.length - at) }
 const clean = text => text.replace(/\u001b(?:\[[0-?]*[ -/]*[@-~]|\][^\u0007]*(?:\u0007|\u001b\\))/g, '').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g, '')
+
+function framedQuery(program) {
+  let at = 0, prefix = 0
+  const skip = () => {
+    while (at < program.length) {
+      if (/\s/.test(program[at])) at++
+      else if (program[at] === '#') { const end = program.indexOf('\n', at); at = end < 0 ? program.length : end + 1 }
+      else break
+    }
+  }
+  for (;;) {
+    skip()
+    if (!/^(?:module|import|include)\b/.test(program.slice(at))) break
+    let quoted = false, escaped = false, depth = 0, ended = false
+    for (; at < program.length; at++) {
+      const c = program[at]
+      if (quoted) { if (escaped) escaped = false; else if (c === '\\') escaped = true; else if (c === '"') quoted = false; continue }
+      if (c === '"') quoted = true
+      else if (c === '#') { const end = program.indexOf('\n', at); at = end < 0 ? program.length : end }
+      else if ('([{'.includes(c)) depth++
+      else if (')]}'.includes(c)) depth--
+      else if (c === ';' && depth === 0) { prefix = ++at; ended = true; break }
+    }
+    if (!ended) break
+  }
+  const name = `__mercury_read_${randomBytes(8).toString('hex')}`
+  return `${program.slice(0, prefix)}\ndef ${name}(f): input_line_number as $line | f as $value | [$line, input_line_number, $value];\n${name}((\n${program.slice(prefix)}\n))`
+}
 
 try {
   const lock = JSON.parse(readFileSync(join(pack, '.vendor-manifest.json'), 'utf8'))
@@ -75,6 +103,9 @@ try {
   const outputPath = join(directory, 'output.txt')
   const first = openOwned(firstPath, 'w')
   const page = openOwned(pagePath, 'w')
+  const originsPath = sourceLines ? join(directory, 'origins.jsonl') : undefined
+  const origins = sourceLines ? openOwned(originsPath, 'w') : null
+  let origin = null, firstOrigin = null
   const hash = createHash('sha256')
   let sourceBytes = 0, total = 0, firstByte = null, currentBytes = 0
   const readSource = bytes => {
@@ -91,7 +122,7 @@ try {
     }
     return got
   }
-  const firstRun = await execute(readSource, bytes => {
+  const accept = bytes => {
     let start = 0
     while (start < bytes.length) {
       const newline = bytes.indexOf(10, start)
@@ -102,15 +133,56 @@ try {
       if (total >= offset && total < offset + limit) write(page, piece)
       currentBytes += piece.length
       if (newline >= 0) {
+        if (origin !== null) {
+          if (total === 0) firstOrigin = origin
+          if (total >= offset && total < offset + limit) write(origins, Buffer.from(`${JSON.stringify(origin)}\n`))
+        }
         total++
         currentBytes = 0
         if (total >= Math.max(2, offset + limit + 1)) throw pageStop
       }
       start = end
     }
-  }, query, ['-c'])
+  }
+  let prefix = '', commas = 0, held = null
+  const framedOutput = bytes => {
+    let at = 0
+    while (at < bytes.length) {
+      const newline = bytes.indexOf(10, at)
+      const end = newline < 0 ? bytes.length : newline
+      let piece = bytes.subarray(at, end)
+      if (origin === null) {
+        let used = 0
+        while (used < piece.length && commas < 2) {
+          const byte = piece[used++]
+          prefix += String.fromCharCode(byte)
+          if (byte === 44) commas++
+          if (prefix.length > 128) throw new Error('The JSON query engine returned an invalid source-line frame.')
+        }
+        piece = piece.subarray(used)
+        if (commas === 2) {
+          const pair = /^\[(\d+),(\d+),$/.exec(prefix)
+          if (!pair) throw new Error('The JSON query engine returned an invalid source-line frame.')
+          origin = [Number(pair[1]), Number(pair[2])]
+        }
+      }
+      if (piece.length > 0) {
+        if (held !== null) accept(held)
+        if (piece.length > 1) accept(piece.subarray(0, piece.length - 1))
+        held = Buffer.from(piece.subarray(piece.length - 1))
+      }
+      if (newline >= 0) {
+        if (origin === null || held?.[0] !== 93) throw new Error('The JSON query engine left an incomplete source-line frame.')
+        accept(Buffer.from('\n'))
+        prefix = ''; commas = 0; held = null; origin = null
+      }
+      at = newline < 0 ? bytes.length : newline + 1
+    }
+  }
+  const firstRun = await execute(readSource, sourceLines ? framedOutput : accept, sourceLines ? framedQuery(query) : query, ['-c'])
   closeOwned(first)
   closeOwned(page)
+  if (origins !== null) closeOwned(origins)
   if (currentBytes !== 0) throw new Error('The JSON query engine left an incomplete output value.')
   const array = total === 1 && firstByte === 91
   const selected = openOwned(array ? firstPath : pagePath, 'r')
@@ -140,9 +212,14 @@ try {
   if (lastByte !== null && lastByte !== 10) outputLines++
   if (rendering.status !== 0) throw new Error(rendering.diagnostics || 'The JSON query output could not be rendered.')
   const shown = array ? Math.min(limit, Math.max(0, arrayCount - offset)) : Math.max(0, Math.min(total - offset, limit))
+  if (sourceLines && array) {
+    const group = openOwned(originsPath, 'w')
+    if (shown > 0 && firstOrigin !== null) write(group, Buffer.from(`${JSON.stringify(firstOrigin)}\n`))
+    closeOwned(group)
+  }
   const hasMore = array ? arrayCount > offset + shown : firstRun.stopped || total > offset + shown
   const sha256 = sourceBytes === sourceSize ? hash.digest('hex') : undefined
-  parentPort.postMessage({ result: { outputPath, outputBytes, outputLines, shown, hasMore, array, sourceBytes, sha256, memoryBytes, diagnostics: firstRun.diagnostics, status: firstRun.status, stopped: firstRun.stopped } })
+  parentPort.postMessage({ result: { outputPath, outputBytes, outputLines, shown, hasMore, array, sourceBytes, sha256, memoryBytes, ...(originsPath ? { originsPath } : {}), diagnostics: firstRun.diagnostics, status: firstRun.status, stopped: firstRun.stopped } })
 } catch (error) {
   parentPort.postMessage({ error: error instanceof Error ? error.message : String(error) })
 } finally {

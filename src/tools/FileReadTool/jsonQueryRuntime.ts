@@ -6,6 +6,7 @@ import { nodePackPlatform, runtimeBinaryFor } from '../../services/privateChanne
 
 interface JsonQueryRun {
   outputPath: string
+  originsPath?: string
   outputBytes: number
   outputLines: number
   shown: number
@@ -42,7 +43,7 @@ function jsonQueryPack(): { pack: string; process: string; runtime: string } {
 }
 
 export async function runJsonQuery(
-  request: { fd: number; directory: string; query: string; offset: number; limit: number; raw: boolean; compact: boolean },
+  request: { fd: number; directory: string; query: string; offset: number; limit: number; raw: boolean; compact: boolean; sourceLines?: boolean },
   signal: AbortSignal,
 ): Promise<JsonQueryRun> {
   signal.throwIfAborted()
