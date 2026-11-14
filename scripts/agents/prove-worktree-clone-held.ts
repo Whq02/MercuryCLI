@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { volumeClones } from '../lib/cloneRoad.ts'
+import { accountLinks, LINK_PRIVILEGE, volumeClones } from '../lib/cloneRoad.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
@@ -34,6 +34,7 @@ type Made = { worktreePath: string; worktreeBranch?: string; gitRoot?: string; p
 const make = (slug: string, options: Record<string, unknown> = {}): Promise<Made> => (worktree.createAgentWorktree as (slug: string, options: unknown) => Promise<Made>)(slug, options)
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-clone-held-')))
+const links = accountLinks(scratch)
 const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@invalid' }
 const git = (cwd: string, ...args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', env: gitEnv }).trim()
 const kindOf = (path: string): string => {
@@ -92,7 +93,7 @@ const makeFixture = (name: string, rules: (dir: string) => string[]): string => 
     writeFileSync(join(dir, file), body)
   }
   mkdirSync(join(dir, 'node_modules', '.bin'))
-  symlinkSync('../open/index.js', join(dir, 'node_modules', '.bin', 'tool'))
+  if (links) symlinkSync('../open/index.js', join(dir, 'node_modules', '.bin', 'tool'))
   mkdirSync(join(dir, '.mercury'), { recursive: true })
   writeFileSync(join(dir, '.mercury', 'settings.json'), JSON.stringify({ guardrails: { deny: rules(dir) } }))
   return dir
@@ -115,8 +116,14 @@ try {
     section('a volume that cannot clone: the folders are links to the checkout\'s, and the rules answer through them as before')
     skip("the proof's runtime cannot force a clone of one file here: nothing is cloned, so nothing is held back from a clone")
     const linked = await make('agent-ac000001')
-    check('the copy\'s folders are the links', linkTo(join(linked.worktreePath, 'node_modules'), join(fixture, 'node_modules')))
-    check('the Read gate refuses the five files through the copy', HELD.every(rel => refused(rules, join(linked.worktreePath, rel))))
+    if (links) {
+      check('the copy\'s folders are the links', linkTo(join(linked.worktreePath, 'node_modules'), join(fixture, 'node_modules')))
+      check('the Read gate refuses the five files through the copy', HELD.every(rel => refused(rules, join(linked.worktreePath, rel))))
+    } else {
+      skip(`the fixture's own link, and the links the copy's folders would be: ${LINK_PRIVILEGE}`)
+      check('the copy\'s folders are its own, copied where this account may not make the link', kindOf(join(linked.worktreePath, 'node_modules')) === 'folder' && kindOf(join(linked.worktreePath, 'vendor', 'pack-open')) === 'folder', `${kindOf(join(linked.worktreePath, 'node_modules'))}, ${kindOf(join(linked.worktreePath, 'vendor', 'pack-open'))}`)
+      check('none of the five files the rules name is in that copy, and every file they do not name is', HELD.every(rel => kindOf(join(linked.worktreePath, rel)) === 'absent') && OPEN.every(rel => kindOf(join(linked.worktreePath, rel)) === 'file'), [...HELD.filter(rel => kindOf(join(linked.worktreePath, rel)) !== 'absent'), ...OPEN.filter(rel => kindOf(join(linked.worktreePath, rel)) !== 'file')].join(', '))
+    }
   } else {
     const roads: Array<[string, string | undefined]> = [['the platform\'s road', undefined], ['the file-by-file road', 'files']]
     let slug = 0

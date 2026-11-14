@@ -43,7 +43,7 @@ const realSlug = (): string => {
 }
 const adminOf = (path: string): string => resolve(path, readFileSync(join(path, '.git'), 'utf8').trim().slice('gitdir:'.length).trim())
 const marked = (path: string): boolean => existsSync(join(adminOf(path), MARKER))
-const lanes = (repo: string): string[] => git(repo, 'worktree', 'list', '--porcelain').split('\n').filter(line => line.startsWith('worktree ')).map(line => line.slice('worktree '.length))
+const lanes = (repo: string): string[] => git(repo, 'worktree', 'list', '--porcelain').split('\n').filter(line => line.startsWith('worktree ')).map(line => resolve(line.slice('worktree '.length)))
 const sweep = (repo: string): Promise<number> => runWithCwdOverride(repo, () => worktree.cleanupStaleAgentWorktrees(new Date(Date.now() - 8 * DAY)))
 const cut = (repo: string, slug: string): ReturnType<typeof worktree.createAgentWorktree> => worktree.createAgentWorktree(slug, { from: repo })
 const settle = async (repo: string, path: string, days: number): Promise<void> => {
@@ -102,8 +102,8 @@ try {
 
   section('§3 the list of worktrees crewmates left')
   const left = await reminder.crewLeftoverWorktrees(repo, Date.now())
-  const states = Object.fromEntries(left.map(lane => [lane.path, lane.state]))
-  check('a marked lane with a real id is listed: clean with the day the janitor takes it, or never removed by the machine', states[clean.worktreePath] === 'clean' && states[dirty.worktreePath] === 'uncommitted' && left.some(lane => lane.path === clean.worktreePath && /seven-day janitor removes it on \d{4}-\d{2}-\d{2}/.test(reminder.crewWorktreeReminderLine(lane, Date.now()))), JSON.stringify(states))
+  const states = Object.fromEntries(left.map(lane => [resolve(lane.path), lane.state]))
+  check('a marked lane with a real id is listed: clean with the day the janitor takes it, or never removed by the machine', states[clean.worktreePath] === 'clean' && states[dirty.worktreePath] === 'uncommitted' && left.some(lane => resolve(lane.path) === clean.worktreePath && /seven-day janitor removes it on \d{4}-\d{2}-\d{2}/.test(reminder.crewWorktreeReminderLine(lane, Date.now()))), JSON.stringify(states))
   check('the two worktrees a person named are not listed as a crewmate\'s', states[session.worktreePath] === undefined && states[byHand] === undefined, JSON.stringify(states))
   check('a lane with a real id and no marker is not listed; a hex name is, marker or not, as before', states[died.worktreePath] === undefined && states[hex.worktreePath] === 'clean' && states[hexOld.worktreePath] === 'clean', JSON.stringify(states))
 

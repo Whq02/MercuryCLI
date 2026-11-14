@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { accountLinks, LINK_PRIVILEGE, runnableOnWindows } from '../lib/cloneRoad.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
@@ -15,6 +16,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
   if (!cond) failures++
 }
+const skip = (label: string): void => console.log(`  [SKIP] ${label}`)
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
 const state = await import('../../src/bootstrap/state.ts')
@@ -22,6 +24,7 @@ const config = await import('../../src/utils/config/globalConfig.ts')
 const { createWorktreeForSession, getCurrentWorktreeSession, keepWorktree } = await import('../../src/utils/worktree.ts')
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'session-worktree-')))
+const links = accountLinks(scratch)
 const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@invalid' }
 const git = (cwd: string, ...args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', env: gitEnv }).trim()
 const authoredStatus = (cwd: string): string => git(cwd, 'status', '--porcelain', '-uall').split('\n').filter(line => line !== '' && !line.slice(3).startsWith('.mercury/')).join('\n')
@@ -32,6 +35,15 @@ const isLinkTo = (path: string, target: string): boolean => {
     return false
   }
 }
+const placedAs = (path: string, target: string): boolean => {
+  if (links) return isLinkTo(path, target)
+  try {
+    return lstatSync(path).isDirectory()
+  } catch {
+    return false
+  }
+}
+const excludeHolds = (lines: readonly string[], name: string): boolean => lines.filter(line => line === name).length === (links ? 1 : 0)
 
 const repo = join(scratch, 'repo')
 mkdirSync(repo, { recursive: true })
@@ -49,6 +61,7 @@ git(repo, 'commit', '-q', '-m', 'first')
 mkdirSync(join(repo, 'node_modules', '.bin'), { recursive: true })
 writeFileSync(join(repo, 'node_modules', '.bin', 'typecheck-fixture'), '#!/bin/sh\nprintf typecheck-ok\n')
 chmodSync(join(repo, 'node_modules', '.bin', 'typecheck-fixture'), 0o755)
+runnableOnWindows(join(repo, 'node_modules', '.bin', 'typecheck-fixture'), 'typecheck-ok')
 mkdirSync(join(repo, 'vendor', 'pack-a'))
 writeFileSync(join(repo, 'vendor', 'pack-a', 'marker'), 'pack\n')
 mkdirSync(join(repo, 'authored'))
@@ -66,15 +79,16 @@ process.env.MERCURY_WORKTREE_CLONE = 'off'
 const session = await createWorktreeForSession('proof-session', 'links-proof')
 check('the worktree lives under the repository worktrees home', session.worktreePath.startsWith(join(repo, '.mercury', 'worktrees')) && existsSync(join(session.worktreePath, 'package.json')), session.worktreePath)
 check('the session slot names it', getCurrentWorktreeSession()?.worktreePath === session.worktreePath)
-check("node_modules is a link to the checkout's", isLinkTo(join(session.worktreePath, 'node_modules'), join(repo, 'node_modules')))
-check('the vendored pack is a link too', isLinkTo(join(session.worktreePath, 'vendor', 'pack-a'), join(repo, 'vendor', 'pack-a')))
+if (!links) skip(`the links a session's worktree is made of with no clone: ${LINK_PRIVILEGE}; the folders this account gets in their place are read instead`)
+check(links ? "node_modules is a link to the checkout's" : 'node_modules is a folder of the worktree, in place of the link', placedAs(join(session.worktreePath, 'node_modules'), join(repo, 'node_modules')))
+check(links ? 'the vendored pack is a link too' : 'the vendored pack is a folder of the worktree too', placedAs(join(session.worktreePath, 'vendor', 'pack-a'), join(repo, 'vendor', 'pack-a')))
 check('an authored untracked directory of the checkout is not linked', !existsSync(join(session.worktreePath, 'authored')))
 const laneStatus = git(session.worktreePath, 'status', '--porcelain')
 check('git status in the worktree shows nothing', laneStatus === '', laneStatus)
 check("the checkout's own status is unchanged", authoredStatus(repo) === parentStatusBefore, authoredStatus(repo))
 const excludePath = join(repo, '.git', 'info', 'exclude')
 const excludeLines = (existsSync(excludePath) ? readFileSync(excludePath, 'utf8') : '').split('\n')
-check("the clone's exclude file carries the link names, anchored, once each", excludeLines.filter(l => l === '/node_modules').length === 1 && excludeLines.filter(l => l === '/vendor/pack-a').length === 1, excludeLines.join('|'))
+check(links ? "the clone's exclude file carries the link names, anchored, once each" : "the clone's exclude file gains no line: the ignore rules the checkout tracks hide a folder", excludeHolds(excludeLines, '/node_modules') && excludeHolds(excludeLines, '/vendor/pack-a'), excludeLines.join('|'))
 let typecheck = ''
 try {
   typecheck = execFileSync(process.execPath, ['run', 'typecheck'], { cwd: session.worktreePath, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
@@ -87,9 +101,9 @@ section('§2 a second worktree of the same checkout is linked the same way, with
 await keepWorktree()
 check('the slot is clear after keeping the first', getCurrentWorktreeSession() === null)
 const second = await createWorktreeForSession('proof-session', 'links-proof-2')
-check('the second worktree is linked too', isLinkTo(join(second.worktreePath, 'node_modules'), join(repo, 'node_modules')) && isLinkTo(join(second.worktreePath, 'vendor', 'pack-a'), join(repo, 'vendor', 'pack-a')), second.worktreePath)
+check(links ? 'the second worktree is linked too' : 'the second worktree holds its folders the same way', placedAs(join(second.worktreePath, 'node_modules'), join(repo, 'node_modules')) && placedAs(join(second.worktreePath, 'vendor', 'pack-a'), join(repo, 'vendor', 'pack-a')), second.worktreePath)
 const excludeAgain = readFileSync(excludePath, 'utf8').split('\n')
-check('the exclude file still carries each name once', excludeAgain.filter(l => l === '/node_modules').length === 1 && excludeAgain.filter(l => l === '/vendor/pack-a').length === 1, excludeAgain.join('|'))
+check(links ? 'the exclude file still carries each name once' : 'the exclude file still carries no line for them', excludeHolds(excludeAgain, '/node_modules') && excludeHolds(excludeAgain, '/vendor/pack-a'), excludeAgain.join('|'))
 check('git status in the second worktree shows nothing', git(second.worktreePath, 'status', '--porcelain') === '')
 await keepWorktree()
 

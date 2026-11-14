@@ -4,7 +4,7 @@ import { execFileSync, spawn } from 'node:child_process'
 import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { cloneRoadExpected, volumeClones } from '../lib/cloneRoad.ts'
+import { accountLinks, cloneRoadExpected, LINK_PRIVILEGE, volumeClones } from '../lib/cloneRoad.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
@@ -27,6 +27,7 @@ const { ensureWorkerWorktree, reapWorkerWorktree } = await import('../../src/dae
 const { crewLeftoverWorktrees } = await import('../../src/utils/crew/crewWorktreeReminder.ts')
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-clone-publish-')))
+const links = accountLinks(scratch)
 const hold = join(scratch, 'hold')
 const pathBefore = process.env.PATH ?? ''
 const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@invalid' }
@@ -111,7 +112,7 @@ for (let pkg = 0; pkg < 6; pkg++) {
   for (let index = 0; index < 10; index++) writeFileSync(join(fixture, 'node_modules', `pkg-${pkg}`, 'lib', `m${index}.js`), Buffer.alloc(700, 'd'))
 }
 mkdirSync(join(fixture, 'node_modules', '.bin'))
-symlinkSync('../pkg-0/lib/m0.js', join(fixture, 'node_modules', '.bin', 'tool'))
+if (links) symlinkSync('../pkg-0/lib/m0.js', join(fixture, 'node_modules', '.bin', 'tool'))
 mkdirSync(join(fixture, 'vendor', 'pack-a'))
 writeFileSync(join(fixture, 'vendor', 'pack-a', 'marker'), 'pack\n')
 const whole = listing(join(fixture, 'node_modules'))
@@ -123,8 +124,10 @@ try {
   if (!(volumeClones(scratch) && process.platform !== 'win32')) {
     section('§1 a volume that cannot clone: nothing is ever cloned beside a copy')
     skip("the proof's runtime cannot force a clone of one file here: the folders are linked as before and there is nothing to move into place")
+    if (!links) skip(`the fixture's own link, and the link the copy would hold: ${LINK_PRIVILEGE}`)
     const linked = await createAgentWorktree('agent-ad100001')
-    check('the copy holds the link and nothing stands beside it', lstatSync(join(linked.worktreePath, 'node_modules')).isSymbolicLink() && staged(home).length === 0, staged(home).join(', '))
+    const placed = lstatSync(join(linked.worktreePath, 'node_modules'))
+    check(`the copy holds ${links ? 'the link' : 'the folder this account gets in place of the link'} and nothing stands beside it`, (links ? placed.isSymbolicLink() : placed.isDirectory()) && staged(home).length === 0, staged(home).join(', '))
   } else {
     const realCp = execFileSync('sh', ['-c', 'command -v cp'], { encoding: 'utf8' }).trim()
     const shims = join(scratch, 'shims')

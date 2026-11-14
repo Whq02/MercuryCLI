@@ -4,7 +4,7 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { contentShared, volumeClones } from '../lib/cloneRoad.ts'
+import { accountLinks, contentShared, LINK_PRIVILEGE, volumeClones } from '../lib/cloneRoad.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
@@ -55,6 +55,7 @@ if (scenario !== undefined) {
 }
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-carry-')))
+const links = accountLinks(scratch)
 const outside = join(scratch, 'outside')
 const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@invalid' }
 const git = (cwd: string, ...args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', env: gitEnv, stdio: ['ignore', 'pipe', 'ignore'] }).trim()
@@ -132,9 +133,11 @@ const makeFixture = (name: string, settings: (dir: string) => Record<string, unk
     writeFileSync(join(dir, file), body)
   }
   mkdirSync(join(dir, 'node_modules', '.bin'))
-  symlinkSync('../dep/index.js', join(dir, 'node_modules', '.bin', 'tool'))
-  symlinkSync(join(outside, 'target.txt'), join(dir, 'linked-out'))
-  symlinkSync('src/pkg/mod.py', join(dir, 'linked-in'))
+  if (links) {
+    symlinkSync('../dep/index.js', join(dir, 'node_modules', '.bin', 'tool'))
+    symlinkSync(join(outside, 'target.txt'), join(dir, 'linked-out'))
+    symlinkSync('src/pkg/mod.py', join(dir, 'linked-in'))
+  }
   return dir
 }
 const denying = (dir: string): Record<string, unknown> => ({ guardrails: { deny: [`Read(/${dir}/dist/secret/**)`, `Read(/${dir}/.env.production)`] } })
@@ -153,8 +156,9 @@ try {
   if (!cloning) {
     section('a volume that cannot clone: nothing git ignores is carried, the folders are linked as before')
     skip("the proof's runtime cannot force a clone of one file here: there is nothing to carry with")
+    if (!links) skip(`the fixture's own links, and the link the dependency folder would be: ${LINK_PRIVILEGE}`)
     const linked = await make('agent-ad000001')
-    check('the dependency folder is the link, and no ignored build output or file came along', kindOf(join(linked.worktreePath, 'node_modules')) === 'link' && carriedAll(linked.worktreePath).length === Object.keys(CARRIED).length, carriedAll(linked.worktreePath).join(', '))
+    check(`the dependency folder is ${links ? 'the link' : 'the copy this account gets in place of the link'}, and no ignored build output or file came along`, kindOf(join(linked.worktreePath, 'node_modules')) === (links ? 'link' : 'folder') && carriedAll(linked.worktreePath).length === Object.keys(CARRIED).length, `${kindOf(join(linked.worktreePath, 'node_modules'))} · ${carriedAll(linked.worktreePath).join(', ')}`)
   } else {
     section('§1 a copy that stands on the commit its checkout is on starts with what git ignores there')
     const made = await make('agent-ad100001')

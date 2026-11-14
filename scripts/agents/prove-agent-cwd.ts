@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { accountLinks, LINK_PRIVILEGE, runnableOnWindows } from '../lib/cloneRoad.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
@@ -15,6 +16,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
   if (!cond) failures++
 }
+const skip = (label: string): void => console.log(`  [SKIP] ${label}`)
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const refusal = async (fn: () => unknown): Promise<string> => {
   try {
@@ -36,6 +38,7 @@ const { computeEnvInfo } = await import('../../src/constants/prompts.ts')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'agent-cwd-')))
+const links = accountLinks(scratch)
 const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@invalid' }
 const git = (cwd: string, ...args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', env: gitEnv }).trim()
 const initRepo = (dir: string, files: Record<string, string>): void => {
@@ -56,6 +59,15 @@ const isLinkTo = (path: string, target: string): boolean => {
     return false
   }
 }
+const placedAs = (path: string, target: string): boolean => {
+  if (links) return isLinkTo(path, target)
+  try {
+    return lstatSync(path).isDirectory()
+  } catch {
+    return false
+  }
+}
+const excludeHolds = (lines: readonly string[], name: string): boolean => lines.filter(line => line === name).length === (links ? 1 : 0)
 
 section('§1 the schema the model sees')
 const schema = agentTool.inputSchema()
@@ -111,6 +123,7 @@ initRepo(deps, {
 mkdirSync(join(deps, 'node_modules', '.bin'), { recursive: true })
 writeFileSync(join(deps, 'node_modules', '.bin', 'typecheck-fixture'), '#!/bin/sh\nprintf typecheck-ok\n')
 chmodSync(join(deps, 'node_modules', '.bin', 'typecheck-fixture'), 0o755)
+runnableOnWindows(join(deps, 'node_modules', '.bin', 'typecheck-fixture'), 'typecheck-ok')
 mkdirSync(join(deps, 'vendor', 'pack-a'))
 writeFileSync(join(deps, 'vendor', 'pack-a', 'marker'), 'pack\n')
 mkdirSync(join(deps, 'authored'))
@@ -120,8 +133,9 @@ process.chdir(deps)
 state.setOriginalCwd(deps)
 state.setCwdState(deps)
 const first = await createAgentWorktree('agent-a0000001')
-check("node_modules is a link to the parent checkout's", isLinkTo(join(first.worktreePath, 'node_modules'), join(deps, 'node_modules')), first.worktreePath)
-check('every vendored pack is a link too', isLinkTo(join(first.worktreePath, 'vendor', 'pack-a'), join(deps, 'vendor', 'pack-a')))
+if (!links) skip(`the links a copy is made of with no clone: ${LINK_PRIVILEGE}; the folders this account gets in their place are read instead`)
+check(links ? "node_modules is a link to the parent checkout's" : 'node_modules is a folder of the copy, in place of the link', placedAs(join(first.worktreePath, 'node_modules'), join(deps, 'node_modules')), first.worktreePath)
+check(links ? 'every vendored pack is a link too' : 'every vendored pack is a folder of the copy too', placedAs(join(first.worktreePath, 'vendor', 'pack-a'), join(deps, 'vendor', 'pack-a')))
 check('an authored untracked directory of the parent is not linked', !existsSync(join(first.worktreePath, 'authored')))
 const laneStatus = git(first.worktreePath, 'status', '--porcelain')
 check('the links are hidden from git in the worktree', laneStatus === '', laneStatus)
@@ -129,7 +143,7 @@ check("the parent checkout's status is unchanged", authoredStatus(deps) === pare
 const excludePath = join(deps, '.git', 'info', 'exclude')
 const exclude = existsSync(excludePath) ? readFileSync(excludePath, 'utf8') : ''
 const excludeLines = exclude.split('\n')
-check("the clone's exclude file carries the link names, anchored, once each", excludeLines.filter(l => l === '/node_modules').length === 1 && excludeLines.filter(l => l === '/vendor/pack-a').length === 1, exclude)
+check(links ? "the clone's exclude file carries the link names, anchored, once each" : "the clone's exclude file gains no line: the ignore rules the checkout tracks hide a folder", excludeHolds(excludeLines, '/node_modules') && excludeHolds(excludeLines, '/vendor/pack-a'), exclude)
 const delta = await readWorktreeDelta(first.worktreePath, first.headCommit)
 check('the settlement reads no authored work', delta.untrackedAuthored.length === 0 && delta.tracked.length === 0 && delta.uncertainty === null, JSON.stringify(delta))
 let typecheck = ''
@@ -141,8 +155,8 @@ try {
 check('bun run typecheck exits 0 in the worktree', typecheck.includes('typecheck-ok'), typecheck.slice(0, 200))
 const second = await createAgentWorktree('agent-a0000002', { from: deps })
 const excludeAgain = readFileSync(excludePath, 'utf8').split('\n')
-check('a second worktree adds no duplicate exclude line', excludeAgain.filter(l => l === '/node_modules').length === 1)
-check('…and is linked the same way', isLinkTo(join(second.worktreePath, 'node_modules'), join(deps, 'node_modules')))
+check(links ? 'a second worktree adds no duplicate exclude line' : 'a second worktree adds no exclude line either', excludeHolds(excludeAgain, '/node_modules'))
+check(links ? '…and is linked the same way' : '…and holds its folder the same way', placedAs(join(second.worktreePath, 'node_modules'), join(deps, 'node_modules')))
 const DAY = 86_400_000
 const leftOf = (lane: { worktreePath: string; worktreeBranch?: string; gitRoot?: string }) =>
   crewWorktreeLeftoverOf({ name: 'mate', path: lane.worktreePath, branch: lane.worktreeBranch, gitRoot: lane.gitRoot }, Date.now())
@@ -164,7 +178,7 @@ const nested = join(other, 'src')
 mkdirSync(nested)
 const third = await createAgentWorktree('agent-a0000003', { from: nested })
 check("with a directory named, the worktree is cut from that directory's repository, not the session's", third.gitRoot === other && existsSync(join(third.worktreePath, 'b.txt')) && !existsSync(join(third.worktreePath, 'package.json')), `${third.gitRoot} · ${third.worktreePath}`)
-check('…with its dependencies linked from that checkout', isLinkTo(join(third.worktreePath, 'node_modules'), join(other, 'node_modules')))
+check(links ? '…with its dependencies linked from that checkout' : '…with its dependencies copied from that checkout', placedAs(join(third.worktreePath, 'node_modules'), join(other, 'node_modules')) && readFileSync(join(third.worktreePath, 'node_modules', 'marker'), 'utf8') === 'x\n')
 const leftThird = await leftOf(third)
 const takenThird = await janitor(other, third.worktreePath)
 check('…and it settles too', leftThird.state === 'clean' && takenThird === 1 && !existsSync(third.worktreePath), JSON.stringify({ leftThird, takenThird }))

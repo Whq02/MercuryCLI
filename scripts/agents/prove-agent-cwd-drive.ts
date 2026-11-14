@@ -1,15 +1,16 @@
 #!/usr/bin/env bun
 import { execFileSync, spawn } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, join, sep } from 'node:path'
 import { DIST, MODEL, NODE, SCRATCH_ROOT, bound, childEnv, makeTally, type AskHost } from '../daemon/dupline-world.ts'
-import { cloneRoadExpected } from '../lib/cloneRoad.ts'
+import { accountLinks, cloneRoadExpected, LINK_PRIVILEGE, runnableOnWindows } from '../lib/cloneRoad.ts'
 import { LineReader, lastOutcome, type Frame } from '../lib/rows.ts'
 import { runScriptedTurn, seedScratchHome, startScriptedFixture, type ScriptedTurn, type SeenResult } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-agent-cwd-drive')
 const KEEP = process.argv.includes('--keep')
 const scratch = realpathSync(mkdtempSync(join(SCRATCH_ROOT, 'agent-cwd-drive-')))
+const links = accountLinks(scratch)
 console.log(`build under proof: ${DIST}`)
 console.log(`world: ${scratch}`)
 
@@ -185,6 +186,7 @@ git(repo, 'commit', '-q', '-m', 'first')
 mkdirSync(join(repo, 'node_modules', '.bin'), { recursive: true })
 writeFileSync(join(repo, 'node_modules', '.bin', 'typecheck-fixture'), '#!/bin/sh\nprintf typecheck-ok\n')
 chmodSync(join(repo, 'node_modules', '.bin', 'typecheck-fixture'), 0o755)
+runnableOnWindows(join(repo, 'node_modules', '.bin', 'typecheck-fixture'), 'typecheck-ok')
 mkdirSync(join(repo, 'vendor', 'pack-a'))
 writeFileSync(join(repo, 'vendor', 'pack-a', 'marker'), 'pack\n')
 const parentStatusBefore = authoredStatus(repo)
@@ -215,8 +217,9 @@ tally.section('a worktree-isolated helper can build')
 const build = seen.build?.text ?? ''
 tally.check('the helper ran in a worktree, not the checkout', build.startsWith(`${scratch}`) && !build.startsWith(`${repo}\n`), build.split('\n')[0])
 const cloneRoad = cloneRoadExpected(scratch)
-if (cloneRoad) {
-  tally.check("node_modules in the worktree is the worktree's own directory, cloned from the checkout's", /^d\S+ .* node_modules$/m.test(build) && !/node_modules -> /.test(build), build.split('\n').slice(1, 3).join(' | '))
+if (!links) console.log(`  [SKIP] the links a worktree is made of with no clone: ${LINK_PRIVILEGE}; the folders this account gets in their place are read instead`)
+if (cloneRoad || !links) {
+  tally.check(`node_modules in the worktree is the worktree's own directory, ${cloneRoad ? "cloned from the checkout's" : 'in place of the link this account may not make'}`, /^d\S+ .* node_modules$/m.test(build) && !/node_modules -> /.test(build), build.split('\n').slice(1, 3).join(' | '))
   tally.check('…and so is the vendored pack', /^d\S+ .* vendor\/pack-a$/m.test(build) && !/vendor\/pack-a -> /.test(build), build.split('\n').slice(1, 3).join(' | '))
 } else {
   tally.check("node_modules in the worktree is a link to the checkout's", new RegExp(`node_modules -> ${repo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/node_modules`).test(build), build.split('\n').slice(1, 3).join(' | '))
@@ -227,7 +230,7 @@ tally.check('git status in the worktree shows nothing', /rc=0\nstatus-end/.test(
 tally.check('the isolated launch answered without error and its clean worktree is kept, the receipt reminding when the janitor takes it', seen.isolated !== undefined && !seen.isolated.isError && /Worktree kept: /.test(seen.isolated.text) && /seven-day janitor/.test(seen.isolated.text), seen.isolated?.text.slice(0, 300))
 const excludePath = join(repo, '.git', 'info', 'exclude')
 const exclude = existsSync(excludePath) ? readFileSync(excludePath, 'utf8') : ''
-if (cloneRoad) tally.check("the checkout's exclude file gains no line for a folder the worktree holds as its own", !exclude.split('\n').includes('/node_modules') && !exclude.split('\n').includes('/vendor/pack-a'), JSON.stringify(exclude))
+if (cloneRoad || !links) tally.check("the checkout's exclude file gains no line for a folder the worktree holds as its own", !exclude.split('\n').includes('/node_modules') && !exclude.split('\n').includes('/vendor/pack-a'), JSON.stringify(exclude))
 else tally.check("the checkout's exclude file hides the links", exclude.split('\n').includes('/node_modules') && exclude.split('\n').includes('/vendor/pack-a'), JSON.stringify(exclude))
 tally.check("the checkout's own status is unchanged", authoredStatus(repo) === parentStatusBefore, authoredStatus(repo))
 tally.check("the helper's worktree is left for the lead to decide on (the repository lists it; nothing is deleted automatically)", git(repo, 'worktree', 'list', '--porcelain').split('\n').filter(l => l.startsWith('worktree ')).length === 2, git(repo, 'worktree', 'list', '--porcelain'))
@@ -338,7 +341,7 @@ const sidecarFor = (runHome: string, description: string): Record<string, unknow
   tally.check('no helper ran under the worker: the first flag was absent when its launch returned', helperRanUnderWorker === false, `flag present=${String(helperRanUnderWorker)}`)
   tally.section('a helper launched by the main thread into its own worktree keeps that worktree on continuation')
   tally.check('the main thread launched the helper and its receipt named the id (staging)', seen.helperLaunch !== undefined && !seen.helperLaunch.isError && helperId !== '', seen.helperLaunch?.text.slice(0, 300))
-  tally.check('the first helper shell ran in a worktree of the checkout, not the checkout (staging)', firstPwd.startsWith(`${wfRepo}/`) && firstPwd !== wfRepo, `pwd=${firstPwd} checkout=${wfRepo}`)
+  tally.check('the first helper shell ran in a worktree of the checkout, not the checkout (staging)', firstPwd.startsWith(`${wfRepo}${sep}`) && firstPwd !== wfRepo, `pwd=${firstPwd} checkout=${wfRepo}`)
   tally.check('the helper left an authored file, so its worktree is kept and the receipt says so', /Worktree kept: /.test(seen.helperLaunch?.text ?? ''), seen.helperLaunch?.text.slice(0, 300))
   tally.check('the helper sidecar records the kept worktree', sidecar !== null && sidecar.worktreePath === firstPwd, JSON.stringify(sidecar))
   tally.check('the message resumed the helper without error and without a gone-worktree note', seen.workerContinued !== undefined && !seen.workerContinued.isError && !/worktree is gone/.test(seen.workerContinued.text), seen.workerContinued?.text.slice(0, 300))
@@ -354,7 +357,7 @@ const sidecarFor = (runHome: string, description: string): Record<string, unknow
   const EFFORT_DESCRIPTION = 'effort-probe'
   const effortHome = join(scratch, 'home-effort')
   const effortContinuedFlag = join(scratch, 'effort-continued.flag')
-  const findRecord = `f=$(grep -l '"description":"${EFFORT_DESCRIPTION}"' ${effortHome}/projects/*/*/subagents/agent-*.meta.json 2>/dev/null | head -1)`
+  const findRecord = `f=$(grep -l '"description":"${EFFORT_DESCRIPTION}"' ${effortHome.split(sep).join('/')}/projects/*/*/subagents/agent-*.meta.json 2>/dev/null | head -1)`
   const readRecord = `for i in $(seq 1 ${pollRounds(TURN_MS / 48)}); do ${findRecord}; [ -n "$f" ] && break; sleep 0.2; done; cat "$f" 2>/dev/null || echo no-record`
   const readSettledRecord = `for i in $(seq 1 ${pollRounds(TURN_MS / 48, 100)}); do ${findRecord}; [ -n "$f" ] && break; sleep 0.1; done; cat "$f" 2>/dev/null || echo no-record`
   let effortId = ''

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { DIST, SCRATCH_ROOT, makeTally } from '../daemon/dupline-world.ts'
 import { runScriptedTurn, startScriptedFixture, type SeenResult } from '../lib/scriptedTurn.ts'
 
@@ -35,8 +35,9 @@ const lanesOf = (): Lane[] => {
   let current: Lane | null = null
   for (const line of git(repo, 'worktree', 'list', '--porcelain').split('\n')) {
     if (line.startsWith('worktree ')) {
-      current = { path: line.slice('worktree '.length), branch: null, locked: null }
-      if (current.path.includes('/.mercury/worktrees/')) out.push(current)
+      const listed = line.slice('worktree '.length)
+      current = { path: resolve(listed), branch: null, locked: null }
+      if (listed.includes('/.mercury/worktrees/')) out.push(current)
       continue
     }
     if (current === null) continue
