@@ -238,6 +238,34 @@ section('(7) the chcp spawn shape — the console must be OURS')
   check('no windowsHide: true survives anywhere in the seam (code, not comments)', !win32Code.includes('windowsHide: true'))
 }
 
+section('(8) input and output pages are separate: the query sees input, the set changes both')
+for (const row of [
+  { input: 65001, output: 850, end: 65001, calls: 'query,65001' },
+  { input: 850, output: 850, end: 850, calls: 'query,65001,850' },
+  { input: 65001, output: 65001, end: 65001, calls: 'query,65001' },
+  { input: 850, output: 65001, end: 850, calls: 'query,65001,850' },
+]) {
+  _resetWin32ConsoleForTest()
+  let input = row.input
+  let output = row.output
+  const calls: string[] = []
+  const exits: Array<() => void> = []
+  const sys: Win32ConsoleSyscalls = { chcp: arg => {
+    calls.push(arg ?? 'query')
+    if (arg !== undefined) input = output = Number(arg)
+    return `Active code page: ${input}`
+  } }
+  ensureWin32ConsoleUtf8(sys, { ...WIN_TTY, registerExit: fn => exits.push(fn) })
+  check(`input ${row.input}, output ${row.output}: both UTF-8 before paint`, input === 65001 && output === 65001)
+  exits.forEach(exit => exit())
+  restoreWin32ConsoleNow(sys)
+  check(`input ${row.input}, output ${row.output}: the ruled exit and call count`, input === row.end && output === row.end && calls.join(',') === row.calls, `${input}/${output} ${calls.join(',')}`)
+}
+{
+  const doc = readFileSync(join(ROOT, 'docs', 'INSTALL-WINDOWS-FROM-SOURCE.md'), 'utf8')
+  check('the troubleshooting set does not trust the input page to describe output', doc.includes('set both code pages by hand (chcp without an argument reports only the input page):') && !doc.includes('If it prints anything other than `Active code page: 65001`'))
+}
+
 console.log('\n============================================================')
 if (failures === 0) {
   console.log(' ✅ WIN32 CONSOLE SEAM PROOFS PASS')
