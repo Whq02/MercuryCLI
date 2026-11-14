@@ -3,7 +3,9 @@ import { mkdirSync, mkdtempSync, realpathSync, utimesSync, writeFileSync } from 
 import { tmpdir } from 'node:os'
 import { join, normalize } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
+import { underScratchHome } from './remoteKit.ts'
 
+underScratchHome(import.meta.path)
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'remote-read-ledger-')))
 const project = join(scratch, 'project')
 mkdirSync(project, { recursive: true })

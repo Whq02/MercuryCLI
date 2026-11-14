@@ -1,7 +1,7 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { chmodSync, closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { connect } from 'node:net'
-import { tmpdir, userInfo } from 'node:os'
+import { homedir, tmpdir, userInfo } from 'node:os'
 import { delimiter, join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
 
@@ -24,6 +24,19 @@ export type RemoteWorld = {
 const SSHD = ['/usr/sbin/sshd', Bun.which('sshd') ?? ''].find(path => path !== '' && existsSync(path))
 const SSH = Bun.which('ssh')
 const KEYGEN = Bun.which('ssh-keygen')
+
+export function underScratchHome(script: string): string {
+  const given = process.env.REMOTE_KIT_HOME
+  if (given !== undefined && given !== '') {
+    if (homedir() === given) return given
+    console.log(`  [FAIL] this proof was given a home of its own and the runtime did not take it: it does not go on`)
+    process.exit(1)
+  }
+  const home = realpathSync(mkdtempSync(join(tmpdir(), 'remote-files-home-')))
+  const ran = spawnSync(process.execPath, [script, ...process.argv.slice(2)], { stdio: 'inherit', env: { ...process.env, HOME: home, USERPROFILE: home, REMOTE_KIT_HOME: home } })
+  removeScratch(home)
+  process.exit(ran.status ?? 1)
+}
 
 export function sshdUnavailable(): string | null {
   if (process.platform === 'win32') return 'the private sshd of this proof is a POSIX one'
@@ -56,9 +69,9 @@ function listening(port: number): Promise<boolean> {
   })
 }
 
-export async function remoteWorld(transport: RemoteTransport, port = 0, options: { noise?: boolean } = {}): Promise<RemoteWorld> {
+export async function remoteWorld(transport: RemoteTransport, port = 0, options: { noise?: boolean; clientHome?: string } = {}): Promise<RemoteWorld> {
   const scratch = realpathSync(mkdtempSync(join(tmpdir(), `remote-files-${transport}-`)))
-  const clientHome = join(scratch, 'client-home')
+  const clientHome = options.clientHome ?? join(scratch, 'client-home')
   const remoteHome = join(scratch, 'remote-home')
   const data = join(scratch, 'remote-data')
   const bin = join(scratch, 'bin')

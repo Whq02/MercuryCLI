@@ -3,7 +3,9 @@ import { homedir } from 'node:os'
 import { join, parse, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import React from 'react'
+import { underScratchHome } from './remoteKit.ts'
 
+underScratchHome(import.meta.path)
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 

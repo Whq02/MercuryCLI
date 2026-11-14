@@ -1,7 +1,10 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
 import ignore from 'ignore'
-import {
+import { underScratchHome } from './remoteKit.ts'
+
+underScratchHome(import.meta.path)
+const {
   authorityText,
   formatRemotePath,
   isRemotePath,
@@ -15,7 +18,7 @@ import {
   remoteRulePattern,
   remoteSessionRule,
   RemotePathError,
-} from '../../src/services/remoteFiles/target.ts'
+} = await import('../../src/services/remoteFiles/target.ts')
 
 let failures = 0
 let checks = 0

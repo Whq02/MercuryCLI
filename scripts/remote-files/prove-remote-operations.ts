@@ -4,8 +4,9 @@ import { randomBytes } from 'node:crypto'
 import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { enterWorld, localTransportUnavailable, remoteWorld, sshdUnavailable, type RemoteWorld } from './remoteKit.ts'
+import { enterWorld, localTransportUnavailable, remoteWorld, sshdUnavailable, underScratchHome, type RemoteWorld } from './remoteKit.ts'
 
+const HOME = underScratchHome(import.meta.path)
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -299,7 +300,7 @@ for (const transport of ['local', 'sshd'] as const) {
     console.log(`  [SKIP] the ${transport} transport: ${unavailable}`)
     continue
   }
-  const world = await remoteWorld(transport, PORT)
+  const world = await remoteWorld(transport, PORT, { clientHome: HOME })
   const leave = enterWorld(world)
   try {
     await reads(world)
