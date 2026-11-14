@@ -161,7 +161,7 @@ tally.section('§2 the wire: a monitor\'s line and a crewmate\'s completion drai
   const world = await makeWorld('drained-notice-frames', [
     lead({ kind: 'tool_use', name: 'Monitor', input: { description: 'Watch the file', command: 'tail -n +1 -F watched.txt', timeout_ms: 120000 } }),
     lead({ kind: 'tool_use', name: 'Crewmate', input: { name: 'worker', model: PEER_MODEL, crewmate_type: 'mercury-crew', description: 'Hold a tool open', prompt: 'Wait in a tool, then report.', run_in_background: true } }),
-    lead({ kind: 'tool_use', name: 'Bash', input: { command: 'sleep 8', description: 'Wait a while' } }),
+    lead({ kind: 'tool_use', name: 'Bash', input: { command: 'for i in $(seq 1 450); do [ -f release.flag ] && break; sleep 0.2; done', description: 'Wait a while' } }),
     lead({ kind: 'text', text: 'LEAD-DONE.' }),
     lead({ kind: 'text', text: 'LEAD-SPARE.' }),
     peer({ kind: 'tool_use', name: 'Bash', input: { command: 'sleep 3', description: 'Hold the tool open' } }),
@@ -183,6 +183,9 @@ tally.section('§2 the wire: a monitor\'s line and a crewmate\'s completion drai
     await host.prompt('Watch the file and wait for the worker.')
     await until('the crewmate was launched', () => raw.includes('Crewmate launched in the background'))
     appendFileSync(watched, 'WATCH-LINE\n')
+    await until('the worker said its last word', () => raw.includes('WORKER-DONE.'))
+    await sleep(4000)
+    writeFileSync(join(world.project, 'release.flag'), '')
     await until('the lead answered after its tool', () => raw.includes('LEAD-DONE.'))
     host.end()
     await host.stop(30_000)

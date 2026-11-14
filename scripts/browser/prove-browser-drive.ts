@@ -866,7 +866,7 @@ console.log('§20 the secretRef credential road')
   delete process.env.MERCURY_BROWSER_SECRET_TEST_LOGIN
   const originalHome = process.env.MERCURY_CONFIG_DIR
   const managedBrowsers = join(originalHome ?? join(homedir(), '.mercury'), 'browsers')
-  if (existsSync(managedBrowsers)) symlinkSync(managedBrowsers, join(secretsDir, 'browsers'))
+  if (existsSync(managedBrowsers)) symlinkSync(managedBrowsers, join(secretsDir, 'browsers'), 'junction')
   process.env.MERCURY_CONFIG_DIR = secretsDir
   const seed = 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ'
   const addOtp = () => page().evaluate(() => {

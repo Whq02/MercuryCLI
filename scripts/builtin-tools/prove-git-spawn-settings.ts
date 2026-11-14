@@ -187,13 +187,13 @@ try {
   try { plain(['ls-remote', 'origin']) } catch {}
   check('plain ls-remote honors the repository SSH command', marked('network'))
   clear('network')
-  await execFileNoThrowWithCwd('git', ['ls-remote', 'origin'], { cwd: root, timeout: 5_000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } })
+  await execFileNoThrowWithCwd('git', ['ls-remote', 'origin'], { cwd: root, timeout: 5_000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_ASKPASS: '', SSH_ASKPASS: '' } })
   check('Mercury ls-remote does not use the repository SSH command', !marked('network'))
   clear('network')
   try { plain(['remote', 'show', 'origin']) } catch {}
   check('plain remote show honors the repository SSH command', marked('network'))
   clear('network')
-  await execFileNoThrowWithCwd('git', ['remote', 'show', 'origin'], { cwd: root, timeout: 5_000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } })
+  await execFileNoThrowWithCwd('git', ['remote', 'show', 'origin'], { cwd: root, timeout: 5_000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_ASKPASS: '', SSH_ASKPASS: '' } })
   check('Mercury remote show does not use the repository SSH command', !marked('network'))
   check('the network settings ride remote, pull, push, clone, submodule and archive as well as fetch and ls-remote', ['remote', 'pull', 'push', 'clone', 'submodule', 'archive', 'fetch', 'ls-remote'].every(command => gitArgs([command, 'origin'], root).includes('core.sshCommand=ssh')))
 
@@ -205,11 +205,11 @@ try {
   plain(['config', 'credential.helper', posix(join(home, 'credential.sh'))])
   clear('credential')
   await new Promise<void>(resolveControl => {
-    execFile('git', ['ls-remote', 'origin'], { cwd: root, env: { ...env, GIT_TERMINAL_PROMPT: '0' }, timeout: 5_000 }, () => resolveControl())
+    execFile('git', ['ls-remote', 'origin'], { cwd: root, env: { ...env, GIT_TERMINAL_PROMPT: '0', GIT_ASKPASS: '', SSH_ASKPASS: '' }, timeout: 5_000 }, () => resolveControl())
   })
   check('plain ls-remote honors the repository credential helper', marked('credential'))
   clear('credential')
-  await execFileNoThrowWithCwd('git', ['ls-remote', 'origin'], { cwd: root, timeout: 5_000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } })
+  await execFileNoThrowWithCwd('git', ['ls-remote', 'origin'], { cwd: root, timeout: 5_000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_ASKPASS: '', SSH_ASKPASS: '' } })
   check('Mercury ls-remote does not use the repository credential helper', !marked('credential'))
   check('before a repository askPass program is set, the network settings name none', !gitArgs(['ls-remote', 'origin'], root).some(word => word.startsWith('core.askPass=')))
   plain(['config', 'core.askPass', posix(join(home, 'askpass.sh'))])

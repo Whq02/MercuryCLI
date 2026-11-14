@@ -20,7 +20,7 @@ const seedCache =
       : null
 if (seedCache) console.log(`  seeding the scratch home's managed browser from ${seedCache} (no second download)`)
 if (seedCache && !existsSync(join(SCRATCH_BROWSERS, 'chrome'))) {
-  symlinkSync(join(seedCache, 'chrome'), join(SCRATCH_BROWSERS, 'chrome'))
+  symlinkSync(join(seedCache, 'chrome'), join(SCRATCH_BROWSERS, 'chrome'), 'junction')
 }
 
 process.env.MERCURY_CONFIG_DIR = SCRATCH_HOME

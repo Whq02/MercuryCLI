@@ -17,7 +17,7 @@ const seedCache =
     : ambientCache && existsSync(join(ambientCache, 'chrome'))
       ? ambientCache
       : null
-if (seedCache) symlinkSync(join(seedCache, 'chrome'), join(SCRATCH_BROWSERS, 'chrome'))
+if (seedCache) symlinkSync(join(seedCache, 'chrome'), join(SCRATCH_BROWSERS, 'chrome'), 'junction')
 
 process.env.MERCURY_CONFIG_DIR = SCRATCH_HOME
 process.env.MERCURY_HOME = SCRATCH_HOME
