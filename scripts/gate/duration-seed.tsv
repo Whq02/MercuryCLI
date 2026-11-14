@@ -86,7 +86,7 @@ switchboard-3	73
 switchboard-4	8
 switchboard-5	7
 switchboard-6	5
-builtin-tools	143
+builtin-tools	149
 visual-contract	62
 channel	0
 operator-identity	1
@@ -145,7 +145,7 @@ tree-ownership	5
 ink-runtime	25
 stop-policy	5
 accounts	46
-ast-tools	18
+ast-tools	22
 headless	564
 headless-2	565
 memory-lifecycle	45
