@@ -124,15 +124,15 @@ image's tool result instead of a separate user message.
 
 A whole `Read` of a recognised `.cpuprofile` (V8 or CDP-wrapped V8) or
 `.sample.txt` (a macOS sampling report) returns measured hotspots and hot
-paths, not the raw dump. It reads an existing report on every platform; it
+paths. It reads an existing report on every platform; it
 never starts a profiler or follows a source URL. Self and inclusive weights,
 known idle/wait contribution, the denominator and any hit-count approximation
 are named separately. Recorded function/file/line/module identities stay with
 the rows; uncertain symbols remain unresolved.
 
 Use `<path>#read?view=profile&offset=0&limit=20` for a result-row page.
-The continuation preserves the target and refers to generated rows, not source
-lines. A summary grants neither a file edit anchor nor source read coverage.
+The continuation preserves the target and pages the generated rows.
+A summary grants neither a file edit anchor nor source read coverage.
 `<path>#read?view=raw`, or an ordinary read with explicit `offset`, `limit` or
 `ranges`, reads the original report with its original coordinates and anchors.
 A misnamed or unrecognised report remains ordinary text.
@@ -145,8 +145,8 @@ separately from percentage-point share changes. Different profiler formats or
 sampling intervals are not compared as if their weights meant the same thing.
 
 The reader streams report tokens and lines; sample arrays are not retained in
-memory. Memory follows the recorded call graph and largest field, not the sample-array
-length, and cancellation interrupts parsing and graph traversal. Quality notes disclose
+memory. Memory follows the recorded call graph and largest field. Cancellation
+interrupts parsing and graph traversal. Quality notes disclose
 missing references, unequal sample/delta counts, cycles and estimated timing.
 Continuation detects a changed report instead of mixing its pages silently.
 
@@ -158,8 +158,8 @@ The SQL is verbatim: nothing is URL-decoded and `&`, `+`, `%` and `?` inside it
 remain SQL. Tables can also use
 `/project/data.sqlite#read?table=items&order=id DESC&where=id>10&limit=20`;
 `/project/data.sqlite:items#read?where=id>10&limit=20` means the same table.
-A table predicate is an expression, not another statement; use `sql=` for SQL
-that needs comments, statement syntax or an ampersand. Existing bare-table,
+The predicate is one expression; a second statement is refused. Use `sql=` for
+SQL that needs comments, statement syntax or an ampersand. Existing bare-table,
 schema and slash-key reads keep their meaning.
 
 The release's bundled SQLite engine opens the database read-only. A mutating
@@ -172,9 +172,9 @@ is zero-based, limit is positive, and the continuation preserves the SQL.
 
 Queries have no file-size or result-count ceiling: a local query iterates to its
 page plus lookahead without counting or copying the database, and cancellation
-ends its SQLite process even during a long calculation. A result is live and
-rerun on continuation, not a frozen snapshot; it gives no source edit anchor
-or read coverage. SQLite may maintain read marks in an existing shared-memory
+ends its SQLite process even during a long calculation. Every continuation
+reruns the query against the live database. The result gives no source edit
+anchor or read coverage. SQLite may maintain read marks in an existing shared-memory
 sidecar, but Read changes neither the database nor its WAL and creates no
 sidecar beside them; only a leftover WAL without shared memory uses a private
 copy, named in the header. An SSH database and its WAL are transferred to a
@@ -189,5 +189,5 @@ row, schema and prior read, requires one affected row and verifies its absence;
 foreign-key restrictions roll back and declared cascades are enforced.
 The result distinguishes a deleted row from a missing-row no-op and gives no
 empty-file edit anchor. A query result is not the prior row read. Hidden-rowid
-shorthand uses an unshadowed alias; composite or fully shadowed shorthand is
-refused rather than deleting an ambiguous set of rows.
+shorthand uses an unshadowed alias. Composite or fully shadowed shorthand is
+refused. A key that names more than one row is refused.

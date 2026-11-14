@@ -8,7 +8,7 @@ import { readViewMcp } from './readViewMcp.js'
 const home = isolatedHome(import.meta.filename)
 const file = join(home, 'work.sqlite')
 const db = new Database(file)
-db.run('CREATE TABLE teams(id INTEGER PRIMARY KEY, name TEXT); CREATE TABLE work(id INTEGER PRIMARY KEY, team INTEGER, name TEXT, payload BLOB); INSERT INTO teams VALUES(1,\'tools\'),(2,\'docs\'); INSERT INTO work VALUES(1,1,\'a&b?%+\',X\'0011FF\'),(2,1,\'second\',NULL),(3,2,\'third\',NULL);')
+db.run('CREATE TABLE categories(id INTEGER PRIMARY KEY, name TEXT); CREATE TABLE work(id INTEGER PRIMARY KEY, category INTEGER, name TEXT, payload BLOB); INSERT INTO categories VALUES(1,\'tools\'),(2,\'docs\'); INSERT INTO work VALUES(1,1,\'a&b?%+\',X\'0011FF\'),(2,1,\'second\',NULL),(3,2,\'third\',NULL);')
 db.close()
 let client = await readViewMcp(home)
 let passed = 0, failed = 0
@@ -16,7 +16,7 @@ const check = (name: string, ok: boolean, detail = '') => { ok ? passed++ : fail
 const read = (target: string) => client.call('Read', { file_path: target })
 const digest = () => createHash('sha256').update(readFileSync(file)).digest('hex')
 try {
-  const sql = "SELECT work.id,teams.name,work.name FROM work JOIN teams ON teams.id=work.team ORDER BY work.id"
+  const sql = "SELECT work.id,categories.name,work.name FROM work JOIN categories ON categories.id=work.category ORDER BY work.id"
   const first = await read(`${file}#read?offset=0&limit=2&sql=${sql}`)
   check('release Node executes a projected join', first.includes('target: SQLite query') && first.includes('[1,"tools","a&b?%+"]') && first.includes('[2,"tools","second"]'), first)
   check('columns preserve positional identity', first.includes('Columns: ["id","name","name"]'))
