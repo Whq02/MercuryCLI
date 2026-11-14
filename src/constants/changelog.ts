@@ -12,6 +12,10 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Added MERCURY_EDIT_FORM (plain or full), which sends the Edit tool to every model in one named form for a run.
 - Added MERCURY_GREP_RANKED, which lets Grep rank files by the words of a description. It is off by default.
 - Added forty-four verbs to the turn spinner.
+- Added reading of the instruction and rule files other coding tools left in a project, as they stand and with no setup: AGENTS.md and the shared .agents folder, and the guides and rules of Claude Code, Gemini, Copilot, Cursor, Windsurf and Cline, with the folders COPILOT_CUSTOM_INSTRUCTIONS_DIRS names; the compatibility page names every file. A rule scoped to files reaches the model only when such a file is read, edited or searched. A MERCURY.md in or above the working directory still decides: with one, the others load only where it imports them. /memory files names each file, its tool and when it loads.
+- Added a Nix flake: packages for Linux and macOS made from the signed release archives, a development shell, an overlay, and Home Manager and NixOS modules. A Mercury that Nix installed leaves installing and updating to its flake or profile.
+- Added conflict regions to the Git tool: conflicts lists each conflict block of an unmerged file, and resolve takes ours, theirs, base, both or given text for the regions it names, staging a file once its last region is resolved. A whole file can also be taken as base or as both.
+- Added prerequisites to the Git tool's commit groups: a group names the groups it depends on, the plan orders them, and a reference to itself, to an unknown group or in a cycle is refused before anything is staged.
 - Changed the Session Concourse to its two panes: the coordinator, the opt-in model that launched and steered sessions from the board, is gone with its pane, its tools and its settings rows. n on the board starts a session as before, --coordinator-on and --coordinator-off are still accepted and say so in one line, and a home that had it on keeps its settings and files.
 - Changed an unattended run (mercury run, a runner with no screen, a crewmate) whose model says what it will do next and then ends its turn: it is asked once to take the step or give its final answer.
 - Changed an unattended run whose model answers with no words and no tool call: it is asked once for its answer.
@@ -37,6 +41,10 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Changed the external editor's value on Windows to be parsed by the system's own command-line rules.
 - Changed TensorFold to 1.2.7 where Mercury names, fetches and verifies the engine; a model card's prompt-cache ceiling follows the engine's rule.
 - Changed the tool descriptions, prompts and bundled skills a model reads: corrected against the product and shortened, by about a tenth where a session sends every tool's definition and by less where tools are loaded on demand.
+- Changed a conversation on a local TensorFold model to be resumed where the engine left it: every earlier reply goes back with the reasoning the model wrote, and on an engine of this machine that keeps prompt states and does not read ahead itself, Mercury reads the finished turn ahead between turns. A request of the session cancels the reading ahead and waits for the part already in flight. MERCURY_LOCAL_NEXT_TURN_PREFILL=0 turns it off.
+- Changed llama.cpp to 1.0.0 (b12359) where Mercury installs it for the Windows TensorFold group and where a rented pod's engine image is built from it; a llama-server from b11829 on is still accepted.
+- Changed the Git tool's commit plan to say on its card and in its receipt that pre-commit and commit-msg hooks are not run.
+- Changed the Git tool's resolve to apply Edit deny rules to the files it writes, and its conflict list to leave out a file a Read deny rule covers and say how many it left out.
 - Fixed a Homebrew install losing its mercury command after the first launch, where ~/.local/bin stands before Homebrew on PATH. An install already caught is mended by ln -sf "$(brew --prefix)/bin/mercury" ~/.local/bin/mercury.
 - Fixed mercury install --uninstall on Windows stopping half way and leaving a command that could not run: the command and its PATH entry go, and the files in use are removed once the command has ended.
 - Fixed a Gemini conversation that outgrew the model's window ending on the provider's refusal: the conversation is compacted and the request sent again.
@@ -57,6 +65,13 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed /health reading the Blender tool as undeclared where it is offered.
 - Fixed a resumed session's starting count running backwards, and a focus switched to a busy session keeping the last turn's tip.
 - Fixed an approved project extension held off in an untrusted folder saying nothing.
+- Fixed a one-shot mercury run ending without its report while a crewmate was parked waiting for its teammates, or between a background crewmate's end and its result.
+- Fixed a personal MERCURY.md in Mercury's home keeping a project's AGENTS.md from loading.
+- Fixed a session hanging at its start in a folder whose MERCURY.md, AGENTS.md or imported instruction file is a named pipe: the file is passed over.
+- Fixed a tool loaded through ToolSearch failing the turn on a llama.cpp server added in /llmhost or rented as a pod (HTTP 500, System message must be at the beginning): the tool joins the request's own tool list.
+- Fixed a tool loaded through ToolSearch being refused, or never defined to the model, on a vLLM or SGLang server whose chat template takes no system message after the first (Qwen3.8, Mistral Large 3, MiniMax-M3, Beam-1.0, gpt-oss-120b).
+- Fixed a llama.cpp 1.0.0 server's origin rule being reported as a rejected key: the message names the --cors-origins entry to start the server with.
+- Fixed thinking switched off having no effect on a llama.cpp server.
 
 ## 1.0.10
 - Added Gemini 4 Carbon pricing.
