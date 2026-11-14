@@ -110,7 +110,7 @@ if (!given) {
   check('B04 a continuation detects changed source rather than mixing pages', follow !== null && (await read(follow)).body.includes('state: changed'), before.body)
 
   const memorySentence = 'jq: error: cannot allocate memory\nThe query needed more memory than the bundled engine can use (2 GiB). It holds each input document whole, a JSONL source one record at a time, and everything the filter gathers at once.'
-  const queryChildren = (): string[] => process.platform === 'win32' ? [] : spawnSync('/bin/ps', ['-axo', 'ppid=,command='], { encoding: 'utf8' }).stdout.split('\n').filter(line => line.trim().startsWith(`${process.pid} `) && line.includes('jsonQueryProcess'))
+  const queryChildren = (): string[] => process.platform === 'win32' ? [] : (spawnSync('/bin/ps', ['-axo', 'ppid=,command='], { encoding: 'utf8' }).stdout ?? '').split('\n').filter(line => line.trim().startsWith(`${process.pid} `) && line.includes('jsonQueryProcess'))
   const gatherStarted = performance.now()
   const gathered = await read(`${mutable}#read?q=[range(1e9)]`)
   const heapMax = /getHeapMax = \(\) => (\d+)/.exec(readFileSync(resolve(dirname(script), '../../vendor/json-query/extracted/dist/index.mjs'), 'utf8'))
