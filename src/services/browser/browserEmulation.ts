@@ -1,6 +1,6 @@
 import type { Device, Frame, Page, Viewport } from 'puppeteer-core'
 import { resolveBrowserSecret } from './browserSecrets.js'
-import { driverVersion, originOf, pageKitOf, setPageLanguages, type PageIdentity, type PageKit } from './browserSession.js'
+import { driverVersion, originOf, pageKitOf, type PageIdentity, type PageKit } from './browserSession.js'
 
 const NETWORK_PRESETS = { slow3g: 'Slow 3G', fast3g: 'Fast 3G', slow4g: 'Slow 4G', fast4g: 'Fast 4G' } as const
 type NetworkPreset = keyof typeof NETWORK_PRESETS
@@ -75,7 +75,7 @@ const FIELD_SHAPES: Record<RequestName | 'reset', string> = {
 }
 const REQUEST_NAMES = Object.keys(FIELD_SHAPES) as Array<RequestName | 'reset'>
 
-export const EMULATION_FIELD_WORDS = `device (a name from devices), userAgent, mobile, touch, landscape, timezone, locale, cpuSlowdown, network (${Object.keys(NETWORK_PRESETS).join(', ')} or {download, upload, latency} in bytes/s and ms), offline, geolocation {latitude, longitude, accuracy}, colorScheme (dark, light, no-preference), reducedMotion, headers, credentials {username, password or secret (a registered name)}, reset`
+export const EMULATION_FIELD_WORDS = `device (a name from devices), userAgent, mobile, touch, landscape, timezone, locale, cpuSlowdown, network (${Object.keys(NETWORK_PRESETS).join(', ')} or {download, upload, latency} in bytes/s and ms), offline, geolocation {latitude, longitude, accuracy}, colorScheme (dark, light, no-preference), reducedMotion, headers (every request, including other origins), credentials {username, password or secret (a registered name)}, reset`
 
 const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -140,11 +140,10 @@ export function parseEmulation(raw: unknown): { request: EmulationRequest } | { 
   return { request: raw as EmulationRequest }
 }
 
-type Aspect = 'identity' | 'languages' | 'locale' | 'viewport' | 'timezone' | 'cpu' | 'media' | 'network' | 'geolocation' | 'headers' | 'credentials'
-const ASPECTS: readonly Aspect[] = ['identity', 'languages', 'locale', 'timezone', 'cpu', 'media', 'network', 'geolocation', 'headers', 'credentials', 'viewport']
+type Aspect = 'identity' | 'locale' | 'viewport' | 'timezone' | 'cpu' | 'media' | 'network' | 'geolocation' | 'headers' | 'credentials'
+const ASPECTS: readonly Aspect[] = ['identity', 'locale', 'timezone', 'cpu', 'media', 'network', 'geolocation', 'headers', 'credentials', 'viewport']
 const ASPECT_FIELDS: Record<Aspect, readonly FieldName[]> = {
   identity: ['device', 'userAgent', 'locale'],
-  languages: ['locale'],
   locale: ['locale'],
   viewport: ['device', 'width', 'height', 'scale', 'mobile', 'touch', 'landscape'],
   timezone: ['timezone'],
@@ -157,7 +156,6 @@ const ASPECT_FIELDS: Record<Aspect, readonly FieldName[]> = {
 }
 const ASPECT_WORDS: Record<Aspect, string> = {
   identity: 'user agent',
-  languages: 'languages',
   locale: 'locale',
   viewport: 'viewport',
   timezone: 'timezone',
@@ -190,6 +188,7 @@ interface PageEmulation {
   grants: Set<string>
   regrant: ((frame: Frame) => void) | null
   answering: boolean
+  credentials: Environment['credentials']
   answered: Set<string>
   usedFor: Set<string>
 }
@@ -210,7 +209,7 @@ const grantHolders = new WeakMap<object, Map<string, Set<Page>>>()
 function stateOf(page: Page): PageEmulation {
   let state = emulations.get(page)
   if (state === undefined) {
-    state = { fields: {}, environment: null, unsettled: new Set(), grants: new Set(), regrant: null, answering: false, answered: new Set(), usedFor: new Set() }
+    state = { fields: {}, environment: null, unsettled: new Set(), grants: new Set(), regrant: null, answering: false, credentials: null, answered: new Set(), usedFor: new Set() }
     emulations.set(page, state)
   }
   return state
@@ -351,8 +350,6 @@ function sliceOf(aspect: Aspect, environment: Environment): unknown {
   switch (aspect) {
     case 'identity':
       return environment.identity
-    case 'languages':
-      return environment.languages
     case 'locale':
       return environment.locale
     case 'viewport':
@@ -419,8 +416,8 @@ async function releaseLocation(page: Page, state: PageEmulation): Promise<void> 
 type AuthAnswer = { response: 'CancelAuth' } | { response: 'ProvideCredentials'; username: string; password: string }
 
 function authAnswer(state: PageEmulation, requestId: string, challenge: { source?: string; origin: string }): AuthAnswer {
-  const held = state.fields.credentials
-  if (held === undefined || challenge.source === 'Proxy' || originOf(challenge.origin) !== held.origin) return { response: 'CancelAuth' }
+  const held = state.credentials
+  if (held === null || challenge.source === 'Proxy' || originOf(challenge.origin) !== held.origin) return { response: 'CancelAuth' }
   if (state.answered.has(requestId)) return { response: 'CancelAuth' }
   state.answered.add(requestId)
   if (state.answered.size > 256) state.answered.delete(state.answered.values().next().value!)
@@ -460,13 +457,11 @@ async function applyAspect(aspect: Aspect, page: Page, kit: PageKit, environment
       await page.setExtraHTTPHeaders(environment.headers ?? {})
       return false
     case 'credentials':
+      state.credentials = environment.credentials
       await answerChallenges(kit, state, environment.credentials !== null)
       return false
     case 'identity':
       if (environment.identity !== null) await ownSession(kit).send('Emulation.setUserAgentOverride', environment.identity)
-      return false
-    case 'languages':
-      await setPageLanguages(page, environment.languages)
       return false
     case 'locale':
       await ownSession(kit).send('Emulation.setLocaleOverride', environment.locale === null ? {} : { locale: environment.locale })

@@ -950,14 +950,17 @@ async function probeEditableTarget(s: LiveSession, requested: ElementHandle<Elem
   }, requested)
 }
 
-function sentByEmulation(input: Input): { words: string; secretRef?: string } | null {
+function sentByEmulation(input: Input): { words: string; headers: boolean; username?: string; secretRef?: string } | null {
   const emulation = input?.emulation as { headers?: unknown; credentials?: unknown } | undefined
   const headers = emulation?.headers !== undefined && emulation.headers !== null
   const credentials = emulation?.credentials !== undefined && emulation.credentials !== null
   if (!headers && !credentials) return null
   const secretRef = credentials ? (emulation!.credentials as { secret?: unknown }).secret : undefined
+  const username = credentials ? (emulation!.credentials as { username?: string }).username : undefined
   return {
-    words: [headers ? 'extra headers' : '', credentials ? 'basic credentials' : ''].filter(Boolean).join(' and '),
+    words: [headers ? 'extra headers sent on every request, including other origins' : '', credentials ? `basic credentials for ${username}` : ''].filter(Boolean).join(' and '),
+    headers,
+    username,
     ...(typeof secretRef === 'string' ? { secretRef } : {}),
   }
 }
@@ -1164,7 +1167,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
               nonWeb: `credentials answer a real web origin only — the page is ${origin} content`,
               nonWebReason: `credentials refused on non-web scheme ${origin}`,
               deed: `Answering ${origin} with the secret ${sent.secretRef}`,
-              ask: `Browser answer basic authentication on ${origin}${inTab} with secret ${sent.secretRef} — the value never enters the conversation; approve exactly this secret-origin pairing`,
+              ask: `Browser answer basic authentication on ${origin}${inTab} with secret ${sent.secretRef} as ${sent.username}${sent.headers ? '; extra headers sent on every request, including other origins' : ''} — the value never enters the conversation; approve exactly this secret-origin pairing`,
               reason: `answering ${origin} with registered secret ${sent.secretRef} needs the operator's own consent for the pairing`,
             }
           : null
@@ -1225,7 +1228,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
     const unloaded = sent !== null && !originOf(s.page.url()).startsWith('http')
     return {
       behavior: 'ask' as const,
-      message: `Browser ${input.op}${actDetail(input)} on ${origin}${inTab} — ${unloaded ? 'its address did not load' : 'reached by navigation'}, not yet approved this session`,
+      message: `${sent?.headers ? `Browser viewport on ${origin}${inTab} with ${sent.words}` : `Browser ${input.op}${actDetail(input)} on ${origin}${inTab}`} — ${unloaded ? 'its address did not load' : 'reached by navigation'}, not yet approved this session`,
       decisionReason: {
         type: 'safetyCheck' as const,
         reason: unloaded ? `${origin} did not load, and no page of it is approved` : `${origin} was reached by navigation, not requested by the operator`,
@@ -2018,6 +2021,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
             outcome = 'failed'
             break
           }
+          if (input.emulation !== undefined) signalFor(s).throwIfAborted()
           const held = heldDevice(s.page)
           if (input.emulation === undefined && held === null) {
             const width = Math.min(Math.max(Math.floor(input.width!), 320), 3840)
@@ -2225,15 +2229,21 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
             } catch {
             }
           }
-          const ratio = await s.page.evaluate(() => window.devicePixelRatio).catch(() => 1)
+          const vp = s.page.viewport()
+          const ratio = vp?.deviceScaleFactor || (
+            !input.selector && !input.fullPage && saved !== null && vp?.width
+              ? saved.width / vp.width
+              : await s.page.evaluate(() => window.devicePixelRatio).catch(() => null)
+          )
           let scaleNote = ''
-          if (saved !== null && shown !== null && ratio > 0) {
-            const factor = saved.width / ratio / shown.width
-            if (Math.abs(factor - 1) > 0.005) {
-              scaleNote = ` — the image is ${shown.width}x${shown.height} px for ${Math.round(saved.width / ratio)}x${Math.round(saved.height / ratio)} CSS px: 1 image px = ${Number(factor.toFixed(3))} CSS px`
+          if (saved !== null && shown !== null && ratio !== null && ratio > 0) {
+            const horizontal = Number((saved.width / ratio / shown.width).toPrecision(6))
+            const vertical = Number((saved.height / ratio / shown.height).toPrecision(6))
+            if (horizontal !== 1 || vertical !== 1) {
+              const factor = horizontal === vertical ? `${horizontal} CSS px` : `${horizontal} CSS px horizontally, ${vertical} vertically`
+              scaleNote = ` — the image is ${shown.width}x${shown.height} px for ${Math.round(saved.width / ratio)}x${Math.round(saved.height / ratio)} CSS px: 1 image px = ${factor}`
             }
           }
-          const vp = s.page.viewport()
           result = `screenshot: ${file}${input.selector ? ` (element ${input.selector})` : ''} (${pageWhere(s)}, viewport ${vp?.width}x${vp?.height})${sizeNote}${scaleNote}`
           outcome = 'succeeded'
           break

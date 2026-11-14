@@ -621,18 +621,25 @@ function pageStealthInit(langs: string[]): void {
       delete (navigator as unknown as Record<string, unknown>).webdriver
     } catch {}
   }
-  const frozenLangs = Object.freeze([...langs])
-  const primaryLang = frozenLangs[0] ?? 'en-US'
+  const nativeLanguages = Object.getOwnPropertyDescriptor(navProto, 'languages')?.get
+  let frozenLangs = Object.freeze([...langs])
+  const currentLanguages = (): readonly string[] => {
+    const current = nativeLanguages?.call(navigator) as string[] | undefined
+    if (current?.length && (current.length !== frozenLangs.length || current.some((value, index) => value !== frozenLangs[index]))) {
+      frozenLangs = Object.freeze([...current])
+    }
+    return frozenLangs
+  }
   Object.defineProperty(navProto, 'language', {
     get: markNative(function language() {
-      return primaryLang
+      return currentLanguages()[0] ?? 'en-US'
     }, 'get language'),
     enumerable: true,
     configurable: true,
   })
   Object.defineProperty(navProto, 'languages', {
     get: markNative(function languages() {
-      return frozenLangs
+      return currentLanguages()
     }, 'get languages'),
     enumerable: true,
     configurable: true,
@@ -973,8 +980,6 @@ export interface PageKit {
   identity: PageIdentity | null
   languages: string[]
   timeZone: string
-  stealthScript: string | null
-  ownScript: boolean
 }
 
 const pageKits = new WeakMap<Page, PageKit>()
@@ -985,21 +990,6 @@ export function pageKitOf(page: Page): PageKit | null {
 
 function stealthSource(languages: string[]): string {
   return `(${pageStealthInit})(${JSON.stringify(languages)})`
-}
-
-export async function setPageLanguages(page: Page, languages: string[]): Promise<void> {
-  const kit = pageKits.get(page)
-  if (!kit || typeof page.evaluateOnNewDocument !== 'function') return
-  if (kit.ownScript && kit.cdp !== null) {
-    const registration = await kit.cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: stealthSource(languages) })
-    if (kit.stealthScript !== null) await kit.cdp.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: kit.stealthScript }).catch(() => undefined)
-    kit.stealthScript = registration.identifier
-  } else {
-    const registration = await page.evaluateOnNewDocument(pageStealthInit, languages)
-    if (kit.stealthScript !== null) await page.removeScriptToEvaluateOnNewDocument(kit.stealthScript).catch(() => undefined)
-    kit.stealthScript = registration?.identifier ?? null
-  }
-  await Promise.all(page.frames().map(frame => frame.evaluate(pageStealthInit, languages).catch(() => undefined)))
 }
 
 const redactUrl = (url: string): string => {
@@ -1208,15 +1198,13 @@ function listenPage(state: OwnerBrowserState, session: Session, wiring: Wiring):
 function bornPage(hold: Hold, cdp: CDPSession, info: Protocol.Target.TargetInfo): void {
   const { identity, languages, timeZone } = hold.baseline
   const quiet = (): undefined => undefined
-  const kit: PageKit = { cdp, identity, languages, timeZone, stealthScript: null, ownScript: true }
+  const kit: PageKit = { cdp, identity, languages, timeZone }
   const birth: Birth = { cdp, kit, wiring: newWiring() }
   if (identity !== null) void cdp.send('Emulation.setUserAgentOverride', identity).catch(quiet)
   void cdp.send('Emulation.setTimezoneOverride', { timezoneId: timeZone }).catch(quiet)
   void cdp.send('Emulation.setAutomationOverride', { enabled: false }).catch(quiet)
   void cdp.send('Page.enable').catch(quiet)
-  void cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: stealthSource(languages) }).then(registration => {
-    kit.stealthScript = registration.identifier
-  }, quiet)
+  void cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: stealthSource(languages) }).catch(quiet)
   void cdp.send('Network.enable').catch(quiet)
   void cdp.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(quiet)
   listenProtocol(birth.wiring, cdp)
@@ -1258,12 +1246,9 @@ export async function bringTabToFront(session: Session): Promise<void> {
 }
 
 async function armLate(page: Page, baseline: PagePresented): Promise<PageKit> {
-  const kit: PageKit = { cdp: null, identity: baseline.identity, languages: baseline.languages, timeZone: baseline.timeZone, stealthScript: null, ownScript: false }
+  const kit: PageKit = { cdp: null, identity: baseline.identity, languages: baseline.languages, timeZone: baseline.timeZone }
   if (typeof page.evaluateOnNewDocument === 'function') {
-    kit.stealthScript = await page.evaluateOnNewDocument(pageStealthInit, baseline.languages).then(
-      registration => registration?.identifier ?? null,
-      () => null,
-    )
+    await page.evaluateOnNewDocument(pageStealthInit, baseline.languages).catch(() => undefined)
     await page.evaluate(pageStealthInit, baseline.languages).catch(() => undefined)
   }
   const cdp = typeof page.createCDPSession === 'function' ? await page.createCDPSession().catch(() => null) : null
@@ -1502,12 +1487,9 @@ async function placeTab(
       unhanded = browser
       const pages = await browser.pages()
       page = pages[0] ?? (await browser.newPage())
-      const kit: PageKit = { cdp: null, identity: null, languages: hostLang.languages, timeZone: hostTimeZone, stealthScript: null, ownScript: false }
+      const kit: PageKit = { cdp: null, identity: null, languages: hostLang.languages, timeZone: hostTimeZone }
       if (typeof page.evaluateOnNewDocument === 'function') {
-        kit.stealthScript = await page.evaluateOnNewDocument(pageStealthInit, hostLang.languages).then(
-          registration => registration?.identifier ?? null,
-          () => null,
-        )
+        await page.evaluateOnNewDocument(pageStealthInit, hostLang.languages).catch(() => undefined)
         await page.evaluate(pageStealthInit, hostLang.languages).catch(() => undefined)
       }
       wiring = newWiring()

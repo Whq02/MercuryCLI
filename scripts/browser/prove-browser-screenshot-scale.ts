@@ -58,13 +58,14 @@ section('S2 a device: the viewport, an element and the full page')
 {
   await run({ op: 'viewport', emulation: { device: 'Pixel 5' } })
   const view = await run({ op: 'screenshot', label: 'device' })
-  check('[E6][B03] the viewport image of a 3x device', JSON.stringify(size(fileOf(view.result))) === '[1179,2553]' && noteOf(view.result) === ' — the image is 1179x2553 px for 393x851 CSS px: 1 image px = 0.333 CSS px', view.result)
+  check('[E6][B03] the viewport image of a 3x device', JSON.stringify(size(fileOf(view.result))) === '[1179,2553]' && noteOf(view.result) === ' — the image is 1179x2553 px for 393x851 CSS px: 1 image px = 0.333333 CSS px', view.result)
   const element = await run({ op: 'screenshot', selector: '#box', label: 'element' })
-  check('[B03] an element image', JSON.stringify(size(fileOf(element.result))) === '[300,150]' && noteOf(element.result) === ' — the image is 300x150 px for 100x50 CSS px: 1 image px = 0.333 CSS px', element.result)
+  check('[B03] an element image', JSON.stringify(size(fileOf(element.result))) === '[300,150]' && noteOf(element.result) === ' — the image is 300x150 px for 100x50 CSS px: 1 image px = 0.333333 CSS px', element.result)
   const full = await run({ op: 'screenshot', fullPage: true, label: 'full' })
   const [fullWidth, fullHeight] = size(fileOf(full.result))
   const [seenWidth, seenHeight] = existsSync(`${fileOf(full.result)}.inline`) ? size(`${fileOf(full.result)}.inline`) : [fullWidth, fullHeight]
-  check('[B03] the full page image: the saved file is the whole page at 3x, and the factor is that of the copy that is shown', fullWidth === 1179 && fullHeight === 6000 && noteOf(full.result) === ` — the image is ${seenWidth}x${seenHeight} px for 393x2000 CSS px: 1 image px = ${Number((393 / seenWidth).toFixed(3))} CSS px`, `${full.result} ${fullWidth}x${fullHeight} ${seenWidth}x${seenHeight}`)
+  check('[B03] the full page image: the saved file is the whole page at 3x, and the factor is that of the copy that is shown', fullWidth === 1179 && fullHeight === 6000 && noteOf(full.result) === ` — the image is ${seenWidth}x${seenHeight} px for 393x2000 CSS px: 1 image px = ${Number((393 / seenWidth).toPrecision(6))} CSS px horizontally, ${Number((2000 / seenHeight).toPrecision(6))} vertically`, `${full.result} ${fullWidth}x${fullHeight} ${seenWidth}x${seenHeight}`)
+  check('the 3x full-page inline copy keeps the existing dimension budget and downscale words', Math.max(seenWidth, seenHeight) <= 3000 && full.result.includes('inlined copy downscaled to the image budget') && seenWidth < fullWidth && seenHeight < fullHeight)
   await run({ op: 'viewport', emulation: { reset: true } })
 }
 
@@ -76,10 +77,10 @@ section('S3 the copy a model is shown, downscaled to the image budget')
   const file = fileOf(shot.result)
   const inline = `${file}.inline`
   const [shownWidth, shownHeight] = existsSync(inline) ? size(inline) : [0, 0]
-  const factor = Number((1280 / shownWidth).toFixed(3))
+  const factor = Number((1280 / shownWidth).toPrecision(6))
   check('the saved image is the full one and a downscaled copy is shown', JSON.stringify(size(file)) === '[2560,1600]' && shot.result.includes('inlined copy downscaled to the image budget') && shownWidth > 0 && shownWidth < 2560, `${shot.result} ${shownWidth}x${shownHeight}`)
   check('[E6][B03] the factor is that of the copy the model sees, not of the file', noteOf(shot.result) === ` — the image is ${shownWidth}x${shownHeight} px for 1280x800 CSS px: 1 image px = ${factor} CSS px`, shot.result)
-  const centre = { x: 640 / factor, y: 400 / factor }
+  const centre = { x: 640 * shownWidth / 1280, y: 400 * shownHeight / 800 }
   const clicked = await run({ op: 'click', x: Math.round(centre.x * factor), y: Math.round(centre.y * factor) })
   check('[B03] a point read off that image and multiplied by the factor lands on the control it shows', clicked.outcome === 'succeeded' && (await pageOf().title()) === 'hit', clicked.result)
   process.env.MERCURY_MODEL = 'local/never-listed'
