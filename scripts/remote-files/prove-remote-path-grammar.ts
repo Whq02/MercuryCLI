@@ -100,7 +100,6 @@ section('§4 a malformed path says what is wrong and names no file')
 const refusals: Array<[string, RegExp]> = [
   ['ssh:///etc/hosts', /names no host: write ssh:\/\/<host>\/etc\/hosts\.$/],
   ['ssh://@web1/x', /names no user before the @\.$/],
-  ['ssh://user:secret@web1/x', /carries a password; ssh signs in with your keys and agent, so leave it out\.$/],
   ['ssh://web1:0/x', /has a port that is not a number from 1 to 65535\.$/],
   ['ssh://web1:99999/x', /has a port that is not a number from 1 to 65535\.$/],
   ['ssh://web1:/x', /has a port that is not a number from 1 to 65535\.$/],
@@ -127,6 +126,47 @@ for (const [written, words] of refusals) {
     said = error instanceof Error ? error.message : String(error)
   }
   check(`${JSON.stringify(written)}: ${words.source}`, typed && words.test(said) && said.startsWith(written), said)
+}
+
+section('§4a a password in a path is never repeated')
+{
+  const words = ' was written with a password; ssh signs in with your keys and agent, so leave it out.'
+  const said = (written: string): string => {
+    try {
+      return `parsed ${JSON.stringify(parseRemotePath(written))}`
+    } catch (error) {
+      return error instanceof RemotePathError ? error.message : `threw ${String(error)}`
+    }
+  }
+  for (const [written, named] of [
+    ['ssh://user:S3CR3T@web1/x', 'ssh://user@web1/x'],
+    ['ssh://user:S3@CR3T@web1:2222/~/x', 'ssh://user@web1:2222/~/x'],
+    ['ssh://:S3CR3T@web1/x', 'ssh://@web1/x'],
+    ['ssh://user:S3CR3T@web1', 'ssh://user@web1'],
+    ['ssh://user:S3C/R3T@web1/x', 'ssh://user@web1/x'],
+    ['ssh://user:12345@web1/x', 'ssh://user@web1/x'],
+  ] as Array<[string, string]>) {
+    check(`${written.replace(/S3.*R3T/, '…')} is answered as ${named}`, said(written) === `${named}${words}`, said(written).replace(/S3\S*R3T/g, '<the password>'))
+  }
+  const leaky = [
+    'ssh://user:S3CR3T@web1/x',
+    'ssh://-o:S3CR3T@web1/x',
+    'ssh://a;b:S3CR3T@web1/x',
+    'ssh://user:S3CR3T@/x',
+    'ssh://user:S3CR3T@.web1/x',
+    'ssh://user:S3CR3T@web1:99999/x',
+    'ssh://user:S3CR3T@web1/a%00b',
+    'ssh://user:S3CR3T@web1/%FF',
+    'ssh://us%FFer:S3CR3T@web1/x',
+    'ssh://user:S3%FFCR3T@web1/x',
+    'ssh://user:S3CR3T@we b1/x',
+    'ssh://user:S3C/R3T@web1/x',
+    'ssh://user:S3C/R3T@we;b1/x',
+    'SSH://User:S3CR3T@Web1/x',
+  ]
+  const told = leaky.map(written => [said(written), JSON.stringify(remoteRuleCandidates(written, 'deny')), String(remoteHostLabel(written)), String(remoteSessionRule(written)), String(remoteRuleAuthority(written))].join(' '))
+  check('whatever else is wrong with such a path, nothing said about it or kept from it holds what stood after the colon', told.every(text => !/S3|R3T/.test(text)) && told.every(text => !text.startsWith('parsed')), told.find(text => /S3|R3T/.test(text) || text.startsWith('parsed'))?.replace(/S3\S*R3T/g, '<the password>'))
+  check('a port and an @ further down the path are not a password', said('ssh://web1:22/home/a@b%00') === 'ssh://web1:22/home/a@b%00 holds a null byte.' && parseRemotePath('ssh://web1:22/home/a@b.txt')?.path === '/home/a@b.txt', said('ssh://web1:22/home/a@b%00'))
 }
 
 section('§4b a host or a user holding a character a shell acts on')

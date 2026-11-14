@@ -72,18 +72,34 @@ function nameFault(host: string, user: string | undefined, whole: string): strin
   return null
 }
 
+function withoutPassword(whole: string): string {
+  const start = whole.length - whole.replace(SCHEME, '').length
+  const slash = whole.indexOf('/', start)
+  const authority = whole.slice(start, slash === -1 ? whole.length : slash)
+  const at = authority.lastIndexOf('@')
+  const colon = authority.indexOf(':')
+  if (colon === -1) return whole
+  if (at > colon) return `${whole.slice(0, start + colon)}${whole.slice(start + at)}`
+  const later = whole.lastIndexOf('@')
+  return at === -1 && later > start + colon && !/^[0-9]*$/.test(authority.slice(colon + 1)) ? `${whole.slice(0, start + colon)}${whole.slice(later)}` : whole
+}
+
+function passwordWords(whole: string): string {
+  return `${withoutPassword(whole)} was written with a password; ssh signs in with your keys and agent, so leave it out.`
+}
+
 function parseAuthority(text: string, whole: string): RemoteAuthority {
   const parts = splitAuthority(text)
-  if (parts.user !== undefined && parts.user.includes(':')) {
-    throw new RemotePathError(`${whole} carries a password; ssh signs in with your keys and agent, so leave it out.`)
-  }
+  if (parts.user !== undefined && parts.user.includes(':')) throw new RemotePathError(passwordWords(whole))
   const user = parts.user === undefined ? undefined : decodeOnce(parts.user, whole)
   const host = decodeOnce(parts.host, whole)
   const fault = nameFault(host, user, whole)
   if (fault !== null) throw new RemotePathError(fault)
   if (parts.port === undefined) return { ...(user === undefined ? {} : { user }), host }
   const port = /^[0-9]{1,5}$/.test(parts.port) ? Number(parts.port) : 0
-  if (port < 1 || port > 65535) throw new RemotePathError(`${whole} has a port that is not a number from 1 to 65535.`)
+  if (port < 1 || port > 65535) {
+    throw new RemotePathError(withoutPassword(whole) === whole ? `${whole} has a port that is not a number from 1 to 65535.` : passwordWords(whole))
+  }
   return { ...(user === undefined ? {} : { user }), host, port }
 }
 
@@ -142,7 +158,7 @@ function remoteIdentity(path: string): string {
     const target = parseRemotePath(path)
     return target === null ? REMOTE_RULE_ROOT : formatRemotePath(target)
   } catch {
-    return path.trim()
+    return withoutPassword(path.trim())
   }
 }
 
