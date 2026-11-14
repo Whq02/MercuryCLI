@@ -584,7 +584,7 @@ export function resolveConflict(
   if (!entry) return { state: 'refused', reason: `'${path}' is not an unmerged conflict here` }
   try {
     if ('take' in resolution && (resolution.take === 'base' || resolution.take === 'both')) {
-      const stage = (n: number): Buffer => execFileSync('git', gitArgs(['cat-file', 'blob', `:${n}:${path}`], root), { windowsHide: true, cwd: root, env: subprocessEnv(), timeout: 30_000, maxBuffer: 256 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] })
+      const stage = (n: number): Buffer => execFileSync('git', gitArgs(['cat-file', '--filters', `--path=${path}`, `:${n}:${path}`], root), { windowsHide: true, cwd: root, env: subprocessEnv(), timeout: 30_000, maxBuffer: 256 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] })
       const content = resolution.take === 'base' ? stage(1) : Buffer.concat([stage(2), stage(3)])
       const { writeFileSync } = require('node:fs') as typeof import('node:fs')
       const { join } = require('node:path') as typeof import('node:path')

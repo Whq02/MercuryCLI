@@ -10,7 +10,7 @@ const STASH_OWN_FLAGS = new Set(['-u', '--include-untracked', '--only-untracked'
 
 const VALUE_GLOBALS = new Set(['-C', '-c', '--exec-path', '--git-dir', '--work-tree', '--namespace', '--super-prefix', '--shallow-file', '--config-env'])
 const PATCH_COMMANDS = new Set(['diff', 'show', 'log', 'format-patch', 'range-diff', 'blame'])
-const FILTER_COMMANDS = new Set(['add', 'checkout', 'stash', 'apply', 'merge', 'hash-object'])
+const FILTER_COMMANDS = new Set(['add', 'checkout', 'stash', 'apply', 'merge', 'hash-object', 'cat-file'])
 const NETWORK_COMMANDS = new Set(['fetch', 'ls-remote', 'remote', 'pull', 'push', 'clone', 'submodule', 'archive'])
 
 type RepositoryFilters = {
@@ -346,14 +346,14 @@ function assemble(args: string[], shape: SpawnShape, filters: string[], network:
 
 export function gitArgs(args: string[], cwd?: string): string[] {
   const shape = spawnShape(args)
-  const filters = FILTER_COMMANDS.has(shape.command) ? filterConfig(cwd) : []
+  const filters = FILTER_COMMANDS.has(shape.command) && (shape.command !== 'cat-file' || args.includes('--filters')) ? filterConfig(cwd) : []
   return assemble(args, shape, filters, networkConfig(shape.command, cwd))
 }
 
 export async function gitArgsAsync(args: string[], cwd?: string): Promise<string[]> {
   const shape = spawnShape(args)
   const [filters, network] = await Promise.all([
-    FILTER_COMMANDS.has(shape.command) ? filterConfigAsync(cwd) : Promise.resolve([] as string[]),
+    FILTER_COMMANDS.has(shape.command) && (shape.command !== 'cat-file' || args.includes('--filters')) ? filterConfigAsync(cwd) : Promise.resolve([] as string[]),
     networkConfigAsync(shape.command, cwd),
   ])
   return assemble(args, shape, filters, network)
