@@ -217,9 +217,9 @@ async function leg(world: RemoteWorld): Promise<void> {
   const open = closeRemoteConnections()
   check(`${name}: closing the session's connections ends the remote shell`, open >= 1 && (await gone(shellPid, 5_000)), `${open} open, pid ${shellPid} ${alive(shellPid) ? 'alive' : 'gone'}`)
   const beater = Number((await run('printf %s "$b"')).stdout.toString())
-  await run(`m_real ${remoteQuote(world.data)}`)
+  const led = (await run(`m_real ${remoteQuote(join(world.data, 'a-file-that-need-not-exist.txt'))}`)).stdout.toString().trim()
   closeRemoteConnections()
-  check(`${name}: after a request that asked where a path leads, closing the connection still ends the process that beats, at once`, Number.isInteger(beater) && beater > 1 && (await gone(beater, 3_000)), `pid ${beater} ${alive(beater) ? 'alive three seconds later' : 'gone'}`)
+  check(`${name}: after a request that asked where a file's path leads, closing the connection still ends the process that beats, at once`, Number.isInteger(beater) && beater > 1 && led.endsWith('/a-file-that-need-not-exist.txt') && (await gone(beater, 3_000)), `pid ${beater} ${alive(beater) ? 'alive three seconds later' : 'gone'}; led to ${led}`)
   const child = spawn(process.execPath, [join(import.meta.dir, 'connectionChild.ts')], { stdio: ['ignore', 'pipe', 'inherit'], env: { ...process.env, ...world.env } })
   let printed = ''
   child.stdout.on('data', chunk => { printed += String(chunk) })
