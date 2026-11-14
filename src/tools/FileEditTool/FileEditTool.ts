@@ -36,7 +36,7 @@ import { getLspServerManager } from '../../services/lsp/manager.js'
 import { runtimeKernel } from '../../services/primitives/runtimeKernel.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { ideReadTextAvailable, ideWriteTextAvailable, readRangeViaIde, readWholeTextViaIde, writeTextViaIdeWithReadBack } from '../../services/acp/ideToolBridge.js'
-import { isRemotePath, noteRemoteWholeRead, remoteIdentity, remoteShellPath } from '../../services/remoteFiles/target.js'
+import { isRemotePath, markRemoteRead, remoteIdentity, remoteMovedSinceRead, remoteShellPath } from '../../services/remoteFiles/target.js'
 import {
   activateConditionalSkillsForPaths,
   addSkillDirectories,
@@ -182,16 +182,15 @@ async function staleAtValidation(
   expandedPath: string,
   currentContent: string,
   signal: AbortSignal,
-  farMtimeMs?: number,
+  farMoved?: boolean,
 ): Promise<boolean> {
-  const mtime = farMtimeMs ?? getFileModificationTime(expandedPath)
-  if (mtime <= entry.timestamp) return false
+  if (farMoved === undefined ? getFileModificationTime(expandedPath) <= entry.timestamp : !farMoved) return false
   if (isFullReadEntry(entry)) {
     return entry.content !== currentContent
   }
   try {
     const lineOffset = Math.max(0, (entry.offset ?? 1) - 1)
-    if (farMtimeMs !== undefined) {
+    if (farMoved !== undefined) {
       const lines = currentContent.replace(/^\uFEFF/, '').split('\n')
       return lines.slice(lineOffset, lineOffset + (entry.limit ?? MAX_LINES_TO_READ)).join('\n') !== entry.content
     }
@@ -1099,7 +1098,7 @@ export const FileEditTool = buildTool({
       mode !== 'append' &&
       entry !== undefined &&
       !entry.isPartialView &&
-      (await staleAtValidation(entry, expandedPath, currentContent, context.abortController.signal, held?.mtimeMs)) &&
+      (await staleAtValidation(entry, expandedPath, currentContent, context.abortController.signal, held === undefined ? undefined : remoteMovedSinceRead(context.readFileState, expandedPath, held.mtimeMs, entry.timestamp))) &&
       readKnowledgeRefusal(context, expandedPath, input.file_path, currentContent, input.expected_anchor, touched, false) !== null
     ) {
       return {
@@ -1327,7 +1326,7 @@ export const FileEditTool = buildTool({
       if (clipped !== null) throw new Error(clipped)
       const entry = context.readFileState.get(expandedPath)
       const intact = entry !== undefined && readCoversRanges(entry, touched) && (
-        (currentMtimeMs ?? getFileModificationTime(expandedPath)) <= entry.timestamp ||
+        (far !== null ? !remoteMovedSinceRead(context.readFileState, expandedPath, currentMtimeMs, entry.timestamp) : (currentMtimeMs ?? getFileModificationTime(expandedPath)) <= entry.timestamp) ||
         (isFullReadEntry(entry) && entry.content === freshContent)
       )
       if (!intact) {
@@ -1611,7 +1610,7 @@ export const FileEditTool = buildTool({
       offset: undefined,
       limit: undefined,
     })
-    noteRemoteWholeRead(context.readFileState, expandedPath)
+    markRemoteRead(context.readFileState, expandedPath, true)
 
     countLinesChanged(patch, fileExists ? undefined : updatedFile)
 

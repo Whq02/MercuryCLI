@@ -166,10 +166,25 @@ export function remoteIdentity(path: string): string {
 type ReadLedger = { get(path: string): { content: string } | undefined }
 
 const wholeReads = new WeakSet<object>()
+const readGenerations = new WeakMap<object, string>()
 
-export function noteRemoteWholeRead(ledger: ReadLedger, path: string): void {
+export function markRemoteRead(ledger: ReadLedger, path: string, whole: boolean): void {
   const entry = isRemotePath(path) ? ledger.get(path) : undefined
-  if (entry !== undefined) wholeReads.add(entry)
+  if (entry === undefined) return
+  const generation = generations.get(remoteIdentity(path))
+  if (generation != null) readGenerations.set(entry, generation)
+  if (whole) wholeReads.add(entry)
+}
+
+export function remoteReadGeneration(entry: object): string | undefined {
+  return readGenerations.get(entry)
+}
+
+export function remoteMovedSinceRead(ledger: ReadLedger, path: string, mtimeMs: number | undefined, timestamp: number): boolean {
+  const entry = ledger.get(path)
+  const was = entry === undefined ? undefined : readGenerations.get(entry)
+  const now = generations.get(remoteIdentity(path))
+  return was !== undefined && now != null ? was !== now : (mtimeMs ?? 0) > timestamp
 }
 
 export function remoteLastRead(ledger: ReadLedger | undefined, path: string): string | null {

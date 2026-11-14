@@ -14,7 +14,7 @@ import { getLspServerManager } from '../../services/lsp/manager.js'
 import { runtimeKernel } from '../../services/primitives/runtimeKernel.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { ideReadTextAvailable, ideWriteTextAvailable, readWholeTextViaIde, writeTextViaIdeWithReadBack } from '../../services/acp/ideToolBridge.js'
-import { isRemotePath, noteRemoteWholeRead, remoteIdentity } from '../../services/remoteFiles/target.js'
+import { isRemotePath, markRemoteRead, remoteIdentity, remoteMovedSinceRead } from '../../services/remoteFiles/target.js'
 import {
   activateConditionalSkillsForPaths,
   addSkillDirectories,
@@ -375,7 +375,12 @@ export const FileWriteTool = buildTool({
       const entry = context.readFileState.get(expandedPath)
       const fullRead = entry !== undefined && !entry.isPartialView && isFullReadEntry(entry) && entry.content === normalizedContent.replace(/^\uFEFF/, '')
       if (!wholeFileSeen(owner, expandedPath, normalizedContent)) {
-        if (entry !== undefined && !entry.isPartialView && (currentMtimeMs ?? getFileModificationTime(expandedPath)) > entry.timestamp && !fullRead) {
+        if (
+          entry !== undefined &&
+          !entry.isPartialView &&
+          (far !== null ? remoteMovedSinceRead(context.readFileState, expandedPath, currentMtimeMs, entry.timestamp) : (currentMtimeMs ?? getFileModificationTime(expandedPath)) > entry.timestamp) &&
+          !fullRead
+        ) {
           throw new Error(modifiedSinceReadMessage())
         }
         if (!fullRead) {
@@ -440,7 +445,7 @@ export const FileWriteTool = buildTool({
       offset: undefined,
       limit: undefined,
     })
-    noteRemoteWholeRead(context.readFileState, expandedPath)
+    markRemoteRead(context.readFileState, expandedPath, true)
 
     const parseError = await checkIntroducedParseError(
       expandedPath,

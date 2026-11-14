@@ -21,7 +21,7 @@ import {
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { ideReadTextAvailable, readRangeViaIde } from '../../services/acp/ideToolBridge.js'
 import type { RemoteRead } from '../../services/remoteFiles/bridge.js'
-import { isRemotePath, noteRemoteWholeRead, remoteIdentity, remoteShellPath } from '../../services/remoteFiles/target.js'
+import { isRemotePath, markRemoteRead, remoteIdentity, remoteReadGeneration, remoteShellPath } from '../../services/remoteFiles/target.js'
 import {
   countTokensWithAPI,
   roughTokenCountEstimationForFileType,
@@ -381,14 +381,8 @@ async function readRangeElsewhere(
   return range
 }
 
-const remoteReadGenerations = new WeakMap<object, string>()
-
 function noteRemoteRead(context: ToolUseContext, path: string, whole = false): void {
-  if (!isRemotePath(path)) return
-  if (whole) noteRemoteWholeRead(context.readFileState, path)
-  const state = context.readFileState.get(path)
-  const generation = fileGeneration(path)
-  if (state !== undefined && generation !== null) remoteReadGenerations.set(state, generation)
+  markRemoteRead(context.readFileState, path, whole)
 }
 
 function remoteRangeSelector(rawPath: string): { path: string; ranges: string[] } | null {
@@ -2053,7 +2047,7 @@ export const FileReadTool = buildTool({
       effectiveInput.outline !== true
     ) {
       try {
-        const before = remoteReadGenerations.get(entry)
+        const before = remoteReadGeneration(entry)
         const unchanged =
           remote !== null
             ? before !== undefined && (await readRangeElsewhere(fullFilePath, 0, 0, undefined, context.abortController.signal)) !== null && fileGeneration(fullFilePath) === before
