@@ -880,7 +880,7 @@ checked against a live server yet.
 On the local lane no watchdog cuts a request while the server answers. The
 first-byte budget there is an estimate the status row shows:
 it is sized from the model's measured ingestion pace (the uncached prompt
-tokens the wire reports over the time to the first byte, remembered per
+tokens the wire reports over the time to the first token, remembered per
 model in `local-ingest-pace.json` under the config home) with a quarter's
 margin; before a measurement, a default by parameter count (300 tokens/s up
 to 10B, 100 up to 35B, 40 above, 100 when the server states no size). When

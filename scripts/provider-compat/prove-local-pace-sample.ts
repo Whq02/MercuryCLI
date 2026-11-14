@@ -220,10 +220,16 @@ try {
     pace.__resetLocalPaceForTest()
     check('and a file of the second version is read back', paceOf(OLD) === 21, remembered(OLD))
   }
+
+  section('S7 the page says what a sample is')
+  {
+    const page = readFileSync(join(import.meta.dir, '..', '..', 'docs', 'ENGINES.md'), 'utf8').replace(/\s+/g, ' ')
+    check('docs/ENGINES.md: the pace is the uncached prompt tokens over the time to the first token, kept in local-ingest-pace.json', page.includes('measured ingestion pace (the uncached prompt tokens the wire reports over the time to the first token, remembered per model in `local-ingest-pace.json` under the config home)') && !page.includes('over the time to the first byte'), page.slice(page.indexOf('measured ingestion pace'), page.indexOf('measured ingestion pace') + 200))
+  }
 } finally {
   rmSync(HOME, { recursive: true, force: true })
 }
 
-console.log(`\n${18 - failures} of 18 checks hold`)
+console.log(`\n${19 - failures} of 19 checks hold`)
 console.log(failures === 0 ? 'prove-local-pace-sample: ALL HOLD' : `prove-local-pace-sample: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
