@@ -140,6 +140,27 @@ try {
     watcher.stop()
   }
 
+  tally.section('a wake that waits behind a pause or a stopped seat keeps no run alive')
+  {
+    const { operatorPauseGate } = await import(join(source, 'run-core/pauseGate.ts'))
+    const started: string[] = []
+    const watcher = seam.watchSwarmResumes(() => context, async () => ({ behavior: 'allow', updatedInput: {} }), () => true, (async args => { started.push(args.agentId); args.onAdmitted?.() }) as Resume)
+    await park('paused'); await park('stopped', 'killed')
+    await turn()
+    operatorPauseGate.pause()
+    trigger()
+    await turn()
+    tally.check('while the operator pause holds no seat is started and no wake is counted', started.length === 0 && store().pendingWakes().length === 2 && !watcher.hasPending(), JSON.stringify(started))
+    operatorPauseGate.resume()
+    await turn()
+    tally.check('lifting the pause resumes the seat that had ended, and the stopped seat is left to the lead', started.length === 1 && started[0] === 'paused' && store().pendingWakes().length === 1 && !watcher.hasPending(), JSON.stringify(started))
+    tasks.stopped!.status = 'completed'
+    const live = watcher.hasPending()
+    await turn()
+    tally.check('a seat that is no longer stopped is counted once and resumed', live && started.length === 2 && !watcher.hasPending(), JSON.stringify(started))
+    watcher.stop()
+  }
+
   tally.section('the swarm switched off between two wakes starts no further seat')
   {
     const started: string[] = []
