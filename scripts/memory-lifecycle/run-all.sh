@@ -36,6 +36,7 @@ for proof in \
   prove-handoff-novelty.ts \
   prove-lineage-retention-zero.ts \
   prove-exit-handoff.ts \
+  prove-exit-engine-gone.ts \
   prove-exit-hosted-road.ts \
   prove-ephemeral-leaves-nothing.ts \
   prove-entry-page-journal-label.ts \
