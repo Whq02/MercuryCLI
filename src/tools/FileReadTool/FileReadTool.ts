@@ -1788,7 +1788,11 @@ export const FileReadTool = buildTool({
     return summary ? `Reading ${summary}` : 'Reading a file'
   },
   getPath(input: Partial<Input> | undefined): string {
-    return input?.file_path ? parseReadQueryTarget(input.file_path)?.source ?? input.file_path : getCwd()
+    if (!input?.file_path) return getCwd()
+    const source = parseReadQueryTarget(input.file_path)?.source ?? input.file_path
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(source)) return source
+    const named = splitPathRangeSelector(source, expandPath(source)).rawPath
+    return parseRichFormatTarget(named)?.containerPath ?? named
   },
   backfillObservableInput(input: Input): void {
     const query = parseReadQueryTarget(input.file_path)
