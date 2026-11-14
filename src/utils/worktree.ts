@@ -392,7 +392,10 @@ function checkoutRelativeName(relPath: string): string {
   return relPath.split(/[\\/]+/).filter(segment => segment !== '' && segment !== '.').join('/')
 }
 
-async function heldBackUnder(permission: ToolPermissionContext | undefined): Promise<((root: string) => HeldBack) | undefined> {
+type SessionRules = ToolPermissionContext | 'unknown'
+
+async function heldBackUnder(permission: SessionRules | undefined): Promise<((root: string) => HeldBack) | undefined> {
+  if (permission === 'unknown') return () => () => true
   try {
     const { readDenialFilter, ruleMatcherFor } = await import('./permissions/filesystem.js')
     let rules = permission
@@ -546,7 +549,7 @@ async function propagateLocalSettings(repoRoot: string, worktreePath: string, pr
   }
 }
 
-async function placeCheckoutFolders(repoRoot: string, worktreePath: string, dependencyLinksFrom: string | undefined, preserveExisting: boolean, permission?: ToolPermissionContext, carry = false): Promise<void> {
+async function placeCheckoutFolders(repoRoot: string, worktreePath: string, dependencyLinksFrom: string | undefined, preserveExisting: boolean, permission?: SessionRules, carry = false): Promise<void> {
   const symlinkDirectories = getInitialSettings().workspace?.worktree?.symlinkDirectories ?? []
   const sourceRoot = dependencyLinksFrom !== undefined ? (findGitRoot(dependencyLinksFrom) ?? repoRoot) : repoRoot
   const dependencyLinks = dependencyLinksFrom !== undefined ? await dependencyLinkCandidates(sourceRoot) : []
@@ -562,7 +565,7 @@ async function placeCheckoutFolders(repoRoot: string, worktreePath: string, depe
   await copyWorktreeIncludeFiles(repoRoot, worktreePath, preserveExisting || carried)
 }
 
-export async function prepareWorktreeFiles(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string, preserveExisting = false, permission?: ToolPermissionContext, carry = false): Promise<void> {
+export async function prepareWorktreeFiles(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string, preserveExisting = false, permission?: SessionRules, carry = false): Promise<void> {
   await propagateLocalSettings(repoRoot, worktreePath, preserveExisting)
   await placeCheckoutFolders(repoRoot, worktreePath, dependencyLinksFrom, preserveExisting, permission, carry)
 }
@@ -595,7 +598,7 @@ async function setWorktreeHooksPath(repoRoot: string, worktreePath: string): Pro
   }
 }
 
-async function runPostCreationSetup(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string, permission?: ToolPermissionContext, carry = false): Promise<string | undefined> {
+async function runPostCreationSetup(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string, permission?: SessionRules, carry = false): Promise<string | undefined> {
   await prepareWorktreeFiles(repoRoot, worktreePath, dependencyLinksFrom, false, permission, carry)
   await setWorktreeHooksPath(repoRoot, worktreePath)
   return runWorktreePrepareCommand(worktreePath)
@@ -685,7 +688,7 @@ export async function createWorktreeForSession(
   sessionId: string,
   slug: string,
   tmuxSessionName?: string,
-  options?: { prNumber?: number; gitRoot?: string },
+  options?: { prNumber?: number; gitRoot?: string; permission?: ToolPermissionContext },
 ): Promise<WorktreeSession> {
   validateWorktreeSlug(slug)
   const originalCwd = getCwd()
@@ -709,7 +712,7 @@ export async function createWorktreeForSession(
       ? `resumed worktree ${created.worktreePath}`
       : `created worktree ${created.worktreePath} from ${created.baseBranch ?? 'HEAD'}`,
   )
-  const prepareFailure = created.existed ? undefined : await runPostCreationSetup(gitRoot, created.worktreePath, originalCwd, undefined, options?.prNumber === undefined)
+  const prepareFailure = created.existed ? undefined : await runPostCreationSetup(gitRoot, created.worktreePath, originalCwd, options?.permission, options?.prNumber === undefined)
 
   const usedSparse = (getInitialSettings().workspace?.worktree?.sparsePaths ?? []).length > 0
   const session: WorktreeSession = {
@@ -1444,7 +1447,7 @@ export async function execIntoTmuxWorktree(args: string[]): Promise<{ handled: b
       worktreeDir = created.worktreePath
       if (!created.existed) {
         process.stdout.write(`Created worktree ${created.worktreePath} (based on ${created.baseBranch ?? 'HEAD'})\n`)
-        const prepareFailure = await runPostCreationSetup(gitRoot, created.worktreePath, getCwd(), undefined, prNumber === undefined)
+        const prepareFailure = await runPostCreationSetup(gitRoot, created.worktreePath, getCwd(), args.some(arg => arg === '--block-tools' || arg.startsWith('--block-tools=')) ? 'unknown' : undefined, prNumber === undefined)
         if (prepareFailure !== undefined) process.stderr.write(`${prepareFailure}\n`)
       }
     } catch (error) {

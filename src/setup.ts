@@ -2,6 +2,7 @@ import chalk from 'chalk'
 import { getIsInteractive, getIsNonInteractiveSession, getProjectRoot, getSessionId, switchSession } from './bootstrap/state.js'
 import { getCommands } from './commands.js'
 import { MERCURY_VERSION } from './constants/product.js'
+import type { ToolPermissionContext } from './Tool.js'
 import type { SessionId } from './types/ids.js'
 import { checkAndRestoreTerminalBackup } from './utils/appleTerminalBackup.js'
 import { checkHasTrustDialogAccepted, getGlobalConfig } from './utils/config.js'
@@ -67,7 +68,7 @@ function snapshotHooksForCwd(cwd: string): void {
   initializeFileChangedWatcher(cwd)
 }
 
-type WorktreeAsk = { name: string | undefined; prNumber: number | undefined; tmux: boolean }
+type WorktreeAsk = { name: string | undefined; prNumber: number | undefined; tmux: boolean; rules?: ToolPermissionContext }
 
 async function groundAtRepositoryRoot(cwd: string): Promise<string> {
   if (!(await getIsGit())) leaveWithRefusal(`Cannot create a worktree: ${cwd} is not a git repository.`)
@@ -80,9 +81,9 @@ async function groundAtRepositoryRoot(cwd: string): Promise<string> {
   return root
 }
 
-async function carveWorktree(slug: string, tmuxSessionName: string | undefined, prNumber: number | undefined): Promise<WorktreeSession> {
+async function carveWorktree(slug: string, tmuxSessionName: string | undefined, prNumber: number | undefined, rules?: ToolPermissionContext): Promise<WorktreeSession> {
   try {
-    return await createWorktreeForSession(getSessionId(), slug, tmuxSessionName, prNumber !== undefined ? { prNumber } : undefined)
+    return await createWorktreeForSession(getSessionId(), slug, tmuxSessionName, { ...(prNumber !== undefined ? { prNumber } : {}), ...(rules !== undefined ? { permission: rules } : {}) })
   } catch (error) {
     process.stderr.write(chalk.red(`The worktree could not be created: ${error instanceof Error ? error.message : String(error)}\n`))
     process.exit(1)
@@ -102,7 +103,7 @@ async function enterSessionWorktree(cwd: string, ask: WorktreeAsk): Promise<stri
   const root = await groundAtRepositoryRoot(cwd)
   const slug = ask.prNumber !== undefined ? `pr-${ask.prNumber}` : ask.name || getPlanSlug(getSessionId())
   const tmuxSessionName = ask.tmux ? generateTmuxSessionName(root, worktreeBranchName(slug)) : undefined
-  const worktreeSession = await carveWorktree(slug, tmuxSessionName, ask.prNumber)
+  const worktreeSession = await carveWorktree(slug, tmuxSessionName, ask.prNumber, ask.rules)
   if (tmuxSessionName) await attachTmux(tmuxSessionName, worktreeSession.worktreePath)
   const activeCwd = worktreeSession.worktreePath
   setCwd(activeCwd)
@@ -138,6 +139,7 @@ export async function setup(
   customSessionId?: string | null,
   worktreePRNumber?: number,
   _messagingSocketPath?: string,
+  worktreeRules?: ToolPermissionContext,
 ): Promise<void> {
   logForDiagnosticsNoPII('info', 'setup_started')
   if (customSessionId) switchSession(customSessionId as SessionId, consumeSessionHomePin())
@@ -145,7 +147,7 @@ export async function setup(
 
   setCwd(cwd)
   snapshotHooksForCwd(cwd)
-  if (worktreeEnabled) await enterSessionWorktree(cwd, { name: worktreeName, prNumber: worktreePRNumber, tmux: tmuxEnabled })
+  if (worktreeEnabled) await enterSessionWorktree(cwd, { name: worktreeName, prNumber: worktreePRNumber, tmux: tmuxEnabled, rules: worktreeRules })
 
   profileCheckpoint('setup_before_prefetch')
   logForDiagnosticsNoPII('info', 'setup_prefetch_starting')

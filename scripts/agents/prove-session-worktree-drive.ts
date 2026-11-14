@@ -177,6 +177,88 @@ const laneByFile = join(repoByFile, '.mercury', 'worktrees', 'by-file-lane')
 tally.check('the boot opened the worktree under the repository worktrees home', existsSync(join(laneByFile, 'package.json')), laneByFile)
 probeChecks('--worktree, file by file', repoByFile, laneByFile, seen.byFileProbe?.text ?? '', statusByFile, !runtimeForcesClone)
 
+const seedDenied = (name: string): string => {
+  const repo = seedRepo(name)
+  mkdirSync(join(repo, 'node_modules', 'private'))
+  writeFileSync(join(repo, 'node_modules', 'private', 'key.txt'), 'the key\n')
+  mkdirSync(join(repo, 'node_modules', 'open'))
+  writeFileSync(join(repo, 'node_modules', 'open', 'index.js'), 'module.exports = 1\n')
+  return repo
+}
+const deniedChecks = (road: string, repo: string, listing: SeenResult | undefined, reading: SeenResult | undefined, open: SeenResult | undefined): void => {
+  const text = listing?.text ?? ''
+  if (cloneRoad) {
+    tally.check(`${road}: node_modules is the worktree's own directory`, /^d\S+ .* node_modules$/m.test(text), text.split('\n').slice(0, 3).join(' | '))
+    tally.check(`${road}: the folder the rule names stands in it as a link to the checkout's, the folder beside it the worktree's own`, new RegExp(` private -> ${rx(repo)}/node_modules/private$`, 'm').test(text) && /^d\S+ .* open$/m.test(text), text.split('\n').slice(0, 6).join(' | '))
+  } else {
+    tally.check(`${road}: node_modules is the link to the checkout's, as before`, new RegExp(`node_modules -> ${rx(repo)}/node_modules`).test(text), text.split('\n').slice(0, 3).join(' | '))
+  }
+  tally.check(`${road}: a Read of the file at the worktree's path is refused by the rule, as on the base`, reading !== undefined && reading.isError && !reading.text.includes('the key') && /Read\(\/\//.test(reading.text), (reading?.text ?? '').slice(0, 300))
+  tally.check(`${road}: a Read of a file no rule names is answered`, open !== undefined && !open.isError && open.text.includes('module.exports = 1'), (open?.text ?? '').slice(0, 200))
+}
+
+const repoDeniedEnter = seedDenied('repo-denied-enter')
+const laneDeniedEnter = join(repoDeniedEnter, '.mercury', 'worktrees', 'denied-lane')
+const deniedEnterFixture = await startScriptedFixture(req => {
+  if (req.ask.trim() !== ASK) return [{ type: 'text', text: 'ok' }]
+  const last = req.results[req.results.length - 1]
+  switch (req.step) {
+    case 0:
+      return [{ type: 'tool_use', name: 'EnterWorktree', input: { name: 'denied-lane' } }]
+    case 1:
+      return [{ type: 'tool_use', name: 'Bash', input: { command: 'ls -ld node_modules; ls -l node_modules', description: 'what the worktree holds' } }]
+    case 2:
+      seen.deniedEnterListing = last
+      return [{ type: 'tool_use', name: 'Read', input: { file_path: join(laneDeniedEnter, 'node_modules', 'private', 'key.txt') } }]
+    case 3:
+      seen.deniedEnterRead = last
+      return [{ type: 'tool_use', name: 'Read', input: { file_path: join(laneDeniedEnter, 'node_modules', 'open', 'index.js') } }]
+    default:
+      if (req.step === 4) seen.deniedEnterOpen = last
+      return [{ type: 'text', text: 'done' }]
+  }
+})
+let deniedEnterTurn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
+try {
+  deniedEnterTurn = await runScriptedTurn({ runHome: join(scratch, 'home-denied-enter'), cwd: repoDeniedEnter, base: deniedEnterFixture.base, ask: ASK, timeoutMs: 240_000, extraArgv: ['--sovereign', '--block-tools', `Read(/${repoDeniedEnter}/node_modules/private/**)`] })
+} finally {
+  await deniedEnterFixture.close()
+}
+show('the listing in a worktree entered under a Read deny rule of the session', seen.deniedEnterListing, deniedEnterTurn)
+show('the Read of the file the rule names', seen.deniedEnterRead, deniedEnterTurn)
+tally.section('the EnterWorktree road under a Read deny rule that exists only in the running session, written absolutely')
+deniedChecks('EnterWorktree', repoDeniedEnter, seen.deniedEnterListing, seen.deniedEnterRead, seen.deniedEnterOpen)
+
+const repoDeniedBoot = seedDenied('repo-denied-boot')
+const laneDeniedBoot = join(repoDeniedBoot, '.mercury', 'worktrees', 'denied-boot')
+const deniedBootFixture = await startScriptedFixture(req => {
+  if (req.ask.trim() !== ASK) return [{ type: 'text', text: 'ok' }]
+  const last = req.results[req.results.length - 1]
+  switch (req.step) {
+    case 0:
+      return [{ type: 'tool_use', name: 'Bash', input: { command: 'ls -ld node_modules; ls -l node_modules', description: 'what the worktree holds' } }]
+    case 1:
+      seen.deniedBootListing = last
+      return [{ type: 'tool_use', name: 'Read', input: { file_path: join(laneDeniedBoot, 'node_modules', 'private', 'key.txt') } }]
+    case 2:
+      seen.deniedBootRead = last
+      return [{ type: 'tool_use', name: 'Read', input: { file_path: join(laneDeniedBoot, 'node_modules', 'open', 'index.js') } }]
+    default:
+      if (req.step === 3) seen.deniedBootOpen = last
+      return [{ type: 'text', text: 'done' }]
+  }
+})
+let deniedBootTurn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
+try {
+  deniedBootTurn = await runScriptedTurn({ runHome: join(scratch, 'home-denied-boot'), cwd: repoDeniedBoot, base: deniedBootFixture.base, ask: ASK, timeoutMs: 240_000, extraArgv: ['--sovereign', '--worktree', 'denied-boot', '--block-tools', `Read(/${repoDeniedBoot}/node_modules/private/**)`] })
+} finally {
+  await deniedBootFixture.close()
+}
+show('the listing in a worktree opened at boot under a Read deny rule given on the command line', seen.deniedBootListing, deniedBootTurn)
+show('the Read of the file the rule names', seen.deniedBootRead, deniedBootTurn)
+tally.section('the --worktree boot road under a Read deny rule given on the command line, written absolutely')
+deniedChecks('--worktree', repoDeniedBoot, seen.deniedBootListing, seen.deniedBootRead, seen.deniedBootOpen)
+
 if (tally.failed() === 0 && !KEEP) rmSync(scratch, { recursive: true, force: true })
 else console.log(`\nworld kept: ${scratch}`)
 tally.finish()

@@ -1628,6 +1628,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     sessionIdOpt ?? null,
     worktreePRNumber,
     undefined,
+    toolPermissionContext,
   )
   let commandsPromise: Promise<import('./commands.js').Command[]>
   if (worktreeEnabled) {

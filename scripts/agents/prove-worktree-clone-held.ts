@@ -162,9 +162,43 @@ try {
     const agentTool = readFileSync(join(ROOT, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')
     check('the Crewmate tool hands the session\'s rules to the copy it asks for', agentTool.includes('foldersBehindLaunch: true,\n        permission: context.getAppState().toolPermissionContext,'))
 
+    section('§ the session road reads the rules of the running session too')
+    const sessionMade = await worktree.createWorktreeForSession(state.getSessionId(), 'held-session', undefined, { gitRoot: fixture, permission: live } as never)
+    worktree.restoreWorktreeSession(null)
+    check('a worktree a session enters under a rule that exists only in that session holds its folder back', linkTo(join(sessionMade.worktreePath, 'node_modules', 'open'), join(fixture, 'node_modules', 'open')) && linkTo(join(sessionMade.worktreePath, 'node_modules', 'private'), join(fixture, 'node_modules', 'private')) && kindOf(join(sessionMade.worktreePath, 'node_modules')) === 'folder', kindOf(join(sessionMade.worktreePath, 'node_modules', 'open')))
+    check('…and the gate refuses it through the copy', refused(live, join(sessionMade.worktreePath, 'node_modules', 'open', 'index.js')))
+    const enterTool = readFileSync(join(ROOT, 'src/tools/EnterWorktreeTool/EnterWorktreeTool.ts'), 'utf8')
+    const setupSource = readFileSync(join(ROOT, 'src/setup.ts'), 'utf8')
+    const mainSource = readFileSync(join(ROOT, 'src/main.tsx'), 'utf8')
+    const worktreeSource = readFileSync(join(ROOT, 'src/utils/worktree.ts'), 'utf8')
+    check('the EnterWorktree tool hands the session\'s rules to the worktree it makes', enterTool.includes('permission: context.getAppState().toolPermissionContext })'))
+    check('the --worktree boot hands the rules the command line gave: main to setup, setup to the worktree', mainSource.includes('    worktreePRNumber,\n    undefined,\n    toolPermissionContext,\n  )') && setupSource.includes('tmux: tmuxEnabled, rules: worktreeRules })') && setupSource.includes('await carveWorktree(slug, tmuxSessionName, ask.prNumber, ask.rules)') && setupSource.includes('...(rules !== undefined ? { permission: rules } : {})'))
+    check('the --multiplex fast path, which makes the worktree before any session exists, keeps the links when the command line gives rules it cannot read yet', worktreeSource.includes("args.some(arg => arg === '--block-tools' || arg.startsWith('--block-tools=')) ? 'unknown' : undefined") && worktreeSource.includes("if (permission === 'unknown') return () => () => true"))
+
     section('§ a project with no Read rule: nothing is held back')
     const plain = makeFixture('plain', () => [])
     enter(plain)
+    const manifest = (root: string): string[] => {
+      const rows: string[] = []
+      const walk = (dir: string, rel: string): void => {
+        for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
+          const at = rel === '' ? entry.name : `${rel}/${entry.name}`
+          if (at === '.git') continue
+          if (entry.isSymbolicLink()) rows.push(`${at} -> ${readlinkSync(join(dir, entry.name)).split(root).join('<copy>')}`)
+          else if (entry.isDirectory()) {
+            rows.push(`${at}/`)
+            walk(join(dir, entry.name), at)
+          } else rows.push(`${at} ${read(join(dir, entry.name)).length}`)
+        }
+      }
+      walk(root, '')
+      return rows
+    }
+    const withoutRules = await worktree.createWorktreeForSession(state.getSessionId(), 'plain-without', undefined, { gitRoot: plain })
+    worktree.restoreWorktreeSession(null)
+    const withRules = await worktree.createWorktreeForSession(state.getSessionId(), 'plain-with', undefined, { gitRoot: plain, permission: getEmptyToolPermissionContext() } as never)
+    worktree.restoreWorktreeSession(null)
+    check('with no such rule a session\'s worktree is entry for entry the one made without the session\'s rules', manifest(withRules.worktreePath).length > 10 && JSON.stringify(manifest(withRules.worktreePath)) === JSON.stringify(manifest(withoutRules.worktreePath)), `${manifest(withRules.worktreePath).length} against ${manifest(withoutRules.worktreePath).length}`)
     const whole = await make('agent-ac300001')
     check('every folder and file is the copy\'s own', [...HELD, ...OPEN].every(rel => kindOf(join(whole.worktreePath, rel)) === 'file') && kindOf(join(whole.worktreePath, 'vendor', 'pack-secret')) === 'folder', [...HELD, ...OPEN].filter(rel => kindOf(join(whole.worktreePath, rel)) !== 'file').join(', '))
   }
