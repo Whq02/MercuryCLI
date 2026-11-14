@@ -170,6 +170,63 @@ export const PATTERN_EXAMPLES: readonly string[] = [
   'function $NAME($$$ARGS) { $$$BODY }',
 ]
 
+export const LANGUAGE_PATTERN_EXAMPLES: Record<string, readonly string[]> = {
+  python: ['$FN($$$ARGS)', 'def $NAME($$$ARGS): $$$BODY', 'import $MODULE'],
+  go: ['$FN($$$ARGS)', 'if $COND { $$$BODY }', 'func $NAME($$$PARAMS) { $$$BODY }'],
+  rust: ['$FN($$$ARGS)', 'if $COND { $$$BODY }', 'fn $NAME($$$PARAMS) { $$$BODY }'],
+  bash: ['$CMD $$$ARGS', 'if $COND; then $$$BODY; fi', '$NAME() { $$$BODY; }'],
+  'c-sharp': ['$FN($$$ARGS)', 'return $X;', 'var $NAME = $VALUE;'],
+  cpp: ['$FN($$$ARGS)', 'return $X;', '#include $HEADER'],
+  css: ['$PROP: $VALUE;', 'color: $VALUE;', '@import $URL;'],
+  java: ['$FN($$$ARGS)', '$OBJ.$METHOD($$$ARGS)', 'return $X;'],
+  php: ['$FN($$$ARGS)', 'return $X;', 'echo $X;'],
+  ruby: ['$FN($$$ARGS)', '$OBJ.$METHOD($$$ARGS)', 'def $NAME($$$PARAMS) $$$BODY end'],
+  powershell: ['$CMD $$$ARGS', 'if ($COND) { $$$BODY }', 'function $NAME { $$$BODY }'],
+  ini: ['$KEY = $VALUE', '[$SECTION]'],
+  regex: ['($$$BODY)', '$A|$B'],
+  c: ['$FN($$$ARGS)', 'return $X;', '#include $HEADER'],
+  html: ['<ul>$$$ITEMS</ul>', '<a href=$URL>$$$CHILDREN</a>'],
+  json: ['[$$$ITEMS]', '{"name": $VALUE}'],
+  toml: ['$KEY = $VALUE', 'name = $VALUE'],
+  kotlin: ['$FN($$$ARGS)', 'if ($COND) { $$$BODY }', 'val $NAME = $VALUE'],
+  swift: ['$FN($$$ARGS)', 'if $COND { $$$BODY }', 'let $NAME = $VALUE'],
+  vue: ['<ul>$$$ITEMS</ul>', '<template>$$$CHILDREN</template>'],
+  yaml: ['$KEY: $VALUE', '- $ITEM'],
+  markdown: ['# $TITLE', '## $TITLE'],
+  sql: ['SELECT $$$COLUMNS FROM $TABLE', 'CREATE TABLE $NAME ($$$COLUMNS)', 'COALESCE($A, $B)'],
+  dockerfile: ['FROM $IMAGE', 'WORKDIR $DIR'],
+  lua: ['$FN($$$ARGS)', 'if $COND then $$$BODY end', 'function $NAME($$$PARAMS) $$$BODY end'],
+  make: ['$NAME := $VALUE', 'include $FILE'],
+  cmake: ['$COMMAND($$$ARGS)', 'set($NAME $VALUE)'],
+  xml: ['<$TAG>$$$CHILDREN</$TAG>', '<$TAG $$$ATTRS/>'],
+  hcl: ['$KEY = $VALUE', 'resource $TYPE $NAME { $$$BODY }'],
+  graphql: ['type $NAME { $$$FIELDS }', '$FIELD: $TYPE'],
+  protobuf: ['message $NAME { $$$FIELDS }', 'rpc $NAME($REQUEST) returns ($RESPONSE);'],
+  dart: ['print($X)', 'if ($COND) { $$$BODY }', 'void $NAME($$$PARAMS)'],
+  scala: ['$FN($$$ARGS)', 'if ($COND) { $$$BODY }', 'def $NAME($$$PARAMS): $TYPE = $BODY'],
+  elixir: ['$FN($$$ARGS)', 'def $NAME($$$ARGS) do $$$BODY end'],
+  zig: ['$FN($$$ARGS)', 'if ($COND) { $$$BODY }', 'fn $NAME($$$PARAMS) $RET { $$$BODY }'],
+  haskell: ['$NAME $ARG = $BODY', 'map $F $XS'],
+  ocaml: ['let $NAME $ARG = $BODY', 'List.map $F $XS'],
+  svelte: ['<$TAG>$$$CHILDREN</$TAG>', '{#if $COND}$$$BODY{/if}'],
+  astro: ['<$TAG>$$$CHILDREN</$TAG>', '<$TAG $$$ATTRS />'],
+  nix: ['$NAME = $VALUE;', '{ $$$ATTRS }'],
+  r: ['$FN($$$ARGS)', 'if ($COND) { $$$BODY }', 'function($$$ARGS) { $$$BODY }'],
+  julia: ['$FN($$$ARGS)', 'if $COND $$$BODY end', 'function $NAME($$$ARGS) $$$BODY end'],
+  starlark: ['$FN($$$ARGS)', '$NAME = $VALUE'],
+  clojure: ['($FN $$$ARGS)', '(defn $NAME [$$$ARGS] $$$BODY)'],
+  erlang: ['$MODULE:$FN($$$ARGS)', '$NAME($$$ARGS) -> $$$BODY.'],
+  objc: ['[$OBJECT $SELECTOR]', 'if ($COND) { $$$BODY }', '- (void)$NAME { $$$BODY }'],
+  fortran: ['call $NAME($$$ARGS)', '$TARGET = $VALUE'],
+  solidity: ['$FN($$$ARGS)', 'if ($COND) { $$$BODY }', 'function $NAME($$$PARAMS) public { $$$BODY }'],
+  verilog: ['assign $TARGET = $VALUE;', 'always @(posedge $CLOCK) begin $$$BODY end'],
+  'emacs-lisp': ['($FN $$$ARGS)', '(defun $NAME ($$$ARGS) $$$BODY)'],
+  just: ['alias $NAME := $TARGET', '$NAME := $VALUE'],
+  odin: ['$FN($$$ARGS)', 'if $COND { $$$BODY }', '$NAME :: proc($$$PARAMS) { $$$BODY }'],
+  tlaplus: ['$NAME == $BODY', '$FN($$$ARGS)'],
+  diff: ['-int old(void);', '+int renamed(void);'],
+}
+
 
 export interface AstScopeFile {
   abs: string
@@ -563,10 +620,18 @@ export function patternErrorText(pattern: string, result: AstSearchResult): stri
   const where = first ? ` as ${first.lang} (${first.note.replace(/^the pattern does not parse as [^ ]+ \(/, '').replace(/\)$/, '')})` : ''
   const others = result.patternRefusals.slice(1).map(r => r.lang)
   const shown = JSON.stringify(pattern.length > 120 ? `${pattern.slice(0, 117)}…` : pattern)
+  const own = first ? LANGUAGE_PATTERN_EXAMPLES[first.lang] : undefined
   return [
     `The pattern ${shown} did not parse${where}${others.length > 0 ? `; nor as ${others.join(', ')}` : ''}.`,
-    PATTERN_GRAMMAR_LINES[0]!,
-    `Meta-variable names are UPPERCASE: $NAME for one node, $$$NAME for a sequence ($$X and $$$name are literal text). Try one of: ${PATTERN_EXAMPLES.map(e => JSON.stringify(e)).join(', ')}.`,
+    ...(own
+      ? [
+          `A pattern is ONE complete node of the target language, written as code. In ${first!.lang}: ${own.map(e => JSON.stringify(e)).join(', ')}.`,
+          'Meta-variable names are UPPERCASE: $NAME for one node, $$$NAME for a sequence ($$X and $$$name are literal text).',
+        ]
+      : [
+          PATTERN_GRAMMAR_LINES[0]!,
+          `Meta-variable names are UPPERCASE: $NAME for one node, $$$NAME for a sequence ($$X and $$$name are literal text). Try one of: ${PATTERN_EXAMPLES.map(e => JSON.stringify(e)).join(', ')}.`,
+        ]),
   ].join('\n')
 }
 
