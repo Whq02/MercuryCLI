@@ -291,7 +291,7 @@ section('§0 the wiring: one road per seat into one drain, the framing, the tool
   check("the turn's end lands every held quiet row, after the spawn switches, the same way the model breadcrumb is held", turnEnd.includes('for (const quiet of quiets) landAdvisorQuiet(quiet)') && spawnSwitchesAt >= 0 && quietFlushAt > spawnSwitchesAt, `${turnEnd} · spawn switches at ${spawnSwitchesAt}, quiet flush at ${quietFlushAt}`)
   const agent = src('src/tools/AgentTool/runAgent.ts')
   const boundary = between(agent, 'const pausableQuery = async function*', 'const next = await stream.next()')
-  check("no agent road: runAgent's request boundary keeps the pause seam and advances no advisor for any agent kind, and every agent's catalogue loses AskAdvisor unconditionally (red on the base: a crewmate round at the boundary)", boundary.includes('beforeQueryStep()') && !agent.includes('advisorAgentRound') && !agent.includes('advisedRows') && agent.includes('tools = tools.filter(tool => tool.name !== ASK_ADVISOR_TOOL_NAME)') && !agent.includes('advisorSeatRefusal'), boundary.slice(-300))
+  check("no agent road: runAgent's request boundary advances no advisor for any agent kind, and every agent's catalogue loses AskAdvisor unconditionally (red on the base: a crewmate round at the boundary)", boundary !== '' && !/advis/i.test(boundary) && !agent.includes('advisorAgentRound') && !agent.includes('advisedRows') && agent.includes('tools = tools.filter(tool => tool.name !== ASK_ADVISOR_TOOL_NAME)') && !agent.includes('advisorSeatRefusal'), boundary.slice(-300))
   const drain = src('src/utils/attachments/queuedCommands.ts')
   const noteDrain = between(drain, 'export function getAdvisorNoteAttachments(', '\n}')
   check("ONE drain, the main chat's: the advisor's note drain takes the session's stashed notes on the main chat's own model-bound collection as queued_command attachments with the advisor origin and no isMeta, drops them once the advisor is switched off, and takes nothing for any agent seat (red on the base: a crewmate drain by agent id)", noteDrain.includes('const notes = takeAdvisorNotes(String(getSessionId()))') && noteDrain.includes('if (!isMainChatAdvisorDrain({ agentId, querySource: drain.querySource, localSubmission: drain.localSubmission })) return []') && noteDrain.includes("advisorSeatRefusal('main')") && !noteDrain.includes('advisorSessionSeat') && /\borigin:\s*note\.origin\s*[,}]/.test(noteDrain) && !noteDrain.includes('agentKind') && !between(noteDrain, 'return notes.map', '}))').includes('isMeta'), noteDrain)
@@ -622,7 +622,6 @@ async function driveAgent(opts: { agentId: string; isAsync: boolean; querySource
       querySource: opts.querySource as never,
       availableTools: TOOLS as never,
       override: { agentId: opts.agentId } as never,
-      beforeQueryStep: () => undefined,
     })
     for await (const message of stream) yields.push(message as unknown as AnyMsg)
   } catch (error) {
