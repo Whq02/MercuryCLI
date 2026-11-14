@@ -42,7 +42,7 @@ const textOf = (content: unknown): string =>
       ? content.map(block => (block !== null && typeof block === 'object' && 'text' in block ? String((block as { text: unknown }).text) : '')).join('')
       : ''
 
-async function run(name: string, world: RemoteWorld, prompt: string, turns: Turn[], settings: Record<string, unknown>, flags: string[]): Promise<Ran & { project: string; tmp: string }> {
+async function run(name: string, world: RemoteWorld, prompt: string, turns: Turn[], settings: Record<string, unknown>, flags: string[], runFlags: string[] = []): Promise<Ran & { project: string; tmp: string }> {
   const root = join(launch, name)
   const cfg = join(root, 'home', '.mercury')
   const project = join(root, 'project')
@@ -53,7 +53,7 @@ async function run(name: string, world: RemoteWorld, prompt: string, turns: Turn
   seedFirstRun(cfg, [project])
   writeFileSync(join(cfg, 'settings.json'), JSON.stringify(settings))
   const fixture = await startFixtureApi(turns as never)
-  const child = spawn(NODE, [DIST, ...flags, 'run', '--model', MODEL, '--format', 'json', prompt], {
+  const child = spawn(NODE, [DIST, ...flags, 'run', ...runFlags, '--model', MODEL, '--format', 'json', prompt], {
     cwd: project,
     env: {
       PATH: `${world.env.PATH}:${dirname(NODE)}`,
@@ -145,6 +145,18 @@ async function through(world: RemoteWorld): Promise<void> {
   check(`${name}: the model is told once what ssh:// is, with the prompt that named it: each of the twelve requests of the conversation holds the words once`, told.length === 12 && told.every(count => count === 1), `${told.join(' ')} in ${ran.sent.length} requests`)
 }
 
+async function neverAsking(world: RemoteWorld): Promise<void> {
+  const name = world.transport
+  section(`${name} · the mode that never asks`)
+  const path = `ssh://box${join(world.data, 'proj', 'config.yml')}`
+  const turns: Turn[] = [{ kind: 'tool_use', name: 'Read', input: { file_path: path } }, { kind: 'text', text: 'Done.' }]
+  const before = world.connectLines().length
+  const refused = await run(`${name}-never-asks`, world, `Read ${path}`, turns, {}, [], ['--mode', 'dontAsk'])
+  check(`${name}: a remote read no rule allows is refused in that mode's own words, not asked, and nothing connects`, refused.answers.length === 1 && (refused.answers[0] ?? '').includes("has been denied because Mercury is running in don't ask mode") && world.connectLines().length === before, `exit ${refused.code}; ${(refused.answers[0] ?? '').slice(0, 300)}; ${world.connectLines().length - before} connections`)
+  const allowed = await run(`${name}-never-asks-allowed`, world, `Read ${path}`, turns, { guardrails: { allow: ['Read(ssh://box/**)'] } }, [], ['--mode', 'dontAsk'])
+  check(`${name}: with a rule that allows the host the same read is answered`, allowed.code === 0 && (allowed.answers[0] ?? '').includes('name: ') && world.connectLines().length > before, `exit ${allowed.code}; ${(allowed.answers[0] ?? '').slice(0, 300)}`)
+}
+
 async function untouched(world: RemoteWorld): Promise<void> {
   section('a user who names no remote path')
   const before = world.argvLines().length
@@ -172,6 +184,7 @@ try {
       const world = await remoteWorld(transport, PORT, { clientHome: HOME })
       try {
         await through(world)
+        await neverAsking(world)
         if (plain === null) {
           plain = world
           await untouched(world)
