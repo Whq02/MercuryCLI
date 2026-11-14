@@ -957,6 +957,7 @@ export function renderDocumentBytes(buf: Buffer, ext: string, filePath = `docume
 type SqliteStmt = {
   all(...params: unknown[]): Record<string, unknown>[]
   safeIntegers?(on: boolean): SqliteStmt
+  setReadBigInts?(on: boolean): void
 }
 export type SqliteDb = {
   prepare(sql: string): SqliteStmt
@@ -1032,6 +1033,7 @@ export function sqliteKeyBinding(value: string): number | bigint | string {
 
 function sqliteRows(db: SqliteDb, sql: string, params: unknown[]): Record<string, unknown>[] {
   const stmt = db.prepare(sql)
+  stmt.setReadBigInts?.(true)
   return (stmt.safeIntegers?.(true) ?? stmt).all(...params)
 }
 
