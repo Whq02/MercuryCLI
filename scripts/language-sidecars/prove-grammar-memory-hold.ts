@@ -106,6 +106,29 @@ section('§1 — the rows: a grammar is held when V8\'s optimising tier costs it
   check('every lock row carries the measured cost of its grammar, the number this proof holds', lockRows.every(r => r.row !== undefined && r.lock.optimiserCostMb === MEASURED_OPTIMISER_COST_MB[r.row.name]), lockRows.filter(r => r.row === undefined || r.lock.optimiserCostMb !== MEASURED_OPTIMISER_COST_MB[r.row.name]).map(r => `${r.lock.wasm}=${r.lock.optimiserCostMb}`).join(','))
 }
 
+const REQUIRED_MEMORY_MB = 3584
+const memoryBudgetMb = (memory: { total: number; constrained: number; available: number }): number =>
+  Math.floor(Math.min(memory.total, memory.constrained > 0 ? memory.constrained : Infinity, memory.available) / 1048576)
+const memoryFixture = { total: 16384 * 1048576, constrained: 0, available: 8192 * 1048576 }
+check('an unconstrained machine uses available memory, not just its installed memory', memoryBudgetMb(memoryFixture) === 8192)
+check('a container limit below the host memory bounds the reading', memoryBudgetMb({ ...memoryFixture, constrained: 1024 * 1048576 }) === 1024)
+check('memory already used inside the container is not available to its child', memoryBudgetMb({ ...memoryFixture, constrained: 1024 * 1048576, available: 768 * 1048576 }) === 768)
+check('zero available memory remains zero, not an unknown or unlimited reading', memoryBudgetMb({ ...memoryFixture, available: 0 }) === 0)
+if (NODE) {
+  const capacity = spawnSync(NODE, ['-e', 'console.log(JSON.stringify({ total: require("node:os").totalmem(), constrained: process.constrainedMemory(), available: process.availableMemory() }))'], { encoding: 'utf8', timeout: 10_000, env: process.env })
+  let availableMb = NaN
+  try {
+    availableMb = memoryBudgetMb(JSON.parse(capacity.stdout.trim()))
+  } catch {
+  }
+  check('the product runtime reports the machine or container memory available to its children', capacity.status === 0 && Number.isFinite(availableMb) && availableMb >= 0, `${capacity.status} ${capacity.stderr}`)
+  if (!Number.isFinite(availableMb) || availableMb < 0 || capacity.status !== 0) process.exit(1)
+  if (availableMb < REQUIRED_MEMORY_MB) {
+    console.log(`  [SKIP] grammar memory hold needs ${REQUIRED_MEMORY_MB} MB for its free-grammar children; the machine or container has ${availableMb} MB available — no high-memory child started`)
+    process.exit(failures > 0 ? 1 : 0)
+  }
+}
+
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'grammar-hold-')))
 
 const engineDir = join(scratch, 'engine')
