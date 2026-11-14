@@ -35,6 +35,14 @@ try {
   const bunLargeRss = process.memoryUsage().rss
   kit.check('Bun: a small addressed row keeps its previous bytes', smallBun === expected, smallBun)
   kit.check('Bun: the same row in a 48 MiB database is readable', largeBun === expected, largeBun)
+  const tempNames = ['TMPDIR', 'TEMP', 'TMP'] as const
+  const tempBefore = tempNames.map(name => process.env[name])
+  const noFolder = join(home, 'no-folder-here')
+  closeSync(openSync(noFolder, 'w'))
+  for (const name of tempNames) process.env[name] = noFolder
+  const inPlace = await dataRead(`${small}:work/1`)
+  tempNames.forEach((name, i) => { if (tempBefore[i] === undefined) delete process.env[name]; else process.env[name] = tempBefore[i] })
+  kit.check('Bun: a database with no log is read where it stands, with no private copy (for this one read the temp folder is no folder)', inPlace === expected, inPlace)
   console.log(`resident bytes: Node small=${nodeSmallRss}, large=${nodeLargeRss}; Bun small=${bunSmallRss}, large=${bunLargeRss}`)
   kit.check('Node: a row read does not retain a database-sized buffer', nodeLargeRss - nodeSmallRss < 16 * 1024 * 1024)
   kit.check('Bun: a row read does not retain a database-sized buffer', bunLargeRss - bunSmallRss < 16 * 1024 * 1024)

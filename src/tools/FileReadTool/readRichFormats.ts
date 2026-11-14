@@ -1166,9 +1166,9 @@ export async function renderSqliteTarget(
   const bunSqlite = 'bun:sqlite'
   const openReadOnly = async (file: string, judged: string): Promise<SqliteDb> => {
     if (process.versions.bun) {
-      const { Database } = (await import(bunSqlite)) as { Database: new (file: string, opts?: { readonly?: boolean }) => SqliteDb }
+      const { Database, constants } = (await import(bunSqlite)) as { Database: new (file: string, opts?: number | { readonly?: boolean }) => SqliteDb; constants: { SQLITE_OPEN_READONLY: number; SQLITE_OPEN_URI: number } }
       closeSync(openRegularFileSync(judged).fd)
-      return new Database(file, { readonly: true })
+      return new Database(file, file.startsWith('file:') ? constants.SQLITE_OPEN_READONLY | constants.SQLITE_OPEN_URI : { readonly: true })
     }
     const { DatabaseSync } = await import('node:sqlite')
     closeSync(openRegularFileSync(judged).fd)
@@ -1281,6 +1281,6 @@ export async function renderSqliteTarget(
     return { text: lines.join('\n'), ownBytes: false }
   } finally {
     db.close()
-    if (scratch !== null) rmSync(scratch, { recursive: true, force: true })
+    if (scratch !== null) rmSync(scratch, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
   }
 }
