@@ -1073,73 +1073,9 @@ function deltaBlocksSettlement(delta: WorktreeDelta): boolean {
   )
 }
 
-function describeWorktreeDelta(delta: WorktreeDelta): string {
-  if (delta.uncertainty !== null) {
-    return `inspection unavailable: ${delta.uncertainty}`
-  }
-  const parts: string[] = []
-  if (delta.commitsAhead > 0) {
-    parts.push(`${delta.commitsAhead} commit${delta.commitsAhead === 1 ? '' : 's'}`)
-  }
-  const pathsPart = (paths: string[], label: string): string => {
-    const shown = paths.slice(0, 3).join(', ')
-    const ellipsis = paths.length > 3 ? ', …' : ''
-    return `${paths.length} ${label}${paths.length === 1 ? '' : 's'} (${shown}${ellipsis})`
-  }
-  if (delta.tracked.length > 0) parts.push(pathsPart(delta.tracked, 'tracked change'))
-  if (delta.untrackedAuthored.length > 0) parts.push(pathsPart(delta.untrackedAuthored, 'authored file'))
-  if (parts.length === 0) return 'no authored work'
-  return parts.join(' · ')
-}
-
 export async function hasWorktreeChanges(worktreePath: string, headCommit: string): Promise<boolean> {
   const delta = await readWorktreeDelta(worktreePath, headCommit)
   return deltaBlocksSettlement(delta)
-}
-
-
-type WorktreeSettlementReceipt =
-  | { outcome: 'settled'; worktreePath: string }
-  | { outcome: 'preserved'; worktreePath: string; delta: WorktreeDelta; summary: string }
-  | { outcome: 'inspection-unavailable'; worktreePath: string; detail: string }
-  | { outcome: 'retryable-partial'; worktreePath: string; detail: string }
-
-export async function settleAgentWorktree(info: {
-  worktreePath: string
-  worktreeBranch?: string
-  headCommit?: string
-  gitRoot?: string
-}): Promise<WorktreeSettlementReceipt> {
-  const delta = await readWorktreeDelta(info.worktreePath, info.headCommit)
-  if (delta.uncertainty !== null) {
-    return { outcome: 'inspection-unavailable', worktreePath: info.worktreePath, detail: delta.uncertainty }
-  }
-  if (deltaBlocksSettlement(delta)) {
-    return {
-      outcome: 'preserved',
-      worktreePath: info.worktreePath,
-      delta,
-      summary: describeWorktreeDelta(delta),
-    }
-  }
-  const removed = await removeAgentWorktree(info.worktreePath, info.worktreeBranch, info.gitRoot)
-  if (!removed) {
-    return {
-      outcome: 'retryable-partial',
-      worktreePath: info.worktreePath,
-      detail: 'removal failed; see the debug log',
-    }
-  }
-  try {
-    await stat(info.worktreePath)
-    return {
-      outcome: 'retryable-partial',
-      worktreePath: info.worktreePath,
-      detail: 'the path is still present after removal',
-    }
-  } catch {
-    return { outcome: 'settled', worktreePath: info.worktreePath }
-  }
 }
 
 type WorktreeRemovalVerdict =

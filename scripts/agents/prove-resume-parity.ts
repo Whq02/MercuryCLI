@@ -94,7 +94,7 @@ section('§3 seam ratchets — the consumers actually carry the field')
   }
   check(
     "no clear-write exists any more: a crewmate's end never rewrites its sidecar (the worktree path stays — nothing is deleted automatically)",
-    !toolSrc.includes("receipt.outcome === 'settled'") && !toolSrc.includes('delete kept.worktreePath') && !toolSrc.includes('settleAgentWorktree('),
+    !toolSrc.includes("receipt.outcome === 'settled'") && !toolSrc.includes('delete kept.worktreePath') && !toolSrc.includes('cleanupStaleAgentWorktrees(') && !toolSrc.includes('cleanupWorktree('),
   )
   check(
     'the launch sidecar keeps naming the model the spawn resolved (parity by construction — no write at the end can move it)',

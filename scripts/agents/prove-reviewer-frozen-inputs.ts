@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -41,7 +41,9 @@ for (const definition of roster) check(`the agents inventory renders ${definitio
 section('§2 the frozen worktree on a real repository')
 const state = await import('../../src/bootstrap/state.ts')
 const config = await import('../../src/utils/config/globalConfig.ts')
-const { createAgentWorktree, settleAgentWorktree } = await import('../../src/utils/worktree.ts')
+const { cleanupStaleAgentWorktrees, createAgentWorktree } = await import('../../src/utils/worktree.ts')
+const { crewWorktreeLeftoverOf } = await import('../../src/utils/crew/crewWorktreeReminder.ts')
+const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'reviewer-frozen-')))
 const repo = join(scratch, 'repo')
 execFileSync('git', ['init', '-q', '-b', 'main', repo])
@@ -60,7 +62,7 @@ state.setCwdState(repo)
 state.setIsInteractive(true)
 config.enableConfigs()
 
-const frozen = await createAgentWorktree('agent-frozen01', { at: first })
+const frozen = await createAgentWorktree('agent-af000001', { at: first })
 check('the worktree stands at the named commit', existsSync(frozen.worktreePath) && execFileSync('git', ['rev-parse', 'HEAD'], { cwd: frozen.worktreePath, encoding: 'utf8' }).trim() === first)
 check('…detached (no branch)', (() => {
   try {
@@ -91,15 +93,19 @@ try {
 check('a hostile spelling refuses as not a commit spelling', refused.includes('is not a commit spelling'), refused)
 refused = ''
 try {
-  await createAgentWorktree('agent-frozen01', { at: second })
+  await createAgentWorktree('agent-af000001', { at: second })
 } catch (error) {
   refused = error instanceof Error ? error.message : String(error)
 }
 check('the same slug at another commit refuses (a frozen tree is never silently moved)', refused.includes('already exists at'), refused)
-const again = await createAgentWorktree('agent-frozen01', { at: first })
+const again = await createAgentWorktree('agent-af000001', { at: first })
 check('the same slug at the same commit resumes it', again.existed !== false && again.worktreePath === frozen.worktreePath && again.headCommit === first)
-const settled = await settleAgentWorktree({ ...frozen })
-check('a clean frozen worktree settles (removed)', settled.outcome === 'settled' && !existsSync(frozen.worktreePath), JSON.stringify(settled))
+const left = await crewWorktreeLeftoverOf({ name: 'mate', path: frozen.worktreePath, branch: frozen.worktreeBranch, gitRoot: frozen.gitRoot }, Date.now())
+const DAY = 86_400_000
+const old = new Date(Date.now() - 9 * DAY)
+utimesSync(frozen.worktreePath, old, old)
+const taken = await runWithCwdOverride(repo, () => cleanupStaleAgentWorktrees(new Date(Date.now() - 8 * DAY)))
+check('a clean frozen worktree settles (removed)', left.state === 'clean' && taken === 1 && !existsSync(frozen.worktreePath), JSON.stringify({ left, taken }))
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
 const { buildWorktreePrepareNotice } = await import('../../src/tools/AgentTool/worktreePrepareNotice.ts')
 mkdirSync(join(repo, '.mercury'), { recursive: true })
@@ -109,7 +115,6 @@ const unprepared = await createAgentWorktree('agent-prep01')
 check('a failing workspace.worktree.prepare comes back on the handle with its exit code and stderr, the worktree still made', unprepared.prepareFailure === 'workspace.worktree.prepare failed with exit 3: codegen missing' && existsSync(unprepared.worktreePath), JSON.stringify(unprepared.prepareFailure))
 const prepareNotice = buildWorktreePrepareNotice(unprepared.prepareFailure ?? '')
 check('the notice a crewmate gets carries the failure and says the worktree is used anyway', prepareNotice.startsWith('workspace.worktree.prepare failed with exit 3: codegen missing; the worktree is used anyway') && prepareNotice.includes('may be missing'), prepareNotice)
-await settleAgentWorktree({ ...unprepared })
 rmSync(join(repo, '.mercury'), { recursive: true, force: true })
 resetSettingsCache()
 process.chdir(ROOT)

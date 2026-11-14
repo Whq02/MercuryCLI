@@ -32,7 +32,7 @@ const state = await import('../../src/bootstrap/state.ts')
 const config = await import('../../src/utils/config/globalConfig.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { AgentTool, agentCwdQuestion, resolveAgentCwd } = await import('../../src/tools/AgentTool/AgentTool.tsx')
-const { createAgentWorktree, preflightWorktreeCapability, settleAgentWorktree } = await import('../../src/utils/worktree.ts')
+const { createAgentWorktree, preflightWorktreeCapability } = await import('../../src/utils/worktree.ts')
 const { getCwd } = await import('../../src/utils/cwd.ts')
 
 process.chdir(work)
@@ -121,7 +121,6 @@ try {
       }
     }
     check("the worktree is cut from that folder's repository, not the session's", cut !== null && sameFolder(cut.gitRoot ?? '', repo) && existsSync(join(cut.worktreePath, 'src', 'a.txt')), cut === null ? cutError : `${cut.gitRoot} · ${cut.worktreePath}`)
-    if (cut !== null) await settleAgentWorktree({ ...cut })
 
     section('the native spellings behave as they did')
     const driveLower = `${inside[0]!.toLowerCase()}${inside.slice(1)}`
