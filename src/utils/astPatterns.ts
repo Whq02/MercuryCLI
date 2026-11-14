@@ -1186,15 +1186,21 @@ async function planAstBatchRewrite(
             const firstRule = prev.ruleIndices[0]!
             const patA = clipWithEllipsis(rules[firstRule]!.pattern.replace(/\s+/g, ' '), 60)
             const patB = clipWithEllipsis(cand.pattern.replace(/\s+/g, ' '), 60)
-            deferredRefusal =
+            const overlapping =
               `Overlapping rewrites in ${file.rel}: rule ${firstRule} (${JSON.stringify(patA)}) at ${prev.startLine}:${prev.startCol} ` +
               `and rule ${cand.ruleIndex} (${JSON.stringify(patB)}) at ${cand.startLine}:${cand.startCol} touch the same source span with different replacements. ` +
               `Narrow the rules so their matches do not overlap. Nothing was written.`
+            if (recoveryEntry) left = { rel: file.rel, note: `${cand.startLine}:${cand.startCol} rule ${firstRule} and rule ${cand.ruleIndex} touch the same source span with different replacements`, refusal: overlapping }
+            else deferredRefusal = overlapping
             break
           }
         }
-        if (deferredRefusal !== null) break
+        if (deferredRefusal !== null || left) break
         if (!coalescedHere) merged.push({ ...cand, ruleIndices: [cand.ruleIndex] })
+      }
+      if (left) {
+        leftOut.push(left)
+        continue
       }
       if (deferredRefusal !== null) continue
 
@@ -1209,9 +1215,16 @@ async function planAstBatchRewrite(
       const edits = changedItems.flatMap(c => c.subEdits).sort((a, b) => a.start - b.start)
       for (let i = 1; i < edits.length; i++) {
         if (edits[i]!.start < edits[i - 1]!.end) {
-          deferredRefusal = `Ambiguous rewrite in ${file.rel}: two deletions share a line — narrow the rules so their matches do not overlap. Nothing was written.`
+          const sharing = `Ambiguous rewrite in ${file.rel}: two deletions share a line — narrow the rules so their matches do not overlap. Nothing was written.`
+          const item = changedItems.find(c => edits[i]!.start <= c.matchEnd && edits[i]!.end >= c.matchStart) ?? changedItems[0]!
+          if (recoveryEntry) left = { rel: file.rel, note: `${item.startLine}:${item.startCol} two deletions share a line`, refusal: sharing }
+          else deferredRefusal = sharing
           break
         }
+      }
+      if (left) {
+        leftOut.push(left)
+        continue
       }
       if (deferredRefusal !== null) continue
 
@@ -1483,18 +1496,27 @@ export async function planAstRewrite(
       return { refused: `${rel}: unreadable — ${(err as Error).message}. Nothing was written.` }
     }
     list.sort((a, b) => a.startIndex - b.startIndex || b.endIndex - a.endIndex)
+    let nested: AstLeftOutFile | null = null
     for (let i = 1; i < list.length; i++) {
       const prev = list[i - 1]!
       const cur = list[i]!
       if (cur.startIndex < prev.endIndex) {
-        releaseCompiled()
-        return {
-          refused:
-            `Ambiguous rewrite in ${rel}: the match at line ${cur.startLine} sits inside the match at line ${prev.startLine} ` +
-            `(${JSON.stringify(cur.text.split('\n')[0]!.slice(0, 60))} inside ${JSON.stringify(prev.text.split('\n')[0]!.slice(0, 60))}), ` +
-            `so rewriting both would rewrite the same bytes twice. Narrow the pattern so matches do not nest, or split the scope. Nothing was written.`,
+        const refusal =
+          `Ambiguous rewrite in ${rel}: the match at line ${cur.startLine} sits inside the match at line ${prev.startLine} ` +
+          `(${JSON.stringify(cur.text.split('\n')[0]!.slice(0, 60))} inside ${JSON.stringify(prev.text.split('\n')[0]!.slice(0, 60))}), ` +
+          `so rewriting both would rewrite the same bytes twice. Narrow the pattern so matches do not nest, or split the scope. Nothing was written.`
+        if (!recovery) {
+          releaseCompiled()
+          return { refused: refusal }
         }
+        nested = { rel, note: `${cur.startLine}:${cur.startCol} the match sits inside the match at line ${prev.startLine}`, refusal }
+        break
       }
+    }
+    if (nested) {
+      leftOut.push(nested)
+      leftOutMatches += list.length
+      continue
     }
     if (recovery) {
       const dirty = list.find(match => match.hasSyntaxError || spans.length === 0 || spans.some(error => touchesParseError(match.startIndex, match.endIndex, error)))
@@ -1578,11 +1600,24 @@ export async function planAstRewrite(
       tree?.delete()
     }
     edits.sort((a, b) => a.start - b.start)
+    let sharing: AstLeftOutFile | null = null
     for (let i = 1; i < edits.length; i++) {
       if (edits[i]!.start < edits[i - 1]!.end) {
-        releaseCompiled()
-        return { refused: `Ambiguous rewrite in ${rel}: two deletions share a line — narrow the pattern. Nothing was written.` }
+        const refusal = `Ambiguous rewrite in ${rel}: two deletions share a line — narrow the pattern. Nothing was written.`
+        if (!recovery) {
+          releaseCompiled()
+          return { refused: refusal }
+        }
+        const match = list.find(m => edits[i]!.start <= m.endIndex && edits[i]!.end >= m.startIndex) ?? first
+        sharing = { rel, note: `${match.startLine}:${match.startCol} two deletions share a line`, refusal }
+        break
       }
+    }
+    if (sharing) {
+      leftOut.push(sharing)
+      leftOutMatches += list.length - unchangedInFile
+      inPlaceMatches -= inPlaceInFile
+      continue
     }
     if (recovery) {
       const touching = edits.find(edit => spans.some(error => touchesParseError(edit.start, edit.end, error)))

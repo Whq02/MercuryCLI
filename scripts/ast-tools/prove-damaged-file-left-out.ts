@@ -25,6 +25,15 @@ put('breaks/damaged.js', 'const broken = ;\nconst b = needle(2);\n')
 for (let i = 0; i < 7; i++) put(`seven/d${i}.ts`, damaged)
 put('seven/clean.ts', 'const a = needle(1);\n')
 put('plain/clean.ts', 'const a = needle(1);\n')
+const nesting = 'const broken = ;\nwrap(wrap(3));\n'
+for (const dir of ['nest', 'nestrules']) { put(`${dir}/clean.ts`, 'wrap(1);\n'); put(`${dir}/more.ts`, 'wrap(2);\n'); put(`${dir}/damaged.ts`, nesting) }
+put('nestalone/damaged.ts', nesting)
+put('nestclean/clean.ts', 'wrap(1);\n')
+put('nestclean/nest.ts', 'wrap(wrap(4));\n')
+const sharing = 'drop(2); drop(3);\nconst broken = ;\n'
+put('share/clean.ts', 'drop(1);\n')
+put('share/damaged.ts', sharing)
+put('sharealone/damaged.ts', sharing)
 await enterRoot(root)
 const prover = await makeContext([AstEditTool], { mode: 'sovereign' })
 const edit = (input: Record<string, unknown>) => drive(AstEditTool, input, prover)
@@ -85,6 +94,35 @@ section('§6 — five files are named, the rest counted')
   const dry = await edit({ ...single, path: 'seven' })
   const line = dry.text.split('\n').at(-1) ?? ''
   check('seven damaged files beside a clean one', !dry.isError && dry.text.startsWith('Dry run — 1 match in 1 file would change; nothing written.') && line === `Left unchanged: ${[0, 1, 2, 3, 4].map(i => `d${i}.ts (3:13 the match touches a syntax-error region)`).join('; ')}; +2 more.`, line)
+}
+
+section('§7 — a damaged file whose matches nest is left out the same way; a clean one refuses the edit as it did')
+{
+  const wrap = { pattern: 'wrap($X)', rewrite: 'unwrap($X)' }
+  const NESTED = 'Left unchanged: damaged.ts (2:6 the match sits inside the match at line 2).'
+  const dry = await edit({ ...wrap, path: 'nest' })
+  check('the two clean files are planned and the damaged file named with where its matches nest', !dry.isError && dry.text.startsWith('Dry run — 2 matches in 2 files would change; nothing written.') && dry.text.split('\n').at(-1) === NESTED, dry.text.split('\n').slice(0, 1).concat(dry.text.split('\n').slice(-1)).join(' | '))
+  const done = await edit({ ...wrap, path: 'nest', apply: true, plan: planOf(dry.text) })
+  check('the apply writes the two files, names the same file and leaves it byte for byte', !done.isError && done.text.startsWith('Applied 2 structural rewrites in 2 files (re-read verified):') && done.text.split('\n').at(-1) === NESTED && get('nest/clean.ts') === 'unwrap(1);\n' && get('nest/more.ts') === 'unwrap(2);\n' && get('nest/damaged.ts') === nesting, done.text)
+  const alone = await edit({ ...wrap, path: 'nestalone' })
+  check('the damaged file alone answers the nested-match sentence as before', alone.isError && alone.text.includes('Ambiguous rewrite in damaged.ts: the match at line 2 sits inside the match at line 2 ("wrap(3)" inside "wrap(wrap(3))"), so rewriting both would rewrite the same bytes twice. Narrow the pattern so matches do not nest, or split the scope. Nothing was written.'), alone.text)
+  const clean = await edit({ ...wrap, path: 'nestclean' })
+  check('a file that parses and whose matches nest refuses the whole edit as it did', clean.isError && clean.text.includes('Ambiguous rewrite in nest.ts: the match at line 1 sits inside the match at line 1 ("wrap(4)" inside "wrap(wrap(4))"), so rewriting both would rewrite the same bytes twice. Narrow the pattern so matches do not nest, or split the scope. Nothing was written.') && get('nestclean/clean.ts') === 'wrap(1);\n', clean.text)
+  const byRules = await edit({ rules: [wrap], path: 'nestrules' })
+  check('by rules the damaged file is named with the overlap of its matches', !byRules.isError && byRules.text.startsWith('Dry run — 2 matches in 2 files would change across 1 rule; nothing written.') && byRules.text.split('\n').at(-1) === 'Left unchanged: damaged.ts (2:6 rule 0 and rule 0 touch the same source span with different replacements).', byRules.text.split('\n').slice(-1).join(''))
+  const rulesAlone = await edit({ rules: [wrap], path: 'nestalone' })
+  check('by rules the damaged file alone answers the overlap sentence as before', rulesAlone.isError && rulesAlone.text.includes('Overlapping rewrites in damaged.ts: rule 0 ("wrap($X)") at 2:1 and rule 0 ("wrap($X)") at 2:6 touch the same source span with different replacements. Narrow the rules so their matches do not overlap. Nothing was written.'), rulesAlone.text)
+}
+
+section('§8 — two deletions on one line of a damaged file')
+{
+  const drop = { pattern: 'drop($X);', rewrite: '' }
+  const dry = await edit({ ...drop, path: 'share' })
+  check('the clean file is planned and the damaged file named', !dry.isError && dry.text.startsWith('Dry run — 1 match in 1 file would change; nothing written.') && dry.text.split('\n').at(-1) === 'Left unchanged: damaged.ts (1:1 two deletions share a line).', dry.text.split('\n').slice(-1).join(''))
+  const alone = await edit({ ...drop, path: 'sharealone' })
+  check('the damaged file alone answers the existing sentence', alone.isError && alone.text.includes('Ambiguous rewrite in damaged.ts: two deletions share a line — narrow the pattern. Nothing was written.') && get('sharealone/damaged.ts') === sharing, alone.text)
+  const byRules = await edit({ rules: [drop], path: 'share' })
+  check('by rules the same file is named with the overlap of its two deletions', !byRules.isError && byRules.text.startsWith('Dry run — 1 match in 1 file would change across 1 rule; nothing written.') && byRules.text.split('\n').at(-1) === 'Left unchanged: damaged.ts (1:10 rule 0 and rule 0 touch the same source span with different replacements).', byRules.text.split('\n').slice(-1).join(''))
 }
 
 finish('DAMAGED FILE LEFT OUT')

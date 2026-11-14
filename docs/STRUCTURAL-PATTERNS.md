@@ -216,12 +216,13 @@ and the replacement spans stay outside error spans and missing-token
 positions. Mercury reparses the result and compares every error's kind,
 position through the edits, and source bytes; pre-existing errors outside
 the edited spans may remain, and the preview names them with the
-recovered-tree warning. An error-bearing file whose match touches an error,
-or whose errors the rewrite would change, is left out of the plan whole and
-named (`Left unchanged: file (line:column reason)`, five files, then a
-count); the other files are planned and written, and the plan token covers
-which files were left. When no file is left to rewrite, the edit is refused
-with that file's reason.
+recovered-tree warning. An error-bearing file that cannot be rewritten (a
+match touches an error, the rewrite would change its errors, its matches
+nest or overlap, or two deletions share a line) is left out of the plan
+whole and named (`Left unchanged: file (line:column reason)`, five files,
+then a count); the other files are planned and written, and the plan token
+covers which files were left. When no file is left to rewrite, the edit is
+refused with that file's reason.
 
 The layout-keeping lane: when the rewrite parses to the same shape as the
 pattern (same node types, same children, and the same meta-variables in the
@@ -232,12 +233,12 @@ rename keeps its body, its indentation and its comments. Every other rewrite
 the template literally. The lane is taken only when its result equals the
 literal substitution modulo whitespace and out-of-capture comments.
 
-Refused by name, nothing written: a match nested inside another match (the
-pair is named; narrow the pattern or the scope); a rewrite naming a
-meta-variable the pattern does not capture; an anonymous `$$$` or `$_` in
-the rewrite; a rewrite that leaves a file that parsed unparsable (the
-location is named); more than 100 files or 500 matches in one edit. Matches
-already in the rewritten form are counted and left alone.
+Refused by name, nothing written: a match nested inside another match in a
+file that parses (the pair is named; narrow the pattern or the scope); a
+rewrite naming a meta-variable the pattern does not capture; an anonymous
+`$$$` or `$_` in the rewrite; a rewrite that leaves a file that parsed
+unparsable (the location is named); more than 100 files or 500 matches in
+one edit. Matches already in the rewritten form are counted and left alone.
 
 ## Memory: the held grammars
 
