@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict'
 import { mkdtempSync, rmSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { DIST, makeTally } from '../daemon/dupline-world.ts'
+import { findFiles } from './crew-world.ts'
 
+const { Database } = createRequire(import.meta.url)('bun:sqlite')
 const tally = makeTally('prove-run-wake-dispatch-bounds')
 const scratch = process.env.MERCURY_CONFIG_DIR
 assert(scratch, 'run with a scratch MERCURY_CONFIG_DIR')
@@ -75,6 +78,30 @@ try {
     const live = watcher.hasPending()
     await turn()
     tally.check('once the seat has ended one question resumes it and the next reads nothing pending', live && started.length === 1 && !watcher.hasPending(), JSON.stringify(started))
+    watcher.stop()
+  }
+
+  tally.section('a wake the dispatcher cannot claim stops being counted')
+  {
+    const started: string[] = []
+    const watcher = seam.watchSwarmResumes(() => context, async () => ({ behavior: 'allow', updatedInput: {} }), () => true, (async args => { started.push(args.agentId); args.onAdmitted?.() }) as Resume)
+    await park('orphan', 'running')
+    await turn()
+    trigger()
+    await turn()
+    const db = new Database(findFiles(scratch, 'board.sqlite')[0]!)
+    const mine = (db.query("SELECT execution FROM members WHERE agent = 'main'").get() as { execution: string }).execution
+    db.query("UPDATE members SET execution = 'another-runner' WHERE agent = 'main'").run()
+    tasks.orphan!.status = 'completed'
+    const answers: boolean[] = []
+    for (let n = 0; n < 8; n++) { answers.push(watcher.hasPending()); await turn() }
+    tally.check('the wake is tried when its seat ends', answers[0] === true, JSON.stringify(answers))
+    tally.check('a dispatch that failed does not keep the run alive', answers.slice(2).every(answer => !answer) && started.length === 0, JSON.stringify(answers))
+    db.query("UPDATE members SET execution = ? WHERE agent = 'main'").run(mine)
+    db.close()
+    trigger()
+    await turn()
+    tally.check('the next board event tries again and the wake is delivered', started.length === 1 && store().pendingWakes().length === 0, JSON.stringify(started))
     watcher.stop()
   }
 

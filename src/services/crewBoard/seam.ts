@@ -146,7 +146,7 @@ export function watchSwarmBoard(check: () => void): () => void {
 
 export function watchSwarmResumes(context: () => ToolUseContext | null, canUseTool: CanUseToolFn, ready: () => boolean, resume?: typeof import('../../tools/AgentTool/resumeAgent.js').resumeAgentBackground): { check: () => void; hasPending: () => boolean; stop: () => void } {
   const leadContext = AsyncLocalStorage.snapshot()
-  let running = false, pending = false, stopped = false, dispatching = false
+  let running = false, pending = false, stopped = false, dispatching = false, faulted = false
   let resumeRefusal: typeof import('../../tools/AgentTool/resumeAgent.js').boardResumeRefusal | undefined
   const check = (): void => leadContext(() => {
     if (stopped) return
@@ -159,6 +159,7 @@ export function watchSwarmResumes(context: () => ToolUseContext | null, canUseTo
     try {
       while (pending && !stopped) {
         pending = false
+        faulted = false
         if (!ready() || !swarmMasterEnabled() || operatorPauseGate.holds('main')) continue
         const store = swarmStore(false)
         if (!store || !store.pendingWakes().length) continue
@@ -190,6 +191,7 @@ export function watchSwarmResumes(context: () => ToolUseContext | null, canUseTo
         }
       }
     } catch (error) {
+      faulted = true
       logForDebugging(`crew board: wake dispatch failed: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
       running = false
@@ -201,7 +203,7 @@ export function watchSwarmResumes(context: () => ToolUseContext | null, canUseTo
     if (stopped || !ready() || !swarmMasterEnabled() || operatorPauseGate.holds('main')) return false
     if (dispatching) return true
     const current = context()
-    if (!current || !swarmPrincipal()) return false
+    if (faulted || !current || !swarmPrincipal()) return false
     const waiting = swarmStore(false)?.pendingWakes().some(wake => resumeRefusal === undefined || resumeRefusal(wake.agent, current.getAppState().tasks) === null) === true
     if (waiting) check()
     return waiting
