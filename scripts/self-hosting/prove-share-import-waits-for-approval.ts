@@ -242,7 +242,7 @@ try {
 
   console.log('on macOS, Linux and WSL the same line names a local path')
   if (process.platform === 'win32') {
-    console.log('[SKIP] the line read as a local path — on a Windows host its lookup would leave for the network')
+    console.log("[SKIP] it is held by the load and read by the question before the dialog, as it was — on a Windows host the path module makes the line a share's path whatever platform the seam names")
   } else {
     const local = read({ seam: 'macos', layout: { 'MERCURY.md': `native-needle\n\n${SPELLINGS[0]!.line('a')}\n` } })
     check('it is held by the load and read by the question before the dialog, as it was', same(local.heldByLoad, [`/${HOST}/share/rules/a.md`]) && kinds(local.roads.question).includes('readFileBytes') && local.asks === true && local.heldByQuestion.length === 0, `${JSON.stringify(local.heldByLoad)} ${kinds(local.roads.question)} ${local.asks}`)
