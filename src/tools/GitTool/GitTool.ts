@@ -83,13 +83,14 @@ const findingSchema = () =>
 
 const groupSchema = () =>
   z.strictObject({
-    files: z.array(z.string()).describe('Repo-relative paths (at most one group per file)'),
+    files: z.array(z.string()).describe('Repo-relative files'),
     hunks: z
       .record(z.string(), z.array(z.string()))
       .optional()
       .describe('Per-file hunk-id subsets (gh-… from diff)'),
     message: z.string().describe('Commit message'),
-    checks: z.array(z.string()).optional().describe('Associated checks recorded on plan'),
+    checks: z.array(z.string()).optional().describe('Checks recorded, not run'),
+    dependsOn: z.array(z.number().int().nonnegative()).optional().describe('Prerequisites: 0-based groups'),
   })
 
 const inputSchema = lazySchema(() =>
@@ -105,8 +106,8 @@ const inputSchema = lazySchema(() =>
     sha: z.string().optional().describe('show: commit'),
     refA: z.string().optional().describe('mergebase: first ref; compare: base'),
     refB: z.string().optional().describe('mergebase: second ref; compare: head'),
-    groups: z.array(groupSchema()).optional().describe('plan: commit groups in dependency order (previews without committing)'),
-    planId: z.string().optional().describe('gp-… id: apply commits after checking tree digest (earlier groups stay committed if a later group fails); verify checks applicability'),
+    groups: z.array(groupSchema()).optional().describe('plan: groups; dependsOn computes order (preview only)'),
+    planId: z.string().optional().describe('apply/verify: gp-…; checks tree digest; earlier commits stand on later failure'),
     files: z.array(z.string()).optional().describe('Repo-relative paths for stage/restore (restore unstages only)'),
     hunks: z.record(z.string(), z.array(z.string())).optional().describe('stage: per-file gh-… hunk ids'),
     path: z.string().optional().describe('resolve: conflicted file; fileAtRef: file; tree: optional directory'),
@@ -244,7 +245,7 @@ async function runOp(
       return {
         result: [
           `${plan.id} [proposed] — ${plan.groups.length} group(s) on digest ${plan.digest}`,
-          ...plan.groups.map((g, i) => `  ${i + 1}. ${g.message.split('\n')[0]} — ${g.files.map(mark).join(', ')}${g.hunks ? ` (hunk subsets: ${Object.keys(g.hunks).join(', ')})` : ''}`),
+          ...plan.groups.map((g, i) => `  ${i + 1}. ${plan.originalGroups ? `[group ${plan.originalGroups[i]}] ` : ''}${g.message.split('\n')[0]} — ${g.files.map(mark).join(', ')}${g.hunks ? ` (hunk subsets: ${Object.keys(g.hunks).join(', ')})` : ''}${plan.originalGroups ? `; depends on: ${g.dependsOn?.join(', ') || '(none)'}` : ''}`),
           plan.exclusions.length ? `exclusions (stay uncommitted): ${plan.exclusions.map(mark).join(', ')}` : 'no exclusions',
           externalInGroups.length ? `CAUTION: group(s) include work Mercury did not write this session — ${externalInGroups.join(', ')}; confirm these external edits belong in the commit` : '',
           plan.ambiguous.length ? `ambiguous (staged+unstaged; staging state re-derived, content never lost): ${plan.ambiguous.join(', ')}` : '',
