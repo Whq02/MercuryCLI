@@ -19,6 +19,10 @@ export function heldAgentCount(): number {
   return holds.size
 }
 
+export function worktreeReadyOf(agentId: string): Promise<void> | undefined {
+  return holds.get(agentId)
+}
+
 export function worktreeHoldOf(context: { agentId?: unknown; abortController: { signal: AbortSignal } }): Promise<void> | undefined {
   if (context.agentId === undefined || context.agentId === null) return undefined
   const held = holds.get(String(context.agentId))

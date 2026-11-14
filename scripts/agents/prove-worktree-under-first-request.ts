@@ -31,6 +31,7 @@ const readiness = (await import('../../src/utils/worktreeReadiness.ts').catch(()
   releaseToolHold: (agentId: string) => void
   heldAgentCount: () => number
   worktreeHoldOf: (context: { agentId?: unknown; abortController: { signal: AbortSignal } }) => Promise<void> | undefined
+  worktreeReadyOf?: (agentId: string) => Promise<void> | undefined
 }
 type Launch = Awaited<ReturnType<typeof createAgentWorktree>> & { ready?: Promise<void> }
 const launch = (slug: string, from?: string): Promise<Launch> => createAgentWorktree(slug, { ...(from !== undefined ? { from } : {}), foldersBehindLaunch: true } as never) as Promise<Launch>
@@ -236,11 +237,20 @@ try {
     stopped.abortController.abort('stopped')
     await Promise.race([stoppedCall, wait(1000)])
     check('the stop ends its wait while the clone is still under way', !before && stoppedEnded && !present(join(third.worktreePath, 'node_modules')))
+    const endWait = readiness?.worktreeReadyOf?.('agent-ae300001')
+    let endWaitOver = false
+    void endWait?.then(() => {
+      endWaitOver = true
+    })
+    await wait(150)
+    check('what runs at the stopped crewmate\'s end can still wait for the folders: the promise is there after the stop and has not settled', endWait !== undefined && !endWaitOver && readiness?.worktreeHoldOf(stopped) === undefined)
     readiness?.releaseToolHold('agent-ae300001')
     check('when the crewmate ends its hold leaves the map, the clone still running', readiness !== null && readiness.heldAgentCount() === 0 && !existsSync(releaseAt))
     release()
     await third.ready
     check('the copy ends with its folders whole all the same', JSON.stringify(listing(join(third.worktreePath, 'node_modules'))) === JSON.stringify(whole))
+    await wait(20)
+    check('…that promise settles when the folders are in place, and nothing is left to wait for afterwards', endWaitOver && readiness?.worktreeReadyOf?.('agent-ae300001') === undefined)
     rearm()
 
     section('§4 the operator\'s pause goes through the same gate as before, and speaks as before')

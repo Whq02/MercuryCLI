@@ -52,7 +52,7 @@ import { removeSessionHooks } from '../../utils/hooks/sessionHooks.js'
 import { registerAgentHooks } from '../../utils/hooks/registerFrontmatterHooks.js'
 import { fireHooks } from '../../utils/hooks/fire.js'
 import { hasHooksFor } from '../../utils/hooks/matching.js'
-import { worktreeHoldOf } from '../../utils/worktreeReadiness.js'
+import { worktreeHoldOf, worktreeReadyOf } from '../../utils/worktreeReadiness.js'
 import { bankHookOutcomes } from '../../utils/hooks/background.js'
 import { HOOK_CUT_BUDGET_MS } from '../../utils/hooks/contract.js'
 import { hookRowsOfResult } from '../../utils/hooks/rows.js'
@@ -762,6 +762,7 @@ export async function* runAgent(
     cleanup: async () => {},
   }
   const hookScope = { sessionId: String(getSessionId()), crewmateId: agentId }
+  const HOOKS_IN_A_COPY = ['crewmate.start', 'turn.answer', 'turn.end', 'crewmate.end'] as const
   const crewmateRun = { usage: { ...EMPTY_USAGE }, steps: 0, answer: undefined as string | undefined, endedBy: 'completed' as OutcomeStatus, reason: undefined as string | undefined }
   const fireCrewmateEnd = async (): Promise<void> => {
     const aborted = abortController.signal.aborted
@@ -770,6 +771,7 @@ export async function* runAgent(
     const usage = usageOf(crewmateRun.usage)
     const wallMs = Date.now() - startedAt
     try {
+      if (hasHooksFor('turn.end', hookScope, toolUseContext.getAppState()) || hasHooksFor('crewmate.end', hookScope, toolUseContext.getAppState())) await worktreeReadyOf(agentId)
       await fireHooks(
         'turn.end',
         {
@@ -919,7 +921,7 @@ export async function* runAgent(
 
     const hookContextMessages: Message[] = []
     try {
-      if (hasHooksFor('crewmate.start', hookScope, toolUseContext.getAppState())) await worktreeHoldOf({ agentId, abortController })
+      if (agentDefinition.hooks !== undefined || HOOKS_IN_A_COPY.some(event => hasHooksFor(event, hookScope, toolUseContext.getAppState()))) await worktreeHoldOf({ agentId, abortController })
       const started = await fireHooks(
         'crewmate.start',
         { ...(name !== undefined ? { name } : {}), prompt: promptMessages.map(message => {
