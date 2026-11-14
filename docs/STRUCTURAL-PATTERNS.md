@@ -97,8 +97,8 @@ second-level heading and a pattern cannot reach a word inside a sentence.
 
 A pattern compares the nodes a grammar names and the fields it labels; a
 keyword a grammar keeps as an unnamed token is not compared. In these
-languages that shows where one node kind has several spellings: in a
-Makefile `include $F` also finds `-include`, and in Protocol Buffers
+languages that shows where one node kind has several spellings: in
+a Makefile `include $F` also finds `-include`, and in Protocol Buffers
 `import $P;` also finds `import public …;` and an `rpc` pattern also finds
 the streaming ones. A `$$$` list is refused where a member is never a bare
 word: the body of an HCL block, the fields of a GraphQL type, the body of a
