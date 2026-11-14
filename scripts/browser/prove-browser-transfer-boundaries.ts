@@ -109,8 +109,8 @@ section('S1 unused session sends 55 protocol commands and creates no transfer fo
   const dlBehaviours = ownCommands.filter(c => c.method === 'Browser.setDownloadBehavior')
   const anyFolders = pads().some(p => fs.existsSync(join(p, 'browser-downloads')) || fs.existsSync(join(p, 'browser-uploads')))
   check(
-    'open, screenshot, close sends 55 own protocol commands (2 download-behavior commands, 0 extra) and creates no download or upload folder',
-    ownCommands.length === 55 && dlBehaviours.length === 2 && !anyFolders,
+    'open, screenshot, close sends 51 protocol commands on the root, driver, page-kit, and watch sessions (55 with default background targets; 2 download-behavior commands, 0 extra) and creates no transfer folder',
+    ownCommands.length === 51 && dlBehaviours.length === 2 && !anyFolders,
     `commands=${ownCommands.length} dlBehaviours=${dlBehaviours.length} folders=${anyFolders}`,
   )
 
