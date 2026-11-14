@@ -4,8 +4,8 @@ Mercury searches and rewrites code by its **syntax shape**: a pattern written
 in the target language, with meta-variables standing for the parts that vary,
 is matched against the parsed syntax tree of every file in scope (never
 against raw text). Two built-in tools carry it: `AstSearch` finds, `AstEdit`
-rewrites. Both ride ONE matcher, so an edit's match set is the search's
-match set by construction.
+rewrites. Both use the same matcher; an edit also checks the source and
+the rewritten file before writing.
 
 ## The pattern grammar
 
@@ -146,8 +146,11 @@ In a build that lacks a grammar the registry routes: a file of that
 language is skipped and counted by extension with the remedy named in the
 result trailer; a single such file, or a `lang` pin on it, refuses by name
 with the remedy. A file whose extension routes to no grammar at all is
-skipped and counted, never text-matched; a file that does not parse is
-reported per file, never matched over. The engine is pure WASM (no native
+skipped and counted, never text-matched. AstSearch searches a recovered
+tree when the parser reports syntax errors. Its trailer names the file,
+language and error locations, with omitted counts for longer reports;
+matches may include parser recovery. A parser that returns no tree leaves
+the file unsearched and names the reason. The engine is pure WASM (no native
 dependency, one vendored asset set for every platform artifact); when no
 engine resolves at all, neither tool is in the catalog. Friendly spellings
 resolve (`ts`, `js`, `py`, `rs`, `cs`, `c++`, `sh`, `rb`, `kt`, `ps1`); for

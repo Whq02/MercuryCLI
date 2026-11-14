@@ -141,14 +141,14 @@ section('§8 — zero matches name what was searched')
   check('a scope with no supported files says nothing was searched', !nothing.isError && nothing.text.startsWith('Nothing searched:'), nothing.text.slice(0, 200))
 }
 
-section('§9 — a file that does not parse is reported, never matched over')
+section('§9 — a recovered file is searched and its parse error is reported')
 {
   mkdirSync(join(root, 'broken'))
   writeFileSync(join(root, 'broken', 'ok.py'), 'print(1)\n')
   writeFileSync(join(root, 'broken', 'bad.py'), 'def broken(:\n    print(\n')
   const r = await search({ pattern: 'print($X)', path: 'broken' })
   check('the good file matches', Number(r.data?.matchCount) === 1 && r.text.includes('ok.py:1:1'), r.text.slice(0, 200))
-  check('the broken file is named with its parse error', r.text.includes('Did not parse, never matched: bad.py (does not parse as python:'), r.text.split('\n').find(l => l.startsWith('Did not parse')) ?? r.text.slice(0, 300))
+  check('the broken file is named with its parse error', r.text.includes('Searched recovered tree: bad.py (python;') && r.text.includes('Matches may include parser recovery.'), r.text.split('\n').find(l => l.startsWith('Searched recovered')) ?? r.text.slice(0, 300))
 }
 
 section('§10 — a read-deny rule hides a file')

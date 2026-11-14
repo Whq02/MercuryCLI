@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: scripts/ast-tools/**
+# gate-watch: scripts/ast-tools/** scripts/builtin-tools/gitFixture.ts
 # gate-watch: src/utils/astPatterns.ts src/tools/AstSearchTool/** src/tools/AstEditTool/**
 # gate-watch: src/services/structure/pattern.ts src/services/structure/polyglotQuery.ts src/services/structure/grammarFacility.ts
 # gate-watch: src/Tool.ts src/bootstrap/state.ts src/main.tsx src/services/changeTransaction/receipts.ts

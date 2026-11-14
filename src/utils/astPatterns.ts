@@ -12,6 +12,7 @@ import {
   POLYGLOT_LANGUAGES,
   resolveGrammarEngineDir,
   type PolyglotLanguage,
+  type ParseErrorRegion,
   type TSNode,
 } from '../services/structure/grammarFacility.js'
 import {
@@ -365,6 +366,7 @@ export interface AstMatch {
   nodeType: string
   text: string
   captures: AstCapture[]
+  hasSyntaxError?: boolean
 }
 
 export interface AstSearchResult {
@@ -373,6 +375,7 @@ export interface AstSearchResult {
   filesParsed: number
   filesWithMatches: number
   parseFailures: Array<{ rel: string; message: string }>
+  recovered?: Array<{ rel: string; lang: string; source?: string; errors: ParseErrorRegion[]; notes: string[] }>
   patternRefusals: Array<{ lang: string; files: number; note: string }>
   captureNamesByLang: Map<string, string[]>
   skippedLarge: number
@@ -419,7 +422,7 @@ function farOverSizeBound(abs: string): boolean {
 
 export async function searchAstPattern(
   scope: AstScope,
-  opts: { pattern: string; signal?: AbortSignal; matchCap?: number },
+  opts: { pattern: string; signal?: AbortSignal; matchCap?: number; recover?: boolean; retainSource?: boolean },
 ): Promise<AstSearchResult | AstRefusal> {
   const engine = await loadGrammarEngine()
   if (engine.state === 'unavailable') return { refused: engine.note }
@@ -432,6 +435,7 @@ export async function searchAstPattern(
   const langFiles = new Map<string, number>()
   const matches: AstMatch[] = []
   const parseFailures: Array<{ rel: string; message: string }> = []
+  let recovered: AstSearchResult['recovered']
   let filesParsed = 0
   let filesWithMatches = 0
   let skippedLarge = 0
@@ -499,19 +503,26 @@ export async function searchAstPattern(
     langFiles.set(file.lang.name, (langFiles.get(file.lang.name) ?? 0) + 1)
     if (preToken && !text.includes(preToken)) continue
     filesParsed++
-    const parsed = await parsePolyglot(engine, file.lang, text)
+    const parsed = await parsePolyglot(engine, file.lang, text, opts.recover === false ? undefined : { errorRegions: true })
     if ('state' in parsed) {
       parseFailures.push({ rel: file.rel, message: parsed.note })
       continue
     }
     if (parsed.parseErrors.length > 0) {
-      parseFailures.push({ rel: file.rel, message: `does not parse as ${file.lang.name}: ${parsed.parseErrors[0]}` })
-      parsed.tree.delete()
-      continue
+      if (opts.recover === false) {
+        parseFailures.push({ rel: file.rel, message: `does not parse as ${file.lang.name}: ${parsed.parseErrors[0]}` })
+        parsed.tree.delete()
+        continue
+      }
+      ;(recovered ??= []).push({ rel: file.rel, lang: file.lang.name, ...(opts.retainSource ? { source: text } : {}), errors: parsed.errorRegions ?? [], notes: parsed.parseErrors })
     }
     const found = findPatternMatches(compiled.pattern, parsed.tree.rootNode, text, cap - matches.length)
     if (found.matches.length > 0) filesWithMatches++
-    for (const m of found.matches) matches.push(materialise(file.rel, file.abs, file.lang.name, m.node, m.captures))
+    for (const m of found.matches) {
+      const match = materialise(file.rel, file.abs, file.lang.name, m.node, m.captures)
+      if (parsed.parseErrors.length > 0) match.hasSyntaxError = m.node.type === 'ERROR' || m.node.isMissing || m.node.hasError
+      matches.push(match)
+    }
     if (found.capped) capped = true
     parsed.tree.delete()
   }
@@ -524,6 +535,7 @@ export async function searchAstPattern(
     filesParsed,
     filesWithMatches,
     parseFailures,
+    ...(recovered ? { recovered } : {}),
     patternRefusals: [...refusedLangs.entries()]
       .sort((a, b) => Number(a[1].textOnly === true) - Number(b[1].textOnly === true))
       .map(([lang, e]) => ({ lang, files: e.files, note: e.note })),
@@ -721,6 +733,7 @@ export async function planAstRewrite(
   const search = await searchAstPattern(scope, {
     pattern: opts.pattern,
     matchCap: AST_BOUNDS.editMaxMatches + 1,
+    recover: false,
     ...(opts.signal !== undefined && { signal: opts.signal }),
   })
   if (isAstRefusal(search)) return search
@@ -967,6 +980,13 @@ export function renderSearchTrailer(scope: AstScope, result: AstSearchResult): s
   const where = scope.singleFile ? scope.display : `under ${scope.display}${scope.glob ? ` (glob ${scope.glob})` : ''}${scope.lang ? ` (lang ${scope.lang.name})` : ''}`
   const langs = result.languagesSearched.map(([l, n]) => `${n} ${l}`).join(', ')
   out.push(`Searched ${result.filesParsed} of ${scope.files.length} files ${where}${langs ? ` — ${langs}` : ''}${result.filesParsed < scope.files.length && scope.files.length > 0 ? ' (files that cannot contain the pattern were not parsed)' : ''}.`)
+  if (result.recovered) {
+    for (const file of result.recovered.slice(0, 5)) {
+      const omitted = Math.max(0, file.errors.length - file.notes.length)
+      out.push(`Searched recovered tree: ${file.rel} (${file.lang}; ${file.notes.join('; ')}${omitted ? `; +${omitted} more diagnostics` : ''}). Matches may include parser recovery.`)
+    }
+    if (result.recovered.length > 5) out.push(`+${result.recovered.length - 5} more files searched over recovered trees.`)
+  }
   if (result.patternRefusals.length > 0) {
     out.push(`Not searched: ${result.patternRefusals.map(r => `${r.files} ${r.lang} file${r.files === 1 ? '' : 's'} (${r.note})`).join('; ')}.`)
   }
