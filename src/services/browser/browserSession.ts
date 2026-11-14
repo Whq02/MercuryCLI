@@ -1844,7 +1844,7 @@ async function placeTab(
               fs.rmSync(path.join(profileDir, lockName), { force: true })
             } catch {}
           }
-          for (const earlier of ['Sessions', 'Sessions_Encrypted', 'Current Session', 'Current Tabs', 'Last Session', 'Last Tabs', ...(opts.downloads === undefined ? [] : ['History', 'History-journal'])]) {
+          for (const earlier of ['Sessions', 'Sessions_Encrypted', 'Current Session', 'Current Tabs', 'Last Session', 'Last Tabs', ...(opts.downloads === undefined ? [] : ['History', 'History-journal', 'History-wal', 'History-shm'])]) {
             try {
               fs.rmSync(path.join(profileDir, 'Default', earlier), { recursive: true, force: true })
             } catch {}
