@@ -50,6 +50,13 @@ try {
   const d2b = world.drive(p4(p2b), { trust: p2b, orient: true })
   check('one file above the project and none inside: the one sentence, in the singular', d2b.orient.endsWith(`\n\n${OUTSIDE_ONE}\n@../GEMINI.md\n`) && !d2b.orient.includes(INSIDE), d2b.orient.slice(-300))
 
+  section('a folder the Copilot variable names: its lines belong in MERCURY.local.md')
+  const namedFolder = world.project({ 'AGENTS.md': 'named-needle\n', '.github/instructions/py.instructions.md': '---\napplyTo: "**/*.py"\n---\npython-needle\n' })
+  const p5 = world.project({ 'AGENTS.md': 'agents-needle\n' })
+  const d5 = world.drive(p5, { orient: true, env: { COPILOT_CUSTOM_INSTRUCTIONS_DIRS: namedFolder } })
+  const tail5 = d5.orient.slice(d5.orient.indexOf(INSIDE))
+  check('the file of the project is a line of MERCURY.md, and the guide and the instructions folder of the named folder are lines of MERCURY.local.md', tail5 === `${INSIDE}\n@AGENTS.md\n\n${OUTSIDE_MANY}\n@${join(namedFolder, 'AGENTS.md')}\n@${join(namedFolder, '.github/instructions')}\n`, tail5)
+
   section('nothing is offered where nothing of another tool loads')
   const p3 = world.project({ 'MERCURY.md': 'native-needle\n', 'GEMINI.md': 'guide-needle\n', '.cursor/rules/a.mdc': '---\nalwaysApply: true\n---\nalways-needle\n' })
   check('under an existing MERCURY.md no line is listed', !world.drive(p3, { orient: true }).orient.includes(INSIDE))

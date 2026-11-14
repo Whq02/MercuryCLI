@@ -76,10 +76,13 @@ type InstructionCompositionState = {
   fallbackComposed: boolean
   nearestHolders: Record<string, string>
   importedScoped: InstructionSourceEntry[]
+  namedRules: NamedRules[]
   skippedDuplicates: { path: string; family: InstructionFamily }[]
   diagnostics: InstructionDiagnostic[]
   loadReason: string
 }
+
+type NamedRules = { convention: InstructionConvention; rulesDir: string; by: string; guides: string[] }
 
 let lastComposition: InstructionCompositionState = {
   resolution: {
@@ -91,6 +94,7 @@ let lastComposition: InstructionCompositionState = {
   fallbackComposed: false,
   nearestHolders: {},
   importedScoped: [],
+  namedRules: [],
   skippedDuplicates: [],
   diagnostics: [],
   loadReason: 'session_start',
@@ -125,11 +129,13 @@ async function walkConventions(
   fallbackComposed: boolean
   nearestHolders: Record<string, string>
   importedScoped: InstructionSourceEntry[]
+  namedRules: NamedRules[]
 }> {
   const result: InstructionSourceEntry[] = []
   let fallbackComposed = false
   const nearestHolders: Record<string, string> = {}
   const importedScoped: InstructionSourceEntry[] = []
+  const namedRules: NamedRules[] = []
   const processedPaths = new Set<string>()
   const composedDigests = new Set<string>()
   const config = getCurrentProjectConfig()
@@ -239,12 +245,42 @@ async function walkConventions(
     }
   }
 
+  const composeNamed = async (set: InstructionConvention[], chain: string[]): Promise<void> => {
+    if (!isSettingSourceEnabled('userSettings')) return
+    for (const convention of set) {
+      const named = convention.named?.() ?? null
+      if (named === null) continue
+      const onChain = new Set(chain.map(normalizePathForComparison))
+      const marked = (entries: InstructionSourceEntry[]): InstructionSourceEntry[] => {
+        for (const entry of entries) entry.namedBy = named.by
+        return entries
+      }
+      for (const { folder, guides, rules } of named.folders) {
+        if (onChain.has(normalizePathForComparison(folder))) continue
+        for (const guide of guides) {
+          push(marked(await processInstructionFile(convention, guide, 'User', processedPaths, true, 0, undefined, diagnostics)), convention.family, 'user')
+        }
+        for (const rulesDir of rules) {
+          namedRules.push({ convention, rulesDir, by: named.by, guides })
+          push(
+            marked(await processRulesDir({ convention, rulesDir, type: 'User', processedPaths, includeExternal: true, conditionalRule: false, diagnostics })),
+            convention.family,
+            'user-rules',
+          )
+        }
+      }
+    }
+  }
+
   const walkRootChain = async (
     root: string,
     origin: InstructionOrigin,
     ancestry: boolean,
   ): Promise<void> => {
-    if (untrustedWorkspaceHeadless()) return
+    if (untrustedWorkspaceHeadless()) {
+      await composeNamed(conventions.filter(c => c.fallback), [])
+      return
+    }
     const chainRoot = resolve(root)
     const dirs: string[] = []
     if (ancestry) {
@@ -276,6 +312,7 @@ async function walkConventions(
         const holder = dirs.find(dir => [...own.guides(convention, dir), ...own.rules(convention, dir)].some(path => getFsImplementation().existsSync(path)))
         if (holder !== undefined) nearestHolders[convention.id] = holder
       }
+      await composeNamed(fallback, dirs)
     }
     const outerFirst = dirs.reverse()
     const composeChain = async (set: InstructionConvention[]): Promise<void> => {
@@ -359,7 +396,7 @@ async function walkConventions(
 
   await walkRootChain(getOriginalCwd(), 'project-walk', true)
 
-  return { entries: result, fallbackComposed, nearestHolders, importedScoped }
+  return { entries: result, fallbackComposed, nearestHolders, importedScoped, namedRules }
 }
 
 export const getInstructionFiles = memoize(
@@ -376,7 +413,7 @@ export const getInstructionFiles = memoize(
     const skippedDuplicates: { path: string; family: InstructionFamily }[] = []
     const diagnostics: InstructionDiagnostic[] = []
 
-    const { entries: result, fallbackComposed, nearestHolders, importedScoped } = await walkConventions(
+    const { entries: result, fallbackComposed, nearestHolders, importedScoped, namedRules } = await walkConventions(
       conventionsForProfile(resolution.resolved),
       forceIncludeExternal,
       skippedDuplicates,
@@ -393,6 +430,7 @@ export const getInstructionFiles = memoize(
       fallbackComposed,
       nearestHolders,
       importedScoped,
+      namedRules,
       skippedDuplicates,
       diagnostics,
       loadReason:
@@ -542,6 +580,13 @@ export async function getManagedAndUserConditionalInstructionRules(
           )),
         )
       }
+    }
+  }
+
+  for (const { convention, rulesDir, by } of lastComposition.namedRules) {
+    for (const rule of await processConditionedRules(convention, targetPath, rulesDir, 'User', processedPaths, true)) {
+      rule.namedBy = by
+      result.push(rule)
     }
   }
 

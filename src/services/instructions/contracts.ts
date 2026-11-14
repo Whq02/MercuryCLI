@@ -26,6 +26,12 @@ export type InstructionSourceEntry = {
   dormant?: InstructionDormancy
   why?: string
   anchor?: string
+  namedBy?: string
+}
+
+type InstructionNamedFolders = {
+  by: string
+  folders: { folder: string; guides: string[]; rules: string[] }[]
 }
 
 type InstructionDormancy = 'manual' | 'off' | 'unsupported' | 'unreadable'
@@ -61,6 +67,7 @@ export type InstructionConvention = {
   readonly belowHome?: boolean
   readonly nearestOnly?: boolean
   readonly entryNames?: readonly string[]
+  named?(): InstructionNamedFolders | null
   projectDirFiles(dir: string): string[]
   projectRulesDirs(dir: string): string[]
   localDirFile(dir: string): string | null

@@ -52,13 +52,16 @@ try {
     mkdirSync(dirname(join(project, rel)), { recursive: true })
     writeFileSync(join(project, rel), content)
   }
+  const named = join(scratch, 'named')
+  mkdirSync(named, { recursive: true })
+  writeFileSync(join(named, 'AGENTS.md'), `Keep pnpm${ZERO_WIDTH} here\n`)
   const home = join(scratch, 'config')
   seedFirstRun(home, [project])
   const result = join(scratch, 'result.json')
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(MERCURY_|CLAUDE_|ANTHROPIC_)/.test(key)))
   const run = spawnSync(process.execPath, ['run', driver, result], {
     cwd: project,
-    env: { ...env, HOME: join(scratch, 'home'), USERPROFILE: join(scratch, 'home'), MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', ANTHROPIC_BASE_URL: 'http://127.0.0.1:1' },
+    env: { ...env, HOME: join(scratch, 'home'), USERPROFILE: join(scratch, 'home'), MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', ANTHROPIC_BASE_URL: 'http://127.0.0.1:1', COPILOT_CUSTOM_INSTRUCTIONS_DIRS: named },
     stdio: ['ignore', 'ignore', 'pipe'],
     encoding: 'utf8',
     timeout: 120_000,
@@ -74,7 +77,9 @@ try {
   check('a rule file that stands alone is named with its direction override', found('.cursorrules')?.source === 'instruction' && found('.cursorrules')?.points.join() === String(0x202e), JSON.stringify(found('.cursorrules')))
   check('a rule that always applies is named', found('.cursor/rules/a-always.mdc')?.source === 'instruction' && found('.cursor/rules/a-always.mdc')?.points.join() === String(0x200b), JSON.stringify(found('.cursor/rules/a-always.mdc')))
   check('a scoped rule is named before it attaches, as a scoped rule of Mercury is', found('.cursor/rules/b-scoped.mdc')?.source === 'instruction', JSON.stringify(found('.cursor/rules/b-scoped.mdc')))
-  check('a manual rule, which is never sent, is not scanned', found('.cursor/rules/c-manual.mdc') === undefined && drive.scanned === 5, `${JSON.stringify(found('.cursor/rules/c-manual.mdc'))} scanned=${drive.scanned}`)
+  const ofNamed = drive.findings.find(f => f.path === join(named, 'AGENTS.md'))
+  check('a file of a folder the Copilot variable names is named the same way', ofNamed?.source === 'instruction' && ofNamed.points.join() === String(0x200b), JSON.stringify(ofNamed))
+  check('a manual rule, which is never sent, is not scanned', found('.cursor/rules/c-manual.mdc') === undefined && drive.scanned === 6, `${JSON.stringify(found('.cursor/rules/c-manual.mdc'))} scanned=${drive.scanned}`)
 
   console.log('they are read as written: nothing is stripped and nothing on disk changes')
   check('the text Mercury loads still carries each character, in AGENTS.md and in the others alike', [join(project, 'AGENTS.md'), join(project, 'GEMINI.md'), join(project, '.cursor/rules/a-always.mdc')].every(path => drive.texts[path]?.includes(ZERO_WIDTH)) && drive.texts[join(project, '.cursorrules')]?.includes(OVERRIDE) === true, JSON.stringify(Object.keys(drive.texts)))

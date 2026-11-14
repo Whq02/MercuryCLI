@@ -5,6 +5,7 @@ import { getOriginalCwd } from '../../bootstrap/state.js'
 import { untrustedWorkspaceHeadless } from '../../utils/config/trust.js'
 import { normalizePathForComparison } from '../../utils/file.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
+import { toTildePath } from '../../utils/path.js'
 import { decidingGuideOf, folderSources } from './adapters/index.js'
 import { ruleAttached } from './attachedText.js'
 import { agentsMdConvention } from './adapters/agentsMd.js'
@@ -23,8 +24,10 @@ export function toolPrefixOf(entry: InstructionSourceEntry | undefined): string 
   return tool === null ? null : `${tool} · `
 }
 
+const namedWords = (by: string | undefined): string => (by === undefined ? '' : ` · named by ${by}`)
+
 export function loadedStateOf(entry: InstructionSourceEntry): string {
-  return entry.offered === undefined ? '' : ' · offered by its description'
+  return `${entry.offered === undefined ? '' : ' · offered by its description'}${namedWords(entry.namedBy)}`
 }
 
 export function listingRowWords(row: InstructionListingRow, shownPath: string): string {
@@ -81,7 +84,7 @@ export const getInstructionListing = memoize(async (): Promise<InstructionListin
   armListingInvalidation()
   if (untrustedWorkspaceHeadless()) return []
   const files = await getInstructionFiles()
-  const { resolution, fallbackComposed, nearestHolders, importedScoped } = getInstructionCompositionState()
+  const { resolution, fallbackComposed, nearestHolders, importedScoped, namedRules } = getInstructionCompositionState()
   if (resolution.resolved !== 'auto') return []
   const loaded = new Set(files.map(file => normalizePathForComparison(file.path)))
   const rows: InstructionListingRow[] = []
@@ -92,6 +95,12 @@ export const getInstructionListing = memoize(async (): Promise<InstructionListin
     rows.push({ path, tool, state })
   }
   for (const rule of importedScoped) add(rule.path, toolOf(rule) ?? '', scopedWords(rule))
+  for (const { convention, rulesDir, by } of namedRules) {
+    for (const rule of await rulesOf(convention, rulesDir)) {
+      if (rule.dormant !== undefined) add(rule.path, convention.label ?? convention.id, `${dormantWords(rule)}${namedWords(by)}`)
+      else if (rule.globs !== undefined) add(rule.path, convention.label ?? convention.id, `${scopedWords(rule)}${namedWords(by)}`)
+    }
+  }
   const start = resolve(getOriginalCwd())
   const own = folderSources(start)
   const decider = fallbackComposed ? null : decidingGuideOf(start)
@@ -125,7 +134,7 @@ export async function otherToolsImportLines(): Promise<{ project: string[]; asid
   const aside: string[] = []
   if (untrustedWorkspaceHeadless()) return { project, aside }
   await getInstructionFiles()
-  const { resolution, fallbackComposed, nearestHolders } = getInstructionCompositionState()
+  const { resolution, fallbackComposed, nearestHolders, namedRules } = getInstructionCompositionState()
   if (resolution.resolved !== 'auto' || !fallbackComposed) return { project, aside }
   const start = resolve(getOriginalCwd())
   const own = folderSources(start)
@@ -141,6 +150,11 @@ export async function otherToolsImportLines(): Promise<{ project: string[]; asid
       for (const path of own.within(convention, dir, convention.localDirFiles?.(dir) ?? [])) {
         if (stands(path) && !convention.isExcluded(path, 'Local')) aside.push(line(path))
       }
+    }
+  }
+  for (const { convention, rulesDir, guides } of namedRules) {
+    for (const path of [...guides, rulesDir]) {
+      if (stands(path) && !convention.isExcluded(path, 'User')) aside.push(`@${toTildePath(path).split(sep).join('/').replace(/ /g, '\\ ')}`)
     }
   }
   return { project, aside }

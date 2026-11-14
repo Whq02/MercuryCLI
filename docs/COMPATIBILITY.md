@@ -33,6 +33,7 @@ have not trusted loads none of these files.
 | Claude Code | `CLAUDE.md`, `.claude/CLAUDE.md`; `CLAUDE.local.md` as the project's personal layer | `.claude/rules/**/*.md` (`paths`) |
 | Gemini CLI | `GEMINI.md`, `.gemini/GEMINI.md` | |
 | GitHub Copilot | `.github/copilot-instructions.md` | `.github/instructions/**/*.instructions.md` (`applyTo`) |
+| GitHub Copilot, in each folder `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` names | `AGENTS.md` | `.github/instructions/**/*.instructions.md` (`applyTo`) |
 | Cursor | | `.cursor/rules/**` (`.mdc`, `.md`: `alwaysApply`, `globs`, `description`), `.cursorrules` |
 | Windsurf | | `.windsurf/rules/**/*.md` and `.devin/rules/**/*.md` (`trigger`, `globs`, `description`), `.windsurf/global_rules.md`, `.devin/global_rules.md`, `.windsurfrules` |
 | Cline | | `.clinerules` (one file, or a folder of `.md` files), `.cline/rules/**/*.md` (`paths`) |
@@ -40,6 +41,15 @@ have not trusted loads none of these files.
 Guides follow their `@` imports as `MERCURY.md` does. In a folder they load
 in the order of the table, before Mercury's own rules and the personal
 layers.
+
+The folders that `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` names are your own word:
+a list separated by commas, a relative entry measured from the working
+directory, `~/` your home folder. Their files load with your own
+instructions, before the project's, with their `applyTo` patterns measured
+from the working directory, and in a folder you have not trusted too. Under
+a `MERCURY.md` or the `native` profile the variable is not read. A folder
+on the working directory's own chain adds nothing: its files are the
+project's.
 
 A rule reaches the model as its own tool scopes it:
 
