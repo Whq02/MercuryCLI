@@ -17,7 +17,7 @@
 # gate-watch: src/tools/WorkflowTool/** src/utils/**
 # gate-watch: src/tools/TaskStopTool/* src/tasks/stopTask* src/tasks/taskOutcomeEnvelope*
 # gate-watch: src/tools/GrepTool/**
-# gate-watch: docs/TERMINAL-RUNTIME.md scripts/builtin-tools/fixtures/tool-census.json
+# gate-watch: docs/TERMINAL-RUNTIME.md docs/DOCUMENTS.md scripts/builtin-tools/fixtures/tool-census.json
 # gate-watch: scripts/daemon/dupline-world.ts scripts/lib/hermetic.ts scripts/lib/scriptedTurn.ts scripts/lib/platformPath.ts src/*
 # gate-watch: src/cli/headless/controlHandlers.ts src/cli/headless/turnDriver.ts src/components/*
 # gate-watch: src/components/CustomSelect/select.tsx src/components/Spinner/utils.ts
@@ -63,6 +63,7 @@
 # gate-watch: src/services/tools/earlyStarts.ts src/hooks/toolPermission/PermissionContext.ts
 # gate-watch: scripts/lib/settingsPopupHarness.ts src/components/design-system/ThemeProvider.tsx src/components/messages/UserToolResultMessage/UserToolErrorMessage.tsx
 # gate-watch: src/services/gitGraph/observe.ts
+# gate-watch: src/services/remoteFiles/** scripts/remote-files/remoteKit.ts scripts/lib/removeScratch.ts scripts/lib/firstRunSeed.ts src/services/privateChannel/vendoredRuntime.ts vendor/json-query.lock.json
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

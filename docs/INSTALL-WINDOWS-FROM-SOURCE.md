@@ -217,7 +217,7 @@ one command, run:
 bun run setup
 ```
 
-`bun run setup` runs `bun install`, downloads the PDF library and the six
+`bun run setup` runs `bun install`, downloads the PDF library and the seven
 fetched packs in step 7, and builds the native addons (`native/voice`, `native/whisper`,
 `native/desktop` and `native/embed`) plus the default embedding model whenever
 Rust (`cargo`, and `cmake` for `native/whisper`) is installed, skipping any
@@ -259,7 +259,7 @@ bun run scripts/vendor/fetch-pdfjs.ts
 
 If you already ran `bun run setup` in step 6, only `bun run scripts/vendor/build-brush.ts`
 remains here (upstream publishes no Windows binary for `brush`, so it is compiled
-from its crate). Otherwise, these six commands download pinned, hash-verified
+from its crate). Otherwise, these seven commands download pinned, hash-verified
 helpers: the Python language server, the Python debugger, the Node/TypeScript
 debug adapter, extra tree-sitter grammars for the structural code tools,
 the Windows Node runtime (the official `win-x64` build, vendored beside
@@ -275,6 +275,7 @@ bun run scripts/vendor/fetch-pyright.ts
 bun run scripts/vendor/fetch-debugpy.ts
 bun run scripts/vendor/fetch-js-debug.ts
 bun run scripts/vendor/fetch-grammars.ts
+bun run scripts/vendor/fetch-json-query.ts
 bun run scripts/vendor/fetch-node.ts
 bun run scripts/vendor/fetch-python.ts
 ```

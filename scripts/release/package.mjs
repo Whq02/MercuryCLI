@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { cmdLauncher, installingDoc, parseEnginesNode, posixLauncher, ps1Launcher, readmeFirst, updatingDoc } from './launcherTemplates.mjs'
-import { bundledVendorPacks, checkBundledVendorPacks, readCompatFloor, releaseLayoutSection, topAllowlist, unsignedArchiveName } from './payloadContract.mjs'
+import { bundledVendorPacks, checkBundledVendorPacks, checkJsonQueryPack, readCompatFloor, releaseLayoutSection, topAllowlist, unsignedArchiveName } from './payloadContract.mjs'
 import { checkReleaseDocuments, LICENCE_DOCUMENTS } from './releaseDocuments.mjs'
 import { collectVerifyReceiptFacts, decideVerifyReceiptBind, readLedgerRows } from './verifyReceiptBind.mjs'
 import { preparedWindowsLauncher } from './windowsLauncher.mjs'
@@ -108,6 +108,9 @@ for (const sibling of ['crew-board.mjs', 'shell-parent-guard.mjs', 'tensorfold-a
 cpSync(join(dist, 'manifest.json'), join(pkgDir, 'manifest.json'))
 cpSync(join(dist, 'vendor'), join(pkgDir, 'vendor'), { recursive: true })
 if (!ALLOW_DEGRADED) {
+  const query = checkJsonQueryPack(pkgDir)
+  if (!query.ok) fail(`the JSON query pack: ${query.findings.join('; ')} — run bun scripts/vendor/fetch-json-query.ts, then rebuild`)
+  ok(`bundled jq-wasm ${query.version} at ${query.dir}, its bytes and licences matching the lock`)
   const bundled = checkBundledVendorPacks(pkgDir, TARGET)
   if (!bundled.ok) fail(`the ${TARGET} archive is missing or has an invalid required pack: ${bundled.findings.join('; ')} — rebuild the named pack with build-whisper.ts or build-brush.ts --target ${TARGET}, then rebuild the payload`)
   for (const pack of bundled.packs) ok(`bundled ${pack.name} ${pack.version} rides the archive at ${pack.dir}: ${pack.binary}, its record and its licence files, the binary's digest matching the record`)

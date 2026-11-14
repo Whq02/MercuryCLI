@@ -136,6 +136,8 @@ for (const [license, list] of [...byLicense.entries()].sort((a, b) => a[0].local
 }
 lines.push('## Vendored tool payloads (`dist/vendor/`)')
 lines.push('')
+const jsonQuery = JSON.parse(readFileSync(join(ROOT, 'vendor/json-query.lock.json'), 'utf8')) as { version: string; memory: { upstreamMaximum: number; maximum: number }; components: Array<{ name: string; version?: string; license: string; notice: string }> }
+lines.push(`- **JSON query engine** — jq-wasm ${jsonQuery.version}; ${jsonQuery.components.map(row => `${row.name}${row.version ? ` ${row.version}` : ''} (${row.license}; ${row.notice})`).join('; ')}. Receipt: vendor/json-query.lock.json, which pins the published bytes and the shipped ones; the engine is upstream's with its memory maximum raised from ${jsonQuery.memory.upstreamMaximum / 1048576} MiB to ${jsonQuery.memory.maximum / 1073741824} GiB by two edits at fetch time (the maximum in the WebAssembly module's memory section and the loader's getHeapMax), every other byte as published; the loader, the engine and all listed licence texts ship under dist/vendor/json-query/, identical on every platform and loaded only for a query.`)
 const pdfjs = vendorLock('pdfjs.lock.json')
 const documents = JSON.parse(readFileSync(join(ROOT, 'vendor/document-libs.lock.json'), 'utf8')) as { packages: Array<{ name: string; version: string; license: string }> }
 lines.push(`- **pdfjs** ${pdfjs.version} — Mozilla PDF.js, ${pdfjs.license}. Receipt: vendor/pdfjs.lock.json; licence text ships at dist/vendor/pdfjs/LICENSE.`)

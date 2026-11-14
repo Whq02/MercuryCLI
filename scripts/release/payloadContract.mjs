@@ -185,3 +185,27 @@ export function checkBundledVendorPacks(payloadDir, target) {
   }
   return { ok: findings.length === 0, findings, packs }
 }
+
+export function checkJsonQueryPack(payloadDir) {
+  const here = dirname(fileURLToPath(import.meta.url))
+  const lock = JSON.parse(readFileSync(join(here, '../../vendor/json-query.lock.json'), 'utf8'))
+  const findings = []
+  const dir = 'vendor/json-query'
+  try {
+    const manifest = JSON.parse(readFileSync(join(payloadDir, 'manifest.json'), 'utf8'))
+    const shipped = manifest.jsonQuery
+    if (shipped?.vendored !== true || shipped.path !== dir || shipped.version !== lock.version || manifest.degraded?.includes('json-query')) findings.push('the archive must carry its JSON query engine')
+    const record = JSON.parse(readFileSync(join(payloadDir, dir, '.vendor-manifest.json'), 'utf8'))
+    if (record.version !== lock.version || JSON.stringify(record.abi) !== JSON.stringify(lock.abi) || JSON.stringify(record.files) !== JSON.stringify(lock.files)) findings.push('the JSON query engine record differs from its lock')
+    for (const script of ['jsonQueryProcess.mjs', 'jsonQueryWorker.mjs']) {
+      if (!existsSync(join(payloadDir, dir, script))) findings.push(`${dir}/${script} is missing`)
+    }
+    for (const file of lock.files) {
+      const named = join(payloadDir, dir, file.path)
+      if (!existsSync(named) || sha256File(named) !== file.sha256) findings.push(`${dir}/${file.path} is missing or differs from its pinned sha256`)
+    }
+  } catch (error) {
+    findings.push(`the JSON query engine could not be verified: ${error instanceof Error ? error.message : String(error)}`)
+  }
+  return { ok: findings.length === 0, findings, version: lock.version, dir }
+}
