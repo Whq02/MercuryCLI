@@ -79,14 +79,15 @@ try {
   console.log('§1 a trusted project where other tools left their files and no MERCURY.md stands')
   {
     const w = world('others', PROJECT)
-    const ran = await run(w, [read(w, 'README.md'), read(w, 'src/app/main.ts'), done])
-    const [first = '', second = '', third = ''] = ran.asks
-    check('the run completed in three requests', ran.code === 0 && ran.asks.length === 3, `exit ${ran.code}, ${ran.asks.length} request(s) ${ran.stderr.slice(-300)}`)
+    const ran = await run(w, [read(w, 'README.md'), read(w, 'src/app/missing.ts'), read(w, 'src/app/main.ts'), done])
+    const [first = '', second = '', failed = '', third = ''] = ran.asks
+    check('the run completed in four requests', ran.code === 0 && ran.asks.length === 4, `exit ${ran.code}, ${ran.asks.length} request(s) ${ran.stderr.slice(-300)}`)
     check('the first request carries every guide and every rule that always applies, each once', ALWAYS.every(needle => times(first, needle) === 1), ALWAYS.map(needle => `${needle} ${times(first, needle)}`).join(', '))
     check('a guide of another tool is told in the form a project guide has', first.includes(contents(w, 'GEMINI.md', 'gemini-needle')), first.slice(first.indexOf('gemini-needle') - 200, first.indexOf('gemini-needle') + 40))
     check('a rule offered by description is one line naming its file and its description', first.includes(offered(w, '.cursor/rules/migrations.mdc', 'How to write a database migration')), first.slice(first.indexOf('Rule files offered') - 40, first.indexOf('Rule files offered') + 300))
     check('the first request carries no scoped rule, no offered body and no manual rule', absent(first, LATER), present(first, LATER))
     check('after a file no rule governs is read, the next request still carries none', second.includes('readme-text') && absent(second, LATER), present(second, LATER))
+    check('a read that failed, of a path the rule would govern, puts nothing in play: the next request carries no rule', failed.includes('missing.ts') && absent(failed, LATER), present(failed, LATER))
     check('after a matching file is read, the next request carries its rule once, saying what it governs', times(third, 'typescript-needle') === 1 && third.includes(governs(w, '.cursor/rules/example.mdc', 'src/**/*.ts')), `${times(third, 'typescript-needle')} time(s)`)
     check('the rules of the other scopes are still not sent', absent(third, ['python-needle', 'docs-needle', 'offered-body-needle', 'manual-needle']), present(third, LATER))
   }
