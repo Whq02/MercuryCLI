@@ -1,5 +1,5 @@
 {
-  "base": "1a564942f23bcab32eb3f111e1391ba4a3521faf",
+  "base": "b5c442e7ee3dd2ff41505430c9a3cf1c4fbc7d29",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -1972,7 +1972,7 @@
             "type": "string"
           },
           "lang": {
-            "description": "One grammar for every file, instead of each file's extension deciding; this build carries: python · go · rust · javascript · typescript · tsx · bash · c-sharp · cpp · css · java · php · ruby · powershell · ini · regex; a file without a grammar is skipped and counted.",
+            "description": "One grammar for every file, instead of each file's name deciding; this build carries 16 grammars, among them python, go, rust; a name it does not carry is answered with the list; a file without a grammar is skipped and counted.",
             "type": "string"
           },
           "mode": {
@@ -2022,7 +2022,7 @@
             "type": "string"
           },
           "lang": {
-            "description": "One grammar for every file, instead of each file's extension deciding; this build carries: python · go · rust · javascript · typescript · tsx · bash · c-sharp · cpp · css · java · php · ruby · powershell · ini · regex; a file without a grammar is skipped and counted.",
+            "description": "One grammar for every file, instead of each file's name deciding; this build carries 16 grammars, among them python, go, rust; a name it does not carry is answered with the list; a file without a grammar is skipped and counted.",
             "type": "string"
           },
           "apply": {
