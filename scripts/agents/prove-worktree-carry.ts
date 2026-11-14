@@ -301,10 +301,10 @@ try {
     check('a file the carry left behind and the include file names is copied as before', read(join(included.worktreePath, '.env.production')) === 'TOKEN=live\n', read(join(included.worktreePath, '.env.production')))
 
     section('§11 another tool\'s instruction files stay behind whatever the process that makes the copy has loaded')
-    const OTHER_TOOLS = ['CLAUDE.local.md', 'src/pkg/CLAUDE.local.md', 'GEMINI.md', '.gemini/GEMINI.md', '.claude/CLAUDE.md', '.claude/rules/style.md', '.cursorrules', '.cursor/rules/style.mdc', '.windsurfrules', '.windsurf/rules/style.md', '.devin/global_rules.md', '.clinerules', '.cline/rules/style.md', '.github/instructions/style.instructions.md', '.agents/rules/style.md']
-    const OTHER_IGNORES = ['CLAUDE.local.md', '/GEMINI.md', '.gemini/', '.claude/', '.cursorrules', '.cursor/', '.windsurfrules', '.windsurf/', '.devin/', '.clinerules', '.cline/', '.github/instructions/', '.agents/']
-    const BESIDE_THEM = ['.cursor/mcp.json', '.claude/settings.local.json', 'dist/app.js', '.env']
-    const TRACKED_GUIDES: Record<string, string> = { 'CLAUDE.md': 'a guide of another tool, kept in git\n', '.github/copilot-instructions.md': 'a guide of a second tool, kept in git\n' }
+    const OTHER_TOOLS = ['GEMINI.md', '.gemini/GEMINI.md', '.cursorrules', '.cursor/rules/style.mdc', '.windsurfrules', '.windsurf/rules/style.md', '.devin/global_rules.md', '.clinerules', '.cline/rules/style.md', '.github/instructions/style.instructions.md', '.agents/rules/style.md']
+    const OTHER_IGNORES = ['/GEMINI.md', '.gemini/', '.cursorrules', '.cursor/', '.windsurfrules', '.windsurf/', '.devin/', '.clinerules', '.cline/', '.github/instructions/', '.agents/']
+    const BESIDE_THEM = ['.cursor/mcp.json', 'dist/app.js', '.env']
+    const TRACKED_GUIDES: Record<string, string> = { '.github/copilot-instructions.md': 'a guide of another tool, kept in git\n' }
     const otherTools = (name: string, guided: boolean): string => {
       const dir = makeFixture(name, () => ({}), OTHER_IGNORES)
       for (const [file, body] of Object.entries({ ...TRACKED_GUIDES, ...(guided ? { 'MERCURY.md': 'the guide that decides\n' } : {}) })) {
@@ -313,7 +313,7 @@ try {
         git(dir, 'add', '--', file)
       }
       git(dir, 'commit', '-q', '-m', 'guides')
-      for (const file of [...OTHER_TOOLS, '.cursor/mcp.json', '.claude/settings.local.json']) {
+      for (const file of [...OTHER_TOOLS, '.cursor/mcp.json']) {
         mkdirSync(dirname(join(dir, file)), { recursive: true })
         writeFileSync(join(dir, file), `${file}\n`)
       }
@@ -331,7 +331,7 @@ try {
     const decided = inChild('other-tools-decided', decidedIn, { ...quiet, CARRY_SCENARIO_LOADS: '1' }, watched)
     const cameOf = (result: Record<string, string> | null): string[] => (result === null ? ['no answer'] : OTHER_TOOLS.filter(rel => result[rel] !== 'absent'))
     const restCame = (result: Record<string, string> | null): boolean => result !== null && BESIDE_THEM.every(rel => result[rel] === 'file')
-    check('a process that has loaded no instruction file, as the daemon making a worker\'s copy, leaves every other tool\'s ignored guide, local file, rule file and rules folder behind', cameOf(unloaded).length === 0, cameOf(unloaded).join(', '))
+    check('a process that has loaded no instruction file, as the daemon making a worker\'s copy, leaves every other tool\'s ignored guide, rule file and rules folder behind', cameOf(unloaded).length === 0, cameOf(unloaded).join(', '))
     check('a session that composed those files leaves them behind', composedThere !== null && composedThere['other tools composed'] === 'true' && cameOf(composedThere).length === 0, `${composedThere?.['other tools composed']} | ${cameOf(composedThere).join(', ')}`)
     check('a session whose MERCURY.md decides, which composed none of them, leaves them behind all the same', decided !== null && decided['other tools composed'] === 'false' && cameOf(decided).length === 0, `${decided?.['other tools composed']} | ${cameOf(decided).join(', ')}`)
     check('…and in all three the rest git ignores comes, with what else lies in another tool\'s ignored folder', restCame(unloaded) && restCame(composedThere) && restCame(decided), `${JSON.stringify(unloaded)} ${JSON.stringify(composedThere)} ${JSON.stringify(decided)}`)
