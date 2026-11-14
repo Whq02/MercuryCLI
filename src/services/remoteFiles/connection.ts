@@ -46,7 +46,7 @@ function sshOptions(): string[] {
 function sshDestination(authority: RemoteAuthority): string[] {
   return [
     ...(authority.user === undefined ? [] : ['-l', authority.user]),
-    ...(authority.port === undefined ? [] : ['-p', String(authority.port)]),
+    ...(authority.port === undefined ? [] : [`-oPort=${authority.port}`]),
     '--',
     authority.host,
   ]

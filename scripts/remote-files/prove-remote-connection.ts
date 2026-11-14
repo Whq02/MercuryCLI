@@ -2,7 +2,7 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { tmpdir, userInfo } from 'node:os'
 import { join } from 'node:path'
 import { enterWorld, localTransportUnavailable, remoteWorld, sshdUnavailable, underScratchHome, type RemoteWorld } from './remoteKit.ts'
 
@@ -252,6 +252,16 @@ async function leg(world: RemoteWorld): Promise<void> {
   check(`${name}: five requests waiting on a host that cannot be reached all fail with its one failure, after one try at it`, waiting.every(refusal => refusal instanceof RemoteConnectionError && refusal.failure === 'ssh') && new Set(waiting.map(refusal => refusal?.message)).size === 1 && signIns() - signedIn === 1, `${signIns() - signedIn} tries: ${waiting[0]?.message}`)
   await failure(() => remoteRun({ host: 'nobody' }, { script: 'printf never' }))
   check(`${name}: and a request made after that failure tries the host again`, signIns() - signedIn === 2, String(signIns() - signedIn))
+  if (world.transport === 'sshd') {
+    const written = { host: 'nobody', port: PORT, user: userInfo().username }
+    const explicit = await remoteRun(written, { script: 'printf explicit' }).then(
+      reply => reply.stdout.toString('utf8'),
+      error => `THROWN ${error instanceof Error ? error.message : String(error)}`,
+    )
+    check(`${name}: a port and an account written in the path outrank the configuration's: the host it puts on a dead port answers on the port written`, explicit === 'explicit', explicit)
+    const other = await failure(() => remoteRun({ ...written, user: 'no-such-account-here' }, { script: 'printf never' }))
+    check(`${name}: and an account that may not sign in is refused in ssh's own words`, other instanceof RemoteConnectionError && other.failure === 'ssh' && /Permission denied/.test(other.message), String(other?.message))
+  }
   if (world.transport === 'local') {
     const windows = await failure(() => remoteRun({ host: 'windows' }, { script: 'printf never' }))
     check(`${name}: a remote with no POSIX shell is said to have none, after sh, bash and zsh were asked for`, windows instanceof RemoteConnectionError && windows.failure === 'shell' && windows.message === "windows has no POSIX shell that answers ('sh' is not recognized as an internal or external command, operable program or batch file.); a path that begins ssh:// needs sh, bash or zsh on the remote machine." && ['sh', 'bash', 'zsh'].every(word => world.argvLines().some(line => line.endsWith(` -- windows ${word}`))), String(windows?.message))
