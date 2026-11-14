@@ -681,7 +681,7 @@ async function settle(page: Page, kit: PageKit, state: PageEmulation, next: Fiel
   }
   state.fields = next
   state.environment = environmentOf(next, kit, devices, networks)
-  kit.presented = { identity: state.environment.identity, languages: state.environment.languages, timeZone: state.environment.timezone, locale: state.environment.locale }
+  kit.presented = { identity: state.environment.identity, languages: state.environment.languages, timeZone: state.environment.timezone, locale: state.environment.locale, headers: state.environment.headers }
   const stale = !reloaded && originOf(page.url()).startsWith('http') && state.environment.identity?.userAgent !== from.identity?.userAgent
   const notes: string[] = []
   const earlier = before.credentials
@@ -786,8 +786,9 @@ export async function inheritEmulation(from: Page, to: Page, reloadSafe: boolean
   if (born !== null && kit.late !== undefined && JSON.stringify(born.identity) !== JSON.stringify(kit.identity)) state.unsettled.add('identity')
   const wanted = environmentOf(next, kit, devices, networks).viewport
   const reloads = Boolean(wanted.isMobile) !== Boolean(baseline.viewport.isMobile) || Boolean(wanted.hasTouch) !== Boolean(baseline.viewport.hasTouch)
-  if (reloadSafe || !reloads) return settle(to, kit, state, next)
-  const outcome = await settle(to, kit, state, next, new Set<Aspect>(['viewport']))
-  outcome.notes.push('its size, mobile and touch did not come: this tab holds the answer to a form post, and applying them reloads the page, which would send the form again — op:"viewport" on this tab applies them when that is safe')
+  const whole = reloadSafe || !reloads
+  const outcome = await settle(to, kit, state, next, new Set<Aspect>(whole ? [] : ['viewport']))
+  if (born !== null && born.headers !== null) await ownSession(kit).send('Network.setExtraHTTPHeaders', { headers: {} }).catch(() => undefined)
+  if (!whole) outcome.notes.push('its size, mobile and touch did not come: this tab holds the answer to a form post, and applying them reloads the page, which would send the form again — op:"viewport" on this tab applies them when that is safe')
   return outcome
 }

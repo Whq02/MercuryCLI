@@ -1041,6 +1041,7 @@ export interface PagePresented {
   languages: string[]
   timeZone: string
   locale: string | null
+  headers: Record<string, string> | null
 }
 
 export interface PageKit {
@@ -1538,6 +1539,7 @@ function bornPage(hold: Hold, cdp: CDPSession, info: Protocol.Target.TargetInfo)
   void cdp.send('Page.enable').catch(quiet)
   void cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: stealthSource(presented.languages) }).catch(quiet)
   void cdp.send('Network.enable').catch(quiet)
+  if (presented.headers !== null) void cdp.send('Network.setExtraHTTPHeaders', { headers: presented.headers }).catch(quiet)
   if (hold.downloads === null) {
     void cdp.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(quiet)
     listenDownloads(birth.wiring, cdp)
@@ -1977,7 +1979,7 @@ async function placeTab(
         closeNetwork: proxy.close,
         networkRefusal,
         relayFailureFor,
-        baseline: { identity: kit.identity, languages: hostLang.languages, timeZone: hostTimeZone, locale: null },
+        baseline: { identity: kit.identity, languages: hostLang.languages, timeZone: hostTimeZone, locale: null, headers: null },
         tabs: new Set(),
         owned: new Map(),
         births: new Map(),
