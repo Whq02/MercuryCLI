@@ -23,6 +23,7 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_CRITTER
 delete process.env.MERCURY_SESSION_KIT
 delete process.env.MERCURY_SKILL_CHAR_BUDGET
+delete process.env.CI
 
 const guard = setTimeout(() => {
   console.error('TIMEOUT: prove-crew-skills exceeded 120s')
@@ -598,13 +599,20 @@ async function runLaunchProof(sessionUuid: string, boardLabel: string, researche
   check(`${boardLabel}: message 1 launches captain alone in background`, capLaunch.status === 'async_launched' && capLaunch.agentName === 'captain', capLaunch)
 
   const ready = () => board.view().events.some(event => event.authorName === 'captain' && event.clientOpId === `${boardLabel}-ready`)
-  if (!ready()) {
+  const captainFailed = () => (state.tasks[capLaunch.agentId] as { status?: string } | undefined)?.status === 'failed' || board.view().events.some(event => event.authorName === 'captain' && event.kind === 'notice' && String(event.text).includes('failed'))
+  if (!ready() && !captainFailed()) {
     await new Promise<void>(resolve => {
       const stop = board.subscribe(() => {
-        if (ready()) { stop(); resolve() }
+        if (ready() || captainFailed()) { stop(); resolve() }
       })
-      if (ready()) { stop(); resolve() }
+      if (ready() || captainFailed()) { stop(); resolve() }
     })
+  }
+  check(`${boardLabel}: the captain reaches its readiness without failing`, ready() && !captainFailed(), board.view().events.filter(event => event.authorName === 'captain').map(event => String(event.text).slice(0, 300)))
+  if (!ready()) {
+    await fixture.close()
+    console.log(`\nCREW SKILLS RED (${failures} of ${checks})`)
+    process.exit(1)
   }
   const expectedReady = Object.fromEntries(describedArguments(readyLine.split(');')[0] ?? '').map(arg => [arg.key, typeof arg.value === 'string' ? fill(arg.value, 'captain') : arg.value]))
   const scriptedReady = fixtureTurns.find(turn => turn.kind === 'tool_use' && turn.whenBody?.includes(boardLabel))
