@@ -58,7 +58,7 @@ const ROWS: Row[] = [
   { name: 'the same UNC path with forward slashes', line: '@//nohost.invalid/share/rules/a.md\n', windows: includes('//nohost.invalid/share/rules/a.md') },
   { name: 'a UNC path with no dot is an import, never a mention', line: `@${B}${B}nohost${B}share${B}rules\n`, windows: includes('//nohost/share/rules'), elsewhere: none },
   { name: 'a UNC path in a list item', line: `- @${B}${B}nohost.invalid${B}share${B}rules${B}a.md\n`, windows: includes('//nohost.invalid/share/rules/a.md'), elsewhere: none },
-  { name: 'a path rooted at the drive', line: `@${B}rules${B}.team${B}a.md\n`, windows: includes('/rules/.team/a.md'), elsewhere: none },
+  { name: 'a path rooted at the drive', line: `@${B}rules${B}.shared${B}a.md\n`, windows: includes('/rules/.shared/a.md'), elsewhere: none },
   { name: 'a path under the home folder', line: `@~${B}.mercury${B}shared.md\n`, windows: includes('~/.mercury/shared.md'), elsewhere: none },
   { name: 'a backslash alone names nothing', line: `@${B}. and more\n`, windows: none },
 ]
