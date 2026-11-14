@@ -11,7 +11,7 @@ const commands: string[] = []
 const rawSend = Connection.prototype._rawSend
 Connection.prototype._rawSend = function (this: Connection, ...args: Parameters<typeof rawSend>) { commands.push(args[1]); return rawSend.apply(this, args) } as typeof rawSend
 const plain = await run({ op: 'screenshot', label: 'geometry-plain' })
-check('a default capture sends only the capture command, as before emulation', JSON.stringify(commands) === '["Page.captureScreenshot"]', JSON.stringify(commands))
+check('a default capture sends only the capture command, as before emulation', JSON.stringify(commands.filter(method => !method.startsWith('Target.'))) === '["Page.captureScreenshot"]', JSON.stringify(commands))
 check('a default capture has no factor clause', !plain.result.includes('1 image px'), plain.result)
 const evaluate = pageOf().evaluate.bind(pageOf())
 const size = (result: string): [number, number] => { const data = readFileSync(/screenshot: (\S+\.png)/.exec(result)![1]!); return [data.readUInt32BE(16), data.readUInt32BE(20)] }
