@@ -29,6 +29,7 @@ export type ConflictRegion = {
 type RegionState = { roots: Map<string, Map<string, ConflictRegion[]>>; plans: Map<string, ResolutionPlan> }
 const store = new OwnerScopedStore<RegionState>({ name: 'git-conflict-regions', create: () => ({ roots: new Map(), plans: new Map() }), cap: 32 })
 registerOwnerScopedStore(store)
+const PLAN_RING = 16
 const digest = (bytes: string | Buffer): string => createHash('sha256').update(bytes).digest('hex')
 
 function parseRegions(file: string, text: string): ConflictRegion[] {
@@ -192,7 +193,13 @@ export function prepareResolution(owner: OwnerKey, root: string, choices: Region
   const index = readFileSync(indexPath)
   const id = `grp-${digest(JSON.stringify([root, choices, files.map(f => [f.path, digest(f.before), digest(f.after)]), digest(index)])).slice(0, 16)}`
   const plan: ResolutionPlan = { id, owner, root, choices: JSON.stringify(choices), indexPath, index, files }
-  store.get(owner).plans.set(id, plan)
+  const plans = store.get(owner).plans
+  plans.delete(id)
+  plans.set(id, plan)
+  for (const oldest of plans.keys()) {
+    if (plans.size <= PLAN_RING) break
+    plans.delete(oldest)
+  }
   return plan
 }
 
@@ -254,6 +261,7 @@ export async function applyResolution(plan: ResolutionPlan, signal?: AbortSignal
     return { state: 'refused', reason: `resolve failed: ${(err as Error).message}` }
   } finally {
     rmSync(temporary, { force: true })
+    store.peek(plan.owner)?.plans.delete(plan.id)
     if (lock !== undefined) { closeSync(lock); rmSync(lockPath, { force: true }) }
   }
 }

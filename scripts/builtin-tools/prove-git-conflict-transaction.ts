@@ -13,7 +13,7 @@ if (!process.argv.includes('--child')) {
 } else {
   if (homedir() !== process.env.GIT_PROOF_HOME) throw new Error('wrong proof home before product imports')
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-  const { readConflictRegions, prepareResolution, applyResolution, resolutionPreview } = await import('../../src/services/gitGraph/conflictRegions.ts')
+  const { readConflictRegions, prepareResolution, applyResolution, resolutionPreview, storedResolution } = await import('../../src/services/gitGraph/conflictRegions.ts')
   const { _setBeforeRenameHookForProofs } = await import('../../src/services/changeTransaction/changeSetCommit.ts')
   const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
   const { renderToolUseMessage } = await import('../../src/tools/GitTool/UI.tsx')
@@ -69,7 +69,14 @@ if (!process.argv.includes('--child')) {
     _setBeforeRenameHookForProofs(null)
     check('mid-write drift preserves new bytes and restores the earlier file and index', raced.state === 'refused' && raced.reason.includes('stale') && world.get('a.txt') === marker && world.get('b.txt') === marker + 'raced\n' && readFileSync(join(world.root, '.git/index')).equals(beforeIndex), JSON.stringify(raced))
     world.put('b.txt', marker)
-    const done = await applyResolution(prepare())
+    const unapplied = Array.from({ length: 17 }, (_, i) => {
+      const made = prepareResolution(owner, world.root, [{ region: choices[0]!.region, content: `kept ${i}\n` }])
+      return 'reason' in made ? '' : made.id
+    })
+    check('plans shown and never applied are held to the latest sixteen', unapplied.every(Boolean) && storedResolution(owner, unapplied[0]!) === undefined && storedResolution(owner, unapplied[16]!) !== undefined, unapplied.join(' '))
+    const last = prepare()
+    const done = await applyResolution(last)
+    check('an applied plan and the index bytes it froze are let go', done.state === 'ok' && storedResolution(owner, last.id) === undefined)
     check('success writes exactly the displayed bytes and stages both final files', done.state === 'ok' && world.get('a.txt') === 'left\r\nleft\n' && world.get('b.txt') === 'left\r\nleft\n' && world.git(['ls-files', '--unmerged']) === '', JSON.stringify(done))
     check('staged bytes agree with the exact worktree content', world.git(['show', ':a.txt']) === world.get('a.txt') && world.git(['show', ':b.txt']) === world.get('b.txt'))
     const otherOwner = makeOwnerKey({ workspace: world.root, sessionId: 'other', lane: 'main' })
