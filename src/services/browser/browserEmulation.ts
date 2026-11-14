@@ -449,7 +449,7 @@ async function answerChallenges(page: Page, kit: PageKit, state: PageEmulation, 
     const received = (requestId: string, status: number): void => {
       const origin = answered.get(requestId)
       if (origin !== undefined && status !== 401 && status !== 407) {
-        const browser = page.browser()
+        const browser: object = typeof page.browser === 'function' ? page.browser() : page
         let origins = rememberedAuth.get(browser)
         if (origins === undefined) rememberedAuth.set(browser, origins = new Set())
         origins.add(origin)
@@ -735,7 +735,7 @@ export function emulationActive(page: Page): boolean {
 export function emulationLines(page: Page): string[] {
   const state = emulations.get(page)
   const lines = state === undefined ? [] : describe(state, pageKitOf(page))
-  for (const origin of rememberedAuth.get(page.browser()) ?? []) {
+  for (const origin of rememberedAuth.get(typeof page.browser === 'function' ? page.browser() : page) ?? []) {
     if (state?.fields.credentials?.origin !== origin) lines.push(`credentials: ${origin} — answered by the browser's memory until it closes`)
   }
   return lines
