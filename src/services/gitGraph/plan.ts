@@ -460,18 +460,6 @@ export function applyPlan(
         .split('\n')
         .filter(Boolean)
         .sort()
-      if (JSON.stringify(committed) !== JSON.stringify(wantedFiles)) {
-        setPlanState(owner, planId, 'failed', {
-          note: `commit ${sha.slice(0, 8)} contains [${committed.join(', ')}] ≠ planned — STOPPED`,
-          commits,
-        })
-        return {
-          state: 'refused',
-          code: 'verify',
-          reason: `commit ${sha.slice(0, 8)} contains unplanned content ([${committed.join(', ')}] ≠ [${wantedFiles.join(', ')}]) — application STOPPED; created commits stand (history is never rewritten)`,
-          commitsCreated: [...commits.map(c => ({ sha: c.sha, message: c.message })), { sha, message: group.message }],
-        }
-      }
       const txn = beginTransaction({
         owner,
         kind: 'git.commit',
@@ -482,7 +470,9 @@ export function applyPlan(
         owner,
         kind: 'change',
         origin: 'observed',
-        claim: `git commit ${sha.slice(0, 8)} created (group ${index + 1}/${plan.groups.length}): ${group.message.split('\n')[0]?.slice(0, 80)} — name-only verified ${committed.length} file(s)`,
+        claim: JSON.stringify(committed) === JSON.stringify(wantedFiles)
+          ? `git commit ${sha.slice(0, 8)} created (group ${index + 1}/${plan.groups.length}): ${group.message.split('\n')[0]?.slice(0, 80)} — name-only verified ${committed.length} file(s)`
+          : `commit ${sha.slice(0, 8)} contains [${committed.join(', ')}] ≠ planned — STOPPED`,
         refs: [`mercury://git/commit/${sha}`, `mercury://git/plan/${planId}`],
         details: { sha, files: committed },
       })
@@ -493,6 +483,19 @@ export function applyPlan(
       })
       transitionTransaction(owner, txn.id, 'settled')
       commits.push({ sha, message: group.message, files: committed, transactionId: txn.id })
+      if (JSON.stringify(committed) !== JSON.stringify(wantedFiles)) {
+        setPlanState(owner, planId, 'failed', {
+          note: `commit ${sha.slice(0, 8)} contains [${committed.join(', ')}] ≠ planned — STOPPED`,
+          commits,
+          ...(recovery() ? { recovery: recovery() } : {}),
+        })
+        return {
+          state: 'refused',
+          code: 'verify',
+          reason: `commit ${sha.slice(0, 8)} contains unplanned content ([${committed.join(', ')}] ≠ [${wantedFiles.join(', ')}]) — application STOPPED; created commits stand (history is never rewritten)${suffix()}`,
+          commitsCreated: commits.map(c => ({ sha: c.sha, message: c.message })),
+        }
+      }
       git(plan.root, ['reset', '--quiet', '--', ...group.files])
     } catch (err) {
       setPlanState(owner, planId, 'failed', {

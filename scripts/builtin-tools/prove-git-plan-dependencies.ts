@@ -94,6 +94,24 @@ try {
     check('M05 tree drift still refuses before commit', stale.includes('stale') && world.git(['rev-parse', 'HEAD']) === staleHead && world.get('base.txt') === 'stale after\n', stale)
     const ordinary = await call({ op: 'plan', groups: [{ files: ['base.txt'], message: 'ordinary' }] })
     check('M01 omitted dependencies retain existing proposal rows', ordinary.includes('  1. ordinary — base.txt') && !ordinary.includes('[group') && !ordinary.includes('depends on:'), ordinary)
+    world.put('dependent.txt', 'verify remainder\n')
+    world.put('independent.txt', 'verify remainder\n')
+    world.put('extra.txt', 'hook-added index entry\n')
+    const verifyPlan = await call({ op: 'plan', groups: [
+      { files: ['base.txt'], message: 'checked prefix', dependsOn: [] },
+      { files: ['dependent.txt'], message: 'remaining dependency', dependsOn: [0] },
+      { files: ['independent.txt'], message: 'blocked dependency', dependsOn: [1] },
+    ] })
+    const verifyId = verifyPlan.match(/gp-[a-f0-9]+/)?.[0]
+    writeFileSync(hook, '#!/bin/sh\nexit 0\n')
+    const postCommit = join(world.root, '.git/hooks/post-commit')
+    writeFileSync(postCommit, '#!/bin/sh\nif [ ! -f .git/post-commit-seen ]; then\n  touch .git/post-commit-seen\n  git add -- extra.txt\n  git commit --quiet -m "hook-created commit"\nfi\n')
+    chmodSync(postCommit, 0o755)
+    const mismatch = await call({ op: 'apply', planId: verifyId })
+    const mismatchSha = world.git(['rev-parse', 'HEAD']).trim()
+    check('B03 verification failure names the actual committed SHA and remaining dependency chain', mismatch.includes('unplanned content') && mismatch.includes(mismatchSha.slice(0, 8)) && mismatch.includes('first unapplied: group 1') && mismatch.includes('blocked dependents: 2'), mismatch)
+    const mismatchRecord = await client.call('Read', { file_path: `mercury://git/plan/${verifyId}` })
+    check('B03 verification-failure record retains the created commit and recovery boundary', mismatchRecord.includes(mismatchSha) && mismatchRecord.includes('first unapplied: group 1') && world.get('dependent.txt') === 'verify remainder\n', mismatchRecord)
   }
 } finally { await client?.close(); world.dispose() }
 console.log(`git plan dependencies: ${checks - failures}/${checks}`)
