@@ -1650,7 +1650,7 @@ export async function runHeadless(
         task => task.type === 'local_agent' || task.type === 'local_workflow',
       ),
     waitableBackgroundTaskCount: () =>
-      getRunningTasks(getAppState()).filter(task => !(inputClosed && isLocalShellTask(task))).length,
+      getRunningTasks(getAppState()).filter(task => !(inputClosed && isLocalShellTask(task))).length + (inputClosed ? swarmResumes.waitingSeats() : 0),
     onAgentWait: (count, turnId) => {
       enqueueRow(turnWaitingRow({ session_id: getSessionId(), turn: turnsRun }, { turnId, agents: count }))
     },

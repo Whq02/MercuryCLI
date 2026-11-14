@@ -105,6 +105,31 @@ try {
     watcher.stop()
   }
 
+  tally.section('the seats a run still waits on are counted once each')
+  {
+    let enter!: () => void, release!: () => void, first = ''
+    const entered = new Promise<void>(resolve => { enter = resolve })
+    const gate = new Promise<void>(resolve => { release = resolve })
+    const watcher = seam.watchSwarmResumes(() => context, async () => ({ behavior: 'allow', updatedInput: {} }), () => true, (async args => { first ||= args.agentId; enter(); await gate; tasks[args.agentId]!.status = 'running'; args.onAdmitted?.() }) as Resume)
+    const count = (): number => (watcher as { waitingSeats?: () => number }).waitingSeats?.() ?? -1
+    await park('counted', 'running'); await park('beside', 'running')
+    await turn()
+    trigger()
+    await turn()
+    tally.check('a wake on a seat that still runs is no seat waited on', count() === 0 && store().pendingWakes().length === 2, `count=${count()}`)
+    tasks.counted!.status = 'completed'; tasks.beside!.status = 'completed'
+    tally.check('two seats that have ended with a wake each count two', count() === 2, `count=${count()}`)
+    watcher.check()
+    await entered
+    tally.check('a seat in admission is counted though its wake has left the pending list', store().pendingWakes().length === 1 && count() === 2, `count=${count()}`)
+    tasks[first]!.status = 'running'
+    tally.check('once its task runs it is no longer counted as a seat waited on', count() === 1, `count=${count()}`)
+    release()
+    await turn()
+    tally.check('with both admitted no seat is waited on', count() === 0 && store().pendingWakes().length === 0 && !watcher.hasPending(), `count=${count()}`)
+    watcher.stop()
+  }
+
   tally.section('the swarm switched off between two wakes starts no further seat')
   {
     const started: string[] = []

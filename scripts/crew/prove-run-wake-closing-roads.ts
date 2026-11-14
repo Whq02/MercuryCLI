@@ -72,6 +72,42 @@ async function retiring(): Promise<void> {
   }
 }
 
+async function counted(): Promise<void> {
+  tally.section('the waiting row counts the seats a post has woken')
+  const { home, cwd } = world('counted')
+  const seats = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight']
+  const isPoster = opens('poster')
+  const isSeat = (req: ScriptedRequest): boolean => seats.some(name => opens(name)(req))
+  const woken = (req: ScriptedRequest): boolean => req.allTexts.some(words => words.includes('POSTER-RESULT'))
+  let launched = false
+  const fixture = await startScriptedFixture(req => {
+    if (isPoster(req)) return req.step === 0 ? tool('CrewBoard', { op: 'post', clientOpId: 'poster-result', kind: 'result', text: '@main POSTER-RESULT' }) : text('POSTER-DONE')
+    if (isSeat(req)) {
+      if (woken(req)) return text('SEAT-RESUMED')
+      return req.step === 0 ? tool('CrewBoard', { op: 'post', clientOpId: `wait-${req.opening.trim()}`, kind: 'ask', text: '@main wake me when seat poster posts' }) : text('SEAT-PARKED')
+    }
+    if (!launched) { launched = true; return [...launch('poster'), ...seats.flatMap((name, at) => launch(name, { team: `wave-${at % 3}` }))] }
+    return text('LEAD-WAITING')
+  }, { answerDelayMs: req => isPoster(req) ? (req.step === 0 ? 7000 : 3000) : isSeat(req) && woken(req) ? 3000 : 0 })
+  try {
+    const child = spawnInOwnGroup(NODE, [DIST, 'run', '--model', MODEL, '--sovereign', '--format', 'rows', '-'], { cwd, env: { ...childEnv(home, Number(new URL(fixture.base).port)), HOME: home, USERPROFILE: home }, stdio: ['pipe', 'pipe', 'pipe'] })
+    let stdout = '', stderr = '', expired = false
+    const timer = setTimeout(() => { expired = true; endProcessGroup(child) }, bound(90_000))
+    child.stdout!.on('data', chunk => { stdout += chunk })
+    child.stderr!.on('data', chunk => { stderr += chunk })
+    child.stdin!.end('CLOSING-main')
+    const code = await new Promise<number | null>((resolve, reject) => { child.on('close', resolve); child.on('error', reject) })
+    clearTimeout(timer)
+    const rows = stdout.trim().split('\n').flatMap(line => { try { return [JSON.parse(line) as { type?: string; state?: string; agents?: number; status?: string }] } catch { return [] } })
+    const waits = rows.filter(row => row.type === 'turn' && row.state === 'waiting').map(row => Number(row.agents))
+    const all = seats.length + 1
+    const last = waits.lastIndexOf(all)
+    tally.check('eight seats parked on the poster, the poster posted, and each seat was resumed with the post', !expired && code === 0 && seats.every(name => fixture.requests.some(req => opens(name)(req) && woken(req))), JSON.stringify({ code, expired, asked: fixture.requests.map(req => `${req.opening.trim().slice(8)}:${req.step}${woken(req) ? 'w' : ''}`), errors: fixture.requests.flatMap(req => req.results.filter(result => result.isError).map(result => result.text.slice(0, 200))), stderr: stderr.slice(-300) }))
+    tally.check('the run waited on the poster alone, then on all nine', last > 0 && waits.includes(1), JSON.stringify(waits))
+    tally.check('no waiting row counts fewer than the seats the post woke', last > 0 && waits[last - 1] === 1, JSON.stringify(waits))
+  } finally { await fixture.close() }
+}
+
 async function emptied(): Promise<void> {
   tally.section('an input that closes before the run has started')
   const reference = argAfter('--reference') ?? DIST
@@ -98,6 +134,7 @@ async function emptied(): Promise<void> {
 
 try {
   await retiring()
+  await counted()
   await emptied()
 } finally { rmSync(root, { recursive: true, force: true }) }
 tally.finish()
