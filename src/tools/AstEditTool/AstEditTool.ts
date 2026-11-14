@@ -50,7 +50,7 @@ import {
 import { mercurySecretPath } from '../../utils/permissions/protectedPaths.js'
 import { reasonForRule, refusalWithReason, ruleWords } from '../../utils/permissions/ruleReason.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
-import { plural } from '../../utils/stringUtils.js'
+import { clipWithEllipsis, plural } from '../../utils/stringUtils.js'
 import { syncServersAfterWrite } from '../LSPTool/mercuryOps.js'
 import { AST_GLOB_FIELD, AST_PATH_FIELD, AST_PATTERN_FIELD, astLanguageField } from '../AstSearchTool/prompt.js'
 import { AST_EDIT_TOOL_NAME, getAstEditDescription } from './prompt.js'
@@ -63,18 +63,31 @@ import {
 } from './UI.js'
 
 
+const ruleSchema = z.strictObject({
+  pattern: z.string(),
+  rewrite: z.string(),
+})
+
+const EXCLUSIVE_FORMS_MESSAGE =
+  'Pass either pattern and rewrite for one rule, or a non-empty rules array of { pattern, rewrite } pairs, never both.'
+
 const inputSchema = z.strictObject({
-  pattern: z.string().describe(AST_PATTERN_FIELD),
+  pattern: z.string().optional().describe(AST_PATTERN_FIELD),
   rewrite: z
     .string()
+    .optional()
     .describe('Replacement code in target language: $NAME and $$$NAME insert captured source ($_/$$$ cannot be inserted; every meta-variable must be captured); "" deletes the node (and its line when owned).'),
+  rules: z
+    .array(ruleSchema)
+    .optional()
+    .describe('Pattern/rewrite pairs applied in one pass over the original text, in place of pattern and rewrite.'),
   path: z.string().optional().describe(AST_PATH_FIELD),
   glob: z.string().optional().describe(AST_GLOB_FIELD),
   lang: z.string().optional().describe(astLanguageField()),
   apply: semanticBoolean(z.boolean().optional()).describe(
     'Default false dry-runs (returns diff + plan token); true writes using plan.',
   ),
-  plan: z.string().optional().describe('The plan token (ae-…) the dry run returned; apply refuses when a file, the pattern, the rewrite or the scope differs from that dry run.'),
+  plan: z.string().optional().describe('The plan token (ae-…) the dry run returned; apply refuses when a file, the pattern, the rewrite, the rules or the scope differs from that dry run.'),
 })
 
 type Input = z.infer<typeof inputSchema>
@@ -132,12 +145,13 @@ function scopeFor(input: Input, context: ToolUseContext): AstScope {
 async function planFor(input: Input, context: ToolUseContext): Promise<{ scope: AstScope; plan: AstRewritePlan }> {
   const scope = scopeFor(input, context)
   const plan = await planAstRewrite(scope, {
-    pattern: input.pattern,
-    rewrite: input.rewrite,
+    ...(input.rules !== undefined ? { rules: input.rules } : { pattern: input.pattern ?? '', rewrite: input.rewrite ?? '' }),
     signal: context.abortController.signal,
   })
   if (isAstRefusal(plan)) throw new Error(plan.refused)
-  if (patternRefusedEverywhere(scope, plan.search)) throw new Error(patternErrorText(input.pattern, plan.search))
+  if (input.rules === undefined && patternRefusedEverywhere(scope, plan.search)) {
+    throw new Error(patternErrorText(input.pattern ?? '', plan.search))
+  }
   return { scope, plan }
 }
 
@@ -157,15 +171,53 @@ function changeViewOf(plan: AstRewritePlan, state: 'proposed' | 'applied'): Inli
   }
 }
 
+function renderBatchSummaryLines(plan: AstRewritePlan): string[] {
+  const batch = plan.batch
+  if (!batch) return []
+  const lines: string[] = ['Rules:']
+  for (const r of batch.rules) {
+    const pat = JSON.stringify(clipWithEllipsis(r.pattern.replace(/\s+/g, ' '), 50))
+    const rw = JSON.stringify(clipWithEllipsis(r.rewrite.replace(/\s+/g, ' '), 50))
+    const unch = r.unchangedMatches > 0 ? ` (${r.unchangedMatches} already rewritten)` : ''
+    lines.push(
+      `  rule ${r.ruleIndex} (${pat} → ${rw}): ${r.changedMatches} ${plural(r.changedMatches, 'rewrite')} in ${r.filesChanged} ${plural(r.filesChanged, 'file')}${unch}`,
+    )
+  }
+  lines.push(
+    `Matched nothing: ${batch.unmatchedRules.length > 0 ? batch.unmatchedRules.map(i => `rule ${i}`).join(', ') : 'none'}.`,
+  )
+  if (batch.coalesced.length > 0) {
+    const shown = batch.coalesced.slice(0, 20).map(c => `${c.rel}:${c.line}:${c.col} [rules ${c.ruleIndices.join(', ')}]`)
+    const more = batch.coalesced.length > 20 ? `; +${batch.coalesced.length - 20} more` : ''
+    lines.push(`Coalesced edits (${batch.coalesced.length}): ${shown.join('; ')}${more}.`)
+  } else {
+    lines.push('Coalesced edits: none.')
+  }
+  return lines
+}
+
 function dryRunText(scope: AstScope, plan: AstRewritePlan): string {
   const files = plan.files.length
+  const batch = plan.batch
   const lines: string[] = [
-    `Dry run — ${plan.matchCount} ${plural(plan.matchCount, 'match', 'matches')} in ${files} ${plural(files, 'file')} would change; nothing written.${
-      plan.unchangedMatches > 0 ? ` ${plan.unchangedMatches} ${plural(plan.unchangedMatches, 'match', 'matches')} already in the rewritten form stay untouched.` : ''
-    }`,
+    batch
+      ? `Dry run — ${plan.matchCount} ${plural(plan.matchCount, 'match', 'matches')} in ${files} ${plural(files, 'file')} would change across ${batch.rules.length} ${plural(batch.rules.length, 'rule')}; nothing written.${
+          plan.unchangedMatches > 0 ? ` ${plan.unchangedMatches} ${plural(plan.unchangedMatches, 'match', 'matches')} already in the rewritten form stay untouched.` : ''
+        }`
+      : `Dry run — ${plan.matchCount} ${plural(plan.matchCount, 'match', 'matches')} in ${files} ${plural(files, 'file')} would change; nothing written.${
+          plan.unchangedMatches > 0 ? ` ${plan.unchangedMatches} ${plural(plan.unchangedMatches, 'match', 'matches')} already in the rewritten form stay untouched.` : ''
+        }`,
   ]
+  if (batch) lines.push(...renderBatchSummaryLines(plan))
   for (const f of plan.files) {
-    lines.push('', f.diff)
+    if (batch) {
+      const changes = batch.fileChanges.get(f.rel) ?? []
+      const shown = changes.slice(0, 30).map(c => `${c.line}:${c.col} [rule${c.ruleIndices.length > 1 ? 's' : ''} ${c.ruleIndices.join('+')}]`).join(', ')
+      const more = changes.length > 30 ? `, +${changes.length - 30} more` : ''
+      lines.push('', `Rule attribution for ${f.rel}: ${shown}${more}`, f.diff)
+    } else {
+      lines.push('', f.diff)
+    }
     if (f.diffOmittedLines > 0) lines.push(`(… ${f.diffOmittedLines} more diff ${plural(f.diffOmittedLines, 'line')} in ${f.rel})`)
   }
   lines.push('', `plan: ${plan.token} — write these changes with apply: true, plan: "${plan.token}" (refused if any of these files changes first).`)
@@ -177,6 +229,7 @@ export const AstEditTool = buildTool({
   shouldDefer: true,
   name: AST_EDIT_TOOL_NAME,
   strict: true,
+  keepEmptyInputs: ['rewrite'],
   straightQuoteInputs: ['pattern', 'path', 'glob'],
   maxResultSizeChars: 60_000,
   searchHint: 'structural code rewrite by syntax pattern across files, dry-run diff then apply',
@@ -215,6 +268,10 @@ export const AstEditTool = buildTool({
   userFacingName: () => 'Structural edit',
   getToolUseSummary,
   getActivityDescription(input: Partial<Input> | undefined): string {
+    if (input?.rules?.length) {
+      const count = `${input.rules.length} ${plural(input.rules.length, 'rule')}`
+      return input.apply ? `Rewriting ${count}` : `Planning ${count}`
+    }
     if (!input?.pattern) return 'Structural edit'
     return input.apply ? `Rewriting ${input.pattern}` : `Planning a rewrite of ${input.pattern}`
   },
@@ -230,8 +287,26 @@ export const AstEditTool = buildTool({
   async validateInput(input: Input) {
     const pathRefusal = controlCharacterPathRefusal(input.path)
     if (pathRefusal !== null) return { result: false as const, message: pathRefusal, errorCode: 1 }
-    if (input.pattern.trim() === '') {
-      return { result: false as const, message: 'pattern is empty — give a structural pattern such as "oldName($$$ARGS)".', errorCode: 1 }
+    if (input.rules !== undefined) {
+      if (input.rules.length === 0 || input.pattern !== undefined || (input.rewrite !== undefined && input.rewrite !== '')) {
+        return { result: false as const, message: EXCLUSIVE_FORMS_MESSAGE, errorCode: 1 }
+      }
+      for (let i = 0; i < input.rules.length; i++) {
+        if (input.rules[i]!.pattern.trim() === '') {
+          return {
+            result: false as const,
+            message: `Rule ${i}: pattern is empty — give a structural pattern such as "oldName($$$ARGS)".`,
+            errorCode: 1,
+          }
+        }
+      }
+    } else {
+      if (input.pattern === undefined || input.rewrite === undefined) {
+        return { result: false as const, message: EXCLUSIVE_FORMS_MESSAGE, errorCode: 1 }
+      }
+      if (input.pattern.trim() === '') {
+        return { result: false as const, message: 'pattern is empty — give a structural pattern such as "oldName($$$ARGS)".', errorCode: 1 }
+      }
     }
     if (input.lang !== undefined && input.lang.trim() !== '') {
       const resolved = resolveAstLanguage(input.lang)
@@ -325,7 +400,9 @@ export const AstEditTool = buildTool({
       return {
         behavior: 'ask',
         ...(safetyAsk ? { decisionReason: safetyAsk.decisionReason } : {}),
-        message: `Rewrite ${planned.plan.matchCount} ${plural(planned.plan.matchCount, 'match', 'matches')} of ${JSON.stringify(input.pattern)} in ${targets.length} ${plural(targets.length, 'file')} (${shown}${more})? One decision covers every file; a denied file means zero writes.${safetyAsk ? ' ' + safetyAsk.message : ''}`,
+        message: input.rules
+          ? `Rewrite ${planned.plan.matchCount} ${plural(planned.plan.matchCount, 'match', 'matches')} across ${input.rules.length} ${plural(input.rules.length, 'rule')} in ${targets.length} ${plural(targets.length, 'file')} (${shown}${more})? One decision covers every file; a denied file means zero writes.${safetyAsk ? ' ' + safetyAsk.message : ''}`
+          : `Rewrite ${planned.plan.matchCount} ${plural(planned.plan.matchCount, 'match', 'matches')} of ${JSON.stringify(input.pattern)} in ${targets.length} ${plural(targets.length, 'file')} (${shown}${more})? One decision covers every file; a denied file means zero writes.${safetyAsk ? ' ' + safetyAsk.message : ''}`,
       } as PermissionDecision
     }
     return { behavior: 'allow', updatedInput: input } as PermissionDecision
@@ -334,8 +411,8 @@ export const AstEditTool = buildTool({
     const startedAt = Date.now()
     const { scope, plan } = await planFor(input, context)
     const base = {
-      pattern: input.pattern,
-      rewrite: input.rewrite,
+      pattern: input.rules ? input.rules.map(r => r.pattern).join(' ; ') : (input.pattern ?? ''),
+      rewrite: input.rules ? input.rules.map(r => r.rewrite).join(' ; ') : (input.rewrite ?? ''),
       scope: scope.display,
       matchCount: plan.matchCount,
       fileCount: plan.files.length,
@@ -344,13 +421,16 @@ export const AstEditTool = buildTool({
     if (plan.files.length === 0) {
       const already = plan.unchangedMatches > 0
       const emptyScope = scope.files.length === 0
+      const targetLabel = input.rules
+        ? `${input.rules.length} ${plural(input.rules.length, 'rule')}`
+        : JSON.stringify(input.pattern)
       const head = emptyScope
         ? `Nothing searched: no files with a supported language ${scope.singleFile ? scope.display : `under ${scope.display}`}${scope.glob ? ` matching ${scope.glob}` : ''}${scope.lang ? ` in ${scope.lang.name}` : ''} — nothing to rewrite.`
         : already
-          ? `${plan.unchangedMatches} ${plural(plan.unchangedMatches, 'match', 'matches')} of ${JSON.stringify(input.pattern)} already read exactly as the rewrite — nothing to write.`
-          : `No matches for ${JSON.stringify(input.pattern)} — nothing to rewrite.`
+          ? `${plan.unchangedMatches} ${plural(plan.unchangedMatches, 'match', 'matches')} of ${targetLabel} already read exactly as the rewrite — nothing to write.`
+          : `No matches for ${targetLabel} — nothing to rewrite.`
       const trailer = renderSearchTrailer(scope, plan.search)
-      const text = [head, ...(emptyScope ? trailer.slice(1) : trailer)].join('\n')
+      const text = [head, ...renderBatchSummaryLines(plan), ...(emptyScope ? trailer.slice(1) : trailer)].join('\n')
       return {
         data: { ...base, state: already ? ('no-change' as const) : ('no-matches' as const), text, changedPaths: [] } satisfies Output,
         effect: {
@@ -387,8 +467,11 @@ export const AstEditTool = buildTool({
     }
 
     if (input.plan?.trim() !== plan.token) {
+      const whatDiffered = input.rules
+        ? 'a file, the rules or the scope differs from the dry run you read'
+        : 'a file, the pattern, the rewrite or the scope differs from the dry run you read'
       throw new Error(
-        `Plan ${input.plan} does not match the current dry run (${plan.token}): a file, the pattern, the rewrite or the scope differs from the dry run you read. Nothing was written. The current dry run follows — apply it with plan: "${plan.token}" if it is what you want.\n\n${dryRunText(scope, plan)}`,
+        `Plan ${input.plan} does not match the current dry run (${plan.token}): ${whatDiffered}. Nothing was written. The current dry run follows — apply it with plan: "${plan.token}" if it is what you want.\n\n${dryRunText(scope, plan)}`,
       )
     }
 
@@ -492,12 +575,18 @@ export const AstEditTool = buildTool({
     }
 
     const withAnchors = changeTransactionEnabled()
-    const rows = plan.files.map(
-      f => `  ${f.rel} — ${f.matchCount} ${plural(f.matchCount, 'rewrite')}${withAnchors ? ` (anchor: ${anchors.get(f.abs)})` : ''}`,
-    )
+    const rows = plan.files.map(f => {
+      if (plan.batch) {
+        const changes = plan.batch.fileChanges.get(f.rel) ?? []
+        const ruleSet = [...new Set(changes.flatMap(c => c.ruleIndices))].sort((a, b) => a - b)
+        return `  ${f.rel} — ${f.matchCount} ${plural(f.matchCount, 'rewrite')} (rule${ruleSet.length === 1 ? '' : 's'} ${ruleSet.join(', ')})${withAnchors ? ` (anchor: ${anchors.get(f.abs)})` : ''}`
+      }
+      return `  ${f.rel} — ${f.matchCount} ${plural(f.matchCount, 'rewrite')}${withAnchors ? ` (anchor: ${anchors.get(f.abs)})` : ''}`
+    })
     const text = [
       `Applied ${plan.matchCount} structural ${plural(plan.matchCount, 'rewrite')} in ${plan.files.length} ${plural(plan.files.length, 'file')} (re-read verified):`,
       ...rows,
+      ...renderBatchSummaryLines(plan),
       ...(syncFailures.length > 0
         ? [`Written and verified, but the editor/language-server sync failed for: ${syncFailures.join('; ')} — re-open those files before relying on live diagnostics.`]
         : []),

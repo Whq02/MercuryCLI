@@ -178,10 +178,16 @@ ledger like Grep's.
 
 ## AstEdit
 
-`{ pattern, rewrite, path?, glob?, lang?, apply?, plan? }`: the rewrite is
-code in the target language; `$NAME`/`$$$NAME` insert the captured source
-verbatim; `""` deletes the matched node (a node that owns its line takes the
-line with it). Two calls, always:
+`{ pattern?, rewrite?, rules?, path?, glob?, lang?, apply?, plan? }`: pass
+either `pattern` and `rewrite` for one rule, or `rules` (`[{ pattern, rewrite }, …]`)
+for simultaneous rules evaluated in one pass over each file's original bytes
+(never both). Each rewrite is code in the target language; `$NAME`/`$$$NAME`
+insert the captured source verbatim; `""` deletes the matched node (a node that
+owns its line takes the line with it). When `rules` is used, identical computed
+edits at the same span coalesce and count once, divergent overlapping matches
+refuse before preview naming both rules and their coordinates, and the preview
+and receipt report per-rule counts, coalesced edits and rules that matched
+nothing. Two calls, always:
 
 1. **The dry run** (no `apply`) plans every match, parse-guards every planned
    file, and returns the unified diff per file plus a plan token `ae-…`

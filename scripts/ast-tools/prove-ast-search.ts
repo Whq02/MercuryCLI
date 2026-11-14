@@ -187,7 +187,7 @@ section('§11 — the descriptions')
   const editDescription = await AstEditTool.description()
   check('AstEdit: prompt equals description', (await AstEditTool.prompt({ getToolPermissionContext: async () => ({}) })) === editDescription)
   check('AstEdit: says the dry run returns the diff and a plan and writes nothing, and apply with that plan writes', editDescription.includes('dry run that returns the unified diff per file and a plan token and writes nothing') && editDescription.includes('apply: true and that plan writes the change'))
-  check('AstEdit: pre-empts no refusal and names no other tool; the plan field carries the drift refusal', !editDescription.includes('Refused by name') && !editDescription.includes('nested inside another') && !/\bEdit\b|\bAstSearch\b/.test(editDescription) && String(AstEditTool.inputSchema.shape.plan.description).includes('apply refuses when a file, the pattern, the rewrite or the scope differs from that dry run'))
+  check('AstEdit: pre-empts no refusal and names no other tool; the plan field carries the drift refusal', !editDescription.includes('Refused by name') && !editDescription.includes('nested inside another') && !/\bEdit\b|\bAstSearch\b/.test(editDescription) && String(AstEditTool.inputSchema.shape.plan.description).includes('apply refuses when a file, the pattern, the rewrite, the rules or the scope differs from that dry run'))
   check('AstEdit: carries no examples: the apply and plan parameters show the two calls', (editDescription.match(/^- \{ "pattern"/gm) ?? []).length === 0 && !editDescription.includes('Examples:'))
 }
 
