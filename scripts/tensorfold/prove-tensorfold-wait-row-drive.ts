@@ -96,7 +96,7 @@ const stopEngine = async (): Promise<void> => {
   if (engine.exitCode === null && engine.signalCode === null) engine.kill('SIGKILL')
 }
 
-const [cols, rows] = (argAfter('--size') ?? '120x40').split('x').map(Number) as [number, number]
+const [cols, rows] = (argAfter('--size') ?? '100x40').split('x').map(Number) as [number, number]
 const home = join(ROOT, 'home')
 const userHome = join(ROOT, 'user')
 const cwd = join(ROOT, 'repo')

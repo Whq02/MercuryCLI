@@ -15,7 +15,7 @@ import { escRungHint, escRungOf } from '../input-core/interruptArity.js'
 import { SEND_NOW_HINT } from '../input-core/sendNowChord.js'
 import { crewAgentsOf, crewWaitingWords } from '../services/engine-connector/crewFacts.js'
 import { withSampleWords, workRowRuns, workWaitingWords } from '../services/engine-connector/workCounts.js'
-import { requestWaitLine } from '../services/providers/streamIdleBudget.js'
+import { requestWaitLine, requestWaitLinePastEstimate } from '../services/providers/streamIdleBudget.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { governorTrip, idleMotionLevel, motionPosture, subscribeIdleMotion } from '../utils/cockpit/motionGovernor.js'
 import { primeMotionSetting } from '../utils/cockpit/motionSetting.js'
@@ -254,13 +254,13 @@ export function escBackHint(live: SessionLiveV1, s: Pick<SeatStatusV1, 'interrup
   return `${hint !== '' ? `${hint} · ` : ''}${background !== '' ? `${background} · ` : ''}${sends !== '' ? `${sends} · ` : ''}${keyHintLabel('⇧← back')}`
 }
 
-const PAST_ESTIMATE_COUNT = /^(?:waiting for the first byte from |ingesting ).*( · \d+[sm] so far)$/
+const WAIT_COUNT = / · \d+[sm] so far$/
 
 export function fitStatusLine(line: string, columns: number, fixedWidth: number): string {
   const budget = statusLineBudget(columns, fixedWidth)
   if (stringWidth(line) <= budget) return line
   if (line.includes(' — ')) return truncateKeepingTail(line, budget)
-  const count = PAST_ESTIMATE_COUNT.exec(line)?.[1]
+  const count = requestWaitLinePastEstimate(line) ? WAIT_COUNT.exec(line)?.[0] : undefined
   return count !== undefined ? truncateKeepingTail(line, budget, stringWidth(count)) : line
 }
 
