@@ -284,6 +284,8 @@
         "console",
         "info",
         "screenshot",
+        "upload",
+        "download",
         "close"
       ],
       "units": [
@@ -303,7 +305,8 @@
           "capture a screenshot of a web page",
           "check which browser mercury can drive and its provenance",
           "close the driven browser session",
-          "emulate a phone or tablet, a timezone, a locale, a slow or offline network"
+          "emulate a phone or tablet, a timezone, a locale, a slow or offline network",
+          "work in several browser tabs side by side"
         ],
         "units": [
           "browser-drive"
@@ -328,6 +331,8 @@
           "console",
           "info",
           "screenshot",
+          "upload",
+          "download",
           "close"
         ],
         "execution": {

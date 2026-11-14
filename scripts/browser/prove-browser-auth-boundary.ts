@@ -43,7 +43,7 @@ await fetches()
 check('credentials pause each request for the authentication road', paused.length >= 12 && waits.length >= 12, `${paused.length} pauses, ${waits.length} completed continues`)
 console.log(`authentication interception: ${waits.length} continues, median ${[...waits].sort((x, y) => x - y)[Math.floor(waits.length / 2)]?.toFixed(3)} ms, max ${Math.max(...waits).toFixed(3)} ms`)
 const reset = await run({ op: 'viewport', emulation: { reset: true } })
-check('reset names the cached-credential exception and its origin', reset.result.includes(`what the browser already answered for ${a} stays answered until this browser closes`), reset.result)
+check('reset names the cached-credential exception and its origin', reset.result.includes(`what the browser already answered for ${a} stays answered in every tab until it closes`), reset.result)
 const mark = paused.length
 await fetches()
 check('without credentials no request pauses on this road', paused.length === mark, String(paused.length - mark))

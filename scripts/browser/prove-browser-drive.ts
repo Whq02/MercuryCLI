@@ -293,7 +293,7 @@ console.log('§4b select / press / hover + the input zoo')
   const cb = await run({ op: 'type', selector: '#cb', text: 'yes' })
   check('a checkbox refuses type and names op:click', cb.outcome === 'failed' && cb.result.includes('op:"click"'), cb.result)
   const fi = await run({ op: 'type', selector: '#fi', text: '/tmp/x' })
-  check('a file input refuses naming the uploads deferral', fi.outcome === 'failed' && fi.result.includes('deferral'), fi.result)
+  check('a file input refuses typing and names the operation that sets it', fi.outcome === 'failed' && fi.result.includes('is a file input — op:"upload" with files sets it'), fi.result)
 }
 
 console.log('§5b credential zoo')
@@ -506,14 +506,17 @@ console.log('§9e popups + frames')
   await run({ op: 'click', selector: '#pop-btn' })
   const ringPop = await until('popup named in ring', async () => (await run({ op: 'console' })).result.includes('new tab'))
   check('a window.open click lands a NAMED ring entry (the black hole dies)', ringPop)
-  const orphanGone = await until('orphan tab closed', async () => (await activeSession(OWNER)!.browser.pages()).length === 1)
-  check('the orphan tab was closed (census: one owned page)', orphanGone)
+  const keptPop = await until('the tab is kept', async () => (await activeSession(OWNER)!.browser.pages()).length === 2 && activeSession(OWNER, 'popup') !== null)
+  check('the tab the click opened is kept under a name (census: two pages, both owned)', keptPop)
+  await run({ op: 'close', tab: 'popup' })
+  const onePage = await until('the kept tab closes by name', async () => (await activeSession(OWNER)!.browser.pages()).length === 1)
+  check('and closing it by name leaves the one page', onePage)
   const tree = await run({ op: 'extract', mode: 'tree' })
   check('the tree projects FRAMED content (includeIframes)', tree.result.includes('inner button'), tree.result.slice(0, 200))
   const miss = await run({ op: 'click', selector: '#inner-btn', timeoutMs: 600 })
   check('a selector living in a frame diagnoses the frames, not a bare not-found', miss.outcome === 'failed' && miss.result.includes('child frame'), miss.result)
   const dl = await run({ op: 'open', url: `${A}/download` })
-  check('a download-serving URL cannot land bytes (protocol-level deny) and the refusal names the download', dl.outcome === 'failed' && dl.result.includes('is a download') && dl.result.includes('saves as payload.bin') && dl.result.includes('downloads are not followed here'), dl.result)
+  check('an open whose address is a download saves it in the session scratchpad and names it', dl.outcome === 'succeeded' && dl.result.includes('is a download — saved to') && dl.result.includes('suggested name payload.bin') && dl.result.includes('in the session scratchpad'), dl.result)
   await run({ op: 'open', url: `${A}/` })
 }
 
@@ -658,7 +661,7 @@ async function permB(input: Partial<ToolInput>): Promise<{ behavior: string; mes
   check("B's console ring is B's own (no alpha-page entries)", !ringB.result.includes('alpha loaded'), ringB.result.split('\n').slice(0, 3).join(' | '))
   noteCheckedActOrigin(OWNER, 'click', 'http://one-shot-fixture.test')
   check("A's judged origin is NOT consumable by owner B", consumeCheckedActOrigin(OWNER_B, 'click') === null)
-  check("…and stays consumable by owner A (one-shot, own lane)", consumeCheckedActOrigin(OWNER, 'click') === 'http://one-shot-fixture.test')
+  check("…and stays consumable by owner A (one-shot, own lane)", consumeCheckedActOrigin(OWNER, 'click')?.origin === 'http://one-shot-fixture.test')
   const statusA = await run({ op: 'status' })
   const statusB = await runB({ op: 'status' })
   check('status (A) names the other live session', statusA.result.includes('other live sessions: 1'), statusA.result.split('\n').slice(-1).join(''))
@@ -991,7 +994,7 @@ console.log('§15 structural teeth')
     'the act-op set is spelled exactly',
     toolSrc
       .replace(/\s+/g, ' ')
-      .includes("new Set([ 'open', 'click', 'type', 'scroll', 'back', 'reload', 'select', 'press', 'hover', ])"),
+      .includes("new Set([ 'open', 'click', 'type', 'scroll', 'back', 'reload', 'select', 'press', 'hover', 'upload', ])"),
   )
   check('press has NO printable keys (never a typing side door)', toolSrc.includes('PRESS_KEYS') && !/PRESS_KEYS[^]]*'a'/.test(toolSrc))
   check('the first-visit ask names itself', toolSrc.includes('first visit to'))
@@ -1010,7 +1013,7 @@ console.log('§15 structural teeth')
   check('the per-owner store joins the owner-disposal registry', sessionSrc.includes('registerOwnerScopedStore(ownerStates)'))
   check(
     'a live or launching child is retained (LRU eviction can never kill a browser mid-act)',
-    sessionSrc.includes('retain: state => state.session !== null || state.launching'),
+    sessionSrc.includes('retain: state => state.tabs.size > 0 || state.launching'),
   )
   check('the at-capacity refusal names the knob', sessionSrc.includes('raise MERCURY_BROWSER_MAX_SESSIONS'))
   const runAgentSrc = await Bun.file(join(ROOT, 'src', 'tools', 'AgentTool', 'runAgent.ts')).text()

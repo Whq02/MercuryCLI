@@ -37,7 +37,7 @@ reply to the clipboard (`/copy`).
 - [MEMORY-FINDINGS.md](MEMORY-FINDINGS.md): what the handoff note does and what it costs, measured on 1.0.0-beta.32 over 250 sessions in chains of five, with a control.
 - [VOICE.md](VOICE.md): on-device Whisper dictation with `/voice on` and `/voice off`, hold-to-talk capture, model selection and microphone setup.
 - [COMPUTER-USE.md](COMPUTER-USE.md): screen and input tools, application consent, desktop ownership and platform requirements.
-- [BROWSER.md](BROWSER.md): the `Browser` tool: one browser per agent, origin approvals, the idle lease and the session cap, frames and covered targets.
+- [BROWSER.md](BROWSER.md): the `Browser` tool: a browser session per agent with named tabs, origin approvals, the idle lease and the session cap, device and network emulation, downloads and uploads, frames and covered targets.
 - [WEBFETCH.md](WEBFETCH.md): the `WebFetch` tool: public pages as Markdown, failures and retries, robots rules, host back-off and batch fetches.
 - [REMOTE-FILES.md](REMOTE-FILES.md): files on another machine in Read, Edit, Write, Grep and Glob through `ssh://host/path`: the path forms, what each tool does, the change check and the permission rules.
 
