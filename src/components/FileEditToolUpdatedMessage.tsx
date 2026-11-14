@@ -6,6 +6,7 @@ import { count } from '../utils/array.js';
 import { MessageResponse } from './MessageResponse.js';
 import { ToolCardMarker, toolCardCountColor } from './mercury-ui/toolCardMeta.js';
 import { StructuredDiffList } from './StructuredDiffList.js';
+import { isSqliteRowTarget } from '../tools/FileWriteTool/structuredTargets.js';
 import { basename } from 'node:path';
 type Props = {
   filePath: string;
@@ -57,6 +58,7 @@ export function FileEditToolUpdatedMessage({
         </>
       ) : null}
       {hasChanges ? null : <Text dimColor>No changes</Text>}
+      {isSqliteRowTarget(filePath) ? ' · not checkpointed' : null}
     </Text>
   );
 

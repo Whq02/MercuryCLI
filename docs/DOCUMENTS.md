@@ -145,3 +145,79 @@ budget still applies, so a large crop may be downscaled to fit.
 
 The crop coordinates, original dimensions and scale are metadata inside the
 image's tool result instead of a separate user message.
+
+## Profiler reports
+
+A whole `Read` of a recognised `.cpuprofile` (V8 or CDP-wrapped V8) or
+`.sample.txt` (a macOS sampling report) returns measured hotspots and hot
+paths. It reads an existing report on every platform; it
+never starts a profiler or follows a source URL. Self and inclusive weights,
+known idle/wait contribution, the denominator and any hit-count approximation
+are named separately. Recorded function/file/line/module identities stay with
+the rows; uncertain symbols remain unresolved.
+
+Use `<path>#read?view=profile&offset=0&limit=20` for a result-row page.
+The continuation preserves the target and pages the generated rows.
+A summary grants neither a file edit anchor nor source read coverage.
+`<path>#read?view=raw`, or an ordinary read with explicit `offset`, `limit` or
+`ranges`, reads the original report with its original coordinates and anchors.
+A misnamed or unrecognised report remains ordinary text.
+
+Compare compatible reports with
+`<after>#read?view=profile&compare=<before>`; `compare` is last and its value is
+verbatim, with no URL decoding. Both files pass the ordinary Read rules.
+The comparison names both totals and reports absolute self/inclusive deltas
+separately from percentage-point share changes. Different profiler formats or
+sampling intervals are not compared as if their weights meant the same thing.
+
+The reader streams report tokens and lines; sample arrays are not retained in
+memory. Memory follows the recorded call graph and largest field. Cancellation
+interrupts parsing and graph traversal. Quality notes disclose
+missing references, unequal sample/delta counts, cycles and estimated timing.
+Continuation detects a changed report instead of mixing its pages silently.
+
+## SQLite query views
+
+`Read` takes SQL as the last value of a target, for example
+`/project/data.sqlite#read?offset=0&limit=20&sql=SELECT name FROM items ORDER BY id`.
+The SQL is verbatim: nothing is URL-decoded and `&`, `+`, `%` and `?` inside it
+remain SQL. Tables can also use
+`/project/data.sqlite#read?table=items&order=id DESC&where=id>10&limit=20`;
+`/project/data.sqlite:items#read?where=id>10&limit=20` means the same table.
+The predicate is one expression; a second statement is refused. Use `sql=` for
+SQL that needs comments, statement syntax or an ampersand. Existing bare-table,
+schema and slash-key reads keep their meaning.
+
+The release's bundled SQLite engine opens the database read-only. A mutating
+statement gets the engine's refusal; no SQL is sent to an SSH shell. Extra-file
+attachment and extension loading are unavailable on this read connection.
+Each row is a JSON array beside the ordered column names, preserving duplicate
+names, exact integers and blob bytes (base64). A row too large for the answer
+is saved as a complete generated JSON value with its Read path. Result offset
+is zero-based, limit is positive, and the continuation preserves the SQL.
+
+Queries have no file-size or result-count ceiling: a local query iterates to its
+page plus lookahead without counting or copying the database, and cancellation
+ends its SQLite process even during a long calculation. Every continuation
+reruns the query against the live database. The result gives no source edit
+anchor or read coverage. SQLite may maintain read marks in an existing shared-memory
+sidecar, but Read changes neither the database nor its WAL and creates no
+sidecar beside them; only a leftover WAL without shared memory uses a private
+copy, named in the header. An SSH database and its WAL are transferred to a
+private local copy before querying; every continuation transfers them again.
+
+To delete a previously read row, call `Write` with
+`file_path: "/project/data.sqlite:items/42#delete"` and `content: "DELETE"`.
+Empty content never deletes a row, and an ordinary empty-file write still
+writes an empty file. In modes that ask, the ordinary permission card shows
+the current row as a removal before approval. The transaction rechecks the
+row, schema and prior read, requires one affected row and verifies its absence.
+A foreign-key restriction rolls the deletion back. Declared cascades and DELETE
+triggers run: the card names the tables and triggers through which other rows
+may change, and the result counts the other rows that did.
+The result distinguishes a deleted row from a missing-row no-op and gives no
+empty-file edit anchor. A row change is never checkpointed: a rewind does not
+restore it. The card and the result say so, and the result repeats the row as
+it was. A query result is not the prior row read. Hidden-rowid
+shorthand uses an unshadowed alias. Composite or fully shadowed shorthand is
+refused. A key that names more than one row is refused.

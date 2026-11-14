@@ -1319,7 +1319,7 @@ async function readRichFormatLane(
   } else if (rich.kind === 'archive') {
     rendering = await renderArchiveTarget(resolvedContainerPath, rich.ext, rich.subtarget)
   } else if (rich.kind === 'sqlite') {
-    rendering = await renderSqliteTarget(resolvedContainerPath, rich.subtarget)
+    rendering = await renderSqliteTarget(resolvedContainerPath, rich.subtarget, isRemotePath(rich.containerPath) ? rich.containerPath : resolvedContainerPath)
   } else {
     rendering = { text: await extractDocumentText(resolvedContainerPath, context.abortController.signal), ownBytes: false }
   }
@@ -1334,7 +1334,7 @@ async function readRichFormatLane(
   const anchored = lineAnchorsEnabled() && input.line_anchors === true
   const displayPath = rich.subtarget ? `${resolvedContainerPath}:${rich.subtarget}` : resolvedContainerPath
   const recordRead = (state: FileState): void => {
-    if (ownBytes && rich.subtarget !== undefined) context.readFileState.set(displayPath, state)
+    if (ownBytes && rich.subtarget !== undefined) context.readFileState.set(displayPath, rendering.sqliteRowIdentity === undefined ? state : { ...state, sqliteRowIdentity: rendering.sqliteRowIdentity })
   }
 
   if (parsedRanges !== null && parsedRanges.length > 0) {
@@ -1703,7 +1703,8 @@ function serializeTextResult(file: TextFile, data: object): string {
   const capNote = file.overCap === undefined ? '' : `${overCapWords(file)}\n`
   const numbered = resultOutlineBodies.get(data) ?? numberedWindow(file, resultLineAnchors.has(data))
   const anchorSuffix = file.anchor !== undefined ? `\n(anchor: ${file.anchor})` : ''
-  return `${resolvedNote}${prefix}${capNote}${numbered}${conflictMark(file.content)}${cutMark(file)}${anchorSuffix}${queryHint}`
+  const profileHint = /\.(?:cpuprofile|sample\.txt)$/i.test(file.filePath) ? `\nProfile summary: Read(file_path: ${JSON.stringify(`${file.filePath}#read?view=profile`)}).` : ''
+  return `${resolvedNote}${prefix}${capNote}${numbered}${conflictMark(file.content)}${cutMark(file)}${anchorSuffix}${queryHint}${profileHint}`
 }
 
 export function unresolvedConflictBlocks(content: string): number {
@@ -1784,7 +1785,11 @@ export const FileReadTool = buildTool({
     return summary ? `Reading ${summary}` : 'Reading a file'
   },
   getPath(input: Partial<Input> | undefined): string {
-    return input?.file_path ? parseReadQueryTarget(input.file_path)?.source ?? input.file_path : getCwd()
+    if (!input?.file_path) return getCwd()
+    const source = parseReadQueryTarget(input.file_path)?.source ?? input.file_path
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(source)) return source
+    const named = splitPathRangeSelector(source, expandPath(source)).rawPath
+    return parseRichFormatTarget(named)?.containerPath ?? named
   },
   backfillObservableInput(input: Input): void {
     const query = parseReadQueryTarget(input.file_path)
@@ -1923,12 +1928,19 @@ export const FileReadTool = buildTool({
       granted = share < declaredLimits.maxTokens ? { ...declaredLimits, maxTokens: share, room: true } : declaredLimits
       return granted
     }
-    const query = parseReadQueryTarget(input.file_path)
-    if (query !== null) {
-      const { readQuery } = await import('./readQuery.js')
-      const rendered = await readQuery({ target: query, input, context, limits: reserve(), canUseTool, parentMessage })
-      if (rendered.readSource) input = { ...input, file_path: query.source }
-      else {
+    let query = parseReadQueryTarget(input.file_path)
+    if (query?.parameters.view === 'raw') {
+      input = { ...input, file_path: query.source, offset: input.offset ?? 1 }
+      query = null
+    }
+    const automaticProfile = query === null && classifyReadTarget(input.file_path).kind === 'file' && /\.(?:cpuprofile|sample\.txt)$/i.test(input.file_path) && input.offset === undefined && input.limit === undefined && !input.ranges?.length && !input.outline
+    if (query !== null || automaticProfile) {
+      const request = { target: query ?? { source: input.file_path, suffix: '#read?view=profile', parameters: { view: 'profile' } }, input, context, limits: reserve(), canUseTool, parentMessage }
+      const rendered = query !== null
+        ? await (await import('./readQuery.js')).readQuery(request)
+        : await (await import('./readProfiles.js')).readProfiles(request, true)
+      if (rendered?.readSource) input = { ...input, file_path: request.target.source }
+      else if (rendered !== null) {
         const data: Output = {
           type: 'text',
           file: { filePath: input.file_path, content: rendered.content, numLines: rendered.numLines, startLine: 1, totalLines: rendered.numLines },

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
+# gate-watch: scripts/remote-files/remoteKit.ts
 # gate-watch: src/utils/attachments/toolManuals.ts src/utils/api.ts scripts/tools/prove-wire-manuals.ts
 # gate-watch: src/services/voice/fileTranscript.ts
 # gate-watch: scripts/tools/prove-read-reminder-persistence.ts src/tools/FileReadTool/FileReadTool.ts
@@ -48,7 +49,7 @@
 # gate-watch: docs/HOOKS.md src/utils/hooks/contract.ts
 # gate-watch: bunfig.toml
 # gate-watch: src/rows/* src/runner/wire/* scripts/lib/mcpInProcess.ts
-# gate-watch: scripts/lib/fixtureApi.ts src/services/changeTransaction/snapshotAnchor.ts scripts/edit-tools/prove-read-dedup-delivery.ts
+# gate-watch: scripts/lib/fixtureApi.ts scripts/lib/firstRunSeed.ts src/services/changeTransaction/snapshotAnchor.ts scripts/edit-tools/prove-read-dedup-delivery.ts
 # gate-watch: src/vim/transitions.ts src/vim/types.ts
 # gate-watch: src/components/messages/UserNoticeMessage.tsx
 # gate-watch: src/cli/run.ts src/extensions/installConsent.ts src/tasks/LocalShellTask/LocalShellTask.tsx

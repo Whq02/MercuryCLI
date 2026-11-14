@@ -10,6 +10,7 @@ export type FileState = {
   offset: number | undefined
   limit: number | undefined
   isPartialView?: boolean
+  sqliteRowIdentity?: string
 }
 
 export const READ_FILE_STATE_CACHE_SIZE = 100

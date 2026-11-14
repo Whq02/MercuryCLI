@@ -1,5 +1,6 @@
 import { closeSync, copyFileSync, existsSync, mkdtempSync, readSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { createHash } from 'node:crypto'
 import { basename, join, posix } from 'node:path'
 import { officeWord, officeSlides, officeComments, officeOdf, officeRelationships, officeSheetNames, officeSlideIds, officeSpreadsheet } from './officeText.js'
 import { pathToFileURL } from 'node:url'
@@ -70,14 +71,14 @@ export function parseRichFormatTarget(filePath: string): ParsedRichTarget | null
   return null
 }
 
-export function statBoundedContainer(filePath: string): number {
+export function statBoundedContainer(filePath: string, maximum = RICH_CONTAINER_MAX_BYTES): number {
   const st = statSync(filePath)
   if (!st.isFile()) {
     throw new Error(`Not a regular file: ${filePath}`)
   }
-  if (st.size > RICH_CONTAINER_MAX_BYTES) {
+  if (st.size > maximum) {
     throw new Error(
-      `Container file (${formatFileSize(st.size)}) exceeds the maximum allowed container size (${formatFileSize(RICH_CONTAINER_MAX_BYTES)}): ${filePath}`,
+      `Container file (${formatFileSize(st.size)}) exceeds the maximum allowed container size (${formatFileSize(maximum)}): ${filePath}`,
     )
   }
   return st.size
@@ -545,6 +546,7 @@ export function hasNonTextBytes(buf: Buffer): boolean {
 export interface RichRender {
   text: string
   ownBytes: boolean
+  sqliteRowIdentity?: string
 }
 
 export async function renderArchiveTarget(
@@ -957,6 +959,7 @@ export function renderDocumentBytes(buf: Buffer, ext: string, filePath = `docume
 type SqliteStmt = {
   all(...params: unknown[]): Record<string, unknown>[]
   safeIntegers?(on: boolean): SqliteStmt
+  setReadBigInts?(on: boolean): void
 }
 export type SqliteDb = {
   prepare(sql: string): SqliteStmt
@@ -1008,30 +1011,30 @@ type SqliteColumnInfo = { cid: number; name: string; type: string; notnull: numb
 
 type SqliteRowAddress =
   | { kind: 'column'; column: string }
-  | { kind: 'rowid' }
+  | { kind: 'rowid'; column: string }
   | { kind: 'composite'; columns: string[] }
 
 export function sqliteTableShape(db: SqliteDb, table: string): { columns: SqliteColumnInfo[]; address: SqliteRowAddress } {
-  const columns = db.prepare(`PRAGMA table_info(${quoteIdent(table)})`).all() as SqliteColumnInfo[]
+  const columns = db.prepare(`PRAGMA table_xinfo(${quoteIdent(table)})`).all() as SqliteColumnInfo[]
   const keyed = columns.filter(c => c.pk > 0).sort((a, b) => a.pk - b.pk)
   if (keyed.length === 1) return { columns, address: { kind: 'column', column: keyed[0]!.name } }
   if (keyed.length > 1) return { columns, address: { kind: 'composite', columns: keyed.map(c => c.name) } }
-  return { columns, address: { kind: 'rowid' } }
+  const column = ['rowid', '_rowid_', 'oid'].find(alias => !columns.some(c => c.name.toLowerCase() === alias))
+  if (column === undefined) throw new Error(`Table "${table}" shadows rowid, _rowid_ and oid; no hidden row id is addressable.`)
+  return { columns, address: { kind: 'rowid', column } }
 }
 
-export function sqliteKeyBinding(value: string): number | bigint | string {
-  if (/^-?\d{1,15}$/.test(value)) return Number(value)
-  if (/^-?\d{16,20}$/.test(value)) {
-    try {
-      const big = BigInt(value)
-      if (big >= -9223372036854775808n && big <= 9223372036854775807n) return big
-    } catch {}
+export function sqliteKeyBinding(value: string): bigint | string {
+  if (/^(?:0|-?[1-9]\d{0,19})$/.test(value)) {
+    const big = BigInt(value)
+    if (big >= -9223372036854775808n && big <= 9223372036854775807n) return big
   }
   return value
 }
 
 function sqliteRows(db: SqliteDb, sql: string, params: unknown[]): Record<string, unknown>[] {
   const stmt = db.prepare(sql)
+  stmt.setReadBigInts?.(true)
   return (stmt.safeIntegers?.(true) ?? stmt).all(...params)
 }
 
@@ -1049,15 +1052,15 @@ export function selectSqliteRows(
         `Table "${table}" has a composite primary key (${address.columns.join(', ')}); select a row with ${table}/<column>=<value>.`,
       )
     }
-    matchColumn = address.kind === 'column' ? address.column : 'rowid'
+    matchColumn = address.column
   } else {
-    const known = shape.columns.some(c => c.name === selector.column) || (address.kind === 'rowid' && selector.column === 'rowid')
+    const known = shape.columns.some(c => c.name === selector.column) || (address.kind === 'rowid' && selector.column === address.column)
     if (!known) {
       throw new Error(`Table "${table}" has no column "${selector.column}" (columns: ${shape.columns.map(c => c.name).join(', ')}).`)
     }
     matchColumn = selector.column
   }
-  const projection = address.kind === 'rowid' ? 'rowid, *' : '*'
+  const projection = address.kind === 'rowid' ? `${quoteIdent(address.column)} AS ${quoteIdent(address.column)}, *` : '*'
   const rows = sqliteRows(
     db,
     `SELECT ${projection} FROM ${quoteIdent(table)} WHERE ${quoteIdent(matchColumn)} = ? LIMIT 3`,
@@ -1074,6 +1077,29 @@ export function renderSqliteValue(v: unknown): string {
   if (v instanceof Uint8Array || Buffer.isBuffer(v)) return JSON.stringify(`<BLOB ${v.byteLength}B>`)
   if (typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') return JSON.stringify(v)
   return JSON.stringify(String(v))
+}
+
+export function sqliteRowIdentity(row: Record<string, unknown>, shape: ReturnType<typeof sqliteTableShape>): string {
+  const hash = createHash('sha256')
+  const columns = shape.columns.map(column => column.name)
+  if (shape.address.kind === 'rowid') columns.unshift(shape.address.column)
+  for (const column of columns) {
+    const name = Buffer.from(column)
+    hash.update(`${name.byteLength}:`).update(name)
+    const value = row[column]
+    if (value === null) hash.update('null;')
+    else if (value instanceof Uint8Array) hash.update(`blob:${value.byteLength}:`).update(value)
+    else if (typeof value === 'bigint') hash.update(`integer:${value};`)
+    else if (typeof value === 'number') {
+      const bytes = Buffer.allocUnsafe(8)
+      bytes.writeDoubleBE(value)
+      hash.update('real:').update(bytes)
+    } else {
+      const bytes = Buffer.from(String(value))
+      hash.update(`${typeof value}:${bytes.byteLength}:`).update(bytes)
+    }
+  }
+  return hash.digest('hex')
 }
 
 export function renderSqliteRow(row: Record<string, unknown>): string {
@@ -1122,19 +1148,21 @@ function renderSqliteRowTarget(
   dbPath: string,
   table: string,
   selector: SqliteRowSelector,
-): string {
+): RichRender {
   const shape = sqliteTableShape(db, table)
   const { matchColumn, rows } = selectSqliteRows(db, table, shape, selector)
   if (rows.length === 0) throw new Error(sqliteRowNotFoundMessage(table, matchColumn, selector.value, dbPath))
   if (rows.length > 1) throw new Error(sqliteRowAmbiguousMessage(table, matchColumn, selector.value))
-  return renderSqliteRow(rows[0]!)
+  return { text: renderSqliteRow(rows[0]!), ownBytes: true, sqliteRowIdentity: sqliteRowIdentity(rows[0]!, shape) }
 }
 
 export async function renderSqliteTarget(
   dbPath: string,
   subtarget?: string,
+  sourcePath = dbPath,
 ): Promise<RichRender> {
-  statBoundedContainer(dbPath)
+  const addressed = subtarget?.includes('/') === true
+  statBoundedContainer(dbPath, addressed ? Infinity : RICH_CONTAINER_MAX_BYTES)
   const bunSqlite = 'bun:sqlite'
   const openReadOnly = async (file: string, judged: string): Promise<SqliteDb> => {
     if (process.versions.bun) {
@@ -1148,19 +1176,27 @@ export async function renderSqliteTarget(
   }
   let scratch: string | null = null
   let db: SqliteDb
-  const hasLiveJournal = existsSync(`${dbPath}-wal`) || existsSync(`${dbPath}-journal`)
-  try {
-    db = await openReadOnly(hasLiveJournal ? dbPath : `${pathToFileURL(dbPath).href}?immutable=1`, dbPath)
-  } catch {
+  const hasLog = existsSync(`${dbPath}-wal`) && statSync(`${dbPath}-wal`).size > 32
+  const leftoverLog = hasLog && !existsSync(`${dbPath}-shm`)
+  const openPrivateCopy = async (): Promise<SqliteDb> => {
     scratch = mkdtempSync(join(tmpdir(), 'mercury-sqlite-read-'))
     const copy = join(scratch, basename(dbPath))
     try {
       closeSync(openRegularFileSync(dbPath).fd)
       copyFileSync(dbPath, copy)
-      db = await openReadOnly(copy, copy)
+      if (leftoverLog) copyFileSync(`${dbPath}-wal`, `${copy}-wal`)
+      return await openReadOnly(copy, copy)
     } catch (error) {
       rmSync(scratch, { recursive: true, force: true })
       throw error
+    }
+  }
+  if (leftoverLog) db = await openPrivateCopy()
+  else {
+    try {
+      db = await openReadOnly(hasLog || existsSync(`${dbPath}-journal`) ? dbPath : `${pathToFileURL(dbPath).href}?immutable=1`, dbPath)
+    } catch {
+      db = await openPrivateCopy()
     }
   }
 
@@ -1176,6 +1212,7 @@ export async function renderSqliteTarget(
       const notFound = (name: string) =>
         new Error(`SQLite table or view "${name}" not found in ${dbPath}. Available: ${objects.map(o => o.name).join(', ') || '(none)'}`)
       let targetObj = findObject(subtarget)
+      if (targetObj && addressed) statBoundedContainer(dbPath)
       if (!targetObj && subtarget.includes('/')) {
         const parsed = parseSqliteSubtarget(subtarget)
         if (!parsed.ok) throw new Error(parsed.reason)
@@ -1187,7 +1224,7 @@ export async function renderSqliteTarget(
         if (/^\s*CREATE\s+VIRTUAL\s+TABLE\b/i.test(targetObj.sql ?? '')) {
           throw new Error(`"${targetObj.name}" is a virtual table: a virtual table has no addressable rows; read ${dbPath}:${targetObj.name} for its rows.`)
         }
-        return { text: renderSqliteRowTarget(db, dbPath, targetObj.name, parsed.selector!), ownBytes: true }
+        return renderSqliteRowTarget(db, dbPath, targetObj.name, parsed.selector!)
       }
       if (!targetObj) throw notFound(subtarget)
       const qName = quoteIdent(targetObj.name)
@@ -1213,6 +1250,7 @@ export async function renderSqliteTarget(
 
     const lines: string[] = [
       `(database: sqlite · tables: ${objects.length})`,
+      `SQL rows: Read(file_path: ${JSON.stringify(`${sourcePath}#read?sql=SELECT * FROM sqlite_schema`)}).`,
     ]
     for (const obj of objects) {
       const qName = quoteIdent(obj.name)

@@ -7,6 +7,7 @@ import { Select } from '../../CustomSelect/select.js'
 import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js'
 import { isRemotePath } from '../../../services/remoteFiles/target.js'
 import { expandPath } from '../../../utils/path.js'
+import { isSqliteRowTarget, SQLITE_ROW_NOT_CHECKPOINTED } from '../../../tools/FileWriteTool/structuredTargets.js'
 import { PermissionDialog } from '../PermissionDialog.js'
 import { PermissionRuleExplanation } from '../PermissionRuleExplanation.js'
 import type { ToolUseConfirm } from '../PermissionRequest.js'
@@ -58,6 +59,9 @@ export function FilePermissionDialog<T extends ToolInput>({
     [parseInput, toolUseConfirm.input],
   )
 
+  const writtenPath = (toolUseConfirm.input as { file_path?: unknown }).file_path
+  const sqliteRowWrite = operationType === 'write' && typeof writtenPath === 'string' && !writtenPath.endsWith('#delete') && isSqliteRowTarget(writtenPath)
+
   const symlinkTarget = useMemo(() => {
     if (path === null || isRemotePath(path)) return undefined
     try {
@@ -81,6 +85,7 @@ export function FilePermissionDialog<T extends ToolInput>({
       <PermissionDialog title={title} subtitle={subtitle} workerBadge={workerBadge}>
         <Box flexDirection="column">
           {content}
+          {sqliteRowWrite ? <Text>{SQLITE_ROW_NOT_CHECKPOINTED}</Text> : null}
           {symlinkTarget !== undefined ? (
             <Text color="warning">
               {symlinkEscapes

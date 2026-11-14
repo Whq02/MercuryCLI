@@ -23,6 +23,15 @@ export interface ReadQueryResult {
 export async function readQuery(request: ReadQueryRequest): Promise<ReadQueryResult> {
   const kind = classifyReadTarget(request.target.source).kind
   if (kind === 'url' || (kind === 'resource' && (!readTargetsEnabled() || !mercuryRefsEnabled() || parseMercuryRef(request.target.source.trim()) === null))) return { content: '', numLines: 0, readSource: true }
+  if (request.target.parameters.view === 'profile') {
+    const { readProfiles } = await import('./readProfiles.js')
+    return (await readProfiles(request))!
+  }
+  const parameters = request.target.parameters
+  if (parameters.sql !== undefined || parameters.table !== undefined || (parameters.q === undefined && parameters.query === undefined && /\.(?:sqlite3?|db)(?::[^\r\n]+)?$/i.test(request.target.source))) {
+    const { sqliteQuery } = await import('./sqliteQuery.js')
+    return sqliteQuery(request)
+  }
   const { readJson } = await import('./readJson.js')
   return readJson(request)
 }

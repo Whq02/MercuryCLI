@@ -10,6 +10,8 @@ import { FilePermissionDialog } from '../FilePermissionDialog/FilePermissionDial
 import type { PermissionRequestProps } from '../PermissionRequest.js'
 import { RemotePathSubtitle } from '../RemotePathSubtitle.js'
 import { FileWriteToolDiff } from './FileWriteToolDiff.js'
+import { parseStructuredWriteTarget } from '../../../tools/FileWriteTool/structuredTargets.js'
+import { SqliteDeletePermissionRequest } from '../../../tools/FileWriteTool/SqliteDeletePermissionRequest.js'
 
 type WriteToolInput = {
   file_path: string
@@ -29,7 +31,13 @@ function readExisting(filePath: string): { exists: boolean; content: string } {
   }
 }
 
-export function FileWritePermissionRequest({
+export function FileWritePermissionRequest(props: PermissionRequestProps): React.ReactNode {
+  const input = parseWriteInput(props.toolUseConfirm.input)
+  const target = input.file_path.endsWith('#delete') ? parseStructuredWriteTarget(input.file_path) : null
+  return target?.kind === 'sqlite-row' && target.deleting ? <SqliteDeletePermissionRequest {...props} /> : <PlainFileWritePermissionRequest {...props} />
+}
+
+function PlainFileWritePermissionRequest({
   toolUseConfirm,
   onDone,
   onReject,
