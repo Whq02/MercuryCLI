@@ -1,0 +1,7 @@
+{
+  "recorded": "llama-server 1.0.0 (b12359, b1b770d90) started with --tools, answering a request whose Host named llm.example.test:27181 on a loopback connection, 14 Nov 2026: the same bytes for /v1/models, /props, /metrics and /v1/chat/completions; b11829 answers the same requests 200",
+  "status": 403,
+  "contentType": "application/json; charset=utf-8",
+  "body": "{\"error\":{\"message\":\"Cross-origin request not allowed (see --cors-origins)\",\"type\":\"permission_error\",\"code\":403}}",
+  "serverLog": "(CORS) rejected cross-origin request: POST /v1/chat/completions, host = 'llm.example.test:27181', origin = '', sec-fetch-site = ''"
+}

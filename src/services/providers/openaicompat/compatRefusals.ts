@@ -28,6 +28,16 @@ export function compatEngineRefusalText(dialect: string | undefined, fault: { me
   return `${name} refused the request: ${detail} — ${rule?.remedy ?? 'check this server’s model and request settings, then retry; /llmhost checks the connection'}`
 }
 
+const LOOPBACK_HOST = /^(?:localhost|0\.0\.0\.0|127(?:\.\d{1,3}){3}|\[::1?\])$/
+
+export function llamacppOriginRemedy(dialect: string | undefined, fault: { message: string; status?: number }, requestUrl: string | undefined): string | undefined {
+  if (dialect !== 'llamacpp' || fault.status !== 403 || !/cross-origin request not allowed/i.test(fault.message)) return undefined
+  let url: URL | undefined
+  try { url = requestUrl === undefined ? undefined : new URL(requestUrl) } catch { url = undefined }
+  if (url === undefined || LOOPBACK_HOST.test(url.hostname)) return 'a forwarder in front of this llama.cpp server sent it another Host: start the server with --cors-origins naming the address its log shows after "host =", or forward the Host unchanged'
+  return `start this llama.cpp server with --cors-origins ${url.origin}, or reach it by a loopback address`
+}
+
 export function compatToolSupportRefusal(dialect: string, model: string): string {
   return `${ENGINE_NAMES[dialect] ?? 'This server'} reports no tool-call support for '${model}' — ${TOOL_REMEDY}`
 }
