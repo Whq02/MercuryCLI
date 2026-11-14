@@ -20,6 +20,7 @@ export interface ProfileReading {
   format: 'V8' | 'macOS sample'
   unit: 'ms' | 'samples'
   duration: number | null
+  interval?: number
   samples: number
   weighting: string
   nodes: Map<number, ProfileNode>
@@ -37,8 +38,28 @@ export const frameKey = (frame: ProfileFrame): string => JSON.stringify([frame.f
 const synthetic = (node: ProfileNode): boolean => node.frame.function === '(root)' || node.frame.function === '(program)'
 const waiting = (node: ProfileNode): boolean => node.frame.function === '(idle)' || /^(?:__?|[A-Za-z0-9_]*::)*(?:mach_msg(?:2)?_trap|mach_msg2_internal|mach_msg|__psynch_cvwait|__psynch_mutexwait|semaphore_wait_trap|kevent|kevent64|poll|select|pthread_cond_wait|pthread_cond_timedwait|__ulock_wait|__ulock_wait2|nanosleep|__workq_kernreturn)$/.test(node.frame.function)
 
-export function summarizeProfile(reading: ProfileReading) {
+export async function summarizeProfile(reading: ProfileReading, signal?: AbortSignal) {
   const { nodes, quality } = reading
+  let work = 0
+  const yieldWork = async () => {
+    if (++work % 2048 === 0) await new Promise<void>(resolve => setImmediate(resolve))
+    signal?.throwIfAborted()
+  }
+  const visiting = new Set<number>(), visited = new Set<number>()
+  for (const node of nodes.values()) {
+    if (visited.has(node.id)) continue
+    const stack = [{ id: node.id, next: 0 }]
+    visiting.add(node.id)
+    while (stack.length) {
+      await yieldWork()
+      const current = stack[stack.length - 1]!
+      const children = nodes.get(current.id)?.children ?? []
+      if (current.next >= children.length) { visiting.delete(current.id); visited.add(current.id); stack.pop(); continue }
+      const child = children[current.next++]!
+      if (visiting.has(child)) quality.add('Cycles were cut at the first repeated frame; inclusive paths are incomplete.')
+      else if (!visited.has(child) && nodes.has(child)) { visiting.add(child); stack.push({ id: child, next: 0 }) }
+    }
+  }
   const parents = new Map<number, number>()
   for (const node of nodes.values()) {
     for (const child of node.children) {
@@ -68,6 +89,7 @@ export function summarizeProfile(reading: ProfileReading) {
     const chain: string[] = []
     let next: ProfileNode | undefined = leaf
     while (next !== undefined) {
+      await yieldWork()
       if (seenNodes.has(next.id)) { quality.add('Cycles were cut at the first repeated frame; inclusive paths are incomplete.'); break }
       seenNodes.add(next.id)
       if (!synthetic(next)) {
@@ -88,7 +110,7 @@ export function summarizeProfile(reading: ProfileReading) {
   return { hotspots, paths, threads, cpu, idle }
 }
 
-export function profileRows(reading: ProfileReading, summary = summarizeProfile(reading)): string[] {
+export function profileRows(reading: ProfileReading, summary: Awaited<ReturnType<typeof summarizeProfile>>): string[] {
   const rows: string[] = []
   for (const [thread, time] of summary.threads) {
     if (!thread) continue

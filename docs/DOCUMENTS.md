@@ -136,3 +136,16 @@ lines. A summary grants neither a file edit anchor nor source read coverage.
 `<path>#read?view=raw`, or an ordinary read with explicit `offset`, `limit` or
 `ranges`, reads the original report with its original coordinates and anchors.
 A misnamed or unrecognised report remains ordinary text.
+
+Compare compatible reports with
+`<after>#read?view=profile&compare=<before>`; `compare` is last and its value is
+verbatim, with no URL decoding. Both files pass the ordinary Read rules.
+The comparison names both totals and reports absolute self/inclusive deltas
+separately from percentage-point share changes. Different profiler formats or
+sampling intervals are not compared as if their weights meant the same thing.
+
+The reader streams report tokens and lines; sample arrays are not retained in
+memory. Memory follows the recorded call graph and largest field, not the sample-array
+length, and cancellation interrupts parsing and graph traversal. Quality notes disclose
+missing references, unequal sample/delta counts, cycles and estimated timing.
+Continuation detects a changed report instead of mixing its pages silently.

@@ -1,4 +1,3 @@
-import { readFile } from 'node:fs/promises'
 import type { ProfileNode, ProfileReading } from './profileModel.js'
 
 type V8Node = { id?: unknown; callFrame?: { functionName?: unknown; url?: unknown; lineNumber?: unknown; columnNumber?: unknown }; children?: unknown; hitCount?: unknown }
@@ -45,6 +44,29 @@ export function parseV8Profile(value: unknown): ProfileReading | null {
 }
 
 function symbolDisplay(symbol: string): string {
+  if (symbol.startsWith('_R')) {
+    let at = 2
+    const parts: string[] = []
+    while (at < symbol.length) {
+      const marker = symbol[at]!
+      if (marker === 's' || marker === 'B') {
+        const end = symbol.indexOf('_', at + 1)
+        if (end < 0) return symbol
+        at = end + 1
+        continue
+      }
+      if (/\d/.test(marker)) {
+        const digits = /^\d+/.exec(symbol.slice(at))![0]
+        at += digits.length
+        const length = Number(digits)
+        if (symbol[at] === '_') at++
+        if (!Number.isSafeInteger(length) || length < 1 || at + length > symbol.length) return symbol
+        parts.push(symbol.slice(at, at + length))
+        at += length
+      } else at++
+    }
+    return parts.length ? parts.join('::') : symbol
+  }
   const legacy = /^(?:_?ZN)(.*)E$/.exec(symbol)
   if (!legacy) return symbol
   let rest = legacy[1]!, parts: string[] = []
@@ -65,10 +87,13 @@ export function parseSampleProfile(text: string): ProfileReading | null {
   if (!/^Analysis of sampling /m.test(text) || !/^Call graph:/m.test(text)) return null
   const reading: ProfileReading = { format: 'macOS sample', unit: 'samples', duration: null, samples: 0, weighting: 'inclusive samples minus immediate children; known wait leaves excluded from on-CPU estimate', nodes: new Map(), quality: new Set() }
   const interval = /every\s+([\d.]+)\s+millisecond/.exec(text)
-  if (interval) reading.quality.add(`Sampling interval: ${interval[1]} ms; sample counts are not verified scheduler time.`)
+  if (interval) {
+    reading.interval = Number(interval[1])
+    reading.quality.add(`Sampling interval: ${interval[1]} ms; sample counts are not verified scheduler time.`)
+  }
+  reading.quality.add('Symbol display is best-effort; the original symbol and module remain authoritative.')
   let graph = false, thread = '', id = 0
-  const stack: { depth: number; node: ProfileNode; inclusive: number }[] = []
-  const inclusive = new Map<number, number>()
+  const stack: { depth: number; node: ProfileNode }[] = []
   for (const line of text.split(/\r?\n/)) {
     if (/^Call graph:/.test(line)) { graph = true; continue }
     if (!graph) continue
@@ -86,19 +111,8 @@ export function parseSampleProfile(text: string): ProfileReading | null {
     if (parent) { parent.node.children.push(node.id); parent.node.self -= count }
     else reading.samples += count
     reading.nodes.set(node.id, node)
-    inclusive.set(node.id, count)
-    stack.push({ depth, node, inclusive: count })
+    stack.push({ depth, node })
   }
   for (const node of reading.nodes.values()) if (node.self < 0) { node.self = 0; reading.quality.add('Child samples exceed their parent; negative self estimates were omitted.') }
   return reading.nodes.size ? reading : null
-}
-
-export async function loadProfile(file: string, source: string, signal: AbortSignal): Promise<ProfileReading | null> {
-  const text = await readFile(file, { encoding: 'utf8', signal })
-  signal.throwIfAborted()
-  if (/\.cpuprofile$/i.test(source)) {
-    try { return parseV8Profile(JSON.parse(text)) } catch (error) { if (error instanceof SyntaxError) return null; throw error }
-  }
-  if (/\.sample\.txt$/i.test(source)) return parseSampleProfile(text)
-  return null
 }
