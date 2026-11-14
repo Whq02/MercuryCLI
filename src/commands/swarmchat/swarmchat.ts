@@ -1,5 +1,5 @@
 import type { LocalJSXCommandCall } from '../../types/command.js'
-import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
+import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import { swarmMasterEnabled, swarmSessionEnabled, swarmStore } from '../../services/crewBoard/seam.js'
 
 const USAGE = 'usage: /swarmchat [on|off|all|team \\<name\\>|main] — /swarmchat alone toggles board messages in the chat'
@@ -29,7 +29,7 @@ export function runSwarmchatCommand(raw: string): string {
 }
 
 export const call: LocalJSXCommandCall = async (onDone, context, raw) => {
-  if (!context.options.isNonInteractiveSession && hasFocusedSession()) {
+  if (!context.options.isNonInteractiveSession) {
     const receipt = await getFocusedSessionConnector().sendWords(`/swarmchat ${raw.trim()}`.trim())
     onDone(receipt.state === 'refused' ? receipt.detail : undefined, { display: receipt.state === 'refused' ? 'system' : 'skip' })
     return null

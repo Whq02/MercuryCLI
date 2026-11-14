@@ -9,3 +9,4 @@ prove-swarm-mention-row.ts
 prove-swarm-party-rows.ts
 prove-swarm-owner-verbs.ts
 prove-board-wake-rows-drive.ts
+prove-swarm-switch-while-landing-drive.ts

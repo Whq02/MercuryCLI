@@ -2050,6 +2050,7 @@ export async function runHeadless(
         value: input.content,
         mode: 'task-notification',
         agentId: input.to as never,
+        origin: { kind: 'human' },
         priority: 'next',
         ...(uuid !== undefined ? { uuid: uuid as UUID } : {}),
       })
