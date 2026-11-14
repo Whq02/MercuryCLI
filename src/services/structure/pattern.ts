@@ -18,8 +18,14 @@ interface MetavarInfo {
 
 const MV_QUOTED = /^(["'`])(__MVM?_[A-Za-z0-9_]*?__)\1$/
 
-export function metavarOf(node: TSNode): MetavarInfo | null {
+function decodeTagMetavar(text: string): string {
+  const encoded = /^mercurymv((?:[0-9a-f]{2})+)$/.exec(text)
+  return encoded ? Buffer.from(encoded[1]!, 'hex').toString('ascii') : text
+}
+
+export function metavarOf(node: TSNode, tagMetavars = false): MetavarInfo | null {
   let text = node.text.trim()
+  if (tagMetavars && node.type === 'tag_name') text = decodeTagMetavar(text)
   const quoted = MV_QUOTED.exec(text)
   if (quoted) text = quoted[2]!
   const single = MV_SINGLE.exec(text)
@@ -29,22 +35,25 @@ export function metavarOf(node: TSNode): MetavarInfo | null {
   return null
 }
 
-export function metavarOutsideNodes(root: TSNode, text: string, start: number, end: number): string | null {
+export function metavarOutsideNodes(root: TSNode, text: string, start: number, end: number, tagMetavars = false): string | null {
   const spans: Array<[number, number]> = []
   const stack: TSNode[] = [root]
   while (stack.length > 0) {
     const node = stack.pop()!
-    if (metavarOf(node)) {
+    if (metavarOf(node, tagMetavars)) {
       spans.push([node.startIndex, node.endIndex])
       continue
     }
     for (const child of node.children) stack.push(child)
   }
-  for (const found of text.slice(start, end).matchAll(/__MV(M?)_([A-Za-z0-9_]*?)__/g)) {
+  const markers = tagMetavars ? /__MVM?_[A-Za-z0-9_]*?__|mercurymv(?:[0-9a-f]{2})+/g : /__MVM?_[A-Za-z0-9_]*?__/g
+  for (const found of text.slice(start, end).matchAll(markers)) {
     const at = start + found.index!
     if (spans.some(([from, to]) => from <= at && at + found[0].length <= to)) continue
-    const name = found[2] === 'ANON' ? '' : found[2]!
-    return found[1] === 'M' ? `$$$${name}` : `$${name === '' ? '_' : name}`
+    const marker = /^__MV(M?)_([A-Za-z0-9_]*?)__$/.exec(decodeTagMetavar(found[0]))
+    if (!marker) continue
+    const name = marker[2] === 'ANON' ? '' : marker[2]!
+    return marker[1] === 'M' ? `$$$${name}` : `$${name === '' ? '_' : name}`
   }
   return null
 }
@@ -54,6 +63,7 @@ export interface CompiledPattern {
   root: TSNode
   captureNames: string[]
   spansTerminator?: boolean
+  tagMetavars?: true
 }
 
 const PATTERN_CONTEXTS: Record<string, string[]> = {
@@ -110,13 +120,17 @@ interface PatternCandidate {
   offset: number
   length: number
   spansTerminator?: boolean
+  tagMetavars?: true
 }
 
 export function patternCandidates(langName: string, encoded: string): PatternCandidate[] {
-  const trimmed = encoded.trim()
+  const original = encoded.trim()
+  const trimmed = langName === 'svelte' || langName === 'astro'
+    ? original.replace(/(<\/?)(__MVM?_[A-Za-z0-9_]*?__)(?=[\s/>])/g, (_all, open: string, marker: string) => `${open}mercurymv${Buffer.from(marker).toString('hex')}`)
+    : original
   const bare = candidatesFor(langName, trimmed)
   const quoted = /__MVM?_[A-Za-z0-9_]*?__/.test(trimmed) ? candidatesFor(langName, quotePlaceholders(trimmed)) : []
-  return [...bare, ...quoted]
+  return [...bare, ...quoted].map(candidate => trimmed === original ? candidate : { ...candidate, tagMetavars: true })
 }
 
 function candidatesFor(langName: string, trimmed: string): PatternCandidate[] {
@@ -157,19 +171,19 @@ export function findExactSpanNode(root: TSNode, start: number, end: number, text
   return found
 }
 
-function collectCaptureNames(node: TSNode, into: Set<string>): void {
-  const mv = metavarOf(node)
+function collectCaptureNames(node: TSNode, into: Set<string>, tagMetavars: boolean): void {
+  const mv = metavarOf(node, tagMetavars)
   if (mv?.name) {
     into.add(mv.kind === 'multi' ? `$$$${mv.name}` : `$${mv.name}`)
     return
   }
-  for (const child of node.namedChildren) collectCaptureNames(child, into)
+  for (const child of node.namedChildren) collectCaptureNames(child, into, tagMetavars)
 }
 
-export function compilePatternRoot(patternNode: TSNode): CompiledPattern {
+export function compilePatternRoot(patternNode: TSNode, tagMetavars = false): CompiledPattern {
   const names = new Set<string>()
-  collectCaptureNames(patternNode, names)
-  return { root: patternNode, captureNames: [...names].sort() }
+  collectCaptureNames(patternNode, names, tagMetavars)
+  return { root: patternNode, captureNames: [...names].sort(), ...(tagMetavars && { tagMetavars: true }) }
 }
 
 
@@ -200,6 +214,7 @@ export function significantChildren(node: TSNode): TSNode[] {
 
 interface MatchState {
   captures: Map<string, CaptureSpan>
+  tagMetavars?: boolean
 }
 
 function bindCapture(state: MatchState, key: string, start: number, end: number, text: string): boolean {
@@ -210,7 +225,7 @@ function bindCapture(state: MatchState, key: string, start: number, end: number,
 }
 
 function matchNodePair(pat: TSNode, code: TSNode, state: MatchState): boolean {
-  const mv = metavarOf(pat)
+  const mv = metavarOf(pat, state.tagMetavars)
   if (mv) {
     if (mv.kind === 'multi') {
       return mv.name === null || bindCapture(state, `$$$${mv.name}`, code.startIndex, code.endIndex, code.text)
@@ -233,7 +248,7 @@ function matchSequence(pats: TSNode[], codes: TSNode[], state: MatchState): bool
   function step(pi: number, ci: number): boolean {
     if (pi === pats.length) return ci === codes.length
     const pat = pats[pi]!
-    const mv = metavarOf(pat)
+    const mv = metavarOf(pat, state.tagMetavars)
     if (mv?.kind === 'multi') {
       for (let take = 0; ci + take <= codes.length; take++) {
         const snapshot = new Map(state.captures)
@@ -286,7 +301,7 @@ export function findPatternMatches(
       break
     }
     const node = stack.pop()!
-    const state: MatchState = { captures: new Map() }
+    const state: MatchState = { captures: new Map(), tagMetavars: pattern.tagMetavars }
     if (matchNodePair(pattern.root, node, state)) {
       const captures = [...state.captures.values()].map(c =>
         c.endIndex > c.startIndex ? { ...c, text: sourceText.slice(c.startIndex, c.endIndex) } : c,

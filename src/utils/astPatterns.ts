@@ -763,7 +763,7 @@ export async function planAstRewrite(
     if (opts.rewrite.trim() !== '') {
       const pat = await compileFor(engine as Parameters<typeof compileFor>[0], lang, encodedPattern, patternCache)
       const rw = await compileFor(engine as Parameters<typeof compileFor>[0], lang, encodedRewrite, rewriteCache)
-      if (!('state' in pat) && !('state' in rw) && sameShape(pat.pattern.root, rw.pattern.root)) {
+      if (!('state' in pat) && !('state' in rw) && !pat.pattern.tagMetavars && !rw.pattern.tagMetavars && sameShape(pat.pattern.root, rw.pattern.root)) {
         shape = { pat: pat.pattern.root, rw: rw.pattern.root }
       }
     }

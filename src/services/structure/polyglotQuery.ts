@@ -195,7 +195,7 @@ export async function compileFor(
       continue
     }
     if (lang.patternOnly) {
-      const outside = metavarOutsideNodes(node, candidate.text, candidate.offset, candidate.offset + candidate.length)
+      const outside = metavarOutsideNodes(node, candidate.text, candidate.offset, candidate.offset + candidate.length, candidate.tagMetavars)
       if (outside) {
         textOnly ??= `${outside} is text there, not a node`
         parsed.tree.delete()
@@ -204,13 +204,13 @@ export async function compileFor(
     }
     if (parsed.parseErrors.length === 0) {
       if (recovery) recovery.hold.delete()
-      const compiled = { pattern: { ...compilePatternRoot(node), ...(candidate.spansTerminator && { spansTerminator: true }) }, hold: parsed.tree }
+      const compiled = { pattern: { ...compilePatternRoot(node, candidate.tagMetavars), ...(candidate.spansTerminator && { spansTerminator: true }) }, hold: parsed.tree }
       cache.set(lang.name, compiled)
       return compiled
     }
     firstError ??= parsed.parseErrors[0]!
     if (!recovery && !node.hasError) {
-      recovery = { pattern: compilePatternRoot(node), hold: parsed.tree }
+      recovery = { pattern: compilePatternRoot(node, candidate.tagMetavars), hold: parsed.tree }
       continue
     }
     parsed.tree.delete()

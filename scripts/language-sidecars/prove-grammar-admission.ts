@@ -739,6 +739,29 @@ for (const name of NEEDS_FINAL_NEWLINE) {
   check(`${name}: a file without a final newline is searched and rewritten, and is left without one`, !isAstRefusal(plan) && plan.files.length === 1 && spec.rewrite.expect.every(e => plan.files[0]!.after.includes(e)) && !plan.files[0]!.after.endsWith('\n'), isAstRefusal(plan) ? plan.refused : JSON.stringify(plan.files[0]?.after.slice(-60)))
 }
 
+section('§6b — tag names are captures in Svelte and Astro, including rewrites that use the name')
+for (const name of ['svelte', 'astro']) {
+  const dir = join(work, 'tag-names', name)
+  mkdirSync(dir, { recursive: true })
+  const file = join(dir, `tags.${name}`)
+  writeFileSync(file, '<harbour-card>Tide</harbour-card>\n')
+  const scope = resolveAstScope({ cwd: dir })
+  if (isAstRefusal(scope)) {
+    check(`${name}: the tag-name scope resolves`, false, scope.refused)
+    continue
+  }
+  const pattern = '<$TAG_NAME>$$$KIDS</$TAG_NAME>'
+  const found = await searchAstPattern(scope, { pattern })
+  check(`${name}: a tag-name capture is the name as written, with its children captured`, !isAstRefusal(found) && found.patternRefusals.length === 0 && found.matches.length === 1 && found.matches[0]!.captures.some(c => c.key === '$TAG_NAME' && c.text === 'harbour-card') && found.matches[0]!.captures.some(c => c.key === '$$$KIDS' && c.text === 'Tide'), isAstRefusal(found) ? found.refused : JSON.stringify(found.patternRefusals))
+  const plan = await planAstRewrite(scope, { pattern, rewrite: '<$TAG_NAME class="wide">$$$KIDS</$TAG_NAME>' })
+  check(`${name}: the rewrite puts the captured tag name back, never the placeholder`, !isAstRefusal(plan) && plan.files.length === 1 && plan.files[0]!.after === '<harbour-card class="wide">Tide</harbour-card>\n', isAstRefusal(plan) ? plan.refused : plan.files[0]?.after)
+  const literal = await searchAstPattern(scope, { pattern: '<harbour-card>$$$KIDS</harbour-card>' })
+  check(`${name}: a literal tag still finds the same element`, !isAstRefusal(literal) && literal.matches.length === 1 && literal.matches[0]!.captures[0]?.text === 'Tide', isAstRefusal(literal) ? literal.refused : JSON.stringify(literal.matches))
+  writeFileSync(file, '<outer><inner>Tide</inner></outer>\n')
+  const swapped = await planAstRewrite(scope, { pattern: '<$OUTER><$INNER>$BODY</$INNER></$OUTER>', rewrite: '<$INNER><$OUTER>$BODY</$OUTER></$INNER>' })
+  check(`${name}: a same-shaped rewrite may exchange two captured tag names`, !isAstRefusal(swapped) && swapped.files.length === 1 && swapped.files[0]!.after === '<inner><outer>Tide</outer></inner>\n', isAstRefusal(swapped) ? swapped.refused : swapped.files[0]?.after)
+}
+
 function vendoredNode(): string | null {
   const os = process.platform === 'win32' ? 'win' : process.platform
   const dir = join(ROOT, 'vendor', 'node', 'extracted', `${os}-${process.arch}`)
