@@ -126,7 +126,7 @@ try {
         return p !== null && readFileSync(p, 'utf8').includes('ready.')
       }, 60_000))
       const grant = (await daemonControlRpc({ op: 'concourseControl', action: 'grant-workflows', sessionId: alphaId, by: 'operator' } as never)) as { ok?: boolean }
-      check('the workflows-allowed tag grants', grant.ok === true, JSON.stringify(grant))
+      check('the crewmates-allowed tag grants', grant.ok === true, JSON.stringify(grant))
       check('alpha\'s shell is LIVE in its facts', await untilAsync(() => (proj.readSessionFacts(alphaId)?.work ?? []).some(r => r.kind === 'shell' && r.status === 'running'), 90_000))
       const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
       const connA = seat.daemonSessionConnectorFor({

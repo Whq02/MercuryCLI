@@ -303,14 +303,14 @@ focused at any moment.
 Focus carries your active approval channel. The focused chat launches crewmates on
 your authority, under its own permission mode. A background session
 keeps working single-handed and waits until you visit it, until it
-holds the workflows-allowed grant (chosen as
+holds the crewmates-allowed grant (chosen as
 keep-and-background on leave, or the manual-start option), or until you turn
 on "Crewmates while backgrounded" (in `/config` or in the Boot
 Menu's Agents section; off by default). With it on, every session you have
 left in the background launches crewmates as a focused one
 does, under its own permission mode and its own Crewmates
 switch, and a session started while it is on carries the Crewmate
-tool from its first request; the workflows-allowed grant stays unchanged.
+tool from its first request; the crewmates-allowed grant stays unchanged.
 With it off, a background session's launch refusal names the three ways to allow it.
 A hop updates focus immediately. `/runs`
 and the board's work chip show the focused session's own work

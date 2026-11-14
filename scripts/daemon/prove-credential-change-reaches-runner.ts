@@ -281,7 +281,7 @@ try {
   check('the ask rode the OpenAI wire', hits().some(h => h.kind === 'openai' && h.model === GPT_ID && h.status === 200), JSON.stringify(hits()))
   check("the runner's facts name account A", await untilAsync(() => readFacts(sid)?.identity?.accountEmail === ACCOUNTS.a.email, 60_000), JSON.stringify(readFacts(sid)?.identity))
   const granted = await control('grant-workflows', sid)
-  check('the session holds the workflows-allowed tag (a backgrounded seat may delegate only with it or with a live operator)', granted.ok === true, JSON.stringify(granted))
+  check('the session holds the crewmates-allowed tag (a backgrounded seat may delegate only with it or with a live operator)', granted.ok === true, JSON.stringify(granted))
 
   section('§2 a delegated agent observes a provider refusal under account A; the next dispatch still reaches Anthropic before that reset')
   const before2 = hits().length

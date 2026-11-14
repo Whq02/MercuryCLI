@@ -215,7 +215,7 @@ async function main(): Promise<void> {
     check('/contract with no contract names the one other door', text('src', 'commands', 'contract', 'contract.ts').includes("'No contract — /contract <words> drafts one (the concourse New Session offer is the other door). Advisory always: it encourages, never fences.'"))
     const { backgroundedLaunchRefusal } = await import('../../src/services/switchboard/launchAuthority.ts')
     const refusal = backgroundedLaunchRefusal('subagents')
-    check('a backgrounded session\'s refusal names the two ways its tag is granted', refusal.includes('until it holds the workflows-allowed tag (granted by choosing keep-and-background on leave, or the manual-start option), or until') && !/coordinator/i.test(refusal), refusal)
+    check('a backgrounded session\'s refusal names the two ways its tag is granted', refusal.includes('until it holds the crewmates-allowed tag (granted by choosing keep-and-background on leave, or the manual-start option), or until') && !/coordinator/i.test(refusal), refusal)
 
     const pages = ['CREW.md', 'ENGINES.md', 'HEALTH-CERTIFICATE.md', 'KIT.md', 'MCP-SERVER.md', 'SESSIONS.md', 'SETTINGS.md']
     const naming = pages.flatMap(page => text('docs', page).split('\n').flatMap((line, at) => (/coordinator|manager mode/i.test(line) ? [`${page}:${at + 1}`] : [])))

@@ -91,7 +91,7 @@ console.log('§2 the Boot Settings face: the row selected, its detail pane, ↵ 
   const pane = paneText(lines, DETAIL_PANE, DETAIL_PANE_WIDTH)
   check('the detail pane names what it controls in the operator\'s words', pane.includes('What it controls') && pane.includes('Whether a session left in the background may launch crewmates when its brief says so, as a focused one does.'), pane)
   check('the pane carries the current value and the detail lines (now: off (default), the doors)', pane.includes('Current value off') && pane.includes('now: off (default)') && pane.includes('doors: /config · Boot Menu (one switch)'), pane)
-  check('the pane lists the on and off effects, whole', pane.includes('When on') && pane.includes('launches crewmates without your visit') && pane.includes('its own switch still rules first') && pane.includes('When off') && pane.includes('waits for your visit or the workflows-allowed tag') && pane.includes('the launch refusal names this row'), pane)
+  check('the pane lists the on and off effects, whole', pane.includes('When on') && pane.includes('launches crewmates without your visit') && pane.includes('its own switch still rules first') && pane.includes('When off') && pane.includes('waits for your visit or the crewmates-allowed tag') && pane.includes('the launch refusal names this row'), pane)
   check('no detail line is clipped with an ellipsis', !paneLines(lines, DETAIL_PANE, DETAIL_PANE_WIDTH).some(line => line.endsWith('…')), paneLines(lines, DETAIL_PANE, DETAIL_PANE_WIDTH).filter(line => line.endsWith('…')).join(' | '))
   await press(m, KEY.enter, 300)
   check('↵ turns it on through the one writer: the file carries the leaf true', stored() === true && setting.backgroundSessionsLaunchCrewmates() === true, String(stored()))

@@ -37,9 +37,9 @@ export function backgroundLaunchReceiptWords(on: boolean): string {
 }
 
 export const BACKGROUND_LAUNCH_SUMMARY =
-  'whether a session you have left in the background may launch crewmates when its brief says so — off keeps it waiting for your visit or the workflows-allowed tag'
+  'whether a session you have left in the background may launch crewmates when its brief says so — off keeps it waiting for your visit or the crewmates-allowed tag'
 
-export const BACKGROUND_LAUNCH_NOTE = "the session's own Crewmates switch still rules first; the one workflows-allowed tag stays what it is"
+export const BACKGROUND_LAUNCH_NOTE = "the session's own Crewmates switch still rules first; the one crewmates-allowed tag stays what it is"
 
 export function backgroundLaunchDetailLines(on: boolean = backgroundSessionsLaunchCrewmates()): string[] {
   return [`now: ${backgroundLaunchValueWords(on)}${on ? '' : ' (default)'}`, `doors: ${BACKGROUND_LAUNCH_DOORS}`]
@@ -57,12 +57,12 @@ export const BACKGROUND_LAUNCH_MENU_ROW = {
   detail: {
     controls: 'Whether a session left in the background may launch crewmates when its brief says so, as a focused one does.',
     on: ['launches crewmates without your visit', 'its own switch still rules first'],
-    off: ['waits for your visit or the workflows-allowed tag', 'the launch refusal names this row'],
+    off: ['waits for your visit or the crewmates-allowed tag', 'the launch refusal names this row'],
   },
 } as const
 
 export function backgroundWorkerDelegationSentence(on: boolean = backgroundSessionsLaunchCrewmates()): string {
   return on
     ? `Delegation (crewmates) is available: the operator turned on ${BACKGROUND_LAUNCH_LABEL}, so this session launches crewmates as a focused one does — when the tool is absent, plan and work single-handed; never wait for it.`
-    : `Delegation (crewmates) is available only while this session holds the workflows-allowed tag, the operator is present, or the operator has turned on ${BACKGROUND_LAUNCH_LABEL} — when the tool is absent, plan and work single-handed; never wait for it.`
+    : `Delegation (crewmates) is available only while this session holds the crewmates-allowed tag, the operator is present, or the operator has turned on ${BACKGROUND_LAUNCH_LABEL} — when the tool is absent, plan and work single-handed; never wait for it.`
 }

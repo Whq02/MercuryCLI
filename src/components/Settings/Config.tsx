@@ -1430,7 +1430,7 @@ export function Config({
   items.push({
     id: BACKGROUND_LAUNCH_KEY,
     label: BACKGROUND_LAUNCH_LABEL,
-    searchText: 'crewmate backgrounded background session launch delegate workflows-allowed tag visit',
+    searchText: 'crewmate backgrounded background session launch delegate crewmates-allowed tag visit',
     kind: 'boolean',
     setByYou: backgroundLaunchOn,
     value: <Text color={backgroundLaunchOn ? tokens.success : tokens.textSecondary}>{backgroundLaunchValueWords(backgroundLaunchOn)}</Text>,

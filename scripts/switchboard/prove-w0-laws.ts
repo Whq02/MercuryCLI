@@ -142,7 +142,7 @@ console.log('LAW 4b — no kill, no recorded death (the unverified-teardown clas
   check('stop of an already-dead child applies honestly without a roster', stopDead.outcome === 'applied')
 }
 
-console.log('LAW 5 — the ONE workflows-allowed tag:')
+console.log('LAW 5 — the ONE crewmates-allowed tag:')
 check('grant applies', grantConcourseWorkflows(sid2, 'operator', recDir).outcome === 'applied')
 const second = grantConcourseWorkflows(sid3, 'operator', recDir)
 check('second grant refused in plain words (cap-one)', second.outcome === 'refused' && 'reason' in second && second.reason === 'cap-one')

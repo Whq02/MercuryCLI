@@ -68,12 +68,12 @@ backgrounded", off by default: the same row in the boot menu's Agents section
 and in `/config`, one switch wherever it is flipped. It decides whether a
 session you have left in the background may launch crewmates
 when its brief says so. Off, a backgrounded session works single-handed and
-waits for your visit or the one workflows-allowed grant, and its launch
+waits for your visit or the one crewmates-allowed grant, and its launch
 refusal names this row as the third road. On, it launches as a focused session
 does, under its own Crewmates switch, which still rules first,
 and its own permission mode, and a session started while the setting is on
 carries the Crewmate tool from its first request. The
-workflows-allowed grant is untouched. [SESSIONS.md](SESSIONS.md) has the
+crewmates-allowed grant is untouched. [SESSIONS.md](SESSIONS.md) has the
 focus law the setting sits beside.
 
 ## Starting a crewmate

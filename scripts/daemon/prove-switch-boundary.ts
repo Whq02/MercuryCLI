@@ -351,7 +351,7 @@ if (ONLY === undefined || ONLY === 'D') {
     { kind: 'tool_use', name: 'Sleep', input: { seconds: HOLD_SECONDS }, id: 'tu-a', whenBody: 'hold the line', preText: 'holding. ' },
     stream(resultOf('tu-a'), 'held'),
     { kind: 'text', text: 'the first words.', whenBody: 'now say more' },
-    { kind: 'tool_use', name: 'Crewmate', input: { description: 'a probe', prompt: 'hold the probe', run_in_background: true }, id: 'tu-agent', whenBody: 'workflows-allowed', preText: 'dispatching. ' },
+    { kind: 'tool_use', name: 'Crewmate', input: { description: 'a probe', prompt: 'hold the probe', run_in_background: true }, id: 'tu-agent', whenBody: 'crewmates-allowed', preText: 'dispatching. ' },
     { kind: 'text', text: 'dispatched.', whenBody: resultOf('tu-agent') },
     { kind: 'tool_use', name: 'Sleep', input: { seconds: PROBE_SECONDS }, id: 'tu-probe', whenBody: 'hold the probe', preText: 'probing. ' },
     { kind: 'text', text: 'probe done.', whenBody: resultOf('tu-probe') },

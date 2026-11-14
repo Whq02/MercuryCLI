@@ -58,7 +58,7 @@ const probe = (sid: string, kind: Kind, settingOn: boolean, extra: Record<string
 const refusalRoads = (reason: string): boolean =>
   reason.startsWith('this session is backgrounded — ') &&
   reason.includes('wait until the operator visits it') &&
-  reason.includes('until it holds the workflows-allowed tag (granted by choosing keep-and-background on leave, or the manual-start option)') &&
+  reason.includes('until it holds the crewmates-allowed tag (granted by choosing keep-and-background on leave, or the manual-start option)') &&
   reason.includes(`or until the operator turns on ${LABEL} (/config, or the boot menu's Agents section)`) &&
   reason.endsWith('Keep working on the task single-handed.')
 
@@ -143,7 +143,7 @@ console.log("LAW 4 — the worker's prompt sentence follows the setting at spawn
   const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.js')
   const specOf = () => buildConcourseWorkerSpec({ runnerId: 'concourse-w9', sessionId: sidA, workspaceId, modelKey: 'claude-fable-5', cwd: join(workspaceId, '.wt', 'concourse-w9') })
   const off = specOf().appendSystemPrompt ?? ''
-  check('setting OFF: the worker is told delegation needs the tag, the operator, or the setting turned on', off.includes('Delegation (crewmates) is available only while this session holds the workflows-allowed tag, the operator is present, or the operator has turned on ' + LABEL + ' — when the tool is absent, plan and work single-handed; never wait for it.'), off)
+  check('setting OFF: the worker is told delegation needs the tag, the operator, or the setting turned on', off.includes('Delegation (crewmates) is available only while this session holds the crewmates-allowed tag, the operator is present, or the operator has turned on ' + LABEL + ' — when the tool is absent, plan and work single-handed; never wait for it.'), off)
   setting?.setBackgroundSessionsLaunchCrewmates(true)
   const on = specOf().appendSystemPrompt ?? ''
   check('setting ON: the worker is told delegation is available and why', on.includes('Delegation (crewmates) is available: the operator turned on ' + LABEL + ', so this session launches crewmates as a focused one does — when the tool is absent, plan and work single-handed; never wait for it.'), on)
