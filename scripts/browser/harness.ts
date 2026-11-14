@@ -141,9 +141,10 @@ export async function serve(port: number, handler: Handler): Promise<Fixture> {
     server.once('error', fail)
     server.listen(port, '127.0.0.1', () => done())
   })
+  const boundPort = (server.address() as import('node:net').AddressInfo).port
   const fixture: Fixture = {
-    origin: `http://127.0.0.1:${port}`,
-    port,
+    origin: `http://127.0.0.1:${boundPort}`,
+    port: boundPort,
     hits,
     close: () =>
       new Promise<void>(done => {

@@ -4,7 +4,7 @@ import { check, finish, lead, ownerOf, pageOf, requireBrowser, run, serve, sessi
 await requireBrowser()
 
 const seen: string[] = []
-const A = await serve(27295, (req, res) => {
+const A = await serve(0, (req, res) => {
   if (req.url === '/child') seen.push(String(req.headers['user-agent']))
   res.writeHead(200, { 'content-type': 'text/html', 'cache-control': 'no-store' })
   res.end(req.url === '/opener' ? '<title>opener</title><a id="link" target="_blank" href="/child">open</a>' : '<title>child</title><input id="field">')
