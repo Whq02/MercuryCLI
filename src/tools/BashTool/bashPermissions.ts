@@ -530,7 +530,7 @@ async function checkCommandAndSuggestRules(
   return { ...check, suggestions } as PermissionResult
 }
 
-function rewriteReadOnlyGitCommand(command: string, cwd: string, depth = 0): string {
+export function rewriteReadOnlyGitCommand(command: string, cwd: string, depth = 0): string {
   if (depth > SHELL_C_MAX_DEPTH) return command
   const root = preparedCommandRoot(command)
   if (!root || root.type === 'ERROR') return command
