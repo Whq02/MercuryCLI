@@ -123,14 +123,20 @@ interface PatternCandidate {
   tagMetavars?: true
 }
 
-const SPLIT_DECLARATIONS: Record<string, { whole: string; part: string; says: string }> = {
-  dart: { whole: 'lambda_expression', part: 'function_body', says: 'a function is two nodes there, its signature and its body: write the signature alone, or a statement of the body' },
+const SPLIT_DECLARATIONS: Record<string, { whole: string[]; part: string; statement: RegExp; says: string }> = {
+  dart: {
+    whole: ['lambda_expression', 'local_function_declaration'],
+    part: 'function_body',
+    statement: /^(?:if|for|while|switch|catch)\b/,
+    says: 'a function is two nodes there, its signature and its body: write the signature alone, or a statement of the body',
+  },
 }
 
-export function splitDeclaration(langName: string, node: TSNode): string | null {
+export function splitDeclaration(langName: string, node: TSNode): { says: string | null } | null {
   const split = SPLIT_DECLARATIONS[langName]
   if (!split) return null
-  return node.type === split.whole || (node.parent === null && node.namedChildren.some(child => child.type === split.part)) ? split.says : null
+  if (!split.whole.includes(node.type) && !(node.parent === null && node.namedChildren.some(child => child.type === split.part))) return null
+  return { says: split.statement.test(node.text.trimStart()) ? null : split.says }
 }
 
 export function patternCandidates(langName: string, encoded: string): PatternCandidate[] {

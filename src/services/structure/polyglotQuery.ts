@@ -213,7 +213,8 @@ export async function compileFor(
     }
     const halves = splitDeclaration(lang.name, node)
     if (halves !== null) {
-      split ??= halves
+      if (halves.says === null) firstError ??= parsed.parseErrors[0] ?? 'no single node spans the pattern'
+      else split ??= halves.says
       parsed.tree.delete()
       continue
     }

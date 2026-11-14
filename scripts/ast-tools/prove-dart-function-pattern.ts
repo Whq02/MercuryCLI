@@ -22,6 +22,18 @@ put('dart/app.dart', [
   '',
 ].join('\n'))
 put('ts/app.ts', 'function main(a: number) { run(); }\n')
+put('flow/flow.dart', [
+  'void flow(int x) {',
+  '  switch (x) { case 1: run(); }',
+  '  if (x > 0) { run(); }',
+  '  try { run(); } catch (e) { run(); }',
+  '}',
+  'class Ebb extends Tide {',
+  '  @override',
+  '  void rise(int by) { run(); }',
+  '}',
+  '',
+].join('\n'))
 await enterRoot(root)
 const prover = await makeContext([AstSearchTool])
 const search = (input: Record<string, unknown>) => drive(AstSearchTool, input, prover)
@@ -38,6 +50,8 @@ if (!existsSync(join(engineDir, 'tree-sitter-dart.wasm'))) {
     check('a function written out is refused the same way, where it found a local function alone', literal.isError && literal.text.includes(`The pattern "void main() { run(); }" ${SAYS}`), literal.text)
     const local = await search({ pattern: 'void inner() { run(); }', path: 'dart' })
     check('so is a local function written out', local.isError && local.text.includes(SAYS), local.text)
+    const annotated = await search({ pattern: '@override\nvoid $NAME($$$PARAMS) { $$$BODY }', path: 'flow' })
+    check('so is a function under an annotation', annotated.isError && annotated.text.includes(SAYS), annotated.text)
   }
 
   section('§2 — what the sentence names is found')
@@ -55,6 +69,19 @@ if (!existsSync(join(engineDir, 'tree-sitter-dart.wasm'))) {
     check('a Dart call statement is found as before', !call.isError && call.text.includes('\n1 match in 1 file.'), call.text)
     const typescript = await search({ pattern: 'function $NAME($$$ARGS) { $$$BODY }', path: 'ts' })
     check('a TypeScript function with its body is found as before', !typescript.isError && typescript.text.includes('\n1 match in 1 file.') && typescript.text.includes('$$$BODY = run();'), typescript.text)
+  }
+
+
+  section('§4 — the sentence is said of a function alone')
+  {
+    const cases = await search({ pattern: 'switch ($X) { $$$CASES }', path: 'flow' })
+    check('a switch whose cases are a meta-variable answers its parse error, not the sentence about a function', cases.isError && cases.text.includes('did not parse as dart (') && !cases.text.includes('a function is two nodes'), cases.text)
+    const branch = await search({ pattern: 'if ($COND) { $$$BODY }', path: 'flow' })
+    check('an if whose block is a meta-variable is not answered with it either', !branch.text.includes('a function is two nodes'), branch.text)
+    const written = await search({ pattern: 'switch ($X) { case 1: run(); }', path: 'flow' })
+    check('a switch written out is found', !written.isError && written.text.includes('flow.dart:2:3 [switch_statement]') && written.text.includes('\n1 match in 1 file.'), written.text)
+    const clause = await search({ pattern: 'catch ($E) { run(); }', path: 'flow' })
+    check('a catch clause written alone is no function either', clause.isError && clause.text.includes('did not parse as dart (no single node spans the pattern)'), clause.text)
   }
 }
 
