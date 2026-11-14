@@ -272,4 +272,23 @@ if (!['markdown', 'yaml'].every(n => (astLanguageNames() as string[]).includes(n
   check('lang by an alias keeps the yaml file alone and captures the value', !pinned.isError && Number(pinned.data?.matchCount) === 1 && pinned.text.includes('$CMD = build'), pinned.text.slice(0, 300))
 }
 
+section('§14 — a pattern accepted by a skipped file is not refused by the languages beside it')
+{
+  const { AST_BOUNDS, isAstRefusal, resolveAstScope, searchAstPattern, patternRefusedEverywhere } = await import(join(REPO, 'src/utils/astPatterns.ts'))
+  const dir = join(root, 'size-and-pattern')
+  mkdirSync(dir)
+  writeFileSync(join(dir, 'a.css'), 'p { color: red; }\n')
+  writeFileSync(join(dir, 'large.ts'), ' '.repeat(AST_BOUNDS.maxFileBytes + 1))
+  const valid = await search({ pattern: 'foo($X)', path: dir })
+  check('a valid TypeScript pattern beside CSS is a zero-match answer when its TypeScript file is over the existing bound, not a malformed-pattern error', !valid.isError && Number(valid.data?.matchCount) === 0 && valid.text.includes('No matches for "foo($X)".') && valid.text.includes('Skipped 1 file over 2MB.') && valid.text.includes('Not searched: 1 css file (the pattern does not parse as css'), valid.text)
+  const invalid = await search({ pattern: 'foo($X', path: dir })
+  check('a pattern neither language can compile is still the pattern error and names both languages, even beside the oversized file', invalid.isError && invalid.text.includes('did not parse as css (1:1 syntax error); nor as typescript.'), invalid.text)
+  const scope = resolveAstScope({ cwd: root, path: dir })
+  if (isAstRefusal(scope)) check('the size-and-pattern scope resolves', false, scope.refused)
+  else {
+    const result = await searchAstPattern(scope, { pattern: 'foo($X' })
+    check('the refused-everywhere result retains a reason for every language that tried the pattern', !isAstRefusal(result) && patternRefusedEverywhere(scope, result) && result.patternRefusals.length === 2 && result.patternRefusals.every((r: { note: string }) => /syntax error|missing/.test(r.note)), isAstRefusal(result) ? result.refused : JSON.stringify(result.patternRefusals))
+  }
+}
+
 finish('AST SEARCH LAWS')
