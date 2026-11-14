@@ -1024,13 +1024,10 @@ export function sqliteTableShape(db: SqliteDb, table: string): { columns: Sqlite
   return { columns, address: { kind: 'rowid', column } }
 }
 
-export function sqliteKeyBinding(value: string): number | bigint | string {
-  if (/^-?\d{1,15}$/.test(value)) return Number(value)
-  if (/^-?\d{16,20}$/.test(value)) {
-    try {
-      const big = BigInt(value)
-      if (big >= -9223372036854775808n && big <= 9223372036854775807n) return big
-    } catch {}
+export function sqliteKeyBinding(value: string): bigint | string {
+  if (/^(?:0|-?[1-9]\d{0,19})$/.test(value)) {
+    const big = BigInt(value)
+    if (big >= -9223372036854775808n && big <= 9223372036854775807n) return big
   }
   return value
 }

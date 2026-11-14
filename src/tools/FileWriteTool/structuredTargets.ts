@@ -450,16 +450,17 @@ function openSqliteForWrite(hostPath: string, readOnly = false): SqliteWriteDb {
   const { DatabaseSync } = load('node:sqlite') as typeof import('node:sqlite')
   const db = new DatabaseSync(url.href, { readOnly, enableForeignKeyConstraints: true, allowExtension: false })
   let savepoint = 0
+  const bound = (params: unknown[]) => params.map(value => typeof value === 'number' && Number.isSafeInteger(value) ? BigInt(value) : value) as never[]
   return {
     prepare(sql) {
       const statement = db.prepare(sql)
       const wrapped = {
-        all: (...params: unknown[]) => statement.all(...params as never[]),
+        all: (...params: unknown[]) => statement.all(...bound(params)),
         safeIntegers(enabled = true) { statement.setReadBigInts(enabled); return wrapped },
       }
       return wrapped
     },
-    run: (sql, ...params) => { const result = db.prepare(sql).run(...params as never[]); return { ...result, changes: Number(result.changes) } },
+    run: (sql, ...params) => { const result = db.prepare(sql).run(...bound(params)); return { ...result, changes: Number(result.changes) } },
     transaction: fn => () => {
       const name = `mercury_row_${++savepoint}`
       db.exec(`SAVEPOINT ${name}`)
