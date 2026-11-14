@@ -2143,15 +2143,21 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
             } catch {
             }
           }
-          const ratio = await s.page.evaluate(() => window.devicePixelRatio).catch(() => 1)
+          const vp = s.page.viewport()
+          const ratio = vp?.deviceScaleFactor || (
+            !input.selector && !input.fullPage && saved !== null && vp?.width
+              ? saved.width / vp.width
+              : await s.page.evaluate(() => window.devicePixelRatio).catch(() => null)
+          )
           let scaleNote = ''
-          if (saved !== null && shown !== null && ratio > 0) {
-            const factor = saved.width / ratio / shown.width
-            if (Math.abs(factor - 1) > 0.005) {
-              scaleNote = ` — the image is ${shown.width}x${shown.height} px for ${Math.round(saved.width / ratio)}x${Math.round(saved.height / ratio)} CSS px: 1 image px = ${Number(factor.toFixed(3))} CSS px`
+          if (saved !== null && shown !== null && ratio !== null && ratio > 0) {
+            const horizontal = Number((saved.width / ratio / shown.width).toPrecision(6))
+            const vertical = Number((saved.height / ratio / shown.height).toPrecision(6))
+            if (horizontal !== 1 || vertical !== 1) {
+              const factor = horizontal === vertical ? `${horizontal} CSS px` : `${horizontal} CSS px horizontally, ${vertical} vertically`
+              scaleNote = ` — the image is ${shown.width}x${shown.height} px for ${Math.round(saved.width / ratio)}x${Math.round(saved.height / ratio)} CSS px: 1 image px = ${factor}`
             }
           }
-          const vp = s.page.viewport()
           result = `screenshot: ${file}${input.selector ? ` (element ${input.selector})` : ''} (${pageWhere(s)}, viewport ${vp?.width}x${vp?.height})${sizeNote}${scaleNote}`
           outcome = 'succeeded'
           break
