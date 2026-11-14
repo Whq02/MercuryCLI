@@ -1176,19 +1176,27 @@ export async function renderSqliteTarget(
   }
   let scratch: string | null = null
   let db: SqliteDb
-  const hasLiveJournal = existsSync(`${dbPath}-wal`) || existsSync(`${dbPath}-journal`)
-  try {
-    db = await openReadOnly(hasLiveJournal ? dbPath : `${pathToFileURL(dbPath).href}?immutable=1`, dbPath)
-  } catch {
+  const hasLog = existsSync(`${dbPath}-wal`) && statSync(`${dbPath}-wal`).size > 32
+  const leftoverLog = hasLog && !existsSync(`${dbPath}-shm`)
+  const openPrivateCopy = async (): Promise<SqliteDb> => {
     scratch = mkdtempSync(join(tmpdir(), 'mercury-sqlite-read-'))
     const copy = join(scratch, basename(dbPath))
     try {
       closeSync(openRegularFileSync(dbPath).fd)
       copyFileSync(dbPath, copy)
-      db = await openReadOnly(copy, copy)
+      if (leftoverLog) copyFileSync(`${dbPath}-wal`, `${copy}-wal`)
+      return await openReadOnly(copy, copy)
     } catch (error) {
       rmSync(scratch, { recursive: true, force: true })
       throw error
+    }
+  }
+  if (leftoverLog) db = await openPrivateCopy()
+  else {
+    try {
+      db = await openReadOnly(hasLog || existsSync(`${dbPath}-journal`) ? dbPath : `${pathToFileURL(dbPath).href}?immutable=1`, dbPath)
+    } catch {
+      db = await openPrivateCopy()
     }
   }
 
