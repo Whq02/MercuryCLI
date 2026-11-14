@@ -44,7 +44,7 @@ let
     esac
     prefix="''${invoked%/bin/mercury}"
     entry="$prefix/libexec/mercury/mercury"
-    if [ ! -f "$entry" ]; then entry=${payload}/libexec/mercury/mercury; fi
+    if [ ! -f "$entry" ]; then entry=@out@/libexec/mercury/mercury; fi
     export PATH="''${PATH:+$PATH:}${lib.makeBinPath [ git ]}"
     ${lib.optionalString stdenvNoCC.hostPlatform.isLinux ''
       if ! "''${entry%/mercury}/vendor/node/bin/node" -e 'process.exit(0)' >/dev/null 2>&1; then
@@ -65,6 +65,7 @@ in runCommand "mercury-${version}" {
   };
 } ''
   mkdir -p "$out/bin" "$out/libexec"
-  cp ${launcher}/bin/mercury "$out/bin/mercury"
+  substitute ${launcher}/bin/mercury "$out/bin/mercury" --subst-var out
+  chmod +x "$out/bin/mercury"
   ln -s ${payload}/libexec/mercury "$out/libexec/mercury"
 ''
