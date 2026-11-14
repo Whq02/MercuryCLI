@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: scripts/consistency-census/** src/constants/systemPromptSections.ts
-# gate-watch: src/utils/worktree.ts src/utils/cache/cacheClock.ts scripts/release/payloadContract.mjs
+# gate-watch: src/utils/worktree.ts src/utils/crew/crewWorktreeReminder.ts src/utils/cache/cacheClock.ts scripts/release/payloadContract.mjs
 # gate-watch: scripts/lib/git.ts scripts/lib/executionProfile.ts scripts/lib/captureDriver.ts
 # gate-watch: assets/splash/mercury-splash.mjs src/bootstrap/state.ts src/commands/mouse/mouse.ts
 # gate-watch: src/components/* src/components/PromptInput/PromptInput.tsx src/components/PromptInput/useComposerSubmit.ts
