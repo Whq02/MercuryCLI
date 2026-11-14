@@ -1,5 +1,5 @@
 import { Lexer } from 'marked'
-import { dirname, extname } from 'path'
+import { dirname, extname, win32 } from 'path'
 
 import { logForDebugging } from '../../utils/debug.js'
 import { parseFrontmatter, splitPathInFrontmatter } from '../../utils/frontmatterParser.js'
@@ -120,6 +120,7 @@ function* readableTexts(tokens: LexedToken[], windows: boolean): Generator<strin
 const SENTENCE_TAIL = /[.,;:!?]+$/
 const PATH_OPENING = /^[A-Za-z0-9._-]/
 const WINDOWS_ROOT = /^~?\\/
+const SHARE_ROOT = /^[\\/]{2}/
 
 function importSpellingsIn(text: string, windows: boolean): string[] {
   const spellings: string[] = []
@@ -144,9 +145,13 @@ function includeMentionsOf(tokens: LexedToken[], includeBasePath: string): Inclu
   const includes = new Set<string>()
   const bare = new Set<string>()
   const windows = getPlatform() === 'windows'
+  const expanded = (spelling: string): string => {
+    const path = expandPath(spelling, home)
+    return windows && SHARE_ROOT.test(spelling) ? win32.normalize(spelling.trim()).normalize('NFC') : path
+  }
   for (const text of readableTexts(tokens, windows)) {
     for (const spelling of importSpellingsIn(text, windows).filter(isImportSpelling)) {
-      (carriesPathEvidence(spelling) ? includes : bare).add(expandPath(spelling, home))
+      (carriesPathEvidence(spelling) ? includes : bare).add(expanded(spelling))
     }
   }
   return { includePaths: [...includes], bareMentionPaths: [...bare] }

@@ -64,7 +64,6 @@ const ROWS: Row[] = [
 ]
 
 const SHARE = win32.normalize('//nohost.invalid/share/rules/a.md')
-const WIN = process.platform === 'win32'
 
 const driver = join(scratch, 'driver.ts')
 writeFileSync(driver, `
@@ -119,8 +118,10 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
 }
 
-const expanded = (spelling: string): string => (spelling.startsWith('~/') ? join(home, spelling.slice(2)) : isAbsolute(spelling) ? normalize(spelling) : resolve(root, spelling)).normalize('NFC')
-const paths = (reading: Reading): string => JSON.stringify({ includes: reading.includes.map(expanded).sort(), bare: reading.bare.map(expanded).sort() })
+type Seam = (typeof SEAMS)[number]
+const byHost = (spelling: string): string => (spelling.startsWith('~/') ? join(home, spelling.slice(2)) : isAbsolute(spelling) ? normalize(spelling) : resolve(root, spelling)).normalize('NFC')
+const expanded = (spelling: string, seam: Seam): string => (seam === 'windows' && /^[\\/]{2}/.test(spelling) ? win32.normalize(spelling).normalize('NFC') : byHost(spelling))
+const paths = (reading: Reading, seam: Seam): string => JSON.stringify({ includes: reading.includes.map(spelling => expanded(spelling, seam)).sort(), bare: reading.bare.map(spelling => expanded(spelling, seam)).sort() })
 const sorted = (reading: Reading): string => JSON.stringify({ includes: [...reading.includes].sort(), bare: [...reading.bare].sort() })
 
 try {
@@ -141,17 +142,18 @@ try {
   })
   if (run.status !== 0) throw new Error(`driver exited ${run.status}: ${run.stderr}`)
   const { read, walk, share } = JSON.parse(readFileSync(result, 'utf8')) as {
-    read: Record<(typeof SEAMS)[number], Record<string, Reading>>
+    read: Record<Seam, Record<string, Reading>>
     walk: { loaded: string[]; blocked: string[]; calls: string[] }
     share: { resolvedPath: string; isCanonical: boolean; resolving: string[]; inRoots: boolean; judging: string[] }
   }
 
   console.log('on Windows a backslash inside an @ path does not end the path')
-  for (const row of ROWS) check(`Windows: ${row.name}`, sorted(read.windows[row.name]!) === paths(row.windows), `${JSON.stringify(row.line)} read ${sorted(read.windows[row.name]!)}, wanted ${paths(row.windows)}`)
+  for (const row of ROWS) check(`Windows: ${row.name}`, sorted(read.windows[row.name]!) === paths(row.windows, 'windows'), `${JSON.stringify(row.line)} read ${sorted(read.windows[row.name]!)}, wanted ${paths(row.windows, 'windows')}`)
+  check('Windows: a path on a share is the path the Windows path module makes of it, on every host', JSON.stringify(read.windows['a UNC path']!.includes) === JSON.stringify([SHARE]) && JSON.stringify(read.windows['the same UNC path with forward slashes']!.includes) === JSON.stringify([SHARE]), `${JSON.stringify(read.windows['a UNC path'])} ${JSON.stringify(read.windows['the same UNC path with forward slashes'])}`)
 
   console.log('on macOS, Linux and WSL every line reads as it did')
   for (const row of ROWS) {
-    const wanted = paths(row.elsewhere ?? row.windows)
+    const wanted = paths(row.elsewhere ?? row.windows, 'macos')
     const off = SEAMS.filter(seam => seam !== 'windows').filter(seam => sorted(read[seam][row.name]!) !== wanted)
     check(`macOS, Linux and WSL: ${row.name}`, off.length === 0, `${JSON.stringify(row.line)} read ${off.map(seam => `${seam} ${sorted(read[seam][row.name]!)}`).join(' · ')}, wanted ${wanted}`)
   }
@@ -159,8 +161,8 @@ try {
   console.log("a project file's UNC import waits for the approval every import from outside the project needs")
   const named = (call: string): boolean => call.includes('nohost.invalid')
   const touching = walk.calls.filter(named)
-  check('written with backslashes or with forward slashes it is held as external-import-blocked, and the import beside it loads', JSON.stringify(walk.loaded) === JSON.stringify([join(root, 'MERCURY.md'), join(root, 'notes', 'real.md')]) && JSON.stringify([...walk.blocked].sort()) === JSON.stringify(['//nohost.invalid/share/rules/a.md', '//nohost.invalid/share/twin/b.md'].map(expanded).sort()), JSON.stringify(walk))
-  check(`nothing opens, reads or lists the share before the approval${WIN ? ', and no file-system call names it' : ''}`, WIN ? touching.length === 0 : touching.every(call => call.startsWith('lstatSync ')), touching.join(' | '))
+  check('written with backslashes or with forward slashes it is held as external-import-blocked, and the import beside it loads', JSON.stringify(walk.loaded) === JSON.stringify([join(root, 'MERCURY.md'), join(root, 'notes', 'real.md')]) && JSON.stringify([...walk.blocked].sort()) === JSON.stringify(['//nohost.invalid/share/rules/a.md', '//nohost.invalid/share/twin/b.md'].map(spelling => expanded(spelling, 'windows')).sort()), JSON.stringify(walk))
+  check('no file-system call names the share while the import is held', touching.length === 0, touching.join(' | '))
   check('the path Windows makes of the line is resolved without one file-system call and stands outside the project', share.resolvedPath === SHARE && share.isCanonical === false && share.resolving.length === 0 && share.inRoots === false && share.judging.filter(named).length === 0, JSON.stringify(share))
 } finally {
   rmSync(scratch, { recursive: true, force: true })
