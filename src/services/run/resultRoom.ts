@@ -6,7 +6,7 @@ export const RESULT_ROOM_FLOOR_DIVISOR = 8
 export const RESULT_ROOM_WRAPPER_TOKENS = 250
 export const RESULT_ROOM_WORDS = 'the context is near its fold'
 
-export type ResultRoomFacts = { window: number; blockingLimit: number; foldLine: number; gauge: number }
+export type ResultRoomFacts = { window: number; blockingLimit: number; foldLine: number; gauge: number; small?: boolean; density?: number }
 
 export type ResultRoomBudget =
   | { awake: false; line: number; gauge: number }
@@ -14,9 +14,13 @@ export type ResultRoomBudget =
 
 export function resultRoomBudget(facts: ResultRoomFacts): ResultRoomBudget {
   const line = Math.min(facts.foldLine, Math.floor(facts.window * RESULT_ROOM_LINE_SHARE))
-  if (!(facts.gauge >= line)) return { awake: false, line, gauge: facts.gauge }
-  const room = Math.max(0, facts.blockingLimit - facts.gauge)
   const floor = Math.min(RESULT_ROOM_FLOOR_MAX_TOKENS, Math.max(RESULT_ROOM_FLOOR_MIN_TOKENS, Math.floor(facts.blockingLimit / RESULT_ROOM_FLOOR_DIVISOR)))
+  if (!(facts.gauge >= line)) {
+    if (facts.small !== true) return { awake: false, line, gauge: facts.gauge }
+    const under = Math.max(0, Math.floor((line - facts.gauge) / Math.max(1, facts.density ?? 1)) - RESULT_ROOM_WRAPPER_TOKENS)
+    return { awake: true, line, gauge: facts.gauge, room: under, ceiling: Math.max(floor, under - floor), floor }
+  }
+  const room = Math.max(0, facts.blockingLimit - facts.gauge)
   const ceiling = Math.min(RESULT_ROOM_TURN_CEILING_TOKENS, Math.max(floor, room))
   return { awake: true, line, gauge: facts.gauge, room, ceiling, floor }
 }
