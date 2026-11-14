@@ -1,9 +1,11 @@
 # Bundled skills
 
-The six skills in this directory compile into the Mercury build. Each directory holds a `SKILL.md` (`description` with trigger first and sibling boundary, optional `argument-hint` and `user-invocable`, plus the body loaded on invocation). Three also carry on-demand `references/` (`extension-maker`, `image-generation`, `provider-apis`). None ships helper scripts; each works through Mercury's own tools (`Read`, `Document`, `Eval`, `Browser`, `Service`, `mercury mcp add`, `mercury extensions …`) and project dependencies verified before use.
+The eight skills in this directory compile into the Mercury build. Each directory holds a `SKILL.md` (`description` with trigger first and sibling boundary, optional `argument-hint` and `user-invocable`, plus the body loaded on invocation). Three also carry on-demand `references/` (`extension-maker`, `image-generation`, `provider-apis`). None ships helper scripts; each works through Mercury's own tools (`Read`, `Document`, `Eval`, `Browser`, `Service`, `Crewmate`, `CrewBoard`, `mercury mcp add`, `mercury extensions …`) and project dependencies verified before use.
 
 | Skill | What it does |
 |---|---|
+| `code-review` | reviews local changes, a commit, a branch or a pull request with parallel finders and cross-family verification |
+| `deep-research` | runs multi-source research with a team captain on `CrewBoard`, adversarial claim refutation and a final spot-check |
 | `extension-maker` | scaffolds, repairs and validates a Mercury extension or source catalogue (`mercury extensions inspect`) |
 | `image-generation` | generates and edits images or video via `mercury-media`, reading live tool schemas and installed model rows |
 | `mcp-smithy` | builds an MCP server around a focused tool contract, proves it with the SDK client, and registers it with `mercury mcp add` when asked |

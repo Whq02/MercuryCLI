@@ -61,13 +61,13 @@ clearCommandsCache()
 const commands = await getSkillToolCommands(project)
 const byName = new Map(commands.map(cmd => [cmd.name, cmd]))
 
-const generatedSix = ['extension-maker', 'image-generation', 'mcp-smithy', 'provider-apis', 'research', 'skill-forge']
+const generatedEight = ['code-review', 'deep-research', 'extension-maker', 'image-generation', 'mcp-smithy', 'provider-apis', 'research', 'skill-forge']
 const codeModelFive = ['keybindings-help', 'loop', 'mercury-docs', 'schedule', 'update-config']
 const craftThree = ['filmcraft:filmcraft', 'lightcraft:lightcraft', 'photocraft:photocraft']
-const expectedNames = [...generatedSix, ...codeModelFive, ...craftThree].sort()
+const expectedNames = [...generatedEight, ...codeModelFive, ...craftThree].sort()
 
 check(
-  'the bundled Skill-tool roster carries all 14 model-invocable skills across the three families',
+  'the bundled Skill-tool roster carries all 16 model-invocable skills across the three families',
   JSON.stringify([...byName.keys()].sort()) === JSON.stringify(expectedNames),
   [...byName.keys()].sort().join(', '),
 )
