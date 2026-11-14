@@ -104,6 +104,7 @@ import {
   type RichRender,
 } from './readRichFormats.js'
 import { cacheKeys, type FileState } from '../../utils/fileStateCache.js'
+import { parseReadQueryTarget } from './readQueryTarget.js'
 import {
   classifyReadTarget,
   isDirectoryTarget,
@@ -1762,6 +1763,11 @@ export const FileReadTool = buildTool({
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
   async checkPermissions(input, context): Promise<ReturnType<typeof checkReadPermissionForTool>> {
+    const query = parseReadQueryTarget(input.file_path)
+    if (query !== null) {
+      const decision = await FileReadTool.checkPermissions!({ ...input, file_path: query.source }, context)
+      return decision.behavior === 'allow' ? { ...decision, updatedInput: input } : decision
+    }
     if (isRemotePath(input.file_path)) {
       const { remotePermission } = await import('../../services/remoteFiles/bridge.js')
       return remotePermission(FILE_READ_TOOL_NAME, input.file_path, remoteAlso(input.file_path.trim()), input, context, 'read')
@@ -1781,15 +1787,18 @@ export const FileReadTool = buildTool({
     return summary ? `Reading ${summary}` : 'Reading a file'
   },
   getPath(input: Partial<Input> | undefined): string {
-    return input?.file_path || getCwd()
+    return input?.file_path ? parseReadQueryTarget(input.file_path)?.source ?? input.file_path : getCwd()
   },
   backfillObservableInput(input: Input): void {
-    if (hasControlCharacter(input.file_path) || windowsPathNeedsPermission(input.file_path)) return
-    input.file_path = isRemotePath(input.file_path) ? remoteIdentity(input.file_path) : expandPath(input.file_path)
+    const query = parseReadQueryTarget(input.file_path)
+    const source = query?.source ?? input.file_path
+    if (hasControlCharacter(source) || windowsPathNeedsPermission(source)) return
+    const expanded = isRemotePath(source) ? remoteIdentity(source) : query !== null && source.startsWith('mercury://') ? source : expandPath(source)
+    input.file_path = query === null ? expanded : `${expanded}${query.suffix}`
   },
   preparePermissionMatcher(input: Input) {
-    return (rulePattern: string): boolean =>
-      matchWildcardPattern(rulePattern, input.file_path)
+    const source = parseReadQueryTarget(input.file_path)?.source ?? input.file_path
+    return (rulePattern: string): boolean => matchWildcardPattern(rulePattern, source)
   },
   async description(): Promise<string> {
     let text = DESCRIPTION
@@ -1816,6 +1825,8 @@ export const FileReadTool = buildTool({
     )
   },
   async validateInput(input: Input, context: ToolUseContext) {
+    const query = parseReadQueryTarget(input.file_path)
+    if (query !== null) input = { ...input, file_path: query.source }
     if (input.scale !== undefined && selectedCrop(input.crop) === undefined) return { result: false as const, message: 'scale requires an image crop.', errorCode: 1 }
     if (input.lossless && (input.outline || (!(input.ranges?.length) && (input.offset === undefined || input.limit === undefined)))) {
       return { result: false as const, message: 'lossless requires offset + limit or ranges, without outline.', errorCode: 1 }
@@ -1914,6 +1925,20 @@ export const FileReadTool = buildTool({
       const share = room === null ? declaredLimits.maxTokens : room.reserve(context.toolUseId ?? '', declaredLimits.maxTokens)
       granted = share < declaredLimits.maxTokens ? { ...declaredLimits, maxTokens: share, room: true } : declaredLimits
       return granted
+    }
+    const query = parseReadQueryTarget(input.file_path)
+    if (query !== null) {
+      const { readQuery } = await import('./readQuery.js')
+      const rendered = await readQuery({ target: query, input, context, limits: reserve(), canUseTool, parentMessage })
+      const data: Output = {
+        type: 'text',
+        file: { filePath: input.file_path, content: rendered.content, numLines: rendered.numLines, startLine: 1, totalLines: rendered.numLines },
+      }
+      data.file.reminder = takeReminder(parentMessage, context.messages)
+        ? context.options?.engineModel ? cyberRiskReminderFor(context.options.engineModel) : cyberRiskReminderForCurrentModel()
+        : ''
+      resultPreRenderedBody.set(data, rendered.content)
+      return { data }
     }
     const remoteEntry = isRemotePath(input.file_path) ? remoteRichTarget(input.file_path.trim()) : null
     const remoteInner = remoteEntry?.subtarget !== undefined ? remoteEntry : null
