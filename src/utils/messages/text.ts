@@ -187,12 +187,40 @@ A new message does not automatically replace the original objective. Preserve un
 Before ending your turn, account for this message: address it, incorporate it into the work, or explain any blocker. Do not silently drop it.`
 
 const BACKGROUND_COMMAND_SUMMARY = 'Background command '
+const MISSION_COMPLETED_SUMMARY = 'Mission completed:'
+const MONITOR_BLOCK_OPENING = '<monitor task='
+const TASK_NOTICE_OPENING = '<task-notification>'
+const RUNTIME_NOTICE_HEAD = 'Mercury runtime notice:'
+
+const CREWMATE_NOTICE_HEADS: Record<string, string> = {
+  completed: 'A background crewmate completed a task:',
+  failed: 'A background crewmate failed:',
+  killed: 'A background crewmate was stopped:',
+  interrupted: 'A background crewmate was interrupted:',
+  paused: 'A background crewmate paused:',
+  resumed: 'A background crewmate resumed:',
+}
 
 function taskNoticeHead(raw: string): string {
   if (isAgentMessageNotice(raw)) return agentMessageLine(raw)
-  const commandFinished = extractTag(raw, 'summary')?.startsWith(BACKGROUND_COMMAND_SUMMARY) === true
-  return commandFinished ? 'A background command finished; its command line and output file follow:' : 'A background crewmate completed a task:'
+  if (raw.startsWith(MONITOR_BLOCK_OPENING)) return 'An event of a background watch, not a reply from the user:'
+  if (!raw.startsWith(TASK_NOTICE_OPENING)) return RUNTIME_NOTICE_HEAD
+  const summary = extractTag(raw, 'summary') ?? ''
+  if (summary.startsWith(BACKGROUND_COMMAND_SUMMARY)) return 'A background command finished; its command line and output file follow:'
+  if (summary.startsWith(MISSION_COMPLETED_SUMMARY)) return 'A mission completed:'
+  return CREWMATE_NOTICE_HEADS[extractTag(raw, 'status') ?? ''] ?? RUNTIME_NOTICE_HEAD
 }
+
+function wholeReminderWords(raw: string): string | null {
+  const opening = `<${REMINDER_TAG}>\n`
+  const closing = `\n</${REMINDER_TAG}>`
+  if (!raw.startsWith(opening) || !raw.endsWith(closing) || raw.length < opening.length + closing.length) return null
+  const words = raw.slice(opening.length, raw.length - closing.length)
+  return words.includes(`<${REMINDER_TAG}`) || words.includes(`</${REMINDER_TAG}`) ? null : words
+}
+
+const scheduledFireHead = (origin: MessageOrigin): string =>
+  (origin as { fire?: string }).fire === 'wake' ? 'A self-paced wake fired while you were working:' : 'A schedule fired while you were working:'
 
 const coordinatorHead = (raw: string): string =>
   isAgentMessageNotice(raw) ? agentMessageLine(raw) : 'The coordinator sent a message while you were working:'
@@ -200,8 +228,9 @@ const coordinatorHead = (raw: string): string =>
 type Framing = (raw: string, origin: MessageOrigin) => string
 
 const FRAMINGS: Partial<Record<MessageOrigin['kind'], Framing>> = {
-  'build-behind': raw => `Mercury runtime notice:\n${raw}`,
-  'task-notification': raw => `${taskNoticeHead(raw)}\n${raw}`,
+  'build-behind': raw => `${RUNTIME_NOTICE_HEAD}\n${raw}`,
+  'task-notification': raw => wholeReminderWords(raw) ?? `${taskNoticeHead(raw)}\n${raw}`,
+  saturn: (raw, origin) => `${scheduledFireHead(origin)}\n${raw}\n\n${OPERATOR_NOTICE_TAIL}`,
   coordinator: raw => `${coordinatorHead(raw)}\n${raw}\n\nAddress this before completing your current task.`,
   channel: (raw, origin) => {
     const server = (origin as Extract<MessageOrigin, { kind: 'channel' }>).server
