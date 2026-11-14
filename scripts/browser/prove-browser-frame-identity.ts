@@ -11,6 +11,7 @@ const hostTz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 let port = 0
 interface Hit {
   path: string
+  search: string
   host: string
   raw: string[]
 }
@@ -19,7 +20,7 @@ const FIRST = `window.__first = { userAgent: navigator.userAgent, appVersion: na
 const A = await serve(0, (req: http.IncomingMessage, res: http.ServerResponse) => {
   const url = new URL(req.url ?? '/', 'http://fixture')
   const path = url.pathname
-  asked.push({ path, host: String(req.headers.host), raw: req.rawHeaders })
+  asked.push({ path, search: url.search, host: String(req.headers.host), raw: req.rawHeaders })
   const cross = `http://localhost:${port}`
   const script = (body: string): void => {
     res.writeHead(200, { 'content-type': 'text/javascript', 'cache-control': 'no-store' })
@@ -36,7 +37,7 @@ const A = await serve(0, (req: http.IncomingMessage, res: http.ServerResponse) =
   if (path === '/first' || path === '/slow') {
     const nest = url.searchParams.has('nest') ? `<iframe src="http://127.0.0.1:${port}/first?who=nested" width="80" height="40"></iframe>` : ''
     const worker = url.searchParams.has('worker') ? `<script>new Worker('/worker.js').onmessage = event => { window.__worker = event.data }</script>` : ''
-    const body = `<!doctype html><title>first</title><script>${FIRST}</script>${worker}${nest}`
+    const body = `<!doctype html><title>first</title><script>${FIRST}</script><a id="go" href="/first?who=clicked">go</a>${worker}${nest}`
     if (path === '/slow') setTimeout(() => html(body), 1500)
     else html(body)
     return
@@ -145,6 +146,15 @@ const surfaceOf = async (frame: Frame | null): Promise<string> =>
         ]),
       )) as string)
 const frameRequest = (from: number): string[] => asked.slice(from).find(hit => hit.path === '/detect' && hit.host === CROSS)?.raw ?? []
+const IDENTITY_HEADERS = ['user-agent', 'sec-ch-ua', 'sec-ch-ua-mobile', 'sec-ch-ua-platform', 'accept-language']
+const identityOf = (raw: string[] | undefined): string => IDENTITY_HEADERS.map(name => `${name}: ${(raw ?? []).find((_, index, all) => index % 2 === 1 && all[index - 1]!.toLowerCase() === name) ?? '(absent)'}`).join(' | ')
+const startedByFrame = async (tab: string | undefined, pagePath: string): Promise<{ frame: string; page: string }> => {
+  const mark = asked.length
+  const frame = frameOf(tab, `${CROSS}/first`)
+  await frame?.evaluate(() => (document.getElementById('go') as HTMLAnchorElement).click()).catch(() => undefined)
+  for (let waited = 0; waited < 30 && !asked.slice(mark).some(hit => hit.search === '?who=clicked'); waited++) await nap(100)
+  return { frame: identityOf(asked.slice(mark).find(hit => hit.search === '?who=clicked')?.raw), page: identityOf([...asked].reverse().find(hit => hit.path === pagePath && hit.host !== CROSS)?.raw) }
+}
 const kitOf = (tab?: string): { cdp: { send: (method: string) => Promise<unknown> } | null; frames?: Map<string, unknown> } => sessions.pageKitOf(pageOf(lead, tab))
 const crash = async (tab?: string): Promise<boolean> => {
   void kitOf(tab).cdp?.send('Page.crash').catch(() => undefined)
@@ -188,6 +198,8 @@ section('S1 a frame from another site, on the page a launch starts with')
   }
   const worker = await workerOf()
   check('a worker that frame starts reads the user agent and the brands too', worker !== null && worker.userAgent === host.userAgent && worker.brands === host.brands, JSON.stringify(worker))
+  const started = await startedByFrame(undefined, '/framed')
+  check('a navigation that frame starts sends the identity its page sends: user agent, client hints, languages', started.frame === started.page && !started.frame.includes('Headless') && !started.frame.includes('(absent)'), `${started.frame} || ${started.page}`)
 }
 
 section('S2 on a tab born beside another')
@@ -220,6 +232,8 @@ section('S4 an emulated identity reaches the frame')
   const nine = await nineIn('beside', `${CROSS}/detect`)
   check('[M13] the nine baseline assertions hold inside the frame of the emulated page (9/9)', nine.passed === 9 && nine.total === 9, JSON.stringify(nine.checks))
   check('a frame inside that frame reads the phone too', same(await firstIn('beside', 'who=nested'), top))
+  const phoned = await startedByFrame('beside', '/framed')
+  check('[E6] a navigation that frame starts sends the phone’s identity', phoned.frame === phoned.page && phoned.frame.includes('Pixel 5') && phoned.frame.includes('sec-ch-ua-mobile: ?1'), `${phoned.frame} || ${phoned.page}`)
   const plain = await nowIn(undefined, `${CROSS}/first`)
   check('the frame of the same site on the other tab keeps its own page’s identity', plain !== null && plain.userAgent === host.userAgent && plain.platform === host.platform && plain.touch === 0, JSON.stringify(plain))
   const other = host.platform === 'Win32' ? 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36'
