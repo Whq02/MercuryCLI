@@ -422,7 +422,7 @@ function farOverSizeBound(abs: string): boolean {
 
 export async function searchAstPattern(
   scope: AstScope,
-  opts: { pattern: string; signal?: AbortSignal; matchCap?: number; recover?: boolean; retainSource?: boolean },
+  opts: { pattern: string; signal?: AbortSignal; matchCap?: number; recover?: boolean; retainSource?: boolean; recoveredApart?: boolean },
 ): Promise<AstSearchResult | AstRefusal> {
   const engine = await loadGrammarEngine()
   if (engine.state === 'unavailable') return { refused: engine.note }
@@ -442,10 +442,11 @@ export async function searchAstPattern(
   let capped = false
   let truncatedParse = false
   let compiledSomewhere = false
+  let apart = 0
 
   for (const file of scope.files) {
     if (opts.signal?.aborted) break
-    if (matches.length >= cap) {
+    if (matches.length - apart >= cap) {
       capped = true
       break
     }
@@ -516,11 +517,14 @@ export async function searchAstPattern(
       }
       ;(recovered ??= []).push({ rel: file.rel, lang: file.lang.name, diagnostics: parsed.errorRegions?.length ?? 0, notes: parsed.parseErrors })
     }
-    const found = findPatternMatches(compiled.pattern, parsed.tree.rootNode, text, cap - matches.length)
+    const own = opts.recoveredApart === true && parsed.parseErrors.length > 0
+    const spent = own && matches.length >= cap
+    const found = findPatternMatches(compiled.pattern, parsed.tree.rootNode, text, own ? Math.max(1, cap - matches.length) : cap - (matches.length - apart))
     if (found.matches.length > 0) {
       filesWithMatches++
-      if (parsed.parseErrors.length > 0 && opts.retainSource) Object.assign(recovered![recovered!.length - 1]!, { source: text, errors: parsed.errorRegions ?? [] })
+      if (parsed.parseErrors.length > 0 && opts.retainSource && !spent) Object.assign(recovered![recovered!.length - 1]!, { source: text, errors: parsed.errorRegions ?? [] })
     }
+    if (own) apart += found.matches.length
     for (const m of found.matches) {
       const match = materialise(file.rel, file.abs, file.lang.name, m.node, m.captures)
       if (parsed.parseErrors.length > 0) match.hasSyntaxError = m.node.type === 'ERROR' || m.node.isMissing || m.node.hasError
@@ -935,6 +939,9 @@ async function planAstBatchRewrite(
   let totalInPlaceMatches = 0
   let deferredRefusal: string | null = null
   const leftOut: AstLeftOutFile[] = []
+  const held: Array<{ rel: string; changed: number; admit?: () => void }> = []
+  let heldMatches = 0
+  let damagedOver = false
 
   for (const file of scope.files) {
     if (signal?.aborted) {
@@ -1050,10 +1057,12 @@ async function planAstBatchRewrite(
 
       const candidates: CandidateEdit[] = []
       let left: AstLeftOutFile | null = null
+      let over = false
       for (const { r, compiled } of matchingRules) {
         const found = findPatternMatches(compiled.pattern, parsed.tree.rootNode, before, AST_BOUNDS.editMaxMatches + 1)
         if (found.matches.length > AST_BOUNDS.editMaxMatches) {
-          deferredRefusal ??= `More than ${AST_BOUNDS.editMaxMatches} matches in one edit — narrow the scope (path or glob) or the rules, then run again. Nothing was written.`
+          if (recoveryEntry) over = true
+          else deferredRefusal ??= `More than ${AST_BOUNDS.editMaxMatches} matches in one edit — narrow the scope (path or glob) or the rules, then run again. Nothing was written.`
           break
         }
         if (found.matches.length === 0) continue
@@ -1165,7 +1174,16 @@ async function planAstBatchRewrite(
         leftOut.push(left)
         continue
       }
+      if (over) {
+        damagedOver = true
+        held.push({ rel: file.rel, changed: 0 })
+        continue
+      }
       if (deferredRefusal !== null || candidates.length === 0) continue
+      if (recoveryEntry && (damagedOver || totalChangedMatches + heldMatches > AST_BOUNDS.editMaxMatches || plannedFiles.length + held.length > AST_BOUNDS.editMaxFiles)) {
+        held.push({ rel: file.rel, changed: 0 })
+        continue
+      }
 
       filesWithMatches++
       candidates.sort((a, b) => a.matchStart - b.matchStart || a.matchEnd - b.matchEnd || a.ruleIndex - b.ruleIndex)
@@ -1259,43 +1277,52 @@ async function planAstBatchRewrite(
         continue
       }
 
+      const original = before
+      const admit = (): void => {
+        for (const item of changedItems) {
+          if (item.inPlace) totalInPlaceMatches++
+          if (item.ruleIndices.length > 1) {
+            coalesced.push({ rel: file.rel, line: item.startLine, col: item.startCol, ruleIndices: [...item.ruleIndices] })
+          }
+          for (const ri of item.ruleIndices) {
+            ruleStates[ri]!.changedMatches++
+            ruleStates[ri]!.filesChanged.add(file.rel)
+          }
+        }
+        fileChanges.set(
+          file.rel,
+          changedItems.map(item => ({ line: item.startLine, col: item.startCol, ruleIndices: [...item.ruleIndices] })),
+        )
+        const diff = unifiedDiff(file.rel, original, after)
+        const { hunks, omittedHunks } = buildDiffHunks(file.rel, original, after)
+        plannedFiles.push({
+          rel: file.rel,
+          abs: file.abs,
+          lang: file.lang.name,
+          matchCount: changedItems.length,
+          before: original,
+          after,
+          digestBefore: digestOf(original),
+          digestAfter: digestOf(after),
+          diff: diff.text,
+          diffOmittedLines: diff.omittedLines,
+          hunks,
+          omittedHunks,
+          changedLines: countChangedLines(original, after, edits),
+          edits,
+        })
+      }
+      if (recoveryEntry) {
+        heldMatches += changedItems.length
+        held.push({ rel: file.rel, changed: changedItems.length, admit })
+        continue
+      }
       totalChangedMatches += changedItems.length
       if (totalChangedMatches > AST_BOUNDS.editMaxMatches) {
         deferredRefusal = `More than ${AST_BOUNDS.editMaxMatches} matches in one edit — narrow the scope (path or glob) or the rules, then run again. Nothing was written.`
         continue
       }
-      for (const item of changedItems) {
-        if (item.inPlace) totalInPlaceMatches++
-        if (item.ruleIndices.length > 1) {
-          coalesced.push({ rel: file.rel, line: item.startLine, col: item.startCol, ruleIndices: [...item.ruleIndices] })
-        }
-        for (const ri of item.ruleIndices) {
-          ruleStates[ri]!.changedMatches++
-          ruleStates[ri]!.filesChanged.add(file.rel)
-        }
-      }
-      fileChanges.set(
-        file.rel,
-        changedItems.map(item => ({ line: item.startLine, col: item.startCol, ruleIndices: [...item.ruleIndices] })),
-      )
-      const diff = unifiedDiff(file.rel, before, after)
-      const { hunks, omittedHunks } = buildDiffHunks(file.rel, before, after)
-      plannedFiles.push({
-        rel: file.rel,
-        abs: file.abs,
-        lang: file.lang.name,
-        matchCount: changedItems.length,
-        before,
-        after,
-        digestBefore: digestOf(before),
-        digestAfter: digestOf(after),
-        diff: diff.text,
-        diffOmittedLines: diff.omittedLines,
-        hunks,
-        omittedHunks,
-        changedLines: countChangedLines(before, after, edits),
-        edits,
-      })
+      admit()
     } finally {
       parsed.tree.delete()
     }
@@ -1328,6 +1355,22 @@ async function planAstBatchRewrite(
   }
 
   if (deferredRefusal !== null) return { refused: deferredRefusal }
+  if (held.length > 0) {
+    const pastMatches = damagedOver || totalChangedMatches + heldMatches > AST_BOUNDS.editMaxMatches
+    if (pastMatches || plannedFiles.length + held.length > AST_BOUNDS.editMaxFiles) {
+      const refusal = pastMatches
+        ? `More than ${AST_BOUNDS.editMaxMatches} matches in one edit — narrow the scope (path or glob) or the rules, then run again. Nothing was written.`
+        : `Matches in ${plannedFiles.length + held.length} files, more than the ${AST_BOUNDS.editMaxFiles}-file bound for one edit — narrow the scope (path or glob), then run again. Nothing was written.`
+      if (plannedFiles.length === 0) return { refused: refusal }
+      const note = pastMatches ? `more than ${AST_BOUNDS.editMaxMatches} matches in one edit` : `more than the ${AST_BOUNDS.editMaxFiles}-file bound for one edit`
+      for (const file of held) leftOut.push({ rel: file.rel, note, refusal })
+    } else {
+      for (const file of held) {
+        totalChangedMatches += file.changed
+        file.admit?.()
+      }
+    }
+  }
   if (plannedFiles.length === 0 && leftOut.length > 0) return { refused: leftOut[0]!.refusal }
   if (plannedFiles.length > AST_BOUNDS.editMaxFiles) {
     return {
@@ -1412,25 +1455,30 @@ export async function planAstRewrite(
     pattern: singlePattern,
     matchCap: AST_BOUNDS.editMaxMatches + 1,
     retainSource: true,
+    recoveredApart: true,
     ...(opts.signal !== undefined && { signal: opts.signal }),
   })
   if (isAstRefusal(search)) return search
-  if (search.matches.length > AST_BOUNDS.editMaxMatches) {
-    return {
-      refused: `More than ${AST_BOUNDS.editMaxMatches} matches in one edit — narrow the scope (path or glob) or the pattern, then run again. Nothing was written.`,
-    }
-  }
+  const tooManyMatches = `More than ${AST_BOUNDS.editMaxMatches} matches in one edit — narrow the scope (path or glob) or the pattern, then run again. Nothing was written.`
+  const tooManyFiles = (count: number): string => `Matches in ${count} files, more than the ${AST_BOUNDS.editMaxFiles}-file bound for one edit — narrow the scope (path or glob), then run again. Nothing was written.`
+  const damaged = new Set(search.recovered?.map(file => file.rel))
   const byFile = new Map<string, AstMatch[]>()
+  let parsedMatches = 0
   for (const m of search.matches) {
     const list = byFile.get(m.rel) ?? []
     list.push(m)
     byFile.set(m.rel, list)
+    if (!damaged.has(m.rel)) parsedMatches++
   }
-  if (byFile.size > AST_BOUNDS.editMaxFiles) {
-    return {
-      refused: `Matches in ${byFile.size} files, more than the ${AST_BOUNDS.editMaxFiles}-file bound for one edit — narrow the scope (path or glob), then run again. Nothing was written.`,
-    }
-  }
+  if (parsedMatches > AST_BOUNDS.editMaxMatches) return { refused: tooManyMatches }
+  const parsedFiles = [...byFile.keys()].filter(rel => !damaged.has(rel)).length
+  if (parsedFiles > AST_BOUNDS.editMaxFiles) return { refused: tooManyFiles(parsedFiles) }
+  const pastBound =
+    search.matches.length > AST_BOUNDS.editMaxMatches
+      ? { note: `more than ${AST_BOUNDS.editMaxMatches} matches in one edit`, refusal: tooManyMatches }
+      : byFile.size > AST_BOUNDS.editMaxFiles
+        ? { note: `more than the ${AST_BOUNDS.editMaxFiles}-file bound for one edit`, refusal: tooManyFiles(byFile.size) }
+        : null
   const engine = await loadGrammarEngine()
   if (engine.state === 'unavailable') return { refused: engine.note }
 
@@ -1487,6 +1535,11 @@ export async function planAstRewrite(
       return { refused: `${rel}: no grammar for this file (it should not have matched).` }
     }
     const recovery = search.recovered?.find(file => file.rel === rel)
+    if (recovery && pastBound) {
+      leftOut.push({ rel, ...pastBound })
+      leftOutMatches += list.length
+      continue
+    }
     const spans = recovery?.errors ?? []
     let before: string
     try {

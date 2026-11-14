@@ -221,8 +221,12 @@ match touches an error, the rewrite would change its errors, its matches
 nest or overlap, or two deletions share a line) is left out of the plan
 whole and named (`Left unchanged: file (line:column reason)`, five files,
 then a count); the other files are planned and written, and the plan token
-covers which files were left. When no file is left to rewrite, the edit is
-refused with that file's reason.
+covers which files were left. Error-bearing files join an edit only while
+the whole edit stays within the bounds below: when their matches would take
+it past one, each of them that holds a match is left out and named with
+that bound (`Left unchanged: file (more than 500 matches in one edit)`),
+and the files that parse are planned as they would be without them. When no
+file is left to rewrite, the edit is refused with that file's reason.
 
 The layout-keeping lane: when the rewrite parses to the same shape as the
 pattern (same node types, same children, and the same meta-variables in the
@@ -238,7 +242,8 @@ file that parses (the pair is named; narrow the pattern or the scope); a
 rewrite naming a meta-variable the pattern does not capture; an anonymous
 `$$$` or `$_` in the rewrite; a rewrite that leaves a file that parsed
 unparsable (the location is named); more than 100 files or 500 matches in
-one edit. Matches already in the rewritten form are counted and left alone.
+one edit among the files that parse. Matches already in the rewritten form
+are counted and left alone.
 
 ## Memory: the held grammars
 
