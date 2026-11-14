@@ -43,6 +43,8 @@ import {
   originApproved,
   originOf,
   approveSecretPairing,
+  popupInFlight,
+  popupsSettled,
   screenshotPath,
   secretPairingApproved,
   sessionGoneAt,
@@ -57,6 +59,7 @@ import {
   emulationLines,
   emulationSummary,
   heldDevice,
+  inheritEmulation,
   notePlainSize,
   parseEmulation,
   type EmulationOutcome,
@@ -590,10 +593,14 @@ function bounded(ms: number): Promise<void> {
 }
 
 async function settleAfterAct(s: LiveSession, deadline: number, marks: ActMarks): Promise<void> {
-  await Promise.race([
-    s.page.evaluate(() => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)))).catch(() => undefined),
-    bounded(1000),
-  ])
+  if (s.popups.count === marks.popups && !popupInFlight(s)) {
+    await Promise.race([
+      s.page.evaluate(() => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)))).catch(() => undefined),
+      bounded(1000),
+      new Promise<void>(wake => s.popups.waiters.push(wake)),
+    ])
+  }
+  await popupsSettled(s)
   if (s.navWatch.pendingUrl !== null) {
     await Promise.race([new Promise<void>(wake => s.navWatch.waiters.push(wake)), bounded(deadline)])
   }
@@ -609,15 +616,38 @@ async function errorPageSettled(s: LiveSession): Promise<void> {
   await Promise.race([new Promise<void>(wake => s.navWatch.waiters.push(wake)), bounded(1000)])
 }
 
+async function popupWords(owner: OwnerKey, s: LiveSession, since: number): Promise<string> {
+  await popupsSettled(s)
+  const fresh = s.popups.count - since
+  if (fresh <= 0) return ''
+  const notes: string[] = []
+  for (const popup of s.popups.log.slice(-fresh)) {
+    const kept = popup.tab === null ? null : activeSession(owner, popup.tab)
+    if (kept === null) {
+      notes.push(
+        popup.tab === null
+          ? `the page opened a new tab (${popup.url}) that could not be kept; it was closed. op:"open" that URL follows it (a new origin will ask).`
+          : `the page opened a new tab (${popup.url}), kept as tab ${popup.tab}, which has closed since`,
+      )
+      continue
+    }
+    const origin = originOf(kept.page.url())
+    const carried = await inheritEmulation(s.page, kept.page, kept.openedBy?.posted !== true).catch(() => null)
+    if (carried !== null) noteEmulatedPage(owner, emulationActive(kept.page) ? kept.page : null, kept.tab)
+    notes.push(
+      `the page opened a new tab — kept as tab ${kept.tab} at ${pageWhere(kept)}${origin.startsWith('http') && !originApproved(owner, origin) ? ' (its origin is not approved: acts there will ask)' : ''}; pass tab:"${kept.tab}" to use it${
+        carried === null ? '' : `; the emulation came with it (${emulationSummary(kept.page) || 'nothing'})${carried.reloaded ? ', and it was reloaded for mobile or touch' : ''}`
+      }`,
+    )
+    for (const line of [...(carried?.failures ?? []), ...(carried?.notes ?? [])]) notes.push(`tab ${kept.tab}: ${line}`)
+  }
+  return notes.map(n => `\n  note: ${n}`).join('')
+}
+
 function actConsequences(s: LiveSession, marks: ActMarks): string {
   const notes: string[] = []
   if (s.downloads.count > marks.downloads && s.downloads.last !== null) {
     notes.push(`the link is ${downloadWords(s.downloads.last)}`)
-  }
-  if (s.popups.count > marks.popups) {
-    notes.push(
-      `the page opened a new tab (${s.popups.last}) — it was closed unadopted. op:"open" that URL follows it (a new origin will ask).`,
-    )
   }
   for (const entry of s.consoleRing.slice(marks.ringMark)) {
     if (entry.kind === 'dialog') notes.push(`the page opened a dialog: ${entry.text}`)
@@ -997,7 +1027,7 @@ export const BrowserTool = buildTool({
     'navigation', 'extract', 'render', 'accessibility tree', 'DOM', 'console errors', 'screenshot',
     'headless', 'chrome', 'edge', 'chromium', 'provenance', 'status',
     'emulate', 'emulation', 'mobile', 'device', 'iphone', 'android', 'responsive', 'timezone', 'locale',
-    'geolocation', 'offline', 'throttle', 'dark mode', 'tab', 'tabs', 'several pages',
+    'geolocation', 'offline', 'throttle', 'dark mode', 'tab', 'tabs', 'several pages', 'popup', 'new window',
   ],
   capability: {
     intents: [
@@ -1038,7 +1068,7 @@ export const BrowserTool = buildTool({
     return `## Operations
 status reports browser resolution (operator pin, then managed Chrome-for-Testing), versions, session state and open tabs without launching. Installed browsers are not driven.
 open launches on first use and navigates (${NAVIGATION_CAP_MS / 1000}s deadline). tab picks the page an op uses: main unless named, a new name opens another, without url a blank one; persist keeps it past the idle lease.
-click checks actionability; any new tab opened is closed unadopted and its URL returned.
+click checks actionability; a tab that an act opens is kept and named in the answer (popup, popup-2).
 type focuses a selector target (editable inputs, textarea, contenteditable).
 waitFor watches a selector, case-insensitive whitespace-normalized text, or navigation when neither is given (returns immediately if navigation already finished during the prior act).
 viewport resizes the surface (initial 1280×800); a plain resize keeps an active device. Its emulation, kept by the page until reset with sizes as given, takes ${EMULATION_FIELD_WORDS}; devices lists the names.
@@ -1351,7 +1381,15 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
     let secretInPlay: { value: string; ref: string } | null = null
     let life = null as OpLife | null
     const signalFor = (s: LiveSession): AbortSignal => (life ??= openOpLife(s, context.abortController?.signal)).signal
+    const acted = new Map<LiveSession, number>()
+    const acting = (s: LiveSession): void => {
+      if (acted.has(s)) return
+      acted.set(s, s.popups.count)
+      s.acting++
+      s.actOp = input.op
+    }
     try {
+      if (sessionAtEntry !== null && ACT_OPS.has(input.op)) acting(sessionAtEntry)
       if (sessionAtEntry !== null && FRONT_OPS.has(input.op)) await bringTabToFront(sessionAtEntry)
       switch (input.op) {
         case 'status': {
@@ -1379,6 +1417,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
             break
           }
           if (input.persist !== undefined) s.persist = input.persist
+          if (input.url !== undefined) acting(s)
           const lease =
             input.persist === undefined
               ? ''
@@ -2282,7 +2321,11 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
             ? browserGoneMidOpWords(input.op)
             : (driverFailureWords(input.op, chainText, blocked !== undefined && blocked.at >= startedAt ? blocked.reason : undefined) ?? `${input.op} failed: ${e.message}`)
       outcome = 'failed'
+    }
+    try {
+      for (const [s, since] of acted) result = `${result!}${await popupWords(owner, s, since)}`
     } finally {
+      for (const s of acted.keys()) s.acting--
       life?.release()
       releaseActivity()
     }

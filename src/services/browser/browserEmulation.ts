@@ -433,6 +433,7 @@ function authAnswer(state: PageEmulation, requestId: string, challenge: { source
 
 async function answerChallenges(kit: PageKit, state: PageEmulation, on: boolean): Promise<void> {
   const own = ownSession(kit)
+  kit.fetchHeld = on
   if (!on) {
     if (state.answering) await own.send('Fetch.disable')
     return
@@ -595,14 +596,17 @@ function merged(before: Fields, request: EmulationRequest, size: EmulationSize, 
   return next
 }
 
-async function settle(page: Page, kit: PageKit, state: PageEmulation, next: Fields): Promise<EmulationOutcome> {
+async function settle(page: Page, kit: PageKit, state: PageEmulation, next: Fields, held: ReadonlySet<Aspect> = new Set()): Promise<EmulationOutcome> {
   const { devices, networks } = await tables()
   const before = state.fields
   const from = state.environment ?? environmentOf(before, kit, devices, networks)
   const differs = (aspect: Aspect, environment: Environment): boolean =>
     JSON.stringify(sliceOf(aspect, environment)) !== JSON.stringify(sliceOf(aspect, from))
   const target = environmentOf(next, kit, devices, networks)
-  const pending: Aspect[] = ASPECTS.filter(aspect => state.unsettled.has(aspect) || differs(aspect, target))
+  const pending: Aspect[] = ASPECTS.filter(aspect => !held.has(aspect) && (state.unsettled.has(aspect) || differs(aspect, target)))
+  for (const aspect of held) {
+    if (differs(aspect, target)) state.unsettled.add(aspect)
+  }
   const tried = new Set<Aspect>()
   const failures: string[] = []
   let reloaded = false
@@ -639,6 +643,7 @@ async function settle(page: Page, kit: PageKit, state: PageEmulation, next: Fiel
   }
   state.fields = next
   state.environment = environmentOf(next, kit, devices, networks)
+  kit.presented = { identity: state.environment.identity, languages: state.environment.languages, timeZone: state.environment.timezone, locale: state.environment.locale }
   const stale = !reloaded && originOf(page.url()).startsWith('http') && state.environment.identity?.userAgent !== from.identity?.userAgent
   const notes: string[] = []
   const earlier = before.credentials
@@ -724,4 +729,22 @@ export async function carryEmulation(from: Page, to: Page): Promise<EmulationOut
   const kit = pageKitOf(to)
   if (earlier === undefined || kit === null || !emulationActive(from)) return null
   return settle(to, kit, stateOf(to), { ...earlier.fields })
+}
+
+export async function inheritEmulation(from: Page, to: Page, reloadSafe: boolean): Promise<EmulationOutcome | null> {
+  const earlier = emulations.get(from)
+  const kit = pageKitOf(to)
+  if (earlier === undefined || kit === null || !emulationActive(from)) return null
+  const { devices, networks } = await tables()
+  const state = stateOf(to)
+  const next: Fields = { ...earlier.fields }
+  const baseline = environmentOf({}, kit, devices, networks)
+  const born = kit.born
+  state.environment = born === null ? baseline : { ...baseline, identity: born.identity, languages: born.languages, locale: born.locale, timezone: born.timeZone }
+  const wanted = environmentOf(next, kit, devices, networks).viewport
+  const reloads = Boolean(wanted.isMobile) !== Boolean(baseline.viewport.isMobile) || Boolean(wanted.hasTouch) !== Boolean(baseline.viewport.hasTouch)
+  if (reloadSafe || !reloads) return settle(to, kit, state, next)
+  const outcome = await settle(to, kit, state, next, new Set<Aspect>(['viewport']))
+  outcome.notes.push('its size, mobile and touch did not come: this tab holds the answer to a form post, and applying them reloads the page, which would send the form again — op:"viewport" on this tab applies them when that is safe')
+  return outcome
 }

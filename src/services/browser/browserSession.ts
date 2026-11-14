@@ -28,6 +28,8 @@ export const CONSOLE_RING_CAP = 250
 export const CONSOLE_ENTRY_CAP = 300
 export const MAIN_TAB = 'main'
 const ENDED_TABS_KEPT = 64
+const POPUP_NOTES_KEPT = 32
+const POPUP_SETTLE_MS = 3_000
 
 export interface NavFailure {
   url: string
@@ -45,6 +47,11 @@ export interface DownloadNotice {
   done: Promise<void>
 }
 
+export interface PopupNote {
+  url: string
+  tab: string | null
+}
+
 export function isBrowserErrorPage(url: string): boolean {
   return url.startsWith('chrome-error://')
 }
@@ -52,7 +59,7 @@ export function isBrowserErrorPage(url: string): boolean {
 interface Wiring {
   consoleRing: ConsoleEntry[]
   nav: { seq: number; seen: number }
-  popups: { count: number; last: string }
+  popups: { count: number; last: string; log: PopupNote[]; waiters: Array<() => void> }
   navFailure: { last: NavFailure | null }
   policyBlocks: Map<string, { reason: string; at: number }>
   downloads: { count: number; last: DownloadNotice | null; waiters: Array<() => void> }
@@ -73,6 +80,7 @@ interface Hold {
   relayFailureFor: (url: string) => { code: string; at: number } | null
   baseline: PagePresented
   tabs: Set<Session>
+  owned: Map<string, Session>
   births: Map<string, Birth>
   creating: number
   front: Session | null
@@ -83,12 +91,20 @@ interface Birth {
   cdp: CDPSession
   kit: PageKit
   wiring: Wiring
+  opener: Session | null
+  keep: boolean
+  posted: boolean
+  settled: Promise<void>
+  settle: () => void
 }
 
 interface Session {
   tab: string
   serial: number
   persist: boolean
+  openedBy: { tab: string; op: string; posted: boolean } | null
+  acting: number
+  actOp: string
   left: boolean
   browser: DriverBrowser
   page: Page
@@ -97,7 +113,7 @@ interface Session {
   consoleRing: ConsoleEntry[]
   nav: { seq: number; seen: number }
   sandboxDowngraded: boolean
-  popups: { count: number; last: string }
+  popups: { count: number; last: string; log: PopupNote[]; waiters: Array<() => void> }
   navFailure: { last: NavFailure | null }
   networkRefusal: { count: number; last: string | null }
   policyBlocks: Map<string, { reason: string; at: number }>
@@ -128,6 +144,7 @@ interface OwnerBrowserState {
   ended: Map<string, string>
   emulated: Map<string, Page>
   pages: number
+  popups: number
   launching: boolean
   launchFlight: { tab: string; flight: Promise<Session | EnsureSessionRefusal> } | null
   disposed: boolean
@@ -294,6 +311,7 @@ const ownerStates = new OwnerScopedStore<OwnerBrowserState>({
     ended: new Map(),
     emulated: new Map(),
     pages: 0,
+    popups: 0,
     launching: false,
     launchFlight: null,
     disposed: false,
@@ -416,6 +434,7 @@ function sessionOver(state: OwnerBrowserState, gone: boolean): void {
   state.approvedSecretPairings.clear()
   state.checkedActOrigin = null
   state.ended.clear()
+  state.popups = 0
   if (gone) state.goneAt = Date.now()
 }
 
@@ -439,6 +458,7 @@ function reapDeadHolds(state: OwnerBrowserState): void {
 }
 
 const sessionHolds = new WeakMap<Session, Hold>()
+const sessionWirings = new WeakMap<Session, Wiring>()
 
 function holdOf(session: Session): Hold {
   return sessionHolds.get(session)!
@@ -448,6 +468,9 @@ async function leaveHold(state: OwnerBrowserState, session: Session): Promise<Cl
   const hold = holdOf(session)
   session.left = true
   hold.tabs.delete(session)
+  for (const [id, owned] of hold.owned) {
+    if (owned === session) hold.owned.delete(id)
+  }
   if (hold.front === session) hold.front = null
   if (hold.tabs.size === 0 && hold.creating === 0) {
     state.holds.delete(hold)
@@ -980,6 +1003,9 @@ export interface PageKit {
   identity: PageIdentity | null
   languages: string[]
   timeZone: string
+  presented: PagePresented | null
+  born: PagePresented | null
+  fetchHeld: boolean
 }
 
 const pageKits = new WeakMap<Page, PageKit>()
@@ -1010,7 +1036,7 @@ function newWiring(): Wiring {
   return {
     consoleRing,
     nav: { seq: 0, seen: 0 },
-    popups: { count: 0, last: '' },
+    popups: { count: 0, last: '', log: [], waiters: [] },
     navFailure: { last: null },
     policyBlocks: new Map(),
     downloads: { count: 0, last: null, waiters: [] },
@@ -1075,6 +1101,9 @@ function tabSession(state: OwnerBrowserState, hold: Hold, tab: string, page: Pag
     tab,
     serial: ++state.pages,
     persist: false,
+    openedBy: null,
+    acting: 0,
+    actOp: '',
     left: false,
     browser: hold.browser,
     page,
@@ -1096,7 +1125,18 @@ function tabSession(state: OwnerBrowserState, hold: Hold, tab: string, page: Pag
     cursor: { x: 160, y: 120 },
   }
   sessionHolds.set(session, hold)
+  sessionWirings.set(session, wiring)
+  const id = targetIdOf(page)
+  if (id !== null) hold.owned.set(id, session)
   return session
+}
+
+function popupTabName(state: OwnerBrowserState): string {
+  for (;;) {
+    state.popups++
+    const name = state.popups === 1 ? 'popup' : `popup-${state.popups}`
+    if (!state.tabs.has(name)) return name
+  }
 }
 
 function listenPage(state: OwnerBrowserState, session: Session, wiring: Wiring): void {
@@ -1152,15 +1192,46 @@ function listenPage(state: OwnerBrowserState, session: Session, wiring: Wiring):
   page.on('popup', popup => {
     if (!popup) return
     void (async () => {
+      const id = targetIdOf(popup)
+      const born = id === null ? undefined : hold.births.get(id)
       let url = popup.url()
       if (!url || url === 'about:blank') {
         await new Promise(r => setTimeout(r, 300))
         url = popup.url()
       }
-      popups.count++
-      popups.last = redactUrl(url || '(unknown)')
-      capture('popup', `the page opened a new tab: ${popups.last} — closed unadopted (op:"open" follows it)`)
-      await popup.close().catch(() => {})
+      const download = born !== undefined && (!url || url === 'about:blank') ? born.wiring.downloads.last : null
+      let name: string | null = null
+      if (born !== undefined && born.keep && download === null && !session.left && !state.disposed && !popup.isClosed()) {
+        name = popupTabName(state)
+        pageKits.set(popup, born.kit)
+        const kept = tabSession(state, hold, name, popup, born.wiring)
+        kept.openedBy = { tab: session.tab, op: session.actOp, posted: born.posted }
+        listenPage(state, kept, born.wiring)
+        hold.tabs.add(kept)
+        hold.front = kept
+        state.tabs.set(name, kept)
+        state.ended.delete(name)
+        born.wiring.capture('popup', `opened by ${session.actOp} on tab ${session.tab}`)
+      }
+      if (download !== null) {
+        downloadInNewTab(wiring, download)
+      } else {
+        popups.count++
+        popups.last = redactUrl(url || '(unknown)')
+        popups.log.push({ url: popups.last, tab: name })
+        if (popups.log.length > POPUP_NOTES_KEPT) popups.log.shift()
+        capture(
+          'popup',
+          name === null
+            ? `the page opened a new tab: ${popups.last} — closed unadopted (no act opened it; op:"open" follows it)`
+            : `the page opened a new tab: ${popups.last} — kept as tab ${name}`,
+        )
+      }
+      if (name === null) await popup.close().catch(() => {})
+      if (born !== undefined && id !== null) {
+        hold.births.delete(id)
+        born.settle()
+      }
     })()
   })
   page.on('requestfailed', request => {
@@ -1195,21 +1266,89 @@ function listenPage(state: OwnerBrowserState, session: Session, wiring: Wiring):
   page.on('close', () => tabClosed(state, session))
 }
 
+function downloadInNewTab(wiring: Wiring, download: DownloadNotice): void {
+  wiring.downloads.count++
+  wiring.downloads.last = download
+  for (const wake of wiring.downloads.waiters.splice(0)) wake()
+  wiring.capture('download', `the page asked to download ${download.filename} (${download.url}) in a new tab — denied: downloads are not followed here`)
+}
+
+function hintHeaders(identity: PageIdentity): Map<string, string> | null {
+  const meta = identity.userAgentMetadata
+  if (meta === undefined) return null
+  const quoted = (value: string): string => `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+  const brands = (list: Array<{ brand: string; version: string }> | undefined): string =>
+    (list ?? []).map(entry => `${quoted(entry.brand)};v=${quoted(entry.version)}`).join(', ')
+  return new Map([
+    ['sec-ch-ua', brands(meta.brands)],
+    ['sec-ch-ua-mobile', meta.mobile ? '?1' : '?0'],
+    ['sec-ch-ua-platform', quoted(meta.platform)],
+    ['sec-ch-ua-platform-version', quoted(meta.platformVersion)],
+    ['sec-ch-ua-arch', quoted(meta.architecture)],
+    ['sec-ch-ua-bitness', quoted(meta.bitness ?? '')],
+    ['sec-ch-ua-model', quoted(meta.model)],
+    ['sec-ch-ua-full-version', quoted(meta.fullVersion ?? '')],
+    ['sec-ch-ua-full-version-list', brands(meta.fullVersionList)],
+    ['sec-ch-ua-wow64', meta.wow64 ? '?1' : '?0'],
+  ])
+}
+
+function mendFirstRequest(birth: Birth, identity: PageIdentity): void {
+  const { cdp, kit } = birth
+  const hints = hintHeaders(identity)
+  const onRequest = (event: Protocol.Fetch.RequestPausedEvent): void => {
+    if (event.request.method !== 'GET') birth.posted = true
+    let moved = false
+    const headers: Protocol.Fetch.HeaderEntry[] = []
+    for (const [name, value] of Object.entries(event.request.headers)) {
+      const hint = name.toLowerCase()
+      const wanted = !hint.startsWith('sec-ch-ua') ? value : hints === null ? null : (hints.get(hint) ?? value)
+      if (wanted !== value) moved = true
+      if (wanted !== null) headers.push({ name, value: wanted })
+    }
+    void cdp.send('Fetch.continueRequest', { requestId: event.requestId, ...(moved ? { headers } : {}) }).catch(() => undefined)
+  }
+  const onCommit = (event: Protocol.Page.FrameNavigatedEvent): void => {
+    if (event.frame.parentId !== undefined) return
+    cdp.off('Fetch.requestPaused', onRequest)
+    cdp.off('Page.frameNavigated', onCommit)
+    if (!kit.fetchHeld) void cdp.send('Fetch.disable').catch(() => undefined)
+  }
+  cdp.on('Fetch.requestPaused', onRequest)
+  cdp.on('Page.frameNavigated', onCommit)
+  void cdp.send('Fetch.enable', { patterns: [{ resourceType: 'Document', requestStage: 'Request' }] }).catch(() => undefined)
+}
+
 function bornPage(hold: Hold, cdp: CDPSession, info: Protocol.Target.TargetInfo): void {
-  const { identity, languages, timeZone } = hold.baseline
+  const opener = info.openerId === undefined ? null : (hold.owned.get(info.openerId) ?? null)
+  const inherited = opener === null ? null : (pageKits.get(opener.page)?.presented ?? null)
+  const presented = inherited ?? hold.baseline
   const quiet = (): undefined => undefined
-  const kit: PageKit = { cdp, identity, languages, timeZone }
-  const birth: Birth = { cdp, kit, wiring: newWiring() }
-  if (identity !== null) void cdp.send('Emulation.setUserAgentOverride', identity).catch(quiet)
-  void cdp.send('Emulation.setTimezoneOverride', { timezoneId: timeZone }).catch(quiet)
+  const kit: PageKit = { cdp, identity: hold.baseline.identity, languages: hold.baseline.languages, timeZone: hold.baseline.timeZone, presented: null, born: inherited, fetchHeld: false }
+  let settle = (): void => {}
+  const settled = new Promise<void>(resolve => {
+    settle = resolve
+  })
+  const birth: Birth = { cdp, kit, wiring: newWiring(), opener, keep: opener !== null && opener.acting > 0, posted: false, settled, settle }
+  if (presented.identity !== null) void cdp.send('Emulation.setUserAgentOverride', presented.identity).catch(quiet)
+  void cdp.send('Emulation.setTimezoneOverride', { timezoneId: presented.timeZone }).catch(quiet)
+  if (presented.locale !== null) void cdp.send('Emulation.setLocaleOverride', { locale: presented.locale }).catch(quiet)
   void cdp.send('Emulation.setAutomationOverride', { enabled: false }).catch(quiet)
   void cdp.send('Page.enable').catch(quiet)
-  void cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: stealthSource(languages) }).catch(quiet)
+  void cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: stealthSource(presented.languages) }).catch(quiet)
   void cdp.send('Network.enable').catch(quiet)
   void cdp.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(quiet)
   listenProtocol(birth.wiring, cdp)
+  if (info.openerId !== undefined && presented.identity !== null) mendFirstRequest(birth, presented.identity)
   void cdp.send('Runtime.runIfWaitingForDebugger').catch(quiet)
+  if (info.openerId !== undefined && opener === null) {
+    void hold.watch?.send('Target.closeTarget', { targetId: info.targetId }).catch(quiet)
+    return
+  }
   hold.births.set(info.targetId, birth)
+  if (opener !== null && birth.keep) {
+    for (const wake of opener.popups.waiters.splice(0)) wake()
+  }
 }
 
 async function watchBirths(hold: Hold): Promise<void> {
@@ -1228,7 +1367,12 @@ async function watchBirths(hold: Hold): Promise<void> {
   })
   watch.on('Target.detachedFromTarget', event => {
     for (const [id, birth] of hold.births) {
-      if (birth.cdp.id() === event.sessionId) hold.births.delete(id)
+      if (birth.cdp.id() !== event.sessionId) continue
+      hold.births.delete(id)
+      const download = birth.wiring.downloads.last
+      const wiring = birth.opener === null ? undefined : sessionWirings.get(birth.opener)
+      if (download !== null && wiring !== undefined) downloadInNewTab(wiring, download)
+      birth.settle()
     }
   })
   hold.watch = watch
@@ -1236,6 +1380,25 @@ async function watchBirths(hold: Hold): Promise<void> {
     .send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true, filter: [{ type: 'page', exclude: false }] })
     .then(() => true, () => false)
   if (!armed) hold.watch = null
+}
+
+export function popupInFlight(session: Session): boolean {
+  return [...holdOf(session).births.values()].some(birth => birth.opener === session && birth.keep)
+}
+
+export async function popupsSettled(session: Session): Promise<void> {
+  const deadline = Date.now() + POPUP_SETTLE_MS
+  for (;;) {
+    const pending = [...holdOf(session).births.values()].filter(birth => birth.opener === session && birth.keep)
+    const left = deadline - Date.now()
+    if (pending.length === 0 || left <= 0) return
+    let bound: ReturnType<typeof setTimeout> | undefined
+    const lapse = new Promise<void>(resolve => {
+      bound = setTimeout(resolve, left)
+    })
+    await Promise.race([Promise.all(pending.map(birth => birth.settled)), lapse])
+    if (bound !== undefined) clearTimeout(bound)
+  }
 }
 
 export async function bringTabToFront(session: Session): Promise<void> {
@@ -1246,7 +1409,7 @@ export async function bringTabToFront(session: Session): Promise<void> {
 }
 
 async function armLate(page: Page, baseline: PagePresented): Promise<PageKit> {
-  const kit: PageKit = { cdp: null, identity: baseline.identity, languages: baseline.languages, timeZone: baseline.timeZone }
+  const kit: PageKit = { cdp: null, identity: baseline.identity, languages: baseline.languages, timeZone: baseline.timeZone, presented: null, born: null, fetchHeld: false }
   if (typeof page.evaluateOnNewDocument === 'function') {
     await page.evaluateOnNewDocument(pageStealthInit, baseline.languages).catch(() => undefined)
     await page.evaluate(pageStealthInit, baseline.languages).catch(() => undefined)
@@ -1492,7 +1655,7 @@ async function placeTab(
       unhanded = browser
       const pages = await browser.pages()
       page = pages[0] ?? (await browser.newPage())
-      const kit: PageKit = { cdp: null, identity: null, languages: hostLang.languages, timeZone: hostTimeZone }
+      const kit: PageKit = { cdp: null, identity: null, languages: hostLang.languages, timeZone: hostTimeZone, presented: null, born: null, fetchHeld: false }
       if (typeof page.evaluateOnNewDocument === 'function') {
         await page.evaluateOnNewDocument(pageStealthInit, hostLang.languages).catch(() => undefined)
         await page.evaluate(pageStealthInit, hostLang.languages).catch(() => undefined)
@@ -1567,6 +1730,7 @@ async function placeTab(
         relayFailureFor,
         baseline: { identity: kit.identity, languages: hostLang.languages, timeZone: hostTimeZone, locale: null },
         tabs: new Set(),
+        owned: new Map(),
         births: new Map(),
         creating: 0,
         front: null,
@@ -1666,6 +1830,7 @@ export async function closeBrowserSessionDetailed(
   state.holds.clear()
   state.ended.clear()
   state.emulated.clear()
+  state.popups = 0
   state.goneAt = null
   state.approvedOrigins.clear()
   state.approvedSecretPairings.clear()
