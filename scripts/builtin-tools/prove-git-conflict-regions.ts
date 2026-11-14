@@ -1,4 +1,4 @@
-import { chmodSync, readFileSync } from 'node:fs'
+import { chmodSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { gitClient, gitFixture } from './gitFixture.ts'
 
@@ -10,7 +10,7 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail}` : ''}`)
 }
 const world = gitFixture('git-regions-')
-const names = ['multi.txt', 'two.txt', 'crlf.txt', 'tail.txt', 'bad.txt', 'duplicate.txt', 'wide.txt', 'same.txt', 'mode.sh']
+const names = ['multi.txt', 'two.txt', 'crlf.txt', 'tail.txt', 'bad.txt', 'duplicate.txt', 'wide.txt', 'same.txt', 'mode.sh', 'latin-base.txt', 'latin-both.txt']
 const block = (ours: string, theirs: string, base?: string, eol = '\n') => [
   '<<<<<<< HEAD', ours, ...(base === undefined ? [] : ['||||||| base', base]), '=======', theirs, '>>>>>>> branch', '',
 ].join(eol)
@@ -18,18 +18,23 @@ const first = block('ours-one', 'theirs-one', 'base-one')
 const second = block('ours-two', 'theirs-two', 'base-two')
 const nested = '<<<<<<<<< Temporary merge branch 1\nx\n=========\ny\n>>>>>>>>> Temporary merge branch 2\n'
 const wide = `<<<<<<< HEAD\nTitle\n==========\nours\n||||||| base\n${nested}=======\nTitle\n==========\ntheirs\n>>>>>>> branch\n`
+const latin = (label: string) => Buffer.concat([Buffer.from([0xe9, 0x20]), Buffer.from(`${label}\n`)])
+const putLatin = (label: string) => ['latin-base.txt', 'latin-both.txt'].forEach(name => writeFileSync(join(world.root, name), latin(label)))
 let client: Awaited<ReturnType<typeof gitClient>> | undefined
 try {
   for (const name of names) world.put(name, 'base\n')
+  putLatin('base')
   chmodSync(join(world.root, 'mode.sh'), 0o755)
   world.git(['add', '--', ...names])
   world.git(['commit', '--quiet', '-m', 'base'])
   world.git(['switch', '--quiet', '-c', 'other'])
   for (const name of names) world.put(name, 'theirs\n')
+  putLatin('theirs')
   world.git(['add', '--', ...names])
   world.git(['commit', '--quiet', '-m', 'other'])
   world.git(['switch', '--quiet', 'main'])
   for (const name of names) world.put(name, 'ours\n')
+  putLatin('ours')
   world.git(['add', '--', ...names])
   world.git(['commit', '--quiet', '-m', 'ours'])
   try { world.git(['merge', '--no-edit', 'other']) } catch {}
@@ -117,6 +122,9 @@ try {
     await resolve([{ region: duplicates[1], take: 'theirs' }])
     check('M03/M05 both identical regions resolve independently', world.get('duplicate.txt') === 'ours-one\ngap\ntheirs-one\n')
     const underlined = wider.length === 2 ? await resolve([{ region: wider[0], take: 'ours' }, { region: wider[1], take: 'theirs' }]) : 'the wider region is not listed'
+    const wholeBase = await git({ op: 'resolve', path: 'latin-base.txt', take: 'base' })
+    const wholeBoth = await git({ op: 'resolve', path: 'latin-both.txt', take: 'both' })
+    check('a whole file taken as base or both is written with the bytes its stages hold, not a decoded copy', readFileSync(join(world.root, 'latin-base.txt')).equals(latin('base')) && readFileSync(join(world.root, 'latin-both.txt')).equals(Buffer.concat([latin('ours'), latin('theirs')])) && world.git(['ls-files', '--unmerged', '--', 'latin-base.txt', 'latin-both.txt']) === '', `${wholeBase} ${wholeBoth} ${readFileSync(join(world.root, 'latin-base.txt')).toString('hex')} ${readFileSync(join(world.root, 'latin-both.txt')).toString('hex')}`)
     const executable = mode.length === 1 ? await resolve([{ region: mode[0], take: 'theirs' }]) : 'one region expected'
     check('B02 where the repository does not trust the file mode the staged entry keeps the mode the index held', world.git(['ls-files', '--stage', '--', 'mode.sh']).startsWith('100755 ') && world.git(['show', ':mode.sh']) === 'b\n', `${executable} ${world.git(['ls-files', '--stage', '--', 'mode.sh'])}`)
     const beside = same.length === 1 ? await resolve([{ region: same[0], take: 'ours' }]) : 'one region expected beside the ambiguous block'
