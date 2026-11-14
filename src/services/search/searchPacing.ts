@@ -166,6 +166,7 @@ export function resetSearchPacing(): void {
 
 interface SearchRatePolicy {
   intervalMs: number
+  coolDownWaitMs?: number
   windowMs?: number
   maxRequests?: number
   why: string
@@ -196,6 +197,10 @@ export async function withSearchTurn<T>(door: PacedDoor, policy: SearchRatePolic
   }
   try {
     let waitMs = coolDownRemainingMs(door, clock.now())
+    if (!signal?.aborted && waitMs > 0 && waitMs <= (policy.coolDownWaitMs ?? 0)) {
+      await clock.sleep(waitMs, signal)
+      waitMs = coolDownRemainingMs(door, clock.now())
+    }
     if (signal?.aborted || waitMs > 0) return await run(waitMs)
     await clock.sleep(Math.max(0, (nextRequestAt.get(door) ?? 0) - clock.now()), signal)
     waitMs = coolDownRemainingMs(door, clock.now())
