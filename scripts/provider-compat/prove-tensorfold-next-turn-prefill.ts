@@ -4,7 +4,6 @@
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { untilAsync } from '../lib/untilAsync.ts'
 import { foldTokens, startTensorFoldPromptFixture, type FoldReply, type FoldRequest, type FoldRow, type FoldTemplate, type TensorFoldPromptFixture, type TensorFoldPromptFixtureOptions } from './tensorfoldPromptFixture.ts'
 
 const HOME = mkdtempSync(join(tmpdir(), 'tensorfold-next-turn-prefill-proof-'))
@@ -22,6 +21,14 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
+}
+async function untilAsync(pred: () => boolean, ms: number, step = 25): Promise<boolean> {
+  const until = Date.now() + ms
+  while (Date.now() < until) {
+    if (pred()) return true
+    await new Promise(resolve => setTimeout(resolve, step))
+  }
+  return pred()
 }
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
