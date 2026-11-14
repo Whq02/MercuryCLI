@@ -18,6 +18,7 @@ interface HostsFile {
   version: 1
   hosts: TensorFoldHostRecord[]
   ports: number[]
+  windows?: Record<string, number>
 }
 
 function storePath(): string {
@@ -70,7 +71,8 @@ function readStore(): HostsFile {
     const parsed = rec(JSON.parse(readFileSync(storePath(), 'utf8')))
     const hosts = Array.isArray(parsed?.hosts) ? parsed!.hosts.map(hostRecordOf).filter((row): row is TensorFoldHostRecord => row !== undefined) : []
     const ports = Array.isArray(parsed?.ports) ? parsed!.ports.filter((port): port is number => Number.isInteger(port) && port > 0 && port < 65536) : []
-    return { version: 1, hosts, ports }
+    const windows = Object.fromEntries(Object.entries(rec(parsed?.windows) ?? {}).filter((entry): entry is [string, number] => Number.isInteger(entry[1]) && (entry[1] as number) > 0))
+    return { version: 1, hosts, ports, ...(Object.keys(windows).length > 0 ? { windows } : {}) }
   } catch {
     return { version: 1, hosts: [], ports: [] }
   }
@@ -141,6 +143,18 @@ export function rememberTensorFoldPort(port: number): void {
   const store = readStore()
   if (store.ports.includes(port)) return
   writeStore({ ...store, ports: [...store.ports, port] })
+}
+
+export function rememberTensorFoldWindow(repo: string, window: number): void {
+  if (repo.trim() === '' || !Number.isInteger(window) || window <= 0) return
+  const store = readStore()
+  const key = repo.toLowerCase()
+  if (store.windows?.[key] === window) return
+  writeStore({ ...store, windows: { ...store.windows, [key]: window } })
+}
+
+export function rememberedTensorFoldWindow(repo: string): number | undefined {
+  return readStore().windows?.[repo.toLowerCase()]
 }
 
 export function forgetTensorFoldPort(port: number): void {
