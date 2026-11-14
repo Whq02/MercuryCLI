@@ -123,10 +123,10 @@ async function admitPair(pair: ClonePair, index: number, checkout: string, road:
   return { index, source, target: pair.target, staged: join(stage, String(index)), volumes }
 }
 
-async function clonefileEach(admitted: readonly AdmittedPair[]): Promise<number[] | null> {
+async function clonefileEach(admitted: readonly AdmittedPair[], answerBoundMs: number): Promise<number[] | null> {
   const answer = await execFileNoThrowWithCwd(OSASCRIPT, ['-l', 'JavaScript', '-e', CLONEFILE_SCRIPT], {
     input: JSON.stringify(admitted.map(pair => [pair.source, pair.staged])),
-    timeout: CLONE_ANSWER_BOUND_MS,
+    timeout: answerBoundMs,
     maxBuffer: 16 * 1024 * 1024,
   })
   if (answer.code !== 0) {
@@ -201,8 +201,8 @@ async function settleClone(pair: AdmittedPair, scope: CloneScope): Promise<void>
   }
 }
 
-async function clonefileAdmitted(admitted: readonly AdmittedPair[], outcomes: CloneOutcome[], scope: CloneScope): Promise<void> {
-  const codes = await clonefileEach(admitted)
+async function clonefileAdmitted(admitted: readonly AdmittedPair[], outcomes: CloneOutcome[], scope: CloneScope, answerBoundMs: number): Promise<void> {
+  const codes = await clonefileEach(admitted, answerBoundMs)
   for (const [at, pair] of admitted.entries()) {
     const code = codes === null ? null : (codes[at] as number)
     if (code === 0) {
@@ -288,8 +288,8 @@ async function reflinkRefused(pair: AdmittedPair): Promise<boolean | null> {
   }
 }
 
-async function cpTree(pair: AdmittedPair, scope: CloneScope): Promise<CloneOutcome> {
-  const answer = await execFileNoThrowWithCwd('cp', ['-a', '--reflink=always', '-T', '--', pair.source, pair.staged], { timeout: CLONE_ANSWER_BOUND_MS, maxBuffer: 1024 * 1024 })
+async function cpTree(pair: AdmittedPair, scope: CloneScope, answerBoundMs: number): Promise<CloneOutcome> {
+  const answer = await execFileNoThrowWithCwd('cp', ['-a', '--reflink=always', '-T', '--', pair.source, pair.staged], { timeout: answerBoundMs, maxBuffer: 1024 * 1024 })
   if (answer.code !== 0) {
     logForDebugging(`worktree clone: cp did not clone ${pair.source} (${answer.error ?? answer.code}): ${answer.stderr.trim().split('\n')[0] ?? ''}; the folder is linked as before`, { level: 'warn' })
     return 'failed'
@@ -298,7 +298,7 @@ async function cpTree(pair: AdmittedPair, scope: CloneScope): Promise<CloneOutco
   return 'cloned'
 }
 
-async function reflinkAdmitted(admitted: readonly AdmittedPair[], outcomes: CloneOutcome[], scope: CloneScope, road: 'cp' | 'walk'): Promise<void> {
+async function reflinkAdmitted(admitted: readonly AdmittedPair[], outcomes: CloneOutcome[], scope: CloneScope, road: 'cp' | 'walk', answerBoundMs: number): Promise<void> {
   for (const pair of admitted) {
     if (volumesThatCannotClone.has(pair.volumes)) {
       outcomes[pair.index] = 'unsupported'
@@ -309,7 +309,7 @@ async function reflinkAdmitted(admitted: readonly AdmittedPair[], outcomes: Clon
       await mkdir(pair.staged)
       const refused = await reflinkRefused(pair)
       if (refused === true) outcome = 'unsupported'
-      else if (road === 'cp' && refused === false && (await machineCpTakesReflink())) outcome = await cpTree(pair, scope)
+      else if (road === 'cp' && refused === false && (await machineCpTakesReflink())) outcome = await cpTree(pair, scope, answerBoundMs)
       else outcome = await reflinkTree(pair, scope)
     } catch (error) {
       logForDebugging(`worktree clone: ${pair.source} was not cloned (${String(error)}); the folder is linked as before`, { level: 'warn' })
@@ -333,7 +333,7 @@ async function moveIntoCopy(pair: AdmittedPair): Promise<CloneOutcome> {
   }
 }
 
-export async function cloneIntoWorktree(pairs: readonly ClonePair[], checkoutRoot: string, worktreeRoot: string): Promise<CloneOutcome[]> {
+export async function cloneIntoWorktree(pairs: readonly ClonePair[], checkoutRoot: string, worktreeRoot: string, answerBoundMs: number = CLONE_ANSWER_BOUND_MS): Promise<CloneOutcome[]> {
   if (pairs.length === 0) return []
   const road = cloneRoad()
   if (road === null) return pairs.map(() => 'unsupported')
@@ -365,8 +365,8 @@ export async function cloneIntoWorktree(pairs: readonly ClonePair[], checkoutRoo
     return outcomes
   }
   try {
-    if (road === 'clonefile') await clonefileAdmitted(admitted, outcomes, scope)
-    else await reflinkAdmitted(admitted, outcomes, scope, road)
+    if (road === 'clonefile') await clonefileAdmitted(admitted, outcomes, scope, answerBoundMs)
+    else await reflinkAdmitted(admitted, outcomes, scope, road, answerBoundMs)
     for (const pair of admitted) if (outcomes[pair.index] === 'cloned') outcomes[pair.index] = await moveIntoCopy(pair)
   } finally {
     await removeStaging(stage)

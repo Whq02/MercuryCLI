@@ -1,4 +1,5 @@
 import { emitTaskProgress } from '../utils/task/sdkProgress.js'
+import { worktreeHoldOf } from '../utils/worktreeReadiness.js'
 
 export type PauseGateState = {
   paused: boolean
@@ -248,6 +249,8 @@ export type ParkContext = PauseGateCarrier &
   }
 
 export async function parkBeforeTool(context: ParkContext, toolName: string): Promise<void> {
+  const held = worktreeHoldOf(context)
+  if (held !== undefined) await held
   let spoke = false
   for (;;) {
     const gate = closedPauseGateOf(context)

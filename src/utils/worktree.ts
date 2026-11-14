@@ -12,6 +12,7 @@ import { findCanonicalGitRoot, findGitRoot, gitExe } from './git.js'
 import { subprocessEnv } from './subprocessEnv.js'
 import { readGitHead, readWorktreeHeadSha, resolveGitDir, getCommonDir } from './git/gitFilesystem.js'
 import { parseGitConfigValue } from './git/gitConfigParser.js'
+import { registerCleanup } from './cleanupRegistry.js'
 import { saveCurrentProjectConfig } from './config.js'
 import { containsPathTraversal } from './path.js'
 import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
@@ -465,7 +466,7 @@ async function hideLinksFromGit(repoRoot: string, worktreePath: string, sourceRo
   }
 }
 
-export async function prepareWorktreeFiles(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string, preserveExisting = false): Promise<void> {
+async function propagateLocalSettings(repoRoot: string, worktreePath: string, preserveExisting: boolean): Promise<void> {
   try {
     const relativeSettingsPath = getRelativeSettingsFilePathForSource('localSettings')
     const target = join(worktreePath, relativeSettingsPath)
@@ -478,6 +479,9 @@ export async function prepareWorktreeFiles(repoRoot: string, worktreePath: strin
       logForDebugging(`local settings propagation failed: ${String(error)}`, { level: 'warn' as never })
     }
   }
+}
+
+async function placeCheckoutFolders(repoRoot: string, worktreePath: string, dependencyLinksFrom: string | undefined, preserveExisting: boolean): Promise<void> {
   const symlinkDirectories = getInitialSettings().workspace?.worktree?.symlinkDirectories ?? []
   const sourceRoot = dependencyLinksFrom !== undefined ? (findGitRoot(dependencyLinksFrom) ?? repoRoot) : repoRoot
   const dependencyLinks = dependencyLinksFrom !== undefined ? await dependencyLinkCandidates(sourceRoot) : []
@@ -489,9 +493,12 @@ export async function prepareWorktreeFiles(repoRoot: string, worktreePath: strin
   await copyWorktreeIncludeFiles(repoRoot, worktreePath, preserveExisting)
 }
 
-async function runPostCreationSetup(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string): Promise<string | undefined> {
-  await prepareWorktreeFiles(repoRoot, worktreePath, dependencyLinksFrom)
+export async function prepareWorktreeFiles(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string, preserveExisting = false): Promise<void> {
+  await propagateLocalSettings(repoRoot, worktreePath, preserveExisting)
+  await placeCheckoutFolders(repoRoot, worktreePath, dependencyLinksFrom, preserveExisting)
+}
 
+async function setWorktreeHooksPath(repoRoot: string, worktreePath: string): Promise<void> {
   try {
     let hooksPath: string | null = null
     for (const candidate of [join(repoRoot, '.husky'), join(repoRoot, '.git', 'hooks')]) {
@@ -517,8 +524,35 @@ async function runPostCreationSetup(repoRoot: string, worktreePath: string, depe
   } catch (error) {
     logForDebugging(`worktree hooks-path setup failed: ${String(error)}`)
   }
+}
 
+async function runPostCreationSetup(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string): Promise<string | undefined> {
+  await prepareWorktreeFiles(repoRoot, worktreePath, dependencyLinksFrom)
+  await setWorktreeHooksPath(repoRoot, worktreePath)
   return runWorktreePrepareCommand(worktreePath)
+}
+
+async function launchWaitsForFolders(repoRoot: string): Promise<boolean> {
+  const command = getInitialSettings().workspace?.worktree?.prepare
+  if (command !== undefined && command.trim() !== '') return true
+  try {
+    await stat(join(repoRoot, '.worktreeinclude'))
+    return true
+  } catch {
+    return false
+  }
+}
+
+function placeFoldersBehindLaunch(repoRoot: string, worktreePath: string, from: string): Promise<void> {
+  const placing = (async () => {
+    await placeCheckoutFolders(repoRoot, worktreePath, from, false)
+    await setWorktreeHooksPath(repoRoot, worktreePath)
+  })().catch(error => {
+    logForDebugging(`the folders of ${worktreePath} were not placed: ${String(error)}`, { level: 'warn' as never })
+  })
+  const forget = registerCleanup(() => placing)
+  void placing.then(forget)
+  return placing
 }
 
 const WORKTREE_PREPARE_TIMEOUT_MS = 10 * 60 * 1000
@@ -728,6 +762,7 @@ export async function createAgentWorktree(
   options?: {
     at?: string
     from?: string
+    foldersBehindLaunch?: boolean
   },
 ): Promise<{
   worktreePath: string
@@ -735,6 +770,7 @@ export async function createAgentWorktree(
   headCommit?: string
   gitRoot?: string
   prepareFailure?: string
+  ready?: Promise<void>
 }> {
   validateWorktreeSlug(slug)
   const from = options?.from ?? getCwd()
@@ -750,8 +786,11 @@ export async function createAgentWorktree(
     baseFrom: findGitRoot(from) ?? gitRoot,
   })
   let prepareFailure: string | undefined
+  let ready: Promise<void> | undefined
   if (!created.existed) {
-    prepareFailure = await runPostCreationSetup(gitRoot, created.worktreePath, from)
+    const behindLaunch = options?.foldersBehindLaunch === true && !(await launchWaitsForFolders(gitRoot))
+    if (behindLaunch) await propagateLocalSettings(gitRoot, created.worktreePath, false)
+    else prepareFailure = await runPostCreationSetup(gitRoot, created.worktreePath, from)
     const lock = await runGit(
       ['worktree', 'lock', created.worktreePath, '--reason', `agent ${slug} (pid ${process.pid})`],
       gitRoot,
@@ -759,6 +798,7 @@ export async function createAgentWorktree(
     if (lock.code !== 0) {
       logForDebugging(`worktree lock failed for ${created.worktreePath}: ${lock.stderr.trim()}`)
     }
+    if (behindLaunch) ready = placeFoldersBehindLaunch(gitRoot, created.worktreePath, from)
   } else {
     try {
       const now = new Date()
@@ -773,6 +813,7 @@ export async function createAgentWorktree(
     ...(created.headCommit !== null ? { headCommit: created.headCommit } : {}),
     gitRoot,
     ...(prepareFailure !== undefined ? { prepareFailure } : {}),
+    ...(ready !== undefined ? { ready } : {}),
   }
 }
 

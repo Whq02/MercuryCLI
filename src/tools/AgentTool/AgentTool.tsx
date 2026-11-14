@@ -68,6 +68,7 @@ import {
   preflightWorktreeCapability,
   unlockAgentWorktree,
 } from '../../utils/worktree.js'
+import { holdToolsUntil, releaseToolHold } from '../../utils/worktreeReadiness.js'
 import { crewWorktreeLeftoverNoted, crewWorktreeLeftoverOf, crewWorktreeReminderTail, noteCrewWorktreeLeftover } from '../../utils/crew/crewWorktreeReminder.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { createUserMessage } from '../../utils/messages.js'
@@ -588,7 +589,9 @@ export const AgentTool = buildTool({
       worktreeInfo = await createAgentWorktree(`agent-${earlyAgentId.slice(0, 8)}`, {
         ...(input.worktree_at !== undefined ? { at: input.worktree_at } : undefined),
         ...(cwdParam !== undefined ? { from: cwdParam } : {}),
+        foldersBehindLaunch: true,
       })
+      if (worktreeInfo.ready !== undefined) holdToolsUntil(earlyAgentId, worktreeInfo.ready)
       if (input.worktree_at !== undefined && worktreeInfo.headCommit !== undefined) {
         promptMessages = [
           ...promptMessages,
@@ -620,6 +623,8 @@ export const AgentTool = buildTool({
     }> => {
       if (cleanupDone || !worktreeInfo) return {}
       cleanupDone = true
+      releaseToolHold(earlyAgentId)
+      await worktreeInfo.ready
       try {
         if (worktreeInfo.gitRoot !== undefined) await unlockAgentWorktree(worktreeInfo.worktreePath, worktreeInfo.gitRoot)
         const leftover = await crewWorktreeLeftoverOf(
