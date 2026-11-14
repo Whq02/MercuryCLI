@@ -1,5 +1,5 @@
 import { homedir } from 'os'
-import { dirname, parse, resolve } from 'path'
+import { dirname, parse, resolve, sep } from 'path'
 
 import { normalizePathForComparison } from '../../../utils/file.js'
 import { getFsImplementation, safeResolvePath } from '../../../utils/fsOperations.js'
@@ -58,13 +58,17 @@ type FolderSources = {
 
 export function folderSources(start: string): FolderSources {
   const home = safeResolvePath(getFsImplementation(), homedir()).resolvedPath
+  const homeOrAbove = (dir: string): boolean =>
+    pathInWorkingPath(home, dir) || home.startsWith(dir.endsWith(sep) ? dir : `${dir}${sep}`)
+  const personal = (convention: InstructionConvention, dir: string): boolean => convention.belowHome === true && homeOrAbove(dir)
   const within = (convention: InstructionConvention, dir: string, paths: string[]): string[] => {
-    if (!convention.belowHome || !pathInWorkingPath(home, dir)) return paths
+    if (!personal(convention, dir)) return paths
     return dir === start ? paths.filter(path => dirname(path) === dir) : []
   }
+  const shut = (convention: InstructionConvention, dir: string): boolean => dir !== start && personal(convention, dir)
   return {
-    guides: (convention, dir) => within(convention, dir, convention.projectDirFiles(dir)),
-    rules: (convention, dir) => within(convention, dir, convention.projectRulesDirs(dir)),
+    guides: (convention, dir) => (shut(convention, dir) ? [] : within(convention, dir, convention.projectDirFiles(dir))),
+    rules: (convention, dir) => (shut(convention, dir) ? [] : within(convention, dir, convention.projectRulesDirs(dir))),
     within,
   }
 }
