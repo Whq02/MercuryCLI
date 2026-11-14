@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { mkdtempSync } from 'node:fs'
@@ -289,6 +289,61 @@ section('§14 — a pattern accepted by a skipped file is not refused by the lan
     const result = await searchAstPattern(scope, { pattern: 'foo($X' })
     check('the refused-everywhere result retains a reason for every language that tried the pattern', !isAstRefusal(result) && patternRefusedEverywhere(scope, result) && result.patternRefusals.length === 2 && result.patternRefusals.every((r: { note: string }) => /syntax error|missing/.test(r.note)), isAstRefusal(result) ? result.refused : JSON.stringify(result.patternRefusals))
   }
+}
+
+section('§15 — a Read deny follows a file through the directory search and rewrite')
+for (const [lang, ext, pattern, rewrite, source] of [
+  ['yaml', 'yaml', 'height: $X', 'height: changed', 'height: restricted_value\n'],
+  ['typescript', 'ts', 'height($X)', 'height(changed)', 'height(restricted_value)\n'],
+] as const) {
+  const rel = `read-links-${lang}`
+  const dir = join(root, rel)
+  mkdirSync(join(dir, 'private'), { recursive: true })
+  const secret = join(dir, `secret.${ext}`)
+  const inner = join(dir, 'private', `inner.${ext}`)
+  const alias = join(dir, `alias.${ext}`)
+  const chain = join(dir, `chain.${ext}`)
+  const allowed = join(dir, `allowed.${ext}`)
+  writeFileSync(secret, source)
+  writeFileSync(inner, source)
+  writeFileSync(allowed, source.replace('restricted_value', 'public_value'))
+  try {
+    symlinkSync(secret, alias, 'file')
+    symlinkSync(alias, chain, 'file')
+    symlinkSync(join(dir, 'private'), join(dir, 'linked-directory'), 'junction')
+  } catch (error) {
+    if (process.platform !== 'win32' || !['EPERM', 'EACCES'].includes((error as { code?: string }).code ?? '')) throw error
+    skip(`${lang}: file and directory links`, 'Windows file symlinks require Developer Mode or the symbolic-link privilege')
+    continue
+  }
+  const denied = await makeContext([AstSearchTool, AstEditTool], { mode: 'sovereign', deny: [`Read(./${rel}/secret.${ext})`, `Read(./${rel}/private/**)`] })
+  for (const target of [alias, chain, join(dir, 'linked-directory', `inner.${ext}`)]) {
+    const direct = await drive(AstSearchTool, { path: target, pattern }, denied)
+    check(`${lang}: a directly named link to the denied file is refused (${target.slice(dir.length + 1)})`, direct.isError && !direct.text.includes(source.trim()), direct.text)
+  }
+  const listed = await drive(AstSearchTool, { path: rel, pattern }, denied)
+  check(`${lang}: the walk omits the denied file, two linked aliases and both paths into the denied folder, counting all five`, !listed.isError && listed.data?.matchCount === 1 && !listed.text.includes(source.trim()) && listed.text.includes('Skipped 5 files hidden by read-deny rules.'), listed.text)
+  const unrestricted = await makeContext([AstSearchTool, AstEditTool], { mode: 'sovereign' })
+  const all = await drive(AstSearchTool, { path: rel, pattern }, unrestricted)
+  check(`${lang}: with no deny rule every one of the six paths is still searched`, !all.isError && all.data?.matchCount === 6 && all.text.includes(source.trim()), all.text)
+  const preview = await drive(AstEditTool, { path: rel, pattern, rewrite }, denied)
+  check(`${lang}: the rewrite preview reads only the allowed file`, !preview.isError && preview.data?.fileCount === 1 && preview.data?.matchCount === 1 && !preview.text.includes(source.trim()), preview.text)
+  const applied = preview.isError ? preview : await drive(AstEditTool, { path: rel, pattern, rewrite, apply: true, plan: preview.data?.plan }, denied)
+  check(`${lang}: applying the rewrite changes only the allowed file, never either denied target through its aliases`, !applied.isError && readFileSync(secret, 'utf8') === source && readFileSync(inner, 'utf8') === source && readFileSync(allowed, 'utf8') === source.replace('restricted_value', 'changed'), applied.text)
+  const plain = `read-plain-${lang}`
+  mkdirSync(join(root, plain))
+  writeFileSync(join(root, plain, `a.${ext}`), source)
+  const withoutRule = await drive(AstSearchTool, { path: plain, pattern }, unrestricted)
+  const withRule = await drive(AstSearchTool, { path: plain, pattern }, denied)
+  check(`${lang}: the ordinary folder with no denied path keeps the same answer byte for byte`, withoutRule.text === withRule.text && JSON.stringify(withoutRule.data) === JSON.stringify(withRule.data), withRule.text)
+  const nested = join(dir, 'scoped', 'nested')
+  mkdirSync(nested, { recursive: true })
+  writeFileSync(join(nested, `secret.${ext}`), source)
+  writeFileSync(join(nested, `allowed.${ext}`), source.replace('restricted_value', 'public_value'))
+  symlinkSync(join(dir, 'scoped'), join(dir, 'scoped-link'), 'junction')
+  const nestedRules = await makeContext([AstSearchTool, AstEditTool], { mode: 'sovereign', deny: [`Read(./${rel}/scoped/nested/secret.${ext})`] })
+  const nestedSearch = await drive(AstSearchTool, { path: `${rel}/scoped-link/nested`, pattern }, nestedRules)
+  check(`${lang}: a scope rooted below a linked directory retains its link ancestry`, !nestedSearch.isError && nestedSearch.data?.matchCount === 1 && !nestedSearch.text.includes(source.trim()) && nestedSearch.text.includes('Skipped 1 file hidden by read-deny rules.'), nestedSearch.text)
 }
 
 finish('AST SEARCH LAWS')

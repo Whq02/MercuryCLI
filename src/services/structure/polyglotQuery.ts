@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import * as path from 'node:path'
 import {
   loadGrammarEngine,
@@ -100,22 +100,32 @@ export function discoverPolyglotFiles(
   root: string,
   fileGlobs: string[] | undefined,
   langFilter: PolyglotLanguage | null,
+  trackLinks = false,
 ): {
-  files: Array<{ rel: string; lang: PolyglotLanguage }>
+  files: Array<{ rel: string; lang: PolyglotLanguage; throughLink?: boolean }>
   scanned: number
   skippedUnsupported: number
   truncatedWalk: boolean
   skippedNoGrammar: Map<string, number>
 } {
   const rules = loadRootIgnoreRules(root)
-  const files: Array<{ rel: string; lang: PolyglotLanguage }> = []
+  const files: Array<{ rel: string; lang: PolyglotLanguage; throughLink?: boolean }> = []
   const skippedNoGrammar = new Map<string, number>()
   let scanned = 0
   let skippedUnsupported = 0
   let truncatedWalk = false
   const globs = normalizeFileGlobs(fileGlobs)
 
-  function walk(dir: string): void {
+  let rootLinked = false
+  if (trackLinks) {
+    try {
+      const resolved = realpathSync(root)
+      rootLinked = process.platform === 'win32' ? resolved.toLowerCase() !== root.toLowerCase() : resolved !== root
+    } catch {
+    }
+  }
+
+  function walk(dir: string, throughLink: boolean): void {
     if (truncatedWalk) return
     let entries: string[]
     try {
@@ -129,15 +139,20 @@ export function discoverPolyglotFiles(
       const full = path.join(dir, entry)
       const rel = posixRelative(root, full)
       let stat
+      let linked = throughLink
       try {
-        stat = statSync(full)
+        if (trackLinks) {
+          const entryStat = lstatSync(full)
+          linked ||= entryStat.isSymbolicLink()
+          stat = entryStat.isSymbolicLink() ? statSync(full) : entryStat
+        } else stat = statSync(full)
       } catch {
         continue
       }
       if (stat.isDirectory()) {
         if (SKIP_DIRS.has(entry)) continue
         if (ignoredByRules(rules, rel, true, entry)) continue
-        walk(full)
+        walk(full, linked)
       } else if (stat.isFile()) {
         scanned++
         if (scanned > MAX_FILES_SCANNED) {
@@ -156,11 +171,11 @@ export function discoverPolyglotFiles(
           skippedUnsupported++
           continue
         }
-        files.push({ rel, lang })
+        files.push({ rel, lang, ...(trackLinks && { throughLink: linked }) })
       }
     }
   }
-  walk(root)
+  walk(root, rootLinked)
   files.sort((a, b) => a.rel.localeCompare(b.rel))
   return { files, scanned, skippedUnsupported, truncatedWalk, skippedNoGrammar }
 }

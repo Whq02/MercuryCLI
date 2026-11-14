@@ -250,7 +250,8 @@ export function resolveAstScope(opts: {
   glob?: string
   lang?: string
   cwd: string
-  readable?: (abs: string) => boolean
+  readable?: (abs: string, throughLink?: boolean) => boolean
+  trackLinks?: boolean
 }): AstScope | AstRefusal {
   let lang: PolyglotLanguage | undefined
   if (opts.lang !== undefined && opts.lang.trim() !== '') {
@@ -303,7 +304,7 @@ export function resolveAstScope(opts: {
   const glob = opts.glob !== undefined && opts.glob.trim() !== '' ? opts.glob : undefined
   const alternatives = glob === undefined ? undefined : expandGlobAlternatives(glob)
   if (isAstRefusal(alternatives)) return alternatives
-  const discovered = discoverPolyglotFiles(target, alternatives?.map(normaliseGlob), lang ?? null)
+  const discovered = discoverPolyglotFiles(target, alternatives?.map(normaliseGlob), lang ?? null, opts.trackLinks)
   let skippedDenied = 0
   const uncarried = new Map<string, number>()
   const files: AstScopeFile[] = []
@@ -314,7 +315,7 @@ export function resolveAstScope(opts: {
       uncarried.set(ext, (uncarried.get(ext) ?? 0) + 1)
       continue
     }
-    if (opts.readable && !opts.readable(abs)) {
+    if (opts.readable && !opts.readable(abs, f.throughLink)) {
       skippedDenied++
       continue
     }

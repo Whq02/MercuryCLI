@@ -43,7 +43,9 @@ import type { PermissionDecision } from '../../utils/permissions/PermissionResul
 import {
   checkReadPermissionForTool,
   checkWritePermissionForTool,
+  getResolvedWorkingDirPaths,
   matchingRuleForInput,
+  ruleMatcherFor,
 } from '../../utils/permissions/filesystem.js'
 import { mercurySecretPath } from '../../utils/permissions/protectedPaths.js'
 import { reasonForRule, refusalWithReason, ruleWords } from '../../utils/permissions/ruleReason.js'
@@ -110,12 +112,17 @@ const pathShim = {
 
 function scopeFor(input: Input, context: ToolUseContext): AstScope {
   const permCtx = context.getAppState().toolPermissionContext
+  let denyRules = ruleMatcherFor(permCtx, 'read', 'deny')
+  if (denyRules !== null) denyRules = ruleMatcherFor(permCtx, 'read', 'deny', getResolvedWorkingDirPaths(getCwd()))
   const scope = resolveAstScope({
     ...(input.path !== undefined && { path: expandPath(input.path) }),
     ...(input.glob !== undefined && { glob: input.glob }),
     ...(input.lang !== undefined && { lang: input.lang }),
     cwd: getCwd(),
-    readable: abs => mercurySecretPath(abs) === null && matchingRuleForInput(abs, permCtx, 'read', 'deny') === null,
+    trackLinks: denyRules !== null,
+    readable: (abs, throughLink) => mercurySecretPath(abs) === null && (denyRules !== null
+      ? denyRules(abs).length === 0 && (!throughLink || checkReadPermissionForTool(pathShim, { file_path: abs }, permCtx).behavior !== 'deny')
+      : matchingRuleForInput(abs, permCtx, 'read', 'deny') === null),
   })
   if (isAstRefusal(scope)) throw new Error(scope.refused)
   scope.display = input.path === undefined || input.path === '' ? '.' : input.path
