@@ -7,6 +7,7 @@ import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../To
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { readImageWithTokenBudget } from '../FileReadTool/FileReadTool.js'
+import { imageDimensionsOfBase64 } from '../../utils/imageResizer.js'
 import { modelReceivesImageBlocks } from '../../utils/model/capabilities.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import {
@@ -2122,6 +2123,8 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
           }
           imagePath = file
           let sizeNote = ''
+          const saved = imageDimensionsOfBase64(readFileSync(file).subarray(0, 48).toString('base64'))
+          let shown = saved
           if (modelReceivesImageBlocks(getEngineModel())) {
             try {
               const img = await readImageWithTokenBudget(file)
@@ -2131,12 +2134,21 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
                 writeFileSync(inlinePath, Buffer.from(img.file.base64, 'base64'))
                 inlineMediaType = img.file.type
                 sizeNote = ` (inlined copy downscaled to the image budget: ${(img.file.originalSize / 1024).toFixed(0)}KB on disk, ~${(inlineBytes / 1024).toFixed(0)}KB inlined)`
+                shown = imageDimensionsOfBase64(img.file.base64) ?? shown
               }
             } catch {
             }
           }
+          const ratio = await s.page.evaluate(() => window.devicePixelRatio).catch(() => 1)
+          let scaleNote = ''
+          if (saved !== null && shown !== null && ratio > 0) {
+            const factor = saved.width / ratio / shown.width
+            if (Math.abs(factor - 1) > 0.005) {
+              scaleNote = ` — the image is ${shown.width}x${shown.height} px for ${Math.round(saved.width / ratio)}x${Math.round(saved.height / ratio)} CSS px: 1 image px = ${Number(factor.toFixed(3))} CSS px`
+            }
+          }
           const vp = s.page.viewport()
-          result = `screenshot: ${file}${input.selector ? ` (element ${input.selector})` : ''} (${pageWhere(s)}, viewport ${vp?.width}x${vp?.height})${sizeNote}`
+          result = `screenshot: ${file}${input.selector ? ` (element ${input.selector})` : ''} (${pageWhere(s)}, viewport ${vp?.width}x${vp?.height})${sizeNote}${scaleNote}`
           outcome = 'succeeded'
           break
         }
