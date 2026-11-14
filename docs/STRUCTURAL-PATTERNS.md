@@ -203,6 +203,13 @@ line with it). Two calls, always:
    change receipt (`file.astEdit`). Partial application is failure, never
    success.
 
+An error-bearing file can be rewritten when every matched subtree is clean
+and the replacement spans stay outside error spans and missing-token
+positions. Mercury reparses the result and compares every error's kind,
+position through the edits, and source bytes. A new error refuses the plan;
+pre-existing errors outside the edited spans may remain. The preview names
+those errors with the recovered-tree warning.
+
 The layout-keeping lane: when the rewrite parses to the same shape as the
 pattern (same node types, same children, and the same meta-variables in the
 same places), only leaf tokens differ (a callee, a keyword, a string), and
@@ -215,8 +222,9 @@ literal substitution modulo whitespace and out-of-capture comments.
 Refused by name, nothing written: a match nested inside another match (the
 pair is named; narrow the pattern or the scope); a rewrite naming a
 meta-variable the pattern does not capture; an anonymous `$$$` or `$_` in
-the rewrite; a rewrite that would leave a file unparsable (the line is
-named); more than 100 files or 500 matches in one edit. Matches already in
+the rewrite; a match touching existing syntax damage or a rewrite that
+introduces a syntax error (the location is named); more than 100 files or
+500 matches in one edit. Matches already in
 the rewritten form are counted and left alone.
 
 ## Memory: the held grammars

@@ -514,10 +514,13 @@ export async function searchAstPattern(
         parsed.tree.delete()
         continue
       }
-      ;(recovered ??= []).push({ rel: file.rel, lang: file.lang.name, ...(opts.retainSource ? { source: text } : {}), errors: parsed.errorRegions ?? [], notes: parsed.parseErrors })
+      ;(recovered ??= []).push({ rel: file.rel, lang: file.lang.name, errors: parsed.errorRegions ?? [], notes: parsed.parseErrors })
     }
     const found = findPatternMatches(compiled.pattern, parsed.tree.rootNode, text, cap - matches.length)
-    if (found.matches.length > 0) filesWithMatches++
+    if (found.matches.length > 0) {
+      filesWithMatches++
+      if (parsed.parseErrors.length > 0 && opts.retainSource) recovered![recovered!.length - 1]!.source = text
+    }
     for (const m of found.matches) {
       const match = materialise(file.rel, file.abs, file.lang.name, m.node, m.captures)
       if (parsed.parseErrors.length > 0) match.hasSyntaxError = m.node.type === 'ERROR' || m.node.isMissing || m.node.hasError
@@ -721,6 +724,29 @@ function countChangedLines(before: string, after: string, edits: Edit[]): number
   return after === before ? 0 : n
 }
 
+function touchesParseError(start: number, end: number, error: ParseErrorRegion): boolean {
+  return error.startIndex === error.endIndex
+    ? start <= error.startIndex && end >= error.startIndex
+    : start < error.endIndex && end > error.startIndex
+}
+
+function introducedParseError(before: string, after: string, edits: Edit[], previous: ParseErrorRegion[], current: ParseErrorRegion[]): ParseErrorRegion | undefined {
+  const shifted = (index: number): number => index + edits.reduce((delta, edit) => delta + (edit.end <= index ? edit.newText.length - (edit.end - edit.start) : 0), 0)
+  const key = (error: ParseErrorRegion, start = error.startIndex, end = error.endIndex) => JSON.stringify([error.type, error.missing, start, end])
+  const remaining = new Map<string, ParseErrorRegion[]>()
+  for (const error of previous) {
+    const identity = key(error, shifted(error.startIndex), shifted(error.endIndex))
+    const found = remaining.get(identity) ?? []
+    found.push(error)
+    remaining.set(identity, found)
+  }
+  for (const error of current) {
+    const original = remaining.get(key(error))?.shift()
+    if (!original || before.slice(original.startIndex, original.endIndex) !== after.slice(error.startIndex, error.endIndex)) return error
+  }
+  return undefined
+}
+
 export async function planAstRewrite(
   scope: AstScope,
   opts: { pattern: string; rewrite: string; signal?: AbortSignal },
@@ -733,7 +759,7 @@ export async function planAstRewrite(
   const search = await searchAstPattern(scope, {
     pattern: opts.pattern,
     matchCap: AST_BOUNDS.editMaxMatches + 1,
-    recover: false,
+    retainSource: true,
     ...(opts.signal !== undefined && { signal: opts.signal }),
   })
   if (isAstRefusal(search)) return search
@@ -806,9 +832,10 @@ export async function planAstRewrite(
       releaseCompiled()
       return { refused: `${rel}: no grammar for this file (it should not have matched).` }
     }
+    const recovery = search.recovered?.find(file => file.rel === rel)
     let before: string
     try {
-      before = readFileSync(first.abs, 'utf8')
+      before = recovery?.source ?? readFileSync(first.abs, 'utf8')
     } catch (err) {
       releaseCompiled()
       return { refused: `${rel}: unreadable — ${(err as Error).message}. Nothing was written.` }
@@ -827,13 +854,20 @@ export async function planAstRewrite(
         }
       }
     }
+    if (recovery) {
+      const dirty = list.find(match => match.hasSyntaxError || recovery.errors.length === 0 || recovery.errors.some(error => touchesParseError(match.startIndex, match.endIndex, error)))
+      if (dirty) {
+        releaseCompiled()
+        return { refused: `Cannot rewrite ${rel}:${dirty.startLine}:${dirty.startCol}: the match touches a syntax-error region. Nothing was written.` }
+      }
+    }
     const shape = await shapeFor(lang)
     const keepsTerminator = await spansTerminator(lang)
     let tree: { rootNode: TSNode; delete(): void } | null = null
     if (shape) {
       const parsed = await parsePolyglot(engine, lang, before)
       if (!('state' in parsed)) {
-        if (parsed.parseErrors.length === 0) tree = parsed.tree
+        if (parsed.parseErrors.length === 0 || recovery) tree = parsed.tree
         else parsed.tree.delete()
       }
     }
@@ -905,10 +939,18 @@ export async function planAstRewrite(
         return { refused: `Ambiguous rewrite in ${rel}: two deletions share a line — narrow the pattern. Nothing was written.` }
       }
     }
+    if (recovery) {
+      const touching = edits.find(edit => recovery.errors.some(error => touchesParseError(edit.start, edit.end, error)))
+      if (touching) {
+        const match = list.find(m => touching.start <= m.endIndex && touching.end >= m.startIndex) ?? first
+        releaseCompiled()
+        return { refused: `Cannot rewrite ${rel}:${match.startLine}:${match.startCol}: the match touches a syntax-error region. Nothing was written.` }
+      }
+    }
     const after = applyEdits(before, edits)
     if (after === before) continue
     {
-      const reparsed = await parsePolyglot(engine, lang, after)
+      const reparsed = await parsePolyglot(engine, lang, after, recovery ? { errorRegions: true } : undefined)
       if ('state' in reparsed) {
         releaseCompiled()
         return { refused: `${rel}: ${reparsed.note}. Nothing was written.` }
@@ -916,7 +958,13 @@ export async function planAstRewrite(
       const broken = reparsed.parseErrors.length > 0
       const firstError = reparsed.parseErrors[0]
       reparsed.tree.delete()
-      if (broken) {
+      if (recovery && broken && reparsed.errorRegions?.length) {
+        const introduced = introducedParseError(before, after, edits, recovery.errors, reparsed.errorRegions)
+        if (introduced) {
+          releaseCompiled()
+          return { refused: `The rewrite introduces a syntax error in ${rel} at ${introduced.line}:${introduced.column} (${introduced.missing ? `missing ${introduced.type}` : 'syntax error'}). Nothing was written.` }
+        }
+      } else if (broken) {
         releaseCompiled()
         return {
           refused: `The rewrite would leave ${rel} unparsable as ${lang.name} (${firstError}) — adjust the rewrite so the result is valid code. Nothing was written.`,
