@@ -2,10 +2,7 @@ import * as React from 'react'
 import { useMemo } from 'react'
 import { Box, Text } from '../../../ink.js'
 import { Select } from '../../CustomSelect/select.js'
-import { activeSession, originOf } from '../../../services/browser/browserSession.js'
-import { approvalScopeWords, crossingScopeWords } from '../../../services/browser/browserWords.js'
-import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
-import type { OwnerKey } from '../../../services/run/ownerKey.js'
+import { approvalScopeWords, checkedRuleContent, crossingScopeWords } from '../../../services/browser/browserWords.js'
 import { shouldShowAlwaysAllowOptions } from '../../../utils/permissions/permissionsLoader.js'
 import { resolveThemeName } from '../resolveThemeName.js'
 import { ConsentBodyText } from '../ConsentBodyText.js'
@@ -16,17 +13,6 @@ import type { PermissionRequestProps } from '../PermissionRequest.js'
 
 type BrowserOptionValue = 'yes' | 'yes-dont-ask-origin' | 'no'
 
-function originRuleContent(input: unknown, askingContext: { owner?: OwnerKey; agentId?: string }): string | null {
-  const i = input as { op?: string; url?: string; secretRef?: string }
-  if (i.op === 'provision') return null
-  const origin =
-    i.op === 'open' && typeof i.url === 'string'
-      ? originOf(i.url)
-      : originOf(activeSession(ownerFromToolUseContext(askingContext))?.page.url() ?? '')
-  if (!origin.startsWith('http')) return null
-  if (i.op === 'type' && typeof i.secretRef === 'string') return `secret:${i.secretRef}@${origin}`
-  return `origin:${origin}`
-}
 
 export function BrowserPermissionRequest({
   toolUseConfirm,
@@ -36,8 +22,8 @@ export function BrowserPermissionRequest({
   workerBadge,
 }: PermissionRequestProps): React.ReactNode {
   const ruleContent = useMemo(
-    () => originRuleContent(toolUseConfirm.input, toolUseConfirm.toolUseContext),
-    [toolUseConfirm.input, toolUseConfirm.toolUseContext],
+    () => checkedRuleContent(toolUseConfirm.permissionResult, toolUseConfirm.input),
+    [toolUseConfirm.permissionResult, toolUseConfirm.input],
   )
 
   usePermissionRequestLogging(toolUseConfirm)
@@ -56,7 +42,7 @@ export function BrowserPermissionRequest({
     suggestedRule && suggestedRule.type === 'addRules' ? suggestedRule.rules[0]?.ruleContent : undefined
   const askedOrigin = (ruleContent ?? suggestedContent ?? '').replace(/^origin:/, '')
   const scopeLines =
-    provisioning || input.secretRef !== undefined || !askedOrigin.startsWith('http')
+    provisioning || input.secretRef !== undefined || ruleContent?.startsWith('secret:') === true || !askedOrigin.startsWith('http')
       ? []
       : input.op === 'open'
         ? approvalScopeWords(askedOrigin)

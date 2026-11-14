@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import type http from 'node:http'
-import { NINE, check, detect, detectionHtml, finish, lead, ownerOf, pageOf, requireBrowser, run, section, serve, sessions, validate, BrowserTool } from './harness.ts'
+import { check, detect, detectionHtml, finish, lead, ownerOf, pageOf, requireBrowser, run, section, serve, sessions, validate, BrowserTool } from './harness.ts'
 
 await requireBrowser()
 
@@ -181,8 +181,8 @@ section('S3 a device whose browser sends no client hints: iPhone 15 Pro')
   check('[M02] the device’s size and ratio', now.inner[0] === 393 && now.inner[1] === 659 && now.dpr === 3, JSON.stringify(now.inner))
   await run({ op: 'open', url: `${A.origin}/` })
   const nine = await detect()
-  const untouched = NINE.filter(name => name !== 'clientHints' && name !== 'uaConsistency')
-  check('[M13] the seven assertions an identity does not touch hold unchanged on the iPhone page', untouched.every(name => nine.checks[name] === true), JSON.stringify(nine.checks))
+  const untouched = Object.keys(nine.checks).filter(name => name !== 'clientHints' && name !== 'uaConsistency')
+  check('[M13] the seven assertions an identity does not touch hold unchanged on the iPhone page', untouched.length === 7 && untouched.every(name => nine.checks[name] === true), JSON.stringify(nine.checks))
   const coherent = await pageOf().evaluate(() => {
     const served = (window as unknown as { serverHeaders?: unknown }).serverHeaders
     return { header: document.querySelector('script')!.textContent!.includes(navigator.userAgent), served: typeof served }
@@ -396,7 +396,7 @@ section('S12 the whole reset')
 section('S13 the names are checked by the tool, and a wrong one is answered in one line')
 {
   const wrong = await validate({ op: 'viewport', emulation: { timeZone: 'Asia/Tokyo' } })
-  check('[G2] a wrong name is answered with the valid names', !wrong.ok && wrong.message === 'emulation takes device, userAgent, mobile, touch, landscape, timezone, locale, cpuSlowdown, network, offline, geolocation, colorScheme, reducedMotion, reset — not "timeZone"', wrong.message)
+  check('[G2] a wrong name is answered with the valid names', !wrong.ok && wrong.message === 'emulation takes device, userAgent, mobile, touch, landscape, timezone, locale, cpuSlowdown, network, offline, geolocation, colorScheme, reducedMotion, headers, credentials, reset — not "timeZone"', wrong.message)
   const shape = await validate({ op: 'viewport', emulation: { network: 'dialup' } })
   check('[G2] a wrong shape is answered with the shape', !shape.ok && shape.message === 'emulation.network takes slow3g, fast3g, slow4g, fast4g or {download, upload, latency} in bytes/s and ms, or null to clear it', shape.message)
   const elsewhere = await validate({ op: 'click', selector: '#keep', emulation: {} })
@@ -408,7 +408,7 @@ section('S13 the names are checked by the tool, and a wrong one is answered in o
   check('[G2] on the wire emulation is one untyped object with one clause', field?.description === 'viewport: overrides; omitted stays, null clears, reset restores launch defaults' && JSON.stringify(field.properties) === '{}', JSON.stringify(field))
   check('[G2] the definition names no device', !/iPhone|Pixel|Galaxy/.test(JSON.stringify(schema)) && schema.properties.op?.enum?.includes('devices') === true)
   const manual = await BrowserTool.prompt({} as never)
-  check('[G2] the manual carries the names and their shapes', manual.includes('Its emulation, kept by the page until reset with sizes as given, takes device (a name from devices), userAgent, mobile, touch, landscape, timezone, locale, cpuSlowdown, network (slow3g, fast3g, slow4g, fast4g or {download, upload, latency} in bytes/s and ms), offline, geolocation {latitude, longitude, accuracy}, colorScheme (dark, light, no-preference), reducedMotion, reset; devices lists the names.'), manual)
+  check('[G2] the manual carries the names and their shapes', manual.includes('Its emulation, kept by the page until reset with sizes as given, takes device (a name from devices), userAgent, mobile, touch, landscape, timezone, locale, cpuSlowdown, network (slow3g, fast3g, slow4g, fast4g or {download, upload, latency} in bytes/s and ms), offline, geolocation {latitude, longitude, accuracy}, colorScheme (dark, light, no-preference), reducedMotion, headers, credentials {username, password or secret (a registered name)}, reset; devices lists the names.'), manual)
 }
 
 section('S14 a crewmate has every operation the lead has')

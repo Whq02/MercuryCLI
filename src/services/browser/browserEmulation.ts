@@ -1,4 +1,5 @@
 import type { Device, Frame, Page, Viewport } from 'puppeteer-core'
+import { resolveBrowserSecret } from './browserSecrets.js'
 import { driverVersion, originOf, pageKitOf, setPageLanguages, type PageIdentity, type PageKit } from './browserSession.js'
 
 const NETWORK_PRESETS = { slow3g: 'Slow 3G', fast3g: 'Fast 3G', slow4g: 'Slow 4G', fast4g: 'Fast 4G' } as const
@@ -14,6 +15,11 @@ interface Geolocation {
   accuracy?: number
 }
 type ColorScheme = 'dark' | 'light' | 'no-preference'
+interface Credentials {
+  username: string
+  password?: string
+  secret?: string
+}
 
 interface Fields {
   device?: string
@@ -32,11 +38,16 @@ interface Fields {
   geolocation?: Geolocation
   colorScheme?: ColorScheme
   reducedMotion?: boolean
+  headers?: Record<string, string>
+  credentials?: Credentials & { origin: string }
 }
 
 type FieldName = keyof Fields
 type RequestName = Exclude<FieldName, 'width' | 'height' | 'scale'>
-type EmulationRequest = { [K in RequestName]?: Fields[K] | null } & { reset?: boolean }
+type EmulationRequest = { [K in Exclude<RequestName, 'credentials'>]?: Fields[K] | null } & {
+  credentials?: Credentials | null
+  reset?: boolean
+}
 
 interface EmulationSize {
   width?: number
@@ -58,11 +69,13 @@ const FIELD_SHAPES: Record<RequestName | 'reset', string> = {
   geolocation: '{latitude, longitude, accuracy} in degrees and metres',
   colorScheme: 'dark, light or no-preference',
   reducedMotion: 'true or false',
+  headers: '{name: value} with string values',
+  credentials: "{username, password} or {username, secret} with a registered secret's name",
   reset: 'true',
 }
 const REQUEST_NAMES = Object.keys(FIELD_SHAPES) as Array<RequestName | 'reset'>
 
-export const EMULATION_FIELD_WORDS = `device (a name from devices), userAgent, mobile, touch, landscape, timezone, locale, cpuSlowdown, network (${Object.keys(NETWORK_PRESETS).join(', ')} or {download, upload, latency} in bytes/s and ms), offline, geolocation {latitude, longitude, accuracy}, colorScheme (dark, light, no-preference), reducedMotion, reset`
+export const EMULATION_FIELD_WORDS = `device (a name from devices), userAgent, mobile, touch, landscape, timezone, locale, cpuSlowdown, network (${Object.keys(NETWORK_PRESETS).join(', ')} or {download, upload, latency} in bytes/s and ms), offline, geolocation {latitude, longitude, accuracy}, colorScheme (dark, light, no-preference), reducedMotion, headers, credentials {username, password or secret (a registered name)}, reset`
 
 const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -100,6 +113,16 @@ function fieldFits(name: RequestName | 'reset', value: unknown): boolean {
       )
     case 'colorScheme':
       return value === 'dark' || value === 'light' || value === 'no-preference'
+    case 'headers':
+      return isRecord(value) && Object.entries(value).every(([key, held]) => key !== '' && typeof held === 'string')
+    case 'credentials':
+      return (
+        isRecord(value) &&
+        typeof value.username === 'string' &&
+        value.username !== '' &&
+        (typeof value.password === 'string') !== (typeof value.secret === 'string') &&
+        Object.keys(value).length === 2
+      )
   }
 }
 
@@ -117,8 +140,8 @@ export function parseEmulation(raw: unknown): { request: EmulationRequest } | { 
   return { request: raw as EmulationRequest }
 }
 
-type Aspect = 'identity' | 'languages' | 'locale' | 'viewport' | 'timezone' | 'cpu' | 'media' | 'network' | 'geolocation'
-const ASPECTS: readonly Aspect[] = ['identity', 'languages', 'locale', 'timezone', 'cpu', 'media', 'network', 'geolocation', 'viewport']
+type Aspect = 'identity' | 'languages' | 'locale' | 'viewport' | 'timezone' | 'cpu' | 'media' | 'network' | 'geolocation' | 'headers' | 'credentials'
+const ASPECTS: readonly Aspect[] = ['identity', 'languages', 'locale', 'timezone', 'cpu', 'media', 'network', 'geolocation', 'headers', 'credentials', 'viewport']
 const ASPECT_FIELDS: Record<Aspect, readonly FieldName[]> = {
   identity: ['device', 'userAgent', 'locale'],
   languages: ['locale'],
@@ -129,6 +152,8 @@ const ASPECT_FIELDS: Record<Aspect, readonly FieldName[]> = {
   media: ['colorScheme', 'reducedMotion'],
   network: ['network', 'offline'],
   geolocation: ['geolocation'],
+  headers: ['headers'],
+  credentials: ['credentials'],
 }
 const ASPECT_WORDS: Record<Aspect, string> = {
   identity: 'user agent',
@@ -140,6 +165,8 @@ const ASPECT_WORDS: Record<Aspect, string> = {
   media: 'media',
   network: 'network',
   geolocation: 'geolocation',
+  headers: 'headers',
+  credentials: 'credentials',
 }
 
 interface Environment {
@@ -152,6 +179,8 @@ interface Environment {
   media: Array<{ name: string; value: string }>
   network: NetworkNumbers & { offline: boolean }
   geolocation: Geolocation | null
+  headers: Record<string, string> | null
+  credentials: (Credentials & { origin: string }) | null
 }
 
 interface PageEmulation {
@@ -160,6 +189,9 @@ interface PageEmulation {
   unsettled: Set<Aspect>
   grants: Set<string>
   regrant: ((frame: Frame) => void) | null
+  answering: boolean
+  answered: Set<string>
+  usedFor: Set<string>
 }
 
 export interface EmulationOutcome {
@@ -168,6 +200,7 @@ export interface EmulationOutcome {
   stale: boolean
   lines: string[]
   failures: string[]
+  notes: string[]
 }
 
 const LAUNCH_VIEWPORT = { width: 1280, height: 800 } as const
@@ -177,7 +210,7 @@ const grantHolders = new WeakMap<object, Map<string, Set<Page>>>()
 function stateOf(page: Page): PageEmulation {
   let state = emulations.get(page)
   if (state === undefined) {
-    state = { fields: {}, environment: null, unsettled: new Set(), grants: new Set(), regrant: null }
+    state = { fields: {}, environment: null, unsettled: new Set(), grants: new Set(), regrant: null, answering: false, answered: new Set(), usedFor: new Set() }
     emulations.set(page, state)
   }
   return state
@@ -309,6 +342,8 @@ function environmentOf(fields: Fields, kit: PageKit, devices: Catalogue, network
     media,
     network: { download: numbers.download, upload: numbers.upload, latency: numbers.latency, offline: fields.offline ?? false },
     geolocation: fields.geolocation ?? null,
+    headers: fields.headers ?? null,
+    credentials: fields.credentials ?? null,
   }
 }
 
@@ -332,6 +367,10 @@ function sliceOf(aspect: Aspect, environment: Environment): unknown {
       return environment.network
     case 'geolocation':
       return environment.geolocation
+    case 'headers':
+      return environment.headers
+    case 'credentials':
+      return environment.credentials
   }
 }
 
@@ -377,8 +416,52 @@ async function releaseLocation(page: Page, state: PageEmulation): Promise<void> 
   }
 }
 
+type AuthAnswer = { response: 'CancelAuth' } | { response: 'ProvideCredentials'; username: string; password: string }
+
+function authAnswer(state: PageEmulation, requestId: string, challenge: { source?: string; origin: string }): AuthAnswer {
+  const held = state.fields.credentials
+  if (held === undefined || challenge.source === 'Proxy' || originOf(challenge.origin) !== held.origin) return { response: 'CancelAuth' }
+  if (state.answered.has(requestId)) return { response: 'CancelAuth' }
+  state.answered.add(requestId)
+  if (state.answered.size > 256) state.answered.delete(state.answered.values().next().value!)
+  let password = held.password
+  if (password === undefined) {
+    const resolved = resolveBrowserSecret(held.secret!, { origin: held.origin })
+    if (resolved.state !== 'ok') return { response: 'CancelAuth' }
+    password = resolved.value
+  }
+  state.usedFor.add(held.origin)
+  return { response: 'ProvideCredentials', username: held.username, password }
+}
+
+async function answerChallenges(kit: PageKit, state: PageEmulation, on: boolean): Promise<void> {
+  const own = ownSession(kit)
+  if (!on) {
+    if (state.answering) await own.send('Fetch.disable')
+    return
+  }
+  if (!state.answering) {
+    own.on('Fetch.requestPaused', event => {
+      void own.send('Fetch.continueRequest', { requestId: event.requestId }).catch(() => undefined)
+    })
+    own.on('Fetch.authRequired', event => {
+      void own
+        .send('Fetch.continueWithAuth', { requestId: event.requestId, authChallengeResponse: authAnswer(state, event.requestId, event.authChallenge) })
+        .catch(() => undefined)
+    })
+    state.answering = true
+  }
+  await own.send('Fetch.enable', { handleAuthRequests: true, patterns: [{ urlPattern: '*' }] })
+}
+
 async function applyAspect(aspect: Aspect, page: Page, kit: PageKit, environment: Environment, state: PageEmulation): Promise<boolean> {
   switch (aspect) {
+    case 'headers':
+      await page.setExtraHTTPHeaders(environment.headers ?? {})
+      return false
+    case 'credentials':
+      await answerChallenges(kit, state, environment.credentials !== null)
+      return false
     case 'identity':
       if (environment.identity !== null) await ownSession(kit).send('Emulation.setUserAgentOverride', environment.identity)
       return false
@@ -482,12 +565,23 @@ function describe(state: PageEmulation, kit: PageKit | null): string[] {
     )
   }
   if (environment.media.length > 0) lines.push(`media: ${environment.media.map(feature => `${feature.name} ${feature.value}`).join('; ')}`)
+  if (fields.headers !== undefined) lines.push(`headers: ${Object.keys(fields.headers).map(name => name.toLowerCase()).join(', ') || 'none'}`)
+  if (fields.credentials !== undefined) {
+    const { username, origin, secret } = fields.credentials
+    lines.push(`credentials: ${username} answers ${origin} only (${secret !== undefined ? `secret ${secret}` : 'password withheld'})`)
+  }
   return lines
+}
+
+function fieldWords(name: FieldName, value: unknown): string {
+  if (name === 'credentials') return value === undefined ? 'credentials cleared' : `credentials of ${(value as Credentials).username}`
+  if (name === 'headers') return value === undefined ? 'headers cleared' : `headers ${Object.keys(value as object).join(', ')}`
+  return `${name} ${JSON.stringify(value ?? null)}`
 }
 
 const GEOMETRY: readonly FieldName[] = ['width', 'height', 'scale', 'mobile', 'touch', 'landscape', 'userAgent']
 
-function merged(before: Fields, request: EmulationRequest, size: EmulationSize): Fields {
+function merged(before: Fields, request: EmulationRequest, size: EmulationSize, origin: string): Fields {
   const next: Fields = request.reset === true ? {} : { ...before }
   if (typeof request.device === 'string') {
     for (const name of GEOMETRY) delete next[name]
@@ -497,7 +591,7 @@ function merged(before: Fields, request: EmulationRequest, size: EmulationSize):
     if (name === 'reset' || name === 'device') continue
     const value = request[name]
     if (value === null) delete next[name]
-    else if (value !== undefined) (next as Record<string, unknown>)[name] = value
+    else if (value !== undefined) (next as Record<string, unknown>)[name] = name === 'credentials' ? { ...(value as Credentials), origin } : value
   }
   if (request.device === null) delete next.device
   if (size.width !== undefined) next.width = size.width
@@ -536,7 +630,7 @@ async function settle(page: Page, kit: PageKit, state: PageEmulation, next: Fiel
       tried.add(aspect)
       const reverted = ASPECT_FIELDS[aspect].filter(name => JSON.stringify(next[name]) !== JSON.stringify(before[name]))
       failures.push(
-        `${ASPECT_WORDS[aspect]} NOT applied (${reverted.map(name => `${name} ${JSON.stringify(next[name] ?? null)}`).join(', ') || 'unchanged fields'}): ${browserWords(err)} — the earlier value stays`,
+        `${ASPECT_WORDS[aspect]} NOT applied (${reverted.map(name => fieldWords(name, next[name])).join(', ') || 'unchanged fields'}): ${browserWords(err)} — the earlier value stays`,
       )
       for (const name of reverted) {
         if (before[name] === undefined) delete next[name]
@@ -551,12 +645,19 @@ async function settle(page: Page, kit: PageKit, state: PageEmulation, next: Fiel
   state.fields = next
   state.environment = environmentOf(next, kit, devices, networks)
   const stale = !reloaded && originOf(page.url()).startsWith('http') && state.environment.identity?.userAgent !== from.identity?.userAgent
-  return { reloaded, stale, lines: describe(state, kit), failures }
+  const notes: string[] = []
+  const earlier = before.credentials
+  if (earlier !== undefined && state.usedFor.has(earlier.origin) && JSON.stringify(earlier) !== JSON.stringify(next.credentials)) {
+    notes.push(
+      `${next.credentials === undefined ? 'no challenge is answered from now on' : 'new challenges get the new credentials'}; what the browser already answered for ${earlier.origin} stays answered until this browser closes`,
+    )
+  }
+  return { reloaded, stale, lines: describe(state, kit), failures, notes }
 }
 
-export async function applyEmulation(page: Page, request: EmulationRequest, size: EmulationSize): Promise<EmulationOutcome> {
+export async function applyEmulation(page: Page, request: EmulationRequest, size: EmulationSize, origin = ''): Promise<EmulationOutcome> {
   const kit = pageKitOf(page)
-  if (kit === null) return { refusal: 'this page was not prepared for emulation', reloaded: false, stale: false, lines: [], failures: [] }
+  if (kit === null) return { refusal: 'this page was not prepared for emulation', reloaded: false, stale: false, lines: [], failures: [], notes: [] }
   if (typeof request.device === 'string') {
     const names = await deviceNames()
     if (!names.includes(request.device)) {
@@ -568,11 +669,12 @@ export async function applyEmulation(page: Page, request: EmulationRequest, size
         stale: false,
         lines: [],
         failures: [],
+        notes: [],
       }
     }
   }
   const state = stateOf(page)
-  return settle(page, kit, state, merged(state.fields, request, size))
+  return settle(page, kit, state, merged(state.fields, request, size, origin))
 }
 
 export function notePlainSize(page: Page, width: number, height: number, scale: number | undefined): void {
@@ -617,6 +719,8 @@ export function emulationSummary(page: Page): string {
   if (fields.cpuSlowdown !== undefined) parts.push(`cpu ${fields.cpuSlowdown}x`)
   if (fields.network !== undefined) parts.push(`network ${typeof fields.network === 'string' ? fields.network : 'custom'}`)
   if (fields.geolocation !== undefined) parts.push(`geolocation ${fields.geolocation.latitude}, ${fields.geolocation.longitude}`)
+  if (fields.headers !== undefined) parts.push('headers')
+  if (fields.credentials !== undefined) parts.push(`credentials for ${fields.credentials.origin}`)
   return parts.join(', ')
 }
 

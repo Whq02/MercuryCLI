@@ -72,6 +72,28 @@ export async function validate(input: ToolInput): Promise<{ ok: boolean; message
   return { ok: verdict.result, message: verdict.message ?? '' }
 }
 
+export async function permission(input: ToolInput, ctx: ToolContext = lead): Promise<{ behavior: string; message?: string; suggestions?: unknown }> {
+  return (await BrowserTool.checkPermissions(input as never, ctx as never)) as { behavior: string; message?: string; suggestions?: unknown }
+}
+
+const { decideToolPermission } = await import(join(ROOT, 'src/utils/permissions/decision/engine.ts'))
+const { getEmptyToolPermissionContext } = await import(join(ROOT, 'src/Tool.ts'))
+
+export async function decide(input: ToolInput, rules: { mode?: string; allow?: string[]; deny?: string[] }, ctx: ToolContext = lead): Promise<{ behavior: string; message?: string; decidedBy: string }> {
+  const toolPermissionContext = {
+    ...getEmptyToolPermissionContext(),
+    mode: (rules.mode ?? 'default') as never,
+    alwaysAllowRules: rules.allow ? { localSettings: rules.allow } : {},
+    alwaysDenyRules: rules.deny ? { localSettings: rules.deny } : {},
+    alwaysAskRules: {},
+    isBypassPermissionsModeAvailable: false,
+  }
+  const appState = { toolPermissionContext }
+  const engine = { ...ctx, abortController: new AbortController(), getAppState: () => appState, setAppState: () => {}, messages: [], options: {} }
+  const judged = await decideToolPermission(BrowserTool as never, input, engine as never)
+  return { behavior: judged.decision.behavior, message: (judged.decision as { message?: string }).message, decidedBy: judged.trace.decidedBy }
+}
+
 export function pageOf(ctx: ToolContext = lead): import('puppeteer-core').Page {
   const live = sessions.activeSession(ownerOf(ctx))
   if (!live) throw new Error('no live session where one was expected')
@@ -141,11 +163,10 @@ const detectionJs = new Bun.Transpiler({ loader: 'ts' }).transformSync(`${stealt
 new Function(detectionJs)()
 export const detectionHtml = (globalThis as unknown as { __detectionHtml: (headers: http.IncomingHttpHeaders, expectedTz: string) => string }).__detectionHtml
 
-export const NINE = ['webdriver', 'headless', 'plugins', 'chromeObject', 'permissions', 'webgl', 'clientHints', 'uaConsistency', 'automationBannerFlag'] as const
 interface Detection {
   passed: number
   total: number
-  checks: Record<(typeof NINE)[number], boolean>
+  checks: Record<string, boolean>
   details: Record<string, unknown>
 }
 
