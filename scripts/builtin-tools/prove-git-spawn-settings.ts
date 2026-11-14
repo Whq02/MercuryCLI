@@ -18,6 +18,7 @@ delete process.env.MERCURY_HOME
 const { gitDiff, gitStatus } = await import('../../src/services/gitGraph/observe.ts')
 const { fetchGitDiffHunksFor } = await import('../../src/utils/gitDiff.ts')
 const { resolveConflict, stageSelection } = await import('../../src/services/gitGraph/plan.ts')
+const { applyResolution, prepareResolution, readConflictRegions } = await import('../../src/services/gitGraph/conflictRegions.ts')
 const { gitAdapter } = await import('../../src/services/resources/adapters/git.ts')
 const { parseMercuryRef } = await import('../../src/services/resources/contracts.ts')
 const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
@@ -139,6 +140,40 @@ try {
   const resolved = resolveConflict(processMainOwner(), conflict, 'local.txt', { take: 'ours' })
   check('conflict checkout and staging skip the repository-local filter', resolved.state === 'ok' && resolved.detail.includes(skipLine) && !marked('local'), JSON.stringify(resolved))
   check('conflict resolution still stages the selected content', plain(['show', ':local.txt'], conflict) === 'main\n', plain(['show', ':local.txt'], conflict))
+
+  const regions = join(home, 'regions')
+  mkdirSync(regions, { recursive: true })
+  plain(['init', '--quiet', '--initial-branch=main'], regions)
+  plain(['config', 'filter.external.clean', `${posix(join(home, 'external.sh'))} clean`], regions)
+  plain(['config', 'filter.external.smudge', `${posix(join(home, 'external.sh'))} smudge`], regions)
+  writeFileSync(join(regions, '.gitattributes'), 'local.txt filter=local\nexternal.txt filter=external\n')
+  const both = (text: string): void => ['local.txt', 'external.txt'].forEach(name => writeFileSync(join(regions, name), text))
+  both('base\n')
+  plain(['add', '.'], regions)
+  plain(['commit', '--quiet', '-m', 'base'], regions)
+  plain(['checkout', '--quiet', '-b', 'side'], regions)
+  both('side\n')
+  plain(['commit', '--quiet', '-am', 'side'], regions)
+  plain(['checkout', '--quiet', 'main'], regions)
+  both('main\n')
+  plain(['commit', '--quiet', '-am', 'main'], regions)
+  try { plain(['merge', '--quiet', 'side'], regions) } catch {}
+  const takeOurs = async (name: string): Promise<string> => {
+    const plan = prepareResolution(processMainOwner(), regions, readConflictRegions(processMainOwner(), regions, name).map(region => ({ region: region.id, take: 'ours' as const })))
+    if ('reason' in plan) return plan.reason
+    const out = await applyResolution(plan)
+    return out.state === 'ok' ? out.detail : out.reason
+  }
+  clear('external', 'local')
+  const regionExternal = await takeOurs('external.txt')
+  check('a region resolution still runs an external clean filter on the staged blob, and names no filter as skipped', marked('external') && plain(['show', ':external.txt'], regions) === 'external:main\n' && regionExternal.includes('staged: external.txt') && !regionExternal.includes('skipped'), `${regionExternal} ${plain(['ls-files', '--stage'], regions)}`)
+  mkdirSync(join(regions, 'helpers'), { recursive: true })
+  script(join(regions, 'helpers', 'local.sh'), 'local', 'sed "s/^/local:/"')
+  plain(['config', 'filter.local.clean', './helpers/local.sh clean'], regions)
+  plain(['config', 'filter.local.smudge', './helpers/local.sh smudge'], regions)
+  clear('external', 'local')
+  const regionLocal = await takeOurs('local.txt')
+  check('a region resolution skips the repository-local filter, stages the resolved text itself and says so', !marked('local') && plain(['show', ':local.txt'], regions) === 'main\n' && regionLocal.includes('staged: local.txt') && regionLocal.includes(skipLine) && !regionLocal.includes('filter external skipped'), `${regionLocal} ${plain(['show', ':local.txt'], regions)}`)
 
   plain(['remote', 'add', 'origin', 'ssh://127.0.0.1:1/repository'])
   plain(['config', 'core.sshCommand', posix(join(home, 'network.sh'))])
