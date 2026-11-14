@@ -49,7 +49,9 @@ const MEASURED_OPTIMISER_COST_MB: Record<string, number> = {
   toml: 6,
   haskell: 6,
   zig: 5,
+  nix: 4,
   hcl: 3,
+  svelte: 3,
   go: 2,
   regex: 1,
   yaml: 1,
@@ -59,6 +61,7 @@ const MEASURED_OPTIMISER_COST_MB: Record<string, number> = {
   python: 0,
   ini: 0,
   json: 0,
+  astro: 0,
 }
 
 function vendoredNode(): string | null {

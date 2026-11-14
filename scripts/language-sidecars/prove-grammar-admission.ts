@@ -208,9 +208,40 @@ const ADMITTED: Record<string, Admission> = {
     ],
     rewrite: { pattern: 'prerr_endline $E', rewrite: 'Printf.eprintf "%s\\n" $E', expect: ['Error e -> Printf.eprintf "%s\\n" e'], gone: ['prerr_endline'] },
   },
+  svelte: {
+    routes: ['sample.svelte', 'SAMPLE.SVELTE'],
+    aliases: [],
+    refuses: ['count($X)'],
+    searches: [
+      { pattern: '<p>$$$KIDS</p>', count: 4 },
+      { pattern: '<li>empty</li>', count: 1 },
+    ],
+    rewrite: { pattern: '<li>empty</li>', rewrite: '<li class="none">empty</li>', expect: ['<li class="none">empty</li>'], gone: ['<li>empty</li>'] },
+  },
+  astro: {
+    routes: ['sample.astro', 'SAMPLE.ASTRO'],
+    aliases: [],
+    refuses: ['make($X)'],
+    searches: [
+      { pattern: '<h1>$$$KIDS</h1>', count: 1 },
+      { pattern: '<slot name="footer" />', count: 1 },
+    ],
+    rewrite: { pattern: '<p>No tides.</p>', rewrite: '<p class="empty">No tides.</p>', expect: ['<p class="empty">No tides.</p>'], gone: ['<p>No tides.</p>'] },
+  },
+  nix: {
+    routes: ['sample.nix', 'SAMPLE.NIX'],
+    aliases: [],
+    refuses: ['pkgs.mkShell { $$$ATTRS }'],
+    searches: [
+      { pattern: 'lib.optionals $C $L', count: 1, first: { '$C': 'isDarwin' } },
+      { pattern: 'version = $V;', count: 1, first: { '$V': '"1.4.2"' } },
+      { pattern: 'builtins.length $X', count: 1 },
+    ],
+    rewrite: { pattern: 'version = $V;', rewrite: 'version = "2.0.0";', expect: ['version = "2.0.0";'], gone: ['version = "1.4.2";'] },
+  },
 }
 
-const THIRD_PARTY_BUILDS = ['sql', 'cmake', 'graphql', 'protobuf', 'dart']
+const THIRD_PARTY_BUILDS = ['sql', 'cmake', 'graphql', 'protobuf', 'dart', 'astro', 'nix']
 const NO_COPYRIGHT_LINE = ['hcl', 'elixir']
 const HELD = ['markdown']
 const NEEDS_FINAL_NEWLINE = ['markdown', 'make']

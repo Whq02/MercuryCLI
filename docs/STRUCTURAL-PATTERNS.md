@@ -41,7 +41,7 @@ range, node type, source text and captures.
 Detection is per file, by its name: a basename first (`Dockerfile`), then
 the extension, then a basename prefix (`Dockerfile.dev`). `lang` forces one
 grammar on a single file whatever its name; over a directory it keeps the
-files whose names route to that grammar. The registry routes 40 languages;
+files whose names route to that grammar. The registry routes 43 languages;
 what a build carries is what the tools advertise: the `lang` field counts the
 grammars found in the engine dir the runtime resolves
 (`dist/vendor/treesitter` beside the bundle, or the workspace package for
@@ -58,13 +58,14 @@ does not carry lists them:
   json · toml · kotlin · vue from the `tree-sitter-wasms` pack and swift
   from its own release. The languages added since: yaml · markdown ·
   dockerfile · lua · make · xml · hcl · scala · elixir · zig · haskell ·
-  ocaml from the grammar's own release or npm package, and sql · cmake ·
-  graphql · protobuf · dart from a third party's builds, named as such in
-  the lock, because those grammars publish no build of their own (dart's
-  own misreads a type alias). There is no postinstall: you prepare the cache
-  with `bun run scripts/vendor/fetch-grammars.ts` (the one network step;
+  ocaml · svelte from the grammar's own release or npm package, and sql ·
+  cmake · graphql · protobuf · dart · astro · nix from a third party's
+  builds, named as such in the lock, because those grammars publish no
+  build of their own (dart's own misreads a type alias). There is no
+  postinstall: you prepare the cache with
+  `bun run scripts/vendor/fetch-grammars.ts` (the one network step;
   `--check` validates the cache offline) and rebuild. Release archives
-  carry all 40. A local build without the cache says so at build time
+  carry all 43. A local build without the cache says so at build time
   (`vendored WITHOUT them`), the manifest records
   `degraded: structure-polyglot-extended` and `mercury health` names it; the
   artifact's own `dist/vendor/treesitter/vendor.json` lists the grammars it
@@ -112,6 +113,14 @@ constructor: `open $M` is refused in OCaml, and `import $M` is no import
 pattern in Haskell (write the module out). A Scala parameter list is
 `name: Type` pairs, so `def $N($$$P)` is refused; `$F($$$ARGS)` finds the
 calls.
+
+Svelte and Astro files are read as markup: elements, attributes, blocks (an
+`{#if $COND}` block to its end) and text. A script, an Astro front matter
+and every `{expression}` is one node of plain text to these grammars, so a
+code pattern (`count($X)`) is refused there; `{$E}` finds an expression
+whole.
+In Nix a binding (`version = $V;`), an `inherit` and a call (`mkShell $A`)
+are patterns; an attribute set written with a `$$$` list is refused.
 
 In a build that lacks a grammar the registry routes: a file of that
 language is skipped and counted by extension with the remedy named in the

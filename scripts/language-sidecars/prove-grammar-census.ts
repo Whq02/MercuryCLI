@@ -282,6 +282,24 @@ const FIXTURES: Record<string, Fixture> = {
     file: 'a.ml',
     pattern: 'print_endline $X',
   },
+  svelte: {
+    good: '<script>\n  let name = "x"\n</script>\n\n<p>hi</p>\n<p>yo</p>\n',
+    broken: '<div>\n  {#if open}\n</div>\n',
+    file: 'A.svelte',
+    pattern: '<p>hi</p>',
+  },
+  astro: {
+    good: '---\nconst title = "x"\n---\n<h1>{title}</h1>\n<p>hi</p>\n',
+    broken: '---\nconst title = "x"\n---\n<h1>{title}</h2\n',
+    file: 'A.astro',
+    pattern: '<p>hi</p>',
+  },
+  nix: {
+    good: '{ pkgs }:\n{\n  version = "1.0";\n  name = "demo";\n}\n',
+    broken: '{ pkgs }:\npkgs.mkShell { packages = [ ; }\n',
+    file: 'a.nix',
+    pattern: 'version = $V;',
+  },
 }
 
 const READS_EVERY_TEXT = new Set(['markdown'])

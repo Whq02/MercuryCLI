@@ -384,6 +384,62 @@
         "repository": "https://github.com/tree-sitter/tree-sitter-ocaml",
         "copyright": "2020 Max Brunsfeld and Pieter Goetschalckx"
       }
+    },
+    {
+      "wasm": "tree-sitter-svelte.wasm",
+      "sha256": "f236de0e48f2d708e9f26895fbb64feea20ee087d64c9e5538078245275f0758",
+      "bytes": 44859,
+      "optimiserCostMb": 3,
+      "sourceUrl": "https://registry.npmjs.org/@tree-sitter-grammars/tree-sitter-svelte/-/tree-sitter-svelte-1.0.2.tgz",
+      "sourceMember": "package/tree-sitter-svelte.wasm",
+      "sourceSha512": "6a44ef4bd0a55612837f91ad62071374f12cb0c7794c00bf7fe4d6de729acd5c009aecd438e1f25f3e8bdaca0117cd0d9a96212b2e280417e86dae587ead7496",
+      "sourceProvenance": "the grammar's own npm package @tree-sitter-grammars/tree-sitter-svelte 1.0.2, which carries its wasm (commit 774a65aea563accc35f5d45fafa4d96ec5761f57); sourceSha512 is the registry's integrity value of the tarball; licence MIT read from tree-sitter-grammars/tree-sitter-svelte at that commit on 2026-11-13",
+      "upstream": {
+        "package": "@tree-sitter-grammars/tree-sitter-svelte",
+        "builtFromRange": "1.0.2",
+        "commit": "774a65aea563accc35f5d45fafa4d96ec5761f57",
+        "license": "MIT",
+        "repository": "https://github.com/tree-sitter-grammars/tree-sitter-svelte",
+        "copyright": "2024 Amaan Qureshi"
+      }
+    },
+    {
+      "wasm": "tree-sitter-astro.wasm",
+      "sha256": "01a6d1a90c1f15d995c26ac00148ee6d0d29842a8474f7dd205fd420ed75fc3d",
+      "bytes": 28358,
+      "optimiserCostMb": 0,
+      "sourceUrl": "https://registry.npmjs.org/@lumis-sh/wasm-astro/-/wasm-astro-0.26.5.tgz",
+      "sourceMember": "package/tree-sitter-astro.wasm",
+      "sourceSha512": "3a5b805f110f9c5d45d16a3216bf2b1dc82a27be612e527245d9232899a831be142976d4e9d9da08a47d1b0ce50bd5f63ff07d2687ba3f539753a4830850c5e9",
+      "sourceProvenance": "a third party's build, not the grammar's own: npm @lumis-sh/wasm-astro 0.26.5, whose lumis.json names tree-sitter-astro 0.0.1 at revision 213f6e6973d9b456c6e50e86f19f66877e7ef0ee and this wasm's sha256; virchau13/tree-sitter-astro publishes no wasm of its own; sourceSha512 is the registry's integrity value of the tarball; licence MIT read from virchau13/tree-sitter-astro at that commit on 2026-11-13; not rebuilt here",
+      "upstream": {
+        "package": "tree-sitter-astro",
+        "builtFromRange": "0.0.1",
+        "commit": "213f6e6973d9b456c6e50e86f19f66877e7ef0ee",
+        "license": "MIT",
+        "repository": "https://github.com/virchau13/tree-sitter-astro",
+        "copyright": "2022 Vir Chaudhury",
+        "builder": "@lumis-sh/wasm-astro@0.26.5"
+      }
+    },
+    {
+      "wasm": "tree-sitter-nix.wasm",
+      "sha256": "e8e23db3384a341ddab82307aaf9d2001df3c2d81843d4af29d6f08e857def7f",
+      "bytes": 83513,
+      "optimiserCostMb": 4,
+      "sourceUrl": "https://registry.npmjs.org/@lumis-sh/wasm-nix/-/wasm-nix-0.26.4.tgz",
+      "sourceMember": "package/tree-sitter-nix.wasm",
+      "sourceSha512": "f0aceef1e4fc69a97a153504d034ee99184066325e6a985b2ae90f152487d2606799977ddea0ea4572972535f44b975d967b08d98bfecf528aa8395f17c9fb3a",
+      "sourceProvenance": "a third party's build, not the grammar's own: npm @lumis-sh/wasm-nix 0.26.4, whose lumis.json names tree-sitter-nix 0.3.0 at revision ea1d87f7996be1329ef6555dcacfa63a69bd55c6 and this wasm's sha256; nix-community/tree-sitter-nix publishes no wasm of its own; sourceSha512 is the registry's integrity value of the tarball; licence MIT read from nix-community/tree-sitter-nix at that commit on 2026-11-13; not rebuilt here",
+      "upstream": {
+        "package": "tree-sitter-nix",
+        "builtFromRange": "0.3.0",
+        "commit": "ea1d87f7996be1329ef6555dcacfa63a69bd55c6",
+        "license": "MIT",
+        "repository": "https://github.com/nix-community/tree-sitter-nix",
+        "copyright": "2019 Charles Strahan",
+        "builder": "@lumis-sh/wasm-nix@0.26.4"
+      }
     }
   ],
   "notes": "REJECTED from this pack (census evidence, 2026-07-20): tree-sitter-yaml.wasm (C++ external scanner detonates at parse on the @vscode runtime \u2014 ABI mismatch) and tree-sitter-lua.wasm (scanner misparses valid code, e.g. `local x = 1`); both are carried from the grammar's own release instead (their entries below). Update procedure: bump version+url, run scripts/vendor/fetch-grammars.ts --force, re-pin sha512 + per-file sha256 from its output, re-verify each upstream licence, re-run scripts/language-sidecars/prove-grammar-census.ts. A grammar entry may carry sourceUrl + sourceProvenance: its wasm then comes from THAT pinned https artifact instead of the pack tarball (same per-file sha256 law; swift rides the upstream 0.7.3 release asset because the pack's 0.4-era build fatally OOMs V8's optimizing wasm compiler \u2014 audition-fenced, see the registry's fragile marking). An entry that also names sourceMember + sourceSha512 takes its wasm as that member of the pinned tarball at sourceUrl (sha512 verified before the member is read): a grammar's own npm package, or a third party's build of a grammar that publishes no wasm, in which case upstream.builder names the builder's package and version and upstream.commit the revision the builder says it built. upstream.commit and upstream.copyright are recorded for every entry admitted with them; the licence was read from the upstream repository at that commit. The ordinary build consumes ONLY the verified local cache (vendor/grammars/extracted) or produces an honest degraded manifest. optimiserCostMb is the resident memory V8's optimising tier adds to the process under sustained parsing with that grammar (vendored node, the method of scripts/language-sidecars/prove-grammar-memory-hold.ts, which reads the whole table again with --measure): a grammar at 400 or more is marked baseline in the registry and parsed with the tier held off; the threshold sits in the gap of the measured costs."

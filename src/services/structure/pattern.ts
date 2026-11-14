@@ -84,6 +84,7 @@ const PATTERN_CONTEXTS: Record<string, string[]> = {
   zig: ['fn mercuryCtx() void {\n<P>\n}', 'const mercury_ctx = <P>;'],
   haskell: ['mercuryCtx = <P>'],
   ocaml: ['let mercury_ctx = <P>'],
+  nix: ['{\n<P>\n}'],
 }
 
 const RAW_CANDIDATE_LAST = new Set(['php', 'c', 'dart'])

@@ -75,6 +75,9 @@ export const GRAMMAR_REGISTRY: GrammarRegistryEntry[] = [
   patternGrammar('zig', ['.zig']),
   patternGrammar('haskell', ['.hs']),
   patternGrammar('ocaml', ['.ml']),
+  patternGrammar('svelte', ['.svelte']),
+  patternGrammar('astro', ['.astro']),
+  patternGrammar('nix', ['.nix']),
 ]
 
 export const GRAMMAR_ENGINE_RUNTIME_FILES = ['tree-sitter.js', 'tree-sitter.wasm'] as const

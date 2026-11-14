@@ -52,6 +52,9 @@ export const LANGUAGE_FIXTURES: LanguageFixture[] = [
   { lang: 'zig', file: 'a.zig', good: 'const std = @import("std");\npub fn main() void {\n    std.debug.print("hi\\n", .{});\n    std.debug.print("yo\\n", .{});\n}\n', pattern: 'std.debug.print($F, $A)', expect: 2, capture: '$F', rewrite: { rewrite: 'std.log.info($F, $A)', contains: 'std.log.info("yo\\n", .{});', inPlace: true } },
   { lang: 'haskell', file: 'A.hs', good: 'main :: IO ()\nmain = do\n  putStrLn "hi"\n  putStrLn "yo"\n', pattern: 'putStrLn $X', expect: 2, capture: '$X', rewrite: { rewrite: 'putStr $X', contains: 'putStr "yo"', inPlace: true } },
   { lang: 'ocaml', file: 'a.ml', good: 'let () =\n  print_endline "hi";\n  print_endline "yo"\n', pattern: 'print_endline $X', expect: 2, capture: '$X', rewrite: { rewrite: 'prerr_endline $X', contains: 'prerr_endline "yo"', inPlace: true } },
+  { lang: 'svelte', file: 'A.svelte', good: '<script>\n  let name = "x"\n</script>\n\n<p>hi</p>\n<p>yo</p>\n', pattern: '<p>hi</p>', expect: 1, rewrite: { rewrite: '<p>bye</p>', contains: '<p>bye</p>', inPlace: true } },
+  { lang: 'astro', file: 'A.astro', good: '---\nconst title = "x"\n---\n<h1>{title}</h1>\n<p>hi</p>\n', pattern: '<p>hi</p>', expect: 1, rewrite: { rewrite: '<p>bye</p>', contains: '<p>bye</p>', inPlace: true } },
+  { lang: 'nix', file: 'a.nix', good: '{ pkgs }:\n{\n  version = "1.0";\n  name = "demo";\n}\n', pattern: 'version = $V;', expect: 1, capture: '$V', rewrite: { rewrite: 'version = "2.0";', contains: 'version = "2.0";' } },
 ]
 
 export function writeLanguageFixtures(root: string): Map<string, string> {
