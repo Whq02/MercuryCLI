@@ -65,7 +65,7 @@ function splitAuthority(text: string): { user?: string; host: string; port?: str
 }
 
 function nameFault(host: string, user: string | undefined, whole: string): string | null {
-  if (host === '' || host.startsWith('.') || /[\s/]/.test(host) || CONTROL.test(host)) return `${whole} names no host.`
+  if (host === '' || host.startsWith('.') || /[\s/@]/.test(host) || CONTROL.test(host)) return `${whole} names no host.`
   if (user !== undefined && (user === '' || CONTROL.test(user))) return `${whole} names no user before the @.`
   if (host.startsWith('-') || user?.startsWith('-') === true) return `${whole} begins a host or a user with a dash, which ssh would read as an option.`
   if (HOST_SHELL.test(host) || (user !== undefined && USER_SHELL.test(user))) return `${whole} has a character in its host or its user that a shell would act on.`

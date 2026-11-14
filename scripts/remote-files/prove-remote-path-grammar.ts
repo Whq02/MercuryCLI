@@ -109,6 +109,8 @@ const refusals: Array<[string, RegExp]> = [
   ['ssh://-l@web1/x', /begins a host or a user with a dash, which ssh would read as an option\.$/],
   ['ssh://%2DoProxyCommand=id/x', /begins a host or a user with a dash, which ssh would read as an option\.$/],
   ['ssh://we b1/x', /names no host\.$/],
+  ['ssh://x%40prod/etc/shadow', /names no host\.$/],
+  ['ssh://deploy@x%40prod:2222/~/x', /names no host\.$/],
   ['ssh://./x', /names no host\.$/],
   ['ssh://../etc/hosts', /names no host\.$/],
   ['ssh://.web1/x', /names no host\.$/],
@@ -233,6 +235,7 @@ check('a host rule covers a file on the host', matches('ssh://web1/**', 'ssh://w
 check('a host rule written without a path covers the host', matches('ssh://web1', 'ssh://web1/etc/hosts'))
 check('a host rule covers the root and the home', matches('ssh://web1/**', 'ssh://web1/') && matches('ssh://web1/**', 'ssh://web1/~/x') && matches('ssh://web1/**', 'ssh://web1'))
 check('a host rule does not cover another host', !matches('ssh://web1/**', 'ssh://web2/etc/hosts'))
+check('an escaped @ in the host, which ssh would read as a user and a host, has no forms at all for a rule to miss', (remoteRuleCandidates('ssh://x%40web1/etc/hosts', 'deny') ?? ['unparsed']).length === 0 && (remoteRuleCandidates('ssh://x%40web1/etc/hosts', 'allow') ?? ['unparsed']).length === 0)
 check('a host rule does not cover a folder of that name on another host', !matches('ssh://web1/**', 'ssh://web2/srv/web1/x'))
 check('a folder rule covers the folder and nothing beside it', matches('ssh://web1/srv/**', 'ssh://web1/srv/app/x') && !matches('ssh://web1/srv/**', 'ssh://web1/etc/x') && !matches('ssh://web1/srv/**', 'ssh://web1/srv2/x'))
 check('a host-only rule covers every user and port', matches('ssh://web1/**', 'ssh://root@web1:2222/x'))
