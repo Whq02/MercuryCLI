@@ -153,6 +153,7 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
     extraHeaders: () => ({ ...endpoint.headers, ...(endpoint.sessionAffinityHeader ? { [endpoint.sessionAffinityHeader]: getSessionId() } : {}) }),
     ...(dialect === 'responses' ? { streamTransport: (options, messages) => compatResponsesTransport(options, messages, `${endpoint.name}:${endpoint.baseUrl}`) } : {}),
     ...(dialect === 'ollama' ? { omitsToolChoice: true, outputCeiling: (modelId: string) => getMaxOutputTokensForModel(modelId) } : {}),
+    ...(dialect === 'vllm' || dialect === 'sglang' || dialect === 'ollama' || dialect === 'lmstudio' ? { toolDeclarationRow: toolDeclarationRowInResult } : {}),
     usageForSettlement: usage => { lastUsage = usage; return usage },
     buildExtras: args => {
       if (tensorFold) return buildLocalExtras({ ...args, server: 'tensorfold', acceptsEffort: compatModelEfforts(params.options.model).length > 0 })
