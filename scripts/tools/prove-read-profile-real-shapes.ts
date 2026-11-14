@@ -1,5 +1,6 @@
-import { writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { isolatedHome, readViewKit } from './readViewKit.js'
 
 const home = isolatedHome(import.meta.filename)
@@ -42,4 +43,30 @@ kit.check('a worker that ran keeps its own active and waiting samples', threads[
 kit.check('a worker that only waited is told apart from the one that ran', threads[1]?.includes('· waiting · active=0 samples · wait=30 samples') === true && threads[3]?.includes('dominant wait=semaphore_wait_trap') === true, `${threads[1]} | ${threads[3]}`)
 kit.check('the totals are those of the report', report.includes('samples: 120 ·') && report.includes('on-CPU estimate: 33 samples · idle: 87 samples'), report.split('\n').slice(2, 4).join(' | '))
 kit.check('the worker frame is a frame of its hot path', report.includes('hot path: Thread_1003: V8Worker: thread_start → _pthread_start → Thread_pool_run(void*) · self contributions=5 samples'), report.split('\n').filter(line => line.startsWith('hot path')).join(' | '))
+const script = join(home, 'with space', 'work.js')
+mkdirSync(join(home, 'with space'))
+writeFileSync(script, 'function fib(n) { return n < 2 ? n : fib(n - 1) + fib(n - 2) }\nfunction burn(ms) { return ms }\n')
+const frame = (functionName: string, url: string, lineNumber: number) => ({ functionName, url, lineNumber, columnNumber: 13, scriptId: '7' })
+const profile = join(home, 'work.cpuprofile')
+writeFileSync(profile, JSON.stringify({
+  nodes: [
+    { id: 1, callFrame: frame('(root)', '', -1), children: [2, 3, 4, 5, 6] },
+    { id: 2, callFrame: frame('burn', pathToFileURL(script).href, 1) },
+    { id: 3, callFrame: frame('resolve', 'node:path', 1244) },
+    { id: 4, callFrame: frame('fetched', 'https://example.invalid/app.js', 4) },
+    { id: 5, callFrame: frame('plain', '/project/plain.js', 8) },
+    { id: 6, callFrame: frame('native', '', -1) },
+  ],
+  startTime: 0, endTime: 15000, samples: [2, 3, 4, 5, 6], timeDeltas: [5000, 4000, 3000, 2000, 1000],
+}))
+const hot = (await kit.read(profile)).split('\n').filter(line => line.startsWith('self='))
+const row = (name: string) => hot.find(line => line.includes(`function="${name}"`)) ?? ''
+kit.check('a script V8 recorded as a file URL keeps that URL as its recorded file', row('burn').includes(`file=${JSON.stringify(pathToFileURL(script).href)}`) && pathToFileURL(script).href.includes('with%20space'), row('burn'))
+kit.check('its pointer names the local path of that URL', row('burn').endsWith(`source: Read(file_path: ${JSON.stringify(script)}, offset: 2, limit: 1)`), row('burn'))
+const followed = await kit.read(script, { offset: 2, limit: 1 })
+kit.check('the pointer, followed as written, reads the recorded line', followed.includes('function burn(ms) { return ms }'), followed)
+kit.check("a module of the runtime's own keeps its name and has no pointer", row('resolve').includes('file="node:path" · line=1245') && row('resolve').endsWith('source: unresolved'), row('resolve'))
+kit.check('a script recorded at a web address keeps the address and has no pointer', row('fetched').includes('file="https://example.invalid/app.js"') && row('fetched').endsWith('source: unresolved'), row('fetched'))
+kit.check('a script recorded by a bare path keeps the pointer it had', row('plain').endsWith('source: Read(file_path: "/project/plain.js", offset: 9, limit: 1)'), row('plain'))
+kit.check('a frame with no file has no pointer', row('native').endsWith('source: unresolved'), row('native'))
 kit.finish()

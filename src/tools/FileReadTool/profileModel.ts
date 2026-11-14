@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url'
+
 interface ProfileFrame {
   function: string
   file: string
@@ -35,6 +37,10 @@ interface ProfileHotspot {
 
 export const profileNumber = (value: number): string => Number(value.toFixed(6)).toString()
 export const frameKey = (frame: ProfileFrame): string => JSON.stringify([frame.function, frame.file, frame.line, frame.column, frame.module])
+const sourceFile = (file: string): string | null => {
+  if (/^file:\/\//i.test(file)) { try { return fileURLToPath(file) } catch { return null } }
+  return file === '' || /^[a-zA-Z][a-zA-Z0-9+.-]+:/.test(file) ? null : file
+}
 const synthetic = (node: ProfileNode): boolean => node.frame.function === '(root)' || node.frame.function === '(program)'
 const waiting = (node: ProfileNode): boolean => node.frame.function === '(idle)' || /^(?:__?|[A-Za-z0-9_]*::)*(?:mach_msg(?:2)?_trap|mach_msg2_internal|mach_msg|__psynch_cvwait|__psynch_mutexwait|semaphore_wait_trap|kevent|kevent64|poll|select|pthread_cond_wait|pthread_cond_timedwait|__ulock_wait|__ulock_wait2|nanosleep|__workq_kernreturn)$/.test(node.frame.function)
 
@@ -119,8 +125,8 @@ export function profileRows(reading: ProfileReading, summary: Awaited<ReturnType
   }
   const ranked = [...summary.hotspots.values()].sort((a, b) => b.self - a.self || b.inclusive - a.inclusive || frameKey(a.frame).localeCompare(frameKey(b.frame)))
   for (const hot of ranked) {
-    const frame = hot.frame
-    rows.push(`self=${profileNumber(hot.self)} ${reading.unit} · inclusive=${profileNumber(hot.inclusive)} ${reading.unit} · CPU-share=${profileNumber(summary.cpu ? hot.self / summary.cpu * 100 : 0)}% · function=${JSON.stringify(frame.function)}${frame.display && frame.display !== frame.function ? ` · display=${JSON.stringify(frame.display)}` : ''} · file=${JSON.stringify(frame.file)} · line=${frame.line ?? 'unresolved'} · column=${frame.column ?? 'unresolved'} · module=${JSON.stringify(frame.module)}${frame.file && frame.line !== null ? ` · source: Read(file_path: ${JSON.stringify(frame.file)}, offset: ${frame.line}, limit: 1)` : ' · source: unresolved'}`)
+    const frame = hot.frame, local = sourceFile(frame.file)
+    rows.push(`self=${profileNumber(hot.self)} ${reading.unit} · inclusive=${profileNumber(hot.inclusive)} ${reading.unit} · CPU-share=${profileNumber(summary.cpu ? hot.self / summary.cpu * 100 : 0)}% · function=${JSON.stringify(frame.function)}${frame.display && frame.display !== frame.function ? ` · display=${JSON.stringify(frame.display)}` : ''} · file=${JSON.stringify(frame.file)} · line=${frame.line ?? 'unresolved'} · column=${frame.column ?? 'unresolved'} · module=${JSON.stringify(frame.module)}${local !== null && frame.line !== null ? ` · source: Read(file_path: ${JSON.stringify(local)}, offset: ${frame.line}, limit: 1)` : ' · source: unresolved'}`)
   }
   for (const [chain, weight] of [...summary.paths].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))) rows.push(`hot path: ${chain} · self contributions=${profileNumber(weight)} ${reading.unit}`)
   return rows
