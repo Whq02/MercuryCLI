@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { closeSync, readSync, statSync, type Stats } from 'node:fs'
 import { openRegularFileSync } from '../../utils/regularFile.js'
 import { ideFileGeneration } from '../acp/ideToolBridge.js'
+import { remoteGeneration } from '../remoteFiles/target.js'
 import { runtimeKernel } from '../primitives/runtimeKernel.js'
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
 import { parseOwnerKey, type OwnerKey } from '../run/ownerKey.js'
@@ -161,6 +162,8 @@ function scanRegularFile(path: string, wanted?: Wanted): ({ generation: string }
 }
 
 export function fileGeneration(path: string): string | null {
+  const remote = remoteGeneration(path)
+  if (remote !== undefined) return remote
   const ideGen = ideFileGeneration(path)
   if (ideGen !== null) return ideGen
   return scanRegularFile(path)?.generation ?? null

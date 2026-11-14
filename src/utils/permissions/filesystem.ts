@@ -29,6 +29,15 @@ import { uncPathRisk, uncPathMessage } from './uncPath.js'
 import { suspiciousWindowsPattern } from './windowsPath.js'
 import { credentialStorePath, mercurySecretPath, mercurySecretReadIgnores, protectedPathForms, spelling } from './protectedPaths.js'
 import { runtimeWritePath } from './runtimeProtection.js'
+import {
+  isRemotePath,
+  REMOTE_RULE_ROOT,
+  remoteRuleCandidates,
+  remoteRuleEndpointForms,
+  remoteRulePattern,
+  remoteSessionRule,
+} from '../../services/remoteFiles/target.js'
+import { remoteLocalForms } from '../../services/remoteFiles/thisMachine.js'
 
 
 const DANGEROUS_FILES: string[] = [
@@ -568,6 +577,8 @@ export function rootForPattern(
   source: PermissionRule['source'],
   platform: ReturnType<typeof getPlatform> = getPlatform(),
 ): { root: string | null; relative: string } {
+  const remote = remoteRulePattern(pattern)
+  if (remote !== null) return { root: REMOTE_RULE_ROOT, relative: remote }
   if (platform === 'windows') {
     const drive = pattern.replace(/\\/g, '/').match(/^\/?([A-Za-z]):\/(.*)$/)
     if (drive) {
@@ -645,6 +656,7 @@ function absoluteUnderRoot(root: string, literal: string): string {
 
 function resolvedPatternForms(pattern: string, source: PermissionRule['source']): string[] {
   const { root, relative } = rootForPattern(pattern, source)
+  if (root === REMOTE_RULE_ROOT) return remoteRuleEndpointForms(pattern)
   if (root === null || root === undefined) return []
   const wildcardAt = relative.search(GLOB_SEGMENT)
   const cut = wildcardAt === -1 ? relative.length : Math.max(relative.lastIndexOf('/', wildcardAt), 0)
@@ -692,12 +704,14 @@ export function ruleMatcherFor(
   return (path, all = false) => {
     const found: PermissionRule[] = []
     const seen = new Set<PermissionRule>()
-    const expanded = expandPath(path)
+    const remote = remoteRuleCandidates(path, behavior)
+    const expanded = remote === null ? expandPath(path) : ''
     const candidatePath = getPlatform() === 'windows' && expanded.includes('\\') ? toPosixPath(expanded) : expanded
     const target = candidatePath === '' ? getCwd() : candidatePath
     for (const [root, group] of groups) {
-      for (const base of root === null ? (workingForms ?? cwdForms()) : [root]) {
-        const relative = relativePath(base, target)
+      if ((root === REMOTE_RULE_ROOT) !== (remote !== null)) continue
+      const relatives = remote ?? (root === null ? (workingForms ?? cwdForms()) : [root]).map(base => relativePath(base, target))
+      for (const relative of relatives) {
         if (relative === '' || relativePathEscapes(relative)) continue
         if (!group.matcher.test(relative).ignored) continue
         for (const entry of group.entries) {
@@ -713,7 +727,17 @@ export function ruleMatcherFor(
 }
 
 export function pathMatchesRulePattern(path: string, pattern: string, source: PermissionRule['source'] = 'session'): boolean {
+  const remote = remoteRuleCandidates(path, 'deny')
+  if (remote !== null) {
+    return [pattern, ...resolvedPatternForms(pattern, source)].some(form => {
+      const spelled = rootForPattern(form, source)
+      if (spelled.root !== REMOTE_RULE_ROOT) return false
+      const matcher = ignore().add(spelled.relative.endsWith('/**') ? spelled.relative.slice(0, -3) : spelled.relative)
+      return remote.some(candidate => matcher.test(candidate).ignored)
+    })
+  }
   const { root, relative: rel } = rootForPattern(pattern, source)
+  if (root === REMOTE_RULE_ROOT) return false
   const expanded = expandPath(path)
   const candidatePath = getPlatform() === 'windows' && expanded.includes('\\') ? toPosixPath(expanded) : expanded
   const relative = relativePath(root === null ? getCwd() : root, candidatePath)
@@ -821,7 +845,7 @@ export function getFileReadIgnorePatterns(context: ToolPermissionContext): Map<s
   for (const [pattern, rule] of rules) {
     for (const form of [pattern, ...resolvedPatternForms(pattern, rule.source)]) {
       const { root, relative } = rootForPattern(form, rule.source)
-      if (root === undefined) continue
+      if (root === undefined || root === REMOTE_RULE_ROOT) continue
       const list = byRoot.get(root) ?? []
       if (!list.includes(relative)) list.push(relative)
       byRoot.set(root, list)
@@ -884,6 +908,65 @@ function ruleDecision(
   return kind === 'deny' ? deny(refusalWithReason(sentence, said.ruleValue.reason), reason) : ask(sentence, reason)
 }
 
+const REMOTE_FILE_TOOLS: ReadonlySet<string> = new Set(['Read', 'Edit', 'Write', 'Grep', 'Glob'])
+
+export function remoteFloorRefusal(
+  path: string,
+  toolType: 'edit' | 'read',
+  context: ToolPermissionContext,
+  sameMachine = false,
+): string | null {
+  for (const local of remoteLocalForms(path, sameMachine) ?? []) {
+    if (toolType === 'read') {
+      const secret = mercurySecretPath(local)
+      if (secret !== null) {
+        return `Reading ${path} is refused: ${secret} holds Mercury's own credentials; use the product's sign-in and account surfaces instead.`
+      }
+      continue
+    }
+    const runtime = runtimeWritePath(local)
+    if (runtime !== null) return 'Writing ' + path + ' is refused: ' + runtime + ' is part of Mercury’s running runtime.'
+    const credential = credentialStorePath(local)
+    if (credential !== null && (context.mode === 'apollo' || exactCredentialStoreGrant(local, credential, context) === undefined)) {
+      return 'Writing ' + path + ' is refused: ' + credential + ' is a protected system or credential path.'
+    }
+  }
+  return null
+}
+
+function checkRemotePermission(
+  path: string,
+  input: unknown,
+  context: ToolPermissionContext,
+  toolType: 'edit' | 'read',
+): PermissionDecision {
+  const floor = remoteFloorRefusal(path, toolType, context)
+  if (floor !== null) return deny(floor, { type: 'other', reason: floor })
+  const subject = `${toolType === 'read' ? 'Reading' : 'Editing'} ${path}`
+  const denied = matchingRuleForInput(path, context, toolType, 'deny')
+  if (denied) return ruleDecision('deny', subject, context, denied, () => matchingRulesForInput(path, context, toolType, 'deny'))
+  const narrowed = toolsNarrowingDenial(path, [path], context, toolType)
+  if (narrowed) return narrowed
+  if (toolType === 'edit' && context.mode === 'apollo') {
+    return deny(apolloWriteRefusal(path), { type: 'mode', mode: 'apollo' } as never)
+  }
+  const asked = matchingRuleForInput(path, context, toolType, 'ask')
+  if (asked) return ruleDecision('ask', subject, context, asked, () => matchingRulesForInput(path, context, toolType, 'ask'))
+  const allowed =
+    matchingRuleForInput(path, context, 'edit', 'allow') ??
+    (toolType === 'read' ? matchingRuleForInput(path, context, 'read', 'allow') : null)
+  if (allowed) return allow(input, { type: 'rule', rule: allowed } as never)
+  return {
+    behavior: 'ask',
+    message: `Permission to ${toolType === 'read' ? 'read from' : 'write to'} ${path} has not been granted.`,
+    decisionReason: {
+      type: 'workingDir',
+      reason: remoteLocalForms(path) === null ? 'the path is on another machine' : 'the path is reached over ssh on this machine',
+    },
+    suggestions: generateSuggestions(path, toolType === 'read' ? 'read' : 'write', context),
+  } as unknown as PermissionDecision
+}
+
 function envFileAsk(subject: string): PermissionAskDecision {
   const reason = `${subject} needs approval: a .env file usually holds secrets (keys, tokens, passwords). Approve it here, or add a Read allow rule for the path to stop the question.`
   return ask(reason, { type: 'safetyCheck', reason, operatorOnly: false }) as PermissionAskDecision
@@ -931,6 +1014,7 @@ export function checkReadPermissionForTool(
   if (path === undefined) {
     return ask(`Permission to use ${tool.name} has not been granted.`, { type: 'other', reason: 'no path accessor' })
   }
+  if (isRemotePath(path) && REMOTE_FILE_TOOLS.has(tool.name)) return checkRemotePermission(path, input, context, 'read')
 
   const secret = mercurySecretPath(path)
   if (secret !== null) {
@@ -1007,6 +1091,7 @@ export function checkWritePermissionForTool(
   if (path === undefined) {
     return ask(`Permission to use ${tool.name} has not been granted.`, { type: 'other', reason: 'no path accessor' })
   }
+  if (isRemotePath(path) && REMOTE_FILE_TOOLS.has(tool.name)) return checkRemotePermission(path, input, context, 'edit')
   const runtimeInput = typeof input === 'object' && input !== null && 'file_path' in input && typeof input.file_path === 'string' ? input.file_path : path
   const runtime = runtimeWritePath(path) ?? runtimeWritePath(runtimeInput)
   if (runtime !== null) {
@@ -1182,6 +1267,17 @@ export function generateSuggestions(
   context: ToolPermissionContext,
   precomputedPathsToCheck?: readonly string[],
 ): PermissionUpdate[] {
+  const remote = remoteSessionRule(filePath)
+  if (remote !== null) {
+    const grant = {
+      type: 'addRules',
+      rules: [{ toolName: operationType === 'read' ? 'Read' : 'Edit', ruleContent: remote }],
+      behavior: 'allow',
+      destination: 'session',
+    } as PermissionUpdate
+    return operationType === 'read' ? [grant] : [...modeSuggestion(context), grant]
+  }
+  if (isRemotePath(filePath)) return []
   const outside = !pathInAllowedWorkingPath(filePath, context, precomputedPathsToCheck)
   const parent = getDirectoryForPath(filePath)
 

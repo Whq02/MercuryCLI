@@ -1,11 +1,13 @@
 import { realpathSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
-import { dirname, join, relative } from 'node:path'
+import { dirname, isAbsolute, join, relative } from 'node:path'
 
 import picomatch from 'picomatch'
 import { z } from 'zod/v4'
 
 import { buildTool, type ToolPermissionContext, type ToolUseContext } from '../../Tool.js'
+import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
+import { isRemotePath } from '../../services/remoteFiles/target.js'
 import { anchorPatchEnabled } from '../../services/changeTransaction/anchorPatch.js'
 import { staleEditRecoveryEnabled } from '../../services/changeTransaction/stalePatchRecovery.js'
 import { fileGeneration, recordSeenLines } from '../../services/changeTransaction/seenLines.js'
@@ -19,6 +21,7 @@ import {
 } from '../../utils/curlyQuotes.js'
 import { getCwd } from '../../utils/cwd.js'
 import { isENOENT } from '../../utils/errors.js'
+import { formatFileSize } from '../../utils/format.js'
 import { globSearchDepth, resolveSearchGlob, splitGrepGlobField } from '../../utils/globPattern.js'
 import {
   FILE_NOT_FOUND_CWD_NOTE,
@@ -43,7 +46,7 @@ import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { plural } from '../../utils/stringUtils.js'
 import { getDescription, GREP_TOOL_NAME, rankedModeEnabled } from './prompt.js'
-import { documentTypeArgs, searchDocuments } from './documentSearch.js'
+import { discoveryArgs, documentTypeArgs, MAX_DOCUMENTS, searchDocuments } from './documentSearch.js'
 import { rankedRefusal, rankedScope, rankedSearch, renderRanked, type RankedPass } from './rankedSearch.js'
 import { isSearchableDocument, SEARCHABLE_DOCUMENT_EXTENSIONS } from '../../utils/documentText.js'
 import {
@@ -581,6 +584,48 @@ async function rankedCall(input: Input, context: ToolUseContext, searchRoot: str
   }
 }
 
+function grepToolItself(): unknown {
+  return GrepTool
+}
+
+const readElsewhere = new WeakMap<object, string>()
+
+async function searchElsewhere(input: Input, context: ToolUseContext, canUseTool: unknown, parentMessage: unknown): Promise<{ data: Output }> {
+  const bridge = await import('../../services/remoteFiles/bridge.js')
+  const mirror = await bridge.remoteMirror(
+    GREP_TOOL_NAME,
+    input.path!,
+    context,
+    typeof canUseTool === 'function' && parentMessage !== undefined
+      ? path => (canUseTool as CanUseToolFn)(grepToolItself() as never, { ...input, path }, context, parentMessage as never, `${context.toolUseId ?? 'grep'}-resolved`)
+      : null,
+    0,
+    input.type !== undefined || !input.glob ? null : bridge.remoteSearchNames(splitGrepGlobField(input.glob)),
+  )
+  try {
+    const inner = { ...context, getAppState: () => ({ ...context.getAppState(), toolPermissionContext: mirror.rules }) } as ToolUseContext
+    const local = { ...input, path: mirror.dir }
+    const root = realSearchRoot(mirror.dir)
+    const cwd = (await stat(root)).isDirectory() ? root : dirname(root)
+    const pattern = input.literal ? input.pattern : quoteTolerantPattern(input.pattern)
+    const listed = await ripGrepAnswer(discoveryArgs(await buildArgs(local, inner, root, false), pattern), root, context.abortController.signal, { cwd })
+    const files = listed.lines.map(path => (isAbsolute(path) ? path : join(cwd, path)))
+    const documents = new Set(files.filter(isSearchableDocument).sort().slice(0, MAX_DOCUMENTS))
+    const matched =
+      input.output_mode === 'ranked'
+        ? null
+        : await mirror.matching({ ignoreCase: input['-i'] === true, literal: input.literal === true, multiline: input.multiline === true }, pattern, files.filter(file => !isSearchableDocument(file)))
+    const pulled = await mirror.pull(matched === null ? files : [...matched, ...documents], cwd === root ? documents : new Set([...documents, root]))
+    const answer = await (grepToolItself() as { call(input: Input, context: ToolUseContext): Promise<{ data: Output }> }).call(local, inner)
+    const data = mirror.rename(answer.data)
+    const from = `read ${pulled.files} ${plural(pulled.files, 'file')}, ${formatFileSize(pulled.bytes).replace(/(\d)([KMGT]B)$/, '$1 $2')}, from ${mirror.host}`
+    readElsewhere.set(data, mirror.ripgrep ? from : `${from}: it has no ripgrep; with rg installed there the search runs on the host`)
+    return { data }
+  } finally {
+    mirror.close()
+  }
+}
+
 export const GrepTool = buildTool({
   name: GREP_TOOL_NAME,
   strict: true,
@@ -595,6 +640,10 @@ export const GrepTool = buildTool({
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
   async checkPermissions(input, context): Promise<ReturnType<typeof checkReadPermissionForTool>> {
+    if (isRemotePath(input.path)) {
+      const { remotePermission } = await import('../../services/remoteFiles/bridge.js')
+      return remotePermission(GREP_TOOL_NAME, input.path!, null, input, context, 'read')
+    }
     const permission = context.getAppState().toolPermissionContext
     if (input.glob) {
       const root = input.path ? expandPath(input.path) : getCwd()
@@ -627,7 +676,7 @@ export const GrepTool = buildTool({
   async prompt({ tools }): Promise<string> {
     return getDescription(new Set(tools.map(tool => tool.name)))
   },
-  async validateInput(input: Input) {
+  async validateInput(input: Input, context: ToolUseContext) {
     if (input.output_mode === 'ranked') {
       const refusal = rankedRefusal(input.pattern) ?? (input.path !== undefined && isSearchableDocument(input.path) ? rankedDocumentRefusal(input.path) : null)
       if (refusal !== null) return { result: false as const, message: refusal, errorCode: 1 }
@@ -636,6 +685,10 @@ export const GrepTool = buildTool({
       const pathRefusal = controlCharacterPathRefusal(input.path)
       if (pathRefusal !== null) {
         return { result: false as const, message: pathRefusal, errorCode: 1 }
+      }
+      if (isRemotePath(input.path)) {
+        const { remoteValidation } = await import('../../services/remoteFiles/bridge.js')
+        return remoteValidation(input.path, null, 'read', 'Searching', context)
       }
       if (windowsPathNeedsPermission(input.path)) return { result: true as const }
       const expanded = expandPath(input.path)
@@ -659,7 +712,8 @@ export const GrepTool = buildTool({
     }
     return { result: true as const }
   },
-  async call(input: Input, context: ToolUseContext) {
+  async call(input: Input, context: ToolUseContext, canUseTool?: unknown, parentMessage?: unknown) {
+    if (isRemotePath(input.path)) return searchElsewhere(input, context, canUseTool, parentMessage)
     const mode = input.output_mode ?? 'files_with_matches'
     const givenRoot = input.path !== undefined ? expandPath(input.path) : getCwd()
     const searchRoot = realSearchRoot(givenRoot)
@@ -805,7 +859,7 @@ export const GrepTool = buildTool({
   mapToolResultToToolResultBlockParam(data: Output, toolUseID: string) {
     const note = paginationNote(data.appliedLimit, data.appliedOffset)
     const incompleteNote = data.incomplete !== undefined ? `\n(INCOMPLETE SEARCH — ${data.incomplete})` : ''
-    const engineNote = (data.engine !== undefined ? `\n(${data.engine})` : '') + (data.withheld !== undefined ? `\n(${data.withheld})` : '')
+    const engineNote = (data.engine !== undefined ? `\n(${data.engine})` : '') + (data.withheld !== undefined ? `\n(${data.withheld})` : '') + (readElsewhere.has(data) ? `\n(${readElsewhere.get(data)})` : '')
     let text: string
     switch (data.ranked !== undefined ? 'ranked' : data.mode) {
       case 'ranked':

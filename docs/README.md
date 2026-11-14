@@ -39,6 +39,7 @@ reply to the clipboard (`/copy`).
 - [COMPUTER-USE.md](COMPUTER-USE.md): screen and input tools, application consent, desktop ownership and platform requirements.
 - [BROWSER.md](BROWSER.md): the `Browser` tool: one browser per agent, origin approvals, the idle lease and the session cap, frames and covered targets.
 - [WEBFETCH.md](WEBFETCH.md): the `WebFetch` tool: public pages as Markdown, failures and retries, robots rules, host back-off and batch fetches.
+- [REMOTE-FILES.md](REMOTE-FILES.md): files on another machine in Read, Edit, Write, Grep and Glob through `ssh://host/path`: the path forms, what each tool does, the change check and the permission rules.
 
 ## Loading, extending and delegating
 

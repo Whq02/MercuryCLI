@@ -4,6 +4,7 @@ import { Text } from '../../../ink.js'
 import type { OptionWithDescription } from '../../CustomSelect/select.js'
 import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js'
 import { getShortcutDisplay } from '../../../keybindings/shortcutFormat.js'
+import { isRemotePath, remoteHostLabel } from '../../../services/remoteFiles/target.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
 import { expandPath, getDirectoryForPath } from '../../../utils/path.js'
 import { toTildePath } from '../../../utils/path.js'
@@ -94,9 +95,12 @@ export function getFilePermissionOptions({
     options.push({ label: 'Yes', value: 'accept-once', option: { type: 'accept-once' } })
   }
 
-  const projectHome = filePath !== null ? projectConfigHomeOf(filePath) : null
-  const inGlobalHome = filePath !== null && isInGlobalConfigHome(filePath)
-  if (operationType !== 'read' && (projectHome !== null || inGlobalHome)) {
+  const remote = filePath !== null && isRemotePath(filePath)
+  const remoteHost = remote ? remoteHostLabel(filePath) : null
+  const projectHome = filePath !== null && !remote ? projectConfigHomeOf(filePath) : null
+  const inGlobalHome = filePath !== null && !remote && isInGlobalConfigHome(filePath)
+  const hostList = remote && remoteHost === null
+  if (!hostList && operationType !== 'read' && (projectHome !== null || inGlobalHome)) {
     const scope = inGlobalHome ? 'global-config-home' : 'config-home'
     const pattern = inGlobalHome ? globalConfigHomePattern() : `/${projectHome}/**`
     options.push({
@@ -109,13 +113,25 @@ export function getFilePermissionOptions({
       value: 'accept-session',
       option: { type: 'accept-session', scope, pattern },
     })
-  } else {
+  } else if (!hostList) {
     const inside =
-      filePath !== null && pathInAllowedWorkingPath(filePath, toolPermissionContext)
+      filePath !== null && !remote && pathInAllowedWorkingPath(filePath, toolPermissionContext)
     const isRead = operationType === 'read'
     const shortcut = getShortcutDisplay('chat:cycleMode', 'Chat', 'shift+tab')
     let label: React.ReactNode
-    if (inside && isRead) {
+    if (remoteHost !== null && isRead) {
+      label = (
+        <Text>
+          Yes, allow reading from <Text bold>{remoteHost}</Text> for this session
+        </Text>
+      )
+    } else if (remoteHost !== null) {
+      label = (
+        <Text>
+          Yes, allow all edits on <Text bold>{remoteHost}</Text> for this session <Text bold>({shortcut})</Text>
+        </Text>
+      )
+    } else if (inside && isRead) {
       label = 'Yes, for this session'
     } else if (inside) {
       label = (

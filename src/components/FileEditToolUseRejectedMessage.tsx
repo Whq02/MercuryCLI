@@ -2,6 +2,7 @@ import React from 'react'
 import { relative } from 'path'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { Box, Text } from '../ink.js'
+import { isRemotePath } from '../services/remoteFiles/target.js'
 import { getCwd } from '../utils/cwd.js'
 import type { StructuredPatchHunk } from '../utils/diff.js'
 import { HighlightedCode } from './HighlightedCode.js'
@@ -15,7 +16,7 @@ const BODY_INSET = 12
 type Props = { file_path: string; operation: 'write' | 'update'; patch?: StructuredPatchHunk[]; firstLine: string | null; fileContent?: string; content?: string; style?: 'condensed'; verbose: boolean }
 
 function Headline({ file_path, operation, verbose }: Props): React.ReactNode {
-  const displayPath = verbose ? file_path : relative(getCwd(), file_path)
+  const displayPath = verbose || isRemotePath(file_path) ? file_path : relative(getCwd(), file_path)
   return (
     <MessageResponse height={1}>
       <Text dimColor wrap="wrap">

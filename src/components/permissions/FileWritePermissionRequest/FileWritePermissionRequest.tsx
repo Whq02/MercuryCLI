@@ -4,9 +4,11 @@ import { readFileSync } from 'node:fs'
 import { basename, relative } from 'node:path'
 import { Text } from '../../../ink.js'
 import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js'
+import { isRemotePath, remoteLastRead } from '../../../services/remoteFiles/target.js'
 import { isENOENT } from '../../../utils/errors.js'
 import { FilePermissionDialog } from '../FilePermissionDialog/FilePermissionDialog.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
+import { RemotePathSubtitle } from '../RemotePathSubtitle.js'
 import { FileWriteToolDiff } from './FileWriteToolDiff.js'
 
 type WriteToolInput = {
@@ -38,7 +40,12 @@ export function FileWritePermissionRequest({
     [toolUseConfirm.input],
   )
 
-  const existing = useMemo(() => readExisting(parsed.file_path), [parsed.file_path])
+  const remote = isRemotePath(parsed.file_path)
+  const lastRead = remoteLastRead(toolUseConfirm.toolUseContext.readFileState, parsed.file_path)
+  const existing = useMemo(
+    () => (remote ? { exists: lastRead !== null, content: lastRead ?? '' } : readExisting(parsed.file_path)),
+    [parsed.file_path, remote, lastRead],
+  )
 
   const verb = existing.exists ? 'overwrite' : 'create'
   return (
@@ -46,12 +53,14 @@ export function FileWritePermissionRequest({
       toolUseConfirm={toolUseConfirm}
       onDone={onDone}
       onReject={onReject}
-      title={existing.exists ? 'Overwrite file' : 'Create file'}
-      subtitle={relative(getFocusedSessionConnector().workspace().cwd, parsed.file_path)}
+      title={remote ? 'Edit file' : existing.exists ? 'Overwrite file' : 'Create file'}
+      subtitle={remote ? <RemotePathSubtitle path={parsed.file_path} /> : relative(getFocusedSessionConnector().workspace().cwd, parsed.file_path)}
       question={
-        <Text bold>
-          Do you want to {verb} <Text bold>{basename(parsed.file_path)}</Text>?
-        </Text>
+        remote ? undefined : (
+          <Text bold>
+            Do you want to {verb} <Text bold>{basename(parsed.file_path)}</Text>?
+          </Text>
+        )
       }
       content={
         <FileWriteToolDiff

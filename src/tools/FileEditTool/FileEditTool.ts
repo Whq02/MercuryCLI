@@ -36,6 +36,7 @@ import { getLspServerManager } from '../../services/lsp/manager.js'
 import { runtimeKernel } from '../../services/primitives/runtimeKernel.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { ideReadTextAvailable, ideWriteTextAvailable, readRangeViaIde, readWholeTextViaIde, writeTextViaIdeWithReadBack } from '../../services/acp/ideToolBridge.js'
+import { isRemotePath, markRemoteRead, remoteIdentity, remoteMovedSinceRead, remoteShellPath } from '../../services/remoteFiles/target.js'
 import {
   activateConditionalSkillsForPaths,
   addSkillDirectories,
@@ -69,6 +70,7 @@ import { getFsImplementation } from '../../utils/fsOperations.js'
 import { validateInputForSettingsFileEdit } from '../../utils/settings/validateEditTool.js'
 import type { UUID } from 'node:crypto'
 
+import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { FileState } from '../../utils/fileStateCache.js'
 import { MAX_LINES_TO_READ } from '../FileReadTool/prompt.js'
 import { checkIntroducedParseError } from '../FileWriteTool/parseCheck.js'
@@ -139,6 +141,10 @@ const HUNK_SPAN_ELISION = '\n...\n'
 
 type Output = FileEditOutput
 
+type FarHeld = { path: string; fileExists: boolean; content: string; lossless: boolean; mtimeMs: number | undefined; missing: () => Promise<string> }
+
+const tooLargeToEdit = (size: number): string => `File is too large to edit (${formatFileSize(size)}; the maximum is ${formatFileSize(ONE_GIB)}).`
+
 export type { Output }
 
 export const APPLIED_NO_REREAD_NOTE =
@@ -176,14 +182,18 @@ async function staleAtValidation(
   expandedPath: string,
   currentContent: string,
   signal: AbortSignal,
+  farMoved?: boolean,
 ): Promise<boolean> {
-  const mtime = getFileModificationTime(expandedPath)
-  if (mtime <= entry.timestamp) return false
+  if (farMoved === undefined ? getFileModificationTime(expandedPath) <= entry.timestamp : !farMoved) return false
   if (isFullReadEntry(entry)) {
     return entry.content !== currentContent
   }
   try {
     const lineOffset = Math.max(0, (entry.offset ?? 1) - 1)
+    if (farMoved !== undefined) {
+      const lines = currentContent.replace(/^\uFEFF/, '').split('\n')
+      return lines.slice(lineOffset, lineOffset + (entry.limit ?? MAX_LINES_TO_READ)).join('\n') !== entry.content
+    }
     const window = await readFileInRange(
       expandedPath,
       lineOffset,
@@ -723,6 +733,10 @@ function splitLeadingBom(content: string): { bom: string; body: string } {
 }
 
 
+function editToolItself(): unknown {
+  return FileEditTool
+}
+
 export const FileEditTool = buildTool({
   name: FILE_EDIT_TOOL_NAME,
   strict: true,
@@ -747,9 +761,14 @@ export const FileEditTool = buildTool({
     return input?.file_path ? `Editing ${input.file_path}` : 'Editing a file'
   },
   getPath(input: Partial<FileEditInput> | undefined): string {
+    if (isRemotePath(input?.file_path)) return input!.file_path!
     return input?.file_path ? hostPathOfWriteTarget(input.file_path) : getCwd()
   },
   async checkPermissions(input: FileEditInput, context: ToolUseContext) {
+    if (isRemotePath(input.file_path)) {
+      const { remotePermission } = await import('../../services/remoteFiles/bridge.js')
+      return remotePermission(FILE_EDIT_TOOL_NAME, input.file_path, null, input, context, 'edit')
+    }
     return checkWritePermissionForTool(
       {
         name: FILE_EDIT_TOOL_NAME,
@@ -761,7 +780,7 @@ export const FileEditTool = buildTool({
   },
   backfillObservableInput(input: FileEditInput): void {
     if (hasControlCharacter(input.file_path) || windowsPathNeedsPermission(input.file_path)) return
-    input.file_path = expandStructuredTargetPath(input.file_path)
+    input.file_path = isRemotePath(input.file_path) ? remoteIdentity(input.file_path) : expandStructuredTargetPath(input.file_path)
   },
   inputsEquivalent(a: FileEditInput, b: FileEditInput): boolean {
     const mode = editMode(a)
@@ -799,12 +818,12 @@ export const FileEditTool = buildTool({
       },
     )
   },
-  async validateInput(input: FileEditInput, context: ToolUseContext) {
+  async validateInput(input: FileEditInput, context: ToolUseContext, held?: FarHeld) {
     const pathRefusal = controlCharacterPathRefusal(input.file_path)
     if (pathRefusal !== null) {
       return { result: false as const, message: pathRefusal, errorCode: 1 }
     }
-    const structuredTarget = parseStructuredWriteTarget(input.file_path)
+    const structuredTarget = isRemotePath(input.file_path) ? null : parseStructuredWriteTarget(input.file_path)
     if (structuredTarget !== null) {
       const permissionContext = context.getAppState().toolPermissionContext
       const editDeny = matchingRuleForInput(structuredTarget.hostPath, permissionContext, 'edit', 'deny')
@@ -883,7 +902,7 @@ export const FileEditTool = buildTool({
       }
     }
 
-    const expandedPath = expandPath(input.file_path)
+    const expandedPath = held !== undefined ? held.path : expandPath(input.file_path)
 
     const { old_string, new_string } = input
     if (mode === 'exact' && hasText(old_string) && old_string === new_string) {
@@ -893,6 +912,13 @@ export const FileEditTool = buildTool({
         message: IDENTICAL_EDIT_MESSAGE,
         errorCode: 1,
       }
+    }
+
+    if (held === undefined && isRemotePath(input.file_path)) {
+      const { remoteEntryRefusal, remoteValidation } = await import('../../services/remoteFiles/bridge.js')
+      const entry = remoteEntryRefusal(input.file_path.trim())
+      if (entry !== null) return { result: false as const, message: entry, errorCode: 1 }
+      return remoteValidation(input.file_path, null, 'edit', 'Editing', context)
     }
 
     const permissionContext = context.getAppState().toolPermissionContext
@@ -910,17 +936,17 @@ export const FileEditTool = buildTool({
       return { result: false as const, message: memoryRefusal, errorCode: 2 }
     }
 
-    if (windowsPathNeedsPermission(input.file_path)) return { result: true as const }
+    if (held === undefined && windowsPathNeedsPermission(input.file_path)) return { result: true as const }
 
     let generationAtStat: string | null = null
-    if (!ideReadTextAvailable()) {
+    if (held === undefined && !ideReadTextAvailable()) {
       try {
         const stats = await stat(expandedPath)
         if (stats.size > ONE_GIB) {
           return {
             result: false as const,
             behavior: 'ask' as const,
-            message: `File is too large to edit (${formatFileSize(stats.size)}; the maximum is ${formatFileSize(ONE_GIB)}).`,
+            message: tooLargeToEdit(stats.size),
             errorCode: 10,
           }
         }
@@ -933,7 +959,12 @@ export const FileEditTool = buildTool({
     let fileExists = true
     let currentContent = ''
     let decodeLossless = true
-    if (ideReadTextAvailable()) {
+    if (held !== undefined) {
+      fileExists = held.fileExists
+      currentContent = held.content
+      decodeLossless = held.lossless
+      generationAtStat = fileGeneration(expandedPath)
+    } else if (ideReadTextAvailable()) {
       try {
         const ideMeta = await readWholeTextViaIde(expandedPath, context.abortController.signal)
         if (ideMeta !== null) {
@@ -982,6 +1013,7 @@ export const FileEditTool = buildTool({
       if (mode === 'append') {
         return { result: true as const }
       }
+      if (held !== undefined) return { result: false as const, behavior: 'ask' as const, message: await held.missing(), errorCode: 4 }
       const suggestion = await notFoundSuggestionSentence(expandedPath)
       return {
         result: false as const,
@@ -1009,7 +1041,10 @@ export const FileEditTool = buildTool({
       return {
         result: false as const,
         behavior: 'ask' as const,
-        message: 'Use the NotebookEdit tool to edit Jupyter notebooks.',
+        message:
+          held !== undefined
+            ? `Edit does not change a notebook on another machine, and NotebookEdit works on this machine's files; change it with a command run on ${remoteShellPath(expandedPath)?.host ?? 'that machine'}.`
+            : 'Use the NotebookEdit tool to edit Jupyter notebooks.',
         errorCode: 5,
       }
     }
@@ -1063,7 +1098,7 @@ export const FileEditTool = buildTool({
       mode !== 'append' &&
       entry !== undefined &&
       !entry.isPartialView &&
-      (await staleAtValidation(entry, expandedPath, currentContent, context.abortController.signal)) &&
+      (await staleAtValidation(entry, expandedPath, currentContent, context.abortController.signal, held === undefined ? undefined : remoteMovedSinceRead(context.readFileState, expandedPath, held.mtimeMs, entry.timestamp))) &&
       readKnowledgeRefusal(context, expandedPath, input.file_path, currentContent, input.expected_anchor, touched, false) !== null
     ) {
       return {
@@ -1165,9 +1200,10 @@ export const FileEditTool = buildTool({
 
     return { result: true as const, meta: { actualOldString } }
   },
-  async call(input: FileEditInput, context: ToolUseContext, _canUseTool, parentMessage) {
+  async call(input: FileEditInput, context: ToolUseContext, canUseTool, parentMessage) {
     const startedAt = Date.now()
-    const structuredTarget = parseStructuredWriteTarget(input.file_path)
+    const far = isRemotePath(input.file_path) ? await import('../../services/remoteFiles/bridge.js') : null
+    const structuredTarget = far !== null ? null : parseStructuredWriteTarget(input.file_path)
     if (structuredTarget !== null) {
       if (structuredTarget.kind === 'refused') throw new Error(structuredTarget.reason)
       if (fileHistoryEnabled()) {
@@ -1179,20 +1215,36 @@ export const FileEditTool = buildTool({
       }
       return callStructuredEditTarget(structuredTarget, input, context, startedAt)
     }
-    const expandedPath = expandPath(input.file_path)
+    const farTarget =
+      far === null
+        ? null
+        : await far.remoteWriteTarget(
+            FILE_EDIT_TOOL_NAME,
+            input.file_path,
+            context,
+            typeof canUseTool === 'function' && parentMessage !== undefined
+              ? path => (canUseTool as CanUseToolFn)(editToolItself() as never, { ...input, file_path: path }, context, parentMessage as never, `${context.toolUseId ?? 'edit'}-resolved`)
+              : null,
+          )
+    if (farTarget !== null && farTarget.kind === 'folder') throw new Error(`The path is a directory, not a file: ${input.file_path}`)
+    if (farTarget !== null && farTarget.kind !== 'file' && farTarget.kind !== 'missing' && farTarget.kind !== 'dangling') {
+      throw new Error(`Editing ${farTarget.path} is not allowed: it is ${farTarget.kind === 'other' ? 'a device' : farTarget.kind}, not a file.`)
+    }
+    if (farTarget !== null && farTarget.size > ONE_GIB) throw new Error(tooLargeToEdit(farTarget.size))
+    const expandedPath = farTarget !== null ? farTarget.path : expandPath(input.file_path)
     const usingHunks = hunksInUse(input)
     const mode = editMode(input)
     const anchorChecked = changeTransactionEnabled() && hasText(input.expected_anchor)
 
-    if (!isEnvTruthy(process.env.MERCURY_BARE)) {
+    if (far === null && !isEnvTruthy(process.env.MERCURY_BARE)) {
       await discoverSkillsForPath(context, expandedPath)
     }
-    context.nestedMemoryAttachmentTriggers?.add(expandedPath)
-    const parentDir = dirname(expandedPath)
+    if (far === null) context.nestedMemoryAttachmentTriggers?.add(expandedPath)
+    const parentDir = far !== null ? '' : dirname(expandedPath)
     if (parentDir) {
       await getFsImplementation().mkdir(parentDir)
     }
-    if (fileHistoryEnabled()) {
+    if (far === null && fileHistoryEnabled()) {
       await fileHistoryTrackEdit(
         context.updateFileHistoryState,
         expandedPath,
@@ -1206,7 +1258,26 @@ export const FileEditTool = buildTool({
     let encoding: BufferEncoding = 'utf8'
     let lineEndings: LineEndingType = 'LF'
     let currentMtimeMs: number | undefined
-    if (ideReadTextAvailable()) {
+    let farFound: { sum: string; mode: string | null } | null = null
+    if (far !== null) {
+      let lossless = true
+      try {
+        const farMeta = await far.readWholeTextViaRemote(expandedPath, context.abortController.signal)
+        freshContent = farMeta.content
+        rawBefore = farMeta.rawContent
+        encoding = farMeta.encoding
+        lineEndings = farMeta.lineEndings
+        currentMtimeMs = farMeta.mtimeMs
+        farFound = farMeta.found
+        lossless = farMeta.losslessDecode
+      } catch (err) {
+        if (!isENOENT(err)) throw err
+        fileExists = false
+      }
+      const held: FarHeld = { path: expandedPath, fileExists, content: freshContent, lossless, mtimeMs: currentMtimeMs, missing: farTarget!.missing }
+      const verdict = await (editToolItself() as { validateInput(input: FileEditInput, context: ToolUseContext, held: FarHeld): Promise<{ result: boolean; message?: string }> }).validateInput(input, context, held)
+      if (verdict.result === false) throw new Error(verdict.message)
+    } else if (ideReadTextAvailable()) {
       try {
         const ideMeta = await readWholeTextViaIde(expandedPath, context.abortController.signal)
         if (ideMeta !== null) {
@@ -1255,7 +1326,7 @@ export const FileEditTool = buildTool({
       if (clipped !== null) throw new Error(clipped)
       const entry = context.readFileState.get(expandedPath)
       const intact = entry !== undefined && readCoversRanges(entry, touched) && (
-        (currentMtimeMs ?? getFileModificationTime(expandedPath)) <= entry.timestamp ||
+        (far !== null ? !remoteMovedSinceRead(context.readFileState, expandedPath, currentMtimeMs, entry.timestamp) : (currentMtimeMs ?? getFileModificationTime(expandedPath)) <= entry.timestamp) ||
         (isFullReadEntry(entry) && entry.content === freshContent)
       )
       if (!intact) {
@@ -1464,9 +1535,14 @@ export const FileEditTool = buildTool({
     let writtenAt: number
     let writtenGeneration: string | null
     let finalStateContent = updatedFile
-    const ideWritten = ideWriteTextAvailable()
-      ? await writeTextViaIdeWithReadBack(expandedPath, reconciled, encoding, rawBefore.charCodeAt(0) === 0xfeff, context.abortController.signal)
-      : null
+    const ideWritten =
+      far !== null
+        ? await far.writeTextViaRemote(expandedPath, reconciled, encoding, rawBefore.charCodeAt(0) === 0xfeff, farFound, context.abortController.signal).catch((error: Error) => {
+            throw error.name === 'RemoteChangedError' ? new Error(modifiedSinceReadMessage()) : error
+          })
+        : ideWriteTextAvailable()
+          ? await writeTextViaIdeWithReadBack(expandedPath, reconciled, encoding, rawBefore.charCodeAt(0) === 0xfeff, context.abortController.signal)
+          : null
     if (ideWritten !== null) {
       writtenAt = ideWritten.mtimeMs
       writtenGeneration = ideWritten.generation
@@ -1517,7 +1593,7 @@ export const FileEditTool = buildTool({
       retainColumnCuts(owner, expandedPath, writtenGeneration, shiftedCuts)
     }
 
-    const lspManager = getLspServerManager()
+    const lspManager = far !== null ? null : getLspServerManager()
     if (lspManager) {
       try {
         snapshotDiagnosticsBeforeWrite(expandedPath, fileExists ? freshContent : null, finalStateContent, lspManager.getDocumentVersion(expandedPath), owner)
@@ -1534,6 +1610,7 @@ export const FileEditTool = buildTool({
       offset: undefined,
       limit: undefined,
     })
+    markRemoteRead(context.readFileState, expandedPath, true)
 
     countLinesChanged(patch, fileExists ? undefined : updatedFile)
 
@@ -1543,6 +1620,7 @@ export const FileEditTool = buildTool({
       expandedPath,
       fileExists ? freshContent : null,
       updatedFile,
+      far !== null ? false : undefined,
     )
     const data: Output = {
       filePath: expandedPath,

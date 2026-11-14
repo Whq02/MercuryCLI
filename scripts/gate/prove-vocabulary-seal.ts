@@ -209,6 +209,7 @@ const ALLOW: Array<[string, string, string]> = [
   ['src/utils/permissions/flowLaw.ts', 'run-short', "the Flow law reads a shell command's own flag grammar"],
   ['src/utils/wards/wardsRefusals.ts', 'run-short', "the refusal list reads a shell command's own flag grammar"],
   ['src/utils/wards/wardsShellRead.ts', 'run-short', 'the shell reading peels a wrapper by its own flag grammar'],
+  ['src/services/remoteFiles/prelude.ts', 'run-short', 'the shell test for a named pipe on the remote machine'],
   ['scripts/permissions/prove-flow-leftover-ask.ts', 'option-run-words', "git init's own --bare flag on the fixture remote"],
   ['src/utils/bash/specs/pyright.ts', 'run-short', 'pyright project selection'],
   ['src/tools/BashTool/pathValidation.ts', 'run-short', 'pyright project selection (the path-check grammar)'],

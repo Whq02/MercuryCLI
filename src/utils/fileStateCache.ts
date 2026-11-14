@@ -2,6 +2,8 @@ import { normalize } from 'node:path'
 
 import { LRUCache } from 'lru-cache'
 
+import { isRemotePath } from '../services/remoteFiles/target.js'
+
 export type FileState = {
   content: string
   timestamp: number
@@ -16,6 +18,8 @@ const DEFAULT_MAX_SIZE_BYTES = 25 * 1024 * 1024
 type Snapshot = Array<[string, LRUCache.Entry<FileState>]>
 
 const weightOf = ({ content }: FileState): number => Math.max(1, Buffer.byteLength(content))
+
+const keyOf = (path: string): string => (isRemotePath(path) ? path : normalize(path))
 
 const boundedStore = (max: number, maxSize: number): LRUCache<string, FileState> =>
   new LRUCache<string, FileState>({ max, maxSize, sizeCalculation: weightOf })
@@ -44,20 +48,20 @@ export class FileStateCache {
   }
 
   get(path: string): FileState | undefined {
-    return this.store.get(normalize(path))
+    return this.store.get(keyOf(path))
   }
 
   set(path: string, state: FileState): this {
-    this.store.set(normalize(path), state)
+    this.store.set(keyOf(path), state)
     return this
   }
 
   has(path: string): boolean {
-    return this.store.has(normalize(path))
+    return this.store.has(keyOf(path))
   }
 
   delete(path: string): boolean {
-    return this.store.delete(normalize(path))
+    return this.store.delete(keyOf(path))
   }
 
   clear(): void {

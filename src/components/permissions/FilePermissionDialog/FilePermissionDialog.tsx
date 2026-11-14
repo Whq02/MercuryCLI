@@ -5,6 +5,7 @@ import { relative } from 'node:path'
 import { Box, Text } from '../../../ink.js'
 import { Select } from '../../CustomSelect/select.js'
 import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js'
+import { isRemotePath } from '../../../services/remoteFiles/target.js'
 import { expandPath } from '../../../utils/path.js'
 import { PermissionDialog } from '../PermissionDialog.js'
 import { PermissionRuleExplanation } from '../PermissionRuleExplanation.js'
@@ -58,7 +59,7 @@ export function FilePermissionDialog<T extends ToolInput>({
   )
 
   const symlinkTarget = useMemo(() => {
-    if (path === null) return undefined
+    if (path === null || isRemotePath(path)) return undefined
     try {
       const expanded = expandPath(path)
       if (!lstatSync(expanded).isSymbolicLink()) return undefined

@@ -55,10 +55,16 @@ export function renderDirectoryTarget(fullPath: string, denied?: (file: string) 
       .map(e => (e.isDirectory() ? `${e.name}/` : e.name))
       .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    const content = `(target: directory · owner: Read · state: unavailable)\n${basename(fullPath)}: ${msg}`
-    return { content, numLines: 2 }
+    return renderDirectoryUnavailable(basename(fullPath), err instanceof Error ? err.message : String(err))
   }
+  return renderDirectoryNames(fullPath, names)
+}
+
+export function renderDirectoryUnavailable(name: string, msg: string): RenderedTarget {
+  return { content: `(target: directory · owner: Read · state: unavailable)\n${name}: ${msg}`, numLines: 2 }
+}
+
+export function renderDirectoryNames(fullPath: string, names: readonly string[]): RenderedTarget {
   const shown = names.slice(0, DIRECTORY_ENTRY_CAP)
   const omitted = names.length - shown.length
   const lines = [

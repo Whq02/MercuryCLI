@@ -33,6 +33,7 @@ import {
   CREWMATE_MESSAGE_TAG,
   TICK_TAG,
 } from '../constants/xml.js'
+import { isRemotePath } from '../services/remoteFiles/target.js'
 import { isSyntheticMessage } from '../utils/messages.js'
 import { stripDisplayTagsAllowEmpty } from '../utils/displayTags.js'
 import { isAdvisorOrigin, isSaturnOrigin, wrappedNoticeBlocks } from '../utils/messages/noticeRows.js'
@@ -253,6 +254,19 @@ export function statsBetween(
     }
   }
   return { files: [...files], insertions, deletions }
+}
+
+export function writtenElsewhereLine(messages: Message[], fromUuid: string): string | null {
+  const written = new Set<string>()
+  for (const message of messages.slice(messages.findIndex(candidate => candidate.uuid === fromUuid) + 1)) {
+    const result = (message as { toolUseResult?: unknown }).toolUseResult as EditResult | null | undefined
+    if (typeof result !== 'object' || result === null || typeof result.filePath !== 'string' || !isRemotePath(result.filePath)) continue
+    if (result.type === 'create' || (Array.isArray(result.structuredPatch) && result.structuredPatch.length > 0)) written.add(result.filePath)
+  }
+  const far = [...written]
+  if (far.length === 0) return null
+  const named = far.length <= 2 ? far.join(' and ') : `${far[0]}, ${far[1]} and ${far.length - 2} more`
+  return `Stays as written on another machine: ${named}.`
 }
 
 function describeFiles(files: string[]): string {
@@ -639,6 +653,7 @@ export function MessageSelector({
   }
 
   const canRestoreCode = historyOn && hasSavedPoint(chosen.uuid)
+  const elsewhere = writtenElsewhereLine(messages, chosen.uuid)
   const preview = previewOf(chosen, columns - 16)
   const age = formatRelativeTimeAgo(new Date(chosen.timestamp))
   const conversationText =
@@ -777,6 +792,9 @@ export function MessageSelector({
         </Text>
         {codeLine(focusedConfirm) !== null ? (
           <Text dimColor>{codeLine(focusedConfirm)}</Text>
+        ) : null}
+        {elsewhere !== null && (focusedConfirm === 'both' || focusedConfirm === 'code') ? (
+          <Text dimColor>{elsewhere}</Text>
         ) : null}
       </Box>
       {canRestoreCode ? (
