@@ -619,6 +619,12 @@ export interface AstRewriteFile {
   edits: Edit[]
 }
 
+export interface AstLeftOutFile {
+  rel: string
+  note: string
+  refusal: string
+}
+
 export interface AstRewritePlan {
   token: string
   files: AstRewriteFile[]
@@ -627,6 +633,7 @@ export interface AstRewritePlan {
   inPlaceMatches: number
   search: AstSearchResult
   batch?: AstBatchDetails
+  leftOut?: AstLeftOutFile[]
 }
 
 
@@ -720,9 +727,9 @@ const ANON_IN_REWRITE = /\$\$\$(?![A-Z_])|(?<!\$)\$_(?![A-Za-z0-9_])/
 
 export { digestOf }
 
-export function rewritePlanToken(pattern: string, rewrite: string, files: Array<[rel: string, digestBefore: string, digestAfter: string]>): string {
+export function rewritePlanToken(pattern: string, rewrite: string, files: Array<[rel: string, digestBefore: string, digestAfter: string]>, leftOut: string[] = []): string {
   return `ae-${createHash('sha1')
-    .update(JSON.stringify({ p: pattern, r: rewrite, f: files }))
+    .update(JSON.stringify({ p: pattern, r: rewrite, f: files, ...(leftOut.length > 0 ? { l: leftOut } : {}) }))
     .digest('hex')
     .slice(0, 12)}`
 }
@@ -787,6 +794,7 @@ function batchRewritePlanToken(
   rules: ReadonlyArray<AstRewriteRule>,
   scope: Pick<AstScope, 'target' | 'glob' | 'lang'>,
   files: Array<[rel: string, digestBefore: string, digestAfter: string]>,
+  leftOut: string[] = [],
 ): string {
   return `ae-${createHash('sha1')
     .update(
@@ -794,6 +802,7 @@ function batchRewritePlanToken(
         rules: rules.map(r => [r.pattern, r.rewrite]),
         scope: [scope.target, scope.glob ?? null, scope.lang?.name ?? null],
         f: files,
+        ...(leftOut.length > 0 ? { l: leftOut } : {}),
       }),
     )
     .digest('hex')
@@ -925,6 +934,7 @@ async function planAstBatchRewrite(
   let totalUnchangedMatches = 0
   let totalInPlaceMatches = 0
   let deferredRefusal: string | null = null
+  const leftOut: AstLeftOutFile[] = []
 
   for (const file of scope.files) {
     if (signal?.aborted) {
@@ -1039,6 +1049,7 @@ async function planAstBatchRewrite(
       if (recoveryEntry) (recovered ??= []).push({ rel: recoveryEntry.rel, lang: recoveryEntry.lang, diagnostics: recoveryEntry.diagnostics, notes: recoveryEntry.notes })
 
       const candidates: CandidateEdit[] = []
+      let left: AstLeftOutFile | null = null
       for (const { r, compiled } of matchingRules) {
         const found = findPatternMatches(compiled.pattern, parsed.tree.rootNode, before, AST_BOUNDS.editMaxMatches + 1)
         if (found.matches.length > AST_BOUNDS.editMaxMatches) {
@@ -1052,7 +1063,7 @@ async function planAstBatchRewrite(
           const m = materialise(file.rel, file.abs, file.lang.name, rawMatch.node, rawMatch.captures)
           const hasSyntaxError = hasErrors && (rawMatch.node.type === 'ERROR' || rawMatch.node.isMissing || rawMatch.node.hasError)
           if (recoveryEntry && (hasSyntaxError || recoveryEntry.errors.length === 0 || recoveryEntry.errors.some(error => touchesParseError(m.startIndex, m.endIndex, error)))) {
-            deferredRefusal ??= `Cannot rewrite ${file.rel}:${m.startLine}:${m.startCol} (rule ${r.index}): the match touches a syntax-error region. Nothing was written.`
+            left = { rel: file.rel, note: `${m.startLine}:${m.startCol} the match touches a syntax-error region`, refusal: `Cannot rewrite ${file.rel}:${m.startLine}:${m.startCol} (rule ${r.index}): the match touches a syntax-error region. Nothing was written.` }
             break
           }
           const substituted = substituteRewrite(
@@ -1148,7 +1159,11 @@ async function planAstBatchRewrite(
             subEdits: isUnchanged ? [] : [{ start: m.startIndex, end: replacedEnd, newText: replacement }],
           })
         }
-        if (deferredRefusal !== null) break
+        if (deferredRefusal !== null || left) break
+      }
+      if (left) {
+        leftOut.push(left)
+        continue
       }
       if (deferredRefusal !== null || candidates.length === 0) continue
 
@@ -1204,7 +1219,7 @@ async function planAstBatchRewrite(
         const touching = edits.find(edit => recoveryEntry.errors.some(error => touchesParseError(edit.start, edit.end, error)))
         if (touching) {
           const item = changedItems.find(c => touching.start <= c.matchEnd && touching.end >= c.matchStart) ?? changedItems[0]!
-          deferredRefusal = `Cannot rewrite ${file.rel}:${item.startLine}:${item.startCol} (rule ${item.ruleIndices[0]}): the match touches a syntax-error region. Nothing was written.`
+          leftOut.push({ rel: file.rel, note: `${item.startLine}:${item.startCol} the match touches a syntax-error region`, refusal: `Cannot rewrite ${file.rel}:${item.startLine}:${item.startCol} (rule ${item.ruleIndices[0]}): the match touches a syntax-error region. Nothing was written.` })
           continue
         }
       }
@@ -1223,7 +1238,7 @@ async function planAstBatchRewrite(
       if (recoveryEntry && broken && reparsed.errorRegions?.length) {
         const introduced = introducedParseError(before, after, edits, recoveryEntry.errors, reparsed.errorRegions)
         if (introduced) {
-          deferredRefusal = `The rewrite introduces a syntax error in ${file.rel} at ${introduced.line}:${introduced.column} (${introduced.missing ? `missing ${introduced.type}` : 'syntax error'}). Nothing was written.`
+          leftOut.push({ rel: file.rel, note: `${introduced.line}:${introduced.column} the rewrite would introduce a syntax error${introduced.missing ? `, missing ${introduced.type}` : ''}`, refusal: `The rewrite introduces a syntax error in ${file.rel} at ${introduced.line}:${introduced.column} (${introduced.missing ? `missing ${introduced.type}` : 'syntax error'}). Nothing was written.` })
           continue
         }
       } else if (broken) {
@@ -1300,6 +1315,7 @@ async function planAstBatchRewrite(
   }
 
   if (deferredRefusal !== null) return { refused: deferredRefusal }
+  if (plannedFiles.length === 0 && leftOut.length > 0) return { refused: leftOut[0]!.refusal }
   if (plannedFiles.length > AST_BOUNDS.editMaxFiles) {
     return {
       refused: `Matches in ${plannedFiles.length} files, more than the ${AST_BOUNDS.editMaxFiles}-file bound for one edit — narrow the scope (path or glob), then run again. Nothing was written.`,
@@ -1346,7 +1362,8 @@ async function planAstBatchRewrite(
     compiledSomewhere: ruleStates.some(r => r.compiledSomewhere),
   }
 
-  const token = batchRewritePlanToken(rules, scope, plannedFiles.map(f => [f.rel, f.digestBefore, f.digestAfter]))
+  leftOut.sort((a, b) => a.rel.localeCompare(b.rel))
+  const token = batchRewritePlanToken(rules, scope, plannedFiles.map(f => [f.rel, f.digestBefore, f.digestAfter]), leftOut.map(f => f.rel))
   return {
     token,
     files: plannedFiles,
@@ -1360,6 +1377,7 @@ async function planAstBatchRewrite(
       unmatchedRules,
       fileChanges,
     },
+    ...(leftOut.length > 0 ? { leftOut } : {}),
   }
 }
 
@@ -1440,6 +1458,8 @@ export async function planAstRewrite(
   }
 
   const files: AstRewriteFile[] = []
+  const leftOut: AstLeftOutFile[] = []
+  let leftOutMatches = 0
   let unchangedMatches = 0
   let inPlaceMatches = 0
   for (const [rel, list] of [...byFile.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
@@ -1479,8 +1499,9 @@ export async function planAstRewrite(
     if (recovery) {
       const dirty = list.find(match => match.hasSyntaxError || spans.length === 0 || spans.some(error => touchesParseError(match.startIndex, match.endIndex, error)))
       if (dirty) {
-        releaseCompiled()
-        return { refused: `Cannot rewrite ${rel}:${dirty.startLine}:${dirty.startCol}: the match touches a syntax-error region. Nothing was written.` }
+        leftOut.push({ rel, note: `${dirty.startLine}:${dirty.startCol} the match touches a syntax-error region`, refusal: `Cannot rewrite ${rel}:${dirty.startLine}:${dirty.startCol}: the match touches a syntax-error region. Nothing was written.` })
+        leftOutMatches += list.length
+        continue
       }
     }
     const shape = await shapeFor(lang)
@@ -1495,6 +1516,7 @@ export async function planAstRewrite(
     }
     const edits: Edit[] = []
     let unchangedInFile = 0
+    let inPlaceInFile = 0
     try {
       for (const m of list) {
         const captureNames = m.captures.map(c => c.key)
@@ -1533,6 +1555,7 @@ export async function planAstRewrite(
                 unchangedInFile++
               } else {
                 inPlaceMatches++
+                inPlaceInFile++
               }
               edits.push(...local)
               continue
@@ -1565,8 +1588,10 @@ export async function planAstRewrite(
       const touching = edits.find(edit => spans.some(error => touchesParseError(edit.start, edit.end, error)))
       if (touching) {
         const match = list.find(m => touching.start <= m.endIndex && touching.end >= m.startIndex) ?? first
-        releaseCompiled()
-        return { refused: `Cannot rewrite ${rel}:${match.startLine}:${match.startCol}: the match touches a syntax-error region. Nothing was written.` }
+        leftOut.push({ rel, note: `${match.startLine}:${match.startCol} the match touches a syntax-error region`, refusal: `Cannot rewrite ${rel}:${match.startLine}:${match.startCol}: the match touches a syntax-error region. Nothing was written.` })
+        leftOutMatches += list.length - unchangedInFile
+        inPlaceMatches -= inPlaceInFile
+        continue
       }
     }
     const after = applyEdits(before, edits)
@@ -1583,8 +1608,10 @@ export async function planAstRewrite(
       if (recovery && broken && reparsed.errorRegions?.length) {
         const introduced = introducedParseError(before, after, edits, spans, reparsed.errorRegions)
         if (introduced) {
-          releaseCompiled()
-          return { refused: `The rewrite introduces a syntax error in ${rel} at ${introduced.line}:${introduced.column} (${introduced.missing ? `missing ${introduced.type}` : 'syntax error'}). Nothing was written.` }
+          leftOut.push({ rel, note: `${introduced.line}:${introduced.column} the rewrite would introduce a syntax error${introduced.missing ? `, missing ${introduced.type}` : ''}`, refusal: `The rewrite introduces a syntax error in ${rel} at ${introduced.line}:${introduced.column} (${introduced.missing ? `missing ${introduced.type}` : 'syntax error'}). Nothing was written.` })
+          leftOutMatches += list.length - unchangedInFile
+          inPlaceMatches -= inPlaceInFile
+          continue
         }
       } else if (broken) {
         releaseCompiled()
@@ -1613,15 +1640,22 @@ export async function planAstRewrite(
     })
   }
   releaseCompiled()
-  const token = rewritePlanToken(singlePattern, singleRewrite, files.map(f => [f.rel, f.digestBefore, f.digestAfter]))
+  if (files.length === 0 && leftOut.length > 0) return { refused: leftOut[0]!.refusal }
+  const token = rewritePlanToken(singlePattern, singleRewrite, files.map(f => [f.rel, f.digestBefore, f.digestAfter]), leftOut.map(f => f.rel))
   return {
     token,
     files,
-    matchCount: search.matches.length - unchangedMatches,
+    matchCount: search.matches.length - unchangedMatches - leftOutMatches,
     unchangedMatches,
     inPlaceMatches,
     search,
+    ...(leftOut.length > 0 ? { leftOut } : {}),
   }
+}
+
+export function renderLeftOut(leftOut: AstLeftOutFile[] | undefined): string[] {
+  if (!leftOut?.length) return []
+  return [`Left unchanged: ${leftOut.slice(0, 5).map(file => `${file.rel} (${file.note})`).join('; ')}${leftOut.length > 5 ? `; +${leftOut.length - 5} more` : ''}.`]
 }
 
 

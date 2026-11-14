@@ -27,6 +27,7 @@ import {
   patternErrorText,
   patternRefusedEverywhere,
   planAstRewrite,
+  renderLeftOut,
   renderSearchTrailer,
   resolveAstLanguage,
   resolveAstScope,
@@ -221,7 +222,7 @@ function dryRunText(scope: AstScope, plan: AstRewritePlan): string {
     if (f.diffOmittedLines > 0) lines.push(`(… ${f.diffOmittedLines} more diff ${plural(f.diffOmittedLines, 'line')} in ${f.rel})`)
   }
   lines.push('', `plan: ${plan.token} — write these changes with apply: true, plan: "${plan.token}" (refused if any of these files changes first).`)
-  lines.push(...renderSearchTrailer(scope, plan.search))
+  lines.push(...renderSearchTrailer(scope, plan.search), ...renderLeftOut(plan.leftOut))
   return lines.join('\n')
 }
 
@@ -587,6 +588,7 @@ export const AstEditTool = buildTool({
       `Applied ${plan.matchCount} structural ${plural(plan.matchCount, 'rewrite')} in ${plan.files.length} ${plural(plan.files.length, 'file')} (re-read verified):`,
       ...rows,
       ...renderBatchSummaryLines(plan),
+      ...renderLeftOut(plan.leftOut),
       ...(syncFailures.length > 0
         ? [`Written and verified, but the editor/language-server sync failed for: ${syncFailures.join('; ')} — re-open those files before relying on live diagnostics.`]
         : []),
