@@ -443,20 +443,22 @@ async function holdsAtMost(folder: string, limit: number): Promise<boolean> {
   return true
 }
 
-async function firstFileOf(folder: string): Promise<string | null> {
+async function firstFileOf(folder: string, held?: HeldBack): Promise<string | null> {
   const pending = [folder]
   while (pending.length > 0) {
     const here = pending.pop() as string
     for (const entry of await readdir(here, { withFileTypes: true })) {
-      if (entry.isFile()) return join(here, entry.name)
-      if (entry.isDirectory()) pending.push(join(here, entry.name))
+      const path = join(here, entry.name)
+      if (held?.(path) === true) continue
+      if (entry.isFile()) return path
+      if (entry.isDirectory()) pending.push(path)
     }
   }
   return null
 }
 
-async function reflinkRefused(pair: AdmittedPair): Promise<boolean | null> {
-  const file = await firstFileOf(pair.source)
+async function reflinkRefused(pair: AdmittedPair, held?: HeldBack): Promise<boolean | null> {
+  const file = await firstFileOf(pair.source, held)
   if (file === null) return null
   const probe = join(pair.staged, `.clone-probe-${process.pid}`)
   try {
@@ -491,7 +493,7 @@ async function reflinkAdmitted(admitted: readonly AdmittedPair[], outcomes: Clon
     let outcome: CloneOutcome | Quiet = 'failed'
     try {
       await mkdir(pair.staged)
-      const refused = volumesThatClone.has(pair.volumes) ? false : await unlessQuiet(() => reflinkRefused(pair), quietBoundMs)
+      const refused = volumesThatClone.has(pair.volumes) ? false : await unlessQuiet(() => reflinkRefused(pair, held), quietBoundMs)
       if (refused === false) volumesThatClone.add(pair.volumes)
       if (refused === 'quiet') outcome = 'quiet'
       else if (refused === true) outcome = 'unsupported'

@@ -444,7 +444,12 @@ async function heldBackUnder(permission: SessionRules | undefined, sourceRoot: s
       rules = applyPermissionRulesToPermissionContext(getEmptyToolPermissionContext(), loadAllPermissionRulesFromDisk())
     }
     const narrowing = (rules.alwaysAllowRules as Record<string, readonly string[] | undefined>).toolsNarrowing ?? []
-    if (!always && ruleMatcherFor(rules, 'read', 'deny') === null && narrowing.length === 0) return undefined
+    if (!always && ruleMatcherFor(rules, 'read', 'deny') === null && narrowing.length === 0) {
+      const { mercurySecretReadIgnores } = await import('./permissions/protectedPaths.js')
+      const fold = (path: string): string => path.normalize('NFC').toLowerCase()
+      const root = fold(await realpath(sourceRoot))
+      if (![...mercurySecretReadIgnores().keys()].some(home => fold(home) === root || fold(home).startsWith(root.endsWith(sep) ? root : root + sep))) return undefined
+    }
     const read = rules
     return root => readDenialFilter(read, root)
   } catch (error) {
