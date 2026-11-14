@@ -86,7 +86,7 @@ switchboard-3	73
 switchboard-4	8
 switchboard-5	7
 switchboard-6	5
-builtin-tools	50
+builtin-tools	143
 visual-contract	62
 channel	0
 operator-identity	1
@@ -135,7 +135,7 @@ crew	864
 crew-drives	240
 formal-models	6
 model-routing	27
-permissions	210
+permissions	227
 consistency-census	37
 realms	1
 smoke	46
@@ -145,7 +145,7 @@ tree-ownership	5
 ink-runtime	25
 stop-policy	5
 accounts	46
-ast-tools	7
+ast-tools	18
 headless	564
 headless-2	565
 memory-lifecycle	45
