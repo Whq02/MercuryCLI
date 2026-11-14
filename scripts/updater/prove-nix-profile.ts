@@ -1,10 +1,39 @@
-import { spawn, spawnSync } from 'node:child_process'
+import childProcess, { spawn, spawnSync } from 'node:child_process'
 import { mock } from 'bun:test'
+import { EventEmitter } from 'node:events'
 import fs, { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, watch, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { PassThrough } from 'node:stream'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { nodeBinPath } from '../lib/nodeBin.ts'
+
+if (process.argv[2] === '--children') {
+  const [source, invoked, link, upgraded] = process.argv.slice(3)
+  if (homedir() !== process.env.HOME) throw new Error('Nix profile proof children have the wrong home')
+  const at = (path: string): string => pathToFileURL(join(source!, path)).href
+  const real = (path: string | null): string | null => { try { return path === null ? null : realpathSync(path) } catch { return path } }
+  process.argv[1] = invoked!
+  const running = await import(at('src/daemon/daemonBuild.ts'))
+  const registered = running.invokedScriptPath?.() ?? null
+  const own = running.selfScriptPath()
+  rmSync(link!)
+  symlinkSync(upgraded!, link!, 'dir')
+  const { getSelfInvocation } = await import(at('src/daemon/headlessRun.ts'))
+  const runner = getSelfInvocation().script
+  let hostJob: string | null = null
+  const services = await import(at('src/services/projectServices/serviceManager.ts'))
+  mock.module(resolve(source!, 'src/services/projectServices/serviceManager.ts'), () => ({ ...services, startService: async (ask: { spec: { args: string[] } }) => { hostJob = ask.spec.args[0] ?? null; return {} } }))
+  const { sweepHostJobs } = await import(at('src/services/host/jobs.ts'))
+  await sweepHostJobs({ records: [{ id: 'proof-watch', name: 'proof', recipe: 'proof', price: 0, startedAt: '2026-01-01T00:00:00.000Z', status: 'queued', jobKind: 'watch', jobState: 'queued', generation: 'g1' }], alive: () => false })
+  let childSession: string | null = null
+  const processes = { ...childProcess }
+  mock.module('node:child_process', () => ({ ...processes, default: processes, spawn: (_command: string, argv: string[]) => { childSession = argv[0] ?? null; return Object.assign(new EventEmitter(), { stdin: new PassThrough(), stdout: new PassThrough(), kill: () => true, pid: 0 }) } }))
+  const { MercuryChildSession } = await import(at('src/services/acp/childSession.ts'))
+  new MercuryChildSession({ cwd: process.cwd() }, { onExit: () => {}, onTurnEnd: () => {}, onPermissionAsk: () => { throw new Error('the proof child is never asked') } })
+  console.log(`CHILDREN ${JSON.stringify({ registered, own, runner: real(runner), hostJob: real(hostJob), childSession: real(childSession) })}`)
+  process.exit(0)
+}
 
 const option = (name: string): string | undefined => process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : undefined
 const root = resolve(option('--source') ?? join(dirname(fileURLToPath(import.meta.url)), '../..'))
@@ -64,7 +93,7 @@ try {
   const path = await import(pathToFileURL(join(root, 'src/services/privateChannel/installPath.ts')).href)
   const previousArg = process.argv[1]
   process.argv[1] = logical
-  check('the daemon keeps the profile spelling it was invoked by', build.selfScriptPath() === logical, build.selfScriptPath())
+  check('the daemon keeps the profile spelling it was invoked by', build.invokedScriptPath?.() === logical, String(build.invokedScriptPath?.()))
   check('the daemon runtime keeps its profile spelling too', build.vendoredNodeBeside(dirname(logical)) === join(dirname(logical), 'vendor/node/bin/node'))
   check('a shell line names the profile command, even when an unrelated Mercury is first on PATH', path.ownCommandWord({ provenanceKind: 'nix', found: { state: 'other', resolved: '/other/mercury', npmWrapper: false }, node, bundle: logical }) === join(profile, 'bin/mercury'))
   process.argv[1] = previousArg!
@@ -78,6 +107,18 @@ try {
     const env = { PATH: `${dirname(node)}:/usr/bin:/bin`, HOME: home, USERPROFILE: home, MERCURY_CONFIG_DIR: config, MERCURY_DAEMON_DIR: daemonDir, MERCURY_DAEMON_NO_SELF_WARM: '1', MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_UPDATE_NOTICE: '0', MERCURY_EVOLUTION_LEDGER: '0', CI: '1' }
     const homeCheck = spawnSync(node, ['-e', 'if (require("node:os").homedir() !== process.env.HOME) throw new Error("Nix profile proof runtime has the wrong home")'], { env, encoding: 'utf8' })
     if (homeCheck.status !== 0) throw new Error(homeCheck.stderr || 'Nix profile proof runtime did not confirm its scratch home')
+    const otherHome = join(scratch, 'outlives')
+    mkdirSync(join(otherHome, '.mercury'), { recursive: true })
+    symlinkSync(first, join(otherHome, '.nix-profile'), 'dir')
+    const outlived = join(otherHome, '.nix-profile/libexec/mercury/mercury.mjs')
+    const children = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--children', root, outlived, join(otherHome, '.nix-profile'), second], { encoding: 'utf8', timeout: 120_000, cwd: scratch, env: { PATH: process.env.PATH, HOME: otherHome, USERPROFILE: otherHome, MERCURY_CONFIG_DIR: join(otherHome, '.mercury'), MERCURY_TMPDIR: join(otherHome, 'tmp'), TMPDIR: process.env.TMPDIR, MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_CREDENTIAL_STORE: 'file', CI: '1' } })
+    let started: any = null
+    try { started = JSON.parse(children.stdout.split('\n').find(line => line.startsWith('CHILDREN '))!.slice(9)) } catch {}
+    const ownBundle = join(first, 'libexec/mercury/mercury.mjs')
+    check('a build that outlives a profile upgrade is still registered by the spelling it was invoked by', started?.registered === outlived, children.stdout + children.stderr)
+    for (const [kind, key] of [['runner', 'runner'], ['host job', 'hostJob'], ['child session', 'childSession']] as const) {
+      check(`a ${kind} started after the profile upgrade comes from the running build's own payload, not the upgraded one`, started?.[key] === ownBundle, `${started?.[key]} · ${children.stderr.slice(-400)}`)
+    }
     const recordPath = join(daemonDir, 'daemon.json')
     const child = spawn(node, [logical, 'daemon', 'run', scratch], { env, cwd: scratch, stdio: ['ignore', 'pipe', 'pipe'] })
     let log = ''

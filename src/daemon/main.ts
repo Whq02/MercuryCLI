@@ -137,7 +137,7 @@ import { recordSpawnExit } from '../utils/spawnLedger.js'
 import { armDaemonHomeWatch, daemonHomeStands } from './daemonHome.js'
 import { deployedRuntime, forwardFrame, handoverRoadOf, handoverState, parseHandoverFrom, predecessorSockPath, readHandoverHosts, releaseVersionsDir, renameSocketForPredecessor, type HandoverStateV1 } from './handover.js'
 import { OTHER_BUILD_WAY_OUT, REOPEN_WORDS } from './handshake.js'
-import { holdBuild, nodeForBuild, resolveScriptPath, selfScriptPath } from './daemonBuild.js'
+import { holdBuild, invokedScriptPath, nodeForBuild, resolveScriptPath, selfScriptPath } from './daemonBuild.js'
 import { decidePlaneBoot, sameBuildTree, type PlaneBootFactsV1 } from './planeBoot.js'
 import { lockHeldByLivePidSync, readPlaneOwnerSync, supersededByLivePlaneOwnerSync, type PlaneOwnerV1 } from './planeRecords.js'
 import { decideSessionlessExit, initialSessionlessState, SESSIONLESS_EXIT_BEAT_MS } from './sessionlessExit.js'
@@ -554,7 +554,7 @@ async function daemonRun(args: string[]): Promise<void> {
           controlSock: controlSockPath(),
           proto: MERCURY_DAEMON_PROTO,
           buildTree: bootBuildTree,
-          script: selfScriptPath(),
+          script: invokedScriptPath(),
           ownerPid: owner,
           foreground,
           startToken: bootStartToken,

@@ -2,7 +2,7 @@ import { existsSync, openSync, realpathSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { nixInstallRoot } from '../services/privateChannel/installProvenance.js'
 
-let selfScriptMemo: { argv: string; real: string } | null = null
+let selfScriptMemo: { argv: string; real: string; invoked: string } | null = null
 
 export function resolveScriptPath(script: string | undefined): string {
   if (!script) return ''
@@ -13,10 +13,21 @@ export function resolveScriptPath(script: string | undefined): string {
   }
 }
 
-export function selfScriptPath(): string {
+function selfScript(): { argv: string; real: string; invoked: string } {
   const argv = process.argv[1] ?? ''
-  if (selfScriptMemo === null || selfScriptMemo.argv !== argv) selfScriptMemo = { argv, real: nixInstallRoot(argv) === null ? resolveScriptPath(argv) : argv }
-  return selfScriptMemo.real
+  if (selfScriptMemo === null || selfScriptMemo.argv !== argv) {
+    const real = resolveScriptPath(argv)
+    selfScriptMemo = { argv, real, invoked: nixInstallRoot(argv) === null ? real : argv }
+  }
+  return selfScriptMemo
+}
+
+export function selfScriptPath(): string {
+  return selfScript().real
+}
+
+export function invokedScriptPath(): string {
+  return selfScript().invoked
 }
 
 function selfBuildDir(): string {
