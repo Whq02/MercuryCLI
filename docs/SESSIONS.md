@@ -704,11 +704,21 @@ link cuts it from that pull request's head instead) and comes ready to build:
 it starts with the checkout's `node_modules` and each `vendor/<pack>` the
 checkout ignores, so the checks run there without an install. On a filesystem
 that can clone (APFS on macOS, a Linux filesystem with reflinks) each is the
-worktree's own copy, made at once and sharing disk space until one side
-writes, and an install run inside the worktree stays in the worktree.
-Elsewhere each is a link to the checkout's copy, hidden from git through the
-clone's exclude file, and an install run inside the worktree installs into
-the checkout's dependencies instead of a separate copy.
+worktree's own copy, sharing disk space until one side writes, and an install
+run inside the worktree stays in the worktree. Elsewhere each is a link to
+the checkout's copy, hidden from git through the clone's exclude file, and an
+install run inside the worktree installs into the checkout's dependencies
+instead of a separate copy. On a filesystem that can clone the worktree also
+starts with everything else the checkout holds that git ignores (build
+output, caches, generated files, `.env` files), each its own copy; build
+output comes from the checkout as it stood while the worktree holds the
+commit. Mercury's own `.mercury/` folder and instruction files, a folder that
+holds a `pyvenv.cfg` or a `CMakeCache.txt`, a folder that is another git
+worktree and whatever a Read deny rule matches stay behind, and a worktree
+cut from a pull request's head or made sparse starts with the dependency
+folders only. The worktree is ready after about a second for every hundred
+thousand files of what git ignores; [CREW.md](CREW.md) has the figures and
+the two ways to keep the links.
 
 ## Closing chats
 
