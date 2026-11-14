@@ -188,6 +188,7 @@ interface PageEmulation {
   grants: Set<string>
   regrant: ((frame: Frame) => void) | null
   answering: boolean
+  credentials: Environment['credentials']
   answered: Set<string>
   usedFor: Set<string>
 }
@@ -208,7 +209,7 @@ const grantHolders = new WeakMap<object, Map<string, Set<Page>>>()
 function stateOf(page: Page): PageEmulation {
   let state = emulations.get(page)
   if (state === undefined) {
-    state = { fields: {}, environment: null, unsettled: new Set(), grants: new Set(), regrant: null, answering: false, answered: new Set(), usedFor: new Set() }
+    state = { fields: {}, environment: null, unsettled: new Set(), grants: new Set(), regrant: null, answering: false, credentials: null, answered: new Set(), usedFor: new Set() }
     emulations.set(page, state)
   }
   return state
@@ -415,8 +416,8 @@ async function releaseLocation(page: Page, state: PageEmulation): Promise<void> 
 type AuthAnswer = { response: 'CancelAuth' } | { response: 'ProvideCredentials'; username: string; password: string }
 
 function authAnswer(state: PageEmulation, requestId: string, challenge: { source?: string; origin: string }): AuthAnswer {
-  const held = state.fields.credentials
-  if (held === undefined || challenge.source === 'Proxy' || originOf(challenge.origin) !== held.origin) return { response: 'CancelAuth' }
+  const held = state.credentials
+  if (held === null || challenge.source === 'Proxy' || originOf(challenge.origin) !== held.origin) return { response: 'CancelAuth' }
   if (state.answered.has(requestId)) return { response: 'CancelAuth' }
   state.answered.add(requestId)
   if (state.answered.size > 256) state.answered.delete(state.answered.values().next().value!)
@@ -456,6 +457,7 @@ async function applyAspect(aspect: Aspect, page: Page, kit: PageKit, environment
       await page.setExtraHTTPHeaders(environment.headers ?? {})
       return false
     case 'credentials':
+      state.credentials = environment.credentials
       await answerChallenges(kit, state, environment.credentials !== null)
       return false
     case 'identity':
