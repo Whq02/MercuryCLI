@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { appendFileSync, constants, existsSync, lstatSync, lutimesSync, readdirSync, readFileSync, renameSync } from 'node:fs'
-import { chmod, copyFile, lstat, mkdir, readdir, readlink, realpath, rm, stat, symlink, unlink, utimes } from 'node:fs/promises'
+import { chmod, copyFile, lstat, mkdir, readdir, readlink, realpath, rename, rm, stat, symlink, unlink, utimes } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 
 import { logForDebugging } from './debug.js'
@@ -11,7 +11,7 @@ export type CloneOutcome = 'cloned' | 'present' | 'missing' | 'outside' | 'unsup
 
 type ClonePair = { source: string; target: string }
 
-type AdmittedPair = { index: number; source: string; target: string; volumes: string }
+type AdmittedPair = { index: number; source: string; target: string; staged: string; volumes: string }
 
 type CloneRoad = 'clonefile' | 'cp' | 'walk'
 
@@ -21,12 +21,16 @@ type CloneScope = { spellings: readonly string[]; worktree: string }
 
 const CLONE_ANSWER_BOUND_MS = 120_000
 const OSASCRIPT = '/usr/bin/osascript'
-const EEXIST = 17
 const EXDEV = 18
 const ENOTSUP = 45
 const REFLINKS_AT_ONCE = 16
 const FOLDERS_AT_ONCE = 8
 const NO_REFLINK_CODES: ReadonlySet<string> = new Set(['ENOTSUP', 'EOPNOTSUPP', 'EXDEV', 'EINVAL', 'ENOSYS', 'ENOTTY'])
+const NAME_TAKEN_CODES: ReadonlySet<string> = new Set(['ENOTEMPTY', 'EEXIST', 'ENOTDIR', 'EISDIR'])
+const STAGING_MARK = '.cloning-'
+const SET_ASIDE_MARK = '.removing-'
+const DEBRIS_HOME = 'worktrees'
+const DEBRIS_GRACE_MS = 60 * 60 * 1000
 
 const CLONEFILE_SCRIPT = [
   'function run() {',
@@ -43,6 +47,7 @@ const CLONEFILE_SCRIPT = [
 
 const volumesThatCannotClone = new Set<string>()
 const cpAnswers = new Map<string, Promise<boolean>>()
+let stagings = 0
 
 function cloneRoad(): CloneRoad | null {
   const seam = process.env.MERCURY_WORKTREE_CLONE
@@ -96,7 +101,7 @@ function linkTargetInCopy(raw: string, linkInSource: string, linkInCopy: string,
   return relative(dirname(linkInCopy), wanted) || '.'
 }
 
-async function admitPair(pair: ClonePair, index: number, checkout: string, road: CloneRoad): Promise<AdmittedPair | CloneOutcome> {
+async function admitPair(pair: ClonePair, index: number, checkout: string, road: CloneRoad, stage: string): Promise<AdmittedPair | CloneOutcome> {
   let source: string
   try {
     source = await realpath(pair.source)
@@ -109,17 +114,18 @@ async function admitPair(pair: ClonePair, index: number, checkout: string, road:
   if (await pathPresent(pair.target)) return 'present'
   await mkdir(dirname(pair.target), { recursive: true })
   const parent = await realpath(dirname(pair.target))
-  if (parent === source || pathWithin(parent, source)) return 'unsupported'
+  const stageHome = await realpath(dirname(stage))
+  if ([parent, stageHome].some(place => place === source || pathWithin(place, source))) return 'unsupported'
   const device = (await stat(parent)).dev
   if (road === 'clonefile' && device !== sourceStat.dev) return 'unsupported'
   const volumes = `${sourceStat.dev}:${device}`
   if (volumesThatCannotClone.has(volumes)) return 'unsupported'
-  return { index, source, target: pair.target, volumes }
+  return { index, source, target: pair.target, staged: join(stage, String(index)), volumes }
 }
 
 async function clonefileEach(admitted: readonly AdmittedPair[]): Promise<number[] | null> {
   const answer = await execFileNoThrowWithCwd(OSASCRIPT, ['-l', 'JavaScript', '-e', CLONEFILE_SCRIPT], {
-    input: JSON.stringify(admitted.map(pair => [pair.source, pair.target])),
+    input: JSON.stringify(admitted.map(pair => [pair.source, pair.staged])),
     timeout: CLONE_ANSWER_BOUND_MS,
     maxBuffer: 16 * 1024 * 1024,
   })
@@ -142,68 +148,17 @@ async function openFolders(folder: string): Promise<void> {
   for (const entry of await readdir(folder, { withFileTypes: true })) if (entry.isDirectory()) await openFolders(join(folder, entry.name))
 }
 
-async function removeHalfClone(target: string): Promise<void> {
+async function removeStaging(stage: string): Promise<void> {
   try {
-    await rm(target, { recursive: true, force: true })
+    await rm(stage, { recursive: true, force: true })
     return
   } catch {
   }
   try {
-    await openFolders(target)
-    await rm(target, { recursive: true, force: true })
+    await openFolders(stage)
+    await rm(stage, { recursive: true, force: true })
   } catch (error) {
-    logForDebugging(`worktree clone: the half clone at ${target} could not be removed: ${String(error)}`, { level: 'warn' })
-  }
-}
-
-async function settleClone(source: string, target: string, scope: CloneScope): Promise<void> {
-  let level = [{ from: source, to: target }]
-  while (level.length > 0) {
-    const below: Array<{ from: string; to: string }> = []
-    await eachAtOnce(level, FOLDERS_AT_ONCE, async ({ from, to }) => {
-      const folder = await lstat(to)
-      if ((folder.mode & 0o200) === 0) await chmod(to, (folder.mode & 0o7777) | 0o200)
-      for (const entry of await readdir(to, { withFileTypes: true })) {
-        if (entry.isDirectory()) below.push({ from: join(from, entry.name), to: join(to, entry.name) })
-        if (!entry.isSymbolicLink()) continue
-        const link = join(to, entry.name)
-        const raw = await readlink(link)
-        const wanted = linkTargetInCopy(raw, join(from, entry.name), link, scope)
-        if (wanted === raw) continue
-        await unlink(link)
-        await symlink(wanted, link)
-      }
-    })
-    level = below
-  }
-}
-
-async function clonefileAdmitted(admitted: readonly AdmittedPair[], outcomes: CloneOutcome[], scope: CloneScope): Promise<void> {
-  const codes = await clonefileEach(admitted)
-  for (const [at, pair] of admitted.entries()) {
-    const code = codes === null ? null : (codes[at] as number)
-    if (code === 0 && (await pathPresent(pair.target).catch(() => false))) {
-      try {
-        await settleClone(pair.source, pair.target, scope)
-        outcomes[pair.index] = 'cloned'
-      } catch (error) {
-        await removeHalfClone(pair.target)
-        logForDebugging(`worktree clone: the clone of ${pair.source} could not be settled (${String(error)}); the folder is linked as before`, { level: 'warn' })
-      }
-      continue
-    }
-    if (code === EEXIST) {
-      outcomes[pair.index] = 'present'
-      continue
-    }
-    await removeHalfClone(pair.target)
-    if (code === ENOTSUP || code === EXDEV) {
-      if (code === ENOTSUP) volumesThatCannotClone.add(pair.volumes)
-      outcomes[pair.index] = 'unsupported'
-      logForDebugging(`worktree clone: the volume of ${pair.source} cannot clone (errno ${code}); the folder is linked as before`)
-      continue
-    }
-    logForDebugging(`worktree clone: ${pair.source} was not cloned (${code === null ? 'no answer' : `errno ${code}`}); the folder is linked as before`, { level: 'warn' })
+    logForDebugging(`worktree clone: what was staged at ${stage} could not be removed: ${String(error)}`, { level: 'warn' })
   }
 }
 
@@ -224,27 +179,72 @@ async function eachAtOnce<T>(items: readonly T[], limit: number, work: (item: T)
   if (failure !== undefined) throw failure
 }
 
-async function reflinkTree(source: string, target: string, scope: CloneScope): Promise<CloneOutcome> {
+async function settleClone(pair: AdmittedPair, scope: CloneScope): Promise<void> {
+  let level = [{ from: pair.source, at: pair.staged, to: pair.target }]
+  while (level.length > 0) {
+    const below: Array<{ from: string; at: string; to: string }> = []
+    await eachAtOnce(level, FOLDERS_AT_ONCE, async ({ from, at, to }) => {
+      const folder = await lstat(at)
+      if ((folder.mode & 0o200) === 0) await chmod(at, (folder.mode & 0o7777) | 0o200)
+      for (const entry of await readdir(at, { withFileTypes: true })) {
+        if (entry.isDirectory()) below.push({ from: join(from, entry.name), at: join(at, entry.name), to: join(to, entry.name) })
+        if (!entry.isSymbolicLink()) continue
+        const link = join(at, entry.name)
+        const raw = await readlink(link)
+        const wanted = linkTargetInCopy(raw, join(from, entry.name), join(to, entry.name), scope)
+        if (wanted === raw) continue
+        await unlink(link)
+        await symlink(wanted, link)
+      }
+    })
+    level = below
+  }
+}
+
+async function clonefileAdmitted(admitted: readonly AdmittedPair[], outcomes: CloneOutcome[], scope: CloneScope): Promise<void> {
+  const codes = await clonefileEach(admitted)
+  for (const [at, pair] of admitted.entries()) {
+    const code = codes === null ? null : (codes[at] as number)
+    if (code === 0) {
+      try {
+        await settleClone(pair, scope)
+        outcomes[pair.index] = 'cloned'
+      } catch (error) {
+        logForDebugging(`worktree clone: the clone of ${pair.source} could not be settled (${String(error)}); the folder is linked as before`, { level: 'warn' })
+      }
+      continue
+    }
+    if (code === ENOTSUP || code === EXDEV) {
+      if (code === ENOTSUP) volumesThatCannotClone.add(pair.volumes)
+      outcomes[pair.index] = 'unsupported'
+      logForDebugging(`worktree clone: the volume of ${pair.source} cannot clone (errno ${code}); the folder is linked as before`)
+      continue
+    }
+    logForDebugging(`worktree clone: ${pair.source} was not cloned (${code === null ? 'no answer' : `errno ${code}`}); the folder is linked as before`, { level: 'warn' })
+  }
+}
+
+async function reflinkTree(pair: AdmittedPair, scope: CloneScope): Promise<CloneOutcome> {
   const folders: FolderStamp[] = []
   let reflinked = 0
   try {
-    const pending = [{ from: source, to: target }]
+    const pending = [{ from: pair.source, at: pair.staged, to: pair.target }]
     while (pending.length > 0) {
-      const { from, to } = pending.pop() as { from: string; to: string }
+      const { from, at, to } = pending.pop() as { from: string; at: string; to: string }
       const folder = await lstat(from)
-      if (to !== target) await mkdir(to)
-      folders.push({ path: to, mode: folder.mode & 0o7777, atime: folder.atimeMs / 1000, mtime: folder.mtimeMs / 1000 })
-      const files: Array<{ from: string; to: string }> = []
+      if (at !== pair.staged) await mkdir(at)
+      folders.push({ path: at, mode: folder.mode & 0o7777, atime: folder.atimeMs / 1000, mtime: folder.mtimeMs / 1000 })
+      const files: Array<{ from: string; at: string }> = []
       for (const entry of await readdir(from, { withFileTypes: true })) {
-        const child = { from: join(from, entry.name), to: join(to, entry.name) }
+        const child = { from: join(from, entry.name), at: join(at, entry.name), to: join(to, entry.name) }
         if (entry.isDirectory()) pending.push(child)
-        else if (entry.isSymbolicLink()) await symlink(linkTargetInCopy(await readlink(child.from), child.from, child.to, scope), child.to)
+        else if (entry.isSymbolicLink()) await symlink(linkTargetInCopy(await readlink(child.from), child.from, child.to, scope), child.at)
         else if (entry.isFile()) files.push(child)
       }
       await eachAtOnce(files, REFLINKS_AT_ONCE, async file => {
         const times = await lstat(file.from)
-        await copyFile(file.from, file.to, constants.COPYFILE_FICLONE_FORCE | constants.COPYFILE_EXCL)
-        await utimes(file.to, times.atimeMs / 1000, times.mtimeMs / 1000)
+        await copyFile(file.from, file.at, constants.COPYFILE_FICLONE_FORCE | constants.COPYFILE_EXCL)
+        await utimes(file.at, times.atimeMs / 1000, times.mtimeMs / 1000)
         reflinked++
       })
     }
@@ -256,7 +256,7 @@ async function reflinkTree(source: string, target: string, scope: CloneScope): P
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code ?? ''
     if (reflinked === 0 && NO_REFLINK_CODES.has(code)) return 'unsupported'
-    logForDebugging(`worktree clone: ${source} was not cloned file by file (${code === '' ? String(error) : code}); the folder is linked as before`, { level: 'warn' })
+    logForDebugging(`worktree clone: ${pair.source} was not cloned file by file (${code === '' ? String(error) : code}); the folder is linked as before`, { level: 'warn' })
     return 'failed'
   }
 }
@@ -273,10 +273,10 @@ async function firstFileOf(folder: string): Promise<string | null> {
   return null
 }
 
-async function reflinkRefused(source: string, target: string): Promise<boolean | null> {
-  const file = await firstFileOf(source)
+async function reflinkRefused(pair: AdmittedPair): Promise<boolean | null> {
+  const file = await firstFileOf(pair.source)
   if (file === null) return null
-  const probe = join(target, `.clone-probe-${process.pid}`)
+  const probe = join(pair.staged, `.clone-probe-${process.pid}`)
   try {
     await copyFile(file, probe, constants.COPYFILE_FICLONE_FORCE | constants.COPYFILE_EXCL)
     return false
@@ -288,13 +288,13 @@ async function reflinkRefused(source: string, target: string): Promise<boolean |
   }
 }
 
-async function cpTree(source: string, target: string, scope: CloneScope): Promise<CloneOutcome> {
-  const answer = await execFileNoThrowWithCwd('cp', ['-a', '--reflink=always', '-T', '--', source, target], { timeout: CLONE_ANSWER_BOUND_MS, maxBuffer: 1024 * 1024 })
+async function cpTree(pair: AdmittedPair, scope: CloneScope): Promise<CloneOutcome> {
+  const answer = await execFileNoThrowWithCwd('cp', ['-a', '--reflink=always', '-T', '--', pair.source, pair.staged], { timeout: CLONE_ANSWER_BOUND_MS, maxBuffer: 1024 * 1024 })
   if (answer.code !== 0) {
-    logForDebugging(`worktree clone: cp did not clone ${source} (${answer.error ?? answer.code}): ${answer.stderr.trim().split('\n')[0] ?? ''}; the folder is linked as before`, { level: 'warn' })
+    logForDebugging(`worktree clone: cp did not clone ${pair.source} (${answer.error ?? answer.code}): ${answer.stderr.trim().split('\n')[0] ?? ''}; the folder is linked as before`, { level: 'warn' })
     return 'failed'
   }
-  await settleClone(source, target, scope)
+  await settleClone(pair, scope)
   return 'cloned'
 }
 
@@ -304,27 +304,32 @@ async function reflinkAdmitted(admitted: readonly AdmittedPair[], outcomes: Clon
       outcomes[pair.index] = 'unsupported'
       continue
     }
-    try {
-      await mkdir(pair.target)
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'EEXIST') outcomes[pair.index] = 'present'
-      continue
-    }
     let outcome: CloneOutcome = 'failed'
     try {
-      const refused = await reflinkRefused(pair.source, pair.target)
+      await mkdir(pair.staged)
+      const refused = await reflinkRefused(pair)
       if (refused === true) outcome = 'unsupported'
-      else if (road === 'cp' && refused === false && (await machineCpTakesReflink())) outcome = await cpTree(pair.source, pair.target, scope)
-      else outcome = await reflinkTree(pair.source, pair.target, scope)
+      else if (road === 'cp' && refused === false && (await machineCpTakesReflink())) outcome = await cpTree(pair, scope)
+      else outcome = await reflinkTree(pair, scope)
     } catch (error) {
       logForDebugging(`worktree clone: ${pair.source} was not cloned (${String(error)}); the folder is linked as before`, { level: 'warn' })
     }
     outcomes[pair.index] = outcome
-    if (outcome === 'cloned') continue
-    await removeHalfClone(pair.target)
     if (outcome !== 'unsupported') continue
     volumesThatCannotClone.add(pair.volumes)
     logForDebugging(`worktree clone: the filesystem of ${pair.source} cannot reflink into ${dirname(pair.target)}; the folder is linked as before`)
+  }
+}
+
+async function moveIntoCopy(pair: AdmittedPair): Promise<CloneOutcome> {
+  try {
+    await rename(pair.staged, pair.target)
+    return 'cloned'
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code ?? ''
+    if (NAME_TAKEN_CODES.has(code)) return 'present'
+    logForDebugging(`worktree clone: the clone of ${pair.source} could not be moved to ${pair.target} (${code === '' ? String(error) : code}); the folder is linked as before`, { level: 'warn' })
+    return 'failed'
   }
 }
 
@@ -340,10 +345,12 @@ export async function cloneIntoWorktree(pairs: readonly ClonePair[], checkoutRoo
   } catch {
     return outcomes
   }
-  const scope: CloneScope = { spellings: [...new Set([checkout, resolve(checkoutRoot)])], worktree: resolve(worktreeRoot) }
+  const worktree = resolve(worktreeRoot)
+  const scope: CloneScope = { spellings: [...new Set([checkout, resolve(checkoutRoot)])], worktree }
+  const stage = join(dirname(worktree), `${STAGING_MARK}${basename(worktree)}-${process.pid}-${Date.now().toString(36)}${(stagings++).toString(36)}`)
   for (const [index, pair] of pairs.entries()) {
     try {
-      const verdict = await admitPair(pair, index, checkout, road)
+      const verdict = await admitPair(pair, index, checkout, road, stage)
       if (typeof verdict === 'string') outcomes[index] = verdict
       else admitted.push(verdict)
     } catch (error) {
@@ -351,19 +358,28 @@ export async function cloneIntoWorktree(pairs: readonly ClonePair[], checkoutRoo
     }
   }
   if (admitted.length === 0) return outcomes
-  if (road === 'clonefile') await clonefileAdmitted(admitted, outcomes, scope)
-  else await reflinkAdmitted(admitted, outcomes, scope, road)
+  try {
+    await mkdir(stage)
+  } catch (error) {
+    logForDebugging(`worktree clone: no folder to clone into beside ${worktree} (${String(error)}); the folders are linked as before`, { level: 'warn' })
+    return outcomes
+  }
+  try {
+    if (road === 'clonefile') await clonefileAdmitted(admitted, outcomes, scope)
+    else await reflinkAdmitted(admitted, outcomes, scope, road)
+    for (const pair of admitted) if (outcomes[pair.index] === 'cloned') outcomes[pair.index] = await moveIntoCopy(pair)
+  } finally {
+    await removeStaging(stage)
+  }
   return outcomes
 }
 
 const CLONES_FILENAME = 'WORKTREE_CLONES'
-const SET_ASIDE_MARK = '.removing-'
-const SET_ASIDE_HOME = 'worktrees'
-const SET_ASIDE_GRACE_MS = 60 * 60 * 1000
 const DISCARD_SCRIPT = [
   "const fs = require('node:fs')",
   "const path = require('node:path')",
   'const root = process.argv[1]',
+  'const name = path.basename(root)',
   'const isFolder = entry => {',
   '  try { return fs.lstatSync(entry).isDirectory() } catch { return false }',
   '}',
@@ -372,7 +388,7 @@ const DISCARD_SCRIPT = [
   '  try { fs.chmodSync(dir, 0o700) } catch {}',
   '  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) if (entry.isDirectory()) open(path.join(dir, entry.name))',
   '}',
-  `if (path.basename(root).startsWith('${SET_ASIDE_MARK}') && path.basename(path.dirname(root)) === '${SET_ASIDE_HOME}') {`,
+  `if ((name.startsWith('${SET_ASIDE_MARK}') || name.startsWith('${STAGING_MARK}')) && path.basename(path.dirname(root)) === '${DEBRIS_HOME}') {`,
   '  if (!isFolder(root)) {',
   '    try { fs.unlinkSync(root) } catch {}',
   '  } else {',
@@ -409,13 +425,14 @@ export function worktreeHoldsClones(worktreePath: string): boolean {
   return adminDir !== null && existsSync(join(adminDir, CLONES_FILENAME))
 }
 
-function isSetAside(path: string): boolean {
-  return basename(path).startsWith(SET_ASIDE_MARK) && basename(dirname(path)) === SET_ASIDE_HOME
+function isWorktreeDebris(path: string): boolean {
+  const name = basename(path)
+  return (name.startsWith(SET_ASIDE_MARK) || name.startsWith(STAGING_MARK)) && basename(dirname(path)) === DEBRIS_HOME
 }
 
 export function setWorktreeAside(worktreePath: string): string | null {
   const aside = join(dirname(worktreePath), `${SET_ASIDE_MARK}${basename(worktreePath)}-${process.pid}-${Date.now().toString(36)}`)
-  if (!isSetAside(aside)) return null
+  if (!isWorktreeDebris(aside)) return null
   try {
     renameSync(worktreePath, aside)
     return aside
@@ -434,7 +451,7 @@ export function returnWorktreeFromAside(aside: string, worktreePath: string): vo
 }
 
 export function discardSetAside(aside: string): void {
-  if (!isSetAside(aside)) return
+  if (!isWorktreeDebris(aside)) return
   const inProcess = (): void => {
     void rm(aside, { recursive: true, force: true }).catch(() => {})
   }
@@ -461,9 +478,9 @@ export function sweepSetAside(home: string): number {
   }
   let swept = 0
   for (const entry of entries) {
-    if (!entry.startsWith(SET_ASIDE_MARK)) continue
+    if (!entry.startsWith(SET_ASIDE_MARK) && !entry.startsWith(STAGING_MARK)) continue
     try {
-      if (Date.now() - lstatSync(join(home, entry)).mtimeMs < SET_ASIDE_GRACE_MS) continue
+      if (Date.now() - lstatSync(join(home, entry)).mtimeMs < DEBRIS_GRACE_MS) continue
     } catch {
       continue
     }
