@@ -1,0 +1,6 @@
+{
+  "recorded": "llama-server b11829 (184f65360) and b12359 (b1b770d90) with unsloth/Qwen3.5-2B-GGUF Qwen3.5-2B-Q4_K_M.gguf, 14 Nov 2026: the same bytes from both",
+  "status": 500,
+  "contentType": "application/json; charset=utf-8",
+  "body": "{\"error\":{\"code\":500,\"message\":\"\\n------------\\nWhile executing CallExpression at line 85, column 32 in source:\\n...first %}↵            {{- raise_exception('System message must be at the beginnin...\\n                                           ^\\nError: Jinja Exception: System message must be at the beginning.\",\"type\":\"server_error\"}}"
+}
