@@ -3,7 +3,7 @@
 
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { withProofAccountHome } from '../lib/proofAccountHome.ts'
@@ -456,7 +456,7 @@ section('§1 — an edit\'s parse note and a read\'s outline of an admitted lang
 
 const facility = await import('../../src/services/structure/grammarFacility.ts')
 const { languageForFile, patternLanguageForFile, loadGrammarEngine, parsePolyglot } = facility
-const { resolveAstLanguage, resolveAstScope, searchAstPattern, planAstRewrite, isAstRefusal, astLanguageNames } = await import('../../src/utils/astPatterns.ts')
+const { resolveAstLanguage, resolveAstScope, searchAstPattern, planAstRewrite, isAstRefusal, astLanguageNames, AST_BOUNDS } = await import('../../src/utils/astPatterns.ts')
 const { compileFor } = await import('../../src/services/structure/polyglotQuery.ts')
 const { encodePattern } = await import('../../src/services/structure/pattern.ts')
 
@@ -492,9 +492,25 @@ section('§2 — a search for code beside files of the admitted languages loads 
   const again = resolveAstScope({ cwd: beside })
   const loud = isAstRefusal(again) ? again : await searchAstPattern(again, { pattern: 'tideHeightOf($X)' })
   check(`control: once a ${first} file names the word its grammar is asked for, and the replaced one is refused by name (the reading has teeth)`, !isAstRefusal(loud) && loud.matches.length === 1 && loud.patternRefusals.some(r => r.lang === first && /quarantined/.test(r.note)), isAstRefusal(loud) ? loud.refused : JSON.stringify(loud.patternRefusals))
+  const large = join(scratch, 'beside-large')
+  mkdirSync(large)
+  writeFileSync(join(large, 'app.ts'), 'export const height = tideHeightOf(1)\n')
+  const dump = join(large, 'dump.sql')
+  writeFileSync(dump, Buffer.alloc(AST_BOUNDS.maxFileBytes * 3 + 1, 0x20))
+  chmodSync(dump, 0o000)
+  const largeScope = resolveAstScope({ cwd: large })
+  const sized = isAstRefusal(largeScope) ? largeScope : await searchAstPattern(largeScope, { pattern: 'tideHeightOf($X)' })
+  chmodSync(dump, 0o644)
+  check('a file of an admitted language far over the size a search reads is counted as skipped by its size and never opened: one that cannot be read is counted all the same, and the call beside it is found', !isAstRefusal(sized) && sized.matches.length === 1 && sized.skippedLarge === 1 && sized.patternRefusals.length === 0 && sized.parseFailures.length === 0, isAstRefusal(sized) ? sized.refused : `${sized.matches.length} matches · skipped ${sized.skippedLarge} · ${JSON.stringify(sized.languagesSearched)}`)
   process.env.MERCURY_TREESITTER_VENDOR_DIR = engineDir
   facility._resetGrammarEngineForTesting()
   facility._resetFragileProbeForTesting()
+  const wide = join(scratch, 'beside-wide')
+  mkdirSync(wide)
+  writeFileSync(join(wide, 'notes.yaml'), `note: "${'\u6f6e'.repeat(700_000)}"\nport: 8080\n`)
+  const wideScope = resolveAstScope({ cwd: wide })
+  const read = isAstRefusal(wideScope) ? wideScope : await searchAstPattern(wideScope, { pattern: 'port: $P' })
+  check('a file whose bytes pass that size while its characters do not is read as before (2.1 MB of three-byte characters: its setting is found)', !isAstRefusal(read) && read.matches.length === 1 && read.skippedLarge === 0 && read.parseFailures.length === 0, isAstRefusal(read) ? read.refused : `${read.matches.length} matches · skipped ${read.skippedLarge} · ${JSON.stringify(read.parseFailures).slice(0, 200)}`)
 }
 
 type LockedText = { file: string; sha256: string; url: string }

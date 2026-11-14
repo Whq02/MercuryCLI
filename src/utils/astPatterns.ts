@@ -408,6 +408,14 @@ function materialise(rel: string, abs: string, lang: string, node: TSNode, captu
 
 type CompileCache = Map<string, { pattern: CompiledPattern; hold: { delete(): void } } | PatternRefusal>
 
+function farOverSizeBound(abs: string): boolean {
+  try {
+    return statSync(abs).size > AST_BOUNDS.maxFileBytes * 3
+  } catch {
+    return false
+  }
+}
+
 export async function searchAstPattern(
   scope: AstScope,
   opts: { pattern: string; signal?: AbortSignal; matchCap?: number },
@@ -442,6 +450,10 @@ export async function searchAstPattern(
     }
     let text: string | undefined
     if (file.lang.patternOnly && preToken && !compileCache.has(file.lang.name)) {
+      if (farOverSizeBound(file.abs)) {
+        skippedLarge++
+        continue
+      }
       try {
         text = readFileSync(file.abs, 'utf8')
       } catch {
@@ -469,6 +481,10 @@ export async function searchAstPattern(
       captureNamesByLang.set(file.lang.name, compiled.pattern.captureNames)
     }
     if (text === undefined) {
+      if (file.lang.patternOnly && farOverSizeBound(file.abs)) {
+        skippedLarge++
+        continue
+      }
       try {
         text = readFileSync(file.abs, 'utf8')
       } catch {

@@ -82,7 +82,8 @@ by name instead of taking the process down.
 
 Beside code these languages cost a search nothing it did not ask for. A
 file of theirs that cannot contain the pattern's longest word is counted and
-never parsed, so its grammar is not loaded. And a pattern whose
+never parsed, so its grammar is not loaded, and one of more than 6 MB is
+counted as skipped by its size and never opened. And a pattern whose
 meta-variable would be plain text in one of them (`$X` inside a Markdown
 paragraph or a YAML scalar) is refused for that language by name (`$X is
 text there, not a node`) where it would have parsed and matched nothing;
