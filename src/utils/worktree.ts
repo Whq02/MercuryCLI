@@ -475,7 +475,7 @@ async function instructionFileTest(): Promise<HeldBack> {
   const { conventionsForProfile, isInstructionFilePath } = await import('../services/instructions/engine.js')
   const conventions = conventionsForProfile('auto')
   const names = new Set(conventions.flatMap(convention => convention.instructionFileNames))
-  return path => names.has(basename(path)) || isInstructionFilePath(path, conventions)
+  return path => names.has(basename(path)) || conventions.some(convention => (convention.folderOf?.(path) ?? null) !== null) || isInstructionFilePath(path, conventions)
 }
 
 async function ignoredEntriesOf(sourceRoot: string, worktreePath: string): Promise<string[]> {

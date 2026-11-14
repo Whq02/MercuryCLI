@@ -40,6 +40,7 @@ if (scenario !== undefined) {
   state.setCwdState(dir)
   state.setIsInteractive(true)
   config.enableConfigs()
+  const composed = process.env.CARRY_SCENARIO_LOADS === '1' ? (await instructions.getInstructionFiles(), instructions.getInstructionCompositionState().fallbackComposed) : undefined
   const copy = (await make('agent-ad900001')).worktreePath
   const kind = (rel: string): string => {
     try {
@@ -49,7 +50,7 @@ if (scenario !== undefined) {
       return 'absent'
     }
   }
-  console.log('RESULT ' + JSON.stringify(Object.fromEntries(process.argv.slice(4).map(rel => [rel, kind(rel)]))))
+  console.log('RESULT ' + JSON.stringify({ ...Object.fromEntries(process.argv.slice(4).map(rel => [rel, kind(rel)])), ...(composed === undefined ? {} : { 'other tools composed': String(composed) }) }))
   process.exit(0)
 }
 
@@ -194,7 +195,7 @@ try {
     const cachePlan = await cloneModule.planCloneCalls(join(fixture, 'cache'), undefined, true)
     check('what stays behind inside a carried folder is left out of the calls, never cloned and then deleted', JSON.stringify(treesPlan) === JSON.stringify({ folders: [''], clones: ['/plain'], links: ['/wt'] }) && JSON.stringify(cachePlan) === JSON.stringify({ folders: [''], clones: ['/keep'], links: ['/cmake-out'] }), `${JSON.stringify(treesPlan)} ${JSON.stringify(cachePlan)}`)
     const worktreeSource = readFileSync(join(ROOT, 'src/utils/worktree.ts'), 'utf8')
-    check('which file is an instruction file is the instruction engine\'s own answer, for every convention it knows', worktreeSource.includes("const { conventionsForProfile, isInstructionFilePath } = await import('../services/instructions/engine.js')") && worktreeSource.includes('return path => names.has(basename(path)) || isInstructionFilePath(path, conventions)'))
+    check('which file is an instruction file is the instruction engine\'s own answer, for every convention it knows', worktreeSource.includes("const { conventionsForProfile, isInstructionFilePath } = await import('../services/instructions/engine.js')") && worktreeSource.includes('return path => names.has(basename(path)) || conventions.some(convention => (convention.folderOf?.(path) ?? null) !== null) || isInstructionFilePath(path, conventions)'))
 
     section('§2 a copy frozen at a commit, or standing on another, starts with the dependency folders only')
     const frozen = await make('agent-ad200001', { at: 'HEAD' })
@@ -298,6 +299,48 @@ try {
     if (again === null) check('a file the carry brought is there once', read(join(included.worktreePath, '.env')) === 'TOKEN=1\n')
     else check('a file the carry brought is not copied a second time: it still shares its blocks with the checkout\'s', again[0] === true && read(join(included.worktreePath, '.env')) === 'TOKEN=1\n', JSON.stringify(again))
     check('a file the carry left behind and the include file names is copied as before', read(join(included.worktreePath, '.env.production')) === 'TOKEN=live\n', read(join(included.worktreePath, '.env.production')))
+
+    section('§11 another tool\'s instruction files stay behind whatever the process that makes the copy has loaded')
+    const OTHER_TOOLS = ['CLAUDE.local.md', 'src/pkg/CLAUDE.local.md', 'GEMINI.md', '.gemini/GEMINI.md', '.claude/CLAUDE.md', '.claude/rules/style.md', '.cursorrules', '.cursor/rules/style.mdc', '.windsurfrules', '.windsurf/rules/style.md', '.devin/global_rules.md', '.clinerules', '.cline/rules/style.md', '.github/instructions/style.instructions.md', '.agents/rules/style.md']
+    const OTHER_IGNORES = ['CLAUDE.local.md', '/GEMINI.md', '.gemini/', '.claude/', '.cursorrules', '.cursor/', '.windsurfrules', '.windsurf/', '.devin/', '.clinerules', '.cline/', '.github/instructions/', '.agents/']
+    const BESIDE_THEM = ['.cursor/mcp.json', '.claude/settings.local.json', 'dist/app.js', '.env']
+    const TRACKED_GUIDES: Record<string, string> = { 'CLAUDE.md': 'a guide of another tool, kept in git\n', '.github/copilot-instructions.md': 'a guide of a second tool, kept in git\n' }
+    const otherTools = (name: string, guided: boolean): string => {
+      const dir = makeFixture(name, () => ({}), OTHER_IGNORES)
+      for (const [file, body] of Object.entries({ ...TRACKED_GUIDES, ...(guided ? { 'MERCURY.md': 'the guide that decides\n' } : {}) })) {
+        mkdirSync(dirname(join(dir, file)), { recursive: true })
+        writeFileSync(join(dir, file), body)
+        git(dir, 'add', '--', file)
+      }
+      git(dir, 'commit', '-q', '-m', 'guides')
+      for (const file of [...OTHER_TOOLS, '.cursor/mcp.json', '.claude/settings.local.json']) {
+        mkdirSync(dirname(join(dir, file)), { recursive: true })
+        writeFileSync(join(dir, file), `${file}\n`)
+      }
+      return dir
+    }
+    const noHome = join(scratch, 'no-home')
+    mkdirSync(noHome, { recursive: true })
+    const watched = [...OTHER_TOOLS, ...BESIDE_THEM]
+    const quiet = { HOME: noHome, USERPROFILE: noHome, CARRY_SCENARIO_HOME: elsewhere }
+    const unloadedIn = otherTools('other-tools-unloaded', false)
+    const composedIn = otherTools('other-tools-composed', false)
+    const decidedIn = otherTools('other-tools-decided', true)
+    const unloaded = inChild('other-tools-unloaded', unloadedIn, quiet, watched)
+    const composedThere = inChild('other-tools-composed', composedIn, { ...quiet, CARRY_SCENARIO_LOADS: '1' }, watched)
+    const decided = inChild('other-tools-decided', decidedIn, { ...quiet, CARRY_SCENARIO_LOADS: '1' }, watched)
+    const cameOf = (result: Record<string, string> | null): string[] => (result === null ? ['no answer'] : OTHER_TOOLS.filter(rel => result[rel] !== 'absent'))
+    const restCame = (result: Record<string, string> | null): boolean => result !== null && BESIDE_THEM.every(rel => result[rel] === 'file')
+    check('a process that has loaded no instruction file, as the daemon making a worker\'s copy, leaves every other tool\'s ignored guide, local file, rule file and rules folder behind', cameOf(unloaded).length === 0, cameOf(unloaded).join(', '))
+    check('a session that composed those files leaves them behind', composedThere !== null && composedThere['other tools composed'] === 'true' && cameOf(composedThere).length === 0, `${composedThere?.['other tools composed']} | ${cameOf(composedThere).join(', ')}`)
+    check('a session whose MERCURY.md decides, which composed none of them, leaves them behind all the same', decided !== null && decided['other tools composed'] === 'false' && cameOf(decided).length === 0, `${decided?.['other tools composed']} | ${cameOf(decided).join(', ')}`)
+    check('…and in all three the rest git ignores comes, with what else lies in another tool\'s ignored folder', restCame(unloaded) && restCame(composedThere) && restCame(decided), `${JSON.stringify(unloaded)} ${JSON.stringify(composedThere)} ${JSON.stringify(decided)}`)
+    const asGitPutsIt = (dir: string, guided: boolean): boolean => {
+      const copy = join(dir, '.mercury', 'worktrees', 'agent-ad900001')
+      const tracked = { ...TRACKED_GUIDES, ...(guided ? { 'MERCURY.md': 'the guide that decides\n' } : {}) }
+      return Object.entries(tracked).every(([file, body]) => read(join(copy, file)) === body) && git(copy, 'ls-files', '--', ...Object.keys(tracked)).split('\n').length === Object.keys(tracked).length && git(copy, 'status', '--porcelain') === ''
+    }
+    check('a tracked instruction file is in the copy exactly as git puts it there: the carry is about ignored files only', asGitPutsIt(unloadedIn, false) && asGitPutsIt(composedIn, false) && asGitPutsIt(decidedIn, true))
   }
 } finally {
   delete process.env.MERCURY_WORKTREE_CLONE
