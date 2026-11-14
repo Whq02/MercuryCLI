@@ -218,9 +218,10 @@ async function runOp(
       const all = gitConflicts(root, owner)
       if ('state' in all) return { result: all.note, outcome: 'failed' }
       if (all.length === 0) return { result: 'no unmerged conflicts', outcome: 'no-change' }
+      const readable = all.filter(c => !denied(c.path))
       return {
-        result: all.filter(c => !denied(c.path))
-          .flatMap(c => [`  ${c.id} ${c.path} (base ${c.base.length}L · ours ${c.ours.length}L · theirs ${c.theirs.length}L) — mercury://git/conflict/${c.id}`, ...(c.regions ?? []).slice(0, 50).map(r => `    ${r.id} lines ${r.startLine}-${r.endLine} — mercury://git/conflict/${c.id}/${r.id}`), ...((c.regions?.length ?? 0) > 50 ? [`    … ${c.regions!.length - 50} more regions — mercury://git/conflict/${c.id}`] : [])])
+        result: [...readable
+          .flatMap(c => [`  ${c.id} ${c.path} (base ${c.base.length}L · ours ${c.ours.length}L · theirs ${c.theirs.length}L) — mercury://git/conflict/${c.id}`, ...(c.regions ?? []).slice(0, 50).map(r => `    ${r.id} lines ${r.startLine}-${r.endLine} — mercury://git/conflict/${c.id}/${r.id}`), ...((c.regions?.length ?? 0) > 50 ? [`    … ${c.regions!.length - 50} more regions — mercury://git/conflict/${c.id}`] : [])]), ...withheldLine(all.length - readable.length)]
           .join('\n'),
         outcome: 'no-change',
       }

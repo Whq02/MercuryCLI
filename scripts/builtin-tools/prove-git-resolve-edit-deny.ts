@@ -49,6 +49,8 @@ try {
   const open = regionOf(listed, 'open.txt')
   const control = regionOf(listed, 'control.txt')
   const region = regionOf(listed, 'locked/region.txt')
+  const withheld = '  1 file withheld: a permission rule denies reading it'
+  check('conflicts lists the files a Read rule leaves readable and counts the one it withholds', listed.includes(' open.txt (') && !listed.includes('secret/read.txt') && listed.endsWith(`\n${withheld}`), listed)
   const refusedBy = (out: string, file: string): boolean => out.includes(`Editing ${join(world.root, file)} is denied by the rule ${denyEdit}`)
 
   const mixed = await git({ op: 'resolve', resolutions: [{ region: open, take: 'ours' }, { region, content: 'model text\n' }] })
@@ -76,6 +78,21 @@ try {
   check('a file no rule names resolves by region with the receipt unchanged', /^resolved regions — bytes written: control\.txt; staged: control\.txt; unresolved regions: \(none\); evidence mercury:\/\/evidence\/ev-[a-f0-9]+$/.test(allowedRegion) && world.get('control.txt') === 'kept\n' && !unmerged('control.txt'), allowedRegion)
   const allowedWhole = await git({ op: 'resolve', path: 'free.txt', content: 'kept whole\n' })
   check('a file no rule names resolves whole with the receipt unchanged', /^resolved 'free\.txt' — staged; evidence mercury:\/\/evidence\/ev-[a-f0-9]+$/.test(allowedWhole) && world.get('free.txt') === 'kept whole\n' && !unmerged('free.txt'), allowedWhole)
+  await client.close()
+  client = undefined
+  for (const name of names) if (!name.startsWith('secret/')) world.git(['add', '--', name])
+  const onlyWithheld = async (deny: string[]): Promise<string> => {
+    writeFileSync(join(world.home, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Git', 'Read', 'Inspect'], deny } }))
+    client = await gitClient(world)
+    const out = await client.call('Git', { op: 'conflicts' })
+    await client.close()
+    client = undefined
+    return out
+  }
+  const silent = await onlyWithheld([`Read(/${world.root}/secret/**)`])
+  check('with the only conflicted file withheld the answer is the withheld line, not silence', silent === withheld, JSON.stringify(silent))
+  const unruled = await onlyWithheld([])
+  check('with no deny rule the answer names the file and no withheld line', unruled.includes(' secret/read.txt (') && !unruled.includes('withheld'), unruled)
 } finally {
   await client?.close()
   world.dispose()
