@@ -5,15 +5,13 @@ export type PauseGateState = {
   paused: boolean
   parked: number
   since: number | null
-  by: string | null
 }
 
 export type PauseGate = {
-  pause(by?: string): boolean
+  pause(): boolean
   resume(): boolean
   toggle(): boolean
   paused(): boolean
-  pausedBy(): string | null
   holds(key: string): boolean
   lift(key: string): boolean
   park(signal: AbortSignal, seat?: string, key?: string): Promise<void>
@@ -28,18 +26,12 @@ export const OPERATOR_PAUSE_WORDS = 'paused by the operator'
 
 export const OPERATOR_PAUSE_DOOR = 'p resumes it'
 
-const PAUSE_WORDS_PREFIX = 'paused by '
-
-export function pauseGateWords(by: string | null = null): string {
-  return by === null ? OPERATOR_PAUSE_WORDS : `${PAUSE_WORDS_PREFIX}${by}`
+export function pauseGateModelWords(): string {
+  return `${OPERATOR_PAUSE_WORDS} · at a model call — ${OPERATOR_PAUSE_DOOR}`
 }
 
-export function pauseGateModelWords(by: string | null = null): string {
-  return `${pauseGateWords(by)} · at a model call — ${OPERATOR_PAUSE_DOOR}`
-}
-
-export function pauseGateToolWords(toolName: string, by: string | null = null): string {
-  return `${pauseGateWords(by)} · at a tool (${toolName}) — ${OPERATOR_PAUSE_DOOR}`
+export function pauseGateToolWords(toolName: string): string {
+  return `${OPERATOR_PAUSE_WORDS} · at a tool (${toolName}) — ${OPERATOR_PAUSE_DOOR}`
 }
 
 export function isOperatorPauseWait(wait: string | null | undefined): boolean {
@@ -68,14 +60,13 @@ type Waiter = {
 export function createPauseGate(): PauseGate {
   let closed = false
   let since: number | null = null
-  let by: string | null = null
   const waiters = new Set<Waiter>()
   const lifted = new Set<string>()
   const listeners = new Set<(state: PauseGateState) => void>()
-  let snapshot: PauseGateState = { paused: false, parked: 0, since: null, by: null }
+  let snapshot: PauseGateState = { paused: false, parked: 0, since: null }
 
   const emit = (): void => {
-    snapshot = { paused: closed, parked: waiters.size, since, by }
+    snapshot = { paused: closed, parked: waiters.size, since }
     for (const listener of listeners) {
       try {
         listener(snapshot)
@@ -85,11 +76,10 @@ export function createPauseGate(): PauseGate {
     }
   }
 
-  const pause = (pauser?: string): boolean => {
+  const pause = (): boolean => {
     if (closed) return false
     closed = true
     since = Date.now()
-    by = pauser === undefined || pauser === '' ? null : pauser
     lifted.clear()
     emit()
     return true
@@ -99,7 +89,6 @@ export function createPauseGate(): PauseGate {
     if (!closed) return false
     closed = false
     since = null
-    by = null
     lifted.clear()
     const released = [...waiters]
     waiters.clear()
@@ -158,7 +147,6 @@ export function createPauseGate(): PauseGate {
       return true
     },
     paused: () => closed,
-    pausedBy: () => by,
     holds,
     lift,
     park,
@@ -250,7 +238,7 @@ export async function parkBeforeTool(context: ParkContext, toolName: string): Pr
     const gate = closedPauseGateOf(context)
     if (gate === null || context.abortController.signal.aborted) break
     spoke = true
-    context.onSeatWait?.(pauseGateToolWords(toolName, gate.pausedBy()))
+    context.onSeatWait?.(pauseGateToolWords(toolName))
     requestParkFrame(context)
     await gate.park(context.abortController.signal, pauseGateSeatOf(context), pauseGateKeyOf(context))
   }
