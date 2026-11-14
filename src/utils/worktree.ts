@@ -390,7 +390,7 @@ function checkoutRelativeName(relPath: string): string {
 }
 
 async function cloneCheckoutDirectories(sourceRoot: string, worktreePath: string, relPaths: readonly string[]): Promise<string[]> {
-  const outcomes = await cloneIntoWorktree(relPaths.map(relPath => ({ source: join(sourceRoot, ...relPath.split('/')), target: join(worktreePath, ...relPath.split('/')) })), sourceRoot)
+  const outcomes = await cloneIntoWorktree(relPaths.map(relPath => ({ source: join(sourceRoot, ...relPath.split('/')), target: join(worktreePath, ...relPath.split('/')) })), sourceRoot, worktreePath)
   return relPaths.filter((_, index) => outcomes[index] === 'cloned')
 }
 
