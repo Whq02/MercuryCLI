@@ -99,7 +99,8 @@ check('a sibling worktree resolves for an ordinarily approved launch', resolveCw
 trust.setPathTrusted(repo)
 check('…and accepted once its repository is trusted (the record is keyed by the canonical root)', resolveCwd(repoLane) === repoLane)
 
-section("§3 a worktree-isolated helper finds the parent checkout's dependencies and packs")
+section("§3 a worktree-isolated helper finds the parent checkout's dependencies and packs: the links of a volume that cannot clone (MERCURY_WORKTREE_CLONE=off; prove-worktree-clone.ts reads the clones)")
+process.env.MERCURY_WORKTREE_CLONE = 'off'
 const deps = join(scratch, 'deps')
 initRepo(deps, {
   '.gitignore': 'node_modules/\nvendor/*/\n',
@@ -156,6 +157,7 @@ check("with a directory named, the worktree is cut from that directory's reposit
 check('…with its dependencies linked from that checkout', isLinkTo(join(third.worktreePath, 'node_modules'), join(other, 'node_modules')))
 const settledThird = await settleAgentWorktree({ ...third })
 check('…and it settles too', settledThird.outcome === 'settled', JSON.stringify(settledThird))
+delete process.env.MERCURY_WORKTREE_CLONE
 
 section('§4 the launch and the prompt')
 const source = readFileSync(join(ROOT, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')

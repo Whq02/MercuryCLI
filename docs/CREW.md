@@ -123,10 +123,15 @@ directory's checkout is on (the branch the lead works in, never a remote's
 copy of it, with nothing fetched) or, with `worktree_at`, frozen at the named
 commit; and the crewmate runs in the worktree. Several crewmates launched
 together each get their own worktree, cut one after another. A crewmate's
-worktree carries links to its parent
-checkout's `node_modules` and to each `vendor/<pack>` the checkout ignores,
-hidden from git through the clone's exclude file, so the crewmate builds and
-runs the checks there without an install. A crewmate continued by a later
+worktree starts with its parent checkout's `node_modules` and each
+`vendor/<pack>` the checkout ignores, so the crewmate builds and runs the
+checks there without an install. On a filesystem that can clone (APFS on
+macOS, a Linux filesystem with reflinks) each is the worktree's own copy,
+made at once and sharing disk space until one side writes, so what a crewmate
+installs or builds there reaches neither the checkout nor another crewmate;
+elsewhere, and for a directory named in
+`workspace.worktree.symlinkDirectories`, each is a link to the checkout's
+copy, hidden from git through the clone's exclude file. A crewmate continued by a later
 message wakes in the directory it was launched in: the launch records the
 directory beside the transcript and the continuation reads it back; a
 recorded directory that no longer exists puts the continuation in the

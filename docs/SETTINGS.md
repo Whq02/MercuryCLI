@@ -216,7 +216,7 @@ covers both folders. A bare tool name covers every use of that tool.
 | `memory.journal` | The session journal, off by default: when `true`, at session end the model writes a brief entry (where the project is, the queued backlog, the constraints you set) into `<config home>/projects/<project>/journal/journal.md` in the Mercury home beside the project's memory, never under the project tree, never pushed, synced or shared by Mercury. |
 | `memory.journalOnEntryPage` | `true` hands the journal's last entry to the model at session start on its `# Lineage` entry page; off by default. What the model reads at entry travels to the engine's provider with the request ("never uploaded" means Mercury itself never pushes, syncs or shares the journal). |
 | `memory.tellEngineSwitch` | `true` tells the model when its model is switched: one line reaches it at the switch naming the new model, the time with its time zone, and instructing it to include the zone when repeating the time. Off by default: a switch is invisible to the model (the `/model` rows stay your record, and if you ask which model is running, the model reads the live session record at `mercury://seat`). |
-| `workspace.worktree.symlinkDirectories` | Additional directories linked into a managed worktree. |
+| `workspace.worktree.symlinkDirectories` | Directories linked into a managed worktree; a dependency folder named here stays a link to the checkout's where it would otherwise be cloned. |
 | `workspace.worktree.sparsePaths` | Paths included in a managed sparse worktree. |
 | `workspace.worktree.prepare` | A shell command run inside every new worktree after git makes it and before any seat uses it; a failure is named on the row. |
 

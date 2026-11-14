@@ -21,6 +21,7 @@ import { projectLocalPath } from '../services/projectLocal/paths.js'
 import { getInitialSettings, getRelativeSettingsFilePathForSource } from './settings/settings.js'
 import { sleep } from './sleep.js'
 import { isInITerm2, isInsideTmuxSync } from './terminalDetection.js'
+import { cloneIntoWorktree } from './worktreeClone.js'
 
 
 
@@ -384,6 +385,15 @@ async function dependencyLinkCandidates(sourceRoot: string): Promise<string[]> {
   return ignored
 }
 
+function checkoutRelativeName(relPath: string): string {
+  return relPath.split(/[\\/]+/).filter(segment => segment !== '' && segment !== '.').join('/')
+}
+
+async function cloneCheckoutDirectories(sourceRoot: string, worktreePath: string, relPaths: readonly string[]): Promise<string[]> {
+  const outcomes = await cloneIntoWorktree(relPaths.map(relPath => ({ source: join(sourceRoot, ...relPath.split('/')), target: join(worktreePath, ...relPath.split('/')) })), sourceRoot)
+  return relPaths.filter((_, index) => outcomes[index] === 'cloned')
+}
+
 async function linkCheckoutDirectories(sourceRoot: string, worktreePath: string, relPaths: readonly string[]): Promise<string[]> {
   const linked: string[] = []
   for (const relPath of relPaths) {
@@ -471,8 +481,10 @@ export async function prepareWorktreeFiles(repoRoot: string, worktreePath: strin
   const symlinkDirectories = getInitialSettings().workspace?.worktree?.symlinkDirectories ?? []
   const sourceRoot = dependencyLinksFrom !== undefined ? (findGitRoot(dependencyLinksFrom) ?? repoRoot) : repoRoot
   const dependencyLinks = dependencyLinksFrom !== undefined ? await dependencyLinkCandidates(sourceRoot) : []
-  const linked = await linkCheckoutDirectories(sourceRoot, worktreePath, [...new Set([...dependencyLinks, ...symlinkDirectories])])
-  if (dependencyLinksFrom !== undefined) await hideLinksFromGit(repoRoot, worktreePath, sourceRoot, linked)
+  const keptAsLinks = new Set(symlinkDirectories.map(checkoutRelativeName))
+  const cloned = await cloneCheckoutDirectories(sourceRoot, worktreePath, dependencyLinks.filter(name => !keptAsLinks.has(name)))
+  const linked = await linkCheckoutDirectories(sourceRoot, worktreePath, [...new Set([...dependencyLinks, ...symlinkDirectories])].filter(name => !cloned.includes(name)))
+  if (dependencyLinksFrom !== undefined) await hideLinksFromGit(repoRoot, worktreePath, sourceRoot, [...cloned, ...linked])
   await copyWorktreeIncludeFiles(repoRoot, worktreePath, preserveExisting)
 }
 

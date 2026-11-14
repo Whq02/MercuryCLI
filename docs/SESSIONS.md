@@ -701,11 +701,14 @@ word "worktree". The worktree lives under the repository's
 is on (the branch you work in, never a remote's copy of it, and nothing is
 fetched to cut it; a `--worktree` name of the form `#<n>` or a pull-request
 link cuts it from that pull request's head instead) and comes ready to build:
-`node_modules` and each `vendor/<pack>` the checkout ignores are links to the
-checkout's copies, hidden from git through the clone's exclude file, so the
-checks run there without an install. Because `node_modules` is a link to the
-checkout's, an install run inside the worktree installs into the checkout's
-dependencies instead of a separate copy.
+it starts with the checkout's `node_modules` and each `vendor/<pack>` the
+checkout ignores, so the checks run there without an install. On a filesystem
+that can clone (APFS on macOS, a Linux filesystem with reflinks) each is the
+worktree's own copy, made at once and sharing disk space until one side
+writes, and an install run inside the worktree stays in the worktree.
+Elsewhere each is a link to the checkout's copy, hidden from git through the
+clone's exclude file, and an install run inside the worktree installs into
+the checkout's dependencies instead of a separate copy.
 
 ## Closing chats
 

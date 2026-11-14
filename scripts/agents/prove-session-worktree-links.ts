@@ -61,7 +61,8 @@ state.setCwdState(repo)
 state.setIsInteractive(true)
 config.enableConfigs()
 
-section("§1 the session road cuts a worktree that comes ready to build")
+section("§1 the session road cuts a worktree that comes ready to build: the links of a volume that cannot clone (MERCURY_WORKTREE_CLONE=off; prove-worktree-clone.ts reads the clones)")
+process.env.MERCURY_WORKTREE_CLONE = 'off'
 const session = await createWorktreeForSession('proof-session', 'links-proof')
 check('the worktree lives under the repository worktrees home', session.worktreePath.startsWith(join(repo, '.mercury', 'worktrees')) && existsSync(join(session.worktreePath, 'package.json')), session.worktreePath)
 check('the session slot names it', getCurrentWorktreeSession()?.worktreePath === session.worktreePath)
