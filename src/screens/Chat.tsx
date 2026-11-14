@@ -228,6 +228,7 @@ function rewindReceiptLine(receipt: RewindReceiptV1): string {
   return `rewound: ${parts.join(' · ')}`;
 }
 const NO_CHAT_SETTLE_MS = 150;
+const HELD_FOR_LANDING: ReadonlySet<string> = new Set(['swarm', 'swarmchat', 'general', 'team', 'whisper', 'rename', 'title', 'contract', 'crewmates']);
 const MESSAGE_ACTION_UUID_PREFIX = 24;
 const EMPTY_CONFIRM_QUEUE: ToolUseConfirm[] = [];
 const NO_STREAMING_TOOL_USES: StreamingToolUse[] = [];
@@ -1242,6 +1243,11 @@ export function Chat({
     const spaceAt = text.indexOf(' ');
     const args = spaceAt === -1 ? '' : text.slice(spaceAt + 1).trim();
     const argsWithPastes = async (): Promise<string> => expandPastedTextRefs(args, (await resolvePastedContents(args, seatPastes)).pastedContents).trim();
+    if (seatCommand !== undefined && (seatCommand.type === 'local-jsx' && seatCommand.name === 'mission' ? args !== '' : HELD_FOR_LANDING.has(seatCommand.name)) && landingInFlight() && !hasFocusedSession()) {
+      armForLanding();
+      addNotification({ key: 'landing-hold', text: `the session is landing — /${getCommandName(seatCommand)} sends when it lands`, priority: 'immediate', timeoutMs: RECEIPT_TIMEOUT_MS });
+      return;
+    }
     if (seatCommand !== undefined && seatCommand.type === 'local' && seatCommand.uiRouteAlias === undefined) {
       takeComposer();
       void (async () => {
@@ -1267,11 +1273,6 @@ export function Chat({
       if (outcome.note) {
         addNotification({ key: 'route-alias', text: outcome.note, priority: 'immediate', timeoutMs: RECEIPT_TIMEOUT_MS });
       }
-      return;
-    }
-    if (seatCommand !== undefined && seatCommand.type === 'local-jsx' && seatCommand.name === 'mission' && args !== '' && landingInFlight() && !hasFocusedSession()) {
-      armForLanding();
-      addNotification({ key: 'landing-hold', text: 'the session is landing — /mission sends when it lands', priority: 'immediate', timeoutMs: RECEIPT_TIMEOUT_MS });
       return;
     }
     if (seatCommand !== undefined && seatCommand.type === 'local-jsx') {

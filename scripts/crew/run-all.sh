@@ -63,6 +63,7 @@
 # gate-watch: src/tools/ToolSearchTool/prompt.ts
 # gate-watch: src/components/Messages.tsx src/utils/sessionStorage/transcriptReader.ts src/utils/sessionStorage/vnext.ts
 # gate-watch: src/utils/sessionStorage/loading.ts
+# gate-watch: scripts/lib/settingsPopupHarness.ts src/components/App.tsx src/components/SurfaceRouter.tsx src/context/surfaceRoute.ts src/hooks/useLayoutTier.ts src/input-core/pending-input.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
