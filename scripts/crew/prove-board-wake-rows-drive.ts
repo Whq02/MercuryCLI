@@ -5,6 +5,7 @@ import { basename, dirname, join } from 'node:path'
 import { ADMITTED, check, childEnv, DIST, endLeg, FACE_READY, finish, printFrame, productNode, requireCaptureDriver, ROOT, scratch, section, startLeg } from '../computer/computerDriveKit.ts'
 import { captureEngineEntry, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { handoffTurn } from '../lib/fixtureApi.ts'
+import { untilAsync } from '../lib/untilAsync.ts'
 import { readSessionWorkers } from '../../src/daemon/concourseWorkers.ts'
 import { open } from '../../src/services/crewBoard/store.ts'
 
@@ -23,7 +24,6 @@ const JOB_NOTED = 'JOB-NOTED.'
 const AFTER = 'AFTER-FOLD-REPLY.'
 const BOUNDARY = 'Conversation compacted'
 const PLAIN_NOTICE = /● notice · \d+ lines? [›⌄]/
-const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 const textRows = (grid: Grid): string[] => grid.map(row => row.map(cell => cell.c || ' ').join('').replace(/\s+$/, ''))
 const lineOf = (lines: string[], needle: string): number => lines.findIndex(line => line.includes(needle))
 const then = (data: string, awaitText: string, mark?: string): Record<string, unknown> => ({ data, atTick: 999, awaitText, requireAwait: true, minTick: 2, awaitSettleTicks: 3, ...(mark ? { mark } : {}) })
@@ -144,22 +144,28 @@ const post = (clientOpId: string, text: string): boolean => {
   const path = boardOf()
   if (path === undefined) return false
   const sid = basename(dirname(dirname(dirname(path))))
-  const board = open(path, sid)
-  const sender = { author: { sessionId: sid, agentId: 'poster', executionId: 'run' }, name: 'poster' }
   try {
-    board.enroll(sender)
-    return board.post(sender, { clientOpId, kind: 'ask', text }).ok
-  } finally {
-    board.close()
+    const board = open(path, sid)
+    try {
+      board.enroll({ author: { sessionId: sid, agentId: 'poster', executionId: 'run' }, name: 'poster' })
+      return board.post({ author: { sessionId: sid, agentId: 'poster', executionId: 'run' }, name: 'poster' }, { clientOpId, kind: 'ask', text }).ok
+    } finally {
+      board.close()
+    }
+  } catch {
+    return false
   }
 }
-const until = async (test: () => boolean, ended: () => boolean, timeoutMs = 150_000): Promise<boolean> => {
-  const deadline = Date.now() + timeoutMs
-  while (!test()) {
-    if (ended() || Date.now() > deadline) return false
-    await sleep(100)
+const seen = async (test: () => boolean, ended: () => boolean): Promise<boolean> => (await untilAsync(() => test() || ended(), vshotBudgetMs(150_000), 100)) && test()
+const daemonGone = (): boolean => {
+  try {
+    const pid = Number(readFileSync(join(leg.home, 'daemon', 'daemon.pid'), 'utf8').trim())
+    if (!(pid > 1)) return true
+    process.kill(pid, 0)
+    return false
+  } catch {
+    return true
   }
-  return true
 }
 
 let posted = 0
@@ -181,11 +187,9 @@ const live = await capture('live', leg, ['--chat'], [
   then('\r', 'after the fold'),
   then('', AFTER, 'after'),
 ], AFTER, 1100, async ended => {
-  if (!(await until(() => transcriptText().includes(WAITING) && boardOf() !== undefined, ended))) return
-  await sleep(2500)
+  if (!(await seen(() => transcriptText().includes('Swarm launched') && boardOf() !== undefined, ended))) return
   for (const [index, words] of POSTS.entries()) {
-    if (index > 0 && !(await until(() => transcriptText().includes(REPLIES[index - 1]!), ended))) return
-    if (index > 0) await sleep(1500)
+    if (index > 0 && !(await seen(() => transcriptText().includes(REPLIES[index - 1]!), ended))) return
     if (post(`ask-${index + 1}`, words)) posted++
   }
 })
@@ -231,7 +235,7 @@ check('the next turn paints below them', lineOf(after, AFTER) > lineOf(after, RE
 section('§4 the session resumed in a new window')
 const file = transcriptOf(leg)
 const sid = file === undefined ? '' : basename(file, '.jsonl')
-await sleep(1500)
+await untilAsync(daemonGone, vshotBudgetMs(30_000), 100)
 const resumed = await capture('resumed', leg, ['--resume', sid], [then('', AFTER, 'resumed')], AFTER, 400)
 stopDaemon(leg)
 const again = resumed.marks.get('resumed') ?? resumed.final
