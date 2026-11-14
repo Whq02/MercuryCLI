@@ -396,7 +396,7 @@ const EXPECTED_NON_STRICT: Record<string, RegExp> = {
   Crewmate: /propertyNames/, Service: /propertyNames/, Git: /propertyNames/, Journey: /propertyNames/,
   Godot: /propertyNames/, Unity: /propertyNames/, Blender: /propertyNames/, Aseprite: /propertyNames/, JevEval: /additionalProperties/,
   StructuredOutput: /additionalProperties/, TaskCreate: /propertyNames/, TaskUpdate: /propertyNames/, Workflow: /admits any value.* at args/,
-  Document: /propertyNames/,
+  Document: /propertyNames/, Browser: /additionalProperties.* at emulation/,
 }
 const MUST_BE_STRICT = ['Read', 'Edit', 'Write', 'Bash', 'Glob', 'Grep', 'ChangeSet', 'WebFetch', 'WebSearch', 'NotebookEdit', 'Skill', 'ToolSearch', 'Monitor', 'Sleep', 'Computer', 'AskUserQuestion']
 
