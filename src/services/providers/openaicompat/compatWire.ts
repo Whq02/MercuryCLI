@@ -158,7 +158,7 @@ export const LOCAL_SERVER_STATES_THINKING: Readonly<Record<LocalServerKind | 'sg
   lmstudio: true,
   vllm: false,
   sglang: false,
-  llamacpp: false,
+  llamacpp: true,
   tensorfold: true,
   'openai-compatible': false,
 }
@@ -167,8 +167,11 @@ export function localThinkingOff(args: { server: LocalServerKind | 'sglang'; acc
   return !args.thinkingEnabled && args.acceptsEffort && LOCAL_SERVER_STATES_THINKING[args.server]
 }
 
+const LLAMACPP_OFF_EFFORT = 'none'
+
 export function localThinkingOffWireEffort(server: LocalServerKind | 'sglang'): string | undefined {
-  return LOCAL_SERVER_STATES_THINKING[server] ? thinkingOffWireEffort(LOCAL_SERVER_EFFORTS[server]) : undefined
+  if (!LOCAL_SERVER_STATES_THINKING[server]) return undefined
+  return server === 'llamacpp' ? LLAMACPP_OFF_EFFORT : thinkingOffWireEffort(LOCAL_SERVER_EFFORTS[server])
 }
 
 export const TENSORFOLD_DIAL: readonly string[] = ['low', 'medium', 'high', 'xhigh', 'max']

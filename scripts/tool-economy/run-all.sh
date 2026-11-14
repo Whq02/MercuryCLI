@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/services/providers/** src/utils/toolSearch* src/utils/api.ts
+# gate-watch: src/services/providers/** src/utils/toolSearch* src/utils/api.ts src/services/host/recipes.ts
 # gate-watch: src/tools/TestTool/* src/tools/BashTool/* src/utils/cwd.ts src/services/ide/projectRunners.ts
 # gate-watch: src/tools/ToolSearchTool/** src/utils/attachments/deltas* src/utils/model/capabilities*
 # gate-watch: src/utils/settings/settingsCache.ts

@@ -13,12 +13,12 @@ export const ADAPTER_HEADING_WORDS = "served by Mercury's engine until TensorFol
 export const ADAPTER_NO_SHARING_WORDS = 'not shared · sharing from Mercury\'s engine comes later'
 export const ADAPTER_SPEAKER = 'tensorfold-adapter'
 export const ADAPTER_CHILD_PREFIX = '[llama.cpp] '
-export const LLAMACPP_RELEASE = { build: 'b11829', commit: '184f6536024668e8908ab8c86033d56708e62b40' } as const
+export const LLAMACPP_RELEASE = { build: 'b12359', commit: 'b1b770d90d94cad9e9ea5b993bdbc383a522fb28' } as const
 export const LLAMACPP_WINDOWS_CPU_ASSET = {
-  name: 'llama-b11829-bin-win-cpu-x64.zip',
-  url: 'https://github.com/ggml-org/llama.cpp/releases/download/b11829/llama-b11829-bin-win-cpu-x64.zip',
-  bytes: 24_076_171,
-  sha256: 'c534f35ce9c842f3bc224fadaecc82e1b49768f63e8320922f6dbd603f66395e',
+  name: 'llama-b12359-bin-win-cpu-x64.zip',
+  url: 'https://github.com/ggml-org/llama.cpp/releases/download/b12359/llama-b12359-bin-win-cpu-x64.zip',
+  bytes: 25_097_509,
+  sha256: '837c1655e87df3b66989f4be33a792a1399c785bf259038dc75c900096683e69',
 } as const
 export const LLAMACPP_RUNTIME_BIN = ['.local', 'share', 'mercury-host', 'runtime', 'llama.cpp', 'build', 'bin'] as const
 

@@ -63,7 +63,7 @@ export async function fakeEngine(): Promise<Engine> {
   return pinned
 }
 
-export const WIN_LLAMA = { found: true, binary: `${WIN_LLAMA_BIN}\\llama-server.exe`, pinned: true, runtime: WIN_LLAMA_BIN, release: adapterIdentity.LLAMACPP_RELEASE, version: '0.7.0', build: '11829', commit: '184f653' }
+export const WIN_LLAMA = { found: true, binary: `${WIN_LLAMA_BIN}\\llama-server.exe`, pinned: true, runtime: WIN_LLAMA_BIN, release: adapterIdentity.LLAMACPP_RELEASE, version: '1.0.0', build: '12359', commit: 'b1b770d' }
 export const WIN_NO_LLAMA = { found: false, runtime: WIN_LLAMA_BIN, release: adapterIdentity.LLAMACPP_RELEASE }
 
 export function cannedAdapterExec(llama: typeof WIN_LLAMA | typeof WIN_NO_LLAMA, chip = WIN_16.chip): NonNullable<Parameters<typeof engine.findTensorFoldEngine>[0]['exec']> {

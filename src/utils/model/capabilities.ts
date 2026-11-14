@@ -451,9 +451,10 @@ function baseEffortVocabularyFor(model: string): EffortVocabularyView {
       : { kind: 'none', source: 'gemini' }
   }
   if (route === 'openai-compat') {
-    const { compatModelEfforts } = require('../../services/providers/openaicompat/compatEffort.js') as typeof import('../../services/providers/openaicompat/compatEffort.js')
+    const { compatModelEfforts, compatModelThinkingOffWire } = require('../../services/providers/openaicompat/compatEffort.js') as typeof import('../../services/providers/openaicompat/compatEffort.js')
     const vocabulary = compatModelEfforts(model)
-    return vocabulary.length > 0 ? { kind: 'provider', source: 'compat', vocabulary, thinkingGated: false } : { kind: 'none', source: 'compat' }
+    const thinkingOffWire = compatModelThinkingOffWire(model)
+    return vocabulary.length > 0 ? { kind: 'provider', source: 'compat', vocabulary, thinkingGated: thinkingOffWire !== undefined, ...(thinkingOffWire !== undefined ? { thinkingOffWire } : {}) } : { kind: 'none', source: 'compat' }
   }
   if (model.trim().toLowerCase().startsWith('local/')) {
     const { localRecordFor } =

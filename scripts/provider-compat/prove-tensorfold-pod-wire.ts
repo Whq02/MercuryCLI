@@ -243,7 +243,7 @@ const ledgerRows = ledger.tensorFoldTurnReadings().length
 const onVllm = await drive(VLLM_POD, history, { effortValue: 'high', tools: pool, bodies: vllm.bodies })
 check('the vLLM pod: the markup stays text, nothing is minted from it', onVllm.errors.length === 0 && toolUses(onVllm).length === 0 && answerText(onVllm).includes('<function=TaskStop>'), JSON.stringify(blocks(onVllm)).slice(0, 300))
 check('the vLLM pod: no max_tokens and no thinking_budget join its request', onVllm.body !== undefined && !('max_tokens' in onVllm.body) && !('thinking_budget' in onVllm.body), knobs(onVllm.body))
-check('the vLLM pod: the admitted definition keeps its own row after the result', declarationRows(onVllm.body).some(row => row.role === 'system' && String(row.content).includes('"name":"TaskStop"')), declarationRows(onVllm.body).map(row => String(row.role)).join(','))
+check('the vLLM pod: the admitted definition rides inside the ToolSearch result too, the form its engine reads on the local lane (a chat template may refuse or drop a system row after the first)', declarationRows(onVllm.body).every(row => row.role !== 'system') && String(declarationRows(onVllm.body).find(row => row.role === 'tool' && row.tool_call_id === 'toolu_ts_1')?.content ?? '').includes('"name":"TaskStop"'), declarationRows(onVllm.body).map(row => String(row.role)).join(','))
 check('the vLLM pod: no outputLimit stamp and no ledger row', onVllm.assistants.every(message => message.outputLimit === undefined) && ledger.tensorFoldTurnReadings().length === ledgerRows, `${ledgerRows} → ${ledger.tensorFoldTurnReadings().length}`)
 for (const model of OTHER_ROADS) {
   const before = upstreamBodies.length

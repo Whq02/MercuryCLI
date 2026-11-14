@@ -41,6 +41,7 @@ function llamaServerCandidates(io: LlamaIo = {}): string[] {
 }
 
 const LLAMACPP_BUILD_FLOOR = 11829
+const LLAMACPP_FLOOR_COMMIT = '184f6536024668e8908ab8c86033d56708e62b40'
 
 type LlamaResolution = { found: true; binary: string; pinned: boolean } & LlamaServerVersion | { found: false; refused?: string }
 
@@ -53,7 +54,7 @@ export async function resolveLlamaServer(io: LlamaIo = {}): Promise<LlamaResolut
     const version = await readLlamaServerVersion(binary, env)
     const build = Number(version.build)
     const atPin = version.commit !== undefined && LLAMACPP_RELEASE.commit.startsWith(version.commit)
-    const atFloor = Number.isInteger(build) && build >= LLAMACPP_BUILD_FLOOR
+    const atFloor = (Number.isInteger(build) && build >= LLAMACPP_BUILD_FLOOR) || (version.commit !== undefined && LLAMACPP_FLOOR_COMMIT.startsWith(version.commit))
     if (atPin || atFloor) return { found: true, binary, pinned: binary.startsWith(runtime) && atPin, ...version }
     refusals.push(`${binary} is ${version.build !== undefined && version.build !== '1' ? `build ${version.build}` : version.commit !== undefined ? `commit ${version.commit}` : 'an unknown build'}`)
   }

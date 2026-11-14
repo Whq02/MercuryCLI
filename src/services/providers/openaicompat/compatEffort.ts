@@ -5,7 +5,8 @@ import { operatorModelFacts } from '../../../utils/model/modelOverrides.js'
 import { compatModelEndpoint } from './compatAccounts.js'
 import { cachedCompatCatalogue } from './compatCatalogue.js'
 import type { CompatDialect } from './compatProbe.js'
-import { LOCAL_SERVER_EFFORTS } from './compatWire.js'
+import { LOCAL_SERVER_EFFORTS, localThinkingOffWireEffort } from './compatWire.js'
+import { isKimiK3WireModel } from './kimiReplay.js'
 
 export function hostModelEfforts(wireModel: string, dialect: CompatDialect, reported?: readonly string[]): readonly string[] {
   if (reported !== undefined) return reported.filter(isRankedWireEffort)
@@ -24,4 +25,9 @@ export function compatModelEfforts(model: string): readonly string[] {
   const { endpoint, wireId } = resolved
   const stated = operatorModelFacts(model)?.efforts
   return hostModelEfforts(wireId, endpoint.dialect ?? 'chat-completions', stated ?? cachedCompatCatalogue(endpoint)?.efforts?.[wireId])
+}
+
+export function compatModelThinkingOffWire(model: string): string | undefined {
+  const resolved = compatModelEndpoint(model)
+  return resolved?.endpoint.dialect === 'llamacpp' && !isKimiK3WireModel(resolved.wireId) ? localThinkingOffWireEffort('llamacpp') : undefined
 }

@@ -101,7 +101,11 @@ export function deferralWireFormFor(model: string, reads: DeferralWireReads = {}
   if (capability === 'text-append' && !textAppendAccepted(verdict.route, model)) {
     return { form: 'text', why: 'model-without-dynamic-tools' }
   }
-  if (verdict.route === 'openai-compat' && compatEndpointIsSelfHosted(model, reads.env)) return { form: 'text-append', why: 'self-hosted-engine' }
+  if (verdict.route === 'openai-compat') {
+    const endpoint = compatEndpointOf(model, reads.env)
+    if (endpoint?.dialect === 'llamacpp') return { form: 'text', why: 'model-without-dynamic-tools' }
+    if (endpoint !== undefined && (endpoint.hostPodId !== undefined || (endpoint.dialect !== undefined && SELF_HOSTED_DIALECTS.has(endpoint.dialect)))) return { form: 'text-append', why: 'self-hosted-engine' }
+  }
   return { form: capability, why: 'route-table' }
 }
 
@@ -113,13 +117,12 @@ function textAppendAccepted(route: CallModelRoute, model: string): boolean {
 
 const SELF_HOSTED_DIALECTS: ReadonlySet<string> = new Set(['vllm', 'sglang', 'llamacpp', 'ollama', 'lmstudio'])
 
-function compatEndpointIsSelfHosted(model: string, env?: Record<string, string | undefined>): boolean {
+function compatEndpointOf(model: string, env?: Record<string, string | undefined>): { hostPodId?: string; dialect?: string } | undefined {
   try {
     const { compatModelEndpoint } = require('./openaicompat/compatAccounts.js') as typeof import('./openaicompat/compatAccounts.js')
-    const endpoint = compatModelEndpoint(model, env as NodeJS.ProcessEnv | undefined)?.endpoint
-    return endpoint !== undefined && (endpoint.hostPodId !== undefined || (endpoint.dialect !== undefined && SELF_HOSTED_DIALECTS.has(endpoint.dialect)))
+    return compatModelEndpoint(model, env as NodeJS.ProcessEnv | undefined)?.endpoint
   } catch {
-    return false
+    return undefined
   }
 }
 

@@ -1,7 +1,7 @@
 import { settleTranscriptMessage } from '../../../utils/sessionStorage/writer.js'
 import { processOwnerForLane } from '../../run/resolveOwner.js'
 import { createHash, randomUUID } from 'crypto'
-import { compatEngineRefusalText } from './compatRefusals.js'
+import { compatEngineRefusalText, llamacppOriginRefusal, llamacppOriginRemedy } from './compatRefusals.js'
 import { compatToolSchemaRefusal } from './compatToolSchemas.js'
 import { getCwd } from '../../../utils/cwd.js'
 import { mintCacheDomainKey } from '../../../utils/cache/cacheDomain.js'
@@ -326,11 +326,13 @@ export function compatTerminalFaultText(
   profile: Pick<CompatLaneProfile, 'providerLabel' | 'credentialHint' | 'authRemedy' | 'billingRemedy' | 'dialect'>,
   fault: Pick<CompatFault, 'code' | 'message' | 'parameter'> & { retryAfterMs?: number; status?: number },
   typed: TypedError,
-  opts?: { recovery?: 'retried' | 'no-new-credential' },
+  opts?: { recovery?: 'retried' | 'no-new-credential'; requestUrl?: string },
 ): string {
   const detail = fault.message && fault.message !== '' ? `${fault.code}: ${fault.message}` : fault.code
   switch (typed) {
     case 'authentication_failed': {
+      const originRemedy = llamacppOriginRemedy(profile.dialect, fault, opts?.requestUrl)
+      if (originRemedy !== undefined) return `${API_ERROR_MESSAGE_PREFIX}: ${profile.providerLabel} refused the request (${detail}) — ${originRemedy}`
       const recovery =
         opts?.recovery === 'retried'
           ? ' The stored token was refreshed and the call retried once before this refusal.'
@@ -726,9 +728,11 @@ export async function* compatChatCallModel(
     if (outcome.kind === 'cancelled') return
     const laneClass = profile.classifyFault?.(outcome.fault)
     const typed = laneClass ?? compatFaultToTypedError(outcome.fault)
-    if (laneClass === undefined || typed === 'authentication_failed') observeSignInResponse(signInRequest, outcome.fault.status, outcome.fault.message)
+    const originRefusal = llamacppOriginRefusal(profile.dialect, outcome.fault)
+    if ((laneClass === undefined || typed === 'authentication_failed') && !originRefusal) observeSignInResponse(signInRequest, outcome.fault.status, outcome.fault.message)
     if (
       typed === 'authentication_failed' &&
+      !originRefusal &&
       outcome.retryEligible &&
       recovery === undefined &&
       profile.recoverCredential &&
@@ -850,7 +854,7 @@ export async function* compatChatCallModel(
       continue
     }
     const wall = classifyCredentialWall(outcome.fault.status, outcome.fault.message, recovery !== undefined ? 'sign-in' : undefined)
-    if (wall !== undefined) {
+    if (wall !== undefined && !originRefusal) {
       const wireSaid = outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code
       logForDebugging(`[compat:${profile.lane}] credential wall (${wall}) — the wire said: ${wireSaid}${recovery === 'retried' ? '; the stored token was refreshed and the call retried once first' : recovery === 'no-new-credential' ? '; a token refresh was attempted first and produced no new credential' : ''}`)
       const line = credentialWallLine(profile.lane, wall)
@@ -882,7 +886,7 @@ export async function* compatChatCallModel(
       ))
       return
     }
-    const terminalText = compatTerminalFaultText(profile, outcome.fault, typed, recovery ? { recovery } : undefined) + (profile.policyFaultNote?.(outcome.fault, request.extra) ?? '')
+    const terminalText = compatTerminalFaultText(profile, outcome.fault, typed, { ...(recovery ? { recovery } : {}), requestUrl: credential.requestUrl ?? profile.requestUrl() }) + (profile.policyFaultNote?.(outcome.fault, request.extra) ?? '')
     const stayedBusy =
       busy !== undefined && takesBusyLadder(outcome.fault, typed)
         ? `${API_ERROR_MESSAGE_PREFIX}: ${profile.providerLabel} stayed busy through ${busy.ladder.waitsMs.length} ${busy.ladder.waitsMs.length === 1 ? 'retry' : 'retries'} over ${retrySeconds(Date.now() - busy.ladder.startedAtMs)} — ${terminalText.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`
