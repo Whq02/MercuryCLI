@@ -111,7 +111,7 @@ async function journey(kind: 'captain' | 'held' | 'deadline'): Promise<void> {
     return 0
   } })
   try {
-    const result = await run(DIST, home, cwd, fixture.base, kind === 'deadline' ? ['--max-time', '8s'] : [])
+    const result = await run(DIST, home, cwd, fixture.base, kind === 'deadline' ? ['--max-time', '30s'] : [])
     const path = findFiles(home, 'board.sqlite')[0]
     assert(path, `board was created: ${result.stderr}`)
     const db = new Database(path, { readonly: true })
