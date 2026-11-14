@@ -36,6 +36,9 @@ export interface LocalModelRecord {
   toolsDeclared?: boolean
   thinkingDeclared?: boolean
   thinkingSwitch?: boolean
+  promptCache?: boolean
+  warmTurns?: boolean
+  thinkingBudget?: boolean
   thinking?: { values: Array<boolean | string>; default: boolean | string }
   executionOrigin?: { kind: 'local' } | { kind: 'remote'; remoteModel?: string; remoteHost?: string }
   visionDeclared?: boolean
@@ -408,7 +411,11 @@ function tensorFoldModelRecord(m: Record<string, unknown>, baseUrl: string): Loc
   const reasoning = rec(m.reasoning)
   const listed = strList(reasoning?.supported_efforts)
   const servedBy = str(m.served_by)
-  const thinkingSwitch = rec(m.capabilities)?.thinking_switch
+  const capabilities = rec(m.capabilities)
+  const thinkingSwitch = capabilities?.thinking_switch
+  const promptCache = capabilities?.prompt_cache
+  const warmTurns = capabilities?.warm_turns
+  const thinkingBudget = capabilities?.thinking_budget
   return {
     id,
     server: 'tensorfold',
@@ -416,6 +423,9 @@ function tensorFoldModelRecord(m: Record<string, unknown>, baseUrl: string): Loc
     ...(window ? { contextWindow: { tokens: window, source: 'served' } } : {}),
     thinkingDeclared: reasoning !== undefined,
     ...(typeof thinkingSwitch === 'boolean' ? { thinkingSwitch } : {}),
+    ...(typeof promptCache === 'boolean' ? { promptCache } : {}),
+    ...(typeof warmTurns === 'boolean' ? { warmTurns } : {}),
+    ...(typeof thinkingBudget === 'boolean' ? { thinkingBudget } : {}),
     ...(reasoning !== undefined ? { efforts: listed !== undefined && listed.length > 0 ? listed : [] } : {}),
     loaded: true,
     ...(servedBy !== undefined ? { servedBy } : {}),

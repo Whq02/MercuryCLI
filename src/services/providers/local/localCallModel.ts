@@ -33,6 +33,7 @@ import { confirmServedWindow, ensureServedWindow, getCachedLocalDiscovery, local
 import { adoptableLocalWindow, adoptLocalWindow, decideLocalWindow, ensureLocalWindowTruth, heldLocalKnobs, heldLocalWindow, localPlannedWindow, localWindowApplication, localWindowDecisionLine, localWindowFits, localWindowSettingOf, localWindowSourceWords, releaseOutgrownLocalWindow, type HeldLocalWindow } from './localWindow.js'
 import { noteLocalTurn } from './localWarm.js'
 import { ollamaChatTransport, ollamaChatUrl } from './ollamaChatTransport.js'
+import { tensorFoldRequestBegins } from './tensorfoldPrefill.js'
 import { noteTensorFoldTurn } from './tensorfoldUsage.js'
 import type { CompatCallModelParams as LocalCallParams } from '../openaicompat/compatChatCallModel.js'
 import { logForDebugging } from '../../../utils/debug.js'
@@ -244,6 +245,7 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
     toolDeclarationRow: toolDeclarationRowInResult,
     ...(record.server === 'tensorfold'
       ? {
+          keepsReasoningHistory: () => true,
           refusesEffort: (wireEffort: string) => tensorFoldRefusesEffort(wireEffort, record.thinkingSwitch),
           outputCeiling: () => tensorFoldOutputCeiling(record),
           noteRuntime: (reading: { runtime: Parameters<typeof noteTensorFoldTurn>[0]['runtime']; usage: Parameters<typeof noteTensorFoldTurn>[0]['usage']; served: string | undefined }) => {
@@ -313,28 +315,34 @@ export async function* localCallModel(params: CallModelParams): CallModelStream 
     record = localModelRecord(localWireId(params.options.model))
   }
   let confirmAfter = false
-  if (record) {
-    const application = localWindowApplication(record)
-    const io: LocalDiscoveryIo = { signal: params.signal }
-    if (application === 'request' || application === 'load') {
-      const setting = localWindowSettingOf(record)
-      const current = localPreComposeEstimate(params)
-      releaseOutgrownLocalWindow(record, current)
-      const held = heldLocalWindow(record)
-      const estimate = held !== undefined && held.setting === setting ? held.estTokens : localPreComposeEstimate({ ...params, toolWire: await localToolWireOf(params) })
-      const decision = decideLocalWindow(record, estimate, setting, await ensureLocalWindowTruth(record, setting))
-      logForDebugging(localWindowDecisionLine(record, decision))
-      if (application === 'load') {
-        await ensureServedWindow(record, io, decision.window !== undefined ? { numCtx: decision.window } : undefined)
+  const engine = record !== undefined && record.server === 'tensorfold' ? tensorFoldRequestBegins(record, params.messages, params.options) : undefined
+  try {
+    if (record) {
+      const application = localWindowApplication(record)
+      const io: LocalDiscoveryIo = { signal: params.signal }
+      if (application === 'request' || application === 'load') {
+        const setting = localWindowSettingOf(record)
+        const current = localPreComposeEstimate(params)
+        releaseOutgrownLocalWindow(record, current)
+        const held = heldLocalWindow(record)
+        const estimate = held !== undefined && held.setting === setting ? held.estTokens : localPreComposeEstimate({ ...params, toolWire: await localToolWireOf(params) })
+        const decision = decideLocalWindow(record, estimate, setting, await ensureLocalWindowTruth(record, setting))
+        logForDebugging(localWindowDecisionLine(record, decision))
+        if (application === 'load') {
+          await ensureServedWindow(record, io, decision.window !== undefined ? { numCtx: decision.window } : undefined)
+        } else {
+          confirmAfter = await settleOllamaWindow(record, decision, Math.max(current, estimate), io)
+        }
       } else {
-        confirmAfter = await settleOllamaWindow(record, decision, Math.max(current, estimate), io)
+        await ensureServedWindow(record, io)
       }
-    } else {
-      await ensureServedWindow(record, io)
     }
+    noteLocalTurn(record)
+    const profile = record ? localLaneProfileFor(record) : undiscoveredProfile(params.options.model)
+    yield* compatChatCallModel(engine?.transport !== undefined ? { ...profile, streamTransport: engine.transport } : profile, params)
+  } finally {
+    engine?.ends()
   }
-  noteLocalTurn(record)
-  yield* compatChatCallModel(record ? localLaneProfileFor(record) : undiscoveredProfile(params.options.model), params)
   if (record && confirmAfter && !params.signal.aborted) await confirmServedWindow(record, { signal: params.signal })
 }
 

@@ -521,6 +521,46 @@ this session · 5 turns · ~76 tok/s on average · 24,120 in (20,510 cached · 8
 The latest turn's `first reply in <N> ms · ~<M> tok/s` also appears on the
 served row's card in `/model` and in `/tensorfold`'s live footer.
 
+## A conversation is resumed where it stopped
+
+TensorFold keeps what it has read of a conversation and resumes there when the
+next request begins with the same text; the `cached` figure of `/usage` is that
+share. Mercury sends every earlier reply back with the reasoning the model
+wrote, so on a checkpoint whose chat template keeps earlier reasoning in the
+prompt (`Qwen3.8 27B`'s does) each request begins with everything the engine
+has already read, on a new message as inside a tool loop.
+
+Other chat templates drop the reasoning of earlier turns themselves (`Qwen3.5
+2B`'s and `Nemotron Lightning`'s do), so a new message makes the engine read
+the turn before it once more. Where the engine keeps prompt states and does not
+read the next turn ahead itself (its `/v1/models` entry reports
+`"prompt_cache": true` and `"warm_turns": false`), Mercury does that between
+turns: when a reply ends a turn of the session, it sends the conversation as
+the next message will begin, as background requests that ask for a few tokens
+and keep none of them. A long turn goes in pieces, each about five seconds of
+reading (longer where one tool result is) and each ending on one of the turn's
+replies, so a message that comes early still finds the pieces before it.
+
+The read-ahead starts only when no request of the session is on that engine.
+A new request cancels it, but the engine finishes the prompt chunk already in
+flight before switching. On Qwen3.5 2B that wait is about a tenth of a second;
+an engine with larger chunks can take longer. Mercury reads the engine's
+`/health` before each piece and about three times a second while one runs, so
+another session's request can also wait for the next look. Once that request
+is seen, the read-ahead is cancelled and the turn is left as it is. Where an
+engine keeps a request of the session waiting more than half a second behind
+a read-ahead that was dropped for it, Mercury reads nothing ahead on that
+engine for the rest of the session. That check is conservative: a neighbour
+queued behind this session's request can also turn read-ahead off while that
+request has produced no output. While a piece runs, the engine's own log gains
+about three `GET /health` lines a second: those lines are the read-ahead
+looking, and they are expected.
+`/usage`, cost and the context figure do not count it. It goes only to an
+engine on this machine that shows its requests on `/health` (one started with
+an API key does not). A crewmate's conversation and one due a fold are left
+alone. Set `MERCURY_LOCAL_NEXT_TURN_PREFILL=0` in your
+environment to turn it off.
+
 ## The support line and `/health`
 
 Mercury composes a one-line support string containing engine, hardware and flag
