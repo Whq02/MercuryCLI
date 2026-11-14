@@ -8,6 +8,8 @@ import { authorityText, noteResolvedAuthority, remoteAuthorityFault, RemotePathE
 const SHELLS = ['sh', 'bash', 'zsh']
 const CONNECT_DEADLINE_MS = 30_000
 const QUIET_DEADLINE_MS = 60_000
+const BEATS_A_QUIET_TIME = 4
+const BEAT = /\u0007/g
 const RESOLVE_DEADLINE_MS = 10_000
 const RESOLVE_FRESH_MS = 2_000
 const NOISE_KEPT = 1024 * 1024
@@ -85,6 +87,7 @@ class Connection {
   private onStderr: ((chunk: Buffer) => void) | null = null
   private onClosed: ((words: string) => void) | null = null
   private idleWords = ''
+  private beatMs = 0
 
   constructor(private readonly authority: RemoteAuthority) {}
 
@@ -114,22 +117,23 @@ class Connection {
 
   private async attempt(request: RemoteRequest): Promise<RemoteReply> {
     if (request.signal?.aborted) throw interrupted(request.signal)
-    if (this.child === null) await this.open(request.signal)
+    if (this.child === null) await this.open(request)
     try {
       return await this.exchange(request)
     } catch (error) {
       const retry = error instanceof RemoteConnectionError && error.failure === 'lost' && !error.answered && request.payload === undefined
       if (!retry || request.signal?.aborted) throw error
-      await this.open(request.signal)
+      await this.open(request)
       return this.exchange(request)
     }
   }
 
-  private async open(signal: AbortSignal | undefined): Promise<void> {
+  private async open(request: RemoteRequest): Promise<void> {
+    const beatSeconds = Math.max(1, Math.floor((request.quietMs ?? QUIET_DEADLINE_MS) / (BEATS_A_QUIET_TIME * 1000)))
     let refused: unknown
     for (const shell of SHELLS) {
       try {
-        await this.start(shell, signal)
+        await this.start(shell, request.signal, beatSeconds)
         return
       } catch (error) {
         if (!(error instanceof RemoteConnectionError) || error.failure !== 'shell') throw error
@@ -139,7 +143,7 @@ class Connection {
     throw refused
   }
 
-  private start(shell: string, signal: AbortSignal | undefined): Promise<void> {
+  private start(shell: string, signal: AbortSignal | undefined, beatSeconds: number): Promise<void> {
     return new Promise((resolve, reject) => {
       const token = randomBytes(16).toString('hex')
       const ready = Buffer.from(`${randomBytes(16).toString('hex')}\n`)
@@ -159,6 +163,7 @@ class Connection {
         if (error === undefined) {
           this.child = child
           this.token = token
+          this.beatMs = beatSeconds * 1000
           this.idleWords = ''
           this.opening = ++openings
           resolve()
@@ -192,7 +197,7 @@ class Connection {
         if (settled) {
           if (this.child !== child) return
           if (this.onStderr !== null) this.onStderr(chunk)
-          else this.idleWords = (this.idleWords + chunk.toString('utf8')).slice(-WORDS_KEPT)
+          else this.idleWords = (this.idleWords + chunk.toString('utf8').replace(BEAT, '')).slice(-WORDS_KEPT)
           return
         }
         err = Buffer.concat([err, chunk]).subarray(-NOISE_KEPT)
@@ -213,7 +218,7 @@ class Connection {
         this.child = null
         this.onClosed?.(lastWords(this.idleWords))
       })
-      child.stdin?.write(remotePrelude(token, ready.toString('latin1').trimEnd()))
+      child.stdin?.write(remotePrelude(token, ready.toString('latin1').trimEnd(), beatSeconds))
     })
   }
 
@@ -229,7 +234,7 @@ class Connection {
       const head = Buffer.from(`\n${marker} `)
       const ackLine = Buffer.from(`${ack}\n`)
       const errEnd = `${marker}\n`
-      const quietMs = request.quietMs ?? QUIET_DEADLINE_MS
+      const quietMs = Math.max(this.beatMs * BEATS_A_QUIET_TIME, request.quietMs ?? QUIET_DEADLINE_MS)
       const parts: Buffer[] = []
       let held: Buffer = Buffer.alloc(0)
       let status: number | null = null
@@ -320,7 +325,7 @@ class Connection {
       this.onStderr = chunk => {
         touch()
         if (errDone) return
-        errText += chunk.toString('utf8')
+        errText += chunk.toString('utf8').replace(BEAT, '')
         const at = errText.indexOf(errEnd)
         if (at === -1) {
           if (errText.length > 2 * WORDS_KEPT) errText = errText.slice(-WORDS_KEPT)

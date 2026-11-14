@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
-import { existsSync, mkdtempSync, readdirSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { enterWorld, localTransportUnavailable, remoteWorld, sshdUnavailable, type RemoteWorld } from './remoteKit.ts'
@@ -15,9 +15,9 @@ const { resolvedAuthority, RemotePathError } = await import('../../src/services/
 
 const PORT = 27061
 const watchdog = setTimeout(() => {
-  console.log('  [FAIL] the proof did not finish within 240 seconds')
+  console.log('  [FAIL] the proof did not finish within 420 seconds')
   process.exit(1)
-}, 240_000)
+}, 420_000)
 watchdog.unref()
 let failures = 0
 let checks = 0
@@ -74,7 +74,7 @@ function rawSession(world: RemoteWorld, feed: (token: string, write: (bytes: str
       clearTimeout(timer)
       resolve({ code, out, err })
     })
-    child.stdin.write(remotePrelude(token, ready))
+    child.stdin.write(remotePrelude(token, ready, 15))
     void (async () => {
       for (const until = Date.now() + 10_000; Date.now() < until && !out.includes(`${ready}\n`); ) await pause(20)
       await feed(token, bytes => child.stdin.write(bytes), () => out, () => child.stdin.end())
@@ -176,15 +176,39 @@ async function leg(world: RemoteWorld): Promise<void> {
   check(`${name}: an interrupted request ends at once`, stopped !== null && stopped.name === 'AbortError' && Date.now() - startedAt < 5_000, `${stopped?.name}: ${stopped?.message} after ${Date.now() - startedAt} ms`)
   const afterStop = await run('printf again')
   check(`${name}: and the next request is answered on a new connection`, afterStop.stdout.toString() === 'again')
+  closeRemoteConnections()
+  const slowAt = Date.now()
+  const slow = await run('sleep 9; printf whole', { quietMs: 4_000 }).catch((error: Error) => error)
+  check(`${name}: a command silent for nine seconds on a live link, under a quiet time of four, comes back whole`, !(slow instanceof Error) && slow.status === 0 && slow.stdout.toString() === 'whole' && Date.now() - slowAt >= 9_000, slow instanceof Error ? `${slow.message} after ${Date.now() - slowAt} ms` : `${slow.status} after ${Date.now() - slowAt} ms`)
+  const worded = await run('sleep 3; echo words >&2; (exit 3)', { quietMs: 4_000 })
+  check(`${name}: the beats that kept it alive are not in what the command said`, worded.status === 3 && worded.stderr === 'words\n' && worded.stdout.length === 0, JSON.stringify(worded.stderr))
+  const busyShell = Number((await run('printf %s $$')).stdout.toString())
+  const hurried = Date.now()
+  for (let index = 0; index < 100; index++) await run('true')
+  console.log(`  [info] ${name}: one hundred requests in a row took ${Date.now() - hurried} ms`)
+  const family = spawnSync('ps', ['-eo', 'pid=,ppid='], { encoding: 'utf8' })
+  if (family.status !== 0) console.log(`  [SKIP] ${name}: no ps on this machine, the children of the remote shell were not counted`)
+  else {
+    const children = family.stdout.split('\n').map(row => row.trim().split(/\s+/)).filter(row => row[1] === String(busyShell)).map(row => row[0])
+    check(`${name}: a hundred requests later the remote shell has one child, the one that beats`, Number.isInteger(busyShell) && busyShell > 1 && alive(busyShell) && children.length === 1, children.join(' '))
+  }
+  const lostAt = Date.now()
+  const lost = await failure(() => run('kill -9 $$', { quietMs: 4_000 }))
+  check(`${name}: a remote shell that dies under a request, and again under its one retry, is a lost connection, said so within a beat each time`, lost instanceof RemoteConnectionError && lost.failure === 'lost' && lost.message.startsWith('The connection to box was lost') && Date.now() - lostAt < 6_000, `${lost?.message} after ${Date.now() - lostAt} ms`)
+  const beaterFile = join(world.data, `beater-${name}`)
   const quietAt = Date.now()
-  const quiet = await failure(() => run('sleep 30', { quietMs: 500 }))
-  check(`${name}: a request with no answer for its quiet time fails in words`, quiet instanceof RemoteConnectionError && quiet.failure === 'timeout' && quiet.message === 'box did not answer for 1 seconds.' && Date.now() - quietAt < 5_000, `${quiet?.message} after ${Date.now() - quietAt} ms`)
+  const quiet = await failure(() => run(`printf %s "$b" > ${remoteQuote(beaterFile)}; kill -STOP "$b"; sleep 12`, { quietMs: 4_000 }))
+  const quietFor = Date.now() - quietAt
+  check(`${name}: a link with neither an answer nor a beat for the quiet time is said to be dead`, quiet instanceof RemoteConnectionError && quiet.failure === 'timeout' && quiet.message === 'box did not answer for 4 seconds.' && quietFor >= 4_000 && quietFor < 9_000, `${quiet?.message} after ${quietFor} ms`)
+  const frozen = existsSync(beaterFile) ? Number(readFileSync(beaterFile, 'utf8')) : 0
+  if (Number.isInteger(frozen) && frozen > 1) {
+    try {
+      process.kill(frozen, 'SIGKILL')
+    } catch {
+    }
+  }
   const afterQuiet = await run('printf again')
   check(`${name}: and the next request is answered`, afterQuiet.stdout.toString() === 'again')
-  const lost = await failure(() => run('kill -9 $$'))
-  check(`${name}: a remote shell that dies under a request is a lost connection, said so`, lost instanceof RemoteConnectionError && lost.failure === 'lost' && lost.message.startsWith('The connection to box was lost'), String(lost?.message))
-  const afterLost = await run('printf again')
-  check(`${name}: and the next request is answered`, afterLost.stdout.toString() === 'again')
 
   section(`${name} · the end of the session`)
   const shellPid = Number((await run('printf %s $$')).stdout.toString())
@@ -240,6 +264,9 @@ if (localTransportUnavailable() === null) {
       closeRemoteConnections()
       const answered = await run('printf %s "$0"')
       check(`${shell}: the product's own connection speaks to this shell`, answered.status === 0 && answered.stdout.length > 0, `${answered.status} ${answered.stderr}`)
+      closeRemoteConnections()
+      const kept = await run('sleep 6; printf whole', { quietMs: 4_000 }).catch((error: Error) => error)
+      check(`${shell}: its beats carry a command that is silent past the quiet time, and leave no word behind`, !(kept instanceof Error) && kept.stdout.toString() === 'whole' && kept.stderr === '', kept instanceof Error ? kept.message : JSON.stringify(kept.stderr))
       closeRemoteConnections()
     }
     delete process.env.REMOTE_KIT_SHELL

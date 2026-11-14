@@ -3,11 +3,22 @@ N='
 '
 T=
 B=
+b=
 [ -n "$ZSH_VERSION" ] && emulate sh
 trap 'exit 129' HUP
 trap 'exit 143' TERM
-trap 'if [ -n "$T" ]; then rm -f "$T"; fi; if [ -n "$B" ]; then rm -f "$B"; fi' EXIT
+trap 'if [ -n "$b" ]; then kill "$b" 2>/dev/null; fi; if [ -n "$T" ]; then rm -f "$T"; fi; if [ -n "$B" ]; then rm -f "$B"; fi' EXIT
 if printf x | head -c 1 >/dev/null 2>&1; then m_take() { head -c "$1"; }; else m_take() { dd bs=1 count="$1" 2>/dev/null; }; fi
+m_beat() {
+  z=
+  trap 'if [ -n "$z" ]; then kill "$z" 2>/dev/null; fi; exit 0' TERM
+  while kill -0 $$ 2>/dev/null; do
+    sleep "$1" &
+    z=$!
+    wait "$z"
+    printf '\a' >&2 || exit 0
+  done
+}
 m_end() { s=$?; printf '\n%s %s\n' "$1" "$s"; printf '%s\n' "$1" >&2; }
 m_put() {
   T=$2
@@ -105,6 +116,8 @@ m_over() {
 }
 m_loop() {
   printf '%s\n' "$1"; printf '%s\n' "$1" >&2
+  m_beat "$2" </dev/null &
+  b=$!
   while IFS= read -r req; do
     case $req in
       "$K "*) eval "@{req#"$K "}" ;;
@@ -114,8 +127,8 @@ m_loop() {
 }
 `.replaceAll('@{', '$' + '{')
 
-export function remotePrelude(token: string, ready: string): string {
-  return `K=${token}\n${PRELUDE}m_loop ${ready}\n`
+export function remotePrelude(token: string, ready: string, beatSeconds: number): string {
+  return `K=${token}\n${PRELUDE}m_loop ${ready} ${beatSeconds}\n`
 }
 
 export function remoteQuote(text: string): string {
