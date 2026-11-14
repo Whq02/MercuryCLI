@@ -188,6 +188,8 @@ the current row as a removal before approval. The transaction rechecks the
 row, schema and prior read, requires one affected row and verifies its absence;
 foreign-key restrictions roll back and declared cascades are enforced.
 The result distinguishes a deleted row from a missing-row no-op and gives no
-empty-file edit anchor. A query result is not the prior row read. Hidden-rowid
+empty-file edit anchor. A row change is never checkpointed: a rewind does not
+restore it. The card and the result say so, and the result repeats the row as
+it was. A query result is not the prior row read. Hidden-rowid
 shorthand uses an unshadowed alias. Composite or fully shadowed shorthand is
 refused. A key that names more than one row is refused.

@@ -21,6 +21,7 @@ import { toolErrorReason } from '../../utils/toolErrorReason.js'
 import { readFileInRange, FileTooLargeError } from '../../utils/readFileInRange.js'
 import { countCharInString, firstLineOf, plural } from '../../utils/stringUtils.js'
 import { FILE_WRITE_TOOL_NAME } from './prompt.js'
+import { isSqliteRowTarget } from './structuredTargets.js'
 import type { FileWriteToolInput, Output } from './FileWriteTool.js'
 
 
@@ -98,7 +99,7 @@ function CreatedFileCard({
     <Box flexDirection="column">
       <Text>
         <ToolCardMarker />
-        Wrote <Text bold>{lineCount}</Text> {plural(lineCount, 'line')} to {displayPath}
+        Wrote <Text bold>{lineCount}</Text> {plural(lineCount, 'line')} to {displayPath}{isSqliteRowTarget(output.filePath) ? ' · not checkpointed' : ''}
       </Text>
       <Box width={Math.max(20, columns - CODE_BLOCK_GUTTER)}>
         <HighlightedCode code={shown} filePath={output.filePath} />
@@ -123,7 +124,7 @@ export function renderToolResultMessage(
 ): React.ReactNode {
   const verbose = verboseOption || isTranscriptMode === true
   if (output.type === 'delete' || output.type === 'not-found') {
-    return <MessageResponse><Text>{output.type === 'delete' ? 'Deleted one SQLite row' : 'Row not found; nothing was deleted'} — {getDisplayPath(output.filePath)}</Text></MessageResponse>
+    return <MessageResponse><Text>{output.type === 'delete' ? 'Deleted one SQLite row' : 'Row not found; nothing was deleted'} — {getDisplayPath(output.filePath)}{output.type === 'delete' ? ' · not checkpointed' : ''}</Text></MessageResponse>
   }
   if (output.type === 'no-change') {
     return <NoChangeCard filePath={output.filePath} />
@@ -147,7 +148,7 @@ export function renderToolResultMessage(
         <Text>
           <ToolCardMarker />
           Wrote <Text bold>{lineCount}</Text> {plural(lineCount, 'line')} to{' '}
-          {getDisplayPath(output.filePath)}
+          {getDisplayPath(output.filePath)}{isSqliteRowTarget(output.filePath) ? ' · not checkpointed' : ''}
         </Text>
       </MessageResponse>
     )

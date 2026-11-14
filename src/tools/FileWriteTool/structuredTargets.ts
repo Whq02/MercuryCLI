@@ -1,4 +1,5 @@
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -143,6 +144,34 @@ function hostIsRegularFile(hostPath: string): boolean | null {
   } catch {
     return null
   }
+}
+
+export function isSqliteRowTarget(path: string): boolean {
+  return parseStructuredWriteTarget(path)?.kind === 'sqlite-row'
+}
+
+export const SQLITE_ROW_NOT_CHECKPOINTED = 'Not checkpointed: a rewind will not restore this row.'
+const PREVIOUS_ROW_INLINE_CHARS = 4000
+
+function previousRowArtifact(text: string): string {
+  return join(getMercuryTempDir(), 'query-results', `sqlite-row-${createHash('sha256').update(text).digest('hex').slice(0, 16)}`, 'row.json')
+}
+
+function keepPreviousRow(state: SqliteRowState): void {
+  if (state.row === null) return
+  const values = Object.values(state.row)
+  if (state.text.length <= PREVIOUS_ROW_INLINE_CHARS && !values.some(value => value instanceof Uint8Array)) return
+  const file = previousRowArtifact(state.text)
+  mkdirSync(join(file, '..'), { recursive: true, mode: 0o700 })
+  const fields = Object.entries(state.row).map(([name, value]) => `${JSON.stringify(name)}:${typeof value === 'bigint' ? String(value) : value instanceof Uint8Array ? JSON.stringify({ blob: Buffer.from(value).toString('base64'), bytes: value.byteLength }) : typeof value === 'number' && !Number.isFinite(value) ? JSON.stringify({ float: String(value) }) : JSON.stringify(value)}`)
+  writeFileSync(file, `{${fields.join(',')}}\n`, { mode: 0o600 })
+}
+
+export function sqliteRowRewindNote(previous: string | null): string {
+  if (previous === null || previous === '') return 'Not checkpointed: a rewind will not remove this row.'
+  const file = previousRowArtifact(previous)
+  if (previous.length > PREVIOUS_ROW_INLINE_CHARS || existsSync(file)) return `${SQLITE_ROW_NOT_CHECKPOINTED} The row was ${previous.length.toLocaleString('en-US')} characters: kept whole at ${file}.`
+  return `${SQLITE_ROW_NOT_CHECKPOINTED} The row was:\n${previous.trimEnd()}`
 }
 
 export function sqliteRowReadRefusal(target: StructuredWriteTarget, input: unknown, context: ToolUseContext): Refusal | null {
@@ -834,6 +863,7 @@ function settleRow(
   state: SqliteRowState,
   changes: RowChange[],
 ): { afterText: string; evidence: string; inserted: boolean; resultPath: string } {
+  keepPreviousRow(state)
   const tx = db.transaction(() => {
     const applied = applyRowChanges(db, target.table, state, target.selector, changes)
     const after = readSqliteRowState(
@@ -878,6 +908,7 @@ async function deleteSqliteRow(
         const evidence = structuredReadEvidence(context, { ...target, canonicalPath: rowPath }, fresh.text, null, 'write')
         if (evidence !== 'known') throw new Error(evidence === 'stale' ? modifiedSinceReadMessage() : unreadExistingWriteMessage())
         const q = (name: string) => `"${name.replaceAll('"', '""')}"`
+        keepPreviousRow(fresh)
         const result = db.run(`DELETE FROM ${q(target.table)} WHERE ${q(fresh.matchColumn)} = ?`, sqliteKeyBinding(target.selector.value)) as { changes: number }
         if (result.changes !== 1) throw new Error(`The deletion touched ${result.changes} rows of "${target.table}" instead of one; rolled back.`)
         if (readSqliteRowState(db, target.hostPath, target.table, target.selector).row !== null) throw new Error(`The row of "${target.table}" is still present after deletion; rolled back.`)

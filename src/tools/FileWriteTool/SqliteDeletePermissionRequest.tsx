@@ -1,12 +1,12 @@
 import * as React from 'react'
 import { useMemo } from 'react'
-import { Text } from '../../ink.js'
+import { Box, Text } from '../../ink.js'
 import { FilePermissionDialog } from '../../components/permissions/FilePermissionDialog/FilePermissionDialog.js'
 import { FileWriteToolDiff } from '../../components/permissions/FileWritePermissionRequest/FileWriteToolDiff.js'
 import type { PermissionRequestProps } from '../../components/permissions/PermissionRequest.js'
 import { getDisplayPath } from '../../utils/file.js'
 import type { FileWriteToolInput } from './FileWriteTool.js'
-import { hostPathOfWriteTarget, previewSqliteDeletion } from './structuredTargets.js'
+import { hostPathOfWriteTarget, previewSqliteDeletion, SQLITE_ROW_NOT_CHECKPOINTED } from './structuredTargets.js'
 
 const parseInput = (input: unknown): FileWriteToolInput => input as FileWriteToolInput
 
@@ -25,7 +25,10 @@ export function SqliteDeletePermissionRequest({ toolUseConfirm, onDone, onReject
       subtitle={getDisplayPath(input.file_path)}
       question="Delete this row?"
       content={state.error !== null ? <Text>{state.error}</Text> : state.preview?.exists ? (
-        <FileWriteToolDiff file_path={state.preview.path} content="" fileExists={true} oldContent={state.preview.content} />
+        <Box flexDirection="column">
+          <FileWriteToolDiff file_path={state.preview.path} content="" fileExists={true} oldContent={state.preview.content} />
+          <Text>{SQLITE_ROW_NOT_CHECKPOINTED}</Text>
+        </Box>
       ) : <Text>Row not found; nothing will be deleted.</Text>}
       path={hostPathOfWriteTarget(input.file_path)}
       parseInput={parseInput}

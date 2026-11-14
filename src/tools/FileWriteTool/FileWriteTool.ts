@@ -30,6 +30,7 @@ import {
   writeTextContent,
 } from '../../utils/file.js'
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js'
+import { noteFileTouched } from '../../mneme/lineageSession.js'
 import { readFileSyncWithMetadata, type LineEndingType } from '../../utils/fileRead.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { logError } from '../../utils/log.js'
@@ -54,9 +55,11 @@ import {
   callStructuredWriteTarget,
   expandStructuredTargetPath,
   hostPathOfWriteTarget,
+  isSqliteRowTarget,
   parseStructuredWriteTarget,
   prepareSqliteDeletion,
   sqliteRowReadRefusal,
+  sqliteRowRewindNote,
   structuredTargetRefusal,
 } from './structuredTargets.js'
 import { DESCRIPTION, FILE_WRITE_TOOL_NAME, getWriteToolDescription } from './prompt.js'
@@ -242,7 +245,8 @@ export const FileWriteTool = buildTool({
         await getFsImplementation().mkdir(hostParentDir)
       }
       if (fileHistoryEnabled()) {
-        await fileHistoryTrackEdit(
+        if (structuredTarget.kind === 'sqlite-row') noteFileTouched(structuredTarget.hostPath)
+        else await fileHistoryTrackEdit(
           context.updateFileHistoryState,
           structuredTarget.hostPath,
           parentMessage.uuid as UUID,
@@ -524,7 +528,7 @@ export const FileWriteTool = buildTool({
     if (data.type === 'delete' || data.type === 'not-found') return {
       tool_use_id: toolUseID,
       type: 'tool_result' as const,
-      content: data.type === 'delete' ? `Deleted one SQLite row at ${data.filePath}; the row is absent on read-back.` : `Row not found at ${data.filePath}; nothing was deleted.`,
+      content: data.type === 'delete' ? `Deleted one SQLite row at ${data.filePath}; the row is absent on read-back. ${sqliteRowRewindNote(data.originalFile)}` : `Row not found at ${data.filePath}; nothing was deleted.`,
     }
     if (data.type === 'no-change') {
       const guidance = data.noChange?.guidance ?? ''
@@ -539,17 +543,18 @@ export const FileWriteTool = buildTool({
     const parseSuffix = data.parseError !== undefined ? `\n${data.parseError}` : ''
     const divergedSuffix = data.diverged === true ? `\nThe file as read back right after the write differs from what was written (formatted on save); its current content counts as read:\n\n${data.content}` : ''
     const anchorSuffix = `\n(anchor: ${mintFileAnchor(data.content)})`
+    const rowSuffix = isSqliteRowTarget(data.filePath) ? ` ${sqliteRowRewindNote(data.type === 'create' ? null : data.originalFile)}` : ''
     if (data.type === 'create') {
       return {
         tool_use_id: toolUseID,
         type: 'tool_result' as const,
-        content: `File created successfully at: ${data.filePath}\n${APPLIED_NO_REREAD_NOTE}${divergedSuffix}${anchorSuffix}${parseSuffix}`,
+        content: `File created successfully at: ${data.filePath}\n${APPLIED_NO_REREAD_NOTE}${rowSuffix}${divergedSuffix}${anchorSuffix}${parseSuffix}`,
       }
     }
     return {
       tool_use_id: toolUseID,
       type: 'tool_result' as const,
-      content: `The file ${data.filePath} has been updated successfully. ${APPLIED_NO_REREAD_NOTE}${divergedSuffix}${anchorSuffix}${parseSuffix}`,
+      content: `The file ${data.filePath} has been updated successfully. ${APPLIED_NO_REREAD_NOTE}${rowSuffix}${divergedSuffix}${anchorSuffix}${parseSuffix}`,
     }
   },
   extractSearchText(): string {
