@@ -74,6 +74,17 @@ function parseRegions(file: string, text: string): ConflictRegion[] {
   return out
 }
 
+function markerBlockRemains(text: string): boolean {
+  const opened = new Set<number>()
+  for (const line of text.split('\n')) {
+    const marker = /^(<{7,}|>{7,})(?: .*)?\r?$/.exec(line)
+    if (!marker) continue
+    if (marker[1]![0] === '<') opened.add(marker[1]!.length)
+    else if (opened.has(marker[1]!.length)) return true
+  }
+  return false
+}
+
 function filesFor(owner: OwnerKey, root: string): Map<string, ConflictRegion[]> {
   const roots = store.get(owner).roots
   let files = roots.get(root)
@@ -211,7 +222,7 @@ export async function applyResolution(plan: ResolutionPlan, signal?: AbortSignal
     lock = openSync(lockPath, 'wx', 0o600)
     if (!readFileSync(plan.indexPath).equals(plan.index) || plan.files.some(f => !readFileSync(path.join(root, f.path)).equals(f.before))) return stale()
     const targets: CommitTarget[] = plan.files.map(f => ({ canonicalPath: path.join(root, f.path), originalBytes: f.before, plannedBytes: f.after, originalDigest: digest(f.before), plannedDigest: digest(f.after), mode: f.mode & 0o7777 }))
-    const final = plan.files.filter(f => f.remaining.length === 0 && parseRegions(f.path, f.after.toString('utf8')).length === 0)
+    const final = plan.files.filter(f => f.remaining.length === 0 && !markerBlockRemains(f.after.toString('utf8')))
     if (final.length) {
       copyFileSync(plan.indexPath, temporary)
       const env = { ...subprocessEnv(), GIT_INDEX_FILE: temporary }
