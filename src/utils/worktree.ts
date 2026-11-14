@@ -16,6 +16,7 @@ import { parseGitConfigValue } from './git/gitConfigParser.js'
 import { registerCleanup } from './cleanupRegistry.js'
 import { saveCurrentProjectConfig } from './config.js'
 import { containsPathTraversal } from './path.js'
+import { PROJECT_CONFIG_DIR_NAMES } from './projectConfig.js'
 import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { startCommandHook } from './hooks/commandRunner.js'
 import { logError } from './log.js'
@@ -23,7 +24,7 @@ import { projectLocalPath } from '../services/projectLocal/paths.js'
 import { getInitialSettings, getRelativeSettingsFilePathForSource } from './settings/settings.js'
 import { sleep } from './sleep.js'
 import { isInITerm2, isInsideTmuxSync } from './terminalDetection.js'
-import { cloneIntoWorktree, discardSetAside, recordWorktreeClones, returnWorktreeFromAside, setWorktreeAside, sweepSetAside, worktreeHoldsClones, type HeldBack } from './worktreeClone.js'
+import { canCloneHere, carryEntries, cloneIntoWorktree, cloneRefusedBetween, discardSetAside, recordWorktreeClones, returnWorktreeFromAside, setWorktreeAside, sweepSetAside, worktreeHoldsClones, type HeldBack } from './worktreeClone.js'
 
 
 
@@ -411,10 +412,40 @@ async function heldBackUnder(permission: ToolPermissionContext | undefined): Pro
   }
 }
 
-async function cloneCheckoutDirectories(sourceRoot: string, worktreePath: string, relPaths: readonly string[], permission: ToolPermissionContext | undefined): Promise<string[]> {
+async function cloneCheckoutDirectories(sourceRoot: string, worktreePath: string, relPaths: readonly string[], held: ((root: string) => HeldBack) | undefined): Promise<string[]> {
   if (relPaths.length === 0) return []
-  const outcomes = await cloneIntoWorktree(relPaths.map(relPath => ({ source: join(sourceRoot, ...relPath.split('/')), target: join(worktreePath, ...relPath.split('/')) })), sourceRoot, worktreePath, undefined, await heldBackUnder(permission))
+  const outcomes = await cloneIntoWorktree(relPaths.map(relPath => ({ source: join(sourceRoot, ...relPath.split('/')), target: join(worktreePath, ...relPath.split('/')) })), sourceRoot, worktreePath, undefined, held)
   return relPaths.filter((_, index) => outcomes[index] === 'cloned')
+}
+
+const CARRY_LISTING_BYTES = 64 * 1024 * 1024
+
+async function ignoredEntriesOf(sourceRoot: string, worktreePath: string): Promise<string[]> {
+  const options = { cwd: sourceRoot, maxBuffer: CARRY_LISTING_BYTES }
+  const [listing, rules] = await Promise.all([
+    execFileNoThrowWithCwd(gitExe(), ['ls-files', '--others', '--ignored', '--exclude-standard', '--directory', '-z'], options),
+    execFileNoThrowWithCwd(gitExe(), ['ls-files', '--modified', '--others', '--exclude-standard', '-z', '--', ':(glob)**/.gitignore'], options),
+  ])
+  if (listing.code !== 0) return []
+  const entries = listing.stdout.split('\0').filter(entry => entry !== '')
+  if (rules.code === 0 && rules.stdout === '' && !entries.some(entry => basename(entry) === '.gitignore')) {
+    return entries.filter((entry, at) => !(entry.endsWith('/') && entries[at + 1]?.startsWith(entry) === true))
+  }
+  const checked = await execFileNoThrowWithCwd(gitExe(), ['check-ignore', '--stdin', '-z'], { cwd: worktreePath, maxBuffer: CARRY_LISTING_BYTES, input: entries.join('\0') })
+  return checked.code === 0 ? checked.stdout.split('\0').filter(entry => entry !== '') : []
+}
+
+async function carryIgnoredEntries(sourceRoot: string, worktreePath: string, placed: readonly string[], held: ((root: string) => HeldBack) | undefined): Promise<boolean> {
+  if (await cloneRefusedBetween(sourceRoot, worktreePath)) return false
+  const [here, there] = await Promise.all([runGit(['rev-parse', 'HEAD'], worktreePath), runGit(['rev-parse', 'HEAD'], sourceRoot)])
+  if (here.code !== 0 || there.code !== 0 || here.stdout.trim() === '' || here.stdout.trim() !== there.stdout.trim()) return false
+  const entries = (await ignoredEntriesOf(sourceRoot, worktreePath)).filter(entry => {
+    const name = entry.endsWith('/') ? entry.slice(0, -1) : entry
+    if ((PROJECT_CONFIG_DIR_NAMES as readonly string[]).includes(name.split('/')[0] as string)) return false
+    return !placed.some(kept => name === kept || name.startsWith(`${kept}/`) || kept.startsWith(`${name}/`))
+  })
+  recordWorktreeClones(worktreePath, await carryEntries(entries, sourceRoot, worktreePath, held))
+  return true
 }
 
 async function linkCheckoutDirectories(sourceRoot: string, worktreePath: string, relPaths: readonly string[]): Promise<string[]> {
@@ -503,21 +534,25 @@ async function propagateLocalSettings(repoRoot: string, worktreePath: string, pr
   }
 }
 
-async function placeCheckoutFolders(repoRoot: string, worktreePath: string, dependencyLinksFrom: string | undefined, preserveExisting: boolean, permission?: ToolPermissionContext): Promise<void> {
+async function placeCheckoutFolders(repoRoot: string, worktreePath: string, dependencyLinksFrom: string | undefined, preserveExisting: boolean, permission?: ToolPermissionContext, carry = false): Promise<void> {
   const symlinkDirectories = getInitialSettings().workspace?.worktree?.symlinkDirectories ?? []
   const sourceRoot = dependencyLinksFrom !== undefined ? (findGitRoot(dependencyLinksFrom) ?? repoRoot) : repoRoot
   const dependencyLinks = dependencyLinksFrom !== undefined ? await dependencyLinkCandidates(sourceRoot) : []
   const keptAsLinks = new Set(symlinkDirectories.map(checkoutRelativeName))
-  const cloned = await cloneCheckoutDirectories(sourceRoot, worktreePath, dependencyLinks.filter(name => !keptAsLinks.has(name)), permission)
+  const toClone = dependencyLinks.filter(name => !keptAsLinks.has(name))
+  const carries = carry && dependencyLinksFrom !== undefined && canCloneHere() && (getInitialSettings().workspace?.worktree?.sparsePaths ?? []).length === 0
+  const held = canCloneHere() && (toClone.length > 0 || carries) ? await heldBackUnder(permission) : undefined
+  const cloned = await cloneCheckoutDirectories(sourceRoot, worktreePath, toClone, held)
   recordWorktreeClones(worktreePath, cloned)
   const linked = await linkCheckoutDirectories(sourceRoot, worktreePath, [...new Set([...dependencyLinks, ...symlinkDirectories])].filter(name => !cloned.includes(name)))
   if (dependencyLinksFrom !== undefined) await hideLinksFromGit(repoRoot, worktreePath, sourceRoot, [...cloned, ...linked])
-  await copyWorktreeIncludeFiles(repoRoot, worktreePath, preserveExisting)
+  const carried = carries && (await carryIgnoredEntries(sourceRoot, worktreePath, [...new Set([...dependencyLinks, ...keptAsLinks])], held))
+  await copyWorktreeIncludeFiles(repoRoot, worktreePath, preserveExisting || carried)
 }
 
-export async function prepareWorktreeFiles(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string, preserveExisting = false, permission?: ToolPermissionContext): Promise<void> {
+export async function prepareWorktreeFiles(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string, preserveExisting = false, permission?: ToolPermissionContext, carry = false): Promise<void> {
   await propagateLocalSettings(repoRoot, worktreePath, preserveExisting)
-  await placeCheckoutFolders(repoRoot, worktreePath, dependencyLinksFrom, preserveExisting, permission)
+  await placeCheckoutFolders(repoRoot, worktreePath, dependencyLinksFrom, preserveExisting, permission, carry)
 }
 
 async function setWorktreeHooksPath(repoRoot: string, worktreePath: string): Promise<void> {
@@ -548,8 +583,8 @@ async function setWorktreeHooksPath(repoRoot: string, worktreePath: string): Pro
   }
 }
 
-async function runPostCreationSetup(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string, permission?: ToolPermissionContext): Promise<string | undefined> {
-  await prepareWorktreeFiles(repoRoot, worktreePath, dependencyLinksFrom, false, permission)
+async function runPostCreationSetup(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string, permission?: ToolPermissionContext, carry = false): Promise<string | undefined> {
+  await prepareWorktreeFiles(repoRoot, worktreePath, dependencyLinksFrom, false, permission, carry)
   await setWorktreeHooksPath(repoRoot, worktreePath)
   return runWorktreePrepareCommand(worktreePath)
 }
@@ -565,9 +600,9 @@ async function launchWaitsForFolders(repoRoot: string): Promise<boolean> {
   }
 }
 
-function placeFoldersBehindLaunch(repoRoot: string, worktreePath: string, from: string, permission: ToolPermissionContext | undefined): Promise<void> {
+function placeFoldersBehindLaunch(repoRoot: string, worktreePath: string, from: string, permission: ToolPermissionContext | undefined, carry: boolean): Promise<void> {
   const placing = (async () => {
-    await placeCheckoutFolders(repoRoot, worktreePath, from, false, permission)
+    await placeCheckoutFolders(repoRoot, worktreePath, from, false, permission, carry)
     await setWorktreeHooksPath(repoRoot, worktreePath)
   })().catch(error => {
     logForDebugging(`the folders of ${worktreePath} were not placed: ${String(error)}`, { level: 'warn' as never })
@@ -662,7 +697,7 @@ export async function createWorktreeForSession(
       ? `resumed worktree ${created.worktreePath}`
       : `created worktree ${created.worktreePath} from ${created.baseBranch ?? 'HEAD'}`,
   )
-  const prepareFailure = created.existed ? undefined : await runPostCreationSetup(gitRoot, created.worktreePath, originalCwd)
+  const prepareFailure = created.existed ? undefined : await runPostCreationSetup(gitRoot, created.worktreePath, originalCwd, undefined, options?.prNumber === undefined)
 
   const usedSparse = (getInitialSettings().workspace?.worktree?.sparsePaths ?? []).length > 0
   const session: WorktreeSession = {
@@ -814,7 +849,7 @@ export async function createAgentWorktree(
     await markAgentLane(created.worktreePath, slug)
     const behindLaunch = options?.foldersBehindLaunch === true && !(await launchWaitsForFolders(gitRoot))
     if (behindLaunch) await propagateLocalSettings(gitRoot, created.worktreePath, false)
-    else prepareFailure = await runPostCreationSetup(gitRoot, created.worktreePath, from, options?.permission)
+    else prepareFailure = await runPostCreationSetup(gitRoot, created.worktreePath, from, options?.permission, options?.at === undefined)
     const lock = await runGit(
       ['worktree', 'lock', created.worktreePath, '--reason', `agent ${slug} (pid ${process.pid})`],
       gitRoot,
@@ -822,7 +857,7 @@ export async function createAgentWorktree(
     if (lock.code !== 0) {
       logForDebugging(`worktree lock failed for ${created.worktreePath}: ${lock.stderr.trim()}`)
     }
-    if (behindLaunch) ready = placeFoldersBehindLaunch(gitRoot, created.worktreePath, from, options?.permission)
+    if (behindLaunch) ready = placeFoldersBehindLaunch(gitRoot, created.worktreePath, from, options?.permission, options?.at === undefined)
   } else {
     try {
       const now = new Date()
@@ -1397,7 +1432,7 @@ export async function execIntoTmuxWorktree(args: string[]): Promise<{ handled: b
       worktreeDir = created.worktreePath
       if (!created.existed) {
         process.stdout.write(`Created worktree ${created.worktreePath} (based on ${created.baseBranch ?? 'HEAD'})\n`)
-        const prepareFailure = await runPostCreationSetup(gitRoot, created.worktreePath, getCwd())
+        const prepareFailure = await runPostCreationSetup(gitRoot, created.worktreePath, getCwd(), undefined, prNumber === undefined)
         if (prepareFailure !== undefined) process.stderr.write(`${prepareFailure}\n`)
       }
     } catch (error) {

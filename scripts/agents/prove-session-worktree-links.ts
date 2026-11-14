@@ -118,9 +118,9 @@ state.setCwdState(repo)
 
 section('§3 every session road hands its source directory to the setup')
 const source = readFileSync(join(ROOT, 'src/utils/worktree.ts'), 'utf8')
-check('the session road (EnterWorktree and the --worktree boot) links from the directory it was opened in', source.includes('await runPostCreationSetup(gitRoot, created.worktreePath, originalCwd)'))
-check('the --worktree --multiplex fast path links from the directory it was opened in', source.includes('await runPostCreationSetup(gitRoot, created.worktreePath, getCwd())'))
-check('the agent road is unchanged', source.includes('await runPostCreationSetup(gitRoot, created.worktreePath, from, options?.permission)'))
+check('the session road (EnterWorktree and the --worktree boot) links from the directory it was opened in', source.includes('await runPostCreationSetup(gitRoot, created.worktreePath, originalCwd, undefined, options?.prNumber === undefined)'))
+check('the --worktree --multiplex fast path links from the directory it was opened in', source.includes('await runPostCreationSetup(gitRoot, created.worktreePath, getCwd(), undefined, prNumber === undefined)'))
+check('the agent road is unchanged', source.includes('await runPostCreationSetup(gitRoot, created.worktreePath, from, options?.permission, options?.at === undefined)'))
 const sessionsDoc = readFileSync(join(ROOT, 'docs/SESSIONS.md'), 'utf8').replace(/\s+/g, ' ')
 check('the sessions page says an install inside the worktree lands in the checkout', sessionsDoc.includes('an install run inside the worktree installs into the checkout'))
 

@@ -83,6 +83,10 @@ const makeFixture = (name: string, rules: (dir: string) => string[]): string => 
     'node_modules/mixed/inner/fine.js': 'module.exports = "fine"\n',
     'vendor/pack-open/marker': 'open pack\n',
     'vendor/pack-secret/marker': 'secret pack\n',
+    'node_modules/other-tree/.git': 'gitdir: /nowhere/.git/worktrees/other-tree\n',
+    'node_modules/other-tree/index.js': 'module.exports = "another working tree"\n',
+    'node_modules/built/pyvenv.cfg': 'home = /somewhere\n',
+    'node_modules/built/build/CMakeCache.txt': 'CMAKE_HOME_DIRECTORY:INTERNAL=/somewhere\n',
   })) {
     mkdirSync(dirname(join(dir, file)), { recursive: true })
     writeFileSync(join(dir, file), body)
@@ -132,6 +136,8 @@ try {
       check('a file a rule names stands as a link to the checkout\'s file, the folder around it the copy\'s own', kindOf(join(copy, 'node_modules', 'mixed')) === 'folder' && linkTo(join(copy, 'node_modules', 'mixed', 'secret.pem'), join(fixture, 'node_modules', 'mixed', 'secret.pem')) && kindOf(join(copy, 'node_modules', 'mixed', 'ok.js')) === 'file', `${kindOf(join(copy, 'node_modules', 'mixed'))}, ${kindOf(join(copy, 'node_modules', 'mixed', 'secret.pem'))}, ${kindOf(join(copy, 'node_modules', 'mixed', 'ok.js'))}`)
       check('…at any depth', kindOf(join(copy, 'node_modules', 'mixed', 'inner')) === 'folder' && linkTo(join(copy, 'node_modules', 'mixed', 'inner', 'also.pem'), join(fixture, 'node_modules', 'mixed', 'inner', 'also.pem')) && kindOf(join(copy, 'node_modules', 'mixed', 'inner', 'fine.js')) === 'file')
       check('a link that was in the folder is still the link it was', kindOf(join(copy, 'node_modules', '.bin', 'tool')) === 'link' && readlinkSync(join(copy, 'node_modules', '.bin', 'tool')) === '../open/index.js')
+      check('a folder inside it that is another git worktree (its .git a pointer) stands as a link to the checkout\'s: its administration is not shared by a second tree', linkTo(join(copy, 'node_modules', 'other-tree'), join(fixture, 'node_modules', 'other-tree')), kindOf(join(copy, 'node_modules', 'other-tree')))
+      check('a dependency that holds a pyvenv.cfg or a CMake build folder is cloned whole: those stay behind only in what is carried beside the dependency folders', kindOf(join(copy, 'node_modules', 'built', 'pyvenv.cfg')) === 'file' && kindOf(join(copy, 'node_modules', 'built', 'build', 'CMakeCache.txt')) === 'file' && kindOf(join(copy, 'node_modules', 'built')) === 'folder')
       check('a pack a rule names whole is the link to the checkout\'s, as before; the pack beside it is the copy\'s own', linkTo(join(copy, 'vendor', 'pack-secret'), join(fixture, 'vendor', 'pack-secret')) && kindOf(join(copy, 'vendor', 'pack-open')) === 'folder', `${kindOf(join(copy, 'vendor', 'pack-secret'))}, ${kindOf(join(copy, 'vendor', 'pack-open'))}`)
       check('the Read gate refuses each of the five files through the copy, as it does in the checkout', HELD.every(rel => refused(rules, join(copy, rel))), HELD.filter(rel => !refused(rules, join(copy, rel))).join(', '))
       check('…and none of the four no rule names', OPEN.every(rel => !refused(rules, join(copy, rel))), OPEN.filter(rel => refused(rules, join(copy, rel))).join(', '))
