@@ -7,8 +7,6 @@ package	class	purpose
 @modelcontextprotocol/server	protocol-sdk	Mercury's own MCP server
 @puppeteer/browsers	tool	fetching the managed Chrome for Testing
 @xmldom/xmldom	library	XML document parsing and serialization
-acorn	library	JavaScript parser
-acorn-walk	library	AST walking for acorn
 ajv	library	JSON-schema validation
 auto-bind	library	method binding
 axios	library	HTTP client
