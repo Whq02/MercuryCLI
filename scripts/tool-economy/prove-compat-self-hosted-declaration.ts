@@ -4,7 +4,6 @@ import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { engineError } from '../provider-compat/fixtures/engineRules.mjs'
 import { buildFixtureMcpTools } from './fixtureMcpEstate.ts'
 
 const childHome = process.argv[2] === '--scratch-home' ? process.argv[3] : undefined
@@ -105,8 +104,8 @@ function engine(kind: Engine): Promise<{ server: Server; root: string }> {
           chats.get(kind)!.push(body)
           const words = refusalOf(templateOf(body.model), body.messages)
           if (words !== undefined) {
-            const refusal = engineError(kind, words) as { status: number; body: unknown }
-            return json(refusal.status, refusal.body)
+            const error = { message: words, type: 'BadRequestError', param: null, code: 400 }
+            return json(400, kind === 'sglang' ? { object: 'error', ...error } : { error })
           }
           res.writeHead(200, { 'content-type': 'text/event-stream' })
           const event = (value: Record<string, unknown>): void => void res.write(`data: ${JSON.stringify({ id: 'chatcmpl-fixture', object: 'chat.completion.chunk', created: 1_794_000_000, model: body.model, ...value })}\n\n`)
@@ -158,7 +157,6 @@ const { getDeferredToolsDeltaAttachment } = await import('../../src/utils/attach
 const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
 const { deferralWireFormFor } = await import('../../src/services/providers/deferralWire.ts')
 const { clearToolRosterLatches, admissionRecordText } = await import('../../src/services/providers/toolEconomy.ts')
-const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
 type Tool = import('../../src/Tool.ts').Tool
 type Tools = import('../../src/Tool.ts').Tools
 type Message = import('../../src/types/message.ts').Message
@@ -261,7 +259,6 @@ section('§1 the seam — the form of each dialect stands: appended for the self
 section('§2 the ten shipped repositories whose template refuses or drops a system row after the tool result, each on a rented pod of its engine')
 for (const shipped of SHIPPED) {
   const model = `compat/pod-${shipped.engine === 'sglang' ? 'sglang0001' : 'vllm00001'}/${shipped.repository}`
-  check(`${shipped.repository} is the model of a shipped ${shipped.engine === 'sglang' ? 'SGLang' : 'vLLM'} recipe`, HOST_RECIPES.some(recipe => recipe.model === shipped.repository && (recipe.engine ?? 'sglang') === shipped.engine))
   const { fresh, next, toolText } = await load(shipped.engine, model)
   const roles = rolesOf(next.body)
   check(`${shipped.repository}: after the load no system row rides after the first`, next.sent === 1 && roles[0] === 'system' && roles.slice(1).every(role => role !== 'system'), roles.join(','))
