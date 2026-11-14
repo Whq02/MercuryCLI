@@ -1706,7 +1706,8 @@ function serializeTextResult(file: TextFile, data: object): string {
   const capNote = file.overCap === undefined ? '' : `${overCapWords(file)}\n`
   const numbered = resultOutlineBodies.get(data) ?? numberedWindow(file, resultLineAnchors.has(data))
   const anchorSuffix = file.anchor !== undefined ? `\n(anchor: ${file.anchor})` : ''
-  return `${resolvedNote}${prefix}${capNote}${numbered}${conflictMark(file.content)}${cutMark(file)}${anchorSuffix}`
+  const profileHint = /\.(?:cpuprofile|sample\.txt)$/i.test(file.filePath) ? `\nProfile summary: Read(file_path: ${JSON.stringify(`${file.filePath}#read?view=profile`)}).` : ''
+  return `${resolvedNote}${prefix}${capNote}${numbered}${conflictMark(file.content)}${cutMark(file)}${anchorSuffix}${profileHint}`
 }
 
 export function unresolvedConflictBlocks(content: string): number {
@@ -1926,19 +1927,28 @@ export const FileReadTool = buildTool({
       granted = share < declaredLimits.maxTokens ? { ...declaredLimits, maxTokens: share, room: true } : declaredLimits
       return granted
     }
-    const query = parseReadQueryTarget(input.file_path)
-    if (query !== null) {
-      const { readQuery } = await import('./readQuery.js')
-      const rendered = await readQuery({ target: query, input, context, limits: reserve(), canUseTool, parentMessage })
-      const data: Output = {
-        type: 'text',
-        file: { filePath: input.file_path, content: rendered.content, numLines: rendered.numLines, startLine: 1, totalLines: rendered.numLines },
+    let query = parseReadQueryTarget(input.file_path)
+    if (query?.parameters.view === 'raw') {
+      input = { ...input, file_path: query.source, offset: input.offset ?? 1 }
+      query = null
+    }
+    const automaticProfile = query === null && /\.(?:cpuprofile|sample\.txt)$/i.test(input.file_path) && input.offset === undefined && input.limit === undefined && !input.ranges?.length && !input.outline
+    if (query !== null || automaticProfile) {
+      const request = { target: query ?? { source: input.file_path, suffix: '#read?view=profile', parameters: { view: 'profile' } }, input, context, limits: reserve(), canUseTool, parentMessage }
+      const rendered = query !== null
+        ? await (await import('./readQuery.js')).readQuery(request)
+        : await (await import('./readProfiles.js')).readProfiles(request, true)
+      if (rendered !== null) {
+        const data: Output = {
+          type: 'text',
+          file: { filePath: input.file_path, content: rendered.content, numLines: rendered.numLines, startLine: 1, totalLines: rendered.numLines },
+        }
+        data.file.reminder = takeReminder(parentMessage, context.messages)
+          ? context.options?.engineModel ? cyberRiskReminderFor(context.options.engineModel) : cyberRiskReminderForCurrentModel()
+          : ''
+        resultPreRenderedBody.set(data, rendered.content)
+        return { data }
       }
-      data.file.reminder = takeReminder(parentMessage, context.messages)
-        ? context.options?.engineModel ? cyberRiskReminderFor(context.options.engineModel) : cyberRiskReminderForCurrentModel()
-        : ''
-      resultPreRenderedBody.set(data, rendered.content)
-      return { data }
     }
     const remoteEntry = isRemotePath(input.file_path) ? remoteRichTarget(input.file_path.trim()) : null
     const remoteInner = remoteEntry?.subtarget !== undefined ? remoteEntry : null

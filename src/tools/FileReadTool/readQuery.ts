@@ -18,6 +18,10 @@ export interface ReadQueryResult {
 }
 
 export async function readQuery(request: ReadQueryRequest): Promise<ReadQueryResult> {
+  if (request.target.parameters.view === 'profile') {
+    const { readProfiles } = await import('./readProfiles.js')
+    return (await readProfiles(request))!
+  }
   const { readJson } = await import('./readJson.js')
   return readJson(request)
 }

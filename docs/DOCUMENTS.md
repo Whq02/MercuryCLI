@@ -119,3 +119,20 @@ budget still applies, so a large crop may be downscaled to fit.
 
 The crop coordinates, original dimensions and scale are metadata inside the
 image's tool result instead of a separate user message.
+
+## Profiler reports
+
+A whole `Read` of a recognised `.cpuprofile` (V8 or CDP-wrapped V8) or
+`.sample.txt` (a macOS sampling report) returns measured hotspots and hot
+paths, not the raw dump. It reads an existing report on every platform; it
+never starts a profiler or follows a source URL. Self and inclusive weights,
+known idle/wait contribution, the denominator and any hit-count approximation
+are named separately. Recorded function/file/line/module identities stay with
+the rows; uncertain symbols remain unresolved.
+
+Use `<path>#read?view=profile&offset=0&limit=20` for a result-row page.
+The continuation preserves the target and refers to generated rows, not source
+lines. A summary grants neither a file edit anchor nor source read coverage.
+`<path>#read?view=raw`, or an ordinary read with explicit `offset`, `limit` or
+`ranges`, reads the original report with its original coordinates and anchors.
+A misnamed or unrecognised report remains ordinary text.
