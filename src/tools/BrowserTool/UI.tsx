@@ -44,6 +44,7 @@ export function renderToolUseMessage(
   if (input.op === 'console' && typeof input.limit === 'number') parts.push(`last ${input.limit}`);
   if (input.op === 'screenshot' && input.selector) parts.push(input.selector);
   if (input.op === 'screenshot' && input.fullPage) parts.push('(full page)');
+  if (input.tab !== undefined) parts.push(`(tab ${input.tab})`);
   return parts.filter(Boolean).join(' ');
 }
 

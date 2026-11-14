@@ -658,7 +658,7 @@ async function permB(input: Partial<ToolInput>): Promise<{ behavior: string; mes
   check("B's console ring is B's own (no alpha-page entries)", !ringB.result.includes('alpha loaded'), ringB.result.split('\n').slice(0, 3).join(' | '))
   noteCheckedActOrigin(OWNER, 'click', 'http://one-shot-fixture.test')
   check("A's judged origin is NOT consumable by owner B", consumeCheckedActOrigin(OWNER_B, 'click') === null)
-  check("…and stays consumable by owner A (one-shot, own lane)", consumeCheckedActOrigin(OWNER, 'click') === 'http://one-shot-fixture.test')
+  check("…and stays consumable by owner A (one-shot, own lane)", consumeCheckedActOrigin(OWNER, 'click')?.origin === 'http://one-shot-fixture.test')
   const statusA = await run({ op: 'status' })
   const statusB = await runB({ op: 'status' })
   check('status (A) names the other live session', statusA.result.includes('other live sessions: 1'), statusA.result.split('\n').slice(-1).join(''))
@@ -1010,7 +1010,7 @@ console.log('§15 structural teeth')
   check('the per-owner store joins the owner-disposal registry', sessionSrc.includes('registerOwnerScopedStore(ownerStates)'))
   check(
     'a live or launching child is retained (LRU eviction can never kill a browser mid-act)',
-    sessionSrc.includes('retain: state => state.session !== null || state.launching'),
+    sessionSrc.includes('retain: state => state.tabs.size > 0 || state.launching'),
   )
   check('the at-capacity refusal names the knob', sessionSrc.includes('raise MERCURY_BROWSER_MAX_SESSIONS'))
   const runAgentSrc = await Bun.file(join(ROOT, 'src', 'tools', 'AgentTool', 'runAgent.ts')).text()

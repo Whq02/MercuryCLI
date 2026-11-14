@@ -21,16 +21,20 @@ import {
   BROWSER_CLOSE_BOUND_MS,
   BROWSER_PROTOCOL_TIMEOUT_MS,
   CONSOLE_RING_CAP,
+  MAIN_TAB,
   NAVIGATION_CAP_MS,
   activeSession,
   approveWebOrigin,
   approvedOriginList,
+  bringTabToFront,
   browserSessionCap,
+  browserTabs,
   beginBrowserActivity,
   closeBrowserSessionDetailed,
   consumeCheckedActOrigin,
   driverVersion,
   emulatedPageOf,
+  endedTab,
   ensureBrowserSession,
   isBrowserErrorPage,
   liveBrowserSessionCensus,
@@ -42,6 +46,7 @@ import {
   screenshotPath,
   secretPairingApproved,
   sessionGoneAt,
+  type CheckedTarget,
 } from '../../services/browser/browserSession.js'
 import {
   EMULATION_FIELD_WORDS,
@@ -109,6 +114,9 @@ const ACT_OPS: ReadonlySet<string> = new Set([
   'hover',
 ])
 
+const FRONT_OPS: ReadonlySet<string> = new Set(['click', 'type', 'scroll', 'back', 'reload', 'select', 'press', 'hover', 'screenshot'])
+const TABLESS_OPS: ReadonlySet<string> = new Set(['status', 'devices', 'provision'])
+
 const PRESS_KEYS: ReadonlySet<string> = new Set([
   'Enter',
   'Escape',
@@ -153,7 +161,9 @@ export function browserToolEnabled(): boolean {
 const inputSchema = lazySchema(() =>
   z.strictObject({
     op: z.enum(OPS).describe('Browser operation.'),
+    tab: z.string().optional().describe('Named tab (default main)'),
     url: z.string().optional().describe('open: http/https URL'),
+    persist: z.boolean().optional().describe('open: no idle close'),
     waitUntil: z
       .enum(['domcontentloaded', 'load', 'networkidle2'])
       .optional()
@@ -248,8 +258,11 @@ export function openSchemeRefusal(url: string | undefined): string {
 const NO_SESSION = 'no open session — use op:"open" first'
 const BROWSER_GONE = 'the browser is gone (its process exited) — op:"open" starts a new one'
 
-function noSessionWords(owner: OwnerKey): string {
-  return sessionGoneAt(owner) === null ? NO_SESSION : BROWSER_GONE
+function noSessionWords(owner: OwnerKey, tab: string = MAIN_TAB): string {
+  const open = browserTabs(owner).map(live => live.tab)
+  if (open.length === 0) return sessionGoneAt(owner) === null ? NO_SESSION : BROWSER_GONE
+  const ended = endedTab(owner, tab)
+  return `${ended === null ? `no tab ${tab}` : `tab ${tab} ${ended}`} — op:"open" with tab:"${tab}" opens it; open: ${open.join(', ')}`
 }
 
 export function driverFailureWords(op: string, message: string, policy?: string): string | null {
@@ -348,7 +361,15 @@ function preview(text: string, cap = 40): string {
   return text.length > cap ? `${text.slice(0, cap)}…` : text
 }
 
-function statusReport(owner: OwnerKey): string {
+async function tabLine(live: LiveSession): Promise<string> {
+  const title = await Promise.race([live.page.title().catch(() => ''), bounded(1000).then(() => '')])
+  const vp = live.page.viewport()
+  const device = heldDevice(live.page)?.device
+  const facts = [`page ${live.serial}`, `viewport ${vp?.width}x${vp?.height}`, device ? `device ${device}` : '', live.persist ? 'persist' : 'idle lease'].filter(Boolean)
+  return `${live.tab}: ${pageWhere(live)}${title ? ` — ${title}` : ''} (${facts.join('; ')})`
+}
+
+async function statusReport(owner: OwnerKey, input: Input): Promise<string> {
   const lines: string[] = []
   const gate = driverNodeGate()
   lines.push(`driver: puppeteer-core ${driverVersion()} (bundled)${gate.ok ? '' : ` — DRIVE OPS GATED: ${gate.note}`}`)
@@ -376,13 +397,22 @@ function statusReport(owner: OwnerKey): string {
           .join(' · ')} — remove one with /browser remove ${managed[0]!.buildId}`
       : 'managed cache: empty — /browser install is the explicit consented download path',
   )
-  const live = activeSession(owner)
-  lines.push(
-    live
-      ? `session: OPEN at ${live.page.url()} (viewport ${live.page.viewport()?.width}x${live.page.viewport()?.height})`
-      : 'session: none',
-  )
-  if (live?.sandboxDowngraded) lines.push('  sandbox: DISABLED (running as uid 0 — container mode; --no-sandbox appended)')
+  const tabs = browserTabs(owner)
+  const live = tabs.length === 1 && tabs[0]!.tab === MAIN_TAB ? tabs[0]! : null
+  if (tabs.length === 0 || live !== null) {
+    lines.push(
+      live
+        ? `session: OPEN at ${live.page.url()} (viewport ${live.page.viewport()?.width}x${live.page.viewport()?.height})`
+        : 'session: none',
+    )
+  } else {
+    const first = Math.min(Math.max(Math.floor(input.offset ?? 0), 0), tabs.length)
+    const shown = tabs.slice(first, first + Math.max(Math.floor(input.limit ?? 50), 1))
+    lines.push(`session: OPEN — ${tabs.length} tab${tabs.length === 1 ? '' : 's'}${first > 0 ? `, from ${first}` : ''}`)
+    for (const tab of shown) lines.push(`  ${await tabLine(tab)}`)
+    if (first + shown.length < tabs.length) lines.push(`  … ${tabs.length - first - shown.length} more — continue with offset: ${first + shown.length}`)
+  }
+  if (tabs.some(tab => tab.sandboxDowngraded)) lines.push('  sandbox: DISABLED (running as uid 0 — container mode; --no-sandbox appended)')
   const grants = approvedOriginList(owner)
   if (grants.length > 0) lines.push(`approved origins (this session): ${grants.join(' · ')}`)
   lines.push(APPROVAL_RULE_LINE)
@@ -586,7 +616,7 @@ function actConsequences(s: LiveSession, marks: ActMarks): string {
   }
   if (s.popups.count > marks.popups) {
     notes.push(
-      `the page opened a new tab (${s.popups.last}) — this session drives ONE page; the tab was closed unadopted. op:"open" that URL follows it (a new origin will ask).`,
+      `the page opened a new tab (${s.popups.last}) — it was closed unadopted. op:"open" that URL follows it (a new origin will ask).`,
     )
   }
   for (const entry of s.consoleRing.slice(marks.ringMark)) {
@@ -609,10 +639,29 @@ function framesDiagnosis(s: LiveSession): string {
   }
 }
 
+function checkedTarget(s: LiveSession, surface: Page | Frame): CheckedTarget {
+  return { tab: s.tab, page: s.page, frame: surface === s.page ? null : (surface as Frame) }
+}
+
+function replacedSinceCheck(op: string, s: LiveSession, bound: CheckedTarget | null, surface: Page | Frame): string | null {
+  if (bound === null || bound.tab !== s.tab) return null
+  if (bound.page !== s.page) {
+    return `${op} refused: tab ${s.tab} holds another page than the one the permission check saw — nothing done; re-issue to act on the page that is there now`
+  }
+  if (bound.frame !== (surface === s.page ? null : surface)) {
+    return `${op} refused: the frame is another one than the permission check saw — nothing done; re-issue to act on the frame that is there now`
+  }
+  return null
+}
+
 async function actOriginGate(owner: OwnerKey, s: LiveSession, input: Input): Promise<string | null> {
   const op = input.op
-  const judged = consumeCheckedActOrigin(owner, op)
+  const checked = consumeCheckedActOrigin(owner, op)
   const live = (await targetOrigin(s, input.frame))
+  const bound = checked?.bound ?? null
+  const replaced = replacedSinceCheck(op, s, bound, targetSurface(s, input.frame))
+  if (replaced !== null) return replaced
+  const judged = checked !== null && (bound === null || bound.tab === s.tab) ? checked.origin : null
   if (judged !== null && judged !== live) {
     return `${op} refused: the page moved from ${judged} to ${live} between the permission check and the act — nothing done; re-issue to ask for the new origin`
   }
@@ -945,7 +994,7 @@ export const BrowserTool = buildTool({
     'navigation', 'extract', 'render', 'accessibility tree', 'DOM', 'console errors', 'screenshot',
     'headless', 'chrome', 'edge', 'chromium', 'provenance', 'status',
     'emulate', 'emulation', 'mobile', 'device', 'iphone', 'android', 'responsive', 'timezone', 'locale',
-    'geolocation', 'offline', 'throttle', 'dark mode',
+    'geolocation', 'offline', 'throttle', 'dark mode', 'tab', 'tabs', 'several pages',
   ],
   capability: {
     intents: [
@@ -961,6 +1010,7 @@ export const BrowserTool = buildTool({
       'check which browser mercury can drive and its provenance',
       'close the driven browser session',
       'emulate a phone or tablet, a timezone, a locale, a slow or offline network',
+      'work in several browser tabs side by side',
     ],
     units: ['browser-drive'],
     class: 'execution',
@@ -983,8 +1033,8 @@ export const BrowserTool = buildTool({
   async prompt() {
     const cap = browserSessionCap()
     return `## Operations
-status reports browser resolution (operator pin, then managed Chrome-for-Testing), versions and session state without launching. Installed browsers are not driven.
-open launches on first use and navigates (${NAVIGATION_CAP_MS / 1000}s deadline).
+status reports browser resolution (operator pin, then managed Chrome-for-Testing), versions, session state and open tabs without launching. Installed browsers are not driven.
+open launches on first use and navigates (${NAVIGATION_CAP_MS / 1000}s deadline). tab picks the page an op uses: main unless named, a new name opens another, without url a blank one; persist keeps it past the idle lease.
 click checks actionability; any new tab opened is closed unadopted and its URL returned.
 type focuses a selector target (editable inputs, textarea, contenteditable).
 waitFor watches a selector, case-insensitive whitespace-normalized text, or navigation when neither is given (returns immediately if navigation already finished during the prior act).
@@ -993,13 +1043,13 @@ back, reload, scroll, select, press and hover act on history or elements; info r
 extract returns ${EXTRACT_CAP}-char windows of text or indented role/name/state rows, including iframe content and frame indices/URLs.
 console returns a ${CONSOLE_RING_CAP}-entry ring of logs, page/HTTP/request errors, navigation dividers and dialogs (dialogs auto-dismiss; beforeunload auto-accepts).
 screenshot saves a PNG artifact and attaches an image when supported.
-close ends the session (${BROWSER_PROTOCOL_TIMEOUT_MS / 1000}s protocol deadline; ${BROWSER_CLOSE_BOUND_MS / 1000}s close bound). provision asks before installing Chrome-for-Testing.
+close ends the session, or with tab that tab alone (${BROWSER_PROTOCOL_TIMEOUT_MS / 1000}s protocol deadline; ${BROWSER_CLOSE_BOUND_MS / 1000}s close bound). provision asks before installing Chrome-for-Testing.
 
 ## Targeting
 Selector actions wait for visibility; scoped extract waits for attachment (reads hidden content). Frame click, scroll and screenshot require selectors; coordinate clicks stay in the main viewport.
 
 ## Session lifetime
-${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved lead slot; `}5 minutes idle closes a browser (active ops do not expire; completion renews the lease). Downloads and file uploads are not performed here. The driver needs node >= 22.12.`
+${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved lead slot; `}5 minutes idle closes a browser (active ops do not expire; completion renews the lease; tabs opened with persist stay). Downloads and file uploads are not performed here. The driver needs node >= 22.12.`
   },
   userFacingName,
   shouldDefer: true,
@@ -1062,6 +1112,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
       return null
     }
     const ruleVerdict = (content: string): 'deny' | 'ask' | 'allow' | null => ruleFor(content)?.ruleBehavior ?? null
+    const inTab = input.tab === undefined ? '' : ` in tab ${input.tab}`
     if (input.op === 'open') {
       const target = originOf(input.url ?? '')
       const ruled = ruleVerdict(`origin:${target}`)
@@ -1077,14 +1128,18 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
       }
       return {
         behavior: 'ask' as const,
-        message: `Browser open: ${input.url ?? '(no url)'} — first visit to ${target} this session (drives a real headless browser)`,
+        message: `Browser open: ${input.url ?? '(no url)'}${inTab} — first visit to ${target} this session (drives a real headless browser)`,
         suggestions: suggestionForExactCommand('Browser', `origin:${target}`),
       }
     }
-    const s = activeSession(owner)
+    const s = activeSession(owner, input.tab ?? MAIN_TAB)
     if (!s) return { behavior: 'allow' as const, updatedInput: input }
     let origin: string
-    try { origin = sent === null ? (await targetOrigin(s, input.frame)) : sendOrigin(s) } catch { return { behavior: 'allow' as const, updatedInput: input } }
+    let bound: CheckedTarget
+    try {
+      origin = sent === null ? (await targetOrigin(s, input.frame)) : sendOrigin(s)
+      bound = checkedTarget(s, sent === null ? targetSurface(s, input.frame) : s.page)
+    } catch { return { behavior: 'allow' as const, updatedInput: input } }
     const ruled = ruleVerdict(`origin:${origin}`)
     if (ruled === 'deny') {
       return {
@@ -1100,7 +1155,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
             nonWeb: `secret fills only land on real web origins — the page is ${origin} content`,
             nonWebReason: `secret fill refused on non-web scheme ${origin}`,
             deed: `Filling the secret ${input.secretRef} on ${origin}`,
-            ask: `Browser fill secret ${input.secretRef} into ${origin} (target ${input.selector ?? ''}) — the value never enters the conversation; approve exactly this secret-origin pairing`,
+            ask: `Browser fill secret ${input.secretRef} into ${origin}${inTab} (target ${input.selector ?? ''}) — the value never enters the conversation; approve exactly this secret-origin pairing`,
             reason: `filling registered secret ${input.secretRef} into ${origin} needs the operator's own consent for the pairing`,
           }
         : sent?.secretRef !== undefined
@@ -1109,7 +1164,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
               nonWeb: `credentials answer a real web origin only — the page is ${origin} content`,
               nonWebReason: `credentials refused on non-web scheme ${origin}`,
               deed: `Answering ${origin} with the secret ${sent.secretRef}`,
-              ask: `Browser answer basic authentication on ${origin} with secret ${sent.secretRef} — the value never enters the conversation; approve exactly this secret-origin pairing`,
+              ask: `Browser answer basic authentication on ${origin}${inTab} with secret ${sent.secretRef} — the value never enters the conversation; approve exactly this secret-origin pairing`,
               reason: `answering ${origin} with registered secret ${sent.secretRef} needs the operator's own consent for the pairing`,
             }
           : null
@@ -1130,7 +1185,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
           decisionReason: { type: 'other' as const, reason: `${pairing} carries a deny rule` },
         }
       }
-      noteCheckedActOrigin(owner, input.op, origin)
+      noteCheckedActOrigin(owner, input.op, origin, bound)
       if (pairingRuled === 'allow' || secretPairingApproved(owner, secret.ref, origin)) {
         return { behavior: 'allow' as const, updatedInput: input }
       }
@@ -1146,18 +1201,18 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
       }
     }
     if (ruled === 'allow' || (ruled === null && origin.startsWith('http') && originApproved(owner, origin))) {
-      noteCheckedActOrigin(owner, input.op, origin)
+      noteCheckedActOrigin(owner, input.op, origin, bound)
       return { behavior: 'allow' as const, updatedInput: input }
     }
     if (!origin.startsWith('http')) {
       if (origin === 'about:' || origin === 'chrome-error:') {
-        noteCheckedActOrigin(owner, input.op, origin)
+        noteCheckedActOrigin(owner, input.op, origin, bound)
         return { behavior: 'allow' as const, updatedInput: input }
       }
-      noteCheckedActOrigin(owner, input.op, origin)
+      noteCheckedActOrigin(owner, input.op, origin, bound)
       return {
         behavior: 'ask' as const,
-        message: `Browser ${input.op}${actDetail(input)} on a NON-WEB page (${origin}) — page-conjured content, not an approved web origin`,
+        message: `Browser ${input.op}${actDetail(input)} on a NON-WEB page (${origin})${inTab} — page-conjured content, not an approved web origin`,
         decisionReason: {
           type: 'safetyCheck' as const,
           reason: `the top frame is ${origin} content the page itself conjured`,
@@ -1166,11 +1221,11 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
         suggestions: suggestionForExactCommand('Browser', `origin:${origin}`),
       }
     }
-    noteCheckedActOrigin(owner, input.op, origin)
+    noteCheckedActOrigin(owner, input.op, origin, bound)
     const unloaded = sent !== null && !originOf(s.page.url()).startsWith('http')
     return {
       behavior: 'ask' as const,
-      message: `Browser ${input.op}${actDetail(input)} on ${origin} — ${unloaded ? 'its address did not load' : 'reached by navigation'}, not yet approved this session`,
+      message: `Browser ${input.op}${actDetail(input)} on ${origin}${inTab} — ${unloaded ? 'its address did not load' : 'reached by navigation'}, not yet approved this session`,
       decisionReason: {
         type: 'safetyCheck' as const,
         reason: unloaded ? `${origin} did not load, and no page of it is approved` : `${origin} was reached by navigation, not requested by the operator`,
@@ -1183,7 +1238,13 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
     if (!browserToolEnabled()) {
       return { result: false as const, message: 'the Browser tool is disabled (MERCURY_BROWSER=0)', errorCode: 1 }
     }
-    if (input.op === 'open' && (!input.url || !/^https?:\/\//.test(input.url))) {
+    if (input.tab !== undefined && (input.tab.trim() === '' || input.tab !== input.tab.trim() || /[\r\n]/.test(input.tab))) {
+      return { result: false as const, message: 'tab takes a name on one line with no space around it', errorCode: 1 }
+    }
+    if (input.persist !== undefined && input.op !== 'open') {
+      return { result: false as const, message: 'persist requires op open', errorCode: 1 }
+    }
+    if (input.op === 'open' && !(input.url === undefined && input.tab !== undefined) && (!input.url || !/^https?:\/\//.test(input.url))) {
       return { result: false as const, message: openSchemeRefusal(input.url), errorCode: 1 }
     }
     if (input.frame !== undefined && (!['click', 'type', 'scroll', 'waitFor', 'select', 'hover', 'extract', 'screenshot'].includes(input.op) || (['click', 'scroll', 'screenshot'].includes(input.op) && !input.selector) || (input.op === 'waitFor' && !input.selector && input.text === undefined))) {
@@ -1275,8 +1336,9 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
   async call(input: Input, context: ToolUseContext) {
     const startedAt = Date.now()
     const owner = ownerFromToolUseContext((context ?? {}) as { owner?: OwnerKey; agentId?: string })
+    const tab = input.tab ?? MAIN_TAB
     const releaseActivity = beginBrowserActivity(owner)
-    const sessionAtEntry = activeSession(owner)
+    const sessionAtEntry = activeSession(owner, tab)
     const networkMark = sessionAtEntry?.networkRefusal?.count ?? 0
     let result: string
     let outcome: ToolEffectOutcome = 'no-change'
@@ -1287,18 +1349,24 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
     let life = null as OpLife | null
     const signalFor = (s: LiveSession): AbortSignal => (life ??= openOpLife(s, context.abortController?.signal)).signal
     try {
+      if (sessionAtEntry !== null && FRONT_OPS.has(input.op)) await bringTabToFront(sessionAtEntry)
       switch (input.op) {
         case 'status': {
-          result = statusReport(owner)
+          result = await statusReport(owner, input)
           break
         }
         case 'open': {
-          await metadataSafeAddresses(input.url!)
-          const target = originOf(input.url!)
-          const s = await ensureBrowserSession(owner, {
-            signal: context.abortController?.signal,
-            origin: target,
-          })
+          if (input.url !== undefined) await metadataSafeAddresses(input.url)
+          const target = input.url === undefined ? null : originOf(input.url)
+          const held = target === null ? sessionAtEntry : null
+          const s =
+            held ??
+            (await ensureBrowserSession(owner, {
+              signal: context.abortController?.signal,
+              tab,
+              births: true,
+              ...(target === null ? {} : { origin: target }),
+            }))
           if ('state' in s) {
             result =
               s.state === 'unavailable'
@@ -1307,7 +1375,13 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
             outcome = 'failed'
             break
           }
-          const earlier = emulatedPageOf(owner)
+          if (input.persist !== undefined) s.persist = input.persist
+          const lease =
+            input.persist === undefined
+              ? ''
+              : `\n  note: tab ${tab} ${input.persist ? 'is kept past the 5-minute idle lease, until op:"close" or the session ends' : 'closes with the 5-minute idle lease again'}`
+          await bringTabToFront(s)
+          const earlier = emulatedPageOf(owner, tab)
           let environment = ''
           if (earlier !== null && earlier !== s.page) {
             if (earlier === sessionAtEntry?.page) {
@@ -1319,9 +1393,14 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
                 ].join('')
               }
             } else {
-              environment = `\n  note: the earlier browser is gone and its emulation with it (${emulationSummary(earlier)}) — this page starts at the launch baseline`
+              environment = `\n  note: ${browserTabs(owner).length > 1 ? `the earlier page of tab ${tab} is gone` : 'the earlier browser is gone'} and its emulation with it (${emulationSummary(earlier)}) — this page starts at the launch baseline`
             }
-            noteEmulatedPage(owner, emulationActive(s.page) ? s.page : null)
+            noteEmulatedPage(owner, emulationActive(s.page) ? s.page : null, tab)
+          }
+          if (input.url === undefined) {
+            result = `open: tab ${tab} ${held === null ? `is a blank page (${s.resolution.source}: ${s.resolution.label})` : `stays at ${pageWhere(s)} — no url, nothing was loaded`}${environment}${lease}`
+            outcome = held === null || input.persist !== undefined ? 'succeeded' : 'no-change'
+            break
           }
           s.nav.seen = s.nav.seq
           const ringMark = s.consoleRing.length
@@ -1365,14 +1444,14 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
             landed !== target && landed.startsWith('http')
               ? `\n  note: landed on ${landed} (a redirect crossed origins — acts there will ask)`
               : ''
-          }${census}`
+          }${census}${lease}`
           outcome = 'succeeded'
           break
         }
         case 'click': {
-          const s = activeSession(owner)
+          const s = activeSession(owner, tab)
           if (!s) {
-            result = noSessionWords(owner)
+            result = noSessionWords(owner, tab)
             outcome = 'failed'
             break
           }
@@ -1423,9 +1502,9 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
           break
         }
         case 'type': {
-          const s = activeSession(owner)
+          const s = activeSession(owner, tab)
           if (!s) {
-            result = noSessionWords(owner)
+            result = noSessionWords(owner, tab)
             outcome = 'failed'
             break
           }
@@ -1632,9 +1711,9 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
           break
         }
         case 'scroll': {
-          const s = activeSession(owner)
+          const s = activeSession(owner, tab)
           if (!s) {
-            result = noSessionWords(owner)
+            result = noSessionWords(owner, tab)
             outcome = 'failed'
             break
           }
@@ -1661,9 +1740,9 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
           break
         }
         case 'waitFor': {
-          const s = activeSession(owner)
+          const s = activeSession(owner, tab)
           if (!s) {
-            result = noSessionWords(owner)
+            result = noSessionWords(owner, tab)
             outcome = 'failed'
             break
           }
@@ -1724,9 +1803,9 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
           break
         }
         case 'back': {
-          const s = activeSession(owner)
+          const s = activeSession(owner, tab)
           if (!s) {
-            result = noSessionWords(owner)
+            result = noSessionWords(owner, tab)
             outcome = 'failed'
             break
           }
@@ -1773,9 +1852,9 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
           break
         }
         case 'reload': {
-          const s = activeSession(owner)
+          const s = activeSession(owner, tab)
           if (!s) {
-            result = noSessionWords(owner)
+            result = noSessionWords(owner, tab)
             outcome = 'failed'
             break
           }
@@ -1808,9 +1887,9 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
           break
         }
         case 'select': {
-          const s = activeSession(owner)
+          const s = activeSession(owner, tab)
           if (!s) {
-            result = noSessionWords(owner)
+            result = noSessionWords(owner, tab)
             outcome = 'failed'
             break
           }
@@ -1865,9 +1944,9 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
           break
         }
         case 'press': {
-          const s = activeSession(owner)
+          const s = activeSession(owner, tab)
           if (!s) {
-            result = noSessionWords(owner)
+            result = noSessionWords(owner, tab)
             outcome = 'failed'
             break
           }
@@ -1901,9 +1980,9 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
           break
         }
         case 'hover': {
-          const s = activeSession(owner)
+          const s = activeSession(owner, tab)
           if (!s) {
-            result = noSessionWords(owner)
+            result = noSessionWords(owner, tab)
             outcome = 'failed'
             break
           }
@@ -1933,9 +2012,9 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
           break
         }
         case 'viewport': {
-          const s = activeSession(owner)
+          const s = activeSession(owner, tab)
           if (!s) {
-            result = noSessionWords(owner)
+            result = noSessionWords(owner, tab)
             outcome = 'failed'
             break
           }
@@ -1968,7 +2047,14 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
             }
             let answers = ''
             if (sentByEmulation(input) !== null) {
-              const judged = consumeCheckedActOrigin(owner, input.op)
+              const checked = consumeCheckedActOrigin(owner, input.op)
+              const replaced = replacedSinceCheck(input.op, s, checked?.bound ?? null, s.page)
+              if (replaced !== null) {
+                result = replaced
+                outcome = 'failed'
+                break
+              }
+              const judged = checked !== null && (checked.bound === null || checked.bound.tab === s.tab) ? checked.origin : null
               answers = sendOrigin(s)
               if (judged !== null && judged !== answers) {
                 result = `viewport refused: the page moved from ${judged} to ${answers} between the permission check and the act — nothing done; re-issue to ask for the new origin`
@@ -2015,7 +2101,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
             break
           }
           if (applied.reloaded) s.nav.seen = s.nav.seq
-          noteEmulatedPage(owner, emulationActive(s.page) ? s.page : null)
+          noteEmulatedPage(owner, emulationActive(s.page) ? s.page : null, tab)
           const kept =
             input.emulation === undefined && held !== null
               ? [
@@ -2042,9 +2128,9 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
           break
         }
         case 'extract': {
-          const s = activeSession(owner)
+          const s = activeSession(owner, tab)
           if (!s) {
-            result = noSessionWords(owner)
+            result = noSessionWords(owner, tab)
             outcome = 'failed'
             break
           }
@@ -2064,9 +2150,9 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
           break
         }
         case 'console': {
-          const s = activeSession(owner)
+          const s = activeSession(owner, tab)
           if (!s) {
-            result = noSessionWords(owner)
+            result = noSessionWords(owner, tab)
             outcome = 'failed'
             break
           }
@@ -2083,9 +2169,9 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
           break
         }
         case 'info': {
-          const s = activeSession(owner)
+          const s = activeSession(owner, tab)
           if (!s) {
-            result = noSessionWords(owner)
+            result = noSessionWords(owner, tab)
             outcome = 'failed'
             break
           }
@@ -2108,9 +2194,9 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
           break
         }
         case 'screenshot': {
-          const s = activeSession(owner)
+          const s = activeSession(owner, tab)
           if (!s) {
-            result = noSessionWords(owner)
+            result = noSessionWords(owner, tab)
             outcome = 'failed'
             break
           }
@@ -2153,13 +2239,18 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
           break
         }
         case 'close': {
-          noteEmulatedPage(owner, null)
-          const closed = await closeBrowserSessionDetailed(owner)
+          const closed = await closeBrowserSessionDetailed(owner, input.tab)
+          if (closed.open.length > 0) {
+            result = closed.closed.length === 0 ? `no tab ${tab} — open: ${closed.open.join(', ')}` : `tab ${tab} closed — open: ${closed.open.join(', ')}`
+            outcome = closed.closed.length === 0 ? 'no-change' : 'succeeded'
+            break
+          }
+          const several = closed.closed.length > 1 ? `, ${closed.closed.length} tabs: ${closed.closed.join(', ')}` : ''
           result =
             closed.outcome === 'closed'
-              ? 'session closed (browser reaped; origin approvals wiped)'
+              ? `session closed (browser reaped${several}; origin approvals wiped)`
               : closed.outcome === 'killed'
-                ? `session closed — the browser did not answer within ${BROWSER_CLOSE_BOUND_MS / 1000}s and its process was ended (origin approvals wiped)`
+                ? `session closed — the browser did not answer within ${BROWSER_CLOSE_BOUND_MS / 1000}s and its process was ended (origin approvals wiped${several})`
                 : closed.outcome === 'gone'
                   ? 'closed (the browser was already gone)'
                   : 'no open session'
@@ -2173,7 +2264,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
       const goneMidOp = e.name === BROWSER_GONE_ERROR || (life !== null && !life.browser.connected)
       const chainText = errorChainText(e)
       const blockedUrl = /net::ERR_BLOCKED_BY_CLIENT at (\S+)/.exec(chainText)?.[1] ?? input.url
-      const blocked = blockedUrl === undefined ? undefined : activeSession(owner)?.policyBlocks.get(blockedUrl.split('?')[0]!)
+      const blocked = blockedUrl === undefined ? undefined : activeSession(owner, tab)?.policyBlocks.get(blockedUrl.split('?')[0]!)
       result =
         interrupted || (e.name === 'AbortError' && !goneMidOp)
           ? `${input.op} interrupted by the operator — the wait was released, nothing further was done`
@@ -2188,12 +2279,18 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
     if (secretInPlay !== null) {
       result = scrubSecretFromText(result!, secretInPlay.value, secretInPlay.ref)
     }
-    const sessionAtExit = activeSession(owner)
+    const sessionAtExit = activeSession(owner, tab)
     const refusedNetwork = sessionAtExit?.networkRefusal
     const refusalMark = sessionAtExit === sessionAtEntry ? networkMark : 0
     if (refusedNetwork !== undefined && refusedNetwork.count > refusalMark) {
       result = `${input.op} refused: ${refusedNetwork.last}`
       outcome = 'failed'
+    }
+    if (input.tab !== undefined && !TABLESS_OPS.has(input.op)) {
+      if (input.op === 'open' && outcome === 'failed') {
+        result += sessionAtExit === null ? `\n  note: tab ${tab} is not open` : `\n  note: tab ${tab} stays open at ${pageWhere(sessionAtExit)}`
+      }
+      if (!(result!.split('\n')[0] ?? '').includes(`tab ${tab}`)) result = `[${tab}] ${result!}`
     }
     const output: Output = {
       op: input.op,

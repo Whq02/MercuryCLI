@@ -3,7 +3,7 @@ import { ChildProcess } from 'node:child_process'
 import { chromeNetErrorFor, startMetadataProxy } from './metadataProxy.js'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import type { Browser as DriverBrowser, CDPSession, HTTPRequest, LaunchOptions, Page, Protocol } from 'puppeteer-core'
+import type { Browser as DriverBrowser, CDPSession, Frame, HTTPRequest, LaunchOptions, Page, Protocol } from 'puppeteer-core'
 import puppeteerPkg from 'puppeteer-core/package.json' with { type: 'json' }
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { endProcessTree } from '../../utils/processGroup.js'
@@ -26,27 +26,8 @@ export interface ConsoleEntry {
 
 export const CONSOLE_RING_CAP = 250
 export const CONSOLE_ENTRY_CAP = 300
-
-interface Session {
-  browser: DriverBrowser
-  page: Page
-  resolution: BrowserResolution
-  driverVersion: string
-  consoleRing: ConsoleEntry[]
-  nav: { seq: number; seen: number }
-  sandboxDowngraded: boolean
-  popups: { count: number; last: string }
-  navFailure: { last: NavFailure | null }
-  networkRefusal: { count: number; last: string | null }
-  policyBlocks: Map<string, { reason: string; at: number }>
-  closeNetwork: () => void
-  downloads: { count: number; last: DownloadNotice | null; waiters: Array<() => void> }
-  navWatch: { pendingUrl: string | null; abortedAt: number; waiters: Array<() => void> }
-  profileOrigin: string | null
-  profileDir: string | null
-  headless: boolean
-  cursor: { x: number; y: number }
-}
+export const MAIN_TAB = 'main'
+const ENDED_TABS_KEPT = 64
 
 export interface NavFailure {
   url: string
@@ -68,24 +49,105 @@ export function isBrowserErrorPage(url: string): boolean {
   return url.startsWith('chrome-error://')
 }
 
+interface Wiring {
+  consoleRing: ConsoleEntry[]
+  nav: { seq: number; seen: number }
+  popups: { count: number; last: string }
+  navFailure: { last: NavFailure | null }
+  policyBlocks: Map<string, { reason: string; at: number }>
+  downloads: { count: number; last: DownloadNotice | null; waiters: Array<() => void> }
+  navWatch: { pendingUrl: string | null; abortedAt: number; waiters: Array<() => void> }
+  docResponses: Map<string, string | null>
+  capture: (kind: string, text: string) => void
+}
+
+interface Hold {
+  browser: DriverBrowser
+  resolution: BrowserResolution
+  sandboxDowngraded: boolean
+  profileOrigin: string | null
+  profileDir: string | null
+  headless: boolean
+  closeNetwork: () => void
+  networkRefusal: { count: number; last: string | null }
+  relayFailureFor: (url: string) => { code: string; at: number } | null
+  baseline: PagePresented
+  tabs: Set<Session>
+  births: Map<string, Birth>
+  creating: number
+  front: Session | null
+  watch: CDPSession | null
+}
+
+interface Birth {
+  cdp: CDPSession
+  kit: PageKit
+  wiring: Wiring
+}
+
+interface Session {
+  tab: string
+  serial: number
+  persist: boolean
+  left: boolean
+  browser: DriverBrowser
+  page: Page
+  resolution: BrowserResolution
+  driverVersion: string
+  consoleRing: ConsoleEntry[]
+  nav: { seq: number; seen: number }
+  sandboxDowngraded: boolean
+  popups: { count: number; last: string }
+  navFailure: { last: NavFailure | null }
+  networkRefusal: { count: number; last: string | null }
+  policyBlocks: Map<string, { reason: string; at: number }>
+  closeNetwork: () => void
+  downloads: { count: number; last: DownloadNotice | null; waiters: Array<() => void> }
+  navWatch: { pendingUrl: string | null; abortedAt: number; waiters: Array<() => void> }
+  profileOrigin: string | null
+  profileDir: string | null
+  headless: boolean
+  cursor: { x: number; y: number }
+}
+
+export interface CheckedTarget {
+  tab: string
+  page: Page
+  frame: Frame | null
+}
+
+interface CheckedAct {
+  op: string
+  origin: string
+  bound: CheckedTarget | null
+}
+
 interface OwnerBrowserState {
-  session: Session | null
+  tabs: Map<string, Session>
+  holds: Set<Hold>
+  ended: Map<string, string>
+  emulated: Map<string, Page>
+  pages: number
   launching: boolean
-  launchFlight: Promise<Session | EnsureSessionRefusal> | null
+  launchFlight: { tab: string; flight: Promise<Session | EnsureSessionRefusal> } | null
   disposed: boolean
   approvedOrigins: Set<string>
   approvedSecretPairings: Set<string>
-  checkedActOrigin: { op: string; origin: string } | null
+  checkedActOrigin: CheckedAct | null
   goneAt: number | null
   activeCalls: number
   idleTimer: ReturnType<typeof setTimeout> | null
-  emulatedPage: Page | null
 }
 
 export const BROWSER_CLOSE_BOUND_MS = 3_000
 export const BROWSER_PROTOCOL_TIMEOUT_MS = 90_000
 export const NAVIGATION_CAP_MS = BROWSER_PROTOCOL_TIMEOUT_MS
 const BROWSER_IDLE_MS = 300_000
+const EXITED = 'is gone (its browser process exited)'
+const IDLE_ENDED = 'was closed after 5 minutes idle'
+const SELF_CLOSED = 'closed itself (window.close)'
+const MOVE_FAILED = 'was closed for its move to another browser, which then failed'
+const RESTARTED = 'was closed when its browser restarted in another window mode'
 
 function clearIdleLease(state: OwnerBrowserState): void {
   if (state.idleTimer !== null) clearTimeout(state.idleTimer)
@@ -94,13 +156,24 @@ function clearIdleLease(state: OwnerBrowserState): void {
 
 function armIdleLease(state: OwnerBrowserState): void {
   clearIdleLease(state)
-  if (state.disposed || state.activeCalls > 0 || state.launching || state.session === null) return
+  if (state.disposed || state.activeCalls > 0 || state.launching || state.tabs.size === 0) return
   state.idleTimer = setTimeout(() => {
     state.idleTimer = null
-    if (state.activeCalls > 0 || state.launching || state.session === null) return
-    const browser = state.session.browser
-    markSessionGone(state, browser)
-    void closeChild(browser)
+    if (state.activeCalls > 0 || state.launching || state.tabs.size === 0) return
+    for (const hold of [...state.holds]) {
+      const leaving = [...hold.tabs].filter(session => !session.persist)
+      if (leaving.length === hold.tabs.size) {
+        const browser = hold.browser
+        holdGone(state, hold, IDLE_ENDED)
+        void closeChild(browser)
+        continue
+      }
+      for (const session of leaving) {
+        if (state.tabs.get(session.tab) === session) state.tabs.delete(session.tab)
+        noteEnded(state, session.tab, IDLE_ENDED)
+        void leaveHold(state, session)
+      }
+    }
   }, BROWSER_IDLE_MS)
   state.idleTimer.unref?.()
 }
@@ -193,6 +266,19 @@ async function closeChild(browser: DriverBrowser): Promise<CloseOutcome> {
   }
 }
 
+async function closePage(page: Page): Promise<void> {
+  if (typeof page.close !== 'function') return
+  let bound: ReturnType<typeof setTimeout> | undefined
+  const lapse = new Promise<void>(resolve => {
+    bound = setTimeout(resolve, BROWSER_CLOSE_BOUND_MS)
+  })
+  try {
+    await Promise.race([page.close().catch(() => undefined), lapse])
+  } finally {
+    if (bound !== undefined) clearTimeout(bound)
+  }
+}
+
 type LaunchDriver = (options: LaunchOptions) => Promise<DriverBrowser>
 let launchDriverForProof: LaunchDriver | null = null
 export function setBrowserLaunchDriverForProof(driver: LaunchDriver | null): void {
@@ -203,7 +289,11 @@ const ownerStates = new OwnerScopedStore<OwnerBrowserState>({
   name: 'browser-sessions',
   live: true,
   create: () => ({
-    session: null,
+    tabs: new Map(),
+    holds: new Set(),
+    ended: new Map(),
+    emulated: new Map(),
+    pages: 0,
     launching: false,
     launchFlight: null,
     disposed: false,
@@ -213,23 +303,23 @@ const ownerStates = new OwnerScopedStore<OwnerBrowserState>({
     goneAt: null,
     activeCalls: 0,
     idleTimer: null,
-    emulatedPage: null,
   }),
   dispose: async state => {
     state.disposed = true
-    state.emulatedPage = null
+    state.emulated.clear()
     clearIdleLease(state)
     state.approvedOrigins.clear()
     state.approvedSecretPairings.clear()
     state.checkedActOrigin = null
-    if (state.launchFlight !== null) await state.launchFlight.catch(() => undefined)
-    const session = state.session
-    state.session = null
-    if (!session) return
-    session.closeNetwork()
-    await closeChild(session.browser)
+    if (state.launchFlight !== null) await state.launchFlight.flight.catch(() => undefined)
+    const holds = [...state.holds]
+    for (const session of state.tabs.values()) session.left = true
+    state.tabs.clear()
+    state.holds.clear()
+    for (const hold of holds) closeHoldNetwork(hold)
+    await Promise.all(holds.map(hold => closeChild(hold.browser)))
   },
-  retain: state => state.session !== null || state.launching || state.activeCalls > 0,
+  retain: state => state.tabs.size > 0 || state.launching || state.activeCalls > 0,
 })
 registerOwnerScopedStore(ownerStates)
 
@@ -251,14 +341,15 @@ export function liveBrowserSessionCensus(): Array<{ owner: OwnerKey; lane: strin
   for (const owner of ownerStates.owners()) {
     const state = ownerStates.peek(owner)
     if (!state) continue
-    const live = state.session !== null && state.session.browser.connected
+    const live = [...state.holds].some(hold => hold.browser.connected)
     if (!live && !state.launching) continue
     let lane = 'unknown'
     try {
       lane = parseOwnerKey(owner).lane
     } catch {
     }
-    rows.push({ owner, lane, url: live ? state.session!.page.url() : null })
+    const shown = state.tabs.get(MAIN_TAB) ?? [...state.tabs.values()][0]
+    rows.push({ owner, lane, url: live && shown !== undefined ? shown.page.url() : null })
   }
   return rows
 }
@@ -272,25 +363,27 @@ export function originOf(url: string): string {
   }
 }
 
-export function noteCheckedActOrigin(owner: OwnerKey, op: string, origin: string): void {
-  ownerStates.get(owner).checkedActOrigin = { op, origin }
+export function noteCheckedActOrigin(owner: OwnerKey, op: string, origin: string, bound: CheckedTarget | null = null): void {
+  ownerStates.get(owner).checkedActOrigin = { op, origin, bound }
 }
 
-export function consumeCheckedActOrigin(owner: OwnerKey, op: string): string | null {
+export function consumeCheckedActOrigin(owner: OwnerKey, op: string): CheckedAct | null {
   const state = ownerStates.peek(owner)
   if (!state) return null
   const held = state.checkedActOrigin
   state.checkedActOrigin = null
-  return held !== null && held.op === op ? held.origin : null
+  return held !== null && held.op === op ? held : null
 }
 
-export function noteEmulatedPage(owner: OwnerKey, page: Page | null): void {
+export function noteEmulatedPage(owner: OwnerKey, page: Page | null, tab: string = MAIN_TAB): void {
   const state = page === null ? ownerStates.peek(owner) : ownerStates.get(owner)
-  if (state) state.emulatedPage = page
+  if (!state) return
+  if (page === null) state.emulated.delete(tab)
+  else state.emulated.set(tab, page)
 }
 
-export function emulatedPageOf(owner: OwnerKey): Page | null {
-  return ownerStates.peek(owner)?.emulatedPage ?? null
+export function emulatedPageOf(owner: OwnerKey, tab: string = MAIN_TAB): Page | null {
+  return ownerStates.peek(owner)?.emulated.get(tab) ?? null
 }
 
 export function originApproved(owner: OwnerKey, origin: string): boolean {
@@ -306,33 +399,100 @@ export function approvedOriginList(owner: OwnerKey): string[] {
   return [...(ownerStates.peek(owner)?.approvedOrigins ?? [])]
 }
 
-function reapDeadSession(state: OwnerBrowserState): void {
-  if (state.session && childGone(state.session.browser)) markSessionGone(state, state.session.browser)
+function closeHoldNetwork(hold: Hold): void {
+  const via: { closeNetwork: () => void } = [...hold.tabs][0] ?? hold
+  via.closeNetwork()
 }
 
-function markSessionGone(state: OwnerBrowserState, browser: DriverBrowser): void {
-  if (state.session === null || state.session.browser !== browser) return
+function noteEnded(state: OwnerBrowserState, tab: string, reason: string): void {
+  state.ended.delete(tab)
+  state.ended.set(tab, reason)
+  if (state.ended.size > ENDED_TABS_KEPT) state.ended.delete(state.ended.keys().next().value!)
+}
+
+function sessionOver(state: OwnerBrowserState, gone: boolean): void {
   clearIdleLease(state)
-  state.session.closeNetwork()
-  state.session = null
   state.approvedOrigins.clear()
   state.approvedSecretPairings.clear()
   state.checkedActOrigin = null
-  state.goneAt = Date.now()
+  state.ended.clear()
+  if (gone) state.goneAt = Date.now()
 }
 
-export function activeSession(owner: OwnerKey): Session | null {
+function holdGone(state: OwnerBrowserState, hold: Hold, reason: string): void {
+  if (!state.holds.has(hold)) return
+  state.holds.delete(hold)
+  closeHoldNetwork(hold)
+  for (const session of hold.tabs) {
+    session.left = true
+    if (state.tabs.get(session.tab) === session) state.tabs.delete(session.tab)
+    noteEnded(state, session.tab, reason)
+  }
+  hold.tabs.clear()
+  if (state.tabs.size === 0) sessionOver(state, true)
+}
+
+function reapDeadHolds(state: OwnerBrowserState): void {
+  for (const hold of [...state.holds]) {
+    if (childGone(hold.browser)) holdGone(state, hold, EXITED)
+  }
+}
+
+const sessionHolds = new WeakMap<Session, Hold>()
+
+function holdOf(session: Session): Hold {
+  return sessionHolds.get(session)!
+}
+
+async function leaveHold(state: OwnerBrowserState, session: Session): Promise<CloseOutcome> {
+  const hold = holdOf(session)
+  session.left = true
+  hold.tabs.delete(session)
+  if (hold.front === session) hold.front = null
+  if (hold.tabs.size === 0 && hold.creating === 0) {
+    state.holds.delete(hold)
+    session.closeNetwork()
+    return closeChild(hold.browser)
+  }
+  await closePage(session.page)
+  return 'closed'
+}
+
+function tabClosed(state: OwnerBrowserState, session: Session): void {
+  if (session.left) return
+  if (childGone(session.browser)) {
+    holdGone(state, holdOf(session), EXITED)
+    return
+  }
+  if (state.tabs.get(session.tab) === session) state.tabs.delete(session.tab)
+  noteEnded(state, session.tab, SELF_CLOSED)
+  void leaveHold(state, session)
+  if (state.tabs.size === 0 && !state.launching) sessionOver(state, false)
+}
+
+export function activeSession(owner: OwnerKey, tab: string = MAIN_TAB): Session | null {
   const state = ownerStates.peek(owner)
   if (!state) return null
-  reapDeadSession(state)
-  return state.session
+  reapDeadHolds(state)
+  return state.tabs.get(tab) ?? null
+}
+
+export function browserTabs(owner: OwnerKey): Session[] {
+  const state = ownerStates.peek(owner)
+  if (!state) return []
+  reapDeadHolds(state)
+  return [...state.tabs.values()]
+}
+
+export function endedTab(owner: OwnerKey, tab: string): string | null {
+  return ownerStates.peek(owner)?.ended.get(tab) ?? null
 }
 
 export function sessionGoneAt(owner: OwnerKey): number | null {
   const state = ownerStates.peek(owner)
   if (!state) return null
-  reapDeadSession(state)
-  return state.session === null ? state.goneAt : null
+  reapDeadHolds(state)
+  return state.tabs.size === 0 ? state.goneAt : null
 }
 
 export function driverVersion(): string {
@@ -345,6 +505,8 @@ export interface EnsureBrowserSessionOptions {
   signal?: AbortSignal | undefined
   origin?: string | undefined
   headless?: boolean | undefined
+  tab?: string | undefined
+  births?: boolean | undefined
 }
 
 export function browserProfileDirForOrigin(urlOrOrigin: string, owner?: OwnerKey): string | null {
@@ -367,11 +529,7 @@ export function browserProfileDirForOrigin(urlOrOrigin: string, owner?: OwnerKey
   let candidate = path.resolve(root, slug)
   if (!candidate.startsWith(root + path.sep)) return null
   if (owner !== undefined) {
-    const busy = ownerStates.owners().some(other => {
-      if (other === owner) return false
-      const st = ownerStates.peek(other)
-      return Boolean(st?.session?.browser.connected && st.session.profileDir === candidate)
-    })
+    const busy = ownerStates.owners().some(other => other !== owner && profileHeld(other, candidate))
     if (busy) {
       let lane = 'lane'
       try {
@@ -382,6 +540,10 @@ export function browserProfileDirForOrigin(urlOrOrigin: string, owner?: OwnerKey
     }
   }
   return candidate
+}
+
+function profileHeld(owner: OwnerKey, profileDir: string): boolean {
+  return [...(ownerStates.peek(owner)?.holds ?? [])].some(hold => hold.browser.connected && hold.profileDir === profileDir)
 }
 
 export function resolveHostLanguages(localeOverride?: string): {
@@ -799,12 +961,20 @@ function pageStealthInit(langs: string[]): void {
 
 export type PageIdentity = Protocol.Emulation.SetUserAgentOverrideRequest
 
+export interface PagePresented {
+  identity: PageIdentity | null
+  languages: string[]
+  timeZone: string
+  locale: string | null
+}
+
 export interface PageKit {
   cdp: CDPSession | null
   identity: PageIdentity | null
   languages: string[]
   timeZone: string
   stealthScript: string | null
+  ownScript: boolean
 }
 
 const pageKits = new WeakMap<Page, PageKit>()
@@ -813,13 +983,325 @@ export function pageKitOf(page: Page): PageKit | null {
   return pageKits.get(page) ?? null
 }
 
+function stealthSource(languages: string[]): string {
+  return `(${pageStealthInit})(${JSON.stringify(languages)})`
+}
+
 export async function setPageLanguages(page: Page, languages: string[]): Promise<void> {
   const kit = pageKits.get(page)
   if (!kit || typeof page.evaluateOnNewDocument !== 'function') return
-  const registration = await page.evaluateOnNewDocument(pageStealthInit, languages)
-  if (kit.stealthScript !== null) await page.removeScriptToEvaluateOnNewDocument(kit.stealthScript).catch(() => undefined)
-  kit.stealthScript = registration?.identifier ?? null
+  if (kit.ownScript && kit.cdp !== null) {
+    const registration = await kit.cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: stealthSource(languages) })
+    if (kit.stealthScript !== null) await kit.cdp.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: kit.stealthScript }).catch(() => undefined)
+    kit.stealthScript = registration.identifier
+  } else {
+    const registration = await page.evaluateOnNewDocument(pageStealthInit, languages)
+    if (kit.stealthScript !== null) await page.removeScriptToEvaluateOnNewDocument(kit.stealthScript).catch(() => undefined)
+    kit.stealthScript = registration?.identifier ?? null
+  }
   await Promise.all(page.frames().map(frame => frame.evaluate(pageStealthInit, languages).catch(() => undefined)))
+}
+
+const redactUrl = (url: string): string => {
+  const q = url.indexOf('?')
+  return q === -1 ? url : `${url.slice(0, q)}?…`
+}
+
+function newWiring(): Wiring {
+  const consoleRing: ConsoleEntry[] = []
+  const capture = (kind: string, text: string): void => {
+    const bounded =
+      text.length > CONSOLE_ENTRY_CAP
+        ? `${text.slice(0, CONSOLE_ENTRY_CAP)}… [+${text.length - CONSOLE_ENTRY_CAP} chars]`
+        : text
+    consoleRing.push({ at: Date.now(), kind, text: bounded })
+    if (consoleRing.length > CONSOLE_RING_CAP) consoleRing.shift()
+  }
+  return {
+    consoleRing,
+    nav: { seq: 0, seen: 0 },
+    popups: { count: 0, last: '' },
+    navFailure: { last: null },
+    policyBlocks: new Map(),
+    downloads: { count: 0, last: null, waiters: [] },
+    navWatch: { pendingUrl: null, abortedAt: 0, waiters: [] },
+    docResponses: new Map(),
+    capture,
+  }
+}
+
+function listenProtocol(wiring: Wiring, cdp: CDPSession): void {
+  const { policyBlocks, downloads, docResponses, capture } = wiring
+  const requests = new Map<string, string>()
+  cdp.on('Network.requestWillBeSent', event => {
+    requests.set(event.requestId, event.request.url.split('?')[0]!)
+    if (requests.size > CONSOLE_RING_CAP) requests.delete(requests.keys().next().value!)
+  })
+  cdp.on('Network.loadingFinished', event => { requests.delete(event.requestId) })
+  cdp.on('Network.loadingFailed', event => {
+    const url = requests.get(event.requestId)
+    requests.delete(event.requestId)
+    if (url === undefined || event.blockedReason === undefined) return
+    policyBlocks.set(url, { reason: event.blockedReason, at: Date.now() })
+    if (policyBlocks.size > CONSOLE_RING_CAP) policyBlocks.delete(policyBlocks.keys().next().value!)
+    capture('net', `${url} refused by browser policy: ${event.blockedReason}`)
+  })
+  cdp.on('Browser.downloadWillBegin', event => {
+    let finish = (): void => {}
+    const done = new Promise<void>(resolve => {
+      finish = resolve
+    })
+    const notice: DownloadNotice & { finish: () => void } = {
+      guid: event.guid,
+      url: redactUrl(event.url),
+      filename: event.suggestedFilename,
+      bytes: null,
+      type: docResponses.get(redactUrl(event.url)) ?? null,
+      at: Date.now(),
+      done,
+      finish,
+    }
+    downloads.count++
+    downloads.last = notice
+    for (const wake of downloads.waiters.splice(0)) wake()
+    capture('download', `the page asked to download ${notice.filename} (${notice.url}) — denied: downloads are not followed here`)
+  })
+  cdp.on('Browser.downloadProgress', event => {
+    const last = downloads.last as (DownloadNotice & { finish: () => void }) | null
+    if (!last || last.guid !== event.guid) return
+    if (event.totalBytes > 0) last.bytes = event.totalBytes
+    if (last.type === null) last.type = docResponses.get(last.url) ?? null
+    if (event.state !== 'inProgress') last.finish()
+  })
+}
+
+function targetIdOf(page: Page): string | null {
+  const target = typeof page.target === 'function' ? (page.target() as { _targetId?: unknown } | null) : null
+  return typeof target?._targetId === 'string' ? target._targetId : null
+}
+
+function tabSession(state: OwnerBrowserState, hold: Hold, tab: string, page: Page, wiring: Wiring): Session {
+  const session: Session = {
+    tab,
+    serial: ++state.pages,
+    persist: false,
+    left: false,
+    browser: hold.browser,
+    page,
+    resolution: hold.resolution,
+    driverVersion: (puppeteerPkg as { version?: string }).version ?? 'bundled',
+    consoleRing: wiring.consoleRing,
+    nav: wiring.nav,
+    sandboxDowngraded: hold.sandboxDowngraded,
+    popups: wiring.popups,
+    navFailure: wiring.navFailure,
+    networkRefusal: hold.networkRefusal,
+    policyBlocks: wiring.policyBlocks,
+    closeNetwork: hold.closeNetwork,
+    downloads: wiring.downloads,
+    navWatch: wiring.navWatch,
+    profileOrigin: hold.profileOrigin,
+    profileDir: hold.profileDir,
+    headless: hold.headless,
+    cursor: { x: 160, y: 120 },
+  }
+  sessionHolds.set(session, hold)
+  return session
+}
+
+function listenPage(state: OwnerBrowserState, session: Session, wiring: Wiring): void {
+  const { page } = session
+  const hold = holdOf(session)
+  const { nav, popups, navFailure, navWatch, docResponses, capture } = wiring
+  const settleNav = (): void => {
+    navWatch.pendingUrl = null
+    for (const wake of navWatch.waiters.splice(0)) wake()
+  }
+  const isMainNavigation = (request: HTTPRequest): boolean =>
+    request.isNavigationRequest() && request.frame() === page.mainFrame()
+  page.on('framenavigated', frame => {
+    if (frame.parentFrame() === null) {
+      nav.seq++
+      if (!isBrowserErrorPage(frame.url())) navFailure.last = null
+      settleNav()
+      capture('nav', `navigated to ${redactUrl(frame.url())}`)
+    }
+  })
+  page.on('request', request => {
+    if (isMainNavigation(request)) navWatch.pendingUrl = redactUrl(request.url())
+  })
+  page.on('requestfinished', request => {
+    if (isMainNavigation(request)) settleNav()
+  })
+  page.on('console', message => {
+    const loc = message.location()
+    const where = loc.url ? ` @ ${redactUrl(loc.url)}:${loc.lineNumber ?? 0}` : ''
+    const args = message.args()
+    if (args.length === 0) {
+      capture(message.type(), `${message.text()}${where}`)
+      return
+    }
+    void Promise.all(args.map(a => a.jsonValue().catch(() => undefined)))
+      .then(vals => {
+        const rendered = vals
+          .map(v => (v === undefined ? '<unserializable>' : typeof v === 'string' ? v : JSON.stringify(v)))
+          .join(' ')
+        capture(message.type(), `${rendered.trim() !== '' ? rendered : message.text()}${where}`)
+      })
+      .catch(() => capture(message.type(), `${message.text()}${where}`))
+  })
+  page.on('pageerror', err => {
+    const e = err as Error | undefined
+    const stack = (e?.stack ?? '')
+      .split('\n')
+      .slice(1, 4)
+      .map(l => l.trim())
+      .filter(Boolean)
+    capture('pageerror', `${String(e?.message ?? err)}${stack.length > 0 ? ` | ${stack.join(' | ')}` : ''}`)
+  })
+  page.on('popup', popup => {
+    if (!popup) return
+    void (async () => {
+      let url = popup.url()
+      if (!url || url === 'about:blank') {
+        await new Promise(r => setTimeout(r, 300))
+        url = popup.url()
+      }
+      popups.count++
+      popups.last = redactUrl(url || '(unknown)')
+      capture('popup', `the page opened a new tab: ${popups.last} — closed unadopted (op:"open" follows it)`)
+      await popup.close().catch(() => {})
+    })()
+  })
+  page.on('requestfailed', request => {
+    const chromeText = request.failure()?.errorText ?? ''
+    const relay = chromeText === 'net::ERR_ABORTED' ? null : hold.relayFailureFor(request.url())
+    const errorText = relay === null ? chromeText : `net::${chromeNetErrorFor(relay.code)}`
+    if (isMainNavigation(request)) {
+      if (errorText === 'net::ERR_ABORTED') navWatch.abortedAt = Date.now()
+      else navFailure.last = { url: redactUrl(request.url()), errorText, at: Date.now() }
+      settleNav()
+    }
+    capture('net', `${request.method()} ${redactUrl(request.url())} FAILED ${errorText} (${request.resourceType()})`)
+  })
+  page.on('response', response => {
+    const req = response.request()
+    if (isMainNavigation(req)) {
+      docResponses.set(redactUrl(response.url()), response.headers()['content-type'] ?? null)
+      if (docResponses.size > 32) docResponses.delete(docResponses.keys().next().value!)
+    }
+    const status = response.status()
+    if (status < 400) return
+    capture('net', `${req.method()} ${redactUrl(response.url())} ${status} (${req.resourceType()})`)
+  })
+  page.on('dialog', dialog => {
+    const kind = dialog.type()
+    const verb = kind === 'beforeunload' ? 'accepted' : 'dismissed'
+    const saw = kind === 'confirm' ? ' (the page received false)' : kind === 'prompt' ? ' (the page received null)' : ''
+    capture('dialog', `${kind}("${dialog.message()}") auto-${verb}${saw} — the page was blocked on it`)
+    void (kind === 'beforeunload' ? dialog.accept() : dialog.dismiss()).catch(() => {
+    })
+  })
+  page.on('close', () => tabClosed(state, session))
+}
+
+function bornPage(hold: Hold, cdp: CDPSession, info: Protocol.Target.TargetInfo): void {
+  const { identity, languages, timeZone } = hold.baseline
+  const quiet = (): undefined => undefined
+  const kit: PageKit = { cdp, identity, languages, timeZone, stealthScript: null, ownScript: true }
+  const birth: Birth = { cdp, kit, wiring: newWiring() }
+  if (identity !== null) void cdp.send('Emulation.setUserAgentOverride', identity).catch(quiet)
+  void cdp.send('Emulation.setTimezoneOverride', { timezoneId: timeZone }).catch(quiet)
+  void cdp.send('Emulation.setAutomationOverride', { enabled: false }).catch(quiet)
+  void cdp.send('Page.enable').catch(quiet)
+  void cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: stealthSource(languages) }).then(registration => {
+    kit.stealthScript = registration.identifier
+  }, quiet)
+  void cdp.send('Network.enable').catch(quiet)
+  void cdp.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(quiet)
+  listenProtocol(birth.wiring, cdp)
+  void cdp.send('Runtime.runIfWaitingForDebugger').catch(quiet)
+  hold.births.set(info.targetId, birth)
+}
+
+async function watchBirths(hold: Hold): Promise<void> {
+  const browser = hold.browser
+  if (typeof browser.target !== 'function') return
+  const watch = await browser.target().createCDPSession().catch(() => null)
+  if (watch === null) return
+  watch.on('Target.attachedToTarget', event => {
+    const child = watch.connection()?.session(event.sessionId) ?? null
+    if (child === null) return
+    if (!event.waitingForDebugger) {
+      void watch.send('Target.detachFromTarget', { sessionId: event.sessionId }).catch(() => undefined)
+      return
+    }
+    bornPage(hold, child, event.targetInfo)
+  })
+  watch.on('Target.detachedFromTarget', event => {
+    for (const [id, birth] of hold.births) {
+      if (birth.cdp.id() === event.sessionId) hold.births.delete(id)
+    }
+  })
+  hold.watch = watch
+  const armed = await watch
+    .send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true, filter: [{ type: 'page', exclude: false }] })
+    .then(() => true, () => false)
+  if (!armed) hold.watch = null
+}
+
+export async function bringTabToFront(session: Session): Promise<void> {
+  const hold = holdOf(session)
+  if (hold.front === session) return
+  if (typeof session.page.bringToFront === 'function') await session.page.bringToFront().catch(() => undefined)
+  hold.front = session
+}
+
+async function armLate(page: Page, baseline: PagePresented): Promise<PageKit> {
+  const kit: PageKit = { cdp: null, identity: baseline.identity, languages: baseline.languages, timeZone: baseline.timeZone, stealthScript: null, ownScript: false }
+  if (typeof page.evaluateOnNewDocument === 'function') {
+    kit.stealthScript = await page.evaluateOnNewDocument(pageStealthInit, baseline.languages).then(
+      registration => registration?.identifier ?? null,
+      () => null,
+    )
+    await page.evaluate(pageStealthInit, baseline.languages).catch(() => undefined)
+  }
+  const cdp = typeof page.createCDPSession === 'function' ? await page.createCDPSession().catch(() => null) : null
+  kit.cdp = cdp
+  if (cdp !== null) {
+    await cdp.send('Network.enable').catch(() => undefined)
+    await cdp.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(() => undefined)
+    await cdp.send('Emulation.setAutomationOverride', { enabled: false }).catch(() => undefined)
+    await cdp.send('Emulation.setTimezoneOverride', { timezoneId: baseline.timeZone }).catch(() => undefined)
+    if (baseline.identity !== null) await cdp.send('Emulation.setUserAgentOverride', baseline.identity).catch(() => undefined)
+  }
+  return kit
+}
+
+async function newHoldPage(hold: Hold): Promise<{ page: Page; wiring: Wiring }> {
+  hold.creating++
+  try {
+    const page = await hold.browser.newPage()
+    try {
+      const id = targetIdOf(page)
+      const born = id === null ? undefined : hold.births.get(id)
+      if (born !== undefined && id !== null) {
+        hold.births.delete(id)
+        pageKits.set(page, born.kit)
+        return { page, wiring: born.wiring }
+      }
+      const wiring = newWiring()
+      const kit = await armLate(page, hold.baseline)
+      if (kit.cdp !== null) listenProtocol(wiring, kit.cdp)
+      pageKits.set(page, kit)
+      return { page, wiring }
+    } catch (err) {
+      await closePage(page)
+      throw err
+    }
+  } finally {
+    hold.creating--
+  }
 }
 
 export async function ensureBrowserSession(
@@ -827,29 +1309,37 @@ export async function ensureBrowserSession(
   opts: EnsureBrowserSessionOptions = {},
 ): Promise<Session | EnsureSessionRefusal> {
   const state = ownerStates.get(owner)
+  const tab = opts.tab ?? MAIN_TAB
   const wantedOrigin = opts.origin && opts.origin.startsWith('http') ? originOf(opts.origin) : null
-  if (state.session && state.session.browser.connected) {
-    const sameHeadless = opts.headless === undefined || state.session.headless === opts.headless
-    const sameOrigin = wantedOrigin === null || state.session.profileOrigin === wantedOrigin
-    if (sameHeadless && sameOrigin) {
-      armIdleLease(state)
-      return state.session
+  for (;;) {
+    const held = state.tabs.get(tab)
+    if (held && held.browser.connected) {
+      const sameHeadless = opts.headless === undefined || held.headless === opts.headless
+      const sameOrigin = wantedOrigin === null || held.profileOrigin === wantedOrigin
+      if (sameHeadless && sameOrigin) {
+        armIdleLease(state)
+        return held
+      }
     }
+    const inFlight = state.launchFlight
+    if (inFlight === null) break
+    if (inFlight.tab === tab) return awaitLaunch(inFlight.flight, opts.signal)
+    await awaitLaunch(
+      inFlight.flight.then(() => undefined, () => undefined),
+      opts.signal,
+    )
   }
-  if (state.launchFlight !== null) return awaitLaunch(state.launchFlight, opts.signal)
-  const flight = launchOwnerSession(owner, state, opts)
-  state.launchFlight = flight
+  const flight = placeTab(owner, state, tab, opts)
+  const entry = { tab, flight }
+  state.launchFlight = entry
   const clear = (): void => {
-    if (state.launchFlight === flight) state.launchFlight = null
+    if (state.launchFlight === entry) state.launchFlight = null
   }
   void flight.then(clear, clear)
   return awaitLaunch(flight, opts.signal)
 }
 
-function awaitLaunch(
-  flight: Promise<Session | EnsureSessionRefusal>,
-  signal: AbortSignal | undefined,
-): Promise<Session | EnsureSessionRefusal> {
+function awaitLaunch<T>(flight: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
   if (signal === undefined) return flight
   if (signal.aborted) return Promise.reject(abortReason(signal))
   return new Promise((resolve, reject) => {
@@ -875,338 +1365,233 @@ function abortReason(signal: AbortSignal): unknown {
   return err
 }
 
-async function launchOwnerSession(
+async function placeTab(
   owner: OwnerKey,
   state: OwnerBrowserState,
+  tab: string,
   opts: EnsureBrowserSessionOptions = {},
 ): Promise<Session | EnsureSessionRefusal> {
-  reapDeadSession(state)
+  reapDeadHolds(state)
   const gate = driverNodeGate()
   if (!gate.ok) return { state: 'unavailable', note: gate.note }
-  const cap = browserSessionCap()
-  const identity = parseOwnerKey(owner)
-  const others = liveBrowserSessionCensus().filter(row => {
-    if (row.owner === owner) return false
-    const other = parseOwnerKey(row.owner)
-    return other.workspace === identity.workspace && other.sessionId === identity.sessionId && other.lane !== 'main'
-  })
-  if (cap !== null && identity.lane !== 'main' && others.length >= cap) {
-    const lanes = others.map(row => row.lane).join(', ')
-    return {
-      state: 'at-capacity',
-      note: `${others.length} of ${cap} child browser sessions are live in this parent session (${lanes}); the lead has a separate slot. Close a finished session with op:"close", wait for its 5-minute idle lease to expire, or raise MERCURY_BROWSER_MAX_SESSIONS.`,
+  const profileOrigin = opts.origin && opts.origin.startsWith('http') ? originOf(opts.origin) : null
+  const headless = opts.headless ?? true
+  const home =
+    [...state.holds].find(hold => hold.browser.connected && hold.profileOrigin === profileOrigin && hold.headless === headless) ?? null
+  let resolution: BrowserResolution | null = null
+  if (home === null) {
+    const cap = browserSessionCap()
+    const identity = parseOwnerKey(owner)
+    const others = liveBrowserSessionCensus().filter(row => {
+      if (row.owner === owner) return false
+      const other = parseOwnerKey(row.owner)
+      return other.workspace === identity.workspace && other.sessionId === identity.sessionId && other.lane !== 'main'
+    })
+    if (cap !== null && identity.lane !== 'main' && others.length >= cap) {
+      const lanes = others.map(row => row.lane).join(', ')
+      return {
+        state: 'at-capacity',
+        note: `${others.length} of ${cap} child browser sessions are live in this parent session (${lanes}); the lead has a separate slot. Close a finished session with op:"close", wait for its 5-minute idle lease to expire, or raise MERCURY_BROWSER_MAX_SESSIONS.`,
+      }
     }
+    const found = resolveBrowser()
+    if (found.state === 'unavailable') {
+      return { state: 'unavailable', note: `${found.note} — ${found.remedies.join('; ')}` }
+    }
+    resolution = found
   }
-  const resolution = resolveBrowser()
-  if (resolution.state === 'unavailable') {
-    return { state: 'unavailable', note: `${resolution.note} — ${resolution.remedies.join('; ')}` }
-  }
-  const rotating = state.session && state.session.browser.connected ? state.session : null
-  state.session = null
+  const moving = state.tabs.get(tab) ?? null
+  if (moving !== null) state.tabs.delete(tab)
   state.launching = true
   let unhanded: DriverBrowser | null = null
+  let stray: Page | null = null
   let proxyClose: (() => void) | undefined
-  const networkRefusal: Session['networkRefusal'] = { count: 0, last: null }
-  const relayFailures = new Map<string, { code: string; at: number }>()
-  const relayFailureFor = (url: string): { code: string; at: number } | null => {
-    let origin = ''
-    try { origin = new URL(url).origin } catch { return null }
-    const hit = relayFailures.get(url) ?? relayFailures.get(origin)
-    if (hit === undefined || Date.now() - hit.at > 15_000) return null
-    return hit
-  }
+  let landed: Session | null = null
   try {
-    if (rotating !== null) {
-      ;(rotating as { closeNetwork?: () => void }).closeNetwork?.()
-      await closeChild(rotating.browser)
-    }
-    const proxy = await startMetadataProxy(
-      reason => { networkRefusal.last = reason; networkRefusal.count++ },
-      (target, code) => {
-        relayFailures.set(target, { code, at: Date.now() })
-        if (relayFailures.size > 32) relayFailures.delete(relayFailures.keys().next().value!)
-      },
-    )
-    proxyClose = proxy.close
-    const launch: LaunchDriver =
-      launchDriverForProof ?? (async options => (await import('puppeteer-core')).default.launch(options))
-    const hostLang = resolveHostLanguages()
-    const hostTimeZone = resolveHostTimeZone()
-    const profileOrigin = opts.origin && opts.origin.startsWith('http') ? originOf(opts.origin) : null
-    const profileDir = profileOrigin ? browserProfileDirForOrigin(profileOrigin, owner) : null
-    if (profileDir && launchDriverForProof === null) {
-      const profilesRoot = path.dirname(profileDir)
-      fs.mkdirSync(profilesRoot, { recursive: true, mode: 0o700 })
-      fs.mkdirSync(profileDir, { recursive: true, mode: 0o700 })
-      if (process.platform !== 'win32') {
-        try {
-          fs.chmodSync(profilesRoot, 0o700)
-          fs.chmodSync(profileDir, 0o700)
-        } catch {}
+    if (moving !== null) await leaveHold(state, moving)
+    let hold: Hold
+    let page: Page
+    let wiring: Wiring
+    if (home !== null) {
+      hold = home
+      const made = await newHoldPage(hold)
+      page = made.page
+      wiring = made.wiring
+      stray = page
+    } else {
+      const networkRefusal: Hold['networkRefusal'] = { count: 0, last: null }
+      const relayFailures = new Map<string, { code: string; at: number }>()
+      const relayFailureFor = (url: string): { code: string; at: number } | null => {
+        let origin = ''
+        try { origin = new URL(url).origin } catch { return null }
+        const hit = relayFailures.get(url) ?? relayFailures.get(origin)
+        if (hit === undefined || Date.now() - hit.at > 15_000) return null
+        return hit
       }
-      const heldElsewhere = ownerStates.owners().some(other => {
-        if (other === owner) return false
-        const st = ownerStates.peek(other)
-        return Boolean(st?.session?.browser.connected && st.session.profileDir === profileDir)
-      })
-      if (!heldElsewhere) {
-        for (const lockName of ['SingletonLock', 'SingletonSocket', 'SingletonCookie']) {
+      const proxy = await startMetadataProxy(
+        reason => { networkRefusal.last = reason; networkRefusal.count++ },
+        (target, code) => {
+          relayFailures.set(target, { code, at: Date.now() })
+          if (relayFailures.size > 32) relayFailures.delete(relayFailures.keys().next().value!)
+        },
+      )
+      proxyClose = proxy.close
+      const launch: LaunchDriver =
+        launchDriverForProof ?? (async options => (await import('puppeteer-core')).default.launch(options))
+      const hostLang = resolveHostLanguages()
+      const hostTimeZone = resolveHostTimeZone()
+      const profileDir = profileOrigin ? browserProfileDirForOrigin(profileOrigin, owner) : null
+      if (profileDir) {
+        for (const other of [...state.holds]) {
+          if (other.profileDir !== profileDir) continue
+          const browser = other.browser
+          holdGone(state, other, RESTARTED)
+          await closeChild(browser)
+        }
+      }
+      if (profileDir && launchDriverForProof === null) {
+        const profilesRoot = path.dirname(profileDir)
+        fs.mkdirSync(profilesRoot, { recursive: true, mode: 0o700 })
+        fs.mkdirSync(profileDir, { recursive: true, mode: 0o700 })
+        if (process.platform !== 'win32') {
           try {
-            fs.rmSync(path.join(profileDir, lockName), { force: true })
+            fs.chmodSync(profilesRoot, 0o700)
+            fs.chmodSync(profileDir, 0o700)
           } catch {}
         }
-      }
-    }
-    const headless = opts.headless ?? true
-    const launchArgs = [
-      `--proxy-server=http://127.0.0.1:${proxy.port}`,
-      '--proxy-bypass-list=<-loopback>',
-      '--disable-quic',
-      '--no-first-run',
-      '--no-default-browser-check',
-      '--disable-features=Translate',
-      '--disable-dev-shm-usage',
-      '--disable-blink-features=AutomationControlled',
-      '--window-size=1280,800',
-      `--lang=${hostLang.primary}`,
-    ]
-    const sandboxDowngraded =
-      process.platform === 'linux' && typeof process.getuid === 'function' && process.getuid() === 0
-    if (sandboxDowngraded) launchArgs.push('--no-sandbox')
-    const browser = await launch({
-      executablePath: resolution.executablePath,
-      headless,
-      protocolTimeout: BROWSER_PROTOCOL_TIMEOUT_MS,
-      env: subprocessEnv(),
-      defaultViewport: { width: 1280, height: 800 },
-      downloadBehavior: { policy: 'deny' },
-      ignoreDefaultArgs: [
-        '--enable-automation',
-        '--disable-extensions',
-        '--disable-default-apps',
-        '--disable-component-extensions-with-background-pages',
-      ],
-      ...(profileDir ? { userDataDir: profileDir } : {}),
-      args: launchArgs,
-    })
-    unhanded = browser
-    const pages = await browser.pages()
-    const page = pages[0] ?? (await browser.newPage())
-    const kit: PageKit = { cdp: null, identity: null, languages: hostLang.languages, timeZone: hostTimeZone, stealthScript: null }
-    if (typeof page.evaluateOnNewDocument === 'function') {
-      kit.stealthScript = await page.evaluateOnNewDocument(pageStealthInit, hostLang.languages).then(
-        registration => registration?.identifier ?? null,
-        () => null,
-      )
-      await page.evaluate(pageStealthInit, hostLang.languages).catch(() => undefined)
-    }
-    const consoleRing: ConsoleEntry[] = []
-    const nav = { seq: 0, seen: 0 }
-    const popups = { count: 0, last: '' }
-    const capture = (kind: string, text: string): void => {
-      const bounded =
-        text.length > CONSOLE_ENTRY_CAP
-          ? `${text.slice(0, CONSOLE_ENTRY_CAP)}… [+${text.length - CONSOLE_ENTRY_CAP} chars]`
-          : text
-      consoleRing.push({ at: Date.now(), kind, text: bounded })
-      if (consoleRing.length > CONSOLE_RING_CAP) consoleRing.shift()
-    }
-    const redactUrl = (url: string): string => {
-      const q = url.indexOf('?')
-      return q === -1 ? url : `${url.slice(0, q)}?…`
-    }
-    const navFailure: Session['navFailure'] = { last: null }
-    const policyBlocks: Session['policyBlocks'] = new Map()
-    const downloads: Session['downloads'] = { count: 0, last: null, waiters: [] }
-    const navWatch: Session['navWatch'] = { pendingUrl: null, abortedAt: 0, waiters: [] }
-    const docResponses = new Map<string, string | null>()
-    const settleNav = (): void => {
-      navWatch.pendingUrl = null
-      for (const wake of navWatch.waiters.splice(0)) wake()
-    }
-    const isMainNavigation = (request: HTTPRequest): boolean =>
-      request.isNavigationRequest() && request.frame() === page.mainFrame()
-    page.on('framenavigated', frame => {
-      if (frame.parentFrame() === null) {
-        nav.seq++
-        if (!isBrowserErrorPage(frame.url())) navFailure.last = null
-        settleNav()
-        capture('nav', `navigated to ${redactUrl(frame.url())}`)
-      }
-    })
-    page.on('request', request => {
-      if (isMainNavigation(request)) navWatch.pendingUrl = redactUrl(request.url())
-    })
-    page.on('requestfinished', request => {
-      if (isMainNavigation(request)) settleNav()
-    })
-    const cdp =
-      typeof page.createCDPSession === 'function' ? await page.createCDPSession().catch(() => null) : null
-    kit.cdp = cdp
-    pageKits.set(page, kit)
-    if (cdp !== null) {
-      const requests = new Map<string, string>()
-      await cdp.send('Network.enable').catch(() => undefined)
-      cdp.on('Network.requestWillBeSent', event => {
-        requests.set(event.requestId, event.request.url.split('?')[0]!)
-        if (requests.size > CONSOLE_RING_CAP) requests.delete(requests.keys().next().value!)
-      })
-      cdp.on('Network.loadingFinished', event => { requests.delete(event.requestId) })
-      cdp.on('Network.loadingFailed', event => {
-        const url = requests.get(event.requestId)
-        requests.delete(event.requestId)
-        if (url === undefined || event.blockedReason === undefined) return
-        policyBlocks.set(url, { reason: event.blockedReason, at: Date.now() })
-        if (policyBlocks.size > CONSOLE_RING_CAP) policyBlocks.delete(policyBlocks.keys().next().value!)
-        capture('net', `${url} refused by browser policy: ${event.blockedReason}`)
-      })
-      await cdp.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(() => undefined)
-      await cdp.send('Emulation.setAutomationOverride', { enabled: false }).catch(() => undefined)
-      await cdp.send('Emulation.setTimezoneOverride', { timezoneId: hostTimeZone }).catch(() => undefined)
-      const rawUa = typeof browser.userAgent === 'function' ? await browser.userAgent().catch(() => '') : ''
-      const cleanUa = rawUa.replace(/HeadlessChrome\//g, 'Chrome/')
-      if (cleanUa) {
-        const versionStr = typeof browser.version === 'function' ? await browser.version().catch(() => '') : ''
-        const fullVersion =
-          resolution.buildId ??
-          (/(\d+\.\d+\.\d+\.\d+)/.exec(versionStr)?.[1] ??
-            (/Chrome\/(\d+\.\d+\.\d+\.\d+)/.exec(cleanUa)?.[1] ?? '155.0.0.0'))
-        const major = fullVersion.split('.')[0] || '155'
-        const isMac = cleanUa.includes('Macintosh') || process.platform === 'darwin'
-        const isWin = !isMac && (cleanUa.includes('Windows') || process.platform === 'win32')
-        const navigatorPlatform = resolveNavigatorPlatform(cleanUa)
-        const chPlatform = isMac ? 'macOS' : isWin ? 'Windows' : 'Linux'
-        const chPlatformVersion = isMac
-          ? (cleanUa.match(/Mac OS X ([0-9_]+)/)?.[1]?.replace(/_/g, '.') ?? '10.15.7')
-          : isWin
-            ? '10.0.0'
-            : '6.5.0'
-        const architecture = process.arch === 'arm64' ? 'arm' : 'x86'
-        kit.identity = {
-          userAgent: cleanUa,
-          acceptLanguage: hostLang.acceptLanguage,
-          platform: navigatorPlatform,
-          userAgentMetadata: {
-            brands: [
-              { brand: 'Not(A:Brand', version: '24' },
-              { brand: 'Chromium', version: major },
-              { brand: 'Google Chrome', version: major },
-            ],
-            fullVersionList: [
-              { brand: 'Not(A:Brand', version: '24.0.0.0' },
-              { brand: 'Chromium', version: fullVersion },
-              { brand: 'Google Chrome', version: fullVersion },
-            ],
-            fullVersion,
-            platform: chPlatform,
-            platformVersion: chPlatformVersion,
-            architecture,
-            bitness: '64',
-            model: '',
-            mobile: false,
-            wow64: false,
-          },
+        const heldElsewhere = ownerStates.owners().some(other => other !== owner && profileHeld(other, profileDir))
+        if (!heldElsewhere) {
+          for (const lockName of ['SingletonLock', 'SingletonSocket', 'SingletonCookie']) {
+            try {
+              fs.rmSync(path.join(profileDir, lockName), { force: true })
+            } catch {}
+          }
         }
-        await cdp.send('Emulation.setUserAgentOverride', kit.identity).catch(() => undefined)
       }
-      cdp.on('Browser.downloadWillBegin', event => {
-        let finish = (): void => {}
-        const done = new Promise<void>(resolve => {
-          finish = resolve
-        })
-        const notice: DownloadNotice & { finish: () => void } = {
-          guid: event.guid,
-          url: redactUrl(event.url),
-          filename: event.suggestedFilename,
-          bytes: null,
-          type: docResponses.get(redactUrl(event.url)) ?? null,
-          at: Date.now(),
-          done,
-          finish,
+      const launchArgs = [
+        `--proxy-server=http://127.0.0.1:${proxy.port}`,
+        '--proxy-bypass-list=<-loopback>',
+        '--disable-quic',
+        '--no-first-run',
+        '--no-default-browser-check',
+        '--disable-features=Translate',
+        '--disable-dev-shm-usage',
+        '--disable-blink-features=AutomationControlled',
+        '--window-size=1280,800',
+        `--lang=${hostLang.primary}`,
+      ]
+      const sandboxDowngraded =
+        process.platform === 'linux' && typeof process.getuid === 'function' && process.getuid() === 0
+      if (sandboxDowngraded) launchArgs.push('--no-sandbox')
+      const browser = await launch({
+        executablePath: resolution!.executablePath,
+        headless,
+        protocolTimeout: BROWSER_PROTOCOL_TIMEOUT_MS,
+        env: subprocessEnv(),
+        defaultViewport: { width: 1280, height: 800 },
+        downloadBehavior: { policy: 'deny' },
+        ignoreDefaultArgs: [
+          '--enable-automation',
+          '--disable-extensions',
+          '--disable-default-apps',
+          '--disable-component-extensions-with-background-pages',
+        ],
+        ...(profileDir ? { userDataDir: profileDir } : {}),
+        args: launchArgs,
+      })
+      unhanded = browser
+      const pages = await browser.pages()
+      page = pages[0] ?? (await browser.newPage())
+      const kit: PageKit = { cdp: null, identity: null, languages: hostLang.languages, timeZone: hostTimeZone, stealthScript: null, ownScript: false }
+      if (typeof page.evaluateOnNewDocument === 'function') {
+        kit.stealthScript = await page.evaluateOnNewDocument(pageStealthInit, hostLang.languages).then(
+          registration => registration?.identifier ?? null,
+          () => null,
+        )
+        await page.evaluate(pageStealthInit, hostLang.languages).catch(() => undefined)
+      }
+      wiring = newWiring()
+      const cdp =
+        typeof page.createCDPSession === 'function' ? await page.createCDPSession().catch(() => null) : null
+      kit.cdp = cdp
+      pageKits.set(page, kit)
+      if (cdp !== null) {
+        await cdp.send('Network.enable').catch(() => undefined)
+        listenProtocol(wiring, cdp)
+        await cdp.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(() => undefined)
+        await cdp.send('Emulation.setAutomationOverride', { enabled: false }).catch(() => undefined)
+        await cdp.send('Emulation.setTimezoneOverride', { timezoneId: hostTimeZone }).catch(() => undefined)
+        const rawUa = typeof browser.userAgent === 'function' ? await browser.userAgent().catch(() => '') : ''
+        const cleanUa = rawUa.replace(/HeadlessChrome\//g, 'Chrome/')
+        if (cleanUa) {
+          const versionStr = typeof browser.version === 'function' ? await browser.version().catch(() => '') : ''
+          const fullVersion =
+            resolution!.buildId ??
+            (/(\d+\.\d+\.\d+\.\d+)/.exec(versionStr)?.[1] ??
+              (/Chrome\/(\d+\.\d+\.\d+\.\d+)/.exec(cleanUa)?.[1] ?? '155.0.0.0'))
+          const major = fullVersion.split('.')[0] || '155'
+          const isMac = cleanUa.includes('Macintosh') || process.platform === 'darwin'
+          const isWin = !isMac && (cleanUa.includes('Windows') || process.platform === 'win32')
+          const navigatorPlatform = resolveNavigatorPlatform(cleanUa)
+          const chPlatform = isMac ? 'macOS' : isWin ? 'Windows' : 'Linux'
+          const chPlatformVersion = isMac
+            ? (cleanUa.match(/Mac OS X ([0-9_]+)/)?.[1]?.replace(/_/g, '.') ?? '10.15.7')
+            : isWin
+              ? '10.0.0'
+              : '6.5.0'
+          const architecture = process.arch === 'arm64' ? 'arm' : 'x86'
+          kit.identity = {
+            userAgent: cleanUa,
+            acceptLanguage: hostLang.acceptLanguage,
+            platform: navigatorPlatform,
+            userAgentMetadata: {
+              brands: [
+                { brand: 'Not(A:Brand', version: '24' },
+                { brand: 'Chromium', version: major },
+                { brand: 'Google Chrome', version: major },
+              ],
+              fullVersionList: [
+                { brand: 'Not(A:Brand', version: '24.0.0.0' },
+                { brand: 'Chromium', version: fullVersion },
+                { brand: 'Google Chrome', version: fullVersion },
+              ],
+              fullVersion,
+              platform: chPlatform,
+              platformVersion: chPlatformVersion,
+              architecture,
+              bitness: '64',
+              model: '',
+              mobile: false,
+              wow64: false,
+            },
+          }
+          await cdp.send('Emulation.setUserAgentOverride', kit.identity).catch(() => undefined)
         }
-        downloads.count++
-        downloads.last = notice
-        for (const wake of downloads.waiters.splice(0)) wake()
-        capture('download', `the page asked to download ${notice.filename} (${notice.url}) — denied: downloads are not followed here`)
-      })
-      cdp.on('Browser.downloadProgress', event => {
-        const last = downloads.last as (DownloadNotice & { finish: () => void }) | null
-        if (!last || last.guid !== event.guid) return
-        if (event.totalBytes > 0) last.bytes = event.totalBytes
-        if (last.type === null) last.type = docResponses.get(last.url) ?? null
-        if (event.state !== 'inProgress') last.finish()
-      })
+      }
+      hold = {
+        browser,
+        resolution: resolution!,
+        sandboxDowngraded,
+        profileOrigin,
+        profileDir,
+        headless,
+        closeNetwork: proxy.close,
+        networkRefusal,
+        relayFailureFor,
+        baseline: { identity: kit.identity, languages: hostLang.languages, timeZone: hostTimeZone, locale: null },
+        tabs: new Set(),
+        births: new Map(),
+        creating: 0,
+        front: null,
+        watch: null,
+      }
     }
-    page.on('console', message => {
-      const loc = message.location()
-      const where = loc.url ? ` @ ${redactUrl(loc.url)}:${loc.lineNumber ?? 0}` : ''
-      const args = message.args()
-      if (args.length === 0) {
-        capture(message.type(), `${message.text()}${where}`)
-        return
-      }
-      void Promise.all(args.map(a => a.jsonValue().catch(() => undefined)))
-        .then(vals => {
-          const rendered = vals
-            .map(v => (v === undefined ? '<unserializable>' : typeof v === 'string' ? v : JSON.stringify(v)))
-            .join(' ')
-          capture(message.type(), `${rendered.trim() !== '' ? rendered : message.text()}${where}`)
-        })
-        .catch(() => capture(message.type(), `${message.text()}${where}`))
-    })
-    page.on('pageerror', err => {
-      const e = err as Error | undefined
-      const stack = (e?.stack ?? '')
-        .split('\n')
-        .slice(1, 4)
-        .map(l => l.trim())
-        .filter(Boolean)
-      capture('pageerror', `${String(e?.message ?? err)}${stack.length > 0 ? ` | ${stack.join(' | ')}` : ''}`)
-    })
-    page.on('popup', popup => {
-      if (!popup) return
-      void (async () => {
-        let url = popup.url()
-        if (!url || url === 'about:blank') {
-          await new Promise(r => setTimeout(r, 300))
-          url = popup.url()
-        }
-        popups.count++
-        popups.last = redactUrl(url || '(unknown)')
-        capture('popup', `the page opened a new tab: ${popups.last} — closed unadopted (one owned page; op:"open" follows it)`)
-        await popup.close().catch(() => {})
-      })()
-    })
-    page.on('requestfailed', request => {
-      const chromeText = request.failure()?.errorText ?? ''
-      const relay = chromeText === 'net::ERR_ABORTED' ? null : relayFailureFor(request.url())
-      const errorText = relay === null ? chromeText : `net::${chromeNetErrorFor(relay.code)}`
-      if (isMainNavigation(request)) {
-        if (errorText === 'net::ERR_ABORTED') navWatch.abortedAt = Date.now()
-        else navFailure.last = { url: redactUrl(request.url()), errorText, at: Date.now() }
-        settleNav()
-      }
-      capture('net', `${request.method()} ${redactUrl(request.url())} FAILED ${errorText} (${request.resourceType()})`)
-    })
-    page.on('response', response => {
-      const req = response.request()
-      if (isMainNavigation(req)) {
-        docResponses.set(redactUrl(response.url()), response.headers()['content-type'] ?? null)
-        if (docResponses.size > 32) docResponses.delete(docResponses.keys().next().value!)
-      }
-      const status = response.status()
-      if (status < 400) return
-      capture('net', `${req.method()} ${redactUrl(response.url())} ${status} (${req.resourceType()})`)
-    })
-    page.on('dialog', dialog => {
-      const kind = dialog.type()
-      const verb = kind === 'beforeunload' ? 'accepted' : 'dismissed'
-      const saw = kind === 'confirm' ? ' (the page received false)' : kind === 'prompt' ? ' (the page received null)' : ''
-      capture('dialog', `${kind}("${dialog.message()}") auto-${verb}${saw} — the page was blocked on it`)
-      void (kind === 'beforeunload' ? dialog.accept() : dialog.dismiss()).catch(() => {
-      })
-    })
-    if (typeof page.bringToFront === 'function') await page.bringToFront()
+    const session = tabSession(state, hold, tab, page, wiring)
+    listenPage(state, session, wiring)
+    if (home === null) {
+      if (typeof page.bringToFront === 'function') await page.bringToFront()
+      if (opts.births === true) await watchBirths(hold)
+    }
     if (state.disposed) {
       return {
         state: 'torn-down',
@@ -1214,51 +1599,43 @@ async function launchOwnerSession(
       }
     }
     state.goneAt = null
-    browser.on('disconnected', () => markSessionGone(state, browser))
-    state.session = {
-      browser,
-      page,
-      resolution,
-      driverVersion: (puppeteerPkg as { version?: string }).version ?? 'bundled',
-      consoleRing,
-      nav,
-      sandboxDowngraded,
-      popups,
-      navFailure,
-      networkRefusal,
-      policyBlocks,
-      closeNetwork: proxy.close,
-      downloads,
-      navWatch,
-      profileOrigin,
-      profileDir,
-      headless,
-      cursor: { x: 160, y: 120 },
+    if (home === null) {
+      const browser = hold.browser
+      browser.on('disconnected', () => holdGone(state, hold, EXITED))
+      state.holds.add(hold)
     }
+    hold.tabs.add(session)
+    hold.front = session
+    state.tabs.set(tab, session)
+    state.ended.delete(tab)
+    landed = session
     unhanded = null
+    stray = null
   } finally {
     state.launching = false
     armIdleLease(state)
     if (unhanded !== null) await closeChild(unhanded)
-    if (state.session === null) {
+    if (stray !== null) await closePage(stray)
+    if (landed === null && moving !== null && state.tabs.size > 0) noteEnded(state, tab, MOVE_FAILED)
+    if (state.tabs.size === 0) {
       state.approvedOrigins.clear()
       state.approvedSecretPairings.clear()
     }
-    if (state.session === null) proxyClose?.()
+    if (landed === null) proxyClose?.()
   }
   if (!exitHookInstalled) {
     exitHookInstalled = true
     process.on('exit', () => {
       for (const key of ownerStates.owners()) {
-        const st = ownerStates.peek(key)
-        if (!st?.session) continue
-        st.session.closeNetwork()
-        killChild(st.session.browser)
-        removeTempProfile(st.session.browser)
+        for (const hold of ownerStates.peek(key)?.holds ?? []) {
+          closeHoldNetwork(hold)
+          killChild(hold.browser)
+          removeTempProfile(hold.browser)
+        }
       }
     })
   }
-  return state.session
+  return landed
 }
 
 export async function closeBrowserSession(owner: OwnerKey): Promise<boolean> {
@@ -1266,26 +1643,48 @@ export async function closeBrowserSession(owner: OwnerKey): Promise<boolean> {
   return closed.outcome !== 'none'
 }
 
-export async function closeBrowserSessionDetailed(owner: OwnerKey): Promise<{ outcome: CloseOutcome | 'none' }> {
+export async function closeBrowserSessionDetailed(
+  owner: OwnerKey,
+  tab?: string,
+): Promise<{ outcome: CloseOutcome | 'none'; closed: string[]; open: string[] }> {
   const state = ownerStates.peek(owner)
-  if (!state) return { outcome: 'none' }
+  if (!state) return { outcome: 'none', closed: [], open: [] }
   clearIdleLease(state)
-  if (state.launchFlight !== null) await state.launchFlight.catch(() => undefined)
-  if (!state.session) {
-    if (state.goneAt === null) return { outcome: 'none' }
-    state.goneAt = null
-    return { outcome: 'gone' }
+  if (state.launchFlight !== null) await state.launchFlight.flight.catch(() => undefined)
+  if (tab === undefined) state.emulated.clear()
+  else state.emulated.delete(tab)
+  if (tab !== undefined && state.tabs.size > 0) {
+    const session = state.tabs.get(tab)
+    if (session === undefined || state.tabs.size > 1) {
+      if (session !== undefined) {
+        state.tabs.delete(tab)
+        state.ended.delete(tab)
+      }
+      const outcome = session === undefined ? 'none' : await leaveHold(state, session)
+      armIdleLease(state)
+      return { outcome, closed: session === undefined ? [] : [tab], open: [...state.tabs.keys()] }
+    }
   }
-  const session = state.session
-  session.closeNetwork()
-  const outcome = await closeChild(session.browser)
-  state.session = null
+  if (state.tabs.size === 0) {
+    if (state.goneAt === null) return { outcome: 'none', closed: [], open: [] }
+    state.goneAt = null
+    return { outcome: 'gone', closed: [], open: [] }
+  }
+  const closed = [...state.tabs.keys()]
+  const holds = [...state.holds]
+  for (const session of state.tabs.values()) session.left = true
+  for (const hold of holds) closeHoldNetwork(hold)
+  const outcomes = await Promise.all(holds.map(hold => closeChild(hold.browser)))
+  state.tabs.clear()
+  state.holds.clear()
+  state.ended.clear()
+  state.emulated.clear()
   state.goneAt = null
   state.approvedOrigins.clear()
   state.approvedSecretPairings.clear()
   state.checkedActOrigin = null
   clearIdleLease(state)
-  return { outcome }
+  return { outcome: outcomes.includes('killed') ? 'killed' : outcomes.includes('closed') ? 'closed' : 'gone', closed, open: [] }
 }
 
 export function secretPairingKey(ref: string, origin: string): string {

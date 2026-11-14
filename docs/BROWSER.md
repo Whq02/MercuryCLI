@@ -1,12 +1,26 @@
 # Browser
 
-Browser drives a separate browser for each agent. An approval belongs to that agent and lasts only while its browser remains open.
+Browser drives a separate browser session for each agent, with as many named tabs as the agent opens. An approval belongs to that agent and lasts only while its session remains open.
 
 ## Sessions
 
 Child browsers are not counted by default: every crewmate that opens a page gets its own, and the machine is the limit. Setting `MERCURY_BROWSER_MAX_SESSIONS` to a positive number caps the child browsers of one parent session at that number, with an additional slot reserved for the lead. Children cannot consume the lead's slot, and separate parent sessions have separate allowances.
 
 A browser closes after five minutes without an operation. This leaves time to read and reason between acts while releasing unused browsers. Running operations keep their browser alive; the five-minute lease starts again when the last operation finishes. Closing or expiry clears origin approvals and secret-fill approvals. Use `op:"open"` to start another browser, or `op:"close"` to release one immediately.
+
+`persist: true` on `open` keeps that tab, and the browser that holds it, past the lease until it is closed or the agent ends. The lease then closes the other tabs, and the session goes on with the kept ones and its approvals. `persist: false` gives the tab back to the lease.
+
+## Tabs
+
+Every operation on a page takes `tab`, the name of the page it addresses; without it the page is `main`. `open` with a new name opens another page beside those already open. With a name and no `url` it opens a blank page, on which emulation can be set before the first address loads. Names belong to the agent: two agents can each have a `main` and a `docs`, and neither sees, lists or closes the other's.
+
+A tab lives in the browser of the origin it was opened to, and every origin keeps its own browser and stored profile. Tabs opened to one origin share that browser, its cookies and its storage. A tab opened to another origin starts a second browser and the first stays. `open` to another origin on a tab that already exists moves the tab: its old page is closed and a new page starts in the other browser, with the tab's emulation.
+
+Each tab keeps its own page, history, console ring, viewport, emulation and cursor. An approval for an origin holds across the agent's tabs, and a secret keeps its separate secret-and-origin approval. A permission check belongs to the page and frame it was made for: if the tab holds another page by the time the act runs, the act is refused and can be issued again.
+
+`status` lists the tabs when there is more than `main`: name, address, title, page number, viewport and whether the tab is kept past the lease. The page number changes when a tab gets a new page. A long list continues with `offset`.
+
+`close` with `tab` closes that tab alone, and closing the last tab ends the session; `close` without `tab` ends the session with every tab. The number of tabs has no limit, and tabs do not count against `MERCURY_BROWSER_MAX_SESSIONS`.
 
 ## Emulation
 

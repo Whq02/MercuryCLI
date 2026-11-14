@@ -94,9 +94,9 @@ export async function decide(input: ToolInput, rules: { mode?: string; allow?: s
   return { behavior: judged.decision.behavior, message: (judged.decision as { message?: string }).message, decidedBy: judged.trace.decidedBy }
 }
 
-export function pageOf(ctx: ToolContext = lead): import('puppeteer-core').Page {
-  const live = sessions.activeSession(ownerOf(ctx))
-  if (!live) throw new Error('no live session where one was expected')
+export function pageOf(ctx: ToolContext = lead, tab?: string): import('puppeteer-core').Page {
+  const live = sessions.activeSession(ownerOf(ctx), tab)
+  if (!live) throw new Error(`no live ${tab ?? 'main'} page where one was expected`)
   return live.page
 }
 
@@ -170,8 +170,8 @@ interface Detection {
   details: Record<string, unknown>
 }
 
-export async function detect(ctx: ToolContext = lead): Promise<Detection> {
-  const live = sessions.activeSession(ownerOf(ctx))
+export async function detect(ctx: ToolContext = lead, tab?: string): Promise<Detection> {
+  const live = sessions.activeSession(ownerOf(ctx), tab)
   const flags: string[] = live?.browser.process()?.spawnargs ?? []
   return (await live.page.evaluate(
     (spawnFlags: string[]) => (window as unknown as { __runDetection: (f: string[]) => Promise<unknown> }).__runDetection(spawnFlags),
