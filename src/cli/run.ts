@@ -1644,7 +1644,7 @@ export async function runHeadless(
       if (turnReachedModel) void advisorMainTurnSettled(String(getSessionId()), command, messages, advisorRoad)
     },
     hasWaitableBackgroundTasks: () =>
-      getRunningTasks(getAppState()).some(task => !(inputClosed && isLocalShellTask(task))),
+      getRunningTasks(getAppState()).some(task => !(inputClosed && isLocalShellTask(task))) || (inputClosed && swarmResumes.hasPending()),
     hasHoldableBackgroundAgents: () =>
       getRunningTasks(getAppState()).some(
         task => task.type === 'local_agent' || task.type === 'local_workflow',
@@ -1744,7 +1744,7 @@ export async function runHeadless(
   const swarmResumes = watchSwarmResumes(
     () => getLastCacheSafeParams()?.toolUseContext as ToolUseContext | undefined ?? null,
     canUseTool,
-    () => sessionInitialized && !inputClosed && !isShuttingDown(),
+    () => sessionInitialized && !isShuttingDown(),
   )
   const swarmLead = watchSwarmLead(
     () => sessionInitialized && !inputClosed && !isShuttingDown() && inFlightAbort === null,

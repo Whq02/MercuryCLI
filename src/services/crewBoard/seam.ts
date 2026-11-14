@@ -144,9 +144,10 @@ export function watchSwarmBoard(check: () => void): () => void {
   return () => { leadChecks.delete(check) }
 }
 
-export function watchSwarmResumes(context: () => ToolUseContext | null, canUseTool: CanUseToolFn, ready: () => boolean, resume?: typeof import('../../tools/AgentTool/resumeAgent.js').resumeAgentBackground): { check: () => void; stop: () => void } {
+export function watchSwarmResumes(context: () => ToolUseContext | null, canUseTool: CanUseToolFn, ready: () => boolean, resume?: typeof import('../../tools/AgentTool/resumeAgent.js').resumeAgentBackground): { check: () => void; hasPending: () => boolean; stop: () => void } {
   const leadContext = AsyncLocalStorage.snapshot()
-  let running = false, pending = false, stopped = false
+  let running = false, pending = false, stopped = false, dispatching = false
+  let resumeRefusal: typeof import('../../tools/AgentTool/resumeAgent.js').boardResumeRefusal | undefined
   const check = (): void => leadContext(() => {
     if (stopped) return
     pending = true
@@ -161,7 +162,9 @@ export function watchSwarmResumes(context: () => ToolUseContext | null, canUseTo
         if (!ready() || !swarmMasterEnabled() || operatorPauseGate.holds('main')) continue
         const store = swarmStore(false)
         if (!store || !store.pendingWakes().length) continue
+        dispatching = true
         const { boardResumeRefusal, resumeAgentBackground, BoardResumeDirectoryError } = await import('../../tools/AgentTool/resumeAgent.js')
+        resumeRefusal = boardResumeRefusal
         await flushSessionStorage()
         if (stopped || !ready()) continue
         for (const wake of store.pendingWakes()) {
@@ -189,13 +192,23 @@ export function watchSwarmResumes(context: () => ToolUseContext | null, canUseTo
       logForDebugging(`crew board: wake dispatch failed: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
       running = false
+      dispatching = false
       if (pending && !stopped) check()
     }
+  }
+  const hasPending = (): boolean => {
+    if (stopped || !ready() || !swarmMasterEnabled() || operatorPauseGate.holds('main')) return false
+    if (dispatching) return true
+    const current = context()
+    if (!current || !swarmPrincipal()) return false
+    const waiting = swarmStore(false)?.pendingWakes().some(wake => resumeRefusal === undefined || resumeRefusal(wake.agent, current.getAppState().tasks) === null) === true
+    if (waiting) check()
+    return waiting
   }
   const unwatch = watchSwarmBoard(check)
   const unpause = operatorPauseGate.subscribe(check)
   check()
-  return { check, stop: () => { stopped = true; unwatch(); unpause() } }
+  return { check, hasPending, stop: () => { stopped = true; unwatch(); unpause() } }
 }
 
 export function swarmRoad(agentId = 'main'): boolean {
