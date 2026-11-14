@@ -6,13 +6,13 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 72 built-in production tools · 205 operations · 72 with a declared capability contract.
+Census version 1 — 71 built-in production tools · 204 operations · 71 with a declared capability contract.
 
 ## Summary
 
-- support (at generation time): 41 available · 19 conditional · 0 degraded · 12 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
-- class: 22 observation · 29 mutation · 10 execution · 11 coordination · 0 unclassified
-- integrations: 14 declare transactions · 12 declare executions · 33 declare mercury:// outputs · 50 name a focused proof
+- support (at generation time): 40 available · 19 conditional · 0 degraded · 12 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
+- class: 22 observation · 29 mutation · 10 execution · 10 coordination · 0 unclassified
+- integrations: 14 declare transactions · 11 declare executions · 32 declare mercury:// outputs · 49 name a focused proof
 - capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · desktop-drive · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · video-generation · web-access
 - every tool is unit-classified
 
@@ -90,7 +90,6 @@ Census version 1 — 72 built-in production tools · 205 operations · 72 with a
 | Video | mutation | video-generation | — | cancel | yes | — | — | — | scripts/tools/prove-video-tool.ts |
 | WebFetch | observation | web-access | — | block | yes | — | — | — | NAMED GAP |
 | WebSearch | observation | web-access | — | block | yes | — | — | — | scripts/search/run-all.sh |
-| Workflow | coordination | task-coordination | — | block | yes | — | workflow-worker (child-execution) | mercury://workflow | scripts/workflows/run-all.sh |
 | Write | mutation | text-mutation | — | block | no | file +receipts | — | mercury://file, mercury://receipt | scripts/project-services/prove-change-receipts.ts |
 
 ## Reading notes
@@ -104,5 +103,5 @@ Census version 1 — 72 built-in production tools · 205 operations · 72 with a
   gate (flagRegistry · EXECUTION_DOMAIN_CENSUS · the resource registry ·
   proof paths on disk). `—` = not declared (a named gap, not a denial).
 - Uniform properties not repeated per-row: every catalog tool is reachable
-  from Eval (`tool`) and workflow agents unless its contract
-  declares otherwise; every tool is available in all permission modes.
+  from Eval (`tool`) unless its contract declares otherwise; every
+  tool is available in all permission modes.
