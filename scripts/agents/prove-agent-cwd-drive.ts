@@ -3,6 +3,7 @@ import { execFileSync, spawn } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { DIST, MODEL, NODE, SCRATCH_ROOT, bound, childEnv, makeTally, type AskHost } from '../daemon/dupline-world.ts'
+import { cloneRoadExpected } from '../lib/cloneRoad.ts'
 import { LineReader, lastOutcome, type Frame } from '../lib/rows.ts'
 import { runScriptedTurn, seedScratchHome, startScriptedFixture, type ScriptedTurn, type SeenResult } from '../lib/scriptedTurn.ts'
 
@@ -213,14 +214,21 @@ show('the isolated launch', seen.isolated, buildTurn)
 tally.section('a worktree-isolated helper can build')
 const build = seen.build?.text ?? ''
 tally.check('the helper ran in a worktree, not the checkout', build.startsWith(`${scratch}`) && !build.startsWith(`${repo}\n`), build.split('\n')[0])
-tally.check("node_modules in the worktree is a link to the checkout's", new RegExp(`node_modules -> ${repo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/node_modules`).test(build), build.split('\n').slice(1, 3).join(' | '))
-tally.check('…and so is the vendored pack', new RegExp(`vendor/pack-a -> ${repo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/vendor/pack-a`).test(build), build.split('\n').slice(1, 3).join(' | '))
+const cloneRoad = cloneRoadExpected(scratch)
+if (cloneRoad) {
+  tally.check("node_modules in the worktree is the worktree's own directory, cloned from the checkout's", /^d\S+ .* node_modules$/m.test(build) && !/node_modules -> /.test(build), build.split('\n').slice(1, 3).join(' | '))
+  tally.check('…and so is the vendored pack', /^d\S+ .* vendor\/pack-a$/m.test(build) && !/vendor\/pack-a -> /.test(build), build.split('\n').slice(1, 3).join(' | '))
+} else {
+  tally.check("node_modules in the worktree is a link to the checkout's", new RegExp(`node_modules -> ${repo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/node_modules`).test(build), build.split('\n').slice(1, 3).join(' | '))
+  tally.check('…and so is the vendored pack', new RegExp(`vendor/pack-a -> ${repo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/vendor/pack-a`).test(build), build.split('\n').slice(1, 3).join(' | '))
+}
 tally.check('bun run typecheck exits 0 there', /typecheck-ok rc=0/.test(build), build)
 tally.check('git status in the worktree shows nothing', /rc=0\nstatus-end/.test(build), build)
 tally.check('the isolated launch answered without error and its clean worktree is kept, the receipt reminding when the janitor takes it', seen.isolated !== undefined && !seen.isolated.isError && /Worktree kept: /.test(seen.isolated.text) && /seven-day janitor/.test(seen.isolated.text), seen.isolated?.text.slice(0, 300))
 const excludePath = join(repo, '.git', 'info', 'exclude')
 const exclude = existsSync(excludePath) ? readFileSync(excludePath, 'utf8') : ''
-tally.check("the checkout's exclude file hides the links", exclude.split('\n').includes('/node_modules') && exclude.split('\n').includes('/vendor/pack-a'), JSON.stringify(exclude))
+if (cloneRoad) tally.check("the checkout's exclude file gains no line for a folder the worktree holds as its own", !exclude.split('\n').includes('/node_modules') && !exclude.split('\n').includes('/vendor/pack-a'), JSON.stringify(exclude))
+else tally.check("the checkout's exclude file hides the links", exclude.split('\n').includes('/node_modules') && exclude.split('\n').includes('/vendor/pack-a'), JSON.stringify(exclude))
 tally.check("the checkout's own status is unchanged", authoredStatus(repo) === parentStatusBefore, authoredStatus(repo))
 tally.check("the helper's worktree is left for the lead to decide on (the repository lists it; nothing is deleted automatically)", git(repo, 'worktree', 'list', '--porcelain').split('\n').filter(l => l.startsWith('worktree ')).length === 2, git(repo, 'worktree', 'list', '--porcelain'))
 

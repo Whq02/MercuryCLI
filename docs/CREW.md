@@ -123,16 +123,52 @@ directory's checkout is on (the branch the lead works in, never a remote's
 copy of it, with nothing fetched) or, with `worktree_at`, frozen at the named
 commit; and the crewmate runs in the worktree. Several crewmates launched
 together each get their own worktree, cut one after another. A crewmate's
-worktree carries links to its parent
-checkout's `node_modules` and to each `vendor/<pack>` the checkout ignores,
-hidden from git through the clone's exclude file, so the crewmate builds and
-runs the checks there without an install. A crewmate continued by a later
+worktree starts with its parent checkout's `node_modules` and each
+`vendor/<pack>` the checkout ignores, so the crewmate builds and runs the
+checks there without an install. On a filesystem that can clone (APFS on
+macOS, a Linux filesystem with reflinks) each is the worktree's own copy,
+sharing disk space until one side writes, so what a crewmate installs or
+builds there reaches neither the checkout nor another crewmate; elsewhere,
+and for a directory named in `workspace.worktree.symlinkDirectories`, each is
+a link to the checkout's copy, hidden from git through the clone's exclude
+file. On such a filesystem the worktree also starts with everything else the
+checkout holds that git ignores (build output, caches, generated files,
+`.env` files), each its own copy: that is what a copy that builds and runs
+needs. Build output comes from the checkout as it stood while the worktree
+holds the commit, so a tool that only checks that an artifact exists reads
+the checkout's build. Four things stay behind: Mercury's own folders and
+instruction files, a folder that holds a `pyvenv.cfg` or a `CMakeCache.txt`
+(a Python environment or a CMake build folder carries the address of the
+place it was made), a folder that is another git worktree, and whatever a
+Read deny rule matches where it lies in the checkout; inside a dependency
+folder the last two stand as links to the checkout's, so a rule answers there
+as it did. An ignored link that points out of the checkout comes as the link
+it is. A worktree frozen with `worktree_at`, cut at another commit than the
+checkout's, made sparse by `workspace.worktree.sparsePaths`, or made in a
+repository that holds your home directory starts with the dependency folders
+only. A crewmate continued by a later
 message wakes in the directory it was launched in: the launch records the
 directory beside the transcript and the continuation reads it back; a
 recorded directory that no longer exists puts the continuation in the
 session's own directory, and the message's receipt says so, naming the
 directory that is gone. The same note accompanies an automatic resume and
 queued guidance, and the continued crewmate receives it in its own prompt.
+
+A copy takes about a second for every hundred thousand files of what git
+ignores on a Mac and one to four on Linux, where the machine's `cp` makes it
+with reflinks; ignored files and folders scattered among tracked ones cost
+about a third of a second a thousand on a Mac and about half a second on
+Linux. It takes about 300 bytes of disk a file on APFS and under a kilobyte
+on XFS; on btrfs about a kilobyte, and a file of two kilobytes or less is
+copied whole. A crewmate starts at once and its first tool call waits for its
+copy, so a copy quicker than the model's first answer costs no time. On a Mac
+one copy is made at a time, in calls of a few thousand entries, so crewmates
+launched together have their copies ready one after another and nothing else
+on the disk waits on a copy, unless one folder holds tens of thousands of
+files directly in it (about half a second for fifty thousand such files). To
+keep the links instead, name a folder in
+`workspace.worktree.symlinkDirectories`, or set `MERCURY_WORKTREE_CLONE=off`
+in the environment to keep them all.
 
 Nothing is deleted automatically. A crewmate's worktree and folder stay where
 they are after it ends, and the session gets a reminder naming each leftover

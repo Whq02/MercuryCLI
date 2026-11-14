@@ -61,7 +61,8 @@ state.setCwdState(repo)
 state.setIsInteractive(true)
 config.enableConfigs()
 
-section("§1 the session road cuts a worktree that comes ready to build")
+section("§1 the session road cuts a worktree that comes ready to build: the links of a volume that cannot clone (MERCURY_WORKTREE_CLONE=off; prove-worktree-clone.ts reads the clones)")
+process.env.MERCURY_WORKTREE_CLONE = 'off'
 const session = await createWorktreeForSession('proof-session', 'links-proof')
 check('the worktree lives under the repository worktrees home', session.worktreePath.startsWith(join(repo, '.mercury', 'worktrees')) && existsSync(join(session.worktreePath, 'package.json')), session.worktreePath)
 check('the session slot names it', getCurrentWorktreeSession()?.worktreePath === session.worktreePath)
@@ -96,17 +97,19 @@ section('§2b the EnterWorktree tool anchors on the canonical root from inside a
 const linked = join(scratch, 'linked')
 git(repo, 'worktree', 'add', '-q', linked, '-b', 'linked-branch')
 const { EnterWorktreeTool } = await import('../../src/tools/EnterWorktreeTool/EnterWorktreeTool.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const toolContext = { getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) }
 process.chdir(scratch)
 state.setOriginalCwd(linked)
 state.setCwdState(linked)
 let refusedCreate = ''
 try {
-  await EnterWorktreeTool.call({ name: 'not a slug!' } as never, {} as never)
+  await EnterWorktreeTool.call({ name: 'not a slug!' } as never, toolContext as never)
 } catch (error) {
   refusedCreate = String((error as Error).message ?? error)
 }
 check('a refused create throws, leaves the process cwd where it was and enters no worktree', refusedCreate !== '' && realpathSync(process.cwd()) === scratch && getCurrentWorktreeSession() === null, `${refusedCreate.slice(0, 80)} · cwd ${process.cwd()}`)
-const entered = await EnterWorktreeTool.call({ name: 'links-proof-3' } as never, {} as never)
+const entered = await EnterWorktreeTool.call({ name: 'links-proof-3' } as never, toolContext as never)
 const enteredPath = (entered.data as { worktreePath: string }).worktreePath
 check('from inside a linked worktree the new worktree lands under the canonical repository root, never under the linked tree', enteredPath.startsWith(join(repo, '.mercury', 'worktrees')) && !enteredPath.startsWith(join(linked, '.mercury')), enteredPath)
 check('the session records the linked worktree as where it came from, and now works in the new one', getCurrentWorktreeSession()?.originalCwd === linked && realpathSync(process.cwd()) === realpathSync(enteredPath), JSON.stringify({ originalCwd: getCurrentWorktreeSession()?.originalCwd, cwd: process.cwd() }))
@@ -117,9 +120,9 @@ state.setCwdState(repo)
 
 section('§3 every session road hands its source directory to the setup')
 const source = readFileSync(join(ROOT, 'src/utils/worktree.ts'), 'utf8')
-check('the session road (EnterWorktree and the --worktree boot) links from the directory it was opened in', source.includes('await runPostCreationSetup(gitRoot, created.worktreePath, originalCwd)'))
-check('the --worktree --multiplex fast path links from the directory it was opened in', source.includes('await runPostCreationSetup(gitRoot, created.worktreePath, getCwd())'))
-check('the agent road is unchanged', source.includes('await runPostCreationSetup(gitRoot, created.worktreePath, from)'))
+check('the session road (EnterWorktree and the --worktree boot) links from the directory it was opened in', source.includes('await runPostCreationSetup(gitRoot, created.worktreePath, originalCwd, options?.permission, options?.prNumber === undefined)'))
+check('the --worktree --multiplex fast path links from the directory it was opened in', source.includes("await runPostCreationSetup(gitRoot, created.worktreePath, getCwd(), args.some(arg => arg === '--block-tools' || arg.startsWith('--block-tools=')) ? 'unknown' : undefined, prNumber === undefined)"))
+check('the agent road is unchanged', source.includes('await runPostCreationSetup(gitRoot, created.worktreePath, from, options?.permission, options?.at === undefined)'))
 const sessionsDoc = readFileSync(join(ROOT, 'docs/SESSIONS.md'), 'utf8').replace(/\s+/g, ' ')
 check('the sessions page says an install inside the worktree lands in the checkout', sessionsDoc.includes('an install run inside the worktree installs into the checkout'))
 

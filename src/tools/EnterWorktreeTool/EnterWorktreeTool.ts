@@ -70,7 +70,7 @@ export const EnterWorktreeTool = buildTool({
   userFacingName(): string {
     return 'Creating worktree'
   },
-  async call(input: Input) {
+  async call(input: Input, context) {
     const existing = getCurrentWorktreeSession()
     if (existing) {
       throw new Error(
@@ -81,7 +81,7 @@ export const EnterWorktreeTool = buildTool({
     const gitRoot = findCanonicalGitRoot(getCwd())
 
     const slug = input.name ?? getPlanSlug()
-    const session = await createWorktreeForSession(getSessionId(), slug, undefined, gitRoot !== null ? { gitRoot } : undefined)
+    const session = await createWorktreeForSession(getSessionId(), slug, undefined, { ...(gitRoot !== null ? { gitRoot } : {}), permission: context.getAppState().toolPermissionContext })
 
     chdir(session.worktreePath)
     setCwd(session.worktreePath)

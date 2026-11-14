@@ -1,26 +1,31 @@
 import { spawnSync } from 'node:child_process'
 import { constants } from 'node:fs'
+import { homedir } from 'node:os'
 import { copyFile, cp, lstat, mkdir, readdir, readFile, realpath, rm, stat, symlink, utimes, writeFile } from 'node:fs/promises'
-import { basename, dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve, sep } from 'node:path'
 
 import chalk from 'chalk'
 
 import { getSessionId } from '../bootstrap/state.js'
+import type { ToolPermissionContext } from '../Tool.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { findCanonicalGitRoot, findGitRoot, gitExe } from './git.js'
 import { subprocessEnv } from './subprocessEnv.js'
 import { readGitHead, readWorktreeHeadSha, resolveGitDir, getCommonDir } from './git/gitFilesystem.js'
 import { parseGitConfigValue } from './git/gitConfigParser.js'
+import { registerCleanup } from './cleanupRegistry.js'
 import { saveCurrentProjectConfig } from './config.js'
 import { containsPathTraversal } from './path.js'
+import { MERCURY_PROJECT_DIR, PROJECT_CONFIG_DIR_NAMES, resolveProjectConfigPath } from './projectConfig.js'
 import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { startCommandHook } from './hooks/commandRunner.js'
 import { logError } from './log.js'
 import { projectLocalPath } from '../services/projectLocal/paths.js'
-import { getInitialSettings, getRelativeSettingsFilePathForSource } from './settings/settings.js'
+import { getInitialSettings, getRelativeSettingsFilePathForSource, getSettingsFilePathForSource } from './settings/settings.js'
 import { sleep } from './sleep.js'
 import { isInITerm2, isInsideTmuxSync } from './terminalDetection.js'
+import { canCloneHere, carryEntries, cloneIntoWorktree, cloneRefusedBetween, discardSetAside, recordWorktreeClones, returnWorktreeFromAside, setWorktreeAside, sweepSetAside, worktreeHoldsClones, type HeldBack } from './worktreeClone.js'
 
 
 
@@ -384,6 +389,150 @@ async function dependencyLinkCandidates(sourceRoot: string): Promise<string[]> {
   return ignored
 }
 
+function checkoutRelativeName(relPath: string): string {
+  return relPath.split(/[\\/]+/).filter(segment => segment !== '' && segment !== '.').join('/')
+}
+
+type SessionRules = ToolPermissionContext | 'unknown'
+
+async function sameFile(one: string, other: string): Promise<boolean> {
+  try {
+    return (await realpath(one)) === (await realpath(other))
+  } catch {
+    return resolve(one) === resolve(other)
+  }
+}
+
+async function ownSettingsDenyReads(sourceRoot: string): Promise<boolean> {
+  const { getEmptyToolPermissionContext } = await import('../Tool.js')
+  const { applyPermissionRulesToPermissionContext } = await import('./permissions/permissions.js')
+  const { permissionRuleValueFromString } = await import('./permissions/permissionRuleParser.js')
+  const { ruleMatcherFor } = await import('./permissions/filesystem.js')
+  for (const [source, name] of [['projectSettings', 'settings.json'], ['localSettings', 'settings.local.json']] as const) {
+    const theirs = resolveProjectConfigPath(sourceRoot, name) ?? join(sourceRoot, MERCURY_PROJECT_DIR, name)
+    const ours = getSettingsFilePathForSource(source)
+    if (ours !== undefined && (await sameFile(ours, theirs))) continue
+    let text: string
+    try {
+      text = await readFile(theirs, 'utf8')
+    } catch {
+      continue
+    }
+    try {
+      const deny = (JSON.parse(text) as { guardrails?: { deny?: unknown } } | null)?.guardrails?.deny
+      if (deny === undefined) continue
+      if (!Array.isArray(deny)) return true
+      const rules = deny.filter((entry): entry is string => typeof entry === 'string').map(entry => ({ source: 'session' as const, ruleBehavior: 'deny' as const, ruleValue: permissionRuleValueFromString(entry) }))
+      if (ruleMatcherFor(applyPermissionRulesToPermissionContext(getEmptyToolPermissionContext(), rules), 'read', 'deny') !== null) return true
+    } catch {
+      return true
+    }
+  }
+  return false
+}
+
+async function heldBackUnder(permission: SessionRules | undefined, sourceRoot: string, always = false): Promise<((root: string) => HeldBack) | undefined> {
+  if (permission === 'unknown') return () => () => true
+  try {
+    const { readDenialFilter, ruleMatcherFor } = await import('./permissions/filesystem.js')
+    let rules = permission
+    if (rules === undefined) {
+      if (await ownSettingsDenyReads(sourceRoot)) return () => () => true
+      const { getEmptyToolPermissionContext } = await import('../Tool.js')
+      const { applyPermissionRulesToPermissionContext } = await import('./permissions/permissions.js')
+      const { loadAllPermissionRulesFromDisk } = await import('./permissions/permissionsLoader.js')
+      rules = applyPermissionRulesToPermissionContext(getEmptyToolPermissionContext(), loadAllPermissionRulesFromDisk())
+    }
+    const narrowing = (rules.alwaysAllowRules as Record<string, readonly string[] | undefined>).toolsNarrowing ?? []
+    if (!always && ruleMatcherFor(rules, 'read', 'deny') === null && narrowing.length === 0) {
+      const { mercurySecretReadIgnores } = await import('./permissions/protectedPaths.js')
+      const fold = (path: string): string => path.normalize('NFC').toLowerCase()
+      const root = fold(await realpath(sourceRoot))
+      if (![...mercurySecretReadIgnores().keys()].some(home => fold(home) === root || fold(home).startsWith(root.endsWith(sep) ? root : root + sep))) return undefined
+    }
+    const read = rules
+    return root => readDenialFilter(read, root)
+  } catch (error) {
+    logForDebugging(`worktree clone: the Read rules could not be read (${String(error)}); the folders are linked as before`, { level: 'warn' as never })
+    return () => () => true
+  }
+}
+
+async function cloneCheckoutDirectories(sourceRoot: string, worktreePath: string, relPaths: readonly string[], held: ((root: string) => HeldBack) | undefined): Promise<string[] | null> {
+  if (relPaths.length === 0) return []
+  const before = canCloneHere() ? await lstat(worktreePath).catch(() => null) : undefined
+  if (before === null || (before !== undefined && !before.isDirectory())) return null
+  let checked: Promise<boolean> | undefined
+  const stillHere = before === undefined ? undefined : (): Promise<boolean> => checked ??= lstat(worktreePath).then(after => after.isDirectory() && after.dev === before.dev && after.ino === before.ino, () => false)
+  const outcomes = await cloneIntoWorktree(relPaths.map(relPath => ({ source: join(sourceRoot, relPath), target: join(worktreePath, relPath) })), sourceRoot, worktreePath, undefined, held, stillHere)
+  if (stillHere !== undefined && !(await stillHere())) return null
+  return relPaths.filter((_, index) => outcomes[index] === 'cloned')
+}
+
+const CARRY_LISTING_BYTES = 64 * 1024 * 1024
+
+async function instructionFileTest(): Promise<HeldBack> {
+  const { conventionsForProfile, isInstructionFilePath } = await import('../services/instructions/engine.js')
+  const conventions = conventionsForProfile('auto')
+  const names = new Set(conventions.flatMap(convention => convention.instructionFileNames))
+  return path => names.has(basename(path)) || isInstructionFilePath(path, conventions)
+}
+
+async function ignoredEntriesOf(sourceRoot: string, worktreePath: string): Promise<string[]> {
+  const options = { cwd: sourceRoot, maxBuffer: CARRY_LISTING_BYTES }
+  const [listing, rules] = await Promise.all([
+    execFileNoThrowWithCwd(gitExe(), ['ls-files', '--others', '--ignored', '--exclude-standard', '--directory', '-z'], options),
+    execFileNoThrowWithCwd(gitExe(), ['ls-files', '--modified', '--others', '--exclude-standard', '-z', '--', ':(glob)**/.gitignore'], options),
+  ])
+  if (listing.code !== 0) return []
+  const entries = listing.stdout.split('\0').filter(entry => entry !== '')
+  if (rules.code === 0 && rules.stdout === '' && !entries.some(entry => basename(entry) === '.gitignore')) {
+    return entries.filter((entry, at) => !(entry.endsWith('/') && entries[at + 1]?.startsWith(entry) === true))
+  }
+  const checked = await execFileNoThrowWithCwd(gitExe(), ['check-ignore', '--stdin', '-z'], { cwd: worktreePath, maxBuffer: CARRY_LISTING_BYTES, input: entries.join('\0') })
+  return checked.code === 0 ? checked.stdout.split('\0').filter(entry => entry !== '') : []
+}
+
+async function holdsUserHome(sourceRoot: string): Promise<boolean> {
+  try {
+    const [checkout, home] = await Promise.all([realpath(sourceRoot), realpath(homedir())])
+    return home === checkout || home.startsWith(checkout.endsWith(sep) ? checkout : checkout + sep)
+  } catch {
+    return true
+  }
+}
+
+async function carryIgnoredEntries(sourceRoot: string, worktreePath: string, placed: readonly string[], permission: SessionRules | undefined): Promise<boolean> {
+  if (await cloneRefusedBetween(sourceRoot, worktreePath)) return false
+  if (await holdsUserHome(sourceRoot)) return false
+  const [here, there] = await Promise.all([runGit(['rev-parse', 'HEAD'], worktreePath), runGit(['rev-parse', 'HEAD'], sourceRoot)])
+  if (here.code !== 0 || there.code !== 0 || here.stdout.trim() === '' || here.stdout.trim() !== there.stdout.trim()) return false
+  const entries = (await ignoredEntriesOf(sourceRoot, worktreePath)).filter(entry => {
+    const name = entry.endsWith('/') ? entry.slice(0, -1) : entry
+    if (PROJECT_CONFIG_DIR_NAMES.some(folder => name === folder || name.startsWith(`${folder}/`))) return false
+    return !placed.some(kept => name === kept || name.startsWith(`${kept}/`) || kept.startsWith(`${name}/`))
+  })
+  const refusedUnder = (await heldBackUnder(permission, sourceRoot, true)) as (root: string) => HeldBack
+  const instructions = await instructionFileTest()
+  const { mercurySecretReadIgnores } = await import('./permissions/protectedPaths.js')
+  const fold = (path: string): string => path.normalize('NFC').toLowerCase()
+  const ownHomes = [...mercurySecretReadIgnores().keys()].map(fold)
+  const staysBehind = (root: string): HeldBack => {
+    const refused = refusedUnder(root)
+    const checkout = fold(root)
+    if (ownHomes.some(own => checkout === own || checkout.startsWith(`${own}/`))) return () => true
+    const inside = ownHomes.filter(own => own.startsWith(`${checkout}/`))
+    if (inside.length === 0) return path => refused(path) || instructions(path)
+    return path => {
+      if (refused(path) || instructions(path)) return true
+      const folded = fold(path)
+      return inside.some(own => folded === own || folded.startsWith(`${own}/`))
+    }
+  }
+  recordWorktreeClones(worktreePath, await carryEntries(entries, sourceRoot, worktreePath, staysBehind))
+  return true
+}
+
 async function linkCheckoutDirectories(sourceRoot: string, worktreePath: string, relPaths: readonly string[]): Promise<string[]> {
   const linked: string[] = []
   for (const relPath of relPaths) {
@@ -455,7 +604,7 @@ async function hideLinksFromGit(repoRoot: string, worktreePath: string, sourceRo
   }
 }
 
-export async function prepareWorktreeFiles(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string, preserveExisting = false): Promise<void> {
+async function propagateLocalSettings(repoRoot: string, worktreePath: string, preserveExisting: boolean): Promise<void> {
   try {
     const relativeSettingsPath = getRelativeSettingsFilePathForSource('localSettings')
     const target = join(worktreePath, relativeSettingsPath)
@@ -468,17 +617,32 @@ export async function prepareWorktreeFiles(repoRoot: string, worktreePath: strin
       logForDebugging(`local settings propagation failed: ${String(error)}`, { level: 'warn' as never })
     }
   }
+}
+
+async function placeCheckoutFolders(repoRoot: string, worktreePath: string, dependencyLinksFrom: string | undefined, preserveExisting: boolean, permission?: SessionRules, carry = false): Promise<boolean> {
   const symlinkDirectories = getInitialSettings().workspace?.worktree?.symlinkDirectories ?? []
   const sourceRoot = dependencyLinksFrom !== undefined ? (findGitRoot(dependencyLinksFrom) ?? repoRoot) : repoRoot
   const dependencyLinks = dependencyLinksFrom !== undefined ? await dependencyLinkCandidates(sourceRoot) : []
-  const linked = await linkCheckoutDirectories(sourceRoot, worktreePath, [...new Set([...dependencyLinks, ...symlinkDirectories])])
-  if (dependencyLinksFrom !== undefined) await hideLinksFromGit(repoRoot, worktreePath, sourceRoot, linked)
-  await copyWorktreeIncludeFiles(repoRoot, worktreePath, preserveExisting)
+  const keptAsLinks = new Set(symlinkDirectories.map(checkoutRelativeName))
+  const toClone = dependencyLinks.filter(name => !keptAsLinks.has(name))
+  const carries = carry && dependencyLinksFrom !== undefined && canCloneHere() && (getInitialSettings().workspace?.worktree?.sparsePaths ?? []).length === 0
+  const held = canCloneHere() && toClone.length > 0 ? await heldBackUnder(permission, sourceRoot) : undefined
+  const cloned = await cloneCheckoutDirectories(sourceRoot, worktreePath, toClone, held)
+  if (cloned === null) return false
+  recordWorktreeClones(worktreePath, cloned)
+  const linked = await linkCheckoutDirectories(sourceRoot, worktreePath, [...new Set([...dependencyLinks, ...symlinkDirectories])].filter(name => !cloned.includes(name)))
+  if (dependencyLinksFrom !== undefined) await hideLinksFromGit(repoRoot, worktreePath, sourceRoot, [...cloned, ...linked])
+  const carried = carries && (await carryIgnoredEntries(sourceRoot, worktreePath, [...new Set([...dependencyLinks, ...keptAsLinks])], permission))
+  await copyWorktreeIncludeFiles(repoRoot, worktreePath, preserveExisting || carried)
+  return true
 }
 
-async function runPostCreationSetup(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string): Promise<string | undefined> {
-  await prepareWorktreeFiles(repoRoot, worktreePath, dependencyLinksFrom)
+export async function prepareWorktreeFiles(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string, preserveExisting = false, permission?: SessionRules, carry = false): Promise<boolean> {
+  await propagateLocalSettings(repoRoot, worktreePath, preserveExisting)
+  return placeCheckoutFolders(repoRoot, worktreePath, dependencyLinksFrom, preserveExisting, permission, carry)
+}
 
+async function setWorktreeHooksPath(repoRoot: string, worktreePath: string): Promise<void> {
   try {
     let hooksPath: string | null = null
     for (const candidate of [join(repoRoot, '.husky'), join(repoRoot, '.git', 'hooks')]) {
@@ -504,8 +668,35 @@ async function runPostCreationSetup(repoRoot: string, worktreePath: string, depe
   } catch (error) {
     logForDebugging(`worktree hooks-path setup failed: ${String(error)}`)
   }
+}
 
+async function runPostCreationSetup(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string, permission?: SessionRules, carry = false): Promise<string | undefined> {
+  if (!(await prepareWorktreeFiles(repoRoot, worktreePath, dependencyLinksFrom, false, permission, carry))) return undefined
+  await setWorktreeHooksPath(repoRoot, worktreePath)
   return runWorktreePrepareCommand(worktreePath)
+}
+
+async function launchWaitsForFolders(repoRoot: string): Promise<boolean> {
+  const command = getInitialSettings().workspace?.worktree?.prepare
+  if (command !== undefined && command.trim() !== '') return true
+  try {
+    await stat(join(repoRoot, '.worktreeinclude'))
+    return true
+  } catch {
+    return false
+  }
+}
+
+function placeFoldersBehindLaunch(repoRoot: string, worktreePath: string, from: string, permission: ToolPermissionContext | undefined, carry: boolean): Promise<void> {
+  const placing = (async () => {
+    if (!(await placeCheckoutFolders(repoRoot, worktreePath, from, false, permission, carry))) return
+    await setWorktreeHooksPath(repoRoot, worktreePath)
+  })().catch(error => {
+    logForDebugging(`the folders of ${worktreePath} were not placed: ${String(error)}`, { level: 'warn' as never })
+  })
+  const forget = registerCleanup(() => placing)
+  void placing.then(forget)
+  return placing
 }
 
 const WORKTREE_PREPARE_TIMEOUT_MS = 10 * 60 * 1000
@@ -569,7 +760,7 @@ export async function createWorktreeForSession(
   sessionId: string,
   slug: string,
   tmuxSessionName?: string,
-  options?: { prNumber?: number; gitRoot?: string },
+  options?: { prNumber?: number; gitRoot?: string; permission?: ToolPermissionContext },
 ): Promise<WorktreeSession> {
   validateWorktreeSlug(slug)
   const originalCwd = getCwd()
@@ -593,7 +784,7 @@ export async function createWorktreeForSession(
       ? `resumed worktree ${created.worktreePath}`
       : `created worktree ${created.worktreePath} from ${created.baseBranch ?? 'HEAD'}`,
   )
-  const prepareFailure = created.existed ? undefined : await runPostCreationSetup(gitRoot, created.worktreePath, originalCwd)
+  const prepareFailure = created.existed ? undefined : await runPostCreationSetup(gitRoot, created.worktreePath, originalCwd, options?.permission, options?.prNumber === undefined)
 
   const usedSparse = (getInitialSettings().workspace?.worktree?.sparsePaths ?? []).length > 0
   const session: WorktreeSession = {
@@ -629,6 +820,19 @@ export async function keepWorktree(): Promise<void> {
   }
 }
 
+async function removeWorktreeTree(worktreePath: string, cwd: string): Promise<{ code: number; stdout: string; stderr: string }> {
+  const aside = worktreeHoldsClones(worktreePath) ? setWorktreeAside(worktreePath) : null
+  if (aside !== null) {
+    const dropped = await runGit(['worktree', 'remove', '--force', worktreePath], cwd)
+    if (dropped.code === 0) {
+      discardSetAside(aside)
+      return dropped
+    }
+    returnWorktreeFromAside(aside, worktreePath)
+  }
+  return runGit(['worktree', 'remove', '--force', worktreePath], cwd)
+}
+
 export async function cleanupWorktree(): Promise<void> {
   const session = currentWorktreeSession
   if (session === null) return
@@ -640,7 +844,7 @@ export async function cleanupWorktree(): Promise<void> {
   }
   try {
     {
-      const removal = await runGit(['worktree', 'remove', '--force', session.worktreePath], session.originalCwd)
+      const removal = await removeWorktreeTree(session.worktreePath, session.originalCwd)
       if (removal.code !== 0) {
         throw new Error(removal.stderr.trim() || removal.stdout.trim() || `git worktree remove exited ${removal.code}`)
       }
@@ -702,6 +906,8 @@ export async function createAgentWorktree(
   options?: {
     at?: string
     from?: string
+    foldersBehindLaunch?: boolean
+    permission?: ToolPermissionContext
   },
 ): Promise<{
   worktreePath: string
@@ -709,6 +915,7 @@ export async function createAgentWorktree(
   headCommit?: string
   gitRoot?: string
   prepareFailure?: string
+  ready?: Promise<void>
 }> {
   validateWorktreeSlug(slug)
   const from = options?.from ?? getCwd()
@@ -724,8 +931,12 @@ export async function createAgentWorktree(
     baseFrom: findGitRoot(from) ?? gitRoot,
   })
   let prepareFailure: string | undefined
+  let ready: Promise<void> | undefined
   if (!created.existed) {
-    prepareFailure = await runPostCreationSetup(gitRoot, created.worktreePath, from)
+    await markAgentLane(created.worktreePath, slug)
+    const behindLaunch = options?.foldersBehindLaunch === true && !(await launchWaitsForFolders(gitRoot))
+    if (behindLaunch) await propagateLocalSettings(gitRoot, created.worktreePath, false)
+    else prepareFailure = await runPostCreationSetup(gitRoot, created.worktreePath, from, options?.permission, options?.at === undefined)
     const lock = await runGit(
       ['worktree', 'lock', created.worktreePath, '--reason', `agent ${slug} (pid ${process.pid})`],
       gitRoot,
@@ -733,6 +944,7 @@ export async function createAgentWorktree(
     if (lock.code !== 0) {
       logForDebugging(`worktree lock failed for ${created.worktreePath}: ${lock.stderr.trim()}`)
     }
+    if (behindLaunch) ready = placeFoldersBehindLaunch(gitRoot, created.worktreePath, from, options?.permission, options?.at === undefined)
   } else {
     try {
       const now = new Date()
@@ -747,6 +959,7 @@ export async function createAgentWorktree(
     ...(created.headCommit !== null ? { headCommit: created.headCommit } : {}),
     gitRoot,
     ...(prepareFailure !== undefined ? { prepareFailure } : {}),
+    ...(ready !== undefined ? { ready } : {}),
   }
 }
 
@@ -764,7 +977,7 @@ async function removeAgentWorktree(
     return false
   }
   await unlockAgentWorktree(worktreePath, gitRoot)
-  const removal = await runGit(['worktree', 'remove', '--force', worktreePath], gitRoot)
+  const removal = await removeWorktreeTree(worktreePath, gitRoot)
   if (removal.code !== 0) {
     logForDebugging(`agent worktree remove failed: ${removal.stderr.trim()}`)
     return false
@@ -967,6 +1180,33 @@ export async function worktreeRemovalSafe(worktreePath: string, ownBranch?: stri
 
 
 const AGENT_LANE_SLUG = /^agent-a[0-9a-f]{7,32}$/
+const CREWMATE_LANE_SLUG = /^agent-a[0-9a-z]{7}$/
+const LANE_MARKER_FILENAME = 'WORKTREE_LANE'
+
+async function markAgentLane(worktreePath: string, slug: string): Promise<void> {
+  if (!AGENT_LANE_SLUG.test(slug) && !CREWMATE_LANE_SLUG.test(slug)) return
+  const adminDir = await resolveWorktreeAdminDir(worktreePath)
+  if (adminDir === null) return
+  try {
+    await writeFile(join(adminDir, LANE_MARKER_FILENAME), `agent ${slug}\n`)
+  } catch (error) {
+    logForDebugging(`worktree lane marker not written for ${worktreePath}: ${String(error)}`)
+  }
+}
+
+export async function isAgentLane(slug: string, worktreePath: string): Promise<boolean> {
+  if (AGENT_LANE_SLUG.test(slug)) return true
+  if (!CREWMATE_LANE_SLUG.test(slug)) return false
+  const adminDir = await resolveWorktreeAdminDir(worktreePath)
+  if (adminDir === null) return false
+  try {
+    await stat(join(adminDir, LANE_MARKER_FILENAME))
+    return true
+  } catch {
+    return false
+  }
+}
+
 const EPHEMERAL_SLUG_PATTERNS: RegExp[] = [
   AGENT_LANE_SLUG,
   /^parcel-[0-9a-f]{6,32}$/,
@@ -1027,7 +1267,8 @@ export async function cleanupStaleAgentWorktrees(cutoffDate: Date): Promise<numb
   }
 
   for (const [candidatePath, slug] of candidates) {
-    if (!isEphemeralSlug(slug)) continue
+    const agentLane = await isAgentLane(slug, candidatePath)
+    if (!agentLane && !isEphemeralSlug(slug)) continue
     if (currentWorktreeSession !== null && candidatePath === currentWorktreeSession.worktreePath) continue
     let mtimeMs: number
     try {
@@ -1037,7 +1278,7 @@ export async function cleanupStaleAgentWorktrees(cutoffDate: Date): Promise<numb
     }
     if (mtimeMs >= cutoffMs) continue
 
-    if (AGENT_LANE_SLUG.test(slug)) {
+    if (agentLane) {
       if (registryReadable && !registeredPaths.has(candidatePath) && (await isDisownedWorktree(candidatePath))) continue
       const verdict = await worktreeRemovalSafe(candidatePath, worktreeBranchName(slug))
       if (!verdict.safe) {
@@ -1068,6 +1309,7 @@ export async function cleanupStaleAgentWorktrees(cutoffDate: Date): Promise<numb
     const removed = await removeAgentWorktree(candidatePath, worktreeBranchName(slug), gitRoot)
     if (removed) removedCount++
   }
+  removedCount += sweepSetAside(home)
 
   try {
     const parent = dirname(home)
@@ -1277,7 +1519,7 @@ export async function execIntoTmuxWorktree(args: string[]): Promise<{ handled: b
       worktreeDir = created.worktreePath
       if (!created.existed) {
         process.stdout.write(`Created worktree ${created.worktreePath} (based on ${created.baseBranch ?? 'HEAD'})\n`)
-        const prepareFailure = await runPostCreationSetup(gitRoot, created.worktreePath, getCwd())
+        const prepareFailure = await runPostCreationSetup(gitRoot, created.worktreePath, getCwd(), args.some(arg => arg === '--block-tools' || arg.startsWith('--block-tools=')) ? 'unknown' : undefined, prNumber === undefined)
         if (prepareFailure !== undefined) process.stderr.write(`${prepareFailure}\n`)
       }
     } catch (error) {

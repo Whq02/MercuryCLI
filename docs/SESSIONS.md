@@ -701,11 +701,24 @@ word "worktree". The worktree lives under the repository's
 is on (the branch you work in, never a remote's copy of it, and nothing is
 fetched to cut it; a `--worktree` name of the form `#<n>` or a pull-request
 link cuts it from that pull request's head instead) and comes ready to build:
-`node_modules` and each `vendor/<pack>` the checkout ignores are links to the
-checkout's copies, hidden from git through the clone's exclude file, so the
-checks run there without an install. Because `node_modules` is a link to the
-checkout's, an install run inside the worktree installs into the checkout's
-dependencies instead of a separate copy.
+it starts with the checkout's `node_modules` and each `vendor/<pack>` the
+checkout ignores, so the checks run there without an install. On a filesystem
+that can clone (APFS on macOS, a Linux filesystem with reflinks) each is the
+worktree's own copy, sharing disk space until one side writes, and an install
+run inside the worktree stays in the worktree. Elsewhere each is a link to
+the checkout's copy, hidden from git through the clone's exclude file, and an
+install run inside the worktree installs into the checkout's dependencies
+instead of a separate copy. On a filesystem that can clone the worktree also
+starts with everything else the checkout holds that git ignores (build
+output, caches, generated files, `.env` files), each its own copy; build
+output comes from the checkout as it stood while the worktree holds the
+commit. Mercury's own folders and instruction files, a folder that holds a
+`pyvenv.cfg` or a `CMakeCache.txt`, a folder that is another git worktree and
+whatever a Read deny rule matches stay behind, and a worktree cut from a pull
+request's head, made sparse, or made in a repository that holds your home
+directory starts with the dependency folders only. The worktree is ready
+after about a second for every hundred thousand files of what git ignores;
+[CREW.md](CREW.md) has the figures and the two ways to keep the links.
 
 ## Closing chats
 

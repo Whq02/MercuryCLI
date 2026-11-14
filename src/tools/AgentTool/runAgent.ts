@@ -51,8 +51,10 @@ import {
 import { removeSessionHooks } from '../../utils/hooks/sessionHooks.js'
 import { registerAgentHooks } from '../../utils/hooks/registerFrontmatterHooks.js'
 import { fireHooks } from '../../utils/hooks/fire.js'
+import { hasHooksFor } from '../../utils/hooks/matching.js'
+import { hookMayMeetCopy, worktreeHoldOf, worktreeReadyOf } from '../../utils/worktreeReadiness.js'
 import { bankHookOutcomes } from '../../utils/hooks/background.js'
-import { HOOK_CUT_BUDGET_MS } from '../../utils/hooks/contract.js'
+import { HOOK_CUT_BUDGET_MS, HOOK_EVENTS } from '../../utils/hooks/contract.js'
 import { hookRowsOfResult } from '../../utils/hooks/rows.js'
 import { createAttachmentMessage } from '../../utils/attachments.js'
 import { EMPTY_USAGE } from '../../services/api/emptyUsage.js'
@@ -768,6 +770,7 @@ export async function* runAgent(
     const usage = usageOf(crewmateRun.usage)
     const wallMs = Date.now() - startedAt
     try {
+      if (hasHooksFor('turn.end', hookScope, toolUseContext.getAppState()) || hasHooksFor('crewmate.end', hookScope, toolUseContext.getAppState())) await worktreeReadyOf(agentId)
       await fireHooks(
         'turn.end',
         {
@@ -917,6 +920,7 @@ export async function* runAgent(
 
     const hookContextMessages: Message[] = []
     try {
+      if (agentDefinition.hooks !== undefined || HOOK_EVENTS.some(event => hookMayMeetCopy(event) && hasHooksFor(event, hookScope, toolUseContext.getAppState()))) await worktreeHoldOf({ agentId, abortController })
       const started = await fireHooks(
         'crewmate.start',
         { ...(name !== undefined ? { name } : {}), prompt: promptMessages.map(message => {
