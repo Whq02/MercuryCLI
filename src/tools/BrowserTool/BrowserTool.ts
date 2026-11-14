@@ -1291,7 +1291,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
     if (input.tab !== undefined && (input.tab.trim() === '' || input.tab !== input.tab.trim() || /[\r\n]/.test(input.tab))) {
       return { result: false as const, message: 'tab takes a name on one line with no space around it', errorCode: 1 }
     }
-    if (input.persist !== undefined && input.op !== 'open') {
+    if (input.persist === true && input.op !== 'open') {
       return { result: false as const, message: 'persist requires op open', errorCode: 1 }
     }
     if (input.op === 'open' && !(input.url === undefined && input.tab !== undefined) && (!input.url || !/^https?:\/\//.test(input.url))) {
