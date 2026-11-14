@@ -10,7 +10,7 @@ const kit = await readViewKit(home)
 const { read, check } = kit
 const file = join(home, 'large.sqlite')
 const db = new Database(file)
-db.run('CREATE TABLE work(id INTEGER PRIMARY KEY, body TEXT); INSERT INTO work VALUES(1,\'one\'),(2,\'two\'); CREATE TABLE ballast(data BLOB); INSERT INTO ballast VALUES(zeroblob(50331648));')
+db.run('CREATE TABLE work(id INTEGER PRIMARY KEY, body TEXT); INSERT INTO work VALUES(1,\'one\'),(2,\'two\'); CREATE TABLE ballast(data BLOB); INSERT INTO ballast VALUES(zeroblob(50331648)); CREATE TABLE removable(id INTEGER PRIMARY KEY, value TEXT); INSERT INTO removable VALUES(1,\'remove\');')
 db.close()
 const sourceState = (path: string) => ({ files: readdirSync(home).sort().join('\n'), bytes: ['', '-wal'].map(s => existsSync(path + s) ? createHash('sha256').update(readFileSync(path + s)).digest('hex') : 'absent').join('|') })
 const beforeFiles = sourceState(file)
@@ -18,6 +18,13 @@ const page = await read(`${file}#read?limit=1&sql=SELECT id FROM work ORDER BY i
 check('database beyond the old 16 MiB cap returns a small page', statSync(file).size > 48 * 1024 * 1024 && page.includes('1\t[1]'), page)
 check('non-WAL query leaves listing, database and WAL bytes unchanged', JSON.stringify(beforeFiles) === JSON.stringify(sourceState(file)))
 check('query grants neither database nor row coverage', !kit.context.readFileState.has(file) && !kit.context.readFileState.has(`${file}:work/1`))
+const addressedLarge = await read(`${file}:removable/1`)
+check('a large database still has an ordinary addressed row Read', addressedLarge.includes('"value": "remove"'), addressedLarge)
+const { FileWriteTool } = await import(`${kit.src}/tools/FileWriteTool/FileWriteTool.ts`)
+const removal = { file_path: `${file}:removable/1#delete`, content: 'DELETE' }
+const allowed = await FileWriteTool.validateInput(removal, kit.context)
+const removed = allowed.result ? (await FileWriteTool.call(removal, kit.context)).data.type : allowed.message
+check('the large row can be explicitly deleted after that Read', removed === 'delete', String(removed))
 const late = await read(`${file}#read?offset=1499&limit=5&sql=WITH RECURSIVE n(x) AS (VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<1505) SELECT x FROM n`)
 check('late pages have no thousand-row ceiling', late.includes('1500\t[1500]') && late.includes('1504\t[1504]') && late.includes('continues from there'), late)
 const repeated = await read(`${file}#read?sql=SELECT 1 AS x, 2 AS x`)

@@ -179,3 +179,15 @@ sidecar, but Read changes neither the database nor its WAL and creates no
 sidecar beside them; only a leftover WAL without shared memory uses a private
 copy, named in the header. An SSH database and its WAL are transferred to a
 private local copy before querying; every continuation transfers them again.
+
+To delete a previously read row, call `Write` with
+`file_path: "/project/data.sqlite:items/42#delete"` and `content: "DELETE"`.
+Empty content never deletes a row, and an ordinary empty-file write still
+writes an empty file. In modes that ask, the ordinary permission card shows
+the current row as a removal before approval. The transaction rechecks the
+row, schema and prior read, requires one affected row and verifies its absence;
+foreign-key restrictions roll back and declared cascades are enforced.
+The result distinguishes a deleted row from a missing-row no-op and gives no
+empty-file edit anchor. A query result is not the prior row read. Hidden-rowid
+shorthand uses an unshadowed alias; composite or fully shadowed shorthand is
+refused rather than deleting an ambiguous set of rows.

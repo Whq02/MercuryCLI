@@ -1,5 +1,6 @@
 import { closeSync, copyFileSync, existsSync, mkdtempSync, readSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { createHash } from 'node:crypto'
 import { basename, join, posix } from 'node:path'
 import { officeWord, officeSlides, officeComments, officeOdf, officeRelationships, officeSheetNames, officeSlideIds, officeSpreadsheet } from './officeText.js'
 import { pathToFileURL } from 'node:url'
@@ -545,6 +546,7 @@ export function hasNonTextBytes(buf: Buffer): boolean {
 export interface RichRender {
   text: string
   ownBytes: boolean
+  sqliteRowIdentity?: string
 }
 
 export async function renderArchiveTarget(
@@ -1009,15 +1011,17 @@ type SqliteColumnInfo = { cid: number; name: string; type: string; notnull: numb
 
 type SqliteRowAddress =
   | { kind: 'column'; column: string }
-  | { kind: 'rowid' }
+  | { kind: 'rowid'; column: string }
   | { kind: 'composite'; columns: string[] }
 
 export function sqliteTableShape(db: SqliteDb, table: string): { columns: SqliteColumnInfo[]; address: SqliteRowAddress } {
-  const columns = db.prepare(`PRAGMA table_info(${quoteIdent(table)})`).all() as SqliteColumnInfo[]
+  const columns = db.prepare(`PRAGMA table_xinfo(${quoteIdent(table)})`).all() as SqliteColumnInfo[]
   const keyed = columns.filter(c => c.pk > 0).sort((a, b) => a.pk - b.pk)
   if (keyed.length === 1) return { columns, address: { kind: 'column', column: keyed[0]!.name } }
   if (keyed.length > 1) return { columns, address: { kind: 'composite', columns: keyed.map(c => c.name) } }
-  return { columns, address: { kind: 'rowid' } }
+  const column = ['rowid', '_rowid_', 'oid'].find(alias => !columns.some(c => c.name.toLowerCase() === alias))
+  if (column === undefined) throw new Error(`Table "${table}" shadows rowid, _rowid_ and oid; no hidden row id is addressable.`)
+  return { columns, address: { kind: 'rowid', column } }
 }
 
 export function sqliteKeyBinding(value: string): number | bigint | string {
@@ -1051,15 +1055,15 @@ export function selectSqliteRows(
         `Table "${table}" has a composite primary key (${address.columns.join(', ')}); select a row with ${table}/<column>=<value>.`,
       )
     }
-    matchColumn = address.kind === 'column' ? address.column : 'rowid'
+    matchColumn = address.column
   } else {
-    const known = shape.columns.some(c => c.name === selector.column) || (address.kind === 'rowid' && selector.column === 'rowid')
+    const known = shape.columns.some(c => c.name === selector.column) || (address.kind === 'rowid' && selector.column === address.column)
     if (!known) {
       throw new Error(`Table "${table}" has no column "${selector.column}" (columns: ${shape.columns.map(c => c.name).join(', ')}).`)
     }
     matchColumn = selector.column
   }
-  const projection = address.kind === 'rowid' ? 'rowid, *' : '*'
+  const projection = address.kind === 'rowid' ? `${quoteIdent(address.column)} AS ${quoteIdent(address.column)}, *` : '*'
   const rows = sqliteRows(
     db,
     `SELECT ${projection} FROM ${quoteIdent(table)} WHERE ${quoteIdent(matchColumn)} = ? LIMIT 3`,
@@ -1076,6 +1080,29 @@ export function renderSqliteValue(v: unknown): string {
   if (v instanceof Uint8Array || Buffer.isBuffer(v)) return JSON.stringify(`<BLOB ${v.byteLength}B>`)
   if (typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') return JSON.stringify(v)
   return JSON.stringify(String(v))
+}
+
+export function sqliteRowIdentity(row: Record<string, unknown>, shape: ReturnType<typeof sqliteTableShape>): string {
+  const hash = createHash('sha256')
+  const columns = shape.columns.map(column => column.name)
+  if (shape.address.kind === 'rowid') columns.unshift(shape.address.column)
+  for (const column of columns) {
+    const name = Buffer.from(column)
+    hash.update(`${name.byteLength}:`).update(name)
+    const value = row[column]
+    if (value === null) hash.update('null;')
+    else if (value instanceof Uint8Array) hash.update(`blob:${value.byteLength}:`).update(value)
+    else if (typeof value === 'bigint') hash.update(`integer:${value};`)
+    else if (typeof value === 'number') {
+      const bytes = Buffer.allocUnsafe(8)
+      bytes.writeDoubleBE(value)
+      hash.update('real:').update(bytes)
+    } else {
+      const bytes = Buffer.from(String(value))
+      hash.update(`${typeof value}:${bytes.byteLength}:`).update(bytes)
+    }
+  }
+  return hash.digest('hex')
 }
 
 export function renderSqliteRow(row: Record<string, unknown>): string {
@@ -1124,12 +1151,12 @@ function renderSqliteRowTarget(
   dbPath: string,
   table: string,
   selector: SqliteRowSelector,
-): string {
+): RichRender {
   const shape = sqliteTableShape(db, table)
   const { matchColumn, rows } = selectSqliteRows(db, table, shape, selector)
   if (rows.length === 0) throw new Error(sqliteRowNotFoundMessage(table, matchColumn, selector.value, dbPath))
   if (rows.length > 1) throw new Error(sqliteRowAmbiguousMessage(table, matchColumn, selector.value))
-  return renderSqliteRow(rows[0]!)
+  return { text: renderSqliteRow(rows[0]!), ownBytes: true, sqliteRowIdentity: sqliteRowIdentity(rows[0]!, shape) }
 }
 
 export async function renderSqliteTarget(
@@ -1192,7 +1219,7 @@ export async function renderSqliteTarget(
         if (/^\s*CREATE\s+VIRTUAL\s+TABLE\b/i.test(targetObj.sql ?? '')) {
           throw new Error(`"${targetObj.name}" is a virtual table: a virtual table has no addressable rows; read ${dbPath}:${targetObj.name} for its rows.`)
         }
-        return { text: renderSqliteRowTarget(db, dbPath, targetObj.name, parsed.selector!), ownBytes: true }
+        return renderSqliteRowTarget(db, dbPath, targetObj.name, parsed.selector!)
       }
       if (!targetObj) throw notFound(subtarget)
       const qName = quoteIdent(targetObj.name)

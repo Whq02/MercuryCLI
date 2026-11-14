@@ -1,7 +1,7 @@
 import type { ReadQueryRequest, ReadQueryResult } from './readQuery.js'
 import { formatReadQueryTarget } from './readQueryTarget.js'
 
-export const READ_VIEW_IDENTITY = "A query's result, not the file's bytes: it gives no edit anchor and does not count as reading the file."
+const READ_VIEW_IDENTITY = "A query's result, not the file's bytes: it gives no edit anchor and does not count as reading the file."
 
 export function readViewWindow(request: ReadQueryRequest): { offset: number; limit: number } {
   const { parameters } = request.target

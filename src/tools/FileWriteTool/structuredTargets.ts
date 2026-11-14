@@ -1,4 +1,7 @@
-import { chmodSync, existsSync, readFileSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { crc32, deflateRawSync } from 'node:zlib'
 
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
@@ -7,7 +10,8 @@ import { checkAnchor, mintFileAnchor } from '../../services/changeTransaction/sn
 import { runtimeKernel } from '../../services/primitives/runtimeKernel.js'
 import { countLinesChanged, getPatchForDisplay, getPatchFromContents } from '../../utils/diff.js'
 import { getFileModificationTime } from '../../utils/file.js'
-import type { FileState } from '../../utils/fileStateCache.js'
+import { cacheKeys, type FileState } from '../../utils/fileStateCache.js'
+import { getMercuryTempDir } from '../../utils/permissions/filesystem.js'
 import { formatFileSize } from '../../utils/format.js'
 import { expandPath } from '../../utils/path.js'
 import type { ToolUseContext } from '../../Tool.js'
@@ -29,6 +33,7 @@ import {
   selectSqliteRows,
   sqliteKeyBinding,
   sqliteRowAmbiguousMessage,
+  sqliteRowIdentity,
   sqliteTableShape,
   statBoundedContainer,
   type ArchiveEntryMeta,
@@ -49,7 +54,7 @@ export const STRUCTURED_EDIT_MODES_NOTE =
 
 export type StructuredWriteTarget =
   | { kind: 'zip-entry'; hostPath: string; entryName: string; rawPath: string; canonicalPath: string }
-  | { kind: 'sqlite-row'; hostPath: string; table: string; selector: SqliteRowSelector; rawPath: string; canonicalPath: string }
+  | { kind: 'sqlite-row'; hostPath: string; table: string; selector: SqliteRowSelector; rawPath: string; canonicalPath: string; deleting?: true }
   | { kind: 'refused'; hostPath: string; rawPath: string; canonicalPath: string; reason: string }
 
 type WritableTarget = Exclude<StructuredWriteTarget, { kind: 'refused' }>
@@ -91,10 +96,12 @@ export function parseStructuredWriteTarget(rawPath: string): StructuredWriteTarg
       reason: `${rawPath} names a container but no entry or row inside it: write archive.zip:path/inside.txt or db.sqlite:table/key.`,
     }
   }
-  const rich = parseRichFormatTarget(rawPath)
+  const deletion = rawPath.endsWith('#delete') ? parseRichFormatTarget(rawPath.slice(0, -7)) : null
+  const deleting = deletion?.kind === 'sqlite' && deletion.subtarget !== undefined
+  const rich = deleting ? deletion : parseRichFormatTarget(rawPath)
   if (rich === null || rich.subtarget === undefined) return null
   const hostPath = expandPath(rich.containerPath)
-  const canonicalPath = `${hostPath}:${rich.subtarget}`
+  const canonicalPath = `${hostPath}:${rich.subtarget}${deleting ? '#delete' : ''}`
   const refuse = (reason: string): StructuredWriteTarget => ({ kind: 'refused', hostPath, rawPath, canonicalPath, reason })
   if (rich.kind === 'archive') {
     if (rich.ext !== 'zip') {
@@ -114,7 +121,7 @@ export function parseStructuredWriteTarget(rawPath: string): StructuredWriteTarg
         `Writes inside a SQLite database address one row: name it as ${rich.containerPath}:${parsed.table}/<key> (or ${parsed.table}/<column>=<value>). Read ${rich.containerPath}:${parsed.table} for the table's rows.`,
       )
     }
-    return { kind: 'sqlite-row', hostPath, table: parsed.table, selector: parsed.selector, rawPath, canonicalPath }
+    return { kind: 'sqlite-row', hostPath, table: parsed.table, selector: parsed.selector, rawPath, canonicalPath, ...(deleting ? { deleting: true } : {}) }
   }
   return null
 }
@@ -141,6 +148,7 @@ export function structuredTargetRefusal(target: StructuredWriteTarget, verb: 'wr
   if (target.kind === 'refused') {
     return { result: false, behavior: 'ask', message: target.reason, errorCode: 4 }
   }
+  if (target.kind === 'sqlite-row' && target.deleting && verb === 'edit') return { result: false, behavior: 'ask', message: 'A SQLite row deletion uses Write with content "DELETE".', errorCode: 4 }
   const hostKind = hostIsRegularFile(target.hostPath)
   if (hostKind === false) {
     return {
@@ -425,22 +433,22 @@ type SqliteWriteDb = SqliteDb & {
   transaction<T>(fn: () => T): () => T
 }
 
-async function openSqliteForWrite(hostPath: string): Promise<SqliteWriteDb> {
+function openSqliteForWrite(hostPath: string, readOnly = false): SqliteWriteDb {
   statBoundedContainer(hostPath, Infinity)
+  const load = createRequire(import.meta.url)
+  const url = pathToFileURL(hostPath)
+  const immutable = readOnly && (!existsSync(`${hostPath}-wal`) || statSync(`${hostPath}-wal`).size <= 32) && !existsSync(`${hostPath}-journal`)
+  url.search = readOnly ? `?mode=ro${immutable ? '&immutable=1' : ''}` : '?mode=rw'
   if (process.versions.bun) {
-    const bunSqlite = 'bun:sqlite'
-    const { Database } = (await import(bunSqlite)) as {
-      Database: new (file: string, opts?: { readwrite?: boolean; create?: boolean }) => SqliteWriteDb
+    const { Database } = load('bun:sqlite') as {
+      Database: new (file: string, opts?: { readonly?: boolean; readwrite?: boolean; create?: boolean }) => SqliteWriteDb
     }
-    const db = new Database(hostPath, { readwrite: true, create: false })
+    const db = new Database(readOnly ? url.href : hostPath, readOnly ? { readonly: true, create: false } : { readwrite: true, create: false })
     db.run('PRAGMA foreign_keys=ON')
     return db
   }
-  const { DatabaseSync } = await import('node:sqlite')
-  const { pathToFileURL } = await import('node:url')
-  const url = pathToFileURL(hostPath)
-  url.search = '?mode=rw'
-  const db = new DatabaseSync(url.href, { enableForeignKeyConstraints: true, allowExtension: false })
+  const { DatabaseSync } = load('node:sqlite') as typeof import('node:sqlite')
+  const db = new DatabaseSync(url.href, { readOnly, enableForeignKeyConstraints: true, allowExtension: false })
   let savepoint = 0
   return {
     prepare(sql) {
@@ -463,6 +471,8 @@ async function openSqliteForWrite(hostPath: string): Promise<SqliteWriteDb> {
 }
 
 type SqliteRowState = {
+  schema: string
+  identity: string | null
   shape: ReturnType<typeof sqliteTableShape>
   matchColumn: string
   row: Record<string, unknown> | null
@@ -482,7 +492,50 @@ function readSqliteRowState(db: SqliteWriteDb, hostPath: string, table: string, 
   const { matchColumn, rows } = selectSqliteRows(db, table, shape, selector)
   if (rows.length > 1) throw new Error(sqliteRowAmbiguousMessage(table, matchColumn, selector.value))
   const row = rows[0] ?? null
-  return { shape, matchColumn, row, text: row === null ? '' : renderSqliteRow(row) }
+  const schema = JSON.stringify([object.sql, db.prepare('PRAGMA schema_version').all()])
+  return { schema, identity: row === null ? null : sqliteRowIdentity(row, shape), shape, matchColumn, row, text: row === null ? '' : renderSqliteRow(row) }
+}
+
+interface SqliteDeletionPreview {
+  path: string
+  exists: boolean
+  content: string
+  schema: string
+  identity: string | null
+}
+
+let deletionPreviews: WeakMap<ToolUseContext, Map<string, SqliteDeletionPreview>> | undefined
+
+export function previewSqliteDeletion(rawPath: string): SqliteDeletionPreview {
+  const target = parseStructuredWriteTarget(rawPath)
+  if (target?.kind !== 'sqlite-row' || !target.deleting) throw new Error('A SQLite deletion names one row followed by #delete.')
+  let file = realpathSync(target.hostPath), scratch: string | null = null
+  try {
+    if (existsSync(`${file}-wal`) && statSync(`${file}-wal`).size > 32 && !existsSync(`${file}-shm`)) {
+      const root = join(getMercuryTempDir(), 'sqlite-views')
+      mkdirSync(root, { recursive: true, mode: 0o700 })
+      scratch = mkdtempSync(join(root, 'preview-'))
+      const copy = join(scratch, 'database.sqlite')
+      copyFileSync(file, copy)
+      copyFileSync(`${file}-wal`, `${copy}-wal`)
+      file = copy
+    }
+    const db = openSqliteForWrite(file, true)
+    try {
+      const state = readSqliteRowState(db, target.hostPath, target.table, target.selector)
+      return { path: target.canonicalPath.slice(0, -7), exists: state.row !== null, content: state.text, schema: state.schema, identity: state.identity }
+    } finally { db.close() }
+  } finally { if (scratch !== null) rmSync(scratch, { recursive: true, force: true }) }
+}
+
+export function prepareSqliteDeletion(target: Extract<WritableTarget, { kind: 'sqlite-row' }>, content: string, context: ToolUseContext): void {
+  context.abortController.signal.throwIfAborted()
+  if (content !== 'DELETE') throw new Error('SQLite row deletion requires content "DELETE"; empty content never deletes a row.')
+  const preview = previewSqliteDeletion(target.canonicalPath)
+  deletionPreviews ??= new WeakMap()
+  const held = deletionPreviews.get(context) ?? new Map<string, SqliteDeletionPreview>()
+  held.set(target.canonicalPath, preview)
+  deletionPreviews.set(context, held)
 }
 
 const BIGINT_TOKEN_PREFIX = '__mercury_bigint__:'
@@ -538,7 +591,7 @@ type RowChange = { column: string; value: string | number | bigint | null }
 function plannedRowChanges(state: SqliteRowState, table: string, wanted: Record<string, unknown>): RowChange[] {
   const columnNames = state.shape.columns.map(c => c.name)
   const writable = new Set(columnNames)
-  if (state.shape.address.kind === 'rowid') writable.add('rowid')
+  if (state.shape.address.kind === 'rowid') writable.add(state.shape.address.column)
   const changes: RowChange[] = []
   for (const column of Object.keys(wanted)) {
     if (!writable.has(column)) {
@@ -641,11 +694,11 @@ function unreadEditMessage(displayPath: string): string {
   return `Read the file before editing it — ${UNREAD_EXISTING_FILE_NOTE}; the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands).${otherLiveSessionsClause()} No lines of ${displayPath} were read this session — a Read of the file shows what stands.`
 }
 
-function recordWritten(context: ToolUseContext, target: WritableTarget, keys: string[], text: string): void {
+function recordWritten(context: ToolUseContext, target: WritableTarget, keys: string[], text: string, rowIdentity?: string): void {
   const normalized = normalizeNewlines(text)
   const writtenAt = getFileModificationTime(target.hostPath)
   for (const key of keys) {
-    context.readFileState.set(key, { content: normalized, timestamp: writtenAt, offset: undefined, limit: undefined })
+    context.readFileState.set(key, { content: normalized, timestamp: writtenAt, offset: undefined, limit: undefined, ...(rowIdentity === undefined ? {} : { sqliteRowIdentity: rowIdentity }) })
   }
 }
 
@@ -786,11 +839,53 @@ function settleRow(
   })
   const { applied, after } = tx()
   const address = rowAddressAfter(target, state.matchColumn, after.row!)
-  recordWritten(context, target, address.keys, after.text)
+  recordWritten(context, target, address.keys, after.text, after.identity ?? undefined)
   const evidence = applied.inserted
     ? `inserted one row into ${target.table} of ${target.hostPath}`
     : `updated ${changes.length} column${changes.length === 1 ? '' : 's'} of one row in ${target.table} of ${target.hostPath}${address.moved === null ? '' : ` (the row is now ${address.moved})`}`
   return { afterText: after.text, evidence, inserted: applied.inserted, resultPath: address.resultPath }
+}
+
+async function deleteSqliteRow(
+  target: Extract<WritableTarget, { kind: 'sqlite-row' }>,
+  content: string,
+  context: ToolUseContext,
+  startedAt: number,
+): Promise<{ data: FileWriteOutput; effect: WriteEffect }> {
+  context.abortController.signal.throwIfAborted()
+  if (content !== 'DELETE') throw new Error('SQLite row deletion requires content "DELETE"; empty content never deletes a row.')
+  const held = deletionPreviews?.get(context)
+  const expected = held?.get(target.canonicalPath)
+  const rowPath = target.canonicalPath.slice(0, -7)
+  try {
+    return await withSqliteRow(target, async (db, state) => {
+      const deleted = db.transaction(() => {
+        context.abortController.signal.throwIfAborted()
+        const fresh = readSqliteRowState(db, target.hostPath, target.table, target.selector)
+        if (fresh.schema !== state.schema || fresh.identity !== state.identity || (expected && (fresh.schema !== expected.schema || fresh.identity !== expected.identity))) throw new Error(modifiedSinceReadMessage())
+        if (fresh.row === null) return false
+        const readIdentity = context.readFileState.get(rowPath)?.sqliteRowIdentity
+        if (readIdentity === undefined) throw new Error(unreadExistingWriteMessage())
+        if (readIdentity !== fresh.identity) throw new Error(modifiedSinceReadMessage())
+        const evidence = structuredReadEvidence(context, { ...target, canonicalPath: rowPath }, fresh.text, null, 'write')
+        if (evidence !== 'known') throw new Error(evidence === 'stale' ? modifiedSinceReadMessage() : unreadExistingWriteMessage())
+        const q = (name: string) => `"${name.replaceAll('"', '""')}"`
+        const result = db.run(`DELETE FROM ${q(target.table)} WHERE ${q(fresh.matchColumn)} = ?`, sqliteKeyBinding(target.selector.value)) as { changes: number }
+        if (result.changes !== 1) throw new Error(`The deletion touched ${result.changes} rows of "${target.table}" instead of one; rolled back.`)
+        if (readSqliteRowState(db, target.hostPath, target.table, target.selector).row !== null) throw new Error(`The row of "${target.table}" is still present after deletion; rolled back.`)
+        return true
+      })()
+      for (const key of cacheKeys(context.readFileState)) {
+        if (key === rowPath || (key.startsWith(`${target.hostPath}:${target.table}/`) && context.readFileState.get(key)?.content === state.text)) context.readFileState.delete(key)
+      }
+      const patch = deleted ? getPatchForDisplay({ filePath: rowPath, fileContents: state.text, edits: [{ old_string: state.text, new_string: '' }] }) : []
+      if (deleted) countLinesChanged(patch)
+      return {
+        data: { type: deleted ? 'delete' : 'not-found', filePath: rowPath, content: '', structuredPatch: patch, originalFile: deleted ? state.text : null },
+        effect: { outcome: deleted ? 'succeeded' : 'no-change', operation: 'file.write', changedPaths: deleted ? [target.hostPath] : [], evidence: deleted ? `deleted one row from ${target.table} of ${target.hostPath}; read-back found no row` : `no row at ${rowPath}; nothing was deleted`, startedAt, completedAt: Date.now() },
+      }
+    })
+  } finally { held?.delete(target.canonicalPath) }
 }
 
 export async function callStructuredWriteTarget(
@@ -822,6 +917,7 @@ export async function callStructuredWriteTarget(
     )
   }
 
+  if (target.deleting) return deleteSqliteRow(target, content, context, startedAt)
   const wanted = parseRowObject(content)
   return withSqliteRow(target, async (db, state) => {
     const changes = plannedRowChanges(state, target.table, wanted)

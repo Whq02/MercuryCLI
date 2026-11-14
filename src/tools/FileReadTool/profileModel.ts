@@ -1,4 +1,4 @@
-export interface ProfileFrame {
+interface ProfileFrame {
   function: string
   file: string
   line: number | null
@@ -27,7 +27,7 @@ export interface ProfileReading {
   quality: Set<string>
 }
 
-export interface ProfileHotspot {
+interface ProfileHotspot {
   frame: ProfileFrame
   self: number
   inclusive: number

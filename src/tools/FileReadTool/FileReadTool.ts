@@ -1339,7 +1339,7 @@ async function readRichFormatLane(
   const anchored = lineAnchorsEnabled() && input.line_anchors === true
   const displayPath = rich.subtarget ? `${resolvedContainerPath}:${rich.subtarget}` : resolvedContainerPath
   const recordRead = (state: FileState): void => {
-    if (ownBytes && rich.subtarget !== undefined) context.readFileState.set(displayPath, state)
+    if (ownBytes && rich.subtarget !== undefined) context.readFileState.set(displayPath, rendering.sqliteRowIdentity === undefined ? state : { ...state, sqliteRowIdentity: rendering.sqliteRowIdentity })
   }
 
   if (parsedRanges !== null && parsedRanges.length > 0) {

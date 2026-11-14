@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
+# gate-watch: scripts/remote-files/remoteKit.ts
 # gate-watch: src/utils/attachments/toolManuals.ts src/utils/api.ts scripts/tools/prove-wire-manuals.ts
 # gate-watch: src/services/voice/fileTranscript.ts
 # gate-watch: scripts/tools/prove-read-reminder-persistence.ts src/tools/FileReadTool/FileReadTool.ts

@@ -122,6 +122,9 @@ export function renderToolResultMessage(
   }: { verbose: boolean; style?: 'condensed' | 'default'; isTranscriptMode?: boolean },
 ): React.ReactNode {
   const verbose = verboseOption || isTranscriptMode === true
+  if (output.type === 'delete' || output.type === 'not-found') {
+    return <MessageResponse><Text>{output.type === 'delete' ? 'Deleted one SQLite row' : 'Row not found; nothing was deleted'} — {getDisplayPath(output.filePath)}</Text></MessageResponse>
+  }
   if (output.type === 'no-change') {
     return <NoChangeCard filePath={output.filePath} />
   }

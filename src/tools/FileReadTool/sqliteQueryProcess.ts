@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { vendoredNodeBeside, selfScriptPath } from '../../daemon/daemonBuild.js'
 
-export interface SqliteQueryJob {
+interface SqliteQueryJob {
   file: string
   immutable: boolean
   sql?: string
@@ -16,7 +16,7 @@ export interface SqliteQueryJob {
   artifactDirectory: string
 }
 
-export interface SqliteQueryPage {
+interface SqliteQueryPage {
   columns: string[]
   rows: string[]
   more: boolean

@@ -55,6 +55,7 @@ import {
   expandStructuredTargetPath,
   hostPathOfWriteTarget,
   parseStructuredWriteTarget,
+  prepareSqliteDeletion,
   structuredTargetRefusal,
 } from './structuredTargets.js'
 import { DESCRIPTION, FILE_WRITE_TOOL_NAME, getWriteToolDescription } from './prompt.js'
@@ -81,7 +82,7 @@ export type FileWriteToolInput = z.input<typeof inputSchema>
 type Input = z.infer<typeof inputSchema>
 
 export type Output = {
-  type: 'create' | 'update' | 'no-change'
+  type: 'create' | 'update' | 'no-change' | 'delete' | 'not-found'
   filePath: string
   content: string
   structuredPatch: FileEditOutput['structuredPatch']
@@ -93,7 +94,7 @@ export type Output = {
 }
 
 const outputSchema = z.object({
-  type: z.enum(['create', 'update', 'no-change']),
+  type: z.enum(['create', 'update', 'no-change', 'delete', 'not-found']),
   filePath: z.string(),
   content: z.string(),
   structuredPatch: z.array(hunkSchema()),
@@ -183,8 +184,13 @@ export const FileWriteTool = buildTool({
       const { remoteValidation } = await import('../../services/remoteFiles/bridge.js')
       return remoteValidation(input.file_path, null, 'edit', 'Writing to', context)
     }
-    const expandedPath = hostPathOfWriteTarget(input.file_path)
+    const structuredTarget = parseStructuredWriteTarget(input.file_path)
     const permissionContext = context.getAppState().toolPermissionContext
+    if (structuredTarget?.kind === 'sqlite-row' && structuredTarget.deleting) {
+      const decision = checkWritePermissionForTool({ name: FILE_WRITE_TOOL_NAME, getPath: () => structuredTarget.hostPath }, input, permissionContext)
+      if (decision.behavior === 'deny') return { result: false as const, message: decision.message, errorCode: 1 }
+    }
+    const expandedPath = hostPathOfWriteTarget(input.file_path)
     const writeDeny = matchingRuleForInput(expandedPath, permissionContext, 'edit', 'deny')
     if (writeDeny) {
       return {
@@ -197,10 +203,13 @@ export const FileWriteTool = buildTool({
     if (memoryRefusal) {
       return { result: false as const, message: memoryRefusal, errorCode: 3 }
     }
-    const structuredTarget = parseStructuredWriteTarget(input.file_path)
     if (structuredTarget !== null) {
       const refusal = structuredTargetRefusal(structuredTarget, 'write')
       if (refusal !== null) return { result: false as const, message: refusal.message, errorCode: refusal.errorCode }
+      if (structuredTarget.kind === 'sqlite-row' && structuredTarget.deleting) {
+        try { prepareSqliteDeletion(structuredTarget, input.content, context) }
+        catch (error) { return { result: false as const, message: error instanceof Error ? error.message : String(error), errorCode: 4 } }
+      }
       return { result: true as const }
     }
     if (windowsPathNeedsPermission(input.file_path)) return { result: true as const }
@@ -509,6 +518,11 @@ export const FileWriteTool = buildTool({
     }
   },
   mapToolResultToToolResultBlockParam(data: Output, toolUseID: string) {
+    if (data.type === 'delete' || data.type === 'not-found') return {
+      tool_use_id: toolUseID,
+      type: 'tool_result' as const,
+      content: data.type === 'delete' ? `Deleted one SQLite row at ${data.filePath}; the row is absent on read-back.` : `Row not found at ${data.filePath}; nothing was deleted.`,
+    }
     if (data.type === 'no-change') {
       const guidance = data.noChange?.guidance ?? ''
       return {
