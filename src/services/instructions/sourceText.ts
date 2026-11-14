@@ -6,6 +6,7 @@ import { parseFrontmatter, splitPathInFrontmatter } from '../../utils/frontmatte
 import { stripBOM } from '../../utils/jsonRead.js'
 import type { MemoryType } from '../../utils/memory/types.js'
 import { expandPath } from '../../utils/path.js'
+import { getPlatform } from '../../utils/platform.js'
 import type { InstructionRuleFormat, InstructionRuleReading, InstructionSourceEntry } from './contracts.js'
 
 const COMPOSABLE_EXTENSIONS = {
@@ -80,8 +81,30 @@ function contributionOf(token: LexedToken): string {
 
 const withoutHtmlComments = (tokens: LexedToken[]): string => tokens.map(contributionOf).join('')
 
-function* readableTexts(tokens: LexedToken[]): Generator<string> {
+const AT_SPELLING = /(?:^|\s)@((?:[^\s\\]|\\ |\\(?=\S))+)/g
+const OPEN_SPELLING = /(?:^|\s)@(?:[^\s\\]|\\ |\\(?=\S))*$/
+
+const isInlineText = (token: LexedToken | undefined): token is LexedToken => token?.type === 'text' && token.tokens === undefined
+
+function withPathsWhole(tokens: LexedToken[]): LexedToken[] {
+  const whole: LexedToken[] = []
+  let joining = false
   for (const token of tokens) {
+    const last = whole.at(-1)
+    const escape = token.type === 'escape'
+    if (isInlineText(last) && (escape ? OPEN_SPELLING.test(last.text ?? '') : joining && isInlineText(token))) {
+      whole[whole.length - 1] = { ...last, text: `${last.text ?? ''}${escape ? token.raw : (token.text ?? '')}` }
+      joining = escape
+    } else {
+      whole.push(token)
+      joining = false
+    }
+  }
+  return whole
+}
+
+function* readableTexts(tokens: LexedToken[], windows: boolean): Generator<string> {
+  for (const token of windows ? withPathsWhole(tokens) : tokens) {
     if (token.type === 'code' || token.type === 'codespan') continue
     if (token.type === 'html') {
       const residue = commentResidue(token)
@@ -89,12 +112,11 @@ function* readableTexts(tokens: LexedToken[]): Generator<string> {
       continue
     }
     if (token.type === 'text') yield token.text ?? ''
-    yield* readableTexts(token.tokens ?? [])
-    yield* readableTexts(token.items ?? [])
+    yield* readableTexts(token.tokens ?? [], windows)
+    yield* readableTexts(token.items ?? [], windows)
   }
 }
 
-const AT_SPELLING = /(?:^|\s)@((?:[^\s\\]|\\ |\\(?=\S))+)/g
 const SENTENCE_TAIL = /[.,;:!?]+$/
 const PATH_OPENING = /^[A-Za-z0-9._-]/
 
@@ -120,7 +142,7 @@ function includeMentionsOf(tokens: LexedToken[], includeBasePath: string): Inclu
   const home = dirname(includeBasePath)
   const includes = new Set<string>()
   const bare = new Set<string>()
-  for (const text of readableTexts(tokens)) {
+  for (const text of readableTexts(tokens, getPlatform() === 'windows')) {
     for (const spelling of importSpellingsIn(text).filter(isImportSpelling)) {
       (carriesPathEvidence(spelling) ? includes : bare).add(expandPath(spelling, home))
     }
