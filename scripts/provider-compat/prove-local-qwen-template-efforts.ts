@@ -143,7 +143,7 @@ section('2 · the view: a vLLM or llama.cpp row serving Qwen 3.8 offers low · m
   const expected = { kind: 'provider', source: 'local', vocabulary: ['low', 'medium', 'xhigh'], thinkingGated: false, steps: template.QWEN_TEMPLATE_EFFORT_STEPS }
   check('discovery: the two Qwen 3.8 rows, an older Qwen and another family on vLLM and llama.cpp', localRecordFor(`local/${QWEN_REPO}`)?.server === 'vllm' && localRecordFor(`local/${QWEN_GGUF}`)?.server === 'llamacpp' && localRecordFor(`local/${OLDER_QWEN}`)?.server === 'vllm' && localRecordFor(`local/${OTHER}`)?.server === 'vllm')
   check('the vLLM row: low · medium · xhigh with the word map', j(effortVocabularyFor(`local/${QWEN_REPO}`)) === j(expected), j(effortVocabularyFor(`local/${QWEN_REPO}`)))
-  check('the llama.cpp row: the same', j(effortVocabularyFor(`local/${QWEN_GGUF}`)) === j(expected), j(effortVocabularyFor(`local/${QWEN_GGUF}`)))
+  check('the llama.cpp row: the same words and map, its view gated by thinking with none as the off word (its server reads reasoning_effort none as thinking off)', j(effortVocabularyFor(`local/${QWEN_GGUF}`)) === j({ kind: 'provider', source: 'local', vocabulary: ['low', 'medium', 'xhigh'], thinkingGated: true, thinkingOffWire: 'none', steps: template.QWEN_TEMPLATE_EFFORT_STEPS }), j(effortVocabularyFor(`local/${QWEN_GGUF}`)))
   for (const id of [OLDER_QWEN, OTHER]) {
     check(`${id} keeps the six server words and no map`, j(effortVocabularyFor(`local/${id}`)) === j({ kind: 'provider', source: 'local', vocabulary: SIX, thinkingGated: false }), j(effortVocabularyFor(`local/${id}`)))
   }
@@ -177,7 +177,7 @@ section("4 · a llama.cpp server that states its template's levels in /props (ch
   const record = localRecordFor(`local/${RENAMED_NO_GENERATION}`)
   check('discovery reads the levels the server states for its template, lowest first', record?.server === 'llamacpp' && j(record.efforts) === j(['low', 'medium', 'xhigh']), j(record))
   check('no name rule reads the file', !template.qwenTemplateReadsEffort(RENAMED_NO_GENERATION))
-  check("the view: the server's three levels and no word map", j(effortVocabularyFor(`local/${RENAMED_NO_GENERATION}`)) === j({ kind: 'provider', source: 'local', vocabulary: ['low', 'medium', 'xhigh'], thinkingGated: false }), j(effortVocabularyFor(`local/${RENAMED_NO_GENERATION}`)))
+  check("the view: the server's three levels and no word map", j(effortVocabularyFor(`local/${RENAMED_NO_GENERATION}`)) === j({ kind: 'provider', source: 'local', vocabulary: ['low', 'medium', 'xhigh'], thinkingGated: true, thinkingOffWire: 'none' }), j(effortVocabularyFor(`local/${RENAMED_NO_GENERATION}`)))
   const outcomes: Array<{ word: string; sent: unknown; chats: number; error: string | undefined; text: string }> = []
   for (const word of ASKED) outcomes.push({ word, ...(await ask(RENAMED_NO_GENERATION, word)) })
   check('every one of the six asked words settles in one request with no refusal', outcomes.every(row => row.error === undefined && row.text === 'pong' && row.chats === 1), j(outcomes.filter(row => row.error !== undefined || row.chats !== 1).map(row => [row.word, row.sent, row.chats, row.error?.slice(0, 160)])))
@@ -186,8 +186,8 @@ section("4 · a llama.cpp server that states its template's levels in /props (ch
   check('the truth for a saved high names what rides: medium, adjusted from high', high.wire === 'medium' && high.label === 'medium' && high.adjustedFrom === 'high', j({ wire: high.wire, label: high.label, adjustedFrom: high.adjustedFrom }))
   const bare = await ask(RENAMED_NO_GENERATION, undefined)
   check("with no word asked no reasoning_effort rides", bare.sent === undefined && bare.error === undefined && bare.chats === 1, j(bare))
-  check('a file the Qwen 3.8 rule reads keeps the rule and its word map on the same server', j(effortVocabularyFor(`local/${QWEN_GGUF_STATED}`)) === j({ kind: 'provider', source: 'local', vocabulary: ['low', 'medium', 'xhigh'], thinkingGated: false, steps: template.QWEN_TEMPLATE_EFFORT_STEPS }) && (await ask(QWEN_GGUF_STATED, 'high')).sent === 'xhigh')
-  check('a llama.cpp server that states nothing keeps the six server words', localRecordFor(`local/${QWEN3_8B_GGUF}`)?.efforts === undefined && j(effortVocabularyFor(`local/${QWEN3_8B_GGUF}`)) === j({ kind: 'provider', source: 'local', vocabulary: SIX, thinkingGated: false }), `${j(localRecordFor(`local/${QWEN3_8B_GGUF}`)?.efforts)} ${j(effortVocabularyFor(`local/${QWEN3_8B_GGUF}`))}`)
+  check('a file the Qwen 3.8 rule reads keeps the rule and its word map on the same server', j(effortVocabularyFor(`local/${QWEN_GGUF_STATED}`)) === j({ kind: 'provider', source: 'local', vocabulary: ['low', 'medium', 'xhigh'], thinkingGated: true, thinkingOffWire: 'none', steps: template.QWEN_TEMPLATE_EFFORT_STEPS }) && (await ask(QWEN_GGUF_STATED, 'high')).sent === 'xhigh')
+  check('a llama.cpp server that states nothing keeps the six server words', localRecordFor(`local/${QWEN3_8B_GGUF}`)?.efforts === undefined && j(effortVocabularyFor(`local/${QWEN3_8B_GGUF}`)) === j({ kind: 'provider', source: 'local', vocabulary: SIX, thinkingGated: true, thinkingOffWire: 'none' }), `${j(localRecordFor(`local/${QWEN3_8B_GGUF}`)?.efforts)} ${j(effortVocabularyFor(`local/${QWEN3_8B_GGUF}`))}`)
 }
 
 vllm.server.close()

@@ -153,10 +153,10 @@ section('3 · one predicate for both Ollama wires (reasoning_effort none on /v1,
     check('thinking off + a thinking-declared Ollama model ⇒ off', predicate({ server: 'ollama', acceptsEffort: true, thinkingEnabled: false }) === true)
     check('thinking on ⇒ not off', predicate({ server: 'ollama', acceptsEffort: true, thinkingEnabled: true }) === false)
     check('a model that states no thinking ⇒ not off (nothing to switch)', predicate({ server: 'ollama', acceptsEffort: false, thinkingEnabled: false }) === false)
-    check('vLLM and llama.cpp state no per-model thinking ⇒ not off', predicate({ server: 'vllm', acceptsEffort: true, thinkingEnabled: false }) === false && predicate({ server: 'llamacpp', acceptsEffort: true, thinkingEnabled: false }) === false)
+    check('vLLM states no per-model thinking ⇒ not off; llama.cpp reads the off word (its server takes reasoning_effort none as thinking off) ⇒ off', predicate({ server: 'vllm', acceptsEffort: true, thinkingEnabled: false }) === false && predicate({ server: 'llamacpp', acceptsEffort: true, thinkingEnabled: false }) === true)
   }
   const word = w.localThinkingOffWireEffort
-  check("the thinking-off word per server kind: 'none' on Ollama, none on LM Studio (no /v1 dial), none on vLLM / llama.cpp", typeof word === 'function' && word('ollama') === 'none' && word('lmstudio') === undefined && word('vllm') === undefined && word('llamacpp') === undefined, typeof word === 'function' ? JSON.stringify(['ollama', 'lmstudio', 'vllm', 'llamacpp'].map(word)) : 'not exported')
+  check("the thinking-off word per server kind: 'none' on Ollama, none on LM Studio (no /v1 dial), none on vLLM, 'none' on llama.cpp (stated on its own: its level list does not spell it)", typeof word === 'function' && word('ollama') === 'none' && word('lmstudio') === undefined && word('vllm') === undefined && word('llamacpp') === 'none', typeof word === 'function' ? JSON.stringify(['ollama', 'lmstudio', 'vllm', 'llamacpp'].map(word)) : 'not exported')
   check("the word is the shared thinking-off law over the Ollama table ('none' where the list spells it)", wire.thinkingOffWireEffort(wire.LOCAL_SERVER_EFFORTS.ollama) === 'none')
 }
 
