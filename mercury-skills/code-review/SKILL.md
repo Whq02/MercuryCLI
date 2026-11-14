@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: Use when reviewing local changes, a commit, a branch or a pull request with parallel finders and independent verification of each finding. Not for a single frozen-worktree receipt check via Crewmate review_receipt alone, or fixing code.
+description: Use when reviewing local changes, a commit, a branch or a pull request with parallel finders and independent verification of each finding. Not for one Crewmate review_receipt check, or fixing code.
 argument-hint: "[target]"
 ---
 # Code review
