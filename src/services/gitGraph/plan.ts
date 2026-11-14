@@ -584,11 +584,38 @@ export function resolveConflict(
   if (!entry) return { state: 'refused', reason: `'${path}' is not an unmerged conflict here` }
   try {
     if ('take' in resolution && (resolution.take === 'base' || resolution.take === 'both')) {
-      const stage = (n: number): Buffer => execFileSync('git', gitArgs(['cat-file', '--filters', `--path=${path}`, `:${n}:${path}`], root), { windowsHide: true, cwd: root, env: subprocessEnv(), timeout: 30_000, maxBuffer: 256 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] })
-      const content = resolution.take === 'base' ? stage(1) : Buffer.concat([stage(2), stage(3)])
-      const { writeFileSync } = require('node:fs') as typeof import('node:fs')
-      const { join } = require('node:path') as typeof import('node:path')
-      writeFileSync(join(root, path), content)
+      const { closeSync, openSync, readSync, writeSync } = require('node:fs') as typeof import('node:fs')
+      const { join, resolve } = require('node:path') as typeof import('node:path')
+      const hold = resolve(root, git(root, ['rev-parse', '--git-path', `mercury-resolve-${process.pid}-${Date.now()}`]).trim())
+      const sides = (resolution.take === 'base' ? [1] : [2, 3]).map(n => ({ n, file: `${hold}-${n}` }))
+      try {
+        for (const side of sides) {
+          const into = openSync(side.file, 'wx', 0o600)
+          try {
+            execFileSync('git', gitArgs(['cat-file', '--filters', `--path=${path}`, `:${side.n}:${path}`], root), { windowsHide: true, cwd: root, env: subprocessEnv(), timeout: 30_000, maxBuffer: 256 * 1024 * 1024, stdio: ['ignore', into, 'pipe'] })
+          } finally {
+            closeSync(into)
+          }
+        }
+        const out = openSync(join(root, path), 'w')
+        try {
+          const piece = Buffer.allocUnsafe(1 << 20)
+          for (const side of sides) {
+            const from = openSync(side.file, 'r')
+            try {
+              for (let read = readSync(from, piece, 0, piece.length, null); read > 0; read = readSync(from, piece, 0, piece.length, null)) {
+                for (let done = 0; done < read; ) done += writeSync(out, piece, done, read - done)
+              }
+            } finally {
+              closeSync(from)
+            }
+          }
+        } finally {
+          closeSync(out)
+        }
+      } finally {
+        for (const side of sides) rmSync(side.file, { force: true })
+      }
     } else if ('take' in resolution) {
       git(root, ['checkout', resolution.take === 'ours' ? '--ours' : '--theirs', '--', path])
     } else {
