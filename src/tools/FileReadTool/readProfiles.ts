@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { createReadStream } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { isRemotePath } from '../../services/remoteFiles/target.js'
+import { expandPath } from '../../utils/path.js'
 import type { ReadQueryRequest, ReadQueryResult } from './readQuery.js'
 import { streamProfile } from './profileStream.js'
 import { frameKey, profileNumber, profileRows, summarizeProfile, type ProfileReading } from './profileModel.js'
@@ -43,6 +44,7 @@ async function comparisonRows(before: ProfileReading, after: ProfileReading, sig
 
 export async function readProfiles(request: ReadQueryRequest, automatic = false): Promise<ReadQueryResult | null> {
   if (classifyReadTarget(request.target.source).kind !== 'file') return { content: '', numLines: 0, readSource: true }
+  if (automatic && !isRemotePath(request.target.source) && !(await stat(expandPath(request.target.source)).then(found => found.isFile(), () => false))) return null
   const loaded = await sourceProfile(request, request.target.source)
   const profile = loaded.profile
   if (profile === null) {
