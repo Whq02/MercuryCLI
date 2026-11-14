@@ -1277,6 +1277,7 @@ export function generateSuggestions(
     } as PermissionUpdate
     return operationType === 'read' ? [grant] : [...modeSuggestion(context), grant]
   }
+  if (isRemotePath(filePath)) return []
   const outside = !pathInAllowedWorkingPath(filePath, context, precomputedPathsToCheck)
   const parent = getDirectoryForPath(filePath)
 
