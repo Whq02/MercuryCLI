@@ -1,6 +1,7 @@
 
 import { readFileSync, writeFileSync } from 'node:fs'
 import { metadataRefusal, metadataSafeAddresses } from '../WebFetchTool/privateHost.js'
+import { join } from 'node:path'
 import type { ElementHandle, Frame, Page, SerializedAXNode } from 'puppeteer-core'
 import { z } from 'zod/v4'
 import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
@@ -29,6 +30,7 @@ import {
   bringTabToFront,
   browserSessionCap,
   browserTabs,
+  browserTransfers,
   beginBrowserActivity,
   closeBrowserSessionDetailed,
   consumeCheckedActOrigin,
@@ -69,9 +71,12 @@ import {
   resolveBrowserSecret,
   scrubSecretFromText,
 } from '../../services/browser/browserSecrets.js'
+import type { Transfer } from '../../services/browser/browserTransfers.js'
 import { APPROVAL_RULE_LINE, INSTALLED_NOT_DRIVEN } from '../../services/browser/browserWords.js'
+import { ensureScratchpadDir } from '../../utils/scratchpad.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
+import { getScratchpadDir } from '../../utils/permissions/filesystem.js'
 import { getRuleByContentsForToolName } from '../../utils/permissions/permissions.js'
 import { suggestionForExactCommand } from '../../utils/permissions/shellRuleMatching.js'
 import { ruleSentence } from '../../utils/permissions/ruleReason.js'
@@ -102,6 +107,7 @@ const OPS = [
   'console',
   'info',
   'screenshot',
+  'download',
   'close',
 ] as const
 
@@ -118,7 +124,8 @@ const ACT_OPS: ReadonlySet<string> = new Set([
 ])
 
 const FRONT_OPS: ReadonlySet<string> = new Set(['click', 'type', 'scroll', 'back', 'reload', 'select', 'press', 'hover', 'screenshot'])
-const TABLESS_OPS: ReadonlySet<string> = new Set(['status', 'devices', 'provision'])
+const TABLESS_OPS: ReadonlySet<string> = new Set(['status', 'devices', 'provision', 'download'])
+const TOUCH_OPS: ReadonlySet<string> = new Set(['click', 'type', 'select', 'press'])
 
 const PRESS_KEYS: ReadonlySet<string> = new Set([
   'Enter',
@@ -236,6 +243,7 @@ const inputSchema = lazySchema(() =>
       .describe('extract: text window char offset'),
     limit: z.number().optional().describe('console: last N entries (default 50)'),
     fullPage: z.boolean().optional().describe('screenshot: full scroll height (default viewport)'),
+    downloadId: z.string().optional().describe('download: wait for this one'),
     label: z.string().optional().describe('screenshot: filename hint'),
   }),
 )
@@ -583,7 +591,20 @@ function bytesWords(n: number): string {
 
 export const DOWNLOADS_NOT_FOLLOWED = 'downloads are not followed here; fetch the file with WebFetch or Bash instead'
 
+const namedTransfers = new WeakSet<Transfer>()
+
+function transferWords(transfer: Transfer): string {
+  namedTransfers.add(transfer)
+  if (transfer.state === 'complete') {
+    return `saved to ${transfer.path} (${bytesWords(transfer.bytes ?? 0)}, ${transfer.type ?? 'type unknown'}, suggested name ${transfer.name}, from ${transfer.url}, sha256 ${transfer.sha256}) — download ${transfer.id}, in the session scratchpad`
+  }
+  if (transfer.state === 'failed') return `download ${transfer.id} failed: ${transfer.failure} (${transfer.name} from ${transfer.url})`
+  const idle = Math.floor((Date.now() - transfer.movedAt) / 1000)
+  return `download ${transfer.id} is still arriving (${bytesWords(transfer.received)}${transfer.total !== null ? ` of ${bytesWords(transfer.total)}` : ''} of ${transfer.name} from ${transfer.url}${idle >= 5 ? `; no new bytes for ${idle} s` : ''}) — op:"download" with downloadId:"${transfer.id}" waits for it`
+}
+
 function downloadWords(notice: NonNullable<LiveSession['downloads']['last']>): string {
+  if (notice.transfer !== null) return `a download — ${transferWords(notice.transfer)}`
   const facts = [notice.type, notice.bytes !== null ? bytesWords(notice.bytes) : null, `saves as ${notice.filename}`].filter(
     (f): f is string => f !== null && f !== '',
   )
@@ -599,6 +620,7 @@ interface ActMarks {
 }
 
 function markAct(s: LiveSession): ActMarks {
+  s.navWatch.frames = 0
   return { at: Date.now(), ringMark: s.consoleRing.length, popups: s.popups.count, downloads: s.downloads.count, url: s.page.url() }
 }
 
@@ -618,14 +640,56 @@ async function settleAfterAct(s: LiveSession, deadline: number, marks: ActMarks)
     ])
   }
   await popupsSettled(s)
-  if (s.navWatch.pendingUrl !== null) {
-    await Promise.race([new Promise<void>(wake => s.navWatch.waiters.push(wake)), bounded(deadline)])
+  const until = Date.now() + deadline
+  while ((s.navWatch.pendingUrl !== null || s.navWatch.frames > 0) && Date.now() < until) {
+    await Promise.race([new Promise<void>(wake => s.navWatch.waiters.push(wake)), bounded(until - Date.now())])
   }
   if (s.navWatch.abortedAt >= marks.at && s.downloads.count === marks.downloads) {
     await Promise.race([new Promise<void>(wake => s.downloads.waiters.push(wake)), bounded(1000)])
   }
   const download = s.downloads.last
-  if (download !== null && s.downloads.count > marks.downloads) await Promise.race([download.done, bounded(1000)])
+  if (download !== null && s.downloads.count > marks.downloads) await Promise.race([download.transfer?.done ?? download.done, bounded(1000)])
+}
+
+function downloadVia(input: Input): 'open' | 'click' | null {
+  if (input.op !== 'download' || (input.downloadId !== undefined && input.downloadId !== '')) return null
+  if (input.url !== undefined && input.url !== '') return 'open'
+  if (input.selector !== undefined && input.selector !== '') return 'click'
+  return null
+}
+
+function downloadAct(input: Input): Input {
+  const via = downloadVia(input)
+  return via === null ? input : { ...input, op: via, timeoutMs: undefined }
+}
+
+async function downloadSought(s: LiveSession, before: number, timeoutMs: number | undefined, signal: AbortSignal | undefined): Promise<string> {
+  s.touched = true
+  if (s.downloads.count > before) return ''
+  const budget = Math.min(Math.max(timeoutMs ?? WAIT_DEFAULT_MS, 250), WAIT_CAP_MS)
+  const interrupted = await new Promise<boolean>(resolve => {
+    const stop = (): void => {
+      clearTimeout(timer)
+      resolve(true)
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', stop)
+      resolve(false)
+    }, budget)
+    if (signal?.aborted) stop()
+    else signal?.addEventListener('abort', stop, { once: true })
+    s.downloads.waiters.push(() => {
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', stop)
+      resolve(false)
+    })
+  })
+  const began = s.downloads.last
+  if (s.downloads.count === before || began === null) {
+    return `\n  note: ${interrupted ? 'the wait for a download was interrupted' : `no download has begun in ${budget >= 1000 ? `${Math.round(budget / 1000)} s` : `${budget} ms`}`} — this tab stays followed: one that begins later is saved and named in the next answer on it`
+  }
+  await Promise.race([began.transfer?.done ?? began.done, bounded(1000)])
+  return `\n  note: the page started ${downloadWords(began)}`
 }
 
 async function errorPageSettled(s: LiveSession): Promise<void> {
@@ -1093,13 +1157,14 @@ back, reload, scroll, select, press and hover act on history or elements; info r
 extract returns ${EXTRACT_CAP}-char windows of text or indented role/name/state rows, including iframe content and frame indices/URLs.
 console returns a ${CONSOLE_RING_CAP}-entry ring of logs, page/HTTP/request errors, navigation dividers and dialogs (dialogs auto-dismiss; beforeunload auto-accepts).
 screenshot saves a PNG artifact and attaches an image when supported.
+download with url or selector opens or clicks and waits timeoutMs for a file to begin, with downloadId waits for that transfer (continued by calling again), alone lists them; a download is saved in the session scratchpad when an act starts it (named in that answer) or when it begins later on a tab that was clicked, typed in, selected, pressed or given download (named in the next answer on it).
 close ends the session, or with tab that tab alone (${BROWSER_PROTOCOL_TIMEOUT_MS / 1000}s protocol deadline; ${BROWSER_CLOSE_BOUND_MS / 1000}s close bound). provision asks before installing Chrome-for-Testing.
 
 ## Targeting
 Selector actions wait for visibility; scoped extract waits for attachment (reads hidden content). Frame click, scroll and screenshot require selectors; coordinate clicks stay in the main viewport.
 
 ## Session lifetime
-${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved lead slot; `}5 minutes idle closes a browser (active ops do not expire; completion renews the lease; tabs opened with persist stay). Downloads and file uploads are not performed here. The driver needs node >= 22.12.`
+${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved lead slot; `}5 minutes idle closes a browser (active ops do not expire; completion renews the lease; tabs opened with persist stay). File uploads are not performed here. The driver needs node >= 22.12.`
   },
   userFacingName,
   shouldDefer: true,
@@ -1120,13 +1185,15 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
       input?.op === 'console' ||
       input?.op === 'info' ||
       (input?.op === 'viewport' && sentByEmulation(input) === null) ||
-      input?.op === 'devices'
+      input?.op === 'devices' ||
+      (input?.op === 'download' && downloadVia(input) === null)
     )
   },
   interruptBehavior() {
     return 'cancel' as const
   },
-  async checkPermissions(input: Input, context: ToolUseContext) {
+  async checkPermissions(asked: Input, context: ToolUseContext) {
+    const input = downloadAct(asked)
     const refused = input.url === undefined ? null : metadataRefusal(input.url)
     if (refused !== null) return { behavior: 'deny' as const, message: refused, decisionReason: { type: 'other' as const, reason: refused } }
     if (input.op === 'provision') {
@@ -1149,7 +1216,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
       }
     }
     const sent = input.op === 'viewport' ? sentByEmulation(input) : null
-    if (!ACT_OPS.has(input.op) && sent === null) return { behavior: 'allow' as const, updatedInput: input }
+    if (!ACT_OPS.has(input.op) && sent === null) return { behavior: 'allow' as const, updatedInput: asked }
     const owner = ownerFromToolUseContext((context ?? {}) as { owner?: OwnerKey; agentId?: string })
     const permissionContext = (context as Partial<ToolUseContext> | undefined)?.getAppState?.()
       ?.toolPermissionContext as ToolPermissionContext | undefined
@@ -1174,7 +1241,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
         }
       }
       if (ruled === 'allow' || (ruled === null && (!target.startsWith('http') || originApproved(owner, target)))) {
-        return { behavior: 'allow' as const, updatedInput: input }
+        return { behavior: 'allow' as const, updatedInput: asked }
       }
       return {
         behavior: 'ask' as const,
@@ -1183,13 +1250,13 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
       }
     }
     const s = activeSession(owner, input.tab ?? MAIN_TAB)
-    if (!s || (s.crashed && !CRASH_OPEN_OPS.has(input.op))) return { behavior: 'allow' as const, updatedInput: input }
+    if (!s || (s.crashed && !CRASH_OPEN_OPS.has(input.op))) return { behavior: 'allow' as const, updatedInput: asked }
     let origin: string
     let bound: CheckedTarget
     try {
       origin = sent === null ? (await targetOrigin(s, input.frame)) : sendOrigin(s)
       bound = checkedTarget(s, sent === null ? targetSurface(s, input.frame) : s.page)
-    } catch { return { behavior: 'allow' as const, updatedInput: input } }
+    } catch { return { behavior: 'allow' as const, updatedInput: asked } }
     const ruled = ruleVerdict(`origin:${origin}`)
     if (ruled === 'deny') {
       return {
@@ -1237,7 +1304,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
       }
       noteCheckedActOrigin(owner, input.op, origin, bound)
       if (pairingRuled === 'allow' || secretPairingApproved(owner, secret.ref, origin)) {
-        return { behavior: 'allow' as const, updatedInput: input }
+        return { behavior: 'allow' as const, updatedInput: asked }
       }
       return {
         behavior: 'ask' as const,
@@ -1252,12 +1319,12 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
     }
     if (ruled === 'allow' || (ruled === null && origin.startsWith('http') && originApproved(owner, origin))) {
       noteCheckedActOrigin(owner, input.op, origin, bound)
-      return { behavior: 'allow' as const, updatedInput: input }
+      return { behavior: 'allow' as const, updatedInput: asked }
     }
     if (!origin.startsWith('http')) {
       if (origin === 'about:' || origin === 'chrome-error:') {
         noteCheckedActOrigin(owner, input.op, origin, bound)
-        return { behavior: 'allow' as const, updatedInput: input }
+        return { behavior: 'allow' as const, updatedInput: asked }
       }
       noteCheckedActOrigin(owner, input.op, origin, bound)
       return {
@@ -1284,15 +1351,22 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
       suggestions: suggestionForExactCommand('Browser', `origin:${origin}`),
     }
   },
-  async validateInput(input: Input) {
+  async validateInput(asked: Input) {
     if (!browserToolEnabled()) {
       return { result: false as const, message: 'the Browser tool is disabled (MERCURY_BROWSER=0)', errorCode: 1 }
     }
+    if (asked.op === 'download' && [asked.downloadId, asked.url, asked.selector].filter(given => given !== undefined && given !== '').length > 1) {
+      return { result: false as const, message: 'download takes one of downloadId, url or selector', errorCode: 1 }
+    }
+    const input = downloadAct(asked)
     if (input.tab !== undefined && (input.tab.trim() === '' || input.tab !== input.tab.trim() || /[\r\n]/.test(input.tab))) {
       return { result: false as const, message: 'tab takes a name on one line with no space around it', errorCode: 1 }
     }
     if (input.persist === true && input.op !== 'open') {
       return { result: false as const, message: 'persist requires op open', errorCode: 1 }
+    }
+    if (asked.downloadId !== undefined && asked.downloadId !== '' && asked.op !== 'download') {
+      return { result: false as const, message: 'downloadId requires op download', errorCode: 1 }
     }
     if (input.op === 'open' && !(input.url === undefined && input.tab !== undefined) && (!input.url || !/^https?:\/\//.test(input.url))) {
       return { result: false as const, message: openSchemeRefusal(input.url), errorCode: 1 }
@@ -1383,13 +1457,15 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
     }
     return { result: true as const }
   },
-  async call(input: Input, context: ToolUseContext) {
+  async call(asked: Input, context: ToolUseContext) {
+    const input = downloadAct(asked)
     const startedAt = Date.now()
     const owner = ownerFromToolUseContext((context ?? {}) as { owner?: OwnerKey; agentId?: string })
     const tab = input.tab ?? MAIN_TAB
     const releaseActivity = beginBrowserActivity(owner)
     const sessionAtEntry = activeSession(owner, tab)
     const networkMark = sessionAtEntry?.networkRefusal?.count ?? 0
+    const downloadsAtEntry = sessionAtEntry?.downloads.count ?? 0
     let result: string
     let outcome: ToolEffectOutcome = 'no-change'
     let imagePath: string | undefined
@@ -1404,6 +1480,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
       acted.set(s, s.popups.count)
       s.acting++
       s.actOp = input.op
+      if (TOUCH_OPS.has(input.op)) s.touched = true
     }
     const crashedAtEntry = sessionAtEntry?.crashed === true
     try {
@@ -1429,6 +1506,12 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
               signal: context.abortController?.signal,
               tab,
               births: true,
+              downloads: {
+                home: join(getScratchpadDir((context as { agentId?: string } | undefined)?.agentId), 'browser-downloads'),
+                claim: () => {
+                  ensureScratchpadDir((context as { agentId?: string } | undefined)?.agentId)
+                },
+              },
               ...(target === null ? {} : { origin: target }),
             }))
           if ('state' in s) {
@@ -1485,10 +1568,18 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
             }
             await settleAfterAct(s, 1000, openMarks)
             if (s.downloads.count === openMarks.downloads || s.downloads.last === null) throw err
-            result = `open failed: ${input.url} is ${downloadWords(s.downloads.last)}`
-            outcome = 'failed'
+            const arrived = s.downloads.last.transfer
+            if (arrived === null || arrived.state === 'failed') {
+              result = `open failed: ${input.url} is ${downloadWords(s.downloads.last)}`
+              outcome = 'failed'
+              break
+            }
+            approveWebOrigin(owner, input.url!)
+            result = `open: ${input.url} is ${downloadWords(s.downloads.last)}\n  note: the tab stays at ${pageWhere(s)}`
+            outcome = 'succeeded'
             break
           }
+          s.touched = false
           approveWebOrigin(owner, input.url!)
           const landed = originOf(s.page.url())
           const status = response === null ? null : response.status()
@@ -2312,6 +2403,50 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
           outcome = 'succeeded'
           break
         }
+        case 'download': {
+          const all = browserTransfers(owner)
+          if (input.downloadId !== undefined && input.downloadId !== '') {
+            const wanted = all.find(transfer => transfer.id === input.downloadId)
+            if (wanted === undefined) {
+              result = `no download ${input.downloadId} — op:"download" without downloadId lists the ${all.length} of this session`
+              outcome = 'failed'
+              break
+            }
+            if (wanted.state === 'pending') {
+              const outer = context.abortController?.signal
+              const deadline = Math.min(Math.max(input.timeoutMs ?? WAIT_DEFAULT_MS, 250), WAIT_CAP_MS)
+              await new Promise<void>((resolve, reject) => {
+                const timer = setTimeout(resolve, deadline)
+                const stop = (): void => {
+                  clearTimeout(timer)
+                  reject(outer?.reason ?? new Error('interrupted'))
+                }
+                if (outer?.aborted) stop()
+                else outer?.addEventListener('abort', stop, { once: true })
+                void wanted.done.then(() => {
+                  clearTimeout(timer)
+                  outer?.removeEventListener('abort', stop)
+                  resolve()
+                })
+              })
+            }
+            result = `download: ${transferWords(wanted)}`
+            outcome = wanted.state === 'failed' ? 'failed' : wanted.state === 'complete' ? 'succeeded' : 'no-change'
+            break
+          }
+          const first = Math.min(Math.max(Math.floor(input.offset ?? 0), 0), all.length)
+          const shown = all.slice(first, first + Math.max(Math.floor(input.limit ?? 50), 1))
+          const count = (state: Transfer['state']): number => all.filter(transfer => transfer.state === state).length
+          result =
+            all.length === 0
+              ? 'downloads: none — a download that an act starts is saved in the session scratchpad and named in that act’s answer'
+              : [
+                  `downloads: ${all.length} (${count('complete')} complete, ${count('pending')} arriving, ${count('failed')} failed)${first > 0 ? `, from ${first}` : ''}`,
+                  ...shown.map(transfer => `  tab ${transfer.tab}: ${transferWords(transfer)}`),
+                  ...(first + shown.length < all.length ? [`  … ${all.length - first - shown.length} more — continue with offset: ${first + shown.length}`] : []),
+                ].join('\n')
+          break
+        }
         case 'close': {
           const closed = await closeBrowserSessionDetailed(owner, input.tab)
           if (closed.open.length > 0) {
@@ -2351,6 +2486,10 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
       outcome = 'failed'
     }
     try {
+      const sought = input === asked || outcome === 'failed' ? null : activeSession(owner, tab)
+      if (sought !== null) {
+        result = `${result!}${await downloadSought(sought, sought === sessionAtEntry ? downloadsAtEntry : 0, asked.timeoutMs, context.abortController?.signal)}`
+      }
       for (const [s, since] of acted) result = `${result!}${await popupWords(owner, s, since)}`
     } finally {
       for (const s of acted.keys()) s.acting--
@@ -2367,6 +2506,12 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
       result = `${input.op} refused: ${refusedNetwork.last}`
       outcome = 'failed'
     }
+    if (sessionAtExit !== null && !TABLESS_OPS.has(input.op)) {
+      for (const late of sessionAtExit.downloads.late.splice(0)) {
+        if (typeof late === 'string') result += `\n  note: ${late}`
+        else if (!namedTransfers.has(late)) result += `\n  note: ${late.startedAt >= startedAt ? 'the page started a download' : 'a download began after the last act'} — ${transferWords(late)}`
+      }
+    }
     if (input.tab !== undefined && !TABLESS_OPS.has(input.op)) {
       if (input.op === 'open' && outcome === 'failed') {
         result += sessionAtExit === null ? `\n  note: tab ${tab} is not open` : `\n  note: tab ${tab} stays open at ${pageWhere(sessionAtExit)}`
@@ -2374,7 +2519,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
       if (!(result!.split('\n')[0] ?? '').includes(`tab ${tab}`)) result = `[${tab}] ${result!}`
     }
     const output: Output = {
-      op: input.op,
+      op: asked.op,
       result: result!,
       outcome,
       ...(imagePath !== undefined && { imagePath }),
@@ -2385,7 +2530,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
       data: output,
       effect: {
         outcome,
-        operation: `browser.${input.op}`,
+        operation: `browser.${asked.op}`,
         changedPaths: imagePath ? [imagePath] : [],
         evidence: output.result.split('\n')[0]?.slice(0, 160) ?? '',
         startedAt,

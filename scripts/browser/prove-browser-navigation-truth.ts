@@ -154,7 +154,7 @@ console.log("§4b a back onto a page the browser kept (no no-store header) is a 
   check('the control: a reload of that page asks the server and fails honestly (the server really is gone)', reload.outcome === 'failed' && /ERR_CONNECTION_REFUSED/.test(reload.result), reload.result)
 }
 
-console.log('§5 a link the session refuses as a download is named: type, size, filename, and what to use instead')
+console.log('§5 a link that is a download is named and saved: type, size, filename, and where it lies')
 const d = await serve(0, (url, res) => {
   if (url === '/dl.bin') {
     res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-length': '13' })
@@ -197,32 +197,32 @@ const d = await serve(0, (url, res) => {
   )
 })
 const D = `http://127.0.0.1:${d.port}`
-const NOT_FOLLOWED = 'downloads are not followed here; fetch the file with WebFetch or Bash instead'
+const SAVED = /saved to \S+ \(/
 {
   const opened = await run({ op: 'open', url: `${D}/` })
   check('the download fixture opens', opened.outcome === 'succeeded' && opened.result.includes('download-fixture'), opened.result)
   const link = await run({ op: 'click', selector: 'aria/Get data.bin (octet-stream)[role="link"]' })
   check('a click on a link the server serves as a download says so in the result', link.result.includes('the link is a download'), link.result)
-  check('…naming the type, the size and the filename', link.result.includes('application/octet-stream') && link.result.includes('13 bytes') && link.result.includes('saves as dl.bin'), link.result)
-  check('…and what to use instead', link.result.includes(NOT_FOLLOWED), link.result)
+  check('…naming the type, the size and the filename', link.result.includes('application/octet-stream') && link.result.includes('13 bytes') && link.result.includes('suggested name dl.bin'), link.result)
+  check('…and where it was saved', SAVED.test(link.result) && link.result.includes('in the session scratchpad'), link.result)
   check('the page itself did not move', (await page().url()) === `${D}/`, await page().url())
   const attach = await run({ op: 'click', selector: '#att' })
-  check('a Content-Disposition attachment is named with its filename', attach.result.includes('the link is a download') && attach.result.includes('text/plain') && attach.result.includes('11 bytes') && attach.result.includes('saves as notes.txt'), attach.result)
+  check('a Content-Disposition attachment is named with its filename', attach.result.includes('the link is a download') && attach.result.includes('text/plain') && attach.result.includes('11 bytes') && attach.result.includes('suggested name notes.txt'), attach.result)
   const attr = await run({ op: 'click', selector: '#dla' })
-  check('a download-attribute link (no network request of its own) is named too', attr.result.includes('the link is a download') && attr.result.includes('saves as named.bin') && attr.result.includes(NOT_FOLLOWED), attr.result)
+  check('a download-attribute link (no network request of its own) is named too', attr.result.includes('the link is a download') && attr.result.includes('suggested name named.bin') && SAVED.test(attr.result), attr.result)
   const script = await run({ op: 'click', selector: '#js' })
   check('a script-started download is named', script.result.includes('is a download') && script.result.includes('dl.bin'), script.result)
   const slow = await run({ op: 'click', selector: '#slow' })
-  check('a slow download (the server answers 600ms later) is still named — the act waits for the navigation it started', slow.result.includes('the link is a download') && slow.result.includes('saves as slow.bin'), slow.result)
+  check('a slow download (the server answers 600ms later) is still named — the act waits for the navigation it started', slow.result.includes('the link is a download') && slow.result.includes('suggested name slow.bin'), slow.result)
   const direct = await run({ op: 'open', url: `${D}/dl.bin` })
-  check('open on a download URL fails naming the download, not a bare protocol error', direct.outcome === 'failed' && direct.result.includes(`open failed: ${D}/dl.bin is a download`) && direct.result.includes('application/octet-stream') && direct.result.includes('13 bytes') && direct.result.includes(NOT_FOLLOWED), direct.result)
+  check('open on a download URL names the download it saved, not a bare protocol error', direct.outcome === 'succeeded' && direct.result.includes(`open: ${D}/dl.bin is a download — saved to`) && direct.result.includes('application/octet-stream') && direct.result.includes('13 bytes') && direct.result.includes(`note: the tab stays at ${D}/`), direct.result)
   const ring = await run({ op: 'console', limit: 60 })
-  check('the console ring carries the refused download by name', /download: the page asked to download dl\.bin/.test(ring.result) && /denied: downloads are not followed here/.test(ring.result), ring.result.split('\n').slice(-6).join(' | '))
+  check('the console ring carries the download by name', /download: download d\d+: dl\.bin \(\S+\) is being saved in the session scratchpad/.test(ring.result), ring.result.split('\n').slice(-6).join(' | '))
   const ordinary = await run({ op: 'click', selector: '#two' })
   check('an ordinary link click reports the navigation it caused, with no download note', ordinary.result.includes(`navigated to ${D}/two`) && !ordinary.result.includes('download'), ordinary.result)
   await run({ op: 'open', url: `${D}/` })
   const chunked = await run({ op: 'click', selector: '#chunked' })
-  check('an attachment with no declared size names the download without inventing bytes', chunked.result.includes('the link is a download') && chunked.result.includes('text/plain') && chunked.result.includes('saves as streamed.txt') && chunked.result.includes(NOT_FOLLOWED) && !/\b\d+ bytes\b/.test(chunked.result), chunked.result)
+  check('an attachment with no declared size names the download with the size the saved file has', chunked.result.includes('the link is a download') && chunked.result.includes('text/plain') && chunked.result.includes('suggested name streamed.txt') && chunked.result.includes('(14 bytes,'), chunked.result)
 }
 
 console.log('§6 a click that opens a tab or a dialog says so in its own result')

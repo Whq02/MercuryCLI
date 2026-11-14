@@ -17,6 +17,7 @@ import {
   resolveBrowser,
   type BrowserResolution,
 } from './browserResolver.js'
+import { beginTransfer, endTransfers, moveTransfer, newTransferBook, sweepIncoming, type Transfer, type TransferBook } from './browserTransfers.js'
 
 export interface ConsoleEntry {
   at: number
@@ -45,6 +46,12 @@ export interface DownloadNotice {
   type: string | null
   at: number
   done: Promise<void>
+  transfer: Transfer | null
+}
+
+interface DownloadHome {
+  home: string
+  claim: () => void
 }
 
 export interface PopupNote {
@@ -62,8 +69,8 @@ interface Wiring {
   popups: { count: number; last: string; log: PopupNote[]; waiters: Array<() => void> }
   navFailure: { last: NavFailure | null }
   policyBlocks: Map<string, { reason: string; at: number }>
-  downloads: { count: number; last: DownloadNotice | null; waiters: Array<() => void> }
-  navWatch: { pendingUrl: string | null; abortedAt: number; waiters: Array<() => void> }
+  downloads: { count: number; last: DownloadNotice | null; waiters: Array<() => void>; late: Array<Transfer | string> }
+  navWatch: { pendingUrl: string | null; frames: number; abortedAt: number; waiters: Array<() => void> }
   docResponses: Map<string, string | null>
   capture: (kind: string, text: string) => void
 }
@@ -82,9 +89,13 @@ interface Hold {
   tabs: Set<Session>
   owned: Map<string, Session>
   births: Map<string, Birth>
+  died: Map<string, Birth>
   creating: number
   front: Session | null
   watch: CDPSession | null
+  downloads: DownloadHome | null
+  arriving: Map<string, { notice: DownloadNotice & { finish: () => void }; wiring: Wiring }>
+  unwanted: Set<string>
 }
 
 interface Birth {
@@ -106,6 +117,7 @@ interface Session {
   crashed: boolean
   acting: number
   actOp: string
+  touched: boolean
   left: boolean
   browser: DriverBrowser
   page: Page
@@ -119,8 +131,8 @@ interface Session {
   networkRefusal: { count: number; last: string | null }
   policyBlocks: Map<string, { reason: string; at: number }>
   closeNetwork: () => void
-  downloads: { count: number; last: DownloadNotice | null; waiters: Array<() => void> }
-  navWatch: { pendingUrl: string | null; abortedAt: number; waiters: Array<() => void> }
+  downloads: { count: number; last: DownloadNotice | null; waiters: Array<() => void>; late: Array<Transfer | string> }
+  navWatch: { pendingUrl: string | null; frames: number; abortedAt: number; waiters: Array<() => void> }
   profileOrigin: string | null
   profileDir: string | null
   headless: boolean
@@ -146,6 +158,7 @@ interface OwnerBrowserState {
   emulated: Map<string, Page>
   pages: number
   popups: number
+  transfers: TransferBook
   launching: boolean
   launchFlight: { tab: string; flight: Promise<Session | EnsureSessionRefusal> } | null
   disposed: boolean
@@ -178,6 +191,10 @@ function armIdleLease(state: OwnerBrowserState): void {
   state.idleTimer = setTimeout(() => {
     state.idleTimer = null
     if (state.activeCalls > 0 || state.launching || state.tabs.size === 0) return
+    if (state.transfers.list.some(transfer => transfer.state === 'pending' && Date.now() - transfer.movedAt < BROWSER_IDLE_MS)) {
+      armIdleLease(state)
+      return
+    }
     for (const hold of [...state.holds]) {
       const leaving = [...hold.tabs].filter(session => !session.persist)
       if (leaving.length === hold.tabs.size) {
@@ -313,6 +330,7 @@ const ownerStates = new OwnerScopedStore<OwnerBrowserState>({
     emulated: new Map(),
     pages: 0,
     popups: 0,
+    transfers: newTransferBook(),
     launching: false,
     launchFlight: null,
     disposed: false,
@@ -335,10 +353,14 @@ const ownerStates = new OwnerScopedStore<OwnerBrowserState>({
     for (const session of state.tabs.values()) session.left = true
     state.tabs.clear()
     state.holds.clear()
-    for (const hold of holds) closeHoldNetwork(hold)
+    for (const hold of holds) {
+      closeHoldNetwork(hold)
+      endDownloads(state, hold)
+    }
     await Promise.all(holds.map(hold => closeChild(hold.browser)))
+    await Promise.all(holds.map(hold => sweepDownloads(state, hold)))
   },
-  retain: state => state.tabs.size > 0 || state.launching || state.activeCalls > 0,
+  retain: state => state.tabs.size > 0 || state.launching || state.activeCalls > 0 || state.transfers.list.some(transfer => transfer.state === 'pending'),
 })
 registerOwnerScopedStore(ownerStates)
 
@@ -439,10 +461,19 @@ function sessionOver(state: OwnerBrowserState, gone: boolean): void {
   if (gone) state.goneAt = Date.now()
 }
 
+function endDownloads(state: OwnerBrowserState, hold: Hold): void {
+  endTransfers(state.transfers, hold.arriving.keys(), 'its browser closed before the file was whole')
+}
+
+async function sweepDownloads(state: OwnerBrowserState, hold: Hold): Promise<void> {
+  if (hold.downloads !== null) await sweepIncoming(state.transfers, hold.downloads.home, () => state.holds.size === 0 && !state.launching)
+}
+
 function holdGone(state: OwnerBrowserState, hold: Hold, reason: string): void {
   if (!state.holds.has(hold)) return
   state.holds.delete(hold)
   closeHoldNetwork(hold)
+  endDownloads(state, hold)
   for (const session of hold.tabs) {
     session.left = true
     if (state.tabs.get(session.tab) === session) state.tabs.delete(session.tab)
@@ -450,6 +481,7 @@ function holdGone(state: OwnerBrowserState, hold: Hold, reason: string): void {
   }
   hold.tabs.clear()
   if (state.tabs.size === 0) sessionOver(state, true)
+  void sweepDownloads(state, hold)
 }
 
 function reapDeadHolds(state: OwnerBrowserState): void {
@@ -465,7 +497,7 @@ function holdOf(session: Session): Hold {
   return sessionHolds.get(session)!
 }
 
-async function leaveHold(state: OwnerBrowserState, session: Session): Promise<CloseOutcome> {
+async function leaveHold(state: OwnerBrowserState, session: Session, moved = false): Promise<CloseOutcome> {
   const hold = holdOf(session)
   session.left = true
   hold.tabs.delete(session)
@@ -474,9 +506,13 @@ async function leaveHold(state: OwnerBrowserState, session: Session): Promise<Cl
   }
   if (hold.front === session) hold.front = null
   if (hold.tabs.size === 0 && hold.creating === 0) {
+    if (moved && hold.arriving.size > 0) return 'closed'
     state.holds.delete(hold)
     session.closeNetwork()
-    return closeChild(hold.browser)
+    endDownloads(state, hold)
+    const outcome = await closeChild(hold.browser)
+    await sweepDownloads(state, hold)
+    return outcome
   }
   await closePage(session.page)
   return 'closed'
@@ -499,6 +535,10 @@ export function activeSession(owner: OwnerKey, tab: string = MAIN_TAB): Session 
   if (!state) return null
   reapDeadHolds(state)
   return state.tabs.get(tab) ?? null
+}
+
+export function browserTransfers(owner: OwnerKey): Transfer[] {
+  return ownerStates.peek(owner)?.transfers.list ?? []
 }
 
 export function browserTabs(owner: OwnerKey): Session[] {
@@ -531,6 +571,7 @@ export interface EnsureBrowserSessionOptions {
   headless?: boolean | undefined
   tab?: string | undefined
   births?: boolean | undefined
+  downloads?: DownloadHome | undefined
 }
 
 export function browserProfileDirForOrigin(urlOrOrigin: string, owner?: OwnerKey): string | null {
@@ -1040,16 +1081,22 @@ function newWiring(): Wiring {
     popups: { count: 0, last: '', log: [], waiters: [] },
     navFailure: { last: null },
     policyBlocks: new Map(),
-    downloads: { count: 0, last: null, waiters: [] },
-    navWatch: { pendingUrl: null, abortedAt: 0, waiters: [] },
+    downloads: { count: 0, last: null, waiters: [], late: [] },
+    navWatch: { pendingUrl: null, frames: 0, abortedAt: 0, waiters: [] },
     docResponses: new Map(),
     capture,
   }
 }
 
 function listenProtocol(wiring: Wiring, cdp: CDPSession): void {
-  const { policyBlocks, downloads, docResponses, capture } = wiring
+  const { policyBlocks, docResponses, capture } = wiring
   const requests = new Map<string, string>()
+  cdp.on('Network.responseReceived', event => {
+    if (event.type !== 'Document') return
+    const declared = Object.entries(event.response.headers).find(([name]) => name.toLowerCase() === 'content-type')?.[1]
+    docResponses.set(redactUrl(event.response.url), declared ?? null)
+    if (docResponses.size > 32) docResponses.delete(docResponses.keys().next().value!)
+  })
   cdp.on('Network.requestWillBeSent', event => {
     requests.set(event.requestId, event.request.url.split('?')[0]!)
     if (requests.size > CONSOLE_RING_CAP) requests.delete(requests.keys().next().value!)
@@ -1063,24 +1110,35 @@ function listenProtocol(wiring: Wiring, cdp: CDPSession): void {
     if (policyBlocks.size > CONSOLE_RING_CAP) policyBlocks.delete(policyBlocks.keys().next().value!)
     capture('net', `${url} refused by browser policy: ${event.blockedReason}`)
   })
+}
+
+function downloadNotice(wiring: Wiring, event: Protocol.Browser.DownloadWillBeginEvent): DownloadNotice & { finish: () => void } {
+  const { downloads, docResponses } = wiring
+  let finish = (): void => {}
+  const done = new Promise<void>(resolve => {
+    finish = resolve
+  })
+  const notice: DownloadNotice & { finish: () => void } = {
+    guid: event.guid,
+    url: redactUrl(event.url),
+    filename: event.suggestedFilename,
+    bytes: null,
+    type: docResponses.get(redactUrl(event.url)) ?? null,
+    at: Date.now(),
+    done,
+    transfer: null,
+    finish,
+  }
+  downloads.count++
+  downloads.last = notice
+  for (const wake of downloads.waiters.splice(0)) wake()
+  return notice
+}
+
+function listenDownloads(wiring: Wiring, cdp: CDPSession): void {
+  const { downloads, docResponses, capture } = wiring
   cdp.on('Browser.downloadWillBegin', event => {
-    let finish = (): void => {}
-    const done = new Promise<void>(resolve => {
-      finish = resolve
-    })
-    const notice: DownloadNotice & { finish: () => void } = {
-      guid: event.guid,
-      url: redactUrl(event.url),
-      filename: event.suggestedFilename,
-      bytes: null,
-      type: docResponses.get(redactUrl(event.url)) ?? null,
-      at: Date.now(),
-      done,
-      finish,
-    }
-    downloads.count++
-    downloads.last = notice
-    for (const wake of downloads.waiters.splice(0)) wake()
+    const notice = downloadNotice(wiring, event)
     capture('download', `the page asked to download ${notice.filename} (${notice.url}) — denied: downloads are not followed here`)
   })
   cdp.on('Browser.downloadProgress', event => {
@@ -1090,6 +1148,54 @@ function listenProtocol(wiring: Wiring, cdp: CDPSession): void {
     if (last.type === null) last.type = docResponses.get(last.url) ?? null
     if (event.state !== 'inProgress') last.finish()
   })
+}
+
+const DOWNLOAD_NOT_SAVED =
+  'not saved: no act of this agent started it; op:"download" with url (the page’s address) or selector (what starts it) saves it'
+
+function downloadBegan(state: OwnerBrowserState, hold: Hold, event: Protocol.Browser.DownloadWillBeginEvent): void {
+  const framed = (session: Session): boolean => session.page.frames().some(frame => (frame as { _id?: string })._id === event.frameId)
+  const tab = [...hold.tabs].find(framed) ?? null
+  const birth = tab === null ? (hold.births.get(event.frameId) ?? hold.died.get(event.frameId) ?? null) : null
+  const actor = tab ?? birth?.opener ?? null
+  const wiring = actor === null ? undefined : sessionWirings.get(actor)
+  const inAct = tab !== null ? tab.acting > 0 : birth !== null && birth.keep
+  if (actor === null || wiring === undefined || hold.downloads === null || !(inAct || tab?.touched === true)) {
+    hold.unwanted.add(event.guid)
+    void hold.watch?.send('Browser.cancelDownload', { guid: event.guid }).catch(() => undefined)
+    const words = `the page asked to download ${event.suggestedFilename} (${redactUrl(event.url)}) — ${DOWNLOAD_NOT_SAVED}`
+    wiring?.capture('download', words)
+    wiring?.downloads.late.push(words)
+    return
+  }
+  hold.downloads.claim()
+  const notice = downloadNotice(wiring, event)
+  notice.transfer = beginTransfer(state.transfers, { guid: event.guid, tab: actor.tab, url: notice.url, name: notice.filename, type: notice.type, home: hold.downloads.home })
+  hold.arriving.set(event.guid, { notice, wiring })
+  wiring.capture('download', `download ${notice.transfer.id}: ${notice.filename} (${notice.url}) is being saved in the session scratchpad`)
+  wiring.downloads.late.push(notice.transfer)
+}
+
+function downloadMoved(state: OwnerBrowserState, hold: Hold, event: Protocol.Browser.DownloadProgressEvent): void {
+  if (hold.unwanted.has(event.guid) && event.state !== 'inProgress' && hold.downloads !== null) {
+    hold.unwanted.delete(event.guid)
+    fs.rm(path.join(hold.downloads.home, 'incoming', event.guid), { force: true }, () => undefined)
+    return
+  }
+  const arriving = hold.arriving.get(event.guid)
+  if (arriving === undefined) return
+  const { notice, wiring } = arriving
+  if (event.totalBytes > 0) notice.bytes = event.totalBytes
+  if (notice.type === null) notice.type = wiring.docResponses.get(notice.url) ?? null
+  if (notice.transfer !== null && notice.transfer.type === null) notice.transfer.type = notice.type
+  moveTransfer(state.transfers, event.guid, event)
+  if (event.state === 'inProgress') return
+  hold.arriving.delete(event.guid)
+  notice.finish()
+  if (hold.tabs.size === 0 && hold.creating === 0 && hold.arriving.size === 0 && !state.launching && state.holds.delete(hold)) {
+    closeHoldNetwork(hold)
+    void closeChild(hold.browser).then(() => sweepDownloads(state, hold))
+  }
 }
 
 function targetIdOf(page: Page): string | null {
@@ -1106,6 +1212,7 @@ function tabSession(state: OwnerBrowserState, hold: Hold, tab: string, page: Pag
     crashed: false,
     acting: 0,
     actOp: '',
+    touched: false,
     left: false,
     browser: hold.browser,
     page,
@@ -1149,10 +1256,15 @@ function listenPage(state: OwnerBrowserState, session: Session, wiring: Wiring):
     navWatch.pendingUrl = null
     for (const wake of navWatch.waiters.splice(0)) wake()
   }
+  const settleFrame = (): void => {
+    navWatch.frames = Math.max(0, navWatch.frames - 1)
+    if (navWatch.frames === 0) for (const wake of navWatch.waiters.splice(0)) wake()
+  }
   const isMainNavigation = (request: HTTPRequest): boolean =>
     request.isNavigationRequest() && request.frame() === page.mainFrame()
   page.on('framenavigated', frame => {
     if (frame.parentFrame() === null) {
+      navWatch.frames = 0
       nav.seq++
       if (!isBrowserErrorPage(frame.url())) navFailure.last = null
       settleNav()
@@ -1161,9 +1273,11 @@ function listenPage(state: OwnerBrowserState, session: Session, wiring: Wiring):
   })
   page.on('request', request => {
     if (isMainNavigation(request)) navWatch.pendingUrl = redactUrl(request.url())
+    else if (request.isNavigationRequest()) navWatch.frames++
   })
   page.on('requestfinished', request => {
     if (isMainNavigation(request)) settleNav()
+    else if (request.isNavigationRequest()) settleFrame()
   })
   page.on('console', message => {
     const loc = message.location()
@@ -1201,13 +1315,14 @@ function listenPage(state: OwnerBrowserState, session: Session, wiring: Wiring):
         await new Promise(r => setTimeout(r, 300))
         url = popup.url()
       }
-      const download = born !== undefined && (!url || url === 'about:blank') ? born.wiring.downloads.last : null
+      const download = born !== undefined && hold.downloads === null && (!url || url === 'about:blank') ? born.wiring.downloads.last : null
       let name: string | null = null
       if (born !== undefined && born.keep && download === null && !session.left && !state.disposed && !popup.isClosed()) {
         name = popupTabName(state)
         pageKits.set(popup, born.kit)
         const kept = tabSession(state, hold, name, popup, born.wiring)
         kept.openedBy = { tab: session.tab, op: session.actOp, posted: born.posted }
+        kept.touched = true
         listenPage(state, kept, born.wiring)
         hold.tabs.add(kept)
         hold.front = kept
@@ -1244,6 +1359,9 @@ function listenPage(state: OwnerBrowserState, session: Session, wiring: Wiring):
       if (errorText === 'net::ERR_ABORTED') navWatch.abortedAt = Date.now()
       else navFailure.last = { url: redactUrl(request.url()), errorText, at: Date.now() }
       settleNav()
+    } else if (request.isNavigationRequest()) {
+      if (errorText === 'net::ERR_ABORTED') navWatch.abortedAt = Date.now()
+      settleFrame()
     }
     capture('net', `${request.method()} ${redactUrl(request.url())} FAILED ${errorText} (${request.resourceType()})`)
   })
@@ -1343,7 +1461,10 @@ function bornPage(hold: Hold, cdp: CDPSession, info: Protocol.Target.TargetInfo)
   void cdp.send('Page.enable').catch(quiet)
   void cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: stealthSource(presented.languages) }).catch(quiet)
   void cdp.send('Network.enable').catch(quiet)
-  void cdp.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(quiet)
+  if (hold.downloads === null) {
+    void cdp.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(quiet)
+    listenDownloads(birth.wiring, cdp)
+  }
   listenProtocol(birth.wiring, cdp)
   if (info.openerId !== undefined && presented.identity !== null) mendFirstRequest(birth, presented.identity)
   void cdp.send('Runtime.runIfWaitingForDebugger').catch(quiet)
@@ -1357,7 +1478,7 @@ function bornPage(hold: Hold, cdp: CDPSession, info: Protocol.Target.TargetInfo)
   }
 }
 
-async function watchBirths(hold: Hold): Promise<void> {
+async function watchBirths(state: OwnerBrowserState, hold: Hold, downloads: DownloadHome | undefined): Promise<void> {
   const browser = hold.browser
   if (typeof browser.target !== 'function') return
   const watch = await browser.target().createCDPSession().catch(() => null)
@@ -1375,27 +1496,48 @@ async function watchBirths(hold: Hold): Promise<void> {
     for (const [id, birth] of hold.births) {
       if (birth.cdp.id() !== event.sessionId) continue
       hold.births.delete(id)
-      const download = birth.wiring.downloads.last
+      const download = hold.downloads === null ? birth.wiring.downloads.last : null
       const wiring = birth.opener === null ? undefined : sessionWirings.get(birth.opener)
       if (download !== null && wiring !== undefined) downloadInNewTab(wiring, download)
-      birth.settle()
+      if (hold.downloads === null || !birth.keep) {
+        birth.settle()
+        continue
+      }
+      hold.died.set(id, birth)
+      const forget = setTimeout(() => {
+        hold.died.delete(id)
+        birth.settle()
+      }, 250)
+      forget.unref?.()
     }
   })
   hold.watch = watch
   const armed = await watch
     .send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true, filter: [{ type: 'page', exclude: false }] })
     .then(() => true, () => false)
-  if (!armed) hold.watch = null
+  if (!armed) {
+    hold.watch = null
+    return
+  }
+  if (downloads === undefined) return
+  watch.on('Browser.downloadWillBegin', event => downloadBegan(state, hold, event))
+  watch.on('Browser.downloadProgress', event => downloadMoved(state, hold, event))
+  const followed = await watch
+    .send('Browser.setDownloadBehavior', { behavior: 'allowAndName', downloadPath: path.join(downloads.home, 'incoming'), eventsEnabled: true })
+    .then(() => true, () => false)
+  if (followed) hold.downloads = downloads
 }
 
 export function popupInFlight(session: Session): boolean {
-  return [...holdOf(session).births.values()].some(birth => birth.opener === session && birth.keep)
+  const hold = holdOf(session)
+  return [...hold.births.values(), ...hold.died.values()].some(birth => birth.opener === session && birth.keep)
 }
 
 export async function popupsSettled(session: Session): Promise<void> {
   const deadline = Date.now() + POPUP_SETTLE_MS
   for (;;) {
-    const pending = [...holdOf(session).births.values()].filter(birth => birth.opener === session && birth.keep)
+    const hold = holdOf(session)
+    const pending = [...hold.births.values(), ...hold.died.values()].filter(birth => birth.opener === session && birth.keep)
     const left = deadline - Date.now()
     if (pending.length === 0 || left <= 0) return
     let bound: ReturnType<typeof setTimeout> | undefined
@@ -1414,7 +1556,7 @@ export async function bringTabToFront(session: Session): Promise<void> {
   hold.front = session
 }
 
-async function armLate(page: Page, baseline: PagePresented): Promise<PageKit> {
+async function armLate(page: Page, baseline: PagePresented, deny: boolean): Promise<PageKit> {
   const kit: PageKit = { cdp: null, identity: baseline.identity, languages: baseline.languages, timeZone: baseline.timeZone, presented: null, born: null, fetchHeld: false }
   if (typeof page.evaluateOnNewDocument === 'function') {
     await page.evaluateOnNewDocument(pageStealthInit, baseline.languages).catch(() => undefined)
@@ -1424,7 +1566,7 @@ async function armLate(page: Page, baseline: PagePresented): Promise<PageKit> {
   kit.cdp = cdp
   if (cdp !== null) {
     await cdp.send('Network.enable').catch(() => undefined)
-    await cdp.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(() => undefined)
+    if (deny) await cdp.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(() => undefined)
     await cdp.send('Emulation.setAutomationOverride', { enabled: false }).catch(() => undefined)
     await cdp.send('Emulation.setTimezoneOverride', { timezoneId: baseline.timeZone }).catch(() => undefined)
     if (baseline.identity !== null) await cdp.send('Emulation.setUserAgentOverride', baseline.identity).catch(() => undefined)
@@ -1445,8 +1587,11 @@ async function newHoldPage(hold: Hold): Promise<{ page: Page; wiring: Wiring }> 
         return { page, wiring: born.wiring }
       }
       const wiring = newWiring()
-      const kit = await armLate(page, hold.baseline)
-      if (kit.cdp !== null) listenProtocol(wiring, kit.cdp)
+      const kit = await armLate(page, hold.baseline, hold.downloads === null)
+      if (kit.cdp !== null) {
+        listenProtocol(wiring, kit.cdp)
+        if (hold.downloads === null) listenDownloads(wiring, kit.cdp)
+      }
       pageKits.set(page, kit)
       return { page, wiring }
     } catch (err) {
@@ -1562,7 +1707,7 @@ async function placeTab(
   let proxyClose: (() => void) | undefined
   let landed: Session | null = null
   try {
-    if (moving !== null) await leaveHold(state, moving)
+    if (moving !== null) await leaveHold(state, moving, true)
     let hold: Hold
     let page: Page
     let wiring: Wiring
@@ -1620,7 +1765,7 @@ async function placeTab(
               fs.rmSync(path.join(profileDir, lockName), { force: true })
             } catch {}
           }
-          for (const earlier of ['Sessions', 'Sessions_Encrypted', 'Current Session', 'Current Tabs', 'Last Session', 'Last Tabs']) {
+          for (const earlier of ['Sessions', 'Sessions_Encrypted', 'Current Session', 'Current Tabs', 'Last Session', 'Last Tabs', ...(opts.downloads === undefined ? [] : ['History', 'History-journal'])]) {
             try {
               fs.rmSync(path.join(profileDir, 'Default', earlier), { recursive: true, force: true })
             } catch {}
@@ -1674,7 +1819,7 @@ async function placeTab(
       if (cdp !== null) {
         await cdp.send('Network.enable').catch(() => undefined)
         listenProtocol(wiring, cdp)
-        await cdp.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(() => undefined)
+        if (opts.downloads === undefined || opts.births !== true) await cdp.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(() => undefined)
         await cdp.send('Emulation.setAutomationOverride', { enabled: false }).catch(() => undefined)
         await cdp.send('Emulation.setTimezoneOverride', { timezoneId: hostTimeZone }).catch(() => undefined)
         const rawUa = typeof browser.userAgent === 'function' ? await browser.userAgent().catch(() => '') : ''
@@ -1738,16 +1883,25 @@ async function placeTab(
         tabs: new Set(),
         owned: new Map(),
         births: new Map(),
+        died: new Map(),
         creating: 0,
         front: null,
         watch: null,
+        downloads: null,
+        arriving: new Map(),
+        unwanted: new Set(),
       }
     }
     const session = tabSession(state, hold, tab, page, wiring)
     listenPage(state, session, wiring)
     if (home === null) {
       if (typeof page.bringToFront === 'function') await page.bringToFront()
-      if (opts.births === true) await watchBirths(hold)
+      if (opts.births === true) await watchBirths(state, hold, opts.downloads)
+      const own = pageKits.get(page)?.cdp ?? null
+      if (hold.downloads === null && own !== null) {
+        if (opts.downloads !== undefined && opts.births === true) await own.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(() => undefined)
+        listenDownloads(wiring, own)
+      }
     }
     if (state.disposed) {
       return {
@@ -1830,10 +1984,14 @@ export async function closeBrowserSessionDetailed(
   const closed = [...state.tabs.keys()]
   const holds = [...state.holds]
   for (const session of state.tabs.values()) session.left = true
-  for (const hold of holds) closeHoldNetwork(hold)
+  for (const hold of holds) {
+    closeHoldNetwork(hold)
+    endDownloads(state, hold)
+  }
   const outcomes = await Promise.all(holds.map(hold => closeChild(hold.browser)))
   state.tabs.clear()
   state.holds.clear()
+  await Promise.all(holds.map(hold => sweepDownloads(state, hold)))
   state.ended.clear()
   state.emulated.clear()
   state.popups = 0

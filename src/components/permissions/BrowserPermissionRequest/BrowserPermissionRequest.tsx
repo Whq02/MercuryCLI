@@ -28,7 +28,7 @@ export function BrowserPermissionRequest({
 
   usePermissionRequestLogging(toolUseConfirm)
 
-  const input = toolUseConfirm.input as { op?: string; secretRef?: string; emulation?: { headers?: unknown; credentials?: unknown } }
+  const input = toolUseConfirm.input as { op?: string; url?: string; secretRef?: string; emulation?: { headers?: unknown; credentials?: unknown } }
   const provisioning = input.op === 'provision'
   const reason =
     'decisionReason' in toolUseConfirm.permissionResult ? toolUseConfirm.permissionResult.decisionReason : undefined
@@ -45,7 +45,7 @@ export function BrowserPermissionRequest({
   const scopeLines =
     provisioning || emulationAct || input.secretRef !== undefined || ruleContent?.startsWith('secret:') === true || !askedOrigin.startsWith('http')
       ? []
-      : input.op === 'open'
+      : input.op === 'open' || (input.op === 'download' && typeof input.url === 'string' && input.url !== '')
         ? approvalScopeWords(askedOrigin)
         : reason?.type === 'safetyCheck' && reason.reason.includes('reached by navigation')
           ? crossingScopeWords(askedOrigin)

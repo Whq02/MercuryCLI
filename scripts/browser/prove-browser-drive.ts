@@ -516,7 +516,7 @@ console.log('§9e popups + frames')
   const miss = await run({ op: 'click', selector: '#inner-btn', timeoutMs: 600 })
   check('a selector living in a frame diagnoses the frames, not a bare not-found', miss.outcome === 'failed' && miss.result.includes('child frame'), miss.result)
   const dl = await run({ op: 'open', url: `${A}/download` })
-  check('a download-serving URL cannot land bytes (protocol-level deny) and the refusal names the download', dl.outcome === 'failed' && dl.result.includes('is a download') && dl.result.includes('saves as payload.bin') && dl.result.includes('downloads are not followed here'), dl.result)
+  check('an open whose address is a download saves it in the session scratchpad and names it', dl.outcome === 'succeeded' && dl.result.includes('is a download — saved to') && dl.result.includes('suggested name payload.bin') && dl.result.includes('in the session scratchpad'), dl.result)
   await run({ op: 'open', url: `${A}/` })
 }
 
