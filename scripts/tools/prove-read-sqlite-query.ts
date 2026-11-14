@@ -47,7 +47,7 @@ try {
   check('exact large integer survives', (await read(`${file}#read?sql=SELECT 9223372036854775807 AS value`)).includes('[9223372036854775807]'))
   check('blob bytes have a full representation', (await read(`${file}#read?sql=SELECT payload FROM work WHERE id=1`)).includes('ABH/'))
   const listing = await read(file)
-  check('database listing discovers exact SQL spelling', listing.includes(`${file}#read?sql=SELECT * FROM sqlite_schema`))
+  check('database listing discovers exact SQL spelling', listing.includes(`Read(file_path: ${JSON.stringify(`${file}#read?sql=SELECT * FROM sqlite_schema`)})`), listing.slice(0, 400))
   const row = await read(`${file}:work/1`)
   check('ordinary keyed Read retains row content', row.includes('a&b?%+') && row.includes('"id": 1'), row)
   const wrote = await client.call('Write', { file_path: `${file}:work/1`, content: '{"name":"changed"}' })
