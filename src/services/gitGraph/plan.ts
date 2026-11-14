@@ -604,12 +604,28 @@ export function resolveConflict(
             closeSync(into)
           }
         }
+        let repeated = 0
+        const declared = sides.length === 2 ? (git(root, ['check-attr', '-z', 'working-tree-encoding', '--', path]).split('\0')[2] ?? '') : ''
+        const width = /32/.test(declared) ? 4 : /16/.test(declared) ? 2 : 0
+        if (width) {
+          const leads = sides.map(side => {
+            const from = openSync(side.file, 'r')
+            try {
+              const lead = Buffer.alloc(width)
+              return lead.subarray(0, readSync(from, lead, 0, width, 0)).toString('hex')
+            } finally {
+              closeSync(from)
+            }
+          })
+          if (leads[0] === leads[1] && (width === 4 ? ['0000feff', 'fffe0000'] : ['feff', 'fffe']).includes(leads[0]!)) repeated = width
+        }
         const out = openSync(join(root, path), 'w')
         try {
           const piece = Buffer.allocUnsafe(1 << 20)
           for (const side of sides) {
             const from = openSync(side.file, 'r')
             try {
+              if (side.n === 3 && repeated) readSync(from, piece, 0, repeated, null)
               for (let read = readSync(from, piece, 0, piece.length, null); read > 0; read = readSync(from, piece, 0, piece.length, null)) {
                 for (let done = 0; done < read; ) done += writeSync(out, piece, done, read - done)
               }
