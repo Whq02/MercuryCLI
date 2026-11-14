@@ -360,6 +360,17 @@ section('3 · not where it would be wasted or wrong')
     check('stopping the engine from Mercury ends it first, so the engine has nothing of it to finish', await untilAsync(() => ahead(stopping).some(request => request.aborted), 1000, 5) && facts()?.cut === 1, JSON.stringify(facts()))
     stopping.fixture.stop()
   }
+  const draining = await world('after-last-user', CAPABLE)
+  if (draining !== undefined) {
+    draining.fixture.holdBackground(1500)
+    await toolTurn(draining)
+    await untilAsync(() => draining.fixture.waiting() === 1, 2000, 5)
+    draining.fixture.beginDrain()
+    const dropped = await untilAsync(() => ahead(draining).some(request => request.aborted), 1000, 5)
+    await quiet()
+    check('a stop outside this process is seen as HTTP 503 draining on the existing health look, so the piece is dropped without spending its full hold', dropped && ahead(draining).length === 1 && facts()?.completed === 0, JSON.stringify(facts()))
+    draining.fixture.stop()
+  }
   const folding = await world('after-last-user', CAPABLE)
   if (folding !== undefined) {
     folding.fixture.holdBackground(1500)

@@ -215,6 +215,7 @@ function tokensPerSecond(offer: Offer): number {
 
 async function engineLoad(offer: Offer, signal: AbortSignal): Promise<{ connections: number; waiting: number } | undefined> {
   const answer = await fetchTensorFold(`${offer.root.replace(/\/v1\/?$/, '')}/health`, { timeoutMs: NEXT_TURN_LOOK_TIMEOUT_MS, signal })
+  if (answer?.status !== 200) return undefined
   const live = (answer?.body as { live?: { connections?: unknown; waiting?: unknown } } | undefined)?.live
   return typeof live?.connections === 'number' && typeof live.waiting === 'number' ? { connections: live.connections, waiting: live.waiting } : undefined
 }
@@ -283,7 +284,13 @@ async function readAhead(offer: Offer, rows: readonly CompatWireMessage[], signa
     looking = true
     void engineLoad(offer, own.signal).then(load => {
       looking = false
-      if (load === undefined || own.signal.aborted || (load.connections <= 1 && load.waiting === 0)) return
+      if (own.signal.aborted) return
+      if (load === undefined) {
+        fault = 'the engine does not show its load'
+        own.abort()
+        return
+      }
+      if (load.connections <= 1 && load.waiting === 0) return
       crowded = true
       own.abort()
     })

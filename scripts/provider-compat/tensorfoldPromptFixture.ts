@@ -75,6 +75,7 @@ export interface TensorFoldPromptFixture {
   holdNext(ms: number): void
   waiting(): number
   forget(): void
+  beginDrain(): void
   stop(): void
 }
 
@@ -108,12 +109,14 @@ export function startTensorFoldPromptFixture(options: TensorFoldPromptFixtureOpt
   let backgroundHeld = 0
   let lettingGoUntil = 0
   let foreground: Promise<void> | undefined
+  let draining = false
   const server = Bun.serve({
     hostname: '127.0.0.1',
     port: 0,
     async fetch(request: Request) {
       const path = new URL(request.url).pathname
       const headers = { server: 'TensorFold' }
+      if (path === '/health' && draining) return Response.json({ status: 'draining', requests_in_progress: waiting + queued }, { status: 503, headers })
       if (path === '/health') return Response.json({ status: 'ok', model: options.model, model_ids: [options.model], max_batch_size: 8, memory: { active: 1024 }, ...(options.showsLoad === false ? {} : { live: { connections: waiting + queued, waiting: queued, decode_tokens_per_second: 0, prefill_tokens_per_second: 0 } }), version: '1.2.7', backend: 'metal', device: 'fixture' }, { headers })
       if (path === '/v1/models') return Response.json({ object: 'list', data: [{ id: options.model, object: 'model', owned_by: 'tensorfold', context_length: window, max_model_len: window, reasoning: { default_enabled: true }, capabilities: { thinking_switch: true, ...(options.capabilities ?? {}) } }] }, { headers })
       if (path !== '/v1/chat/completions') return new Response('{}', { status: 404 })
@@ -230,6 +233,9 @@ export function startTensorFoldPromptFixture(options: TensorFoldPromptFixtureOpt
       held = []
       requests.length = 0
       backgroundSeen = 0
+    },
+    beginDrain: () => {
+      draining = true
     },
     stop: () => {
       proxy?.stop(true)
