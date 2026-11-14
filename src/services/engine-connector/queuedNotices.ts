@@ -107,10 +107,11 @@ export function noticeRowLanded(row: Message, value: string, notBeforeMs?: numbe
     return textOfContent(att.prompt, '\n') === value
   }
   if (row.type !== 'user' || (row as { isMeta?: boolean }).isMeta === true) return false
-  const text = textOfContent((row as { message?: { content?: unknown } }).message?.content, '')
+  const content = (row as { message?: { content?: unknown } }).message?.content
+  const text = textOfContent(content, '')
   if (text === '') return false
   const id = noticeTaskId(value)
-  if (id === undefined) return text === value
+  if (id === undefined) return text === value || (Array.isArray(content) && content.some(block => (block as { type?: string; text?: string }).type === 'text' && (block as { text?: string }).text === value))
   return text.includes(`<task-id>${id}</task-id>`) && text.includes(value)
 }
 

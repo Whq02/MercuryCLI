@@ -1,7 +1,7 @@
 import * as React from 'react'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 import { PromptsPanel } from '../../components/prompts-panel/PromptsPanel.js'
-import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
+import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import { saveSwarmSwitch } from '../../utils/sessionStorage/logs.js'
 import { closeIdleSwarm, swarmMasterEnabled, swarmSessionEnabled, swarmStore } from '../../services/crewBoard/seam.js'
 
@@ -28,14 +28,13 @@ export function runSwarmCommand(raw: string): string {
 }
 
 export const call: LocalJSXCommandCall = async (onDone, context, raw) => {
-  if (!context.options.isNonInteractiveSession && hasFocusedSession()) {
+  const op = raw.trim().toLowerCase()
+  if (!context.options.isNonInteractiveSession && ['', 'on', 'off', 'status'].includes(op)) {
     const connector = getFocusedSessionConnector()
-    if (!raw.trim() && connector.swarmBoard?.()?.on) return React.createElement(PromptsPanel, { initialSection: 'crew', onClose: () => onDone(undefined, { display: 'skip' }) })
-    if (['on', 'off', 'status'].includes(raw.trim().toLowerCase())) {
-      const receipt = await connector.sendWords(`/swarm ${raw.trim().toLowerCase()}`)
-      onDone(receipt.state === 'refused' ? receipt.detail : undefined, { display: receipt.state === 'refused' ? 'system' : 'skip' })
-      return null
-    }
+    if (op === '' && connector.swarmBoard?.()?.on) return React.createElement(PromptsPanel, { initialSection: 'crew', onClose: () => onDone(undefined, { display: 'skip' }) })
+    const receipt = await connector.sendWords(`/swarm ${op}`.trimEnd())
+    onDone(receipt.state === 'refused' ? receipt.detail : undefined, { display: receipt.state === 'refused' ? 'system' : 'skip' })
+    return null
   }
   onDone(runSwarmCommand(raw))
   return null
