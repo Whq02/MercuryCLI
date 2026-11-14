@@ -1,5 +1,5 @@
 {
-  "base": "eb85be7d8a05e898e7574834891222d261ef2222",
+  "base": "cf65fc4f373402429524f1fd0a736b2035cf412f",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -2006,12 +2006,32 @@
         "type": "object",
         "properties": {
           "pattern": {
-            "type": "string",
-            "description": "One complete node written as code in the target language: a fragment that is not standalone goes inside its container, and a declaration carries every part it has (a declared return type as \": $_\" in TypeScript, \" -> $_\" in Python). $NAME matches one node and captures it; $$$NAME matches zero or more siblings and captures them; $_ and $$$ match without capturing. Names are uppercase letters, digits and underscores, a repeated name must match identical code, and spacing, line breaks and comments never matter."
+            "description": "One complete node written as code in the target language: a fragment that is not standalone goes inside its container, and a declaration carries every part it has (a declared return type as \": $_\" in TypeScript, \" -> $_\" in Python). $NAME matches one node and captures it; $$$NAME matches zero or more siblings and captures them; $_ and $$$ match without capturing. Names are uppercase letters, digits and underscores, a repeated name must match identical code, and spacing, line breaks and comments never matter.",
+            "type": "string"
           },
           "rewrite": {
-            "type": "string",
-            "description": "Replacement code in target language: $NAME and $$$NAME insert captured source ($_/$$$ cannot be inserted; every meta-variable must be captured); \"\" deletes the node (and its line when owned)."
+            "description": "Replacement code in target language: $NAME and $$$NAME insert captured source ($_/$$$ cannot be inserted; every meta-variable must be captured); \"\" deletes the node (and its line when owned).",
+            "type": "string"
+          },
+          "rules": {
+            "description": "Pattern/rewrite pairs applied in one pass over the original text, in place of pattern and rewrite.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "pattern": {
+                  "type": "string"
+                },
+                "rewrite": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "pattern",
+                "rewrite"
+              ],
+              "additionalProperties": false
+            }
           },
           "path": {
             "description": "File or directory (default working directory). Dot-entries, node_modules, dist, build, out, coverage, venv, __pycache__, vendor, target and root .gitignore entries are skipped unless named.",
@@ -2030,14 +2050,10 @@
             "type": "boolean"
           },
           "plan": {
-            "description": "The plan token (ae-…) the dry run returned; apply refuses when a file, the pattern, the rewrite or the scope differs from that dry run.",
+            "description": "The plan token (ae-…) the dry run returned; apply refuses when a file, the pattern, the rewrite, the rules or the scope differs from that dry run.",
             "type": "string"
           }
         },
-        "required": [
-          "pattern",
-          "rewrite"
-        ],
         "additionalProperties": false
       },
       "eager_input_streaming": true
