@@ -1,5 +1,5 @@
 {
-  "base": "7160db437bab5cf4ed1497359b734b6051c7218c",
+  "base": "5a3c10ec0f2d27053751be747dc9310f22715e86",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -2230,7 +2230,7 @@
             "type": "string"
           },
           "groups": {
-            "description": "plan: commit groups in dependency order (previews without committing)",
+            "description": "plan: groups; dependsOn computes order (preview only)",
             "type": "array",
             "items": {
               "type": "object",
@@ -2240,7 +2240,7 @@
                   "items": {
                     "type": "string"
                   },
-                  "description": "Repo-relative paths (at most one group per file)"
+                  "description": "Repo-relative files"
                 },
                 "hunks": {
                   "description": "Per-file hunk-id subsets (gh-… from diff)",
@@ -2260,10 +2260,19 @@
                   "description": "Commit message"
                 },
                 "checks": {
-                  "description": "Associated checks recorded on plan",
+                  "description": "Checks recorded, not run",
                   "type": "array",
                   "items": {
                     "type": "string"
+                  }
+                },
+                "dependsOn": {
+                  "description": "Prerequisites: 0-based groups",
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
                   }
                 }
               },
@@ -2275,7 +2284,7 @@
             }
           },
           "planId": {
-            "description": "gp-… id: apply commits after checking tree digest (earlier groups stay committed if a later group fails); verify checks applicability",
+            "description": "apply/verify: gp-…; checks tree digest; earlier commits stand on later failure",
             "type": "string"
           },
           "files": {
