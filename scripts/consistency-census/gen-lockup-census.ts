@@ -101,14 +101,6 @@ const ROLE_BY_FILE: Record<string, { role: string; why: string }> = {
     role: 'product-identity-header',
     why: 'pane shell riding the CommandCenter grammar',
   },
-  'src/components/tasks/RunDetailPane.tsx': {
-    role: 'session-identity',
-    why: 'run inspector — the run/session identity mark',
-  },
-  'src/components/tasks/AgentInspectorPane.tsx': {
-    role: 'session-identity',
-    why: 'agent inspector — the agent session mark',
-  },
   'src/cli/handlers/util.tsx': {
     role: 'compact-status-inline',
     why: 'CLI handler text output — flat by design',
