@@ -11,6 +11,7 @@ import {
   findExactSpanNode,
   metavarOutsideNodes,
   patternCandidates,
+  splitDeclaration,
   type CompiledPattern,
 } from './pattern.js'
 import { normalizeFileGlobs, posixRelative } from './scanPaths.js'
@@ -194,6 +195,7 @@ export async function compileFor(
   let recovery: { pattern: CompiledPattern; hold: { delete(): void } } | null = null
   let firstError: string | null = null
   let textOnly: string | null = null
+  let split: string | null = null
 
   for (const candidate of patternCandidates(lang.name, encoded)) {
     const parsed = await parsePolyglot(engine, lang, candidate.text)
@@ -206,6 +208,12 @@ export async function compileFor(
     const node = findExactSpanNode(parsed.tree.rootNode, candidate.offset, candidate.offset + candidate.length, candidate.text)
     if (!node) {
       firstError ??= parsed.parseErrors[0] ?? 'no single node spans the pattern'
+      parsed.tree.delete()
+      continue
+    }
+    const halves = splitDeclaration(lang.name, node)
+    if (halves !== null) {
+      split ??= halves
       parsed.tree.delete()
       continue
     }
@@ -237,8 +245,8 @@ export async function compileFor(
   }
   const refusal: PatternRefusal = {
     state: 'refused' as const,
-    note: `the pattern does not parse as ${lang.name} (${firstError ?? textOnly ?? 'no parse'})`,
-    ...(firstError === null && textOnly !== null && { textOnly: true }),
+    note: `the pattern does not parse as ${lang.name} (${split ?? firstError ?? textOnly ?? 'no parse'})`,
+    ...(split === null && firstError === null && textOnly !== null && { textOnly: true }),
   }
   cache.set(lang.name, refusal)
   return refusal
