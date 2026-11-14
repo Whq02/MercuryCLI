@@ -58,7 +58,9 @@ type DriveOptions = {
 
 const DRIVER = `
 import { writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
+if (homedir() !== process.env.DRV_HOME) throw new Error('the home folder is ' + homedir() + ', not the scratch home of this proof')
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
 const repo = ${JSON.stringify(repo)}
 const { enableConfigs } = await import(join(repo, 'src/utils/config/globalConfig.ts'))
@@ -185,6 +187,7 @@ export function openWorld(name: string): World {
           ...env,
           HOME: home,
           USERPROFILE: home,
+          DRV_HOME: home,
           MERCURY_CONFIG_DIR: configHome,
           MERCURY_CREDENTIAL_STORE: 'file',
           MERCURY_LOCAL_PROBE_TARGETS: 'none',

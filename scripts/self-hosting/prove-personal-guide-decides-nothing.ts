@@ -10,7 +10,9 @@ const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'personal-guide-')))
 const driver = join(scratch, 'driver.ts')
 writeFileSync(driver, `
 import { writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
+if (homedir() !== process.env.DRV_HOME) throw new Error('the home folder is ' + homedir() + ', not the scratch home of this proof')
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
 const { enableConfigs } = await import(${JSON.stringify(join(repo, 'src/utils/config/globalConfig.ts'))})
 enableConfigs()
@@ -83,6 +85,7 @@ function drive(home: string, cwd: string, options: { configHome?: string; touch?
       ...env,
       HOME: spelled,
       USERPROFILE: spelled,
+      DRV_HOME: spelled,
       ...(options.configHome ? { MERCURY_CONFIG_DIR: options.configHome } : {}),
       MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_LOCAL_PROBE_TARGETS: 'none',

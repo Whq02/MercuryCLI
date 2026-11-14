@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -33,6 +33,8 @@ function world(name: string, files: Record<string, string>, options: { untrusted
 
 type Ran = { code: number | null; stderr: string; asks: string[] }
 async function run(w: World, turns: ScriptedTurn[]): Promise<Ran> {
+  const seen = spawnSync(node, ['-e', "process.stdout.write(require('node:os').homedir())"], { env: w.env, encoding: 'utf8' }).stdout
+  if (seen !== w.home) throw new Error(`the home folder of the run is ${seen}, not the scratch home of this proof`)
   const api = await startFixtureApi([...turns, handoffTurn(), handoffTurn()])
   try {
     const child = spawn(node, [dist, 'run', 'go on', '--model', 'claude-opus-4-8'], { cwd: w.cwd, env: { ...w.env, ANTHROPIC_BASE_URL: api.url }, stdio: ['ignore', 'pipe', 'pipe'] })

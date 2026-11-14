@@ -10,7 +10,9 @@ const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'other-tools-hidden-')))
 const driver = join(scratch, 'driver.ts')
 writeFileSync(driver, `
 import { writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
+if (homedir() !== process.env.DRV_HOME) throw new Error('the home folder is ' + homedir() + ', not the scratch home of this proof')
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
 const repo = ${JSON.stringify(repo)}
 const { enableConfigs } = await import(join(repo, 'src/utils/config/globalConfig.ts'))
@@ -61,7 +63,7 @@ try {
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(MERCURY_|CLAUDE_|ANTHROPIC_)/.test(key)))
   const run = spawnSync(process.execPath, ['run', driver, result], {
     cwd: project,
-    env: { ...env, HOME: join(scratch, 'home'), USERPROFILE: join(scratch, 'home'), MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', ANTHROPIC_BASE_URL: 'http://127.0.0.1:1', COPILOT_CUSTOM_INSTRUCTIONS_DIRS: named },
+    env: { ...env, HOME: join(scratch, 'home'), USERPROFILE: join(scratch, 'home'), DRV_HOME: join(scratch, 'home'), MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', ANTHROPIC_BASE_URL: 'http://127.0.0.1:1', COPILOT_CUSTOM_INSTRUCTIONS_DIRS: named },
     stdio: ['ignore', 'ignore', 'pipe'],
     encoding: 'utf8',
     timeout: 120_000,
