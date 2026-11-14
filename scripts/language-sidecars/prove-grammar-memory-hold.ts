@@ -19,27 +19,37 @@ const section = (title: string): void => console.log(`\n── ${title} ──`)
 
 const OPTIMISER_COST_HELD_AT_MB = 400
 const MEASURED_OPTIMISER_COST_MB: Record<string, number> = {
+  fortran: 2948,
   swift: 2928,
   powershell: 2094,
   bash: 541,
   kotlin: 473,
+  objc: 463,
+  verilog: 459,
+  tlaplus: 425,
   markdown: 421,
   cpp: 291,
   scala: 235,
+  julia: 223,
   elixir: 187,
   c: 167,
   'c-sharp': 155,
   sql: 135,
   ocaml: 129,
   css: 120,
+  'emacs-lisp': 91,
+  erlang: 88,
   ruby: 87,
   protobuf: 85,
+  diff: 64,
   dockerfile: 50,
+  solidity: 31,
   php: 30,
   graphql: 24,
   make: 23,
   javascript: 19,
   tsx: 18,
+  clojure: 14,
   typescript: 11,
   dart: 11,
   rust: 10,
@@ -48,7 +58,9 @@ const MEASURED_OPTIMISER_COST_MB: Record<string, number> = {
   xml: 7,
   toml: 6,
   haskell: 6,
+  odin: 6,
   zig: 5,
+  starlark: 5,
   nix: 4,
   hcl: 3,
   svelte: 3,
@@ -56,6 +68,8 @@ const MEASURED_OPTIMISER_COST_MB: Record<string, number> = {
   regex: 1,
   yaml: 1,
   lua: 1,
+  r: 1,
+  just: 1,
   html: 0,
   vue: 0,
   python: 0,
@@ -286,7 +300,7 @@ console.log = log
 console.log(JSON.stringify(out))
 `,
   )
-  const run = spawnSync(NODE, ['--allow-natives-syntax', join(scratch, 'readback.mjs'), engineDir, JSON.stringify(heldGrammars)], { encoding: 'utf8', timeout: 180_000, env: process.env })
+  const run = spawnSync(NODE, ['--allow-natives-syntax', join(scratch, 'readback.mjs'), engineDir, JSON.stringify(heldGrammars.slice(0, 1))], { encoding: 'utf8', timeout: 180_000, env: process.env })
   let out: Record<string, any> = {}
   try {
     out = JSON.parse((run.stdout ?? '').trim().split('\n').at(-1) ?? '{}')
@@ -310,12 +324,48 @@ console.log(JSON.stringify(out))
   check('never held when the user started node with tiering flags of his own', h.userLiftoff === false && h.userTierUp === false && h.userDynamic === false, JSON.stringify(h))
   check('other node flags do not turn the hold off', h.otherFlags === true)
   check('the one switch releases every grammar', h.released === false)
-  check(`the held grammars this checkout carries were read (${heldGrammars.map(g => g.name).join(', ')})`, heldGrammars.length >= 2 && heldGrammars.every(g => out.trees?.[g.name] !== undefined), JSON.stringify(Object.keys(out.trees ?? {})))
+  const firstHeld = heldGrammars[0]
+  check(`after a grammar was parsed held and free in that child (${firstHeld?.name}) the optimising tier is on`, firstHeld !== undefined && out.trees?.[firstHeld.name]?.heldEqualsFree === true && out.afterGrammars === true, JSON.stringify(out.trees))
+  writeFileSync(
+    join(scratch, 'trees.mjs'),
+    `import { createRequire } from 'node:module'
+import { join } from 'node:path'
+import { withOptimisingTierHeld } from './tiering.mjs'
+const [dir, wasm, sample] = process.argv.slice(2)
+const raw = createRequire(join(dir, 'tree-sitter.js'))(join(dir, 'tree-sitter.js'))
+const mod = raw && raw.Parser ? raw : raw.default
+const log = console.log
+console.log = console.warn = console.error = () => {}
+await mod.Parser.init({ locateFile: f => join(dir, f) })
+const parser = new mod.Parser()
+parser.setLanguage(await mod.Language.load(wasm))
+const read = () => {
+  const tree = parser.parse(sample)
+  const text = (tree.rootNode.hasError ? 'ERROR ' : '') + tree.rootNode.toString()
+  tree.delete()
+  return text
+}
+const held = withOptimisingTierHeld(read)
+for (let i = 0; i < 40; i++) withOptimisingTierHeld(read)
+const free = read()
+let last = free
+for (let i = 0; i < 300; i++) last = read()
+console.log = log
+console.log(JSON.stringify({ clean: !held.startsWith('ERROR'), heldEqualsFree: held === free, freeStable: free === last, nodes: held.split('(').length - 1 }))
+process.exit(0)
+`,
+  )
+  check(`the held grammars this checkout carries: ${heldGrammars.map(g => g.name).join(', ')}`, heldGrammars.length >= 2, String(heldGrammars.length))
   for (const g of heldGrammars) {
-    const t = out.trees?.[g.name]
-    check(`${g.name}: the tree parsed held is the tree parsed free, node for node, and clean`, t?.clean === true && t?.heldEqualsFree === true && t?.freeStable === true && t?.nodes > 10, JSON.stringify(t))
+    const child = spawnSync(NODE, [join(scratch, 'trees.mjs'), engineDir, g.wasm, g.sample], { encoding: 'utf8', timeout: 180_000, env: process.env })
+    let t: { clean?: boolean; heldEqualsFree?: boolean; freeStable?: boolean; nodes?: number } = {}
+    try {
+      t = JSON.parse((child.stdout ?? '').trim().split('\n').at(-1) ?? '{}')
+    } catch {
+      t = {}
+    }
+    check(`${g.name}: the tree parsed held is the tree parsed free, node for node, and clean`, t.clean === true && t.heldEqualsFree === true && t.freeStable === true && (t.nodes ?? 0) > 10, `${child.status} ${JSON.stringify(t)} ${(child.stderr ?? '').slice(-200)}`)
   }
-  check('after the grammars were parsed held and free the optimising tier is on', out.afterGrammars === true)
   for (const g of heldGrammars) {
     const reading = sustained(g, 'held')
     check(
@@ -518,6 +568,42 @@ ${tsSteps}
 `)
   }
   const EXPECTED = FILES * STEPS * 3
+  const fortranCarried = carried.some(g => g.name === 'fortran')
+  if (fortranCarried) {
+    mkdirSync(join(project, 'fortran'), { recursive: true })
+    for (let i = 0; i < FILES; i++) {
+      const steps = Array.from({ length: STEPS }, (_, k) => `
+  subroutine step${k}(values, seed, total)
+    real, intent(in) :: values(:)
+    real, intent(in) :: seed
+    real, intent(out) :: total
+    integer :: j
+    total = seed
+    do j = 1, size(values)
+      if (values(j) > 0.0) then
+        total = total + values(j) * ${k + 1}.0
+      end if
+    end do
+    if (total > 100.0) then
+      print *, "large", total
+    else if (total < 0.0) then
+      print *, "negative"
+    end if
+    call log_value(total)
+  end subroutine step${k}
+`).join('')
+      writeFileSync(join(project, 'fortran', `tides${i}.f90`), `module tides${i}
+  implicit none
+contains
+${steps}
+  subroutine log_value(x)
+    real, intent(in) :: x
+    print *, x
+  end subroutine log_value
+end module tides${i}
+`)
+    }
+  }
 
   const a = await serve(project)
   const tsBefore = [await a.search('console.log($X)', 'ts'), await a.search('console.log($X)', 'ts'), await a.search('console.log($X)', 'ts')]
@@ -533,6 +619,19 @@ ${tsSteps}
     before > 0 && after > 0 && after - before < 500,
     `${before} MB before, ${after} MB after`,
   )
+  if (fortranCarried) {
+    const beforeFortran = residentMb(a.pid)
+    const fortranRuns = []
+    for (let i = 0; i < 6; i++) fortranRuns.push(await a.search('call log_value($X)', 'fortran'))
+    check(`Fortran, the costliest grammar of all: ${FILES * STEPS} matches in ${FILES} files, six times`, fortranRuns.every(r => r.matches === FILES * STEPS), fortranRuns.map(r => r.matches).join(','))
+    await sleep(2500)
+    const afterFortran = residentMb(a.pid)
+    check(
+      `and the process's resident memory stays within 500 MB of where it stood before the Fortran searches (${beforeFortran} MB to ${afterFortran} MB)`,
+      beforeFortran > 0 && afterFortran > 0 && afterFortran - beforeFortran < 500,
+      `${beforeFortran} MB before, ${afterFortran} MB after`,
+    )
+  }
   const tsAfter = [await a.search('console.log($X)', 'ts'), await a.search('console.log($X)', 'ts'), await a.search('console.log($X)', 'ts')]
   const fastestBefore = Math.min(...tsBefore.map(r => r.ms))
   const fastestAfter = Math.min(...tsAfter.map(r => r.ms))

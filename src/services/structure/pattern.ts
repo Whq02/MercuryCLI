@@ -85,13 +85,21 @@ const PATTERN_CONTEXTS: Record<string, string[]> = {
   haskell: ['mercuryCtx = <P>'],
   ocaml: ['let mercury_ctx = <P>'],
   nix: ['{\n<P>\n}'],
+  erlang: ['mercury_ctx() ->\n<P>.'],
+  objc: ['void mercury_ctx() {\n<P>\n}', '@implementation MercuryCtx\n<P>\n@end', '@interface MercuryCtx\n<P>\n@end'],
+  fortran: ['program mercury_ctx\n<P>\nend program mercury_ctx'],
+  solidity: ['contract MercuryCtx { function mercuryCtx() public {\n<P>\n} }', 'contract MercuryCtx {\n<P>\n}'],
+  verilog: ['module mercury_ctx;\n<P>\nendmodule', 'module mercury_ctx;\ninitial begin\n<P>\nend\nendmodule'],
+  just: ['mercury_ctx:\n    <P>\n'],
+  odin: ['package mercury_ctx\nmercury_ctx :: proc() {\n<P>\n}', 'package mercury_ctx\n<P>'],
+  tlaplus: ['---- MODULE MercuryCtx ----\n<P>\n====', '---- MODULE MercuryCtx ----\nmercury_ctx == <P>\n===='],
 }
 
-const RAW_CANDIDATE_LAST = new Set(['php', 'c', 'dart'])
+const RAW_CANDIDATE_LAST = new Set(['php', 'c', 'dart', 'objc'])
 
 const STATEMENT_SPANNED = new Set(['dart'])
 
-const STATEMENT_TERMINATED = new Set(['c', 'cpp', 'c-sharp', 'java', 'php', 'rust', 'javascript', 'typescript', 'tsx', 'go', 'css', 'protobuf', 'dart', 'zig'])
+const STATEMENT_TERMINATED = new Set(['c', 'cpp', 'c-sharp', 'java', 'php', 'rust', 'javascript', 'typescript', 'tsx', 'go', 'css', 'protobuf', 'dart', 'zig', 'objc', 'solidity', 'verilog'])
 
 function quotePlaceholders(encoded: string): string {
   return encoded.replace(/__MVM?_[A-Za-z0-9_]*?__/g, m => `"${m}"`)

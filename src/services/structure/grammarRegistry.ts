@@ -78,6 +78,20 @@ export const GRAMMAR_REGISTRY: GrammarRegistryEntry[] = [
   patternGrammar('svelte', ['.svelte']),
   patternGrammar('astro', ['.astro']),
   patternGrammar('nix', ['.nix']),
+  patternGrammar('r', ['.r']),
+  patternGrammar('julia', ['.jl']),
+  patternGrammar('starlark', ['.star', '.bzl']),
+  patternGrammar('clojure', ['.clj', '.cljs', '.cljc', '.edn']),
+  patternGrammar('erlang', ['.erl', '.hrl']),
+  patternGrammar('objc', ['.m'], { baseline: true }),
+  patternGrammar('fortran', ['.f90', '.f95', '.f03', '.f08'], { baseline: true }),
+  patternGrammar('solidity', ['.sol']),
+  patternGrammar('verilog', ['.v', '.sv', '.svh', '.vh'], { wasm: 'tree-sitter-systemverilog.wasm', declares: 'systemverilog', baseline: true }),
+  patternGrammar('emacs-lisp', ['.el'], { wasm: 'tree-sitter-elisp.wasm', basenames: ['.emacs'] }),
+  patternGrammar('just', [], { basenames: ['Justfile'] }),
+  patternGrammar('odin', ['.odin']),
+  patternGrammar('tlaplus', ['.tla'], { baseline: true }),
+  patternGrammar('diff', ['.diff', '.patch'], { finalNewline: true }),
 ]
 
 export const GRAMMAR_ENGINE_RUNTIME_FILES = ['tree-sitter.js', 'tree-sitter.wasm'] as const

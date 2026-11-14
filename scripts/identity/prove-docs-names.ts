@@ -131,6 +131,10 @@ const ENV_NOT_NAMES = new Map<string, string>([
 
 const EXTERNAL_ENV_NAMES = new Map<string, string>([
   ['docs/INSTALL.md:MERCURYCLI_PIN', 'the npm launcher package-release selector, owned by its bin/mercury.js'],
+  ['docs/STRUCTURAL-PATTERNS.md:NS_ENUM', 'an Objective-C macro the page names as one the grammar does not read'],
+  ['docs/STRUCTURAL-PATTERNS.md:NS_OPTIONS', 'an Objective-C macro the page names as one the grammar does not read'],
+  ['docs/STRUCTURAL-PATTERNS.md:NS_ASSUME_NONNULL_BEGIN', 'an Objective-C macro the page names as one the grammar does not read'],
+  ['docs/STRUCTURAL-PATTERNS.md:NS_ASSUME_NONNULL_END', 'an Objective-C macro the page names as one the grammar does not read'],
 ])
 
 const SETTINGS_LOOKALIKES = new Map<string, string>([

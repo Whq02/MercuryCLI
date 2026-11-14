@@ -239,12 +239,152 @@ const ADMITTED: Record<string, Admission> = {
     ],
     rewrite: { pattern: 'version = $V;', rewrite: 'version = "2.0.0";', expect: ['version = "2.0.0";'], gone: ['version = "1.4.2";'] },
   },
+  r: {
+    routes: ['sample.r', 'SAMPLE.R'],
+    aliases: [],
+    searches: [
+      { pattern: 'nrow($X)', count: 2 },
+      { pattern: 'library($P)', count: 2 },
+      { pattern: 'mean($X, na.rm = TRUE)', count: 1 },
+    ],
+    rewrite: { pattern: 'nrow($X)', rewrite: 'NROW($X)', expect: ['NROW(harbour$tides) == 0', 'NROW(x$tides)'], gone: ['nrow('] },
+  },
+  julia: {
+    routes: ['sample.jl', 'SAMPLE.JL'],
+    aliases: ['jl'],
+    searches: [
+      { pattern: 'push!($A, $B)', count: 2 },
+      { pattern: 'length($X)', count: 6 },
+    ],
+    rewrite: { pattern: 'push!($A, $B)', rewrite: 'append!($A, [$B])', expect: ['append!(h.tides, [tide])', 'append!(out, [i^2])'], gone: ['push!'] },
+  },
+  starlark: {
+    routes: ['sample.star', 'sample.bzl', 'SAMPLE.STAR'],
+    aliases: ['star', 'bzl', 'bazel', 'skylark'],
+    searches: [
+      { pattern: 'cc_library($$$ARGS)', count: 1 },
+      { pattern: 'fail($MSG)', count: 1 },
+      { pattern: 'attr.string($$$ARGS)', count: 1, first: { '$$$ARGS': 'mandatory = True' } },
+    ],
+    rewrite: { pattern: 'attr.int($$$ARGS)', rewrite: 'attr.int(doc = "days", $$$ARGS)', expect: ['"days": attr.int(doc = "days", default = 3),'], gone: ['attr.int(default = 3)'] },
+  },
+  clojure: {
+    routes: ['sample.clj', 'sample.cljs', 'sample.cljc', 'sample.edn', 'SAMPLE.CLJ'],
+    aliases: ['clj', 'cljc', 'cljs', 'clojurescript', 'edn'],
+    searches: [
+      { pattern: '(count $X)', count: 3 },
+      { pattern: '(->Tide $$$ARGS)', count: 3 },
+    ],
+    rewrite: { pattern: '(count $X)', rewrite: '(bounded-count 100 $X)', expect: ['(bounded-count 100 tides)', '(not= 3 (bounded-count 100 parts))'], gone: ['(count '] },
+  },
+  erlang: {
+    routes: ['sample.erl', 'sample.hrl', 'SAMPLE.ERL'],
+    aliases: ['erl', 'hrl'],
+    searches: [
+      { pattern: '{error, $R}', count: 4 },
+      { pattern: 'lists:seq($A, $B)', count: 1, first: { '$B': 'N' } },
+      { pattern: 'length($X)', count: 1 },
+    ],
+    rewrite: { pattern: 'lists:seq($A, $B)', rewrite: 'lists:seq($A, $B, 1)', expect: ['lists:seq(1, N, 1)'], gone: ['lists:seq(1, N)'] },
+  },
+  objc: {
+    routes: ['sample.m', 'SAMPLE.M'],
+    aliases: ['obj-c', 'objective-c', 'm', 'mm'],
+    refuses: ['- (void)$N { $$$BODY }'],
+    searches: [
+      { pattern: '[harbour addTide:$T]', count: 1, first: { '$T': 'tide' } },
+      { pattern: 'NSLog($$$ARGS)', count: 2 },
+      { pattern: 'return nil;', count: 1 },
+    ],
+    rewrite: { pattern: '[self.tides addObject:$X]', rewrite: '[self.tides insertObject:$X atIndex:0]', expect: ['[self.tides insertObject:tide atIndex:0];'], gone: ['addObject:'] },
+  },
+  fortran: {
+    routes: ['sample.f90', 'sample.f95', 'sample.f03', 'sample.f08', 'SAMPLE.F90'],
+    aliases: ['f90', 'f95', 'f03', 'f08'],
+    refuses: ['do $I = $A, $B\n$$$BODY\nend do'],
+    searches: [
+      { pattern: 'call add_tide($$$ARGS)', count: 1 },
+      { pattern: 'trim($X)', count: 1, first: { '$X': 'name' } },
+    ],
+    rewrite: { pattern: 'harbour%count = 0', rewrite: 'harbour%count = 1', expect: ['harbour%count = 1'], gone: ['harbour%count = 0'] },
+  },
+  solidity: {
+    routes: ['sample.sol', 'SAMPLE.SOL'],
+    aliases: ['sol'],
+    refuses: ['function $N($$$P) external { $$$BODY }', 'contract $N { $$$BODY }'],
+    searches: [
+      { pattern: 'emit HarbourAdded($$$ARGS);', count: 1 },
+      { pattern: 'keccak256($X)', count: 1 },
+      { pattern: 'harbourIds.push($X)', count: 1, first: { '$X': 'id' } },
+    ],
+    rewrite: { pattern: 'harbourIds.push($X)', rewrite: 'harbourIds.push(bytes32($X))', expect: ['harbourIds.push(bytes32(id));'], gone: ['harbourIds.push(id)'] },
+  },
+  verilog: {
+    routes: ['sample.v', 'sample.sv', 'sample.svh', 'sample.vh', 'SAMPLE.V'],
+    aliases: ['systemverilog', 'sv', 'svh', 'vh', 'v'],
+    refuses: ['module $N($$$PORTS); $$$BODY endmodule'],
+    searches: [
+      { pattern: 'state <= $V;', count: 2 },
+      { pattern: '$display($$$ARGS);', count: 2 },
+      { pattern: 'assign full = $E;', count: 1 },
+    ],
+    rewrite: { pattern: 'assign full = $E;', rewrite: 'assign full = !($E);', expect: ['assign full = !((count == DEPTH));'], gone: ['assign full = (count == DEPTH);'] },
+  },
+  'emacs-lisp': {
+    routes: ['sample.el', 'SAMPLE.EL', '.emacs'],
+    aliases: ['emacslisp', 'elisp', 'el'],
+    searches: [
+      { pattern: '(length $X)', count: 4 },
+      { pattern: '(require $F)', count: 2 },
+      { pattern: '(message $$$ARGS)', count: 2 },
+    ],
+    rewrite: { pattern: '(nth $N parts)', rewrite: '(elt parts $N)', expect: ['(at (elt parts 0))', '(string-to-number (elt parts 1))'], gone: ['(nth '] },
+  },
+  just: {
+    routes: ['Justfile'],
+    aliases: ['justfile'],
+    searches: [
+      { pattern: 'alias b := build', count: 1 },
+      { pattern: 'version := $V', count: 1 },
+    ],
+    rewrite: { pattern: 'alias t := test', rewrite: 'alias tt := test', expect: ['alias tt := test'], gone: ['alias t := test'] },
+  },
+  odin: {
+    routes: ['sample.odin', 'SAMPLE.ODIN'],
+    aliases: [],
+    searches: [
+      { pattern: 'len($X)', count: 4 },
+      { pattern: 'defer delete($X)', count: 2 },
+    ],
+    rewrite: { pattern: 'defer delete($X)', rewrite: 'defer free_all($X)', expect: ['defer free_all(values)', 'defer free_all(table)'], gone: ['defer delete('] },
+  },
+  tlaplus: {
+    routes: ['sample.tla', 'SAMPLE.TLA'],
+    aliases: ['tla', 'tla+', 'pluscal', 'pcal'],
+    searches: [
+      { pattern: 'Len($X)', count: 7 },
+      { pattern: 'Tail($X)', count: 2 },
+      { pattern: 'UNCHANGED $V', count: 2 },
+    ],
+    rewrite: { pattern: 'Tail($X)', rewrite: 'SubSeq($X, 2, Len($X))', expect: ["buffer' = SubSeq(buffer, 2, Len(buffer))"], gone: ['Tail(buffer)'] },
+  },
+  diff: {
+    routes: ['sample.diff', 'sample.patch', 'SAMPLE.DIFF'],
+    aliases: ['patch'],
+    refuses: ['+$X'],
+    searches: [
+      { pattern: '-int old(void);', count: 1 },
+      { pattern: '+++ b/docs/manual.md', count: 1 },
+      { pattern: 'new file mode 100644', count: 2 },
+    ],
+    rewrite: { pattern: '-int older(void);', rewrite: '-int oldest(void);', expect: ['-int oldest(void);'], gone: ['-int older(void);'] },
+  },
 }
 
-const THIRD_PARTY_BUILDS = ['sql', 'cmake', 'graphql', 'protobuf', 'dart', 'astro', 'nix']
-const NO_COPYRIGHT_LINE = ['hcl', 'elixir']
-const HELD = ['markdown']
-const NEEDS_FINAL_NEWLINE = ['markdown', 'make']
+const THIRD_PARTY_BUILDS = ['sql', 'cmake', 'graphql', 'protobuf', 'dart', 'astro', 'nix', 'clojure', 'erlang', 'fortran', 'just']
+const NO_COPYRIGHT_LINE = ['hcl', 'elixir', 'clojure', 'erlang', 'fortran', 'just']
+const HELD = ['markdown', 'objc', 'fortran', 'verilog', 'tlaplus']
+const NEEDS_FINAL_NEWLINE = ['markdown', 'make', 'diff']
 
 const CORPUS = JSON.parse(readFileSync(join(import.meta.dir, 'fixtures', 'grammar-corpus.json'), 'utf8')) as Record<string, Record<string, string[]>>
 const corpusText = (lang: string, file: string): string => `${CORPUS[lang]![file]!.join('\n')}\n`
@@ -397,6 +537,8 @@ section('§4 — a file is routed by its name; the edit note and the outline kee
     }
   }
   check(`every extension, basename and alias of the ${admitted.length} routes to its language for a pattern and to none for the edit note`, wrong.length === 0, wrong.join('; '))
+  const unnamed = admitted.flatMap(n => (rowOf(n)?.extensions ?? []).filter((e: string) => resolveAstLanguage(e.slice(1))?.name !== n).map((e: string) => `${e}→${n}`))
+  check('every extension of an admitted language, without its dot, is a name lang takes', unnamed.length === 0, unnamed.join(','))
   const kept = FIRST_TWENTY_THREE.flatMap(n => (rowOf(n)?.extensions ?? []).map((e: string) => [n, e] as const)).filter(([n, e]) => languageForFile(`x${e}`)?.name !== n || patternLanguageForFile(`x${e}`)?.name !== n)
   check('every extension of the twenty-three routes as before, for both', kept.length === 0, kept.map(([n, e]) => `${e}→${n}`).join(','))
   check('.h stays C, .json stays JSON, .toml stays TOML', patternLanguageForFile('a.h')?.name === 'c' && patternLanguageForFile('a.json')?.name === 'json' && patternLanguageForFile('a.toml')?.name === 'toml')

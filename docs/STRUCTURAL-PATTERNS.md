@@ -41,7 +41,7 @@ range, node type, source text and captures.
 Detection is per file, by its name: a basename first (`Dockerfile`), then
 the extension, then a basename prefix (`Dockerfile.dev`). `lang` forces one
 grammar on a single file whatever its name; over a directory it keeps the
-files whose names route to that grammar. The registry routes 43 languages;
+files whose names route to that grammar. The registry routes 57 languages;
 what a build carries is what the tools advertise: the `lang` field counts the
 grammars found in the engine dir the runtime resolves
 (`dist/vendor/treesitter` beside the bundle, or the workspace package for
@@ -56,17 +56,18 @@ does not carry lists them:
   `vendor/grammars.lock.json` by its own sha256 with the source it comes
   from, the upstream commit and the licence. Of the first 23: c · html ·
   json · toml · kotlin · vue from the `tree-sitter-wasms` pack and swift
-  from its own release. The languages added since: yaml · markdown ·
-  dockerfile · lua · make · xml · hcl · scala · elixir · zig · haskell ·
-  ocaml · svelte from the grammar's own release or npm package, and sql ·
-  cmake · graphql · protobuf · dart · astro · nix from a third party's
-  builds, named as such in the lock, because those grammars publish no
-  build of their own (dart's own misreads a type alias). There is no
-  postinstall: you prepare the cache with
-  `bun run scripts/vendor/fetch-grammars.ts` (the one network step;
-  `--check` validates the cache offline) and rebuild. Release archives
-  carry all 43. A local build without the cache says so at build time
-  (`vendored WITHOUT them`), the manifest records
+  from its own release. The 34 added since: yaml · markdown · dockerfile ·
+  lua · make · xml · hcl · scala · elixir · zig · haskell · ocaml · svelte ·
+  r · julia · starlark · objc · solidity · verilog · odin · tlaplus · diff
+  from the grammar's own release or npm package; sql · cmake · graphql ·
+  protobuf · dart · astro · nix · clojure · erlang · fortran · just from a
+  third party's builds, named as such in the lock, because those grammars
+  publish no build of their own (dart's own misreads a type alias); and
+  emacs-lisp from the `tree-sitter-wasms` pack. There is no postinstall:
+  you prepare the cache with `bun run scripts/vendor/fetch-grammars.ts`
+  (the one network step; `--check` validates the cache offline) and
+  rebuild. Release archives carry all 57. A local build without the cache
+  says so at build time (`vendored WITHOUT them`), the manifest records
   `degraded: structure-polyglot-extended` and `mercury health` names it; the
   artifact's own `dist/vendor/treesitter/vendor.json` lists the grammars it
   carries.
@@ -122,6 +123,22 @@ whole.
 In Nix a binding (`version = $V;`), an `inherit` and a call (`mkShell $A`)
 are patterns; an attribute set written with a `$$$` list is refused.
 
+Objective-C is read from `.m` files; a header stays C unless `lang` names
+`objc` for that one file. Its grammar does not read Foundation's enum
+macros or the nullability wrapper: a file that holds a
+`typedef NS_ENUM(…) { … };`, an `NS_OPTIONS`, or is wrapped in
+`NS_ASSUME_NONNULL_BEGIN` and `NS_ASSUME_NONNULL_END` is reported as not
+parsing and is never matched over. Verilog files (`.v`, `.sv`, `.svh`,
+`.vh`) are read by a SystemVerilog grammar. A body written `{ $$$BODY }`,
+or a block with a `$$$` body, is refused in Objective-C, Solidity, Fortran
+and Verilog too; name a statement (`[$OBJ addObject:$X]`, `emit Ran($X);`,
+`call greet($X)`, `$A <= $B;`). A diff is read line by line: a changed line
+is one node, so `-int old(void);` finds that line and `+$X` is refused. The
+recipe lines of a justfile, like a Makefile's, are text; its aliases,
+settings, variables and recipe headers are nodes. Emacs Lisp and Clojure
+forms, and calls and definitions in R, Julia, Starlark, Erlang, Odin and
+TLA+, are written as they stand.
+
 In a build that lacks a grammar the registry routes: a file of that
 language is skipped and counted by extension with the remedy named in the
 result trailer; a single such file, or a `lang` pin on it, refuses by name
@@ -130,8 +147,11 @@ skipped and counted, never text-matched; a file that does not parse is
 reported per file, never matched over. The engine is pure WASM (no native
 dependency, one vendored asset set for every platform artifact); when no
 engine resolves at all, neither tool is in the catalog. Friendly spellings
-resolve (`ts`, `js`, `py`, `rs`, `cs`, `c++`, `sh`, `rb`, `kt`, `ps1`, `yml`,
-`md`, `docker`, `makefile`, `svg`, `tf`, `gql`, `proto`, `ex`, `hs`, `ml`).
+resolve (`ts`, `js`, `py`, `rs`, `cs`, `c++`, `sh`, `rb`, `kt`, `ps1`); for
+an added language every extension without its dot is a name too (`yml`,
+`md`, `tf`, `proto`, `ex`, `hs`, `ml`, `jl`, `sol`, `sv`), beside the usual
+ones (`docker`, `makefile`, `terraform`, `gql`, `objective-c`, `elisp`,
+`systemverilog`, `tla+`, `patch`).
 
 ## AstSearch
 
@@ -206,10 +226,14 @@ costs 291 MB.
 
 | Grammar | Resident memory under sustained parsing, free | Held | Parse speed held |
 | --- | --- | --- | --- |
+| fortran | 3,052 MB | 104 MB | 97% |
 | swift | 3,022 MB | 94 MB | 73% |
 | powershell | 2,181 MB | 87 MB | 83% |
 | bash | 625 MB | 84 MB | 80% |
+| verilog | 608 MB | 149 MB | 88% |
 | kotlin | 566 MB | 93 MB | 86% |
+| objc | 558 MB | 95 MB | 80% |
+| tlaplus | 521 MB | 96 MB | 93% |
 | markdown | 505 MB | 84 MB | 91% |
 
 These are readings of one process a grammar on macOS (Apple silicon) under
@@ -219,8 +243,8 @@ check, so its row is memory a long session used to carry whether or not it
 searched by structure.
 
 The heavy grammars under the threshold keep the optimiser and what it
-costs: cpp about 290 MB, scala 235 MB, elixir 185 MB, c 170 MB, c-sharp
-155 MB, sql 135 MB, ocaml 130 MB, css 120 MB.
+costs: cpp about 290 MB, scala 235 MB, julia 225 MB, elixir 185 MB, c
+170 MB, c-sharp 155 MB, sql 135 MB, ocaml 130 MB, css 120 MB.
 
 `MERCURY_GRAMMAR_BASELINE=0` lets every grammar reach the optimiser: full
 parse speed for the held ones, at the memory of the "free" column. The hold

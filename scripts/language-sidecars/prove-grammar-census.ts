@@ -300,6 +300,90 @@ const FIXTURES: Record<string, Fixture> = {
     file: 'a.nix',
     pattern: 'version = $V;',
   },
+  r: {
+    good: 'x <- c(1, 2, 3)\nprint(mean(x))\nprint(sum(x))\n',
+    broken: 'greet <- function(name {\n  paste("hi",\n',
+    file: 'a.R',
+    pattern: 'print($X)',
+  },
+  julia: {
+    good: 'function main()\n    println("hi")\n    println("yo")\nend\n',
+    broken: 'function greet(name\n    println("hi",\nend end\n',
+    file: 'a.jl',
+    pattern: 'println($X)',
+  },
+  starlark: {
+    good: 'def macro(name):\n    native.genrule(name = name)\n    native.genrule(name = name + "_x")\n',
+    broken: 'tool(\n    name = ,\n',
+    file: 'defs.bzl',
+    pattern: 'native.genrule($$$A)',
+  },
+  clojure: {
+    good: '(ns demo.core)\n\n(defn run []\n  (println "hi")\n  (println "yo"))\n',
+    broken: '(defn greet [name\n  (println "hi" name)\n',
+    file: 'a.clj',
+    pattern: '(println $X)',
+  },
+  erlang: {
+    good: '-module(a).\n-export([run/0]).\n\nrun() ->\n    io:format("hi~n"),\n    io:format("yo~n").\n',
+    broken: '-module(demo).\ngreet(Name ->\n    io:format(.\n',
+    file: 'a.erl',
+    pattern: 'io:format($X)',
+  },
+  objc: {
+    good: '#import <Foundation/Foundation.h>\n\nint main(void) {\n    NSLog(@"hi");\n    NSLog(@"yo");\n    return 0;\n}\n',
+    broken: '@implementation A\n- (void)run {\n    [self ;\n',
+    file: 'a.m',
+    pattern: 'NSLog($X)',
+  },
+  fortran: {
+    good: 'program demo\n  implicit none\n  call greet("hi")\n  call greet("yo")\nend program demo\n',
+    broken: 'program hello\n  print *, (\nend program\n',
+    file: 'a.f90',
+    pattern: 'call greet($X)',
+  },
+  solidity: {
+    good: 'pragma solidity ^0.8.0;\n\ncontract A {\n    event Ran(uint256 n);\n    function run() external {\n        emit Ran(1);\n        emit Ran(2);\n    }\n}\n',
+    broken: 'contract Counter {\n    function inc( external {\n        count += ;\n',
+    file: 'A.sol',
+    pattern: 'emit Ran($X);',
+  },
+  verilog: {
+    good: 'module top(input logic a, output logic b);\n  assign b = ~a;\nendmodule\n',
+    broken: 'module top(input wire a, output wire b;\n  assign b = ;\nendmodule\n',
+    file: 'a.sv',
+    pattern: 'assign b = $E;',
+  },
+  'emacs-lisp': {
+    good: '(defun run ()\n  (message "hi")\n  (message "yo"))\n',
+    broken: '(defun greet (name\n  (message "hi %s" name)\n',
+    file: 'a.el',
+    pattern: '(message $X)',
+  },
+  just: {
+    good: 'alias b := build\n\nbuild:\n    cargo build\n\ntest: build\n    cargo test\n',
+    broken: 'build target=:\n    cargo build\n',
+    file: 'justfile',
+    pattern: 'alias b := build',
+  },
+  odin: {
+    good: 'package main\n\nimport "core:fmt"\n\nmain :: proc() {\n\tx := len("hi")\n\ty := len("yo")\n\tfmt.println(x, y)\n}\n',
+    broken: 'package main\n\nmain :: proc( {\n\tfmt.println(\n',
+    file: 'a.odin',
+    pattern: 'len($X)',
+  },
+  tlaplus: {
+    good: "---- MODULE A ----\nEXTENDS Sequences\nVARIABLE q\nInit == q = <<>>\nNext == q' = Tail(q)\nSize == Len(q)\n====\n",
+    broken: '---- MODULE Demo ----\nInit == x = \n====\n',
+    file: 'A.tla',
+    pattern: 'Len($X)',
+  },
+  diff: {
+    good: '--- a/x.txt\n+++ b/x.txt\n@@ -1,2 +1,2 @@\n-old\n+new\n keep\n',
+    broken: '@@ nonsense @@\n',
+    file: 'a.diff',
+    pattern: '-old',
+  },
 }
 
 const READS_EVERY_TEXT = new Set(['markdown'])
@@ -363,12 +447,16 @@ console.log('\n== known vendored gaps (expected-defect pins) ==')
     { lang: 'bash', label: 'here-string after another redirection', code: 'cat >out <<<"x"', card: 'FC-114' },
     { lang: 'bash', label: 'here-string after fd dup', code: 'cat 2>&1 <<<"x"', card: 'FC-114' },
     { lang: 'html', label: 'omitted </p> (valid HTML5)', code: '<p>only\n', card: 'FC-115' },
+    { lang: 'objc', label: 'NS_ENUM typedef', code: 'typedef NS_ENUM(NSInteger, Kind) {\n    KindHigh,\n    KindLow,\n};\n', card: 'ADMITTED-WITH-GAP' },
+    { lang: 'objc', label: 'NS_OPTIONS typedef', code: 'typedef NS_OPTIONS(NSUInteger, Flags) {\n    FlagsNone = 0,\n    FlagsSpring = 1 << 0,\n};\n', card: 'ADMITTED-WITH-GAP' },
+    { lang: 'objc', label: 'a file wrapped in NS_ASSUME_NONNULL_BEGIN … END', code: '#import <Foundation/Foundation.h>\n\nNS_ASSUME_NONNULL_BEGIN\n\n@interface Harbour : NSObject\n@property (nonatomic, copy) NSString *name;\n@end\n\nNS_ASSUME_NONNULL_END\n', card: 'ADMITTED-WITH-GAP' },
   ]
   const CONTROLS: Record<string, string> = {
     ini: '[testenv]\ndeps = pytest\n',
     css: '.a { color: red; }\n',
     bash: 'cat <<<"x"\n',
     html: '<p>a</p>\n',
+    objc: '#import <Foundation/Foundation.h>\n\ntypedef enum { KindHigh, KindLow } Kind;\n\n@interface Harbour : NSObject\n@property (nonatomic, copy) NSString *name;\n@end\n',
   }
   for (const gap of KNOWN_VENDORED_GAPS) {
     const lang = GRAMMAR_REGISTRY.find(l => l.name === gap.lang)
