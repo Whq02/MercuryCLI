@@ -431,7 +431,7 @@ export const AstEditTool = buildTool({
           ? `${plan.unchangedMatches} ${plural(plan.unchangedMatches, 'match', 'matches')} of ${targetLabel} already read exactly as the rewrite — nothing to write.`
           : `No matches for ${targetLabel} — nothing to rewrite.`
       const trailer = renderSearchTrailer(scope, plan.search)
-      const text = [head, ...renderBatchSummaryLines(plan), ...(emptyScope ? trailer.slice(1) : trailer)].join('\n')
+      const text = [head, ...renderBatchSummaryLines(plan), ...(emptyScope ? trailer.slice(1) : trailer), ...renderLeftOut(plan.leftOut)].join('\n')
       return {
         data: { ...base, state: already ? ('no-change' as const) : ('no-matches' as const), text, changedPaths: [] } satisfies Output,
         effect: {

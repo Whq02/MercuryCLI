@@ -849,6 +849,7 @@ async function planAstBatchRewrite(
     langFiles: Map<string, number>
     compiledSomewhere: boolean
     skippedBeforeCompile: boolean
+    matched: boolean
     changedMatches: number
     unchangedMatches: number
     filesChanged: Set<string>
@@ -868,6 +869,7 @@ async function planAstBatchRewrite(
     langFiles: new Map(),
     compiledSomewhere: false,
     skippedBeforeCompile: false,
+    matched: false,
     changedMatches: 0,
     unchangedMatches: 0,
     filesChanged: new Set(),
@@ -1058,8 +1060,14 @@ async function planAstBatchRewrite(
       const candidates: CandidateEdit[] = []
       let left: AstLeftOutFile | null = null
       let over = false
+      const markUnreadRules = (): void => {
+        for (const { r, compiled } of matchingRules) {
+          if (!r.matched && findPatternMatches(compiled.pattern, parsed.tree.rootNode, before!, 1).matches.length > 0) r.matched = true
+        }
+      }
       for (const { r, compiled } of matchingRules) {
         const found = findPatternMatches(compiled.pattern, parsed.tree.rootNode, before, AST_BOUNDS.editMaxMatches + 1)
+        if (found.matches.length > 0) r.matched = true
         if (found.matches.length > AST_BOUNDS.editMaxMatches) {
           if (recoveryEntry) over = true
           else deferredRefusal ??= `More than ${AST_BOUNDS.editMaxMatches} matches in one edit — narrow the scope (path or glob) or the rules, then run again. Nothing was written.`
@@ -1171,10 +1179,12 @@ async function planAstBatchRewrite(
         if (deferredRefusal !== null || left) break
       }
       if (left) {
+        markUnreadRules()
         leftOut.push(left)
         continue
       }
       if (over) {
+        markUnreadRules()
         damagedOver = true
         held.push({ rel: file.rel, changed: 0 })
         continue
@@ -1371,7 +1381,7 @@ async function planAstBatchRewrite(
       }
     }
   }
-  if (plannedFiles.length === 0 && leftOut.length > 0) return { refused: leftOut[0]!.refusal }
+  if (plannedFiles.length === 0 && leftOut.length > 0 && totalUnchangedMatches === 0) return { refused: leftOut[0]!.refusal }
   if (plannedFiles.length > AST_BOUNDS.editMaxFiles) {
     return {
       refused: `Matches in ${plannedFiles.length} files, more than the ${AST_BOUNDS.editMaxFiles}-file bound for one edit — narrow the scope (path or glob), then run again. Nothing was written.`,
@@ -1393,9 +1403,7 @@ async function planAstBatchRewrite(
       .map(([lang, e]) => ({ lang, files: e.files, note: e.note })),
   }))
 
-  const unmatchedRules = ruleSummaries
-    .filter(r => r.changedMatches === 0 && r.unchangedMatches === 0)
-    .map(r => r.ruleIndex)
+  const unmatchedRules = ruleStates.filter(r => !r.matched).map(r => r.index)
 
   const attributedRefusals = ruleStates.flatMap(r =>
     [...r.refusedLangs.entries()]
@@ -1728,7 +1736,7 @@ export async function planAstRewrite(
     })
   }
   releaseCompiled()
-  if (files.length === 0 && leftOut.length > 0) return { refused: leftOut[0]!.refusal }
+  if (files.length === 0 && leftOut.length > 0 && unchangedMatches === 0) return { refused: leftOut[0]!.refusal }
   const token = rewritePlanToken(singlePattern, singleRewrite, files.map(f => [f.rel, f.digestBefore, f.digestAfter]), leftOut.map(f => f.rel))
   return {
     token,
