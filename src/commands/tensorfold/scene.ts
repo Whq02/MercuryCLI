@@ -31,7 +31,7 @@ export type TensorFoldAct =
   | { kind: 'starting'; name: string; port: number; seconds: number }
   | { kind: 'refused'; name: string; window: number; refusal: TensorFoldRefusal; words: string; nextWindow?: number; cacheGibAt?: number; leftGib?: number; command?: string; cost?: string; remedy?: string }
   | { kind: 'exited'; name: string; port: number; line: string }
-  | { kind: 'tight'; needBytes: number; freeBytes: number; offers: readonly string[] }
+  | { kind: 'tight'; window?: number; needBytes: number; freeBytes: number; offers: readonly string[] }
 
 export type TensorFoldOutsideServer = {
   name: string

@@ -220,7 +220,7 @@ export async function serveTensorFoldRow(row: TensorFoldInventoryRow, window: nu
           return null
         }
         if (error.tight !== null) {
-          setAct(key, { kind: 'tight', needBytes: error.tight.needBytes, freeBytes: error.tight.freeBytes, offers: error.tight.offers })
+          setAct(key, { kind: 'tight', window, needBytes: error.tight.needBytes, freeBytes: error.tight.freeBytes, offers: error.tight.offers })
           await warn(io, FEED.tight(error.tight.needBytes, error.tight.freeBytes, error.tight.offers, opts.servedBy), focus)
           return null
         }

@@ -20,14 +20,14 @@ function rowActOf(act: TensorFoldAct | undefined, row: TensorFoldInventoryRow, u
       return {
         phase: 'refused',
         line: act.words,
-        window: act.nextWindow ?? window,
-        strip: windowStripWords(act, row, act.nextWindow ?? window, usableGib),
+        window: act.nextWindow ?? act.window,
+        strip: windowStripWords(act, row, act.nextWindow ?? act.window, usableGib),
         ...(act.command !== undefined && act.cost !== undefined ? { limit: { command: act.command, cost: act.cost } } : {}),
       }
     case 'exited':
       return { phase: 'exited', line: act.line }
     case 'tight':
-      return { phase: 'refused', line: tightWords(act, platform), window }
+      return { phase: 'refused', line: tightWords(act, platform), window: act.window ?? window }
     default:
       return undefined
   }
