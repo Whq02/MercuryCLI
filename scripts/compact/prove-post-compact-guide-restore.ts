@@ -130,6 +130,18 @@ try {
   check('AGENTS.md beside a local file is an instruction file', s5.classified[join(personal, 'AGENTS.md')] === true)
   check('a nested AGENTS.md beside a nested local file attaches on touch: not restored', !has(s5.restored, personal, 'sub/AGENTS.md'), s5.restored.join(', '))
   check('the nested local file is not restored either', !has(s5.restored, personal, 'sub/MERCURY.local.md'), s5.restored.join(', '))
+
+  console.log("§6 a MERCURY.md that imports another tool's rules folder: a scoped rule of it attaches by its scope, so its own road carries it")
+  const rules = { '.cursor/rules/ts.mdc': '---\nglobs: src/**\n---\nscoped-rule\n', 'src/a.ts': 'source\n', 'notes.md': 'notes\n' }
+  const importing = project({ 'MERCURY.md': 'native-guide\n@.cursor/rules\n', ...rules })
+  const s6 = drive(importing, ['.cursor/rules/ts.mdc', 'src/a.ts', 'notes.md'])
+  check('the imported scoped rule is not composed into the prompt', !has(s6.composed, importing, '.cursor/rules/ts.mdc'), s6.composed.join(', '))
+  check('its place in the read record is not restored as a file read after a compaction', !has(s6.restored, importing, '.cursor/rules/ts.mdc'), s6.restored.join(', '))
+  check('it is an instruction file of this session', s6.classified[join(importing, '.cursor/rules/ts.mdc')] === true)
+  check('the files read beside it are restored', has(s6.restored, importing, 'src/a.ts') && has(s6.restored, importing, 'notes.md'), s6.restored.join(', '))
+  const unimported = project({ 'MERCURY.md': 'native-guide\n', ...rules })
+  const s7 = drive(unimported, ['.cursor/rules/ts.mdc', 'notes.md'])
+  check('the same rule file under a MERCURY.md that does not import it is an ordinary file: its read is restored', has(s7.restored, unimported, '.cursor/rules/ts.mdc') && s7.classified[join(unimported, '.cursor/rules/ts.mdc')] === false, s7.restored.join(', '))
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

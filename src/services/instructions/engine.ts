@@ -769,6 +769,8 @@ export function isInstructionFilePath(
 ): boolean {
   const name = basename(filePath)
   const primary = conventions.filter(c => !c.fallback)
+  const spelled = normalizePathForComparison(filePath)
+  if (lastComposition.importedScoped.some(rule => normalizePathForComparison(rule.path) === spelled)) return true
 
   for (const convention of conventions) {
     const folder = convention.instructionFileNames.includes(name) ? dirname(filePath) : (convention.folderOf?.(filePath) ?? null)
