@@ -1,5 +1,5 @@
 {
-  "base": "99522a523e261b441df34229ddc00bd582e76b5e",
+  "base": "7acc4a6927d85d6092ca093788ab3cd5973dc913",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -2919,6 +2919,7 @@
               "press",
               "hover",
               "viewport",
+              "devices",
               "provision",
               "extract",
               "console",
@@ -3051,6 +3052,12 @@
           "deviceScaleFactor": {
             "description": "viewport: scale 1–3",
             "type": "number"
+          },
+          "emulation": {
+            "description": "viewport: overrides; omitted stays, null clears, reset restores launch defaults",
+            "type": "object",
+            "properties": {},
+            "additionalProperties": {}
           },
           "offset": {
             "description": "extract: text window char offset",
