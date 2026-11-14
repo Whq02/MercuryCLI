@@ -169,7 +169,7 @@ lines.push(
       .map(g => `${g.upstream?.package ?? g.wasm} (${g.upstream?.license ?? 'unknown'}, ${g.upstream?.repository ?? ''})`)
       .join(' · ')
     lines.push(
-      `- **grammar-pack extension** (tree-sitter-wasms ${gl.version ?? '?'}, pack scripts Unlicense — https://github.com/Gregoor/tree-sitter-wasms) — cherry-picked prebuilt grammar wasms; EACH grammar keeps its upstream licence: ${per}. Receipt: vendor/grammars.lock.json; the pack licence ships at dist/vendor/treesitter/LICENSE.grammar-pack and the per-grammar licence record at dist/vendor/treesitter/GRAMMAR-NOTICES.json.`,
+      `- **grammar-pack extension** — prebuilt grammar wasms, each pinned by sha256 in vendor/grammars.lock.json with its source (the tree-sitter-wasms ${gl.version ?? '?'} pack, pack scripts Unlicense, https://github.com/Gregoor/tree-sitter-wasms; a grammar's own release; or a named third party's build); EACH grammar keeps its upstream licence: ${per}. Receipt: vendor/grammars.lock.json; the licence text of each grammar that pins one ships under dist/vendor/treesitter/grammar-licences/, the pack licence at dist/vendor/treesitter/LICENSE.grammar-pack and the per-grammar record (repository, commit, copyright) at dist/vendor/treesitter/GRAMMAR-NOTICES.json.`,
     )
   }
 }

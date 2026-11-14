@@ -1007,7 +1007,13 @@ let grammarPackMissing: string[] = [];
       const packLock = !forceNoPack && statSync(packLockPath, { throwIfNoEntry: false })?.isFile()
         ? (JSON.parse(readFileSync(packLockPath, 'utf8')) as {
             version: string;
-            grammars: Array<{ wasm: string; sha256: string; upstream: Record<string, string> }>;
+            grammars: Array<{
+              wasm: string;
+              sha256: string;
+              upstream: Record<string, string>;
+              licence?: { file: string; sha256: string };
+              notice?: { file: string; sha256: string };
+            }>;
           })
         : null;
       if (packLock && packWasms.length > 0) {
@@ -1039,12 +1045,37 @@ let grammarPackMissing: string[] = [];
           if (statSync(packLicense, { throwIfNoEntry: false })?.isFile()) {
             copyFileSync(packLicense, resolve(tsitDest, 'LICENSE.grammar-pack'));
           }
+          const shippedText = (text: { file: string; sha256: string }): string => {
+            const from = resolve(ROOT, 'vendor', text.file);
+            const read = statSync(from, { throwIfNoEntry: false })?.isFile() ? readFileSync(from) : null;
+            const bytes = read
+              ? [read, Buffer.from(read.toString('latin1').replaceAll('\r\n', '\n'), 'latin1')].find(
+                  form => createHash('sha256').update(form).digest('hex') === text.sha256,
+                )
+              : undefined;
+            if (!bytes) {
+              console.error(
+                `BUILD FAILED: vendor/${text.file} ${read ? 'differs from the digest vendor/grammars.lock.json pins for it' : 'is missing'} — ` +
+                  'a grammar ships with the licence text its lock entry names, or the build stops.',
+              );
+              process.exit(1);
+            }
+            const name = text.file.split('/').pop()!;
+            mkd(resolve(tsitDest, 'grammar-licences'), { recursive: true });
+            writeFileSync(resolve(tsitDest, 'grammar-licences', name), bytes);
+            return `grammar-licences/${name}`;
+          };
           writeFileSync(
             resolve(tsitDest, 'GRAMMAR-NOTICES.json'),
             JSON.stringify(
               {
                 pack: { package: 'tree-sitter-wasms', version: packLock.version, license: 'Unlicense (pack scripts only)' },
-                grammars: packLock.grammars.map(g => ({ wasm: g.wasm, ...g.upstream })),
+                grammars: packLock.grammars.map(g => ({
+                  wasm: g.wasm,
+                  ...g.upstream,
+                  ...(g.licence && { licenceFile: shippedText(g.licence) }),
+                  ...(g.notice && { noticeFile: shippedText(g.notice) }),
+                })),
               },
               null,
               2,

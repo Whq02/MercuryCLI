@@ -81,6 +81,9 @@ function check(label: string, ok: boolean, detail = ''): void {
     if (!packDegraded) {
       check('pack LICENSE travels with the artifact', existsSync(join(dist, 'LICENSE.grammar-pack')))
       check('per-grammar provenance travels with the artifact', existsSync(join(dist, 'GRAMMAR-NOTICES.json')))
+      const lockTexts = (JSON.parse(readFileSync(join(ROOT, 'vendor', 'grammars.lock.json'), 'utf8')) as { grammars: Array<{ licence?: { file: string }; notice?: { file: string } }> }).grammars.flatMap(g => [g.licence, g.notice]).filter(t => t !== undefined).map(t => t.file.split('/').pop()!).sort()
+      const shippedTexts = existsSync(join(dist, 'grammar-licences')) ? readdirSync(join(dist, 'grammar-licences')).sort() : []
+      check(`the licence texts the lock pins travel with the artifact, those and no other (${lockTexts.length})`, JSON.stringify(shippedTexts) === JSON.stringify(lockTexts), `${shippedTexts.length} shipped`)
     }
     const pkg = JSON.parse(readFileSync(join(dist, 'package.json'), 'utf8')) as { type?: string }
     check('commonjs stamp present', pkg.type === 'commonjs')

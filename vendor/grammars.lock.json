@@ -112,6 +112,11 @@
         "license": "MIT",
         "repository": "https://github.com/tree-sitter-grammars/tree-sitter-yaml",
         "copyright": "2024 tree-sitter-grammars contributors; 2019-2021 Ika"
+      },
+      "licence": {
+        "file": "grammar-licences/yaml.txt",
+        "sha256": "2d181298822a124f6d106118dcc69c8d4d26ac668559be29682c452e712b0947",
+        "url": "https://github.com/tree-sitter-grammars/tree-sitter-yaml/blob/7708026449bed86239b1cd5bce6e3c34dbca6415/LICENSE"
       }
     },
     {
@@ -128,6 +133,11 @@
         "license": "MIT",
         "repository": "https://github.com/tree-sitter-grammars/tree-sitter-markdown",
         "copyright": "2021 Matthias Deiml"
+      },
+      "licence": {
+        "file": "grammar-licences/markdown.txt",
+        "sha256": "52ec8a1bf8256511e2a92613e0bb41ffefba3897f16fa958d7bb28c466dd4804",
+        "url": "https://github.com/tree-sitter-grammars/tree-sitter-markdown/blob/41ff24a6c775492c543b09228aeb98d1cd2b3a0f/LICENSE"
       }
     },
     {
@@ -147,6 +157,11 @@
         "repository": "https://github.com/DerekStride/tree-sitter-sql",
         "copyright": "2021 Derek Stride",
         "builder": "@lumis-sh/wasm-sql@0.26.8"
+      },
+      "licence": {
+        "file": "grammar-licences/sql.txt",
+        "sha256": "3b3e4e4252d5d7d1c18e1257005f23242bf0580ad619204fd093c99b8c56748d",
+        "url": "https://github.com/DerekStride/tree-sitter-sql/blob/4cd7224bfcf1fee23227c4d626760341c9b26772/LICENSE"
       }
     },
     {
@@ -163,6 +178,11 @@
         "license": "MIT",
         "repository": "https://github.com/tree-sitter-grammars/tree-sitter-lua",
         "copyright": "2021 Munif Tanjim"
+      },
+      "licence": {
+        "file": "grammar-licences/lua.txt",
+        "sha256": "9a32b02e4c917b1ce6b5e79d8ea81e25cefd7f27d89c7235f2afb262c06cf32e",
+        "url": "https://github.com/tree-sitter-grammars/tree-sitter-lua/blob/10fe0054734eec83049514ea2e718b2a56acd0c9/LICENSE.md"
       }
     },
     {
@@ -181,6 +201,11 @@
         "license": "MIT",
         "repository": "https://github.com/wharflab/tree-sitter-containerfile",
         "copyright": "2026 WharfLab"
+      },
+      "licence": {
+        "file": "grammar-licences/dockerfile.txt",
+        "sha256": "cf292ce6d84e3e1b55bd8b830bf7643423aa49dde66b8cc3b57a986d2a2b6538",
+        "url": "https://github.com/wharflab/tree-sitter-containerfile/blob/1df9124b22a72dde8683aab6f762ff4857acfeab/LICENSE"
       }
     },
     {
@@ -197,6 +222,11 @@
         "license": "MIT",
         "repository": "https://github.com/tree-sitter-grammars/tree-sitter-make",
         "copyright": "2021 Alexandre A. Muller"
+      },
+      "licence": {
+        "file": "grammar-licences/make.txt",
+        "sha256": "28eecdb75b6de2d9020603531461444bf54db827ee2fb345a8fcf4dbee7c2ad1",
+        "url": "https://github.com/tree-sitter-grammars/tree-sitter-make/blob/5e9e8f8ff3387b0edcaa90f46ddf3629f4cfeb1d/LICENSE"
       }
     },
     {
@@ -216,6 +246,11 @@
         "repository": "https://github.com/uyha/tree-sitter-cmake",
         "copyright": "2025 Uy Ha",
         "builder": "@lumis-sh/wasm-cmake@0.26.8"
+      },
+      "licence": {
+        "file": "grammar-licences/cmake.txt",
+        "sha256": "97334c0f9c0962b33cbe03223f584b8ed64c2d14419ce80cc2e945eb8d367d28",
+        "url": "https://github.com/uyha/tree-sitter-cmake/blob/a3ec2b2144daf7132e7ee824d8cab9610523d10f/LICENSE"
       }
     },
     {
@@ -232,6 +267,11 @@
         "license": "MIT",
         "repository": "https://github.com/tree-sitter-grammars/tree-sitter-xml",
         "copyright": "2023 ObserverOfTime"
+      },
+      "licence": {
+        "file": "grammar-licences/xml.txt",
+        "sha256": "3297073719030b7261afd78b7267931ccc03a27f7a65ca6fc644316180f71bf6",
+        "url": "https://github.com/tree-sitter-grammars/tree-sitter-xml/blob/4b64dd3a03ec002258d6268d712fd93716d6ab57/LICENSE"
       }
     },
     {
@@ -247,6 +287,11 @@
         "commit": "fad991865fee927dd1de5e172fb3f08ac674d914",
         "license": "Apache-2.0",
         "repository": "https://github.com/tree-sitter-grammars/tree-sitter-hcl"
+      },
+      "licence": {
+        "file": "grammar-licences/hcl.txt",
+        "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+        "url": "https://github.com/tree-sitter-grammars/tree-sitter-hcl/blob/fad991865fee927dd1de5e172fb3f08ac674d914/LICENSE"
       }
     },
     {
@@ -266,6 +311,11 @@
         "repository": "https://github.com/bkegley/tree-sitter-graphql",
         "copyright": "2021 bkegley",
         "builder": "@lumis-sh/wasm-graphql@0.26.5"
+      },
+      "licence": {
+        "file": "grammar-licences/graphql.txt",
+        "sha256": "7bd2788c7154b102cf03eeb335faba32d897fb82f252b28663c16c76738aaba5",
+        "url": "https://github.com/bkegley/tree-sitter-graphql/blob/5e66e961eee421786bdda8495ed1db045e06b5fe/LICENSE"
       }
     },
     {
@@ -285,6 +335,11 @@
         "repository": "https://github.com/coder3101/tree-sitter-proto",
         "copyright": "2024-2025 Mohammad Ashar Khan",
         "builder": "@lumis-sh/wasm-protobuf@0.26.7"
+      },
+      "licence": {
+        "file": "grammar-licences/protobuf.txt",
+        "sha256": "1cc17f880ff4fa68079a72b98b89d42e8ce16b1bdbb1ec7b6f33465241e41003",
+        "url": "https://github.com/coder3101/tree-sitter-proto/blob/6c878d18628ebbff3474479d2fdd6d8ba1954c3e/LICENSE"
       }
     },
     {
@@ -304,6 +359,11 @@
         "repository": "https://github.com/UserNobody14/tree-sitter-dart",
         "copyright": "2020-2023 UserNobody14 and others",
         "builder": "@lumis-sh/wasm-dart@0.26.8"
+      },
+      "licence": {
+        "file": "grammar-licences/dart.txt",
+        "sha256": "d270cb3a4985d75033bd77d875ccebff1d66e32788a3f727891e28d76132dd46",
+        "url": "https://github.com/UserNobody14/tree-sitter-dart/blob/0038280b774b65c1b89ba7fec50624d8baed9fe1/LICENSE"
       }
     },
     {
@@ -320,6 +380,11 @@
         "license": "MIT",
         "repository": "https://github.com/tree-sitter/tree-sitter-scala",
         "copyright": "2018 Max Brunsfeld and GitHub"
+      },
+      "licence": {
+        "file": "grammar-licences/scala.txt",
+        "sha256": "1f95ed26e1f4074074c9c7083e61c0a9e4c3b9f435745044995f3beb4ed28575",
+        "url": "https://github.com/tree-sitter/tree-sitter-scala/blob/e8728b1c62ea096c753a9a70325f77ebbf2192de/LICENSE"
       }
     },
     {
@@ -335,6 +400,16 @@
         "commit": "e2d9e6e0e76b0c436fa48a0b8c32a031d0cbdf49",
         "license": "Apache-2.0",
         "repository": "https://github.com/elixir-lang/tree-sitter-elixir"
+      },
+      "licence": {
+        "file": "grammar-licences/elixir.txt",
+        "sha256": "a6cba85bc92e0cff7a450b1d873c0eaa2e9fc96bf472df0247a26bec77bf3ff9",
+        "url": "https://github.com/elixir-lang/tree-sitter-elixir/blob/e2d9e6e0e76b0c436fa48a0b8c32a031d0cbdf49/LICENSE"
+      },
+      "notice": {
+        "file": "grammar-licences/elixir.NOTICE.txt",
+        "sha256": "119588423fbaa46a6955a044fee5a23338c7de190d8c4651a94c6d0b98ca2cda",
+        "url": "https://github.com/elixir-lang/tree-sitter-elixir/blob/e2d9e6e0e76b0c436fa48a0b8c32a031d0cbdf49/NOTICE"
       }
     },
     {
@@ -351,6 +426,11 @@
         "license": "MIT",
         "repository": "https://github.com/tree-sitter-grammars/tree-sitter-zig",
         "copyright": "2024 Amaan Qureshi"
+      },
+      "licence": {
+        "file": "grammar-licences/zig.txt",
+        "sha256": "0eea8dc45e89deeb03c7799bbbc7b4688f365fb274562f4540ecfebdea82e727",
+        "url": "https://github.com/tree-sitter-grammars/tree-sitter-zig/blob/b670c8df85a1568f498aa5c8cae42f51a90473c0/LICENSE"
       }
     },
     {
@@ -367,6 +447,11 @@
         "license": "MIT",
         "repository": "https://github.com/tree-sitter/tree-sitter-haskell",
         "copyright": "2014 Max Brunsfeld"
+      },
+      "licence": {
+        "file": "grammar-licences/haskell.txt",
+        "sha256": "2e0110e07abef7c2548b26ec9d6969775617ca539a0dc8dbeeb14d6452c711d1",
+        "url": "https://github.com/tree-sitter/tree-sitter-haskell/blob/97288e585b0bd44199720280d067fa35bacd81ff/LICENSE"
       }
     },
     {
@@ -383,6 +468,11 @@
         "license": "MIT",
         "repository": "https://github.com/tree-sitter/tree-sitter-ocaml",
         "copyright": "2020 Max Brunsfeld and Pieter Goetschalckx"
+      },
+      "licence": {
+        "file": "grammar-licences/ocaml.txt",
+        "sha256": "f977a20805dd6e275f14bc090a5f8e638401dad4df366841c1060f12c75b74ae",
+        "url": "https://github.com/tree-sitter/tree-sitter-ocaml/blob/e3c9cf368f68bffd2f81188229aefa7b434eda65/LICENSE"
       }
     },
     {
@@ -401,6 +491,11 @@
         "license": "MIT",
         "repository": "https://github.com/tree-sitter-grammars/tree-sitter-svelte",
         "copyright": "2024 Amaan Qureshi"
+      },
+      "licence": {
+        "file": "grammar-licences/svelte.txt",
+        "sha256": "0eea8dc45e89deeb03c7799bbbc7b4688f365fb274562f4540ecfebdea82e727",
+        "url": "https://github.com/tree-sitter-grammars/tree-sitter-svelte/blob/774a65aea563accc35f5d45fafa4d96ec5761f57/LICENSE"
       }
     },
     {
@@ -420,6 +515,11 @@
         "repository": "https://github.com/virchau13/tree-sitter-astro",
         "copyright": "2022 Vir Chaudhury",
         "builder": "@lumis-sh/wasm-astro@0.26.5"
+      },
+      "licence": {
+        "file": "grammar-licences/astro.txt",
+        "sha256": "9ec95a90150fa19e2cee78faf49138fc480f6f7a2354006a0ab150c44239447e",
+        "url": "https://github.com/virchau13/tree-sitter-astro/blob/213f6e6973d9b456c6e50e86f19f66877e7ef0ee/LICENSE"
       }
     },
     {
@@ -439,6 +539,11 @@
         "repository": "https://github.com/nix-community/tree-sitter-nix",
         "copyright": "2019 Charles Strahan",
         "builder": "@lumis-sh/wasm-nix@0.26.4"
+      },
+      "licence": {
+        "file": "grammar-licences/nix.txt",
+        "sha256": "c1b72e50266464ec5118d26200e17bf1f472d142e62ab637e1ffc23986657a78",
+        "url": "https://github.com/nix-community/tree-sitter-nix/blob/ea1d87f7996be1329ef6555dcacfa63a69bd55c6/LICENSE"
       }
     },
     {
@@ -455,6 +560,11 @@
         "license": "MIT",
         "repository": "https://github.com/r-lib/tree-sitter-r",
         "copyright": "2025 tree-sitter-r authors"
+      },
+      "licence": {
+        "file": "grammar-licences/r.txt",
+        "sha256": "de2e49529f03d573bc3fa229dc83acfe22c63a5ad1766b289563edfd45b72dea",
+        "url": "https://github.com/r-lib/tree-sitter-r/blob/346d3707b8c9301f1051e8f6e32666e67529f7d2/LICENSE"
       }
     },
     {
@@ -471,6 +581,11 @@
         "license": "MIT",
         "repository": "https://github.com/tree-sitter/tree-sitter-julia",
         "copyright": "2018 Max Brunsfeld, GitHub"
+      },
+      "licence": {
+        "file": "grammar-licences/julia.txt",
+        "sha256": "74f800107f200f4e28da33e9c3f86230d37d8f4c0a4916f7111e800c395ee3a2",
+        "url": "https://github.com/tree-sitter/tree-sitter-julia/blob/e0f9dcd180fdcfcfa8d79a3531e11d99e79321d3/LICENSE"
       }
     },
     {
@@ -487,6 +602,11 @@
         "license": "MIT",
         "repository": "https://github.com/tree-sitter-grammars/tree-sitter-starlark",
         "copyright": "2023 Amaan Qureshi"
+      },
+      "licence": {
+        "file": "grammar-licences/starlark.txt",
+        "sha256": "099c44248f8cf353123211318680e93465587c005a4b3730ce8cb5334de043d6",
+        "url": "https://github.com/tree-sitter-grammars/tree-sitter-starlark/blob/a453dbf3ba433db0e5ec621a38a7e59d72e4dc69/LICENSE"
       }
     },
     {
@@ -505,6 +625,11 @@
         "license": "CC0-1.0",
         "repository": "https://github.com/sogaiu/tree-sitter-clojure",
         "builder": "@lumis-sh/wasm-clojure@0.26.5"
+      },
+      "licence": {
+        "file": "grammar-licences/clojure.txt",
+        "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+        "url": "https://github.com/sogaiu/tree-sitter-clojure/blob/3a1ace906c151dd631cf6f149b5083f2b60e6a9e/COPYING.txt"
       }
     },
     {
@@ -523,6 +648,11 @@
         "license": "Apache-2.0",
         "repository": "https://github.com/WhatsApp/tree-sitter-erlang",
         "builder": "@lumis-sh/wasm-erlang@0.26.8"
+      },
+      "licence": {
+        "file": "grammar-licences/erlang.txt",
+        "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+        "url": "https://github.com/WhatsApp/tree-sitter-erlang/blob/0386a11c835950f5e1ebfbcbf49863d8495de4e0/LICENSE"
       }
     },
     {
@@ -539,6 +669,11 @@
         "license": "MIT",
         "repository": "https://github.com/tree-sitter-grammars/tree-sitter-objc",
         "copyright": "2023 Amaan Qureshi"
+      },
+      "licence": {
+        "file": "grammar-licences/objc.txt",
+        "sha256": "099c44248f8cf353123211318680e93465587c005a4b3730ce8cb5334de043d6",
+        "url": "https://github.com/tree-sitter-grammars/tree-sitter-objc/blob/18802acf31d0b5c1c1d50bdbc9eb0e1636cab9ed/LICENSE"
       }
     },
     {
@@ -557,6 +692,11 @@
         "license": "MIT",
         "repository": "https://github.com/stadelmanma/tree-sitter-fortran",
         "builder": "@lumis-sh/wasm-fortran@0.26.5"
+      },
+      "licence": {
+        "file": "grammar-licences/fortran.txt",
+        "sha256": "c0fc02a86ae2b179c4729694c523bbf42da674e5136ed8e12e3cb2f26556ea9f",
+        "url": "https://github.com/stadelmanma/tree-sitter-fortran/blob/48593829df8a929bfe58528eedcf405171921005/LICENSE"
       }
     },
     {
@@ -575,6 +715,11 @@
         "license": "MIT",
         "repository": "https://github.com/JoranHonig/tree-sitter-solidity",
         "copyright": "2020 Joran Honig"
+      },
+      "licence": {
+        "file": "grammar-licences/solidity.txt",
+        "sha256": "8844f0cc9b76b9c8a9d0251904eb7536b6bb9976e0ec577e8f27ab96d42523ef",
+        "url": "https://github.com/JoranHonig/tree-sitter-solidity/blob/4e938a46c7030dd001bc99e1ac0f0c750ac98254/LICENSE"
       }
     },
     {
@@ -591,6 +736,11 @@
         "license": "MIT",
         "repository": "https://github.com/gmlarumbe/tree-sitter-systemverilog",
         "copyright": "2024-2025 Gonzalo M. Larumbe"
+      },
+      "licence": {
+        "file": "grammar-licences/verilog.txt",
+        "sha256": "f4ceaa91e73e623d6b30895a3b644e0e277754a81c8b28655b75d7a9113f1ac4",
+        "url": "https://github.com/gmlarumbe/tree-sitter-systemverilog/blob/3390da8c76a976b6f47d19667accc43e81a1483b/LICENSE"
       }
     },
     {
@@ -606,6 +756,11 @@
         "license": "MIT",
         "repository": "https://github.com/Wilfred/tree-sitter-elisp",
         "copyright": "2021 Wilfred Hughes"
+      },
+      "licence": {
+        "file": "grammar-licences/emacs-lisp.txt",
+        "sha256": "f7d440114acea14bf9f510bb2e4b93f2aac6a51baf271acc112009b9b2ebe55e",
+        "url": "https://github.com/Wilfred/tree-sitter-elisp/blob/6c90728516072d3f2172ffd390317d34bf0e4b47/LICENSE"
       }
     },
     {
@@ -624,6 +779,11 @@
         "license": "Apache-2.0",
         "repository": "https://github.com/casey/tree-sitter-just",
         "builder": "@lumis-sh/wasm-just@0.26.5"
+      },
+      "licence": {
+        "file": "grammar-licences/just.txt",
+        "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+        "url": "https://github.com/casey/tree-sitter-just/blob/5685543a6e64f66335e25518c9ae8ffa1dae3d01/LICENSE"
       }
     },
     {
@@ -640,6 +800,11 @@
         "license": "MIT",
         "repository": "https://github.com/tree-sitter-grammars/tree-sitter-odin",
         "copyright": "2023 Amaan Qureshi"
+      },
+      "licence": {
+        "file": "grammar-licences/odin.txt",
+        "sha256": "099c44248f8cf353123211318680e93465587c005a4b3730ce8cb5334de043d6",
+        "url": "https://github.com/tree-sitter-grammars/tree-sitter-odin/blob/e8adc739b78409a99f8c31313f0bb54cc538cf73/LICENSE"
       }
     },
     {
@@ -656,6 +821,11 @@
         "license": "MIT",
         "repository": "https://github.com/tlaplus-community/tree-sitter-tlaplus",
         "copyright": "2020 Andrew Helwer"
+      },
+      "licence": {
+        "file": "grammar-licences/tlaplus.txt",
+        "sha256": "bb9ed59c3ddf6631a6138e4656fbcf7fb225b1a3260760e729d6e58a52c6b15a",
+        "url": "https://github.com/tlaplus-community/tree-sitter-tlaplus/blob/8a8413f1d08e7ee40b347206d26eac4324db9fd9/LICENSE"
       }
     },
     {
@@ -672,8 +842,13 @@
         "license": "MIT",
         "repository": "https://github.com/tree-sitter-grammars/tree-sitter-diff",
         "copyright": "2021 Michael Davis"
+      },
+      "licence": {
+        "file": "grammar-licences/diff.txt",
+        "sha256": "bb98faf5a86e9458536a6c745e02b53775d01066f1e51dda4ae220a3c0b050f4",
+        "url": "https://github.com/tree-sitter-grammars/tree-sitter-diff/blob/ada384ac7bfc1307f32de474620120add29998fb/LICENSE"
       }
     }
   ],
-  "notes": "REJECTED from this pack (census evidence, 2026-07-20): tree-sitter-yaml.wasm (C++ external scanner detonates at parse on the @vscode runtime \u2014 ABI mismatch) and tree-sitter-lua.wasm (scanner misparses valid code, e.g. `local x = 1`); both are carried from the grammar's own release instead (their entries below). Update procedure: bump version+url, run scripts/vendor/fetch-grammars.ts --force, re-pin sha512 + per-file sha256 from its output, re-verify each upstream licence, re-run scripts/language-sidecars/prove-grammar-census.ts. A grammar entry may carry sourceUrl + sourceProvenance: its wasm then comes from THAT pinned https artifact instead of the pack tarball (same per-file sha256 law; swift rides the upstream 0.7.3 release asset because the pack's 0.4-era build fatally OOMs V8's optimizing wasm compiler \u2014 audition-fenced, see the registry's fragile marking). An entry that also names sourceMember + sourceSha512 takes its wasm as that member of the pinned tarball at sourceUrl (sha512 verified before the member is read): a grammar's own npm package, or a third party's build of a grammar that publishes no wasm, in which case upstream.builder names the builder's package and version and upstream.commit the revision the builder says it built. upstream.commit and upstream.copyright are recorded for every entry admitted with them; the licence was read from the upstream repository at that commit. For an entry taken from the pack, upstream.resolvedVersion and upstream.commit are the version the pack's own pnpm-lock.yaml resolves at the commit the registry records for the pack's release (gitHead 3e88dc9e36b4e8bf752ce53bea61e4b67282a2bb) and the registry's gitHead of that version: what the pack's lockfile says was built, not rebuilt here. The ordinary build consumes ONLY the verified local cache (vendor/grammars/extracted) or produces an honest degraded manifest. optimiserCostMb is the resident memory V8's optimising tier adds to the process under sustained parsing with that grammar (vendored node, the method of scripts/language-sidecars/prove-grammar-memory-hold.ts, which reads the whole table again with --measure): a grammar at 400 or more is marked baseline in the registry and parsed with the tier held off; the threshold sits in the gap of the measured costs."
+  "notes": "REJECTED from this pack (census evidence, 2026-07-20): tree-sitter-yaml.wasm (C++ external scanner detonates at parse on the @vscode runtime \u2014 ABI mismatch) and tree-sitter-lua.wasm (scanner misparses valid code, e.g. `local x = 1`); both are carried from the grammar's own release instead (their entries below). Update procedure: bump version+url, run scripts/vendor/fetch-grammars.ts --force, re-pin sha512 + per-file sha256 from its output, re-verify each upstream licence, re-run scripts/language-sidecars/prove-grammar-census.ts. A grammar entry may carry sourceUrl + sourceProvenance: its wasm then comes from THAT pinned https artifact instead of the pack tarball (same per-file sha256 law; swift rides the upstream 0.7.3 release asset because the pack's 0.4-era build fatally OOMs V8's optimizing wasm compiler \u2014 audition-fenced, see the registry's fragile marking). An entry that also names sourceMember + sourceSha512 takes its wasm as that member of the pinned tarball at sourceUrl (sha512 verified before the member is read): a grammar's own npm package, or a third party's build of a grammar that publishes no wasm, in which case upstream.builder names the builder's package and version and upstream.commit the revision the builder says it built. upstream.commit and upstream.copyright are recorded for every entry admitted with them; the licence was read from the upstream repository at that commit. For an entry taken from the pack, upstream.resolvedVersion and upstream.commit are the version the pack's own pnpm-lock.yaml resolves at the commit the registry records for the pack's release (gitHead 3e88dc9e36b4e8bf752ce53bea61e4b67282a2bb) and the registry's gitHead of that version: what the pack's lockfile says was built, not rebuilt here. An entry's licence (and notice, where upstream has one) names the checked-in text under vendor/ that was read from the upstream repository at upstream.commit, with its sha256: the build refuses a text whose bytes differ (it accepts the LF form of a CRLF checkout) and ships it under dist/vendor/treesitter/grammar-licences/. The ordinary build consumes ONLY the verified local cache (vendor/grammars/extracted) or produces an honest degraded manifest. optimiserCostMb is the resident memory V8's optimising tier adds to the process under sustained parsing with that grammar (vendored node, the method of scripts/language-sidecars/prove-grammar-memory-hold.ts, which reads the whole table again with --measure): a grammar at 400 or more is marked baseline in the registry and parsed with the tier held off; the threshold sits in the gap of the measured costs."
 }

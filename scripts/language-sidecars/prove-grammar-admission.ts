@@ -385,6 +385,7 @@ const THIRD_PARTY_BUILDS = ['sql', 'cmake', 'graphql', 'protobuf', 'dart', 'astr
 const NO_COPYRIGHT_LINE = ['hcl', 'elixir', 'clojure', 'erlang', 'fortran', 'just']
 const HELD = ['markdown', 'objc', 'fortran', 'verilog', 'tlaplus']
 const NEEDS_FINAL_NEWLINE = ['markdown', 'make', 'diff']
+const NOTICE_FILES = ['elixir']
 
 const CORPUS = JSON.parse(readFileSync(join(import.meta.dir, 'fixtures', 'grammar-corpus.json'), 'utf8')) as Record<string, Record<string, string[]>>
 const corpusText = (lang: string, file: string): string => `${CORPUS[lang]![file]!.join('\n')}\n`
@@ -491,6 +492,8 @@ section('§2 — a search for code beside files of the admitted languages loads 
   facility._resetFragileProbeForTesting()
 }
 
+type LockedText = { file: string; sha256: string; url: string }
+
 section(`§3 — the rows: the twenty-three and the ${admitted.length} admitted, each pinned in the lock`)
 {
   const names = GRAMMAR_REGISTRY.map((g: Row) => g.name)
@@ -501,7 +504,7 @@ section(`§3 — the rows: the twenty-three and the ${admitted.length} admitted,
   check(`the admitted rows handed their text with a final newline are ${NEEDS_FINAL_NEWLINE.join(', ')}`, admitted.filter(n => rowOf(n)?.finalNewline === true).join(',') === NEEDS_FINAL_NEWLINE.join(','), admitted.filter(n => rowOf(n)?.finalNewline === true).join(','))
   check('the build carries every one of them by name', admitted.every(n => (astLanguageNames() as string[]).includes(n)))
   const lock = JSON.parse(readFileSync(join(ROOT, 'vendor', 'grammars.lock.json'), 'utf8')) as {
-    grammars: Array<{ wasm: string; sha256: string; bytes: number; sourceUrl?: string; sourceMember?: string; sourceSha512?: string; upstream: { package?: string; license?: string; repository?: string; commit?: string; copyright?: string; builder?: string } }>
+    grammars: Array<{ wasm: string; sha256: string; bytes: number; sourceUrl?: string; sourceMember?: string; sourceSha512?: string; licence?: LockedText; notice?: LockedText; upstream: { package?: string; license?: string; repository?: string; commit?: string; copyright?: string; builder?: string } }>
   }
   const PERMISSIVE = new Set(['MIT', 'Apache-2.0', 'CC0-1.0', 'BSD-2-Clause', 'BSD-3-Clause', 'ISC', 'Unlicense'])
   const unpinned: string[] = []
@@ -517,6 +520,55 @@ section(`§3 — the rows: the twenty-three and the ${admitted.length} admitted,
   }
   check('each admitted grammar in the cache is the file its lock entry pins, byte for byte', unpinned.length === 0, unpinned.join(','))
   check(`each lock entry records the upstream repository, the commit, a permissive licence and the copyright line of its licence text${NO_COPYRIGHT_LINE.length > 0 ? ` (${NO_COPYRIGHT_LINE.join(', ')}: a licence text that names no holder)` : ''}`, unrecorded.length === 0, unrecorded.join(','))
+  const digest = (bytes: Buffer): string => createHash('sha256').update(bytes).digest('hex')
+  const lockedForm = (text: LockedText | undefined): Buffer | null => {
+    if (!text || !existsSync(join(ROOT, 'vendor', text.file))) return null
+    const read = readFileSync(join(ROOT, 'vendor', text.file))
+    return [read, Buffer.from(read.toString('latin1').replaceAll('\r\n', '\n'), 'latin1')].find(form => digest(form) === text.sha256) ?? null
+  }
+  const LICENCE_WORDS: Record<string, RegExp> = { MIT: /Permission is hereby granted, free of charge/, 'Apache-2.0': /Apache License\s+Version 2\.0/, 'CC0-1.0': /CC0 1\.0 Universal/ }
+  const untexted: string[] = []
+  const notices: string[] = []
+  const shipped: Array<{ name: string; text: LockedText; bytes: Buffer }> = []
+  for (const name of admitted) {
+    const entry = lock.grammars.find(g => g.wasm === rowOf(name)?.wasm)
+    const bytes = lockedForm(entry?.licence)
+    const text = bytes?.toString('utf8') ?? ''
+    const holders = (entry?.upstream.copyright ?? '').split('; ').filter(h => h !== '')
+    const sound =
+      entry?.licence !== undefined &&
+      bytes !== null &&
+      entry.licence.file === `grammar-licences/${name}.txt` &&
+      entry.licence.url.includes(`/blob/${entry.upstream.commit}/`) &&
+      LICENCE_WORDS[entry.upstream.license ?? '']?.test(text) === true &&
+      holders.every(h => text.includes(h))
+    if (!sound) untexted.push(name)
+    else shipped.push({ name, text: entry!.licence!, bytes: bytes! })
+    if (entry?.notice !== undefined) {
+      notices.push(name)
+      const noticeBytes = lockedForm(entry.notice)
+      if (noticeBytes === null || entry.notice.file !== `grammar-licences/${name}.NOTICE.txt`) untexted.push(`${name} NOTICE`)
+      else shipped.push({ name, text: entry.notice, bytes: noticeBytes })
+    }
+  }
+  check(`the licence text of each of the ${admitted.length} is checked in under vendor/grammar-licences, is the bytes its lock entry pins (or their LF form), was read at the entry's commit, is the licence the entry names and carries the copyright line the entry records`, untexted.length === 0, untexted.join(','))
+  check(`an upstream NOTICE travels beside its licence where the grammar has one: ${NOTICE_FILES.join(', ')}`, notices.join(',') === NOTICE_FILES.join(','), notices.join(','))
+  check('those texts are kept out of line-end conversion, as the tree\'s other pinned licence texts are', readFileSync(join(ROOT, '.gitattributes'), 'utf8').split('\n').includes('vendor/grammar-licences/** -text'))
+  const distTexts = join(ROOT, 'dist', 'vendor', 'treesitter', 'grammar-licences')
+  const distNotices = join(ROOT, 'dist', 'vendor', 'treesitter', 'GRAMMAR-NOTICES.json')
+  if (!existsSync(distNotices)) {
+    console.log('  [SKIP] dist/vendor/treesitter carries no grammar cache here: the texts ship with the grammars')
+  } else {
+    const absent = shipped.filter(s => !existsSync(join(distTexts, s.text.file.split('/').pop()!)) || digest(readFileSync(join(distTexts, s.text.file.split('/').pop()!))) !== s.text.sha256).map(s => s.text.file)
+    check(`the built artifact carries each of those ${shipped.length} texts under vendor/treesitter/grammar-licences, byte for byte the pinned form`, absent.length === 0, absent.join(','))
+    const record = JSON.parse(readFileSync(distNotices, 'utf8')) as { grammars: Array<{ wasm: string; licenceFile?: string; noticeFile?: string; commit?: string; copyright?: string }> }
+    const unnamed = admitted.filter(n => {
+      const row = record.grammars.find(g => g.wasm === rowOf(n)?.wasm)
+      const entry = lock.grammars.find(g => g.wasm === rowOf(n)?.wasm)
+      return row?.licenceFile !== `grammar-licences/${n}.txt` || row.commit !== entry?.upstream.commit || row.copyright !== entry?.upstream.copyright || (entry?.notice !== undefined) !== (row.noticeFile !== undefined)
+    })
+    check('and its per-grammar record names each text beside the commit and the copyright line', unnamed.length === 0, unnamed.join(','))
+  }
   const builders = admitted.filter(n => lock.grammars.find(g => g.wasm === rowOf(n)?.wasm)?.upstream.builder !== undefined)
   check(`the third party's builds among them are named as such, with the builder and the digest of its package: ${THIRD_PARTY_BUILDS.join(', ')}`, builders.join(',') === THIRD_PARTY_BUILDS.join(',') && builders.every(n => {
     const entry = lock.grammars.find(g => g.wasm === rowOf(n)?.wasm)!

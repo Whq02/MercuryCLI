@@ -70,7 +70,9 @@ does not carry lists them:
   says so at build time (`vendored WITHOUT them`), the manifest records
   `degraded: structure-polyglot-extended` and `mercury health` names it; the
   artifact's own `dist/vendor/treesitter/vendor.json` lists the grammars it
-  carries.
+  carries, `GRAMMAR-NOTICES.json` beside it records each one's repository,
+  commit and copyright line, and the licence text of each added grammar,
+  read at that commit, ships under `grammar-licences/` there.
 
 The languages added since the first 23 are read by AstSearch and AstEdit
 only: the parse note an edit gives and the outline Read draws keep to the
