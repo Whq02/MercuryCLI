@@ -270,6 +270,22 @@ async function searches(world: RemoteWorld): Promise<void> {
     closeRemoteConnections()
   }
 
+  section(`${name} · a folder with no searchable files`)
+  const emptyFar = join(world.data, 'empty')
+  const emptyNear = join(TWINS, name, 'empty')
+  for (const root of [emptyFar, emptyNear]) mkdirSync(root, { recursive: true })
+  for (const mode of ['files_with_matches', 'content', 'count'] as const) {
+    const empty = await grep({ pattern: 'needle', path: remote(emptyFar), output_mode: mode })
+    const emptyHere = await grep({ pattern: 'needle', path: emptyNear, output_mode: mode }, { allow: [`Read(/${emptyNear}/**)`] })
+    check(`${name}: an empty folder, ${mode}, answers like its local twin`, body(empty) === emptyHere && !empty.startsWith('THROWN') && read(empty)?.files === 0, `${empty} | ${emptyHere}`)
+  }
+  writeFileSync(join(emptyFar, 'hidden.txt'), 'needle\n')
+  const allDenied = await grep({ pattern: 'needle', path: remote(emptyFar), output_mode: 'content' }, { deny: [`Read(ssh://box${emptyFar}/hidden.txt)`] })
+  check(`${name}: a folder whose only file is denied is still a folder with no matches`, body(allDenied) === 'No matches found' && read(allDenied)?.files === 0, allDenied)
+
+  const invalid = await grep({ pattern: '[', path: there })
+  check(`${name}: an invalid search pattern fails without naming the private mirror`, invalid.startsWith('THROWN') && /regex|unclosed|unmatched/.test(invalid) && !invalid.includes(PRIVATE) && !invalid.includes('copy-') && leftBehind().length === 0, invalid)
+
   section(`${name} · what is left behind`)
   const stopping = new AbortController()
   const stopped = grep({ pattern: 'listen', path: there }, {}, stopping)

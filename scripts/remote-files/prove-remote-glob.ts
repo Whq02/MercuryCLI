@@ -210,6 +210,17 @@ async function searches(world: RemoteWorld): Promise<void> {
   rmSync(join(STORE, 'runtime'), { recursive: true, force: true })
   rmSync(join(STORE, '.credentials.json'), { force: true })
 
+  section(`${name} · a folder with no searchable files`)
+  const emptyFar = join(world.data, 'empty')
+  const emptyNear = join(TWINS, name, 'empty')
+  for (const root of [emptyFar, emptyNear]) mkdirSync(root, { recursive: true })
+  const empty = await glob({ pattern: '*', path: remote(emptyFar) })
+  const emptyHere = await glob({ pattern: '*', path: emptyNear })
+  check(`${name}: an empty folder answers like its local twin`, empty === emptyHere && !empty.startsWith('THROWN'), `${empty} | ${emptyHere}`)
+  writeFileSync(join(emptyFar, 'hidden.txt'), 'needle\n')
+  const allDenied = await glob({ pattern: '*', path: remote(emptyFar) }, { deny: [`Read(ssh://box${emptyFar}/hidden.txt)`] })
+  check(`${name}: a folder whose only file is denied is still a folder with no matches`, allDenied === emptyHere, allDenied)
+
   section(`${name} · what is left behind`)
   check(`${name}: nothing stays in Mercury's private folder after a search, and nothing on this disk under the collapsed spelling`, leftBehind().length === 0 && !existsSync(join(project, 'ssh:')), `${leftBehind().join(' ')}`)
 }

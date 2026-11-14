@@ -475,6 +475,7 @@ export async function remoteMirror(
     if (entry !== undefined && entry.leaf.mtimeMs > 0) utimesSync(entry.local, entry.leaf.mtimeMs / 1000, entry.leaf.mtimeMs / 1000)
   }
   try {
+    if (stat.kind === 'folder') mkdirSync(localOf(root), { recursive: true })
     for (const leaf of walked.files) {
       if (!allowed(leaf.path)) continue
       const first = localOf(leaf.path)
