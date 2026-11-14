@@ -137,7 +137,7 @@ export async function remoteWorld(transport: RemoteTransport, port = 0, options:
       'UsePAM no',
       'StrictModes no',
       'PermitUserEnvironment no',
-      `SetEnv HOME=${remoteHome}`,
+      `SetEnv HOME="${remoteHome}" PATH="${bin}${delimiter}${process.env.PATH ?? ''}"`,
       'LogLevel VERBOSE',
       '',
     ].join('\n'))
@@ -196,6 +196,7 @@ export async function remoteWorld(transport: RemoteTransport, port = 0, options:
       throw new Error(`the private sshd did not listen on 127.0.0.1:${port}: ${said}`)
     }
   }
+  writeShim(join(bin, 'rg'), ['#!/bin/sh', 'exit 127'])
   const env: Record<string, string> = {
     PATH: `${bin}${delimiter}${process.env.PATH ?? ''}`,
     HOME: clientHome,

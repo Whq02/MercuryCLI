@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
@@ -30,6 +30,7 @@ const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/file
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 const { setCwdState, setOriginalCwd, setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
 const { closeRemoteConnections } = await import('../../src/services/remoteFiles/connection.ts')
+const { ripgrepCommand } = await import('../../src/utils/ripgrep.ts')
 setSessionTrustAccepted(true)
 enableConfigs()
 setOriginalCwd(project)
@@ -98,12 +99,13 @@ const decided = async (input: Input, rules: Rules = {}): Promise<Decision> => {
 const remote = (path: string): string => `ssh://box${path}`
 const namesIn = (path: string): string[] => (existsSync(path) && statSync(path).isDirectory() ? readdirSync(path, { recursive: true }).map(String) : [])
 const leftBehind = (): string[] => namesIn(PRIVATE).filter(name => name.includes('copy-'))
-const READ_FROM = /\n\(read (\d+) files?, ([^,]+), from box\)$/
+const NO_RIPGREP = ': it has no ripgrep; with rg installed there the search runs on the host'
+const READ_FROM = /\n\(read (\d+) files?, ([^,:]+), from box(: [^)]*)?\)$/
 const body = (answer: string): string => answer.replace(READ_FROM, '')
 const lines = (answer: string): string => answer.split('\n').sort().join('\n')
-const read = (answer: string): { files: number; size: string } | null => {
+const read = (answer: string): { files: number; size: string; tail: string } | null => {
   const found = READ_FROM.exec(answer)
-  return found === null ? null : { files: Number(found[1]), size: found[2]! }
+  return found === null ? null : { files: Number(found[1]), size: found[2]!, tail: found[3] ?? '' }
 }
 
 const MANY = Array.from({ length: 40 }, (_, index) => `needle number ${index + 1}`).join('\n') + '\n'
@@ -137,6 +139,38 @@ function plant(root: string): void {
   symlinkSync('docs', join(root, 'docs-link'))
 }
 
+const ASKS: Array<[string, Record<string, unknown>]> = [
+  ['the files that match', { pattern: 'listen' }],
+  ['the lines that match', { pattern: 'listen', output_mode: 'content' }],
+  ['the counts', { pattern: 'listen', output_mode: 'count' }],
+  ['without regard to case', { pattern: 'LISTEN', '-i': true, output_mode: 'content' }],
+  ['a regular expression', { pattern: 'port\\s*=\\s*\\d+', output_mode: 'content' }],
+  ['a literal with a regex character in it', { pattern: 'server.listen(port)', literal: true, output_mode: 'content' }],
+  ['a glob', { pattern: 'listen', glob: '*.ts', output_mode: 'content' }],
+  ['a glob with a folder in it', { pattern: 'listen', glob: 'src/**/*.ts' }],
+  ['a glob with alternatives', { pattern: 'listen', glob: '*.{ts,md}' }],
+  ['a glob that leaves files out', { pattern: 'listen', glob: '!*.md' }],
+  ['a type', { pattern: 'listen', type: 'md', output_mode: 'content' }],
+  ['lines of context', { pattern: 'listen', glob: '*.ts', output_mode: 'content', context: 1 }],
+  ['lines before and after', { pattern: 'listen', glob: 'a.ts', output_mode: 'content', '-B': 1, '-A': 1 }],
+  ['across lines', { pattern: 'start\\([\\s\\S]*?\\) \\{', multiline: true, output_mode: 'content' }],
+  ['a first page', { pattern: 'needle', output_mode: 'content', head_limit: 5 }],
+  ['a later page', { pattern: 'needle', output_mode: 'content', head_limit: 5, offset: 10 }],
+  ['more matches in one file than one answer shows of a file', { pattern: 'needle', output_mode: 'content' }],
+  ['words inside documents', { pattern: 'Rich Text Heading', output_mode: 'content' }],
+  ['nothing found', { pattern: 'zebra-crossing' }],
+  ['ranked by what the words describe', { pattern: 'server listen port', output_mode: 'ranked' }],
+]
+
+async function asTheTwin(name: string, there: string, near: string, asks: Array<[string, Record<string, unknown>]>, tail: string): Promise<void> {
+  for (const [label, more] of asks) {
+    const answer = await grep({ ...more, pattern: String(more.pattern), path: there })
+    const here = (await grep({ ...more, pattern: String(more.pattern), path: near }, { allow: [`Read(/${near}/**)`] })).replaceAll(near, there)
+    const ordered = more.output_mode === undefined || more.output_mode === 'ranked'
+    check(`${name}: ${label}`, (ordered ? body(answer) === here : lines(body(answer)) === lines(here)) && !answer.startsWith('THROWN') && read(answer)?.tail === tail, `remote ${JSON.stringify(answer.slice(0, 500))} local ${JSON.stringify(here.slice(0, 500))}`)
+  }
+}
+
 async function searches(world: RemoteWorld): Promise<void> {
   const name = world.transport
   const far = join(world.data, 'proj')
@@ -144,37 +178,10 @@ async function searches(world: RemoteWorld): Promise<void> {
   plant(far)
   plant(near)
   const there = remote(far)
+  const allowedHere = { allow: [`Read(/${near}/**)`] }
 
   section(`${name} · what Grep answers for another machine is what it answers for the same tree here`)
-  const asks: Array<[string, Record<string, unknown>]> = [
-    ['the files that match', { pattern: 'listen' }],
-    ['the lines that match', { pattern: 'listen', output_mode: 'content' }],
-    ['the counts', { pattern: 'listen', output_mode: 'count' }],
-    ['without regard to case', { pattern: 'LISTEN', '-i': true, output_mode: 'content' }],
-    ['a regular expression', { pattern: 'port\\s*=\\s*\\d+', output_mode: 'content' }],
-    ['a literal with a regex character in it', { pattern: 'server.listen(port)', literal: true, output_mode: 'content' }],
-    ['a glob', { pattern: 'listen', glob: '*.ts', output_mode: 'content' }],
-    ['a glob with a folder in it', { pattern: 'listen', glob: 'src/**/*.ts' }],
-    ['a glob with alternatives', { pattern: 'listen', glob: '*.{ts,md}' }],
-    ['a glob that leaves files out', { pattern: 'listen', glob: '!*.md' }],
-    ['a type', { pattern: 'listen', type: 'md', output_mode: 'content' }],
-    ['lines of context', { pattern: 'listen', glob: '*.ts', output_mode: 'content', context: 1 }],
-    ['lines before and after', { pattern: 'listen', glob: 'a.ts', output_mode: 'content', '-B': 1, '-A': 1 }],
-    ['across lines', { pattern: 'start\\([\\s\\S]*?\\) \\{', multiline: true, output_mode: 'content' }],
-    ['a first page', { pattern: 'needle', output_mode: 'content', head_limit: 5 }],
-    ['a later page', { pattern: 'needle', output_mode: 'content', head_limit: 5, offset: 10 }],
-    ['more matches in one file than one answer shows of a file', { pattern: 'needle', output_mode: 'content' }],
-    ['words inside documents', { pattern: 'Rich Text Heading', output_mode: 'content' }],
-    ['nothing found', { pattern: 'zebra-crossing' }],
-    ['ranked by what the words describe', { pattern: 'server listen port', output_mode: 'ranked' }],
-  ]
-  const allowedHere = { allow: [`Read(/${near}/**)`] }
-  for (const [label, more] of asks) {
-    const answer = await grep({ ...more, pattern: String(more.pattern), path: there })
-    const here = (await grep({ ...more, pattern: String(more.pattern), path: near }, allowedHere)).replaceAll(near, there)
-    const ordered = more.output_mode === undefined || more.output_mode === 'ranked'
-    check(`${name}: ${label}`, (ordered ? body(answer) === here : lines(body(answer)) === lines(here)) && !answer.startsWith('THROWN') && read(answer) !== null, `remote ${JSON.stringify(answer.slice(0, 500))} local ${JSON.stringify(here.slice(0, 500))}`)
-  }
+  await asTheTwin(name, there, near, ASKS, NO_RIPGREP)
   const documents = await grep({ pattern: 'Rich Text Heading', output_mode: 'content', path: there })
   check(`${name}: a document on the remote machine is searched as its text`, documents.includes(`${there}/docs/sample.rtf`), documents.slice(0, 400))
   const one = await grep({ pattern: 'port', output_mode: 'content', path: `${there}/src/a.ts` })
@@ -189,7 +196,7 @@ async function searches(world: RemoteWorld): Promise<void> {
 
   section(`${name} · what travels`)
   const all = await grep({ pattern: 'listen', path: there })
-  check(`${name}: the answer closes with how many files were read from the host and how much`, read(all)?.files === 13, all.slice(-120))
+  check(`${name}: the answer closes with how many files were read from the host and how much, and that the host has no ripgrep`, read(all)?.files === 13 && read(all)?.tail === NO_RIPGREP, all.slice(-160))
   check(`${name}: files under an ignore rule, and what is in a folder of the version control, are neither read nor found`, !all.includes('dist/out.js') && !all.includes('app.log') && !all.includes('node_modules') && !all.includes('.git/config'), all)
   check(`${name}: a large binary file is cut where ripgrep stops: the 2 MB one costs its first 512 bytes`, /^1\.[0-9] MB$/.test(read(all)?.size ?? ''), String(read(all)?.size))
   const wideFar = join(world.data, 'wide')
@@ -241,6 +248,27 @@ async function searches(world: RemoteWorld): Promise<void> {
   check(`${name}: on this machine a search from above Mercury's own store finds nothing in its credentials`, above.includes('beside-the-store.txt') && !above.includes('never-printed') && !above.includes('.credentials.json'), above.slice(0, 600))
   rmSync(join(STORE, 'runtime'), { recursive: true, force: true })
   rmSync(join(STORE, '.credentials.json'), { force: true })
+
+  section(`${name} · a remote machine that has ripgrep: the search runs there, and only the files that match are read`)
+  const mine = ripgrepCommand() as { rgPath: string; argv0?: string }
+  if (mine.argv0 !== undefined) console.log(`  [SKIP] ${name}: Mercury's own ripgrep is inside its runtime here and cannot stand in for one on the remote machine`)
+  else {
+    const wrapper = join(world.scratch, 'bin', 'rg')
+    writeFileSync(wrapper, `#!/bin/sh\nexec '${mine.rgPath}' "$@"\n`)
+    chmodSync(wrapper, 0o755)
+    closeRemoteConnections()
+    await asTheTwin(`${name}, ripgrep there`, there, near, ASKS, '')
+    const fewer = await grep({ pattern: 'listen', path: there })
+    check(`${name}: nine files are read where thirteen were: the seven that hold the word, and the two documents`, read(fewer)?.files === 9 && read(fewer)?.tail === '', fewer.slice(-160))
+    const narrowed = await grep({ pattern: 'port = 8080', literal: true, output_mode: 'content', path: there })
+    check(`${name}: a literal that one file holds brings that file and the documents`, read(narrowed)?.files === 3 && body(narrowed) === `${there}/src/a.ts:1:export const port = 8080`, narrowed)
+    const looking = await grep({ pattern: '(?<=server\\.)listen', output_mode: 'content', path: there })
+    const lookingHere = (await grep({ pattern: '(?<=server\\.)listen', output_mode: 'content', path: near }, allowedHere)).replaceAll(near, there)
+    check(`${name}: a pattern the remote ripgrep refuses is searched here over every selected file, and answered as the same tree here is`, lines(body(looking)) === lines(lookingHere) && read(looking)?.files === 13 && read(looking)?.tail === '', `${looking.slice(0, 400)} | ${lookingHere.slice(0, 300)}`)
+    writeFileSync(wrapper, '#!/bin/sh\nexit 127\n')
+    chmodSync(wrapper, 0o755)
+    closeRemoteConnections()
+  }
 
   section(`${name} · what is left behind`)
   const stopping = new AbortController()

@@ -34,7 +34,7 @@ fi
 m_sum() { c=$(cksum < "$1") || return 1; set -- $c; printf '%s %s\n' "$1" "$2"; }
 m_facts() {
   if [ -n "$1" ] && [ -e "$1" ]; then h=1; else h=0; fi
-  printf '%s\0%s\0%s\0' "$HOME" "$(uname -s 2>/dev/null)" "$h"
+  printf '%s\0%s\0%s\0%s\0' "$HOME" "$(uname -s 2>/dev/null)" "$h" "$(rg --no-config --version 2>/dev/null | head -n 1)"
 }
 m_home() { eval "printf '%s\n' ~$1"; }
 m_kind() {

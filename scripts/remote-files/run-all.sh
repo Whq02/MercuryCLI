@@ -19,6 +19,7 @@
 # gate-watch: src/tools/GrepTool/**
 # gate-watch: src/utils/glob.ts
 # gate-watch: src/utils/globPattern.ts
+# gate-watch: src/utils/ripgrep.ts
 # gate-watch: src/components/permissions/FilePermissionDialog/**
 # gate-watch: src/components/permissions/FileWritePermissionRequest/**
 # gate-watch: src/components/permissions/FileEditPermissionRequest/**

@@ -28,8 +28,10 @@ import {
   remoteCommit,
   remoteFetch,
   remoteHas,
+  remoteHasRipgrep,
   remoteIsThisMachine,
   remoteList,
+  remoteMatching,
   remoteReadBytes,
   remoteReadRange,
   remoteRealPath,
@@ -375,7 +377,9 @@ type RemoteMirror = {
   dir: string
   host: string
   deeper: boolean
+  ripgrep: boolean
   rules: ToolPermissionContext
+  matching(how: { ignoreCase: boolean; literal: boolean; multiline: boolean }, pattern: string, local: readonly string[]): Promise<string[] | null>
   pull(local: readonly string[], whole: ReadonlySet<string>): Promise<{ files: number; bytes: number }>
   rename<Value>(value: Value): Value
   close(): void
@@ -515,15 +519,20 @@ export async function remoteMirror(
   const rootLocal = localOf(root)
   const shown = formatRemotePath(target).replace(/\/$/, '')
   const grants = generateSuggestions(join(base, 'x'), 'read', getEmptyToolPermissionContext()).flatMap(update => (update.type === 'addRules' ? update.rules : []))
+  const remotes = (paths: Iterable<string>): string[] => [...new Set([...paths].map(path => remoteOf.get(path.normalize('NFC'))))].filter((path): path is string => path !== undefined)
   return {
     dir: rootLocal,
     host,
     deeper,
+    ripgrep: await remoteHasRipgrep(target.authority, signal),
     rules: { ...getEmptyToolPermissionContext(), mode: rules.mode, alwaysAllowRules: { session: grants.map(rule => `${rule.toolName}(${rule.ruleContent})`) } },
+    matching: async (how, pattern, local) => {
+      const found = await remoteMatching(target.authority, how, pattern, remotes(local), signal)
+      return found === null ? null : found.flatMap(path => (held.has(path) ? [held.get(path)!.local] : []))
+    },
     pull: async (local, whole) => {
-      const named = (paths: Iterable<string>): string[] => [...new Set([...paths].map(path => remoteOf.get(path.normalize('NFC'))))].filter((path): path is string => path !== undefined)
-      const wholes = new Set(named(whole))
-      const wanted = named(local).filter(path => !fetched.has(path))
+      const wholes = new Set(remotes(whole))
+      const wanted = remotes(local).filter(path => !fetched.has(path))
       const got = await remoteCat(
         target.authority,
         wanted.map(path => ({ path, sniff: held.get(path)!.leaf.size > SNIFFED_ABOVE && !wholes.has(path) })),

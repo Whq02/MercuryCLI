@@ -611,10 +611,15 @@ async function searchElsewhere(input: Input, context: ToolUseContext, canUseTool
     const listed = await ripGrepAnswer(discoveryArgs(await buildArgs(local, inner, root, false), pattern), root, context.abortController.signal, { cwd })
     const files = listed.lines.map(path => (isAbsolute(path) ? path : join(cwd, path)))
     const documents = new Set(files.filter(isSearchableDocument).sort().slice(0, MAX_DOCUMENTS))
-    const pulled = await mirror.pull(files, cwd === root ? documents : new Set([...documents, root]))
+    const matched =
+      input.output_mode === 'ranked'
+        ? null
+        : await mirror.matching({ ignoreCase: input['-i'] === true, literal: input.literal === true, multiline: input.multiline === true }, pattern, files.filter(file => !isSearchableDocument(file)))
+    const pulled = await mirror.pull(matched === null ? files : [...matched, ...documents], cwd === root ? documents : new Set([...documents, root]))
     const answer = await (grepToolItself() as { call(input: Input, context: ToolUseContext): Promise<{ data: Output }> }).call(local, inner)
     const data = mirror.rename(answer.data)
-    readElsewhere.set(data, `read ${pulled.files} ${plural(pulled.files, 'file')}, ${formatFileSize(pulled.bytes).replace(/(\d)([KMGT]B)$/, '$1 $2')}, from ${mirror.host}`)
+    const from = `read ${pulled.files} ${plural(pulled.files, 'file')}, ${formatFileSize(pulled.bytes).replace(/(\d)([KMGT]B)$/, '$1 $2')}, from ${mirror.host}`
+    readElsewhere.set(data, mirror.ripgrep ? from : `${from}: it has no ripgrep; with rg installed there the search runs on the host`)
     return { data }
   } finally {
     mirror.close()

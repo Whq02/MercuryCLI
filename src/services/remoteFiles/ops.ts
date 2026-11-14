@@ -17,7 +17,7 @@ export type RemoteLeaf = { path: string; size: number; mtimeMs: number }
 
 type RemoteHead = { size: number; mtimeMs: number; mode: string | null; lines: number; endsWithNewline: boolean; lead: string; crc: string | null }
 
-type RemoteFacts = { home: string; system: string; here: boolean }
+type RemoteFacts = { home: string; system: string; here: boolean; ripgrep: boolean }
 
 export class RemoteFileError extends Error {
   readonly code: string
@@ -86,9 +86,9 @@ function remoteFacts(authority: RemoteAuthority, signal: AbortSignal | undefined
     }
     try {
       const reply = await remoteRun(authority, { script: `m_facts ${remoteQuote(placed ? probe : '')}`, signal })
-      const [home = '', system = '', here = '0'] = reply.stdout.toString('utf8').split('\0')
+      const [home = '', system = '', here = '0', ripgrep = ''] = reply.stdout.toString('utf8').split('\0')
       if (reply.status !== 0 || !home.startsWith('/')) throw new RemoteFileError('EIO', `${key}: the remote account's home could not be read.`)
-      return { home, system, here: here === '1' }
+      return { home, system, here: here === '1', ripgrep: Number(/^ripgrep (\d+)\./.exec(ripgrep)?.[1] ?? 0) >= 11 }
     } finally {
       if (placed) {
         try {
@@ -347,6 +347,36 @@ export async function remoteWalk(
     else files.push({ path, size: Number(found[1]), mtimeMs: Number(found[2]) * 1000 })
   }
   return { files, markers }
+}
+
+export async function remoteHasRipgrep(authority: RemoteAuthority, signal?: AbortSignal): Promise<boolean> {
+  return (await remoteFacts(authority, signal)).ripgrep
+}
+
+export async function remoteMatching(
+  authority: RemoteAuthority,
+  how: { ignoreCase: boolean; literal: boolean; multiline: boolean },
+  pattern: string,
+  paths: readonly string[],
+  signal?: AbortSignal,
+): Promise<string[] | null> {
+  if (!(await remoteHasRipgrep(authority, signal))) return null
+  const flags = `${how.ignoreCase ? ' -i' : ''}${how.literal ? ' -F' : ''}${how.multiline ? ' -U --multiline-dotall' : ''}`
+  const matched: string[] = []
+  for (let from = 0; from < paths.length; ) {
+    const words: string[] = []
+    let to = from
+    for (let length = 0; to < paths.length && (to === from || length < CAT_LINE); to++) {
+      const word = remoteQuote(paths[to]!)
+      words.push(word)
+      length += word.length + 1
+    }
+    const reply = await remoteRun(authority, { script: `rg --no-config -l -a --null --no-messages${flags} -e ${remoteQuote(pattern)} -- ${words.join(' ')}`, signal })
+    if (reply.status !== 0 && reply.status !== 1) return null
+    matched.push(...reply.stdout.toString('utf8').split('\0').filter(Boolean))
+    from = to
+  }
+  return matched
 }
 
 export async function remoteHas(authority: RemoteAuthority, paths: readonly string[], signal?: AbortSignal): Promise<boolean[]> {
