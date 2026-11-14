@@ -346,8 +346,8 @@ On Windows with the adapter:
   `~\.local\share\mercury-host\runtime\llama.cpp\build\bin` or on `PATH` (an
   older build on `PATH` is refused with
   `<path> is build <N>; Mercury's engine needs llama.cpp b11829 or newer`),
-  `/tensorfold` shows `install llama.cpp` (`llama.cpp release b11829 · checksum verified`).
-  On Windows x64, pressing `↵` downloads `llama-b11829-bin-win-cpu-x64.zip` (`24.1 MB`) from
+  `/tensorfold` shows `install llama.cpp` (`llama.cpp release b12359 · checksum verified`).
+  On Windows x64, pressing `↵` downloads `llama-b12359-bin-win-cpu-x64.zip` (`25.1 MB`) from
   `github.com/ggml-org/llama.cpp`, verifies its SHA-256 digest, unpacks it to
   `~\.local\share\mercury-host\runtime\llama.cpp\build\bin`, and checks
   `llama-server.exe --version` (naming the Microsoft Visual C++ Redistributable
@@ -365,7 +365,7 @@ On Windows with the adapter:
   and `weights   <gguf repo> · <file> (<quant>)`; chat feed receipts name
   `Mercury's engine` (`● Mercury's engine serves <name> · <window> on 127.0.0.1:<port> · this session's model`);
   `/health` and the support line identify
-  `TensorFold adapter 1.0.6 (Mercury's engine) · llama.cpp b11829 · CPU`, with
+  `TensorFold adapter 1.0.6 (Mercury's engine) · llama.cpp b12359 · CPU`, with
   the loaded GGUF in the support line and
   `served by Mercury's engine on this machine until TensorFold ships for Windows`
   at the end.

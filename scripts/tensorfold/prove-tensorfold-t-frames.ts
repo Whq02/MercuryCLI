@@ -187,10 +187,10 @@ const EXPECT: Record<string, Expect> = {
     ['the legend: ↵ pull, serve and switch · ←→ window, no n', legend(run).includes('↑↓ select · ↵ pull, serve and switch · ←→ window') && !legend(run).includes('n shares'), legend(run)],
   ],
   't05b-windows-no-llamacpp': run => [
-    ['the install row framed: install llama.cpp — llama.cpp release b11829 · checksum verified', framedRow(run).includes('install llama.cpp — llama.cpp release b11829 · checksum verified'), framedRow(run)],
-    ['its card: the adapter install verb, then the zip, its size, its digest and the runtime folder', hasRun(run, 'will run mercury --tensorfold-adapter install fetches llama-b11829-bin-win-cpu-x64.zip (24 MB) from github.com/ggml-org/llama.cpp · sha256 c534f35ce9c8… · into ~\\.local\\share\\mercury-host\\runtime\\llama.cpp\\build\\bin'), card(run).join(' / ')],
+    ['the install row framed: install llama.cpp — llama.cpp release b12359 · checksum verified', framedRow(run).includes('install llama.cpp — llama.cpp release b12359 · checksum verified'), framedRow(run)],
+    ['its card: the adapter install verb, then the zip, its size, its digest and the runtime folder', hasRun(run, 'will run mercury --tensorfold-adapter install fetches llama-b12359-bin-win-cpu-x64.zip (25 MB) from github.com/ggml-org/llama.cpp · sha256 837c1655e87d… · into ~\\.local\\share\\mercury-host\\runtime\\llama.cpp\\build\\bin'), card(run).join(' / ')],
     ['the 4B and the 2B beneath, both to pull', cells(run, 'Qwen3.5 4B', 'local/qwen3.5-4b', '↓ 2.7 GB', '128k ctx', '9.6 GiB') && cells(run, 'Qwen3.5 2B', 'local/qwen3.5-2b', '↓ 1.3 GB', '256k ctx', '7.2 GiB'), flat(run).filter(l => /Qwen/.test(l)).join(' | ')],
-    ['the footer: llama.cpp not installed · release b11829 (24 MB) · ↵ installs it', has(run, 'llama.cpp not installed · release b11829 (24 MB) · ↵ installs it')],
+    ['the footer: llama.cpp not installed · release b12359 (25 MB) · ↵ installs it', has(run, 'llama.cpp not installed · release b12359 (25 MB) · ↵ installs it')],
     ['the legend: ↵ install', legend(run).includes('↑↓ select · ↵ install'), legend(run)],
   ],
   't05c-windows-his-engine': run => [
@@ -200,7 +200,7 @@ const EXPECT: Record<string, Expect> = {
   ],
   't05d-windows-served': run => [
     ['heading: the sentence alone; the served 4B first, current · 128k ctx · 3.0 GiB in use', has(run, "▾ TENSORFOLD · served by Mercury's engine until TensorFold ships for Windows") && framedRow(run).includes('Qwen3.5 4B') && cells(run, 'Qwen3.5 4B', 'local/qwen3.5-4b', 'current', '128k ctx', '3.0 GiB in use'), framedRow(run)],
-    ["the card: service TensorFold adapter · llama.cpp b11829 · started by Mercury · prompt cache 1 GiB; engine with the full sentence; weights; network not shared · sharing from Mercury's engine comes later", hasRun(run, 'service TensorFold adapter · llama.cpp b11829 · started by Mercury · prompt cache 1 GiB') && hasRun(run, "engine served by Mercury's engine on this machine until TensorFold ships for Windows") && has(run, 'weights   unsloth/Qwen3.5-4B-GGUF · Qwen3.5-4B-Q4_K_M.gguf (Q4_K_M)') && hasRun(run, "network not shared · sharing from Mercury's engine comes later"), card(run).join(' / ')],
+    ["the card: service TensorFold adapter · llama.cpp b12359 · started by Mercury · prompt cache 1 GiB; engine with the full sentence; weights; network not shared · sharing from Mercury's engine comes later", hasRun(run, 'service TensorFold adapter · llama.cpp b12359 · started by Mercury · prompt cache 1 GiB') && hasRun(run, "engine served by Mercury's engine on this machine until TensorFold ships for Windows") && has(run, 'weights   unsloth/Qwen3.5-4B-GGUF · Qwen3.5-4B-Q4_K_M.gguf (Q4_K_M)') && hasRun(run, "network not shared · sharing from Mercury's engine comes later"), card(run).join(' / ')],
     ['the footer: serving qwen3.5-4b on 127.0.0.1:8080 · first reply in 2100 ms · ~12 tok/s', has(run, 'serving qwen3.5-4b on 127.0.0.1:8080 · first reply in 2100 ms · ~12 tok/s')],
     ['the legend: s stops · ←→ window · c copies the support line, no n', legend(run).includes('↑↓ select · s stops · ←→ window · c copies the support line') && !legend(run).includes('n shares'), legend(run)],
   ],

@@ -2,7 +2,7 @@
 import { appendFileSync } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 
-export const FAKE_LLAMA_VERSION_LINE = 'version: 0.7.0-dev (build 11829, commit 184f653)'
+export const FAKE_LLAMA_VERSION_LINE = 'version: 1.0.0-dev (build 12359, commit b1b770d)'
 export const FAKE_LLAMA_REPLY = 'hello from llama.cpp'
 export const FAKE_LLAMA_TIMINGS = { cache_n: 12, prompt_n: 40, prompt_ms: 210.5, prompt_per_token_ms: 5.26, prompt_per_second: 190.02, predicted_n: 4, predicted_ms: 48.2, predicted_per_token_ms: 12.05, predicted_per_second: 82.99 }
 
@@ -51,7 +51,7 @@ async function serve(): Promise<void> {
       if (Date.now() < ready) return json(response, 503, { error: { code: 503, message: 'Loading model', type: 'unavailable_error' } })
       return json(response, 200, { status: 'ok' })
     }
-    if (request.method === 'GET' && url.pathname === '/props') return json(response, 200, { default_generation_settings: { n_ctx: ctx, params: {} }, build_info: 'b11829-184f653' })
+    if (request.method === 'GET' && url.pathname === '/props') return json(response, 200, { default_generation_settings: { n_ctx: ctx, params: {} }, build_info: 'b12359-b1b770d' })
     if (request.method === 'POST' && url.pathname === '/v1/chat/completions') {
       const body = await readBody(request)
       note(`request ${body}`)
@@ -62,7 +62,7 @@ async function serve(): Promise<void> {
         parsed = {}
       }
       const id = 'chatcmpl-fake-llama'
-      const base = { created: 1_700_000_000, id, model: alias, system_fingerprint: 'b11829-184f653', object: 'chat.completion.chunk' }
+      const base = { created: 1_700_000_000, id, model: alias, system_fingerprint: 'b12359-b1b770d', object: 'chat.completion.chunk' }
       if (parsed.stream !== true) {
         return json(response, 200, { ...base, object: 'chat.completion', choices: [{ finish_reason: 'stop', index: 0, message: { role: 'assistant', content: FAKE_LLAMA_REPLY } }], usage, timings: FAKE_LLAMA_TIMINGS })
       }
