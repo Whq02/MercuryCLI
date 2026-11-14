@@ -1,6 +1,6 @@
 import type { Device, Frame, Page, Viewport } from 'puppeteer-core'
 import { resolveBrowserSecret } from './browserSecrets.js'
-import { driverVersion, originOf, pageKitOf, type PageIdentity, type PageKit } from './browserSession.js'
+import { driverVersion, originOf, pageKitOf, presentToFrames, type PageIdentity, type PageKit } from './browserSession.js'
 
 const NETWORK_PRESETS = { slow3g: 'Slow 3G', fast3g: 'Fast 3G', slow4g: 'Slow 4G', fast4g: 'Fast 4G' } as const
 type NetworkPreset = keyof typeof NETWORK_PRESETS
@@ -634,6 +634,11 @@ function merged(before: Fields, request: EmulationRequest, size: EmulationSize, 
   return next
 }
 
+function present(kit: PageKit, environment: Environment): void {
+  kit.presented = { identity: environment.identity, languages: environment.languages, timeZone: environment.timezone, locale: environment.locale, headers: environment.headers, touch: Boolean(environment.viewport.hasTouch) }
+  presentToFrames(kit)
+}
+
 async function settle(page: Page, kit: PageKit, state: PageEmulation, next: Fields, held: ReadonlySet<Aspect> = new Set()): Promise<EmulationOutcome> {
   const { devices, networks } = await tables()
   const before = state.fields
@@ -651,6 +656,7 @@ async function settle(page: Page, kit: PageKit, state: PageEmulation, next: Fiel
   while (pending.length > 0) {
     const aspect = pending.shift()!
     const environment = environmentOf(next, kit, devices, networks)
+    if (aspect === 'viewport') present(kit, environment)
     try {
       reloaded = (await applyAspect(aspect, page, kit, environment, state)) || reloaded
       state.unsettled.delete(aspect)
@@ -681,7 +687,7 @@ async function settle(page: Page, kit: PageKit, state: PageEmulation, next: Fiel
   }
   state.fields = next
   state.environment = environmentOf(next, kit, devices, networks)
-  kit.presented = { identity: state.environment.identity, languages: state.environment.languages, timeZone: state.environment.timezone, locale: state.environment.locale, headers: state.environment.headers }
+  present(kit, state.environment)
   const stale = !reloaded && originOf(page.url()).startsWith('http') && state.environment.identity?.userAgent !== from.identity?.userAgent
   const notes: string[] = []
   const earlier = before.credentials

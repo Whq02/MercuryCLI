@@ -1042,6 +1042,7 @@ export interface PagePresented {
   timeZone: string
   locale: string | null
   headers: Record<string, string> | null
+  touch: boolean
 }
 
 export interface PageKit {
@@ -1054,6 +1055,7 @@ export interface PageKit {
   fetchHeld: boolean
   firstRequestUnarmed?: boolean
   late?: CDPSession | null
+  frames?: Map<string, { session: CDPSession; parent: string }>
 }
 
 const pageKits = new WeakMap<Page, PageKit>()
@@ -1519,6 +1521,66 @@ function observeBirthNavigation(hold: Hold, wiring: Wiring, cdp: CDPSession, tar
   }
 }
 
+function presentedOf(kit: PageKit): PagePresented {
+  return kit.presented ?? kit.born ?? { identity: kit.identity, languages: kit.languages, timeZone: kit.timeZone, locale: null, headers: null, touch: false }
+}
+
+function presentToFrame(frame: CDPSession, kit: PageKit, born: boolean): void {
+  const { identity, touch } = presentedOf(kit)
+  const quiet = (): undefined => undefined
+  if (identity !== null) void frame.send('Emulation.setUserAgentOverride', identity).catch(quiet)
+  if (touch || !born) void frame.send('Emulation.setTouchEmulationEnabled', { enabled: touch }).catch(quiet)
+}
+
+export function presentToFrames(kit: PageKit): void {
+  for (const frame of kit.frames?.values() ?? []) presentToFrame(frame.session, kit, false)
+}
+
+function watchFrames(kit: PageKit, parent: CDPSession): Promise<void> {
+  const frames = (kit.frames ??= new Map<string, { session: CDPSession; parent: string }>())
+  const quiet = (): undefined => undefined
+  parent.on('Target.attachedToTarget', event => {
+    const frame = parent.connection()?.session(event.sessionId) ?? null
+    if (frame === null) {
+      void parent.send('Target.detachFromTarget', { sessionId: event.sessionId }).catch(quiet)
+      return
+    }
+    const letGo = (): void => {
+      void parent.send('Target.detachFromTarget', { sessionId: event.sessionId }).catch(quiet)
+    }
+    try {
+      if (event.targetInfo.type !== 'iframe') {
+        letGo()
+        return
+      }
+      frames.set(event.sessionId, { session: frame, parent: parent.id() })
+      presentToFrame(frame, kit, true)
+      if (kit.late !== undefined) {
+        void frame.send('Page.enable').catch(quiet)
+        void frame.send('Page.addScriptToEvaluateOnNewDocument', { source: stealthSource(presentedOf(kit).languages) }).catch(quiet)
+      }
+      void watchFrames(kit, frame)
+    } catch {
+    } finally {
+      try {
+        void frame.send('Runtime.runIfWaitingForDebugger').catch(letGo)
+      } catch {
+        letGo()
+      }
+    }
+  })
+  parent.on('Target.detachedFromTarget', event => {
+    const gone = [event.sessionId]
+    for (let id = gone.pop(); id !== undefined; id = gone.pop()) {
+      frames.delete(id)
+      for (const [inner, held] of frames) if (held.parent === id) gone.push(inner)
+    }
+  })
+  return parent
+    .send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true, filter: [{ type: 'iframe', exclude: false }] })
+    .catch(quiet)
+}
+
 function bornPage(hold: Hold, cdp: CDPSession, info: Protocol.Target.TargetInfo): void {
   const opener = info.openerId === undefined ? null : (hold.owned.get(info.openerId) ?? null)
   const inherited = opener === null ? null : (pageKits.get(opener.page)?.presented ?? null)
@@ -1547,6 +1609,7 @@ function bornPage(hold: Hold, cdp: CDPSession, info: Protocol.Target.TargetInfo)
   listenProtocol(birth.wiring, cdp)
   observeFirstRequest(kit, presented, info.targetId)
   if (info.openerId !== undefined && presented.identity !== null) mendFirstRequest(birth, presented.identity)
+  void watchFrames(kit, cdp)
   void cdp.send('Runtime.runIfWaitingForDebugger').catch(quiet)
   if (info.openerId !== undefined && opener === null) {
     handover()
@@ -1979,7 +2042,7 @@ async function placeTab(
         closeNetwork: proxy.close,
         networkRefusal,
         relayFailureFor,
-        baseline: { identity: kit.identity, languages: hostLang.languages, timeZone: hostTimeZone, locale: null, headers: null },
+        baseline: { identity: kit.identity, languages: hostLang.languages, timeZone: hostTimeZone, locale: null, headers: null, touch: false },
         tabs: new Set(),
         owned: new Map(),
         births: new Map(),
@@ -1999,6 +2062,7 @@ async function placeTab(
       if (typeof page.bringToFront === 'function') await page.bringToFront()
       if (opts.births === true) await watchBirths(state, hold, opts.downloads)
       const own = pageKits.get(page)?.cdp ?? null
+      if (opts.births === true && own !== null) await watchFrames(pageKits.get(page)!, own)
       if (hold.downloads === null && own !== null) {
         if (opts.downloads !== undefined && opts.births === true) await own.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(() => undefined)
         listenDownloads(wiring, own)

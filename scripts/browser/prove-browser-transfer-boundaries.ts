@@ -82,7 +82,7 @@ const pads = (): string[] => {
   return found
 }
 
-section('S1 unused session sends 55 protocol commands and creates no transfer folder; download requests keep full stealth')
+section('S1 unused session sends 56 protocol commands and creates no transfer folder; download requests keep full stealth')
 {
   const { Connection } = (await import(join(ROOT, 'node_modules/puppeteer-core/lib/puppeteer/cdp/Connection.js'))) as {
     Connection: { prototype: { _rawSend: (...args: unknown[]) => unknown } }
@@ -109,8 +109,8 @@ section('S1 unused session sends 55 protocol commands and creates no transfer fo
   const dlBehaviours = ownCommands.filter(c => c.method === 'Browser.setDownloadBehavior')
   const anyFolders = pads().some(p => fs.existsSync(join(p, 'browser-downloads')) || fs.existsSync(join(p, 'browser-uploads')))
   check(
-    'open, screenshot, close sends 51 protocol commands on the root, driver, page-kit, and watch sessions (55 with default background targets; 2 download-behavior commands, 0 extra) and creates no transfer folder',
-    ownCommands.length === 51 && dlBehaviours.length === 2 && !anyFolders,
+    'open, screenshot, close sends 52 protocol commands on the root, driver, page-kit, and watch sessions (56 with default background targets; the one over the tabs row is the page-kit session’s auto-attach for frames of another site; 2 download-behavior commands, 0 extra) and creates no transfer folder',
+    ownCommands.length === 52 && ownCommands.filter(c => c.method === 'Target.setAutoAttach' && JSON.stringify(c.params?.filter) === '[{"type":"iframe","exclude":false}]').length === 1 && dlBehaviours.length === 2 && !anyFolders,
     `commands=${ownCommands.length} dlBehaviours=${dlBehaviours.length} folders=${anyFolders}`,
   )
 
