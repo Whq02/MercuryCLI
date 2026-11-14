@@ -61,9 +61,9 @@ m_real() {
     n=$((n + 1))
   done
   if [ -d "$p" ]; then r=$(cd -P "$p" 2>/dev/null && pwd -P) || r=$p; printf '%s\n' "$r"; return 0; fi
-  d=$(dirname "$p"); b=$(basename "$p")
+  d=$(dirname "$p"); q=$(basename "$p")
   r=$(cd -P "$d" 2>/dev/null && pwd -P) || r=$d
-  case $r in /) printf '/%s\n' "$b" ;; *) printf '%s/%s\n' "$r" "$b" ;; esac
+  case $r in /) printf '/%s\n' "$q" ;; *) printf '%s/%s\n' "$r" "$q" ;; esac
 }
 m_head() {
   if [ -d "$1" ]; then return 45; fi
@@ -72,11 +72,11 @@ m_head() {
   m=$(m_meta "$1") && [ -n "$m" ] || return 47
   l=$(wc -l < "$1") || return 47
   if [ "$(tail -c 1 "$1" | wc -l)" -eq 1 ]; then e=1; else e=0; fi
-  b=$(m_take 3 < "$1" | od -An -tx1 | tr -d ' \n')
-  [ -n "$b" ] || b=-
+  g=$(m_take 3 < "$1" | od -An -tx1 | tr -d ' \n')
+  [ -n "$g" ] || g=-
   set -- "$1" $m
   if [ "$2" -le 1073741824 ]; then c=$(m_sum "$1") || return 47; else c='- -'; fi
-  printf '%s %s %s %s %s %s %s\n' "$2" "$3" "$4" $l "$e" "$b" "@{c% *}"
+  printf '%s %s %s %s %s %s %s\n' "$2" "$3" "$4" $l "$e" "$g" "@{c% *}"
 }
 m_page() {
   h=$(m_head "$1") || return
