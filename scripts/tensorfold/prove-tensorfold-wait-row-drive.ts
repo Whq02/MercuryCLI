@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs, vshotBudgetScale } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { untilAsync } from '../lib/untilAsync.ts'
 import { FAKE_BIN, FIXTURES, fakeWorld } from './fixtures/world.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -67,14 +68,6 @@ function freePort(): Promise<number> {
     })
   })
 }
-const until = async (read: () => Promise<boolean>, ms: number): Promise<boolean> => {
-  const deadline = Date.now() + ms
-  while (Date.now() < deadline) {
-    if (await read()) return true
-    await new Promise(r => setTimeout(r, 150))
-  }
-  return read()
-}
 const answers = async (port: number): Promise<boolean> => fetch(`http://127.0.0.1:${port}/health`, { signal: AbortSignal.timeout(800) }).then(r => r.ok, () => false)
 
 const scale = vshotBudgetScale()
@@ -92,8 +85,8 @@ const engineGone = new Promise<void>(settle => engine.once('exit', () => settle(
 const stopEngine = async (): Promise<void> => {
   if (engine.exitCode !== null || engine.signalCode !== null) return
   engine.kill('SIGTERM')
-  await Promise.race([engineGone, new Promise(r => setTimeout(r, 8_000))])
-  if (engine.exitCode === null && engine.signalCode === null) engine.kill('SIGKILL')
+  const deadline = setTimeout(() => engine.kill('SIGKILL'), vshotBudgetMs(8_000))
+  await engineGone.finally(() => clearTimeout(deadline))
 }
 
 const [cols, rows] = (argAfter('--size') ?? '100x40').split('x').map(Number) as [number, number]
@@ -155,11 +148,11 @@ const sends: Array<Record<string, unknown>> = [
   { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
   { requireAwait: true, awaitText: 'Type a prompt', awaitSettleTicks: 3, awaitStableTicks: 2, mark: 'session', data: PROMPT },
   { requireAwait: true, awaitText: 'five words about rain', awaitSettleTicks: 1, mark: 'asked', data: '\r' },
-  ...READINGS.map((at, n) => ({ afterPrevTicks: ticks(at - (READINGS[n - 1] ?? 0)), mark: `reading-${n + 1}`, data: '' })),
+  ...READINGS.map((at, n) => ({ afterPrevTicks: ticks(at - (READINGS[n - 1] ?? 0)), awaitPattern: `local/${NAME_2B}[^\\n]*(?:first byte|ingest|so far)`, mark: `reading-${n + 1}`, data: '' })),
 ]
 
 section(`${cols}x${rows} — a session on ${NAME_2B} behind Mercury's engine and a llama.cpp that reads the prompt for ${Math.round(holdMs / 1000)} s, a comment line every ${PING_S} s`)
-const up = await until(() => answers(port), 30_000)
+const up = await untilAsync(() => answers(port), vshotBudgetMs(30_000), 150)
 check('the engine answers on its port before the session starts', up, engineLines.slice(-6).join(' | '))
 
 const out = join(ROOT, 'capture.json')

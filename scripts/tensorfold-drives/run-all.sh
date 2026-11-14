@@ -2,7 +2,7 @@
 # gate-class: pty
 # gate-watch: scripts/tensorfold/prove-tensorfold-drive.ts scripts/tensorfold/fixtures/**
 # gate-watch: src/services/tensorfold/** src/commands/tensorfold/** src/commands.ts src/services/localSetup/setupProve.ts
-# gate-watch: scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/ui/vshot.py
+# gate-watch: scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/lib/untilAsync.ts scripts/ui/vshot.py
 # gate-watch: scripts/tensorfold/prove-tensorfold-wait-row-drive.ts src/components/SwitchboardTagBar.tsx src/services/engine-connector/daemonConnector.ts src/services/providers/streamIdleBudget.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
