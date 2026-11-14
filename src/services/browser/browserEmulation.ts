@@ -377,6 +377,12 @@ function ownSession(kit: PageKit): NonNullable<PageKit['cdp']> {
   return kit.cdp
 }
 
+async function identitySession(page: Page, kit: PageKit): Promise<NonNullable<PageKit['cdp']>> {
+  if (kit.late === undefined) return ownSession(kit)
+  kit.late ??= await page.createCDPSession()
+  return kit.late
+}
+
 async function setGrant(page: Page, origin: string, state: 'granted' | 'prompt'): Promise<void> {
   const context = typeof page.browserContext === 'function' ? page.browserContext() : null
   if (context === null || typeof context.setPermission !== 'function') return
@@ -494,7 +500,7 @@ async function applyAspect(aspect: Aspect, page: Page, kit: PageKit, environment
       await answerChallenges(page, kit, state, environment.credentials !== null)
       return false
     case 'identity':
-      if (environment.identity !== null) await ownSession(kit).send('Emulation.setUserAgentOverride', environment.identity)
+      if (environment.identity !== null) await (await identitySession(page, kit)).send('Emulation.setUserAgentOverride', environment.identity)
       return false
     case 'locale':
       await ownSession(kit).send('Emulation.setLocaleOverride', environment.locale === null ? {} : { locale: environment.locale })
@@ -777,6 +783,7 @@ export async function inheritEmulation(from: Page, to: Page, reloadSafe: boolean
   const baseline = environmentOf({}, kit, devices, networks)
   const born = kit.born
   state.environment = born === null ? baseline : { ...baseline, identity: born.identity, languages: born.languages, locale: born.locale, timezone: born.timeZone }
+  if (born !== null && kit.late !== undefined && JSON.stringify(born.identity) !== JSON.stringify(kit.identity)) state.unsettled.add('identity')
   const wanted = environmentOf(next, kit, devices, networks).viewport
   const reloads = Boolean(wanted.isMobile) !== Boolean(baseline.viewport.isMobile) || Boolean(wanted.hasTouch) !== Boolean(baseline.viewport.hasTouch)
   if (reloadSafe || !reloads) return settle(to, kit, state, next)

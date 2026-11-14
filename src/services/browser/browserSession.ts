@@ -1052,6 +1052,7 @@ export interface PageKit {
   born: PagePresented | null
   fetchHeld: boolean
   firstRequestUnarmed?: boolean
+  late?: CDPSession | null
 }
 
 const pageKits = new WeakMap<Page, PageKit>()
@@ -1522,7 +1523,7 @@ function bornPage(hold: Hold, cdp: CDPSession, info: Protocol.Target.TargetInfo)
   const inherited = opener === null ? null : (pageKits.get(opener.page)?.presented ?? null)
   const presented = inherited ?? hold.baseline
   const quiet = (): undefined => undefined
-  const kit: PageKit = { cdp, identity: hold.baseline.identity, languages: hold.baseline.languages, timeZone: hold.baseline.timeZone, presented: null, born: inherited, fetchHeld: false }
+  const kit: PageKit = { cdp, identity: hold.baseline.identity, languages: hold.baseline.languages, timeZone: hold.baseline.timeZone, presented: null, born: inherited, fetchHeld: false, late: null }
   let settle = (): void => {}
   const settled = new Promise<void>(resolve => {
     settle = resolve
