@@ -17,5 +17,5 @@ export function volumeClones(dir: string): boolean {
 }
 
 export function cloneRoadExpected(dir: string): boolean {
-  return process.platform === 'darwin' && volumeClones(dir)
+  return (process.platform === 'darwin' || process.platform === 'linux') && volumeClones(dir)
 }

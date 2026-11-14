@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
-import { appendFileSync, existsSync, lstatSync, lutimesSync, readdirSync, readFileSync, renameSync } from 'node:fs'
-import { lstat, mkdir, realpath, rm, stat } from 'node:fs/promises'
+import { appendFileSync, constants, existsSync, lstatSync, lutimesSync, readdirSync, readFileSync, renameSync } from 'node:fs'
+import { chmod, copyFile, lstat, mkdir, readdir, readlink, realpath, rm, stat, symlink, utimes } from 'node:fs/promises'
 import { basename, dirname, join, resolve, sep } from 'node:path'
 
 import { logForDebugging } from './debug.js'
@@ -11,13 +11,19 @@ export type CloneOutcome = 'cloned' | 'present' | 'missing' | 'outside' | 'unsup
 
 type ClonePair = { source: string; target: string }
 
-type AdmittedPair = { index: number; source: string; target: string; device: number }
+type AdmittedPair = { index: number; source: string; target: string; volumes: string }
+
+type CloneRoad = 'clonefile' | 'files'
+
+type FolderStamp = { path: string; mode: number; atime: number; mtime: number }
 
 const CLONE_ANSWER_BOUND_MS = 120_000
 const OSASCRIPT = '/usr/bin/osascript'
 const EEXIST = 17
 const EXDEV = 18
 const ENOTSUP = 45
+const REFLINKS_AT_ONCE = 16
+const NO_REFLINK_CODES: ReadonlySet<string> = new Set(['ENOTSUP', 'EOPNOTSUPP', 'EXDEV', 'EINVAL', 'ENOSYS', 'ENOTTY'])
 
 const CLONEFILE_SCRIPT = [
   'function run() {',
@@ -32,10 +38,15 @@ const CLONEFILE_SCRIPT = [
   '}',
 ].join('\n')
 
-const devicesThatCannotClone = new Set<number>()
+const volumesThatCannotClone = new Set<string>()
 
-function cloneRoadOpen(): boolean {
-  return process.env.MERCURY_WORKTREE_CLONE !== 'off' && process.platform === 'darwin'
+function cloneRoad(): CloneRoad | null {
+  const seam = process.env.MERCURY_WORKTREE_CLONE
+  if (seam === 'off') return null
+  if (seam === 'files') return 'files'
+  if (process.platform === 'darwin') return 'clonefile'
+  if (process.platform === 'linux') return 'files'
+  return null
 }
 
 async function pathPresent(path: string): Promise<boolean> {
@@ -52,7 +63,7 @@ function pathWithin(path: string, root: string): boolean {
   return path.startsWith(root.endsWith(sep) ? root : root + sep)
 }
 
-async function admitPair(pair: ClonePair, index: number, checkout: string): Promise<AdmittedPair | CloneOutcome> {
+async function admitPair(pair: ClonePair, index: number, checkout: string, road: CloneRoad): Promise<AdmittedPair | CloneOutcome> {
   let source: string
   try {
     source = await realpath(pair.source)
@@ -67,8 +78,10 @@ async function admitPair(pair: ClonePair, index: number, checkout: string): Prom
   const parent = await realpath(dirname(pair.target))
   if (parent === source || pathWithin(parent, source)) return 'unsupported'
   const device = (await stat(parent)).dev
-  if (device !== sourceStat.dev || devicesThatCannotClone.has(device)) return 'unsupported'
-  return { index, source, target: pair.target, device }
+  if (road === 'clonefile' && device !== sourceStat.dev) return 'unsupported'
+  const volumes = `${sourceStat.dev}:${device}`
+  if (volumesThatCannotClone.has(volumes)) return 'unsupported'
+  return { index, source, target: pair.target, volumes }
 }
 
 async function clonefileEach(admitted: readonly AdmittedPair[]): Promise<number[] | null> {
@@ -90,27 +103,7 @@ async function clonefileEach(admitted: readonly AdmittedPair[]): Promise<number[
   return null
 }
 
-export async function cloneIntoWorktree(pairs: readonly ClonePair[], checkoutRoot: string): Promise<CloneOutcome[]> {
-  if (pairs.length === 0) return []
-  if (!cloneRoadOpen()) return pairs.map(() => 'unsupported')
-  const outcomes: CloneOutcome[] = pairs.map(() => 'failed')
-  const admitted: AdmittedPair[] = []
-  let checkout: string
-  try {
-    checkout = await realpath(checkoutRoot)
-  } catch {
-    return outcomes
-  }
-  for (const [index, pair] of pairs.entries()) {
-    try {
-      const verdict = await admitPair(pair, index, checkout)
-      if (typeof verdict === 'string') outcomes[index] = verdict
-      else admitted.push(verdict)
-    } catch (error) {
-      logForDebugging(`worktree clone: ${pair.source} could not be read for cloning: ${String(error)}`, { level: 'warn' })
-    }
-  }
-  if (admitted.length === 0) return outcomes
+async function clonefileAdmitted(admitted: readonly AdmittedPair[], outcomes: CloneOutcome[]): Promise<void> {
   const codes = await clonefileEach(admitted)
   for (const [at, pair] of admitted.entries()) {
     const code = codes === null ? null : (codes[at] as number)
@@ -124,13 +117,114 @@ export async function cloneIntoWorktree(pairs: readonly ClonePair[], checkoutRoo
     }
     await rm(pair.target, { recursive: true, force: true }).catch(() => {})
     if (code === ENOTSUP || code === EXDEV) {
-      if (code === ENOTSUP) devicesThatCannotClone.add(pair.device)
+      if (code === ENOTSUP) volumesThatCannotClone.add(pair.volumes)
       outcomes[pair.index] = 'unsupported'
       logForDebugging(`worktree clone: the volume of ${pair.source} cannot clone (errno ${code}); the folder is linked as before`)
       continue
     }
     logForDebugging(`worktree clone: ${pair.source} was not cloned (${code === null ? 'no answer' : `errno ${code}`}); the folder is linked as before`, { level: 'warn' })
   }
+}
+
+async function eachAtOnce<T>(items: readonly T[], limit: number, work: (item: T) => Promise<void>): Promise<void> {
+  let next = 0
+  let failure: unknown
+  const run = async (): Promise<void> => {
+    while (failure === undefined && next < items.length) {
+      const item = items[next++] as T
+      try {
+        await work(item)
+      } catch (error) {
+        failure ??= error
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run))
+  if (failure !== undefined) throw failure
+}
+
+async function reflinkTree(source: string, target: string): Promise<CloneOutcome> {
+  try {
+    await mkdir(target)
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'EEXIST' ? 'present' : 'failed'
+  }
+  const folders: FolderStamp[] = []
+  let reflinked = 0
+  try {
+    const pending = [{ from: source, to: target }]
+    while (pending.length > 0) {
+      const { from, to } = pending.pop() as { from: string; to: string }
+      const folder = await lstat(from)
+      if (to !== target) await mkdir(to)
+      folders.push({ path: to, mode: folder.mode & 0o7777, atime: folder.atimeMs / 1000, mtime: folder.mtimeMs / 1000 })
+      const files: Array<{ from: string; to: string }> = []
+      for (const entry of await readdir(from, { withFileTypes: true })) {
+        const child = { from: join(from, entry.name), to: join(to, entry.name) }
+        if (entry.isDirectory()) pending.push(child)
+        else if (entry.isSymbolicLink()) await symlink(await readlink(child.from), child.to)
+        else if (entry.isFile()) files.push(child)
+      }
+      await eachAtOnce(files, REFLINKS_AT_ONCE, async file => {
+        const times = await lstat(file.from)
+        await copyFile(file.from, file.to, constants.COPYFILE_FICLONE_FORCE | constants.COPYFILE_EXCL)
+        await utimes(file.to, times.atimeMs / 1000, times.mtimeMs / 1000)
+        reflinked++
+      })
+    }
+    for (const folder of folders.reverse()) {
+      await chmod(folder.path, folder.mode)
+      await utimes(folder.path, folder.atime, folder.mtime)
+    }
+    return 'cloned'
+  } catch (error) {
+    for (const folder of folders) await chmod(folder.path, 0o700).catch(() => {})
+    await rm(target, { recursive: true, force: true }).catch(() => {})
+    const code = (error as NodeJS.ErrnoException).code ?? ''
+    if (reflinked === 0 && NO_REFLINK_CODES.has(code)) return 'unsupported'
+    logForDebugging(`worktree clone: ${source} was not cloned file by file (${code === '' ? String(error) : code}); the folder is linked as before`, { level: 'warn' })
+    return 'failed'
+  }
+}
+
+async function reflinkAdmitted(admitted: readonly AdmittedPair[], outcomes: CloneOutcome[]): Promise<void> {
+  for (const pair of admitted) {
+    if (volumesThatCannotClone.has(pair.volumes)) {
+      outcomes[pair.index] = 'unsupported'
+      continue
+    }
+    const outcome = await reflinkTree(pair.source, pair.target)
+    outcomes[pair.index] = outcome
+    if (outcome !== 'unsupported') continue
+    volumesThatCannotClone.add(pair.volumes)
+    logForDebugging(`worktree clone: the filesystem of ${pair.source} cannot reflink into ${dirname(pair.target)}; the folder is linked as before`)
+  }
+}
+
+export async function cloneIntoWorktree(pairs: readonly ClonePair[], checkoutRoot: string): Promise<CloneOutcome[]> {
+  if (pairs.length === 0) return []
+  const road = cloneRoad()
+  if (road === null) return pairs.map(() => 'unsupported')
+  const outcomes: CloneOutcome[] = pairs.map(() => 'failed')
+  const admitted: AdmittedPair[] = []
+  let checkout: string
+  try {
+    checkout = await realpath(checkoutRoot)
+  } catch {
+    return outcomes
+  }
+  for (const [index, pair] of pairs.entries()) {
+    try {
+      const verdict = await admitPair(pair, index, checkout, road)
+      if (typeof verdict === 'string') outcomes[index] = verdict
+      else admitted.push(verdict)
+    } catch (error) {
+      logForDebugging(`worktree clone: ${pair.source} could not be read for cloning: ${String(error)}`, { level: 'warn' })
+    }
+  }
+  if (admitted.length === 0) return outcomes
+  if (road === 'clonefile') await clonefileAdmitted(admitted, outcomes)
+  else await reflinkAdmitted(admitted, outcomes)
   return outcomes
 }
 

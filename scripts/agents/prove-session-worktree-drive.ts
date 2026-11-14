@@ -2,7 +2,7 @@
 import { execFileSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { DIST, SCRATCH_ROOT, makeTally } from '../daemon/dupline-world.ts'
+import { DIST, NODE, SCRATCH_ROOT, makeTally } from '../daemon/dupline-world.ts'
 import { cloneRoadExpected } from '../lib/cloneRoad.ts'
 import { runScriptedTurn, startScriptedFixture, type ScriptedTurn, type SeenResult } from '../lib/scriptedTurn.ts'
 
@@ -146,6 +146,36 @@ tally.section('the --worktree boot road with MERCURY_WORKTREE_CLONE=off: the lin
 const laneLinked = join(repoLinked, '.mercury', 'worktrees', 'linked-lane')
 tally.check('the boot opened the worktree under the repository worktrees home', existsSync(join(laneLinked, 'package.json')), laneLinked)
 probeChecks('--worktree, no clone', repoLinked, laneLinked, seen.linkedProbe?.text ?? '', statusLinked, true)
+
+const runtimeForcesClone = ((): boolean => {
+  writeFileSync(join(scratch, 'runtime-probe-a'), 'probe\n')
+  try {
+    execFileSync(NODE, ['-e', "const fs = require('node:fs'); fs.copyFileSync(process.argv[1], process.argv[2], fs.constants.COPYFILE_FICLONE_FORCE)", join(scratch, 'runtime-probe-a'), join(scratch, 'runtime-probe-b')], { stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
+})()
+console.log(`\nthe bundle's own runtime ${runtimeForcesClone ? 'forces' : 'refuses to force'} a clone of one file here (${process.platform})`)
+const repoByFile = seedRepo('repo-by-file')
+const statusByFile = authoredStatus(repoByFile)
+const byFileFixture = await startScriptedFixture(req => {
+  if (req.ask.trim() !== ASK) return [{ type: 'text', text: 'ok' }]
+  if (req.step === 0) return [{ type: 'tool_use', name: 'Bash', input: { command: PROBE, description: 'probe the worktree' } }]
+  if (req.step === 1) seen.byFileProbe = req.results[req.results.length - 1]
+  return [{ type: 'text', text: 'done' }]
+})
+let byFileTurn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
+try {
+  byFileTurn = await runScriptedTurn({ runHome: join(scratch, 'home-by-file'), cwd: repoByFile, base: byFileFixture.base, ask: ASK, timeoutMs: 240_000, extraArgv: ['--sovereign', '--worktree', 'by-file-lane'], extraEnv: { MERCURY_WORKTREE_CLONE: 'files' } })
+} finally {
+  await byFileFixture.close()
+}
+show('the probe in the worktree opened at boot with MERCURY_WORKTREE_CLONE=files', seen.byFileProbe, byFileTurn)
+tally.section(`the --worktree boot road, file by file (MERCURY_WORKTREE_CLONE=files): ${runtimeForcesClone ? "the worktree's own directories" : 'the first file is refused, so the links stand as on a volume that cannot clone'}`)
+const laneByFile = join(repoByFile, '.mercury', 'worktrees', 'by-file-lane')
+tally.check('the boot opened the worktree under the repository worktrees home', existsSync(join(laneByFile, 'package.json')), laneByFile)
+probeChecks('--worktree, file by file', repoByFile, laneByFile, seen.byFileProbe?.text ?? '', statusByFile, !runtimeForcesClone)
 
 if (tally.failed() === 0 && !KEEP) rmSync(scratch, { recursive: true, force: true })
 else console.log(`\nworld kept: ${scratch}`)

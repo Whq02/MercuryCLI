@@ -212,7 +212,8 @@ if (cloneRoad && cloneModule !== null) {
   const best = Math.min(...times)
   const cost = Math.min(...costs)
   console.log(`  three clones: ${times.map(ms => `${ms.toFixed(0)} ms`).join(', ')}; the volume's free space moved by ${costs.map(bytes => `${(bytes / 1024 / 1024).toFixed(1)} MB`).join(', ')}`)
-  check('ten thousand files are cloned in under a second', bigFiles >= 10_000 && best < 1000, `${best.toFixed(0)} ms`)
+  if (process.platform === 'darwin') check('ten thousand files are cloned in under a second', bigFiles >= 10_000 && best < 1000, `${best.toFixed(0)} ms`)
+  else console.log('  the bound of a second is held on APFS, where one call clones the folder; here the time is read, not held')
   check('at a disk cost under a tenth of the folder', cost < bigBytes / 10, `${(cost / 1024 / 1024).toFixed(1)} MB of ${(bigBytes / 1024 / 1024).toFixed(1)} MB`)
   enter(big)
   const started = performance.now()
@@ -249,6 +250,56 @@ check("the clone's exclude file carries the link names, anchored, once each", ex
 check('git status in the linked copy shows nothing', git(linked.worktreePath, 'status', '--porcelain') === '')
 writeFileSync(join(linked.worktreePath, 'node_modules', 'pkg-4', 'package.json'), '{"through":"the link"}')
 check('a write through the link lands in the checkout, as before', read(join(deps, 'node_modules', 'pkg-4', 'package.json')) === '{"through":"the link"}')
+
+section("§5b the file-by-file road, Linux's reflinks, read through MERCURY_WORKTREE_CLONE=files wherever the proof's runtime can force a clone of one file")
+if (volumeClones(scratch) && process.platform !== 'win32' && cloneModule !== null) {
+  const special = join(scratch, 'special')
+  makeCheckout(special, 300)
+  execFileSync('mkfifo', [join(special, 'node_modules', 'pkg-0', 'a-pipe')])
+  const specialListing = listing(join(special, 'node_modules')).filter(row => !row.startsWith('pkg-0/a-pipe'))
+  process.env.MERCURY_WORKTREE_CLONE = 'files'
+  const byFile = await createAgentWorktree('agent-a8000001', { from: special })
+  const byFileModules = join(byFile.worktreePath, 'node_modules')
+  check('node_modules and the pack are directories of the copy', isOwnDirectory(byFileModules) && isOwnDirectory(join(byFile.worktreePath, 'vendor', 'pack-a')), read(byFileModules))
+  check('every file and folder is there, name for name and size for size, the pipe passed over', JSON.stringify(listing(byFileModules)) === JSON.stringify(specialListing), `${listing(byFileModules).length} against ${specialListing.length}`)
+  check('a link inside is kept as written, a file keeps its time and its mode', read(join(byFileModules, '.bin', 'pkg-0')) === 'module.exports = "parent"\n' && readlinkSync(join(byFileModules, '.bin', 'pkg-0')) === '../pkg-0/index.js' && statSync(join(byFileModules, 'pkg-0', 'index.js')).mtimeMs === OLD.getTime() && (statSync(join(byFileModules, '.bin', 'typecheck-fixture')).mode & 0o111) !== 0)
+  check('a folder keeps its time, to the millisecond, and its mode', Math.abs(statSync(join(byFileModules, 'pkg-1', 'lib')).mtimeMs - statSync(join(special, 'node_modules', 'pkg-1', 'lib')).mtimeMs) < 1 && (statSync(join(byFileModules, 'pkg-1', 'lib')).mode & 0o7777) === (statSync(join(special, 'node_modules', 'pkg-1', 'lib')).mode & 0o7777), `${statSync(join(byFileModules, 'pkg-1', 'lib')).mtimeMs} against ${statSync(join(special, 'node_modules', 'pkg-1', 'lib')).mtimeMs}`)
+  writeFileSync(join(byFileModules, 'pkg-0', 'index.js'), 'module.exports = "copy"\n')
+  writeFileSync(join(special, 'node_modules', 'pkg-1', 'package.json'), '{"main":"parent"}')
+  check('a write on either side stays on its side', read(join(special, 'node_modules', 'pkg-0', 'index.js')) === 'module.exports = "parent"\n' && read(join(byFileModules, 'pkg-1', 'package.json')) === '{}')
+  check('git status in the copy shows nothing', git(byFile.worktreePath, 'status', '--porcelain') === '')
+  const fileTimes: number[] = []
+  const fileCosts: number[] = []
+  for (let round = 0; round < 3; round++) {
+    const fileTarget = join(scratch, `timed-files-${round}`, 'node_modules')
+    mkdirSync(dirname(fileTarget))
+    const freeBefore = statfsSync(scratch).bavail * statfsSync(scratch).bsize
+    const fileStarted = performance.now()
+    const fileOutcome = await cloneModule.cloneIntoWorktree([{ source: join(big, 'node_modules'), target: fileTarget }], big)
+    fileTimes.push(performance.now() - fileStarted)
+    fileCosts.push(freeBefore - statfsSync(scratch).bavail * statfsSync(scratch).bsize)
+    if (round === 0) check('ten thousand files cloned file by file hold the folder whole', fileOutcome[0] === 'cloned' && JSON.stringify(listing(fileTarget)) === JSON.stringify(bigListing), String(fileOutcome[0]))
+  }
+  const fileCost = Math.min(...fileCosts)
+  console.log(`  three clones, file by file: ${fileTimes.map(ms => `${ms.toFixed(0)} ms`).join(', ')}; the volume's free space moved by ${fileCosts.map(bytes => `${(bytes / 1024 / 1024).toFixed(1)} MB`).join(', ')}`)
+  check('…at a disk cost under a tenth of the folder', fileCost < bigBytes / 10, `${(fileCost / 1024 / 1024).toFixed(1)} MB of ${(bigBytes / 1024 / 1024).toFixed(1)} MB`)
+  const sealedByFile = join(scratch, 'sealed-by-file')
+  makeCheckout(sealedByFile, 40)
+  mkdirSync(join(sealedByFile, 'node_modules', 'sealed'))
+  writeFileSync(join(sealedByFile, 'node_modules', 'sealed', 'inside'), 'x\n')
+  chmodSync(join(sealedByFile, 'node_modules', 'sealed'), 0o000)
+  const afterFileFailure = await createAgentWorktree('agent-a8000002', { from: sealedByFile })
+  chmodSync(join(sealedByFile, 'node_modules', 'sealed'), 0o755)
+  if (process.getuid?.() !== 0) check('a folder the walk cannot read whole is linked as before, with no half copy left', isLinkTo(join(afterFileFailure.worktreePath, 'node_modules'), join(sealedByFile, 'node_modules')) && isOwnDirectory(join(afterFileFailure.worktreePath, 'vendor', 'pack-a')))
+  else skip('this user reads every folder: nothing to fail')
+  delete process.env.MERCURY_WORKTREE_CLONE
+} else {
+  skip("the proof's runtime cannot force a clone of one file here: the file-by-file road answers that it cannot, and the links stand as in §5")
+  process.env.MERCURY_WORKTREE_CLONE = 'files'
+  const refusedByFile = await createAgentWorktree('agent-a8000001')
+  delete process.env.MERCURY_WORKTREE_CLONE
+  check('the file-by-file road on a volume that cannot reflink leaves the links, as before', isLinkTo(join(refusedByFile.worktreePath, 'node_modules'), join(deps, 'node_modules')) && isLinkTo(join(refusedByFile.worktreePath, 'vendor', 'pack-a'), join(deps, 'vendor', 'pack-a')))
+}
 
 section('§6 what is linked by the user\'s word, what is left alone, what a link out of the checkout brings, and what a failed clone leaves')
 mkdirSync(join(deps, '.mercury'), { recursive: true })
