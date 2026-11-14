@@ -144,10 +144,74 @@ const ADMITTED: Record<string, Admission> = {
     ],
     rewrite: { pattern: 'string id = 1;', rewrite: 'string uid = 1;', expect: ['string uid = 1;'], gone: ['string id = 1;'] },
   },
+  dart: {
+    routes: ['sample.dart', 'SAMPLE.DART'],
+    aliases: [],
+    pieceSkip: ['function_signature', 'function_body'],
+    refuses: ['void main() { $$$BODY }', 'class $N { $$$M }'],
+    searches: [
+      { pattern: 'print($X)', count: 3 },
+      { pattern: 'harbour.add($$$ARGS)', count: 1 },
+      { pattern: 'return $X;', count: 3 },
+    ],
+    rewrite: { pattern: 'print($X)', rewrite: 'log.info($X)', expect: ["log.info(jsonEncode({'loaded': harbour.name}));", "log.info('bad table: $error\\n$stack');"], gone: ['print('] },
+  },
+  scala: {
+    routes: ['sample.scala', 'sample.sc', 'sample.sbt', 'SAMPLE.SCALA'],
+    aliases: ['sc', 'sbt'],
+    refuses: ['def $N($$$P): $T = $B'],
+    searches: [
+      { pattern: 'Left($X)', count: 2 },
+      { pattern: 'harbour.add($X)', count: 1, first: { '$X': 'tide' } },
+    ],
+    rewrite: { pattern: 'Left($X)', rewrite: 'Failure($X)', expect: ['Failure("expected three fields")', 'Failure(s"bad row: ${err.getMessage}")'], gone: ['Left('] },
+  },
+  elixir: {
+    routes: ['sample.ex', 'sample.exs', 'SAMPLE.EX'],
+    aliases: ['ex', 'exs'],
+    searches: [
+      { pattern: 'Logger.info($MSG)', count: 1 },
+      { pattern: '{:ok, $X}', count: 2 },
+      { pattern: 'length($X)', count: 2 },
+    ],
+    rewrite: { pattern: 'Logger.info($MSG)', rewrite: 'Logger.warning($MSG)', expect: ['Logger.warning("adding #{inspect(tide)}")'], gone: ['Logger.info'] },
+  },
+  zig: {
+    routes: ['sample.zig', 'SAMPLE.ZIG'],
+    aliases: [],
+    refuses: ['pub fn main() void { $$$BODY }'],
+    searches: [
+      { pattern: 'allocator.free($X)', count: 2, first: { '$X': 'out' } },
+      { pattern: 'try harbour.add($X)', count: 2 },
+      { pattern: '@intCast($X)', count: 1 },
+    ],
+    rewrite: { pattern: 'allocator.free($X)', rewrite: 'allocator.destroy($X)', expect: ['errdefer allocator.destroy(out);', 'defer allocator.destroy(values);'], gone: ['allocator.free'] },
+  },
+  haskell: {
+    routes: ['sample.hs', 'SAMPLE.HS'],
+    aliases: ['hs'],
+    searches: [
+      { pattern: 'fromMaybe $D $X', count: 1 },
+      { pattern: 'Just $X', count: 1 },
+      { pattern: 'label :: TideKind -> String', count: 1 },
+    ],
+    rewrite: { pattern: 'sum $X', rewrite: 'foldr (+) 0 $X', expect: ['total = foldr (+) 0 (map tideHeight tides)'], gone: ['total = sum'] },
+  },
+  ocaml: {
+    routes: ['sample.ml', 'SAMPLE.ML'],
+    aliases: ['ml'],
+    refuses: ['open $M'],
+    searches: [
+      { pattern: 'List.length $X', count: 2 },
+      { pattern: 'string_of_int $N', count: 1, first: { '$N': 'n' } },
+      { pattern: 'if $C then $A else $B', count: 2 },
+    ],
+    rewrite: { pattern: 'prerr_endline $E', rewrite: 'Printf.eprintf "%s\\n" $E', expect: ['Error e -> Printf.eprintf "%s\\n" e'], gone: ['prerr_endline'] },
+  },
 }
 
-const THIRD_PARTY_BUILDS = ['sql', 'cmake', 'graphql', 'protobuf']
-const NO_COPYRIGHT_LINE = ['hcl']
+const THIRD_PARTY_BUILDS = ['sql', 'cmake', 'graphql', 'protobuf', 'dart']
+const NO_COPYRIGHT_LINE = ['hcl', 'elixir']
 const HELD = ['markdown']
 const NEEDS_FINAL_NEWLINE = ['markdown', 'make']
 

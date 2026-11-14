@@ -69,6 +69,12 @@ export const GRAMMAR_REGISTRY: GrammarRegistryEntry[] = [
   patternGrammar('hcl', ['.hcl', '.tf', '.tfvars']),
   patternGrammar('graphql', ['.graphql', '.gql']),
   patternGrammar('protobuf', ['.proto'], { declares: 'proto' }),
+  patternGrammar('dart', ['.dart']),
+  patternGrammar('scala', ['.scala', '.sc', '.sbt']),
+  patternGrammar('elixir', ['.ex', '.exs']),
+  patternGrammar('zig', ['.zig']),
+  patternGrammar('haskell', ['.hs']),
+  patternGrammar('ocaml', ['.ml']),
 ]
 
 export const GRAMMAR_ENGINE_RUNTIME_FILES = ['tree-sitter.js', 'tree-sitter.wasm'] as const

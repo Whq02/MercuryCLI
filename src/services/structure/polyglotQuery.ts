@@ -204,7 +204,7 @@ export async function compileFor(
     }
     if (parsed.parseErrors.length === 0) {
       if (recovery) recovery.hold.delete()
-      const compiled = { pattern: compilePatternRoot(node), hold: parsed.tree }
+      const compiled = { pattern: { ...compilePatternRoot(node), ...(candidate.spansTerminator && { spansTerminator: true }) }, hold: parsed.tree }
       cache.set(lang.name, compiled)
       return compiled
     }

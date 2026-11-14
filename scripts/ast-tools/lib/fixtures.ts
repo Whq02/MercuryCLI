@@ -46,6 +46,12 @@ export const LANGUAGE_FIXTURES: LanguageFixture[] = [
   { lang: 'hcl', file: 'main.tf', good: 'resource "aws_instance" "web" {\n  ami           = "ami-123"\n  instance_type = "t3.small"\n}\n', pattern: 'instance_type = $T', expect: 1, capture: '$T', rewrite: { rewrite: 'instance_type = "t3.medium"', contains: 'instance_type = "t3.medium"' } },
   { lang: 'graphql', file: 'a.graphql', good: 'type Query {\n  id: ID!\n  name: String\n}\n\ntype Node {\n  id: ID!\n}\n', pattern: 'id: ID!', expect: 2, rewrite: { rewrite: 'id: ID', contains: 'id: ID' } },
   { lang: 'protobuf', file: 'a.proto', good: 'syntax = "proto3";\n\nmessage Ping {\n  string id = 1;\n}\n\nmessage Pong {\n  string id = 1;\n}\n', pattern: 'string id = 1;', expect: 2, rewrite: { rewrite: 'string uid = 1;', contains: 'string uid = 1;', inPlace: true } },
+  { lang: 'dart', file: 'a.dart', good: "void main() {\n  print('hi');\n  print('yo');\n}\n", pattern: 'print($X)', expect: 2, capture: '$X', rewrite: { rewrite: 'log($X)', contains: "log('yo');" } },
+  { lang: 'scala', file: 'A.scala', good: 'object Main {\n  def run(): Unit = {\n    println("hi")\n    println("yo")\n  }\n}\n', pattern: 'println($X)', expect: 2, capture: '$X', rewrite: { rewrite: 'log($X)', contains: 'log("yo")', inPlace: true } },
+  { lang: 'elixir', file: 'a.ex', good: 'defmodule Demo do\n  def run do\n    IO.puts("hi")\n    IO.puts("yo")\n  end\nend\n', pattern: 'IO.puts($X)', expect: 2, capture: '$X', rewrite: { rewrite: 'IO.inspect($X)', contains: 'IO.inspect("yo")', inPlace: true } },
+  { lang: 'zig', file: 'a.zig', good: 'const std = @import("std");\npub fn main() void {\n    std.debug.print("hi\\n", .{});\n    std.debug.print("yo\\n", .{});\n}\n', pattern: 'std.debug.print($F, $A)', expect: 2, capture: '$F', rewrite: { rewrite: 'std.log.info($F, $A)', contains: 'std.log.info("yo\\n", .{});', inPlace: true } },
+  { lang: 'haskell', file: 'A.hs', good: 'main :: IO ()\nmain = do\n  putStrLn "hi"\n  putStrLn "yo"\n', pattern: 'putStrLn $X', expect: 2, capture: '$X', rewrite: { rewrite: 'putStr $X', contains: 'putStr "yo"', inPlace: true } },
+  { lang: 'ocaml', file: 'a.ml', good: 'let () =\n  print_endline "hi";\n  print_endline "yo"\n', pattern: 'print_endline $X', expect: 2, capture: '$X', rewrite: { rewrite: 'prerr_endline $X', contains: 'prerr_endline "yo"', inPlace: true } },
 ]
 
 export function writeLanguageFixtures(root: string): Map<string, string> {

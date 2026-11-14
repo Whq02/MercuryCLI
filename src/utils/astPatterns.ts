@@ -109,6 +109,12 @@ const LANGUAGE_ALIASES: Record<string, string> = {
   terraform: 'hcl',
   gql: 'graphql',
   proto: 'protobuf',
+  sc: 'scala',
+  sbt: 'scala',
+  ex: 'elixir',
+  exs: 'elixir',
+  hs: 'haskell',
+  ml: 'ocaml',
 }
 
 export function resolveAstLanguage(name: string): PolyglotLanguage | null {
@@ -688,8 +694,17 @@ export async function planAstRewrite(
   const patternCache: CompileCache = new Map()
   const rewriteCache: CompileCache = new Map()
   const shapeByLang = new Map<string, { pat: TSNode; rw: TSNode } | null>()
+  const terminatorByLang = new Map<string, boolean>()
   const encodedPattern = encodePattern(opts.pattern)
   const encodedRewrite = encodePattern(opts.rewrite)
+  async function spansTerminator(lang: PolyglotLanguage): Promise<boolean> {
+    const cached = terminatorByLang.get(lang.name)
+    if (cached !== undefined) return cached
+    const pat = await compileFor(engine as Parameters<typeof compileFor>[0], lang, encodedPattern, patternCache)
+    const spans = !('state' in pat) && pat.pattern.spansTerminator === true
+    terminatorByLang.set(lang.name, spans)
+    return spans
+  }
   async function shapeFor(lang: PolyglotLanguage): Promise<{ pat: TSNode; rw: TSNode } | null> {
     const cached = shapeByLang.get(lang.name)
     if (cached !== undefined) return cached
@@ -748,6 +763,7 @@ export async function planAstRewrite(
       }
     }
     const shape = await shapeFor(lang)
+    const keepsTerminator = await spansTerminator(lang)
     let tree: { rootNode: TSNode; delete(): void } | null = null
     if (shape) {
       const parsed = await parsePolyglot(engine, lang, before)
@@ -802,13 +818,17 @@ export async function planAstRewrite(
             }
           }
         }
-        const replacement = codeEnd < m.endIndex ? substituted.trimEnd() : substituted
-        if (replacement === before.slice(m.startIndex, codeEnd)) {
+        let replacedEnd = codeEnd
+        if (keepsTerminator && before[codeEnd - 1] === ';' && !substituted.trimEnd().endsWith(';')) {
+          replacedEnd = m.startIndex + before.slice(m.startIndex, codeEnd - 1).trimEnd().length
+        }
+        const replacement = replacedEnd < m.endIndex ? substituted.trimEnd() : substituted
+        if (replacement === before.slice(m.startIndex, replacedEnd)) {
           unchangedMatches++
           unchangedInFile++
           continue
         }
-        edits.push({ start: m.startIndex, end: codeEnd, newText: replacement })
+        edits.push({ start: m.startIndex, end: replacedEnd, newText: replacement })
       }
     } finally {
       tree?.delete()

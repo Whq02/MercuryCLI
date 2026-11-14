@@ -53,6 +53,7 @@ export function metavarOutsideNodes(root: TSNode, text: string, start: number, e
 export interface CompiledPattern {
   root: TSNode
   captureNames: string[]
+  spansTerminator?: boolean
 }
 
 const PATTERN_CONTEXTS: Record<string, string[]> = {
@@ -78,11 +79,18 @@ const PATTERN_CONTEXTS: Record<string, string[]> = {
   hcl: ['mercury_ctx = <P>'],
   graphql: ['type MercuryCtx {\n<P>\n}', 'query MercuryCtx {\n<P>\n}', 'query MercuryCtx { mercuryCtx(<P>) }'],
   protobuf: ['message MercuryCtx {\n<P>\n}', 'service MercuryCtx {\n<P>\n}', 'enum MercuryCtx {\n<P>\n}'],
+  dart: ['void mercuryCtx() {\n<P>\n}'],
+  scala: ['object MercuryCtx {\n<P>\n}'],
+  zig: ['fn mercuryCtx() void {\n<P>\n}', 'const mercury_ctx = <P>;'],
+  haskell: ['mercuryCtx = <P>'],
+  ocaml: ['let mercury_ctx = <P>'],
 }
 
-const RAW_CANDIDATE_LAST = new Set(['php', 'c'])
+const RAW_CANDIDATE_LAST = new Set(['php', 'c', 'dart'])
 
-const STATEMENT_TERMINATED = new Set(['c', 'cpp', 'c-sharp', 'java', 'php', 'rust', 'javascript', 'typescript', 'tsx', 'go', 'css', 'protobuf'])
+const STATEMENT_SPANNED = new Set(['dart'])
+
+const STATEMENT_TERMINATED = new Set(['c', 'cpp', 'c-sharp', 'java', 'php', 'rust', 'javascript', 'typescript', 'tsx', 'go', 'css', 'protobuf', 'dart', 'zig'])
 
 function quotePlaceholders(encoded: string): string {
   return encoded.replace(/__MVM?_[A-Za-z0-9_]*?__/g, m => `"${m}"`)
@@ -92,6 +100,7 @@ interface PatternCandidate {
   text: string
   offset: number
   length: number
+  spansTerminator?: boolean
 }
 
 export function patternCandidates(langName: string, encoded: string): PatternCandidate[] {
@@ -106,7 +115,8 @@ function candidatesFor(langName: string, trimmed: string): PatternCandidate[] {
     if (!STATEMENT_TERMINATED.has(langName) || /[;}]$/.test(trimmed)) return [c]
     const head = c.text.slice(0, c.offset + trimmed.length)
     const tail = c.text.slice(c.offset + trimmed.length)
-    return [c, { text: `${head};${tail}`, offset: c.offset, length: c.length }]
+    const terminated = { text: `${head};${tail}`, offset: c.offset, length: c.length }
+    return STATEMENT_SPANNED.has(langName) ? [c, terminated, { ...terminated, length: c.length + 1, spansTerminator: true }] : [c, terminated]
   }
   const raw = withTerminator({ text: trimmed, offset: 0, length: trimmed.length })
   const embedded = (PATTERN_CONTEXTS[langName] ?? []).flatMap(template =>

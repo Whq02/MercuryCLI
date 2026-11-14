@@ -286,6 +286,104 @@
         "copyright": "2024-2025 Mohammad Ashar Khan",
         "builder": "@lumis-sh/wasm-protobuf@0.26.7"
       }
+    },
+    {
+      "wasm": "tree-sitter-dart.wasm",
+      "sha256": "a2e3614410c88153dfc22b40b8e324c6b50d0bccbd72aae6ad7baed0b009e9f4",
+      "bytes": 1203430,
+      "optimiserCostMb": 11,
+      "sourceUrl": "https://registry.npmjs.org/@lumis-sh/wasm-dart/-/wasm-dart-0.26.8.tgz",
+      "sourceMember": "package/tree-sitter-dart.wasm",
+      "sourceSha512": "72b7696b475778fdf2e2ce28c5c9578529e4a73170c36f13c639b001d30c493890fd055be500851166b60445357ede5076e5a1a5ccdcfcf3c9f1d6b12b911a4b",
+      "sourceProvenance": "a third party's build, not the grammar's own: npm @lumis-sh/wasm-dart 0.26.8, whose lumis.json names tree-sitter-dart 1.0.0 at revision 0038280b774b65c1b89ba7fec50624d8baed9fe1 and this wasm's sha256; UserNobody14/tree-sitter-dart publishes no wasm of its own; sourceSha512 is the registry's integrity value of the tarball; licence MIT read from UserNobody14/tree-sitter-dart at that commit on 2026-11-13; not rebuilt here (taken in place of the grammar's own npm build, tree-sitter-dart 1.0.0, which reports `typedef Height = double;` as an error)",
+      "upstream": {
+        "package": "tree-sitter-dart",
+        "builtFromRange": "1.0.0",
+        "commit": "0038280b774b65c1b89ba7fec50624d8baed9fe1",
+        "license": "MIT",
+        "repository": "https://github.com/UserNobody14/tree-sitter-dart",
+        "copyright": "2020-2023 UserNobody14 and others",
+        "builder": "@lumis-sh/wasm-dart@0.26.8"
+      }
+    },
+    {
+      "wasm": "tree-sitter-scala.wasm",
+      "sha256": "a20d47f191c31efc9bbc67481b71b0109dc9e01cda9422ebd7a7d4d0bb055ce2",
+      "bytes": 4550770,
+      "optimiserCostMb": 235,
+      "sourceUrl": "https://github.com/tree-sitter/tree-sitter-scala/releases/download/v0.26.13/tree-sitter-scala.wasm",
+      "sourceProvenance": "the grammar's own release asset, tag v0.26.13 (commit e8728b1c62ea096c753a9a70325f77ebbf2192de); licence MIT read from tree-sitter/tree-sitter-scala at that commit on 2026-11-13",
+      "upstream": {
+        "package": "tree-sitter-scala",
+        "builtFromRange": "0.26.13",
+        "commit": "e8728b1c62ea096c753a9a70325f77ebbf2192de",
+        "license": "MIT",
+        "repository": "https://github.com/tree-sitter/tree-sitter-scala",
+        "copyright": "2018 Max Brunsfeld and GitHub"
+      }
+    },
+    {
+      "wasm": "tree-sitter-elixir.wasm",
+      "sha256": "1818ae0d7343f880abb0b7932c9a815f09896ca67b3e126096a2dd7677d1477b",
+      "bytes": 1436984,
+      "optimiserCostMb": 187,
+      "sourceUrl": "https://github.com/elixir-lang/tree-sitter-elixir/releases/download/v0.3.5/tree-sitter-elixir.wasm",
+      "sourceProvenance": "the grammar's own release asset, tag v0.3.5 (commit e2d9e6e0e76b0c436fa48a0b8c32a031d0cbdf49); licence Apache-2.0 read from elixir-lang/tree-sitter-elixir at that commit on 2026-11-13",
+      "upstream": {
+        "package": "tree-sitter-elixir",
+        "builtFromRange": "0.3.5",
+        "commit": "e2d9e6e0e76b0c436fa48a0b8c32a031d0cbdf49",
+        "license": "Apache-2.0",
+        "repository": "https://github.com/elixir-lang/tree-sitter-elixir"
+      }
+    },
+    {
+      "wasm": "tree-sitter-zig.wasm",
+      "sha256": "54b3b83dd9c62da5815f06132bc3fc914d9dcc780370b32416446a0b7969e8c6",
+      "bytes": 691726,
+      "optimiserCostMb": 5,
+      "sourceUrl": "https://github.com/tree-sitter-grammars/tree-sitter-zig/releases/download/v1.1.2/tree-sitter-zig.wasm",
+      "sourceProvenance": "the grammar's own release asset, tag v1.1.2 (commit b670c8df85a1568f498aa5c8cae42f51a90473c0); licence MIT read from tree-sitter-grammars/tree-sitter-zig at that commit on 2026-11-13",
+      "upstream": {
+        "package": "tree-sitter-zig",
+        "builtFromRange": "1.1.2",
+        "commit": "b670c8df85a1568f498aa5c8cae42f51a90473c0",
+        "license": "MIT",
+        "repository": "https://github.com/tree-sitter-grammars/tree-sitter-zig",
+        "copyright": "2024 Amaan Qureshi"
+      }
+    },
+    {
+      "wasm": "tree-sitter-haskell.wasm",
+      "sha256": "ea89cb1199b1ca2102e273b27239e795baff17248128a9bcd3c3825ac17d8cc0",
+      "bytes": 3840677,
+      "optimiserCostMb": 6,
+      "sourceUrl": "https://github.com/tree-sitter/tree-sitter-haskell/releases/download/v0.24.1/tree-sitter-haskell.wasm",
+      "sourceProvenance": "the grammar's own release asset, tag v0.24.1 (commit 97288e585b0bd44199720280d067fa35bacd81ff); licence MIT read from tree-sitter/tree-sitter-haskell at that commit on 2026-11-13",
+      "upstream": {
+        "package": "tree-sitter-haskell",
+        "builtFromRange": "0.24.1",
+        "commit": "97288e585b0bd44199720280d067fa35bacd81ff",
+        "license": "MIT",
+        "repository": "https://github.com/tree-sitter/tree-sitter-haskell",
+        "copyright": "2014 Max Brunsfeld"
+      }
+    },
+    {
+      "wasm": "tree-sitter-ocaml.wasm",
+      "sha256": "bfa3eef92b9d3cc1117aa486d46ecb06c98a3a28c1747660aaa5851df5e4530c",
+      "bytes": 4808294,
+      "optimiserCostMb": 129,
+      "sourceUrl": "https://github.com/tree-sitter/tree-sitter-ocaml/releases/download/v0.26.0/tree-sitter-ocaml.wasm",
+      "sourceProvenance": "the grammar's own release asset, tag v0.26.0 (commit e3c9cf368f68bffd2f81188229aefa7b434eda65); licence MIT read from tree-sitter/tree-sitter-ocaml at that commit on 2026-11-13",
+      "upstream": {
+        "package": "tree-sitter-ocaml",
+        "builtFromRange": "0.26.0",
+        "commit": "e3c9cf368f68bffd2f81188229aefa7b434eda65",
+        "license": "MIT",
+        "repository": "https://github.com/tree-sitter/tree-sitter-ocaml",
+        "copyright": "2020 Max Brunsfeld and Pieter Goetschalckx"
+      }
     }
   ],
   "notes": "REJECTED from this pack (census evidence, 2026-07-20): tree-sitter-yaml.wasm (C++ external scanner detonates at parse on the @vscode runtime \u2014 ABI mismatch) and tree-sitter-lua.wasm (scanner misparses valid code, e.g. `local x = 1`); both are carried from the grammar's own release instead (their entries below). Update procedure: bump version+url, run scripts/vendor/fetch-grammars.ts --force, re-pin sha512 + per-file sha256 from its output, re-verify each upstream licence, re-run scripts/language-sidecars/prove-grammar-census.ts. A grammar entry may carry sourceUrl + sourceProvenance: its wasm then comes from THAT pinned https artifact instead of the pack tarball (same per-file sha256 law; swift rides the upstream 0.7.3 release asset because the pack's 0.4-era build fatally OOMs V8's optimizing wasm compiler \u2014 audition-fenced, see the registry's fragile marking). An entry that also names sourceMember + sourceSha512 takes its wasm as that member of the pinned tarball at sourceUrl (sha512 verified before the member is read): a grammar's own npm package, or a third party's build of a grammar that publishes no wasm, in which case upstream.builder names the builder's package and version and upstream.commit the revision the builder says it built. upstream.commit and upstream.copyright are recorded for every entry admitted with them; the licence was read from the upstream repository at that commit. The ordinary build consumes ONLY the verified local cache (vendor/grammars/extracted) or produces an honest degraded manifest. optimiserCostMb is the resident memory V8's optimising tier adds to the process under sustained parsing with that grammar (vendored node, the method of scripts/language-sidecars/prove-grammar-memory-hold.ts, which reads the whole table again with --measure): a grammar at 400 or more is marked baseline in the registry and parsed with the tier held off; the threshold sits in the gap of the measured costs."

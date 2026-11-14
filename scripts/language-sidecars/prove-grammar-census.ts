@@ -246,6 +246,42 @@ const FIXTURES: Record<string, Fixture> = {
     file: 'a.proto',
     pattern: 'string id = 1;',
   },
+  dart: {
+    good: "void main() {\n  print('hi');\n  print('yo');\n}\n",
+    broken: 'void main( {\n  print(;\n',
+    file: 'a.dart',
+    pattern: 'print($X)',
+  },
+  scala: {
+    good: 'object Main {\n  def run(): Unit = {\n    println("hi")\n    println("yo")\n  }\n}\n',
+    broken: 'object Main {\n  def main(: Unit = \n',
+    file: 'A.scala',
+    pattern: 'println($X)',
+  },
+  elixir: {
+    good: 'defmodule Demo do\n  def run do\n    IO.puts("hi")\n    IO.puts("yo")\n  end\nend\n',
+    broken: 'defmodule Demo do\n  def hello(, do: \n',
+    file: 'a.ex',
+    pattern: 'IO.puts($X)',
+  },
+  zig: {
+    good: 'const std = @import("std");\npub fn main() void {\n    std.debug.print("hi\\n", .{});\n    std.debug.print("yo\\n", .{});\n}\n',
+    broken: 'pub fn main( void {\n    const x = ;\n',
+    file: 'a.zig',
+    pattern: 'std.debug.print($F, $A)',
+  },
+  haskell: {
+    good: 'main :: IO ()\nmain = do\n  putStrLn "hi"\n  putStrLn "yo"\n',
+    broken: 'main :: IO (\nmain = = putStrLn\n',
+    file: 'A.hs',
+    pattern: 'putStrLn $X',
+  },
+  ocaml: {
+    good: 'let () =\n  print_endline "hi";\n  print_endline "yo"\n',
+    broken: 'let greet name = = print_endline (\n',
+    file: 'a.ml',
+    pattern: 'print_endline $X',
+  },
 }
 
 const READS_EVERY_TEXT = new Set(['markdown'])

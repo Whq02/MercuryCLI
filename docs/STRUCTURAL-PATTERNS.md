@@ -41,7 +41,7 @@ range, node type, source text and captures.
 Detection is per file, by its name: a basename first (`Dockerfile`), then
 the extension, then a basename prefix (`Dockerfile.dev`). `lang` forces one
 grammar on a single file whatever its name; over a directory it keeps the
-files whose names route to that grammar. The registry routes 34 languages;
+files whose names route to that grammar. The registry routes 40 languages;
 what a build carries is what the tools advertise: the `lang` field counts the
 grammars found in the engine dir the runtime resolves
 (`dist/vendor/treesitter` beside the bundle, or the workspace package for
@@ -57,13 +57,14 @@ does not carry lists them:
   from, the upstream commit and the licence. Of the first 23: c · html ·
   json · toml · kotlin · vue from the `tree-sitter-wasms` pack and swift
   from its own release. The languages added since: yaml · markdown ·
-  dockerfile · lua · make · xml · hcl from the grammar's own release or npm
-  package, and sql · cmake · graphql · protobuf from a third party's builds,
-  named as such in the lock, because those grammars publish no build of
-  their own. There is no postinstall: you prepare the cache with
-  `bun run scripts/vendor/fetch-grammars.ts` (the one network step;
+  dockerfile · lua · make · xml · hcl · scala · elixir · zig · haskell ·
+  ocaml from the grammar's own release or npm package, and sql · cmake ·
+  graphql · protobuf · dart from a third party's builds, named as such in
+  the lock, because those grammars publish no build of their own (dart's
+  own misreads a type alias). There is no postinstall: you prepare the cache
+  with `bun run scripts/vendor/fetch-grammars.ts` (the one network step;
   `--check` validates the cache offline) and rebuild. Release archives
-  carry all 34. A local build without the cache says so at build time
+  carry all 40. A local build without the cache says so at build time
   (`vendored WITHOUT them`), the manifest records
   `degraded: structure-polyglot-extended` and `mercury health` names it; the
   artifact's own `dist/vendor/treesitter/vendor.json` lists the grammars it
@@ -101,6 +102,17 @@ Protocol Buffers message, the attributes of an XML tag; name a member
 block out. A Protocol Buffers field number is a number, never a
 meta-variable.
 
+Dart has no call node: a call is a statement there, so `print($X)` finds
+the statement, with or without its `;`, and a rewrite that leaves the `;`
+out keeps the statement's own. A body written `{ $$$BODY }` is refused in
+Dart and Zig, as it is in Java and C#: name a statement of the body. In
+Haskell and OCaml a meta-variable reads as a lower-case name, so it stands
+for a value, a variable or a pattern and never for a module or a
+constructor: `open $M` is refused in OCaml, and `import $M` is no import
+pattern in Haskell (write the module out). A Scala parameter list is
+`name: Type` pairs, so `def $N($$$P)` is refused; `$F($$$ARGS)` finds the
+calls.
+
 In a build that lacks a grammar the registry routes: a file of that
 language is skipped and counted by extension with the remedy named in the
 result trailer; a single such file, or a `lang` pin on it, refuses by name
@@ -110,7 +122,7 @@ reported per file, never matched over. The engine is pure WASM (no native
 dependency, one vendored asset set for every platform artifact); when no
 engine resolves at all, neither tool is in the catalog. Friendly spellings
 resolve (`ts`, `js`, `py`, `rs`, `cs`, `c++`, `sh`, `rb`, `kt`, `ps1`, `yml`,
-`md`, `docker`, `makefile`, `svg`, `tf`, `gql`, `proto`).
+`md`, `docker`, `makefile`, `svg`, `tf`, `gql`, `proto`, `ex`, `hs`, `ml`).
 
 ## AstSearch
 
@@ -198,7 +210,8 @@ check, so its row is memory a long session used to carry whether or not it
 searched by structure.
 
 The heavy grammars under the threshold keep the optimiser and what it
-costs: cpp about 290 MB, c 170 MB, c-sharp 155 MB, sql 135 MB, css 120 MB.
+costs: cpp about 290 MB, scala 235 MB, elixir 185 MB, c 170 MB, c-sharp
+155 MB, sql 135 MB, ocaml 130 MB, css 120 MB.
 
 `MERCURY_GRAMMAR_BASELINE=0` lets every grammar reach the optimiser: full
 parse speed for the held ones, at the memory of the "free" column. The hold
