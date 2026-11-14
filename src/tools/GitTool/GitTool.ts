@@ -74,10 +74,10 @@ const findingSchema = () =>
   z.strictObject({
     class: z.enum(['defect', 'question', 'polish']),
     severity: z.enum(['blocker', 'major', 'minor']),
-    path: z.string().describe('Repo-relative path in reviewed diff'),
-    range: z.string().describe("'L<start>' or 'L<start>-L<end>' (1-based)"),
-    claim: z.string().describe('One-sentence finding'),
-    evidence: z.string().describe('Supporting evidence'),
+    path: z.string().describe('Reviewed repo-relative path'),
+    range: z.string().describe('L1 or L1-L5 (1-based)'),
+    claim: z.string().describe('One-sentence claim'),
+    evidence: z.string(),
     nextAction: z.string(),
   })
 
@@ -87,10 +87,10 @@ const groupSchema = () =>
     hunks: z
       .record(z.string(), z.array(z.string()))
       .optional()
-      .describe('Per-file hunk-id subsets (gh-… from diff)'),
+      .describe('Per-file gh-… subsets from diff'),
     message: z.string().describe('Commit message'),
-    checks: z.array(z.string()).optional().describe('Checks recorded, not run'),
-    dependsOn: z.array(z.number().int().nonnegative()).optional().describe('Prerequisites: 0-based groups'),
+    checks: z.array(z.string()).optional().describe('Recorded, not run'),
+    dependsOn: z.array(z.number().int().nonnegative()).optional().describe('Prerequisites (0-based)'),
   })
 
 const inputSchema = lazySchema(() =>
@@ -99,32 +99,32 @@ const inputSchema = lazySchema(() =>
     cwd: z
       .string()
       .optional()
-      .describe('Folder to run in (default session folder); uses containing repo or the sole repo directly below it'),
-    scope: z.enum(['worktree', 'staged', 'commit', 'range']).optional().describe('diff: default "worktree"'),
+      .describe('Folder (default session); containing or sole child repo'),
+    scope: z.enum(['worktree', 'staged', 'commit', 'range']).optional().describe('diff: default worktree'),
     ref: z.string().optional().describe('diff: SHA or A..B; fileAtRef/tree: ref'),
-    paths: z.array(z.string()).optional().describe('diff: path filter'),
-    sha: z.string().optional().describe('show: commit'),
-    refA: z.string().optional().describe('mergebase: first ref; compare: base'),
-    refB: z.string().optional().describe('mergebase: second ref; compare: head'),
-    groups: z.array(groupSchema()).optional().describe('plan: groups; dependsOn computes order (preview only)'),
-    planId: z.string().optional().describe('apply/verify: gp-…; checks tree digest; earlier commits stand on later failure'),
-    files: z.array(z.string()).optional().describe('Repo-relative paths for stage/restore (restore unstages only)'),
-    hunks: z.record(z.string(), z.array(z.string())).optional().describe('stage: per-file gh-… hunk ids'),
-    path: z.string().optional().describe('resolve: conflicted file; fileAtRef: file; tree: optional directory'),
-    take: z.enum(['ours', 'theirs', 'base', 'both']).optional().describe('resolve: side to take'),
-    resolutions: z.array(z.strictObject({ region: z.string(), take: z.enum(['ours', 'theirs', 'base', 'both']).optional(), content: z.string().optional() })).optional().describe('resolve: region choices (take or content)'),
-    content: z.string().optional().describe('resolve: resolved text instead of take'),
-    pr: semanticNumber(z.number().int().positive().optional()).describe('reviewContext/prDiff: PR number (default current branch; uses gh)'),
-    findings: z.array(findingSchema()).optional().describe('reviewRecord: findings ([] = clean review; requires inspected)'),
-    inspected: z.array(z.string()).optional().describe('reviewRecord: inspected items (required when findings is [])'),
+    paths: z.array(z.string()).optional().describe('diff: paths'),
+    sha: z.string().optional().describe('show: SHA'),
+    refA: z.string().optional().describe('mergebase: first; compare: base'),
+    refB: z.string().optional().describe('mergebase: second; compare: head'),
+    groups: z.array(groupSchema()).optional().describe('plan: dependsOn orders groups without committing'),
+    planId: z.string().optional().describe('apply/verify: gp-…; tree digest checked; earlier groups stay committed if a later group fails'),
+    files: z.array(z.string()).optional().describe('stage/restore: repo-relative files; restore only unstages'),
+    hunks: z.record(z.string(), z.array(z.string())).optional().describe('stage: per-file gh-… ids'),
+    path: z.string().optional().describe('resolve: conflict; fileAtRef: file; tree: optional directory'),
+    take: z.enum(['ours', 'theirs', 'base', 'both']).optional().describe('resolve: side'),
+    resolutions: z.array(z.strictObject({ region: z.string(), take: z.enum(['ours', 'theirs', 'base', 'both']).optional(), content: z.string().optional() })).optional().describe('resolve: region take/content'),
+    content: z.string().optional().describe('resolve: text, not take'),
+    pr: semanticNumber(z.number().int().positive().optional()).describe('reviewContext/prDiff: PR; default current branch (gh)'),
+    findings: z.array(findingSchema()).optional().describe('reviewRecord: [] clean; needs inspected'),
+    inspected: z.array(z.string()).optional().describe('reviewRecord: required with findings:[]'),
     reviewNote: z.string().optional().describe('reviewRecord: note'),
-    searchKind: z.enum(['code', 'commits', 'prs', 'issues']).optional().describe('hostSearch: target kind'),
-    query: z.string().optional().describe('hostSearch: GitHub search query'),
-    limit: semanticNumber(z.number().int().positive().optional()).describe('hostSearch ≤50, runs ≤20 (default 10)'),
-    file: z.string().optional().describe('prDiff: changed file path (omit for file list)'),
-    page: semanticNumber(z.number().int().nonnegative().optional()).describe('prDiff: 0-based page (80 lines/page)'),
-    run: z.string().optional().describe('runs/runWatch: workflow run id (runWatch returns at once and settles on the conclusion)'),
-    cancel: z.boolean().optional().describe('runWatch: cancel active watch for run'),
+    searchKind: z.enum(['code', 'commits', 'prs', 'issues']).optional().describe('hostSearch: kind'),
+    query: z.string().optional().describe('hostSearch: GitHub query'),
+    limit: semanticNumber(z.number().int().positive().optional()).describe('hostSearch ≤50; runs ≤20; default 10'),
+    file: z.string().optional().describe('prDiff: file (omit for list)'),
+    page: semanticNumber(z.number().int().nonnegative().optional()).describe('prDiff: 0-based, 80 lines/page'),
+    run: z.string().optional().describe('runs/runWatch: workflow run id; watch returns now, settles on conclusion'),
+    cancel: z.boolean().optional().describe('runWatch: cancel watch for run'),
   }),
 )
 
@@ -596,7 +596,7 @@ export const GitTool = buildTool({
     return 'Typed local Git work graph: bounded observation + preview-first atomic commit plans; repository-host PR/checks/issue context and the typed review record. Runs in the session folder or a given cwd: the repository containing that folder, or the one repository directly below it'
   },
   async prompt() {
-    return `Inspect local repositories${repoHostDiscoveryEnabled() ? ' and hosted review/check data' : ''}, stage exact changes, or preview and apply commit groups. Returns bounded records and stable hunk/plan ids. It does not fetch, push, rewrite history or discard working-tree content.`
+    return `Inspect local repositories${repoHostDiscoveryEnabled() ? ' and hosted reviews/checks' : ''}; stage exact changes; preview/apply commit groups. Bounded records, stable hunk/plan ids. No fetch, push, history rewrite or worktree-content discard.`
   },
   userFacingName,
   shouldDefer: true,

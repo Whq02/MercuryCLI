@@ -61,7 +61,7 @@ try {
   check('M01 repeated reads preserve identities', JSON.stringify(ids(await git({ op: 'conflicts' }), 'multi.txt')) === JSON.stringify(multi) && multi.length === 2)
   const corpus = JSON.parse(readFileSync(join(import.meta.dir, '../tool-economy/fixtures/definition-corpus.json'), 'utf8')).definitions.find((d: { name: string }) => d.name === 'Git')
   const definition = (await client.request('tools/list', {})).result?.tools?.find(t => t.name === 'Git')
-  check('unused Git prompt stays identical; typed extension stays small', definition?.description === corpus.description && JSON.stringify(definition?.inputSchema).length - JSON.stringify(corpus.input_schema).length < 350)
+  check('published Git prompt matches its corpus; typed definition fits the original budget', definition?.description === corpus.description && definition.description.length + JSON.stringify(definition.inputSchema).length <= 4404)
   if (multi.length === 2 && two.length === 1 && crlf.length === 1 && tail.length === 1 && duplicates.length === 2) {
     const read = (file: string, id: string, selector = '') => client!.call('Read', { file_path: `mercury://git/conflict/${fileId(file)}/${id}${selector}` })
     for (const [side, value] of [['ours', 'ours-one'], ['theirs', 'theirs-one'], ['base', 'base-one']]) {
