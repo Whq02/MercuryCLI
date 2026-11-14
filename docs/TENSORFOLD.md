@@ -521,7 +521,7 @@ this session · 5 turns · ~76 tok/s on average · 24,120 in (20,510 cached · 8
 The latest turn's `first reply in <N> ms · ~<M> tok/s` also appears on the
 served row's card in `/model` and in `/tensorfold`'s live footer.
 
-## A conversation is resumed, not read again
+## A conversation is resumed where it stopped
 
 TensorFold keeps what it has read of a conversation and resumes there when the
 next request begins with the same text; the `cached` figure of `/usage` is that
@@ -549,11 +549,12 @@ session's request is there. Where an engine keeps a request of the session
 waiting more than half a second behind a read-ahead that was dropped for it,
 Mercury reads nothing ahead on that engine for the rest of the session. While a
 piece runs, the engine's own log gains about three `GET /health` lines a
-second: that is the read-ahead looking, not a fault. `/usage`, cost and the
-context figure do not count it. It goes only to an engine on this machine that
-shows its requests on `/health` (one started with an API key does not), never
-for a crewmate's conversation, and not when the conversation is due a fold.
-Set `MERCURY_LOCAL_NEXT_TURN_PREFILL=0` in your environment to turn it off.
+second: those lines are the read-ahead looking, and they are expected.
+`/usage`, cost and the context figure do not count it. It goes only to an
+engine on this machine that shows its requests on `/health` (one started with
+an API key does not), never for a crewmate's conversation, and never when the
+conversation is due a fold. Set `MERCURY_LOCAL_NEXT_TURN_PREFILL=0` in your
+environment to turn it off.
 
 ## The support line and `/health`
 
