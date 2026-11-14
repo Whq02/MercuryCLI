@@ -114,6 +114,11 @@ export function noticeRowLanded(row: Message, value: string, notBeforeMs?: numbe
   return text.includes(`<task-id>${id}</task-id>`) && text.includes(value)
 }
 
+export function foldClockOf(rows: readonly Message[]): number {
+  const fold = rows.findLast(row => row.type === 'system' && row.subtype === 'compact_boundary')
+  return fold === undefined ? Number.NaN : Date.parse(fold.timestamp)
+}
+
 export function queueOrderedSends<T extends { clientMessageId: string }>(sends: readonly T[], queue: readonly QueuedFactV1[]): T[] {
   const position = new Map<string, number>()
   queue.forEach((entry, i) => {

@@ -62,7 +62,7 @@ import type { EvalToolProgress, MCPProgress, ShellProgress } from '../../types/t
 import type { HookProgress } from '../../types/hooks.js'
 import { IDLE_LIVE, type LiveTurnFactsV1, type LostLineV1, type SeatLiveExtensionV1, type SeatStatusV1, type SessionLiveV1 } from './seatLive.js'
 import { interruptLatchRelease } from './interruptLatch.js'
-import { createNoticeRow, deliveredNoticeRow, isNoticeFact, isNoticeKey, noticeKeyOf, noticeRowLanded, placeDeliveredNotices, queueOrderedSends } from './queuedNotices.js'
+import { createNoticeRow, deliveredNoticeRow, foldClockOf, isNoticeFact, isNoticeKey, noticeKeyOf, noticeRowLanded, placeDeliveredNotices, queueOrderedSends } from './queuedNotices.js'
 import { BASH_INPUT_TAG } from '../../constants/xml.js'
 import { createTextRow, textRowLanded, withoutRetractedReplies, type CommittedTextRow } from './midTurnText.js'
 import { computeTailRelease } from '../../utils/messages/tailRetirement.js'
@@ -1571,8 +1571,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       else held.push({ seq, row })
     }
     for (const key of this.sendSeq.keys()) if (!live.has(key)) this.sendSeq.delete(key)
+    const foldAtMs = this.deliveredNotices.size === 0 ? Number.NaN : foldClockOf(this.rawRecords)
     for (const [key, notice] of this.deliveredNotices) {
-      if (this.rawRecords.some(row => noticeRowLanded(row, notice.text, notice.sentAtMs))) {
+      if (Date.parse(notice.row.timestamp) < foldAtMs || this.rawRecords.some(row => noticeRowLanded(row, notice.text, notice.sentAtMs))) {
         this.deliveredNotices.delete(key)
         continue
       }
