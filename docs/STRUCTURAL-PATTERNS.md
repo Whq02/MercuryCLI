@@ -98,25 +98,35 @@ second-level heading and a pattern cannot reach a word inside a sentence.
 A pattern compares the nodes a grammar names and the fields it labels; a
 keyword a grammar keeps as an unnamed token is not compared. In these
 languages that shows where one node kind has several spellings: in
-a Makefile `include $F` also finds `-include`, and in Protocol Buffers
+a Makefile `include $F` also finds `-include`, in Protocol Buffers
 `import $P;` also finds `import public …;` and an `rpc` pattern also finds
-the streaming ones. A `$$$` list is refused where a member is never a bare
-word: the body of an HCL block, the fields of a GraphQL type, the body of a
-Protocol Buffers message, the attributes of an XML tag; name a member
-(`instance_type = $T`, `id: ID!`, `string id = 1;`, `order=$V`) or write the
-block out. A Protocol Buffers field number is a number, never a
-meta-variable.
+the streaming ones, in Zig a `fn` pattern finds a function with `pub` and
+one without, whichever the pattern says, in Lua a `function` pattern finds
+a `local function` too, and in Objective-C a method pattern finds `-` and
+`+` methods alike. A body or a list written as one `$$$` meta-variable
+holds its members, none, one or several, also where a member is never a
+bare word: the body of an HCL block (`resource $TYPE $NAME { $$$BODY }`),
+the fields of a GraphQL type, the body of a Protocol Buffers message, enum
+or service, the attributes of an XML tag (`<item $$$ATTRS>$T</item>`), the
+columns of an SQL `CREATE TABLE`. A Protocol Buffers field number is a
+number, never a meta-variable.
 
 Dart has no call node: a call is a statement there, so `print($X)` finds
 the statement, with or without its `;`, and a rewrite that leaves the `;`
-out keeps the statement's own. A body written `{ $$$BODY }` is refused in
-Dart and Zig, as it is in Java and C#: name a statement of the body. In
+out keeps the statement's own. A block written `{ $$$BODY }` after its head
+holds the block's statements in Dart and Zig (`if ($COND) { $$$BODY }`,
+`fn $NAME($$$PARAMS) $RET { $$$BODY }`), and `class $N { $$$MEMBERS }` holds
+a Dart class's members; in Java and C# such a body is still refused: name
+a statement of the body. A Dart function is two nodes, its signature and
+its body, so a function written with its body is refused in those words:
+write the signature alone (`void $NAME($$$PARAMS)`) or a statement of the
+body. Written alone, `{ $$$A }` is a set or map literal in Dart. In
 Haskell and OCaml a meta-variable reads as a lower-case name, so it stands
 for a value, a variable or a pattern and never for a module or a
 constructor: `open $M` is refused in OCaml, and `import $M` is no import
 pattern in Haskell (write the module out). A Scala parameter list is
-`name: Type` pairs, so `def $N($$$P)` is refused; `$F($$$ARGS)` finds the
-calls.
+`name: Type` pairs and `$$$P` holds them: `def $N($$$P): $T = $B` finds the
+methods written with a result type; `$F($$$ARGS)` finds the calls.
 
 Svelte and Astro files are read as markup: elements, attributes, blocks (an
 `{#if $COND}` block to its end) and text. A script, an Astro front matter
@@ -124,7 +134,9 @@ and every `{expression}` is one node of plain text to these grammars, so a
 code pattern (`count($X)`) is refused there; `{$E}` finds an expression
 whole.
 In Nix a binding (`version = $V;`), an `inherit` and a call (`mkShell $A`)
-are patterns; an attribute set written with a `$$$` list is refused.
+are patterns, and an attribute set written with a `$$$` list holds its
+bindings (`pkgs.mkShell { $$$ATTRS }`, or `{ $$$ATTRS }` alone);
+`{ $$$ARGS }: $BODY` is a function with its arguments.
 
 Objective-C is read from `.m` files; a header stays C unless `lang` names
 `objc` for that one file. Its grammar does not read Foundation's enum
@@ -133,14 +145,20 @@ macros or the nullability wrapper: a file that holds a
 `NS_ASSUME_NONNULL_BEGIN` and `NS_ASSUME_NONNULL_END` is reported as not
 parsing and is never matched over. Verilog files (`.v`, `.sv`, `.svh`,
 `.vh`) are read by a SystemVerilog grammar. A body written `{ $$$BODY }`,
-or a block with a `$$$` body, is refused in Objective-C, Solidity, Fortran
-and Verilog too; name a statement (`[$OBJ addObject:$X]`, `emit Ran($X);`,
-`call greet($X)`, `$A <= $B;`). A diff is read line by line: a changed line
-is one node, so `-int old(void);` finds that line and `+$X` is refused. The
-recipe lines of a justfile, like a Makefile's, are text; its aliases,
-settings, variables and recipe headers are nodes. Emacs Lisp and Clojure
-forms, and calls and definitions in R, Julia, Starlark, Erlang, Odin and
-TLA+, are written as they stand.
+or a block with a `$$$` body, holds its statements in Objective-C,
+Solidity, Fortran and Verilog too (`- (void)$N { $$$BODY }`,
+`function $N($$$P) external { $$$BODY }`, a `do` loop to its `end do`,
+`always @(posedge clk) begin $$$BODY end`). Two lists keep to their
+grammar. A Verilog port list written `$$$PORTS` is the list of names of
+the older header (`module m(clk, q);`); a header that declares its ports
+is found by a declared port (`module $N(input $P); $$$BODY endmodule`). A
+Fortran parameter list written `$$$ARGS` finds the procedures of one
+parameter or more, and `()` those of none. A diff is read line by line: a
+changed line is one node, so `-int old(void);` finds that line and `+$X`
+is refused. The recipe lines of a justfile, like a Makefile's, are text;
+its aliases, settings, variables and recipe headers are nodes. Emacs Lisp
+and Clojure forms, and calls and definitions in R, Julia, Starlark, Erlang,
+Odin and TLA+, are written as they stand.
 
 In a build that lacks a grammar the registry routes: a file of that
 language is skipped and counted by extension with the remedy named in the

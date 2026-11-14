@@ -7,11 +7,15 @@ import {
   type PolyglotLanguage,
 } from './grammarFacility.js'
 import {
+  captureKeyOf,
   compilePatternRoot,
   findExactSpanNode,
+  lacksOnlyACloser,
   metavarOutsideNodes,
   patternCandidates,
   splitDeclaration,
+  standInCandidates,
+  standsAsMember,
   type CompiledPattern,
 } from './pattern.js'
 import { normalizeFileGlobs, posixRelative } from './scanPaths.js'
@@ -196,8 +200,27 @@ export async function compileFor(
   let firstError: string | null = null
   let textOnly: string | null = null
   let split: string | null = null
+  const candidates = patternCandidates(lang.name, encoded)
 
-  for (const candidate of patternCandidates(lang.name, encoded)) {
+  const stoodIn = async (candidate: (typeof candidates)[number], read: string | null): Promise<{ pattern: CompiledPattern; hold: { delete(): void } } | null> => {
+    for (const stood of standInCandidates(lang.name, candidate)) {
+      const parsed = await parsePolyglot(engine, lang, stood.text)
+      if ('state' in parsed) return null
+      const node = parsed.parseErrors.length === 0 ? findExactSpanNode(parsed.tree.rootNode, stood.offset, stood.offset + stood.length, stood.text) : null
+      const halves = node === null ? null : splitDeclaration(lang.name, node)
+      if (halves?.says) split ??= halves.says
+      const members = node === null ? [] : stood.stood!.map(member => standsAsMember(node, member))
+      if (!node || node.parent === null || (read !== null && read !== node.type) || halves !== null || members.includes(null) || metavarOutsideNodes(node, stood.text, stood.offset, stood.offset + stood.length, stood.tagMetavars, stood.standIn)) {
+        parsed.tree.delete()
+        continue
+      }
+      const detached = Object.fromEntries(stood.stood!.flatMap((member, i) => (members[i] === 'detached' ? [[captureKeyOf(member.mark), stood.text[member.ended - 1]!]] : [])))
+      return { pattern: { ...compilePatternRoot(node, stood.tagMetavars, stood.standIn, Object.keys(detached).length > 0 ? detached : undefined), ...(stood.spansTerminator && { spansTerminator: true }) }, hold: parsed.tree }
+    }
+    return null
+  }
+
+  for (const candidate of candidates) {
     const parsed = await parsePolyglot(engine, lang, candidate.text)
     if ('state' in parsed) {
       const refusal = { state: 'refused' as const, note: parsed.note }
@@ -206,6 +229,15 @@ export async function compileFor(
       return refusal
     }
     const node = findExactSpanNode(parsed.tree.rootNode, candidate.offset, candidate.offset + candidate.length, candidate.text)
+    if (parsed.parseErrors.length > 0) {
+      const stood = await stoodIn(candidate, node !== null && node.parent !== null && lacksOnlyACloser(parsed.tree.rootNode, candidate.offset + candidate.length) ? node.type : null)
+      if (stood) {
+        parsed.tree.delete()
+        if (recovery) recovery.hold.delete()
+        cache.set(lang.name, stood)
+        return stood
+      }
+    }
     if (!node) {
       firstError ??= parsed.parseErrors[0] ?? 'no single node spans the pattern'
       parsed.tree.delete()

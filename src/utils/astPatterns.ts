@@ -645,9 +645,9 @@ function normalisedText(node: TSNode): string {
   return node.text.replace(/\s+/g, '')
 }
 
-function sameShape(p: TSNode, r: TSNode): boolean {
-  const mp = metavarOf(p)
-  const mr = metavarOf(r)
+function sameShape(p: TSNode, r: TSNode, pStandIn?: RegExp, rStandIn?: RegExp): boolean {
+  const mp = metavarOf(p, false, pStandIn)
+  const mr = metavarOf(r, false, rStandIn)
   if (mp || mr) return mp !== null && mr !== null && mp.kind === mr.kind && mp.name === mr.name
   if (p.type !== r.type) return false
   const pk = significantChildren(p)
@@ -657,11 +657,11 @@ function sameShape(p: TSNode, r: TSNode): boolean {
     if (p.childCount === 0 && r.childCount === 0) return true
     return normalisedText(p) === normalisedText(r)
   }
-  return pk.every((child, i) => sameShape(child, rk[i]!))
+  return pk.every((child, i) => sameShape(child, rk[i]!, pStandIn, rStandIn))
 }
 
-function alignEdits(p: TSNode, r: TSNode, c: TSNode, captures: AstCapture[], out: Edit[]): boolean {
-  if (metavarOf(p)) return true
+function alignEdits(p: TSNode, r: TSNode, c: TSNode, captures: AstCapture[], out: Edit[], standIn?: RegExp): boolean {
+  if (metavarOf(p, false, standIn)) return true
   const pk = significantChildren(p)
   const rk = significantChildren(r)
   const ck = significantChildren(c)
@@ -676,7 +676,7 @@ function alignEdits(p: TSNode, r: TSNode, c: TSNode, captures: AstCapture[], out
   for (let pi = 0; pi < pk.length; pi++) {
     const pc = pk[pi]!
     const rc = rk[pi]!
-    const mv = metavarOf(pc)
+    const mv = metavarOf(pc, false, standIn)
     if (mv?.kind === 'multi') {
       if (mv.name) {
         const cap = captures.find(x => x.key === `$$$${mv.name}`)
@@ -684,7 +684,7 @@ function alignEdits(p: TSNode, r: TSNode, c: TSNode, captures: AstCapture[], out
         while (ci < ck.length && cap.endIndex > cap.startIndex && ck[ci]!.startIndex >= cap.startIndex && ck[ci]!.endIndex <= cap.endIndex) ci++
       } else {
         const rest = pk.slice(pi + 1)
-        if (rest.some(x => metavarOf(x)?.kind === 'multi')) return false
+        if (rest.some(x => metavarOf(x, false, standIn)?.kind === 'multi')) return false
         const take = ck.length - ci - rest.length
         if (take < 0) return false
         ci += take
@@ -696,7 +696,7 @@ function alignEdits(p: TSNode, r: TSNode, c: TSNode, captures: AstCapture[], out
       ci++
       continue
     }
-    if (!alignEdits(pc, rc, ck[ci]!, captures, out)) return false
+    if (!alignEdits(pc, rc, ck[ci]!, captures, out, standIn)) return false
     ci++
   }
   return ci === ck.length
@@ -843,7 +843,7 @@ async function planAstBatchRewrite(
     preToken: string | null
     patternCache: CompileCache
     rewriteCache: CompileCache
-    shapeByLang: Map<string, { pat: TSNode; rw: TSNode } | null>
+    shapeByLang: Map<string, { pat: TSNode; rw: TSNode; standIn?: RegExp } | null>
     terminatorByLang: Map<string, boolean>
     refusedLangs: Map<string, { files: number; note: string; textOnly?: boolean }>
     langFiles: Map<string, number>
@@ -894,15 +894,15 @@ async function planAstBatchRewrite(
     return spans
   }
 
-  async function shapeForRule(r: RuleState, lang: PolyglotLanguage): Promise<{ pat: TSNode; rw: TSNode } | null> {
+  async function shapeForRule(r: RuleState, lang: PolyglotLanguage): Promise<{ pat: TSNode; rw: TSNode; standIn?: RegExp } | null> {
     const cached = r.shapeByLang.get(lang.name)
     if (cached !== undefined) return cached
-    let shape: { pat: TSNode; rw: TSNode } | null = null
+    let shape: { pat: TSNode; rw: TSNode; standIn?: RegExp } | null = null
     if (r.rule.rewrite.trim() !== '') {
       const pat = await compileFor(engine as Parameters<typeof compileFor>[0], lang, r.encodedPattern, r.patternCache)
       const rw = await compileFor(engine as Parameters<typeof compileFor>[0], lang, r.encodedRewrite, r.rewriteCache)
-      if (!('state' in pat) && !('state' in rw) && !pat.pattern.tagMetavars && !rw.pattern.tagMetavars && sameShape(pat.pattern.root, rw.pattern.root)) {
-        shape = { pat: pat.pattern.root, rw: rw.pattern.root }
+      if (!('state' in pat) && !('state' in rw) && !pat.pattern.tagMetavars && !rw.pattern.tagMetavars && sameShape(pat.pattern.root, rw.pattern.root, pat.pattern.standIn, rw.pattern.standIn)) {
+        shape = { pat: pat.pattern.root, rw: rw.pattern.root, ...(pat.pattern.standIn && { standIn: pat.pattern.standIn }) }
       }
     }
     r.shapeByLang.set(lang.name, shape)
@@ -1113,7 +1113,7 @@ async function planAstBatchRewrite(
           if (shape) {
             const codeNode = locateMatchNode(parsed.tree.rootNode, m, before)
             const local: Edit[] = []
-            if (codeNode && alignEdits(shape.pat, shape.rw, codeNode, m.captures, local)) {
+            if (codeNode && alignEdits(shape.pat, shape.rw, codeNode, m.captures, local, shape.standIn)) {
               local.sort((a, b) => a.start - b.start)
               const nodeText = before.slice(m.startIndex, m.endIndex)
               const guardEdits = [...local, ...uncapturedCommentSpans(codeNode, m.captures)]
@@ -1492,7 +1492,7 @@ export async function planAstRewrite(
 
   const patternCache: CompileCache = new Map()
   const rewriteCache: CompileCache = new Map()
-  const shapeByLang = new Map<string, { pat: TSNode; rw: TSNode } | null>()
+  const shapeByLang = new Map<string, { pat: TSNode; rw: TSNode; standIn?: RegExp } | null>()
   const terminatorByLang = new Map<string, boolean>()
   const encodedPattern = encodePattern(singlePattern)
   const encodedRewrite = encodePattern(singleRewrite)
@@ -1504,15 +1504,15 @@ export async function planAstRewrite(
     terminatorByLang.set(lang.name, spans)
     return spans
   }
-  async function shapeFor(lang: PolyglotLanguage): Promise<{ pat: TSNode; rw: TSNode } | null> {
+  async function shapeFor(lang: PolyglotLanguage): Promise<{ pat: TSNode; rw: TSNode; standIn?: RegExp } | null> {
     const cached = shapeByLang.get(lang.name)
     if (cached !== undefined) return cached
-    let shape: { pat: TSNode; rw: TSNode } | null = null
+    let shape: { pat: TSNode; rw: TSNode; standIn?: RegExp } | null = null
     if (singleRewrite.trim() !== '') {
       const pat = await compileFor(engine as Parameters<typeof compileFor>[0], lang, encodedPattern, patternCache)
       const rw = await compileFor(engine as Parameters<typeof compileFor>[0], lang, encodedRewrite, rewriteCache)
-      if (!('state' in pat) && !('state' in rw) && !pat.pattern.tagMetavars && !rw.pattern.tagMetavars && sameShape(pat.pattern.root, rw.pattern.root)) {
-        shape = { pat: pat.pattern.root, rw: rw.pattern.root }
+      if (!('state' in pat) && !('state' in rw) && !pat.pattern.tagMetavars && !rw.pattern.tagMetavars && sameShape(pat.pattern.root, rw.pattern.root, pat.pattern.standIn, rw.pattern.standIn)) {
+        shape = { pat: pat.pattern.root, rw: rw.pattern.root, ...(pat.pattern.standIn && { standIn: pat.pattern.standIn }) }
       }
     }
     shapeByLang.set(lang.name, shape)
@@ -1624,7 +1624,7 @@ export async function planAstRewrite(
         if (shape && tree) {
           const codeNode = locateMatchNode(tree.rootNode, m, before)
           const local: Edit[] = []
-          if (codeNode && alignEdits(shape.pat, shape.rw, codeNode, m.captures, local)) {
+          if (codeNode && alignEdits(shape.pat, shape.rw, codeNode, m.captures, local, shape.standIn)) {
             local.sort((a, b) => a.start - b.start)
             const nodeText = before.slice(m.startIndex, m.endIndex)
             const guardEdits = [...local, ...uncapturedCommentSpans(codeNode, m.captures)]
