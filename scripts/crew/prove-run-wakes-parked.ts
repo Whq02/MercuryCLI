@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { dirname, join, relative } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 import { DIST, MODEL, NODE, argAfter, bound, childEnv, makeTally } from '../daemon/dupline-world.ts'
 import { findFiles } from './crew-world.ts'
@@ -15,6 +17,13 @@ const tally = makeTally('prove-run-wakes-parked')
 const scratch = process.env.MERCURY_CONFIG_DIR
 assert(scratch, 'run with a scratch MERCURY_CONFIG_DIR')
 assert(existsSync(DIST), `build first or pass --dist: ${DIST}`)
+if (process.env.RUN_WAKE_PROOF_HOME === undefined) {
+  const own = mkdtempSync(join(scratch, 'run-wake-home-'))
+  const child = spawnSync(process.execPath, [fileURLToPath(import.meta.url), ...process.argv.slice(2)], { stdio: 'inherit', env: { ...process.env, HOME: own, USERPROFILE: own, RUN_WAKE_PROOF_HOME: own } })
+  rmSync(own, { recursive: true, force: true })
+  process.exit(child.status ?? 1)
+}
+assert.equal(homedir(), process.env.RUN_WAKE_PROOF_HOME, 'the proof loads the product under its own scratch home')
 const root = mkdtempSync(join(scratch, 'run-wakes-'))
 const record = argAfter('--record')
 const text = (words: string): WireBlock[] => [{ type: 'text', text: words }]

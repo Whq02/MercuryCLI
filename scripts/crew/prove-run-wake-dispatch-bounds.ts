@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { DIST, makeTally } from '../daemon/dupline-world.ts'
 import { findFiles } from './crew-world.ts'
 
@@ -9,6 +12,13 @@ const { Database } = createRequire(import.meta.url)('bun:sqlite')
 const tally = makeTally('prove-run-wake-dispatch-bounds')
 const scratch = process.env.MERCURY_CONFIG_DIR
 assert(scratch, 'run with a scratch MERCURY_CONFIG_DIR')
+if (process.env.RUN_WAKE_PROOF_HOME === undefined) {
+  const own = mkdtempSync(join(scratch, 'run-wake-home-'))
+  const child = spawnSync(process.execPath, [fileURLToPath(import.meta.url), ...process.argv.slice(2)], { stdio: 'inherit', env: { ...process.env, HOME: own, USERPROFILE: own, RUN_WAKE_PROOF_HOME: own } })
+  rmSync(own, { recursive: true, force: true })
+  process.exit(child.status ?? 1)
+}
+assert.equal(homedir(), process.env.RUN_WAKE_PROOF_HOME, 'the proof loads the product under its own scratch home')
 const root = mkdtempSync(join(scratch, 'run-wake-ends-'))
 const source = join(dirname(DIST), '..', 'src')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
