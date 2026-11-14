@@ -14,6 +14,7 @@ import type { ToolResultBlockParam } from '../../types/wire.js'
 import { getTaskOutputDir } from '../../utils/task/diskOutput.js'
 import { extractTag } from '../../utils/messages.js'
 import { FILE_NOT_FOUND_CWD_NOTE, getDisplayPath } from '../../utils/file.js'
+import { REMOTE_FILE_NOT_FOUND } from '../../services/remoteFiles/target.js'
 import { formatFileSize } from '../../utils/format.js'
 import { isPathInside } from '../../utils/pathPrefix.js'
 import { plural } from '../../utils/stringUtils.js'
@@ -147,7 +148,7 @@ export function renderToolUseErrorMessage(
   { verbose }: { verbose: boolean },
 ): React.ReactNode {
   if (!verbose && typeof result === 'string' && !isDenialResultText(result)) {
-    if (result.includes(FILE_NOT_FOUND_CWD_NOTE)) {
+    if (result.includes(FILE_NOT_FOUND_CWD_NOTE) || result.includes(REMOTE_FILE_NOT_FOUND)) {
       return <ShortErrorLine text="File not found" />
     }
     if (extractTag(result, 'tool_use_error') !== null) {

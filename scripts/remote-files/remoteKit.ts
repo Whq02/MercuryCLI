@@ -110,6 +110,7 @@ export async function remoteWorld(transport: RemoteTransport, port = 0, options:
       `HOME='${remoteHome}'; export HOME`,
       'cd "$HOME" || exit 1',
       "if [ -n \"$REMOTE_KIT_NOISE\" ]; then printf 'login noise on stdout\\n'; printf 'login noise on stderr\\n' >&2; fi",
+      'if [ -n "$REMOTE_KIT_COUNT" ]; then "$word" | tee -a "$REMOTE_KIT_COUNT"; exit; fi',
       'if [ -n "$REMOTE_KIT_SHELL" ]; then exec $REMOTE_KIT_SHELL; fi',
       'exec "$word"',
     ])
@@ -223,8 +224,8 @@ export async function remoteWorld(transport: RemoteTransport, port = 0, options:
 
 export function enterWorld(world: RemoteWorld): () => void {
   const before = new Map<string, string | undefined>()
-  for (const name of [...Object.keys(world.env), 'SSH_AUTH_SOCK', 'SSH_ASKPASS', 'REMOTE_KIT_SHELL']) before.set(name, process.env[name])
-  for (const name of ['SSH_AUTH_SOCK', 'SSH_ASKPASS', 'REMOTE_KIT_SHELL', 'REMOTE_KIT_NOISE']) delete process.env[name]
+  for (const name of [...Object.keys(world.env), 'SSH_AUTH_SOCK', 'SSH_ASKPASS', 'REMOTE_KIT_SHELL', 'REMOTE_KIT_COUNT']) before.set(name, process.env[name])
+  for (const name of ['SSH_AUTH_SOCK', 'SSH_ASKPASS', 'REMOTE_KIT_SHELL', 'REMOTE_KIT_NOISE', 'REMOTE_KIT_COUNT']) delete process.env[name]
   for (const [name, value] of Object.entries(world.env)) process.env[name] = value
   return () => {
     for (const [name, value] of before) {

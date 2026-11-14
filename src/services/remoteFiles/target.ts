@@ -5,6 +5,7 @@ const HOST_SHELL = /['`"$\\;&<>|(){},*?[\]]/
 const USER_SHELL = /['`"$;&<>|(){}*?[\]]|\s-|\\$/
 
 export const REMOTE_RULE_ROOT = 'ssh://'
+export const REMOTE_FILE_NOT_FOUND = 'There is no file at that path on'
 
 export type RemoteAuthority = { user?: string; host: string; port?: number }
 
@@ -153,7 +154,7 @@ export function formatRemotePath(target: RemoteTarget): string {
   return `${head}${path.startsWith('/~') ? `/%7E${path.slice(2)}` : path}`
 }
 
-function remoteIdentity(path: string): string {
+export function remoteIdentity(path: string): string {
   try {
     const target = parseRemotePath(path)
     return target === null ? REMOTE_RULE_ROOT : formatRemotePath(target)

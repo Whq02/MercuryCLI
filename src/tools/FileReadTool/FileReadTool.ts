@@ -20,6 +20,8 @@ import {
 } from '../../services/changeTransaction/snapshotAnchor.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { ideReadTextAvailable, readRangeViaIde } from '../../services/acp/ideToolBridge.js'
+import type { RemoteRead } from '../../services/remoteFiles/bridge.js'
+import { isRemotePath, remoteIdentity } from '../../services/remoteFiles/target.js'
 import {
   countTokensWithAPI,
   roughTokenCountEstimationForFileType,
@@ -77,6 +79,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
+import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { Message } from '../../types/message.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import { getDefaultFileReadingLimits, type FileReadingLimits } from './limits.js'
@@ -105,7 +108,9 @@ import {
   isDirectoryTarget,
   readTargetPromptLines,
   readTargetsEnabled,
+  renderDirectoryNames,
   renderDirectoryTarget,
+  renderDirectoryUnavailable,
   renderResourceTarget,
   renderUrlDelegation,
 } from './readTarget.js'
@@ -350,6 +355,47 @@ function numberedReadContent(content: string, startLine: number, anchored: boole
     const raw = match[2]!
     return `${match[1]}${raw.slice(0, MAX_DISPLAY_LINE_CHARS)}… [truncated ${raw.length - MAX_DISPLAY_LINE_CHARS} characters]`
   }).join('\n')
+}
+
+const UTF16_BE_REFUSAL =
+  'File is UTF-16BE (big-endian BOM): reading it as text yields replacement characters, and the edit doors refuse its lossy decode. Convert it first (for example `iconv -f utf-16be -t utf-8`), or read it with a shell command.'
+
+function readsElsewhere(path: string): boolean {
+  return isRemotePath(path) || ideReadTextAvailable()
+}
+
+async function readRangeElsewhere(
+  path: string,
+  offset: number,
+  maxLines: number | undefined,
+  maxBytes: number | undefined,
+  signal: AbortSignal,
+): Promise<ReadFileRangeResult | null> {
+  if (!isRemotePath(path)) return readRangeViaIde(path, offset, maxLines, maxBytes, signal)
+  const { readRangeViaRemote } = await import('../../services/remoteFiles/bridge.js')
+  const range = await readRangeViaRemote(path, offset, maxLines, maxBytes, signal)
+  if (range.lead.startsWith('feff')) throw new Error(UTF16_BE_REFUSAL)
+  return range
+}
+
+const remoteReadGenerations = new WeakMap<object, string>()
+
+function noteRemoteRead(context: ToolUseContext, path: string): void {
+  if (!isRemotePath(path)) return
+  const state = context.readFileState.get(path)
+  const generation = fileGeneration(path)
+  if (state !== undefined && generation !== null) remoteReadGenerations.set(state, generation)
+}
+
+function remoteRangeSelector(rawPath: string): { path: string; ranges: string[] } | null {
+  const colon = rawPath.lastIndexOf(':')
+  const slash = rawPath.indexOf('/', rawPath.indexOf('://') + 3)
+  if (slash === -1 || colon < slash) return null
+  const suffix = rawPath.slice(colon + 1)
+  if (!/^[-\d+,]+$/.test(suffix) || !/\d/.test(suffix)) return null
+  const parsed = parseLineRangesList([suffix])
+  if (!Array.isArray(parsed) || parsed.length === 0) return null
+  return { path: rawPath.slice(0, colon), ranges: suffix.split(',').map(part => part.trim()).filter(Boolean) }
 }
 
 function realLineTotal(range: ReadFileRangeResult): number {
@@ -1049,7 +1095,7 @@ async function readMultiRangeTextLane(
   reserve: () => FileReadingLimits = () => declared,
 ): Promise<LaneResult> {
   const bom = Buffer.alloc(2)
-  {
+  if (!isRemotePath(resolvedPath)) {
     try {
       const { fd } = openRegularFileSync(resolvedPath)
       try {
@@ -1059,18 +1105,15 @@ async function readMultiRangeTextLane(
       }
     } catch {
     }
-    if (bom[0] === 0xfe && bom[1] === 0xff) {
-      throw new Error(
-        'File is UTF-16BE (big-endian BOM): reading it as text yields replacement characters, and the edit doors refuse its lossy decode. Convert it first (for example `iconv -f utf-16be -t utf-8`), or read it with a shell command.',
-      )
-    }
+    if (bom[0] === 0xfe && bom[1] === 0xff) throw new Error(UTF16_BE_REFUSAL)
   }
-  const st = ideReadTextAvailable() ? { size: 0, mtimeMs: Date.now() } : await stat(resolvedPath)
-  const useFastReverse = !ideReadTextAvailable() && st.size > 2 * 1024 * 1024 && parsedRanges.every(r => r.kind === 'tail') && !(bom[0] === 0xff && bom[1] === 0xfe)
-  const wholeLines = ideReadTextAvailable() || st.size <= declared.maxSizeBytes ? undefined : 0
+  const remoteHead = isRemotePath(resolvedPath) ? await readRangeElsewhere(resolvedPath, 0, 0, undefined, context.abortController.signal) : null
+  const st = remoteHead !== null ? { size: remoteHead.totalBytes, mtimeMs: remoteHead.mtimeMs } : ideReadTextAvailable() ? { size: 0, mtimeMs: Date.now() } : await stat(resolvedPath)
+  const useFastReverse = !readsElsewhere(resolvedPath) && st.size > 2 * 1024 * 1024 && parsedRanges.every(r => r.kind === 'tail') && !(bom[0] === 0xff && bom[1] === 0xfe)
+  const wholeLines = (remoteHead === null && ideReadTextAvailable()) || st.size <= declared.maxSizeBytes ? undefined : 0
   const counted = useFastReverse
     ? null
-    : (await readRangeViaIde(resolvedPath, 0, wholeLines, undefined, context.abortController.signal)) ??
+    : (await readRangeElsewhere(resolvedPath, 0, wholeLines, undefined, context.abortController.signal)) ??
       (await readFileInRange(resolvedPath, 0, wholeLines, undefined, context.abortController.signal))
   let totalLines = counted !== null ? realLineTotal(counted) : 0
   const anchor = counted !== null && wholeLines === undefined && changeTransactionEnabled() ? mintFileAnchor(counted.content) : undefined
@@ -1101,7 +1144,7 @@ async function readMultiRangeTextLane(
           ? sel.count
           : (sel.limit ?? MAX_LINES_TO_READ)
       slice =
-        (await readRangeViaIde(resolvedPath, lineOffset, maxLines, undefined, context.abortController.signal)) ??
+        (await readRangeElsewhere(resolvedPath, lineOffset, maxLines, undefined, context.abortController.signal)) ??
         (await readFileInRange(resolvedPath, lineOffset, maxLines, undefined, context.abortController.signal))
     }
     const shown = shownWindow(slice, lineOffset)
@@ -1191,7 +1234,8 @@ async function readMultiRangeTextLane(
     limit: totalShownLines,
     isPartialView: parsedRanges.length > 1,
   })
-  context.nestedMemoryAttachmentTriggers?.add(keyPath)
+  noteRemoteRead(context, keyPath)
+  if (!isRemotePath(keyPath)) context.nestedMemoryAttachmentTriggers?.add(keyPath)
   notifyFileReadListeners(resolvedPath, joinedContent)
 
   const data: Output = {
@@ -1451,7 +1495,7 @@ async function readTextLane(
   let lineOffset = rawOffset !== undefined && rawOffset > 0 ? rawOffset - 1 : 0
   let maxLines = input.limit ?? MAX_LINES_TO_READ
   const bom = Buffer.alloc(2)
-  {
+  if (!isRemotePath(resolvedPath)) {
     try {
       const { fd } = openRegularFileSync(resolvedPath)
       try {
@@ -1461,26 +1505,22 @@ async function readTextLane(
       }
     } catch {
     }
-    if (bom[0] === 0xfe && bom[1] === 0xff) {
-      throw new Error(
-        'File is UTF-16BE (big-endian BOM): reading it as text yields replacement characters, and the edit doors refuse its lossy decode. Convert it first (for example `iconv -f utf-16be -t utf-8`), or read it with a shell command.',
-      )
-    }
+    if (bom[0] === 0xfe && bom[1] === 0xff) throw new Error(UTF16_BE_REFUSAL)
   }
   let range: ReadFileRangeResult
-  const ideRange = ideReadTextAvailable()
+  const ideRange = readsElsewhere(resolvedPath)
     ? await (async () => {
         if (rawOffset !== undefined && rawOffset < 0) {
           const tailCount = Math.abs(rawOffset)
-          const counted = await readRangeViaIde(resolvedPath, 0, 0, undefined, context.abortController.signal)
+          const counted = await readRangeElsewhere(resolvedPath, 0, 0, undefined, context.abortController.signal)
           if (counted === null) return null
           const total = realLineTotal(counted)
           lineOffset = Math.max(0, total - tailCount)
           maxLines = input.limit !== undefined ? Math.min(input.limit, tailCount) : tailCount
-          return readRangeViaIde(resolvedPath, lineOffset, maxLines, undefined, context.abortController.signal)
+          return readRangeElsewhere(resolvedPath, lineOffset, maxLines, undefined, context.abortController.signal)
         }
         const maxBytes = input.limit === undefined ? declared.maxSizeBytes : undefined
-        return readRangeViaIde(resolvedPath, lineOffset, maxLines, maxBytes, context.abortController.signal)
+        return readRangeElsewhere(resolvedPath, lineOffset, maxLines, maxBytes, context.abortController.signal)
       })()
     : null
   if (ideRange !== null) {
@@ -1561,8 +1601,9 @@ async function readTextLane(
       limit: coveredWholeFile ? undefined : overCap !== undefined ? range.lineCount : (rawOffset !== undefined && rawOffset < 0 ? shown.count : input.limit),
       ...(outlineBody !== null ? { isPartialView: true } : {}),
     })
+    noteRemoteRead(context, keyPath)
   }
-  context.nestedMemoryAttachmentTriggers?.add(keyPath)
+  if (!isRemotePath(keyPath)) context.nestedMemoryAttachmentTriggers?.add(keyPath)
   notifyFileReadListeners(resolvedPath, range.content)
 
   const memoryUpdatedAt = isMnemeFile(resolvedPath) ? Math.floor(range.mtimeMs) : undefined
@@ -1698,6 +1739,10 @@ export const FileReadTool = buildTool({
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
   async checkPermissions(input, context): Promise<ReturnType<typeof checkReadPermissionForTool>> {
+    if (isRemotePath(input.file_path)) {
+      const { remotePermission } = await import('../../services/remoteFiles/bridge.js')
+      return remotePermission(FILE_READ_TOOL_NAME, input.file_path, remoteRangeSelector(input.file_path.trim())?.path ?? null, input, context, 'read')
+    }
     const permissionContext = context.getAppState().toolPermissionContext
     if (readTargetsEnabled() && classifyReadTarget(input.file_path).kind === 'resource') {
       const judged = await referenceReadDecision(FileReadTool.name, input.file_path.trim(), input, permissionContext, getCwd())
@@ -1717,7 +1762,7 @@ export const FileReadTool = buildTool({
   },
   backfillObservableInput(input: Input): void {
     if (hasControlCharacter(input.file_path) || windowsPathNeedsPermission(input.file_path)) return
-    input.file_path = expandPath(input.file_path)
+    input.file_path = isRemotePath(input.file_path) ? remoteIdentity(input.file_path) : expandPath(input.file_path)
   },
   preparePermissionMatcher(input: Input) {
     return (rulePattern: string): boolean =>
@@ -1790,6 +1835,11 @@ export const FileReadTool = buildTool({
       }
     }
 
+    if (isRemotePath(input.file_path)) {
+      const { remoteValidation } = await import('../../services/remoteFiles/bridge.js')
+      return remoteValidation(input.file_path, remoteRangeSelector(input.file_path.trim())?.path ?? null, 'read', 'Reading', context, true)
+    }
+
     if (readTargetsEnabled()) {
       const target = classifyReadTarget(input.file_path)
       if (target.kind === 'resource') {
@@ -1830,7 +1880,7 @@ export const FileReadTool = buildTool({
 
     return { result: true as const }
   },
-  async call(input: Input, context: ToolUseContext, _canUseTool?: unknown, parentMessage?: unknown) {
+  async call(input: Input, context: ToolUseContext, canUseTool?: unknown, parentMessage?: unknown) {
     const ownRead = parentMessage !== undefined
     const declaredLimits: FileReadingLimits =
       (context.fileReadingLimits as FileReadingLimits | undefined) ?? getDefaultFileReadingLimits()
@@ -1842,9 +1892,20 @@ export const FileReadTool = buildTool({
       granted = share < declaredLimits.maxTokens ? { ...declaredLimits, maxTokens: share, room: true } : declaredLimits
       return granted
     }
-    const rawExpanded = expandPath(input.file_path)
-    const splitTarget = splitPathRangeSelector(input.file_path, rawExpanded)
-    const richTarget = parseRichFormatTarget(splitTarget.rawPath)
+    const remote: RemoteRead | null = isRemotePath(input.file_path)
+      ? await (await import('../../services/remoteFiles/bridge.js')).remoteReadTarget(
+          input.file_path.trim(),
+          remoteRangeSelector(input.file_path.trim()),
+          context,
+          typeof canUseTool === 'function' && parentMessage !== undefined
+            ? path => (canUseTool as CanUseToolFn)(readToolItself() as never, { ...input, file_path: path }, context, parentMessage as never, `${context.toolUseId ?? 'read'}-resolved`)
+            : null,
+          readTargetsEnabled(),
+        )
+      : null
+    const rawExpanded = remote !== null ? remote.path : expandPath(input.file_path)
+    const splitTarget = remote !== null ? { rawPath: remote.path, expandedPath: remote.path, ...(remote.kind === 'file' && remote.ranges !== undefined ? { ranges: remote.ranges } : {}) } : splitPathRangeSelector(input.file_path, rawExpanded)
+    const richTarget = remote !== null ? null : parseRichFormatTarget(splitTarget.rawPath)
     const effectiveRawPath = richTarget !== null ? richTarget.containerPath : splitTarget.rawPath
     const fullFilePath = richTarget !== null ? expandPath(richTarget.containerPath) : splitTarget.expandedPath
     const effectiveInput: Input =
@@ -1870,7 +1931,28 @@ export const FileReadTool = buildTool({
       return { data: lane.data, ...(newMessages.length > 0 ? { newMessages } : {}) }
     }
 
-    if (readTargetsEnabled()) {
+    if (remote !== null && remote.kind !== 'file') {
+      const rendered =
+        remote.kind === 'hosts'
+          ? remote
+          : remote.names === null
+            ? renderDirectoryUnavailable(remote.path.slice(remote.path.lastIndexOf('/') + 1), remote.failure)
+            : renderDirectoryNames(remote.path, remote.names)
+      return settle({
+        data: {
+          type: 'text',
+          file: {
+            filePath: remote.path,
+            content: rendered.content,
+            numLines: rendered.numLines,
+            startLine: 1,
+            totalLines: rendered.numLines,
+          },
+        } satisfies Output,
+      })
+    }
+
+    if (remote === null && readTargetsEnabled()) {
       const target = classifyReadTarget(input.file_path)
       if (target.kind === 'resource') {
         const rendered = await renderResourceTarget(input.file_path.trim(), {
@@ -1924,7 +2006,7 @@ export const FileReadTool = buildTool({
       }
     }
 
-    const notAFile = await stat(fullFilePath).then(notAFileKind, () => null)
+    const notAFile = remote !== null ? null : await stat(fullFilePath).then(notAFileKind, () => null)
     if (notAFile !== null) {
       logForDebugging(`read: ${fullFilePath} is ${notAFile}, not a file or a folder; it is not opened`)
       throw new Error(notAFileRefusal(effectiveRawPath, notAFile))
@@ -1932,7 +2014,7 @@ export const FileReadTool = buildTool({
 
     const entry = context.readFileState.get(fullFilePath)
     if (
-      !ideReadTextAvailable() &&
+      (remote !== null || !ideReadTextAvailable()) &&
       entry &&
       entry.offset !== undefined &&
       !entry.isPartialView &&
@@ -1944,8 +2026,12 @@ export const FileReadTool = buildTool({
       effectiveInput.outline !== true
     ) {
       try {
-        const stats = await stat(fullFilePath)
-        if (Math.floor(stats.mtimeMs) === entry.timestamp) {
+        const before = remoteReadGenerations.get(entry)
+        const unchanged =
+          remote !== null
+            ? before !== undefined && (await readRangeElsewhere(fullFilePath, 0, 0, undefined, context.abortController.signal)) !== null && fileGeneration(fullFilePath) === before
+            : Math.floor((await stat(fullFilePath)).mtimeMs) === entry.timestamp
+        if (unchanged) {
           const anchor = entry.offset === 0 && entry.limit === undefined && changeTransactionEnabled() ? mintFileAnchor(entry.content) : undefined
           return {
             data: { type: 'file_unchanged', file: { filePath: fullFilePath, ...(anchor !== undefined ? { anchor } : {}) } } satisfies Output,
@@ -1955,7 +2041,7 @@ export const FileReadTool = buildTool({
       }
     }
 
-    if (!isEnvTruthy(process.env.MERCURY_BARE)) {
+    if (remote === null && !isEnvTruthy(process.env.MERCURY_BARE)) {
       try {
         const dirs = await discoverSkillDirsForPaths([fullFilePath], getCwd())
         const fresh = dirs.filter(dir => !context.dynamicSkillDirTriggers?.has(dir))
@@ -1982,6 +2068,15 @@ export const FileReadTool = buildTool({
     }
 
     const dispatch = async (resolvedPath: string): Promise<LaneResult> => {
+      if (remote !== null) {
+        if (ext !== '' && hasBinaryExtension(effectiveRawPath)) {
+          throw new Error(`This tool cannot read binary files, and .${ext} looks binary — reach for a tool built for that format instead.`)
+        }
+        if (Array.isArray(parsedRanges) && parsedRanges.length > 0) {
+          return readMultiRangeTextLane(resolvedPath, resolvedPath, effectiveInput, parsedRanges, ext, context, declaredLimits, ownRead, reserve)
+        }
+        return readTextLane(resolvedPath, resolvedPath, effectiveInput, ext, context, declaredLimits, ownRead, reserve)
+      }
       const media = !ideReadTextAvailable() ? mediaFileFormat(resolvedPath) : null
       if (media !== null) {
         const text = await extractMediaTranscript(resolvedPath, media, context.abortController.signal)
@@ -2026,7 +2121,7 @@ export const FileReadTool = buildTool({
     try {
       lane = await dispatch(fullFilePath)
     } catch (err) {
-      if (!isENOENT(err)) throw err
+      if (!isENOENT(err) || remote !== null) throw err
       const alternate = resolveCanonicalNearMissPath(fullFilePath) ?? alternateScreenshotPath(fullFilePath)
       if (alternate !== null) {
         try {
@@ -2102,6 +2197,10 @@ export const FileReadTool = buildTool({
   renderToolResultMessage,
   renderToolUseErrorMessage,
 })
+
+function readToolItself(): unknown {
+  return FileReadTool
+}
 
 function cyberRiskReminderForCurrentModel(): string {
   try {

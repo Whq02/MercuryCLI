@@ -11,13 +11,13 @@ type RemoteKind = 'file' | 'folder' | 'a named pipe' | 'a socket' | 'a device' |
 
 type RemoteStat = { kind: RemoteKind; link: boolean; size: number; mtimeMs: number; mode: string | null }
 
-type RemoteEntry = { name: string; kind: 'file' | 'folder' | 'link' | 'other'; real?: string }
+export type RemoteEntry = { name: string; kind: 'file' | 'folder' | 'link' | 'other'; real?: string }
 
 type RemoteHead = { size: number; mtimeMs: number; mode: string | null; lines: number; endsWithNewline: boolean; lead: string; crc: string | null }
 
 type RemoteFacts = { home: string; system: string; here: boolean }
 
-class RemoteFileError extends Error {
+export class RemoteFileError extends Error {
   readonly code: string
   constructor(code: string, message: string) {
     super(message)
