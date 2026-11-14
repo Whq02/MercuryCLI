@@ -18,11 +18,26 @@ const repo = join(import.meta.dir, '..', '..')
 const at = (rel: string): string => JSON.stringify(join(repo, rel))
 
 let failures = 0
+let skips = 0
 const check = (cond: boolean, msg: string, detail = ''): void => {
   if (cond) console.log(`  [PASS] ${msg}`)
   else {
     failures++
     console.error(`  [FAIL] ${msg}${detail ? ` — ${detail}` : ''}`)
+  }
+}
+const linked = (made: boolean, cond: boolean, msg: string): void => {
+  if (made) return check(cond, msg)
+  skips++
+  console.log(`  [SKIP] ${msg} — this account may not make a symbolic link to a file (Windows asks for Developer Mode or the link privilege)`)
+}
+function fileLink(target: string, path: string): boolean {
+  try {
+    symlinkSync(target, path)
+    return true
+  } catch (error) {
+    if (process.platform !== 'win32' || !['EPERM', 'EACCES'].includes((error as NodeJS.ErrnoException).code ?? '')) throw error
+    return false
   }
 }
 
@@ -34,14 +49,14 @@ mkdirSync(rulesDir, { recursive: true })
 mkdirSync(join(targets, 'rule-pack'), { recursive: true })
 
 writeFileSync(join(targets, 'ROOT-GUIDE.md'), 'root guide body\n')
-symlinkSync(join(targets, 'ROOT-GUIDE.md'), join(proj, 'MERCURY.md'))
+const rootLinked = fileLink(join(targets, 'ROOT-GUIDE.md'), join(proj, 'MERCURY.md'))
 
 writeFileSync(join(rulesDir, 'real.md'), 'plain rule\n')
 writeFileSync(join(rulesDir, 'secret-skip.md'), 'glob-bait rule\n')
 writeFileSync(join(targets, 'actual-rule.md'), 'linked rule body\n')
-symlinkSync(join(targets, 'actual-rule.md'), join(rulesDir, 'linked-file.md'))
+const ruleLinked = fileLink(join(targets, 'actual-rule.md'), join(rulesDir, 'linked-file.md'))
 writeFileSync(join(targets, 'rule-pack', 'packed.md'), 'packed rule body\n')
-symlinkSync(join(targets, 'rule-pack'), join(rulesDir, 'linked-dir'))
+symlinkSync(join(targets, 'rule-pack'), join(rulesDir, 'linked-dir'), 'junction')
 
 const spelling = {
   root: join(proj, 'MERCURY.md'),
@@ -107,30 +122,21 @@ console.log('instruction excludes — the setting, the symlink law, the immuniti
 
 {
   const r = drive({})
-  check(r.paths.includes(spelling.root), 'no pattern: the symlinked root file composes (symlink spelling)')
+  linked(rootLinked, r.paths.includes(spelling.root), 'no pattern: the symlinked root file composes (symlink spelling)')
   check(r.paths.includes(spelling.real), 'no pattern: the plain rule composes')
-  check(r.paths.includes(spelling.linkedFileTarget), 'no pattern: the symlinked rules file composes (target spelling)')
+  linked(ruleLinked, r.paths.includes(spelling.linkedFileTarget), 'no pattern: the symlinked rules file composes (target spelling)')
   check(r.paths.includes(spelling.packedTarget), 'no pattern: the symlink-dir rule composes (target spelling)')
 }
 
 {
-  const r = drive(
-    { briefs: { exclude: [join(rulesDir, 'linked-file.md')] } },
-    [
-      [spelling.linkedFileTarget, 'Managed'],
-      [spelling.linkedFileTarget, 'User'],
-      [spelling.linkedFileTarget, 'Project'],
-    ],
-  )
-  check(!r.paths.includes(spelling.linkedFileTarget), '(a) symlink-spelling pattern excludes the file walked under its target spelling')
+  const r = drive({ briefs: { exclude: [join(rulesDir, 'linked-file.md')] } })
+  linked(ruleLinked, !r.paths.includes(spelling.linkedFileTarget), '(a) symlink-spelling pattern excludes the file walked under its target spelling')
   check(r.paths.includes(spelling.real), '(a) the plain rule still composes')
-  check(r.probes[0] === false, 'managed immunity: the matching pattern never excludes type Managed')
-  check(r.probes[1] === true && r.probes[2] === true, 'the same path IS excluded for User and Project (the gate is the type, not the path)')
 }
 
 {
   const r = drive({ briefs: { exclude: [join(targets, 'ROOT-GUIDE.md')] } })
-  check(!r.paths.includes(spelling.root), '(b) target-spelling pattern excludes the root file tested under its symlink spelling')
+  linked(rootLinked, !r.paths.includes(spelling.root), '(b) target-spelling pattern excludes the root file tested under its symlink spelling')
   check(r.paths.includes(spelling.real), '(b) the plain rule still composes')
 }
 
@@ -138,21 +144,31 @@ console.log('instruction excludes — the setting, the symlink law, the immuniti
   const r = drive({ briefs: { exclude: [join(rulesDir, 'linked-dir') + '/**'] } })
   check(!r.paths.includes(spelling.packedTarget), '(c) symlink-dir glob excludes files walked under the target directory')
   check(r.paths.includes(spelling.real), '(c) the plain rule still composes')
-  check(r.paths.includes(spelling.linkedFileTarget), '(c) the sibling symlinked file is untouched')
+  linked(ruleLinked, r.paths.includes(spelling.linkedFileTarget), '(c) the sibling symlinked file is untouched')
 }
 
 {
-  const r = drive({ briefs: { exclude: ['**/secret-*.md'] } })
+  const r = drive(
+    { briefs: { exclude: ['**/secret-*.md'] } },
+    [
+      [spelling.secret, 'Managed'],
+      [spelling.secret, 'User'],
+      [spelling.secret, 'Project'],
+    ],
+  )
   check(!r.paths.includes(spelling.secret), '(d) a pure glob excludes without touching the filesystem')
   check(r.paths.includes(spelling.real), '(d) the plain rule still composes')
+  check(r.probes[0] === false, 'managed immunity: the matching pattern never excludes type Managed')
+  check(r.probes[1] === true && r.probes[2] === true, 'the same path IS excluded for User and Project (the gate is the type, not the path)')
 }
 
 {
   const r = drive({ notAnExcludeKey: [join(rulesDir, 'linked-file.md')] })
-  check(r.paths.includes(spelling.linkedFileTarget) && r.paths.includes(spelling.real) && r.paths.includes(spelling.root), 'an unknown key carrying a pattern excludes nothing: every rule composes')
+  linked(rootLinked && ruleLinked, r.paths.includes(spelling.linkedFileTarget) && r.paths.includes(spelling.real) && r.paths.includes(spelling.root), 'an unknown key carrying a pattern excludes nothing: every rule composes')
   check(!r.warnings.some(w => w.path.includes('notAnExcludeKey')), 'the unknown key raises no settings warning')
   const both = drive({ notAnExcludeKey: ['**/*.md'], briefs: { exclude: [join(rulesDir, 'secret-skip.md')] } })
-  check(!both.paths.includes(spelling.secret) && both.paths.includes(spelling.real) && both.paths.includes(spelling.root), 'briefs.exclude beside an unknown key applies alone (the unknown value steers nothing)')
+  check(!both.paths.includes(spelling.secret) && both.paths.includes(spelling.real), 'briefs.exclude beside an unknown key applies alone (the unknown value steers nothing)')
+  linked(rootLinked, both.paths.includes(spelling.root), 'beside an unknown key the symlinked root file composes too')
 }
 
 {
@@ -170,5 +186,5 @@ console.log('instruction excludes — the setting, the symlink law, the immuniti
 
 rmSync(root, { recursive: true, force: true })
 rmSync(driverDir, { recursive: true, force: true })
-console.log(failures === 0 ? '✅ instruction-exclusion law holds' : `❌ ${failures} check(s) FAILED`)
+console.log(failures === 0 ? `✅ instruction-exclusion law holds${skips > 0 ? `, ${skips} skipped` : ''}` : `❌ ${failures} check(s) FAILED`)
 process.exit(failures === 0 ? 0 : 1)
