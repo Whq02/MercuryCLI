@@ -6,7 +6,7 @@ import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFo
 const REPO = join(import.meta.dir, '..', '..')
 process.chdir(REPO)
 const HOME = pinScratchHome('mercury-boot-menu-background-launch-row')
-for (const k of ['MERCURY_CONCOURSE_WORKER', 'MERCURY_ENTER_MENU', 'MERCURY_BOOT_ENV_APPLIED', 'MERCURY_SESSION_SUBAGENTS', 'MERCURY_SESSION_WORKFLOWS']) delete process.env[k]
+for (const k of ['MERCURY_CONCOURSE_WORKER', 'MERCURY_ENTER_MENU', 'MERCURY_BOOT_ENV_APPLIED', 'MERCURY_SESSION_SUBAGENTS']) delete process.env[k]
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -66,12 +66,12 @@ async function selectMarked(m: Mounted, mark: string, max = 60): Promise<boolean
   return has(m.lines(), mark)
 }
 
-console.log('§1 the row joins the AGENTS group of the table: after Workflows, before JEV, counted by the one composer')
+console.log('§1 the row joins the AGENTS group of the table: after Crewmates, before JEV, counted by the one composer')
 {
   const rows = boot.withJevRow(STARTUP_MENU)
   const at = rows.findIndex(row => row.env === KEY_NAME)
   check('the composer carries the row', at > 0, String(at))
-  check('it follows the Workflows row and precedes JEV, all three under agents', rows[at - 1]?.env === 'MERCURY_SESSION_WORKFLOWS' && rows[at + 1]?.env === 'jev' && rows[at]?.group === 'agents', rows.map(row => row.env).join(' '))
+  check('it follows the Crewmates row and precedes JEV, all three under agents', rows[at - 1]?.env === 'MERCURY_SESSION_SUBAGENTS' && rows[at - 1]?.group === 'agents' && rows[at + 1]?.env === 'jev' && rows[at]?.group === 'agents', rows.map(row => row.env).join(' '))
   check('the table grew by the two config-backed agents rows and nothing else', rows.length === STARTUP_MENU.length + 2, String(rows.length))
   check('the row is a live toggle, off by default, keyed by the leaf', rows[at]?.kind === 'toggle' && rows[at]?.defaultLabel === 'off' && rows[at]?.applicationClass === 'live' && rows[at]?.options.length === 1 && rows[at]?.options[0] === 'on')
   check('every detail line fits the SETTING DETAIL text width, on and off', [true, false].every(on => boot.backgroundLaunchBootDetailLines(on).every(line => stringWidth(line) <= boot.JEV_BOOT_DETAIL_WIDTH)), boot.backgroundLaunchBootDetailLines(false).join(' | '))
@@ -86,12 +86,12 @@ console.log('§2 the Boot Settings face: the row selected, its detail pane, ↵ 
   const lines = m.lines()
   const row = rowOf(lines)
   const rowAt = lines.indexOf(row)
-  check('the row sits under AGENTS after Workflows and before JEV', rowAt > 0 && (lines[rowAt - 1] ?? '').includes('Workflows') && (lines[rowAt + 1] ?? '').includes('JEV'), `${lines[rowAt - 1] ?? ''} / ${row} / ${lines[rowAt + 1] ?? ''}`)
+  check('the row sits under AGENTS after Crewmates and before JEV', rowAt > 0 && /│\s+Crewmates\s/.test(lines[rowAt - 1] ?? '') && (lines[rowAt + 1] ?? '').includes('JEV'), `${lines[rowAt - 1] ?? ''} / ${row} / ${lines[rowAt + 1] ?? ''}`)
   check("the row's value column reads off", new RegExp(`❯ ${LABEL}\\s+off\\s`).test(row), row)
   const pane = paneText(lines, DETAIL_PANE, DETAIL_PANE_WIDTH)
-  check('the detail pane names what it controls in the operator\'s words', pane.includes('What it controls') && pane.includes('Whether a session left in the background may launch crewmates and workflows when its brief says so, as a focused one does.'), pane)
+  check('the detail pane names what it controls in the operator\'s words', pane.includes('What it controls') && pane.includes('Whether a session left in the background may launch crewmates when its brief says so, as a focused one does.'), pane)
   check('the pane carries the current value and the detail lines (now: off (default), the doors)', pane.includes('Current value off') && pane.includes('now: off (default)') && pane.includes('doors: /config · Boot Menu (one switch)'), pane)
-  check('the pane lists the on and off effects, whole', pane.includes('When on') && pane.includes('launches crewmates and workflows without your visit') && pane.includes('its own switches still rule first') && pane.includes('When off') && pane.includes('waits for your visit or the workflows-allowed tag') && pane.includes('the launch refusal names this row'), pane)
+  check('the pane lists the on and off effects, whole', pane.includes('When on') && pane.includes('launches crewmates without your visit') && pane.includes('its own switch still rules first') && pane.includes('When off') && pane.includes('waits for your visit or the workflows-allowed tag') && pane.includes('the launch refusal names this row'), pane)
   check('no detail line is clipped with an ellipsis', !paneLines(lines, DETAIL_PANE, DETAIL_PANE_WIDTH).some(line => line.endsWith('…')), paneLines(lines, DETAIL_PANE, DETAIL_PANE_WIDTH).filter(line => line.endsWith('…')).join(' | '))
   await press(m, KEY.enter, 300)
   check('↵ turns it on through the one writer: the file carries the leaf true', stored() === true && setting.backgroundSessionsLaunchCrewmates() === true, String(stored()))

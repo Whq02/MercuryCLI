@@ -37,9 +37,9 @@ export function backgroundLaunchReceiptWords(on: boolean): string {
 }
 
 export const BACKGROUND_LAUNCH_SUMMARY =
-  'whether a session you have left in the background may launch crewmates and workflows when its brief says so — off keeps it waiting for your visit or the workflows-allowed tag'
+  'whether a session you have left in the background may launch crewmates when its brief says so — off keeps it waiting for your visit or the workflows-allowed tag'
 
-export const BACKGROUND_LAUNCH_NOTE = "the session's own Crewmates and Workflows switches still rule first; the one workflows-allowed tag stays what it is"
+export const BACKGROUND_LAUNCH_NOTE = "the session's own Crewmates switch still rules first; the one workflows-allowed tag stays what it is"
 
 export function backgroundLaunchDetailLines(on: boolean = backgroundSessionsLaunchCrewmates()): string[] {
   return [`now: ${backgroundLaunchValueWords(on)}${on ? '' : ' (default)'}`, `doors: ${BACKGROUND_LAUNCH_DOORS}`]
@@ -55,8 +55,8 @@ export const BACKGROUND_LAUNCH_MENU_ROW = {
   applicationClass: 'live',
   summary: BACKGROUND_LAUNCH_SUMMARY,
   detail: {
-    controls: 'Whether a session left in the background may launch crewmates and workflows when its brief says so, as a focused one does.',
-    on: ['launches crewmates and workflows without your visit', 'its own switches still rule first'],
+    controls: 'Whether a session left in the background may launch crewmates when its brief says so, as a focused one does.',
+    on: ['launches crewmates without your visit', 'its own switch still rules first'],
     off: ['waits for your visit or the workflows-allowed tag', 'the launch refusal names this row'],
   },
 } as const

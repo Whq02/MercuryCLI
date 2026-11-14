@@ -808,7 +808,8 @@ async function daemonRun(args: string[]): Promise<void> {
           }
           if (action === 'set-spawn-switch') {
             if (spawnSwitch === undefined) return { outcome: 'refused' as const, detail: 'set-spawn-switch requires { spawnSwitch: { kind: subagents|workflows, on } }' }
-            return roster !== null ? setSessionSpawnSwitch(sessionId, spawnSwitch, by, roster) : { outcome: 'refused' as const, detail: 'daemon roster not ready' }
+            if (spawnSwitch.kind === 'workflows') return { outcome: 'noop' as const }
+            return roster !== null ? setSessionSpawnSwitch(sessionId, { kind: spawnSwitch.kind, on: spawnSwitch.on }, by, roster) : { outcome: 'refused' as const, detail: 'daemon roster not ready' }
           }
           if (action === 'set-permission-mode') {
             if (mode === undefined || mode === '') return { outcome: 'refused' as const, detail: 'set-permission-mode requires mode' }

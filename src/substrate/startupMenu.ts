@@ -161,24 +161,9 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     applicationClass: 'live',
     summary: 'whether a session may spawn crewmates — off removes the Crewmate tool from its roster and closes every spawn road; the concourse itself keeps launching sessions',
     detail: {
-      controls: "The crewmates switch of the sessions born after this choice. On (the default): the Crewmate tool is in the roster and the model delegates as it does today. Off: the Crewmate tool is absent from the roster — the model never sees it — and every road that would spawn a crewmate from inside the session (the tool, a skill fork, a workflow's agent hooks, the fleet tools) answers one receipt naming /crewmates and this menu. Inside a session, /crewmates on|off (or this row, opened there) flips it at the next turn boundary — the tool leaves or rejoins the roster, reasoning restarts on the next turn, and a spawn already running finishes.",
-      on: ['the Crewmate tool is in the roster; skills, workflows and the fleet tools may spawn', 'a running session flips it any time with /crewmates off'],
+      controls: "The crewmates switch of the sessions born after this choice. On (the default): the Crewmate tool is in the roster and the model delegates as it does today. Off: the Crewmate tool is absent from the roster — the model never sees it — and every road that would spawn a crewmate from inside the session (the tool, a skill fork, the fleet tools) answers one receipt naming /crewmates and this menu. Inside a session, /crewmates on|off (or this row, opened there) flips it at the next turn boundary — the tool leaves or rejoins the roster, reasoning restarts on the next turn, and a spawn already running finishes.",
+      on: ['the Crewmate tool is in the roster; skills and the fleet tools may spawn', 'a running session flips it any time with /crewmates off'],
       off: ['no Crewmate tool in the roster; every spawn road answers "crewmates are off for this session"', 'the concourse still launches sessions and crew seats', 'flip it back inside a session with /crewmates on'],
-    },
-  },
-  {
-    env: 'MERCURY_SESSION_WORKFLOWS',
-    label: 'Workflows',
-    group: 'agents',
-    kind: 'toggle',
-    options: ['0'],
-    defaultLabel: 'on',
-    applicationClass: 'live',
-    summary: 'whether a session may run workflows — off removes the Workflow tool from its roster and closes the workflow launch roads (the run board stays readable)',
-    detail: {
-      controls: "The workflows switch of the sessions born after this choice. On (the default): the Workflow tool is in the roster and the workflow commands launch as they do today. Off: the Workflow tool leaves the roster and every workflow launch road (the tool, a workflow's own command) answers one receipt naming /workflows and this menu; /workflows still opens the run board to watch past runs. Inside a session, /workflows on|off (or this row, opened there) flips it at the next turn boundary — the tool leaves or rejoins the roster, reasoning restarts on the next turn, and a run already going finishes.",
-      on: ['the Workflow tool is in the roster; the workflow commands launch', 'a running session flips it any time with /workflows off'],
-      off: ['no Workflow tool in the roster; the launch roads answer "workflows are off for this session"', 'the run board (/workflows) stays readable', 'flip it back inside a session with /workflows on'],
     },
   },
   {
@@ -332,7 +317,7 @@ export function allSettingRows(): readonly MenuRow[] {
 }
 
 const RETIRED_MENU_ENV: ReadonlySet<string> = new Set(
-  'MERCURY_ENGINES MERCURY_HELM_HOME MERCURY_HELM_CONSOLE MERCURY_DECK_COMPANION MERCURY_CURSUS MERCURY_PARTY MERCURY_ROOM_REMOTE MERCURY_TABULA_MINERVA MERCURY_TABULA MERCURY_TABULA_DIR'.split(' '),
+  'MERCURY_ENGINES MERCURY_HELM_HOME MERCURY_HELM_CONSOLE MERCURY_DECK_COMPANION MERCURY_CURSUS MERCURY_PARTY MERCURY_ROOM_REMOTE MERCURY_TABULA_MINERVA MERCURY_TABULA MERCURY_TABULA_DIR MERCURY_SESSION_WORKFLOWS'.split(' '),
 )
 
 export function menuRowChoices(row: MenuRow): MenuChoice[] {
@@ -417,7 +402,6 @@ export interface LiveBootEnvApplyResult extends BootEnvApplyResult {
 
 const SPAWN_SWITCH_MENU_ENV: ReadonlySet<string> = new Set([
   'MERCURY_SESSION_SUBAGENTS',
-  'MERCURY_SESSION_WORKFLOWS',
 ])
 
 export function isLiveEnvRow(row: Pick<MenuRow, 'env' | 'applicationClass'>): boolean {

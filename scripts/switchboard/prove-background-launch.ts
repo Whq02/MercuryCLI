@@ -20,8 +20,8 @@ const j = (v: unknown): string => JSON.stringify(v)
 const ROOT = join(import.meta.dirname, '../..')
 const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
-type Kind = 'subagents' | 'workflows'
-const KINDS: Kind[] = ['subagents', 'workflows']
+type Kind = 'subagents'
+const KINDS: Kind[] = ['subagents']
 
 const { focusConcourseSession, grantConcourseWorkflows, readSessionWorkers, revokeConcourseWorkflows, updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.js')
 const { evaluateLaunchAuthority } = await import('../../src/services/switchboard/launchAuthority.js')
@@ -79,7 +79,7 @@ console.log('LAW 1 — the truth table: switch × role × focus × tag × settin
   const focused = probe(sidA, 'subagents', true)
   check('focused outranks the setting (posture focused)', focused.allowed && focused.posture === 'focused', j(focused))
   check('grant applies on B', grantConcourseWorkflows(sidB, 'operator', recDir).outcome === 'applied')
-  const tagged = probe(sidB, 'workflows', true)
+  const tagged = probe(sidB, 'subagents', true)
   check('the tag outranks the setting (posture tagged-background)', tagged.allowed && tagged.posture === 'tagged-background', j(tagged))
   const second = grantConcourseWorkflows(sidA, 'coordinator', recDir)
   check('the one-tag cap is untouched: a second grant is still refused cap-one', second.outcome === 'refused' && 'reason' in second && second.reason === 'cap-one', j(second))
@@ -200,7 +200,7 @@ console.log('LAW 5 — the /health status row says why backgrounded sessions may
     }
     const CLAUSE = `backgrounded sessions launch too (${LABEL} on)`
     const off = health(undefined)
-    check('setting absent: the row reads as it always has, no backgrounded clause', off !== null && off.status === 'ok' && String(off.evidence).includes('crewmates on (default) · workflows on (default) — this process') && !String(off.evidence).includes('backgrounded'), j(off))
+    check('setting absent: the row reads as it always has, no backgrounded clause', off !== null && off.status === 'ok' && String(off.evidence).includes('crewmates on (default) — this process') && !String(off.evidence).includes('backgrounded'), j(off))
     const on = health(true)
     check('setting on: the row says backgrounded sessions launch too and names the setting', on !== null && on.status === 'ok' && String(on.evidence).endsWith(CLAUSE), j(on))
   }

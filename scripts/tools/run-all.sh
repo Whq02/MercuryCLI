@@ -20,6 +20,7 @@
 # gate-watch: docs/TERMINAL-RUNTIME.md scripts/builtin-tools/fixtures/tool-census.json
 # gate-watch: scripts/daemon/dupline-world.ts scripts/lib/hermetic.ts scripts/lib/scriptedTurn.ts scripts/lib/platformPath.ts src/*
 # gate-watch: scripts/lib/distProvenance.ts scripts/lib/firstRunSeed.ts scripts/lib/seedTranscript.ts
+# gate-watch: src/substrate/startupMenu.ts src/substrate/bootNotes.ts
 # gate-watch: src/cli/headless/controlHandlers.ts src/cli/headless/turnDriver.ts src/components/*
 # gate-watch: src/components/CustomSelect/select.tsx src/components/Spinner/utils.ts
 # gate-watch: src/components/design-system/ProgressBar.tsx src/components/mercury-ui/toolGlyphs.ts

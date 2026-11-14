@@ -3,18 +3,18 @@ import { readSessionWorkers, stampedTerminalPid } from '../../daemon/concourseWo
 import { isProcessAlive } from '../../daemon/ownerWatch.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { BACKGROUND_LAUNCH_LABEL, backgroundSessionsLaunchCrewmates } from './backgroundLaunch.js'
-import { spawnSwitch, spawnSwitchOffReceipt, type SpawnSwitchState } from './spawnSwitches.js'
+import { spawnSwitch, spawnSwitchOffReceipt, type SpawnSwitchKind, type SpawnSwitchState } from './spawnSwitches.js'
 
 type LaunchAuthority =
   | { allowed: true; posture: 'attached-or-plain' | 'focused' | 'tagged-background' | 'background-by-setting' }
   | { allowed: false; reason: string; cause: 'session-switch' | 'backgrounded' }
 
-export function backgroundedLaunchRefusal(kind: 'subagents' | 'workflows'): string {
+export function backgroundedLaunchRefusal(kind: SpawnSwitchKind): string {
   return `this session is backgrounded — ${kind} wait until the operator visits it, until it holds the workflows-allowed tag (granted by choosing keep-and-background on leave, or the manual-start option), or until the operator turns on ${BACKGROUND_LAUNCH_LABEL} (/config, or the boot menu's Agents section). Keep working on the task single-handed.`
 }
 
 export function evaluateLaunchAuthority(
-  kind: 'subagents' | 'workflows',
+  kind: SpawnSwitchKind,
   probe?: { dir?: string; sessionId?: string; roleEnvOn?: boolean; spawnSwitch?: SpawnSwitchState; settingOn?: boolean },
 ): LaunchAuthority {
   const sessionSwitch = probe?.spawnSwitch ?? spawnSwitch(kind)

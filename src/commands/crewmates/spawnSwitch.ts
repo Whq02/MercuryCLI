@@ -10,7 +10,7 @@ import {
 export async function runSpawnSwitchCommand(kind: SpawnSwitchKind, rawArg: string): Promise<string> {
   const parsed = parseSpawnSwitchArg(rawArg)
   if (parsed.op === 'unknown') {
-    return `usage: ${SPAWN_SWITCH_COMMAND[kind]} on|off — flips this session's switch at the next turn boundary; /health's Crewmates & workflows row reads both`
+    return `usage: ${SPAWN_SWITCH_COMMAND[kind]} on|off — flips this session's switch at the next turn boundary; /health's Crewmates row reads it`
   }
   if (!hasFocusedSession()) {
     return `no chat is open — ${SPAWN_SWITCH_COMMAND[kind]} acts on the focused session; the boot menu's Agents section sets the next session's default`
@@ -18,7 +18,7 @@ export async function runSpawnSwitchCommand(kind: SpawnSwitchKind, rawArg: strin
   const focused = getFocusedSessionConnector()
   if (parsed.op === 'show') {
     const facts = focused.spawnSwitches()
-    return `${spawnSwitchLine('subagents', facts.subagents)} · ${spawnSwitchLine('workflows', facts.workflows)} — /crewmates on|off and /workflows on|off flip this session at its next turn boundary; the boot menu's Agents section sets the next session's default`
+    return `${spawnSwitchLine('subagents', facts.subagents)} — /crewmates on|off flips this session at its next turn boundary; the boot menu's Agents section sets the next session's default`
   }
   const on = parsed.op === 'on'
   const receipt = await focused.setSpawnSwitch(kind, on)

@@ -1456,7 +1456,7 @@ function onSeatVerbApplied(short: string, frame: SessionAppliedParams, roster: S
   if (frame.verb === 'set_spawn_switch') {
     const kind = frame.switch
     const on = frame.on
-    if (kind === undefined || typeof on !== 'boolean') return
+    if (kind !== 'subagents' || typeof on !== 'boolean') return
     const heldToggle = seat.heldSpawnSwitches[kind]
     const known = heldToggle !== undefined ? heldToggle.requestId === frame.request_id : (rec.pendingSpawnSwitches ?? []).some(p => p.kind === kind && p.on === on)
     if (!known) return
@@ -1613,11 +1613,8 @@ function unparkSpawnSwitch(rec: ConcourseWorkerRecordV1, kind: SpawnSwitchKind, 
 function dropHeldSpawnSwitch(seat: SeatState, kind: SpawnSwitchKind, requestId: number): void {
   const held = seat.heldSpawnSwitches[kind]
   if (held === undefined || held.requestId !== requestId) return
-  const rest: SeatState['heldSpawnSwitches'] = {}
-  for (const other of SPAWN_SWITCH_KINDS) {
-    const entry = seat.heldSpawnSwitches[other]
-    if (other !== kind && entry !== undefined) rest[other] = entry
-  }
+  const rest: SeatState['heldSpawnSwitches'] = { ...seat.heldSpawnSwitches }
+  delete rest[kind]
   seat.heldSpawnSwitches = rest
 }
 
@@ -1705,7 +1702,7 @@ function drainPendingSpawnSwitches(short: string, roster: SeatRosterPort, dir?: 
   const rec = liveRecordByShort(short, dir)
   if (!rec) return
   const seat = seatOf(short)
-  const parked = (rec.pendingSpawnSwitches ?? []).filter(p => seat.heldSpawnSwitches[p.kind] === undefined)
+  const parked = (rec.pendingSpawnSwitches ?? []).flatMap(p => (p.kind === 'subagents' && seat.heldSpawnSwitches[p.kind] === undefined ? [{ ...p, kind: p.kind }] : []))
   if (parked.length === 0) return
   // eslint-disable-next-line no-console
   console.error(`[daemon] seat set-spawn-switch applying ${parked.length} parked toggle${parked.length === 1 ? '' : 's'} at the turn's end: ${short}`)

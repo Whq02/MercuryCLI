@@ -269,7 +269,6 @@ export function BootSettingsScreen({
             const liveValues = {
               ...liveEnvValues,
               [SPAWN_SWITCH_ENV.subagents]: live.subagents.on ? null : '0',
-              [SPAWN_SWITCH_ENV.workflows]: live.workflows.on ? null : '0',
             };
             return {
               runnerId: rec.runnerId,

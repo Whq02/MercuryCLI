@@ -91,7 +91,6 @@ const DOMAINS: Record<string, string[]> = {
   MERCURY_NO_SYNC_OUTPUT: ['', '1', '0'],
   MERCURY_STREAM_CARET: ['', '0'],
   MERCURY_SESSION_SUBAGENTS: ['', '0'],
-  MERCURY_SESSION_WORKFLOWS: ['', '0'],
   MERCURY_COMPUTER_USE: ['', '0'],
   MERCURY_COMPUTER_ACCESS: ['', 'asks', 'permissive', 'full'],
   MERCURY_SKIP_PERMISSIONS: ['', '1'],
@@ -120,7 +119,7 @@ const CLUSTERS: Record<string, string[]> = {
   'splash-motion': ['MERCURY_LAUNCH_RIPPLE', 'MERCURY_REDUCED_MOTION'],
   'splash-handover': ['MERCURY_SPLASH_HANDOFF', 'MERCURY_LAUNCH_ID'],
   concourse: ['MERCURY_CONCOURSE', 'MERCURY_CONCOURSE_WORKER'],
-  'spawn-switches': ['MERCURY_SESSION_SUBAGENTS', 'MERCURY_SESSION_WORKFLOWS'],
+  'spawn-switches': ['MERCURY_SESSION_SUBAGENTS'],
 }
 
 function isOn(env: string, value: string): boolean {
@@ -231,7 +230,6 @@ function probeVector(clusterName: string, cluster: string[], vec: string[]): voi
   if (clusterName === 'spawn-switches') {
     for (const [kind, env] of [
       ['subagents', 'MERCURY_SESSION_SUBAGENTS'],
-      ['workflows', 'MERCURY_SESSION_WORKFLOWS'],
     ] as const) {
       const born = bornSpawnSwitch(kind)
       const wantSource = val(env) === '' ? 'default' : 'env'
