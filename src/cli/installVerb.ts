@@ -1,4 +1,6 @@
 import { homedir } from 'node:os'
+import { foreignInstallerOf, nixInstallRoot, resolveInstallProvenance } from 'src/services/privateChannel/installProvenance.js'
+import { installerRoadWords } from 'src/services/privateChannel/installerUpgrade.js'
 import { formatUninstallReport, resolveLayoutRoots, uninstallLayout } from 'src/services/privateChannel/installLayout.js'
 import { describePathTarget, removeBinDirFromPath, type PathEntryOutcome, type PathRemovalOutcome } from 'src/services/privateChannel/installPath.js'
 import { describeInstall, pathEntryIo, performInstall, type Progress } from 'src/services/privateChannel/updateService.js'
@@ -61,6 +63,14 @@ export async function installVerb(options: InstallCliOptions = {}): Promise<neve
     process.exit(2)
   }
   const roots = resolveLayoutRoots()
+  const provenance = nixInstallRoot() === null ? null : resolveInstallProvenance()
+  const installer = provenance === null ? null : foreignInstallerOf(provenance)
+  if (provenance && installer?.updateCommand === null) {
+    const remedy = installerRoadWords(installer, 'install')
+    const reason = `this Mercury was installed by ${installer.name}; ${remedy}`
+    if (options.json) return emitJson({ mode: options.uninstall ? 'uninstall' : options.dryRun ? 'dry-run' : 'install', state: 'installer-managed', reason, remedy, provenance: { kind: provenance.kind, activeRoot: provenance.activeRoot, updateOwner: provenance.updateOwner, updateCommand: null } })
+    return cliOk(reason)
+  }
 
   if (options.uninstall) {
     const report = uninstallLayout(roots)

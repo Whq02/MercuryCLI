@@ -35,6 +35,7 @@ import {
 import { checkVendoredRuntime, payloadVendoredRuntime, readRuntimeRecord } from './vendoredRuntime.js'
 import { checkVendoredPython, payloadVendoredPython, readPythonRecord } from './vendoredPython.js'
 import { payloadDigestOf } from './payloadDigest.js'
+import { nixInstallRoot } from './installProvenance.js'
 
 export interface LayoutRoots {
   versionsDir: string
@@ -904,6 +905,7 @@ export function reconcileManagedShims(
   roots: LayoutRoots = resolveLayoutRoots(),
 ): ShimSetOutcome | null {
   try {
+    if (nixInstallRoot() !== null) return null
     if (readCurrentVersion(roots) === null) return null
     return writeShimSet(roots)
   } catch {

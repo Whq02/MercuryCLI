@@ -7,6 +7,7 @@ import { resolveLayoutRoots } from './installLayout.js'
 export type InstallProvenanceKind =
   | 'managed'
   | 'homebrew'
+  | 'nix'
   | 'npm'
   | 'extracted-release'
   | 'development'
@@ -14,6 +15,7 @@ export type InstallProvenanceKind =
 
 export const HOMEBREW_UPGRADE_COMMAND = 'brew upgrade Whq02/mercury/mercury'
 export const NPM_UPDATE_COMMAND = 'npm update -g mercury-tech-cli'
+export const NIX_UPDATE_WORDS = 'update the flake input or the profile that provides it'
 export const NPM_WRAPPER_ROAD_WORDS = "installed through npm's wrapper, updated through Mercury's own channel"
 const DEPLOYED_SOURCE_EVIDENCE = 'runtime-manifest.json beside the entry — a deployed source build'
 export interface InstallProvenanceV1 {
@@ -23,7 +25,7 @@ export interface InstallProvenanceV1 {
   buildSha?: string
   activeRoot: string
   invokedPath: string
-  updateOwner: 'private-channel' | 'homebrew' | 'npm' | 'source-build' | 'release-archive' | 'none-known'
+  updateOwner: 'private-channel' | 'homebrew' | 'nix' | 'npm' | 'source-build' | 'release-archive' | 'none-known'
   evidence: string[]
   disagreements: string[]
   managedCoResident?: { root: string; current: string | null }
@@ -38,6 +40,7 @@ export interface InstallProbeFacts {
   currentPointerState: 'ok' | 'missing' | 'unreadable'
   pointerTargetExists: boolean
   homebrewKeg: string | null
+  nixRoot?: string | null
   npmPackageDir: string | null
   entryManifestPresent: boolean
   entryRuntimeManifestPresent: boolean
@@ -55,6 +58,18 @@ export function classifyInstallProvenance(f: InstallProbeFacts): InstallProvenan
     version: f.version,
     ...(f.buildSha ? { buildSha: f.buildSha } : {}),
     invokedPath: f.invokedPath,
+  }
+
+  if (f.nixRoot) {
+    return {
+      ...base,
+      kind: 'nix',
+      activeRoot: dirOf(f.invokedPath),
+      updateOwner: 'nix',
+      evidence: [`${join(f.nixRoot, 'nix-support', 'mercury')} binds this payload — Nix owns this install`],
+      disagreements: [],
+      ...(f.managedCoResident ? { managedCoResident: f.managedCoResident } : {}),
+    }
   }
 
   if (f.entryVersionDir !== null) {
@@ -209,6 +224,18 @@ export function homebrewKegOf(invokedPath: string, env: NodeJS.ProcessEnv = proc
   return null
 }
 
+export function nixInstallRoot(invokedPath: string = process.argv[1] ?? '', isWindows = process.platform === 'win32'): string | null {
+  if (isWindows || !invokedPath.endsWith('/libexec/mercury/mercury.mjs')) return null
+  try {
+    const real = realpathSync(invokedPath)
+    if (!real.endsWith('/libexec/mercury/mercury.mjs')) return null
+    const root = dirname(dirname(dirname(real)))
+    return readFileSync(join(root, 'nix-support', 'mercury'), 'utf8') === 'libexec/mercury\n' ? root : null
+  } catch {
+    return null
+  }
+}
+
 export function npmPackageDirOf(invokedPath: string, isWindows = false): string | null {
   if (!invokedPath) return null
   const clean = isWindows ? stripExtendedLengthPrefix(invokedPath) : invokedPath
@@ -314,6 +341,7 @@ export function gatherInstallProbeFacts(overrides?: {
     currentPointerState: pointer.state,
     pointerTargetExists,
     homebrewKeg,
+    nixRoot: nixInstallRoot(invokedPath, isWindows),
     npmPackageDir,
     entryManifestPresent,
     entryRuntimeManifestPresent,
@@ -352,6 +380,8 @@ export function provenanceGuidance(p: InstallProvenanceV1): string {
       return 'update with `mercury update` (check: `mercury update --check`; rollback: `mercury update --rollback`)'
     case 'homebrew':
       return `update with \`mercury update\` (it runs \`${HOMEBREW_UPGRADE_COMMAND}\` after asking; \`--yes\` skips the question; check: \`mercury update --check\`)`
+    case 'nix':
+      return NIX_UPDATE_WORDS
     case 'npm':
       return `update with \`mercury update\` (it runs \`${NPM_UPDATE_COMMAND}\` after asking; \`--yes\` skips the question; check: \`mercury update --check\`)`
     case 'development':
@@ -365,10 +395,9 @@ export function provenanceGuidance(p: InstallProvenanceV1): string {
   }
 }
 
-export interface ForeignInstaller {
-  name: 'Homebrew' | 'npm'
-  updateCommand: string
-}
+export type ForeignInstaller =
+  | { name: 'Homebrew' | 'npm'; updateCommand: string }
+  | { name: 'Nix'; updateCommand: null }
 
 export function isNpmWrapperCommand(commandPath: string, isWindows = process.platform === 'win32'): boolean {
   const strip = (p: string): string => (isWindows ? stripExtendedLengthPrefix(p) : p)
@@ -379,6 +408,8 @@ export function foreignInstallerOf(p: Pick<InstallProvenanceV1, 'kind'>): Foreig
   switch (p.kind) {
     case 'homebrew':
       return { name: 'Homebrew', updateCommand: HOMEBREW_UPGRADE_COMMAND }
+    case 'nix':
+      return { name: 'Nix', updateCommand: null }
     case 'npm':
       return { name: 'npm', updateCommand: NPM_UPDATE_COMMAND }
     default:

@@ -125,7 +125,7 @@ function provenanceStatusWords(p: InstallProvenanceV1, npmWrapper: string | null
 }
 
 async function installerRoad(
-  installer: ForeignInstaller,
+  installer: ForeignInstaller & { updateCommand: string },
   options: UpdateCliOptions,
   roots: LayoutRoots,
   provenance: Record<string, unknown>,
@@ -220,6 +220,12 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
     updateCommand: installer?.updateCommand ?? null,
     npmWrapper,
   }
+  if (installer?.updateCommand === null && !options.rollback) {
+    const remedy = installerRoadWords(installer)
+    const reason = options.status ? provenanceStatusWords(provenance, npmWrapper) : `this Mercury was installed by ${installer.name}; ${remedy}`
+    if (options.json) return emitJson({ mode: options.status ? 'status' : options.check ? 'check' : 'update', state: 'installer-managed', installed: MACRO.VERSION, runningVersion: MACRO.VERSION, reason, remedy, provenance: provenanceRecord })
+    return cliOk(reason)
+  }
   const progress: Progress = options.json ? () => {} : progressToStderr
 
   const residue = readBootAttemptResidue()
@@ -261,7 +267,7 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
   if (options.rollback) {
     if (installer) {
       const reason = `this Mercury was installed by ${installer.name}; \`mercury update --rollback\` manages installs made by \`mercury install\` or the install script`
-      const remedy = `${installer.name} manages this install's versions; ${installerRoadWords(installer)}`
+      const remedy = `${installer.name} manages this install's versions; ${installerRoadWords(installer, 'rollback')}`
       if (options.json) return failJson({ mode: 'rollback', state: 'refused', reason, remedy, provenance: provenanceRecord })
       return cliError(`rollback refused: ${reason}\n  ${remedy}`)
     }
@@ -326,7 +332,7 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
     }
   }
 
-  if (installer) return installerRoad(installer, options, roots, provenanceRecord, reinstallCommand)
+  if (installer && installer.updateCommand !== null) return installerRoad(installer, options, roots, provenanceRecord, reinstallCommand)
   if (sourceCheckout) {
     if (options.json) return failJson({ mode: 'update', state: 'refused', stage: 'provenance', reason: sourceCheckoutReason, remedy: sourceCheckoutRemedy, provenance: provenanceRecord })
     return cliError(`update refused: ${sourceCheckoutReason}\n  ${sourceCheckoutRemedy}\nthe active installation was not changed`)

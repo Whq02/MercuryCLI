@@ -1,5 +1,6 @@
 import { existsSync, openSync, realpathSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { nixInstallRoot } from '../services/privateChannel/installProvenance.js'
 
 let selfScriptMemo: { argv: string; real: string } | null = null
 
@@ -14,7 +15,7 @@ export function resolveScriptPath(script: string | undefined): string {
 
 export function selfScriptPath(): string {
   const argv = process.argv[1] ?? ''
-  if (selfScriptMemo === null || selfScriptMemo.argv !== argv) selfScriptMemo = { argv, real: resolveScriptPath(argv) }
+  if (selfScriptMemo === null || selfScriptMemo.argv !== argv) selfScriptMemo = { argv, real: nixInstallRoot(argv) === null ? resolveScriptPath(argv) : argv }
   return selfScriptMemo.real
 }
 
@@ -27,7 +28,7 @@ export function vendoredNodeBeside(buildDir: string, platform: NodeJS.Platform =
   if (buildDir === '') return null
   const candidate = platform === 'win32' ? join(buildDir, 'vendor', 'node', 'node.exe') : join(buildDir, 'vendor', 'node', 'bin', 'node')
   try {
-    return existsSync(candidate) ? realpathSync(candidate) : null
+    return existsSync(candidate) ? nixInstallRoot(join(buildDir, 'mercury.mjs'), platform === 'win32') === null ? realpathSync(candidate) : candidate : null
   } catch {
     return null
   }

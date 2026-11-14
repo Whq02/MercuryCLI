@@ -9,6 +9,7 @@ import { getEssentialTrafficOnlyReason } from '../../utils/privacyLevel.js'
 import { comparePrivateVersions, parsePrivateVersion } from './channelCore.js'
 import { reconcileManagedShims, resolveLayoutRoots } from './installLayout.js'
 import { checkForUpdate, type CheckOutcome } from './updateService.js'
+import { nixInstallRoot } from './installProvenance.js'
 
 export const UPDATE_NOTICE_CACHE_FILE = 'update-notice.json'
 export const UPDATE_NOTICE_DAILY_MS = 24 * 60 * 60 * 1000
@@ -81,7 +82,7 @@ export function takeFaceUpdateNotice(
     enabled: () => flagEnabled('MERCURY_UPDATE_NOTICE'),
   },
 ): string | null {
-  if (!deps.enabled()) return null
+  if (!deps.enabled() || nixInstallRoot() !== null) return null
   const cache = deps.readCache()
   const version = decideFaceNotice(cache, deps.runningVersion)
   if (version === null || cache === null) return null
@@ -175,7 +176,7 @@ export function quietUpdateCheckArmed(env: NodeJS.ProcessEnv = process.env): boo
 }
 
 export function scheduleQuietUpdateNotice(notify: (text: string) => void, opts: { delayMs?: number } = {}): () => void {
-  if (!quietUpdateCheckArmed()) return () => {}
+  if (!quietUpdateCheckArmed() || nixInstallRoot() !== null) return () => {}
   const timer = setTimeout(() => {
     reconcileManagedShims(resolveLayoutRoots())
     void runQuietUpdateCheck({
