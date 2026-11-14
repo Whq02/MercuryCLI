@@ -250,13 +250,22 @@ export async function applyResolution(plan: ResolutionPlan, signal?: AbortSignal
     if (outcome.kind === 'stale') return stale()
     if (outcome.kind !== 'committed' && outcome.kind !== 'replayed') return { state: 'refused', reason: `${outcome.kind}${'reason' in outcome ? `: ${outcome.reason}` : ' — nothing written'}` }
     const remaining: string[] = []
+    const unidentified: string[] = []
     const files = filesFor(plan.owner, root)
     for (const f of plan.files) {
       files.set(f.path, (files.get(f.path) ?? []).filter(r => !f.selected.some(s => s.region === r.id)))
-      remaining.push(...readConflictRegions(plan.owner, root, f.path).map(r => r.id))
+      const regions = readConflictRegions(plan.owner, root, f.path)
+      remaining.push(...regions.map(r => r.id))
+      if (!final.includes(f)) {
+        let unregistered = f.after.toString('utf8')
+        for (const region of [...regions].reverse()) unregistered = unregistered.slice(0, region.start) + unregistered.slice(region.end)
+        if (markerBlockRemains(unregistered)) unidentified.push(f.path)
+      }
     }
-    const ev = recordCanonicalEvidence({ owner: plan.owner, kind: 'change', origin: 'observed', claim: `resolved ${plan.files.reduce((n, f) => n + f.selected.length, 0)} conflict region(s); ${final.length} file(s) staged; ${remaining.length} region(s) remain`, refs: ['mercury://git/status'], details: { files: plan.files.map(f => f.path), staged: final.map(f => f.path), remaining } })
-    return { state: 'ok', changedPaths: plan.files.map(f => path.join(root, f.path)), detail: [`resolved regions — bytes written: ${plan.files.map(f => f.path).join(', ')}; staged: ${final.map(f => f.path).join(', ') || '(none)'}; unresolved regions: ${remaining.join(', ') || '(none)'}; evidence mercury://evidence/${ev.id}`, ...gitFilterSkipMessages(root)].join('\n') }
+    const unidentifiedNote = unidentified.length ? `unidentified marker blocks in ${unidentified.join(', ')} — use whole-file resolve` : ''
+    const remainder = [remaining.join(', '), unidentifiedNote].filter(Boolean).join('; ') || '(none)'
+    const ev = recordCanonicalEvidence({ owner: plan.owner, kind: 'change', origin: 'observed', claim: `resolved ${plan.files.reduce((n, f) => n + f.selected.length, 0)} conflict region(s); ${final.length} file(s) staged; ${remaining.length} region(s) remain${unidentifiedNote ? `; ${unidentifiedNote}` : ''}`, refs: ['mercury://git/status'], details: { files: plan.files.map(f => f.path), staged: final.map(f => f.path), remaining, ...(unidentified.length ? { unidentified } : {}) } })
+    return { state: 'ok', changedPaths: plan.files.map(f => path.join(root, f.path)), detail: [`resolved regions — bytes written: ${plan.files.map(f => f.path).join(', ')}; staged: ${final.map(f => f.path).join(', ') || '(none)'}; unresolved regions: ${remainder}; evidence mercury://evidence/${ev.id}`, ...gitFilterSkipMessages(root)].join('\n') }
   } catch (err) {
     return { state: 'refused', reason: `resolve failed: ${(err as Error).message}` }
   } finally {
