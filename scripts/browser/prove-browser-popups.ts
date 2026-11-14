@@ -192,30 +192,35 @@ section('S7 names are the agent’s own, and the end')
 
 section('S8 what watching for new tabs costs a launch')
 {
+  interface Sent {
+    method: string
+    params: { filter?: unknown } | undefined
+    session: string | undefined
+  }
   const { Connection } = (await import(join(ROOT, 'node_modules/puppeteer-core/lib/puppeteer/cdp/Connection.js'))) as { Connection: { prototype: { _rawSend: (...args: unknown[]) => unknown } } }
   const send = Connection.prototype._rawSend
-  let sent: string[] = []
-  Connection.prototype._rawSend = function (this: unknown, callbacks: unknown, method: unknown, ...rest: unknown[]) {
-    sent.push(String(method))
-    return send.call(this, callbacks, method, ...rest)
+  let sent: Sent[] = []
+  Connection.prototype._rawSend = function (this: unknown, callbacks: unknown, method: unknown, params: unknown, session: unknown, ...rest: unknown[]) {
+    sent.push({ method: String(method), params: params as Sent['params'], session: typeof session === 'string' ? session : undefined })
+    return send.call(this, callbacks, method, params, session, ...rest)
   }
-  const launched = async (agentId: string, births: boolean): Promise<string[]> => {
+  const launched = async (agentId: string, births: boolean): Promise<Sent[]> => {
     sent = []
     const owner = ownerOf({ agentId })
     await sessions.ensureBrowserSession(owner, { origin: B.origin, ...(births ? { births: true } : {}) })
-    const methods = [...sent].sort()
+    const commands = [...sent]
     await sessions.disposeBrowserOwner(owner)
-    return methods
+    return commands
   }
+  const watches = (commands: Sent[]): Sent[] => commands.filter(command => command.method === 'Target.setAutoAttach' && JSON.stringify(command.params?.filter) === '[{"type":"page","exclude":false}]')
+  const attaches = (commands: Sent[]): number => commands.filter(command => command.method === 'Target.attachToTarget').length
   try {
     const plain = await launched('popups-count-plain', false)
     const watched = await launched('popups-count-watched', true)
-    const extra = [...watched]
-    for (const method of plain) {
-      const at = extra.indexOf(method)
-      if (at >= 0) extra.splice(at, 1)
-    }
-    check('a launch that watches sends three protocol commands more than one that does not, and nothing less', extra.join(',') === 'Target.attachToTarget,Target.detachFromTarget,Target.setAutoAttach' && watched.length === plain.length + 3, `plain=${plain.length} watched=${watched.length} extra=${extra.join(',')}`)
+    const watch = watches(watched)
+    const onWatch = watched.filter(command => command.session !== undefined && command.session === watch[0]?.session).map(command => command.method)
+    check('a launch that does not ask for the watch sends nothing for it', watches(plain).length === 0, `${watches(plain).length}`)
+    check('a launch that watches sends three protocol commands for it: one attach to the browser, and on that session the auto-attach and the release of the page it already holds', watch.length === 1 && attaches(watched) === attaches(plain) + 1 && onWatch.join(',') === 'Target.setAutoAttach,Target.detachFromTarget', `attaches ${attaches(plain)} to ${attaches(watched)}; on the watch: ${onWatch.join(',')}`)
   } finally {
     Connection.prototype._rawSend = send
   }
