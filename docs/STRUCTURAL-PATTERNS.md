@@ -203,7 +203,9 @@ either `pattern` and `rewrite` for one rule, or `rules` (`[{ pattern, rewrite },
 for simultaneous rules evaluated in one pass over each file's original bytes
 (never both). Each rewrite is code in the target language; `$NAME`/`$$$NAME`
 insert the captured source verbatim; `""` deletes the matched node (a node that
-owns its line takes the line with it). When `rules` is used, identical computed
+owns its line takes the line with it). A rewrite of a whole declaration writes
+the rewrite's own words: a keyword the pattern does not name is not kept, so
+read the diff. When `rules` is used, identical computed
 edits at the same span coalesce and count once, divergent overlapping matches
 refuse before preview naming both rules and their coordinates, and the preview
 and receipt report per-rule counts, coalesced edits and rules that matched
