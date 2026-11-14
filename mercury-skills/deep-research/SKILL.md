@@ -32,7 +32,7 @@ Pick a fresh team label `<team>`, such as `research-1`: start with a letter, dig
 
 Follow one launch order for every team size:
 
-1. **First message — launch the captain alone** with one `Crewmate` call so the captain is enrolled before teammates reserve seats:
+1. **First message — launch the captain alone** with one `Crewmate` call so the captain is enrolled before the other seats reserve theirs:
    - `description`: `"Captain research team"`
    - `name`: `"captain"`
    - `team`: `"<team>"`
@@ -62,7 +62,7 @@ Only `main` launches or calls `ResumeCrewmate` on seats; you coordinate the team
 
 On your first turn, post readiness with `CrewBoard` (`op: "post"`, `kind: "result"`, `to: ["main"]`, `clientOpId: "<team>-ready"`, `text: "@main Captain enrolled; launch the remaining seats."`); this is not the final report. Keep a record of completed batches so later wakes do not reassign finished work. Use a fresh `clientOpId` for every changed post; reuse one only for an identical retry. Answer an ask with `kind: "answer"` and `replyTo` set to its event id.
 
-1. Read `CrewBoard` (`op: "read"`, `team: "<team>"`). Answer any teammate `ask` or `blocker` addressed to `@captain`. While any angle researcher has not yet posted its `result` or `blocker`, end your turn so your standing team wait wakes you when new team posts arrive.
+1. Read `CrewBoard` (`op: "read"`, `team: "<team>"`). Answer any seat's `ask` or `blocker` addressed to `@captain`. While any angle researcher has not yet posted its `result` or `blocker`, end your turn so your standing team wait wakes you when new team posts arrive.
 2. Once the angle researchers have reported, read every `<scratchpad>/<team>-angle-*.md` file with `Read`. Deduplicate overlapping claims, keep all central, quantitative, dated, causal, or contested claims with their verbatim quotes and URLs, divide them across `<verifier-1, ...>`, and write each verifier's batch with `Write` to `<scratchpad>/<team>-batch-<verifier>.md`. Post one `CrewBoard` `ask` per verifier (`op: "post"`, `kind: "ask"`, `to: ["<verifier>"]`, `clientOpId: "<team>-assign-<verifier>"`, `text: "@<verifier> Verify the claims in <scratchpad>/<team>-batch-<verifier>.md and post your rulings to @captain."`). Never address `@all` alone because `@all` never wakes a parked seat. Place scratchpad paths in `text`, never in `files` (`files` accepts only repository-relative paths). End your turn to wait for verifier results.
 3. Once all assigned verifiers have posted their `result` and you have read `<scratchpad>/<team>-<verifier>-rulings.md` with `Read`, fold the evidence:
    - Drop `CONTRADICTED` claims from the report's conclusions; when a contradicted claim came from a prominent source or bears directly on the question, list it under `## Refuted claims` with the disproving primary source URL and quote.
@@ -106,7 +106,7 @@ Your job is to try to refute extracted claims by checking every cited source fir
 ## 5. Waiting, recovery, and the lead's bounded last look
 
 - **Intermediate wakes**: background seats emit task notifications when they park between board turns. Whenever woken before `captain` has posted its final `result` to `@main`, read `CrewBoard` (`op: "read"`):
-  - If the team is still working or parked awaiting teammates and no seat failed or posted a `blocker` to `@main`, do not repeat their work or answer early — end your turn.
+  - If the team is still working or parked awaiting other seats and no seat failed or posted a `blocker` to `@main`, do not repeat their work or answer early — end your turn.
   - If a seat failed or a board notice reports a held wake, inspect the reason and recover only within the operator's authorization. Use `ResumeCrewmate` (`to: "<seat_name>"`, `message: "Read CrewBoard for team <team> and complete your assignment for @captain."`) when authorized, or complete its missing work directly and send that evidence to the captain. Keep successful launches; do not repeat them after a partial launch refusal. Tell `@captain` which assignments are complete or unavailable via `CrewBoard` (`op: "post"`, `kind: "ask"`, `to: ["captain"]`, `clientOpId: "<team>-recover-<seat>"`, `text: "@captain <assignment, evidence or gap, and how to proceed>"`). Never restart an operator-stopped seat or bypass a refusal; an incomplete report must name the missing work.
 - **Last look (at most one round back to the captain)**: once `captain` posts its `result` to `@main`, read `<scratchpad>/<team>-report.md` with `Read`:
   1. Check that every claim in the report carries a cited source, that `CONTRADICTED` claims are excluded from conclusions, and that contested and unverified claims are explicitly shown as such.

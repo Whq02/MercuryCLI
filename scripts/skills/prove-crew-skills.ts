@@ -519,11 +519,11 @@ section('4. Live fixture launch road: 4-seat team and 7-seat team following the 
 
 updateSettingsForSource('userSettings', { swarm: { enabled: true } })
 
-async function runTeamLaunchProof(sessionUuid: string, teamLabel: string, researcherNames: string[], verifierNames: string[]): Promise<void> {
+async function runLaunchProof(sessionUuid: string, boardLabel: string, researcherNames: string[], verifierNames: string[]): Promise<void> {
   const beforeReqCount = fixture.messageRequests().length
   bootstrap.switchSession(sessionUuid as never, PROJ)
   const swarmOut = runSwarmCommand('on')
-  check(`${teamLabel}: /swarm on opens the live board`, swarmOut.startsWith('Swarm on'), swarmOut)
+  check(`${boardLabel}: /swarm on opens the live board`, swarmOut.startsWith('Swarm on'), swarmOut)
   const board = seam.swarmStore()!
 
   let state = getDefaultAppState() as AppState
@@ -577,29 +577,29 @@ async function runTeamLaunchProof(sessionUuid: string, teamLabel: string, resear
       setResponseLength: () => {},
       updateFileHistoryState: () => {},
       updateAttributionState: () => {},
-      toolUseId: `toolu_${teamLabel}_${n}`,
+      toolUseId: `toolu_${boardLabel}_${n}`,
     }
     const res = await AgentTool.call(
       input as never,
       context as never,
       (async (_tool: unknown, toolInput: unknown) => ({ behavior: 'allow', updatedInput: toolInput })) as never,
-      { requestId: `req-${teamLabel}-${n}`, message: { id: `msg_${teamLabel}_${n}` } } as never,
+      { requestId: `req-${boardLabel}-${n}`, message: { id: `msg_${boardLabel}_${n}` } } as never,
     )
     return res.data as { status: string; agentId: string; agentName?: string }
   }
 
-  const fill = (text: string, seat: string): string => text.replace(/<([^>]+)>/g, (_match, blank: string) => ({ team: teamLabel, scratchpad: TMP, seat_name: seat, question: 'Compare durability, concurrency and portability.', 'other-family-model-id': 'claude-opus-4-8' } as Record<string, string>)[blank] ?? `Assigned ${blank}`)
+  const fill = (text: string, seat: string): string => text.replace(/<([^>]+)>/g, (_match, blank: string) => ({ team: boardLabel, scratchpad: TMP, seat_name: seat, question: 'Compare durability, concurrency and portability.', 'other-family-model-id': 'claude-opus-4-8' } as Record<string, string>)[blank] ?? `Assigned ${blank}`)
   const launch = (args: Record<string, unknown>, seat: string, brief: string) => ({
     ...Object.fromEntries(Object.entries(args).map(([key, value]) => [key, typeof value === 'string' ? fill(value, seat) : value])),
     name: seat,
-    team: teamLabel,
-    prompt: `You are ${seat} on team ${teamLabel}. Your team captain is captain (@captain).\n${fill(brief, seat)}`,
+    team: boardLabel,
+    prompt: `You are ${seat} on team ${boardLabel}. Your team captain is captain (@captain).\n${fill(brief, seat)}`,
   })
   const capLaunch = await callCrewmate(launch(captainArguments, 'captain', captainBrief))
   launchedIds.push(capLaunch.agentId)
-  check(`${teamLabel}: message 1 launches captain alone in background`, capLaunch.status === 'async_launched' && capLaunch.agentName === 'captain', capLaunch)
+  check(`${boardLabel}: message 1 launches captain alone in background`, capLaunch.status === 'async_launched' && capLaunch.agentName === 'captain', capLaunch)
 
-  const ready = () => board.view().events.some(event => event.authorName === 'captain' && event.clientOpId === `${teamLabel}-ready`)
+  const ready = () => board.view().events.some(event => event.authorName === 'captain' && event.clientOpId === `${boardLabel}-ready`)
   if (!ready()) {
     await new Promise<void>(resolve => {
       const stop = board.subscribe(() => {
@@ -609,8 +609,8 @@ async function runTeamLaunchProof(sessionUuid: string, teamLabel: string, resear
     })
   }
   const expectedReady = Object.fromEntries(describedArguments(readyLine.split(');')[0] ?? '').map(arg => [arg.key, typeof arg.value === 'string' ? fill(arg.value, 'captain') : arg.value]))
-  const scriptedReady = fixtureTurns.find(turn => turn.kind === 'tool_use' && turn.whenBody?.includes(teamLabel))
-  check(`${teamLabel}: the skill's readiness call is the one executed before peer reservations`, scriptedReady?.kind === 'tool_use' && JSON.stringify(expectedReady) === JSON.stringify(scriptedReady.input) && board.captain(teamLabel)?.name === 'captain', expectedReady)
+  const scriptedReady = fixtureTurns.find(turn => turn.kind === 'tool_use' && turn.whenBody?.includes(boardLabel))
+  check(`${boardLabel}: the skill's readiness call is the one executed before peer reservations`, scriptedReady?.kind === 'tool_use' && JSON.stringify(expectedReady) === JSON.stringify(scriptedReady.input) && board.captain(boardLabel)?.name === 'captain', expectedReady)
   const otherCalls = [
     ...researcherNames.map(seatName => callCrewmate(launch(researcherArguments, seatName, researcherBrief))),
     ...verifierNames.map(seatName => callCrewmate(launch(verifierArguments, seatName, verifierBrief))),
@@ -620,40 +620,40 @@ async function runTeamLaunchProof(sessionUuid: string, teamLabel: string, resear
   for (const r of otherResults) launchedIds.push(r.agentId)
   checkAllCompleted()
   check(
-    `${teamLabel}: message 2 launches all ${otherResults.length} remaining seats concurrently without fifth-seat refusal`,
+    `${boardLabel}: message 2 launches all ${otherResults.length} remaining seats concurrently without fifth-seat refusal`,
     otherResults.length === expectedCount - 1 && otherResults.every(r => r.status === 'async_launched'),
     otherResults,
   )
 
   await allCompleted
 
-  const teamSeats = board.seats().filter(s => s.team === teamLabel)
-  const capSeat = board.captain(teamLabel)
+  const labelSeats = board.seats().filter(s => s.team === boardLabel)
+  const capSeat = board.captain(boardLabel)
   check(
-    `${teamLabel}: all ${expectedCount} seats enrolled and parked on the board with captain holding standing team wait`,
-    teamSeats.length === expectedCount && capSeat?.name === 'captain' && capSeat.captain === true && capSeat.wait?.standing === true,
-    { count: teamSeats.length, capSeat },
+    `${boardLabel}: all ${expectedCount} seats enrolled and parked on the board with captain holding standing team wait`,
+    labelSeats.length === expectedCount && capSeat?.name === 'captain' && capSeat.captain === true && capSeat.wait?.standing === true,
+    { count: labelSeats.length, capSeat },
   )
 
   const newReqs = fixture.messageRequests().slice(beforeReqCount) as Array<{ body: { system?: unknown; messages?: unknown[]; tools?: Array<{ name?: string }> } }>
-  check(`${teamLabel}: fixture received one request per seat plus the captain's readiness continuation (${expectedCount + 1})`, newReqs.length === expectedCount + 1, newReqs.length)
+  check(`${boardLabel}: fixture received one request per seat plus the captain's readiness continuation (${expectedCount + 1})`, newReqs.length === expectedCount + 1, newReqs.length)
 
   const sysTextOf = (req: (typeof newReqs)[number]): string => JSON.stringify(req.body.system ?? '')
   const msgTextOf = (req: (typeof newReqs)[number]): string => JSON.stringify(req.body.messages ?? '')
   const hasBoardTool = (req: (typeof newReqs)[number]): boolean => (req.body.tools ?? []).some(t => t.name === 'CrewBoard')
 
-  const capReq = newReqs.find(r => msgTextOf(r).includes(`You are captain on team ${teamLabel}.`))
+  const capReq = newReqs.find(r => msgTextOf(r).includes(`You are captain on team ${boardLabel}.`))
   check(
-    `${teamLabel}: captain request carries captain standing-wait brief and CrewBoard tool`,
+    `${boardLabel}: captain request carries captain standing-wait brief and CrewBoard tool`,
     capReq !== undefined &&
-      sysTextOf(capReq).includes(`You are captain of ${teamLabel}, with a standing wait on its traffic. Fold your team's work and send one result to @main.`) &&
+      sysTextOf(capReq).includes(`You are captain of ${boardLabel}, with a standing wait on its traffic. Fold your team's work and send one result to @main.`) &&
       hasBoardTool(capReq),
   )
 
   for (const peerName of [...researcherNames, ...verifierNames]) {
-    const peerReq = newReqs.find(r => msgTextOf(r).includes(`You are ${peerName} on team ${teamLabel}.`))
+    const peerReq = newReqs.find(r => msgTextOf(r).includes(`You are ${peerName} on team ${boardLabel}.`))
     check(
-      `${teamLabel}: ${peerName} was told captain is its team captain in both system brief and user prompt, with CrewBoard loaded`,
+      `${boardLabel}: ${peerName} was told captain is its team captain in both system brief and user prompt, with CrewBoard loaded`,
       peerReq !== undefined &&
         sysTextOf(peerReq).includes("captain is your team's captain. Take your team's asks, blockers and results to @captain; the captain reports the team's result to @main.") &&
         msgTextOf(peerReq).includes('Your team captain is captain (@captain).') &&
@@ -662,8 +662,8 @@ async function runTeamLaunchProof(sessionUuid: string, teamLabel: string, resear
   }
 }
 
-await runTeamLaunchProof('00000000-0000-4000-8000-000000000004', 'team-four', ['angle-1', 'angle-2'], ['verifier-1'])
-await runTeamLaunchProof('00000000-0000-4000-8000-000000000007', 'team-seven', ['angle-1', 'angle-2', 'angle-3', 'angle-4'], ['verifier-1', 'verifier-2'])
+await runLaunchProof('00000000-0000-4000-8000-000000000004', 'team-four', ['angle-1', 'angle-2'], ['verifier-1'])
+await runLaunchProof('00000000-0000-4000-8000-000000000007', 'team-seven', ['angle-1', 'angle-2', 'angle-3', 'angle-4'], ['verifier-1', 'verifier-2'])
 
 await fixture.close()
 clearTimeout(guard)
