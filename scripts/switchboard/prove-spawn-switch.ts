@@ -543,7 +543,7 @@ section('§10 the command — /crewmates on|off, the grammar, the no-chat senten
   check('no chat open ⇒ the one sentence naming the focused session and the menu', noChat.includes('no chat is open') && noChat.includes("the boot menu's Agents section"), noChat)
   check('the crew view branches on the argument through the one body', src('src/commands/crewmates/crewmates.tsx').includes("runSpawnSwitchCommand('subagents'") && src('src/commands/crewmates/crewmates.tsx').includes('parseSpawnSwitchArg(args'))
   check('the toggle receipts read the daemon\'s vocabulary', sw.spawnSwitchToggleReceipt('subagents', false, 'refused', 'no live channel') === 'crewmates off refused — no live channel' && sw.spawnSwitchToggleReceipt('subagents', true, 'applied').includes('the Crewmate tool rejoins the roster from the next turn'))
-  check("the agents page carries the switches under their .34 words", src('docs/CREW.md').includes('## The two spawn switches') && src('docs/CREW.md').includes('`/crewmates on|off` prints its'))
+  check("the agents page carries the switch under its .34 words", src('docs/CREW.md').includes('## The spawn switch\n') && !src('docs/CREW.md').includes('two spawn switches') && src('docs/CREW.md').includes('`/crewmates on|off` prints its'))
 }
 
 console.log(`\n${failures === 0 ? '✅' : '❌'} prove-spawn-switch — ${checks - failures}/${checks} checks passed`)

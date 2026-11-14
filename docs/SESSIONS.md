@@ -47,7 +47,7 @@ screen (`m to select model-default`) opens the default model and effort picker
 in place whenever `engine.sessionDefaults` is not `false`. The Boot Menu displays six section headings in screen order: **TRUST COMBO**
 (`Content-rule wards`, `Debug tool (real debugger)`, `C/C++ IDE lane (clangd)`,
 `Sovereign mode`), **COMPUTER USE** (`Computer use`, `Access type`),
-**SAMPLES** (`Samples`), **AGENTS** (`Crewmates`, `Workflows`, `Crewmates while
+**SAMPLES** (`Samples`), **AGENTS** (`Crewmates`, `Crewmates while
 backgrounded`, `JEV`), **MISCELLANEOUS** (`Launch animation`, `Godot language
 lanes`, `Godot control surface (VULCAN)`, `Unity dev lanes`, `Blender dev
 lanes`, `Aseprite dev lanes`, `Cap failover posture`, `Session Concourse at
@@ -300,17 +300,17 @@ session a terminal is looking at, and a hop moves that mark from the chat
 you leave to the one you land on, so exactly one session per terminal is
 focused at any moment.
 
-Focus carries your active approval channel. The focused chat launches workflows and crewmates on
+Focus carries your active approval channel. The focused chat launches crewmates on
 your authority, under its own permission mode. A background session
 keeps working single-handed and waits until you visit it, until it
 holds the workflows-allowed grant (chosen as
 keep-and-background on leave, or the manual-start option), or until you turn
 on "Crewmates while backgrounded" (in `/config` or in the Boot
 Menu's Agents section; off by default). With it on, every session you have
-left in the background launches crewmates and workflows as a focused one
-does, under its own permission mode and its own Crewmates and Workflows
-switches, and a session started while it is on carries the Crewmate and Workflow
-tools from its first request; the workflows-allowed grant stays unchanged.
+left in the background launches crewmates as a focused one
+does, under its own permission mode and its own Crewmates
+switch, and a session started while it is on carries the Crewmate
+tool from its first request; the workflows-allowed grant stays unchanged.
 With it off, a background session's launch refusal names the three ways to allow it.
 A hop updates focus immediately. `/runs`
 and the board's work chip show the focused session's own work
@@ -425,9 +425,9 @@ effort word its chip paints in every state: it rests on
 `ready · <model> · <effort>` while the session is idle and no crewmate is
 running, and otherwise reads `<model> · <effort>` followed by what the
 session is doing (a wait on crewmates, a request wait, a confirmation notice, a
-warning, or the crew's timer while a crewmate or workflow
-the session's runner hosts is still running) by kind: `"crewmate thought for
-28m"`, `"workflow thought for 12m"`, or both when both run (the larger first).
+warning, or the crew's timer while a crewmate
+the session's runner hosts is still running): `"crewmate thought for
+28m"`.
 The timer counts the crewmates running now; when the last of them finishes
 or is stopped the row reads `ready` again on the next beat, and the finished
 rows keep their own elapsed time in the CREW box, `/crewmates` and `/runs`. At its
@@ -474,8 +474,8 @@ the composer the key types its letter. `view.backgroundKey: false` in
 settings.json turns the key and both hints off, and esc keeps its meaning
 either way. The row's warnings stay its own: a request wait names what the
 runner waits on and the budget that fires (`"waiting for the first byte from
-Opus 5.5 — within 6m"`); a held turn names what it waits on (`"waiting on 1
-workflow · 2 crewmates"`); an interrupt says the request is torn down. The row
+Opus 5.5 — within 6m"`); a held turn names what it waits on (`"waiting on 2
+crewmates · 1 shell"`); an interrupt says the request is torn down. The row
 says the session may be stuck only when the runner's stream has carried no
 event of any kind (the provider's heartbeats included) for longer than its
 own watchdog's warning point: never sooner than five minutes of silence, and
@@ -657,8 +657,8 @@ config home beside that folder's transcripts. From then on the folder appears in
 your project list across the home screen's Sessions · Projects view and the board's REPO
 picker. Mercury writes no ignore rules, never modifies `.gitignore`, and never
 deletes `.mercury/`. The project folder holds shared configuration (settings,
-command safety rules, Apollo specs, custom agents, and saved
-workflow scripts) the way a crew commits its shared config; everything a
+command safety rules, Apollo specs, and custom agents)
+the way a crew commits its shared config; everything a
 machine or a session writes for itself (run manifests, ledgers, evidence,
 test-run records, local memory, and the health check's certificate)
 lives in the config home beside that folder's transcripts. A local store
@@ -1040,7 +1040,7 @@ the full row instead. The composer never shifts position for a notice.
 ## A notice an agent has not read
 
 Every notice delivered to an agent of a session (a crewmate's completion,
-a workflow's or a shell's completion, a monitor's tick, a message queued for a
+a shell's completion, a monitor's tick, a message queued for a
 crewmate, or a schedule's wake) is recorded in the session's unread-notice
 ledger from the moment it is delivered until a turn of that agent reads it.
 The runner's `session/facts` answer carries the ledger (`notices`: each
