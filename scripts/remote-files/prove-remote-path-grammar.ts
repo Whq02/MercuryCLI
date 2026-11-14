@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { spawnSync } from 'node:child_process'
 import ignore from 'ignore'
 import {
   authorityText,
@@ -124,6 +125,83 @@ for (const [written, words] of refusals) {
     said = error instanceof Error ? error.message : String(error)
   }
   check(`${JSON.stringify(written)}: ${words.source}`, typed && words.test(said) && said.startsWith(written), said)
+}
+
+section('§4b a host or a user holding a character a shell acts on')
+const shellWords = /has a character in its host or its user that a shell would act on\.$/
+const refusedAs = (written: string): string => {
+  try {
+    return `parsed ${JSON.stringify(parseRemotePath(written))}`
+  } catch (error) {
+    return error instanceof RemotePathError ? error.message : `threw ${String(error)}`
+  }
+}
+const escapeOf = (char: string): string => `%${char.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')}`
+for (const char of '\'`"$\\;&<>|(){},*?[]') {
+  const said = [`ssh://a${char}b/x`, `ssh://a${escapeOf(char)}b/x`, `ssh://deploy@a${escapeOf(char)}b:2222/~/x`].map(refusedAs)
+  check(`a host holding ${char}, written or escaped`, said.every(words => shellWords.test(words)), said.join(' | '))
+}
+for (const char of '\'`"$;&<>|(){}*?[]') {
+  const said = [`ssh://a${char}b@web1/x`, `ssh://a${escapeOf(char)}b@web1/x`].map(refusedAs)
+  check(`a user holding ${char}, written or escaped`, said.every(words => shellWords.test(words)), said.join(' | '))
+}
+check('a user with a dash after a space', shellWords.test(refusedAs('ssh://a%20-b@web1/x')) && shellWords.test(refusedAs('ssh://a -b@web1/x')), refusedAs('ssh://a%20-b@web1/x'))
+check('a user ending in a backslash', shellWords.test(refusedAs('ssh://ab%5C@web1/x')) && shellWords.test(refusedAs('ssh://ab\\@web1/x')), refusedAs('ssh://ab%5C@web1/x'))
+check('a command substitution in the host, in the user, and escaped', [`ssh://$(id)/x`, 'ssh://`id`/x', 'ssh://%24%28id%29/x', 'ssh://$(id)@web1/x', 'ssh://a;id@web1/x'].every(written => shellWords.test(refusedAs(written))), refusedAs('ssh://%24%28id%29/x'))
+for (const [written, user, host] of [
+  ['ssh://DOMAIN%5Cdeploy@web1/x', 'DOMAIN\\deploy', 'web1'],
+  ['ssh://John%20Smith@web1/x', 'John Smith', 'web1'],
+  ['ssh://first.last+tag@web-1.example.com:2222/x', 'first.last+tag', 'web-1.example.com'],
+  ['ssh://a,b@web1/x', 'a,b', 'web1'],
+  ['ssh://[fe80::1%25en0]/x', undefined, 'fe80::1%en0'],
+  ['ssh://héllo_1/x', undefined, 'héllo_1'],
+  ['ssh://a~b#c=d!e^f/x', undefined, 'a~b#c=d!e^f'],
+] as Array<[string, string | undefined, string]>) {
+  let parsed: ReturnType<typeof parseRemotePath> = null
+  try {
+    parsed = parseRemotePath(written)
+  } catch {
+    parsed = null
+  }
+  check(`${written} is still a destination`, parsed !== null && parsed.authority.host === host && parsed.authority.user === user, refusedAs(written))
+}
+check('a rule whose authority holds such a character names no host to ask the ssh configuration about', remoteRuleAuthority('ssh://a;b/**') === null && remoteRuleAuthority('ssh://$(id)/**') === null && remoteRuleAuthority('ssh://u`x`@web1/**') === null)
+{
+  const version = /OpenSSH_(\d+)\.(\d+)/.exec(spawnSync('ssh', ['-V'], { encoding: 'utf8' }).stderr ?? '')
+  const recent = version !== null && (Number(version[1]) > 9 || (Number(version[1]) === 9 && Number(version[2]) >= 6))
+  if (!recent) {
+    console.log(`  [SKIP] the installed ssh (${version === null ? 'none found' : version[0]}) does not check host and user characters itself (OpenSSH 9.6 and later do): its refusals were not compared`)
+  } else {
+    const sshRefuses = (args: string[]): boolean => {
+      const ran = spawnSync('ssh', ['-F', '/dev/null', '-G', ...args], { encoding: 'utf8' })
+      return ran.status !== 0 && /contains invalid characters/.test(ran.stderr ?? '')
+    }
+    const missed: string[] = []
+    let refusedBySsh = 0
+    for (let code = 1; code < 0x80; code++) {
+      const char = String.fromCharCode(code)
+      const shown = code < 0x21 || code === 0x7f ? `0x${code.toString(16)}` : char
+      for (const [where, args, written] of [
+        ['host', ['--', `a${char}b`], `ssh://a${escapeOf(char)}b/x`],
+        ['user', ['-l', `a${char}b`, '--', 'web1'], `ssh://a${escapeOf(char)}b@web1/x`],
+        ['user end', ['-l', `ab${char}`, '--', 'web1'], `ssh://ab${escapeOf(char)}@web1/x`],
+      ] as Array<[string, string[], string]>) {
+        if (!sshRefuses(args)) continue
+        refusedBySsh++
+        if (refusedAs(written).startsWith('parsed')) missed.push(`${where} ${shown}`)
+      }
+    }
+    for (const [args, written] of [
+      [['-l', 'a -b', '--', 'web1'], 'ssh://a%20-b@web1/x'],
+      [['-l', '-x', '--', 'web1'], 'ssh://%2Dx@web1/x'],
+      [['--', '-x'], 'ssh://%2Dx/x'],
+    ] as Array<[string[], string]>) {
+      if (!sshRefuses(args)) continue
+      refusedBySsh++
+      if (refusedAs(written).startsWith('parsed')) missed.push(written)
+    }
+    check(`every host and user the installed ${version![0]} refuses for its characters is refused here (${refusedBySsh} of them)`, refusedBySsh > 40 && missed.length === 0, missed.join(' · '))
+  }
 }
 
 section('§5 a child of a folder')

@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto'
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { remotePrelude } from './prelude.js'
-import { authorityText, noteResolvedAuthority, resolvedAuthority, type RemoteAuthority, type RemoteAuthorityFacts } from './target.js'
+import { authorityText, noteResolvedAuthority, remoteAuthorityFault, RemotePathError, resolvedAuthority, type RemoteAuthority, type RemoteAuthorityFacts } from './target.js'
 
 const SHELLS = ['sh', 'bash', 'zsh']
 const CONNECT_DEADLINE_MS = 30_000
@@ -346,6 +346,8 @@ class Connection {
 const connections = new Map<string, Connection>()
 
 export function remoteRun(authority: RemoteAuthority, request: RemoteRequest): Promise<RemoteReply> {
+  const fault = remoteAuthorityFault(authority)
+  if (fault !== null) return Promise.reject(new RemotePathError(fault))
   const key = authorityText(authority)
   let connection = connections.get(key)
   if (connection === undefined) {
@@ -417,6 +419,8 @@ const resolving = new Map<string, Promise<void>>()
 const resolvedAt = new Map<string, number>()
 
 export function resolveRemoteAuthority(authority: RemoteAuthority, signal?: AbortSignal): Promise<void> {
+  const fault = remoteAuthorityFault(authority)
+  if (fault !== null) return Promise.reject(new RemotePathError(fault))
   const key = authorityText(authority)
   if (resolvedAuthority(authority) !== undefined && Date.now() - (resolvedAt.get(key) ?? 0) < RESOLVE_FRESH_MS) return Promise.resolve()
   let pending = resolving.get(key)

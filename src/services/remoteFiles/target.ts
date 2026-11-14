@@ -1,6 +1,8 @@
 const SCHEME = /^ssh:\/\//i
 const HOME_FORM = /^\/~([A-Za-z0-9._-]*)(?:\/|$)/
 const CONTROL = /[\u0000-\u001f\u007f]/
+const HOST_SHELL = /['`"$\\;&<>|(){},*?[\]]/
+const USER_SHELL = /['`"$;&<>|(){}*?[\]]|\s-|\\$/
 
 export const REMOTE_RULE_ROOT = 'ssh://'
 
@@ -62,6 +64,14 @@ function splitAuthority(text: string): { user?: string; host: string; port?: str
   return { ...user, host: rest.slice(0, colon), port: rest.slice(colon + 1) }
 }
 
+function nameFault(host: string, user: string | undefined, whole: string): string | null {
+  if (host === '' || host.startsWith('.') || /[\s/]/.test(host) || CONTROL.test(host)) return `${whole} names no host.`
+  if (user !== undefined && (user === '' || CONTROL.test(user))) return `${whole} names no user before the @.`
+  if (host.startsWith('-') || user?.startsWith('-') === true) return `${whole} begins a host or a user with a dash, which ssh would read as an option.`
+  if (HOST_SHELL.test(host) || (user !== undefined && USER_SHELL.test(user))) return `${whole} has a character in its host or its user that a shell would act on.`
+  return null
+}
+
 function parseAuthority(text: string, whole: string): RemoteAuthority {
   const parts = splitAuthority(text)
   if (parts.user !== undefined && parts.user.includes(':')) {
@@ -69,11 +79,8 @@ function parseAuthority(text: string, whole: string): RemoteAuthority {
   }
   const user = parts.user === undefined ? undefined : decodeOnce(parts.user, whole)
   const host = decodeOnce(parts.host, whole)
-  if (host === '' || host.startsWith('.') || /[\s/]/.test(host) || CONTROL.test(host)) throw new RemotePathError(`${whole} names no host.`)
-  if (user !== undefined && (user === '' || CONTROL.test(user))) throw new RemotePathError(`${whole} names no user before the @.`)
-  if (host.startsWith('-') || user?.startsWith('-') === true) {
-    throw new RemotePathError(`${whole} begins a host or a user with a dash, which ssh would read as an option.`)
-  }
+  const fault = nameFault(host, user, whole)
+  if (fault !== null) throw new RemotePathError(fault)
   if (parts.port === undefined) return { ...(user === undefined ? {} : { user }), host }
   const port = /^[0-9]{1,5}$/.test(parts.port) ? Number(parts.port) : 0
   if (port < 1 || port > 65535) throw new RemotePathError(`${whole} has a port that is not a number from 1 to 65535.`)
@@ -117,6 +124,10 @@ function hostText(host: string): string {
 export function authorityText(authority: RemoteAuthority): string {
   const user = authority.user === undefined ? '' : `${encodeName(authority.user)}@`
   return `${user}${hostText(authority.host)}${authority.port === undefined ? '' : `:${authority.port}`}`
+}
+
+export function remoteAuthorityFault(authority: RemoteAuthority): string | null {
+  return nameFault(authority.host, authority.user, `ssh://${authorityText(authority)}`)
 }
 
 export function formatRemotePath(target: RemoteTarget): string {

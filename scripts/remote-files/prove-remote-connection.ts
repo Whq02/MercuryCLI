@@ -11,7 +11,7 @@ process.env.NODE_ENV = 'test'
 
 const { closeRemoteConnections, remoteRun, RemoteConnectionError, resolveRemoteAuthority } = await import('../../src/services/remoteFiles/connection.ts')
 const { remotePrelude, remoteQuote } = await import('../../src/services/remoteFiles/prelude.ts')
-const { resolvedAuthority } = await import('../../src/services/remoteFiles/target.ts')
+const { resolvedAuthority, RemotePathError } = await import('../../src/services/remoteFiles/target.ts')
 
 const PORT = 27061
 const watchdog = setTimeout(() => {
@@ -244,6 +244,15 @@ if (localTransportUnavailable() === null) {
     }
     delete process.env.REMOTE_KIT_SHELL
     for (const absent of ['dash', 'busybox ash'].filter(shell => !shells.includes(shell))) console.log(`  [SKIP] ${absent}: not on this machine, the hostile payload was not read on it`)
+    section('local · a host or a user a shell would act on starts no ssh at all')
+    const started = world.argvLines().length
+    const marker = join(world.data, 'ran-by-a-name')
+    const shellNames = [{ host: `$(touch ${marker})` }, { host: '`id`' }, { host: 'a;b' }, { host: 'a|b' }, { host: 'web1', user: '$(id)' }, { host: 'web1', user: 'a;b' }, { host: 'web1', user: 'a -oProxyCommand=id' }]
+    const refusals = await Promise.all(shellNames.flatMap(authority => [failure(() => resolveRemoteAuthority(authority)), failure(() => remoteRun(authority, { script: 'printf never' }))]))
+    check('each is refused as a path, in words', refusals.every(refusal => refusal instanceof RemotePathError), refusals.map(refusal => `${refusal?.name}: ${refusal?.message}`).join(' | '))
+    check('the sentence names the character and not a host that cannot be reached', refusals.slice(4, 6).every(refusal => refusal?.message === 'ssh://a;b has a character in its host or its user that a shell would act on.'), String(refusals[4]?.message))
+    check('no ssh was started for any of them: no question to the configuration, no connection', world.argvLines().length === started, world.argvLines().slice(started).join(' | '))
+    check('and nothing a name spelled was run', !existsSync(marker))
     section('local · no ssh on the machine')
     const path = process.env.PATH
     process.env.PATH = mkdtempSync(join(tmpdir(), 'remote-files-nopath-'))
