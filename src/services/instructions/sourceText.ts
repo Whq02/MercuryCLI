@@ -84,6 +84,7 @@ const withoutHtmlComments = (tokens: LexedToken[]): string => tokens.map(contrib
 const AT_SPELLING = /(?:^|\s)@((?:[^\s\\]|\\ |\\(?=\S))+)/g
 const OPEN_SPELLING = /(?:^|\s)@(?:[^\s\\]|\\ |\\(?=\S))*$/
 
+const NON_FILENAME_ESCAPE = /^\\[*?"<>|]$/
 const isInlineText = (token: LexedToken | undefined): token is LexedToken => token?.type === 'text' && token.tokens === undefined
 
 function withPathsWhole(tokens: LexedToken[]): LexedToken[] {
@@ -91,7 +92,7 @@ function withPathsWhole(tokens: LexedToken[]): LexedToken[] {
   let joining = false
   for (const token of tokens) {
     const last = whole.at(-1)
-    const escape = token.type === 'escape'
+    const escape = token.type === 'escape' && !NON_FILENAME_ESCAPE.test(token.raw)
     if (isInlineText(last) && (escape ? OPEN_SPELLING.test(last.text ?? '') : joining && isInlineText(token))) {
       whole[whole.length - 1] = { ...last, text: `${last.text ?? ''}${escape ? token.raw : (token.text ?? '')}` }
       joining = escape
