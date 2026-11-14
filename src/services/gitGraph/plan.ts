@@ -483,6 +483,7 @@ export function applyPlan(
       })
       transitionTransaction(owner, txn.id, 'settled')
       commits.push({ sha, message: group.message, files: committed, transactionId: txn.id })
+      git(plan.root, ['reset', '--quiet', '--', ...group.files])
       if (JSON.stringify(committed) !== JSON.stringify(wantedFiles)) {
         setPlanState(owner, planId, 'failed', {
           note: `commit ${sha.slice(0, 8)} contains [${committed.join(', ')}] ≠ planned — STOPPED`,
@@ -496,7 +497,6 @@ export function applyPlan(
           commitsCreated: commits.map(c => ({ sha: c.sha, message: c.message })),
         }
       }
-      git(plan.root, ['reset', '--quiet', '--', ...group.files])
     } catch (err) {
       setPlanState(owner, planId, 'failed', {
         note: `group ${index + 1} failed: ${(err as Error).message.slice(0, 200)}`,

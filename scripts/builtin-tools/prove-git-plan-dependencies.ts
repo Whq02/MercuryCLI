@@ -110,6 +110,7 @@ try {
     const mismatch = await call({ op: 'apply', planId: verifyId })
     const mismatchSha = world.git(['rev-parse', 'HEAD']).trim()
     check('B03 verification failure names the actual committed SHA and remaining dependency chain', mismatch.includes('unplanned content') && mismatch.includes(mismatchSha.slice(0, 8)) && mismatch.includes('first unapplied: group 1') && mismatch.includes('blocked dependents: 2'), mismatch)
+    check('B03 after a verification stop the index does not hold the created commit\'s file as a staged reversal', !world.git(['diff', '--cached', '--name-only']).split('\n').includes('base.txt') && world.git(['show', 'HEAD~1:base.txt']) === world.get('base.txt'), world.git(['status', '--porcelain']))
     const mismatchRecord = await client.call('Read', { file_path: `mercury://git/plan/${verifyId}` })
     check('B03 verification-failure record retains the created commit and recovery boundary', mismatchRecord.includes(mismatchSha) && mismatchRecord.includes('first unapplied: group 1') && world.get('dependent.txt') === 'verify remainder\n', mismatchRecord)
   }
