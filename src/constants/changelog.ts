@@ -75,6 +75,10 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed /health reading the Blender tool as undeclared where it is offered.
 - Fixed a resumed session's starting count running backwards, and a focus switched to a busy session keeping the last turn's tip.
 - Fixed an approved project extension held off in an untrusted folder saying nothing.
+- Fixed the status row's count during a long wait on a local model: it counts from the request's start and no longer starts again every thirty seconds while llama.cpp or TensorFold reads the prompt, and once the estimate has passed the row drops it and keeps the count.
+- Fixed the /tensorfold card after a start refused for memory: the refused line stays with the window it was computed for, so moving the window with the arrow keys shows that window's own card, and a stopped model opens at the window it was last served at instead of going back to its largest.
+- Fixed a garbled first screen on Windows when Mercury is started without its launcher in a console another program had left with only its input code page at UTF-8: the start now sets the console to UTF-8 whatever chcp reports.
+- Fixed /exit waiting on the handoff note when the session's local engine had been stopped: with nothing listening at the model's address the session ends at once, with no note.
 - Fixed an import line written with backslashes on Windows being cut short where its path enters a folder whose name begins with a dot, and an import that opens with a backslash, or with a tilde and a backslash, not being read as an import; an exclude pattern that starts with a drive letter now follows a linked folder as one that starts with a slash does.
 - Fixed a lead's screen filling with identical notice rows while a crew posts to it: a board wake no longer paints a notice row, a compaction no longer leaves the window's old notice rows stacked above its boundary, and the lead reads the board's rule once in a wake's turn instead of twice.
 - Fixed a Read deny rule not applying to an addressed read (a line range, an archive member, a database table) whose file is reached through a link.
