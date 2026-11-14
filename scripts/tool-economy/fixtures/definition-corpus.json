@@ -1,5 +1,5 @@
 {
-  "base": "99522a523e261b441df34229ddc00bd582e76b5e",
+  "base": "7160db437bab5cf4ed1497359b734b6051c7218c",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -2307,8 +2307,38 @@
             "type": "string",
             "enum": [
               "ours",
-              "theirs"
+              "theirs",
+              "base",
+              "both"
             ]
+          },
+          "resolutions": {
+            "description": "resolve: region choices (take or content)",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "region": {
+                  "type": "string"
+                },
+                "take": {
+                  "type": "string",
+                  "enum": [
+                    "ours",
+                    "theirs",
+                    "base",
+                    "both"
+                  ]
+                },
+                "content": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "region"
+              ],
+              "additionalProperties": false
+            }
           },
           "content": {
             "description": "resolve: resolved text instead of take",
