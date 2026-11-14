@@ -7,7 +7,7 @@ import { remoteOpening, remoteRun, RemoteConnectionError } from './connection.js
 import { remoteQuote } from './prelude.js'
 import { authorityText, formatRemotePath, noteRemoteGeneration, type RemoteAuthority, type RemoteTarget } from './target.js'
 
-type RemoteKind = 'file' | 'folder' | 'a named pipe' | 'a socket' | 'a device' | 'other' | 'dangling'
+export type RemoteKind = 'file' | 'folder' | 'a named pipe' | 'a socket' | 'a device' | 'other' | 'dangling'
 
 type RemoteStat = { kind: RemoteKind; link: boolean; size: number; mtimeMs: number; mode: string | null; lead: string }
 
@@ -326,7 +326,7 @@ function parentOf(path: string): string {
   return cut <= 0 ? '/' : path.slice(0, cut)
 }
 
-async function settled(target: RemoteTarget, path: string, sum: string, signal: AbortSignal | undefined): Promise<{ mtimeMs: number; generation: string | null }> {
+async function settled(target: RemoteTarget, path: string, sum: string, signal: AbortSignal | undefined): Promise<{ mtimeMs: number; generation: string }> {
   const reply = await remoteRun(target.authority, { script: `m_kind ${remoteQuote(path)}`, signal })
   const meta = metaOf(reply.stdout.toString('utf8').trim().split(' ').slice(2))
   const generation = `m${meta.mtimeMs}:${meta.size}:${sum.split(' ')[0]}`
@@ -340,7 +340,7 @@ export async function remoteCommit(
   expected: string | null,
   mode: string | null,
   signal?: AbortSignal,
-): Promise<{ mtimeMs: number; generation: string | null }> {
+): Promise<{ mtimeMs: number; generation: string }> {
   const identity = formatRemotePath(target)
   const real = await remoteRealPath(target, signal)
   const sum = remoteSum(bytes)
