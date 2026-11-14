@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, sep } from 'node:path'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 
 const repo = join(import.meta.dir, '../..')
@@ -230,6 +230,10 @@ export function checker(): { check(label: string, ok: boolean, detail?: string):
 }
 
 export const count = (text: string, needle: string): number => text.split(needle).length - 1
+
+export const slashed = (path: string): string => path.split(sep).join('/')
+
+export const importLine = (path: string): string => `@${slashed(path).replace(/ /g, '\\ ')}`
 
 export const contentsOf = (path: string, body: string): string => `Contents of ${path} (project instructions, checked into the codebase):\n\n${body}`
 

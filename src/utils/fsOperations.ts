@@ -176,7 +176,7 @@ export function setOriginalFsImplementation(): void {
 }
 
 
-function isUncLikePath(path: string): boolean {
+export function isUncLikePath(path: string): boolean {
   return uncPathRisk(path).risky || (getPlatform() === 'windows' && /^(\\\\|\/\/)/.test(path))
 }
 

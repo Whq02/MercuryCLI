@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { join } from 'node:path'
-import { checker, openWorld } from './instructionWorld.ts'
+import { checker, openWorld, slashed } from './instructionWorld.ts'
 
 const world = openWorld('other-tools-listing')
 const { check, section, close } = checker()
@@ -68,7 +68,7 @@ try {
   section('the nearest holder only, and the native profile')
   const p3 = world.project({ '.clinerules/outer.md': 'outer-needle\n', 'packages/app/.clinerules/inner.md': 'inner-needle\n', 'packages/app/a.ts': '\n' })
   const d3 = world.drive(join(p3, 'packages/app'), { trust: p3, screens: true })
-  check('the rule of the farther folder says a nearer one is read', same(d3.listed, [`Cline · ${join(p3, '.clinerules/outer.md')} · not loaded: a nearer .clinerules is read`]), JSON.stringify(d3.listed))
+  check('the rule of the farther folder says a nearer one is read', same(d3.listed, [`Cline · ${slashed(join(p3, '.clinerules/outer.md'))} · not loaded: a nearer .clinerules is read`]), JSON.stringify(d3.listed))
   const d4 = world.drive(p1, { screens: true, settings: { briefs: { profile: 'native' } } })
   check('under the native profile nothing of another tool is listed and the footer keeps its words', d4.listed.length === 0 && d4.rows.length === 0 && d4.words.footer === 'profile native: MERCURY.md only · every file here loads every session', JSON.stringify(d4))
 } finally {

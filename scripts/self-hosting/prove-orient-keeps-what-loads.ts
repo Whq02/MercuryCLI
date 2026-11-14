@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { join } from 'node:path'
-import { checker, openWorld } from './instructionWorld.ts'
+import { checker, importLine, openWorld } from './instructionWorld.ts'
 
 const world = openWorld('orient-keeps')
 const { check, section, close } = checker()
@@ -55,7 +55,7 @@ try {
   const p5 = world.project({ 'AGENTS.md': 'agents-needle\n' })
   const d5 = world.drive(p5, { orient: true, env: { COPILOT_CUSTOM_INSTRUCTIONS_DIRS: namedFolder } })
   const tail5 = d5.orient.slice(d5.orient.indexOf(INSIDE))
-  check('the file of the project is a line of MERCURY.md, and the guide and the instructions folder of the named folder are lines of MERCURY.local.md', tail5 === `${INSIDE}\n@AGENTS.md\n\n${OUTSIDE_MANY}\n@${join(namedFolder, 'AGENTS.md')}\n@${join(namedFolder, '.github/instructions')}\n`, tail5)
+  check('the file of the project is a line of MERCURY.md, and the guide and the instructions folder of the named folder are lines of MERCURY.local.md', tail5 === `${INSIDE}\n@AGENTS.md\n\n${OUTSIDE_MANY}\n${importLine(join(namedFolder, 'AGENTS.md'))}\n${importLine(join(namedFolder, '.github/instructions'))}\n`, tail5)
 
   section('nothing is offered where nothing of another tool loads')
   const p3 = world.project({ 'MERCURY.md': 'native-needle\n', 'GEMINI.md': 'guide-needle\n', '.cursor/rules/a.mdc': '---\nalwaysApply: true\n---\nalways-needle\n' })

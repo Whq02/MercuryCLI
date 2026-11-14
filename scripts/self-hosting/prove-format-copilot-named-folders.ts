@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { readFileSync, symlinkSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { checker, contentsOf, count, governs, openWorld } from './instructionWorld.ts'
+import { checker, contentsOf, count, governs, importLine, openWorld, slashed } from './instructionWorld.ts'
 
 const world = openWorld('copilot-named')
 const { check, section, close } = checker()
@@ -84,7 +84,7 @@ try {
   const namedAlias = join(world.scratch, 'named-link')
   symlinkSync(shared, namedAlias, 'junction')
   const aliases = world.drive(project, { env: { [VARIABLE]: `${shared},${namedAlias}` }, touch: [join(project, 'src/a.py')], orient: true })
-  check('two names of one personal folder attach its scoped rule once and offer one import per source', aliases.touched[0]!.attached.length === 1 && count(aliases.orient, `@${join(shared, '.github/instructions')}\n`) === 1 && !aliases.orient.includes(namedAlias), JSON.stringify(aliases.touched))
+  check('two names of one personal folder attach its scoped rule once and offer one import per source', aliases.touched[0]!.attached.length === 1 && count(aliases.orient, `${importLine(join(shared, '.github/instructions'))}\n`) === 1 && !aliases.orient.includes(slashed(namedAlias)), JSON.stringify(aliases.touched))
   const twin = world.project({ 'AGENTS.md': 'named-agents-needle\n@notes/style.md\n', 'notes/style.md': 'named-import-needle\n' })
   const twins = world.drive(project, { env: { [VARIABLE]: `${shared},${twin}` } })
   check('the same words in two named folders reach the request once', count(twins.first, 'named-agents-needle') === 1 && twins.diagnostics.some(diagnostic => diagnostic.kind === 'duplicate-content' && diagnostic.path === join(twin, 'AGENTS.md')), JSON.stringify(twins.diagnostics))
@@ -99,7 +99,7 @@ try {
   const at = (file: string): string => join(shared, file)
   check('a loaded file reads by its tool and the name of the variable', seen.rows.some(row => row.startsWith('Copilot · ') && row.includes('AGENTS.md') && row.endsWith(` · named by ${VARIABLE}`)) && seen.rows.some(row => row.includes('c-offered.instructions.md') && row.endsWith(` · offered by its description · named by ${VARIABLE}`)), JSON.stringify(seen.rows))
   check('a scoped rule and a manual one are listed with when they load and the name of the variable', seen.listed.some(row => row.startsWith('Copilot · ') && row.includes('b-python.instructions.md') && row.endsWith(` · loads with src/**/*.py · named by ${VARIABLE}`)) && seen.listed.some(row => row.includes('d-manual.instructions.md') && row.endsWith(` · not loaded: manual, @-mention it · named by ${VARIABLE}`)), JSON.stringify(seen.listed))
-  check('/orient carries each as a line of MERCURY.local.md', seen.orient.endsWith(`Files that are personal or stand outside this project load here today — their lines belong in MERCURY.local.md, never in MERCURY.md:\n@${at('AGENTS.md')}\n@${at('.github/instructions')}\n@${join(second, 'AGENTS.md')}\n`), seen.orient.slice(-700))
+  check('/orient carries each as a line of MERCURY.local.md', seen.orient.endsWith(`Files that are personal or stand outside this project load here today — their lines belong in MERCURY.local.md, never in MERCURY.md:\n${importLine(at('AGENTS.md'))}\n${importLine(at('.github/instructions'))}\n${importLine(join(second, 'AGENTS.md'))}\n`), seen.orient.slice(-700))
   const kept = world.project({ ...layout, 'MERCURY.md': 'native-needle\n', 'MERCURY.local.md': `@${at('AGENTS.md')}\n@${at('.github/instructions')}\n` })
   const carried = world.drive(kept, { env, settings: { briefs: {} }, touch: [join(kept, 'src/a.py')] })
   check('written there, the two lines are read as imports of those two files, each waiting on the approval an import from outside the project has always needed', carried.diagnostics.filter(diagnostic => diagnostic.kind === 'external-import-blocked').map(diagnostic => diagnostic.path).sort().join(' ') === [at('.github/instructions'), at('AGENTS.md')].sort().join(' '), JSON.stringify(carried.diagnostics))

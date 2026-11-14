@@ -8,6 +8,7 @@
 # gate-watch: src/projectOnboardingState.ts src/utils/cockpit/repoSurfaceMap.ts src/utils/config/trust.ts
 # gate-watch: src/components/mercury-ui/TrimChip.tsx
 # gate-watch: docs/COMPATIBILITY.md src/utils/envUtils.ts
+# gate-watch: src/utils/platform.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -19,6 +20,7 @@ fail=0
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-root-guide-composition.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-root-guide-composition.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-shared-guide-composition.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-shared-guide-composition.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-instruction-excludes.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-instruction-excludes.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-exclude-pattern-follows-links.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-exclude-pattern-follows-links.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-personal-guide-decides-nothing.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-personal-guide-decides-nothing.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-format-gemini.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-format-gemini.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-format-copilot.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-format-copilot.ts "$__t" "$__rc"
@@ -39,6 +41,8 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-formats-page-names-w
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-other-tools-cost-nothing-where-absent.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-other-tools-cost-nothing-where-absent.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-instruction-file-not-a-regular-file.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-instruction-file-not-a-regular-file.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-personal-files-by-import.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-personal-files-by-import.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-import-line-backslashes.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-import-line-backslashes.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-share-import-waits-for-approval.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-share-import-waits-for-approval.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-project-local-owner.ts || { __rc=$?; fail=1; }; prover_mark "scripts/self-hosting/prove-project-local-owner.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-instruction-capture.ts || { __rc=$?; fail=1; }; prover_mark "scripts/self-hosting/prove-instruction-capture.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-capture-doctrine.ts || { __rc=$?; fail=1; }; prover_mark "scripts/self-hosting/prove-capture-doctrine.ts" "$__t" "$__rc"

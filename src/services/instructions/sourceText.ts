@@ -1,11 +1,12 @@
 import { Lexer } from 'marked'
-import { dirname, extname } from 'path'
+import { dirname, extname, win32 } from 'path'
 
 import { logForDebugging } from '../../utils/debug.js'
 import { parseFrontmatter, splitPathInFrontmatter } from '../../utils/frontmatterParser.js'
 import { stripBOM } from '../../utils/jsonRead.js'
 import type { MemoryType } from '../../utils/memory/types.js'
 import { expandPath } from '../../utils/path.js'
+import { getPlatform } from '../../utils/platform.js'
 import type { InstructionRuleFormat, InstructionRuleReading, InstructionSourceEntry } from './contracts.js'
 
 const COMPOSABLE_EXTENSIONS = {
@@ -80,8 +81,31 @@ function contributionOf(token: LexedToken): string {
 
 const withoutHtmlComments = (tokens: LexedToken[]): string => tokens.map(contributionOf).join('')
 
-function* readableTexts(tokens: LexedToken[]): Generator<string> {
+const AT_SPELLING = /(?:^|\s)@((?:[^\s\\]|\\ |\\(?=\S))+)/g
+const OPEN_SPELLING = /(?:^|\s)@(?:[^\s\\]|\\ |\\(?=\S))*$/
+
+const NON_FILENAME_ESCAPE = /^\\[*?"<>|]$/
+const isInlineText = (token: LexedToken | undefined): token is LexedToken => token?.type === 'text' && token.tokens === undefined
+
+function withPathsWhole(tokens: LexedToken[]): LexedToken[] {
+  const whole: LexedToken[] = []
+  let joining = false
   for (const token of tokens) {
+    const last = whole.at(-1)
+    const escape = token.type === 'escape' && !NON_FILENAME_ESCAPE.test(token.raw)
+    if (isInlineText(last) && (escape ? OPEN_SPELLING.test(last.text ?? '') : joining && isInlineText(token))) {
+      whole[whole.length - 1] = { ...last, text: `${last.text ?? ''}${escape ? token.raw : (token.text ?? '')}` }
+      joining = escape
+    } else {
+      whole.push(token)
+      joining = false
+    }
+  }
+  return whole
+}
+
+function* readableTexts(tokens: LexedToken[], windows: boolean): Generator<string> {
+  for (const token of windows ? withPathsWhole(tokens) : tokens) {
     if (token.type === 'code' || token.type === 'codespan') continue
     if (token.type === 'html') {
       const residue = commentResidue(token)
@@ -89,20 +113,21 @@ function* readableTexts(tokens: LexedToken[]): Generator<string> {
       continue
     }
     if (token.type === 'text') yield token.text ?? ''
-    yield* readableTexts(token.tokens ?? [])
-    yield* readableTexts(token.items ?? [])
+    yield* readableTexts(token.tokens ?? [], windows)
+    yield* readableTexts(token.items ?? [], windows)
   }
 }
 
-const AT_SPELLING = /(?:^|\s)@((?:[^\s\\]|\\ |\\(?=\S))+)/g
 const SENTENCE_TAIL = /[.,;:!?]+$/
 const PATH_OPENING = /^[A-Za-z0-9._-]/
+const WINDOWS_ROOT = /^~?\\/
+const SHARE_ROOT = /^[\\/]{2}/
 
-function importSpellingsIn(text: string): string[] {
+function importSpellingsIn(text: string, windows: boolean): string[] {
   const spellings: string[] = []
   for (const [, captured = ''] of text.matchAll(AT_SPELLING)) {
     const spelling = captured.split('#', 1)[0]!.replace(/\\ /g, ' ').replace(SENTENCE_TAIL, '')
-    if (spelling !== '') spellings.push(spelling)
+    if (spelling !== '') spellings.push(windows && WINDOWS_ROOT.test(spelling) ? spelling.replace(/\\/g, '/') : spelling)
   }
   return spellings
 }
@@ -120,9 +145,14 @@ function includeMentionsOf(tokens: LexedToken[], includeBasePath: string): Inclu
   const home = dirname(includeBasePath)
   const includes = new Set<string>()
   const bare = new Set<string>()
-  for (const text of readableTexts(tokens)) {
-    for (const spelling of importSpellingsIn(text).filter(isImportSpelling)) {
-      (carriesPathEvidence(spelling) ? includes : bare).add(expandPath(spelling, home))
+  const windows = getPlatform() === 'windows'
+  const expanded = (spelling: string): string => {
+    const path = expandPath(spelling, home)
+    return windows && SHARE_ROOT.test(spelling) ? win32.normalize(spelling.trim()).normalize('NFC') : path
+  }
+  for (const text of readableTexts(tokens, windows)) {
+    for (const spelling of importSpellingsIn(text, windows).filter(isImportSpelling)) {
+      (carriesPathEvidence(spelling) ? includes : bare).add(expanded(spelling))
     }
   }
   return { includePaths: [...includes], bareMentionPaths: [...bare] }

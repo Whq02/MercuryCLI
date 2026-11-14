@@ -2,9 +2,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 
 import { findGitRoot } from '../../utils/git.js'
-import { pathInWorkingPath } from '../../utils/permissions/filesystem.js'
 import { NATIVE_INSTRUCTION_FILE_NAMES, mercuryNativeConvention } from './nativeSource.js'
-import { MAX_INCLUDE_DEPTH } from './discovery.js'
+import { MAX_INCLUDE_DEPTH, withinInstructionDir } from './discovery.js'
 import { clearInstructionFileCaches } from './engine.js'
 import { parseInstructionFileContent } from './sourceText.js'
 
@@ -82,7 +81,7 @@ export function followPointerLaw(
     if (parsed === null) break
     if (proseLineCount(parsed.content) > POINTER_PROSE_MAX_LINES) break
     const next = parsed.includePaths.find(
-      p => !visited.has(p) && pathInWorkingPath(p, root) && existsSync(p),
+      p => !visited.has(p) && withinInstructionDir(p, root) && existsSync(p),
     )
     if (next === undefined) break
     visited.add(next)
@@ -114,7 +113,7 @@ function estateClosure(entryPath: string, root: string): ParsedEstateFile[] {
     files.push(parsed)
     if (depth + 1 >= MAX_POINTER_DEPTH) continue
     for (const include of parsed.includePaths) {
-      if (pathInWorkingPath(include, root) && existsSync(include)) {
+      if (withinInstructionDir(include, root) && existsSync(include)) {
         queue.push({ path: include, depth: depth + 1 })
       }
     }

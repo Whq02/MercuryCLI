@@ -40,6 +40,7 @@ import type {
 } from './contracts.js'
 import {
   clearExcludeResolutionMemo,
+  type ExternalImports,
   importedRuleGoverns,
   pathInInstructionRoots,
   processConditionedRules,
@@ -130,6 +131,7 @@ async function walkConventions(
   nearestHolders: Record<string, string>
   importedScoped: InstructionSourceEntry[]
   namedRules: NamedRules[]
+  heldShares: ExternalInstructionInclude[]
 }> {
   const result: InstructionSourceEntry[] = []
   let fallbackComposed = false
@@ -139,10 +141,8 @@ async function walkConventions(
   const processedPaths = new Set<string>()
   const composedDigests = new Set<string>()
   const config = getCurrentProjectConfig()
-  const includeExternal =
-    forceIncludeExternal ||
-    config.hasExternalIncludesApproved ||
-    false
+  const heldShares: ExternalInstructionInclude[] = []
+  const includeExternal: ExternalImports = config.hasExternalIncludesApproved ? true : forceIncludeExternal ? { heldShares } : false
 
   const push = (
     files: InstructionSourceEntry[],
@@ -399,8 +399,10 @@ async function walkConventions(
 
   await walkRootChain(getOriginalCwd(), 'project-walk', true)
 
-  return { entries: result, fallbackComposed, nearestHolders, importedScoped, namedRules }
+  return { entries: result, fallbackComposed, nearestHolders, importedScoped, namedRules, heldShares }
 }
+
+const sharesHeldBeside = new WeakMap<InstructionSourceEntry[], ExternalInstructionInclude[]>()
 
 export const getInstructionFiles = memoize(
   async (
@@ -416,12 +418,13 @@ export const getInstructionFiles = memoize(
     const skippedDuplicates: { path: string; family: InstructionFamily }[] = []
     const diagnostics: InstructionDiagnostic[] = []
 
-    const { entries: result, fallbackComposed, nearestHolders, importedScoped, namedRules } = await walkConventions(
+    const { entries: result, fallbackComposed, nearestHolders, importedScoped, namedRules, heldShares } = await walkConventions(
       conventionsForProfile(resolution.resolved),
       forceIncludeExternal,
       skippedDuplicates,
       diagnostics,
     )
+    sharesHeldBeside.set(result, heldShares)
 
     const eagerLoadReason = forceIncludeExternal
       ? undefined
@@ -739,7 +742,7 @@ export function getExternalInstructionIncludes(
       externals.push({ path: file.path, parent: file.parent })
     }
   }
-  return externals
+  return [...externals, ...(sharesHeldBeside.get(files) ?? [])]
 }
 
 export function hasExternalInstructionIncludes(
