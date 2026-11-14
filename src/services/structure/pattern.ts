@@ -105,7 +105,7 @@ function candidatesFor(langName: string, trimmed: string): PatternCandidate[] {
   }
   const raw = withTerminator({ text: trimmed, offset: 0, length: trimmed.length })
   const embedded = (PATTERN_CONTEXTS[langName] ?? []).flatMap(template =>
-    withTerminator({ text: template.replace('<P>', trimmed), offset: template.indexOf('<P>'), length: trimmed.length }),
+    withTerminator({ text: template.replace('<P>', () => trimmed), offset: template.indexOf('<P>'), length: trimmed.length }),
   )
   return RAW_CANDIDATE_LAST.has(langName) ? [...embedded, ...raw] : [...raw, ...embedded]
 }
