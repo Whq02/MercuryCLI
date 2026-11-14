@@ -133,8 +133,8 @@ const rows = async (word: string, slug: string, expectCopy: boolean): Promise<vo
   check(`${word}: an ordinary git worktree remove takes the copy, the once read-only folder with it`, removal === '' && !existsSync(copy), removal.slice(0, 200))
 }
 
-section('§1 the links inside a cloned folder, one call a folder (APFS)')
-await rows('one call', 'agent-ac100001', cloneRoad && process.platform === 'darwin')
+section("§1 the links inside a cloned folder, on the platform's own road (one call a folder on APFS, file by file on Linux)")
+await rows("the platform's road", 'agent-ac100001', cloneRoad)
 
 section("§2 the same links on the file-by-file road (Linux's reflinks), through MERCURY_WORKTREE_CLONE=files")
 process.env.MERCURY_WORKTREE_CLONE = 'files'
