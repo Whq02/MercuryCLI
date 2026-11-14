@@ -97,7 +97,92 @@
         "repository": "https://github.com/tree-sitter-grammars/tree-sitter-vue",
         "copyright": "Ika <ikatyang@gmail.com>"
       }
+    },
+    {
+      "wasm": "tree-sitter-yaml.wasm",
+      "sha256": "0a0e5ebcfeb0b2bf272d071396eeed107b2c4b2617b69d5959b13f78b357a4d6",
+      "bytes": 189197,
+      "optimiserCostMb": 1,
+      "sourceUrl": "https://github.com/tree-sitter-grammars/tree-sitter-yaml/releases/download/v0.7.2/tree-sitter-yaml.wasm",
+      "sourceProvenance": "the grammar's own release asset, tag v0.7.2 (commit 7708026449bed86239b1cd5bce6e3c34dbca6415); licence MIT read from tree-sitter-grammars/tree-sitter-yaml at that commit on 2026-11-13 (the tree-sitter-wasms 0.1.13 build of this grammar fails at parse on this runtime)",
+      "upstream": {
+        "package": "tree-sitter-yaml",
+        "builtFromRange": "0.7.2",
+        "commit": "7708026449bed86239b1cd5bce6e3c34dbca6415",
+        "license": "MIT",
+        "repository": "https://github.com/tree-sitter-grammars/tree-sitter-yaml",
+        "copyright": "2024 tree-sitter-grammars contributors; 2019-2021 Ika"
+      }
+    },
+    {
+      "wasm": "tree-sitter-markdown.wasm",
+      "sha256": "16180dbb66f40dcb540fc76075f35f528b6686b7c8db0aaacb3b55d1a1098f26",
+      "bytes": 388363,
+      "optimiserCostMb": 421,
+      "sourceUrl": "https://github.com/tree-sitter-grammars/tree-sitter-markdown/releases/download/v0.5.4/tree-sitter-markdown.wasm",
+      "sourceProvenance": "the grammar's own release asset, tag v0.5.4 (commit 41ff24a6c775492c543b09228aeb98d1cd2b3a0f); licence MIT read from tree-sitter-grammars/tree-sitter-markdown at that commit on 2026-11-13",
+      "upstream": {
+        "package": "tree-sitter-markdown",
+        "builtFromRange": "0.5.4",
+        "commit": "41ff24a6c775492c543b09228aeb98d1cd2b3a0f",
+        "license": "MIT",
+        "repository": "https://github.com/tree-sitter-grammars/tree-sitter-markdown",
+        "copyright": "2021 Matthias Deiml"
+      }
+    },
+    {
+      "wasm": "tree-sitter-sql.wasm",
+      "sha256": "7ab1cb075fe098ef38e697757d2a948be45728a96e4c722ef722c7ca9d9ea9db",
+      "bytes": 13371732,
+      "optimiserCostMb": 135,
+      "sourceUrl": "https://registry.npmjs.org/@lumis-sh/wasm-sql/-/wasm-sql-0.26.8.tgz",
+      "sourceMember": "package/tree-sitter-sql.wasm",
+      "sourceSha512": "87f6eecfb764a88c4519d4e7a709c06c031a8b6b4aa36edd3badbdcdff181ded074ec875d27a06a9a8b3eac74c0a0674e53a9de89538901a054721393cf24d16",
+      "sourceProvenance": "a third party's build, not the grammar's own: npm @lumis-sh/wasm-sql 0.26.8, whose lumis.json names tree-sitter-sql 0.3.13 at revision 4cd7224bfcf1fee23227c4d626760341c9b26772 and this wasm's sha256; DerekStride/tree-sitter-sql publishes no wasm of its own; sourceSha512 is the registry's integrity value of the tarball; licence MIT read from DerekStride/tree-sitter-sql at that commit on 2026-11-13; not rebuilt here",
+      "upstream": {
+        "package": "tree-sitter-sql",
+        "builtFromRange": "0.3.13",
+        "commit": "4cd7224bfcf1fee23227c4d626760341c9b26772",
+        "license": "MIT",
+        "repository": "https://github.com/DerekStride/tree-sitter-sql",
+        "copyright": "2021 Derek Stride",
+        "builder": "@lumis-sh/wasm-sql@0.26.8"
+      }
+    },
+    {
+      "wasm": "tree-sitter-lua.wasm",
+      "sha256": "df08a1704e504c70b8dba4a3e6f8e0c99a4fb94e1b1693d2969f53141d09f0d4",
+      "bytes": 54603,
+      "optimiserCostMb": 1,
+      "sourceUrl": "https://github.com/tree-sitter-grammars/tree-sitter-lua/releases/download/v0.5.0/tree-sitter-lua.wasm",
+      "sourceProvenance": "the grammar's own release asset, tag v0.5.0 (commit 10fe0054734eec83049514ea2e718b2a56acd0c9); licence MIT read from tree-sitter-grammars/tree-sitter-lua at that commit on 2026-11-13 (the tree-sitter-wasms 0.1.13 build of this grammar misparses `local x = 1`)",
+      "upstream": {
+        "package": "tree-sitter-lua",
+        "builtFromRange": "0.5.0",
+        "commit": "10fe0054734eec83049514ea2e718b2a56acd0c9",
+        "license": "MIT",
+        "repository": "https://github.com/tree-sitter-grammars/tree-sitter-lua",
+        "copyright": "2021 Munif Tanjim"
+      }
+    },
+    {
+      "wasm": "tree-sitter-containerfile.wasm",
+      "sha256": "02d1563771273498abc0d2b1c96ffed58d1928240034ee9a23b1cd4c48f24834",
+      "bytes": 115069,
+      "optimiserCostMb": 50,
+      "sourceUrl": "https://registry.npmjs.org/tree-sitter-containerfile/-/tree-sitter-containerfile-0.9.2.tgz",
+      "sourceMember": "package/tree-sitter-containerfile.wasm",
+      "sourceSha512": "3cbcea6c700520e6d19e5e321b13112cb3f84dd9ab2c22a81bce13ac2078873374167bc7fd8d8ade2e006875193bcda5fc858b0e7812c4d065a5990f8ea4897b",
+      "sourceProvenance": "the grammar's own npm package tree-sitter-containerfile 0.9.2, which carries its wasm (commit 1df9124b22a72dde8683aab6f762ff4857acfeab); sourceSha512 is the registry's integrity value of the tarball; licence MIT read from wharflab/tree-sitter-containerfile at that commit on 2026-11-13 (taken in place of a third party's build of camdencheek/tree-sitter-dockerfile 0.2.0, which reports a backslash line continuation as an error in a file with CRLF line endings)",
+      "upstream": {
+        "package": "tree-sitter-containerfile",
+        "builtFromRange": "0.9.2",
+        "commit": "1df9124b22a72dde8683aab6f762ff4857acfeab",
+        "license": "MIT",
+        "repository": "https://github.com/wharflab/tree-sitter-containerfile",
+        "copyright": "2026 WharfLab"
+      }
     }
   ],
-  "notes": "REJECTED from this pack (census evidence, 2026-07-20): tree-sitter-yaml.wasm (C++ external scanner detonates at parse on the @vscode runtime \u2014 ABI mismatch) and tree-sitter-lua.wasm (scanner misparses valid code, e.g. `local x = 1`); re-sourcing them is S2b work. Update procedure: bump version+url, run scripts/vendor/fetch-grammars.ts --force, re-pin sha512 + per-file sha256 from its output, re-verify each upstream licence, re-run scripts/language-sidecars/prove-grammar-census.ts. A grammar entry may carry sourceUrl + sourceProvenance: its wasm then comes from THAT pinned https artifact instead of the pack tarball (same per-file sha256 law; swift rides the upstream 0.7.3 release asset because the pack's 0.4-era build fatally OOMs V8's optimizing wasm compiler \u2014 audition-fenced, see the registry's fragile marking). The ordinary build consumes ONLY the verified local cache (vendor/grammars/extracted) or produces an honest degraded manifest. optimiserCostMb is the resident memory V8's optimising tier adds to the process under sustained parsing with that grammar (vendored node, the method of scripts/language-sidecars/prove-grammar-memory-hold.ts, which reads the whole table again with --measure): a grammar at 400 or more is marked baseline in the registry and parsed with the tier held off; the threshold sits in the gap of the measured costs."
+  "notes": "REJECTED from this pack (census evidence, 2026-07-20): tree-sitter-yaml.wasm (C++ external scanner detonates at parse on the @vscode runtime \u2014 ABI mismatch) and tree-sitter-lua.wasm (scanner misparses valid code, e.g. `local x = 1`); both are carried from the grammar's own release instead (their entries below). Update procedure: bump version+url, run scripts/vendor/fetch-grammars.ts --force, re-pin sha512 + per-file sha256 from its output, re-verify each upstream licence, re-run scripts/language-sidecars/prove-grammar-census.ts. A grammar entry may carry sourceUrl + sourceProvenance: its wasm then comes from THAT pinned https artifact instead of the pack tarball (same per-file sha256 law; swift rides the upstream 0.7.3 release asset because the pack's 0.4-era build fatally OOMs V8's optimizing wasm compiler \u2014 audition-fenced, see the registry's fragile marking). An entry that also names sourceMember + sourceSha512 takes its wasm as that member of the pinned tarball at sourceUrl (sha512 verified before the member is read): a grammar's own npm package, or a third party's build of a grammar that publishes no wasm, in which case upstream.builder names the builder's package and version and upstream.commit the revision the builder says it built. upstream.commit and upstream.copyright are recorded for every entry admitted with them; the licence was read from the upstream repository at that commit. The ordinary build consumes ONLY the verified local cache (vendor/grammars/extracted) or produces an honest degraded manifest. optimiserCostMb is the resident memory V8's optimising tier adds to the process under sustained parsing with that grammar (vendored node, the method of scripts/language-sidecars/prove-grammar-memory-hold.ts, which reads the whole table again with --measure): a grammar at 400 or more is marked baseline in the registry and parsed with the tier held off; the threshold sits in the gap of the measured costs."
 }

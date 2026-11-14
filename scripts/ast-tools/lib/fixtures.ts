@@ -35,6 +35,11 @@ export const LANGUAGE_FIXTURES: LanguageFixture[] = [
   { lang: 'kotlin', file: 'a.kt', good: 'fun greet() {\n    println("hi")\n    println("yo")\n}\n', pattern: 'println($X)', expect: 2, capture: '$X', rewrite: { rewrite: 'log($X)', contains: 'log("yo")', inPlace: true } },
   { lang: 'swift', file: 'a.swift', good: 'func greet() {\n    print("hi")\n    print("yo")\n}\n', pattern: 'print($X)', expect: 2, capture: '$X', rewrite: { rewrite: 'debugPrint($X)', contains: 'debugPrint("yo")', inPlace: true } },
   { lang: 'vue', file: 'a.vue', good: '<template>\n  <div>hi</div>\n  <div>yo</div>\n</template>\n', pattern: '<div>hi</div>', expect: 1, rewrite: { rewrite: '<div>bye</div>', contains: '<div>bye</div>' } },
+  { lang: 'yaml', file: 'a.yaml', good: 'name: tidepool\nimage: nginx:1.27\nports:\n  - 80\n  - 443\n', pattern: 'image: $V', expect: 1, capture: '$V', rewrite: { rewrite: 'image: caddy:2', contains: 'image: caddy:2' } },
+  { lang: 'markdown', file: 'a.md', good: '# Title\n\n## Install\n\nText.\n\n## Use\n\nMore.\n', pattern: '## $T', expect: 2, capture: '$T', rewrite: { rewrite: '### $T', contains: '### Install' } },
+  { lang: 'sql', file: 'a.sql', good: 'SELECT id, COUNT(name) FROM users WHERE id = 1;\nDELETE FROM users WHERE id = 2;\n', pattern: 'COUNT($X)', expect: 1, capture: '$X', rewrite: { rewrite: 'MAX($X)', contains: 'SELECT id, MAX(name) FROM users', inPlace: true } },
+  { lang: 'dockerfile', file: 'Dockerfile', good: 'FROM alpine:3.20 AS base\nWORKDIR /app\nRUN apk add --no-cache curl\nWORKDIR /srv\n', pattern: 'WORKDIR $D', expect: 2, capture: '$D', rewrite: { rewrite: 'WORKDIR $D/sub', contains: 'WORKDIR /app/sub' } },
+  { lang: 'lua', file: 'a.lua', good: 'local x = 1\nprint(x)\nprint("hi", x)\n', pattern: 'print($$$A)', expect: 2, capture: '$$$A', rewrite: { rewrite: 'log($$$A)', contains: 'log("hi", x)', inPlace: true } },
 ]
 
 export function writeLanguageFixtures(root: string): Map<string, string> {
@@ -62,5 +67,5 @@ export function writeRenameFixture(root: string): void {
     join(root, 'src', 'report.ts'),
     `import { normalizeRecord } from './records'\n\nexport function firstLabel(record: { label: string; value: number }) {\n  if (record.value > 0) {\n    return normalizeRecord(record).label\n  }\n  return ''\n}\n`,
   )
-  writeFileSync(join(root, 'README.md'), '# fixture\n\nnormalizeRecord(x) in prose is not code.\n')
+  writeFileSync(join(root, 'NOTES.txt'), 'fixture\n\nnormalizeRecord(x) in prose is not code.\n')
 }

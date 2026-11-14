@@ -57,15 +57,25 @@ export const POLYGLOT_LANGUAGES: PolyglotLanguage[] = GRAMMAR_REGISTRY
 
 const EXT_TO_LANG = new Map<string, PolyglotLanguage>()
 const BASENAME_TO_LANG = new Map<string, PolyglotLanguage>()
+const BASENAME_PREFIXES: Array<[prefix: string, lang: PolyglotLanguage]> = []
 for (const lang of POLYGLOT_LANGUAGES) {
   for (const ext of lang.extensions) EXT_TO_LANG.set(ext, lang)
   for (const base of lang.basenames ?? []) BASENAME_TO_LANG.set(base.toLowerCase(), lang)
+  for (const prefix of lang.basenamePrefixes ?? []) BASENAME_PREFIXES.push([prefix.toLowerCase(), lang])
+}
+
+export function patternLanguageForFile(fileName: string): PolyglotLanguage | null {
+  const base = path.basename(fileName).toLowerCase()
+  const byBase = BASENAME_TO_LANG.get(base)
+  if (byBase) return byBase
+  const byExt = EXT_TO_LANG.get(path.extname(fileName).toLowerCase())
+  if (byExt) return byExt
+  return BASENAME_PREFIXES.find(([prefix]) => base.startsWith(prefix))?.[1] ?? null
 }
 
 export function languageForFile(fileName: string): PolyglotLanguage | null {
-  const byBase = BASENAME_TO_LANG.get(path.basename(fileName).toLowerCase())
-  if (byBase) return byBase
-  return EXT_TO_LANG.get(path.extname(fileName).toLowerCase()) ?? null
+  const lang = patternLanguageForFile(fileName)
+  return lang && !lang.patternOnly ? lang : null
 }
 
 export function languageByName(name: string): PolyglotLanguage | null {
@@ -371,9 +381,10 @@ export async function parsePolyglot(
   let tree: TSTree | null
   try {
     const parser = engine.parser
+    const source = lang.finalNewline && !text.endsWith('\n') ? `${text}\n` : text
     const parse = (): TSTree | null => {
       parser.setLanguage(language)
-      return parser.parse(text)
+      return parser.parse(source)
     }
     tree = held ? withOptimisingTierHeld(parse) : parse()
     if (!held) engine.sharedRuntimeWarm = true

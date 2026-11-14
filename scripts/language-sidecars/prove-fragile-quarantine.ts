@@ -83,8 +83,9 @@ section('§4 THE REGISTRY MARKING')
 {
   const swift = GRAMMAR_REGISTRY.find(g => g.name === 'swift')
   check('swift is marked fragile with the engine-OOM reason', /OOM/.test(swift?.fragile?.reason ?? ''), swift?.fragile?.reason)
-  const fragileCount = GRAMMAR_REGISTRY.filter(g => g.fragile).length
-  check('exactly the one known-fragile grammar is marked (no blanket probing)', fragileCount === 1, String(fragileCount))
+  const marked = GRAMMAR_REGISTRY.filter(g => g.fragile).map(g => g.name)
+  const auditioned = GRAMMAR_REGISTRY.filter(g => g.name === 'swift' || g.patternOnly).map(g => g.name)
+  check('swift and every pattern-only row are marked, and no row the edit note or the outline reads beside swift (no blanket probing)', marked.join(',') === auditioned.join(',') && GRAMMAR_REGISTRY.filter(g => !g.patternOnly && g.fragile).length === 1, marked.join(','))
   const t = Date.now()
   const json = await engine.loadLanguage(GRAMMAR_REGISTRY.find(g => g.name === 'json') as never)
   check('an unmarked grammar loads without the probe', !isUnavailable(json) && Date.now() - t < 5000)

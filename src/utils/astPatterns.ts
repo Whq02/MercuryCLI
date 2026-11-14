@@ -6,9 +6,9 @@ import { structuredPatch } from 'diff'
 import { buildDiffHunks, type BoundedDiffHunk } from '../services/changeTransaction/diffBudget.js'
 import {
   languageByName,
-  languageForFile,
   loadGrammarEngine,
   parsePolyglot,
+  patternLanguageForFile,
   POLYGLOT_LANGUAGES,
   resolveGrammarEngineDir,
   type PolyglotLanguage,
@@ -25,7 +25,7 @@ import {
   type CaptureSpan,
   type CompiledPattern,
 } from '../services/structure/pattern.js'
-import { compileFor, discoverPolyglotFiles } from '../services/structure/polyglotQuery.js'
+import { compileFor, discoverPolyglotFiles, type PatternRefusal } from '../services/structure/polyglotQuery.js'
 import { applyEdits, digestOf, lineExtendedRange, type Edit } from '../services/structure/transform.js'
 import { clipWithEllipsis } from './stringUtils.js'
 
@@ -91,6 +91,11 @@ const LANGUAGE_ALIASES: Record<string, string> = {
   ps1: 'powershell',
   pwsh: 'powershell',
   htm: 'html',
+  yml: 'yaml',
+  md: 'markdown',
+  mdx: 'markdown',
+  docker: 'dockerfile',
+  containerfile: 'dockerfile',
 }
 
 export function resolveAstLanguage(name: string): PolyglotLanguage | null {
@@ -213,7 +218,7 @@ export function resolveAstScope(opts: {
     return { refused: `Path does not exist: ${display} (resolved against ${opts.cwd}).` }
   }
   if (stat.isFile()) {
-    const fileLang = lang ?? languageForFile(target)
+    const fileLang = lang ?? patternLanguageForFile(target)
     if (!fileLang) {
       const ext = path.extname(target) || '(no extension)'
       return {
@@ -318,6 +323,7 @@ export interface AstSearchResult {
   skippedLarge: number
   truncatedParse: boolean
   languagesSearched: Array<[lang: string, files: number]>
+  compiledSomewhere: boolean
 }
 
 function preFilterToken(pattern: string): string | null {
@@ -346,7 +352,7 @@ function materialise(rel: string, abs: string, lang: string, node: TSNode, captu
   }
 }
 
-type CompileCache = Map<string, { pattern: CompiledPattern; hold: { delete(): void } } | { state: 'refused'; note: string }>
+type CompileCache = Map<string, { pattern: CompiledPattern; hold: { delete(): void } } | PatternRefusal>
 
 export async function searchAstPattern(
   scope: AstScope,
@@ -358,7 +364,7 @@ export async function searchAstPattern(
   const encoded = encodePattern(opts.pattern)
   const preToken = preFilterToken(opts.pattern)
   const compileCache: CompileCache = new Map()
-  const refusedLangs = new Map<string, { files: number; note: string }>()
+  const refusedLangs = new Map<string, { files: number; note: string; textOnly?: boolean }>()
   const captureNamesByLang = new Map<string, string[]>()
   const langFiles = new Map<string, number>()
   const matches: AstMatch[] = []
@@ -368,6 +374,7 @@ export async function searchAstPattern(
   let skippedLarge = 0
   let capped = false
   let truncatedParse = false
+  let compiledSomewhere = false
 
   for (const file of scope.files) {
     if (opts.signal?.aborted) break
@@ -379,25 +386,44 @@ export async function searchAstPattern(
       truncatedParse = true
       break
     }
+    let text: string | undefined
+    if (file.lang.patternOnly && preToken && !compileCache.has(file.lang.name)) {
+      try {
+        text = readFileSync(file.abs, 'utf8')
+      } catch {
+        continue
+      }
+      if (text.length > AST_BOUNDS.maxFileBytes) {
+        skippedLarge++
+        continue
+      }
+      if (!text.includes(preToken)) {
+        langFiles.set(file.lang.name, (langFiles.get(file.lang.name) ?? 0) + 1)
+        continue
+      }
+    }
     const compiled = await compileFor(engine, file.lang, encoded, compileCache)
     if ('state' in compiled) {
-      const entry = refusedLangs.get(file.lang.name) ?? { files: 0, note: compiled.note }
+      const entry = refusedLangs.get(file.lang.name) ?? { files: langFiles.get(file.lang.name) ?? 0, note: compiled.note, ...(compiled.textOnly && { textOnly: true }) }
       entry.files++
       refusedLangs.set(file.lang.name, entry)
+      langFiles.delete(file.lang.name)
       continue
     }
+    compiledSomewhere = true
     if (!captureNamesByLang.has(file.lang.name)) {
       captureNamesByLang.set(file.lang.name, compiled.pattern.captureNames)
     }
-    let text: string
-    try {
-      text = readFileSync(file.abs, 'utf8')
-    } catch {
-      continue
-    }
-    if (text.length > AST_BOUNDS.maxFileBytes) {
-      skippedLarge++
-      continue
+    if (text === undefined) {
+      try {
+        text = readFileSync(file.abs, 'utf8')
+      } catch {
+        continue
+      }
+      if (text.length > AST_BOUNDS.maxFileBytes) {
+        skippedLarge++
+        continue
+      }
     }
     langFiles.set(file.lang.name, (langFiles.get(file.lang.name) ?? 0) + 1)
     if (preToken && !text.includes(preToken)) continue
@@ -427,16 +453,19 @@ export async function searchAstPattern(
     filesParsed,
     filesWithMatches,
     parseFailures,
-    patternRefusals: [...refusedLangs.entries()].map(([lang, e]) => ({ lang, files: e.files, note: e.note })),
+    patternRefusals: [...refusedLangs.entries()]
+      .sort((a, b) => Number(a[1].textOnly === true) - Number(b[1].textOnly === true))
+      .map(([lang, e]) => ({ lang, files: e.files, note: e.note })),
     captureNamesByLang,
     skippedLarge,
     truncatedParse,
     languagesSearched: [...langFiles.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
+    compiledSomewhere,
   }
 }
 
 export function patternRefusedEverywhere(scope: AstScope, result: AstSearchResult): boolean {
-  return result.patternRefusals.length > 0 && result.languagesSearched.length === 0 && result.filesParsed === 0 && scope.files.length > 0
+  return result.patternRefusals.length > 0 && !result.compiledSomewhere && result.filesParsed === 0 && scope.files.length > 0
 }
 
 export function patternErrorText(pattern: string, result: AstSearchResult): string {
@@ -679,7 +708,7 @@ export async function planAstRewrite(
       return { refused: 'cancelled before planning finished — nothing written.' }
     }
     const first = list[0]!
-    const lang = scope.files.find(f => f.rel === rel)?.lang ?? languageForFile(first.abs)
+    const lang = scope.files.find(f => f.rel === rel)?.lang ?? patternLanguageForFile(first.abs)
     if (!lang) {
       releaseCompiled()
       return { refused: `${rel}: no grammar for this file (it should not have matched).` }

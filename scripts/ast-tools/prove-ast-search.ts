@@ -107,8 +107,8 @@ section('§6 — the unsupported-language refusal names the set')
 {
   const r = await search({ pattern: 'print($X)', lang: 'klingon' })
   check('unknown lang refuses with the supported set', r.isError && r.text.includes('Unknown language "klingon"') && r.text.includes('Supported languages: python, go, rust') && r.text.includes('json'), r.text.slice(0, 300))
-  const md = await search({ pattern: 'print($X)', path: 'rename/README.md' })
-  check('a single file with no grammar refuses by extension and names the set', md.isError && md.text.includes('.md') && md.text.includes('Supported languages:'), md.text.slice(0, 300))
+  const prose = await search({ pattern: 'print($X)', path: 'rename/NOTES.txt' })
+  check('a single file with no grammar refuses by extension and names the set', prose.isError && prose.text.includes('.txt') && prose.text.includes('Supported languages:'), prose.text.slice(0, 300))
 }
 
 section('§7 — the malformed-pattern error names the failure and a fix')
@@ -128,8 +128,8 @@ section('§8 — zero matches name what was searched')
   const r = await search({ pattern: 'neverThere($X)', path: 'rename' })
   check('no-match text names the pattern', !r.isError && r.text.startsWith('No matches for "neverThere($X)"'), r.text.slice(0, 200))
   check('names the files and languages searched under the scope', r.text.includes('files under rename') && r.text.includes('typescript'), r.text.slice(0, 300))
-  check('names the skipped extension census', r.text.includes('Skipped 1 file with no grammar for the extension: .md ×1'), r.text.slice(0, 300))
-  const nothing = await search({ pattern: 'x', path: 'rename', glob: '**/*.md' })
+  check('names the skipped extension census', r.text.includes('Skipped 1 file with no grammar for the extension: .txt ×1'), r.text.slice(0, 300))
+  const nothing = await search({ pattern: 'x', path: 'rename', glob: '**/*.txt' })
   check('a scope with no supported files says nothing was searched', !nothing.isError && nothing.text.startsWith('Nothing searched:'), nothing.text.slice(0, 200))
 }
 
@@ -240,6 +240,28 @@ console.log(JSON.stringify({
   const hereField = String(AstSearchTool.inputSchema.shape.lang.description)
   const carriedHere = (registry as Array<{ wasm: string }>).filter(g => existsSync(join(engineDir, g.wasm))).length
   check(`the composed engine here carries ${here.length} of ${(registry as unknown[]).length} registry languages and the lang field says ${here.length}`, counted(hereField)?.count === here.length && here.length === carriedHere, hereField)
+}
+
+section('§13 — a language read for patterns only, beside code')
+if (!['markdown', 'yaml'].every(n => (astLanguageNames() as string[]).includes(n))) {
+  skip('markdown and yaml beside TypeScript', 'this checkout\'s engine dir does not carry them (bun run scripts/vendor/fetch-grammars.ts)')
+} else {
+  mkdirSync(join(root, 'beside'))
+  writeFileSync(join(root, 'beside', 'app.ts'), 'export function run() {\n  normalizeRecord(1)\n  other(2)\n}\n')
+  writeFileSync(join(root, 'beside', 'README.md'), '# Notes\n\nCall normalizeRecord(x) first.\n\n## Install\n\nText.\n')
+  writeFileSync(join(root, 'beside', 'deploy.yaml'), 'name: tidepool\nsteps:\n  - run: build\n')
+  const code = await search({ pattern: 'normalizeRecord($X)', path: 'beside' })
+  check('a code pattern finds the code, once', !code.isError && Number(code.data?.matchCount) === 1 && code.text.includes('app.ts:2:3'), code.text.slice(0, 300))
+  check('the markdown file that names the word is not searched, and the answer says why', code.text.includes('Not searched: 1 markdown file (the pattern does not parse as markdown ($X is text there, not a node)).'), code.text.split('\n').find(l => l.startsWith('Not searched')) ?? code.text.slice(0, 300))
+  check('the yaml file cannot hold the pattern: it is counted and no grammar opens it', code.text.includes('Searched 1 of 3 files under beside — 1 typescript, 1 yaml (files that cannot contain the pattern were not parsed).'), code.text.split('\n').find(l => l.startsWith('Searched')) ?? code.text.slice(0, 300))
+  const malformed = await search({ pattern: 'normalizeRecord($X', path: 'beside' })
+  check('a malformed code pattern still refuses as an error that names the code language first', malformed.isError && /did not parse as typescript \(1:\d+ [^)]+\); nor as markdown\./.test(malformed.text) && malformed.text.includes('"$FN($$$ARGS)"'), malformed.text.slice(0, 300))
+  const nowhere = await search({ pattern: ')((neverWritten', path: 'beside' })
+  check('a malformed pattern no file of a pattern-only language can hold refuses as on a directory of code alone', nowhere.isError && nowhere.text.includes('did not parse as typescript (1:1 syntax error).'), nowhere.text.slice(0, 300))
+  const heading = await search({ pattern: '## $TITLE', path: 'beside' })
+  check('a markdown pattern finds the heading and names the code file as not searched', !heading.isError && Number(heading.data?.matchCount) === 1 && heading.text.includes('$TITLE = Install') && heading.text.includes('1 typescript file (the pattern does not parse as typescript'), heading.text.slice(0, 400))
+  const pinned = await search({ pattern: 'run: $CMD', path: 'beside', lang: 'yml' })
+  check('lang by an alias keeps the yaml file alone and captures the value', !pinned.isError && Number(pinned.data?.matchCount) === 1 && pinned.text.includes('$CMD = build'), pinned.text.slice(0, 300))
 }
 
 finish('AST SEARCH LAWS')

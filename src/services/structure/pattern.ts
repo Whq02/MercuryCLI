@@ -29,6 +29,26 @@ export function metavarOf(node: TSNode): MetavarInfo | null {
   return null
 }
 
+export function metavarOutsideNodes(root: TSNode, text: string, start: number, end: number): string | null {
+  const spans: Array<[number, number]> = []
+  const stack: TSNode[] = [root]
+  while (stack.length > 0) {
+    const node = stack.pop()!
+    if (metavarOf(node)) {
+      spans.push([node.startIndex, node.endIndex])
+      continue
+    }
+    for (const child of node.children) stack.push(child)
+  }
+  for (const found of text.slice(start, end).matchAll(/__MV(M?)_([A-Za-z0-9_]*?)__/g)) {
+    const at = start + found.index!
+    if (spans.some(([from, to]) => from <= at && at + found[0].length <= to)) continue
+    const name = found[2] === 'ANON' ? '' : found[2]!
+    return found[1] === 'M' ? `$$$${name}` : `$${name === '' ? '_' : name}`
+  }
+  return null
+}
+
 
 export interface CompiledPattern {
   root: TSNode
@@ -51,6 +71,8 @@ const PATTERN_CONTEXTS: Record<string, string[]> = {
   bash: [],
   css: [],
   ini: ['[mercury_ctx]\n<P>\n'],
+  sql: ['SELECT <P>', 'SELECT * FROM mercury_ctx <P>'],
+  lua: ['local mercury_ctx = <P>'],
 }
 
 const RAW_CANDIDATE_LAST = new Set(['php', 'c'])

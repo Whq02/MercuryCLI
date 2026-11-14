@@ -4,10 +4,19 @@ export interface GrammarRegistryEntry {
   wasm: string
   extensions: string[]
   basenames?: string[]
+  basenamePrefixes?: string[]
   source?: 'vscode-pack' | 'grammar-pack'
   fragile?: { reason: string }
   declares?: string
   baseline?: boolean
+  finalNewline?: boolean
+  patternOnly?: boolean
+}
+
+const AUDITIONED = { reason: 'the first use of this grammar in a process is auditioned in a disposable child' }
+
+function patternGrammar(name: string, extensions: string[], more: Partial<GrammarRegistryEntry> = {}): GrammarRegistryEntry {
+  return { name, wasm: `tree-sitter-${name}.wasm`, extensions, source: 'grammar-pack', patternOnly: true, fragile: AUDITIONED, ...more }
 }
 
 export const GRAMMAR_REGISTRY: GrammarRegistryEntry[] = [
@@ -44,6 +53,16 @@ export const GRAMMAR_REGISTRY: GrammarRegistryEntry[] = [
     },
   },
   { name: 'vue', wasm: 'tree-sitter-vue.wasm', extensions: ['.vue'], source: 'grammar-pack' },
+  patternGrammar('yaml', ['.yaml', '.yml']),
+  patternGrammar('markdown', ['.md', '.markdown', '.mdx'], { finalNewline: true, baseline: true }),
+  patternGrammar('sql', ['.sql']),
+  patternGrammar('dockerfile', ['.dockerfile'], {
+    wasm: 'tree-sitter-containerfile.wasm',
+    declares: 'containerfile',
+    basenames: ['Dockerfile', 'Containerfile'],
+    basenamePrefixes: ['Dockerfile.'],
+  }),
+  patternGrammar('lua', ['.lua']),
 ]
 
 export const GRAMMAR_ENGINE_RUNTIME_FILES = ['tree-sitter.js', 'tree-sitter.wasm'] as const

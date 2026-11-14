@@ -38,31 +38,55 @@ range, node type, source text and captures.
 
 ## Languages
 
-Detection is per file, by extension (a basename first, then the extension);
-`lang` forces one. The registry
-routes 23 languages; what a build carries is what the tools advertise:
-the descriptions list the grammars found in the engine dir the
-runtime resolves (`dist/vendor/treesitter` beside the bundle, or the
-workspace package for source runs), never the registry alone:
+Detection is per file, by its name: a basename first (`Dockerfile`), then
+the extension, then a basename prefix (`Dockerfile.dev`). `lang` forces one
+grammar on a single file whatever its name; over a directory it keeps the
+files whose names route to that grammar. The registry routes 28 languages;
+what a build carries is what the tools advertise: the `lang` field counts the
+grammars found in the engine dir the runtime resolves
+(`dist/vendor/treesitter` beside the bundle, or the workspace package for
+source runs), never the registry alone, and the answer to a name the build
+does not carry lists them:
 
 - The `@vscode/tree-sitter-wasm` pack (python · go · rust · javascript ·
   typescript · tsx · bash · c-sharp · cpp · css · java · php · ruby ·
   powershell · ini · regex) is a devDependency: `bun install` brings it,
   every build vendors it. A clean clone's local build carries these 16.
-- The grammar-pack extension (c · html · json · toml · kotlin · swift · vue)
-  is the lock-pinned `tree-sitter-wasms` cache (`vendor/grammars.lock.json`,
-  per-file sha256, tarball sha512). The swift wasm is pinned directly from
-  the grammar's own upstream release (the pack's older
-  build crashes the runtime's wasm compiler; swift is auditioned in a
-  disposable child on first use either way, and a failing blob is refused by
-  name instead of taking the process down). There is no postinstall: you
-  prepare it with `bun run scripts/vendor/fetch-grammars.ts` (the one
-  network step; `--check` validates the cache offline) and rebuild. Release
-  archives carry all 23. A local build without the cache says so at build
-  time (`vendored WITHOUT them`), the manifest records
+- The grammar cache carries the rest, each pinned in
+  `vendor/grammars.lock.json` by its own sha256 with the source it comes
+  from, the upstream commit and the licence: c · html · json · toml ·
+  kotlin · vue from the `tree-sitter-wasms` pack; swift · yaml · markdown ·
+  dockerfile · lua from the grammar's own release or npm package; sql from a
+  third party's build, named as such in the lock, because that grammar
+  publishes no build of its own. There is no postinstall: you prepare the
+  cache with `bun run scripts/vendor/fetch-grammars.ts` (the one network
+  step; `--check` validates the cache offline) and rebuild. Release archives
+  carry all 28. A local build without the cache says so at build time
+  (`vendored WITHOUT them`), the manifest records
   `degraded: structure-polyglot-extended` and `mercury health` names it; the
   artifact's own `dist/vendor/treesitter/vendor.json` lists the grammars it
   carries.
+
+The languages after vue in that list (yaml · markdown · sql · dockerfile ·
+lua) are read by AstSearch and AstEdit only: the parse note an edit gives
+and the outline Read draws keep to the first 23. Each of them, like swift,
+is auditioned in a disposable child the first time a process uses it, and a
+grammar file that fails there is refused by name instead of taking the
+process down.
+
+Beside code these languages cost a search nothing it did not ask for. A
+file of theirs that cannot contain the pattern's longest word is counted and
+never parsed, so its grammar is not loaded. And a pattern whose
+meta-variable would be plain text in one of them (`$X` inside a Markdown
+paragraph or a YAML scalar) is refused for that language by name (`$X is
+text there, not a node`) where it would have parsed and matched nothing;
+those files are listed under `Not searched`.
+
+In these languages line endings and a missing final newline do not matter: a
+file with CRLF line endings is searched and rewritten as it stands. Markdown
+is read by its blocks (headings, lists, fenced code, tables, paragraphs);
+the text inside a paragraph is one node, so `## $TITLE` finds every
+second-level heading and a pattern cannot reach a word inside a sentence.
 
 In a build that lacks a grammar the registry routes: a file of that
 language is skipped and counted by extension with the remedy named in the
@@ -72,7 +96,8 @@ skipped and counted, never text-matched; a file that does not parse is
 reported per file, never matched over. The engine is pure WASM (no native
 dependency, one vendored asset set for every platform artifact); when no
 engine resolves at all, neither tool is in the catalog. Friendly spellings
-resolve (`ts`, `js`, `py`, `rs`, `cs`, `c++`, `sh`, `rb`, `kt`, `ps1`).
+resolve (`ts`, `js`, `py`, `rs`, `cs`, `c++`, `sh`, `rb`, `kt`, `ps1`, `yml`,
+`md`, `docker`).
 
 ## AstSearch
 
@@ -151,6 +176,7 @@ costs 291 MB.
 | powershell | 2,181 MB | 87 MB | 83% |
 | bash | 625 MB | 84 MB | 80% |
 | kotlin | 566 MB | 93 MB | 86% |
+| markdown | 505 MB | 84 MB | 91% |
 
 These are readings of one process a grammar on macOS (Apple silicon) under
 the runtime Mercury ships: 400 parses of a small file, then a few seconds
@@ -159,7 +185,7 @@ check, so its row is memory a long session used to carry whether or not it
 searched by structure.
 
 The heavy grammars under the threshold keep the optimiser and what it
-costs: cpp about 290 MB, c 170 MB, c-sharp 155 MB, css 120 MB.
+costs: cpp about 290 MB, c 170 MB, c-sharp 155 MB, sql 135 MB, css 120 MB.
 
 `MERCURY_GRAMMAR_BASELINE=0` lets every grammar reach the optimiser: full
 parse speed for the held ones, at the memory of the "free" column. The hold

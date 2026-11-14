@@ -5,7 +5,7 @@ import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('../../src/services/structure/grammarRegistry.ts')
-const { languageForFile, languageByName } = await import('../../src/services/structure/grammarFacility.ts')
+const { languageForFile, languageByName, patternLanguageForFile } = await import('../../src/services/structure/grammarFacility.ts')
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -98,13 +98,18 @@ function check(label: string, ok: boolean, detail = ''): void {
   check('.ps1 routes to powershell (S1 mapping)', languageForFile('deploy.ps1')?.name === 'powershell')
   check('.ini routes to ini (S1 mapping)', languageForFile('settings.ini')?.name === 'ini')
   check('.regex routes to regex (S1 mapping)', languageForFile('corpus.regex')?.name === 'regex')
-  check('unmapped basename stays null (Dockerfile has no grammar yet)', languageForFile('Dockerfile') === null)
+  check('unmapped basename stays null (LICENSE has no grammar)', languageForFile('LICENSE') === null && patternLanguageForFile('LICENSE') === null)
+  check('a mapped basename routes for patterns, in any case (Dockerfile, dockerfile)', patternLanguageForFile('svc/Dockerfile')?.name === 'dockerfile' && patternLanguageForFile('dockerfile')?.name === 'dockerfile')
+  check('a pattern-only row stays null for the edit note and the outline (Dockerfile, notes.md, deploy.yaml)', ['Dockerfile', 'notes.md', 'deploy.yaml'].every(f => languageForFile(f) === null && patternLanguageForFile(f)?.patternOnly === true))
+  check('every other row routes the same for both readers', GRAMMAR_REGISTRY.filter(g => !g.patternOnly).every(g => g.extensions.every(e => languageForFile(`x${e}`)?.name === g.name && patternLanguageForFile(`x${e}`)?.name === g.name)))
   check('languageByName finds every registry row', GRAMMAR_REGISTRY.every(g => languageByName(g.name)?.wasm === g.wasm))
   check('languageByName refuses unknown', languageByName('klingon') === null)
   const facility = readFileSync(join(ROOT, 'src', 'services', 'structure', 'grammarFacility.ts'), 'utf8')
   const baseIdx = facility.indexOf('BASENAME_TO_LANG.get')
   const extIdx = facility.indexOf('EXT_TO_LANG.get')
-  check('languageForFile consults basenames BEFORE extensions', baseIdx > 0 && extIdx > 0 && baseIdx < extIdx)
+  const prefixIdx = facility.indexOf('BASENAME_PREFIXES.find')
+  check('patternLanguageForFile consults basenames BEFORE extensions, and extensions before basename prefixes', baseIdx > 0 && extIdx > 0 && baseIdx < extIdx && extIdx < prefixIdx)
+  check('so a prefixed name with a known extension keeps the extension (Dockerfile.yaml is yaml, Dockerfile.dev is dockerfile)', patternLanguageForFile('Dockerfile.yaml')?.name === 'yaml' && patternLanguageForFile('Dockerfile.dev')?.name === 'dockerfile')
 }
 
 {

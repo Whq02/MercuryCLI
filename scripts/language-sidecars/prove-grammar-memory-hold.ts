@@ -23,11 +23,14 @@ const MEASURED_OPTIMISER_COST_MB: Record<string, number> = {
   powershell: 2094,
   bash: 541,
   kotlin: 473,
+  markdown: 421,
   cpp: 291,
   c: 167,
   'c-sharp': 155,
+  sql: 135,
   css: 120,
   ruby: 87,
+  dockerfile: 50,
   php: 30,
   javascript: 19,
   tsx: 18,
@@ -37,6 +40,8 @@ const MEASURED_OPTIMISER_COST_MB: Record<string, number> = {
   toml: 6,
   go: 2,
   regex: 1,
+  yaml: 1,
+  lua: 1,
   html: 0,
   vue: 0,
   python: 0,
@@ -64,7 +69,7 @@ section('§1 — the rows: a grammar is held when V8\'s optimising tier costs it
   const costs = Object.values(MEASURED_OPTIMISER_COST_MB).sort((a, b) => a - b)
   const below = Math.max(...costs.filter(c => c < OPTIMISER_COST_HELD_AT_MB))
   const over = Math.min(...costs.filter(c => c >= OPTIMISER_COST_HELD_AT_MB))
-  check('the threshold sits in a gap of the measured costs (nothing between 291 and 473 among these rows)', below === 291 && over === 473, `${below} · ${over}`)
+  check('the threshold sits in a gap of the measured costs (nothing between 291 and 421 among these rows)', below === 291 && over === 421, `${below} · ${over}`)
   const free = ['typescript', 'tsx', 'javascript', 'python', 'go', 'rust', 'java', 'json', 'c', 'cpp', 'c-sharp', 'css']
   check('the common languages and the heavy ones under the threshold keep the optimising tier', free.every(n => GRAMMAR_REGISTRY.find(g => g.name === n)?.baseline !== true), free.filter(n => GRAMMAR_REGISTRY.find(g => g.name === n)?.baseline === true).join(','))
   const lock = JSON.parse(readFileSync(join(ROOT, 'vendor', 'grammars.lock.json'), 'utf8')) as { grammars: Array<{ wasm: string; optimiserCostMb?: number }> }
@@ -84,6 +89,11 @@ const RICHER_SAMPLES: Record<string, string> = {
   kotlin: 'data class Tide(val at: Long, val height: Double)\n\nfun mean(tides: List<Tide>): Double? = if (tides.isEmpty()) null else tides.map { it.height }.average()\n\nfun main() {\n    println(mean(listOf(Tide(1, 4.2))))\n}\n',
   swift: 'struct Tide { let at: Int; let height: Double }\n\nfunc mean(_ tides: [Tide]) -> Double? {\n    guard !tides.isEmpty else { return nil }\n    return tides.map(\\.height).reduce(0, +) / Double(tides.count)\n}\n\nprint(mean([Tide(at: 1, height: 4.2)]) ?? 0)\n',
 }
+const CORPUS = JSON.parse(readFileSync(join(import.meta.dir, 'fixtures', 'grammar-corpus.json'), 'utf8')) as Record<string, Record<string, string[]>>
+const corpusSample = (name: string): string | undefined => {
+  const first = Object.values(CORPUS[name] ?? {})[0]
+  return first ? `${first.join('\n')}\n` : undefined
+}
 if (NODE) {
   const source = readFileSync(join(ROOT, 'src', 'services', 'structure', 'wasmTiering.ts'), 'utf8')
   writeFileSync(join(scratch, 'tiering.mjs'), new Bun.Transpiler({ loader: 'ts' }).transformSync(source))
@@ -92,7 +102,7 @@ if (NODE) {
   writeFileSync(join(engineDir, 'package.json'), '{"type":"commonjs"}\n')
   for (const g of GRAMMAR_REGISTRY) {
     const from = [join(vscodeWasm, g.wasm), join(packDir, g.wasm)].find(p => existsSync(p))
-    const sample = RICHER_SAMPLES[g.name] ?? (LANGUAGE_FIXTURES as Array<{ lang: string; good: string }>).find(f => f.lang === g.name)?.good
+    const sample = RICHER_SAMPLES[g.name] ?? corpusSample(g.name) ?? (LANGUAGE_FIXTURES as Array<{ lang: string; good: string }>).find(f => f.lang === g.name)?.good
     if (!from || sample === undefined) continue
     copyFileSync(from, join(engineDir, g.wasm))
     carried.push({ name: g.name, wasm: join(engineDir, g.wasm), baseline: g.baseline === true, sample })

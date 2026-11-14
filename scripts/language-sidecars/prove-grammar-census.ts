@@ -33,7 +33,7 @@ function check(label: string, ok: boolean, detail = ''): void {
 
 interface Fixture {
   good: string
-  broken: string
+  broken?: string
   file: string
   pattern: string
   symbol?: { kind: 'function' | 'class' | 'method'; name: string }
@@ -181,7 +181,38 @@ const FIXTURES: Record<string, Fixture> = {
     file: 'a.vue',
     pattern: '<div>hi</div>',
   },
+  yaml: {
+    good: 'name: tidepool\nimage: nginx:1.27\nports:\n  - 80\n  - 443\n',
+    broken: 'key: [unclosed\nother: }\n',
+    file: 'a.yaml',
+    pattern: 'image: $V',
+  },
+  markdown: {
+    good: '# Title\n\n## Install\n\nText.\n\n## Use\n\nMore.\n',
+    file: 'a.md',
+    pattern: '## $T',
+  },
+  sql: {
+    good: 'SELECT id, COUNT(name) FROM users WHERE id = 1;\nDELETE FROM users WHERE id = 2;\n',
+    broken: 'SELECT a FROM;\n',
+    file: 'a.sql',
+    pattern: 'COUNT($X)',
+  },
+  dockerfile: {
+    good: 'FROM alpine:3.20 AS base\nWORKDIR /app\nRUN apk add --no-cache curl\nWORKDIR /srv\n',
+    broken: 'FROM\nRUN [\n',
+    file: 'Dockerfile',
+    pattern: 'WORKDIR $D',
+  },
+  lua: {
+    good: 'local x = 1\nprint(x)\nprint("hi", x)\n',
+    broken: 'local function (\nend end\n',
+    file: 'a.lua',
+    pattern: 'print($$$A)',
+  },
 }
+
+const READS_EVERY_TEXT = new Set(['markdown'])
 
 {
   const missing = GRAMMAR_REGISTRY.filter(g => !FIXTURES[g.name]).map(g => g.name)
@@ -206,10 +237,15 @@ for (const lang of GRAMMAR_REGISTRY) {
   check('good fixture parses clean', goodOk, 'state' in good ? good.note : good.parseErrors.join('; '))
   if (!('state' in good)) good.tree.delete()
 
-  const broken = await parsePolyglot(engine, lang, fx.broken)
-  const brokenOk = !('state' in broken) && broken.parseErrors.length > 0
-  check('broken fixture REPORTS', brokenOk, 'state' in broken ? broken.note : `no errors reported`)
-  if (!('state' in broken)) broken.tree.delete()
+  let brokenOk = READS_EVERY_TEXT.has(lang.name)
+  if (fx.broken === undefined) {
+    check('no broken fixture, and the grammar is one that reads every text', brokenOk)
+  } else {
+    const broken = await parsePolyglot(engine, lang, fx.broken)
+    brokenOk = !('state' in broken) && broken.parseErrors.length > 0
+    check('broken fixture REPORTS', brokenOk, 'state' in broken ? broken.note : `no errors reported`)
+    if (!('state' in broken)) broken.tree.delete()
+  }
 
   const root = mkdtempSync(join(tmpdir(), `vista-census-${lang.name.replace(/[^a-z0-9]/g, '')}-`))
   writeFileSync(join(root, fx.file), fx.good)
