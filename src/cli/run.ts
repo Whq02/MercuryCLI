@@ -1744,7 +1744,7 @@ export async function runHeadless(
   const swarmResumes = watchSwarmResumes(
     () => getLastCacheSafeParams()?.toolUseContext as ToolUseContext | undefined ?? null,
     canUseTool,
-    () => sessionInitialized && !isShuttingDown(),
+    () => sessionInitialized && !quiescence.committed && !isShuttingDown(),
   )
   const swarmLead = watchSwarmLead(
     () => sessionInitialized && !inputClosed && !isShuttingDown() && inFlightAbort === null,

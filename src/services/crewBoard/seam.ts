@@ -168,6 +168,7 @@ export function watchSwarmResumes(context: () => ToolUseContext | null, canUseTo
         await flushSessionStorage()
         if (stopped || !ready()) continue
         for (const wake of store.pendingWakes()) {
+          if (stopped || !ready()) break
           const current = context()
           if (!current || boardResumeRefusal(wake.agent, current.getAppState().tasks) !== null) continue
           const principal = swarmPrincipal()
