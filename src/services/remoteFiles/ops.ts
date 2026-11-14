@@ -68,7 +68,8 @@ function failed(target: RemoteTarget, status: number, stderr: string): RemoteFil
   if (status === 46) return new RemoteFileError('ENOTREG', `${path} is not a regular file.`)
   if (status === 49) return new RemoteFileError('EISDIR', `EISDIR: illegal operation on a directory, open '${path}'`)
   const said = words(stderr)
-  return new RemoteFileError(/permission denied/i.test(said) ? 'EACCES' : 'EIO', `${path}: ${said === '' ? `the remote machine answered ${status}` : said}`)
+  if (status === 47 || /permission denied/i.test(said)) return new RemoteFileError('EACCES', `EACCES: permission denied, open '${path}'`)
+  return new RemoteFileError('EIO', `${path}: ${said === '' ? `the remote machine answered ${status}` : said}`)
 }
 
 function remoteFacts(authority: RemoteAuthority, signal: AbortSignal | undefined): Promise<RemoteFacts> {
@@ -268,6 +269,7 @@ export async function remoteList(target: RemoteTarget, signal?: AbortSignal): Pr
   const path = await remoteAbsolutePath(target, signal)
   const reply = await remoteRun(target.authority, { script: `m_list ${remoteQuote(path)}`, signal })
   if (reply.status === 46) throw new RemoteFileError('ENOTDIR', `ENOTDIR: not a directory, scandir '${formatRemotePath(target)}'`)
+  if (reply.status === 47) throw new RemoteFileError('EACCES', `EACCES: permission denied, scandir '${formatRemotePath(target)}'`)
   if (reply.status !== 0) throw failed(target, reply.status, reply.stderr)
   const fields = reply.stdout.toString('utf8').split('\0')
   const entries: RemoteEntry[] = []

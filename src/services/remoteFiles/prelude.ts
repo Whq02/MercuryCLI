@@ -99,8 +99,8 @@ m_commit() {
   if [ -d "$2" ]; then rm -f "$1"; T=; return 49; fi
   if [ -e "$2" ] || [ -L "$2" ]; then now=$(m_sum "$2") || now=unreadable; else now=absent; fi
   if [ "$now" != "$3" ]; then rm -f "$1"; T=; return 45; fi
-  if [ "$4" != - ]; then chmod "$4" "$1" || { rm -f "$1"; T=; return 46; }; fi
-  mv -f "$1" "$2" || { rm -f "$1"; T=; return 47; }
+  if [ "$4" != - ]; then chmod "$4" "$1" || { rm -f "$1"; T=; return 75; }; fi
+  mv -f "$1" "$2" || { rm -f "$1"; T=; return 75; }
   T=
   m_sum "$2"
 }
