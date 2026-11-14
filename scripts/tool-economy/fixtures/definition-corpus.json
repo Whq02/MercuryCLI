@@ -1,5 +1,5 @@
 {
-  "base": "7acc4a6927d85d6092ca093788ab3cd5973dc913",
+  "base": "f176319a0fa0f4517a9f8862ee57a73d1dbc5ff6",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -2929,9 +2929,17 @@
             ],
             "description": "Browser operation."
           },
+          "tab": {
+            "description": "Named tab (default main)",
+            "type": "string"
+          },
           "url": {
             "description": "open: http/https URL",
             "type": "string"
+          },
+          "persist": {
+            "description": "open: no idle close",
+            "type": "boolean"
           },
           "waitUntil": {
             "description": "open/reload: default load",
