@@ -88,20 +88,31 @@ section('S1 unused session sends 55 protocol commands and creates no transfer fo
     Connection: { prototype: { _rawSend: (...args: unknown[]) => unknown } }
   }
   const origSend = Connection.prototype._rawSend
-  const sent: string[] = []
-  Connection.prototype._rawSend = function (this: unknown, cb: unknown, method: unknown, ...rest: unknown[]) {
-    sent.push(String(method))
-    return origSend.call(this, cb, method, ...rest)
+  const sent: Array<{ method: string; params: Record<string, unknown> | undefined; session: string | undefined }> = []
+  Connection.prototype._rawSend = function (this: unknown, cb: unknown, method: unknown, params: unknown, session: unknown, ...rest: unknown[]) {
+    sent.push({ method: String(method), params: params as Record<string, unknown> | undefined, session: typeof session === 'string' ? session : undefined })
+    return origSend.call(this, cb, method, params, session, ...rest)
   }
+  const knownSessions = new Set<string>()
   try {
     await run({ op: 'open', url: `${A.origin}/` })
+    const driverId = (pageOf() as unknown as { _client?: () => { id(): string } })._client?.().id()
+    const ownId = sessions.pageKitOf(pageOf())?.cdp?.id()
+    const watchId = sent.find(c => c.method === 'Target.setAutoAttach' && JSON.stringify(c.params?.filter) === '[{"type":"page","exclude":false}]')?.session
+    for (const id of [driverId, ownId, watchId]) if (id) knownSessions.add(id)
     await run({ op: 'screenshot', label: 'no-transfer' })
     await run({ op: 'close' })
   } finally {
     Connection.prototype._rawSend = origSend
   }
+  const ownCommands = sent.filter(c => c.session === undefined || knownSessions.has(c.session))
+  const dlBehaviours = ownCommands.filter(c => c.method === 'Browser.setDownloadBehavior')
   const anyFolders = pads().some(p => fs.existsSync(join(p, 'browser-downloads')) || fs.existsSync(join(p, 'browser-uploads')))
-  check('open, screenshot, close sends 55 protocol commands and creates no download or upload folder', sent.length === 55 && !anyFolders, `commands=${sent.length} folders=${anyFolders}`)
+  check(
+    'open, screenshot, close sends 55 own protocol commands (2 download-behavior commands, 0 extra) and creates no download or upload folder',
+    ownCommands.length === 55 && dlBehaviours.length === 2 && !anyFolders,
+    `commands=${ownCommands.length} dlBehaviours=${dlBehaviours.length} folders=${anyFolders}`,
+  )
 
   await run({ op: 'open', url: `${A.origin}/` })
   await pageOf().evaluate(() => { document.cookie = 'dlstealth=1; max-age=3600; path=/' })
