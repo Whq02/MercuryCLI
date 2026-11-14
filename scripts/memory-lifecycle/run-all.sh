@@ -10,6 +10,7 @@
 # gate-watch: src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts src/services/engine-connector/types.ts src/utils/task/framework.ts
 # gate-watch: src/daemon/ownerWatch.ts src/daemon/workerIdentity.ts src/daemon/processSweep.ts src/utils/settings/settings.ts
 # gate-watch: src/services/tools/toolHooks.ts src/state/AppStateStore.ts src/utils/fileStateCache.ts src/utils/messages/factories.ts
+# gate-watch: src/services/api/reconnectLadder.ts src/services/api/recoveryBudget.ts src/utils/messages/systemMessages.ts src/utils/sleep.ts scripts/lib/proofAccountHome.ts
 # gate-watch: scripts/memory/prove-recall-ranking.ts scripts/settings/settings-schema.json src/components/Settings/Config.tsx src/constants/subagentDoctrine.ts src/constants/systemPromptSections.ts src/prompt/behaviourContract.ts src/utils/cockpit/harnessMap.ts src/utils/cockpit/runtimePosture.ts src/utils/settings/settingsCache.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
