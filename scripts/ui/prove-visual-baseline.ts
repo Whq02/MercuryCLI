@@ -90,7 +90,7 @@ let fail = 0
   const clippedOk =
     clippedCanon === '✶ Mercury · ● ready · Opus 5.5 · effort high · ctx — · merc…' &&
     canonicalizeCheckoutRows(oneRow(clippedChip), { basename: 'mercury', branch: 'x' }).text[0] === clippedChip &&
-    canonicalizeCheckoutRows(oneRow('│  · /workflows — some…││'), { basename: 'some-worktree', branch: 'x' }).text[0] === '│  · /workflows — some…││' &&
+    canonicalizeCheckoutRows(oneRow('│  · /mission — some…││'), { basename: 'some-worktree', branch: 'x' }).text[0] === '│  · /mission — some…││' &&
     canonicalizeCheckoutRows(oneRow('✶ Mercury · ctx — · some-worktree-…'), { basename: 'some-worktree-name', branch: 'x' }).text[0] === '✶ Mercury · ctx — · some-worktree-…'
   const recorded = (name: string, branch: string) => {
     const popup = `│ │ ${name} ▸` + ' '.repeat(28 - name.length) + '│'

@@ -84,7 +84,7 @@ try {
     assert.equal(text.filter((item: string) => item.includes('# environment')).length, 1)
     assert.equal(text.filter((item: string) => item.includes('The skills this session offers')).length, 1)
     assert.ok(text.every((item: string) => !item.includes('# Tool manual:')), 'unused tools carry no full manuals')
-    for (const name of ['Workflow', 'Debug', 'Browser', 'Crewmate']) {
+    for (const name of ['Debug', 'Browser', 'Crewmate']) {
       const tool = body.tools.find((tool: any) => tool.name === name)
       assert.ok(tool, name)
       assert.ok(Buffer.byteLength(tool.description) <= 4096, `${name} exceeds the short-description ceiling`)

@@ -23,9 +23,9 @@ const { LAYOUT_BREAKPOINTS } = await import('../../src/hooks/useLayoutTier.ts')
 const { displayWidth } = await import('../../src/components/mercury-ui/glyphs.ts')
 
 const USAGE_ROW = 'usage — after first reply'
-const WORKFLOWS_ROW = '/workflows — crewmate runs'
+const HEALTH_ROW = '/health — health cert'
 const model = read('src/utils/cockpit/helmLanesModel.ts')
-check('the two rows the live screen read are the lanes model’s own words', model.includes(`'${USAGE_ROW}'`) && model.includes(`'${WORKFLOWS_ROW}'`))
+check('the two rows are the lanes model’s own words', model.includes(`'${USAGE_ROW}'`) && model.includes(`'${HEALTH_ROW}'`))
 
 const nameBudget = (rowW: number, name: string): number => railRowBudgets(rowW - 2 - 2, displayWidth(name), 0, 3).name
 
@@ -36,33 +36,32 @@ console.log('§2 110 and 120 columns: one 24-column rail, a 20-column name budge
 for (const cols of [110, 120]) {
   const plan = railPlanAt(cols, false)
   check(`${cols}: one lanes rail of 24, vitals merged into it (unboxed rows)`, plan.lanes && !plan.vitals && plan.lanesW === 24, JSON.stringify(plan))
-  const budget = nameBudget(plan.lanesW, WORKFLOWS_ROW)
+  const budget = nameBudget(plan.lanesW, HEALTH_ROW)
   check(`${cols}: the name budget is the 20 the live screen showed`, budget === 20, String(budget))
   const usage = fitRailName(USAGE_ROW, budget)
-  const wf = fitRailName(WORKFLOWS_ROW, budget)
+  const health = fitRailName(HEALTH_ROW, budget)
   check(`${cols}: the usage row ends at its last whole word — "${usage}"`, usage === 'usage — after first…' && displayWidth(usage) <= budget)
-  check(`${cols}: the workflows row ends at a whole word and never on the dash — "${wf}"`, wf === '/workflows…' && displayWidth(wf) <= budget)
+  check(`${cols}: the health row ends at its last whole word — "${health}"`, health === '/health — health…' && displayWidth(health) <= budget)
 }
 
 console.log('§3 the slim tier (100) and the boxed both-rails tier (150) obey the same law')
 {
   const slim = railPlanAt(100, false)
   check('100: the slim 20-column rail', slim.lanesW === 20)
-  const slimBudget = nameBudget(slim.lanesW, WORKFLOWS_ROW)
-  check(`100: "${fitRailName(WORKFLOWS_ROW, slimBudget)}" and "${fitRailName(USAGE_ROW, slimBudget)}" end on whole words in ${slimBudget}`, fitRailName(WORKFLOWS_ROW, slimBudget) === '/workflows…' && fitRailName(USAGE_ROW, slimBudget) === 'usage — after…')
+  const slimBudget = nameBudget(slim.lanesW, HEALTH_ROW)
+  check(`100: "${fitRailName(HEALTH_ROW, slimBudget)}" and "${fitRailName(USAGE_ROW, slimBudget)}" end on whole words in ${slimBudget}, the health row never on the dash`, fitRailName(HEALTH_ROW, slimBudget) === '/health…' && fitRailName(USAGE_ROW, slimBudget) === 'usage — after…')
   const wide = railPlanAt(150, true)
   const boxedRowW = railPanelInnerWidth(wide.lanesW)
-  const wideBudget = nameBudget(boxedRowW, WORKFLOWS_ROW)
-  const wf = fitRailName(WORKFLOWS_ROW, wideBudget)
-  check(`150: both rails, boxed rows (${boxedRowW} wide, budget ${wideBudget}) — "${wf}" is whole words`, wide.vitals && (wf === WORKFLOWS_ROW || (wf.endsWith('…') && WORKFLOWS_ROW.startsWith(wf.slice(0, -1)) && WORKFLOWS_ROW[wf.length - 1] === ' ')))
+  const wideBudget = nameBudget(boxedRowW, HEALTH_ROW)
+  const health = fitRailName(HEALTH_ROW, wideBudget)
+  check(`150: both rails, boxed rows (${boxedRowW} wide, budget ${wideBudget}) — "${health}" is whole words`, wide.vitals && (health === HEALTH_ROW || (health.endsWith('…') && HEALTH_ROW.startsWith(health.slice(0, -1)) && HEALTH_ROW[health.length - 1] === ' ')))
 }
 
 console.log('§4 the law across every budget: whole words, the ellipsis, no dangling separator')
 {
   const names = [
     USAGE_ROW,
-    WORKFLOWS_ROW,
-    '/health — health cert',
+    HEALTH_ROW,
     '/mission — set a mission',
     'ctx 12% · 200k',
     'fold win-drives 57fa9c3913 (the proof-portability reds of a Windows build)',

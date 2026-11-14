@@ -27,7 +27,6 @@ for (const ambient of [
   'MERCURY_MODEL',
   'MERCURY_OAUTH_TOKEN',
   'MERCURY_SCRIPTED_STREAM',
-  'MERCURY_WORKFLOW_ROUTING',
   'MERCURY_BARE',
   'GOOGLE_API_KEY',
 ]) {
@@ -575,128 +574,6 @@ for (const family of FAMILIES) {
     brief: `matrix-brief: probe the ${family} lane`,
   })
   assertWorkerLeg(`inherit@${family}`, family, o, spelling.wireId, spelling.model)
-}
-
-section('§C the workflow driver — scripted fan-out across every family')
-{
-  const { compileWorkflow } = await import('../../src/tools/WorkflowTool/compiler.ts')
-  const { runWorkflowScript } = await import('../../src/tools/WorkflowTool/executor.ts')
-  const { makeWorkflowHooks } = await import('../../src/tools/WorkflowTool/agentHooks.ts')
-
-  async function driveWorkflow(driverModel: string, script: string): Promise<{
-    result: unknown
-    failures: Array<{ label?: string; error?: string }>
-    agentCount: number
-    error?: string
-    wire: Array<{ family: Family; path: string; body: Body }>
-  }> {
-    const before = captured.length
-    const compiled = compileWorkflow(script)
-    if (!('ok' in compiled) || compiled.ok !== true) {
-      throw new Error(`workflow compile failed: ${JSON.stringify(compiled)}`)
-    }
-    const { ctx } = makeCtx(driverModel)
-    const out = await runWorkflowScript(
-      (compiled as { vmScript: never }).vmScript,
-      ctx as never,
-      () => {},
-      {
-        makeHooks: makeWorkflowHooks as never,
-        workflowRunId: `cf-matrix-${Math.random().toString(36).slice(2, 8)}`,
-      } as never,
-    )
-    return {
-      result: out.result,
-      failures: (out.failures ?? []) as never,
-      agentCount: out.agentCount,
-      ...(out.error !== undefined ? { error: out.error } : {}),
-      wire: captured.slice(before),
-    }
-  }
-
-  const fanoutScript = `
-    phase('fan out');
-    const briefs = ${JSON.stringify(FAMILIES.map(f => ({ family: f, model: WORKER_SPELLINGS[f].model })))};
-    const results = {};
-    await Promise.all(briefs.map(async b => {
-      results[b.family] = await agent('matrix-notool: probe the ' + b.family + ' lane', { model: b.model, label: 'w-' + b.family });
-    }));
-    return results;
-  `
-  const o = await driveWorkflow('claude-opus-5', fanoutScript)
-  check('the fourteen-family fan-out ran to completion (no run error)', o.error === undefined, String(o.error ?? ''))
-  check('all fourteen agents were admitted and none failed', o.agentCount === FAMILIES.length && o.failures.length === 0,
-    `agentCount=${o.agentCount} failures=${text(o.failures).slice(0, 300)}`)
-  const results = (o.result ?? {}) as Record<string, unknown>
-  for (const family of FAMILIES) {
-    check(`workflow worker on ${family}: returned its own lane's final text`,
-      String(results[family] ?? '').includes(`matrix-final-${family}`), String(results[family] ?? '').slice(0, 120))
-    const hits = o.wire.filter(h => h.family === family)
-    check(`workflow worker on ${family}: its endpoint took the turn with the exact wire id`,
-      hits.length >= 1 && hits.every(h => String(h.body.model) === WORKER_SPELLINGS[family].wireId),
-      `hits=${hits.length} models=${hits.map(h => h.body.model).join(',')}`)
-  }
-
-  const gptDriver = await driveWorkflow(
-    'gpt-5.6-sol',
-    `
-      const a = await agent('matrix-notool: probe the anthropic lane', { model: 'claude-sonnet-5' });
-      const z = await agent('matrix-notool: probe the zai lane', { model: '${WORKER_SPELLINGS.zai.model}' });
-      const g = await agent('matrix-notool: probe the gemini lane', { model: 'gemini-3-pro' });
-      return [a, z, g];
-    `,
-  )
-  const gptResults = (gptDriver.result ?? []) as unknown[]
-  check('a GPT-session workflow drives anthropic + zai + gemini workers',
-    gptDriver.error === undefined && gptDriver.failures.length === 0 &&
-      String(gptResults[0]).includes('matrix-final-anthropic') &&
-      String(gptResults[1]).includes('matrix-final-zai') &&
-      String(gptResults[2]).includes('matrix-final-gemini'),
-    `error=${gptDriver.error ?? ''} failures=${text(gptDriver.failures).slice(0, 200)} results=${text(gptResults).slice(0, 200)}`)
-
-  for (let i = 0; i < FAMILIES.length; i++) {
-    const driver = FAMILIES[i]!
-    const worker = FAMILIES[(i + 1) % FAMILIES.length]!
-    const run = await driveWorkflow(
-      WORKER_SPELLINGS[driver].model,
-      `return await agent('matrix-notool: probe the ${worker} lane', { model: '${WORKER_SPELLINGS[worker].model}' });`,
-    )
-    const workerHits = run.wire.filter(h => h.family === worker)
-    check(`workflow driver on ${driver}: drives a ${worker} worker end-to-end`,
-      run.error === undefined && run.failures.length === 0 &&
-        String(run.result).includes(`matrix-final-${worker}`) &&
-        workerHits.length >= 1 && workerHits.every(h => String(h.body.model) === WORKER_SPELLINGS[worker].wireId),
-      `error=${run.error ?? ''} failures=${text(run.failures).slice(0, 150)} result=${String(run.result).slice(0, 80)}`)
-  }
-
-  const aliasRun = await driveWorkflow(
-    'claude-opus-5',
-    `return await agent('matrix-notool: probe the zai lane', { model: 'glm' });`,
-  )
-  const aliasZaiHits = aliasRun.wire.filter(h => h.family === 'zai')
-  check("workflow agent({model:'glm'}) resolves through the engine grammar to the exact pin",
-    aliasRun.error === undefined && aliasZaiHits.length >= 1 &&
-      aliasZaiHits.every(h => h.body.model === WORKER_SPELLINGS.zai.model) &&
-      String(aliasRun.result).includes('matrix-final-zai'),
-    `error=${aliasRun.error ?? ''} models=${aliasZaiHits.map(h => h.body.model).join(',')}`)
-
-  const junkRun = await driveWorkflow(
-    'claude-opus-5',
-    `
-      try {
-        await agent('matrix-notool: junk id', { model: 'glm-9999-nonexistent' });
-        return 'dispatched';
-      } catch (e) {
-        return 'refused: ' + String(e && e.message || e);
-      }
-    `,
-  )
-  check('a non-catalogue engine id fails the dispatch with the refusal naming both model pages and the ask rung (no wire call)',
-    String(junkRun.result).startsWith('refused:') &&
-      String(junkRun.result).includes("Z.AI model 'glm-9999-nonexistent' is on neither mercury://models") &&
-      String(junkRun.result).includes('ask the operator for the model id') &&
-      junkRun.wire.filter(h => h.family === 'zai').length === 0,
-    String(junkRun.result).slice(0, 300))
 }
 
 section('§D the receipt law — only the OpenAI family mints qualification receipts')

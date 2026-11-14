@@ -53,13 +53,6 @@ section("§1 the launch tool's model parameter")
 
 section('§2 the same words wherever the model parameter repeats')
 {
-  const workflow = src('src/tools/WorkflowTool/workflowPrompt.ts')
-  check('Workflow defines its model option without copying discovery or recovery', workflow.includes('opts.model: operator-selected model id or family word') && !workflow.includes('mercury://models') && !workflow.includes('${MODEL_LOOKUP_LADDER}'))
-  const { getWorkflowToolPrompt } = await import('../../src/tools/WorkflowTool/workflowPrompt.ts').catch(() => ({ getWorkflowToolPrompt: undefined as undefined | (() => string) }))
-  if (typeof getWorkflowToolPrompt === 'function') {
-    const composed = String(getWorkflowToolPrompt())
-    check('the composed Workflow manual keeps model selection in its option once', composed.split('opts.model:').length === 2 && !composed.includes('mercury://models'), composed.slice(0, 200))
-  }
   const { InspectTool } = await import('../../src/tools/InspectTool/InspectTool.ts')
   const inspect = await InspectTool.prompt({} as never)
   check('Inspect names both model pages once and carries no launch runbook', inspect.includes("models — mercury://models lists reachable models live; mercury://models/known lists this build's pin tables, not reachability.") && inspect.split('mercury://models/known').length === 2 && !inspect.includes('Before naming a model for a launch') && Buffer.byteLength(inspect) <= 800, inspect)

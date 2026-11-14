@@ -16,7 +16,6 @@ const REGISTRY: Entry[] = [
   { file: 'src/components/mercury-ui/NavigablePanes.tsx' },
   { file: 'src/components/mercury-ui/RailPanel.tsx' },
   { file: 'src/components/MercuryCommandPalette.tsx' },
-  { file: 'src/components/tasks/WorkflowsBoard.tsx' },
   { file: 'src/components/diff/DiffDialog.tsx' },
   { file: 'src/components/CostThresholdDialog.tsx' },
   { file: 'src/components/diff/DiffFileList.tsx' },

@@ -8,7 +8,6 @@ const taskKinds = [
   ['local_bash', 'b'],
   ['local_agent', 'a'],
   ['remote_agent', 'r'],
-  ['local_workflow', 'w'],
   ['monitor_mcp', 'm'],
 ] as const
 const taskPrefixes = Object.fromEntries(taskKinds)

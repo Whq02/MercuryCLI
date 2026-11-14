@@ -78,8 +78,6 @@ try {
   check('a background completion reduces the count without a parent turn', disk().activity?.description === 'waiting on 1 crewmate' && disk().activity?.lastTurnAt === 4000)
   facts([agent('first', 'completed'), agent('nested', 'failed')])
   check('only settled work is idle and retains the last-turn time', disk().activity?.state === 'idle' && disk().activity?.subagents === 0 && disk().activity?.lastTurnAt === 4000)
-  facts([{ id: 'workflow', kind: 'workflow', name: 'workflow', status: 'running', startTime: 100, agentCount: 8, pulse: { running: 3, settled: 5, maxAttempt: 1, lastEventAt: now } }])
-  check('workflow children use the live count, not the lifetime total', disk().activity?.state === 'waiting' && disk().activity?.subagents === 3)
   facts([{ id: 'shell', kind: 'shell', name: 'check', status: 'running', startTime: 100 }])
   check('a running shell is working, not an invented sub-agent', disk().activity?.state === 'working' && disk().activity?.subagents === 0)
   facts([agent('paused', 'paused')])

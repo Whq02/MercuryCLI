@@ -95,7 +95,6 @@ const { geminiCallModel } = await import('../../src/services/providers/gemini/ge
 const { compatCallModel } = await import('../../src/services/providers/openaicompat/compatCallModel.ts')
 const { compatResponsesTransport } = await import('../../src/services/providers/openaicompat/compatResponsesTransport.ts')
 const { isContinuableStreamFaultMessage } = await import('../../src/services/api/errors.ts')
-const { isRecoveryBudgetSpentLine } = await import('../../src/services/api/recoveryBudget.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const idle = await import('../../src/services/providers/streamIdleBudget.ts')
@@ -241,7 +240,7 @@ try {
     const run = await drive('compat', 'silent', dialect)
     check(`${dialect}: silence reconnects then ends with one honest stop and partial kept`, run.hits >= 2 && run.errors.length === 1 && /the Fixture stream went silent for 1 s and did not reconnect/.test(run.errors[0]) && /nothing was lost before that; the request is not retried on its own/.test(run.errors[0]) && run.answers.includes('partial answer kept'), JSON.stringify(run))
     check(`${dialect}: reconnect wait survives the wire codec and names silence`, run.waits.some(w => /no tokens for 1 s · reconnecting \(1 of \d+\)/.test(idle.requestWaitLine(idle.decodeRequestWait(idle.requestWaitFromWire(idle.requestWaitToWire(w)))!))), JSON.stringify(run.waits))
-    check(`${dialect}: spent silence cannot enter the automatic partial-stream continuation`, run.items.filter(i => i.type === 'assistant' && i.isApiErrorMessage).every(i => !isContinuableStreamFaultMessage(i)) && run.errors.length === 1 && run.errors.every(isRecoveryBudgetSpentLine))
+    check(`${dialect}: spent silence cannot enter the automatic partial-stream continuation`, run.items.filter(i => i.type === 'assistant' && i.isApiErrorMessage).every(i => !isContinuableStreamFaultMessage(i)) && run.errors.length === 1)
   }
   const geminiSilent = await drive('gemini', 'silent')
   check('Gemini silence uses the same reconnect law and keeps partial text', geminiSilent.hits >= 2 && geminiSilent.errors.length === 1 && /the Gemini stream went silent/.test(geminiSilent.errors[0]) && geminiSilent.answers.includes('partial answer kept'), JSON.stringify(geminiSilent))

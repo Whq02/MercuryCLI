@@ -40,7 +40,6 @@ const homeStores = await import('../../src/utils/projectHomeStores.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
 const { projectLocalPath } = await import('../../src/services/projectLocal/paths.ts')
 const { apolloSpecDirectory } = await import('../../src/utils/projectConfig.ts')
-const { workflowRunsRoot, workflowsDir } = await import('../../src/tools/WorkflowTool/runManifest.ts')
 const { persistTestRun, testRunsDir } = await import('../../src/services/ide/pythonTests.ts')
 const { getAgentMemoryDir } = await import('../../src/tools/AgentTool/agentMemory.ts')
 const { unityTestResultsPath } = await import('../../src/services/ide/unityProject.ts')
@@ -61,9 +60,6 @@ section('H2 — a fresh project: the spec in the folder, every local store in th
   const specDir = apolloSpecDirectory(REPO)
   mkdirSync(specDir, { recursive: true })
   writeFileSync(join(specDir, 'spec.md'), '# the spec\n')
-  const runDir = join(workflowRunsRoot(REPO), 'run-1')
-  mkdirSync(runDir, { recursive: true })
-  writeFileSync(join(runDir, 'run.json'), '{}\n')
   await persistTestRun(REPO, {
     schema: 1,
     id: 'run-1-pytest',
@@ -85,7 +81,6 @@ section('H2 — a fresh project: the spec in the folder, every local store in th
   writeFileSync(join(reviewsHome, 'latest.json'), '{}\n')
   const dirty = status()
   check('git status shows the spec and nothing else under .mercury/', dirty.length === 1 && dirty[0] === '.mercury/apollo/spec.md', JSON.stringify(dirty))
-  check('the workflow runs root is under the config home; the by-name scripts stay in the folder', workflowRunsRoot(REPO).startsWith(HOME) && workflowsDir(REPO) === join(REPO, '.mercury', 'workflows'))
   check('the test-run store is under the config home', testRunsDir(REPO).startsWith(HOME) && existsSync(join(testRunsDir(REPO), 'latest.json')))
   check('the health certificate is under the config home', lastCertPath().startsWith(HOME))
   check('the review store is under the config home', reviewsHome.startsWith(HOME))

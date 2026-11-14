@@ -41,7 +41,6 @@
  "src/tools/BashTool/utils.ts :: split-slash": 1,
  "src/tools/FileReadTool/FileReadTool.ts :: split-slash": 1,
  "src/tools/PowerShellTool/gitSafety.ts :: split-slash": 1,
- "src/tools/WorkflowTool/bundled/code-review.ts :: split-slash": 1,
  "src/utils/git/gitFilesystem.ts :: split-slash": 1,
  "src/utils/globPattern.ts :: split-slash": 1,
  "src/utils/gracefulShutdown.ts :: kill-signal": 1,

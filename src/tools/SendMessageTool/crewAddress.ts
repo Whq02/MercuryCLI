@@ -4,28 +4,20 @@ import { asAgentId, toAgentId } from '../../types/ids.js'
 import { agentStatusWord } from '../../services/resources/adapters/agentStatusWord.js'
 import { getAgentTranscriptPath } from '../../utils/sessionStorage/paths.js'
 import { readAgentTranscript } from '../../utils/crew/agentTranscriptReader.js'
-import { requestWorkflowControl, workflowControlBy } from '../WorkflowTool/runControl.js'
-import { listWorkflowRunsDetailed, runLiveness } from '../WorkflowTool/runManifest.js'
-import { getSessionId } from '../../bootstrap/state.js'
-import { getCwd } from '../../utils/cwd.js'
-import { pidAlive } from '../../utils/pidAlive.js'
 import { agentMessageNotice, agentMessageSummary, isLocalAgentTask, type LocalAgentTaskState } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { launchesNamed, namedLaunchReceipts, recordedLaunchesNamed, recordedNamedLaunches, type NamedLaunch } from '../../tasks/LocalAgentTask/launchReceipts.js'
 import { isMainSessionTask } from '../../tasks/LocalMainSessionTask.js'
 import { MAIN_THREAD_AGENT } from '../../services/notices/unreadLedger.js'
-import { workflowOwnedAgentWords, workflowOwningAgent } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 
 export type MessageOutput = { success: boolean; message: string }
 export type CrewMessageInput = { to: string; message: string }
 type CrewMessageVerb = 'deliver to' | 'resume'
-type WorkflowAddress = { runDir: string; runId: string; workflowName?: string }
 type CrewAgentAddress = {
   kind: 'agent'
   agentId: string
   who: string
   task?: LocalAgentTaskState
   transcriptPath: string | null
-  workflow?: WorkflowAddress | { refusal: string }
 }
 type CrewAddress = { kind: 'main' } | { kind: 'unknown' } | CrewAgentAddress
 
@@ -69,30 +61,6 @@ function agentTranscriptPathOf(agentId: string): string | null {
   }
 }
 
-async function workflowAddress(agentId: string, context: ToolUseContext): Promise<CrewAgentAddress['workflow']> {
-  const own = workflowOwningAgent(context.getAppState().tasks, agentId)
-  if (own !== undefined) {
-    return own.runDir === undefined
-      ? { refusal: workflowOwnedAgentWords(own, agentId) }
-      : { runDir: own.runDir, runId: own.workflowRunId, workflowName: own.workflowName ?? own.description }
-  }
-  let listing: Awaited<ReturnType<typeof listWorkflowRunsDetailed>>
-  try {
-    listing = await listWorkflowRunsDetailed(getCwd())
-  } catch {
-    return undefined
-  }
-  const now = Date.now()
-  for (const run of listing.rows) {
-    if (run.status !== 'running' || run.controlVersion === undefined) continue
-    if (runLiveness(run, run.mtimeMs, now, pidAlive) !== 'live') continue
-    if (run.agents.some(agent => agent.agentId === agentId && (agent.state === 'start' || agent.state === 'progress'))) {
-      return { runDir: run.runDir, runId: run.runId, workflowName: run.workflowName }
-    }
-  }
-  return undefined
-}
-
 export async function resolveCrewAddress(to: string, context: ToolUseContext): Promise<CrewAddress> {
   if (to.toLowerCase() === MAIN_THREAD_AGENT) return { kind: 'main' }
   const state = context.getAppState()
@@ -101,12 +69,8 @@ export async function resolveCrewAddress(to: string, context: ToolUseContext): P
   const candidate = state.tasks?.[to]
   const liveId = isLocalAgentTask(candidate) && !isMainSessionTask(candidate) ? to : undefined
   const minted = toAgentId(to) ?? undefined
-  let workflow: CrewAgentAddress['workflow']
   const transcriptPath = minted === undefined ? null : agentTranscriptPathOf(minted)
-  if (registered === undefined && liveId === undefined && minted !== undefined && transcriptPath === null) {
-    workflow = await workflowAddress(minted, context)
-  }
-  const knownId = liveId ?? (transcriptPath !== null || workflow !== undefined ? minted : undefined)
+  const knownId = liveId ?? (transcriptPath !== null ? minted : undefined)
   const unresolved = registered === undefined && knownId === undefined
   const receipts = unresolved ? launchesNamed(context.messages ?? [], to) : []
   const launches: NamedLaunch[] = unresolved && receipts.length === 0
@@ -119,8 +83,7 @@ export async function resolveCrewAddress(to: string, context: ToolUseContext): P
   const who = name === undefined ? String(agentId) : `${name} (id ${agentId}${launches.length > 1 ? `, the newest of ${launches.length} launches that carried the name` : ''})`
   const task = context.getAppState().tasks?.[String(agentId)]
   const local = isLocalAgentTask(task) && !isMainSessionTask(task) ? task : undefined
-  if (local === undefined && workflow === undefined) workflow = await workflowAddress(String(agentId), context)
-  return { kind: 'agent', agentId: String(agentId), who, task: local, transcriptPath: agentTranscriptPathOf(String(agentId)), workflow }
+  return { kind: 'agent', agentId: String(agentId), who, task: local, transcriptPath: agentTranscriptPathOf(String(agentId)) }
 }
 
 export async function endedWords(address: CrewAgentAddress): Promise<string> {
@@ -167,19 +130,6 @@ export async function unknownAgentRefusal(to: string, context: ToolUseContext, v
     (running.length > 0 ? `; the running crewmates are: ${running.join(', ')}` : '') +
     (finished.length > 0 ? `; the finished crewmates are: ${finished.join(', ')}` : '') +
     ' — send to an id or one of those names.'
-}
-
-export async function messageWorkflowWorker(address: CrewAgentAddress, content: string): Promise<MessageOutput | undefined> {
-  const workflow = address.workflow
-  if (workflow === undefined) return undefined
-  if ('refusal' in workflow) return { success: false, message: workflow.refusal }
-  const { runDir, runId } = workflow
-  const agentId = address.agentId
-  const result = await requestWorkflowControl(runDir, { action: 'message-agent', by: workflowControlBy(getSessionId(), process.pid), agentId, message: content })
-  const where = `worker ${agentId} of workflow "${workflow.workflowName ?? runId}" (${runId})`
-  if (result.outcome === 'applied') return { success: true, message: `Message queued for ${where}: ${result.detail}. The run's journal carries the request and its answer.` }
-  if (result.outcome === 'pending') return { success: true, message: `Message left for ${where}: ${result.reason}.` }
-  return { success: false, message: `Message to ${where} refused: ${result.reason}. Inspect mercury://workflow/${runId}?child=${agentId} for its state.` }
 }
 
 export function mapMessageResult(output: MessageOutput, toolUseID: string) {

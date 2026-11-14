@@ -19,17 +19,9 @@ const deferred = <T,>() => {
 
 await import('../../src/tools/AgentTool/AgentTool.js')
 const reader = await import('../../src/utils/crew/agentTranscriptReader.js')
-let transcriptText = 'initial transcript'
-let transcriptCalls = 0
-let heldView: ReturnType<typeof deferred<Awaited<ReturnType<typeof reader.readAgentTranscript>>>> | null = null
-const viewOf = (text: string): Awaited<ReturnType<typeof reader.readAgentTranscript>> => ({ finalText: text } as never)
 mock.module('../../src/utils/crew/agentTranscriptReader.js', () => ({
   ...reader,
-  readAgentTranscript: async () => {
-    transcriptCalls++
-    return heldView === null ? viewOf(transcriptText) : heldView.promise
-  },
-  readAgentMeta: async () => undefined,
+  readAgentTranscript: async () => ({ finalText: 'initial transcript' } as never),
 }))
 const loading = await import('../../src/utils/sessionStorage/loading.js')
 let diskReads = 0
@@ -38,7 +30,6 @@ mock.module('../../src/utils/sessionStorage/loading.js', () => ({
   ...loading,
   loadTranscriptFile: async () => { diskReads++; return diskRead.promise },
 }))
-const { useAgentTranscriptView } = await import('../../src/components/tasks/useAgentTranscriptView.js')
 const { useCrewmateTranscript, crewmateTranscriptFile } = await import('../../src/components/tasks/useCrewmateTranscript.js')
 const { AsyncAgentDetailDialog } = await import('../../src/components/tasks/AsyncAgentDetailDialog.js')
 const { BackgroundTasksDialog } = await import('../../src/components/tasks/BackgroundTasksDialog.js')
@@ -53,33 +44,7 @@ enableConfigs()
 const wrap = (node: React.ReactNode, initialState?: ReturnType<typeof getDefaultAppState>) => <AppStateProvider initialState={initialState}><ThemeProvider><KeybindingSetup><Box width={100} height={32} flexDirection="column">{node}</Box></KeybindingSetup></ThemeProvider></AppStateProvider>
 const mount = (node: React.ReactNode) => mountOffscreen(wrap(node), 100, 32)
 
-function TranscriptProbe({ state, version }: { state: string; version: number }): React.ReactNode {
-  const read = useAgentTranscriptView({ transcriptDir: home, agentId: 'fixture-agent', enabled: true, liveState: state, version })
-  return <Text>{read.view?.finalText ?? read.status}</Text>
-}
-
 try {
-  const view = await mount(<TranscriptProbe state="progress" version={1} />)
-  check('the live workflow transcript reads on entry', await waitFor(() => view.screen().includes('initial transcript'), 3000))
-  transcriptText = 'final transcript'
-  view.resize(wrap(<TranscriptProbe state="done" version={2} />), 100, 32)
-  check('settling inside the throttle window reads the final transcript without reopening', await waitFor(() => view.screen().includes('final transcript'), 3000))
-  view.unmount()
-  await settle(100)
-
-  const held = deferred<Awaited<ReturnType<typeof reader.readAgentTranscript>>>()
-  heldView = held
-  const stale = await mount(<TranscriptProbe state="progress" version={3} />)
-  await settle(100)
-  heldView = null
-  transcriptText = 'newer settled transcript'
-  stale.resize(wrap(<TranscriptProbe state="done" version={4} />), 100, 32)
-  await settle(150)
-  held.resolve(viewOf('older live transcript'))
-  check('an older in-flight read cannot overwrite the settled transcript', await waitFor(() => stale.screen().includes('newer settled transcript'), 3000))
-  stale.unmount()
-  await settle(100)
-
   const hosted = { sessionId: 'fixture-session', originalCwd: home }
   const resting = noSessionConnector()
   setFocusedSessionConnector(new Proxy(resting, {
@@ -138,5 +103,5 @@ try {
   releaseFocusedSessionConnector()
   await releaseScratchHome(home)
 }
-console.log(`${failures} failures; ${transcriptCalls} workflow transcript reads`)
+console.log(`${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)

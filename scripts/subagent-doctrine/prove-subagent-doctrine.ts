@@ -23,7 +23,7 @@ function section(t: string): void {
 }
 
 const GP = { agentType: 'mercury-crew' }
-const EXEMPT = ['mercury-scout', 'workflow-subagent']
+const EXEMPT = ['mercury-scout']
 const NORMAL_MARK = 'You are one of Mercury\'s agents'
 const GATE_CLAUSE = 'bypass a safety, permission, approval, or capability gate'
 const join = (a: string[]) => a.join('\n')
@@ -69,17 +69,14 @@ section('(d) C14: exempt Set DERIVED from fixedOutputContract (membership, not a
     check(`${def.agentType}: def carries fixedOutputContract:true`, def.fixedOutputContract === true)
     check(`${def.agentType}: agentType ∈ derived exempt Set`, isFixedOutputAgent({ agentType: def.agentType }))
   }
-  check("'workflow-subagent' literal ∈ derived exempt Set", isFixedOutputAgent({ agentType: 'workflow-subagent' }))
   check('a non-flagged agent (mercury-crew) is NOT exempt', !isFixedOutputAgent(GP))
   check('a made-up agentType is NOT exempt (no drift to over-exempting)', !isFixedOutputAgent({ agentType: 'not-a-real-fixed-output-agent' }))
 }
 
-section('(d2) C14 source — derived Set (not a string literal) + WORKFLOW_SUBAGENT_DEF flagged')
+section('(d2) C14 source — derived Set (not a string literal)')
 {
   const sd = read('../../src/constants/subagentDoctrine.ts')
-  check('exempt Set is DERIVED via .filter(d => d.fixedOutputContract)', sd.includes('.filter(d => d.fixedOutputContract)') && sd.includes(".concat('workflow-subagent')"))
-  const ah = read('../../src/tools/WorkflowTool/agentHooks.ts')
-  check('WORKFLOW_SUBAGENT_DEF carries fixedOutputContract: true', /WORKFLOW_SUBAGENT_DEF = \{[\s\S]{0,900}fixedOutputContract: true/.test(ah))
+  check('exempt Set is DERIVED via .filter(d => d.fixedOutputContract)', sd.includes('.filter(d => d.fixedOutputContract)'))
   const la = read('../../src/tools/AgentTool/loadAgentsDir.ts')
   check('BaseAgentDefinition declares fixedOutputContract?: boolean', la.includes('fixedOutputContract?: boolean'))
 }

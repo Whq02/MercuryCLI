@@ -262,62 +262,6 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
   t('the shim refuses execution', threw)
 }
 
-{
-  const { makeWorkflowHooks } = await import('../../src/tools/WorkflowTool/agentHooks.ts')
-  type FakeArgs = { toolUseContext?: { abortController?: AbortController } }
-  let spawnCount = 0
-  const fakeSpawn = (args: FakeArgs): AsyncGenerator<unknown, void> => {
-    const index = spawnCount++
-    async function* healthy(): AsyncGenerator<unknown, void> {
-      yield { type: 'assistant', message: { content: [{ type: 'text', text: `leaf-${index} ok` }] } }
-    }
-    async function* wedged(): AsyncGenerator<unknown, void> {
-      await new Promise<void>(resolve => {
-        const signal = args.toolUseContext?.abortController?.signal
-        if (signal?.aborted) return resolve()
-        signal?.addEventListener('abort', () => resolve(), { once: true })
-      })
-      throw new Error('aborted by watchdog')
-    }
-    return index === 0 || index >= 100 ? healthy() : wedged()
-  }
-  const hooks = makeWorkflowHooks({
-    toolUseContext: {
-      abortController: new AbortController(),
-      getAppState: () => ({
-        toolPermissionContext: { mode: 'default', additionalWorkingDirectories: new Map(), alwaysAllowRules: {}, alwaysDenyRules: {} },
-        mcp: { tools: [] },
-      }),
-      options: { agentDefinitions: { activeAgents: [] }, engineModel: 'claude-opus-5' },
-    },
-    canUseTool: async () => ({ behavior: 'allow' }),
-    emitProgress: () => {},
-    workflowRunId: undefined,
-    onAgentController: () => {},
-    seedPhaseTitles: [],
-    args: undefined,
-    spawnSubagentStream: fakeSpawn as never,
-  } as never) as unknown as {
-    agent: (p: string, o?: Record<string, unknown>) => Promise<unknown>
-    parallel: (thunks: Array<() => Promise<unknown>>) => Promise<unknown[]>
-    getFailures?: () => string[]
-  }
-  const startedAt = Date.now()
-  const slots = await hooks.parallel([
-    () => hooks.agent('healthy leaf', { stallMs: 300, retries: 0 }),
-    () => hooks.agent('wedged leaf', { stallMs: 300, retries: 0 }),
-  ])
-  t('the barrier releases even with a wedged leaf', Array.isArray(slots), `took ${Date.now() - startedAt}ms`)
-  const healthySlot = (slots as unknown[])[0]
-  const wedgedSlot = (slots as unknown[])[1]
-  t('the healthy slot carries its result', typeof healthySlot === 'string' && /leaf-0 ok/.test(healthySlot), JSON.stringify(healthySlot))
-  t('the wedged slot settles null (never rejects, never hangs)', wedgedSlot === null)
-  t('the lost leaf is a recorded failure, not a silent null', (hooks.getFailures?.() ?? []).some(f => f.includes('parallel[1] failed')), JSON.stringify(hooks.getFailures?.()))
-  spawnCount = 200
-  const synthesis = await hooks.agent('synthesis over partial results', { stallMs: 2_000 })
-  t('synthesis still launches and completes after the lost leaf', typeof synthesis === 'string' && /ok/.test(synthesis))
-}
-
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures ? '\nFAILURES' : '\nALL GREEN')
 process.exit(failures)

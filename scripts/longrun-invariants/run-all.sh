@@ -9,13 +9,13 @@
 # gate-watch: src/services/compact/autoCompact.ts src/services/engine-connector/*
 # gate-watch: src/services/instructions/engine.ts src/services/projectIntel/snapshot.ts
 # gate-watch: src/services/providers/openai/openaiCatalogue.ts src/services/resources/adapters/agent.ts
-# gate-watch: src/services/resources/adapters/workflow.ts src/services/resources/contracts.ts
+# gate-watch: src/services/resources/contracts.ts
 # gate-watch: src/services/resources/registry.ts src/services/run/* src/state/* src/tasks.ts
 # gate-watch: src/tasks/LocalAgentTask/LocalAgentTask.tsx src/tasks/LocalAgentTask/agentWait.ts
-# gate-watch: src/tasks/LocalShellTask/LocalShellTask.tsx src/tasks/LocalWorkflowTask/LocalWorkflowTask.tsx
+# gate-watch: src/tasks/LocalShellTask/LocalShellTask.tsx
 # gate-watch: src/tools/AgentTool/* src/tools/BashTool/BashTool.tsx src/tools/FileWriteTool/FileWriteTool.ts
 # gate-watch: src/tools/PowerShellTool/PowerShellTool.tsx src/tools/TaskCreateTool/TaskCreateTool.ts
-# gate-watch: src/tools/TaskUpdateTool/TaskUpdateTool.ts src/tools/WorkflowTool/* src/types/ids.ts src/utils/*
+# gate-watch: src/tools/TaskUpdateTool/TaskUpdateTool.ts src/types/ids.ts src/utils/*
 # gate-watch: src/utils/attachments/* src/utils/config/globalConfig.ts src/utils/hooks/*
 # gate-watch: src/utils/messages/factories.ts src/utils/messages/systemMessages.ts src/utils/model/agent.ts
 # gate-watch: src/utils/sessionStorage/* src/utils/task/workRoster.ts

@@ -8,7 +8,6 @@ import { RESUME_AGENT_TOOL_NAME } from '../tools/ResumeAgentTool/constants.js'
 import { CRON_CREATE_TOOL_NAME, CRON_DELETE_TOOL_NAME } from '../tools/ScheduleCronTool/prompt.js'
 import { SCHEDULE_WAKEUP_TOOL_NAME } from '../tools/ScheduleWakeupTool/prompt.js'
 import { RECORD_CONVENTION_TOOL_NAME } from '../tools/RecordConventionTool/prompt.js'
-import { WORKFLOW_TOOL_NAME } from '../tools/WorkflowTool/constants.js'
 import { JOURNAL_TOOL_NAME } from '../tools/JournalTool/prompt.js'
 
 type BarReason = 'present human' | 'past its own work' | 'recursion'
@@ -19,7 +18,6 @@ export const CREWMATE_BARRED_TOOLS: Readonly<Record<string, BarReason>> = {
   [ASK_ADVISOR_TOOL_NAME]: 'present human',
   [COMPUTER_TOOL_NAME]: 'past its own work',
   [JOURNAL_TOOL_NAME]: 'past its own work',
-  [WORKFLOW_TOOL_NAME]: 'past its own work',
   [CRON_CREATE_TOOL_NAME]: 'past its own work',
   [CRON_DELETE_TOOL_NAME]: 'past its own work',
   [SCHEDULE_WAKEUP_TOOL_NAME]: 'past its own work',

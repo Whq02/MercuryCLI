@@ -161,7 +161,6 @@ check('identity is the durable run', work.identity.runId === kernel?.runId && wo
     laneRuns: new Map(),
     partySeats: null,
     collab: null,
-    workflowsDisk: [],
     crew: [],
     gitWorktreeLanes: [],
     sources: {

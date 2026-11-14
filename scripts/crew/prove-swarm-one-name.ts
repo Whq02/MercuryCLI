@@ -319,11 +319,11 @@ await check('the-launch-and-resume-roads', async () => {
   const from = (agentId: string) => ({ agentId, toolUseId: `call-${agentId}` }) as unknown as import('../../src/Tool.ts').ToolUseContext
   await launch('third', { name: 'other', description: 'a peer' })
   assert.deepEqual(seam.swarmPeerMessage(from('third'), 'first', 'a note for the retired seat'), { handled: false }, 'a peer\'s message to the retired seat by its id is not parked on a board it no longer reads')
-  await assert.rejects(seam.latchSwarmAgent('first', 'solo', false, true), RUNNING('solo'))
+  await assert.rejects(seam.latchSwarmAgent('first', 'solo', true), RUNNING('solo'))
   assert.doesNotThrow(() => seam.settleSwarmAgent('first'), 'the refused start settles without a word from the board')
   assert.deepEqual(names(), ['solo=second:running', 'other=third:running'])
   seam.settleSwarmAgent('second')
-  assert.equal(await seam.latchSwarmAgent('first', 'solo', false, true), true)
+  assert.equal(await seam.latchSwarmAgent('first', 'solo', true), true)
   assert.deepEqual(names(), ['solo=first:running', 'other=third:running'])
   assert.throws(() => seam.reserveSwarmLaunch('fourth', { name: 'solo', description: 'while it runs' }), RUNNING('solo'))
   const release = seam.reserveSwarmLaunch('fifth', { description: 'solo' })
@@ -339,7 +339,7 @@ await check('the-launch-and-resume-roads', async () => {
   assert.equal(board.member('adrift'), false)
   const stop = new AbortController()
   const held = seam.reserveSwarmLaunch('sixth', { name: 'relay', description: 'a seat that is stopped' })
-  try { await seam.latchSwarmAgent('sixth', 'relay', false, false, undefined, stop.signal) } finally { held() }
+  try { await seam.latchSwarmAgent('sixth', 'relay', false, undefined, stop.signal) } finally { held() }
   assert.throws(() => seam.reserveSwarmLaunch('seventh', { name: 'relay', description: 'while it runs' }), RUNNING('relay'))
   stop.abort()
   await launch('seventh', { name: 'relay', description: 'after the stop' })
@@ -358,7 +358,7 @@ await check('the-launch-and-resume-roads', async () => {
   early.abort()
   await launch('ninth', { name: 'scout', description: 'after the stop' })
   assert.deepEqual(names().slice(-1), ['scout=ninth:running'], 'a launch told to stop before it enrolled gives up the name it had reserved, before it has unwound')
-  assert.equal(await seam.latchSwarmAgent('eighth', 'scout', false, false, undefined, early.signal), false, 'the stopped launch, unwinding late, stays off the board')
+  assert.equal(await seam.latchSwarmAgent('eighth', 'scout', false, undefined, early.signal), false, 'the stopped launch, unwinding late, stays off the board')
   unwind()
   assert.equal(board.member('eighth'), false, 'and does not enroll under the name')
   assert.deepEqual(names().filter(row => row.startsWith('scout=')), ['scout=ninth:running'], 'and the seat that took the name keeps it')
@@ -366,7 +366,7 @@ await check('the-launch-and-resume-roads', async () => {
   const short = seam.reserveSwarmLaunch('twelfth', { name: 'runner', description: 'a launch stopped at once that nobody replaced' })
   seam.watchSwarmLaunch('twelfth', brief.signal)
   brief.abort()
-  try { assert.equal(await seam.latchSwarmAgent('twelfth', 'runner', false, false, undefined, brief.signal), true) } finally { short() }
+  try { assert.equal(await seam.latchSwarmAgent('twelfth', 'runner', false, undefined, brief.signal), true) } finally { short() }
   assert.equal(board.member('twelfth'), true, 'a launch stopped before it enrolled whose name nobody took still takes its seat, so it can be resumed')
   const background = seam.reserveSwarmLaunch('tenth', { name: 'porter', description: 'a background launch' })
   const task = new AbortController()

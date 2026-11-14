@@ -501,7 +501,7 @@ export function crewStillRunning(tasks: Record<string, unknown> | undefined): nu
   for (const task of Object.values(tasks ?? {})) {
     const t = task as { type?: string; status?: string; agentType?: string }
     if (t.status !== 'running') continue
-    if (t.type === 'local_workflow' || (t.type === 'local_agent' && t.agentType !== MAIN_SESSION_AGENT_TYPE)) n++
+    if (t.type === 'local_agent' && t.agentType !== MAIN_SESSION_AGENT_TYPE) n++
   }
   return n
 }

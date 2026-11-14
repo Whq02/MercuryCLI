@@ -99,32 +99,6 @@ section('P1 the projector: the runner\'s task store → wire rows')
   const { projectWorkRoster } = await import('../../src/utils/task/workRoster.ts')
   const t0 = 1_000_000_000_000
   const store = {
-    wf1: {
-      id: 'wf1',
-      type: 'local_workflow',
-      status: 'running',
-      description: 'probe run',
-      startTime: t0,
-      outputFile: '/nowhere',
-      outputOffset: 0,
-      notified: false,
-      script: 'export const meta = {}',
-      prompt: 'export const meta = {}',
-      workflowName: 'scope-probe',
-      workflowRunId: 'run-1',
-      workflowProgress: [
-        { type: 'workflow_phase', index: 1, title: 'Probe' },
-        { type: 'workflow_agent', index: 0, label: 'probe:a', state: 'progress', phaseIndex: 1, phaseTitle: 'Probe' },
-        { type: 'workflow_agent', index: 1, label: 'probe:b', state: 'done', phaseIndex: 1, phaseTitle: 'Probe' },
-      ],
-      progressVersion: 3,
-      agentCount: 2,
-      totalTokens: 1234,
-      totalToolCalls: 3,
-      logs: [],
-      retain: false,
-      pendingPermissions: new Map([['tu-1', {} as never]]),
-    },
     ag1: {
       id: 'ag1',
       type: 'local_agent',
@@ -170,38 +144,23 @@ section('P1 the projector: the runner\'s task store → wire rows')
     },
   } as never
   const rows = projectWorkRoster(store)
-  check('P1 every kind projects, the main-session row excluded', rows.length === 3 && !rows.some(r => r.id === 'main1'), JSON.stringify(rows.map(r => r.id)))
-  const wf = rows.find(r => r.id === 'wf1')
-  check('P1 the workflow row carries its run facts', wf !== undefined && wf.kind === 'workflow' && wf.workflowRunId === 'run-1' && wf.agentCount === 2 && wf.totalTokens === 1234 && wf.pendingAsks === 1)
-  check(
-    'P1 the phases project grouped with agent states',
-    wf?.phases?.length === 1 && wf.phases[0]!.title === 'Probe' && wf.phases[0]!.agents.length === 2 && wf.phases[0]!.agents.map(a => a.state).join(',') === 'progress,done',
-    JSON.stringify(wf?.phases),
-  )
-  check(
-    'P1 the workflow row speaks its pulse (the runner\'s own fold: one in flight, one settled, the newest signal floored at the start)',
-    wf?.pulse !== undefined && wf.pulse.running === 1 && wf.pulse.settled === 1 && wf.pulse.maxAttempt === 0 && wf.pulse.lastEventAt === t0 && wf.pulse.phaseTitle === 'Probe',
-    JSON.stringify(wf?.pulse),
-  )
-
-  const { focusedWorkRows, runningWorkflowRows } = await import('../../src/components/tasks/useFocusedWork.ts')
+  check('P1 every kind projects, the main-session row excluded', rows.length === 2 && !rows.some(r => r.id === 'main1'), JSON.stringify(rows.map(r => r.id)))
+  const { focusedWorkRows } = await import('../../src/components/tasks/useFocusedWork.ts')
   const hosted = {
     rows: [
-      { id: 'wf1', kind: 'workflow', name: 'a stale copy of the local row', status: 'completed', startTime: t0 },
-      { id: 'wf9', kind: 'workflow', name: 'hosted-run', status: 'running', startTime: t0 + 9, workflowRunId: 'run-9' },
-      { id: 'wf8', kind: 'workflow', name: 'hosted-paused', status: 'paused', startTime: t0 + 8, workflowRunId: 'run-8' },
+      { id: 'ag1', kind: 'agent', name: 'a stale copy of the local row', status: 'completed', startTime: t0 + 1, agentId: 'ag1' },
+      { id: 'ag9', kind: 'agent', name: 'hosted-crewmate', status: 'running', startTime: t0 + 9, agentId: 'ag9' },
       { id: 'sh9', kind: 'shell', name: 'sleep 9', status: 'running', startTime: t0 + 7 },
     ],
     mission: [],
   } as const
   const union = focusedWorkRows(store, hosted as never)
-  check('P6 the union carries every local row and every hosted row once', union.length === 3 + 3, JSON.stringify(union.map(r => r.id)))
-  check('P6 a row held locally keeps its local projection (the hosted copy never wins)', union.find(r => r.id === 'wf1')?.name === 'scope-probe' && union.find(r => r.id === 'wf1')?.status === 'running')
-  check('P6 the running workflows are the local run and the hosted run — never the paused one, never the shell', runningWorkflowRows(union).map(r => r.id).sort().join(',') === 'wf1,wf9')
-  check('P6 a blank store still lists the hosted rows', focusedWorkRows(undefined, hosted as never).length === 4)
+  check('P6 the union carries every local row and every hosted row once', union.length === 2 + 2, JSON.stringify(union.map(r => r.id)))
+  check('P6 a row held locally keeps its local projection (the hosted copy never wins)', union.find(r => r.id === 'ag1')?.name === 'audit the fixtures' && union.find(r => r.id === 'ag1')?.status === 'running')
+  check('P6 a blank store still lists the hosted rows', focusedWorkRows(undefined, hosted as never).length === 3)
   const sh = rows.find(r => r.id === 'sh1')
   check('P1 the shell row keeps its settle time', sh?.kind === 'shell' && sh.endTime === t0 + 5 && sh.status === 'completed')
-  check('P1 newest first, stable', rows[0]!.id === 'sh1' && rows[rows.length - 1]!.id === 'wf1')
+  check('P1 newest first, stable', rows[0]!.id === 'sh1' && rows[rows.length - 1]!.id === 'ag1')
 }
 
 section('P2 the wire: `work` rides the facts; an old answer still validates')
@@ -224,13 +183,12 @@ const baseAnswer = {
   workspace: { cwd: work, originalCwd: work, projectRoot: work, instructionRoots: [] },
   queue: [],
 }
-const wfRow = {
-  id: 'wf-a', kind: 'workflow' as const, name: 'scope-probe', status: 'running',
-  startTime: Date.now(), totalTokens: 5, workflowRunId: 'run-a', agentCount: 1,
-  phases: [{ title: 'Probe', planned: false, agents: [{ index: 0, label: 'probe:a', state: 'progress' }] }],
+const workRow = {
+  id: 'ag-a', kind: 'agent' as const, name: 'scope-probe', status: 'running',
+  startTime: Date.now(), totalTokens: 5, agentId: 'ag-a',
 }
 {
-  proj.publishSessionFacts({ schema: 1, sessionId: SID_A, atMs: Date.now(), pendingModel: null, busy: false, ...baseAnswer, work: [wfRow] })
+  proj.publishSessionFacts({ schema: 1, sessionId: SID_A, atMs: Date.now(), pendingModel: null, busy: false, ...baseAnswer, work: [workRow] })
   check('P2 the published facts carry the roster', await untilAsync(() => proj.readSessionFacts(SID_A)?.work?.length === 1, 5_000))
   proj.publishSessionFacts({ schema: 1, sessionId: SID_B, atMs: Date.now(), pendingModel: null, busy: false, ...baseAnswer })
   check('P2 an old answer (no work field) still validates — absence = empty', await untilAsync(() => {
@@ -270,7 +228,7 @@ section('P3/P4 the connector: content-keyed rows · retire clears · the hop law
 
   await seat.focusDaemonSession(recordOf(SID_A, 'A'))
   const focusedRows = (): readonly { name: string }[] => slot.getFocusedSessionConnector().workRoster().rows
-  check('P4 focus A → the focused roster carries A\'s workflow', focusedRows().some(r => r.name === 'scope-probe'))
+  check('P4 focus A → the focused roster carries A\'s crewmate', focusedRows().some(r => r.name === 'scope-probe'))
   let workPings = 0
   const composed = slot.subscribeThroughFocused((c, l) => c.subscribeWork(l))
   const offComposed = composed(() => workPings++)
@@ -282,10 +240,10 @@ section('P3/P4 the connector: content-keyed rows · retire clears · the hop law
   const before = a.workRoster()
   let aPings = 0
   const offA = a.subscribeWork(() => aPings++)
-  proj.publishSessionFacts({ schema: 1, sessionId: SID_A, atMs: Date.now(), pendingModel: null, busy: false, ...baseAnswer, work: [wfRow] })
+  proj.publishSessionFacts({ schema: 1, sessionId: SID_A, atMs: Date.now(), pendingModel: null, busy: false, ...baseAnswer, work: [workRow] })
   await wait(1200)
   check('P3 an unchanged roster keeps its snapshot identity and emits nothing', a.workRoster() === before && aPings === 0, `pings=${aPings}`)
-  const settledRow = { ...wfRow, status: 'completed', endTime: Date.now() }
+  const settledRow = { ...workRow, status: 'completed', endTime: Date.now() }
   proj.publishSessionFacts({ schema: 1, sessionId: SID_A, atMs: Date.now(), pendingModel: null, busy: false, ...baseAnswer, work: [settledRow] })
   check('P3 a changed roster emits and the rows follow', await untilAsync(() => aPings > 0 && a.workRoster().rows[0]?.status === 'completed', 5_000), `pings=${aPings}`)
 
@@ -315,7 +273,7 @@ section('P3/P4 the connector: content-keyed rows · retire clears · the hop law
   slot._resetFocusedSessionConnectorForTesting()
 }
 
-section('P5 end-to-end: two sessions, one workspace — A\'s run paints, B stays empty')
+section('P5 end-to-end: two sessions, one workspace — A\'s crewmate paints, B stays empty')
 p5Stage('reset projections and import first-run seeder')
 proj.resetSeatProjections()
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
@@ -323,7 +281,7 @@ p5Stage('seed scratch home and workspace trust')
 seedFirstRun(home, [work])
 p5Stage('write scratch tool permissions')
 const { writeFileSync } = await import('node:fs')
-writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Workflow', 'Crewmate', 'Task'] } }))
+writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Crewmate', 'Task'] } }))
 {
   const { execFileSync } = await import('node:child_process')
   const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'pin', GIT_AUTHOR_EMAIL: 'pin@scratch', GIT_COMMITTER_NAME: 'pin', GIT_COMMITTER_EMAIL: 'pin@scratch' }
@@ -335,13 +293,6 @@ writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { allow:
   execFileSync('git', ['commit', '-qm', 'seed', '--allow-empty'], { cwd: work, env: gitEnv })
 }
 
-const WORKFLOW_SCRIPT = [
-  "export const meta = { name: 'scope-probe', description: 'work-scope pin', phases: [{ title: 'Probe' }] }",
-  "phase('Probe')",
-  `const a = await agent('hold the probe open for a while, then reply with the word done', { model: ${JSON.stringify(DEFAULT_OPUS)} })`,
-  'return { a }',
-].join('\n')
-
 const HOLD_SECONDS = 40
 
 p5Stage('import fixture API')
@@ -349,8 +300,8 @@ const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 p5Stage('bind fixture API loopback port')
 const api = await startFixtureApi([
   { kind: 'text', whenModel: 'opus', whenBody: 'say ready', text: 'ready.' },
-  { kind: 'tool_use', whenModel: 'opus', whenBody: 'say ready', name: 'Workflow', input: { script: WORKFLOW_SCRIPT }, preText: 'launching the probe. ' },
-  { kind: 'text', whenModel: 'opus', whenBody: 'say ready', text: 'workflow launched.' },
+  { kind: 'tool_use', whenModel: 'opus', whenBody: 'say ready', name: 'Crewmate', input: { description: 'scope-probe', prompt: 'hold the probe open for a while, then reply with the word done', run_in_background: true }, preText: 'launching the probe. ' },
+  { kind: 'text', whenModel: 'opus', whenBody: 'say ready', text: 'probe launched.' },
   { kind: 'tool_use', whenModel: 'opus', name: 'Sleep', input: { seconds: HOLD_SECONDS }, preText: 'holding the probe. ' },
   { kind: 'text', whenModel: 'opus', text: 'done' },
   { kind: 'tool_use', whenModel: 'haiku', name: 'Crewmate', input: { description: 'helper', prompt: 'reply with the word done', run_in_background: true }, preText: 'dispatching a helper. ' },
@@ -455,16 +406,16 @@ try {
     modelKey: title === 'A' ? DEFAULT_OPUS : 'claude-sonnet-5',
   })
   const connA = await seat.focusDaemonSession(recordFor(A.sessionId, A.runnerId, 'A'))
-  const rowsA = (): readonly { kind: string; status: string; name: string; phases?: readonly { agents: readonly { state: string }[] }[] }[] => connA.workRoster().rows
+  const rowsA = (): readonly { kind: string; status: string; name: string }[] => connA.workRoster().rows
 
-  p5Stage('grant A workflows')
+  p5Stage('grant A the background tag')
   const grant = (await daemonControlRpc({ op: 'concourseControl', action: 'grant-workflows', sessionId: A.sessionId, by: 'operator' } as never)) as { ok?: boolean }
   check('P5 the workflows-allowed tag grants', grant.ok === true, JSON.stringify(grant))
 
-  p5Stage('wait for A live workflow roster')
+  p5Stage('wait for A live crewmate roster')
   check(
-    'P5 A\'s live workflow paints on A\'s connector (running, named)',
-    await untilAsync(() => rowsA().some(r => r.kind === 'workflow' && r.status === 'running' && r.name === 'scope-probe'), 90_000),
+    'P5 A\'s live crewmate paints on A\'s connector (running, named)',
+    await untilAsync(() => rowsA().some(r => r.kind === 'agent' && r.status === 'running' && r.name === 'scope-probe'), 90_000),
     JSON.stringify(rowsA()),
   )
   type Block = { type?: string; id?: string; name?: string; input?: { seconds?: number }; tool_use_id?: string; content?: unknown }
@@ -491,17 +442,11 @@ try {
     }
     return { served: opusRequests >= 3 || ids.size > 0, results }
   }
-  p5Stage('wait for agent Sleep hold to stand')
+  p5Stage('wait for crewmate Sleep hold to stand')
   check(
-    'P5 the agent\'s Sleep hold was served and STANDS (the agent\'s own request went out, no result yet)',
+    'P5 the crewmate\'s Sleep hold was served and STANDS (the crewmate\'s own request went out, no result yet)',
     (await untilAsync(() => holdLedger().served, 30_000)) && holdLedger().results.length === 0,
     JSON.stringify(holdLedger()),
-  )
-  p5Stage('wait for workflow agents in roster')
-  check(
-    'P5 the run\'s agents reach the roster while it runs',
-    await untilAsync(() => rowsA().some(r => r.kind === 'workflow' && (r.phases ?? []).some(p => p.agents.length > 0)), 60_000),
-    JSON.stringify(rowsA()),
   )
 
   p5Stage('dispatch session B')
@@ -518,39 +463,15 @@ try {
   p5Stage('attach B connector and check scoped roster')
   const connB = seat.daemonSessionConnectorFor(recordFor(B.sessionId, B.runnerId, 'B'))
   await connB.attach()
-  const stillRunning = rowsA().some(r => r.kind === 'workflow' && r.status === 'running')
-  check('P5 A\'s run is still live as B opens', stillRunning)
+  const stillRunning = rowsA().some(r => r.kind === 'agent' && r.status === 'running')
+  check('P5 A\'s crewmate is still live as B opens', stillRunning)
   check('P5 B\'s roster carries ZERO of A\'s rows while A runs', connB.workRoster().rows.length === 0, JSON.stringify(connB.workRoster().rows))
 
-  p5Stage('read workflow manifest and owner-pid isolation')
-  const { workflowRunsRoot } = await import('../../src/tools/WorkflowTool/runManifest.js')
-  const runsRoot = workflowRunsRoot(work)
-  check('P5 the run manifest exists in the SHARED workspace', await untilAsync(() => existsSync(runsRoot) && readdirSync(runsRoot).length > 0, 30_000))
-  const fw = await import('../../src/components/tasks/useFocusedWork.ts')
-  const manifestOwner = ((): number | undefined => {
-    try {
-      const dirs = readdirSync(runsRoot)
-      for (const d of dirs) {
-        const m = JSON.parse(readFileSync(join(runsRoot, d, 'run.json'), 'utf8')) as { ownerPid?: number }
-        if (m.ownerPid !== undefined) return m.ownerPid
-      }
-    } catch {
-    }
-    return undefined
-  })()
-  const pidsForB = fw.otherSessionRunnerPids(B.sessionId)
-  const pidsForA = fw.otherSessionRunnerPids(A.sessionId)
+  check('P5 the crewmate is still held open after the B checks (running, named — the Sleep stands)', rowsA().some(r => r.kind === 'agent' && r.status === 'running' && r.name === 'scope-probe'), JSON.stringify({ rows: rowsA(), hold: holdLedger() }))
+  p5Stage('wait for A crewmate to settle')
   check(
-    'P5 the leak filter\'s seam: A\'s manifest owner ∈ otherPids(B), ∉ otherPids(A)',
-    manifestOwner !== undefined && pidsForB.has(manifestOwner) && !pidsForA.has(manifestOwner),
-    `owner=${manifestOwner} B=${[...pidsForB].join('/')} A=${[...pidsForA].join('/')}`,
-  )
-
-  check('P5 the run is still held open after the B checks (running, named — the Sleep stands)', rowsA().some(r => r.kind === 'workflow' && r.status === 'running' && r.name === 'scope-probe'), JSON.stringify({ rows: rowsA(), hold: holdLedger() }))
-  p5Stage('wait for A workflow to settle')
-  check(
-    'P5 the run settles on A\'s roster',
-    await untilAsync(() => rowsA().some(r => r.kind === 'workflow' && r.status !== 'running' && r.status !== 'pending'), 90_000),
+    'P5 the crewmate settles on A\'s roster',
+    await untilAsync(() => rowsA().some(r => r.kind === 'agent' && r.name === 'scope-probe' && r.status !== 'running' && r.status !== 'pending'), 90_000),
     JSON.stringify(rowsA()),
   )
   p5Stage('wait for Sleep result')
@@ -559,7 +480,7 @@ try {
     await untilAsync(() => holdLedger().results.some(t => t.includes('slept_seconds')), 30_000),
     JSON.stringify(holdLedger()),
   )
-  check('P5 B\'s roster is STILL empty after A\'s run', connB.workRoster().rows.length === 0, JSON.stringify(connB.workRoster().rows))
+  check('P5 B\'s roster is STILL empty after A\'s crewmate', connB.workRoster().rows.length === 0, JSON.stringify(connB.workRoster().rows))
 
   {
     const root = join(home, 'projects')
@@ -572,7 +493,7 @@ try {
       return false
     }
     p5Stage('wait for A completion transcript')
-    check('P5 A reads its run\'s completion before the switch (the runner holds a completion for its settle window, and a switch sent inside that window parks behind the queued words)', await untilAsync(completionRead, 60_000))
+    check('P5 A reads its crewmate\'s completion before the switch (the runner holds a completion for its settle window, and a switch sent inside that window parks behind the queued words)', await untilAsync(completionRead, 60_000))
     p5Stage('wait for A idle after completion')
     check('P5 A reads idle after the completion turn', await untilAsync(() => connA.live().inFlight === false, 30_000), JSON.stringify(connA.live()))
   }
@@ -585,7 +506,7 @@ try {
   p5Stage('wait for helper agent roster')
   check(
     'P5 the helper\'s agent row rides A\'s roster',
-    await untilAsync(() => rowsA().some(r => r.kind === 'agent'), 60_000),
+    await untilAsync(() => rowsA().some(r => r.kind === 'agent' && r.name === 'helper'), 60_000),
     JSON.stringify(rowsA()),
   )
   check('P5 B\'s roster still carries no agent row (subagents scoped)', connB.workRoster().rows.length === 0, JSON.stringify(connB.workRoster().rows))

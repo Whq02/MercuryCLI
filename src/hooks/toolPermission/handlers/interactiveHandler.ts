@@ -65,14 +65,6 @@ export function handleInteractivePermission(
     toolUseID: ctx.toolUseID,
     permissionResult: result,
     permissionPromptStartTimeMs,
-    ...((ctx.toolUseContext as { workflowAskBadge?: ToolUseConfirm['workerBadge'] })
-      .workflowAskBadge
-      ? {
-          workerBadge: (
-            ctx.toolUseContext as { workflowAskBadge?: ToolUseConfirm['workerBadge'] }
-          ).workflowAskBadge,
-        }
-      : {}),
 
     onUserInteraction() {
       if (Date.now() - permissionPromptStartTimeMs < USER_INTERACTION_GRACE_MS) {

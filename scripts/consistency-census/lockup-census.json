@@ -113,48 +113,6 @@
       "excerpt": "<Text color={critter.accent}>Mercury</Text>",
       "role": "session-identity",
       "why": "the transcript nameplate — critter accent IS session identity"
-    },
-    {
-      "file": "src/components/tasks/AgentInspectorPane.tsx",
-      "kind": "crab",
-      "excerpt": "<Crab />",
-      "role": "session-identity",
-      "why": "agent inspector — the agent session mark"
-    },
-    {
-      "file": "src/components/tasks/AgentInspectorPane.tsx",
-      "kind": "wordmark",
-      "excerpt": "<Wordmark />",
-      "role": "session-identity",
-      "why": "agent inspector — the agent session mark"
-    },
-    {
-      "file": "src/components/tasks/AgentInspectorPane.tsx",
-      "kind": "crab",
-      "excerpt": "<Crab />",
-      "role": "session-identity",
-      "why": "agent inspector — the agent session mark"
-    },
-    {
-      "file": "src/components/tasks/AgentInspectorPane.tsx",
-      "kind": "wordmark",
-      "excerpt": "<Wordmark />",
-      "role": "session-identity",
-      "why": "agent inspector — the agent session mark"
-    },
-    {
-      "file": "src/components/tasks/RunDetailPane.tsx",
-      "kind": "crab",
-      "excerpt": "<Crab />",
-      "role": "session-identity",
-      "why": "run inspector — the run/session identity mark"
-    },
-    {
-      "file": "src/components/tasks/RunDetailPane.tsx",
-      "kind": "wordmark",
-      "excerpt": "<Wordmark />",
-      "role": "session-identity",
-      "why": "run inspector — the run/session identity mark"
     }
   ]
 }

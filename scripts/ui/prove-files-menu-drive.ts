@@ -222,7 +222,6 @@ const boot = (): Array<Record<string, unknown>> => [
 const railRoad = (): Array<Record<string, unknown>> => [
   after('\t', 2),
   gated('\x1b[B', '❯ no prompts sent yet', { awaitSettleTicks: 4 }),
-  gated('\x1b[B', '❯ · /workflows', { awaitSettleTicks: 2 }),
   gated('\x1b[B', '❯ · /health', { awaitSettleTicks: 2 }),
   gated('\x1b[B', '❯ · /memory', { awaitSettleTicks: 2 }),
   gated('\x1b[B', '❯ · /mission', { awaitSettleTicks: 2 }),

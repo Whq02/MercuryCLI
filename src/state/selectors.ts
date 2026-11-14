@@ -39,7 +39,6 @@ export const VIEWABLE_TASK_TYPES = ['local_agent'] as const
 export const NON_VIEWABLE_TASK_TYPES = [
   'local_bash',
   'remote_agent',
-  'local_workflow',
   'monitor_mcp',
 ] as const
 

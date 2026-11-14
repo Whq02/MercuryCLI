@@ -19,7 +19,6 @@ const taskTypes = [
   'local_bash',
   'local_agent',
   'remote_agent',
-  'local_workflow',
   'monitor_mcp',
 ] as const
 const taskIdPrefixes = Object.fromEntries(
@@ -59,7 +58,6 @@ const inventory = {
     taskOutput: 'src/utils/task/diskOutput.ts (per-task output files)',
     toolResultSpill: 'src/utils/toolResultStorage.ts (large tool results)',
     transcripts: 'src/utils/sessionStorage.ts (project JSONL transcripts)',
-    workflowRuns: 'src/tools/WorkflowTool (run manifests + journal.jsonl)',
     verifyEvidence: 'src/utils/verification/verificationState.ts (.mercury/verify/)',
     healthCert: '<config home>/projects/<slug>/health/last-cert.json (utils/healthReport.ts; the project folder keeps only a leftover .mercury/health/)',
     gateVerdict: '.mercury/gate/verdict.json (scripts/run-all-suites.sh)',

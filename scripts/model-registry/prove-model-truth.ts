@@ -113,13 +113,6 @@ section('7. code-side model default census — literals resolve live, tiers trac
       dead.length ? `dead: ${dead.join(', ')}` : 'no literals matched — census regex aged',
     )
   }
-  const routing = src('src/tools/WorkflowTool/workflowRouting.ts')
-  check(
-    'the workflow executor route is the neutral seat default (no pinned first-party id)',
-    routing.includes('export function workflowExecutorModel(): string | undefined') &&
-      routing.includes('neutralSeatDefault()?.setting') &&
-      !/WORKFLOW_EXECUTOR_MODEL = '/.test(routing),
-  )
   const { foldLegacyWorkerModelKey } = await import('../../src/services/concourse/workerModels.ts')
   const crewOpus = foldLegacyWorkerModelKey('opus')
   check(

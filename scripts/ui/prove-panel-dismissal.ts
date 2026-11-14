@@ -22,7 +22,7 @@ function files(dir: string): string[] {
 const panels: Record<string, [string, string]> = {
   'command-palette': ['MercuryCommandPalette.tsx', 'elevated CommandCenter'],
   'model-picker': ['MercuryModelPicker.tsx', 'own surface'],
-  'compact-work': ['tasks/BackgroundTasksDialog.tsx', 'own elevated CommandCenter; shell CommandCenter and workflow Panel cards'],
+  'compact-work': ['tasks/BackgroundTasksDialog.tsx', 'own elevated CommandCenter; shell CommandCenter cards'],
   'input-atlas': ['MercuryInputAtlas.tsx', 'elevated CommandCenter'],
   'settings': ['Settings/Settings.tsx', 'own surface'],
   'center:${view}': ['mercury-ui/components.tsx', 'elevated CommandCenter or modal slot'],
@@ -78,7 +78,6 @@ const ownFrames = [
   ['src/components/MercuryInputAtlas.tsx', 'CommandCenter'],
   ['src/components/tasks/BackgroundTasksDialog.tsx', 'CommandCenter'],
   ['src/components/tasks/ShellDetailDialog.tsx', 'CommandCenter'],
-  ['src/components/tasks/WorkflowDetailDialog.tsx', 'Panel'],
 ] as const
 for (const [file, seam] of ownFrames) {
   const frames = jsx(file, seam)

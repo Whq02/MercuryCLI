@@ -40,7 +40,6 @@ import { isMcpServerDisabled, mcpServersSkippedForTrustLine, PROJECT_MCP_FILE_SP
 import type { MCPServerConnection } from '../services/mcp/types.js'
 import { resolvePrimaryAgentBackend } from '../services/providers/primaryBackend.js'
 import { getBundledSkills } from '../skills/bundledSkills.js'
-import { dynamicWorkflowsEnabled, workflowsManagedDisabled } from '../tools/WorkflowTool/workflowEnablement.js'
 import { logForDebugging } from './debug.js'
 import { listCapabilityKills } from './permissions/capabilityGate.js'
 import { describeWindowsShellRoad } from './shell/windowsShellRoad.js'
@@ -926,32 +925,6 @@ function idePlaneRecord(): ReadinessRecord {
   return { ...base, state: 'ready', detail: parts.join(' · ') }
 }
 
-function workflowsRecord(): ReadinessRecord {
-  const base = {
-    id: 'engine:workflows',
-    kind: 'engine' as const,
-    label: 'workflow engine',
-    source: 'workflow enablement gates',
-    lastCheckedAt: Date.now(),
-  }
-  if (dynamicWorkflowsEnabled()) {
-    return { ...base, state: 'ready', detail: 'dynamic workflows armed (default-on)' }
-  }
-  if (workflowsManagedDisabled()) {
-    return {
-      ...base,
-      state: 'disabled',
-      detail: 'disabled by policy (managed settings disableWorkflows)',
-    }
-  }
-  return {
-    ...base,
-    state: 'disabled',
-    detail: `${flagAsSet('MERCURY_WORKFLOWS')} — operator opt-out`,
-    remedy: 'unset MERCURY_WORKFLOWS (default-on)',
-  }
-}
-
 function backendRemedy(backendId: string): string | undefined {
   if (backendId === 'openai-responses') return 'connect an OpenAI account or API key (/logins)'
   if (backendId === 'zai-glm') return 'add a Z.AI API key via /logins zai (or set ZAI_API_KEY)'
@@ -1035,7 +1008,7 @@ function backendRecords(): ReadinessRecord[] {
 }
 
 function engineRecords(): ReadinessRecord[] {
-  return [idePlaneRecord(), workflowsRecord(), ...backendRecords()]
+  return [idePlaneRecord(), ...backendRecords()]
 }
 
 

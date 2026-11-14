@@ -194,7 +194,7 @@ const resume: typeof import('../../src/tools/AgentTool/resumeAgent.ts').resumeAg
   assert(args.boardEventIds?.length)
   assert.equal(args.prompt.split('WAKE-PACKET-WITNESS').length, 2)
   tasks = { woken: { ...task('running'), id: 'woken', agentId: 'woken' } }
-  await seam.latchSwarmAgent('woken', 'Woken', false, true)
+  await seam.latchSwarmAgent('woken', 'Woken', true)
   args.onAdmitted?.()
   const attachment = createAttachmentMessage({ type: 'queued_command', prompt: args.prompt, boardEventIds: args.boardEventIds, isMeta: true, origin: { kind: 'coordinator' } })
   assert.equal(getSwarmAttachments({ ...context, agentId: 'woken' } as never, [attachment]).length, 0)

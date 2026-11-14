@@ -81,13 +81,11 @@ export interface WorkbenchSourceInputs {
 }
 
 
-const EXECUTION_THREAD_KINDS = new Set(['agent', 'workflow-worker', 'background-job'])
+const EXECUTION_THREAD_KINDS = new Set(['agent', 'background-job'])
 
 function threadKindOf(exec: ExecutionFact, rich: RichTaskFact | undefined): WorkbenchThreadKind {
   const taskType = rich?.taskType ?? (exec.metadata?.taskType as string | undefined)
   switch (taskType) {
-    case 'local_workflow':
-      return 'workflow'
     case 'local_agent':
     case 'remote_agent':
       return 'agent'
@@ -97,7 +95,6 @@ function threadKindOf(exec: ExecutionFact, rich: RichTaskFact | undefined): Work
     default:
       break
   }
-  if (exec.kind === 'workflow-worker') return 'workflow'
   if (exec.kind === 'agent') return 'agent'
   return 'job'
 }

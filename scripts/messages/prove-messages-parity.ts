@@ -331,17 +331,15 @@ const CUT_ROWS = [
   'plain words',
   '[Request interrupted by user] and more',
 ];
-add('createUserInterruptionMessage', 'stalled', () =>
-  M.createUserInterruptionMessage({ reason: 'stalled' }),
+add('createUserInterruptionMessage', 'deadline', () =>
+  M.createUserInterruptionMessage({ reason: { code: 'DEADLINE_EXCEEDED' } }),
 );
 add('turnCutOf', 'operator', () =>
   [undefined, null, 'interrupt', 'crew-stop', 'user-skip', 'user-retry', { name: 'AbortError', message: 'This operation was aborted' }].map(r => M.turnCutOf(r)),
 );
 add('turnCutOf', 'typed', () =>
   [
-    'stalled',
-    'workflow-abort',
-    'terminal-400',
+    { code: 'DEADLINE_EXCEEDED' },
     new Error('the retry budget is spent'),
     { name: 'DeadlineExceededError', message: 'sub-agent scout (a1): no progress for 15m' },
     { code: 'DEADLINE_EXCEEDED', message: 'unattended turn: no progress for 30m' },

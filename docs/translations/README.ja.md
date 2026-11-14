@@ -179,7 +179,7 @@ echo 'export PATH="$HOME/.mercury/bin:$PATH"' >> ~/.zshrc
 
 - **New Session in \<folder\>** 現在のフォルダーで新しいセッションを開始します。
 - **Continue Last Session** 直近のチャットに戻ります。
-- **Boot Menu** 今後のセッションを設定します。モーション、crewmate、ワークフローの設定を含みます。
+- **Boot Menu** 今後のセッションを設定します。モーションと crewmate の設定を含みます。
 - **MCPs & Skills** 次のセッションで読み込む内容を選びます。[docs/KIT.md](../KIT.md) を参照してください。
 - **Agents** エージェントを作成し、編集します。
 - **Health Check** インストールを確認します。
@@ -190,11 +190,11 @@ echo 'export PATH="$HOME/.mercury/bin:$PATH"' >> ~/.zshrc
 
 メニュー項目はホーム画面の上に開き、`Esc` で選択していた項目に戻ります。セッション一覧は別の画面で開き、`Shift+→` でも開けます。プロンプトの引数、`--continue`、`--resume` を指定すると、直接チャットに入ります。
 
-### モーション、crewmate、ワークフロー
+### モーションと crewmate
 
 Boot Menu の Performance セクションには Motion の設定があり、`auto`、`full`、`reduced`、`off` から選べます。インターフェースでのアイドル時のアニメーションを制御し、`/config` でも設定できます。
 
-Agents の下にある Crewmates と Workflows のスイッチは、新しいセッションで Crewmate と Workflow のツールを使えるかどうかを決めます。スイッチを切ると対応するツールは削除され、その種類の作業を開始しようとすると同じ説明が返されます。セッション内では、`/crewmates on|off` と `/workflows on|off` で、次のターンの区切りから設定を変更できます。
+Agents の下にある Crewmates のスイッチは、新しいセッションで Crewmate のツールを使えるかどうかを決めます。スイッチを切るとこのツールは削除され、その種類の作業を開始しようとすると同じ説明が返されます。セッション内では、`/crewmates on|off` で、次のターンの区切りから設定を変更できます。
 
 ## 日常の作業の流れ: Session Concourse、git ワークツリー、crewmate
 
@@ -372,7 +372,7 @@ docker run --rm mercury --version
 - **Mneme ハイブリッド RAG プロジェクトメモリ。** Mneme はデフォルトで有効で、各プロジェクトの事実をプレーンな Markdown のトピックページに保存します（`Retain`、`Recall`、`Reflect`、`Correct`）。Recall は、デバイス上で動作する 118 MB の BGE セマンティック埋め込みモデル（`bge-base-en-v1.5` `q8_0`、MIT ライセンス。すべてのリリースアーカイブに同梱され、各プラットフォーム向けにビルドされています。[オプションのコンポーネント](#オプションのコンポーネント)を参照）と、語幹処理を施した BM25 の単語ランキング、新しさによる重み付け、そして相互ランク融合（`k = 60`）による引用の追跡を組み合わせます。ピン留めされたルール（`pin: true`）は、ピン留め棚に原文のまま読み込まれ、あなたの指示によってのみ変更されます。セッション開始時、Mercury は、ピン留めされていない事実と以前のメモを、現在のブランチ、最近触れられたファイル、前回セッションの引き継ぎメモと照らして採点します。その際、起動時専用の割り当て（`memory.startLimit`、既定値は 4,000 文字）の範囲内で行います。書き込み時の矛盾チェックは、矛盾する事実を保存する前に、極性、否定、数値の反転を検出します。各セッションは終了時に、次のセッションの入口ページ向けの引き継ぎメモを自分の言葉で書き、さらに任意でセッションのジャーナルの項目も書きます。`/memory` はメモリセンターを開き、`/memory page` は、ライブラリをブラウザーでノードと辺のグラフとして描画します。[docs/MNEME.md](../MNEME.md) を参照してください。
 - **LSP によるコードインテリジェンス、23 言語の AST 書き換え、DAP デバッガー、`Eval` セル。** アンカー付きの読み取りと、アトミックな複数ファイル編集（`ChangeSet`）。言語サーバーへの問い合わせ（`LspRead`）と、プレビューしてから適用するリファクタリング（`LspRename`、`LspMoveSymbol`、`LspMoveFile`、`LspCodeAction`、`LspFormat`）。構文木の検索と書き換え（`AstSearch`、`AstEdit`）では、`$NAME` と `$$$NAME` のメタ変数をリリースアーカイブ内の 23 種類の文法（すべての `bun install` ビルドに含まれる 16 種類と、文法パックに含まれる 7 種類）にわたって使えます。永続化される Python（`python3`）と JavaScript（Node の ES モジュール）のコードセル（`Eval`）。そして Debug Adapter Protocol デバッガー（`Debug`）があり、`debugpy`、`js-debug`、`lldb`、`gdb`、`dlv`、`netcoredbg`、`rdbg`、Dart SDK のデバッグアダプター、`kotlin-debug-adapter`、elixir-ls のデバッグアダプター、Godot を動かします。`Test` ツールの `debug` 操作では、失敗した Python（`pytest`、`unittest`）、JavaScript/TypeScript（`node-test`、`vitest`、`jest`）、Go（`go test`）、Rust（`cargo test`）のテストを、そのまま `Debug` セッションにステップ実行できます。[docs/LANGUAGE-SERVICE.md](../LANGUAGE-SERVICE.md)、[変更トランザクション](../CHANGE-TRANSACTIONS.md)、[構造パターン](../STRUCTURAL-PATTERNS.md)、[コードセル](../EVAL.md)、[デバッガー](../DEBUGGER.md)を参照してください。
 - **キー不要の `WebSearch` と Markdown 形式の `WebFetch`。** `WebSearch` は次の順序で検索を試みます。セッションのモデルが対応していれば、まずプロバイダーがネイティブに提供するライブ検索（`ProviderSearch`）を使い、次に保存済みの Brave または Tavily のキー、続いてクエリの形式に応じて選ばれる公式 API（Stack Exchange、npm、PyPI、crates.io、GitHub のコード検索、Hacker News Algolia、Wikipedia）、その後に設定済みの SearXNG JSON API（`MERCURY_SEARCH_SEARXNG_INSTANCES`）、最後にキー不要の DuckDuckGo によるページ取得です（既定で有効です。`/config` で、または `MERCURY_SEARCH_KEYLESS=0` を設定して無効にできます）。どの回答も 2,000 トークン未満に収まり、回答したソースが示されます。`WebFetch` は、38,000 文字の呼び出し予算の範囲内で、公開ページをページ自身の文面のまま Markdown として読み取ります（ブラウザーが必要なページは、ホストされたリーダー `r.jina.ai` を通じて読み取られます。ただし `MERCURY_FETCH_READER=0` が設定されている場合を除きます。プライベートネットワークのアドレスが送信されることは決してありません）。[docs/ENGINES.md](../ENGINES.md) を参照してください。
-- **エージェント、プロバイダーをまたぐ crewmate（`Crewmate`）、ワークツリー、ファイルリース。** 組み込みのエージェントは 2 つあります。`mercury-crew` はあらゆる種類の委任作業向け、`mercury-scout` は読み取り専用の調査向けです。これらは、`/agents` で作成したエージェント定義と並んで存在します。サインイン済みの任意のプロバイダーで crewmate を起動し、並列の作業を `git worktree` のチェックアウト（`isolation: "worktree"`）で分離し、プロセス内のプロジェクトファイルリース（`mcp__mercury__lease_take`、`mcp__mercury__lease_release`、`mcp__mercury__lease_list`）で共有ファイルを調整できます。また、`SendMessage` と `ResumeCrewmate` を使って、名前または ID で crewmate に指示したり再開したりできます。crewmate とワークフローの実行は、`/crewmates` と `/runs` で追跡できます。[docs/CREW.md](../CREW.md) を参照してください。
+- **エージェント、プロバイダーをまたぐ crewmate（`Crewmate`）、ワークツリー、ファイルリース。** 組み込みのエージェントは 2 つあります。`mercury-crew` はあらゆる種類の委任作業向け、`mercury-scout` は読み取り専用の調査向けです。これらは、`/agents` で作成したエージェント定義と並んで存在します。サインイン済みの任意のプロバイダーで crewmate を起動し、並列の作業を `git worktree` のチェックアウト（`isolation: "worktree"`）で分離し、プロセス内のプロジェクトファイルリース（`mcp__mercury__lease_take`、`mcp__mercury__lease_release`、`mcp__mercury__lease_list`）で共有ファイルを調整できます。また、`SendMessage` と `ResumeCrewmate` を使って、名前または ID で crewmate に指示したり再開したりできます。crewmate は、`/crewmates` と `/runs` で追跡できます。[docs/CREW.md](../CREW.md) を参照してください。
 - **デスクトップのコンピューター操作。** ネイティブのデスクトップドライバーが利用可能な場合は、既定で有効です。`Computer` ツールは、スクリーンショットを取得し、前面のアプリケーションでマウスとキーボードを操作します。Mercury は、操作の前にアプリケーションの名前と ID を確認します。権限ルール、セッションの許可、アクセス設定、権限モードでその操作がすでに許可されていない限り、承認を求めます。`Esc` で停止でき、同時にデスクトップを操作できるのは 1 つのセッションだけです。スクリーンショットは、保存された会話ファイルには残しません。ツールを削除するには `MERCURY_COMPUTER_USE=0` を設定します。[docs/COMPUTER-USE.md](../COMPUTER-USE.md) を参照してください。
 - **デバイス上の Whisper 音声入力（`/voice`）。** `/voice on` を実行すると、初回使用時に 60 MB の英語音声モデル（`base.en-q5_1`）がダウンロードされ、SHA-256 のダイジェストが検証されて、音声入力が有効になります。`/voice off` で無効になります。スペースキーを 1 秒間押し続けると話し始め、離すと停止します。音声がオンのときに引数なしの `/voice` を実行すると、録音（take）の開始と停止を切り替えられます。Whisper はデバイス上で文字起こしを行うため、音声データがマシンの外に出ることはありません。`MERCURY_WHISPER_MODEL` で、`tiny.en-q5_1`、`small.en-q5_1`、多言語の `base-q5_1`、またはローカルの `.gguf` ファイルを選べます。[docs/VOICE.md](../VOICE.md) を参照してください。
 - **Saturn の cron とセッションスケジューラー（`/saturn`）。** 既存のセッション向けにプロンプトをスケジュールする（`CronCreate`、`CronList`、`CronDelete`、`ScheduleWakeup`、`/loop`）か、新しいセッションを指定の時刻に開始するようスケジュールします。スケジュールは 1 回だけ実行することも、繰り返し実行することもできます。[docs/SATURN.md](../SATURN.md) を参照してください。
@@ -393,7 +393,7 @@ docker run --rm mercury --version
 | 分類 | コマンド |
 | --- | --- |
 | current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
-| crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
+| crew & delegation | `/agents` `/crewmates` `/crew` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
 | model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |

@@ -21,7 +21,6 @@
 # gate-watch: src/state/crewLedger.ts
 # gate-watch: src/query.ts src/rows/turn.ts src/cli/headless/turnDriver.ts
 # gate-watch: src/screens/Chat.tsx src/components/messages/TranscriptNameplate.tsx src/utils/staticRender.tsx
-# gate-watch: src/tools/WorkflowTool/runControl.ts src/tools/WorkflowTool/WorkflowTool.tsx
 # gate-watch: src/components/messages/UserAgentNotificationMessage.tsx src/fabric/entryCodec.ts
 # gate-watch: src/fabric/ordinal.ts src/hooks/useCancelRequest.ts src/input-core/command-queue.ts
 # gate-watch: src/cli/headless/restartCarry.ts src/components/MessageSelector.tsx src/components/messages/UserTextMessage.tsx src/utils/sessionStorage/chain.ts
@@ -34,7 +33,7 @@
 # gate-watch: src/services/resources/adapters/transcript.ts src/services/resources/contracts.ts
 # gate-watch: src/state/AppStateStore.ts src/state/crewLedger.ts src/substrate/flagRegistry.ts src/substrate/storeRecovery.ts
 # gate-watch: src/tasks.ts src/tasks/LocalAgentTask/* src/tasks/LocalMainSessionTask.ts
-# gate-watch: src/tasks/LocalWorkflowTask/LocalWorkflowTask.tsx src/tasks/stopTask.ts src/tools/AgentTool/*
+# gate-watch: src/tasks/stopTask.ts src/tools/AgentTool/*
 # gate-watch: src/tools/AgentTool/built-in/mercuryCrewAgent.ts
 # gate-watch: src/types/ids.ts src/utils/*
 # gate-watch: src/utils/accounts/signInLedger.ts src/utils/attachments/orchestrator.ts

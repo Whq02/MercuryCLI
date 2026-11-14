@@ -75,32 +75,6 @@ export type WebSearchProgress =
     }
 
 
-export type SdkWorkflowProgress =
-  | { type: 'workflow_log'; message: string }
-  | {
-      type: 'workflow_phase'
-      index: number
-      title: string
-      kind?: 'phase' | 'child'
-    }
-  | {
-      type: 'workflow_agent'
-      index: number
-      label: string
-      state: 'start' | 'progress' | 'done' | 'error' | 'stopped' | 'skipped'
-      phaseIndex?: number
-      phaseTitle?: string
-      tokens?: number
-      toolCalls?: number
-      durationMs?: number
-      error?: string
-      cached?: boolean
-      [k: string]: unknown
-    }
-
-
-
-
 export type EvalToolProgress =
   | {
       type: 'eval_progress'

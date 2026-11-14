@@ -41,8 +41,8 @@ const baseAnswer = {
 }
 const t0 = Date.now()
 const running = [
-  { id: 'wf', kind: 'workflow' as const, name: 'probe', status: 'running', startTime: t0, workflowRunId: 'r', agentCount: 1, pendingAsks: 1 },
-  { id: 'a1', kind: 'agent' as const, name: 'helper', status: 'running', startTime: t0 },
+  { id: 'sh', kind: 'shell' as const, name: 'probe', status: 'running', startTime: t0 },
+  { id: 'a1', kind: 'agent' as const, name: 'helper', status: 'running', startTime: t0, pendingAsks: 1 },
   { id: 'a2', kind: 'agent' as const, name: 'nested', status: 'running', startTime: t0 },
   { id: 'old', kind: 'agent' as const, name: 'done', status: 'completed', startTime: t0 },
 ]
@@ -51,7 +51,7 @@ const publish = (work: typeof running | [], atMs = Date.now()): void =>
 
 console.log('— K1 the derive —')
 {
-  check('K1 the chip text speaks the board vocabulary', tiles.workChipTextOf({ work: running as never }) === '1 workflow · 2 crewmates · 1 ask running', tiles.workChipTextOf({ work: running as never }) ?? 'null')
+  check('K1 the chip text speaks the board vocabulary', tiles.workChipTextOf({ work: running as never }) === '2 crewmates · 1 shell · 1 ask running', tiles.workChipTextOf({ work: running as never }) ?? 'null')
   check('K1 a session running nothing has NO chip', tiles.workChipTextOf({ work: [] }) === null && tiles.workChipTextOf(null) === null)
   check('K1 a facts answer with NO work (the skeleton before the runner\'s first answer) paints the unknown mark, never silence read as idle', tiles.workChipTextOf({}) === '—')
   check('K1 a settled-only roster has NO chip', tiles.workChipTextOf({ work: [running[3]!] as never }) === null)
@@ -69,7 +69,7 @@ console.log('— K2/K3 the feed —')
   await wait(400)
   store._drainForTesting()
   const first = store.readTile(SID)
-  check('K2 a publish with work paints the chip', first.kind !== 'still' && (first as { line: string }).line === '1 workflow · 2 crewmates · 1 ask running', JSON.stringify(first))
+  check('K2 a publish with work paints the chip', first.kind !== 'still' && (first as { line: string }).line === '2 crewmates · 1 shell · 1 ask running', JSON.stringify(first))
   check('K2 …and the listener heard it once', pings === 1, `pings=${pings}`)
 
   publish(running, now + 500)

@@ -143,7 +143,7 @@ for (const [cols, rows] of SIZES) {
       check(`${cols}x${rows}: the pane's bottom border is one whole row`, paneBottom > boxBottom, `row ${paneBottom}`)
       const edges = chatFull.slice(1, paneBottom).map((r, i) => [i + 1, r[cols - 1]] as const).filter(([, ch]) => ch !== '│')
       check(`${cols}x${rows}: every pane row between the borders ends with the pane's right edge (no tail shifted off its row)`, edges.length === 0, `rows ${edges.map(([i, ch]) => `${i}:${JSON.stringify(ch)}`).join(' ')}`)
-      check(`${cols}x${rows}: the hint row is whole on one row`, chat.some(r => r.includes('❯ ↵ sends  ·  /workflows /crewmates /saturn /health /trace')), chat.filter(r => r.includes('sends')).join(' | '))
+      check(`${cols}x${rows}: the hint row is whole on one row`, chat.some(r => r.includes('❯ ↵ sends  ·  /crewmates /saturn /health /trace')), chat.filter(r => r.includes('sends')).join(' | '))
       check(`${cols}x${rows}: the model row names the model`, chat.some(r => /│\s+model\s+Opus 5\.5/.test(r)), chat.filter(r => r.includes('model')).join(' | '))
       check(`${cols}x${rows}: the memory row says what rode at start and that Recall finds the rest`, chat.some(r => /│\s+memory\s+1 of 1 earlier note rode at start; Recall finds the rest/.test(r)), chat.filter(r => r.includes('memory')).join(' | '))
       const recent = chat.filter(r => /^\s+○ /.test(r))

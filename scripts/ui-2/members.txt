@@ -6,4 +6,3 @@ prove-feel-journey.ts
 prove-latency-receipts.ts
 prove-vshot-ready.ts
 prove-vshot-send-hygiene.ts
-prove-workflow-inline.ts

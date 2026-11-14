@@ -38,7 +38,7 @@ interface StopEvaluationInput {
     priorEvidenceDemands?: number
   } | null
   pendingIdeFeedback: boolean
-  surface?: 'interactive' | 'print' | 'sdk' | 'worker' | 'workflow' | 'external'
+  surface?: 'interactive' | 'print' | 'sdk' | 'worker' | 'external'
   terminalPolicy?: 'operator-led' | 'one-shot' | 'client-led' | 'mission-led'
 }
 

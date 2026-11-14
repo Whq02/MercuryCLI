@@ -6,7 +6,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { SEND_MESSAGE_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
 import { renderToolResultMessage, renderToolUseMessage } from './UI.js'
-import { endedWords, mapMessageResult, messageNoticeFor, messageWorkflowWorker, resolveCrewAddress, selfAddressRefusalText, senderAgentTask, unknownAgentRefusal, validateCrewMessage, type CrewMessageInput, type MessageOutput } from './crewAddress.js'
+import { endedWords, mapMessageResult, messageNoticeFor, resolveCrewAddress, selfAddressRefusalText, senderAgentTask, unknownAgentRefusal, validateCrewMessage, type CrewMessageInput, type MessageOutput } from './crewAddress.js'
 
 export type SendMessageToolOutput = MessageOutput
 export type Input = CrewMessageInput
@@ -51,8 +51,6 @@ export const SendMessageTool = buildTool({
       queuePendingMessage(address.agentId, messageNoticeFor(address.agentId, input.message, context), context.setAppStateForTasks ?? context.setAppState, { preservePause: swarmRoad(address.agentId) || swarmRoad(context.agentId) })
       return { data: { success: true, message: `Delivered to ${address.who}; it reads it at its next tool boundary.` } }
     }
-    const workflow = await messageWorkflowWorker(address, input.message)
-    if (workflow !== undefined) return { data: workflow }
     if (address.task === undefined && address.transcriptPath === null) return { data: { success: false, message: `Crewmate ${address.who}: no running task by that id in this session and no transcript on disk — the crewmate may belong to another process, or its record was cleaned up. Address a live crewmate by the id its launch receipt names, or by the name its launch gave it.` } }
     return { data: { success: false, message: `Not delivered: ${address.who} has ${await endedWords(address)}, so no turn of it is running to read a message. To give it this message as a new turn, call ResumeCrewmate with the same to and message.` } }
   },

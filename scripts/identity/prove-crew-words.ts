@@ -16,7 +16,6 @@ const NOT_THE_CREW: Array<[RegExp, string]> = [
   [new RegExp(J('\\bred[ -]', 'team', '\\b'), 'i'), 'the adversarial verb'],
 ]
 
-const WORKFLOW_HOME = 'src/tools/WorkflowTool/'
 const OLD_TRANSCRIPT_RENDERERS = [
   'src/components/messages/UserCrewmateMessage.tsx',
   'src/components/messages/AttachmentMessage.tsx',
@@ -224,7 +223,6 @@ const hits: Hit[] = []
 let scanned = 0
 for (const full of files) {
   const rel = relative(ROOT, full).split('\\').join('/')
-  if (rel.startsWith(WORKFLOW_HOME)) continue
   if (OLD_TRANSCRIPT_RENDERERS.includes(rel)) continue
   scanned++
   const source = readFileSync(full, 'utf8')
@@ -238,7 +236,7 @@ const unallowed = hits.filter(h => h.allowed === null)
 const allowed = hits.filter(h => h.allowed !== null)
 console.log(`  scanned ${scanned} files; ${hits.length} strings say the word, ${allowed.length} of them under a named reason`)
 check(
-  'no product string says team or teammate outside the workflow files and the old-transcript renderers',
+  'no product string says team or teammate outside the old-transcript renderers',
   unallowed.length === 0,
   `${unallowed.length} found:` + unallowed.slice(0, 80).map(h => `\n      ${h.rel}:${h.line} ${h.text.slice(0, 110)}`).join('') + (unallowed.length > 80 ? `\n      … and ${unallowed.length - 80} more` : ''),
 )

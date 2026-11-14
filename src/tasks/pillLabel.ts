@@ -23,8 +23,6 @@ export function getPillLabel(tasks: BackgroundTaskState[]): string {
       return `${tasks.length} local ${plural(tasks.length, 'crewmate')}`
     case 'remote_agent':
       return `${DIAMOND_OPEN} ${tasks.length} cloud ${plural(tasks.length, 'session')}`
-    case 'local_workflow':
-      return `${tasks.length} background ${plural(tasks.length, 'workflow')}`
     case 'monitor_mcp':
       return `${tasks.length} ${plural(tasks.length, 'monitor')}`
     default:

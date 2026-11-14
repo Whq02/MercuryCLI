@@ -87,13 +87,13 @@ const surfaces = dumpArtifact()
 const byName = new Map(surfaces.map(s => [s.name, s]))
 
 {
-  const PURGED = ['mode', 'rooms', 'chronicle', 'tree', 'roster', 'queue', 'degraded', 'states', 'tiers', 'hud', 'parity', 'map', 'control', 'orch']
+  const PURGED = ['mode', 'rooms', 'chronicle', 'tree', 'roster', 'queue', 'degraded', 'states', 'tiers', 'hud', 'parity', 'map', 'control', 'orch', 'workflows']
   const revenants = PURGED.filter(n => byName.has(n))
   check('the purged routes are ABSENT as command names', revenants.length === 0, revenants.join(', '))
   check("'chronicle' is a /memory alias in the artifact", byName.get('memory')?.aliases.includes('chronicle') === true)
   check("'tasks' is a /runs alias in the artifact", byName.get('runs')?.aliases.includes('tasks') === true)
 
-  const LIVE = ['sessions', 'crewmates', 'memory', 'model', 'help', 'palette', 'usage', 'health', 'capabilities', 'runs', 'workflows', 'agents', 'diff']
+  const LIVE = ['sessions', 'crewmates', 'memory', 'model', 'help', 'palette', 'usage', 'health', 'capabilities', 'runs', 'agents', 'diff']
   const missing = LIVE.filter(n => {
     const s = byName.get(n)
     return !s || !s.enabled || s.visibility !== 'normal'

@@ -235,7 +235,6 @@ src/tools/ToolSearchTool/ToolSearchTool.ts :: getToolDescriptionMemoized :: keye
 src/tools/ToolSearchTool/cooccurPrior.ts :: tableCache :: static-for-process
 src/tools/WebFetchTool/fetchTransport.ts :: robotsCache :: ttl-bounded
 src/tools/WebFetchTool/utils.ts :: urlCache :: ttl-bounded
-src/tools/WorkflowTool/runManifest.ts :: manifestParseCache :: keyed-by-truth
 src/utils/Shell.ts :: getPsProvider :: static-for-process
 src/utils/Shell.ts :: getShellConfig :: static-for-process
 src/utils/accounts/accountIdentity.ts :: cache :: ttl-bounded

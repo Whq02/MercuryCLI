@@ -3,11 +3,10 @@ WORKBENCH               │                                                     
   no prompts sent yet   │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
                         │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
 NEXT                    │ │ project · 84 settings · 2 set by you                                                     │ │
-  · /workflows…         │ │                                                                                          │ │
-  · /health — health…   │ │ / theme                                                                                  │ │
-  · /memory — memory    │ │                                                                                          │ │
-  · /mission — set a…   │ │ › Theme                             Oasis dark                                           │ │
-                        │ │                                                                                          │ │
+  · /health — health…   │ │                                                                                          │ │
+  · /memory — memory    │ │ / theme                                                                                  │ │
+  · /mission — set a…   │ │                                                                                          │ │
+                        │ │ › Theme                             Oasis dark                                           │ │
 FILES · project         │ │                                                                                          │ │
   ↵ or click · browse   │ │                                                                                          │ │
                         │ │                                                                                          │ │
@@ -15,6 +14,7 @@ VITALS                  │ │                                                 
   · spend —             │ │                                                                                          │ │
   · ctx — · —           │ │                                                                                          │ │
   · health — run /health│ │                                                                                          │ │
+                        │ │                                                                                          │ │
                         │ │                                                                                          │ │
                         │ │                                                                                          │ │
                         │ │                                                                                          │ │

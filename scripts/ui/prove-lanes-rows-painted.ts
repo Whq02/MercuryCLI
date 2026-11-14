@@ -144,7 +144,7 @@ section('§3 the shed bills the rows it paints: a merged rail whose painted rows
   await settle(400)
   const tall = m.frame()
   const inked = tall.split('\n').filter(l => l.trim() !== '')
-  check('tall: the merged solo rail paints its banner, the WORKBENCH card, the four NEXT hints, FILES and the three-row VITALS glance (14 inked rows) with their flat headers and gaps', tall.includes('WORKBENCH') && tall.includes('NEXT') && tall.includes('FILES') && tall.includes('VITALS') && !tall.includes('RECENT') && inked.length === 14, `${inked.length} inked: ${tall}`)
+  check('tall: the merged solo rail paints its banner, the WORKBENCH card, the three NEXT hints, FILES and the three-row VITALS glance (13 inked rows) with their flat headers and gaps', tall.includes('WORKBENCH') && tall.includes('NEXT') && tall.includes('FILES') && tall.includes('VITALS') && !tall.includes('RECENT') && inked.length === 13, `${inked.length} inked: ${tall}`)
   const glass = 1 + (1 + 2) + (1 + 2) + (1 + 2) + (3 + 2)
   await m.paint(glass)
   const exact = m.frame()

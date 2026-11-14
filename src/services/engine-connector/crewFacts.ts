@@ -302,20 +302,18 @@ export function crewWaitingLine(agents: readonly CrewAgentFacts[]): string | nul
 }
 
 export function crewStillRunningLine(
-  running: number | Pick<WorkCountsV1, 'agents' | 'workflows'>,
+  running: number | Pick<WorkCountsV1, 'agents'>,
 ): string | null {
   const agents = typeof running === 'number' ? running : running.agents
-  const workflows = typeof running === 'number' ? 0 : running.workflows
   const parts: string[] = []
   if (agents > 0) parts.push(`${agents} crewmate${agents === 1 ? '' : 's'} still running — open the crew view (${CREW_VIEW_DOOR}) and press x twice on its row to stop one`)
-  if (workflows > 0) parts.push(`${workflows} workflow run${workflows === 1 ? '' : 's'} still running — see /workflows`)
   return parts.length === 0 ? null : parts.join(' · ')
 }
 
 export type InterruptPressFacts = { interrupting: boolean } | null
 
 export function interruptReceiptLine(
-  running: number | Pick<WorkCountsV1, 'agents' | 'workflows'>,
+  running: number | Pick<WorkCountsV1, 'agents'>,
   press: InterruptPressFacts,
 ): string | null {
   if (press?.interrupting === true) return null

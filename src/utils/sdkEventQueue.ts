@@ -28,7 +28,7 @@ export function drainRows(): RowDraft[] {
   return queue.splice(0, queue.length)
 }
 
-export function emitTaskStarted(facts: { taskId: string; callId?: string; taskType: string; description: string; workflow?: string; prompt?: string }): void {
+export function emitTaskStarted(facts: { taskId: string; callId?: string; taskType: string; description: string; prompt?: string }): void {
   enqueueRow(
     taskRow(
       { session_id: getSessionId() },
@@ -38,7 +38,6 @@ export function emitTaskStarted(facts: { taskId: string; callId?: string; taskTy
         ...(facts.callId !== undefined ? { callId: facts.callId } : {}),
         taskType: facts.taskType,
         description: facts.description,
-        ...(facts.workflow !== undefined ? { workflow: facts.workflow } : {}),
         ...(facts.prompt !== undefined ? { prompt: facts.prompt } : {}),
       },
     ),

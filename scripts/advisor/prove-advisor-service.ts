@@ -214,11 +214,11 @@ section('§0 the settings: off by default, ten minutes, a trim-to-defaults write
   check('the interval words: minutes, one of them singular', advisor.advisorIntervalWords(10) === 'every 10 minutes' && advisor.advisorIntervalWords(1) === 'every 1 minute' && advisor.advisorValueWords({ enabled: true, minutes: 10 }) === 'on · every 10 minutes · /advise turns it on per chat' && advisor.advisorValueWords({ enabled: false, minutes: 10 }) === 'off')
 }
 
-section('§0b seat admission: the main chat follows Advisor; crewmates and workflow agents never get the advisor, whatever the settings say (red on the base: a crewmate opt-in)')
+section('§0b seat admission: the main chat follows Advisor; crewmates never get the advisor, whatever the settings say (red on the base: a crewmate opt-in)')
 {
   for (const enabled of [false, true]) {
     const settings = { enabled, minutes: 1 }
-    for (const seat of ['main', 'crewmate', 'workflow'] as const) {
+    for (const seat of ['main', 'crewmate'] as const) {
       const allowed = enabled && seat === 'main'
       const id = `scope-${seat}-${enabled}`
       const { call, calls } = makeCall(['Check the base before the next edit.'])
@@ -232,7 +232,7 @@ section('§0b seat admission: the main chat follows Advisor; crewmates and workf
       if (!allowed) check(`${id}: refusal opens no advisor context`, advisor.peekAdvisorContext(id) === undefined)
     }
   }
-  check('the refusals name their reason: crewmates and workflow agents are never served, and the settings switch is /config → Advisor', advisor.advisorSeatRefusal('crewmate', { enabled: true, minutes: 1 }, true) === advisor.ADVISOR_CREWMATE_REFUSAL && advisor.ADVISOR_CREWMATE_REFUSAL.includes('not available to crewmates') && advisor.advisorSeatRefusal('workflow', { enabled: true, minutes: 1 }, true) === advisor.ADVISOR_WORKFLOW_REFUSAL && advisor.advisorSeatRefusal('main', { enabled: false, minutes: 1 }, true) === advisor.ADVISOR_SETTINGS_OFF_REFUSAL && advisor.ADVISOR_SETTINGS_OFF_REFUSAL.includes('/config'), j([advisor.ADVISOR_CREWMATE_REFUSAL, advisor.ADVISOR_WORKFLOW_REFUSAL, advisor.ADVISOR_SETTINGS_OFF_REFUSAL]))
+  check('the refusals name their reason: crewmates are never served, and the settings switch is /config → Advisor', advisor.advisorSeatRefusal('crewmate', { enabled: true, minutes: 1 }, true) === advisor.ADVISOR_CREWMATE_REFUSAL && advisor.ADVISOR_CREWMATE_REFUSAL.includes('not available to crewmates') && advisor.advisorSeatRefusal('main', { enabled: false, minutes: 1 }, true) === advisor.ADVISOR_SETTINGS_OFF_REFUSAL && advisor.ADVISOR_SETTINGS_OFF_REFUSAL.includes('/config'), j([advisor.ADVISOR_CREWMATE_REFUSAL, advisor.ADVISOR_SETTINGS_OFF_REFUSAL]))
   advisor.setAdvisorEnabled(true)
   advisor.setAdvisorMinutes(20)
   check('the switch and the interval persist together, nothing else', j(config.getGlobalConfig().advisor) === j({ enabled: true, minutes: 20 }))

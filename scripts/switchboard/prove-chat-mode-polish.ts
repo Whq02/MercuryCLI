@@ -92,7 +92,7 @@ t.section('§E — the boot face per twin: no row in --chat; the live-view door 
 t.section('§F — the sweep: board vocabulary follows the world or falls silent')
 {
   const tips = read('src/services/tips/tipRegistry.ts')
-  t.check('the two board tips (concourse · workflows) stay silent in the plain world; the retired seat-board tip is gone', (tips.match(/async isRelevant\(\) \{\n\s+return !chatOnlyBoot\(\)\n\s+\}/g) ?? []).length === 2 && tips.includes("id: 'concourse-board'") && tips.includes("id: 'workflows-board'") && !tips.includes("id: 'party-seats'") && !tips.includes('/party'))
+  t.check('the board tip (concourse) stays silent in the plain world; the retired seat-board tip is gone', (tips.match(/async isRelevant\(\) \{\n\s+return !chatOnlyBoot\(\)\n\s+\}/g) ?? []).length === 1 && tips.includes("id: 'concourse-board'") && !tips.includes("id: 'party-seats'") && !tips.includes('/party'))
   t.check('the /sessions tip stays in every world (the plain CLI\'s own)', /id: 'sessions-switch',[\s\S]*?async isRelevant\(\) \{\n\s+return true/.test(tips))
   const settings = read('src/components/BootSettingsScreen.tsx')
   t.check("the boot settings' 'o' door names the live view in the plain world (hint and legend)", settings.includes("hint: plainWorld ? 'open the live view' : 'open concourse'") && settings.includes("` · o ${plainWorld ? 'live view' : 'concourse'}`"))
@@ -100,7 +100,6 @@ t.section('§F — the sweep: board vocabulary follows the world or falls silent
   t.check('/concourse\'s description says what the door opens per world, read live', concourseCmd.includes('get description(): string {') && concourseCmd.includes("'Open the live view of your sessions — the concourse is off in this boot'") && concourseCmd.includes("'Open the Session Concourse — the multi-session home board, in place'"))
   const connector = read('src/services/engine-connector/daemonConnector.ts')
   t.check('a refused resume names no concourse (the daemon resumes it; the sentence is the same in both worlds)', connector.includes('`the session could not resume — ${refusal} · ↵ again retries`') && !connector.includes('could not resume on the concourse'))
-  t.check('/tasks\' workflow pointers to the run board fall silent in the plain world', read('src/components/tasks/BackgroundTasksDialog.tsx').includes("work.kind === 'workflow' && !chatOnlyBoot() ? <Text color={tokens.textMuted}>/workflows opens the run board</Text> : null") && read('src/components/tasks/RunDetailPane.tsx').includes("nothing to ${verb}${chatOnlyBoot() ? '' : '; R on the board resumes it'}`") && read('src/components/tasks/RunDetailPane.tsx').includes("nothing to ${verb}${chatOnlyBoot() ? '' : '; R on the board resumes it from disk'}`"))
   t.check('the substrate catalogue lists /trace always-on in every world and names no concourse-only door', read('src/utils/cockpit/substrateSnapshot.ts').includes("{ name: '/trace', on: true, hint: 'always-on' }") && !/name: '[^']*\/(deck|fleet)/.test(read('src/utils/cockpit/substrateSnapshot.ts')))
   const gatedFiles = ['src/components/MercuryFrame.tsx', 'src/components/HelpV2/ShortcutsTab.tsx', 'src/components/BootSplashScreen.tsx', 'src/components/BootSettingsScreen.tsx']
   for (const f of gatedFiles) {

@@ -11,7 +11,7 @@ const { resolveMercuryTokens, contrastRatio } = await import(
   '../../src/utils/mercuryTokens.ts'
 )
 const { TERRA } = await import('../../src/components/mercuryPalette.ts')
-const { OCTOPUS_HUE, JELLYFISH_HUE, CLAM_HUE, EMBER_HUE } = await import(
+const { OCTOPUS_HUE, JELLYFISH_HUE, CLAM_HUE } = await import(
   '../../src/utils/cockpit/critterData.ts'
 )
 
@@ -20,7 +20,6 @@ const ACCENTS: Array<[string, string]> = [
   ['octopus', OCTOPUS_HUE],
   ['jellyfish', JELLYFISH_HUE],
   ['clam', CLAM_HUE],
-  ['furnace-ember', EMBER_HUE],
 ]
 
 const dark = resolveMercuryTokens('dark', TERRA)

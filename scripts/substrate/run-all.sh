@@ -10,7 +10,7 @@
 # gate-watch: src/tools/FileEditTool/constants* src/tools/FileReadTool/prompt*
 # gate-watch: src/tools/FileWriteTool/prompt* src/tools/NotebookEditTool/constants*
 # gate-watch: src/tools/ScheduleCronTool/prompt* src/tools/ToolSearchTool/prompt*
-# gate-watch: src/tools/WorkflowTool/** src/utils/**
+# gate-watch: src/utils/**
 # gate-watch: assets/splash/mercury-splash.mjs assets/splash/splash-core.mjs package.json src/* src/*.ts
 # gate-watch: src/bootstrap/runtime/posture.ts src/cli/run.ts src/cli/update.ts src/commands/daemon/index.ts
 # gate-watch: src/commands/effectiveCatalogue.ts src/commands/feedback/index.ts src/commands/health/index.ts
@@ -25,7 +25,7 @@
 # gate-watch: src/services/providers/deferralWire.ts src/services/providers/routeLaw.ts
 # gate-watch: src/services/run/resolveOwner.ts src/services/switchboard/hopIntoSession.ts
 # gate-watch: src/services/workbench/projection.ts src/state/vitalsBus.ts
-# gate-watch: src/tasks/LocalWorkflowTask/LocalWorkflowTask.tsx src/tools/BashTool/BashTool.tsx
+# gate-watch: src/tools/BashTool/BashTool.tsx
 # gate-watch: src/tools/LSPTool/LSPTool.ts src/tools/ScheduleWakeupTool/prompt.ts
 # gate-watch: src/tools/SendMessageTool/SendMessageTool.ts
 # gate-watch: src/chatLauncher.tsx

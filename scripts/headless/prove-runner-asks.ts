@@ -249,7 +249,7 @@ section('R6 — a host deny with stop aborts the parent turn controller')
 section('R7 — parent cuts preserve the typed cause and withdraw the ask')
 for (const [name, reason, cause] of [
   ['deadline', new DeadlineExceededError('unattended turn', 20 * 60_000, 20 * 60_000 + 40_000, 46796), "nobody answered within 20m, the turn's no-progress limit"],
-  ['stalled', 'stalled', "nobody answered before the turn's no-progress timeout"],
+  ['a deadline that carries no limit', { code: 'DEADLINE_EXCEEDED' }, "nobody answered before the turn's no-progress timeout"],
   ['interrupt', 'interrupt', undefined],
   ['bare abort', undefined, undefined],
 ] as const) {

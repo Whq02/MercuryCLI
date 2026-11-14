@@ -56,13 +56,13 @@ function baseInputs(): WorkbenchSourceInputs {
         outputRef: 'mercury://task/task-mate',
       },
       {
-        id: 'task-wf',
-        kind: 'workflow-worker',
+        id: 'task-job',
+        kind: 'background-job',
         label: 'sweep flaky tests',
         state: 'running',
         updatedAt: now - 3000,
-        metadata: { taskType: 'local_workflow' },
-        outputRef: 'mercury://task/task-wf',
+        metadata: { taskType: 'local_bash' },
+        outputRef: 'mercury://task/task-job',
       },
       {
         id: 'task-done',
@@ -117,7 +117,6 @@ function baseInputs(): WorkbenchSourceInputs {
       ],
       ['task-mate', { blocker: 'a question is waiting' }],
     ]),
-    workflowsDisk: [{ runId: 'wf-9', status: 'running', agentCount: 3 }],
     crew: null,
     artifacts: [],
     gitWorktreeLanes: [],
@@ -142,8 +141,8 @@ section('(1) pure derivation — one root + three live children, owner-true rows
   const mate = snap.threads.find(t => t.id === 'task-mate')
   check('the agent thread keeps its agent kind', mate?.kind === 'agent')
   check('crewmate blocker surfaces from the run kernel', mate?.blocker === 'a question is waiting')
-  const wf = snap.threads.find(t => t.id === 'task-wf')
-  check('workflow row: kind workflow', wf?.kind === 'workflow')
+  const job = snap.threads.find(t => t.id === 'task-job')
+  check('background job row: kind job', job?.kind === 'job')
   check('no seat threads derive post-room (ratchet)', snap.threads.every(t => t.kind !== 'seat'))
   const sources = snap.lanes.map(l => l.source).sort()
   check(

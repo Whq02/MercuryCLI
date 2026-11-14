@@ -78,10 +78,6 @@ export function getAgentMetadataPath(agentId: AgentId): string {
   return transcript.replace(/\.jsonl$/, '.meta.json')
 }
 
-export function getWorkflowTranscriptDir(runId: string): string {
-  return join(currentSubagents(), 'workflows', runId)
-}
-
 export type AgentMetadata = {
   agentType: string
   swarm?: boolean

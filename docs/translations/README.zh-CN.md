@@ -179,7 +179,7 @@ echo 'export PATH="$HOME/.mercury/bin:$PATH"' >> ~/.zshrc
 
 - **New Session in \<folder\>** 在当前文件夹中启动一个新会话。
 - **Continue Last Session** 返回最近的一次对话。
-- **Boot Menu** 用于配置之后的会话，包括动效、crewmate 和工作流。
+- **Boot Menu** 用于配置之后的会话，包括动效和 crewmate。
 - **MCPs & Skills** 选择下一个会话要加载的内容。参见 [docs/KIT.md](../KIT.md)。
 - **Agents** 用于创建和编辑智能体。
 - **Health Check** 检查安装状态。
@@ -190,11 +190,11 @@ echo 'export PATH="$HOME/.mercury/bin:$PATH"' >> ~/.zshrc
 
 菜单项会覆盖在首页之上打开，按 `Esc` 可返回你刚才选择的菜单项。会话列表在单独的界面中打开，也可以按 `Shift+→` 打开。若带有提示词参数，或使用 `--continue` 或 `--resume`，则会直接进入对话。
 
-### 动效、crewmate 与工作流
+### 动效与 crewmate
 
 Boot Menu 的 Performance 区域包含一项 Motion 设置：`auto`、`full`、`reduced` 或 `off`。它控制界面中的空闲动画，也可以在 `/config` 中设置。
 
-在 Agents 下，Crewmates 与 Workflows 两个开关决定新会话能否获得 Crewmate 和 Workflow 工具。关闭某个开关会移除对应的工具；尝试启动该类工作时，将返回相同的说明。在会话中，`/crewmates on|off` 和 `/workflows on|off` 会在下一个轮次边界更改设置。
+在 Agents 下，Crewmates 开关决定新会话能否获得 Crewmate 工具。关闭该开关会移除这一工具；尝试启动该类工作时，将返回相同的说明。在会话中，`/crewmates on|off` 会在下一个轮次边界更改设置。
 
 ## 日常流程：Session Concourse、git 工作树与 crewmate
 
@@ -372,7 +372,7 @@ docker run --rm mercury --version
 - **Mneme 混合 RAG 项目记忆。** Mneme 默认开启，将每个项目的事实保存在纯 Markdown 主题页面中（`Retain`、`Recall`、`Reflect`、`Correct`）。Recall 会融合设备端的 118 MB BGE 语义嵌入模型（`bge-base-en-v1.5` `q8_0`，MIT 许可，随每个发布压缩包内置，并针对其平台构建；参见[可选组件](#可选组件)），以及经词干提取（stemming）的 BM25 词语排序、时效加权，并通过倒数排名融合（reciprocal rank fusion，`k = 60`）进行引用追踪。置顶规则（`pin: true`）会逐字载入置顶区，且只有在你明确要求时才会更改。会话开始时，Mercury 会依据当前分支、最近触碰过的文件以及上一次会话的交接笔记，在专用的启动额度（`memory.startLimit`，默认 4,000 个字符）之内，为未置顶的事实和较早的笔记评分。写入时的矛盾检查会在保存冲突事实之前，识别极性、否定和数字的翻转。每个会话在退出时都会用自己的话写下一份交接笔记，供下一个会话的入口页使用，另外还可以写一条可选的会话日志。`/memory` 会打开记忆中心，`/memory page` 则在浏览器中把记忆库绘制为节点与连线的图谱。参见 [docs/MNEME.md](../MNEME.md)。
 - **LSP 代码智能、23 种语言的 AST 改写、DAP 调试器与 `Eval` 单元格。** 支持带锚点的读取和原子化的多文件编辑（`ChangeSet`）；可进行语言服务器查询（`LspRead`），以及先预览、再应用的重构（`LspRename`、`LspMoveSymbol`、`LspMoveFile`、`LspCodeAction`、`LspFormat`）；语法树搜索与改写（`AstSearch`、`AstEdit`）支持 `$NAME` 和 `$$$NAME` 元变量，覆盖发布压缩包中的 23 种语法（每次 `bun install` 构建包含 16 种，另有 7 种位于语法组件包中）；提供可持久化的 Python（`python3`）与 JavaScript（Node ES 模块）代码单元格（`Eval`）；此外，还有一个 Debug Adapter Protocol 调试器（`Debug`），可驱动 `debugpy`、`js-debug`、`lldb`、`gdb`、`dlv`、`netcoredbg`、`rdbg`、Dart SDK 自带的调试适配器、`kotlin-debug-adapter`、elixir-ls 调试适配器以及 Godot。`Test` 工具的 `debug` 操作，可以直接把失败的 Python（`pytest`、`unittest`）、JavaScript/TypeScript（`node-test`、`vitest`、`jest`）、Go（`go test`）或 Rust（`cargo test`）测试单步调入 `Debug` 会话。参见 [docs/LANGUAGE-SERVICE.md](../LANGUAGE-SERVICE.md)、[变更事务](../CHANGE-TRANSACTIONS.md)、[结构化模式](../STRUCTURAL-PATTERNS.md)、[代码单元格](../EVAL.md) 以及[调试器](../DEBUGGER.md)。
 - **无需密钥的 `WebSearch` 与 Markdown 格式的 `WebFetch`。** `WebSearch` 依次尝试以下途径：若会话模型支持，则优先使用服务商原生的实时搜索（`ProviderSearch`）；然后是已保存的 Brave 或 Tavily 密钥；接着是按查询形式挑选的官方 API（Stack Exchange、npm、PyPI、crates.io、GitHub 代码搜索、Hacker News Algolia、Wikipedia）；再然后是已配置的 SearXNG JSON API（`MERCURY_SEARCH_SEARXNG_INSTANCES`）；最后是无需密钥的 DuckDuckGo 网页抓取（默认开启；可在 `/config` 中关闭，或设置 `MERCURY_SEARCH_KEYLESS=0`）。每个结果都控制在 2,000 个 token 以内，并注明作答的来源。`WebFetch` 会在 38,000 字符的单次调用预算内，以 Markdown 形式读取公开页面并保留页面原文（需要浏览器的页面会通过托管阅读器 `r.jina.ai` 读取，除非设置了 `MERCURY_FETCH_READER=0`；私有网络地址绝不会发送给该阅读器）。参见 [docs/ENGINES.md](../ENGINES.md)。
-- **智能体、跨服务商 crewmate（`Crewmate`）、工作树与文件租约。** 内置两个智能体：`mercury-crew` 用于各类委派工作，`mercury-scout` 用于只读侦察；它们与你在 `/agents` 中创建的智能体定义并存。可以在任何已登录的服务商上启动 crewmate，将并行工作隔离在 `git worktree` 检出副本中（`isolation: "worktree"`），并通过进程内的项目文件租约协调共享文件（`mcp__mercury__lease_take`、`mcp__mercury__lease_release`、`mcp__mercury__lease_list`），还可以借助 `SendMessage` 和 `ResumeCrewmate` 按名称或 ID 引导或恢复 crewmate。在 `/crewmates` 和 `/runs` 中可以跟踪 crewmate 与工作流运行。参见 [docs/CREW.md](../CREW.md)。
+- **智能体、跨服务商 crewmate（`Crewmate`）、工作树与文件租约。** 内置两个智能体：`mercury-crew` 用于各类委派工作，`mercury-scout` 用于只读侦察；它们与你在 `/agents` 中创建的智能体定义并存。可以在任何已登录的服务商上启动 crewmate，将并行工作隔离在 `git worktree` 检出副本中（`isolation: "worktree"`），并通过进程内的项目文件租约协调共享文件（`mcp__mercury__lease_take`、`mcp__mercury__lease_release`、`mcp__mercury__lease_list`），还可以借助 `SendMessage` 和 `ResumeCrewmate` 按名称或 ID 引导或恢复 crewmate。在 `/crewmates` 和 `/runs` 中可以跟踪 crewmate。参见 [docs/CREW.md](../CREW.md)。
 - **桌面计算机操作。** 在原生桌面驱动可用时默认启用。`Computer` 工具会截取屏幕截图，并控制前台应用中的鼠标和键盘。Mercury 在操作之前会按名称和身份核对应用；除非你的权限规则、会话授权、访问设置或权限模式已允许该操作，否则会请求批准；按 `Esc` 即可停止；同一时间只允许一个会话控制桌面；屏幕截图也不会写入已保存的对话文件。设置 `MERCURY_COMPUTER_USE=0` 可移除该工具。参见 [docs/COMPUTER-USE.md](../COMPUTER-USE.md)。
 - **设备端 Whisper 语音输入（`/voice`）。** `/voice on` 会在首次使用时下载 60 MB 的英语语音模型（`base.en-q5_1`），校验其 SHA-256 摘要，并启用听写；`/voice off` 则将其关闭。按住空格键 1 秒后开始说话，松开即停止；或者在语音已开启时直接运行 `/voice`，以开始和停止一段录音（take）。Whisper 在设备端完成转写，语音音频绝不会离开你的机器。`MERCURY_WHISPER_MODEL` 可选择 `tiny.en-q5_1`、`small.en-q5_1`、多语言的 `base-q5_1`，或本地的 `.gguf` 文件。参见 [docs/VOICE.md](../VOICE.md)。
 - **Saturn 定时任务与会话调度器（`/saturn`）。** 可以为现有会话安排提示词（`CronCreate`、`CronList`、`CronDelete`、`ScheduleWakeup`、`/loop`），也可以安排一个新会话在设定时间启动。调度可以只运行一次，也可以周期性重复。参见 [docs/SATURN.md](../SATURN.md)。
@@ -393,7 +393,7 @@ docker run --rm mercury --version
 | 类别 | 命令 |
 | --- | --- |
 | current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
-| crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
+| crew & delegation | `/agents` `/crewmates` `/crew` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` `/restart` |
 | memory & goals | `/memory` `/console` |
 | model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |

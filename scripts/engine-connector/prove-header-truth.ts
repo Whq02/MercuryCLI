@@ -39,25 +39,15 @@ section('§1 the crew\'s clock')
   check('two running agents: the clock counts from the earliest start — "crewmates thought for 28m"', bar.crewClockOf(two, NOW).line === 'crewmates thought for 28m', bar.crewClockOf(two, NOW).line ?? 'null')
   const pending = [row({ id: 'a1', kind: 'agent', status: 'pending', startTime: NOW - 2_000 })]
   check('a pending agent runs (the counting law)', bar.crewActiveIn(pending) && bar.crewClockOf(pending, NOW).line === 'crewmate thought for 2s')
-  const wf = [row({ id: 'w1', kind: 'workflow', status: 'running', startTime: NOW - 12 * M })]
-  check('one running workflow: "workflow thought for 12m"', bar.crewClockOf(wf, NOW).line === 'workflow thought for 12m' && bar.crewActiveIn(wf))
-  const wfs = [row({ id: 'w1', kind: 'workflow', status: 'running', startTime: NOW - 12 * M }), row({ id: 'w2', kind: 'workflow', status: 'pending', startTime: NOW - 2 * M })]
-  check('two workflows: the plural', bar.crewClockOf(wfs, NOW).line === 'workflows thought for 12m')
-  const both = [...two, ...wf]
-  check('both kinds: both sentences, the larger first', bar.crewClockOf(both, NOW).line === 'crewmates thought for 28m · workflow thought for 12m', bar.crewClockOf(both, NOW).line ?? 'null')
-  const bothWfFirst = [...one, ...wf]
-  check('both kinds, the workflow larger: the workflow first', bar.crewClockOf(bothWfFirst, NOW).line === 'workflow thought for 12m · crewmate thought for 5s')
   const settled = [row({ id: 'a1', kind: 'agent', status: 'completed', startTime: NOW - 60_000, endTime: NOW - 32_000 }), row({ id: 'a2', kind: 'agent', status: 'killed', startTime: NOW - 55_000, endTime: NOW - 40_000 })]
   const s = bar.crewClockOf(settled, NOW)
   check('settled agents: no line and nothing active — the row rests on ready once the crew lands', s.line === null && s.active === false, s.line ?? 'null')
   check('a settled crew never ticks or stands as a receipt, however long ago it landed', bar.crewClockOf(settled, NOW + 10 * M).line === null)
   const mixed = [row({ id: 'a1', kind: 'agent', status: 'completed', startTime: NOW - 60 * M, endTime: NOW - 50 * M }), row({ id: 'a2', kind: 'agent', status: 'running', startTime: NOW - 4 * M })]
   check('a running agent beside a settled one: the running clock alone (the settled row waits for its eviction)', bar.crewClockOf(mixed, NOW).line === 'crewmate thought for 4m' && bar.crewActiveIn(mixed))
-  const paused = [row({ id: 'w1', kind: 'workflow', status: 'paused', startTime: NOW - 9 * M })]
-  check('a paused workflow runs nothing (the glyph is still) and paints no clock', bar.crewActiveIn(paused) === false && bar.crewClockOf(paused, NOW).line === null)
   const shells = [row({ id: 's1', kind: 'shell', status: 'running', startTime: NOW - 5 * M }), row({ id: 'm1', kind: 'monitor', status: 'running', startTime: NOW - M })]
   check('shells and monitors are not crew: no line, nothing active', bar.crewClockOf(shells, NOW).line === null && bar.crewActiveIn(shells) === false)
-  for (const [name, rows] of [['none', []], ['one', one], ['both', both], ['settled', settled], ['paused', paused], ['shells', shells]] as const) {
+  for (const [name, rows] of [['none', []], ['one', one], ['two', two], ['settled', settled], ['shells', shells]] as const) {
     check(`crewActiveIn agrees with the clock's own fact (${name})`, bar.crewActiveIn(rows) === bar.crewClockOf(rows, NOW).active)
   }
 }
@@ -84,15 +74,15 @@ section('§2 the row\'s words per state, with and without a crew, at three width
   const wait: SeatStatusV1['wait'] = { kind: 'first-byte', cold: false, promptTokens: 900, model: 'Opus 5', budgetMs: 120_000, sinceMs: NOW - 3_000, attempt: 1 }
   check('the first-byte wait outranks the crew\'s clock, and speaks its budget in minutes', bar.statusLine(live('thinking'), status({ wait }), crew) === 'waiting for the first byte from Opus 5 — within 2m', bar.statusLine(live('thinking'), status({ wait }), crew))
   check('the wait on agents outranks the crew\'s clock (the runner\'s own count words)', bar.statusLine(live('waiting', true, 2), status(), crew) === 'waiting on 2 crewmates')
-  check('the wait on agents by kind outranks the crew\'s clock', bar.statusLine({ ...live('waiting', true, 3), waitingOn: { workflows: 1, agents: 2, shells: 0, asks: 0 } }, status(), crew) === 'waiting on 1 workflow · 2 crewmates')
+  check('the wait on agents by kind outranks the crew\'s clock', bar.statusLine({ ...live('waiting', true, 3), waitingOn: { agents: 2, shells: 1, asks: 0 } }, status(), crew) === 'waiting on 2 crewmates · 1 shell')
   check('the stuck verdict outranks the crew\'s clock', bar.statusLine(live('thinking'), status({ stuck: true, quietMs: 120_000 }), crew) === 'no stream events for 2m — the session may be stuck (the watchdog aborts at 2m)', bar.statusLine(live('thinking'), status({ stuck: true, quietMs: 120_000 }), crew))
   check('the interrupt outranks the crew\'s clock', bar.statusLine(live('thinking'), status({ interrupting: true }), crew) === 'interrupting — the request is torn down')
   check('the second press outranks everything', bar.statusLine(live('thinking'), status({ interrupting: true, hardStopping: true }), crew) === 'interrupting again — the request is torn down once more; x on its row stops the runner')
   const fixed = 2 + stringWidth('a chat') + stringWidth(' · proj') + 3 + 2 + stringWidth('esc interrupts · ⇧← back')
-  const both = 'crewmates thought for 28m · workflow thought for 12m'
+  const clock = 'crewmates thought for 28m'
   for (const cols of [100, 110, 120]) {
-    const fitted = bar.fitStatusLine(both, cols, fixed)
-    check(`${cols} columns: the crew's clock is left whole for the row's own end cut`, fitted === both, fitted)
+    const fitted = bar.fitStatusLine(clock, cols, fixed)
+    check(`${cols} columns: the crew's clock is left whole for the row's own end cut`, fitted === clock, fitted)
     const waitLine = bar.statusLine(live('thinking'), status({ wait: { ...wait, cold: true, promptTokens: 26_000 } }), crew)
     const fittedWait = bar.fitStatusLine(waitLine, cols, fixed)
     check(`${cols} columns: a wait line keeps its budget clause under the cut`, fittedWait.endsWith('within 2m') && stringWidth(fittedWait) <= Math.max(12, cols - fixed), fittedWait)
@@ -123,7 +113,7 @@ section('§4 structure: the clock is gone; the glyph reads the crew')
   check('the receipt slot paints only while a row paints, stands for the composer receipt\'s eight seconds, and clears itself', bar.paintStatusRowReceipt('Effort set to medium for this session') === false && bar.statusRowReceipt() === '' && bar.STATUS_ROW_RECEIPT_MS === 8000 && tag.includes('rowsPainting += 1'))
   check('the row\'s words are statusLine over the crew\'s clock', tag.includes('statusLine(live, status, crew)'))
   check('the row\'s tick is armed only while a sub-agent runs or the runner is still booting (the boot clock)', tag.includes('useNowTick(crewActive || runnerBooting ? 1000 : null)'))
-  check('the crew\'s clock reads the one work-row list and the crew facts owner', tag.includes('useFocusedWorkRows()') && tag.includes('crewAgentsOf(rows, null)') && tag.includes('focusedWorkflowRows(rows)'))
+  check('the crew\'s clock reads the one work-row list and the crew facts owner', tag.includes('useFocusedWorkRows()') && tag.includes('crewAgentsOf(rows, null)'))
   check('the row omits the words\' separator when there are no words', tag.includes("{fitted !== '' ? (") && tag.includes("(restFloor > 0 && head !== '' ? 3 : 0)"))
 }
 

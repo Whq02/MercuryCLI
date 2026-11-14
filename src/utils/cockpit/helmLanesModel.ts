@@ -114,14 +114,12 @@ export function fitPointerRows(text: string, width: number, maxRows: number): st
   }
   return lines.map(line => truncatePointerLine(line, width))
 }
-type RunKind = 'shell' | 'monitor' | 'workflow' | 'cloud' | 'run'
+type RunKind = 'shell' | 'monitor' | 'cloud' | 'run'
 type RunRow = { id: string; title: string; status: TaskStatus; kind: RunKind; startedAtMs: number }
 
 function runKindOf(t: TaskState): RunKind {
   if (isLocalShellTask(t)) return t.kind === 'monitor' ? 'monitor' : 'shell'
   switch (t.type) {
-    case 'local_workflow':
-      return 'workflow'
     case 'remote_agent':
       return 'cloud'
     case 'monitor_mcp':
@@ -183,12 +181,12 @@ function runsOf(tasks: Record<string, TaskState>, roster: Pick<WorkRosterV1, 'ro
     }))
   const localRunIds = new Set(localRuns.map(r => r.id))
   const hostedRuns: RunRow[] = roster.rows
-    .filter(row => !localRunIds.has(row.id) && row.kind !== 'agent' && workRowRuns(row))
+    .filter(row => !localRunIds.has(row.id) && (row.kind === 'shell' || row.kind === 'monitor') && workRowRuns(row))
     .map(row => ({
       id: row.id,
       title: row.name,
       status: row.status === 'pending' ? 'pending' : 'running',
-      kind: row.kind === 'workflow' ? 'workflow' : row.kind === 'monitor' ? 'monitor' : 'shell',
+      kind: row.kind === 'monitor' ? 'monitor' : 'shell',
       startedAtMs: row.startTime,
     }))
   return [...localRuns, ...hostedRuns].sort(
@@ -569,7 +567,6 @@ export function buildLanesModel(input: LanesInput): LanesModel {
   const nextSection = (): LanesSectionSpec | null => {
     if (!solo) return null
     const hints: Array<{ command: string; label: string }> = [
-      { command: '/workflows', label: '/workflows — crewmate runs' },
       { command: '/health', label: '/health — health cert' },
       { command: '/memory', label: '/memory — memory' },
     ]

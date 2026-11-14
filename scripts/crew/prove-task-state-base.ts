@@ -42,7 +42,7 @@ for (const status of ['pending', 'running', 'completed', 'failed', 'killed', '',
 }
 for (const [type, prefix] of [
   ['local_bash', 'b'], ['local_agent', 'a'], ['remote_agent', 'r'],
-  ['local_workflow', 'w'], ['monitor_mcp', 'm'], ['unknown', 'x'],
+  ['monitor_mcp', 'm'], ['unknown', 'x'], ['local_workflow', 'x'],
   ['toString', String(Object.prototype.toString)],
 ] as const) {
   for (let start = 0; start < 256; start += TASK_ID_SUFFIX_LENGTH) {

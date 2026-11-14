@@ -164,10 +164,9 @@ export async function usagePlanWorld() {
   await stub('src/components/tasks/useFocusedWork.ts', {
     useFocusedWorkRows: () => [],
     useFocusedWorkRoster: () => ({ rows: [], mission: [], reported: true }),
-    otherSessionRunnerPids: () => new Set(),
     focusedSessionIdOrNull: () => null,
   })
-  await stub('src/state/vitalsBus.ts', { useVitals: () => ({ trace: null, workflowsDisk: [] }) })
+  await stub('src/state/vitalsBus.ts', { useVitals: () => ({ trace: null }) })
   await stub('src/utils/cockpit/healthCertSnapshot.ts', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
   let size = { columns: 178, rows: 51 }
   await stub('src/hooks/useTerminalSize.ts', { useTerminalSize: () => size })

@@ -16,7 +16,7 @@
 # gate-watch: src/services/providers/openai/*
 # gate-watch: src/services/providers/providerUsage.ts src/services/switchboard/capacityCheck.ts
 # gate-watch: src/state/AppStateStore.ts src/substrate/* src/tasks/LocalAgentTask/agentWait.ts
-# gate-watch: src/tools/WorkflowTool/* src/utils/* src/utils/cockpit/critterData.ts
+# gate-watch: src/utils/* src/utils/cockpit/critterData.ts
 # gate-watch: src/utils/config/globalConfig.ts src/services/providers/modelRegistry.ts
 # gate-watch: src/rows/* src/runner/wire/* src/prompt/mercuryContract.ts
 # gate-watch: scripts/lib/removeScratch.ts

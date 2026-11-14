@@ -66,21 +66,19 @@ async function main(): Promise<void> {
     asst([toolUse('t2', 'Crewmate', { description: 'the probe', prompt: 'probe the world' })]),
   ]
   const readTurn = [{ type: 'user', message: { role: 'user', content: 'read' } }, asst([toolUse('t3', 'Read', { file_path: '/a/live.ts' })])]
-  const workflowTurn = [asst([toolUse('t4', 'Workflow', { description: 'the pipeline' })])]
   const inFlight = new Set(['t2'])
 
   section('W1 the law: a delegation call in flight paints the roster\'s wait words; any other tool keeps its verb')
   {
     check('the pieces exist (delegationWaitWords · activeToolCall · isDelegationToolName)', lawful)
     check('a foreground Crewmate with a crewmate and a shell running reads the background wait\'s words', wait('Crewmate', rows) === WORDS, String(wait('Crewmate', rows)))
-    check('a Workflow call reads its kind', wait('Workflow', [{ id: 'wf-1', kind: 'workflow', name: 'the pipeline', status: 'running', startTime: t0 }]) === 'waiting on 1 workflow', String(wait('Workflow', [])))
     check('a Read in flight paints no wait words (its verb stands)', wait('Read', rows) === null)
     check('no tool in flight paints no wait words', wait(undefined, rows) === null)
     check('a delegation call with nothing running answers null (the verb Waiting stands)', wait('Crewmate', []) === null && wait('Crewmate', landed) === null)
     check('a parked ask rides the words', wait('Crewmate', [{ ...rows[0]!, pendingAsks: 1 }]) === 'waiting on 1 crewmate · 1 ask', String(wait('Crewmate', [{ ...rows[0]!, pendingAsks: 1 }])))
     const active = lawful ? verbs.activeToolCall(crewmateTurn, inFlight) : undefined
     check('the newest in-flight call is the Crewmate (the Read before it settled)', active?.name === 'Crewmate' && active.input?.description === 'the probe', JSON.stringify(active))
-    check('the delegation names: Crewmate and Workflow, nothing else', lawful && verbs.isDelegationToolName('Crewmate') && verbs.isDelegationToolName('Workflow') && !verbs.isDelegationToolName('Read') && !verbs.isDelegationToolName(undefined))
+    check('the delegation name is Crewmate, nothing else', lawful && verbs.isDelegationToolName('Crewmate') && !verbs.isDelegationToolName('Workflow') && !verbs.isDelegationToolName('Read') && !verbs.isDelegationToolName(undefined))
     check('the verb law is unchanged beneath it', verbs.activeToolVerb(crewmateTurn, inFlight) === 'Waiting' && verbs.activeToolVerb(readTurn, new Set(['t3'])) === 'Reading live.ts')
     check('the background wait keeps its own words', bar.waitingStatusWords({ ...IDLE_LIVE, inFlight: true, phase: 'waiting', agentsWaiting: 1, waitingOn: counts.workCounts(rows), inProgressToolUseIDs: new Set<string>(), turnStartedAtMs: t0 }) === WORDS)
   }
@@ -150,9 +148,6 @@ async function main(): Promise<void> {
   const readFrame = await paint({ ...foreground, inProgressToolUseIDs: new Set(['t3']) }, readTurn, rows)
   console.log(`  a Read in flight:      ${JSON.stringify(readFrame.trim())}`)
   check('a Read in flight beside a running shell keeps its own verb', readFrame.includes('Reading live.ts…') && !readFrame.includes('waiting on'), readFrame.trim())
-  const workflowFrame = await paint({ ...foreground, inProgressToolUseIDs: new Set(['t4']) }, workflowTurn, [{ id: 'wf-1', kind: 'workflow', name: 'the pipeline', status: 'running', startTime: t0 }])
-  console.log(`  a Workflow in flight:  ${JSON.stringify(workflowFrame.trim())}`)
-  check('a foreground workflow keeps its tool verb and output count', workflowFrame.includes('…') && workflowFrame.includes('↓ 1.7k') && !workflowFrame.includes('waiting on'), workflowFrame.trim())
 
   section('W3 the wiring: the Chat composes the words as the proof did, over the focused roster')
   {

@@ -26,8 +26,7 @@
         "latency": "interactive",
         "conditions": [
           "an Apollo Mode interview in the main session"
-        ],
-        "workflows": false
+        ]
       }
     },
     {
@@ -2463,39 +2462,6 @@
         "cancellation": "cooperative",
         "latency": "interactive",
         "proof": "scripts/search/run-all.sh"
-      }
-    },
-    {
-      "name": "Workflow",
-      "category": "other",
-      "risk": "medium",
-      "cancellation": "block",
-      "deferred": true,
-      "operations": null,
-      "units": [
-        "task-coordination"
-      ],
-      "proof": "scripts/workflows/run-all.sh",
-      "declared": {
-        "intents": [
-          "orchestrate many crewmates deterministically",
-          "fan out and verify at scale"
-        ],
-        "units": [
-          "task-coordination"
-        ],
-        "class": "coordination",
-        "execution": {
-          "kind": "workflow-worker",
-          "representation": "child-execution"
-        },
-        "resources": [
-          "workflow"
-        ],
-        "cancellation": "cooperative",
-        "latency": "long-running",
-        "gate": "MERCURY_WORKFLOWS",
-        "proof": "scripts/workflows/run-all.sh"
       }
     },
     {

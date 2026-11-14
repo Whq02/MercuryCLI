@@ -329,7 +329,6 @@ section('(7) workbench projection surfaces artifacts + review queue')
     laneRuns: new Map(),
     partySeats: null,
     collab: null,
-    workflowsDisk: [],
     crew: null,
     artifacts: heads.map(h => ({
       id: h.id,

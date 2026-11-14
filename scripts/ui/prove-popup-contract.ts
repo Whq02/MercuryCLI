@@ -834,30 +834,26 @@ setFocusedSessionConnector(originalConnector)
 
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const workbenchRecords = options.map(row => createUserMessage({ content: 'prompt-' + row.value }))
-const workflowRoster = { rows: options.map(row => ({ id: 'workflow-' + row.value, runId: 'workflow-' + row.value, name: 'workflow-' + row.value, kind: 'workflow', status: 'completed', startTime: 1000, endTime: 2000 })), mission: [], samples: [], reported: true }
 setFocusedSessionConnector(new Proxy(originalConnector, { get(target, property) {
-  if (property === 'workRoster') return () => workflowRoster
   if (property === 'records') return () => workbenchRecords
   if (property === 'sessionId') return () => 'fixture-session'
   const value = Reflect.get(target, property)
   return typeof value === 'function' ? value.bind(target) : value
 } }))
 const { PromptsPanel } = await import('../../src/components/prompts-panel/PromptsPanel.tsx')
-const { WorkflowsBoard } = await import('../../src/components/tasks/WorkflowsBoard.tsx')
 for (const cols of [80, 120]) {
-  for (const name of ['workbench', 'workflows']) {
+  for (const name of ['workbench']) {
     let closed = false
-    const body = name === 'workbench' ? h(PromptsPanel, { onClose: () => { closed = true } }) : h(WorkflowsBoard, { onClose: () => { closed = true } })
+    const body = h(PromptsPanel, { onClose: () => { closed = true } })
     const scene = await mount(h(ModalContext.Provider, { value: { rows: 24, columns: cols, scrollRef: null } }, body), cols)
     const focus = () => {
       const line = scene.lines()[scene.cursor().y] ?? ''
-      return line.match(/prompt-\d+|workflow-\d+/)?.[0] ?? ''
+      return line.match(/prompt-\d+/)?.[0] ?? ''
     }
     try {
-      await settledFrame(scene, frame => frame.includes(name === 'workbench' ? 'prompts' : name))
-      if (name === 'workflows') scene.push('2')
+      await settledFrame(scene, frame => frame.includes('prompts'))
       scene.push('\x1b[H')
-      await settledFrame(scene, frame => /prompt-0|workflow-0/.test(frame))
+      await settledFrame(scene, frame => /prompt-0/.test(frame))
       const first = focus()
       scene.push(keys.down)
       check(cols + ' ' + name + ': Down selects a visible row', await waitFor(() => focus() !== first && focus() !== '', 1800), scene.screen())

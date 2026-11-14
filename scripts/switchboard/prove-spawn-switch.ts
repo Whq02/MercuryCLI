@@ -139,22 +139,16 @@ section('§3 the roster — the switches decide which tools the model sees')
 const { getTools } = await import('../../src/tools.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
-const { WorkflowTool } = await import('../../src/tools/WorkflowTool/WorkflowTool.tsx')
 const rosterNames = (): string[] => getTools({ ...getEmptyToolPermissionContext(), mode: 'default' } as never).map(t => t.name)
 {
   sw._resetSpawnSwitchesForTesting()
   const today = rosterNames()
-  check("both on (the default) ⇒ the Crewmate tool and the Workflow tool are in the roster — today's behaviour", today.includes(AgentTool.name) && today.includes(WorkflowTool.name), today.join(','))
+  check("both on (the default) ⇒ the Crewmate tool is in the roster — today's behaviour", today.includes(AgentTool.name), today.join(','))
   sw.setSpawnSwitch('subagents', false)
   const noAgents = rosterNames()
   check('sub-agents off ⇒ the Crewmate tool is absent', !noAgents.includes(AgentTool.name), noAgents.join(','))
-  check('…the Workflow tool stays (its own switch is on)', noAgents.includes(WorkflowTool.name))
   check('…nothing else moved', j(today.filter(n => n !== AgentTool.name)) === j(noAgents))
   sw.setSpawnSwitch('subagents', true)
-  sw.setSpawnSwitch('workflows', false)
-  const noWorkflows = rosterNames()
-  check('workflows off ⇒ the Workflow tool is absent and the Crewmate tool stays', !noWorkflows.includes(WorkflowTool.name) && noWorkflows.includes(AgentTool.name), noWorkflows.join(','))
-  sw.setSpawnSwitch('workflows', true)
   check('both back on ⇒ the roster is today\'s again', j(rosterNames()) === j(today))
 }
 
@@ -169,29 +163,15 @@ section('§4 the spawn roads — every road answers the receipt, and nothing out
   }
   check("the Crewmate tool's call answers the receipt (a stale roster's call never spawns)", agentError === OFF_SUB, agentError)
   sw.setSpawnSwitch('subagents', true)
-  sw.setSpawnSwitch('workflows', false)
-  const validate = (WorkflowTool as unknown as { validateInput?: (input: unknown, ctx: unknown) => Promise<{ result: boolean; message?: string; errorCode?: number }> }).validateInput
-  if (typeof validate === 'function') {
-    const verdict = await validate.call(WorkflowTool, { name: 'probe', script: 'export default async () => {}' }, { abortController: new AbortController() })
-    check("the Workflow tool's validate answers the receipt (error code 7, the launch-authority class)", verdict.result === false && verdict.message === OFF_WF && verdict.errorCode === 7, j(verdict))
-  } else {
-    check('the Workflow tool exposes validateInput', false)
-  }
-  sw.setSpawnSwitch('workflows', true)
   sw._resetSpawnSwitchesForTesting()
 
   const valve = src('src/services/switchboard/launchAuthority.ts')
   check('the valve reads the switch owner first (before the role env)', valve.indexOf('spawnSwitch(kind)') !== -1 && valve.indexOf('spawnSwitch(kind)') < valve.indexOf("flagEnv('MERCURY_CONCOURSE_WORKER')") && valve.includes("cause: 'session-switch'"))
   const agentTool = src('src/tools/AgentTool/AgentTool.tsx')
   check('the Crewmate tool asks the valve at isEnabled and at call time', agentTool.includes("return evaluateLaunchAuthority('subagents').allowed") && agentTool.includes("const authority = evaluateLaunchAuthority('subagents')"))
-  const workflowTool = src('src/tools/WorkflowTool/WorkflowTool.tsx')
-  check('the Workflow tool asks the valve at isEnabled and at validate', workflowTool.includes("evaluateLaunchAuthority('workflows').allowed") && workflowTool.includes("const launchAuthority = evaluateLaunchAuthority('workflows')"))
   const skill = src('src/tools/SkillTool/SkillTool.ts')
   const forkAt = skill.indexOf("if (command.context === 'fork')")
   check('the skill fork asks the valve before runAgent', forkAt !== -1 && skill.indexOf("evaluateLaunchAuthority('subagents')", forkAt) !== -1 && skill.indexOf("evaluateLaunchAuthority('subagents')", forkAt) < skill.indexOf('runAgent({', forkAt))
-  const hooks = src('src/tools/WorkflowTool/agentHooks.ts')
-  const adapterAt = hooks.indexOf('async function* adapterSpawnStream(')
-  check("the workflow's agent hooks ask the valve before runAgent", adapterAt !== -1 && hooks.indexOf("evaluateLaunchAuthority('subagents')", adapterAt) !== -1 && hooks.indexOf("evaluateLaunchAuthority('subagents')", adapterAt) < hooks.indexOf('runAgent({', adapterAt))
   const crew = src('src/components/mercury-ui/screens/CrewView.tsx')
   check('the Crew view has no spawn key of its own (launches come through the Crewmate tool, which asks the valve)', !crew.includes('spawnSwitches()') && !crew.includes("input === 'n'"))
   const boot = src('src/components/BootSettingsScreen.tsx')
@@ -423,7 +403,7 @@ if (!existsSync(DIST)) {
   }
   const common = ['--model', 'claude-opus-4-8']
 
-  section('§8a the wire — born with both switches off, the request carries neither tool')
+  section('§8a the wire — born with both switches off, the request carries no Crewmate tool')
   {
     const turns: ScriptedTurn[] = [{ kind: 'text', text: 'S8A-DONE', thinking: 'born off', inputTransformations: [] }]
     const fixture = await startFixtureApi([handoffTurn(), ...turns])
@@ -433,7 +413,7 @@ if (!existsSync(DIST)) {
     const reqs = fixture.messageRequests().filter(q => !isHandoffRequest(q))
     check('one marked closing ask follows the first turn', j(fixture.messageRequests().map(isHandoffRequest)) === j([false, true]), j(fixture.messageRequests().map(isHandoffRequest)))
     const names = reqs.length > 0 ? toolNames(reqs[0]!.body as Body) : []
-    check('the first request carries no Crewmate tool and no Workflow tool', reqs.length >= 1 && !names.includes(AgentTool.name) && !names.includes(WorkflowTool.name) && names.includes('Read'), names.join(','))
+    check('the first request carries no Crewmate tool', reqs.length >= 1 && !names.includes(AgentTool.name) && names.includes('Read'), names.join(','))
     await fixture.close()
   }
 
@@ -524,26 +504,24 @@ if (!existsSync(DIST)) {
   }
 }
 
-section('§10 the commands — /crewmates and /workflows on|off, the grammar, the no-chat sentence')
+section('§10 the command — /crewmates on|off, the grammar, the no-chat sentence')
 {
   const { default: crewmates } = await import('../../src/commands/crewmates/index.ts')
-  const { default: workflows } = await import('../../src/commands/workflows/index.ts')
   const { COMMAND_DOMAINS } = await import('../../src/components/HelpV2/commandDomains.ts')
   const { runSpawnSwitchCommand } = await import('../../src/commands/crewmates/spawnSwitch.ts')
   const { builtinCommands } = await import('../../src/commands.ts')
   check('/crewmates carries the on|off hint and stays the crew view (one word for one thing: /subagents ceased in .34 — no alias, no refusal line)', crewmates.type === 'local-jsx' && crewmates.name === 'crewmates' && crewmates.argumentHint === '[on|off]' && String(crewmates.description).includes('on or off') && !builtinCommands().some(c => c.name === 'subagents'))
   check('/crewmates is registered in the command table', builtinCommands().some(c => c.name === 'crewmates'))
-  check('/workflows carries the on|off hint and stays the board', workflows.type === 'local-jsx' && workflows.argumentHint === '[on|off]' && String(workflows.description).includes('on|off'))
-  check('/crewmates sits in the crew & delegation domain beside /workflows, and the retired word is gone from it', COMMAND_DOMAINS.find(d => d.key === 'crew')?.names.includes('crewmates') === true && COMMAND_DOMAINS.find(d => d.key === 'crew')?.names.includes('workflows') === true && COMMAND_DOMAINS.find(d => d.key === 'crew')?.names.includes('subagents') !== true)
+  check('/crewmates sits in the crew & delegation domain, and the retired word is gone from it', COMMAND_DOMAINS.find(d => d.key === 'crew')?.names.includes('crewmates') === true && COMMAND_DOMAINS.find(d => d.key === 'crew')?.names.includes('subagents') !== true)
   check('the README roster names /crewmates in crew & delegation and no longer the retired word', /\| crew & delegation \|[^\n]*`\/crewmates`/.test(src('README.md')) && !src('README.md').includes('/subagents'))
   check('the grammar: on · off · empty · junk', j(sw.parseSpawnSwitchArg(' ON ')) === j({ op: 'on' }) && j(sw.parseSpawnSwitchArg('off')) === j({ op: 'off' }) && j(sw.parseSpawnSwitchArg('')) === j({ op: 'show' }) && j(sw.parseSpawnSwitchArg('maybe')) === j({ op: 'unknown', word: 'maybe' }))
-  const usage = await runSpawnSwitchCommand('workflows', 'maybe')
-  check('junk answers the usage line naming the command', usage.startsWith('usage: /workflows on|off'), usage)
+  const usage = await runSpawnSwitchCommand('subagents', 'maybe')
+  check('junk answers the usage line naming the command', usage.startsWith('usage: /crewmates on|off'), usage)
   const noChat = await runSpawnSwitchCommand('subagents', 'off')
   check('no chat open ⇒ the one sentence naming the focused session and the menu', noChat.includes('no chat is open') && noChat.includes("the boot menu's Agents section"), noChat)
-  check('the workflows board and the crew view branch on the argument through the same body', src('src/commands/workflows/workflows.tsx').includes("runSpawnSwitchCommand('workflows'") && src('src/commands/workflows/workflows.tsx').includes('parseSpawnSwitchArg(args') && src('src/commands/crewmates/crewmates.tsx').includes("runSpawnSwitchCommand('subagents'") && src('src/commands/crewmates/crewmates.tsx').includes('parseSpawnSwitchArg(args'))
+  check('the crew view branches on the argument through the one body', src('src/commands/crewmates/crewmates.tsx').includes("runSpawnSwitchCommand('subagents'") && src('src/commands/crewmates/crewmates.tsx').includes('parseSpawnSwitchArg(args'))
   check('the toggle receipts read the daemon\'s vocabulary', sw.spawnSwitchToggleReceipt('workflows', false, 'refused', 'no live channel') === 'workflows off refused — no live channel' && sw.spawnSwitchToggleReceipt('workflows', true, 'applied').includes('the Workflow tool rejoins the roster from the next turn'))
-  check("the agents page carries the switches under their .34 words", src('docs/CREW.md').includes('## The two spawn switches') && src('docs/CREW.md').includes('`/crewmates on|off` and `/workflows on|off`'))
+  check("the agents page carries the switches under their .34 words", src('docs/CREW.md').includes('## The two spawn switches') && src('docs/CREW.md').includes('`/crewmates on|off` prints its'))
 }
 
 console.log(`\n${failures === 0 ? '✅' : '❌'} prove-spawn-switch — ${checks - failures}/${checks} checks passed`)

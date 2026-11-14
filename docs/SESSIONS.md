@@ -224,8 +224,8 @@ ends", and lands exactly there: at that turn's end, before any line waiting
 for the next turn. A line sent after that pick, while the same turn still
 runs, waits for the turn's end as well and runs as the next turn, on the
 model and effort the pick named, so the order you gave is the order that
-runs; its row keeps the plate `queued` until then. `/crewmates on|off` and
-`/workflows` flipped while a turn runs hold a later line the same way: it
+runs; its row keeps the plate `queued` until then. `/crewmates on|off`
+flipped while a turn runs holds a later line the same way: it
 waits for the turn's end and runs with the switched roster. A line sent
 before the pick keeps its place: it may still join the running turn at a
 tool boundary, and a line that joined the running turn is that turn's own
@@ -312,8 +312,8 @@ does, under its own permission mode and its own Crewmates and Workflows
 switches, and a session started while it is on carries the Crewmate and Workflow
 tools from its first request; the workflows-allowed grant stays unchanged.
 With it off, a background session's launch refusal names the three ways to allow it.
-A hop updates focus immediately. `/runs`,
-`/workflows` and the board's work chip show the focused session's own work
+A hop updates focus immediately. `/runs`
+and the board's work chip show the focused session's own work
 and never another's. A shell's row on the board, or in the side rail's RUNS
 lane, opens its card: the whole command, the directory it runs in, the time it
 has run, its exit code once it has ended, and the last lines of its output,
@@ -995,7 +995,7 @@ the arrival time when it is absent or invalid. A host sends the same prompt row
 through the runner's `queue/add` method. A line sent
 after the turn's last tool round waits for the turn's end, as does a slash
 command sent at any point of the turn, and so does a line sent after a
-`/model`, `/effort`, `/crewmates on|off` or `/workflows on|off` change made while the turn runs
+`/model`, `/effort` or `/crewmates on|off` change made while the turn runs
 (the setting change applies first, and the line runs on it); lines that arrive between
 turns run as one turn, each as its own row under its own id, in the
 order sent; pressing `Esc` interrupts the turn and anything still queued runs as the

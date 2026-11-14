@@ -3,18 +3,18 @@ WORKBENCH               │╭────────────────�
   /model sonnet 5.5     ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
                         ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
 NEXT                    ││  ▀▄▄▄▀▄▄▄▀                                                                                                     ││
-  · /workflows…         │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
-  · /health — health…   │                                                                                                                  │
+  · /health — health…   │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
   · /memory — memory    │                                                                                                                  │
-  · /mission — set a…   │ 06:37:35 [sam] ❯ start                                                                                           │
+  · /mission — set a…   │                                                                                                                  │
+                        │ 06:37:35 [sam] ❯ start                                                                                           │
+FILES · project         │                                                                                                                  │
+  ↵ or click · browse   │ 06:37:35 [Mercury] Command rows ready.                                                                           │
                         │                                                                                                                  │
-FILES · project         │ 06:37:35 [Mercury] Command rows ready.                                                                           │
-  ↵ or click · browse   │                                                                                                                  │
-                        │ ❯ /crewmates off                                                                                                 │
-VITALS                  │   └ crewmates off for this session                                                                               │
-  · spend $0.00         │     the Crewmate tool leaves the roster from the next turn; reasoning restarts on the next turn; a spawn already │
-  · ctx 0% · 1000k      │     running finishes                                                                                             │
-  · health — run /health│ you turned crewmates off: the Crewmate tool has left the roster; reasoning restarts on the next turn             │
+VITALS                  │ ❯ /crewmates off                                                                                                 │
+  · spend $0.00         │   └ crewmates off for this session                                                                               │
+  · ctx 0% · 1000k      │     the Crewmate tool leaves the roster from the next turn; reasoning restarts on the next turn; a spawn already │
+  · health — run /health│     running finishes                                                                                             │
+                        │ you turned crewmates off: the Crewmate tool has left the roster; reasoning restarts on the next turn             │
                         │                                                                                                                  │
                         │ 06:37:53 [sam] ❯ run the cell                                                                                    │
                         │ │                                                                                                                │

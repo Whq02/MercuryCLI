@@ -50,7 +50,7 @@ Agents section". Workflows off does the same for the Workflow tool and the
 workflow launch roads; the run board stays readable. The concourse itself
 keeps launching sessions; the switches are per focused session.
 
-Inside a session, `/crewmates on|off` and `/workflows on|off` print their
+Inside a session, `/crewmates on|off` prints its
 two-line receipt in the chat at once (or the boot
 menu opened there flips the switch) at the session's next turn boundary: the tool
 leaves or rejoins the roster, a receipt says so, reasoning restarts on the
@@ -61,7 +61,7 @@ turn's end, before any line waiting for the next turn, so the next turn's
 launches already read it; the session's record follows the runner's own word
 that the switch moved, never a clock. A line sent after the flip, while the
 same turn still runs, waits for the turn's end too and runs with the switched
-roster. `/crewmates` alone opens the crew view and `/workflows` alone the board; the health
+roster. `/crewmates` alone opens the crew view; the health
 check's "Crewmates & workflows" row reads both switches with their sources.
 
 Beside the two switches sits one global setting, "Crewmates while
@@ -263,7 +263,7 @@ carrying a brief such as a design, a review or a verification to its end)
 with the session's full tool set: every tool the main chat has, in the
 foreground and in the background alike, except the few that need you present
 (AskUserQuestion, ApolloReview, AskAdvisor) or reach past the crewmate's own
-work (Computer, Journal, Workflow, CronCreate, CronDelete,
+work (Computer, Journal, CronCreate, CronDelete,
 ScheduleWakeup, RecordConvention, and the Crewmate tool itself).
 TaskStop lets a crewmate stop only its own background command. The
 processes a crewmate starts (background shells, Eval kernels, the services

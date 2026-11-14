@@ -30,9 +30,8 @@ guard.unref?.()
 const ASK = 'roster-drive: launch'
 const SEAT_MARK = 'roster-seat:'
 const NOTES_FILE = 'station-notes.txt'
-const WF_NAME = 'roster-survey'
-const PHASE = 'Survey'
-const WF_SEATS = ['wf-one', 'wf-two'] as const
+const LONG_SEAT = 'long'
+const LONG_DESCRIPTION = 'long-survey'
 const PLAIN_SEAT = 'plain'
 const PLAIN_DESCRIPTION = 'plain-survey'
 const SHELL_DESCRIPTION = 'roster-shell sleeps'
@@ -41,20 +40,14 @@ const POST_DONE = 'ROSTER-POST-DONE'
 const NOTED = 'ROSTER-NOTED'
 const LAUNCHED = 'ROSTER-LAUNCHED'
 const SUMMARY_MARK = 'ROSTER-SUMMARY-BODY'
-const WF_READS = 7
-const WF_STEP_MS = 3000
+const LONG_READS = 7
+const LONG_STEP_MS = 3000
 const PLAIN_READS = 1
 const PLAIN_STEP_MS = 800
 const SUMMARY_HOLD_MS = 6000
-const WF_SCRIPT = [
-  `export const meta = { name: '${WF_NAME}', description: 'two agents survey the stations', phases: [{ title: '${PHASE}' }] }`,
-  `phase('${PHASE}')`,
-  `const reports = await parallel([${WF_SEATS.map(s => `() => agent('${SEAT_MARK}${s} read the notes file, one read per turn, then report in one line')`).join(', ')}])`,
-  'return { reports }',
-].join('\n')
 
 type Route = 'launch' | 'launched' | 'summary' | 'post' | 'note' | 'seat' | 'side'
-type Seat = (typeof WF_SEATS)[number] | typeof PLAIN_SEAT
+type Seat = typeof LONG_SEAT | typeof PLAIN_SEAT
 type Block = { type?: string; id?: string; name?: string; text?: string; tool_use_id?: string; is_error?: boolean; content?: unknown; input?: Record<string, unknown> }
 type Item = { role?: string; content?: unknown }
 type Body = { model?: string; system?: unknown; tools?: unknown[]; messages?: Item[] }
@@ -84,7 +77,7 @@ function seatOf(items: Item[]): Seat | null {
     .map(i => textOf(i.content).replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, ''))
     .filter(t => !t.includes('task-notification'))
     .join('\n')
-  for (const s of [...WF_SEATS, PLAIN_SEAT] as Seat[]) if (userText.includes(`${SEAT_MARK}${s}`)) return s
+  for (const s of [LONG_SEAT, PLAIN_SEAT] as Seat[]) if (userText.includes(`${SEAT_MARK}${s}`)) return s
   return null
 }
 const readsOf = (items: Item[]): number =>
@@ -145,7 +138,7 @@ const SUMMARY_TEXT = [
   '7. Open Work: the survey.',
   '8. Where Work Stands: the launches landed.',
   '9. Next Move (optional): wait for the agents.',
-  `10. Agents in flight: the workflow ${WF_NAME} (${WF_SEATS.join(', ')}), the sub-agent ${PLAIN_DESCRIPTION}, the shell.`,
+  `10. Agents in flight: the sub-agents ${LONG_DESCRIPTION} and ${PLAIN_DESCRIPTION}, the shell.`,
   '</summary>',
 ].join('\n')
 
@@ -180,8 +173,8 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
       else if (lastUserText.includes('Reply with prose only')) route = 'summary'
       else if (lastUserText.includes('task-notification')) route = 'note'
       else if (firstUserText.includes('The context window turned over')) route = 'post'
-      else if (answered.includes('Workflow') || answered.includes('Crewmate')) route = 'launched'
-      else if (lastUserText.includes(ASK) && offersTool(body, 'Workflow')) route = 'launch'
+      else if (answered.includes('Crewmate')) route = 'launched'
+      else if (lastUserText.includes(ASK) && offersTool(body, 'Crewmate')) route = 'launch'
       else route = 'side'
       const priorReads = readsOf(items)
       const hit: Hit = { seq: hits.length + 1, route, seat, atMs: Date.now(), answeredAtMs: 0, model, body, lastUserText }
@@ -192,8 +185,13 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
       switch (route) {
         case 'launch':
           blocks = [
-            { type: 'text', text: 'launching the survey, the plain sub-agent and the shell' },
-            { type: 'tool_use', id: `toolu_roster_wf_${++toolSeq}`, name: 'Workflow', input: { script: WF_SCRIPT } },
+            { type: 'text', text: 'launching the long sub-agent, the plain sub-agent and the shell' },
+            {
+              type: 'tool_use',
+              id: `toolu_roster_long_${++toolSeq}`,
+              name: 'Crewmate',
+              input: { description: LONG_DESCRIPTION, prompt: `${SEAT_MARK}${LONG_SEAT} read the notes file, one read per turn, then report in one line`, crewmate_type: 'mercury-crew', run_in_background: true },
+            },
             {
               type: 'tool_use',
               id: `toolu_roster_agent_${++toolSeq}`,
@@ -218,12 +216,12 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
           blocks = [{ type: 'text', text: NOTED }]
           break
         case 'seat': {
-          const reads = seat === PLAIN_SEAT ? PLAIN_READS : WF_READS
+          const reads = seat === PLAIN_SEAT ? PLAIN_READS : LONG_READS
           if (priorReads >= reads) {
             blocks = [{ type: 'text', text: `SEAT-DONE-${seat}` }]
           } else {
             blocks = [{ type: 'tool_use', id: `toolu_roster_read_${++toolSeq}`, name: 'Read', input: { file_path: join(cwd, NOTES_FILE) } }]
-            delayMs = seat === PLAIN_SEAT ? PLAIN_STEP_MS : WF_STEP_MS
+            delayMs = seat === PLAIN_SEAT ? PLAIN_STEP_MS : LONG_STEP_MS
           }
           break
         }
@@ -325,7 +323,7 @@ if (!existsSync(DIST)) {
     const summary = hits.find(h => h.route === 'summary')
     const launchResults = itemsOf(summary?.body ?? null)
       .filter(i => i.role === 'user')
-      .flatMap(i => blocksOf(i.content).filter(b => b.type === 'tool_result' && /^toolu_roster_(wf|agent|shell)_/.test(String(b.tool_use_id))))
+      .flatMap(i => blocksOf(i.content).filter(b => b.type === 'tool_result' && /^toolu_roster_(long|agent|shell)_/.test(String(b.tool_use_id))))
     check('fold 46ah: every launch landed; the delivered manual is not a permission refusal', summary !== undefined && launchResults.length === 3 && launchResults.every(b => b.is_error !== true), j(launchResults.filter(b => b.is_error === true)).slice(0, 400))
     check('the fold fired on the cycle after the launches (the summariser request went out)', summary !== undefined, hits.map(h => h.route).join(' → '))
     check('the fold took the cache-sharing fork road (Claude Fable 5.1 on the Anthropic wire)', debug.includes('forkedAgent(compact)'), debug.split('\n').filter(l => l.includes('compact')).slice(0, 3).join(' | ').slice(0, 300))
@@ -349,8 +347,7 @@ if (!existsSync(DIST)) {
     const roster = reminders[0] ?? ''
     for (const line of roster.split('\n').filter(l => l.startsWith('- '))) console.log(`  roster: ${line.slice(0, 260)}`)
     check('ONE roster attachment rides the post-fold request', reminders.length === 1, `${reminders.length} roster reminder(s); user items ${postTexts.length}`)
-    check('the roster names the workflow run by its name and kind', roster.includes(`local_workflow "${WF_NAME}"`))
-    for (const s of WF_SEATS) check(`…and the workflow agent ${s} (by its prompt head, with the run view's own state word)`, roster.includes(`${SEAT_MARK}${s}`))
+    check(`the roster names the long sub-agent ${LONG_DESCRIPTION} with the crew view's status word`, new RegExp(`local_agent "${LONG_DESCRIPTION}" \\[a[0-9a-z]+\\]: (running|waiting)`).test(roster))
     check(`…the plain sub-agent ${PLAIN_DESCRIPTION} with the crew view's status word`, new RegExp(`local_agent "${PLAIN_DESCRIPTION}" \\[a[0-9a-z]+\\]: (running|waiting|landed)`).test(roster))
     check(`…the shell by its command, asked "${SHELL_DESCRIPTION}"`, roster.includes(`local_bash "sleep ${SHELL_SECONDS}"`) && roster.includes(`asked: ${SHELL_DESCRIPTION}`))
     const agentRow = roster.split('\n').find(line => line.startsWith(`- local_agent "${PLAIN_DESCRIPTION}"`)) ?? ''
@@ -362,14 +359,12 @@ if (!existsSync(DIST)) {
 
     section('W3 the agents are untouched by the fold')
     const summaryAnsweredAt = summary?.answeredAtMs ?? Number.POSITIVE_INFINITY
-    for (const s of WF_SEATS) {
-      const after = hits.filter(h => h.seat === s && h.atMs > summaryAnsweredAt).length
-      check(`workflow seat ${s} kept calling after the summary landed (${after} calls)`, after >= 2)
-    }
+    const after = hits.filter(h => h.seat === LONG_SEAT && h.atMs > summaryAnsweredAt).length
+    check(`the long sub-agent kept calling after the summary landed (${after} calls)`, after >= 2)
     const notes = hits.filter(h => h.route === 'note')
     for (const n of notes) console.log(`  note: ${n.lastUserText.replace(/\s+/g, ' ').slice(0, 260)}`)
     check('no agent was stopped by the fold (no killed notice)', notes.every(n => !n.lastUserText.includes('<status>killed</status>')))
-    check('the workflow settled on its own after the fold (its completion notice reached the main)', notes.some(n => /<task-id>local_workflow_/.test(n.lastUserText) && /<status>completed/.test(n.lastUserText)))
+    check('the long sub-agent settled on its own after the fold (its completion notice reached the main)', notes.some(n => n.lastUserText.includes(LONG_DESCRIPTION) && /<status>completed/.test(n.lastUserText)))
 
     section('W4 a result that lands during the fold is delivered once, after the boundary')
     const plainDone = hits.find(h => h.seat === PLAIN_SEAT && readsOf(itemsOf(h.body)) >= PLAIN_READS)

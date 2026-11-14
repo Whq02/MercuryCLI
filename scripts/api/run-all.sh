@@ -17,7 +17,7 @@
 # gate-watch: src/components/messages/AssistantTextMessage.tsx
 # gate-watch: src/components/messages/nullRenderingAttachments.ts
 # gate-watch: src/utils/normalizeToolSchema.ts src/utils/api.ts src/tools/GrepTool/GrepTool.ts
-# gate-watch: src/components/tasks/WorkflowDetailDialog.tsx src/constants/* src/query/transitions.ts
+# gate-watch: src/constants/* src/query/transitions.ts
 # gate-watch: src/services/compact/autoCompact.ts src/services/compact/compact.ts
 # gate-watch: src/services/desktop/screenshotRetention.ts src/services/engine-connector/seatLive.ts
 # gate-watch: src/services/mcp/useManageMCPConnections.ts src/services/providers/*
@@ -26,9 +26,9 @@
 # gate-watch: src/services/providers/openaicompat/compatChatClient.ts src/services/run/requestContextPlan.ts
 # gate-watch: src/services/run/resolveOwner.ts src/services/search/searchContract.ts
 # gate-watch: src/services/tools/toolExecution.ts src/state/AppStateStore.ts src/substrate/flagRegistry.ts
-# gate-watch: src/tasks/LocalWorkflowTask/LocalWorkflowTask.tsx src/tools/ChangeSetTool/ChangeSetTool.ts
+# gate-watch: src/tools/ChangeSetTool/ChangeSetTool.ts
 # gate-watch: src/tools/LSPTool/mercuryOps.ts src/tools/ToolSearchTool/ToolSearchTool.ts
-# gate-watch: src/tools/ToolSearchTool/prompt.ts src/tools/WorkflowTool/* src/utils/*
+# gate-watch: src/tools/ToolSearchTool/prompt.ts src/utils/*
 # gate-watch: src/utils/attachments/orchestrator.ts src/utils/attachments/userContext.ts src/utils/attachments/deltas.ts
 # gate-watch: src/commands/compact/compact.ts src/tools/FileReadTool/FileReadTool.ts src/tools/FileReadTool/imageProcessor.ts src/utils/imageResizer.ts
 # gate-watch: src/utils/config/globalConfig.ts src/utils/messages/*

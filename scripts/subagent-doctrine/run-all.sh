@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/constants/** src/tools/AgentTool/built-in/** src/tools/AgentTool/loadAgentsDir*
-# gate-watch: src/tools/WorkflowTool/agentHooks*
 # gate-watch: src/prompt/mercuryContract.ts
 # gate-watch: src/mneme/mnemeFrontPage.ts src/mneme/mnemeBuffer.ts src/mneme/mnemeConsolidate.ts src/mneme/mnemeGates.ts src/mneme/mnemeUsage.ts
 # gate-watch: src/tools/AgentTool/agentToolUtils.ts src/tools/AgentTool/AgentTool.tsx src/tools/AgentTool/resumeAgent.ts src/tools/AgentTool/scoutPolicy.ts src/tools/AgentTool/runAgent.ts src/tools/AgentTool/prompt.ts src/tools/AgentTool/foregroundExecution.tsx docs/CREW.md src/tools.ts src/Tool.ts src/bootstrap/state.ts src/utils/config.ts
@@ -42,8 +41,6 @@ else
   grep_ship "NORMAL subagent doctrine ships"            "one of Mercury's agents, "
   grep_ship "the clause after the seat ships"           ", spawned for one assignment, whose caller reads only the output you return"
   grep_ship "the one seat word ships"                   "a crewmate"
-  grep_ship "workflow TEXT return-contract ships"       'reads your final text verbatim as its return value'
-  grep_ship "workflow SCHEMA return-contract ships"     'once with the answer in the shape its input schema requires'
 fi
 
 echo "############################################################"

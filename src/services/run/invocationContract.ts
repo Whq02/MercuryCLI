@@ -4,7 +4,6 @@ type InvocationSurface =
   | 'print'
   | 'sdk'
   | 'worker'
-  | 'workflow'
   | 'external'
 
 type TerminalPolicy = 'operator-led' | 'one-shot' | 'client-led' | 'mission-led'

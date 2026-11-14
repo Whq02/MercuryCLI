@@ -183,96 +183,6 @@ section('T. task adapter (real durable ledger, hermetic store)')
   check('T3 an unknown task id reads ABSENT', gone.state === 'absent')
 }
 
-section("W. workflow adapter (manifest fixtures) — runs live beside the session's starting folder, the folder this proof began in")
-{
-  const { workflowRunsRoot } = await import('../../src/tools/WorkflowTool/runManifest.js')
-  const { getOriginalCwd, setOriginalCwd } = await import('../../src/bootstrap/state.js')
-  const startingFolderBefore = getOriginalCwd()
-  setOriginalCwd(workDir)
-  const runDir = join(workflowRunsRoot(workDir), 'wf_fixture1')
-  mkdirSync(runDir, { recursive: true })
-  const transcriptDir = join(runDir, 'transcripts')
-  mkdirSync(transcriptDir)
-  writeFileSync(join(transcriptDir, 'agent-a1.jsonl'), '{"type":"fixture","n":1}\n{"type":"fixture","n":2}\n')
-  writeFileSync(
-    join(runDir, 'run.json'),
-    JSON.stringify({
-      version: 1,
-      runId: 'wf_fixture1',
-      workflowName: 'fixture-flow',
-      runDir,
-      transcriptDir,
-      startTime: Date.now() - 5000,
-      endTime: Date.now() - 1000,
-      status: 'completed',
-      ownerPid: process.pid,
-      agentCount: 2,
-      totalTokens: 123,
-      totalToolCalls: 4,
-      agents: [
-        { agentId: 'a1', label: 'fixture agent', state: 'completed' },
-        { agentId: 'a2', label: 'long agent', state: 'completed' },
-      ],
-    }),
-  )
-  const run = await resolveResource('mercury://workflow/wf_fixture1', ctx as never)
-  check('W1 a run manifest resolves with agents + children refs',
-    run.state === 'ok' &&
-    run.resource.text?.includes('a1 — completed') === true &&
-    run.resource.children?.[0]?.ref.includes('child=a1') === true)
-  const agent = await resolveResource('mercury://workflow/wf_fixture1?child=a1', ctx as never)
-  check('W2 the agent child serves the canonical projection (explicit no-final-text state)',
-    agent.state === 'ok' && agent.resource.text?.includes('produced no final text') === true)
-  const rawStream = await resolveResource('mercury://workflow/wf_fixture1?child=a1&cursor=0&limit=10', ctx as never)
-  check('W2b an explicit selector serves the raw stream',
-    rawStream.state === 'ok' && rawStream.resource.text?.includes('"n":2') === true)
-  const noAgent = await resolveResource('mercury://workflow/wf_fixture1?child=zz', ctx as never)
-  check('W3 an unknown agent child is ABSENT and names the real agents',
-    noAgent.state === 'absent' && noAgent.note.includes('a1'))
-  const noRun = await resolveResource('mercury://workflow/wf_nope', ctx as never)
-  check('W4 an unknown run is ABSENT', noRun.state === 'absent')
-
-  const { entryToRecord } = await import('../../src/fabric/entryCodec.js')
-  const { ordinalOf } = await import('../../src/fabric/ordinal.js')
-  const { OUTCOME_CAP_CHARS } = await import('../../src/utils/crew/agentTranscriptReader.js')
-  const sentinel = 'END-OF-THE-LONG-OUTCOME'
-  let ordinal = 0
-  const encode = (entry: unknown): string =>
-    JSON.stringify(
-      entryToRecord(entry as never, {
-        sessionId: 'wf-fixture',
-        nextOrdinal: () => ordinalOf(++ordinal),
-        observedAt: '2026-07-02T12:00:00.000Z',
-        source: { channel: 'interactive' },
-      } as never),
-    )
-  const longEntries = [
-    { type: 'user', message: { role: 'user', content: 'do the long thing' } },
-    {
-      type: 'assistant',
-      timestamp: '2026-07-02T12:00:00.000Z',
-      message: {
-        id: 'm1',
-        role: 'assistant',
-        model: 'claude-sonnet-5',
-        content: [{ type: 'text', text: 'O'.repeat(OUTCOME_CAP_CHARS + 500) + sentinel }],
-        usage: { input_tokens: 10, output_tokens: 5 },
-      },
-    },
-  ]
-  writeFileSync(join(transcriptDir, 'agent-a2.jsonl'), longEntries.map(encode).join('\n') + '\n')
-  const capped = await resolveResource('mercury://workflow/wf_fixture1?child=a2', ctx as never)
-  const cappedText = capped.state === 'ok' ? (capped.resource.text ?? '') : ''
-  check('W5 a capped outcome is marked and does not carry the tail',
-    capped.state === 'ok' && cappedText.includes('[outcome truncated at cap') && !cappedText.includes(sentinel), cappedText.slice(-160))
-  const continuation = /mercury:\/\/workflow\/wf_fixture1\?child=a2&cursor=\d+&limit=\d+/.exec(cappedText)
-  check('W5b …and names the raw-stream ref that holds the rest', continuation !== null, cappedText.slice(-200))
-  const rest = continuation ? await resolveResource(continuation[0], ctx as never) : null
-  check('W5c the named ref resolves to a page holding the end of the outcome',
-    rest !== null && rest.state === 'ok' && (rest.resource.text ?? '').includes(sentinel), rest?.state ?? 'no ref')
-  setOriginalCwd(startingFolderBefore)
-}
-
 section('A. artifact adapter (real store round trip)')
 {
   const { storeArtifact } = await import('../../src/utils/artifacts/store.ts')
@@ -337,10 +247,10 @@ section('I. the Inspect tool end-to-end')
 
   const kinds = resourceAdapterKinds().map(k => k.kind)
   check('I3 the kind census covers the built-in graph',
-    ['file', 'run', 'receipt', 'task', 'workflow', 'artifact', 'health', 'agent']
+    ['file', 'run', 'receipt', 'task', 'artifact', 'health', 'agent']
       .every(k => kinds.includes(k)))
-  check('I3b the retired party kind stays out of the graph (never-reappears)',
-    !kinds.includes('party'))
+  check('I3b the retired party and workflow kinds stay out of the graph (never-reappear)',
+    !kinds.includes('party') && !kinds.includes('workflow'))
 
   process.env.MERCURY_REFS = '0'
   const off = await (InspectTool as { call: Function }).call(

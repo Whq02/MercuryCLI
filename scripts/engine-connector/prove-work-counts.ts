@@ -17,33 +17,18 @@ const t0 = 1_000_000_000_000
 console.log('— C1 the counting law —')
 {
   check('C1 running counts', workRowRuns({ id: 'x', kind: 'agent', name: 'a', status: 'running', startTime: t0 }))
-  check('C1 pending counts (queued motion)', workRowRuns({ id: 'x', kind: 'workflow', name: 'w', status: 'pending', startTime: t0 }))
-  check('C1 paused never counts (spins nothing)', !workRowRuns({ id: 'x', kind: 'workflow', name: 'w', status: 'paused', startTime: t0 }))
+  check('C1 pending counts (queued motion)', workRowRuns({ id: 'x', kind: 'shell', name: 'w', status: 'pending', startTime: t0 }))
+  check('C1 paused never counts (spins nothing)', !workRowRuns({ id: 'x', kind: 'shell', name: 'w', status: 'paused', startTime: t0 }))
   check('C1 settled never counts', !workRowRuns({ id: 'x', kind: 'agent', name: 'a', status: 'completed', startTime: t0 }))
 }
 
 console.log('— C2/C3 one fixture, three surfaces, zero diffs —')
 {
   const store = {
-    wf1: {
-      id: 'wf1', type: 'local_workflow', status: 'running', description: 'live run',
-      startTime: t0, outputFile: '/n', outputOffset: 0, notified: false,
-      script: 's', prompt: 's', workflowName: 'live-run', workflowRunId: 'r1',
-      workflowProgress: [], progressVersion: 0, agentCount: 1, totalTokens: 0,
-      totalToolCalls: 0, logs: [], retain: false,
-      pendingPermissions: new Map([['tu', {} as never]]),
-    },
-    wf2: {
-      id: 'wf2', type: 'local_workflow', status: 'paused', description: 'paused run',
-      startTime: t0 + 1, outputFile: '/n', outputOffset: 0, notified: false,
-      script: 's', prompt: 's', workflowName: 'paused-run', workflowRunId: 'r2',
-      workflowProgress: [], progressVersion: 0, agentCount: 0, totalTokens: 0,
-      totalToolCalls: 0, logs: [], retain: false,
-    },
     ag1: {
       id: 'ag1', type: 'local_agent', status: 'running', description: 'the dispatched helper',
       agentId: 'ag1', prompt: 'p', agentType: 'mercury-crew', isBackgrounded: true,
-      startTime: t0 + 2, outputFile: '/n', outputOffset: 0, notified: false,
+      startTime: t0 + 2, outputFile: '/n', outputOffset: 0, notified: false, pendingAsks: 1,
     },
     ag2: {
       id: 'ag2', type: 'local_agent', status: 'running', description: 'the helper\'s nested spawn',
@@ -73,19 +58,17 @@ console.log('— C2/C3 one fixture, three surfaces, zero diffs —')
   const chip = workChipLine(counts)
 
   const boardAgentsRunning = rosterRowsOf(rows, 'agent').filter(workRowRuns).length
-  const boardWorkflowsRunning = rosterRowsOf(rows, 'workflow').filter(workRowRuns).length
 
   const agentsViewRows = rosterRowsOf(rows, 'agent').filter(workRowRuns)
 
   check('C3 nested included: BOTH agent rows count (and the main-thread row never)', counts.agents === 2, `agents=${counts.agents}`)
   check('C2 chip == /tasks (agents)', counts.agents === boardAgentsRunning, `${counts.agents} vs ${boardAgentsRunning}`)
   check('C2 chip == agents view', counts.agents === agentsViewRows.length, `${counts.agents} vs ${agentsViewRows.length}`)
-  check('C2 chip == /tasks (workflows) — the paused run never counts', counts.workflows === 1 && counts.workflows === boardWorkflowsRunning, `${counts.workflows} vs ${boardWorkflowsRunning}`)
   check('C2 the shells count', counts.shells === 1, `shells=${counts.shells}`)
   check('C2 the parked ask rides the counts', counts.asks === 1, `asks=${counts.asks}`)
   check(
     'C2 the chip line speaks the board vocabulary',
-    chip === '1 workflow · 2 crewmates · 1 shell · 1 ask',
+    chip === '2 crewmates · 1 shell · 1 ask',
     chip ?? 'null',
   )
   check('C3 the settled agent is LISTED by the board but never counted', rosterRowsOf(rows, 'agent').length === 3 && boardAgentsRunning === 2)
@@ -94,7 +77,7 @@ console.log('— C2/C3 one fixture, three surfaces, zero diffs —')
 console.log('— C4 zero-work honesty —')
 {
   const counts = workCounts([])
-  check('C4 an idle roster counts zero everywhere', counts.workflows === 0 && counts.agents === 0 && counts.shells === 0 && counts.asks === 0)
+  check('C4 an idle roster counts zero everywhere', counts.agents === 0 && counts.shells === 0 && counts.asks === 0)
   check('C4 the idle chip is NULL — no chip, no noise', workChipLine(counts) === null)
 }
 
@@ -118,9 +101,8 @@ console.log('— C6 one spelling —')
 
 console.log('\nC7 the held turn\'s wait words name the KINDS over the same counts')
 {
-  const counts = (over: Partial<ReturnType<typeof workCounts>>): ReturnType<typeof workCounts> => ({ workflows: 0, agents: 0, shells: 0, asks: 0, ...over })
-  check('C7 a workflow is a workflow, never an agent', workWaitingWords(counts({ workflows: 1 })) === 'waiting on 1 workflow')
-  check('C7 a workflow beside two agents', workWaitingWords(counts({ workflows: 1, agents: 2 })) === 'waiting on 1 workflow · 2 crewmates')
+  const counts = (over: Partial<ReturnType<typeof workCounts>>): ReturnType<typeof workCounts> => ({ agents: 0, shells: 0, asks: 0, ...over })
+  check('C7 a shell beside two agents', workWaitingWords(counts({ agents: 2, shells: 1 })) === 'waiting on 2 crewmates · 1 shell')
   check('C7 a background shell is a shell', workWaitingWords(counts({ shells: 1 })) === 'waiting on 1 shell')
   check('C7 a parked ask rides the words', workWaitingWords(counts({ agents: 1, asks: 1 })) === 'waiting on 1 crewmate · 1 ask')
   check('C7 nothing running answers null (the count\'s own words stand)', workWaitingWords(counts({})) === null)
@@ -144,12 +126,7 @@ console.log('C8 compact counts use current identities and honest availability')
     shell: { id: 'shell', type: 'local_bash', command: 'fixture-shell', status: 'running', startTime: t0 },
     agent: { id: 'task-agent', agentId: 'child-one', type: 'local_agent', agentType: 'mercury-crew', description: 'same name', status: 'running', startTime: t0 },
     paused: { id: 'paused-agent', agentId: 'paused-agent', type: 'local_agent', agentType: 'mercury-crew', description: 'same name', status: 'running', startTime: t0, paused: { why: 'usage-window', words: 'paused' } },
-    workflow: { id: 'workflow', type: 'local_workflow', status: 'running', startTime: t0, workflowRunId: 'run', agentCount: 20, totalTokens: 0, workflowProgress: [
-      { type: 'workflow_agent', index: 0, label: 'same name', state: 'progress', agentId: 'child-one' },
-      { type: 'workflow_agent', index: 1, label: 'same name', state: 'progress', agentId: 'child-two' },
-      { type: 'workflow_agent', index: 2, label: 'pause', state: 'progress', agentId: 'child-three', waiting: 'operator', pausedBy: 'operator' },
-      { type: 'workflow_agent', index: 3, label: 'done', state: 'done', agentId: 'child-four' },
-    ] },
+    second: { id: 'task-agent-two', agentId: 'child-two', type: 'local_agent', agentType: 'mercury-crew', description: 'same name', status: 'running', startTime: t0 },
   } as never
   const rows = projectWorkRoster(tasks)
   const roster = { rows, mission: [], reported: true }
@@ -157,9 +134,7 @@ console.log('C8 compact counts use current identities and honest availability')
   const counts = compactWorkCounts(input)
   check('C8 session records are deduplicated and dead/paused/parked sessions excluded', counts.sessionsOn === 1, JSON.stringify(counts))
   check('C8 the actual monitor subtype counts but an ordinary shell does not', counts.monitorsHere === 1 && rows.find(r => r.id === 'monitor')?.kind === 'monitor' && workCounts(rows).shells === 2)
-  check('C8 two current workflow children count once each, not lifetime twenty or a duplicate top-level alias', counts.agentsHere === 2, JSON.stringify(counts))
-  const children = rows.find(r => r.kind === 'workflow')?.phases?.flatMap(p => p.agents) ?? []
-  check('C8 the projection preserves identity and explicit pause/wait absence', children.some(c => c.agentId === 'child-one' && c.waiting === null && c.pausedBy === null) && children.some(c => c.agentId === 'child-three' && c.waiting === 'operator'))
+  check('C8 two running crewmates of one name count once each and the paused one does not', counts.agentsHere === 2, JSON.stringify(counts))
   check('C8 a hosted chat does not inherit the screen process task store', compactWorkCounts({ ...input, roster: { rows: [], mission: [], reported: true } }).agentsHere === 0)
   check('C8 an unreported live roster is unknown, not zero', compactWorkCounts({ ...input, roster: { rows: [], mission: [], reported: false } }).agentsHere === null)
   check('C8 unavailable session data stays unknown', compactWorkCounts({ ...input, sessions: { state: 'unavailable' } }).sessionsOn === null)
@@ -167,7 +142,7 @@ console.log('C8 compact counts use current identities and honest availability')
   check('C8 a newly focused session absent from an older snapshot is not an observed idle roster', compactWorkCounts({ ...input, sessions: { state: 'known', rows: [] } }).agentsHere === null)
   check('C8 an in-process focused session counts once without a daemon row', compactWorkCounts({ ...input, carrier: 'in-process', sessions: { state: 'known', rows: [] } }).sessionsOn === 1)
   const legacyRows: WorkRowV1[] = [{ id: 'old', kind: 'workflow', name: 'old', status: 'running', startTime: t0, phases: [{ title: 'old', planned: false, agents: [{ index: 0, label: 'old', state: 'progress' }] }] }]
-  check('C8 an old child projection without pause truth is unknown', compactWorkCounts({ ...input, roster: { ...roster, rows: legacyRows } }).agentsHere === null)
+  check('C8 a run row an older runner still sends counts no crewmate and paints no chip', compactWorkCounts({ ...input, roster: { ...roster, rows: legacyRows } }).agentsHere === 0 && workChipLine(workCounts(legacyRows)) === null)
   const full = compactWorkSummaryText(counts, 120)
   check('C8 full words retain scope and count truth', full === '1 session on · 1 monitor here · 2 crewmates here', full)
   check('C8 no partial integer can turn twelve into one', !compactWorkSummaryText({ sessionsOn: 12, agentsHere: 12, monitorsHere: 12 }, 3).includes('1'))

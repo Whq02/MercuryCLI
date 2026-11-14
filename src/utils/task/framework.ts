@@ -56,7 +56,6 @@ export function registerTask(task: TaskState, setAppState: TaskAppStateSetter): 
       ...(task.toolUseId !== undefined ? { callId: task.toolUseId } : {}),
       description: task.description,
       taskType: task.type,
-      ...('workflowName' in task && task.workflowName !== undefined ? { workflow: task.workflowName } : {}),
       ...('prompt' in task && typeof task.prompt === 'string' ? { prompt: task.prompt } : {}),
     })
   }
@@ -92,7 +91,7 @@ export function taskOwnerGone(task: TaskState): string | null {
     if (handle.status !== 'running' && handle.status !== 'backgrounded') return `its command already ${handle.status}`
     return null
   }
-  if (task.type === 'local_agent' || task.type === 'local_workflow') {
+  if (task.type === 'local_agent') {
     const controller = (task as { abortController?: AbortController }).abortController
     if (controller === undefined) return 'its controller is gone'
     if (controller.signal.aborted) return 'its controller was stopped before the row settled'
@@ -105,19 +104,17 @@ export type LiveWorkCounts = {
   total: number
   shells: number
   agents: number
-  workflows: number
   other: number
 }
 
 export function liveBackgroundCounts(tasks: Record<string, TaskState> | undefined): LiveWorkCounts {
-  const counts: LiveWorkCounts = { total: 0, shells: 0, agents: 0, workflows: 0, other: 0 }
+  const counts: LiveWorkCounts = { total: 0, shells: 0, agents: 0, other: 0 }
   for (const task of Object.values(tasks ?? {})) {
     if (!isBackgroundTask(task) || isTerminalTaskStatus(task.status as TaskStatus)) continue
     if (taskOwnerGone(task) !== null) continue
     counts.total++
     if (task.type === 'local_bash') counts.shells++
     else if (task.type === 'local_agent') counts.agents++
-    else if (task.type === 'local_workflow') counts.workflows++
     else counts.other++
   }
   return counts
@@ -130,7 +127,6 @@ export function liveWorkWords(counts: LiveWorkCounts): string {
   }
   say(counts.shells, 'shell command', 'shell commands')
   say(counts.agents, 'crewmate', 'crewmates')
-  say(counts.workflows, 'workflow', 'workflows')
   say(counts.other, 'background task', 'background tasks')
   if (parts.length === 0) return 'nothing'
   if (parts.length === 1) return parts[0]!

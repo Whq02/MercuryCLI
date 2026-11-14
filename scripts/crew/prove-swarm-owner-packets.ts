@@ -123,9 +123,9 @@ console.log('§5 the words every seat reads')
   const seam = await import('../../src/services/crewBoard/seam.ts')
   const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
   runSwarmCommand('on')
-  await seam.latchSwarmAgent('alpha', 'Alpha', false, false, 'engine')
-  await seam.latchSwarmAgent('beta', 'Beta', false, false, 'engine')
-  await seam.latchSwarmAgent('gamma', 'Gamma', false, false, 'view')
+  await seam.latchSwarmAgent('alpha', 'Alpha', false, 'engine')
+  await seam.latchSwarmAgent('beta', 'Beta', false, 'engine')
+  await seam.latchSwarmAgent('gamma', 'Gamma', false, 'view')
   const store = seam.swarmStore()!
   const sentence = "The owner's board posts outrank the lead's."
   const once = (brief: string | null): boolean => brief !== null && brief.split(sentence).length === 2

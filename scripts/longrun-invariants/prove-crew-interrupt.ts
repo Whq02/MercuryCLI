@@ -23,9 +23,6 @@ const { AbortError } = await import('../../src/utils/errors.js')
 const { CREW_STOP_WINDOW_MS, crewStopArmed, crewStopHint, pressCrewStop } = await import(
   '../../src/components/mercury-ui/screens/crewStopChord.js'
 )
-const { enqueueWorkflowNotification, killWorkflowTask, registerWorkflowTask } = await import(
-  '../../src/tasks/LocalWorkflowTask/LocalWorkflowTask.js'
-)
 const { crewStillRunningLine } = await import('../../src/services/engine-connector/crewFacts.js')
 const { stopOrDismissAgent } = await import('../../src/state/crewmateViewHelpers.js')
 
@@ -75,13 +72,12 @@ section('§K1a the controller law — an agent task owns a fresh controller')
   const runner = src('src/cli/run.ts')
   const interruptArm = runner.slice(runner.indexOf("'turn/interrupt': params => {"), runner.indexOf("'queue/add': async params => {"))
   check('the runner\'s interrupt releases the driver\'s hold and stops no task', interruptArm.includes('driver.releaseHold()') && !interruptArm.includes('stopRunningAgentTasks') && !runner.includes('stopRunningAgentTasks('))
-  check('the crew census counts running agents and workflows, never the session\'s own row', crewStillRunning({
+  check('the crew census counts running agents, never the session\'s own row', crewStillRunning({
     a: { type: 'local_agent', status: 'running', agentType: 'mercury-crew' },
-    b: { type: 'local_workflow', status: 'running' },
     c: { type: 'local_agent', status: 'completed', agentType: 'mercury-crew' },
     d: { type: 'local_agent', status: 'running', agentType: 'main-session' },
     e: { type: 'local_bash', status: 'running' },
-  }) === 2)
+  }) === 1)
   check('the interrupted turn\'s receipt names the count and the crew view', crewStillRunningLine(2) === '2 crewmates still running — open the crew view (/crewmates) and press x twice on its row to stop one' && crewStillRunningLine(1)?.startsWith('1 crewmate still') === true && crewStillRunningLine(0) === null)
   const repl = src('src/screens/Chat.tsx')
   const cancel = src('src/hooks/useCancelRequest.ts')
@@ -184,7 +180,7 @@ section('§K2 the stop chord — x twice within the window on the same agent')
   check('the crew view takes x through the chord and sends the stop through the connector, on the list and the card', view.includes('pressCrewStop(stopArm, target.id, Date.now())') && view.includes('.stopAgent(target.id)') && view.includes("mode.view === 'card' && !listMode"))
   check('the crew view takes r as the resume door', view.includes("input === 'r' && plain && target !== null && !target.running") && view.includes('.resumeAgent(target.id)'))
   const board = src('src/components/tasks/BackgroundTasksDialog.tsx')
-  check('the /tasks board stops a roster row (an agent or a workflow of the session\'s runner) through the same chord and door', board.includes('pressCrewStop(') && board.includes('.stopAgent(work.id)'))
+  check('the /tasks board stops a roster row (an agent of the session\'s runner) through the same chord and door', board.includes('pressCrewStop(') && board.includes('.stopAgent(work.id)'))
 }
 
 section('§K3 every stop and failure pings the main agent, with its reason')
@@ -240,23 +236,12 @@ async function lifecycleWith(name: string, drive: (controller: AbortController) 
   check('stopOrDismissAgent aborts the running task\'s controller with the operator\'s reason', task.abortController!.signal.aborted && task.abortController!.signal.reason === AGENT_STOP_BY_OPERATOR)
 }
 {
-  resetCommandQueue()
-  const store = makeStore()
-  registerWorkflowTask({ taskId: 'wf-1', script: 'x', workflowRunId: 'run-1', setAppState: store.set as never })
-  const receipt = killWorkflowTask('wf-1', store.set as never)
-  const wf = store.state.tasks['wf-1'] as { status?: string; notified?: boolean }
-  check('a killed workflow settles killed with its notified latch open', receipt === 'applied' && wf.status === 'killed' && wf.notified !== true, JSON.stringify({ receipt, status: wf.status, notified: wf.notified }))
-  enqueueWorkflowNotification({ taskId: 'wf-1', status: 'killed', agentCount: 0, totalTokens: 0, totalToolCalls: 0, durationMs: 1, setAppState: store.set as never })
-  enqueueWorkflowNotification({ taskId: 'wf-1', status: 'killed', agentCount: 0, totalTokens: 0, totalToolCalls: 0, durationMs: 1, setAppState: store.set as never })
-  const wfNotes = taskNotifications().map(n => (n as { value?: string }).value ?? '')
-  check('its killed notice lands exactly once', wfNotes.length === 1 && wfNotes[0]!.includes('<status>killed</status>'))
   const runner = src('src/cli/run.ts')
   const stopArmAt = runner.indexOf("'agent/stop': async params => {")
   const stopArm = runner.slice(stopArmAt, runner.indexOf("'session/quiesce': async params => {"))
   check('the runner\'s stop_task rides the one operator-stop owner and answers applied or refused with its reason', stopArmAt !== -1 && stopArm.includes('stopAgentByOperator(params.agent_id, { getAppState, setAppState }, params.note === AGENT_INTERRUPT_BY_OPERATOR ? { reason: AGENT_INTERRUPT_BY_OPERATOR } : {})') && stopArm.includes("throw refused(receipt.reason, 'agent')") && !stopArm.includes('return {}'))
   const owner = src('src/services/agents/operatorStop.ts')
-  check('the owner routes a workflow row to killWorkflowTask and an agent to the reasoned abort', owner.includes('killWorkflowTask(taskId, context.setAppState)') && owner.includes('stopOrDismissAgent(taskId, context.setAppState, options.reason ?? AGENT_STOP_BY_OPERATOR)'))
-  resetCommandQueue()
+  check('the owner routes an agent to the reasoned abort', owner.includes('stopOrDismissAgent(taskId, context.setAppState, options.reason ?? AGENT_STOP_BY_OPERATOR)'))
 }
 
 section('§K4 the resume road — one owner behind every door')
@@ -328,18 +313,12 @@ section('§K10 the wait tells its truth — the phase fold, the one spelling, ev
   const seatRow = projectWorkRoster({ 'ag-s': { ...running, id: 'ag-s', agentId: 'ag-s', wait: 'waiting for a seat — 3 of 3 held (a, b, the chat)' } } as never)
   const seatFacts = crew.crewAgentFactsOf(seatRow[0]!, 'fx')!
   check('K10 the seat gate\'s own sentence outranks the phase on the card line; the status cell speaks the GATE and the holders ride the row\'s tail (a narrow row sheds the holders last, never the gate)', crew.crewPhaseWords(seatFacts, t0 + 2000) === 'waiting for a seat — 3 of 3 held (a, b, the chat)' && crew.crewStatusWords(seatFacts, t0 + 2000) === 'waiting for a seat — 3 of 3 held' && crew.crewWaitHolders(seatFacts) === 'held by a, b, the chat' && crew.crewWaitLine(seatFacts) === 'waiting for a seat — 3 of 3 held (a, b, the chat)' && seatFacts.phase?.phase === 'first-byte')
-  const { agentPulse, agentPulseWord } = await import('../../src/tools/WorkflowTool/livePulse.js')
   const aw = await import('../../src/tasks/LocalAgentTask/agentWait.js')
   const stillWords = aw.agentWaitWords({ phase: 'first-byte', sinceMs: t0, budgetMs: 60_000 }, null)
   check('K10 the one spelling without a counter — the still for a per-frame channel', stillWords === 'waiting for the first byte, within 1m' && aw.agentWaitWords({ phase: 'reasoning', sinceMs: t0 }, null) === 'reasoning, no tokens yet' && aw.agentWaitWords({ phase: 'first-byte', sinceMs: t0, budgetMs: 60_000 }, t0 + 3000) === 'waiting for the first byte · 3s, within 1m', stillWords)
-  const budgeted = agentPulse({ state: 'progress', waiting: 'prefill', waitWords: stillWords ?? '', lastProgressAt: t0 }, t0 + 3000)
-  check('K10 the workflow pulse speaks the budget from the frame\'s one words channel', budgeted.kind === 'first-token' && agentPulseWord(budgeted) === 'waiting for the first byte, within 1m', agentPulseWord(budgeted))
-  check('K10 a prefill frame without a budget keeps its old word', agentPulseWord(agentPulse({ state: 'progress', waiting: 'prefill', lastProgressAt: t0 }, t0 + 3000)) === 'awaiting first token')
   const run = src('src/tools/AgentTool/runAgent.ts')
   check('K10 the run loop\'s wait door hands the provider\'s wait to the run\'s own progress callback', run.includes("childContext.setSDKStatus = (status: unknown) => {") && run.includes("type: 'request_wait'"))
   check('K10 the three run sites feed the record (the background lifecycle, the foreground run, the resume)', src('src/tools/AgentTool/agentToolUtils.ts').includes('event => publishAgentWaitFromEvent(taskId, tracker, event, rootSetAppState)') && src('src/tools/AgentTool/foregroundExecution.tsx').includes('publishAgentWaitFromEvent(foregroundRecordId, tracker, event, rootSetAppState)') && src('src/tools/AgentTool/resumeAgent.ts').includes('onQueryProgress !== undefined ? { onQueryProgress } : {}'))
-  const hooks = src('src/tools/WorkflowTool/agentHooks.ts')
-  check('K10 the workflow hook speaks the budget on its prefill frame through waitWords — the one channel — and no second field exists on the manifest or the pulse', hooks.includes("agentWaitWords({ phase: 'first-byte'") && hooks.includes("emitFrame('progress', { waiting: 'prefill', ...(waitWords !== null ? { waitWords } : {}) })") && !src('src/tools/WorkflowTool/runManifest.ts').includes('waitBudgetMs') && !src('src/tools/WorkflowTool/livePulse.ts').includes('waitBudgetMs') && src('src/tools/WorkflowTool/livePulse.ts').includes("{ kind: 'first-token', words: a.waitWords }"))
   check('K10 the transcript\'s agent card and the crew view speak the phase', src('src/tools/AgentTool/UI.tsx').includes('crewPhaseWords(facts, nowMs) ?? crewStateLabel(facts)') && src('src/components/mercury-ui/screens/CrewView.tsx').includes('crewStatusWords(facts, now)'))
 }
 
@@ -420,7 +399,7 @@ section('§K4b the resumed agent\'s pool is the launch\'s — one derivation')
   await conn.attach()
   const shape = (): string => conn.records().map(m => (m.type === 'system' ? `system:${String((m as { content?: unknown }).content)}` : m.type)).join(' | ')
   check('K11 the chain paints its four rows', conn.records().length === 4, shape())
-  const receipt = crewStillRunningLine({ agents: 1, workflows: 1 })!
+  const receipt = crewStillRunningLine({ agents: 1 })!
   conn.addDisplayRow(createSystemMessage(receipt, 'warning'))
   check('K11 the receipt paints after the rows it followed', shape() === `user | assistant | user | assistant | system:${receipt}`, shape())
   const s = uid()
@@ -428,7 +407,7 @@ section('§K4b the resumed agent\'s pool is the launch\'s — one derivation')
   appendFileSync(file, line(s, null, 5, 'user', 'summary of the folded turns', { isCompactSummary: true }) + line(u3, s, 6, 'user', 'after'))
   await seam.tick()
   check('K11 the folded chain paints the summary and the post-fold row only — the pre-fold receipt left with the rows it followed', shape() === 'user | user', shape())
-  const after = crewStillRunningLine({ agents: 0, workflows: 1 })!
+  const after = crewStillRunningLine({ agents: 2 })!
   conn.addDisplayRow(createSystemMessage(after, 'warning'))
   const a3 = uid()
   appendFileSync(file, line(a3, u3, 7, 'assistant', 'noted'))

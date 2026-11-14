@@ -330,28 +330,3 @@ export function resolveAgentTranscriptFile(
   }
   return primary
 }
-
-export async function readAgentMeta(
-  transcriptDir: string,
-  agentId: string,
-): Promise<
-  { agentType?: string; worktreePath?: string; description?: string } | undefined
-> {
-  try {
-    const raw = await readFile(
-      path.join(transcriptDir, `agent-${agentId}.meta.json`),
-      'utf8',
-    )
-    const parsed = JSON.parse(raw) as Record<string, unknown>
-    return {
-      agentType:
-        typeof parsed.agentType === 'string' ? parsed.agentType : undefined,
-      worktreePath:
-        typeof parsed.worktreePath === 'string' ? parsed.worktreePath : undefined,
-      description:
-        typeof parsed.description === 'string' ? parsed.description : undefined,
-    }
-  } catch {
-    return undefined
-  }
-}

@@ -2,7 +2,6 @@
  "getProjectsDir/shape": "/tmp/mercury-parity-home/projects",
  "getTranscriptPathForSession/shape": "/tmp/mercury-parity-home/projects/«parity-cwd»/«u1».jsonl",
  "getAgentTranscriptPath/shape": "/tmp/mercury-parity-home/projects/«parity-cwd»/«u1»/subagents/agent-agent-fixture-1.jsonl",
- "getWorkflowTranscriptDir/shape": "/tmp/mercury-parity-home/projects/«parity-cwd»/«u1»/subagents/workflows/wf_fixture1",
  "sessionIdExists/absent": false,
  "getNodeEnv/value": "development",
  "getProjectDir/sanitized-shape": "/tmp/mercury-parity-home/projects/-tmp-example-repo-with-dots-9e4efec0",

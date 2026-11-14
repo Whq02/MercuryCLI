@@ -226,10 +226,7 @@ export function sessionActivityOf(
   lastTurnAt: number | null,
 ): NonNullable<ConcourseWorkerRecordV1['activity']> {
   const running = (work ?? []).filter(workRowRuns)
-  const subagents = running.reduce((count, row) => count + (
-    row.kind === 'agent' ? 1 :
-      row.kind === 'workflow' ? row.pulse?.running ?? 0 : 0
-  ), 0)
+  const subagents = running.filter(row => row.kind === 'agent').length
   const count = work === undefined ? waitingOnAgents : subagents
   const waiting = count > 0 && (!turnActive || waitingOnAgents > 0)
   const state = waiting ? 'waiting' : turnActive || running.length > 0 ? 'working' : 'idle'

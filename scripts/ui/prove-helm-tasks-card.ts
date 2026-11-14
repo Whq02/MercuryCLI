@@ -285,7 +285,7 @@ console.log(`helm tasks-card proof — product root ${ROOT} at ${COLS}x${ROWS}`)
   check('solo-ledger: no RUNS section without a live process', !/RUNS/.test(rail))
   railCard('solo-ledger', frame)
   check('solo-ledger: the rail paints none of the ledger rows', !/Charting the reef|Refit the tide|Sound the harb/.test(rail), railHits(frame, /reef|tide|harb/))
-  check('solo-ledger: a ledger alone leaves the solo layout in place (the NEXT hints paint)', /NEXT/.test(rail) && /\/workflows/.test(rail) && /\/health/.test(rail), railHits(frame, /NEXT|\/workflows|\/health/))
+  check('solo-ledger: a ledger alone leaves the solo layout in place (the NEXT hints paint)', /NEXT/.test(rail) && /\/health/.test(rail) && /\/memory/.test(rail), railHits(frame, /NEXT|\/health|\/memory/))
   dumpRail('solo-ledger', frame, since)
   await world.close()
 }

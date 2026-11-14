@@ -23,7 +23,6 @@ import { WebFetchTool } from '../../tools/WebFetchTool/WebFetchTool.js'
 import { BrowserTool } from '../../tools/BrowserTool/BrowserTool.js'
 import { ApolloReviewTool } from '../../tools/ApolloReviewTool/ApolloReviewTool.js'
 import { AskUserQuestionTool } from '../../tools/AskUserQuestionTool/AskUserQuestionTool.js'
-import { WorkflowTool } from '../../tools/WorkflowTool/WorkflowTool.js'
 import { RecordConventionTool } from '../../tools/RecordConventionTool/RecordConventionTool.js'
 import { GitTool } from '../../tools/GitTool/GitTool.js'
 import { MonitorTool } from '../../tools/MonitorTool/MonitorTool.js'
@@ -88,15 +87,6 @@ export type PermissionRequestProps<Input = Record<string, unknown>> = {
   setStickyFooter?: (jsx: React.ReactNode | null) => void
 }
 
-let ResolvedWorkflowCard: ((props: PermissionRequestProps) => React.ReactNode) | null = null
-try {
-  const workflowModule = require('../../tools/WorkflowTool/WorkflowPermissionRequest.js') as {
-    WorkflowPermissionRequest?: (props: PermissionRequestProps) => React.ReactNode
-  }
-  ResolvedWorkflowCard = workflowModule.WorkflowPermissionRequest ?? null
-} catch {
-  ResolvedWorkflowCard = null
-}
 
 export function PermissionRequest(props: PermissionRequestProps): React.ReactNode {
   const { toolUseConfirm, onDone, onReject } = props
@@ -146,13 +136,6 @@ export function PermissionRequest(props: PermissionRequestProps): React.ReactNod
   if (tool === SkillTool) return <SkillPermissionRequest key={key} {...props} />
   if (tool === AskUserQuestionTool) {
     return <AskUserQuestionPermissionRequest key={key} {...props} />
-  }
-  if (tool === WorkflowTool) {
-    if (ResolvedWorkflowCard) {
-      const WorkflowCard = ResolvedWorkflowCard
-      return <WorkflowCard key={key} {...props} />
-    }
-    return <FallbackPermissionRequest key={key} {...props} />
   }
   if (tool === GlobTool || tool === GrepTool || tool === FileReadTool) {
     return <FilesystemPermissionRequest key={key} {...props} />

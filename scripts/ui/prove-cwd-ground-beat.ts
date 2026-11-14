@@ -62,8 +62,6 @@ for (const file of MUST_RIDE_THE_BEAT) {
   check('MercuryFrame keeps no private copy of the feed', !frame.includes('subscribeCwdState('));
   const workViews = readFileSync('src/components/tasks/useFocusedWork.ts', 'utf8');
   check('the work views define no second useFocusedWorkspaceCwd', !workViews.includes('export function useFocusedWorkspaceCwd'));
-  const board = readFileSync('src/components/tasks/WorkflowsBoard.tsx', 'utf8');
-  check('the workflows board rides the owner hook', board.includes("from '../../hooks/useFocusedWorkspaceCwd.js'"));
 }
 
 process.exit(fail);

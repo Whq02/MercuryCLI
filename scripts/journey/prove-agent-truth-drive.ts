@@ -31,7 +31,7 @@ const FIXTURE_API_KEY = 'fixture-key-000'
 const GPT_ID = 'gpt-5.6-sol'
 const SEAT_MARK = 'truth-seat:'
 const NOTES_FILE = 'truth-notes.txt'
-const SEATS = { foliage: 'foliage', lantern: 'lantern', walker: 'walker', stall: 'stall' } as const
+const SEATS = { foliage: 'foliage', lantern: 'lantern', walker: 'walker' } as const
 type Seat = keyof typeof SEATS
 const LANTERN_READS = 14
 const WALKER_READS = 6
@@ -40,15 +40,8 @@ const PARTIAL_TEXT = 'half the foliage is planted'
 const LANTERN_WORD = 'a word for the lantern by its id'
 const LANTERN_WORD_2 = 'a second word for the lantern by its name'
 const DEAD_WORD = 'a word for the fallen foliage'
-const WF_NAME = 'stall-survey'
-const WF_SCRIPT = [
-  `export const meta = { name: '${WF_NAME}', description: 'one agent stalls and resumes', phases: [{ title: 'Survey' }] }`,
-  `phase('Survey')`,
-  `const report = await agent('${SEAT_MARK}stall report in one line', { stallMs: 2000 })`,
-  'return { report }',
-].join('\n')
 
-type Route = 'fault-launch' | 'lantern-launch' | 'message-id' | 'message-name' | 'message-dead' | 'walker-launch' | 'workflow-launch' | 'ack' | 'note' | 'side'
+type Route = 'fault-launch' | 'lantern-launch' | 'message-id' | 'message-name' | 'message-dead' | 'walker-launch' | 'ack' | 'note' | 'side'
 type Block = { type?: string; id?: string; name?: string; text?: string; tool_use_id?: string; content?: unknown; input?: Record<string, unknown> }
 type Item = { role?: string; content?: unknown }
 const itemsOf = (body: unknown): Item[] => {
@@ -186,8 +179,6 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
   let acks = 0
   let notes = 0
   let gptCalls = 0
-  let stallCalls = 0
-  const held: ServerResponse[] = []
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const chunks: Buffer[] = []
     req.on('data', c => chunks.push(c))
@@ -236,24 +227,6 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
         const lastUser = [...items].reverse().find(i => i.role === 'user')
         const lastUserText = lastUser ? textOf(lastUser.content) : ''
         const seat = seatOf(items)
-        if (seat === 'stall') {
-          const call = ++stallCalls
-          hits.push({ route: 'seat', seat, call, atMs: Date.now(), lastUserText, raw, results: [] })
-          res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
-          if (raw.includes('cut off by a no-progress timeout')) {
-            res.end(answer(model, [{ type: 'text', text: 'STALL-RESUMED-DONE' }]))
-            return
-          }
-          if (readsOf(items) === 0) {
-            res.end(answer(model, [{ type: 'tool_use', id: `toolu_truth_stall_read_${++toolSeq}`, name: 'Read', input: { file_path: join(cwd, NOTES_FILE) } }]))
-            return
-          }
-          setTimeout(() => {
-            res.write(anthropicHead(model))
-            held.push(res)
-          }, 300).unref?.()
-          return
-        }
         if (seat !== null) {
           const priorReads = readsOf(items)
           const call = hits.filter(h => h.route === 'seat' && h.seat === seat).length + 1
@@ -276,7 +249,6 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
           ['agent-truth: message-dead', 'message-dead'],
           ['agent-truth: message', 'message-id'],
           ['agent-truth: foreground', 'walker-launch'],
-          ['agent-truth: workflow', 'workflow-launch'],
         ]
         let newest: { at: number; route: Route } | null = null
         for (const [word, askRoute] of asks) {
@@ -287,7 +259,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
         if (!offersTool(body, 'Crewmate')) route = 'side'
         else if (newest !== null) route = newest.route
         else if (lastUserText.includes('task-notification')) route = 'note'
-        else if (answered === 'Crewmate' || answered === 'SendMessage' || answered === 'ResumeCrewmate' || answered === 'Workflow') route = 'ack'
+        else if (answered === 'Crewmate' || answered === 'SendMessage' || answered === 'ResumeCrewmate') route = 'ack'
         else route = 'side'
         hits.push({ route, seat: null, call: 0, atMs: Date.now(), lastUserText, raw, results })
         let blocks: Answer[]
@@ -309,9 +281,6 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
             break
           case 'walker-launch':
             blocks = [agentLaunch(`toolu_truth_agent_${++toolSeq}`, 'walker', {})]
-            break
-          case 'workflow-launch':
-            blocks = [{ type: 'tool_use', id: `toolu_truth_wf_${++toolSeq}`, name: 'Workflow', input: { script: WF_SCRIPT } }]
             break
           case 'ack':
             blocks = [{ type: 'text', text: `ACK-${++acks}` }]
@@ -340,16 +309,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
   return {
     base: `http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}`,
     hits,
-    close: () =>
-      new Promise<void>(resolve => {
-        for (const res of held) {
-          try {
-            res.destroy()
-          } catch {
-          }
-        }
-        server.close(() => resolve())
-      }),
+    close: () => new Promise<void>(resolve => server.close(() => resolve())),
   }
 }
 
@@ -430,7 +390,7 @@ function driveEnv(home: string, base: string): Record<string, string> {
   }
 }
 
-type Transcript = { path: string; kind: 'session' | 'agent' | 'workflow-agent'; text: string; lines: string[] }
+type Transcript = { path: string; kind: 'session' | 'agent'; text: string; lines: string[] }
 function transcripts(home: string): Transcript[] {
   const out: Transcript[] = []
   const walk = (dir: string): void => {
@@ -451,7 +411,7 @@ function transcripts(home: string): Transcript[] {
       if (st.isDirectory()) walk(full)
       else if (name.endsWith('.jsonl')) {
         const text = readFileSync(full, 'utf8')
-        const kind: Transcript['kind'] = full.includes('/subagents/workflows/') ? 'workflow-agent' : full.includes('/subagents/') ? 'agent' : 'session'
+        const kind: Transcript['kind'] = full.includes('/subagents/') ? 'agent' : 'session'
         out.push({ path: full, kind, text, lines: text.split('\n').filter(l => l.trim() !== '') })
       }
     }
@@ -502,10 +462,8 @@ try {
         { data: 'agent-truth: foreground\r', afterPrevTicks: 6 },
         { data: '\x1b', awaitText: SEATS.walker, requireAwait: true, minTick: 5, awaitSettleTicks: 6, mark: 'walker-running' },
         { data: '', afterPrevTicks: 15, mark: 'after-walker-esc' },
-        { data: 'agent-truth: workflow\r', afterPrevTicks: 4 },
-        { data: '', afterPrevTicks: 12, mark: 'workflow-typed' },
-        { data: '\r', afterPrevTicks: 8, mark: 'workflow-card' },
-        { data: '', afterPrevTicks: 80, mark: 'after-workflow' },
+        { data: 'agent-truth: after\r', afterPrevTicks: 4 },
+        { data: '', afterPrevTicks: 20, mark: 'after-walker-word' },
         { data: '\x1b', afterPrevTicks: 2 },
         { data: '/crewmates\r', afterPrevTicks: 4 },
         { data: '\x1b', awaitText: SEATS.lantern, requireAwait: true, minTick: 3, awaitSettleTicks: 4, mark: 'crew-end' },
@@ -531,7 +489,7 @@ if (cap !== null) {
     if (h.route === 'note') console.log(`  note +${((h.atMs - t0) / 1000).toFixed(1)}s ${flat(h.lastUserText).slice(0, 300)}`)
   }
   console.log(`  send ticks: ${cap.receipts.map(r => r.atTick).join(',')} · marks: ${Object.entries(cap.markTicks).map(([k, v]) => `${k}@${v}`).join(' ')} · end: ${cap.endReason}`)
-  for (const label of ['after-fault', 'crew-fault', 'lantern-waiting', 'message-id', 'message-name', 'message-dead', 'walker-running', 'after-walker-esc', 'workflow-typed', 'workflow-card', 'after-workflow', 'crew-end']) dump(label, m[label])
+  for (const label of ['after-fault', 'crew-fault', 'lantern-waiting', 'message-id', 'message-name', 'message-dead', 'walker-running', 'after-walker-esc', 'after-walker-word', 'crew-end']) dump(label, m[label])
   dump('final', cap.text)
   for (const h of fixture.hits.filter(h => h.route === 'note')) {
     const items = itemsOf(JSON.parse(h.raw))
@@ -544,7 +502,6 @@ if (cap !== null) {
   const session = disk.filter(t => t.kind === 'session').sort((a, b) => b.lines.length - a.lines.length)[0]
   const foliage = disk.find(t => t.kind === 'agent' && t.text.includes(`${SEAT_MARK}foliage`))
   const lanternTranscript = disk.find(t => t.kind === 'agent' && t.text.includes(`${SEAT_MARK}lantern`))
-  const stallAttempts = disk.filter(t => t.kind === 'workflow-agent' && t.text.includes(`${SEAT_MARK}stall`))
   const notes = fixture.hits.filter(h => h.route === 'note')
   const acks = fixture.hits.filter(h => h.route === 'ack')
   if (foliage !== undefined) {
@@ -613,15 +570,6 @@ if (cap !== null) {
   const walkerRunning = rowsWith(m['after-walker-esc'], /sub-agents? still running|walker/)
   check('W1 after esc the walker runs on (the receipt row or the running word)', walkerRunning.length > 0, walkerRunning.map(flat).join(' | ').slice(0, 300))
 
-  console.log('\n— S the stalled child records the timeout, not the operator —')
-  console.log(`  stall attempts on disk: ${stallAttempts.map(t => `${t.lines.length} lines`).join(', ') || 'none'}`)
-  const cutAttempt = stallAttempts.find(t => t.text.includes('[Request cut off') || t.text.includes('[Request interrupted by user'))
-  check('S1 the stalled attempt\'s transcript names the no-progress timeout as its reason', cutAttempt !== undefined && cutAttempt.text.includes('[Request cut off by a no-progress timeout'), cutAttempt === undefined ? 'no attempt carries a cut row' : 'found')
-  check('S1 …and never the operator\'s interruption', !stallAttempts.some(t => t.text.includes('[Request interrupted by user')))
-  const stallHits = fixture.hits.filter(h => h.route === 'seat' && h.seat === 'stall')
-  const resumedStall = stallHits.find(h => h.raw.includes('cut off by a no-progress timeout'))
-  check(`S1 the resumed attempt's request carries the continuation prompt beside the cut row (${stallHits.length} stall calls)`, resumedStall !== undefined && resumedStall.raw.includes('[Request cut off by a no-progress timeout') && !resumedStall.raw.includes('[Request interrupted by user'))
-  check('S1 the workflow settled after the resume', notes.some(h => /workflow/i.test(h.lastUserText) && /completed/.test(h.lastUserText)) || (m['after-workflow'] ?? '').includes('STALL-RESUMED-DONE') || (m['after-workflow'] ?? '').includes('Completed'), rowsWith(m['after-workflow'], /workflow|Completed|STALL/i).map(flat).join(' | ').slice(0, 300))
 }
 
 if (!KEEP) {

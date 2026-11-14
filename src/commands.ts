@@ -67,7 +67,6 @@ import logout from './commands/logout/index.js'
 import loginFactory from './commands/login/index.js'
 import tasks from './commands/tasks/index.js'
 import appearance from './commands/appearance/index.js'
-import workflows from './commands/workflows/index.js'
 import mouse from './commands/mouse/index.js'
 import capabilities from './commands/capabilities/index.js'
 import workbench from './commands/workbench/index.js'
@@ -113,17 +112,6 @@ export { getCommandName } from './types/command.js'
 export { commandOffInPlainWorld, isCommandEnabled } from './commands/enablement.js'
 
 const require = createRequire(import.meta.url)
-
-async function loadWorkflowCommands(): Promise<Command[]> {
-  try {
-    const factory = await import('./tools/WorkflowTool/createWorkflowCommand.js')
-    return await factory.getWorkflowCommands()
-  } catch (error) {
-    logError(error)
-    logForDebugging('workflow command loading failed; continuing without workflow commands')
-    return []
-  }
-}
 
 const clearSkillIndexCache: (() => void) | null = (() => {
   try {
@@ -203,7 +191,6 @@ const COMMANDS = memoize((): Command[] => [
   loginFactory(),
   tasks,
   appearance,
-  workflows,
   mouse,
   capabilities,
   caching,
@@ -276,18 +263,14 @@ export function meetsAvailabilityRequirement(cmd: Command): boolean {
 
 const loadAllCommands = memoize(async (cwd: string): Promise<Command[]> => {
   let skillCommands: Command[] = []
-  let workflowCommands: Command[] = []
   let extensionCommands: Command[] = []
   let extensionSkills: Command[] = []
   try {
-    ;[skillCommands, workflowCommands] = await Promise.all([
-      getSkillDirCommands(cwd).catch((error: unknown) => {
-        logError(error)
-        logForDebugging('skill loading failed; continuing without skill commands')
-        return [] as Command[]
-      }),
-      loadWorkflowCommands(),
-    ])
+    skillCommands = await getSkillDirCommands(cwd).catch((error: unknown) => {
+      logError(error)
+      logForDebugging('skill loading failed; continuing without skill commands')
+      return [] as Command[]
+    })
     try {
       extensionCommands = getExtensionCommands()
       extensionSkills = getExtensionSkills()
@@ -299,12 +282,11 @@ const loadAllCommands = memoize(async (cwd: string): Promise<Command[]> => {
     logError(error)
     logForDebugging('command source loading failed; continuing with built-ins only')
     skillCommands = []
-    workflowCommands = []
     extensionCommands = []
     extensionSkills = []
   }
   logForDebugging(
-    `loaded command sources: ${skillCommands.length} skill commands, ${workflowCommands.length} workflow commands, ${extensionCommands.length} extension commands, ${extensionSkills.length} extension skills`,
+    `loaded command sources: ${skillCommands.length} skill commands, ${extensionCommands.length} extension commands, ${extensionSkills.length} extension skills`,
   )
 
   const builtinNames = builtInCommandNames()
@@ -320,7 +302,6 @@ const loadAllCommands = memoize(async (cwd: string): Promise<Command[]> => {
   return [
     ...getBundledSkills(),
     ...dropBuiltinShadows(skillCommands, 'skill directory'),
-    ...dropBuiltinShadows(workflowCommands, 'workflow'),
     ...dropBuiltinShadows(extensionCommands, 'extension command'),
     ...dropBuiltinShadows(extensionSkills, 'extension skill'),
     ...COMMANDS(),
@@ -468,9 +449,6 @@ export function formatDescriptionWithSource(cmd: Command): string {
     return cmd.description
   }
   const description = cmd.menuDescription ?? cmd.description
-  if (cmd.kind === 'workflow') {
-    return `${description} (workflow)`
-  }
   if (cmd.source === 'extension') {
     const owner = cmd.extensionInfo?.manifest.name
     return owner ? `(${owner}) ${description}` : `${description} (extension)`

@@ -215,11 +215,6 @@ check(
   'real retry callers still pass the actual delay AND sleep it',
   retryTs.includes('await sleep(delayMs, options.signal') && retryTs.includes('disableKeepAlive()'),
 )
-const hooksTs = src('src/tools/WorkflowTool/agentHooks.ts')
-check(
-  'the workflow stall ladder reads the recovery ceiling too (no budget regression)',
-  hooksTs.includes('recoveryTimeoutMs'),
-)
 const sysMsgTsx = src('src/components/messages/SystemAPIErrorMessage.tsx')
 check(
   'renderer: recovery notices say what is happening, not a fake countdown',

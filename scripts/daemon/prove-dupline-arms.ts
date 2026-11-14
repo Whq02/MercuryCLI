@@ -19,11 +19,6 @@ import {
   RETURN_LINE,
   SECOND_LINE,
   SLEEP_TOOL_TURN_ASK,
-  WORKFLOW_AGENT_DONE,
-  WORKFLOW_ALLOW_RULE,
-  WORKFLOW_NAME,
-  WORKFLOW_SCRIPT,
-  WORKFLOW_TURN_ASK,
 } from './dupline-fixture-words.ts'
 import { argAfter, bootRunner, bound, briefly, carriersOf, carrying, childEnv, CLOCK_TOLERANCE_MS, deliveryClockOf, describeRequests, DIST, exportWorld, inMainFile, isDrainedMainRow, isSession, isOutcome, j, makeTally, NODE, queueJournal, removeWorld, REPO, requestsOf, SCRATCH_ROOT, seedHome, settledCarriers, sleep, startFixture, waitWire, type Carrier, type Fixture, type Frame, type Runner, type Wire } from './dupline-world.ts'
 
@@ -36,11 +31,8 @@ section('S the doors a sub-agent could nest or fork through are shut at their ow
 {
   const { ALL_AGENT_DISALLOWED_TOOLS, CUSTOM_AGENT_DISALLOWED_TOOLS } = await import('../../src/constants/tools.ts')
   const { AGENT_TOOL_NAME } = await import('../../src/tools/AgentTool/constants.ts')
-  const { WORKFLOW_TOOL_NAME } = await import('../../src/tools/WorkflowTool/constants.ts')
-  check('every sub-agent loses the Crewmate tool and the Workflow tool (the one deny set)', ALL_AGENT_DISALLOWED_TOOLS.has(AGENT_TOOL_NAME) && ALL_AGENT_DISALLOWED_TOOLS.has(WORKFLOW_TOOL_NAME) && CUSTOM_AGENT_DISALLOWED_TOOLS === ALL_AGENT_DISALLOWED_TOOLS)
+  check('every sub-agent loses the Crewmate tool (the one deny set)', ALL_AGENT_DISALLOWED_TOOLS.has(AGENT_TOOL_NAME) && CUSTOM_AGENT_DISALLOWED_TOOLS === ALL_AGENT_DISALLOWED_TOOLS)
   check('a launch that names no type takes the default type', src('utils/crew/agentLaunchPlan.ts').includes("(i.requestedType || undefined) ?? i.defaultAgentType"))
-  const hooks = src('tools/WorkflowTool/agentHooks.ts')
-  check("a workflow's agent queries under its own source label and its own agent id", hooks.includes('querySource: getQuerySourceForAgent(') && hooks.includes('agentId: args.agentId,'))
 }
 
 const FOLD_WINDOW_MODEL = 'claude-opus-4-6'
@@ -248,7 +240,7 @@ if (!existsSync(DIST)) {
     const before = w.runner.frames.length
     void w.runner.prompt(NESTED_TURN_ASK, UT)
     const opened = await waitWire(w.fx.wire, "the sub-agent's first request", wireOf(w, 'subnested', 0), bound(60_000))
-    check("the sub-agent's pool carries neither the Crewmate tool nor the Workflow tool", opened !== null && opened.hasAgentTool === false && opened.hasWorkflowTool === false, j(opened))
+    check("the sub-agent's pool carries no Crewmate tool", opened !== null && opened.hasAgentTool === false, j(opened))
     await toolStarted(w, 'toolu_subnest_c', before)
     const line = send(w, LINE, 1)
     const result = await w.runner.waitFor("the nested turn's result", isOutcome, bound(90_000), before)
@@ -278,33 +270,6 @@ if (!existsSync(DIST)) {
     check('no fork ever queried', requests.every(r => r.arm !== 'forkwork') && carrying(requests, FORK_DONE).length === 0, j(requests.map(r => r.arm)))
     const carriers = await settled(w, [LINE], bound(10_000), drainedOnce([LINE]))
     lineLaw(w, line, ['subwork', 'forkwork'], 'agentfork', 2, carriers)
-    await closeWorld(w)
-  }
-
-  if (runs('A7')) {
-  section("A7 a line sent while a workflow's agent runs waits for the session's own boundary")
-    const w = await openWorld('workflow', 5, 0, {
-      argv: ['--allowed-tools', WORKFLOW_ALLOW_RULE],
-      seed: cwd => {
-        mkdirSync(join(cwd, '.mercury', 'workflows'), { recursive: true })
-        writeFileSync(join(cwd, '.mercury', 'workflows', `${WORKFLOW_NAME}.js`), `${WORKFLOW_SCRIPT}\n`)
-      },
-    })
-    const before = w.runner.frames.length
-    void w.runner.prompt(WORKFLOW_TURN_ASK, UT)
-    const launched = await waitWire(w.fx.wire, "the session's request after the Workflow call", wireOf(w, 'agentworkflow', 1), bound(60_000))
-    check('the named workflow launched in the background (the tool answered with a task id)', launched !== null && launched.lastToolResult?.isError === false && /launched in background/i.test(launched.lastToolResult?.text ?? ''), j(launched?.lastToolResult))
-    const agent = await waitWire(w.fx.wire, "the workflow agent's first request", wireOf(w, 'wfwork', 0), bound(60_000))
-    check("the workflow's agent opened its own conversation", agent !== null)
-    await toolStarted(w, 'toolu_wfwait_c', before)
-    const line = send(w, LINE, 1)
-    const result = await w.runner.waitFor("the workflow turn's result", isOutcome, bound(120_000), before)
-    check("the turn ended with the session's own final text", result !== null && String(result.answer ?? '').startsWith(doneText(WORKFLOW_TURN_ASK)), j(result?.answer))
-    const requests = requestsOf(w.fx.wire)
-    check("the workflow's agent crossed its own boundary while the line was queued", requests.some(wireOf(w, 'wfwork', 1)), j(requests.filter(r => r.arm === 'wfwork').map(r => [r.n, r.step])))
-    check('the workflow agent finished on its own', carrying(requests.filter(r => r.arm === 'agentworkflow'), WORKFLOW_AGENT_DONE).length >= 0)
-    const carriers = await settled(w, [LINE], bound(10_000), drainedOnce([LINE]))
-    lineLaw(w, line, ['wfwork'], 'agentworkflow', 2, carriers)
     await closeWorld(w)
   }
 

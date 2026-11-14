@@ -76,8 +76,8 @@ lines.push(
   '  gate (flagRegistry · EXECUTION_DOMAIN_CENSUS · the resource registry ·',
   '  proof paths on disk). `—` = not declared (a named gap, not a denial).',
   '- Uniform properties not repeated per-row: every catalog tool is reachable',
-  '  from Eval (`tool`) and workflow agents unless its contract',
-  '  declares otherwise; every tool is available in all permission modes.',
+  '  from Eval (`tool`) unless its contract declares otherwise; every',
+  '  tool is available in all permission modes.',
   '',
 )
 

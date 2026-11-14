@@ -14,7 +14,7 @@ import type { SampleRowV1, WorkRowV1 } from '../services/engine-connector/types.
 import { escRungHint, escRungOf } from '../input-core/interruptArity.js'
 import { SEND_NOW_HINT } from '../input-core/sendNowChord.js'
 import { crewAgentsOf, crewWaitingWords } from '../services/engine-connector/crewFacts.js'
-import { withSampleWords, workRowRuns, workWaitingWords } from '../services/engine-connector/workCounts.js'
+import { withSampleWords, workWaitingWords } from '../services/engine-connector/workCounts.js'
 import { requestWaitLine } from '../services/providers/streamIdleBudget.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { governorTrip, idleMotionLevel, motionPosture, subscribeIdleMotion } from '../utils/cockpit/motionGovernor.js'
@@ -24,7 +24,7 @@ import { truncateKeepingTail } from '../utils/truncate.js'
 import { branchChip } from './mercury-ui/glyphs.js'
 import { keyHintLabel } from './mercury-ui/keyHintLabel.js'
 import { useNowTick } from './mercury-ui/components.js'
-import { focusedWorkflowRows, useFocusedSamples, useFocusedWorkRows } from './tasks/useFocusedWork.js'
+import { useFocusedSamples, useFocusedWorkRows } from './tasks/useFocusedWork.js'
 import { useFocusedShellRunning } from '../services/engine-connector/shellRunning.js'
 import { useFocusedSendNowLive } from '../services/engine-connector/sendNowLive.js'
 import { settingsChangeDetector } from '../utils/settings/changeDetector.js'
@@ -183,11 +183,8 @@ export type CrewClockV1 = {
 type CrewSpan = { startedAt: number; endedAt: number | null; running: boolean }
 type KindClock = { word: string; running: boolean; ms: number }
 
-function crewSpansOf(rows: readonly WorkRowV1[]): { agents: CrewSpan[]; workflows: CrewSpan[] } {
-  return {
-    agents: crewAgentsOf(rows, null).map(a => ({ startedAt: a.startedAt, endedAt: a.endedAt, running: a.running })),
-    workflows: focusedWorkflowRows(rows).map(r => ({ startedAt: r.startTime, endedAt: r.endTime ?? null, running: workRowRuns(r) })),
-  }
+function crewSpansOf(rows: readonly WorkRowV1[]): CrewSpan[] {
+  return crewAgentsOf(rows, null).map(a => ({ startedAt: a.startedAt, endedAt: a.endedAt, running: a.running }))
 }
 
 function kindClockOf(spans: readonly CrewSpan[], words: readonly [string, string], nowMs: number): KindClock | null {
@@ -198,19 +195,14 @@ function kindClockOf(spans: readonly CrewSpan[], words: readonly [string, string
 }
 
 export function crewActiveIn(rows: readonly WorkRowV1[]): boolean {
-  const spans = crewSpansOf(rows)
-  return spans.agents.some(s => s.running) || spans.workflows.some(s => s.running)
+  return crewSpansOf(rows).some(s => s.running)
 }
 
 export function crewClockOf(rows: readonly WorkRowV1[], nowMs: number): CrewClockV1 {
-  const spans = crewSpansOf(rows)
-  const kinds = [kindClockOf(spans.agents, ['crewmate', 'crewmates'], nowMs), kindClockOf(spans.workflows, ['workflow', 'workflows'], nowMs)].filter(
-    (k): k is KindClock => k !== null,
-  )
-  kinds.sort((a, b) => b.ms - a.ms)
+  const clock = kindClockOf(crewSpansOf(rows), ['crewmate', 'crewmates'], nowMs)
   return {
-    active: kinds.some(k => k.running),
-    line: kinds.length === 0 ? null : kinds.map(k => `${k.word} thought for ${statusDuration(k.ms)}`).join(' · '),
+    active: clock !== null,
+    line: clock === null ? null : `${clock.word} thought for ${statusDuration(clock.ms)}`,
   }
 }
 

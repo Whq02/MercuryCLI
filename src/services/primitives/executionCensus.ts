@@ -83,15 +83,6 @@ export const EXECUTION_DOMAIN_CENSUS: readonly ExecutionDomainCensusEntry[] = [
     notes: 'Remote transport stays out of scope; only the local task row projects.',
   },
   {
-    domain: 'task:local_workflow',
-    classification: 'external-projection',
-    kind: 'workflow-worker',
-    adapter: 'src/utils/task/framework.ts',
-    owner: 'processMainOwner()',
-    resourceKind: 'workflow',
-    notes: 'The workflow RUN projects as one execution; per-agent workers are child-execution (see workflow-worker row).',
-  },
-  {
     domain: 'task:monitor_mcp',
     classification: 'external-projection',
     kind: 'background-job',
@@ -99,15 +90,6 @@ export const EXECUTION_DOMAIN_CENSUS: readonly ExecutionDomainCensusEntry[] = [
     owner: 'processMainOwner()',
     resourceKind: 'task',
     notes: 'Monitor lifecycle is poll-driven; the task row is the truth being mirrored.',
-  },
-  {
-    domain: 'workflow-worker',
-    classification: 'child-execution',
-    adapter: 'run journal + livePulse, projected on read (resource graph)',
-    owner: 'the workflow run’s task execution',
-    resourceKind: 'workflow',
-    notes:
-      'Individual agents inside a run are high-volume and journal-recorded; standing plane records would duplicate the journal without a consumer. Projected as children on read.',
   },
   {
     domain: 'language-server',

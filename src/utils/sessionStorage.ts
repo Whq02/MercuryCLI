@@ -7,7 +7,6 @@ export {
   getProjectsDir,
   getTranscriptPath,
   getTranscriptPathForSession,
-  getWorkflowTranscriptDir,
   isChainParticipant,
   isCustomTitleEnabled,
   isEphemeralToolProgress,

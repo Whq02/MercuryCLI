@@ -19,8 +19,8 @@
 # gate-watch: src/services/engine-connector/seatProjections.ts
 # gate-watch: src/services/primitives/execution.ts src/services/primitives/executionCensus.ts
 # gate-watch: src/services/search/searchDoor.ts src/tools/AgentTool/*
-# gate-watch: src/tools/ToolSearchTool/ToolSearchTool.ts src/tools/WorkflowTool/agentHooks.ts
-# gate-watch: src/tools/WorkflowTool/workflowPrompt.ts src/utils/* src/utils/accounts/signInLedger.ts
+# gate-watch: src/tools/ToolSearchTool/ToolSearchTool.ts
+# gate-watch: src/utils/* src/utils/accounts/signInLedger.ts
 # gate-watch: src/utils/messages/apiView.ts
 # gate-watch: src/utils/messages/attachmentText.ts src/utils/settings/types.ts
 # gate-watch: scripts/lib/crossfamilyConcourseFixture.ts src/services/compact/compact.ts

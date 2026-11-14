@@ -57,7 +57,7 @@ function check(name: string, ok: boolean, detail = ''): void {
 
 {
   const domainOf = (n: string) => COMMAND_DOMAINS.find(d => d.names.includes(n))?.key
-  for (const flagship of ['workflows', 'health']) {
+  for (const flagship of ['health']) {
     check(`flagship /${flagship} is curated`, domainOf(flagship) !== undefined, domainOf(flagship) ?? 'UNMAPPED')
   }
 }

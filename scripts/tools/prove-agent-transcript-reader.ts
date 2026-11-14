@@ -10,7 +10,6 @@ import {
   agentTranscriptFile,
   OUTCOME_CAP_CHARS,
   PROMPT_CAP_CHARS,
-  readAgentMeta,
   readAgentTranscript,
   summarizeToolInput,
 } from '../../src/utils/crew/agentTranscriptReader.ts'
@@ -65,7 +64,6 @@ const encLine = (e: unknown): string =>
     } as never),
   )
 writeFileSync(file, entries.map(encLine).join('\n') + '\n{"schemaVersion":1,"recordId":"torn', 'utf8')
-writeFileSync(join(dir, `agent-${agentId}.meta.json`), JSON.stringify({ agentType: 'workflow-subagent', description: 'proof agent' }), 'utf8')
 
 const v = (await readAgentTranscript(file))!
 
@@ -91,14 +89,12 @@ section('reasoning — readable vs unreadable split (the honesty boundary)')
 check('readable thinking captured', v.reasoningTotal === 1 && v.reasoning[0]!.includes('let me think'))
 check('signature-only + redacted counted as unreadable', v.unreadableReasoningTotal === 2)
 
-section('outcome + usage + meta')
+section('outcome + usage')
 check('finalText is the last text block, capped', v.finalText !== undefined && v.finalText.length <= OUTCOME_CAP_CHARS + 1 && v.finalTextTruncated === true)
 check('model surfaced', v.model === 'claude-sonnet-5')
 check('usage deduped by message id (2 API turns, not 24)', v.usage?.apiTurns === 2)
 check('usage sums per-turn once', v.usage?.inputTokens === 110 && v.usage?.outputTokens === 55 && v.usage?.cacheReadTokens === 7)
 check('torn trailing line tolerated (live tail)', v.entryCount === entries.length)
-const meta = await readAgentMeta(dir, agentId)
-check('meta sidecar read', meta?.agentType === 'workflow-subagent' && meta.description === 'proof agent')
 
 section('a row persisted twice counts once')
 {

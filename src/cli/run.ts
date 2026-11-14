@@ -1647,7 +1647,7 @@ export async function runHeadless(
       getRunningTasks(getAppState()).some(task => !(inputClosed && isLocalShellTask(task))),
     hasHoldableBackgroundAgents: () =>
       getRunningTasks(getAppState()).some(
-        task => task.type === 'local_agent' || task.type === 'local_workflow',
+        task => task.type === 'local_agent',
       ),
     waitableBackgroundTaskCount: () =>
       getRunningTasks(getAppState()).filter(task => !(inputClosed && isLocalShellTask(task))).length,

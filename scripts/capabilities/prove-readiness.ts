@@ -80,18 +80,12 @@ try {
 
   const envRows = base.filter(r => r.kind === 'env')
   check(envRows.length >= 150, `environment section carries the registry (${envRows.length} rows ≥ 150 — no caps)`)
-  const workflowsOff = probe(home, { MERCURY_WORKFLOWS: '0' })
-  const workflowsRow = workflowsOff.find(r => r.id === 'env:MERCURY_WORKFLOWS')
-  check(workflowsRow?.state === 'disabled', `=0'd default-on gate reads disabled (got ${workflowsRow?.state})`)
-  check(/off — /.test(workflowsRow?.detail ?? ''), 'disabled gate detail carries the off contract')
-  const wfEnv = base.find(r => r.id === 'env:MERCURY_WORKFLOWS')
-  check(wfEnv?.state === 'ready', 'unset default-on gate reads ready (default)')
-
-  const wfOn = base.find(r => r.id === 'engine:workflows')
-  check(wfOn?.state === 'ready', 'workflow engine ready by default')
-  const wfOffRows = probe(home, { MERCURY_WORKFLOWS: '0' })
-  const wfOff = wfOffRows.find(r => r.id === 'engine:workflows')
-  check(wfOff?.state === 'disabled', `MERCURY_WORKFLOWS=0 ⇒ engine disabled (got ${wfOff?.state})`)
+  const refsOff = probe(home, { MERCURY_REFS: '0' })
+  const refsRow = refsOff.find(r => r.id === 'env:MERCURY_REFS')
+  check(refsRow?.state === 'disabled', `=0'd default-on gate reads disabled (got ${refsRow?.state})`)
+  check(/off — /.test(refsRow?.detail ?? ''), 'disabled gate detail carries the off contract')
+  const refsEnv = base.find(r => r.id === 'env:MERCURY_REFS')
+  check(refsEnv?.state === 'ready', 'unset default-on gate reads ready (default)')
 
   {
     const corruptHome = join(scratch, 'corrupt-extensions')

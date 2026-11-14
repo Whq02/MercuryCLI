@@ -39,7 +39,6 @@ const { getAgentRosterAttachment, queuedNoticeTaskIds } = await import('../../sr
 const { createTaskStateBase } = await import('../../src/Task.ts')
 const { getTaskOutputPath } = await import('../../src/utils/task/diskOutput.ts')
 const { seatWaitWords } = await import('../../src/services/capacity/seatWords.ts')
-const { buildResumePrompt } = await import('../../src/tasks/LocalWorkflowTask/LocalWorkflowTask.tsx')
 const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
 const { NULL_RENDERING_ATTACHMENT_TYPES, isNullRenderingAttachment } = await import('../../src/components/messages/nullRenderingAttachments.ts')
 const { getCompactPrompt, getPartialCompactPrompt } = await import('../../src/services/compact/prompt.ts')
@@ -56,20 +55,7 @@ const base = (id: string, type: string, description: string, over: AnyTask = {})
 
 const SEAT_SENTENCE = seatWaitWords({ width: 2, holders: ['the chat', 'plain-survey'], narrowing: null })
 const OWN_ID = 'aownfold1'
-const WF_RUNNING = 'local_workflow_run1'
-const WF_PAUSED = 'local_workflow_run2'
-const workflowEvents = [
-  { type: 'workflow_phase', index: 0, title: 'Survey' },
-  { type: 'workflow_agent', index: 0, label: 'wf-one', state: 'progress', phaseIndex: 0, phaseTitle: 'Survey', startedAt: now - 8000, lastProgressAt: now - 1000, lastToolName: 'Read', lastToolSummary: 'notes.txt' },
-  { type: 'workflow_agent', index: 1, label: 'wf-two', state: 'start', phaseIndex: 0, phaseTitle: 'Survey', queuedAt: now - 8000, waitWords: SEAT_SENTENCE },
-]
 const store: Record<string, AnyTask> = {
-  [WF_RUNNING]: base(WF_RUNNING, 'local_workflow', 'two agents survey the stations', {
-    script: 'x', prompt: 'x', workflowName: 'roster-survey', summary: 'two agents survey the stations', workflowRunId: 'run1', workflowProgress: workflowEvents, progressVersion: 3, agentCount: 2, totalTokens: 0, totalToolCalls: 0, logs: [], retain: false, scriptPath: '/w/roster-survey.js', pendingPermissions: new Map([['tu1', {}]]),
-  }),
-  [WF_PAUSED]: base(WF_PAUSED, 'local_workflow', 'a paused survey', {
-    status: 'paused', script: 'x', prompt: 'x', workflowName: 'paused-survey', workflowRunId: 'run2', workflowProgress: [], progressVersion: 0, agentCount: 1, totalTokens: 0, totalToolCalls: 0, logs: [], retain: false, scriptPath: '/w/paused-survey.js', args: { n: 1 },
-  }),
   aplain001: base('aplain001', 'local_agent', 'plain-survey', {
     agentId: 'aplain001', prompt: 'read the notes', agentType: 'mercury-crew', isBackgrounded: true, pendingMessages: ['one', 'two'],
     progress: { toolUseCount: 3, tokenCount: 0, recentActivities: [], lastActivity: { toolName: 'Read', activityDescription: 'Read notes.txt' } },
@@ -109,23 +95,15 @@ const queue = [
 
 section('§1 the builder — every kind rides ONE attachment, in the product\'s words')
 const queuedIds = queuedNoticeTaskIds(queue as never)
-const out = getAgentRosterAttachment({ tasks: store as never, agentNameRegistry: registry, excludeAgentId: OWN_ID, queuedNoticeIds: queuedIds, nowMs: now })
+const out = getAgentRosterAttachment({ tasks: store as never, agentNameRegistry: registry, excludeAgentId: OWN_ID, queuedNoticeIds: queuedIds })
 check('one attachment for the whole store', out.length === 1 && out[0]!.type === 'agent_roster', j(out.map(a => a.type)))
 const rows = out[0]?.rows ?? []
 const byId = new Map(rows.map(r => [r.taskId, r]))
 console.log(`  rows: ${rows.map(r => `${r.taskType}:${r.name}:${r.status}`).join(' | ')}`)
-check('every kind rides: the two workflows, six agents, the shell, the monitor (10 rows)', rows.length === 10, String(rows.length))
+check('every kind rides: six agents, the shell, the monitor (8 rows)', rows.length === 8, String(rows.length))
 check("the compacting agent's own row never rides", !byId.has(OWN_ID))
 check("the session's own main thread never rides (the projector's law)", !byId.has('smain0001'))
 check('running rows come first', rows.findIndex(r => !['running', 'waiting', 'pending'].includes(r.status)) > rows.filter(r => ['running', 'waiting', 'pending'].includes(r.status)).length - 1)
-
-const wf = byId.get(WF_RUNNING)
-check('the running workflow: its kind word, its name, the status word, its phase', wf?.taskType === 'local_workflow' && wf.name === 'roster-survey' && wf.status === 'running' && wf.phase === 'Survey', j(wf))
-check("…its agents carry the run view's own pulse words (a working agent's tool line, a queued agent's seat sentence)", j(wf?.agents) === j([{ label: 'wf-one', state: 'Read(notes.txt)' }, { label: 'wf-two', state: SEAT_SENTENCE }]), j(wf?.agents))
-check('…owed: its completion notification, and the parked ask', wf?.owed !== null && wf!.owed!.includes('task notification') && wf!.owed!.includes('1 permission ask parked'), wf?.owed ?? 'null')
-check('…no message address (a workflow is reached by its task id), the output path', wf?.address === null && wf.outputFilePath === getTaskOutputPath(WF_RUNNING))
-const paused = byId.get(WF_PAUSED)
-check('the paused workflow reads paused and carries the pause road\'s own resume sentence', paused?.status === 'paused' && paused.owed === buildResumePrompt({ args: { n: 1 }, scriptPath: '/w/paused-survey.js', workflowRunId: 'run2' }), paused?.owed ?? 'null')
 
 const plain = byId.get('aplain001')
 check('the running sub-agent: kind local_agent, the crew word running, its id as the address, asked = its description', plain?.taskType === 'local_agent' && plain.status === 'running' && plain.address === 'aplain001' && plain.description === 'plain-survey', j(plain))
@@ -144,8 +122,8 @@ const shell = byId.get('bshell001')
 check('the background shell: kind local_bash, the command as its name, the description as what it was asked, no message address', shell?.taskType === 'local_bash' && shell.name === 'sleep 20' && shell.description === 'roster-shell sleeps' && shell.address === null && shell.status === 'running', j(shell))
 const monitor = byId.get('mmon0001')
 check('the monitor rides as monitor_mcp, running', monitor?.taskType === 'monitor_mcp' && monitor.status === 'running')
-check('an empty store yields no attachment', getAgentRosterAttachment({ tasks: {}, nowMs: now }).length === 0)
-check('a store holding only the compacting agent yields no attachment', getAgentRosterAttachment({ tasks: { [OWN_ID]: store[OWN_ID] } as never, excludeAgentId: OWN_ID, nowMs: now }).length === 0)
+check('an empty store yields no attachment', getAgentRosterAttachment({ tasks: {} }).length === 0)
+check('a store holding only the compacting agent yields no attachment', getAgentRosterAttachment({ tasks: { [OWN_ID]: store[OWN_ID] } as never, excludeAgentId: OWN_ID }).length === 0)
 
 section('§2 the queued-notice census reads the notification road\'s own tag')
 check('the task ids named by queued task notifications, and only those', j([...queuedIds]) === j(['adonequeued']), j([...queuedIds]))
@@ -157,8 +135,10 @@ check('the roster projects to ONE meta user row', projected.length === 1 && (pro
 const text = typeof projected[0]?.message.content === 'string' ? projected[0].message.content : j(projected[0]?.message.content)
 console.log(text.split('\n').map(l => `  │ ${l.slice(0, 160)}`).join('\n'))
 check('…inside a system reminder, headed Agents in flight', text.startsWith('<system-reminder>') && text.includes('Agents in flight at the context turnover'))
-check('…one line per row (10 lines)', text.split('\n').filter(l => l.startsWith('- ')).length === 10)
-check('…the workflow line carries its phase and its agents with their pulse words', text.includes('local_workflow "roster-survey" [local_workflow_run1]: running · phase: Survey · crewmates: wf-one — Read(notes.txt), wf-two — ' + SEAT_SENTENCE))
+check('…one line per row (8 lines)', text.split('\n').filter(l => l.startsWith('- ')).length === 8)
+const storedRun = normalizeAttachmentForAPI({ type: 'agent_roster', rows: [{ taskType: 'local_workflow', taskId: 'local_workflow_run1', name: 'roster-survey', status: 'running', description: 'two agents survey the stations', address: null, wait: null, owed: null, error: null, phase: 'Survey', agents: [{ label: 'wf-one', state: 'Read(notes.txt)' }, { label: 'wf-two', state: SEAT_SENTENCE }] }] } as never)
+const storedRunText = typeof storedRun[0]?.message.content === 'string' ? storedRun[0].message.content : j(storedRun[0]?.message.content)
+check('a roster row of a run, stored by a session folded before the Workflow tool left, still reads as it was stored', storedRunText.includes('local_workflow "roster-survey" [local_workflow_run1]: running · phase: Survey · crewmates: wf-one — Read(notes.txt), wf-two — ' + SEAT_SENTENCE))
 check('…the sub-agent line names the SendMessage address and the output path', text.includes('reach it: SendMessage to "aplain001"') && text.includes(`output: ${getTaskOutputPath('aplain001')}`))
 check('…the waiting row carries the seat sentence beside the word waiting', text.includes(`[awaitseat]: waiting · ${SEAT_SENTENCE}`))
 check('…the shell line names TaskStop as its door', text.includes('local_bash "sleep 20" [bshell001]: running · asked: roster-shell sleeps') && text.includes('reach it: TaskStop by its id'))
@@ -215,7 +195,7 @@ section('§6 the direct lane — a real fold on an engine family carries the ros
   const appState = {
     toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' as const },
     sessionHooks: new Map(),
-    tasks: { aplain001: store.aplain001, bshell001: store.bshell001, [WF_RUNNING]: store[WF_RUNNING] },
+    tasks: { aplain001: store.aplain001, bshell001: store.bshell001 },
     agentNameRegistry: new Map(),
     mcp: { clients: [], tools: [], commands: [], resources: {} },
   }
@@ -256,7 +236,7 @@ section('§6 the direct lane — a real fold on an engine family carries the ros
   const attachments = ((result?.attachments ?? []) as Array<{ attachment: { type: string; rows?: Array<{ name: string }> } }>)
   const rosters = attachments.filter(a => a.attachment.type === 'agent_roster')
   check("the result's attachments carry ONE roster", rosters.length === 1, j(attachments.map(a => a.attachment.type)))
-  check('…naming the workflow, the sub-agent and the shell', j(rosters[0]?.attachment.rows?.map(r => r.name).sort()) === j(['plain-survey', 'roster-survey', 'sleep 20'].sort()), j(rosters[0]?.attachment.rows?.map(r => r.name)))
+  check('…naming the sub-agent and the shell', j(rosters[0]?.attachment.rows?.map(r => r.name).sort()) === j(['plain-survey', 'sleep 20'].sort()), j(rosters[0]?.attachment.rows?.map(r => r.name)))
   check('…and no task_status row beside it (one announcer)', !attachments.some(a => a.attachment.type === 'task_status'))
 }
 

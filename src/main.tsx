@@ -1609,8 +1609,6 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
 
   if (process.env.MERCURY_ENTRYPOINT !== 'local-agent') {
     initBundledSkills()
-    const { initBundledWorkflows } = await import('./tools/WorkflowTool/bundled/index.js')
-    initBundledWorkflows()
   }
   const { getProjectRoot } = await import('./bootstrap/state.js')
   const cwd = process.cwd()

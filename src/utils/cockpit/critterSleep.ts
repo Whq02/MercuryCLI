@@ -15,7 +15,7 @@ export const SLEEP_AFTER_MS = 45_000
 
 const SLEEP_CHECK_MS = 30_000
 
-const AGENT_EXECUTION_KINDS: ReadonlySet<string> = new Set(['agent', 'workflow-worker'])
+const AGENT_EXECUTION_KINDS: ReadonlySet<string> = new Set(['agent'])
 
 export function critterSleepMode(): 'off' | 'forced' | 'live' {
   const env = flagEnv('MERCURY_CRITTER_SLEEP')

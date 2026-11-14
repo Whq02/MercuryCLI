@@ -53,7 +53,7 @@ t.section('§1 — what counts as harness-tracked, TOTAL over the TaskType union
   const union = literalUnion
     ? [...literalUnion[1]!.matchAll(/'([a-z_]+)'/g)].map(m => m[1]!)
     : [...kindTable?.[1]!.matchAll(/\['([a-z_]+)', '[a-z]'\]/g) ?? []].map(m => m[1]!)
-  t.check('the TaskType union was read from src/Task.ts', union.length >= 5, union.join(','))
+  t.check('the TaskType union was read from src/Task.ts', union.length >= 4, union.join(','))
   t.check(
     'every union member is TRACKED or a DOCUMENTED exclusion — no silent misses',
     union.every(ty => TRACKED_AGENT_TASK_TYPES.has(ty) || UNTRACKED_TASK_TYPES.has(ty)),
@@ -76,7 +76,7 @@ t.section('§1 — what counts as harness-tracked, TOTAL over the TaskType union
     [...TERMINAL_TASK_STATUSES].join(','),
   )
 
-  for (const ty of ['local_agent', 'remote_agent', 'local_workflow']) {
+  for (const ty of ['local_agent', 'remote_agent']) {
     t.check(
       `a running ${ty} counts`,
       countTrackedRunningAgents(stateWith({ a: { id: 'x', type: ty, status: 'running' } })) === 1,

@@ -110,8 +110,8 @@ try {
   await stub('../../src/context/notifications.js', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
   const connector = { modelFacts: () => ({ main: 'openrouter/fixture/model' }), subscribeModel: () => () => {}, usage: () => ({ totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false }) }
   await stub('../../src/services/engine-connector/focusedConnector.js', { getFocusedSessionConnector: () => connector, subscribeThroughFocused: () => () => () => {} })
-  await stub('../../src/components/tasks/useFocusedWork.js', { useFocusedWorkRows: () => [], useFocusedWorkRoster: () => ({ rows: [], mission: [], reported: true }), otherSessionRunnerPids: () => new Set(), focusedSessionIdOrNull: () => null })
-  await stub('../../src/state/vitalsBus.js', { useVitals: () => ({ trace: null, workflowsDisk: [] }) })
+  await stub('../../src/components/tasks/useFocusedWork.js', { useFocusedWorkRows: () => [], useFocusedWorkRoster: () => ({ rows: [], mission: [], reported: true }), focusedSessionIdOrNull: () => null })
+  await stub('../../src/state/vitalsBus.js', { useVitals: () => ({ trace: null }) })
   await stub('../../src/utils/cockpit/healthCertSnapshot.js', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
   let columns = 178
   let rows = 51

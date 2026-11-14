@@ -33,8 +33,6 @@ export const JELLYFISH_HUE = '#6FC7E8'
 export const JELLYFISH_HUE_DEEP = '#3F7E96'
 export const CLAM_HUE = '#16D8B0'
 export const CLAM_HUE_DEEP = '#0E9377'
-export const EMBER_HUE = '#CE352A'
-export const EMBER_HUE_DEEP = '#771A12'
 
 function hexMix(a: string, b: string, t: number): string {
   const p = (h: string): number[] => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16))

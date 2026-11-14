@@ -3,18 +3,18 @@ WORKBENCH               │╭────────────────�
   private reasoning     ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
                         ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
 NEXT                    ││  ▀▄▄▄▀▄▄▄▀                                                                                                     ││
-  · /workflows…         │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
-  · /health — health…   │                                                                                                                  │
+  · /health — health…   │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
   · /memory — memory    │                                                                                                                  │
-  · /mission — set a…   │ 15:54:19 [sam] ❯ private reasoning                                                                               │
-                        │                                                                                                                  │
-FILES · project         │ 15:54:19 [Mercury] Private reasoning answer.                                                                     │
-  ↵ or click · browse   │                                                                                                                  │
+  · /mission — set a…   │                                                                                                                  │
+                        │ 15:54:19 [sam] ❯ private reasoning                                                                               │
+FILES · project         │                                                                                                                  │
+  ↵ or click · browse   │ 15:54:19 [Mercury] Private reasoning answer.                                                                     │
                         │                                                                                                                  │
 VITALS                  │                                                                                                                  │
   · spend $0.00         │                                                                                                                  │
   · ctx 0% · 1000k      │                                                                                                                  │
   · health — run /health│                                                                                                                  │
+                        │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │

@@ -37,10 +37,6 @@ import {
   SLEEP_TOOL_TURN_ASK,
   THREE_ROUNDS_ASK,
   WATCHED_WORDS,
-  WORKFLOW_AGENT_DONE,
-  WORKFLOW_NAME,
-  WORKFLOW_PROMPT,
-  WORKFLOW_TURN_ASK,
 } from './dupline-fixture-words.ts'
 
 const captureFile = process.argv[2]
@@ -258,13 +254,11 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
                   ? 'forkwork'
                   : openingTrimmed === QUICK_PROMPT
                     ? 'quick'
-                    : openingTrimmed === WORKFLOW_PROMPT
-                      ? 'wfwork'
-                      : openingTrimmed === RELAUNCH_PROMPT
-                        ? 'subrelaunch'
-                        : openingTrimmed === BG_SLEEP_PROMPT
-                          ? 'subbgsleep'
-                          : null
+                    : openingTrimmed === RELAUNCH_PROMPT
+                      ? 'subrelaunch'
+                      : openingTrimmed === BG_SLEEP_PROMPT
+                        ? 'subbgsleep'
+                        : null
     const mainArm =
       trimmedAsk === AGENT_TURN_ASK
         ? 'agent'
@@ -278,15 +272,13 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
                 ? 'agentnested'
                 : trimmedAsk === FORK_TURN_ASK
                   ? 'agentfork'
-                  : trimmedAsk === WORKFLOW_TURN_ASK
-                    ? 'agentworkflow'
-                    : trimmedAsk === RELAUNCH_TURN_ASK
-                      ? 'agentrelaunch'
-                      : trimmedAsk === THREE_ROUNDS_ASK
-                        ? 'three'
-                        : trimmedAsk === BG_SLEEP_TURN_ASK
-                          ? 'agentbgsleep'
-                          : 'plain'
+                  : trimmedAsk === RELAUNCH_TURN_ASK
+                    ? 'agentrelaunch'
+                    : trimmedAsk === THREE_ROUNDS_ASK
+                      ? 'three'
+                      : trimmedAsk === BG_SLEEP_TURN_ASK
+                        ? 'agentbgsleep'
+                        : 'plain'
     const arm = subArm ?? mainArm
     const fold = raw.includes(FOLD_MARKER)
     const text = messagesText(items)
@@ -297,7 +289,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const at = text.indexOf(w)
       if (at >= 0) firstAt[w] = at
     }
-    record({ kind: fold ? 'fold' : 'request', n, arm, step, folded, ask: ask.slice(0, 80), askShape: askIndex === -1 ? 'none' : typeof items[askIndex]!.content === 'string' ? 'string' : 'blocks', askItem: askIndex === -1 ? '' : j(items[askIndex]!.content).slice(0, 600), askSha: askIndex === -1 ? '' : sha(j(items[askIndex]!.content)), opening: opening.slice(0, 40), tools, hasAgentTool: toolNames.includes('Crewmate'), hasWorkflowTool: toolNames.includes('Workflow'), hasSleepTool: toolNames.includes('Sleep'), lastToolResult: lastToolResultOf(items), at: Date.now(), system: sha(j(body.system)), counts, firstAt })
+    record({ kind: fold ? 'fold' : 'request', n, arm, step, folded, ask: ask.slice(0, 80), askShape: askIndex === -1 ? 'none' : typeof items[askIndex]!.content === 'string' ? 'string' : 'blocks', askItem: askIndex === -1 ? '' : j(items[askIndex]!.content).slice(0, 600), askSha: askIndex === -1 ? '' : sha(j(items[askIndex]!.content)), opening: opening.slice(0, 40), tools, hasAgentTool: toolNames.includes('Crewmate'), hasSleepTool: toolNames.includes('Sleep'), lastToolResult: lastToolResultOf(items), at: Date.now(), system: sha(j(body.system)), counts, firstAt })
     if (fold) return answerFold(res, n, model)
     switch (arm) {
       case 'agent':
@@ -323,10 +315,6 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         if (step === 0) return answerAgent(res, n, model, `toolu_fork_c${n}`, FORK_PROMPT, { crewmate_type: 'fork' })
         if (step === 1) return answerAgent(res, n, model, `toolu_agent_c${n}`, AGENT_PROMPT)
         return answerText(res, n, model, doneText(FORK_TURN_ASK))
-      case 'agentworkflow':
-        if (step === 0) return answerTool(res, n, model, `toolu_wf_c${n}`, 'Workflow', { name: WORKFLOW_NAME })
-        if (step === 1) return answerSleep(res, n, model, `toolu_wfwait_c${n}`, MAIN_SLEEP_SECONDS * 2)
-        return answerText(res, n, model, doneText(WORKFLOW_TURN_ASK))
       case 'agentrelaunch':
         if (step === 0) return answerAgent(res, n, model, `toolu_agent_c${n}`, RELAUNCH_PROMPT)
         return answerText(res, n, model, doneText(RELAUNCH_TURN_ASK), true)
@@ -354,9 +342,6 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         return answerText(res, n, model, FORK_DONE)
       case 'quick':
         return answerText(res, n, model, QUICK_DONE)
-      case 'wfwork':
-        if (step === 0) return answerSleep(res, n, model, `toolu_wfagent_c${n}`, 4)
-        return answerText(res, n, model, WORKFLOW_AGENT_DONE)
       case 'subrelaunch':
         if (step === 0) return answerSleep(res, n, model, `toolu_relaunch1_c${n}`, AGENT_SLEEP_SECONDS)
         if (step === 1) return answerSleep(res, n, model, `toolu_relaunch2_c${n}`, MAIN_SLEEP_SECONDS * 4)

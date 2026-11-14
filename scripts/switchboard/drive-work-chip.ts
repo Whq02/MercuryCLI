@@ -34,18 +34,10 @@ function check(label: string, cond: boolean, detail = ''): void {
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 
-const WORKFLOW_SCRIPT = [
-  "export const meta = { name: 'chip-probe', description: 'work-chip drive', phases: [{ title: 'Probe' }] }",
-  "phase('Probe')",
-  "const a = await agent('reply with the word done and nothing else', { model: 'claude-sonnet-5' })",
-  'return { a }',
-].join('\n')
-
 const api = await startFixtureApi([
   { kind: 'text', whenModel: 'opus', text: 'ready.' },
-  { kind: 'tool_use', whenModel: 'opus', name: 'Workflow', input: { script: WORKFLOW_SCRIPT }, preText: 'launching the probe. ' },
-  { kind: 'text', whenModel: 'opus', text: 'workflow launched.' },
-  { kind: 'paced', whenModel: 'sonnet', deltas: Array.from({ length: 120 }, () => 'working. '), gapMs: 500, settleDelayMs: 500 },
+  { kind: 'tool_use', whenModel: 'opus', name: 'Bash', input: { command: 'sleep 120', description: 'the probe', run_in_background: true }, preText: 'launching the probe. ' },
+  { kind: 'text', whenModel: 'opus', text: 'probe launched.' },
   { kind: 'tool_use', whenModel: 'haiku', name: 'Crewmate', input: { description: 'helper', prompt: 'reply with the word done', run_in_background: true }, preText: 'dispatching a helper. ' },
   { kind: 'text', whenModel: 'haiku', text: 'helper dispatched.' },
   { kind: 'paced', whenModel: 'haiku', deltas: Array.from({ length: 120 }, () => 'helping. '), gapMs: 500, settleDelayMs: 500 },
@@ -106,7 +98,7 @@ try {
     keep: true,
     seedHome: async (configDir, cwd) => {
       seedFirstRun(configDir, [cwd, work, workB])
-      writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Workflow', 'Crewmate', 'Task'] } }))
+      writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Bash(sleep *)', 'Crewmate', 'Task'] } }))
       spawnDaemonWithHome(configDir)
       check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
       const a = (await daemonControlRpc({
@@ -135,7 +127,7 @@ try {
       }, 60_000))
       const grant = (await daemonControlRpc({ op: 'concourseControl', action: 'grant-workflows', sessionId: alphaId, by: 'operator' } as never)) as { ok?: boolean }
       check('the workflows-allowed tag grants', grant.ok === true, JSON.stringify(grant))
-      check('alpha\'s workflow is LIVE in its facts', await untilAsync(() => (proj.readSessionFacts(alphaId)?.work ?? []).some(r => r.kind === 'workflow' && r.status === 'running'), 90_000))
+      check('alpha\'s shell is LIVE in its facts', await untilAsync(() => (proj.readSessionFacts(alphaId)?.work ?? []).some(r => r.kind === 'shell' && r.status === 'running'), 90_000))
       const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
       const connA = seat.daemonSessionConnectorFor({
         sessionId: alphaId,
@@ -200,14 +192,14 @@ try {
       if (i < 0) return ''
       return g.rows[i + 1] ?? ''
     }
-    const isChip = (line: string): boolean => /●\s+\d+ workflow/.test(line)
+    const isChip = (line: string): boolean => /●\s+\d+ crewmate/.test(line)
     const alphaFrames = boardFrames.filter(g => selTitle(g) === 'alpha')
     const alphaChip = alphaFrames.filter(g => isChip(chipUnderSel(g)))
     check('C1 the selected row A carries the chip line under it', alphaChip.length > 0, `alpha frames: ${alphaFrames.map(g => `${g.atMs}:${chipUnderSel(g).trim().slice(0, 40)}`).join(' | ') || 'none'}`)
-    check('C1 …naming BOTH kinds from the same facts (multi-work)', alphaChip.some(g => /1 workflow · 1 crewmate running/.test(chipUnderSel(g))), alphaChip.map(g => chipUnderSel(g).trim()).join(' | '))
+    check('C1 …naming BOTH kinds from the same facts (multi-work)', alphaChip.some(g => /1 crewmate · 1 shell running/.test(chipUnderSel(g))), alphaChip.map(g => chipUnderSel(g).trim()).join(' | '))
     const betaFrames = boardFrames.filter(g => selTitle(g) === 'beta')
     check('C2 selecting B (zero work) paints NO chip line', betaFrames.length > 0 && betaFrames.every(g => !isChip(chipUnderSel(g))), `beta frames: ${betaFrames.map(g => `${g.atMs}:${chipUnderSel(g).trim().slice(0, 40)}`).join(' | ') || 'none'}`)
-    check('C3 B\'s own row never carries A\'s work', boardFrames.every(g => !(g.rows.find(r => r.includes('Beta idle')) ?? '').includes('workflow')))
+    check('C3 B\'s own row never carries A\'s work', boardFrames.every(g => !/crewmate|shell/.test(g.rows.find(r => r.includes('Beta idle')) ?? '')))
     const peekFrames = boardFrames.filter(g => g.atMs >= 19000 && g.atMs <= 21000 && selTitle(g) === 'alpha')
     check('C4 the open peek leads with the chip', peekFrames.some(g => isChip(chipUnderSel(g))), `peek frames: ${peekFrames.map(g => g.atMs).join(',') || 'none'}`)
     const holdFrames = boardFrames.filter(g => g.atMs >= 16000 && g.atMs <= 17000)

@@ -224,8 +224,6 @@ console.log('LAW 3 — the source pins')
   check('the tag grant never reads the setting (the one-tag cap stays what it is)', grantStart !== -1 && !grantBody.includes('backgroundSessionsLaunchCrewmates'))
   for (const [file, needle] of [
     ['src/tools/AgentTool/AgentTool.tsx', "evaluateLaunchAuthority('subagents')"],
-    ['src/tools/WorkflowTool/WorkflowTool.tsx', "evaluateLaunchAuthority('workflows')"],
-    ['src/tools/WorkflowTool/agentHooks.ts', "evaluateLaunchAuthority('subagents')"],
     ['src/tools/SkillTool/SkillTool.ts', "evaluateLaunchAuthority('subagents')"],
   ] as const) {
     check(`${file} still asks the valve (no second gate)`, src(file).includes(needle) && !src(file).includes('backgroundSessionsLaunchCrewmates'))

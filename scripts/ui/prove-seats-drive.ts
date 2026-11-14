@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { execFile, spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -28,11 +28,10 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 const FIXTURE_API_KEY = 'fixture-key-000'
 const ASK = 'seat-survey: launch'
-const LAUNCHED = 'WF-LAUNCHED'
-const NOTED = 'WF-NOTED'
+const LAUNCHED = 'SEATS-LAUNCHED'
+const NOTED = 'SEATS-NOTED'
+const EARLY_NOTE = 'SEATS-EARLY-NOTE'
 const SEAT_MARK = 'seat-survey-seat:'
-const WF_NAME = 'seat-survey'
-const PHASE = 'Survey'
 const STATIONS = ['a', 'b', 'c', 'd'] as const
 type Station = (typeof STATIONS)[number]
 const labelOf = (s: Station): string => `seat-${s}`
@@ -40,12 +39,6 @@ const SEAT_CEILING = 2
 const HOLD_MS = 20_000 * vshotBudgetScale()
 const IDLE_FIRST_S = 5
 const IDLE_SECOND_S = 20
-const WF_SCRIPT = [
-  `export const meta = { name: '${WF_NAME}', description: 'four agents survey the stations', phases: [{ title: '${PHASE}' }] }`,
-  `phase('${PHASE}')`,
-  `const reports = await parallel([${STATIONS.map(s => `() => agent('${SEAT_MARK}${s} survey the station and report in one line', { label: '${labelOf(s)}' })`).join(', ')}])`,
-  'return { reports }',
-].join('\n')
 
 type Route = 'launch' | 'launched' | 'note' | 'seat' | 'side'
 type Block = { type?: string; id?: string; name?: string; text?: string; tool_use_id?: string; content?: unknown; input?: Record<string, unknown> }
@@ -148,8 +141,8 @@ async function startFixture(port: number): Promise<{ base: string; hits: Hit[]; 
       let route: Route
       if (station !== null) route = 'seat'
       else if (lastUserText.includes('task-notification')) route = 'note'
-      else if (answered === 'Workflow') route = 'launched'
-      else if (lastUserText.includes(ASK) && offersTool(body, 'Workflow')) route = 'launch'
+      else if (answered === 'Crewmate') route = 'launched'
+      else if (lastUserText.includes(ASK) && offersTool(body, 'Crewmate')) route = 'launch'
       else route = 'side'
       let blocks: Answer[]
       let holdMs = 0
@@ -158,14 +151,14 @@ async function startFixture(port: number): Promise<{ base: string; hits: Hit[]; 
         case 'launch':
           blocks = [
             { type: 'text', text: 'launching the survey' },
-            { type: 'tool_use', id: `toolu_seats_launch_${++toolSeq}`, name: 'Workflow', input: { script: WF_SCRIPT } },
+            ...STATIONS.map(s => ({ type: 'tool_use' as const, id: `toolu_seats_launch_${++toolSeq}`, name: 'Crewmate', input: { description: labelOf(s), prompt: `${SEAT_MARK}${s} survey the station and report in one line`, crewmate_type: 'mercury-crew', run_in_background: true } })),
           ]
           break
         case 'launched':
           blocks = [{ type: 'text', text: LAUNCHED }]
           break
         case 'note':
-          blocks = [{ type: 'text', text: NOTED }]
+          blocks = [{ type: 'text', text: STATIONS.every(s => hits.some(h => h.station === s && (h.kind === 'held' || h.kind === 'done') && h.endMs !== 0)) ? NOTED : EARLY_NOTE }]
           break
         case 'seat':
           if (station === 'a') {
@@ -374,43 +367,22 @@ function dump(label: string, frame: string | undefined): void {
   }
   for (const row of frame.split('\n')) if (row.trim()) console.log(`│ ${row}`)
 }
-const laneOf = (frame: string | undefined, s: Station): string =>
-  rowsWith(frame, `${labelOf(s)} · `).map(flat).join(' | ')
-
-type AgentSummary = { index: number; label: string; state: string; waiting?: string; waitWords?: string; startedAt?: number }
-function readRunManifest(home: string): AgentSummary[] | null {
-  const projects = join(home, 'projects')
-  if (!existsSync(projects)) return null
-  let newest: { path: string; mtime: number } | null = null
-  for (const project of readdirSync(projects)) {
-    const runs = join(projects, project, 'workflows', 'runs')
-    if (!existsSync(runs)) continue
-    for (const dir of readdirSync(runs)) {
-      const path = join(runs, dir, 'run.json')
-      if (!existsSync(path)) continue
-      const mtime = statSync(path).mtimeMs
-      if (newest === null || mtime > newest.mtime) newest = { path, mtime }
-    }
-  }
-  if (newest === null) return null
-  try {
-    const parsed = JSON.parse(readFileSync(newest.path, 'utf8')) as { agents?: AgentSummary[] }
-    return Array.isArray(parsed.agents) ? parsed.agents : null
-  } catch {
-    return null
-  }
+const rowOf = (frame: string | undefined, s: Station): string => {
+  const lines = (frame ?? '').split('\n')
+  const top = lines.findIndex(line => line.includes('Mercury — crew'))
+  const title = lines[top] ?? ''
+  const at = title.indexOf('Mercury — crew')
+  const left = title.lastIndexOf('│', at)
+  const right = title.indexOf('│', at)
+  if (left < 0 || right < 0) return ''
+  const bottom = lines.findIndex((line, index) => index > top && line[left] === '╰')
+  if (bottom < 0) return ''
+  return flat(lines.slice(top + 1, bottom).map(line => line.slice(left + 1, right)).find(line => line.includes(labelOf(s))) ?? '')
 }
-function manifestAtBusyMoment(home: string, hits: Hit[], afterMs: number): Promise<{ agents: AgentSummary[] | null; atMs: number }> {
-  return new Promise(resolve => {
-    const poll = setInterval(() => {
-      const first = hits.find(h => h.route === 'seat')
-      if (first === undefined) return
-      if (Date.now() - first.startMs < afterMs) return
-      clearInterval(poll)
-      resolve({ agents: readRunManifest(home), atMs: Date.now() - first.startMs })
-    }, 250)
-    poll.unref?.()
-  })
+const treeOf = (frame: string | undefined, s: Station): string => {
+  const lines = (frame ?? '').split('\n')
+  const at = lines.findIndex(line => line.includes('crewmate') && line.includes(`(${labelOf(s)})`))
+  return at < 0 ? '' : flat((lines[at + 1] ?? '').replace(/[│├└─]/g, ' '))
 }
 
 console.log('============================================================')
@@ -422,7 +394,6 @@ const fixture = await startFixture(Number(process.env.SEATS_DRIVE_PORT ?? 25183)
 const COLS = 160
 const ROWS = 44
 let cap: Capture | null = null
-const busyManifest = manifestAtBusyMoment(home, fixture.hits, 8_000)
 try {
   cap = await capture(
     {
@@ -433,13 +404,12 @@ try {
       sends: [
         { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
         { data: `${ASK}\r`, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'boot' },
-        { data: '\r', awaitText: 'Yes, run this workflow', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'ask' },
         { data: '', awaitText: LAUNCHED, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'launched' },
-        { data: '/workflows\r', afterPrevTicks: 30 },
-        { data: '\r', awaitText: WF_NAME, requireAwait: true, minTick: 2, awaitSettleTicks: 5, mark: 'board' },
+        { data: '', afterPrevTicks: 40, mark: 'chat-busy' },
+        { data: '/crewmates\r', afterPrevTicks: 2 },
+        { data: '', awaitText: 'Mercury — crew', requireAwait: true, minTick: 2, awaitSettleTicks: 5, mark: 'board' },
         { data: '', afterPrevTicks: 12, mark: 'run-busy' },
         { data: '\x1b', afterPrevTicks: 2 },
-        { data: '\x1b', afterPrevTicks: 3 },
         { data: '', awaitText: NOTED, requireAwait: true, minTick: 2, awaitSettleTicks: 12, mark: 'settled' },
         { data: '', afterPrevTicks: 4, mark: 'end' },
       ],
@@ -469,6 +439,7 @@ if (cap !== null) {
     const landed = seatHits.filter(h => h.kind === 'done' && h.endMs !== 0 && h.endMs <= busyTs).map(h => labelOf(h.station!))
     console.log(`  at the busy moment (${((busyTs - clock0) / 1000).toFixed(1)}s): calls in flight ${inFlight.length} (${inFlight.join(', ')}) · landed ${landed.length}`)
   }
+  dump('chat-busy', m['chat-busy'])
   dump('run-busy', m['run-busy'])
   console.log(`  memory: ${rssSummary(cap.rss).join(' · ') || '(no samples)'}`)
   if (KEEP) for (const label of ['launched', 'settled']) dump(label, m[label])
@@ -501,26 +472,20 @@ if (cap !== null) {
   }
 
   console.log('\n— D2 the words at the busy moment —')
-  const manifest = await busyManifest
-  const summary = (s: Station): AgentSummary | undefined => manifest.agents?.find(a => a.label === labelOf(s))
-  const wordsOf = (s: Station): string => {
-    const a = summary(s)
-    return a === undefined ? '(no summary)' : `${a.state}${a.waiting !== undefined ? `/${a.waiting}` : ''}${a.waitWords !== undefined ? ` "${a.waitWords}"` : ''}`
-  }
-  console.log(`  manifest ${(manifest.atMs / 1000).toFixed(1)}s after the first seat call: ${STATIONS.map(s => `${labelOf(s)} ${wordsOf(s)}`).join(' · ')}`)
-  const dTile = summary(waiter)
-  const aTile = summary('a')
-  check('D2 the manifest carries every agent', STATIONS.every(s => summary(s) !== undefined), String(manifest.agents?.map(a => a.label).join(',')))
-  check(`D2 the waiter's tile (${labelOf(waiter)}) says why it waits — the seat sentence (2 of 2 held)`, dTile?.waiting === 'seat' && /^waiting for a seat — 2 of 2 held/.test(dTile.waitWords ?? ''), wordsOf(waiter))
-  check(`D2 the sentence names the two holders by their labels — the calls in flight (${holderLabels.join(', ')}), never a waiter`, holdersNamed.test(dTile?.waitWords ?? ''), wordsOf(waiter))
-  check(`D2 the holders' tiles (${holderLabels.join(', ')}) hold seats: neither waits for one`, holders.every(s => summary(s)?.waiting !== 'seat'), holders.map(s => wordsOf(s)).join(' || '))
-  check("D2 a's second call waits for a seat like any other (its seat was free while its tool ran)", aTile?.waiting === 'seat' && holdersNamed.test(aTile.waitWords ?? ''), wordsOf('a'))
-  check('D2 no tile wears a gate sentence of its own (a start tile carries no words)', (manifest.agents ?? []).every(a => a.state !== 'start' || a.waitWords === undefined), String(manifest.agents?.map(a => `${a.label}:${a.state}`).join(',')))
+  const chat = m['chat-busy']
+  const said = STATIONS.map(s => treeOf(chat, s))
+  console.log(`  launch card: ${said.map((l, i) => `${labelOf(STATIONS[i]!)}: ${l.slice(0, 120) || '(none)'}`).join(' | ')}`)
+  const heldBy = (line: string): string => /held (\([^)]*\))/.exec(line)?.[1] ?? ''
+  check('D2 the launch card carries every agent', said.every(l => l !== ''), said.map((l, i) => `${labelOf(STATIONS[i]!)}:${l === '' ? 'no line' : 'line'}`).join(','))
+  check(`D2 the waiter's line (${labelOf(waiter)}) says why it waits — the seat sentence (2 of 2 held)`, /waiting for a seat — 2 of 2 held/.test(treeOf(chat, waiter)), treeOf(chat, waiter).slice(0, 200))
+  check(`D2 the sentence names the two holders by their labels — the calls in flight (${holderLabels.join(', ')}), never a waiter`, holdersNamed.test(heldBy(treeOf(chat, waiter))), treeOf(chat, waiter).slice(0, 200))
+  check(`D2 the holders' lines (${holderLabels.join(', ')}) hold seats: neither waits for one`, holders.every(s => treeOf(chat, s) !== '' && !/waiting for a seat/.test(treeOf(chat, s))), holders.map(s => treeOf(chat, s)).join(' || ').slice(0, 300))
+  check("D2 a's second call waits for a seat like any other (its seat was free while its tool ran)", /waiting for a seat — 2 of 2 held/.test(treeOf(chat, 'a')) && holdersNamed.test(heldBy(treeOf(chat, 'a'))), treeOf(chat, 'a').slice(0, 200))
   const busy = m['run-busy']
-  const lanes = STATIONS.map(s => laneOf(busy, s))
-  console.log(`  run view lanes: ${lanes.map((l, i) => `${labelOf(STATIONS[i]!)}: ${l.slice(0, 120) || '(none)'}`).join(' | ')}`)
-  check('D2 no lane on the screen reads a bare queued', !lanes.some(l => /\bqueued\b/.test(l)), lanes.join(' || ').slice(0, 300))
-  check(`D2 the waiter's lane on the screen (${labelOf(waiter)}) wears the seat sentence`, /waiting for a seat — 2 of 2 held/.test(laneOf(busy, waiter)), laneOf(busy, waiter).slice(0, 200))
+  const rows = STATIONS.map(s => rowOf(busy, s))
+  console.log(`  Crew view rows: ${rows.map((l, i) => `${labelOf(STATIONS[i]!)}: ${l.slice(0, 120) || '(none)'}`).join(' | ')}`)
+  check('D2 no row of the Crew view reads a bare queued', rows.every(l => l !== '') && !rows.some(l => /\bqueued\b/.test(l)), rows.join(' || ').slice(0, 300))
+  check(`D2 the waiter's row in the Crew view (${labelOf(waiter)}) wears the seat sentence`, /waiting for a seat — 2 of 2 held/.test(rowOf(busy, waiter)), rowOf(busy, waiter).slice(0, 200))
 
   console.log('\n— D3 the settle —')
   check('D3 every station reported (SEAT-DONE on the wire)', STATIONS.every(s => seatHits.some(h => h.station === s && (h.kind === 'held' || h.kind === 'done'))), seatHits.map(h => `${h.station}:${h.kind}`).join(','))

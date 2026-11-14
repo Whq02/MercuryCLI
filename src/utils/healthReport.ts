@@ -11,7 +11,6 @@ import { gitArgs, gitArgsAsync } from './git/spawnArgs.js'
 import { endProcessTree, strikeProcessGroupNow } from './processGroup.js'
 import { subprocessEnv } from './subprocessEnv.js'
 import { projectLocalPath } from '../services/projectLocal/paths.js'
-import { workflowRunsRoot } from '../tools/WorkflowTool/runManifest.js'
 import { execFile, spawn, type ChildProcess } from 'node:child_process'
 import chalk from 'chalk'
 import { NODE_FLOOR_REASON, NODE_SUPPORT, nodeRuntimeProjection } from './runtime/nodePolicy.js'
@@ -19,7 +18,7 @@ import { existsSync, readdirSync, readFileSync, realpathSync, rmSync, statSync }
 import { mkdir, readFile, rename } from 'node:fs/promises'
 import { cpus, loadavg } from 'node:os'
 import { deviceHeadroom } from './cockpit/deviceHeadroom.js'
-import { basename, dirname, join, relative, resolve as resolvePath, sep } from 'node:path'
+import { basename, dirname, join, resolve as resolvePath, sep } from 'node:path'
 import { whichSync } from './which.js'
 import { stripExtendedLengthPrefix } from './windowsPaths.js'
 import { artifactIdentityLine, describeArtifactIdentity } from './artifactIdentity.js'
@@ -34,7 +33,6 @@ import { isMercuryCompactKeepTailEnabled } from '../services/compact/verbatimTai
 import { publishAtomic } from '../substrate/fileStore.js'
 import { FLAG_REGISTRY, flagEnabled, flagEnv } from '../substrate/flagRegistry.js'
 import { realEnvPin } from '../substrate/startupMenu.js'
-import { isRunOrphaned, listWorkflowRunsDetailed } from '../tools/WorkflowTool/runManifest.js'
 import { getAnthropicApiKeyWithSource, getAuthTokenSource } from './auth.js'
 import { buildProviderSnapshot } from '../services/providers/modelRegistry.js'
 import { binaryName, isMercurySubstrateProfileOn } from './config.js'
@@ -2348,48 +2346,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               detail: 'Flip a running session with /crewmates on|off and /workflows on|off (at its next turn boundary); the boot menu\'s Agents section sets the next session\'s default. Off: the Crewmate or Workflow tool is absent from the roster and every spawn road answers one receipt.',
               link: '/bootmenu',
             }
-          },
-        },
-        {
-          id: 'workflows',
-          label: 'Workflows',
-          run: async () => {
-            if (!flagEnabled('MERCURY_WORKFLOWS')) {
-              return { status: 'off', evidence: `${flagAsSet('MERCURY_WORKFLOWS')} — the workflow engine is disabled` }
-            }
-            const { rows: runs, unreadable } = await listWorkflowRunsDetailed(cwd)
-            if (runs.length === 0) {
-              return {
-                status: 'ok',
-                evidence: `engine on · no runs recorded under ${relative(getCwd(), workflowRunsRoot(getCwd()))}`,
-                link: '/workflows',
-              }
-            }
-            const now = Date.now()
-            const orphans = runs.filter(r => isRunOrphaned(r, r.mtimeMs, now, p => pidAlive(p)))
-            const running = runs.filter(
-              r => (r.status === 'running' || r.status === 'paused') && !orphans.includes(r),
-            )
-            const evidence = `${runs.length} run manifests · ${running.length} running · ${orphans.length} orphaned${
-              unreadable > 0 ? ` · ${unreadable} UNREADABLE (partial listing)` : ''
-            }`
-            if (unreadable > 0) {
-              return {
-                status: 'warn',
-                evidence,
-                fix: 'Some run manifests could not be read (fd limits/permissions) — counts above are lower bounds.',
-                link: '/workflows',
-              }
-            }
-            if (orphans.length > 0) {
-              return {
-                status: 'warn',
-                evidence,
-                fix: 'Inspect the orphaned runs in /workflows (kill/resume) — they will never finish on their own.',
-                link: '/workflows',
-              }
-            }
-            return { status: 'ok', evidence, link: '/workflows' }
           },
         },
       ],

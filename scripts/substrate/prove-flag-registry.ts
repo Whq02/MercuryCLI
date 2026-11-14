@@ -167,7 +167,6 @@ const OFF_RULE_READERS: Array<[env: string, file: string, reader: string]> = [
   ['MERCURY_BOOT_PREFLIGHT', 'utils/healthPreflight.ts', 'mercuryBootPreflightEnabled'],
   ['MERCURY_AGENT_NEEDS_YOU', 'services/agentStateHeuristic.ts', 'agentNeedsYouEnabled'],
   ['MERCURY_COORDINATION_MCP', 'services/mcp/mercuryServer.ts', 'isMercuryServerEnabled'],
-  ['MERCURY_WORKFLOWS', 'tools/WorkflowTool/workflowEnablement.ts', 'dynamicWorkflowsEnabled'],
 ]
 for (const [env, file, reader] of OFF_RULE_READERS) {
   const held = process.env[env]

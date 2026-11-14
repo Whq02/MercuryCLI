@@ -11,8 +11,6 @@ const OLD = new RegExp(J('t', 'eam'), 'i')
 
 const EXCLUDED_AREAS: Array<[string, string]> = [
   ['src/extensions/bundled/', 'the upstream apps\' own licence and NOTICE texts, carried verbatim, and the generated bundle that embeds them'],
-  ['src/tools/WorkflowTool/', 'workflows do not change in any way'],
-  ['scripts/workflows/', 'workflow proofs do not change in any way'],
   ['docs/releases/', 'published release pages are history'],
   ['src/constants/changelog.ts', 'past release notes stay as published'],
   ['scripts/mission-runner/corpus/', 'fixture repositories of foreign source'],

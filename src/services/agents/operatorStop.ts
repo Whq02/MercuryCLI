@@ -2,7 +2,6 @@ import type { SetAppState } from '../../Task.js'
 import type { AppState } from '../../state/AppState.js'
 import { stopOrDismissAgent } from '../../state/crewmateViewHelpers.js'
 import { AGENT_STOP_BY_OPERATOR, isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
-import { isLocalWorkflowTask, killWorkflowTask } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 import { isPausedAgentRow, StopTaskError, stopPausedAgent, stopTask, taskNotFoundWords } from '../../tasks/stopTask.js'
 import { sleep as wait } from '../../utils/processGroup.js'
 
@@ -54,11 +53,6 @@ export async function stopAgentByOperator(
     if (stopped !== null) return { outcome: 'applied', kind: 'agent', status: context.getAppState().tasks?.[taskId]?.status ?? 'killed' }
   }
   if (task.status !== 'running') return { outcome: 'refused', reason: notRunningWords(name, task.status) }
-  if (isLocalWorkflowTask(task)) {
-    const receipt = killWorkflowTask(taskId, context.setAppState)
-    if (receipt !== 'applied') return { outcome: 'refused', reason: `the workflow run ${name} had already settled (${receipt}) — nothing to stop` }
-    return { outcome: 'applied', kind: 'workflow', status: context.getAppState().tasks?.[taskId]?.status ?? 'killed' }
-  }
   if (isLocalAgentTask(task)) {
     stopOrDismissAgent(taskId, context.setAppState, options.reason ?? AGENT_STOP_BY_OPERATOR)
     const signalled = context.getAppState().tasks?.[taskId]

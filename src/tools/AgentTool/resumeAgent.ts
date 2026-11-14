@@ -19,10 +19,6 @@ import {
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { recordedDescription } from '../../tasks/LocalAgentTask/launchReceipts.js'
 import { isMainSessionTask } from '../../tasks/LocalMainSessionTask.js'
-import {
-  workflowOwnedAgentWords,
-  workflowOwningAgent,
-} from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import {
   runWithAgentContext,
@@ -91,7 +87,7 @@ export function definitionForStoredType(
 export function liveAgentOwner(
   agentId: string,
   tasks: Record<string, unknown> | undefined,
-): { kind: 'agent' | 'workflow'; words: string } | null {
+): { kind: 'agent'; words: string } | null {
   const own = tasks?.[agentId]
   if (isLocalAgentTask(own) && !isMainSessionTask(own) && own.status === 'running') {
     return {
@@ -101,8 +97,6 @@ export function liveAgentOwner(
         `and delivered at its next tool round; a second run is never started beside it.`,
     }
   }
-  const workflow = workflowOwningAgent(tasks, agentId)
-  if (workflow !== undefined) return { kind: 'workflow', words: workflowOwnedAgentWords(workflow, agentId) }
   return null
 }
 
@@ -283,7 +277,7 @@ export async function resumeAgentBackground(args: {
   })
   let tools: ReturnType<typeof resolveWorkerTools>
   try {
-    await latchSwarmAgent(agentId, meta?.name ?? description, false, true, undefined, task.abortController?.signal)
+    await latchSwarmAgent(agentId, meta?.name ?? description, true, undefined, task.abortController?.signal)
     tools = resolveWorkerTools(definition, workerPermissionMode, assembleToolPool(
       { ...toolUseContext.getAppState().toolPermissionContext, mode: workerPermissionMode as never },
       toolUseContext.getAppState().mcp?.tools ?? [],

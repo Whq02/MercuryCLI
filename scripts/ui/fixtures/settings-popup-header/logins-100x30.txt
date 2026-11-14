@@ -3,7 +3,7 @@ WORKBENCH           │                                                         
   no prompts sent y…│ ╭──────────────────────────────────────────────────────────────────────────╮ │
                     │ │ ▖▟▆▙▗ Mercury · logins                                                   │ │
 NEXT                │ │                                                                          │ │
-  · /workflows…     │ │                                                                          │ │
+  · /health…        │ │                                                                          │ │
                     │ │ Sign in                                                                  │ │
 FILES · orchard     │ │                                                                          │ │
   ↵ or click…       │ │ Choose a provider to sign in.                                            │ │

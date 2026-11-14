@@ -199,46 +199,6 @@ await gracefulShutdown(0)
 }
 
 {
-  const { makeWorkflowHooks } = await import('../../src/tools/WorkflowTool/agentHooks.ts')
-  type FakeArgs = { onResolvedIdentity?: (i: { model: string; effort?: string }) => void }
-  const frames: Array<Record<string, unknown>> = []
-  const fakeSpawn = (args: FakeArgs): AsyncGenerator<unknown, void> => {
-    async function* run(): AsyncGenerator<unknown, void> {
-      args.onResolvedIdentity?.({ model: 'claude-sonnet-5', effort: 'max' })
-      yield { type: 'assistant', message: { content: [{ type: 'text', text: 'done' }] } }
-    }
-    return run()
-  }
-  const hooks = makeWorkflowHooks({
-    toolUseContext: {
-      abortController: new AbortController(),
-      getAppState: () => ({
-        toolPermissionContext: { mode: 'default', additionalWorkingDirectories: new Map(), alwaysAllowRules: {}, alwaysDenyRules: {} },
-        mcp: { tools: [] },
-      }),
-      options: { agentDefinitions: { activeAgents: [] }, engineModel: 'claude-opus-5' },
-    },
-    canUseTool: async () => ({ behavior: 'allow' }),
-    emitProgress: (f: unknown) => {
-      const data = (f as { data?: Record<string, unknown> }).data
-      if (data) frames.push(data)
-    },
-    workflowRunId: undefined,
-    onAgentController: () => {},
-    seedPhaseTitles: [],
-    args: undefined,
-    spawnSubagentStream: fakeSpawn as never,
-  } as never) as unknown as { agent: (p: string, o?: Record<string, unknown>) => Promise<unknown> }
-  await hooks.agent('badge truth')
-  const startFrame = frames.find(f => f.state === 'start')
-  const resolvedFrame = frames.find(f => f.model === 'claude-sonnet-5')
-  const doneFrame = [...frames].reverse().find(f => f.state === 'done')
-  t('the start frame paints the declared default (the script named nothing)', startFrame?.model === 'claude-opus-5')
-  t('a frame repaints with the RESOLVED model and effort once the runner knows them', resolvedFrame !== undefined && resolvedFrame.effort === 'max')
-  t('the done frame carries the resolved identity, not the declaration', doneFrame?.model === 'claude-sonnet-5' && doneFrame?.effort === 'max')
-}
-
-{
   const { decideIdleRetirement, transcriptTextHasConversation, transcriptHasConversation, sweepIdleEmptyConcourseSessions, retiredNowLabel, concourseIdleRetireMs, DEFAULT_CONCOURSE_IDLE_RETIRE_MINUTES } =
     await import('../../src/daemon/idleRetirement.ts')
   const { concourseWorkersPath, readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')

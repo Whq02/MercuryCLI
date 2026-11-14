@@ -56,14 +56,9 @@ import {
   permissionModeTitle,
 } from '../utils/permissions/PermissionMode.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
-import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
 import { useFocusedTranscript } from '../hooks/useFocusedTranscript.js'
 import { useFocusedWorkspaceBranch } from '../hooks/useFocusedWorkspaceBranch.js'
-import { workflowPulseAt } from '../tools/WorkflowTool/livePulse.js'
-import { formatQuietAge } from '../utils/format.js'
-import { focusedWorkRows, runningWorkflowRows, useFocusedWorkRoster } from './tasks/useFocusedWork.js'
 import { hasSeatLive } from '../services/engine-connector/seatLive.js'
-import type { AppState } from '../state/AppState.js'
 import { SessionMark } from './mercury-ui/assets.js'
 import { Sep, UsageMeter, useNowTick } from './mercury-ui/components.js'
 import { EffortChip, RecordedEffortChip } from './mercury-ui/EffortChip.js'
@@ -359,40 +354,11 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
     getFocusedPermissionMode,
     getFocusedPermissionMode,
   )
-  const allTasks = useAppStateMaybeOutsideOfProvider(
-    (s: { tasks?: AppState['tasks'] } | undefined) => s?.tasks,
-  ) as AppState['tasks'] | undefined
-  const workRoster = useFocusedWorkRoster()
-  const wfLive = React.useMemo(
-    () => runningWorkflowRows(focusedWorkRows(allTasks, workRoster)),
-    [allTasks, workRoster],
-  )
-  const wfNow = useNowTick(!isCompact && wfLive.length > 0 ? 10_000 : null)
   const thinkingKey = useSyncExternalStore(subscribeFocusedLive, getFocusedThinkingKey, getFocusedThinkingKey)
   const focusedSeat = getFocusedSessionConnector()
   const thinkingStatus = thinkingKey === 'thinking' && hasSeatLive(focusedSeat) ? focusedSeat.status() : null
   const thinkingShown = !isCompact && !routeSurface && thinkingStatus !== null && thinkingStatus.wait === null
   useNowTick(thinkingShown ? 1000 : null)
-  let wfNode: React.ReactNode = null
-  if (wfLive.length > 0) {
-    const pulses = wfLive.flatMap(w => (w.pulse ? [workflowPulseAt(w.pulse, wfNow)] : []))
-    const worst = pulses.length > 0 ? pulses.reduce((a, b) => (a.quietMs >= b.quietMs ? a : b)) : null
-    const label = wfLive.length === 1 ? 'wf' : `wf×${wfLive.length}`
-    const phase =
-      wfLive.length === 1 && worst?.phaseTitle
-        ? ` ${truncateToWidth(worst.phaseTitle, 14)}`
-        : ''
-    wfNode = (
-      <Text>
-        <Sep />
-        <Text color={worst === null || worst.moving ? tok.success : tok.warning}>
-          {GLYPH.inProgress} {label}
-          {phase}
-          {worst !== null ? ` ${formatQuietAge(worst.quietMs)}` : ''}
-        </Text>
-      </Text>
-    )
-  }
   const modeBand = !isDefaultMode(permMode ?? undefined) ? (
     <Box width="100%" paddingX={1} flexShrink={0}>
       {permMode === 'sovereign' ? (
@@ -435,7 +401,6 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
         {needsNode}
         {motionNode}
         {}
-        {wfNode}
         {ctxNode}
         {!deckOwnsVitals ? costNode : null}
         {!usageOwnedElsewhere ? usageNode : null}
