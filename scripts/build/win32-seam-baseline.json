@@ -16,6 +16,8 @@
  "src/services/host/vendors/huggingface.ts :: split-slash": 1,
  "src/services/host/vendors/vast.ts :: split-slash": 1,
  "src/services/ide/pythonTests.ts :: split-slash": 1,
+ "src/services/instructions/adapters/shared.ts :: split-slash": 3,
+ "src/services/instructions/adapters/windsurf.ts :: split-slash": 2,
  "src/services/mcp/automationBridge.ts :: split-slash": 1,
  "src/services/mcp/client.ts :: split-slash": 1,
  "src/services/privateChannel/vendoredRuntime.ts :: split-slash": 1,
