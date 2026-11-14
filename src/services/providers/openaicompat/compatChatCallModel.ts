@@ -1,7 +1,7 @@
 import { settleTranscriptMessage } from '../../../utils/sessionStorage/writer.js'
 import { processOwnerForLane } from '../../run/resolveOwner.js'
 import { createHash, randomUUID } from 'crypto'
-import { compatEngineRefusalText, llamacppOriginRemedy } from './compatRefusals.js'
+import { compatEngineRefusalText, llamacppOriginRefusal, llamacppOriginRemedy } from './compatRefusals.js'
 import { compatToolSchemaRefusal } from './compatToolSchemas.js'
 import { getCwd } from '../../../utils/cwd.js'
 import { mintCacheDomainKey } from '../../../utils/cache/cacheDomain.js'
@@ -728,9 +728,11 @@ export async function* compatChatCallModel(
     if (outcome.kind === 'cancelled') return
     const laneClass = profile.classifyFault?.(outcome.fault)
     const typed = laneClass ?? compatFaultToTypedError(outcome.fault)
-    if (laneClass === undefined || typed === 'authentication_failed') observeSignInResponse(signInRequest, outcome.fault.status, outcome.fault.message)
+    const originRefusal = llamacppOriginRefusal(profile.dialect, outcome.fault)
+    if ((laneClass === undefined || typed === 'authentication_failed') && !originRefusal) observeSignInResponse(signInRequest, outcome.fault.status, outcome.fault.message)
     if (
       typed === 'authentication_failed' &&
+      !originRefusal &&
       outcome.retryEligible &&
       recovery === undefined &&
       profile.recoverCredential &&
@@ -852,7 +854,7 @@ export async function* compatChatCallModel(
       continue
     }
     const wall = classifyCredentialWall(outcome.fault.status, outcome.fault.message, recovery !== undefined ? 'sign-in' : undefined)
-    if (wall !== undefined) {
+    if (wall !== undefined && !originRefusal) {
       const wireSaid = outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code
       logForDebugging(`[compat:${profile.lane}] credential wall (${wall}) — the wire said: ${wireSaid}${recovery === 'retried' ? '; the stored token was refreshed and the call retried once first' : recovery === 'no-new-credential' ? '; a token refresh was attempted first and produced no new credential' : ''}`)
       const line = credentialWallLine(profile.lane, wall)

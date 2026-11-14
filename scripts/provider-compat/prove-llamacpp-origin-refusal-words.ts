@@ -54,13 +54,13 @@ const NAMED_WORDS = `API Error: lab refused the request (${WIRE}) — start this
 const FORWARDED_WORDS = `API Error: lab refused the request (${WIRE}) — a forwarder in front of this llama.cpp server sent it another Host: start the server with --cors-origins naming the address its log shows after "host =", or forward the Host unchanged`
 const credentialWords = (name: string, wire: string): string => `API Error: ${name} rejected the credential (${wire}) — /logins compat/${name} replaces this endpoint's key; MERCURY_COMPAT_${name.toUpperCase()}_API_KEY takes precedence when set.`
 
-const seen: Array<{ method: string; path: string; host: string }> = []
+const seen: Array<{ method: string; path: string; host: string; key: string }> = []
 function refusing(body: string): Promise<{ server: Server; root: string }> {
   return new Promise(resolve => {
     const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       req.on('data', () => {})
       req.on('end', () => {
-        seen.push({ method: req.method ?? '', path: (req.url ?? '').split('?')[0]!, host: String(req.headers['x-asked-host'] ?? req.headers.host ?? '') })
+        seen.push({ method: req.method ?? '', path: (req.url ?? '').split('?')[0]!, host: String(req.headers['x-asked-host'] ?? req.headers.host ?? ''), key: String(req.headers.authorization ?? '') })
         res.writeHead(RECORDED.status, { 'content-type': RECORDED.contentType })
         res.end(body)
       })
@@ -83,12 +83,19 @@ globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   return realFetch(forwarded, { ...init, headers: { ...Object.fromEntries(new Headers(init?.headers).entries()), 'x-asked-host': url.host } })
 }) as typeof fetch
 
-writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ compatProvider: {
+const KEY_HELPER = join(HOME, 'key-helper.mjs')
+writeFileSync(KEY_HELPER, "import { readFileSync, writeFileSync } from 'node:fs'\nconst [file, kind] = process.argv.slice(2)\nlet runs = 0\ntry { runs = Number(readFileSync(file, 'utf8')) } catch {}\nwriteFileSync(file, String(runs + 1))\nprocess.stdout.write(kind === 'turning' ? `fixture-key-${runs + 1}` : 'fixture-key-one')\n")
+const keyRuns = (name: string): number => { try { return Number(readFileSync(join(HOME, `${name}.runs`), 'utf8')) } catch { return 0 } }
+const keyCommand = (name: string): string => `"${process.execPath}" "${KEY_HELPER}" "${join(HOME, `${name}.runs`)}" ${name}`
+const SETTINGS = JSON.stringify({ compatProvider: {
   lab: { baseUrl: `http://${NAMED_HOST}/v1`, dialect: 'llamacpp', models: [MODEL] },
+  sealed: { baseUrl: `http://${NAMED_HOST}/v1`, dialect: 'llamacpp', models: [MODEL], keyCommand: keyCommand('sealed') },
+  turning: { baseUrl: `http://${NAMED_HOST}/v1`, dialect: 'llamacpp', models: [MODEL], keyCommand: keyCommand('turning') },
   near: { baseUrl: `${origin.root}/v1`, dialect: 'llamacpp', models: [MODEL] },
   gate: { baseUrl: `${other.root}/v1`, dialect: 'llamacpp', models: [MODEL] },
   rack: { baseUrl: `${origin.root}/v1`, dialect: 'vllm', models: [MODEL] },
-} }) + '\n')
+} }) + '\n'
+writeFileSync(join(HOME, 'settings.json'), SETTINGS)
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
@@ -101,10 +108,12 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { compatFaultToTypedError, compatTerminalFaultText } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
 const { mapCompatHttpFailure } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
+const { readSignInRefusal } = await import('../../src/utils/accounts/signInRefusal.ts')
+const { writeStoredCompatApiKey } = await import('../../src/services/providers/providerSecrets.ts')
 type Message = import('../../src/types/message.ts').Message
 
 const permissionContext = getEmptyToolPermissionContext()
-async function refusalOf(model: string): Promise<{ words: string[]; posts: number }> {
+async function refusalOf(model: string): Promise<{ words: string[]; posts: number; keys: string[] }> {
   const before = seen.length
   const words: string[] = []
   try {
@@ -132,7 +141,8 @@ async function refusalOf(model: string): Promise<{ words: string[]; posts: numbe
   } catch (error) {
     words.push(`threw: ${error instanceof Error ? error.message : String(error)}`)
   }
-  return { words, posts: seen.slice(before).filter(hit => hit.method === 'POST' && hit.path === '/v1/chat/completions').length }
+  const posts = seen.slice(before).filter(hit => hit.method === 'POST' && hit.path === '/v1/chat/completions')
+  return { words, posts: posts.length, keys: posts.map(hit => hit.key) }
 }
 
 section('§0 the recorded answer is the one llama.cpp 1.0.0 gives a request it holds to be cross-origin')
@@ -171,6 +181,25 @@ section('§2 the road — a turn against a server that answers the recorded 403 
   check('a 403 of another cause ends as it ended', gate.words.length === 1 && gate.words[0] === credentialWords('gate', 'api-permission_error: Forbidden'), gate.words.join(' | '))
   const rack = await refusalOf(`compat/rack/${MODEL}`)
   check('the same 403 from a vLLM endpoint ends as it ended', rack.words.length === 1 && rack.words[0] === credentialWords('rack', WIRE), rack.words.join(' | '))
+}
+
+section('§3 the origin rule is not a refused credential — no note of a refused key, no second key asked for, nothing sent twice')
+{
+  writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ compatProvider: { baseUrl: `http://${NAMED_HOST}/v1`, dialect: 'llamacpp', models: [MODEL] } }) + '\n')
+  resetSettingsCache()
+  writeStoredCompatApiKey('fixture-key-stored')
+  const single = await refusalOf(`compat/${MODEL}`)
+  check('no key command, a key kept by /logins: the address to allow, the request sent once with that key', single.words.length === 1 && single.words[0] === NAMED_WORDS.replace('API Error: lab ', 'API Error: Custom endpoint ') && single.posts === 1 && single.keys.join(',') === 'Bearer fixture-key-stored', `${single.words.join(' | ')} · ${single.posts} ${single.keys.join(',')}`)
+  check('and no note is left that the endpoint refused that key', readSignInRefusal('openai-compat') === undefined, JSON.stringify(readSignInRefusal('openai-compat')))
+  writeStoredCompatApiKey(null)
+  writeFileSync(join(HOME, 'settings.json'), SETTINGS)
+  resetSettingsCache()
+  const sealed = await refusalOf(`compat/sealed/${MODEL}`)
+  check('a command that gives the same key: the address to allow, in place of an expired sign-in', sealed.words.length === 1 && sealed.words[0] === NAMED_WORDS.replace('API Error: lab ', 'API Error: sealed '), sealed.words.join(' | '))
+  check('the request went once with the command\'s key, and the command was asked once', sealed.posts === 1 && sealed.keys.join(',') === 'Bearer fixture-key-one' && keyRuns('sealed') === 1, `${sealed.posts} ${sealed.keys.join(',')} runs=${keyRuns('sealed')}`)
+  const turning = await refusalOf(`compat/turning/${MODEL}`)
+  check('a command that gives a new key each time: the same sentence', turning.words.length === 1 && turning.words[0] === NAMED_WORDS.replace('API Error: lab ', 'API Error: turning '), turning.words.join(' | '))
+  check('the request went once with the first key: no second key was asked for and nothing was sent again', turning.posts === 1 && turning.keys.join(',') === 'Bearer fixture-key-1' && keyRuns('turning') === 1, `${turning.posts} ${turning.keys.join(',')} runs=${keyRuns('turning')}`)
 }
 
 origin.server.close()

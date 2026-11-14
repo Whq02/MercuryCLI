@@ -30,8 +30,12 @@ export function compatEngineRefusalText(dialect: string | undefined, fault: { me
 
 const LOOPBACK_HOST = /^(?:localhost|0\.0\.0\.0|127(?:\.\d{1,3}){3}|\[::1?\])$/
 
+export function llamacppOriginRefusal(dialect: string | undefined, fault: { message: string; status?: number }): boolean {
+  return dialect === 'llamacpp' && fault.status === 403 && /cross-origin request not allowed/i.test(fault.message)
+}
+
 export function llamacppOriginRemedy(dialect: string | undefined, fault: { message: string; status?: number }, requestUrl: string | undefined): string | undefined {
-  if (dialect !== 'llamacpp' || fault.status !== 403 || !/cross-origin request not allowed/i.test(fault.message)) return undefined
+  if (!llamacppOriginRefusal(dialect, fault)) return undefined
   let url: URL | undefined
   try { url = requestUrl === undefined ? undefined : new URL(requestUrl) } catch { url = undefined }
   if (url === undefined || LOOPBACK_HOST.test(url.hostname)) return 'a forwarder in front of this llama.cpp server sent it another Host: start the server with --cors-origins naming the address its log shows after "host =", or forward the Host unchanged'
