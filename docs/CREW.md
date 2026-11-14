@@ -136,17 +136,17 @@ checkout holds that git ignores (build output, caches, generated files,
 `.env` files), each its own copy: that is what a copy that builds and runs
 needs. Build output comes from the checkout as it stood while the worktree
 holds the commit, so a tool that only checks that an artifact exists reads
-the checkout's build. Four things stay behind: Mercury's own `.mercury/`
-folder and instruction files, a folder that holds a `pyvenv.cfg` or a
-`CMakeCache.txt` (a Python environment or a CMake build folder carries the
-address of the place it was made), a folder that is another git worktree, and
-whatever a Read deny rule matches where it lies in the checkout; inside a
-dependency folder the last two stand as links to the checkout's, so a rule
-answers there as it did. An ignored link that points out of the checkout
-comes as the link it is. A worktree frozen with `worktree_at`, cut at another
-commit than the checkout's, or made sparse by
-`workspace.worktree.sparsePaths` starts with the dependency folders only. A
-crewmate continued by a later
+the checkout's build. Four things stay behind: Mercury's own folders and
+instruction files, a folder that holds a `pyvenv.cfg` or a `CMakeCache.txt`
+(a Python environment or a CMake build folder carries the address of the
+place it was made), a folder that is another git worktree, and whatever a
+Read deny rule matches where it lies in the checkout; inside a dependency
+folder the last two stand as links to the checkout's, so a rule answers there
+as it did. An ignored link that points out of the checkout comes as the link
+it is. A worktree frozen with `worktree_at`, cut at another commit than the
+checkout's, made sparse by `workspace.worktree.sparsePaths`, or made in a
+repository that holds your home directory starts with the dependency folders
+only. A crewmate continued by a later
 message wakes in the directory it was launched in: the launch records the
 directory beside the transcript and the continuation reads it back; a
 recorded directory that no longer exists puts the continuation in the

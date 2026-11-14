@@ -712,13 +712,13 @@ instead of a separate copy. On a filesystem that can clone the worktree also
 starts with everything else the checkout holds that git ignores (build
 output, caches, generated files, `.env` files), each its own copy; build
 output comes from the checkout as it stood while the worktree holds the
-commit. Mercury's own `.mercury/` folder and instruction files, a folder that
-holds a `pyvenv.cfg` or a `CMakeCache.txt`, a folder that is another git
-worktree and whatever a Read deny rule matches stay behind, and a worktree
-cut from a pull request's head or made sparse starts with the dependency
-folders only. The worktree is ready after about a second for every hundred
-thousand files of what git ignores; [CREW.md](CREW.md) has the figures and
-the two ways to keep the links.
+commit. Mercury's own folders and instruction files, a folder that holds a
+`pyvenv.cfg` or a `CMakeCache.txt`, a folder that is another git worktree and
+whatever a Read deny rule matches stay behind, and a worktree cut from a pull
+request's head, made sparse, or made in a repository that holds your home
+directory starts with the dependency folders only. The worktree is ready
+after about a second for every hundred thousand files of what git ignores;
+[CREW.md](CREW.md) has the figures and the two ways to keep the links.
 
 ## Closing chats
 
