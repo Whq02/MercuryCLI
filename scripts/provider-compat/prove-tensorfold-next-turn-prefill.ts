@@ -1,12 +1,27 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { foldTokens, startTensorFoldPromptFixture, type FoldReply, type FoldRequest, type FoldRow, type FoldTemplate, type TensorFoldPromptFixture, type TensorFoldPromptFixtureOptions } from './tensorfoldPromptFixture.ts'
 
-const HOME = mkdtempSync(join(tmpdir(), 'tensorfold-next-turn-prefill-proof-'))
+const childHome = process.argv[2] === '--scratch-home' ? process.argv[3] : undefined
+const HOME = childHome ?? mkdtempSync(join(process.env.MERCURY_TMPDIR ?? tmpdir(), 'tensorfold-next-turn-prefill-proof-'))
+if (childHome === undefined) {
+  let status = 1
+  try {
+    const child = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--scratch-home', HOME], { env: { ...process.env, HOME, USERPROFILE: HOME }, stdio: 'inherit' })
+    status = child.status ?? 1
+  } finally {
+    rmSync(HOME, { recursive: true, force: true })
+  }
+  process.exit(status)
+}
+if (realpathSync(homedir()) !== realpathSync(HOME)) throw new Error('The TensorFold proof requires its scratch HOME at process start.')
+console.log('[PASS] product imports run with os.homedir() equal to the scratch home')
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_LOCAL_API_KEY
