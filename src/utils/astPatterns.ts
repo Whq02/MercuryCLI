@@ -375,7 +375,7 @@ export interface AstSearchResult {
   filesParsed: number
   filesWithMatches: number
   parseFailures: Array<{ rel: string; message: string }>
-  recovered?: Array<{ rel: string; lang: string; source?: string; errors: ParseErrorRegion[]; notes: string[] }>
+  recovered?: Array<{ rel: string; lang: string; source?: string; errors?: ParseErrorRegion[]; diagnostics: number; notes: string[] }>
   patternRefusals: Array<{ lang: string; files: number; note: string }>
   captureNamesByLang: Map<string, string[]>
   skippedLarge: number
@@ -514,7 +514,7 @@ export async function searchAstPattern(
         parsed.tree.delete()
         continue
       }
-      ;(recovered ??= []).push({ rel: file.rel, lang: file.lang.name, ...(opts.retainSource ? { source: text } : {}), errors: parsed.errorRegions ?? [], notes: parsed.parseErrors })
+      ;(recovered ??= []).push({ rel: file.rel, lang: file.lang.name, ...(opts.retainSource ? { source: text, errors: parsed.errorRegions ?? [] } : {}), diagnostics: parsed.errorRegions?.length ?? 0, notes: parsed.parseErrors })
     }
     const found = findPatternMatches(compiled.pattern, parsed.tree.rootNode, text, cap - matches.length)
     if (found.matches.length > 0) filesWithMatches++
@@ -982,7 +982,7 @@ export function renderSearchTrailer(scope: AstScope, result: AstSearchResult): s
   out.push(`Searched ${result.filesParsed} of ${scope.files.length} files ${where}${langs ? ` — ${langs}` : ''}${result.filesParsed < scope.files.length && scope.files.length > 0 ? ' (files that cannot contain the pattern were not parsed)' : ''}.`)
   if (result.recovered) {
     for (const file of result.recovered.slice(0, 5)) {
-      const omitted = Math.max(0, file.errors.length - file.notes.length)
+      const omitted = Math.max(0, file.diagnostics - file.notes.length)
       out.push(`Searched recovered tree: ${file.rel} (${file.lang}; ${file.notes.join('; ')}${omitted ? `; +${omitted} more diagnostics` : ''}). Matches may include parser recovery.`)
     }
     if (result.recovered.length > 5) out.push(`+${result.recovered.length - 5} more files searched over recovered trees.`)
