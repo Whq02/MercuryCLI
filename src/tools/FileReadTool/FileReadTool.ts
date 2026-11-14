@@ -1793,7 +1793,7 @@ export const FileReadTool = buildTool({
     const query = parseReadQueryTarget(input.file_path)
     const source = query?.source ?? input.file_path
     if (hasControlCharacter(source) || windowsPathNeedsPermission(source)) return
-    const expanded = isRemotePath(source) ? remoteIdentity(source) : query !== null && source.startsWith('mercury://') ? source : expandPath(source)
+    const expanded = isRemotePath(source) ? remoteIdentity(source) : query !== null && classifyReadTarget(source).kind !== 'file' ? source : expandPath(source)
     input.file_path = query === null ? expanded : `${expanded}${query.suffix}`
   },
   preparePermissionMatcher(input: Input) {
@@ -1930,15 +1930,18 @@ export const FileReadTool = buildTool({
     if (query !== null) {
       const { readQuery } = await import('./readQuery.js')
       const rendered = await readQuery({ target: query, input, context, limits: reserve(), canUseTool, parentMessage })
-      const data: Output = {
-        type: 'text',
-        file: { filePath: input.file_path, content: rendered.content, numLines: rendered.numLines, startLine: 1, totalLines: rendered.numLines },
+      if (rendered.readSource) input = { ...input, file_path: query.source }
+      else {
+        const data: Output = {
+          type: 'text',
+          file: { filePath: input.file_path, content: rendered.content, numLines: rendered.numLines, startLine: 1, totalLines: rendered.numLines },
+        }
+        data.file.reminder = takeReminder(parentMessage, context.messages)
+          ? context.options?.engineModel ? cyberRiskReminderFor(context.options.engineModel) : cyberRiskReminderForCurrentModel()
+          : ''
+        resultPreRenderedBody.set(data, rendered.content)
+        return { data }
       }
-      data.file.reminder = takeReminder(parentMessage, context.messages)
-        ? context.options?.engineModel ? cyberRiskReminderFor(context.options.engineModel) : cyberRiskReminderForCurrentModel()
-        : ''
-      resultPreRenderedBody.set(data, rendered.content)
-      return { data }
     }
     const remoteEntry = isRemotePath(input.file_path) ? remoteRichTarget(input.file_path.trim()) : null
     const remoteInner = remoteEntry?.subtarget !== undefined ? remoteEntry : null
