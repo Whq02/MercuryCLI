@@ -2,6 +2,33 @@
 
 `Read` opens PDFs, office documents and scanned pages as text on every model, `Grep` searches them, and a fetched PDF comes back with its first page; this page says how each road reads.
 
+## JSON and JSONL queries
+
+For UTF-8 JSON, JSONL or NDJSON input, append `#read?` to its Read target, for example
+`<path>#read?limit=20&compact=1&q=select(.status == "failed") | {id, message}`.
+Put `q` (or `query`) last: everything after its `=` is jq code, verbatim,
+without URL or form decoding. Put modifiers before it: `offset` is a
+zero-based value offset, `limit` is a positive value count (default 100),
+`raw=1` unquotes strings, and `compact=1` compacts JSON. A single array is
+paged by its elements; a stream is paged by whole values. The available
+result room can shorten a page, whose continuation keeps the filter and
+formatting. Read's ordinary `offset`, `limit` and `ranges` select generated
+output lines when the target is a query. JSONL and NDJSON pages add one
+bracket of source lines in value order, with `-` when no single line is
+attributed; `input_line_number` can put the input record's line inside a
+value. Existing local literal filenames win over the suffix; in an
+`ssh://` path, percent-encode a literal `#read?`. Existing resource queries
+stay before the suffix. A query on another machine's file brings the file
+over first and evaluates it locally. The bundled jq 1.8.2 engine loads only
+for a query and needs no installed jq; it preserves numeric literals,
+while arithmetic follows jq's floating-point rules. Queries use a virtual
+filesystem and environment; the named source is the only host file available
+to a query. Each page reopens the source, and a continuation checks its file
+identity. A query that consumes the entire input also reports its SHA-256.
+Query output gives no edit anchor or source read coverage, even for the
+identity filter. A result value too large to show is retained whole in the
+generated result page's file, which the answer names.
+
 ## PDFs
 
 `Read` opens a PDF's text layer on every model, without a separate PDF utility.
