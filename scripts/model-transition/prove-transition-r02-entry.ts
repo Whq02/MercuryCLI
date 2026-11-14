@@ -192,7 +192,7 @@ section('§E the no-Anthropic boot honesty notice — every family alike')
   check('openai-only ⇒ the notice fires, naming OpenAI as ready', typeof notice === 'string' && /OpenAI is ready/.test(notice ?? ''))
   check(
     'the notice names the dormant Claude-ACCOUNT surfaces and never claims crewmates stay Claude-backed (they ride the session family)',
-    Boolean(notice && /usage windows/.test(notice) && /crewmates and workflows run on the session/.test(notice) && !/non-goal/.test(notice)),
+    Boolean(notice && /usage windows/.test(notice) && /tools and crewmates run on the session/.test(notice) && !/non-goal/.test(notice)),
     String(notice),
   )
   check(

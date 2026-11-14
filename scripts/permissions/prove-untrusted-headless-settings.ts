@@ -101,7 +101,7 @@ section('§0 the page: docs/TRUST.md says a headless run in an untrusted folder 
   check('the page says the user\'s own configuration and managed policy still apply there', /The user's\s+own configuration and managed policy still apply/.test(page))
   check('the page says the folder\'s two settings files do not rule such a run, and names what waits for the grant', /the folder's two settings files\s+\(`\.mercury\/settings\.json` and `\.mercury\/settings\.local\.json`\) do not rule the\s+run: their allow rules, environment values, memory directory and every other\s+key wait for the grant/.test(page))
   check('the page says their deny and ask rules still apply, without the words a reasons entry gives them', /Their deny and ask rules still apply, because a deny\s+or an ask can only tighten a run, and the words a `guardrails\.reasons` entry\s+gives such a rule are left unsaid/.test(page))
-  check('the page names the agent definitions and the workflows among what such a run goes without, and --config as the way to hand it a settings file', /proceeds without the project's instructions, hooks, MCP\s+servers, agent definitions or workflows/.test(page) && /`--config <file>` hands one launch a settings file\s+without a grant/.test(page))
+  check('the page names the agent definitions among what such a run goes without, and --config as the way to hand it a settings file', /proceeds without the project's instructions, hooks, MCP\s+servers or agent definitions, and the folder's two settings files/.test(page) && /`--config <file>` hands one launch a settings file\s+without a grant/.test(page))
 }
 
 section('§1 a window, where the trust card stands before anything runs, keeps every allowed layer')

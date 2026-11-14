@@ -15,9 +15,9 @@
     Samples                         default (off)
   agents
     Crewmates                       default (on)
-    Workflows                       default (on)
   miscellaneous
-  ↓ 11 more
+    Launch animation                default (on)
+  ↓ 10 more
 
   no permission question is asked — not for files, commands, or computer use;…
   ↑↓ move · ↵ change (saved) · ⌫ default · a apply receipts · esc back

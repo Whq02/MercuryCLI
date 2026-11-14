@@ -1004,7 +1004,7 @@ export async function runHeadless(
   let deferredModelBreadcrumb: { to: string; from: string } | null = null
   let heldSeatModel: { requestId: number; model: string; words?: string } | null = null
   let heldSeatEffort: { requestId: number; effort: string } | null = null
-  let deferredSpawnSwitches: Array<{ kind: 'subagents' | 'workflows'; on: boolean; requestId: number }> = []
+  let deferredSpawnSwitches: Array<{ kind: 'subagents'; on: boolean; requestId: number }> = []
   let deferredAdvisorQuiet: AdvisorQuiet[] = []
   const landAdvisorQuiet = (quiet: AdvisorQuiet): void => {
     const row = createAdvisorQuietMessage(quiet)
@@ -1020,7 +1020,7 @@ export async function runHeadless(
       else landAdvisorQuiet(quiet)
     },
   }
-  const landSpawnSwitch = (kind: 'subagents' | 'workflows', on: boolean): void => {
+  const landSpawnSwitch = (kind: 'subagents', on: boolean): void => {
     const landed = setSpawnSwitch(kind, on)
     if (!landed.changed) return
     messages.push(createRosterTransitionMessage(kind, on, spawnSwitchTransitionLine(kind, on)))
@@ -2491,6 +2491,7 @@ export async function runHeadless(
       return rewindOutcomeToWire(outcome) as Record<string, unknown>
     },
     'session/set_spawn_switch': (params, ref) => {
+      if (params.switch === 'workflows') return { switch: params.switch, on: params.on, at: SEAT_VERB_AT(false) }
       const toggle = { kind: params.switch, on: params.on }
       if (inFlightAbort !== null) {
         deferredSpawnSwitches = [...deferredSpawnSwitches.filter(d => d.kind !== toggle.kind), { ...toggle, requestId: ref.id }]

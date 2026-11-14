@@ -2778,7 +2778,7 @@ export function grantConcourseWorkflows(
       out = {
         outcome: 'refused',
         reason: 'cap-one',
-        detail: `"${holder.title ?? holder.runnerId}" already holds workflows-allowed — one tagged session at a time; revoke it first`,
+        detail: `"${holder.title ?? holder.runnerId}" already holds crewmates-allowed — one tagged session at a time; revoke it first`,
       }
       return
     }

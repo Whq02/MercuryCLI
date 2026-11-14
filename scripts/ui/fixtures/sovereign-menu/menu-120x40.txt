@@ -26,13 +26,13 @@
    │                                                                │  │ LAUNCH SUMMARY                             │
    │ AGENTS                                                         │  │ Profile    r1 · custom · 1 set             │
    │   Crewmates                                       default (on) │  │ Harness    helm · console                  │
-   │   Workflows                                       default (on) │  │ Readiness  ● ready                         │
-   │                                                                │  ╰────────────────────────────────────────────╯
-   │ MISCELLANEOUS                                                  │  ╭────────────────────────────────────────────╮
-   │   Launch animation                                default (on) │  │ ENVIRONMENT                                │
-   │   Godot language lanes                           default (off) │  │ Mercury    Opus 5                          │
-   │   Godot control surface (VULCAN)                 default (off) │  │ Critter    Octopus                         │
-   │ … 9 more below                                                 │  │ Dir        orchard-src                     │
+   │                                                                │  │ Readiness  ● ready                         │
+   │ MISCELLANEOUS                                                  │  ╰────────────────────────────────────────────╯
+   │   Launch animation                                default (on) │  ╭────────────────────────────────────────────╮
+   │   Godot language lanes                           default (off) │  │ ENVIRONMENT                                │
+   │   Godot control surface (VULCAN)                 default (off) │  │ Mercury    Opus 5                          │
+   │   Unity dev lanes                                default (off) │  │ Critter    Octopus                         │
+   │ … 8 more below                                                 │  │ Dir        orchard-src                     │
    ╰────────────────────────────────────────────────────────────────╯  ╰────────────────────────────────────────────╯
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
    │ ● System ready  │  1 choice saved — applies to new sessions                                                    │

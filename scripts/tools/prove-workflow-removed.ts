@@ -110,6 +110,24 @@ section('§3 a managed policy that carries disableWorkflows is still read')
   check('the key reads as any key the schema does not know: one warning line that names it, no error', read.errors.length === 1 && read.errors[0]!.severity === 'warning' && JSON.stringify(read.errors[0]!.unknownKeys) === JSON.stringify(['disableWorkflows']), JSON.stringify(read.errors))
 }
 
+section('§3b a saved Boot Menu profile that still holds the retired Workflows row')
+{
+  const menu = await import('../../src/substrate/startupMenu.ts')
+  const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
+  const { bootNotes } = await import('../../src/substrate/bootNotes.ts')
+  const RETIRED = 'MERCURY_SESSION_WORKFLOWS'
+  const profile = join(WORLD, 'boot-env.json')
+  writeFileSync(profile, `${JSON.stringify({ version: 1, env: { [RETIRED]: '0', MERCURY_SESSION_SUBAGENTS: '0' } }, null, 2)}\n`)
+  const before = createHash('sha256').update(readFileSync(profile)).digest('hex')
+  const env: NodeJS.ProcessEnv = {}
+  const applied = menu.applyBootMenuEnv(profile, env)
+  check('no row of the menu and no flag of the registry carries the name', !menu.STARTUP_MENU.some(row => row.env === RETIRED) && getFlagSpec(RETIRED) === undefined)
+  check('the key is set aside: not applied, not refused, the environment untouched by it', applied !== null && applied.retired.includes(RETIRED) && applied.refused.length === 0 && !applied.applied.some(row => row.env === RETIRED) && env[RETIRED] === undefined, JSON.stringify(applied))
+  check('the row saved beside it is applied as before', applied?.applied.some(row => row.env === 'MERCURY_SESSION_SUBAGENTS' && row.value === '0') === true && env.MERCURY_SESSION_SUBAGENTS === '0', JSON.stringify(applied))
+  check('no boot note names it', !bootNotes().some(note => note.text.includes(RETIRED)), JSON.stringify(bootNotes()))
+  check('reading the profile rewrites nothing', createHash('sha256').update(readFileSync(profile)).digest('hex') === before)
+}
+
 const vendored = join(dirname(DIST), 'vendor', 'node', 'bin', 'node')
 const NODE = existsSync(vendored) ? vendored : (Bun.which('node') ?? 'node')
 type Captured = { body: { tools?: Array<{ name?: string }>; messages?: Array<{ role: string; content: unknown }> } }
@@ -180,6 +198,7 @@ function seedUsedHome(): string[] {
   const agentDir = join(store, SESSION, 'subagents', 'workflows', RUN_ID)
   const files: Array<[string, string]> = [
     [join(CFG, 'workflows', 'user-flow.js'), USER_FLOW],
+    [join(CFG, 'boot-env.json'), `${JSON.stringify({ version: 1, env: { MERCURY_SESSION_WORKFLOWS: '0' } }, null, 2)}\n`],
     [join(PROJECT, '.mercury', 'workflows', 'project-flow.js'), PROJECT_FLOW],
     [join(PROJECT, '.mercury', 'settings.local.json'), `${JSON.stringify({ guardrails: { allow: ['Workflow(user-flow)'], ask: ['Workflow(project-flow)'], deny: ['Workflow(danger-flow)'] } }, null, 2)}\n`],
     [join(runDir, 'workflow.js'), USER_FLOW],
@@ -222,7 +241,7 @@ if (!existsSync(DIST)) {
     const stored = readFileSync(session, 'utf8')
     const moved = (): string[] => estate.filter(path => path !== session && digest(path) !== before.get(path)).map(path => path.replace(WORLD, ''))
 
-    section('§4 the roads of the built product: a home that used workflows starts clean, and no tool list holds the tool')
+    section('§4 the roads of the built product: a home that used workflows, its boot profile still holding the retired row, starts clean, and no tool list holds the tool')
     let plain: string[] | null = null
     let list: string[] | null = null
     for (const [label, flags] of SETTINGS) {
@@ -237,7 +256,7 @@ if (!existsSync(DIST)) {
       check(`${label}: mcp serve lists tools, and none is the Workflow tool`, offered !== null && offered.length > 0 && !offered.includes(TOOL), offered === null ? 'no list' : offered.join(', '))
       list ??= offered
       check(`${label}: its list is the one served with neither flag set`, JSON.stringify(offered) === JSON.stringify(list))
-      check(`${label}: every workflow script, run file and rule of the home is byte for byte as it was`, moved().length === 0, moved().join(', '))
+      check(`${label}: every workflow script, run file and rule of the home, and its boot profile, is byte for byte as it was`, moved().length === 0, moved().join(', '))
     }
 
     section('§5 the built product answers /workflows as a command it does not have')

@@ -2310,7 +2310,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             return {
               status: narrowed !== null || warning !== null ? 'info' : 'ok',
               evidence: `${seatCeilingValueWords(facts)} · ${facts.readingSentence} · ${lanes}${narrowed !== null ? ` — ${narrowed}` : ' (the seats)'}`,
-              detail: `Sessions, crewmates and workflow crewmates all run under this one number; a seat is held only while a model call is in flight, and a call past the ceiling waits with its row saying so.${warning !== null ? ` ${warning}.` : ''} Setting: ${facts.lever}.`,
+              detail: `Sessions and crewmates all run under this one number; a seat is held only while a model call is in flight, and a call past the ceiling waits with its row saying so.${warning !== null ? ` ${warning}.` : ''} Setting: ${facts.lever}.`,
             }
           },
         },
@@ -2330,20 +2330,20 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         },
         {
           id: 'spawn-switches',
-          label: 'Crewmates & workflows',
+          label: 'Crewmates',
           run: async () => {
             const { spawnSwitchFacts, spawnSwitchLine } = await import('../services/switchboard/spawnSwitches.js')
             const { BACKGROUND_LAUNCH_LABEL, backgroundSessionsLaunchCrewmates } = await import('../services/switchboard/backgroundLaunch.js')
             const { getFocusedSessionConnector, hasFocusedSession } = await import('../services/engine-connector/focusedConnector.js')
             const focused = hasFocusedSession()
             const facts = focused ? getFocusedSessionConnector().spawnSwitches() : spawnSwitchFacts()
-            const scope = focused ? 'the focused session' : 'this process — the next session is born with these'
-            const anyOff = !facts.subagents.on || !facts.workflows.on
+            const scope = focused ? 'the focused session' : 'this process — the next session is born with it'
+            const anyOff = !facts.subagents.on
             const backgrounded = backgroundSessionsLaunchCrewmates() ? ` · backgrounded sessions launch too (${BACKGROUND_LAUNCH_LABEL} on)` : ''
             return {
               status: anyOff ? 'info' : 'ok',
-              evidence: `${spawnSwitchLine('subagents', facts.subagents)} · ${spawnSwitchLine('workflows', facts.workflows)} — ${scope}${backgrounded}`,
-              detail: 'Flip a running session with /crewmates on|off and /workflows on|off (at its next turn boundary); the boot menu\'s Agents section sets the next session\'s default. Off: the Crewmate or Workflow tool is absent from the roster and every spawn road answers one receipt.',
+              evidence: `${spawnSwitchLine('subagents', facts.subagents)} — ${scope}${backgrounded}`,
+              detail: 'Flip a running session with /crewmates on|off (at its next turn boundary); the boot menu\'s Agents section sets the next session\'s default. Off: the Crewmate tool is absent from the roster and every spawn road answers one receipt.',
               link: '/bootmenu',
             }
           },
@@ -2609,7 +2609,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               status: 'info',
               evidence: `session model ${session} · settings pin ${pin}${pinResolved !== pin ? ` (resolves to ${pinResolved})` : ''} — the live session overrides the pin`,
               detail:
-                'The settings pin is not the live session model — crewmates and workflows inherit the session. Pass model: explicitly where drift matters.',
+                'The settings pin is not the live session model — crewmates inherit the session. Pass model: explicitly where drift matters.',
             }
           },
         },

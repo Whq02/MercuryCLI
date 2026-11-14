@@ -257,7 +257,7 @@ answer is a plain file.
 
 Headless sessions have no trust dialog. In a folder without a recorded trust
 grant, `mercury run` proceeds without the project's instructions, hooks, MCP
-servers, agent definitions or workflows, and the folder's two settings files
+servers or agent definitions, and the folder's two settings files
 (`.mercury/settings.json` and `.mercury/settings.local.json`) do not rule the
 run: their allow rules, environment values, memory directory and every other
 key wait for the grant. Their deny and ask rules still apply, because a deny

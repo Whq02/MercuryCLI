@@ -9,15 +9,15 @@
 
    ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
    │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ … 8 more above                                                 │  │ ❯ Motion                                   │
-   │   Access type                                   default (asks) │  │                                            │
-   │                                                                │  │ What it controls                           │
-   │ SAMPLES                                                        │  │ The cockpit's idle motion — the mascot's   │
-   │   Samples                                        default (off) │  │ blink and breath, the live glyphs, and     │
-   │                                                                │  │ the clock that paces them. Applies now.    │
-   │ AGENTS                                                         │  │                                            │
-   │   Crewmates                                       default (on) │  │ Current value                              │
-   │   Workflows                                       default (on) │  │ reduced                                    │
+   │ … 7 more above                                                 │  │ ❯ Motion                                   │
+   │   Computer use                                    default (on) │  │                                            │
+   │   Access type                                   default (asks) │  │ What it controls                           │
+   │                                                                │  │ The cockpit's idle motion — the mascot's   │
+   │ SAMPLES                                                        │  │ blink and breath, the live glyphs, and     │
+   │   Samples                                        default (off) │  │ the clock that paces them. Applies now.    │
+   │                                                                │  │                                            │
+   │ AGENTS                                                         │  │ Current value                              │
+   │   Crewmates                                       default (on) │  │ reduced                                    │
    │                                                                │  │ now: reduced (set by you)                  │
    │ MISCELLANEOUS                                                  │  │ reduced cadence: 250 ms a tick (250 ms fl… │
    │   Launch animation                                default (on) │  │ … (the trail continues — a taller termina… │

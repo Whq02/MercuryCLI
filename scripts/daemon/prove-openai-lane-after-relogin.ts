@@ -340,7 +340,7 @@ try {
   sid = born.sessionId ?? ''
   check('the first turn ended', await untilAsync(() => turnEnded(sid), 90_000), JSON.stringify({ rec: readRec(sid), facts: readFacts(sid) }))
   const granted = await control('grant-workflows', sid)
-  check('the session holds the workflows-allowed tag', granted.ok === true, JSON.stringify(granted))
+  check('the session holds the crewmates-allowed tag', granted.ok === true, JSON.stringify(granted))
 
   section('§2 a reached window lapses at the reset it names (a short window observed on the GPT row)')
   const shortSpend = await errand(sid, DELEGATE_GPT_SHORT_SPEND_ASK, 'the short spend', true)

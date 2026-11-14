@@ -142,7 +142,7 @@ console.log('LAW 4b — no kill, no recorded death (the unverified-teardown clas
   check('stop of an already-dead child applies honestly without a roster', stopDead.outcome === 'applied')
 }
 
-console.log('LAW 5 — the ONE workflows-allowed tag:')
+console.log('LAW 5 — the ONE crewmates-allowed tag:')
 check('grant applies', grantConcourseWorkflows(sid2, 'operator', recDir).outcome === 'applied')
 const second = grantConcourseWorkflows(sid3, 'operator', recDir)
 check('second grant refused in plain words (cap-one)', second.outcome === 'refused' && 'reason' in second && second.reason === 'cap-one')
@@ -150,11 +150,11 @@ check('revoke applies', revokeConcourseWorkflows(sid2, 'operator', recDir).outco
 check('grant after revoke applies elsewhere', grantConcourseWorkflows(sid3, 'operator', recDir).outcome === 'applied')
 
 console.log('LAW 6 — the launch-authority valve:')
-check('interactive process (no role env) may launch', evaluateLaunchAuthority('workflows', { roleEnvOn: false }).allowed === true)
+check('interactive process (no role env) may launch', evaluateLaunchAuthority('subagents', { roleEnvOn: false }).allowed === true)
 delete process.env.MERCURY_CONCOURSE_WORKER
 delete process.env.MERCURY_CONCOURSE_WORKER
-check('the unprobed read is lawful for the value-kind role flag', evaluateLaunchAuthority('workflows').allowed === true)
-check('background child WITHOUT the tag is refused', evaluateLaunchAuthority('workflows', { roleEnvOn: true, dir: recDir, sessionId: sid2 }).allowed === false)
+check('the unprobed read is lawful for the value-kind role flag', evaluateLaunchAuthority('subagents').allowed === true)
+check('background child WITHOUT the tag is refused', evaluateLaunchAuthority('subagents', { roleEnvOn: true, dir: recDir, sessionId: sid2 }).allowed === false)
 check('background child WITH the tag may launch', evaluateLaunchAuthority('subagents', { roleEnvOn: true, dir: recDir, sessionId: sid3 }).allowed === true)
 const refusal = evaluateLaunchAuthority('subagents', { roleEnvOn: true, dir: recDir, sessionId: sid2 })
 check('refusal names the wait-until-visited law', refusal.allowed === false && refusal.reason.includes('backgrounded'))

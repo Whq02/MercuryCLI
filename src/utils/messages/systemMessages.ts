@@ -164,7 +164,7 @@ export function createSeatReceiptMessage(content: string, level: Rows.SystemMess
   return systemRow('seat_receipt', { level, content, ...(copyText !== undefined ? { copyText } : {}) })
 }
 
-export function createRosterTransitionMessage(toggle: 'subagents' | 'workflows', on: boolean, content: string): Rows.SystemRosterTransitionMessage {
+export function createRosterTransitionMessage(toggle: 'subagents', on: boolean, content: string): Rows.SystemRosterTransitionMessage {
   return systemRow('roster_transition', { content, on, toggle, level: 'info' })
 }
 

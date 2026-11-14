@@ -1,7 +1,7 @@
 import { flagSpellings } from '../../substrate/flagRegistry.js'
 import { realEnvPin, type EffectiveSettingRow } from '../../substrate/startupMenu.js'
 
-export type SpawnSwitchKind = 'subagents' | 'workflows'
+export type SpawnSwitchKind = 'subagents'
 
 type SpawnSwitchSource = 'default' | 'boot-menu' | 'env' | 'in-session'
 
@@ -10,28 +10,27 @@ export interface SpawnSwitchState {
   source: SpawnSwitchSource
 }
 
-export type SpawnSwitchFacts = Record<SpawnSwitchKind, SpawnSwitchState>
+export type SpawnSwitchFacts = Record<SpawnSwitchKind | 'workflows', SpawnSwitchState>
 
-export const SPAWN_SWITCH_KINDS: readonly SpawnSwitchKind[] = ['subagents', 'workflows']
+const WIRE_WORKFLOWS: SpawnSwitchState = Object.freeze({ on: true, source: 'default' })
+
+export const SPAWN_SWITCH_KINDS: readonly SpawnSwitchKind[] = ['subagents']
 
 export const SPAWN_SWITCH_ENV: Record<SpawnSwitchKind, string> = {
   subagents: 'MERCURY_SESSION_SUBAGENTS',
-  workflows: 'MERCURY_SESSION_WORKFLOWS',
 }
 
-export const SPAWN_SWITCH_LABEL: Record<SpawnSwitchKind, string> = {
+export const SPAWN_SWITCH_LABEL: Record<SpawnSwitchKind | 'workflows', string> = {
   subagents: 'crewmates',
   workflows: 'workflows',
 }
 
 export const SPAWN_SWITCH_COMMAND: Record<SpawnSwitchKind, string> = {
   subagents: '/crewmates',
-  workflows: '/workflows',
 }
 
 const SPAWN_SWITCH_TOOL: Record<SpawnSwitchKind, string> = {
   subagents: 'the Crewmate tool',
-  workflows: 'the Workflow tool',
 }
 
 export function spawnSwitchKindOfEnv(env: string): SpawnSwitchKind | null {
@@ -76,7 +75,7 @@ export function setSpawnSwitch(kind: SpawnSwitchKind, on: boolean): { changed: b
 }
 
 export function spawnSwitchFacts(): SpawnSwitchFacts {
-  return { subagents: spawnSwitch('subagents'), workflows: spawnSwitch('workflows') }
+  return { subagents: spawnSwitch('subagents'), workflows: WIRE_WORKFLOWS }
 }
 
 export function _resetSpawnSwitchesForTesting(): void {
@@ -98,7 +97,7 @@ export function spawnSwitchOfRecord(rec: SpawnSwitchRecordView | undefined, kind
 }
 
 export function spawnSwitchFactsOfRecord(rec: SpawnSwitchRecordView | undefined): SpawnSwitchFacts {
-  return { subagents: spawnSwitchOfRecord(rec, 'subagents'), workflows: spawnSwitchOfRecord(rec, 'workflows') }
+  return { subagents: spawnSwitchOfRecord(rec, 'subagents'), workflows: WIRE_WORKFLOWS }
 }
 
 

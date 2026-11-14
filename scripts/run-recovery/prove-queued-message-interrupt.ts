@@ -180,7 +180,7 @@ try {
   const sid = opened.sessionId ?? ''
   await untilAsync(async () => (await transcriptRows(sid)).some(r => textOf(r).includes('fixture answers')) && readFacts(sid)?.busy === false, 45_000, 50)
   const granted = (await daemonControlRpc({ op: 'sessionControl', action: 'grant-workflows', sessionId: sid, by: 'queued-drive' } as never)) as { ok?: boolean; outcome?: string }
-  check('the session holds the workflows-allowed tag', granted.ok === true && (granted.outcome === undefined || granted.outcome === 'applied' || granted.outcome === 'noop'), JSON.stringify(granted))
+  check('the session holds the crewmates-allowed tag', granted.ok === true && (granted.outcome === undefined || granted.outcome === 'applied' || granted.outcome === 'noop'), JSON.stringify(granted))
 
   const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
   const list = (await daemonControlRpc({ op: 'list', proto: 1 } as never)) as { jobs?: Array<{ sessionId: string; short: string }> }

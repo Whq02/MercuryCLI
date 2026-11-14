@@ -68,8 +68,7 @@ the main ones:
   delta, no tool use, no provider recovery notice) is stopped and settles as
   a typed stall naming its tool-use count, instead of spinning indefinitely.
   Declared provider recovery waits are honored. A stream that is alive
-  counts as progress for this deadline and for a workflow crewmate's
-  no-progress clock alike: the provider's heartbeat pings and the model's
+  counts as progress for this deadline: the provider's heartbeat pings and the model's
   thinking are life even when nothing is painted, so only stream silence
   is a stall.
 - **MCP call inactivity** (`MERCURY_MCP_CALL_IDLE_MINUTES`, default 10

@@ -410,7 +410,7 @@ try {
 
   p5Stage('grant A the background tag')
   const grant = (await daemonControlRpc({ op: 'concourseControl', action: 'grant-workflows', sessionId: A.sessionId, by: 'operator' } as never)) as { ok?: boolean }
-  check('P5 the workflows-allowed tag grants', grant.ok === true, JSON.stringify(grant))
+  check('P5 the crewmates-allowed tag grants', grant.ok === true, JSON.stringify(grant))
 
   p5Stage('wait for A live crewmate roster')
   check(
