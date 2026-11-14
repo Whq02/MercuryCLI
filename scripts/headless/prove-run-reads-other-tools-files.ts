@@ -171,7 +171,7 @@ try {
     const ran = await run(w, [read(w, 'src/app/main.ts'), done])
     const [first = '', second = ''] = ran.asks
     check('the run completed in two requests', ran.code === 0 && ran.asks.length === 2, `exit ${ran.code}, ${ran.asks.length} request(s) ${ran.stderr.slice(-300)}`)
-    check("the first request carries the named folder's guide once, as the user's own, before the project's files", times(first, 'named-agents-needle') === 1 && first.includes(esc(`Contents of ${join(named, 'AGENTS.md')} (user's private global instructions for all projects):`)) && first.indexOf('named-agents-needle') < first.indexOf('agents-needle\\n\\nContents'), `${times(first, 'named-agents-needle')} time(s)`)
+    check("the first request carries the named folder's guide once, as the user's own, before the project's files", times(first, 'named-agents-needle') === 1 && first.includes(esc(`Contents of ${join(named, 'AGENTS.md')} (user's private global instructions for all projects):`)) && first.indexOf('named-agents-needle') >= 0 && first.indexOf('named-agents-needle') < first.indexOf('agents-needle\\n\\nContents'), `${times(first, 'named-agents-needle')} time(s)`)
     check('its scoped rule is absent at the start and attached once when a matching file is read', !first.includes('named-scoped-needle') && times(second, 'named-scoped-needle') === 1, `${times(first, 'named-scoped-needle')} then ${times(second, 'named-scoped-needle')}`)
     const decided = world('named-decided', { ...PROJECT, 'MERCURY.md': 'native-needle\n' }, { env })
     const under = await run(decided, [read(decided, 'src/app/main.ts'), done])
