@@ -113,7 +113,7 @@ const unset = await read()
   const moved = same(unset, stored)
   check('with the switch unset every road and the MCP listing send the recorded bytes', moved.length === 0, moved.join(', '))
   const offCorpus = routes.filter(route => route !== 'local' && stored.roads[route]!.definition !== corpusGrep)
-  check('on twenty-three roads those bytes are also the 62-definition corpus\'s own Grep entry, recorded apart from this proof', offCorpus.length === 0 && routes.length - 1 === 23, offCorpus.join(', '))
+  check('on twenty-three roads those bytes are also the 61-definition corpus\'s own Grep entry, recorded apart from this proof', offCorpus.length === 0 && routes.length - 1 === 23, offCorpus.join(', '))
   check('the local road sends its short form, which the recording holds', stored.roads.local!.definition !== corpusGrep && unset.roads.local!.definition === stored.roads.local!.definition && stored.roads.local!.definition.length < corpusGrep.length)
   check('nothing of the mode is in any of them', !JSON.stringify(unset).includes('ranked'))
 }
@@ -153,14 +153,14 @@ console.log('set to 1: Grep gains the mode and one sentence, and nothing else')
   check('in the MCP listing: the same three, and the output schema gains the field that carries the answer', set.mcp === JSON.stringify(expectedListing), set.mcp.slice(-300))
 }
 
-console.log('the standing corpus of 62 definitions: green unset, and with the switch set Grep is the only definition that moves')
+console.log('the standing corpus of 61 definitions: green unset, and with the switch set Grep is the only definition that moves')
 {
   const corpusProof = join(ROOT, 'scripts', 'tool-economy', 'prove-definition-corpus-parity.ts')
   const off = child('corpus-off', corpusProof, [], undefined)
-  check('unset: the corpus proof passes, 62 definitions identical', off.status === 0 && off.out.includes('PASS CORPUS 62 definitions identical'), `${String(off.status)} ${off.out.slice(-200)} ${off.err.slice(-300)}`)
+  check('unset: the corpus proof passes, 61 definitions identical', off.status === 0 && off.out.includes('PASS CORPUS 61 definitions identical'), `${String(off.status)} ${off.out.slice(-200)} ${off.err.slice(-300)}`)
   const on = child('corpus-on', corpusProof, [], '1')
   const moved = /^AssertionError: a definition moved since the recording at [0-9a-f]+ — re-record with --record and list the diff: ([^\n]*)$/m.exec(`${on.out}\n${on.err}`)
-  check('set: it fails naming Grep and no other tool, so the other 61 definitions are unchanged', on.status !== 0 && moved !== null && moved[1]!.trim() === 'Grep', `${String(on.status)} ${moved?.[1] ?? on.err.slice(-300)}`)
+  check('set: it fails naming Grep and no other tool, so the other 60 definitions are unchanged', on.status !== 0 && moved !== null && moved[1]!.trim() === 'Grep', `${String(on.status)} ${moved?.[1] ?? on.err.slice(-300)}`)
 }
 
 console.log('the switch is a registered opt-in, read once')

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -41,6 +41,9 @@ if (before !== after) {
   console.log('    regenerate with scripts/consistency-census/gen-lockup-census.ts')
 }
 check('§A zero unclassified production sites', census.sites.every(s => s.role !== 'UNCLASSIFIED'), String(census.sites.filter(s => s.role === 'UNCLASSIFIED').length))
+const classified = [...readFileSync(join(ROOT, 'scripts/consistency-census/gen-lockup-census.ts'), 'utf8').matchAll(/^  '([^']+)': \{$/gm)].map(m => m[1]!)
+const classifiedAbsent = classified.filter(file => !existsSync(join(ROOT, file)))
+check('§A every file the role table classifies stands in the tree', classified.length > 0 && classifiedAbsent.length === 0, classifiedAbsent.join(', '))
 
 const picker = readFileSync(join(ROOT, 'src/components/MercuryModelPicker.tsx'), 'utf8')
 check('§B /model renders the shared ProductLockup', picker.includes('<ProductLockup view="model"'))

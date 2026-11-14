@@ -113,50 +113,6 @@ section('§2 N-04 · THE SINGLE-IMAGE DIMENSION 400 MATCHER')
   )
 }
 
-section('§3 N-05 · TERMINAL STATUS DERIVES FROM AGENT FAILURES')
-{
-  const { deriveWorkflowTerminalStatus } = await import('../../src/tools/WorkflowTool/executor.ts')
-  const zeroOfSeven = deriveWorkflowTerminalStatus({ error: undefined, failures: Array(7).fill('agent died'), agentCount: 7 })
-  check(
-    'the 0/7-agents fixture settles FAILED with a derived error',
-    zeroOfSeven.status === 'failed' && (zeroOfSeven.derivedError ?? '').includes('all 7 crewmate(s) failed'),
-  )
-  const partial = deriveWorkflowTerminalStatus({ error: undefined, failures: ['one died'], agentCount: 7 })
-  check('partial failures settle completed_with_failures', partial.status === 'completed_with_failures')
-  check(
-    'a clean run stays completed',
-    deriveWorkflowTerminalStatus({ error: undefined, failures: [], agentCount: 7 }).status === 'completed',
-  )
-  check(
-    'a script error stays failed (unchanged)',
-    deriveWorkflowTerminalStatus({ error: 'boom', failures: [], agentCount: 3 }).status === 'failed',
-  )
-  check(
-    'a zero-agent run with no failures stays completed',
-    deriveWorkflowTerminalStatus({ error: undefined, failures: [], agentCount: 0 }).status === 'completed',
-  )
-
-  check(
-    'the manifest union carries completed_with_failures',
-    src('src/tools/WorkflowTool/runManifest.ts').includes("'completed_with_failures'"),
-  )
-  const settle = src('src/tools/WorkflowTool/WorkflowTool.tsx')
-  check(
-    'the settle path derives, writes, and notifies the SAME status',
-    settle.includes('deriveWorkflowTerminalStatus({') && settle.includes('status: terminal.status'),
-  )
-  const notif = src('src/tasks/LocalWorkflowTask/LocalWorkflowTask.tsx')
-  check(
-    'the notification names partial completion honestly (result + failures + recovery)',
-    notif.includes('completed WITH') &&
-      notif.includes("status === 'killed' || status === 'completed_with_failures'"),
-  )
-  check(
-    'the board renders partial, never plain done',
-    src('src/components/tasks/WorkflowDetailDialog.tsx').includes("word: 'partial'"),
-  )
-}
-
 section('§4 H-19 · ONE FILESYSTEM PERMISSION ENGINE ACROSS THE THREE TOOLS')
 {
   const changeSet = src('src/tools/ChangeSetTool/ChangeSetTool.ts')

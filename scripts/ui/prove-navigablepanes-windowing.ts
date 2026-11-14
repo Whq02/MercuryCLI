@@ -13,7 +13,7 @@ function section(t: string): void {
 }
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const src = readFileSync(join(root, 'src', 'components', 'mercury-ui', 'NavigablePanes.tsx'), 'utf-8')
-const boards = ['extensions/ExtensionsBoard.tsx', 'extensions/SourceView.tsx', 'prompts-panel/PromptsPanel.tsx', 'tasks/WorkflowsBoard.tsx'].map(name => [name, readFileSync(join(root, 'src', 'components', ...name.split('/')), 'utf-8')] as const)
+const boards = ['extensions/ExtensionsBoard.tsx', 'extensions/SourceView.tsx', 'prompts-panel/PromptsPanel.tsx'].map(name => [name, readFileSync(join(root, 'src', 'components', ...name.split('/')), 'utf-8')] as const)
 
 console.log('============================================================')
 console.log(' NavigablePanes React-level windowing (HB-0186)')

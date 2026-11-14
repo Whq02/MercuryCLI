@@ -53,7 +53,7 @@ section('§1 with no session in the slot the old road stands: nothing due, the l
   _resetFocusedSessionConnectorForTesting()
   check('no focused session and no turn in this process: no note is asked for', hasFocusedSession() === false && exitNoteDue() === false && noteAskedAtExit() === false)
   const counts = liveWorkAtExit(undefined)
-  check('the live-work count is the local count alone', j(counts) === j({ total: 0, shells: 0, agents: 0, workflows: 0, other: 0 }), j(counts))
+  check('the live-work count is the local count alone', j(counts) === j({ total: 0, shells: 0, agents: 0, other: 0 }), j(counts))
   const receipt = await leaveNoteAtExit(new AbortController().signal)
   check('the local leave is skipped (nothing to hand off in this process)', receipt.note === 'skipped' && receipt.noteChars === undefined, JSON.stringify(receipt))
 }
@@ -76,7 +76,7 @@ section("§3 the exit card counts the runner's own work beside the local tasks (
 {
   setFocusedSessionConnector(hosted(async () => ({ note: 'skipped' }), [row('agent', 'running', 'crewmate-1'), row('agent', 'completed', 'crewmate-2'), row('shell', 'running', 'sh-1'), row('workflow', 'paused', 'wf-1'), row('monitor', 'pending', 'mon-1')]))
   const counts = liveWorkAtExit(undefined)
-  check('one running agent, two running shells (the monitor counts as a shell), no paused workflow, nothing finished', j(counts) === j({ total: 3, shells: 2, agents: 1, workflows: 0, other: 0 }), j(counts))
+  check('one running agent, two running shells (the monitor counts as a shell), no run row of an older runner, nothing finished', j(counts) === j({ total: 3, shells: 2, agents: 1, other: 0 }), j(counts))
   check('the card words name them by kind', liveWorkWords(counts) === '2 shell commands and 1 crewmate', liveWorkWords(counts))
   releaseFocusedSessionConnector()
   check('with the slot released the count is local again', liveWorkAtExit(undefined).total === 0)

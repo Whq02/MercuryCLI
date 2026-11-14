@@ -19,7 +19,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 await import('../../src/tools/AgentTool/AgentTool.tsx')
 const { finalizeAgentTool } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
 const { getSchemaBoundStructuredOutputTool, SchemaMismatchError, STRUCTURED_OUTPUT_TOOL_NAME } = await import(
-  '../../src/tools/WorkflowTool/structuredOutputTool.ts'
+  '../../src/tools/SyntheticOutputTool/structuredOutputTool.ts'
 )
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
 type Message = import('../../src/types/message.ts').Message

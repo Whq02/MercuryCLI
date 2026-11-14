@@ -70,7 +70,6 @@ export type ExecutionKind =
   | 'process'
   | 'service'
   | 'agent'
-  | 'workflow-worker'
   | 'debug-adapter'
   | 'language-server'
   | 'background-job'

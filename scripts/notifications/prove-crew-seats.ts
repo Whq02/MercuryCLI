@@ -20,8 +20,6 @@ const cap = await import('../../src/services/switchboard/capacityCheck.js')
 const words = await import('../../src/services/capacity/seatWords.js')
 const crew = await import('../../src/services/engine-connector/crewFacts.js')
 const budget = await import('../../src/services/api/recoveryBudget.js')
-const pulse = await import('../../src/tools/WorkflowTool/livePulse.js')
-const manifest = await import('../../src/tools/WorkflowTool/runManifest.js')
 const { saveGlobalConfig } = await import('../../src/utils/config.js')
 
 t.section('S1 — the seat reading is stable under its own seats; the facts name the source')
@@ -57,10 +55,6 @@ t.section('S2 — the seat sentence')
   const crewFacts = await import('../../src/services/engine-connector/crewFacts.ts')
   const held = crewFacts.crewWaitHolders({ running: true, wait: 'waiting for a seat — 3 of 3 held (agent-a, agent-b, the chat)' } as never)
   t.check('the row\'s tail spells "held by …" (a verb, never a bare list)', held === 'held by agent-a, agent-b, the chat', String(held))
-  const { readFileSync: readSrc } = await import('node:fs')
-  const { join: joinPath } = await import('node:path')
-  const board = readSrc(joinPath(import.meta.dir, '..', '..', 'src', 'components', 'tasks', 'WorkflowsBoard.tsx'), 'utf8')
-  t.check('the workflows board reads CREW_ASK_WAIT_WORDS for a waiting ask', board.includes('{CREW_ASK_WAIT_WORDS}') && !/asks?' : ''\} waiting — a answers/.test(board))
   const foreign = words.splitWaitSentence('waiting for the provider')
   t.check('a sentence that is not a seat wait is all gate', foreign.gate === 'waiting for the provider' && foreign.holders === '', JSON.stringify(foreign))
   const edges = [
@@ -150,28 +144,6 @@ t.section("S7 — the request phase's retry word names the provider's answer, ne
   t.check('a first-byte timeout names itself', fold({ error: { message: 'no first byte from Opus 5 after 90 s' } })?.reason === 'no first byte')
   t.check('a status-less connection error is a connection fault', fold({ error: { message: 'Connection error.' } })?.reason === 'a connection fault' && fold({ error: { message: 'read ECONNRESET' } })?.reason === 'a connection fault')
   t.check('a notice with nothing readable keeps the plain word, never nothing', fold({})?.reason === 'a provider fault' && wait.agentWaitWords(fold({}), at + 500) === 'retrying in 40 s — a provider fault (retry 3)')
-}
-
-t.section('S5 — the pulse paints the words; the manifest carries them')
-{
-  const queued = pulse.agentPulse({ state: 'start', waitWords: 'waiting for a seat — 3 of 3 held (a, b, c)' }, 0)
-  t.check('a queued tile with gate words paints the words, never a bare queued', queued.kind === 'queued' && pulse.agentPulseWord(queued) === 'waiting for a seat — 3 of 3 held (a, b, c)', pulse.agentPulseWord(queued))
-  t.check('a start tile without words says starting — nothing queues before a call', pulse.agentPulseWord(pulse.agentPulse({ state: 'start' }, 0)) === 'starting', pulse.agentPulseWord(pulse.agentPulse({ state: 'start' }, 0)))
-  const now = Date.now()
-  const seat = pulse.agentPulse({ state: 'progress', waiting: 'seat', waitWords: 'waiting for a seat — 2 of 2 held (a, the chat)', lastProgressAt: now }, now)
-  t.check("a seat wait derives 'seat' and paints the sentence", seat.kind === 'seat' && pulse.agentPulseWord(seat) === 'waiting for a seat — 2 of 2 held (a, the chat)', pulse.agentPulseWord(seat))
-  const backoff = pulse.agentPulse({ state: 'progress', waiting: 'provider-backoff', retryInMs: 40_000, retryAttempt: 3, waitWords: 'provider busy (HTTP 429) — waiting 40 s before retry 3 of 10; 4m 20s of the 5m retry budget left', lastProgressAt: now }, now)
-  t.check('a backoff with words paints the retry sentence', backoff.kind === 'backoff' && pulse.agentPulseWord(backoff) === 'provider busy (HTTP 429) — waiting 40 s before retry 3 of 10; 4m 20s of the 5m retry budget left', pulse.agentPulseWord(backoff))
-  const compact = pulse.agentPulse({ state: 'progress', waiting: 'provider-backoff', retryInMs: 40_000, retryAttempt: 3, lastProgressAt: now }, now)
-  t.check('a backoff without words keeps the compact form', pulse.agentPulseWord(compact) === 'provider backoff · retry 3 · ~40s', pulse.agentPulseWord(compact))
-  const summaries = manifest.buildAgentSummaries([
-    { type: 'workflow_agent', index: 0, label: 'alpha', state: 'start', queuedAt: now, waitWords: 'waiting for a seat — 3 of 3 held (b, c, d)' } as never,
-    { type: 'workflow_agent', index: 1, label: 'beta', state: 'progress', startedAt: now, lastProgressAt: now, waiting: 'seat', waitWords: 'waiting for a seat — 3 of 3 held (b, c, the chat)' } as never,
-  ] as never)
-  const alpha = summaries.find(s => s.label === 'alpha')
-  const beta = summaries.find(s => s.label === 'beta')
-  t.check('the manifest carries a queued agent\'s gate words', alpha?.waitWords === 'waiting for a seat — 3 of 3 held (b, c, d)', JSON.stringify(alpha))
-  t.check("the manifest carries a seat-waiting agent's kind and words", beta?.waiting === 'seat' && beta.waitWords === 'waiting for a seat — 3 of 3 held (b, c, the chat)', JSON.stringify(beta))
 }
 
 t.section('S6 — the live facts: the held reading, the inherited stamp')

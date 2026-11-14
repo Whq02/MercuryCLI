@@ -14,7 +14,10 @@ const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
 const { runTools } = await import('../../src/services/tools/toolOrchestration.ts')
 const { subscribeToolStart, subscribeToolTerminal } = await import('../../src/services/run/effectObserver.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { abortWithCut, CANCEL_MESSAGE, isDenialResultText, isInterruptedResultText, turnCutOf, turnCutResultText } = await import('../../src/utils/messages/rejectionText.ts')
+const { CANCEL_MESSAGE, isDenialResultText, isInterruptedResultText, turnCutOf, turnCutResultText } = await import('../../src/utils/messages/rejectionText.ts')
+const { DeadlineExceededError } = await import('../../src/utils/deadline.ts')
+const STALL = new DeadlineExceededError('crewmate fixture (a0)', 3_000, 9_000, 2)
+const STALL_WORDS = `Cut off by a no-progress timeout (the provider went quiet): ${STALL.message}`
 const { buildMessageLookups } = await import('../../src/utils/messages/lookups.ts')
 const { normalizeMessages } = await import('../../src/utils/messages/normalize.ts')
 const { createAssistantMessage } = await import('../../src/utils/messages.ts')
@@ -184,10 +187,10 @@ section("B a typed cut on a started call speaks the cut's own words, the same th
   const updates: Yielded[] = []
   const run = driveOne(tool, 'toolu_stalled', ctx, updates)
   await waitFor(() => started)
-  abortWithCut(ctx.abortController, 'stalled')
+  ctx.abortController.abort(STALL)
   await Promise.race([run, sleep(8_000)])
   const text = resultsOf(updates)[0]?.text ?? ''
-  check("a watchdog's cut on a started call: the cut's own words, from the one table", text === turnCutResultText(turnCutOf('stalled')) && text === 'Cut off by a no-progress timeout (the provider went quiet)', JSON.stringify(text))
+  check("a watchdog's cut on a started call: the cut's own words, with the deadline's sentence", text === turnCutResultText(turnCutOf(STALL)) && text === STALL_WORDS, JSON.stringify(text))
   check('never the "before it ran" sentence: the call had started', !NEVER_RAN.test(text), JSON.stringify(text))
   check('still a stop for the reader, observed once as terminal ok:false', isDenialResultText(text) && terminals.length === 1 && terminals[0]?.ok === false)
 }
@@ -275,10 +278,10 @@ section("E a started call that answers the interrupt with a bare AbortError sett
     const updates: Yielded[] = []
     const run = driveOne(tool, 'toolu_listen', ctx, updates)
     await waitFor(() => started)
-    abortWithCut(ctx.abortController, 'stalled')
+    ctx.abortController.abort(STALL)
     await Promise.race([run, sleep(8_000)])
     const text = resultsOf(updates)[0]?.text ?? ''
-    check("a watchdog's cut answered with an AbortError: the cut's own words, from the one table", text === turnCutResultText(turnCutOf('stalled'), 'Listens') && text === 'Cut off by a no-progress timeout (the provider went quiet)', JSON.stringify(text))
+    check("a watchdog's cut answered with an AbortError: the cut's own words, with the deadline's sentence", text === turnCutResultText(turnCutOf(STALL), 'Listens') && text === STALL_WORDS, JSON.stringify(text))
     check('still a stop for the reader, observed once as terminal ok:false', isDenialResultText(text) && terminals.length === 1 && terminals[0]?.ok === false, JSON.stringify({ text, terminals }))
   }
   {

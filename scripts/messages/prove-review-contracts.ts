@@ -103,7 +103,7 @@ test('prepareUserContent', () => {
 })
 
 test('createUserInterruptionMessage', () => {
-  for (const toolUse of [undefined, false, true]) for (const reason of [undefined, null, 'interrupt', 'stalled', 'workflow-abort', new Error('custom cut')]) {
+  for (const toolUse of [undefined, false, true]) for (const reason of [undefined, null, 'interrupt', 'crew-stop', 'a foreign reason', new Error('custom cut')]) {
     const row = F.createUserInterruptionMessage({ toolUse, reason })
     assert.equal(row.type, 'user')
     assert.deepEqual(row.message.content, [{ type: 'text', text: C.turnCutLine(C.turnCutOf(reason), toolUse ?? false) }])

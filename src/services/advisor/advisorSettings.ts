@@ -9,7 +9,7 @@ import type { EffortLevel } from '../../utils/effort.js'
 import { advisorMinutesWords } from '../../utils/messages/noticeRows.js'
 import { advisorSwitchOfSession } from '../../utils/sessionStorage/writer.js'
 
-export type AdvisorSeat = 'main' | 'crewmate' | 'workflow'
+export type AdvisorSeat = 'main' | 'crewmate'
 
 export interface AdvisorSettings {
   enabled: boolean
@@ -27,7 +27,6 @@ export const ADVISOR_DEFAULT_SETTINGS: Readonly<AdvisorSettings> = Object.freeze
   minutes: ADVISOR_DEFAULT_MINUTES,
 })
 
-export const ADVISOR_WORKFLOW_REFUSAL = 'the advisor is not available to workflow crewmates'
 export const ADVISOR_CREWMATE_REFUSAL = 'the advisor is not available to crewmates'
 export const ADVISOR_SETTINGS_OFF_REFUSAL = 'the advisor is off in the settings — /config → Advisor turns it on'
 export const ADVISOR_CHAT_OFF_REFUSAL = 'the advisor is off for this chat — /advise on turns it on'
@@ -65,7 +64,6 @@ export function advisorSeatRefusal(
   settings: AdvisorSettings = readAdvisorSettings(),
   chat: boolean = advisorChatSwitch(),
 ): string | undefined {
-  if (seat === 'workflow') return ADVISOR_WORKFLOW_REFUSAL
   if (seat === 'crewmate') return ADVISOR_CREWMATE_REFUSAL
   if (!settings.enabled) return ADVISOR_SETTINGS_OFF_REFUSAL
   if (!chat) return ADVISOR_CHAT_OFF_REFUSAL

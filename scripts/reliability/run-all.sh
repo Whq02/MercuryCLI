@@ -4,7 +4,7 @@
 # gate-watch: src/services/run/** src/substrate/** src/utils/**
 # gate-watch: scripts/reliability/gen-durable-matrix.ts
 # gate-watch: build.ts src/main.tsx src/mneme/* src/services/mcp/config.ts
-# gate-watch: src/tools/ToolSearchTool/cooccurPrior.ts src/tools/WorkflowTool/runManifest.ts
+# gate-watch: src/tools/ToolSearchTool/cooccurPrior.ts
 # gate-watch: src/services/lsp/LSPClient.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

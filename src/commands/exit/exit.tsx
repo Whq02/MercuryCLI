@@ -21,10 +21,9 @@ export function liveWorkAtExit(tasks: Record<string, TaskState> | undefined): Li
   if (!hasFocusedSession()) return counts
   const hosted = workCounts(getFocusedSessionConnector().workRoster().rows)
   return {
-    total: counts.total + hosted.shells + hosted.agents + hosted.workflows,
+    total: counts.total + hosted.shells + hosted.agents,
     shells: counts.shells + hosted.shells,
     agents: counts.agents + hosted.agents,
-    workflows: counts.workflows + hosted.workflows,
     other: counts.other,
   }
 }

@@ -14,8 +14,7 @@ import { MERCURY_SCOUT_AGENT } from '../tools/AgentTool/built-in/mercuryScoutAge
 const FIXED_OUTPUT_AGENT_TYPES = new Set<string>(
   [MERCURY_SCOUT_AGENT]
     .filter(d => d.fixedOutputContract)
-    .map(d => d.agentType)
-    .concat('workflow-subagent'),
+    .map(d => d.agentType),
 )
 
 export function isFixedOutputAgent(def: Pick<AgentDefinition, 'agentType'>): boolean {

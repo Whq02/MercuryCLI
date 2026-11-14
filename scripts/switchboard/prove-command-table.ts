@@ -193,7 +193,7 @@ console.log('C6 — the plain world: the concourse-only commands, one predicate,
   const registry = [...builtinCommands()]
   const concourseOnly = registry.filter(c => c.needsConcourse === true)
   const byName = (name: string) => registry.find(c => c.name === name)
-  check('C6 the concourse-only set is declared: crew · crewmates · workflows', JSON.stringify(concourseOnly.map(c => c.name).sort()) === JSON.stringify(['crew', 'crewmates', 'workflows']), concourseOnly.map(c => c.name).sort().join(' '))
+  check('C6 the concourse-only set is declared: crew · crewmates', JSON.stringify(concourseOnly.map(c => c.name).sort()) === JSON.stringify(['crew', 'crewmates']), concourseOnly.map(c => c.name).sort().join(' '))
   check("C6 the plain CLI's own commands are not gated with them (/sessions · /runs) and /concourse stays the explicit door", ['sessions', 'runs', 'concourse'].every(n => byName(n) !== undefined && byName(n)!.needsConcourse !== true), ['sessions', 'runs', 'concourse'].map(n => `${n}:${byName(n) === undefined ? 'absent' : String(byName(n)!.needsConcourse === true)}`).join(' '))
   const { findCommand, builtInCommandNames } = await import('../../src/commands.ts')
   const team = byName('team')
@@ -210,7 +210,7 @@ console.log('C6 — the plain world: the concourse-only commands, one predicate,
   const chatLine = unavailableCommandLine(byName('crewmates')!)
   check('C6 --chat: /crewmates typed answers the sentence — off in this boot (--chat), a plain boot has it', chatLine.includes('The /crewmates command opens a Session Concourse surface — the Session Concourse is off in this boot (--chat) — a plain `mercury` boot has it.'), chatLine)
   check('C6 POISON absent: no concourse-only command answers the generic enablement line or "Unknown skill" in the plain world', concourseOnly.every(c => { const l = unavailableCommandLine(c); return !l.includes('exists but is not enabled') && !l.includes('Unknown skill') }))
-  check('C6 --chat over a saved switch off is no contradiction: both = the plain world, the sentence names both and the way back', (() => { setConcourseEnabled(false); const l = unavailableCommandLine(byName('workflows')!); setConcourseEnabled(true); return l.includes('(--chat · concourse off)') && l.includes('`mercury --concourse-on` or /config turns it back') })())
+  check('C6 --chat over a saved switch off is no contradiction: both = the plain world, the sentence names both and the way back', (() => { setConcourseEnabled(false); const l = unavailableCommandLine(byName('crewmates')!); setConcourseEnabled(true); return l.includes('(--chat · concourse off)') && l.includes('`mercury --concourse-on` or /config turns it back') })())
   route._resetSurfaceRouteForTesting()
   setConcourseEnabled(false)
   check('C6 the switch off: the same set is off; the sentence names the way back (--concourse-on or /config)', concourseOnly.every(c => commandOffInPlainWorld(c)) && unavailableCommandLine(byName('crewmates')!).includes('the Session Concourse is off in this boot (concourse off) — `mercury --concourse-on` or /config turns it back'))

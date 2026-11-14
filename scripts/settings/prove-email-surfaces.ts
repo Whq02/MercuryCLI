@@ -165,10 +165,9 @@ await stub('src/services/engine-connector/focusedConnector.ts', {
 await stub('src/components/tasks/useFocusedWork.ts', {
   useFocusedWorkRows: () => [],
   useFocusedWorkRoster: () => ({ rows: [], mission: [], reported: true }),
-  otherSessionRunnerPids: () => new Set(),
   focusedSessionIdOrNull: () => null,
 })
-await stub('src/state/vitalsBus.ts', { useVitals: () => ({ trace: null, workflowsDisk: [] }) })
+await stub('src/state/vitalsBus.ts', { useVitals: () => ({ trace: null }) })
 
 const ink = await import(join(ROOT, 'src/ink.ts'))
 const { default: StdinContext } = await import(join(ROOT, 'src/ink/components/StdinContext.ts'))

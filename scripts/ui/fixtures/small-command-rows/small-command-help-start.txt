@@ -3,18 +3,18 @@ WORKBENCH               │╭────────────────�
   /crewmates off        ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
                         ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
 NEXT                    ││  ▀▄▄▄▀▄▄▄▀                                                                                                     ││
-  · /workflows…         │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
-  · /health — health…   │                                                                                                                  │
+  · /health — health…   │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
   · /memory — memory    │                                                                                                                  │
-  · /mission — set a…   │ 15:53:51 [sam] ❯ start                                                                                           │
+  · /mission — set a…   │                                                                                                                  │
+                        │ 15:53:51 [sam] ❯ start                                                                                           │
+FILES · project         │                                                                                                                  │
+  ↵ or click · browse   │ 15:53:51 [Mercury] Command rows ready.                                                                           │
                         │                                                                                                                  │
-FILES · project         │ 15:53:51 [Mercury] Command rows ready.                                                                           │
-  ↵ or click · browse   │                                                                                                                  │
-                        │ ❯ /crewmates off                                                                                                 │
-VITALS                  │   └ crewmates off for this session                                                                               │
-  · spend $0.00         │     the Crewmate tool leaves the roster from the next turn; reasoning restarts on the next turn; a spawn already │
-  · ctx 0% · 1000k      │     running finishes                                                                                             │
-  · health — run /health│                                                                                                                  │
+VITALS                  │ ❯ /crewmates off                                                                                                 │
+  · spend $0.00         │   └ crewmates off for this session                                                                               │
+  · ctx 0% · 1000k      │     the Crewmate tool leaves the roster from the next turn; reasoning restarts on the next turn; a spawn already │
+  · health — run /health│     running finishes                                                                                             │
+                        │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │

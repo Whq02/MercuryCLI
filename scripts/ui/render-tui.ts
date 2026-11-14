@@ -8,7 +8,7 @@ import { gridToPng } from './gridToPng.ts'
 import { resolveCaptureDriver, vshotBudgetMs, vshotBudgetScale } from '../lib/captureDriver.ts'
 import { describeCapturePreflight, preflightCaptureDriver } from '../lib/capturePreflight.ts'
 import { SETTLE_LAW, cockpitReadyText, settleCaptureConfig, settleNeedles, settleWallMs } from './visualBaseline.ts'
-import { HELM_BOTH_RAILS_MIN, HELM_HOME_MIN_COLS } from '../../src/utils/helmGeometry.ts'
+import { HELM_HOME_MIN_COLS } from '../../src/utils/helmGeometry.ts'
 
 const driver = resolveCaptureDriver()
 const PYTE_PATH = (() => {
@@ -71,7 +71,7 @@ if (totalOverride) {
   cfg.total = n
 }
 if (settleWanted) {
-  const boot = cockpitReadyText(cols, HELM_HOME_MIN_COLS, HELM_BOTH_RAILS_MIN)
+  const boot = cockpitReadyText(cols, HELM_HOME_MIN_COLS)
   const scene = sceneNeedles.length > 0 ? { readyText: sceneNeedles } : (cfg as { readyText?: string | string[] })
   const stillRegion = arg('--still-region', '')
   const region = stillRegion ? { stableRegion: stillRegion.split(',').map(Number) } : {}

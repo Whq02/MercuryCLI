@@ -17,7 +17,7 @@
 # gate-watch: src/services/engine-connector/daemonConnector.ts src/services/engine-connector/recordIdentity.ts
 # gate-watch: src/services/providers/anthropic/streamCore.ts src/services/providers/anthropic/messageParams.ts src/services/providers/openai/responsesBridge.ts src/services/providers/openai/openaiWire.ts src/services/providers/gemini/geminiCodec.ts src/services/providers/gemini/geminiClient.ts src/services/providers/zai/zaiCodec.ts src/services/providers/openaicompat/compatChatClient.ts src/services/providers/local/ollamaChatTransport.ts
 # gate-watch: src/tools.ts src/tools/SkillTool/SkillTool.ts
-# gate-watch: src/tools/WorkflowTool/agentTranscriptReader.ts src/utils/* src/utils/cockpit/helmConsoleAsk.ts
+# gate-watch: src/utils/crew/agentTranscriptReader.ts src/utils/* src/utils/cockpit/helmConsoleAsk.ts
 # gate-watch: src/utils/cockpit/turnReceipt.ts src/utils/config/globalConfig.ts
 # gate-watch: src/utils/hooks/questionRunner.ts src/utils/hooks/rows.ts
 # gate-watch: src/utils/sessionStorage/chain.ts src/utils/sessionStorage/loading.ts

@@ -16,6 +16,7 @@ const sse = (type, body) => 'event: ' + type + '\ndata: ' + JSON.stringify({ typ
 const start = () => sse('message_start', { message: { id: 'msg_fixture', type: 'message', role: 'assistant', model, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 10, output_tokens: 1 } } }) + sse('content_block_start', { index: 0, content_block: { type: 'text', text: '' } })
 const delta = text => sse('content_block_delta', { index: 0, delta: { type: 'text_delta', text } })
 const end = () => sse('content_block_stop', { index: 0 }) + sse('message_delta', { delta: { stop_reason: 'end_turn', stop_sequence: null }, usage: { output_tokens: 5 } }) + sse('message_stop', {})
+const probe = (n, word) => sse('message_start', { message: { id: 'msg_probe_' + n, type: 'message', role: 'assistant', model, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 10, output_tokens: 1 } } }) + sse('content_block_start', { index: 0, content_block: { type: 'tool_use', id: 'toolu_probe_' + n, name: 'Probe', input: {} } }) + sse('content_block_delta', { index: 0, delta: { type: 'input_json_delta', partial_json: JSON.stringify({ word }) } }) + sse('content_block_stop', { index: 0 }) + sse('message_delta', { delta: { stop_reason: 'tool_use', stop_sequence: null }, usage: { output_tokens: 5 } }) + sse('message_stop', {})
 let scenario = 'recover', requests = [], cancelled = 0, closed = []
 const server = createServer((req, res) => {
   const chunks = []
@@ -29,6 +30,11 @@ const server = createServer((req, res) => {
     closed.push(new Promise(done => res.on('close', () => { if (!answered) cancelled++; done() })))
     process.send({ event: 'request' })
     if (scenario === 'recover' && requests.length === 2) { finish(start() + delta('recovered answer') + end()); return }
+    if (scenario === 'ask') {
+      const sent = JSON.stringify(requests.at(-1))
+      finish(sent.includes('ran route-b') ? start() + delta('ask-final-done.') + end() : probe(requests.length, sent.includes('fixture-denied') ? 'route-b' : 'route-a'))
+      return
+    }
     if (scenario === 'partial') { res.write(start() + delta('partial answer')); return }
     if (scenario === 'usage') { res.write(sse('message_start', { message: { id: 'msg_usage', type: 'message', role: 'assistant', model, content: [], usage: { input_tokens: 10, output_tokens: 1 } } })); return }
     if (scenario === 'tool') { res.write(start() + sse('content_block_start', { index: 1, content_block: { type: 'tool_use', id: 'toolu_fixture', name: 'Read', input: {} } })); return }
@@ -75,6 +81,20 @@ const { createAssistantMessage, createUserMessage } = await import('../../src/ut
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { enableDebugLogging, getDebugLogPath } = await import('../../src/utils/debug.ts')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+const { buildTool } = await import('../../src/Tool.ts')
+const { z } = await import('zod/v4')
+const probeTool = buildTool({
+  name: 'Probe',
+  inputSchema: z.object({ word: z.string() }),
+  description: async () => 'Probe: a fixture tool',
+  prompt: async () => 'Probe: a fixture tool taking word',
+  isEnabled: () => true,
+  isConcurrencySafe: () => true,
+  isReadOnly: () => true,
+  call: async (input: { word: string }) => ({ data: `ran ${input.word}` }),
+  mapToolResultToToolResultBlockParam: (output: string, toolUseID: string) => ({ tool_use_id: toolUseID, type: 'tool_result' as const, content: output }),
+} as never)
+const HELD_ASK_MS = 9_000
 enableDebugLogging()
 let failures = 0
 const check = (name: string, ok: boolean, detail: unknown = ''): void => { if (!ok) failures++; console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${JSON.stringify(detail)}`) }
@@ -97,15 +117,23 @@ async function drive(kind: string) {
     messages: [], readFileState: createFileStateCacheWithSizeLimit(100), setInProgressToolUseIDs: () => {}, setResponseLength: () => {}, updateFileHistoryState: () => {}, updateAttributionState: () => {},
   }
   const rows: any[] = []
+  const asks: Array<{ heldMs: number; decision: string }> = []
+  const answerAsk = async (_tool: unknown, input: unknown) => {
+    const nth = asks.length + 1
+    const startedAt = Date.now()
+    if (nth === 1) await new Promise(done => setTimeout(done, HELD_ASK_MS))
+    asks.push({ heldMs: Date.now() - startedAt, decision: nth === 2 ? 'deny' : 'allow' })
+    return nth === 2 ? { behavior: 'deny', message: 'fixture-denied — try another tool' } : { behavior: 'allow', updatedInput: input }
+  }
   let error = ''
   const logStart = readFileSync(getDebugLogPath(), 'utf8').length
   await runWithCwdOverride(home, async () => {
     try {
-      for await (const row of runAgent({ agentDefinition: { agentType: 'stall-fixture', source: 'projectSettings', getSystemPrompt: () => 'Continue the fixture.' } as never, promptMessages: [createUserMessage({ content: 'continue the previous answer' })], forkContextMessages: [createUserMessage({ content: 'earlier question' }), previous], toolUseContext: context as never, canUseTool: (async (_tool: unknown, input: unknown) => ({ behavior: 'allow', updatedInput: input })) as never, isAsync: false, querySource: 'agent:custom', availableTools: [], model, effortOverride: 'max', override: { agentId: `stall-${kind}`, userContext: {}, systemContext: {}, systemPrompt: ['Continue the fixture.'] } })) rows.push(row)
+      for await (const row of runAgent({ agentDefinition: { agentType: 'stall-fixture', source: 'projectSettings', getSystemPrompt: () => 'Continue the fixture.' } as never, promptMessages: [createUserMessage({ content: 'continue the previous answer' })], forkContextMessages: [createUserMessage({ content: 'earlier question' }), previous], toolUseContext: context as never, canUseTool: (kind === 'ask' ? answerAsk : async (_tool: unknown, input: unknown) => ({ behavior: 'allow', updatedInput: input })) as never, isAsync: false, querySource: 'agent:custom', availableTools: (kind === 'ask' ? [probeTool] : []) as never, model, effortOverride: 'max', override: { agentId: `stall-${kind}`, userContext: {}, systemContext: {}, systemPrompt: ['Continue the fixture.'] } })) rows.push(row)
     } catch (caught) { error = String(caught) }
   })
   const evidence = await command('read')
-  return { rows, error, ...evidence, log: readFileSync(getDebugLogPath(), 'utf8').slice(logStart), ownerAborted: owner.signal.aborted }
+  return { rows, error, asks, ...evidence, log: readFileSync(getDebugLogPath(), 'utf8').slice(logStart), ownerAborted: owner.signal.aborted }
 }
 try {
   const recovered = await drive('recover')
@@ -129,6 +157,9 @@ try {
   check('an operator stop is never converted into a retry', stopped.ownerAborted && stopped.requests.length === 1 && !stopped.log.includes('stalled request — retrying'), { requests: stopped.requests.length, error: stopped.error })
   const stoppedResend = await drive('operator-resend')
   check('an operator stop during the resend cancels the second socket and stops cleanly', stoppedResend.ownerAborted && stoppedResend.requests.length === 2 && stoppedResend.cancelled === 2 && !stoppedResend.error.includes('no progress'), { requests: stoppedResend.requests.length, cancelled: stoppedResend.cancelled, error: stoppedResend.error })
+  const asked = await drive('ask')
+  check('a permission ask held for three idle limits is not a stall: the crewmate is not cut and no request is sent again', asked.error === '' && (asked.asks[0]?.heldMs ?? 0) >= HELD_ASK_MS - 500 && asked.requests.length === 4 && asked.cancelled === 0 && !asked.log.includes('stalled request — retrying'), { error: asked.error, asks: asked.asks, requests: asked.requests.length, cancelled: asked.cancelled })
+  check('a denied ask reaches the model as an error tool result and the crewmate goes on to the other tool and finishes', asked.asks.map(ask => ask.decision).join() === 'allow,deny,allow' && JSON.stringify(asked.requests[2] ?? null).includes('fixture-denied') && JSON.stringify(asked.requests[2] ?? null).includes('"is_error":true') && JSON.stringify(asked.requests[3] ?? null).includes('ran route-b') && textOf(asked.rows).includes('ask-final-done.'), { asks: asked.asks, text: textOf(asked.rows) })
   delete process.env.MERCURY_AGENT_IDLE_MINUTES
   const defaultIdleMs = agentIdleLimitMs()
   process.env.MERCURY_AGENT_IDLE_MINUTES = '0'

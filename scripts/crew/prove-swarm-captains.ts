@@ -146,9 +146,9 @@ await check('schema-and-brief', async () => {
   runSwarmCommand('on')
   assert.throws(() => seam.reserveSwarmLaunch('peer-launch', launch, 'a-peer'), /Only the lead/)
   const release = seam.reserveSwarmLaunch('captain', launch)
-  assert(await seam.latchSwarmAgent('captain', 'Captain', false, false, 'engine'))
+  assert(await seam.latchSwarmAgent('captain', 'Captain', false, 'engine'))
   release(); release()
-  assert(await seam.latchSwarmAgent('member', 'Member', false, false, 'engine'))
+  assert(await seam.latchSwarmAgent('member', 'Member', false, 'engine'))
   assert(await seam.latchSwarmAgent('plain', 'Plain'))
   const wait = 'You may park with a declared wait; the board wakes you on it, and the lead can always wake you.'
   const owner = "The owner's board posts outrank the lead's."

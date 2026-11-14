@@ -3,18 +3,18 @@ WORKBENCH               │                                                     
   no prompts sent yet   │                                                                                              │
                         │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
 NEXT                    │ │ Mercury · model · 0 of 24 match                                                          │ │
-  · /workflows…         │ │ / gpt 6 luna                                                                             │ │
-  · /health — health…   │ │                                                                                          │ │
+  · /health — health…   │ │ / gpt 6 luna                                                                             │ │
   · /memory — memory    │ │                                                                                          │ │
-  · /mission — set a…   │ │ context —  · tier API billing                                                            │ │
-                        │ │ effort  low [medium] high xhigh max · ctrl+e changes it                                  │ │
-FILES · project         │ │ 'gpt 6 luna' names no listed model (nearest: Opus 5 · GLM-5.3 · GLM-5.2); pick a row     │ │
-  ↵ or click · browse   │ │ below                                                                                    │ │
-                        │ │ ↑↓ select · type to search · ↵ switch · tab back to the rows · esc clears the search     │ │
-VITALS                  │ │ pgup/pgdn page                                                                           │ │
-  · spend —             │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
-  · ctx — · —           │                                                                                              │
-  · health — run /health│ transcript row 43 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
+  · /mission — set a…   │ │                                                                                          │ │
+                        │ │ context —  · tier API billing                                                            │ │
+FILES · project         │ │ effort  low [medium] high xhigh max · ctrl+e changes it                                  │ │
+  ↵ or click · browse   │ │ 'gpt 6 luna' names no listed model (nearest: Opus 5 · GLM-5.3 · GLM-5.2); pick a row     │ │
+                        │ │ below                                                                                    │ │
+VITALS                  │ │ ↑↓ select · type to search · ↵ switch · tab back to the rows · esc clears the search     │ │
+  · spend —             │ │ pgup/pgdn page                                                                           │ │
+  · ctx — · —           │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
+  · health — run /health│                                                                                              │
+                        │ transcript row 43 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │ transcript row 44 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │ transcript row 45 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │ transcript row 46 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │

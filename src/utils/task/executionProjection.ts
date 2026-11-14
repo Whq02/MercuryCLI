@@ -10,8 +10,6 @@ export function taskExecutionKind(type: TaskType): ExecutionKind {
     case 'local_bash':
     case 'monitor_mcp':
       return 'background-job'
-    case 'local_workflow':
-      return 'workflow-worker'
     case 'local_agent':
     case 'remote_agent':
       return 'agent'

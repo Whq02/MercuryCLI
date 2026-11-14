@@ -113,7 +113,6 @@ prove-file-hyperlinks.ts
 prove-file-open-fresh-query.ts
 prove-task-transcript-settle.tsx
 prove-memory-toggle-receipt.tsx
-prove-workflow-liveness-refresh.tsx
 prove-sessions-command-routing.ts
 prove-diff-hunk-coordinates.ts
 prove-hardening-consent-chords.ts

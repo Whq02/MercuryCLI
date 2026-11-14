@@ -14,6 +14,7 @@ import {
   turnCutOf,
   turnCutOfText,
   turnCutResultText,
+  turnCutWhy,
   unwrapToolUseError,
 } from '../../src/utils/messages/rejectionText.ts'
 import { createUserInterruptionMessage } from '../../src/utils/messages/factories.ts'
@@ -24,6 +25,8 @@ import { createAssistantMessage, createUserMessage } from '../../src/utils/messa
 import type { Message } from '../../src/types/message.ts'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
+const IDLE = turnCutOf({ code: 'DEADLINE_EXCEEDED' })
+const STORED_PARENT_STOP = '[Request cut off: the workflow that ran this crewmate stopped]'
 
 let checks = 0
 let failures = 0
@@ -59,13 +62,13 @@ section('A the operator result names what may have happened')
 
 section('B every other kind keeps its own words; a non-tool interrupt keeps INTERRUPT_MESSAGE')
 {
-  const idle = turnCutResultText(turnCutOf('stalled'))
-  const parent = turnCutResultText(turnCutOf('workflow-abort'))
-  const cut = turnCutResultText(turnCutOf('throttled'))
+  const idle = turnCutResultText(IDLE)
+  const parent = turnCutResultText(turnCutOfText(STORED_PARENT_STOP)!)
+  const cut = turnCutResultText(turnCutOfText('[Request cut off: the retry budget was spent]')!)
   const bare = turnCutResultText(turnCutOf(new Error('the run was aborted')))
   check('idle-timeout keeps its words', idle === 'Cut off by a no-progress timeout (the provider went quiet)', idle)
-  check('parent-stop keeps its words', parent === 'Cut off: the workflow that ran this crewmate stopped', parent)
-  check('a typed cut keeps its words', cut === 'Cut off: the retry budget was spent', cut)
+  check('parent-stop, read back from a stored row, keeps its words', parent === 'Cut off: the workflow that ran this crewmate stopped', parent)
+  check('a typed cut, read back from a stored row, keeps its words', cut === 'Cut off: the retry budget was spent', cut)
   check('an Error reason keeps its words', bare === 'Cut off: the run was aborted', bare)
   check('no other kind gains the two facts', [idle, parent, cut, bare].every(t => !PARTIAL.test(t) && !BACKGROUND.test(t)))
   check('the operator row without a tool is INTERRUPT_MESSAGE, unchanged', turnCutLine(operator, false) === INTERRUPT_MESSAGE && INTERRUPT_MESSAGE === '[Request interrupted by user]')
@@ -76,7 +79,7 @@ section('B every other kind keeps its own words; a non-tool interrupt keeps INTE
   }
   check('createUserInterruptionMessage({}) is the bare INTERRUPT_MESSAGE row', rowText(createUserInterruptionMessage({})) === INTERRUPT_MESSAGE)
   check('createUserInterruptionMessage({ toolUse: true }) is the tool-use row', rowText(createUserInterruptionMessage({ toolUse: true })) === INTERRUPT_MESSAGE_FOR_TOOL_USE)
-  check('a typed cut row still names its reason', turnCutLine(turnCutOf('stalled'), true) === '[Request cut off during tool use by a no-progress timeout (the provider went quiet)]')
+  check('a cut row still names its reason', turnCutLine(IDLE, true) === '[Request cut off during tool use by a no-progress timeout (the provider went quiet)]')
 }
 
 section('C the census: every reader that recognised an interrupt result still does')
@@ -85,7 +88,7 @@ section('C the census: every reader that recognised an interrupt result still do
   check('isDenialResultText: the named result too', isDenialResultText(named))
   check('isDenialResultText: through the tool_use_error wrapper', isDenialResultText(`<tool_use_error>${result}</tool_use_error>`))
   check("isDenialResultText: the bare 'Interrupted by user' a session on disk may carry", isDenialResultText('Interrupted by user'))
-  check('isDenialResultText: the typed cut result is still a stop', isDenialResultText(turnCutResultText(turnCutOf('stalled'))))
+  check('isDenialResultText: the cut result is still a stop', isDenialResultText(turnCutResultText(IDLE)))
   check('isDenialResultText: INTERRUPT_MESSAGE inside a shell error is still a stop', isDenialResultText(`Command failed\n${INTERRUPT_MESSAGE}\n`))
   check('isDenialResultText: the tool-use interruption constant is still a stop', isDenialResultText(INTERRUPT_MESSAGE_FOR_TOOL_USE))
   check('isDenialResultText: CANCEL_MESSAGE and REJECT_MESSAGE are still stops', isDenialResultText(CANCEL_MESSAGE) && isDenialResultText(REJECT_MESSAGE))
@@ -118,9 +121,9 @@ section('C the census: every reader that recognised an interrupt result still do
   check('buildMessageLookups: an ordinary failure stays out of the stop set', lookups.erroredToolUseIDs.has('toolu_err') && !lookups.deniedToolUseIDs.has('toolu_err'))
 }
 
-section('D the workflow transcript reader')
+section('D the crewmate transcript reader, and the cut lines a stored transcript may hold')
 {
-  const { readAgentTranscript } = await import('../../src/tools/WorkflowTool/agentTranscriptReader.ts')
+  const { readAgentTranscript } = await import('../../src/utils/crew/agentTranscriptReader.ts')
   const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
   const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
   const dir = mkdtempSync(join(tmpdir(), 'interrupt-result-'))
@@ -144,13 +147,36 @@ section('D the workflow transcript reader')
   const cutRows = [
     row('user', 'run the build'),
     row('assistant', [{ type: 'tool_use', id: 'toolu_2', name: 'Bash', input: { command: 'sleep 30' } }]),
-    row('user', [{ type: 'tool_result', tool_use_id: 'toolu_2', content: turnCutResultText(turnCutOf('stalled')), is_error: true }]),
-    row('user', [{ type: 'text', text: turnCutLine(turnCutOf('stalled'), true) }]),
+    row('user', [{ type: 'tool_result', tool_use_id: 'toolu_2', content: turnCutResultText(IDLE), is_error: true }]),
+    row('user', [{ type: 'text', text: turnCutLine(IDLE, true) }]),
   ]
   const cutFile = join(dir, 'agent-cut.jsonl')
   writeFileSync(cutFile, cutRows.join('\n') + '\n')
   const cutView = await readAgentTranscript(cutFile)
-  check('a typed cut row still ends the transcript with its own words', cutView?.end.kind === 'cut' && cutView.end.words === 'cut off by a no-progress timeout (the provider went quiet)', JSON.stringify(cutView?.end))
+  check('a cut row still ends the transcript with its own words', cutView?.end.kind === 'cut' && cutView.end.words === 'cut off by a no-progress timeout (the provider went quiet)', JSON.stringify(cutView?.end))
+  const STORED: Array<{ wrote: string; line: string; lineToolUse: string; result: string; kind: string; why: string }> = [
+    { wrote: 'stalled', line: '[Request cut off by a no-progress timeout (the provider went quiet)]', lineToolUse: '[Request cut off during tool use by a no-progress timeout (the provider went quiet)]', result: 'Cut off by a no-progress timeout (the provider went quiet)', kind: 'idle-timeout', why: 'a no-progress timeout (the provider went quiet)' },
+    { wrote: 'workflow-abort', line: '[Request cut off: the workflow that ran this crewmate stopped]', lineToolUse: '[Request cut off during tool use: the workflow that ran this crewmate stopped]', result: 'Cut off: the workflow that ran this crewmate stopped', kind: 'parent-stop', why: 'the workflow that ran this crewmate stopped' },
+    { wrote: 'throttled', line: '[Request cut off: the retry budget was spent]', lineToolUse: '[Request cut off during tool use: the retry budget was spent]', result: 'Cut off: the retry budget was spent', kind: 'cut', why: 'the retry budget was spent' },
+    { wrote: 'terminal-400', line: '[Request cut off: the provider refused the request outright]', lineToolUse: '[Request cut off during tool use: the provider refused the request outright]', result: 'Cut off: the provider refused the request outright', kind: 'cut', why: 'the provider refused the request outright' },
+    { wrote: 'workflow-permission-timeout', line: '[Request cut off: the permission ask timed out]', lineToolUse: '[Request cut off during tool use: the permission ask timed out]', result: 'Cut off: the permission ask timed out', kind: 'cut', why: 'the permission ask timed out' },
+  ]
+  for (const stored of STORED) {
+    seq = 0
+    const storedFile = join(dir, `agent-${stored.wrote}.jsonl`)
+    writeFileSync(storedFile, [
+      row('user', 'run the build'),
+      row('assistant', [{ type: 'tool_use', id: 'toolu_3', name: 'Bash', input: { command: 'sleep 30' } }]),
+      row('user', [{ type: 'tool_result', tool_use_id: 'toolu_3', content: stored.result, is_error: true }]),
+      row('user', [{ type: 'text', text: stored.lineToolUse }]),
+    ].join('\n') + '\n')
+    const storedView = await readAgentTranscript(storedFile)
+    const read = turnCutOfText(stored.line)
+    const readToolUse = turnCutOfText(stored.lineToolUse)
+    check(`a transcript an older build ended on '${stored.wrote}' still ends as cut, in the words it was stored with`, storedView?.end.kind === 'cut' && storedView.end.words === stored.result.replace(/^Cut off/, 'cut off'), JSON.stringify(storedView?.end))
+    check(`…its row reads as the same kind and paints the same reason (${stored.why})`, read?.kind === stored.kind && readToolUse?.kind === stored.kind && turnCutWhy(read!) === stored.why, JSON.stringify(read))
+    check('…and the stored bytes are what the row and the result write back', turnCutLine(read!, false) === stored.line && turnCutLine(readToolUse!, true) === stored.lineToolUse && turnCutResultText(read!) === stored.result && isTurnCutText(stored.line) && isTurnCutText(stored.lineToolUse) && isDenialResultText(stored.result))
+  }
   rmSync(dir, { recursive: true, force: true })
 }
 
@@ -169,7 +195,7 @@ section('E the source census over every recogniser of the interrupt text')
     ['src/utils/messages/rejectionText.ts', '[INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE].some(marker => text.startsWith(marker) || lines.includes(marker))'],
     ['src/utils/messages/rejectionText.ts', 'isInterruptedResultText(text)'],
     ['src/utils/transcriptSearch.ts', 'return isTurnCutText(text)'],
-    ['src/tools/WorkflowTool/agentTranscriptReader.ts', 'turnCutOfText(text)'],
+    ['src/utils/crew/agentTranscriptReader.ts', 'turnCutOfText(text)'],
     ['src/tools/SkillTool/SkillTool.ts', 'texts.includes(INTERRUPT_MESSAGE)'],
     ['src/run-core/turn-machine.ts', 'turnCutResultText(turnCutOf(cutReason))'],
   ]

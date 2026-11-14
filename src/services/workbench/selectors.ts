@@ -49,13 +49,6 @@ export interface AgentMetaFact {
   effortOverride?: string
 }
 
-interface WorkflowDiskFact {
-  runId: string
-  title?: string
-  status: string
-  agentCount?: number
-}
-
 interface ArtifactHeadFact {
   id: string
   kind: string
@@ -83,19 +76,16 @@ export interface WorkbenchSourceInputs {
   richTasks: Map<string, RichTaskFact>
   agentMeta: Map<string, AgentMetaFact>
   laneRuns: Map<string, RunFacts>
-  workflowsDisk: WorkflowDiskFact[]
   artifacts: ArtifactHeadFact[]
   gitWorktreeLanes: Array<{ path: string; branch?: string; head?: string }>
 }
 
 
-const EXECUTION_THREAD_KINDS = new Set(['agent', 'workflow-worker', 'background-job'])
+const EXECUTION_THREAD_KINDS = new Set(['agent', 'background-job'])
 
 function threadKindOf(exec: ExecutionFact, rich: RichTaskFact | undefined): WorkbenchThreadKind {
   const taskType = rich?.taskType ?? (exec.metadata?.taskType as string | undefined)
   switch (taskType) {
-    case 'local_workflow':
-      return 'workflow'
     case 'local_agent':
     case 'remote_agent':
       return 'agent'
@@ -105,7 +95,6 @@ function threadKindOf(exec: ExecutionFact, rich: RichTaskFact | undefined): Work
     default:
       break
   }
-  if (exec.kind === 'workflow-worker') return 'workflow'
   if (exec.kind === 'agent') return 'agent'
   return 'job'
 }

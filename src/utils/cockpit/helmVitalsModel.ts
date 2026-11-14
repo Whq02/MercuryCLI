@@ -15,22 +15,18 @@ import { openrouterSlots } from '../../services/providers/accountSlots.js'
 import { NO_USAGE_READ_WORDS, usageAgeTail, usageAgeWords } from '../../services/providers/usageFreshness.js'
 import { formatLaneSpend } from '../../cost-tracker.js'
 import { crewAgentsOf, crewUsageLine } from '../../services/engine-connector/crewFacts.js'
-import { WORK_UNREPORTED_MARK, workUnreported } from '../../services/engine-connector/workCounts.js'
-import type { WorkRosterV1, WorkRowV1 } from '../../services/engine-connector/types.js'
-import { workflowRowDetail } from '../../components/tasks/workflowRollup.js'
+import type { WorkRosterV1 } from '../../services/engine-connector/types.js'
 import { contextPercentLabel, contextWindowLabel } from '../contextFill.js'
 import type { LiveContextUsage } from './contextUsageLive.js'
 import type { ComposedCertChip } from '../healthCertCore.js'
 import type { Snapshot } from './types.js'
 import { wrapPlain } from './helmConsoleText.js'
-import { GLYPH, truncateToWidth } from '../../components/mercury-ui/glyphs.js'
+import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 import { AMBER, CRIMSON, TEAL } from '../../components/mercury-ui/theme.js'
 import { calculateTokenWarningState } from '../../services/compact/autoCompact.js'
 import { railPanelInnerWidth } from '../../components/mercury-ui/RailPanel.js'
 import type { HelmRow } from './helmFocus.js'
 import type { MercuryThemeTokens } from '../mercuryTokens.js'
-
-const WF_ROWS = 3
 
 export type VitalsRowSpec =
   | { kind: 'text'; key: string; text: string; color: string; fixed?: boolean }
@@ -39,14 +35,11 @@ export type VitalsRowSpec =
   | { kind: 'spend'; key: string; value: string; row: HelmRow }
   | { kind: 'ctx'; key: string; pct: number | null; pctLabel: string; color: string; tail: string; tailColor: string; row: HelmRow }
   | { kind: 'spark'; key: string; label: string; values: number[] }
-  | { kind: 'wf'; key: string; name: string; asks: number; row: HelmRow }
-  | { kind: 'wfdetail'; key: string; text: string }
-  | { kind: 'wfext'; key: string; name: string; wedged: boolean; tail: string; row: HelmRow }
   | { kind: 'health'; key: string; verdict: 'certified' | 'caution' | 'fault' | null; age: string; stale: boolean; row: HelmRow }
   | { kind: 'healthAlert'; key: string; text: string; fault: boolean }
 
 export type VitalsSectionSpec = {
-  key: 'usage' | 'workflow' | 'health'
+  key: 'usage' | 'health'
   glyph: string
   label: string
   count?: string
@@ -63,8 +56,6 @@ export type VitalsInput = {
   otherUsages: readonly ActiveSourceUsage[]
   workRoster: WorkRosterV1
   focusedSessionId: string | null
-  runningWf: readonly WorkRowV1[]
-  externalWf: ReadonlyArray<{ runId: string; ownerPid: number; liveness: 'live' | 'wedged'; workflowName?: string; title?: string }>
   ctx: LiveContextUsage
   ctxTurns: number | null
   ctxGrowth: readonly number[]
@@ -218,34 +209,6 @@ export function buildVitalsModel(input: VitalsInput): VitalsModel {
     if (input.ctxGrowth.length >= 2) usageRows.push({ kind: 'spark', key: 'usage:ctx:trend', label: '  /turn ', values: [...input.ctxGrowth] })
   }
 
-  const runningWf = input.runningWf
-  const wfRows: VitalsRowSpec[] = []
-  if (runningWf.length === 0 && input.externalWf.length === 0) {
-    wfRows.push({ kind: 'empty', key: 'wf:idle', text: workUnreported(input.workRoster) ? WORK_UNREPORTED_MARK : 'idle' })
-  } else if (runningWf.length > 0) {
-    const leadDetail = workflowRowDetail(runningWf[0]!)
-    for (const [i, t] of runningWf.slice(0, WF_ROWS).entries()) {
-      const asks = t.pendingAsks ?? 0
-      const wfKey = `wf:${t.id}`
-      wfRows.push({ kind: 'wf', key: wfKey, name: truncateToWidth(t.name, Math.max(3, rowW - 4 - (asks > 0 ? 8 : 0))), asks, row: { kind: 'command', command: '/workflows', label: wfKey } })
-      if (i === 0 && leadDetail) wfRows.push({ kind: 'wfdetail', key: 'wf:detail', text: truncateToWidth(`${GLYPH.turns} ${leadDetail}`, Math.max(3, rowW - 4)) })
-    }
-    if (runningWf.length > WF_ROWS) {
-      wfRows.push({ kind: 'empty', key: 'wf:more', text: `+${runningWf.length - WF_ROWS} more`, row: { kind: 'command', command: '/workflows', label: 'wf:more' } })
-    }
-  }
-  for (const m of input.externalWf.slice(0, WF_ROWS)) {
-    const extKey = `wf:ext:${m.runId}`
-    wfRows.push({
-      kind: 'wfext',
-      key: extKey,
-      name: truncateToWidth(m.workflowName ?? m.title ?? m.runId, Math.max(3, rowW - 16)),
-      wedged: m.liveness === 'wedged',
-      tail: m.liveness === 'wedged' ? ' wedged?' : ` elsewhere·${m.ownerPid}`,
-      row: { kind: 'command', command: '/workflows', label: extKey },
-    })
-  }
-
   const certChip = input.cert
   const certAlert = certChip.state === 'live' ? certChip.data.alert : undefined
   const healthRows: VitalsRowSpec[] = [
@@ -265,7 +228,7 @@ export function buildVitalsModel(input: VitalsInput): VitalsModel {
   const { availRows, termRows } = input
   const sectionRows = (children: number): number => children + RAIL_PANEL_CHROME
   const shedCeiling = availRows ?? termRows - CHROME_ROWS
-  let spentRows = 1 + sectionRows(usageRows.length) + sectionRows(wfRows.length)
+  let spentRows = 1 + sectionRows(usageRows.length)
   const fitsSection = (children: number): boolean => spentRows + sectionRows(children) <= shedCeiling
   const healthShed = !fitsSection(healthRows.length)
   if (!healthShed) spentRows += sectionRows(healthRows.length)
@@ -274,14 +237,6 @@ export function buildVitalsModel(input: VitalsInput): VitalsModel {
   const shed = shedPointers.map(k => k.slice(1) as 'health')
   const sections: VitalsSectionSpec[] = [
     { key: 'usage', glyph: '', label: 'USAGE', open: '/usage', rows: usageRows },
-    {
-      key: 'workflow',
-      glyph: GLYPH.turns,
-      label: 'WORKFLOW',
-      count: runningWf.length + input.externalWf.length > 0 ? String(runningWf.length + input.externalWf.length) : undefined,
-      open: '/workflows',
-      rows: wfRows,
-    },
     ...(healthShed
       ? []
       : [

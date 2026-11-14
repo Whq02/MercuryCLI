@@ -54,7 +54,6 @@ type CommandOrigin = Partial<{
   isMcp: boolean
   loadedFrom: LoadedFromLabel
   source: CommandSource
-  kind: 'workflow'
   canonicalRoute: string
 }>
 

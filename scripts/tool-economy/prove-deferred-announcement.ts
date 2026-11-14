@@ -87,7 +87,6 @@ const SPEC_BODY = [
   'Transaction — see what changed and was checked; finish the work only after a passing check',
   'WebFetch — fetch public pages as text or saved documents',
   'WebSearch — searches the web for current information',
-  'Workflow — run deterministic JavaScript workflows coordinating crewmates',
   'mcp__mercury__lease_list',
   'mcp__mercury__lease_release',
   'mcp__mercury__lease_take',
@@ -169,7 +168,7 @@ section('§1 the head and the line rule over a fixture pool')
 
 section('§2 over the bench roster the body is the specification\'s text byte for byte')
 {
-  const NAMES = ['Crewmate', 'Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Skill', 'Eval', 'AstSearch', 'ChangeSet', 'LspRead', 'LspRename', 'LspMoveSymbol', 'LspMoveFile', 'LspCodeAction', 'LspFormat', 'LspRequest', 'ToolSearch', 'JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Monitor', 'Checkpoint', 'Rewind', 'ApolloReview', 'AskUserQuestion', 'Browser', 'Computer', 'ContextLeft', 'Correct', 'EnterWorktree', 'ExitWorktree', 'Inspect', 'Journey', 'Launch', 'NotebookEdit', 'ProviderSearch', 'Recall', 'RecordConvention', 'Reflect', 'Retain', 'SendMessage', 'Service', 'Sleep', 'Structure', 'TaskStop', 'Transaction', 'WebFetch', 'WebSearch', 'Workflow']
+  const NAMES = ['Crewmate', 'Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Skill', 'Eval', 'AstSearch', 'ChangeSet', 'LspRead', 'LspRename', 'LspMoveSymbol', 'LspMoveFile', 'LspCodeAction', 'LspFormat', 'LspRequest', 'ToolSearch', 'JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Monitor', 'Checkpoint', 'Rewind', 'ApolloReview', 'AskUserQuestion', 'Browser', 'Computer', 'ContextLeft', 'Correct', 'EnterWorktree', 'ExitWorktree', 'Inspect', 'Journey', 'Launch', 'NotebookEdit', 'ProviderSearch', 'Recall', 'RecordConvention', 'Reflect', 'Retain', 'SendMessage', 'Service', 'Sleep', 'Structure', 'TaskStop', 'Transaction', 'WebFetch', 'WebSearch']
   const permissionContext = getEmptyToolPermissionContext()
   const pool: Tool[] = [...assembleToolPool(permissionContext, [])]
   const catalogue = getAllBaseTools()
@@ -185,7 +184,7 @@ section('§2 over the bench roster the body is the specification\'s text byte fo
   check(`the ${here.length} built-ins of the split bench roster this build offers are present`, roster.length === here.length, here.filter(name => !roster.some(tool => tool.name === name)).join(', '))
   for (const name of ['lease_list', 'lease_release', 'lease_take', 'render_tui']) roster.push(fixtureTool(name, { mcp: 'mercury' }))
   const row = getDeferredToolsDeltaAttachment(roster, MODEL, [first])[0] as { addedNames: string[]; body: string } | undefined
-  const announced = computerToolEnabled() ? 48 : 47
+  const announced = computerToolEnabled() ? 47 : 46
   check(`${announced} tools are announced`, row !== undefined && row.addedNames.length === announced, String(row?.addedNames.length))
   check('the body equals the purpose-line specification under 4,000 bytes', row !== undefined && row.body === specBody && Buffer.byteLength(row.body, 'utf8') <= 4000, row === undefined ? 'no row' : `${Buffer.byteLength(row.body, 'utf8')} bytes; first differing line: ${row.body.split('\n').find((line, i) => line !== specBody.split('\n')[i]) ?? 'none'}`)
   if (row !== undefined) {
@@ -200,7 +199,7 @@ section('§2 over the bench roster the body is the specification\'s text byte fo
 section('§3 the rewritten hints fit without a clipped tail')
 const { ListMcpResourcesTool } = await import('../../src/tools/ListMcpResourcesTool/ListMcpResourcesTool.ts')
 const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const purposeNames = ['Inspect', 'Retain', 'Computer', 'Git', 'WebFetch', 'AskUserQuestion', 'Crewmate', 'Workflow', 'Service', 'Browser', 'Structure', 'CrewBoard', 'Journey', 'ListMcpResources', 'Test', 'Monitor', 'Launch', 'Debug', 'Correct', 'Checkpoint', 'Sleep']
+const purposeNames = ['Inspect', 'Retain', 'Computer', 'Git', 'WebFetch', 'AskUserQuestion', 'Crewmate', 'Service', 'Browser', 'Structure', 'CrewBoard', 'Journey', 'ListMcpResources', 'Test', 'Monitor', 'Launch', 'Debug', 'Correct', 'Checkpoint', 'Sleep']
 const purposeTools = [...getAllBaseTools(), ListMcpResourcesTool, ComputerTool]
 for (const name of purposeNames) {
   const tool = purposeTools.find(tool => tool.name === name)

@@ -11,7 +11,7 @@
 # gate-watch: src/services/api/recoveryBudget.ts src/tasks/LocalAgentTask/* scripts/lib/hermetic.ts
 # gate-watch: src/tools/AgentTool/agentToolUtils.ts src/tools/AgentTool/builtInAgents.ts src/utils/*
 # gate-watch: src/utils/config/globalConfig.ts src/utils/messages/factories.ts src/utils/task/framework.ts
-# gate-watch: src/tools/AgentTool/runAgent.ts src/tools/WorkflowTool/agentHooks.ts src/tools/WorkflowTool/workflowPrompt.ts src/tools.ts
+# gate-watch: src/tools/AgentTool/runAgent.ts src/tools.ts
 # gate-watch: src/tools/AgentTool/constants.ts src/tools/InspectTool/InspectTool.ts src/tools/FileReadTool/readTarget.ts docs/CREW.md
 # gate-watch: scripts/providers/lib/llmhostFixture.ts scripts/provider-compat/fixtures/engineRules.mjs
 # gate-watch: src/state/AppStateStore.ts src/utils/settings/settingsCache.ts src/tools/AgentTool/resumeAgent.ts src/tasks.ts

@@ -269,7 +269,7 @@ export type ToolUseContext = ToolTerminalOptions & ToolCallChainCarrier & {
   updateAttributionState: (updater: (prev: any) => any) => void
   agentId?: AgentId
   agentType?: string
-  agentKind?: 'crewmate' | 'workflow'
+  agentKind?: 'crewmate'
   seatHolder?: string
   pauseGate?: PauseGate
   roundHandle?: string

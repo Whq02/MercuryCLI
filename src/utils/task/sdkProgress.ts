@@ -1,7 +1,6 @@
 import { getSessionId } from '../../bootstrap/state.js'
 import { taskRow } from '../../rows/project.js'
 import { enqueueRow } from '../sdkEventQueue.js'
-import type { SdkWorkflowProgress } from '../../types/tools.js'
 
 export function emitTaskProgress(params: {
   taskId: string
@@ -12,7 +11,6 @@ export function emitTaskProgress(params: {
   toolUses: number
   lastToolName?: string
   summary?: string
-  workflowProgress?: SdkWorkflowProgress[]
 }): void {
   enqueueRow(
     taskRow(
@@ -25,7 +23,6 @@ export function emitTaskProgress(params: {
         usage: { tokens: params.totalTokens, toolUses: params.toolUses, durationMs: Date.now() - params.startTime },
         ...(params.lastToolName !== undefined ? { lastTool: params.lastToolName } : {}),
         ...(params.summary !== undefined ? { summary: params.summary } : {}),
-        ...(params.workflowProgress !== undefined ? { workflowProgress: params.workflowProgress } : {}),
       },
     ),
   )

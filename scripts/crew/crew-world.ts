@@ -257,14 +257,6 @@ export function userTextsOf(world: World, model = LEAD_MODEL): string[] {
   return out
 }
 
-export function readJson<T>(path: string): T | null {
-  try {
-    return JSON.parse(readFileSync(path, 'utf8')) as T
-  } catch {
-    return null
-  }
-}
-
 export function treeOf(dir: string, prefix = ''): string[] {
   let names: string[]
   try {

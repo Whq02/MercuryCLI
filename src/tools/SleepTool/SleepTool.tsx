@@ -26,7 +26,6 @@ export const TRACKED_ARM_GRACE_TICKS = 4
 export const TRACKED_AGENT_TASK_TYPES: ReadonlySet<string> = new Set([
   'local_agent',
   'remote_agent',
-  'local_workflow',
 ])
 
 export const UNTRACKED_TASK_TYPES: ReadonlyMap<string, string> = new Map([

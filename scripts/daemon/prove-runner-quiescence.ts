@@ -32,7 +32,7 @@ function deferred<T>() {
   check('repeated commit is idempotent', (await runner.request(ask('commit'))).ok && flushes === 2)
 }
 
-for (const hold of ['active turn', 'queued input', 'workflow', 'task', 'service', 'debugger', 'browser', 'Eval kernel', 'attachment', 'schedule']) {
+for (const hold of ['active turn', 'queued input', 'task', 'service', 'debugger', 'browser', 'Eval kernel', 'attachment', 'schedule']) {
   let reason: string | null = hold
   let flushes = 0
   const runner = new RunnerQuiescence({ refusal: () => reason, flush: async () => { flushes++ } })

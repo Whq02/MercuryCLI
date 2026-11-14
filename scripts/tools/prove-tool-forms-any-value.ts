@@ -81,7 +81,7 @@ section('§1 the converter: a schema that admits any value has no strict spellin
   t('a tool with no parameters is still a closed empty object, strict', closedEmpty.strict === true, JSON.stringify(closedEmpty))
 }
 
-section('§2 the real wire: the Workflow tool (args: any JSON value) rides non-strict; no strict form carries a typeless node')
+section('§2 the real wire: a tool whose args slot admits any JSON value rides non-strict; no strict form carries a typeless node')
 {
   const tools = getAllBaseTools()
   const wires: Array<{ name: string; wire: Node }> = []
@@ -90,16 +90,16 @@ section('§2 the real wire: the Workflow tool (args: any JSON value) rides non-s
     const [wire] = mapToolsToOpenai([{ name: built.name, input_schema: built.input_schema, description: built.description ?? '' }]) as unknown as Node[]
     wires.push({ name: tool.name, wire: wire! })
   }
-  const workflow = wires.find(entry => entry.name === 'Workflow')
-  t('Workflow is in the base roster this proof reads', workflow !== undefined)
-  t('Workflow is sent strict: false (its args slot admits any JSON value)', workflow?.wire.strict === false, JSON.stringify(workflow?.wire.strict))
-  const workflowForm = workflow ? toOpenaiStrictToolSchema(workflow.wire.parameters) : undefined
-  t('…for the any-value rule at args', workflowForm?.strict === false && ANY_VALUE.test(workflowForm.reason) && workflowForm.reason.endsWith(' at args'), workflowForm?.strict === false ? workflowForm.reason : JSON.stringify(workflowForm))
-  t('Workflow\'s non-strict parameters are its schema as written (args keeps its description, no type invented)', workflow !== undefined && isNode(workflow.wire.parameters) && isNode((workflow.wire.parameters as Node).properties) && !('type' in (((workflow.wire.parameters as Node).properties as Node).args as Node)), JSON.stringify((workflow?.wire.parameters as Node | undefined)?.properties).slice(0, 200))
+  const probeSchema: Node = { type: 'object', properties: { name: { type: 'string', description: 'what to run' }, args: { description: 'Verbatim JSON args (default undefined)' }, script: { type: 'string' } }, required: ['name'] }
+  const [probe] = mapToolsToOpenai([{ name: 'AnyValueProbe', input_schema: probeSchema, description: 'a tool whose args slot admits any JSON value' }]) as unknown as Node[]
+  t('a tool whose args slot admits any JSON value is sent strict: false', probe?.strict === false, JSON.stringify(probe?.strict))
+  const probeForm = toOpenaiStrictToolSchema(probeSchema)
+  t('…for the any-value rule at args', probeForm.strict === false && ANY_VALUE.test(probeForm.reason) && probeForm.reason.endsWith(' at args'), probeForm.strict === false ? probeForm.reason : JSON.stringify(probeForm))
+  t('its non-strict parameters are its schema as written (args keeps its description, no type invented)', isNode(probe?.parameters) && isNode((probe!.parameters as Node).properties) && !('type' in (((probe!.parameters as Node).properties as Node).args as Node)) && (((probe!.parameters as Node).properties as Node).args as Node).description === 'Verbatim JSON args (default undefined)', JSON.stringify((probe?.parameters as Node | undefined)?.properties).slice(0, 300))
   const typelessStrict = wires.filter(entry => entry.wire.strict === true).flatMap(entry => typelessNodes(entry.wire.parameters).map(path => `${entry.name} at ${path}`))
   t(`no strict form on the wire carries a node without a type, $ref, anyOf, enum or const (the vendor refuses "schema must have a 'type' key" for the whole request)`, typelessStrict.length === 0, typelessStrict.join(' | '))
   const anyValueTools = wires.filter(entry => entry.wire.strict === false && ANY_VALUE.test(toOpenaiStrictToolSchema(entry.wire.parameters).strict === false ? (toOpenaiStrictToolSchema(entry.wire.parameters) as { reason: string }).reason : '')).map(entry => entry.name)
-  t('Workflow is the only base tool the any-value rule moves to non-strict (the rule does not over-fire on the roster)', anyValueTools.length === 1 && anyValueTools[0] === 'Workflow', anyValueTools.join(', '))
+  t('the any-value rule moves no base tool to non-strict (the rule does not over-fire on the roster)', anyValueTools.length === 0, anyValueTools.join(', '))
   const knownReasons = /propertyNames|additionalProperties|admits any value/
   const strangers = wires.filter(entry => entry.wire.strict === false).map(entry => ({ name: entry.name, form: toOpenaiStrictToolSchema(entry.wire.parameters) })).filter(entry => entry.form.strict || !knownReasons.test(entry.form.reason)).map(entry => `${entry.name}: ${entry.form.strict ? 'strict' : entry.form.reason}`)
   t('every non-strict base tool is non-strict for a free-form map, an open object or an any-value slot — no other reason', strangers.length === 0, strangers.join(' | '))
@@ -107,18 +107,16 @@ section('§2 the real wire: the Workflow tool (args: any JSON value) rides non-s
   t(`the rest of the roster stays strict (${strictCount} of ${wires.length})`, strictCount >= wires.length - 8, `${strictCount} strict of ${wires.length}`)
 }
 
-section('§3 the answer road for a non-strict Workflow: an omitted or null args reaches the tool as absent')
+section('§3 the answer road for a non-strict tool: an omitted or null args reaches the tool as absent')
 {
-  const workflow = getAllBaseTools().find(tool => tool.name === 'Workflow')
-  t('Workflow is callable in this catalogue', workflow !== undefined)
-  if (workflow) {
-    const plain = gateToolCall([workflow] as never, { id: 'w1', name: 'Workflow', argumentsRaw: JSON.stringify({ name: 'review' }), malformed: false })
-    t('a Workflow call naming a workflow and no args passes the gate', plain.ok, plain.ok ? '' : plain.refusal.reason)
-    const nulled = gateToolCall([workflow] as never, { id: 'w2', name: 'Workflow', argumentsRaw: JSON.stringify({ name: 'review', args: null, script: null }), malformed: false })
-    t('a Workflow call with args: null and script: null reaches the tool with both absent', nulled.ok && !('args' in nulled.input) && !('script' in nulled.input), nulled.ok ? JSON.stringify(nulled.input) : nulled.refusal.reason)
-    const object = gateToolCall([workflow] as never, { id: 'w3', name: 'Workflow', argumentsRaw: JSON.stringify({ name: 'review', args: { files: ['a.ts'], depth: 2 } }), malformed: false })
-    t('an object args rides through verbatim (the any-value slot keeps its whole range)', object.ok && JSON.stringify(object.input.args) === JSON.stringify({ files: ['a.ts'], depth: 2 }), object.ok ? JSON.stringify(object.input) : object.refusal.reason)
-  }
+  const { z } = await import('zod/v4')
+  const probe = { name: 'AnyValueProbe', inputSchema: z.strictObject({ name: z.string(), args: z.unknown().optional(), script: z.string().optional() }) }
+  const plain = gateToolCall([probe] as never, { id: 'w1', name: 'AnyValueProbe', argumentsRaw: JSON.stringify({ name: 'review' }), malformed: false })
+  t('a call naming its subject and no args passes the gate', plain.ok, plain.ok ? '' : plain.refusal.reason)
+  const nulled = gateToolCall([probe] as never, { id: 'w2', name: 'AnyValueProbe', argumentsRaw: JSON.stringify({ name: 'review', args: null, script: null }), malformed: false })
+  t('a call with args: null and script: null reaches the tool with both absent', nulled.ok && !('args' in nulled.input) && !('script' in nulled.input), nulled.ok ? JSON.stringify(nulled.input) : nulled.refusal.reason)
+  const object = gateToolCall([probe] as never, { id: 'w3', name: 'AnyValueProbe', argumentsRaw: JSON.stringify({ name: 'review', args: { files: ['a.ts'], depth: 2 } }), malformed: false })
+  t('an object args rides through verbatim (the any-value slot keeps its whole range)', object.ok && JSON.stringify(object.input.args) === JSON.stringify({ files: ['a.ts'], depth: 2 }), object.ok ? JSON.stringify(object.input) : object.refusal.reason)
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

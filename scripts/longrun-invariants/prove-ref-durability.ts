@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -78,7 +78,7 @@ section('§B tail-by-default + the page is always reachable')
   check('the paged view reports hasMore', paged.resource?.structured?.page?.hasMore === true)
 }
 
-section('§C the shared view law + the second consumer')
+section('§C the shared view law')
 {
   const long = Array.from({ length: 50 }, (_, i) => `row-${i + 1}`).join('\n')
   const tail = boundedTextView(long, {}, 10, { defaultToTail: true })
@@ -89,13 +89,6 @@ section('§C the shared view law + the second consumer')
     head.text.startsWith('row-1') && head.page.cursor === 0 && head.page.hasMore === true)
   const explicit = boundedTextView(long, { cursor: 20, limit: 10 } as never, 10, { defaultToTail: true })
   check('an explicit cursor beats the tail default', explicit.text.startsWith('row-21'))
-
-  const wf = readFileSync(
-    join(import.meta.dir, '..', '..', 'src', 'services', 'resources', 'adapters', 'workflow.ts'),
-    'utf8',
-  )
-  check('the workflow raw-stream view is tail-by-default with the page surfaced',
-    wf.includes('defaultToTail: true') && wf.includes('pageHint(view.page, shown)'))
 }
 
 rmSync(HOME, { recursive: true, force: true })

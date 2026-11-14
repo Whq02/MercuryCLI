@@ -22,7 +22,6 @@ import { resolveShellCwd } from '../../utils/Shell.js'
 export const DOOR_CLOSED_CAUSE = 'the host closed the runner door while the ask was pending'
 
 export function unansweredAskCause(reason: unknown): string | undefined {
-  if (reason === 'workflow-permission-timeout') return 'the permission ask timed out'
   if (turnCutOf(reason).kind !== 'idle-timeout') return undefined
   const limitMs = isDeadlineExceeded(reason) ? (reason as { limitMs?: unknown }).limitMs : undefined
   return typeof limitMs === 'number' && Number.isFinite(limitMs) && limitMs > 0

@@ -263,11 +263,7 @@ const sidecarFor = (runHome: string, description: string): Record<string, unknow
   const CONTINUE_HELPER = 'say where you are now, helper'
   const HELPER_DESCRIPTION = 'worker-directory-probe'
   const HELPER_NAME = 'directory-helper'
-  const WF_SCRIPT = [
-    "export const meta = { name: 'worker-directory', description: 'an isolated worker launches a helper without a directory', phases: [{ title: 'Work' }] }",
-    "phase('Work')",
-    `return await agent(${JSON.stringify(WORKER_PROMPT)}, { isolation: 'worktree', phase: 'Work' })`,
-  ].join('\n')
+  const WORKER_DESCRIPTION = 'isolated-worker'
   const wfRepo = join(scratch, 'worker-repo')
   mkdirSync(wfRepo)
   git(wfRepo, 'init', '-q', '-b', 'main')
@@ -304,9 +300,9 @@ const sidecarFor = (runHome: string, description: string): Record<string, unknow
     if (req.ask.trim() !== WORKER_ASK) return [{ type: 'text', text: 'ok' }]
     switch (req.step) {
       case 0:
-        return [{ type: 'tool_use', name: 'Workflow', input: { script: WF_SCRIPT } }]
+        return [{ type: 'tool_use', name: 'Crewmate', input: { description: WORKER_DESCRIPTION, prompt: WORKER_PROMPT, isolation: 'worktree', run_in_background: true } }]
       case 1:
-        seen.workerWorkflow = last
+        seen.workerStart = last
         helperRanUnderWorker = existsSync(firstFlag)
         return [{ type: 'tool_use', name: 'Crewmate', input: { description: HELPER_DESCRIPTION, name: HELPER_NAME, prompt: HELPER_PROMPT, isolation: 'worktree' } }]
       case 2:
@@ -327,7 +323,7 @@ const sidecarFor = (runHome: string, description: string): Record<string, unknow
   } finally {
     await workerFixture.close()
   }
-  show('the workflow launch', seen.workerWorkflow, workerTurn)
+  show('the isolated crewmate launch', seen.workerStart, workerTurn)
   show('the isolated worker asks for a helper without a named directory', seen.workerLaunch, workerTurn)
   show('the main thread launches the helper into its own worktree', seen.helperLaunch, workerTurn)
   show('the continuation by message', seen.workerContinued, workerTurn)
@@ -335,11 +331,11 @@ const sidecarFor = (runHome: string, description: string): Record<string, unknow
   console.log(`\nthe worker's roster on the wire: ${JSON.stringify(workerRosters[0] ?? [])}`)
   const sidecar = sidecarFor(workerHome, HELPER_DESCRIPTION)
   const workerRoster = workerRosters[0] ?? []
-  tally.section("a workflow worker carries a background crewmate's tool box, and that box has no Crewmate tool")
-  tally.check('the workflow launched without error (staging)', seen.workerWorkflow !== undefined && !seen.workerWorkflow.isError, seen.workerWorkflow?.text.slice(0, 300) ?? workerTurn.stderr.slice(-300))
-  tally.check("the worker's roster on the wire carries no Agent and no Workflow, and does carry the crewmate box (Bash, SendMessage, Read)", workerRosters.length > 0 && !workerRoster.includes('Crewmate') && !workerRoster.includes('Workflow') && ['Bash', 'SendMessage', 'Read'].every(name => workerRoster.includes(name)), JSON.stringify(workerRoster))
+  tally.section("a background crewmate's tool box has no Crewmate tool")
+  tally.check('the isolated crewmate launched without error (staging)', seen.workerStart !== undefined && !seen.workerStart.isError, seen.workerStart?.text.slice(0, 300) ?? workerTurn.stderr.slice(-300))
+  tally.check("the worker's roster on the wire carries no Crewmate tool, and does carry the crewmate box (Bash, SendMessage, Read)", workerRosters.length > 0 && !workerRoster.includes('Crewmate') && ['Bash', 'SendMessage', 'Read'].every(name => workerRoster.includes(name)), JSON.stringify(workerRoster))
   tally.check("the worker's ask for a helper is refused by name, never spawned", seen.workerLaunch !== undefined && seen.workerLaunch.isError && /No such tool available: Crewmate/.test(seen.workerLaunch.text), seen.workerLaunch?.text.slice(0, 300))
-  tally.check('no helper ran under the worker: the first flag was absent when the workflow returned', helperRanUnderWorker === false, `flag present=${String(helperRanUnderWorker)}`)
+  tally.check('no helper ran under the worker: the first flag was absent when its launch returned', helperRanUnderWorker === false, `flag present=${String(helperRanUnderWorker)}`)
   tally.section('a helper launched by the main thread into its own worktree keeps that worktree on continuation')
   tally.check('the main thread launched the helper and its receipt named the id (staging)', seen.helperLaunch !== undefined && !seen.helperLaunch.isError && helperId !== '', seen.helperLaunch?.text.slice(0, 300))
   tally.check('the first helper shell ran in a worktree of the checkout, not the checkout (staging)', firstPwd.startsWith(`${wfRepo}/`) && firstPwd !== wfRepo, `pwd=${firstPwd} checkout=${wfRepo}`)

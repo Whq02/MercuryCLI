@@ -5,13 +5,6 @@ import type { WorkRowV1 } from '../../services/engine-connector/types.js'
 import { crewAgentFactsOf, crewStateLabel, crewWaitLine } from '../../services/engine-connector/crewFacts.js'
 import { workRowRuns } from '../../services/engine-connector/workCounts.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
-import {
-  buildResumePrompt,
-  isLocalWorkflowTask,
-  type WorkflowProgressEvent,
-} from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
-import { agentPulse, agentPulseWord } from '../../tools/WorkflowTool/livePulse.js'
-import { buildAgentSummaries } from '../../tools/WorkflowTool/runManifest.js'
 import { TASK_ID_TAG } from '../../constants/xml.js'
 import { getTaskOutputPath } from '../task/diskOutput.js'
 import { projectWorkRoster } from '../task/workRoster.js'
@@ -22,7 +15,6 @@ type AgentRosterInput = {
   agentNameRegistry?: ReadonlyMap<string, string>
   excludeAgentId?: string
   queuedNoticeIds?: ReadonlySet<string>
-  nowMs?: number
 }
 
 export function queuedNoticeTaskIds(
@@ -64,20 +56,11 @@ function asksFor(row: WorkRowV1): string | null {
   return n > 0 ? `${plural(n, 'permission ask')} parked` : null
 }
 
-function workflowAgentsOf(task: TaskState, nowMs: number): AgentRosterRow['agents'] {
-  if (!isLocalWorkflowTask(task)) return undefined
-  const events = (task.workflowProgress ?? []) as readonly WorkflowProgressEvent[]
-  const summaries = buildAgentSummaries(events)
-  if (summaries.length === 0) return undefined
-  return summaries.map(agent => ({ label: agent.label, state: agentPulseWord(agentPulse(agent, nowMs)) }))
-}
-
 function rowFor(
   row: WorkRowV1,
   task: TaskState | undefined,
   input: AgentRosterInput,
   nameOfId: ReadonlyMap<string, string>,
-  nowMs: number,
 ): AgentRosterRow | null {
   const noticeQueued = input.queuedNoticeIds?.has(row.id) === true
   const running = workRowRuns(row)
@@ -103,31 +86,6 @@ function rowFor(
       outputFilePath,
     }
   }
-  if (row.kind === 'workflow') {
-    const paused = row.status === 'paused'
-    const resume =
-      paused && isLocalWorkflowTask(task)
-        ? buildResumePrompt({ args: task.args, scriptPath: task.scriptPath, workflowRunId: task.workflowRunId })
-        : null
-    return {
-      taskId: row.id,
-      taskType: 'local_workflow',
-      name: row.name,
-      address: null,
-      status: statusWordOf(row.status),
-      wait: null,
-      description,
-      owed: owedLine([
-        running ? OWED_NOTICE_PENDING : noticeQueued ? OWED_NOTICE_QUEUED : null,
-        resume,
-        asksFor(row),
-      ]),
-      error: row.error ?? null,
-      outputFilePath,
-      ...(row.pulse?.phaseTitle !== undefined ? { phase: row.pulse.phaseTitle } : {}),
-      ...(task !== undefined ? (() => { const agents = workflowAgentsOf(task, nowMs); return agents !== undefined ? { agents } : {} })() : {}),
-    }
-  }
   const taskType: AgentRosterRow['taskType'] =
     row.kind === 'shell' ? 'local_bash' : 'monitor_mcp'
   return {
@@ -146,7 +104,6 @@ function rowFor(
 
 export function getAgentRosterAttachment(input: AgentRosterInput): AgentRosterAttachment[] {
   const tasks = input.tasks ?? {}
-  const nowMs = input.nowMs ?? Date.now()
   const nameOfId = new Map<string, string>()
   for (const [name, id] of input.agentNameRegistry ?? []) nameOfId.set(String(id), name)
   const rows: AgentRosterRow[] = []
@@ -156,7 +113,7 @@ export function getAgentRosterAttachment(input: AgentRosterInput): AgentRosterAt
       if (row.id === input.excludeAgentId) continue
       if (task !== undefined && isLocalAgentTask(task) && task.agentId === input.excludeAgentId) continue
     }
-    const built = rowFor(row, task, input, nameOfId, nowMs)
+    const built = rowFor(row, task, input, nameOfId)
     if (built !== null) rows.push(built)
   }
   if (rows.length === 0) return []

@@ -124,8 +124,6 @@ check('the pin without isolation is refused at the call', agentTool.includes("th
 const notice = buildFrozenWorktreeNotice('/w/agent-1', first)
 check('the frozen notice names the path and the commit', notice.includes('/w/agent-1') && notice.includes(first) && notice.includes('frozen'))
 check('a prepare failure reaches the crewmate as its own opening message', agentTool.includes('if (worktreeInfo.prepareFailure !== undefined) {') && agentTool.includes('createUserMessage({ content: buildWorktreePrepareNotice(worktreeInfo.prepareFailure) })'))
-const agentHooks = readFileSync(join(ROOT, 'src/tools/WorkflowTool/agentHooks.ts'), 'utf8')
-check("a workflow crewmate's worktree paragraph carries the same notice", agentHooks.includes("${worktree.prepareFailure !== undefined ? ` ${buildWorktreePrepareNotice(worktree.prepareFailure)}` : ''}"))
 
 rmSync(scratch, { recursive: true, force: true })
 console.log('\n' + '─'.repeat(76))

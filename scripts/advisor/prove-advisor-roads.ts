@@ -292,9 +292,6 @@ section('§0 the wiring: one road per seat into one drain, the framing, the tool
   const agent = src('src/tools/AgentTool/runAgent.ts')
   const boundary = between(agent, 'const pausableQuery = async function*', 'const next = await stream.next()')
   check("no agent road: runAgent's request boundary keeps the pause seam and advances no advisor for any agent kind, and every agent's catalogue loses AskAdvisor unconditionally (red on the base: a crewmate round at the boundary)", boundary.includes('beforeQueryStep()') && !agent.includes('advisorAgentRound') && !agent.includes('advisedRows') && agent.includes('tools = tools.filter(tool => tool.name !== ASK_ADVISOR_TOOL_NAME)') && !agent.includes('advisorSeatRefusal'), boundary.slice(-300))
-  const hooks = src('src/tools/WorkflowTool/agentHooks.ts')
-  const spawn = between(hooks, 'async function* adapterSpawnStream(', 'yield* stream')
-  check('the workflow spawn adapter stamps its launch kind even for custom definitions and keeps the pause seam', spawn.includes('const stream = runAgent({') && spawn.includes("agentKind: 'workflow'") && spawn.includes('beforeQueryStep: args.beforeQueryStep'), spawn.slice(-200))
   const drain = src('src/utils/attachments/queuedCommands.ts')
   const noteDrain = between(drain, 'export function getAdvisorNoteAttachments(', '\n}')
   check("ONE drain, the main chat's: the advisor's note drain takes the session's stashed notes on the main chat's own model-bound collection as queued_command attachments with the advisor origin and no isMeta, drops them once the advisor is switched off, and takes nothing for any agent seat (red on the base: a crewmate drain by agent id)", noteDrain.includes('const notes = takeAdvisorNotes(String(getSessionId()))') && noteDrain.includes('if (!isMainChatAdvisorDrain({ agentId, querySource: drain.querySource, localSubmission: drain.localSubmission })) return []') && noteDrain.includes("advisorSeatRefusal('main')") && !noteDrain.includes('advisorSessionSeat') && /\borigin:\s*note\.origin\s*[,}]/.test(noteDrain) && !noteDrain.includes('agentKind') && !between(noteDrain, 'return notes.map', '}))').includes('isMeta'), noteDrain)
@@ -310,7 +307,7 @@ section('§0 the wiring: one road per seat into one drain, the framing, the tool
   const catalogue = src('src/tools.ts')
   check('the tool is in the catalogue only while the advisor is on (the JevEval gate precedent)', catalogue.includes('...(advisorEnabled() ? [AskAdvisorTool] : []),'))
   check('the tool is barred for every crewmate: the one deny set names it with its reason (a present human — the main chat alone), and no second allow-set exists', (toolsConstants.ALL_AGENT_DISALLOWED_TOOLS as Set<string>).has(ASK_ADVISOR_TOOL_NAME) && (toolsConstants.CREWMATE_BARRED_TOOLS as Record<string, string>)[ASK_ADVISOR_TOOL_NAME] === 'present human' && !('IN_PROCESS_CREWMATE_ALLOWED_TOOLS' in toolsConstants) && !('ASYNC_AGENT_ALLOWED_TOOLS' in toolsConstants))
-  check("the tool's own words say the main chat alone, never crewmates or workflow crewmates", (await AskAdvisorTool.prompt()).includes('never available to crewmates or workflow crewmates') && !(await AskAdvisorTool.prompt()).includes('Advisor for crewmates') && (AskAdvisorTool.capability?.conditions ?? []).some(c => c.includes('the main chat alone, never crewmates or workflow crewmates')), await AskAdvisorTool.prompt())
+  check("the tool's own words say the main chat alone, never crewmates", (await AskAdvisorTool.prompt()).includes('this tool is never available to crewmates. Its reply') && !/workflow/i.test(await AskAdvisorTool.prompt()) && !(await AskAdvisorTool.prompt()).includes('Advisor for crewmates') && (AskAdvisorTool.capability?.conditions ?? []).some(c => c.includes('the main chat alone, never crewmates; the advisor keeps')), await AskAdvisorTool.prompt())
   const census = JSON.parse(src('scripts/builtin-tools/fixtures/tool-census.json')) as { rows: Array<{ name: string; proof?: string; declared?: { conditions?: string[] } }> }
   const row = census.rows.find(r => r.name === ASK_ADVISOR_TOOL_NAME)
   check('the census anchor rows the tool with its proof and its condition', row !== undefined && row.proof === 'scripts/advisor/run-all.sh' && (row.declared?.conditions ?? []).some(c => c.includes('Advisor on')), j(row))
@@ -607,7 +604,7 @@ section("§2c THE SWITCH ON THE SESSION'S OWN RECORD: /advise on writes an advis
   check('the pre-boundary metadata pass keeps the advisor-switch record across a compaction, beside the mode', reader.includes(`'"metaKind":"advisor-switch"'`) && reader.includes(`'"metaKind":"mode"'`))
 }
 
-async function driveAgent(opts: { agentId: string; isAsync: boolean; transcriptSubdir?: string; querySource: string; agentKind?: 'crewmate' | 'workflow' }): Promise<{ yields: AnyMsg[]; threw?: string; childContext?: Raw }> {
+async function driveAgent(opts: { agentId: string; isAsync: boolean; transcriptSubdir?: string; querySource: string; agentKind?: 'crewmate' }): Promise<{ yields: AnyMsg[]; threw?: string; childContext?: Raw }> {
   const ctx = makeCtx()
   const yields: AnyMsg[] = []
   let threw: string | undefined
@@ -661,7 +658,7 @@ for (const leg of [
 }
 
 section('§4 every disallowed seat: no scheduled call, context, note, spend or AskAdvisor catalogue entry; stale direct calls refuse and name the seat')
-for (const agentKind of ['crewmate', 'workflow'] as const) {
+for (const agentKind of ['crewmate'] as const) {
   for (const enabled of [false, true]) {
     resetRig()
     advisorOn(1)
@@ -675,7 +672,7 @@ for (const agentKind of ['crewmate', 'workflow'] as const) {
     const refused = await AskAdvisorTool.call({ question: QUESTION }, childContext as never) as { data: { status: string; text: string } }
     check(`${id}: a stale direct tool call refuses before any network or memory`, refused.data.status === 'refused' && wire.length === before && advisor.peekAdvisorContext(id) === undefined && !existsSync(advisor.advisorContextPath(id)), j(refused))
     check(`${id}: no advisor spend`, (state.getWorkloadUsage() as Raw).advisor === undefined)
-    check(`${id}: the refusal names the seat's permanent exclusion, whatever the settings say`, refused.data.text.includes(agentKind === 'workflow' ? advisor.ADVISOR_WORKFLOW_REFUSAL : advisor.ADVISOR_CREWMATE_REFUSAL), refused.data.text)
+    check(`${id}: the refusal names the seat's permanent exclusion, whatever the settings say`, refused.data.text.includes(advisor.ADVISOR_CREWMATE_REFUSAL), refused.data.text)
   }
 }
 
@@ -693,7 +690,7 @@ section("§5 a crewmate's direct ask is refused with the settings on; a stashed 
   check('an agent context with no kind word is a crewmate to the advisor: refused the same way', bareDenied.data.status === 'refused' && wire.length === before && bareDenied.data.text.includes(advisor.ADVISOR_CREWMATE_REFUSAL), j(bareDenied))
   const { getAdvisorNoteAttachments, isMainChatAdvisorDrain } = await import(join(ROOT, 'src/utils/attachments/queuedCommands.ts'))
   const note = { text: 'a note queued before the toggle', origin: { kind: 'advisor', model: ADVISOR_MODEL, minutes: 1, at: new Date().toISOString() } }
-  for (const kind of ['crewmate', 'workflow'] as const) {
+  for (const kind of ['crewmate'] as const) {
     ctx.agentKind = kind
     advisor.stashAdvisorNote('crew-direct-ask', note as never)
     check(`a note stashed under an agent id is never drained into a ${kind}'s rows (the stash stands untaken; nothing stashes for an agent any more)`, getAdvisorNoteAttachments(ctx as never).length === 0 && advisor.peekAdvisorNotes('crew-direct-ask').length === 1)
@@ -710,12 +707,12 @@ section("§5 a crewmate's direct ask is refused with the settings on; a stashed 
   storage.saveAdvisorSwitch(true)
   const redelivered = getAdvisorNoteAttachments(mainCtx as never, { querySource: 'sdk' }) as Raw[]
   check('…and once the chat is advised again the held note is delivered intact', redelivered.length === 1 && redelivered[0]!.prompt === note.text && advisor.peekAdvisorNotes(SESSION).length === 0, j(redelivered))
-  ctx.agentKind = 'workflow'
+  ctx.agentKind = 'crewmate'
   const { createSubagentContext } = await import(join(ROOT, 'src/utils/forkedAgent.ts'))
   const fork = createSubagentContext(ctx as never)
-  check('a workflow context fork retains the workflow exclusion', fork.agentKind === 'workflow')
+  check('a crewmate context fork retains the crewmate exclusion', fork.agentKind === 'crewmate')
   const forkDenied = await AskAdvisorTool.call({ question: QUESTION }, fork) as { data: { status: string; text: string } }
-  check('a workflow fork cannot call AskAdvisor through a stale tool', forkDenied.data.status === 'refused' && wire.length === before && forkDenied.data.text.includes(advisor.ADVISOR_WORKFLOW_REFUSAL), j(forkDenied))
+  check('a crewmate fork cannot call AskAdvisor through a stale tool', forkDenied.data.status === 'refused' && wire.length === before && forkDenied.data.text.includes(advisor.ADVISOR_CREWMATE_REFUSAL), j(forkDenied))
 }
 
 server.close()

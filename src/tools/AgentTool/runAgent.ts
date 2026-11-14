@@ -66,7 +66,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import {
   getSchemaBoundStructuredOutputTool,
   STRUCTURED_OUTPUT_TOOL_NAME,
-} from '../WorkflowTool/structuredOutputTool.js'
+} from '../SyntheticOutputTool/structuredOutputTool.js'
 import { armInactivityDeadline, DeadlineExceededError, minutesKnobToMs } from '../../utils/deadline.js'
 import {
   honourRecoveryWait,
@@ -172,7 +172,7 @@ export type RunAgentParams = {
   canUseTool: CanUseToolFn
   isAsync: boolean
   resumed?: boolean
-  agentKind?: 'crewmate' | 'workflow'
+  agentKind?: 'crewmate'
   seat?: MercuryAgentSeat
   canShowPermissionPrompts?: boolean
   forkContextMessages?: Message[]
@@ -817,7 +817,7 @@ export async function* runAgent(
       runDeadlineTimer = setTimeout(cut, deadline.at - Date.now())
       runDeadlineTimer.unref?.()
     }
-    swarm = await latchSwarmAgent(agentId, name ?? description ?? agentId, agentKind === 'workflow', params.resumed === true, params.team, abortController.signal)
+    swarm = await latchSwarmAgent(agentId, name ?? description ?? agentId, params.resumed === true, params.team, abortController.signal)
     let userContext = override?.userContext ?? (await getUserContext())
     const systemContext = { ...(override?.systemContext ?? (await getSystemContext())) }
 

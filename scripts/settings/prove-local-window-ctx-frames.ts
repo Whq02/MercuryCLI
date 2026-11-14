@@ -81,8 +81,8 @@ await stub('src/services/engine-connector/focusedConnector.ts', {
   landingInFlight: () => false,
   subscribeFocusedSessionConnector: () => () => {},
 })
-await stub('src/components/tasks/useFocusedWork.ts', { useFocusedWorkRows: () => [], useFocusedWorkRoster: () => ({ rows: [], mission: [], reported: true }), otherSessionRunnerPids: () => new Set(), focusedSessionIdOrNull: () => null })
-const vitals = { sessions: { state: 'unavailable' }, git: null, tasks: [], fleet: { state: 'off', conflicts: 0, drifting: 0 }, fleetFull: null, trace: null, workflowsDisk: [], crew: null, refreshedAt: 0, version: 1 }
+await stub('src/components/tasks/useFocusedWork.ts', { useFocusedWorkRows: () => [], useFocusedWorkRoster: () => ({ rows: [], mission: [], reported: true }), focusedSessionIdOrNull: () => null })
+const vitals = { sessions: { state: 'unavailable' }, git: null, tasks: [], fleet: { state: 'off', conflicts: 0, drifting: 0 }, fleetFull: null, trace: null, crew: null, refreshedAt: 0, version: 1 }
 await stub('src/state/vitalsBus.ts', { useVitals: (selector?: (s: typeof vitals) => unknown) => (selector ? selector(vitals) : vitals) })
 await stub('src/hooks/useDisplayedSessionModel.ts', { useFocusedServedModel: () => focusedModel, useDisplayedSessionModel: () => ({ label: focusedModel, compact: focusedModel.slice('local/'.length), pendingNext: null }), useFocusedServedEffort: () => null, useFocusedBornEffort: () => null, useFocusedSentEffort: () => null })
 await stub('src/hooks/useEngineModel.ts', { useEngineModel: () => focusedModel })

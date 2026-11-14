@@ -80,7 +80,7 @@ saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))
   resetHelmFocusForTest()
   const rows3: HelmRow[] = [
     { kind: 'command', command: '/workbench', label: 'workbench:last' },
-    { kind: 'command', command: '/workflows', label: 'hint:/workflows' },
+    { kind: 'command', command: '/health', label: 'hint:/health' },
     { kind: 'files', label: 'files:browse' },
   ]
   publishHelmRows('lanes', rows3)

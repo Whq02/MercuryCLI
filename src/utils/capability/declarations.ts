@@ -18,7 +18,6 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     cancellation: 'not-applicable',
     latency: 'interactive',
     conditions: ['an Apollo Mode interview in the main session'],
-    workflows: false,
   },
   AskUserQuestion: {
     intents: ['ask the operator a structured question', 'offer choices for a decision'],
@@ -481,17 +480,6 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     cancellation: 'cooperative',
     latency: 'interactive',
     proof: 'scripts/search/run-all.sh',
-  },
-  Workflow: {
-    intents: ['orchestrate many crewmates deterministically', 'fan out and verify at scale'],
-    units: ['task-coordination'],
-    class: 'coordination',
-    execution: { kind: 'workflow-worker', representation: 'child-execution' },
-    resources: ['workflow'],
-    cancellation: 'cooperative',
-    latency: 'long-running',
-    gate: 'MERCURY_WORKFLOWS',
-    proof: 'scripts/workflows/run-all.sh',
   },
   Write: {
     intents: ['create a file', 'overwrite a file wholesale'],

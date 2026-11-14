@@ -3,18 +3,18 @@ WORKBENCH               │                                                     
   no prompts sent yet   │                                                                                              │
                         │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
 NEXT                    │ │ Mercury · model · 3 of 24 match                                                          │ │
-  · /workflows…         │ │ / sonnet                                                                                 │ │
-  · /health — health…   │ │                                                                                          │ │
-  · /memory — memory    │ │ ▾ ANTHROPIC · API key · …-key · 3 of 13                                                  │ │
-  · /mission — set a…   │ │ ╭──────────────────────────────────────────────────────────────────────────────────────╮ │ │
-                        │ │ │ Sonnet 5.5          claude-sonnet-5-5                      1M ctx                    │ │ │
-FILES · project         │ │ ╰──────────────────────────────────────────────────────────────────────────────────────╯ │ │
-  ↵ or click · browse   │ │   Sonnet 5            claude-sonnet-5                        1M ctx                      │ │
-                        │ │   Sonnet 4.6          claude-sonnet-4-6                      1M ctx                      │ │
-VITALS                  │ │                                                                                          │ │
-  · spend —             │ │ context —  · tier API billing                                                            │ │
-  · ctx — · —           │ │ effort  low medium [high] xhigh max · ctrl+e changes it                                  │ │
-  · health — run /health│ │ ↑↓ select · type to search · ↵ switch · tab back to the rows · esc clears the search     │ │
+  · /health — health…   │ │ / sonnet                                                                                 │ │
+  · /memory — memory    │ │                                                                                          │ │
+  · /mission — set a…   │ │ ▾ ANTHROPIC · API key · …-key · 3 of 13                                                  │ │
+                        │ │ ╭──────────────────────────────────────────────────────────────────────────────────────╮ │ │
+FILES · project         │ │ │ Sonnet 5.5          claude-sonnet-5-5                      1M ctx                    │ │ │
+  ↵ or click · browse   │ │ ╰──────────────────────────────────────────────────────────────────────────────────────╯ │ │
+                        │ │   Sonnet 5            claude-sonnet-5                        1M ctx                      │ │
+VITALS                  │ │   Sonnet 4.6          claude-sonnet-4-6                      1M ctx                      │ │
+  · spend —             │ │                                                                                          │ │
+  · ctx — · —           │ │ context —  · tier API billing                                                            │ │
+  · health — run /health│ │ effort  low medium [high] xhigh max · ctrl+e changes it                                  │ │
+                        │ │ ↑↓ select · type to search · ↵ switch · tab back to the rows · esc clears the search     │ │
                         │ │ pgup/pgdn page                                                                           │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
                         │                                                                                              │

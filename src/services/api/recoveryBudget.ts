@@ -212,10 +212,6 @@ export function outageSpentLine(facts: { cause: string; reconnects: number; capM
   return `${head} and the turn was ended; check the connection and send again, or ${RECONNECT_KNOB_WORDS}`
 }
 
-function isReconnectBudgetSpentLine(text: string): boolean {
-  return text.includes('reconnect budget is spent') && /^(?:API Error: )?the network was unreachable through \d+ reconnects? /.test(text)
-}
-
 export function outageCauseWordsOf(text: string): string | undefined {
   const head = text.split(' — ')[0] ?? ''
   return /^network unreachable \(.+\)$/.test(head) ? head : undefined
@@ -357,12 +353,6 @@ export function recoveryBudgetSpentFactsOf(error: unknown): { words: string; res
     ...(typeof e.lastStatus === 'number' && Number.isFinite(e.lastStatus) ? { lastStatus: e.lastStatus } : {}),
     ...(typeof e.lastCause === 'string' ? { lastCause: e.lastCause } : {}),
   }
-}
-
-export function isRecoveryBudgetSpentLine(text: string): boolean {
-  if (isReconnectBudgetSpentLine(text)) return true
-  if (/^(?:API Error: )?the .+ stream (?:went silent for \d+ (?:s|min)|connection dropped) and did not reconnect — nothing was lost before that; the request is not retried on its own$/.test(text)) return true
-  return text.includes('retry budget is spent') && /^(the provider refused \d+ times? in a row \(|the \S+( \S+)? retry budget is spent waiting on the provider)/.test(text)
 }
 
 export function recoveryNoticeFacts(message: unknown): RecoveryNoticeFacts | null {

@@ -4,8 +4,6 @@ import { Text } from '../../ink.js'
 import type { TaskState } from '../../tasks/types.js'
 import type { LocalShellTaskState } from '../../tasks/LocalShellTask/guards.js'
 import type { LocalAgentTaskState } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
-import type { LocalWorkflowTaskState } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
-import { plural } from '../../utils/stringUtils.js'
 import { truncateToWidth } from '../mercury-ui/glyphs.js'
 import { ShellProgress, TaskStatusText } from './ShellProgress.js'
 
@@ -52,33 +50,6 @@ function AgentLine({
   )
 }
 
-function WorkflowLine({
-  workflow,
-  width,
-}: {
-  workflow: LocalWorkflowTaskState
-  width: number
-}): React.ReactNode {
-  const name =
-    workflow.workflowName ?? workflow.summary ?? workflow.description
-  const running = workflow.status === 'running' || workflow.status === 'pending'
-  return (
-    <Text wrap="truncate-end">
-      {truncateToWidth(name, width)}{' '}
-      {running ? (
-        <Text dimColor>
-          ({workflow.agentCount} {plural(workflow.agentCount, 'crewmate')})
-        </Text>
-      ) : (
-        <TaskStatusText
-          status={workflow.status}
-          label={completionWord(workflow.status)}
-        />
-      )}
-    </Text>
-  )
-}
-
 export function BackgroundTask({
   task,
   maxActivityWidth = DEFAULT_ACTIVITY_WIDTH,
@@ -91,8 +62,6 @@ export function BackgroundTask({
       return <ShellLine shell={task} width={maxActivityWidth} />
     case 'local_agent':
       return <AgentLine task={task} width={maxActivityWidth} />
-    case 'local_workflow':
-      return <WorkflowLine workflow={task} width={maxActivityWidth} />
     default:
       return (
         <AgentLine

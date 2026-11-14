@@ -23,7 +23,6 @@ export interface ToolCapability {
   gate?: string
   conditions?: string[]
   proof?: string
-  workflows?: boolean
 }
 
 interface CapabilityValidation {

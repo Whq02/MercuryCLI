@@ -181,15 +181,4 @@ t.section('§7 — the delegation-class clamp at admission')
   gov._resetCapacityGovernorForTesting()
 }
 
-t.section('§8 — the workflow limiter consumes the composed truth')
-{
-  gov._resetCapacityGovernorForTesting()
-  const { computeConcurrencyCap } = await import('../../src/tools/WorkflowTool/agentHooks.js')
-  gov.setGovernorCeilings({ modelLanes: 3, delegationLanes: 3 })
-  t.check('three seats ⇒ the workflow scheduler runs three agents at once (no CPU arithmetic of its own)', computeConcurrencyCap() === 3, String(computeConcurrencyCap()))
-  gov.setGovernorCeilings({ delegationLanes: 1 })
-  t.check('a composed delegation ceiling narrows the workflow scheduler too (one truth)', computeConcurrencyCap() === 1, String(computeConcurrencyCap()))
-  gov._resetCapacityGovernorForTesting()
-}
-
 t.finish('prove-capacity-governor')

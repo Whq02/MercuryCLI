@@ -107,8 +107,8 @@ const { runChannelCommand } = await import('../../src/utils/crew/channelCommand.
 runSwarmCommand('off')
 check('with swarm off for the session the verb answers the /swarm on door', (await runChannelCommand('general', 'hello')).type === 'text' && JSON.stringify(await runChannelCommand('general', 'hello')).includes('/swarm on'))
 runSwarmCommand('on')
-await seam.latchSwarmAgent('alpha', 'Alpha', false, false, 'engine')
-await seam.latchSwarmAgent('beta', 'Beta', false, false, 'engine')
+await seam.latchSwarmAgent('alpha', 'Alpha', false, 'engine')
+await seam.latchSwarmAgent('beta', 'Beta', false, 'engine')
 {
   const sent = await runChannelCommand('whisper', 'alpha  Read the row,\nthen answer.')
   const board = seam.swarmStore()!

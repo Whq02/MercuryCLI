@@ -1,5 +1,4 @@
 
-import { getVitals } from '../../state/vitalsBus.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { getCwd } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -156,7 +155,6 @@ export async function gatherWorkbenchInputs(opts?: {
 }): Promise<WorkbenchSourceInputs> {
   const now = Date.now()
   const cwd = getCwd()
-  const vitals = getVitals()
   const owner = processMainOwner()
 
   const executions: ExecutionFact[] = listExecutions(owner, { limit: EXECUTIONS_MAX }).map(r => {
@@ -250,12 +248,6 @@ export async function gatherWorkbenchInputs(opts?: {
     richTasks,
     agentMeta,
     laneRuns,
-    workflowsDisk: vitals.workflowsDisk.map(w => ({
-      runId: w.runId,
-      status: w.status,
-      ...(w.title !== undefined && { title: w.title }),
-      agentCount: w.agentCount,
-    })),
     artifacts: valueOr(artifactsSrc, []),
     gitWorktreeLanes: valueOr(gitWorktreesSrc, []),
     sources: {

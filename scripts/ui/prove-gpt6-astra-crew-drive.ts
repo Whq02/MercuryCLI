@@ -38,25 +38,12 @@ const SEATS: Record<SeatArm, { name: string; type: string; effort: string }> = {
   quick: { name: 'quick-survey', type: 'astra-quick', effort: 'xhigh' },
   cold: { name: 'cold-survey', type: 'astra-quick', effort: 'xhigh' },
 }
-const STATIONS = [
-  { station: 'one', effort: 'max' },
-  { station: 'two', effort: 'high' },
-] as const
 const summaryOf = (who: string): string => `astra-summary: weighing the ${who} tables`
 const noteOf = (who: string): string => `astra-note: checking the ${who} gauges`
 const doneOf = (who: string): string => `astra-seat-done: ${who}`
-const WF_NAME = 'astra-crew'
-const WF_SCRIPT = [
-  `export const meta = { name: '${WF_NAME}', description: 'two agents on the new row', phases: [{ title: 'Survey' }] }`,
-  "phase('Survey')",
-  ...STATIONS.map(
-    (s, i) => `const r${i} = await agent('wf-astra: report the tide at station ${s.station}', { model: '${ID}', effort: '${s.effort}' })`,
-  ),
-  `return { ${STATIONS.map((_, i) => `r${i}`).join(', ')} }`,
-].join('\n')
 
 type Lane = 'messages' | 'responses' | 'models' | 'other'
-type Route = 'parent' | 'parent-ack' | 'seat' | 'wf' | 'side'
+type Route = 'parent' | 'parent-ack' | 'seat' | 'side'
 interface Hit {
   route: Route
   lane: Lane
@@ -95,7 +82,7 @@ function lastUserText(body: unknown): string {
         if ((block.type === 'text' || block.type === 'input_text') && typeof block.text === 'string') text += `\n${block.text}`
       }
     }
-    if (/astra-crew:|astra-seat:|wf-astra:/.test(text)) last = text
+    if (/astra-crew:|astra-seat:/.test(text)) last = text
   }
   return last
 }
@@ -121,10 +108,6 @@ function routeOf(lane: Lane, body: unknown): { route: Route; who: string | null 
     if (text.includes('astra-seat:')) {
       const arm = (Object.keys(SEATS) as SeatArm[]).find(k => text.includes(SEATS[k].name)) ?? null
       return { route: 'seat', who: arm }
-    }
-    if (text.includes('wf-astra:')) {
-      const station = STATIONS.find(s => text.includes(`station ${s.station}`))?.station ?? null
-      return { route: 'wf', who: station }
     }
     return { route: 'side', who: null }
   }
@@ -261,7 +244,6 @@ async function startFixture(port: number): Promise<Fixture> {
                 name: 'Crewmate',
                 input: { description: SEATS[arm].name, prompt: `astra-seat: survey the ${SEATS[arm].name}`, crewmate_type: SEATS[arm].type, model: ID },
               })),
-              { type: 'tool_use', name: 'Workflow', input: { script: WF_SCRIPT } },
             ]
             usage = { input: 1200, output: 160 }
             break
@@ -293,12 +275,6 @@ async function startFixture(port: number): Promise<Fixture> {
           res.on('close', () => {})
           return
         }
-        res.end(answer.head + answer.body + answer.tail)
-        return
-      }
-      if (route === 'wf' && who !== null) {
-        const answer = responsesAnswer(`station ${who}`, { input: 700, output: 40 })
-        res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
         res.end(answer.head + answer.body + answer.tail)
         return
       }
@@ -460,7 +436,7 @@ const bootSends = (ask: string): Array<Record<string, unknown>> => [
   { data: '\r', afterPrevTicks: 4 },
 ]
 
-console.log(`\n— a ${MAIN_ID} main → ${ID} seats and a workflow —`)
+console.log(`\n— a ${MAIN_ID} main → ${ID} seats —`)
 const fixture = await startFixture(PORT)
 const { home, cwd } = seedWorld()
 let cap: Capture | null = null
@@ -480,20 +456,9 @@ try {
         { data: '/crewmates', afterPrevTicks: 3 },
         { data: '\r', afterPrevTicks: 3 },
         { data: '\x1b', atTick: 999, awaitText: `${GLYPH.done} ${SEATS.quick.name}`, requireAwait: true, minTick: 2, awaitSettleTicks: 1, mark: 'crew-wait' },
-        { data: '\r', atTick: 999, awaitText: 'Yes, run this workflow', requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'wf-ask' },
-        { data: '\r', afterPrevTicks: 5 },
         { data: '/crewmates', atTick: 999, awaitText: 'the survey landed.', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'landed' },
         { data: '\r', afterPrevTicks: 3 },
         { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-landed' },
-        { data: '/workflows', afterPrevTicks: 4 },
-        { data: '\r', afterPrevTicks: 3 },
-        { data: '2', atTick: 999, awaitText: 'Mercury — workflows', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'wf-board' },
-        { data: '\r', afterPrevTicks: 6, mark: 'wf-recent' },
-        { data: '\x1b[C', afterPrevTicks: 10, mark: 'wf-run' },
-        { data: '', afterPrevTicks: 14, mark: 'wf-agent' },
-        { data: '\x1b', afterPrevTicks: 2 },
-        { data: '\x1b', afterPrevTicks: 3 },
-        { data: '\x1b', afterPrevTicks: 3 },
         { data: '', afterPrevTicks: 4, mark: 'end' },
       ],
       stableTicks: 6,
@@ -513,7 +478,7 @@ console.log(`  models list reads: ${hits.filter(h => h.lane === 'models').length
 check('the live models list was read (the row is present because the list serves it)', hits.some(h => h.lane === 'models'))
 const parents = hits.filter(h => h.route === 'parent' || h.route === 'parent-ack')
 check(`the main rode the Anthropic wire on ${MAIN_ID}`, parents.length >= 2 && parents.every(h => h.lane === 'messages' && h.model === MAIN_ID), parents.map(h => `${h.route}:${h.lane}:${h.model}`).join(','))
-check('the ask offered both the Crewmate tool and the Workflow tool', parents.some(h => h.tools.includes('Crewmate') && h.tools.includes('Workflow')), parents[0]?.tools.join(',') ?? '')
+check('the ask offered the Crewmate tool', parents.some(h => h.tools.includes('Crewmate')), parents[0]?.tools.join(',') ?? '')
 
 const seatHits = hits.filter(h => h.route === 'seat').sort((a, b) => a.at - b.at)
 console.log(`  wire: ${seatHits.map(h => `${h.who}@${(h.at / 1000).toFixed(1)}s ${h.effort}`).join(' · ')}`)
@@ -527,11 +492,6 @@ for (const arm of Object.keys(SEATS) as SeatArm[]) {
   const sent = byArm(arm).map(h => String(h.effort))
   check(`A2 the ${SEATS[arm].name} seat sent the word its definition asked (${SEATS[arm].effort}) on every request, above the session's stamp`, sent.length > 0 && sent.every(word => word === SEATS[arm].effort), `sent ${sent.join('/')}`)
 }
-const wfHits = hits.filter(h => h.route === 'wf').sort((a, b) => a.at - b.at)
-check(`A1 the workflow's two agents rode the Responses wire on ${ID}`, wfHits.length === 2 && wfHits.every(h => h.lane === 'responses' && h.model === ID), wfHits.map(h => `${h.who}:${h.lane}:${h.model}`).join(','))
-console.log(`  workflow efforts: ${STATIONS.map(s => `station ${s.station} asked ${s.effort} → sent ${wfHits.find(h => h.who === s.station)?.effort ?? 'none'}`).join(' · ')}`)
-check('A2 every workflow call carried a reasoning effort from the served ladder', wfHits.length === 2 && wfHits.every(h => h.effort !== null && LIVE_LADDER.includes(h.effort)), wfHits.map(h => `${h.who}:${h.effort}`).join(','))
-check("A2 each workflow call sent the call's own word (station one max · station two high), above the session's stamp", STATIONS.every(s => wfHits.find(h => h.who === s.station)?.effort === s.effort), wfHits.map(h => `${h.who}:${h.effort}`).join(','))
 
 {
   const cold = byArm('cold')
@@ -573,7 +533,6 @@ check('A3 the deep seat\'s record holds the answer labelled final_answer', rows.
   check(`A5 the held seat ended at the owner's budget (${BUDGET_MS} ms after its last item), the reply standing`, quick !== undefined && quick >= BUDGET_MS - 500 && quick <= BUDGET_MS + 5_000 && rows.some(l => l.includes(doneOf(SEATS.quick.name)) && l.includes('"kind":"text"')), `duration=${quick} ms`)
   check(`A4 the parked seat ended one first-byte budget (${coldBudget} ms) and one retry later, the reply landed`, cold !== undefined && cold >= coldBudget - 500 && cold <= coldBudget + 8_000 && rows.some(l => l.includes(doneOf(SEATS.cold.name)) && l.includes('"kind":"text"')), `duration=${cold} ms`)
 }
-check("A3 the workflow agents' records hold their summaries as reasoning spans", STATIONS.every(s => rows.some(l => l.includes('"kind":"reasoning"') && l.includes(summaryOf(`station ${s.station}`)))), `rows=${rows.length}`)
 
 {
   const quick = agentTranscriptOf(home, SEATS.quick.name)
@@ -584,13 +543,6 @@ check("A3 the workflow agents' records hold their summaries as reasoning spans",
   check('A6 the parked seat has its own agent transcript', cold !== undefined)
   check("A6 the parked seat's transcript holds the first-byte line (no first byte from the row after its budget — the reissue's own row)", cold !== undefined && cold.rows.some(l => l.includes('"kind":"notice"') && l.includes('no first byte from')), notices(cold))
 }
-
-const wfRecent = marks['wf-recent'] ?? ''
-const wfRun = marks['wf-run'] ?? ''
-const wfAgent = marks['wf-agent'] ?? ''
-check('the board lists the settled run under Recent', wfRecent.includes(WF_NAME) || wfRecent.includes('two agents on the new row'), flat(wfRecent).slice(0, 400))
-check(`A1 the run view names the row (${ID})`, wfRun.includes(ID) || wfRun.includes(NAME) || wfAgent.includes(ID) || wfAgent.includes(NAME), flat(wfRun).slice(0, 400))
-check('A3 the agent view paints the reasoning summary', wfAgent.includes('astra-summary: weighing the station'), flat(wfAgent).slice(0, 600))
 
 if (failures > 0 && !keep) for (const [label, frame] of Object.entries(marks)) dump(label, frame)
 if (failures > 0 || keep) dump('final grid', cap.text)

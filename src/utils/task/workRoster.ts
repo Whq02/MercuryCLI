@@ -1,19 +1,8 @@
 import type { AppState } from '../../state/AppState.js'
 import type { TaskState } from '../../tasks/types.js'
-import {
-  isLocalWorkflowTask,
-  type LocalWorkflowTaskState,
-  type WorkflowProgressEvent,
-} from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isLocalShellTask } from '../../tasks/LocalShellTask/guards.js'
-import {
-  buildAgentSummaries,
-  groupAgentsByPhase,
-  type WorkflowPhaseEventLite,
-} from '../../tools/WorkflowTool/runManifest.js'
-import { workflowPulseFacts } from '../../tools/WorkflowTool/livePulse.js'
-import type { WorkPhaseV1, WorkRowV1 } from '../../services/engine-connector/types.js'
+import type { WorkRowV1 } from '../../services/engine-connector/types.js'
 import { unreadNoticeCount } from '../../services/notices/unreadLedger.js'
 import { crewStartOf } from '../crew/crewStart.js'
 import { clipWithEllipsis } from '../stringUtils.js'
@@ -26,51 +15,6 @@ const MAX_COMMAND = 4000
 function endTimeOf(task: TaskState): number | undefined {
   const t = task as { endTime?: unknown }
   return typeof t.endTime === 'number' && Number.isFinite(t.endTime) ? t.endTime : undefined
-}
-
-function workPhasesOf(task: LocalWorkflowTaskState): WorkPhaseV1[] {
-  const events = (task.workflowProgress ?? []) as readonly WorkflowProgressEvent[]
-  const phaseEvents: WorkflowPhaseEventLite[] = []
-  for (const ev of events) {
-    if (ev.type === 'workflow_phase') {
-      phaseEvents.push({ index: ev.index, title: ev.title || `Phase ${ev.index + 1}` })
-    }
-  }
-  const agents = buildAgentSummaries(events)
-  return groupAgentsByPhase(task.phases, phaseEvents, agents).map(g => ({
-    title: g.title,
-    planned: g.planned,
-    agents: g.agents.map(a => ({ index: a.index, label: clipWithEllipsis(a.label, MAX_NAME), state: a.state, ...(a.agentId !== undefined ? { agentId: a.agentId } : {}), waiting: a.waiting ?? null, pausedBy: a.pausedBy ?? null })),
-  }))
-}
-
-function workflowRow(task: LocalWorkflowTaskState): WorkRowV1 {
-  const name =
-    task.workflowName ?? task.title ?? task.summary ?? task.description ?? 'Dynamic workflow'
-  const desc = task.summary ?? task.description
-  return {
-    id: task.id,
-    kind: 'workflow',
-    name: clipWithEllipsis(name, MAX_NAME),
-    status: task.status,
-    startTime: task.startTime,
-    ...(endTimeOf(task) !== undefined ? { endTime: endTimeOf(task) } : {}),
-    ...(desc !== undefined && desc !== name ? { description: clipWithEllipsis(desc, MAX_NAME) } : {}),
-    ...(task.defaultModel !== undefined ? { model: task.defaultModel } : {}),
-    ...(task.error !== undefined ? { error: clipWithEllipsis(task.error, MAX_ERROR) } : {}),
-    totalTokens: task.totalTokens,
-    workflowRunId: task.workflowRunId,
-    phases: workPhasesOf(task),
-    agentCount: task.agentCount,
-    pulse: workflowPulseFacts(
-      (task.workflowProgress ?? []) as readonly WorkflowProgressEvent[],
-      task.startTime,
-    ),
-    ...(task.pendingPermissions !== undefined && task.pendingPermissions.size > 0
-      ? { pendingAsks: task.pendingPermissions.size }
-      : {}),
-    ...(task.pausedBy !== undefined ? { pausedBy: task.pausedBy } : {}),
-  }
 }
 
 function plainRow(task: TaskState, kind: WorkRowV1['kind'], name: string): WorkRowV1 {
@@ -167,9 +111,7 @@ function agentCounters(task: TaskState): Partial<WorkRowV1> {
 export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
   const rows: WorkRowV1[] = []
   for (const task of Object.values(tasks ?? {})) {
-    if (isLocalWorkflowTask(task)) {
-      rows.push(workflowRow(task))
-    } else if (isLocalAgentTask(task)) {
+    if (isLocalAgentTask(task)) {
       if (task.agentType === 'main-session') continue
       rows.push({
         ...plainRow(task, 'agent', task.description || task.agentType),

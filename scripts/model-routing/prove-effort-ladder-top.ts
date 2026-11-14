@@ -53,7 +53,6 @@ const LIST_WORD = 'ultra'
   check('the settings schema takes its enum from the tuple', src('src/utils/settings/types.ts').includes('effort: z.enum(EFFORT_LEVELS)'))
   check("the Crewmate tool's effort field takes its enum from the tuple", /effort: z\s*\.enum\(EFFORT_LEVELS\)/.test(src('src/tools/AgentTool/AgentTool.tsx')))
   check("an agent file's effort field takes its enum from the tuple", /effort: z\s*\.union\(\[\s*z\.enum\(EFFORT_LEVELS/.test(src('src/tools/AgentTool/loadAgentsDir.ts')))
-  check('the workflow prompt spells the ladder from the tuple and no longer names a word above max', src('src/tools/WorkflowTool/workflowPrompt.ts').includes("EFFORT_LEVELS.map(level => `'${level}'`).join(' | ')") && !/\bultra\b/.test(src('src/tools/WorkflowTool/workflowPrompt.ts')))
   check('the --effort door names the ladder from the tuple', src('src/main.tsx').includes("Reasoning effort level (${EFFORT_LEVELS.join(', ')})"))
   for (const file of ['src/utils/effort.ts', 'src/components/EffortIndicator.ts', 'src/utils/effortLadder.ts']) {
     check(`${file} carries no switch arm or record row for a word above max`, !/case 'ultra'|ultra:/.test(src(file)))

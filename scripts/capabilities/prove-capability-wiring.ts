@@ -54,7 +54,7 @@ const WIRING: Array<{ cap: string; symbol: string }> = [
   { cap: 'render_tui MCP render-verify tool', symbol: 'renderTui' },
 ]
 
-const COMMANDS = ['help', 'verify', 'workflows']
+const COMMANDS = ['help', 'verify']
 
 let fail = 0
 const commandsTs = readFileSync(resolve(REPO, 'src/commands.ts'), 'utf8')
@@ -85,7 +85,6 @@ for (const name of COMMANDS) {
 const commandFiles = [
   'src/commands/help/index.ts',
   'src/commands/verify.ts',
-  'src/commands/workflows/index.ts',
 ]
 for (const f of commandFiles) {
   if (existsSync(resolve(REPO, f))) console.log(`  ✓ ${f} exists`)

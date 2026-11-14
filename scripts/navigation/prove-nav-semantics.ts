@@ -150,10 +150,8 @@ console.log('== source pins: the kernel derives from the vocabulary ==')
   check('QuestionView: no raw footer arrow comparisons left', !/e\.key === "up" \|\| e\.ctrl && e\.key === "p"/.test(qview))
 
   const smv = readFileSync(join(root, 'src/components/mercury-ui/screens/SessionManagerView.tsx'), 'utf8')
-  const rdp = readFileSync(join(root, 'src/components/tasks/RunDetailPane.tsx'), 'utf8')
   check('SessionManagerView: identity-stable card cursor', smv.includes('useStableSelection(navKeys'))
   check('SessionManagerView: the switch confirm is armed by IDENTITY (never a retarget)', smv.includes('setConfirmingKey(navKeys[') && smv.includes("useState<string | null>(null)"))
-  check('RunDetailPane: identity-stable agent cursor + drill hierarchy', rdp.includes('useStableSelection(agents') && rdp.includes("hierarchy: true"))
 
   const irow = readFileSync(join(root, 'src/components/mercury-ui/InteractiveRow.tsx'), 'utf8')
   check('the dead activation-explanation promise is DEAD', !list.includes('setNote(reasonUnavailable'))

@@ -3,18 +3,18 @@ WORKBENCH               │                                                     
   private reasoning     │                                                                                                                  │
                         │ 15:54:19 [sam] ❯ private reasoning                                                                               │
 NEXT                    │                                                                                                                  │
-  · /workflows…         │ ✻ thinking… — the provider returned no thinking text for this model                                              │
-  · /health — health…   │                                                                                                                  │
-  · /memory — memory    │                                                                                    15:54 claude-opus-4-8         │
-  · /mission — set a…   │                                                                                                                  │
-                        │ Private reasoning answer.                                                                                        │
-FILES · project         │                                                                                                                  │
+  · /health — health…   │ ✻ thinking… — the provider returned no thinking text for this model                                              │
+  · /memory — memory    │                                                                                                                  │
+  · /mission — set a…   │                                                                                    15:54 claude-opus-4-8         │
+                        │                                                                                                                  │
+FILES · project         │ Private reasoning answer.                                                                                        │
   ↵ or click · browse   │                                                                                                                  │
                         │                                                                                                                  │
 VITALS                  │                                                                                                                  │
   · spend $0.00         │                                                                                                                  │
   · ctx 0% · 1000k      │                                                                                                                  │
   · health — run /health│                                                                                                                  │
+                        │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │

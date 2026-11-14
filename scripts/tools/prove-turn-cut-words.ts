@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 const ROOT = resolve(import.meta.dir, '..', '..')
 const cut = await import('../../src/utils/messages/turnCut.ts')
+const { DeadlineExceededError } = await import('../../src/utils/deadline.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -10,21 +11,15 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 
-const WORDED = ['throttled', 'terminal-400', 'workflow-permission-timeout'] as const
-for (const reason of WORDED) {
-  const c = cut.turnCutOf(reason)
-  check(`'${reason}' paints its words, never the id`, c.kind === 'cut' && c.detail === cut.TURN_CUT_WORDS[reason] && !cut.turnCutLine(c, false).includes(reason), JSON.stringify(c))
-}
 check("the operator's doors stay the operator's", ['interrupt', 'crew-stop', 'user-skip', 'user-retry'].every(r => cut.turnCutOf(r).kind === 'operator'))
-check("'stalled' is the timeout, 'workflow-abort' the parent's stop", cut.turnCutOf('stalled').kind === 'idle-timeout' && cut.turnCutOf('workflow-abort').kind === 'parent-stop')
+const deadline = new DeadlineExceededError('crewmate fixture (a0)', 3_000, 9_000, 2)
+check("a watchdog's deadline is the timeout, with the deadline's own sentence", cut.turnCutOf(deadline).kind === 'idle-timeout' && cut.turnCutWhy(cut.turnCutOf(deadline)) === `a no-progress timeout (the provider went quiet): ${deadline.message}`, JSON.stringify(cut.turnCutOf(deadline)))
+check("a stored line of a parent's stop still reads as the parent's stop, in the words it was stored with", cut.turnCutOfText('[Request cut off: the workflow that ran this crewmate stopped]')?.kind === 'parent-stop' && cut.turnCutResultText(cut.turnCutOfText('[Request cut off: the workflow that ran this crewmate stopped]')!) === 'Cut off: the workflow that ran this crewmate stopped')
 check('an unknown string still names itself (a foreign abort reason is not silenced)', cut.turnCutOf('something-else').detail === 'something-else')
-const stub = { abort: (reason?: unknown): void => { (stub as { last?: unknown }).last = reason } } as { abort: (reason?: unknown) => void; last?: unknown }
-cut.abortWithCut(stub, 'throttled')
-check('abortWithCut hands the controller the member itself', stub.last === 'throttled')
-for (const file of ['src/tools/WorkflowTool/agentHooks.ts', 'src/tools/WorkflowTool/workflowPermissionChannel.ts']) {
-  const src = readFileSync(join(ROOT, file), 'utf8')
-  const raw = src.match(/\.abort\('[a-z0-9-]+'\)/g) ?? []
-  check(`${file}: no abort site hands a bare literal (every cut goes through abortWithCut)`, raw.length === 0, raw.join(' '))
+const STORED_WORDS: Array<[string, string]> = [['throttled', 'the retry budget was spent'], ['terminal-400', 'the provider refused the request outright'], ['workflow-permission-timeout', 'the permission ask timed out']]
+for (const [wrote, words] of STORED_WORDS) {
+  const c = cut.turnCutOfText(`[Request cut off: ${words}]`)
+  check(`a stored row that '${wrote}' wrote reads back with its words, never the id`, c?.kind === 'cut' && c.detail === words && cut.turnCutLine(c, false) === `[Request cut off: ${words}]` && !cut.turnCutLine(c, false).includes(wrote), JSON.stringify(c))
 }
 
 
@@ -34,13 +29,8 @@ for (const file of ['src/tools/WorkflowTool/agentHooks.ts', 'src/tools/WorkflowT
     "the turn.answer interruption row carries the abort signal's own reason",
     /createUserInterruptionMessage\(\{\s*toolUse: false,\s*reason: signal\.reason,?\s*\}\)/.test(stopHooks),
   )
-  const hooks = readFileSync(join(ROOT, 'src/tools/WorkflowTool/agentHooks.ts'), 'utf8')
-  check(
-    "the workflow child's generic catch reads a typed reason's words from the one table",
-    /turnCutWhy\(turnCutOf\(cutReason\)\)/.test(hooks) && /import \{[^}]*\bturnCutWhy\b[^}]*\} from '\.\.\/\.\.\/utils\/messages\/turnCut\.js'/.test(hooks),
-  )
-  const timedOut = cut.turnCutWhy(cut.turnCutOf('workflow-permission-timeout'))
-  check("…and the permission ask's timeout has words there", timedOut === 'the permission ask timed out', String(timedOut))
+  const timedOut = cut.turnCutWhy(cut.turnCutOfText('[Request cut off: the permission ask timed out]')!)
+  check("the permission ask's timeout, read from a stored row, keeps its words", timedOut === 'the permission ask timed out', String(timedOut))
   check("…while the operator's own stop keeps the runtime's message (no words to paint)", cut.turnCutWhy(cut.turnCutOf('interrupt')) === null)
 }
 

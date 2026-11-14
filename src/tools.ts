@@ -107,7 +107,6 @@ import { TransactionTool } from './tools/TransactionTool/TransactionTool.js'
 import { WebFetchTool } from './tools/WebFetchTool/WebFetchTool.js'
 import { WebSearchTool } from './tools/WebSearchTool/WebSearchTool.js'
 import { ProviderSearchTool } from './tools/WebSearchTool/ProviderSearchTool.js'
-import { WorkflowTool } from './tools/WorkflowTool/WorkflowTool.js'
 import { isPowerShellToolEnabled } from './utils/shell/shellToolUtils.js'
 
 import './services/resources/adapters/git.js'
@@ -141,7 +140,6 @@ function checkpointRewindEnabled(): boolean {
   return flagEnabled('MERCURY_CHECKPOINT_REWIND')
 }
 
-const WORKFLOW_TOOL = cycleTolerant(() => WorkflowTool)
 const SLEEP_TOOL = cycleTolerant(() => SleepTool)
 const MONITOR_TOOL = cycleTolerant(() => MonitorTool)
 const RECORD_CONVENTION_TOOL = cycleTolerant(() => RecordConventionTool)
@@ -196,7 +194,6 @@ export function getAllBaseTools(agentId?: string): Tools {
     sendMessage,
     ...swarmTools(agentId),
     cycleTolerant(() => ResumeAgentTool),
-    WORKFLOW_TOOL,
     SLEEP_TOOL,
     ...(SCHEDULING_ENABLED_AT_LOAD
       ? [CronCreateTool, CronDeleteTool, CronListTool, ScheduleWakeupTool]

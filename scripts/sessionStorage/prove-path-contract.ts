@@ -100,9 +100,6 @@ for (const path of [posix, win32]) {
     equal(api.clearAgentTranscriptSubdir(id), undefined)
     equal(api.clearAgentTranscriptSubdir(id), undefined)
     equal(api.getAgentTranscriptPath(id), path.join(base, state.session, 'subagents', `agent-${id}.jsonl`))
-    for (const run of ['', 'run-one', '../run', '名前']) {
-      equal(api.getWorkflowTranscriptDir(run), path.join(base, state.session, 'subagents', 'workflows', run))
-    }
     for (const error of [undefined, absent, broken]) {
       state.statError = error
       events.length = 0

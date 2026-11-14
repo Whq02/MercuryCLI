@@ -37,29 +37,22 @@ const ASK = 'roster-drive: launch'
 const AFTER = 'roster-drive: after'
 const SEAT_MARK = 'roster-seat:'
 const NOTES_FILE = 'station-notes.txt'
-const WF_NAME = 'roster-survey'
-const PHASE = 'Survey'
-const WF_SEATS = ['wf-one', 'wf-two'] as const
+const LONG_SEAT = 'long'
+const LONG_DESCRIPTION = 'long-survey'
 const PLAIN_SEAT = 'plain'
 const PLAIN_DESCRIPTION = 'plain-survey'
 const LAUNCHED = 'ROSTER-LAUNCHED'
 const POST_DONE = 'ROSTER-POST-DONE'
 const NOTED = 'ROSTER-NOTED'
 const SUMMARY_MARK = 'ROSTER-SUMMARY-BODY'
-const WF_READS = 8
-const WF_STEP_MS = 3000
+const LONG_READS = 8
+const LONG_STEP_MS = 3000
 const PLAIN_READS = 6
 const PLAIN_STEP_MS = 3000
 const SUMMARY_HOLD_MS = 2500
-const WF_SCRIPT = [
-  `export const meta = { name: '${WF_NAME}', description: 'two agents survey the stations', phases: [{ title: '${PHASE}' }] }`,
-  `phase('${PHASE}')`,
-  `const reports = await parallel([${WF_SEATS.map(s => `() => agent('${SEAT_MARK}${s} read the notes file, one read per turn, then report in one line')`).join(', ')}])`,
-  'return { reports }',
-].join('\n')
 
 type Route = 'warm' | 'launch' | 'launched' | 'summary' | 'post' | 'note' | 'seat' | 'side'
-type Seat = (typeof WF_SEATS)[number] | typeof PLAIN_SEAT
+type Seat = typeof LONG_SEAT | typeof PLAIN_SEAT
 type Block = { type?: string; id?: string; name?: string; text?: string; tool_use_id?: string; content?: unknown; input?: Record<string, unknown> }
 type Item = { role?: string; content?: unknown }
 type Body = { model?: string; messages?: Item[]; tools?: unknown[] }
@@ -89,7 +82,7 @@ function seatOf(items: Item[]): Seat | null {
     .map(i => textOf(i.content).replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, ''))
     .filter(t => !t.includes('task-notification'))
     .join('\n')
-  for (const s of [...WF_SEATS, PLAIN_SEAT] as Seat[]) if (userText.includes(`${SEAT_MARK}${s}`)) return s
+  for (const s of [LONG_SEAT, PLAIN_SEAT] as Seat[]) if (userText.includes(`${SEAT_MARK}${s}`)) return s
   return null
 }
 const readsOf = (items: Item[]): number =>
@@ -148,7 +141,7 @@ const SUMMARY_TEXT = [
   '7. Open Work: the survey.',
   '8. Where Work Stands: the launches landed.',
   '9. Next Move (optional): wait for the agents.',
-  `10. Agents in flight: the workflow ${WF_NAME} (${WF_SEATS.join(', ')}) and the sub-agent ${PLAIN_DESCRIPTION}.`,
+  `10. Agents in flight: the sub-agents ${LONG_DESCRIPTION} and ${PLAIN_DESCRIPTION}.`,
   '</summary>',
 ].join('\n')
 
@@ -183,9 +176,9 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
       else if (lastUserText.includes('Reply with prose only')) route = 'summary'
       else if (lastUserText.includes('task-notification')) route = 'note'
       else if (firstUserText.includes('The context window turned over')) route = 'post'
-      else if (answered.includes('Workflow') || answered.includes('Crewmate')) route = 'launched'
-      else if (lastUserText.includes(ASK) && offersTool(body, 'Workflow')) route = 'launch'
-      else if (lastUserText.includes(WARM) && offersTool(body, 'Workflow')) route = 'warm'
+      else if (answered.includes('Crewmate')) route = 'launched'
+      else if (lastUserText.includes(ASK) && offersTool(body, 'Crewmate')) route = 'launch'
+      else if (lastUserText.includes(WARM) && offersTool(body, 'Crewmate')) route = 'warm'
       else route = 'side'
       const priorReads = readsOf(items)
       const hit: Hit = { seq: hits.length + 1, route, seat, atMs: Date.now(), answeredAtMs: 0, model, body, lastUserText }
@@ -195,8 +188,13 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
       switch (route) {
         case 'launch':
           blocks = [
-            { type: 'text', text: 'launching the survey and the plain sub-agent' },
-            { type: 'tool_use', id: `toolu_rosterd_wf_${++toolSeq}`, name: 'Workflow', input: { script: WF_SCRIPT } },
+            { type: 'text', text: 'launching the long sub-agent and the plain sub-agent' },
+            {
+              type: 'tool_use',
+              id: `toolu_rosterd_long_${++toolSeq}`,
+              name: 'Crewmate',
+              input: { description: LONG_DESCRIPTION, prompt: `${SEAT_MARK}${LONG_SEAT} read the notes file, one read per turn, then report in one line`, crewmate_type: 'mercury-crew', run_in_background: true },
+            },
             {
               type: 'tool_use',
               id: `toolu_rosterd_agent_${++toolSeq}`,
@@ -222,12 +220,12 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
           blocks = [{ type: 'text', text: NOTED }]
           break
         case 'seat': {
-          const reads = seat === PLAIN_SEAT ? PLAIN_READS : WF_READS
+          const reads = seat === PLAIN_SEAT ? PLAIN_READS : LONG_READS
           if (priorReads >= reads) {
             blocks = [{ type: 'text', text: `SEAT-DONE-${seat}` }]
           } else {
             blocks = [{ type: 'tool_use', id: `toolu_rosterd_read_${++toolSeq}`, name: 'Read', input: { file_path: join(cwd, NOTES_FILE) } }]
-            delayMs = seat === PLAIN_SEAT ? PLAIN_STEP_MS : WF_STEP_MS
+            delayMs = seat === PLAIN_SEAT ? PLAIN_STEP_MS : LONG_STEP_MS
           }
           break
         }
@@ -361,7 +359,6 @@ try {
         { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
         { data: `${WARM}\r`, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'boot' },
         { data: `${ASK}\r`, awaitText: WARMED, requireAwait: true, minTick: 2, awaitSettleTicks: 8, mark: 'warmed' },
-        { data: '\r', awaitText: 'Yes, run this workflow', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'confirm' },
         { data: '\x1b', awaitText: 'waiting on', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'waiting' },
         { data: '/compact\r', afterPrevTicks: 8, mark: 'after-esc' },
         { data: `${AFTER}\r`, afterPrevTicks: 45, mark: 'folded' },
@@ -407,15 +404,14 @@ if (cap !== null) {
   check('ONE roster attachment rides the request', reminders.length === 1, `${reminders.length} roster reminder(s)`)
   const roster = reminders[0] ?? ''
   for (const line of roster.split('\n').filter(l => l.startsWith('- '))) console.log(`  roster: ${line.slice(0, 220)}`)
-  check(`…naming the workflow run ${WF_NAME}`, roster.includes(`local_workflow "${WF_NAME}"`))
-  for (const s of WF_SEATS) check(`…and its agent ${s}`, roster.includes(s))
+  check(`…naming the long sub-agent ${LONG_DESCRIPTION}`, new RegExp(`local_agent "${LONG_DESCRIPTION}" \\[a[0-9a-z]+\\]: (running|waiting)`).test(roster))
   check(`…and the sub-agent ${PLAIN_DESCRIPTION} with its SendMessage address`, new RegExp(`local_agent "${PLAIN_DESCRIPTION}" \\[a[0-9a-z]+\\]: (running|waiting)`).test(roster) && /reach it: SendMessage to "a[0-9a-z]+"/.test(roster))
   check('…with the never-re-spawn law', roster.includes('A running agent is never re-spawned'))
   check('the old per-task announcer is gone', !postText.includes('is still running. Do NOT spawn a duplicate'))
 
   console.log('\n— H3 the crew is untouched by the fold —')
   const summaryAnsweredAt = summary?.answeredAtMs ?? Number.POSITIVE_INFINITY
-  for (const s of [...WF_SEATS, PLAIN_SEAT] as Seat[]) {
+  for (const s of [LONG_SEAT, PLAIN_SEAT] as Seat[]) {
     const after = hits.filter(h => h.seat === s && h.atMs > summaryAnsweredAt).length
     check(`seat ${s} kept calling after the fold (${after} calls)`, after >= 1)
   }

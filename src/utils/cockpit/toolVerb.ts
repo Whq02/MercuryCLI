@@ -108,5 +108,5 @@ export function activeToolCall(
 }
 
 export function isDelegationToolName(name: string | undefined): boolean {
-  return name === 'Crewmate' || name === 'Workflow'
+  return name === 'Crewmate'
 }

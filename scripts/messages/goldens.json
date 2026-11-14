@@ -23179,7 +23179,7 @@
   "type": "user",
   "uuid": "«u1»"
  },
- "createUserInterruptionMessage/stalled": {
+ "createUserInterruptionMessage/deadline": {
   "message": {
    "content": [
     {
@@ -23219,13 +23219,6 @@
  "turnCutOf/typed": [
   {
    "kind": "idle-timeout"
-  },
-  {
-   "kind": "parent-stop"
-  },
-  {
-   "detail": "the provider refused the request outright",
-   "kind": "cut"
   },
   {
    "detail": "the retry budget is spent",

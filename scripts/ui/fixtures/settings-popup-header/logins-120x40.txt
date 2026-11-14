@@ -3,18 +3,18 @@ WORKBENCH               │ transcript row 48 · · · · · · · · · · · �
   no prompts sent yet   │ transcript row 49 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │                                                                                              │
 NEXT                    │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
-  · /workflows…         │ │ ▖▟▆▙▗ Mercury · logins                                                                   │ │
-  · /health — health…   │ │                                                                                          │ │
+  · /health — health…   │ │ ▖▟▆▙▗ Mercury · logins                                                                   │ │
   · /memory — memory    │ │                                                                                          │ │
-  · /mission — set a…   │ │ Sign in                                                                                  │ │
+  · /mission — set a…   │ │                                                                                          │ │
+                        │ │ Sign in                                                                                  │ │
+FILES · orchard         │ │                                                                                          │ │
+  ↵ or click · browse   │ │ Choose a provider to sign in.                                                            │ │
                         │ │                                                                                          │ │
-FILES · orchard         │ │ Choose a provider to sign in.                                                            │ │
-  ↵ or click · browse   │ │                                                                                          │ │
-                        │ │   OpenAI — ChatGPT subscription or API key                                               │ │
-VITALS                  │ │ ❯ Anthropic — Claude subscription or Console sign-in / API key                           │ │
-  · spend —             │ │     ANTHROPIC_API_KEY (env) ……                                                           │ │
-  · ctx — · —           │ │   OpenRouter — browser sign-in or API key                                                │ │
-  · health — run /health│ │   Google Gemini — Google sign-in, API key                                                │ │
+VITALS                  │ │   OpenAI — ChatGPT subscription or API key                                               │ │
+  · spend —             │ │ ❯ Anthropic — Claude subscription or Console sign-in / API key                           │ │
+  · ctx — · —           │ │     ANTHROPIC_API_KEY (env) ……                                                           │ │
+  · health — run /health│ │   OpenRouter — browser sign-in or API key                                                │ │
+                        │ │   Google Gemini — Google sign-in, API key                                                │ │
                         │ │   Hugging Face — sign-in or Hub token                                                    │ │
                         │ │   Kimi (Moonshot) — device-code sign-in or API key                                       │ │
                         │ │   GLM (Z.AI) — API key (general or GLM Coding Plan)                                      │ │

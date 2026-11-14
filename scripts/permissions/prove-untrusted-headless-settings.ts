@@ -56,9 +56,7 @@ writeFileSync(
 )
 writeFileSync(join(FOLDER, '.mercury', 'mcp.json'), JSON.stringify({ mcpServers: { fixsrv: { command: 'node', args: ['-e', 'setTimeout(()=>{},100)'] } } }))
 mkdirSync(join(FOLDER, '.mercury', 'agents'), { recursive: true })
-mkdirSync(join(FOLDER, '.mercury', 'workflows'), { recursive: true })
 writeFileSync(join(FOLDER, '.mercury', 'agents', 'folder-agent.md'), '---\nname: folder-agent\ndescription: an agent the folder ships\n---\nDo what the folder says.\n')
-writeFileSync(join(FOLDER, '.mercury', 'workflows', 'folder-flow.js'), "export const meta = { name: 'folder-flow', description: 'a workflow the folder ships', phases: [{ title: 'Hold' }] }\n")
 
 const state = await import(join(SRC, 'bootstrap/state.ts'))
 const { setCwd } = await import(join(SRC, 'utils/Shell.ts'))
@@ -79,7 +77,6 @@ const mcpUtils = await import(join(SRC, 'services/mcp/utils.ts'))
 const mcpConfig = await import(join(SRC, 'services/mcp/config.ts'))
 const hooks = await import(join(SRC, 'utils/hooks/hooksConfigSnapshot.ts'))
 const markdown = await import(join(SRC, 'utils/markdownConfigLoader.ts'))
-const workflows = await import(join(SRC, 'tools/WorkflowTool/registry.ts'))
 enableConfigs()
 
 type Posture = 'window' | 'untrusted run' | 'trusted run'
@@ -104,7 +101,7 @@ section('§0 the page: docs/TRUST.md says a headless run in an untrusted folder 
   check('the page says the user\'s own configuration and managed policy still apply there', /The user's\s+own configuration and managed policy still apply/.test(page))
   check('the page says the folder\'s two settings files do not rule such a run, and names what waits for the grant', /the folder's two settings files\s+\(`\.mercury\/settings\.json` and `\.mercury\/settings\.local\.json`\) do not rule the\s+run: their allow rules, environment values, memory directory and every other\s+key wait for the grant/.test(page))
   check('the page says their deny and ask rules still apply, without the words a reasons entry gives them', /Their deny and ask rules still apply, because a deny\s+or an ask can only tighten a run, and the words a `guardrails\.reasons` entry\s+gives such a rule are left unsaid/.test(page))
-  check('the page names the agent definitions and the workflows among what such a run goes without, and --config as the way to hand it a settings file', /proceeds without the project's instructions, hooks, MCP\s+servers, agent definitions or workflows/.test(page) && /`--config <file>` hands one launch a settings file\s+without a grant/.test(page))
+  check('the page names the agent definitions among what such a run goes without, and --config as the way to hand it a settings file', /proceeds without the project's instructions, hooks, MCP\s+servers or agent definitions, and the folder's two settings files/.test(page) && /`--config <file>` hands one launch a settings file\s+without a grant/.test(page))
 }
 
 section('§1 a window, where the trust card stands before anything runs, keeps every allowed layer')
@@ -194,15 +191,13 @@ section('§6 what the run still names of what it holds back, and what the folder
   check('untrusted run: the folder\'s two hooks are counted and said, never loaded', hooks.hooksSnapshot().skippedForTrust === 2 && /its 2 project and local hooks were not loaded/.test(hooksLine), `${hooks.hooksSnapshot().skippedForTrust} / ${hooksLine}`)
   check('untrusted run: the folder\'s events.disabled does not switch the user\'s own hook off', untrustedHooks === 'the hook of the user' && hooks.hooksDisabled() === false && hooks.managedHooksOnly() === false, untrustedHooks)
   const untrustedAgents = ((await markdown.loadMarkdownFilesForSubdir('agents', FOLDER)) as Array<{ filePath: string }>).filter(file => file.filePath.startsWith(FOLDER)).length
-  const untrustedFlows = ((await workflows.listWorkflows(FOLDER)) as Array<{ name: string }>).filter(flow => flow.name === 'folder-flow').length
-  check('untrusted run: the folder\'s agent definition and its workflow are not offered', untrustedAgents === 0 && untrustedFlows === 0, `${untrustedAgents} agent file(s), ${untrustedFlows} workflow(s)`)
+  check('untrusted run: the folder\'s agent definition is not offered', untrustedAgents === 0, `${untrustedAgents} agent file(s)`)
 
   stand('trusted run')
   const trustedHooks = hookNames()
   check('trusted run: nothing is said to be held back, and the folder\'s events.disabled is honoured', mcpConfig.mcpServersSkippedForTrustLine() === null && hooks.hooksSkippedForTrustLine() === null && trustedHooks === '(none)' && hooks.managedHooksOnly() === true, `${String(mcpConfig.mcpServersSkippedForTrustLine())} / ${String(hooks.hooksSkippedForTrustLine())} / ${trustedHooks}`)
   const trustedAgents = ((await markdown.loadMarkdownFilesForSubdir('agents', FOLDER)) as Array<{ filePath: string }>).filter(file => file.filePath.startsWith(FOLDER)).length
-  const trustedFlows = ((await workflows.listWorkflows(FOLDER)) as Array<{ name: string }>).filter(flow => flow.name === 'folder-flow').length
-  check('trusted run: the folder\'s agent definition and its workflow are offered', trustedAgents === 1 && trustedFlows === 1, `${trustedAgents} agent file(s), ${trustedFlows} workflow(s)`)
+  check('trusted run: the folder\'s agent definition is offered', trustedAgents === 1, `${trustedAgents} agent file(s)`)
 }
 
 section('§7 the folder\'s rules: its deny and its ask still tighten the run, its allow and its words wait for the grant')

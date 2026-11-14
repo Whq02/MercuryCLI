@@ -15,7 +15,6 @@ type MidInputSlashCommand = {
 type CommandSuggestionItem = {
   id: string
   displayText: string
-  tag?: string
   value?: string
   description?: string
   metadata?: unknown
@@ -74,15 +73,13 @@ function toSuggestionItem(
     )
     if (matchedAlias !== undefined) aliasSuffix = ` (${matchedAlias})`
   }
-  const isWorkflow = command.type === 'prompt' && command.kind === 'workflow'
-  let description = isWorkflow ? command.description : formatDescriptionWithSource(command)
+  let description = formatDescriptionWithSource(command)
   if (command.type === 'prompt' && command.argNames !== undefined && command.argNames.length > 0) {
     description += ` (arguments: ${command.argNames.join(', ')})`
   }
   return {
     id: suggestionIdentifier(command),
     displayText: `/${name}${aliasSuffix}`,
-    ...(isWorkflow ? { tag: 'workflow' } : {}),
     ...(value !== undefined && value !== '' ? { value } : {}),
     description,
     metadata: command,

@@ -2,7 +2,6 @@
 # line (the files live in scripts/journey/). The parent suite runs every
 # prover NOT named by a sibling list, so a NEW prover lands there
 # automatically; a name listed here but missing on disk is a loud red in
-# this runner. This slice: the header-truth and workflow-truth journeys —
-# the two longest single windows of the crew family.
+# this runner. This slice: the header-truth journey — the longest single
+# window of the crew family.
 prove-header-truth-drive.ts
-prove-workflow-truth-drive.ts

@@ -74,6 +74,6 @@ export function getAdvisorNoteAttachments(toolUseContext: Pick<ToolUseContext, '
 }
 
 export function getSwarmAttachments(toolUseContext: ToolUseContext, messages: readonly Message[]): Attachment[] {
-  if (toolUseContext.agentKind === 'workflow' || !swarmRoad(toolUseContext.agentId)) return []
+  if (!swarmRoad(toolUseContext.agentId)) return []
   return swarmBoundary(toolUseContext.agentId, swarmEventIds(messages)).map(packet => ({ type: 'queued_command', prompt: packet.text, boardEventIds: packet.eventIds, origin: { kind: 'coordinator' }, isMeta: true }))
 }

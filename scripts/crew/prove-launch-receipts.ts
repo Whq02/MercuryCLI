@@ -327,14 +327,8 @@ section('R8c · a named launch: the foreground road registers the name, the hand
   check('the batch sweep evicts the settled task AND its alias; a name reassigned to a newer launch survives', store.get().tasks[older] === undefined && !registry.has('elder') && registry.get('scout') === newer, JSON.stringify([...registry.entries()]))
 }
 
-section("R8d · a worker a running workflow owns is never re-created by a message; a resume reads the live owner right before it registers")
+section("R8d · a resume reads the live owner right before it registers")
 {
-  const wf = (await import('../../src/tasks/LocalWorkflowTask/LocalWorkflowTask.js')) as {
-    registerWorkflowTask: Function
-    completeWorkflowTask: Function
-    updateWorkflowProgressBatch: Function
-    workflowOwningAgent?: (tasks: unknown, agentId: string) => { id: string } | undefined
-  }
   const resumeModule = (await import('../../src/tools/AgentTool/resumeAgent.ts')) as {
     resumeAgentBackground: Function
     liveAgentOwner?: (agentId: string, tasks: unknown) => { kind: string; words: string } | null
@@ -362,33 +356,11 @@ section("R8d · a worker a running workflow owns is never re-created by a messag
     mkdirSync(dirname(path), { recursive: true })
     writeFileSync(path, [entry(first, null, 'user', opening), entry(second, first, 'assistant', reply)].map(encode).join('\n') + '\n')
   }
-  check('the workflow task module owns the ownership read', typeof wf.workflowOwningAgent === 'function')
   check("the resume road exports its live-owner decision", typeof resumeModule.liveAgentOwner === 'function')
   const store = makeStore()
   const ctx = makeCtx(store)
-  const child = generateTaskId('local_agent')
   const settledChild = generateTaskId('local_agent')
-  const workflowTask = wf.registerWorkflowTask({ taskId: 'wf-task-1', script: '', workflowRunId: 'wf_fixture_run', workflowName: 'fixture-flow', setAppState: store.set }) as { agentControllers: Map<string, AbortController> }
-  workflowTask.agentControllers.set(child, new AbortController())
-  workflowTask.agentControllers.set(settledChild, new AbortController())
-  wf.updateWorkflowProgressBatch('wf-task-1', [
-    { type: 'workflow_agent', index: 1, label: 'fixture-worker', agentId: child, state: 'progress' },
-    { type: 'workflow_agent', index: 2, label: 'second-worker', agentId: settledChild, state: 'progress' },
-  ], store.set)
-  const toChild = (await SendMessageTool.call({ to: child, message: 'finish the bounded slice' } as never, ctx, undefined as never, { requestId: 'req_wf1' } as never)) as SendAnswer
-  check("a message to a running workflow's worker is refused, naming the workflow and the child ref, never a resume", toChild.data.success === false && toChild.data.message.includes('fixture-flow') && toChild.data.message.includes(`mercury://workflow/wf_fixture_run?child=${child}`) && !/resumed/.test(toChild.data.message), toChild.data.message.slice(0, 200))
-  check('…and no task was registered under the child id', store.get().tasks[child] === undefined)
-  check('the ownership read names the workflow that owns the child', wf.workflowOwningAgent?.(store.get().tasks, child)?.id === 'wf-task-1')
-  check("…and answers nothing for an id no workflow owns", wf.workflowOwningAgent?.(store.get().tasks, generateTaskId('local_agent')) === undefined)
   if (typeof resumeModule.liveAgentOwner === 'function') {
-    seedTranscript(child, 'build the slice', 'building')
-    let refusal = ''
-    try {
-      await resumeModule.resumeAgentBackground({ agentId: child, prompt: 'go on', toolUseContext: ctx })
-    } catch (error) {
-      refusal = error instanceof Error ? error.message : String(error)
-    }
-    check('a resume of a live workflow child throws naming the workflow, and registers nothing', refusal.includes('fixture-flow') && store.get().tasks[child] === undefined, refusal.slice(0, 200))
     const raced = generateTaskId('local_agent')
     seedTranscript(raced, 'race me', 'racing')
     const pending = resumeModule.resumeAgentBackground({ agentId: raced, prompt: 'go on', toolUseContext: ctx }) as Promise<unknown>
@@ -403,10 +375,8 @@ section("R8d · a worker a running workflow owns is never re-created by a messag
     check('a live owner appearing between the lookup and the registration prevents the duplicate: the resume throws, the live row and its registration stand', /running/.test(racedRefusal) && racedRow?.status === 'running' && racedRow.registration === live.abortController, racedRefusal.slice(0, 160))
     killAsyncAgent(raced, store.set as never)
   }
-  await wf.completeWorkflowTask('wf-task-1', null, 2, [], store.set)
-  check('once the workflow settled, nothing owns the child', wf.workflowOwningAgent?.(store.get().tasks, settledChild) === undefined)
   const afterSettle = (await SendMessageTool.call({ to: settledChild, message: 'anyone there' } as never, ctx, undefined as never, { requestId: 'req_wf2' } as never)) as SendAnswer
-  check('a settled child with no transcript is an unknown address, not a live workflow worker', afterSettle.data.success === false && /no (?:agent named|crewmate by that name or id)/i.test(afterSettle.data.message) && !afterSettle.data.message.includes('fixture-flow'), afterSettle.data.message.slice(0, 160))
+  check('an id with no task and no transcript is an unknown address', afterSettle.data.success === false && /no (?:agent named|crewmate by that name or id)/i.test(afterSettle.data.message), afterSettle.data.message.slice(0, 160))
   const twice = generateTaskId('local_agent')
   const first = registerAsyncAgent({ agentId: twice, description: 'twice', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
   completeAgentTask({ agentId: twice }, store.set as never)
@@ -422,10 +392,6 @@ section("R8d · a worker a running workflow owns is never re-created by a messag
   const checkAt = resumeSrc.indexOf('const owner = liveAgentOwner(agentId, tasksNow)')
   const registerAt = resumeSrc.indexOf('const task = registerAsyncAgent({', checkAt)
   check('the resume checks the live owner right before it registers, with no await between', checkAt > 0 && registerAt > checkAt && !/\bawait\b/.test(resumeSrc.slice(checkAt, registerAt)))
-  const sendSrc = src('src/tools/SendMessageTool/SendMessageTool.ts')
-  const askAt = sendSrc.indexOf('await messageWorkflowWorker(address, input.message)')
-  const addressSrc = src('src/tools/SendMessageTool/crewAddress.ts')
-  check('the message road asks the shared workflow owner before reading the transcript end', askAt > 0 && askAt < sendSrc.indexOf('await endedWords(address)') && addressSrc.includes('workflowOwningAgent(context.getAppState().tasks, agentId)'))
   check('no new registration road or permission road was added (one registration, the fallback field and its two values, the one pre-existing permission default)', (resumeSrc.match(/registerAsyncAgent\(/g) ?? []).length === 1 && (resumeSrc.match(/cwdFallback/g) ?? []).length === 3 && (resumeSrc.match(/behavior: 'allow'/g) ?? []).length === 1 && !/process\.env\./.test(resumeSrc))
 }
 
@@ -435,7 +401,6 @@ section('R8e · every non-terminal row has a live owner; the exit card counts wh
   const { projectWorkRoster } = await import('../../src/utils/task/workRoster.ts')
   const { workRowRuns } = await import('../../src/services/engine-connector/workCounts.ts')
   const { registerMainSessionTask } = await import('../../src/tasks/LocalMainSessionTask.ts')
-  const wf = (await import('../../src/tasks/LocalWorkflowTask/LocalWorkflowTask.js')) as { registerWorkflowTask: Function; completeWorkflowTask: Function; pauseWorkflowTask: Function }
   const { killAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
   const store = makeStore()
   const crewAgents = (): number => projectWorkRoster(store.get().tasks ?? {}).filter(r => workRowRuns(r) && (r.kind === 'agent' || r.kind === 'named')).length
@@ -455,17 +420,13 @@ section('R8e · every non-terminal row has a live owner; the exit card counts wh
   check('…the door settles it to killed with the reason on the row', settled.length === 1 && settled[0]?.id === stoppedQuery && after?.status === 'killed' && after.stopReason === 'its controller was stopped before the row settled', JSON.stringify(after?.status))
   const liveAgent = generateTaskId('local_agent')
   registerAsyncAgent({ agentId: liveAgent, description: 'alive', prompt: 'work', selectedAgent: FAKE_DEF, setAppState: store.set as never })
-  wf.registerWorkflowTask({ taskId: 'wf-paused', script: '', workflowRunId: 'wf_paused_run', workflowName: 'paused-flow', setAppState: store.set })
-  wf.pauseWorkflowTask('wf-paused', store.set)
-  check('a live agent and a paused workflow have nothing to settle', fw.settleOwnerlessTasks(store.set as never).length === 0 && (store.get().tasks[liveAgent] as { status?: string } | undefined)?.status === 'running' && (store.get().tasks['wf-paused'] as { status?: string } | undefined)?.status === 'paused')
+  check('a live agent has nothing to settle', fw.settleOwnerlessTasks(store.set as never).length === 0 && (store.get().tasks[liveAgent] as { status?: string } | undefined)?.status === 'running')
   counts = fw.liveBackgroundCounts(store.get().tasks)
-  check('the words name the kinds in order', fw.liveWorkWords(counts) === '1 shell command and 1 crewmate' && fw.liveWorkWords({ total: 4, shells: 2, agents: 1, workflows: 1, other: 0 }) === '2 shell commands, 1 crewmate and 1 workflow' && fw.liveWorkWords({ total: 0, shells: 0, agents: 0, workflows: 0, other: 0 }) === 'nothing', fw.liveWorkWords(counts))
+  check('the words name the kinds in order', fw.liveWorkWords(counts) === '1 shell command and 1 crewmate' && fw.liveWorkWords({ total: 4, shells: 2, agents: 1, other: 1 }) === '2 shell commands, 1 crewmate and 1 background task' && fw.liveWorkWords({ total: 0, shells: 0, agents: 0, other: 0 }) === 'nothing', fw.liveWorkWords(counts))
   check('…and the crew view agrees on the agent', crewAgents() === 1)
   const child = generateTaskId('local_agent')
-  wf.registerWorkflowTask({ taskId: 'wf-gone', script: '', workflowRunId: 'wf_gone_run', workflowName: 'gone-flow', setAppState: store.set })
-  registerAsyncAgent({ agentId: child, description: 'a child row', prompt: 'p', selectedAgent: FAKE_DEF, setAppState: store.set as never })
-  await wf.completeWorkflowTask('wf-gone', null, 1, [], store.set)
-  check('a leftover child row with a live controller is counted by both surfaces alike (never settled on a guess)', fw.taskOwnerGone(store.get().tasks[child] as never) === null && fw.liveBackgroundCounts(store.get().tasks).agents === 2 && crewAgents() === 2)
+  registerAsyncAgent({ agentId: child, description: 'a second row', prompt: 'p', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  check('a second row with a live controller is counted by both surfaces alike (never settled on a guess)', fw.taskOwnerGone(store.get().tasks[child] as never) === null && fw.liveBackgroundCounts(store.get().tasks).agents === 2 && crewAgents() === 2)
   killAsyncAgent(liveAgent, store.set as never)
   killAsyncAgent(child, store.set as never)
   const exitSrc = src('src/commands/exit/exit.tsx')
@@ -474,28 +435,25 @@ section('R8e · every non-terminal row has a live owner; the exit card counts wh
   check('the card says what is alive by kind and where to see it', confirmSrc.includes('{liveWords} still running') && confirmSrc.includes('see them with /runs'))
 }
 
-section("R8f · the interrupt receipt counts what the crew view lists: a running workflow is not a 'crewmate', and a settled agent is not counted")
+section("R8f · the interrupt receipt counts what the crew view lists: a settled agent is not counted")
 {
   const crew = (await import('../../src/services/engine-connector/crewFacts.ts')) as { crewStillRunningLine: Function }
   const { projectWorkRoster } = await import('../../src/utils/task/workRoster.ts')
   const { workCounts, workRowRuns } = await import('../../src/services/engine-connector/workCounts.ts')
-  const wf = (await import('../../src/tasks/LocalWorkflowTask/LocalWorkflowTask.js')) as { registerWorkflowTask: Function }
   const { completeAgentTask } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
   const store = makeStore()
-  wf.registerWorkflowTask({ taskId: 'wf-live', script: '', workflowRunId: 'wf_live_run', workflowName: 'live-flow', setAppState: store.set })
   const settled = generateTaskId('local_agent')
   registerAsyncAgent({ agentId: settled, description: 'settled during the fold', prompt: 'p', selectedAgent: FAKE_DEF, setAppState: store.set as never })
   completeAgentTask({ agentId: settled }, store.set as never)
   const roster = projectWorkRoster(store.get().tasks ?? {})
   const crewViewRows = roster.filter(r => workRowRuns(r) && (r.kind === 'agent' || r.kind === 'named')).length
-  const receiptBefore = roster.filter(r => workRowRuns(r) && (r.kind === 'agent' || r.kind === 'workflow')).length
-  check('the roster holds one running workflow and no running crewmate — the crew view lists nothing', crewViewRows === 0 && receiptBefore === 1)
+  check('the roster holds a settled agent and nothing running — the crew view lists nothing', crewViewRows === 0 && roster.length === 1)
   const counts = workCounts(roster)
   const line = crew.crewStillRunningLine(counts) as string | null
-  check('the receipt counts by kind: a running workflow is named as one, with its own door, never as a crewmate', line !== null && /1 workflow run still running/.test(line) && /\/workflows/.test(line) && !/crewmate/.test(line), String(line))
+  check('the receipt counts nothing for a settled agent: no line', line === null, String(line))
   const both = crew.crewStillRunningLine({ ...counts, agents: 2 }) as string | null
-  check('…and crewmates keep their words and the crew-view door', both !== null && /2 crewmates still running/.test(both) && /crew view \(\/crewmates\)/.test(both) && /1 workflow run/.test(both), String(both))
-  check('…nothing running, no line', crew.crewStillRunningLine({ workflows: 0, agents: 0, shells: 0, asks: 0 }) === null)
+  check('…and crewmates keep their words and the crew-view door', both !== null && /2 crewmates still running/.test(both) && /crew view \(\/crewmates\)/.test(both), String(both))
+  check('…nothing running, no line', crew.crewStillRunningLine({ agents: 0, shells: 0, asks: 0 }) === null)
   const cancel = src('src/hooks/useCancelRequest.ts')
   check('the interrupt receipt reads the one counting law (workCounts over the roster), never its own filter', /const running = workCounts\(focused\.workRoster\(\)\.rows\)/.test(cancel) && /crewStillRunningLine\(running\)/.test(cancel) && !/row\.kind === 'agent' \|\| row\.kind === 'workflow'/.test(cancel))
   const { drainRows } = await import('../../src/utils/sdkEventQueue.ts')
@@ -783,7 +741,6 @@ section('R13 · a seat cut by the recovery budget resumes ONCE by itself, with a
   if (typeof lifecycle.armBudgetCutResume === 'function' && typeof lifecycle.automaticResumePending === 'function') {
     const arm = lifecycle.armBudgetCutResume
     const pending = lifecycle.automaticResumePending
-    const wf = (await import('../../src/tasks/LocalWorkflowTask/LocalWorkflowTask.js')) as { registerWorkflowTask: Function }
     const { completeAgentTask, failAgentTask, killAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
     const settle = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
     const receipts = (): string[] => queue.getCommandQueue().filter(c => c.mode === 'task-notification').map(c => String(c.value ?? '')).filter(v => /<status>resumed<\/status>/.test(v))
@@ -824,19 +781,13 @@ section('R13 · a seat cut by the recovery budget resumes ONCE by itself, with a
       failAgentTask(evicted, budgetCut().message, store.set as never, e.abortController)
       arm({ taskId: evicted, description: 'evicted', registration: e.abortController, toolUseContext: makeCtx(store), rootSetAppState: store.set, delayMs: 30, resume: resumeInto('evicted') })
       store.set(prev => { const tasks = { ...prev.tasks }; delete tasks[evicted]; return { ...prev, tasks } })
-      const owned = generateTaskId('local_agent')
-      const o = registerAsyncAgent({ agentId: owned, description: 'owned', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
-      failAgentTask(owned, budgetCut().message, store.set as never, o.abortController)
-      arm({ taskId: owned, description: 'owned', registration: o.abortController, toolUseContext: makeCtx(store), rootSetAppState: store.set, delayMs: 30, resume: resumeInto('owned') })
-      const workflowTask = wf.registerWorkflowTask({ taskId: 'wf-owner', script: '', workflowRunId: 'wf_owner_run', workflowName: 'owner-flow', setAppState: store.set }) as { agentControllers: Map<string, AbortController> }
-      workflowTask.agentControllers.set(owned, new AbortController())
       const automatic = generateTaskId('local_agent')
       const a = registerAsyncAgent({ agentId: automatic, description: 'automatic', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
       failAgentTask(automatic, budgetCut().message, store.set as never, a.abortController)
       const armed = arm({ taskId: automatic, description: 'automatic', registration: a.abortController, toolUseContext: makeCtx(store), rootSetAppState: store.set, delayMs: 30, automaticResume: true, resume: resumeInto('automatic') })
       check("an automatic run's own budget cut arms nothing (one automatic resume per cut chain)", armed === null && pending(automatic) === false)
       await settle(120)
-      check('a hand resume, a stop, an eviction and a live workflow owner each stop the automatic resume; no receipt row for any', fired.length === 0 && receipts().length === 0, JSON.stringify(fired))
+      check('a hand resume, a stop and an eviction each stop the automatic resume; no receipt row for any', fired.length === 0 && receipts().length === 0, JSON.stringify(fired))
       completeAgentTask({ agentId: byHand }, store.set as never)
     }
     {

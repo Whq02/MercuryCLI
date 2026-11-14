@@ -37,7 +37,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok || !detail ? '' : ` — ${detail}`}`)
 }
 
-const FLAGS = ['MERCURY_LSP', 'MERCURY_LSP_CPP', 'MERCURY_LSP_PYTHON', 'MERCURY_WORKFLOWS', 'MERCURY_WARDS', 'MERCURY_EVAL', 'MERCURY_CHANGE_RECEIPTS', 'MERCURY_REFS', 'MERCURY_REPO_HOST', 'MERCURY_STRUCTURE', 'MERCURY_STRUCTURE_POLYGLOT', 'MERCURY_SERVICES', 'MERCURY_COMPUTER_USE', 'MERCURY_DAP', 'MERCURY_BROWSER', 'MERCURY_IDE_LOOP']
+const FLAGS = ['MERCURY_LSP', 'MERCURY_LSP_CPP', 'MERCURY_LSP_PYTHON', 'MERCURY_WARDS', 'MERCURY_EVAL', 'MERCURY_CHANGE_RECEIPTS', 'MERCURY_REFS', 'MERCURY_REPO_HOST', 'MERCURY_STRUCTURE', 'MERCURY_STRUCTURE_POLYGLOT', 'MERCURY_SERVICES', 'MERCURY_COMPUTER_USE', 'MERCURY_DAP', 'MERCURY_BROWSER', 'MERCURY_IDE_LOOP']
 type World = { rows: Record<string, string>; deep: Record<string, string> }
 let worlds = 0
 const world = (flags: Record<string, string>, deepProbes: boolean, mode: 'health' | 'readiness' = 'health'): World => {
@@ -55,10 +55,9 @@ const world = (flags: Record<string, string>, deepProbes: boolean, mode: 'health
 
 try {
   console.log('§1 each row names the word that turned its flag off')
-  const words = world({ MERCURY_LSP: 'off', MERCURY_WORKFLOWS: 'false', MERCURY_WARDS: 'no', MERCURY_EVAL: 'OFF', MERCURY_CHANGE_RECEIPTS: 'off', MERCURY_REFS: 'False', MERCURY_REPO_HOST: 'no', MERCURY_STRUCTURE_POLYGLOT: 'off', MERCURY_SERVICES: 'No' }, true)
+  const words = world({ MERCURY_LSP: 'off', MERCURY_WARDS: 'no', MERCURY_EVAL: 'OFF', MERCURY_CHANGE_RECEIPTS: 'off', MERCURY_REFS: 'False', MERCURY_REPO_HOST: 'no', MERCURY_STRUCTURE_POLYGLOT: 'off', MERCURY_SERVICES: 'No' }, true)
   const said: Array<[string, string, string]> = [
     ['the IDE-hands row', words.rows.lsp ?? '', 'MERCURY_LSP=off — IDE-hands bridge disabled by flag'],
-    ['the workflows row', words.rows.workflows ?? '', 'MERCURY_WORKFLOWS=false — the workflow engine is disabled'],
     ['the wards row', words.rows.wards ?? '', 'MERCURY_WARDS=no set — content wards off for this session'],
     ['the Eval row', words.rows['eval-kernels'] ?? '', 'MERCURY_EVAL=OFF — the Eval tool is out of the catalogue'],
     ['the change-receipts row', words.rows['change-receipts-fast'] ?? '', 'MERCURY_CHANGE_RECEIPTS=off'],
@@ -71,13 +70,12 @@ try {
   const workbench = words.rows['anvil-workbench-fast'] ?? ''
   check("the workbench row's detail: repo host: OFF (MERCURY_REPO_HOST=no)", workbench.includes('repo host: OFF (MERCURY_REPO_HOST=no)'), workbench)
   check('…and AstSearch and AstEdit: OFF (MERCURY_STRUCTURE_POLYGLOT=off)', workbench.includes('AstSearch and AstEdit: OFF (MERCURY_STRUCTURE_POLYGLOT=off)'), workbench)
-  check('no row of the nine says =0 for a flag that was not set to 0', ![...said.map(([, evidence]) => evidence), workbench].some(evidence => /MERCURY_[A-Z_]+=0\b/.test(evidence)), [...said.map(([, evidence]) => evidence), workbench].filter(evidence => /MERCURY_[A-Z_]+=0\b/.test(evidence)).join(' · '))
+  check('no row of the eight says =0 for a flag that was not set to 0', ![...said.map(([, evidence]) => evidence), workbench].some(evidence => /MERCURY_[A-Z_]+=0\b/.test(evidence)), [...said.map(([, evidence]) => evidence), workbench].filter(evidence => /MERCURY_[A-Z_]+=0\b/.test(evidence)).join(' · '))
 
   console.log('\n§2 a flag set to 0 reads as before, to the byte')
-  const zero = world(Object.fromEntries(['MERCURY_LSP', 'MERCURY_WORKFLOWS', 'MERCURY_WARDS', 'MERCURY_EVAL', 'MERCURY_CHANGE_RECEIPTS', 'MERCURY_REFS', 'MERCURY_REPO_HOST', 'MERCURY_STRUCTURE_POLYGLOT', 'MERCURY_SERVICES'].map(name => [name, '0'])), true)
+  const zero = world(Object.fromEntries(['MERCURY_LSP', 'MERCURY_WARDS', 'MERCURY_EVAL', 'MERCURY_CHANGE_RECEIPTS', 'MERCURY_REFS', 'MERCURY_REPO_HOST', 'MERCURY_STRUCTURE_POLYGLOT', 'MERCURY_SERVICES'].map(name => [name, '0'])), true)
   const before: Array<[string, string]> = [
     [zero.rows.lsp ?? '', 'MERCURY_LSP=0 — IDE-hands bridge disabled by flag'],
-    [zero.rows.workflows ?? '', 'MERCURY_WORKFLOWS=0 — the workflow engine is disabled'],
     [zero.rows.wards ?? '', 'MERCURY_WARDS=0 set — content wards off for this session'],
     [zero.rows['eval-kernels'] ?? '', 'MERCURY_EVAL=0 — the Eval tool is out of the catalogue'],
     [zero.rows['change-receipts-fast'] ?? '', 'MERCURY_CHANGE_RECEIPTS=0'],
@@ -86,7 +84,7 @@ try {
     [zero.deep.changeReceipts ?? '', 'change transactions disabled (MERCURY_CHANGE_RECEIPTS=0)'],
     [zero.deep.services ?? '', 'project services disabled (MERCURY_SERVICES=0)'],
   ]
-  check('the nine sentences are the ones a 0 has always read', before.every(([evidence, wanted]) => evidence === wanted), before.filter(([evidence, wanted]) => evidence !== wanted).map(([evidence]) => evidence).join(' · '))
+  check('the eight sentences are the ones a 0 has always read', before.every(([evidence, wanted]) => evidence === wanted), before.filter(([evidence, wanted]) => evidence !== wanted).map(([evidence]) => evidence).join(' · '))
   const zeroBench = zero.rows['anvil-workbench-fast'] ?? ''
   check('the workbench row keeps both of its clauses', zeroBench.includes('repo host: OFF (MERCURY_REPO_HOST=0)') && zeroBench.includes('AstSearch and AstEdit: OFF (MERCURY_STRUCTURE_POLYGLOT=0)'), zeroBench)
 
@@ -97,7 +95,7 @@ try {
   check('the workbench row with the structure tools off names MERCURY_STRUCTURE=off, not a flag nobody set', lanesBench.includes('AstSearch and AstEdit: OFF (MERCURY_STRUCTURE=off)') && !lanesBench.includes('MERCURY_STRUCTURE_POLYGLOT'), lanesBench)
 
   console.log('\n§4 the readiness rows of the same flags say the same')
-  const ready = world({ MERCURY_COMPUTER_USE: 'off', MERCURY_LSP: 'No', MERCURY_DAP: 'false', MERCURY_BROWSER: 'OFF', MERCURY_IDE_LOOP: 'no', MERCURY_WORKFLOWS: 'off' }, false, 'readiness')
+  const ready = world({ MERCURY_COMPUTER_USE: 'off', MERCURY_LSP: 'No', MERCURY_DAP: 'false', MERCURY_BROWSER: 'OFF', MERCURY_IDE_LOOP: 'no' }, false, 'readiness')
   const readySaid: Array<[string, string]> = [
     [ready.rows['tool:computer'] ?? '', 'MERCURY_COMPUTER_USE=off — Computer tool absent from the catalog; no desktop driver is touched'],
     [ready.rows['lane:lsp'] ?? '', 'MERCURY_LSP=No — the IDE-hands bridge is off'],
@@ -105,7 +103,6 @@ try {
     [ready.rows['lane:dap'] ?? '', 'MERCURY_DAP=false — Debug tool absent from the catalog'],
     [ready.rows['lane:browser'] ?? '', 'MERCURY_BROWSER=OFF — Browser tool absent from the catalog'],
     [ready.rows['engine:ide-plane'] ?? '', 'MERCURY_IDE_LOOP=no — Transaction tool absent, no records written'],
-    [ready.rows['engine:workflows'] ?? '', 'MERCURY_WORKFLOWS=off — operator opt-out'],
   ]
   for (const [detail, wanted] of readySaid) check(wanted, detail === wanted, detail)
   const pythonUnderLsp = ready.rows['lane:python'] ?? ''
@@ -114,8 +111,8 @@ try {
   check('MERCURY_LSP_CPP=off — clangd lane off', readyLanes.rows['lane:cpp'] === 'MERCURY_LSP_CPP=off — clangd lane off', readyLanes.rows['lane:cpp'] ?? '')
   const python = readyLanes.rows['lane:python'] ?? ''
   check('the Python lane, where a Python stands: python LSP lanes off (MERCURY_LSP_PYTHON=No)', python.includes('python LSP lanes off (MERCURY_LSP_PYTHON=No)') || python.startsWith('python unavailable'), python)
-  const readyZero = world({ MERCURY_COMPUTER_USE: '0', MERCURY_LSP: '0', MERCURY_DAP: '0', MERCURY_BROWSER: '0', MERCURY_IDE_LOOP: '0', MERCURY_WORKFLOWS: '0' }, false, 'readiness')
-  check('set to 0 the seven read as before, to the byte', readySaid.every(([, wanted]) => Object.values(readyZero.rows).includes(wanted.replace(/=(off|No|false|OFF|no) /, '=0 '))), readySaid.map(([, wanted]) => wanted.replace(/=(off|No|false|OFF|no) /, '=0 ')).filter(wanted => !Object.values(readyZero.rows).includes(wanted)).join(' · '))
+  const readyZero = world({ MERCURY_COMPUTER_USE: '0', MERCURY_LSP: '0', MERCURY_DAP: '0', MERCURY_BROWSER: '0', MERCURY_IDE_LOOP: '0' }, false, 'readiness')
+  check('set to 0 the six read as before, to the byte', readySaid.every(([, wanted]) => Object.values(readyZero.rows).includes(wanted.replace(/=(off|No|false|OFF|no) /, '=0 '))), readySaid.map(([, wanted]) => wanted.replace(/=(off|No|false|OFF|no) /, '=0 ')).filter(wanted => !Object.values(readyZero.rows).includes(wanted)).join(' · '))
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

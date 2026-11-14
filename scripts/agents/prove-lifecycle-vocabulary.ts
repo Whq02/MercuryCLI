@@ -71,7 +71,7 @@ section('§E the transcript\'s own end — one fact for every verb once the regi
 {
   const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
-  const { readAgentTranscript, transcriptEndWords } = await import('../../src/tools/WorkflowTool/agentTranscriptReader.ts')
+  const { readAgentTranscript, transcriptEndWords } = await import('../../src/utils/crew/agentTranscriptReader.ts')
   const { INTERRUPT_MESSAGE, turnCutLine } = await import('../../src/utils/messages/rejectionText.ts')
   const dir = mkdtempSync(join(tmpdir(), 'lifecycle-end-'))
   const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')

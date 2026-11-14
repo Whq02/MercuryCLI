@@ -22,7 +22,7 @@
 # gate-watch: src/services/crew/adapters/ndjsonChild.ts src/services/dap/debugpyResolver.ts src/services/eval/interpreters.ts
 # gate-watch: src/services/eval/kernelEnv.ts src/services/oauth/client.ts src/services/privateChannel/installPath.ts src/services/structure/grammarFacility.ts src/services/switchboard/bootBirthFacts.ts
 # gate-watch: src/services/switchboard/bornSession.ts src/services/switchboard/hopIntoSession.ts src/services/tcpBridge/entry.ts src/services/unity/bridgeFiles.generated.ts src/services/vulcan/addonFiles.generated.ts
-# gate-watch: src/substrate/directSplash.ts src/substrate/durablePublish.ts src/substrate/fileStore.ts src/tools/AgentTool/constants.ts src/tools/WorkflowTool/constants.ts
+# gate-watch: src/substrate/directSplash.ts src/substrate/durablePublish.ts src/substrate/fileStore.ts src/tools/AgentTool/constants.ts
 # gate-watch: src/utils/accounts/signInLedger.ts src/utils/auth.ts src/utils/config/globalConfig.ts src/utils/editor.ts src/utils/execFileNoThrow.ts
 # gate-watch: src/utils/messages/attachmentText.ts src/utils/messages/factories.ts src/utils/messages/normalize.ts src/utils/processGroup.ts src/utils/redactHeaders.ts
 # gate-watch: src/services/providers/providerDiscovery.ts src/utils/runtime/win32Console.ts src/utils/secureStorage/index.ts src/utils/sessionStorage/paths.ts src/utils/skills/skillChangeDetector.ts

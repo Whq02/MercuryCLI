@@ -11,7 +11,6 @@ await import('../../src/tasks.js')
 const { AGENT_STOP_SETTLE_MS, notRunningWords, stopAgentByOperator, unsettledWords } = await import('../../src/services/agents/operatorStop.js')
 const { AGENT_STOP_BY_OPERATOR, registerAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
 const { AGENT_VERB_ANSWER_DEADLINE_MS } = await import('../../src/daemon/sessionSeat.js')
-const { registerWorkflowTask } = await import('../../src/tasks/LocalWorkflowTask/LocalWorkflowTask.js')
 const { resolveStopTargetId } = await import('../../src/tasks/stopTask.js')
 const { bareMissWords } = await import('../../src/tasks/stopTask.js')
 
@@ -71,11 +70,10 @@ section('the misses: an unknown id and a settled row are refused, never applied'
   const store = makeStore()
   const miss = await stopAgentByOperator('anope1234', { getAppState: store.get, setAppState: store.set as never }, quick)
   check('an id the registry does not hold is refused with the miss words', miss.outcome === 'refused' && miss.reason === bareMissWords('anope1234'), JSON.stringify(miss))
-  registerWorkflowTask({ taskId: 'wf-1', script: 'x', workflowRunId: 'run-1', setAppState: store.set as never })
-  const wf = await stopAgentByOperator('wf-1', { getAppState: store.get, setAppState: store.set as never }, quick)
-  check('a workflow row is killed through its own road and applied', wf.outcome === 'applied' && wf.kind === 'workflow' && statusOf(store, 'wf-1') === 'killed', JSON.stringify(wf))
-  const wfAgain = await stopAgentByOperator('wf-1', { getAppState: store.get, setAppState: store.set as never }, quick)
-  check('a settled workflow row is refused with its status', wfAgain.outcome === 'refused' && /not running \(status: killed\)/.test(wfAgain.reason), JSON.stringify(wfAgain))
+  registerAsyncAgent({ agentId: 'ag-done', description: 'settled seat', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
+  store.set(((prev: State) => ({ ...prev, tasks: { ...prev.tasks, 'ag-done': { ...(prev.tasks['ag-done'] as object), status: 'killed' } } })) as never)
+  const settled = await stopAgentByOperator('ag-done', { getAppState: store.get, setAppState: store.set as never }, quick)
+  check('a settled row is refused with its status', settled.outcome === 'refused' && /not running \(status: killed\)/.test(settled.reason) && statusOf(store, 'ag-done') === 'killed', JSON.stringify(settled))
 }
 
 section('the address: TaskStop resolves a launch name and a task id as given')

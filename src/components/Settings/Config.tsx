@@ -581,7 +581,7 @@ export function Config({
   items.push({
     id: 'seats',
     label: 'Seats',
-    searchText: 'seats seat ceiling capacity concurrency sessions crewmates workflow crewmates in flight',
+    searchText: 'seats seat ceiling capacity concurrency sessions crewmates in flight',
     kind: 'enum',
     value: <Text>{seatFacts === null ? 'reading capacity…' : seatCeilingValueWords(seatFacts)}</Text>,
     setByYou: seatFacts !== null && seatFacts.source === 'operator',
@@ -1373,7 +1373,7 @@ export function Config({
   items.push({
     id: 'agentsDefaultEffort',
     label: 'Crewmate default effort',
-    searchText: 'crewmate default effort delegate workflow',
+    searchText: 'crewmate default effort delegate',
     kind: 'enum',
     setByYou: agentDefaults.effortSource === 'setting',
     value: (
@@ -1419,7 +1419,7 @@ export function Config({
         ) : null}
       </Text>
     ),
-    warning: 'Maximum simultaneous crewmates. Workflows have their own limit.',
+    warning: 'Maximum simultaneous crewmates.',
     change: direction => {
       const next = Math.max(1, agentDefaults.maxConcurrent + direction)
       writeAgents({ maxConcurrent: next })
@@ -1430,7 +1430,7 @@ export function Config({
   items.push({
     id: BACKGROUND_LAUNCH_KEY,
     label: BACKGROUND_LAUNCH_LABEL,
-    searchText: 'crewmate workflow backgrounded background session launch delegate workflows-allowed tag visit',
+    searchText: 'crewmate backgrounded background session launch delegate crewmates-allowed tag visit',
     kind: 'boolean',
     setByYou: backgroundLaunchOn,
     value: <Text color={backgroundLaunchOn ? tokens.success : tokens.textSecondary}>{backgroundLaunchValueWords(backgroundLaunchOn)}</Text>,

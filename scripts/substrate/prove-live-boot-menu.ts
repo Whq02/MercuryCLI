@@ -87,7 +87,7 @@ const EXPECTED_LIVE_ENV_LANES = [
   'MERCURY_BLENDER',
   'MERCURY_ASEPRITE',
 ]
-const EXPECTED_SPAWN_SWITCHES = ['MERCURY_SESSION_SUBAGENTS', 'MERCURY_SESSION_WORKFLOWS']
+const EXPECTED_SPAWN_SWITCHES = ['MERCURY_SESSION_SUBAGENTS']
 
 section('§1 registry — deferred-tool dev lanes are live; boot-bound LSP and other rows stay new-session')
 {
@@ -99,7 +99,7 @@ section('§1 registry — deferred-tool dev lanes are live; boot-bound LSP and o
   )
   const liveRows = menu.STARTUP_MENU.filter(r => r.applicationClass === 'live').map(r => r.env)
   check(
-    'STARTUP_MENU marks the 2 spawn-switch rows and the 5 deferred-tool dev-lane rows as live',
+    'STARTUP_MENU marks the spawn-switch row and the 5 deferred-tool dev-lane rows as live',
     j(liveRows) === j(['MERCURY_DAP', ...EXPECTED_SPAWN_SWITCHES, 'MERCURY_GODOT_TOOLS', 'MERCURY_UNITY', 'MERCURY_BLENDER', 'MERCURY_ASEPRITE']),
     j(liveRows),
   )

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const ceiling = 4096
-const names = ['Workflow', 'Debug', 'Browser', 'Crewmate']
+const names = ['Debug', 'Browser', 'Crewmate']
 const capture = process.argv.indexOf('--capture')
 if (capture >= 0) {
   const requests = JSON.parse(readFileSync(process.argv[capture + 1]!, 'utf8'))
@@ -28,7 +28,6 @@ delete process.env.MERCURY_HOME
 try {
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
   enableConfigs()
-  const { WorkflowTool } = await import('../../src/tools/WorkflowTool/WorkflowTool.tsx')
   const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.ts')
   const { BrowserTool } = await import('../../src/tools/BrowserTool/BrowserTool.ts')
   const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
@@ -41,7 +40,7 @@ try {
   const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
   const { isNullRenderingAttachment } = await import('../../src/components/messages/nullRenderingAttachments.ts')
   const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
-  const tools: import('../../src/Tool.js').Tool[] = [WorkflowTool, DebugTool, BrowserTool, AgentTool, ToolSearchTool]
+  const tools: import('../../src/Tool.js').Tool[] = [DebugTool, BrowserTool, AgentTool, ToolSearchTool]
   const permission = getEmptyToolPermissionContext()
   const options = { getToolPermissionContext: async () => permission, tools, agents: [], model: 'claude-fable-5-1', conversationKey: 'wire-manual-proof' }
   const context: any = { options: { tools, engineModel: options.model, agentDefinitions: { activeAgents: [] } }, getAppState: () => ({ toolPermissionContext: permission, mcp: { clients: [] } }), messages: [] }
@@ -49,8 +48,8 @@ try {
   const before = await Promise.all(tools.map(tool => toolToAPISchema(tool, options)))
   const picked = await ToolSearchTool.call({ query: 'select:' + names.join(','), max_results: 5 }, context)
   assert.deepEqual(picked.data.matches, names)
-  assert.equal(picked.newMessages?.length, 4, 'ToolSearch loads every complete manual')
-  for (const tool of tools.slice(0, 4)) {
+  assert.equal(picked.newMessages?.length, 3, 'ToolSearch loads every complete manual')
+  for (const tool of tools.slice(0, 3)) {
     const full = await tool.prompt(options)
     const schema = before.find(row => row.name === tool.name) as any
     const bytes = Buffer.byteLength(schema.description)
@@ -61,15 +60,6 @@ try {
     assert.equal(delivered.attachment.content, `# Tool manual: ${tool.name}\n\n${full}`, 'not one manual sentence is lost')
     assert.ok(isNullRenderingAttachment(delivered), 'manuals never paint a screen row')
     assert.ok(JSON.stringify(normalizeAttachmentForAPI(delivered.attachment)).includes(tool.name))
-    if (tool.name === 'Workflow') {
-      assert.ok(bytes <= 250 && Buffer.byteLength(full) <= 4000)
-      assert.ok(schema.description.includes("Launch only on the user's workflow request or an executing skill's direction."))
-      assert.ok(!full.includes('Launch only') && !full.includes('MODEL_LOOKUP_LADDER') && !full.includes('The hooks composed'))
-      for (const helper of ['agent', 'pipeline', 'parallel', 'workflow']) {
-        assert.equal(full.split(`- ${helper}(`).length, 2, `${helper} has one signature in the manual`)
-        assert.ok(!schema.description.includes(`${helper}(`), 'the wire does not abridge the API')
-      }
-    }
     if (tool.name === 'Browser') {
       assert.ok(bytes <= 350 && Buffer.byteLength(full) <= 3000)
       assert.ok(!schema.description.includes('status:') && !schema.description.includes('waitFor:'))
@@ -99,7 +89,7 @@ try {
   const loaded = createUserMessage({ content: [{ type: 'tool_result', tool_use_id: 'search', content: [{ type: 'tool_reference', tool_name: 'Browser' }] } as any] })
   assert.equal((await getToolManualAttachments({ ...context, messages: [loaded] })).length, 1, 'discovery records deliver notes before the next call')
   const boundary = { type: 'system', subtype: 'compact_boundary', uuid: 'manual-fold', compactMetadata: { preCompactDiscoveredTools: names } }
-  assert.equal((await getToolManualAttachments({ ...context, messages: [...context.messages, boundary] })).length, 4, 'compaction restores manuals for tools carried across the boundary')
+  assert.equal((await getToolManualAttachments({ ...context, messages: [...context.messages, boundary] })).length, 3, 'compaction restores manuals for tools carried across the boundary')
   console.log('PASS short wire contracts retain full manuals on discovery and use without moving the prefix')
 } finally {
   rmSync(scratch, { recursive: true, force: true })

@@ -20,8 +20,8 @@ const j = (v: unknown): string => JSON.stringify(v)
 const ROOT = join(import.meta.dirname, '../..')
 const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
-type Kind = 'subagents' | 'workflows'
-const KINDS: Kind[] = ['subagents', 'workflows']
+type Kind = 'subagents'
+const KINDS: Kind[] = ['subagents']
 
 const { focusConcourseSession, grantConcourseWorkflows, readSessionWorkers, revokeConcourseWorkflows, updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.js')
 const { evaluateLaunchAuthority } = await import('../../src/services/switchboard/launchAuthority.js')
@@ -58,7 +58,7 @@ const probe = (sid: string, kind: Kind, settingOn: boolean, extra: Record<string
 const refusalRoads = (reason: string): boolean =>
   reason.startsWith('this session is backgrounded — ') &&
   reason.includes('wait until the operator visits it') &&
-  reason.includes('until it holds the workflows-allowed tag (granted by choosing keep-and-background on leave, or the manual-start option)') &&
+  reason.includes('until it holds the crewmates-allowed tag (granted by choosing keep-and-background on leave, or the manual-start option)') &&
   reason.includes(`or until the operator turns on ${LABEL} (/config, or the boot menu's Agents section)`) &&
   reason.endsWith('Keep working on the task single-handed.')
 
@@ -79,7 +79,7 @@ console.log('LAW 1 — the truth table: switch × role × focus × tag × settin
   const focused = probe(sidA, 'subagents', true)
   check('focused outranks the setting (posture focused)', focused.allowed && focused.posture === 'focused', j(focused))
   check('grant applies on B', grantConcourseWorkflows(sidB, 'operator', recDir).outcome === 'applied')
-  const tagged = probe(sidB, 'workflows', true)
+  const tagged = probe(sidB, 'subagents', true)
   check('the tag outranks the setting (posture tagged-background)', tagged.allowed && tagged.posture === 'tagged-background', j(tagged))
   const second = grantConcourseWorkflows(sidA, 'coordinator', recDir)
   check('the one-tag cap is untouched: a second grant is still refused cap-one', second.outcome === 'refused' && 'reason' in second && second.reason === 'cap-one', j(second))
@@ -143,10 +143,10 @@ console.log("LAW 4 — the worker's prompt sentence follows the setting at spawn
   const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.js')
   const specOf = () => buildConcourseWorkerSpec({ runnerId: 'concourse-w9', sessionId: sidA, workspaceId, modelKey: 'claude-fable-5', cwd: join(workspaceId, '.wt', 'concourse-w9') })
   const off = specOf().appendSystemPrompt ?? ''
-  check('setting OFF: the worker is told delegation needs the tag, the operator, or the setting turned on', off.includes('Delegation (crewmates/workflows) is available only while this session holds the workflows-allowed tag, the operator is present, or the operator has turned on ' + LABEL + ' — when those tools are absent, plan and work single-handed; never wait for them.'), off)
+  check('setting OFF: the worker is told delegation needs the tag, the operator, or the setting turned on', off.includes('Delegation (crewmates) is available only while this session holds the crewmates-allowed tag, the operator is present, or the operator has turned on ' + LABEL + ' — when the tool is absent, plan and work single-handed; never wait for it.'), off)
   setting?.setBackgroundSessionsLaunchCrewmates(true)
   const on = specOf().appendSystemPrompt ?? ''
-  check('setting ON: the worker is told delegation is available and why', on.includes('Delegation (crewmates/workflows) is available: the operator turned on ' + LABEL + ', so this session launches crewmates and workflows as a focused one does — when those tools are absent, plan and work single-handed; never wait for them.'), on)
+  check('setting ON: the worker is told delegation is available and why', on.includes('Delegation (crewmates) is available: the operator turned on ' + LABEL + ', so this session launches crewmates as a focused one does — when the tool is absent, plan and work single-handed; never wait for it.'), on)
   check('the posture line says what the session is to the operator — one on the switchboard, sat in or left running — and the idle law stands, on both', [off, on].every(p => p.startsWith("This session lives on the operator's switchboard: the operator opens it to work in it and leaves it running otherwise, and either way their messages reach you through the harness.") && p.includes("'Idle', 'wait', or 'stand by' means end your turn — the harness wakes you on the next delivery.")))
   check('the posture tail never calls the session a background session (the operator may be sitting in it)', [off, on].every(p => !/background session/i.test(p)), [off, on].map(p => p.slice(0, 80)).join(' | '))
   setting?.setBackgroundSessionsLaunchCrewmates(false)
@@ -200,7 +200,7 @@ console.log('LAW 5 — the /health status row says why backgrounded sessions may
     }
     const CLAUSE = `backgrounded sessions launch too (${LABEL} on)`
     const off = health(undefined)
-    check('setting absent: the row reads as it always has, no backgrounded clause', off !== null && off.status === 'ok' && String(off.evidence).includes('crewmates on (default) · workflows on (default) — this process') && !String(off.evidence).includes('backgrounded'), j(off))
+    check('setting absent: the row reads as it always has, no backgrounded clause', off !== null && off.status === 'ok' && String(off.evidence).includes('crewmates on (default) — this process') && !String(off.evidence).includes('backgrounded'), j(off))
     const on = health(true)
     check('setting on: the row says backgrounded sessions launch too and names the setting', on !== null && on.status === 'ok' && String(on.evidence).endsWith(CLAUSE), j(on))
   }
@@ -224,8 +224,6 @@ console.log('LAW 3 — the source pins')
   check('the tag grant never reads the setting (the one-tag cap stays what it is)', grantStart !== -1 && !grantBody.includes('backgroundSessionsLaunchCrewmates'))
   for (const [file, needle] of [
     ['src/tools/AgentTool/AgentTool.tsx', "evaluateLaunchAuthority('subagents')"],
-    ['src/tools/WorkflowTool/WorkflowTool.tsx', "evaluateLaunchAuthority('workflows')"],
-    ['src/tools/WorkflowTool/agentHooks.ts', "evaluateLaunchAuthority('subagents')"],
     ['src/tools/SkillTool/SkillTool.ts', "evaluateLaunchAuthority('subagents')"],
   ] as const) {
     check(`${file} still asks the valve (no second gate)`, src(file).includes(needle) && !src(file).includes('backgroundSessionsLaunchCrewmates'))

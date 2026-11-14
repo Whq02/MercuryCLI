@@ -125,7 +125,7 @@ read on 2026-10-08.
 
 A new Anthropic model runs before its catalogue row lands: any id inside the
 first-party space (`claude-…`) starts from every door (the home screen's new
-session, `/clear`, `--model`, a saved setting, the crew and workflow seats,
+session, `/clear`, `--model`, a saved setting, the crew's seats,
 the advisor and console picks, and `/model` in
 the chat) the moment the account holds an Anthropic credential, and the
 wire decides whether it serves the id; no door judges a Claude id by whether
@@ -814,7 +814,7 @@ window outranks that formula) fits the memory usable for models (the
 server's own gpu-memory line when it states one, the same rule
 `/localsetup`'s step 5 uses) at the
 model's first send and holds it for the session on every dispatch (the main
-thread, crewmates and workflow crewmates alike, so a crewmate never reloads the
+thread and crewmates alike, so a crewmate never reloads the
 runner; when the machine's memory cannot be read because the server states no
 geometry or the read fails, the window comes out larger: the
 trained maximum when the model states one, else the served window, else twice
@@ -841,7 +841,7 @@ is still saved). On Ollama the chosen window rides as `options.num_ctx` on every
 over the native `/api/chat` stream (with `truncate: false`, so an over-window
 prompt is refused by the server instead of truncated), and every request the
 session sends that model (the chat, the pre-warm, the keep-alive touch, the
-served-window load and every crewmate or workflow seat) carries the same
+served-window load and every crewmate seat) carries the same
 `num_ctx` and `num_batch`, so the scheduler keeps one runner and its prompt
 cache for the whole session; under `server default` a runner the server
 already holds at a window that fits the turn is adopted without reloading,
@@ -868,11 +868,11 @@ against a live Ollama for discovery, streamed text, streamed reasoning and
 multi-round tool loops, and against a live llama.cpp (2026-09-27, Qwen3.5 9B
 served as `qwen3.5:9b`, server build b11146) for the same three legs
 (discovery with the served window read from `/props`, a streamed reply with
-its reasoning block, and a tool loop that also dispatched a crewmate and a
-workflow crewmate on the model); and against a live LM Studio (2026-09-27, Qwen3.5
+its reasoning block, and a tool loop that also dispatched a crewmate
+on the model); and against a live LM Studio (2026-09-27, Qwen3.5
 9B served as `qwen3.5-9b`) for the same legs (discovery from `/api/v1/models`
 with the loaded instance's window, a streamed reply with its reasoning block,
-a direct tool loop, a crewmate and a workflow crewmate), where the product
+a direct tool loop and a crewmate), where the product
 reloads the instance at its chosen window on the first send (the documented
 load road) unless the window setting is `server default`. vLLM has not been
 checked against a live server yet.

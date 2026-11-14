@@ -129,7 +129,7 @@ for (const sub of ['lib/crossfamilyConcourseFixture.ts', 'agent-experience/lib/f
 let historical = 0
 for (const path of tracked.filter(path => /\/prove-[^/]+\.tsx?$/.test(path) && !path.endsWith('/prove-proof-readings-census.ts'))) {
   const source = read(path)
-  const portWatched = /^scripts\/(workflows|compact|agent-dispatch|provider-compat|search|extensions|switchboard|usage-warning|daemon|agent-experience)\//.test(path) || /^scripts\/ui\/prove-(?:workflow-controls|gpt6-astra-crew)-drive\.ts$/.test(path)
+  const portWatched = /^scripts\/(compact|agent-dispatch|provider-compat|search|extensions|switchboard|usage-warning|daemon|agent-experience)\//.test(path) || /^scripts\/ui\/prove-gpt6-astra-crew-drive\.ts$/.test(path)
   if (portWatched) {
     for (const line of fixedFixturePorts(source)) failures.push(`${path}:${line}: fixtures must bind an ephemeral port by default and publish the bound endpoint`)
     for (const line of unguardedLoopbackListens(source)) failures.push(`${path}:${line}: loopback listen promises must attach an error handler so a held port rejects at once`)

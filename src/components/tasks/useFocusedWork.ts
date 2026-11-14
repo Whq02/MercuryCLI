@@ -57,14 +57,6 @@ export function useFocusedWorkRows(): readonly WorkRowV1[] {
   return useMemo(() => focusedWorkRows(tasks, roster), [tasks, roster])
 }
 
-export function focusedWorkflowRows(rows: readonly WorkRowV1[]): WorkRowV1[] {
-  return rows.filter(r => r.kind === 'workflow')
-}
-
-export function runningWorkflowRows(rows: readonly WorkRowV1[]): WorkRowV1[] {
-  return focusedWorkflowRows(rows).filter(workRowRuns)
-}
-
 
 export type FocusedRunnerPresence = 'blank' | 'live' | 'dormant'
 
@@ -75,16 +67,6 @@ export function focusedRunnerPresence(): FocusedRunnerPresence {
     rec => rec.sessionId === sessionId && runnerRecordAlive(rec, pidAlive),
   )
   return live ? 'live' : 'dormant'
-}
-
-export function otherSessionRunnerPids(focusedSessionId: string | null): Set<number> {
-  const pids = new Set<number>()
-  for (const rec of Object.values(readSessionWorkers())) {
-    if (rec.endedAt !== undefined || rec.pid === undefined) continue
-    if (focusedSessionId !== null && rec.sessionId === focusedSessionId) continue
-    pids.add(rec.pid)
-  }
-  return pids
 }
 
 export function focusedSessionIdOrNull(): string | null {
@@ -129,33 +111,7 @@ export function compactWorkCounts(input: {
   for (const [id, row] of topAgents) {
     if (workRowRuns(row) && row.paused === undefined && row.pausedBy === undefined) agents.add(id)
   }
-  let agentsKnown = true
-  for (const row of byId.values()) {
-    if (row.kind !== 'workflow') continue
-    const parentRuns = workRowRuns(row) && row.pausedBy === undefined
-    if (parentRuns && row.phases === undefined && (row.agentCount ?? 0) > 0) agentsKnown = false
-    for (const phase of row.phases ?? []) {
-      for (const child of phase.agents) {
-        const key = child.agentId ?? `${row.workflowRunId ?? row.id}:${child.index}`
-        if (!parentRuns) {
-          if (child.agentId !== undefined) agents.delete(key)
-          continue
-        }
-        if (child.state !== 'start' && child.state !== 'progress') continue
-        if (child.waiting === undefined || child.pausedBy === undefined) {
-          agentsKnown = false
-          continue
-        }
-        if (child.pausedBy !== null || child.waiting === 'operator' || child.waiting === 'usage-window') {
-          if (child.agentId !== undefined) agents.delete(key)
-          continue
-        }
-        if (child.agentId !== undefined && topAgents.has(child.agentId)) continue
-        agents.add(key)
-      }
-    }
-  }
-  return { sessionsOn, agentsHere: agentsKnown ? agents.size : null, monitorsHere: monitors.size, samples }
+  return { sessionsOn, agentsHere: agents.size, monitorsHere: monitors.size, samples }
 }
 
 export function compactWorkSummaryText(counts: CompactWorkCounts, columns: number): string {

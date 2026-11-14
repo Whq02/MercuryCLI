@@ -81,8 +81,8 @@ const { getAllBaseTools } = await import('../../src/tools.ts')
 const tools = [...getAllBaseTools()]
 const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
 if (!tools.some(tool => tool.name === 'Computer')) tools.push(ComputerTool)
-const names = ['Crewmate', 'CrewBoard', 'AskUserQuestion', 'Browser', 'Computer', 'Git', 'Inspect', 'Journey', 'Retain', 'Service', 'Structure', 'WebFetch', 'Workflow']
-check('all thirteen rewritten tools carry a private keyword bag', names.every(name => tools.find(tool => tool.name === name)?.searchKeywords?.length))
+const names = ['Crewmate', 'CrewBoard', 'AskUserQuestion', 'Browser', 'Computer', 'Git', 'Inspect', 'Journey', 'Retain', 'Service', 'Structure', 'WebFetch']
+check('all twelve rewritten tools carry a private keyword bag', names.every(name => tools.find(tool => tool.name === name)?.searchKeywords?.length))
 for (const original of [plain, ...tools.filter(tool => names.includes(tool.name))]) {
   const tagged = { ...original, searchKeywords: [...(original.searchKeywords ?? []), sentinel] } as Tool
   const bare = { ...original, searchKeywords: undefined } as Tool

@@ -11,7 +11,7 @@
 # gate-watch: src/ink/ink.tsx src/services/dap/dapClient.ts src/services/dap/debugpyResolver.ts
 # gate-watch: src/services/privateChannel/channelCore.ts
 # gate-watch: src/state/selectors.ts src/tools/AgentTool/AgentTool.tsx src/tools/AgentTool/runAgent.ts
-# gate-watch: src/tools/WorkflowTool/agentHooks.ts src/utils/* src/utils/cockpit/critterData.ts
+# gate-watch: src/utils/* src/utils/cockpit/critterData.ts
 # gate-watch: src/utils/messages/systemMessages.ts src/utils/model/modelTransition.ts
 # gate-watch: src/utils/sessionStorage/chain.ts
 # gate-watch: src/components/Spinner/liveCounterWords.ts src/components/Spinner/spinnerHud.ts

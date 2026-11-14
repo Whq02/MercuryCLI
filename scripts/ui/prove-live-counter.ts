@@ -44,6 +44,7 @@ const { noSessionConnector } = await mod<typeof import('../../src/services/engin
 type Words = typeof import('../../src/components/Spinner/liveCounterWords.ts')
 const words = await mod<Words>('src/components/Spinner/liveCounterWords.ts').catch(() => null)
 type Facts = import('../../src/components/Spinner/liveCounterWords.ts').LiveCounterFacts
+const { formatQuietAge } = await mod<typeof import('../../src/utils/format.ts')>('src/utils/format.ts')
 type Wait = import('../../src/services/providers/streamIdleBudget.ts').RequestWaitV1
 
 enableConfigs()
@@ -187,6 +188,17 @@ for (const columns of [178, 80]) {
   const fullThinking = await mountRow(columns, fullRow(rowFacts.thinking, now - 40_000, columns))
   frames.push(`# full row · thinking 3,000 chars · ${columns} columns\n${fullThinking}`)
   check(`@${columns} full thinking keeps the total without a phase label`, fullThinking.includes('↓ ~750') && !/thinking tokens|thinking \(max\)/.test(fullThinking), fullThinking)
+}
+console.log('\nthe thinking pulse — how long since the last byte, in the age word the format module owns')
+check('the age word reads 8s at eight seconds', formatQuietAge(8_000) === '8s', String(formatQuietAge(8_000)))
+check('the age word reads 59s one millisecond under a minute', formatQuietAge(59_999) === '59s', String(formatQuietAge(59_999)))
+check('the age word reads 4m at four minutes', formatQuietAge(240_000) === '4m', String(formatQuietAge(240_000)))
+check('the age word reads 1h at one hour', formatQuietAge(3_600_000) === '1h', String(formatQuietAge(3_600_000)))
+check('the age word reads 1h15m at an hour and a quarter', formatQuietAge(4_500_000) === '1h15m', String(formatQuietAge(4_500_000)))
+if (words !== null) {
+  const pulse = words.liveCounterPulse({ lastByteAtMs: T - 12_000 }, 'thinking', T)
+  check(`a thinking turn whose last byte came twelve seconds ago pulses with that age: ${String(pulse)}`, pulse === '↻12s', String(pulse))
+  check('no pulse outside thinking, and none before a first byte', words.liveCounterPulse({ lastByteAtMs: T - 12_000 }, 'writing', T) === null && words.liveCounterPulse({ lastByteAtMs: null }, 'thinking', T) === null)
 }
 if (FRAMES !== undefined) {
   mkdirSync(FRAMES, { recursive: true })

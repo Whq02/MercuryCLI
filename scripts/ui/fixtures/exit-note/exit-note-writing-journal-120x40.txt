@@ -3,18 +3,18 @@ WORKBENCH               │╭────────────────�
   say something settled ││  ▄▄▄▄▄▄▄▄▄                                                                                 ││
                         ││  ▄▄▄▄▄▄▄▄▄                                                                                 ││
 NEXT                    ││  ▀▀▄▀▀▀▄▀▀                                                                                 ││
-  · /workflows — crewma…│╰────────────────────────────────────────────────────────────────────────────────────────────╯│
-  · /health — health ce…│                                                                                              │
+  · /health — health…   │╰────────────────────────────────────────────────────────────────────────────────────────────╯│
   · /memory — memory    │                                                                                              │
-  · /mission — set a mi…│ hh:mm:ss [sam] ❯ say something settled                                                       │
-                        │                                                                                              │
-FILES · flux-arena-cwd-…│ hh:mm:ss [Mercury] Settled and quiet.                                                        │
-  ↵ or click · browse   │                                                                                              │
+  · /mission — set a…   │                                                                                              │
+                        │ hh:mm:ss [sam] ❯ say something settled                                                       │
+FILES · flux-arena-cwd-…│                                                                                              │
+  ↵ or click · browse   │ hh:mm:ss [Mercury] Settled and quiet.                                                        │
                         │                                                                                              │
 VITALS                  │                                                                                              │
   · spend $0.00         │                                                                                              │
   · ctx 0% · 1000k      │                                                                                              │
   · health — run /health│                                                                                              │
+                        │                                                                                              │
                         │                                                                                              │
                         │                                                                                              │
                         │                                                                                              │

@@ -37,13 +37,7 @@ import {
   killAllRunningAgentTasks,
   type LocalAgentTaskState,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
-import {
-  isLocalWorkflowTask,
-  killWorkflowTask,
-  type LocalWorkflowTaskState,
-} from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 import type { TaskState } from '../../tasks/types.js'
-import { chatOnlyBoot } from '../../context/surfaceRoute.js'
 import { formatDuration, formatTokens } from '../../utils/format.js'
 import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
 import { CommandCenter, KeyValueGrid, SectionHeader, useNowTick, type KVRow } from '../mercury-ui/components.js'
@@ -80,20 +74,17 @@ import { AsyncAgentDetailDialog } from './AsyncAgentDetailDialog.js'
 import { useSessionCrew } from './useCrewLedger.js'
 import { BackgroundTask as BackgroundTaskComponent } from './BackgroundTask.js'
 import { ShellDetailDialog, shellCardFactsOfRow, shellCardFactsOfTask } from './ShellDetailDialog.js'
-import { WorkflowDetailDialog } from './WorkflowDetailDialog.js'
 import { isManageableTask } from './taskStatusUtils.js'
 
 const LEAD_ROW_ID = 'lead'
 const WINDOW = 10
 const MISSION_IN_PROGRESS_CAP = 4
 const MISSION_PENDING_CAP = 6
-const WORKFLOW_DETAIL_GRACE_MS = 5000
 
 type RowKind =
   | 'shell'
   | 'monitor'
   | 'agent'
-  | 'workflow'
   | 'sample'
   | 'lead'
 
@@ -121,7 +112,6 @@ function SampleRowLine({ sample }: { sample: SampleRowV1 }): React.ReactNode {
 function kindOf(task: TaskState): RowKind {
   if (isLocalShellTask(task)) return task.kind === 'monitor' ? 'monitor' : 'shell'
   if (isLocalAgentTask(task)) return 'agent'
-  if (isLocalWorkflowTask(task)) return 'workflow'
   if ((task as { type?: string }).type === 'monitor_mcp') return 'monitor'
   throw new Error(
     `BackgroundTasksDialog: unrecognised task kind ${(task as { type?: string }).type}`,
@@ -197,9 +187,6 @@ function WorkRowLine({ work }: { work: WorkRowV1 }): React.ReactNode {
           {' · '}{crewModelLabel(crew)}{crewTokens !== null ? ` · ${crewTokens}` : ''}
         </Text>
       ) : null}
-      {work.kind === 'workflow' && (work.agentCount ?? 0) > 0 ? (
-        <Text color={tokens.textMuted}> · {work.agentCount} crewmates</Text>
-      ) : null}
       {(work.pendingAsks ?? 0) > 0 ? (
         <Text color={tokens.warning}> · {CREW_ASK_WAIT_WORDS}{(work.pendingAsks ?? 0) > 1 ? ` (${work.pendingAsks} asks)` : ''}</Text>
       ) : null}
@@ -256,7 +243,6 @@ export function RosterWorkDetail({
     if (work.model !== undefined) rows.push({ k: 'model', v: work.model, tone: tokens.textPrimary })
     if ((work.totalTokens ?? 0) > 0) rows.push({ k: 'tokens', v: `${GLYPH.tokens} ${formatTokens(work.totalTokens ?? 0)} spent`, tone: tokens.textPrimary })
   }
-  if (work.kind === 'workflow' && (work.agentCount ?? 0) > 0) rows.push({ k: 'crewmates', v: String(work.agentCount), tone: tokens.textPrimary })
   return (
     <Box flexDirection="column">
       {work.description !== undefined ? (
@@ -271,7 +257,6 @@ export function RosterWorkDetail({
       ) : null}
       <KeyValueGrid rows={rows} keyWidth={8} />
       <Box marginTop={1} flexDirection="column">
-        {work.kind === 'workflow' && !chatOnlyBoot() ? <Text color={tokens.textMuted}>/workflows opens the run board</Text> : null}
         <Text dimColor>
           <KeyboardShortcutHint shortcut="Esc" action="back" />
         </Text>
@@ -340,10 +325,9 @@ export function BackgroundTasksDialog({
   const shellTasks = byKind.get('shell') ?? []
   const monitorTasks = byKind.get('monitor') ?? []
   const agentTasks = byKind.get('agent') ?? []
-  const workflowTasks = byKind.get('workflow') ?? []
 
   const screenIds = new Set(manageable.map(task => task.id))
-  const rosterOf = (kind: WorkRowV1['kind']): BoardItem[] =>
+  const rosterOf = (kind: 'shell' | 'monitor'): BoardItem[] =>
     rosterRowsOf(roster.rows, kind, screenIds).map(
       (w): BoardItem => ({ id: w.id, kind, work: w }),
     )
@@ -359,8 +343,6 @@ export function BackgroundTasksDialog({
     ...leadItems,
     ...agentTasks.map((task): BoardItem => ({ id: task.id, kind: 'agent', task })),
     ...crewAgentItems,
-    ...workflowTasks.map((task): BoardItem => ({ id: task.id, kind: 'workflow', task })),
-    ...rosterOf('workflow'),
     ...(roster.samples ?? []).map((sample): BoardItem => ({ id: `sample:${sample.id}`, kind: 'sample', sample })),
   ]
   const indexById = new Map(flat.map((item, index) => [item.id, index]))
@@ -423,13 +405,6 @@ export function BackgroundTasksDialog({
     const task = tasks[detailTaskId]
     if (task !== undefined && (isManageableTask(task) || isLocalShellTask(task))) return
     if (task === undefined && roster.rows.some(w => w.id === detailTaskId)) return
-    if (task !== undefined && isLocalWorkflowTask(task)) {
-      const timer = setTimeout(() => {
-        if (skippedListRef.current) onDone()
-        else setDetailTaskId(undefined)
-      }, WORKFLOW_DETAIL_GRACE_MS)
-      return () => clearTimeout(timer)
-    }
     if (skippedListRef.current) onDone()
     else setDetailTaskId(undefined)
   }, [detailTaskId, tasks, roster, onDone])
@@ -477,9 +452,6 @@ export function BackgroundTasksDialog({
         return
       case 'agent':
         killAsyncAgent(task.id, setAppState)
-        return
-      case 'workflow':
-        killWorkflowTask(task.id, setAppState)
         return
       case 'monitor':
         ;(task as { abortController?: AbortController }).abortController?.abort()
@@ -590,17 +562,6 @@ export function BackgroundTasksDialog({
         />
       )
     }
-    if (isLocalWorkflowTask(detailTask)) {
-      const workflow = detailTask as LocalWorkflowTaskState
-      return (
-        <WorkflowDetailDialog
-          workflow={workflow}
-          onDone={onDone}
-          onBack={backFromDetail}
-          onKill={() => killWorkflowTask(workflow.id, setAppState)}
-        />
-      )
-    }
   }
   if (inDetail && detailTask === undefined && detailWork !== undefined) {
     if (detailWork.kind === 'shell' || (detailWork.kind === 'monitor' && detailWork.command !== undefined)) {
@@ -698,7 +659,6 @@ export function BackgroundTasksDialog({
   const shellItems = flat.filter(item => item.kind === 'shell')
   const monitorItems = flat.filter(item => item.kind === 'monitor')
   const agentItems = flat.filter(item => item.kind === 'agent')
-  const workflowItems = flat.filter(item => item.kind === 'workflow')
   const sampleItems = flat.filter(item => item.kind === 'sample')
   const processItems = flat.filter(item => item.kind !== 'sample')
 
@@ -808,14 +768,6 @@ export function BackgroundTasksDialog({
                 <SectionHeader count={agentItems.length}>Crewmates</SectionHeader>
                 {leadItems.filter(inWin).map(rowFor)}
                 {agentItems.filter(inWin).map(rowFor)}
-              </Box>
-            ) : null}
-            {workflowItems.length > 0 ? (
-              <Box flexDirection="column">
-                <SectionHeader count={workflowItems.length}>
-                  Workflows
-                </SectionHeader>
-                {workflowItems.filter(inWin).map(rowFor)}
               </Box>
             ) : null}
             {winEnd < flat.length ? (

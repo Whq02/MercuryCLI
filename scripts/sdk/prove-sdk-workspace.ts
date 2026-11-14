@@ -133,7 +133,7 @@ for (const language of ['ts', 'py']) {
       if (scenario === 'roster') {
         for (const said of ['roster of a default session', 'roster of a session without checkpoints']) {
           const offered = offeredTools(c.api, said)
-          for (const tool of ['Crewmate', 'Workflow']) assert(offered.includes(tool), `a connect session must offer ${tool} (${said}); offered: ${offered.join(',')}`)
+          for (const tool of ['Crewmate']) assert(offered.includes(tool), `a connect session must offer ${tool} (${said}); offered: ${offered.join(',')}`)
           assert(!offered.includes('Contract'), `a connect session must not carry the session-runner Contract tool (${said})`)
         }
       }

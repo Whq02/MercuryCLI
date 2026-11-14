@@ -21,7 +21,7 @@
 # gate-watch: src/state/AppState.tsx src/state/vitalsBus.ts src/substrate/flagRegistry.ts
 # gate-watch: src/tasks/LocalAgentTask/LocalAgentTask.tsx src/tools/AgentTool/*
 # gate-watch: src/tools/BashTool/BashTool.tsx src/tools/BashTool/backgroundRequest.ts
-# gate-watch: src/tools/WorkflowTool/runManifest.ts src/utils/* src/utils/attachments/orchestrator.ts
+# gate-watch: src/utils/* src/utils/attachments/orchestrator.ts
 # gate-watch: src/utils/cockpit/fleetGauge.ts src/utils/config/globalConfig.ts
 # gate-watch: src/utils/messages/factories.ts src/utils/model/capabilities.ts src/utils/model/configs.ts
 # gate-watch: src/utils/sessionStorage/paths.ts src/utils/settings/types.ts src/utils/task/workRoster.ts

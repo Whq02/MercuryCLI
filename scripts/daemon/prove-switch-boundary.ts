@@ -351,7 +351,7 @@ if (ONLY === undefined || ONLY === 'D') {
     { kind: 'tool_use', name: 'Sleep', input: { seconds: HOLD_SECONDS }, id: 'tu-a', whenBody: 'hold the line', preText: 'holding. ' },
     stream(resultOf('tu-a'), 'held'),
     { kind: 'text', text: 'the first words.', whenBody: 'now say more' },
-    { kind: 'tool_use', name: 'Crewmate', input: { description: 'a probe', prompt: 'hold the probe', run_in_background: true }, id: 'tu-agent', whenBody: 'workflows-allowed', preText: 'dispatching. ' },
+    { kind: 'tool_use', name: 'Crewmate', input: { description: 'a probe', prompt: 'hold the probe', run_in_background: true }, id: 'tu-agent', whenBody: 'crewmates-allowed', preText: 'dispatching. ' },
     { kind: 'text', text: 'dispatched.', whenBody: resultOf('tu-agent') },
     { kind: 'tool_use', name: 'Sleep', input: { seconds: PROBE_SECONDS }, id: 'tu-probe', whenBody: 'hold the probe', preText: 'probing. ' },
     { kind: 'text', text: 'probe done.', whenBody: resultOf('tu-probe') },
@@ -368,7 +368,7 @@ if (ONLY === undefined || ONLY === 'D') {
     stream(resultOf('tu-f'), 'flipping'),
     { kind: 'tool_use', name: 'Crewmate', input: { description: 'a second probe', prompt: 'hold the probe two', run_in_background: true }, id: 'tu-agent-2', whenBody: 'spawn a probe now', preText: 'spawning. ' },
     { kind: 'text', text: 'the probe leg done.', whenBody: resultOf('tu-agent-2') },
-    { kind: 'tool_use', name: 'Sleep', input: { seconds: HOLD_SECONDS + 1 }, id: 'tu-g', whenBody: 'hold then toggle workflows', preText: 'holding then toggling. ' },
+    { kind: 'tool_use', name: 'Sleep', input: { seconds: HOLD_SECONDS + 1 }, id: 'tu-g', whenBody: 'hold then toggle back', preText: 'holding then toggling. ' },
     { kind: 'text', text: 'toggled through.', whenBody: resultOf('tu-g') },
     { kind: 'text', text: 'the late words answered.', whenBody: 'the late words' },
     { kind: 'text', text: 'the late effort words answered.', whenBody: 'the late effort words' },
@@ -588,12 +588,12 @@ if (ONLY === undefined || ONLY === 'D') {
     tally.check("DH9 the record reads the switch off with nothing parked", await untilAsync(() => record()?.spawnSwitches?.subagents === 'off' && (record()?.pendingSpawnSwitches ?? []).length === 0, bound(15_000), 50), JSON.stringify({ parked: record()?.pendingSpawnSwitches, switches: record()?.spawnSwitches }))
     tally.check('DH10 the facts read the switch off, in-session, with no parked toggle', await untilAsync(() => facts()?.spawnSwitches?.subagents.on === false && facts()?.spawnSwitches?.subagents.source === 'in-session' && facts()?.pendingSpawnSwitches === undefined, bound(15_000), 50), JSON.stringify(facts()?.spawnSwitches))
 
-    tally.section('D·I the drained shape after a spawn switch: a workflows switch during the Sleep, then words during the same Sleep — the words wait for the turn')
+    tally.section('D·I the drained shape after a spawn switch: the sub-agents switch turned back on during the Sleep, then words during the same Sleep — the words wait for the turn')
     await idle()
-    tally.check('DI1 the hold turn is taken', await send('hold then toggle workflows', 'sb-hold-i'))
+    tally.check('DI1 the hold turn is taken', await send('hold then toggle back', 'sb-hold-i'))
     tally.check('DI2 the stream holds on the Sleep call', await untilAsync(() => transcript().includes('"callId":"tu-g"'), bound(60_000), 50))
     await sleep(300)
-    const toggledI = await seatVerb('set-spawn-switch', { spawnSwitch: { kind: 'workflows', on: false } })
+    const toggledI = await seatVerb('set-spawn-switch', { spawnSwitch: { kind: 'subagents', on: true } })
     tally.check("DI3 the switch parks: 'queued', applies when this turn ends", toggledI.ok === true && toggledI.outcome === 'queued' && (toggledI.detail ?? '').includes('applies when this turn ends'), JSON.stringify(toggledI))
     const continuationOutI = firstRequestWith(api, resultOf('tu-g')) !== undefined
     const sentI = await send('the toggle words', 'sb-words-i')
@@ -604,8 +604,8 @@ if (ONLY === undefined || ONLY === 'D') {
     const wordsI = firstRequestWith(api, 'the toggle words')
     tally.check('DI6 THE SYMPTOM: the words sent after the parked switch do not join the running turn — they wait for its end and run as the next turn', wordsTurnI && continuationI !== undefined && wordsI !== undefined && wordsI !== continuationI, describeRequests(api))
     tally.check("DI7 the running turn's continuation carried no words", continuationI !== undefined && !JSON.stringify(continuationI.body).includes('the toggle words'), describeRequests(api))
-    tally.check('DI8 the record reads workflows off with nothing parked', await untilAsync(() => record()?.spawnSwitches?.workflows === 'off' && (record()?.pendingSpawnSwitches ?? []).length === 0, bound(15_000), 50), JSON.stringify({ parked: record()?.pendingSpawnSwitches, switches: record()?.spawnSwitches }))
-    tally.check('DI9 the facts read workflows off, in-session, with no parked toggle', await untilAsync(() => facts()?.spawnSwitches?.workflows.on === false && facts()?.spawnSwitches?.workflows.source === 'in-session' && facts()?.pendingSpawnSwitches === undefined, bound(15_000), 50), JSON.stringify(facts()?.spawnSwitches))
+    tally.check('DI8 the record reads the switch on again with nothing parked', await untilAsync(() => record()?.spawnSwitches?.subagents === 'on' && (record()?.pendingSpawnSwitches ?? []).length === 0, bound(15_000), 50), JSON.stringify({ parked: record()?.pendingSpawnSwitches, switches: record()?.spawnSwitches }))
+    tally.check('DI9 the facts read the switch on, in-session, with no parked toggle', await untilAsync(() => facts()?.spawnSwitches?.subagents.on === true && facts()?.spawnSwitches?.subagents.source === 'in-session' && facts()?.pendingSpawnSwitches === undefined, bound(15_000), 50), JSON.stringify(facts()?.spawnSwitches))
 
     tally.section("D·E the connector's facts after the boundary")
     const seat = await import('../../src/services/engine-connector/daemonConnector.ts')

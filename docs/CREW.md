@@ -37,20 +37,19 @@ receipt says so. Mercury Lead in the rail (Tab from an empty prompt, then `↵`,
 or a click on the row) returns the commands to the main chat; Esc interrupts a
 running crewmate and returns from an idle one.
 
-## The two spawn switches
+## The spawn switch
 
-Every session carries two switches, Crewmates and Workflows, set in the boot
+Every session carries one switch, Crewmates, set in the boot
 menu's Agents section for the sessions started after the choice and sticky for
 each session. With crewmates off, the Crewmate tool is absent from that
 session's roster and every road that would spawn
-one from inside the session (the tool, a skill that forks, a workflow's agent
-hooks, the fleet tools) answers one receipt:
+one from inside the session (the tool, a skill that forks,
+the fleet tools) answers one receipt:
 "crewmates are off for this session · /crewmates on, or the boot menu's
-Agents section". Workflows off does the same for the Workflow tool and the
-workflow launch roads; the run board stays readable. The concourse itself
-keeps launching sessions; the switches are per focused session.
+Agents section". The concourse itself
+keeps launching sessions; the switch is per focused session.
 
-Inside a session, `/crewmates on|off` and `/workflows on|off` print their
+Inside a session, `/crewmates on|off` prints its
 two-line receipt in the chat at once (or the boot
 menu opened there flips the switch) at the session's next turn boundary: the tool
 leaves or rejoins the roster, a receipt says so, reasoning restarts on the
@@ -61,20 +60,20 @@ turn's end, before any line waiting for the next turn, so the next turn's
 launches already read it; the session's record follows the runner's own word
 that the switch moved, never a clock. A line sent after the flip, while the
 same turn still runs, waits for the turn's end too and runs with the switched
-roster. `/crewmates` alone opens the crew view and `/workflows` alone the board; the health
-check's "Crewmates & workflows" row reads both switches with their sources.
+roster. `/crewmates` alone opens the crew view; the health
+check's "Crewmates" row reads the switch with its source.
 
-Beside the two switches sits one global setting, "Crewmates while
+Beside the switch sits one global setting, "Crewmates while
 backgrounded", off by default: the same row in the boot menu's Agents section
 and in `/config`, one switch wherever it is flipped. It decides whether a
-session you have left in the background may launch crewmates and workflows
+session you have left in the background may launch crewmates
 when its brief says so. Off, a backgrounded session works single-handed and
-waits for your visit or the one workflows-allowed grant, and its launch
+waits for your visit or the one crewmates-allowed grant, and its launch
 refusal names this row as the third road. On, it launches as a focused session
-does, under its own Crewmates and Workflows switches, which still rule first,
+does, under its own Crewmates switch, which still rules first,
 and its own permission mode, and a session started while the setting is on
-carries the Crewmate and Workflow tools from its first request. The
-workflows-allowed grant is untouched. [SESSIONS.md](SESSIONS.md) has the
+carries the Crewmate tool from its first request. The
+crewmates-allowed grant is untouched. [SESSIONS.md](SESSIONS.md) has the
 focus law the setting sits beside.
 
 ## Starting a crewmate
@@ -183,12 +182,12 @@ row appends `· delivered HH:MM:SS` as a second clock; deliveries within a
 minute show the finish clock alone.
 
 The crew own their stop. Esc in the chat interrupts the chat's own turn and
-nothing else: the crewmates and workflows the turn launched keep running on
+nothing else: the crewmates the turn launched keep running on
 their own controllers, and the interrupted turn's receipt says how many. To
 stop one, open the Crew view (or the `/runs` board), select it and press `x`
 twice within two seconds (the first press names the crewmate the second
 press stops). The stop reaches every kind of row the same way: a crewmate's
-controller aborts and its running tool ends with it, a workflow run is
+controller aborts and its running tool ends with it, a background shell is
 killed. The receipt is the runner's own word: applied once the row has left
 `running`, or refused with the reason (an id the registry no longer holds, a
 row that had already settled, or a loop that did not end within the runner's
@@ -217,10 +216,6 @@ that hits a usage limit pauses instead of being marked failed: its row reads pau
 reset time the provider stated, and it starts again by itself at that time,
 or as soon as you log in on another account, with the same model.
 
-A workflow that ends with crewmate failures says so in the first line of its
-notification: the count, then the first failing crewmate and its cause (an
-error's words or a refusal's stop reason), and its run record carries the
-same failure lines beside the per-crewmate rows.
 
 ## Messages
 
@@ -299,7 +294,7 @@ carrying a brief such as a design, a review or a verification to its end)
 with the session's full tool set: every tool the main chat has, in the
 foreground and in the background alike, except the few that need you present
 (AskUserQuestion, ApolloReview, AskAdvisor) or reach past the crewmate's own
-work (Computer, Journal, Workflow, CronCreate, CronDelete,
+work (Computer, Journal, CronCreate, CronDelete,
 ScheduleWakeup, RecordConvention, and the Crewmate tool itself).
 TaskStop lets a crewmate stop only its own background command. The
 processes a crewmate starts (background shells, Eval kernels, the services
@@ -340,7 +335,7 @@ mints a duplicate.
 ## Boards
 
 `/runs` opens the work board (`/tasks` opens the same board), including
-workflow runs and background shells. `/crewmates` is the Crew view: the
+background shells. `/crewmates` is the Crew view: the
 session's crewmates live; each crewmate row carries the count of notices
 delivered to it that no turn of its own has read yet ([SESSIONS.md](SESSIONS.md),
 "A notice an agent has not read"). A command a crewmate runs in the

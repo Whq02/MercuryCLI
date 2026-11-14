@@ -3,18 +3,18 @@ WORKBENCH               │╭                                                  
   start                 ││ ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────╮ ││
                         ││ │ ▖▟▆▙▗ Mercury · config                                                                                     │ ││
 NEXT                    ││ │ project · 86 settings · 1 set by you                                                                       │ ││
-  · /workflows…         │╰ │                                                                                                            │ ╯│
-  · /health — health…   │  │ / journal                                                                                                  │  │
-  · /memory — memory    │  │                                                                                                            │  │
-  · /mission — set a…   │  │   Session journal                   off                                                                    │  │
-                        │  │   Journal on the entry page         off                                                                    │  │
-FILES · project         │  │                                                                                                            │  │
+  · /health — health…   │╰ │                                                                                                            │ ╯│
+  · /memory — memory    │  │ / journal                                                                                                  │  │
+  · /mission — set a…   │  │                                                                                                            │  │
+                        │  │   Session journal                   off                                                                    │  │
+FILES · project         │  │   Journal on the entry page         off                                                                    │  │
   ↵ or click · browse   │  │                                                                                                            │  │
                         │  │                                                                                                            │  │
 VITALS                  │  │                                                                                                            │  │
   · spend $0.00         │  │                                                                                                            │  │
   · ctx 0% · 1000k      │  │                                                                                                            │  │
   · health — run /health│  │                                                                                                            │  │
+                        │  │                                                                                                            │  │
                         │  │                                                                                                            │  │
                         │  │                                                                                                            │  │
                         │  │                                                                                                            │  │

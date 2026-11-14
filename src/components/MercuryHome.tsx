@@ -304,7 +304,7 @@ function MercuryHomeBody(): React.ReactNode {
           <Text color={tok.textPrimary}>↵</Text>
           <Text color={tok.textSecondary}> sends</Text>
           {}
-          <Text color={tok.textMuted}>{`  ·  /workflows ${CREW_VIEW_DOOR} /saturn /health /trace`}</Text>
+          <Text color={tok.textMuted}>{`  ·  ${CREW_VIEW_DOOR} /saturn /health /trace`}</Text>
         </Text>
       </Box>
     </Box>

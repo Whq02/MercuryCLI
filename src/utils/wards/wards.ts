@@ -133,6 +133,8 @@ export const GENERATED_HEAD_LINES = 12
 const GENERATED_HEAD_CHARS = 4096
 
 const BUNDLED_SKILLS = [
+  'code-review',
+  'deep-research',
   'extension-maker',
   'image-generation',
   'mcp-smithy',

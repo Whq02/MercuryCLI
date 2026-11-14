@@ -100,7 +100,7 @@ t.section('§1 the projection is exhaustive and honest')
   t.check(
     'classification lists are disjoint and non-empty',
     VIEWABLE_TASK_TYPES.length === 1 &&
-      NON_VIEWABLE_TASK_TYPES.length === 4 &&
+      NON_VIEWABLE_TASK_TYPES.length === 3 &&
       !VIEWABLE_TASK_TYPES.some(v => (NON_VIEWABLE_TASK_TYPES as readonly string[]).includes(v)),
     `${VIEWABLE_TASK_TYPES.join(',')} | ${NON_VIEWABLE_TASK_TYPES.join(',')}`,
   )

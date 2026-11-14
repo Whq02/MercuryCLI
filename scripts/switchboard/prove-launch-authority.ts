@@ -26,8 +26,8 @@ const {
 } = await import('../../src/daemon/concourseWorkers.js')
 const { evaluateLaunchAuthority } = await import('../../src/services/switchboard/launchAuthority.js')
 
-const refusalFor = (kind: 'subagents' | 'workflows'): string =>
-  `this session is backgrounded — ${kind} wait until the operator visits it, until it holds the workflows-allowed tag (granted by choosing keep-and-background on leave, or the manual-start option), or until the operator turns on Crewmates while backgrounded (/config, or the boot menu's Agents section). Keep working on the task single-handed.`
+const refusalFor = (kind: 'subagents'): string =>
+  `this session is backgrounded — ${kind} wait until the operator visits it, until it holds the crewmates-allowed tag (granted by choosing keep-and-background on leave, or the manual-start option), or until the operator turns on Crewmates while backgrounded (/config, or the boot menu's Agents section). Keep working on the task single-handed.`
 
 const recDir = mkdtempSync(join(tmpdir(), 'switchboard-launchauth-records-'))
 const workspaceId = mkdtempSync(join(tmpdir(), 'switchboard-launchauth-ws-'))
@@ -50,7 +50,7 @@ updateConcourseWorkers(ws => {
   }
 }, recDir)
 
-const authorityOf = (sid: string, kind: 'subagents' | 'workflows' = 'workflows') =>
+const authorityOf = (sid: string, kind: 'subagents' = 'subagents') =>
   evaluateLaunchAuthority(kind, { roleEnvOn: true, dir: recDir, sessionId: sid })
 const recOf = (short: string) => readSessionWorkers(recDir)[short]
 
@@ -58,9 +58,7 @@ console.log("LAW B — unfocused ⇒ today's refusal, byte-for-byte:")
 {
   const a = authorityOf(sidA)
   check('an unfocused, untagged runner is refused', a.allowed === false)
-  check("the refusal string is byte-identical to today's (workflows)", !a.allowed && a.reason === refusalFor('workflows'))
-  const s = authorityOf(sidA, 'subagents')
-  check("the refusal string is byte-identical to today's (subagents)", !s.allowed && s.reason === refusalFor('subagents'))
+  check("the refusal string is byte-identical to today's (subagents)", !a.allowed && a.reason === refusalFor('subagents'))
 }
 
 console.log("LAW A — focused ⇒ admits under the session's own mode:")
@@ -68,8 +66,6 @@ console.log("LAW A — focused ⇒ admits under the session's own mode:")
   const out = focusConcourseSession(sidA, seat, recDir)
   check('focus applies on a live record', out.outcome === 'applied' && out.runnerId === 'concourse-w1')
   check('the record carries the stamp (focusedAt + focusedBy = the terminal seat)', typeof recOf('concourse-w1')?.focusedAt === 'number' && recOf('concourse-w1')?.focusedBy === seat)
-  const w = authorityOf(sidA, 'workflows')
-  check('workflows admit on the focused chat (posture focused)', w.allowed === true && w.posture === 'focused')
   const s = authorityOf(sidA, 'subagents')
   check('subagents admit on the focused chat (posture focused)', s.allowed === true && s.posture === 'focused')
   check('the OTHER chat stays grant-gated', authorityOf(sidB).allowed === false)
@@ -83,7 +79,7 @@ console.log('LAW C — the hop flips both (one publication):')
   check('A lost the stamp', recOf('concourse-w1')?.focusedAt === undefined && recOf('concourse-w1')?.focusedBy === undefined)
   check('B carries the stamp', recOf('concourse-w2')?.focusedBy === seat)
   const a = authorityOf(sidA)
-  check("A is refused again with today's string (nothing cached across the hop)", !a.allowed && a.reason === refusalFor('workflows'))
+  check("A is refused again with today's string (nothing cached across the hop)", !a.allowed && a.reason === refusalFor('subagents'))
   check('B admits', authorityOf(sidB).allowed === true)
   check('re-focusing the focused chat is a noop', focusConcourseSession(sidB, seat, recDir).outcome === 'noop')
   check('exactly one focused record per terminal', Object.values(readSessionWorkers(recDir)).filter(r => r.focusedBy === seat).length === 1)
@@ -118,7 +114,7 @@ console.log('LAW E — a dead seat is no seat:')
   }, recDir)
   check('stampedTerminalPid reads the seat grammar', stampedTerminalPid(`operator:${deadPid}`) === deadPid && stampedTerminalPid('operator') === undefined && stampedTerminalPid(undefined) === undefined)
   const a = authorityOf(sidA)
-  check('a stamp naming a dead terminal is refused at the valve AT ONCE', !a.allowed && a.reason === refusalFor('workflows'))
+  check('a stamp naming a dead terminal is refused at the valve AT ONCE', !a.allowed && a.reason === refusalFor('subagents'))
   focusConcourseSession(sidB, seat, recDir)
   reconcileConcourseWorkers(liveShorts, recDir)
   check('the reconcile pass cleared the dead-pid stamp durably', recOf('concourse-w1')?.focusedAt === undefined && recOf('concourse-w1')?.focusedBy === undefined)

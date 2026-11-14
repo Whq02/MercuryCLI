@@ -44,16 +44,6 @@ export const SID_ERRORED = `00000000-aaaa-bbbb-dddd-${(process.pid % 0xffffff).t
 export const SID_PRIOR = `00000000-aaaa-bbbb-ccdd-${(process.pid % 0xffffff).toString(16).padStart(12, '0')}`
 export const PRIOR_SESSION_TITLE = 'earlier task'
 
-const WF_SUFFIX = (process.pid % 0xffffff).toString(16).padStart(6, '0')
-const WF_RUN_COMPLETED = `wf_fixture_completed_${WF_SUFFIX}`
-const WF_RUN_STALE = `wf_fixture_stale_${WF_SUFFIX}`
-const WF_RUN_PAUSED = `wf_fixture_paused_${WF_SUFFIX}`
-const WF_RUN_EXT_LIVE = `wf_fixture_extlive_${WF_SUFFIX}`
-const WF_RUN_EXT_WEDGED = `wf_fixture_extwedged_${WF_SUFFIX}`
-const { workflowRunsRoot } = await import('../../src/tools/WorkflowTool/runManifest.js')
-const WF_RUNS_ROOT = workflowRunsRoot(RUNTIME_CWD)
-const WF_FIXTURE_AGENT_ID = 'fxagentA'
-
 const LONG_PROSE =
   'as coming you gave up something you could not name and the vast indifferent sea at his back ' +
   'was only the shape of every harbor he had ever left behind with no instruction and no mercy ' +
@@ -319,20 +309,6 @@ const TOOL_RESULT_GLOB = {
   content: [{ type: 'tool_result', tool_use_id: 'toolu_glob1', content: [{ type: 'text', text: 'GlobTool.ts\nprompt.ts' }] }],
   toolUseResult: { durationMs: 12, numFiles: 2, filenames: ['src/tools/GlobTool/GlobTool.ts', 'src/tools/GlobTool/prompt.ts'], truncated: false },
 }
-const WORKFLOW_SCRIPT =
-  'export const meta = { name: "greet-and-read", description: "greet then read the manifest" }\nphase("Scan")\nawait agent("say hi")'
-const TOOL_USE_WORKFLOW = {
-  type: 'tool_use', id: 'toolu_wf1', name: 'Workflow',
-  input: { script: WORKFLOW_SCRIPT },
-}
-const TOOL_RESULT_WORKFLOW = {
-  content: [{ type: 'tool_result', tool_use_id: 'toolu_wf1', content: [{ type: 'text', text: 'Workflow launched in background. Task ID: synthWfTask' }] }],
-  toolUseResult: {
-    status: 'async_launched', taskId: 'synthWfTask', taskType: 'local_workflow',
-    workflowName: 'greet-and-read', runId: 'wf_synth0001',
-    summary: 'greet then read the manifest',
-  },
-}
 
 const TOOL_USE_EDIT_ERR = {
   type: 'tool_use', id: 'toolu_editerr1', name: 'Edit',
@@ -400,7 +376,7 @@ export function encodeFixtureTranscript(
 }
 
 export function writeSyntheticSession(
-  variant: 'short' | 'long' | 'tall' | 'content' | 'link' | 'tools' | 'opening-text' | 'expand' | 'workflow' | 'errors' | 'denials' | 'model-noise' | 'channel' | 'thinking' | 'gpt-thinking' | 'gpt-record' | 'lifecycle' | 'structure' | 'changeset' | 'stream-fault' | 'stillpoint' | 'shell-interleave' | 'markdown-blocks' = 'short',
+  variant: 'short' | 'long' | 'tall' | 'content' | 'link' | 'tools' | 'opening-text' | 'expand' | 'errors' | 'denials' | 'model-noise' | 'channel' | 'thinking' | 'gpt-thinking' | 'gpt-record' | 'lifecycle' | 'structure' | 'changeset' | 'stream-fault' | 'stillpoint' | 'shell-interleave' | 'markdown-blocks' = 'short',
   sid: string = SID,
 ): void {
   purgeFixtureDraft(sid)
@@ -503,23 +479,6 @@ export function writeSyntheticSession(
             stop_reason: 'end_turn', stop_sequence: null,
             usage: { input_tokens: 1, output_tokens: 1 } },
           timestamp: '2026-06-19T12:00:05.000Z' }),
-      ]
-    : variant === 'workflow'
-    ? [
-        base({ parentUuid: null, type: 'user', uuid: '00000000-0000-4000-8000-000000000001',
-          message: { role: 'user', content: 'run the greet-and-read workflow' },
-          timestamp: '2026-06-19T12:00:01.000Z' }),
-        base({ parentUuid: '00000000-0000-4000-8000-000000000001', type: 'assistant',
-          uuid: '00000000-0000-4000-8000-000000000002', requestId: 'req_synth_wf',
-          message: { id: 'msg_synth_wf', type: 'message', role: 'assistant', model: 'claude-opus-4-8',
-            content: [TOOL_USE_WORKFLOW], stop_reason: 'tool_use', stop_sequence: null,
-            usage: { input_tokens: 1, output_tokens: 1 } },
-          timestamp: '2026-06-19T12:00:02.000Z' }),
-        base({ parentUuid: '00000000-0000-4000-8000-000000000002', type: 'user',
-          uuid: '00000000-0000-4000-8000-000000000003',
-          message: { role: 'user', content: TOOL_RESULT_WORKFLOW.content },
-          toolUseResult: TOOL_RESULT_WORKFLOW.toolUseResult,
-          timestamp: '2026-06-19T12:00:03.000Z' }),
       ]
     : variant === 'structure'
     ? [
@@ -1022,260 +981,6 @@ function writePriorSession(): void {
   writeFileSync(path, encodeFixtureTranscript(lines, SID_PRIOR))
   const older = new Date(Date.now() - 3_600_000)
   utimesSync(path, older, older)
-}
-
-function writeWorkflowFixtures(opts?: {
-  longOut?: boolean
-  settledChildren?: boolean
-}): void {
-  const runDirCompleted = join(WF_RUNS_ROOT, WF_RUN_COMPLETED)
-  const runDirStale = join(WF_RUNS_ROOT, WF_RUN_STALE)
-  const transcriptDir = join(runDirCompleted, 'transcripts')
-  mkdirSync(transcriptDir, { recursive: true })
-  mkdirSync(runDirStale, { recursive: true })
-
-  const now = Date.now()
-  const transcriptLines = [
-    {
-      type: 'user',
-      message: {
-        role: 'user',
-        content:
-          'Design the /substrate gate panel — schema, honest planned/gated states, the component contract.',
-      },
-      timestamp: new Date(now - 90_000).toISOString(),
-    },
-    {
-      type: 'assistant',
-      message: {
-        id: 'msg_fixture_1', model: 'claude-opus-4-8',
-        content: [{
-          type: 'tool_use', id: 'toolu_fixture_1', name: 'Read',
-          input: { file_path: RUNTIME_CWD + '/src/components/SubstratePanel.tsx' },
-        }],
-        usage: { input_tokens: 120, output_tokens: 40 },
-      },
-      timestamp: new Date(now - 80_000).toISOString(),
-    },
-    {
-      type: 'user',
-      message: {
-        role: 'user',
-        content: [{
-          type: 'tool_result', tool_use_id: 'toolu_fixture_1',
-          content: [{ type: 'text', text: 'export function SubstratePanel() { /* … */ }' }],
-        }],
-      },
-      timestamp: new Date(now - 79_000).toISOString(),
-    },
-    {
-      type: 'assistant',
-      message: {
-        id: 'msg_fixture_2', model: 'claude-opus-4-8',
-        content: [{
-          type: 'text',
-          text:
-            'Design complete — contract shipped, honest planned/gated states covered.' +
-            (opts?.longOut
-              ? '\n' +
-                Array.from({ length: 14 }, (_, i) => `finding ${i + 1}: the gate panel row for state ${i + 1} verified against the schema contract`).join('\n')
-              : ''),
-        }],
-        usage: { input_tokens: 140, output_tokens: 60 },
-      },
-      timestamp: new Date(now - 60_000).toISOString(),
-    },
-  ]
-  writeFileSync(
-    join(transcriptDir, `agent-${WF_FIXTURE_AGENT_ID}.jsonl`),
-    encodeFixtureTranscript(transcriptLines as Record<string, unknown>[], SID),
-  )
-
-  const scriptPath = join(runDirCompleted, 'workflow.js')
-  writeFileSync(
-    scriptPath,
- "export const meta = { name: 'substrate-carried', description: 'fixture' }\nreturn 'ok'\n",
-  )
-
-  const completedManifest = {
-    version: 1,
-    runId: WF_RUN_COMPLETED,
- workflowName: 'substrate-carried',
-    phases: [{ title: 'design' }, { title: 'build' }],
-    scriptPath,
-    transcriptDir,
-    runDir: runDirCompleted,
-    startTime: now - 120_000,
-    endTime: now - 60_000,
-    status: 'completed',
-    ownerPid: process.pid,
-    agentCount: 2,
-    totalTokens: 29_700,
-    usage: {
-      inputTokens: 7_500, outputTokens: 4_700, cacheReadTokens: 89_000, cacheCreationTokens: 4_200,
-      apiTurns: 20, unsettledTurns: 1, agentsReporting: 2, agentsUnreported: 0,
-    },
-    totalToolCalls: 19,
-    agents: [
-      {
-        agentId: WF_FIXTURE_AGENT_ID, index: 0, label: 'design', state: 'done',
-        phaseIndex: 1, phaseTitle: 'design', model: 'claude-opus-4-8', effort: 'high',
-        tokens: 12_400, toolCalls: 9, durationMs: 45_000, attempt: 1,
-        usage: { inputTokens: 3_400, outputTokens: 2_100, cacheReadTokens: 38_000, cacheCreationTokens: 1_900, apiTurns: 9, unsettledTurns: 0 },
-        startedAt: now - 115_000, queuedAt: now - 120_000,
-        promptPreview: 'Design the /substrate gate panel — schema, honest planned/gated states.',
-        lastToolName: 'Read', lastToolSummary: 'src/components/SubstratePanel.tsx',
-        resultPreview: 'Design complete — contract shipped, honest planned/gated states covered.',
-      },
-      {
-        agentId: 'fxagentB', index: 1, label: 'build', state: 'done',
-        phaseIndex: 2, phaseTitle: 'build', model: 'claude-opus-4-8',
-        tokens: 17_300, toolCalls: 10, durationMs: 60_000, attempt: 1,
-        usage: { inputTokens: 4_100, outputTokens: 2_600, cacheReadTokens: 51_000, cacheCreationTokens: 2_300, apiTurns: 11, unsettledTurns: 1 },
-        startedAt: now - 110_000, queuedAt: now - 120_000,
-        promptPreview: 'Build the panel per the shipped contract.',
-        resultPreview: 'Panel built and render-verified at 80/120.',
-      },
-    ],
-  }
-  writeFileSync(join(runDirCompleted, 'run.json'), JSON.stringify(completedManifest))
-
-  const staleManifest = {
-    version: 1,
-    runId: WF_RUN_STALE,
-    workflowName: 'stale-drifter',
-    phases: [{ title: 'scan' }],
-    transcriptDir: join(runDirStale, 'transcripts'),
-    runDir: runDirStale,
-    startTime: now - 200_000,
-    status: 'running',
-    ownerPid: 999999,
-    agentCount: 1,
-    totalTokens: 4_200,
-    totalToolCalls: 3,
-    agents: [
-      {
-        agentId: 'fxagentC', index: 0, label: 'scan', state: 'progress',
-        phaseIndex: 0, phaseTitle: 'scan', model: 'claude-opus-4-8',
-        tokens: 4_200, toolCalls: 3, attempt: 1,
-        waiting: 'provider-backoff', retryInMs: 45_000, retryAttempt: 2,
-        lastProgressAt: now + 3_600_000,
-      },
-    ],
-  }
-  const staleManifestPath = join(runDirStale, 'run.json')
-  writeFileSync(staleManifestPath, JSON.stringify(staleManifest))
-  const old = new Date(now - 120_000)
-  utimesSync(staleManifestPath, old, old)
-
-  if (opts?.settledChildren) {
-    const runDirPaused = join(WF_RUNS_ROOT, WF_RUN_PAUSED)
-    mkdirSync(runDirPaused, { recursive: true })
-    const pausedManifest = {
-      version: 1,
-      runId: WF_RUN_PAUSED,
-      workflowName: 'harbor-sweep',
-      phases: [{ title: 'sweep' }, { title: 'mend' }],
-      transcriptDir: join(runDirPaused, 'transcripts'),
-      runDir: runDirPaused,
-      startTime: now - 300_000,
-      endTime: now - 240_000,
-      status: 'paused',
-      ownerPid: process.pid,
-      agentCount: 3,
-      totalTokens: 8_100,
-      totalToolCalls: 6,
-      agents: [
-        {
-          agentId: 'fxagentD', index: 0, label: 'sweep-north', state: 'done',
-          phaseIndex: 0, phaseTitle: 'sweep', model: 'claude-opus-4-8',
-          tokens: 5_000, toolCalls: 4, durationMs: 30_000, attempt: 1,
-          startedAt: now - 295_000, queuedAt: now - 300_000,
-          promptPreview: 'Sweep the north shore.',
-          resultPreview: 'North shore swept.',
-        },
-        {
-          agentId: 'fxagentE', index: 1, label: 'sweep-south', state: 'stopped',
-          phaseIndex: 0, phaseTitle: 'sweep', model: 'claude-opus-4-8',
-          tokens: 2_100, toolCalls: 2, attempt: 1,
-          startedAt: now - 290_000, queuedAt: now - 300_000,
-          promptPreview: 'Sweep the south shore.',
-        },
-        {
-          agentId: 'fxagentF', index: 2, label: 'mend-nets', state: 'skipped',
-          phaseIndex: 1, phaseTitle: 'mend', model: 'claude-opus-4-8',
-          tokens: 1_000, toolCalls: 0, durationMs: 5_000, attempt: 1,
-          startedAt: now - 285_000, queuedAt: now - 300_000,
-          promptPreview: 'Mend the nets.',
-          error: 'skipped by user',
-        },
-      ],
-    }
-    const pausedManifestPath = join(runDirPaused, 'run.json')
-    writeFileSync(pausedManifestPath, JSON.stringify(pausedManifest))
-    utimesSync(pausedManifestPath, old, old)
-  }
-}
-
-function cleanupWorkflowFixtures(): void {
-  for (const dir of [
-    join(WF_RUNS_ROOT, WF_RUN_COMPLETED),
-    join(WF_RUNS_ROOT, WF_RUN_STALE),
-    join(WF_RUNS_ROOT, WF_RUN_PAUSED),
-  ]) {
-    try {
-      rmSync(dir, { recursive: true, force: true })
-    } catch {
-    }
-  }
-}
-
-function writeExternalWorkflowFixtures(): void {
-  const now = Date.now()
-  const seats: Array<{ runId: string; name: string; backdateMs: number }> = [
-    { runId: WF_RUN_EXT_LIVE, name: 'external-drifter', backdateMs: 0 },
-    { runId: WF_RUN_EXT_WEDGED, name: 'wedged-drifter', backdateMs: 120_000 },
-  ]
-  for (const { runId, name, backdateMs } of seats) {
-    const runDir = join(WF_RUNS_ROOT, runId)
-    mkdirSync(runDir, { recursive: true })
-    const manifest = {
-      version: 1,
-      runId,
-      workflowName: name,
-      phases: [{ title: 'scan' }],
-      transcriptDir: join(runDir, 'transcripts'),
-      runDir,
-      startTime: now - 300_000,
-      status: 'running',
-      ownerPid: process.pid,
-      agentCount: 1,
-      totalTokens: 5_100,
-      totalToolCalls: 4,
-      agents: [
-        {
-          agentId: `fxagent_${runId.slice(-4)}`, index: 0, label: 'scan', state: 'progress',
-          phaseIndex: 0, phaseTitle: 'scan', model: 'claude-opus-4-8',
-          tokens: 5_100, toolCalls: 4, attempt: 1,
-        },
-      ],
-    }
-    const manifestPath = join(runDir, 'run.json')
-    writeFileSync(manifestPath, JSON.stringify(manifest))
-    if (backdateMs > 0) {
-      const old = new Date(now - backdateMs)
-      utimesSync(manifestPath, old, old)
-    }
-  }
-}
-
-function cleanupExternalWorkflowFixtures(): void {
-  for (const dir of [join(WF_RUNS_ROOT, WF_RUN_EXT_LIVE), join(WF_RUNS_ROOT, WF_RUN_EXT_WEDGED)]) {
-    try {
-      rmSync(dir, { recursive: true, force: true })
-    } catch {
-    }
-  }
 }
 
 let staleDist: Error | null | undefined
@@ -1955,17 +1660,6 @@ function scenarioInner(name: string, cols: number, rows: number) {
       total: 100,
       cols,
       rows,
-    }
-  }
-  if (name === 'workflow-inline' || name === 'workflow-inline-detail') {
-    writeSyntheticSession('workflow')
-    const sends =
-      name === 'workflow-inline-detail' ? [{ atTick: 38, data: String.fromCharCode(15) }] : []
-    return {
-      argv: ['node', BIN, '--resume', SID],
-      sends,
-      total: name === 'workflow-inline-detail' ? 60 : 48,
-      cols, rows,
     }
   }
   if (name === 'tool-cards' || name === 'tool-cards-detail') {
@@ -2936,7 +2630,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
       total: 110, cols, rows,
     }
   }
-  if (['critter', 'workflows', 'crewmates', 'deck', 'sessions', 'substrate', 'trace', 'fleet', 'ledger', 'cards', 'ide', 'config', 'permissions', 'hooks', 'agents', 'diff', 'tickets', 'memory', 'workbench', 'surfaces', 'palette', 'realms', 'status'].includes(name)) {
+  if (['critter', 'crewmates', 'deck', 'sessions', 'substrate', 'trace', 'fleet', 'ledger', 'cards', 'ide', 'config', 'permissions', 'hooks', 'agents', 'diff', 'tickets', 'memory', 'workbench', 'surfaces', 'palette', 'realms', 'status'].includes(name)) {
     writeSyntheticSession('short')
     const sends = [{ atTick: 30, data: `/${name}` }, { atTick: 36, data: '\r' }]
     const settled = name === 'sessions'
@@ -2960,148 +2654,6 @@ function scenarioInner(name: string, cols: number, rows: number) {
       ],
       readyText: cols >= HELM_HOME_MIN_COLS ? 'for commands' : 'Type a prompt', stableTicks: 6,
       total: 170, cols, rows,
-    }
-  }
-  if (name === 'workflows-live-empty') {
-    writeSyntheticSession('short')
-    return {
-      argv: ['node', BIN, '--resume', SID],
-      sends: [{ atTick: 30, data: '/workflows' }, { atTick: 36, data: '\r' }],
-      readyText: 'No workflow runs', stableTicks: 4,
-      total: 90, cols, rows,
-    }
-  }
-  if (
-    name === 'workflows-live-past' ||
-    name === 'workflows-live-run' ||
-    name === 'workflows-live-inspector' ||
-    name === 'workflows-live-inspector-long' ||
-    name === 'workflows-live-carryback' ||
-    name === 'workflows-live-arrows' ||
-    name === 'workflows-live-settled' ||
-    name === 'workflows-live-backoff'
-  ) {
-    writeSyntheticSession('short')
-    writeWorkflowFixtures({
-      longOut: name === 'workflows-live-inspector-long',
-      settledChildren: name === 'workflows-live-settled',
-    })
-    const TAB = String.fromCharCode(9)
-    const RAW_ARM = '\u001b[?2004h'
-    const sends =
-      name === 'workflows-live-past'
-        ? [
-            { atTick: 60, minTick: 30, awaitRaw: RAW_ARM, data: '/workflows' },
-            { afterPrevTicks: 6, data: '\r' },
-            { atTick: 220, awaitText: 'no workflows running', minTick: 8, data: TAB },
-            { afterPrevTicks: 4, data: TAB },
-          ]
-        : name === 'workflows-live-run'
-          ? [
-              { atTick: 60, minTick: 30, awaitRaw: RAW_ARM, data: '/workflows' },
-              { afterPrevTicks: 6, data: '\r' },
-              { atTick: 220, awaitText: 'no workflows running', minTick: 8, data: TAB },
-              { afterPrevTicks: 4, data: TAB },
-              { afterPrevTicks: 8, data: '\r' },
-            ]
-          : name === 'workflows-live-inspector' || name === 'workflows-live-inspector-long'
-            ? [
-                { atTick: 60, minTick: 30, awaitRaw: RAW_ARM, data: '/workflows' },
-                { afterPrevTicks: 6, data: '\r' },
-                { atTick: 220, awaitText: 'no workflows running', minTick: 8, data: TAB },
-                { afterPrevTicks: 4, data: TAB },
-                { afterPrevTicks: 8, data: '\r' },
-                { atTick: 360, awaitText: 'out Design complete', minTick: 12, data: '\r' },
-                ...(name === 'workflows-live-inspector-long'
-                  ? [{ atTick: 460, awaitText: 'e expand', minTick: 8, data: 'e' }]
-                  : []),
-              ]
-            : name === 'workflows-live-arrows'
-              ? [
-                  { atTick: 60, minTick: 30, awaitRaw: RAW_ARM, data: '/workflows' },
-                  { afterPrevTicks: 6, data: '\r' },
-                  { atTick: 220, awaitText: 'no workflows running', minTick: 8, data: '\x1b[B' },
-                  { afterPrevTicks: 4, data: '\x1b[B' },
-                  { afterPrevTicks: 4, data: '\x1b[B' },
-                ]
-              : name === 'workflows-live-settled'
-                ? [
-                    { atTick: 60, minTick: 30, awaitRaw: RAW_ARM, data: '/workflows' },
-                    { afterPrevTicks: 6, data: '\r' },
-                    { atTick: 220, awaitText: 'no workflows running', minTick: 8, data: TAB },
-                    { afterPrevTicks: 4, data: TAB },
-                    { afterPrevTicks: 6, data: '\x1b[B' },
-                    { afterPrevTicks: 4, data: '\x1b[B' },
-                    { afterPrevTicks: 8, data: '\r' },
-                  ]
-                : name === 'workflows-live-backoff'
-                  ? [
-                      { atTick: 60, minTick: 30, awaitRaw: RAW_ARM, data: '/workflows' },
-                      { afterPrevTicks: 6, data: '\r' },
-                      { atTick: 220, awaitText: 'no workflows running', minTick: 8, data: TAB },
-                      { afterPrevTicks: 4, data: TAB },
-                      { afterPrevTicks: 6, data: '\x1b[B' },
-                      { afterPrevTicks: 8, data: '\r' },
-                    ]
-                : [
-                { atTick: 60, minTick: 30, awaitRaw: RAW_ARM, data: '/workflows' },
-                { afterPrevTicks: 6, data: '\r' },
-                { atTick: 220, awaitText: 'no workflows running', minTick: 8, data: TAB },
-                { afterPrevTicks: 4, data: TAB },
-                { afterPrevTicks: 6, data: '\x1b[B' },
-                { afterPrevTicks: 6, data: '\r' },
-                { afterPrevTicks: 25, data: '\x1b[D' },
-              ]
-    const ready =
-      name === 'workflows-live-past'
- ? { readyText: ['substrate-carried', '◈ 29.7k'], stableTicks: 4 }
-        : name === 'workflows-live-run'
-          ? { readyText: ['out Design complete'], stableTicks: 4 }
-          : name === 'workflows-live-inspector'
-            ? { readyText: ['the returned result', 'no reasoning captured'], stableTicks: 4 }
-            : name === 'workflows-live-inspector-long'
-              ? { readyText: ['e compact'], stableTicks: 4 }
-              : name === 'workflows-live-arrows'
-                ? { readyText: ['▸ stale-drifter'], stableTicks: 4 }
-                : name === 'workflows-live-settled'
-                  ? { readyText: ['harbor-sweep', 'skipped'], stableTicks: 4 }
-                  : name === 'workflows-live-backoff'
-                    ? { readyText: ['provider backoff'], stableTicks: 4 }
- : { readyText: ['substrate-carried'], stableTicks: 5 }
-    return {
-      argv: ['node', BIN, '--resume', SID],
-      sends,
-      ...ready,
-      total:
-        name === 'workflows-live-past'
-          ? 260
-          : name === 'workflows-live-run' ||
-              name === 'workflows-live-settled' ||
-              name === 'workflows-live-backoff'
-            ? 340
-            : name === 'workflows-live-carryback'
-              ? 300
-              : name === 'workflows-live-arrows'
-                ? 260
-                : name === 'workflows-live-inspector-long'
-                  ? 520
-                  : 420,
-      cols, rows,
-    }
-  }
-  if (name === 'workflows-external') {
-    writeSyntheticSession('short')
-    writeExternalWorkflowFixtures()
-    const TAB = String.fromCharCode(9)
-    return {
-      argv: ['node', BIN, '--resume', SID],
-      sends: [
-        { atTick: 30, data: '/workflows' },
-        { atTick: 36, data: '\r' },
-        { atTick: 90, data: TAB },
-        { atTick: 96, data: TAB },
-      ],
-      total: 118, cols, rows,
     }
   }
   if (name === 'settings-config') {
@@ -3780,18 +3332,6 @@ export function cleanupScenario(name: string): void {
   if (name === 'resume-picker') {
     try { rmSync(join(PROJECTS, `${SID_ERRORED}.jsonl`)) } catch {  }
   }
-  if (
-    name === 'workflows-live-past' ||
-    name === 'workflows-live-run' ||
-    name === 'workflows-live-inspector' ||
-    name === 'workflows-live-carryback' ||
-    name === 'workflows-live-arrows'
-  ) {
-    cleanupWorkflowFixtures()
-  }
-  if (name === 'workflows-external') {
-    cleanupExternalWorkflowFixtures()
-  }
   reapDeadPidFixtures()
 }
 
@@ -3805,15 +3345,6 @@ function pidAlive(pid: number): boolean {
   }
 }
 function reapDeadPidFixtures(): void {
-  try {
-    for (const entry of readdirSync(WF_RUNS_ROOT)) {
-      const m = /^wf_fixture_[a-z]+_([0-9a-f]{6})$/.exec(entry)
-      if (!m) continue
-      if (!pidAlive(parseInt(m[1]!, 16))) {
-        try { rmSync(join(WF_RUNS_ROOT, entry), { recursive: true, force: true }) } catch {  }
-      }
-    }
-  } catch {  }
   try {
     for (const entry of readdirSync(PROJECTS)) {
       const m = /^00000000-aaaa-bbbb-[cd]{4}-([0-9a-f]{12})\.jsonl$/.exec(entry)

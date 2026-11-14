@@ -204,18 +204,18 @@ if (rowA >= 0 && rowB >= 0) {
     return rows
   }
   const labelFg = (grid: Cell[][], y: number, x0: number): string[] =>
-    (grid[y] ?? []).slice(x0, x0 + 8).map(c => (c as Cell & { fg?: string }).fg?.toLowerCase() ?? '')
+    (grid[y] ?? []).slice(x0, x0 + 6).map(c => (c as Cell & { fg?: string }).fg?.toLowerCase() ?? '')
 
-  const hdrBase = capture('hdr-base', [], 90, 'WORKFLOW', W, H, {
+  const hdrBase = capture('hdr-base', [], 90, 'HEALTH', W, H, {
     stableTicks: 8,
     region: [RIGHT_START, 0, W, H],
   })
   let hx = -1
   let hy = -1
   if (hdrBase) {
-    hy = hdrBase.lines.findIndex(l => l.includes('WORKFLOW'))
-    hx = hy >= 0 ? hdrBase.lines[hy]!.indexOf('WORKFLOW') : -1
-    check('the WORKFLOW header is present at 160×50', hy >= 0 && hx >= RIGHT_START, `row=${hy} col=${hx}`)
+    hy = hdrBase.lines.findIndex(l => l.includes('HEALTH'))
+    hx = hy >= 0 ? hdrBase.lines[hy]!.indexOf('HEALTH') : -1
+    check('the HEALTH header is present at 160×50', hy >= 0 && hx >= RIGHT_START, `row=${hy} col=${hx}`)
     check('rest: zero fill cells in the right-rail band', rightBandFills(hdrBase.grid).length === 0)
     check(
       'rest: the label wears the info hue',
@@ -228,19 +228,19 @@ if (rowA >= 0 && rowB >= 0) {
       MOUSE_ARM_GATE,
       {
         data: 'glidedraft',
-        awaitText: 'WORKFLOW',
+        awaitText: 'HEALTH',
         minTick: 8,
         awaitSettleTicks: 8,
         awaitStableTicks: 8,
         awaitStableRegion: [RIGHT_START, 0, W, H],
         requireAwait: true,
       },
-      { data: motionT, targetText: 'WORKFLOW', targetDx: 2, awaitText: 'glidedraft', minTick: 8, awaitSettleTicks: 2, requireAwait: true },
+      { data: motionT, targetText: 'HEALTH', targetDx: 2, awaitText: 'glidedraft', minTick: 8, awaitSettleTicks: 2, requireAwait: true },
     ]
     const hovered = capture('hdr-hover', hoverSends, 130, undefined, W, H, { stableTicks: 8, region: [RIGHT_START, 0, W, H] })
     if (hovered) {
-      const y2 = hovered.lines.findIndex(l => l.includes('WORKFLOW'))
-      const x2 = y2 >= 0 ? hovered.lines[y2]!.indexOf('WORKFLOW') : -1
+      const y2 = hovered.lines.findIndex(l => l.includes('HEALTH'))
+      const x2 = y2 >= 0 ? hovered.lines[y2]!.indexOf('HEALTH') : -1
       check('hover: ZERO fill cells in the right-rail band', rightBandFills(hovered.grid).length === 0, `rows=${rightBandFills(hovered.grid).join(',')}`)
       check(
         'hover: the label brightened to infoShimmer',
@@ -251,20 +251,20 @@ if (rowA >= 0 && rowB >= 0) {
     }
     const openSends: Send[] = [
       ...hoverSends,
-      { data: pressT, targetText: 'WORKFLOW', targetDx: 2, afterPrevTicks: 6 },
-      { data: releaseT, targetText: 'WORKFLOW', targetDx: 2, afterPrevTicks: 2 },
+      { data: pressT, targetText: 'HEALTH', targetDx: 2, afterPrevTicks: 6 },
+      { data: releaseT, targetText: 'HEALTH', targetDx: 2, afterPrevTicks: 2 },
     ]
     const opened = capture('hdr-open', openSends, 150, undefined, W, H, { stableTicks: 8, region: [RIGHT_START, 0, W, H] })
     if (opened) {
-      check('click: ONE click opened the workflows surface', opened.lines.some(l => l.includes('No workflow runs')))
+      check('click: ONE click opened the health page', opened.lines.some(l => l.includes('Mercury · health')))
     }
     const escSends: Send[] = [
       ...openSends,
-      { data: '\x1b', awaitText: 'No workflow runs', minTick: 4, awaitSettleTicks: 6, requireAwait: true },
+      { data: '\x1b', awaitText: 'Mercury · health', minTick: 4, awaitSettleTicks: 6, requireAwait: true },
     ]
     const escd = capture('hdr-esc', escSends, 170, undefined, W, H, { stableTicks: 8, region: [RIGHT_START, 0, W, H] })
     if (escd) {
-      check('esc: back from the board (its content is gone)', !escd.lines.some(l => l.includes('No workflow runs')))
+      check('esc: back from the page (its content is gone)', !escd.lines.some(l => l.includes('Mercury · health')))
       check('esc: the draft survived the round trip', escd.lines.some(l => l.includes('glidedraft')))
     }
   }

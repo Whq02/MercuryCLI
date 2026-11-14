@@ -279,7 +279,7 @@ type WorkAgentV1 = {
   pausedBy?: string | null
 }
 
-export type WorkPhaseV1 = {
+type WorkPhaseV1 = {
   title: string
   planned: boolean
   agents: WorkAgentV1[]

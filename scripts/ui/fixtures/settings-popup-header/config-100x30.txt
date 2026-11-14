@@ -3,7 +3,7 @@ WORKBENCH           │                                                         
   no prompts sent y…│ ╭──────────────────────────────────────────────────────────────────────────╮ │
                     │ │ ▖▟▆▙▗ Mercury · config                                                   │ │
 NEXT                │ │ orchard · 84 settings · 1 set by you                                     │ │
-  · /workflows…     │ │                                                                          │ │
+  · /health…        │ │                                                                          │ │
                     │ │ / Search settings…                                                       │ │
 FILES · orchard     │ │                                                                          │ │
   ↵ or click…       │ │ › Auto-compact                      on                                   │ │

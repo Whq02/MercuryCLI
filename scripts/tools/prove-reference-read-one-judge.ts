@@ -37,10 +37,9 @@ for (const [path, text] of Object.entries(TREE)) {
   mkdirSync(dirname(join(project, path)), { recursive: true })
   writeFileSync(join(project, path), text)
 }
-mkdirSync(join(world, 'outside/run'), { recursive: true })
+mkdirSync(join(world, 'outside'), { recursive: true })
 writeFileSync(join(world, 'outside/private.txt'), 'CONTENTS-OF-OUTSIDE\n')
 writeFileSync(join(world, 'outside/victim.jsonl'), `${JSON.stringify({ type: 'assistant', uuid: 'a', timestamp: '2026-01-01T00:00:00.000Z', message: { role: 'assistant', content: [{ type: 'text', text: 'CONTENTS-OF-TRANSCRIPT' }] } })}\n`)
-writeFileSync(join(world, 'outside/run/run.json'), JSON.stringify({ runId: 'victim', version: 1, workflowName: 'CONTENTS-OF-MANIFEST', agents: [{ agentId: 'a1', label: 'x', state: 'done' }], transcriptDir: join(world, 'outside'), startedAt: 1 }))
 writeFileSync(join(HOME, '.credentials.json'), '{"note":"CONTENTS-OF-CREDENTIALS"}\n', { mode: 0o600 })
 const git = (...args: string[]): string => execFileSync('git', ['-c', 'user.name=proof', '-c', 'user.email=proof@example.invalid', '-c', 'commit.gpgsign=false', ...args], { cwd: project, encoding: 'utf8', env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null' } })
 git('init', '-q')
@@ -217,14 +216,14 @@ console.log('an id is a name, never a path')
   const open = withRules('alwaysDenyRules', [], 'default')
   const up = '../'.repeat(40)
   const far = (target: string): string => `${up}${target.replace(/^\/+/, '')}`
-  const reaching = [`mercury://agent/x/${far(join(world, 'outside/victim'))}`, `mercury://agent/..`, `mercury://workflow/${far(join(world, 'outside/run'))}`, `mercury://workflow/${far(join(world, 'outside/run'))}?child=a1&lines=1-5`, 'mercury://workflow/..']
+  const reaching = [`mercury://agent/x/${far(join(world, 'outside/victim'))}`, `mercury://agent/..`]
   const got: Answer[] = []
   for (const ref of reaching) for (const call of [inspect(ref), read(ref)]) got.push(await answer(call.tool, call.input, open))
-  check('an agent id and a workflow id that hold .. or a separator answer "no such record" through both tools, and nothing from elsewhere is read', got.every(one => !CONTENTS.test(one.text) && (one.behavior !== 'allow' || /absent|ABSENT/.test(one.text))), got.map(one => `${one.behavior} ${CONTENTS.exec(one.text)?.[0] ?? ''}`).join(' | '))
+  check('an agent id that holds .. or a separator answers "no such record" through both tools, and nothing from elsewhere is read', got.every(one => !CONTENTS.test(one.text) && (one.behavior !== 'allow' || /absent|ABSENT/.test(one.text))), got.map(one => `${one.behavior} ${CONTENTS.exec(one.text)?.[0] ?? ''}`).join(' | '))
   const service = [await answer(InspectTool, { ref: 'mercury://service/../../victim?child=logs' }, open), await answer(InspectTool, { ref: 'mercury://service/../../victim' }, open), await answer(InspectTool, { ref: 'mercury://service/no-such-service' }, open)]
   check('a service name that holds .. answers "no service" as an unknown name does, and reads no record or log elsewhere', service.every(one => !CONTENTS.test(one.text) && /no service|disabled/.test(one.text)), service.map(one => one.text.slice(0, 140)).join(' | '))
-  const plainIds = await Promise.all([inspect('mercury://agent/a0123456789abcdef'), inspect('mercury://workflow/wf_0123456789ab')].map(call => answer(call.tool, call.input, open)))
-  check('an id of the shape the product mints is looked up as before', plainIds.every(one => one.behavior === 'allow' && /no crewmate|no workflow run|needs a live session/.test(one.text)), plainIds.map(one => one.text.slice(0, 120)).join(' | '))
+  const plainIds = await Promise.all([inspect('mercury://agent/a0123456789abcdef')].map(call => answer(call.tool, call.input, open)))
+  check('an id of the shape the product mints is looked up as before', plainIds.every(one => one.behavior === 'allow' && /no crewmate|needs a live session/.test(one.text)), plainIds.map(one => one.text.slice(0, 120)).join(' | '))
 }
 
 console.log('with folder and reference targets switched off, Read is what it was')

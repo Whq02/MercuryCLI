@@ -16,7 +16,7 @@ t.check('two commands and a monitor', label([{ type: 'local_bash' }, { type: 'lo
 t.check('local agents', label([{ type: 'local_agent' }, { type: 'local_agent' }]) === '2 local crewmates')
 t.check('a cloud session wears the open diamond', label([{ type: 'remote_agent' }]) === '◇ 1 cloud session')
 t.check('two cloud sessions', label([{ type: 'remote_agent' }, { type: 'remote_agent' }]) === '◇ 2 cloud sessions')
-t.check('workflows and monitors', label([{ type: 'local_workflow' }]) === '1 background workflow' && label([{ type: 'monitor_mcp' }, { type: 'monitor_mcp' }]) === '2 monitors')
+t.check('monitors', label([{ type: 'monitor_mcp' }, { type: 'monitor_mcp' }]) === '2 monitors')
 t.check('a mixed board counts tasks', label([{ type: 'local_bash' }, { type: 'local_agent' }]) === '2 background tasks')
 
 t.section('§2 a record\'s extra fields change nothing — the one remote session reads as a cloud session whatever else its record carries')

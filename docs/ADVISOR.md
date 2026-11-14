@@ -7,7 +7,7 @@ its notes land in the agent's context as muted rows marked `[advisor]`,
 styled like the `[Saturn]` rows, and are addressed to the agent.
 The agent can also ask it a question between notes. The advisor can use any
 model and provider, local included, with a memory of its own. It serves the
-main chat; crewmates and workflow workers never get an advisor.
+main chat; crewmates never get an advisor.
 
 It is off by default, and each chat turns its own on.
 
@@ -105,7 +105,7 @@ passed again.
 While the chat's advisor is on, the agent has one more tool, `AskAdvisor`,
 with one input: a question. The advisor answers with the same view (its
 memory of the conversation, the rows since its last look, and the question)
-in at most eight lines. Crewmates and workflow workers never have the tool.
+in at most eight lines. Crewmates never have the tool.
 The reply is advice from a model, never an instruction from you and
 never an approval of anything.
 

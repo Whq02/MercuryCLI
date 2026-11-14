@@ -24,7 +24,7 @@ export const LiveNowCell = React.memo(function LiveNowCell({
     row.kind === 'headless' ? <Text color={t.textSecondary}>headless{trail ? ' · ' : ''}</Text> : null
   const workflowsLead = (trail: boolean): React.ReactNode =>
     row.workflowsAllowed === true && !brief ? (
-      <Text color={t.textSecondary}>workflows allowed{trail ? ' · ' : ''}</Text>
+      <Text color={t.textSecondary}>crewmates allowed{trail ? ' · ' : ''}</Text>
     ) : null
   const hasWorkflows = row.workflowsAllowed === true && !brief
   const hasNextFire = row.scheduleNextFireMs !== undefined && !brief

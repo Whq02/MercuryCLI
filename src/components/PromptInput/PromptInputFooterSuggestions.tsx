@@ -24,7 +24,6 @@ export type SuggestionType =
 export type SuggestionItem = {
   id: string
   displayText: string
-  tag?: string
   value?: string
   description?: string
   metadata?: unknown
@@ -105,11 +104,10 @@ function OtherRow({
     name = truncateToWidth(name, nameColumn - 2)
   }
   const padded = name + ' '.repeat(Math.max(0, nameColumn - displayWidth(name)))
-  const tag = item.tag ? `[${item.tag}] ` : ''
   const value = item.value ? `${truncateToWidth(collapseWhitespace(item.value), 24)}  ` : ''
   const descriptionBudget = Math.max(
     0,
-    columns - nameColumn - displayWidth(tag) - displayWidth(value) - 4,
+    columns - nameColumn - displayWidth(value) - 4,
   )
   const description = item.description
     ? truncateToWidth(collapseWhitespace(item.description), descriptionBudget)
@@ -122,7 +120,6 @@ function OtherRow({
       backgroundColor={selected ? tokens.selectionBand : undefined}
     >
       {padded}
-      {tag !== '' ? <Text>{tag}</Text> : null}
       {value !== '' ? <Text color={selected ? undefined : 'suggestion'}>{value}</Text> : null}
       {description !== '' ? <Text dimColor>{description}</Text> : null}
     </Text>

@@ -26,23 +26,14 @@ const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { drainRows } = await import('../../src/utils/sdkEventQueue.ts')
-const runControl = await import('../../src/tools/WorkflowTool/runControl.ts')
 const seat = await import('../../src/daemon/sessionSeat.ts')
 const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
 const { sessionFactsToWire } = await import('../../src/services/engine-connector/seatWire.ts')
 const { readSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
 
 type GateModule = typeof import('../../src/run-core/pauseGate.ts')
-type PauseGate = ReturnType<GateModule['createPauseGate']> & { pausedBy?: () => string | null }
 const gateModule: GateModule | null = await import('../../src/run-core/pauseGate.ts').catch(() => null)
 const gate = gateModule?.operatorPauseGate ?? null
-type RunSeam = InstanceType<typeof runControl.WorkflowExecutionPause> & { gate?: PauseGate }
-type RunControlModule = typeof runControl & {
-  runnerHostsOnlyRun?: (taskId: string, tasks: Record<string, { status: string }>) => boolean
-  workflowGateRide?: (gate: unknown) => { close: (hostsOnly: boolean) => boolean; open: () => boolean; closed: () => boolean; release: () => void }
-}
-const runControlMod = runControl as RunControlModule
-
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -62,7 +53,7 @@ const guard = setTimeout(() => {
 }, 180_000)
 guard.unref?.()
 
-console.log('pause gate — one process-wide park at the two safe points, and a gate per workflow run')
+console.log('pause gate — one process-wide park at the two safe points')
 console.log(`  gate module: ${gateModule === null ? 'ABSENT (no src/run-core/pauseGate.ts — pause is a no-op here)' : 'present'}`)
 
 type Latch = { promise: Promise<void>; open: () => void; opened: boolean }
@@ -115,7 +106,7 @@ type RunName = (typeof RUNS)[number]
 const MODEL = 'claude-opus-4-8'
 
 type ToolName = 'SerialTool' | 'ReadishTool'
-type LoopSpec = { name: string; seat: string | null; tool: ToolName; gate?: PauseGate | null }
+type LoopSpec = { name: string; seat: string | null; tool: ToolName }
 const DEFAULT_SPECS: LoopSpec[] = RUNS.map(run => ({ name: run, seat: run === 'main' ? null : run, tool: run === 'main' ? 'SerialTool' : 'ReadishTool' }))
 
 type CallRecord = { run: string; ordinal: number; messages: unknown[] }
@@ -240,7 +231,6 @@ function buildRig(specs: LoopSpec[] = DEFAULT_SPECS, tasks: Record<string, TaskL
       updateAttributionState: () => {},
       agentId: spec.seat === null ? undefined : `agent-${run}`,
       ...(spec.seat === null ? {} : { seatHolder: spec.seat }),
-      ...(spec.gate ? { pauseGate: spec.gate } : {}),
       onSeatWait: (words: string | null) => {
         waits.set(run, words)
         waitAts.set(run, Date.now())
@@ -460,152 +450,9 @@ section('L1 ONE LOOP LIFTED BY A MESSAGE — the addressed loop runs on from exa
   check('main and reviewer complete after the resume with three calls and two tools each; the gate is open and nothing is parked', (['main', 'reviewer'] as const).every(run => one.terminalOf(run)?.reason === 'completed' && callsOf(one, run).length === 3 && startsOf(one, run).length === 2) && gate?.paused() === false && parked().length === 0, (['main', 'reviewer'] as const).map(run => `${run}: ${one.terminalOf(run)?.reason} ${callsOf(one, run).length}/${startsOf(one, run).length}`).join(' · '))
 }
 
-section('R0 A GATE PER WORKFLOW RUN — the tree\'s facts (the seam, the ride, the context) before the two-run rows')
-const seamGateOf = (seam: RunSeam): PauseGate | null => (seam.gate !== undefined && seam.gate !== null && typeof seam.gate.paused === 'function' ? seam.gate : null)
-const rideExported = typeof runControlMod.workflowGateRide === 'function' && typeof runControlMod.runnerHostsOnlyRun === 'function'
-const probeSeam = new runControl.WorkflowExecutionPause() as RunSeam
-console.log(`  the run seam's own gate: ${seamGateOf(probeSeam) === null ? 'ABSENT (WorkflowExecutionPause carries no gate — a run pause can only ride the process-wide gate)' : 'present'}`)
-console.log(`  the process-wide ride (workflowGateRide + runnerHostsOnlyRun): ${rideExported ? 'EXPORTED (a run pause closes the operator gate when the runner hosts only that run)' : 'absent'}`)
-const BY = 'session 9f3a2c11'
-const rides = new Map<RunSeam, { close: (hostsOnly: boolean) => boolean; open: () => boolean }>()
-const rideOf = (seam: RunSeam): { close: (hostsOnly: boolean) => boolean; open: () => boolean } | null => {
-  if (!rideExported || gate === null) return null
-  let ride = rides.get(seam)
-  if (ride === undefined) {
-    ride = runControlMod.workflowGateRide!(gate)
-    rides.set(seam, ride)
-  }
-  return ride
-}
-const pauseRun = (seam: RunSeam, taskId: string, tasks: Record<string, TaskLike>): { applied: boolean; rode: boolean | null } => {
-  const out = seam.change(true, BY)
-  const ride = rideOf(seam)
-  const rode = out.outcome === 'applied' && ride !== null ? ride.close(runControlMod.runnerHostsOnlyRun!(taskId, tasks)) : null
-  return { applied: out.outcome === 'applied', rode }
-}
-const resumeRun = (seam: RunSeam): boolean => {
-  const out = seam.change(false, BY)
-  const ride = rideOf(seam)
-  if (ride !== null && !seam.runPaused()) ride.open()
-  return out.outcome === 'applied'
-}
-const parkedEverywhere = (...seams: RunSeam[]): string[] => {
-  const out = new Set<string>(gate?.parked() ?? [])
-  for (const seam of seams) for (const s of seamGateOf(seam)?.parked() ?? []) out.add(s)
-  return [...out].sort()
-}
 const taskRow = (id: string, type: string, extra: Record<string, unknown> = {}): TaskLike => ({ id, type, status: 'running', description: `${id} description`, startTime: Date.now() - 5_000, totalTokens: 0, totalToolCalls: 0, ...extra })
 
-section('R1 TWO RUNS — A is paused while it is the runner\'s only run, then B launches: only A\'s agents may park; B\'s and the chat run on')
-{
-  const seamA = new runControl.WorkflowExecutionPause() as RunSeam
-  const seamB = new runControl.WorkflowExecutionPause() as RunSeam
-  const tasks: Record<string, TaskLike> = { 'wf-a': taskRow('wf-a', 'local_workflow', { workflowRunId: 'run-a', agentControllers: new Map<string, AbortController>() }) }
-  const two = buildRig([
-    { name: 'a1', seat: 'a1', tool: 'SerialTool', gate: seamGateOf(seamA) },
-    { name: 'a2', seat: 'a2', tool: 'ReadishTool', gate: seamGateOf(seamA) },
-    { name: 'main', seat: null, tool: 'SerialTool' },
-  ], tasks)
-  await until(() => ['a1', 'a2', 'main'].every(run => callsOf(two, run).length === 1), "run A's two agents and the chat have their first model call in flight")
-  const pausedA = pauseRun(seamA, 'wf-a', tasks)
-  check("A's pause verb applies while the runner hosts only A", pausedA.applied, j(pausedA))
-  tasks['wf-b'] = taskRow('wf-b', 'local_workflow', { workflowRunId: 'run-b', agentControllers: new Map<string, AbortController>() })
-  two.start({ name: 'b1', seat: 'b1', tool: 'SerialTool', gate: seamGateOf(seamB) })
-  two.start({ name: 'b2', seat: 'b2', tool: 'ReadishTool', gate: seamGateOf(seamB) })
-  const bCalled = await until(() => ['b1', 'b2'].every(run => callsOf(two, run).length === 1), "run B's two agents have their first model call in flight under A's pause", 2_500)
-  check("run B's agents, launched under A's pause, make their first model call (A's pause is not theirs)", bCalled, `b1 calls=${callsOf(two, 'b1').length} b2 calls=${callsOf(two, 'b2').length} — parked=${j(parkedEverywhere(seamA, seamB))} b1 wait=${j(two.waitOf('b1'))}`)
-  for (const run of ['a1', 'a2', 'b1', 'b2', 'main']) two.modelLatch(run, 1).open()
-  await until(() => ['a1', 'a2', 'b1', 'b2', 'main'].every(run => assistantToolUses(two, run) === 1), 'every stream finishes its tokens and reaches the tool seam', 2_500)
-  await settle(200)
-  const parkedNow = parkedEverywhere(seamA, seamB)
-  check("pausing run A parks A's agents alone (a1, a2) at the tool seam", j(parkedNow) === j(['a1', 'a2']), `parked=${j(parkedNow)} (seat labels, every gate in the process)`)
-  check("run B's agents proceed under A's pause: both their tools started", startsOf(two, 'b1').length === 1 && startsOf(two, 'b2').length === 1, `b1 tools=${startsOf(two, 'b1').length} b2 tools=${startsOf(two, 'b2').length} — parked=${j(parkedNow)}`)
-  check("the chat (main) is untouched by A's pause: its tool started", startsOf(two, 'main').length === 1, `main tools=${startsOf(two, 'main').length} wait=${j(two.waitOf('main'))}`)
-  check("A's agents made no tool start while parked", startsOf(two, 'a1').length === 0 && startsOf(two, 'a2').length === 0, `a1 tools=${startsOf(two, 'a1').length} a2 tools=${startsOf(two, 'a2').length}`)
-  check("the operator's process-wide gate stays open (nobody pressed p)", gate !== null && !gate.paused() && gate.parked().length === 0, `operator gate paused=${gate?.paused()} parked=${j(gate?.parked())}`)
-  check("A's rows name the run's pauser at the seam (paused by session 9f3a2c11 · at a tool (SerialTool) — p resumes it), never the operator's p", two.waitOf('a1') === `paused by ${BY} · at a tool (SerialTool) — p resumes it` && two.waitOf('a2') === `paused by ${BY} · at a tool (ReadishTool) — p resumes it`, `a1=${j(two.waitOf('a1'))} a2=${j(two.waitOf('a2'))}`)
-  check("B's rows carry no wait words", two.waitOf('b1') === null && two.waitOf('b2') === null, `b1=${j(two.waitOf('b1'))} b2=${j(two.waitOf('b2'))}`)
-  check("A's resume verb applies and releases its own parks", resumeRun(seamA) && parkedEverywhere(seamA, seamB).length === 0, `parked=${j(parkedEverywhere(seamA, seamB))}`)
-  await until(() => startsOf(two, 'a1').length === 1 && startsOf(two, 'a2').length === 1, "A's tools start after the resume")
-  check("A's agents continue from where they stopped: the tools the models asked for, the wait cleared", startsOf(two, 'a1')[0]?.tool === 'SerialTool' && startsOf(two, 'a2')[0]?.tool === 'ReadishTool' && two.waitOf('a1') === null && two.waitOf('a2') === null, `a1=${j(startsOf(two, 'a1')[0])} wait=${j(two.waitOf('a1'))}`)
-  for (const run of ['a1', 'a2', 'b1', 'b2', 'main']) for (const n of [1, 2, 3]) { two.modelLatch(run, n).open(); if (n < 3) two.toolLatch(run, n).open() }
-  await Promise.all(['a1', 'a2', 'b1', 'b2', 'main'].map(run => two.done(run)))
-  check('every loop of both runs and the chat completes with three calls and two tools', ['a1', 'a2', 'b1', 'b2', 'main'].every(run => two.terminalOf(run)?.reason === 'completed' && callsOf(two, run).length === 3 && startsOf(two, run).length === 2), ['a1', 'a2', 'b1', 'b2', 'main'].map(run => `${run}: ${two.terminalOf(run)?.reason} ${callsOf(two, run).length}/${startsOf(two, run).length}`).join(' · '))
-  gate?.resume()
-}
-
-section('R2 TWO RUNS SIDE BY SIDE — both registered, A is paused: A\'s agents park at their tool blocks all the same; B\'s and the chat run on')
-{
-  const seamA = new runControl.WorkflowExecutionPause() as RunSeam
-  const seamB = new runControl.WorkflowExecutionPause() as RunSeam
-  const tasks: Record<string, TaskLike> = {
-    'wf-a': taskRow('wf-a', 'local_workflow', { workflowRunId: 'run-a', agentControllers: new Map<string, AbortController>() }),
-    'wf-b': taskRow('wf-b', 'local_workflow', { workflowRunId: 'run-b', agentControllers: new Map<string, AbortController>() }),
-  }
-  const names = ['a1', 'a2', 'b1', 'b2', 'main']
-  const two = buildRig([
-    { name: 'a1', seat: 'a1', tool: 'SerialTool', gate: seamGateOf(seamA) },
-    { name: 'a2', seat: 'a2', tool: 'ReadishTool', gate: seamGateOf(seamA) },
-    { name: 'b1', seat: 'b1', tool: 'SerialTool', gate: seamGateOf(seamB) },
-    { name: 'b2', seat: 'b2', tool: 'ReadishTool', gate: seamGateOf(seamB) },
-    { name: 'main', seat: null, tool: 'SerialTool' },
-  ], tasks)
-  await until(() => names.every(run => callsOf(two, run).length === 1), 'five first model calls in flight')
-  const pausedA = pauseRun(seamA, 'wf-a', tasks)
-  check("A's pause verb applies with B beside it", pausedA.applied, j(pausedA))
-  for (const run of names) two.modelLatch(run, 1).open()
-  await until(() => names.every(run => assistantToolUses(two, run) === 1), 'every stream finishes its tokens and reaches the tool seam')
-  await settle(200)
-  const parkedNow = parkedEverywhere(seamA, seamB)
-  check("A's agents park at their next tool block under A's pause even with B beside it (parked: a1, a2)", j(parkedNow) === j(['a1', 'a2']) && startsOf(two, 'a1').length === 0 && startsOf(two, 'a2').length === 0, `parked=${j(parkedNow)} a1 tools=${startsOf(two, 'a1').length} a2 tools=${startsOf(two, 'a2').length}${pausedA.rode === false ? ' — the ride refused: the runner hosts other work, so the pause never reached the tool seam' : ''}`)
-  check("B's agents and the chat run on: their tools started", startsOf(two, 'b1').length === 1 && startsOf(two, 'b2').length === 1 && startsOf(two, 'main').length === 1, `b1=${startsOf(two, 'b1').length} b2=${startsOf(two, 'b2').length} main=${startsOf(two, 'main').length}`)
-  check("the operator's gate stays open", gate !== null && !gate.paused(), `paused=${gate?.paused()}`)
-  const pausedB = pauseRun(seamB, 'wf-b', tasks)
-  check("B's pause verb applies beside A's (two runs paused at once, each its own)", pausedB.applied && seamA.runPaused() && seamB.runPaused(), j(pausedB))
-  for (const run of ['b1', 'b2', 'main']) two.toolLatch(run, 1).open()
-  await until(() => ['b1', 'b2', 'main'].every(run => callsOf(two, run).length === 2), "B's agents and the chat make their second call (a run pause parks its agents at their tool blocks, the chat parks nowhere)")
-  for (const run of ['b1', 'b2', 'main']) two.modelLatch(run, 2).open()
-  await until(() => ['b1', 'b2', 'main'].every(run => assistantToolUses(two, run) === 2), 'their second streams finish')
-  await settle(200)
-  const parkedBoth = parkedEverywhere(seamA, seamB)
-  check("with both runs paused, each run's agents park under their own run (a1, a2, b1, b2) and the chat's second tool starts", j(parkedBoth) === j(['a1', 'a2', 'b1', 'b2']) && startsOf(two, 'main').length === 2, `parked=${j(parkedBoth)} main tools=${startsOf(two, 'main').length}`)
-  check("B's resume releases B's agents alone; A's stay parked", resumeRun(seamB) && j(parkedEverywhere(seamA, seamB)) === j(['a1', 'a2']), `parked=${j(parkedEverywhere(seamA, seamB))}`)
-  await until(() => startsOf(two, 'b1').length === 2 && startsOf(two, 'b2').length === 2, "B's second tools start")
-  check("A's resume releases A's agents", resumeRun(seamA) && parkedEverywhere(seamA, seamB).length === 0, `parked=${j(parkedEverywhere(seamA, seamB))}`)
-  for (const run of names) for (const n of [1, 2, 3]) { two.modelLatch(run, n).open(); if (n < 3) two.toolLatch(run, n).open() }
-  await Promise.all(names.map(run => two.done(run)))
-  check('every loop completes with three calls and two tools', names.every(run => two.terminalOf(run)?.reason === 'completed' && callsOf(two, run).length === 3 && startsOf(two, run).length === 2), names.map(run => `${run}: ${two.terminalOf(run)?.reason} ${callsOf(two, run).length}/${startsOf(two, run).length}`).join(' · '))
-  gate?.resume()
-}
-
-section('R3 THE RUN GATE\'S LAWS — created with the seam, closed by the run\'s pause verb alone, opened by the resume that lifts it; the operator\'s gate never moves')
-{
-  const seam = new runControl.WorkflowExecutionPause() as RunSeam
-  const own = seamGateOf(seam)
-  if (own === null) {
-    check('the run seam carries its own gate (WorkflowExecutionPause.gate)', false, 'absent on this tree')
-  } else {
-    check('the gate is open when the seam is born', !own.paused() && own.parked().length === 0)
-    check('a run-level pause closes the gate and the gate names the pauser', seam.change(true, BY).outcome === 'applied' && own.paused() && own.pausedBy?.() === BY, `paused=${own.paused()} by=${j(own.pausedBy?.())}`)
-    check("the operator's gate did not move", gate !== null && !gate.paused())
-    check('the run-level resume opens it', seam.change(false, BY).outcome === 'applied' && !own.paused() && own.pausedBy?.() === null)
-    const release = seam.register('agent-x')
-    check('a per-agent pause never closes the run gate', seam.change(true, BY, 'agent-x').outcome === 'applied' && !own.paused())
-    check('the per-agent resume leaves it open', seam.change(false, BY, 'agent-x').outcome === 'applied' && !own.paused())
-    check('a run pause over a registered agent closes the gate', seam.change(true, BY).outcome === 'applied' && own.paused())
-    check('the per-agent resume that lifts a run pause opens the gate (the other agents keep the pause, the run word clears)', seam.change(false, BY, 'agent-x').outcome === 'applied' && !seam.runPaused() && !own.paused())
-    release()
-    const source = read('src/tools/WorkflowTool/WorkflowTool.tsx')
-    check("the run's context hands the gate to its agents (pauseGate: executionPause.gate on the run context)", source.includes('pauseGate: executionPause.gate'))
-    check('the run pause rides no process-wide gate any more (no workflowGateRide, no runnerHostsOnlyRun in the tool)', !source.includes('workflowGateRide') && !source.includes('runnerHostsOnlyRun'))
-    const fork = read('src/utils/forkedAgent.ts')
-    check("every sub-agent context inherits its parent's run gate (createSubagentContext copies pauseGate)", fork.includes('pauseGate: parentContext.pauseGate'))
-    const orchestration = read('src/services/tools/toolOrchestration.ts')
-    check('the tool seam parks through the gate owner, which reads the run gate off the context beside the operator\'s', orchestration.includes('parkBeforeTool(') && !orchestration.includes('operatorPauseGate.park('))
-  }
-}
-
-section('R4 THE FRAME PER PARK — the row\'s words reach the daemon\'s facts within a quarter second of the park, never at the next work poll')
+section('F1 THE FRAME PER PARK — the row\'s words reach the daemon\'s facts within a quarter second of the park, never at the next work poll')
 {
   const RUNNER = 'concourse-pg1'
   const SESSION = 'aaaaaaaa-bbbb-4ccc-8ddd-pausegate001'
@@ -711,34 +558,6 @@ section('R4 THE FRAME PER PARK — the row\'s words reach the daemon\'s facts wi
     const clear = await landing(clearedAt, rows => rows.length === 1 && !rows.some(parkedRow), `${label}: the cleared row reaches the published facts`)
     check(`${label}: the clear lands within the same bound — the daemon stamped it ${offset(clear.landed ? clear.stampAt : null, clearedAt)} (the prover's reference timer fired ${offset(clear.referenceFiredAt, clearedAt)}; the file read back ${offset(clear.noticedAt, clearedAt)})`, clear.landed && clear.referenceFiredAt !== null && clear.stampAt <= clear.referenceFiredAt + RELAY_ALLOWANCE_MS, segments(clearedAt, clear))
     return { parkedAt, landedAt: park.noticedAt, clearedAt, clearLandedAt: clear.noticedAt, frames: parkFrames }
-  }
-
-  {
-    const seamA = new runControl.WorkflowExecutionPause() as RunSeam
-    const controller = new AbortController()
-    const tasks: Record<string, TaskLike> = { 'wf-a': taskRow('wf-a', 'local_workflow', { workflowRunId: 'run-a', toolUseId: 'toolu_wf_a', agentControllers: new Map<string, AbortController>([['agent-a1', controller]]) }) }
-    const two = buildRig([{ name: 'a1', seat: 'a1', tool: 'SerialTool', gate: seamGateOf(seamA) }], tasks)
-    await until(() => callsOf(two, 'a1').length === 1, "the run's agent has its first model call in flight")
-    const rowOf = (): WorkRowV1 => {
-      const wait = two.waitOf('a1')
-      return {
-        id: 'wf-a',
-        kind: 'workflow',
-        name: 'run a',
-        status: 'running',
-        startTime: t0,
-        workflowRunId: 'run-a',
-        agentCount: 1,
-        totalTokens: 0,
-        phases: [{ title: 'Work', planned: true, agents: [{ index: 1, label: 'a1', state: 'progress', agentId: 'agent-a1', waiting: wait === null ? null : 'operator', pausedBy: wait === null ? null : BY }] }],
-      } as WorkRowV1
-    }
-    const parkedRow = (row: WorkRowV1): boolean => (row.phases ?? []).some(phase => phase.agents.some(agent => agent.agentId === 'agent-a1' && agent.pausedBy === BY))
-    const measured = await measure("a workflow agent under its run's pause", two, 'a1', rowOf, parkedRow, () => pauseRun(seamA, 'wf-a', tasks).applied, () => resumeRun(seamA))
-    check("the park's frame names the workflow task that owns the parked agent (task_id wf-a)", measured !== null && measured.frames.some(f => f.task_id === 'wf-a'), j(measured?.frames.map(f => f.task_id)))
-    for (const n of [1, 2, 3]) { two.modelLatch('a1', n).open(); if (n < 3) two.toolLatch('a1', n).open() }
-    await two.done('a1')
-    gate?.resume()
   }
 
   {

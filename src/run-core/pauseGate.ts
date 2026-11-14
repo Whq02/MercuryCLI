@@ -206,7 +206,6 @@ type ParkFrameTask = {
   totalTokens?: number
   totalToolCalls?: number
   progress?: { tokenCount?: number; toolUseCount?: number } | null
-  agentControllers?: Map<string, unknown>
 }
 
 export type ParkFrameCarrier = {
@@ -221,9 +220,6 @@ export function parkFrameTaskOf(context: ParkFrameCarrier): ParkFrameTask | null
   const tasks = state?.tasks ?? {}
   const own = tasks[agentId]
   if (own !== undefined) return own.status === 'running' ? own : null
-  for (const task of Object.values(tasks)) {
-    if (task.type === 'local_workflow' && task.status === 'running' && task.agentControllers?.has(agentId) === true) return task
-  }
   return null
 }
 

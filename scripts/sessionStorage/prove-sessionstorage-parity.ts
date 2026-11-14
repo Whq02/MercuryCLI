@@ -42,9 +42,6 @@ add('getTranscriptPathForSession', 'shape', () =>
 add('getAgentTranscriptPath', 'shape', () =>
   neutral(atParityCwd(() => S.getAgentTranscriptPath('agent-fixture-1' as never))),
 )
-add('getWorkflowTranscriptDir', 'shape', () =>
-  neutral(atParityCwd(() => S.getWorkflowTranscriptDir('wf_fixture1'))),
-)
 add('sessionIdExists', 'absent', () =>
   S.sessionIdExists('00000000-0000-4000-8000-00000000dead'),
 )

@@ -19,7 +19,7 @@
 # gate-watch: src/services/providers/openrouter/openrouterCatalogue.ts src/services/providers/zai/glmPins.ts
 # gate-watch: src/services/providers/zai/zaiCodec.ts src/skills/bundled/provider-apis/** mercury-skills/provider-apis/**
 # gate-watch: src/state/AppState.tsx src/state/store.ts src/tools/AgentTool/agentToolUtils.ts
-# gate-watch: src/tools/AgentTool/runAgent.ts src/tools/WorkflowTool/workflowRouting.ts
+# gate-watch: src/tools/AgentTool/runAgent.ts
 # gate-watch: docs/ENGINES.md docs/SESSIONS.md src/components/agents/ModelSelector.tsx src/keybindings/KeybindingProviderSetup.tsx
 # gate-watch: src/context/overlayStack.ts src/context/surfaceRoute.ts src/hooks/useLayoutTier.ts src/services/compact/autoCompact.ts
 # gate-watch: src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts src/state/AppStateStore.ts

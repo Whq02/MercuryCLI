@@ -45,15 +45,14 @@ const { evaluateLaunchAuthority } = await import('../../src/services/switchboard
 const SUB = 'MERCURY_SESSION_SUBAGENTS'
 const WF = 'MERCURY_SESSION_WORKFLOWS'
 const OFF_SUB = "crewmates are off for this session — /crewmates on, or the boot menu's Agents section"
-const OFF_WF = "workflows are off for this session — /workflows on, or the boot menu's Agents section"
 
-section('§1 the rows — live-class toggles over registered flags, through the boot-env road')
+section('§1 the row — a live-class toggle over a registered flag, through the boot-env road')
 {
   const rows = menu.STARTUP_MENU.filter(r => r.group === 'agents')
-  check('the Agents section holds exactly the two rows, sub-agents then workflows', rows.length === 2 && rows[0]?.env === SUB && rows[1]?.env === WF, rows.map(r => r.env).join(','))
-  check('both rows read "Crewmates" and "Workflows"', rows[0]?.label === 'Crewmates' && rows[1]?.label === 'Workflows')
-  check("both are toggles whose one choice is '0' (off) with the default on", rows.every(r => r.kind === 'toggle' && r.options.length === 1 && r.options[0] === '0' && r.defaultLabel === 'on'))
-  check('both are the live class', rows.every(r => r.applicationClass === 'live'))
+  check('the Agents section holds exactly the one row, sub-agents', rows.length === 1 && rows[0]?.env === SUB, rows.map(r => r.env).join(','))
+  check('the row reads "Crewmates"', rows[0]?.label === 'Crewmates')
+  check("it is a toggle whose one choice is '0' (off) with the default on", rows.every(r => r.kind === 'toggle' && r.options.length === 1 && r.options[0] === '0' && r.defaultLabel === 'on'))
+  check('it is the live class', rows.every(r => r.applicationClass === 'live'))
   const LIVE_DEV_LANES = new Set(['MERCURY_DAP', 'MERCURY_GODOT_TOOLS', 'MERCURY_UNITY', 'MERCURY_BLENDER', 'MERCURY_ASEPRITE'])
   check(
     'every row outside Agents and the five deferred-tool dev lanes keeps the new-session class (absent = new-session)',
@@ -61,12 +60,12 @@ section('§1 the rows — live-class toggles over registered flags, through the 
       menu.STARTUP_MENU.filter(r => LIVE_DEV_LANES.has(r.env)).every(r => r.applicationClass === 'live'),
   )
   check('the choices paint default (on) first, then off', rows.every(r => menu.menuRowChoices(r).map(c => c.label).join('|') === 'default (on)|off'))
-  for (const env of [SUB, WF]) {
+  for (const env of [SUB]) {
     const spec = getFlagSpec(env)
     check(`${env} is registered default-on · behavioral · evidenced by this prover · consumed by the owner`, spec?.kind === 'default-on' && spec.tier === 'behavioral' && spec.evidence === 'scripts/switchboard/prove-spawn-switch.ts' && spec.consumer === 'src/services/switchboard/spawnSwitches.ts', j(spec))
   }
-  check('the owner maps each row to its switch and back', sw.SPAWN_SWITCH_ENV.subagents === SUB && sw.SPAWN_SWITCH_ENV.workflows === WF && sw.spawnSwitchKindOfEnv(SUB) === 'subagents' && sw.spawnSwitchKindOfEnv(WF) === 'workflows' && sw.spawnSwitchKindOfEnv('MERCURY_CAP_FAILOVER') === null)
-  check('the splash carries both rows baked (the menu asset never trails the registry)', src('assets/splash/splash-core.mjs').includes(`"env":"${SUB}"`) && src('assets/splash/splash-core.mjs').includes(`"env":"${WF}"`))
+  check('the owner maps the row to its switch and back, and the retired Workflows row to nothing', sw.SPAWN_SWITCH_ENV.subagents === SUB && sw.spawnSwitchKindOfEnv(SUB) === 'subagents' && sw.spawnSwitchKindOfEnv(WF) === null && sw.spawnSwitchKindOfEnv('MERCURY_CAP_FAILOVER') === null)
+  check('the splash carries the row baked and no Workflows row (the menu asset never trails the registry)', src('assets/splash/splash-core.mjs').includes(`"env":"${SUB}"`) && !src('assets/splash/splash-core.mjs').includes(`"env":"${WF}"`))
 
   const path = join(HOME, 'boot-env.json')
   const saved = menu.saveBootDefaultsProfile({ [SUB]: '0' }, path)
@@ -75,9 +74,9 @@ section('§1 the rows — live-class toggles over registered flags, through the 
   const applied = menu.applyBootMenuEnv(path, env)
   check('the applier lands the row on a clean env', applied !== null && applied.applied.some(a => a.env === SUB && a.value === '0') && applied.refused.length === 0, j(applied))
   check('born with crewmates off, attributed to the boot menu', j(sw.bornSpawnSwitch('subagents', env)) === j({ on: false, source: 'boot-menu' }), j(sw.bornSpawnSwitch('subagents', env)))
-  check('workflows born on by default', j(sw.bornSpawnSwitch('workflows', env)) === j({ on: true, source: 'default' }))
-  const pinned: NodeJS.ProcessEnv = { [WF]: '0' }
-  check('a value the real environment holds is the environment\'s pin', j(sw.bornSpawnSwitch('workflows', pinned)) === j({ on: false, source: 'env' }))
+  check('born on by default where nothing is set', j(sw.bornSpawnSwitch('subagents', {})) === j({ on: true, source: 'default' }))
+  const pinned: NodeJS.ProcessEnv = { [SUB]: '0' }
+  check('a value the real environment holds is the environment\'s pin', j(sw.bornSpawnSwitch('subagents', pinned)) === j({ on: false, source: 'env' }))
   check("any value but '0' is on", sw.spawnSwitchOnFromValue('1') && sw.spawnSwitchOnFromValue(null) && sw.spawnSwitchOnFromValue(undefined) && !sw.spawnSwitchOnFromValue('0'))
 
   const snap = menu.resolveEffectiveSettingsSnapshot({ sessionId: 'snap', path, env })
@@ -98,17 +97,15 @@ section('§1 the rows — live-class toggles over registered flags, through the 
   const liveReceipts = menu.evaluateExplicitApply(snap, profile, { [SUB]: null })
   check('the live value decides no-change (an in-session toggle moved the switch on already)', liveReceipts.find(r => r.env === SUB)?.outcome === 'no-change', j(liveReceipts.find(r => r.env === SUB)))
   const pinnedSnap = menu.resolveEffectiveSettingsSnapshot({ sessionId: 'pinned', path, env: pinned })
-  const wfReceipt = menu.evaluateExplicitApply(pinnedSnap, profile).find(r => r.env === WF)
-  check('an env-pinned live row refuses on the explicit-env-wins law', wfReceipt?.outcome === 'refused' && wfReceipt.reason.includes('pinned by the real environment'), j(wfReceipt))
+  const pinnedReceipt = menu.evaluateExplicitApply(pinnedSnap, profile).find(r => r.env === SUB)
+  check('an env-pinned live row refuses on the explicit-env-wins law', pinnedReceipt?.outcome === 'refused' && pinnedReceipt.reason.includes('pinned by the real environment'), j(pinnedReceipt))
 }
 
 section('§2 the valve and the latch — one receipt while off; born once, sticky, moved by the toggle')
 {
   const off = evaluateLaunchAuthority('subagents', { spawnSwitch: { on: false, source: 'boot-menu' } })
   check('sub-agents off ⇒ the valve refuses with the ONE receipt', !off.allowed && off.reason === OFF_SUB && off.cause === 'session-switch', j(off))
-  const offWf = evaluateLaunchAuthority('workflows', { spawnSwitch: { on: false, source: 'in-session' } })
-  check('workflows off ⇒ the same shape, the workflows receipt', !offWf.allowed && offWf.reason === OFF_WF && offWf.cause === 'session-switch', j(offWf))
-  check('the receipt owner spells both', sw.spawnSwitchOffReceipt('subagents') === OFF_SUB && sw.spawnSwitchOffReceipt('workflows') === OFF_WF)
+  check('the receipt owner spells it', sw.spawnSwitchOffReceipt('subagents') === OFF_SUB)
   const on = evaluateLaunchAuthority('subagents', { spawnSwitch: { on: true, source: 'default' } })
   check("on ⇒ today's answer for an interactive process", on.allowed === true && on.posture === 'attached-or-plain')
   const offBackground = evaluateLaunchAuthority('subagents', { spawnSwitch: { on: false, source: 'boot-menu' }, roleEnvOn: true, sessionId: 'nobody', dir: mkdtempSync(join(tmpdir(), 'spawn-switch-rec-')) })
@@ -125,37 +122,31 @@ section('§2 the valve and the latch — one receipt while off; born once, stick
   const moved = sw.setSpawnSwitch('subagents', true)
   check('the in-session toggle moves the switch and says so', moved.changed === true && j(moved.state) === j({ on: true, source: 'in-session' }))
   check('the same toggle again changes nothing', sw.setSpawnSwitch('subagents', true).changed === false)
-  check('the facts carry both switches', j(sw.spawnSwitchFacts()) === j({ subagents: { on: true, source: 'in-session' }, workflows: { on: true, source: 'default' } }))
+  check("the facts carry the switch, and the wire's second field as the constant it now is (on, default)", j(sw.spawnSwitchFacts()) === j({ subagents: { on: true, source: 'in-session' }, workflows: { on: true, source: 'default' } }))
   sw._resetSpawnSwitchesForTesting()
   const path = join(HOME, 'boot-env-latch.json')
-  menu.saveBootDefaultsProfile({ [WF]: '0' }, path)
+  menu.saveBootDefaultsProfile({ [SUB]: '0' }, path)
   menu.applyBootMenuEnv(path, process.env)
-  check("born through the applier: workflows off, the boot menu's", j(sw.spawnSwitch('workflows')) === j({ on: false, source: 'boot-menu' }))
+  check("born through the applier: crewmates off, the boot menu's", j(sw.spawnSwitch('subagents')) === j({ on: false, source: 'boot-menu' }))
   for (const k of [SUB, WF, 'MERCURY_BOOT_ENV_APPLIED']) delete process.env[k]
   sw._resetSpawnSwitchesForTesting()
 }
 
-section('§3 the roster — the switches decide which tools the model sees')
+section('§3 the roster — the switch decides whether the model sees the Crewmate tool')
 const { getTools } = await import('../../src/tools.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
-const { WorkflowTool } = await import('../../src/tools/WorkflowTool/WorkflowTool.tsx')
 const rosterNames = (): string[] => getTools({ ...getEmptyToolPermissionContext(), mode: 'default' } as never).map(t => t.name)
 {
   sw._resetSpawnSwitchesForTesting()
   const today = rosterNames()
-  check("both on (the default) ⇒ the Crewmate tool and the Workflow tool are in the roster — today's behaviour", today.includes(AgentTool.name) && today.includes(WorkflowTool.name), today.join(','))
+  check("on (the default) ⇒ the Crewmate tool is in the roster — today's behaviour", today.includes(AgentTool.name), today.join(','))
   sw.setSpawnSwitch('subagents', false)
   const noAgents = rosterNames()
   check('sub-agents off ⇒ the Crewmate tool is absent', !noAgents.includes(AgentTool.name), noAgents.join(','))
-  check('…the Workflow tool stays (its own switch is on)', noAgents.includes(WorkflowTool.name))
   check('…nothing else moved', j(today.filter(n => n !== AgentTool.name)) === j(noAgents))
   sw.setSpawnSwitch('subagents', true)
-  sw.setSpawnSwitch('workflows', false)
-  const noWorkflows = rosterNames()
-  check('workflows off ⇒ the Workflow tool is absent and the Crewmate tool stays', !noWorkflows.includes(WorkflowTool.name) && noWorkflows.includes(AgentTool.name), noWorkflows.join(','))
-  sw.setSpawnSwitch('workflows', true)
-  check('both back on ⇒ the roster is today\'s again', j(rosterNames()) === j(today))
+  check('back on ⇒ the roster is today\'s again', j(rosterNames()) === j(today))
 }
 
 section('§4 the spawn roads — every road answers the receipt, and nothing outside a session reads the switch')
@@ -169,29 +160,15 @@ section('§4 the spawn roads — every road answers the receipt, and nothing out
   }
   check("the Crewmate tool's call answers the receipt (a stale roster's call never spawns)", agentError === OFF_SUB, agentError)
   sw.setSpawnSwitch('subagents', true)
-  sw.setSpawnSwitch('workflows', false)
-  const validate = (WorkflowTool as unknown as { validateInput?: (input: unknown, ctx: unknown) => Promise<{ result: boolean; message?: string; errorCode?: number }> }).validateInput
-  if (typeof validate === 'function') {
-    const verdict = await validate.call(WorkflowTool, { name: 'probe', script: 'export default async () => {}' }, { abortController: new AbortController() })
-    check("the Workflow tool's validate answers the receipt (error code 7, the launch-authority class)", verdict.result === false && verdict.message === OFF_WF && verdict.errorCode === 7, j(verdict))
-  } else {
-    check('the Workflow tool exposes validateInput', false)
-  }
-  sw.setSpawnSwitch('workflows', true)
   sw._resetSpawnSwitchesForTesting()
 
   const valve = src('src/services/switchboard/launchAuthority.ts')
   check('the valve reads the switch owner first (before the role env)', valve.indexOf('spawnSwitch(kind)') !== -1 && valve.indexOf('spawnSwitch(kind)') < valve.indexOf("flagEnv('MERCURY_CONCOURSE_WORKER')") && valve.includes("cause: 'session-switch'"))
   const agentTool = src('src/tools/AgentTool/AgentTool.tsx')
   check('the Crewmate tool asks the valve at isEnabled and at call time', agentTool.includes("return evaluateLaunchAuthority('subagents').allowed") && agentTool.includes("const authority = evaluateLaunchAuthority('subagents')"))
-  const workflowTool = src('src/tools/WorkflowTool/WorkflowTool.tsx')
-  check('the Workflow tool asks the valve at isEnabled and at validate', workflowTool.includes("evaluateLaunchAuthority('workflows').allowed") && workflowTool.includes("const launchAuthority = evaluateLaunchAuthority('workflows')"))
   const skill = src('src/tools/SkillTool/SkillTool.ts')
   const forkAt = skill.indexOf("if (command.context === 'fork')")
   check('the skill fork asks the valve before runAgent', forkAt !== -1 && skill.indexOf("evaluateLaunchAuthority('subagents')", forkAt) !== -1 && skill.indexOf("evaluateLaunchAuthority('subagents')", forkAt) < skill.indexOf('runAgent({', forkAt))
-  const hooks = src('src/tools/WorkflowTool/agentHooks.ts')
-  const adapterAt = hooks.indexOf('async function* adapterSpawnStream(')
-  check("the workflow's agent hooks ask the valve before runAgent", adapterAt !== -1 && hooks.indexOf("evaluateLaunchAuthority('subagents')", adapterAt) !== -1 && hooks.indexOf("evaluateLaunchAuthority('subagents')", adapterAt) < hooks.indexOf('runAgent({', adapterAt))
   const crew = src('src/components/mercury-ui/screens/CrewView.tsx')
   check('the Crew view has no spawn key of its own (launches come through the Crewmate tool, which asks the valve)', !crew.includes('spawnSwitches()') && !crew.includes("input === 'n'"))
   const boot = src('src/components/BootSettingsScreen.tsx')
@@ -210,10 +187,10 @@ section("§5 the record's view — the admission snapshot's rows and the in-sess
   check('a profile row of 0 reads off, the boot menu\'s', j(sw.spawnSwitchOfRecord(rows('0', 'profile'), 'subagents')) === j({ on: false, source: 'boot-menu' }))
   check("a real env row reads off, the environment's", j(sw.spawnSwitchOfRecord(rows('0', 'process-env'), 'subagents')) === j({ on: false, source: 'env' }))
   check('a default row reads on', j(sw.spawnSwitchOfRecord(rows(null, 'default'), 'subagents')) === j({ on: true, source: 'default' }))
-  check('a record without a snapshot reads on (a pre-switch record)', j(sw.spawnSwitchOfRecord({}, 'workflows')) === j({ on: true, source: 'default' }) && j(sw.spawnSwitchOfRecord(undefined, 'subagents')) === j({ on: true, source: 'default' }))
+  check('a record without a snapshot reads on (a pre-switch record)', j(sw.spawnSwitchOfRecord({}, 'subagents')) === j({ on: true, source: 'default' }) && j(sw.spawnSwitchOfRecord(undefined, 'subagents')) === j({ on: true, source: 'default' }))
   check('an in-session toggle on the record outranks the snapshot', j(sw.spawnSwitchOfRecord({ ...rows('0', 'profile'), spawnSwitches: { subagents: 'on' } }, 'subagents')) === j({ on: true, source: 'in-session' }))
-  check('the facts of a record carry both', j(sw.spawnSwitchFactsOfRecord({ spawnSwitches: { workflows: 'off' } })) === j({ subagents: { on: true, source: 'default' }, workflows: { on: false, source: 'in-session' } }))
-  check('the lines read as the operator sees them', sw.spawnSwitchLine('subagents', { on: false, source: 'boot-menu' }) === 'crewmates off (boot menu)' && sw.spawnSwitchLine('workflows', { on: true, source: 'in-session' }) === 'workflows on (in-session)' && sw.spawnSwitchLine('workflows', { on: false, source: 'env' }) === 'workflows off (environment)')
+  check('the facts of a record carry the switch; a record an older daemon stored with workflows off still reads the constant (on, default)', j(sw.spawnSwitchFactsOfRecord({ spawnSwitches: { subagents: 'off', workflows: 'off' } } as never)) === j({ subagents: { on: false, source: 'in-session' }, workflows: { on: true, source: 'default' } }))
+  check('the lines read as the operator sees them', sw.spawnSwitchLine('subagents', { on: false, source: 'boot-menu' }) === 'crewmates off (boot menu)' && sw.spawnSwitchLine('subagents', { on: true, source: 'in-session' }) === 'crewmates on (in-session)' && sw.spawnSwitchLine('subagents', { on: false, source: 'env' }) === 'crewmates off (environment)')
 }
 
 section("§6 the seat verb — idle applies, busy parks and forwards, the runner's frame lands it, the respawn re-forwards")
@@ -252,11 +229,11 @@ section("§6 the seat verb — idle applies, busy parks and forwards, the runner
   const lastToggle = (): { switch?: string; on?: boolean; requestId?: number } => toggles()[toggles().length - 1] ?? {}
   const runnerAnswers = async (at: 'now' | 'turn_end'): Promise<number> => {
     const request = await stand.nextRequest('session/set_spawn_switch')
-    const params = request.params as { switch: 'subagents' | 'workflows'; on: boolean }
+    const params = request.params as { switch: 'subagents'; on: boolean }
     request.answer({ switch: params.switch, on: params.on, at })
     return request.id
   }
-  const runnerLands = async (requestId: number, kind: 'subagents' | 'workflows', on: boolean): Promise<void> => {
+  const runnerLands = async (requestId: number, kind: 'subagents', on: boolean): Promise<void> => {
     stand.applied({ request_id: requestId, verb: 'set_spawn_switch', switch: kind, on })
     await new Promise(r => setTimeout(r, 20))
   }
@@ -294,28 +271,29 @@ section("§6 the seat verb — idle applies, busy parks and forwards, the runner
   await until(() => toggles().length === before + 1)
   check("the respawn re-forwards the record's toggles to the fresh child", toggles().length === before + 1 && toggles()[before]?.switch === 'subagents' && toggles()[before]?.on === true, j(toggles()))
   ;(await stand.nextRequest('session/set_spawn_switch')).answer({ switch: 'subagents', on: true, at: 'now' })
-  const racedCall = seat.setSessionSpawnSwitch(sid, { kind: 'workflows', on: false }, 'operator', roster, recDir)
+  const racedCall = seat.setSessionSpawnSwitch(sid, { kind: 'subagents', on: false }, 'operator', roster, recDir)
   const racedId = await runnerAnswers('turn_end')
   const raced = await racedCall
-  check('a toggle the seat read as idle but the runner holds parks truthfully: queued, the record parks it, the applied state untouched', raced.outcome === 'queued' && rec()?.pendingSpawnSwitches?.[0]?.kind === 'workflows' && rec()?.spawnSwitches?.workflows === undefined, j({ raced, switches: rec()?.spawnSwitches, parked: rec()?.pendingSpawnSwitches }))
-  await runnerLands(racedId, 'workflows', false)
-  check("…and the runner's frame lands it", rec()?.spawnSwitches?.workflows === 'off' && rec()?.pendingSpawnSwitches === undefined, j(rec()?.spawnSwitches))
+  check('a toggle the seat read as idle but the runner holds parks truthfully: queued, the record parks it, the applied state untouched', raced.outcome === 'queued' && rec()?.pendingSpawnSwitches?.[0]?.kind === 'subagents' && rec()?.pendingSpawnSwitches?.[0]?.on === false && rec()?.spawnSwitches?.subagents === 'on', j({ raced, switches: rec()?.spawnSwitches, parked: rec()?.pendingSpawnSwitches }))
+  await runnerLands(racedId, 'subagents', false)
+  check("…and the runner's frame lands it", rec()?.spawnSwitches?.subagents === 'off' && rec()?.pendingSpawnSwitches === undefined, j(rec()?.spawnSwitches))
   busy = true
-  const silentCall = seat.setSessionSpawnSwitch(sid, { kind: 'workflows', on: true }, 'operator', roster, recDir)
+  const silentCall = seat.setSessionSpawnSwitch(sid, { kind: 'subagents', on: true }, 'operator', roster, recDir)
   const silent = await silentCall
-  check('a runner silent past the deadline leaves the park standing: queued', silent.outcome === 'queued' && rec()?.pendingSpawnSwitches?.[0]?.kind === 'workflows' && rec()?.spawnSwitches?.workflows === 'off', j({ silent, parked: rec()?.pendingSpawnSwitches }))
+  check('a runner silent past the deadline leaves the park standing: queued', silent.outcome === 'queued' && rec()?.pendingSpawnSwitches?.[0]?.kind === 'subagents' && rec()?.spawnSwitches?.subagents === 'off', j({ silent, parked: rec()?.pendingSpawnSwitches }))
   busy = false
   const drainBefore = toggles().length
   seat.onSeatIdle(short, roster, recDir)
   await until(() => toggles().length === drainBefore + 1)
-  check('the idle edge forwards a parked toggle the runner does not hold', toggles().length === drainBefore + 1 && lastToggle().switch === 'workflows' && lastToggle().on === true, j(toggles()))
+  check('the idle edge forwards a parked toggle the runner does not hold', toggles().length === drainBefore + 1 && lastToggle().switch === 'subagents' && lastToggle().on === true, j(toggles()))
   await runnerAnswers('now')
-  const drained = await until(() => rec()?.spawnSwitches?.workflows === 'on' && rec()?.pendingSpawnSwitches === undefined)
+  const drained = await until(() => rec()?.spawnSwitches?.subagents === 'on' && rec()?.pendingSpawnSwitches === undefined)
   check("…and the runner's answer lands it on the record: on, nothing parked", drained, j(rec()))
-  const unknown = await seat.setSessionSpawnSwitch('no-such-session', { kind: 'workflows', on: false }, 'operator', roster, recDir)
+  const unknown = await seat.setSessionSpawnSwitch('no-such-session', { kind: 'subagents', on: false }, 'operator', roster, recDir)
   check('an unknown session refuses typed', unknown.outcome === 'refused' && (unknown.detail ?? '').includes('unknown-session'))
   const daemonMain = src('src/daemon/main.ts')
-  check("the daemon's control dispatcher routes 'set-spawn-switch' to the seat verb", daemonMain.includes("if (action === 'set-spawn-switch')") && daemonMain.includes('setSessionSpawnSwitch(sessionId, spawnSwitch, by, roster)'))
+  check("the daemon's control dispatcher routes 'set-spawn-switch' to the seat verb", daemonMain.includes("if (action === 'set-spawn-switch')") && daemonMain.includes('setSessionSpawnSwitch(sessionId, { kind: spawnSwitch.kind, on: spawnSwitch.on }, by, roster)'))
+  check('…and a socket that still names the retired switch is answered a no-op before the seat is asked', daemonMain.indexOf("if (spawnSwitch.kind === 'workflows') return { outcome: 'noop' as const }") !== -1 && daemonMain.indexOf("if (spawnSwitch.kind === 'workflows') return { outcome: 'noop' as const }") < daemonMain.indexOf('setSessionSpawnSwitch(sessionId, { kind: spawnSwitch.kind, on: spawnSwitch.on }, by, roster)'))
   check('the control server admits the action and narrows the payload', src('src/daemon/controlServer.ts').includes("raw.action === 'set-spawn-switch'") && src('src/daemon/controlServer.ts').includes("spawnSwitch refused — { kind: subagents|workflows, on: boolean }"))
   const printSrc = src('src/cli/run.ts')
   check("the runner answers a 'spawn_switch' with where it lands — now when idle, the turn boundary otherwise — and lands a deferred one at the turn's end with the session/applied notification", printSrc.includes("'session/set_spawn_switch': (params, ref) => {") && printSrc.includes('deferredSpawnSwitches = [...deferredSpawnSwitches.filter(d => d.kind !== toggle.kind), { ...toggle, requestId: ref.id }]') && printSrc.includes("return { switch: toggle.kind, on: toggle.on, at: SEAT_VERB_AT(true) }") && printSrc.includes("return { switch: toggle.kind, on: toggle.on, at: SEAT_VERB_AT(false) }") && printSrc.includes("io.outbound.enqueue({ method: 'session/applied', params: { request_id: toggle.requestId, verb: 'set_spawn_switch', switch: toggle.kind, on: toggle.on } })"))
@@ -423,7 +401,7 @@ if (!existsSync(DIST)) {
   }
   const common = ['--model', 'claude-opus-4-8']
 
-  section('§8a the wire — born with both switches off, the request carries neither tool')
+  section('§8a the wire — born with the switch off (the retired flag set beside it), the request carries no Crewmate tool')
   {
     const turns: ScriptedTurn[] = [{ kind: 'text', text: 'S8A-DONE', thinking: 'born off', inputTransformations: [] }]
     const fixture = await startFixtureApi([handoffTurn(), ...turns])
@@ -433,7 +411,7 @@ if (!existsSync(DIST)) {
     const reqs = fixture.messageRequests().filter(q => !isHandoffRequest(q))
     check('one marked closing ask follows the first turn', j(fixture.messageRequests().map(isHandoffRequest)) === j([false, true]), j(fixture.messageRequests().map(isHandoffRequest)))
     const names = reqs.length > 0 ? toolNames(reqs[0]!.body as Body) : []
-    check('the first request carries no Crewmate tool and no Workflow tool', reqs.length >= 1 && !names.includes(AgentTool.name) && !names.includes(WorkflowTool.name) && names.includes('Read'), names.join(','))
+    check('the first request carries no Crewmate tool', reqs.length >= 1 && !names.includes(AgentTool.name) && names.includes('Read'), names.join(','))
     await fixture.close()
   }
 
@@ -479,7 +457,31 @@ if (!existsSync(DIST)) {
     await fixture.close()
   }
 
-  section('§9 /health — the built artifact names both switches with their source')
+  section("§8c the wire's inert half — a host that still sends the retired switch is answered, and nothing moves")
+  {
+    const turns: ScriptedTurn[] = [
+      { kind: 'text', text: 'S8C-TURN-1-DONE', thinking: 'first', inputTransformations: [] },
+      { kind: 'text', text: 'S8C-TURN-2-DONE', thinking: 'second', inputTransformations: [] },
+    ]
+    const fixture = await startFixtureApi([handoffTurn(), ...turns])
+    const arena = makeArena(fixture.url)
+    const r = await runStreaming(arena, [...common, '--session-id', 'c0ffee00-0000-4000-8000-0000000005c8'], [
+      { prompt: 'hi one', request: { method: 'session/set_spawn_switch', params: { switch: 'workflows', on: false } } },
+      { prompt: 'hi two', request: { method: 'session/facts', params: {} } },
+    ])
+    check('the two-turn process exits 0 and answers both turns', r.exit === 0 && r.stdout.includes('S8C-TURN-1-DONE') && r.stdout.includes('S8C-TURN-2-DONE'), `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
+    const answered = r.answers.find(a => a.method === 'session/set_spawn_switch')
+    const echoed = answered?.result as { switch?: string; on?: boolean } | undefined
+    check('the retired switch is answered as a request the runner knows: no error, the switch and the value it was sent', answered !== undefined && answered.error === undefined && echoed?.switch === 'workflows' && echoed.on === false, j(r.answers))
+    const facts = r.answers.find(a => a.method === 'session/facts')
+    const switches = (facts?.result as { spawn_switches?: Record<string, { on?: boolean; source?: string }> } | undefined)?.spawn_switches
+    check("the facts still read the wire's second field on, default, and the crewmates switch as it was born", j(switches?.workflows) === j({ on: true, source: 'default' }) && j(switches?.subagents) === j({ on: true, source: 'default' }), j(facts))
+    const reqs = fixture.messageRequests().filter(q => !isHandoffRequest(q))
+    check('both requests carry the same tools, the Crewmate tool among them and no Workflow tool', reqs.length === 2 && toolNames(reqs[0]!.body as Body).includes(AgentTool.name) && !toolNames(reqs[0]!.body as Body).includes('Workflow') && j(toolNames(reqs[0]!.body as Body)) === j(toolNames(reqs[1]!.body as Body)), String(reqs.length))
+    await fixture.close()
+  }
+
+  section('§9 /health — the built artifact names the switch with its source')
   {
     const findRow = (value: unknown): Record<string, unknown> | null => {
       if (Array.isArray(value)) {
@@ -518,32 +520,30 @@ if (!existsSync(DIST)) {
       }
     }
     const clean = health({})
-    check('a clean process: both on, the defaults, ok', clean !== null && clean.status === 'ok' && String(clean.evidence).includes('crewmates on (default)') && String(clean.evidence).includes('workflows on (default)') && String(clean.evidence).includes('the next session is born with these'), j(clean))
+    check('a clean process: on, the default, ok, and no word of a second switch', clean !== null && clean.status === 'ok' && String(clean.evidence).startsWith('crewmates on (default) — this process — the next session is born with it') && !/workflow/i.test(j(clean)), j(clean))
     const off = health({ [SUB]: '0' })
-    check("sub-agents off in the environment: the row says so with its source, info, and names the commands and the menu", off !== null && off.status === 'info' && String(off.evidence).includes('crewmates off (environment)') && String(off.evidence).includes('workflows on (default)') && String(off.detail ?? '').includes('/crewmates on|off') && String(off.detail ?? '').includes("boot menu's Agents section") && off.label === 'Crewmates & workflows', j(off))
+    check("sub-agents off in the environment: the row says so with its source, info, and names the commands and the menu", off !== null && off.status === 'info' && String(off.evidence).includes('crewmates off (environment)') && !/workflow/i.test(j(off)) && String(off.detail ?? '').includes('/crewmates on|off') && String(off.detail ?? '').includes("boot menu's Agents section") && off.label === 'Crewmates', j(off))
   }
 }
 
-section('§10 the commands — /crewmates and /workflows on|off, the grammar, the no-chat sentence')
+section('§10 the command — /crewmates on|off, the grammar, the no-chat sentence')
 {
   const { default: crewmates } = await import('../../src/commands/crewmates/index.ts')
-  const { default: workflows } = await import('../../src/commands/workflows/index.ts')
   const { COMMAND_DOMAINS } = await import('../../src/components/HelpV2/commandDomains.ts')
   const { runSpawnSwitchCommand } = await import('../../src/commands/crewmates/spawnSwitch.ts')
   const { builtinCommands } = await import('../../src/commands.ts')
   check('/crewmates carries the on|off hint and stays the crew view (one word for one thing: /subagents ceased in .34 — no alias, no refusal line)', crewmates.type === 'local-jsx' && crewmates.name === 'crewmates' && crewmates.argumentHint === '[on|off]' && String(crewmates.description).includes('on or off') && !builtinCommands().some(c => c.name === 'subagents'))
   check('/crewmates is registered in the command table', builtinCommands().some(c => c.name === 'crewmates'))
-  check('/workflows carries the on|off hint and stays the board', workflows.type === 'local-jsx' && workflows.argumentHint === '[on|off]' && String(workflows.description).includes('on|off'))
-  check('/crewmates sits in the crew & delegation domain beside /workflows, and the retired word is gone from it', COMMAND_DOMAINS.find(d => d.key === 'crew')?.names.includes('crewmates') === true && COMMAND_DOMAINS.find(d => d.key === 'crew')?.names.includes('workflows') === true && COMMAND_DOMAINS.find(d => d.key === 'crew')?.names.includes('subagents') !== true)
+  check('/crewmates sits in the crew & delegation domain, and the retired word is gone from it', COMMAND_DOMAINS.find(d => d.key === 'crew')?.names.includes('crewmates') === true && COMMAND_DOMAINS.find(d => d.key === 'crew')?.names.includes('subagents') !== true)
   check('the README roster names /crewmates in crew & delegation and no longer the retired word', /\| crew & delegation \|[^\n]*`\/crewmates`/.test(src('README.md')) && !src('README.md').includes('/subagents'))
   check('the grammar: on · off · empty · junk', j(sw.parseSpawnSwitchArg(' ON ')) === j({ op: 'on' }) && j(sw.parseSpawnSwitchArg('off')) === j({ op: 'off' }) && j(sw.parseSpawnSwitchArg('')) === j({ op: 'show' }) && j(sw.parseSpawnSwitchArg('maybe')) === j({ op: 'unknown', word: 'maybe' }))
-  const usage = await runSpawnSwitchCommand('workflows', 'maybe')
-  check('junk answers the usage line naming the command', usage.startsWith('usage: /workflows on|off'), usage)
+  const usage = await runSpawnSwitchCommand('subagents', 'maybe')
+  check('junk answers the usage line naming the command', usage.startsWith('usage: /crewmates on|off'), usage)
   const noChat = await runSpawnSwitchCommand('subagents', 'off')
   check('no chat open ⇒ the one sentence naming the focused session and the menu', noChat.includes('no chat is open') && noChat.includes("the boot menu's Agents section"), noChat)
-  check('the workflows board and the crew view branch on the argument through the same body', src('src/commands/workflows/workflows.tsx').includes("runSpawnSwitchCommand('workflows'") && src('src/commands/workflows/workflows.tsx').includes('parseSpawnSwitchArg(args') && src('src/commands/crewmates/crewmates.tsx').includes("runSpawnSwitchCommand('subagents'") && src('src/commands/crewmates/crewmates.tsx').includes('parseSpawnSwitchArg(args'))
-  check('the toggle receipts read the daemon\'s vocabulary', sw.spawnSwitchToggleReceipt('workflows', false, 'refused', 'no live channel') === 'workflows off refused — no live channel' && sw.spawnSwitchToggleReceipt('workflows', true, 'applied').includes('the Workflow tool rejoins the roster from the next turn'))
-  check("the agents page carries the switches under their .34 words", src('docs/CREW.md').includes('## The two spawn switches') && src('docs/CREW.md').includes('`/crewmates on|off` and `/workflows on|off`'))
+  check('the crew view branches on the argument through the one body', src('src/commands/crewmates/crewmates.tsx').includes("runSpawnSwitchCommand('subagents'") && src('src/commands/crewmates/crewmates.tsx').includes('parseSpawnSwitchArg(args'))
+  check('the toggle receipts read the daemon\'s vocabulary', sw.spawnSwitchToggleReceipt('subagents', false, 'refused', 'no live channel') === 'crewmates off refused — no live channel' && sw.spawnSwitchToggleReceipt('subagents', true, 'applied').includes('the Crewmate tool rejoins the roster from the next turn'))
+  check("the agents page carries the switch under its .34 words", src('docs/CREW.md').includes('## The spawn switch\n') && !src('docs/CREW.md').includes('two spawn switches') && src('docs/CREW.md').includes('`/crewmates on|off` prints its'))
 }
 
 console.log(`\n${failures === 0 ? '✅' : '❌'} prove-spawn-switch — ${checks - failures}/${checks} checks passed`)

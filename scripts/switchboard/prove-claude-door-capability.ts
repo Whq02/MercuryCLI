@@ -124,9 +124,7 @@ const FUTURE_IDS = [UNKNOWN_CLAUDE_ID, 'claude-sonnet-7-3']
 
 section('§4 the guarantee — a future Claude id starts from EVERY door, the wire deciding')
 {
-  process.env.MERCURY_WORKFLOW_ROUTING = '1'
   const { preflightConcourseDispatch } = await import('../../src/daemon/concourseDispatch.ts')
-  const { resolveWorkflowRoutedModel } = await import('../../src/tools/WorkflowTool/workflowRouting.ts')
   const { setSubModel, resolveSubModel } = await import('../../src/utils/model/subModelSlots.ts')
   const { resolveAdvisorModel } = await import('../../src/services/advisor/advisorSettings.ts')
   const { validateModel } = await import('../../src/utils/model/validateModel.ts')
@@ -142,7 +140,6 @@ section('§4 the guarantee — a future Claude id starts from EVERY door, the wi
     check("door · the daemon's session admission (the boot face's New Session, /clear, --model and a saved setting all reach it through bornSession)", admission.ok && admission.entry.modelId === id, text(admission))
     const preflight = await preflightConcourseDispatch({ workspaceDir: work, modelKey: id })
     check("door · the birth door's preflight", preflight.ok === true, text(preflight))
-    check('door · the workflow seats: an explicit model stands (routing never substitutes it)', resolveWorkflowRoutedModel({ tier: 'executor', model: id }) === undefined)
     const picked = setSubModel('advisor', id)
     const advisor = resolveAdvisorModel()
     check("door · the advisor pick (/submodels) and AskAdvisor's model", picked.ok && advisor.origin === 'saved' && advisor.model === id && advisor.route === 'anthropic', `${text(picked)} ${text(advisor)}`)
@@ -158,7 +155,6 @@ section('§4 the guarantee — a future Claude id starts from EVERY door, the wi
     const probe = src.indexOf('queryModelWithoutStreaming(')
     return admission !== -1 && probe !== -1 && admission < probe && !src.includes('is not an exact model id')
   })())
-  delete process.env.MERCURY_WORKFLOW_ROUTING
 
   check('the shape guards stay: a bare vendor slug is carrier-shaped junk for the home lane', !canonicalWireModelId('anthropic/claude-zephyr-9-1').ok)
   check("the shape guards stay: a spelling without the claude- mark is no family's ('claude zephyr 9' → unrecognised)", recognizeModelId('claude zephyr 9').kind === 'unrecognised')
@@ -183,7 +179,6 @@ section('§5 the road census — every door reaches a capability owner; a new ju
     ['src/daemon/sessionSeat.ts', 'the switch on a gone runner', 'validateWorkerModelChoice('],
     ['src/commands/model/model.tsx', "the Chat's /model <id>", 'validateModel('],
     ['src/services/advisor/advisorSettings.ts', "the advisor's model", "resolveSubModel("],
-    ['src/tools/WorkflowTool/workflowRouting.ts', 'the workflow seat', 'neutralSeatDefault'],
   ]
   for (const [file, door, owner] of doors) {
     check(`${door} (${file}) reaches ${owner}`, read(file).includes(owner))

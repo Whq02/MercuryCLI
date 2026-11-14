@@ -3,18 +3,18 @@ WORKBENCH               │ transcript row 48 · · · · · · · · · · · �
   no prompts sent yet   │ transcript row 49 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │                                                                                              │
 NEXT                    │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
-  · /workflows…         │ │ ▖▟▆▙▗ Mercury · usage                                                                    │ │
-  · /health — health…   │ │ API usage session on · 0 subscriptions signed in                                         │ │
-  · /memory — memory    │ │                                                                                          │ │
-  · /mission — set a…   │ │ Anthropic usage                                                                          │ │
-                        │ │ API key · …-key                                                                          │ │
-FILES · orchard         │ │ credits: not reported by the provider                                                    │ │
-  ↵ or click · browse   │ │                                                                                          │ │
-                        │ │ Subscription                                                                             │ │
-VITALS                  │ │ none — /logins anthropic connects a subscription account · n/a                           │ │
-  · spend —             │ │                                                                                          │ │
-  · ctx — · —           │ │ API key                                                                                  │ │
-  · health — run /health│ │ Anthropic API key (ANTHROPIC_API_KEY)                                                    │ │
+  · /health — health…   │ │ ▖▟▆▙▗ Mercury · usage                                                                    │ │
+  · /memory — memory    │ │ API usage session on · 0 subscriptions signed in                                         │ │
+  · /mission — set a…   │ │                                                                                          │ │
+                        │ │ Anthropic usage                                                                          │ │
+FILES · orchard         │ │ API key · …-key                                                                          │ │
+  ↵ or click · browse   │ │ credits: not reported by the provider                                                    │ │
+                        │ │                                                                                          │ │
+VITALS                  │ │ Subscription                                                                             │ │
+  · spend —             │ │ none — /logins anthropic connects a subscription account · n/a                           │ │
+  · ctx — · —           │ │                                                                                          │ │
+  · health — run /health│ │ API key                                                                                  │ │
+                        │ │ Anthropic API key (ANTHROPIC_API_KEY)                                                    │ │
                         │ │ no usage endpoint is read for an API key on this lane — the provider console is the view │ │
                         │ │                                                                                          │ │
                         │ │ OpenAI usage                                                                             │ │

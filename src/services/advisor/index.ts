@@ -12,7 +12,6 @@ export {
   ADVISOR_PER_CHAT_WORDS,
   ADVISOR_SETTINGS_OFF_NOTE,
   ADVISOR_SETTINGS_OFF_REFUSAL,
-  ADVISOR_WORKFLOW_REFUSAL,
   advisorChatLine,
   advisorChatState,
   advisorChatSwitch,

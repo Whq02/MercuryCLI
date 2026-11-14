@@ -260,10 +260,10 @@ export function swarmOwnerPost(input: OwnerPostInput): OwnerPostReceipt {
   const store = swarmStore(), principal = swarmPrincipal()
   return store && principal ? store.postOwner(principal, input) : { ok: false, reason: 'No live wave; /swarm on opens it.' }
 }
-export async function latchSwarmAgent(agentId: string, name: string, workflow = false, resumed = false, team?: string, signal?: AbortSignal): Promise<boolean> {
+export async function latchSwarmAgent(agentId: string, name: string, resumed = false, team?: string, signal?: AbortSignal): Promise<boolean> {
   if (!roads.has(key(agentId))) {
     const saved = await readAgentMetadata(agentId as AgentId)
-    const on = !workflow && (saved === null ? pendingLaunches.has(key(agentId)) || !resumed && swarmSessionEnabled() : saved.swarm === true)
+    const on = saved === null ? pendingLaunches.has(key(agentId)) || !resumed && swarmSessionEnabled() : saved.swarm === true
     roads.set(key(agentId), { on, execution: randomUUID(), name, active: true })
   }
   const road = roads.get(key(agentId))!
@@ -329,7 +329,7 @@ export function swarmTools(agentId = 'main'): Tool[] {
   if (!swarmRoad(agentId) || !swarmMasterEnabled()) return []
   const module = implementationModule()
   if (module === null) return []
-  boardTool ??= module.tool({ buildTool, principal: context => context.agentKind === 'workflow' ? null : swarmPrincipal(context.agentId), paused: id => operatorPauseGate.holds(id), sessionOn: swarmSessionEnabled }, swarmStore)
+  boardTool ??= module.tool({ buildTool, principal: context => swarmPrincipal(context.agentId), paused: id => operatorPauseGate.holds(id), sessionOn: swarmSessionEnabled }, swarmStore)
   return [boardTool]
 }
 

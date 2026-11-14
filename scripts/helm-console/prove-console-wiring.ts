@@ -38,13 +38,13 @@ check(
 )
 check('↵ on a rail row activates it through the one seam', pi.includes('requestHelmRowActivation(focusPane, getHelmCursor(focusPane))'))
 
-section('HelmVitalsRail — usage · workflow · health, nothing more')
+section('HelmVitalsRail — usage · health, nothing more')
 const rail = read('src/components/HelmVitalsRail.tsx') + read('src/utils/cockpit/helmVitalsModel.ts')
 check('the rail reads nothing from the console store', !rail.includes('helmConsole.js'))
 check('no console section', !rail.includes("label: 'CONSOLE'") && !rail.includes("key: 'console'") && !rail.includes('consoleRows'))
 check('no trace section and no trace read', !rail.includes("label: 'TRACE'") && !rail.includes("key: 'trace'") && !rail.includes('useVitals().trace') && !rail.includes('traceRows'))
 check('the SUBSTRATE box stays off the rail', !rail.includes('label="SUBSTRATE"') && !rail.includes("label: 'SUBSTRATE'"))
-check('the section keys are the three', rail.includes("key: 'usage' | 'workflow' | 'health'"))
+check('the section keys are the two', rail.includes("key: 'usage' | 'health'"))
 check('the only shed section is health, pointed at /health', rail.includes("const shedPointers = [...(healthShed ? ['/health'] : [])]"))
 check('the shed ceiling prefers the MEASURED rail height', rail.includes('availRows ?? termRows - CHROME_ROWS'))
 const fsl = read('src/components/FullscreenLayout.tsx')
@@ -101,9 +101,6 @@ check('fallback prefix builders are DYNAMIC imports (cycle rule)', ask.includes(
 section('vitalsBus crew channel + lanes rail')
 const bus = read('src/state/vitalsBus.ts')
 const lanes = read('src/components/HelmLanesRail.tsx') + read('src/utils/cockpit/helmLanesModel.ts')
-
-section('workflow lead-run detail (vitals rail)')
-check('phase + agent progress derived from the one work-row owner', rail.includes('useFocusedWorkRows()') && rail.includes('focusedWorkflowRows(workRows)') && rail.includes('const leadDetail = workflowRowDetail(runningWf[0]!)'))
 
 console.log('')
 if (failures > 0) {

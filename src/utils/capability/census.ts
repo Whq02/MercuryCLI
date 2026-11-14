@@ -98,7 +98,6 @@ const PROOF_MAP: Record<string, string> = {
   Git: 'scripts/builtin-tools/prove-git-graph.ts',
   Journey: 'scripts/builtin-tools/prove-journeys.ts',
   ToolSearch: 'scripts/tools/prove-toolsearch-cooccur.ts',
-  Workflow: 'scripts/workflows/run-all.sh',
   Crewmate: 'scripts/tools/prove-tool-contracts.ts',
   SendMessage: 'scripts/crew/run-all.sh',
   ResumeCrewmate: 'scripts/crew/run-all.sh',

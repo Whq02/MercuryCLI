@@ -52,7 +52,7 @@ check(
 )
 check(
   'the interruption line is TEXT content (the transcript says the turn was cut)',
-  [false, true].every(toolUse => [undefined, 'stalled', 'workflow-abort', new Error('cut detail')].every(reason => {
+  [false, true].every(toolUse => [undefined, 'crew-stop', 'a foreign reason', new Error('cut detail')].every(reason => {
     const content = createUserInterruptionMessage({ toolUse, reason }).message.content
     return Array.isArray(content) && content.length === 1 && content[0]?.type === 'text' && content[0].text === turnCutLine(turnCutOf(reason), toolUse)
   })),

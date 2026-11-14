@@ -210,10 +210,9 @@ await stub('src/services/engine-connector/focusedConnector.ts', {
 await stub('src/components/tasks/useFocusedWork.ts', {
   useFocusedWorkRows: () => [],
   useFocusedWorkRoster: () => ({ rows: [], mission: [], reported: true }),
-  otherSessionRunnerPids: () => new Set(),
   focusedSessionIdOrNull: () => null,
 })
-await stub('src/state/vitalsBus.ts', { useVitals: () => ({ trace: null, workflowsDisk: [] }) })
+await stub('src/state/vitalsBus.ts', { useVitals: () => ({ trace: null }) })
 
 const activeUsageReads = new Set<Promise<void>>()
 const ownerRefresh = (await import(join(ROOT, 'src/services/providers/providerUsage.ts'))).refreshProviderUsage

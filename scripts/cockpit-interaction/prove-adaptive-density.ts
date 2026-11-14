@@ -396,8 +396,8 @@ t.section('§5 — REAL BINARY, LIVE ACTIVITY: the density pipe at rendered grid
     const gridLines = (label: string): string[] =>
       (payload.marks?.find(m => m.label === label)?.grid ?? []).map(row => row.map(c => c.c).join(''))
     const hintRows = (lines: string[]): number => lines.filter(l => /^\s*· \/[a-z]+(?:…| — )/.test(l)).length
-    t.check('hint counting keeps whole-word rail clips', hintRows(['  · /workflows…          │', '  · /health — health…    │', '  · /memory — memory    │', '  · /mission — set a…   │']) === 4, 'four commands')
-    t.check('hint counting excludes commands outside the rail', hintRows(['NEXT                    │ /health — health cert', '                        │  ❯ /workflows /health']) === 0, 'rail rows only')
+    t.check('hint counting keeps whole-word rail clips', hintRows(['  · /health…             │', '  · /health — health…    │', '  · /memory — memory    │', '  · /mission — set a…   │']) === 4, 'four commands')
+    t.check('hint counting excludes commands outside the rail', hintRows(['NEXT                    │ /health — health cert', '                        │  ❯ /crewmates /health']) === 0, 'rail rows only')
 
     const calm = gridLines('calm')
     const active = gridLines('active')
@@ -408,7 +408,7 @@ t.section('§5 — REAL BINARY, LIVE ACTIVITY: the density pipe at rendered grid
       calm.length > 0 && active.length > 0 && waiting.length > 0,
       `${payload.marks?.length ?? 0} marks`,
     )
-    t.check('CALM: the whole authored hint list paints', hintRows(calm) >= 4, `${hintRows(calm)} hint rows`)
+    t.check('CALM: the whole authored hint list paints', hintRows(calm) >= 3, `${hintRows(calm)} hint rows`)
     t.check('ACTIVE: the budget caps the list', hintRows(active) <= 3, `${hintRows(active)} hint rows`)
     t.check('ACTIVE: still teaching — never zero', hintRows(active) >= 1, `${hintRows(active)}`)
     t.check('ACTIVE really was streaming', active.some(l => l.includes('chunk-')), 'stream text on screen')

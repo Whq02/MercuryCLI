@@ -18,8 +18,6 @@ delete process.env.MERCURY_SESSION_KIT
 delete process.env.MERCURY_SKILL_CHAR_BUDGET
 delete process.env.MERCURY_SATURN_DISABLE
 delete process.env.MERCURY_KEYBINDINGS
-delete process.env.MERCURY_WORKFLOWS
-delete process.env.MERCURY_SESSION_WORKFLOWS
 process.chdir(project)
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.on('exit', () => rmSync(scratch, { recursive: true, force: true }))
@@ -48,7 +46,6 @@ const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
 setSessionTrustAccepted(true)
 const { initBundledSkills } = await import('../../src/skills/bundled/index.ts')
 const { getBundledSkills } = await import('../../src/skills/bundledSkills.ts')
-const { initBundledWorkflows } = await import('../../src/tools/WorkflowTool/bundled/index.ts')
 const { computeActiveSet, publishActiveSet } = await import('../../src/extensions/active.ts')
 const { clearCommandsCache, getSkillToolCommands } = await import('../../src/commands.ts')
 const { MAX_LISTING_DESC_CHARS } = await import('../../src/tools/SkillTool/constants.ts')
@@ -58,21 +55,19 @@ const { getSkillListingAttachments, resetSentSkillNames } = await import('../../
 type Command = import('../../src/types/command.ts').Command
 
 initBundledSkills()
-initBundledWorkflows()
 publishActiveSet(computeActiveSet({ cwd: project }))
 clearCommandsCache()
 
 const commands = await getSkillToolCommands(project)
 const byName = new Map(commands.map(cmd => [cmd.name, cmd]))
 
-const generatedSix = ['extension-maker', 'image-generation', 'mcp-smithy', 'provider-apis', 'research', 'skill-forge']
+const generatedEight = ['code-review', 'deep-research', 'extension-maker', 'image-generation', 'mcp-smithy', 'provider-apis', 'research', 'skill-forge']
 const codeModelFive = ['keybindings-help', 'loop', 'mercury-docs', 'schedule', 'update-config']
-const workflowOne = ['deep-research']
 const craftThree = ['filmcraft:filmcraft', 'lightcraft:lightcraft', 'photocraft:photocraft']
-const expectedNames = [...generatedSix, ...codeModelFive, ...workflowOne, ...craftThree].sort()
+const expectedNames = [...generatedEight, ...codeModelFive, ...craftThree].sort()
 
 check(
-  'the bundled Skill-tool roster carries all 15 model-invocable skills across the four families',
+  'the bundled Skill-tool roster carries all 16 model-invocable skills across the three families',
   JSON.stringify([...byName.keys()].sort()) === JSON.stringify(expectedNames),
   [...byName.keys()].sort().join(', '),
 )
@@ -98,7 +93,7 @@ for (const name of expectedNames) {
   const listed = line.startsWith(prefix) ? line.slice(prefix.length) : ''
   const rawDesc = String(cmd?.description ?? '')
   const rawWhen = (cmd as { whenToUse?: string } | undefined)?.whenToUse
-  const expectedListed = cmd?.kind === 'workflow' ? rawDesc : rawWhen ? `${rawDesc} - ${rawWhen}` : rawDesc
+  const expectedListed = rawWhen ? `${rawDesc} - ${rawWhen}` : rawDesc
 
   check(`${name}: listing line has no ellipsis cut`, line !== '' && !line.includes('…') && !line.endsWith('...'), line)
   check(

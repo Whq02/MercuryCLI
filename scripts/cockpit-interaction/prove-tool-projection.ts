@@ -85,6 +85,7 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
   const POOL: string[] = [
     ...new Set([...LIVE, ...[...DIR_NAMES.values()].flatMap(s => [...s])]),
   ].sort()
+  const STORED_CALL_NAMES = ['Workflow']
 
   t.section('§1 — the glyph registry is total, width-stable and not colour-only')
   {
@@ -103,8 +104,8 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
       unclassified.length === 0,
       unclassified.join(', ') || 'total',
     )
-    const stale = Object.keys(TOOL_FAMILY_BY_NAME).filter(name => !POOL.includes(name))
-    t.check('and the table names no tool that no longer exists', stale.length === 0, stale.join(', ') || 'clean')
+    const stale = Object.keys(TOOL_FAMILY_BY_NAME).filter(name => !POOL.includes(name) && !STORED_CALL_NAMES.includes(name))
+    t.check('and the table names no tool that no longer exists, but for the one name a stored session still paints (Workflow keeps its glyph)', stale.length === 0 && STORED_CALL_NAMES.every(name => !POOL.includes(name) && TOOL_FAMILY_BY_NAME[name] === 'agent'), stale.join(', ') || 'clean')
 
     const marks = Object.values(TOOL_FAMILY_MARKS)
     t.check(
@@ -190,10 +191,10 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
       bothWays.join(', ') || 'disjoint',
     )
     const ghostsIn = (names: Iterable<string>): string[] => [...names].filter(name => !POOL.includes(name))
-    const ghosts = ghostsIn(NON_INDEXING_TOOLS)
+    const ghosts = ghostsIn(NON_INDEXING_TOOLS).filter(name => !STORED_CALL_NAMES.includes(name))
     t.check(
-      'the non-indexing list names only pooled tools',
-      ghosts.length === 0,
+      'the non-indexing list names only pooled tools, and the one name a stored session still holds (Workflow stays out of the index)',
+      ghosts.length === 0 && STORED_CALL_NAMES.every(name => NON_INDEXING_TOOLS.has(name)),
       ghosts.join(', ') || 'clean',
     )
     const deadName = '__unregistered_projection_probe__'

@@ -8,7 +8,7 @@ import { errorMessage } from '../../utils/errors.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { liveAgentOwner } from '../AgentTool/resumeAgent.js'
-import { endedWords, mapMessageResult, messageNoticeFor, messageWorkflowWorker, resolveCrewAddress, selfAddressRefusalText, senderAgentTask, unknownAgentRefusal, validateCrewMessage, type CrewMessageInput, type MessageOutput } from '../SendMessageTool/crewAddress.js'
+import { endedWords, mapMessageResult, messageNoticeFor, resolveCrewAddress, selfAddressRefusalText, senderAgentTask, unknownAgentRefusal, validateCrewMessage, type CrewMessageInput, type MessageOutput } from '../SendMessageTool/crewAddress.js'
 import { renderToolResultMessage, renderToolUseMessage } from '../SendMessageTool/UI.js'
 import { RESUME_AGENT_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
@@ -76,8 +76,6 @@ export const ResumeAgentTool = buildTool({
       if (isLocalAgentTask(task)) address.task = task
       else delete address.task
     }
-    const workflow = await messageWorkflowWorker(address, input.message)
-    if (workflow !== undefined) return { data: workflow }
     if (address.task === undefined && address.transcriptPath === null) return { data: { success: false, message: `Cannot resume ${address.who}: no running task by that id in this session and no transcript on disk to resume from — the crewmate may belong to another process, or its record was cleaned up. Launch a new crewmate with Crewmate if the work is still wanted.` } }
     const ended = await endedWords(address)
     try {

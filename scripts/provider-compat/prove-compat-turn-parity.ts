@@ -13,7 +13,7 @@ try {
     assert.equal(url.hostname, '127.0.0.1', 'parity verification stays on the fixture')
     return fetchBefore(input, init)
   }) as typeof fetch
-  const { getSchemaBoundStructuredOutputTool } = await import(`${root}/src/tools/WorkflowTool/structuredOutputTool.ts`)
+  const { getSchemaBoundStructuredOutputTool } = await import(`${root}/src/tools/SyntheticOutputTool/structuredOutputTool.ts`)
   const { finalizeAgentTool } = await import(`${root}/src/tools/AgentTool/agentToolUtils.ts`)
   const { refreshCompatCatalogues } = await import(`${root}/src/services/providers/openaicompat/compatCatalogue.ts`)
   const schema = { type: 'object', properties: { result: { type: 'string' }, steps: { type: 'integer' } }, required: ['result', 'steps'], additionalProperties: false }

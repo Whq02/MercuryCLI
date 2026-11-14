@@ -300,7 +300,7 @@ const runLeg = async (arm: string): Promise<Leg> => {
   const sid = opened.sessionId ?? ''
   await untilAsync(() => parentTranscript(sid).includes('fixture answers') && readFacts(sid)?.busy === false, 45_000, 50)
   const granted = (await daemonControlRpc({ op: 'sessionControl', action: 'grant-workflows', sessionId: sid, by: 'seat-drive' } as never)) as { ok?: boolean; outcome?: string; error?: string; detail?: string }
-  check(`${arm}: the session holds the workflows-allowed tag`, granted.ok === true && (granted.outcome === undefined || granted.outcome === 'applied' || granted.outcome === 'noop'), JSON.stringify(granted))
+  check(`${arm}: the session holds the crewmates-allowed tag`, granted.ok === true && (granted.outcome === undefined || granted.outcome === 'applied' || granted.outcome === 'noop'), JSON.stringify(granted))
   const runnerId = opened.runnerId ?? runnerOf(sid) ?? ''
   if (granted.outcome === 'applied') {
     check(
