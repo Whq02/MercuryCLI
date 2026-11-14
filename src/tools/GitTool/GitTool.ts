@@ -11,10 +11,11 @@ import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { stat } from 'node:fs/promises'
 import { expandPath } from '../../utils/path.js'
-import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
+import { checkReadPermissionForTool, checkWritePermissionForTool } from '../../utils/permissions/filesystem.js'
 import { repositoryDenied, repositoryReadDecision, withheldLine } from '../../services/resources/referencePaths.js'
 import { resolveRepoFolder } from '../../services/gitGraph/repoFolder.js'
 import { gitFilterSkipMessages } from '../../utils/git/spawnArgs.js'
+import { applyResolution, observableResolution, prepareResolution, resolutionPreview, storedResolution, type ResolutionPlan } from '../../services/gitGraph/conflictRegions.js'
 
 function repoHostDiscoveryEnabled(): boolean {
   return !isEnvDefinedFalsy(flagEnv('MERCURY_REPO_HOST'))
@@ -73,22 +74,23 @@ const findingSchema = () =>
   z.strictObject({
     class: z.enum(['defect', 'question', 'polish']),
     severity: z.enum(['blocker', 'major', 'minor']),
-    path: z.string().describe('Repo-relative path in reviewed diff'),
-    range: z.string().describe("'L<start>' or 'L<start>-L<end>' (1-based)"),
-    claim: z.string().describe('One-sentence finding'),
-    evidence: z.string().describe('Supporting evidence'),
+    path: z.string().describe('Reviewed repo-relative path'),
+    range: z.string().describe('L1 or L1-L5 (1-based)'),
+    claim: z.string().describe('One-sentence claim'),
+    evidence: z.string(),
     nextAction: z.string(),
   })
 
 const groupSchema = () =>
   z.strictObject({
-    files: z.array(z.string()).describe('Repo-relative paths (at most one group per file)'),
+    files: z.array(z.string()).describe('Repo-relative files'),
     hunks: z
       .record(z.string(), z.array(z.string()))
       .optional()
-      .describe('Per-file hunk-id subsets (gh-… from diff)'),
+      .describe('Per-file gh-… subsets from diff'),
     message: z.string().describe('Commit message'),
-    checks: z.array(z.string()).optional().describe('Associated checks recorded on plan'),
+    checks: z.array(z.string()).optional().describe('Recorded, not run'),
+    dependsOn: z.array(z.number().int().nonnegative()).optional().describe('Prerequisites (0-based)'),
   })
 
 const inputSchema = lazySchema(() =>
@@ -97,36 +99,37 @@ const inputSchema = lazySchema(() =>
     cwd: z
       .string()
       .optional()
-      .describe('Folder to run in (default session folder); uses containing repo or the sole repo directly below it'),
-    scope: z.enum(['worktree', 'staged', 'commit', 'range']).optional().describe('diff: default "worktree"'),
+      .describe('Folder (default session); containing or sole child repo'),
+    scope: z.enum(['worktree', 'staged', 'commit', 'range']).optional().describe('diff: default worktree'),
     ref: z.string().optional().describe('diff: SHA or A..B; fileAtRef/tree: ref'),
-    paths: z.array(z.string()).optional().describe('diff: path filter'),
-    sha: z.string().optional().describe('show: commit'),
-    refA: z.string().optional().describe('mergebase: first ref; compare: base'),
-    refB: z.string().optional().describe('mergebase: second ref; compare: head'),
-    groups: z.array(groupSchema()).optional().describe('plan: commit groups in dependency order (previews without committing)'),
-    planId: z.string().optional().describe('gp-… id: apply commits after checking tree digest (earlier groups stay committed if a later group fails); verify checks applicability'),
-    files: z.array(z.string()).optional().describe('Repo-relative paths for stage/restore (restore unstages only)'),
-    hunks: z.record(z.string(), z.array(z.string())).optional().describe('stage: per-file gh-… hunk ids'),
-    path: z.string().optional().describe('resolve: conflicted file; fileAtRef: file; tree: optional directory'),
-    take: z.enum(['ours', 'theirs']).optional().describe('resolve: side to take'),
-    content: z.string().optional().describe('resolve: resolved text instead of take'),
-    pr: semanticNumber(z.number().int().positive().optional()).describe('reviewContext/prDiff: PR number (default current branch; uses gh)'),
-    findings: z.array(findingSchema()).optional().describe('reviewRecord: findings ([] = clean review; requires inspected)'),
-    inspected: z.array(z.string()).optional().describe('reviewRecord: inspected items (required when findings is [])'),
+    paths: z.array(z.string()).optional().describe('diff: paths'),
+    sha: z.string().optional().describe('show: SHA'),
+    refA: z.string().optional().describe('mergebase: first; compare: base'),
+    refB: z.string().optional().describe('mergebase: second; compare: head'),
+    groups: z.array(groupSchema()).optional().describe('plan: dependsOn orders groups without committing'),
+    planId: z.string().optional().describe('apply/verify: gp-…; tree digest checked; earlier groups stay committed if a later group fails'),
+    files: z.array(z.string()).optional().describe('stage/restore: repo-relative files; restore only unstages'),
+    hunks: z.record(z.string(), z.array(z.string())).optional().describe('stage: per-file gh-… ids'),
+    path: z.string().optional().describe('resolve: conflict; fileAtRef: file; tree: optional directory'),
+    take: z.enum(['ours', 'theirs', 'base', 'both']).optional().describe('resolve: side'),
+    resolutions: z.array(z.strictObject({ region: z.string(), take: z.enum(['ours', 'theirs', 'base', 'both']).optional(), content: z.string().optional() })).optional().describe('resolve: region take/content'),
+    content: z.string().optional().describe('resolve: text, not take'),
+    pr: semanticNumber(z.number().int().positive().optional()).describe('reviewContext/prDiff: PR; default current branch (gh)'),
+    findings: z.array(findingSchema()).optional().describe('reviewRecord: [] clean; needs inspected'),
+    inspected: z.array(z.string()).optional().describe('reviewRecord: required with findings:[]'),
     reviewNote: z.string().optional().describe('reviewRecord: note'),
-    searchKind: z.enum(['code', 'commits', 'prs', 'issues']).optional().describe('hostSearch: target kind'),
-    query: z.string().optional().describe('hostSearch: GitHub search query'),
-    limit: semanticNumber(z.number().int().positive().optional()).describe('hostSearch ≤50, runs ≤20 (default 10)'),
-    file: z.string().optional().describe('prDiff: changed file path (omit for file list)'),
-    page: semanticNumber(z.number().int().nonnegative().optional()).describe('prDiff: 0-based page (80 lines/page)'),
-    run: z.string().optional().describe('runs/runWatch: workflow run id (runWatch returns at once and settles on the conclusion)'),
-    cancel: z.boolean().optional().describe('runWatch: cancel active watch for run'),
+    searchKind: z.enum(['code', 'commits', 'prs', 'issues']).optional().describe('hostSearch: kind'),
+    query: z.string().optional().describe('hostSearch: GitHub query'),
+    limit: semanticNumber(z.number().int().positive().optional()).describe('hostSearch ≤50; runs ≤20; default 10'),
+    file: z.string().optional().describe('prDiff: file (omit for list)'),
+    page: semanticNumber(z.number().int().nonnegative().optional()).describe('prDiff: 0-based, 80 lines/page'),
+    run: z.string().optional().describe('runs/runWatch: workflow run id; watch returns now, settles on conclusion'),
+    cancel: z.boolean().optional().describe('runWatch: cancel watch for run'),
   }),
 )
 
 type SchemaType = ReturnType<typeof inputSchema>
-export type Input = z.infer<SchemaType>
+export type Input = z.infer<SchemaType> & { resolutionPlanId?: string; resolutionPreview?: string }
 export type Output = {
   op: Input['op']
   result: string
@@ -212,12 +215,13 @@ async function runOp(
       }
     }
     case 'conflicts': {
-      const all = gitConflicts(root)
+      const all = gitConflicts(root, owner)
       if ('state' in all) return { result: all.note, outcome: 'failed' }
       if (all.length === 0) return { result: 'no unmerged conflicts', outcome: 'no-change' }
+      const readable = all.filter(c => !denied(c.path))
       return {
-        result: all
-          .map(c => `  ${c.id} ${c.path} (base ${c.base.length}L · ours ${c.ours.length}L · theirs ${c.theirs.length}L) — mercury://git/conflict/${c.id}`)
+        result: [...readable
+          .flatMap(c => [`  ${c.id} ${c.path} (base ${c.base.length}L · ours ${c.ours.length}L · theirs ${c.theirs.length}L) — mercury://git/conflict/${c.id}`, ...(c.regions ?? []).slice(0, 50).map(r => `    ${r.id} lines ${r.startLine}-${r.endLine} — mercury://git/conflict/${c.id}/${r.id}`), ...((c.regions?.length ?? 0) > 50 ? [`    … ${c.regions!.length - 50} more regions — mercury://git/conflict/${c.id}`] : [])]), ...withheldLine(all.length - readable.length)]
           .join('\n'),
         outcome: 'no-change',
       }
@@ -242,7 +246,7 @@ async function runOp(
       return {
         result: [
           `${plan.id} [proposed] — ${plan.groups.length} group(s) on digest ${plan.digest}`,
-          ...plan.groups.map((g, i) => `  ${i + 1}. ${g.message.split('\n')[0]} — ${g.files.map(mark).join(', ')}${g.hunks ? ` (hunk subsets: ${Object.keys(g.hunks).join(', ')})` : ''}`),
+          ...plan.groups.map((g, i) => `  ${i + 1}. ${plan.originalGroups ? `[group ${plan.originalGroups[i]}] ` : ''}${g.message.split('\n')[0]} — ${g.files.map(mark).join(', ')}${g.hunks ? ` (hunk subsets: ${Object.keys(g.hunks).join(', ')})` : ''}${plan.originalGroups ? `; depends on: ${g.dependsOn?.join(', ') || '(none)'}` : ''}`),
           plan.exclusions.length ? `exclusions (stay uncommitted): ${plan.exclusions.map(mark).join(', ')}` : 'no exclusions',
           externalInGroups.length ? `CAUTION: group(s) include work Mercury did not write this session — ${externalInGroups.join(', ')}; confirm these external edits belong in the commit` : '',
           plan.ambiguous.length ? `ambiguous (staged+unstaged; staging state re-derived, content never lost): ${plan.ambiguous.join(', ')}` : '',
@@ -265,6 +269,7 @@ async function runOp(
       return {
         result: [
           `${input.planId} APPLIED — ${out.commits.length} commit(s):`,
+          'Repository pre-commit and commit-msg hooks are not run for these commits.',
           ...out.commits.map(c => `  ${c.sha.slice(0, 8)} ${c.message.split('\n')[0]} (${c.files.length} file(s)) — mercury://git/commit/${c.sha} · mercury://transaction/${c.transactionId}`),
           ...gitFilterSkipMessages(root),
           `record: mercury://git/plan/${input.planId}`,
@@ -285,6 +290,17 @@ async function runOp(
       return { result: out.detail, outcome: 'succeeded' }
     }
     case 'resolve': {
+      if (input.resolutions) {
+        const prepared = resolutionFor(input, root, owner)
+        if ('reason' in prepared) return { result: `resolve refused: ${prepared.reason}`, outcome: 'failed' }
+        for (const file of prepared.files) {
+          const judged = await repositoryReadDecision(GitTool.name, file.path, input, context.getAppState().toolPermissionContext, root) ?? undefined
+          const refused = judged?.behavior === 'deny' ? judged : editDenial(file.path, root, input, context)
+          if (refused) return { result: refused.message ?? 'read denied', outcome: 'failed' }
+        }
+        const out = await applyResolution(prepared, context.abortController?.signal)
+        return out.state === 'refused' ? { result: `resolve refused: ${out.reason}`, outcome: 'failed' } : { result: out.detail, outcome: 'succeeded', changedPaths: out.changedPaths }
+      }
       if (!input.path) return { result: 'resolve needs path', outcome: 'failed' }
       if (!input.take && input.content === undefined) {
         return { result: 'resolve needs take (ours|theirs) or content', outcome: 'failed' }
@@ -499,6 +515,25 @@ async function runOp(
   }
 }
 
+function resolutionFor(input: Input, root: string, owner: ReturnType<typeof ownerFromToolUseContext>) {
+  if (input.resolutionPlanId) {
+    const plan = storedResolution(owner, input.resolutionPlanId)
+    return plan && plan.root === root && plan.choices === JSON.stringify(input.resolutions)
+      ? plan : { state: 'refused' as const, reason: `${input.resolutionPlanId} is stale — nothing written` }
+  }
+  return prepareResolution(owner, root, input.resolutions ?? [])
+}
+
+function editDenial(file: string, root: string, input: Input, context: ToolUseContext) {
+  const judged = checkWritePermissionForTool({ name: 'Git', getPath: () => path.resolve(root, file) }, input, context.getAppState().toolPermissionContext)
+  return judged.behavior === 'deny' && judged.decisionReason?.type === 'rule' ? judged : null
+}
+
+function showResolution(input: Input, plan: ResolutionPlan): void {
+  input.resolutionPlanId = plan.id
+  input.resolutionPreview = resolutionPreview(plan)
+}
+
 const MUTATING_OPS = new Set<Input['op']>(['apply', 'stage', 'restore', 'resolve'])
 
 function namedFolder(input: Pick<Input, 'cwd'>): string | undefined {
@@ -568,7 +603,7 @@ export const GitTool = buildTool({
     return 'Typed local Git work graph: bounded observation + preview-first atomic commit plans; repository-host PR/checks/issue context and the typed review record. Runs in the session folder or a given cwd: the repository containing that folder, or the one repository directly below it'
   },
   async prompt() {
-    return `Inspect local repositories${repoHostDiscoveryEnabled() ? ' and hosted review/check data' : ''}, stage exact changes, or preview and apply commit groups. Returns bounded records and stable hunk/plan ids. It does not fetch, push, rewrite history or discard working-tree content.`
+    return `Inspect local repositories${repoHostDiscoveryEnabled() ? ' and hosted reviews/checks' : ''}; stage exact changes; preview/apply commit groups. Bounded records, stable hunk/plan ids. No fetch, push, history rewrite or worktree-content discard.`
   },
   userFacingName,
   shouldDefer: true,
@@ -589,6 +624,13 @@ export const GitTool = buildTool({
     return namedFolder(input)
   },
   backfillObservableInput(input: Input): void {
+    if (input.op === 'resolve' && input.resolutions && !input.resolutionPlanId) {
+      const placed = resolveRepoFolder(folderOf(input))
+      if (placed.state !== 'refused') {
+        const plan = observableResolution(placed.root, input.resolutions)
+        if (!('reason' in plan)) showResolution(input, plan)
+      }
+    }
     if (input.op !== 'apply' || typeof input.planId !== 'string') return
     const plan = findPlan(input.planId)
     if (!plan) return
@@ -598,11 +640,28 @@ export const GitTool = buildTool({
     }
   },
   async checkPermissions(input: Input, context: ToolUseContext): Promise<ReturnType<typeof checkReadPermissionForTool>> {
+    if (input.op === 'resolve' && input.resolutions) {
+      const placed = resolveRepoFolder(folderOf(input))
+      if (placed.state !== 'refused') {
+        const plan = resolutionFor(input, placed.root, ownerFromToolUseContext(context))
+        if (!('reason' in plan)) {
+          for (const file of plan.files) {
+            const judged = await repositoryReadDecision(GitTool.name, file.path, input, context.getAppState().toolPermissionContext, placed.root)
+            if (judged?.behavior === 'deny') return judged
+            const refused = editDenial(file.path, placed.root, input, context)
+            if (refused) return refused
+          }
+          showResolution(input, plan)
+        }
+      }
+    }
     if (typeof input.path === 'string' && input.path !== '' && (input.op === 'fileAtRef' || input.op === 'tree' || input.op === 'resolve')) {
       const placed = needsRepository(input) ? resolveRepoFolder(folderOf(input)) : null
       const root = placed !== null && placed.state !== 'refused' ? placed.root : folderOf(input)
       const judged = await repositoryReadDecision(GitTool.name, input.path, input, context.getAppState().toolPermissionContext, root)
       if (judged !== null && (judged.behavior === 'deny' || (judged.behavior === 'ask' && input.op !== 'resolve'))) return judged
+      const refused = input.op === 'resolve' ? editDenial(input.path, root, input, context) : null
+      if (refused) return refused
     }
     if (!MUTATING_OPS.has(input.op)) {
       if (namedFolder(input) !== undefined) {
@@ -612,7 +671,7 @@ export const GitTool = buildTool({
     }
     const what =
       input.op === 'apply'
-        ? `apply commit plan ${input.planId ?? ''} (creates local commits; never pushes)`
+        ? `apply commit plan ${input.planId ?? ''} (creates local commits; never pushes; pre-commit and commit-msg hooks are not run)`
         : input.op === 'stage'
           ? `stage ${input.files?.join(', ') ?? ''}`
           : input.op === 'restore'
@@ -654,6 +713,9 @@ export const GitTool = buildTool({
     ]
     const dashed = named.find(([, value]) => typeof value === 'string' && value.trimStart().startsWith('-'))
     if (dashed) return { result: false as const, message: `${dashed[0]} may not begin with a dash`, errorCode: 1 }
+    if (input.op === 'resolve' && input.resolutions && (input.path !== undefined || input.take !== undefined || input.content !== undefined)) {
+      return { result: false as const, message: 'resolve takes region choices or a whole-file path, not both', errorCode: 1 }
+    }
     if (input.op === 'plan' && !input.groups?.length) {
       return { result: false as const, message: 'plan requires groups', errorCode: 1 }
     }

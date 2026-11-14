@@ -10,7 +10,7 @@ const STASH_OWN_FLAGS = new Set(['-u', '--include-untracked', '--only-untracked'
 
 const VALUE_GLOBALS = new Set(['-C', '-c', '--exec-path', '--git-dir', '--work-tree', '--namespace', '--super-prefix', '--shallow-file', '--config-env'])
 const PATCH_COMMANDS = new Set(['diff', 'show', 'log', 'format-patch', 'range-diff', 'blame'])
-const FILTER_COMMANDS = new Set(['add', 'checkout', 'stash', 'apply', 'merge'])
+const FILTER_COMMANDS = new Set(['add', 'checkout', 'stash', 'apply', 'merge', 'hash-object'])
 const NETWORK_COMMANDS = new Set(['fetch', 'ls-remote', 'remote', 'pull', 'push', 'clone', 'submodule', 'archive'])
 
 type RepositoryFilters = {

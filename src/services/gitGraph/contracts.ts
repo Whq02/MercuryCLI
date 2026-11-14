@@ -67,6 +67,7 @@ export interface GitConflict {
   base: string[]
   ours: string[]
   theirs: string[]
+  regions?: import('./conflictRegions.js').ConflictRegion[]
 }
 
 
@@ -75,6 +76,7 @@ export interface GitPlanGroup {
   hunks?: Record<string, string[]>
   message: string
   checks?: string[]
+  dependsOn?: number[]
 }
 
 export type GitPlanState = 'proposed' | 'applied' | 'stale' | 'cancelled' | 'failed'
@@ -87,6 +89,8 @@ export interface GitPlan {
   digest: string
   head: string
   groups: GitPlanGroup[]
+  originalGroups?: number[]
+  recovery?: { firstUnapplied: number | null; blockedDependents: number[]; remainingGroups: number[] }
   exclusions: string[]
   provenance?: Record<string, 'mercury' | 'external'>
   ambiguous: string[]

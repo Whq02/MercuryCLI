@@ -42,6 +42,7 @@ function GitPlanBody({ plan }: { plan: GitApplyPreview }): React.ReactNode {
           </Box>
         )
       })}
+      <Text dimColor>Repository pre-commit and commit-msg hooks are not run for these commits.</Text>
       {plan.exclusions.length > 0 ? (
         <Text dimColor>Stays uncommitted: {plan.exclusions.join(', ')}</Text>
       ) : null}

@@ -167,12 +167,70 @@ interface PlanRefusal {
   reason: string
 }
 
+function dependencyOrder(groups: GitPlanGroup[]): { groups: GitPlanGroup[]; originalGroups?: number[] } | PlanRefusal {
+  if (!groups.some(g => g.dependsOn !== undefined)) return { groups }
+  const dependencies: number[][] = []
+  for (const [i, group] of groups.entries()) {
+    const unique = [...new Set(group.dependsOn ?? [])]
+    for (const reference of unique) {
+      if (!Number.isSafeInteger(reference) || reference < 0) return { state: 'refused', reason: `group ${i} dependsOn ${reference} is not a whole non-negative group reference` }
+      if (reference >= groups.length) return { state: 'refused', reason: `group ${i} dependsOn unknown group ${reference}` }
+      if (reference === i) return { state: 'refused', reason: `group ${i} depends on itself` }
+    }
+    dependencies.push(unique)
+  }
+  const incoming = dependencies.map(d => d.length)
+  const followers = groups.map(() => [] as number[])
+  dependencies.forEach((deps, i) => deps.forEach(d => followers[d]!.push(i)))
+  const ordered = incoming.flatMap((n, i) => n === 0 ? [i] : [])
+  for (let next = 0; next < ordered.length; next++) {
+    for (const follower of followers[ordered[next]!]!) {
+      incoming[follower]!--
+      if (incoming[follower] === 0) ordered.push(follower)
+    }
+  }
+  if (ordered.length !== groups.length) {
+    const chain: number[] = []
+    let current = incoming.findIndex(n => n > 0)
+    while (!chain.includes(current)) {
+      chain.push(current)
+      current = dependencies[current]!.find(d => incoming[d]! > 0)!
+    }
+    return { state: 'refused', reason: `dependency cycle: groups ${[...chain.slice(chain.indexOf(current)), current].join(' → ')}` }
+  }
+  return {
+    groups: ordered.map(i => ({ ...groups[i]!, files: [...groups[i]!.files], ...(groups[i]!.hunks ? { hunks: Object.fromEntries(Object.entries(groups[i]!.hunks!).map(([file, ids]) => [file, [...ids]])) } : {}), ...(groups[i]!.checks ? { checks: [...groups[i]!.checks!] } : {}), ...(groups[i]!.dependsOn !== undefined ? { dependsOn: dependencies[i] } : {}) })),
+    originalGroups: ordered,
+  }
+}
+
+function planRecovery(plan: GitPlan, completed: number): NonNullable<GitPlan['recovery']> {
+  const order = plan.originalGroups ?? plan.groups.map((_, i) => i)
+  const remainingGroups = order.slice(completed)
+  const firstUnapplied = remainingGroups[0] ?? null
+  const blocked = new Set<number>()
+  if (firstUnapplied !== null) blocked.add(firstUnapplied)
+  for (let i = completed + 1; i < plan.groups.length; i++) {
+    if (plan.groups[i]!.dependsOn?.some(d => blocked.has(d))) blocked.add(order[i]!)
+  }
+  if (firstUnapplied !== null) blocked.delete(firstUnapplied)
+  return { firstUnapplied, blockedDependents: [...blocked], remainingGroups }
+}
+
+function recoveryLine(recovery: NonNullable<GitPlan['recovery']>): string {
+  return `first unapplied: ${recovery.firstUnapplied === null ? '(none)' : `group ${recovery.firstUnapplied}`}; blocked dependents: ${recovery.blockedDependents.join(', ') || '(none)'}; remaining work unchanged; prepare a new plan for that remainder`
+}
+
 export function preparePlan(
   owner: OwnerKey,
   root: string,
   groups: GitPlanGroup[],
   mercuryTouched?: ReadonlySet<string>,
 ): GitPlan | PlanRefusal {
+  const ordered = dependencyOrder(groups)
+  if ('reason' in ordered) return ordered
+  groups = ordered.groups
+  const originalGroups = ordered.originalGroups
   const status = gitStatus(root)
   if ('state' in status) return { state: 'refused', reason: status.note }
   if (groups.length === 0) return { state: 'refused', reason: 'a plan needs at least one group' }
@@ -225,10 +283,11 @@ export function preparePlan(
       }
     }
   }
-  if (spanningFiles.length > 0) {
-    const raw = git(root, ['diff', '--no-color', '--unified=3', '--', ...spanningFiles])
+  const checkedHunkFiles = originalGroups ? [...new Set(groups.flatMap(g => Object.keys(g.hunks ?? {})))] : spanningFiles
+  if (checkedHunkFiles.length > 0) {
+    const raw = git(root, ['diff', '--no-color', '--unified=3', '--', ...checkedHunkFiles])
     const patches = new Map(parseRawPatches(raw).map(p => [p.file, p]))
-    for (const f of spanningFiles) {
+    for (const f of checkedHunkFiles) {
       const available = new Set((patches.get(f)?.hunks ?? []).map(h => h.id))
       const wanted = groups.filter(g => g.files.includes(f)).flatMap(g => g.hunks![f]!)
       const missing = wanted.filter(id => !available.has(id))
@@ -259,7 +318,7 @@ export function preparePlan(
     .map(f => f.path)
 
   const id = `gp-${createHash('sha1')
-    .update(JSON.stringify({ digest: status.digest, groups }))
+    .update(JSON.stringify({ digest: status.digest, groups, ...(originalGroups ? { originalGroups } : {}) }))
     .digest('hex')
     .slice(0, 12)}`
   const plan: GitPlan = {
@@ -271,6 +330,7 @@ export function preparePlan(
     digest: status.digest,
     head: status.head,
     groups,
+    ...(originalGroups ? { originalGroups } : {}),
     exclusions,
     ambiguous,
   }
@@ -314,8 +374,9 @@ export function applyPlan(
     return { state: 'refused', code: 'stale', reason: `${planId} is '${plan.state}'${plan.note ? ` — ${plan.note}` : ''}` }
   }
   if (opts.signal?.aborted) {
-    setPlanState(owner, planId, 'cancelled', { note: 'cancelled before applying' })
-    return { state: 'refused', code: 'cancelled', reason: 'cancelled before applying — nothing committed' }
+    const recovery = plan.originalGroups ? planRecovery(plan, 0) : undefined
+    setPlanState(owner, planId, 'cancelled', { note: 'cancelled before applying', ...(recovery ? { recovery } : {}) })
+    return { state: 'refused', code: 'cancelled', reason: `cancelled before applying — nothing committed${recovery ? `\n${recoveryLine(recovery)}` : ''}` }
   }
 
   const now = gitStatus(plan.root)
@@ -337,16 +398,19 @@ export function applyPlan(
   }
 
   const commits: NonNullable<GitPlan['commits']> = []
+  const recovery = () => plan.originalGroups ? planRecovery(plan, commits.length) : undefined
+  const suffix = () => { const rest = recovery(); return rest ? `\n${recoveryLine(rest)}` : '' }
   for (const [index, group] of plan.groups.entries()) {
     if (opts.signal?.aborted) {
       setPlanState(owner, planId, 'failed', {
         note: `cancelled after ${commits.length}/${plan.groups.length} commit(s)`,
         commits,
+        ...(recovery() ? { recovery: recovery() } : {}),
       })
       return {
         state: 'refused',
         code: 'cancelled',
-        reason: `cancelled after ${commits.length} commit(s) — created commits stand, remaining changes untouched`,
+        reason: `cancelled after ${commits.length} commit(s) — created commits stand, remaining changes untouched${suffix()}`,
         commitsCreated: commits.map(c => ({ sha: c.sha, message: c.message })),
       }
     }
@@ -392,23 +456,10 @@ export function applyPlan(
       if (staged.length === 0) throw new Error('empty staged set — an empty commit is refused')
       gitIndexed(['commit', '--quiet', '--no-verify', '-m', group.message])
       const sha = git(plan.root, ['rev-parse', 'HEAD']).trim()
-      git(plan.root, ['reset', '--quiet', '--', ...group.files])
       const committed = git(plan.root, ['show', '--name-only', '--format=', sha])
         .split('\n')
         .filter(Boolean)
         .sort()
-      if (JSON.stringify(committed) !== JSON.stringify(wantedFiles)) {
-        setPlanState(owner, planId, 'failed', {
-          note: `commit ${sha.slice(0, 8)} contains [${committed.join(', ')}] ≠ planned — STOPPED`,
-          commits,
-        })
-        return {
-          state: 'refused',
-          code: 'verify',
-          reason: `commit ${sha.slice(0, 8)} contains unplanned content ([${committed.join(', ')}] ≠ [${wantedFiles.join(', ')}]) — application STOPPED; created commits stand (history is never rewritten)`,
-          commitsCreated: [...commits.map(c => ({ sha: c.sha, message: c.message })), { sha, message: group.message }],
-        }
-      }
       const txn = beginTransaction({
         owner,
         kind: 'git.commit',
@@ -419,7 +470,9 @@ export function applyPlan(
         owner,
         kind: 'change',
         origin: 'observed',
-        claim: `git commit ${sha.slice(0, 8)} created (group ${index + 1}/${plan.groups.length}): ${group.message.split('\n')[0]?.slice(0, 80)} — name-only verified ${committed.length} file(s)`,
+        claim: JSON.stringify(committed) === JSON.stringify(wantedFiles)
+          ? `git commit ${sha.slice(0, 8)} created (group ${index + 1}/${plan.groups.length}): ${group.message.split('\n')[0]?.slice(0, 80)} — name-only verified ${committed.length} file(s)`
+          : `commit ${sha.slice(0, 8)} contains [${committed.join(', ')}] ≠ planned — STOPPED`,
         refs: [`mercury://git/commit/${sha}`, `mercury://git/plan/${planId}`],
         details: { sha, files: committed },
       })
@@ -430,15 +483,30 @@ export function applyPlan(
       })
       transitionTransaction(owner, txn.id, 'settled')
       commits.push({ sha, message: group.message, files: committed, transactionId: txn.id })
+      git(plan.root, ['reset', '--quiet', '--', ...group.files])
+      if (JSON.stringify(committed) !== JSON.stringify(wantedFiles)) {
+        setPlanState(owner, planId, 'failed', {
+          note: `commit ${sha.slice(0, 8)} contains [${committed.join(', ')}] ≠ planned — STOPPED`,
+          commits,
+          ...(recovery() ? { recovery: recovery() } : {}),
+        })
+        return {
+          state: 'refused',
+          code: 'verify',
+          reason: `commit ${sha.slice(0, 8)} contains unplanned content ([${committed.join(', ')}] ≠ [${wantedFiles.join(', ')}]) — application STOPPED; created commits stand (history is never rewritten)${suffix()}`,
+          commitsCreated: commits.map(c => ({ sha: c.sha, message: c.message })),
+        }
+      }
     } catch (err) {
       setPlanState(owner, planId, 'failed', {
         note: `group ${index + 1} failed: ${(err as Error).message.slice(0, 200)}`,
         commits,
+        ...(recovery() ? { recovery: recovery() } : {}),
       })
       return {
         state: 'refused',
         code: 'io',
-        reason: `group ${index + 1}/${plan.groups.length} FAILED (${(err as Error).message.slice(0, 200)}) — ${commits.length} earlier commit(s) stand; working content untouched`,
+        reason: `group ${index + 1}/${plan.groups.length} FAILED (${(err as Error).message.slice(0, 200)}) — ${commits.length} earlier commit(s) stand; working content untouched${suffix()}`,
         commitsCreated: commits.map(c => ({ sha: c.sha, message: c.message })),
       }
     } finally {
@@ -508,14 +576,20 @@ export function resolveConflict(
   owner: OwnerKey,
   root: string,
   path: string,
-  resolution: { take: 'ours' | 'theirs' } | { content: string },
+  resolution: { take: 'ours' | 'theirs' | 'base' | 'both' } | { content: string },
 ): IndexOpOutcome | PlanRefusal {
   const status = gitStatus(root)
   if ('state' in status) return { state: 'refused', reason: status.note }
   const entry = status.files.find(f => f.path === path && f.kind === 'unmerged')
   if (!entry) return { state: 'refused', reason: `'${path}' is not an unmerged conflict here` }
   try {
-    if ('take' in resolution) {
+    if ('take' in resolution && (resolution.take === 'base' || resolution.take === 'both')) {
+      const stage = (n: number): Buffer => execFileSync('git', gitArgs(['cat-file', 'blob', `:${n}:${path}`], root), { windowsHide: true, cwd: root, env: subprocessEnv(), timeout: 30_000, maxBuffer: 256 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] })
+      const content = resolution.take === 'base' ? stage(1) : Buffer.concat([stage(2), stage(3)])
+      const { writeFileSync } = require('node:fs') as typeof import('node:fs')
+      const { join } = require('node:path') as typeof import('node:path')
+      writeFileSync(join(root, path), content)
+    } else if ('take' in resolution) {
       git(root, ['checkout', resolution.take === 'ours' ? '--ours' : '--theirs', '--', path])
     } else {
       const { writeFileSync } = require('node:fs') as typeof import('node:fs')
@@ -541,13 +615,14 @@ export function verifyPlan(owner: OwnerKey, root: string, planId: string): strin
   if (!plan) return `no plan '${planId}' in this conversation`
   const status = gitStatus(root)
   if ('state' in status) return status.note
+  const verification = plan.originalGroups ? '; applicability/tree evidence only; checks recorded, not run' : ''
   if (plan.state === 'applied') {
     const shas = (plan.commits ?? []).map(c => c.sha.slice(0, 8)).join(', ')
-    return `${planId} applied — commits: ${shas}; tree digest now ${status.digest} (clean: ${status.clean})`
+    return `${planId} applied — commits: ${shas}; tree digest now ${status.digest} (clean: ${status.clean})${verification}`
   }
   return status.digest === plan.digest
-    ? `${planId} [${plan.state}] — the tree still matches the plan digest (${plan.digest}); applicable`
-    : `${planId} [${plan.state}] — the tree DRIFTED (${plan.digest} → ${status.digest}); application would refuse; re-prepare`
+    ? `${planId} [${plan.state}] — the tree still matches the plan digest (${plan.digest}); applicable${verification}`
+    : `${planId} [${plan.state}] — the tree DRIFTED (${plan.digest} → ${status.digest}); application would refuse; re-prepare${verification}`
 }
 
 export function _resetGitPlanStoreForTesting(): void {

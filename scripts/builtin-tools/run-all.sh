@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: src/Tool* src/ink/** src/services/changeTransaction/contracts*
-# gate-watch: src/services/gitGraph/observe* src/services/gitGraph/plan* src/utils/git/spawnArgs* scripts/builtin-tools/prove-git-spawn-settings.ts
+# gate-watch: src/services/gitGraph/** src/utils/git/spawnArgs* scripts/builtin-tools/prove-git-spawn-settings.ts scripts/tool-economy/fixtures/definition-corpus.json src/services/changeTransaction/changeSetCommit.ts
 # gate-watch: src/services/journeys/runner* src/services/primitives/**
 # gate-watch: src/services/resources/adapters/** src/services/resources/registry* src/services/resources/contracts.ts
 # gate-watch: src/services/run/resolveOwner* src/services/structure/** src/substrate/flagRegistry*
