@@ -26,7 +26,7 @@ const run = await runArtifactArena({
     db.run("CREATE TABLE items(id INTEGER PRIMARY KEY, value TEXT); INSERT INTO items VALUES(1,'first value'),(2,'second value'),(3,'third value')")
     db.close()
   },
-  sends: ['after:Type a prompt:200:hello', 'after:hello:400:\\r', 'after:overwrite:1600:\\r', 'after:Do you want to create:1600:\\r', 'after:Delete this row?:1600:\\r'],
+  sends: ['after:Type a prompt:200:hello', 'after:hello:400:\\r', 'after:overwrite:1600:\\r', 'after:Write this row?:1600:\\r', 'after:Delete this row?:1600:\\r'],
   anchor: { needle: 'Delete this row?', atMs: 14000 },
 })
 try {
@@ -34,7 +34,7 @@ try {
     const send = run.sendLog.find(entry => entry.after === needle)
     return send ? grabScreens(run, 120, 40, [sendStamp(run, send) + offset])[0]!.rows.join('\n') : ''
   }
-  const writeCard = frameAt('Do you want to create', -500), deleteCard = frameAt('Delete this row?', -500), after = frameAt('Delete this row?', 5000)
+  const writeCard = frameAt('Write this row?', -500), deleteCard = frameAt('Delete this row?', -500), after = frameAt('Delete this row?', 5000)
   console.log(`ROW WRITE CARD\n${writeCard}\nDELETE CARD\n${deleteCard}\nAFTER\n${after}`)
   check('the row write card says before approval that a rewind will not restore the row', writeCard.includes(NOTE), writeCard)
   check('the deletion card says the same above its question', deleteCard.includes(NOTE) && deleteCard.indexOf(NOTE) < deleteCard.indexOf('Delete this row?'), deleteCard)
