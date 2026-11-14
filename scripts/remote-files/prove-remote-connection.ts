@@ -160,10 +160,10 @@ async function leg(world: RemoteWorld): Promise<void> {
   check(`${name}: a reply handed on as it arrives is not kept`, streamed === 8388608 && sunk.stdout.length === 0 && sunk.status === 0, `${streamed}`)
 
   section(`${name} · many requests, one connection`)
-  const before = world.argvLines().filter(line => !line.includes(' -G ')).length
+  const before = world.connectLines().length
   const many = await Promise.all(Array.from({ length: 24 }, (_, index) => run(`printf 'reply %s' ${index}`)))
   check(`${name}: twenty-four requests at once each get their own reply`, many.every((reply, index) => reply.stdout.toString() === `reply ${index}` && reply.status === 0))
-  check(`${name}: and no new connection was opened for them`, world.argvLines().filter(line => !line.includes(' -G ')).length === before, `${before} -> ${world.argvLines().filter(line => !line.includes(' -G ')).length}`)
+  check(`${name}: and no new connection was opened for them`, world.connectLines().length === before, `${before} -> ${world.connectLines().length}`)
   const pids = await Promise.all([run('printf %s $$'), run('printf %s $$')])
   check(`${name}: the requests are answered by one remote shell`, pids[0]!.stdout.toString() === pids[1]!.stdout.toString() && /^\d+$/.test(pids[0]!.stdout.toString()))
 
@@ -225,7 +225,7 @@ async function leg(world: RemoteWorld): Promise<void> {
 
   section(`${name} · what ssh is given, and what it is never given`)
   const argv = world.argvLines()
-  const connects = argv.filter(line => !line.includes(' -G ') && / -- box sh$/.test(line))
+  const connects = world.connectLines().filter(line => / -- box sh$/.test(line))
   const wanted = ['-T', '-x', '-oBatchMode=yes', '-oForwardAgent=no', '-oPermitLocalCommand=no', '-oClearAllForwardings=yes', '-oRemoteCommand=none', '-oControlMaster=no']
   check(`${name}: every connection carries the options scp and sftp hand to ssh`, connects.length > 0 && connects.every(line => wanted.every(option => line.split(' ').includes(option))), connects[0])
   check(`${name}: no call to ssh, of any kind, names an option about host keys, an agent, or a forwarding of its own`, argv.every(line => !/StrictHostKeyChecking|UserKnownHostsFile|GlobalKnownHostsFile|HostKeyAlias|CheckHostIP|VerifyHostKeyDNS|UpdateHostKeys/i.test(line) && !/ -[AXYLRDW] /.test(` ${line} `)), argv.find(line => /StrictHostKeyChecking|UserKnownHostsFile/i.test(line) || / -[AXYLRDW] /.test(` ${line} `)))
@@ -242,7 +242,7 @@ async function leg(world: RemoteWorld): Promise<void> {
   }
   const nobody = await failure(() => remoteRun({ host: 'nobody' }, { script: 'printf never' }))
   check(`${name}: a host that does not answer fails in ssh's own words`, nobody instanceof RemoteConnectionError && nobody.failure === 'ssh' && /^ssh could not reach nobody: .*Connection refused/.test(nobody.message), String(nobody?.message))
-  const signIns = (): number => world.argvLines().filter(line => !line.includes(' -G ') && / -- nobody /.test(line)).length
+  const signIns = (): number => world.connectLines().filter(line => / -- nobody /.test(line)).length
   const signedIn = signIns()
   const waiting = await Promise.all(Array.from({ length: 5 }, () => failure(() => remoteRun({ host: 'nobody' }, { script: 'printf never' }))))
   check(`${name}: five requests waiting on a host that cannot be reached all fail with its one failure, after one try at it`, waiting.every(refusal => refusal instanceof RemoteConnectionError && refusal.failure === 'ssh') && new Set(waiting.map(refusal => refusal?.message)).size === 1 && signIns() - signedIn === 1, `${signIns() - signedIn} tries: ${waiting[0]?.message}`)

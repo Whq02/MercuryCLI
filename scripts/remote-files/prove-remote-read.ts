@@ -258,12 +258,13 @@ async function rulesAndFloors(world: RemoteWorld): Promise<void> {
   symlinkSync(secretDir, join(data, 'door'))
   symlinkSync(join(secretDir, 'key.txt'), join(data, 'innocent.txt'))
   closeRemoteConnections()
+  await new Promise(resolve => setTimeout(resolve, 2_200))
   const started = world.argvLines().length
+  const connected = world.connectLines().length
   const openInput = { file_path: remote(join(data, 'open.txt')) }
   const valid = await validated(openInput)
   const ask = await decided(openInput)
-  const connectsSince = (from: number): string[] => world.argvLines().slice(from).filter(line => !line.includes(' -G '))
-  check(`${name}: checking the input and reading the rules start no connection`, valid.result === true && connectsSince(started).length === 0, connectsSince(started).join(' | '))
+  check(`${name}: checking the input and reading the rules ask the ssh configuration what the name resolves to, and start no connection`, valid.result === true && world.connectLines().length === connected && world.argvLines().slice(started).some(line => line === '-G -- box'), world.argvLines().slice(started).join(' | '))
   check(`${name}: with no rule, the default mode asks, and offers the host for the session`, ask.behavior === 'ask' && ask.decisionReason?.type === 'workingDir' && JSON.stringify(ask.suggestions?.[0]?.rules) === JSON.stringify([{ toolName: 'Read', ruleContent: 'ssh://box/**' }]), JSON.stringify(ask))
   const allowed = await decided(openInput, { allow: ['Read(ssh://box/**)'] })
   check(`${name}: a rule for the host allows`, allowed.behavior === 'allow', JSON.stringify(allowed))
@@ -280,9 +281,9 @@ async function rulesAndFloors(world: RemoteWorld): Promise<void> {
 
   section(`${name} · a deny rule holds, however the file is reached`)
   const deny = { allow: ['Read(ssh://box/**)'], deny: [`Read(ssh://box${secretDir}/**)`] }
+  const reached = world.connectLines().length
   const direct = await validated({ file_path: remote(join(secretDir, 'key.txt')) }, deny)
-  const lines = world.argvLines().length
-  check(`${name}: by its own path, before anything connects, in the deny sentence`, direct.result === false && direct.message === `Reading ${remote(join(secretDir, 'key.txt'))} is denied by the rule Read(ssh://box${secretDir}/**) in your user settings.` && connectsSince(lines).length === 0, String(direct.message))
+  check(`${name}: by its own path, before anything connects, in the deny sentence`, direct.result === false && direct.message === `Reading ${remote(join(secretDir, 'key.txt'))} is denied by the rule Read(ssh://box${secretDir}/**) in your user settings.` && world.connectLines().length === reached, String(direct.message))
   const withSelector = await validated({ file_path: `${remote(join(secretDir, 'key.txt'))}:1-2` }, deny)
   check(`${name}: with a line selector after it`, withSelector.result === false, String(withSelector.message))
   const dotted = await validated({ file_path: remote(join(data, 'tree', '..', 'secret', 'key.txt')) }, deny)

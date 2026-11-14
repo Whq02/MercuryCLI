@@ -17,6 +17,7 @@ export type RemoteWorld = {
   serverLog: string | null
   env: Record<string, string>
   argvLines(): string[]
+  connectLines(): string[]
   serverLines(): string[]
   stop(): Promise<void>
 }
@@ -210,6 +211,7 @@ export async function remoteWorld(transport: RemoteTransport, port = 0, options:
     serverLog,
     env,
     argvLines: () => lines(argvLog),
+    connectLines: () => lines(argvLog).filter(line => !/^-G( |$)/.test(line)),
     serverLines: () => (serverLog === null ? [] : lines(serverLog)),
     async stop() {
       if (server !== null && server.exitCode === null) {

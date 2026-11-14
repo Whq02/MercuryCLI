@@ -187,9 +187,9 @@ async function writes(world: RemoteWorld): Promise<void> {
 
   section(`${name} · the rules`)
   closeRemoteConnections()
-  const started = world.argvLines().length
+  const connected = world.connectLines().length
   const asked = await decided(remote(join(dir, 'new.txt')))
-  check(`${name}: with no rule the default mode asks, and offers all edits on the host for the session, with no connection made`, asked.behavior === 'ask' && JSON.stringify(asked.suggestions?.at(-1)?.rules) === JSON.stringify([{ toolName: 'Edit', ruleContent: 'ssh://box/**' }]) && world.argvLines().slice(started).every(line => /^-G /.test(line)), JSON.stringify(asked))
+  check(`${name}: with no rule the default mode asks, and offers all edits on the host for the session, with no connection made`, asked.behavior === 'ask' && JSON.stringify(asked.suggestions?.at(-1)?.rules) === JSON.stringify([{ toolName: 'Edit', ruleContent: 'ssh://box/**' }]) && world.connectLines().length === connected, JSON.stringify(asked))
   check(`${name}: a rule that allows edits on the host allows the write; one that allows reading does not`, (await decided(remote(join(dir, 'new.txt')), { allow: ['Edit(ssh://box/**)'] })).behavior === 'allow' && (await decided(remote(join(dir, 'new.txt')), { allow: ['Read(ssh://box/**)'] })).behavior === 'ask')
   const guarded = join(dir, 'guarded')
   mkdirSync(guarded)
