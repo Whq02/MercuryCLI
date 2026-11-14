@@ -114,8 +114,7 @@ console.log('\n── §5 the skill listing census: every 1.0.0 skill name and i
 const tipReminders = reminderTextsOf(first.requests[0]!).map(text => normalizeText(first.normalize(text)))
 const tipSkills = tipReminders.find(text => text.includes('## Skills')) ?? ''
 const baseSkills = baseReminders.find(text => text.includes('## Skills')) ?? ''
-const WORKFLOW_MADE = '- deep-research:'
-const skillLines = baseSkills.split('\n').filter(line => line.startsWith('- ') && !line.startsWith(WORKFLOW_MADE))
+const skillLines = baseSkills.split('\n').filter(line => line.startsWith('- '))
 const tipSkillWords = words(tipSkills)
 const lostSkills: string[] = []
 for (const line of skillLines) {
@@ -127,7 +126,6 @@ for (const line of skillLines) {
 }
 console.log(`  [INFO] ${skillLines.length} bundled skills in the 1.0.0 listing; tip listing ${Buffer.byteLength(tipSkills, 'utf8')} B vs 1.0.0 ${Buffer.byteLength(baseSkills, 'utf8')} B`)
 check('every 1.0.0 skill is listed by name on the tip with at least half of its routing words', lostSkills.length === 0, lostSkills.join('; '))
-check('the one 1.0.0 name that was made from the workflow registry is not listed', baseSkills.includes(WORKFLOW_MADE) && !tipSkills.includes(WORKFLOW_MADE))
 check('the listing still says how a skill is run', /through the Skill tool/.test(tipSkills))
 
 console.log('\n── §6 a headless fixture session that asks for Crewmate by name gets its definition ──')

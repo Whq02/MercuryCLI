@@ -1,6 +1,6 @@
 ---
 name: deep-research
-description: Use when multi-source research needs adversarial fact-checking: angle fan-out, source extraction, independent verification and cited synthesis across many sources. Not for paper corpora or document deliverables (research) or quick lookups.
+description: Use when multi-source research needs adversarial fact-checking: angle fan-out, source extraction, independent verification and cited synthesis. Not for paper corpora or document deliverables (research) or quick lookups.
 argument-hint: "<question>"
 ---
 # Deep research
