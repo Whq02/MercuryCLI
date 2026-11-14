@@ -44,13 +44,13 @@ const prompt = async (text: string, answer: string): Promise<void> => {
 type Block = { type?: string; text?: string }
 type Wire = { role: string; content: string | Block[] }
 const textsOf = (message: Wire): string[] => (typeof message.content === 'string' ? [message.content] : message.content.flatMap(block => (block.type === 'text' && typeof block.text === 'string' ? [block.text] : [])))
-const enveloped = (text: string): boolean => {
+const enveloped = (text: string, words: string): boolean => {
   let rest = text
-  for (let at = rest.indexOf(BOARD_PACKET_RULE); at !== -1; at = rest.indexOf(BOARD_PACKET_RULE)) {
+  for (let at = rest.indexOf(words); at !== -1; at = rest.indexOf(words)) {
     const opened = rest.lastIndexOf('<system-reminder>', at)
     const closed = rest.lastIndexOf('</system-reminder>', at)
     if (opened === -1 || closed > opened) return false
-    rest = rest.slice(at + BOARD_PACKET_RULE.length)
+    rest = rest.slice(at + words.length)
   }
   return true
 }
@@ -58,9 +58,17 @@ const requestFor = (word: string): Wire[] => {
   const found = world.fixture.messageRequests().find(request => JSON.stringify(request.body).includes(word))
   return ((found?.body as { messages?: Wire[] } | undefined)?.messages ?? []) as Wire[]
 }
-const ruleTexts = (messages: Wire[]): string[] => messages.filter(message => message.role === 'user').flatMap(textsOf).filter(text => text.includes(BOARD_PACKET_RULE))
 const WAKE_ADVICE = 'Read reference-only posts with CrewBoard.'
-const told = (messages: Wire[]): boolean => ruleTexts(messages).some(text => text.includes(WAKE_ADVICE)) && ruleTexts(messages).every(enveloped)
+const PACKET_HEAD = `<system-reminder>\n${BOARD_PACKET_RULE}\ncrew-board-event:`
+const holdingIn = (messages: Wire[], words: string): string[] => messages.filter(message => message.role === 'user').flatMap(textsOf).filter(text => text.includes(words))
+const told = (messages: Wire[]): boolean => {
+  const advice = holdingIn(messages, WAKE_ADVICE)
+  const rule = holdingIn(messages, BOARD_PACKET_RULE)
+  const packets = holdingIn(messages, 'crew-board-event:')
+  return advice.length > 0 && advice.every(text => enveloped(text, WAKE_ADVICE)) && rule.length > 0 && rule.every(text => enveloped(text, BOARD_PACKET_RULE)) && packets.length > 0 && packets.every(text => text.startsWith(PACKET_HEAD))
+}
+const said = (messages: Wire[]): string => JSON.stringify([...holdingIn(messages, WAKE_ADVICE), ...holdingIn(messages, BOARD_PACKET_RULE)].map(text => text.slice(0, 160)))
+const ruleInTurn = (messages: Wire[]): number => textsOf(messages.at(-1) ?? { role: 'user', content: [] }).reduce((sum, text) => sum + text.split(BOARD_PACKET_RULE).length - 1, 0)
 
 let board: ReturnType<typeof open> | undefined
 let transcript = ''
@@ -104,9 +112,10 @@ try {
   const shownFirstWire = requestFor('SHOWN-FIRST-ASK')
   const wakeFirstWire = requestFor('WAKE-FIRST-ASK')
   tally.check('the scenes: each ask reached the model in its own request, and the two finished jobs rode with their asks', aloneWire.length > 0 && JSON.stringify(shownFirstWire).includes('job-one-done') && JSON.stringify(wakeFirstWire).includes('job-two-done'), `${aloneWire.length} · ${JSON.stringify(shownFirstWire).includes('job-one-done')} · ${JSON.stringify(wakeFirstWire).includes('job-two-done')}`)
-  tally.check('woken alone: the wake\'s words reach the model, and every text that holds the rule holds it inside a system reminder', told(aloneWire), JSON.stringify(ruleTexts(aloneWire).map(text => text.slice(0, 160))))
-  tally.check('behind a finished job: the same', told(shownFirstWire), JSON.stringify(ruleTexts(shownFirstWire).map(text => text.slice(0, 160))))
-  tally.check('ahead of a finished job: the same', told(wakeFirstWire), JSON.stringify(ruleTexts(wakeFirstWire).map(text => text.slice(0, 160))))
+  tally.check('woken alone: the wake\'s advice reaches the model inside a system reminder, and the rule stands inside one, at the head of every packet', told(aloneWire), said(aloneWire))
+  tally.check('behind a finished job: the same', told(shownFirstWire), said(shownFirstWire))
+  tally.check('ahead of a finished job: the same', told(wakeFirstWire), said(wakeFirstWire))
+  tally.check('in each of the three turns the rule is read once, with its packet', [aloneWire, shownFirstWire, wakeFirstWire].every(wire => ruleInTurn(wire) === 1), JSON.stringify([aloneWire, shownFirstWire, wakeFirstWire].map(ruleInTurn)))
 
   tally.section('§2 the record the screen paints from: one mark an item, so a hidden wake neither borrows a shown notice\'s face nor hides it')
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
@@ -117,12 +126,13 @@ try {
   const users = ([...loaded.messages.values()] as unknown as Row[]).filter(row => row.type === 'user')
   const wordsOf = (row: Row): string[] => (typeof row.message?.content === 'string' ? [row.message.content] : (row.message?.content ?? []).flatMap(block => (block.type === 'text' && typeof block.text === 'string' ? [block.text] : [])))
   const holding = (word: string): Row[] => users.filter(row => wordsOf(row).some(text => text.includes(word)))
-  const rule = holding(BOARD_PACKET_RULE)
+  const wakes = holding(WAKE_ADVICE)
+  const ofTheWake = (text: string): boolean => text.includes(WAKE_ADVICE) || text.includes(BOARD_PACKET_RULE)
   const jobOne = holding('job-one-done').filter(row => wordsOf(row).some(text => text.includes('<task-notification>')))
   const jobTwo = holding('job-two-done').filter(row => wordsOf(row).some(text => text.includes('<task-notification>')))
-  tally.check('every row that holds the wake\'s words is hidden', rule.length >= 3 && rule.every(row => row.isMeta === true), JSON.stringify(rule.map(row => ({ meta: row.isMeta ?? false, head: wordsOf(row).map(text => text.slice(0, 60)) }))))
-  tally.check('the first finished job has one row, shown, and that row holds nothing of the wake', jobOne.length === 1 && jobOne[0]!.isMeta !== true && !wordsOf(jobOne[0]!).some(text => text.includes(BOARD_PACKET_RULE)), JSON.stringify(jobOne.map(row => ({ meta: row.isMeta ?? false, blocks: wordsOf(row).map(text => text.slice(0, 60)) }))))
-  tally.check('the second finished job, queued behind the wake, has one row, shown: the wake\'s mark did not hide it', jobTwo.length === 1 && jobTwo[0]!.isMeta !== true && !wordsOf(jobTwo[0]!).some(text => text.includes(BOARD_PACKET_RULE)), JSON.stringify(jobTwo.map(row => ({ meta: row.isMeta ?? false, blocks: wordsOf(row).map(text => text.slice(0, 60)) }))))
+  tally.check('every row that holds the wake\'s words is hidden', wakes.length >= 3 && wakes.every(row => row.isMeta === true), JSON.stringify(wakes.map(row => ({ meta: row.isMeta ?? false, head: wordsOf(row).map(text => text.slice(0, 60)) }))))
+  tally.check('the first finished job has one row, shown, and that row holds nothing of the wake', jobOne.length === 1 && jobOne[0]!.isMeta !== true && !wordsOf(jobOne[0]!).some(ofTheWake), JSON.stringify(jobOne.map(row => ({ meta: row.isMeta ?? false, blocks: wordsOf(row).map(text => text.slice(0, 60)) }))))
+  tally.check('the second finished job, queued behind the wake, has one row, shown: the wake\'s mark did not hide it', jobTwo.length === 1 && jobTwo[0]!.isMeta !== true && !wordsOf(jobTwo[0]!).some(ofTheWake), JSON.stringify(jobTwo.map(row => ({ meta: row.isMeta ?? false, blocks: wordsOf(row).map(text => text.slice(0, 60)) }))))
 
   tally.section('§3 the frame: the rows of the two finished jobs, painted')
   const React = (await import('react')).default
@@ -146,7 +156,7 @@ try {
   }
   for (const [name, rows, word] of [['the first', jobOne, 'job-one-done'], ['the second', jobTwo, 'job-two-done']] as const) {
     const frame = rows.length === 1 ? await paint(rows[0]!) : ''
-    tally.check(`${name} finished job paints as its own notice, with none of the wake's words and no prompt caret`, frame.includes(`Print ${word} after a while`) && !frame.includes('Posts marked') && !frame.includes('❯'), frame.slice(0, 300))
+    tally.check(`${name} finished job paints as its own notice, with none of the wake's words and no prompt caret`, frame.includes(`Print ${word} after a while`) && !frame.includes('Posts marked') && !frame.includes('Read reference-only') && !frame.includes('❯'), frame.slice(0, 300))
   }
 } finally {
   record('board-wake-notice-out.txt', raw)

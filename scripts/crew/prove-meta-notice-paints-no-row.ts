@@ -46,7 +46,7 @@ type Fact = { value: string; mode: string; isMeta?: true; origin?: Record<string
 type Row = { uuid: string; type: string; timestamp: string; queued?: true; isMeta?: boolean; attachment?: Record<string, unknown>; message?: { content?: unknown } }
 type Guts = { sends: unknown[]; echoRows: Map<string, unknown>; attached: boolean; tick: () => Promise<void>; reconcileQueuedSends: (facts: unknown) => void }
 
-const WAKE = wrapInSystemReminder(`${BOARD_PACKET_RULE} Read reference-only posts with CrewBoard.`)
+const WAKE = wrapInSystemReminder('Read reference-only posts with CrewBoard.')
 const HELD_WAKE = wrapInSystemReminder(BOARD_PACKET_RULE)
 const TASK = '<task-notification>\n<task-id>t-shown</task-id>\n<status>completed</status>\n<summary>Background command "the build" completed (exit code 0)</summary>\n</task-notification>'
 const MONITOR = '<monitor task="bk1" name="the build watch">\nevent-1\n</monitor>'

@@ -29,7 +29,6 @@ const { createUserMessage, createAssistantMessage } = await import('../../src/ut
 const { createCompactBoundaryMessage } = await import('../../src/utils/messages/systemMessages.ts')
 const { recordTranscript, flushSessionStorage } = await import('../../src/utils/sessionStorage.ts')
 const { getTranscriptPathForSession } = await import('../../src/utils/sessionStorage/paths.ts')
-const { BOARD_PACKET_RULE } = await import('../../src/services/crewBoard/contracts.ts')
 const { wrapInSystemReminder } = await import('../../src/utils/messages/text.ts')
 
 let failures = 0
@@ -95,7 +94,7 @@ const fold = async (summary: string, after: string): Promise<void> => {
   await sleep(25)
 }
 
-const WAKE = wrapInSystemReminder(`${BOARD_PACKET_RULE} Read reference-only posts with CrewBoard.`)
+const WAKE = wrapInSystemReminder('Read reference-only posts with CrewBoard.')
 const UNRECORDED = wrapInSystemReminder('hook lint (Stop) blocked: 3 errors')
 const BETWEEN = wrapInSystemReminder('a notice delivered between the two folds')
 const HELD = wrapInSystemReminder('a notice still queued when the second fold lands')
