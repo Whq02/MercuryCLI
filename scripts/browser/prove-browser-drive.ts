@@ -694,12 +694,12 @@ console.log('§18 per-owner reap')
 
 console.log('§19 the children cap')
 {
-  const { browserSessionCap, BROWSER_SESSION_CAP_DEFAULT, ensureBrowserSession, disposeBrowserOwner } = await import(
+  const { browserSessionCap, ensureBrowserSession, disposeBrowserOwner } = await import(
     '../../src/services/browser/browserSession.ts'
   )
-  check(`the default cap is small (${BROWSER_SESSION_CAP_DEFAULT})`, browserSessionCap() === BROWSER_SESSION_CAP_DEFAULT)
+  check('no cap without the variable', browserSessionCap() === null)
   process.env.MERCURY_BROWSER_MAX_SESSIONS = '0'
-  check('a nonsense cap value falls back to the default (floor 1)', browserSessionCap() === BROWSER_SESSION_CAP_DEFAULT)
+  check('a nonsense cap value means no cap (floor 1)', browserSessionCap() === null)
   process.env.MERCURY_BROWSER_MAX_SESSIONS = '1'
   const ctxC = { agentId: 'fixture-owner-c' } as Parameters<typeof BrowserTool.call>[1]
   const child = await BrowserTool.call({ op: 'open', url: `${B}/` } as ToolInput, ctxC)

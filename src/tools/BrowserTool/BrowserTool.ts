@@ -364,8 +364,9 @@ function statusReport(owner: OwnerKey): string {
   lines.push(APPROVAL_RULE_LINE)
   const others = liveBrowserSessionCensus().filter(row => row.owner !== owner)
   if (others.length > 0) {
+    const cap = browserSessionCap()
     lines.push(
-      `other live sessions: ${others.length} (${others.map(o => o.lane).join(', ')}); cap: ${browserSessionCap()} children per parent session, plus the lead slot; idle lease: 5 minutes; grants never cross owners`,
+      `other live sessions: ${others.length} (${others.map(o => o.lane).join(', ')}); ${cap === null ? '' : `cap: ${cap} children per parent session, plus the lead slot; `}idle lease: 5 minutes; grants never cross owners`,
     )
   }
   return lines.join('\n')
@@ -920,6 +921,7 @@ export const BrowserTool = buildTool({
     return 'Drive one isolated browser session per agent through the bundled driver. Returns page observations, action results and screenshots. Opening a new origin or first acting on a crossed-to origin asks; reads never ask. Grants belong to this agent and end with its session.'
   },
   async prompt() {
+    const cap = browserSessionCap()
     return `## Operations
 status reports browser resolution (operator pin, then managed Chrome-for-Testing), versions and session state without launching. Installed browsers are not driven.
 open launches on first use and navigates (${NAVIGATION_CAP_MS / 1000}s deadline).
@@ -936,7 +938,7 @@ close ends the session (${BROWSER_PROTOCOL_TIMEOUT_MS / 1000}s protocol deadline
 Selector actions wait for visibility; scoped extract waits for attachment (reads hidden content). Frame click, scroll and screenshot require selectors; coordinate clicks stay in the main viewport.
 
 ## Session lifetime
-Default cap: 3 child browsers per session plus a reserved lead slot; 5 minutes idle closes a browser (active ops do not expire; completion renews the lease). Downloads and file uploads are not performed here. The driver needs node >= 22.12.`
+${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved lead slot; `}5 minutes idle closes a browser (active ops do not expire; completion renews the lease). Downloads and file uploads are not performed here. The driver needs node >= 22.12.`
   },
   userFacingName,
   shouldDefer: true,
