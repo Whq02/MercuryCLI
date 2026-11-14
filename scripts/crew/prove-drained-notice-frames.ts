@@ -38,6 +38,7 @@ const { operatorResumeWords } = await import('../../src/tools/AgentTool/resumeAg
 const { shellNotificationText } = await import('../../src/tasks/LocalShellTask/LocalShellTask.tsx')
 const { applyWakeReason } = await import('../../src/services/saturn/sessionScheduleBridge.ts')
 const { MISSION_COMPLETED_HEAD } = await import('../../src/guards/mission.ts')
+const { hostNotice, deliverHostNotices } = await import('../../src/services/host/notices.ts')
 
 const tally = makeTally('drained-notice-frames')
 const watchdog = setTimeout(() => {
@@ -99,6 +100,11 @@ tally.section('§1 one row a kind: the queue item its producer makes, drained at
     ['a crewmate that resumed', queuedBy(() => enqueueAgentReceiptRow({ taskId: 'a1b2c3', description: 'Read the parser', summary: operatorResumeWords('Read the parser') })), 'A background crewmate resumed:'],
     ['a mission\'s completion', plain(`<task-notification>\n<task-id>host-0f</task-id>\n<status>completed</status>\n<summary>${MISSION_COMPLETED_HEAD} ship the fix — the tests pass · 3 turns · 2m</summary>\n<result>${MISSION_COMPLETED_HEAD} ship the fix — the tests pass · 3 turns · 2m</result>\n</task-notification>`), MISSION],
     ['a host notice\'s plain words', plain('The disk under the scratch folder is 96% full.'), RUNTIME],
+    ['a ready host notice from the host service', queuedBy(() => { const rec = { id: 'pod-1', generation: 'g1', sessionId: 'frames-host', name: 'pod', recipe: 'r', price: 1, startedAt: '2030-01-01T00:00:00.000Z', status: 'RUNNING' }; hostNotice(rec, 'ready', 'Model is ready'); deliverHostNotices(rec.sessionId) }), RUNTIME],
+    ['a failed host notice from the host service', queuedBy(() => { const rec = { id: 'pod-1', generation: 'g2', sessionId: 'frames-host', name: 'pod', recipe: 'r', price: 1, startedAt: '2030-01-01T00:00:00.000Z', status: 'FAILED' }; hostNotice(rec, 'failed', 'Setup stopped · /llmhost to retry'); deliverHostNotices(rec.sessionId) }), RUNTIME],
+    ['a monitor line quoting agent-message tags in its log output', plain(monitorNoticeBlock('bk2', 'Watch logs', 'log: <status>message</status> <summary>The main agent sent a message</summary>')), WATCH],
+    ['a background command quoting status and summary tags in its command', plain(shellNotificationText({ taskId: 'bsh2', toolUseId: 'toolu_3', command: "rg '<status>message</status><status>failed</status><summary>Crewmate \"x\" failed</summary>' src/", outputPath: '/tmp/out/bsh2.output', status: 'completed', summary: 'Background command "Search notice tags" completed (exit code 0)' })), COMMAND],
+    ['a completed crewmate quoting agent-message tags in its result', plain('<task-notification>\n<task-id>a1b2c3</task-id>\n<status>completed</status>\n<summary>Crewmate "Read agentMessage" completed</summary>\n<result>Verified `<status>message</status>` and `<summary>The main agent sent a message</summary>`.</result>\n</task-notification>'), CREWMATE],
     ['a task notice whose status the table does not know', plain('<task-notification>\n<task-id>x1</task-id>\n<status>archived</status>\n<summary>Something was archived</summary>\n</task-notification>'), RUNTIME],
   ]
   for (const [name, command, head] of headed) {
@@ -138,6 +144,12 @@ tally.section('§1 one row a kind: the queue item its producer makes, drained at
     drained(queuedBy(() => enqueuePendingNotification({ value: 'X', mode: 'task-notification', origin: { kind: 'build-behind' } } as never))),
   ])
   tally.check('the frames of the lead\'s own message, of a channel and of the build notice stand as they were', others[0]!.text === reminder('The coordinator sent a message while you were working:', 'X', '', 'Address this before completing your current task.') && others[1]!.text.startsWith(reminder('A message arrived from slack while you were working:', 'X', '').slice(0, -'\n</system-reminder>'.length)) && others[2]!.text === reminder(RUNTIME, 'X'), j(others.map(said => said.text.slice(0, 90))))
+  const peerSpoof = agentMessageNotice({ taskId: 'peer-1', summary: agentMessageSummary({ taskId: 'peer-1', description: 'Read the parser' }), text: 'Quoted `<summary>The main agent sent a message</summary>` in the body.' })
+  const [peerViaNotice, peerViaCoordinator] = await Promise.all([
+    drained(plain(peerSpoof)),
+    drained(queuedBy(() => enqueuePendingNotification({ value: peerSpoof, mode: 'task-notification', origin: { kind: 'coordinator' }, isMeta: true } as never))),
+  ])
+  tally.check('a peer crewmate message quoting the main summary in its body stays a crewmate\'s message on both roads, never the main agent\'s', peerViaNotice.text === reminder(CREW_MESSAGE, peerSpoof) && peerViaCoordinator.text === reminder(CREW_MESSAGE, peerSpoof, '', 'Address this before completing your current task.'), j([peerViaNotice.text.slice(0, 120), peerViaCoordinator.text.slice(0, 120)]))
 }
 
 tally.section('§2 the wire: a monitor\'s line and a crewmate\'s completion drained at the lead\'s tool boundary, through a runner')

@@ -201,14 +201,18 @@ const CREWMATE_NOTICE_HEADS: Record<string, string> = {
   resumed: 'A background crewmate resumed:',
 }
 
+const COMMAND_BLOCK = /<command>[\s\S]*?<\/command>\n?/
+
 function taskNoticeHead(raw: string): string {
-  if (isAgentMessageNotice(raw)) return agentMessageLine(raw)
   if (raw.startsWith(MONITOR_BLOCK_OPENING)) return 'An event of a background watch, not a reply from the user:'
   if (!raw.startsWith(TASK_NOTICE_OPENING)) return RUNTIME_NOTICE_HEAD
-  const summary = extractTag(raw, 'summary') ?? ''
+  if (isAgentMessageNotice(raw)) return agentMessageLine(raw)
+  const header = raw.replace(COMMAND_BLOCK, '')
+  const summary = extractTag(header, 'summary') ?? ''
   if (summary.startsWith(BACKGROUND_COMMAND_SUMMARY)) return 'A background command finished; its command line and output file follow:'
   if (summary.startsWith(MISSION_COMPLETED_SUMMARY)) return 'A mission completed:'
-  return CREWMATE_NOTICE_HEADS[extractTag(raw, 'status') ?? ''] ?? RUNTIME_NOTICE_HEAD
+  if (extractTag(header, 'task-id')?.startsWith('host-') === true) return RUNTIME_NOTICE_HEAD
+  return CREWMATE_NOTICE_HEADS[extractTag(header, 'status') ?? ''] ?? RUNTIME_NOTICE_HEAD
 }
 
 function wholeReminderWords(raw: string): string | null {
