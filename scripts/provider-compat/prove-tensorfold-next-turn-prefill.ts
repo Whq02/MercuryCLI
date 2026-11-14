@@ -479,6 +479,30 @@ section('5 · the same on an engine whose template keeps every row\'s reasoning:
   }
 }
 
+section('6 · an unanswered request and an aggregate queue: the cut guard is conservative')
+for (const arm of ['off', 'on']) {
+  process.env.MERCURY_LOCAL_NEXT_TURN_PREFILL = arm === 'off' ? '0' : '1'
+  const w = await world('after-last-user', CAPABLE, { serialForeground: true })
+  if (w === undefined) {
+    check(`${arm}: the conservative guard fixture is discovered`, false)
+    continue
+  }
+  w.fixture.holdBackground(1500)
+  await toolTurn(w)
+  if (arm === 'on') await untilAsync(() => w.fixture.waiting() === 1, 2000, 5)
+  w.fixture.holdBackground(0)
+  w.fixture.holdNext(700)
+  const own = nextTurn(w)
+  await untilAsync(() => real(w).length === 3 && w.fixture.waiting() === 1, 1000, 5)
+  const neighbour = another(w)
+  await own
+  await neighbour
+  check(`${arm}: our request was computing, the neighbour queued, and only an outstanding cut watch disables read-ahead`, real(w)[2]?.queued === false && real(w)[3]?.queued === true && facts()?.slowed === (arm === 'on' ? 1 : 0), JSON.stringify({ queued: real(w).map(request => request.queued), facts: facts() }))
+  if (arm === 'on') check('the reason reports the missing output and aggregate queue without attributing that queue to our request', facts()?.last === 'a request had produced no output 500 ms after a read-ahead was dropped and the engine reports a queue; nothing is read ahead on that engine again in this session', String(facts()?.last))
+  w.fixture.stop()
+}
+delete process.env.MERCURY_LOCAL_NEXT_TURN_PREFILL
+
 prefill?.__resetNextTurnPrefillForTest()
 console.log(`\nprove-tensorfold-next-turn-prefill: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)
 process.exit(failures === 0 ? 0 : 1)

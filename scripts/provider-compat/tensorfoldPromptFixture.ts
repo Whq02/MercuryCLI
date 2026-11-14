@@ -24,6 +24,7 @@ export interface FoldRequest {
   thinkingBudget?: number
   aborted: boolean
   refused: boolean
+  queued: boolean
 }
 
 const GENERATION_PROMPT = '<|im_start|>assistant\n<think>\n'
@@ -123,7 +124,7 @@ export function startTensorFoldPromptFixture(options: TensorFoldPromptFixtureOpt
       const shared = held.reduce((most, prompt) => Math.max(most, sharedFoldTokens(prompt, tokens)), 0)
       const cachedTokens = options.resumesAt === 'reply-starts' ? foldReplyStarts(rendered).reduce((most, start) => (start <= shared && start > most ? start : most), 0) : shared
       const background = body.priority === 'background'
-      const entry: FoldRequest = { rows, rendered, promptTokens: tokens.length, cachedTokens, background, ...(typeof body.max_tokens === 'number' ? { maxTokens: body.max_tokens } : {}), ...(typeof body.thinking_budget === 'number' ? { thinkingBudget: body.thinking_budget } : {}), aborted: false, refused: false }
+      const entry: FoldRequest = { rows, rendered, promptTokens: tokens.length, cachedTokens, background, ...(typeof body.max_tokens === 'number' ? { maxTokens: body.max_tokens } : {}), ...(typeof body.thinking_budget === 'number' ? { thinkingBudget: body.thinking_budget } : {}), aborted: false, refused: false, queued: false }
       requests.push(entry)
       if (options.refusesOpenCalls === true && rows.some((row, index) => row.role === 'assistant' && (row.tool_calls?.length ?? 0) > 0 && rows[index + 1]?.role !== 'tool')) {
         entry.refused = true
@@ -133,6 +134,7 @@ export function startTensorFoldPromptFixture(options: TensorFoldPromptFixtureOpt
       if (background) backgroundSeen += 1
       if (!background && options.letsGoAfterMs !== undefined && (backgroundHeld > 0 || Date.now() < lettingGoUntil)) {
         if (backgroundHeld > 0) lettingGoUntil = Math.max(lettingGoUntil, Date.now() + options.letsGoAfterMs)
+        entry.queued = true
         queued += 1
         await new Promise(resolve => setTimeout(resolve, Math.max(0, lettingGoUntil - Date.now())))
         queued -= 1
@@ -146,6 +148,7 @@ export function startTensorFoldPromptFixture(options: TensorFoldPromptFixtureOpt
         owned = new Promise<void>(resolve => { release = resolve })
         foreground = owned
         if (before !== undefined) {
+          entry.queued = true
           queued += 1
           await before
           queued -= 1

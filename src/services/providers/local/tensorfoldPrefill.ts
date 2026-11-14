@@ -227,7 +227,7 @@ function watchTheCut(offer: Offer): () => void {
       state.slow.add(offer.root)
       state.facts.slowed += 1
       if (state.offer !== null && state.offer.root === offer.root) cancelNextTurnPrefill('the engine is slow to let a read-ahead go')
-      note(`a request waited more than ${NEXT_TURN_SLOW_CUT_MS} ms behind a dropped read-ahead on ${offer.model}: nothing is read ahead on that engine again in this session`)
+      note(`a request had produced no output ${NEXT_TURN_SLOW_CUT_MS} ms after a read-ahead was dropped and the engine reports a queue; nothing is read ahead on that engine again in this session`)
     })
   }, state.io.slowCutMs ?? NEXT_TURN_SLOW_CUT_MS)
   timer.unref?.()

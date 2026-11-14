@@ -549,10 +549,12 @@ an engine with larger chunks can take longer. Mercury reads the engine's
 another session's request can also wait for the next look. Once that request
 is seen, the read-ahead is cancelled and the turn is left as it is. Where an
 engine keeps a request of the session waiting more than half a second behind
-a read-ahead that was dropped for it,
-Mercury reads nothing ahead on that engine for the rest of the session. While a
-piece runs, the engine's own log gains about three `GET /health` lines a
-second: those lines are the read-ahead looking, and they are expected.
+a read-ahead that was dropped for it, Mercury reads nothing ahead on that
+engine for the rest of the session. That check is conservative: a neighbour
+queued behind this session's request can also turn read-ahead off while that
+request has produced no output. While a piece runs, the engine's own log gains
+about three `GET /health` lines a second: those lines are the read-ahead
+looking, and they are expected.
 `/usage`, cost and the context figure do not count it. It goes only to an
 engine on this machine that shows its requests on `/health` (one started with
 an API key does not). A crewmate's conversation and one due a fold are left
