@@ -1,15 +1,30 @@
+import { spawnSync } from 'node:child_process'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { buildFixtureMcpTools } from './fixtureMcpEstate.ts'
+
+const childHome = process.argv[2] === '--scratch-home' ? process.argv[3] : undefined
+const HOME = childHome ?? mkdtempSync(join(process.env.MERCURY_TMPDIR ?? tmpdir(), 'compat-llamacpp-deferral-'))
+if (childHome === undefined) {
+  let status = 1
+  try {
+    const child = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--scratch-home', HOME], { env: { ...process.env, HOME, USERPROFILE: HOME }, stdio: 'inherit' })
+    status = child.status ?? 1
+  } finally {
+    rmSync(HOME, { recursive: true, force: true })
+  }
+  process.exit(status)
+}
+if (realpathSync(homedir()) !== realpathSync(HOME)) throw new Error('The llama.cpp compat deferral proof requires its scratch HOME at process start.')
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 delete process.env.NODE_ENV
 for (const k of ['ANTHROPIC_BASE_URL', 'MERCURY_TOOL_SEARCH', 'MERCURY_TOOL_DEFER', 'MERCURY_TOOL_DEFER_PROBE', 'MERCURY_MODEL', 'MERCURY_LOCAL_API_KEY', 'MERCURY_LOCAL_BASE_URL', 'MERCURY_COMPAT_API_KEY', 'MERCURY_COMPAT_BASE_URL', 'MERCURY_DISABLE_1M_CONTEXT']) {
   delete process.env[k]
 }
-const HOME = mkdtempSync(join(tmpdir(), 'compat-llamacpp-deferral-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
