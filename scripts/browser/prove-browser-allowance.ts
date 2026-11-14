@@ -121,6 +121,8 @@ try {
     check('a refused launch starts no browser', !again.held && spawned === before, `${spawned - before} started`)
     const lead = await launch('main', 'allowance-one')
     check('the lead keeps its separate slot at 1', lead.held, lead.note)
+    const manual = await BrowserTool.prompt({} as never)
+    check('the manual names the count that is set, not a fixed three', lifetime(manual).trimStart().startsWith('Cap: 1 child browsers per session plus a reserved lead slot; 5 minutes idle closes a browser'), lifetime(manual))
   }
 
   console.log('A5 the words that said three')
