@@ -48,6 +48,7 @@ try {
   const report = readFileSync(join(root, 'src/components/Feedback.tsx'), 'utf8')
   const page = existsSync(join(root, 'docs/NIX.md')) ? readFileSync(join(root, 'docs/NIX.md'), 'utf8') : ''
   check('the report form answers a Nix install by name, with the profile command its own page gives', report.includes("p.kind === 'nix'") && report.includes("'Nix (nix profile add github:Whq02/MercuryCLI)'") && page.includes('\nnix profile add github:Whq02/MercuryCLI\n'))
+  check('the documentation map lists the Nix page', readFileSync(join(root, 'docs/README.md'), 'utf8').includes('- [NIX.md](NIX.md): '))
   const copied = join(scratch, 'copied/mercury.mjs')
   mkdirSync(dirname(copied), { recursive: true })
   copyFileSync(entry, copied)
