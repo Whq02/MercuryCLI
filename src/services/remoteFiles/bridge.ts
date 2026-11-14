@@ -1,6 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { ToolPermissionContext, ToolUseContext } from '../../Tool.js'
+import { parseRichFormatTarget } from '../../tools/FileReadTool/readRichFormats.js'
 import type { PermissionDecision, PermissionRule } from '../../types/permissions.js'
 import { getPathsForPermissionCheck } from '../../utils/fsOperations.js'
 import {
@@ -59,6 +60,7 @@ export type RemoteRead =
   | { kind: 'file'; path: string; size: number; lead: string; ranges?: string[] }
 
 const HOSTS_ONLY_IN_READ = 'ssh:// alone is the list of hosts, which Read shows; a search needs a host: ssh://<host>/<folder>.'
+const HOSTS_NOT_A_FILE = 'ssh:// alone is the list of hosts, which Read shows; Write and Edit need a file: ssh://<host>/<path>.'
 const REMOTE_RULE = /\(\s*ssh:\/\//i
 const READ_RULE_TOOLS: ReadonlySet<string> = new Set(['Glob', 'NotebookRead', 'Read'])
 
@@ -106,7 +108,7 @@ export async function remoteValidation(
     if (!(error instanceof RemotePathError)) throw error
     return { result: false, message: error.message, errorCode: 1 }
   }
-  if (target === null) return hostList ? { result: true } : { result: false, message: HOSTS_ONLY_IN_READ, errorCode: 1 }
+  if (target === null) return hostList ? { result: true } : { result: false, message: toolType === 'edit' ? HOSTS_NOT_A_FILE : HOSTS_ONLY_IN_READ, errorCode: 1 }
   const rules = context.getAppState().toolPermissionContext
   await resolveNames(rules, target.authority, context.abortController.signal)
   for (const form of also === null ? [written] : [written, also]) {
@@ -362,14 +364,30 @@ export async function remoteCopy<Answer>(path: string, signal: AbortSignal | und
 
 type RemoteFound = { sum: string; mode: string | null }
 
-export async function remoteWriteTarget(toolName: string, written: string, context: ToolUseContext, ask: RemoteAsk): Promise<{ path: string; kind: RemoteKind | 'missing' }> {
+export function remoteEntryRefusal(rawPath: string): string | null {
+  const slash = rawPath.indexOf('/', rawPath.indexOf('://') + 3)
+  const rich = slash === -1 ? null : parseRichFormatTarget(rawPath.slice(slash))
+  return rich?.subtarget === undefined ? null : `${rawPath} names an entry inside an archive or a database on another machine, which Write and Edit do not change.`
+}
+
+export async function remoteWriteTarget(
+  toolName: string,
+  written: string,
+  context: ToolUseContext,
+  ask: RemoteAsk,
+): Promise<{ path: string; kind: RemoteKind | 'missing'; size: number; missing: () => Promise<string> }> {
   const signal = context.abortController.signal
   const target = parseRemotePath(written)
-  if (target === null) throw new Error(HOSTS_ONLY_IN_READ)
+  if (target === null) throw new Error(HOSTS_NOT_A_FILE)
   await resolveNames(context.getAppState().toolPermissionContext, target.authority, signal)
-  await gate(toolName, target, 'edit', context, ask, signal)
+  const gated = await gate(toolName, target, 'edit', context, ask, signal)
   const stat = await remoteStat(target, signal)
-  return { path: formatRemotePath(target), kind: stat === null ? 'missing' : stat.kind }
+  return {
+    path: formatRemotePath(target),
+    kind: stat === null ? 'missing' : stat.kind,
+    size: stat?.size ?? 0,
+    missing: () => missingWords(target, gated.here, context, signal),
+  }
 }
 
 export async function readWholeTextViaRemote(
@@ -404,7 +422,7 @@ export async function writeTextViaRemote(
   if (target === null) throw new RemotePathError(`${path} names no host.`)
   const text = keepBom && content.charCodeAt(0) !== 0xfeff ? `\uFEFF${content}` : content
   const done = await remoteCommit(target, Buffer.from(text, encoding), found?.sum ?? null, found?.mode ?? null, signal)
-  return { finalContent: content.replaceAll('\r\n', '\n'), diverged: false, mtimeMs: done.mtimeMs, generation: done.generation }
+  return { finalContent: content.replace(/^\uFEFF/, '').replaceAll('\r\n', '\n'), diverged: false, mtimeMs: done.mtimeMs, generation: done.generation }
 }
 
 export async function readRangeViaRemote(

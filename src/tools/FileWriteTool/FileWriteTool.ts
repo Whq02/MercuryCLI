@@ -44,7 +44,6 @@ import type { UUID } from 'node:crypto'
 
 import { modifiedSinceReadMessage, unreadExistingWriteMessage } from '../FileEditTool/otherSession.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
-import { parseRichFormatTarget } from '../FileReadTool/readRichFormats.js'
 import { stripSequentialReadPrefixes } from '../FileEditTool/utils.js'
 import { spellLineRanges } from '../FileEditTool/readThrough.js'
 import { APPLIED_NO_REREAD_NOTE, isFullReadEntry } from '../FileEditTool/FileEditTool.js'
@@ -121,12 +120,6 @@ function shapeToExistingFile(rawBody: string, content: string, majority: LineEnd
 }
 
 
-function remoteEntryRefusal(rawPath: string): string | null {
-  const slash = rawPath.indexOf('/', rawPath.indexOf('://') + 3)
-  const rich = slash === -1 ? null : parseRichFormatTarget(rawPath.slice(slash))
-  return rich?.subtarget === undefined ? null : `${rawPath} names an entry inside an archive or a database on another machine, which Write and Edit do not change.`
-}
-
 function writeToolItself(): unknown {
   return FileWriteTool
 }
@@ -178,9 +171,9 @@ export const FileWriteTool = buildTool({
       return { result: false as const, message: pathRefusal, errorCode: 1 }
     }
     if (isRemotePath(input.file_path)) {
+      const { remoteEntryRefusal, remoteValidation } = await import('../../services/remoteFiles/bridge.js')
       const entry = remoteEntryRefusal(input.file_path.trim())
       if (entry !== null) return { result: false as const, message: entry, errorCode: 1 }
-      const { remoteValidation } = await import('../../services/remoteFiles/bridge.js')
       return remoteValidation(input.file_path, null, 'edit', 'Writing to', context)
     }
     const expandedPath = hostPathOfWriteTarget(input.file_path)
@@ -453,6 +446,7 @@ export const FileWriteTool = buildTool({
       expandedPath,
       fileExists ? normalizedContent : null,
       writtenContent,
+      far !== null ? false : undefined,
     )
     if (fileExists) {
       const shownBefore = hadBom ? normalizedContent.slice(1) : normalizedContent
