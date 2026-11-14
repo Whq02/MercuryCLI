@@ -4,6 +4,7 @@ import { getSnippetForTwoFileDiff } from 'src/tools/FileEditTool/utils.js'
 import { getDefaultFileReadingLimits } from 'src/tools/FileReadTool/limits.js'
 import { MAX_LINES_TO_READ } from 'src/tools/FileReadTool/prompt.js'
 import { PDF_AT_MENTION_INLINE_THRESHOLD } from '../../constants/apiLimits.js'
+import { isRemotePath } from '../../services/remoteFiles/target.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { FileReadTool, MaxFileReadTokenExceededError, readImageWithTokenBudget, type Output as ReadOutput } from '../../tools/FileReadTool/FileReadTool.js'
 import { isDirectoryTarget } from '../../tools/FileReadTool/readTarget.js'
@@ -121,6 +122,7 @@ async function reusableRead(filename: string, recorded: FileState, offset?: numb
 export async function generateFileAttachment(filename: string, context: ToolUseContext, mode: ReadMode, options?: ReadWindow): Promise<FileRow | null> {
   const { offset, limit } = options ?? {}
   const plan = modes[mode]
+  if (isRemotePath(filename)) return null
   if (isFileReadDenied(filename, context.getAppState().toolPermissionContext)) return null
   if (plan.checkSize) {
     const tooLarge = await tooLargeToMention(filename)
@@ -172,6 +174,7 @@ async function changedContent(filename: string, previous: string, output: ReadOu
 async function changedFile(key: string, context: ToolUseContext, state: ReturnType<ToolUseContext['getAppState']>): Promise<Attachment[]> {
   const previous = context.readFileState.get(key)
   if (!previous) return []
+  if (isRemotePath(key)) return []
   const windowed = (previous.offset ?? 0) !== 0 || previous.limit !== undefined
   if (windowed && previous.isPartialView) return []
   const path = expandPath(key)
