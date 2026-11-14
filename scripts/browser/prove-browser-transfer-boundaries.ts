@@ -177,7 +177,7 @@ section('S2 uploads: Read decisions across modes (including Mercury credentials)
   } catch {}
 
   const denyRule = process.platform === 'win32' ? `Read(${deniedFolder.replace(/\\/g, '/')}/**)` : `Read(//${deniedFolder.replace(/^\/+/, '')}/**)`
-  for (const mode of ['default', 'acceptEdits', 'sovereign'] as const) {
+  for (const mode of ['default', 'implement', 'sovereign'] as const) {
     const credVerdict = await decide({ op: 'upload', selector: '#one', files: [credFile] }, { mode, allow: ['Browser'] })
     const bsecVerdict = await decide({ op: 'upload', selector: '#one', files: [browserSecFile] }, { mode, allow: ['Browser'] })
     const ruleVerdict = await decide({ op: 'upload', selector: '#one', files: [join(deniedFolder, 'secret.txt')] }, { mode, deny: [denyRule], allow: ['Browser'] })
