@@ -16,7 +16,7 @@ import { logForDiagnosticsNoPII } from '../../utils/diagLogs.js'
 import { normalizePathForComparison } from '../../utils/file.js'
 import { detectEncodingForResolvedPath } from '../../utils/fileRead.js'
 import type { FileStateCache } from '../../utils/fileStateCache.js'
-import { getFsImplementation } from '../../utils/fsOperations.js'
+import { getFsImplementation, safeResolvePath } from '../../utils/fsOperations.js'
 import { findCanonicalGitRoot, findGitRoot } from '../../utils/git.js'
 import { stripBOM } from '../../utils/jsonRead.js'
 import type { MemoryType } from '../../utils/memory/types.js'
@@ -251,12 +251,15 @@ async function walkConventions(
       const named = convention.named?.() ?? null
       if (named === null) continue
       const onChain = new Set(chain.map(normalizePathForComparison))
+      const seenFolders = new Set<string>()
       const marked = (entries: InstructionSourceEntry[]): InstructionSourceEntry[] => {
         for (const entry of entries) entry.namedBy = named.by
         return entries
       }
       for (const { folder, guides, rules } of named.folders) {
-        if (onChain.has(normalizePathForComparison(folder))) continue
+        const identity = normalizePathForComparison(safeResolvePath(getFsImplementation(), folder).resolvedPath)
+        if (onChain.has(identity) || seenFolders.has(identity)) continue
+        seenFolders.add(identity)
         for (const guide of guides) {
           push(marked(await processInstructionFile(convention, guide, 'User', processedPaths, true, 0, undefined, diagnostics)), convention.family, 'user')
         }

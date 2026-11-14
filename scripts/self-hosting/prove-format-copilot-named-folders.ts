@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { symlinkSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { checker, contentsOf, count, governs, openWorld } from './instructionWorld.ts'
 
@@ -66,9 +67,20 @@ try {
   check("in a folder never trusted, headless, the named folders load as the user's own files do and the project's do not", NAMED.every(needle => count(untrusted.first, needle) === 1) && !untrusted.first.includes('project-agents-needle'), untrusted.paths.map(path => relative(world.scratch, path)).join(', '))
 
   section('one file, two inventories')
-  const both = world.project({ ...layout, '.github/instructions/a-always.instructions.md': rule('applyTo: "**"', 'project-always-needle\n'), 'app/src/a.py': '\n' })
-  const chained = world.drive(join(both, 'app'), { trust: both, env: { [VARIABLE]: `${both},${join(both, 'app')}` } })
+  const both = world.project({ ...layout, '.github/instructions/a-always.instructions.md': rule('applyTo: "**"', 'project-always-needle\n'), '.github/instructions/scoped.instructions.md': rule('applyTo: "app/src/**"', 'project-scoped-needle\n'), 'app/src/a.py': '\n' })
+  const onChain = (folder: string) => world.drive(join(both, 'app'), { trust: both, touch: [join(both, 'app/src/a.py')], env: { [VARIABLE]: `${folder},${join(both, 'app')}` }, screens: true, orient: true })
+  const chained = onChain(both)
   check("a named folder that is a folder of the working directory's chain adds nothing: its files load once, as the project's", count(chained.first, 'project-agents-needle') === 1 && count(chained.first, 'project-always-needle') === 1 && chained.entries.every(entry => entry.type === 'Project'), JSON.stringify(chained.entries.map(entry => [relative(both, entry.path), entry.type])))
+  const alias = join(world.scratch, 'project-link')
+  symlinkSync(both, alias, 'junction')
+  const linked = onChain(alias)
+  check('a linked spelling of a project-chain folder keeps the same project sources and rows', JSON.stringify(linked.entries) === JSON.stringify(chained.entries) && JSON.stringify(linked.rows) === JSON.stringify(chained.rows), JSON.stringify(linked.entries))
+  check('the scoped rule still attaches from its project folder, under either spelling', chained.touched[0]!.attached.length === 1 && JSON.stringify(linked.touched) === JSON.stringify(chained.touched), JSON.stringify(linked.touched))
+  check('/orient gives both spellings the same import lines', linked.orient === chained.orient, linked.orient.slice(-600))
+  const namedAlias = join(world.scratch, 'named-link')
+  symlinkSync(shared, namedAlias, 'junction')
+  const aliases = world.drive(project, { env: { [VARIABLE]: `${shared},${namedAlias}` }, touch: [join(project, 'src/a.py')], orient: true })
+  check('two names of one personal folder attach its scoped rule once and offer one import per source', aliases.touched[0]!.attached.length === 1 && count(aliases.orient, `@${join(shared, '.github/instructions')}\n`) === 1 && !aliases.orient.includes(namedAlias), JSON.stringify(aliases.touched))
   const twin = world.project({ 'AGENTS.md': 'named-agents-needle\n@notes/style.md\n', 'notes/style.md': 'named-import-needle\n' })
   const twins = world.drive(project, { env: { [VARIABLE]: `${shared},${twin}` } })
   check('the same words in two named folders reach the request once', count(twins.first, 'named-agents-needle') === 1 && twins.diagnostics.some(diagnostic => diagnostic.kind === 'duplicate-content' && diagnostic.path === join(twin, 'AGENTS.md')), JSON.stringify(twins.diagnostics))
