@@ -13,6 +13,9 @@
 # gate-watch: src/utils/config/globalConfig.ts
 # gate-watch: src/tools/FileReadTool/**
 # gate-watch: src/tools/FileWriteTool/**
+# gate-watch: src/tools/GlobTool/**
+# gate-watch: src/utils/glob.ts
+# gate-watch: src/utils/globPattern.ts
 # gate-watch: src/components/permissions/FilePermissionDialog/**
 # gate-watch: src/components/permissions/FileWritePermissionRequest/**
 # gate-watch: src/components/permissions/FileEditPermissionRequest/**

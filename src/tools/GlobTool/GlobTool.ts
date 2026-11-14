@@ -4,12 +4,15 @@ import { isAbsolute } from 'node:path'
 import { z } from 'zod/v4'
 
 import { buildTool, type ToolUseContext } from '../../Tool.js'
+import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
+import { remoteSearchRoot } from '../../services/remoteFiles/target.js'
 import { checkReadPermissionForTool, checkUncPathPermission } from '../../utils/permissions/filesystem.js'
 import { windowsPathNeedsPermission } from '../../utils/permissions/windowsPath.js'
 import { getCwd } from '../../utils/cwd.js'
 import { isENOENT } from '../../utils/errors.js'
 import { FILE_NOT_FOUND_CWD_NOTE } from '../../utils/file.js'
 import { glob, extractGlobBaseDirectory } from '../../utils/glob.js'
+import { globSearchDepth, normalizeGlobPattern } from '../../utils/globPattern.js'
 import { controlCharacterPathRefusal, expandPath, toRelativePath } from '../../utils/path.js'
 import { suggestPathUnderCwd } from '../../utils/file.js'
 import { DESCRIPTION, GLOB_TOOL_NAME } from './prompt.js'
@@ -68,6 +71,10 @@ function searchRootFor(path?: string, pattern?: string): string {
   return getCwd()
 }
 
+function globToolItself(): unknown {
+  return GlobTool
+}
+
 export const GlobTool = buildTool({
   name: GLOB_TOOL_NAME,
   straightQuoteInputs: ['pattern', 'path'],
@@ -77,6 +84,11 @@ export const GlobTool = buildTool({
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
   async checkPermissions(input, context): Promise<ReturnType<typeof checkReadPermissionForTool>> {
+    const far = remoteSearchRoot(input.path, input.pattern)
+    if (far !== null) {
+      const { remotePermission } = await import('../../services/remoteFiles/bridge.js')
+      return remotePermission(GLOB_TOOL_NAME, far.root, null, input, context, 'read')
+    }
     for (const path of [input.path, input.pattern]) {
       const remote = path === undefined ? null : checkUncPathPermission(path, context.getAppState().toolPermissionContext)
       if (remote && remote.behavior !== 'allow') return remote
@@ -89,7 +101,7 @@ export const GlobTool = buildTool({
   userFacingName,
   getToolUseSummary,
   getPath({ path, pattern }) {
-    return searchRootFor(path, pattern)
+    return remoteSearchRoot(path, pattern ?? '')?.root ?? searchRootFor(path, pattern)
   },
   async description(): Promise<string> {
     return DESCRIPTION
@@ -97,7 +109,14 @@ export const GlobTool = buildTool({
   async prompt(): Promise<string> {
     return DESCRIPTION
   },
-  async validateInput(input: Input) {
+  async validateInput(input: Input, context: ToolUseContext) {
+    const far = remoteSearchRoot(input.path, input.pattern)
+    if (far !== null) {
+      const pathRefusal = controlCharacterPathRefusal(far.root)
+      if (pathRefusal !== null) return { result: false as const, message: pathRefusal, errorCode: 1 }
+      const { remoteValidation } = await import('../../services/remoteFiles/bridge.js')
+      return remoteValidation(far.root, null, 'read', 'Searching', context)
+    }
     if (input.path !== undefined) {
       const pathRefusal = controlCharacterPathRefusal(input.path)
       if (pathRefusal !== null) {
@@ -132,10 +151,45 @@ export const GlobTool = buildTool({
     }
     return { result: true as const }
   },
-  async call(input: Input, context: ToolUseContext) {
+  async call(input: Input, context: ToolUseContext, canUseTool, parentMessage) {
     const started = Date.now()
-    const root = searchRootFor(input.path, input.pattern)
     const limit = context.globLimits?.maxResults ?? DEFAULT_RESULT_LIMIT
+    const far = remoteSearchRoot(input.path, input.pattern)
+    if (far !== null) {
+      const bridge = await import('../../services/remoteFiles/bridge.js')
+      const parts = normalizeGlobPattern(far.pattern).split('/')
+      const literal = parts.slice(0, -1).findIndex(part => part === '' || part === '.' || part === '..' || /[*?[{\\]/.test(part))
+      const within = parts.slice(0, literal === -1 ? parts.length - 1 : literal)
+      const patterns = [parts.slice(within.length).join('/')]
+      const names = bridge.remoteSearchNames(patterns)
+      const mirror = await bridge.remoteMirror(
+        GLOB_TOOL_NAME,
+        far.root,
+        context,
+        typeof canUseTool === 'function' && parentMessage !== undefined
+          ? path => (canUseTool as CanUseToolFn)(globToolItself() as never, { pattern: far.pattern, path }, context, parentMessage as never, `${context.toolUseId ?? 'glob'}-resolved`)
+          : null,
+        names === null ? 0 : (globSearchDepth(patterns) ?? 0),
+        names,
+        within.join('/'),
+      )
+      try {
+        const found = await glob(mirror.deeper ? patterns[0]! : far.pattern, mirror.dir, { limit, offset: 0 }, context.abortController.signal, mirror.rules)
+        return {
+          data: mirror.rename({
+            durationMs: Date.now() - started,
+            numFiles: found.files.length,
+            filenames: found.files,
+            truncated: found.truncated,
+            ...(found.ignored > 0 ? { ignored: found.ignored } : {}),
+            ...(found.incomplete !== undefined ? { incomplete: found.incomplete } : {}),
+          } satisfies Output),
+        }
+      } finally {
+        mirror.close()
+      }
+    }
+    const root = searchRootFor(input.path, input.pattern)
     const { files, truncated, ignored, incomplete } = await glob(
       input.pattern,
       root,

@@ -207,6 +207,16 @@ export function remoteGeneration(path: string): string | null | undefined {
   return generations.get(remoteIdentity(path)) ?? null
 }
 
+export function remoteSearchRoot(path: string | undefined, pattern: string): { root: string; pattern: string } | null {
+  if (isRemotePath(path)) return { root: path!, pattern }
+  if (!isRemotePath(pattern)) return null
+  const slash = pattern.indexOf('/', pattern.indexOf('://') + 3)
+  if (slash === -1) return { root: pattern, pattern: '*' }
+  const wild = pattern.slice(slash).search(/[*?[{]/)
+  const cut = pattern.lastIndexOf('/', wild === -1 ? pattern.length : slash + wild)
+  return { root: cut === slash ? pattern.slice(0, slash + 1) : pattern.slice(0, cut), pattern: pattern.slice(cut + 1) || '*' }
+}
+
 export function remoteChild(target: RemoteTarget, name: string): RemoteTarget {
   const base = target.home === null ? (target.path === '/' ? '' : target.path) : target.path
   return { ...target, path: base === '' && target.home !== null ? name : `${base}/${name}`, folder: false }

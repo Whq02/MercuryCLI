@@ -13,6 +13,8 @@ type RemoteStat = { kind: RemoteKind; link: boolean; size: number; mtimeMs: numb
 
 export type RemoteEntry = { name: string; kind: 'file' | 'folder' | 'link' | 'other'; real?: string }
 
+export type RemoteLeaf = { path: string; size: number; mtimeMs: number }
+
 type RemoteHead = { size: number; mtimeMs: number; mode: string | null; lines: number; endsWithNewline: boolean; lead: string; crc: string | null }
 
 type RemoteFacts = { home: string; system: string; here: boolean }
@@ -319,6 +321,103 @@ export async function remoteList(target: RemoteTarget, signal?: AbortSignal, res
     entries.push({ name: fields[at + 1]!, kind, ...(mark.length > 1 ? { real: mark.slice(1) } : {}) })
   }
   return entries
+}
+
+const WALKED = /^(\d+) (\d+)(?:\.\d+)? ([-d])\S* (\/.*)$/
+const CAT_LINE = 48_000
+
+export async function remoteWalk(
+  authority: RemoteAuthority,
+  root: string,
+  maxDepth: number,
+  names: readonly string[] | null,
+  signal?: AbortSignal,
+): Promise<{ files: RemoteLeaf[]; markers: string[] }> {
+  const filter = names === null ? '' : names.map(name => ` ${remoteQuote(name)}`).join('')
+  const reply = await remoteRun(authority, { script: `m_walk ${remoteQuote(root)} ${maxDepth}${filter}`, signal })
+  if (reply.status !== 0) throw new RemoteFileError('EIO', `${authorityText(authority)}: ${root} could not be listed (${words(reply.stderr) || `the remote machine answered ${reply.status}`}).`)
+  const files: RemoteLeaf[] = []
+  const markers: string[] = []
+  for (const line of reply.stdout.toString('utf8').split('\n')) {
+    const found = WALKED.exec(line)
+    if (found === null) continue
+    const path = found[4]!
+    if (path !== root && !path.startsWith(root === '/' ? '/' : `${root}/`)) continue
+    if (found[3] === 'd') markers.push(path)
+    else files.push({ path, size: Number(found[1]), mtimeMs: Number(found[2]) * 1000 })
+  }
+  return { files, markers }
+}
+
+export async function remoteHas(authority: RemoteAuthority, paths: readonly string[], signal?: AbortSignal): Promise<boolean[]> {
+  if (paths.length === 0) return []
+  const reply = await remoteRun(authority, { script: `m_has ${paths.map(remoteQuote).join(' ')}`, signal })
+  const marks = reply.stdout.toString('latin1')
+  return paths.map((_, index) => marks[index] === '1')
+}
+
+export async function remoteCat(
+  authority: RemoteAuthority,
+  wanted: ReadonlyArray<{ path: string; sniff: boolean }>,
+  land: (index: number) => string,
+  signal?: AbortSignal,
+): Promise<{ read: number; bytes: number }> {
+  let read = 0
+  let bytes = 0
+  for (let from = 0; from < wanted.length; ) {
+    const words: string[] = []
+    let to = from
+    for (let length = 0; to < wanted.length && (to === from || length < CAT_LINE); to++) {
+      const word = `${wanted[to]!.sniff ? 's' : 'c'} ${remoteQuote(wanted[to]!.path)}`
+      words.push(word)
+      length += word.length + 1
+    }
+    const boundary = randomBytes(16).toString('hex')
+    const mark = Buffer.from(`\n${boundary} `)
+    const state: { at: number; fd: number; pending: Buffer } = { at: from, fd: -1, pending: Buffer.alloc(0) }
+    const put = (part: Buffer): void => {
+      if (part.length === 0) return
+      if (state.fd === -1) state.fd = openSync(land(state.at), 'w', 0o600)
+      for (let written = 0; written < part.length; ) written += writeSync(state.fd, part, written)
+      bytes += part.length
+    }
+    const shut = (): void => {
+      if (state.fd !== -1) closeSync(state.fd)
+      state.fd = -1
+    }
+    try {
+      const reply = await remoteRun(authority, {
+        script: `m_cat ${boundary} ${words.join(' ')}`,
+        signal,
+        sink: chunk => {
+          state.pending = state.pending.length === 0 ? chunk : Buffer.concat([state.pending, chunk])
+          for (;;) {
+            const at = state.pending.indexOf(mark)
+            const end = at === -1 ? -1 : state.pending.indexOf(0x0a, at + mark.length)
+            if (end === -1) {
+              const keep = at === -1 ? Math.max(0, state.pending.length - (mark.length - 1)) : at
+              put(state.pending.subarray(0, keep))
+              state.pending = state.pending.subarray(keep)
+              return
+            }
+            put(state.pending.subarray(0, at))
+            if (state.pending.subarray(at + mark.length, end).toString('latin1') === '0') {
+              if (state.fd === -1) state.fd = openSync(land(state.at), 'w', 0o600)
+              read++
+            }
+            shut()
+            state.at++
+            state.pending = state.pending.subarray(end + 1)
+          }
+        },
+      })
+      if (reply.status !== 0 || state.at !== to) throw new RemoteFileError('EIO', `${authorityText(authority)}: the files of a search came back cut short.`)
+    } finally {
+      shut()
+    }
+    from = to
+  }
+  return { read, bytes }
 }
 
 function parentOf(path: string): string {

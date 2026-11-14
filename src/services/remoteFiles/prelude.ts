@@ -98,6 +98,40 @@ m_list() {
       printf '%s\0%s\0' "$t" "$f"
     done )
 }
+if stat -c '%s %Y %A %n' / >/dev/null 2>&1; then m_found() { find "$@" -exec stat -c '%s %Y %A %n' {} + 2>/dev/null; }
+elif stat -f '%z %m %Sp %N' / >/dev/null 2>&1; then m_found() { find "$@" -exec stat -f '%z %m %Sp %N' {} + 2>/dev/null; }
+else m_found() { find "$@" -exec sh -c 'for f; do if [ -d "$f" ]; then printf "0 0 d %s\n" "$f"; else printf "0 0 - %s\n" "$f"; fi; done' sh {} + 2>/dev/null; }
+fi
+m_walk() {
+  r=$1; d=$2; shift 2
+  if [ ! -e "$r" ]; then if [ -L "$r" ]; then return 46; fi; return 44; fi
+  c=$#
+  if [ "$c" -gt 0 ]; then
+    set -- "$@" \(
+    i=0
+    while [ "$i" -lt "$c" ]; do
+      if [ "$i" -gt 0 ]; then set -- "$@" -o; fi
+      set -- "$@" -name "$1"
+      shift
+      i=$((i + 1))
+    done
+    set -- "$@" \)
+  fi
+  if [ "$d" -gt 0 ]; then D="-maxdepth $d"; else D=; fi
+  if [ "$c" -gt 0 ]; then Y='( -type f -o -type d )'; else Y='-type f'; fi
+  m_found "$r" $D \( -type d \( -name .git -o -name .svn -o -name .hg -o -name .bzr -o -name .jj -o -name .sl \) -prune -o $Y "$@" \)
+  return 0
+}
+m_has() { for f; do if [ -e "$f" ]; then printf 1; else printf 0; fi; done; }
+m_cat() {
+  k=$1; shift
+  while [ $# -gt 1 ]; do
+    if [ "$1" = s ] && [ "$(m_take 512 < "$2" 2>/dev/null | tr -d '\000' | wc -c)" -lt 512 ]; then m_take 512 < "$2" 2>/dev/null
+    else cat "$2" 2>/dev/null; fi
+    printf '\n%s %s\n' "$k" $?
+    shift 2
+  done
+}
 m_commit() {
   if [ -d "$2" ]; then rm -f "$1"; T=; return 49; fi
   if [ -e "$2" ] || [ -L "$2" ]; then now=$(m_sum "$2") || now=unreadable; else now=absent; fi

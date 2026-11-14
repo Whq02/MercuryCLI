@@ -1,12 +1,13 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-import type { ToolPermissionContext, ToolUseContext } from '../../Tool.js'
+import { closeSync, mkdirSync, mkdtempSync, openSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { dirname, join, sep } from 'node:path'
+import { getEmptyToolPermissionContext, type ToolPermissionContext, type ToolUseContext } from '../../Tool.js'
 import { parseRichFormatTarget } from '../../tools/FileReadTool/readRichFormats.js'
 import type { PermissionDecision, PermissionRule } from '../../types/permissions.js'
 import { getPathsForPermissionCheck } from '../../utils/fsOperations.js'
 import {
   checkReadPermissionForTool,
   checkWritePermissionForTool,
+  generateSuggestions,
   getMercuryTempDir,
   matchingRuleForInput,
   matchingRulesForInput,
@@ -23,17 +24,21 @@ import { resolveRemoteAuthority } from './connection.js'
 import { remoteHostNames, renderRemoteHosts, sshUserConfigPath } from './hosts.js'
 import {
   remoteAbsolutePath,
+  remoteCat,
   remoteCommit,
   remoteFetch,
+  remoteHas,
   remoteIsThisMachine,
   remoteList,
   remoteReadBytes,
   remoteReadRange,
   remoteRealPath,
   remoteStat,
+  remoteWalk,
   RemoteFileError,
   type RemoteEntry,
   type RemoteKind,
+  type RemoteLeaf,
 } from './ops.js'
 import {
   authorityText,
@@ -359,6 +364,186 @@ export async function remoteCopy<Answer>(path: string, signal: AbortSignal | und
     return await read(file)
   } finally {
     rmSync(folder, { recursive: true, force: true })
+  }
+}
+
+const IGNORE_FILES = ['.gitignore', '.ignore', '.rgignore']
+const VCS_FOLDERS: ReadonlySet<string> = new Set(['.git', '.svn', '.hg', '.bzr', '.jj', '.sl'])
+const SNIFFED_ABOVE = 1024 * 1024
+
+type RemoteMirror = {
+  dir: string
+  host: string
+  deeper: boolean
+  rules: ToolPermissionContext
+  pull(local: readonly string[], whole: ReadonlySet<string>): Promise<{ files: number; bytes: number }>
+  rename<Value>(value: Value): Value
+  close(): void
+}
+
+export function remoteSearchNames(patterns: readonly string[]): string[] | null {
+  const names: string[] = []
+  for (const pattern of patterns) {
+    if (pattern.startsWith('!')) continue
+    const last = pattern.slice(pattern.lastIndexOf('/') + 1)
+    if (!/^[A-Za-z0-9._*?-]+$/.test(last) || /^\*+$/.test(last)) return null
+    names.push(last)
+  }
+  return names.length === 0 ? null : names
+}
+
+function localSegment(name: string): string {
+  if (process.platform !== 'win32') return name
+  const held = name.replace(/[<>:"|?*\\\u0000-\u001f]/g, char => String.fromCharCode(0xf000 + char.charCodeAt(0))).replace(/[. ]$/, char => String.fromCharCode(0xf000 + char.charCodeAt(0)))
+  return /^(?:con|prn|aux|nul|com[0-9]|lpt[0-9])(?:\.|$)/i.test(held) ? `\uf8ff${held}` : held
+}
+
+function respelled<Value>(value: Value, spell: (text: string) => string): Value {
+  if (typeof value === 'string') return spell(value) as Value
+  if (Array.isArray(value)) return value.map(item => respelled(item, spell)) as Value
+  if (value !== null && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, respelled(item, spell)])) as Value
+  return value
+}
+
+export async function remoteMirror(
+  toolName: string,
+  written: string,
+  context: ToolUseContext,
+  ask: RemoteAsk,
+  depth: number,
+  names: readonly string[] | null,
+  within = '',
+): Promise<RemoteMirror> {
+  const signal = context.abortController.signal
+  const rules = context.getAppState().toolPermissionContext
+  const given = parseRemotePath(written)
+  if (given === null) throw new Error(HOSTS_ONLY_IN_READ)
+  await resolveNames(rules, given.authority, signal)
+  const outer = await gate(toolName, given, 'read', context, ask, signal)
+  const host = authorityText(given.authority)
+  const stat = await remoteStat(given, signal)
+  if (stat === null || stat.kind === 'dangling') throw new Error(toolName === 'Glob' ? `There is no folder at that path on ${host}.` : `There is no file or folder at that path on ${host}.`)
+  if (stat.kind === 'file' && toolName === 'Glob') throw new Error(`Path is not a directory: ${written.trim()}`)
+  if (stat.kind !== 'folder' && stat.kind !== 'file') throw new Error(notAFileRefusal(formatRemotePath(given), stat.kind === 'other' ? 'a device' : stat.kind))
+  const inner = within === '' || stat.kind !== 'folder' ? null : remoteChild(given, within)
+  const deeper = inner !== null && (await remoteStat(inner, signal))?.kind === 'folder'
+  const target = deeper ? { ...inner!, folder: true } : given
+  const gated = deeper ? await gate(toolName, target, 'read', context, ask, signal) : outer
+  const root = await remoteRealPath(target, signal)
+  const named = names === null ? null : await remoteWalk(target.authority, root, depth, [...names, ...IGNORE_FILES, '.git'], signal)
+  const walked =
+    named !== null && named.markers.every(path => VCS_FOLDERS.has(path.slice(path.lastIndexOf('/') + 1))) ? named : await remoteWalk(target.authority, root, 0, null, signal)
+  const filtering = gated.here || remoteRulePatterns(rules).length > 0 || narrowedTo(rules) !== null
+  const refused = remoteReadFilter(rules, gated.here)
+  const spellings = gated.spellings.flat().map(form => parseRemotePath(form)).filter((form): form is RemoteTarget => form !== null)
+  const home = await homeOf(target.authority, signal)
+  const allowed = (path: string): boolean => {
+    if (!filtering) return true
+    if (path === root) return !refused(gated.spellings.flat())
+    if (path.startsWith(root === '/' ? '/' : `${root}/`)) {
+      const name = path.slice(root === '/' ? 1 : root.length + 1)
+      return !refused(spellings.map(form => formatRemotePath(remoteChild(form, name))))
+    }
+    return !refused(spelled(target.authority, [path], home).flat())
+  }
+  const base = realpathSync(privateFolder())
+  const plainOf = (path: string): string => join(base, ...path.split('/').filter(Boolean))
+  const localOf = (path: string): string => join(base, ...path.split('/').filter(Boolean).map(localSegment))
+  const held = new Map<string, { leaf: RemoteLeaf; local: string }>()
+  const remoteOf = new Map<string, string>()
+  const escaped = new Map<string, string>()
+  const fetched = new Set<string>()
+  const made = new Set<string>()
+  const folderOf = (local: string): void => {
+    const folder = dirname(local)
+    if (made.has(folder)) return
+    mkdirSync(folder, { recursive: true })
+    made.add(folder)
+  }
+  const stamp = (path: string): void => {
+    const entry = held.get(path)
+    if (entry !== undefined && entry.leaf.mtimeMs > 0) utimesSync(entry.local, entry.leaf.mtimeMs / 1000, entry.leaf.mtimeMs / 1000)
+  }
+  try {
+    for (const leaf of walked.files) {
+      if (!allowed(leaf.path)) continue
+      const first = localOf(leaf.path)
+      const cut = first.lastIndexOf('.') > first.lastIndexOf(sep) + 1 ? first.lastIndexOf('.') : first.length
+      let local = first
+      folderOf(local)
+      for (let attempt = 1; ; attempt++) {
+        try {
+          closeSync(openSync(local, 'wx', 0o600))
+          break
+        } catch (error) {
+          if ((error as { code?: string }).code !== 'EEXIST' || attempt > 64) throw error
+          local = `${first.slice(0, cut)}\uf8ff${attempt}${first.slice(cut)}`
+        }
+      }
+      if (local !== plainOf(leaf.path)) escaped.set(local.normalize('NFC'), leaf.path)
+      held.set(leaf.path, { leaf, local })
+      remoteOf.set(local.normalize('NFC'), leaf.path)
+      stamp(leaf.path)
+    }
+    const ignores = [...held.keys()].filter(path => IGNORE_FILES.includes(path.slice(path.lastIndexOf('/') + 1)))
+    const ancestors: string[] = []
+    for (let folder = root; folder !== '/'; ) {
+      folder = folder.slice(0, folder.lastIndexOf('/')) || '/'
+      ancestors.push(folder)
+    }
+    const under = (folder: string, name: string): string => `${folder === '/' ? '' : folder}/${name}`
+    const repositories = await remoteHas(target.authority, ancestors.map(folder => under(folder, '.git')), signal)
+    const markers = [...walked.markers.filter(path => path.endsWith('/.git')), ...ancestors.filter((_, index) => repositories[index]).map(folder => under(folder, '.git'))]
+    for (const marker of markers) mkdirSync(localOf(marker), { recursive: true })
+    const rulesFiles = [...ignores, ...ancestors.flatMap(folder => IGNORE_FILES.map(name => under(folder, name))), ...markers.map(marker => `${marker}/info/exclude`)].filter(allowed)
+    await remoteCat(
+      target.authority,
+      rulesFiles.map(path => ({ path, sniff: false })),
+      index => {
+        const local = held.get(rulesFiles[index]!)?.local ?? localOf(rulesFiles[index]!)
+        folderOf(local)
+        fetched.add(rulesFiles[index]!)
+        return local
+      },
+      signal,
+    )
+    for (const path of ignores) stamp(path)
+  } catch (error) {
+    rmSync(base, { recursive: true, force: true })
+    throw error
+  }
+  const rootLocal = localOf(root)
+  const shown = formatRemotePath(target).replace(/\/$/, '')
+  const grants = generateSuggestions(join(base, 'x'), 'read', getEmptyToolPermissionContext()).flatMap(update => (update.type === 'addRules' ? update.rules : []))
+  return {
+    dir: rootLocal,
+    host,
+    deeper,
+    rules: { ...getEmptyToolPermissionContext(), mode: rules.mode, alwaysAllowRules: { session: grants.map(rule => `${rule.toolName}(${rule.ruleContent})`) } },
+    pull: async (local, whole) => {
+      const named = (paths: Iterable<string>): string[] => [...new Set([...paths].map(path => remoteOf.get(path.normalize('NFC'))))].filter((path): path is string => path !== undefined)
+      const wholes = new Set(named(whole))
+      const wanted = named(local).filter(path => !fetched.has(path))
+      const got = await remoteCat(
+        target.authority,
+        wanted.map(path => ({ path, sniff: held.get(path)!.leaf.size > SNIFFED_ABOVE && !wholes.has(path) })),
+        index => {
+          fetched.add(wanted[index]!)
+          return held.get(wanted[index]!)!.local
+        },
+        signal,
+      )
+      for (const path of wanted) stamp(path)
+      return { files: got.read, bytes: got.bytes }
+    },
+    rename: value =>
+      respelled(value, text => {
+        let spelt = text
+        for (const [local, remote] of escaped) spelt = spelt.replaceAll(local, plainOf(remote))
+        if (!spelt.includes(rootLocal)) return spelt
+        return spelt.split(rootLocal).map((part, index) => (index === 0 || sep === '/' ? part : part.replace(/^[^\n\0:]*/, tail => tail.replaceAll(sep, '/')))).join(shown)
+      }),
+    close: () => rmSync(base, { recursive: true, force: true }),
   }
 }
 
