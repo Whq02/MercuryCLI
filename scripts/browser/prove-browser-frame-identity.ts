@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { readFileSync } from 'node:fs'
 import type http from 'node:http'
 import { join } from 'node:path'
 import type { Frame, Page } from 'puppeteer-core'
@@ -326,6 +327,15 @@ section('S8 what it costs')
   const onBorn = perFrame('fresh')
   check('and five on a tab born beside it, where the page’s script preparation is registered too', onBorn.length === 3 && onBorn.every(list => list === 'Emulation.setUserAgentOverride,Page.enable,Page.addScriptToEvaluateOnNewDocument,Target.setAutoAttach,Runtime.runIfWaitingForDebugger'), onBorn.join(' | '))
   await sessions.disposeBrowserOwner(ownerOf(cold)).catch(() => undefined)
+}
+
+section('S9 the page')
+{
+  const page = readFileSync(join(ROOT, 'docs', 'BROWSER.md'), 'utf8')
+  check(
+    'the browser page says what a frame from another site reads and what stays the browser’s own',
+    page.includes("A frame from another site reads that identity and its touch support too. Its time zone, locale, screen size and pixel ratio stay the browser's own: the browser keeps one zone and one locale for all frames of a site, in every tab, and applies a device's size to the page alone."),
+  )
 }
 
 Connection.prototype._rawSend = send
