@@ -266,11 +266,12 @@ const hosted = await play({ road: 'hosted compat', model: 'compat/cloud/fixture-
   check('the eight readings are the eight a keep-alive leaves today, the count from the session\'s last event', [...asItWas].every(([at, row]) => rows.get(at) === row), show(rows))
 }
 
+const live = { inFlight: true, phase: 'thinking', agentsWaiting: 0, inProgressToolUseIDs: new Set<string>(), turnStartedAtMs: 0 } as SeatLive
+const seat = (wait: Wait, quietMs: number, waitAgeMs?: number): SeatStatus => ({ title: 't', projectLabel: 'p', interrupting: false, hardStopping: false, wait, quietMs, watchdogMs: 900_000, phaseMs: null, toolBudgetMs: null, stuck: false, ...(waitAgeMs !== undefined ? { waitAgeMs } : {}) }) as SeatStatus
+const promise: Wait = { kind: 'first-byte', cold: false, promptTokens: 4400, model: 'qwen3.5-4b', budgetMs: 60_000, sinceMs: 0, attempt: 1, promise: true }
+
 section('5 · the row\'s words, reading by reading')
 {
-  const live = { inFlight: true, phase: 'thinking', agentsWaiting: 0, inProgressToolUseIDs: new Set<string>(), turnStartedAtMs: 0 } as SeatLive
-  const seat = (wait: Wait, quietMs: number, waitAgeMs?: number): SeatStatus => ({ title: 't', projectLabel: 'p', interrupting: false, hardStopping: false, wait, quietMs, watchdogMs: 900_000, phaseMs: null, toolBudgetMs: null, stuck: false, ...(waitAgeMs !== undefined ? { waitAgeMs } : {}) }) as SeatStatus
-  const promise: Wait = { kind: 'first-byte', cold: false, promptTokens: 4400, model: 'qwen3.5-4b', budgetMs: 60_000, sinceMs: 0, attempt: 1, promise: true }
   check('past its estimate, narrow: the model is "the model" and the count stands alone', statusLine(live, seat(promise, 5_000, 125_000), null, true) === 'waiting for the first byte from the model · 2m so far', statusLine(live, seat(promise, 5_000, 125_000), null, true))
   check('past its estimate, a cold prompt: what it ingests, then the count', statusLine(live, seat({ ...promise, cold: true }, 5_000, 125_000)) === 'ingesting a 4k-token prompt on qwen3.5-4b · 2m so far' && statusLine(live, seat({ ...promise, cold: true }, 5_000, 125_000), null, true) === 'ingesting prompt · 2m so far', statusLine(live, seat({ ...promise, cold: true }, 5_000, 125_000)))
   check('a second attempt keeps its mark', statusLine(live, seat({ ...promise, attempt: 2 }, 5_000, 125_000)) === 'waiting for the first byte from qwen3.5-4b (attempt 2) · 2m so far', statusLine(live, seat({ ...promise, attempt: 2 }, 5_000, 125_000)))
@@ -281,15 +282,17 @@ section('5 · the row\'s words, reading by reading')
 
 section('6 · a row too narrow for the words: the count is what stays')
 {
-  const past = 'waiting for the first byte from nemotron-lightning · 3m so far'
-  const cold = 'ingesting a 12k-token prompt on nemotron-lightning · 3m so far'
+  const lightning: Wait = { ...promise, model: 'nemotron-lightning', promptTokens: 12_000 }
+  const past = statusLine(live, seat(lightning, 5_000, 185_000))
+  const cold = statusLine(live, seat({ ...lightning, cold: true }, 5_000, 185_000))
+  check('the two rows a wait past its estimate writes', past === 'waiting for the first byte from nemotron-lightning · 3m so far' && cold === 'ingesting a 12k-token prompt on nemotron-lightning · 3m so far', `${past} · ${cold}`)
   const fit = (line: string, budget: number): string => fitStatusLine(line, budget + 40, 40)
   check('a wait past its estimate is shortened at the model and keeps its count', fit(past, 44) === 'waiting for the first byte from… · 3m so far' && fit(past, 30) === 'waiting for the f… · 3m so far', `${fit(past, 44)} · ${fit(past, 30)}`)
   check('the cold form the same', fit(cold, 44) === 'ingesting a 12k-token prompt on… · 3m so far', fit(cold, 44))
   check('wide enough, the words stand whole', fit(past, 62) === past && fit(cold, 62) === cold)
-  const loading = 'loading nemotron-lightning (19 GB) · 14s so far'
-  const promise = 'waiting for the first byte from nemotron-lightning — expected in about 1m · 14s so far'
-  check('every other row is shortened as it was: a row with a dash keeps its clause, a row without one is left to the row\'s own end', fit(promise, 44) === 'waiting… — expected in about 1m · 14s so far' && fit(loading, 30) === loading, `${fit(promise, 44)} · ${fit(loading, 30)}`)
+  const loading = statusLine(live, seat({ ...lightning, phase: 'loading', sizeGb: 19 } as Wait, 5_000, 14_000))
+  const promised = statusLine(live, seat(lightning, 5_000, 14_000))
+  check('every other row is shortened as it was: a row with a dash keeps its clause, a row without one is left to the row\'s own end', loading === 'loading nemotron-lightning (19 GB) · 14s so far' && fit(promised, 44) === 'waiting… — expected in about 1m · 14s so far' && fit(loading, 30) === loading, `${fit(promised, 44)} · ${fit(loading, 30)}`)
   const plan = (rest: string, columns: number): string => statusRowPlan({ columns, head: 'local/qwen3.5-4b · high', rest, samples: [], folder: 'proj', branch: null, backHint: 'esc interrupts · shift+← back' }).rest
   const PROMISED = 'waiting for the first byte from qwen3.5-4b — expected in about 1m · 28s so far'
   const WAITED = 'waiting for the first byte from qwen3.5-4b · 3m so far'
