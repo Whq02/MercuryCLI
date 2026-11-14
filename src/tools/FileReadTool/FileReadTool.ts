@@ -38,6 +38,7 @@ import { isEnvTruthy } from '../../utils/envUtils.js'
 import { isENOENT } from '../../utils/errors.js'
 import {
   addLineNumbers,
+  displayAddressedTarget,
   FILE_NOT_FOUND_CWD_NOTE,
   findSimilarFile,
   getFileModificationTime,
@@ -1795,7 +1796,7 @@ export const FileReadTool = buildTool({
     const query = parseReadQueryTarget(input.file_path)
     const source = query?.source ?? input.file_path
     if (hasControlCharacter(source) || windowsPathNeedsPermission(source)) return
-    const expanded = isRemotePath(source) ? remoteIdentity(source) : query !== null && classifyReadTarget(source).kind !== 'file' ? source : expandPath(source)
+    const expanded = isRemotePath(source) ? remoteIdentity(source) : query !== null && classifyReadTarget(source).kind !== 'file' ? source : displayAddressedTarget(source, expandPath)
     input.file_path = query === null ? expanded : `${expanded}${query.suffix}`
   },
   preparePermissionMatcher(input: Input) {

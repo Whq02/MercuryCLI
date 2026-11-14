@@ -6,6 +6,7 @@ import { Text } from '../../../ink.js'
 import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js'
 import { isRemotePath, remoteLastRead } from '../../../services/remoteFiles/target.js'
 import { isENOENT } from '../../../utils/errors.js'
+import { displayAddressedTarget } from '../../../utils/file.js'
 import { FilePermissionDialog } from '../FilePermissionDialog/FilePermissionDialog.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
 import { RemotePathSubtitle } from '../RemotePathSubtitle.js'
@@ -62,7 +63,7 @@ function PlainFileWritePermissionRequest({
       onDone={onDone}
       onReject={onReject}
       title={remote ? 'Edit file' : existing.exists ? 'Overwrite file' : 'Create file'}
-      subtitle={remote ? <RemotePathSubtitle path={parsed.file_path} /> : relative(getFocusedSessionConnector().workspace().cwd, parsed.file_path)}
+      subtitle={remote ? <RemotePathSubtitle path={parsed.file_path} /> : displayAddressedTarget(parsed.file_path, container => relative(getFocusedSessionConnector().workspace().cwd, container))}
       question={
         remote ? undefined : (
           <Text bold>

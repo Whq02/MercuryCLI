@@ -408,11 +408,24 @@ export function getAbsoluteAndRelativePaths(path: string | undefined): {
   return { absolutePath, relativePath: relative(getCwd(), absolutePath) }
 }
 
+const ADDRESS_START = /#read\?|(?<=\.(?:tar\.gz|zip|tar|tgz|sqlite3|sqlite|db))(?:::|!\/|!|:)(?=[\s\S])/i
+
+export function splitAddressedTarget(target: string): { container: string; address: string } {
+  const found = ADDRESS_START.exec(target)
+  return found === null || found.index === 0 ? { container: target, address: '' } : { container: target.slice(0, found.index), address: target.slice(found.index) }
+}
+
+export function displayAddressedTarget(target: string, displayContainer: (container: string) => string): string {
+  const { container, address } = splitAddressedTarget(target)
+  return `${displayContainer(container)}${address}`
+}
+
 export function getDisplayPath(filePath: string): string {
   if (typeof filePath !== 'string') {
     return filePath === undefined || filePath === null ? '' : String(filePath)
   }
   if (isRemotePath(filePath)) return filePath
+  if (splitAddressedTarget(filePath).address !== '') return displayAddressedTarget(filePath, getDisplayPath)
   let relativePath: string | undefined
   try {
     relativePath = getAbsoluteAndRelativePaths(filePath).relativePath
