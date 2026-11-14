@@ -1,6 +1,5 @@
 
 export {
-  clearAgentTranscriptSubdir,
   getAgentTranscriptPath,
   getNodeEnv,
   getProjectDir,
@@ -14,7 +13,6 @@ export {
   MAX_TRANSCRIPT_READ_BYTES,
   readAgentMetadata,
   sessionIdExists,
-  setAgentTranscriptSubdir,
   writeAgentMetadata,
 } from './sessionStorage/paths.js'
 export { loadTranscriptFile } from './sessionStorage/loading.js'

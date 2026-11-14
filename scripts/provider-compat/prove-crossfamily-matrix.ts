@@ -458,8 +458,8 @@ async function driveAgent(opts: {
       querySource: 'agent:custom:cf-matrix-probe' as never,
       availableTools: [EchoTool] as never,
       ...(opts.workerModel !== undefined ? { model: opts.workerModel } : {}),
-      onResolvedIdentity: identity => {
-        resolvedModel = identity.model
+      onCacheSafeParams: params => {
+        resolvedModel = params.toolUseContext.options.engineModel
       },
     })
     for await (const message of stream) {

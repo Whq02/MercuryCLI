@@ -74,7 +74,7 @@ if (reminder !== null) {
 tally.section("§2 a crewmate's end keeps its worktree and reminds: the Crewmate tool's cleanup no longer settles (removes) a clean lane")
 {
   const tool = readFileSync(join(ROOT, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')
-  tally.check('the Crewmate tool no longer calls the removing settle', !tool.includes('settleAgentWorktree('), 'AgentTool.tsx still calls settleAgentWorktree')
+  tally.check('the Crewmate tool calls no remover of a worktree, and the removing settle is gone', !tool.includes('cleanupStaleAgentWorktrees(') && !tool.includes('cleanupWorktree(') && !('settleAgentWorktree' in worktree), 'AgentTool.tsx names a remover, or the worktree owner exports the removing settle again')
   tally.check("the completed receipt's worktree line is the reminder owner's row", tool.includes('crewWorktreeReminderTail('), 'the receipt does not use the reminder words')
 }
 const driveRepo = join(scratch, 'drive-repo')

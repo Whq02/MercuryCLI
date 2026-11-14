@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
 import { execFileSync } from 'node:child_process'
-import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
@@ -30,7 +30,8 @@ const config = await import('../../src/utils/config/globalConfig.ts')
 const trust = await import('../../src/utils/config/trust.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const agentTool = await import('../../src/tools/AgentTool/AgentTool.tsx')
-const { createAgentWorktree, readWorktreeDelta, settleAgentWorktree } = await import('../../src/utils/worktree.ts')
+const { cleanupStaleAgentWorktrees, createAgentWorktree, readWorktreeDelta } = await import('../../src/utils/worktree.ts')
+const { crewWorktreeLeftoverOf } = await import('../../src/utils/crew/crewWorktreeReminder.ts')
 const { computeEnvInfo } = await import('../../src/constants/prompts.ts')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
 
@@ -118,7 +119,7 @@ const parentStatusBefore = authoredStatus(deps)
 process.chdir(deps)
 state.setOriginalCwd(deps)
 state.setCwdState(deps)
-const first = await createAgentWorktree('agent-links001')
+const first = await createAgentWorktree('agent-a0000001')
 check("node_modules is a link to the parent checkout's", isLinkTo(join(first.worktreePath, 'node_modules'), join(deps, 'node_modules')), first.worktreePath)
 check('every vendored pack is a link too', isLinkTo(join(first.worktreePath, 'vendor', 'pack-a'), join(deps, 'vendor', 'pack-a')))
 check('an authored untracked directory of the parent is not linked', !existsSync(join(first.worktreePath, 'authored')))
@@ -138,25 +139,35 @@ try {
   typecheck = `failed: ${String((error as { stderr?: string }).stderr ?? error)}`
 }
 check('bun run typecheck exits 0 in the worktree', typecheck.includes('typecheck-ok'), typecheck.slice(0, 200))
-const second = await createAgentWorktree('agent-links002', { from: deps })
+const second = await createAgentWorktree('agent-a0000002', { from: deps })
 const excludeAgain = readFileSync(excludePath, 'utf8').split('\n')
 check('a second worktree adds no duplicate exclude line', excludeAgain.filter(l => l === '/node_modules').length === 1)
 check('…and is linked the same way', isLinkTo(join(second.worktreePath, 'node_modules'), join(deps, 'node_modules')))
-const settledFirst = await settleAgentWorktree({ ...first })
-check('a worktree holding only links settles (removed)', settledFirst.outcome === 'settled' && !existsSync(first.worktreePath), JSON.stringify(settledFirst))
-const settledSecond = await settleAgentWorktree({ ...second })
-check('…both of them', settledSecond.outcome === 'settled', JSON.stringify(settledSecond))
+const DAY = 86_400_000
+const leftOf = (lane: { worktreePath: string; worktreeBranch?: string; gitRoot?: string }) =>
+  crewWorktreeLeftoverOf({ name: 'mate', path: lane.worktreePath, branch: lane.worktreeBranch, gitRoot: lane.gitRoot }, Date.now())
+const janitor = (repo: string, ...lanes: string[]): Promise<number> => {
+  const old = new Date(Date.now() - 9 * DAY)
+  for (const lane of lanes) utimesSync(lane, old, old)
+  return runWithCwdOverride(repo, () => cleanupStaleAgentWorktrees(new Date(Date.now() - 8 * DAY)))
+}
+const leftFirst = await leftOf(first)
+const leftSecond = await leftOf(second)
+const takenLinks = await janitor(deps, first.worktreePath, second.worktreePath)
+check('a worktree holding only links settles (removed)', leftFirst.state === 'clean' && !existsSync(first.worktreePath), JSON.stringify({ leftFirst, takenLinks }))
+check('…both of them', leftSecond.state === 'clean' && takenLinks === 2 && !existsSync(second.worktreePath), JSON.stringify({ leftSecond, takenLinks }))
 const other = join(scratch, 'other')
 initRepo(other, { 'b.txt': 'two\n', '.gitignore': 'node_modules/\n' })
 mkdirSync(join(other, 'node_modules'))
 writeFileSync(join(other, 'node_modules', 'marker'), 'x\n')
 const nested = join(other, 'src')
 mkdirSync(nested)
-const third = await createAgentWorktree('agent-links003', { from: nested })
+const third = await createAgentWorktree('agent-a0000003', { from: nested })
 check("with a directory named, the worktree is cut from that directory's repository, not the session's", third.gitRoot === other && existsSync(join(third.worktreePath, 'b.txt')) && !existsSync(join(third.worktreePath, 'package.json')), `${third.gitRoot} · ${third.worktreePath}`)
 check('…with its dependencies linked from that checkout', isLinkTo(join(third.worktreePath, 'node_modules'), join(other, 'node_modules')))
-const settledThird = await settleAgentWorktree({ ...third })
-check('…and it settles too', settledThird.outcome === 'settled', JSON.stringify(settledThird))
+const leftThird = await leftOf(third)
+const takenThird = await janitor(other, third.worktreePath)
+check('…and it settles too', leftThird.state === 'clean' && takenThird === 1 && !existsSync(third.worktreePath), JSON.stringify({ leftThird, takenThird }))
 delete process.env.MERCURY_WORKTREE_CLONE
 
 section('§4 the launch and the prompt')

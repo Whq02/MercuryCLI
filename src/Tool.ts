@@ -4,7 +4,6 @@ import { logError } from './utils/log.js'
 import type { ZodType, output as ZodOutput } from 'zod/v4'
 
 import type { OwnerKey } from './services/run/ownerKey.js'
-import type { PauseGate } from './run-core/pauseGate.js'
 import type { AgentId } from './types/ids.js'
 import type { Command } from './types/command.js'
 import type { ToolCapability } from './utils/capability/contract.js'
@@ -271,7 +270,6 @@ export type ToolUseContext = ToolTerminalOptions & ToolCallChainCarrier & {
   agentType?: string
   agentKind?: 'crewmate'
   seatHolder?: string
-  pauseGate?: PauseGate
   roundHandle?: string
   owner?: OwnerKey
   rosterOwner?: OwnerKey

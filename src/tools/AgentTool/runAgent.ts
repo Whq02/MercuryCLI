@@ -96,13 +96,11 @@ import type { PermissionMode } from '../../utils/permissions/PermissionMode.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { QuerySource } from '../../constants/querySource.js'
 import {
-  clearAgentTranscriptSubdir,
   flushSessionStorage,
   getAgentTranscriptPath,
   readAgentMetadata,
   recordSidechainTranscript,
   registerAgentTranscriptDestination,
-  setAgentTranscriptSubdir,
   writeAgentMetadata,
   writtenChainTail,
 } from '../../utils/sessionStorage.js'
@@ -195,15 +193,12 @@ export type RunAgentParams = {
   captain?: boolean
   launchedAt?: number
   seatHolder?: string
-  transcriptSubdir?: string
   effortOverride?: string
   thinkingConfigOverride?: ThinkingConfig
   instructionProfileOverride?: string
   onQueryProgress?: (message: Message) => void
-  beforeQueryStep?: () => Promise<void> | undefined
   onWait?: (words: string | null) => void
   onPendingAsks?: (count: number) => void
-  onResolvedIdentity?: (identity: { model: string; effort?: string }) => void
   structuredOutputSpec?: {
     schema: Record<string, unknown>
     mode: 'permissive' | 'strict'
@@ -602,15 +597,12 @@ export async function* runAgent(
     name,
     launchedAt,
     seatHolder,
-    transcriptSubdir,
     effortOverride,
     thinkingConfigOverride,
     instructionProfileOverride,
     onQueryProgress,
-    beforeQueryStep,
     onWait,
     onPendingAsks,
-    onResolvedIdentity,
     structuredOutputSpec,
   } = params
 
@@ -632,7 +624,6 @@ export async function* runAgent(
     definitionEffort: agentDefinition.effort,
     defaultEffort: subagentDefaultEffort(),
   })
-  onResolvedIdentity?.({ model: resolvedAgentModel, ...(resolvedEffort !== undefined ? { effort: String(resolvedEffort) } : {}) })
 
   const agentRouteVerdict = classifyModelRoute(resolvedAgentModel)
   if (agentRouteVerdict.kind === 'route' && agentRouteVerdict.route === 'openai') {
@@ -742,7 +733,6 @@ export async function* runAgent(
   const endProjectLeases = beginAgentProjectLeases(agentId, abortController.signal)
   noteAgentEffortWord(agentId, resolvedEffort)
 
-  if (transcriptSubdir) setAgentTranscriptSubdir(agentId, transcriptSubdir)
   let swarm = false
 
   const filteredContext = forkContextMessages
@@ -1204,28 +1194,11 @@ export async function* runAgent(
     let runMessages: Message[] = messages
     const pausableQuery = async function* (): AsyncGenerator<LegacyQueryYield, void> {
       const stream = settledSidechainMessages(query({ ...queryParams, messages: runMessages }), observeProgress)
-      let atRequestBoundary = true
       try {
         for (;;) {
-          if (atRequestBoundary && beforeQueryStep !== undefined) {
-            const parked = beforeQueryStep()
-            if (parked !== undefined) {
-              const beat = setInterval(() => watchdog.touch(), Math.max(1_000, Math.min(30_000, Math.floor(idleLimitMs / 4))))
-              beat.unref?.()
-              try {
-                await parked
-              } finally {
-                clearInterval(beat)
-                watchdog.touch()
-              }
-            }
-          }
           const next = await stream.next()
           if (next.done) return
           const message = next.value
-          const kind = (message as { type?: string }).type
-          if (kind === 'assistant' || kind === 'stream_event') atRequestBoundary = false
-          else if (kind === 'user') atRequestBoundary = true
           yield message
         }
       } finally {
@@ -1358,7 +1331,6 @@ export async function* runAgent(
       if (agentDefinition.hooks) {
         removeSessionHooks(rootSetAppState, hookScope)
       }
-      clearAgentTranscriptSubdir(agentId)
       killShellTasksForAgent(
         agentId,
         toolUseContext.getAppState,
