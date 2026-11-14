@@ -3,6 +3,16 @@ import { existsSync, read } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { nodePackPlatform, runtimeBinaryFor } from '../../services/privateChannel/vendoredRuntime.js'
+import { flagEnv } from '../../substrate/flagRegistry.js'
+
+const QUERY_BOUND_MS = 10 * 60_000
+
+function queryBoundMs(): number {
+  const raw = (flagEnv('MERCURY_JSON_QUERY_BOUND_MS') ?? '').trim()
+  if (!/^\d+$/.test(raw)) return QUERY_BOUND_MS
+  const ms = Number(raw)
+  return ms > 0 && ms <= QUERY_BOUND_MS ? ms : QUERY_BOUND_MS
+}
 
 interface JsonQueryRun {
   outputPath: string
@@ -95,7 +105,9 @@ export async function runJsonQuery(
       let reply: { result?: JsonQueryRun; error?: string } | undefined
       const aborted = (): void => { kill(); reject(signal.reason ?? new Error('JSON query cancelled.')) }
       signal.addEventListener('abort', aborted, { once: true })
-      const cleanup = (): void => signal.removeEventListener('abort', aborted)
+      const bound = queryBoundMs()
+      const late = setTimeout(() => { kill(); reject(new Error(`The query did not finish within ${bound / 60_000} minutes and was ended. Narrow the filter, or run jq in Bash with a timeout of its own.`)) }, bound)
+      const cleanup = (): void => { clearTimeout(late); signal.removeEventListener('abort', aborted) }
       child.on('message', message => {
         const value = message as { result?: JsonQueryRun; error?: string }
         if (value.result || value.error) reply = value
