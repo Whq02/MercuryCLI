@@ -3,11 +3,10 @@ import { basename, dirname } from 'node:path'
 
 import { execFileNoThrowWithCwd } from '../execFileNoThrow.js'
 import { findCanonicalGitRoot, gitExe } from '../git.js'
-import { worktreeBranchName, worktreeRemovalSafe } from '../worktree.js'
+import { AGENT_LANE_SLUG, worktreeBranchName, worktreeRemovalSafe } from '../worktree.js'
 
 export const CREW_JANITOR_DAYS = 7
 const DAY_MS = 86_400_000
-const AGENT_LANE_SLUG = /^agent-a[0-9a-f]{7,32}$/
 
 export type CrewWorktreeLeftoverState = 'clean' | 'uncommitted' | 'unreachable' | 'unowned'
 

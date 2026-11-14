@@ -1056,7 +1056,7 @@ export async function worktreeRemovalSafe(worktreePath: string, ownBranch?: stri
 }
 
 
-const AGENT_LANE_SLUG = /^agent-a[0-9a-f]{7,32}$/
+export const AGENT_LANE_SLUG = /^agent-a(?:[0-9a-z]{7}|[0-9a-f]{8,32})$/
 const EPHEMERAL_SLUG_PATTERNS: RegExp[] = [
   AGENT_LANE_SLUG,
   /^parcel-[0-9a-f]{6,32}$/,
