@@ -15,7 +15,7 @@ import { seedFirstRun } from '../lib/firstRunSeed.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const repo = join(import.meta.dir, '..', '..')
-const src = repo.replace(/\\/g, '/')
+const at = (rel: string): string => JSON.stringify(join(repo, rel))
 
 let failures = 0
 const check = (cond: boolean, msg: string, detail = ''): void => {
@@ -52,11 +52,11 @@ const spelling = {
 }
 
 const driverSrc = `
-import { enableConfigs } from '${src}/src/utils/config/globalConfig.js'
+import { enableConfigs } from ${at('src/utils/config/globalConfig.js')}
 enableConfigs()
-const { getInstructionFiles } = await import('${src}/src/services/instructions/engine.js')
-const { mercuryNativeConvention } = await import('${src}/src/services/instructions/nativeSource.js')
-const { getSettingsWithErrors } = await import('${src}/src/utils/settings/settings.js')
+const { getInstructionFiles } = await import(${at('src/services/instructions/engine.js')})
+const { mercuryNativeConvention } = await import(${at('src/services/instructions/nativeSource.js')})
+const { getSettingsWithErrors } = await import(${at('src/utils/settings/settings.js')})
 const files = await getInstructionFiles()
 const probes = JSON.parse(process.env.EXCL_PROBES ?? '[]')
 console.log(JSON.stringify({
