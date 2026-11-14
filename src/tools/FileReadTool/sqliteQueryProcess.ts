@@ -136,7 +136,11 @@ export async function runSqliteQuery(job: SqliteQueryJob, signal: AbortSignal): 
   mkdirSync(job.artifactDirectory, { recursive: true, mode: 0o700 })
   const artifactDirectory = mkdtempSync(join(job.artifactDirectory, 'result-'))
   job = { ...job, artifactDirectory }
-  const child = spawn(executable, ['--input-type=module', '-e', `(${sqliteQueryChild.toString()})()`], { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
+  const child = spawn(executable, ['--input-type=module', '-e', `(${sqliteQueryChild.toString()})()`], {
+    stdio: ['pipe', 'pipe', 'pipe'],
+    windowsHide: true,
+    env: { LANG: 'C.UTF-8', ...(executable === 'node' && process.env.PATH ? { PATH: process.env.PATH } : {}), ...(process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}), ...(process.env.WINDIR ? { WINDIR: process.env.WINDIR } : {}) },
+  })
   const closed = new Promise<void>(resolve => child.once('close', () => resolve()))
   let output = '', diagnostic = '', completed = false, late = false
   const kill = () => { child.kill('SIGKILL') }
