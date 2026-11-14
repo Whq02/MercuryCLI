@@ -3,11 +3,12 @@ N='
 '
 T=
 B=
+O=
 b=
 [ -n "$ZSH_VERSION" ] && emulate sh
 trap 'exit 129' HUP
 trap 'exit 143' TERM
-trap 'if [ -n "$b" ]; then kill "$b" 2>/dev/null; fi; if [ -n "$T" ]; then rm -f "$T"; fi; if [ -n "$B" ]; then rm -f "$B"; fi' EXIT
+trap 'if [ -n "$b" ]; then kill "$b" 2>/dev/null; fi; if [ -n "$T" ]; then rm -f "$T"; fi; if [ -n "$B" ]; then if [ -n "$O" ] && [ -f "$B" ]; then cat "$B" > "$O"; fi; rm -f "$B"; fi' EXIT
 if printf x | head -c 1 >/dev/null 2>&1; then m_take() { head -c "$1"; }; else m_take() { dd bs=1 count="$1" 2>/dev/null; }; fi
 m_beat() {
   z=
@@ -148,10 +149,11 @@ m_over() {
   now=$(m_sum "$2") || now=unreadable
   if [ "$now" != "$3" ]; then return 45; fi
   B=$(mktemp 2>/dev/null) && cat "$2" > "$B" || { rm -f "$B"; B=; return 74; }
+  O=$2
   printf '%s\n' "$4"
   if [ "$1" -gt 0 ]; then m_take "$1" > "$2"; else true > "$2"; fi
-  if [ "$(wc -c < "$2")" -ne "$1" ]; then cat "$B" > "$2"; rm -f "$B"; B=; exit 97; fi
-  rm -f "$B"; B=
+  if [ "$(wc -c < "$2")" -ne "$1" ]; then cat "$B" > "$2"; O=; rm -f "$B"; B=; exit 97; fi
+  O=; rm -f "$B"; B=
   m_sum "$2"
 }
 m_loop() {
