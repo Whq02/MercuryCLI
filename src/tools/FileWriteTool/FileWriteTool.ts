@@ -14,6 +14,7 @@ import { getLspServerManager } from '../../services/lsp/manager.js'
 import { runtimeKernel } from '../../services/primitives/runtimeKernel.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { ideReadTextAvailable, ideWriteTextAvailable, readWholeTextViaIde, writeTextViaIdeWithReadBack } from '../../services/acp/ideToolBridge.js'
+import { isRemotePath, remoteIdentity } from '../../services/remoteFiles/target.js'
 import {
   activateConditionalSkillsForPaths,
   addSkillDirectories,
@@ -42,6 +43,8 @@ import { getFsImplementation } from '../../utils/fsOperations.js'
 import type { UUID } from 'node:crypto'
 
 import { modifiedSinceReadMessage, unreadExistingWriteMessage } from '../FileEditTool/otherSession.js'
+import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
+import { parseRichFormatTarget } from '../FileReadTool/readRichFormats.js'
 import { stripSequentialReadPrefixes } from '../FileEditTool/utils.js'
 import { spellLineRanges } from '../FileEditTool/readThrough.js'
 import { APPLIED_NO_REREAD_NOTE, isFullReadEntry } from '../FileEditTool/FileEditTool.js'
@@ -118,6 +121,16 @@ function shapeToExistingFile(rawBody: string, content: string, majority: LineEnd
 }
 
 
+function remoteEntryRefusal(rawPath: string): string | null {
+  const slash = rawPath.indexOf('/', rawPath.indexOf('://') + 3)
+  const rich = slash === -1 ? null : parseRichFormatTarget(rawPath.slice(slash))
+  return rich?.subtarget === undefined ? null : `${rawPath} names an entry inside an archive or a database on another machine, which Write and Edit do not change.`
+}
+
+function writeToolItself(): unknown {
+  return FileWriteTool
+}
+
 export const FileWriteTool = buildTool({
   name: FILE_WRITE_TOOL_NAME,
   strict: true,
@@ -138,9 +151,14 @@ export const FileWriteTool = buildTool({
     return input?.file_path ? `Writing ${input.file_path}` : 'Writing a file'
   },
   getPath(input: Partial<Input> | undefined): string {
+    if (isRemotePath(input?.file_path)) return input!.file_path!
     return input?.file_path ? hostPathOfWriteTarget(input.file_path) : getCwd()
   },
   async checkPermissions(input: Input, context: ToolUseContext) {
+    if (isRemotePath(input.file_path)) {
+      const { remotePermission } = await import('../../services/remoteFiles/bridge.js')
+      return remotePermission(FILE_WRITE_TOOL_NAME, input.file_path, null, input, context, 'edit')
+    }
     return checkWritePermissionForTool(
       {
         name: FILE_WRITE_TOOL_NAME,
@@ -152,12 +170,18 @@ export const FileWriteTool = buildTool({
   },
   backfillObservableInput(input: Input): void {
     if (hasControlCharacter(input.file_path) || windowsPathNeedsPermission(input.file_path)) return
-    input.file_path = expandStructuredTargetPath(input.file_path)
+    input.file_path = isRemotePath(input.file_path) ? remoteIdentity(input.file_path) : expandStructuredTargetPath(input.file_path)
   },
   async validateInput(input: Input, context: ToolUseContext) {
     const pathRefusal = controlCharacterPathRefusal(input.file_path)
     if (pathRefusal !== null) {
       return { result: false as const, message: pathRefusal, errorCode: 1 }
+    }
+    if (isRemotePath(input.file_path)) {
+      const entry = remoteEntryRefusal(input.file_path.trim())
+      if (entry !== null) return { result: false as const, message: entry, errorCode: 1 }
+      const { remoteValidation } = await import('../../services/remoteFiles/bridge.js')
+      return remoteValidation(input.file_path, null, 'edit', 'Writing to', context)
     }
     const expandedPath = hostPathOfWriteTarget(input.file_path)
     const permissionContext = context.getAppState().toolPermissionContext
@@ -195,9 +219,10 @@ export const FileWriteTool = buildTool({
     }
     return { result: true as const }
   },
-  async call(input: Input, context: ToolUseContext, _canUseTool, parentMessage) {
+  async call(input: Input, context: ToolUseContext, canUseTool, parentMessage) {
     const startedAt = Date.now()
-    const structuredTarget = parseStructuredWriteTarget(input.file_path)
+    const far = isRemotePath(input.file_path) ? await import('../../services/remoteFiles/bridge.js') : null
+    const structuredTarget = far !== null ? null : parseStructuredWriteTarget(input.file_path)
     if (structuredTarget !== null) {
       if (structuredTarget.kind === 'refused') throw new Error(structuredTarget.reason)
       const hostParentDir = dirname(structuredTarget.hostPath)
@@ -213,10 +238,25 @@ export const FileWriteTool = buildTool({
       }
       return callStructuredWriteTarget(structuredTarget, input.content, context, startedAt)
     }
-    const expandedPath = expandPath(input.file_path)
-    const parentDir = dirname(expandedPath)
+    const farTarget =
+      far === null
+        ? null
+        : await far.remoteWriteTarget(
+            FILE_WRITE_TOOL_NAME,
+            input.file_path,
+            context,
+            typeof canUseTool === 'function' && parentMessage !== undefined
+              ? path => (canUseTool as CanUseToolFn)(writeToolItself() as never, { ...input, file_path: path }, context, parentMessage as never, `${context.toolUseId ?? 'write'}-resolved`)
+              : null,
+          )
+    if (farTarget !== null && farTarget.kind === 'folder') throw new Error(`The path is a directory, not a file: ${input.file_path}`)
+    if (farTarget !== null && farTarget.kind !== 'file' && farTarget.kind !== 'missing' && farTarget.kind !== 'dangling') {
+      throw new Error(`Writing to ${farTarget.path} is not allowed: it is ${farTarget.kind === 'other' ? 'a device' : farTarget.kind}, not a file.`)
+    }
+    const expandedPath = farTarget !== null ? farTarget.path : expandPath(input.file_path)
+    const parentDir = far !== null ? '' : dirname(expandedPath)
 
-    if (!isEnvTruthy(process.env.MERCURY_BARE)) {
+    if (far === null && !isEnvTruthy(process.env.MERCURY_BARE)) {
       try {
         const dirs = await discoverSkillDirsForPaths([expandedPath], getCwd())
         const fresh = dirs.filter(dir => !context.dynamicSkillDirTriggers?.has(dir))
@@ -229,13 +269,13 @@ export const FileWriteTool = buildTool({
         logError(err)
       }
     }
-    context.nestedMemoryAttachmentTriggers?.add(expandedPath)
+    if (far === null) context.nestedMemoryAttachmentTriggers?.add(expandedPath)
 
-    const created = beginCreation(expandedPath)
+    const created = far !== null ? null : beginCreation(expandedPath)
     if (parentDir) {
       await getFsImplementation().mkdir(parentDir)
     }
-    if (fileHistoryEnabled()) {
+    if (far === null && fileHistoryEnabled()) {
       await fileHistoryTrackEdit(
         context.updateFileHistoryState,
         expandedPath,
@@ -249,7 +289,21 @@ export const FileWriteTool = buildTool({
     let encoding: BufferEncoding = 'utf8'
     let lineEndings: LineEndingType = 'LF'
     let currentMtimeMs: number | undefined
-    if (ideReadTextAvailable()) {
+    let farFound: { sum: string; mode: string | null } | null = null
+    if (far !== null) {
+      try {
+        const farMeta = await far.readWholeTextViaRemote(expandedPath, context.abortController.signal)
+        rawContent = farMeta.rawContent
+        normalizedContent = farMeta.content
+        encoding = farMeta.encoding
+        lineEndings = farMeta.lineEndings
+        currentMtimeMs = farMeta.mtimeMs
+        farFound = farMeta.found
+      } catch (err) {
+        if (!isENOENT(err)) throw err
+        fileExists = false
+      }
+    } else if (ideReadTextAvailable()) {
       try {
         const ideMeta = await readWholeTextViaIde(expandedPath, context.abortController.signal)
         if (ideMeta !== null) {
@@ -282,7 +336,7 @@ export const FileWriteTool = buildTool({
     const rawBody = hadBom ? rawContent.slice(1) : rawContent
     const content = stripSequentialReadPrefixes(input.content, rawBody)
     const shaped = fileExists && rawBody !== '' ? shapeToExistingFile(rawBody, content, lineEndings) : content
-    const wantsBom = hadBom || (needsPowerShellBom(expandedPath) && encoding === 'utf8')
+    const wantsBom = hadBom || (far === null && needsPowerShellBom(expandedPath) && encoding === 'utf8')
     const producedContent =
       wantsBom && shaped.charCodeAt(0) !== 0xfeff
         ? String.fromCharCode(0xfeff) + shaped
@@ -346,9 +400,14 @@ export const FileWriteTool = buildTool({
     let writtenContent = shaped.replaceAll('\r\n', '\n')
     let writtenAt: number
     let diverged = false
-    const ideWritten = ideWriteTextAvailable()
-      ? await writeTextViaIdeWithReadBack(expandedPath, shaped, encoding, hadBom, context.abortController.signal)
-      : null
+    const ideWritten =
+      far !== null
+        ? await far.writeTextViaRemote(expandedPath, shaped, encoding, hadBom, farFound, context.abortController.signal).catch((error: Error) => {
+            throw error.name === 'RemoteChangedError' ? new Error(modifiedSinceReadMessage()) : error
+          })
+        : ideWriteTextAvailable()
+          ? await writeTextViaIdeWithReadBack(expandedPath, shaped, encoding, hadBom, context.abortController.signal)
+          : null
     if (ideWritten !== null) {
       writtenContent = ideWritten.finalContent
       writtenAt = ideWritten.mtimeMs
@@ -371,7 +430,7 @@ export const FileWriteTool = buildTool({
       }
     }
 
-    const lspManager = getLspServerManager()
+    const lspManager = far !== null ? null : getLspServerManager()
     if (lspManager) {
       try {
         snapshotDiagnosticsBeforeWrite(expandedPath, fileExists ? normalizedContent : null, writtenContent, lspManager.getDocumentVersion(expandedPath), ownerFromToolUseContext(context))

@@ -12,6 +12,7 @@
 # gate-watch: src/bootstrap/state.ts
 # gate-watch: src/utils/config/globalConfig.ts
 # gate-watch: src/tools/FileReadTool/**
+# gate-watch: src/tools/FileWriteTool/**
 # gate-watch: src/components/permissions/FilePermissionDialog/permissionOptions.tsx
 # gate-watch: src/utils/permissions/filesystem.ts
 # gate-watch: scripts/tools/fixtures/read-formats/**

@@ -15,11 +15,25 @@ import {
 import { permissionRuleValueFromString } from '../../utils/permissions/permissionRuleParser.js'
 import { expandRuleBraces } from '../../utils/permissions/ruleBraces.js'
 import { ruleSentence } from '../../utils/permissions/ruleReason.js'
+import { detectLineEndingsForString, type LineEndingType } from '../../utils/fileRead.js'
 import type { ReadFileRangeResult } from '../../utils/readFileInRange.js'
 import { notAFileRefusal } from '../../utils/regularFile.js'
 import { resolveRemoteAuthority } from './connection.js'
 import { remoteHostNames, renderRemoteHosts, sshUserConfigPath } from './hosts.js'
-import { remoteAbsolutePath, remoteFetch, remoteIsThisMachine, remoteList, remoteReadRange, remoteRealPath, remoteStat, RemoteFileError, type RemoteEntry } from './ops.js'
+import {
+  remoteAbsolutePath,
+  remoteCommit,
+  remoteFetch,
+  remoteIsThisMachine,
+  remoteList,
+  remoteReadBytes,
+  remoteReadRange,
+  remoteRealPath,
+  remoteStat,
+  RemoteFileError,
+  type RemoteEntry,
+  type RemoteKind,
+} from './ops.js'
 import {
   authorityText,
   formatRemotePath,
@@ -344,6 +358,53 @@ export async function remoteCopy<Answer>(path: string, signal: AbortSignal | und
   } finally {
     rmSync(folder, { recursive: true, force: true })
   }
+}
+
+type RemoteFound = { sum: string; mode: string | null }
+
+export async function remoteWriteTarget(toolName: string, written: string, context: ToolUseContext, ask: RemoteAsk): Promise<{ path: string; kind: RemoteKind | 'missing' }> {
+  const signal = context.abortController.signal
+  const target = parseRemotePath(written)
+  if (target === null) throw new Error(HOSTS_ONLY_IN_READ)
+  await resolveNames(context.getAppState().toolPermissionContext, target.authority, signal)
+  await gate(toolName, target, 'edit', context, ask, signal)
+  const stat = await remoteStat(target, signal)
+  return { path: formatRemotePath(target), kind: stat === null ? 'missing' : stat.kind }
+}
+
+export async function readWholeTextViaRemote(
+  path: string,
+  signal?: AbortSignal,
+): Promise<{ content: string; rawContent: string; encoding: BufferEncoding; lineEndings: LineEndingType; losslessDecode: boolean; mtimeMs: number; found: RemoteFound }> {
+  const target = parseRemotePath(path)
+  if (target === null) throw new RemotePathError(`${path} names no host.`)
+  const read = await remoteReadBytes(target, signal)
+  const encoding: BufferEncoding = read.bytes.length >= 2 && read.bytes[0] === 0xff && read.bytes[1] === 0xfe ? 'utf16le' : 'utf8'
+  const rawContent = read.bytes.toString(encoding)
+  return {
+    content: rawContent.replaceAll('\r\n', '\n'),
+    rawContent,
+    encoding,
+    lineEndings: detectLineEndingsForString(rawContent.slice(0, 4096)),
+    losslessDecode: Buffer.from(rawContent, encoding).equals(read.bytes),
+    mtimeMs: read.mtimeMs,
+    found: { sum: read.sum, mode: read.mode },
+  }
+}
+
+export async function writeTextViaRemote(
+  path: string,
+  content: string,
+  encoding: BufferEncoding,
+  keepBom: boolean,
+  found: RemoteFound | null,
+  signal?: AbortSignal,
+): Promise<{ finalContent: string; diverged: boolean; mtimeMs: number; generation: string }> {
+  const target = parseRemotePath(path)
+  if (target === null) throw new RemotePathError(`${path} names no host.`)
+  const text = keepBom && content.charCodeAt(0) !== 0xfeff ? `\uFEFF${content}` : content
+  const done = await remoteCommit(target, Buffer.from(text, encoding), found?.sum ?? null, found?.mode ?? null, signal)
+  return { finalContent: content.replaceAll('\r\n', '\n'), diverged: false, mtimeMs: done.mtimeMs, generation: done.generation }
 }
 
 export async function readRangeViaRemote(
