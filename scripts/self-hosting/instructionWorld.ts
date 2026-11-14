@@ -36,6 +36,10 @@ type WorldDrive = {
   listedBefore: string[]
   words: { footer: string; centre: string; health: string }
   orient: string
+  attached: string[]
+  attachedBefore: string[]
+  dropped: { attached: string[]; listed: string[] }
+  returned: { attached: string[]; listed: string[] }
 }
 
 type DriveOptions = {
@@ -49,6 +53,7 @@ type DriveOptions = {
   orient?: boolean
   personal?: string
   env?: Record<string, string>
+  drop?: boolean
 }
 
 const DRIVER = `
@@ -68,21 +73,26 @@ const { composedGuideFilesAt } = await import(join(repo, 'src/services/instructi
 const plan = JSON.parse(process.env.DRV_PLAN ?? '{}')
 const cwd = process.cwd()
 const files = await getInstructionFiles()
-const screens = async (): Promise<{ rows: string[]; listed: string[]; words: { footer: string; centre: string; health: string } }> => {
+const state = { toolPermissionContext: getEmptyToolPermissionContext() }
+const context = { readFileState: createFileStateCacheWithSizeLimit(100), loadedNestedMemoryPaths: new Set(), nestedMemoryAttachmentTriggers: new Set(), getAppState: () => state }
+const held = (path: string): boolean => context.readFileState.has(path)
+const screens = async (): Promise<{ rows: string[]; listed: string[]; attached: string[]; words: { footer: string; centre: string; health: string } }> => {
   let listing: any
   try {
     listing = await import(join(repo, 'src/services/instructions/listing.ts'))
   } catch {
-    return { rows: [], listed: [], words: { footer: '', centre: '', health: '' } }
+    return { rows: [], listed: [], attached: [], words: { footer: '', centre: '', health: '' } }
   }
   const { getRelativeMemoryPath } = await import(join(repo, 'src/components/memory/MemoryUpdateNotification.tsx'))
   const { profileStatusLine } = await import(join(repo, 'src/commands/memory/memory.tsx'))
   const { filesRow } = await import(join(repo, 'src/components/memory/memoryCentreLayout.ts'))
   listing.getInstructionListing.cache.clear()
   const family = (entry: any): string => (entry.family === 'native' ? 'Mercury-native · ' : entry.family === 'shared' ? 'shared guide · ' : '')
+  const listed = await listing.getInstructionListing()
   return {
     rows: files.filter((entry: any) => entry.parent === undefined).map((entry: any) => (listing.toolPrefixOf(entry) ?? family(entry)) + getRelativeMemoryPath(entry.path) + listing.loadedStateOf(entry)),
-    listed: (await listing.getInstructionListing()).map((row: any) => listing.listingRowWords(row, getRelativeMemoryPath(row.path))),
+    listed: listed.map((row: any) => listing.listingRowWords(row, getRelativeMemoryPath(row.path), held)),
+    attached: (listing.attachedRows?.(held, [...files.map((entry: any) => entry.path), ...listed.map((row: any) => row.path)]) ?? []).map((row: any) => listing.listingRowWords(row, getRelativeMemoryPath(row.path), held)),
     words: {
       footer: profileStatusLine(),
       centre: filesRow({ count: files.length, profile: getInstructionCompositionState().resolution.resolved }).detail,
@@ -92,8 +102,6 @@ const screens = async (): Promise<{ rows: string[]; listed: string[]; words: { f
 }
 const before = plan.screens ? await screens() : null
 const bundle = await getInstructionBundle()
-const state = { toolPermissionContext: getEmptyToolPermissionContext() }
-const context = { readFileState: createFileStateCacheWithSizeLimit(100), loadedNestedMemoryPaths: new Set(), nestedMemoryAttachmentTriggers: new Set(), getAppState: () => state }
 const told = (attachment: unknown): string =>
   normalizeAttachmentForAPI(attachment as never)
     .map((message: any) => (typeof message.message.content === 'string' ? message.message.content : message.message.content.map((block: any) => block.text ?? '').join('')))
@@ -105,6 +113,19 @@ for (const file of plan.touch ?? []) {
 }
 const seedCache = createFileStateCacheWithSizeLimit(100)
 await seedFileKnowledgeFromInjectedInstructions(seedCache)
+const after = plan.screens ? await screens() : { rows: [], listed: [], attached: [], words: { footer: '', centre: '', health: '' } }
+const none = { attached: [], listed: [] }
+let dropped = none
+let returned = none
+if (plan.drop) {
+  context.readFileState.clear()
+  context.loadedNestedMemoryPaths.clear()
+  const then = await screens()
+  dropped = { attached: then.attached, listed: then.listed }
+  for (const file of plan.touch ?? []) for (const a of await getNestedMemoryAttachmentsForFile(file, context as never, state)) told(a)
+  const again = await screens()
+  returned = { attached: again.attached, listed: again.listed }
+}
 writeFileSync(process.argv[2]!, JSON.stringify({
   paths: files.map((f: any) => f.path),
   first: (await getUserContext()).instructions ?? '',
@@ -116,8 +137,11 @@ writeFileSync(process.argv[2]!, JSON.stringify({
   classified: Object.fromEntries((plan.classify ?? []).map((path: string) => [path, isInstructionFilePath(path)])),
   seeded: files.map((f: any) => f.path).filter((path: string) => seedCache.has(path)),
   listedBefore: before?.listed ?? [],
+  attachedBefore: before?.attached ?? [],
   orient: plan.orient ? (await (await import(join(repo, 'src/commands/orient/orient.ts'))).default.getPromptForCommand())[0].text : '',
-  ...(plan.screens ? await screens() : { rows: [], listed: [], words: { footer: '', centre: '', health: '' } }),
+  ...after,
+  dropped,
+  returned,
 }))
 `
 
@@ -166,7 +190,7 @@ export function openWorld(name: string): World {
           MERCURY_LOCAL_PROBE_TARGETS: 'none',
           ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key',
           ANTHROPIC_BASE_URL: 'http://127.0.0.1:1',
-          DRV_PLAN: JSON.stringify({ touch: options.touch ?? [], classify: options.classify ?? [], screens: options.screens === true, orient: options.orient === true }),
+          DRV_PLAN: JSON.stringify({ touch: options.touch ?? [], classify: options.classify ?? [], screens: options.screens === true, orient: options.orient === true, drop: options.drop === true }),
           ...options.env,
         },
         stdio: ['ignore', 'ignore', 'pipe'],

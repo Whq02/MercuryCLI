@@ -6,7 +6,7 @@ import { Box, Text } from '../../ink.js'
 import { useExitOnCtrlCDWithKeybindings } from '../../hooks/useExitOnCtrlCDWithKeybindings.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import { getInstructionFiles } from '../../services/instructions/engine.js'
-import { getInstructionListing, listingRowWords, loadedStateOf, toolPrefixOf } from '../../services/instructions/listing.js'
+import { attachedRows, getInstructionListing, listingRowWords, loadedStateOf, toolPrefixOf } from '../../services/instructions/listing.js'
 import type { InstructionSourceEntry } from '../../services/instructions/contracts.js'
 import { openPath } from '../../utils/browser.js'
 import { getMemoryPath } from '../../utils/config.js'
@@ -42,9 +42,11 @@ function importDepthOf(
 export function MemoryFileSelector({
   onSelect,
   onCancel,
+  held,
 }: {
   onSelect: (path: string) => void
   onCancel: () => void
+  held: (path: string) => boolean
 }): React.ReactNode {
   const files = use(getInstructionFiles())
   const listing = use(getInstructionListing())
@@ -133,8 +135,8 @@ export function MemoryFileSelector({
         description: `${nativePrefix(entry)}${getRelativeMemoryPath(entry.path)}${loadedStateOf(entry)}`,
       }
     })
-    for (const row of listing) {
-      result.push({ label: getRelativeMemoryPath(row.path), value: row.path, description: listingRowWords(row, getRelativeMemoryPath(row.path)) })
+    for (const row of [...listing, ...attachedRows(held, [...visible.map(entry => entry.path), ...listing.map(row => row.path)])]) {
+      result.push({ label: getRelativeMemoryPath(row.path), value: row.path, description: listingRowWords(row, getRelativeMemoryPath(row.path), held) })
     }
 
     if (!byPath.has(userCanonical)) {
@@ -161,7 +163,7 @@ export function MemoryFileSelector({
     }
 
     return result
-  }, [files, listing, mnemeOn])
+  }, [files, listing, mnemeOn, held])
 
   const preselect =
     lastSelectedPath !== null &&

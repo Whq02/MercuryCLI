@@ -7,14 +7,17 @@ import { normalizePathForComparison } from '../../utils/file.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { toTildePath } from '../../utils/path.js'
 import { decidingGuideOf, folderSources } from './adapters/index.js'
-import { ruleAttached } from './attachedText.js'
+import { attachedInstructions, instructionAttached } from './attachedText.js'
 import { agentsMdConvention } from './adapters/agentsMd.js'
 import { conventionsForProfile, otherToolFormats, sharedFormatLabel } from './compositionOrder.js'
 import type { InstructionBundleEntry, InstructionConvention, InstructionSourceEntry } from './contracts.js'
 import { processRulesDir } from './discovery.js'
 import { getInstructionCompositionState, getInstructionFiles, onInstructionCacheInvalidated } from './engine.js'
+import { mercuryNativeConvention } from './nativeSource.js'
 
-type InstructionListingRow = { path: string; tool: string; state: string }
+type InstructionListingRow = { path: string; tool: string; state: string; globs?: string[]; named?: string }
+
+type Held = (path: string) => boolean
 
 const toolOf = (entry: InstructionSourceEntry | undefined): string | null =>
   otherToolFormats().find(convention => convention.id === entry?.convention)?.label ?? null
@@ -30,8 +33,20 @@ export function loadedStateOf(entry: InstructionSourceEntry): string {
   return `${entry.offered === undefined ? '' : ' · offered by its description'}${namedWords(entry.namedBy)}`
 }
 
-export function listingRowWords(row: InstructionListingRow, shownPath: string): string {
-  return `${row.tool} · ${shownPath} · ${row.state}`
+export function listingRowWords(row: InstructionListingRow, shownPath: string, held: Held): string {
+  const state = row.globs === undefined ? row.state : `${instructionAttached(row.path) && held(row.path) ? 'loaded' : 'loads'} with ${row.globs.join(', ')}${namedWords(row.named)}`
+  return `${row.tool} · ${shownPath} · ${state}`
+}
+
+export function attachedRows(held: Held, listed: readonly string[]): InstructionListingRow[] {
+  const known = new Set(listed.map(normalizePathForComparison))
+  const rows: InstructionListingRow[] = []
+  for (const { path, convention, globs } of attachedInstructions()) {
+    if (known.has(normalizePathForComparison(path)) || !held(path)) continue
+    const tool = otherToolFormats().find(format => format.id === convention)?.label ?? (convention === undefined || convention === mercuryNativeConvention.id ? 'Mercury-native' : 'shared guide')
+    rows.push({ path, tool, state: globs === undefined ? 'loaded with its folder' : `loaded with ${globs.join(', ')}` })
+  }
+  return rows
 }
 
 export function sharedSourcesNote(entries: InstructionBundleEntry[]): string | null {
@@ -47,9 +62,6 @@ export function sharedSourcesNote(entries: InstructionBundleEntry[]): string | n
   if (counts.size === 1 && counts.has(first)) return `${shared.length} ${first} source(s): ${why}`
   return `${shared.length} source(s) from other tools (${[...counts].map(([label, count]) => `${label} ${count}`).join(' · ')}): ${why}`
 }
-
-const scopedWords = (rule: InstructionSourceEntry): string =>
-  `${ruleAttached(rule.path) ? 'loaded' : 'loads'} with ${(rule.globs ?? []).join(', ')}`
 
 function dormantWords(rule: InstructionSourceEntry): string {
   if (rule.dormant === 'manual') return 'not loaded: manual, @-mention it'
@@ -88,17 +100,17 @@ export const getInstructionListing = memoize(async (): Promise<InstructionListin
   if (resolution.resolved !== 'auto') return []
   const loaded = new Set(files.map(file => normalizePathForComparison(file.path)))
   const rows: InstructionListingRow[] = []
-  const add = (path: string, tool: string, state: string): void => {
+  const add = (path: string, tool: string, state: string, globs?: string[], named?: string): void => {
     const spelled = normalizePathForComparison(path)
     if (loaded.has(spelled)) return
     loaded.add(spelled)
-    rows.push({ path, tool, state })
+    rows.push({ path, tool, state, globs, named })
   }
-  for (const rule of importedScoped) add(rule.path, toolOf(rule) ?? '', scopedWords(rule))
+  for (const rule of importedScoped) add(rule.path, toolOf(rule) ?? '', '', rule.globs ?? [])
   for (const { convention, rulesDir, by } of namedRules) {
     for (const rule of await rulesOf(convention, rulesDir)) {
       if (rule.dormant !== undefined) add(rule.path, convention.label ?? convention.id, `${dormantWords(rule)}${namedWords(by)}`)
-      else if (rule.globs !== undefined) add(rule.path, convention.label ?? convention.id, `${scopedWords(rule)}${namedWords(by)}`)
+      else if (rule.globs !== undefined) add(rule.path, convention.label ?? convention.id, '', rule.globs, by)
     }
   }
   const start = resolve(getOriginalCwd())
@@ -121,7 +133,7 @@ export const getInstructionListing = memoize(async (): Promise<InstructionListin
           if (decider !== null) add(rule.path, tool, decided(rule.path))
           else if (nearer !== undefined && nearer !== dir) add(rule.path, tool, `not loaded: a nearer ${nearerName(convention, nearer, own.rules(convention, nearer))} is read`)
           else if (rule.dormant !== undefined) add(rule.path, tool, dormantWords(rule))
-          else if (rule.globs !== undefined) add(rule.path, tool, scopedWords(rule))
+          else if (rule.globs !== undefined) add(rule.path, tool, '', rule.globs)
         }
       }
     }
