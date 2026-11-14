@@ -45,7 +45,7 @@ export function beginTransfer(
     settle = resolve
   })
   let id = `d${++book.count}`
-  while (fs.existsSync(path.join(facts.home, id))) id = `d${++book.count}`
+  while (fs.lstatSync(path.join(facts.home, id), { throwIfNoEntry: false }) !== undefined) id = `d${++book.count}`
   const held: Held = {
     id,
     guid: facts.guid,
@@ -71,18 +71,53 @@ export function beginTransfer(
   return held
 }
 
+const MAX_SAFE_NAME_BYTES = 200
+const RESERVED_WIN_NAME = /^(?:con|prn|aux|nul|com[1-9\u00b9\u00b2\u00b3]|lpt[1-9\u00b9\u00b2\u00b3])(?:\.|$)/i
+
+function boundBytes(text: string, maxBytes: number): string {
+  let out = ''
+  let used = 0
+  for (const ch of text) {
+    const step = Buffer.byteLength(ch, 'utf8')
+    if (used + step > maxBytes) break
+    out += ch
+    used += step
+  }
+  return out
+}
+
 function safeName(name: string): string {
-  const base = path.basename(name.replace(/[\\/]/g, '_')).replace(/[\u0000-\u001f\u007f]/g, '_').trim()
-  return base === '' || base === '.' || base === '..' ? 'download' : base
+  let clean = name.replace(/[\\/:*?"<>|\u0000-\u001f\u007f]/g, '_').replace(/^[ ]+|[ .]+$/g, '')
+  if (clean === '' || clean === '.' || clean === '..') return 'download'
+  if (RESERVED_WIN_NAME.test(clean)) clean = `_${clean}`
+  if (Buffer.byteLength(clean, 'utf8') <= MAX_SAFE_NAME_BYTES) return clean
+  const dot = clean.lastIndexOf('.')
+  const ext = dot > 0 && Buffer.byteLength(clean.slice(dot), 'utf8') <= 32 ? clean.slice(dot) : ''
+  const stem = boundBytes(ext === '' ? clean : clean.slice(0, dot), MAX_SAFE_NAME_BYTES - Buffer.byteLength(ext, 'utf8')).replace(/[ .]+$/g, '')
+  const joined = `${stem || 'download'}${ext}`
+  return RESERVED_WIN_NAME.test(joined) ? `_${boundBytes(joined, MAX_SAFE_NAME_BYTES - 1)}` : joined
 }
 
 async function moveFile(from: string, to: string): Promise<void> {
+  if (await fs.promises.lstat(to).then(() => true, () => false)) {
+    throw new Error(`refusing to overwrite existing destination ${to}`)
+  }
   try {
     await fs.promises.rename(from, to)
   } catch (err) {
     const code = (err as NodeJS.ErrnoException).code
     if (code !== 'EXDEV' && code !== 'EPERM' && code !== 'EACCES' && code !== 'EBUSY') throw err
-    await fs.promises.copyFile(from, to)
+    const part = `${to}.part-${process.pid}-${Date.now()}`
+    try {
+      await fs.promises.copyFile(from, part, fs.constants.COPYFILE_EXCL)
+      if (await fs.promises.lstat(to).then(() => true, () => false)) {
+        throw new Error(`refusing to overwrite existing destination ${to}`)
+      }
+      await fs.promises.rename(part, to)
+    } catch (copyErr) {
+      await fs.promises.rm(part, { force: true }).catch(() => undefined)
+      throw copyErr
+    }
     await fs.promises.rm(from, { force: true })
   }
 }
@@ -98,15 +133,24 @@ function digestOf(file: string): Promise<string> {
 }
 
 async function publish(held: Held): Promise<void> {
-  const target = path.join(held.home, held.id, safeName(held.name))
+  const source = path.join(held.home, 'incoming', held.guid)
+  const dir = path.join(held.home, held.id)
+  const target = path.join(dir, safeName(held.name))
   try {
-    await fs.promises.mkdir(path.dirname(target), { recursive: true })
-    await moveFile(path.join(held.home, 'incoming', held.guid), target)
+    await fs.promises.mkdir(held.home, { recursive: true })
+    await fs.promises.mkdir(dir)
+    const realHome = await fs.promises.realpath(held.home)
+    const realDir = await fs.promises.realpath(dir)
+    if (!realDir.startsWith(realHome + path.sep)) {
+      throw new Error(`download directory ${dir} escaped ${held.home}`)
+    }
+    await moveFile(source, target)
     held.bytes = (await fs.promises.stat(target)).size
     held.sha256 = await digestOf(target)
     held.path = target
     held.state = 'complete'
   } catch (err) {
+    await fs.promises.rm(source, { force: true }).catch(() => undefined)
     held.failure = `the bytes arrived but the file could not be put in place: ${(err as Error).message}`
     held.state = 'failed'
   }
