@@ -253,6 +253,46 @@ async function writes(world: RemoteWorld): Promise<void> {
   check(`${name}: and the file is gone again`, readdirSync(tmpdir()).filter(file => file.startsWith('.mercury-remote-')).length === probesBefore)
 }
 
+async function lostAtTheRename(world: RemoteWorld): Promise<void> {
+  section('local · a connection lost at the moment a write lands')
+  const realMv = Bun.which('mv')
+  if (realMv === null) {
+    console.log('  [SKIP] no mv on this machine: a connection lost at the rename was not read')
+    return
+  }
+  const armed = join(world.scratch, 'lose-the-connection')
+  writeFileSync(join(world.scratch, 'bin', 'mv'), ['#!/bin/sh', `if [ -s '${armed}' ]; then how=$(head -n 1 '${armed}'); sed 1d '${armed}' > '${armed}.rest'; cat '${armed}.rest' > '${armed}'; if [ "$how" = after ]; then '${realMv}' "$@"; fi; if [ "$how" = changed ]; then for last; do :; done; printf 'someone else\\n' > "$last"; fi; if [ "$how" = hup ]; then kill -HUP $PPID; else kill -9 $PPID; fi; exit 1; fi`, `exec '${realMv}' "$@"`, ''].join('\n'), { mode: 0o755 })
+  closeRemoteConnections()
+  const file = join(world.data, 'landed.txt')
+  const beside = (): string[] => readdirSync(world.data).filter(entry => entry.includes('.mercury-'))
+  writeFileSync(file, 'before\n')
+  const first = await ops.remoteReadBytes(at(file))
+  writeFileSync(armed, 'after\n')
+  const landed = await failure(() => ops.remoteCommit(at(file), Buffer.from('after\n'), first.sum, first.mode))
+  check('the rename landed and the connection died before it could say so: the file is looked at again, and the write is reported as landed', landed === null && readFileSync(file, 'utf8') === 'after\n', `${landed?.message} | ${JSON.stringify(readFileSync(file, 'utf8'))}`)
+  const second = await ops.remoteReadBytes(at(file))
+  writeFileSync(armed, 'before\n')
+  const retried = await failure(() => ops.remoteCommit(at(file), Buffer.from('second try\n'), second.sum, second.mode))
+  check('the connection died before the rename: the file is seen to hold what it held, and the write is made once more and lands', retried === null && readFileSync(file, 'utf8') === 'second try\n' && beside().length === 0, `${retried?.message} | ${JSON.stringify(readFileSync(file, 'utf8'))} ${beside().join(' ')}`)
+  const third = await ops.remoteReadBytes(at(file))
+  writeFileSync(armed, 'before\nbefore\n')
+  const lost = await failure(() => ops.remoteCommit(at(file), Buffer.from('never\n'), third.sum, third.mode))
+  check('it died before the rename twice: the answer says the write did not land, and the file holds what it held', lost instanceof ops.RemoteFileError && lost.message.endsWith(`The write to ssh://box${file} did not land: the file holds what it held before.`) && readFileSync(file, 'utf8') === 'second try\n', `${lost?.message} | ${JSON.stringify(readFileSync(file, 'utf8'))}`)
+  check('and the bytes that were on their way are not left beside the file', beside().length === 0, beside().join(' '))
+  const fourth = await ops.remoteReadBytes(at(file))
+  writeFileSync(armed, 'hup\n')
+  const hung = await failure(() => ops.remoteCommit(at(file), Buffer.from('after a hang-up\n'), fourth.sum, fourth.mode))
+  check('the remote shell was hung up on before the rename, as a dropped link does it, and took its staged bytes with it: they are sent again and the write lands', hung === null && readFileSync(file, 'utf8') === 'after a hang-up\n' && beside().length === 0, `${hung?.message} | ${JSON.stringify(readFileSync(file, 'utf8'))} ${beside().join(' ')}`)
+  const fifth = await ops.remoteReadBytes(at(file))
+  writeFileSync(armed, 'changed\n')
+  const neither = await failure(() => ops.remoteCommit(at(file), Buffer.from('mine\n'), fifth.sum, fifth.mode))
+  check('the link died before the rename and another writer changed the file at that moment: the answer says the write did not land and that the file no longer holds what was read', neither instanceof ops.RemoteFileError && neither.message.endsWith(`The write to ssh://box${file} did not land, and the file no longer holds what was read: Read the file before relying on it.`) && readFileSync(file, 'utf8') === 'someone else\n' && beside().length === 0, `${neither?.message} | ${JSON.stringify(readFileSync(file, 'utf8'))} ${beside().join(' ')}`)
+  rmSync(join(world.scratch, 'bin', 'mv'))
+  rmSync(armed, { force: true })
+  rmSync(`${armed}.rest`, { force: true })
+  closeRemoteConnections()
+}
+
 async function underAChange(world: RemoteWorld): Promise<void> {
   section('local · a file that changes between the count of its lines and the page')
   const realSed = Bun.which('sed')
@@ -306,6 +346,7 @@ for (const transport of ['local', 'sshd'] as const) {
     await reads(world)
     await writes(world)
     if (transport === 'local') await underAChange(world)
+    if (transport === 'local') await lostAtTheRename(world)
   } finally {
     closeRemoteConnections()
     leave()

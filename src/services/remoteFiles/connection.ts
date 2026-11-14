@@ -37,6 +37,7 @@ type RemoteRequest = {
   signal?: AbortSignal
   quietMs?: number
   sink?: (chunk: Buffer) => void
+  once?: boolean
 }
 
 function sshOptions(): string[] {
@@ -132,7 +133,7 @@ class Connection {
     try {
       return await this.exchange(request)
     } catch (error) {
-      const retry = error instanceof RemoteConnectionError && error.failure === 'lost' && !error.answered && request.payload === undefined
+      const retry = error instanceof RemoteConnectionError && error.failure === 'lost' && !error.answered && request.payload === undefined && request.once !== true
       if (!retry || request.signal?.aborted) throw error
       await this.open(request)
       return this.exchange(request)

@@ -449,34 +449,37 @@ export async function remoteCommit(
     const made = await remoteRun(target.authority, { script: `mkdir -p ${remoteQuote(parentOf(real))}`, signal })
     if (made.status !== 0) throw failed(target, made.status, made.stderr)
   }
-  const put = await remoteRun(target.authority, { script: ack => `m_put ${bytes.length} ${remoteQuote(staged)} ${ack}`, payload: bytes, signal })
-  if (put.status === 73 && expected !== null) {
-    const over = await remoteRun(target.authority, { script: ack => `m_over ${bytes.length} ${remoteQuote(real)} ${remoteQuote(was)} ${ack}`, payload: bytes, signal })
-    if (over.status === 45) throw new RemoteChangedError(identity)
-    if (over.status !== 0 || over.stdout.toString('utf8').trim() !== sum) throw failed(target, over.status, over.stderr === '' ? put.stderr : over.stderr)
-    return settled(target, real, sum, signal)
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const put = await remoteRun(target.authority, { script: ack => `m_put ${bytes.length} ${remoteQuote(staged)} ${ack}`, payload: bytes, signal })
+      if (put.status === 73 && expected !== null) {
+        const over = await remoteRun(target.authority, { script: ack => `m_over ${bytes.length} ${remoteQuote(real)} ${remoteQuote(was)} ${ack}`, payload: bytes, signal })
+        if (over.status === 45) throw new RemoteChangedError(identity)
+        if (over.status !== 0 || over.stdout.toString('utf8').trim() !== sum) throw failed(target, over.status, over.stderr === '' ? put.stderr : over.stderr)
+        return settled(target, real, sum, signal)
+      }
+      if (put.status !== 0) throw failed(target, put.status, put.stderr)
+      const done = await remoteRun(target.authority, { script: `m_commit ${remoteQuote(staged)} ${remoteQuote(real)} ${remoteQuote(was)} ${mode ?? '-'}`, signal, once: true })
+      if (done.status === 45) throw new RemoteChangedError(identity)
+      if (done.status !== 0) throw failed(target, done.status, done.stderr)
+      if (done.stdout.toString('utf8').trim() !== sum) throw new RemoteFileError('EIO', `${identity} does not hold the bytes that were written to it.`)
+      return settled(target, real, sum, signal)
+    } catch (error) {
+      if (!(error instanceof RemoteConnectionError) || error.failure !== 'lost') throw error
+      const now = await remoteRun(target.authority, { script: `rm -f ${remoteQuote(staged)}; m_sum ${remoteQuote(real)} 2>/dev/null || printf absent`, signal }).then(
+        reply => reply.stdout.toString('utf8').trim(),
+        () => null,
+      )
+      if (now === sum) return settled(target, real, sum, signal)
+      if (now === was && attempt === 0) continue
+      throw new RemoteFileError(
+        'EIO',
+        now === null
+          ? `${error.message} The write to ${identity} was under way and its outcome could not be read: Read the file before relying on it.`
+          : now === was
+            ? `${error.message} The write to ${identity} did not land: the file holds what it held before.`
+            : `${error.message} The write to ${identity} did not land, and the file no longer holds what was read: Read the file before relying on it.`,
+      )
+    }
   }
-  if (put.status !== 0) throw failed(target, put.status, put.stderr)
-  let landed: string
-  try {
-    const done = await remoteRun(target.authority, { script: `m_commit ${remoteQuote(staged)} ${remoteQuote(real)} ${remoteQuote(was)} ${mode ?? '-'}`, signal })
-    if (done.status === 45) throw new RemoteChangedError(identity)
-    if (done.status !== 0) throw failed(target, done.status, done.stderr)
-    landed = done.stdout.toString('utf8').trim()
-  } catch (error) {
-    if (!(error instanceof RemoteConnectionError)) throw error
-    const now = await remoteRun(target.authority, { script: `m_sum ${remoteQuote(real)} 2>/dev/null || printf absent`, signal }).then(
-      reply => reply.stdout.toString('utf8').trim(),
-      () => null,
-    )
-    if (now === sum) return settled(target, real, sum, signal)
-    throw new RemoteFileError(
-      'EIO',
-      now === null
-        ? `${error.message} The write to ${identity} was under way and its outcome could not be read: Read the file before relying on it.`
-        : `${error.message} The write to ${identity} did not land: the file holds what it held before.`,
-    )
-  }
-  if (landed !== sum) throw new RemoteFileError('EIO', `${identity} does not hold the bytes that were written to it.`)
-  return settled(target, real, sum, signal)
 }
