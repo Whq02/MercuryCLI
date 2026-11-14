@@ -6,6 +6,7 @@ import { basename, dirname, join, resolve } from 'node:path'
 import chalk from 'chalk'
 
 import { getSessionId } from '../bootstrap/state.js'
+import type { ToolPermissionContext } from '../Tool.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { findCanonicalGitRoot, findGitRoot, gitExe } from './git.js'
@@ -22,7 +23,7 @@ import { projectLocalPath } from '../services/projectLocal/paths.js'
 import { getInitialSettings, getRelativeSettingsFilePathForSource } from './settings/settings.js'
 import { sleep } from './sleep.js'
 import { isInITerm2, isInsideTmuxSync } from './terminalDetection.js'
-import { cloneIntoWorktree, discardSetAside, recordWorktreeClones, returnWorktreeFromAside, setWorktreeAside, sweepSetAside, worktreeHoldsClones } from './worktreeClone.js'
+import { cloneIntoWorktree, discardSetAside, recordWorktreeClones, returnWorktreeFromAside, setWorktreeAside, sweepSetAside, worktreeHoldsClones, type HeldBack } from './worktreeClone.js'
 
 
 
@@ -390,8 +391,29 @@ function checkoutRelativeName(relPath: string): string {
   return relPath.split(/[\\/]+/).filter(segment => segment !== '' && segment !== '.').join('/')
 }
 
-async function cloneCheckoutDirectories(sourceRoot: string, worktreePath: string, relPaths: readonly string[]): Promise<string[]> {
-  const outcomes = await cloneIntoWorktree(relPaths.map(relPath => ({ source: join(sourceRoot, ...relPath.split('/')), target: join(worktreePath, ...relPath.split('/')) })), sourceRoot, worktreePath)
+async function heldBackUnder(permission: ToolPermissionContext | undefined): Promise<((root: string) => HeldBack) | undefined> {
+  try {
+    const { readDenialFilter, ruleMatcherFor } = await import('./permissions/filesystem.js')
+    let rules = permission
+    if (rules === undefined) {
+      const { getEmptyToolPermissionContext } = await import('../Tool.js')
+      const { applyPermissionRulesToPermissionContext } = await import('./permissions/permissions.js')
+      const { loadAllPermissionRulesFromDisk } = await import('./permissions/permissionsLoader.js')
+      rules = applyPermissionRulesToPermissionContext(getEmptyToolPermissionContext(), loadAllPermissionRulesFromDisk())
+    }
+    const narrowing = (rules.alwaysAllowRules as Record<string, readonly string[] | undefined>).toolsNarrowing ?? []
+    if (ruleMatcherFor(rules, 'read', 'deny') === null && narrowing.length === 0) return undefined
+    const read = rules
+    return root => readDenialFilter(read, root)
+  } catch (error) {
+    logForDebugging(`worktree clone: the Read rules could not be read (${String(error)}); the folders are linked as before`, { level: 'warn' as never })
+    return () => () => true
+  }
+}
+
+async function cloneCheckoutDirectories(sourceRoot: string, worktreePath: string, relPaths: readonly string[], permission: ToolPermissionContext | undefined): Promise<string[]> {
+  if (relPaths.length === 0) return []
+  const outcomes = await cloneIntoWorktree(relPaths.map(relPath => ({ source: join(sourceRoot, ...relPath.split('/')), target: join(worktreePath, ...relPath.split('/')) })), sourceRoot, worktreePath, undefined, await heldBackUnder(permission))
   return relPaths.filter((_, index) => outcomes[index] === 'cloned')
 }
 
@@ -481,21 +503,21 @@ async function propagateLocalSettings(repoRoot: string, worktreePath: string, pr
   }
 }
 
-async function placeCheckoutFolders(repoRoot: string, worktreePath: string, dependencyLinksFrom: string | undefined, preserveExisting: boolean): Promise<void> {
+async function placeCheckoutFolders(repoRoot: string, worktreePath: string, dependencyLinksFrom: string | undefined, preserveExisting: boolean, permission?: ToolPermissionContext): Promise<void> {
   const symlinkDirectories = getInitialSettings().workspace?.worktree?.symlinkDirectories ?? []
   const sourceRoot = dependencyLinksFrom !== undefined ? (findGitRoot(dependencyLinksFrom) ?? repoRoot) : repoRoot
   const dependencyLinks = dependencyLinksFrom !== undefined ? await dependencyLinkCandidates(sourceRoot) : []
   const keptAsLinks = new Set(symlinkDirectories.map(checkoutRelativeName))
-  const cloned = await cloneCheckoutDirectories(sourceRoot, worktreePath, dependencyLinks.filter(name => !keptAsLinks.has(name)))
+  const cloned = await cloneCheckoutDirectories(sourceRoot, worktreePath, dependencyLinks.filter(name => !keptAsLinks.has(name)), permission)
   recordWorktreeClones(worktreePath, cloned)
   const linked = await linkCheckoutDirectories(sourceRoot, worktreePath, [...new Set([...dependencyLinks, ...symlinkDirectories])].filter(name => !cloned.includes(name)))
   if (dependencyLinksFrom !== undefined) await hideLinksFromGit(repoRoot, worktreePath, sourceRoot, [...cloned, ...linked])
   await copyWorktreeIncludeFiles(repoRoot, worktreePath, preserveExisting)
 }
 
-export async function prepareWorktreeFiles(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string, preserveExisting = false): Promise<void> {
+export async function prepareWorktreeFiles(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string, preserveExisting = false, permission?: ToolPermissionContext): Promise<void> {
   await propagateLocalSettings(repoRoot, worktreePath, preserveExisting)
-  await placeCheckoutFolders(repoRoot, worktreePath, dependencyLinksFrom, preserveExisting)
+  await placeCheckoutFolders(repoRoot, worktreePath, dependencyLinksFrom, preserveExisting, permission)
 }
 
 async function setWorktreeHooksPath(repoRoot: string, worktreePath: string): Promise<void> {
@@ -526,8 +548,8 @@ async function setWorktreeHooksPath(repoRoot: string, worktreePath: string): Pro
   }
 }
 
-async function runPostCreationSetup(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string): Promise<string | undefined> {
-  await prepareWorktreeFiles(repoRoot, worktreePath, dependencyLinksFrom)
+async function runPostCreationSetup(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string, permission?: ToolPermissionContext): Promise<string | undefined> {
+  await prepareWorktreeFiles(repoRoot, worktreePath, dependencyLinksFrom, false, permission)
   await setWorktreeHooksPath(repoRoot, worktreePath)
   return runWorktreePrepareCommand(worktreePath)
 }
@@ -543,9 +565,9 @@ async function launchWaitsForFolders(repoRoot: string): Promise<boolean> {
   }
 }
 
-function placeFoldersBehindLaunch(repoRoot: string, worktreePath: string, from: string): Promise<void> {
+function placeFoldersBehindLaunch(repoRoot: string, worktreePath: string, from: string, permission: ToolPermissionContext | undefined): Promise<void> {
   const placing = (async () => {
-    await placeCheckoutFolders(repoRoot, worktreePath, from, false)
+    await placeCheckoutFolders(repoRoot, worktreePath, from, false, permission)
     await setWorktreeHooksPath(repoRoot, worktreePath)
   })().catch(error => {
     logForDebugging(`the folders of ${worktreePath} were not placed: ${String(error)}`, { level: 'warn' as never })
@@ -763,6 +785,7 @@ export async function createAgentWorktree(
     at?: string
     from?: string
     foldersBehindLaunch?: boolean
+    permission?: ToolPermissionContext
   },
 ): Promise<{
   worktreePath: string
@@ -790,7 +813,7 @@ export async function createAgentWorktree(
   if (!created.existed) {
     const behindLaunch = options?.foldersBehindLaunch === true && !(await launchWaitsForFolders(gitRoot))
     if (behindLaunch) await propagateLocalSettings(gitRoot, created.worktreePath, false)
-    else prepareFailure = await runPostCreationSetup(gitRoot, created.worktreePath, from)
+    else prepareFailure = await runPostCreationSetup(gitRoot, created.worktreePath, from, options?.permission)
     const lock = await runGit(
       ['worktree', 'lock', created.worktreePath, '--reason', `agent ${slug} (pid ${process.pid})`],
       gitRoot,
@@ -798,7 +821,7 @@ export async function createAgentWorktree(
     if (lock.code !== 0) {
       logForDebugging(`worktree lock failed for ${created.worktreePath}: ${lock.stderr.trim()}`)
     }
-    if (behindLaunch) ready = placeFoldersBehindLaunch(gitRoot, created.worktreePath, from)
+    if (behindLaunch) ready = placeFoldersBehindLaunch(gitRoot, created.worktreePath, from, options?.permission)
   } else {
     try {
       const now = new Date()

@@ -7,7 +7,9 @@ import { logForDebugging } from './debug.js'
 import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { subprocessEnv } from './subprocessEnv.js'
 
-export type CloneOutcome = 'cloned' | 'present' | 'missing' | 'outside' | 'unsupported' | 'failed'
+export type CloneOutcome = 'cloned' | 'present' | 'missing' | 'outside' | 'held' | 'unsupported' | 'failed'
+
+export type HeldBack = (path: string) => boolean
 
 type ClonePair = { source: string; target: string }
 
@@ -19,9 +21,9 @@ type FolderStamp = { path: string; mode: number; atime: number; mtime: number }
 
 type Quiet = 'quiet'
 
-type CloneCalls = { folders: string[]; clones: string[] }
+type CloneCalls = { folders: string[]; clones: string[]; links: string[] }
 
-type ListedFolder = { rel: string; parent: number; direct: number; total: number; folders: number[] }
+type ListedFolder = { rel: string; parent: number; direct: number; total: number; folders: number[]; holdsBack: boolean }
 
 type CloneScope = { spellings: readonly string[]; worktree: string }
 
@@ -128,7 +130,7 @@ function linkTargetInCopy(raw: string, linkInSource: string, linkInCopy: string,
   return relative(dirname(linkInCopy), wanted) || '.'
 }
 
-async function admitPair(pair: ClonePair, index: number, checkout: string, road: CloneRoad, stage: string): Promise<AdmittedPair | CloneOutcome> {
+async function admitPair(pair: ClonePair, index: number, checkout: string, road: CloneRoad, stage: string, held: HeldBack | undefined): Promise<AdmittedPair | CloneOutcome> {
   let source: string
   try {
     source = await realpath(pair.source)
@@ -138,6 +140,7 @@ async function admitPair(pair: ClonePair, index: number, checkout: string, road:
   const sourceStat = await stat(source)
   if (!sourceStat.isDirectory()) return 'missing'
   if (!pathWithin(source, checkout)) return 'outside'
+  if (held?.(source) === true) return 'held'
   if (await pathPresent(pair.target)) return 'present'
   await mkdir(dirname(pair.target), { recursive: true })
   const parent = await realpath(dirname(pair.target))
@@ -150,20 +153,25 @@ async function admitPair(pair: ClonePair, index: number, checkout: string, road:
   return { index, source, target: pair.target, staged: join(stage, String(index)), volumes }
 }
 
-export async function planCloneCalls(source: string): Promise<CloneCalls> {
-  const listed: ListedFolder[] = [{ rel: '', parent: -1, direct: 0, total: 1, folders: [] }]
+export async function planCloneCalls(source: string, held?: HeldBack): Promise<CloneCalls> {
+  const listed: ListedFolder[] = [{ rel: '', parent: -1, direct: 0, total: 1, folders: [], holdsBack: false }]
   let level = [0]
   while (level.length > 0) {
     const below: number[] = []
     await eachAtOnce(level, FOLDERS_AT_ONCE, async at => {
       const folder = listed[at] as ListedFolder
       for (const entry of await readdir(source + folder.rel, { withFileTypes: true })) {
+        const rel = `${folder.rel}/${entry.name}`
+        if (held?.(source + rel) === true) {
+          folder.holdsBack = true
+          continue
+        }
         folder.direct++
         if (!entry.isDirectory()) {
           folder.total++
           continue
         }
-        folder.folders.push(listed.push({ rel: `${folder.rel}/${entry.name}`, parent: at, direct: 0, total: 1, folders: [] }) - 1)
+        folder.folders.push(listed.push({ rel, parent: at, direct: 0, total: 1, folders: [], holdsBack: false }) - 1)
         below.push(listed.length - 1)
       }
     })
@@ -171,21 +179,31 @@ export async function planCloneCalls(source: string): Promise<CloneCalls> {
   }
   for (let at = listed.length - 1; at > 0; at--) {
     const folder = listed[at] as ListedFolder
-    ;(listed[folder.parent] as ListedFolder).total += folder.total
+    const above = listed[folder.parent] as ListedFolder
+    above.total += folder.total
+    if (folder.holdsBack) above.holdsBack = true
   }
-  const calls: CloneCalls = { folders: [], clones: [] }
+  const calls: CloneCalls = { folders: [], clones: [], links: [] }
   const pending = [0]
   while (pending.length > 0) {
     const folder = listed[pending.pop() as number] as ListedFolder
-    if (folder.total <= ENTRIES_A_CALL || folder.direct * DIRECT_SHARE > folder.total) {
+    if (!folder.holdsBack && (folder.total <= ENTRIES_A_CALL || folder.direct * DIRECT_SHARE > folder.total)) {
       calls.clones.push(folder.rel)
       continue
     }
     calls.folders.push(folder.rel)
-    for (const entry of await readdir(source + folder.rel, { withFileTypes: true })) if (entry.isFile() || entry.isSymbolicLink()) calls.clones.push(`${folder.rel}/${entry.name}`)
+    for (const entry of await readdir(source + folder.rel, { withFileTypes: true })) {
+      const rel = `${folder.rel}/${entry.name}`
+      if (held?.(source + rel) === true) calls.links.push(rel)
+      else if (entry.isFile() || entry.isSymbolicLink()) calls.clones.push(rel)
+    }
     for (const child of folder.folders) pending.push(child)
   }
   return calls
+}
+
+async function linkHeldBack(pair: AdmittedPair, rels: readonly string[]): Promise<void> {
+  for (const rel of rels) await symlink(pair.source + rel, pair.staged + rel)
 }
 
 async function clonefileEach(planned: ReadonlyArray<{ pair: AdmittedPair; calls: CloneCalls }>, answerBoundMs: number): Promise<number[] | null> {
@@ -266,12 +284,12 @@ async function settleClone(pair: AdmittedPair, scope: CloneScope): Promise<void>
   }
 }
 
-async function clonefileAdmitted(admitted: readonly AdmittedPair[], outcomes: CloneOutcome[], scope: CloneScope, answerBoundMs: number): Promise<void> {
+async function clonefileAdmitted(admitted: readonly AdmittedPair[], outcomes: CloneOutcome[], scope: CloneScope, answerBoundMs: number, held: HeldBack | undefined): Promise<void> {
   const planned: Array<{ pair: AdmittedPair; calls: CloneCalls }> = []
   await Promise.all(
     admitted.map(async pair => {
       try {
-        planned.push({ pair, calls: await planCloneCalls(pair.source) })
+        planned.push({ pair, calls: await planCloneCalls(pair.source, held) })
       } catch (error) {
         logForDebugging(`worktree clone: ${pair.source} could not be listed for cloning (${String(error)}); the folder is linked as before`, { level: 'warn' })
       }
@@ -279,11 +297,12 @@ async function clonefileAdmitted(admitted: readonly AdmittedPair[], outcomes: Cl
   )
   if (planned.length === 0) return
   const codes = await inTurn(() => clonefileEach(planned, answerBoundMs))
-  for (const [at, { pair }] of planned.entries()) {
+  for (const [at, { pair, calls }] of planned.entries()) {
     const code = codes === null ? null : (codes[at] as number)
     if (code === 0) {
       try {
         await settleClone(pair, scope)
+        await linkHeldBack(pair, calls.links)
         outcomes[pair.index] = 'cloned'
       } catch (error) {
         logForDebugging(`worktree clone: the clone of ${pair.source} could not be settled (${String(error)}); the folder is linked as before`, { level: 'warn' })
@@ -322,7 +341,7 @@ async function unlessQuiet<T>(work: (moved: () => void) => Promise<T>, quietBoun
   }
 }
 
-async function reflinkTree(pair: AdmittedPair, scope: CloneScope, moved: () => void): Promise<CloneOutcome> {
+async function reflinkTree(pair: AdmittedPair, scope: CloneScope, moved: () => void, held: HeldBack | undefined): Promise<CloneOutcome> {
   const folders: FolderStamp[] = []
   let reflinked = 0
   try {
@@ -336,7 +355,8 @@ async function reflinkTree(pair: AdmittedPair, scope: CloneScope, moved: () => v
       const files: Array<{ from: string; at: string }> = []
       for (const entry of await readdir(from, { withFileTypes: true })) {
         const child = { from: join(from, entry.name), at: join(at, entry.name), to: join(to, entry.name) }
-        if (entry.isDirectory()) pending.push(child)
+        if (held?.(child.from) === true) await symlink(child.from, child.at)
+        else if (entry.isDirectory()) pending.push(child)
         else if (entry.isSymbolicLink()) await symlink(linkTargetInCopy(await readlink(child.from), child.from, child.to, scope), child.at)
         else if (entry.isFile()) files.push(child)
       }
@@ -399,7 +419,7 @@ async function cpTree(pair: AdmittedPair, scope: CloneScope, answerBoundMs: numb
   return 'cloned'
 }
 
-async function reflinkAdmitted(admitted: readonly AdmittedPair[], outcomes: CloneOutcome[], scope: CloneScope, road: 'cp' | 'walk', answerBoundMs: number): Promise<boolean> {
+async function reflinkAdmitted(admitted: readonly AdmittedPair[], outcomes: CloneOutcome[], scope: CloneScope, road: 'cp' | 'walk', answerBoundMs: number, held: HeldBack | undefined): Promise<boolean> {
   const quietBoundMs = Math.min(answerBoundMs, WALK_QUIET_BOUND_MS)
   let wentQuiet = false
   for (const pair of admitted) {
@@ -413,8 +433,8 @@ async function reflinkAdmitted(admitted: readonly AdmittedPair[], outcomes: Clon
       const refused = await unlessQuiet(() => reflinkRefused(pair), quietBoundMs)
       if (refused === 'quiet') outcome = 'quiet'
       else if (refused === true) outcome = 'unsupported'
-      else if (road === 'cp' && refused === false && (await machineCpTakesReflink())) outcome = await cpTree(pair, scope, answerBoundMs)
-      else outcome = await unlessQuiet(moved => reflinkTree(pair, scope, moved), quietBoundMs)
+      else if (road === 'cp' && refused === false && (await machineCpTakesReflink()) && !(held !== undefined && (await planCloneCalls(pair.source, held)).links.length > 0)) outcome = await cpTree(pair, scope, answerBoundMs)
+      else outcome = await unlessQuiet(moved => reflinkTree(pair, scope, moved, held), quietBoundMs)
     } catch (error) {
       logForDebugging(`worktree clone: ${pair.source} was not cloned (${String(error)}); the folder is linked as before`, { level: 'warn' })
     }
@@ -445,7 +465,7 @@ async function moveIntoCopy(pair: AdmittedPair): Promise<CloneOutcome> {
   }
 }
 
-export async function cloneIntoWorktree(pairs: readonly ClonePair[], checkoutRoot: string, worktreeRoot: string, answerBoundMs: number = CLONE_ANSWER_BOUND_MS): Promise<CloneOutcome[]> {
+export async function cloneIntoWorktree(pairs: readonly ClonePair[], checkoutRoot: string, worktreeRoot: string, answerBoundMs: number = CLONE_ANSWER_BOUND_MS, heldUnder?: (root: string) => HeldBack): Promise<CloneOutcome[]> {
   if (pairs.length === 0) return []
   const road = cloneRoad()
   if (road === null) return pairs.map(() => 'unsupported')
@@ -460,9 +480,10 @@ export async function cloneIntoWorktree(pairs: readonly ClonePair[], checkoutRoo
   const worktree = resolve(worktreeRoot)
   const scope: CloneScope = { spellings: [...new Set([checkout, resolve(checkoutRoot)])], worktree }
   const stage = join(dirname(worktree), `${STAGING_MARK}${basename(worktree)}-${process.pid}-${Date.now().toString(36)}${(stagings++).toString(36)}`)
+  const held = heldUnder?.(checkout)
   for (const [index, pair] of pairs.entries()) {
     try {
-      const verdict = await admitPair(pair, index, checkout, road, stage)
+      const verdict = await admitPair(pair, index, checkout, road, stage, held)
       if (typeof verdict === 'string') outcomes[index] = verdict
       else admitted.push(verdict)
     } catch (error) {
@@ -478,8 +499,8 @@ export async function cloneIntoWorktree(pairs: readonly ClonePair[], checkoutRoo
   }
   let callsUnanswered = false
   try {
-    if (road === 'clonefile') await clonefileAdmitted(admitted, outcomes, scope, answerBoundMs)
-    else callsUnanswered = await reflinkAdmitted(admitted, outcomes, scope, road, answerBoundMs)
+    if (road === 'clonefile') await clonefileAdmitted(admitted, outcomes, scope, answerBoundMs, held)
+    else callsUnanswered = await reflinkAdmitted(admitted, outcomes, scope, road, answerBoundMs, held)
     for (const pair of admitted) if (outcomes[pair.index] === 'cloned') outcomes[pair.index] = await moveIntoCopy(pair)
   } finally {
     if (callsUnanswered) void removeStaging(stage)

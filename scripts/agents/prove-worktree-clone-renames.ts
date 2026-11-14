@@ -148,9 +148,9 @@ try {
     check('a folder of 4,001 entries is one call', clones.has('/full') && sizeUnder('/full') === 4001, String(sizeUnder('/full')))
     check('a file and a link that lie directly in a cut folder are calls of their own', clones.has('/top.txt') && clones.has('/toplink') && clones.has('/giant/direct-1.js') && clones.has('/giant/direct-2.js'))
     const flatCalls = await (plan as NonNullable<typeof plan>)(join(flat, 'flat'))
-    check('a folder whose 4,500 files all lie directly in it stays one call: cutting it would make 4,500', JSON.stringify(flatCalls) === JSON.stringify({ folders: [], clones: [''] }), JSON.stringify(flatCalls).slice(0, 200))
+    check('a folder whose 4,500 files all lie directly in it stays one call: cutting it would make 4,500', JSON.stringify({ folders: flatCalls.folders, clones: flatCalls.clones }) === JSON.stringify({ folders: [], clones: [''] }), JSON.stringify(flatCalls).slice(0, 200))
     const smallCalls = await (plan as NonNullable<typeof plan>)(join(flat, 'small'))
-    check('a small folder is one call, as before', JSON.stringify(smallCalls) === JSON.stringify({ folders: [], clones: [''] }), JSON.stringify(smallCalls))
+    check('a small folder is one call, as before', JSON.stringify({ folders: smallCalls.folders, clones: smallCalls.clones }) === JSON.stringify({ folders: [], clones: [''] }), JSON.stringify(smallCalls))
   }
 
   if (!cloning) {

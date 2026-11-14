@@ -590,6 +590,7 @@ export const AgentTool = buildTool({
         ...(input.worktree_at !== undefined ? { at: input.worktree_at } : undefined),
         ...(cwdParam !== undefined ? { from: cwdParam } : {}),
         foldersBehindLaunch: true,
+        permission: context.getAppState().toolPermissionContext,
       })
       if (worktreeInfo.ready !== undefined) holdToolsUntil(earlyAgentId, worktreeInfo.ready)
       if (input.worktree_at !== undefined && worktreeInfo.headCommit !== undefined) {
