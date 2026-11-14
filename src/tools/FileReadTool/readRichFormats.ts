@@ -70,14 +70,14 @@ export function parseRichFormatTarget(filePath: string): ParsedRichTarget | null
   return null
 }
 
-export function statBoundedContainer(filePath: string): number {
+export function statBoundedContainer(filePath: string, maximum = RICH_CONTAINER_MAX_BYTES): number {
   const st = statSync(filePath)
   if (!st.isFile()) {
     throw new Error(`Not a regular file: ${filePath}`)
   }
-  if (st.size > RICH_CONTAINER_MAX_BYTES) {
+  if (st.size > maximum) {
     throw new Error(
-      `Container file (${formatFileSize(st.size)}) exceeds the maximum allowed container size (${formatFileSize(RICH_CONTAINER_MAX_BYTES)}): ${filePath}`,
+      `Container file (${formatFileSize(st.size)}) exceeds the maximum allowed container size (${formatFileSize(maximum)}): ${filePath}`,
     )
   }
   return st.size
@@ -1137,7 +1137,8 @@ export async function renderSqliteTarget(
   subtarget?: string,
   sourcePath = dbPath,
 ): Promise<RichRender> {
-  statBoundedContainer(dbPath)
+  const addressed = subtarget?.includes('/') === true
+  statBoundedContainer(dbPath, addressed ? Infinity : RICH_CONTAINER_MAX_BYTES)
   const bunSqlite = 'bun:sqlite'
   const openReadOnly = async (file: string, judged: string): Promise<SqliteDb> => {
     if (process.versions.bun) {
@@ -1179,6 +1180,7 @@ export async function renderSqliteTarget(
       const notFound = (name: string) =>
         new Error(`SQLite table or view "${name}" not found in ${dbPath}. Available: ${objects.map(o => o.name).join(', ') || '(none)'}`)
       let targetObj = findObject(subtarget)
+      if (targetObj && addressed) statBoundedContainer(dbPath)
       if (!targetObj && subtarget.includes('/')) {
         const parsed = parseSqliteSubtarget(subtarget)
         if (!parsed.ok) throw new Error(parsed.reason)

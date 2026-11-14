@@ -31,6 +31,7 @@ export async function readViewMcp(home: string, deny: string[] = []) {
   await send('initialize', { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'read-view-proof', version: '1' } })
   child.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) + '\n')
   return {
+    pid: child.pid!,
     async call(name: string, args: Record<string, unknown>): Promise<string> {
       const reply = await send('tools/call', { name, arguments: args })
       const text = reply.error?.message ?? (reply.result?.content ?? []).map((part: { text?: string }) => part.text ?? '').join('\n')

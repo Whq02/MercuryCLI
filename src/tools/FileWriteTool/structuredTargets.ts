@@ -152,7 +152,7 @@ export function structuredTargetRefusal(target: StructuredWriteTarget, verb: 'wr
   }
   if (hostKind === true) {
     try {
-      statBoundedContainer(target.hostPath)
+      statBoundedContainer(target.hostPath, target.kind === 'sqlite-row' ? Infinity : undefined)
     } catch (err) {
       return {
         result: false,
@@ -426,7 +426,7 @@ type SqliteWriteDb = SqliteDb & {
 }
 
 async function openSqliteForWrite(hostPath: string): Promise<SqliteWriteDb> {
-  statBoundedContainer(hostPath)
+  statBoundedContainer(hostPath, Infinity)
   if (process.versions.bun) {
     const bunSqlite = 'bun:sqlite'
     const { Database } = (await import(bunSqlite)) as {
