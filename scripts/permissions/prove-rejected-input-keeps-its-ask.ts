@@ -28,6 +28,7 @@ if (!process.argv.includes('--child')) {
   const { GitTool } = await import('../../src/tools/GitTool/GitTool.ts')
   enableConfigs()
   setOriginalCwd(world.root)
+  const startedIn = process.cwd()
   process.chdir(world.root)
   let checks = 0
   let failures = 0
@@ -216,7 +217,7 @@ if (!process.argv.includes('--child')) {
         check(`built product${args.length ? ', Sovereign' : ''}: a model's own rejected input is answered by validation before any decision`, sent.status === 'error' && sent.output.includes('The parameter `bogus` was not expected') && !sent.output.includes('NOTES-CONTENT'), sent.seen)
       }
     }
-  } finally { world.dispose() }
+  } finally { process.chdir(startedIn); world.dispose() }
   console.log(`Rejected input keeps its ask: ${checks - failures}/${checks}`)
   process.exitCode = failures ? 1 : 0
 }

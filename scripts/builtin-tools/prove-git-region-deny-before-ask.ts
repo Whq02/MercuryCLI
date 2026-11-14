@@ -20,6 +20,7 @@ if (!process.argv.includes('--child')) {
   const { GitTool } = await import('../../src/tools/GitTool/GitTool.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
   const { decideToolPermission } = await import('../../src/utils/permissions/decision/engine.ts')
+  const { permissionRuleValueFromString, permissionRuleValueToString } = await import('../../src/utils/permissions/permissionRuleParser.ts')
   enableConfigs()
   setOriginalCwd(world.root)
   const marker = '<<<<<<< HEAD\nours\n=======\ntheirs\n>>>>>>> other\n'
@@ -38,6 +39,7 @@ if (!process.argv.includes('--child')) {
     const native = join(world.root, 'locked', '**')
     const rules = process.platform === 'win32' ? [`Edit(${native})`, `Edit(${native.replaceAll('\\', '/')})`] : ['Edit(locked/**)', 'Edit(/locked/**)']
     for (const [spelling, deny] of rules.entries()) {
+      const written = permissionRuleValueToString(permissionRuleValueFromString(deny))
       for (const mode of ['default', 'dontAsk', 'sovereign'] as const) {
         const permission = { ...getEmptyToolPermissionContext(), mode, alwaysDenyRules: { session: [deny, 'Read(secret/**)'] } }
         const context = { abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: permission, sessionHooks: new Map(), tasks: {} }), setAppState: () => {}, messages: [], options: { tools: [] } } as never
@@ -46,12 +48,12 @@ if (!process.argv.includes('--child')) {
           const region = (file: string) => listed.data.result.slice(listed.data.result.indexOf(` ${file} (`)).match(/gr-[a-f0-9]+/)?.[0] ?? ''
           check(`${mode}/${spelling}: Read deny withholds the file and its regions`, !listed.data.result.includes('secret/read.txt') && listed.data.result.includes('1 file withheld'))
           const whole = (await decideToolPermission(GitTool as never, { op: 'resolve', cwd: world.root, path: 'locked/one.txt', content: 'denied\n' }, context)).decision
-          check(`${mode}/${spelling}: whole-file control proves the Edit rule is active`, whole.behavior === 'deny' && whole.message.includes(`is denied by the rule ${deny}`), JSON.stringify(whole))
+          check(`${mode}/${spelling}: whole-file control proves the Edit rule is active`, whole.behavior === 'deny' && whole.message.includes(`is denied by the rule ${written}`), JSON.stringify(whole))
           for (const mixed of [false, true]) {
             const input = GitTool.inputSchema.parse({ op: 'resolve', cwd: world.root, resolutions: [...(mixed ? [{ region: region('open.txt'), take: 'ours' }] : []), { region: region('locked/one.txt'), content: 'denied\n' }] })
             GitTool.backfillObservableInput(input)
             const result = await decideToolPermission(GitTool as never, input, context)
-            check(`${mode}/${spelling}/${mixed ? 'mixed' : 'denied'}: enriched region input is denied before an ask`, result.decision.behavior === 'deny' && result.decision.message.includes(`is denied by the rule ${deny}`) && result.trace.stages.some(stage => stage.note === 'verdict: deny'), JSON.stringify(result))
+            check(`${mode}/${spelling}/${mixed ? 'mixed' : 'denied'}: enriched region input is denied before an ask`, result.decision.behavior === 'deny' && result.decision.message.includes(`is denied by the rule ${written}`) && result.trace.stages.some(stage => stage.note === 'verdict: deny'), JSON.stringify(result))
             check(`${mode}/${spelling}/${mixed ? 'mixed' : 'denied'}: all files and the index stay unchanged`, names.every(file => world.get(file) === marker) && readFileSync(join(world.root, '.git/index')).equals(beforeIndex))
           }
           const allowed = GitTool.inputSchema.parse({ op: 'resolve', cwd: world.root, resolutions: [{ region: region('open.txt'), take: 'ours' }] })
