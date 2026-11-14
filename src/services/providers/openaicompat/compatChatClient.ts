@@ -644,7 +644,6 @@ async function* streamCompatChatRaw(
     }
 
     headersLanded = true
-    ingestMs = timers.now() - ingestStartedAt
     try {
       options.onResponseHeaders?.(response.headers, response.status)
     } catch {
@@ -848,7 +847,11 @@ async function* streamCompatChatRaw(
         try { options.onResponseChunk?.(parsed) } catch {}
         for (const event of decodeChunk(parsed, toolAcc, activeSlotByRawIndex, response.headers)) {
           if (event.type === 'text-delta' || event.type === 'reasoning-delta' || event.type === 'reasoning-withheld' || event.type === 'finish' || event.type === 'tool-call-fragment') {
-            if (tokenWait) { tokenWait = false; publish(null) }
+            if (tokenWait) {
+              tokenWait = false
+              ingestMs = timers.now() - ingestStartedAt
+              publish(null)
+            }
             chunkNotedEvent = true
           }
           if (event.type === 'served-model') {
