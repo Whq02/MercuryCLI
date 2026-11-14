@@ -1398,6 +1398,7 @@ export const BrowserTool = buildTool({
     gate: 'MERCURY_BROWSER',
     proof: 'scripts/browser/prove-browser-drive.ts',
   },
+  keepEmptyInputs: ['files'],
   maxResultSizeChars: 20_000,
   async description() {
     return 'Drive a headless Chrome for Testing from the managed cache (or an operator-pinned browser; installed browsers are never driven) with full provenance: navigate, click, type, scroll, wait on events, extract text or the accessibility tree, read the console, screenshot'
