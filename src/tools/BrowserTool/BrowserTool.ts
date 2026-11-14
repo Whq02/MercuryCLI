@@ -52,6 +52,7 @@ import {
   screenshotPath,
   secretPairingApproved,
   sessionGoneAt,
+  sessionOfFrame,
   type CheckedTarget,
 } from '../../services/browser/browserSession.js'
 import {
@@ -846,9 +847,10 @@ async function sendUpload(
       opened = event
       wake()
     }
-    cdp.on('Page.fileChooserOpened', onOpen)
-    await cdp.send('Page.enable')
-    await cdp.send('Page.setInterceptFileChooserDialog', { enabled: true })
+    const own = sessionOfFrame(s.page, handle.frame) ?? cdp
+    own.on('Page.fileChooserOpened', onOpen)
+    await own.send('Page.enable')
+    await own.send('Page.setInterceptFileChooserDialog', { enabled: true })
     try {
       const at = await pickTargetPoint(s, handle)
       await humanClickPoint(s, at.x, at.y)
@@ -867,9 +869,9 @@ async function sendUpload(
       if (chooser.backendNodeId === undefined) {
         return { words: `upload: ${selector} asks for a file through the page’s own file picker (showOpenFilePicker), which cannot be filled — nothing sent; a file input or a drop zone takes files`, outcome: 'failed' }
       }
-      const node = await cdp.send('DOM.resolveNode', { backendNodeId: chooser.backendNodeId })
+      const node = await own.send('DOM.resolveNode', { backendNodeId: chooser.backendNodeId })
       const objectId = node.object.objectId!
-      const call = async <T>(body: string): Promise<T> => (await cdp.send('Runtime.callFunctionOn', { objectId, functionDeclaration: body, returnByValue: true })).result.value as T
+      const call = async <T>(body: string): Promise<T> => (await own.send('Runtime.callFunctionOn', { objectId, functionDeclaration: body, returnByValue: true })).result.value as T
       const cancel = (): Promise<unknown> => call('function () { this.dispatchEvent(new Event("cancel", { bubbles: true })) }').catch(() => undefined)
       const owning = s.page.frames().find(frame => (frame as { _id?: string })._id === chooser.frameId)
       const chooserOrigin = owning === undefined ? null : originOf(owning.url())
@@ -888,14 +890,14 @@ async function sendUpload(
         await cancel()
         return refused(`${field.desc}, which ${selector} opens a chooser for, takes one ${field.folder ? 'folder' : 'file'} (it has no multiple attribute) and ${resolved.sources.length} were given`)
       }
-      await cdp.send('DOM.setFileInputFiles', { files: staged.paths, backendNodeId: chooser.backendNodeId })
+      await own.send('DOM.setFileInputFiles', { files: staged.paths, backendNodeId: chooser.backendNodeId })
       delivered = true
       let held = await call<HeldFile[]>(HELD_FILES)
       for (const until = Date.now() + Math.min(deadline, 5000); held.length < staged.files && Date.now() < until; held = await call<HeldFile[]>(HELD_FILES)) await bounded(25)
       return after(`upload: ${field.desc} holds ${heldWords(held)}, chosen through the file chooser that ${selector} opened at ${pageWhere(s)} (set on the page; nothing reaches the site until the page sends it)`)
     } finally {
-      cdp.off('Page.fileChooserOpened', onOpen)
-      await cdp.send('Page.setInterceptFileChooserDialog', { enabled: false }).catch(() => undefined)
+      own.off('Page.fileChooserOpened', onOpen)
+      await own.send('Page.setInterceptFileChooserDialog', { enabled: false }).catch(() => undefined)
     }
   } finally {
     if (!delivered) await dropStagedUpload(staged.dir)

@@ -1055,7 +1055,7 @@ export interface PageKit {
   fetchHeld: boolean
   firstRequestUnarmed?: boolean
   late?: CDPSession | null
-  frames?: Map<string, { session: CDPSession; parent: string }>
+  frames?: Map<string, { session: CDPSession; parent: string; target: string }>
 }
 
 const pageKits = new WeakMap<Page, PageKit>()
@@ -1536,8 +1536,18 @@ export function presentToFrames(kit: PageKit): void {
   for (const frame of kit.frames?.values() ?? []) presentToFrame(frame.session, kit, false)
 }
 
+export function sessionOfFrame(page: Page, frame: Frame): CDPSession | null {
+  const kit = pageKits.get(page)
+  if (kit === undefined) return null
+  for (let at: Frame | null = frame; at !== null; at = at.parentFrame()) {
+    const id = (at as { _id?: string })._id
+    for (const held of kit.frames?.values() ?? []) if (held.target === id) return held.session
+  }
+  return kit.cdp
+}
+
 function watchFrames(kit: PageKit, parent: CDPSession): Promise<void> {
-  const frames = (kit.frames ??= new Map<string, { session: CDPSession; parent: string }>())
+  const frames = (kit.frames ??= new Map<string, { session: CDPSession; parent: string; target: string }>())
   const quiet = (): undefined => undefined
   parent.on('Target.attachedToTarget', event => {
     const frame = parent.connection()?.session(event.sessionId) ?? null
@@ -1553,7 +1563,7 @@ function watchFrames(kit: PageKit, parent: CDPSession): Promise<void> {
         letGo()
         return
       }
-      frames.set(event.sessionId, { session: frame, parent: parent.id() })
+      frames.set(event.sessionId, { session: frame, parent: parent.id(), target: event.targetInfo.targetId })
       presentToFrame(frame, kit, true)
       if (kit.late !== undefined) {
         void frame.send('Page.enable').catch(quiet)
