@@ -22,6 +22,11 @@ export async function readQuery(request: ReadQueryRequest): Promise<ReadQueryRes
     const { readProfiles } = await import('./readProfiles.js')
     return (await readProfiles(request))!
   }
+  const parameters = request.target.parameters
+  if (parameters.sql !== undefined || parameters.table !== undefined || (parameters.q === undefined && parameters.query === undefined && /\.(?:sqlite3?|db)(?::[^\r\n]+)?$/i.test(request.target.source))) {
+    const { sqliteQuery } = await import('./sqliteQuery.js')
+    return sqliteQuery(request)
+  }
   const { readJson } = await import('./readJson.js')
   return readJson(request)
 }

@@ -149,3 +149,33 @@ memory. Memory follows the recorded call graph and largest field, not the sample
 length, and cancellation interrupts parsing and graph traversal. Quality notes disclose
 missing references, unequal sample/delta counts, cycles and estimated timing.
 Continuation detects a changed report instead of mixing its pages silently.
+
+## SQLite query views
+
+`Read` takes SQL as the last value of a target, for example
+`/project/data.sqlite#read?offset=0&limit=20&sql=SELECT name FROM items ORDER BY id`.
+The SQL is verbatim: nothing is URL-decoded and `&`, `+`, `%` and `?` inside it
+remain SQL. Tables can also use
+`/project/data.sqlite#read?table=items&order=id DESC&where=id>10&limit=20`;
+`/project/data.sqlite:items#read?where=id>10&limit=20` means the same table.
+A table predicate is an expression, not another statement; use `sql=` for SQL
+that needs comments, statement syntax or an ampersand. Existing bare-table,
+schema and slash-key reads keep their meaning.
+
+The release's bundled SQLite engine opens the database read-only. A mutating
+statement gets the engine's refusal; no SQL is sent to an SSH shell. Extra-file
+attachment and extension loading are unavailable on this read connection.
+Each row is a JSON array beside the ordered column names, preserving duplicate
+names, exact integers and blob bytes (base64). A row too large for the answer
+is saved as a complete generated JSON value with its Read path. Result offset
+is zero-based, limit is positive, and the continuation preserves the SQL.
+
+Queries have no file-size or result-count ceiling: a local query iterates to its
+page plus lookahead without counting or copying the database, and cancellation
+ends its SQLite process even during a long calculation. A result is live and
+rerun on continuation, not a frozen snapshot; it gives no source edit anchor
+or read coverage. SQLite may maintain read marks in an existing shared-memory
+sidecar, but Read changes neither the database nor its WAL and creates no
+sidecar beside them; only a leftover WAL without shared memory uses a private
+copy, named in the header. An SSH database and its WAL are transferred to a
+private local copy before querying; every continuation transfers them again.

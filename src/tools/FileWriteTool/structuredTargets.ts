@@ -427,11 +427,39 @@ type SqliteWriteDb = SqliteDb & {
 
 async function openSqliteForWrite(hostPath: string): Promise<SqliteWriteDb> {
   statBoundedContainer(hostPath)
-  const bunSqlite = 'bun:sqlite'
-  const { Database } = (await import(bunSqlite)) as {
-    Database: new (file: string, opts?: { readwrite?: boolean; create?: boolean }) => SqliteWriteDb
+  if (process.versions.bun) {
+    const bunSqlite = 'bun:sqlite'
+    const { Database } = (await import(bunSqlite)) as {
+      Database: new (file: string, opts?: { readwrite?: boolean; create?: boolean }) => SqliteWriteDb
+    }
+    const db = new Database(hostPath, { readwrite: true, create: false })
+    db.run('PRAGMA foreign_keys=ON')
+    return db
   }
-  return new Database(hostPath, { readwrite: true, create: false })
+  const { DatabaseSync } = await import('node:sqlite')
+  const { pathToFileURL } = await import('node:url')
+  const url = pathToFileURL(hostPath)
+  url.search = '?mode=rw'
+  const db = new DatabaseSync(url.href, { enableForeignKeyConstraints: true, allowExtension: false })
+  let savepoint = 0
+  return {
+    prepare(sql) {
+      const statement = db.prepare(sql)
+      const wrapped = {
+        all: (...params: unknown[]) => statement.all(...params as never[]),
+        safeIntegers(enabled = true) { statement.setReadBigInts(enabled); return wrapped },
+      }
+      return wrapped
+    },
+    run: (sql, ...params) => { const result = db.prepare(sql).run(...params as never[]); return { ...result, changes: Number(result.changes) } },
+    transaction: fn => () => {
+      const name = `mercury_row_${++savepoint}`
+      db.exec(`SAVEPOINT ${name}`)
+      try { const result = fn(); db.exec(`RELEASE ${name}`); return result }
+      catch (error) { db.exec(`ROLLBACK TO ${name}; RELEASE ${name}`); throw error }
+    },
+    close: () => db.close(),
+  }
 }
 
 type SqliteRowState = {

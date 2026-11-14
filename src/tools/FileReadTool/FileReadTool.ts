@@ -1324,7 +1324,7 @@ async function readRichFormatLane(
   } else if (rich.kind === 'archive') {
     rendering = await renderArchiveTarget(resolvedContainerPath, rich.ext, rich.subtarget)
   } else if (rich.kind === 'sqlite') {
-    rendering = await renderSqliteTarget(resolvedContainerPath, rich.subtarget)
+    rendering = await renderSqliteTarget(resolvedContainerPath, rich.subtarget, isRemotePath(rich.containerPath) ? rich.containerPath : resolvedContainerPath)
   } else {
     rendering = { text: await extractDocumentText(resolvedContainerPath, context.abortController.signal), ownBytes: false }
   }

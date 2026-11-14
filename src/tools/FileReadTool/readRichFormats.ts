@@ -1133,6 +1133,7 @@ function renderSqliteRowTarget(
 export async function renderSqliteTarget(
   dbPath: string,
   subtarget?: string,
+  sourcePath = dbPath,
 ): Promise<RichRender> {
   statBoundedContainer(dbPath)
   const bunSqlite = 'bun:sqlite'
@@ -1213,6 +1214,7 @@ export async function renderSqliteTarget(
 
     const lines: string[] = [
       `(database: sqlite · tables: ${objects.length})`,
+      `SQL rows: Read(file_path: ${JSON.stringify(`${sourcePath}#read?sql=SELECT * FROM sqlite_schema`)}).`,
     ]
     for (const obj of objects) {
       const qName = quoteIdent(obj.name)
