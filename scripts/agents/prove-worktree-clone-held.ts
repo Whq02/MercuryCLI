@@ -173,7 +173,7 @@ try {
     const worktreeSource = readFileSync(join(ROOT, 'src/utils/worktree.ts'), 'utf8')
     check('the EnterWorktree tool hands the session\'s rules to the worktree it makes', enterTool.includes('permission: context.getAppState().toolPermissionContext })'))
     check('the --worktree boot hands the rules the command line gave: main to setup, setup to the worktree', mainSource.includes('    worktreePRNumber,\n    undefined,\n    toolPermissionContext,\n  )') && setupSource.includes('tmux: tmuxEnabled, rules: worktreeRules })') && setupSource.includes('await carveWorktree(slug, tmuxSessionName, ask.prNumber, ask.rules)') && setupSource.includes('...(rules !== undefined ? { permission: rules } : {})'))
-    check('the --multiplex fast path, which makes the worktree before any session exists, keeps the links when the command line gives rules it cannot read yet', worktreeSource.includes("args.some(arg => arg === '--block-tools' || arg.startsWith('--block-tools=')) ? 'unknown' : undefined") && worktreeSource.includes("if (permission === 'unknown') return () => () => true"))
+    check('the --multiplex fast path, which makes the worktree before any session exists, keeps the links when the command line gives rules it cannot read yet', worktreeSource.includes("args.some(arg => arg === '--block-tools' || arg.startsWith('--block-tools=')) ? 'unknown' : undefined") && worktreeSource.includes("if (permission === 'unknown') return allHeld"))
 
     section('§ the daemon\'s road: a process that stands elsewhere makes a worker\'s copy of a workspace')
     const workerOf = async (workspace: string, name: string): Promise<string> => {
