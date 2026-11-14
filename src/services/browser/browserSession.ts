@@ -51,6 +51,7 @@ export interface DownloadNotice {
 
 interface DownloadHome {
   home: string
+  staging?: string
   claim: () => void
 }
 
@@ -466,7 +467,7 @@ function endDownloads(state: OwnerBrowserState, hold: Hold): void {
 }
 
 async function sweepDownloads(state: OwnerBrowserState, hold: Hold): Promise<void> {
-  if (hold.downloads !== null) await sweepIncoming(state.transfers, hold.downloads.home, () => state.holds.size === 0 && !state.launching)
+  if (hold.downloads !== null) await sweepIncoming(state.transfers, hold.downloads.home, hold.downloads.staging, () => state.holds.size === 0 && !state.launching)
 }
 
 function holdGone(state: OwnerBrowserState, hold: Hold, reason: string): void {

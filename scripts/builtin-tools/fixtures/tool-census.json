@@ -285,6 +285,7 @@
         "console",
         "info",
         "screenshot",
+        "upload",
         "download",
         "close"
       ],
@@ -331,6 +332,7 @@
           "console",
           "info",
           "screenshot",
+          "upload",
           "download",
           "close"
         ],

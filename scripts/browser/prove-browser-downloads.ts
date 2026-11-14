@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs'
 import type http from 'node:http'
+import { tmpdir } from 'node:os'
 import { basename, dirname, join, sep } from 'node:path'
 import { BrowserTool, ROOT, check, finish, lead, ownerOf, pageOf, permission, requireBrowser, run, section, serve, sessions, validate } from './harness.ts'
 
@@ -93,8 +94,21 @@ const savedOf = (answer: { result: string }): { path: string; id: string } | nul
 }
 const fileIs = (path: string | null | undefined, bytes: Buffer): boolean => typeof path === 'string' && existsSync(path) && readFileSync(path).equals(bytes)
 const nap = (ms: number): Promise<void> => new Promise(done => setTimeout(done, ms))
-const { getScratchpadDir } = (await import(join(ROOT, 'src/utils/permissions/filesystem.ts'))) as { getScratchpadDir: (agentId?: string) => string }
-const home = join(getScratchpadDir(), 'browser-downloads')
+const pads = (): string[] => {
+  const root = realpathSync(tmpdir())
+  const found: string[] = []
+  for (const top of readdirSync(root)) {
+    if (!/^mercury(-\d+)?$/.test(top)) continue
+    for (const project of readdirSync(join(root, top))) {
+      const at = join(root, top, project)
+      if (!statSync(at).isDirectory()) continue
+      for (const session of readdirSync(at)) found.push(join(at, session, 'scratchpad'))
+    }
+  }
+  return found
+}
+const homes = (): string[] => pads().map(pad => join(pad, 'browser-downloads')).filter(folder => existsSync(folder))
+let home = ''
 const tabNames = (): string => ((sessions.browserTabs?.(ownerOf(lead)) ?? []) as Array<{ tab: string }>).map(t => t.tab).join(',')
 const NOT_SAVED = 'not saved: no act of this agent started it; op:"download" with url (the page’s address) or selector (what starts it) saves it'
 
@@ -103,7 +117,7 @@ section('S0 control: an act that starts no download (holds on the parent too)')
   const opened = await run({ op: 'open', url: `${A.origin}/` })
   const plain = await run({ op: 'click', selector: '#plain' })
   check('a click that starts nothing answers as today', opened.outcome === 'succeeded' && plain.result === `click #plain at ${A.origin}/`, plain.result)
-  check('[G3] nothing is written for downloads before one begins', !existsSync(home), home)
+  check('[G3] nothing is written for downloads before one begins', homes().length === 0, homes().join(' '))
 }
 
 section('S1 a download that an act starts is saved and named in that act’s answer')
@@ -113,7 +127,8 @@ section('S1 a download that an act starts is saved and named in that act’s ans
   const body = bytesOf('a', 1000)
   check('[D2][M08] the click’s answer says where it was saved, its size, declared type, suggested name, source and digest', clicked.outcome === 'succeeded' && saved !== null && clicked.result === `click #dl at ${A.origin}/\n  note: the link is a download — saved to ${saved.path} (1000 bytes, application/zip, suggested name payload.bin, from ${A.origin}/file, sha256 ${sha(body)}) — download ${saved.id}, in the session scratchpad`, clicked.result)
   check('[B01] the file is there, whole, and the digest is the file’s own', fileIs(saved?.path, body) && saved?.id === 'd1')
-  check('[D2][B02] it lies in a place of its own under the session scratchpad', saved !== null && saved.path.endsWith(`${sep}scratchpad${sep}browser-downloads${sep}d1${sep}payload.bin`), saved?.path ?? '')
+  home = homes()[0] ?? ''
+  check('[D2][B02] it lies in a place of its own under the session scratchpad', saved !== null && saved.path === join(home, 'd1', 'payload.bin') && home.endsWith(`${sep}scratchpad${sep}browser-downloads`), saved?.path ?? '')
   check('the page stayed where it was', pageOf().url() === `${A.origin}/` && (await pageOf().title()) === 'clicked')
   const opened = await run({ op: 'open', tab: 'direct', url: `${A.origin}/file?seed=o&name=opened.bin` })
   const direct = savedOf(opened)
@@ -298,7 +313,7 @@ section('S5 a transfer that does not finish says how it ended')
 section('S6 the agent’s own, the words and the definition')
 {
   const theirs = await run({ op: 'download' }, second)
-  check('[D3] another agent sees none of them, and nothing was written for it', theirs.result === 'downloads: none — a download that an act starts is saved in the session scratchpad and named in that act’s answer' && !existsSync(join(getScratchpadDir(second.agentId), 'browser-downloads')), theirs.result)
+  check('[D3] another agent sees none of them, and nothing was written for it', theirs.result === 'downloads: none — a download that an act starts is saved in the session scratchpad and named in that act’s answer' && pads().every(pad => !existsSync(join(pad, second.agentId ?? '', 'browser-downloads'))), theirs.result)
   const stray = await validate({ op: 'click', selector: '#x', downloadId: 'd1' })
   check('downloadId belongs to download', !stray.ok && stray.message === 'downloadId requires op download', stray.message)
   const both = await validate({ op: 'download', downloadId: 'd1', url: `${A.origin}/` })
@@ -316,7 +331,7 @@ section('S6 the agent’s own, the words and the definition')
   const shape = (BrowserTool.inputSchema as unknown as { shape: Record<string, { description?: string }> }).shape
   check('the definition carries the field in a short clause', shape.downloadId?.description === 'download: wait for this one', String(shape.downloadId?.description))
   const manual: string = await BrowserTool.prompt()
-  check('the manual says downloads are followed', manual.includes('\ndownload with url or selector opens or clicks and waits timeoutMs for a file to begin, with downloadId waits for that transfer (continued by calling again), alone lists them; a download is saved in the session scratchpad when an act starts it (named in that answer) or when it begins later on a tab that was clicked, typed in, selected, pressed or given download (named in the next answer on it).\n') && !manual.includes('Downloads and file uploads are not performed here.'), manual.split('\n').find(line => line.startsWith('download')) ?? '')
+  check('the manual says downloads are followed', manual.includes('\ndownload with url or selector opens or clicks and waits timeoutMs for a file to begin, with downloadId waits for that transfer (call again to go on), alone lists them; a download is saved in the session scratchpad when an act starts it (named in that answer) or it begins later on a tab that was clicked, typed in, selected, pressed or given download (named in the next answer there).\n') && !manual.includes('Downloads and file uploads are not performed here.'), manual.split('\n').find(line => line.startsWith('download')) ?? '')
 }
 
 section('S7 what following downloads costs a launch')

@@ -148,11 +148,12 @@ export function endTransfers(book: TransferBook, guids: Iterable<string>, reason
   }
 }
 
-export async function sweepIncoming(book: TransferBook, home: string, idle: () => boolean): Promise<void> {
+export async function sweepIncoming(book: TransferBook, home: string, staging: string | undefined, idle: () => boolean): Promise<void> {
   if (!idle()) return
   await Promise.all(book.list.filter(transfer => transfer.state === 'pending').map(transfer => transfer.done))
   if (!idle()) return
   try {
+    if (staging !== undefined) fs.rmSync(staging, { recursive: true, force: true })
     fs.rmSync(path.join(home, 'incoming'), { recursive: true, force: true })
     fs.rmdirSync(home)
   } catch {

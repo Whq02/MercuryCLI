@@ -1,10 +1,10 @@
 
 import { readFileSync, writeFileSync } from 'node:fs'
 import { metadataRefusal, metadataSafeAddresses } from '../WebFetchTool/privateHost.js'
-import { join } from 'node:path'
-import type { ElementHandle, Frame, Page, SerializedAXNode } from 'puppeteer-core'
+import { basename, join } from 'node:path'
+import type { ElementHandle, Frame, Page, Protocol, SerializedAXNode } from 'puppeteer-core'
 import { z } from 'zod/v4'
-import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
+import { buildTool, getEmptyToolPermissionContext, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { readImageWithTokenBudget } from '../FileReadTool/FileReadTool.js'
@@ -43,6 +43,7 @@ import {
   noteCheckedActOrigin,
   noteEmulatedPage,
   originApproved,
+  pageKitOf,
   originOf,
   approveSecretPairing,
   popupInFlight,
@@ -72,15 +73,16 @@ import {
   scrubSecretFromText,
 } from '../../services/browser/browserSecrets.js'
 import type { Transfer } from '../../services/browser/browserTransfers.js'
+import { dropStagedUpload, resolveUploadSources, stageUploads, uploadSourcesChanged, type UploadSource } from '../../services/browser/browserUploads.js'
 import { APPROVAL_RULE_LINE, INSTALLED_NOT_DRIVEN } from '../../services/browser/browserWords.js'
 import { ensureScratchpadDir } from '../../utils/scratchpad.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
-import { getScratchpadDir } from '../../utils/permissions/filesystem.js'
+import { checkReadPermissionForTool, getScratchpadDir } from '../../utils/permissions/filesystem.js'
 import { getRuleByContentsForToolName } from '../../utils/permissions/permissions.js'
 import { suggestionForExactCommand } from '../../utils/permissions/shellRuleMatching.js'
 import { ruleSentence } from '../../utils/permissions/ruleReason.js'
-import type { PermissionRule, ToolPermissionContext } from '../../types/permissions.js'
+import type { PermissionDecision, PermissionDecisionReason, PermissionRule, ToolPermissionContext } from '../../types/permissions.js'
 import {
   renderToolResultMessage,
   renderToolUseErrorMessage,
@@ -107,6 +109,7 @@ const OPS = [
   'console',
   'info',
   'screenshot',
+  'upload',
   'download',
   'close',
 ] as const
@@ -121,11 +124,12 @@ const ACT_OPS: ReadonlySet<string> = new Set([
   'select',
   'press',
   'hover',
+  'upload',
 ])
 
-const FRONT_OPS: ReadonlySet<string> = new Set(['click', 'type', 'scroll', 'back', 'reload', 'select', 'press', 'hover', 'screenshot'])
+const FRONT_OPS: ReadonlySet<string> = new Set(['click', 'type', 'scroll', 'back', 'reload', 'select', 'press', 'hover', 'screenshot', 'upload'])
 const TABLESS_OPS: ReadonlySet<string> = new Set(['status', 'devices', 'provision', 'download'])
-const TOUCH_OPS: ReadonlySet<string> = new Set(['click', 'type', 'select', 'press'])
+const TOUCH_OPS: ReadonlySet<string> = new Set(['click', 'type', 'select', 'press', 'upload'])
 
 const PRESS_KEYS: ReadonlySet<string> = new Set([
   'Enter',
@@ -244,6 +248,7 @@ const inputSchema = lazySchema(() =>
     limit: z.number().optional().describe('console: last N entries (default 50)'),
     fullPage: z.boolean().optional().describe('screenshot: full scroll height (default viewport)'),
     downloadId: z.string().optional().describe('download: wait for this one'),
+    files: z.array(z.string()).optional().describe('upload: local paths; [] clears the input'),
     label: z.string().optional().describe('screenshot: filename hint'),
   }),
 )
@@ -692,6 +697,210 @@ async function downloadSought(s: LiveSession, before: number, timeoutMs: number 
   return `\n  note: the page started ${downloadWords(began)}`
 }
 
+const CHOOSER_WAIT_MS = 2000
+
+interface HeldFile {
+  name: string
+  size: number
+  type: string
+}
+
+function heldWords(files: readonly HeldFile[]): string {
+  const shown = files.slice(0, 5).map(file => `${file.name} (${bytesWords(file.size)}, ${file.type === '' ? 'type unknown' : file.type})`)
+  return `${fileCount(files.length)} — ${shown.join(', ')}${files.length > shown.length ? ` and ${files.length - shown.length} more` : ''}`
+}
+
+const HELD_FILES = `function () { return Array.from(this.files || []).map(function (file) { return { name: file.webkitRelativePath || file.name, size: file.size, type: file.type } }) }`
+
+async function sendUpload(
+  s: LiveSession,
+  input: Input,
+  checked: UploadSource[] | null,
+  rules: ToolPermissionContext | undefined,
+  judgedOrigin: string | null,
+  stagingRoot: () => string,
+  signal: AbortSignal,
+): Promise<{ words: string; outcome: ToolEffectOutcome }> {
+  const refused = (why: string): { words: string; outcome: ToolEffectOutcome } => ({ words: `upload refused: ${why} — nothing sent`, outcome: 'failed' })
+  const selector = input.selector!
+  const given = input.files ?? []
+  const resolved = resolveUploadSources(given)
+  if ('refusal' in resolved) return refused(resolved.refusal)
+  for (const source of resolved.sources) {
+    for (const member of source.members) {
+      const decision = checkReadPermissionForTool({ name: 'Read', getPath: () => member.path }, input, rules ?? getEmptyToolPermissionContext())
+      if (decision.behavior === 'deny') return refused(decision.message)
+    }
+  }
+  const changed = checked === null ? null : uploadSourcesChanged(checked, resolved.sources)
+  if (changed !== null) return refused(`${changed}; re-issue to have what is there now judged`)
+  s.nav.seen = s.nav.seq
+  const marks = markAct(s)
+  const deadline = actDeadline(input)
+  const after = async (words: string): Promise<{ words: string; outcome: ToolEffectOutcome }> => {
+    await settleAfterAct(s, deadline, marks)
+    const moved = s.page.url() === marks.url ? '' : `\n  note: the page then navigated to ${pageWhere(s)} (from ${marks.url})`
+    return { words: `${words}${moved}${actConsequences(s, marks)}`, outcome: 'succeeded' }
+  }
+  const target = await resolveReadTarget(s, selector, deadline, signal, input.frame)
+  const facts = await target.evaluate(el => {
+    const field = el instanceof HTMLInputElement && el.type === 'file' ? el : null
+    return {
+      file: field !== null,
+      multiple: field?.multiple === true,
+      folder: field?.webkitdirectory === true,
+      disabled: field !== null && (field.disabled || field.closest('fieldset:disabled') !== null),
+      held: field?.files?.length ?? 0,
+    }
+  })
+  const folder = resolved.sources.find(source => source.folder)
+  if (facts.file) {
+    if (facts.disabled) return refused(`${selector} is disabled`)
+    if (given.length === 0) {
+      await (target as ElementHandle<HTMLInputElement>).uploadFile()
+      return after(`upload: ${selector} cleared at ${pageWhere(s)} (it held ${facts.held === 0 ? 'no file' : fileCount(facts.held)})`)
+    }
+    if (folder !== undefined && !facts.folder) return refused(`${folder.given} is a folder and ${selector} is not a folder input (webkitdirectory); name its files`)
+    if (!facts.multiple && resolved.sources.length > 1) return refused(`${selector} takes one ${facts.folder ? 'folder' : 'file'} (it has no multiple attribute) and ${resolved.sources.length} were given`)
+    const staged = await stageUploads(resolved.sources, stagingRoot(), signal)
+    try {
+      await (target as ElementHandle<HTMLInputElement>).uploadFile(...staged.paths)
+    } catch (err) {
+      await dropStagedUpload(staged.dir)
+      throw err
+    }
+    const read = (): Promise<HeldFile[]> =>
+      target.evaluate(el => Array.from((el as HTMLInputElement).files ?? []).map(file => ({ name: file.webkitRelativePath || file.name, size: file.size, type: file.type })))
+    let held = await read()
+    for (const until = Date.now() + Math.min(deadline, 5000); held.length < staged.files && Date.now() < until; held = await read()) await bounded(25)
+    return after(`upload: ${selector} holds ${heldWords(held)} at ${pageWhere(s)} (set on the page; nothing reaches the site until the page sends it)`)
+  }
+  if (given.length === 0) return refused(`an empty list clears a file input, and ${selector} is not one`)
+  const cdp = pageKitOf(s.page)?.cdp ?? null
+  if (cdp === null) return refused('this page has no protocol session of its own to carry a drop or a file chooser')
+  const handle = await resolveActTarget(s, selector, deadline, signal, input.frame)
+  await handle.scrollIntoView()
+  await settleBoundingBox(handle, deadline)
+  const staged = await stageUploads(resolved.sources, stagingRoot(), signal)
+  let delivered = false
+  try {
+    const point = await pickTargetPoint(s, handle)
+    const realm = (handle.frame as Frame & { isolatedRealm(): Pick<Frame, 'evaluateHandle'> }).isolatedRealm()
+    const probe = await realm.evaluateHandle(() => {
+      const state: { over: Event | null; dropped: Event | null; taken: boolean | null; stop: () => void } = { over: null, dropped: null, taken: null, stop: () => {} }
+      const over = (event: Event): void => {
+        state.over = event
+      }
+      const dropped = (event: Event): void => {
+        state.dropped = event
+      }
+      const last = (event: Event): void => {
+        state.taken = event.defaultPrevented
+        if (!event.defaultPrevented) event.preventDefault()
+      }
+      window.addEventListener('dragover', over, true)
+      window.addEventListener('drop', dropped, true)
+      window.addEventListener('drop', last, false)
+      state.stop = () => {
+        window.removeEventListener('dragover', over, true)
+        window.removeEventListener('drop', dropped, true)
+        window.removeEventListener('drop', last, false)
+      }
+      return state
+    })
+    const drag = (type: 'dragEnter' | 'dragOver' | 'drop' | 'dragCancel'): Promise<void> =>
+      cdp.send('Input.dispatchDragEvent', { type, x: point.x, y: point.y, data: { items: [], files: staged.paths, dragOperationsMask: 1 } })
+    let accepted: boolean | null = null
+    let taken: boolean | null = null
+    try {
+      await drag('dragEnter')
+      for (let round = 0; round < 3 && accepted === null; round++) {
+        await drag('dragOver')
+        accepted = await probe.evaluate(state => (state.over === null ? null : state.over.defaultPrevented))
+        if (accepted === null) await bounded(40)
+      }
+      if (accepted === true) {
+        await drag('drop')
+        taken = await probe.evaluate(state => state.taken ?? (state.dropped === null ? null : state.dropped.defaultPrevented))
+      } else {
+        await drag('dragCancel')
+      }
+    } finally {
+      await probe.evaluate(state => state.stop()).catch(() => undefined)
+      await probe.dispose().catch(() => undefined)
+    }
+    if (accepted === true) {
+      if (taken !== true) {
+        return { words: `upload: ${selector} accepted the drag and did not take the drop — the page received nothing`, outcome: 'failed' }
+      }
+      delivered = true
+      const names = resolved.sources.map(source => `${basename(source.path)}${source.folder ? ` (a folder of ${fileCount(source.members.length)})` : ` (${bytesWords(source.members[0]!.size)})`}`)
+      return after(`upload: ${fileCount(staged.files)} dropped on ${selector} at ${pageWhere(s)} and taken by the page — ${names.join(', ')} (whether the site accepted them is the page’s to show)`)
+    }
+    const covered = await clickGate(s, handle)
+    if (covered !== null) return refused(`${selector} took no dropped file, and a click to open its file chooser is refused: ${covered}`)
+    let opened: Protocol.Page.FileChooserOpenedEvent | null = null
+    let wake = (): void => {}
+    const onOpen = (event: Protocol.Page.FileChooserOpenedEvent): void => {
+      opened = event
+      wake()
+    }
+    cdp.on('Page.fileChooserOpened', onOpen)
+    await cdp.send('Page.enable')
+    await cdp.send('Page.setInterceptFileChooserDialog', { enabled: true })
+    try {
+      const at = await pickTargetPoint(s, handle)
+      await humanClickPoint(s, at.x, at.y)
+      if (opened === null) {
+        await Promise.race([
+          new Promise<void>(resolve => {
+            wake = resolve
+          }),
+          bounded(Math.min(deadline, CHOOSER_WAIT_MS)),
+        ])
+      }
+      const chooser = opened as Protocol.Page.FileChooserOpenedEvent | null
+      if (chooser === null) {
+        return { words: `upload: ${selector} is not a file input, took no dropped file and opened no file chooser when clicked — the click went through and nothing was sent`, outcome: 'failed' }
+      }
+      if (chooser.backendNodeId === undefined) {
+        return { words: `upload: ${selector} asks for a file through the page’s own file picker (showOpenFilePicker), which cannot be filled — nothing sent; a file input or a drop zone takes files`, outcome: 'failed' }
+      }
+      const node = await cdp.send('DOM.resolveNode', { backendNodeId: chooser.backendNodeId })
+      const objectId = node.object.objectId!
+      const call = async <T>(body: string): Promise<T> => (await cdp.send('Runtime.callFunctionOn', { objectId, functionDeclaration: body, returnByValue: true })).result.value as T
+      const cancel = (): Promise<unknown> => call('function () { this.dispatchEvent(new Event("cancel", { bubbles: true })) }').catch(() => undefined)
+      const owning = s.page.frames().find(frame => (frame as { _id?: string })._id === chooser.frameId)
+      const chooserOrigin = owning === undefined ? null : originOf(owning.url())
+      if (judgedOrigin !== null && chooserOrigin !== judgedOrigin) {
+        await cancel()
+        return refused(`the file chooser that ${selector} opened belongs to a frame of ${chooserOrigin ?? 'another page'}, which this permission check did not judge`)
+      }
+      const field = await call<{ multiple: boolean; folder: boolean; desc: string }>(
+        'function () { return { multiple: this.multiple === true, folder: this.webkitdirectory === true, desc: this.tagName.toLowerCase() + (this.id ? "#" + this.id : "") } }',
+      )
+      if (folder !== undefined && !field.folder) {
+        await cancel()
+        return refused(`${folder.given} is a folder and ${field.desc}, which ${selector} opens a chooser for, is not a folder input (webkitdirectory); name its files`)
+      }
+      if (!field.multiple && resolved.sources.length > 1) {
+        await cancel()
+        return refused(`${field.desc}, which ${selector} opens a chooser for, takes one ${field.folder ? 'folder' : 'file'} (it has no multiple attribute) and ${resolved.sources.length} were given`)
+      }
+      await cdp.send('DOM.setFileInputFiles', { files: staged.paths, backendNodeId: chooser.backendNodeId })
+      delivered = true
+      let held = await call<HeldFile[]>(HELD_FILES)
+      for (const until = Date.now() + Math.min(deadline, 5000); held.length < staged.files && Date.now() < until; held = await call<HeldFile[]>(HELD_FILES)) await bounded(25)
+      return after(`upload: ${field.desc} holds ${heldWords(held)}, chosen through the file chooser that ${selector} opened at ${pageWhere(s)} (set on the page; nothing reaches the site until the page sends it)`)
+    } finally {
+      cdp.off('Page.fileChooserOpened', onOpen)
+      await cdp.send('Page.setInterceptFileChooserDialog', { enabled: false }).catch(() => undefined)
+    }
+  } finally {
+    if (!delivered) await dropStagedUpload(staged.dir)
+  }
+}
+
 async function errorPageSettled(s: LiveSession): Promise<void> {
   if (s.navFailure.last === null || isBrowserErrorPage(s.page.url())) return
   await Promise.race([new Promise<void>(wake => s.navWatch.waiters.push(wake)), bounded(1000)])
@@ -1093,8 +1302,53 @@ function actDetail(input: Input): string {
       return ` ${[...(input.modifiers ?? []), input.key ?? ''].filter(Boolean).join('+')}`
     case 'hover':
       return ` ${input.selector}`
+    case 'upload':
+      return ` ${(input.files ?? []).length === 1 ? input.files![0] : fileCount((input.files ?? []).length)} to ${input.selector}`
     default:
       return ''
+  }
+}
+
+function fileCount(n: number): string {
+  return n === 1 ? '1 file' : `${n} files`
+}
+
+const checkedUploads = new Map<OwnerKey, { call: string; sources: UploadSource[] }>()
+
+function uploadCall(input: Input): string {
+  return JSON.stringify([input.tab ?? MAIN_TAB, input.frame ?? null, input.selector ?? '', input.files ?? []])
+}
+
+function takeCheckedUpload(owner: OwnerKey, input: Input): UploadSource[] | null {
+  const noted = checkedUploads.get(owner)
+  checkedUploads.delete(owner)
+  return noted !== undefined && noted.call === uploadCall(input) ? noted.sources : null
+}
+
+interface SourceAsk {
+  message: string
+  decisionReason: PermissionDecisionReason
+}
+
+function judgeUploadSources(owner: OwnerKey, input: Input, context: ToolPermissionContext | undefined): { deny: PermissionDecision } | { ask: SourceAsk } | null {
+  checkedUploads.delete(owner)
+  const resolved = resolveUploadSources(input.files ?? [])
+  if ('refusal' in resolved) return null
+  const rules = context ?? getEmptyToolPermissionContext()
+  const judged = resolved.sources.flatMap(source => source.members.map(member => checkReadPermissionForTool({ name: 'Read', getPath: () => member.path }, input, rules)))
+  const denied = judged.find(decision => decision.behavior === 'deny')
+  if (denied !== undefined) return { deny: denied }
+  checkedUploads.set(owner, { call: uploadCall(input), sources: resolved.sources })
+  const asks = judged.flatMap(decision => (decision.behavior === 'ask' ? [decision] : []))
+  const first = asks[0]
+  if (first === undefined) return null
+  const message = [...new Set(asks.map(decision => decision.message))].join('\n')
+  const reason = first.decisionReason
+  return {
+    ask: {
+      message,
+      decisionReason: reason !== undefined && (reason.type === 'rule' || reason.type === 'safetyCheck') ? reason : { type: 'safetyCheck', reason: message, operatorOnly: false },
+    },
   }
 }
 
@@ -1157,14 +1411,15 @@ back, reload, scroll, select, press and hover act on history or elements; info r
 extract returns ${EXTRACT_CAP}-char windows of text or indented role/name/state rows, including iframe content and frame indices/URLs.
 console returns a ${CONSOLE_RING_CAP}-entry ring of logs, page/HTTP/request errors, navigation dividers and dialogs (dialogs auto-dismiss; beforeunload auto-accepts).
 screenshot saves a PNG artifact and attaches an image when supported.
-download with url or selector opens or clicks and waits timeoutMs for a file to begin, with downloadId waits for that transfer (continued by calling again), alone lists them; a download is saved in the session scratchpad when an act starts it (named in that answer) or when it begins later on a tab that was clicked, typed in, selected, pressed or given download (named in the next answer on it).
+upload sets files (local paths; an empty list clears) on a file input, a control that opens a file chooser or a drop zone, by selector; each file meets Read's decision, the page its origin's act approval; the answer says what the page holds.
+download with url or selector opens or clicks and waits timeoutMs for a file to begin, with downloadId waits for that transfer (call again to go on), alone lists them; a download is saved in the session scratchpad when an act starts it (named in that answer) or it begins later on a tab that was clicked, typed in, selected, pressed or given download (named in the next answer there).
 close ends the session, or with tab that tab alone (${BROWSER_PROTOCOL_TIMEOUT_MS / 1000}s protocol deadline; ${BROWSER_CLOSE_BOUND_MS / 1000}s close bound). provision asks before installing Chrome-for-Testing.
 
 ## Targeting
 Selector actions wait for visibility; scoped extract waits for attachment (reads hidden content). Frame click, scroll and screenshot require selectors; coordinate clicks stay in the main viewport.
 
 ## Session lifetime
-${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved lead slot; `}5 minutes idle closes a browser (active ops do not expire; completion renews the lease; tabs opened with persist stay). File uploads are not performed here. The driver needs node >= 22.12.`
+${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved lead slot; `}5 minutes idle closes a browser (active ops do not expire; completion renews the lease; tabs opened with persist stay). The driver needs node >= 22.12.`
   },
   userFacingName,
   shouldDefer: true,
@@ -1230,6 +1485,9 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
     }
     const ruleVerdict = (content: string): 'deny' | 'ask' | 'allow' | null => ruleFor(content)?.ruleBehavior ?? null
     const inTab = input.tab === undefined ? '' : ` in tab ${input.tab}`
+    const sources = input.op === 'upload' ? judgeUploadSources(owner, input, permissionContext) : null
+    if (sources !== null && 'deny' in sources) return sources.deny
+    const sourceAsk = sources === null ? null : sources.ask
     if (input.op === 'open') {
       const target = originOf(input.url ?? '')
       const ruled = ruleVerdict(`origin:${target}`)
@@ -1317,38 +1575,44 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
         suggestions: suggestionForExactCommand('Browser', pairing),
       }
     }
+    const sourcesAsk = {
+      behavior: 'ask' as const,
+      message: `Browser ${input.op}${actDetail(input)} on ${origin}${inTab} — ${sourceAsk?.message ?? ''}`,
+      decisionReason: sourceAsk?.decisionReason,
+      suggestions: [],
+    }
     if (ruled === 'allow' || (ruled === null && origin.startsWith('http') && originApproved(owner, origin))) {
       noteCheckedActOrigin(owner, input.op, origin, bound)
-      return { behavior: 'allow' as const, updatedInput: asked }
+      return sourceAsk === null ? { behavior: 'allow' as const, updatedInput: asked } : sourcesAsk
     }
     if (!origin.startsWith('http')) {
       if (origin === 'about:' || origin === 'chrome-error:') {
         noteCheckedActOrigin(owner, input.op, origin, bound)
-        return { behavior: 'allow' as const, updatedInput: asked }
+        return sourceAsk === null ? { behavior: 'allow' as const, updatedInput: asked } : sourcesAsk
       }
       noteCheckedActOrigin(owner, input.op, origin, bound)
       return {
         behavior: 'ask' as const,
-        message: `Browser ${input.op}${actDetail(input)} on a NON-WEB page (${origin})${inTab} — page-conjured content, not an approved web origin`,
+        message: `Browser ${input.op}${actDetail(input)} on a NON-WEB page (${origin})${inTab} — page-conjured content, not an approved web origin${sourceAsk === null ? '' : `\n${sourceAsk.message}`}`,
         decisionReason: {
           type: 'safetyCheck' as const,
           reason: `the top frame is ${origin} content the page itself conjured`,
           operatorOnly: true,
         },
-        suggestions: suggestionForExactCommand('Browser', `origin:${origin}`),
+        suggestions: sourceAsk === null ? suggestionForExactCommand('Browser', `origin:${origin}`) : [],
       }
     }
     noteCheckedActOrigin(owner, input.op, origin, bound)
     const unloaded = sent !== null && !originOf(s.page.url()).startsWith('http')
     return {
       behavior: 'ask' as const,
-      message: `${sent?.headers ? `Browser viewport on ${origin}${inTab} with ${sent.words}` : `Browser ${input.op}${actDetail(input)} on ${origin}${inTab}`} — ${unloaded ? 'its address did not load' : 'reached by navigation'}, not yet approved this session`,
+      message: `${sent?.headers ? `Browser viewport on ${origin}${inTab} with ${sent.words}` : `Browser ${input.op}${actDetail(input)} on ${origin}${inTab}`} — ${unloaded ? 'its address did not load' : 'reached by navigation'}, not yet approved this session${sourceAsk === null ? '' : `\n${sourceAsk.message}`}`,
       decisionReason: {
         type: 'safetyCheck' as const,
         reason: unloaded ? `${origin} did not load, and no page of it is approved` : `${origin} was reached by navigation, not requested by the operator`,
         operatorOnly: true,
       },
-      suggestions: suggestionForExactCommand('Browser', `origin:${origin}`),
+      suggestions: sourceAsk === null ? suggestionForExactCommand('Browser', `origin:${origin}`) : [],
     }
   },
   async validateInput(asked: Input) {
@@ -1368,10 +1632,16 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
     if (asked.downloadId !== undefined && asked.downloadId !== '' && asked.op !== 'download') {
       return { result: false as const, message: 'downloadId requires op download', errorCode: 1 }
     }
+    if (asked.files !== undefined && asked.files.length > 0 && asked.op !== 'upload') {
+      return { result: false as const, message: 'files requires op upload', errorCode: 1 }
+    }
+    if (asked.op === 'upload' && (!asked.selector || asked.files === undefined)) {
+      return { result: false as const, message: 'upload requires selector and files (an empty list clears a file input)', errorCode: 1 }
+    }
     if (input.op === 'open' && !(input.url === undefined && input.tab !== undefined) && (!input.url || !/^https?:\/\//.test(input.url))) {
       return { result: false as const, message: openSchemeRefusal(input.url), errorCode: 1 }
     }
-    if (input.frame !== undefined && (!['click', 'type', 'scroll', 'waitFor', 'select', 'hover', 'extract', 'screenshot'].includes(input.op) || (['click', 'scroll', 'screenshot'].includes(input.op) && !input.selector) || (input.op === 'waitFor' && !input.selector && input.text === undefined))) {
+    if (input.frame !== undefined && (!['click', 'type', 'scroll', 'waitFor', 'select', 'hover', 'extract', 'screenshot', 'upload'].includes(input.op) || (['click', 'scroll', 'screenshot'].includes(input.op) && !input.selector) || (input.op === 'waitFor' && !input.selector && input.text === undefined))) {
       return { result: false as const, message: 'frame requires a selector act/read, a type target, or a selector/text wait', errorCode: 1 }
     }
     if (input.force === true && (input.op !== 'click' || !input.selector)) {
@@ -1508,6 +1778,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
               births: true,
               downloads: {
                 home: join(getScratchpadDir((context as { agentId?: string } | undefined)?.agentId), 'browser-downloads'),
+                staging: join(getScratchpadDir((context as { agentId?: string } | undefined)?.agentId), 'browser-uploads'),
                 claim: () => {
                   ensureScratchpadDir((context as { agentId?: string } | undefined)?.agentId)
                 },
@@ -1658,6 +1929,28 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
           outcome = 'succeeded'
           break
         }
+        case 'upload': {
+          const s = activeSession(owner, tab)
+          if (!s) {
+            result = noSessionWords(owner, tab)
+            outcome = 'failed'
+            break
+          }
+          const checked = takeCheckedUpload(owner, input)
+          const judgedOrigin = await targetOrigin(s, input.frame).catch(() => null)
+          const originGate = await actOriginGate(owner, s, input)
+          if (originGate !== null) {
+            result = originGate
+            outcome = 'failed'
+            break
+          }
+          const agentId = (context as { agentId?: string } | undefined)?.agentId
+          const rules = (context as Partial<ToolUseContext> | undefined)?.getAppState?.()?.toolPermissionContext as ToolPermissionContext | undefined
+          const sent = await sendUpload(s, input, checked, rules, judgedOrigin, () => join(ensureScratchpadDir(agentId), 'browser-uploads'), signalFor(s))
+          result = sent.words
+          outcome = sent.outcome
+          break
+        }
         case 'type': {
           const s = activeSession(owner, tab)
           if (!s) {
@@ -1800,7 +2093,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
           if (probe.tag === 'input' && !TEXT_INPUT_TYPES.has(probe.type)) {
             result =
               probe.type === 'file'
-                ? `type refused: ${probe.desc} is a file input — uploads are OUT of this tool's scope (a named deferral)`
+                ? `type refused: ${probe.desc} is a file input — op:"upload" with files sets it`
                 : ['checkbox', 'radio', 'submit', 'button', 'reset', 'image'].includes(probe.type)
                   ? `type refused: ${probe.desc} is type=${probe.type} — use op:"click" to operate it`
                   : `type refused: ${probe.desc} is type=${probe.type}, not a text-bearing input — nothing typed`

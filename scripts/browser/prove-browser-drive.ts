@@ -293,7 +293,7 @@ console.log('§4b select / press / hover + the input zoo')
   const cb = await run({ op: 'type', selector: '#cb', text: 'yes' })
   check('a checkbox refuses type and names op:click', cb.outcome === 'failed' && cb.result.includes('op:"click"'), cb.result)
   const fi = await run({ op: 'type', selector: '#fi', text: '/tmp/x' })
-  check('a file input refuses naming the uploads deferral', fi.outcome === 'failed' && fi.result.includes('deferral'), fi.result)
+  check('a file input refuses typing and names the operation that sets it', fi.outcome === 'failed' && fi.result.includes('is a file input — op:"upload" with files sets it'), fi.result)
 }
 
 console.log('§5b credential zoo')
@@ -994,7 +994,7 @@ console.log('§15 structural teeth')
     'the act-op set is spelled exactly',
     toolSrc
       .replace(/\s+/g, ' ')
-      .includes("new Set([ 'open', 'click', 'type', 'scroll', 'back', 'reload', 'select', 'press', 'hover', ])"),
+      .includes("new Set([ 'open', 'click', 'type', 'scroll', 'back', 'reload', 'select', 'press', 'hover', 'upload', ])"),
   )
   check('press has NO printable keys (never a typing side door)', toolSrc.includes('PRESS_KEYS') && !/PRESS_KEYS[^]]*'a'/.test(toolSrc))
   check('the first-visit ask names itself', toolSrc.includes('first visit to'))
