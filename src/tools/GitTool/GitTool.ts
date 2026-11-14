@@ -11,7 +11,7 @@ import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { stat } from 'node:fs/promises'
 import { expandPath } from '../../utils/path.js'
-import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
+import { checkReadPermissionForTool, checkWritePermissionForTool } from '../../utils/permissions/filesystem.js'
 import { repositoryDenied, repositoryReadDecision, withheldLine } from '../../services/resources/referencePaths.js'
 import { resolveRepoFolder } from '../../services/gitGraph/repoFolder.js'
 import { gitFilterSkipMessages } from '../../utils/git/spawnArgs.js'
@@ -293,8 +293,9 @@ async function runOp(
         const prepared = resolutionFor(input, root, owner)
         if ('reason' in prepared) return { result: `resolve refused: ${prepared.reason}`, outcome: 'failed' }
         for (const file of prepared.files) {
-          const judged = await repositoryReadDecision(GitTool.name, file.path, input, context.getAppState().toolPermissionContext, root)
-          if (judged?.behavior === 'deny') return { result: judged.message ?? 'read denied', outcome: 'failed' }
+          const judged = await repositoryReadDecision(GitTool.name, file.path, input, context.getAppState().toolPermissionContext, root) ?? undefined
+          const refused = judged?.behavior === 'deny' ? judged : editDenial(file.path, root, input, context)
+          if (refused) return { result: refused.message ?? 'read denied', outcome: 'failed' }
         }
         const out = await applyResolution(prepared, context.abortController?.signal)
         return out.state === 'refused' ? { result: `resolve refused: ${out.reason}`, outcome: 'failed' } : { result: out.detail, outcome: 'succeeded', changedPaths: out.changedPaths }
@@ -522,6 +523,11 @@ function resolutionFor(input: Input, root: string, owner: ReturnType<typeof owne
   return prepareResolution(owner, root, input.resolutions ?? [])
 }
 
+function editDenial(file: string, root: string, input: Input, context: ToolUseContext) {
+  const judged = checkWritePermissionForTool({ name: 'Git', getPath: () => path.resolve(root, file) }, input, context.getAppState().toolPermissionContext)
+  return judged.behavior === 'deny' && judged.decisionReason?.type === 'rule' ? judged : null
+}
+
 function showResolution(input: Input, plan: ResolutionPlan): void {
   input.resolutionPlanId = plan.id
   input.resolutionPreview = resolutionPreview(plan)
@@ -641,6 +647,8 @@ export const GitTool = buildTool({
           for (const file of plan.files) {
             const judged = await repositoryReadDecision(GitTool.name, file.path, input, context.getAppState().toolPermissionContext, placed.root)
             if (judged?.behavior === 'deny') return judged
+            const refused = editDenial(file.path, placed.root, input, context)
+            if (refused) return refused
           }
           showResolution(input, plan)
         }
@@ -651,6 +659,8 @@ export const GitTool = buildTool({
       const root = placed !== null && placed.state !== 'refused' ? placed.root : folderOf(input)
       const judged = await repositoryReadDecision(GitTool.name, input.path, input, context.getAppState().toolPermissionContext, root)
       if (judged !== null && (judged.behavior === 'deny' || (judged.behavior === 'ask' && input.op !== 'resolve'))) return judged
+      const refused = input.op === 'resolve' ? editDenial(input.path, root, input, context) : null
+      if (refused) return refused
     }
     if (!MUTATING_OPS.has(input.op)) {
       if (namedFolder(input) !== undefined) {
