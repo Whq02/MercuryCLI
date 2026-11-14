@@ -51,6 +51,8 @@ import {
 import { removeSessionHooks } from '../../utils/hooks/sessionHooks.js'
 import { registerAgentHooks } from '../../utils/hooks/registerFrontmatterHooks.js'
 import { fireHooks } from '../../utils/hooks/fire.js'
+import { hasHooksFor } from '../../utils/hooks/matching.js'
+import { worktreeHoldOf } from '../../utils/worktreeReadiness.js'
 import { bankHookOutcomes } from '../../utils/hooks/background.js'
 import { HOOK_CUT_BUDGET_MS } from '../../utils/hooks/contract.js'
 import { hookRowsOfResult } from '../../utils/hooks/rows.js'
@@ -917,6 +919,7 @@ export async function* runAgent(
 
     const hookContextMessages: Message[] = []
     try {
+      if (hasHooksFor('crewmate.start', hookScope, toolUseContext.getAppState())) await worktreeHoldOf({ agentId, abortController })
       const started = await fireHooks(
         'crewmate.start',
         { ...(name !== undefined ? { name } : {}), prompt: promptMessages.map(message => {
