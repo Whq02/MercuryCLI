@@ -75,7 +75,7 @@ const FIELD_SHAPES: Record<RequestName | 'reset', string> = {
 }
 const REQUEST_NAMES = Object.keys(FIELD_SHAPES) as Array<RequestName | 'reset'>
 
-export const EMULATION_FIELD_WORDS = `device (a name from devices), userAgent, mobile, touch, landscape, timezone, locale, cpuSlowdown, network (${Object.keys(NETWORK_PRESETS).join(', ')} or {download, upload, latency} in bytes/s and ms), offline, geolocation {latitude, longitude, accuracy}, colorScheme (dark, light, no-preference), reducedMotion, headers, credentials {username, password or secret (a registered name)}, reset`
+export const EMULATION_FIELD_WORDS = `device (a name from devices), userAgent, mobile, touch, landscape, timezone, locale, cpuSlowdown, network (${Object.keys(NETWORK_PRESETS).join(', ')} or {download, upload, latency} in bytes/s and ms), offline, geolocation {latitude, longitude, accuracy}, colorScheme (dark, light, no-preference), reducedMotion, headers (every request, including other origins), credentials {username, password or secret (a registered name)}, reset`
 
 const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
 const isRecord = (value: unknown): value is Record<string, unknown> =>

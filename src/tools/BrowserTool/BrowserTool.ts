@@ -901,14 +901,17 @@ async function probeEditableTarget(s: LiveSession, requested: ElementHandle<Elem
   }, requested)
 }
 
-function sentByEmulation(input: Input): { words: string; secretRef?: string } | null {
+function sentByEmulation(input: Input): { words: string; headers: boolean; username?: string; secretRef?: string } | null {
   const emulation = input?.emulation as { headers?: unknown; credentials?: unknown } | undefined
   const headers = emulation?.headers !== undefined && emulation.headers !== null
   const credentials = emulation?.credentials !== undefined && emulation.credentials !== null
   if (!headers && !credentials) return null
   const secretRef = credentials ? (emulation!.credentials as { secret?: unknown }).secret : undefined
+  const username = credentials ? (emulation!.credentials as { username?: string }).username : undefined
   return {
-    words: [headers ? 'extra headers' : '', credentials ? 'basic credentials' : ''].filter(Boolean).join(' and '),
+    words: [headers ? 'extra headers sent on every request, including other origins' : '', credentials ? `basic credentials for ${username}` : ''].filter(Boolean).join(' and '),
+    headers,
+    username,
     ...(typeof secretRef === 'string' ? { secretRef } : {}),
   }
 }
@@ -1109,7 +1112,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
               nonWeb: `credentials answer a real web origin only — the page is ${origin} content`,
               nonWebReason: `credentials refused on non-web scheme ${origin}`,
               deed: `Answering ${origin} with the secret ${sent.secretRef}`,
-              ask: `Browser answer basic authentication on ${origin} with secret ${sent.secretRef} — the value never enters the conversation; approve exactly this secret-origin pairing`,
+              ask: `Browser answer basic authentication on ${origin} with secret ${sent.secretRef} as ${sent.username}${sent.headers ? '; extra headers sent on every request, including other origins' : ''} — the value never enters the conversation; approve exactly this secret-origin pairing`,
               reason: `answering ${origin} with registered secret ${sent.secretRef} needs the operator's own consent for the pairing`,
             }
           : null
@@ -1170,7 +1173,7 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
     const unloaded = sent !== null && !originOf(s.page.url()).startsWith('http')
     return {
       behavior: 'ask' as const,
-      message: `Browser ${input.op}${actDetail(input)} on ${origin} — ${unloaded ? 'its address did not load' : 'reached by navigation'}, not yet approved this session`,
+      message: `${sent?.headers ? `Browser viewport on ${origin} with ${sent.words}` : `Browser ${input.op}${actDetail(input)} on ${origin}`} — ${unloaded ? 'its address did not load' : 'reached by navigation'}, not yet approved this session`,
       decisionReason: {
         type: 'safetyCheck' as const,
         reason: unloaded ? `${origin} did not load, and no page of it is approved` : `${origin} was reached by navigation, not requested by the operator`,
