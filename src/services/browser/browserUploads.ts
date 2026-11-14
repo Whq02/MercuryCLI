@@ -3,7 +3,7 @@ import * as path from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { controlCharacterPathRefusal, expandPath } from '../../utils/path.js'
 
-export interface UploadMember {
+interface UploadMember {
   path: string
   real: string
   parts: string[]
@@ -127,7 +127,7 @@ async function copyVerified(member: UploadMember, to: string, signal: AbortSigna
   }
 }
 
-export interface StagedUpload {
+interface StagedUpload {
   dir: string
   paths: string[]
   files: number
