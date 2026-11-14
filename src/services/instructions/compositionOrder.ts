@@ -1,6 +1,6 @@
 import { agentFoldersConvention } from './adapters/agentFolders.js'
 import { agentsMdConvention } from './adapters/agentsMd.js'
-import { claudeConvention } from './adapters/claude.js'
+import { claudeConvention } from './adapters/claudeCode.js'
 import { clineConvention } from './adapters/cline.js'
 import { copilotConvention } from './adapters/copilot.js'
 import { cursorConvention } from './adapters/cursor.js'

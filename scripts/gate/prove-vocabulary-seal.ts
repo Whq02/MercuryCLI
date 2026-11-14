@@ -240,6 +240,8 @@ const ALLOW: Array<[string, string, string]> = [
   ['scripts/browser/prove-browser-stealth.ts', 'words', "the DOM's own names (navigator.plugins, Plugin) the detection checks read — the browser's vocabulary, not Mercury's"],
   ['src/constants/changelog.ts', 'retired', 'a published record keeps its lines'],
   ['docs/releases/', 'retired', 'published release pages keep their lines'],
+  ['docs/COMPATIBILITY.md', 'other-tool-home', "the page names another tool's project folder among the files Mercury reads in a project; that tool's home folder is never read"],
+  ['src/services/instructions/adapters/claudeCode.ts', 'other-tool-home', "the instruction engine's adapter for that tool names the project folder it reads; that tool's home folder is never read"],
   ['scripts/identity/prove-release-notes-words.ts', 'retired', 'the release-notes word list — a forbidden-words list under scripts/identity'],
   ['scripts/identity/prove-retired-keys-unknown.ts', 'retired,settings', 'the retired settings keys it proves unknown — a forbidden-words list under scripts/identity'],
   ['scripts/settings/prove-global-config-read-as-written.ts', 'config-migration-set,settings', 'names the retired config keys and the migration modules it proves gone'],

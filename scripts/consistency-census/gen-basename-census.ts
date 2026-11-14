@@ -66,7 +66,7 @@ const walk = (dir: string): void => {
 }
 walk(join(ROOT, 'src'))
 
-const OTHER_GUIDE_ADAPTER = 'src/services/instructions/adapters/claude.ts'
+const OTHER_GUIDE_ADAPTER = 'src/services/instructions/adapters/claudeCode.ts'
 const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boolean; cls: string; why: string }> = [
   {
     test: (f, needle) => needle === OTHER_GUIDE && f === OTHER_GUIDE_ADAPTER,

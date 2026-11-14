@@ -31,7 +31,7 @@
       "why": "the instruction engine: the native convention names MERCURY.md, the shared convention AGENTS.md (composed when no MERCURY.md stands), the capture writer and the effective-size measure name the entry files"
     },
     {
-      "file": "src/services/instructions/adapters/claude.ts",
+      "file": "src/services/instructions/adapters/claudeCode.ts",
       "needle": "CLAUDE.md",
       "excerpt": "guides: ['CLAUDE.md', '.claude/CLAUDE.md'],",
       "cls": "guide-probe",

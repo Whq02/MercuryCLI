@@ -27,7 +27,7 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-format-agent-folders
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-format-cursor.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-format-cursor.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-format-windsurf.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-format-windsurf.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-format-cline.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-format-cline.ts "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-format-claude.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-format-claude.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-format-claude-code.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-format-claude-code.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-rule-imports-keep-scope.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-rule-imports-keep-scope.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-other-tools-listing.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-other-tools-listing.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-attached-files-are-listed.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-attached-files-are-listed.ts "$__t" "$__rc"
