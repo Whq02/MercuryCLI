@@ -150,7 +150,7 @@ export interface OwnCommandFacts {
 export function ownCommandWord(facts: OwnCommandFacts): string {
   if (facts.provenanceKind === 'nix' && facts.bundle?.endsWith('/libexec/mercury/mercury.mjs')) {
     const command = join(dirname(dirname(dirname(facts.bundle))), 'bin', 'mercury')
-    return /[\s"']/.test(command) ? JSON.stringify(command) : command
+    return /^[A-Za-z0-9_./-]+$/.test(command) ? command : `'${command.replace(/'/g, "'\\''")}'`
   }
   if (facts.provenanceKind === 'managed' && facts.found.state === 'stable') return 'mercury'
   if ((facts.provenanceKind === 'homebrew' || facts.provenanceKind === 'npm') && facts.found.state !== 'absent') return 'mercury'

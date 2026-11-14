@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { mock } from 'bun:test'
 import fs, { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, watch, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -69,6 +69,12 @@ try {
   check('a shell line names the profile command, even when an unrelated Mercury is first on PATH', path.ownCommandWord({ provenanceKind: 'nix', found: { state: 'other', resolved: '/other/mercury', npmWrapper: false }, node, bundle: logical }) === join(profile, 'bin/mercury'))
   process.argv[1] = previousArg!
   if (process.platform !== 'win32') {
+    for (const spelling of ['space here', 'dollar$HOME', 'quoted\'name', 'semi;colon']) {
+      const command = join(scratch, spelling, '.nix-profile/bin/mercury')
+      const word = path.ownCommandWord({ provenanceKind: 'nix', found: { state: 'absent' }, node, bundle: join(scratch, spelling, '.nix-profile/libexec/mercury/mercury.mjs') })
+      const parsed = spawnSync('/bin/sh', ['-c', `set -- ${word}; printf '%s' "$1"`], { encoding: 'utf8', env: { HOME: home, PATH: '/usr/bin:/bin' } })
+      check(`a profile path containing ${spelling} stays one literal shell word`, parsed.status === 0 && parsed.stdout === command, parsed.stdout + parsed.stderr)
+    }
     const env = { PATH: `${dirname(node)}:/usr/bin:/bin`, HOME: home, MERCURY_CONFIG_DIR: config, MERCURY_DAEMON_DIR: daemonDir, MERCURY_DAEMON_NO_SELF_WARM: '1', MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_UPDATE_NOTICE: '0', MERCURY_EVOLUTION_LEDGER: '0', CI: '1' }
     const recordPath = join(daemonDir, 'daemon.json')
     const child = spawn(node, [logical, 'daemon', 'run', scratch], { env, cwd: scratch, stdio: ['ignore', 'pipe', 'pipe'] })
