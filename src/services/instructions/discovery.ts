@@ -65,6 +65,15 @@ export async function safelyReadInstructionFileAsync(
   }
 }
 
+async function passedOver(filePath: string, resolved: { isSymlink: boolean; isCanonical: boolean }): Promise<boolean> {
+  if (resolved.isCanonical && !resolved.isSymlink) return false
+  try {
+    return !(await getFsImplementation().stat(filePath)).isFile()
+  } catch (error) {
+    return getErrnoCode(error) === 'ENOENT'
+  }
+}
+
 export const MAX_INCLUDE_DEPTH = 5
 
 let excludeResolutionMemo = new WeakMap<FsOperations, Map<string, string>>()
@@ -176,14 +185,18 @@ export async function processInstructionFile(
     return []
   }
 
-  const { resolvedPath, isSymlink } = safeResolvePath(
+  const resolved = safeResolvePath(
     getFsImplementation(),
     filePath,
   )
+  const { resolvedPath, isSymlink } = resolved
 
   processedPaths.add(normalizedPath)
   if (isSymlink) {
     processedPaths.add(normalizePathForComparison(resolvedPath))
+  }
+  if (await passedOver(filePath, resolved)) {
+    return []
   }
 
   const { info: memoryFile, includePaths: resolvedIncludePaths, bareMentionPaths } =
@@ -367,10 +380,14 @@ export async function processRuleFile(
   if (format === undefined || processedPaths.has(normalizedPath) || convention.isExcluded(filePath, type)) {
     return []
   }
-  const { resolvedPath, isSymlink } = safeResolvePath(getFsImplementation(), filePath)
+  const resolved = safeResolvePath(getFsImplementation(), filePath)
+  const { resolvedPath, isSymlink } = resolved
   processedPaths.add(normalizedPath)
   if (isSymlink) {
     processedPaths.add(normalizePathForComparison(resolvedPath))
+  }
+  if (await passedOver(filePath, resolved)) {
+    return []
   }
   let rawContent: string
   try {

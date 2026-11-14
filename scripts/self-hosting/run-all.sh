@@ -33,6 +33,7 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-orient-keeps-what-lo
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-other-tools-hidden-characters.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-other-tools-hidden-characters.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-formats-page-names-what-is-read.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-formats-page-names-what-is-read.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-other-tools-cost-nothing-where-absent.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-other-tools-cost-nothing-where-absent.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-instruction-file-not-a-regular-file.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-instruction-file-not-a-regular-file.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-project-local-owner.ts || { __rc=$?; fail=1; }; prover_mark "scripts/self-hosting/prove-project-local-owner.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-instruction-capture.ts || { __rc=$?; fail=1; }; prover_mark "scripts/self-hosting/prove-instruction-capture.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-capture-doctrine.ts || { __rc=$?; fail=1; }; prover_mark "scripts/self-hosting/prove-capture-doctrine.ts" "$__t" "$__rc"
