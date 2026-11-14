@@ -32,8 +32,6 @@
     "@modelcontextprotocol/server": "2.4.0",
     "@puppeteer/browsers": "3.2.1",
     "@xmldom/xmldom": "0.8.15",
-    "acorn": "^8.18.0",
-    "acorn-walk": "^8.3.5",
     "ajv": "8.20.0",
     "auto-bind": "5.0.1",
     "axios": "1.20.0",
