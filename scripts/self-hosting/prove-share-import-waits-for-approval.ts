@@ -33,8 +33,12 @@ type Reading = {
   listed: string[]
   attached: string[]
   reloads: string[][]
+  mirroredInRoots: boolean
+  driveShareInRoots: boolean
+  driveControls: { ownInside: boolean; otherHostOutside: boolean; longHostOutside: boolean }
+  pointerTarget: string
 }
-type Scene = { seam: 'windows' | 'macos'; layout: Record<string, string>; approved?: boolean; silent?: boolean; personal?: string; outside?: Record<string, string> }
+type Scene = { seam: 'windows' | 'macos' | 'linux'; layout: Record<string, string> | ((mirror: (name: string) => string) => Record<string, string>); approved?: boolean; silent?: boolean; personal?: string; outside?: Record<string, string>; pointer?: (mirror: (name: string) => string) => string }
 
 const driver = join(scratch, 'driver.ts')
 writeFileSync(driver, `
@@ -47,11 +51,13 @@ const repo = ${JSON.stringify(repo)}
 const { enableConfigs } = await import(join(repo, 'src/utils/config/globalConfig.ts'))
 enableConfigs()
 const { getPlatform } = await import(join(repo, 'src/utils/platform.ts'))
-const { setIsInteractive } = await import(join(repo, 'src/bootstrap/state.ts'))
+const { setIsInteractive, setOriginalCwd } = await import(join(repo, 'src/bootstrap/state.ts'))
 const { getFsImplementation } = await import(join(repo, 'src/utils/fsOperations.ts'))
 const { getEmptyToolPermissionContext } = await import(join(repo, 'src/Tool.ts'))
 const { createFileStateCacheWithSizeLimit } = await import(join(repo, 'src/utils/fileStateCache.ts'))
 const engine = await import(join(repo, 'src/services/instructions/engine.ts'))
+const discovery = await import(join(repo, 'src/services/instructions/discovery.ts'))
+const writer = await import(join(repo, 'src/services/instructions/projectInstructionWriter.ts'))
 const listing = await import(join(repo, 'src/services/instructions/listing.ts'))
 const { getUserContext } = await import(join(repo, 'src/context.ts'))
 const { getNestedMemoryAttachmentsForFile } = await import(join(repo, 'src/utils/attachments/nestedMemory.ts'))
@@ -60,7 +66,7 @@ const plan = JSON.parse(process.env.DRV_PLAN ?? '{}')
 
 const fs: any = getFsImplementation()
 const calls: string[] = []
-const onShare = (path: string): boolean => path.includes(plan.host)
+const onShare = (path: string): boolean => plan.shares.some((part: string) => path.includes(part))
 const watched = (path: string): boolean => plan.watch.some((part: string) => path.includes(part))
 const words = (path: string): Buffer => Buffer.from('share-needle-' + path.slice(path.length - 4, path.length - 3) + '\\n')
 const no = (): boolean => false
@@ -141,8 +147,20 @@ roads.nested = calls.splice(0)
 await engine.getInstructionBundle()
 roads.health = calls.splice(0)
 
+const mirroredInRoots = discovery.pathInInstructionRoots(plan.mirroredSample)
+const originalCwd = process.cwd()
+setOriginalCwd('C:' + plan.bs + 'proj')
+const driveShareInRoots = discovery.pathInInstructionRoots(plan.bs + plan.bs + 'c' + plan.bs + 'proj' + plan.bs + 'rules' + plan.bs + 'a.md')
+const driveControls = {
+  ownInside: discovery.pathInInstructionRoots('C:' + plan.bs + 'proj' + plan.bs + 'notes' + plan.bs + 'real.md'),
+  otherHostOutside: !discovery.pathInInstructionRoots(plan.bs + plan.bs + 'd' + plan.bs + 'proj' + plan.bs + 'rules' + plan.bs + 'a.md'),
+  longHostOutside: !discovery.pathInInstructionRoots(plan.bs + plan.bs + 'fileserver' + plan.bs + 'proj' + plan.bs + 'rules' + plan.bs + 'a.md'),
+}
+setOriginalCwd(originalCwd)
+const pointerTarget = plan.pointerDir ? writer.followPointerLaw(join(plan.pointerDir, 'MERCURY.md'), plan.pointerDir).targetPath : ''
+
 getPlatform.cache.delete(undefined)
-writeFileSync(process.argv[2]!, JSON.stringify({ roads, loaded: files.map((f: any) => f.path), first, heldByLoad, asks, heldByQuestion, listed, attached, reloads }))
+writeFileSync(process.argv[2]!, JSON.stringify({ roads, loaded: files.map((f: any) => f.path), first, heldByLoad, asks, heldByQuestion, listed, attached, reloads, mirroredInRoots, driveShareInRoots, driveControls, pointerTarget }))
 `)
 
 let passed = 0
@@ -152,13 +170,25 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
 }
 
+const MIRROR = 'mirror-share'
+const mirrorStem = (dir: string): string =>
+  dir
+    .replace(/^\/private(?=\/)/, '')
+    .replace(/^([A-Za-z]):[\\/]/, (_, letter: string) => `/${letter.toLowerCase()}/`)
+    .replace(/\\/g, '/')
+    .replace(/^\/+/, '')
+
 let worlds = 0
-function read(scene: Scene): Reading & { project: string; outside: string } {
+function read(scene: Scene): Reading & { project: string; outside: string; mirrorPath: (name: string) => string; pointerDir: string } {
   const world = join(scratch, `world-${++worlds}`)
   const project = join(world, 'project')
   const outside = join(world, 'outside')
+  const pointerDir = join(world, 'pointer')
   const home = join(world, 'home')
   const config = join(world, 'config')
+  const stem = mirrorStem(project)
+  const mirrorLine = (name: string): string => `@${B}${B}${stem.replace(/\//g, B)}${B}${MIRROR}${B}${name}.md`
+  const mirrorPath = (name: string): string => win32.normalize(`//${stem}/${MIRROR}/${name}.md`)
   const put = (root: string, files: Record<string, string>): void => {
     for (const [rel, content] of Object.entries(files)) {
       mkdirSync(dirname(join(root, rel)), { recursive: true })
@@ -166,8 +196,12 @@ function read(scene: Scene): Reading & { project: string; outside: string } {
     }
   }
   mkdirSync(home, { recursive: true })
-  put(project, scene.layout)
+  put(project, typeof scene.layout === 'function' ? scene.layout(mirrorLine) : scene.layout)
   put(outside, scene.outside ?? {})
+  if (scene.pointer !== undefined) {
+    const pointerStem = mirrorStem(pointerDir)
+    put(pointerDir, { 'MERCURY.md': scene.pointer(name => `@${B}${B}${pointerStem.replace(/\//g, B)}${B}${MIRROR}${B}${name}.md`) })
+  }
   seedFirstRun(config, [project])
   if (scene.approved) {
     const saved = JSON.parse(readFileSync(join(config, '.mercury.json'), 'utf8')) as { projects: Record<string, object> }
@@ -179,13 +213,13 @@ function read(scene: Scene): Reading & { project: string; outside: string } {
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(MERCURY_|CLAUDE_|ANTHROPIC_)/.test(key)))
   const run = spawnSync(process.execPath, ['run', driver, result], {
     cwd: project,
-    env: { ...env, HOME: home, USERPROFILE: home, DRV_HOME: home, MERCURY_CONFIG_DIR: config, MERCURY_LOCAL_PROBE_TARGETS: 'none', DRV_PLAN: JSON.stringify({ seam: scene.seam, silent: scene.silent === true, host: HOST, watch: [HOST, `${sep}outside${sep}`] }) },
+    env: { ...env, HOME: home, USERPROFILE: home, DRV_HOME: home, MERCURY_CONFIG_DIR: config, MERCURY_LOCAL_PROBE_TARGETS: 'none', DRV_PLAN: JSON.stringify({ seam: scene.seam, silent: scene.silent === true, bs: B, shares: [HOST, MIRROR], watch: [HOST, MIRROR, `${sep}outside${sep}`], mirroredSample: mirrorPath('a'), pointerDir: scene.pointer !== undefined ? pointerDir : '' }) },
     stdio: ['ignore', 'ignore', 'pipe'],
     encoding: 'utf8',
     timeout: 120_000,
   })
   if (run.status !== 0) throw new Error(`driver exited ${run.status}: ${run.stderr}`)
-  return { ...(JSON.parse(readFileSync(result, 'utf8')) as Reading), project, outside }
+  return { ...(JSON.parse(readFileSync(result, 'utf8')) as Reading), project, outside, mirrorPath, pointerDir }
 }
 
 const layoutWith = (line: (name: string) => string): Record<string, string> => ({
@@ -219,6 +253,21 @@ try {
     check("the nested folder's guide attaches and its own import of the share stays held", same(r.attached, [join(r.project, 'sub', 'MERCURY.md')]), JSON.stringify(r.attached))
   }
 
+  console.log("on Windows a share whose host and path mirror the project's own root is still outside the project and never looked up before approval")
+  const mirrored = read({ seam: 'windows', layout: mirror => layoutWith(mirror), pointer: mirror => `${mirror('p')}\n` })
+  const mirroredAtStart = ['a', 'b', 'c', 'd'].map(mirrored.mirrorPath)
+  const mirroredReported = ['a', 'b', 'c'].map(mirrored.mirrorPath)
+  const mirroredOwn = ['MERCURY.md', 'notes/inside.md', '.mercury/rules/always.md', 'MERCURY.local.md'].map(rel => join(mirrored.project, rel))
+  for (const road of ROADS) check(`mirrored host — ${ROAD_WORDS[road]}: no file-system call names the share`, mirrored.roads[road].length === 0, mirrored.roads[road].join(' | '))
+  check("mirrored host — the load reads only the project's four files, holds the share imports and sends nothing of the share", same(mirrored.loaded, mirroredOwn) && same(mirrored.heldByLoad, mirroredReported) && !mirrored.first.includes('share-needle'), JSON.stringify({ held: mirrored.heldByLoad, loaded: mirrored.loaded }))
+  check('mirrored host — the reloads read the same four files', mirrored.reloads.length === 4 && mirrored.reloads.every(paths => same(paths, mirroredOwn)), JSON.stringify(mirrored.reloads))
+  check('mirrored host — the question holds them, asks, and lists each share path once', same(mirrored.heldByQuestion, mirroredReported) && mirrored.asks === true && same(mirrored.listed, mirroredAtStart), JSON.stringify({ asks: mirrored.asks, listed: mirrored.listed, held: mirrored.heldByQuestion }))
+  check("mirrored host — the nested folder's guide attaches and its own import of the share stays held", same(mirrored.attached, [join(mirrored.project, 'sub', 'MERCURY.md')]), JSON.stringify(mirrored.attached))
+  check('mirrored host — a share matching the drive letter and root stands outside the project, and pointer capture stays on MERCURY.md', mirrored.mirroredInRoots === false && mirrored.driveShareInRoots === false && mirrored.pointerTarget === join(mirrored.pointerDir, 'MERCURY.md'), JSON.stringify({ mirroredInRoots: mirrored.mirroredInRoots, driveShareInRoots: mirrored.driveShareInRoots, pointerTarget: mirrored.pointerTarget }))
+  check('controls — the drive path itself stays inside, and shares on another drive letter or a longer host name stay outside', mirrored.driveControls.ownInside && mirrored.driveControls.otherHostOutside && mirrored.driveControls.longHostOutside, JSON.stringify(mirrored.driveControls))
+  const mirroredApproved = read({ seam: 'windows', layout: mirror => layoutWith(mirror), approved: true })
+  check('controls — once outside imports are approved, the mirrored-host share is read and its words reach the first request', kinds(mirroredApproved.roads.load).includes('readFileBytes') && ['a', 'b', 'c', 'd'].every(name => mirroredApproved.first.includes(`share-needle-${name}`)) && mirroredApproved.heldByLoad.length === 0, `${kinds(mirroredApproved.roads.load)} ${JSON.stringify(mirroredApproved.heldByLoad)}`)
+
   console.log('a share that does not answer is held and listed all the same')
   const backslashes = SPELLINGS[1]!
   const silent = read({ seam: 'windows', layout: layoutWith(backslashes.line), silent: true })
@@ -244,8 +293,9 @@ try {
   if (process.platform === 'win32') {
     console.log("[SKIP] it is held by the load and read by the question before the dialog, as it was — on a Windows host the path module makes the line a share's path whatever platform the seam names")
   } else {
-    const local = read({ seam: 'macos', layout: { 'MERCURY.md': `native-needle\n\n${SPELLINGS[0]!.line('a')}\n` } })
-    check('it is held by the load and read by the question before the dialog, as it was', same(local.heldByLoad, [`/${HOST}/share/rules/a.md`]) && kinds(local.roads.question).includes('readFileBytes') && local.asks === true && local.heldByQuestion.length === 0, `${JSON.stringify(local.heldByLoad)} ${kinds(local.roads.question)} ${local.asks}`)
+    const localMac = read({ seam: 'macos', layout: { 'MERCURY.md': `native-needle\n\n${SPELLINGS[0]!.line('a')}\n` } })
+    const localLinux = read({ seam: 'linux', layout: { 'MERCURY.md': `native-needle\n\n${SPELLINGS[0]!.line('a')}\n` } })
+    check('it is held by the load and read by the question before the dialog, as it was', same(localMac.heldByLoad, [`/${HOST}/share/rules/a.md`]) && same(localLinux.heldByLoad, [`/${HOST}/share/rules/a.md`]) && kinds(localMac.roads.question).includes('readFileBytes') && kinds(localLinux.roads.question).includes('readFileBytes') && localMac.asks === true && localLinux.asks === true && localMac.heldByQuestion.length === 0 && localLinux.heldByQuestion.length === 0, `${JSON.stringify(localMac.heldByLoad)} ${kinds(localMac.roads.question)} ${localMac.asks}`)
   }
 } finally {
   rmSync(scratch, { recursive: true, force: true })

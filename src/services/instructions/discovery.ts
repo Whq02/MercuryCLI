@@ -1,7 +1,7 @@
 import ignore from 'ignore'
 import { LRUCache } from 'lru-cache'
 import { homedir } from 'os'
-import { dirname, extname, isAbsolute, join, relative, sep } from 'path'
+import { dirname, extname, isAbsolute, join, relative, sep, win32 } from 'path'
 import picomatch from 'picomatch'
 
 import { getOriginalCwd } from '../../bootstrap/state.js'
@@ -22,9 +22,15 @@ import type {
 } from './contracts.js'
 import { parseInstructionFileContent, readRuleSource, TEXT_FILE_EXTENSIONS } from './sourceText.js'
 
+const shareRooted = (path: string): boolean => getPlatform() === 'windows' && /^[\\/]{2}/.test(path)
+
+export function withinInstructionDir(path: string, dir: string): boolean {
+  return shareRooted(path) === shareRooted(dir) && pathInWorkingPath(path, dir)
+}
+
 export function pathInInstructionRoots(path: string): boolean {
   const fs = getFsImplementation()
-  return pathInWorkingPath(safeResolvePath(fs, path).resolvedPath, safeResolvePath(fs, getOriginalCwd()).resolvedPath)
+  return withinInstructionDir(safeResolvePath(fs, path).resolvedPath, safeResolvePath(fs, getOriginalCwd()).resolvedPath)
 }
 
 function handleInstructionFileReadError(
@@ -246,9 +252,10 @@ export async function processInstructionFile(
       continue
     }
     const includeTarget = safeResolvePath(getFsImplementation(), resolvedIncludePath).resolvedPath
+    const holder = (getPlatform() === 'windows' ? win32.dirname : dirname)(resolvedPath)
     const isExternal =
       !pathInInstructionRoots(includeTarget) &&
-      !pathInWorkingPath(includeTarget, dirname(resolvedPath))
+      !withinInstructionDir(includeTarget, holder)
     const followed = includeExternal === true || (includeExternal !== false && !isUncLikePath(includeTarget))
     if (isExternal && !followed) {
       if (typeof includeExternal === 'object' && !includeExternal.heldShares.some(held => held.path === resolvedIncludePath)) {
@@ -358,7 +365,7 @@ async function rulesImportedAt(
       : await processRuleFile(convention, path, type, processedPaths, diagnostics, at.source)
     const kept = read.filter(entry => entry.dormant === undefined || (!folder && entry.dormant === 'manual'))
     const start = getOriginalCwd()
-    const anchor = pathInWorkingPath(start, at.owner) || pathInWorkingPath(at.owner, start) ? at.owner : start
+    const anchor = withinInstructionDir(start, at.owner) || withinInstructionDir(at.owner, start) ? at.owner : start
     for (const entry of kept) {
       entry.parent = parent
       delete entry.dormant
