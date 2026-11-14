@@ -32,6 +32,7 @@ const readiness = (await import('../../src/utils/worktreeReadiness.ts').catch(()
   heldAgentCount: () => number
   worktreeHoldOf: (context: { agentId?: unknown; abortController: { signal: AbortSignal } }) => Promise<void> | undefined
   worktreeReadyOf?: (agentId: string) => Promise<void> | undefined
+  hookMayMeetCopy?: (event: string) => boolean
 }
 type Launch = Awaited<ReturnType<typeof createAgentWorktree>> & { ready?: Promise<void> }
 const launch = (slug: string, from?: string): Promise<Launch> => createAgentWorktree(slug, { ...(from !== undefined ? { from } : {}), foldersBehindLaunch: true } as never) as Promise<Launch>
@@ -316,7 +317,18 @@ try {
     rmSync(join(fixture, '.mercury', 'settings.json'))
     resetSettingsCache()
 
-    section('§8 where the wait sits')
+    section('§8 a hook that could run in the crewmate\'s directory before a tool call makes the crewmate wait for its folders first')
+    const { HOOK_EVENTS } = await import('../../src/utils/hooks/contract.ts')
+    const behindTheGate = ['tool.before', 'tool.after', 'permission.ask', 'permission.decided', 'session.start', 'session.end', 'session.state', 'file.changed']
+    const mayMeet = (event: string): boolean => readiness?.hookMayMeetCopy?.(event) === true
+    check('the hooks of a tool call and of a permission ask run inside a tool call, behind the gate, and the session\'s own never run in a crewmate\'s directory: none of these makes a crewmate wait', readiness?.hookMayMeetCopy !== undefined && behindTheGate.every(event => (HOOK_EVENTS as readonly string[]).includes(event) && !mayMeet(event)), behindTheGate.filter(mayMeet).join(', '))
+    check('every other moment the contract names does: the start, the answer, the turn\'s end, the crewmate\'s end, a fold before and after, a turn\'s start', ['crewmate.start', 'turn.answer', 'turn.end', 'crewmate.end', 'compaction.before', 'compaction.after', 'turn.start'].every(event => (HOOK_EVENTS as readonly string[]).includes(event) && mayMeet(event)) && (HOOK_EVENTS as readonly string[]).filter(event => !behindTheGate.includes(event)).every(mayMeet), (HOOK_EVENTS as readonly string[]).filter(event => !behindTheGate.includes(event) && !mayMeet(event)).join(', '))
+    check('…and so does a moment the contract does not name yet', mayMeet('some.later.moment'))
+    const runAgentSource = readFileSync(join(ROOT, 'src/tools/AgentTool/runAgent.ts'), 'utf8')
+    check('runAgent asks it of every moment of the contract before the start hook fires, and a crewmate whose own definition carries hooks waits too', runAgentSource.includes("if (agentDefinition.hooks !== undefined || HOOK_EVENTS.some(event => hookMayMeetCopy(event) && hasHooksFor(event, hookScope, toolUseContext.getAppState()))) await worktreeHoldOf({ agentId, abortController })\n      const started = await fireHooks(\n        'crewmate.start',"))
+    check('the hooks of a crewmate\'s end wait for the folders themselves, whatever ended it', runAgentSource.includes("if (hasHooksFor('turn.end', hookScope, toolUseContext.getAppState()) || hasHooksFor('crewmate.end', hookScope, toolUseContext.getAppState())) await worktreeReadyOf(agentId)\n      await fireHooks(\n        'turn.end',"))
+
+    section('§9 where the wait sits')
     const orchestration = readFileSync(join(ROOT, 'src/services/tools/toolOrchestration.ts'), 'utf8')
     const early = readFileSync(join(ROOT, 'src/services/tools/earlyStarts.ts'), 'utf8')
     const gate = readFileSync(join(ROOT, 'src/run-core/pauseGate.ts'), 'utf8')

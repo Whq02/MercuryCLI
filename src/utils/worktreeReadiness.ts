@@ -1,4 +1,9 @@
 const holds = new Map<string, Promise<void>>()
+const HOOKS_BEHIND_THE_GATE: ReadonlySet<string> = new Set(['tool.before', 'tool.after', 'permission.ask', 'permission.decided', 'session.start', 'session.end', 'session.state', 'file.changed'])
+
+export function hookMayMeetCopy(event: string): boolean {
+  return !HOOKS_BEHIND_THE_GATE.has(event)
+}
 
 export function holdToolsUntil(agentId: string, ready: Promise<unknown>): void {
   const settled = ready.then(
