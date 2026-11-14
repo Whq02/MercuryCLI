@@ -983,7 +983,7 @@ export function renderSearchTrailer(scope: AstScope, result: AstSearchResult): s
   if (result.recovered) {
     for (const file of result.recovered.slice(0, 5)) {
       const omitted = Math.max(0, file.diagnostics - file.notes.length)
-      out.push(`Searched recovered tree: ${file.rel} (${file.lang}; ${file.notes.join('; ')}${omitted ? `; +${omitted} more diagnostics` : ''}). Matches may include parser recovery.`)
+      out.push(`Searched recovered tree: ${file.rel} (${file.lang}; ${file.notes.join('; ')}${omitted ? `; +${omitted} more diagnostics` : ''}). Matches may include parser recovery; code inside a syntax error may go unmatched.`)
     }
     if (result.recovered.length > 5) out.push(`+${result.recovered.length - 5} more files searched over recovered trees.`)
   }

@@ -148,7 +148,7 @@ section('§9 — a recovered file is searched and its parse error is reported')
   writeFileSync(join(root, 'broken', 'bad.py'), 'def broken(:\n    print(\n')
   const r = await search({ pattern: 'print($X)', path: 'broken' })
   check('the good file matches', Number(r.data?.matchCount) === 1 && r.text.includes('ok.py:1:1'), r.text.slice(0, 200))
-  check('the broken file is named with its parse error', r.text.includes('Searched recovered tree: bad.py (python;') && r.text.includes('Matches may include parser recovery.'), r.text.split('\n').find(l => l.startsWith('Searched recovered')) ?? r.text.slice(0, 300))
+  check('the broken file is named with its parse error', r.text.includes('Searched recovered tree: bad.py (python;') && r.text.includes('Matches may include parser recovery; code inside a syntax error may go unmatched.'), r.text.split('\n').find(l => l.startsWith('Searched recovered')) ?? r.text.slice(0, 300))
 }
 
 section('§10 — a read-deny rule hides a file')

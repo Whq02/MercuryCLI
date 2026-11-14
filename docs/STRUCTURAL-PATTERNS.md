@@ -148,9 +148,11 @@ result trailer; a single such file, or a `lang` pin on it, refuses by name
 with the remedy. A file whose extension routes to no grammar at all is
 skipped and counted, never text-matched. AstSearch searches a recovered
 tree when the parser reports syntax errors. Its trailer names the file,
-language and error locations, with omitted counts for longer reports;
-matches may include parser recovery. A parser that returns no tree leaves
-the file unsearched and names the reason. The engine is pure WASM (no native
+language and error locations (an error that runs past its line is given
+with its end), with omitted counts for longer reports; matches may include
+parser recovery, and code inside a syntax error may go unmatched. A parser
+that returns no tree leaves the file unsearched and names the reason. The
+engine is pure WASM (no native
 dependency, one vendored asset set for every platform artifact); when no
 engine resolves at all, neither tool is in the catalog. Friendly spellings
 resolve (`ts`, `js`, `py`, `rs`, `cs`, `c++`, `sh`, `rb`, `kt`, `ps1`); for

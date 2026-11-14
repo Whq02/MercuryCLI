@@ -26,7 +26,7 @@ try {
   for (const fixture of cases) {
     const result = await search({ pattern: fixture.pattern, path: fixture.file })
     check(`${fixture.file}: the intact construct matches on the recovered tree`, result.matchCount === 1 && result.text.includes(fixture.expected), JSON.stringify(result))
-    check(`${fixture.file}: warning names the file, language and source location`, result.text.includes(`Searched recovered tree: ${fixture.file} (${fixture.language}; `) && /\d+:\d+ (?:syntax error|missing)/.test(result.text) && result.text.includes('Matches may include parser recovery.') && !result.text.includes('Did not parse, never matched:'), result.text)
+    check(`${fixture.file}: warning names the file, language and source location`, result.text.includes(`Searched recovered tree: ${fixture.file} (${fixture.language}; `) && /\d+:\d+ (?:syntax error|missing)/.test(result.text) && result.text.includes('Matches may include parser recovery; code inside a syntax error may go unmatched.') && !result.text.includes('Did not parse, never matched:'), result.text)
     check(`${fixture.file}: the parse-problem count stays honest and search writes nothing`, result.parseFailures === 1 && world.get(fixture.file) === fixture.code, JSON.stringify(result))
   }
   const missing = await search({ pattern: 'SELECT $X FROM items', path: 'missing.sql' })

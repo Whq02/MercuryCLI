@@ -317,6 +317,8 @@ export interface ParseErrorRegion {
   endIndex: number
   line: number
   column: number
+  endLine: number
+  endColumn: number
 }
 
 interface PolyglotParse {
@@ -331,7 +333,7 @@ function collectErrorRegions(root: TSNode): ParseErrorRegion[] {
   while (stack.length) {
     const node = stack.pop()!
     if (node.type === 'ERROR' || node.isMissing) {
-      errors.push({ type: node.type, missing: node.isMissing, startIndex: node.startIndex, endIndex: node.endIndex, line: node.startPosition.row + 1, column: node.startPosition.column + 1 })
+      errors.push({ type: node.type, missing: node.isMissing, startIndex: node.startIndex, endIndex: node.endIndex, line: node.startPosition.row + 1, column: node.startPosition.column + 1, endLine: node.endPosition.row + 1, endColumn: node.endPosition.column + 1 })
     }
     if (!node.hasError && node.type !== 'ERROR' && !node.isMissing) continue
     const children = node.children
@@ -429,7 +431,7 @@ export async function parsePolyglot(
   if (tree.rootNode.hasError) {
     if (opts?.errorRegions) {
       const errorRegions = collectErrorRegions(tree.rootNode)
-      parseErrors = errorRegions.slice(0, 3).map(error => `${error.line}:${error.column} ${error.missing ? `missing ${error.type}` : 'syntax error'}`)
+      parseErrors = errorRegions.slice(0, 3).map(error => `${error.line}:${error.column}${error.missing ? ` missing ${error.type}` : `${error.endLine > error.line ? `-${error.endLine}:${error.endColumn}` : ''} syntax error`}`)
       if (parseErrors.length === 0) parseErrors = ['syntax error (recovery token; exact location unavailable)']
       return { tree, parseErrors, errorRegions }
     }
