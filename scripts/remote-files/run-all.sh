@@ -2,6 +2,8 @@
 # gate-class: cpu
 # gate-watch: src/services/remoteFiles/**
 # gate-watch: scripts/lib/removeScratch.ts
+# gate-watch: scripts/lib/fixtureApi.ts
+# gate-watch: scripts/lib/firstRunSeed.ts
 # gate-watch: src/services/changeTransaction/seenLines.ts
 # gate-watch: src/utils/readFileInRange.ts
 # gate-watch: src/utils/file.ts
