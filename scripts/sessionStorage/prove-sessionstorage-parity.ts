@@ -149,8 +149,8 @@ const IO = 'filesystem/session-state IO — pinned by the standing resume/forens
 const SKIPPED: Record<string, string> = Object.fromEntries(
   [
     'writeAgentMetadata', 'readAgentMetadata', 'writeRemoteAgentMetadata', 'readRemoteAgentMetadata',
-    'deleteRemoteAgentMetadata', 'listRemoteAgentMetadata', 'setAgentTranscriptSubdir',
-    'clearAgentTranscriptSubdir', 'getTranscriptPath', 'resetProjectFlushStateForTesting',
+    'deleteRemoteAgentMetadata', 'listRemoteAgentMetadata',
+    'getTranscriptPath', 'resetProjectFlushStateForTesting',
     'resetProjectForTesting', 'setSessionFileForTesting', 'recordTranscript',
     'recordSidechainTranscript', 'recordQueueOperation', 'removeTranscriptMessage',
     'registerAgentTranscriptDestination',

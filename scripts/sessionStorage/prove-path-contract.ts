@@ -91,15 +91,9 @@ for (const path of [posix, win32]) {
     deepStrictEqual(events, [['override'], ...(override == null ? [['cwd'], ['project', state.cwd]] : []), ['session']])
     equal(api.getTranscriptPathForSession(state.session), path.join(base, `${state.session}.jsonl`))
     equal(api.getTranscriptPathForSession('other'), path.join(project(state.cwd), 'other.jsonl'))
-    for (const subdir of ['', 'workflows/run-one', '../relative', '/absolute', 'C:\\example']) {
-      equal(api.setAgentTranscriptSubdir(id, subdir), undefined)
-      const root = path.join(base, state.session, 'subagents')
-      equal(api.getAgentTranscriptPath(id), path.join(subdir ? path.join(root, subdir) : root, `agent-${id}.jsonl`))
-      equal(api.getAgentMetadataPath(id), api.getAgentTranscriptPath(id).replace(/\.jsonl$/, '.meta.json'))
-    }
-    equal(api.clearAgentTranscriptSubdir(id), undefined)
-    equal(api.clearAgentTranscriptSubdir(id), undefined)
+    deepStrictEqual(['setAgentTranscriptSubdir', 'clearAgentTranscriptSubdir'].filter(name => name in api), [])
     equal(api.getAgentTranscriptPath(id), path.join(base, state.session, 'subagents', `agent-${id}.jsonl`))
+    equal(api.getAgentMetadataPath(id), api.getAgentTranscriptPath(id).replace(/\.jsonl$/, '.meta.json'))
     for (const error of [undefined, absent, broken]) {
       state.statError = error
       events.length = 0
@@ -153,7 +147,6 @@ for (const path of [posix, win32]) {
 
   const root = path.join(project(state.cwd), state.session, 'subagents')
   directories.set(root, ['agent-a.meta.json', 'ignored.json', 'agent-z.meta.json', 'agent-b.meta.json', 'agent-c.meta.json', 'agent-.meta.json'])
-  api.setAgentTranscriptSubdir('a', 'workflows/group')
   files.set(api.getAgentMetadataPath('a' as never), 'false')
   files.set(api.getAgentMetadataPath('z' as never), '{torn')
   files.set(api.getAgentMetadataPath('b' as never), broken)

@@ -604,7 +604,7 @@ section("§2c THE SWITCH ON THE SESSION'S OWN RECORD: /advise on writes an advis
   check('the pre-boundary metadata pass keeps the advisor-switch record across a compaction, beside the mode', reader.includes(`'"metaKind":"advisor-switch"'`) && reader.includes(`'"metaKind":"mode"'`))
 }
 
-async function driveAgent(opts: { agentId: string; isAsync: boolean; transcriptSubdir?: string; querySource: string; agentKind?: 'crewmate' }): Promise<{ yields: AnyMsg[]; threw?: string; childContext?: Raw }> {
+async function driveAgent(opts: { agentId: string; isAsync: boolean; querySource: string; agentKind?: 'crewmate' }): Promise<{ yields: AnyMsg[]; threw?: string; childContext?: Raw }> {
   const ctx = makeCtx()
   const yields: AnyMsg[] = []
   let threw: string | undefined
@@ -622,7 +622,6 @@ async function driveAgent(opts: { agentId: string; isAsync: boolean; transcriptS
       querySource: opts.querySource as never,
       availableTools: TOOLS as never,
       override: { agentId: opts.agentId } as never,
-      ...(opts.transcriptSubdir !== undefined ? { transcriptSubdir: opts.transcriptSubdir } : {}),
       beforeQueryStep: () => undefined,
     })
     for await (const message of stream) yields.push(message as unknown as AnyMsg)

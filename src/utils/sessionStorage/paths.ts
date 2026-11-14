@@ -56,21 +56,8 @@ export function sessionIdExists(sessionId: string): boolean {
   return true
 }
 
-const agentFolders = new Map<string, string>()
-
-export function setAgentTranscriptSubdir(agentId: string, subdir: string): void {
-  agentFolders.set(agentId, subdir)
-}
-
-export function clearAgentTranscriptSubdir(agentId: string): void {
-  agentFolders.delete(agentId)
-}
-
 export function getAgentTranscriptPath(agentId: AgentId): string {
-  const grouping = agentFolders.get(agentId)
-  let directory = currentSubagents()
-  if (grouping) directory = join(directory, grouping)
-  return join(directory, `agent-${agentId}.jsonl`)
+  return join(currentSubagents(), `agent-${agentId}.jsonl`)
 }
 
 export function getAgentMetadataPath(agentId: AgentId): string {

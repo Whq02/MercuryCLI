@@ -96,13 +96,11 @@ import type { PermissionMode } from '../../utils/permissions/PermissionMode.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { QuerySource } from '../../constants/querySource.js'
 import {
-  clearAgentTranscriptSubdir,
   flushSessionStorage,
   getAgentTranscriptPath,
   readAgentMetadata,
   recordSidechainTranscript,
   registerAgentTranscriptDestination,
-  setAgentTranscriptSubdir,
   writeAgentMetadata,
   writtenChainTail,
 } from '../../utils/sessionStorage.js'
@@ -195,7 +193,6 @@ export type RunAgentParams = {
   captain?: boolean
   launchedAt?: number
   seatHolder?: string
-  transcriptSubdir?: string
   effortOverride?: string
   thinkingConfigOverride?: ThinkingConfig
   instructionProfileOverride?: string
@@ -602,7 +599,6 @@ export async function* runAgent(
     name,
     launchedAt,
     seatHolder,
-    transcriptSubdir,
     effortOverride,
     thinkingConfigOverride,
     instructionProfileOverride,
@@ -742,7 +738,6 @@ export async function* runAgent(
   const endProjectLeases = beginAgentProjectLeases(agentId, abortController.signal)
   noteAgentEffortWord(agentId, resolvedEffort)
 
-  if (transcriptSubdir) setAgentTranscriptSubdir(agentId, transcriptSubdir)
   let swarm = false
 
   const filteredContext = forkContextMessages
@@ -1358,7 +1353,6 @@ export async function* runAgent(
       if (agentDefinition.hooks) {
         removeSessionHooks(rootSetAppState, hookScope)
       }
-      clearAgentTranscriptSubdir(agentId)
       killShellTasksForAgent(
         agentId,
         toolUseContext.getAppState,
