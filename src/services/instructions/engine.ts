@@ -267,9 +267,15 @@ async function walkConventions(
       pathInWorkingPath(gitRoot, canonicalRoot)
 
     const own = folderSources(chainRoot)
-    for (const convention of conventions.filter(c => c.nearestOnly)) {
-      const holder = dirs.find(dir => [...own.guides(convention, dir), ...own.rules(convention, dir)].some(path => getFsImplementation().existsSync(path)))
-      if (holder !== undefined) nearestHolders[convention.id] = holder
+    const primary = conventions.filter(c => !c.fallback)
+    const fallback = conventions.filter(c => c.fallback)
+    const composeFallback = fallback.length > 0 && !hasPrimaryProjectFile(primary, dirs)
+    if (composeFallback) {
+      fallbackComposed = true
+      for (const convention of fallback.filter(c => c.nearestOnly)) {
+        const holder = dirs.find(dir => [...own.guides(convention, dir), ...own.rules(convention, dir)].some(path => getFsImplementation().existsSync(path)))
+        if (holder !== undefined) nearestHolders[convention.id] = holder
+      }
     }
     const outerFirst = dirs.reverse()
     const composeChain = async (set: InstructionConvention[]): Promise<void> => {
@@ -281,6 +287,7 @@ async function walkConventions(
 
         if (isSettingSourceEnabled('projectSettings') && !skipProject) {
           for (const convention of set) {
+            if (!own.reads(convention, dir)) continue
             if (convention.nearestOnly && nearestHolders[convention.id] !== dir) continue
             for (const projectPath of own.guides(convention, dir)) {
               push(
@@ -321,6 +328,7 @@ async function walkConventions(
 
         if (isSettingSourceEnabled('localSettings')) {
           for (const convention of set) {
+            if (!own.reads(convention, dir)) continue
             const localPaths =
               convention.localDirFiles?.(dir) ??
               (convention.localDirFile(dir) !== null ? [convention.localDirFile(dir) as string] : [])
@@ -346,10 +354,6 @@ async function walkConventions(
       }
     }
 
-    const primary = conventions.filter(c => !c.fallback)
-    const fallback = conventions.filter(c => c.fallback)
-    const composeFallback = fallback.length > 0 && !hasPrimaryProjectFile(primary, outerFirst)
-    if (composeFallback) fallbackComposed = true
     await composeChain(composeFallback ? [...fallback, ...primary] : primary)
   }
 
@@ -570,6 +574,7 @@ export async function getInstructionFilesForNestedDirectory(
   const own = folderSources(resolve(getOriginalCwd()))
 
   for (const convention of conventions) {
+    if (!own.reads(convention, dir)) continue
     if (isSettingSourceEnabled('projectSettings')) {
       for (const projectPath of own.guides(convention, dir)) {
         result.push(

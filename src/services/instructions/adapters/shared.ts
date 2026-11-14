@@ -52,6 +52,7 @@ export function sharedFormat({ id, label, guides = [], locals = [], ruleSources 
     label,
     belowHome: true,
     nearestOnly,
+    entryNames: [...new Set([...guides, ...locals, ...ruleSources].map(relative => relative.split('/')[0] as string))],
     projectDirFiles: dir => guides.map(guide => under(dir, guide)),
     projectRulesDirs: dir => ruleSources.map(source => under(dir, source)),
     localDirFile: dir => (locals.length > 0 ? under(dir, locals[0] as string) : null),

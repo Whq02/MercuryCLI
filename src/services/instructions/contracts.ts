@@ -60,6 +60,7 @@ export type InstructionConvention = {
   readonly label?: string
   readonly belowHome?: boolean
   readonly nearestOnly?: boolean
+  readonly entryNames?: readonly string[]
   projectDirFiles(dir: string): string[]
   projectRulesDirs(dir: string): string[]
   localDirFile(dir: string): string | null

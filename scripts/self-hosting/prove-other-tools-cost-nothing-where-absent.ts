@@ -50,7 +50,7 @@ function check(label: string, ok: boolean, detail = ''): void {
 }
 
 let worlds = 0
-function drive(layout: Record<string, string>, start: string, touch: string[] = []): Drive & { home: string; project: string } {
+function drive(layout: Record<string, string>, start: string, touch: string[] = [], settings?: object): Drive & { home: string; project: string } {
   const world = join(scratch, `world-${++worlds}`)
   const home = join(world, 'home')
   const project = join(home, 'work', 'proj')
@@ -61,6 +61,7 @@ function drive(layout: Record<string, string>, start: string, touch: string[] = 
   }
   const config = join(world, 'config')
   seedFirstRun(config, [project])
+  if (settings) writeFileSync(join(config, 'settings.json'), JSON.stringify(settings))
   const result = join(world, 'result.json')
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(MERCURY_|CLAUDE_|ANTHROPIC_)/.test(key)))
   const run = spawnSync(process.execPath, ['run', driver, result], {
@@ -92,6 +93,27 @@ try {
   check('the names are those of the seven tools', bare.names.length >= 15 && ['.cursor', '.cursorrules', '.github', '.clinerules', '.windsurf', '.devin', 'GEMINI.md', '.agents'].every(name => bare.names.includes(name)), bare.names.join(' '))
   check('the home folder has folders above it here', above.length >= 2 && above[0] === bare.home, above.join(' '))
   check('at start and when a file is read, no call names one of them in the home folder or above', about(bare, above).length === 0, `${about(bare, above).length} call(s): ${about(bare, above).slice(0, 8).join(' | ')}`)
+
+  console.log('below the home folder, a folder that holds none of them is asked whether each name stands, once, and nothing more')
+  const below = chainOf(join(bare.project, 'packages/app'), bare.home)
+  const atStart = about(bare, below, bare.log.slice(0, bare.atStart))
+  const nameItself = (line: string): boolean => below.some(dir => bare.names.some(name => line === `existsSync ${join(dir, name)}`))
+  check('the working directory has folders above it below the home folder', below.length === 4, below.join(' '))
+  check('at start every call about them is an existence check of a name itself', atStart.length > 0 && atStart.every(nameItself), atStart.filter(line => !nameItself(line)).slice(0, 8).join(' | '))
+  check('and each name is asked for once in each folder', atStart.length === below.length * bare.names.length && new Set(atStart).size === atStart.length, `${atStart.length} call(s) for ${below.length} folder(s) and ${bare.names.length} name(s)`)
+  const onTheWay = [...below, join(bare.project, 'packages/app/src'), join(bare.project, 'packages/app/src/deep')]
+  const atRead = about(bare, onTheWay, bare.log.slice(bare.atStart))
+  const anyNameItself = (line: string): boolean => onTheWay.some(dir => bare.names.some(name => line === `existsSync ${join(dir, name)}`))
+  check('when a file in a nested folder is read, the folders on the way to it are asked the same and nothing more', atRead.length > 0 && atRead.every(anyNameItself), atRead.filter(line => !anyNameItself(line)).slice(0, 8).join(' | '))
+
+  console.log('a user who keeps a MERCURY.md, or the native profile, is asked nothing at all')
+  const everyFolder = (d: { project: string }): string[] => chainOf(join(d.project, 'packages/app/src/deep'), '')
+  const decided = drive({ 'MERCURY.md': 'native-needle\n', 'packages/app/src/deep/a.ts': '\n' }, 'packages/app', ['packages/app/src/deep/a.ts'])
+  check('under a MERCURY.md no call names one of them in any folder, at start or when a file is read', decided.files.length === 1 && about(decided, everyFolder(decided)).length === 0, `${about(decided, everyFolder(decided)).length} call(s): ${about(decided, everyFolder(decided)).slice(0, 8).join(' | ')}`)
+  const native = drive({ 'README.md': 'x\n', 'packages/app/src/deep/a.ts': '\n' }, 'packages/app', ['packages/app/src/deep/a.ts'], { briefs: { profile: 'native' } })
+  check('under the native profile no call names one of them in any folder, at start or when a file is read', about(native, everyFolder(native)).length === 0, `${about(native, everyFolder(native)).length} call(s): ${about(native, everyFolder(native)).slice(0, 8).join(' | ')}`)
+  const homeAsked = (d: Drive & { home: string }): number => d.log.filter(line => line.slice(line.indexOf(' ') + 1) === d.home).length
+  check('and the home folder itself is not looked up for them', homeAsked(native) === homeAsked(decided) && homeAsked(bare) > homeAsked(native), `bare ${homeAsked(bare)}, MERCURY.md ${homeAsked(decided)}, native ${homeAsked(native)}`)
 
   console.log('where the files stand they are read')
   const held = drive({ 'GEMINI.md': 'guide-needle\n', '.cursor/rules/a.mdc': '---\nalwaysApply: true\n---\nalways-needle\n', 'packages/app/src/deep/.cursorrules': 'nested-needle\n', 'packages/app/src/deep/a.ts': '\n' }, 'packages/app', ['packages/app/src/deep/a.ts'])
