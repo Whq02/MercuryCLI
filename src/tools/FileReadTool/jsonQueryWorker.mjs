@@ -108,6 +108,7 @@ try {
   let origin = null, firstOrigin = null
   const hash = createHash('sha256')
   let sourceBytes = 0, total = 0, firstByte = null, currentBytes = 0
+  let lastLine = false, lastDepth = 0, lastQuoted = false, lastEscaped = false, lastWhole = false
   const readSource = bytes => {
     Atomics.store(control, 0, 0)
     parentPort.postMessage({ read: bytes.length })
@@ -119,6 +120,25 @@ try {
       hash.update(bytes.subarray(0, got))
       if (sourceBytes === 0) parentPort.postMessage({ started: true })
       sourceBytes += got
+      if (sourceLines) {
+        const newline = bytes.lastIndexOf(10, got - 1)
+        if (newline >= 0) { lastDepth = 0; lastQuoted = false; lastEscaped = false; lastWhole = false }
+        lastLine = newline < got - 1
+        for (let at = newline + 1; at < got; at++) {
+          const c = bytes[at]
+          if (lastQuoted) {
+            if (lastEscaped) lastEscaped = false
+            else if (c === 92) lastEscaped = true
+            else if (c === 34) { lastQuoted = false; if (lastDepth === 0) lastWhole = true }
+          } else if (c === 34) lastQuoted = true
+          else if (c === 123 || c === 91) lastDepth++
+          else if ((c === 125 || c === 93) && lastDepth > 0 && --lastDepth === 0) lastWhole = true
+        }
+      }
+    } else if (lastLine && (lastWhole || (lastDepth === 0 && !lastQuoted))) {
+      lastLine = false
+      bytes[0] = 10
+      return 1
     }
     return got
   }
