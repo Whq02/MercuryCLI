@@ -2,6 +2,7 @@
 │  Commit: two files via the git tool                                                              │
 │    calc.py, NOTES.md                                                                             │
 │    The calculator and the notes, nothing else.                                                   │
+│  Repository pre-commit and commit-msg hooks are not run for these commits.                       │
 │  Stays uncommitted: report.py                                                                    │
 │  Do you want to proceed?                                                                         │
 │  ❯ 1. Yes                                                                                        │

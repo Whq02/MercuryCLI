@@ -268,6 +268,7 @@ async function runOp(
       return {
         result: [
           `${input.planId} APPLIED — ${out.commits.length} commit(s):`,
+          'Repository pre-commit and commit-msg hooks are not run for these commits.',
           ...out.commits.map(c => `  ${c.sha.slice(0, 8)} ${c.message.split('\n')[0]} (${c.files.length} file(s)) — mercury://git/commit/${c.sha} · mercury://transaction/${c.transactionId}`),
           ...gitFilterSkipMessages(root),
           `record: mercury://git/plan/${input.planId}`,
@@ -659,7 +660,7 @@ export const GitTool = buildTool({
     }
     const what =
       input.op === 'apply'
-        ? `apply commit plan ${input.planId ?? ''} (creates local commits; never pushes)`
+        ? `apply commit plan ${input.planId ?? ''} (creates local commits; never pushes; pre-commit and commit-msg hooks are not run)`
         : input.op === 'stage'
           ? `stage ${input.files?.join(', ') ?? ''}`
           : input.op === 'restore'
