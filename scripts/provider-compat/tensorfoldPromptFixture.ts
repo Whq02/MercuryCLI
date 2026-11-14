@@ -57,7 +57,7 @@ export function sharedFoldTokens(earlier: readonly string[], later: readonly str
   return shared
 }
 
-export function foldReplyStarts(rendered: string): number[] {
+function foldReplyStarts(rendered: string): number[] {
   const starts: number[] = []
   const firstUser = rendered.indexOf('<|im_start|>user\n')
   if (firstUser > 0) starts.push(foldTokens(rendered.slice(0, firstUser)).length)
