@@ -10,8 +10,8 @@ import {
   captureKeyOf,
   compilePatternRoot,
   findExactSpanNode,
-  lacksOnlyACloser,
   metavarOutsideNodes,
+  namedByAClauseWord,
   patternCandidates,
   splitDeclaration,
   standInCandidates,
@@ -201,8 +201,9 @@ export async function compileFor(
   let textOnly: string | null = null
   let split: string | null = null
   const candidates = patternCandidates(lang.name, encoded)
+  let held: { pattern: CompiledPattern; hold: { delete(): void } } | null = null
 
-  const stoodIn = async (candidate: (typeof candidates)[number], read: string | null): Promise<{ pattern: CompiledPattern; hold: { delete(): void } } | null> => {
+  const stoodIn = async (candidate: (typeof candidates)[number]): Promise<{ pattern: CompiledPattern; hold: { delete(): void }; holdsItsMembers: boolean } | null> => {
     for (const stood of standInCandidates(lang.name, candidate)) {
       const parsed = await parsePolyglot(engine, lang, stood.text)
       if ('state' in parsed) return null
@@ -210,12 +211,16 @@ export async function compileFor(
       const halves = node === null ? null : splitDeclaration(lang.name, node)
       if (halves?.says) split ??= halves.says
       const members = node === null ? [] : stood.stood!.map(member => standsAsMember(node, member))
-      if (!node || node.parent === null || (read !== null && read !== node.type) || halves !== null || members.includes(null) || metavarOutsideNodes(node, stood.text, stood.offset, stood.offset + stood.length, stood.tagMetavars, stood.standIn)) {
+      if (!node || node.parent === null || halves !== null || members.includes(null) || namedByAClauseWord(node) || metavarOutsideNodes(node, stood.text, stood.offset, stood.offset + stood.length, stood.tagMetavars, stood.standIn)) {
         parsed.tree.delete()
         continue
       }
       const detached = Object.fromEntries(stood.stood!.flatMap((member, i) => (members[i] === 'detached' ? [[captureKeyOf(member.mark), stood.text[member.ended - 1]!]] : [])))
-      return { pattern: { ...compilePatternRoot(node, stood.tagMetavars, stood.standIn, Object.keys(detached).length > 0 ? detached : undefined), ...(stood.spansTerminator && { spansTerminator: true }) }, hold: parsed.tree }
+      return {
+        pattern: { ...compilePatternRoot(node, stood.tagMetavars, stood.standIn, Object.keys(detached).length > 0 ? detached : undefined), ...(stood.spansTerminator && { spansTerminator: true }) },
+        hold: parsed.tree,
+        holdsItsMembers: stood.stood!.some(member => member.within.includes(node.type)),
+      }
     }
     return null
   }
@@ -226,16 +231,19 @@ export async function compileFor(
       const refusal = { state: 'refused' as const, note: parsed.note }
       cache.set(lang.name, refusal)
       if (recovery) recovery.hold.delete()
+      if (held) held.hold.delete()
       return refusal
     }
     const node = findExactSpanNode(parsed.tree.rootNode, candidate.offset, candidate.offset + candidate.length, candidate.text)
-    if (parsed.parseErrors.length > 0) {
-      const stood = await stoodIn(candidate, node !== null && node.parent !== null && lacksOnlyACloser(parsed.tree.rootNode, candidate.offset + candidate.length) ? node.type : null)
-      if (stood) {
+    if (parsed.parseErrors.length > 0 && held === null) {
+      const stood = await stoodIn(candidate)
+      if (stood?.holdsItsMembers) held = { pattern: stood.pattern, hold: stood.hold }
+      else if (stood) {
         parsed.tree.delete()
         if (recovery) recovery.hold.delete()
-        cache.set(lang.name, stood)
-        return stood
+        const compiled = { pattern: stood.pattern, hold: stood.hold }
+        cache.set(lang.name, compiled)
+        return compiled
       }
     }
     if (!node) {
@@ -260,6 +268,7 @@ export async function compileFor(
     }
     if (parsed.parseErrors.length === 0) {
       if (recovery) recovery.hold.delete()
+      if (held) held.hold.delete()
       const compiled = { pattern: { ...compilePatternRoot(node, candidate.tagMetavars), ...(candidate.spansTerminator && { spansTerminator: true }) }, hold: parsed.tree }
       cache.set(lang.name, compiled)
       return compiled
@@ -273,8 +282,13 @@ export async function compileFor(
   }
 
   if (recovery) {
+    if (held) held.hold.delete()
     cache.set(lang.name, recovery)
     return recovery
+  }
+  if (held) {
+    cache.set(lang.name, held)
+    return held
   }
   const refusal: PatternRefusal = {
     state: 'refused' as const,

@@ -116,11 +116,18 @@ the statement, with or without its `;`, and a rewrite that leaves the `;`
 out keeps the statement's own. A block written `{ $$$BODY }` after its head
 holds the block's statements in Dart and Zig (`if ($COND) { $$$BODY }`,
 `fn $NAME($$$PARAMS) $RET { $$$BODY }`), and `class $N { $$$MEMBERS }` holds
-a Dart class's members; in Java and C# such a body is still refused: name
-a statement of the body. A Dart function is two nodes, its signature and
-its body, so a function written with its body is refused in those words:
-write the signature alone (`void $NAME($$$PARAMS)`) or a statement of the
-body. Written alone, `{ $$$A }` is a set or map literal in Dart. In
+a Dart class's members. So it is in Java, C#, C and C++:
+`if ($COND) { $$$BODY }` in all four, `void $NAME($$$PARAMS) { $$$BODY }` in
+Java, C and C++, `class $N { $$$MEMBERS }` in Java and C#; and a CSS rule's
+declarations (`$SEL { $$$DECLS }`) and a JSON object's pairs
+(`{ $$$PAIRS }`) are lists of the same kind. A Dart function is two nodes,
+its signature and its body, so a function written with its body is refused
+in those words: write the signature alone (`void $NAME($$$PARAMS)`) or a
+statement of the body. Written alone, `{ $$$A }` is a set or map literal in
+Dart and an initializer list in C++ and C#, as it was. A clause written
+alone (`catch (…) { $$$B }`, `else { $$$B }`) is not a pattern: write its
+statement, `try { $$$T } catch ($X $E) { $$$B }` in Java and C#,
+`try { $$$T } catch ($X) { $$$B }` in C++. In
 Haskell and OCaml a meta-variable reads as a lower-case name, so it stands
 for a value, a variable or a pattern and never for a module or a
 constructor: `open $M` is refused in OCaml, and `import $M` is no import

@@ -27,7 +27,7 @@ export function metavarOf(node: TSNode, tagMetavars = false, standIn?: RegExp): 
   let text = node.text.trim()
   if (tagMetavars && node.type === 'tag_name') text = decodeTagMetavar(text)
   const stood = standIn?.exec(text.replace(/[;,]$/, '').trimEnd())
-  if (stood) text = stood[1]!
+  if (stood) text = stood.slice(1).find(group => group !== undefined)!
   const quoted = MV_QUOTED.exec(text)
   if (quoted) text = quoted[2]!
   const single = MV_SINGLE.exec(text)
@@ -139,6 +139,12 @@ interface StoodMember {
 }
 
 const STAND_INS: Record<string, Array<{ as: string; within: string[] }>> = {
+  java: [{ as: '<M>;', within: ['block', 'constructor_body', 'switch_block_statement_group'] }, { as: 'int <M>;', within: ['class_body', 'interface_body', 'enum_body_declarations'] }, { as: 'int <M>', within: ['formal_parameters'] }],
+  'c-sharp': [{ as: '<M>();', within: ['block', 'switch_section'] }, { as: 'int <M>;', within: ['declaration_list'] }],
+  c: [{ as: '<M>;', within: ['compound_statement', 'case_statement'] }, { as: 'int <M>;', within: ['field_declaration_list'] }],
+  cpp: [{ as: '<M>;', within: ['compound_statement', 'case_statement'] }, { as: 'int <M>;', within: ['field_declaration_list', 'declaration_list'] }],
+  css: [{ as: '<M>: 0;', within: ['block'] }],
+  json: [{ as: '"<M>": 0', within: ['object'] }],
   zig: [{ as: '<M>;', within: ['block'] }],
   dart: [{ as: '<M>;', within: ['block', 'switch_statement_case'] }, { as: 'var <M>;', within: ['class_body', 'extension_body'] }],
   objc: [{ as: '<M>;', within: ['compound_statement', 'case_statement'] }],
@@ -186,24 +192,39 @@ export function standInCandidates(langName: string, candidate: PatternCandidate)
     pick(0, [])
   }
   const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const out: PatternCandidate[] = []
-  for (const template of templates) {
-    const [before, after] = template.as.replace(/[;,]$/, '').split('<M>') as [string, string]
-    const grown = template.as.length - 3
-    for (const subset of subsets) {
-      let text = candidate.text
-      for (const mark of [...subset].reverse()) text = `${text.slice(0, mark.at)}${template.as.replace('<M>', () => mark.text)}${text.slice(mark.at + mark.text.length)}`
-      out.push({
-        ...candidate,
-        text,
-        length: candidate.length + subset.length * grown,
-        standIn: new RegExp(`^${escape(before)}(${[...new Set(subset.map(mark => mark.text))].join('|')})${escape(after)}$`),
-        stood: subset.map((mark, i) => {
-          const start = mark.at + i * grown
-          return { mark: mark.text, start, end: start + before.length + mark.text.length + after.length, ended: start + mark.text.length + grown, within: template.within }
-        }),
-      })
+  const sides = (as: string): [string, string] => as.replace(/[;,]$/, '').split('<M>') as [string, string]
+  const place = (placed: Array<{ mark: (typeof marks)[number]; row: (typeof templates)[number] }>): PatternCandidate => {
+    let text = candidate.text
+    let shift = 0
+    const stood: StoodMember[] = []
+    const forms = new Map<string, Set<string>>()
+    for (const { mark, row } of placed) {
+      const [before, after] = sides(row.as)
+      const start = mark.at + shift
+      const put = row.as.replace('<M>', () => mark.text)
+      text = `${text.slice(0, start)}${put}${text.slice(start + mark.text.length)}`
+      stood.push({ mark: mark.text, start, end: start + before.length + mark.text.length + after.length, ended: start + put.length, within: row.within })
+      shift += put.length - mark.text.length
+      forms.set(row.as, (forms.get(row.as) ?? new Set<string>()).add(mark.text))
     }
+    const standIn = new RegExp(`^(?:${[...forms].map(([as, names]) => `${escape(sides(as)[0])}(${[...names].join('|')})${escape(sides(as)[1])}`).join('|')})$`)
+    return { ...candidate, text, length: candidate.length + shift, standIn, stood }
+  }
+  const out: PatternCandidate[] = []
+  for (const row of templates) for (const subset of subsets) out.push(place(subset.map(mark => ({ mark, row }))))
+  const sequences = marks.filter(mark => mark.text.startsWith('__MVM_'))
+  if (templates.length > 1 && sequences.length > 1) {
+    const mixed: PatternCandidate[] = []
+    const assign = (chosen: number[]): void => {
+      if (mixed.length >= STAND_IN_TRIES) return
+      if (chosen.length === sequences.length) {
+        if (new Set(chosen).size > 1) mixed.push(place(sequences.map((mark, i) => ({ mark, row: templates[chosen[i]!]! }))))
+        return
+      }
+      for (let row = 0; row < templates.length; row++) assign([...chosen, row])
+    }
+    assign([])
+    out.push(...mixed)
   }
   return out
 }
@@ -221,15 +242,12 @@ export function standsAsMember(pattern: TSNode, member: StoodMember): 'whole' | 
   }
 }
 
-export function lacksOnlyACloser(root: TSNode, end: number): boolean {
-  const stack: TSNode[] = [root]
-  while (stack.length > 0) {
-    const node = stack.pop()!
-    if (node.type === 'ERROR' || (node.isMissing && node.startIndex < end)) return false
-    if (!node.hasError) continue
-    for (const child of node.children) stack.push(child)
-  }
-  return true
+const CLAUSE_WORDS = /^(?:if|for|while|switch|catch|else|finally|do|try)$/
+
+export function namedByAClauseWord(pattern: TSNode): boolean {
+  let leaf = pattern
+  while (leaf.childCount > 0) leaf = leaf.children[0]!
+  return leaf.isNamed && leaf.type !== leaf.text && CLAUSE_WORDS.test(leaf.text)
 }
 
 export function captureKeyOf(mark: string): string {
