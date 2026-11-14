@@ -158,7 +158,9 @@ if (!given) {
   check('M09 ranges address generated lines without source anchors', generated.body.includes('Generated output lines 2-3') && generated.body.includes('2\t') && !generated.body.includes('(anchor:'), generated.body)
   const secret = file('hidden.json', '{"secret":"outside-source"}')
   const imports = await ask(scalar, `import ${JSON.stringify(secret)} as $x; $x`)
-  check('M11 a jq module cannot read host files beyond the named source', imports.body.includes('module not found') && !imports.body.includes('outside-source'), imports.body)
+  const importsSlashed = await ask(scalar, `import ${JSON.stringify(secret.replaceAll('\\', '/'))} as $x; $x`)
+  const moduleRefused = (body: string): boolean => (process.platform === 'win32' ? /jq: error/.test(body) : body.includes('module not found')) && !body.includes('outside-source')
+  check('M11 a jq module cannot read host files beyond the named source', moduleRefused(imports.body) && moduleRefused(importsSlashed.body), `${imports.body}\n--- the same path with forward slashes ---\n${importsSlashed.body}`)
   process.env.READ_QUERY_SECRET_WITNESS = 'host-environment-secret'
   const env = await ask(scalar, 'env')
   check('M11 jq env has no host credentials', !env.body.includes('host-environment-secret') && !env.body.includes('READ_QUERY_SECRET_WITNESS'), env.body)

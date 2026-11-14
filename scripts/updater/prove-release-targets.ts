@@ -21,7 +21,7 @@ const check = (name: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 const section = (title: string): void => console.log(`\n── ${title} ──`)
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
+const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n')
 
 section('§1 the owner — six targets, the pair each ships for, the archive name, the uname map')
 check('exactly these six targets, in this order', JSON.stringify(RELEASE_TARGETS) === JSON.stringify(['linux-x64', 'linux-arm64', 'macos-arm64', 'macos-x64', 'windows-x64', 'windows-arm64']))
