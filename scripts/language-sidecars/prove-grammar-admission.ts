@@ -4,9 +4,11 @@
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { withProofAccountHome } from '../lib/proofAccountHome.ts'
 
+const accountHome = withProofAccountHome()
 const ROOT = join(import.meta.dir, '..', '..')
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'grammar-admission-')))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
@@ -414,6 +416,9 @@ writeFileSync(join(engineDir, 'package.json'), '{"type":"commonjs"}\n')
     process.exit(1)
   }
 }
+
+section('§0 — the product is loaded under an account home of this proof\'s own')
+check('the home the product reads is the one this proof made, in the environment and in the runtime', homedir() === accountHome && process.env.HOME === accountHome && process.env.USERPROFILE === accountHome, `${homedir()} · ${accountHome}`)
 
 section('§1 — an edit\'s parse note and a read\'s outline of an admitted language\'s file load no grammar')
 {

@@ -1,9 +1,11 @@
 #!/usr/bin/env bun
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { withProofAccountHome } from '../lib/proofAccountHome.ts'
 import { armEnvironment, check, drive, enterRoot, finish, makeContext, section, REPO } from './lib/harness.ts'
 
+const accountHome = withProofAccountHome()
 armEnvironment()
 
 const { AstSearchTool } = await import(join(REPO, 'src/tools/AstSearchTool/AstSearchTool.ts'))
@@ -42,6 +44,9 @@ const show = (text: string): string => JSON.stringify(text)
 
 const INI = '[section]\nkey = value\nother = 2\n'
 const C = '#include <stdio.h>\n#define MAX 10\nint main(void) { return MAX; }\n'
+
+section('§0 — the tools are loaded under an account home of this proof\'s own')
+check('the home the tools read is the one this proof made, in the environment and in the runtime', homedir() === accountHome && process.env.HOME === accountHome && process.env.USERPROFILE === accountHome, `${homedir()} · ${accountHome}`)
 
 section('§1 — a node that carries its own line ending keeps it when the rewrite is another shape')
 {
