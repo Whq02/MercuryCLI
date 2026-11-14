@@ -21,6 +21,7 @@ function rowActOf(act: TensorFoldAct | undefined, row: TensorFoldInventoryRow, u
         phase: 'refused',
         line: act.words,
         window: act.nextWindow ?? act.window,
+        ...(act.nextWindow !== undefined && act.nextWindow !== act.window ? { asked: act.window } : {}),
         strip: windowStripWords(act, row, act.nextWindow ?? act.window, usableGib),
         ...(act.command !== undefined && act.cost !== undefined ? { limit: { command: act.command, cost: act.cost } } : {}),
       }

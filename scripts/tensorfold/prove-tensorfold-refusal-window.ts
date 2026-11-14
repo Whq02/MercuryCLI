@@ -113,7 +113,7 @@ section('3 · a refusal at a window the person chose, the panel closed and opene
   await p.close()
 }
 
-section('4 · a refusal of the engine\'s own: it stands where it landed and goes when the window is moved')
+section('4 · a refusal of the engine\'s own: it stands where the card landed and at the window it refused, and goes at any other')
 {
   const p = await openPanelCard({ road: 'tensorfold', label: 'Qwen3.5 2B', prefix: 'tf-refusal-engine', free: () => 40 * GIB, serviceEnv: { FAKE_TENSORFOLD_SERVE: 'refuse-memory' } })
   await p.press(KEY.enter)
@@ -129,6 +129,13 @@ section('4 · a refusal of the engine\'s own: it stands where it landed and goes
   await p.press(KEY.right)
   const back = p.card()
   check('→ back: the engine\'s refusal stands again', back.row.includes(' refused ') && back.refused !== undefined && back.refused.includes('262144-token window') && back.strip.includes(`[${window}]`), back.all)
+  await p.press(KEY.right, 3)
+  const asked = p.card()
+  save('engine-refused-at-256k', p)
+  check('→ on to 256k, the window the engine refused: its refusal stands there too, and ↵ would ask for 256k again', asked.row === 'Qwen3.5 2B local/qwen3.5-2b refused 256k ctx 7.6 GiB' && asked.refused !== undefined && asked.refused.includes('262144-token window') && asked.strip.includes('[256k]') && asked.legend.includes('↵ serve at 256k and switch'), asked.all)
+  await p.press(KEY.left, 3)
+  const smallest = p.card()
+  check('← ← ← to 32k, neither of the two: no line says refused', smallest.row === 'Qwen3.5 2B local/qwen3.5-2b on disk 32k ctx 5.0 GiB' && smallest.refused === undefined && !smallest.all.includes('refused'), smallest.all)
   await p.close()
 }
 

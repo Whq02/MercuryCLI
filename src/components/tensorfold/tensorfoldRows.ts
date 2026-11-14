@@ -23,7 +23,7 @@ type TensorFoldCell = { text: string; tone: TensorFoldTone }
 export type TensorFoldRowAct =
   | { phase: 'pulling'; percent?: number }
   | { phase: 'starting'; seconds?: number }
-  | { phase: 'refused'; line: string; window?: number; strip?: string; limit?: { command: string; cost: string } }
+  | { phase: 'refused'; line: string; window?: number; asked?: number; strip?: string; limit?: { command: string; cost: string } }
   | { phase: 'exited'; line: string }
 
 type TensorFoldInstallFacts = { road: 'brew' | 'archive' | 'llamacpp'; state?: 'installing' | 'unavailable'; commands: readonly string[]; progress?: string }
@@ -244,7 +244,7 @@ function modelChoice(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi, row: 
   const id = `local/${row.shortName}`
   const chosen = ui.windows?.[row.repo]
   const landed = facts.acts?.[row.repo]
-  const act = landed?.phase === 'refused' && landed.window !== undefined && chosen !== undefined && chosen !== landed.window ? undefined : landed
+  const act = landed?.phase === 'refused' && landed.window !== undefined && chosen !== undefined && chosen !== landed.window && chosen !== landed.asked ? undefined : landed
   const unqualified = !row.qualified && row.state === 'on-disk' && act === undefined
   const mercuryRow = facts.adapter !== undefined && row.qualified && adapterCheckpointOf(row.repo) !== undefined && tensorFoldStartingPointRepos.has(row.repo) === false
   const note = (width: number): TensorFoldCardLine[] => (unqualified ? kv('note', facts.adapter !== undefined ? "unqualified on Mercury's engine" : 'unqualified by TensorFold', width) : mercuryRow ? kv('note', ADAPTER_QUALIFIED_WORDS, width) : [])
