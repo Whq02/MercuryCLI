@@ -1,5 +1,5 @@
 {
-  "base": "cf65fc4f373402429524f1fd0a736b2035cf412f",
+  "base": "210c6bfe3dde4cf6179d23201cf2f0d2783b075f",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -2979,13 +2979,23 @@
               "console",
               "info",
               "screenshot",
+              "upload",
+              "download",
               "close"
             ],
             "description": "Browser operation."
           },
+          "tab": {
+            "description": "Named tab (default main)",
+            "type": "string"
+          },
           "url": {
             "description": "open: http/https URL",
             "type": "string"
+          },
+          "persist": {
+            "description": "open: no idle close",
+            "type": "boolean"
           },
           "waitUntil": {
             "description": "open/reload: default load",
@@ -3124,6 +3134,17 @@
           "fullPage": {
             "description": "screenshot: full scroll height (default viewport)",
             "type": "boolean"
+          },
+          "downloadId": {
+            "description": "download: wait for this one",
+            "type": "string"
+          },
+          "files": {
+            "description": "upload: local paths; [] clears the input",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "label": {
             "description": "screenshot: filename hint",
