@@ -107,12 +107,27 @@ const WIN_TTY = { platform: 'win32', stdoutIsTTY: true, env: {} as Record<string
 }
 {
   _resetWin32ConsoleForTest()
-  const { calls, sys } = seam('Active code page: 65001', null)
+  const { calls, sys } = seam('Active code page: 850', 'Active code page: 65001')
   const exits: Array<() => void> = []
   const o = ensureWin32ConsoleUtf8(sys, { ...WIN_TTY, registerExit: fn => exits.push(fn) })
-  check('prev already 65001 ⇒ query-only no-op (no set, no restore)', o.engaged && o.previous === UTF8_CODEPAGE && !o.changed && !o.restoreArmed)
-  check('only the query syscall ran', calls.length === 1 && calls[0]!.arg === undefined)
-  check('no exit hook registered', exits.length === 0)
+  exits[0]?.()
+  check('chcp says 850 ⇒ set, and 850 put back at exit, as it was', o.previous === 850 && o.changed && o.restoreArmed && calls.map(call => call.arg ?? 'query').join(',') === 'query,65001,850', calls.map(call => call.arg ?? 'query').join(','))
+}
+{
+  _resetWin32ConsoleForTest()
+  const { calls, sys } = seam('Active code page: 65001', 'Active code page: 65001')
+  const exits: Array<() => void> = []
+  const o = ensureWin32ConsoleUtf8(sys, { ...WIN_TTY, registerExit: fn => exits.push(fn) })
+  check('chcp says 65001 ⇒ the set is made all the same, one call (chcp prints the INPUT page: a console can stand at input 65001 and output 850, and the output page draws)', calls.map(call => call.arg ?? 'query').join(',') === 'query,65001', calls.map(call => call.arg ?? 'query').join(','))
+  check('and nothing is put back at exit: the half that may have changed is the half nobody read', o.engaged && o.previous === UTF8_CODEPAGE && !o.changed && !o.restoreArmed && exits.length === 0)
+  restoreWin32ConsoleNow(sys)
+  check('a restore asked for by hand does nothing there either', calls.length === 2)
+}
+{
+  _resetWin32ConsoleForTest()
+  const { calls, sys } = seam('Active code page: 65001', null)
+  const o = ensureWin32ConsoleUtf8(sys, { ...WIN_TTY, registerExit: () => {} })
+  check('a set that fails there is silent: the start goes on, nothing armed', o.engaged && !o.changed && !o.restoreArmed && calls.length === 2)
 }
 {
   _resetWin32ConsoleForTest()
