@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { chmodSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { gitClient, gitFixture } from './gitFixture.ts'
 
@@ -10,7 +10,7 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail}` : ''}`)
 }
 const world = gitFixture('git-regions-')
-const names = ['multi.txt', 'two.txt', 'crlf.txt', 'tail.txt', 'bad.txt', 'duplicate.txt', 'wide.txt', 'same.txt']
+const names = ['multi.txt', 'two.txt', 'crlf.txt', 'tail.txt', 'bad.txt', 'duplicate.txt', 'wide.txt', 'same.txt', 'mode.sh']
 const block = (ours: string, theirs: string, base?: string, eol = '\n') => [
   '<<<<<<< HEAD', ours, ...(base === undefined ? [] : ['||||||| base', base]), '=======', theirs, '>>>>>>> branch', '',
 ].join(eol)
@@ -21,6 +21,7 @@ const wide = `<<<<<<< HEAD\nTitle\n==========\nours\n||||||| base\n${nested}====
 let client: Awaited<ReturnType<typeof gitClient>> | undefined
 try {
   for (const name of names) world.put(name, 'base\n')
+  chmodSync(join(world.root, 'mode.sh'), 0o755)
   world.git(['add', '--', ...names])
   world.git(['commit', '--quiet', '-m', 'base'])
   world.git(['switch', '--quiet', '-c', 'other'])
@@ -40,9 +41,12 @@ try {
     'bad.txt': ' <<<<<<< indented\nours\n=======\ntheirs\n>>>>>>> x\n<<<<<<< incomplete\nours\n',
     'duplicate.txt': `${first}gap\n${first}`,
     'wide.txt': `${wide}gap\n${block('a', 'b')}`,
+    'mode.sh': block('a', 'b'),
     'same.txt': `<<<<<<< HEAD\nTitle\n=======\nours\n=======\ntheirs\n>>>>>>> branch\ngap\n${block('a', 'b')}`,
   }
   for (const [name, text] of Object.entries(initial)) world.put(name, text)
+  world.git(['config', 'core.filemode', 'false'])
+  chmodSync(join(world.root, 'mode.sh'), 0o644)
   const initialIndex = readFileSync(join(world.root, '.git/index'))
   client = await gitClient(world)
   const git = (args: Record<string, unknown>) => client!.call('Git', args)
@@ -60,6 +64,7 @@ try {
   const duplicates = ids(conflictText, 'duplicate.txt')
   const wider = ids(conflictText, 'wide.txt')
   const same = ids(conflictText, 'same.txt')
+  const mode = ids(conflictText, 'mode.sh')
   check('M01 every complete diff3/two-way region has an identity', multi.length === 2 && two.length === 1 && crlf.length === 1 && tail.length === 1 && duplicates.length === 2, conflictText)
   check('M01 incomplete and indented lookalikes do not become regions', ids(conflictText, 'bad.txt').length === 0, conflictText)
   check('M01 duplicate blocks have distinct identities', duplicates.length === 2 && duplicates[0] !== duplicates[1])
@@ -112,6 +117,8 @@ try {
     await resolve([{ region: duplicates[1], take: 'theirs' }])
     check('M03/M05 both identical regions resolve independently', world.get('duplicate.txt') === 'ours-one\ngap\ntheirs-one\n')
     const underlined = wider.length === 2 ? await resolve([{ region: wider[0], take: 'ours' }, { region: wider[1], take: 'theirs' }]) : 'the wider region is not listed'
+    const executable = mode.length === 1 ? await resolve([{ region: mode[0], take: 'theirs' }]) : 'one region expected'
+    check('B02 where the repository does not trust the file mode the staged entry keeps the mode the index held', world.git(['ls-files', '--stage', '--', 'mode.sh']).startsWith('100755 ') && world.git(['show', ':mode.sh']) === 'b\n', `${executable} ${world.git(['ls-files', '--stage', '--', 'mode.sh'])}`)
     const beside = same.length === 1 ? await resolve([{ region: same[0], take: 'ours' }]) : 'one region expected beside the ambiguous block'
     check('B02 a file that still holds a marker block without an identity is written and left unmerged', world.get('same.txt') === '<<<<<<< HEAD\nTitle\n=======\nours\n=======\ntheirs\n>>>>>>> branch\ngap\na\n' && world.git(['ls-files', '--unmerged', '--', 'same.txt']).length > 0 && beside.includes('staged: (none)'), beside)
     check('M03 a side holding longer marker characters is taken whole and the file is staged without a marker', world.get('wide.txt') === 'Title\n==========\nours\ngap\nb\n' && world.git(['ls-files', '--unmerged', '--', 'wide.txt']) === '', underlined)

@@ -227,9 +227,13 @@ export async function applyResolution(plan: ResolutionPlan, signal?: AbortSignal
       copyFileSync(plan.indexPath, temporary)
       const env = { ...subprocessEnv(), GIT_INDEX_FILE: temporary }
       const indexed = (args: string[], input?: Buffer) => execFileSync('git', gitArgs(args, root), { cwd: root, env, windowsHide: true, encoding: 'utf8', timeout: 30_000, input, stdio: ['pipe', 'pipe', 'pipe'] })
+      let trusted = true
+      try { trusted = indexed(['config', '--bool', 'core.filemode']).trim() !== 'false' } catch {}
       for (const f of final) {
         const oid = indexed(['hash-object', '-w', '--stdin', `--path=${f.path}`], f.after).trim()
-        indexed(['update-index', '--add', '--cacheinfo', f.mode & 0o111 ? '100755' : '100644', oid, f.path])
+        const stages = trusted ? [] : indexed(['ls-files', '--stage', '--', `:(literal)${f.path}`]).split('\n').filter(Boolean)
+        const held = (stages.find(row => /^\d+ [0-9a-f]+ 2\t/.test(row)) ?? stages[0])?.slice(0, 6)
+        indexed(['update-index', '--add', '--cacheinfo', held === '100755' || held === '100644' ? held : f.mode & 0o111 ? '100755' : '100644', oid, f.path])
       }
       const planned = readFileSync(temporary)
       targets.push({ canonicalPath: plan.indexPath, originalBytes: plan.index, plannedBytes: planned, originalDigest: digest(plan.index), plannedDigest: digest(planned), mode: lstatSync(plan.indexPath).mode & 0o7777 })
