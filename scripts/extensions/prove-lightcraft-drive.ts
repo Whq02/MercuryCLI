@@ -71,7 +71,7 @@ async function connect(command: string, commandArgs: string[], extraEnv: Record<
   const client = new Client({ name: 'mercury-lightcraft-proof', version: '1.0.0' }, { capabilities: {} })
   await client.connect(transport)
   activeClient = client
-  assert.deepEqual(client.getServerVersion(), { name: 'lightcraft', title: 'LightCraft', version: '0.20.0' })
+  assert.deepEqual(client.getServerVersion(), { name: 'lightcraft', title: 'LightCraft', version: '0.21.1' })
   evidence.server = client.getServerVersion()
   const tools = await client.listTools()
   evidence.tools = tools
@@ -192,7 +192,7 @@ try {
     assert.equal(reused.reused, true)
     evidence.reused = reused.reused
     evidence.version = execFileSync(installation.cli, ['--version'], { env, encoding: 'utf8' }).trim()
-    assert.equal(evidence.version, 'lightcraft-cli 0.20.0')
+    assert.equal(evidence.version, 'lightcraft-cli 0.21.1')
     if (process.platform === 'darwin') {
       const app = installation.gui.slice(0, installation.gui.indexOf('.app') + 4)
       execFileSync('/usr/bin/codesign', ['--verify', '--deep', '--strict', '--verbose=2', app], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
@@ -200,7 +200,7 @@ try {
       execFileSync('/usr/sbin/spctl', ['--assess', '--type', 'execute', '--verbose=2', app], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
       evidence.signature = { desktop: 'codesign exit 0', cli: 'codesign exit 0', gatekeeper: 'spctl exit 0' }
       evidence.guiVersion = execFileSync('/usr/libexec/PlistBuddy', ['-c', 'Print:CFBundleShortVersionString', join(app, 'Contents/Info.plist')], { encoding: 'utf8' }).trim()
-      assert.equal(evidence.guiVersion, '0.20.0')
+      assert.equal(evidence.guiVersion, '0.21.1')
     } else if (process.platform === 'win32') {
       evidence.signature = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', '$s=@($env:LIGHTCRAFT_PROOF_GUI,$env:LIGHTCRAFT_PROOF_CLI) | ForEach-Object { Get-AuthenticodeSignature -LiteralPath $_ }; $s | Select-Object Path,Status,StatusMessage,SignerCertificate | ConvertTo-Json -Depth 4; if(@($s | Where-Object { $_.Status -ne "Valid" }).Count){exit 1}'], { env: { ...env, LIGHTCRAFT_PROOF_GUI: installation.gui, LIGHTCRAFT_PROOF_CLI: installation.cli }, encoding: 'utf8' })
     }
@@ -211,8 +211,8 @@ try {
     evidence.installation = installation
     if (modes[0] === '--headless') {
       const client = await connect(installation.cli, ['mcp', '--library', join(work, 'library')])
-      assert.equal(evidence.toolCount, 406)
-      assert.equal(evidence.commandCount, 389)
+      assert.equal(evidence.toolCount, 409)
+      assert.equal(evidence.commandCount, 392)
       for (const id of ['lens.databaseStatus', 'lens.downloadDatabase', 'library.refreshLensProfiles']) assert.ok((Array.isArray(evidence.commands) ? evidence.commands : evidence.commands.commands).some((command: any) => command.id === id), `0.20.0 lists ${id}`)
       await develop(client, 'headless')
       const noWindow = await client.callTool({ name: 'screenshot', arguments: {} })
@@ -247,10 +247,20 @@ try {
       await direct.close(); activeClient = undefined
       const client = await connectBridge(endpoint, input.library)
       const widgetIds = async () => { const listed = await call(client, 'list_widgets') ; return (Array.isArray(listed) ? listed : listed.widgets).map((widget: any) => widget.id) }
-      const offered = await widgetIds()
+      const opening = await call(client, 'list_widgets')
+      const skip = (Array.isArray(opening) ? opening : opening.widgets).find((widget: any) => widget.id === 'button:welcomeSkip')
+      assert.ok(skip?.rect, 'A first launch with a library at 0.21.1 opens on the Welcome dialog: button:welcomeSkip on screen')
+      await call(client, 'click', { x: skip.rect[0] + skip.rect[2] / 2, y: skip.rect[1] + skip.rect[3] / 2 })
+      let offered: string[] = []
+      for (let attempt = 0; attempt < 20; attempt++) {
+        offered = await widgetIds()
+        if (!offered.includes('button:welcomeSkip') && (process.env.LIGHTCRAFT_LENSFUN_DIR || offered.includes('button:dialogOk'))) break
+        await new Promise(done => setTimeout(done, 100))
+      }
+      assert.ok(!offered.includes('button:welcomeSkip'), 'Skip answers the Welcome dialog.')
       evidence.lensOffer = offered.filter((id: string) => id.startsWith('dialog:') || id.startsWith('button:dialog'))
       if (!process.env.LIGHTCRAFT_LENSFUN_DIR) {
-        for (const id of ['dialog:window', 'button:dialogOk', 'button:dialogCancel']) assert.ok(offered.includes(id), `A first launch with a library at 0.20.0 offers the lens database download: ${id} on screen`)
+        for (const id of ['dialog:window', 'button:dialogOk', 'button:dialogCancel']) assert.ok(offered.includes(id), `A first launch with a library at 0.21.1 offers the lens database download once its Welcome dialog is answered: ${id} on screen`)
         await call(client, 'press_key', { key: 'Escape' })
         const answered = await widgetIds()
         assert.ok(!answered.includes('dialog:window'), 'Escape answers the lens database offer as Not Now and leaves no dialog open.')

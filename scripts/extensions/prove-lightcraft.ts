@@ -32,7 +32,7 @@ try {
     assert.equal(manifest.needs.binaries, undefined)
   })
   check('matched version/tag and fixed URL/hash/size payloads', () => {
-    assert.equal(adapter.version, '0.20.0')
+    assert.equal(adapter.version, '0.21.1')
     for (const pin of adapter.pins) {
       assert.equal(pin.version, adapter.version)
       assert.equal(pin.tag, `v${pin.version}`)
@@ -42,10 +42,10 @@ try {
         assert.ok(payload.bytes > 0)
       }
     }
-    assert.equal(adapter.pins[0].platforms['darwin-arm64'].sha256, 'ddb34c8c87bb05ad2c295052e3026363686d7995b08bcfe50e6cd98a6b67a697')
-    assert.equal(adapter.pins[0].platforms['darwin-arm64'].bytes, 126712332)
-    assert.equal(adapter.pins[1].platforms['darwin-arm64'].sha256, 'b73900c6a3bb71d5b1720e9e779bd50ec551abfb02c952d29ed3756a564be605')
-    assert.equal(adapter.pins[1].platforms['darwin-arm64'].bytes, 120908565)
+    assert.equal(adapter.pins[0].platforms['darwin-arm64'].sha256, 'b70f46cac01390154c9adfa06822e6691b95fc270c507b0ed220a00dc588bb1e')
+    assert.equal(adapter.pins[0].platforms['darwin-arm64'].bytes, 127261345)
+    assert.equal(adapter.pins[1].platforms['darwin-arm64'].sha256, '58086b9d224d02b5ec9ed08e76da04ba1dc5d51d3c285cdea417358fa7ea06e2')
+    assert.equal(adapter.pins[1].platforms['darwin-arm64'].bytes, 121480540)
   })
   check('one pinned archive per platform on Windows and Linux carries the app and lightcraft-cli; macOS adds the pinned CLI zip', () => {
     const dataDir = join(scratch, 'plan')
@@ -88,7 +88,7 @@ try {
     const address = server.address() as { port: number }
     try {
       const hash = createHash('sha256').update(readFileSync(process.execPath)).digest('hex')
-      await assert.rejects(verifyListener({ endpoint: `127.0.0.1:${address.port}`, installation: { gui: process.execPath, cli: process.execPath, manifest: { version: '0.20.0', guiSha256: hash, cliSha256: hash } } }), /does not match|identify|listener/)
+      await assert.rejects(verifyListener({ endpoint: `127.0.0.1:${address.port}`, installation: { gui: process.execPath, cli: process.execPath, manifest: { version: '0.21.1', guiSha256: hash, cliSha256: hash } } }), /does not match|identify|listener/)
       assert.equal(bytes, 0)
     } finally { await new Promise<void>(resolveClose => server.close(() => resolveClose())) }
   })
@@ -151,7 +151,7 @@ try {
   check('the skill keeps the library, selection, window and persistence truths at the pin without the onboarding the server carries', () => {
     const skill = readFileSync(join(extension, 'skills/lightcraft/SKILL.md'), 'utf8')
     assert.ok(Buffer.byteLength(skill) <= 3400, `skill is ${Buffer.byteLength(skill)} bytes`)
-    for (const fact of [/discovery wins/, /persistent `path`/, /Photo IDs are local to one library/, /replace the selection with that photo/, /`get_develop \{id\}` and `render_photo \{id\}` leave it alone/, /Auto Sync on, `set_develop` changes every selected photo/, /`develop\.autoSync \{\}` toggles the mode and never reads it/, /`move` deletes originals once catalogued/, /normalized `\[x0,y0,x1,y1\]`/, /developed pixels, not the window/, /rendering headlessly/, /never proves a visible window/, /3000 px long edge/, /connect-mode and batch exports answer only when finished/, /Since 0\.18\.1 the first launch with a library offers the lensfun lens database/, /`dialog:window` with `button:dialogOk` \(Download\) and `button:dialogCancel` \(Not Now, as is `press_key \{key: "Escape"\}`\)/, /`lens\.databaseStatus` reports the database in use, `lens\.downloadDatabase` fetches it only when asked, and `library\.refreshLensProfiles` looks raws up again/, /LightCraft 0\.20\.0 has no automation roots and no control-port authentication/, /Apple Photos or iCloud/, /never replay it/, /saved in memory but not written to disk/]) assert.match(skill, fact)
+    for (const fact of [/discovery wins/, /persistent `path`/, /Photo IDs are local to one library/, /replace the selection with that photo/, /`get_develop \{id\}` and `render_photo \{id\}` leave it alone/, /Auto Sync on, `set_develop` changes every selected photo/, /`develop\.autoSync \{\}` toggles the mode and never reads it/, /`move` deletes originals once catalogued/, /normalized `\[x0,y0,x1,y1\]`/, /developed pixels, not the window/, /rendering headlessly/, /never proves a visible window/, /3000 px long edge/, /connect-mode and batch exports answer only when finished/, /A first launch with a library shows a Welcome dialog first \(`dialog:window` with `button:welcomeSkip`, answered there or by `press_key \{key: "Escape"\}`\)/, /after it, since 0\.18\.1, the app offers the lensfun lens database/, /While the app's own update card stands, a click answers `ok` yet changes nothing and `list_widgets` lists nothing for it: `press_key \{key: "Escape"\}` answers the card/, /`dialog:window` with `button:dialogOk` \(Download\) and `button:dialogCancel` \(Not Now, as is `press_key \{key: "Escape"\}`\)/, /`lens\.databaseStatus` reports the database in use, `lens\.downloadDatabase` fetches it only when asked, and `library\.refreshLensProfiles` looks raws up again/, /LightCraft 0\.21\.1 has no automation roots and no control-port authentication/, /Apple Photos or iCloud/, /never replay it/, /saved in memory but not written to disk/]) assert.match(skill, fact)
     for (const gone of [/craft_status/, /craft_install/, /--control 7980/, /mcp --connect/, /^\d+\. /m]) assert.doesNotMatch(skill, gone)
     for (const name of ['command_run', 'command_list', 'import', 'set_develop', 'get_develop', 'crop', 'export', 'list_controls', 'render_photo', 'render_preview', 'ui_screenshot', 'list_widgets', 'press_key']) assert.match(skill, new RegExp(`\`${name}\\b`), name)
   })
