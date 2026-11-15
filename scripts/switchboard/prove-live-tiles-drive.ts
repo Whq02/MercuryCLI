@@ -16,7 +16,7 @@ process.env.MERCURY_DAEMON_DIR = daemonDir
 delete process.env.MERCURY_HOME
 process.env.MERCURY_CONCOURSE = 'always'
 
-const SIZE = process.env.MERCURY_TILES_DRIVE_SIZE === '100x30' ? { cols: 100, rows: 30 } : { cols: 120, rows: 40 }
+const SIZE = process.env.MERCURY_TILES_DRIVE_SIZE === '100x30' ? { cols: 100, rows: 30 } : { cols: 220, rows: 50 }
 const KEEP_DIR = process.env.MERCURY_TILES_CAPTURE_DIR
 
 const DIST = join(process.cwd(), 'dist', 'mercury.mjs')
@@ -181,30 +181,38 @@ try {
     }
     const boardFrames = grabs.filter(g => text(g).includes('SESSIONS'))
     check('the board painted', boardFrames.length > 0, `frames: ${boardFrames.map(g => g.atMs).join(',')}`)
-    const alphaRowText = (g: { rows: string[] }): string => g.rows.find(r => r.includes('Alpha stream')) ?? ''
-    const streamFrames = boardFrames.filter(g => /tile-alpha (\d{3})/.test(alphaRowText(g)) && !/running/.test(alphaRowText(g)))
-    check('§1 the NOW cell streams (tile text in Alpha row)', streamFrames.length >= 2, `frames: ${streamFrames.map(g => g.atMs).join(',') || 'none'}`)
-    const tokenOf = (g: { rows: string[] }): number => Math.max(-1, ...[...alphaRowText(g).matchAll(/tile-alpha (\d{3})/g)].map(m => Number(m[1])))
-    const toks = streamFrames.map(tokenOf)
-    check('§2 …and the line SCROLLS (later frames carry later tokens)', toks.length >= 2 && toks[toks.length - 1]! > toks[0]!, `tokens: ${toks.join(',')}`)
-    const toolFrames = boardFrames.filter(g => /headless · running(?: Bash|…)/.test(alphaRowText(g)))
-    check('§1 the running-tool tile (`running Bash …`)', toolFrames.length > 0, `frames: ${toolFrames.map(g => g.atMs).join(',') || 'none'}`)
-    const betaBoardRow = (g: { rows: string[] }): string => g.rows.find(r => /◆ (NEEDS YOU )?Beta asker\s{2,}/.test(r)) ?? ''
-    const askAndStream = boardFrames.filter(g => /headless · waiting/.test(betaBoardRow(g)) && /tile-alpha|running Bash/.test(alphaRowText(g)))
-    check('§6 needs-you shows FIRST beside a streaming tile', askAndStream.length > 0, `frames: ${askAndStream.map(g => g.atMs).join(',') || 'none'}`)
+    const paneLeft = (g: { rows: string[] }): number => {
+      const head = g.rows.find(r => r.includes('STATUS & TITLE')) ?? ''
+      return head.lastIndexOf('│', head.indexOf('STATUS & TITLE'))
+    }
     const listBandRows = (g: { rows: string[] }): string[] => {
+      const at = paneLeft(g)
       const start = g.rows.findIndex(r => r.includes('STATUS & TITLE'))
-      if (start < 0) return []
-      const rest = g.rows.slice(start + 1)
-      const end = rest.findIndex(r => /╰/.test(r))
+      if (start < 0 || at < 0) return []
+      const rest = g.rows.slice(start + 1).map(r => r.slice(at))
+      const end = rest.findIndex(r => r.startsWith('╰'))
       return rest.slice(0, end < 0 ? undefined : end)
     }
     const mirrorRows = (g: { rows: string[] }): string[] => {
-      const start = g.rows.findIndex(r => r.includes('STATUS & TITLE'))
-      if (start < 0) return []
-      const rest = g.rows.slice(start + 1)
-      const end = rest.findIndex(r => /╰/.test(r))
-      return end < 0 ? [] : rest.slice(end + 1)
+      const at = paneLeft(g)
+      return at < 0 ? [] : g.rows.map(r => r.slice(0, at))
+    }
+    const alphaRowText = (g: { rows: string[] }): string => listBandRows(g).find(r => r.includes('Alpha stream')) ?? ''
+    const betaBoardRow = (g: { rows: string[] }): string => listBandRows(g).find(r => /◆ (NEEDS YOU )?Beta asker\s{2,}/.test(r)) ?? ''
+    if (SIZE.cols < 214) {
+      console.log(`  [SKIP] §1 §2 §6 the NOW cell: at ${SIZE.cols} columns the list pane carries no NOW column (it stands from 214 columns); this drive reads it at its default size, 220x50`)
+    } else {
+      const nowColumn = boardFrames.filter(g => g.rows.some(r => /PROJECT\s+NOW\s+LAST USED/.test(r)))
+      check('the list pane carries its NOW column at this width', nowColumn.length > 0 && nowColumn.length === boardFrames.length, `${nowColumn.length} of ${boardFrames.length} board frames`)
+      const streamFrames = boardFrames.filter(g => /tile-alpha (\d{3})/.test(alphaRowText(g)) && !/running/.test(alphaRowText(g)))
+      check('§1 the NOW cell streams (tile text in Alpha row)', streamFrames.length >= 2, `frames: ${streamFrames.map(g => g.atMs).join(',') || 'none'}`)
+      const tokenOf = (g: { rows: string[] }): number => Math.max(-1, ...[...alphaRowText(g).matchAll(/tile-alpha (\d{3})/g)].map(m => Number(m[1])))
+      const toks = streamFrames.map(tokenOf)
+      check('§2 …and the line SCROLLS (later frames carry later tokens)', toks.length >= 2 && toks[toks.length - 1]! > toks[0]!, `tokens: ${toks.join(',')}`)
+      const toolFrames = boardFrames.filter(g => /headless · running(?: Bash| B\S{0,2}…|…)/.test(alphaRowText(g)))
+      check('§1 the running-tool tile (`running Bash …`, the tool\'s name cut where the cell ends)', toolFrames.length > 0, `frames: ${toolFrames.map(g => g.atMs).join(',') || 'none'}`)
+      const askAndStream = boardFrames.filter(g => /headless · waiting/.test(betaBoardRow(g)) && /tile-alpha|running B/.test(alphaRowText(g)) && listBandRows(g).findIndex(r => r.includes('Beta asker')) < listBandRows(g).findIndex(r => r.includes('Alpha stream')))
+      check('§6 needs-you shows FIRST beside a streaming tile', askAndStream.length > 0, `frames: ${askAndStream.map(g => g.atMs).join(',') || 'none'}`)
     }
     const bandText = (g: { rows: string[] }): string => listBandRows(g).join('\n')
     const mirrorText = (g: { rows: string[] }): string => mirrorRows(g).join('\n')
@@ -212,17 +220,16 @@ try {
     const markAt = mark === undefined ? Number.POSITIVE_INFINITY : sendStamp(run, mark)
     const peekFrames = [...(mark?.screen === undefined ? [] : [{ atMs: markAt, rows: mark.screen }]), ...boardFrames.filter(g => g.atMs >= markAt)]
     const bodyNeedle = (t: string): boolean => /tile-beta prelude|try a cleanup|rm -rf scratchling|Running 1 bash/.test(t)
-    const opened = peekFrames.filter(g => bodyNeedle(mirrorText(g)) && /headless · waiting/.test(bandText(g)) && /Beta asker/.test(mirrorText(g)))
+    const opened = peekFrames.filter(g => bodyNeedle(mirrorText(g)) && /headless · waitin/.test(bandText(g)) && /Beta asker/.test(mirrorText(g)))
     check(
-      "§5 the selected row's chat paints in the mirror below the list (the ask on its row, the transcript rows in the pane)",
+      "§5 the selected row's chat paints in the live view beside the list (the ask on its row, the transcript rows in the pane)",
       opened.length > 0,
-      mark === undefined ? `the mirror never painted "${MIRROR_MARK}": ${run.outcome.report?.unfired.join(' · ') || run.outcome.reason || 'no driver report'}` : `mark at ${markAt}ms; frames: ${opened.map(g => g.atMs).join(',') || 'none'}`,
+      mark === undefined ? `the live view never painted "${MIRROR_MARK}": ${run.outcome.report?.unfired.join(' · ') || run.outcome.reason || 'no driver report'}` : `mark at ${markAt}ms; frames: ${opened.map(g => g.atMs).join(',') || 'none'}`,
     )
-    check('§5 the peek is not a hop (the board frame stays)', opened.every(g => text(g).includes('SESSIONS')))
-    check('§5 the list band keeps its rows under the mirror (nothing displaced)', opened.every(g => /Alpha stream/.test(bandText(g)) && /Beta asker/.test(bandText(g))))
+    check('§5 the peek is not a hop (the board frame stays)', opened.length > 0 && opened.every(g => text(g).includes('SESSIONS')))
+    check('§5 the list keeps its rows beside the live view (nothing displaced)', opened.length > 0 && opened.every(g => /Alpha stream/.test(bandText(g)) && /Beta asker/.test(bandText(g))))
     const selTitle = (g: { rows: string[] }): string => {
-      const column = Math.max(0, ...g.rows.map(r => r.indexOf('STATUS & TITLE')))
-      const row = listBandRows(g).map(r => r.slice(column)).find(r => r.includes('▸'))
+      const row = listBandRows(g).find(r => r.includes('▸'))
       if (row === undefined) return ''
       return row.includes('Alpha stream') ? 'alpha' : row.includes('Beta asker') ? 'beta' : row.trim().slice(0, 24)
     }
