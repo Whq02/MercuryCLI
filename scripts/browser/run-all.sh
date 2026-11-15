@@ -4,7 +4,7 @@
 # gate-watch: src/services/browser/** src/tools/BrowserTool/** src/commands/browser/**
 # gate-watch: scripts/browser/**
 # gate-watch: scripts/lib/executionProfile.ts scripts/lib/provisionManagedBrowser.ts src/Tool.ts
-# gate-watch: scripts/lib/removeScratch.ts
+# gate-watch: scripts/lib/removeScratch.ts scripts/lib/nodeBin.ts
 # gate-watch: src/components/permissions/BrowserPermissionRequest/BrowserPermissionRequest.tsx
 # gate-watch: src/components/permissions/PermissionRequest.tsx src/services/run/ownerLifecycle.ts
 # gate-watch: src/services/run/resolveOwner.ts src/tools/AgentTool/runAgent.ts
