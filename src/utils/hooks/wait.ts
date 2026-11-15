@@ -11,8 +11,8 @@ export function hookWaitWords(wait: HookWait, nowMs: number): string {
   return `waiting on ${wait.names.length} ${wait.event} hooks (${wait.names.join(', ')}) · ${clock}`
 }
 
-export function hookWaitSeconds(ticks: number, sinceMs: number, nowMs: number): number {
-  return Math.max(ticks, Math.floor((nowMs - sinceMs) / 1000))
+export function hookWaitSeconds(atLeast: number, sinceMs: number, nowMs: number): number {
+  return Math.max(atLeast, Math.floor((nowMs - sinceMs) / 1000))
 }
 
 export function hookWaitLineOf(frames: ReadonlyArray<ProgressMessage | undefined>): string | null {

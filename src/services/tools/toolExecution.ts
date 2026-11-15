@@ -600,10 +600,9 @@ async function runTransactionBody(args: {
     const timeoutS = Math.max(0, ...prepared.timeoutsS)
     const wait = { event, names: prepared.names, sinceMs, timeoutS }
     prepared.names.forEach((name, index) => push({ message: hookProgressMessage(event, name, 'running', toolUseID, prepared.names.length, { timeoutS: prepared.timeoutsS[index] }) }))
-    let ticks = 0
+    let elapsedS = 0
     const tick = (): void => {
-      ticks++
-      const elapsedS = hookWaitSeconds(ticks, sinceMs, Date.now())
+      elapsedS = hookWaitSeconds(elapsedS + 1, sinceMs, Date.now())
       push({ message: hookProgressMessage(event, prepared.names[0] ?? '', 'waiting', toolUseID, prepared.names.length, { timeoutS, elapsedS, line: hookWaitWords(wait, sinceMs + elapsedS * 1000) }) })
       takeHookWaitBack = () => push({ message: hookProgressMessage(event, prepared.names[0] ?? '', 'waiting', toolUseID, prepared.names.length) })
     }
