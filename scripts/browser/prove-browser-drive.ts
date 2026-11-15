@@ -1,16 +1,18 @@
 #!/usr/bin/env bun
 
 import { spawnSync } from 'node:child_process'
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import http from 'node:http'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 process.env.MERCURY_BROWSER ??= '1'
 
 const ROOT = join(import.meta.dir, '..', '..')
 
 let failures = 0
+const leftovers: string[] = []
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
@@ -856,9 +858,13 @@ console.log('§20 the secretRef credential road')
   writeFileSync(secretsFile, JSON.stringify({ FILE_SECRET: 'file-road-value-77' }), { mode: 0o600 })
   const fromFile = resolveBrowserSecret('FILE_SECRET', { fileDir: secretsDir })
   check('the 0600 file road resolves', fromFile.state === 'ok' && fromFile.value === 'file-road-value-77' && fromFile.source === 'file', JSON.stringify(fromFile))
-  chmodSync(secretsFile, 0o644)
-  const tooWide = resolveBrowserSecret('FILE_SECRET', { fileDir: secretsDir })
-  check('a group/other-readable secrets file REFUSES naming the fix', tooWide.state === 'refused' && tooWide.note.includes('chmod 600'), JSON.stringify(tooWide))
+  if (process.platform === 'win32') {
+    console.log('  [SKIP] a group/other-readable secrets file REFUSES naming the fix — win32 keeps no owner-only file mode, and the product reads none there')
+  } else {
+    chmodSync(secretsFile, 0o644)
+    const tooWide = resolveBrowserSecret('FILE_SECRET', { fileDir: secretsDir })
+    check('a group/other-readable secrets file REFUSES naming the fix', tooWide.state === 'refused' && tooWide.note.includes('chmod 600'), JSON.stringify(tooWide))
+  }
   process.env.MERCURY_BROWSER_SECRET_FILE_SECRET = 'env-wins-value'
   const envWins = resolveBrowserSecret('FILE_SECRET', { fileDir: secretsDir })
   check('the env road outranks the file road', envWins.state === 'ok' && envWins.source === 'env' && envWins.value === 'env-wins-value')
@@ -920,7 +926,7 @@ console.log('§20 the secretRef credential road')
   } finally {
     if (originalHome === undefined) delete process.env.MERCURY_CONFIG_DIR
     else process.env.MERCURY_CONFIG_DIR = originalHome
-    rmSync(secretsDir, { recursive: true, force: true })
+    leftovers.push(secretsDir)
   }
 }
 
@@ -1048,6 +1054,13 @@ console.log('§15 structural teeth')
 a.server.close()
 b.server.close()
 c.server.close()
+for (const folder of leftovers) {
+  try {
+    removeScratch(folder, { maxRetries: 20, retryDelayMs: 150 })
+  } catch (error) {
+    console.log(`  scratch left at ${folder}: ${(error as NodeJS.ErrnoException).code ?? String(error)}`)
+  }
+}
 
 if (failures > 0) {
   console.error(`\nbrowser drive: ${failures} FAILURES`)
