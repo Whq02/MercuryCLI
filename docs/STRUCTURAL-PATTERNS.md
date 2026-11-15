@@ -95,15 +95,25 @@ is read by its blocks (headings, lists, fenced code, tables, paragraphs);
 the text inside a paragraph is one node, so `## $TITLE` finds every
 second-level heading and a pattern cannot reach a word inside a sentence.
 
-A pattern compares the nodes a grammar names and the fields it labels; a
-keyword a grammar keeps as an unnamed token is not compared. In these
-languages that shows where one node kind has several spellings: in
-a Makefile `include $F` also finds `-include`, in Protocol Buffers
-`import $P;` also finds `import public …;` and an `rpc` pattern also finds
-the streaming ones, in Zig a `fn` pattern finds a function with `pub` and
-one without, whichever the pattern says, in Lua a `function` pattern finds
-a `local function` too, and in Objective-C a method pattern finds `-` and
-`+` methods alike. Where a modifier is a node of its own (Java, C#, Kotlin,
+A word or an operator a pattern writes must be in the code it finds, in the
+same place among the parts of its node; what the code has beyond the pattern
+is passed over. `async function $F($$$A) { $$$B }` finds the async functions
+and `function $F($$$A) { $$$B }` every function; in Zig
+`pub fn $N($$$P) $R { $$$B }` finds the functions that are `pub` and the
+pattern without it all of them; in Lua a `local function` pattern finds the
+local ones; in Objective-C a `-` pattern finds instance methods and a `+`
+pattern class methods; in a Makefile `include $F`, `-include $F` and
+`sinclude $F` each find their own; in Protocol Buffers `import public $P;`
+finds the public imports and `import $P;` every import, and an `rpc`
+pattern that writes `stream` finds the streaming ones. Where a language has
+two spellings for one thing, a pattern finds the one it writes: in C++ a
+template written `<typename $T>` does not find one written `<class T>`, in
+Go `for $K, $V := range $M { $$$B }` does not find the loop written with
+`=`, and in a shell script `$(date)` does not find `` `date` ``, while the
+pattern written with backticks finds both. Brackets, quotes, commas and
+semicolons are never required: in JavaScript `"x"` finds `'x'` and
+`foo($A);` finds the call with or without its `;`. Where a modifier is a
+node of its own (Java, C#, Kotlin,
 Swift, Rust) it is part of the pattern: `void $N() { … }` finds only a
 method written without one, and `public void $N() { … }` the public ones.
 A body or a list written as one `$$$` meta-variable
