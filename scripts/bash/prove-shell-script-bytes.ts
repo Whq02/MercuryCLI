@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { plugin } from 'bun'
 import '../lib/hermetic.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 
@@ -255,10 +256,11 @@ section('§4 nothing else changes')
   )
 }
 
-rmSync(SCRATCH, { recursive: true, force: true })
-if (failures > 0) {
-  console.error(`\nprove-shell-script-bytes: ${failures} FAILURE(S)`)
-  process.exit(1)
+if (failures > 0) console.error(`\nprove-shell-script-bytes: ${failures} FAILURE(S)`)
+else console.log('\nprove-shell-script-bytes: all green')
+try {
+  removeScratch(SCRATCH, { maxRetries: 20, retryDelayMs: 150 })
+} catch (error) {
+  console.log(`  scratch left at ${SCRATCH}: ${(error as NodeJS.ErrnoException).code ?? String(error)}`)
 }
-console.log('\nprove-shell-script-bytes: all green')
-process.exit(0)
+process.exit(failures > 0 ? 1 : 0)

@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
 
+import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -88,8 +89,40 @@ section('§2 engine resolution, the env pin, and the honest degrade')
   const vendored = pack.resolveBrushPackDir()
 
   delete process.env.MERCURY_SHELL_ENGINE
-  check('default (no pin, no setting) is the system shell', resolveShellEngine().engine === 'system')
+  const { windowsShellRoadActive } = await import(join(ROOT, 'src/utils/shell/windowsShellRoad.ts'))
+  const packPresent = vendored.state === 'ok'
+  const hostDefault = resolveShellEngine()
+  check(
+    "default (no pin, no setting) is this host's own: the system shell, and on the Windows road with its pack present the bundled engine",
+    windowsShellRoadActive() && packPresent ? hostDefault.engine === 'brush' && (hostDefault.arm === 'windows' || hostDefault.arm === 'no-bash') : hostDefault.engine === 'system',
+    JSON.stringify(hostDefault),
+  )
   check('the system setting stays system', resolveShellEngine('system').engine === 'system')
+  type Resolved = { engine?: string; arm?: string; requested?: string; reason?: string }
+  const onRoad = (env: Record<string, string>): Resolved => {
+    const script = `;(globalThis).MACRO = { VERSION: '0.0.0' }\nconst { resolveShellEngine } = await import(${JSON.stringify(join(ROOT, 'src/utils/shell/engineSession.ts'))})\nconsole.log(JSON.stringify(resolveShellEngine()))`
+    const run = spawnSync(process.execPath, ['-e', script], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, MERCURY_SHELL_ENGINE: undefined, MERCURY_GIT_BASH_PATH: undefined, MERCURY_WINDOWS_SHELL_ROAD: undefined, ...env } })
+    try {
+      return JSON.parse((run.stdout ?? '').trim().split('\n').pop() ?? '') as Resolved
+    } catch {
+      return { reason: `exit ${run.status}: ${(run.stderr ?? '').trim().slice(0, 200)}` }
+    }
+  }
+  const bashFound = { MERCURY_WINDOWS_SHELL_ROAD: 'locate', MERCURY_GIT_BASH_PATH: import.meta.path }
+  const withBash = onRoad(bashFound)
+  check(
+    packPresent ? 'on the Windows road with a bash found, the default is the bundled engine (arm windows)' : "on the Windows road with a bash found and no pack, the default is the system shell and the reason names the absent pack",
+    packPresent ? withBash.engine === 'brush' && withBash.arm === 'windows' : withBash.engine === 'system' && withBash.requested === 'system' && withBash.arm === 'default' && /pack is absent on this Windows box/.test(withBash.reason ?? ''),
+    JSON.stringify(withBash),
+  )
+  const noBash = onRoad({ MERCURY_WINDOWS_SHELL_ROAD: 'no-bash' })
+  check(
+    packPresent ? 'on the Windows road with no bash found, the default is the bundled engine (arm no-bash)' : 'on the Windows road with no bash found and no pack, the system shell serves and the engine is named as asked for',
+    packPresent ? noBash.engine === 'brush' && noBash.arm === 'no-bash' : noBash.engine === 'system' && noBash.requested === 'brush' && (noBash.reason ?? '').length > 10,
+    JSON.stringify(noBash),
+  )
+  const pinned = onRoad({ ...bashFound, MERCURY_SHELL_ENGINE: 'system' })
+  check('on the Windows road the system pin keeps bash.exe', pinned.engine === 'system' && pinned.arm === 'pin', JSON.stringify(pinned))
 
   if (vendored.state === 'ok') {
     check('brush arms when the pack is present', resolveShellEngine('brush').engine === 'brush')
