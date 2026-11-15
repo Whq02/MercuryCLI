@@ -35,9 +35,9 @@ check('a path earlier in the line does not change a prose continuation', continu
 
 console.log('\n── both composer Enter paths consult the one predicate ──')
 const hook = readFileSync(join(REPO, 'src/hooks/useTextInput.ts'), 'utf8')
-check('the key route (handleEnter) reads isBackslashContinuation', hook.includes('multiline && isBackslashContinuation(value, cursor.offset)'))
+check('the key route (handleEnter) reads isBackslashContinuation', hook.includes('multiline && isBackslashContinuation(cursor.text, cursor.offset)'))
 check('the coalesced "text↵" burst reads isBackslashContinuation', hook.includes('!isBackslashContinuation(filtered, filtered.length - 1)'))
-check('no raw trailing-backslash test survives in the hook', !hook.includes("value[cursor.offset - 1] === '\\\\'") && !hook.includes("filtered[filtered.length - 2] !== '\\\\'"))
+check('no raw trailing-backslash test survives in the hook', !hook.includes("value[cursor.offset - 1] === '\\\\'") && !hook.includes("cursor.text[cursor.offset - 1] === '\\\\'") && !hook.includes("filtered[filtered.length - 2] !== '\\\\'"))
 
 console.log(failures === 0 ? '\n✅ backslash + ↵ tells a path from a continuation' : `\n❌ ${failures} check(s) failed`)
 process.exit(failures === 0 ? 0 : 1)
