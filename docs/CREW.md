@@ -169,9 +169,11 @@ keep the links instead, name a folder in
 `workspace.worktree.symlinkDirectories`, or set `MERCURY_WORKTREE_CLONE=off`
 in the environment to keep them all.
 
-Nothing is deleted automatically. A crewmate's worktree and folder stay where
-they are after it ends, and the session gets a reminder naming each leftover
-worktree by its path; what to remove is your decision.
+A crewmate's worktree and folder stay where they are after it ends, and the
+session gets a reminder naming each leftover worktree by its path; what to
+remove is your decision. One cleanup runs by itself: a crewmate's leftover
+worktree that is at least seven days old and in which nothing would be lost
+(no uncommitted change, and every commit already on a remote) is removed.
 
 ## Stop, resume and usage limits
 

@@ -16,7 +16,7 @@ node dist/mercury.mjs
 node dist/mercury.mjs health --json
 ```
 
-`setup` fetches the vendored packs (`pdfjs` · `pyright` · `debugpy` · `js-debug` · `grammars` · platform Node and Python · `brush` shell engine), builds the `cargo` addons (voice capture, desktop driver for computer use, `native/embed` + 118 MB model), and with `cmake` + `cargo` builds the on-device transcriber; `health` names any skipped pack.
+`setup` fetches the vendored packs (`pdfjs` · `json-query` · `pyright` · `debugpy` · `js-debug` · `grammars` · platform Node and Python · `brush` shell engine), builds the `cargo` addons (voice capture, desktop driver for computer use, `native/embed` + 118 MB model), and with `cmake` + `cargo` builds the on-device transcriber; `health` names any skipped pack.
 
 Interactive sessions need a TTY (full layout from 100×26, compact below; first run walks theme and sign-in) and open on the Boot face: New Session, Continue Last Session (once history exists), Boot Menu, MCPs & Skills, Agents, Health Check, Saturn Scheduler, Logins, Session Concourse, Sessions · Projects. Screen routing and boot flags: [docs/SESSIONS.md](docs/SESSIONS.md); headless verbs: `node dist/mercury.mjs --help`; Windows source builds (`node dist\mercury.mjs`): [docs/INSTALL-WINDOWS-FROM-SOURCE.md](docs/INSTALL-WINDOWS-FROM-SOURCE.md).
 
