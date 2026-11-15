@@ -222,10 +222,14 @@ console.log('\n§6 the other ways a hook ends take the line back too: its timeou
   const failed = await play({ label: 'failed', tool: 'Bash', command: 'true', before: [{ name: 'failing-guard', match: 'Bash', run: 'sleep 2.5; exit 1', timeout: 10 }] })
   console.log(`  the hook rows of a hook that fails after 2.5 s: ${hookRows(failed)}`)
   check('a hook that fails: one row takes its wait back before the call\'s result', withdrawnOnce(failed), hookRows(failed))
-  const cut = await play({ label: 'cut', tool: 'Bash', command: 'true', before: [{ name: 'long-guard', match: 'Bash', run: 'sleep 30', timeout: 60 }], cutAfterMs: 3500 })
-  console.log(`  the hook rows of a turn cut while its hook was being waited on: ${hookRows(cut)}`)
-  const steps = await throughAWindow(cut.rows)
-  check('a turn cut mid-wait: the wait had been said, the run ends interrupted, and no line stands after its last row', cut.waits.length >= 1 && cut.rows.some(row => row.type === 'outcome' && row.status === 'interrupted') && steps.length > 0 && steps.at(-1)!.line === null, `${hookRows(cut)} · ${read(steps)}`)
+  if (process.platform === 'win32') {
+    console.log('[SKIP] a turn cut mid-wait: the wait had been said, the run ends interrupted, and no line stands after its last row (one check) — not staged on win32: the cut is a SIGTERM, which ends a Windows process outright, so the run has no moment to write its outcome; Esc while a hook is waited on is read by hand there')
+  } else {
+    const cut = await play({ label: 'cut', tool: 'Bash', command: 'true', before: [{ name: 'long-guard', match: 'Bash', run: 'sleep 30', timeout: 60 }], cutAfterMs: 3500 })
+    console.log(`  the hook rows of a turn cut while its hook was being waited on: ${hookRows(cut)}`)
+    const steps = await throughAWindow(cut.rows)
+    check('a turn cut mid-wait: the wait had been said, the run ends interrupted, and no line stands after its last row', cut.waits.length >= 1 && cut.rows.some(row => row.type === 'outcome' && row.status === 'interrupted') && steps.length > 0 && steps.at(-1)!.line === null, `${hookRows(cut)} · ${read(steps)}`)
+  }
 }
 
 console.log(`\n${count} checks, ${failures} failures`)
