@@ -51,6 +51,13 @@ const A = await serve(0, (req: http.IncomingMessage, res: http.ServerResponse) =
     else html(body)
     return
   }
+  if (path === '/framed' && !url.searchParams.has('apart')) {
+    return html(`<!doctype html><title>framed</title><a id="pop" target="_blank" href="/framed?popup=1">pop</a>
+<iframe src="${cross}/detect" width="320" height="120"></iframe>
+<iframe src="/detect" width="320" height="120"></iframe>
+<iframe src="${cross}/first?nest=1&worker=1" width="320" height="120"></iframe>
+<script>addEventListener('load', () => { window.__framed = true })</script>`)
+  }
   if (path === '/framed') {
     return html(`<!doctype html><title>framed</title><a id="pop" target="_blank" href="/framed?popup=1">pop</a>
 <iframe src="/detect" width="320" height="120"></iframe>
@@ -144,6 +151,7 @@ const reference: Ctx = { agentId: 'frame-identity-reference' }
 const cold: Ctx = { agentId: 'frame-identity-cost' }
 const nap = (ms: number): Promise<void> => new Promise(done => setTimeout(done, ms))
 const READ_BOUND_MS = 10_000
+const SETTLE_MS = 3_000
 const LAPSED = Symbol('lapsed')
 const reads = { count: 0, slowest: 0 }
 const answered = `every read through the driver, of a frame or of a page’s word that its frames are in, answers within ${READ_BOUND_MS / 1000} s`
@@ -190,31 +198,27 @@ const leftBehind = async (page: Page): Promise<Array<{ frame: Frame; known: stri
     })
     .map(frame => ({ frame, known }))
 }
-const reached = 'a load whose frames the driver reaches comes within three tries'
-const setAside: string[] = []
-const loaded = async <T>(where: string, page: () => Page | null, load: () => Promise<T>, again?: () => Promise<unknown>): Promise<T> => {
-  let result = await load()
-  for (let tries = 1; ; tries++) {
-    const now = page()
-    if (now === null) return result
-    await within(null, where, now.evaluate(() => void (window as unknown as { __frames?: () => unknown }).__frames?.()).catch(() => undefined))
-    for (let waited = 0; waited < 100; waited++) {
-      if ((await within(null, where, now.evaluate(() => (window as unknown as { __framed?: boolean }).__framed === true).catch(() => false))) === true) break
-      await nap(50)
-    }
-    const left = await leftBehind(now)
-    if (left.length === 0) return result
-    const what = `the driver left the frame ${left[0]!.frame.url()} on its parent’s session while ${left[0]!.known} (the driver’s race between frames of another site, which this proof’s page no longer invites and which is not mended)`
-    if (tries === 3) {
-      check(reached, false, `${where}: ${what}, three loads in a row`)
-      Connection.prototype._rawSend = send
-      return finish('prove-browser-frame-identity', [lead, reference, cold])
-    }
-    setAside.push(where)
-    console.log(`  [SKIP] this load on ${where} — ${what}; the load is set aside and taken again (${tries} of 2)`)
-    if (again === undefined) result = await load()
-    else await again()
+const reached = 'in every load the driver holds each frame of another site on a session of its own, where it reaches it'
+const loads = { count: 0 }
+const loaded = async <T>(where: string, page: () => Page | null, load: () => Promise<T>): Promise<T> => {
+  const result = await load()
+  const now = page()
+  if (now === null) return result
+  loads.count++
+  await within(null, where, now.evaluate(() => void (window as unknown as { __frames?: () => unknown }).__frames?.()).catch(() => undefined))
+  for (let waited = 0; waited < 100; waited++) {
+    if ((await within(null, where, now.evaluate(() => (window as unknown as { __framed?: boolean }).__framed === true).catch(() => false))) === true) break
+    await nap(50)
   }
+  let left = await leftBehind(now)
+  for (let waited = 0; waited < SETTLE_MS / 50 && left.length > 0; waited++) {
+    await nap(50)
+    left = await leftBehind(now)
+  }
+  if (left.length === 0) return result
+  check(reached, false, `${where}: ${SETTLE_MS / 1000} s after the page said its frames were in, the driver still holds the frame ${left[0]!.frame.url() || 'with no address yet'} on its parent’s session while ${left[0]!.known}: its scripts never reach that frame (the driver’s race between frames of another site, which the patched driver does not lose: is the driver this checkout runs the patched one?)`)
+  Connection.prototype._rawSend = send
+  return finish('prove-browser-frame-identity', [lead, reference, cold])
 }
 const frameOf = (tab: string | undefined, part: string, page: Page = pageOf(lead, tab)): Frame | null => page.frames().find(frame => frame.parentFrame() !== null && frame.url().includes(part)) ?? null
 const firstIn = async (tab: string | undefined, part: string, page?: Page): Promise<First | null> => {
@@ -280,18 +284,13 @@ section('S0 controls: the page itself and a frame of its own site (hold on the p
 await run({ op: 'open', url: `${A.origin}/detect` })
 const topNine = await detect()
 check('the nine baseline assertions hold on the page', topNine.passed === 9 && topNine.total === 9, JSON.stringify(topNine.checks))
-let mainMark = 0
-const framed = await loaded(on(undefined), () => pageOf(), () => {
-  mainMark = asked.length
-  return run({ op: 'open', url: `${A.origin}/framed` })
-})
+const framed = await loaded(on(undefined), () => pageOf(), () => run({ op: 'open', url: `${A.origin}/framed` }))
 const host = await topOf()
 {
   const nine = await nineIn(undefined, `127.0.0.1:${port}/detect`)
   check('and in a frame of the page’s own site', framed.outcome === 'succeeded' && nine.passed === 9 && nine.total === 9, `${framed.result} ${JSON.stringify(nine.checks)}`)
   check('the page presents a browser that is not headless, with its brands and two languages', !host.userAgent.includes('Headless') && host.brands.includes('Google Chrome') && host.languages.split(',').length >= 2, JSON.stringify(host))
 }
-const mainFrameRequest = frameRequest(mainMark)
 
 section('S1 a frame from another site, on the page a launch starts with')
 {
@@ -328,18 +327,9 @@ await loaded(on('beside'), () => pageOf(lead, 'beside'), () => run({ op: 'open',
 
 section('S3 on a tab an act opened')
 {
-  let popped = await run({ op: 'click', tab: 'beside', selector: '#pop' })
-  let name = /kept as tab (\S+) at/.exec(popped.result)?.[1] ?? ''
-  await loaded(
-    'the tab an act opened',
-    () => (name === '' ? null : pageOf(lead, name)),
-    async () => undefined,
-    async () => {
-      await run({ op: 'close', tab: name })
-      popped = await run({ op: 'click', tab: 'beside', selector: '#pop' })
-      name = /kept as tab (\S+) at/.exec(popped.result)?.[1] ?? ''
-    },
-  )
+  const popped = await run({ op: 'click', tab: 'beside', selector: '#pop' })
+  const name = /kept as tab (\S+) at/.exec(popped.result)?.[1] ?? ''
+  await loaded('the tab an act opened', () => (name === '' ? null : pageOf(lead, name)), async () => undefined)
   const first = name === '' ? null : await firstIn(name, `${CROSS}/first`)
   check('the frame of the tab’s first document reads the identity at its first script', same(first, host), `${popped.result} ${JSON.stringify(first)}`)
   const nine = name === '' ? { passed: 0, total: 9, checks: {} } : await nineIn(name, `${CROSS}/detect`)
@@ -349,7 +339,7 @@ section('S3 on a tab an act opened')
 
 section('S4 an emulated identity reaches the frame')
 {
-  const applied = await loaded(on('beside'), () => pageOf(lead, 'beside'), () => run({ op: 'viewport', tab: 'beside', emulation: { device: 'Pixel 5' } }), () => run({ op: 'reload', tab: 'beside' }))
+  const applied = await loaded(on('beside'), () => pageOf(lead, 'beside'), () => run({ op: 'viewport', tab: 'beside', emulation: { device: 'Pixel 5' } }))
   const top = await topOf('beside')
   const first = await firstIn('beside', `${CROSS}/first`)
   check('[E6] after the device’s own reload the frame reads the phone at its first script: user agent, platform, client hints, touch', applied.result.includes('(the page was reloaded: mobile or touch changed)') && same(first, top) && /Android 11; Pixel 5/.test(first?.userAgent ?? '') && first?.platform === 'Linux armv81' && first.mobile === true && first.touch > 0, JSON.stringify(first))
@@ -361,7 +351,7 @@ section('S4 an emulated identity reaches the frame')
   const plain = await nowIn(undefined, `${CROSS}/first`)
   check('the frame of the same site on the other tab keeps its own page’s identity', plain !== null && plain.userAgent === host.userAgent && plain.platform === host.platform && plain.touch === 0, JSON.stringify(plain))
   const other = host.platform === 'Win32' ? 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36'
-  await loaded(on('beside'), () => pageOf(lead, 'beside'), () => run({ op: 'viewport', tab: 'beside', emulation: { device: null, userAgent: other } }), () => run({ op: 'reload', tab: 'beside' }))
+  await loaded(on('beside'), () => pageOf(lead, 'beside'), () => run({ op: 'viewport', tab: 'beside', emulation: { device: null, userAgent: other } }))
   const live = await nowIn('beside', `${CROSS}/first`)
   const liveTop = await topOf('beside')
   check('[E6] an identity that needs no reload is read by the frame that is already there', live !== null && live.userAgent === other && live.platform === liveTop.platform && live.platform !== host.platform && live.touch === 0, JSON.stringify(live))
@@ -382,7 +372,7 @@ section('S4 an emulated identity reaches the frame')
 section('S5 on a page after a recovery')
 {
   const crashed = await crash('beside')
-  const reloaded = await loaded(on('beside'), () => pageOf(lead, 'beside'), () => run({ op: 'reload', tab: 'beside' }), () => run({ op: 'reload', tab: 'beside' }))
+  const reloaded = await loaded(on('beside'), () => pageOf(lead, 'beside'), () => run({ op: 'reload', tab: 'beside' }))
   const first = await firstIn('beside', `${CROSS}/first`)
   const nine = await nineIn('beside', `${CROSS}/detect`)
   check('[G5] the frame reads the identity and the nine hold inside it (9/9)', crashed && reloaded.result.includes('this is a fresh load') && same(first, host) && nine.passed === 9 && nine.total === 9, `${reloaded.result} ${JSON.stringify(first)} ${JSON.stringify(nine.checks)}`)
@@ -440,26 +430,24 @@ for (const kind of ['throws', 'refused', 'unanswered'] as const) {
   check('a tab closed while its frame is still loading closes at once', closed.outcome === 'succeeded' && closed.ms < 5000 && settled.ms < 20000, `${closed.result} ${closed.ms}ms | ${settled.result} ${settled.ms}ms`)
 }
 
-section('S7 what a site sees')
+section('S7 what a site sees (the reference launch adds its frames one after another: it asks for no births, and there the driver’s own registration prepares a frame)')
 {
+  let pageMark = 0
+  await loaded(on(undefined), () => pageOf(), () => {
+    pageMark = asked.length
+    return run({ op: 'open', url: `${A.origin}/framed?apart=1` })
+  })
+  const pageRequest = frameRequest(pageMark)
   const plainMark = sent.length
   const bare = (await sessions.ensureBrowserSession(ownerOf(reference), { origin: A.origin, headless: true })) as { page: Page }
   let referenceMark = 0
-  await loaded(
-    'the reference launch',
-    () => bare.page,
-    () => {
-      referenceMark = asked.length
-      return sessions.firstNavigation(bare, `${A.origin}/framed`, () => bare.page.goto(`${A.origin}/framed`, { waitUntil: 'load' }))
-    },
-    () => {
-      referenceMark = asked.length
-      return bare.page.goto(`${A.origin}/framed`, { waitUntil: 'load' })
-    },
-  )
+  await loaded('the reference launch', () => bare.page, () => {
+    referenceMark = asked.length
+    return sessions.firstNavigation(bare, `${A.origin}/framed?apart=1`, () => bare.page.goto(`${A.origin}/framed?apart=1`, { waitUntil: 'load' }))
+  })
   const request = frameRequest(referenceMark)
   check('a launch that does not ask for it sends nothing for frames (the document printer’s road)', frameWatches(plainMark).length === 0, String(frameWatches(plainMark).length))
-  check('the frame’s own request is header for header what that launch sends', mainFrameRequest.length > 0 && JSON.stringify(mainFrameRequest) === JSON.stringify(request), `${mainFrameRequest.join(' | ')} || ${request.join(' | ')}`)
+  check('the frame’s own request is header for header what that launch sends, each page adding the frame the same way', pageRequest.length > 0 && JSON.stringify(pageRequest) === JSON.stringify(request), `${pageRequest.join(' | ')} || ${request.join(' | ')}`)
   await loaded(on(undefined), () => pageOf(), () => run({ op: 'open', url: `${A.origin}/framed` }))
   await loaded(on('beside'), () => pageOf(lead, 'beside'), () => run({ op: 'reload', tab: 'beside' }))
   await firstIn(undefined, `${CROSS}/first`)
@@ -500,7 +488,7 @@ section('S9 the page')
 section('S10 the reads and the loads themselves')
 check(answered, true)
 check(reached, true)
-console.log(`    ${reads.count} reads through the driver, the slowest ${reads.slowest} ms; ${setAside.length === 0 ? 'no load was set aside' : `${setAside.length} load(s) set aside for the driver’s race: ${setAside.join(', ')}`}`)
+console.log(`    ${reads.count} reads through the driver, the slowest ${reads.slowest} ms; ${loads.count} loads, their frames of another site side by side in all but the two that S7 compares, none left behind`)
 
 Connection.prototype._rawSend = send
 await finish('prove-browser-frame-identity', [lead, reference, cold])
