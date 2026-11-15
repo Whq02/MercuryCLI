@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { type ChildProcess, execFileSync, spawn } from 'node:child_process'
+import { type ChildProcess, spawn } from 'node:child_process'
 import http from 'node:http'
 import { join } from 'node:path'
 import type { Browser as DriverBrowser, LaunchOptions } from 'puppeteer-core'
@@ -36,10 +36,10 @@ const NEVER = { result: 'never', outcome: 'never', ms: SETTLE_BOX_MS }
 
 function pidAlive(pid: number): boolean {
   try {
-    execFileSync('kill', ['-0', String(pid)], { stdio: 'ignore' })
+    process.kill(pid, 0)
     return true
-  } catch {
-    return false
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'EPERM'
   }
 }
 
@@ -302,7 +302,9 @@ console.log('R the real browser, killed and frozen from outside (skips by name w
   const resolution = resolveBrowser()
   if (resolution.state !== 'ok' || process.platform === 'win32') {
     console.log(
-      `  [SKIP] R no drivable browser here (${resolution.state !== 'ok' ? resolution.note : 'win32'}) — point MERCURY_BROWSER_CACHE_DIR at a managed Chrome-for-Testing cache (<config home>/browsers) or MERCURY_BROWSER_PATH at a Chromium binary to run the real legs; the fixture legs above carry the law`,
+      resolution.state !== 'ok'
+        ? `  [SKIP] R no drivable browser here (${resolution.note}) — point MERCURY_BROWSER_CACHE_DIR at a managed Chrome-for-Testing cache (<config home>/browsers) or MERCURY_BROWSER_PATH at a Chromium binary to run the real legs; the fixture legs above carry the law`
+        : `  [SKIP] R not run on win32 (a browser did resolve: ${resolution.source}) — these legs end the browser with SIGKILL and freeze it with SIGSTOP, and win32 has no SIGSTOP; the fixture legs above carry the law`,
     )
   } else {
     const page = http.createServer((req, res) => {
