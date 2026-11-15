@@ -250,6 +250,91 @@ section('2 · cancellation: it waits for the session to be idle, cancels for rea
     check('and the turn after it resumes everything before its own message', resumed !== undefined && resumed.promptTokens - resumed.cachedTokens <= newMessage, `${resumed?.cachedTokens} of ${resumed?.promptTokens}`)
     armed.fixture.stop()
   } else check('after a slow cut, three turns in a row that left the engine the time arm the read-ahead again', false, 'no TensorFold record')
+  const restedTwice = async (model = 'qwen3.5-2b'): Promise<World | undefined> => {
+    const w = await world('after-last-user', CAPABLE, { letsGoAfterMs: 700 }, model)
+    if (w === undefined) return undefined
+    prefill?.__setNextTurnPrefillIoForTest({ settleMs: SETTLE_MS, lookMs: LOOK_MS, tokensPerSecond: 5000 })
+    w.fixture.holdBackground(1500)
+    await toolTurn(w)
+    await untilAsync(() => w.fixture.waiting() === 1, 2000, 5)
+    w.fixture.holdBackground(0)
+    await nextTurn(w)
+    for (let rested = 0; rested < 2; rested++) {
+      await quiet(700)
+      await nextTurn(w)
+    }
+    return w
+  }
+  const stillOff = (w: World): boolean => facts()?.slowed === 1 && facts()?.rearmed === 0 && ahead(w).length === 1
+  const folded = await restedTwice()
+  if (folded !== undefined) {
+    folded.fixture.holdNext(700)
+    folded.fixture.reply({ text: 'the conversation so far, in short' })
+    await ask(folded.record, [...folded.history, createUserMessage({ content: 'Summarise the conversation.' })], { querySource: 'compact' })
+    await nextTurn(folded)
+    await quiet(60)
+    check('a compaction that fills the pause is not a pause: two rested turns, a compaction of 700 ms, a message at once, and the read-ahead stays off', stillOff(folded), `facts ${JSON.stringify(facts())}, ${ahead(folded).length} background request(s)`)
+    folded.fixture.stop()
+  } else check('a compaction that fills the pause is not a pause', false, 'no TensorFold record')
+  const elsewhere = await restedTwice()
+  if (elsewhere !== undefined) {
+    setEngineModelOverride('claude-opus-4-8')
+    await quiet(700)
+    setEngineModelOverride('local/qwen3.5-2b')
+    await nextTurn(elsewhere)
+    await quiet(60)
+    check('time spent on another model is not a pause on this engine', stillOff(elsewhere), `facts ${JSON.stringify(facts())}, ${ahead(elsewhere).length} background request(s)`)
+    elsewhere.fixture.stop()
+  } else check('time spent on another model is not a pause on this engine', false, 'no TensorFold record')
+  const halted = await restedTwice()
+  if (halted !== undefined) {
+    const servedFile = join(HOME, 'served-for-the-rest.json')
+    writeFileSync(servedFile, JSON.stringify({ name: halted.record.id, repo: 'mlx-community/Qwen3.5-2B-MLX-4bit', port: Number(new URL(halted.fixture.root).port), project: join(HOME, 'no-project') }))
+    await stopTensorFold(halted.record.id, { servedFile, forgetPort: () => {}, forgetHost: async () => {} }).catch(() => undefined)
+    await quiet(700)
+    await nextTurn(halted)
+    await quiet(60)
+    check('the time an engine was being stopped from Mercury is not a pause', stillOff(halted), `facts ${JSON.stringify(facts())}, ${ahead(halted).length} background request(s)`)
+    halted.fixture.stop()
+  } else check('the time an engine was being stopped from Mercury is not a pause', false, 'no TensorFold record')
+  const wordy = await world('after-last-user', CAPABLE, { letsGoAfterMs: 700 })
+  if (wordy !== undefined) {
+    prefill?.__setNextTurnPrefillIoForTest({ settleMs: SETTLE_MS, lookMs: LOOK_MS, tokensPerSecond: 500 })
+    const long = Array.from({ length: 1200 }, (_, n) => `line_${n} = ${n * 3}`).join('\n')
+    const say = async (question: string, reply: FoldReply): Promise<void> => {
+      wordy.history = [createUserMessage({ content: question })]
+      wordy.fixture.reply(reply)
+      wordy.history = [...wordy.history, ...(await ask(wordy.record, wordy.history))]
+    }
+    wordy.fixture.holdBackground(1500)
+    await say('Hello.', { reasoning: 'A greeting.', text: 'Hello.' })
+    await untilAsync(() => wordy.fixture.waiting() === 1, 2000, 5)
+    wordy.fixture.holdBackground(0)
+    await say('Write the lines.', { reasoning: 'Writing them.', text: long })
+    for (let turn = 0; turn < 3; turn++) {
+      await quiet(950)
+      await say(`Write them again, ${turn}.`, turn < 2 ? { reasoning: 'Writing them.', text: long } : { reasoning: 'Done.', text: 'done' })
+    }
+    check('a long reply counts in the time a read-ahead takes: pauses of 950 ms after replies that take seconds to read do not arm it', facts()?.slowed === 1 && facts()?.rearmed === 0, `facts ${JSON.stringify(facts())}`)
+    wordy.fixture.stop()
+  } else check('a long reply counts in the time a read-ahead takes', false, 'no TensorFold record')
+  const warm = await world('after-last-user', CAPABLE, { letsGoAfterMs: 700 })
+  if (warm !== undefined) {
+    prefill?.__setNextTurnPrefillIoForTest({ settleMs: SETTLE_MS, lookMs: LOOK_MS, tokensPerSecond: 1000 })
+    warm.fixture.holdBackground(1500)
+    await callStep(warm, '/work/big.txt', Array.from({ length: 1200 }, (_, n) => `${n + 1}\tentry ${n + 1}: crate ${(n * 37) % 91} bay ${(n * 13) % 17}`).join('\n'))
+    await answerStep(warm)
+    await untilAsync(() => warm.fixture.waiting() === 1, 2000, 5)
+    warm.fixture.holdBackground(0)
+    await nextTurn(warm)
+    for (let turn = 0; turn < 3; turn++) {
+      await quiet(800)
+      await nextTurn(warm)
+    }
+    const prompt = real(warm).at(-1)?.promptTokens ?? 0
+    check('a long conversation the engine already holds does not count against a short turn: pauses of 800 ms after short turns arm it again', prompt > 10000 && facts()?.rearmed === 1, `the last request holds ${prompt} prompt tokens, facts ${JSON.stringify(facts())}`)
+    warm.fixture.stop()
+  } else check('a long conversation the engine already holds does not count against a short turn', false, 'no TensorFold record')
   let falsePositives = 0
   let rearmed = 0
   for (let round = 0; round < 10; round++) {
