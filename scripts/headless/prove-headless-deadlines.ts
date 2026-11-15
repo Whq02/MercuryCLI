@@ -270,6 +270,38 @@ section('§4 — mid-stream stall (hang turn): the belt fires; the abort reaches
   await fixture.close()
 }
 
+section('§4b — a fold in the middle of a turn: its stream is the turn\'s progress, its silence is not')
+{
+  const SUMMARY = ['<summary>', '1. Operator Intent: list the markdown files here and say one line.', '2. Technical Ground: an empty folder.', '3. Files and Code Touched: none.', '4. Errors and Corrections: none.', '5. Problems Worked: none.', '6. Operator Messages: the one ask.', '7. Open Work: the one line.', '8. Where Work Stands: the listing came back.', '9. Next Move (optional): answer.', '10. Agents in flight: none.', '</summary>']
+  const LIMIT_MS = 3_000
+  const foldEnv = { MERCURY_HEADLESS_IDLE_MINUTES: '0.05', MERCURY_BLOCKING_LIMIT_OVERRIDE: '40000' }
+  const listing = { kind: 'tool_use' as const, name: 'Glob', input: { pattern: '*.md' }, usage: { input_tokens: 30_000, output_tokens: 20 } }
+  const ask = 'list the markdown files here and say one line'
+  const landedOf = (run: DistRun): Envelope[] => run.envelopes.filter(e => e.type === 'compaction' && e.state === 'ended' && e.exit === 'landed')
+
+  const sending: FixtureApi = await startFixtureApi([
+    listing,
+    { kind: 'paced', deltas: SUMMARY.map(line => `${line}\n`), gapMs: 400, startDelayMs: 1_200, whenBody: 'Produce the summary now.' },
+    { kind: 'text', text: 'FOLD-OUTLIVED-THE-LIMIT.' },
+  ])
+  const alive = await runDistTurns(hermeticEnv(sending.url, foldEnv), [ask], { killAfterMs: 90_000 })
+  const aliveResults = resultsOf(alive)
+  const emits = sending.pacedEmits
+  const streamMs = emits.length === 0 ? 0 : emits[emits.length - 1]!.at - emits[0]!.at
+  check('the fold\'s summary streamed whole, a piece every 400 ms, for longer than the turn\'s whole limit', emits.length === SUMMARY.length && streamMs > LIMIT_MS, `${emits.length} of ${SUMMARY.length} pieces over ${streamMs}ms`)
+  check('the fold landed: the belt counted its stream as the turn\'s progress', landedOf(alive).length === 1, j(alive.envelopes.filter(e => e.type === 'compaction').map(e => `${String(e.state)}:${String(e.exit ?? '')}`)))
+  check('the turn went on to its answer and the run exits clean', alive.exit === 0 && aliveResults.length === 1 && aliveResults[0]?.status === 'completed' && aliveResults[0]?.answer === 'FOLD-OUTLIVED-THE-LIMIT.', `exit=${alive.exit} ${j(aliveResults).slice(0, 300)}`)
+  check('no outcome names the unattended-turn deadline', !/unattended turn: no progress/.test(j(aliveResults)), j(aliveResults).slice(0, 300))
+  await sending.close()
+
+  const quiet: FixtureApi = await startFixtureApi([listing, { kind: 'hang', deltas: [], whenBody: 'Produce the summary now.' }])
+  const silent = await runDistTurns(hermeticEnv(quiet.url, foldEnv), [ask], { killAfterMs: 90_000 })
+  const silentText = j(resultsOf(silent))
+  check('a fold whose stream opens and then says nothing is cut at the limit as before', silent.exit !== null && silent.exit !== 0 && failedOf(resultsOf(silent)) !== undefined && /unattended turn: no progress/.test(silentText) && landedOf(silent).length === 0, `exit=${silent.exit} ${silentText.slice(0, 300)}`)
+  check('that cut is prompt', silent.wallMs < 60_000, `${silent.wallMs}ms`)
+  await quiet.close()
+}
+
 section('§5 — mid-stream stall, belt disabled: undici bodyTimeout ends the run')
 {
   let messagePosts = 0

@@ -184,7 +184,8 @@ import { subscribeHookExecutionEvents } from '../utils/hooks/hookEvents.js'
 import { hookTaskRow } from '../utils/hooks/rows.js'
 import { takeFirstPrompt, type runSessionStartHooks } from '../utils/sessionStart.js'
 import { createIdleTimeoutManager } from '../utils/idleTimeout.js'
-import { armInactivityDeadline, DeadlineExceededError, minutesKnobToMs } from '../utils/deadline.js'
+import { armInactivityDeadline, DeadlineExceededError, declaredWaitEnd, holdDeadlineUntil, minutesKnobToMs } from '../utils/deadline.js'
+import { LOCAL_FIRST_BYTE_CAP_MS } from '../services/providers/localLiveness.js'
 import { flagEnv, setFlagEnv } from '../substrate/flagRegistry.js'
 import { AGENT_MESSAGE_STATUS } from '../constants/agentMessage.js'
 import { clearSystemPromptSections } from '../constants/systemPromptSections.js'
@@ -636,6 +637,18 @@ export async function runHeadless(
       return foldRow(fold !== null && typeof fold === 'object' ? fold : null)
     }
     return null
+  }
+  const statusIsProgress = (status: unknown): boolean => {
+    if (status === 'compacting') return true
+    if (typeof status !== 'object' || status === null) return false
+    if ('streamActivity' in status || 'compacting' in status) return true
+    const wait = (status as { wait?: RequestWaitV1 | null }).wait
+    return wait?.kind === 'first-byte' && wait.checkedMs !== undefined
+  }
+  const promisedWaitOf = (status: unknown): Extract<RequestWaitV1, { kind: 'first-byte' }> | null | undefined => {
+    if (typeof status !== 'object' || status === null || !('wait' in status)) return undefined
+    const wait = (status as { wait?: RequestWaitV1 | null }).wait
+    return wait?.kind === 'first-byte' && wait.promise === true && wait.phase !== 'tokens' ? wait : null
   }
   const missionGuard = await import('../guards/mission.js')
   {
@@ -1316,6 +1329,11 @@ export async function runHeadless(
         turnAbort.abort(error)
       },
     })
+    let promiseHold: { cancel(): void } | null = null
+    const holdPromise = (wait: Extract<RequestWaitV1, { kind: 'first-byte' }> | null): void => {
+      promiseHold?.cancel()
+      promiseHold = wait === null || !turnWatchdog.armed ? null : holdDeadlineUntil(turnWatchdog, declaredWaitEnd(wait.sinceMs, wait.budgetMs, LOCAL_FIRST_BYTE_CAP_MS), turnIdleLimitMs / 2)
+    }
     hostAsks = keepTurnLiveWhileHostAnswers({
       watchdog: turnWatchdog,
       limitMs: turnIdleLimitMs,
@@ -1419,6 +1437,10 @@ export async function runHeadless(
             ),
           agents: activeAgents,
           setSDKStatus: (status: unknown) => {
+            if (statusIsProgress(status)) turnWatchdog.touch()
+            const promised = promisedWaitOf(status)
+            if (promised !== undefined) holdPromise(promised)
+            else if (typeof status === 'object' && status !== null && 'streamActivity' in status) holdPromise(null)
             const row = statusRowOf(status)
             if (row !== null) enqueueRow(row)
           },
@@ -1437,6 +1459,7 @@ export async function runHeadless(
       turnAnchor = null
       hostAsks?.stop()
       hostAsks = null
+      holdPromise(null)
       turnWatchdog.cancel()
       inFlightAbort = null
       currentTurn = null

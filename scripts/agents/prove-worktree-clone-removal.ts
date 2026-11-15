@@ -3,8 +3,8 @@ import '../lib/hermetic.ts'
 import { execFileSync } from 'node:child_process'
 import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
-import { cloneRoadExpected } from '../lib/cloneRoad.ts'
+import { dirname, join, resolve } from 'node:path'
+import { accountLinks, cloneRoadExpected, LINK_PRIVILEGE } from '../lib/cloneRoad.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
@@ -31,10 +31,11 @@ const discardSetAside = clones.discardSetAside as ((path: string) => void) | und
 const returnWorktreeFromAside = clones.returnWorktreeFromAside as ((aside: string, path: string) => void) | undefined
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-clone-removal-')))
+const links = accountLinks(scratch)
 const cloneRoad = cloneRoadExpected(scratch)
 const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@invalid' }
 const git = (cwd: string, ...args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', env: gitEnv }).trim()
-const registered = (repo: string): string[] => git(repo, 'worktree', 'list', '--porcelain').split('\n').filter(line => line.startsWith('worktree ')).map(line => line.slice('worktree '.length))
+const registered = (repo: string): string[] => git(repo, 'worktree', 'list', '--porcelain').split('\n').filter(line => line.startsWith('worktree ')).map(line => resolve(line.slice('worktree '.length)))
 const setAside = (home: string): string[] => (existsSync(home) ? readdirSync(home).filter(name => name.startsWith('.removing-')) : [])
 const wait = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 const gone = async (home: string): Promise<boolean> => {
@@ -108,7 +109,8 @@ else {
 process.env.MERCURY_WORKTREE_CLONE = 'off'
 const plain = await createAgentWorktree('agent-ab100002')
 delete process.env.MERCURY_WORKTREE_CLONE
-check('a copy made of links records nothing', !existsSync(adminFile(repo, 'agent-ab100002', 'WORKTREE_CLONES')) && lstatSync(join(plain.worktreePath, 'node_modules')).isSymbolicLink())
+if (!links) skip(`the links a copy is made of with no clone, and the fixture's own link to a file in §4: ${LINK_PRIVILEGE}`)
+check(`a copy made of ${links ? 'links' : 'the folders this account gets in place of links'} records nothing`, !existsSync(adminFile(repo, 'agent-ab100002', 'WORKTREE_CLONES')) && (links ? lstatSync(join(plain.worktreePath, 'node_modules')).isSymbolicLink() : lstatSync(join(plain.worktreePath, 'node_modules')).isDirectory()))
 
 section('§2 leaving a session worktree that holds clones: git drops it, the delete runs apart, nothing is printed (§7 holds that the tree is set aside, by a folder a delete in place could not take)')
 const session = await createWorktreeForSession('proof-session', 'leave-clone')
@@ -154,8 +156,18 @@ chmodSync(join(outside, 'sealed'), 0o555)
 const outsideModeBefore = statSync(join(outside, 'sealed')).mode & 0o7777
 const handed = await createAgentWorktree('agent-ab400002')
 await unlockAgentWorktree(handed.worktreePath, repo)
-symlinkSync(outside, join(handed.worktreePath, 'node_modules', 'link-out-of-the-tree'))
-symlinkSync(join(outside, 'keep.txt'), join(handed.worktreePath, 'node_modules', 'file-link-out'))
+let linkedOut = true
+if (links) {
+  symlinkSync(outside, join(handed.worktreePath, 'node_modules', 'link-out-of-the-tree'))
+  symlinkSync(join(outside, 'keep.txt'), join(handed.worktreePath, 'node_modules', 'file-link-out'))
+} else {
+  try {
+    symlinkSync(outside, join(handed.worktreePath, 'node_modules', 'link-out-of-the-tree'), 'junction')
+  } catch {
+    linkedOut = false
+    skip('no junction could be made here either: the delete is handed no link out of the tree')
+  }
+}
 if (cloneRoad && process.getuid?.() !== 0) chmodSync(join(handed.worktreePath, 'node_modules', 'pkg-1', 'lib'), 0o555)
 const handedAside = setWorktreeAside?.(handed.worktreePath) ?? null
 check('the product sets a tree aside under a name of its own inside the worktrees home', handedAside !== null && dirname(handedAside) === home && handedAside.includes('.removing-agent-ab400002-'), String(handedAside))
@@ -169,8 +181,8 @@ discardSetAside?.(impostor)
 discardSetAside?.(join(strayHome, '.removing-looks-right'))
 if (handedAside !== null) discardSetAside?.(handedAside)
 check('the tree handed over is deleted, its read-only folder and its links with it', await gone(home), setAside(home).join(', '))
-check('a link out of the tree was unlinked, never followed: the folder it named is whole', readFileSync(join(outside, 'keep.txt'), 'utf8') === 'outside the tree\n' && readFileSync(join(outside, 'sealed', 'inner.txt'), 'utf8') === 'outside and read-only\n')
-check('…and keeps its modes', (statSync(join(outside, 'sealed')).mode & 0o7777) === outsideModeBefore, (statSync(join(outside, 'sealed')).mode & 0o7777).toString(8))
+if (linkedOut) check('a link out of the tree was unlinked, never followed: the folder it named is whole', readFileSync(join(outside, 'keep.txt'), 'utf8') === 'outside the tree\n' && readFileSync(join(outside, 'sealed', 'inner.txt'), 'utf8') === 'outside and read-only\n')
+if (linkedOut) check('…and keeps its modes', (statSync(join(outside, 'sealed')).mode & 0o7777) === outsideModeBefore, (statSync(join(outside, 'sealed')).mode & 0o7777).toString(8))
 await wait(500)
 check('a folder without the set-aside name is not deleted', existsSync(join(impostor, 'inside')))
 check('a folder with the name but outside a worktrees home is not deleted', existsSync(join(strayHome, '.removing-looks-right', 'inside')))
@@ -234,7 +246,7 @@ const worker = await ensureWorkerWorktree(repo, 'runner-clone', daemonHome)
 check('the worker worktree is made', worker.ok === true, JSON.stringify(worker))
 if (worker.ok) {
   const workerHoldsClone = lstatSync(join(worker.path, 'node_modules')).isDirectory() && !lstatSync(join(worker.path, 'node_modules')).isSymbolicLink()
-  check('…with its dependency folder its own where the volume clones', workerHoldsClone === cloneRoad, String(workerHoldsClone))
+  check(`…with its dependency folder its own where the volume clones${links ? '' : ', and where this account may not make the link'}`, workerHoldsClone === (cloneRoad || !links), String(workerHoldsClone))
   const diedInDaemon = join(workerHome, `.removing-runner-gone-1-${Date.now().toString(36)}`)
   mkdirSync(join(diedInDaemon, 'node_modules'), { recursive: true })
   utimesSync(diedInDaemon, hoursAgo(2), hoursAgo(2))
@@ -253,6 +265,7 @@ if (worker.ok) {
 
 enter(ROOT)
 await gone(home)
+chmodSync(join(outside, 'sealed'), 0o755)
 if (process.platform !== 'win32') execFileSync('chmod', ['-R', 'u+rwx', scratch])
 rmSync(scratch, { recursive: true, force: true })
 console.log('\n' + '─'.repeat(76))

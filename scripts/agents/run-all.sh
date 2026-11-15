@@ -24,6 +24,7 @@
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/tools/BashTool/readOnlyValidation.ts scripts/providers/lib/llmhostFixture.ts
 # gate-watch: src/tools/EnterWorktreeTool/EnterWorktreeTool.ts
+# gate-watch: src/tools/FileReadTool/FileReadTool.ts
 # gate-watch: src/services/providers/routeLaw.ts
 # gate-watch: src/daemon/concourseWorktrees.ts src/run-core/pauseGate.ts src/types/ids.ts
 # gate-watch: src/services/instructions/engine.ts src/setup.ts src/substrate/flagRegistry.ts scripts/hooks/lib/runDoor.ts

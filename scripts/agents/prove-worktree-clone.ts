@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { chmodSync, existsSync, linkSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, rmSync, statfsSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { cloneRoadExpected, contentShared, volumeClones } from '../lib/cloneRoad.ts'
+import { accountLinks, cloneRoadExpected, contentShared, LINK_PRIVILEGE, runnableOnWindows, volumeClones } from '../lib/cloneRoad.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
@@ -27,6 +27,7 @@ const { createAgentWorktree, createWorktreeForSession, keepWorktree, prepareWork
 const cloneModule = await import('../../src/utils/worktreeClone.ts').catch(() => null)
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-clone-')))
+const links = accountLinks(scratch)
 const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@invalid' }
 const git = (cwd: string, ...args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', env: gitEnv }).trim()
 const authoredStatus = (cwd: string): string => git(cwd, 'status', '--porcelain', '-uall').split('\n').filter(line => line !== '' && !line.slice(3).startsWith('.mercury/')).join('\n')
@@ -44,6 +45,7 @@ const isOwnDirectory = (path: string): boolean => {
     return false
   }
 }
+const placedAs = (path: string, target: string): boolean => (links ? isLinkTo(path, target) : isOwnDirectory(path))
 const read = (path: string): string => {
   try {
     return readFileSync(path, 'utf8')
@@ -91,6 +93,7 @@ const makeCheckout = (dir: string, dependencyFiles: number): void => {
   mkdirSync(join(dir, 'node_modules', '.bin'), { recursive: true })
   writeFileSync(join(dir, 'node_modules', '.bin', 'typecheck-fixture'), '#!/bin/sh\nprintf typecheck-ok\n')
   chmodSync(join(dir, 'node_modules', '.bin', 'typecheck-fixture'), 0o755)
+  runnableOnWindows(join(dir, 'node_modules', '.bin', 'typecheck-fixture'), 'typecheck-ok')
   const body = Buffer.alloc(1024, 'd')
   let made = 1
   for (let pkg = 0; made < dependencyFiles; pkg++) {
@@ -104,7 +107,7 @@ const makeCheckout = (dir: string, dependencyFiles: number): void => {
   }
   writeFileSync(join(dir, 'node_modules', 'pkg-0', 'index.js'), 'module.exports = "parent"\n')
   utimesSync(join(dir, 'node_modules', 'pkg-0', 'index.js'), OLD, OLD)
-  symlinkSync('../pkg-0/index.js', join(dir, 'node_modules', '.bin', 'pkg-0'))
+  if (links) symlinkSync('../pkg-0/index.js', join(dir, 'node_modules', '.bin', 'pkg-0'))
   mkdirSync(join(dir, 'vendor', 'pack-a'))
   writeFileSync(join(dir, 'vendor', 'pack-a', 'marker'), 'pack\n')
   mkdirSync(join(dir, 'authored'))
@@ -145,8 +148,9 @@ if (cloneRoad) {
   check('the exclude file of the clone gains no line', excludeLines(deps).length === 0, excludeLines(deps).join('|'))
 } else {
   skip('this volume or platform cannot clone: the copy is linked as before, read in §5')
-  check("node_modules is a link to the parent checkout's", isLinkTo(firstModules, join(deps, 'node_modules')))
-  check('every vendored pack is a link too', isLinkTo(firstPack, join(deps, 'vendor', 'pack-a')))
+  if (!links) skip(`the links a copy is made of with no clone, and the fixture's own: ${LINK_PRIVILEGE}; the folders this account gets in their place are read instead`)
+  check(links ? "node_modules is a link to the parent checkout's" : 'node_modules is a folder of the copy, in place of the link', placedAs(firstModules, join(deps, 'node_modules')))
+  check(links ? 'every vendored pack is a link too' : 'every vendored pack is a folder of the copy too', placedAs(firstPack, join(deps, 'vendor', 'pack-a')))
 }
 check('an authored untracked directory of the parent is not carried', !existsSync(join(first.worktreePath, 'authored')))
 const laneStatus = git(first.worktreePath, 'status', '--porcelain')
@@ -179,8 +183,13 @@ if (cloneRoad) {
   check('each crewmate reads its own build output', leftSees === 'left\n{"built-by":"left"}' && rightSees === 'right\n{"built-by":"right"}', `${leftSees} · ${rightSees}`)
   check('the checkout reads neither', parentSees === '<absent>{}', parentSees)
 } else {
-  skip('this volume or platform cannot clone: the two crewmates write through one linked folder, as before')
-  check('the two crewmates and the checkout read one folder', leftSees === rightSees && rightSees === parentSees, `${leftSees} · ${rightSees} · ${parentSees}`)
+  if (links) {
+    skip('this volume or platform cannot clone: the two crewmates write through one linked folder, as before')
+    check('the two crewmates and the checkout read one folder', leftSees === rightSees && rightSees === parentSees, `${leftSees} · ${rightSees} · ${parentSees}`)
+  } else {
+    check('each crewmate reads its own build output, in the folders this account gets in place of the links', leftSees === 'left\n{"built-by":"left"}' && rightSees === 'right\n{"built-by":"right"}', `${leftSees} · ${rightSees}`)
+    check('the checkout reads neither', parentSees === '<absent>{}', parentSees)
+  }
 }
 check('each stands on its own branch', git(left.worktreePath, 'rev-parse', '--abbrev-ref', 'HEAD') === 'worktree-agent-a2000001' && git(right.worktreePath, 'rev-parse', '--abbrev-ref', 'HEAD') === 'worktree-agent-a2000002')
 
@@ -259,13 +268,21 @@ const expected = [
   ...tracked.filter(name => name.startsWith('vendor/')).map(name => `${name} ${statSync(join(deps, name)).size}`),
 ].sort()
 const actual = listing(linked.worktreePath).map(row => (row.startsWith('.git ') ? '.git 0' : row)).sort()
-check('the copy holds its tracked files, the empty folder its local settings would go in and two links, and nothing else', JSON.stringify(actual) === JSON.stringify(expected), `${actual.join(' | ')} against ${expected.join(' | ')}`)
-check("node_modules is a link to the parent checkout's", isLinkTo(join(linked.worktreePath, 'node_modules'), join(deps, 'node_modules')))
-check('every vendored pack is a link too', isLinkTo(join(linked.worktreePath, 'vendor', 'pack-a'), join(deps, 'vendor', 'pack-a')))
-check("the clone's exclude file carries the link names, anchored, once each", excludeLines(deps).filter(line => line === '/node_modules').length === 1 && excludeLines(deps).filter(line => line === '/vendor/pack-a').length === 1, excludeLines(deps).join('|'))
-check('git status in the linked copy shows nothing', git(linked.worktreePath, 'status', '--porcelain') === '')
-writeFileSync(join(linked.worktreePath, 'node_modules', 'pkg-4', 'package.json'), '{"through":"the link"}')
-check('a write through the link lands in the checkout, as before', read(join(deps, 'node_modules', 'pkg-4', 'package.json')) === '{"through":"the link"}')
+if (links) {
+  check('the copy holds its tracked files, the empty folder its local settings would go in and two links, and nothing else', JSON.stringify(actual) === JSON.stringify(expected), `${actual.join(' | ')} against ${expected.join(' | ')}`)
+  check("node_modules is a link to the parent checkout's", isLinkTo(join(linked.worktreePath, 'node_modules'), join(deps, 'node_modules')))
+  check('every vendored pack is a link too', isLinkTo(join(linked.worktreePath, 'vendor', 'pack-a'), join(deps, 'vendor', 'pack-a')))
+  check("the clone's exclude file carries the link names, anchored, once each", excludeLines(deps).filter(line => line === '/node_modules').length === 1 && excludeLines(deps).filter(line => line === '/vendor/pack-a').length === 1, excludeLines(deps).join('|'))
+  check('git status in the linked copy shows nothing', git(linked.worktreePath, 'status', '--porcelain') === '')
+  writeFileSync(join(linked.worktreePath, 'node_modules', 'pkg-4', 'package.json'), '{"through":"the link"}')
+  check('a write through the link lands in the checkout, as before', read(join(deps, 'node_modules', 'pkg-4', 'package.json')) === '{"through":"the link"}')
+} else {
+  check('with no clone and no link the copy holds its dependency folders as folders of its own, the checkout\'s files in them', isOwnDirectory(join(linked.worktreePath, 'node_modules')) && isOwnDirectory(join(linked.worktreePath, 'vendor', 'pack-a')) && JSON.stringify(listing(join(linked.worktreePath, 'node_modules'))) === JSON.stringify(listing(join(deps, 'node_modules'))) && read(join(linked.worktreePath, 'vendor', 'pack-a', 'marker')) === 'pack\n')
+  check('the exclude file gains no line for them: the ignore rules the checkout tracks hide a folder', excludeLines(deps).length === 0, excludeLines(deps).join('|'))
+  check('git status in that copy shows nothing', git(linked.worktreePath, 'status', '--porcelain') === '')
+  writeFileSync(join(linked.worktreePath, 'node_modules', 'pkg-4', 'package.json'), '{"in":"the copy"}')
+  check('a write in the copy does not land in the checkout', read(join(deps, 'node_modules', 'pkg-4', 'package.json')) === '{}')
+}
 
 section("§5b the file-by-file road, Linux's reflinks, read through MERCURY_WORKTREE_CLONE=files wherever the proof's runtime can force a clone of one file")
 if (volumeClones(scratch) && process.platform !== 'win32' && cloneModule !== null) {
@@ -313,7 +330,7 @@ if (volumeClones(scratch) && process.platform !== 'win32' && cloneModule !== nul
   process.env.MERCURY_WORKTREE_CLONE = 'files'
   const refusedByFile = await createAgentWorktree('agent-a8000001')
   delete process.env.MERCURY_WORKTREE_CLONE
-  check('the file-by-file road on a volume that cannot reflink leaves the links, as before', isLinkTo(join(refusedByFile.worktreePath, 'node_modules'), join(deps, 'node_modules')) && isLinkTo(join(refusedByFile.worktreePath, 'vendor', 'pack-a'), join(deps, 'vendor', 'pack-a')))
+  check(links ? 'the file-by-file road on a volume that cannot reflink leaves the links, as before' : 'the file-by-file road on a volume that cannot reflink leaves the folders this account gets in place of the links', placedAs(join(refusedByFile.worktreePath, 'node_modules'), join(deps, 'node_modules')) && placedAs(join(refusedByFile.worktreePath, 'vendor', 'pack-a'), join(deps, 'vendor', 'pack-a')))
 }
 
 section("§5c Linux's own road, one `cp -a --reflink=always` a folder where the machine's cp takes the flag, read through MERCURY_WORKTREE_CLONE=cp with a cp of the proof's own that records what it is asked")
@@ -392,8 +409,8 @@ mkdirSync(join(deps, '.mercury'), { recursive: true })
 writeFileSync(join(deps, '.mercury', 'settings.json'), JSON.stringify({ workspace: { worktree: { symlinkDirectories: ['node_modules/'] } } }))
 resetSettingsCache()
 const overridden = await createAgentWorktree('agent-a5000001')
-check('a dependency folder named in workspace.worktree.symlinkDirectories stays a link', isLinkTo(join(overridden.worktreePath, 'node_modules'), join(deps, 'node_modules')))
-check('…while the pack beside it is cloned where the volume clones', cloneRoad ? isOwnDirectory(join(overridden.worktreePath, 'vendor', 'pack-a')) : isLinkTo(join(overridden.worktreePath, 'vendor', 'pack-a'), join(deps, 'vendor', 'pack-a')))
+check(links ? 'a dependency folder named in workspace.worktree.symlinkDirectories stays a link' : 'a dependency folder named in workspace.worktree.symlinkDirectories is the folder this account gets in place of the link', placedAs(join(overridden.worktreePath, 'node_modules'), join(deps, 'node_modules')))
+check('…while the pack beside it is cloned where the volume clones', cloneRoad ? isOwnDirectory(join(overridden.worktreePath, 'vendor', 'pack-a')) : placedAs(join(overridden.worktreePath, 'vendor', 'pack-a'), join(deps, 'vendor', 'pack-a')))
 rmSync(join(deps, '.mercury', 'settings.json'))
 resetSettingsCache()
 const kept = join(scratch, 'kept')
@@ -401,27 +418,29 @@ mkdirSync(join(kept, 'node_modules'), { recursive: true })
 writeFileSync(join(kept, 'node_modules', 'mine'), 'already here\n')
 await prepareWorktreeFiles(deps, kept, deps, true)
 check('a folder already in the copy is left as it is', read(join(kept, 'node_modules', 'mine')) === 'already here\n' && readdirSync(join(kept, 'node_modules')).length === 1)
-const viaLink = join(scratch, 'via-link')
-makeCheckout(viaLink, 40)
-const elsewhere = join(scratch, 'elsewhere-modules')
-execFileSync('mv', [join(viaLink, 'node_modules'), elsewhere])
-symlinkSync(elsewhere, join(viaLink, 'node_modules'))
-writeFileSync(join(viaLink, '.gitignore'), 'node_modules\nvendor/*/\nkept-modules/\n')
-git(viaLink, 'commit', '-q', '-am', 'the dependency folder may be a link')
-const fromLink = await createAgentWorktree('agent-a6000001', { from: viaLink })
-check('a dependency folder that is a link out of the checkout stays a link through it: no file from outside the checkout enters the copy', lstatSync(join(fromLink.worktreePath, 'node_modules')).isSymbolicLink() && realpathSync(join(fromLink.worktreePath, 'node_modules')) === realpathSync(elsewhere))
-check('…while the pack inside the checkout is cloned where the volume clones', cloneRoad ? isOwnDirectory(join(fromLink.worktreePath, 'vendor', 'pack-a')) : isLinkTo(join(fromLink.worktreePath, 'vendor', 'pack-a'), join(viaLink, 'vendor', 'pack-a')))
-rmSync(join(viaLink, 'node_modules'))
-execFileSync('mv', [elsewhere, join(viaLink, 'kept-modules')])
-symlinkSync('kept-modules', join(viaLink, 'node_modules'))
-const fromInnerLink = await createAgentWorktree('agent-a6000002', { from: viaLink })
-if (cloneRoad) {
-  check('a dependency folder that is a link to a folder inside the checkout is cloned from that folder', isOwnDirectory(join(fromInnerLink.worktreePath, 'node_modules')) && read(join(fromInnerLink.worktreePath, 'node_modules', 'pkg-0', 'index.js')) === 'module.exports = "parent"\n')
-  writeFileSync(join(fromInnerLink.worktreePath, 'node_modules', 'pkg-0', 'index.js'), 'module.exports = "copy"\n')
-  check('…and a write in the copy reaches neither the link nor the folder behind it', read(join(viaLink, 'kept-modules', 'pkg-0', 'index.js')) === 'module.exports = "parent"\n')
-} else {
-  skip('this volume or platform cannot clone: the folder behind the link is linked as before')
-  check('a dependency folder that is a link to a folder inside the checkout is linked through it', realpathSync(join(fromInnerLink.worktreePath, 'node_modules')) === realpathSync(join(viaLink, 'kept-modules')))
+if (links) {
+  const viaLink = join(scratch, 'via-link')
+  makeCheckout(viaLink, 40)
+  const elsewhere = join(scratch, 'elsewhere-modules')
+  execFileSync('mv', [join(viaLink, 'node_modules'), elsewhere])
+  symlinkSync(elsewhere, join(viaLink, 'node_modules'))
+  writeFileSync(join(viaLink, '.gitignore'), 'node_modules\nvendor/*/\nkept-modules/\n')
+  git(viaLink, 'commit', '-q', '-am', 'the dependency folder may be a link')
+  const fromLink = await createAgentWorktree('agent-a6000001', { from: viaLink })
+  check('a dependency folder that is a link out of the checkout stays a link through it: no file from outside the checkout enters the copy', lstatSync(join(fromLink.worktreePath, 'node_modules')).isSymbolicLink() && realpathSync(join(fromLink.worktreePath, 'node_modules')) === realpathSync(elsewhere))
+  check('…while the pack inside the checkout is cloned where the volume clones', cloneRoad ? isOwnDirectory(join(fromLink.worktreePath, 'vendor', 'pack-a')) : isLinkTo(join(fromLink.worktreePath, 'vendor', 'pack-a'), join(viaLink, 'vendor', 'pack-a')))
+  rmSync(join(viaLink, 'node_modules'))
+  execFileSync('mv', [elsewhere, join(viaLink, 'kept-modules')])
+  symlinkSync('kept-modules', join(viaLink, 'node_modules'))
+  const fromInnerLink = await createAgentWorktree('agent-a6000002', { from: viaLink })
+  if (cloneRoad) {
+    check('a dependency folder that is a link to a folder inside the checkout is cloned from that folder', isOwnDirectory(join(fromInnerLink.worktreePath, 'node_modules')) && read(join(fromInnerLink.worktreePath, 'node_modules', 'pkg-0', 'index.js')) === 'module.exports = "parent"\n')
+    writeFileSync(join(fromInnerLink.worktreePath, 'node_modules', 'pkg-0', 'index.js'), 'module.exports = "copy"\n')
+    check('…and a write in the copy reaches neither the link nor the folder behind it', read(join(viaLink, 'kept-modules', 'pkg-0', 'index.js')) === 'module.exports = "parent"\n')
+  } else {
+    skip('this volume or platform cannot clone: the folder behind the link is linked as before')
+    check('a dependency folder that is a link to a folder inside the checkout is linked through it', realpathSync(join(fromInnerLink.worktreePath, 'node_modules')) === realpathSync(join(viaLink, 'kept-modules')))
+  }
 }
 const unreadable = join(scratch, 'unreadable')
 makeCheckout(unreadable, 40)
@@ -442,7 +461,7 @@ check('the copy was made and prepared without a failure to report', afterFailure
 section('§7 the session road makes the same copy')
 enter(deps)
 const session = await createWorktreeForSession('proof-session', 'clone-proof')
-check('the session worktree holds its dependency folders the same way', cloneRoad ? isOwnDirectory(join(session.worktreePath, 'node_modules')) && isOwnDirectory(join(session.worktreePath, 'vendor', 'pack-a')) : isLinkTo(join(session.worktreePath, 'node_modules'), join(deps, 'node_modules')))
+check('the session worktree holds its dependency folders the same way', cloneRoad ? isOwnDirectory(join(session.worktreePath, 'node_modules')) && isOwnDirectory(join(session.worktreePath, 'vendor', 'pack-a')) : placedAs(join(session.worktreePath, 'node_modules'), join(deps, 'node_modules')))
 check('git status in the session worktree shows nothing', git(session.worktreePath, 'status', '--porcelain') === '')
 await keepWorktree()
 

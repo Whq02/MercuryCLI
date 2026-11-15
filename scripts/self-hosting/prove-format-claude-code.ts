@@ -1,5 +1,8 @@
 #!/usr/bin/env bun
+import { execFileSync, spawnSync } from 'node:child_process'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { volumeClones } from '../lib/cloneRoad.ts'
 import { checker, contentsOf, count, guideBattery, openWorld, rulesBattery } from './instructionWorld.ts'
 
 const world = openWorld('format-claude')
@@ -73,6 +76,45 @@ try {
   const p4 = world.project({ 'CLAUDE.md': 'root-guide-needle\n', '.claude/CLAUDE.md': 'folder-guide-needle\n', '.claude/rules/x.md': 'rule-needle\n', 'CLAUDE.local.md': 'local-layer-needle\n' })
   const d4 = world.drive(p4, { orient: true })
   check('its guides and its rules folder are the first lines of MERCURY.md and its local file belongs in MERCURY.local.md', d4.orient.endsWith("\n\nOther tools' files that load here today — the first lines of MERCURY.md:\n@CLAUDE.md\n@.claude/CLAUDE.md\n@.claude/rules\n\nA file that is personal or stands outside this project loads here today — its line belongs in MERCURY.local.md, never in MERCURY.md:\n@CLAUDE.local.md\n"), d4.orient.slice(-500))
+
+  section("a crewmate's isolated copy of the project: its ignored files stay behind whatever the process that makes the copy has loaded")
+  if (process.platform === 'win32' || !volumeClones(world.scratch)) {
+    console.log('[SKIP] this volume cannot clone a file: a copy is carried nothing git ignores here')
+  } else {
+    const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@invalid' }
+    const git = (cwd: string, ...args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', env: gitEnv, stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+    const ignored = ['CLAUDE.local.md', 'src/CLAUDE.local.md', '.claude/CLAUDE.md', '.claude/rules/style.md']
+    const beside = ['.claude/settings.local.json', 'dist/app.js', '.env']
+    const quietHome = join(world.scratch, 'no-home')
+    mkdirSync(quietHome)
+    const copyOf = (guided: boolean, loads: boolean): { result: Record<string, string> | null; copy: string } => {
+      const dir = world.project({
+        '.gitignore': 'CLAUDE.local.md\n.claude/\ndist/\n.env\n.mercury/\n',
+        'CLAUDE.md': 'tracked-guide-needle\n',
+        'src/a.ts': '\n',
+        ...(guided ? { 'MERCURY.md': 'native-needle\n' } : {}),
+        ...Object.fromEntries([...ignored, ...beside].map(rel => [rel, `${rel}\n`])),
+      })
+      git(dir, 'init', '-q', '-b', 'main')
+      git(dir, 'add', '-A')
+      git(dir, 'commit', '-q', '-m', 'first')
+      const child = spawnSync(process.execPath, [join(import.meta.dir, '../agents/prove-worktree-carry.ts'), 'claude-files', dir, ...ignored, ...beside], { encoding: 'utf8', timeout: 120_000, killSignal: 'SIGKILL', env: { ...process.env, HOME: quietHome, USERPROFILE: quietHome, CARRY_SCENARIO_HOME: join(world.scratch, 'no-config'), ...(loads ? { CARRY_SCENARIO_LOADS: '1' } : {}) } })
+      const line = (child.stdout ?? '').split('\n').find(row => row.startsWith('RESULT '))
+      return { result: line === undefined ? null : (JSON.parse(line.slice('RESULT '.length)) as Record<string, string>), copy: join(dir, '.mercury', 'worktrees', 'agent-ad900001') }
+    }
+    type Copied = ReturnType<typeof copyOf>
+    const came = (made: Copied): string[] => (made.result === null ? ['no answer'] : ignored.filter(rel => made.result![rel] !== 'absent'))
+    const restCame = (made: Copied): boolean => made.result !== null && beside.every(rel => made.result![rel] === 'file')
+    const asGitPutsIt = (made: Copied): boolean => existsSync(join(made.copy, 'CLAUDE.md')) && readFileSync(join(made.copy, 'CLAUDE.md'), 'utf8') === 'tracked-guide-needle\n' && git(made.copy, 'ls-files', '--', 'CLAUDE.md') === 'CLAUDE.md' && git(made.copy, 'status', '--porcelain') === ''
+    const unloaded = copyOf(false, false)
+    const composed = copyOf(false, true)
+    const decided = copyOf(true, true)
+    check('a process that has loaded no instruction file leaves its ignored local file, folder guide and rule file behind', came(unloaded).length === 0, came(unloaded).join(', '))
+    check('a session that composed its files leaves them behind', composed.result?.['other tools composed'] === 'true' && came(composed).length === 0, `${composed.result?.['other tools composed']} | ${came(composed).join(', ')}`)
+    check('a session whose MERCURY.md decides, which composed none of them, leaves them behind all the same', decided.result?.['other tools composed'] === 'false' && came(decided).length === 0, `${decided.result?.['other tools composed']} | ${came(decided).join(', ')}`)
+    check("in all three the rest git ignores comes, with the settings file that lies in that tool's ignored folder", restCame(unloaded) && restCame(composed) && restCame(decided), `${JSON.stringify(unloaded.result)} ${JSON.stringify(composed.result)} ${JSON.stringify(decided.result)}`)
+    check('the guide kept in git is in each copy exactly as git puts it there', asGitPutsIt(unloaded) && asGitPutsIt(composed) && asGitPutsIt(decided))
+  }
 } finally {
   world.close()
 }

@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { cloneRoadExpected, volumeClones } from '../lib/cloneRoad.ts'
+import { accountLinks, cloneRoadExpected, LINK_PRIVILEGE, volumeClones } from '../lib/cloneRoad.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
@@ -26,6 +26,7 @@ const { createAgentWorktree, unlockAgentWorktree } = await import('../../src/uti
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-clone-links-')))
 const cloneRoad = cloneRoadExpected(scratch)
+const links = accountLinks(scratch)
 const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@invalid' }
 const git = (cwd: string, ...args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', env: gitEnv }).trim()
 const read = (path: string): string => {
@@ -82,14 +83,16 @@ mkdirSync(join(modules, 'pkg-0'))
 mkdirSync(join(modules, 'sealed'))
 writeFileSync(join(modules, 'pkg-0', 'index.js'), 'module.exports = "dependency"\n')
 writeFileSync(join(modules, 'sealed', 'inside.js'), 'module.exports = "sealed"\n')
-symlinkSync('../../packages/lib', join(modules, '@scope', 'lib'))
-symlinkSync(join(mono, 'tools'), join(modules, 'abs-into-checkout'))
-symlinkSync(join(mono, 'node_modules', 'pkg-0', 'index.js'), join(modules, '.bin', 'abs-into-folder'))
-symlinkSync('../../sibling-project/pkg', join(modules, 'rel-out'))
-symlinkSync(sibling, join(modules, 'abs-out'))
-symlinkSync('./nowhere', join(modules, 'dangling'))
-symlinkSync('../pkg-0/index.js', join(modules, '.bin', 'rel-inside'))
-chmodSync(join(modules, 'sealed'), 0o555)
+if (links) {
+  symlinkSync('../../packages/lib', join(modules, '@scope', 'lib'))
+  symlinkSync(join(mono, 'tools'), join(modules, 'abs-into-checkout'))
+  symlinkSync(join(mono, 'node_modules', 'pkg-0', 'index.js'), join(modules, '.bin', 'abs-into-folder'))
+  symlinkSync('../../sibling-project/pkg', join(modules, 'rel-out'))
+  symlinkSync(sibling, join(modules, 'abs-out'))
+  symlinkSync('./nowhere', join(modules, 'dangling'))
+  symlinkSync('../pkg-0/index.js', join(modules, '.bin', 'rel-inside'))
+} else skip(`the fixture's own links, which are this proof's subject: ${LINK_PRIVILEGE}`)
+if (process.platform !== 'win32') chmodSync(join(modules, 'sealed'), 0o555)
 
 process.chdir(mono)
 state.setOriginalCwd(mono)
@@ -101,6 +104,10 @@ const rows = async (word: string, slug: string, expectCopy: boolean): Promise<vo
   const made = await createAgentWorktree(slug)
   const copy = made.worktreePath
   const inCopy = join(copy, 'node_modules')
+  if (!expectCopy && !links) {
+    check(`${word}: node_modules is the copy this account gets in place of the link, the dependency's file in it`, lstatSync(inCopy).isDirectory() && !lstatSync(inCopy).isSymbolicLink() && read(join(inCopy, 'pkg-0', 'index.js')) === 'module.exports = "dependency"\n', read(join(inCopy, 'pkg-0', 'index.js')))
+    return
+  }
   if (!expectCopy) {
     skip(`${word}: no clone here, the folder is a link to the checkout's and its links are the checkout's own`)
     check(`${word}: node_modules is a link to the checkout's`, lstatSync(inCopy).isSymbolicLink() && real(inCopy) === real(modules))

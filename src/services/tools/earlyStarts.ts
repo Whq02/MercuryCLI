@@ -12,7 +12,7 @@ import { Stream } from '../../utils/stream.js'
 import { toolCallKey } from './loopGuard.js'
 import { batchClaimOf, claimsCompatible, type BatchClaim } from './toolBatching.js'
 import { runToolUse, type MessageUpdateLazy } from './toolExecution.js'
-import { openResultRoomForRound } from './toolOrchestration.js'
+import { openResultRoomForRound, windowHoldsNoWholeResult } from './toolOrchestration.js'
 
 type EarlyCall = {
   updates: Stream<MessageUpdateLazy>
@@ -122,7 +122,7 @@ export class EarlyStarts {
         if (generation !== this.generation) return
         const launchesCrewmate = findToolByName(this.context.options.tools, block.name)?.name === AGENT_TOOL_NAME
         const answersStop = this.adopted.get(block.id)?.stops === true
-        const admitted = (!this.declined || answersStop) && !launchesCrewmate && (claim.kind === 'free' || claim.kind === 'reads') && this.claims.every(held => claimsCompatible(held, claim))
+        const admitted = (!this.declined || answersStop) && !launchesCrewmate && (claim.kind === 'free' || claim.kind === 'reads') && this.claims.every(held => claimsCompatible(held, claim)) && !windowHoldsNoWholeResult(this.context)
         this.claims.push(claim)
         if (admitted) this.start(block, parent, ordinal)
       } catch (error) {

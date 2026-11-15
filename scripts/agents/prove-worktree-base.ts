@@ -40,7 +40,7 @@ const upstreamLines = (repo: string, branch: string): string =>
   spawnSync('git', ['config', '--get-regexp', `^branch\\.${branch.replace(/[.+]/g, '\\$&')}\\.`], { cwd: repo, encoding: 'utf8', env: gitEnv }).stdout.trim()
 const readText = (path: string): string => {
   try {
-    return readFileSync(path, 'utf8')
+    return readFileSync(path, 'utf8').replace(/\r\n/g, '\n')
   } catch {
     return ''
   }
@@ -151,8 +151,8 @@ check('six distinct worktrees', new Set(sixOk.map(cut => cut.worktreePath)).size
 check('each stands at the checkout HEAD', sixOk.length === 6 && sixOk.every(cut => headOf(cut.worktreePath) === local.head), sixOk.map(cut => headOf(cut.worktreePath).slice(0, 7)).join(','))
 check('each baseline records the checkout HEAD', sixOk.length === 6 && sixOk.every(cut => baselineOf(cut.worktreePath) === local.head))
 check('each is on its own branch with no upstream', sixSlugs.every(slug => upstreamLines(local.repo, `worktree-${slug}`) === '' && gitCode(local.repo, 'rev-parse', '--verify', '-q', `refs/heads/worktree-${slug}`) === 0))
-const registry = git(local.repo, 'worktree', 'list', '--porcelain')
-check('git lists all six', sixOk.length === 6 && sixOk.every(cut => registry.includes(`worktree ${realpathSync(cut.worktreePath)}`) || registry.includes(`worktree ${cut.worktreePath}`)))
+const registry = git(local.repo, 'worktree', 'list', '--porcelain').split('\n').filter(line => line.startsWith('worktree ')).map(line => resolve(line.slice('worktree '.length)))
+check('git lists all six', sixOk.length === 6 && sixOk.every(cut => registry.includes(realpathSync(cut.worktreePath)) || registry.includes(resolve(cut.worktreePath))))
 check('the shared config holds no lock afterwards', !existsSync(join(local.repo, '.git', 'config.lock')))
 const sixPinned = await Promise.allSettled(Array.from({ length: 6 }, (_, index) => createAgentWorktree(`agent-a200000${index}`, { at: local.first })))
 const sixPinnedOk = fulfilled(sixPinned)

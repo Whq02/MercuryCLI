@@ -438,7 +438,8 @@
    ],
    "src/services/tools/toolOrchestration.ts": [
     "openResultRoomForRound",
-    "runTools"
+    "runTools",
+    "windowHoldsNoWholeResult"
    ],
    "src/services/run/effectObserver.ts": [
     "_toolTerminalSubscriberCountForTesting",

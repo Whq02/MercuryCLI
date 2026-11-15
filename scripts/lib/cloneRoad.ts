@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process'
-import { constants, copyFileSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { constants, copyFileSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 export function volumeClones(dir: string): boolean {
@@ -19,6 +19,33 @@ export function volumeClones(dir: string): boolean {
 
 export function cloneRoadExpected(dir: string): boolean {
   return (process.platform === 'darwin' || process.platform === 'linux') && volumeClones(dir)
+}
+
+export const LINK_PRIVILEGE = 'Windows file symlinks require Developer Mode or the symbolic-link privilege'
+
+export function runnableOnWindows(bin: string, prints: string): void {
+  if (process.platform === 'win32') writeFileSync(`${bin}.cmd`, `@echo off\r\n<nul set /p "=${prints}"\r\nexit /b 0\r\n`)
+}
+
+export function accountLinks(dir: string): boolean {
+  if (process.platform !== 'win32') return true
+  const target = join(dir, `.link-probe-${process.pid}-a`)
+  const probe = join(dir, `.link-probe-${process.pid}-b`)
+  try {
+    mkdirSync(target)
+    symlinkSync(target, probe, 'dir')
+    return true
+  } catch (error) {
+    if (!['EPERM', 'EACCES'].includes((error as { code?: string }).code ?? '')) throw error
+    return false
+  } finally {
+    for (const made of [probe, target]) {
+      try {
+        rmSync(made, { recursive: true, force: true })
+      } catch {
+      }
+    }
+  }
 }
 
 const CONTENT_IDENTIFIER_SCRIPT = [

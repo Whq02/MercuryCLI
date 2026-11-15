@@ -3,12 +3,13 @@ import { execFileSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { DIST, NODE, SCRATCH_ROOT, makeTally } from '../daemon/dupline-world.ts'
-import { cloneRoadExpected } from '../lib/cloneRoad.ts'
+import { accountLinks, cloneRoadExpected, LINK_PRIVILEGE, runnableOnWindows } from '../lib/cloneRoad.ts'
 import { runScriptedTurn, startScriptedFixture, type ScriptedTurn, type SeenResult } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-session-worktree-drive')
 const KEEP = process.argv.includes('--keep')
 const scratch = realpathSync(mkdtempSync(join(SCRATCH_ROOT, 'session-worktree-drive-')))
+const links = accountLinks(scratch)
 console.log(`build under proof: ${DIST}`)
 console.log(`world: ${scratch}`)
 
@@ -46,6 +47,7 @@ const seedRepo = (name: string): string => {
   mkdirSync(join(repo, 'node_modules', '.bin'), { recursive: true })
   writeFileSync(join(repo, 'node_modules', '.bin', 'typecheck-fixture'), '#!/bin/sh\nprintf typecheck-ok\n')
   chmodSync(join(repo, 'node_modules', '.bin', 'typecheck-fixture'), 0o755)
+  runnableOnWindows(join(repo, 'node_modules', '.bin', 'typecheck-fixture'), 'typecheck-ok')
   mkdirSync(join(repo, 'vendor', 'pack-a'))
   writeFileSync(join(repo, 'vendor', 'pack-a', 'marker'), 'pack\n')
   return repo
@@ -55,13 +57,16 @@ const excludeLinesOf = (repo: string): string[] => {
   return existsSync(excludePath) ? readFileSync(excludePath, 'utf8').split('\n') : []
 }
 const cloneRoad = cloneRoadExpected(scratch)
-const probeChecks = (road: string, repo: string, lane: string, text: string, statusBefore: string, linked: boolean): void => {
+if (!links) console.log(`  [SKIP] the links a worktree is made of with no clone: ${LINK_PRIVILEGE}; the folders this account gets in their place are read instead`)
+const probeChecks = (road: string, repo: string, lane: string, text: string, statusBefore: string, linkAsked: boolean): void => {
+  const linked = linkAsked && links
+  const own = cloneRoad || links ? "cloned from the checkout's" : 'in place of the link this account may not make'
   tally.check(`${road}: the shell ran in the worktree`, text.startsWith(`${lane}\n`), text.split('\n')[0])
   if (linked) {
     tally.check(`${road}: node_modules there is a link to the checkout's`, new RegExp(`node_modules -> ${rx(repo)}/node_modules`).test(text), text.split('\n').slice(1, 3).join(' | '))
     tally.check(`${road}: the vendored pack is a link too`, new RegExp(`vendor/pack-a -> ${rx(repo)}/vendor/pack-a`).test(text), text.split('\n').slice(1, 3).join(' | '))
   } else {
-    tally.check(`${road}: node_modules there is the worktree's own directory, cloned from the checkout's`, /^d\S+ .* node_modules$/m.test(text) && !/node_modules -> /.test(text), text.split('\n').slice(1, 3).join(' | '))
+    tally.check(`${road}: node_modules there is the worktree's own directory, ${own}`, /^d\S+ .* node_modules$/m.test(text) && !/node_modules -> /.test(text), text.split('\n').slice(1, 3).join(' | '))
     tally.check(`${road}: the vendored pack is the worktree's own directory too`, /^d\S+ .* vendor\/pack-a$/m.test(text) && !/vendor\/pack-a -> /.test(text), text.split('\n').slice(1, 3).join(' | '))
   }
   tally.check(`${road}: bun run typecheck exits 0 there`, /typecheck-ok rc=0/.test(text), text.slice(0, 400))
@@ -190,10 +195,14 @@ const deniedChecks = (road: string, repo: string, listing: SeenResult | undefine
   if (cloneRoad) {
     tally.check(`${road}: node_modules is the worktree's own directory`, /^d\S+ .* node_modules$/m.test(text), text.split('\n').slice(0, 3).join(' | '))
     tally.check(`${road}: the folder the rule names stands in it as a link to the checkout's, the folder beside it the worktree's own`, new RegExp(` private -> ${rx(repo)}/node_modules/private$`, 'm').test(text) && /^d\S+ .* open$/m.test(text), text.split('\n').slice(0, 6).join(' | '))
-  } else {
+  } else if (links) {
     tally.check(`${road}: node_modules is the link to the checkout's, as before`, new RegExp(`node_modules -> ${rx(repo)}/node_modules`).test(text), text.split('\n').slice(0, 3).join(' | '))
+  } else {
+    tally.check(`${road}: node_modules is the worktree's own directory, in place of the link this account may not make`, /^d\S+ .* node_modules$/m.test(text), text.split('\n').slice(0, 3).join(' | '))
+    tally.check(`${road}: the folder the rule names is not in it, the folder beside it is`, !/ private$/m.test(text) && /^d\S+ .* open$/m.test(text), text.split('\n').slice(0, 6).join(' | '))
   }
-  tally.check(`${road}: a Read of the file at the worktree's path is refused by the rule, as on the base`, reading !== undefined && reading.isError && !reading.text.includes('the key') && /Read\(\/\//.test(reading.text), (reading?.text ?? '').slice(0, 300))
+  if (cloneRoad || links) tally.check(`${road}: a Read of the file at the worktree's path is refused by the rule, as on the base`, reading !== undefined && reading.isError && !reading.text.includes('the key') && (process.platform === 'win32' ? /Read\(/ : /Read\(\/\//).test(reading.text), (reading?.text ?? '').slice(0, 300))
+  else tally.check(`${road}: a Read of the file at the worktree's path answers as for a file that is not there: the copy does not hold it`, reading !== undefined && reading.isError && !reading.text.includes('the key') && !/Read\(/.test(reading.text), (reading?.text ?? '').slice(0, 300))
   tally.check(`${road}: a Read of a file no rule names is answered`, open !== undefined && !open.isError && open.text.includes('module.exports = 1'), (open?.text ?? '').slice(0, 200))
 }
 

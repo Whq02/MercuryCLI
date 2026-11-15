@@ -5,7 +5,7 @@ import { chmodSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync
 import { rename } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { cloneWholeFolders, volumeClones } from '../lib/cloneRoad.ts'
+import { accountLinks, cloneWholeFolders, LINK_PRIVILEGE, volumeClones } from '../lib/cloneRoad.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
@@ -28,6 +28,7 @@ const cloneModule = (await import('../../src/utils/worktreeClone.ts')) as unknow
 }
 const BOUND = 4096
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-clone-renames-')))
+const links = accountLinks(scratch)
 const removeBig = (dir: string): void => {
   try {
     execFileSync('sh', ['-c', 'chmod -R u+rwx "$1" 2> /dev/null; find "$1" -mindepth 2 -maxdepth 2 -print0 | xargs -0 -P 8 -n 64 rm -rf; rm -rf "$1"', 'sh', dir])
@@ -108,9 +109,10 @@ try {
     for (let index = 0; index < 399; index++) writeFileSync(join(source, 'full', `part-${folder}`, `m${index}.js`), 'x\n')
   }
   writeFileSync(join(source, 'top.txt'), 'top\n')
-  symlinkSync('g1/pkg-0/lib', join(source, 'toplink'))
+  if (links) symlinkSync('g1/pkg-0/lib', join(source, 'toplink'))
   mkdirSync(join(source, '.bin'))
-  symlinkSync('../g1/pkg-0/lib/f1.js', join(source, '.bin', 'tool'))
+  if (links) symlinkSync('../g1/pkg-0/lib/f1.js', join(source, '.bin', 'tool'))
+  else skip(`the fixture's two links: ${LINK_PRIVILEGE}`)
   chmodSync(join(source, 'giant'), 0o750)
   if (process.platform === 'darwin') for (const dir of [source, join(source, 'giant'), join(source, 'full')]) execFileSync('xattr', ['-w', 'com.example.proof', dir === source ? 'root' : 'kept', dir])
   const flat = join(scratch, 'flat-tree')
@@ -124,7 +126,7 @@ try {
     for (const at of sourceEntries.keys()) if (at.startsWith(rel + '/')) count++
     return count
   }
-  console.log(`  the folder: ${sourceEntries.size + 1} entries (${groups} groups of 100 packages of 100 files, a folder of 4,815 entries in twelve parts, one of 4,001 in ten, a file, two links)`)
+  console.log(`  the folder: ${sourceEntries.size + 1} entries (${groups} groups of 100 packages of 100 files, a folder of 4,815 entries in twelve parts, one of 4,001 in ten, a file, ${links ? 'two links' : 'no link'})`)
 
   section('§1 the plan: a call for each subtree of at most 4,096 entries, the folders above them made one by one')
   const plan = cloneModule.planCloneCalls
@@ -146,7 +148,7 @@ try {
     }
     check('every entry of the folder is in exactly one call, or is a folder that was cut', uncovered === 0 && twice === 0, `${uncovered} in no call, ${twice} in more than one`)
     check('a folder of 4,001 entries is one call', clones.has('/full') && sizeUnder('/full') === 4001, String(sizeUnder('/full')))
-    check('a file and a link that lie directly in a cut folder are calls of their own', clones.has('/top.txt') && clones.has('/toplink') && clones.has('/giant/direct-1.js') && clones.has('/giant/direct-2.js'))
+    check(links ? 'a file and a link that lie directly in a cut folder are calls of their own' : 'a file that lies directly in a cut folder is a call of its own', clones.has('/top.txt') && (!links || clones.has('/toplink')) && clones.has('/giant/direct-1.js') && clones.has('/giant/direct-2.js'))
     const flatCalls = await (plan as NonNullable<typeof plan>)(join(flat, 'flat'))
     check('a folder whose 4,500 files all lie directly in it stays one call: cutting it would make 4,500', JSON.stringify({ folders: flatCalls.folders, clones: flatCalls.clones }) === JSON.stringify({ folders: [], clones: [''] }), JSON.stringify(flatCalls).slice(0, 200))
     const smallCalls = await (plan as NonNullable<typeof plan>)(join(flat, 'small'))

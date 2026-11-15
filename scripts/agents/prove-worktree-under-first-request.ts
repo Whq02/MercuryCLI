@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { volumeClones } from '../lib/cloneRoad.ts'
+import { accountLinks, LINK_PRIVILEGE, volumeClones } from '../lib/cloneRoad.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
@@ -38,6 +38,7 @@ type Launch = Awaited<ReturnType<typeof createAgentWorktree>> & { ready?: Promis
 const launch = (slug: string, from?: string): Promise<Launch> => createAgentWorktree(slug, { ...(from !== undefined ? { from } : {}), foldersBehindLaunch: true } as never) as Promise<Launch>
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-first-request-')))
+const links = accountLinks(scratch)
 const hold = join(scratch, 'hold')
 const pathBefore = process.env.PATH ?? ''
 const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@invalid' }
@@ -129,7 +130,7 @@ const makeFixture = (name: string, extra: Record<string, string> = {}): string =
     for (let index = 0; index < 10; index++) writeFileSync(join(dir, 'node_modules', `pkg-${pkg}`, 'lib', `m${index}.js`), `module.exports = ${pkg * 10 + index}\n`)
   }
   mkdirSync(join(dir, 'node_modules', '.bin'))
-  symlinkSync('../pkg-0/lib/m0.js', join(dir, 'node_modules', '.bin', 'tool'))
+  if (links) symlinkSync('../pkg-0/lib/m0.js', join(dir, 'node_modules', '.bin', 'tool'))
   mkdirSync(join(dir, 'vendor', 'pack-a'))
   writeFileSync(join(dir, 'vendor', 'pack-a', 'marker'), 'pack\n')
   mkdirSync(join(dir, '.mercury'), { recursive: true })
@@ -149,9 +150,11 @@ try {
   if (!(volumeClones(scratch) && process.platform !== 'win32')) {
     section('§1 a volume that cannot clone: there is nothing to do behind a launch but make the links')
     skip("the proof's runtime cannot force a clone of one file here: the rows that hold a clone half way have nothing to hold")
+    if (!links) skip(`the fixture's own link, and the links a launch would end with: ${LINK_PRIVILEGE}`)
     const linked = await launch('agent-ae100001')
     await linked.ready
-    check('a launch that does not wait still ends with the links in place', lstatSync(join(linked.worktreePath, 'node_modules')).isSymbolicLink() && linked.prepareFailure === undefined)
+    const placed = lstatSync(join(linked.worktreePath, 'node_modules'))
+    check(`a launch that does not wait still ends with ${links ? 'the links' : 'the folders this account gets in place of the links'} in place`, (links ? placed.isSymbolicLink() : placed.isDirectory()) && linked.prepareFailure === undefined)
     check('…and holds no tool once they are', readiness !== null && readiness.heldAgentCount() === 0)
   } else {
     const realCp = execFileSync('sh', ['-c', 'command -v cp'], { encoding: 'utf8' }).trim()

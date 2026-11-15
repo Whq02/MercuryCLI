@@ -4,9 +4,12 @@ import { tmpdir } from 'node:os'
 import { whichSync } from '../../utils/which.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getCwd } from '../../utils/cwd.js'
-import { parseForSecurity, checkSemantics } from '../../utils/permissions/decision/commandAnalysis.js'
+import { resolveShellCwd } from '../../utils/Shell.js'
+import { gitArgs, gitSubcommandIndex } from '../../utils/git/spawnArgs.js'
+import { parseForSecurity, checkSemantics, extractShellCScript, preparedCommandRoot, preparedSecurityParse, prepareShellCScripts, shellCommandText, withBashParseScope, SHELL_C_MAX_DEPTH, type Node } from '../../utils/permissions/decision/commandAnalysis.js'
 import { boxLockDirOfScript } from '../../utils/boxLock.js'
 import { quote } from '../../utils/bash/shellQuote.js'
+import { rewriteReadOnlyGitCommand } from '../BashTool/bashPermissions.js'
 import { BASH_TOOL_NAME } from '../BashTool/toolName.js'
 import type { Tool, Tools } from '../../Tool.js'
 import { FILE_EDIT_TOOL_NAME } from '../FileEditTool/constants.js'
@@ -125,14 +128,70 @@ function reviewSection(text: string, append: boolean): boolean {
   return append ? headings.length === 0 : headings.length === 1 && headings[0]?.heading === '## Review' && text.trimStart().startsWith('## Review\n')
 }
 
-export async function reviewerRefusal(tool: Tool, input: Record<string, unknown>, receipt: string, worktree: string): Promise<string | null> {
+const GIT_READ_INSERTS = new Set(['--stat', '--no-ext-diff', '--no-textconv'])
+
+function plainGitArgs(hardened: string[], cwd: string, text: string): string[] | null {
+  const base = gitArgs([], cwd)
+  if (base.length === 0 || base.some((word, index) => hardened[index] !== word)) return null
+  for (let own = base.length; ; own += 2) {
+    const rest = hardened.slice(own)
+    const after = gitSubcommandIndex(rest) + 1
+    const inserted = [after, after + 1, after + 2, after + 3].filter(index => GIT_READ_INSERTS.has(rest[index] ?? ''))
+    for (let taken = (1 << inserted.length) - 1; taken >= 0; taken--) {
+      const plain = rest.filter((_, index) => !inserted.some((position, bit) => position === index && (taken & (1 << bit)) !== 0))
+      if (shellCommandText(['git', ...gitArgs(plain, cwd)]) === text) return plain
+    }
+    if (hardened[own] !== '-c') return null
+  }
+}
+
+function plainGitSpelling(command: string, cwd: string, depth = 0): string {
+  if (depth > SHELL_C_MAX_DEPTH) return command
+  const root = preparedCommandRoot(command)
+  if (!root || root.type === 'ERROR') return command
+  const spans: Array<{ start: number; end: number; text: string }> = []
+  const visit = (node: Node): void => {
+    if (node.type === 'command') {
+      const parsed = preparedSecurityParse(node.text)
+      const simple = parsed.kind === 'simple' && parsed.commands.length === 1 ? parsed.commands[0] : undefined
+      if (simple?.argv[0] === 'git') {
+        const plain = plainGitArgs(simple.argv.slice(1), cwd, node.text)
+        if (plain !== null) spans.push({ start: node.startIndex, end: node.endIndex, text: shellCommandText(['git', ...plain]) })
+      } else if (simple) {
+        const script = extractShellCScript(simple)
+        const plain = script === null ? null : plainGitSpelling(script, cwd, depth + 1)
+        if (plain !== null && plain !== script) spans.push({ start: node.startIndex, end: node.endIndex, text: shellCommandText([simple.argv[0] as string, simple.argv[1] as string, plain]) })
+      }
+    }
+    for (const child of node.children) visit(child)
+  }
+  visit(root)
+  let plain = command
+  for (const span of spans.sort((a, b) => b.start - a.start)) plain = plain.slice(0, span.start) + span.text + plain.slice(span.end)
+  return plain
+}
+
+export async function hardenedGitRead(tool: Tool, input: Record<string, unknown>): Promise<boolean> {
+  const given = input.command
+  if (tool.name !== BASH_TOOL_NAME || typeof given !== 'string') return false
+  return withBashParseScope(async () => {
+    await prepareShellCScripts(await parseForSecurity(given))
+    const cwd = resolveShellCwd(typeof input.cwd === 'string' ? input.cwd : undefined)
+    const plain = { ...input, command: plainGitSpelling(given, cwd) }
+    if (plain.command === given) return false
+    await tool.prepare?.(plain)
+    return tool.isReadOnly(plain) && rewriteReadOnlyGitCommand(plain.command, cwd) === given
+  })
+}
+
+export async function reviewerRefusal(tool: Tool, input: Record<string, unknown>, receipt: string, worktree: string, atCall = false): Promise<string | null> {
   if (tool.name === BASH_TOOL_NAME) await tool.prepare?.(input)
   if (tool.name !== FILE_EDIT_TOOL_NAME) {
     if (tool.name === BASH_TOOL_NAME) {
       if (input._simulatedSedEdit !== undefined) return 'Reviewer commands cannot bypass their write protection.'
       if (typeof input.command === 'string' && await verificationCommand(input.command, realpathSync(worktree), receipt) !== null) return null
     }
-    return tool.isReadOnly(input) ? null : 'Reviewer tools allow read-only commands and confined bun/bash verification under scripts, not shell writes, Git mutations or arbitrary programs.'
+    return tool.isReadOnly(input) || (atCall && await hardenedGitRead(tool, input)) ? null : 'Reviewer tools allow read-only commands and confined bun/bash verification under scripts, not shell writes, Git mutations or arbitrary programs.'
   }
   if (typeof input.file_path !== 'string') return 'The reviewer edit must name its declared receipt.'
   try {
@@ -168,13 +227,13 @@ export function restrictReviewerTools(tools: Tools, receiptPath: string, worktre
   return tools.filter(reviewerOffersTool).map(tool => ({
     ...tool,
     async call(...args: Parameters<Tool['call']>) {
-      const refusal = await reviewerRefusal(tool, args[0], receipt, worktree)
+      const refusal = await reviewerRefusal(tool, args[0], receipt, worktree, true)
       if (refusal !== null) throw new Error(refusal)
       if (tool.name === FILE_EDIT_TOOL_NAME) args[0] = { ...args[0], file_path: receipt }
       const verification = tool.name === BASH_TOOL_NAME && typeof args[0].command === 'string'
         ? await verificationCommand(args[0].command, worktree, receipt) : null
       if (verification === null) {
-        if (tool.name === BASH_TOOL_NAME && !tool.isReadOnly(args[0])) throw new Error('Reviewer verification changed after admission; no command ran.')
+        if (tool.name === BASH_TOOL_NAME && !tool.isReadOnly(args[0]) && !(await hardenedGitRead(tool, args[0]))) throw new Error('Reviewer verification changed after admission; no command ran.')
         return tool.call(...args)
       }
       const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'reviewer-check-')))
