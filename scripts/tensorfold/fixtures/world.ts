@@ -9,6 +9,7 @@ export const GIB = 1024 ** 3
 export const FIXTURES = import.meta.dir
 export const FAKE_SCRIPT = join(FIXTURES, 'fake-tensorfold.ts')
 export const FAKE_BIN = join(FIXTURES, 'bin')
+export const ADAPTER_ENTRY = join(FIXTURES, 'adapter-entry.ts')
 export const fakeExists = (path: string): boolean => path.startsWith(FAKE_BIN) && existsSync(path)
 export const CLOSED_ADDRESS = 'http://127.0.0.1:1'
 export const SEALED_ENV: Readonly<Record<string, string>> = { HF_ENDPOINT: CLOSED_ADDRESS, HTTP_PROXY: CLOSED_ADDRESS, HTTPS_PROXY: CLOSED_ADDRESS, ALL_PROXY: CLOSED_ADDRESS, http_proxy: CLOSED_ADDRESS, https_proxy: CLOSED_ADDRESS, all_proxy: CLOSED_ADDRESS, NO_PROXY: '127.0.0.1,::1', no_proxy: '127.0.0.1,::1' }

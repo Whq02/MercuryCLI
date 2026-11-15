@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { homedir, tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { cannotStart, mustStart } from './readViewMcp.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -23,6 +24,8 @@ if (childHome === undefined) {
   process.exit(status)
 }
 if (realpathSync(homedir()) !== realpathSync(OS_HOME)) throw new Error('this proof reads the product under a scratch home, and os.homedir() is not that folder')
+const vendored = join(dirname(DIST), 'vendor', 'node', 'bin', 'node')
+const NODE = mustStart(existsSync(vendored) ? vendored : (Bun.which('node') ?? 'node'))
 
 const CFG = join(OS_HOME, '.mercury')
 const PROJECT = join(WORLD, 'project')
@@ -128,8 +131,6 @@ section('§3b a saved Boot Menu profile that still holds the retired Workflows r
   check('reading the profile rewrites nothing', createHash('sha256').update(readFileSync(profile)).digest('hex') === before)
 }
 
-const vendored = join(dirname(DIST), 'vendor', 'node', 'bin', 'node')
-const NODE = existsSync(vendored) ? vendored : (Bun.which('node') ?? 'node')
 type Captured = { body: { tools?: Array<{ name?: string }>; messages?: Array<{ role: string; content: unknown }> } }
 type Run = { code: number | null; out: string; err: string; requests: Captured[] }
 type Script = Parameters<typeof startFixtureApi>[0]
@@ -139,6 +140,7 @@ async function run(args: string[], script: Script, extra: Record<string, string>
   const child = spawn(NODE, [DIST, 'run', '--model', 'claude-opus-4-8', '--format', 'json', ...args], { cwd: PROJECT, env, stdio: ['ignore', 'pipe', 'pipe'] })
   let out = ''
   let err = ''
+  child.once('error', cause => cannotStart(NODE, cause))
   child.stdout.on('data', chunk => { out += String(chunk) })
   child.stderr.on('data', chunk => { err += String(chunk) })
   const code = await new Promise<number | null>(resolve => {
@@ -166,6 +168,7 @@ async function served(extra: Record<string, string>): Promise<string[] | null> {
   const child = spawn(NODE, [DIST, 'mcp', 'serve'], { cwd: PROJECT, env, stdio: ['pipe', 'pipe', 'ignore'] })
   let buffer = ''
   let tools: string[] | null = null
+  child.once('error', cause => cannotStart(NODE, cause))
   child.stdout.on('data', chunk => {
     buffer += String(chunk)
     for (const line of buffer.split('\n').slice(0, -1)) {

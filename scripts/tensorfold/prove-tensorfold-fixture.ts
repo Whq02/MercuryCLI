@@ -2,7 +2,7 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
-import { tmpdir } from 'node:os'
+import { tmpdir, totalmem } from 'node:os'
 import { join } from 'node:path'
 import { withProofAccountHome } from '../lib/proofAccountHome.ts'
 import { KEY, pinScratchHome, releaseScratchHome } from '../lib/settingsPopupHarness.ts'
@@ -23,6 +23,8 @@ const engine = await import('../../src/services/tensorfold/engine.ts')
 const install = await import('../../src/services/tensorfold/install.ts')
 const llama = await import('../../src/services/tensorfold/adapter/llama.ts')
 const identity = await import('../../src/services/tensorfold/adapter/identity.ts')
+const models = await import('../../src/services/tensorfold/adapter/models.ts')
+const adapterServe = await import('../../src/services/tensorfold/adapter/serve.ts')
 const road = await import('../../src/commands/tensorfold/road.ts')
 const serve = await import('../../src/services/tensorfold/serve.ts')
 const receipts = await import('../../src/utils/model/seatReceipts.ts')
@@ -211,6 +213,42 @@ section('3 · the stand-ins as programs: the branch of the fixture a Windows hos
     }
   } finally {
     await t.close()
+  }
+}
+
+section('4 · the machine the adapter stands on: the fixture names it, so no host changes what the panel answers, and the product\'s own entry reads the host as before')
+{
+  const open = panelFixture.openPanelCard as unknown as (opts: Record<string, unknown>) => Promise<Panel & { offer?: string; road?: Record<string, unknown> }>
+  const entry = fixtures.ADAPTER_ENTRY as string | undefined
+  const QWEN_4B = models.QWEN_4B_GGUF
+  const NO_MACHINE = 2 ** 30
+  const left = (ramBytes: number): string => `${identity.ADAPTER_SPEAKER}: ${adapterServe.admission(QWEN_4B, NO_MACHINE, 1, ramBytes).line}`
+  const said = (ran: { stderr?: string | null } | undefined): string => `${ran?.stderr ?? ''}`.trim().split('\n').pop() ?? ''
+  const p = await open({ road: 'adapter', label: 'Qwen3.5 4B', prefix: 'tf-fixture-machine', free: () => 40 * GIB })
+  try {
+    const asked = (binary: string, env: Record<string, string> = {}) => spawnSync(process.execPath, [binary, identity.ADAPTER_FLAG, 'serve', QWEN_4B.repo, '--context', String(NO_MACHINE), '--port', String(p.port)], { encoding: 'utf8', env: { ...p.world.env, HOME: p.world.home, ...env }, timeout: 60_000 })
+    const own = asked(engine.adapterEntry())
+    check('the product\'s own entry is given no figure: asked for a window no machine holds, it names what is left under 70% of THIS host\'s memory, as it did (holds on the parent too)', own.status === 1 && said(own) === left(totalmem()), `exit ${own.status}: ${said(own)} · this host: ${left(totalmem())}`)
+    const pinned = entry === undefined ? undefined : asked(entry, { FAKE_ADAPTER_RAM_BYTES: String(16 * GIB) })
+    check('the same serve through the fixture\'s own entry names what is left of the 16 GiB the fixture gives it, 5.65 GiB, whatever this host holds', pinned !== undefined && pinned.status === 1 && said(pinned) === left(16 * GIB) && said(pinned).includes('more than the 5.65 GiB left under the load limit'), pinned === undefined ? 'this fixture has no adapter entry of its own: the adapter it starts stands on the host' : `exit ${pinned.status}: ${said(pinned)}`)
+    const unnamed = entry === undefined ? undefined : asked(entry)
+    check('given no machine that entry starts nothing and says so: it never falls back to the host', unnamed !== undefined && unnamed.status === 2 && said(unnamed).includes('FAKE_ADAPTER_RAM_BYTES'), unnamed === undefined ? 'no entry: not tried' : `exit ${unnamed.status}: ${said(unnamed)}`)
+    const serveRoad = p.road?.serve as { binary?: string; serviceEnv?: Record<string, string> } | undefined
+    check('the panel\'s serve road runs that entry on the machine the panel is pinned to, 16 GiB', entry !== undefined && serveRoad?.binary === entry && serveRoad.serviceEnv?.FAKE_ADAPTER_RAM_BYTES === String(16 * GIB), `${String(serveRoad?.binary)} ${String(serveRoad?.serviceEnv?.FAKE_ADAPTER_RAM_BYTES)}`)
+    await p.press(KEY.enter)
+    const up = await p.until((_card, lines) => lines.some(line => line.includes('serving qwen3.5-4b on 127.0.0.1:')), 40_000)
+    check('on that machine ↵ at 128k serves the 4B (9.6 GiB under the 11.2 GiB limit)', up && p.card().row.startsWith('Qwen3.5 4B local/qwen3.5-4b current '), p.card().all)
+  } finally {
+    await p.close()
+  }
+  const small = await open({ road: 'adapter', label: 'Qwen3.5 4B', prefix: 'tf-fixture-small-machine', free: () => 40 * GIB, serviceEnv: { FAKE_ADAPTER_RAM_BYTES: String(4 * GIB) } })
+  try {
+    await small.press(KEY.enter)
+    await small.until(card => card.refused !== undefined, 40_000)
+    const answer = small.card().all.replace(/ \| /g, ' ')
+    check('on a machine of 4 GiB the same key is refused in the engine\'s own line, the one a hosted runner of 7 GB printed: nothing is left under the load limit', entry !== undefined && small.card().row === 'Qwen3.5 4B local/qwen3.5-4b refused 128k ctx 9.6 GiB' && answer.includes('refused qwen3_5: one stream at a 131072-token window takes 4.00 GiB, more than the 0.00 GiB left under the load limit; lower --context'), small.card().all)
+  } finally {
+    await small.close()
   }
 }
 

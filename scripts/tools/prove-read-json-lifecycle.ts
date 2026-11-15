@@ -40,6 +40,8 @@ if (mode === '--owner') {
   child.send({ pack, directory, query: scenario === 'success' ? '.' : 'until(false; .)', offset: 0, limit: 100, raw: false, compact: true })
   child.stdin!.end('{}')
 } else {
+  const { cannotStart, mustStart } = await import('./readViewMcp.ts')
+  mustStart(node)
   let passed = 0, failed = 0
   const check = (name: string, ok: boolean, detail = '') => { ok ? passed++ : failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` ${detail}`}`) }
   check('the disposable query process ships in source', existsSync(processScript))
@@ -53,6 +55,7 @@ if (mode === '--owner') {
         let childPid: number | undefined, received: any, started = false, expired = false
         const owner = fork(script, ['--owner', scenario], { execPath: runtime, execArgv: [], stdio: ['ignore', 'ignore', 'pipe', 'ipc'], env: { ...process.env, HOME: home, USERPROFILE: home, READ_QUERY_HOME: home } })
         let stderr = ''
+        owner.once('error', cause => cannotStart(runtime, cause))
         owner.stderr?.on('data', chunk => { stderr += String(chunk) })
         const timer = setTimeout(() => { expired = true; owner.kill('SIGKILL'); if (childPid) { try { process.kill(childPid, 'SIGKILL') } catch {} } }, 4000)
         owner.on('message', (message: any) => {

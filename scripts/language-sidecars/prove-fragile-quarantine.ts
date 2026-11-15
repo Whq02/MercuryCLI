@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { copyFileSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -15,6 +15,7 @@ copyFileSync(join(ENGINE_SRC, 'tree-sitter.js'), join(DIR, 'tree-sitter.js'))
 copyFileSync(join(ENGINE_SRC, 'tree-sitter.wasm'), join(DIR, 'tree-sitter.wasm'))
 copyFileSync(join(ROOT, 'vendor', 'grammars', 'extracted', 'tree-sitter-json.wasm'), join(DIR, 'tree-sitter-json.wasm'))
 writeFileSync(join(DIR, 'not-a-grammar.wasm'), 'these bytes are no wasm at all')
+writeFileSync(join(DIR, 'package.json'), JSON.stringify({ type: 'commonjs' }, null, 2) + '\n')
 process.env.MERCURY_TREESITTER_VENDOR_DIR = DIR
 
 const facility = await import('../../src/services/structure/grammarFacility.ts')
@@ -131,6 +132,18 @@ section('§5 THE CURE: THE VENDORED SWIFT BLOB UNDER THE PRODUCT RUNTIME')
       windowsHide: true,
     })
     check('the node audition child CAN die (control on garbage bytes)', control.status !== 0)
+    const scope = join(DIR, 'module-scope')
+    mkdirSync(scope)
+    writeFileSync(join(scope, 'package.json'), JSON.stringify({ type: 'module' }) + '\n')
+    const auditionIn = (name: string, files: string[]) => {
+      mkdirSync(join(scope, name))
+      for (const file of files) copyFileSync(join(DIR, file), join(scope, name, file))
+      return spawnSync(nodeBin, ['-e', childSource, join(scope, name), swiftWasm], { env: process.env, timeout: 60_000, stdio: ['ignore', 'ignore', 'pipe'], encoding: 'utf8', windowsHide: true })
+    }
+    const stamped = auditionIn('stamped', ['tree-sitter.js', 'tree-sitter.wasm', 'package.json'])
+    check('under a package that says "type": "module" the engine folder still loads under node: it carries the CommonJS stamp the build gives the vendored one', stamped.status === 0, `exit ${stamped.status ?? 'null'}${stamped.stderr ? ` — ${stamped.stderr.slice(0, 300)}` : ''}`)
+    const bare = auditionIn('bare', ['tree-sitter.js', 'tree-sitter.wasm'])
+    check('without the stamp the same child dies there, as the Windows box read (node takes the loader for an ES module and require() answers a namespace with no Parser)', bare.status !== 0, `exit ${bare.status ?? 'null'}${bare.stderr ? ` — ${bare.stderr.split('\n')[0]}` : ''}`)
   }
 }
 

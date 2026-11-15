@@ -212,6 +212,32 @@ for (const [written, user, host] of [
 }
 check('a rule whose authority holds such a character names no host to ask the ssh configuration about', remoteRuleAuthority('ssh://a;b/**') === null && remoteRuleAuthority('ssh://$(id)/**') === null && remoteRuleAuthority('ssh://u`x`@web1/**') === null)
 {
+  const control = (char: string): boolean => char.charCodeAt(0) < 0x20 || char.charCodeAt(0) === 0x7f
+  const space = (char: string): boolean => ' \t\n\v\f\r'.includes(char)
+  const stockHost = (name: string): boolean => !name.startsWith('-') && ![...name].some(char => '\'`"$\\;&<>|(){},'.includes(char) || space(char) || control(char))
+  const stockUser = (name: string): boolean => !name.startsWith('-') && ![...name].some((char, at) => control(char) || '\'`";&<>|(){}$\\'.includes(char) || (space(char) && name[at + 1] === '-'))
+  type Asked = { name: string; stock: boolean; args: string[]; written: string }
+  const asked: Asked[] = []
+  for (let code = 1; code < 0x80; code++) {
+    const char = String.fromCharCode(code)
+    const shown = code < 0x21 || code === 0x7f ? `0x${code.toString(16)}` : char
+    asked.push(
+      { name: `host ${shown}`, stock: !stockHost(`a${char}b`), args: ['--', `a${char}b`], written: `ssh://a${escapeOf(char)}b/x` },
+      { name: `user ${shown}`, stock: !stockUser(`a${char}b`), args: ['-l', `a${char}b`, '--', 'web1'], written: `ssh://a${escapeOf(char)}b@web1/x` },
+      { name: `user end ${shown}`, stock: !stockUser(`ab${char}`), args: ['-l', `ab${char}`, '--', 'web1'], written: `ssh://ab${escapeOf(char)}@web1/x` },
+    )
+  }
+  asked.push(
+    { name: 'ssh://a%20-b@web1/x', stock: !stockUser('a -b'), args: ['-l', 'a -b', '--', 'web1'], written: 'ssh://a%20-b@web1/x' },
+    { name: 'ssh://%2Dx@web1/x', stock: !stockUser('-x'), args: ['-l', '-x', '--', 'web1'], written: 'ssh://%2Dx@web1/x' },
+    { name: 'ssh://%2Dx/x', stock: !stockHost('-x'), args: ['--', '-x'], written: 'ssh://%2Dx/x' },
+  )
+  const LEFT_TO_SSH = 'user \\'
+  const parsedHere = (row: Asked): boolean => refusedAs(row.written).startsWith('parsed')
+  const byStock = asked.filter(row => row.stock)
+  const looser = byStock.filter(parsedHere).map(row => row.name)
+  check(`of the ${byStock.length} hosts and users OpenSSH 10.6 refuses for their characters (its two functions, asked of every ASCII character in each place), every one is refused here whatever ssh is installed, but one: a backslash inside a user, which is left to the installed ssh`, byStock.length === 143 && JSON.stringify(looser) === JSON.stringify([LEFT_TO_SSH]), looser.join(' · '))
+  check('among them a dollar inside a user and at its end, and a backslash at its end', ['user $', 'user end $', 'user end \\'].every(name => byStock.some(row => row.name === name && !parsedHere(row))), byStock.filter(parsedHere).map(row => row.name).join(' · '))
   const version = /OpenSSH_(\d+)\.(\d+)/.exec(spawnSync('ssh', ['-V'], { encoding: 'utf8' }).stderr ?? '')
   const recent = version !== null && (Number(version[1]) > 9 || (Number(version[1]) === 9 && Number(version[2]) >= 6))
   if (!recent) {
@@ -221,31 +247,11 @@ check('a rule whose authority holds such a character names no host to ask the ss
       const ran = spawnSync('ssh', ['-F', '/dev/null', '-G', ...args], { encoding: 'utf8' })
       return ran.status !== 0 && /contains invalid characters/.test(ran.stderr ?? '')
     }
-    const missed: string[] = []
-    let refusedBySsh = 0
-    for (let code = 1; code < 0x80; code++) {
-      const char = String.fromCharCode(code)
-      const shown = code < 0x21 || code === 0x7f ? `0x${code.toString(16)}` : char
-      for (const [where, args, written] of [
-        ['host', ['--', `a${char}b`], `ssh://a${escapeOf(char)}b/x`],
-        ['user', ['-l', `a${char}b`, '--', 'web1'], `ssh://a${escapeOf(char)}b@web1/x`],
-        ['user end', ['-l', `ab${char}`, '--', 'web1'], `ssh://ab${escapeOf(char)}@web1/x`],
-      ] as Array<[string, string[], string]>) {
-        if (!sshRefuses(args)) continue
-        refusedBySsh++
-        if (refusedAs(written).startsWith('parsed')) missed.push(`${where} ${shown}`)
-      }
-    }
-    for (const [args, written] of [
-      [['-l', 'a -b', '--', 'web1'], 'ssh://a%20-b@web1/x'],
-      [['-l', '-x', '--', 'web1'], 'ssh://%2Dx@web1/x'],
-      [['--', '-x'], 'ssh://%2Dx/x'],
-    ] as Array<[string[], string]>) {
-      if (!sshRefuses(args)) continue
-      refusedBySsh++
-      if (refusedAs(written).startsWith('parsed')) missed.push(written)
-    }
-    check(`every host and user the installed ${version![0]} refuses for its characters is refused here (${refusedBySsh} of them)`, refusedBySsh > 40 && missed.length === 0, missed.join(' · '))
+    const bySsh = asked.filter(row => sshRefuses(row.args))
+    const left = bySsh.some(row => row.name === LEFT_TO_SSH)
+    const missed = bySsh.filter(row => row.name !== LEFT_TO_SSH && parsedHere(row)).map(row => row.name)
+    if (left) console.log(`  [NOTE] the installed ${version![0]} refuses a backslash inside a user (ssh -l 'a\\b' answers "remote username contains invalid characters", as OpenSSH 10.6 does) and Mercury leaves that one to ssh: a domain account written DOMAIN\\user is refused on this machine by ssh itself, when it connects`)
+    check(`every host and user the installed ${version![0]} refuses for its characters is refused here (${bySsh.length - (left ? 1 : 0)} of them${left ? ', and the one left to ssh' : ''})`, bySsh.length > 40 && missed.length === 0, missed.join(' · '))
   }
 }
 

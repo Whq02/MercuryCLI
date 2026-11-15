@@ -2,7 +2,7 @@ import { rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { delimiter, join } from 'node:path'
 import { KEY, mountOffscreen, settle, waitFor, type Mounted } from '../../lib/settingsPopupHarness.ts'
-import { FIXTURES, MAC_48, SEALED_ENV, WIN_16, fakeWorld, placeStandIn, type FakeWorld, type StandIn } from './world.ts'
+import { ADAPTER_ENTRY, FIXTURES, MAC_48, SEALED_ENV, WIN_16, fakeWorld, placeStandIn, type FakeWorld, type StandIn } from './world.ts'
 
 export const CARD_COLUMNS = 120
 export const CARD_ROWS = 40
@@ -117,11 +117,11 @@ export async function openPanelCard(opts: { road: PanelRoad; label: string; pref
       install: async () => ({ ok: false as const, step: 'install', line: PROOF_INSTALLS_NOTHING }),
       pull: { binary, env: { ...world.env, HOME: world.home }, home: world.home, cacheRoot: world.cache, logDir: join(world.root, 'pulls'), ...(adapter ? {} : { exists }) },
       serve: {
-        binary,
+        binary: adapter ? ADAPTER_ENTRY : binary,
         cwd: world.cwd,
         sessionId: 'proof',
         env: { ...world.env, HOME: world.home },
-        serviceEnv: { ...world.serviceEnv, HOME: world.home, ...opts.serviceEnv },
+        serviceEnv: { ...world.serviceEnv, HOME: world.home, ...(adapter ? { FAKE_ADAPTER_RAM_BYTES: String(machine.ramBytes) } : {}), ...opts.serviceEnv },
         servedFile,
         machine,
         app: async () => ({ running: false }),
