@@ -87,7 +87,7 @@ const ADMITTED: Record<string, Admission> = {
     aliases: ['makefile', 'gnumake', 'mk', 'mak'],
     searches: [
       { pattern: 'CFLAGS += $FLAGS', count: 4, first: { '$FLAGS': '-Wall -Wextra -O2' } },
-      { pattern: 'include $F', count: 2, first: { '$F': 'config.mk' } },
+      { pattern: 'include $F', count: 1, first: { '$F': 'config.mk' } },
       { pattern: 'mkdir -p $@', count: 1 },
     ],
     rewrite: { pattern: 'CC ?= $V', rewrite: 'CC ?= clang', expect: ['CC ?= clang\nCFLAGS'], gone: ['CC ?= cc'] },
@@ -392,7 +392,7 @@ const ADMITTED: Record<string, Admission> = {
     searches: [
       { pattern: '-int old(void);', count: 1 },
       { pattern: '+++ b/docs/manual.md', count: 1 },
-      { pattern: 'new file mode 100644', count: 2 },
+      { pattern: 'new file mode 100644', count: 1 },
     ],
     rewrite: { pattern: '-int older(void);', rewrite: '-int oldest(void);', expect: ['-int oldest(void);'], gone: ['-int older(void);'] },
   },

@@ -27,7 +27,7 @@ section('§1 — the page says it')
 {
   const page = readFileSync(join(REPO, 'docs/STRUCTURAL-PATTERNS.md'), 'utf8').replace(/\s+/g, ' ')
   check('the AstEdit section says a keyword the pattern does not name is not kept', page.includes('A rewrite of a whole declaration writes the rewrite\'s own words: a keyword the pattern does not name is not kept, so read the diff.'))
-  check('beside the sentence that such a keyword is not compared', page.includes('a keyword a grammar keeps as an unnamed token is not compared'))
+  check('beside the sentence that a word the pattern writes must be in the code', page.includes('A word or an operator a pattern writes must be in the code it finds, in the same place among the parts of its node; what the code has beyond the pattern is passed over.'))
 }
 
 section('§2 — and the diff of a dry run shows it')
@@ -36,8 +36,8 @@ section('§2 — and the diff of a dry run shows it')
   check('a pattern without async finds the async function too', !dropped.isError && dropped.text.includes('Dry run — 2 matches in 1 file would change'), dropped.text)
   check('its rewrite is written without async, and both lines are in the diff', dropped.text.includes('-async function fetched(a: number) { return a }') && dropped.text.includes('+function fetched(a: number) { log(); return a }'), dropped.text)
   const added = await edit({ pattern: 'async function $N($$$A) { $$$B }', rewrite: 'async function $N($$$A) { log(); $$$B }', path: 'ts' })
-  check('a rewrite that names async writes it on the function that had none', !added.isError && added.text.includes('-function plain(b: number) { return b }') && added.text.includes('+async function plain(b: number) { log(); return b }'), added.text)
-  check('and keeps it where it was', added.text.includes('+async function fetched(a: number) { log(); return a }'), added.text)
+  check('a pattern that names async finds the async function alone, and the other is left as it was', !added.isError && added.text.includes('Dry run — 1 match in 1 file would change') && !added.text.includes('-function plain(b: number) { return b }'), added.text)
+  check('and its rewrite keeps async where it was', added.text.includes('+async function fetched(a: number) { log(); return a }'), added.text)
 }
 
 if (!existsSync(join(engineDir, 'tree-sitter-zig.wasm'))) {

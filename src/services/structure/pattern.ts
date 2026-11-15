@@ -382,6 +382,46 @@ function bindCapture(state: MatchState, key: string, start: number, end: number,
   return true
 }
 
+const PASSED_OVER = /[()[\]{},;"'`\s]+/g
+
+function writtenTokens(node: TSNode): string[][] | null {
+  const all = node.children
+  const fieldFor = (node as unknown as { fieldNameForChild?: (i: number) => string | null }).fieldNameForChild?.bind(node)
+  let gaps: string[][] | null = null
+  let gap = 0
+  for (let i = 0; i < all.length; i++) {
+    const child = all[i]!
+    if (COMMENT_TYPES.has(child.type)) continue
+    if (child.isNamed || fieldFor?.(i)) {
+      gap++
+      continue
+    }
+    if ((child as unknown as { isExtra?: boolean }).isExtra) continue
+    const text = child.text
+    const written = text.replace(PASSED_OVER, '').toLowerCase()
+    if (written === '' || (written === '\\' && text.length > 1)) continue
+    gaps ??= []
+    ;(gaps[gap] ??= []).push(written)
+  }
+  return gaps
+}
+
+const patternParts = new WeakMap<TSNode, { kids: TSNode[]; written: string[][] | null }>()
+
+function partsOf(pat: TSNode): { kids: TSNode[]; written: string[][] | null } {
+  let parts = patternParts.get(pat)
+  if (!parts) {
+    parts = { kids: significantChildren(pat), written: writtenTokens(pat) }
+    patternParts.set(pat, parts)
+  }
+  return parts
+}
+
+function matchChildren(pat: TSNode, code: TSNode, state: MatchState): boolean {
+  const { kids, written } = partsOf(pat)
+  return matchSequence(kids, significantChildren(code), state, written, written && writtenTokens(code))
+}
+
 function matchNodePair(pat: TSNode, code: TSNode, state: MatchState): boolean {
   const mv = metavarOf(pat, state.tagMetavars, state.standIn)
   if (mv) {
@@ -391,7 +431,7 @@ function matchNodePair(pat: TSNode, code: TSNode, state: MatchState): boolean {
     return mv.name === null || bindCapture(state, `$${mv.name}`, code.startIndex, code.endIndex, code.text)
   }
   if (pat.type !== code.type) return false
-  const patKids = significantChildren(pat)
+  const { kids: patKids, written } = partsOf(pat)
   const codeKids = significantChildren(code)
   if (patKids.length === 0 && codeKids.length === 0) {
     if (pat.childCount === 0 && code.childCount === 0) {
@@ -399,11 +439,26 @@ function matchNodePair(pat: TSNode, code: TSNode, state: MatchState): boolean {
     }
     return pat.text.replace(/\s+/g, '') === code.text.replace(/\s+/g, '')
   }
-  return matchSequence(patKids, codeKids, state)
+  return matchSequence(patKids, codeKids, state, written, written && writtenTokens(code))
 }
 
-function matchSequence(pats: TSNode[], codes: TSNode[], state: MatchState): boolean {
-  function step(pi: number, ci: number): boolean {
+function matchSequence(pats: TSNode[], codes: TSNode[], state: MatchState, written: string[][] | null = null, present: string[][] | null = null): boolean {
+  const placed = (gap: number, among: number, at: number): number => {
+    const wanted = written?.[gap]
+    if (!wanted) return at
+    const there = present?.[among]
+    if (!there) return -1
+    let next = at
+    for (const token of wanted) {
+      while (next < there.length && there[next] !== token) next++
+      if (next === there.length) return -1
+      next++
+    }
+    return next
+  }
+  function step(pi: number, ci: number, at: number): boolean {
+    const from = placed(pi, ci, at)
+    if (from < 0) return false
     if (pi === pats.length) return ci === codes.length
     const pat = pats[pi]!
     const mv = metavarOf(pat, state.tagMetavars, state.standIn)
@@ -418,18 +473,18 @@ function matchSequence(pats: TSNode[], codes: TSNode[], state: MatchState): bool
           const text = take === 0 ? '' : codes[ci]!.text
           ok = bindCapture(state, key, start, end, spanText(codes, ci, take) ?? text)
         }
-        if (ok && step(pi + 1, ci + take)) return true
+        if (ok && step(pi + 1, ci + take, take === 0 ? from : 0)) return true
         state.captures = snapshot
       }
       return false
     }
     if (ci >= codes.length) return false
     const snapshot = new Map(state.captures)
-    if (matchNodePair(pat, codes[ci]!, state) && step(pi + 1, ci + 1)) return true
+    if (matchNodePair(pat, codes[ci]!, state) && step(pi + 1, ci + 1, 0)) return true
     state.captures = snapshot
     return false
   }
-  return step(0, 0)
+  return step(0, 0, 0)
 }
 
 function spanText(codes: TSNode[], start: number, count: number): string | null {
@@ -460,7 +515,7 @@ export function findPatternMatches(
     }
     const node = stack.pop()!
     const state: MatchState = { captures: new Map(), tagMetavars: pattern.tagMetavars, standIn: pattern.standIn }
-    if (matchNodePair(pattern.root, node, state) || (pattern.also?.includes(node.type) === true && matchSequence(significantChildren(pattern.root), significantChildren(node), state))) {
+    if (matchNodePair(pattern.root, node, state) || (pattern.also?.includes(node.type) === true && matchChildren(pattern.root, node, state))) {
       const captures = [...state.captures.values()].map(c => {
         if (c.endIndex <= c.startIndex) return c
         let endIndex = c.endIndex
