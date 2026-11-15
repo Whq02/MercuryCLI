@@ -148,7 +148,7 @@ const sends: Array<Record<string, unknown>> = [
   { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
   { requireAwait: true, awaitText: 'Type a prompt', awaitSettleTicks: 3, awaitStableTicks: 2, mark: 'session', data: PROMPT },
   { requireAwait: true, awaitText: 'five words about rain', awaitSettleTicks: 1, mark: 'asked', data: '\r' },
-  ...READINGS.map((at, n) => ({ afterPrevTicks: ticks(at - (READINGS[n - 1] ?? 0)), awaitPattern: `local/${NAME_2B}[^\\n]*(?:first byte|ingest|so far)`, mark: `reading-${n + 1}`, data: '' })),
+  ...READINGS.map((at, n) => ({ afterPrevTicks: ticks((at - (READINGS[n - 1] ?? 0)) / scale), awaitPattern: `local/${NAME_2B}[^\\n]*(?:first byte|ingest|so far)`, mark: `reading-${n + 1}`, data: '' })),
 ]
 
 section(`${cols}x${rows} — a session on ${NAME_2B} behind Mercury's engine and a llama.cpp that reads the prompt for ${Math.round(holdMs / 1000)} s, a comment line every ${PING_S} s`)
