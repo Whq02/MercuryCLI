@@ -3,6 +3,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, 
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { cannotStart, mustStart } from './readViewMcp.js'
 
 const script = fileURLToPath(import.meta.url)
 const given = process.env.READ_BUILT_PROOF_HOME
@@ -18,6 +19,7 @@ if (!given) {
   if (homedir() !== given) throw new Error('The runtime did not take the proof home')
   const root = resolve(dirname(script), '../..')
   const dist = process.env.PROVE_DIST ?? join(root, 'dist')
+  mustStart(join(dist, 'vendor/node', process.platform === 'win32' ? 'node.exe' : 'bin/node'))
   const payload = join(given, 'payload')
   const project = join(given, 'project')
   const config = join(given, '.mercury')
@@ -48,6 +50,7 @@ if (!given) {
     check('there is no jq on the product process PATH', (jq.error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT')
     const child = spawn(node, [join(payload, 'mercury.mjs'), 'run', '--model', 'claude-opus-4-8', '--format', 'json', 'Query the JSONL records.'], { cwd: project, env, stdio: ['ignore', 'pipe', 'pipe'] })
     let stdout = '', stderr = ''
+    child.once('error', cause => cannotStart(node, cause))
     child.stdout.on('data', chunk => { stdout += String(chunk) })
     child.stderr.on('data', chunk => { stderr += String(chunk) })
     const code = await new Promise<number | null>(resolve => {
@@ -70,6 +73,7 @@ if (!given) {
     try {
       const bounded = spawn(node, [join(payload, 'mercury.mjs'), 'run', '--model', 'claude-opus-4-8', '--format', 'json', 'Query without an end.'], { cwd: project, env: { ...env, ANTHROPIC_BASE_URL: endless.url, MERCURY_JSON_QUERY_BOUND_MS: '1500' }, stdio: ['ignore', 'pipe', 'pipe'] })
       let boundedOut = ''
+      bounded.once('error', cause => cannotStart(node, cause))
       bounded.stdout.on('data', chunk => { boundedOut += String(chunk) })
       bounded.stderr.on('data', chunk => { boundedOut += String(chunk) })
       const boundedCode = await new Promise<number | null>(resolve => {

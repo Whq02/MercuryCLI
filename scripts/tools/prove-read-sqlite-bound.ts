@@ -4,12 +4,13 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { isolatedHome, readViewKit } from './readViewKit.js'
+import { cannotStart, mustStart } from './readViewMcp.js'
 
 const home = isolatedHome(import.meta.filename)
 const kit = await readViewKit(home)
 const root = join(import.meta.dir, '../..')
 const dist = process.env.MERCURY_PROOF_DIST ?? join(root, 'dist/mercury.mjs')
-const node = join(dirname(dist), 'vendor/node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
+const node = mustStart(join(dirname(dist), 'vendor/node', process.platform === 'win32' ? 'node.exe' : 'bin/node'))
 const { startFixtureApi } = await import(join(root, 'scripts/lib/fixtureApi.ts'))
 const { seedFirstRun } = await import(join(root, 'scripts/lib/firstRunSeed.ts'))
 const project = join(home, 'project'), config = join(home, '.mercury')
@@ -41,6 +42,7 @@ try {
   const started = Date.now()
   const run = spawn(node, [dist, 'run', '--model', 'claude-opus-4-8', '--format', 'json', 'Count without an end.'], { cwd: project, env: { PATH: `/usr/bin:/bin:${dirname(node)}`, HOME: home, USERPROFILE: home, TERM: 'dumb', MERCURY_CONFIG_DIR: config, MERCURY_TMPDIR: join(config, 'tmp'), MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_CREDENTIAL_STORE: 'file', ANTHROPIC_API_KEY: 'fixture-key-000', ANTHROPIC_BASE_URL: fixture.url, MERCURY_SQLITE_QUERY_BOUND_MS: '1500' }, stdio: ['ignore', 'pipe', 'pipe'] })
   let printed = ''
+  run.once('error', cause => cannotStart(node, cause))
   run.stdout.on('data', chunk => { printed += String(chunk) })
   run.stderr.on('data', chunk => { printed += String(chunk) })
   const code = await new Promise<number | null>(resolve => {

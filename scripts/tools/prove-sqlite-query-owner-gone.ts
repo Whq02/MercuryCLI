@@ -3,6 +3,7 @@ import { fork, spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { cannotStart, mustStart } from './readViewMcp.js'
 
 const script = fileURLToPath(import.meta.url)
 const tree = resolve(dirname(script), '../..')
@@ -74,6 +75,7 @@ if (process.argv[2] === '--owner') {
     await running
   }
 } else {
+  mustStart(node)
   let passed = 0, failed = 0
   const check = (name: string, ok: boolean, detail = ''): void => { ok ? passed++ : failed++; console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` — ${detail}`}`) }
   const base = process.env.RP_SCRATCH ?? process.env.MERCURY_TMPDIR ?? process.env.MERCURY_CONFIG_DIR
@@ -157,6 +159,7 @@ if (process.argv[2] === '--owner') {
         : { PATH: `/usr/bin:/bin:${dirname(node)}` }
       const run = spawn(node, [dist, 'run', '--model', 'claude-opus-4-8', '--format', 'json', 'Count without an end.'], { cwd: project, env: { ...platformEnv, HOME: home, USERPROFILE: home, TERM: 'dumb', MERCURY_CONFIG_DIR: config, MERCURY_TMPDIR: join(config, 'tmp'), MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_CREDENTIAL_STORE: 'file', ANTHROPIC_API_KEY: 'fixture-key-000', ANTHROPIC_BASE_URL: fixture.url }, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
       let printed = ''
+      run.once('error', cause => cannotStart(node, cause))
       run.stdout?.on('data', chunk => { printed = (printed + String(chunk)).slice(-2000) })
       run.stderr?.on('data', chunk => { printed = (printed + String(chunk)).slice(-2000) })
       const seen = run.pid === undefined ? null : await queryChildUnder(run.pid, 60_000)
