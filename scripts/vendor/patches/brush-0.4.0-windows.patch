@@ -1,6 +1,6 @@
 --- a/brush-core-0.5.0/src/commands.rs
 +++ b/brush-core-0.5.0/src/commands.rs
-@@ -177,6 +177,32 @@ pub fn compose_std_command<S: AsRef<OsStr>, SE: extensions::ShellExtensions>(
+@@ -177,6 +177,30 @@ pub fn compose_std_command<S: AsRef<OsStr>, SE: extensions::ShellExtensions>(
      args: &[S],
      empty_env: bool,
  ) -> Result<std::process::Command, error::Error> {
@@ -9,9 +9,7 @@
 +    #[cfg(windows)]
 +    let command_name = command_path.as_os_str();
 +    #[cfg(windows)]
-+    let batch_file = command_path
-+        .extension()
-+        .is_some_and(|ext| ext.eq_ignore_ascii_case("cmd") || ext.eq_ignore_ascii_case("bat"));
++    let batch_file = names_batch_file(&command_path);
 +    #[cfg(windows)]
 +    if batch_file
 +        && command_name
@@ -33,7 +31,7 @@
      let mut cmd = std::process::Command::new(command_name);
  
      // Override argv[0].
-@@ -184,6 +210,19 @@ pub fn compose_std_command<S: AsRef<OsStr>, SE: extensions::ShellExtensions>(
+@@ -184,6 +208,19 @@ pub fn compose_std_command<S: AsRef<OsStr>, SE: extensions::ShellExtensions>(
      cmd.arg0(argv0);
  
      // Pass through args.
@@ -53,7 +51,7 @@
      cmd.args(args);
  
      // Use the shell's current working dir.
-@@ -630,6 +669,8 @@ pub(crate) fn execute_external_command(
+@@ -630,6 +667,8 @@ pub(crate) fn execute_external_command(
              .join(" ")
      );
  
@@ -62,7 +60,7 @@
      match sys::process::spawn(cmd) {
          Ok(child) => {
              // Retrieve the pid.
-@@ -649,6 +690,23 @@ pub(crate) fn execute_external_command(
+@@ -649,6 +688,23 @@ pub(crate) fn execute_external_command(
              ))
          }
          Err(spawn_err) => {
@@ -86,10 +84,31 @@
              if context.shell.options().interactive {
                  sys::terminal::move_self_to_foreground()?;
              }
-@@ -871,3 +929,220 @@ fn try_unwrap_bare_input_redir_program(program: &ast::Program) -> Option<&ast::I
+@@ -871,3 +927,255 @@ fn try_unwrap_bare_input_redir_program(program: &ast::Program) -> Option<&ast::I
          _ => None,
      }
  }
++
++// Whether the standard library may start `program` through cmd.exe. Its own test
++// (`Command::spawn` on Windows) reads the last four characters of the path as
++// `GetFullPathNameW` leaves it, or of the path as given when it is verbatim. This
++// one is never narrower: it reads the path as given and as that call leaves it,
++// each with the periods, spaces and separators at its end taken off (Windows
++// drops trailing periods and spaces from a name, and a last segment that is one
++// period), and takes a path that cannot be resolved for a batch file.
++#[cfg(windows)]
++fn names_batch_file(program: &Path) -> bool {
++    let batch_name = |path: &Path| {
++        let mut name = path.as_os_str().as_encoded_bytes();
++        while let [rest @ .., b'.' | b' ' | b'\\' | b'/'] = name {
++            name = rest;
++        }
++        name.last_chunk::<4>().is_some_and(|ext| {
++            ext.eq_ignore_ascii_case(b".cmd") || ext.eq_ignore_ascii_case(b".bat")
++        })
++    };
++    batch_name(program) || std::path::absolute(program).map_or(true, |full| batch_name(&full))
++}
 +
 +// Writes one argument for a program of the MSYS2 or Cygwin runtime. Started by a
 +// parent outside that runtime, such a program reads its command line by rules of
@@ -292,7 +311,11 @@
 +            if let Some(runtime) = runtime {
 +                std::fs::write(folder.join(runtime), "")?;
 +            }
-+            for (program, batch_file) in [("probe.exe", false), ("probe", false), ("probe.cmd", true), ("probe.BAT", true)] {
++            for (program, batch_file) in [
++                ("probe.exe", false), ("probe", false), ("probe.cmd", true), ("probe.BAT", true),
++                ("probe.cmd.", true), ("probe.cmd ", true), ("probe.BAT. .", true), (".cmd", true), (".BAT", true),
++                (r"probe.cmd\.", true),
++            ] {
 +                let name = folder.join(program);
 +                let name = name.to_str().ok_or("non-UTF-8 scratch directory")?;
 +                let cmd = compose_std_command(&context, name, name, &words, false)?;
@@ -303,6 +326,16 @@
 +                    assert_eq!(args, words, "{name}");
 +                }
 +            }
++        }
++        let trap = dir.path().join("trap.cmd").join("x");
++        std::fs::create_dir_all(&trap)?;
++        std::fs::write(trap.join("msys-2.0.dll"), "")?;
++        let name = trap.join("..");
++        let name = name.to_str().ok_or("non-UTF-8 scratch directory")?;
++        let cmd = compose_std_command(&context, name, name, &words, false)?;
++        assert_eq!(cmd.get_args().collect::<Vec<_>>(), words, "{name}");
++        for name in ["./bad\".cmd.", "./bad\n.cmd ", "./bad\r.BAT. .", "./bad\n/.cmd"] {
++            assert!(compose_std_command(&context, name, name, &[] as &[&str], false).is_err());
 +        }
 +        Ok(())
 +    }
