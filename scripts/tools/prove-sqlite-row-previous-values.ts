@@ -31,7 +31,7 @@ try {
   const overwritten = answer(FileWriteTool, await client.call('Write', { file_path: `${file}:items/2`, content: '{"value":"replaced"}' }))
   const kept = keptAt(overwritten)
   kit.check('a previous row too long to repeat is named with its length and its kept copy', overwritten.includes(`${NOTE} The row was ${`{\n  "id": 2,\n  "value": "${long}",\n  "payload": null\n}\n`.length.toLocaleString('en-US')} characters: kept whole at `) && !overwritten.includes('long text long text'), overwritten.slice(0, 600))
-  kit.check('the kept copy holds the whole previous row', kept !== '' && existsSync(kept) && JSON.parse(readFileSync(kept, 'utf8')).value === long && JSON.parse(readFileSync(kept, 'utf8')).id === 2 && (statSync(kept).mode & 0o077) === 0, kept)
+  kit.check('the kept copy holds the whole previous row', kept !== '' && existsSync(kept) && JSON.parse(readFileSync(kept, 'utf8')).value === long && JSON.parse(readFileSync(kept, 'utf8')).id === 2 && (process.platform === 'win32' || (statSync(kept).mode & 0o077) === 0), kept)
   await client.call('Read', { file_path: `${file}:items/3` })
   const deleted = answer(FileWriteTool, await client.call('Write', { file_path: `${file}:items/3#delete`, content: 'DELETE' }))
   const bytes = keptAt(deleted)
