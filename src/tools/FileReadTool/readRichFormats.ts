@@ -960,6 +960,7 @@ type SqliteStmt = {
   all(...params: unknown[]): Record<string, unknown>[]
   safeIntegers?(on: boolean): SqliteStmt
   setReadBigInts?(on: boolean): void
+  finalize?(): void
 }
 export type SqliteDb = {
   prepare(sql: string): SqliteStmt
@@ -1168,7 +1169,19 @@ export async function renderSqliteTarget(
     if (process.versions.bun) {
       const { Database, constants } = (await import(bunSqlite)) as { Database: new (file: string, opts?: number | { readonly?: boolean }) => SqliteDb; constants: { SQLITE_OPEN_READONLY: number; SQLITE_OPEN_URI: number } }
       closeSync(openRegularFileSync(judged).fd)
-      return new Database(file, file.startsWith('file:') ? constants.SQLITE_OPEN_READONLY | constants.SQLITE_OPEN_URI : { readonly: true })
+      const opened = new Database(file, file.startsWith('file:') ? constants.SQLITE_OPEN_READONLY | constants.SQLITE_OPEN_URI : { readonly: true })
+      const statements: SqliteStmt[] = []
+      return {
+        prepare: sql => {
+          const statement = opened.prepare(sql)
+          statements.push(statement)
+          return statement
+        },
+        close: () => {
+          for (const statement of statements) statement.finalize?.()
+          return opened.close()
+        },
+      }
     }
     const { DatabaseSync } = await import('node:sqlite')
     closeSync(openRegularFileSync(judged).fd)
