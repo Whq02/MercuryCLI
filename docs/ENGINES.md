@@ -998,7 +998,10 @@ Run `/accounts` to see every connected account and API key across all providers:
   lists on that sign-in are the roster Google serves the account
   (`fetchAvailableModels`): every chat model it names and nothing else,
   with the roster's own display name, context window, output ceiling,
-  thinking and image flags; the image models stay out of chat. A Gemini id
+  thinking and image flags (a Gemini 4 row's output ceiling is one streamed
+  segment, 65,536 tokens, where the roster states more: a longer answer
+  comes in segments Mercury does not follow); the image models stay out of
+  chat. A Gemini id
   keeps its bare spelling; a model of another vendor on the roster (Claude,
   GPT-OSS, …) is listed as `google/<id>` (Google's own id behind the
   prefix) so it rides this Google sign-in and never shadows that vendor's

@@ -353,6 +353,7 @@ try {
   console.log('── the page says what the code does ──')
   const engines = readFileSync(join(ROOT, 'docs/ENGINES.md'), 'utf8').replace(/\s+/g, ' ')
   check('docs/ENGINES.md carries the effort row law with the fourth tier', engines.includes('(low → `-low`, medium → `-medium`, high or no effort → `-high`, xhigh or max → `-xhigh` where the roster names that row, as it does for Gemini 4 Hydrogen, and `-high` where it does not; a missing tier taking the nearest present)'))
+  check('docs/ENGINES.md says the output ceiling a Gemini 4 row of the sign-in is listed and asked with: one streamed segment where the roster states more', engines.includes('with the roster\'s own display name, context window, output ceiling, thinking and image flags (a Gemini 4 row\'s output ceiling is one streamed segment, 65,536 tokens, where the roster states more: a longer answer comes in segments Mercury does not follow); the image models stay out of chat.'))
   check('docs/ENGINES.md says which plans carry Hydrogen and when the three older rows leave, as Google\'s plan table read on 2026-11-15', engines.includes('read again on 2026-11-15 it lists Gemini 4 Hydrogen on every plan, Free and Google AI Plus included, with a fourth thinking level (Extra, the row `…-xhigh`)') && engines.includes('GPT-OSS-120b leave the roster on November 18, 2026 (the table read on 2026-11-15)') && !engines.includes('leave the roster on November 2, 2026'))
 } finally {
   globalThis.fetch = realFetch
