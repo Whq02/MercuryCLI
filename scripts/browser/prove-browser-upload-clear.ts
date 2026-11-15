@@ -17,7 +17,7 @@ const { repairToolInput } = (await import(join(ROOT, 'src/services/providers/too
 const A = await serve(0, (_req: http.IncomingMessage, res: http.ServerResponse) => {
   res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
   res.end(`<!doctype html><title>form</title><input id="one" type="file"><p id="facts"></p>
-<script>setInterval(() => { document.getElementById('facts').textContent = 'the input holds ' + document.getElementById('one').files.length }, 50)</script>`)
+<script>const one = document.getElementById('one'); const say = () => { document.getElementById('facts').textContent = 'the input holds ' + one.files.length }; one.addEventListener('change', say); say()</script>`)
 })
 
 type Call = Record<string, unknown> & { op: string }
