@@ -6,12 +6,24 @@ import { tmpdir } from 'node:os'
 import { delimiter, dirname, join } from 'node:path'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { nodeBinPath } from '../lib/nodeBin.ts'
 import { BrowserTool, ROOT, check, finish, requireBrowser, section, serve, validate } from './harness.ts'
 
 await requireBrowser()
 
 const DIST = process.env.PROVE_DIST ?? join(ROOT, 'dist')
-const NODE = join(DIST, 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : join('bin', 'node'))
+const RELEASE_NODE = join(DIST, 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : join('bin', 'node'))
+let nodeMissing = ''
+const NODE = existsSync(RELEASE_NODE)
+  ? RELEASE_NODE
+  : (() => {
+      try {
+        return nodeBinPath()
+      } catch (error) {
+        nodeMissing = (error as Error).message
+        return ''
+      }
+    })()
 const { repairToolInput } = (await import(join(ROOT, 'src/services/providers/toolCallGate.ts'))) as { repairToolInput: (tool: unknown, input: Record<string, unknown>) => Record<string, unknown> }
 
 const A = await serve(0, (_req: http.IncomingMessage, res: http.ServerResponse) => {
@@ -99,9 +111,12 @@ section('S0 what the road to the tool keeps of a call')
 }
 
 section('S1 a model’s call through the bundle: a scripted provider, the tool loop, a real page')
-if (!existsSync(join(DIST, 'mercury.mjs')) || !existsSync(NODE)) {
-  check('the built bundle is there to drive', false, `${join(DIST, 'mercury.mjs')} or its node is missing — run bun run build.ts first`)
+if (!existsSync(join(DIST, 'mercury.mjs'))) {
+  check('the built bundle is there to drive', false, `${join(DIST, 'mercury.mjs')} is missing — run bun run build.ts first`)
+} else if (NODE === '') {
+  console.log(`  [SKIP] a model’s call through the bundle (seven checks) — this build holds no release Node (${RELEASE_NODE}) and no other Node runs the bundle here: ${nodeMissing}`)
 } else {
+  console.log(`  the bundle runs under ${NODE === RELEASE_NODE ? 'the build’s own Node' : `${NODE}, since this build holds no release Node`}`)
   const ran = await throughTheBundle([
     { op: 'open', url: `${A.origin}/` },
     { op: 'upload', selector: '#one', files: ['a.txt'] },
@@ -114,7 +129,7 @@ if (!existsSync(join(DIST, 'mercury.mjs')) || !existsSync(NODE)) {
   const [opened, held, cleared, facts, again, absent, closed] = ran.answers
   check('the run ends with every call answered', ran.code === 0 && ran.answers.length === 7 && (closed ?? '').startsWith('session closed'), `exit ${ran.code}, ${ran.answers.length} answers ${ran.noise.slice(-600)}`)
   check('the provider sent the call with its empty list', ran.sent[2] === '{"op":"upload","selector":"#one","files":[]}', String(ran.sent[2]))
-  check('control: a file is set on the input (holds on the parent too)', (opened ?? '').includes('[200]') && (held ?? '').startsWith(`upload: #one holds 1 file — a.txt (10 bytes, text/plain) at ${A.origin}/`), `${opened} | ${held}`)
+  check('control: a file is set on the input (holds on the parent too)', (opened ?? '').includes('[200]') && (held ?? '').startsWith(`upload: #one holds 1 file — a.txt (10 bytes, text/plain) at ${A.origin}/`), `the upload answered: ${held} | the open answered: ${opened}`)
   check('[M02] an empty list clears the input that held one file, and the answer says what it held', cleared === `upload: #one cleared at ${A.origin}/ (it held 1 file)`, String(cleared))
   check('the page’s input then holds nothing', (facts ?? '').includes('the input holds 0'), String(facts))
   check('an empty list on an input that holds nothing clears it too and says so', again === `upload: #one cleared at ${A.origin}/ (it held no file)`, String(again))

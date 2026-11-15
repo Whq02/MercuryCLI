@@ -2,7 +2,7 @@
 
 import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { join, resolve, sep } from 'node:path'
 import { FILE_TOOL_SPELLINGS } from '../identity/forbidden-file-tool.ts'
 
 let failures = 0
@@ -175,7 +175,7 @@ for (const root of RETIRED_SCAN_ROOTS) {
   const dir = join(repoRoot, root)
   if (!existsSync(dir)) continue
   for (const file of walk(dir, [])) {
-    const rel = file.slice(repoRoot.length + 1)
+    const rel = file.slice(repoRoot.length + 1).split(sep).join('/')
     if (RETIRED_SCAN_HISTORY.test(rel)) continue
     const text = readFileSync(file, 'utf8')
     const hits = RETIRED_TOOLS.filter(t => t.references.some(re => re.test(rel) || re.test(text))).map(t => t.name)

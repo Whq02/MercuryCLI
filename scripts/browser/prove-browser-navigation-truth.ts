@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import http from 'node:http'
-import { join } from 'node:path'
+import { isAbsolute, join } from 'node:path'
 
 process.env.MERCURY_BROWSER ??= '1'
 
@@ -294,9 +294,9 @@ console.log("§7 a process that leaves with the browser open takes the browser's
   } catch (err) {
     out = `${(err as { stdout?: string }).stdout ?? ''}\nDRILL FAILED: ${(err as Error).message}`
   }
-  const profile = /PROFILE (.+)/.exec(out)?.[1] ?? ''
-  check('the drill opened a session on a temp profile of its own', profile.startsWith('/') && /puppeteer_dev_[a-z]+_profile-/.test(profile), out.trim().slice(-300))
-  if (profile.startsWith('/')) {
+  const profile = (/PROFILE (.+)/.exec(out)?.[1] ?? '').trim()
+  check('the drill opened a session on a temp profile of its own', isAbsolute(profile) && /puppeteer_dev_[a-z]+_profile-/.test(profile), out.trim().slice(-300))
+  if (isAbsolute(profile)) {
     const t0 = Date.now()
     while (existsSync(profile) && Date.now() - t0 < 3000) await new Promise(r => setTimeout(r, 50))
     check('the temp profile folder is gone after the process exit (no Local State left behind)', !existsSync(profile), `${profile} still exists`)

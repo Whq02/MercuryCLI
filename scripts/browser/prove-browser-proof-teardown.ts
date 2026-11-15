@@ -21,6 +21,10 @@ if (first.state !== 'ok') {
     process.exit(0)
   }
 }
+if (process.platform === 'win32') {
+  console.log('  [SKIP] the suite runner ends a proof’s browser, its helpers and its profile in five modes — not read on win32: the fixture and the liveness test read the process table with POSIX ps (-axo pid=,ppid= and -o stat=), one mode stops the browser with SIGSTOP, and the runner’s result is held as 137 and 143, none of which win32 has')
+  process.exit(0)
+}
 const world = mkdtempSync(join(tmpdir(), 'browser-teardown-pin-'))
 let failures = 0
 function check(name: string, ok: boolean, detail = '') {

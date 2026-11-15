@@ -24,7 +24,9 @@ section('S0 control: the first launch on an origin’s profile (holds on the par
     localStorage.setItem('kept', 'storage-27290')
   })
   const closed = await run({ op: 'close' })
-  check('close ends the session and leaves the profile on disk', closed.result === 'session closed (browser reaped; origin approvals wiped)' && existsSync(join(profile, 'Default')), closed.result)
+  const ended = closed.result === `session closed — the browser did not answer within ${sessions.BROWSER_CLOSE_BOUND_MS / 1000}s and its process was ended (origin approvals wiped)`
+  check('close ends the session and leaves the profile on disk', (ended || closed.result === 'session closed (browser reaped; origin approvals wiped)') && existsSync(join(profile, 'Default')), closed.result)
+  if (ended) console.log(`    this machine’s browser took more than the ${sessions.BROWSER_CLOSE_BOUND_MS / 1000}s a close gives it to quit, and its process was ended: the sections below read what that profile kept`)
 }
 
 section('S1 the browser started again on that profile')

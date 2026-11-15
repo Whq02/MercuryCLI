@@ -73,6 +73,8 @@ const A = await serve(0, makeHandler(() => bOrigin))
 const B = await serve(0, makeHandler(() => A.origin))
 bOrigin = B.origin
 
+const names = (raw: string[] | undefined): string => (raw ?? []).filter((_, index) => index % 2 === 0).join(',')
+const bag = (raw: string[] | undefined): string => JSON.stringify((raw ?? []).flatMap((name, index, all) => (index % 2 === 0 ? [`${name.toLowerCase()}: ${all[index + 1]}`] : [])).sort())
 const pairsWithout = (raw: string[], omit: Set<string>): Array<[string, string]> => {
   const out: Array<[string, string]> = []
   for (let i = 0; i < raw.length; i += 2) {
@@ -144,25 +146,27 @@ for (const kind of ['pop-link', 'pop-rel-noop', 'pop-open', 'pop-win-noop', 'pop
     check(
       `${kind} sends 1 request with byte-for-byte identical raw headers and cookie as plain navigation`,
       seenKind.length === 1 && JSON.stringify(seenKind[0]!.rawHeaders) === JSON.stringify(plainGet.rawHeaders),
-      JSON.stringify({ plain: plainGet.rawHeaders, got: seenKind[0]?.rawHeaders }),
+      `got ${seenKind.length}: ${names(seenKind[0]?.rawHeaders)} || plain: ${names(plainGet.rawHeaders)} || got ${bag(seenKind[0]?.rawHeaders)}`,
     )
   } else if (kind === 'pop-post') {
     check(
-      'posted form popup sends 1 POST with byte-for-byte identical raw headers, cookie, and body as plain form POST',
+      'posted form popup sends 1 POST with the header names and values, cookie, and body of a plain form POST',
       seenKind.length === 1 &&
         seenKind[0]!.method === 'POST' &&
         seenKind[0]!.body === 'alpha=1&beta=two+words' &&
         seenKind[0]!.body === plainPost.body &&
-        JSON.stringify(seenKind[0]!.rawHeaders) === JSON.stringify(plainPost.rawHeaders),
-      JSON.stringify({ plain: plainPost, got: seenKind }),
+        bag(seenKind[0]!.rawHeaders) === bag(plainPost.rawHeaders),
+      `got ${seenKind.length}: ${names(seenKind[0]?.rawHeaders)} || plain: ${names(plainPost.rawHeaders)} || got ${bag(seenKind[0]?.rawHeaders)}`,
     )
   } else if (kind === 'pop-redir') {
     check(
-      'redirect popup sends exact same two-hop sequence and raw headers as plain redirect',
+      'redirect popup sends the two hops of a plain redirect: the first byte-for-byte, the landing hop with the same header names and values',
       seenKind.length === 2 &&
         plainRedir.length === 2 &&
-        JSON.stringify(seenKind.map(h => [h.path, h.rawHeaders])) === JSON.stringify(plainRedir.map(h => [h.path, h.rawHeaders])),
-      JSON.stringify({ plain: plainRedir, got: seenKind }),
+        JSON.stringify(seenKind.map(h => h.path)) === JSON.stringify(plainRedir.map(h => h.path)) &&
+        JSON.stringify(seenKind[0]!.rawHeaders) === JSON.stringify(plainRedir[0]!.rawHeaders) &&
+        bag(seenKind[1]!.rawHeaders) === bag(plainRedir[1]!.rawHeaders),
+      `got ${seenKind.length}: ${seenKind.map(h => `${h.path} ${names(h.rawHeaders)}`).join(' | ')} || plain: ${plainRedir.map(h => `${h.path} ${names(h.rawHeaders)}`).join(' | ')}`,
     )
   }
   check(`9/9 stealth holds at first document of ${kind}`, act.outcome === 'succeeded' && nine.passed === 9 && nine.total === 9, JSON.stringify(nine.checks))

@@ -24,7 +24,7 @@ const crash = async (tab?: string): Promise<boolean> => {
   const live = tabOf(tab)
   const own = live === null ? null : sessions.pageKitOf(live.page)?.cdp
   if (!own) return false
-  void own.send('Page.crash').catch(() => undefined)
+  void own.send('Page.navigate', { url: 'chrome://kill' }).catch(() => undefined)
   for (let waited = 0; waited < 50; waited++) {
     if ((tabOf(tab) as { crashed?: boolean } | null)?.crashed === true) return true
     await new Promise(done => setTimeout(done, 100))

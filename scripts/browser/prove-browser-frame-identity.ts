@@ -16,6 +16,7 @@ interface Hit {
   raw: string[]
 }
 const asked: Hit[] = []
+const begun: string[] = []
 const FIRST = `window.__first = { userAgent: navigator.userAgent, appVersion: navigator.appVersion, platform: navigator.platform, languages: navigator.languages.join(','), brands: navigator.userAgentData ? navigator.userAgentData.brands.map(b => b.brand).join('+') : '', mobile: navigator.userAgentData ? navigator.userAgentData.mobile : null, runtime: typeof (window.chrome && window.chrome.runtime), touch: navigator.maxTouchPoints }`
 const A = await serve(0, (req: http.IncomingMessage, res: http.ServerResponse) => {
   const url = new URL(req.url ?? '/', 'http://fixture')
@@ -35,6 +36,14 @@ const A = await serve(0, (req: http.IncomingMessage, res: http.ServerResponse) =
   if (path === '/sw.js') return script(`self.addEventListener('install', () => self.skipWaiting())`)
   if (path === '/detect') return html(detectionHtml(req.headers, hostTz))
   if (path === '/first' || path === '/slow') {
+    const churned = url.searchParams.get('churn')
+    if (churned !== null) {
+      if (Number(churned) % 2 === 1) return
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
+      res.write('<!doctype html><title>first</title>')
+      begun.push(churned)
+      return
+    }
     const nest = url.searchParams.has('nest') ? `<iframe src="http://127.0.0.1:${port}/first?who=nested" width="80" height="40"></iframe>` : ''
     const worker = url.searchParams.has('worker') ? `<script>new Worker('/worker.js').onmessage = event => { window.__worker = event.data }</script>` : ''
     const body = `<!doctype html><title>first</title><script>${FIRST}</script><a id="go" href="/first?who=clicked">go</a>${worker}${nest}`
@@ -60,16 +69,30 @@ navigator.serviceWorker.register('/sw.js').then(() => navigator.serviceWorker.re
   }
   if (path === '/churn') {
     return html(`<!doctype html><title>churning</title><script>
+const held = new Map()
 let made = 0
+let gone = 0
+const drop = frame => {
+  frame.remove()
+  if (++gone === 20) setTimeout(() => { document.title = 'churned' }, 200)
+}
+window.__drop = list => {
+  for (const mine of list) {
+    const frame = held.get(mine)
+    if (frame === undefined) continue
+    held.delete(mine)
+    drop(frame)
+  }
+}
 const tick = () => {
   const frame = document.createElement('iframe')
   frame.src = '${cross}/first?churn=' + made
   document.body.appendChild(frame)
-  setTimeout(() => frame.remove(), made % 2 ? 0 : 15)
+  if (made % 2) setTimeout(() => drop(frame), 0)
+  else held.set(String(made), frame)
   if (++made < 20) setTimeout(tick, 10)
-  else setTimeout(() => { document.title = 'churned' }, 200)
 }
-addEventListener('DOMContentLoaded', tick)
+addEventListener('load', () => setTimeout(tick, 0))
 </script>`)
   }
   if (path === '/holding') return html(`<!doctype html><title>holding</title><iframe src="${cross}/slow"></iframe>`)
@@ -155,9 +178,9 @@ const startedByFrame = async (tab: string | undefined, pagePath: string): Promis
   for (let waited = 0; waited < 30 && !asked.slice(mark).some(hit => hit.search === '?who=clicked'); waited++) await nap(100)
   return { frame: identityOf(asked.slice(mark).find(hit => hit.search === '?who=clicked')?.raw), page: identityOf([...asked].reverse().find(hit => hit.path === pagePath && hit.host !== CROSS)?.raw) }
 }
-const kitOf = (tab?: string): { cdp: { send: (method: string) => Promise<unknown> } | null; frames?: Map<string, unknown> } => sessions.pageKitOf(pageOf(lead, tab))
+const kitOf = (tab?: string): { cdp: { send: (method: string, params?: unknown) => Promise<unknown> } | null; frames?: Map<string, unknown> } => sessions.pageKitOf(pageOf(lead, tab))
 const crash = async (tab?: string): Promise<boolean> => {
-  void kitOf(tab).cdp?.send('Page.crash').catch(() => undefined)
+  void kitOf(tab).cdp?.send('Page.navigate', { url: 'chrome://kill' }).catch(() => undefined)
   for (let waited = 0; waited < 50; waited++) {
     if ((sessions.activeSession(ownerOf(lead), tab) as { crashed?: boolean } | null)?.crashed === true) return true
     await nap(100)
@@ -289,6 +312,18 @@ for (const kind of ['throws', 'refused', 'unanswered'] as const) {
   check('and no worker is handed to the page’s session for frames (holds on the parent too)', handed.length === 0, handed.join(','))
   check('the page left behind leaves no frame session behind, a frame inside a frame included (holds on the parent too)', (kitOf().frames?.size ?? 0) === 0, String(kitOf().frames?.size))
   const churn = await run({ op: 'open', url: `${A.origin}/churn` })
+  const dropped = new Set<string>()
+  const handedFrames = (): number => handed.filter(type => type === 'iframe').length
+  for (let waited = 0; waited < 160 && dropped.size < 10; waited++) {
+    const loading = [...begun]
+    const next = loading.filter(mine => !dropped.has(mine))
+    if (next.length === 0 || handedFrames() < loading.length) {
+      await nap(50)
+      continue
+    }
+    await pageOf().evaluate((list: string[]) => (window as unknown as { __drop: (list: string[]) => void }).__drop(list), next)
+    for (const mine of next) dropped.add(mine)
+  }
   let title = ''
   for (let waited = 0; waited < 80 && title !== 'churned'; waited++) {
     title = await pageOf().title()
@@ -296,7 +331,7 @@ for (const kind of ['throws', 'refused', 'unanswered'] as const) {
   }
   await nap(300)
   const after = await run({ op: 'open', url: `${A.origin}/` })
-  check('twenty frames added and removed while they load leave nothing held and nothing kept', churn.outcome === 'succeeded' && title === 'churned' && after.outcome === 'succeeded' && after.ms < 5000 && handed.filter(type => type === 'iframe').length >= 10 && (kitOf().frames?.size ?? 0) === 0, `${title} ${after.ms}ms handed ${handed.length} kept ${kitOf().frames?.size}`)
+  check('twenty frames added and removed while they load leave nothing held and nothing kept', churn.outcome === 'succeeded' && title === 'churned' && after.outcome === 'succeeded' && after.ms < 5000 && handedFrames() >= 10 && (kitOf().frames?.size ?? 0) === 0, `${title} ${after.ms}ms handed ${handed.length} dropped ${dropped.size} kept ${kitOf().frames?.size}`)
   const opening = run({ op: 'open', tab: 'held', url: `${A.origin}/holding` })
   await nap(500)
   const closed = await run({ op: 'close', tab: 'held' })

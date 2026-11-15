@@ -21,7 +21,10 @@ const git = (...args: string[]): string => execFileSync('git', args, { cwd: root
 type Corpus = { base: string; model: string; definitions: unknown[] }
 const recorded: Corpus | null = existsSync(fixture) ? (JSON.parse(readFileSync(fixture, 'utf8')) as Corpus) : null
 
+const hostOwn: ReadonlyMap<string, string> = new Map(process.platform === 'win32' ? [['Bash', 'the default shell on win32 is the bundled engine, and the description carries that engine’s manual']] : [])
+
 if (record) {
+  assert.notEqual(process.platform, 'win32', 'the corpus is recorded on a Mac or a Linux box: it holds what those two send')
   assert.equal(git('diff', '--name-only', 'HEAD', '--', 'src'), '', 'record from a committed product tree')
 } else {
   assert.notEqual(recorded, null, 'the corpus is recorded (bun scripts/tool-economy/prove-definition-corpus-parity.ts --record)')
@@ -85,16 +88,18 @@ const computerDefinition = definitions.find(definition => definition.name === 'C
 assert.ok('description' in computerDefinition && typeof computerDefinition.description === 'string')
 assert.match(computerDefinition.description, /Coordinates are pixels of its last screenshot; refresh after frame changes\./)
 assert.ok(!computerDefinition.description.includes('not through Eval'), 'no Eval prohibition: tool.Computer works from a cell')
-const bytes = JSON.stringify({ base, model, definitions }, null, 2) + '\n'
+const previousDefinitions = new Map((recorded ?? { definitions }).definitions.map(definition => [(definition as { name: string }).name, definition]))
+const held = definitions.map(definition => (hostOwn.has(definition.name) ? { ...definition, description: (previousDefinitions.get(definition.name) as { description?: string } | undefined)?.description ?? definition.description } : definition))
+const bytes = JSON.stringify({ base, model, definitions: held }, null, 2) + '\n'
 if (record) {
   writeFileSync(fixture, bytes)
   console.log(`RECORDED 61 definitions at ${base}`)
 }
-const previousDefinitions = new Map((recorded ?? { definitions }).definitions.map(definition => [(definition as { name: string }).name, definition]))
 const moved = tools
-  .map((tool, i) => (JSON.stringify(definitions[i]) === JSON.stringify(previousDefinitions.get(tool.name)) ? null : tool.name))
+  .map((tool, i) => (JSON.stringify(held[i]) === JSON.stringify(previousDefinitions.get(tool.name)) ? null : tool.name))
   .filter((name): name is string => name !== null)
 if (record) console.log(moved.length === 0 ? 'no definition moved since the previous recording' : `moved since the previous recording (list the diff in the fold log): ${moved.join(', ')}`)
 else assert.deepEqual(moved, [], `a definition moved since the recording at ${base} — re-record with --record and list the diff: ${moved.join(', ')}`)
 assert.equal(bytes, readFileSync(fixture, 'utf8'), 'every definition remains byte-identical in catalogue order')
-console.log(`PASS CORPUS 61 definitions identical; ${Buffer.byteLength(bytes)} bytes; sha256 ${createHash('sha256').update(bytes).digest('hex')}`)
+for (const [name, why] of hostOwn) console.log(`  [SKIP] the description of ${name} is not compared on this host — the corpus holds what a Mac and a Linux box send; ${why}; its name and its parameters are compared`)
+console.log(`PASS CORPUS ${61 - hostOwn.size} definitions identical${hostOwn.size > 0 ? `, and all of ${[...hostOwn.keys()].join(', ')} but the description` : ''}; ${Buffer.byteLength(bytes)} bytes; sha256 ${createHash('sha256').update(bytes).digest('hex')}`)

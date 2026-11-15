@@ -123,6 +123,7 @@ interface Session {
   actOp: string
   touched: boolean
   left: boolean
+  opening: string | null
   browser: DriverBrowser
   page: Page
   resolution: BrowserResolution
@@ -1223,6 +1224,7 @@ function tabSession(state: OwnerBrowserState, hold: Hold, tab: string, page: Pag
     actOp: '',
     touched: false,
     left: false,
+    opening: null,
     browser: hold.browser,
     page,
     resolution: hold.resolution,
@@ -1271,6 +1273,12 @@ function listenPage(state: OwnerBrowserState, session: Session, wiring: Wiring):
   }
   const isMainNavigation = (request: HTTPRequest): boolean =>
     request.isNavigationRequest() && request.frame() === page.mainFrame()
+  const driver = page as unknown as { _client?: () => CDPSession }
+  if (typeof driver._client === 'function') {
+    driver._client().on('Page.windowOpen', event => {
+      session.opening = event.url
+    })
+  }
   page.on('framenavigated', frame => {
     if (frame.parentFrame() === null) {
       navWatch.frames = 0
@@ -1458,16 +1466,39 @@ function observeFirstRequest(kit: PageKit, presented: PagePresented, targetId: s
   cdp.on('Network.requestWillBeSentExtraInfo', onHeaders)
 }
 
-function mendFirstRequest(birth: Birth, identity: PageIdentity): void {
+const FIRST_HINTS = ['sec-ch-ua', 'sec-ch-ua-mobile', 'sec-ch-ua-platform']
+
+function takesHints(url: string): boolean {
+  let host: string
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol === 'https:') return true
+    if (parsed.protocol !== 'http:') return false
+    host = parsed.hostname.replace(/\.$/, '')
+  } catch {
+    return false
+  }
+  return host === 'localhost' || host.endsWith('.localhost') || /^127(?:\.\d+){3}$/.test(host) || host === '[::1]'
+}
+
+function mendFirstRequest(birth: Birth, identity: PageIdentity, own: Record<string, string> | null): void {
   const { cdp, kit } = birth
   const hints = hintHeaders(identity)
+  let armed = own !== null
+  const disarm = (): void => {
+    if (!armed) return
+    armed = false
+    void cdp.send('Network.setExtraHTTPHeaders', { headers: own ?? {} }).catch(() => undefined)
+  }
   const onRequest = (event: Protocol.Fetch.RequestPausedEvent): void => {
     if (event.request.method !== 'GET') birth.posted = true
+    const stray = armed && !takesHints(event.request.url)
+    disarm()
     let moved = false
     const headers: Protocol.Fetch.HeaderEntry[] = []
     for (const [name, value] of Object.entries(event.request.headers)) {
       const hint = name.toLowerCase()
-      const wanted = !hint.startsWith('sec-ch-ua') ? value : hints === null ? null : (hints.get(hint) ?? value)
+      const wanted = !hint.startsWith('sec-ch-ua') ? value : hints === null || (stray && FIRST_HINTS.includes(hint)) ? null : (hints.get(hint) ?? value)
       if (wanted !== value) moved = true
       if (wanted !== null) headers.push({ name, value: wanted })
     }
@@ -1475,6 +1506,7 @@ function mendFirstRequest(birth: Birth, identity: PageIdentity): void {
   }
   const onCommit = (event: Protocol.Page.FrameNavigatedEvent): void => {
     if (event.frame.parentId !== undefined) return
+    disarm()
     cdp.off('Fetch.requestPaused', onRequest)
     cdp.off('Page.frameNavigated', onCommit)
     if (!kit.fetchHeld) void cdp.send('Fetch.disable').catch(() => undefined)
@@ -1605,6 +1637,10 @@ function bornPage(hold: Hold, cdp: CDPSession, info: Protocol.Target.TargetInfo)
   const wiring = newWiring()
   const handover = observeBirthNavigation(hold, wiring, cdp, info.targetId)
   const birth: Birth = { cdp, kit, wiring, opener, keep: opener !== null && opener.acting > 0, posted: false, handover, settled, settle }
+  const opening = opener === null ? null : opener.opening
+  if (opener !== null) opener.opening = null
+  const hints = presented.identity === null || opening === null || !takesHints(opening) ? null : hintHeaders(presented.identity)
+  const armed = hints === null ? null : Object.fromEntries(FIRST_HINTS.map(name => [name, hints.get(name) ?? '']))
   if (presented.identity !== null) void cdp.send('Emulation.setUserAgentOverride', presented.identity).catch(quiet)
   void cdp.send('Emulation.setTimezoneOverride', { timezoneId: presented.timeZone }).catch(quiet)
   if (presented.locale !== null) void cdp.send('Emulation.setLocaleOverride', { locale: presented.locale }).catch(quiet)
@@ -1612,14 +1648,14 @@ function bornPage(hold: Hold, cdp: CDPSession, info: Protocol.Target.TargetInfo)
   void cdp.send('Page.enable').catch(quiet)
   void cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: stealthSource(presented.languages) }).catch(quiet)
   void cdp.send('Network.enable').catch(quiet)
-  if (presented.headers !== null) void cdp.send('Network.setExtraHTTPHeaders', { headers: presented.headers }).catch(quiet)
+  if (presented.headers !== null || armed !== null) void cdp.send('Network.setExtraHTTPHeaders', { headers: { ...armed, ...presented.headers } }).catch(quiet)
   if (hold.downloads === null) {
     void cdp.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(quiet)
     listenDownloads(birth.wiring, cdp)
   }
   listenProtocol(birth.wiring, cdp)
   observeFirstRequest(kit, presented, info.targetId)
-  if (info.openerId !== undefined && presented.identity !== null) mendFirstRequest(birth, presented.identity)
+  if (info.openerId !== undefined && presented.identity !== null) mendFirstRequest(birth, presented.identity, armed === null ? null : (presented.headers ?? {}))
   void watchFrames(kit, cdp)
   void cdp.send('Runtime.runIfWaitingForDebugger').catch(quiet)
   if (info.openerId !== undefined && opener === null) {

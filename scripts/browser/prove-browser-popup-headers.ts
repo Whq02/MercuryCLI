@@ -58,10 +58,10 @@ const keptName = (answer: { result: string }): string => /kept as tab (\S+) at/.
 
 const { Connection } = (await import(join(ROOT, 'node_modules/puppeteer-core/lib/puppeteer/cdp/Connection.js'))) as { Connection: { prototype: { _rawSend: (...args: unknown[]) => unknown } } }
 const send = Connection.prototype._rawSend
-let extraHeaderCommands = 0
-Connection.prototype._rawSend = function (this: unknown, callbacks: unknown, method: unknown, ...rest: unknown[]) {
-  if (method === 'Network.setExtraHTTPHeaders') extraHeaderCommands++
-  return send.call(this, callbacks, method, ...rest)
+const extraHeaderCommands: string[][] = []
+Connection.prototype._rawSend = function (this: unknown, callbacks: unknown, method: unknown, params: unknown, ...rest: unknown[]) {
+  if (method === 'Network.setExtraHTTPHeaders') extraHeaderCommands.push(Object.keys((params as { headers: Record<string, string> }).headers))
+  return send.call(this, callbacks, method, params, ...rest)
 }
 
 section('S0 control: a tab that carries an extra header (holds on the parent too)')
@@ -86,7 +86,7 @@ for (const [kind, selector, path] of [
   const first = of(path)
   check(`${kind}: the tab is kept and says the headers came with it`, name !== '' && popped.result.includes('the emulation came with it (headers)'), popped.result)
   check(`${kind}: its first request carries the header once, and the server is asked once`, first.length === 1 && JSON.stringify(values(first[0], 'x-proof')) === '["one"]', `${first.length} ${names(first[0])}`)
-  check(`${kind}: header for header in the order of the opener’s own navigation`, names(first[0]) === names(plain), `${names(first[0])} || ${names(plain)}`)
+  check(`${kind}: header for header in the order of the opener’s own navigation`, names(first[0]) === names(plain), `the tab: ${names(first[0])} || its opener: ${names(plain)}`)
   if (path === '/hop') check('a redirect: the hop it lands on carries it too', of('/landed').length === 1 && JSON.stringify(values(of('/landed')[0], 'x-proof')) === '["one"]', names(of('/landed')[0]))
 }
 {
@@ -145,10 +145,15 @@ section('S5 a tab no act opened')
 section('S6 a tab that carries no extra header')
 {
   await run({ op: 'open', tab: 'bare', url: `${A.origin}/` })
-  const before = extraHeaderCommands
+  const before = extraHeaderCommands.length
   const popped = await run({ op: 'click', tab: 'bare', selector: '#blank' })
   const first = of('/blank').at(-1)
-  check('a tab it opens sends none, and no command about extra headers is sent for it', keptName(popped) !== '' && values(first, 'x-proof').length === 0 && extraHeaderCommands === before, `${popped.result} ${extraHeaderCommands - before}`)
+  const own = extraHeaderCommands.slice(before)
+  check(
+    'a tab it opens sends none, and the only commands about extra headers for it set its three client hints for its first request and take them back',
+    keptName(popped) !== '' && values(first, 'x-proof').length === 0 && JSON.stringify(own) === JSON.stringify([['sec-ch-ua', 'sec-ch-ua-mobile', 'sec-ch-ua-platform'], []]),
+    `${popped.result} ${JSON.stringify(own)}`,
+  )
 }
 
 Connection.prototype._rawSend = send
