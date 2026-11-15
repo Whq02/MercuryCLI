@@ -446,6 +446,8 @@ try {
         rootMode === 0o700 && dirMode === 0o700,
         `root=${rootMode.toString(8)} dir=${dirMode.toString(8)}`,
       )
+    } else {
+      console.log('  [SKIP] browser-profiles root and origin profile directory are created with owner-only mode 0700 — win32 keeps no owner-only mode on a folder, and the product makes no chmod there')
     }
 
     await liveA.page.evaluate(() => {

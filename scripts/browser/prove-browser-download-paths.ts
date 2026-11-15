@@ -4,7 +4,7 @@ import * as fs from 'node:fs'
 import type http from 'node:http'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, sep } from 'node:path'
-import { BrowserTool, ROOT, check, finish, lead, requireBrowser, run, section, serve } from './harness.ts'
+import { BrowserTool, ROOT, check, finish, lead, ownerOf, requireBrowser, run, section, serve, sessions } from './harness.ts'
 
 await requireBrowser()
 
@@ -48,6 +48,17 @@ const savedOf = (answer: { result: string }): { path: string; id: string } | nul
   return hit ? { path: hit[1]!, id: hit[2]! } : null
 }
 
+const waited: string[] = []
+async function landed(answer: Awaited<ReturnType<typeof run>>): Promise<Awaited<ReturnType<typeof run>>> {
+  const id = /download (d\d+) is still arriving/.exec(answer.result)?.[1]
+  if (id === undefined) return answer
+  const held = (sessions.browserTransfers(ownerOf(lead)) as Array<{ id: string; received: number; total: number | null; landing?: boolean }>).find(transfer => transfer.id === id)
+  const facts = held === undefined ? 'no such transfer in the session' : `${held.received} of ${held.total ?? 'an unknown number of'} bytes received, ${held.landing === true ? 'the browser had reported it complete and the file was being put in place' : 'the browser had not yet reported it complete'}`
+  const settled = await run({ op: 'download', downloadId: id, timeoutMs: 30_000 })
+  waited.push(`${id} (${facts}): op:"download" with its id answered ${settled.result.startsWith('download: saved to ') ? 'saved' : 'not saved'} after ${settled.ms} ms`)
+  return settled
+}
+
 const pads = (): string[] => {
   const root = fs.realpathSync(tmpdir())
   const found: string[] = []
@@ -81,7 +92,7 @@ section('S1 hostile, reserved, overlong, and duplicate suggested names stay insi
   ]
   for (const [idx, c] of cases.entries()) {
     const body = Buffer.from(`bytes:${c.raw}`)
-    const ans = await run({ op: 'download', url: `${A.origin}/dl?name=${encodeURIComponent(c.raw)}&k=${idx}` })
+    const ans = await landed(await run({ op: 'download', url: `${A.origin}/dl?name=${encodeURIComponent(c.raw)}&k=${idx}` }))
     const saved = savedOf(ans)
     const home = dlHome()
     const base = saved ? basename(saved.path) : ''
@@ -97,7 +108,7 @@ section('S1 hostile, reserved, overlong, and duplicate suggested names stay insi
     )
   }
 
-  const blobColon = await run({ op: 'download', selector: '#colon' })
+  const blobColon = await landed(await run({ op: 'download', selector: '#colon' }))
   const blobSaved = savedOf(blobColon)
   check(
     'a client-generated download attribute with colons has no colon on disk',
@@ -105,8 +116,8 @@ section('S1 hostile, reserved, overlong, and duplicate suggested names stay insi
     blobColon.result,
   )
 
-  const dup1 = savedOf(await run({ op: 'download', url: `${A.origin}/dl?name=same.bin` }))
-  const dup2 = savedOf(await run({ op: 'download', url: `${A.origin}/dl?name=same.bin` }))
+  const dup1 = savedOf(await landed(await run({ op: 'download', url: `${A.origin}/dl?name=same.bin` })))
+  const dup2 = savedOf(await landed(await run({ op: 'download', url: `${A.origin}/dl?name=same.bin` })))
   check(
     'two downloads of one name land in separate transfer folders without overwriting each other',
     dup1 !== null && dup2 !== null && dup1.path !== dup2.path && fs.existsSync(dup1.path) && fs.existsSync(dup2.path),
@@ -146,7 +157,7 @@ section('S2 links in the destination, dangling link ids, EXDEV copy fallback, an
       console.log(`  [SKIP] ${leg} — this account may not make a symbolic link (${refused})`)
     }
   } else {
-    const afterDangling = savedOf(await run({ op: 'download', url: `${A.origin}/dl?name=after-dangling.bin` }))
+    const afterDangling = savedOf(await landed(await run({ op: 'download', url: `${A.origin}/dl?name=after-dangling.bin` })))
     check(
       'beginTransfer skips a dangling symlink at dN rather than reusing or following it',
       afterDangling !== null && afterDangling.id !== `d${nextNum}` && dirname(afterDangling.path) === join(home, afterDangling.id),
@@ -247,4 +258,9 @@ section('S2 links in the destination, dangling link ids, EXDEV copy fallback, an
   fs.rmSync(outsideDir, { recursive: true, force: true })
 }
 
+console.log(
+  waited.length === 0
+    ? '\n    every download was saved when the act that started it answered'
+    : `\n    ${waited.length} download(s) had not been saved when the act that started them answered, and each was waited for by the tool’s own road:\n${waited.map(line => `      ${line}`).join('\n')}`,
+)
 await finish('prove-browser-download-paths')
