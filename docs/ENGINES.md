@@ -1013,10 +1013,10 @@ Run `/accounts` to see every connected account and API key across all providers:
   Free or Google AI Plus; read again on 2026-11-11 it lists Gemini 4 Carbon
   on Google AI Ultra and Enterprise alone; read again on 2026-11-15 it lists
   Gemini 4 Hydrogen on every plan, Free and Google AI Plus included, with a
-  fourth thinking level (Extra, the row `…-xhigh`). Claude Sonnet 5.5 and
-  Opus 5.5 require non-trial Pro, Ultra or Enterprise; Sonnet 4.6, Opus 4.6
-  and GPT-OSS-120b leave the roster on November 18, 2026 (the table read on
-  2026-11-15). A disabled row is
+  fourth thinking level (Extra, the row `…-xhigh`). Claude Sonnet 5.5
+  and Opus 5.5 require non-trial Pro, Ultra or Enterprise; Sonnet 4.6, Opus
+  4.6 and GPT-OSS-120b leave the roster on November 18, 2026 (the table read
+  on 2026-11-15). A disabled row is
   listed with its
   state (`"withheld from Google AI Pro today — Google's roster names it …
   and answers 404 to the id; antigravity.google/docs/models says which plans
