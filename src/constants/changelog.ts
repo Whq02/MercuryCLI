@@ -54,6 +54,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Changed the external editor's value on Windows to be parsed by the system's own command-line rules.
 - Changed TensorFold to 1.2.7 where Mercury names, fetches and verifies the engine; a model card's prompt-cache ceiling follows the engine's rule.
 - Changed the tool descriptions, prompts and bundled skills a model reads: corrected against the product and shortened, by about a tenth where a session sends every tool's definition and by less where tools are loaded on demand.
+- Changed the FilmCraft, PhotoCraft and LightCraft extensions to install FilmCraft 0.20.1, PhotoCraft 0.23.1 and LightCraft 0.21.1.
 - Changed the answer to a structural pattern that does not parse: it shows patterns of the language asked, in all 57, where it showed JavaScript's.
 - Changed the card of a SQLite row's write: it is titled Write SQLite row and asks Write this row?.
 - Changed the Bash tool on Windows: in a window started from PowerShell, cmd or the Start menu, where ls is not on the path, Mercury's bundled shell engine puts the usr/bin folder of Git for Windows first on its own path, so ls, cat, grep, sed, find and the like run there as they do in Git's bash. A window that already has such programs is left as it is, and mercury health says where they come from.
