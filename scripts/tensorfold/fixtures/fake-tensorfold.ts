@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { placeWeights } from './world.ts'
 
 export const FAKE_TENSORFOLD_VERSION = '1.2.2'
 export const FAKE_TENSORFOLD_CHIP = 'apple-m5'
@@ -96,7 +97,7 @@ async function pull(spec: string): Promise<void> {
   mkdirSync(join(base, 'refs'), { recursive: true })
   writeFileSync(join(base, 'refs', 'main'), sha)
   writeFileSync(join(snapshot, 'config.json'), JSON.stringify({ model_type: env.FAKE_TENSORFOLD_MODEL_TYPE ?? 'qwen3_5', max_position_embeddings: 262144, num_hidden_layers: 24, num_key_value_heads: 2, head_dim: 256, full_attention_interval: 4 }))
-  if (!existsSync(join(snapshot, 'model.safetensors'))) symlinkSync(join('..', '..', 'blobs', 'weightsblob'), join(snapshot, 'model.safetensors'))
+  if (!existsSync(join(snapshot, 'model.safetensors'))) placeWeights(blob, join(snapshot, 'model.safetensors'))
   if (said.length > 0) process.stdout.write(`  model.safetensors: ${(total / 1024 ** 2).toFixed(2)} MiB in ${steps} pieces\n`)
   process.stdout.write(`[tensorfold] ${repo}: ${total} bytes on disk\n`)
 }

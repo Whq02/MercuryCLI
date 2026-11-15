@@ -1,4 +1,4 @@
-import { existsSync, linkSync, mkdirSync, mkdtempSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, linkSync, mkdirSync, mkdtempSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { GgufSource } from '../../../src/services/tensorfold/hfCache.ts'
 import type { TensorFoldMachineTruth } from '../../../src/services/tensorfold/fit.ts'
@@ -34,6 +34,27 @@ export const QWEN_2B_CONFIG = {
 }
 
 export type CacheSeed = { repo: string; config: Record<string, unknown>; weightsBytes: number; sha?: string; refs?: boolean; incompleteBytes?: number }
+export type LinkIo = { symlink?: (target: string, path: string) => void; link?: (existing: string, path: string) => void }
+type WeightsPlaced = 'symlink' | 'hard link' | 'copy'
+
+export function placeWeights(blob: string, snapshotFile: string, io: LinkIo = {}): WeightsPlaced {
+  const symlink = io.symlink ?? symlinkSync
+  const link = io.link ?? linkSync
+  try {
+    symlink(join('..', '..', 'blobs', 'weightsblob'), snapshotFile)
+    return 'symlink'
+  } catch (refused) {
+    if ((refused as NodeJS.ErrnoException).code === 'EEXIST') throw refused
+  }
+  try {
+    link(blob, snapshotFile)
+    return 'hard link'
+  } catch (refused) {
+    if ((refused as NodeJS.ErrnoException).code === 'EEXIST') throw refused
+  }
+  copyFileSync(blob, snapshotFile)
+  return 'copy'
+}
 
 export function seedGgufCache(root: string, seeds: readonly (GgufSource & { partialBytes?: number })[]): void {
   for (const seed of seeds) {
@@ -51,7 +72,7 @@ export function seedGgufCache(root: string, seeds: readonly (GgufSource & { part
   }
 }
 
-export function seedHfCache(root: string, seeds: readonly CacheSeed[]): void {
+export function seedHfCache(root: string, seeds: readonly CacheSeed[], io: LinkIo = {}): void {
   for (const seed of seeds) {
     const base = join(root, `models--${seed.repo.replace('/', '--')}`)
     const sha = seed.sha ?? 'f'.repeat(40)
@@ -65,7 +86,7 @@ export function seedHfCache(root: string, seeds: readonly CacheSeed[]): void {
     if (seed.weightsBytes > 0) {
       writeFileSync(join(base, 'blobs', 'weightsblob'), '')
       truncateSync(join(base, 'blobs', 'weightsblob'), seed.weightsBytes)
-      symlinkSync(join('..', '..', 'blobs', 'weightsblob'), join(base, 'snapshots', sha, 'model.safetensors'))
+      placeWeights(join(base, 'blobs', 'weightsblob'), join(base, 'snapshots', sha, 'model.safetensors'), io)
     }
     if (seed.incompleteBytes !== undefined) {
       writeFileSync(join(base, 'blobs', 'partialblob.incomplete'), '')
@@ -76,7 +97,7 @@ export function seedHfCache(root: string, seeds: readonly CacheSeed[]): void {
 
 export type FakeWorld = { root: string; cache: string; home: string; cwd: string; env: NodeJS.ProcessEnv; serviceEnv: Record<string, string> }
 
-export function fakeWorld(prefix: string, opts: { seeds?: readonly CacheSeed[]; ggufSeeds?: readonly (GgufSource & { partialBytes?: number })[]; env?: Record<string, string> } = {}): FakeWorld {
+export function fakeWorld(prefix: string, opts: { seeds?: readonly CacheSeed[]; ggufSeeds?: readonly (GgufSource & { partialBytes?: number })[]; env?: Record<string, string>; link?: LinkIo } = {}): FakeWorld {
   const root = mkdtempSync(join(process.env.TMPDIR ?? '/tmp', `${prefix}-`))
   const home = join(root, 'home')
   const cache = join(home, '.cache', 'huggingface', 'hub')
@@ -84,7 +105,7 @@ export function fakeWorld(prefix: string, opts: { seeds?: readonly CacheSeed[]; 
   mkdirSync(cache, { recursive: true })
   mkdirSync(home, { recursive: true })
   mkdirSync(cwd, { recursive: true })
-  seedHfCache(cache, opts.seeds ?? [{ repo: QWEN_2B_REPO, config: QWEN_2B_CONFIG, weightsBytes: 4096, sha: QWEN_2B_PIN }])
+  seedHfCache(cache, opts.seeds ?? [{ repo: QWEN_2B_REPO, config: QWEN_2B_CONFIG, weightsBytes: 4096, sha: QWEN_2B_PIN }], opts.link)
   seedGgufCache(cache, opts.ggufSeeds ?? [])
   const env: NodeJS.ProcessEnv = {
     ...process.env,
