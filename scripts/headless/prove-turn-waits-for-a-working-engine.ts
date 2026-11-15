@@ -87,7 +87,7 @@ function run(name: string, engine: Engine, limitMinutes: string, sampledPace?: n
   seedScratchHome(runHome, cwd)
   if (sampledPace !== undefined) {
     const sampled = { paceTokensPerSec: sampledPace, samples: 3, updatedAtMs: Date.now() }
-    writeFileSync(join(runHome, 'local-ingest-pace.json'), JSON.stringify({ version: 1, models: { [MODEL]: sampled, [`local/${MODEL}`]: sampled } }))
+    writeFileSync(join(runHome, 'local-ingest-pace.json'), JSON.stringify({ version: 2, models: { [MODEL]: sampled, [`local/${MODEL}`]: sampled } }))
   }
   const env: NodeJS.ProcessEnv = { ...childEnv(runHome, 1), HOME: userHome, USERPROFILE: userHome, MERCURY_LOCAL_PROBE_TARGETS: `llamacpp=${engine.root}`, MERCURY_HEADLESS_IDLE_MINUTES: limitMinutes }
   delete env.ANTHROPIC_API_KEY
