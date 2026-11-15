@@ -52,11 +52,10 @@ export const geminiLaneProfile: CompatLaneProfile = {
     'check the billing and quota of the Google Cloud project behind this key, then retry; /model picks another model meanwhile.',
   requestUrl: () => `${geminiApiBase()}/openai/chat/completions`,
   wireModelId: modelId => modelId,
-  buildExtras: args =>
-    buildGeminiExtras({
-      ...args,
-      acceptsEffort: geminiEffortVocabularyFor(args.wireModel).length > 0,
-    }),
+  buildExtras: args => {
+    const vocabulary = geminiEffortVocabularyFor(args.wireModel)
+    return buildGeminiExtras({ ...args, acceptsEffort: vocabulary.length > 0, vocabulary })
+  },
   onResponseHeaders: (headers, status) => {
     recordGeminiRateHeaders(headers)
     if (status !== undefined && status >= 200 && status < 300) clearGeminiUsageLimit()
@@ -152,7 +151,11 @@ async function* geminiPlanCallModel(params: CallModelParams): CallModelStream {
     authRemedy: GEMINI_PLAN_AUTH_REMEDY,
     billingRemedy: GEMINI_PLAN_BILLING_REMEDY,
     wireModelId: modelId => wireOf(modelId),
-    buildExtras: args => buildGeminiExtras({ ...args, acceptsEffort: geminiEffortVocabularyFor(model).length > 0 || geminiEffortVocabularyFor(args.wireModel).length > 0 }),
+    buildExtras: args => {
+      const rowVocabulary = geminiEffortVocabularyFor(args.wireModel)
+      const vocabulary = rowVocabulary.length > 0 ? rowVocabulary : geminiEffortVocabularyFor(model)
+      return buildGeminiExtras({ ...args, acceptsEffort: vocabulary.length > 0, vocabulary })
+    },
     resolveCredential: async () => {
       const credential = await credentialOf(false)
       bearer = credential?.apiKey

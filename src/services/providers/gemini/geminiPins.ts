@@ -18,6 +18,7 @@ interface GeminiPricePin extends GeminiPriceTier {
 const LONG_PROMPT_THRESHOLD = 200_000
 
 export const GEMINI_PRICE_PINS: readonly GeminiPricePin[] = [
+  { id: 'gemini-4-hydrogen', observedAt: '2026-11-15', source: GEMINI_PRICING_PAGE, costInPerMtok: 1.5, costOutPerMtok: 7.5, cachedInPerMtok: 0.075 },
   {
     id: 'gemini-4-carbon',
     observedAt: '2026-11-11',
@@ -92,6 +93,30 @@ export const GEMINI_PRICE_PINS: readonly GeminiPricePin[] = [
 export function geminiPricePin(model: string): GeminiPricePin | undefined {
   const lower = model.trim().toLowerCase()
   return GEMINI_PRICE_PINS.find(p => p.id === lower)
+}
+
+const GEMINI_MODEL_GUIDES = 'https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/guides'
+
+interface GeminiRequestPin {
+  id: string
+  observedAt: string
+  source: string
+  thinkingLevels?: readonly string[]
+  segmentOutputTokens?: number
+  responseMedia?: readonly string[]
+}
+
+export const GEMINI_REQUEST_PINS: readonly GeminiRequestPin[] = [
+  { id: 'gemini-4-hydrogen', observedAt: '2026-11-15', source: `${GEMINI_MODEL_GUIDES}/gemini-4-hydrogen`, thinkingLevels: ['low', 'medium', 'high', 'xhigh'], segmentOutputTokens: 65_536, responseMedia: ['image/png', 'image/jpeg', 'image/webp', 'application/pdf'] },
+  { id: 'gemini-4-carbon', observedAt: '2026-11-15', source: `${GEMINI_MODEL_GUIDES}/gemini-4-carbon`, thinkingLevels: ['low', 'medium', 'high'], segmentOutputTokens: 65_536 },
+  { id: 'gemini-4-argon', observedAt: '2026-11-15', source: `${GEMINI_MODEL_GUIDES}/gemini-4-argon`, thinkingLevels: ['low', 'medium', 'high'], segmentOutputTokens: 65_536 },
+]
+
+export const GEMINI_TIER_ROW = /-(low|medium|high|xhigh)$/
+
+export function geminiRequestPin(model: string): GeminiRequestPin | undefined {
+  const base = model.trim().toLowerCase().replace(/\[[^\]]*\]/g, '').replace(GEMINI_TIER_ROW, '')
+  return GEMINI_REQUEST_PINS.find(p => p.id === base)
 }
 
 export function geminiPriceTierFor(

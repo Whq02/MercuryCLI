@@ -998,7 +998,10 @@ Run `/accounts` to see every connected account and API key across all providers:
   lists on that sign-in are the roster Google serves the account
   (`fetchAvailableModels`): every chat model it names and nothing else,
   with the roster's own display name, context window, output ceiling,
-  thinking and image flags; the image models stay out of chat. A Gemini id
+  thinking and image flags (a Gemini 4 row's output ceiling is one streamed
+  segment, 65,536 tokens, where the roster states more: a longer answer
+  comes in segments Mercury does not follow); the image models stay out of
+  chat. A Gemini id
   keeps its bare spelling; a model of another vendor on the roster (Claude,
   GPT-OSS, …) is listed as `google/<id>` (Google's own id behind the
   prefix) so it rides this Google sign-in and never shadows that vendor's
@@ -1008,9 +1011,12 @@ Run `/accounts` to see every connected account and API key across all providers:
   2026-10-25, lists Gemini 4 Argon on paid Google AI Pro plans (or trials
   with eligible premium devices), Google AI Ultra and Enterprise, but not
   Free or Google AI Plus; read again on 2026-11-11 it lists Gemini 4 Carbon
-  on Google AI Ultra and Enterprise alone. Claude Sonnet 5.5 and Opus 5.5
-  require non-trial Pro, Ultra or Enterprise; Sonnet 4.6, Opus 4.6 and
-  GPT-OSS-120b leave the roster on November 2, 2026. A disabled row is
+  on Google AI Ultra and Enterprise alone; read again on 2026-11-15 it lists
+  Gemini 4 Hydrogen on every plan, Free and Google AI Plus included, with a
+  fourth thinking level (Extra, the row `…-xhigh`). Claude Sonnet 5.5 and
+  Opus 5.5 require non-trial Pro, Ultra or Enterprise; Sonnet 4.6, Opus 4.6
+  and GPT-OSS-120b leave the roster on November 18, 2026 (the table read on
+  2026-11-15). A disabled row is
   listed with its
   state (`"withheld from Google AI Pro today — Google's roster names it …
   and answers 404 to the id; antigravity.google/docs/models says which plans
@@ -1020,8 +1026,10 @@ Run `/accounts` to see every connected account and API key across all providers:
   Google serves instead (`…-low`, `…-medium`, `…-high`, selectable in `/model`).
   When the roster names only effort rows for a model, the bare id
   rides the row of the session's effort the way Google's own client's
-  collapse table routes it (low → `-low`, medium → `-medium`, high, max,
-  xhigh or no effort → `-high`, a missing tier taking the nearest present)
+  collapse table routes it (low → `-low`, medium → `-medium`, high or no
+  effort → `-high`, xhigh or max → `-xhigh` where the roster names that row,
+  as it does for Gemini 4 Hydrogen, and `-high` where it does not; a missing
+  tier taking the nearest present)
   and the status row says the ride (`gemini-4-argon ▸ gemini-4-argon-high`);
   a crewmate named onto the bare id takes the high row. The roster is never
   read only at sign-in: before a chat it is re-read when older than five

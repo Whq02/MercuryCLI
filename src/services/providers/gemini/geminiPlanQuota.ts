@@ -4,7 +4,7 @@ import { declaredRouteOf } from '../routeLaw.js'
 import type { UsageFigureView, UsageRefreshIo } from '../providerUsage.js'
 import { usagePollTtlMs } from '../usageFreshness.js'
 import { resolveGeminiAccount } from './geminiAccounts.js'
-import { geminiPlanEffortSuffix, getCachedGeminiCatalogue, refreshGeminiCatalogue, type GeminiCatalogueSnapshot, type GeminiEffortSuffix } from './geminiCatalogue.js'
+import { geminiPlanEffortOrder, geminiPlanEffortSuffix, getCachedGeminiCatalogue, refreshGeminiCatalogue, type GeminiCatalogueSnapshot } from './geminiCatalogue.js'
 
 export interface GeminiPlanQuotaView {
   active?: UsageFigureView
@@ -30,9 +30,7 @@ export function geminiPlanQuotaView(
     if (model === undefined || model.trim() === '') return undefined
     const bare = model.trim().replace(/\[[^\]]*\]/g, '').toLowerCase()
     if (rows.has(bare)) return bare
-    const want = geminiPlanEffortSuffix(session.effort)
-    const order: GeminiEffortSuffix[] = want === 'low' ? ['low', 'medium', 'high'] : want === 'medium' ? ['medium', 'high', 'low'] : ['high', 'medium', 'low']
-    for (const suffix of order) if (rows.has(`${bare}-${suffix}`)) return `${bare}-${suffix}`
+    for (const suffix of geminiPlanEffortOrder(geminiPlanEffortSuffix(session.effort))) if (rows.has(`${bare}-${suffix}`)) return `${bare}-${suffix}`
     return undefined
   }
   const figureOf = (row: string | undefined): UsageFigureView | undefined => (row === undefined ? undefined : quotas.find(figure => figure.key.slice('plan-quota:'.length).toLowerCase() === row))

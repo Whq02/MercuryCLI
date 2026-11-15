@@ -19,6 +19,7 @@ import {
   type GeminiSourceKind,
 } from './geminiAccounts.js'
 import { fetchGeminiPlanRoster, GeminiPlanHttpError, geminiPlanTierWords, type GeminiPlanRoster } from './geminiPlanAccess.js'
+import { GEMINI_TIER_ROW, geminiRequestPin } from './geminiPins.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 
@@ -319,7 +320,7 @@ export function geminiListedModel(
   const snapshot = getCachedGeminiCatalogue(account.kind, env)
   if (!snapshot || snapshot.models.length === 0) return undefined
   const id = model.trim().replace(/\[[^\]]*\]/g, '').toLowerCase()
-  return snapshot.models.find(m => m.id.toLowerCase() === id)
+  return snapshot.models.find(m => m.id.toLowerCase() === id) ?? (account.kind === 'plan' && geminiGeneration(id)[0] >= 4 ? geminiPlanEffortRow(id, undefined, env) : undefined)
 }
 
 export function geminiContextWindowFor(
@@ -337,16 +338,31 @@ export function geminiOutputTokenLimitFor(
   env: NodeJS.ProcessEnv = process.env,
 ): number | undefined {
   const listed = geminiListedModel(model, env)
-  return listed?.outputTokenLimit !== undefined && listed.outputTokenLimit > 0
-    ? listed.outputTokenLimit
-    : undefined
+  if (listed === undefined) return undefined
+  const stated = listed.outputTokenLimit !== undefined && listed.outputTokenLimit > 0 ? listed.outputTokenLimit : undefined
+  const segment = geminiRequestPin(listed.id)?.segmentOutputTokens
+  return stated === undefined ? segment : segment === undefined ? stated : Math.min(stated, segment)
+}
+
+const GEMINI_XHIGH_ROW_EFFORTS: readonly string[] = [...GEMINI_REASONING_EFFORTS, 'xhigh']
+
+function geminiPlanReachesXhigh(model: string, listed: GeminiLiveModel, env: NodeJS.ProcessEnv): boolean {
+  const id = model.trim().replace(/\[[^\]]*\]/g, '').toLowerCase()
+  if (listed.id.toLowerCase() === id) return id.endsWith('-xhigh')
+  return geminiPlanEffortRow(id, 'xhigh', env)?.id.toLowerCase() === `${id}-xhigh`
 }
 
 export function geminiEffortVocabularyFor(
   model: string,
   env: NodeJS.ProcessEnv = process.env,
 ): readonly string[] {
-  return geminiListedModel(model, env)?.thinking === true ? GEMINI_REASONING_EFFORTS : []
+  const account = resolveGeminiAccount(env)
+  const listed = geminiListedModel(model, env)
+  const unread = account && account.kind !== 'plan' && (getCachedGeminiCatalogue(account.kind, env)?.models.length ?? 0) === 0
+  if (unread) return geminiRequestPin(model)?.thinkingLevels ?? []
+  if (listed?.thinking !== true) return []
+  if (account?.kind !== 'plan') return geminiRequestPin(model)?.thinkingLevels ?? GEMINI_REASONING_EFFORTS
+  return geminiPlanReachesXhigh(model, listed, env) ? GEMINI_XHIGH_ROW_EFFORTS : GEMINI_REASONING_EFFORTS
 }
 
 
@@ -414,7 +430,7 @@ export function geminiPlanRosterKin(model: string, env: NodeJS.ProcessEnv = proc
   }
 }
 
-export type GeminiEffortSuffix = 'low' | 'medium' | 'high'
+export type GeminiEffortSuffix = 'low' | 'medium' | 'high' | 'xhigh'
 
 export function geminiPlanEffortSuffix(effort: string | undefined): GeminiEffortSuffix {
   switch ((effort ?? '').trim().toLowerCase()) {
@@ -423,19 +439,24 @@ export function geminiPlanEffortSuffix(effort: string | undefined): GeminiEffort
       return 'low'
     case 'medium':
       return 'medium'
+    case 'xhigh':
+    case 'max':
+      return 'xhigh'
     default:
       return 'high'
   }
 }
 
+export function geminiPlanEffortOrder(want: GeminiEffortSuffix): GeminiEffortSuffix[] {
+  return want === 'low' ? ['low', 'medium', 'high'] : want === 'medium' ? ['medium', 'high', 'low'] : want === 'xhigh' ? ['xhigh', 'high', 'medium', 'low'] : ['high', 'medium', 'low']
+}
+
 export function geminiPlanEffortRow(model: string, effort: string | undefined, env: NodeJS.ProcessEnv = process.env): GeminiLiveModel | undefined {
   const bare = model.trim().replace(/\[[^\]]*\]/g, '').toLowerCase()
-  if (bare === '' || declaredRouteOf(bare) !== 'gemini' || /-(?:low|medium|high)$/.test(bare)) return undefined
+  if (bare === '' || declaredRouteOf(bare) !== 'gemini' || GEMINI_TIER_ROW.test(bare)) return undefined
   const rows = geminiGenerateModels(getCachedGeminiCatalogue('plan', env))
   if (rows.length === 0 || rows.some(row => row.id.toLowerCase() === bare)) return undefined
-  const want = geminiPlanEffortSuffix(effort)
-  const order: GeminiEffortSuffix[] = want === 'low' ? ['low', 'medium', 'high'] : want === 'medium' ? ['medium', 'high', 'low'] : ['high', 'medium', 'low']
-  for (const suffix of order) {
+  for (const suffix of geminiPlanEffortOrder(geminiPlanEffortSuffix(effort))) {
     const row = rows.find(candidate => candidate.id.toLowerCase() === `${bare}-${suffix}`)
     if (row) return row
   }
