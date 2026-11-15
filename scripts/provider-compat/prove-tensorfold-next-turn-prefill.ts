@@ -225,7 +225,7 @@ section('2 · cancellation: it waits for the session to be idle, cancels for rea
   }
   const armed = await world('after-last-user', CAPABLE, { letsGoAfterMs: 700 })
   if (armed !== undefined) {
-    prefill?.__setNextTurnPrefillIoForTest({ settleMs: SETTLE_MS, lookMs: LOOK_MS, tokensPerSecond: 5000 })
+    prefill?.__setNextTurnPrefillIoForTest({ settleMs: SETTLE_MS, lookMs: LOOK_MS, tokensPerSecond: 20 })
     armed.fixture.holdBackground(1500)
     await toolTurn(armed)
     await untilAsync(() => armed.fixture.waiting() === 1, 2000, 5)
