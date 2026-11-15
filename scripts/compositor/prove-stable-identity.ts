@@ -32,7 +32,7 @@ console.log('stable interaction identity (helmFocus)')
   resetHelmFocusForTest()
   publishHelmRows('lanes', [A, B, C])
   publishHelmRows('lanes', [X, A, B, C])
-  check('untouched rail stays at the top across inserts', getHelmCursor('lanes') === 0 && currentHelmRow('lanes') === X)
+  check('untouched rail keeps the row it first rested on across inserts', getHelmCursor('lanes') === 1 && currentHelmRow('lanes') === A, `at ${getHelmCursor('lanes')}`)
 }
 
 {
@@ -59,7 +59,9 @@ console.log('stable interaction identity (helmFocus)')
   publishHelmRows('lanes', [A, C])
   check('vanished row falls back to the clamped position', currentHelmRow('lanes') === C)
   publishHelmRows('lanes', [X, A, C])
-  check('…and the fallback row is the NEW anchor', currentHelmRow('lanes') === C)
+  const held = getHelmCursor('lanes')
+  publishHelmRows('lanes', [X, A, B, C])
+  check('…and the vanished row stays the anchor: the cursor holds its clamped place while the row is away and returns to the row when it comes back', held === 1 && currentHelmRow('lanes') === B, `held at ${held}, now at ${getHelmCursor('lanes')}`)
 }
 
 {
