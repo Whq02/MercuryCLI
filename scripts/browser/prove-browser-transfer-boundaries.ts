@@ -94,7 +94,7 @@ section('S1 an unused session sends the launch’s own commands and no other, an
     'Target.detachFromTarget': 1,
     'Runtime.runIfWaitingForDebugger': 1,
     'Network.enable': 2,
-    'Page.enable': 1,
+    'Page.enable': 2,
     'Page.getFrameTree': 1,
     'Page.setLifecycleEventsEnabled': 1,
     'Runtime.enable': 1,
@@ -166,13 +166,13 @@ section('S1 an unused session sends the launch’s own commands and no other, an
   if (again) tally.set('Page.navigate', 1)
   const off = [...new Set([...Object.keys(LAUNCH), ...tally.keys()])].filter(method => (tally.get(method) ?? 0) !== (LAUNCH[method] ?? 0)).map(method => `${method}×${tally.get(method) ?? 0} where the list holds ${LAUNCH[method] ?? 0}`)
   check(
-    'open, screenshot, close sends the 50 protocol commands of the launch’s list on the root, driver, page-kit, and watch sessions, method for method (2 download-behavior commands, 0 extra; one auto-attach on the page-kit session for frames of another site), and beyond them only what the browser brings on: the letting go of each background target it started (a first launch starts two here, which made 52, and 56 with the driver’s four on those targets’ own sessions) and one more Page.navigate to the same address when it dropped this launch’s first navigation; no transfer folder',
+    'open, screenshot, close sends the 51 protocol commands of the launch’s list on the root, driver, page-kit, and watch sessions, method for method (2 download-behavior commands, 0 extra; one auto-attach on the page-kit session for frames of another site; the page domain enabled on that session too, since it registers the page’s script preparation and a session’s registration runs only where it enabled that domain), and beyond them only what the browser brings on: the letting go of each background target it started (a first launch starts two here, which made 53, and 57 with the driver’s four on those targets’ own sessions) and one more Page.navigate to the same address when it dropped this launch’s first navigation; no transfer folder',
     off.length === 0 && ownCommands.filter(c => c.method === 'Target.setAutoAttach' && JSON.stringify(c.params?.filter) === '[{"type":"iframe","exclude":false}]').length === 1 && dlBehaviours.length === 2 && !anyFolders,
     `commands=${ownCommands.length} off the list: ${off.join(', ') || 'none'} · let go ${letGo.length} of ${background.size} background targets · starts=${starts.length} dlBehaviours=${dlBehaviours.length} folders=${anyFolders}`,
   )
   const dropped = ring.find(entry => entry.kind === 'net' && entry.text.includes('FAILED net::ERR_ABORTED (document)'))
   console.log(
-    `    ${ownCommands.length} commands: the list’s 50${letGo.length === 0 ? '' : `, ${letGo.length} letting go of what the browser started (${[...new Set(background.values())].join(', ')})`}${!again ? '' : `, one more start of the first navigation (${dropped === undefined ? 'the console holds no failed try, so the browser neither failed it nor sent it' : `the console holds the dropped try, ${dropped.text}`})`}`,
+    `    ${ownCommands.length} commands: the list’s 51${letGo.length === 0 ? '' : `, ${letGo.length} letting go of what the browser started (${[...new Set(background.values())].join(', ')})`}${!again ? '' : `, one more start of the first navigation (${dropped === undefined ? 'the console holds no failed try, so the browser neither failed it nor sent it' : `the console holds the dropped try, ${dropped.text}`})`}`,
   )
 
   await run({ op: 'open', url: `${A.origin}/` })

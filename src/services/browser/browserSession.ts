@@ -96,6 +96,7 @@ interface Hold {
   creating: number
   front: Session | null
   watch: CDPSession | null
+  birthsAsked: boolean
   downloads: DownloadHome | null
   arriving: Map<string, { notice: DownloadNotice & { finish: () => void }; wiring: Wiring }>
   unwanted: Set<string>
@@ -1128,6 +1129,17 @@ function stealthSource(languages: string[]): string {
   return `(${pageStealthInit})(${JSON.stringify(languages)})`
 }
 
+async function prepareDocuments(page: Page, own: CDPSession | null, languages: string[]): Promise<void> {
+  if (typeof page.evaluateOnNewDocument !== 'function') return
+  if (own === null) {
+    await page.evaluateOnNewDocument(pageStealthInit, languages).catch(() => undefined)
+  } else {
+    await own.send('Page.enable').catch(() => undefined)
+    await own.send('Page.addScriptToEvaluateOnNewDocument', { source: stealthSource(languages) }).catch(() => undefined)
+  }
+  await page.evaluate(pageStealthInit, languages).catch(() => undefined)
+}
+
 const redactUrl = (url: string): string => {
   const q = url.indexOf('?')
   return q === -1 ? url : `${url.slice(0, q)}?…`
@@ -1657,11 +1669,11 @@ function watchFrames(kit: PageKit, parent: CDPSession): Promise<void> {
         return
       }
       frames.set(event.sessionId, { session: frame, parent: parent.id(), target: event.targetInfo.targetId })
-      presentToFrame(frame, kit, true)
-      if (kit.late !== undefined) {
-        void frame.send('Page.enable').catch(quiet)
-        void frame.send('Page.addScriptToEvaluateOnNewDocument', { source: stealthSource(presentedOf(kit).languages) }).catch(quiet)
-      }
+      try {
+        presentToFrame(frame, kit, true)
+      } catch {}
+      void frame.send('Page.enable').catch(quiet)
+      void frame.send('Page.addScriptToEvaluateOnNewDocument', { source: stealthSource(presentedOf(kit).languages) }).catch(quiet)
       void watchFrames(kit, frame)
     } catch {
     } finally {
@@ -1898,20 +1910,18 @@ export async function bringTabToFront(session: Session): Promise<void> {
   hold.front = session
 }
 
-async function armLate(page: Page, baseline: PagePresented, deny: boolean): Promise<PageKit> {
+async function armLate(page: Page, baseline: PagePresented, deny: boolean, births: boolean): Promise<PageKit> {
   const kit: PageKit = { cdp: null, identity: baseline.identity, languages: baseline.languages, timeZone: baseline.timeZone, presented: null, born: null, fetchHeld: false }
-  if (typeof page.evaluateOnNewDocument === 'function') {
-    await page.evaluateOnNewDocument(pageStealthInit, baseline.languages).catch(() => undefined)
-    await page.evaluate(pageStealthInit, baseline.languages).catch(() => undefined)
-  }
   const cdp = typeof page.createCDPSession === 'function' ? await page.createCDPSession().catch(() => null) : null
   kit.cdp = cdp
+  await prepareDocuments(page, births ? cdp : null, baseline.languages)
   if (cdp !== null) {
     await cdp.send('Network.enable').catch(() => undefined)
     if (deny) await cdp.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(() => undefined)
     await cdp.send('Emulation.setAutomationOverride', { enabled: false }).catch(() => undefined)
     await cdp.send('Emulation.setTimezoneOverride', { timezoneId: baseline.timeZone }).catch(() => undefined)
     if (baseline.identity !== null) await cdp.send('Emulation.setUserAgentOverride', baseline.identity).catch(() => undefined)
+    if (births) await watchFrames(kit, cdp)
   }
   return kit
 }
@@ -1930,7 +1940,7 @@ async function newHoldPage(hold: Hold): Promise<{ page: Page; wiring: Wiring }> 
         return { page, wiring: born.wiring }
       }
       const wiring = newWiring()
-      const kit = await armLate(page, hold.baseline, hold.downloads === null)
+      const kit = await armLate(page, hold.baseline, hold.downloads === null, hold.birthsAsked)
       if (kit.cdp !== null) {
         listenProtocol(wiring, kit.cdp)
         if (hold.downloads === null) listenDownloads(wiring, kit.cdp)
@@ -2158,14 +2168,11 @@ async function placeTab(
       const pages = await browser.pages()
       page = pages[0] ?? (await browser.newPage())
       const kit: PageKit = { cdp: null, identity: null, languages: hostLang.languages, timeZone: hostTimeZone, presented: null, born: null, fetchHeld: false }
-      if (typeof page.evaluateOnNewDocument === 'function') {
-        await page.evaluateOnNewDocument(pageStealthInit, hostLang.languages).catch(() => undefined)
-        await page.evaluate(pageStealthInit, hostLang.languages).catch(() => undefined)
-      }
       wiring = newWiring()
       const cdp =
         typeof page.createCDPSession === 'function' ? await page.createCDPSession().catch(() => null) : null
       kit.cdp = cdp
+      await prepareDocuments(page, opts.births === true ? cdp : null, hostLang.languages)
       pageKits.set(page, kit)
       if (cdp !== null) {
         await cdp.send('Network.enable').catch(() => undefined)
@@ -2238,6 +2245,7 @@ async function placeTab(
         creating: 0,
         front: null,
         watch: null,
+        birthsAsked: opts.births === true,
         downloads: null,
         arriving: new Map(),
         unwanted: new Set(),

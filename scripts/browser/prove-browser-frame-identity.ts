@@ -370,11 +370,11 @@ section('S8 what it costs')
   await run({ op: 'open', url: `${A.origin}/framed` })
   await firstIn(undefined, 'who=nested')
   const onLaunch = perFrame(undefined)
-  check('a frame costs three commands on the launch’s page: the identity, its own auto-attach and its release', onLaunch.length === 3 && onLaunch.every(list => list === 'Emulation.setUserAgentOverride,Target.setAutoAttach,Runtime.runIfWaitingForDebugger'), onLaunch.join(' | '))
+  check('a frame costs five commands on the launch’s page: the identity, the page’s script preparation registered on the frame’s own session with the page domain it needs, its own auto-attach and its release', onLaunch.length === 3 && onLaunch.every(list => list === 'Emulation.setUserAgentOverride,Page.enable,Page.addScriptToEvaluateOnNewDocument,Target.setAutoAttach,Runtime.runIfWaitingForDebugger'), onLaunch.join(' | '))
   await run({ op: 'open', tab: 'fresh', url: `${A.origin}/framed` })
   await firstIn('fresh', 'who=nested')
   const onBorn = perFrame('fresh')
-  check('and five on a tab born beside it, where the page’s script preparation is registered too', onBorn.length === 3 && onBorn.every(list => list === 'Emulation.setUserAgentOverride,Page.enable,Page.addScriptToEvaluateOnNewDocument,Target.setAutoAttach,Runtime.runIfWaitingForDebugger'), onBorn.join(' | '))
+  check('and the same five on a tab born beside it', onBorn.length === 3 && onBorn.every(list => list === 'Emulation.setUserAgentOverride,Page.enable,Page.addScriptToEvaluateOnNewDocument,Target.setAutoAttach,Runtime.runIfWaitingForDebugger'), onBorn.join(' | '))
   await sessions.disposeBrowserOwner(ownerOf(cold)).catch(() => undefined)
 }
 
