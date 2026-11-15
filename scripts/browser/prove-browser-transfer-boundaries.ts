@@ -160,19 +160,19 @@ section('S1 an unused session sends the launch’s own commands and no other, an
   const background = new Map(started.filter(target => !['page', 'tab', 'browser'].includes(target.type)).map(target => [target.session, target.type]))
   const letGo = ownCommands.filter(c => c.session === undefined && c.method === 'Target.detachFromTarget' && background.has(String(c.params?.sessionId)))
   const starts = ownCommands.filter(c => c.method === 'Page.navigate')
-  const again = starts.length === 2 && starts[0]!.params?.url === starts[1]!.params?.url
+  const again = starts.length >= 2 && starts.length <= 4 && starts.every(start => start.params?.url === starts[0]!.params?.url)
   const tally = new Map<string, number>()
   for (const command of ownCommands) if (!letGo.includes(command)) tally.set(command.method, (tally.get(command.method) ?? 0) + 1)
   if (again) tally.set('Page.navigate', 1)
   const off = [...new Set([...Object.keys(LAUNCH), ...tally.keys()])].filter(method => (tally.get(method) ?? 0) !== (LAUNCH[method] ?? 0)).map(method => `${method}×${tally.get(method) ?? 0} where the list holds ${LAUNCH[method] ?? 0}`)
   check(
-    'open, screenshot, close sends the 51 protocol commands of the launch’s list on the root, driver, page-kit, and watch sessions, method for method (2 download-behavior commands, 0 extra; one auto-attach on the page-kit session for frames of another site; the page domain enabled on that session too, since it registers the page’s script preparation and a session’s registration runs only where it enabled that domain), and beyond them only what the browser brings on: the letting go of each background target it started (a first launch starts two here, which made 53, and 57 with the driver’s four on those targets’ own sessions) and one more Page.navigate to the same address when it dropped this launch’s first navigation; no transfer folder',
+    'open, screenshot, close sends the 51 protocol commands of the launch’s list on the root, driver, page-kit, and watch sessions, method for method (2 download-behavior commands, 0 extra; one auto-attach on the page-kit session for frames of another site; the page domain enabled on that session too, since it registers the page’s script preparation and a session’s registration runs only where it enabled that domain), and beyond them only what the browser brings on: the letting go of each background target it started (a first launch starts two here, which made 53, and 57 with the driver’s four on those targets’ own sessions) and up to three more Page.navigate to the same address when it dropped this launch’s first navigation (the product starts it four times at most); no transfer folder',
     off.length === 0 && ownCommands.filter(c => c.method === 'Target.setAutoAttach' && JSON.stringify(c.params?.filter) === '[{"type":"iframe","exclude":false}]').length === 1 && dlBehaviours.length === 2 && !anyFolders,
     `commands=${ownCommands.length} off the list: ${off.join(', ') || 'none'} · let go ${letGo.length} of ${background.size} background targets · starts=${starts.length} dlBehaviours=${dlBehaviours.length} folders=${anyFolders}`,
   )
   const dropped = ring.find(entry => entry.kind === 'net' && entry.text.includes('FAILED net::ERR_ABORTED (document)'))
   console.log(
-    `    ${ownCommands.length} commands: the list’s 51${letGo.length === 0 ? '' : `, ${letGo.length} letting go of what the browser started (${[...new Set(background.values())].join(', ')})`}${!again ? '' : `, one more start of the first navigation (${dropped === undefined ? 'the console holds no failed try, so the browser neither failed it nor sent it' : `the console holds the dropped try, ${dropped.text}`})`}`,
+    `    ${ownCommands.length} commands: the list’s 51${letGo.length === 0 ? '' : `, ${letGo.length} letting go of what the browser started (${[...new Set(background.values())].join(', ')})`}${!again ? '' : `, ${starts.length - 1} more start(s) of the first navigation (${dropped === undefined ? 'the console holds no failed try, so the browser neither failed it nor sent it' : `the console holds the dropped try, ${dropped.text}`})`}`,
   )
 
   await run({ op: 'open', url: `${A.origin}/` })
