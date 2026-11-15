@@ -246,7 +246,7 @@
     "scripts/ui/prove-redraw-repair.ts": 2,
     "scripts/ui/prove-runs-row-detail-drive.ts": 10,
     "scripts/ui/prove-seats-doors-drive.ts": 4,
-    "scripts/ui/prove-seats-drive.ts": 6,
+    "scripts/ui/prove-seats-drive.ts": 5,
     "scripts/ui/prove-sessiontab-switch.ts": 3,
     "scripts/ui/prove-shell-background-key-drive.ts": 10,
     "scripts/ui/prove-store-poll-budget.ts": 6,

@@ -32,6 +32,7 @@ const LAUNCHED = 'SEATS-LAUNCHED'
 const NOTED = 'SEATS-NOTED'
 const EARLY_NOTE = 'SEATS-EARLY-NOTE'
 const SEAT_MARK = 'seat-survey-seat:'
+const IDLE_WAITS = 'out · waiting for a seat'
 const STATIONS = ['a', 'b', 'c', 'd'] as const
 type Station = (typeof STATIONS)[number]
 const labelOf = (s: Station): string => `seat-${s}`
@@ -113,9 +114,10 @@ function answer(model: string, blocks: Answer[]): { head: string; tail: string }
   return { head, tail: parts.join('') }
 }
 
-async function startFixture(port: number): Promise<{ base: string; hits: Hit[]; close(): Promise<void> }> {
+async function startFixture(port: number): Promise<{ base: string; hits: Hit[]; idle(): Station | null; close(): Promise<void> }> {
   const hits: Hit[] = []
   let toolSeq = 0
+  let idle: Station | null = null
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const chunks: Buffer[] = []
     req.on('data', c => chunks.push(c))
@@ -161,7 +163,8 @@ async function startFixture(port: number): Promise<{ base: string; hits: Hit[]; 
           blocks = [{ type: 'text', text: STATIONS.every(s => hits.some(h => h.station === s && (h.kind === 'held' || h.kind === 'done') && h.endMs !== 0)) ? NOTED : EARLY_NOTE }]
           break
         case 'seat':
-          if (station === 'a') {
+          if (idle === null) idle = station
+          if (station === idle) {
             const bashes = toolCallsOf(items, 'Bash')
             if (bashes < 2) {
               blocks = [{ type: 'tool_use', id: `toolu_seats_sleep_${++toolSeq}`, name: 'Bash', input: { command: `sleep ${bashes === 0 ? IDLE_FIRST_S : IDLE_SECOND_S}`, description: 'the station survey' } }]
@@ -206,6 +209,7 @@ async function startFixture(port: number): Promise<{ base: string; hits: Hit[]; 
   return {
     base: `http://127.0.0.1:${port}`,
     hits,
+    idle: () => idle,
     close: () => new Promise<void>(resolve => server.close(() => resolve())),
   }
 }
@@ -404,12 +408,12 @@ try {
       sends: [
         { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
         { data: `${ASK}\r`, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'boot' },
-        { data: '', awaitText: LAUNCHED, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'launched' },
-        { data: '', afterPrevTicks: 40, mark: 'chat-busy' },
+        { data: '', awaitText: IDLE_WAITS, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'chat-busy' },
         { data: '/crewmates\r', afterPrevTicks: 2 },
         { data: '', awaitText: 'Mercury — crew', requireAwait: true, minTick: 2, awaitSettleTicks: 5, mark: 'board' },
         { data: '', afterPrevTicks: 12, mark: 'run-busy' },
         { data: '\x1b', afterPrevTicks: 2 },
+        { data: '', awaitText: LAUNCHED, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'launched' },
         { data: '', awaitText: NOTED, requireAwait: true, minTick: 2, awaitSettleTicks: 12, mark: 'settled' },
         { data: '', afterPrevTicks: 4, mark: 'end' },
       ],
@@ -431,6 +435,9 @@ if (cap !== null) {
   const clock0 = Math.min(...seatHits.map(h => h.startMs))
   const at = (h: Hit | undefined): string => (h === undefined ? '—' : `${((h.startMs - clock0) / 1000).toFixed(1)}s`)
   console.log(`  wire (first call per station): ${STATIONS.map(s => `${labelOf(s)}@${at(firstCall(s))}`).join(' · ')}`)
+  const idle: Station = fixture.idle() ?? 'a'
+  const reply = fixture.hits.find(h => h.route === 'launched')
+  console.log(`  the idle agent is ${labelOf(idle)}, the first station to reach the wire · the chat's own reply to the launches reached the wire at ${at(reply)}`)
   console.log(`  send ticks: ${cap.receipts.map(r => r.atTick).join(',')} · marks: ${Object.entries(cap.markTicks).map(([k, v]) => `${k}@${v}`).join(' ')} · end: ${cap.endReason}`)
   const busyTick = cap.markTicks['run-busy']
   const busyTs = cap.receipts.find(r => r.atTick === busyTick)?.ts
@@ -446,29 +453,29 @@ if (cap !== null) {
   check('every send became due (the frames the sends waited on all painted)', cap.receipts.length === cap.sends, `${cap.receipts.length}/${cap.sends} · end ${cap.endReason}`)
 
   console.log('\n— D1 the wire —')
-  const a = firstCall('a')
-  const b = firstCall('b')
-  const c = firstCall('c')
-  const d = firstCall('d')
-  check('D1 all four stations reached the wire', a !== undefined && b !== undefined && c !== undefined && d !== undefined, seatHits.map(h => `${h.station}:${h.kind}`).join(','))
-  const byArrival = (['b', 'c', 'd'] as const).map(s => [s, firstCall(s)] as const).filter((pair): pair is readonly [Station, Hit] => pair[1] !== undefined).sort((x, y) => x[1].startMs - y[1].startMs)
+  const allReached = STATIONS.every(s => firstCall(s) !== undefined)
+  check('D1 all four stations reached the wire', allReached, seatHits.map(h => `${h.station}:${h.kind}`).join(','))
+  const heldStations = STATIONS.filter(s => s !== idle)
+  const byArrival = heldStations.map(s => [s, firstCall(s)] as const).filter((pair): pair is readonly [Station, Hit] => pair[1] !== undefined).sort((x, y) => x[1].startMs - y[1].startMs)
   const holders = byArrival.slice(0, SEAT_CEILING).map(([s]) => s)
-  const waiter: Station = byArrival[SEAT_CEILING]?.[0] ?? 'd'
+  const waiter: Station = byArrival[SEAT_CEILING]?.[0] ?? heldStations[heldStations.length - 1]!
   const holderLabels = holders.map(labelOf)
   const escaped = holderLabels.map(label => label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
   const holdersNamed = new RegExp(`\\((?:${escaped[0]}, ${escaped[1]}|${escaped[1]}, ${escaped[0]})\\)$`)
   check('D2 the holder sentence admits the two labels in either order and refuses a doubled label', holdersNamed.test(`(${holderLabels[0]}, ${holderLabels[1]})`) && holdersNamed.test(`(${holderLabels[1]}, ${holderLabels[0]})`) && !holdersNamed.test(`(${holderLabels[0]}, ${holderLabels[0]})`) && !holdersNamed.test(`(${holderLabels[1]}, ${holderLabels[1]})`), holderLabels.join(', '))
   console.log(`  seats on the wire: ${holderLabels.join(' and ')} hold, ${labelOf(waiter)} waits (the gate seats whoever reaches it first)`)
-  if (a && b && c && d && holders.length === SEAT_CEILING) {
-    const starters = [a, ...holders.map(s => firstCall(s)!)]
+  if (allReached && holders.length === SEAT_CEILING) {
+    const starters = [firstCall(idle)!, ...holders.map(s => firstCall(s)!)]
     const span3 = Math.max(...starters.map(h => h.startMs)) - Math.min(...starters.map(h => h.startMs))
-    check(`D1 a and the two holders start together (span ${span3} ms < ${HOLD_MS / 4} ms) — the idle agent holds no seat`, span3 < HOLD_MS / 4, `span ${span3} ms`)
+    check(`D1 ${labelOf(idle)} and the two holders start together (span ${span3} ms < ${HOLD_MS / 4} ms) — the idle agent holds no seat`, span3 < HOLD_MS / 4, `span ${span3} ms`)
     const second = Math.max(...holders.map(s => firstCall(s)!.startMs))
     const waiterCall = firstCall(waiter)!
     const dGap = waiterCall.startMs - second
     check(`D1 the third holder-to-be waits for a seat (starts ≥ ${Math.round(HOLD_MS * 0.6)} ms after the second holder)`, dGap >= HOLD_MS * 0.6, `${labelOf(waiter)} gap ${dGap} ms`)
     const freedAt = Math.min(...holders.map(s => firstCall(s)!.endMs || Infinity))
     check('D1 the waiter starts once a held call ends (the queue forms only with two calls in flight)', waiterCall.startMs >= freedAt - 1500, `${labelOf(waiter)}@${waiterCall.startMs - clock0} · freed@${freedAt - clock0}`)
+    const heldInFlight = (ms: number): number => seatHits.filter(h => h.kind === 'held' && h.startMs <= ms && (h.endMs === 0 || h.endMs > ms)).length
+    check("D1 the chat's own reply to the launches takes a seat like any agent's call (it never makes a third call in flight)", reply !== undefined && heldInFlight(reply.startMs) < SEAT_CEILING, reply === undefined ? 'no reply on the wire' : `${heldInFlight(reply.startMs)} held in flight when it reached the wire at ${at(reply)}${reply.startMs >= freedAt - 1500 ? ', once a held call had ended' : ', while a seat was free'}`)
   }
 
   console.log('\n— D2 the words at the busy moment —')
@@ -480,7 +487,7 @@ if (cap !== null) {
   check(`D2 the waiter's line (${labelOf(waiter)}) says why it waits — the seat sentence (2 of 2 held)`, /waiting for a seat — 2 of 2 held/.test(treeOf(chat, waiter)), treeOf(chat, waiter).slice(0, 200))
   check(`D2 the sentence names the two holders by their labels — the calls in flight (${holderLabels.join(', ')}), never a waiter`, holdersNamed.test(heldBy(treeOf(chat, waiter))), treeOf(chat, waiter).slice(0, 200))
   check(`D2 the holders' lines (${holderLabels.join(', ')}) hold seats: neither waits for one`, holders.every(s => treeOf(chat, s) !== '' && !/waiting for a seat/.test(treeOf(chat, s))), holders.map(s => treeOf(chat, s)).join(' || ').slice(0, 300))
-  check("D2 a's second call waits for a seat like any other (its seat was free while its tool ran)", /waiting for a seat — 2 of 2 held/.test(treeOf(chat, 'a')) && holdersNamed.test(heldBy(treeOf(chat, 'a'))), treeOf(chat, 'a').slice(0, 200))
+  check(`D2 the second call of ${labelOf(idle)} waits for a seat like any other (its seat was free while its tool ran)`, treeOf(chat, idle).includes(IDLE_WAITS) && /waiting for a seat — 2 of 2 held/.test(treeOf(chat, idle)) && holdersNamed.test(heldBy(treeOf(chat, idle))), treeOf(chat, idle).slice(0, 200))
   const busy = m['run-busy']
   const rows = STATIONS.map(s => rowOf(busy, s))
   console.log(`  Crew view rows: ${rows.map((l, i) => `${labelOf(STATIONS[i]!)}: ${l.slice(0, 120) || '(none)'}`).join(' | ')}`)
@@ -489,7 +496,7 @@ if (cap !== null) {
 
   console.log('\n— D3 the settle —')
   check('D3 every station reported (SEAT-DONE on the wire)', STATIONS.every(s => seatHits.some(h => h.station === s && (h.kind === 'held' || h.kind === 'done'))), seatHits.map(h => `${h.station}:${h.kind}`).join(','))
-  check("D3 the idle agent's calls were short and its seat was free between them (two tool calls, then the report)", seatHits.filter(h => h.station === 'a' && h.kind === 'tool').length === 2 && seatHits.some(h => h.station === 'a' && h.kind === 'done'), seatHits.filter(h => h.station === 'a').map(h => h.kind).join(','))
+  check("D3 the idle agent's calls were short and its seat was free between them (two tool calls, then the report)", seatHits.filter(h => h.station === idle && h.kind === 'tool').length === 2 && seatHits.some(h => h.station === idle && h.kind === 'done'), seatHits.filter(h => h.station === idle).map(h => h.kind).join(','))
   check('D3 the completion notice reached the main agent', fixture.hits.some(h => h.route === 'note' && h.lastUserText.includes('<status>completed</status>')), fixture.hits.filter(h => h.route === 'note').map(h => h.lastUserText.slice(0, 160)).join(' | '))
   check('D3 the main saw the notice (NOTED painted)', rowsWith(m['settled'], NOTED).length > 0)
   check('nothing read stuck', !Object.values(m).some(f => /may be stuck/.test(f)))

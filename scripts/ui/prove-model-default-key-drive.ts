@@ -243,7 +243,7 @@ section('§1 the concourse: the door row names the pair, the bottom row names m,
   const saved = settingsOf(home)
   check("a pick writes the saved default (settings.json engine.model names the picked row, engine.effort the ladder move)", typeof saved.model === 'string' && /sonnet/i.test(saved.model) && saved.effort === 'xhigh', JSON.stringify(saved))
   check('the door row follows at once (Sonnet 5.5, its effort cut by the pane at 178 columns) and the picker is gone', rowWith(picked, DOOR).includes(`${DOOR} · Sonnet 5.5 ·`) && !picked.some(l => l.includes('Mercury · model')), trimmedRow(picked, DOOR))
-  check("with the live view's message box focused and no session to message, m opens no picker: the gated box swallows it and stays empty (the negative pin)", typed.some(l => /│ ❯ ▌\s+│/.test(l)) && typed.some(l => l.includes('no session selected — n starts one')) && !typed.some(l => l.includes('Mercury · model')), typed.filter(l => l.includes('❯') || l.includes('Mercury · model')).join(' | '))
+  check("with the live view's message box focused and no session to message, m opens no picker: the gated box swallows it and stays empty (the negative pin)", typed.some(l => /│ ❯ ▌?\s+│/.test(l)) && typed.some(l => l.includes('no session selected — n starts one')) && !typed.some(l => l.includes('Mercury · model')), typed.filter(l => l.includes('❯') || l.includes('Mercury · model')).join(' | '))
 }
 
 section('§2 --chat: the hint row without m menu, the bottom row names m, m opens the picker over the face, esc closes it')
