@@ -25,6 +25,7 @@ const DOWN = '\x1b[B'
 const COMMAND = '/tensorfold'
 const PROMPT = 'What is the capital of France? Answer with the city name only.'
 const REPLY = /\bParis\b/
+const NAMEPLATE = '[Mercury]'
 const REPO_2B = 'mlx-community/Qwen3.5-2B-MLX-4bit'
 const NAME_2B = 'qwen3.5-2b'
 const REAL_CACHE = join(homedir(), '.cache', 'huggingface', 'hub')
@@ -183,6 +184,22 @@ function cardWords(lines: readonly string[]): string {
   return popup.join(' ').replace(/\s+/g, ' ')
 }
 
+function answerWords(lines: readonly string[]): string {
+  const asked = lines.findLastIndex(line => line.includes('❯') && line.includes('capital of France'))
+  const from = lines.findIndex((line, at) => at > asked && line.includes(NAMEPLATE) && !line.includes('❯'))
+  if (asked < 0 || from < 0) return ''
+  const head = lines[from]!
+  const left = head.lastIndexOf('│', head.indexOf(NAMEPLATE))
+  const right = head.indexOf('│', head.indexOf(NAMEPLATE))
+  const said: string[] = []
+  for (const line of lines.slice(from)) {
+    const text = line.slice(left + 1, right < 0 ? undefined : right).trim()
+    if ((left >= 0 && line[left] !== '│') || text.includes('❯')) break
+    if (text !== '') said.push(text)
+  }
+  return said.join(' ')
+}
+
 const USER = userInfo().username
 const scrub = (line: string): string => line.replace(/\s+$/, '').split(homedir()).join('~').split(ROOT).join('<scratch>').split(`[${USER}]`).join('[you]')
 
@@ -339,7 +356,20 @@ check(`${world.tag} served: ↵ served the 2B through the engine on 127.0.0.1:${
 const afterEsc = c.marks.get('after-esc') ?? []
 check(`${world.tag} after-esc: the panel closed over the live session and the feed carries ● TensorFold serves ${NAME_2B} · 256k on 127.0.0.1:${world.port} · this session's model`, afterEsc.some(l => l.includes(`TensorFold serves ${NAME_2B} · 256k on 127.0.0.1:${world.port} · this session's model`)), afterEsc.filter(l => l.includes('TensorFold')).map(l => l.trim()).join(' | '))
 const reply = c.marks.get('reply') ?? []
-check(`${world.tag} reply: the session switched to the served 2B and a turn answered — a transcript line says Paris and is not the prompt`, reply.some(l => REPLY.test(l) && !l.includes('❯') && !l.includes('capital')), reply.filter(l => l.includes('Paris') || l.includes('capital')).map(l => l.trim()).join(' | '))
+const answer = answerWords(reply)
+check(`${world.tag} reply: the session switched to the served 2B and a turn answered — the assistant's answer under the prompt says Paris (the prompt's own line never counts)`, REPLY.test(answer), `the answer read: "${answer}" · ${reply.filter(l => l.includes('Paris') || l.includes('capital')).map(l => l.trim()).join(' | ')}`)
+const sample = (rows: string[]): string[] => rows.map(row => `  rail  │ ${row.padEnd(60)} │  rail`)
+const ASKED = '12:00:01 [you] ❯ What is the capital of France?'
+const readings: Array<[string[], boolean]> = [
+  [[ASKED, '', '12:00:04 [Mercury] The capital of France is Paris.'], true],
+  [[ASKED, '12:00:04 [Mercury] The capital of France, as you asked, is', 'Paris.'], true],
+  [[ASKED, '', '12:00:04 [Mercury] Certainly.', '', 'Paris'], true],
+  [['12:00:01 [you] ❯ Is Paris the capital of France?', '', '12:00:04 [Mercury] Yes.'], false],
+  [[ASKED, '', '12:00:04 [Mercury] Lyon.', '', '12:00:09 [you] ❯ Paris'], false],
+  [['12:00:01 [you] ❯ What is the capital of France? Paris?'], false],
+]
+const misread = readings.filter(([rows, says]) => REPLY.test(answerWords(sample(rows))) !== says)
+check('the reply reader: an answer that repeats the question\'s words, wraps or runs to a second paragraph is read as the answer, and the prompt\'s own line, a later prompt and a prompt with no answer never count', misread.length === 0, misread.map(([rows]) => rows.join(' / ')).join(' | '))
 check(`${world.tag} reply: the turn ran on the 2B (the strip names qwen3.5-2b, not a cloud model)`, reply.some(l => l.includes('qwen3.5-2b') && !l.includes('TensorFold serves') && !l.includes('❯')) && !reply.some(l => l.includes('Opus 5.5 ·')), reply.filter(l => l.includes('qwen3.5-2b') || l.includes('Opus')).map(l => l.trim().slice(0, 140)).join(' | '))
 const panelServing = c.marks.get('panel-serving') ?? []
 check(`${world.tag} panel again: the served 2B lands first as current with the live footer`, panelServing.some(l => l.includes('Qwen3.5 2B') && l.includes('current')) && panelServing.some(l => l.includes(`serving ${NAME_2B} on 127.0.0.1:${world.port}`)), panelServing.filter(l => l.includes('Qwen3.5 2B') || l.includes('serving')).map(l => l.trim()).join(' | '))

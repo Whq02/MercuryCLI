@@ -1,6 +1,6 @@
 {
   "name": "filmcraft",
-  "version": "0.20.0",
+  "version": "0.20.1",
   "description": "Edit the open FilmCraft project through its command server.",
   "contributes": {
     "skills": ["./skills"],

@@ -4,6 +4,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSy
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
+import { untilAsync } from '../lib/untilAsync.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -98,7 +99,7 @@ function estate(id: string, opts: { homeIsRepo: boolean; bulkFiles: number; nest
 
 type Capture = { status: number; tail: string; marks: Record<string, string>; text: string }
 
-async function capture(e: Estate, id: string, cwd: string, sends: Send[], total: number): Promise<Capture> {
+async function capture(e: Estate, id: string, cwd: string, sends: Send[], total: number, tee?: string): Promise<Capture> {
   const api = await startFixtureApi([{ kind: 'text', text: 'Spare.' }, { kind: 'text', text: 'Spare.' }, { kind: 'text', text: 'Spare.' }])
   const cfgPath = join(SCRATCH, `cfg-${id}.json`)
   const outPath = join(SCRATCH, `grid-${id}.json`)
@@ -123,6 +124,7 @@ async function capture(e: Estate, id: string, cwd: string, sends: Send[], total:
       ANTHROPIC_BASE_URL: api.url,
       MERCURY_CACHE_CLOCK: '0',
       MERCURY_PARTY: '0',
+      ...(tee !== undefined ? { VSHOT_TEE: tee } : {}),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
@@ -155,6 +157,18 @@ async function capture(e: Estate, id: string, cwd: string, sends: Send[], total:
   return result
 }
 
+function teeText(path: string): string {
+  if (!existsSync(path)) return ''
+  const raw = readFileSync(path)
+  let text = ''
+  for (let at = 0; at + 8 <= raw.length; ) {
+    const size = raw.readUInt32BE(at + 4)
+    text += raw.subarray(at + 8, at + 8 + size).toString('latin1')
+    at += 8 + size
+  }
+  return text
+}
+
 function printFrame(id: string, text: string): void {
   console.log(`\n┌── ${id} ──`)
   for (const l of text.split('\n')) console.log(`│${l}`)
@@ -182,21 +196,33 @@ function reap(e: Estate): void {
 }
 
 if (LEG !== 'D2') {
-console.log('D1 — a defaulted launch colliding in the (plain) home gets NO git offer; the rail carries the receipt')
+console.log('D1 — a defaulted launch colliding in the (plain) home gets NO git offer; the rail carries the receipt (the launch is asked of the product\'s own daemon through the dispatch door, the door a scheduled birth uses: no key of the board makes a launch since the coordinator\'s composer left it)')
   const e = estate('d1', { homeIsRepo: false, bulkFiles: 0 })
-  const c = await capture(e, 'd1-refused-at-home', e.home, [
+  const tee = join(SCRATCH, 'd1-refused-at-home.tee')
+  process.env.MERCURY_DAEMON_DIR = join(e.cfg, 'daemon')
+  const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+  const shown = capture(e, 'd1-refused-at-home', e.home, [
     { atTick: 150, awaitText: READY_LINE, minTick: 3, awaitSettleTicks: 3, data: '', mark: 'face' },
     { afterPrevTicks: WARM_TICKS, data: '\r', mark: 'enter' },
     { afterPrevTicks: 100, awaitText: COMPOSER, awaitSettleTicks: 4, data: 'hello', mark: 'chat' },
     { afterPrevTicks: 3, data: '\r', mark: 'sent' },
     { afterPrevTicks: 60, awaitText: 'Spare.', awaitSettleTicks: 3, data: '', mark: 'reply' },
     { afterPrevTicks: 5, data: '\x1b[1;2D', mark: 'to-board' },
-    { afterPrevTicks: 40, data: 'write a haiku', mark: 'board' },
-    { afterPrevTicks: 4, data: '\r', mark: 'dispatch' },
-    { afterPrevTicks: 100, awaitText: RECEIPT, awaitSettleTicks: 3, data: '', mark: 'receipt' },
+    { afterPrevTicks: 250, requireAwait: true, awaitText: RECEIPT, awaitSettleTicks: 3, data: '', mark: 'receipt' },
     { afterPrevTicks: 30, data: '', mark: 'settled' },
     ...QUIT,
-  ], 600)
+  ], 800, tee)
+  const boardUp = await untilAsync(() => {
+    const seen = teeText(tee)
+    const reply = seen.indexOf('Spare.')
+    return reply !== -1 && seen.indexOf('SESSIONS', reply) !== -1
+  }, 150_000, 100)
+  const asked = boardUp
+    ? ((await daemonControlRpc({ op: 'sessionDispatch', clientMessageId: 'home-repo-d1-launch', by: 'operator', prompt: 'write a haiku', workspaceDir: e.home, title: 'write a haiku' } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string; state?: string; error?: string })
+    : null
+  const c = await shown
+  delete process.env.MERCURY_DAEMON_DIR
+  check('D1 the launch was asked of the daemon while the board was on screen, and the daemon did not start it', boardUp && asked !== null && asked.ok !== true && asked.sessionId === undefined, JSON.stringify(asked).slice(0, 300))
   const receipt = c.marks.receipt ?? ''
   const settled = c.marks.settled ?? ''
   printFrame('d1 (the board after the refused launch)', settled || c.text)

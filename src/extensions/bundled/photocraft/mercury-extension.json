@@ -1,6 +1,6 @@
 {
   "name": "photocraft",
-  "version": "0.22.0",
+  "version": "0.23.1",
   "description": "Edit the open PhotoCraft document through its command server.",
   "contributes": {
     "skills": ["./skills"],
