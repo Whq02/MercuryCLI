@@ -9,7 +9,7 @@ const ROW = {
   assets: 'THIRD_PARTY_NOTICES.md',
   generator: 'bun scripts/distribution/generate-third-party-notices.ts',
   check: 'bun scripts/distribution/prove-distribution-notices.ts',
-  sources: 'package.json bun.lock vendor/*.lock.json',
+  sources: 'package.json bun.lock vendor/*.lock.json scripts/vendor/patches/*.patch',
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
 
@@ -39,9 +39,26 @@ function pkgMeta(name: string): Row {
 const rootPkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as {
   version: string
   dependencies?: Record<string, string>
+  patchedDependencies?: Record<string, string>
 }
 const runtime = Object.keys(rootPkg.dependencies ?? {}).sort()
 const rows = runtime.map(pkgMeta)
+
+const PATCH_WORDS: Record<string, string> = {
+  'puppeteer-core@25.9.0': "a frame listed in a session's own frame tree is held on that session, and a tree of another session is passed over for a frame that stands on its own target's attached session",
+}
+const patched = Object.entries(rootPkg.patchedDependencies ?? {})
+for (const [target, file] of patched) {
+  if (!rows.some(r => `${r.name}@${r.version}` === target)) throw new Error(`${file} patches ${target}, which is not a runtime package installed at that version`)
+  if (PATCH_WORDS[target] === undefined) throw new Error(`${file} patches ${target} and PATCH_WORDS holds no words for what it changes`)
+}
+function patchClause(r: Row): string {
+  const target = `${r.name}@${r.version}`
+  const file = rootPkg.patchedDependencies?.[target]
+  if (file === undefined) return ''
+  const changed = [...readFileSync(join(ROOT, file), 'utf8').matchAll(/^\+\+\+ b\/(.+)$/gm)].map(m => m[1])
+  return `; modified from the published package by \`${file}\`, applied at install, in ${changed.map(name => `\`${name}\``).join(', ')}: ${PATCH_WORDS[target]}`
+}
 
 const byLicense = new Map<string, Row[]>()
 for (const r of rows) {
@@ -130,7 +147,7 @@ for (const [license, list] of [...byLicense.entries()].sort((a, b) => a[0].local
   lines.push(`### ${license}`)
   lines.push('')
   for (const r of list.sort((a, b) => a.name.localeCompare(b.name))) {
-    lines.push(`- **${r.name}** ${r.version}${r.homepage ? ` — ${r.homepage}` : ''}`)
+    lines.push(`- **${r.name}** ${r.version}${r.homepage ? ` — ${r.homepage}` : ''}${patchClause(r)}`)
   }
   lines.push('')
 }

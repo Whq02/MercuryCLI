@@ -5,6 +5,7 @@ FROM ${BUILDER_IMAGE} AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends unzip && rm -rf /var/lib/apt/lists/*
 WORKDIR /srv/mercury-source
 COPY package.json bun.lock bunfig.toml ./
+COPY scripts/vendor/patches ./scripts/vendor/patches
 RUN --mount=type=cache,target=/root/.bun/install/cache bun install --frozen-lockfile
 COPY . .
 RUN --mount=type=cache,target=/srv/mercury-source/vendor/node \
