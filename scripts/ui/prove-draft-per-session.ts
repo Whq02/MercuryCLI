@@ -29,8 +29,8 @@ check(
 )
 const store = readFileSync('src/input-core/pending-input.ts', 'utf8')
 check(
-  'persist AND submit-delete key by the OWNING session (the bootstrap id does not follow the slot)',
-  (store.match(/owningSessionId \?\? getSessionId\(\)/g) ?? []).length === 2,
+  'persist, submit-delete AND the page a landing carries key by the OWNING session (the bootstrap id does not follow the slot)',
+  (store.match(/owningSessionId \?\? getSessionId\(\)/g) ?? []).length === 3,
 )
 const rekeyBody = store.slice(store.indexOf('export async function rekeyToSession'), store.indexOf('export function registerInterceptors'))
 check('the restore bypasses the edit chokepoint (a restore is not a keystroke)', rekeyBody.length > 0 && !/\bedit\(/.test(rekeyBody))

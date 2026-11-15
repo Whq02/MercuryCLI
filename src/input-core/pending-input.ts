@@ -160,10 +160,12 @@ export function initSession(
 export async function rekeyToSession(sessionId: string | null, opts?: { landing?: boolean }): Promise<void> {
   const fence = editSeq
   const typedWhileLanding = opts?.landing === true ? draft.text : ''
-  if (opts?.landing === true && readDraftSync(sessionId) === null) owningSessionId = sessionId
+  const left = owningSessionId ?? getSessionId()
+  const named = opts?.landing === true && readDraftSync(sessionId) === null
+  if (named) owningSessionId = sessionId
   await flushDraftSaves()
   owningSessionId = sessionId
-  if (opts?.landing === true && sessionId !== null) await migrateOrphanedDraft(sessionId)
+  if (opts?.landing === true && sessionId !== null) await migrateOrphanedDraft(sessionId, named ? left : null)
   let saved = readDraftSync(sessionId)
   if (
     opts?.landing === true &&

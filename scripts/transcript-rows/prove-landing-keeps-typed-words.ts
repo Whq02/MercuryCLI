@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
@@ -154,6 +154,24 @@ console.log('\n§4 a key that falls into the landing re-key itself')
   await p.flushDrafts()
   check("a cursor key pressed into the re-key leaves no copy under the screen's own id either", p.text() === 'first words' && page('born-session') === 'first words' && page('boot-screen') === null, j({ text: p.text(), screen: page('boot-screen'), born: page('born-session') }))
 }
+{
+  project('key-saved-before-the-move')
+  p.initSession('boot-screen', '')
+  p.edit('first words')
+  await p.flushDrafts()
+  const landing = p.rekeyToSession('born-session', { landing: true })
+  p.edit('first words and more')
+  const early = p.flushDrafts()
+  await Promise.all([landing, early])
+  await p.flushDrafts()
+  check("a key typed into the landing whose save reaches the file before the screen's page is moved: the born session keeps the later words and no copy stays under the screen's own id", p.text() === 'first words and more' && page('born-session') === 'first words and more' && page('boot-screen') === null, j({ text: p.text(), screen: page('boot-screen'), born: page('born-session') }))
+  p.clearForSubmit('first words and more')
+  p.edit('')
+  await p.flushDrafts()
+  await p.rekeyToSession(null)
+  await p.rekeyToSession('second-session', { landing: true })
+  check('THE DEFECT PIN (read by hand on Windows): the next new session of the project, landed with nothing typed, opens with an empty composer and not with words the screen left behind', p.text() === '' && page('second-session') === null, j({ text: p.text(), second: page('second-session') }))
+}
 
 console.log('\n§5 only a born session is named early: in a hop, or a landing on a session that owns a page, what is pressed into the wait stays with the session it was pressed in')
 {
@@ -222,6 +240,30 @@ console.log('\n§6 the owner')
   )
   const chat = readFileSync(join(ROOT, 'src/screens/Chat.tsx'), 'utf8').replace(/\r\n/g, '\n')
   check("the screen's own landing is the one mover of a page under a born session's id: Chat's re-key effect calls the landing re-key, and the migration has that one caller", chat.includes("pendingInput.rekeyToSession(focusedSessionId === '' ? null : focusedSessionId, { landing })") && (store.match(/migrateOrphanedDraft\(/g) ?? []).length === 1)
+}
+
+console.log('\n§7 a flush waits for a save that is still being written')
+{
+  const drafts = join(HOME, 'drafts')
+  const before = new Set(readdirSync(drafts))
+  project('save-in-flight')
+  p.initSession('flight-session', '')
+  p.edit('seed')
+  await p.flushDrafts()
+  const file = join(drafts, readdirSync(drafts).find(name => name.endsWith('.json') && !before.has(name))!)
+  const lockfile = await import('../../src/utils/lockfile.ts')
+  const release = await lockfile.lock(file)
+  p.edit('typed and left alone')
+  await new Promise(resolve => setTimeout(resolve, 600))
+  let returned = false
+  const flushed = p.flushDrafts().then(() => {
+    returned = true
+  })
+  await new Promise(resolve => setTimeout(resolve, 60))
+  const waited = !returned && page('flight-session') === 'seed'
+  await release()
+  await flushed
+  check('a flush called while a save the timer started is still being written returns when that page is in the file, and not before', waited && page('flight-session') === 'typed and left alone', j({ returnedBeforeTheWrite: !waited, page: page('flight-session') }))
 }
 
 console.log(`\nprove-landing-keeps-typed-words: ${checks} checks, ${failures} failed`)
