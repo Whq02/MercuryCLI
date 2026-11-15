@@ -1,8 +1,12 @@
 #!/usr/bin/env bun
 import { spawn, type ChildProcess } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { RUNNER_ASK_BOUND_MS, TaskRoster, decideRunnerEnd } from '../../src/daemon/roster.ts'
+import { hostRunner } from '../lib/runnerHost.ts'
+import { childEnv, scratchWorld, seedScratchHome, startScriptedFixture } from '../lib/scratchSeat.ts'
+import { describeSeat, seatRuntime } from '../lib/seatLauncher.ts'
 import { makeTally } from './dupline-world.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -160,6 +164,75 @@ section('S5 how long the daemon’s own stop waits for the runners it asked')
     order.every(place => place !== -1) && order[0]! < order[1]! && order[1]! < order[2]! && front.includes('const DAEMON_GRACEFUL_WAIT_MS = 1_500'),
     `in shutdown: ${order.join(', ')}`,
   )
+}
+
+section('S6 a respawn for another model or effort ends the runner the same way')
+{
+  const held = child(leaves(300))
+  const roster = rosterOf('win32', RUNNER_ASK_BOUND_MS, seatOf(held))
+  const began = Date.now()
+  const ending = endOf(held, began)
+  const said = roster.reconfigureLongLived('held', {})
+  const asked = held.stdin?.writableEnded === true
+  const ended = await Promise.race([ending, lapse(RUNNER_ASK_BOUND_MS - 1000)])
+  const other = child(STANDS)
+  const elsewhere = rosterOf('darwin', RUNNER_ASK_BOUND_MS, seatOf(other))
+  const start = Date.now()
+  const finishing = endOf(other, start)
+  elsewhere.reconfigureLongLived('held', {})
+  const open = other.stdin?.writableEnded === false
+  const struck = await Promise.race([finishing, lapse(RUNNER_ASK_BOUND_MS - 1000)])
+  check(
+    'on win32 an idle runner is asked and ends itself before it is started again; where a signal is the ask it is struck as before',
+    said.respawned === true && asked && ended !== null && ended.code === 7 && open && struck !== null && struck.code !== 7 && struck.ms < RUNNER_ASK_BOUND_MS - 1500,
+    `win32: respawn ${said.respawned}, input ended ${asked}, ${words(ended)}; elsewhere: input left open ${open}, ${words(struck)}`,
+  )
+  if (ended === null) held.kill('SIGKILL')
+  if (struck === null) other.kill('SIGKILL')
+}
+
+section('S7 a real session runner whose turn is over, asked: it ends itself and asks the model nothing')
+{
+  const { runHome, cwd } = scratchWorld('runner-asked')
+  seedScratchHome(runHome, cwd)
+  let turnOver = false
+  const fixture = await startScriptedFixture(() => [{ type: 'text', text: 'runner-asked: the turn is answered' }], { answerDelayMs: () => (turnOver ? RUNNER_ASK_BOUND_MS + 2000 : 0) })
+  const seat = seatRuntime(join(runHome, '..'))
+  console.log(`    the runner: ${describeSeat(seat)}`)
+  const runner = hostRunner({
+    node: seat.exe,
+    dist: seat.script,
+    home: runHome,
+    cwd,
+    argv: ['--session-id', randomUUID()],
+    env: { ...(childEnv(runHome, Number(new URL(fixture.base).port)) as Record<string, string | undefined>), HOME: runHome, MERCURY_CONCOURSE_WORKER: '1', MERCURY_SESSION_KIND: 'oculus' },
+  })
+  let turned = ''
+  try {
+    await runner.initialize()
+    await runner.prompt('runner-asked: answer in a word')
+    const outcome = await runner.waitFor('the one turn', row => row.type === 'outcome', 120_000)
+    turned = String(outcome.status)
+  } catch (error) {
+    turned = String(error).slice(0, 300)
+  }
+  turnOver = true
+  const sent = fixture.requests.length + fixture.asks.length
+  const roster = rosterOf('win32', RUNNER_ASK_BOUND_MS, seatOf(runner.child))
+  const began = Date.now()
+  const ending = endOf(runner.child, began)
+  roster.kill('held')
+  const ended = await Promise.race([ending, lapse(RUNNER_ASK_BOUND_MS + 4000)])
+  const after = fixture.requests.length + fixture.asks.length - sent
+  check(
+    `after a completed turn it ends itself well within the ${RUNNER_ASK_BOUND_MS / 1000} s bound, with an exit code and no signal`,
+    turned === 'completed' && ended !== null && ended.signal === null && ended.ms < RUNNER_ASK_BOUND_MS - 1000,
+    `the turn: ${turned}; ${words(ended)}; ${runner.stderr().slice(-200)}`,
+  )
+  check('and on its way out it asks the model nothing: the note for the next session is its host’s to ask for', after === 0, `${after} request(s) after the turn, ${fixture.asks.length} of them for the note, to a model made to answer in ${(RUNNER_ASK_BOUND_MS + 2000) / 1000} s`)
+  console.log(`    ${words(ended)}`)
+  if (ended === null) runner.child.kill('SIGKILL')
+  await fixture.close()
 }
 
 tally.finish()

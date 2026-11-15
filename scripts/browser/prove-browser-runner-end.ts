@@ -29,7 +29,8 @@ section('S1 a real runner whose browser stands on a temporary profile, asked to 
   seedScratchHome(runHome, cwd)
   const temp = join(runHome, '..', 'temp')
   mkdirSync(temp, { recursive: true })
-  const fixture = await startScriptedFixture(req => (req.ask.trim() === ASK && req.step === 0 ? [{ type: 'tool_use', name: 'Browser', input: { op: 'open', tab: 'blank' } }] : [{ type: 'text', text: LANDED }]))
+  let turnOver = false
+  const fixture = await startScriptedFixture(req => (req.ask.trim() === ASK && req.step === 0 ? [{ type: 'tool_use', name: 'Browser', input: { op: 'open', tab: 'blank' } }] : [{ type: 'text', text: LANDED }]), { answerDelayMs: () => (turnOver ? RUNNER_ASK_BOUND_MS + 2000 : 0) })
   const seat = seatRuntime(join(runHome, '..'))
   console.log(`    the runner: ${describeSeat(seat)}`)
   const runner = hostRunner({
@@ -51,6 +52,8 @@ section('S1 a real runner whose browser stands on a temporary profile, asked to 
   } catch (error) {
     opened = String(error).slice(0, 300)
   }
+  turnOver = true
+  const asked = fixture.requests.length + fixture.asks.length
   const before = profiles()
   check('after its turn opened the blank tab the runner holds one temporary profile folder', before.length === 1, `${opened}; ${before.length} folders under the runner’s temp folder; ${runner.stderr().slice(-300)}`)
   const folder = before[0] === undefined ? '' : join(temp, before[0])
@@ -68,6 +71,7 @@ section('S1 a real runner whose browser stands on a temporary profile, asked to 
   check('the roster’s kill answers at once, with the runner’s input ended and no strike', said === true && returned < 250 && runner.child.stdin?.writableEnded === true && runner.child.exitCode === null && runner.child.signalCode === null, `answered ${said} in ${returned} ms; input ended ${runner.child.stdin?.writableEnded}`)
   const ended = await Promise.race([ending, lapse(RUNNER_ASK_BOUND_MS + 4000)])
   check(`the runner ends itself well within the ${RUNNER_ASK_BOUND_MS / 1000} s bound: an exit code, no signal`, ended !== null && ended.signal === null && ended.ms < RUNNER_ASK_BOUND_MS - 1000, words(ended))
+  check('on its way out it asks the model nothing: the note for the next session is its host’s to ask for', fixture.requests.length + fixture.asks.length === asked, `${fixture.requests.length + fixture.asks.length - asked} request(s) after the turn, ${fixture.asks.length} of them for the note, to a model made to answer in ${(RUNNER_ASK_BOUND_MS + 2000) / 1000} s`)
   for (let waited = 0; waited < 20 && folder !== '' && existsSync(folder); waited++) await nap(50)
   check('its temporary profile folder is gone', folder !== '' && !existsSync(folder), folder === '' ? 'there was no folder to read' : existsSync(folder) ? `${folder} still stands with ${readdirSync(folder).length} entries at its top` : '')
   if (process.platform === 'win32') console.log('  [SKIP] no browser process is left on that profile — not read on win32: a folder a browser still holds cannot be removed there, so the check before this one stands for it')
