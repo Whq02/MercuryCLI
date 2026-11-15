@@ -1,6 +1,7 @@
 import { Database } from 'bun:sqlite'
+import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, readlinkSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { isolatedHome, readViewKit } from './readViewKit.js'
 import { readViewMcp } from './readViewMcp.js'
@@ -23,6 +24,10 @@ const bunRead = async (path: string): Promise<string> => {
   try { return (await kit.FileReadTool.call({ file_path: path }, kit.context)).data.file.content }
   catch (error) { return String(error) }
 }
+const heldCopies = (): string[] => {
+  if (process.platform === 'linux') return readdirSync('/proc/self/fd').map(fd => { try { return readlinkSync(`/proc/self/fd/${fd}`) } catch { return '' } }).filter(target => target.includes('mercury-sqlite-read-'))
+  return execFileSync('lsof', ['-p', String(process.pid)], { encoding: 'utf8' }).split('\n').filter(line => line.includes('mercury-sqlite-read-')).map(line => line.replace(/\s+/g, ' '))
+}
 const client = await readViewMcp(home)
 try {
   for (const [runtime, file, read] of [['Node', leftover, (path: string) => client.call('Read', { file_path: path })], ['Bun', leftoverBun, bunRead]] as const) {
@@ -32,6 +37,12 @@ try {
     kit.check(`${runtime}: its table read includes that row`, table.includes('only in the log') && table.includes('in the database'), table)
     kit.check(`${runtime}: the database listing answers`, listing.includes('items'), listing)
     kit.check(`${runtime}: nothing new stands beside the database and its bytes and its log are unchanged`, state(file) === before && !existsSync(`${file}-shm`), `${before} → ${state(file)}`)
+    if (runtime !== 'Bun') continue
+    if (process.platform === 'win32') console.log('[SKIP] Bun: a read that has answered holds none of its private copy open: on this platform the three reads above are the witness, a copy still held could not be removed')
+    else {
+      const held = heldCopies()
+      kit.check('Bun: a read that has answered holds none of its private copy open', held.length === 0, held.join(' | '))
+    }
   }
   const bothBefore = state(both)
   const kept = await client.call('Read', { file_path: `${both}:items/2` })
