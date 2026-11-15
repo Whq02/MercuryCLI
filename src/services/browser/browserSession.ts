@@ -32,6 +32,7 @@ const ENDED_TABS_KEPT = 64
 const POPUP_NOTES_KEPT = 32
 const POPUP_SETTLE_MS = 3_000
 const FIRST_NAVIGATION_SILENCE_MS = 5_000
+const FIRST_NAVIGATION_STARTS = 4
 
 export interface NavFailure {
   url: string
@@ -67,7 +68,7 @@ export function isBrowserErrorPage(url: string): boolean {
 
 interface Wiring {
   consoleRing: ConsoleEntry[]
-  nav: { seq: number; seen: number }
+  nav: { seq: number; seen: number; web: number }
   popups: { count: number; last: string; log: PopupNote[]; waiters: Array<() => void> }
   navFailure: { last: NavFailure | null }
   policyBlocks: Map<string, { reason: string; at: number }>
@@ -129,7 +130,7 @@ interface Session {
   resolution: BrowserResolution
   driverVersion: string
   consoleRing: ConsoleEntry[]
-  nav: { seq: number; seen: number }
+  nav: { seq: number; seen: number; web: number }
   sandboxDowngraded: boolean
   popups: { count: number; last: string; log: PopupNote[]; waiters: Array<() => void> }
   navFailure: { last: NavFailure | null }
@@ -1092,7 +1093,7 @@ function newWiring(): Wiring {
   }
   return {
     consoleRing,
-    nav: { seq: 0, seen: 0 },
+    nav: { seq: 0, seen: 0, web: 0 },
     popups: { count: 0, last: '', log: [], waiters: [] },
     navFailure: { last: null },
     policyBlocks: new Map(),
@@ -1288,6 +1289,7 @@ function listenPage(state: OwnerBrowserState, session: Session, wiring: Wiring):
     if (frame.parentFrame() === null) {
       navWatch.frames = 0
       nav.seq++
+      if (/^https?:/i.test(frame.url())) nav.web++
       if (!isBrowserErrorPage(frame.url())) navFailure.last = null
       settleNav()
       capture('nav', `navigated to ${redactUrl(frame.url())}`)
@@ -1542,6 +1544,7 @@ function observeBirthNavigation(hold: Hold, wiring: Wiring, cdp: CDPSession, tar
   const onNavigated = (event: Protocol.Page.FrameNavigatedEvent): void => {
     if (event.frame.parentId !== undefined) return
     wiring.nav.seq++
+    if (/^https?:/i.test(event.frame.url)) wiring.nav.web++
     if (!isBrowserErrorPage(event.frame.url)) wiring.navFailure.last = null
     wiring.capture('nav', `navigated to ${redactUrl(event.frame.url)}`)
   }
@@ -1752,33 +1755,54 @@ export async function firstNavigation<T>(session: Session, url: string, go: () =
     arrivals.origins = null
     return go()
   }
-  const navBefore = session.nav.seq
+  const pagesBefore = session.nav.web
   const downloadsBefore = session.downloads.count
-  const underWay = (): boolean => session.nav.seq > navBefore || session.downloads.count > downloadsBefore || leftForHost(origins, url)
-  let again = false
-  try {
-    const first = go()
-    if (!/^https?:/i.test(url)) return await first
-    const settled = first.then(value => ({ value }))
-    settled.catch(() => undefined)
-    let bound: ReturnType<typeof setTimeout> | undefined
-    let onAbort: (() => void) | undefined
-    const silence = new Promise<null>(resolve => {
-      bound = setTimeout(() => resolve(null), FIRST_NAVIGATION_SILENCE_MS)
-      onAbort = () => resolve(null)
+  const underWay = (): boolean => session.nav.web > pagesBefore || session.downloads.count > downloadsBefore || leftForHost(origins, url)
+  const web = /^https?:/i.test(url)
+  const stopped = (): boolean => signal?.aborted === true
+  const quiet = (until: number): { over: Promise<null>; end: () => void } => {
+    let end = (): void => {}
+    const over = new Promise<null>(resolve => {
+      const bound = setTimeout(() => resolve(null), Math.max(0, until - Date.now()))
+      const onAbort = (): void => resolve(null)
       signal?.addEventListener('abort', onAbort, { once: true })
+      end = () => {
+        clearTimeout(bound)
+        signal?.removeEventListener('abort', onAbort)
+      }
     })
-    const outcome = await Promise.race([settled, silence]).finally(() => {
-      clearTimeout(bound)
-      if (onAbort !== undefined) signal?.removeEventListener('abort', onAbort)
-    })
-    if (outcome !== null) return outcome.value
-    if (signal?.aborted === true || underWay()) return await first
-    again = true
-    return await go()
-  } catch (err) {
-    if (again || signal?.aborted === true || !/net::ERR_ABORTED/.test((err as Error | undefined)?.message ?? '') || underWay()) throw err
-    return await go()
+    return { over, end }
+  }
+  try {
+    let startedAt = Date.now()
+    let attempt = go()
+    for (let starts = 1; ; starts++) {
+      const last = starts >= FIRST_NAVIGATION_STARTS
+      const settled = attempt.then(
+        (value): { value: T } | { error: unknown } => ({ value }),
+        (error: unknown): { value: T } | { error: unknown } => ({ error }),
+      )
+      let outcome: { value: T } | { error: unknown } | null
+      if (web && !last) {
+        const silence = quiet(startedAt + FIRST_NAVIGATION_SILENCE_MS)
+        outcome = await Promise.race([settled, silence.over]).finally(silence.end)
+      } else {
+        outcome = await settled
+      }
+      if (outcome !== null && 'value' in outcome) return outcome.value
+      if (outcome === null) {
+        if (stopped() || underWay()) return await attempt
+      } else {
+        if (last || stopped() || !/net::ERR_ABORTED/.test((outcome.error as Error | undefined)?.message ?? '') || underWay()) throw outcome.error
+        if (starts > 1) {
+          const gap = quiet(startedAt + FIRST_NAVIGATION_SILENCE_MS)
+          await gap.over.finally(gap.end)
+          if (stopped() || underWay()) throw outcome.error
+        }
+      }
+      startedAt = Date.now()
+      attempt = go()
+    }
   } finally {
     arrivals.origins = null
   }

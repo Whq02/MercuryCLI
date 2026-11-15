@@ -65,12 +65,15 @@ const refused: Ctx = { agentId: 'first-navigation-refused' }
 const quiet: Ctx = { agentId: 'first-navigation-quiet' }
 const slow: Ctx = { agentId: 'first-navigation-slow' }
 const halted: Ctx = { agentId: 'first-navigation-halted' }
+const thrice: Ctx = { agentId: 'first-navigation-thrice' }
+const stuck: Ctx = { agentId: 'first-navigation-stuck' }
+const fourth: Ctx = { agentId: 'first-navigation-fourth' }
 const kept: Ctx = { agentId: 'first-navigation-kept' }
 const fetched: Ctx = { agentId: 'first-navigation-fetched' }
 
 const { default: driver } = (await import(join(ROOT, 'node_modules/puppeteer-core/lib/puppeteer/puppeteer-core.js'))) as { default: { launch: (options: LaunchOptions) => Promise<Browser> } }
 let unsent = 0
-let silent: { url: string; from: number | null; held?: () => void } | null = null
+let silent: { url: string; from: number | null; left?: number; within?: number; held?: () => void } | null = null
 let launchedAt = 0
 let attempts = 0
 const paused: Array<{ url: string; at: number }> = []
@@ -86,9 +89,10 @@ sessions.setBrowserLaunchDriverForProof(async (options: LaunchOptions): Promise<
       attempts++
       paused.push({ url: event.request.url, at: Date.now() })
     }
-    if (event.resourceType === 'Document' && silent !== null && event.request.url === silent.url && Date.now() - (silent.from ?? launchedAt) <= 4000) {
+    if (event.resourceType === 'Document' && silent !== null && event.request.url === silent.url && Date.now() - (silent.from ?? launchedAt) <= (silent.within ?? 4000)) {
       silent.held?.()
-      silent = null
+      silent.left = (silent.left ?? 1) - 1
+      if (silent.left <= 0) silent = null
       return
     }
     if (unsent > 0 && event.resourceType === 'Document') {
@@ -104,11 +108,11 @@ sessions.setBrowserLaunchDriverForProof(async (options: LaunchOptions): Promise<
 })
 const ringOf = async (ctx: Ctx): Promise<string> => (await run({ op: 'console' }, ctx)).result
 const ABORTED = (path: string): string => `open failed: net::ERR_ABORTED at ${A.origin}${path}`
-const droppedByItself = (opened: { outcome: string }, staged: number, url: string, began: number): boolean => {
+const selfDropped = (url: string, began: number): boolean => {
   const mine = startsOf(url, began)
-  return process.platform === 'win32' && opened.outcome === 'failed' && mine.length === staged - 1 && mine[0] !== undefined && mine[0].at - Math.max(began, launchedAt) >= 4500
+  return process.platform === 'win32' && (mine[0] === undefined || mine[0].at - Math.max(began, launchedAt) >= 4500)
 }
-const notStaged = (what: string): void => console.log(`  [SKIP] ${what}: this launch's browser dropped its first navigation by itself (its one start came five seconds late), so the fixture's drop was the second and the one more start was already spent`)
+const notStaged = (what: string): void => console.log(`  [SKIP] ${what}: this launch's browser dropped starts of its first navigation by itself (the first one the fixture saw came five seconds late or none came), so the starts that were left went to the fixture's own drops`)
 
 section('S0 control: the first navigation of a launch that nothing aborts (holds on the parent too)')
 {
@@ -128,7 +132,7 @@ section('S1 the first navigation of a launch, aborted before its request left, i
   const began = Date.now()
   const opened = await run({ op: 'open', url: `${A.origin}/detect` }, aborted)
   unsent = 0
-  if (droppedByItself(opened, 2, `${A.origin}/detect`, began)) notStaged('S1')
+  if (opened.outcome !== 'succeeded' && selfDropped(`${A.origin}/detect`, began)) notStaged('S1')
   else {
     const nine = opened.outcome === 'succeeded' ? await detect(aborted) : { passed: 0, total: 9, checks: {} }
     const reference = documents('/detect')[0] ?? []
@@ -169,16 +173,20 @@ section('S3 a first navigation aborted after its request reached the server is n
   check('one navigation was started and the server was asked once, not twice', attempts === 1 && documents('/held').length === 1, `${attempts} | ${documents('/held').length}`)
 }
 
-section('S4 a first navigation aborted twice before a request left fails after the one more start')
+section('S4 a first navigation aborted twice before a request left is started a third time, five seconds on')
 {
   attempts = 0
   unsent = 2
   const began = Date.now()
   const opened = await run({ op: 'open', url: `${A.origin}/twice` }, twice)
+  const took = Date.now() - began
   unsent = 0
-  check('it fails in the words it always had', opened.outcome === 'failed' && opened.result === ABORTED('/twice'), opened.result)
-  if (droppedByItself(opened, 2, `${A.origin}/twice`, began)) notStaged('S4, the count of its starts')
-  else check('the navigation was started twice and no more, and nothing reached the server', attempts === 2 && documents('/twice').length === 0, `${attempts} | ${documents('/twice').length}`)
+  if (opened.outcome !== 'succeeded' && selfDropped(`${A.origin}/twice`, began)) notStaged('S4')
+  else {
+    check('the open answers with the page', opened.outcome === 'succeeded' && opened.result.startsWith(`open: ${A.origin}/twice [200] — twice`), opened.result)
+    check('the navigation was started three times and the server was asked once', attempts === 3 && documents('/twice').length === 1, `${attempts} | ${documents('/twice').length}`)
+    check('the third start waited five seconds after the second', took >= 4500, `${took} ms`)
+  }
 }
 
 section('S5 a first navigation that fails another way is not started again')
@@ -249,9 +257,49 @@ section('S9 an interrupt during the silence starts nothing more')
   }
 }
 
+section('S10 a first navigation that goes silent twice is started a third time')
+{
+  const address = `${A.origin}/silent-twice`
+  const began = Date.now()
+  silent = { url: address, from: null, left: 2, within: 7500 }
+  const opened = await run({ op: 'open', url: address, timeoutMs: 20000 }, thrice)
+  const took = Date.now() - began
+  silent = null
+  const mine = startsOf(address, began)
+  check('the open answers with the page', opened.outcome === 'succeeded' && opened.result.startsWith(`open: ${address} [200] — silent-twice`), opened.result)
+  if (selfDropped(address, began)) console.log("  [SKIP] S10, the count of its starts: this launch's browser dropped its first navigation by itself, so the fixture held one start fewer")
+  else check('the navigation was started three times, each five seconds after the one before', mine.length === 3 && mine[1]!.at - mine[0]!.at >= 4500 && mine[1]!.at - mine[0]!.at < 9000 && mine[2]!.at - mine[1]!.at >= 4500 && mine[2]!.at - mine[1]!.at < 9000, `${mine.length} | ${mine.map(seen => seen.at - began).join(',')} | ${took} ms`)
+  check('the server was asked once', documents('/silent-twice').length === 1, String(documents('/silent-twice').length))
+}
+
+section('S11 a first navigation that never leaves is started four times and no more')
+{
+  const address = `${A.origin}/never`
+  const began = Date.now()
+  silent = { url: address, from: null, left: 99, within: 120000 }
+  const opened = await run({ op: 'open', url: address, timeoutMs: 7000 }, stuck)
+  const took = Date.now() - began
+  silent = null
+  const mine = startsOf(address, began)
+  check('it waits out its own time on the last start and fails in the words it always had', opened.outcome === 'failed' && opened.result.includes('Navigation timeout of 7000 ms exceeded'), opened.result)
+  check('four navigations were started and no more, and nothing reached the server', (selfDropped(address, began) ? mine.length >= 1 && mine.length <= 4 : mine.length === 4) && documents('/never').length === 0, `${mine.length} | ${mine.map(seen => seen.at - began).join(',')} | ${documents('/never').length} | ${took} ms`)
+}
+
+section('S12 a first navigation aborted every time before a request left fails after four starts')
+{
+  attempts = 0
+  unsent = 9
+  const began = Date.now()
+  const opened = await run({ op: 'open', url: `${A.origin}/four` }, fourth)
+  const took = Date.now() - began
+  unsent = 0
+  check('it fails in the words it always had', opened.outcome === 'failed' && opened.result === ABORTED('/four'), opened.result)
+  check('four navigations were started and no more, and nothing reached the server', (selfDropped(`${A.origin}/four`, began) ? attempts >= 1 && attempts <= 4 : attempts === 4 && took >= 9000) && documents('/four').length === 0, `${attempts} | ${documents('/four').length} | ${took} ms`)
+}
+
 sessions.setBrowserLaunchDriverForProof(null)
 
-section('S10 a slow page reached through a redirect the profile remembers is asked for once')
+section('S13 a slow page reached through a redirect the profile remembers is asked for once')
 {
   const first = await run({ op: 'open', url: `${A.origin}/moved-far` }, kept)
   await run({ op: 'close' }, kept)
@@ -267,7 +315,7 @@ section('S10 a slow page reached through a redirect the profile remembers is ask
   check('the redirect came from the profile and the page was asked for once', documents('/moved-far').length === askedRedirect && asksFor('/far') === askedPage + 1, `${documents('/moved-far').length - askedRedirect} | ${asksFor('/far') - askedPage}`)
 }
 
-section('S11 a download reached through a redirect the profile remembers is fetched once')
+section('S14 a download reached through a redirect the profile remembers is fetched once')
 {
   const first = await run({ op: 'open', url: `${A.origin}/moved` }, fetched)
   await run({ op: 'close' }, fetched)
@@ -279,4 +327,4 @@ section('S11 a download reached through a redirect the profile remembers is fetc
   check('the redirect came from the profile and the file was asked for once', documents('/moved').length === askedRedirect && asksFor('/report.csv') === askedFile + 1, `${documents('/moved').length - askedRedirect} | ${asksFor('/report.csv') - askedFile}`)
 }
 
-await finish('prove-browser-first-navigation', [plain, aborted, reached, twice, refused, quiet, slow, halted, kept, fetched])
+await finish('prove-browser-first-navigation', [plain, aborted, reached, twice, refused, quiet, slow, halted, thrice, stuck, fourth, kept, fetched])
