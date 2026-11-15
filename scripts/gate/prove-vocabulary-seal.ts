@@ -239,6 +239,7 @@ const ALLOW: Array<[string, string, string]> = [
   ['scripts/search/lib/bundle-for-node.ts', 'words', "Bun's build API vocabulary (the bundling hook)"],
   ['src/services/browser/browserSession.ts', 'words', "the DOM's own names (navigator.plugins, Plugin) the stealth init reads and reshapes — the browser's vocabulary, not Mercury's"],
   ['scripts/browser/prove-browser-stealth.ts', 'words', "the DOM's own names (navigator.plugins, Plugin) the detection checks read — the browser's vocabulary, not Mercury's"],
+  ['scripts/browser/prove-browser-prepared-once.ts', 'words', "the DOM's own name (navigator.plugins) among the five readings a frame is held to its page on — the browser's vocabulary, not Mercury's"],
   ['src/constants/changelog.ts', 'retired', 'a published record keeps its lines'],
   ['docs/releases/', 'retired', 'published release pages keep their lines'],
   ['docs/COMPATIBILITY.md', 'other-tool-home', "the page names another tool's project folder among the files Mercury reads in a project; that tool's home folder is never read"],
