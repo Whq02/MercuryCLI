@@ -139,15 +139,23 @@ const draftContentEqual = (a: PromptDraft, b: PromptDraft): boolean =>
 type PendingSave = { sessionId: string; draft: PromptDraft; filePath: string }
 let pending: PendingSave | null = null
 let timer: ReturnType<typeof setTimeout> | null = null
+let written: Promise<void> = Promise.resolve()
 
-async function flushPending(): Promise<void> {
+function flushPending(): Promise<void> {
   const p = pending
   pending = null
   if (timer) {
     clearTimeout(timer)
     timer = null
   }
-  if (!p) return
+  if (p) {
+    const write = writePage(p)
+    written = Promise.all([written, write]).then(() => undefined)
+  }
+  return written
+}
+
+async function writePage(p: PendingSave): Promise<void> {
   try {
     await draftStore().mutate(current => {
       const next: DraftFile = { ...current }
@@ -346,13 +354,26 @@ export function readScopedDocsSync(
   }
 }
 
-export async function migrateOrphanedDraft(conversationId: string): Promise<boolean> {
+export async function migrateOrphanedDraft(conversationId: string, left?: string | null): Promise<boolean> {
   try {
     const p = draftFilePath()
     if (!existsSync(p)) return false
+    const projectDir = getProjectDir(getCwd())
+    if (left && left !== conversationId && !left.startsWith('_') && !existsSync(join(projectDir, `${left}.jsonl`))) {
+      let carried = false
+      await draftStore().mutate(current => {
+        const page = current[left]
+        if (page === undefined) return current
+        carried = true
+        const next = { ...current }
+        if (!(conversationId in next)) next[conversationId] = page
+        delete next[left]
+        return next
+      })
+      if (carried) return true
+    }
     const parsed = JSON.parse(readFileSync(p, 'utf8')) as Record<string, unknown>
     if (sanitizeDraft(parsed[conversationId]) !== null) return false
-    const projectDir = getProjectDir(getCwd())
     const orphans = Object.keys(parsed).filter(
       key => !key.startsWith('_') && sanitizeDraft(parsed[key]) !== null && !existsSync(join(projectDir, `${key}.jsonl`)),
     )
