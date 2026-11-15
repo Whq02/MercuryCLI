@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync }
 import http from 'node:http'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 export const ROOT = resolve(process.env.PROOF_SUBJECT_ROOT ?? join(import.meta.dir, '..', '..'))
 const PROOF_ROOT = resolve(join(import.meta.dir, '..', '..'))
@@ -184,9 +185,13 @@ export async function finish(name: string, owners: ToolContext[] = [lead]): Prom
   for (const ctx of owners) await sessions.closeBrowserSession(ownerOf(ctx)).catch(() => undefined)
   for (const ctx of owners) await sessions.disposeBrowserOwner(ownerOf(ctx)).catch(() => undefined)
   await Promise.all(fixtures.map(fixture => fixture.close()))
-  rmSync(SCRATCH_HOME, { recursive: true, force: true })
   console.log(`\n${checks} checks, ${failures} failures`)
   if (failures > 0) console.error(`${name}: ${failures} FAILURE(S)`)
   else console.log(`${name}: ALL HOLD`)
+  try {
+    removeScratch(SCRATCH_HOME, { maxRetries: 20, retryDelayMs: 150 })
+  } catch (error) {
+    console.log(`  scratch left at ${SCRATCH_HOME}: ${(error as NodeJS.ErrnoException).code ?? String(error)}`)
+  }
   process.exit(failures === 0 ? 0 : 1)
 }
