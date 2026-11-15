@@ -223,6 +223,33 @@ section('2 · cancellation: it waits for the session to be idle, cancels for rea
     fixture.stop()
     slow.fixture.stop()
   }
+  const armed = await world('after-last-user', CAPABLE, { letsGoAfterMs: 700 })
+  if (armed !== undefined) {
+    prefill?.__setNextTurnPrefillIoForTest({ settleMs: SETTLE_MS, lookMs: LOOK_MS, tokensPerSecond: 5000 })
+    armed.fixture.holdBackground(1500)
+    await toolTurn(armed)
+    await untilAsync(() => armed.fixture.waiting() === 1, 2000, 5)
+    armed.fixture.holdBackground(0)
+    await nextTurn(armed)
+    const turnedOff = facts()?.slowed === 1 && ahead(armed).length === 1
+    for (let hasty = 0; hasty < 4; hasty++) await nextTurn(armed)
+    check('after a slow cut, messages that follow one another at once leave the read-ahead off, however many', turnedOff && facts()?.rearmed === 0 && ahead(armed).length === 1, `facts ${JSON.stringify(facts())}, ${ahead(armed).length} background request(s)`)
+    for (let rested = 0; rested < 2; rested++) {
+      await quiet(700)
+      await nextTurn(armed)
+    }
+    await nextTurn(armed)
+    check('two turns that left the engine the time, then a message at once: the count starts again and nothing is read ahead', facts()?.rearmed === 0 && ahead(armed).length === 1, `facts ${JSON.stringify(facts())}, ${ahead(armed).length} background request(s)`)
+    for (let rested = 0; rested < 3; rested++) {
+      await quiet(700)
+      await nextTurn(armed)
+    }
+    const again = await untilAsync(() => ahead(armed).length === 2 && (facts()?.completed ?? 0) >= 1, 2000, 5)
+    check('three turns in a row that left the engine the time a read-ahead takes: the third is read ahead again, and the facts say so once', again && facts()?.rearmed === 1 && facts()?.slowed === 1 && !ahead(armed)[1]!.aborted, `facts ${JSON.stringify(facts())}, ${ahead(armed).length} background request(s)`)
+    const resumed = await nextTurn(armed)
+    check('and the turn after it resumes everything before its own message', resumed !== undefined && resumed.promptTokens - resumed.cachedTokens <= newMessage, `${resumed?.cachedTokens} of ${resumed?.promptTokens}`)
+    armed.fixture.stop()
+  } else check('after a slow cut, three turns in a row that left the engine the time arm the read-ahead again', false, 'no TensorFold record')
   let falsePositives = 0
   let rearmed = 0
   for (let round = 0; round < 10; round++) {
@@ -509,7 +536,7 @@ for (const arm of ['off', 'on']) {
   await own
   await neighbour
   check(`${arm}: our request was computing, the neighbour queued, and only an outstanding cut watch disables read-ahead`, real(w)[2]?.queued === false && real(w)[3]?.queued === true && facts()?.slowed === (arm === 'on' ? 1 : 0), JSON.stringify({ queued: real(w).map(request => request.queued), facts: facts() }))
-  if (arm === 'on') check('the reason reports the missing output and aggregate queue without attributing that queue to our request', facts()?.last === 'a request had produced no output 500 ms after a read-ahead was dropped and the engine reports a queue; nothing is read ahead on that engine again in this session', String(facts()?.last))
+  if (arm === 'on') check('the reason reports the missing output and aggregate queue without attributing that queue to our request', facts()?.last === 'a request had produced no output 500 ms after a read-ahead was dropped and the engine reports a queue; nothing is read ahead on that engine until 3 turns in a row have left it the time a read-ahead takes', String(facts()?.last))
   w.fixture.stop()
 }
 delete process.env.MERCURY_LOCAL_NEXT_TURN_PREFILL

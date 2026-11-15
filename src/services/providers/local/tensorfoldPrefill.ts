@@ -21,6 +21,7 @@ export const NEXT_TURN_STAGE_SECONDS = 5
 export const NEXT_TURN_STAGE_FLOOR_TOKENS = 256
 export const NEXT_TURN_LOOK_MS = 300
 export const NEXT_TURN_SLOW_CUT_MS = 500
+const NEXT_TURN_REARM_TURNS = 3
 export const NEXT_TURN_SEED = 'ok'
 const NEXT_TURN_LOOK_TIMEOUT_MS = 1000
 const UNMEASURED_TOKENS_PER_SECOND = 300
@@ -60,14 +61,21 @@ export interface NextTurnPrefillFacts {
   cut: number
   yielded: number
   slowed: number
+  rearmed: number
   last: string | null
+}
+
+interface Slowed {
+  quiet: number
+  since: number | null
+  needMs: number
 }
 
 const state: {
   inFlight: Map<string, number>
   speed: Map<string, number>
   whole: Set<string>
-  slow: Set<string>
+  slow: Map<string, Slowed>
   offer: Offer | null
   timer: ReturnType<typeof setTimeout> | null
   running: AbortController | null
@@ -78,13 +86,13 @@ const state: {
   inFlight: new Map(),
   speed: new Map(),
   whole: new Set(),
-  slow: new Set(),
+  slow: new Map(),
   offer: null,
   timer: null,
   running: null,
   hooked: false,
   io: {},
-  facts: { offered: 0, started: 0, requests: 0, completed: 0, cut: 0, yielded: 0, slowed: 0, last: null },
+  facts: { offered: 0, started: 0, requests: 0, completed: 0, cut: 0, yielded: 0, slowed: 0, rearmed: 0, last: null },
 }
 
 function note(words: string): void {
@@ -205,7 +213,7 @@ export function nextTurnStages(rows: readonly CompatWireMessage[], from: number,
   return stages
 }
 
-function tokensPerSecond(offer: Offer): number {
+function tokensPerSecond(offer: Pick<Offer, 'root' | 'model'>): number {
   if (state.io.tokensPerSecond !== undefined) return state.io.tokensPerSecond
   const measured = state.speed.get(offer.root)
   if (measured !== undefined) return measured
@@ -225,10 +233,10 @@ function watchTheCut(offer: Offer): () => void {
   const timer = setTimeout(() => {
     void engineLoad(offer, controller.signal).then(load => {
       if (controller.signal.aborted || load === undefined || load.waiting === 0) return
-      state.slow.add(offer.root)
+      state.slow.set(offer.root, { quiet: 0, since: null, needMs: 0 })
       state.facts.slowed += 1
       if (state.offer !== null && state.offer.root === offer.root) cancelNextTurnPrefill('the engine is slow to let a read-ahead go')
-      note(`a request had produced no output ${NEXT_TURN_SLOW_CUT_MS} ms after a read-ahead was dropped and the engine reports a queue; nothing is read ahead on that engine again in this session`)
+      note(`a request had produced no output ${NEXT_TURN_SLOW_CUT_MS} ms after a read-ahead was dropped and the engine reports a queue; nothing is read ahead on that engine until ${NEXT_TURN_REARM_TURNS} turns in a row have left it the time a read-ahead takes`)
     })
   }, state.io.slowCutMs ?? NEXT_TURN_SLOW_CUT_MS)
   timer.unref?.()
@@ -365,6 +373,26 @@ async function run(offer: Offer): Promise<void> {
   }
 }
 
+function rests(record: LocalModelRecord, sent: CompatStreamOptions, minted: readonly AssistantMessage[]): void {
+  const slowed = state.slow.get(record.baseUrl)
+  if (slowed === undefined || !endsTheTurn(minted)) return
+  const tokens = tensorFoldTurnReadings().findLast(row => row.model === record.id)?.promptTokens ?? estimateRequestTokens({ messages: sent.request.messages, ...(sent.request.tools !== undefined ? { tools: sent.request.tools } : {}) }, record.id)
+  slowed.needMs = (state.io.settleMs ?? NEXT_TURN_SETTLE_MS) + Math.ceil((tokens / tokensPerSecond({ root: record.baseUrl, model: record.id })) * 1000)
+  slowed.since = Date.now()
+}
+
+function arrives(root: string): void {
+  const slowed = state.slow.get(root)
+  if (slowed === undefined || slowed.since === null) return
+  const waited = Date.now() - slowed.since
+  slowed.since = null
+  slowed.quiet = waited >= slowed.needMs ? slowed.quiet + 1 : 0
+  if (slowed.quiet < NEXT_TURN_REARM_TURNS) return
+  state.slow.delete(root)
+  state.facts.rearmed += 1
+  note(`${NEXT_TURN_REARM_TURNS} turns in a row left that engine the time a read-ahead takes; the next turn is read ahead again`)
+}
+
 function schedule(): void {
   if (state.timer !== null) clearTimeout(state.timer)
   const timer = setTimeout(() => {
@@ -402,8 +430,9 @@ export function tensorFoldRequestBegins(
     else state.inFlight.delete(root)
     if (left <= 0 && state.offer !== null && state.offer.root === root) schedule()
   }
-  const canOffer = !state.slow.has(root) && nextTurnPrefillApplies(record, options)
-  if (!canOffer && stopWatching === undefined) return { ends }
+  const applies = nextTurnPrefillApplies(record, options)
+  if (applies) arrives(root)
+  if (!applies && stopWatching === undefined) return { ends }
   return {
     ends,
     transport: sent => ({
@@ -414,7 +443,11 @@ export function tensorFoldRequestBegins(
         }
       })(),
       settle: minted => {
-        if (!canOffer) return
+        if (!applies) return
+        if (state.slow.has(root)) {
+          rests(record, sent, minted)
+          return
+        }
         try {
           offerNextTurn(record, sent, minted, conversation, options)
         } catch (error) {
@@ -440,5 +473,5 @@ export function __resetNextTurnPrefillForTest(): void {
   state.whole.clear()
   state.slow.clear()
   state.io = {}
-  state.facts = { offered: 0, started: 0, requests: 0, completed: 0, cut: 0, yielded: 0, slowed: 0, last: null }
+  state.facts = { offered: 0, started: 0, requests: 0, completed: 0, cut: 0, yielded: 0, slowed: 0, rearmed: 0, last: null }
 }
