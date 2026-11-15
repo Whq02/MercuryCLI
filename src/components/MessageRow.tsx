@@ -249,7 +249,9 @@ function MessageRowInner({
     inProgressToolUseIDs,
     toolUseID
       ? getSiblingToolUseIDsFromLookup(message as NormalizedMessage, lookups)
-      : EMPTY_IDS,
+      : message.type === 'grouped_tool_use'
+        ? getSiblingToolUseIDsFromLookup(message.displayMessage, lookups)
+        : EMPTY_IDS,
     screen,
     lookups,
   )
@@ -317,6 +319,9 @@ function shouldRenderStatically(
     case 'system':
       return message.subtype !== 'api_error'
     case 'grouped_tool_use':
+      for (const sibling of siblingToolUseIDs) {
+        if (!lookups.resolvedToolUseIDs.has(sibling)) return false
+      }
       return allToolsResolved(message, lookups.resolvedToolUseIDs)
     case 'collapsed_read_search':
       return false
