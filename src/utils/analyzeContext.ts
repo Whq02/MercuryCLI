@@ -30,6 +30,7 @@ import type { Message } from '../types/message.js'
 import type { TextBlockParam } from '../types/wire.js'
 import { appendSystemContext, toolToAPISchema } from './api.js'
 import { getContextWindowForModel } from './context.js'
+import { awaitContextWindowSource } from './model/contextWindowWarmup.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { isEnvTruthy } from './envUtils.js'
@@ -607,6 +608,7 @@ export async function analyzeContextUsage(
 ): Promise<ContextData> {
   counterRoadDown = false
   const runtimeModel = model
+  if (declaredRouteOf(runtimeModel) !== 'local') await awaitContextWindowSource(runtimeModel)
   const contextWindow = getContextWindowForModel(runtimeModel, getSdkBetas())
 
   const microcompacted = await microcompactMessages(messages, toolUseContext as ToolUseContext | undefined)
@@ -804,7 +806,7 @@ export async function analyzeContextUsage(
   let autoCompactThreshold: number | undefined
   if (autoCompactOn) {
     autoCompactThreshold = getAutoCompactThreshold(model)
-    reserveTokens = contextWindow - autoCompactThreshold
+    reserveTokens = Math.max(0, contextWindow - autoCompactThreshold)
     reserveName = 'Autocompact buffer'
   } else {
     reserveTokens = MANUAL_COMPACT_BUFFER_TOKENS
