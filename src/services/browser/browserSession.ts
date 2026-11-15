@@ -31,6 +31,7 @@ export const MAIN_TAB = 'main'
 const ENDED_TABS_KEPT = 64
 const POPUP_NOTES_KEPT = 32
 const POPUP_SETTLE_MS = 3_000
+const FIRST_NAVIGATION_SILENCE_MS = 5_000
 
 export interface NavFailure {
   url: string
@@ -1683,15 +1684,46 @@ async function watchBirths(state: OwnerBrowserState, hold: Hold, downloads: Down
   if (followed) hold.downloads = downloads
 }
 
+function leftForHost(origins: Set<string>, url: string): boolean {
+  let host: string
+  try {
+    host = new URL(url).hostname
+  } catch {
+    return true
+  }
+  for (const origin of origins) {
+    try {
+      if (new URL(origin).hostname === host) return true
+    } catch {
+      continue
+    }
+  }
+  return false
+}
+
 export async function firstNavigation<T>(session: Session, url: string, go: () => Promise<T>): Promise<T> {
   const hold = holdOf(session)
   const arrivals = hold.launchArrivals
   hold.launchArrivals = null
   if (arrivals === null || arrivals.origins === null) return go()
+  const origins = arrivals.origins
+  let again = false
   try {
+    const first = go()
+    if (!/^https?:/i.test(url)) return await first
+    const settled = first.then(value => ({ value }))
+    settled.catch(() => undefined)
+    let bound: ReturnType<typeof setTimeout> | undefined
+    const silence = new Promise<null>(resolve => {
+      bound = setTimeout(() => resolve(null), FIRST_NAVIGATION_SILENCE_MS)
+    })
+    const outcome = await Promise.race([settled, silence]).finally(() => clearTimeout(bound))
+    if (outcome !== null) return outcome.value
+    if (leftForHost(origins, url)) return await first
+    again = true
     return await go()
   } catch (err) {
-    if (!/net::ERR_ABORTED/.test((err as Error | undefined)?.message ?? '') || arrivals.origins.has(originOf(url))) throw err
+    if (again || !/net::ERR_ABORTED/.test((err as Error | undefined)?.message ?? '') || leftForHost(origins, url)) throw err
     return await go()
   } finally {
     arrivals.origins = null
