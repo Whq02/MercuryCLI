@@ -121,6 +121,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed reading a SQLite row whose integer key is wider than JavaScript's safe range, finding a text key that looks like a number, and writing an addressed row in release installs; an addressed row is no longer refused for the size of its database.
 - Fixed a read of a database row leaving a new -shm file beside the database.
 - Fixed the seven-day cleanup of crewmate worktrees, whose pattern matched almost none of them: a leftover worktree in which nothing would be lost is now removed.
+- Fixed the card of crewmates launched together in one message sometimes counting one fewer than were launched and never listing the last of them, though it ran and stood in the Crew view.
 - Fixed structural search and rewrite over a folder to apply Read deny rules to files reached through a link.
 - Fixed a valid pattern being called malformed when the only file of its language was over the size limit.
 - Fixed a one-shot mercury run ending without its report while a crewmate was parked waiting for its teammates, or between a background crewmate's end and its result.
