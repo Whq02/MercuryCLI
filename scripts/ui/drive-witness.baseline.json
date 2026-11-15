@@ -155,7 +155,7 @@
     "scripts/switchboard/prove-finish-mark-drive.ts": 28,
     "scripts/switchboard/prove-folder-project-drive.ts": 11,
     "scripts/switchboard/prove-held-session-continue-drive.ts": 12,
-    "scripts/switchboard/prove-home-repo-drive.ts": 23,
+    "scripts/switchboard/prove-home-repo-drive.ts": 20,
     "scripts/switchboard/prove-live-tiles-drive.ts": 1,
     "scripts/switchboard/prove-one-door-drive.ts": 10,
     "scripts/switchboard/prove-park-refusal-look.ts": 2,
