@@ -356,9 +356,12 @@ export function geminiEffortVocabularyFor(
   model: string,
   env: NodeJS.ProcessEnv = process.env,
 ): readonly string[] {
+  const account = resolveGeminiAccount(env)
   const listed = geminiListedModel(model, env)
+  const unread = account && account.kind !== 'plan' && (getCachedGeminiCatalogue(account.kind, env)?.models.length ?? 0) === 0
+  if (unread) return geminiRequestPin(model)?.thinkingLevels ?? []
   if (listed?.thinking !== true) return []
-  if (resolveGeminiAccount(env)?.kind !== 'plan') return geminiRequestPin(model)?.thinkingLevels ?? GEMINI_REASONING_EFFORTS
+  if (account?.kind !== 'plan') return geminiRequestPin(model)?.thinkingLevels ?? GEMINI_REASONING_EFFORTS
   return geminiPlanReachesXhigh(model, listed, env) ? GEMINI_XHIGH_ROW_EFFORTS : GEMINI_REASONING_EFFORTS
 }
 

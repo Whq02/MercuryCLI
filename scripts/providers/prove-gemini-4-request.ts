@@ -45,6 +45,8 @@ const WINDOW = 1_048_576
 const ROSTER_CEILING = 262_144
 const live = (id: string, thinking = true) => ({ name: `models/${id}`, displayName: id, inputTokenLimit: WINDOW, outputTokenLimit: 65_536, supportedGenerationMethods: ['generateContent', 'countTokens'], thinking })
 const LIVE_LIST = [live('gemini-4-hydrogen'), live('gemini-4-carbon'), live('gemini-4-argon'), live('gemini-3.8-flash'), live('gemini-2.5-pro')]
+let liveList: unknown[] = LIVE_LIST
+let listFails = false
 const row = (displayName: string, maxOutputTokens: number) => ({ displayName, supportsThinking: true, supportsImages: true, maxTokens: WINDOW, maxOutputTokens })
 const ROSTER: Record<string, unknown> = {
   'gemini-4-hydrogen-low': row('Gemini 4 Hydrogen (Low)', ROSTER_CEILING),
@@ -74,7 +76,7 @@ globalThis.fetch = (async (input: unknown, init?: RequestInit) => {
   const url = String(input)
   if (!/^https:\/\/(?:gemini|assist|manifest)\.fixture\.invalid\//.test(url)) throw new Error(`unpinned request ${url}`)
   if (url.endsWith('/token')) return Response.json({ access_token: 'ya29.plan-fixture', expires_in: 3600 })
-  if (url.includes('/models?')) return Response.json({ models: LIVE_LIST })
+  if (url.includes('/models?')) return listFails ? Response.json({ error: { code: 503, message: 'The service is currently unavailable.', status: 'UNAVAILABLE' } }, { status: 503 }) : Response.json({ models: liveList })
   if (url.endsWith('/v1internal:fetchAvailableModels')) return Response.json({ models: ROSTER, imageGenerationModelIds: [], agentModelSorts: [] })
   if (url.startsWith('https://manifest.fixture.invalid/')) return new Response('version: 2.31.2\n')
   const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, any>
@@ -337,6 +339,41 @@ try {
       check(`${road} ${model}: that turn is priced $0.0043425, fresh input at $1.50 a million, cached at $0.075 and output at $7.50, where every prompt token at the fresh rate would read $0.011781`, Math.abs(priced - (2_439 * 1.5 + 5_220 * 0.075 + 39 * 7.5) / 1e6) < 1e-12, String(priced))
     }
   }
+
+  console.log('── with an API key and no model list read yet, a Gemini 4 model\'s effort words come from the row of what its own page lists ──')
+  const unreadKey = async (how: string): Promise<void> => {
+    process.env.GEMINI_API_KEY = key
+    writeFileSync(join(proofHome, '.gemini-auth.json'), JSON.stringify({ version: 1, preferredSource: 'api-key' }))
+    catalogue.__resetGeminiCatalogueForTest()
+    __resetGeminiPlanWireForTest()
+    listFails = true
+    if (how === 'read and refused') await catalogue.refreshGeminiCatalogue('api-key', { force: true })
+  }
+  for (const how of ['never read', 'read and refused']) {
+    await unreadKey(how)
+    const unread = await sweep('gemini-4-hydrogen')
+    check(`the list ${how}: gemini-4-hydrogen still sends LOW, MEDIUM, HIGH and XHIGH for low, medium, high and xhigh, max lands on XHIGH, no word sends nothing, and the turn is stamped applied xhigh (read through the built bundle before this, with the list read failing or slower than the wait before a first request: every word was dropped and Google's default answered)`, levelOf(unread.low!) === level('LOW') && levelOf(unread.medium!) === level('MEDIUM') && levelOf(unread.high!) === level('HIGH') && levelOf(unread.xhigh!) === level('XHIGH') && levelOf(unread.max!) === level('XHIGH') && unread.none!.generationConfig === undefined && stampOf(unread.xhigh!).applied === 'xhigh', j([unread.low!.generationConfig, unread.xhigh!.generationConfig, unread.max!.generationConfig, stampOf(unread.xhigh!)]))
+    check(`the list ${how}: the dial of gemini-4-hydrogen offers its four words`, listWords('gemini-4-hydrogen') === 'efforts low · medium · high · xhigh', listWords('gemini-4-hydrogen'))
+    for (const three of ['gemini-4-carbon', 'gemini-4-argon']) {
+      const sent = await sweep(three)
+      check(`the list ${how}: ${three} sends LOW, MEDIUM and HIGH, the three levels its own page lists, and xhigh and max go out as HIGH`, levelOf(sent.low!) === level('LOW') && levelOf(sent.medium!) === level('MEDIUM') && levelOf(sent.high!) === level('HIGH') && levelOf(sent.xhigh!) === level('HIGH') && levelOf(sent.max!) === level('HIGH') && sent.none!.generationConfig === undefined && stampOf(sent.xhigh!).applied === 'high' && listWords(three) === 'efforts low · medium · high', j([sent.low!.generationConfig, sent.xhigh!.generationConfig, listWords(three)]))
+    }
+    for (const unnamed of ['gemini-3.8-flash', 'gemini-2.5-pro', 'gemini-4-neon']) {
+      const sent = await sweep(unnamed)
+      check(`the list ${how}: ${unnamed}, a model no row names, sends no level and no budget until its list is read, as before`, Object.values(sent).every(one => one.generationConfig === undefined) && vocabularyOf(unnamed).length === 0, j([sent.high!.generationConfig, vocabularyOf(unnamed)]))
+    }
+  }
+  listFails = false
+  liveList = [live('gemini-4-hydrogen', false), live('gemini-4-carbon')]
+  await useRoad('api-key')
+  check('once a list is read it governs: a Gemini 4 id it lists with no thinking has no effort words, one it does not name has none, and one it lists with thinking has its own', vocabularyOf('gemini-4-hydrogen').length === 0 && vocabularyOf('gemini-4-argon').length === 0 && vocabularyOf('gemini-4-carbon').join(' ') === 'low medium high', j([vocabularyOf('gemini-4-hydrogen'), vocabularyOf('gemini-4-argon'), vocabularyOf('gemini-4-carbon')]))
+  liveList = LIVE_LIST
+  delete process.env.GEMINI_API_KEY
+  writeFileSync(join(proofHome, '.gemini-auth.json'), JSON.stringify({ version: 1, preferredSource: 'plan', plan: { tokens: { accessToken: 'ya29.plan-fixture', refreshToken: '1//refresh-fixture', accessTokenExpiresAtMs: Date.now() + 3_600_000 }, projectId: 'project-fixture-123', tier: { paid: { id: 'g1-ultra-tier', name: 'Google AI Ultra' } }, tierReadAtMs: Date.now() } }))
+  catalogue.__resetGeminiCatalogueForTest()
+  __resetGeminiPlanWireForTest()
+  check('the Google sign-in is as it was: with no roster read yet a row has no effort words of its own (that road reads its roster again before a chat, a bounded wait)', vocabularyOf('gemini-4-hydrogen-high').length === 0 && vocabularyOf('gemini-4-hydrogen-xhigh').length === 0 && vocabularyOf('gemini-4-hydrogen').length === 0, j([vocabularyOf('gemini-4-hydrogen-high'), vocabularyOf('gemini-4-hydrogen')]))
+  await useRoad('plan')
 
   console.log('── what no request carried ──')
   const gemini4 = sentLog.filter(sent => /^gemini-4-/.test(sent.model))
