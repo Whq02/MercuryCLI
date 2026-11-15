@@ -1,8 +1,12 @@
+import { basename, dirname, extname, join } from 'node:path'
+
 import memoize from 'lodash-es/memoize.js'
 
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../debug.js'
 import { getPlatform } from '../platform.js'
+import { subprocessEnv } from '../subprocessEnv.js'
+import { resolveExecutable } from '../which.js'
 import { GIT_BASH_REMEDY, locateGitBash, type GitBashLocation } from '../windowsPaths.js'
 import type { ShellEngineResolution } from './engineSession.js'
 import { shellEngineArmWords, type ShellEngineArm } from './shellEngineArm.js'
@@ -40,6 +44,40 @@ const locatedWindowsBash = memoize((): GitBashLocation => (roadProbe() === 'no-b
 
 export function windowsBashAbsent(): boolean {
   return windowsShellRoadActive() && !('path' in locatedWindowsBash())
+}
+
+type ToolPrograms = { from: 'path' } | { from: 'git'; dir: string; key: string; path: string } | { from: 'nowhere' }
+
+type ProgramsWorld = { platform: string; gitBash: GitBashLocation }
+
+function gitProgramsDir(bashPath: string): string {
+  const holder = dirname(bashPath)
+  const parent = dirname(holder)
+  return basename(holder).toLowerCase() === 'bin' && basename(parent).toLowerCase() === 'usr' ? holder : join(parent, 'usr', 'bin')
+}
+
+function lsResolves(path: string, platform: string): boolean {
+  const found = resolveExecutable('ls', { platform, path })
+  return found !== null && (platform !== 'win32' || extname(found) !== '')
+}
+
+export function toolPrograms(
+  env: NodeJS.ProcessEnv,
+  world: ProgramsWorld | null = windowsShellRoadActive() ? { platform: process.platform, gitBash: locatedWindowsBash() } : null,
+): ToolPrograms {
+  if (world === null) return { from: 'path' }
+  const key = Object.keys(env).find(name => (world.platform === 'win32' ? name.toUpperCase() : name) === 'PATH') ?? 'PATH'
+  const rest = env[key] ?? ''
+  if (lsResolves(rest, world.platform)) return { from: 'path' }
+  if (!('path' in world.gitBash)) return { from: 'nowhere' }
+  const dir = gitProgramsDir(world.gitBash.path)
+  if (!lsResolves(dir, world.platform)) return { from: 'nowhere' }
+  return { from: 'git', dir, key, path: rest === '' ? dir : `${dir}${world.platform === 'win32' ? ';' : ':'}${rest}` }
+}
+
+export function withGitPrograms(env: NodeJS.ProcessEnv, world?: ProgramsWorld | null): NodeJS.ProcessEnv {
+  const programs = toolPrograms(env, world)
+  return programs.from === 'git' ? { ...env, [programs.key]: programs.path } : env
 }
 
 function resolvedShellEngine(): ShellEngineResolution {
@@ -84,13 +122,16 @@ export function describeWindowsShellRoad(): {
   const road = windowsBashRoad()
   if (road.kind === 'git-bash') return { road: 'git-bash', absent: false, line: `git-bash at ${road.path} — found on this machine; the Bash tool runs under it` }
   if (road.kind === 'engine') {
+    const programs = toolPrograms(subprocessEnv())
     return {
       road: 'engine',
       absent: false,
       line:
         road.arm === 'no-bash'
-          ? `the bundled shell engine at ${road.path} — no bash.exe was found on this machine, so the Bash tool runs under Mercury's own bash-compatible engine`
-          : `the shell engine at ${road.path} — the Bash tool runs under it (${shellEngineArmWords(road.arm)}), no Git dependency`,
+          ? `the bundled shell engine at ${road.path} — no bash.exe was found on this machine, so the Bash tool runs under Mercury's own bash-compatible engine${programs.from === 'nowhere' ? '; ls, cat, grep and the like are not on this machine: Git for Windows carries them' : ''}`
+          : programs.from === 'git'
+            ? `the shell engine at ${road.path} — the Bash tool runs under it (${shellEngineArmWords(road.arm)}); ls, cat, grep and the like come from Git for Windows (${programs.dir}, first on its path)`
+            : `the shell engine at ${road.path} — the Bash tool runs under it (${shellEngineArmWords(road.arm)}), no Git dependency`,
     }
   }
   const engine = resolvedShellEngine()
