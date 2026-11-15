@@ -231,7 +231,7 @@ console.log(brushVendored && brushMeta !== null ? 'GUARD VENDORED' : 'GUARD LEFT
       for (const bad of [undefined, '0'.repeat(64)]) {
         writeFileSync(file, JSON.stringify({ ...good, patchSha256: bad }))
         const refused = refuses(platform)
-        check(`the product build refuses a ${platform} pack built from another patch, or before the digest was kept (${String(bad)}), and names the remedy`, refused.ok, refused.text)
+        check(`the product build refuses a ${platform} pack built from another patch, or before the digest was kept (${String(bad)}), and names the remedy`, refused.ok, refused.ok ? '' : refused.text)
       }
       writeFileSync(file, JSON.stringify(good))
       const kept = vendors(platform)

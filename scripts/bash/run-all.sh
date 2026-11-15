@@ -31,6 +31,7 @@
 # gate-watch: src/utils/bash/specs/** src/utils/hooks/commandRunner.ts src/utils/hooks/fire.ts src/utils/permissions/**
 # gate-watch: src/utils/processUserInput/processBashCommand.tsx src/utils/settings/types.ts src/utils/settings/settings.ts src/utils/shell/*
 # gate-watch: src/utils/task/diskOutput.ts vendor/brush.lock.json scripts/vendor/build-brush.ts scripts/vendor/patches/brush-0.4.0-windows.patch src/services/privateChannel/releaseTarget.ts .gitattributes
+# gate-watch: build.ts
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/tools/BashTool/pathValidation.ts src/tools/BashTool/bashCommandHelpers.ts src/tools/BashTool/sedEditParser.ts src/utils/bash/commands.ts src/utils/bash/ParsedCommand.ts
 # gate-watch: src/utils/config/derived.ts src/utils/permissions/shellProtectedPaths.ts src/tools/GrepTool/GrepTool.ts src/utils/verification/scanCeiling.ts
