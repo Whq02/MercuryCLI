@@ -1474,7 +1474,7 @@ function takesHints(url: string): boolean {
     const parsed = new URL(url)
     if (parsed.protocol === 'https:') return true
     if (parsed.protocol !== 'http:') return false
-    host = parsed.hostname
+    host = parsed.hostname.replace(/\.$/, '')
   } catch {
     return false
   }

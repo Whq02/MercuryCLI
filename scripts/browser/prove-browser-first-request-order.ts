@@ -6,7 +6,7 @@ import https from 'node:https'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
-import { ROOT, check, finish, lead, ownerOf, requireBrowser, run, section, sessions } from './harness.ts'
+import { ROOT, check, finish, lead, ownerOf, requireBrowser, run, section, serve, sessions } from './harness.ts'
 
 await requireBrowser()
 
@@ -32,6 +32,13 @@ interface Hit {
 }
 const hits: Hit[] = []
 let tag = 'setup'
+const dotted = await serve(0, (req: http.IncomingMessage, res: http.ServerResponse) => {
+  const path = new URL(req.url ?? '/', 'http://fixture').pathname
+  if (path !== '/favicon.ico') hits.push({ tag, method: req.method ?? '', path, raw: [...req.rawHeaders] })
+  res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
+  res.end(`<!doctype html><title>${path.slice(1) || 'root'}</title>`)
+})
+const dot = `http://localhost.:${dotted.port}`
 const server = https.createServer({ key: readFileSync(join(tlsDir, 'key.pem')), cert: readFileSync(join(tlsDir, 'cert.pem')) }, (req: http.IncomingMessage, res: http.ServerResponse) => {
   const url = new URL(req.url ?? '/', 'https://fixture')
   const path = url.pathname
@@ -63,7 +70,10 @@ const server = https.createServer({ key: readFileSync(join(tlsDir, 'key.pem')), 
 <button id="winopen" onclick="window.open('/winopen', '_blank')">winopen</button>
 <form target="_blank" method="post" action="/posted"><input name="alpha" value="1"><button id="post">post</button></form>
 <a id="hop" target="_blank" href="/hop">hop</a>
-<button id="stray" onclick="const w = window.open('/first', '_blank'); w.location.href = 'http://untrusted.invalid/elsewhere'">stray</button>`)
+<button id="stray" onclick="const w = window.open('/first', '_blank'); w.location.href = 'http://untrusted.invalid/elsewhere'">stray</button>
+<a id="dotplain" href="${dot}/dot-plain">dotplain</a>
+<a id="dotpop" target="_blank" href="${dot}/dot-pop">dotpop</a>
+<button id="straydot" onclick="const w = window.open('/first', '_blank'); w.location.href = '${dot}/stray-dot'">straydot</button>`)
   })
 })
 await new Promise<void>(done => server.listen(0, '127.0.0.1', () => done()))
@@ -232,6 +242,38 @@ section('S5 a window its opener sends elsewhere at once, to an address the brows
     asked.length >= 1 && asked.every(entry => !hinted(entry.headers) || continued.some(reply => reply.id === entry.id && reply.headers !== null && !hinted(reply.headers))),
     JSON.stringify({ asked, continued }),
   )
+}
+
+section('S6 a loopback name written with its root dot, which the browser sends its client hints as it does localhost')
+{
+  const sentTo = async (label: string, selector: string, path: string): Promise<Hit[]> => {
+    tag = label
+    const before = tabs()
+    await run({ op: 'click', selector })
+    for (let waited = 0; waited < 50 && of(label, path).length === 0; waited++) await nap(100)
+    await nap(200)
+    tag = 'between'
+    const made = tabs().find(name => !before.includes(name))
+    if (made !== undefined) await run({ op: 'close', tab: made })
+    return of(label, path)
+  }
+  const lists = (label: string): Sent[] => sent.filter(entry => entry.tag === label && entry.method === 'Fetch.continueRequest' && entry.headers !== null)
+  tag = 'dot:plain'
+  const went = await run({ op: 'click', selector: '#dotplain' })
+  tag = 'between'
+  await run({ op: 'back' })
+  const there = of('dot:plain', '/dot-plain')[0]
+  if (there === undefined) {
+    console.log(`  [SKIP] a tab opened to ${dot} and a window sent there at once (five checks) — this machine did not reach the fixture under that name (${went.result.split('\n')[0]!.slice(0, 160)}), so the rows have nothing to read`)
+  } else {
+    check('a plain navigation there carries the three client hints, with the presented identity’s values (holds on the parent too)', hints(there) === hints(plain), `${hints(there)} || ${hints(plain)}`)
+    const straight = await sentTo('dot:/dot-pop', '#dotpop', '/dot-pop')
+    check('a tab opened straight to it: the server is asked once, with those hints (holds on the parent too)', straight.length === 1 && hints(straight[0]) === hints(plain), `${straight.length} ${hints(straight[0])} || ${hints(plain)}`)
+    check('and the browser wrote that request itself, no header list was sent for it', lists('dot:/dot-pop').length === 0, JSON.stringify(sent.filter(entry => entry.tag === 'dot:/dot-pop')))
+    const sentOn = await sentTo('dot:/stray-dot', '#straydot', '/stray-dot')
+    check('a window its opener sends there at once keeps the three hints, with those values', sentOn.length === 1 && hints(sentOn[0]) === hints(plain), `${sentOn.length} ${hints(sentOn[0])} || ${hints(plain)}`)
+    check('and no header list was sent for it either', lists('dot:/stray-dot').length === 0, JSON.stringify(sent.filter(entry => entry.tag === 'dot:/stray-dot')))
+  }
 }
 
 Connection.prototype._rawSend = send
