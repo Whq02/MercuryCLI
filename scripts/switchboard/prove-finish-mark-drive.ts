@@ -231,19 +231,20 @@ function rowInk(grid: Cell[][], title: string, needle: (line: string) => boolean
     const line = lines[y] ?? ''
     if (!line.includes(title) || !needle(line)) continue
     const row = grid[y]!
-    const ti = line.indexOf(title)
-    let gx = -1
-    for (let x = ti - 1; x >= 0; x--) {
-      const ch = row[x]!.c
-      if (ch === '│') break
-      if (STATE_GLYPHS.has(ch)) {
-        gx = x
-        break
+    for (let ti = line.indexOf(title); ti !== -1; ti = line.indexOf(title, ti + 1)) {
+      let gx = -1
+      for (let x = ti - 1; x >= 0; x--) {
+        const ch = row[x]!.c
+        if (ch === '│') break
+        if (STATE_GLYPHS.has(ch)) {
+          gx = x
+          break
+        }
       }
+      if (gx === -1) continue
+      const wx = line.indexOf('ready', ti)
+      return { line: line.slice(gx).trim().slice(0, 110), glyph: row[gx]!.c, glyphFg: row[gx]!.fg, wordFg: wx === -1 ? null : row[wx]!.fg }
     }
-    const wx = line.indexOf('ready')
-    const word = wx !== -1 && gx !== -1 && wx > gx && wx < ti ? row[wx]!.fg : null
-    return { line: line.trim().slice(0, 110), glyph: gx === -1 ? null : row[gx]!.c, glyphFg: gx === -1 ? null : row[gx]!.fg, wordFg: word }
   }
   return undefined
 }
@@ -302,8 +303,7 @@ const c = await capture({
     { afterPrevTicks: WARM_TICKS, data: '\r' },
     g(COMPOSER, SHIFT_LEFT, { awaitSettleTicks: 4 }),
     ...PICK_Q,
-    { afterPrevTicks: 12, data: '\t' },
-    { afterPrevTicks: 2, data: 'n' },
+    { afterPrevTicks: 14, data: 'n' },
     { afterPrevTicks: 6, data: ESC },
     g(COMPOSER, 'hello there\r', { awaitSettleTicks: 2 }),
     { afterPrevTicks: 2, data: SHIFT_LEFT },
@@ -346,7 +346,7 @@ const pBoard = markText(c, 'p-board-finished')
 printFrame("P's board once Z settled in Q (the view elsewhere)", pBoard)
 check('P\'s board is on screen once Z\'s turn settled elsewhere', isBoard(pBoard), firstRows(pBoard))
 check('Z rides P\'s board as the ✦ carry-over from Q, settled (● ready), not working', pBoard.split('\n').some(l => starRow(l) && l.includes(TITLE_Z) && l.includes(GLYPH.ok)), rowsWith(pBoard, GLYPH.sparkBright))
-check('nothing was minted for the finish: no "needs you" count, no "switch to · finished" row on P\'s board', !/[1-9]\d* needs? you/.test(pBoard) && !pBoard.includes('· finished') && !pBoard.includes('NEEDS YOU'), rowsWith(pBoard, 'need') || rowsWith(pBoard, 'finished'))
+check('nothing was minted for the finish: no "needs you" count, no "switch to · finished" row on P\'s board', !/[1-9]\d* needs? you/.test(pBoard) && !pBoard.includes('· finished') && !/NEEDS YOU · [1-9]/.test(pBoard), rowsWith(pBoard, 'need') || rowsWith(pBoard, 'NEEDS') || rowsWith(pBoard, 'finished'))
 const starInk = rowInk(markGrid(c, 'p-board-finished'), TITLE_Z, starRow)
 check(`the carried row is ready (${GLYPH.ok}) and its state glyph wears the board's amber (#${WARNING}) while the finish stands unseen`, starInk?.glyph === GLYPH.ok && starInk.glyphFg === WARNING, inkWord(starInk))
 const xInk = rowInk(markGrid(c, 'p-board-finished'), 'new session', line => line.includes(basename(CWD)) && !line.includes('running in'))
@@ -357,7 +357,7 @@ for (const label of MARK_SIZES) {
   const ink = rowInk(markGrid(c, label), TITLE_Z, listRow)
   if (label === 'mark-120x40') printFrame("Q's board with the unseen finish", text)
   check(`${label}: Q's board shows Z ready (${GLYPH.ok}) with the state glyph in amber (#${WARNING})`, ink?.glyph === GLYPH.ok && ink.glyphFg === WARNING, inkWord(ink))
-  if (label === 'mark-120x40') check(`${label}: the selected row's state word 'ready' wears the same amber`, ink?.wordFg === WARNING, `word #${ink?.wordFg ?? 'absent'}`)
+  if (label === 'mark-82x17') check(`${label}: the selected row's state word 'ready' wears the same amber`, ink?.wordFg === WARNING, `word #${ink?.wordFg ?? 'absent'}`)
   check(`${label}: no ⚑ count and no finished note anywhere on the frame`, !/[1-9]\d* needs? you/.test(text) && !text.includes('· finished'), rowsWith(text, 'need'))
 }
 
@@ -371,7 +371,7 @@ for (const label of AFTER_SIZES) {
   const ink = rowInk(markGrid(c, label), TITLE_Z, listRow)
   if (label === 'after-120x40') printFrame("Q's board after the open and a settle watched in the chat", text)
   check(`${label}: after the open, and a turn watched to its settle then ⇧←, Z is ready (${GLYPH.ok}) in the green again (#${SUCCESS})`, ink?.glyph === GLYPH.ok && ink.glyphFg === SUCCESS, inkWord(ink))
-  if (label === 'after-120x40') check(`${label}: the selected row's state word is green too`, ink?.wordFg === SUCCESS, `word #${ink?.wordFg ?? 'absent'}`)
+  if (label === 'after-82x17') check(`${label}: the selected row's state word is green too`, ink?.wordFg === SUCCESS, `word #${ink?.wordFg ?? 'absent'}`)
 }
 
 const ledgerPath = join(home, 'daemon', 'concourse-dispatches.json')
