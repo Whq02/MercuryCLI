@@ -345,7 +345,7 @@ const reference: Ctx = { agentId: 'frame-identity-reference' }
   const plainMark = sent.length
   const bare = (await sessions.ensureBrowserSession(ownerOf(reference), { origin: A.origin, headless: true })) as { page: Page }
   const referenceMark = asked.length
-  await bare.page.goto(`${A.origin}/framed`, { waitUntil: 'load' })
+  await sessions.firstNavigation(bare, `${A.origin}/framed`, () => bare.page.goto(`${A.origin}/framed`, { waitUntil: 'load' }))
   const request = frameRequest(referenceMark)
   check('a launch that does not ask for it sends nothing for frames (the document printer’s road)', frameWatches(plainMark).length === 0, String(frameWatches(plainMark).length))
   check('the frame’s own request is header for header what that launch sends', mainFrameRequest.length > 0 && JSON.stringify(mainFrameRequest) === JSON.stringify(request), `${mainFrameRequest.join(' | ')} || ${request.join(' | ')}`)
