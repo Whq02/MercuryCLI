@@ -28,6 +28,14 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
 }
+async function sealed(p: PanelCard): Promise<void> {
+  check('before any key: the card offers no install and no download (the stand-in engine counts as installed, its model as on disk; a proof fetches nothing)', p.offer === undefined, p.offer ?? '')
+  if (p.offer === undefined) return
+  await p.close()
+  await releaseScratchHome(home)
+  console.log(`\nprove-tensorfold-refusal-window: ${failures} FAILED`)
+  process.exit(1)
+}
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title)
 }
@@ -42,6 +50,7 @@ section('1 · the card the Windows machine showed (Mercury\'s engine, 16 GB, the
   const free = 7.4 * GIB
   const REFUSAL = 'refused 9.6 GiB needed · 7.4 GiB free on this machine'
   const p = await openPanelCard({ road: 'adapter', label: 'Qwen3.5 4B', prefix: 'tf-refusal-adapter', free: () => free })
+  await sealed(p)
   const before = p.card()
   check('the 4B stands on disk at 128k, the largest window that fits 16 GB', before.row === 'Qwen3.5 4B local/qwen3.5-4b on disk 128k ctx 9.6 GiB' && before.strip.includes('[128k]') && before.legend.includes('↵ serve and switch'), before.all)
   await p.press(KEY.enter)
@@ -74,6 +83,7 @@ section('2 · the same on TensorFold\'s own engine (a Mac, the 2B): refused at 2
   const free = need(262_144) - 2.2 * GIB
   const REFUSAL = `refused ${gib(need(262_144))} needed · ${gib(free)} free on this Mac`
   const p = await openPanelCard({ road: 'tensorfold', label: 'Qwen3.5 2B', prefix: 'tf-refusal-window', free: () => free })
+  await sealed(p)
   const before = p.card()
   check('the 2B stands on disk at its largest window, 256k', before.row === 'Qwen3.5 2B local/qwen3.5-2b on disk 256k ctx 7.6 GiB' && before.strip.includes('[256k]') && before.legend.includes('↵ serve and switch'), before.all)
   await p.press(KEY.enter)
@@ -101,6 +111,7 @@ section('3 · a refusal at a window the person chose, the panel closed and opene
   const free = need(131_072) - 2.2 * GIB
   const REFUSAL = `refused ${gib(need(131_072))} needed · ${gib(free)} free on this Mac`
   const p = await openPanelCard({ road: 'tensorfold', label: 'Qwen3.5 2B', prefix: 'tf-refusal-reopen', free: () => free })
+  await sealed(p)
   await p.press(KEY.left)
   await p.press(KEY.enter)
   await p.until(card => card.refused !== undefined, 10_000)
@@ -116,6 +127,7 @@ section('3 · a refusal at a window the person chose, the panel closed and opene
 section('4 · a refusal of the engine\'s own: it stands where the card landed and at the window it refused, and goes at any other')
 {
   const p = await openPanelCard({ road: 'tensorfold', label: 'Qwen3.5 2B', prefix: 'tf-refusal-engine', free: () => 40 * GIB, serviceEnv: { FAKE_TENSORFOLD_SERVE: 'refuse-memory' } })
+  await sealed(p)
   await p.press(KEY.enter)
   await p.until(card => card.refused !== undefined, 20_000)
   const landed = p.card()
@@ -142,6 +154,7 @@ section('4 · a refusal of the engine\'s own: it stands where the card landed an
 section('5 · the same when the person stepped ←→ onto 256k before pressing ↵: the refusal still lands on the window that fits')
 {
   const p = await openPanelCard({ road: 'tensorfold', label: 'Qwen3.5 2B', prefix: 'tf-refusal-stepped', free: () => 40 * GIB, serviceEnv: { FAKE_TENSORFOLD_SERVE: 'refuse-memory' } })
+  await sealed(p)
   await p.press(KEY.left)
   await p.press(KEY.right)
   await p.press(KEY.enter)

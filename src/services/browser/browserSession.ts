@@ -97,6 +97,7 @@ interface Hold {
   downloads: DownloadHome | null
   arriving: Map<string, { notice: DownloadNotice & { finish: () => void }; wiring: Wiring }>
   unwanted: Set<string>
+  launchArrivals: { origins: Set<string> | null } | null
 }
 
 interface Birth {
@@ -1040,6 +1041,8 @@ export interface PagePresented {
   languages: string[]
   timeZone: string
   locale: string | null
+  headers: Record<string, string> | null
+  touch: boolean
 }
 
 export interface PageKit {
@@ -1051,6 +1054,8 @@ export interface PageKit {
   born: PagePresented | null
   fetchHeld: boolean
   firstRequestUnarmed?: boolean
+  late?: CDPSession | null
+  frames?: Map<string, { session: CDPSession; parent: string; target: string }>
 }
 
 const pageKits = new WeakMap<Page, PageKit>()
@@ -1516,12 +1521,82 @@ function observeBirthNavigation(hold: Hold, wiring: Wiring, cdp: CDPSession, tar
   }
 }
 
+function presentedOf(kit: PageKit): PagePresented {
+  return kit.presented ?? kit.born ?? { identity: kit.identity, languages: kit.languages, timeZone: kit.timeZone, locale: null, headers: null, touch: false }
+}
+
+function presentToFrame(frame: CDPSession, kit: PageKit, born: boolean): void {
+  const { identity, touch } = presentedOf(kit)
+  const quiet = (): undefined => undefined
+  if (identity !== null) void frame.send('Emulation.setUserAgentOverride', identity).catch(quiet)
+  if (touch || !born) void frame.send('Emulation.setTouchEmulationEnabled', { enabled: touch }).catch(quiet)
+}
+
+export function presentToFrames(kit: PageKit): void {
+  for (const frame of kit.frames?.values() ?? []) presentToFrame(frame.session, kit, false)
+}
+
+export function sessionOfFrame(page: Page, frame: Frame): CDPSession | null {
+  const kit = pageKits.get(page)
+  if (kit === undefined) return null
+  for (let at: Frame | null = frame; at !== null; at = at.parentFrame()) {
+    const id = (at as { _id?: string })._id
+    for (const held of kit.frames?.values() ?? []) if (held.target === id) return held.session
+  }
+  return kit.cdp
+}
+
+function watchFrames(kit: PageKit, parent: CDPSession): Promise<void> {
+  const frames = (kit.frames ??= new Map<string, { session: CDPSession; parent: string; target: string }>())
+  const quiet = (): undefined => undefined
+  parent.on('Target.attachedToTarget', event => {
+    const frame = parent.connection()?.session(event.sessionId) ?? null
+    if (frame === null) {
+      void parent.send('Target.detachFromTarget', { sessionId: event.sessionId }).catch(quiet)
+      return
+    }
+    const letGo = (): void => {
+      void parent.send('Target.detachFromTarget', { sessionId: event.sessionId }).catch(quiet)
+    }
+    try {
+      if (event.targetInfo.type !== 'iframe') {
+        letGo()
+        return
+      }
+      frames.set(event.sessionId, { session: frame, parent: parent.id(), target: event.targetInfo.targetId })
+      presentToFrame(frame, kit, true)
+      if (kit.late !== undefined) {
+        void frame.send('Page.enable').catch(quiet)
+        void frame.send('Page.addScriptToEvaluateOnNewDocument', { source: stealthSource(presentedOf(kit).languages) }).catch(quiet)
+      }
+      void watchFrames(kit, frame)
+    } catch {
+    } finally {
+      try {
+        void frame.send('Runtime.runIfWaitingForDebugger').catch(letGo)
+      } catch {
+        letGo()
+      }
+    }
+  })
+  parent.on('Target.detachedFromTarget', event => {
+    const gone = [event.sessionId]
+    for (let id = gone.pop(); id !== undefined; id = gone.pop()) {
+      frames.delete(id)
+      for (const [inner, held] of frames) if (held.parent === id) gone.push(inner)
+    }
+  })
+  return parent
+    .send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true, filter: [{ type: 'iframe', exclude: false }] })
+    .catch(quiet)
+}
+
 function bornPage(hold: Hold, cdp: CDPSession, info: Protocol.Target.TargetInfo): void {
   const opener = info.openerId === undefined ? null : (hold.owned.get(info.openerId) ?? null)
   const inherited = opener === null ? null : (pageKits.get(opener.page)?.presented ?? null)
   const presented = inherited ?? hold.baseline
   const quiet = (): undefined => undefined
-  const kit: PageKit = { cdp, identity: hold.baseline.identity, languages: hold.baseline.languages, timeZone: hold.baseline.timeZone, presented: null, born: inherited, fetchHeld: false }
+  const kit: PageKit = { cdp, identity: hold.baseline.identity, languages: hold.baseline.languages, timeZone: hold.baseline.timeZone, presented: null, born: inherited, fetchHeld: false, late: null }
   let settle = (): void => {}
   const settled = new Promise<void>(resolve => {
     settle = resolve
@@ -1536,6 +1611,7 @@ function bornPage(hold: Hold, cdp: CDPSession, info: Protocol.Target.TargetInfo)
   void cdp.send('Page.enable').catch(quiet)
   void cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: stealthSource(presented.languages) }).catch(quiet)
   void cdp.send('Network.enable').catch(quiet)
+  if (presented.headers !== null) void cdp.send('Network.setExtraHTTPHeaders', { headers: presented.headers }).catch(quiet)
   if (hold.downloads === null) {
     void cdp.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(quiet)
     listenDownloads(birth.wiring, cdp)
@@ -1543,6 +1619,7 @@ function bornPage(hold: Hold, cdp: CDPSession, info: Protocol.Target.TargetInfo)
   listenProtocol(birth.wiring, cdp)
   observeFirstRequest(kit, presented, info.targetId)
   if (info.openerId !== undefined && presented.identity !== null) mendFirstRequest(birth, presented.identity)
+  void watchFrames(kit, cdp)
   void cdp.send('Runtime.runIfWaitingForDebugger').catch(quiet)
   if (info.openerId !== undefined && opener === null) {
     handover()
@@ -1604,6 +1681,21 @@ async function watchBirths(state: OwnerBrowserState, hold: Hold, downloads: Down
     .send('Browser.setDownloadBehavior', { behavior: 'allowAndName', downloadPath: path.join(downloads.home, 'incoming'), eventsEnabled: true })
     .then(() => true, () => false)
   if (followed) hold.downloads = downloads
+}
+
+export async function firstNavigation<T>(session: Session, url: string, go: () => Promise<T>): Promise<T> {
+  const hold = holdOf(session)
+  const arrivals = hold.launchArrivals
+  hold.launchArrivals = null
+  if (arrivals === null || arrivals.origins === null) return go()
+  try {
+    return await go()
+  } catch (err) {
+    if (!/net::ERR_ABORTED/.test((err as Error | undefined)?.message ?? '') || arrivals.origins.has(originOf(url))) throw err
+    return await go()
+  } finally {
+    arrivals.origins = null
+  }
 }
 
 export function popupInFlight(session: Session): boolean {
@@ -1806,12 +1898,14 @@ async function placeTab(
         if (hit === undefined || Date.now() - hit.at > 15_000) return null
         return hit
       }
+      const launchArrivals: NonNullable<Hold['launchArrivals']> = { origins: new Set() }
       const proxy = await startMetadataProxy(
         reason => { networkRefusal.last = reason; networkRefusal.count++ },
         (target, code) => {
           relayFailures.set(target, { code, at: Date.now() })
           if (relayFailures.size > 32) relayFailures.delete(relayFailures.keys().next().value!)
         },
+        origin => { launchArrivals.origins?.add(origin) },
       )
       proxyClose = proxy.close
       const launch: LaunchDriver =
@@ -1958,7 +2052,7 @@ async function placeTab(
         closeNetwork: proxy.close,
         networkRefusal,
         relayFailureFor,
-        baseline: { identity: kit.identity, languages: hostLang.languages, timeZone: hostTimeZone, locale: null },
+        baseline: { identity: kit.identity, languages: hostLang.languages, timeZone: hostTimeZone, locale: null, headers: null, touch: false },
         tabs: new Set(),
         owned: new Map(),
         births: new Map(),
@@ -1969,6 +2063,7 @@ async function placeTab(
         downloads: null,
         arriving: new Map(),
         unwanted: new Set(),
+        launchArrivals,
       }
     }
     const session = tabSession(state, hold, tab, page, wiring)
@@ -1977,6 +2072,7 @@ async function placeTab(
       if (typeof page.bringToFront === 'function') await page.bringToFront()
       if (opts.births === true) await watchBirths(state, hold, opts.downloads)
       const own = pageKits.get(page)?.cdp ?? null
+      if (opts.births === true && own !== null) await watchFrames(pageKits.get(page)!, own)
       if (hold.downloads === null && own !== null) {
         if (opts.downloads !== undefined && opts.births === true) await own.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(() => undefined)
         listenDownloads(wiring, own)

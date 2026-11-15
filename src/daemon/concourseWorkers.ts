@@ -18,7 +18,7 @@ import { observeSessionStates } from './sessionStateHooks.js'
 import { daemonDir } from './controlSocket.js'
 import { decideTransition, type ConcourseSessionState } from './concourseLifecycle.js'
 import { ensureWorkerWorktree, reapWorkerWorktree, workspaceKindOf } from './concourseWorktrees.js'
-import { foldLegacyWorkerModelKey, validateWorkerModelChoice } from '../services/concourse/workerModels.js'
+import { canonicalWorkerModelId, foldLegacyWorkerModelKey, validateWorkerModelChoice } from '../services/concourse/workerModels.js'
 import { describeSignInRead, refreshSignInReads } from './signInView.js'
 import { describeSeatReading, resolveSeatCeiling } from '../services/switchboard/capacityCheck.js'
 import { retireSeatProjections } from '../services/engine-connector/seatProjections.js'
@@ -52,6 +52,9 @@ import { RetirementFence } from './runnerQuiescence.js'
 import type { RunnerDoor } from './runnerConnection.js'
 import { deriveSessionKitForPreset, deriveSessionKitForWorkspace, kitStampOf, noteRecordlessResumeKit, restampSessionKit, type KitStampSource, type SessionKitV1 } from './sessionKit.js'
 import { parseSessionKind, SESSION_KIND_ENV, sessionKindOfAsker, type SessionKind } from '../utils/sessionKind.js'
+import { isLocalModelId, localWireId } from '../services/providers/local/localCatalogue.js'
+import { rememberedTensorFoldRepos } from '../services/providers/local/tensorfoldHosts.js'
+import { tensorFoldShortName } from '../services/tensorfold/starting.js'
 import type { ConcourseRowV1 } from '../components/concourse/contracts.js'
 import { runningBuildTree } from '../utils/artifactIdentity.js'
 import { resolveDirectoryIdentity } from '../utils/projectStoreIdentity.js'
@@ -1019,6 +1022,12 @@ export function resumeModelKeyOf(sessionId: string, workspaceDir: string, dir?: 
   return retained
 }
 
+export function localModelNotServedNote(id: string): string {
+  const wire = localWireId(id).toLowerCase()
+  const servedHere = rememberedTensorFoldRepos().some(repo => tensorFoldShortName(repo).toLowerCase() === wire)
+  return `${id} is not being served — ${servedHere ? '/tensorfold serves it again' : 'start a local server, or set MERCURY_LOCAL_BASE_URL'} · /model chooses another`
+}
+
 export function makeConcourseAdmitHandler(
   deps: ConcourseAdmitDeps,
 ): (req: ConcourseAdmitRequest) => Promise<ConcourseAdmitResult> {
@@ -1054,6 +1063,13 @@ export function makeConcourseAdmitHandler(
             ? `the session's model ${retainedModelKey} has no credential here — the first model send picks the neutral default; /model chooses`
             : `the session's model ${retainedModelKey} has no credential here — it continues on ${unnamed.entry.displayName} (the neutral default); /model chooses`
       }
+    }
+    const named = req.modelKey ?? retainedModelKey
+    if (!admission.ok && admission.reason === 'unreachable:local' && named !== undefined && isLocalModelId(named) && sessionKindOfAsker(req.by) === 'oculus') {
+      const id = await canonicalWorkerModelId(named)
+      const arm = { availability: 'refused' as const, refusal: 'unreachable:local' as const, ...(admission.detail !== undefined ? { detail: admission.detail } : {}), ...(admission.action !== undefined ? { action: admission.action } : {}) }
+      admission = { ok: true, entry: { modelId: id, displayName: id, session: arm, crew: arm } }
+      retainedNote = localModelNotServedNote(id)
     }
     if (!admission.ok) {
       const read = admission.reason.startsWith('no-credential:') ? ` — ${describeSignInRead(admission.reason.slice('no-credential:'.length))}` : ''

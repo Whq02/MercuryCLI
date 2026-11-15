@@ -270,7 +270,7 @@ section(`${launchWorld.tag} — leg A: mercury /tensorfold at launch opens the p
 const launch = await capture(launchWorld, [COMMAND], [
   { requireAwait: true, awaitText: 'TENSORFOLD', minTick: 3, awaitStableTicks: 3, mark: 'launch-panel', data: DOWN },
   { requireAwait: true, awaitText: 'Qwen3.5 2B', awaitSettleTicks: 2, data: DOWN },
-  { requireAwait: true, awaitText: 'Qwen3.5 2B', awaitSettleTicks: 2, awaitStableTicks: 2, mark: 'launch-framed-2b', data: '\r' },
+  { requireAwait: true, awaitText: '↵ serve and switch', awaitSettleTicks: 2, awaitStableTicks: 2, mark: 'launch-framed-2b', data: '\r' },
   { requireAwait: true, awaitText: `serving ${NAME_2B} on 127.0.0.1:${launchWorld.port}`, awaitStableTicks: 3, mark: 'launch-served', data: ESC },
   { requireAwait: true, awaitText: '↑↓ choose', awaitSettleTicks: 2, awaitStableTicks: 2, mark: 'launch-boot-face', data: '\r' },
   { requireAwait: true, awaitText: 'Type a prompt', awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'launch-session', data: '/exit\r' },
@@ -306,7 +306,7 @@ const sends: Send[] = [
   { requireAwait: true, awaitText: `❯ ${COMMAND}`, awaitStableTicks: 2, data: '\r' },
   { requireAwait: true, awaitText: 'TENSORFOLD', awaitStableTicks: 3, mark: 'panel', data: DOWN },
   { requireAwait: true, awaitText: 'Qwen3.5 2B', awaitSettleTicks: 2, data: DOWN },
-  { requireAwait: true, awaitText: 'Qwen3.5 2B', awaitSettleTicks: 2, awaitStableTicks: 2, mark: 'framed-2b', data: '\r' },
+  { requireAwait: true, awaitText: '↵ serve and switch', awaitSettleTicks: 2, awaitStableTicks: 2, mark: 'framed-2b', data: '\r' },
   { requireAwait: true, awaitText: `serving ${NAME_2B} on 127.0.0.1:${world.port}`, awaitStableTicks: 3, mark: 'served', data: ESC },
   { requireAwait: true, awaitText: 'Type a prompt', awaitSettleTicks: 2, awaitStableTicks: 2, mark: 'after-esc', data: PROMPT },
   { requireAwait: true, awaitText: 'capital of France', awaitSettleTicks: 1, data: '\r' },

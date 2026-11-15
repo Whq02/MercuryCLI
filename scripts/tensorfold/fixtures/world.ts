@@ -1,5 +1,7 @@
-import { existsSync, linkSync, mkdirSync, mkdtempSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { spawnSync } from 'node:child_process'
+import { copyFileSync, existsSync, linkSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, truncateSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { delimiter, join } from 'node:path'
 import type { GgufSource } from '../../../src/services/tensorfold/hfCache.ts'
 import type { TensorFoldMachineTruth } from '../../../src/services/tensorfold/fit.ts'
 
@@ -8,6 +10,54 @@ export const FIXTURES = import.meta.dir
 export const FAKE_SCRIPT = join(FIXTURES, 'fake-tensorfold.ts')
 export const FAKE_BIN = join(FIXTURES, 'bin')
 export const fakeExists = (path: string): boolean => path.startsWith(FAKE_BIN) && existsSync(path)
+export const CLOSED_ADDRESS = 'http://127.0.0.1:1'
+export const SEALED_ENV: Readonly<Record<string, string>> = { HF_ENDPOINT: CLOSED_ADDRESS, HTTP_PROXY: CLOSED_ADDRESS, HTTPS_PROXY: CLOSED_ADDRESS, ALL_PROXY: CLOSED_ADDRESS, http_proxy: CLOSED_ADDRESS, https_proxy: CLOSED_ADDRESS, all_proxy: CLOSED_ADDRESS, NO_PROXY: '127.0.0.1,::1', no_proxy: '127.0.0.1,::1' }
+
+export type StandIn = 'script' | 'program'
+type StandInName = 'tensorfold' | 'llama-server'
+const hostStandIn = (platform: NodeJS.Platform = process.platform): StandIn => (platform === 'win32' ? 'program' : 'script')
+
+let programs: string | undefined
+
+function builtStandIn(name: StandInName): string {
+  if (programs === undefined) {
+    const made = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), 'tf-stand-ins-'))
+    process.on('exit', () => {
+      try {
+        rmSync(made, { recursive: true, force: true })
+      } catch {
+        return
+      }
+    })
+    programs = made
+  }
+  const program = join(programs, `${name}.exe`)
+  if (existsSync(program)) return program
+  const built = spawnSync(process.execPath, ['build', '--compile', join(FIXTURES, `fake-${name}.ts`), '--outfile', program], { cwd: programs, encoding: 'utf8', env: { ...process.env, ...SEALED_ENV } })
+  if (built.status !== 0 || !existsSync(program)) throw new Error(`the stand-in ${name}.exe was not built (exit ${built.status}): ${`${built.stderr ?? ''}${built.stdout ?? ''}${built.error?.message ?? ''}`.trim().slice(-600)}`)
+  return program
+}
+
+function twin(from: string, to: string): void {
+  try {
+    linkSync(from, to)
+  } catch {
+    copyFileSync(from, to)
+  }
+}
+
+export function placeStandIn(name: StandInName, dir: string, kind: StandIn = hostStandIn()): string {
+  mkdirSync(dir, { recursive: true })
+  const plain = join(dir, name)
+  if (kind === 'script') {
+    copyFileSync(join(FAKE_BIN, name), plain)
+    return plain
+  }
+  const program = `${plain}.exe`
+  twin(builtStandIn(name), program)
+  twin(program, plain)
+  return program
+}
 
 export const MAC_48: TensorFoldMachineTruth = { platform: 'darwin', ramBytes: 48 * GIB, usableBytes: 36 * GIB, usableSource: 'metal', chip: 'Apple M5 Pro', wiredLimitMib: 0, osVersion: '27.0' }
 export const MAC_32: TensorFoldMachineTruth = { platform: 'darwin', ramBytes: 32 * GIB, usableBytes: 24 * GIB, usableSource: 'metal', chip: 'Apple M4 Pro', wiredLimitMib: 0, osVersion: '26.3' }
@@ -34,6 +84,27 @@ export const QWEN_2B_CONFIG = {
 }
 
 export type CacheSeed = { repo: string; config: Record<string, unknown>; weightsBytes: number; sha?: string; refs?: boolean; incompleteBytes?: number }
+export type LinkIo = { symlink?: (target: string, path: string) => void; link?: (existing: string, path: string) => void }
+type WeightsPlaced = 'symlink' | 'hard link' | 'copy'
+
+export function placeWeights(blob: string, snapshotFile: string, io: LinkIo = {}): WeightsPlaced {
+  const symlink = io.symlink ?? symlinkSync
+  const link = io.link ?? linkSync
+  try {
+    symlink(join('..', '..', 'blobs', 'weightsblob'), snapshotFile)
+    return 'symlink'
+  } catch (refused) {
+    if ((refused as NodeJS.ErrnoException).code === 'EEXIST') throw refused
+  }
+  try {
+    link(blob, snapshotFile)
+    return 'hard link'
+  } catch (refused) {
+    if ((refused as NodeJS.ErrnoException).code === 'EEXIST') throw refused
+  }
+  copyFileSync(blob, snapshotFile)
+  return 'copy'
+}
 
 export function seedGgufCache(root: string, seeds: readonly (GgufSource & { partialBytes?: number })[]): void {
   for (const seed of seeds) {
@@ -51,7 +122,7 @@ export function seedGgufCache(root: string, seeds: readonly (GgufSource & { part
   }
 }
 
-export function seedHfCache(root: string, seeds: readonly CacheSeed[]): void {
+export function seedHfCache(root: string, seeds: readonly CacheSeed[], io: LinkIo = {}): void {
   for (const seed of seeds) {
     const base = join(root, `models--${seed.repo.replace('/', '--')}`)
     const sha = seed.sha ?? 'f'.repeat(40)
@@ -65,7 +136,7 @@ export function seedHfCache(root: string, seeds: readonly CacheSeed[]): void {
     if (seed.weightsBytes > 0) {
       writeFileSync(join(base, 'blobs', 'weightsblob'), '')
       truncateSync(join(base, 'blobs', 'weightsblob'), seed.weightsBytes)
-      symlinkSync(join('..', '..', 'blobs', 'weightsblob'), join(base, 'snapshots', sha, 'model.safetensors'))
+      placeWeights(join(base, 'blobs', 'weightsblob'), join(base, 'snapshots', sha, 'model.safetensors'), io)
     }
     if (seed.incompleteBytes !== undefined) {
       writeFileSync(join(base, 'blobs', 'partialblob.incomplete'), '')
@@ -74,9 +145,9 @@ export function seedHfCache(root: string, seeds: readonly CacheSeed[]): void {
   }
 }
 
-export type FakeWorld = { root: string; cache: string; home: string; cwd: string; env: NodeJS.ProcessEnv; serviceEnv: Record<string, string> }
+export type FakeWorld = { root: string; cache: string; home: string; cwd: string; env: NodeJS.ProcessEnv; serviceEnv: Record<string, string>; standIn: StandIn; bin: string; tensorfold: string; exists: (path: string) => boolean }
 
-export function fakeWorld(prefix: string, opts: { seeds?: readonly CacheSeed[]; ggufSeeds?: readonly (GgufSource & { partialBytes?: number })[]; env?: Record<string, string> } = {}): FakeWorld {
+export function fakeWorld(prefix: string, opts: { seeds?: readonly CacheSeed[]; ggufSeeds?: readonly (GgufSource & { partialBytes?: number })[]; env?: Record<string, string>; standIn?: StandIn; link?: LinkIo } = {}): FakeWorld {
   const root = mkdtempSync(join(process.env.TMPDIR ?? '/tmp', `${prefix}-`))
   const home = join(root, 'home')
   const cache = join(home, '.cache', 'huggingface', 'hub')
@@ -84,12 +155,19 @@ export function fakeWorld(prefix: string, opts: { seeds?: readonly CacheSeed[]; 
   mkdirSync(cache, { recursive: true })
   mkdirSync(home, { recursive: true })
   mkdirSync(cwd, { recursive: true })
-  seedHfCache(cache, opts.seeds ?? [{ repo: QWEN_2B_REPO, config: QWEN_2B_CONFIG, weightsBytes: 4096, sha: QWEN_2B_PIN }])
+  seedHfCache(cache, opts.seeds ?? [{ repo: QWEN_2B_REPO, config: QWEN_2B_CONFIG, weightsBytes: 4096, sha: QWEN_2B_PIN }], opts.link)
   seedGgufCache(cache, opts.ggufSeeds ?? [])
+  const standIn = opts.standIn ?? hostStandIn()
+  const asPrograms = standIn === 'program'
+  const bin = asPrograms ? join(root, 'bin') : FAKE_BIN
+  const tensorfold = asPrograms ? placeStandIn('tensorfold', bin, standIn) : `${FAKE_BIN}/tensorfold`
+  if (asPrograms) placeStandIn('llama-server', bin, standIn)
+  const exists = asPrograms ? (path: string): boolean => path.startsWith(bin) && existsSync(path) : fakeExists
   const env: NodeJS.ProcessEnv = {
     ...process.env,
-    PATH: `${FAKE_BIN}:/usr/bin:/bin`,
+    PATH: asPrograms ? [bin, '/usr/bin', '/bin'].join(delimiter) : `${FAKE_BIN}:/usr/bin:/bin`,
     HOME: home,
+    ...(asPrograms ? { USERPROFILE: home } : {}),
     HF_HUB_CACHE: cache,
     FAKE_TENSORFOLD_BUN: process.execPath,
     FAKE_TENSORFOLD_SCRIPT: FAKE_SCRIPT,
@@ -97,6 +175,6 @@ export function fakeWorld(prefix: string, opts: { seeds?: readonly CacheSeed[]; 
     ...opts.env,
   }
   const serviceEnv: Record<string, string> = {}
-  for (const key of ['PATH', 'HOME', 'HF_HUB_CACHE', 'FAKE_TENSORFOLD_BUN', 'FAKE_TENSORFOLD_SCRIPT', 'FAKE_TENSORFOLD_CACHE', ...Object.keys(opts.env ?? {})]) if (env[key] !== undefined) serviceEnv[key] = env[key]!
-  return { root, cache, home, cwd, env, serviceEnv }
+  for (const key of ['PATH', 'HOME', ...(asPrograms ? ['USERPROFILE'] : []), 'HF_HUB_CACHE', 'FAKE_TENSORFOLD_BUN', 'FAKE_TENSORFOLD_SCRIPT', 'FAKE_TENSORFOLD_CACHE', ...Object.keys(opts.env ?? {})]) if (env[key] !== undefined) serviceEnv[key] = env[key]!
+  return { root, cache, home, cwd, env, serviceEnv, standIn, bin, tensorfold, exists }
 }

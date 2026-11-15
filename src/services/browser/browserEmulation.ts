@@ -1,6 +1,6 @@
 import type { Device, Frame, Page, Viewport } from 'puppeteer-core'
 import { resolveBrowserSecret } from './browserSecrets.js'
-import { driverVersion, originOf, pageKitOf, type PageIdentity, type PageKit } from './browserSession.js'
+import { driverVersion, originOf, pageKitOf, presentToFrames, type PageIdentity, type PageKit } from './browserSession.js'
 
 const NETWORK_PRESETS = { slow3g: 'Slow 3G', fast3g: 'Fast 3G', slow4g: 'Slow 4G', fast4g: 'Fast 4G' } as const
 type NetworkPreset = keyof typeof NETWORK_PRESETS
@@ -377,6 +377,12 @@ function ownSession(kit: PageKit): NonNullable<PageKit['cdp']> {
   return kit.cdp
 }
 
+async function identitySession(page: Page, kit: PageKit): Promise<NonNullable<PageKit['cdp']>> {
+  if (kit.late === undefined) return ownSession(kit)
+  kit.late ??= await page.createCDPSession()
+  return kit.late
+}
+
 async function setGrant(page: Page, origin: string, state: 'granted' | 'prompt'): Promise<void> {
   const context = typeof page.browserContext === 'function' ? page.browserContext() : null
   if (context === null || typeof context.setPermission !== 'function') return
@@ -494,7 +500,7 @@ async function applyAspect(aspect: Aspect, page: Page, kit: PageKit, environment
       await answerChallenges(page, kit, state, environment.credentials !== null)
       return false
     case 'identity':
-      if (environment.identity !== null) await ownSession(kit).send('Emulation.setUserAgentOverride', environment.identity)
+      if (environment.identity !== null) await (await identitySession(page, kit)).send('Emulation.setUserAgentOverride', environment.identity)
       return false
     case 'locale':
       await ownSession(kit).send('Emulation.setLocaleOverride', environment.locale === null ? {} : { locale: environment.locale })
@@ -628,6 +634,11 @@ function merged(before: Fields, request: EmulationRequest, size: EmulationSize, 
   return next
 }
 
+function present(kit: PageKit, environment: Environment): void {
+  kit.presented = { identity: environment.identity, languages: environment.languages, timeZone: environment.timezone, locale: environment.locale, headers: environment.headers, touch: Boolean(environment.viewport.hasTouch) }
+  presentToFrames(kit)
+}
+
 async function settle(page: Page, kit: PageKit, state: PageEmulation, next: Fields, held: ReadonlySet<Aspect> = new Set()): Promise<EmulationOutcome> {
   const { devices, networks } = await tables()
   const before = state.fields
@@ -645,6 +656,7 @@ async function settle(page: Page, kit: PageKit, state: PageEmulation, next: Fiel
   while (pending.length > 0) {
     const aspect = pending.shift()!
     const environment = environmentOf(next, kit, devices, networks)
+    if (aspect === 'viewport') present(kit, environment)
     try {
       reloaded = (await applyAspect(aspect, page, kit, environment, state)) || reloaded
       state.unsettled.delete(aspect)
@@ -675,7 +687,7 @@ async function settle(page: Page, kit: PageKit, state: PageEmulation, next: Fiel
   }
   state.fields = next
   state.environment = environmentOf(next, kit, devices, networks)
-  kit.presented = { identity: state.environment.identity, languages: state.environment.languages, timeZone: state.environment.timezone, locale: state.environment.locale }
+  present(kit, state.environment)
   const stale = !reloaded && originOf(page.url()).startsWith('http') && state.environment.identity?.userAgent !== from.identity?.userAgent
   const notes: string[] = []
   const earlier = before.credentials
@@ -777,10 +789,12 @@ export async function inheritEmulation(from: Page, to: Page, reloadSafe: boolean
   const baseline = environmentOf({}, kit, devices, networks)
   const born = kit.born
   state.environment = born === null ? baseline : { ...baseline, identity: born.identity, languages: born.languages, locale: born.locale, timezone: born.timeZone }
+  if (born !== null && kit.late !== undefined && JSON.stringify(born.identity) !== JSON.stringify(kit.identity)) state.unsettled.add('identity')
   const wanted = environmentOf(next, kit, devices, networks).viewport
   const reloads = Boolean(wanted.isMobile) !== Boolean(baseline.viewport.isMobile) || Boolean(wanted.hasTouch) !== Boolean(baseline.viewport.hasTouch)
-  if (reloadSafe || !reloads) return settle(to, kit, state, next)
-  const outcome = await settle(to, kit, state, next, new Set<Aspect>(['viewport']))
-  outcome.notes.push('its size, mobile and touch did not come: this tab holds the answer to a form post, and applying them reloads the page, which would send the form again — op:"viewport" on this tab applies them when that is safe')
+  const whole = reloadSafe || !reloads
+  const outcome = await settle(to, kit, state, next, new Set<Aspect>(whole ? [] : ['viewport']))
+  if (born !== null && born.headers !== null) await ownSession(kit).send('Network.setExtraHTTPHeaders', { headers: {} }).catch(() => undefined)
+  if (!whole) outcome.notes.push('its size, mobile and touch did not come: this tab holds the answer to a form post, and applying them reloads the page, which would send the form again — op:"viewport" on this tab applies them when that is safe')
   return outcome
 }

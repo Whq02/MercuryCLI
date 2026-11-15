@@ -38,6 +38,7 @@ import {
   emulatedPageOf,
   endedTab,
   ensureBrowserSession,
+  firstNavigation,
   isBrowserErrorPage,
   liveBrowserSessionCensus,
   noteCheckedActOrigin,
@@ -51,6 +52,7 @@ import {
   screenshotPath,
   secretPairingApproved,
   sessionGoneAt,
+  sessionOfFrame,
   type CheckedTarget,
 } from '../../services/browser/browserSession.js'
 import {
@@ -78,7 +80,7 @@ import { APPROVAL_RULE_LINE, INSTALLED_NOT_DRIVEN } from '../../services/browser
 import { ensureScratchpadDir } from '../../utils/scratchpad.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
-import { checkReadPermissionForTool, getScratchpadDir } from '../../utils/permissions/filesystem.js'
+import { checkReadPermissionForTool, checkUncPathPermission, getScratchpadDir } from '../../utils/permissions/filesystem.js'
 import { getRuleByContentsForToolName } from '../../utils/permissions/permissions.js'
 import { suggestionForExactCommand } from '../../utils/permissions/shellRuleMatching.js'
 import { ruleSentence } from '../../utils/permissions/ruleReason.js'
@@ -732,7 +734,7 @@ async function sendUpload(
       if (decision.behavior === 'deny') return refused(decision.message)
     }
   }
-  const changed = checked === null ? null : uploadSourcesChanged(checked, resolved.sources)
+  const changed = checked === null ? null : uploadSourcesChanged(checked, resolved.sources.filter(source => checked.some(seen => seen.given === source.given)))
   if (changed !== null) return refused(`${changed}; re-issue to have what is there now judged`)
   s.nav.seen = s.nav.seq
   const marks = markAct(s)
@@ -845,9 +847,10 @@ async function sendUpload(
       opened = event
       wake()
     }
-    cdp.on('Page.fileChooserOpened', onOpen)
-    await cdp.send('Page.enable')
-    await cdp.send('Page.setInterceptFileChooserDialog', { enabled: true })
+    const own = sessionOfFrame(s.page, handle.frame) ?? cdp
+    own.on('Page.fileChooserOpened', onOpen)
+    await own.send('Page.enable')
+    await own.send('Page.setInterceptFileChooserDialog', { enabled: true })
     try {
       const at = await pickTargetPoint(s, handle)
       await humanClickPoint(s, at.x, at.y)
@@ -866,9 +869,9 @@ async function sendUpload(
       if (chooser.backendNodeId === undefined) {
         return { words: `upload: ${selector} asks for a file through the page’s own file picker (showOpenFilePicker), which cannot be filled — nothing sent; a file input or a drop zone takes files`, outcome: 'failed' }
       }
-      const node = await cdp.send('DOM.resolveNode', { backendNodeId: chooser.backendNodeId })
+      const node = await own.send('DOM.resolveNode', { backendNodeId: chooser.backendNodeId })
       const objectId = node.object.objectId!
-      const call = async <T>(body: string): Promise<T> => (await cdp.send('Runtime.callFunctionOn', { objectId, functionDeclaration: body, returnByValue: true })).result.value as T
+      const call = async <T>(body: string): Promise<T> => (await own.send('Runtime.callFunctionOn', { objectId, functionDeclaration: body, returnByValue: true })).result.value as T
       const cancel = (): Promise<unknown> => call('function () { this.dispatchEvent(new Event("cancel", { bubbles: true })) }').catch(() => undefined)
       const owning = s.page.frames().find(frame => (frame as { _id?: string })._id === chooser.frameId)
       const chooserOrigin = owning === undefined ? null : originOf(owning.url())
@@ -887,14 +890,14 @@ async function sendUpload(
         await cancel()
         return refused(`${field.desc}, which ${selector} opens a chooser for, takes one ${field.folder ? 'folder' : 'file'} (it has no multiple attribute) and ${resolved.sources.length} were given`)
       }
-      await cdp.send('DOM.setFileInputFiles', { files: staged.paths, backendNodeId: chooser.backendNodeId })
+      await own.send('DOM.setFileInputFiles', { files: staged.paths, backendNodeId: chooser.backendNodeId })
       delivered = true
       let held = await call<HeldFile[]>(HELD_FILES)
       for (const until = Date.now() + Math.min(deadline, 5000); held.length < staged.files && Date.now() < until; held = await call<HeldFile[]>(HELD_FILES)) await bounded(25)
       return after(`upload: ${field.desc} holds ${heldWords(held)}, chosen through the file chooser that ${selector} opened at ${pageWhere(s)} (set on the page; nothing reaches the site until the page sends it)`)
     } finally {
-      cdp.off('Page.fileChooserOpened', onOpen)
-      await cdp.send('Page.setInterceptFileChooserDialog', { enabled: false }).catch(() => undefined)
+      own.off('Page.fileChooserOpened', onOpen)
+      await own.send('Page.setInterceptFileChooserDialog', { enabled: false }).catch(() => undefined)
     }
   } finally {
     if (!delivered) await dropStagedUpload(staged.dir)
@@ -1336,14 +1339,21 @@ interface SourceAsk {
 
 function judgeUploadSources(owner: OwnerKey, input: Input, context: ToolPermissionContext | undefined): { deny: PermissionDecision } | { ask: SourceAsk } | null {
   checkedUploads.delete(owner)
-  const resolved = resolveUploadSources(input.files ?? [])
-  if ('refusal' in resolved) return null
   const rules = context ?? getEmptyToolPermissionContext()
-  const judged = resolved.sources.flatMap(source => source.members.map(member => checkReadPermissionForTool({ name: 'Read', getPath: () => member.path }, input, rules)))
-  const denied = judged.find(decision => decision.behavior === 'deny')
-  if (denied !== undefined) return { deny: denied }
-  checkedUploads.set(owner, { call: uploadCall(input), sources: resolved.sources })
-  const asks = judged.flatMap(decision => (decision.behavior === 'ask' ? [decision] : []))
+  const given = input.files ?? []
+  const shares = given.map(file => checkUncPathPermission(file, rules))
+  const refusedShare = shares.find(decision => decision?.behavior === 'deny')
+  if (refusedShare) return { deny: refusedShare }
+  const asks = shares.flatMap(decision => (decision?.behavior === 'ask' ? [decision] : []))
+  const shareAsks = asks.length
+  const resolved = resolveUploadSources(given.filter((_, index) => shares[index]?.behavior !== 'ask'))
+  if (!('refusal' in resolved)) {
+    const judged = resolved.sources.flatMap(source => source.members.map(member => checkReadPermissionForTool({ name: 'Read', getPath: () => member.path }, input, rules)))
+    const denied = judged.find(decision => decision.behavior === 'deny')
+    if (denied !== undefined) return { deny: denied }
+    checkedUploads.set(owner, { call: uploadCall(input), sources: resolved.sources })
+    asks.push(...judged.flatMap(decision => (decision.behavior === 'ask' ? [decision] : [])))
+  }
   const first = asks[0]
   if (first === undefined) return null
   const message = [...new Set(asks.map(decision => decision.message))].join('\n')
@@ -1351,7 +1361,10 @@ function judgeUploadSources(owner: OwnerKey, input: Input, context: ToolPermissi
   return {
     ask: {
       message,
-      decisionReason: reason !== undefined && (reason.type === 'rule' || reason.type === 'safetyCheck') ? reason : { type: 'safetyCheck', reason: message, operatorOnly: false },
+      decisionReason:
+        shareAsks > 0 && asks.length > shareAsks && reason?.type === 'safetyCheck'
+          ? { ...reason, reason: message }
+          : reason !== undefined && (reason.type === 'rule' || reason.type === 'safetyCheck') ? reason : { type: 'safetyCheck', reason: message, operatorOnly: false },
     },
   }
 }
@@ -1395,6 +1408,7 @@ export const BrowserTool = buildTool({
     gate: 'MERCURY_BROWSER',
     proof: 'scripts/browser/prove-browser-drive.ts',
   },
+  keepEmptyInputs: ['files'],
   maxResultSizeChars: 20_000,
   async description() {
     return 'Drive a headless Chrome for Testing from the managed cache (or an operator-pinned browser; installed browsers are never driven) with full provenance: navigate, click, type, scroll, wait on events, extract text or the accessibility tree, read the console, screenshot'
@@ -1830,11 +1844,13 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
           const openMarks = markAct(s)
           let response: Awaited<ReturnType<typeof s.page.goto>>
           try {
-            response = await s.page.goto(input.url!, {
-              waitUntil: input.waitUntil ?? 'load',
-              timeout: Math.min(Math.max(input.timeoutMs ?? 30_000, 1000), NAVIGATION_CAP_MS),
-              signal: signalFor(s),
-            })
+            response = await firstNavigation(s, input.url!, () =>
+              s.page.goto(input.url!, {
+                waitUntil: input.waitUntil ?? 'load',
+                timeout: Math.min(Math.max(input.timeoutMs ?? 30_000, 1000), NAVIGATION_CAP_MS),
+                signal: signalFor(s),
+              }),
+            )
           } catch (err) {
             const message = (err as Error).message
             if (!/net::ERR_ABORTED/.test(message)) {

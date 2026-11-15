@@ -3,7 +3,7 @@ import { randomUUID } from '../../utils/crypto.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { emitFocusedSessionConnectorChanged, getFocusedSessionConnector, subscribeFocusedSessionConnector, withLanding } from '../engine-connector/focusedConnector.js'
 import { armLandingWords, birthFallbackModel, birthModelOf, bootBirthFacts, carriedConsentOf, carriedKitOf, screenBirthModel, settleLandingWords, takeBootTitle, takeWornPresetKit } from './bootBirthFacts.js'
-import { hopIntoBoardSession } from './hopIntoSession.js'
+import { hopIntoBoardSession, paintAdmissionNote } from './hopIntoSession.js'
 import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
 import { getInitialEffortSetting } from '../../utils/effort.js'
 import type { SessionKitV1 } from '../../daemon/sessionKit.js'
@@ -192,13 +192,13 @@ async function admitAndEnter(
     if (reply.refusal === 'runtime-ceiling') return { ok: false, reason: seatRefusalWords(reply) }
     return { ok: false, reason: operatorFacingBirthReason(String(reply.error ?? 'the session could not start')) }
   }
-  if (typeof reply.note === 'string' && reply.note !== '') mintImmediateReceipt(`▲ ${reply.note}`, 'warning')
   catalogFirstChat(req.workspaceDir, sessionId)
   const hop = await hopIntoBoardSession(sessionId, req.firstPaintMs !== undefined ? { firstPaintMs: req.firstPaintMs } : undefined)
   if (!hop.ok) {
     logForDebugging(`[switchboard] born session ${sessionId} could not be entered: ${hop.reason}`)
     return { ok: false, reason: operatorFacingBirthReason(hop.reason) }
   }
+  if (typeof reply.note === 'string' && reply.note !== '') void paintAdmissionNote(sessionId, reply.note)
   if (fallbackNote !== null && fallbackNote !== '') mintOnBornChat(sessionId, fallbackNote)
   return { ok: true, sessionId, title: hop.title }
 }

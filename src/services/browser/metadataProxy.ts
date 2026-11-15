@@ -34,7 +34,7 @@ function dropBrowserSide(incoming: IncomingMessage, outgoing: ServerResponse): v
   else outgoing.destroy()
 }
 
-export async function startMetadataProxy(onRefusal: (reason: string) => void, onUnreachable: UpstreamUnreachable = () => {}): Promise<{ port: number; close: () => void }> {
+export async function startMetadataProxy(onRefusal: (reason: string) => void, onUnreachable: UpstreamUnreachable = () => {}, onArrival: (origin: string) => void = () => {}): Promise<{ port: number; close: () => void }> {
   const sockets = new Set<Socket>()
   const unreachable = (target: string, error: unknown): void => {
     const code = (error as { code?: unknown })?.code
@@ -54,6 +54,7 @@ export async function startMetadataProxy(onRefusal: (reason: string) => void, on
   const server = createServer((incoming, outgoing) => {
     void (async () => {
       const target = new URL(incoming.url ?? '')
+      onArrival(target.origin)
       if (target.protocol !== 'http:') throw new Error('The browser proxy accepts HTTP requests or HTTPS tunnels only.')
       const checked = await destination(target)
       if (closed || outgoing.destroyed) return
@@ -80,6 +81,7 @@ export async function startMetadataProxy(onRefusal: (reason: string) => void, on
   server.on('connect', (incoming, downstream, head) => {
     void (async () => {
       const target = new URL('https://' + incoming.url)
+      onArrival(target.origin)
       const checked = await destination(target)
       if (closed || downstream.destroyed) return
       const upstream = track(connect({ host: checked.host, lookup: checked.lookup, autoSelectFamily: true, port: Number(target.port || 443) }))
@@ -102,6 +104,7 @@ export async function startMetadataProxy(onRefusal: (reason: string) => void, on
   server.on('upgrade', (incoming, downstream, head) => {
     void (async () => {
       const target = new URL(incoming.url ?? '')
+      onArrival(target.origin)
       if (target.protocol !== 'http:' && target.protocol !== 'ws:') throw new Error('The browser upgrade target is not an HTTP or WebSocket URL.')
       const checked = await destination(target)
       if (closed || downstream.destroyed) return

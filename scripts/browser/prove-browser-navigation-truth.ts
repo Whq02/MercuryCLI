@@ -189,6 +189,7 @@ const d = await serve(0, (url, res) => {
 <a id="slow" href="/slow.bin">slow download</a>
 <a id="two" href="/two">an ordinary link</a>
 <button id="js" onclick="location.href='/dl.bin'">Script download</button>
+<button id="later" onclick="setTimeout(() => { location.href = '/attach.txt' }, 400)">a download a moment later</button>
 <button id="pop" onclick="window.open('/pop', '_blank')">new tab</button>
 <button id="alert-now" onclick="alert('ALERT-MARKER-77')">alert</button>
 <button id="confirm-now" onclick="document.getElementById('seen').textContent = confirm('Delete it?') ? 'yes' : 'no'">confirm</button>
@@ -198,31 +199,57 @@ const d = await serve(0, (url, res) => {
 })
 const D = `http://127.0.0.1:${d.port}`
 const SAVED = /saved to \S+ \(/
+const NAMED = /is a download — |the page started a download — |a download began after the last act — /
+const names = (text: string, file: string): number => text.split(`suggested name ${file}`).length - 1
+async function clicked(selector: string, brings: 'a download' | 'nothing'): Promise<{ own: string; next: string; note: string }> {
+  const s = activeSession(OWNER)
+  if (!s) throw new Error('no live session where one was expected')
+  const before = s.downloads.count
+  const own = (await run({ op: 'click', selector })).result
+  if (brings === 'a download' && !NAMED.test(own)) {
+    if (s.downloads.count === before) {
+      await new Promise<void>(began => {
+        const never = setTimeout(began, 20_000)
+        s.downloads.waiters.push(() => {
+          clearTimeout(never)
+          began()
+        })
+      })
+    }
+    const last = s.downloads.last
+    if (last !== null && s.downloads.count > before) await (last.transfer?.done ?? last.done)
+  }
+  const next = (await run({ op: 'info' })).result
+  return { own, next, note: NAMED.test(own) ? own : next }
+}
 {
   const opened = await run({ op: 'open', url: `${D}/` })
   check('the download fixture opens', opened.outcome === 'succeeded' && opened.result.includes('download-fixture'), opened.result)
-  const link = await run({ op: 'click', selector: 'aria/Get data.bin (octet-stream)[role="link"]' })
-  check('a click on a link the server serves as a download says so in the result', link.result.includes('the link is a download'), link.result)
-  check('…naming the type, the size and the filename', link.result.includes('application/octet-stream') && link.result.includes('13 bytes') && link.result.includes('suggested name dl.bin'), link.result)
-  check('…and where it was saved', SAVED.test(link.result) && link.result.includes('in the session scratchpad'), link.result)
+  const link = await clicked('aria/Get data.bin (octet-stream)[role="link"]', 'a download')
+  check('a click on a link the server serves as a download is told as one, once: in the click’s own answer, or in the tab’s next answer where the click came back first', NAMED.test(link.note) && names(`${link.own}${link.next}`, 'dl.bin') === 1, `${link.own} || ${link.next}`)
+  check('…naming the type, the size and the filename', link.note.includes('application/octet-stream') && link.note.includes('13 bytes') && link.note.includes('suggested name dl.bin'), link.note)
+  check('…and where it was saved', SAVED.test(link.note) && link.note.includes('in the session scratchpad'), link.note)
   check('the page itself did not move', (await page().url()) === `${D}/`, await page().url())
-  const attach = await run({ op: 'click', selector: '#att' })
-  check('a Content-Disposition attachment is named with its filename', attach.result.includes('the link is a download') && attach.result.includes('text/plain') && attach.result.includes('11 bytes') && attach.result.includes('suggested name notes.txt'), attach.result)
-  const attr = await run({ op: 'click', selector: '#dla' })
-  check('a download-attribute link (no network request of its own) is named too', attr.result.includes('the link is a download') && attr.result.includes('suggested name named.bin') && SAVED.test(attr.result), attr.result)
-  const script = await run({ op: 'click', selector: '#js' })
-  check('a script-started download is named', script.result.includes('is a download') && script.result.includes('dl.bin'), script.result)
-  const slow = await run({ op: 'click', selector: '#slow' })
-  check('a slow download (the server answers 600ms later) is still named — the act waits for the navigation it started', slow.result.includes('the link is a download') && slow.result.includes('suggested name slow.bin'), slow.result)
+  const attach = await clicked('#att', 'a download')
+  check('a Content-Disposition attachment is named with its filename, once', NAMED.test(attach.note) && attach.note.includes('text/plain') && attach.note.includes('11 bytes') && names(`${attach.own}${attach.next}`, 'notes.txt') === 1, `${attach.own} || ${attach.next}`)
+  const attr = await clicked('#dla', 'a download')
+  check('a download-attribute link (no network request of its own) is named too, once', NAMED.test(attr.note) && SAVED.test(attr.note) && names(`${attr.own}${attr.next}`, 'named.bin') === 1, `${attr.own} || ${attr.next}`)
+  const script = await clicked('#js', 'a download')
+  check('a script-started download is named, once', NAMED.test(script.note) && names(`${script.own}${script.next}`, 'dl.bin') === 1, `${script.own} || ${script.next}`)
+  const slow = await clicked('#slow', 'a download')
+  check('a slow download (the server answers 600ms later) is still named, once: by the click that saw its navigation start and followed it, or by the tab’s next answer', NAMED.test(slow.note) && names(`${slow.own}${slow.next}`, 'slow.bin') === 1, `${slow.own} || ${slow.next}`)
+  const later = await clicked('#later', 'a download')
+  check('a download the page starts 400 ms after the click is saved and named once all the same, type, size and file, in whichever answer is the first after it began', NAMED.test(later.note) && SAVED.test(later.note) && later.note.includes('text/plain') && later.note.includes('11 bytes') && names(`${later.own}${later.next}`, 'notes.txt') === 1, `${later.own} || ${later.next}`)
   const direct = await run({ op: 'open', url: `${D}/dl.bin` })
   check('open on a download URL names the download it saved, not a bare protocol error', direct.outcome === 'succeeded' && direct.result.includes(`open: ${D}/dl.bin is a download — saved to`) && direct.result.includes('application/octet-stream') && direct.result.includes('13 bytes') && direct.result.includes(`note: the tab stays at ${D}/`), direct.result)
   const ring = await run({ op: 'console', limit: 60 })
   check('the console ring carries the download by name', /download: download d\d+: dl\.bin \(\S+\) is being saved in the session scratchpad/.test(ring.result), ring.result.split('\n').slice(-6).join(' | '))
-  const ordinary = await run({ op: 'click', selector: '#two' })
-  check('an ordinary link click reports the navigation it caused, with no download note', ordinary.result.includes(`navigated to ${D}/two`) && !ordinary.result.includes('download'), ordinary.result)
+  const two = await clicked('#two', 'nothing')
+  check('an ordinary link click reports the navigation it caused, with no download note', two.own.includes(`navigated to ${D}/two`) && !two.own.includes('download'), two.own)
+  check('the control: asked of that ordinary link, neither the click’s own answer nor the tab’s next one names a download', !NAMED.test(two.own) && two.next !== '' && !NAMED.test(two.next) && !two.next.includes('suggested name') && two.next.includes(`url: ${D}/two`), `${two.own} || ${two.next}`)
   await run({ op: 'open', url: `${D}/` })
-  const chunked = await run({ op: 'click', selector: '#chunked' })
-  check('an attachment with no declared size names the download with the size the saved file has', chunked.result.includes('the link is a download') && chunked.result.includes('text/plain') && chunked.result.includes('suggested name streamed.txt') && chunked.result.includes('(14 bytes,'), chunked.result)
+  const chunked = await clicked('#chunked', 'a download')
+  check('an attachment with no declared size names the download with the size the saved file has, once', NAMED.test(chunked.note) && chunked.note.includes('text/plain') && chunked.note.includes('(14 bytes,') && names(`${chunked.own}${chunked.next}`, 'streamed.txt') === 1, `${chunked.own} || ${chunked.next}`)
 }
 
 console.log('§6 a click that opens a tab or a dialog says so in its own result')
