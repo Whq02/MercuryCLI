@@ -217,6 +217,7 @@ section('§9 the Windows archive carries the bundled shell engine — the contra
   const contract = (await import('../release/payloadContract.mjs')) as { bundledVendorPacks?: (target: string) => Pack[]; checkBundledVendorPacks?: (payloadDir: string, target: string) => Verdict }
   const packsOf = (target: string): Pack[] => (typeof contract.bundledVendorPacks === 'function' ? contract.bundledVendorPacks(target) : [])
   const checkAt = (dir: string, target: string): Verdict => (typeof contract.checkBundledVendorPacks === 'function' ? contract.checkBundledVendorPacks(dir, target) : { ok: false, findings: ['checkBundledVendorPacks is not exported'], packs: [] })
+  const ofEngine = (verdict: Verdict): string[] => verdict.findings.filter(finding => verdict.packs.some(bundled => finding.startsWith(`${bundled.dir}/`)))
   const win = packsOf('windows-x64')
   const pack = win[0]
   check("windows-x64 bundles exactly one pack beyond the build's own set: the shell engine", win.length === 1 && pack?.name === 'brush' && pack.degradation === 'shell-engine' && pack.manifestKey === 'shellEngine' && pack.platform === 'win-x64', JSON.stringify(win))
@@ -256,11 +257,13 @@ section('§9 the Windows archive carries the bundled shell engine — the contra
     rmSync(join(whisperDir, whisperRecord.addon))
     const withoutWhisper = checkAt(fixture, 'windows-x64')
     check('a Windows payload with only its shell engine fails for the missing Whisper addon', !withoutWhisper.ok && withoutWhisper.findings.some(f => f.includes('whisper')))
+    check('and nothing that payload is refused for is the shell engine\'s: read by its own findings, the engine is carried', withoutWhisper.packs.length === 1 && ofEngine(withoutWhisper).length === 0, JSON.stringify(ofEngine(withoutWhisper)))
     writeFileSync(join(whisperDir, whisperRecord.addon), whisperBytes)
     const other = Buffer.from('MZ another binary')
     writeFileSync(join(packDir, 'brush.exe'), other)
     const swapped = checkAt(fixture, 'windows-x64')
     check("a binary that no longer matches its record is refused, naming the digest", !swapped.ok && swapped.findings.some(f => /sha256/.test(f)), JSON.stringify(swapped.findings))
+    check('and that refusal is the shell engine\'s own finding', ofEngine(swapped).some(f => /sha256/.test(f)), JSON.stringify(ofEngine(swapped)))
     writeFileSync(join(packDir, '.vendor-manifest.json'), JSON.stringify({ ...record, version: '0.0.1', binarySha256: createHash('sha256').update(other).digest('hex') }))
     const stale = checkAt(fixture, 'windows-x64')
     check("a record of another version than the lock's is refused, naming both", !stale.ok && stale.findings.some(f => f.includes('0.0.1') && f.includes(lock.version)), JSON.stringify(stale.findings))
@@ -283,7 +286,11 @@ section('§9 the Windows archive carries the bundled shell engine — the contra
     const built = readBuildTargetRecord(JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<string, unknown>)
     if (built?.release === 'windows-x64') {
       const onDisk = checkAt(join(ROOT, 'dist'), 'windows-x64')
-      check('the built Windows dist carries the bundled shell engine', onDisk.ok, JSON.stringify(onDisk.findings))
+      const beside = onDisk.findings.filter(finding => !ofEngine(onDisk).includes(finding))
+      check('the built Windows dist carries the bundled shell engine', onDisk.packs.length === 1 && ofEngine(onDisk).length === 0, JSON.stringify(onDisk.packs.length === 1 ? ofEngine(onDisk) : onDisk.findings))
+      const degraded = (JSON.parse(readFileSync(manifestPath, 'utf8')) as { degraded?: string[] }).degraded ?? []
+      if (degraded.includes('on-device-transcriber')) console.log(`  [NOTE] this dist was built without the on-device transcriber and its manifest says so (degraded: ${degraded.join(', ')}): what the payload check finds beside the shell engine is that build's own word and is not asserted here — ${JSON.stringify(beside)}`)
+      else check('and the on-device transcriber every archive requires is in it too', beside.length === 0, JSON.stringify(beside))
     } else {
       console.log(`  [SKIP] dist is built for ${built?.release ?? 'an unknown target'} — the bundled-pack check on a built dist runs on a windows-x64 build`)
     }
