@@ -34,11 +34,11 @@ const A = await serve(0, (_req: http.IncomingMessage, res: http.ServerResponse) 
 
 type Call = Record<string, unknown> & { op: string }
 async function throughTheBundle(calls: Call[]): Promise<{ code: number | null; answers: string[]; sent: string[]; noise: string }> {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), 'browser-upload-clear-')))
-  const home = join(root, 'home')
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'uc-')))
+  const home = join(root, 'h')
   const config = join(home, '.mercury')
-  const project = join(root, 'project')
-  for (const folder of [join(config, 'tmp'), project]) mkdirSync(folder, { recursive: true })
+  const project = join(root, 'p')
+  for (const folder of [join(root, 't'), project]) mkdirSync(folder, { recursive: true })
   writeFileSync(join(project, 'a.txt'), 'alpha file')
   process.env.ANTHROPIC_API_KEY = 'fixture-key-000'
   seedFirstRun(config, [project])
@@ -50,8 +50,8 @@ async function throughTheBundle(calls: Call[]): Promise<{ code: number | null; a
       USERPROFILE: home,
       TERM: 'dumb',
       MERCURY_CONFIG_DIR: config,
-      MERCURY_TMPDIR: join(config, 'tmp'),
-      MERCURY_DAEMON_DIR: join(home, 'daemon'),
+      MERCURY_TMPDIR: join(root, 't'),
+      MERCURY_DAEMON_DIR: join(root, 'd'),
       MERCURY_LOCAL_PROBE_TARGETS: 'none',
       MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_BROWSER_CACHE_DIR: process.env.MERCURY_BROWSER_CACHE_DIR ?? '',
