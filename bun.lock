@@ -85,6 +85,9 @@
       },
     },
   },
+  "patchedDependencies": {
+    "puppeteer-core@25.9.0": "scripts/vendor/patches/puppeteer-core@25.9.0.patch",
+  },
   "overrides": {
     "fast-uri": "3.1.9",
     "follow-redirects": "1.16.3",

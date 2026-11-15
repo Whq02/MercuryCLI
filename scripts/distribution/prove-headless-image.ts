@@ -98,6 +98,16 @@ const builderRuns = builder.instructions.filter(i => i.verb === 'RUN').map(i => 
 const buildRun = builderRuns.find(r => r.includes('bun run build.ts --target linux-x64'))
 check('the builder stage builds the linux-x64 release target (bun run build.ts --target linux-x64)', buildRun !== undefined)
 check('the builder stage installs the lockfile held (bun install --frozen-lockfile)', builderRuns.some(r => r.includes('bun install --frozen-lockfile')))
+const patchFiles = Object.values((JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { patchedDependencies?: Record<string, string> }).patchedDependencies ?? {})
+const installAt = builder.instructions.findIndex(i => i.verb === 'RUN' && i.args.includes('bun install --frozen-lockfile'))
+const copiedFirst = builder.instructions
+  .slice(0, Math.max(installAt, 0))
+  .filter(i => i.verb === 'COPY')
+  .map(i => i.args.split(/\s+/).filter(word => !word.startsWith('--')))
+  .filter(words => words.length === 2 && words[1]!.replace(/^\.\//, '') === words[0])
+  .map(words => words[0]!)
+const uncopied = patchFiles.filter(file => !copiedFirst.some(path => file === path || file.startsWith(`${path}/`)))
+check(`every patch the manifest names is copied to its own path in the builder before the install, which stops without it (${patchFiles.length})`, installAt > 0 && uncopied.length === 0, uncopied.join(', '))
 for (const fetcher of ['fetch-node.ts --platform linux-x64', 'fetch-python.ts --platform linux-x64', 'fetch-brush.ts --platform linux-x64', 'fetch-pyright.ts', 'fetch-debugpy.ts', 'fetch-js-debug.ts', 'fetch-grammars.ts']) {
   check(`the builder stage prepares the vendor pack: scripts/vendor/${fetcher}`, builderRuns.some(r => r.includes(`bun run scripts/vendor/${fetcher}`)))
 }
@@ -154,6 +164,8 @@ const required = ['build.ts', 'package.json', 'bun.lock', 'bunfig.toml', 'tsconf
 for (const path of new Set(required)) {
   check(`.dockerignore re-includes ${path}`, included.includes(path))
 }
+const outside = patchFiles.filter(file => !included.some(path => file === path || file.startsWith(`${path}/`)))
+check('.dockerignore re-includes every patch the manifest names', outside.length === 0, outside.join(', '))
 for (const never of ['.git', 'node_modules', 'dist', 'bench', '.mercury', 'vendor/node', 'vendor/brush', 'vendor/pyright', 'vendor/debugpy', 'vendor/js-debug', 'vendor/grammars', 'release-out', 'ci-gate-out']) {
   check(`.dockerignore never re-includes ${never}`, !included.some(p => p === never || p.startsWith(`${never}/`)))
 }

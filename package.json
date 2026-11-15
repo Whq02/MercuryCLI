@@ -105,5 +105,8 @@
     "@vscode/tree-sitter-wasm": "0.3.1",
     "fast-check": "4.9.0",
     "typescript": "^6.0.3"
+  },
+  "patchedDependencies": {
+    "puppeteer-core@25.9.0": "scripts/vendor/patches/puppeteer-core@25.9.0.patch"
   }
 }

@@ -1,0 +1,18 @@
+diff --git a/lib/puppeteer/cdp/FrameManager.js b/lib/puppeteer/cdp/FrameManager.js
+index f94964b186105e8be9e78b2c7b4dd64faaddf26e..2a8b8f168484eec025520834f1a477c7a8f4a5ee 100644
+--- a/lib/puppeteer/cdp/FrameManager.js
++++ b/lib/puppeteer/cdp/FrameManager.js
+@@ -402,8 +402,13 @@ export class FrameManager extends EventEmitter {
+         frame.emit(FrameEvent.LifecycleEvent, undefined);
+     }
+     #handleFrameTree(session, frameTree) {
++        const held = this.frame(frameTree.frame.id)?.client;
++        if (held && held !== session && !held.detached && held.target()._targetId === frameTree.frame.id) {
++            return;
++        }
+         if (frameTree.frame.parentId) {
+             this.#onFrameAttached(session, frameTree.frame.id, frameTree.frame.parentId);
++            this.frame(frameTree.frame.id)?.updateClient(session);
+         }
+         if (!this.#frameNavigatedReceived.has(frameTree.frame.id)) {
+             void this.#onFrameNavigated(frameTree.frame, 'Navigation');

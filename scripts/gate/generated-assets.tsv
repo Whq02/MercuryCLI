@@ -27,7 +27,7 @@ scripts/consistency-census/basename-census.json	bun scripts/consistency-census/g
 assets/completions/mercury.bash assets/completions/_mercury assets/completions/mercury.fish	bun run build.ts && bun scripts/project-services/gen-completions.ts	bun scripts/project-services/gen-completions.ts --check	src/main.tsx src/commands/mcp/addCommand.ts
 docs/EXTENSIONS.md mercury-skills/extension-maker/references/CONTRACT.md src/skills/bundled/extension-maker/references/CONTRACT.md	bun scripts/extensions/gen-contract.ts	bun scripts/extensions/prove-contract-in-sync.ts	src/extensions/manifest.ts src/extensions/catalogue.ts
 src/skills/bundled/**	bun scripts/skills/gen-bundled.ts	-	mercury-skills/**
-THIRD_PARTY_NOTICES.md	bun scripts/distribution/generate-third-party-notices.ts	bun scripts/distribution/prove-distribution-notices.ts	package.json bun.lock vendor/*.lock.json
+THIRD_PARTY_NOTICES.md	bun scripts/distribution/generate-third-party-notices.ts	bun scripts/distribution/prove-distribution-notices.ts	package.json bun.lock vendor/*.lock.json scripts/vendor/patches/*.patch
 src/services/blender/bridgeFiles.generated.ts	node scripts/blender-bridge/regen-bridge.mjs	node scripts/blender-bridge/regen-bridge.mjs --check	assets/blender/bridge/** assets/blender/headless/**
 src/services/unity/bridgeFiles.generated.ts	node scripts/unity-bridge/regen-bridge.mjs	node scripts/unity-bridge/regen-bridge.mjs --check	assets/unity/bridge/**
 src/services/vulcan/addonFiles.generated.ts	node scripts/vulcan/regen-addon.mjs	node scripts/vulcan/regen-addon.mjs --check	assets/vulcan/addon/**

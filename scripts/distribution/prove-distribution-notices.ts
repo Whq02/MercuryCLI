@@ -17,6 +17,7 @@ const notices = readFileSync(noticesPath, 'utf8')
 
 const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as {
   dependencies?: Record<string, string>
+  patchedDependencies?: Record<string, string>
 }
 const deps = new Set(Object.keys(pkg.dependencies ?? {}))
 
@@ -37,6 +38,28 @@ for (const [name, version] of listed) {
   if (installed && installed !== version) versionDrift.push(`${name}: listed ${version}, installed ${installed}`)
 }
 check('no version drift vs installed metadata', versionDrift.length === 0, versionDrift.slice(0, 5).join('; '))
+
+const patches = Object.entries(pkg.patchedDependencies ?? {})
+const unsaid = patches.filter(([target, file]) => {
+  const at = target.lastIndexOf('@')
+  const line = section.split('\n').find(l => l.startsWith(`- **${target.slice(0, at)}** ${target.slice(at + 1)} `)) ?? ''
+  if (!existsSync(join(ROOT, file)) || !line.includes(`modified from the published package by \`${file}\``)) return true
+  const changed = [...readFileSync(join(ROOT, file), 'utf8').matchAll(/^\+\+\+ b\/(.+)$/gm)].map(m => m[1]!)
+  return changed.length === 0 || changed.some(name => !line.includes(`\`${name}\``))
+})
+check(`every package the manifest patches says so on its own line, naming the patch file and each file it changes (${patches.length})`, unsaid.length === 0, unsaid.map(([target, file]) => `${target} by ${file}`).join(', '))
+const lock = readFileSync(join(ROOT, 'bun.lock'), 'utf8')
+const adrift = patches.filter(([target, file]) => {
+  const at = target.lastIndexOf('@')
+  return pkg.dependencies?.[target.slice(0, at)] !== target.slice(at + 1) || !lock.includes(`"${target}": "${file}"`)
+})
+check('each patch is for the version the manifest pins, and the lockfile names the same file', adrift.length === 0, adrift.map(([target, file]) => `${target} by ${file}`).join(', '))
+const strays = patches.flatMap(([, file]) =>
+  existsSync(join(ROOT, file))
+    ? [...readFileSync(join(ROOT, file), 'utf8').matchAll(/^diff --git a\/(\S+) b\/(\S+)$/gm)].filter(m => m[1] !== m[2] || /(^|\/)\.bun-tag-/.test(m[2]!)).map(m => `${file}: ${m[1]}`)
+    : [],
+)
+check('each patch changes files of its own package and holds no marker of the installer’s', strays.length === 0, strays.join(', '))
 
 for (const vendor of ['ripgrep', 'debugpy', 'pyright', 'js-debug', 'TypeScript compiler', 'tree-sitter', 'tree-sitter-wasms', 'Node.js runtime', 'voice capture pack', 'shell engine pack', 'on-device transcriber pack', 'Whisper speech models']) {
   check(`vendor payload named: ${vendor}`, notices.includes(vendor))

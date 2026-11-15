@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import type http from 'node:http'
 import { join } from 'node:path'
-import type { Frame, Page } from 'puppeteer-core'
+import type { Page } from 'puppeteer-core'
 import { ROOT, check, finish, lead, ownerOf, pageOf, requireBrowser, run, section, serve, sessions } from './harness.ts'
 
 await requireBrowser()
@@ -70,9 +70,11 @@ interface Reading {
   plugins: number
   toString: string
   runs: number
+  reached: boolean
 }
-const READING = `JSON.stringify({ href: location.href, runtime: typeof (window.chrome && window.chrome.runtime), webdriver: navigator.webdriver, languages: navigator.languages.join(','), plugins: navigator.plugins.length, toString: Function.prototype.toString.toString(), runs: (() => { try { Function.prototype.toString.call(null) } catch (error) { return String(error.stack).split('\\n').slice(1).filter(line => line.includes('toString')).length - 1 } return -1 })() })`
+const READING = `JSON.stringify({ href: location.href, runtime: typeof (window.chrome && window.chrome.runtime), webdriver: navigator.webdriver, languages: navigator.languages.join(','), plugins: navigator.plugins.length, toString: Function.prototype.toString.toString(), runs: (() => { try { Function.prototype.toString.call(null) } catch (error) { return String(error.stack).split('\\n').slice(1).filter(line => line.includes('toString')).length - 1 } return -1 })(), reached: window.__driverReached === true })`
 const NATIVE = 'function toString() { [native code] }'
+const reachedByDriver = (page: Page): Promise<unknown> => page.evaluateOnNewDocument(() => void ((window as unknown as { __driverReached?: boolean }).__driverReached = true))
 const nap = (ms: number): Promise<void> => new Promise(done => setTimeout(done, ms))
 const kitOf = (page: Page): Kit => sessions.pageKitOf(page)
 const driverOf = (page: Page): string => (page as unknown as { _client(): { id(): string } })._client().id()
@@ -100,17 +102,14 @@ const sixOn = async (page: Page, open: (url: string) => Promise<unknown>, gap: n
   await open(`${A.origin}/six?gap=${gap}&load=${load}`)
   const kit = kitOf(page)
   for (let waited = 0; waited < 100 && (kit.frames?.size ?? 0) < 6; waited++) await nap(10)
-  const left = new Set(
-    page
-      .frames()
-      .filter((frame: Frame) => frame.parentFrame() !== null && (frame as unknown as { client: { id(): string } }).client.id() === driverOf(page))
-      .map((frame: Frame) => String((frame as unknown as { _id?: string })._id)),
-  )
   const top = await readOn(kit.cdp)
   const frames: Load['frames'] = []
-  for (const held of [...(kit.frames?.values() ?? [])]) frames.push({ reading: await readOn(held.session), left: left.has(held.target) })
+  for (const held of [...(kit.frames?.values() ?? [])]) {
+    const reading = await readOn(held.session)
+    frames.push({ reading, left: reading !== null && !reading.reached })
+  }
   const names = frames.map(frame => frame.reading?.href.split('/leaf?')[1] ?? '').sort()
-  return { top, frames, whole: top !== null && names.join(' ') === [1, 2, 3, 4, 5, 6].map(n => `n=${n}&load=${load}`).join(' ') }
+  return { top, frames, whole: top !== null && top.reached && names.join(' ') === [1, 2, 3, 4, 5, 6].map(n => `n=${n}&load=${load}`).join(' ') }
 }
 
 interface Tally {
@@ -129,29 +128,31 @@ const loadsOn = async (page: Page, open: (url: string) => Promise<unknown>): Pro
   }
   return tally
 }
-const words = (load: Load): string => `page ${load.top === null ? 'not read' : `ran ${load.top.runs}`}; frames ${load.frames.map(frame => (frame.reading === null ? 'not read' : `${frame.left ? 'LEFT ' : ''}ran ${frame.reading.runs} runtime ${frame.reading.runtime} webdriver ${frame.reading.webdriver} languages ${frame.reading.languages} plugins ${frame.reading.plugins}`)).join(' | ') || 'none held by the kit'}`
+const words = (load: Load): string => `page ${load.top === null ? 'not read' : `ran ${load.top.runs}`}; frames ${load.frames.map(frame => (frame.reading === null ? 'not read' : `${frame.left ? 'LATE ' : ''}ran ${frame.reading.runs} runtime ${frame.reading.runtime} webdriver ${frame.reading.webdriver} languages ${frame.reading.languages} plugins ${frame.reading.plugins}`)).join(' | ') || 'none held by the kit'}`
 const kind = async (name: string, page: Page, open: (url: string) => Promise<unknown>): Promise<void> => {
   const tally = await loadsOn(page, open)
   const unread = tally.loads.find(load => !load.whole)
   const twice = tally.loads.find(load => load.top?.runs !== 1 || load.frames.some(frame => frame.reading?.runs !== 1))
   const odd = tally.loads.find(load => load.top === null || !prepared(load.top) || load.frames.some(frame => frame.reading === null || !alike(frame.reading, load.top!)))
   const left = tally.struck.flatMap(load => load.frames.filter(frame => frame.left))
-  console.log(`    ${name}: ${tally.loads.length} loads read, ${tally.struck.length} in which the driver left a frame on the page’s session (${left.length} such frames), ${tally.quiet.length} quiet`)
+  console.log(`    ${name}: ${tally.loads.length} loads read, ${tally.struck.length} in which the driver learnt a frame late and registered nothing of its own for it (${left.length} such frames), ${tally.quiet.length} quiet`)
   check(`${name}: in every load the page and each of its six frames, read through the kit’s own sessions, ran the script preparation exactly once`, unread === undefined && twice === undefined && tally.loads.length >= LEAST, `${tally.loads.length} loads; ${words((unread ?? twice ?? tally.loads[0])!)}`)
   check(`${name}: and every frame reads what its page reads: chrome.runtime, webdriver, languages, plugins, toString`, unread === undefined && odd === undefined, words((unread ?? odd ?? tally.loads[0])!))
   if (tally.struck.length === 0 && unread === undefined) {
-    console.log(`  [SKIP] ${name}: a frame the driver left on the page’s session is prepared as its siblings — the driver left none there in ${tally.loads.length} loads on this machine, so that reading was not taken`)
+    console.log(`  [SKIP] ${name}: a frame the driver learnt late is prepared as its siblings — the driver learnt none late there in ${tally.loads.length} loads on this machine, so that reading was not taken`)
     return
   }
-  check(`${name}: a frame the driver left on the page’s session is prepared as its siblings`, unread === undefined && left.length > 0 && left.every(frame => frame.reading !== null && frame.reading.runs === 1 && prepared(frame.reading)), `${tally.struck.length} struck, ${tally.quiet.length} quiet; ${tally.struck[0] === undefined ? '' : words(tally.struck[0])}`)
+  check(`${name}: a frame the driver learnt late, and registered nothing of its own for, is prepared as its siblings`, unread === undefined && left.length > 0 && left.every(frame => frame.reading !== null && frame.reading.runs === 1 && prepared(frame.reading)), `${tally.struck.length} struck, ${tally.quiet.length} quiet; ${tally.struck[0] === undefined ? '' : words(tally.struck[0])}`)
 }
 
 section('S1 the launch’s page')
 await run({ op: 'open', url: `${A.origin}/leaf?first` })
+await reachedByDriver(pageOf())
 await kind('the launch’s page', pageOf(), url => run({ op: 'open', url }))
 
 section('S2 a tab born beside it')
 await run({ op: 'open', tab: 'beside', url: `${A.origin}/leaf?beside` })
+await reachedByDriver(pageOf(lead, 'beside'))
 await kind('a born tab', pageOf(lead, 'beside'), url => run({ op: 'open', tab: 'beside', url }))
 
 section('S3 a late-armed page: the second tab of a launch whose birth watch the browser refused')
@@ -160,6 +161,7 @@ birthWatch = 'refused'
 await run({ op: 'open', url: `${A.origin}/leaf?late` }, lateOwner)
 birthWatch = 'whole'
 await run({ op: 'open', tab: 'second', url: `${A.origin}/leaf?second` }, lateOwner)
+await reachedByDriver(pageOf(lateOwner, 'second'))
 await kind('a late-armed page', pageOf(lateOwner, 'second'), url => run({ op: 'open', tab: 'second', url }, lateOwner))
 check('the tab beside is a born one and that second tab a late-armed one (holds on the parent too)', kitOf(pageOf(lead, 'beside')).late !== undefined && kitOf(pageOf(lateOwner, 'second')).late === undefined)
 
@@ -192,13 +194,14 @@ section('S5 the reading reads two where a document is prepared twice')
 {
   await run({ op: 'open', tab: 'twice', url: `${A.origin}/leaf?twice` })
   const page = pageOf(lead, 'twice')
+  await reachedByDriver(page)
   await page.evaluateOnNewDocument(text)
   const loads: Load[] = []
   for (let trial = 0; trial < 8; trial++) loads.push(await sixOn(page, url => run({ op: 'open', tab: 'twice', url }), GAPS[trial % GAPS.length]!))
-  const kept = loads.flatMap(load => load.frames.filter(frame => !frame.left))
+  const every = loads.flatMap(load => load.frames)
   check(
-    'on a born tab where this proof registers the same text again through the driver, the page reads two and so does every frame the driver holds on a session of its own (holds on the parent too)',
-    loads.every(load => load.whole && load.top?.runs === 2) && kept.length > 0 && kept.every(frame => frame.reading?.runs === 2),
+    'on a born tab where this proof registers the same text again through the driver, the page reads two, and a frame reads two where the driver’s own registration reached it and one where it did not (holds on the parent too)',
+    loads.every(load => load.whole && load.top?.runs === 2) && every.some(frame => !frame.left) && every.every(frame => frame.reading?.runs === (frame.left ? 1 : 2)),
     loads.map(words).join(' || '),
   )
   await run({ op: 'close', tab: 'twice' })

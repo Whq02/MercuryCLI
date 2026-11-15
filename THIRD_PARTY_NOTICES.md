@@ -16,7 +16,7 @@ The built artifact (`dist/mercury.mjs`) is a self-contained bundle that inlines 
 - **@modelcontextprotocol/server** 2.4.0 — https://modelcontextprotocol.io
 - **@puppeteer/browsers** 3.2.1 — https://github.com/puppeteer/puppeteer/tree/main/packages/browsers
 - **fuse.js** 7.5.0 — http://fusejs.io
-- **puppeteer-core** 25.9.0 — https://github.com/puppeteer/puppeteer/tree/main/packages/puppeteer-core
+- **puppeteer-core** 25.9.0 — https://github.com/puppeteer/puppeteer/tree/main/packages/puppeteer-core; modified from the published package by `scripts/vendor/patches/puppeteer-core@25.9.0.patch`, applied at install, in `lib/puppeteer/cdp/FrameManager.js`: a frame listed in a session's own frame tree is held on that session, and a tree of another session is passed over for a frame that stands on its own target's attached session
 - **sharp** 0.35.5 — https://sharp.pixelplumbing.com
 
 ### BlueOak-1.0.0
