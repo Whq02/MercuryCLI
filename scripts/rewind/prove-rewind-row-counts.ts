@@ -53,7 +53,13 @@ const messages = [
   prompt('p3', 'create the guide and fix crlf'),
   toolResult('r3', { type: 'create', filePath: '/w/docs/guide/intro.md', content: '# Intro\n\nThis guide explains how to get started.\n', structuredPatch: [] }),
   toolResult('r4', { filePath: '/w/crlf.txt', structuredPatch: editPatch }),
-  prompt('p4', 'the current prompt'),
+  prompt('p4', 'write two rows of a database'),
+  toolResult('r5', { type: 'update', filePath: '/w/rows.sqlite:items/2', content: '{\n  "id": 2,\n  "value": "TWO"\n}\n', structuredPatch: [{ oldStart: 3, oldLines: 1, newStart: 3, newLines: 1, lines: ['-  "value": "two"', '+  "value": "TWO"'] }] }),
+  toolResult('r6', { type: 'create', filePath: 'C:\\src\\proj\\rows.sqlite:items/9', content: '{\n  "id": 9,\n  "value": "nine"\n}\n', structuredPatch: [] }),
+  prompt('p5', 'a row and a file in one turn'),
+  toolResult('r7', { type: 'create', filePath: '/w/rows.sqlite:items/id=10', content: '{\n  "id": 10\n}\n', structuredPatch: [] }),
+  toolResult('r8', { filePath: '/w/notes.sqlite.md', structuredPatch: editPatch }),
+  prompt('p6', 'the current prompt'),
 ] as never[]
 
 console.log('── the rewind list row counts what the turn changed ──')
@@ -64,6 +70,10 @@ const preview = statsBetween(messages, 'p2', 'p3')
 check('a ChangeSet preview wrote nothing and counts nothing', preview.files.length === 0 && preview.insertions === 0 && preview.deletions === 0, JSON.stringify(preview))
 const created = statsBetween(messages, 'p3', 'p4')
 check('a created three-line file counts three lines, not four (RED on the base: the newline-terminated file counted a phantom fourth line)', created.files.length === 2 && created.insertions === 4 && created.deletions === 1, JSON.stringify(created))
+const rows = statsBetween(messages, 'p4', 'p5')
+check('a turn that only wrote rows of a SQLite database counts no code change: a rewind restores no row, and the row was shown as a file named by its key', rows.files.length === 0 && rows.insertions === 0 && rows.deletions === 0, JSON.stringify(rows))
+const mixed = statsBetween(messages, 'p5', 'p6')
+check('a row and a file written in one turn count the file alone, a file whose name merely holds .sqlite among them', JSON.stringify(mixed.files) === JSON.stringify(['/w/notes.sqlite.md']) && mixed.insertions === 1 && mixed.deletions === 1, JSON.stringify(mixed))
 
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)
 process.exit(failures === 0 ? 0 : 1)

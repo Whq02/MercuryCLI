@@ -34,6 +34,7 @@ import {
   TICK_TAG,
 } from '../constants/xml.js'
 import { isRemotePath } from '../services/remoteFiles/target.js'
+import { isSqliteRowTarget } from '../tools/FileWriteTool/structuredTargets.js'
 import { isSyntheticMessage } from '../utils/messages.js'
 import { stripDisplayTagsAllowEmpty } from '../utils/displayTags.js'
 import { isAdvisorOrigin, isSaturnOrigin, wrappedNoticeBlocks } from '../utils/messages/noticeRows.js'
@@ -237,6 +238,7 @@ export function statsBetween(
     }
     const filePath = result.filePath ?? result.file_path
     if (typeof filePath !== 'string') continue
+    if (isSqliteRowTarget(filePath)) continue
     if (result.type === 'create' && typeof result.content === 'string') {
       files.add(filePath)
       insertions += createdLineCount(result.content)
