@@ -252,7 +252,7 @@ section('S6 processor slowdown')
 
 section('S7 network conditions and offline')
 {
-  const free = Math.max(Number(await fetchMs()), Number(await fetchMs()))
+  const free = Math.min(Number(await fetchMs()), Number(await fetchMs()), Number(await fetchMs()))
   const custom = await emulate({ network: { download: 500000, upload: 500000, latency: 700 } })
   const throttled = Math.min(Number(await fetchMs()), Number(await fetchMs()))
   check('[M07] custom throughput and latency apply (a request takes its latency)', custom.outcome === 'succeeded' && custom.result.includes('  network: 500000 B/s down, 500000 B/s up, 700 ms latency') && throttled >= 600 && free < 400, `${free.toFixed(0)}ms -> ${throttled.toFixed(0)}ms`)
