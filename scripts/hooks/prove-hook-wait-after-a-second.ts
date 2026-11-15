@@ -113,7 +113,20 @@ console.log('\n§2 a hook that holds the call is said from its first whole secon
 const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
 const { onSeatRow, onSeatSettled } = await import('../../src/daemon/sessionSeat.ts')
 const { readSessionProgress } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { hookWaitLineOf } = await import('../../src/utils/hooks/wait.ts')
+const { hookWaitLineOf, hookWaitSeconds, hookWaitWords } = await import('../../src/utils/hooks/wait.ts')
+
+console.log('\n§2b the count never stands still: a timer that fires a millisecond short of its second by the wall clock still counts that second')
+{
+  const since = 1_700_000_000_000
+  const early = [1, 2, 3].map(tick => hookWaitSeconds(tick, since, since + tick * 1000 - 1))
+  const byTheClockAlone = [1, 2, 3].map(tick => Math.floor((tick * 1000 - 1) / 1000))
+  console.log(`  three ticks, each a millisecond short of its second: the rows count ${j(early)}; the wall clock alone would count ${j(byTheClockAlone)}`)
+  check('three ticks that each fire a millisecond early count 1, 2, 3, where the whole seconds of the wall clock alone read 0, 1, 2', j(early) === '[1,2,3]' && j(byTheClockAlone) === '[0,1,2]', `${j(early)} | ${j(byTheClockAlone)}`)
+  check('a tick that fires late counts every whole second that has passed, never fewer', hookWaitSeconds(2, since, since + 5400) === 5 && hookWaitSeconds(1, since, since + 1000) === 1, `${hookWaitSeconds(2, since, since + 5400)} | ${hookWaitSeconds(1, since, since + 1000)}`)
+  const wait = { event: 'tool.after' as const, names: ['slow-after'], sinceMs: since, timeoutS: 10 }
+  const lines = early.map(seconds => hookWaitWords(wait, since + seconds * 1000))
+  check('the row says the count it carries: "waiting on hook slow-after · 3 s of 10" at the third such tick', lines[2] === 'waiting on hook slow-after · 3 s of 10' && lines[0] === 'waiting on hook slow-after · 1 s of 10', j(lines))
+}
 
 type Step = { after: Row; line: string | null; entries: number }
 async function throughAWindow(rows: Row[]): Promise<Step[]> {

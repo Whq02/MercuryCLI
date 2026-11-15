@@ -62,7 +62,7 @@ import { displayToolName } from '../../utils/toolNameDisplay.js'
 import type { HookAnnounce, HookPermissionOutcome } from './toolHooks.js'
 import { afterToolHooks, beforeToolHooks, deciderOf, hookPermissionOutcomeOf, permissionDecidedHooks, resolveHookPermissionDecision } from './toolHooks.js'
 import { hookProgressMessage, hookRowsOfResult } from '../../utils/hooks/rows.js'
-import { hookWaitWords } from '../../utils/hooks/wait.js'
+import { hookWaitSeconds, hookWaitWords } from '../../utils/hooks/wait.js'
 
 
 export type MessageUpdateLazy<M = Message> = {
@@ -600,11 +600,11 @@ async function runTransactionBody(args: {
     const timeoutS = Math.max(0, ...prepared.timeoutsS)
     const wait = { event, names: prepared.names, sinceMs, timeoutS }
     prepared.names.forEach((name, index) => push({ message: hookProgressMessage(event, name, 'running', toolUseID, prepared.names.length, { timeoutS: prepared.timeoutsS[index] }) }))
+    let ticks = 0
     const tick = (): void => {
-      const now = Date.now()
-      const elapsedS = Math.floor((now - sinceMs) / 1000)
-      if (elapsedS < 1) return
-      push({ message: hookProgressMessage(event, prepared.names[0] ?? '', 'waiting', toolUseID, prepared.names.length, { timeoutS, elapsedS, line: hookWaitWords(wait, now) }) })
+      ticks++
+      const elapsedS = hookWaitSeconds(ticks, sinceMs, Date.now())
+      push({ message: hookProgressMessage(event, prepared.names[0] ?? '', 'waiting', toolUseID, prepared.names.length, { timeoutS, elapsedS, line: hookWaitWords(wait, sinceMs + elapsedS * 1000) }) })
       takeHookWaitBack = () => push({ message: hookProgressMessage(event, prepared.names[0] ?? '', 'waiting', toolUseID, prepared.names.length) })
     }
     hookWaitTicker = setInterval(tick, 1000)
