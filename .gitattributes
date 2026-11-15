@@ -36,3 +36,9 @@ scripts/vendor/patches/*.patch text eol=lf
 vendor/document-licences/** -text
 vendor/python-licences/** -text
 vendor/grammar-licences/** -text
+# The signed checksum fixtures are verified under the pinned release key, and a
+# signature covers the committed bytes: a checkout that rewrites the line end
+# fails every check that reads them. Excluded from conversion in both
+# directions, with their signatures.
+scripts/host/fixtures/*.sha256 -text
+scripts/host/fixtures/*.sha256.sig -text
