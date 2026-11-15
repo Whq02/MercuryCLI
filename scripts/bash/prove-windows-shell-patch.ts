@@ -50,6 +50,16 @@ try {
   check('raw arguments are written in one place only: for a program of the POSIX runtime, by posix_runtime_arg', patch.split('\n').filter(line => line.includes('raw_arg')).join('\n') === '+                Some(word) => cmd.raw_arg(posix_runtime_arg(word)),')
   check('the POSIX runtime is a program, never a batch file, whose own folder holds msys-2.0.dll or cygwin1.dll', patch.includes('+    let posix_runtime = !batch_file\n+        && command_path.parent().is_some_and(|folder| {\n+            folder.join("msys-2.0.dll").is_file() || folder.join("cygwin1.dll").is_file()\n+        });\n'))
   check('a batch file and a program outside the POSIX runtime retain std arguments', patch.includes('+    if posix_runtime {\n') && patch.includes('+    } else {\n+        cmd.args(args);\n+    }\n+    #[cfg(not(windows))]\n     cmd.args(args);\n'))
+  const flagStart = patch.indexOf('+    let command_path = context.shell.working_dir().join(command_name);')
+  const flagBlock = flagStart === -1 ? '' : patch.slice(flagStart, patch.indexOf('     let mut cmd = std::process::Command::new(command_name);', flagStart))
+  check(
+    "a batch file is told by its name as the standard library tells it and never through Path::extension: the path as given and as the library's own normaliser leaves it, each without the periods, spaces and separators at its end, ending in .cmd or .bat; a path that cannot be resolved counts as one",
+    flagBlock.includes('+    let batch_file = names_batch_file(&command_path);\n') &&
+      !flagBlock.includes('extension(') &&
+      patch.includes("+        while let [rest @ .., b'.' | b' ' | b'\\\\' | b'/'] = name {\n") &&
+      patch.includes('+            ext.eq_ignore_ascii_case(b".cmd") || ext.eq_ignore_ascii_case(b".bat")\n') &&
+      patch.includes('+    batch_name(program) || std::path::absolute(program).map_or(true, |full| batch_name(&full))\n'),
+  )
   check('Windows PATH lookup returns the resolved PATHEXT file path', patch.includes('+                return crate::sys::fs::resolve_executable(candidate_path);'))
   check('the patch carries Windows-only path and cwd-only tests', patch.includes('#[cfg(all(test, windows))]') && patch.includes('paths_are_shell_relative_without_implicit_cwd_search'))
   check('the script fallback is Windows format-error-only and isolates the shell', patch.includes('spawn_err.raw_os_error() == Some(193)') && patch.includes('ext.eq_ignore_ascii_case("sh")') && patch.includes('let mut subshell = context.shell.clone()') && patch.includes('subshell.open_files_mut().set_fd(fd, file)') && patch.includes('Ok(result.exit_code.into())'))
@@ -280,6 +290,9 @@ console.log(brushVendored && brushMeta !== null ? 'GUARD VENDORED' : 'GUARD LEFT
         .replace('    #[cfg(not(windows))]\n    cmd.args(args);\n', '')
         .replace('use std::os::windows::process::CommandExt as _;', windowsHost ? 'use std::os::windows::process::CommandExt as _;' : 'use RawArg as _;')
       const writer = changed.slice(writerStart, writerEnd + 3).replace('#[cfg(windows)]\n', '')
+      const batchStart = changed.indexOf('#[cfg(windows)]\nfn names_batch_file(')
+      const batchTest = batchStart === -1 ? '' : changed.slice(batchStart, changed.indexOf('\n}\n', batchStart) + 3).replace('#[cfg(windows)]\n', '')
+      const batchSpellings = ['probe.cmd.', 'probe.cmd ', 'probe.BAT. .', '.cmd', '.BAT', 'probe.cmd\\.']
       const rawArgShim = windowsHost ? '' : 'trait RawArg { fn raw_arg<T: AsRef<OsStr>>(&mut self, text: T) -> &mut Self; }\nimpl RawArg for std::process::Command { fn raw_arg<T: AsRef<OsStr>>(&mut self, text: T) -> &mut Self { self.arg(text) } }\n'
       const words = ['*.ts', 'a b\\\\c', 'C:\\Program Files\\x', 'plain', '']
       const written = ['"*.ts"', '"a b\\\\\\\\c"', 'C":\\Program Files\\x"', 'plain', '""']
@@ -297,7 +310,7 @@ console.log(brushVendored && brushMeta !== null ? 'GUARD VENDORED' : 'GUARD LEFT
         .replaceAll('                #[cfg(windows)]\n', '')
       const mirror = join(scratch, 'path-mirror.rs')
       writeFileSync(mirror, `use std::{borrow::Cow, ffi::OsStr, path::{Path, PathBuf}, sync::LazyLock};
-${rawArgShim}${writer}pub mod sys {
+${rawArgShim}${writer}${batchTest}pub mod sys {
     pub mod fs {
         use std::path::PathBuf;
         pub trait PathExt { fn executable(&self) -> bool; }
@@ -356,6 +369,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if runtime.is_some() && !batch_file { assert_eq!(args, written, "{program} beside {runtime:?}"); } else { assert_eq!(args, words, "{program} beside {runtime:?}"); }
         }
     }
+    for program in ${rustList(batchSpellings)} {
+        for folder in ["msys", "cygwin", "native"] {
+            let name = root.join(folder).join(program);
+            let cmd = compose(&context, name.to_str().ok_or("utf8")?, &words)?;
+            println!("BATCH\t{program}\t{folder}\t{}", if cmd.get_args().collect::<Vec<_>>() == words { "std" } else { "written" });
+        }
+    }
+    for name in ["./bad\\\".cmd.", "./bad\\n.cmd ", "./bad\\r.BAT. .", "./bad\\n/.cmd"] {
+        println!("REFUSED\t{}", compose(&context, name, &[] as &[&str]).is_err());
+    }
+    let trap = root.join("trap.cmd").join("x");
+    std::fs::create_dir_all(&trap)?;
+    std::fs::write(trap.join("msys-2.0.dll"), "")?;
+    let name = trap.join("..");
+    let cmd = compose(&context, name.to_str().ok_or("utf8")?, &words)?;
+    println!("TRAP\t{}\t{}", std::path::absolute(&name)?.to_string_lossy().to_ascii_lowercase().ends_with(".cmd"), if cmd.get_args().collect::<Vec<_>>() == words { "std" } else { "written" });
     std::fs::write(context.shell.working_dir().join("cwd-only.cmd"), "CWD_SHIM_MUST_NOT_RUN")?;
     std::fs::write(bin.join("shim-probe.cmd"), "PATH_SHIM_OK")?;
     std::fs::write(bin.join("shim-upper.CMD"), "PATH_SHIM_OK")?;
@@ -387,7 +416,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
       check('host-runnable mirror compiles the actual composition and lookup declarations', compile.rc === 0, compile.text)
       if (compile.rc === 0) {
         const result = run(exe, [], scratch)
-        check('host path mirror and refusals pass (not native cmd.exe evidence)', result.rc === 0 && result.text.includes('PASS host mirror'), result.text.trim())
+        check('host path mirror and refusals pass (not native cmd.exe evidence)', result.rc === 0 && result.text.includes('PASS host mirror'), result.text.trim().split('\n').filter(line => !/^(BATCH|REFUSED|TRAP)\t/.test(line)).join('\n'))
+        const said = result.text.split('\n').map(line => line.split('\t'))
+        for (const program of batchSpellings) {
+          const roads = said.filter(line => line[0] === 'BATCH' && line[1] === program).map(line => `${line[2]} ${line[3]}`)
+          check(`${JSON.stringify(program)} is a batch file to the engine as it is to the standard library: it keeps the standard arguments beside msys-2.0.dll, beside cygwin1.dll and beside neither`, roads.join(', ') === 'msys std, cygwin std, native std', roads.join(', '))
+        }
+        const refused = said.filter(line => line[0] === 'REFUSED').map(line => line[1])
+        check('a quote or a newline in the path of such a name is refused as in any other batch path (four spellings: a trailing period, a trailing space, both, and a name that is the extension alone)', refused.join(' ') === 'true true true true', refused.join(' '))
+        const trap = said.find(line => line[0] === 'TRAP') ?? []
+        check(
+          "a path the library's own normaliser leaves ending in .cmd keeps the standard arguments (trap.cmd/x/.. with msys-2.0.dll in x; on Windows that normaliser is GetFullPathNameW, which must leave it so)",
+          trap.length === 3 && (trap[1] === 'true' ? trap[2] === 'std' : !windowsHost),
+          `this host's normaliser leaves it ending in .cmd: ${trap[1]}; handed the ${trap[2] === 'std' ? 'standard arguments' : 'written words'}`,
+        )
       }
     }
   }
