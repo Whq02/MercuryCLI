@@ -16,6 +16,7 @@
 # gate-watch: scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts src/services/providers/toolCallGate.ts
 # gate-watch: src/utils/permissions/filesystem.ts src/utils/platform.ts
 # gate-watch: scripts/vendor/patches/puppeteer-core@25.9.0.patch
+# gate-watch: src/daemon/roster.ts scripts/lib/runnerHost.ts scripts/lib/scratchSeat.ts scripts/lib/seatLauncher.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -1681,6 +1681,7 @@ export async function runHeadless(
     settleIdle,
     wakeSettle: () => {},
     beforeCloseOutput: async () => {
+      if (isConcourseWorker) return
       const { exitNoteDue } = await import('../mneme/exitHandoff.js')
       const ranHere = exitNoteDue()
       let closeUsage: import('../services/api/emptyUsage.js').NonNullableUsage | undefined

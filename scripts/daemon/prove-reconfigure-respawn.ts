@@ -22,7 +22,7 @@ const recfgIdx = roster.indexOf('private respawnForReconfigure(')
 const recfgBody = recfgIdx !== -1 ? roster.slice(recfgIdx, recfgIdx + 1200) : ''
 check('respawnForReconfigure: settled child (outcome) ⇒ direct revive', /if \(h\.entry\.outcome\)/.test(recfgBody) && /this\.spawnLongLived\(short\)/.test(recfgBody))
 check('respawnForReconfigure: a PENDING respawn (respawnTimer) ⇒ let it fire (no SIGTERM of a dead child)', /if \(h\.longLived\.respawnTimer\)/.test(recfgBody))
-check('respawnForReconfigure: a live child and its tree are bounced (SIGTERM) when neither guard trips', /if \(h\.child\) killProcessGroup\(h\.child, 'SIGTERM'\)/.test(recfgBody))
+check('respawnForReconfigure: a live child and its tree are ended with SIGTERM through the roster’s one road for ending a runner when neither guard trips', /if \(h\.child\) this\.endChild\(short, h, h\.child, 'SIGTERM'\)/.test(recfgBody))
 
 check('respawnTimer is set on the crash-backoff / reconfigure-respawn paths', /ll\.respawnTimer = setTimeout\(\(\) => this\.spawnLongLived\(short\)/.test(roster))
 
