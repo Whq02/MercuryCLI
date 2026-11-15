@@ -329,7 +329,7 @@ export async function inspectCompatServer(endpoint: CompatEndpointSettings & { b
     ])
     const detected: CompatDialect | undefined = typeof sglang?.model_path === 'string' ? 'sglang'
       : record(llama?.default_generation_settings) ? 'llamacpp'
-      : Array.isArray(ollama?.models) ? 'ollama'
+      : Array.isArray(ollama?.models) && !(rows.length > 0 && rows.every(row => record(row)?.owned_by === 'tensorfold')) ? 'ollama'
       : rows.some(row => record(row)?.owned_by === 'sglang') ? 'sglang'
       : rows.some(row => record(row)?.owned_by === 'vllm' || windowTokens(record(row)?.max_model_len)) ? 'vllm' : undefined
     const dialect = endpoint.dialect ?? detected
