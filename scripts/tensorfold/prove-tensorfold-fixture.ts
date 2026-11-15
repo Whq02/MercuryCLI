@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -8,6 +8,7 @@ import { withProofAccountHome } from '../lib/proofAccountHome.ts'
 import { KEY, pinScratchHome, releaseScratchHome } from '../lib/settingsPopupHarness.ts'
 import * as panelFixture from './fixtures/panelCard.ts'
 import * as worldFixture from './fixtures/world.ts'
+import { FAKE_LLAMA_VERSION_LINE } from './fixtures/fake-llama-server.ts'
 
 withProofAccountHome('tensorfold-fixture-')
 const home = pinScratchHome('tensorfold-fixture')
@@ -20,14 +21,18 @@ enableConfigs()
 const inventory = await import('../../src/services/tensorfold/inventory.ts')
 const engine = await import('../../src/services/tensorfold/engine.ts')
 const install = await import('../../src/services/tensorfold/install.ts')
+const llama = await import('../../src/services/tensorfold/adapter/llama.ts')
 const identity = await import('../../src/services/tensorfold/adapter/identity.ts')
 const road = await import('../../src/commands/tensorfold/road.ts')
+const serve = await import('../../src/services/tensorfold/serve.ts')
 const receipts = await import('../../src/utils/model/seatReceipts.ts')
 
+type World = ReturnType<typeof worldFixture.fakeWorld>
 type Panel = Awaited<ReturnType<typeof panelFixture.openPanelCard>>
 const fixtures = worldFixture as unknown as Record<string, unknown>
 const panels = panelFixture as unknown as Record<string, unknown>
-const { GIB, QWEN_2B_CONFIG, QWEN_2B_PIN, QWEN_2B_REPO } = worldFixture
+const { GIB, QWEN_2B_CONFIG, QWEN_2B_PIN, QWEN_2B_REPO, FAKE_BIN } = worldFixture
+const has = (name: string): boolean => typeof fixtures[name] === 'function'
 const SCRATCH = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), 'tf-fixture-proof-'))
 
 let failures = 0
@@ -44,6 +49,10 @@ const refusing = (code: string) => (): never => {
   throw Object.assign(new Error(`${code}: operation not permitted`), { code })
 }
 const filesUnder = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap(entry => (entry.isDirectory() ? filesUnder(join(dir, entry.name)) : [join(dir, entry.name)]))
+const versionOf = (binary: string, env: NodeJS.ProcessEnv): string => {
+  const ran = spawnSync(binary, ['--version'], { encoding: 'utf8', env, timeout: 20_000 })
+  return `${ran.stdout ?? ''}${ran.stderr ?? ''}`.trim().split('\n')[0] ?? ''
+}
 
 section('1 · the weights of a seeded checkpoint: a symbolic link, a hard link where that is refused, a copy where both are')
 {
@@ -144,6 +153,64 @@ section('2 · the road the panel fixture gives its panel cannot fetch: no instal
     check('a world whose stand-in engine is taken as installed names no offer, and its card runs the serve alone (holds on the parent too, where no offer is ever named)', r.offer === undefined && r.card().run.startsWith(`will run mercury ${identity.ADAPTER_FLAG} serve `) && r.card().legend.includes('↵ serve and switch'), `${String(r.offer)} · ${r.card().run} · ${r.card().legend}`)
   } finally {
     await r.close()
+  }
+}
+
+section('3 · the stand-ins as programs: the branch of the fixture a Windows host takes, driven on this host')
+{
+  const place = fixtures.placeStandIn as ((name: string, dir: string, kind?: string) => string) | undefined
+  const world = worldFixture.fakeWorld as unknown as (prefix: string, opts?: Record<string, unknown>) => World & { standIn?: string; bin?: string; tensorfold?: string; exists?: (path: string) => boolean }
+  const asScript = world('tf-fixture-script', { standIn: 'script' })
+  const scriptRuntime = llama.llamaRuntimeBin(asScript.home)
+  mkdirSync(scriptRuntime, { recursive: true })
+  writeFileSync(join(scriptRuntime, 'llama-server'), readFileSync(join(FAKE_BIN, 'llama-server')), { mode: 0o755 })
+  const asWindowsAsks = await llama.resolveLlamaServer({ platform: 'win32', home: asScript.home, env: { ...asScript.env, PATH: '' } })
+  check('what the Windows box read, through the product\'s own finder: a runtime folder holding the script stand-in, asked as a Windows host asks, holds no llama.cpp (the name asked for is llama-server.exe; holds on the parent too)', asWindowsAsks.found === false, JSON.stringify(asWindowsAsks))
+  const asProgram = world('tf-fixture-program', { standIn: 'program' })
+  const runtime = llama.llamaRuntimeBin(asProgram.home)
+  const placed = has('placeStandIn') ? place!('llama-server', runtime, 'program') : ''
+  const found = placed === '' ? { found: false as const } : await llama.resolveLlamaServer({ platform: 'win32', home: asProgram.home, env: { ...asProgram.env, PATH: '' } })
+  check('[CHECKPOINT 104] placed as a program the stand-in is llama-server.exe in the runtime folder, and the same question finds it: build 12359, the pinned release', placed === join(runtime, 'llama-server.exe') && existsSync(placed) && found.found === true && found.build === '12359' && found.pinned === true && found.binary === placed, `${placed} ${JSON.stringify(found)}`)
+  check('the program answers for its version in the stand-in\'s own words', placed !== '' && versionOf(placed, asProgram.env) === FAKE_LLAMA_VERSION_LINE, placed === '' ? 'the fixture places no program' : versionOf(placed, asProgram.env))
+  check('a world built that way carries its own engine: a folder of its own with both stand-ins under both names, first on its PATH, its home also the home a Windows process reads, and nothing outside that folder counts as there', asProgram.standIn === 'program' && asProgram.bin === join(asProgram.root, 'bin') && ['tensorfold', 'tensorfold.exe', 'llama-server', 'llama-server.exe'].every(name => existsSync(join(asProgram.bin!, name))) && asProgram.tensorfold === join(asProgram.bin, 'tensorfold.exe') && (asProgram.env.PATH ?? '').startsWith(asProgram.bin) && asProgram.env.USERPROFILE === asProgram.home && asProgram.serviceEnv.USERPROFILE === asProgram.home && asProgram.exists!(join(asProgram.bin, 'tensorfold')) && !asProgram.exists!(join(FAKE_BIN, 'tensorfold')), JSON.stringify({ standIn: asProgram.standIn, bin: asProgram.bin, tensorfold: asProgram.tensorfold }))
+  check('a world on a host that runs scripts is the world it was: the tree\'s own stand-ins, the PATH it had, no second home (holds on the parent too)', asScript.env.PATH === `${FAKE_BIN}:/usr/bin:/bin` && asScript.serviceEnv.USERPROFILE === undefined && !existsSync(join(asScript.root, 'bin')) && (asScript.tensorfold === undefined || asScript.tensorfold === `${FAKE_BIN}/tensorfold`), `${asScript.env.PATH} ${String(asScript.tensorfold)}`)
+  const viaProgram = asProgram.exists === undefined ? null : await engine.findTensorFoldEngine({ env: asProgram.env, home: asProgram.home, platform: 'darwin', exists: asProgram.exists })
+  check('the product\'s finder, pinned to a Mac as the proofs pin it, finds TensorFold\'s stand-in in that folder by its plain name', viaProgram !== null && viaProgram.version === '1.2.2' && viaProgram.binary === join(asProgram.bin!, 'tensorfold'), JSON.stringify(viaProgram === null ? null : { version: viaProgram.version, binary: viaProgram.binary }))
+  rmSync(asScript.root, { recursive: true, force: true })
+  rmSync(asProgram.root, { recursive: true, force: true })
+
+  const open = panelFixture.openPanelCard as unknown as (opts: Record<string, unknown>) => Promise<Panel & { offer?: string }>
+  const log = join(SCRATCH, 'llama.log')
+  const a = await open({ road: 'adapter', label: 'Qwen3.5 4B', prefix: 'tf-fixture-adapter-program', free: () => 40 * GIB, standIn: 'program', serviceEnv: { FAKE_LLAMA_LOG: log } })
+  try {
+    const world4 = a.world as World & { standIn?: string }
+    check('the panel on Mercury\'s engine with the stand-in a program: no offer, the 4B on disk, ↵ would serve', world4.standIn === 'program' && a.offer === undefined && a.card().row.startsWith('Qwen3.5 4B local/qwen3.5-4b on disk') && a.card().legend.includes('↵ serve and switch'), `${String(world4.standIn)} · ${String(a.offer)} · ${a.card().all}`)
+    if (world4.standIn === 'program' && a.offer === undefined) {
+      await a.press(KEY.enter)
+      const up = await a.until((_card, lines) => lines.some(line => line.includes('serving qwen3.5-4b on 127.0.0.1:')), 40_000)
+      const record = serve.servedTensorFold({ servedFile: a.servedFile })
+      const ran = existsSync(log) ? readFileSync(log, 'utf8') : ''
+      check('↵ serves it through llama-server.exe: the row reads current, one record is kept, and the program logged the start it was given', up && a.card().row.startsWith('Qwen3.5 4B local/qwen3.5-4b current ') && record.length === 1 && record[0]!.name === 'qwen3.5-4b' && ran.includes('"--model"') && existsSync(join(llama.llamaRuntimeBin(a.world.home), 'llama-server.exe')), `${a.card().all} · ${record.length} · ${ran.slice(0, 200)}`)
+    } else {
+      check('↵ serves it through llama-server.exe: the row reads current, one record is kept, and the program logged the start it was given', false, 'the fixture builds no program here: not tried')
+    }
+  } finally {
+    await a.close()
+  }
+  const t = await open({ road: 'tensorfold', label: 'Qwen3.5 2B', prefix: 'tf-fixture-tensorfold-program', free: () => 40 * GIB, standIn: 'program' })
+  try {
+    const world2 = t.world as World & { standIn?: string; bin?: string }
+    check('the panel on TensorFold\'s own engine with the stand-in a program: no offer, the 2B on disk', world2.standIn === 'program' && t.offer === undefined && t.card().row.startsWith('Qwen3.5 2B local/qwen3.5-2b on disk'), `${String(world2.standIn)} · ${String(t.offer)} · ${t.card().all}`)
+    if (world2.standIn === 'program' && t.offer === undefined) {
+      await t.press(KEY.enter)
+      const up = await t.until((_card, lines) => lines.some(line => line.includes('serving qwen3.5-2b on 127.0.0.1:')), 40_000)
+      const record = serve.servedTensorFold({ servedFile: t.servedFile })
+      check('↵ serves it through tensorfold.exe in the world\'s own folder', up && t.card().row.startsWith('Qwen3.5 2B local/qwen3.5-2b current ') && record.length === 1 && record[0]!.name === 'qwen3.5-2b', `${t.card().all} · ${record.length}`)
+    } else {
+      check('↵ serves it through tensorfold.exe in the world\'s own folder', false, 'the fixture builds no program here: not tried')
+    }
+  } finally {
+    await t.close()
   }
 }
 

@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { withProofAccountHome } from '../lib/proofAccountHome.ts'
 import { KEY, pinScratchHome, releaseScratchHome } from '../lib/settingsPopupHarness.ts'
 import { CARD_COLUMNS, CARD_ROWS, freePort, openPanelCard, type PanelCard } from './fixtures/panelCard.ts'
-import { FAKE_BIN, GIB, MAC_48, QWEN_2B_REPO, WIN_16, fakeWorld } from './fixtures/world.ts'
+import { GIB, MAC_48, QWEN_2B_REPO, WIN_16, fakeWorld } from './fixtures/world.ts'
 
 withProofAccountHome('tensorfold-last-window-')
 const argAfter = (flag: string): string | undefined => {
@@ -162,7 +162,7 @@ section('5 · what is remembered: the window of a session\'s start that came up,
   const world = fakeWorld('tf-last-window-starts')
   const servedFile = join(world.home, 'served.json')
   const calls: Array<[string, number]> = []
-  const binary = `${FAKE_BIN}/tensorfold`
+  const binary = world.tensorfold
   const io = (free: number, serviceEnv: Record<string, string> = {}) => ({ binary, cwd: world.cwd, sessionId: 'proof', env: world.env, serviceEnv: { ...world.serviceEnv, ...serviceEnv }, servedFile, machine: MAC_48, app: async () => ({ running: false }), freeMemoryBytes: async () => free, rememberPort: () => undefined, forgetPort: () => undefined, rememberWindow: (repo: string, window: number) => void calls.push([repo, window]) }) as never
   const tight = await serve.startTensorFold({ repo: QWEN_2B_REPO, window: 262_144, port: await freePort() }, io(need(262_144) - 2.2 * GIB)).then(() => 'served', (error: unknown) => (error instanceof serve.TensorFoldStartError && error.tight !== null ? 'tight' : String(error)))
   check('a start refused for memory remembers nothing', tight === 'tight' && calls.length === 0, `${tight} ${JSON.stringify(calls)}`)

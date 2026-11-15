@@ -1,8 +1,8 @@
-import { copyFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { delimiter, join } from 'node:path'
 import { KEY, mountOffscreen, settle, waitFor, type Mounted } from '../../lib/settingsPopupHarness.ts'
-import { FAKE_BIN, FIXTURES, MAC_48, SEALED_ENV, WIN_16, fakeExists, fakeWorld, type FakeWorld } from './world.ts'
+import { FIXTURES, MAC_48, SEALED_ENV, WIN_16, fakeWorld, placeStandIn, type FakeWorld, type StandIn } from './world.ts'
 
 export const CARD_COLUMNS = 120
 export const CARD_ROWS = 40
@@ -60,7 +60,7 @@ export function fetchOffered(card: Pick<Card, 'legend' | 'all'>): string | undef
   return card.all.split(' | ').find(line => /^will run .*\b(?:install|pull)\b/.test(line))
 }
 
-export async function openPanelCard(opts: { road: PanelRoad; label: string; prefix: string; free: () => number; serviceEnv?: Record<string, string>; engine?: 'missing' }): Promise<PanelCard> {
+export async function openPanelCard(opts: { road: PanelRoad; label: string; prefix: string; free: () => number; serviceEnv?: Record<string, string>; standIn?: StandIn; engine?: 'missing' }): Promise<PanelCard> {
   const React = await import('react')
   const h = React.createElement
   const { Box } = await import('../../../src/ink.ts')
@@ -76,27 +76,26 @@ export async function openPanelCard(opts: { road: PanelRoad; label: string; pref
   engine.__pinTensorFoldMachineForTest(machine)
   const missing = opts.engine === 'missing'
   let world: FakeWorld
-  let binary = `${FAKE_BIN}/tensorfold`
+  let binary: string
   let found: unknown
   if (adapter) {
     const models = await import('../../../src/services/tensorfold/adapter/models.ts')
     const llama = await import('../../../src/services/tensorfold/adapter/llama.ts')
     const script = join(FIXTURES, 'fake-llama-server.ts')
-    world = fakeWorld(opts.prefix, { seeds: [], ggufSeeds: [models.QWEN_4B_GGUF.gguf, models.QWEN_2B_GGUF.gguf], env: { FAKE_LLAMA_SCRIPT: script, FAKE_TENSORFOLD_BUN: process.execPath, ...SEALED_ENV } })
+    world = fakeWorld(opts.prefix, { seeds: [], ggufSeeds: [models.QWEN_4B_GGUF.gguf, models.QWEN_2B_GGUF.gguf], env: { FAKE_LLAMA_SCRIPT: script, FAKE_TENSORFOLD_BUN: process.execPath, ...SEALED_ENV }, ...(opts.standIn !== undefined ? { standIn: opts.standIn } : {}) })
     if (missing) {
       world.env.PATH = ['/usr/bin', '/bin'].join(delimiter)
       world.serviceEnv.PATH = world.env.PATH
     } else {
-      const runtime = llama.llamaRuntimeBin(world.home)
-      mkdirSync(runtime, { recursive: true })
-      copyFileSync(join(FAKE_BIN, 'llama-server'), join(runtime, 'llama-server'))
+      placeStandIn('llama-server', llama.llamaRuntimeBin(world.home), world.standIn)
     }
     binary = engine.adapterEntry()
-    found = await engine.findTensorFoldEngine({ env: world.env, home: world.home, platform: 'darwin', exists: () => false, adapter: binary, machine } as never)
+    found = await engine.findTensorFoldEngine({ env: world.env, home: world.home, platform: world.standIn === 'program' ? 'win32' : 'darwin', exists: () => false, adapter: binary, machine } as never)
   } else {
-    world = fakeWorld(opts.prefix, { env: { ...SEALED_ENV } })
+    world = fakeWorld(opts.prefix, { env: { ...SEALED_ENV }, ...(opts.standIn !== undefined ? { standIn: opts.standIn } : {}) })
+    binary = world.tensorfold
   }
-  const exists = missing ? (): boolean => false : fakeExists
+  const exists = missing ? (): boolean => false : world.exists
   const servedFile = join(world.home, 'served.json')
   const port = await freePort()
   writeFileSync(servedFile, JSON.stringify({ repo: '', name: '', port, window: 0, pid: 0, startedAt: '', project: join(world.root, 'never') }))
