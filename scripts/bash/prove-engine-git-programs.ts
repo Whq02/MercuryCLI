@@ -208,6 +208,13 @@ async function twoAtATime<T>(starts: Array<() => Promise<T>>): Promise<T[]> {
   return answers
 }
 
+async function bundleNode(): Promise<string> {
+  const { NODE } = await import('../daemon/dupline-world.ts')
+  if (NODE !== 'node') return NODE
+  const { nodeBinPath } = await import('../lib/nodeBin.ts')
+  return nodeBinPath()
+}
+
 try {
   section('§1 the rule, read through its platform seam: a Windows host, the path grammar of Windows, real files in a scratch tree')
   {
@@ -428,8 +435,7 @@ try {
       if (!existsSync(DIST)) {
         console.log('  [SKIP] dist/mercury.mjs absent — build first (the gate prebuilds)')
       } else {
-        const { nodeBinPath } = await import('../lib/nodeBin.ts')
-        const NODE = nodeBinPath()
+        const NODE = await bundleNode()
         type Row = { status?: string; evidence?: string; state?: string; detail?: string }
         const health = (label: string, extra: Record<string, string>): Promise<{ shell: Row | null; ready: Row | null; text: string }> => {
           const home = realpathSync(mkdtempSync(join(scratch, `${label}-health-home-`)))
@@ -484,8 +490,7 @@ try {
       } else {
         const { seedScratchHome, startScriptedFixture } = await import('../lib/scriptedTurn.ts')
         const { childEnv, MODEL } = await import('../daemon/dupline-world.ts')
-        const { nodeBinPath } = await import('../lib/nodeBin.ts')
-        const NODE = nodeBinPath()
+        const NODE = await bundleNode()
         const ASK = 'list this folder and say what the path is'
         const drive = async (label: string, path: string): Promise<{ code: number | null; tools: string[]; ls: string; seen: string; tail: string }> => {
           const home = join(scratch, `${label}-run-home`)
