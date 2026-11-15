@@ -23,6 +23,7 @@ type ServeIo = {
   spawnImpl?: typeof spawn
   drainSeconds?: number
   readyPollMs?: number
+  ramBytes?: number
 }
 
 const ADAPTER_ADMISSION_SHARE = 0.7
@@ -350,7 +351,7 @@ export async function runServe(args: ServeArgs, io: ServeIo = {}): Promise<numbe
   const resolved = io.llamaServer !== undefined ? { found: true as const, binary: io.llamaServer, pinned: true, ...(await readLlamaServerVersion(io.llamaServer, env)) } : await resolveLlamaServer({ env, platform, ...(io.home !== undefined ? { home: io.home } : {}) })
   if (!resolved.found) throw refusal(resolved.refused ?? 'llama.cpp is not installed on this machine; /tensorfold installs it')
   const llamaBinary = resolved.binary
-  const fit = admission(point, args.window, args.promptCacheGib, totalmem())
+  const fit = admission(point, args.window, args.promptCacheGib, io.ramBytes ?? totalmem())
   if (fit.line !== undefined) throw refusal(fit.line)
   const keys = args.apiKeyFile !== undefined ? readKeyFile(args.apiKeyFile) : undefined
   const name = args.name ?? point.shortName

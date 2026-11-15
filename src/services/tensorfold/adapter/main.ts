@@ -15,6 +15,7 @@ type AdapterIo = {
   stderr?: (text: string) => void
   fetchImpl?: typeof fetch
   llamaServer?: string
+  ramBytes?: number
 }
 
 const ADAPTER_SERVE_FLAGS = ['--name', '--context', '--port', '--prompt-cache-gib', '--host', '--api-key-file', '--drafter', '--parallel'] as const
@@ -136,7 +137,7 @@ export async function runTensorFoldAdapter(argv: readonly string[], io: AdapterI
     }
     if (verb === 'serve') {
       const args = parseServeArgs(rest)
-      return await runServe(args, { env, home, ...(io.platform !== undefined ? { platform: io.platform } : {}), ...(io.llamaServer !== undefined ? { llamaServer: io.llamaServer } : {}) })
+      return await runServe(args, { env, home, ...(io.platform !== undefined ? { platform: io.platform } : {}), ...(io.llamaServer !== undefined ? { llamaServer: io.llamaServer } : {}), ...(io.ramBytes !== undefined ? { ramBytes: io.ramBytes } : {}) })
     }
     if (verb === 'install') {
       if (rest.length !== 0) {
