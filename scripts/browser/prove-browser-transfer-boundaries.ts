@@ -96,8 +96,10 @@ section('S1 unused session sends 56 protocol commands and creates no transfer fo
     return origSend.call(this, cb, method, params, session, ...rest)
   }
   const knownSessions = new Set<string>()
+  let ring: Array<{ kind: string; text: string }> = []
   try {
     await run({ op: 'open', url: `${A.origin}/` })
+    ring = [...(sessions.activeSession(ownerOf(lead))?.consoleRing ?? [])]
     const driverId = (pageOf() as unknown as { _client?: () => { id(): string } })._client?.().id()
     const ownId = sessions.pageKitOf(pageOf())?.cdp?.id()
     const watchId = sent.find(c => c.method === 'Target.setAutoAttach' && JSON.stringify(c.params?.filter) === '[{"type":"page","exclude":false}]')?.session
@@ -110,11 +112,19 @@ section('S1 unused session sends 56 protocol commands and creates no transfer fo
   const ownCommands = sent.filter(c => c.session === undefined || knownSessions.has(c.session))
   const dlBehaviours = ownCommands.filter(c => c.method === 'Browser.setDownloadBehavior')
   const anyFolders = transferFolders().some(folder => !strangers.has(folder))
+  const starts = ownCommands.filter(c => c.method === 'Page.navigate')
+  const again = starts.length === 2 && starts[0]!.params?.url === starts[1]!.params?.url
+  const tally = new Map<string, number>()
+  for (const command of ownCommands) tally.set(command.method, (tally.get(command.method) ?? 0) + 1)
   check(
-    'open, screenshot, close sends 52 protocol commands on the root, driver, page-kit, and watch sessions (56 with default background targets; the one over the tabs row is the page-kit session’s auto-attach for frames of another site; 2 download-behavior commands, 0 extra) and creates no transfer folder',
-    ownCommands.length === 52 && ownCommands.filter(c => c.method === 'Target.setAutoAttach' && JSON.stringify(c.params?.filter) === '[{"type":"iframe","exclude":false}]').length === 1 && dlBehaviours.length === 2 && !anyFolders,
-    `commands=${ownCommands.length} dlBehaviours=${dlBehaviours.length} folders=${anyFolders}`,
+    'open, screenshot, close sends 52 protocol commands on the root, driver, page-kit, and watch sessions (56 with default background targets; the one over the tabs row is the page-kit session’s auto-attach for frames of another site; 2 download-behavior commands, 0 extra; one more, a second Page.navigate to the same address, when the browser dropped this launch’s first navigation and it was started once more) and creates no transfer folder',
+    ownCommands.length === 52 + (again ? 1 : 0) && starts.length === (again ? 2 : 1) && ownCommands.filter(c => c.method === 'Target.setAutoAttach' && JSON.stringify(c.params?.filter) === '[{"type":"iframe","exclude":false}]').length === 1 && dlBehaviours.length === 2 && !anyFolders,
+    `commands=${ownCommands.length} starts=${starts.length} dlBehaviours=${dlBehaviours.length} folders=${anyFolders} ${[...tally].map(([method, count]) => `${method}×${count}`).join(' ')}`,
   )
+  if (again) {
+    const dropped = ring.find(entry => entry.kind === 'net' && entry.text.includes('FAILED net::ERR_ABORTED (document)'))
+    console.log(`    this launch’s first navigation was started once more (${ownCommands.length} commands, ${starts.length} of them Page.navigate): ${dropped === undefined ? 'the console holds no failed try, so the browser neither failed it nor sent it' : `the console holds the dropped try, ${dropped.text}`}`)
+  }
 
   await run({ op: 'open', url: `${A.origin}/` })
   await pageOf().evaluate(() => { document.cookie = 'dlstealth=1; max-age=3600; path=/' })
@@ -172,11 +182,14 @@ section('S2 uploads: Read decisions across modes (including Mercury credentials)
   fs.writeFileSync(credFile, '{"oauth":"never-upload"}')
   fs.writeFileSync(browserSecFile, '{"secret":"never-upload"}')
   let madeLinks = false
+  let refused = ''
   try {
     fs.symlinkSync(join(deniedFolder, 'secret.txt'), join(work, 'denied-link.txt'))
     fs.symlinkSync(credFile, join(work, 'cred-link.json'))
     madeLinks = true
-  } catch {}
+  } catch (error) {
+    refused = (error as NodeJS.ErrnoException).code ?? String(error)
+  }
 
   const denyRule = process.platform === 'win32' ? `Read(${deniedFolder.replace(/\\/g, '/')}/**)` : `Read(//${deniedFolder.replace(/^\/+/, '')}/**)`
   for (const mode of ['default', 'implement', 'sovereign'] as const) {
@@ -207,6 +220,8 @@ section('S2 uploads: Read decisions across modes (including Mercury credentials)
           (linkCred.message ?? '').includes("holds Mercury's own credentials"),
         JSON.stringify({ mode, linkRule, linkCred }),
       )
+    } else {
+      console.log(`  [SKIP] mode ${mode}: symlinks to a denied folder or to Mercury’s own credential file are denied with Read’s sentence — this account may not make a symbolic link (${refused})`)
     }
   }
 
