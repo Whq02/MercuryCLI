@@ -319,7 +319,7 @@ export function geminiListedModel(
   const snapshot = getCachedGeminiCatalogue(account.kind, env)
   if (!snapshot || snapshot.models.length === 0) return undefined
   const id = model.trim().replace(/\[[^\]]*\]/g, '').toLowerCase()
-  return snapshot.models.find(m => m.id.toLowerCase() === id)
+  return snapshot.models.find(m => m.id.toLowerCase() === id) ?? (account.kind === 'plan' && geminiGeneration(id)[0] >= 4 ? geminiPlanEffortRow(id, undefined, env) : undefined)
 }
 
 export function geminiContextWindowFor(
