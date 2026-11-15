@@ -7,6 +7,7 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'rewind-rows-home-'))
 
 const { statsBetween } = await import('../../src/components/MessageSelector.tsx')
+const { isSqliteRowTarget } = await import('../../src/tools/FileWriteTool/structuredTargets.ts')
 
 let failures = 0
 let checks = 0
@@ -59,7 +60,9 @@ const messages = [
   prompt('p5', 'a row and a file in one turn'),
   toolResult('r7', { type: 'create', filePath: '/w/rows.sqlite:items/id=10', content: '{\n  "id": 10\n}\n', structuredPatch: [] }),
   toolResult('r8', { filePath: '/w/notes.sqlite.md', structuredPatch: editPatch }),
-  prompt('p6', 'the current prompt'),
+  prompt('p6', 'a write that moves a row to a key the address grammar refuses'),
+  toolResult('r9', { type: 'update', filePath: "/w/rows.sqlite:items/slug=o'reilly", content: '{\n  "slug": "o\'reilly"\n}\n', structuredPatch: [{ oldStart: 1, oldLines: 1, newStart: 1, newLines: 1, lines: ['-  "slug": "plain"', '+  "slug": "o\'reilly"'] }] }),
+  prompt('p7', 'the current prompt'),
 ] as never[]
 
 console.log('── the rewind list row counts what the turn changed ──')
@@ -74,6 +77,11 @@ const rows = statsBetween(messages, 'p4', 'p5')
 check('a turn that only wrote rows of a SQLite database counts no code change: a rewind restores no row, and the row was shown as a file named by its key', rows.files.length === 0 && rows.insertions === 0 && rows.deletions === 0, JSON.stringify(rows))
 const mixed = statsBetween(messages, 'p5', 'p6')
 check('a row and a file written in one turn count the file alone, a file whose name merely holds .sqlite among them', JSON.stringify(mixed.files) === JSON.stringify(['/w/notes.sqlite.md']) && mixed.insertions === 1 && mixed.deletions === 1, JSON.stringify(mixed))
+const moved = statsBetween(messages, 'p6', 'p7')
+check('a write that moved a row to a key holding a quote counts no code change either: the address the result carries is one the grammar would refuse to write to', moved.files.length === 0 && moved.insertions === 0 && moved.deletions === 0, JSON.stringify(moved))
+const rowAddresses = ['/w/rows.sqlite:items/2', 'C:\\src\\proj\\rows.sqlite:items/id=10', "/w/rows.sqlite:items/slug=o'reilly", '/w/rows.db:items/name=this and that', '/w/rows.sqlite:items/3#delete']
+const notRows = ['/w/rows.sqlite', '/w/rows.sqlite:items', '/w/notes.sqlite.md', '/w/archive.zip:inside.txt', '/w/x.db/file.ts', 'ssh://box/w/rows.txt', '/w/rows.sqlite:bad-table/2']
+check('every address a row write reports reads as a row, and nothing a rewind restores does', rowAddresses.every(path => isSqliteRowTarget(path)) && notRows.every(path => !isSqliteRowTarget(path)), JSON.stringify({ rows: rowAddresses.map(path => isSqliteRowTarget(path)), others: notRows.map(path => isSqliteRowTarget(path)) }))
 
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)
 process.exit(failures === 0 ? 0 : 1)

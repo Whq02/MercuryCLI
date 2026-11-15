@@ -147,7 +147,11 @@ function hostIsRegularFile(hostPath: string): boolean | null {
 }
 
 export function isSqliteRowTarget(path: string): boolean {
-  return parseStructuredWriteTarget(path)?.kind === 'sqlite-row'
+  if (parseStructuredWriteTarget(path)?.kind === 'sqlite-row') return true
+  const rich = parseRichFormatTarget(path.endsWith('#delete') ? path.slice(0, -7) : path)
+  if (rich?.kind !== 'sqlite' || rich.subtarget === undefined) return false
+  const cut = rich.subtarget.indexOf('/')
+  return cut > 0 && /^[A-Za-z_][A-Za-z0-9_]*$/.test(rich.subtarget.slice(0, cut)) && rich.subtarget.length > cut + 1
 }
 
 export const SQLITE_ROW_NOT_CHECKPOINTED = 'Not checkpointed: a rewind will not restore this row.'
