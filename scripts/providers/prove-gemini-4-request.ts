@@ -26,6 +26,8 @@ const { geminiPlanQuotaView } = await import('../../src/services/providers/gemin
 const { resolveDisplayedSessionModel } = await import('../../src/hooks/useDisplayedSessionModel.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { IMAGE_ELIDED_TEXT } = await import('../../src/utils/messages/imageRequestFit.ts')
+const modelCost = await import('../../src/utils/modelCost.ts')
 import type { AssistantMessage, Message } from '../../src/types/message.ts'
 import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
 
@@ -173,6 +175,32 @@ async function runTurn(model: string, prompt: string, steps: Step[]): Promise<Tu
   }
 }
 const plain = (model: string, ask: Ask = {}): Promise<Sent> => send(model, [user('Say hello.')], ask)
+const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+const JPEG = '/9j/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/yQALCAABAAEBAREA/8wABgAQEAX/2gAIAQEAAD8A0s8g/9k='
+const WEBP = 'UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA=='
+const GIF = 'R0lGODdhAQABAJEAAAAAAP8AAP///wAAACH5BAkAAAMALAAAAAABAAEAAAICTAEAOw=='
+const PDF = Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[]/Count 0>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n').toString('base64')
+const HEAVY = ['A', 'B'].map(letter => letter.repeat(11 * 1024 * 1024))
+const picture = (mediaType: string, data: string) => ({ type: 'image', source: { type: 'base64', media_type: mediaType, data } })
+const seen = (id: string, words: string, ...media: unknown[]) => ({ type: 'tool_result', tool_use_id: id, content: [{ type: 'text', text: words }, ...media] })
+const answered = (words: string, ...nested: Array<[string, string]>) => ({ functionResponse: { name: 'Read', response: { output: words }, ...(nested.length ? { parts: nested.map(([mimeType, data]) => ({ inlineData: { mimeType, data } })) } : {}) } })
+const beside = (mimeType: string, data: string) => ({ inlineData: { mimeType, data } })
+const brief = (value: unknown): string => [[PNG, '<png>'], [JPEG, '<jpeg>'], [WEBP, '<webp>'], [GIF, '<gif>'], [PDF, '<pdf>'], [HEAVY[0]!, '<heavy a>'], [HEAVY[1]!, '<heavy b>']].reduce((words, [data, name]) => words.replaceAll(data!, name!), j(value)).slice(0, 900)
+const twoReads: Step = [{ candidates: [{ content: { role: 'model', parts: [{ functionCall: { name: 'Read', args: { file_path: '/work/a.png' } }, thoughtSignature: 'sig-first-call' }, { functionCall: { name: 'Read', args: { file_path: '/work/b.jpg' } } }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 40, candidatesTokenCount: 12 } }]
+type Content = { role: string; parts: Array<Record<string, any>> }
+async function rounds(model: string, results: (ids: string[]) => unknown[], shape: { apart?: boolean; follow?: Step } = {}): Promise<Sent[]> {
+  script = [twoReads]
+  const opening = [user('Look at both.')]
+  const asked = await send(model, opening, { effort: 'high', withTools: true })
+  const blocks = results(asked.answer.flatMap(message => message.message.content).filter(block => block.type === 'tool_use').map(block => (block as { id: string }).id))
+  const shown = [...opening, ...asked.answer, ...(shape.apart ? blocks.map(block => user([block])) : [user(blocks)])]
+  const told = await send(model, shown, { effort: 'high', withTools: true })
+  if (shape.follow === undefined) return [asked, told]
+  script = [shape.follow]
+  return [asked, told, await send(model, [...shown, ...told.answer, user('And the next one?')], { effort: 'high', withTools: true })]
+}
+const mediaRound = async (model: string, results: (ids: string[]) => unknown[], shape: { apart?: boolean } = {}): Promise<Content[]> => ((await rounds(model, results, shape))[1]!.request.contents ?? []) as Content[]
+const twoPictures = (ids: string[]): unknown[] => [seen(ids[0]!, 'a.png', picture('image/png', PNG)), seen(ids[1]!, 'b.jpg', picture('image/jpeg', JPEG))]
 const vocabularyOf = (model: string): readonly string[] => {
   const view = capabilities.effortVocabularyFor(model)
   return 'vocabulary' in view ? view.vocabulary : []
@@ -258,7 +286,49 @@ try {
     check(`API key ${keyed}: no ceiling is sent unasked (Google's own 65,536 governs) and a larger ask goes out as one segment`, unasked.generationConfig?.maxOutputTokens === undefined && asked.generationConfig?.maxOutputTokens === SEGMENT && (await plain(keyed, { effort: 'high', maxOutput: 4_096 })).generationConfig?.maxOutputTokens === 4_096, j([unasked.generationConfig, asked.generationConfig]))
   }
   check('API key gemini-3.8-flash and gemini-2.5-pro send what was asked, as before', (await plain('gemini-3.8-flash', { maxOutput: 200_000 })).generationConfig?.maxOutputTokens === 200_000 && (await plain('gemini-2.5-pro', { maxOutput: 200_000 })).generationConfig?.maxOutputTokens === 200_000)
+
+  console.log('── what a tool returns for the eye rides inside its own function response on gemini-4-hydrogen with an API key ──')
+  const besideBoth = j([answered('a.png'), answered('b.jpg'), beside('image/png', PNG), beside('image/jpeg', JPEG)])
+  const insideBoth = j([answered('a.png', ['image/png', PNG]), answered('b.jpg', ['image/jpeg', JPEG])])
+  const inside = await mediaRound('gemini-4-hydrogen', twoPictures)
+  check('gemini-4-hydrogen: two parallel Reads that each return a picture go back as two function responses in call order, each carrying its own picture in its parts, and no picture is appended beside them (its guide: inside the function response rather than as separate user-turn parts)', inside.at(-1)?.role === 'user' && j(inside.at(-1)?.parts) === insideBoth, brief(inside.at(-1)?.parts))
+  check('…the two calls go back as Google sent them: one model turn, the signature on the first call only, then one user turn that holds both responses', inside.length === 3 && j(inside[1]) === j({ role: 'model', parts: [{ functionCall: { name: 'Read', args: { file_path: '/work/a.png' } }, thoughtSignature: 'sig-first-call' }, { functionCall: { name: 'Read', args: { file_path: '/work/b.jpg' } } }] }), brief(inside[1]))
+  const swapped = await mediaRound('gemini-4-hydrogen', ids => twoPictures(ids).reverse())
+  check('…and when the results arrive in the other order the responses keep the order of the calls and each picture rides the response of the call that made it', j(swapped.at(-1)?.parts) === insideBoth, brief(swapped.at(-1)?.parts))
+  const apart = await mediaRound('gemini-4-hydrogen', twoPictures, { apart: true })
+  check('…and when each result is a message of its own the two responses still share one user turn, each with its picture', apart.length === 3 && j(apart.at(-1)?.parts) === insideBoth, brief(apart.at(-1)?.parts))
+  const papers = await mediaRound('gemini-4-hydrogen', ids => [seen(ids[0]!, 'a.pdf', { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: PDF } }), seen(ids[1]!, 'b.webp', picture('image/webp', WEBP))])
+  check('gemini-4-hydrogen: a PDF and a WebP picture ride inside too', j(papers.at(-1)?.parts) === j([answered('a.pdf', ['application/pdf', PDF]), answered('b.webp', ['image/webp', WEBP])]), brief(papers.at(-1)?.parts))
+  const mixed = await mediaRound('gemini-4-hydrogen', ids => [seen(ids[0]!, 'a.png', picture('image/png', PNG)), seen(ids[1]!, 'c.gif', picture('image/gif', GIF)), { type: 'text', text: 'and this one of mine' }, picture('image/png', PNG)])
+  check('gemini-4-hydrogen: what its page does not take inside stays beside, as before: a GIF (the page lists PNG, JPEG and WebP) and a picture the user typed, even one with the bytes a tool returned', j(mixed.at(-1)?.parts) === j([answered('a.png', ['image/png', PNG]), answered('c.gif'), { text: 'and this one of mine' }, beside('image/gif', GIF), beside('image/png', PNG)]), brief(mixed.at(-1)?.parts))
+  const heavy = await mediaRound('gemini-4-hydrogen', ids => [seen(ids[0]!, 'a.png', picture('image/png', HEAVY[0]!)), seen(ids[1]!, 'b.png', picture('image/png', HEAVY[1]!))])
+  check('gemini-4-hydrogen: a body over the 20 MiB limit drops its oldest picture as before, and the note that says so sits beside the responses, never inside one (a function response part takes media only)', j(heavy.at(-1)?.parts) === j([answered('a.png'), answered('b.png', ['image/png', HEAVY[1]!]), { text: IMAGE_ELIDED_TEXT }]), brief(heavy.at(-1)?.parts))
+  sentLog.length -= 2
+  for (const other of ['gemini-4-carbon', 'gemini-4-argon', 'gemini-3.8-flash', 'gemini-2.5-pro']) {
+    const kept = await mediaRound(other, twoPictures)
+    check(`${other} with an API key keeps the pictures beside the responses, as before (only Hydrogen's guide asks for them inside)`, j(kept.at(-1)?.parts) === besideBoth, brief(kept.at(-1)?.parts))
+  }
   await useRoad('plan')
+  for (const signIn of ['gemini-4-hydrogen-high', 'gemini-4-hydrogen', 'gemini-4-carbon-high', 'gemini-3.8-flash-high']) {
+    const kept = await mediaRound(signIn, twoPictures)
+    check(`sign-in ${signIn} keeps the pictures beside the responses, the shape that road answered 200 to and read on 15 November`, j(kept.at(-1)?.parts) === besideBoth, brief(kept.at(-1)?.parts))
+  }
+
+  console.log('── caching: each request begins with the one before it, and what Google reports as cached is counted and priced ──')
+  const cachedAnswer: Step = [{ candidates: [{ content: { role: 'model', parts: [{ text: 'ok', thoughtSignature: 'sig-cached' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 7_659, cachedContentTokenCount: 5_220, candidatesTokenCount: 9, thoughtsTokenCount: 30 } }]
+  const fixedOf = (request: Record<string, any>): string => j([request.systemInstruction, request.tools, request.toolConfig, request.generationConfig])
+  const beginsWith = (later: Record<string, any>, earlier: Record<string, any>): boolean => later.contents.length > earlier.contents.length && j(later.contents.slice(0, earlier.contents.length)) === j(earlier.contents) && fixedOf(later) === fixedOf(earlier)
+  for (const [road, model] of [['api-key', 'gemini-4-hydrogen'], ['plan', 'gemini-4-hydrogen-high'], ['plan', 'gemini-4-carbon-high']] as const) {
+    await useRoad(road)
+    const [first, second, third] = await rounds(model, twoPictures, { follow: cachedAnswer })
+    check(`${road} ${model}: each request of a conversation begins with the one before it, the system instruction, the tool declarations, the configuration and every earlier turn byte for byte, the turn that carried pictures included`, beginsWith(second!.request, first!.request) && beginsWith(third!.request, second!.request) && typeof first!.request.systemInstruction === 'object' && Array.isArray(first!.request.tools), brief([fixedOf(first!.request) === fixedOf(third!.request), first!.request.contents.length, second!.request.contents.length, third!.request.contents.length]))
+    const counted = third!.answer.at(-1)?.message.usage as { input_tokens?: number; cache_read_input_tokens?: number; output_tokens?: number } | undefined
+    check(`${road} ${model}: of 7,659 prompt tokens Google reports 5,220 cached (the figures read live on 15 November): 2,439 count as fresh input, 5,220 as cache reads, and the thought tokens count once, as output`, counted?.input_tokens === 2_439 && counted.cache_read_input_tokens === 5_220 && counted.output_tokens === 39, j(counted))
+    if (road === 'api-key') {
+      const priced = modelCost.calculateUSDCost(model, counted as never)
+      check(`${road} ${model}: that turn is priced $0.0043425, fresh input at $1.50 a million, cached at $0.075 and output at $7.50, where every prompt token at the fresh rate would read $0.011781`, Math.abs(priced - (2_439 * 1.5 + 5_220 * 0.075 + 39 * 7.5) / 1e6) < 1e-12, String(priced))
+    }
+  }
 
   console.log('── what no request carried ──')
   const gemini4 = sentLog.filter(sent => /^gemini-4-/.test(sent.model))
@@ -270,6 +340,7 @@ try {
     return Object.keys(config).some(name => name !== 'maxOutputTokens' && name !== 'thinkingConfig') || Object.keys(thinking).some(name => name !== 'thinkingLevel') || (thinking.thinkingLevel !== undefined && !(allowed[family] ?? []).includes(String(thinking.thinkingLevel)))
   })
   check(`of ${gemini4.length} requests to a Gemini 4 model on the two roads, none carries a budget, MINIMAL, a sampling or penalty parameter, a candidate count, a level its model's page does not list, or a field no page of its road documents (no prefix-mismatch field)`, gemini4.length >= 60 && strays.length === 0 && !j(gemini4).includes('prefixMismatch'), j(strays.slice(0, 2)))
+  check(`…and each of the ${sentLog.length} requests this proof sent ends on a user turn, never on a model turn`, sentLog.length >= 100 && sentLog.every(sent => (sent.request.contents as Content[]).at(-1)?.role === 'user'), `${sentLog.length}`)
 
   console.log('── the page says what the code does ──')
   const engines = readFileSync(join(ROOT, 'docs/ENGINES.md'), 'utf8').replace(/\s+/g, ' ')

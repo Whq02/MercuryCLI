@@ -2,6 +2,7 @@ import type { Message } from '../../../types/message.js'
 import type { CompatChatRequest, CompatMessage } from '../openaicompat/compatChatClient.js'
 import { requestTurnOf } from '../../../rows/request.js'
 import { geminiRequestPin } from './geminiPins.js'
+import { pdfBlockData } from '../pdfBlock.js'
 
 export type GeminiPart = {
   text?: string
@@ -10,7 +11,7 @@ export type GeminiPart = {
   inlineData?: { mimeType: string; data: string }
   fileData?: { mimeType?: string; fileUri: string }
   functionCall?: { id?: string; name: string; args?: unknown }
-  functionResponse?: { id?: string; name: string; response: Record<string, unknown> }
+  functionResponse?: { id?: string; name: string; response: Record<string, unknown>; parts?: Array<{ inlineData: { mimeType: string; data: string } }> }
 }
 
 export type GeminiContent = { role: 'user' | 'model'; parts: GeminiPart[] }
@@ -177,8 +178,42 @@ function geminiThinkingConfig(model: string, effort: string | undefined): { thin
   return model.startsWith('gemini-2.5') ? { thinkingBudget: budget } : { thinkingLevel: String(effort).toUpperCase() }
 }
 
-export function buildGeminiRequest(request: CompatChatRequest, messages: readonly Message[]): GeminiRequest {
+function toolResultMedia(messages: readonly Message[]): Map<string, string[]> {
+  const media = new Map<string, string[]>()
+  for (const message of messages) {
+    const content = message.type === 'user' ? message.message.content : undefined
+    if (!Array.isArray(content)) continue
+    for (const block of content) {
+      if (block.type !== 'tool_result' || !Array.isArray(block.content)) continue
+      const payloads: string[] = []
+      for (const part of block.content) {
+        const source = record(record(part)?.source)
+        const data = pdfBlockData(part) ?? (record(part)?.type === 'image' && source?.type === 'base64' && typeof source.data === 'string' ? source.data : undefined)
+        if (data !== undefined) payloads.push(data)
+      }
+      if (payloads.length) media.set(block.tool_use_id, [...(media.get(block.tool_use_id) ?? []), ...payloads])
+    }
+  }
+  return media
+}
+
+export function buildGeminiRequest(request: CompatChatRequest, messages: readonly Message[], responseMedia?: readonly string[]): GeminiRequest {
   const contents: GeminiContent[] = []
+  const media = responseMedia?.length ? toolResultMedia(messages) : undefined
+  let awaiting: Array<{ part: GeminiPart; payloads: string[] }> = []
+  const nests = (part: GeminiPart): boolean => {
+    const data = part.inlineData
+    if (!data || responseMedia?.includes(data.mimeType) !== true) return false
+    for (const waiting of awaiting) {
+      const at = waiting.payloads.indexOf(data.data)
+      if (at === -1) continue
+      waiting.payloads.splice(at, 1)
+      const response = waiting.part.functionResponse!
+      response.parts = [...(response.parts ?? []), { inlineData: data }]
+      return true
+    }
+    return false
+  }
   const systems: Array<{ text: string }> = []
   const assistants = messages.filter(message => message.type === 'assistant')
   const claudeRow = geminiPlanServesClaude(request.model)
@@ -201,6 +236,7 @@ export function buildGeminiRequest(request: CompatChatRequest, messages: readonl
     let parts: GeminiPart[]
     const refusedResults: GeminiPart[] = []
     if (row.role === 'assistant') {
+      awaiting = []
       const assistant = assistants[assistantIndex++]
       const saved = replayItem(assistant?.geminiProviderTurn, request.model, row)
       if (saved) {
@@ -226,9 +262,13 @@ export function buildGeminiRequest(request: CompatChatRequest, messages: readonl
       const call = calls.get(row.tool_call_id ?? '')
       if (!call) throw new Error('a Gemini tool result has no matching function call')
       const result = typeof row.content === 'string' ? row.content : JSON.stringify(row.content)
-      parts = [responsePart(call, { output: result })]
+      const part = responsePart(call, { output: result })
+      const payloads = media?.get(row.tool_call_id ?? '')
+      if (payloads?.length) awaiting.push({ part, payloads: [...payloads] })
+      parts = [part]
     } else {
       parts = contentParts(row.content)
+      if (awaiting.length) parts = parts.filter(part => !nests(part))
     }
     if (parts.length === 0) continue
     const previous = contents.at(-1)
@@ -264,6 +304,24 @@ export function buildGeminiRequest(request: CompatChatRequest, messages: readonl
       toolConfig: { functionCallingConfig: { mode: request.tool_choice === 'none' ? 'NONE' : request.tool_choice === 'required' ? 'ANY' : 'AUTO' } },
     } : {}),
     ...(Object.keys(generationConfig).length ? { generationConfig } : {}),
+  }
+}
+
+export function hoistElidedResponseMedia(request: GeminiRequest): GeminiRequest {
+  return {
+    ...request,
+    contents: request.contents.map(content => {
+      const hoisted: GeminiPart[] = []
+      const parts = content.parts.map(part => {
+        const response = part.functionResponse
+        const nested = response?.parts as GeminiPart[] | undefined
+        if (response === undefined || nested === undefined || nested.every(item => item.inlineData !== undefined)) return part
+        hoisted.push(...nested.filter(item => item.inlineData === undefined))
+        const kept = nested.flatMap(item => (item.inlineData !== undefined ? [{ inlineData: item.inlineData }] : []))
+        return { ...part, functionResponse: { name: response.name, ...(response.id !== undefined ? { id: response.id } : {}), response: response.response, ...(kept.length ? { parts: kept } : {}) } }
+      })
+      return hoisted.length ? { ...content, parts: [...parts, ...hoisted] } : content
+    }),
   }
 }
 

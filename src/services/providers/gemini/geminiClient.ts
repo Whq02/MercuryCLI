@@ -14,7 +14,8 @@ import {
   describeTransportFailure, mapCompatHttpFailure,
   type CompatCompletedToolCall, type CompatFinishReason, type CompatStreamEvent, type CompatStreamOptions,
 } from '../openaicompat/compatChatClient.js'
-import { buildGeminiPlanRequest, buildGeminiRequest, type GeminiPart, type GeminiPlanEnvelope, type GeminiRequest, type GeminiTurnItem } from './geminiCodec.js'
+import { buildGeminiPlanRequest, buildGeminiRequest, hoistElidedResponseMedia, type GeminiPart, type GeminiPlanEnvelope, type GeminiRequest, type GeminiTurnItem } from './geminiCodec.js'
+import { geminiRequestPin } from './geminiPins.js'
 import { maskGeminiSecrets } from './geminiAccounts.js'
 import { appendFileSync } from 'node:fs'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
@@ -198,9 +199,10 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
       yield { type: 'stream-fault', fault: { kind: 'cancelled', code: 'cancelled', message: 'cancelled before request', retryable: false } }
       return
     }
+    const responseMedia = options.plan ? undefined : geminiRequestPin(options.request.model)?.responseMedia
     let request: GeminiRequest
     try {
-      request = buildGeminiRequest(options.request, options.messages)
+      request = buildGeminiRequest(options.request, options.messages, responseMedia)
     } catch (error) {
       yield { type: 'stream-fault', fault: { kind: 'api-error', code: 'gemini-request-codec', message: safe(error instanceof Error ? error.message : String(error)), retryable: false } }
       return
@@ -208,7 +210,8 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
     const stream = options.stream !== false
     const plan = options.plan
     const urls = plan ? plan.bases.map(base => geminiPlanStreamUrl(base, stream)) : [options.url.replace(/:streamGenerateContent(?:\?alt=sse)?$/, stream ? ':streamGenerateContent?alt=sse' : ':generateContent')]
-    const body = JSON.stringify(fitWireImages(plan ? buildGeminiPlanRequest(request, options.request.model, plan) : request, GEMINI_IMAGE_LIMITS).request)
+    const fitted = fitWireImages(plan ? buildGeminiPlanRequest(request, options.request.model, plan) : request, GEMINI_IMAGE_LIMITS)
+    const body = JSON.stringify(responseMedia !== undefined && fitted.removed > 0 ? hoistElidedResponseMedia(fitted.request as GeminiRequest) : fitted.request)
     dumpGeminiWire(urls[0]!, options.request.model, body)
     options.firstByte?.onWait?.(wait)
     firstTimer = setTimeout(() => { firstByteFired = true; controller.abort() }, budgetMs)
