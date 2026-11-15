@@ -21,7 +21,7 @@
 # the suite's grant or the default — so a stale row still changes no
 # verdict: a low row costs balance, a high row lets a wedge run longer.
 
-ui	2975
+ui	3025
 ui-2	94
 ui-3	1323
 ui-4	418
@@ -117,8 +117,8 @@ harness-profiles	23
 repetition-guard	7
 run-continuity	21
 workbench-board	1
-tools	166
-agents	80
+tools	167
+agents	88
 structure-tools	32
 health	900
 helm-console	3
@@ -128,8 +128,8 @@ daemon	410
 daemon-2	410
 daemon-3	410
 daemon-4	409
-self-hosting	313
-bash	350
+self-hosting	314
+bash	358
 identity	134
 crew	864
 crew-drives	240
@@ -145,16 +145,16 @@ tree-ownership	5
 ink-runtime	25
 stop-policy	5
 accounts	46
-ast-tools	22
-headless	564
-headless-2	565
+ast-tools	31
+headless	683
+headless-2	577
 memory-lifecycle	45
 ops	26
 turnEngine	12
 build-identity	1
-compact	373
+compact	385
 extensions	140
-providers	231
+providers	233
 settings	541
 api	427
 api-drives	322
@@ -205,7 +205,7 @@ apollo	3
 commit-gate	2
 pings	497
 provauth	28
-provider-compat	406
+provider-compat	411
 wallet	2
 blender-bridge	5
 exit-handle	15
@@ -213,13 +213,13 @@ search	76
 staleness	14
 unity-bridge	6
 aseprite	4
-browser	262
+browser	335
 rewind	17
 tool-economy	30
 computer	55
 desktop	64
 local-setup	6
-tensorfold	45
+tensorfold	214
 media	4
 advisor	33
 sdk	0
@@ -255,7 +255,7 @@ computer-drives	216
 stop-policy-boots	19
 ui-drives	2735
 local-setup-drives	18
-tensorfold-drives	368
+tensorfold-drives	444
 docs	4
 host	1134
 usage	6
