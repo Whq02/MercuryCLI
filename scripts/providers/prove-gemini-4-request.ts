@@ -285,6 +285,14 @@ try {
     const asked = await plain(keyed, { effort: 'high', maxOutput: 200_000 })
     check(`API key ${keyed}: no ceiling is sent unasked (Google's own 65,536 governs) and a larger ask goes out as one segment`, unasked.generationConfig?.maxOutputTokens === undefined && asked.generationConfig?.maxOutputTokens === SEGMENT && (await plain(keyed, { effort: 'high', maxOutput: 4_096 })).generationConfig?.maxOutputTokens === 4_096, j([unasked.generationConfig, asked.generationConfig]))
   }
+  await useRoad('plan')
+  const roomy = await plain('gemini-4-hydrogen-high', { effort: 'high' })
+  const long = (tokens: number): Message[] => [user('x'.repeat(tokens * 4))]
+  const near = await send('gemini-4-hydrogen-high', long(1_000_000), { effort: 'high' })
+  const nearer = await send('gemini-4-hydrogen-high', long(1_020_000), { effort: 'high' })
+  check('sign-in gemini-4-hydrogen-high: input and output share the one limit of 1,048,576, so beside a prompt of about a million tokens the ceiling asked is what the limit leaves and never the whole segment', roomy.generationConfig?.maxOutputTokens === SEGMENT && near.generationConfig?.maxOutputTokens < SEGMENT && near.generationConfig?.maxOutputTokens >= 3_000 && 1_000_000 + near.generationConfig?.maxOutputTokens <= WINDOW && nearer.generationConfig?.maxOutputTokens < near.generationConfig?.maxOutputTokens, j([roomy.generationConfig?.maxOutputTokens, near.generationConfig?.maxOutputTokens, nearer.generationConfig?.maxOutputTokens]))
+  sentLog.length -= 2
+  await useRoad('api-key')
   check('API key gemini-3.8-flash and gemini-2.5-pro send what was asked, as before', (await plain('gemini-3.8-flash', { maxOutput: 200_000 })).generationConfig?.maxOutputTokens === 200_000 && (await plain('gemini-2.5-pro', { maxOutput: 200_000 })).generationConfig?.maxOutputTokens === 200_000)
 
   console.log('── what a tool returns for the eye rides inside its own function response on gemini-4-hydrogen with an API key ──')
