@@ -33,6 +33,14 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
 }
+async function sealed(p: PanelCard): Promise<void> {
+  check('before any key: the card offers no install and no download (the stand-in engine counts as installed, its model as on disk; a proof fetches nothing)', p.offer === undefined, p.offer ?? '')
+  if (p.offer === undefined) return
+  await p.close()
+  await releaseScratchHome(home)
+  console.log(`\nprove-tensorfold-last-window: ${failures} FAILED`)
+  process.exit(1)
+}
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title)
 }
@@ -59,6 +67,7 @@ section('1 · a home that never served a model: the store is the one written tod
 section('2 · the run the Windows machine made (Mercury\'s engine, 16 GB, the 4B): refused at 128k, served at 32k, stopped, served again')
 {
   const p = await openPanelCard({ road: 'adapter', label: 'Qwen3.5 4B', prefix: 'tf-last-window-adapter', free: () => 7.4 * GIB })
+  await sealed(p)
   const before = p.card()
   check('never served, the 4B stands at 128k, the largest window that fits', before.row === 'Qwen3.5 4B local/qwen3.5-4b on disk 128k ctx 9.6 GiB' && before.strip.includes('[128k]'), before.all)
   await p.press(KEY.enter)
@@ -108,6 +117,7 @@ const need = (window: number): number => fit.tensorFoldProjectedBytes(point, win
 section('3 · the same on TensorFold\'s own engine (a Mac, the 2B): refused at 256k, served at 32k, stopped')
 {
   const p = await openPanelCard({ road: 'tensorfold', label: 'Qwen3.5 2B', prefix: 'tf-last-window', free: () => need(262_144) - 2.2 * GIB })
+  await sealed(p)
   await p.press(KEY.enter)
   await p.until(card => card.refused !== undefined, 10_000)
   await p.press(KEY.left, 3)

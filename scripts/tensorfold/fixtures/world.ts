@@ -8,6 +8,8 @@ export const FIXTURES = import.meta.dir
 export const FAKE_SCRIPT = join(FIXTURES, 'fake-tensorfold.ts')
 export const FAKE_BIN = join(FIXTURES, 'bin')
 export const fakeExists = (path: string): boolean => path.startsWith(FAKE_BIN) && existsSync(path)
+export const CLOSED_ADDRESS = 'http://127.0.0.1:1'
+export const SEALED_ENV: Readonly<Record<string, string>> = { HF_ENDPOINT: CLOSED_ADDRESS, HTTP_PROXY: CLOSED_ADDRESS, HTTPS_PROXY: CLOSED_ADDRESS, ALL_PROXY: CLOSED_ADDRESS, http_proxy: CLOSED_ADDRESS, https_proxy: CLOSED_ADDRESS, all_proxy: CLOSED_ADDRESS, NO_PROXY: '127.0.0.1,::1', no_proxy: '127.0.0.1,::1' }
 
 export const MAC_48: TensorFoldMachineTruth = { platform: 'darwin', ramBytes: 48 * GIB, usableBytes: 36 * GIB, usableSource: 'metal', chip: 'Apple M5 Pro', wiredLimitMib: 0, osVersion: '27.0' }
 export const MAC_32: TensorFoldMachineTruth = { platform: 'darwin', ramBytes: 32 * GIB, usableBytes: 24 * GIB, usableSource: 'metal', chip: 'Apple M4 Pro', wiredLimitMib: 0, osVersion: '26.3' }

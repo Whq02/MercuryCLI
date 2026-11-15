@@ -1,18 +1,21 @@
 import { copyFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
-import { join } from 'node:path'
+import { delimiter, join } from 'node:path'
 import { KEY, mountOffscreen, settle, waitFor, type Mounted } from '../../lib/settingsPopupHarness.ts'
-import { FAKE_BIN, FIXTURES, MAC_48, WIN_16, fakeExists, fakeWorld, type FakeWorld } from './world.ts'
+import { FAKE_BIN, FIXTURES, MAC_48, SEALED_ENV, WIN_16, fakeExists, fakeWorld, type FakeWorld } from './world.ts'
 
 export const CARD_COLUMNS = 120
 export const CARD_ROWS = 40
 
 export type Card = { row: string; refused: string | undefined; strip: string; run: string; legend: string; all: string }
 export type PanelRoad = 'tensorfold' | 'adapter'
+export const PROOF_INSTALLS_NOTHING = 'a proof installs nothing: its engine is the fixture\'s stand-in'
 export type PanelCard = {
   world: FakeWorld
   servedFile: string
   port: number
+  offer: string | undefined
+  road: Record<string, unknown>
   lines(): string[]
   card(): Card
   press(key: string, times?: number): Promise<void>
@@ -52,7 +55,12 @@ export function cardOf(lines: readonly string[], label: string): Card {
   }
 }
 
-export async function openPanelCard(opts: { road: PanelRoad; label: string; prefix: string; free: () => number; serviceEnv?: Record<string, string> }): Promise<PanelCard> {
+export function fetchOffered(card: Pick<Card, 'legend' | 'all'>): string | undefined {
+  if (/↵ (?:install|pull)/.test(card.legend)) return card.legend
+  return card.all.split(' | ').find(line => /^will run .*\b(?:install|pull)\b/.test(line))
+}
+
+export async function openPanelCard(opts: { road: PanelRoad; label: string; prefix: string; free: () => number; serviceEnv?: Record<string, string>; engine?: 'missing' }): Promise<PanelCard> {
   const React = await import('react')
   const h = React.createElement
   const { Box } = await import('../../../src/ink.ts')
@@ -60,11 +68,13 @@ export async function openPanelCard(opts: { road: PanelRoad; label: string; pref
   const { ThemeProvider } = await import('../../../src/components/design-system/ThemeProvider.tsx')
   const panel = await import('../../../src/commands/tensorfold/tensorfold.tsx')
   const road = await import('../../../src/commands/tensorfold/road.ts')
+  const scene = await import('../../../src/commands/tensorfold/scene.ts')
   const engine = await import('../../../src/services/tensorfold/engine.ts')
   const serve = await import('../../../src/services/tensorfold/serve.ts')
   const adapter = opts.road === 'adapter'
   const machine = adapter ? WIN_16 : MAC_48
   engine.__pinTensorFoldMachineForTest(machine)
+  const missing = opts.engine === 'missing'
   let world: FakeWorld
   let binary = `${FAKE_BIN}/tensorfold`
   let found: unknown
@@ -72,15 +82,21 @@ export async function openPanelCard(opts: { road: PanelRoad; label: string; pref
     const models = await import('../../../src/services/tensorfold/adapter/models.ts')
     const llama = await import('../../../src/services/tensorfold/adapter/llama.ts')
     const script = join(FIXTURES, 'fake-llama-server.ts')
-    world = fakeWorld(opts.prefix, { seeds: [], ggufSeeds: [models.QWEN_4B_GGUF.gguf, models.QWEN_2B_GGUF.gguf], env: { FAKE_LLAMA_SCRIPT: script, FAKE_TENSORFOLD_BUN: process.execPath } })
-    const runtime = llama.llamaRuntimeBin(world.home)
-    mkdirSync(runtime, { recursive: true })
-    copyFileSync(join(FAKE_BIN, 'llama-server'), join(runtime, 'llama-server'))
+    world = fakeWorld(opts.prefix, { seeds: [], ggufSeeds: [models.QWEN_4B_GGUF.gguf, models.QWEN_2B_GGUF.gguf], env: { FAKE_LLAMA_SCRIPT: script, FAKE_TENSORFOLD_BUN: process.execPath, ...SEALED_ENV } })
+    if (missing) {
+      world.env.PATH = ['/usr/bin', '/bin'].join(delimiter)
+      world.serviceEnv.PATH = world.env.PATH
+    } else {
+      const runtime = llama.llamaRuntimeBin(world.home)
+      mkdirSync(runtime, { recursive: true })
+      copyFileSync(join(FAKE_BIN, 'llama-server'), join(runtime, 'llama-server'))
+    }
     binary = engine.adapterEntry()
     found = await engine.findTensorFoldEngine({ env: world.env, home: world.home, platform: 'darwin', exists: () => false, adapter: binary, machine } as never)
   } else {
-    world = fakeWorld(opts.prefix)
+    world = fakeWorld(opts.prefix, { env: { ...SEALED_ENV } })
   }
+  const exists = missing ? (): boolean => false : fakeExists
   const servedFile = join(world.home, 'served.json')
   const port = await freePort()
   writeFileSync(servedFile, JSON.stringify({ repo: '', name: '', port, window: 0, pid: 0, startedAt: '', project: join(world.root, 'never') }))
@@ -96,9 +112,11 @@ export async function openPanelCard(opts: { road: PanelRoad; label: string; pref
       hosts: () => [],
       app: async () => ({ running: false }),
       diskFreeBytes: () => 37_578_240_000,
-      ...(adapter ? { platform: 'win32' as const, engine: found, helper: () => undefined } : { platform: 'darwin' as const, exists: fakeExists }),
+      ...(adapter ? { platform: 'win32' as const, engine: found, helper: () => undefined } : { platform: 'darwin' as const, exists }),
     },
     road: {
+      install: async () => ({ ok: false as const, step: 'install', line: PROOF_INSTALLS_NOTHING }),
+      pull: { binary, env: { ...world.env, HOME: world.home }, home: world.home, cacheRoot: world.cache, logDir: join(world.root, 'pulls'), ...(adapter ? {} : { exists }) },
       serve: {
         binary,
         cwd: world.cwd,
@@ -110,7 +128,7 @@ export async function openPanelCard(opts: { road: PanelRoad; label: string; pref
         app: async () => ({ running: false }),
         freeMemoryBytes: async () => opts.free(),
         answersAs: async () => undefined,
-        ...(adapter ? {} : { exists: fakeExists }),
+        ...(adapter ? {} : { exists }),
       } as never,
       prove: {
         env: { ...world.env, MERCURY_LOCAL_PROBE_TARGETS: 'none' },
@@ -128,9 +146,12 @@ export async function openPanelCard(opts: { road: PanelRoad; label: string; pref
   }
   road.__resetTensorFoldRoadForTest()
   const shell = (): unknown => h(AppStateProvider as never, {}, h(ThemeProvider as never, {}, h(Box, { flexDirection: 'column', width: CARD_COLUMNS, height: CARD_ROWS, justifyContent: 'center' }, h(panel.TensorFoldPanel as never, { onDone: () => undefined, io } as never))))
+  const plan = (await scene.readTensorFoldPanelFacts(io.facts as never, road.tensorFoldRoadState())).install
+  let offer: string | undefined = plan === null ? undefined : `${'commands' in plan ? plan.commands.join(' · ') : plan.words} (${plan.found})`
   let mounted: Mounted = await mountOffscreen(shell(), CARD_COLUMNS, CARD_ROWS)
   const card = (): Card => cardOf(mounted.lines(), opts.label)
   const ready = async (): Promise<void> => {
+    if (offer !== undefined) return
     await waitFor(() => mounted.lines().some(line => line.includes('TENSORFOLD')), 10_000)
     await settle(300)
     for (let step = 0; step < 4 && card().strip === ''; step++) {
@@ -138,16 +159,23 @@ export async function openPanelCard(opts: { road: PanelRoad; label: string; pref
       await settle(200)
     }
     await settle(200)
+    offer = fetchOffered(card())
   }
   await ready()
   return {
     world,
     servedFile,
     port,
+    get offer() {
+      return offer
+    },
+    road: io.road,
     lines: () => mounted.lines(),
     card,
     press: async (key, times = 1) => {
       for (let n = 0; n < times; n++) {
+        const offered = offer ?? (key === KEY.enter ? fetchOffered(card()) : undefined)
+        if (offered !== undefined) throw new Error(`the fixture sends no key to a card that offers an install or a download: ${offered}`)
         mounted.push(key)
         await settle(250)
       }
