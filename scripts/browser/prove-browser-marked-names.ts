@@ -152,7 +152,7 @@ const RUNTIME: Record<string, string> = {
 }
 const fresh = async (): Promise<Page> => {
   const page = await bare.browser.newPage()
-  await page.goto(`${A.origin}/`, { waitUntil: 'load' })
+  await sessions.firstNavigation(bare, `${A.origin}/`, () => page.goto(`${A.origin}/`, { waitUntil: 'load' }))
   return page
 }
 const marksAfter = async (registered: string): Promise<{ staged: string; marks: Marks }> => {
