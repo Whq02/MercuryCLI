@@ -89,3 +89,9 @@ api-drives	1500
 switchboard-drives	3300
 ui-drives	11700
 health	1500
+# crew was tree-killed at the 900 s default by the hosted gate of 15 Nov 2026
+# (run 43688906150, the seventh landing of 1.0.11) with 110 proof rows done,
+# every one of them passing, and the last few still to run: the suite grew
+# with the notice, run-wake and isolation work to 821 s on the Mac. The row is
+# its measured hosted envelope (about 1,000 s whole) with the siblings' slack.
+crew	1500
