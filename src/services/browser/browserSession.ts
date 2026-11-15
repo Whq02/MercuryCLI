@@ -176,6 +176,7 @@ interface OwnerBrowserState {
 }
 
 export const BROWSER_CLOSE_BOUND_MS = 3_000
+export const BROWSER_FINISH_BOUND_MS = 10_000
 export const BROWSER_PROTOCOL_TIMEOUT_MS = 90_000
 export const NAVIGATION_CAP_MS = BROWSER_PROTOCOL_TIMEOUT_MS
 const BROWSER_IDLE_MS = 300_000
@@ -231,7 +232,7 @@ export function beginBrowserActivity(owner: OwnerKey): () => void {
   }
 }
 
-export type CloseOutcome = 'closed' | 'killed' | 'gone'
+export type CloseOutcome = 'closed' | 'killed' | 'unfinished' | 'gone'
 
 export function tempProfileDirOf(browser: DriverBrowser): string | null {
   const args = browser.process()?.spawnargs ?? []
@@ -287,14 +288,18 @@ async function closeChild(browser: DriverBrowser): Promise<CloseOutcome> {
     return 'gone'
   }
   let bound: ReturnType<typeof setTimeout> | undefined
-  const lapse = new Promise<'lapsed'>(resolve => {
-    bound = setTimeout(() => resolve('lapsed'), BROWSER_CLOSE_BOUND_MS)
-  })
+  const lapse = (ms: number): Promise<'lapsed'> =>
+    new Promise(resolve => {
+      bound = setTimeout(() => resolve('lapsed'), ms)
+    })
   try {
-    const won = await Promise.race([browser.close().then(() => 'closed' as const), lapse])
+    const quit = browser.close().then(() => 'closed' as const)
+    let won = await Promise.race([quit, lapse(BROWSER_CLOSE_BOUND_MS)])
+    const quitting = won === 'lapsed' && browser.connected === false
+    if (quitting) won = await Promise.race([quit, lapse(BROWSER_FINISH_BOUND_MS - BROWSER_CLOSE_BOUND_MS)])
     if (won === 'lapsed') {
       await endChild(browser)
-      return 'killed'
+      return quitting ? 'unfinished' : 'killed'
     }
     removeTempProfile(browser)
     return 'closed'
@@ -2243,7 +2248,7 @@ export async function closeBrowserSessionDetailed(
   state.approvedSecretPairings.clear()
   state.checkedActOrigin = null
   clearIdleLease(state)
-  return { outcome: outcomes.includes('killed') ? 'killed' : outcomes.includes('closed') ? 'closed' : 'gone', closed, open: [] }
+  return { outcome: outcomes.includes('killed') ? 'killed' : outcomes.includes('unfinished') ? 'unfinished' : outcomes.includes('closed') ? 'closed' : 'gone', closed, open: [] }
 }
 
 export function secretPairingKey(ref: string, origin: string): string {

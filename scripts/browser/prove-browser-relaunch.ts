@@ -24,9 +24,12 @@ section('S0 control: the first launch on an origin’s profile (holds on the par
     localStorage.setItem('kept', 'storage-27290')
   })
   const closed = await run({ op: 'close' })
-  const ended = closed.result === `session closed — the browser did not answer within ${sessions.BROWSER_CLOSE_BOUND_MS / 1000}s and its process was ended (origin approvals wiped)`
-  check('close ends the session and leaves the profile on disk', (ended || closed.result === 'session closed (browser reaped; origin approvals wiped)') && existsSync(join(profile, 'Default')), closed.result)
-  if (ended) console.log(`    this machine’s browser took more than the ${sessions.BROWSER_CLOSE_BOUND_MS / 1000}s a close gives it to quit, and its process was ended: the sections below read what that profile kept`)
+  const silent = closed.result === `session closed — the browser did not answer within ${sessions.BROWSER_CLOSE_BOUND_MS / 1000}s and its process was ended (origin approvals wiped)`
+  const unfinished = closed.result === `session closed — the browser did not finish quitting within ${sessions.BROWSER_FINISH_BOUND_MS / 1000}s and its process was ended (origin approvals wiped)`
+  check('close ends the session and leaves the profile on disk', (silent || unfinished || closed.result === 'session closed (browser reaped; origin approvals wiped)') && existsSync(join(profile, 'Default')), closed.result)
+  if (silent) console.log(`    this machine’s browser had not taken the quit ${sessions.BROWSER_CLOSE_BOUND_MS / 1000}s after it was asked, and its process was ended: the sections below read what that profile kept`)
+  if (unfinished) console.log(`    this machine’s browser took the quit and had not exited ${sessions.BROWSER_FINISH_BOUND_MS / 1000}s after it, and its process was ended: the sections below read what that profile kept`)
+  if (!silent && !unfinished && closed.ms >= sessions.BROWSER_CLOSE_BOUND_MS) console.log(`    this machine’s browser took the quit and needed ${closed.ms} ms to exit: the close waited for it`)
 }
 
 section('S1 the browser started again on that profile')
