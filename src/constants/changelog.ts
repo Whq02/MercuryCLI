@@ -99,6 +99,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed the first page a new browser session opens waiting out its timeout on Windows when credentials are set for the session.
 - Fixed a tab that a link or a script opens sending its first request with its headers in another order than an ordinary navigation's.
 - Fixed a close ending a browser that was still writing its profile, which on a slow machine could lose a cookie or a stored value set just before: a browser that has begun to quit now has ten seconds to finish.
+- Fixed uploads and downloads in the built-in browser failing on Windows from a project with a long path.
 - Fixed the wait estimate beside a local model's status (first byte expected in about …) being far too short for a long prompt: the model's reading pace is measured to its first token, and the remembered pace starts again once.
 - Fixed a chat whose saved local model nothing is serving falling back to the home screen with the chat could not start: the chat opens and says so, and /tensorfold serves the model from inside it.
 - Fixed the note about a new chat's model, such as a sign-in with no usable model, never reaching that chat.
