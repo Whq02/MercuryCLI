@@ -84,16 +84,60 @@ const pads = (): string[] => {
 const transferFolders = (): string[] => pads().flatMap(p => [join(p, 'browser-downloads'), join(p, 'browser-uploads')]).filter(folder => fs.existsSync(folder))
 const strangers = new Set(transferFolders())
 
-section('S1 unused session sends 56 protocol commands and creates no transfer folder; download requests keep full stealth')
+section('S1 an unused session sends the launch’s own commands and no other, and creates no transfer folder; download requests keep full stealth')
 {
+  const LAUNCH: Record<string, number> = {
+    'Browser.setDownloadBehavior': 2,
+    'Target.setDiscoverTargets': 1,
+    'Target.setAutoAttach': 4,
+    'Target.attachToTarget': 2,
+    'Target.detachFromTarget': 1,
+    'Runtime.runIfWaitingForDebugger': 1,
+    'Network.enable': 2,
+    'Page.enable': 1,
+    'Page.getFrameTree': 1,
+    'Page.setLifecycleEventsEnabled': 1,
+    'Runtime.enable': 1,
+    'Audits.enable': 1,
+    'Performance.enable': 1,
+    'Log.enable': 1,
+    'WebMCP.enable': 1,
+    'Page.addScriptToEvaluateOnNewDocument': 2,
+    'Page.createIsolatedWorld': 1,
+    'Emulation.setDeviceMetricsOverride': 1,
+    'Emulation.setTouchEmulationEnabled': 1,
+    'Emulation.setAutomationOverride': 1,
+    'Emulation.setTimezoneOverride': 1,
+    'Emulation.setUserAgentOverride': 1,
+    'Browser.getVersion': 1,
+    'Page.bringToFront': 1,
+    'Page.navigate': 1,
+    'Runtime.callFunctionOn': 7,
+    'Runtime.evaluate': 1,
+    'Runtime.addBinding': 2,
+    'Runtime.releaseObject': 2,
+    'DOM.describeNode': 2,
+    'DOM.resolveNode': 2,
+    'Page.captureScreenshot': 1,
+    'Browser.close': 1,
+  }
   const { Connection } = (await import(join(ROOT, 'node_modules/puppeteer-core/lib/puppeteer/cdp/Connection.js'))) as {
-    Connection: { prototype: { _rawSend: (...args: unknown[]) => unknown } }
+    Connection: { prototype: { _rawSend: (...args: unknown[]) => unknown; onMessage: (message: string) => unknown } }
   }
   const origSend = Connection.prototype._rawSend
+  const origReceive = Connection.prototype.onMessage
   const sent: Array<{ method: string; params: Record<string, unknown> | undefined; session: string | undefined }> = []
+  const started: Array<{ session: string; type: string }> = []
   Connection.prototype._rawSend = function (this: unknown, cb: unknown, method: unknown, params: unknown, session: unknown, ...rest: unknown[]) {
     sent.push({ method: String(method), params: params as Record<string, unknown> | undefined, session: typeof session === 'string' ? session : undefined })
     return origSend.call(this, cb, method, params, session, ...rest)
+  }
+  Connection.prototype.onMessage = function (this: unknown, message: string) {
+    if (message.includes('"Target.attachedToTarget"')) {
+      const event = JSON.parse(message) as { sessionId?: string; params: { sessionId: string; targetInfo: { type: string } } }
+      if (event.sessionId === undefined) started.push({ session: event.params.sessionId, type: event.params.targetInfo.type })
+    }
+    return origReceive.call(this, message)
   }
   const knownSessions = new Set<string>()
   let ring: Array<{ kind: string; text: string }> = []
@@ -108,23 +152,28 @@ section('S1 unused session sends 56 protocol commands and creates no transfer fo
     await run({ op: 'close' })
   } finally {
     Connection.prototype._rawSend = origSend
+    Connection.prototype.onMessage = origReceive
   }
   const ownCommands = sent.filter(c => c.session === undefined || knownSessions.has(c.session))
   const dlBehaviours = ownCommands.filter(c => c.method === 'Browser.setDownloadBehavior')
   const anyFolders = transferFolders().some(folder => !strangers.has(folder))
+  const background = new Map(started.filter(target => !['page', 'tab', 'browser'].includes(target.type)).map(target => [target.session, target.type]))
+  const letGo = ownCommands.filter(c => c.session === undefined && c.method === 'Target.detachFromTarget' && background.has(String(c.params?.sessionId)))
   const starts = ownCommands.filter(c => c.method === 'Page.navigate')
   const again = starts.length === 2 && starts[0]!.params?.url === starts[1]!.params?.url
   const tally = new Map<string, number>()
-  for (const command of ownCommands) tally.set(command.method, (tally.get(command.method) ?? 0) + 1)
+  for (const command of ownCommands) if (!letGo.includes(command)) tally.set(command.method, (tally.get(command.method) ?? 0) + 1)
+  if (again) tally.set('Page.navigate', 1)
+  const off = [...new Set([...Object.keys(LAUNCH), ...tally.keys()])].filter(method => (tally.get(method) ?? 0) !== (LAUNCH[method] ?? 0)).map(method => `${method}×${tally.get(method) ?? 0} where the list holds ${LAUNCH[method] ?? 0}`)
   check(
-    'open, screenshot, close sends 52 protocol commands on the root, driver, page-kit, and watch sessions (56 with default background targets; the one over the tabs row is the page-kit session’s auto-attach for frames of another site; 2 download-behavior commands, 0 extra; one more, a second Page.navigate to the same address, when the browser dropped this launch’s first navigation and it was started once more) and creates no transfer folder',
-    ownCommands.length === 52 + (again ? 1 : 0) && starts.length === (again ? 2 : 1) && ownCommands.filter(c => c.method === 'Target.setAutoAttach' && JSON.stringify(c.params?.filter) === '[{"type":"iframe","exclude":false}]').length === 1 && dlBehaviours.length === 2 && !anyFolders,
-    `commands=${ownCommands.length} starts=${starts.length} dlBehaviours=${dlBehaviours.length} folders=${anyFolders} ${[...tally].map(([method, count]) => `${method}×${count}`).join(' ')}`,
+    'open, screenshot, close sends the 50 protocol commands of the launch’s list on the root, driver, page-kit, and watch sessions, method for method (2 download-behavior commands, 0 extra; one auto-attach on the page-kit session for frames of another site), and beyond them only what the browser brings on: the letting go of each background target it started (a first launch starts two here, which made 52, and 56 with the driver’s four on those targets’ own sessions) and one more Page.navigate to the same address when it dropped this launch’s first navigation; no transfer folder',
+    off.length === 0 && ownCommands.filter(c => c.method === 'Target.setAutoAttach' && JSON.stringify(c.params?.filter) === '[{"type":"iframe","exclude":false}]').length === 1 && dlBehaviours.length === 2 && !anyFolders,
+    `commands=${ownCommands.length} off the list: ${off.join(', ') || 'none'} · let go ${letGo.length} of ${background.size} background targets · starts=${starts.length} dlBehaviours=${dlBehaviours.length} folders=${anyFolders}`,
   )
-  if (again) {
-    const dropped = ring.find(entry => entry.kind === 'net' && entry.text.includes('FAILED net::ERR_ABORTED (document)'))
-    console.log(`    this launch’s first navigation was started once more (${ownCommands.length} commands, ${starts.length} of them Page.navigate): ${dropped === undefined ? 'the console holds no failed try, so the browser neither failed it nor sent it' : `the console holds the dropped try, ${dropped.text}`}`)
-  }
+  const dropped = ring.find(entry => entry.kind === 'net' && entry.text.includes('FAILED net::ERR_ABORTED (document)'))
+  console.log(
+    `    ${ownCommands.length} commands: the list’s 50${letGo.length === 0 ? '' : `, ${letGo.length} letting go of what the browser started (${[...new Set(background.values())].join(', ')})`}${!again ? '' : `, one more start of the first navigation (${dropped === undefined ? 'the console holds no failed try, so the browser neither failed it nor sent it' : `the console holds the dropped try, ${dropped.text}`})`}`,
+  )
 
   await run({ op: 'open', url: `${A.origin}/` })
   await pageOf().evaluate(() => { document.cookie = 'dlstealth=1; max-age=3600; path=/' })
