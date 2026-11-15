@@ -264,10 +264,11 @@ export function removeTempProfile(browser: DriverBrowser): boolean {
 }
 
 function endTempTree(browser: DriverBrowser): void {
-  const pid = browser.process()?.pid
+  const child = browser.process()
+  const pid = child?.pid
   let lives = false
   try {
-    lives = process.platform === 'win32' && pid !== undefined && process.kill(pid, 0)
+    lives = process.platform === 'win32' && child !== null && pid !== undefined && child.exitCode === null && child.signalCode === null && process.kill(pid, 0)
   } catch (error) {
     lives = (error as NodeJS.ErrnoException).code === 'EPERM'
   }
