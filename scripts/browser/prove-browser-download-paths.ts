@@ -129,12 +129,23 @@ section('S2 links in the destination, dangling link ids, EXDEV copy fallback, an
   const nextNum = fs.readdirSync(home).filter(n => /^d\d+$/.test(n)).length + 1
   const danglingSlot = join(home, `d${nextNum}`)
   let madeLinks = false
+  let refused = ''
   try {
     fs.symlinkSync(join(outsideDir, 'nonexistent-target'), danglingSlot)
     madeLinks = true
-  } catch {}
+  } catch (error) {
+    refused = (error as NodeJS.ErrnoException).code ?? String(error)
+  }
 
-  if (madeLinks) {
+  if (!madeLinks) {
+    for (const leg of [
+      'beginTransfer skips a dangling symlink at dN rather than reusing or following it',
+      'a symlink planted at the transfer folder during arrival refuses publication, writes nothing outside, and removes incoming/<guid>',
+      'a pre-existing folder/symlink at the destination path is never overwritten and leaves the symlink target untouched',
+    ]) {
+      console.log(`  [SKIP] ${leg} — this account may not make a symbolic link (${refused})`)
+    }
+  } else {
     const afterDangling = savedOf(await run({ op: 'download', url: `${A.origin}/dl?name=after-dangling.bin` }))
     check(
       'beginTransfer skips a dangling symlink at dN rather than reusing or following it',
