@@ -14,7 +14,8 @@ import {
   localPath,
   sanitizePath,
 } from '../path.js'
-import { getPlatform } from '../platform.js'
+import { getPlatform, type Platform } from '../platform.js'
+import { shortProjectHash } from '../sessionStoragePortable.js'
 import { windowsPathToPosixPath } from '../windowsPaths.js'
 import { MERCURY_PROJECT_DIR, PROJECT_CONFIG_DIR_NAMES, apolloSpecDirectory } from '../projectConfig.js'
 import { APOLLO_REVIEW_TOOL_NAME } from '../../tools/ApolloReviewTool/constants.js'
@@ -248,8 +249,16 @@ export function getMercuryTempDir(): string {
   return tempDirCache
 }
 
+const PROJECT_TEMP_NAME_BOUND = 48
+
+export function projectTempName(cwd: string, platform: Platform = getPlatform()): string {
+  const name = sanitizePath(cwd)
+  if (platform !== 'windows' || name.length <= PROJECT_TEMP_NAME_BOUND) return name
+  return `${name.slice(9 - PROJECT_TEMP_NAME_BOUND)}-${shortProjectHash(cwd)}`
+}
+
 export function getProjectTempDir(): string {
-  return ensureTrailingSep(joinWithSep(getMercuryTempDir(), sanitizePath(getOriginalCwd())))
+  return ensureTrailingSep(joinWithSep(getMercuryTempDir(), projectTempName(getOriginalCwd())))
 }
 
 export function getScratchpadDir(agentId?: string): string {
@@ -258,7 +267,7 @@ export function getScratchpadDir(agentId?: string): string {
 }
 
 export function scratchpadDirFor(cwd: string, sessionId: string): string {
-  return joinWithSep(joinWithSep(ensureTrailingSep(joinWithSep(getMercuryTempDir(), sanitizePath(cwd))), sessionId), 'scratchpad')
+  return joinWithSep(joinWithSep(ensureTrailingSep(joinWithSep(getMercuryTempDir(), projectTempName(cwd))), sessionId), 'scratchpad')
 }
 
 function getSessionMemoryDir(): string {

@@ -10,7 +10,7 @@ const tempRoot = realpathSync(mkdtempSync(join(tmpdir(), 'scratchpad-temp-')))
 process.env.MERCURY_TMPDIR = tempRoot
 delete process.env.MERCURY_CONCOURSE_WORKER
 
-const { getScratchpadDir, getMercuryTempDir, getProjectTempDir } = await import('../../src/utils/permissions/filesystem.ts')
+const { getScratchpadDir, getMercuryTempDir, getProjectTempDir, projectTempName } = await import('../../src/utils/permissions/filesystem.ts')
 const { getOriginalCwd, getSessionId } = await import('../../src/bootstrap/state.ts')
 const scratchpad = await import('../../src/utils/scratchpad.ts')
 const prompts = await import('../../src/constants/prompts.ts')
@@ -41,6 +41,53 @@ check('the scratchpad is under the temp root Mercury owns', dir.startsWith(getMe
 check('…and not under the working directory, so git status never sees it', !dir.startsWith(getOriginalCwd()))
 check('the daemon derives the same directory from the session\'s cwd and id', scratchpad.scratchpadDirFor(getOriginalCwd(), getSessionId()) === dir, scratchpad.scratchpadDirFor(getOriginalCwd(), getSessionId()))
 check('a second session in the same project gets its own', scratchpad.scratchpadDirFor(getOriginalCwd(), 'other-session') !== dir && scratchpad.scratchpadDirFor(getOriginalCwd(), 'other-session').startsWith(getProjectTempDir()))
+
+section('§2b on Windows the project’s part of the temp path is bounded, so the folders under it stay within what Windows and a browser reach')
+{
+  const { createHash } = await import('node:crypto')
+  const { win32 } = await import('node:path')
+  const named = (cwd: string, platform: string): string => (typeof projectTempName === 'function' ? (projectTempName as (cwd: string, platform?: string) => string)(cwd, platform) : cwd.replace(/[^a-zA-Z0-9]/g, '-'))
+  const plain = (cwd: string): string => cwd.replace(/[^a-zA-Z0-9]/g, '-')
+  const fill = (base: string, length: number): string => {
+    let at = base
+    while (at.length < length) at = `${at}\\${'a-folder-of-a-deep-project-tree'.slice(0, Math.max(1, Math.min(30, length - at.length - 1)))}`
+    return at
+  }
+  const short = 'C:\\Users\\WHQ\\Developer\\mercury'
+  const at48 = fill('C:\\src', 48)
+  const at49 = fill('C:\\src', 49)
+  const deep = fill('C:\\Users\\firstname.lastname01\\source\\repos', 140)
+  const twin = `D${deep.slice(1)}`
+  const bounded = named(deep, 'windows')
+  check('a project path of 48 characters or fewer keeps its whole name there (holds on the parent too)', named(short, 'windows') === 'C--Users-WHQ-Developer-mercury' && at48.length === 48 && named(at48, 'windows') === plain(at48), `${named(short, 'windows')} | ${named(at48, 'windows')}`)
+  check(
+    'a longer one is named by its last 39 characters, a hyphen and the first 8 hex of the SHA-256 of the path: 48 characters, whatever the path',
+    at49.length === 49 && named(at49, 'windows').length === 48 && deep.length === 140 && bounded === `${plain(deep).slice(-39)}-${createHash('sha256').update(deep).digest('hex').slice(0, 8)}` && bounded.length === 48 && /^[A-Za-z0-9-]+$/.test(bounded),
+    `${named(at49, 'windows')} (${named(at49, 'windows').length}) | ${bounded} (${bounded.length})`,
+  )
+  check('two long projects that end alike get folders of their own', plain(twin).slice(-39) === plain(deep).slice(-39) && named(twin, 'windows') !== bounded && named(twin, 'windows').length === 48, `${named(twin, 'windows')} | ${bounded}`)
+  check('on a Mac and on Linux the name is the whole sanitized path as before, whatever its length (holds on the parent too)', named(deep, 'macos') === plain(deep) && named(deep, 'linux') === plain(deep) && named(deep, 'wsl') === plain(deep))
+  const source = readFileSync(join(ROOT, 'src/utils/permissions/filesystem.ts'), 'utf8')
+  check(
+    'both makers of that name, the session’s own and the one the daemon derives from a record, take it from the one helper',
+    source.split('joinWithSep(getMercuryTempDir(), projectTempName(').length - 1 === 2 && !source.includes('joinWithSep(getMercuryTempDir(), sanitizePath('),
+  )
+  const lengths = (name: string, agent: string | null): { upload: number; arriving: number } => {
+    const pad = win32.join('C:\\Users\\firstname.lastname01\\AppData\\Local\\Temp', 'mercury', name, '0f8fad5b-d9cb-469f-a165-70867728950e', 'scratchpad', ...(agent === null ? [] : [agent]))
+    return { upload: win32.join(pad, 'browser-uploads', 'u-XXXXXX').length, arriving: win32.join(pad, 'browser-downloads', 'incoming', '0f8fad5b-d9cb-469f-a165-70867728950e.crdownload').length }
+  }
+  const own = lengths(bounded, null)
+  const crew = lengths(bounded, 'avjf8z1w4')
+  const whole = lengths(plain(deep), null)
+  check(
+    'from a project 140 characters deep, under a user name of 20 letters, an upload’s folder is within the 247 characters a directory may have and a download’s arriving file within the 259 of a path',
+    own.upload <= 247 && own.arriving <= 259,
+    `upload folder ${own.upload}, arriving file ${own.arriving}`,
+  )
+  check('and so they are in a crewmate’s own scratchpad, which lies ten characters deeper', crew.upload === own.upload + 10 && crew.upload <= 247 && crew.arriving <= 259, `upload folder ${crew.upload}, arriving file ${crew.arriving}`)
+  check('the whole name would carry both past those limits: the bound is what holds them (holds on the parent too)', whole.upload > 247 && whole.arriving > 259, `upload folder ${whole.upload}, arriving file ${whole.arriving}`)
+  console.log(`     an upload’s folder ${own.upload} and a download’s arriving file ${own.arriving} characters (a crewmate’s ${crew.upload} and ${crew.arriving}); with the whole name ${whole.upload} and ${whole.arriving}`)
+}
 
 section('§3 the receipt counts an edit under the scratchpad, and only there')
 const rows = injectTurnReceipts(

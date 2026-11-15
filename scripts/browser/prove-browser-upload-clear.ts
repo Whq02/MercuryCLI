@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import type http from 'node:http'
 import { tmpdir } from 'node:os'
@@ -26,18 +27,26 @@ const NODE = existsSync(RELEASE_NODE)
     })()
 const { repairToolInput } = (await import(join(ROOT, 'src/services/providers/toolCallGate.ts'))) as { repairToolInput: (tool: unknown, input: Record<string, unknown>) => Record<string, unknown> }
 
-const A = await serve(0, (_req: http.IncomingMessage, res: http.ServerResponse) => {
+const FETCHED = Buffer.from('the bytes of a file that a deep project downloads')
+const DEEP_PROJECT = 140
+const A = await serve(0, (req: http.IncomingMessage, res: http.ServerResponse) => {
+  if ((req.url ?? '').startsWith('/dl')) {
+    res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-disposition': 'attachment; filename="fetched.bin"', 'content-length': String(FETCHED.length) })
+    res.end(FETCHED)
+    return
+  }
   res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
   res.end(`<!doctype html><title>form</title><input id="one" type="file"><p id="facts"></p>
 <script>const one = document.getElementById('one'); const say = () => { document.getElementById('facts').textContent = 'the input holds ' + one.files.length }; one.addEventListener('change', say); say()</script>`)
 })
 
 type Call = Record<string, unknown> & { op: string }
-async function throughTheBundle(calls: Call[]): Promise<{ code: number | null; answers: string[]; sent: string[]; noise: string }> {
+async function throughTheBundle(calls: Call[], deep = false): Promise<{ code: number | null; answers: string[]; sent: string[]; noise: string; project: string }> {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'uc-')))
   const home = join(root, 'h')
   const config = join(home, '.mercury')
-  const project = join(root, 'p')
+  let project = join(root, 'p')
+  while (deep && project.length < DEEP_PROJECT) project = join(project, 'd'.repeat(Math.max(1, Math.min(30, DEEP_PROJECT - project.length - 1))))
   for (const folder of [join(root, 't'), project]) mkdirSync(folder, { recursive: true })
   writeFileSync(join(project, 'a.txt'), 'alpha file')
   process.env.ANTHROPIC_API_KEY = 'fixture-key-000'
@@ -91,7 +100,7 @@ async function throughTheBundle(calls: Call[]): Promise<{ code: number | null; a
       const use = (Array.isArray(asked?.content) ? (asked!.content as Array<{ type?: string; input?: unknown }>) : []).find(block => block.type === 'tool_use')
       sent.push(JSON.stringify(use?.input ?? null))
     }
-    return { code, answers, sent, noise }
+    return { code, answers, sent, noise, project }
   } finally {
     await fixture.close()
     rmSync(root, { recursive: true, force: true })
@@ -114,7 +123,7 @@ section('S1 a model’s call through the bundle: a scripted provider, the tool l
 if (!existsSync(join(DIST, 'mercury.mjs'))) {
   check('the built bundle is there to drive', false, `${join(DIST, 'mercury.mjs')} is missing — run bun run build.ts first`)
 } else if (NODE === '') {
-  console.log(`  [SKIP] a model’s call through the bundle (seven checks) — this build holds no release Node (${RELEASE_NODE}) and no other Node runs the bundle here: ${nodeMissing}`)
+  console.log(`  [SKIP] a model’s call through the bundle (seven checks, and the three of S2 from a deep project) — this build holds no release Node (${RELEASE_NODE}) and no other Node runs the bundle here: ${nodeMissing}`)
 } else {
   console.log(`  the bundle runs under ${NODE === RELEASE_NODE ? 'the build’s own Node' : `${NODE}, since this build holds no release Node`}`)
   const ran = await throughTheBundle([
@@ -134,6 +143,25 @@ if (!existsSync(join(DIST, 'mercury.mjs'))) {
   check('the page’s input then holds nothing', (facts ?? '').includes('the input holds 0'), String(facts))
   check('an empty list on an input that holds nothing clears it too and says so', again === `upload: #one cleared at ${A.origin}/ (it held no file)`, String(again))
   check('a call with no files at all is still refused (holds on the parent too)', (absent ?? '').includes('upload requires selector and files (an empty list clears a file input)'), String(absent))
+
+  section(`S2 an upload and a download from a project whose path is ${DEEP_PROJECT} characters long (on a Mac and on Linux these hold on the parent too; on Windows the parent’s upload ends in ENAMETOOLONG)`)
+  const far = await throughTheBundle(
+    [
+      { op: 'open', url: `${A.origin}/` },
+      { op: 'upload', selector: '#one', files: ['a.txt'] },
+      { op: 'extract', selector: '#facts' },
+      { op: 'download', url: `${A.origin}/dl` },
+      { op: 'download', downloadId: 'd1', timeoutMs: 30_000 },
+      { op: 'close' },
+    ],
+    true,
+  )
+  const [, set, shown, begun, saved, ended] = far.answers
+  const savedAt = /^download: saved to (.+?) \(/.exec(saved ?? '')?.[1] ?? ''
+  check('the run ends with every call answered', far.code === 0 && far.answers.length === 6 && (ended ?? '').startsWith('session closed'), `exit ${far.code}, ${far.answers.length} answers ${far.noise.slice(-600)}`)
+  check('the file is set on the input from that project', (set ?? '').startsWith(`upload: #one holds 1 file — a.txt (10 bytes, text/plain) at ${A.origin}/`) && (shown ?? '').includes('the input holds 1'), `the upload answered: ${set} | the page said: ${shown}`)
+  check('the download is saved whole in the session scratchpad', savedAt !== '' && (saved ?? '').includes(`sha256 ${createHash('sha256').update(FETCHED).digest('hex')}`), `the wait answered: ${saved} | the open answered: ${begun}`)
+  console.log(`    the project’s path is ${far.project.length} characters; the download was saved at a path of ${savedAt.length}${process.platform === 'win32' ? ', where the project’s part of the temp path is bounded' : ''}`)
 }
 
 await finish('prove-browser-upload-clear')
