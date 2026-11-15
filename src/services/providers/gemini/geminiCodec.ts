@@ -243,9 +243,10 @@ export function buildGeminiRequest(request: CompatChatRequest, messages: readonl
   }
   const effort = request.extra?.reasoning_effort
   const requestedOutput = request.extra?.max_tokens
+  const segmentOutput = geminiRequestPin(request.model)?.segmentOutputTokens
   const maxOutput = geminiPlanServesClaude(request.model)
     ? Math.min(typeof requestedOutput === 'number' ? requestedOutput : GEMINI_PLAN_CLAUDE_OUTPUT_CAP, GEMINI_PLAN_CLAUDE_OUTPUT_CAP)
-    : requestedOutput
+    : typeof requestedOutput === 'number' && segmentOutput !== undefined ? Math.min(requestedOutput, segmentOutput) : requestedOutput
   const thinkingConfig = geminiThinkingConfig(request.model, typeof effort === 'string' ? effort : undefined)
   const generationConfig = {
     ...(typeof maxOutput === 'number' ? { maxOutputTokens: maxOutput } : {}),

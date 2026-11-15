@@ -338,9 +338,10 @@ export function geminiOutputTokenLimitFor(
   env: NodeJS.ProcessEnv = process.env,
 ): number | undefined {
   const listed = geminiListedModel(model, env)
-  return listed?.outputTokenLimit !== undefined && listed.outputTokenLimit > 0
-    ? listed.outputTokenLimit
-    : undefined
+  if (listed === undefined) return undefined
+  const stated = listed.outputTokenLimit !== undefined && listed.outputTokenLimit > 0 ? listed.outputTokenLimit : undefined
+  const segment = geminiRequestPin(listed.id)?.segmentOutputTokens
+  return stated === undefined ? segment : segment === undefined ? stated : Math.min(stated, segment)
 }
 
 const GEMINI_XHIGH_ROW_EFFORTS: readonly string[] = [...GEMINI_REASONING_EFFORTS, 'xhigh']

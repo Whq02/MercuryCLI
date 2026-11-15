@@ -63,7 +63,8 @@ const ROSTER: Record<string, unknown> = {
 
 type Hit = { url: string; body: Record<string, any> }
 const hits: Hit[] = []
-let script: unknown[][] = []
+type Step = unknown[] | ((request: Record<string, any>) => unknown[])
+let script: Step[] = []
 const sse = (chunks: unknown[], plan: boolean): Response => new Response(chunks.map(chunk => `data: ${JSON.stringify(plan ? { response: chunk } : chunk)}\n\n`).join(''), { headers: { 'content-type': 'text/event-stream' } })
 const plainAnswer = [{ candidates: [{ content: { role: 'model', parts: [{ text: 'ok', thoughtSignature: 'sig-answer' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 20, candidatesTokenCount: 2 } }]
 const realFetch = globalThis.fetch
@@ -74,9 +75,11 @@ globalThis.fetch = (async (input: unknown, init?: RequestInit) => {
   if (url.includes('/models?')) return Response.json({ models: LIVE_LIST })
   if (url.endsWith('/v1internal:fetchAvailableModels')) return Response.json({ models: ROSTER, imageGenerationModelIds: [], agentModelSorts: [] })
   if (url.startsWith('https://manifest.fixture.invalid/')) return new Response('version: 2.31.2\n')
-  hits.push({ url, body: JSON.parse(String(init?.body ?? '{}')) })
+  const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, any>
+  hits.push({ url, body })
   const plan = url.includes('/v1internal:')
-  return sse(script.shift() ?? plainAnswer, plan)
+  const step = script.shift() ?? plainAnswer
+  return sse(typeof step === 'function' ? step((body.request ?? body) as Record<string, any>) : step, plan)
 }) as typeof fetch
 
 async function useRoad(road: Road): Promise<void> {
@@ -127,6 +130,48 @@ async function sweep(model: string): Promise<Record<string, Sent>> {
   return out
 }
 const ROOT = join(import.meta.dir, '..', '..')
+const SEGMENT = 65_536
+const cutAfterThinking: Step = request => [{ candidates: [{ content: { role: 'model', parts: [{ text: '', thoughtSignature: 'sig-cut' }] }, finishReason: Number(request.generationConfig?.maxOutputTokens ?? SEGMENT) > SEGMENT ? 'CONTINUATION' : 'MAX_TOKENS' }], usageMetadata: { promptTokenCount: 60, candidatesTokenCount: 0, thoughtsTokenCount: SEGMENT } }]
+const { query } = await import('../../src/query.ts')
+const { productionDeps } = await import('../../src/query/deps.ts')
+const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+const { createUserMessage } = await import('../../src/utils/messages.ts')
+;(await import('../../src/bootstrap/state.ts')).setIsInteractive(false)
+type Turn = { notices: string[]; answers: string[]; terminal: string; requests: Array<Record<string, any>> }
+async function runTurn(model: string, prompt: string, steps: Step[]): Promise<Turn> {
+  let appState: Record<string, unknown> = { ...(getDefaultAppState() as unknown as Record<string, unknown>), effortValue: 'high' }
+  const ctx = {
+    abortController: new AbortController(),
+    options: { commands: [], tools: [], engineModel: model, thinkingConfig: { type: 'adaptive' }, mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, debug: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
+    getAppState: () => appState,
+    setAppState: (f: (prev: never) => never): void => { appState = f(appState as never) as unknown as Record<string, unknown> },
+    messages: [],
+    readFileState: createFileStateCacheWithSizeLimit(100),
+    setInProgressToolUseIDs: () => {},
+    setResponseLength: () => {},
+    updateFileHistoryState: () => {},
+    updateAttributionState: () => {},
+    agentId: undefined,
+  }
+  hits.length = 0
+  script = [...steps]
+  const yields: Array<Record<string, any>> = []
+  const gen = query({ messages: [createUserMessage({ content: prompt })] as never, systemPrompt: ['be brief'] as never, userContext: {}, systemContext: {}, canUseTool: (async () => ({ behavior: 'deny', message: 'no tools in this rig' })) as never, toolUseContext: ctx as never, querySource: 'sdk' as never, deps: productionDeps() })
+  let step = await gen.next()
+  while (!step.done) {
+    yields.push(step.value as Record<string, any>)
+    step = await gen.next()
+  }
+  script = []
+  const textOf = (row: Record<string, any>): string => (Array.isArray(row.message?.content) ? row.message.content.filter((block: { type?: string }) => block.type === 'text').map((block: { text?: string }) => String(block.text ?? '')).join('') : '')
+  return {
+    notices: yields.filter(row => row.type === 'system' && typeof row.content === 'string').map(row => String(row.content)),
+    answers: yields.filter(row => row.type === 'assistant' && row.isApiErrorMessage !== true).map(textOf).filter(text => text !== ''),
+    terminal: String((step.value as { reason?: string } | undefined)?.reason ?? ''),
+    requests: hits.map(hit => (hit.body.request ?? hit.body) as Record<string, any>),
+  }
+}
 const plain = (model: string, ask: Ask = {}): Promise<Sent> => send(model, [user('Say hello.')], ask)
 const vocabularyOf = (model: string): readonly string[] => {
   const view = capabilities.effortVocabularyFor(model)
@@ -190,6 +235,30 @@ try {
   check('/usage reads the quota of the row the session rides: -xhigh at xhigh and max, -high at high', geminiPlanQuotaView(quotaFigures, { model: 'gemini-4-hydrogen', effort: 'xhigh', usedModels: [] }).activeRow === 'gemini-4-hydrogen-xhigh' && geminiPlanQuotaView(quotaFigures, { model: 'gemini-4-hydrogen', effort: 'max', usedModels: [] }).activeRow === 'gemini-4-hydrogen-xhigh' && geminiPlanQuotaView(quotaFigures, { model: 'gemini-4-hydrogen', effort: 'high', usedModels: [] }).activeRow === 'gemini-4-hydrogen-high' && geminiPlanQuotaView(quotaFigures.slice(0, 3), { model: 'gemini-4-hydrogen', effort: 'xhigh', usedModels: [] }).activeRow === 'gemini-4-hydrogen-high', j(geminiPlanQuotaView(quotaFigures, { model: 'gemini-4-hydrogen', effort: 'xhigh', usedModels: [] }).activeRow))
   const tierLaw = catalogue.geminiPlanWireModel
   check('the effort row law keeps every older reading: a missing tier takes the nearest present, an exact row never resolves, minimal takes low', tierLaw('gemini-3.8-flash', 'xhigh') === 'gemini-3.8-flash-high' && tierLaw('gemini-3.8-flash', 'max') === 'gemini-3.8-flash-high' && tierLaw('gemini-3.8-flash', 'minimal') === 'gemini-3.8-flash-low' && tierLaw('gemini-4-hydrogen-high', 'xhigh') === 'gemini-4-hydrogen-high' && tierLaw('gemini-4-hydrogen-xhigh', 'low') === 'gemini-4-hydrogen-xhigh' && tierLaw('gemini-3-flash', 'xhigh') === 'gemini-3-flash')
+
+  console.log('── the output ceiling of a Gemini 4 row is one streamed segment, 65,536, on both roads ──')
+  for (const signIn of ['gemini-4-hydrogen-low', 'gemini-4-hydrogen-medium', 'gemini-4-hydrogen-high', 'gemini-4-hydrogen-xhigh', 'gemini-4-hydrogen', 'gemini-4-carbon-low', 'gemini-4-carbon-medium', 'gemini-4-carbon-high', 'gemini-4-carbon', 'gemini-4-argon-low', 'gemini-4-argon-medium', 'gemini-4-argon-high', 'gemini-4-argon']) {
+    const sent = await plain(signIn, { effort: 'high' })
+    check(`sign-in ${signIn}: the request asks 65,536 where the roster's 262,144 opened a long decode nothing followed`, sent.generationConfig?.maxOutputTokens === SEGMENT && capabilities.getModelMaxOutputTokens(signIn).upperLimit === SEGMENT && capabilities.getModelMaxOutputTokens(signIn).default === SEGMENT, j([sent.generationConfig?.maxOutputTokens, capabilities.getModelMaxOutputTokens(signIn)]))
+  }
+  const olderRow = await plain('gemini-3.8-flash-high', { effort: 'high' })
+  check('sign-in gemini-3.8-flash-high keeps the ceiling its roster row states', olderRow.generationConfig?.maxOutputTokens === 65_536 && capabilities.getModelMaxOutputTokens('gemini-3.8-flash-high').upperLimit === 65_536)
+  for (const row of ['gemini-4-hydrogen-high', 'gemini-4-carbon-high']) {
+    const cut = await runTurn(row, 'Prove it.', [cutAfterThinking])
+    const notice = cut.notices.find(words => words.includes('thinking ran to the output limit')) ?? ''
+    check(`sign-in ${row}: a reply cut after thinking only is told with the ceiling the cut came at, 65536, where the roster's figure clipped at the loop's default read 128k`, notice === 'thinking ran to the output limit (65536) — continuing', notice)
+    check(`…and the loop does there what it did before the ceiling moved (the same count on the tree before this): one continuation, two requests in all, the second ending on the loop's own nudge, and the turn completes`, cut.requests.length === 2 && cut.terminal === 'completed' && cut.answers.at(-1) === 'ok' && cut.requests[1]!.contents.at(-1)?.role === 'user' && j(cut.requests[1]!.contents.at(-1)?.parts.at(-1)).includes('your last turn carried thinking only'), j([cut.requests.length, cut.terminal, cut.answers, cut.requests[1]?.contents.at(-1)]))
+  }
+  const olderCut = await runTurn('gemini-3.8-flash-high', 'Prove it.', [cutAfterThinking])
+  check('sign-in gemini-3.8-flash-high: the same notice with its own row\'s figure, as before', olderCut.notices.includes('thinking ran to the output limit (65536) — continuing') && olderCut.requests.length === 2, j(olderCut.notices))
+  await useRoad('api-key')
+  for (const keyed of ['gemini-4-hydrogen', 'gemini-4-carbon', 'gemini-4-argon']) {
+    const unasked = await plain(keyed, { effort: 'high' })
+    const asked = await plain(keyed, { effort: 'high', maxOutput: 200_000 })
+    check(`API key ${keyed}: no ceiling is sent unasked (Google's own 65,536 governs) and a larger ask goes out as one segment`, unasked.generationConfig?.maxOutputTokens === undefined && asked.generationConfig?.maxOutputTokens === SEGMENT && (await plain(keyed, { effort: 'high', maxOutput: 4_096 })).generationConfig?.maxOutputTokens === 4_096, j([unasked.generationConfig, asked.generationConfig]))
+  }
+  check('API key gemini-3.8-flash and gemini-2.5-pro send what was asked, as before', (await plain('gemini-3.8-flash', { maxOutput: 200_000 })).generationConfig?.maxOutputTokens === 200_000 && (await plain('gemini-2.5-pro', { maxOutput: 200_000 })).generationConfig?.maxOutputTokens === 200_000)
+  await useRoad('plan')
 
   console.log('── what no request carried ──')
   const gemini4 = sentLog.filter(sent => /^gemini-4-/.test(sent.model))

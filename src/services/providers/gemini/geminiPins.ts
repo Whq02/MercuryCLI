@@ -95,17 +95,20 @@ export function geminiPricePin(model: string): GeminiPricePin | undefined {
   return GEMINI_PRICE_PINS.find(p => p.id === lower)
 }
 
-const GEMINI_HYDROGEN_GUIDE = 'https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/guides/gemini-4-hydrogen'
+const GEMINI_MODEL_GUIDES = 'https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/guides'
 
 interface GeminiRequestPin {
   id: string
   observedAt: string
   source: string
   thinkingLevels?: readonly string[]
+  segmentOutputTokens?: number
 }
 
 export const GEMINI_REQUEST_PINS: readonly GeminiRequestPin[] = [
-  { id: 'gemini-4-hydrogen', observedAt: '2026-11-15', source: GEMINI_HYDROGEN_GUIDE, thinkingLevels: ['low', 'medium', 'high', 'xhigh'] },
+  { id: 'gemini-4-hydrogen', observedAt: '2026-11-15', source: `${GEMINI_MODEL_GUIDES}/gemini-4-hydrogen`, thinkingLevels: ['low', 'medium', 'high', 'xhigh'], segmentOutputTokens: 65_536 },
+  { id: 'gemini-4-carbon', observedAt: '2026-11-15', source: `${GEMINI_MODEL_GUIDES}/gemini-4-carbon`, segmentOutputTokens: 65_536 },
+  { id: 'gemini-4-argon', observedAt: '2026-11-15', source: `${GEMINI_MODEL_GUIDES}/gemini-4-argon`, segmentOutputTokens: 65_536 },
 ]
 
 export const GEMINI_TIER_ROW = /-(low|medium|high|xhigh)$/
