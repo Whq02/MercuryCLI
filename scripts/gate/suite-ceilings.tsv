@@ -88,7 +88,16 @@ transcript-rows-drives	3000
 api-drives	1500
 switchboard-drives	3300
 ui-drives	11700
-health	1500
+# health was tree-killed at its 1500 s row by the hosted gate of 15 Nov 2026
+# (run 43708442697, the eighth landing of 1.0.11) with 65 of its 67 provers
+# done in 1516 s, every one of them passing, and two still to run (40 s
+# between them on the run before). That run was the first whose hosted build
+# carried the release Node: the run before (43688906150, no Node in the
+# build) read the same 67 provers in 1068 s, and the Mac, which always had
+# the Node, read the suite alike on both candidates (294 s and 301 s). The
+# row is the measured hosted wall (about 1,600 s whole) with the ui-class
+# slack.
+health	2400
 # crew was tree-killed at the 900 s default by the hosted gate of 15 Nov 2026
 # (run 43688906150, the seventh landing of 1.0.11) with 110 proof rows done,
 # every one of them passing, and the last few still to run: the suite grew
