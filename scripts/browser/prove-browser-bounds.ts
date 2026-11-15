@@ -193,7 +193,11 @@ console.log('B7 the real browser, killed from outside: close returns within the 
   const { resolveBrowser } = await import('../../src/services/browser/browserResolver.ts')
   const resolution = resolveBrowser()
   if (resolution.state !== 'ok' || process.platform === 'win32') {
-    console.log(`  [SKIP] B7 no drivable browser here (${resolution.state !== 'ok' ? resolution.note : 'win32'}) — the fixture legs above carry the law`)
+    console.log(
+      resolution.state !== 'ok'
+        ? `  [SKIP] B7 no drivable browser here (${resolution.note}) — the fixture legs above carry the law`
+        : `  [SKIP] B7 not run on win32 (a browser did resolve: ${resolution.source}) — this leg ends the browser with SIGKILL and asks kill -0 whether it is gone; the fixture legs above carry the law`,
+    )
   } else {
     const lane = 'real-killed-outside'
     const OWNER = processOwnerForLane(lane)
