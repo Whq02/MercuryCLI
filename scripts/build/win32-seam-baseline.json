@@ -44,6 +44,7 @@
  "src/substrate/durablePublish.ts :: kill-signal": 1,
  "src/tools/BashTool/utils.ts :: split-slash": 1,
  "src/tools/FileReadTool/FileReadTool.ts :: split-slash": 1,
+ "src/tools/FileReadTool/sqliteQueryProcess.ts :: kill-signal": 1,
  "src/tools/GlobTool/GlobTool.ts :: split-slash": 1,
  "src/tools/PowerShellTool/gitSafety.ts :: split-slash": 1,
  "src/utils/git/gitFilesystem.ts :: split-slash": 1,
