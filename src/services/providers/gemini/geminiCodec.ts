@@ -1,6 +1,7 @@
 import type { Message } from '../../../types/message.js'
 import type { CompatChatRequest, CompatMessage } from '../openaicompat/compatChatClient.js'
 import { requestTurnOf } from '../../../rows/request.js'
+import { geminiRequestPin } from './geminiPins.js'
 
 export type GeminiPart = {
   text?: string
@@ -171,7 +172,7 @@ function claudeReplayParts(saved: GeminiTurnItem): GeminiPart[] {
 
 function geminiThinkingConfig(model: string, effort: string | undefined): { thinkingBudget: number; includeThoughts?: boolean } | { thinkingLevel: string } | undefined {
   const budget = typeof effort === 'string' ? ({ low: 1024, medium: 8192, high: 24576 } as Record<string, number>)[effort] : undefined
-  if (budget === undefined) return undefined
+  if (budget === undefined) return effort === 'xhigh' && !model.endsWith('-xhigh') && geminiRequestPin(model)?.thinkingLevels?.includes('xhigh') === true ? { thinkingLevel: 'XHIGH' } : undefined
   if (geminiPlanServesClaude(model)) return { includeThoughts: true, thinkingBudget: budget }
   return model.startsWith('gemini-2.5') ? { thinkingBudget: budget } : { thinkingLevel: String(effort).toUpperCase() }
 }

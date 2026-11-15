@@ -110,16 +110,17 @@ export function buildOpenrouterExtras(
 export const GEMINI_REASONING_EFFORTS: readonly string[] = ['low', 'medium', 'high']
 
 export function buildGeminiExtras(
-  args: LaneExtrasArgs & { acceptsEffort: boolean },
+  args: LaneExtrasArgs & { acceptsEffort: boolean; vocabulary?: readonly string[] },
 ): Record<string, unknown> {
+  const vocabulary = args.vocabulary ?? GEMINI_REASONING_EFFORTS
   const wireEffort = !args.acceptsEffort
     ? undefined
     : !args.thinkingEnabled
-      ? thinkingOffWireEffort(GEMINI_REASONING_EFFORTS)
+      ? thinkingOffWireEffort(vocabulary)
       : args.effortValue !== undefined
-        ? GEMINI_REASONING_EFFORTS.includes(args.effortValue)
+        ? vocabulary.includes(args.effortValue)
           ? args.effortValue
-          : nearestSupportedWireEffort(args.effortValue, GEMINI_REASONING_EFFORTS)
+          : nearestSupportedWireEffort(args.effortValue, vocabulary)
         : undefined
   return {
     stream_options: { include_usage: true },

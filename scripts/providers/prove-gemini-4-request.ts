@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
 import { proofHome } from '../lib/hermetic.ts'
-import { writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
@@ -21,6 +21,9 @@ enableConfigs()
 const { geminiCallModel, __resetGeminiPlanWireForTest } = await import('../../src/services/providers/gemini/geminiCallModel.ts')
 const catalogue = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
 const capabilities = await import('../../src/utils/model/capabilities.ts')
+const effort = await import('../../src/utils/effort.ts')
+const { geminiPlanQuotaView } = await import('../../src/services/providers/gemini/geminiPlanQuota.ts')
+const { resolveDisplayedSessionModel } = await import('../../src/hooks/useDisplayedSessionModel.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 import type { AssistantMessage, Message } from '../../src/types/message.ts'
@@ -110,8 +113,20 @@ async function send(model: string, messages: Message[], ask: Ask = {}): Promise<
   const answer = await drain(params(model, messages, ask))
   const body = hits.at(-1)?.body ?? {}
   const request = (body.request ?? body) as Record<string, any>
+  sentLog.push({ model: (body.model as string | undefined) ?? model, request })
   return { wireModel: body.model as string | undefined, request, generationConfig: request.generationConfig as Record<string, any> | undefined, answer }
 }
+const sentLog: Array<{ model: string; request: Record<string, any> }> = []
+const levelOf = (sent: Sent): string => j(sent.generationConfig?.thinkingConfig)
+const level = (word: string): string => j({ thinkingLevel: word })
+const stampOf = (sent: Sent): { asked?: string; applied?: string; wire?: string } => (sent.answer.at(-1) as { effort?: { asked?: string; applied?: string; wire?: string } } | undefined)?.effort ?? {}
+const listWords = (model: string): string => `efforts ${effort.selectableEffortLevels(model).join(' · ')}`
+async function sweep(model: string): Promise<Record<string, Sent>> {
+  const out: Record<string, Sent> = {}
+  for (const word of ['none', 'low', 'medium', 'high', 'xhigh', 'max']) out[word] = await plain(model, word === 'none' ? {} : { effort: word })
+  return out
+}
+const ROOT = join(import.meta.dir, '..', '..')
 const plain = (model: string, ask: Ask = {}): Promise<Sent> => send(model, [user('Say hello.')], ask)
 const vocabularyOf = (model: string): readonly string[] => {
   const view = capabilities.effortVocabularyFor(model)
@@ -133,6 +148,64 @@ try {
   check('a row the roster names keeps its own facts, and an id no roster row leads to keeps the fallback', capabilities.getContextWindowForModel('gemini-3-flash') === WINDOW && capabilities.getContextWindowForModel('gemini-4-neon') === 200_000 && vocabularyOf('gemini-4-neon').length === 0)
   await useRoad('api-key')
   check('with an API key the bare id is the listed id and nothing is borrowed from a row', capabilities.getContextWindowForModel('gemini-4-hydrogen') === WINDOW && capabilities.getContextWindowForModel('gemini-4-hydrogen-high') === 200_000)
+
+  console.log('── the effort words with an API key: the level rides the body, and only a level the model\'s own page lists ──')
+  const keyHydrogen = await sweep('gemini-4-hydrogen')
+  check('gemini-4-hydrogen: low, medium and high go out as LOW, MEDIUM and HIGH; with no word no thinking configuration is sent and Google\'s own default governs', levelOf(keyHydrogen.low!) === level('LOW') && levelOf(keyHydrogen.medium!) === level('MEDIUM') && levelOf(keyHydrogen.high!) === level('HIGH') && keyHydrogen.none!.generationConfig === undefined, j([keyHydrogen.low!.generationConfig, keyHydrogen.medium!.generationConfig, keyHydrogen.high!.generationConfig, keyHydrogen.none!.generationConfig]))
+  check('gemini-4-hydrogen: xhigh goes out as XHIGH, the fourth level Hydrogen\'s page lists', levelOf(keyHydrogen.xhigh!) === level('XHIGH'), levelOf(keyHydrogen.xhigh!))
+  check('gemini-4-hydrogen: max lands on XHIGH, the highest level the model has', levelOf(keyHydrogen.max!) === level('XHIGH'), levelOf(keyHydrogen.max!))
+  check('…and the turn is stamped with what went out: asked xhigh, applied xhigh', stampOf(keyHydrogen.xhigh!).asked === 'xhigh' && stampOf(keyHydrogen.xhigh!).applied === 'xhigh' && stampOf(keyHydrogen.max!).applied === 'xhigh', j([stampOf(keyHydrogen.xhigh!), stampOf(keyHydrogen.max!)]))
+  check('gemini-4-hydrogen with thinking switched off sends LOW: a Gemini 4 model cannot stop thinking, and neither a budget nor MINIMAL is a value its page takes', levelOf(await plain('gemini-4-hydrogen', { effort: 'xhigh', thinking: false })) === level('LOW'))
+  check('the model list says what the wire takes on gemini-4-hydrogen: efforts low · medium · high · xhigh', listWords('gemini-4-hydrogen') === 'efforts low · medium · high · xhigh', listWords('gemini-4-hydrogen'))
+  for (const three of ['gemini-4-carbon', 'gemini-4-argon', 'gemini-3.8-flash']) {
+    const sent = await sweep(three)
+    check(`${three}: its page stops at high, so xhigh and max go out as HIGH and the list says efforts low · medium · high, as before`, levelOf(sent.low!) === level('LOW') && levelOf(sent.medium!) === level('MEDIUM') && levelOf(sent.high!) === level('HIGH') && levelOf(sent.xhigh!) === level('HIGH') && levelOf(sent.max!) === level('HIGH') && sent.none!.generationConfig === undefined && stampOf(sent.xhigh!).applied === 'high' && listWords(three) === 'efforts low · medium · high', j([levelOf(sent.xhigh!), levelOf(sent.max!), listWords(three)]))
+  }
+  const legacy = await sweep('gemini-2.5-pro')
+  check('gemini-2.5-pro keeps its token budgets (1024, 8192, 24576) and never receives a level', j(legacy.low!.generationConfig) === j({ thinkingConfig: { thinkingBudget: 1024 } }) && j(legacy.medium!.generationConfig) === j({ thinkingConfig: { thinkingBudget: 8192 } }) && j(legacy.high!.generationConfig) === j({ thinkingConfig: { thinkingBudget: 24576 } }) && j(legacy.xhigh!.generationConfig) === j({ thinkingConfig: { thinkingBudget: 24576 } }) && j(legacy.max!.generationConfig) === j({ thinkingConfig: { thinkingBudget: 24576 } }), j([legacy.low!.generationConfig, legacy.xhigh!.generationConfig]))
+
+  console.log('── the effort words on the Google sign-in: low, medium and high ride the body on every row; XHIGH is named by the id of the -xhigh row ──')
+  await useRoad('plan')
+  const signBare = await sweep('gemini-4-hydrogen')
+  check('the bare gemini-4-hydrogen rides the row of the word, the same level in the body: low, medium, high; no word rides -high with no level', j([signBare.low!.wireModel, levelOf(signBare.low!), signBare.medium!.wireModel, levelOf(signBare.medium!), signBare.high!.wireModel, levelOf(signBare.high!), signBare.none!.wireModel, signBare.none!.generationConfig?.thinkingConfig]) === j(['gemini-4-hydrogen-low', level('LOW'), 'gemini-4-hydrogen-medium', level('MEDIUM'), 'gemini-4-hydrogen-high', level('HIGH'), 'gemini-4-hydrogen-high', undefined]), j([signBare.low!.wireModel, levelOf(signBare.low!), signBare.none!.wireModel, signBare.none!.generationConfig]))
+  check('the bare gemini-4-hydrogen at xhigh rides gemini-4-hydrogen-xhigh and sends no level, so the id names it (the one shape read live to think at XHIGH: 9,333 thought tokens where LOW in the body on the same row thought 1,569)', signBare.xhigh!.wireModel === 'gemini-4-hydrogen-xhigh' && signBare.xhigh!.generationConfig?.thinkingConfig === undefined, j([signBare.xhigh!.wireModel, signBare.xhigh!.generationConfig]))
+  check('…and at max the same row, the same way', signBare.max!.wireModel === 'gemini-4-hydrogen-xhigh' && signBare.max!.generationConfig?.thinkingConfig === undefined, j([signBare.max!.wireModel, signBare.max!.generationConfig]))
+  check('…stamped asked xhigh, applied xhigh', stampOf(signBare.xhigh!).asked === 'xhigh' && stampOf(signBare.xhigh!).applied === 'xhigh', j(stampOf(signBare.xhigh!)))
+  const signXhigh = await sweep('gemini-4-hydrogen-xhigh')
+  check('on the gemini-4-hydrogen-xhigh row xhigh and max send no level: the row\'s own id names XHIGH', signXhigh.xhigh!.wireModel === 'gemini-4-hydrogen-xhigh' && signXhigh.xhigh!.generationConfig?.thinkingConfig === undefined && signXhigh.max!.generationConfig?.thinkingConfig === undefined && stampOf(signXhigh.xhigh!).applied === 'xhigh', j([signXhigh.xhigh!.generationConfig, signXhigh.max!.generationConfig, stampOf(signXhigh.xhigh!)]))
+  check('THE OWNER\'S OWN CASE: the -xhigh row with the dial at high sends HIGH in the body (the dial wins over a row\'s name, as on every tier row), the turn is stamped applied high, the dial\'s label reads high and the status row shows the row with no ride', levelOf(signXhigh.high!) === level('HIGH') && signXhigh.high!.wireModel === 'gemini-4-hydrogen-xhigh' && stampOf(signXhigh.high!).applied === 'high' && effort.resolveEffortTruth('gemini-4-hydrogen-xhigh', 'high', { thinkingEnabled: true }).label === 'high' && catalogue.geminiPlanRideWords('gemini-4-hydrogen-xhigh', 'high') === undefined && resolveDisplayedSessionModel('gemini-4-hydrogen-xhigh', null, catalogue.geminiPlanRideWords('gemini-4-hydrogen-xhigh', 'high')).compact === 'gemini-4-hydrogen-xhigh', j([levelOf(signXhigh.high!), stampOf(signXhigh.high!), effort.resolveEffortTruth('gemini-4-hydrogen-xhigh', 'high', { thinkingEnabled: true }).label]))
+  check('…and low and medium on that row ride the body too; no word sends nothing and the row\'s own level runs', levelOf(signXhigh.low!) === level('LOW') && levelOf(signXhigh.medium!) === level('MEDIUM') && signXhigh.none!.generationConfig?.thinkingConfig === undefined)
+  check('the model list says what is true of the XHigh row: efforts low · medium · high · xhigh', listWords('gemini-4-hydrogen-xhigh') === 'efforts low · medium · high · xhigh', listWords('gemini-4-hydrogen-xhigh'))
+  for (const tier of ['gemini-4-hydrogen-low', 'gemini-4-hydrogen-medium', 'gemini-4-hydrogen-high']) {
+    const sent = await sweep(tier)
+    const truth = effort.resolveEffortTruth(tier, 'xhigh', { thinkingEnabled: true })
+    check(`${tier}: xhigh and max stay clamped to HIGH on its own id, the receipt says asked xhigh applied high, and its list line is unmoved`, sent.xhigh!.wireModel === tier && levelOf(sent.xhigh!) === level('HIGH') && levelOf(sent.max!) === level('HIGH') && stampOf(sent.xhigh!).asked === 'xhigh' && stampOf(sent.xhigh!).applied === 'high' && truth.wire === 'high' && truth.adjustedFrom === 'xhigh' && listWords(tier) === 'efforts low · medium · high' && levelOf(sent.low!) === level('LOW') && sent.low!.wireModel === tier, j([sent.xhigh!.wireModel, levelOf(sent.xhigh!), stampOf(sent.xhigh!), listWords(tier)]))
+  }
+  const signCarbon = await sweep('gemini-4-carbon')
+  const signCarbonHigh = await sweep('gemini-4-carbon-high')
+  check('Carbon, whose roster names no -xhigh row: the bare id at xhigh and max rides -high with HIGH, the -high row sends HIGH, and both list efforts low · medium · high', signCarbon.xhigh!.wireModel === 'gemini-4-carbon-high' && levelOf(signCarbon.xhigh!) === level('HIGH') && signCarbon.max!.wireModel === 'gemini-4-carbon-high' && levelOf(signCarbon.max!) === level('HIGH') && levelOf(signCarbonHigh.xhigh!) === level('HIGH') && levelOf(signCarbonHigh.low!) === level('LOW') && listWords('gemini-4-carbon-high') === 'efforts low · medium · high' && listWords('gemini-4-carbon') === 'efforts low · medium · high', j([signCarbon.xhigh!.wireModel, levelOf(signCarbon.xhigh!), listWords('gemini-4-carbon')]))
+  check('the bare gemini-4-hydrogen lists the four words its rows reach', listWords('gemini-4-hydrogen') === 'efforts low · medium · high · xhigh', listWords('gemini-4-hydrogen'))
+  check('the status row says the ride: gemini-4-hydrogen ▸ gemini-4-hydrogen-xhigh at xhigh and at max, ▸ gemini-4-hydrogen-high at high', resolveDisplayedSessionModel('gemini-4-hydrogen', null, catalogue.geminiPlanRideWords('gemini-4-hydrogen', 'xhigh')).compact === 'gemini-4-hydrogen ▸ gemini-4-hydrogen-xhigh' && catalogue.geminiPlanRideWords('gemini-4-hydrogen', 'max') === 'gemini-4-hydrogen-xhigh' && catalogue.geminiPlanRideWords('gemini-4-hydrogen', 'high') === 'gemini-4-hydrogen-high' && catalogue.geminiPlanRideWords('gemini-4-carbon', 'xhigh') === 'gemini-4-carbon-high', j([catalogue.geminiPlanRideWords('gemini-4-hydrogen', 'xhigh'), catalogue.geminiPlanRideWords('gemini-4-carbon', 'xhigh')]))
+  const quotaFigures = ['low', 'medium', 'high', 'xhigh'].map(tier => ({ key: `plan-quota:gemini-4-hydrogen-${tier}`, label: `gemini-4-hydrogen-${tier}`, value: '80% left' }))
+  check('/usage reads the quota of the row the session rides: -xhigh at xhigh and max, -high at high', geminiPlanQuotaView(quotaFigures, { model: 'gemini-4-hydrogen', effort: 'xhigh', usedModels: [] }).activeRow === 'gemini-4-hydrogen-xhigh' && geminiPlanQuotaView(quotaFigures, { model: 'gemini-4-hydrogen', effort: 'max', usedModels: [] }).activeRow === 'gemini-4-hydrogen-xhigh' && geminiPlanQuotaView(quotaFigures, { model: 'gemini-4-hydrogen', effort: 'high', usedModels: [] }).activeRow === 'gemini-4-hydrogen-high' && geminiPlanQuotaView(quotaFigures.slice(0, 3), { model: 'gemini-4-hydrogen', effort: 'xhigh', usedModels: [] }).activeRow === 'gemini-4-hydrogen-high', j(geminiPlanQuotaView(quotaFigures, { model: 'gemini-4-hydrogen', effort: 'xhigh', usedModels: [] }).activeRow))
+  const tierLaw = catalogue.geminiPlanWireModel
+  check('the effort row law keeps every older reading: a missing tier takes the nearest present, an exact row never resolves, minimal takes low', tierLaw('gemini-3.8-flash', 'xhigh') === 'gemini-3.8-flash-high' && tierLaw('gemini-3.8-flash', 'max') === 'gemini-3.8-flash-high' && tierLaw('gemini-3.8-flash', 'minimal') === 'gemini-3.8-flash-low' && tierLaw('gemini-4-hydrogen-high', 'xhigh') === 'gemini-4-hydrogen-high' && tierLaw('gemini-4-hydrogen-xhigh', 'low') === 'gemini-4-hydrogen-xhigh' && tierLaw('gemini-3-flash', 'xhigh') === 'gemini-3-flash')
+
+  console.log('── what no request carried ──')
+  const gemini4 = sentLog.filter(sent => /^gemini-4-/.test(sent.model))
+  const allowed: Record<string, readonly string[]> = { hydrogen: ['LOW', 'MEDIUM', 'HIGH', 'XHIGH'], carbon: ['LOW', 'MEDIUM', 'HIGH'], argon: ['LOW', 'MEDIUM', 'HIGH'] }
+  const strays = gemini4.filter(sent => {
+    const config = (sent.request.generationConfig ?? {}) as Record<string, any>
+    const thinking = (config.thinkingConfig ?? {}) as Record<string, unknown>
+    const family = /^gemini-4-([a-z]+)/.exec(sent.model)![1]!
+    return Object.keys(config).some(name => name !== 'maxOutputTokens' && name !== 'thinkingConfig') || Object.keys(thinking).some(name => name !== 'thinkingLevel') || (thinking.thinkingLevel !== undefined && !(allowed[family] ?? []).includes(String(thinking.thinkingLevel)))
+  })
+  check(`of ${gemini4.length} requests to a Gemini 4 model on the two roads, none carries a budget, MINIMAL, a sampling or penalty parameter, a candidate count, a level its model's page does not list, or a field no page of its road documents (no prefix-mismatch field)`, gemini4.length >= 60 && strays.length === 0 && !j(gemini4).includes('prefixMismatch'), j(strays.slice(0, 2)))
+
+  console.log('── the page says what the code does ──')
+  const engines = readFileSync(join(ROOT, 'docs/ENGINES.md'), 'utf8').replace(/\s+/g, ' ')
+  check('docs/ENGINES.md carries the effort row law with the fourth tier', engines.includes('(low → `-low`, medium → `-medium`, high or no effort → `-high`, xhigh or max → `-xhigh` where the roster names that row, as it does for Gemini 4 Hydrogen, and `-high` where it does not; a missing tier taking the nearest present)'))
+  check('docs/ENGINES.md says which plans carry Hydrogen and when the three older rows leave, as Google\'s plan table read on 2026-11-15', engines.includes('read again on 2026-11-15 it lists Gemini 4 Hydrogen on every plan, Free and Google AI Plus included, with a fourth thinking level (Extra, the row `…-xhigh`)') && engines.includes('GPT-OSS-120b leave the roster on November 18, 2026 (the table read on 2026-11-15)') && !engines.includes('leave the roster on November 2, 2026'))
 } finally {
   globalThis.fetch = realFetch
 }

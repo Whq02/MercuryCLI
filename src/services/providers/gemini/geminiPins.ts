@@ -95,6 +95,26 @@ export function geminiPricePin(model: string): GeminiPricePin | undefined {
   return GEMINI_PRICE_PINS.find(p => p.id === lower)
 }
 
+const GEMINI_HYDROGEN_GUIDE = 'https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/guides/gemini-4-hydrogen'
+
+interface GeminiRequestPin {
+  id: string
+  observedAt: string
+  source: string
+  thinkingLevels?: readonly string[]
+}
+
+export const GEMINI_REQUEST_PINS: readonly GeminiRequestPin[] = [
+  { id: 'gemini-4-hydrogen', observedAt: '2026-11-15', source: GEMINI_HYDROGEN_GUIDE, thinkingLevels: ['low', 'medium', 'high', 'xhigh'] },
+]
+
+export const GEMINI_TIER_ROW = /-(low|medium|high|xhigh)$/
+
+export function geminiRequestPin(model: string): GeminiRequestPin | undefined {
+  const base = model.trim().toLowerCase().replace(/\[[^\]]*\]/g, '').replace(GEMINI_TIER_ROW, '')
+  return GEMINI_REQUEST_PINS.find(p => p.id === base)
+}
+
 export function geminiPriceTierFor(
   pin: GeminiPricePin,
   promptTokens: number | undefined,
