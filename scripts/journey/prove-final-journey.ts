@@ -465,7 +465,16 @@ console.log('\n── source contracts ─────────────�
   const flushAt = rekey.indexOf('await flushDraftSaves()')
   const rekeyOwnerAt = rekey.indexOf('owningSessionId = sessionId')
   check('the switch tail RESTORES the target draft (never blind-clears)', rekeyOwnerAt !== -1 && /(?:const|let) saved = readDraftSync\(sessionId\)/.test(rekey) && !rekey.includes("draft = { text: ''"))
-  check('pending source-owned saves flush during STAGE', flushAt !== -1 && rekeyOwnerAt !== -1 && flushAt < rekeyOwnerAt)
+  const drafts = readFileSync(join(REPO, 'src/utils/promptDraft.ts'), 'utf8')
+  check(
+    'pending source-owned saves flush during STAGE',
+    flushAt !== -1 &&
+      rekeyOwnerAt !== -1 &&
+      drafts.includes('pending = { sessionId, draft: { ...draft, savedAt: Date.now() }, filePath: draftFilePath() }') &&
+      drafts.includes('if (pending && pending.sessionId !== sessionId) void flushPending()') &&
+      drafts.includes('next[p.sessionId] = bounded') &&
+      drafts.includes('delete next[p.sessionId]'),
+  )
 }
 
 if (!process.env.JOURNEY_KEEP_FIXTURE) {

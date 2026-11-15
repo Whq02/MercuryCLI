@@ -49,6 +49,12 @@ function runnerClaims(dir: string, born: string): { ended: boolean; words: strin
   return { ended: run.status === 0, words: `exit ${run.status}${run.signal ? ` ${run.signal}` : ''}: ${(run.stderr ?? '').trim().slice(-300)}` }
 }
 const page = (id: string): string | null => p.readDraftFor(id)?.text ?? null
+async function owns(id: string, words: string): Promise<void> {
+  p.initSession(id, '')
+  p.edit(words)
+  await p.flushDrafts()
+  p.resetPendingInputForTests()
+}
 
 console.log('§1 letters typed since the last save stay through a landing whose session a runner has claimed')
 {
@@ -119,7 +125,95 @@ console.log('\n§3 the laws of the draft that stand as they stood')
   check('in a process whose composer is seeded, with no seat in the slot, an identity switch still re-keys the composer to the session it switched to', p.text() === 'words of the resumed session', j(p.text()))
 }
 
-console.log('\n§4 the owner')
+console.log('\n§4 a key that falls into the landing re-key itself')
+{
+  project('key-in-the-rekey')
+  p.initSession('boot-screen', '')
+  p.edit('first words')
+  const landing = p.rekeyToSession('born-session', { landing: true })
+  p.edit('first words and more')
+  await landing
+  await p.flushDrafts()
+  check('the composer keeps the key typed into the re-key', p.text() === 'first words and more', j(p.text()))
+  check("its page is the born session's alone: no copy stays under the screen's own id", page('born-session') === 'first words and more' && page('boot-screen') === null, j({ screen: page('boot-screen'), born: page('born-session') }))
+  p.edit('first words and more, sent')
+  p.clearForSubmit('first words and more, sent')
+  p.edit('')
+  await p.flushDrafts()
+  await p.rekeyToSession(null)
+  await p.rekeyToSession('second-session', { landing: true })
+  check('THE DEFECT PIN: the next new session of the project, landed with nothing typed, opens with an empty composer and not with the words already sent', p.text() === '', j(p.text()))
+}
+{
+  project('cursor-key-in-the-rekey')
+  p.initSession('boot-screen', '')
+  p.edit('first words')
+  const landing = p.rekeyToSession('born-session', { landing: true })
+  p.reportCursor(5)
+  await landing
+  await p.flushDrafts()
+  check("a cursor key pressed into the re-key leaves no copy under the screen's own id either", p.text() === 'first words' && page('born-session') === 'first words' && page('boot-screen') === null, j({ text: p.text(), screen: page('boot-screen'), born: page('born-session') }))
+}
+
+console.log('\n§5 only a born session is named early: in a hop, or a landing on a session that owns a page, what is pressed into the wait stays with the session it was pressed in')
+{
+  project('hop-with-a-cursor-key')
+  p.initSession('session-a', '')
+  p.edit('half-typed for a')
+  const hop = p.rekeyToSession('session-b')
+  p.reportCursor(3)
+  await hop
+  await p.flushDrafts()
+  check('a cursor key pressed into a hop writes nothing under the session hopped to, and the one hopped from keeps its words', p.text() === '' && page('session-b') === null && page('session-a') === 'half-typed for a', j({ text: p.text(), a: page('session-a'), b: page('session-b') }))
+}
+{
+  project('hop-with-a-mode-key')
+  await owns('session-b', 'words of b')
+  p.initSession('session-a', '')
+  const hop = p.rekeyToSession('session-b')
+  p.setMode('bash')
+  await hop
+  await p.flushDrafts()
+  check('a mode key pressed into a hop from an empty composer leaves the saved page of the session hopped to as it was', p.text() === 'words of b' && page('session-b') === 'words of b', j({ text: p.text(), b: page('session-b') }))
+}
+{
+  project('hop-with-enter')
+  await owns('session-b', 'words of b')
+  p.initSession('session-a', '')
+  p.edit('ready to send')
+  const hop = p.rekeyToSession('session-b')
+  p.clearForSubmit('ready to send')
+  p.edit('')
+  await hop
+  await p.flushDrafts()
+  check('an Enter pressed into a hop clears the page of the session its words were typed in, and leaves the saved page of the session hopped to', p.text() === '' && page('session-a') === null && page('session-b') === 'words of b', j({ text: p.text(), a: page('session-a'), b: page('session-b') }))
+}
+{
+  project('two-hops-in-one-wait')
+  await owns('session-b', 'words of b')
+  await owns('session-c', 'words of c')
+  p.initSession('session-a', '')
+  p.edit('half-typed for a')
+  const first = p.rekeyToSession('session-b')
+  const second = p.rekeyToSession('session-c')
+  await Promise.all([first, second])
+  p.reportCursor(1)
+  await p.flushDrafts()
+  check('two hops begun in one wait, and a cursor key after them, leave each of the three sessions its own page', page('session-a') === 'half-typed for a' && page('session-b') === 'words of b' && page('session-c') === 'words of c', j({ a: page('session-a'), b: page('session-b'), c: page('session-c') }))
+}
+{
+  project('landing-on-an-owned-page')
+  await owns('owned-session', 'a page of its own')
+  p.initSession('boot-screen', '')
+  p.edit('typed on the resting slot')
+  const landing = p.rekeyToSession('owned-session', { landing: true })
+  p.reportCursor(4)
+  await landing
+  await p.flushDrafts()
+  check("a cursor key pressed into a landing on a session that owns a page leaves that page its own, and the resting slot's words under the screen's id", p.text() === 'a page of its own' && page('owned-session') === 'a page of its own' && page('boot-screen') === 'typed on the resting slot', j({ text: p.text(), screen: page('boot-screen'), owned: page('owned-session') }))
+}
+
+console.log('\n§6 the owner')
 {
   const store = readFileSync(join(ROOT, 'src/input-core/pending-input.ts'), 'utf8').replace(/\r\n/g, '\n')
   check(
