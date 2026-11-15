@@ -465,9 +465,64 @@ try {
         check('an ls already there: the line as it stood, the same status and state', carries(thereHealth.shell, 'the shell engine at ', thereTail) && thereHealth.shell?.status === 'ok' && thereHealth.ready?.detail === thereHealth.shell?.evidence && thereHealth.ready?.state === 'ready', JSON.stringify(thereHealth.shell) + thereHealth.text)
       }
     }
+
+    section('§9 the built bundle, a scripted model: the Bash tool answers ls from Git\'s folder')
+    {
+      const DIST = join(ROOT, 'dist', 'mercury.mjs')
+      if (!existsSync(DIST)) {
+        console.log('  [SKIP] dist/mercury.mjs absent — build first (the gate prebuilds)')
+      } else {
+        const { seedScratchHome, startScriptedFixture } = await import('../lib/scriptedTurn.ts')
+        const { childEnv, MODEL } = await import('../daemon/dupline-world.ts')
+        const { nodeBinPath } = await import('../lib/nodeBin.ts')
+        const NODE = nodeBinPath()
+        const ASK = 'list this folder and say what the path is'
+        const drive = async (label: string, path: string): Promise<{ code: number | null; tools: string[]; ls: string; seen: string; tail: string }> => {
+          const home = join(scratch, `${label}-run-home`)
+          const cwd = join(scratch, `${label}-run-work`)
+          seedScratchHome(home, cwd)
+          const fixture = await startScriptedFixture(req => {
+            if (req.ask.trim() !== ASK) return [{ type: 'text', text: 'ok' }]
+            if (req.step === 0) return [{ type: 'tool_use', name: 'Bash', input: { command: 'ls', description: 'list the folder' } }]
+            if (req.step === 1) return [{ type: 'tool_use', name: 'Bash', input: { command: SEEN, description: 'say the path' } }]
+            return [{ type: 'text', text: 'done' }]
+          })
+          const env: NodeJS.ProcessEnv = childEnv(home, Number(new URL(fixture.base).port))
+          for (const name of [ENGINE_PIN, 'MERCURY_SHELL_ENGINE_SESSIONS', SEAM, PIN, 'MERCURY_SHELL_PREFIX', 'MERCURY_ENV_FILE', 'SHELL']) delete env[name]
+          Object.assign(env, located, { PATH: path, HOME: join(scratch, 'user'), MERCURY_TMPDIR: realpathSync(mkdtempSync(join(scratch, `${label}-run-tmp-`))) })
+          const run = await new Promise<{ code: number | null; out: string }>(resolvePromise => {
+            const child = spawn(NODE, [DIST, 'run', ASK, '--format', 'rows', '--mode', 'sovereign', '--model', MODEL], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
+            let out = ''
+            child.stdout!.on('data', (chunk: Buffer) => {
+              out += chunk.toString('utf8')
+            })
+            child.stderr!.on('data', (chunk: Buffer) => {
+              out += chunk.toString('utf8')
+            })
+            const timer = setTimeout(() => child.kill('SIGKILL'), 240_000)
+            child.on('close', code => {
+              clearTimeout(timer)
+              resolvePromise({ code, out })
+            })
+          })
+          await fixture.close()
+          const ours = fixture.requests.filter(r => r.ask.trim() === ASK)
+          const resultAt = (step: number): string => ours.find(r => r.step === step)?.results[0]?.text ?? ''
+          return { code: run.code, tools: ours[0]?.toolNames ?? [], ls: resultAt(1), seen: resultAt(2), tail: run.out.slice(-600) }
+        }
+        const [firedRun, thereRun] = await Promise.all([drive('fired', window), drive('ls-there', windowLs)])
+        const firstLine = (text: string): string => text.split('\n')[0] ?? ''
+        const firedSeen = seen({ out: firstLine(firedRun.seen), code: 0 })
+        const thereSeen = seen({ out: firstLine(thereRun.seen), code: 0 })
+        check('both runs completed with the Bash tool on the roster', firedRun.code === 0 && thereRun.code === 0 && firedRun.tools.includes('Bash') && thereRun.tools.includes('Bash'), JSON.stringify([firedRun, thereRun]))
+        check('the model\'s ls is answered by Git\'s ls (before: Shell command failed (exit code 127), error: command not found: ls)', firstLine(firedRun.ls) === GIT_LS, JSON.stringify(firedRun.ls))
+        check('…in the engine session the bundle started, <Git>/usr/bin the first entry of its path and the window\'s own path after it', firedSeen.served === VERSION && firedSeen.shell.includes('brush') && firedSeen.path === ruled, JSON.stringify(firedRun.seen))
+        check('with an ls already there the model\'s ls is the window\'s own, and the session\'s path is the window\'s byte for byte', firstLine(thereRun.ls) === WINDOW_LS && thereSeen.served === VERSION && thereSeen.path === windowLs, JSON.stringify([thereRun.ls, thereRun.seen]))
+      }
+    }
   }
 
-  section('§9 the source: each start of a command under the engine takes its environment through the rule, and the permission layer never reads it')
+  section('§10 the source: each start of a command under the engine takes its environment through the rule, and the permission layer never reads it')
   {
     const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n')
     const engine = read('src/utils/shell/engineSession.ts')
