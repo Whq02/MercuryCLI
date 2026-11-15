@@ -18,6 +18,7 @@ interface GeminiPricePin extends GeminiPriceTier {
 const LONG_PROMPT_THRESHOLD = 200_000
 
 export const GEMINI_PRICE_PINS: readonly GeminiPricePin[] = [
+  { id: 'gemini-4-hydrogen', observedAt: '2026-11-15', source: GEMINI_PRICING_PAGE, costInPerMtok: 1.5, costOutPerMtok: 7.5, cachedInPerMtok: 0.075 },
   {
     id: 'gemini-4-carbon',
     observedAt: '2026-11-11',
