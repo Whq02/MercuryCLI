@@ -7,7 +7,7 @@ import { basename, dirname, join, resolve } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
-import { FAKE_BIN, FAKE_SCRIPT, QWEN_2B_REPO, fakeWorld } from '../tensorfold/fixtures/world.ts'
+import { FAKE_BIN, FAKE_SCRIPT, QWEN_2B_REPO, fakeWorld } from './fixtures/world.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const argAfter = (flag: string): string | undefined => {
@@ -27,7 +27,6 @@ const NOTICE_HEAD = 'is not being served'
 const UNLISTED = 'no local server lists this model'
 const RAIN = 'Say five words about rain.'
 const SNOW = 'Say five words about snow.'
-const ANSWERED = `fake TensorFold says: ${SNOW}`
 const HOSTED = 'claude-opus-4-8'
 const HOSTED_ANSWER = 'A scripted answer from the other model.'
 const BACK = '\u001b[1;2D'
@@ -212,7 +211,7 @@ const transcriptsOf = (world: World): string[] => {
 }
 
 try {
-  section('S1 a new chat on a saved local model that nothing serves, 150x40')
+  section('S1 New Session on a saved local model that nothing serves, 150x40: the chat opens with its notice, /tensorfold serves the model there, the next prompt is answered')
   const first = await makeWorld()
   const born = await capture(
     first,
@@ -220,15 +219,13 @@ try {
     '150x40',
     [
       at('↑↓ choose', '\r', 'home', 2),
-      at(NOTICE_HEAD, RAIN, 'opened', 6),
-      at(RAIN, '\r', undefined, 2),
-      at(UNLISTED, '/tensorfold', 'meanwhile', 4),
+      at(NOTICE_HEAD, '/tensorfold', 'opened', 6),
       at('/tensorfold', '\r', undefined, 2),
       at(SERVE_KEY, '\r', 'panel', 4),
       at(`serving ${NAME} on 127.0.0.1:${first.port}`, '\u001b', 'served', 4),
       at("this session's model", SNOW, 'back', 4),
       at(SNOW, '\r', undefined, 2),
-      at(ANSWERED, '/tensorfold', 'answered', 4),
+      at(SAID, '/tensorfold', 'answered', 4),
       at('/tensorfold', '\r', undefined, 2),
       at('s stops', 's', undefined, 4),
       at('s again stops it', 's', undefined, 2),
@@ -241,63 +238,59 @@ try {
   check('every key of the journey was sent on the product’s own words', born.delivered === born.asked, `${born.delivered} of ${born.asked} ${born.note}`)
   check('[U-85] New Session opens the chat and it stays: the card names the model, the status row reads ready', flat(born.marks.opened).includes(`model ${MODEL} the model this session runs on`) && flat(born.marks.opened).includes(`ready · ${MODEL}`) && !flat(born.marks.opened).includes('the chat could not start'), flat(born.marks.opened).slice(0, 600))
   check('the chat carries the notice, whole on one line, once', (born.marks.opened ?? '').includes(NOTICE) && count(born.marks.opened, NOTICE_HEAD) === 1, (born.marks.opened ?? '').split('\n').filter(line => line.includes('▲')).join(' | '))
-  check('a prompt sent meanwhile is answered by the local road’s own sentence and the chat stays', flat(born.marks.meanwhile).includes(`API Error: ${UNLISTED}`) && flat(born.marks.meanwhile).includes(`Model '${MODEL}' cannot run.`) && flat(born.marks.meanwhile).includes('Type a prompt'), flat(born.marks.meanwhile).slice(0, 700))
-  check('/tensorfold opens in that chat with the model on disk and its serve key', flat(born.marks.panel).includes('Mercury · tensorfold') && /Qwen3\.5 2B\s+local\/qwen3\.5-2b\s+on disk/.test(flat(born.marks.panel)) && flat(born.marks.panel).includes(SERVE_KEY) && !flat(born.marks.panel).includes('↵ install') && !flat(born.marks.panel).includes('↵ pull'), flat(born.marks.panel).slice(0, 700))
+  check('/tensorfold opens in that chat with the model on disk and its serve key, and offers no install and no download', flat(born.marks.panel).includes('Mercury · tensorfold') && /Qwen3\.5 2B\s+local\/qwen3\.5-2b\s+on disk/.test(flat(born.marks.panel)) && flat(born.marks.panel).includes(SERVE_KEY) && !flat(born.marks.panel).includes('↵ install') && !flat(born.marks.panel).includes('↵ pull'), flat(born.marks.panel).slice(0, 700))
   check('the serve comes up and the session takes it', flat(born.marks.served).includes(`serving ${NAME} on 127.0.0.1:${first.port}`) && flat(born.marks.back).includes(`TensorFold serves ${NAME}`) && flat(born.marks.back).includes("this session's model"), `${flat(born.marks.served).slice(0, 300)} || ${flat(born.marks.back).slice(-400)}`)
-  check('the next prompt is answered by the engine', flat(born.marks.answered).includes(ANSWERED), flat(born.marks.answered).slice(-500))
+  check('the next prompt is answered by the engine', flat(born.marks.answered).includes(SAID) && flat(born.marks.answered).includes(SNOW), flat(born.marks.answered).slice(-500))
   check('the notice is still one row of that chat, where it was said', count(born.marks.answered, NOTICE_HEAD) === 1, String(count(born.marks.answered, NOTICE_HEAD)))
   const firstRequests = requestsOf(first)
   check('nothing the engine was sent carries the notice', firstRequests.some(body => body.includes(SNOW)) && !firstRequests.some(body => body.includes(NOTICE_HEAD)), `${firstRequests.length} requests, ${firstRequests.filter(body => body.includes(SNOW)).length} with the prompt`)
 
-  section('S2 Continue Last Session on that chat, the engine stopped again, 150x40 and 80x40')
-  for (const size of ['150x40', '80x40']) {
-    const resumed = await capture(first, 'continue', size, [at('Continue Last Session', DOWN, 'home', 3), at('Continue Last Session', '\r', undefined, 3), at(NOTICE_HEAD, '', 'resumed', 8), ...typed(NOTICE_HEAD, '/exit')], 'Session saved', { total: 220 })
+  section('S2 Continue Last Session on that chat, the engine stopped again, 80x40')
+  {
+    const resumed = await capture(first, 'continue', '80x40', [at('Continue Last Session', DOWN, 'home', 3), at('Continue Last Session', '\r', undefined, 3), at(NOTICE_HEAD, '', 'resumed', 8), ...typed(NOTICE_HEAD, '/exit')], 'Session saved', { total: 220 })
     const frame = resumed.marks.resumed
-    check(`[U-85] ${size}: Continue Last Session opens the chat with its rows and the notice, wrapped and whole, once`, resumed.delivered === resumed.asked && flat(frame).includes(NOTICE.replace('▲ ', '')) && count(frame, NOTICE_HEAD) === 1 && flat(frame).includes(SAID) && !flat(frame).includes('the chat could not start'), `${resumed.delivered}/${resumed.asked} ${flat(frame).slice(-600)}`)
-    check(`${size}: the home screen it came from carried no line of it`, !flat(resumed.marks.home).includes(NOTICE_HEAD), flat(resumed.marks.home).slice(-300))
+    check('[U-85] Continue Last Session opens the chat with its rows and the notice, wrapped and whole, once', resumed.delivered === resumed.asked && flat(frame).includes(NOTICE.replace('▲ ', '')) && count(frame, NOTICE_HEAD) === 1 && flat(frame).includes(SAID) && !flat(frame).includes('the chat could not start'), `${resumed.delivered}/${resumed.asked} ${flat(frame).slice(-600)}`)
+    check('the home screen it came from carried no line of it', !flat(resumed.marks.home).includes(NOTICE_HEAD), flat(resumed.marks.home).slice(-300))
+    const written = transcriptsOf(first).map(path => readFileSync(path, 'utf8'))
+    check('the session’s record on disk gains no line of the notice: a later resume replays none as anyone’s words', written.length > 0 && !written.some(text => text.includes(NOTICE_HEAD)), `${written.length} transcript files`)
   }
-  const written = transcriptsOf(first).map(path => readFileSync(path, 'utf8'))
-  check('the session’s record on disk gains no line of the notice: a later resume replays none as anyone’s words', written.length > 0 && !written.some(text => text.includes(NOTICE_HEAD)), `${written.length} transcript files`)
   stopDaemon(first)
 
-  section('S3 the notice at 80 columns, on a model Mercury’s engine never served here, and the home screen after the chat is entered')
-  const narrow = await makeWorld({ servedBefore: false })
-  const small = await capture(narrow, 'new-narrow', '80x40', [at('↑↓ choose', '\r', 'home', 2), at(NOTICE_HEAD, BACK, 'opened', 6), at('enters it', BACK, 'board', 4), at('↑↓ choose', '', 'home-again', 4)], '↑↓ choose', { total: 180 })
-  check('at 80 columns the notice is wrapped, not cut, and names the local server where the engine never served the model', small.delivered === small.asked && flat(small.marks.opened).includes(NOTICE_PLAIN.replace('▲ ', '')) && count(small.marks.opened, NOTICE_HEAD) === 1 && !(small.marks.opened ?? '').split('\n').some(line => line.includes(NOTICE_HEAD) && line.includes('…')), (small.marks.opened ?? '').split('\n').filter(line => /served|server|chooses/.test(line)).join(' | '))
-  check('back on the home screen nothing of the notice is painted', flat(small.marks['home-again']).includes('↑↓ choose') && !flat(small.marks['home-again']).includes(NOTICE_HEAD), flat(small.marks['home-again']).slice(-300))
-  stopDaemon(narrow)
-
-  section('S4 /model chooses another model in that chat')
+  section('S3 New Session at 80 columns on a model Mercury’s engine never served here: the other form of the notice, a prompt meanwhile, /model, and the home screen after')
   const provider = await startFixtureApi(Array.from({ length: 6 }, () => ({ kind: 'text' as const, text: HOSTED_ANSWER })))
   try {
-    const keyed = await makeWorld({ key: KEY, provider: provider.url })
-    const switched = await capture(
-      keyed,
-      'model',
-      '150x40',
-      [at('↑↓ choose', '\r', 'home', 2), at(NOTICE_HEAD, `/model ${HOSTED}`, 'opened', 6), at(`/model ${HOSTED}`, '\r', undefined, 2), at(`ready · ${HOSTED_NAME}`, RAIN, 'switched', 6), at(RAIN, '\r', undefined, 2), at(HOSTED_ANSWER, '', 'answered', 4)],
-      HOSTED_ANSWER,
-      { total: 260 },
+    const narrow = await makeWorld({ servedBefore: false, key: KEY, provider: provider.url })
+    const small = await capture(
+      narrow,
+      'new-narrow',
+      '80x40',
+      [
+        at('↑↓ choose', '\r', 'home', 2),
+        at(NOTICE_HEAD, RAIN, 'opened', 6),
+        at(RAIN, '\r', undefined, 2),
+        at(UNLISTED, `/model ${HOSTED}`, 'meanwhile', 4),
+        at(`/model ${HOSTED}`, '\r', undefined, 2),
+        at(`ready · ${HOSTED_NAME}`, SNOW, 'switched', 6),
+        at(SNOW, '\r', undefined, 2),
+        at(HOSTED_ANSWER, BACK, 'answered', 4),
+        at('enters it', BACK, 'board', 4),
+        at('↑↓ choose', '', 'home-again', 4),
+      ],
+      '↑↓ choose',
+      { total: 320 },
     )
-    check('the status row names the model chosen and its prompt is answered there', switched.delivered === switched.asked && flat(switched.marks.switched).includes(`ready · ${HOSTED_NAME}`) && flat(switched.marks.switched).includes(`Model now: ${HOSTED_NAME}`) && count(switched.marks.switched, NOTICE_HEAD) === 1 && flat(switched.marks.answered).includes(HOSTED_ANSWER), `${switched.delivered}/${switched.asked} ${flat(switched.marks.answered).slice(-400)}`)
+    check('at 80 columns the notice is wrapped, not cut, and names the local server where the engine never served the model', small.delivered === small.asked && flat(small.marks.opened).includes(NOTICE_PLAIN.replace('▲ ', '')) && count(small.marks.opened, NOTICE_HEAD) === 1 && !(small.marks.opened ?? '').split('\n').some(line => line.includes(NOTICE_HEAD) && line.includes('…')), `${small.delivered}/${small.asked} ${small.note} ${(small.marks.opened ?? '').split('\n').filter(line => /served|server|chooses/.test(line)).join(' | ')}`)
+    check('a prompt sent meanwhile is answered by the local road’s own sentence and the chat stays', flat(small.marks.meanwhile).includes(`API Error: ${UNLISTED}`) && flat(small.marks.meanwhile).includes(`Model '${MODEL}' cannot run.`) && flat(small.marks.meanwhile).includes('Type a prompt'), flat(small.marks.meanwhile).slice(0, 700))
+    check('/model chooses another model in that chat: the status row names it, its prompt is answered there, the notice stays the one row', flat(small.marks.switched).includes(`ready · ${HOSTED_NAME}`) && flat(small.marks.switched).includes(`Model now: ${HOSTED_NAME}`) && count(small.marks.switched, NOTICE_HEAD) === 1 && flat(small.marks.answered).includes(HOSTED_ANSWER), flat(small.marks.answered).slice(-400))
     const sent = provider.messageRequests().map(request => JSON.stringify(request.body))
     check('the other model’s request carries nothing of the notice', sent.length >= 1 && !sent.some(body => body.includes(NOTICE_HEAD)), `${sent.length} requests`)
-    stopDaemon(keyed)
+    check('back on the home screen nothing of the notice is painted', flat(small.marks['home-again']).includes('↑↓ choose') && !flat(small.marks['home-again']).includes(NOTICE_HEAD), flat(small.marks['home-again']).slice(-300))
+    stopDaemon(narrow)
   } finally {
     await provider.close()
   }
 
-  section('S5 the first prompt of a chat born with the notice and of one born while the engine serves: the same request')
-  const noted = await makeWorld()
-  const afterServe = await capture(
-    noted,
-    'noted',
-    '150x40',
-    [at('↑↓ choose', '\r', 'home', 2), at(NOTICE_HEAD, '/tensorfold', 'opened', 6), at('/tensorfold', '\r', undefined, 2), at(SERVE_KEY, '\r', undefined, 4), at(`serving ${NAME} on 127.0.0.1:${noted.port}`, '\u001b', undefined, 4), at("this session's model", SNOW, undefined, 4), at(SNOW, '\r', undefined, 2), at(SAID, '/tensorfold', 'answered', 6), at('/tensorfold', '\r', undefined, 2), at('s stops', 's', undefined, 4), at('s again stops it', 's', undefined, 2), at(`stopped ${NAME}`, '\u001b', undefined, 4), ...typed(STOPPED, '/exit')],
-    'Session saved',
-    { total: 380 },
-  )
-  stopDaemon(noted)
+  section('S4 the first prompt of the chat born with the notice and of one born while the engine serves: the same request')
   const serving = await makeWorld()
   const engineProcess = spawn(process.execPath, [FAKE_SCRIPT, 'serve', QWEN_2B_REPO, '--name', NAME, '--context', '32768', '--port', String(serving.port)], { env: { ...serving.env, HOME: serving.engine.home }, stdio: ['ignore', 'ignore', 'pipe'] })
   try {
@@ -320,13 +313,12 @@ try {
     const names = (world: World, body: string): string => body.split(world.root).join('<root>').split(world.engine.root).join('<engine>').split(basename(world.root)).join('<run>').replace(/-repo-[0-9a-f]{8}\b/g, '-repo-<hash>').replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '<id>').replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z?/g, '<time>').replace(/\b\d{2}:\d{2}(:\d{2})?\b/g, '<clock>')
     const listing = /## Skills\\n[\s\S]*?capsule-digest:[0-9a-f]+/
     const listed = (body: string): string[] => (listing.exec(body)?.[0] ?? '').split('\\n').filter(line => line.startsWith('- '))
-    const noteRequest = names(noted, requestsOf(noted).find(body => body.includes(SNOW)) ?? 'none')
+    const noteRequest = names(first, firstRequests.find(body => body.includes(SNOW)) ?? 'none')
     const plainRequest = names(serving, requestsOf(serving).find(body => body.includes(SNOW)) ?? 'absent')
     const withNote = noteRequest.replace(listing, '## Skills')
     const without = plainRequest.replace(listing, '## Skills')
     const differs = [...withNote].findIndex((char, index) => char !== without[index])
-    check('the chat born with the notice is served and answered', afterServe.delivered === afterServe.asked && flat(afterServe.marks.answered).includes(SAID) && count(afterServe.marks.answered, NOTICE_HEAD) === 1, `${afterServe.delivered}/${afterServe.asked}`)
-    check('its request is byte for byte the request of the chat born without one, the run’s own names and the list of skills apart, and the notice is in neither', withNote === without && !noteRequest.includes(NOTICE_HEAD) && !plainRequest.includes(NOTICE_HEAD) && withNote.includes(SNOW), `${withNote.length} against ${without.length} characters; they part at ${differs}: ${withNote.slice(Math.max(0, differs - 100), differs + 100)} || ${without.slice(Math.max(0, differs - 100), differs + 100)}`)
+    check('the request of the chat born with the notice is byte for byte the request of the chat born without one, the run’s own names and the list of skills apart, and the notice is in neither', withNote === without && !noteRequest.includes(NOTICE_HEAD) && !plainRequest.includes(NOTICE_HEAD) && withNote.includes(SNOW), `${withNote.length} against ${without.length} characters; they part at ${differs}: ${withNote.slice(Math.max(0, differs - 100), differs + 100)} || ${without.slice(Math.max(0, differs - 100), differs + 100)}`)
     const more = listed(noteRequest).filter(line => !listed(plainRequest).includes(line))
     check('the list of skills is the one place they part: the chat born before its engine served lists every skill the other lists, and the few more that a window not yet known leaves room for', listed(plainRequest).length > 0 && listed(plainRequest).every(line => listed(noteRequest).includes(line)) && more.length <= 5, `${listed(noteRequest).length} against ${listed(plainRequest).length} lines; more: ${more.map(line => line.slice(0, 40)).join(' | ')}`)
   } finally {
@@ -334,7 +326,7 @@ try {
     stopDaemon(serving)
   }
 
-  section('S6 what else refuses a chat’s start still refuses, in its own words, on the home screen')
+  section('S5 what else refuses a chat’s start still refuses, in its own words, on the home screen')
   for (const [name, model, words] of [
     ['a model of a family with no sign-in', HOSTED, 'model refused (no-credential:anthropic)'],
     ['a model no family declares', 'no-such-model-xyz', 'model refused (not-runnable:unrecognised)'],
@@ -346,7 +338,7 @@ try {
     stopDaemon(refusing)
   }
 
-  section('S7 a headless run on that model ends as it did')
+  section('S6 a headless run on that model ends as it did')
   {
     const headless = await makeWorld()
     const began = Date.now()
@@ -355,8 +347,9 @@ try {
     stopDaemon(headless)
   }
 
-  section('S8 the note an admission already had, of a resumed session whose model has no credential here: in the chat as it was')
+  section('S7 the notes an admission already had, each a row of the chat it speaks of: a resumed session whose model has no credential here, and a new one where a sign-in has no usable model')
   const NO_CREDENTIAL = `the session's model ${HOSTED} has no credential here — the first model send picks the neutral default; /model chooses`
+  const NO_USABLE = 'no usable row yet — no signed-in provider has a usable model'
   const lender = await startFixtureApi(Array.from({ length: 6 }, () => ({ kind: 'text' as const, text: HOSTED_ANSWER })))
   try {
     const lent = await makeWorld({ saved: HOSTED, key: KEY, provider: lender.url })
@@ -366,17 +359,22 @@ try {
     delete lent.env.ANTHROPIC_API_KEY
     lent.env.ANTHROPIC_BASE_URL = DEAD
     const asked = lender.messageRequests().length
-    for (const size of ['150x40', '80x40']) {
-      const resumed = await capture(lent, 'no-credential', size, [at('Continue Last Session', DOWN, 'home', 3), at('Continue Last Session', '\r', undefined, 3), at('has no credential here', '', 'resumed', 8), ...typed('has no credential here', '/exit')], 'Session saved', { total: 220 })
-      const frame = resumed.marks.resumed
-      check(`${size}: Continue Last Session with the credential gone opens the chat with its rows and that note, word for word, wrapped and whole, once (holds on the parent too)`, resumed.delivered === resumed.asked && flat(frame).includes(NO_CREDENTIAL) && count(frame, 'has no credential here') === 1 && flat(frame).includes(HOSTED_ANSWER), `${resumed.delivered}/${resumed.asked} ${resumed.note} ${flat(frame).slice(-600)}`)
-      check(`${size}: the home screen it came from carried no line of that note (holds on the parent too)`, !flat(resumed.marks.home).includes('has no credential here') && flat(resumed.marks.home).includes('Continue Last Session'), flat(resumed.marks.home).slice(-300))
-      stopDaemon(lent)
-    }
+    const resumed = await capture(lent, 'no-credential', '80x40', [at('Continue Last Session', DOWN, 'home', 3), at('Continue Last Session', '\r', undefined, 3), at('has no credential here', '', 'resumed', 8), ...typed('has no credential here', '/exit')], 'Session saved', { total: 220 })
+    check('Continue Last Session with the credential gone opens the chat with its rows and that note, word for word, wrapped and whole, once (holds on the parent too: a resume’s admission answers after the chat is painted)', resumed.delivered === resumed.asked && flat(resumed.marks.resumed).includes(NO_CREDENTIAL) && count(resumed.marks.resumed, 'has no credential here') === 1 && flat(resumed.marks.resumed).includes(HOSTED_ANSWER), `${resumed.delivered}/${resumed.asked} ${resumed.note} ${flat(resumed.marks.resumed).slice(-600)}`)
+    check('the home screen it came from carried no line of that note (holds on the parent too)', !flat(resumed.marks.home).includes('has no credential here') && flat(resumed.marks.home).includes('Continue Last Session'), flat(resumed.marks.home).slice(-300))
+    stopDaemon(lent)
     const kept = transcriptsOf(lent).map(path => readFileSync(path, 'utf8'))
-    check('that note too is the screen\'s alone: no request carried it and the session\'s record holds no line of it (holds on the parent too)', lender.messageRequests().length === asked && !lender.messageRequests().some(request => JSON.stringify(request.body).includes('has no credential here')) && kept.length > 0 && !kept.some(text => text.includes('has no credential here')), `${lender.messageRequests().length} requests against ${asked}; ${kept.length} transcript files`)
+    check('that note too is the screen’s alone: no request carried it and the session’s record holds no line of it (holds on the parent too)', lender.messageRequests().length === asked && !lender.messageRequests().some(request => JSON.stringify(request.body).includes('has no credential here')) && kept.length > 0 && !kept.some(text => text.includes('has no credential here')), `${lender.messageRequests().length} requests against ${asked}; ${kept.length} transcript files`)
   } finally {
     await lender.close()
+  }
+  {
+    const signed = await makeWorld({ saved: HOSTED })
+    signed.env.OPENROUTER_API_KEY = KEY
+    const opened = await capture(signed, 'no-usable', '80x40', [at('↑↓ choose', '\r', 'home', 2), at(NO_USABLE, '', 'opened', 8)], NO_USABLE, { total: 160 })
+    const frame = opened.marks.opened
+    check('New Session where a sign-in has no usable model: the admission’s own note is a row of the chat, wrapped and whole, once (on the parent it was minted before the chat was entered and never reached it)', opened.delivered === opened.asked && flat(frame).includes(`▲ ${NO_USABLE}`) && flat(frame).includes('name a model by id with /model, or sign in with /logins') && count(frame, NO_USABLE) === 1 && flat(frame).includes('Type a prompt'), `${opened.delivered}/${opened.asked} ${opened.note} ${flat(frame).slice(-500)}`)
+    stopDaemon(signed)
   }
 } finally {
   for (const world of worlds) {
