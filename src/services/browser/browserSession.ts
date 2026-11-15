@@ -31,6 +31,7 @@ export const MAIN_TAB = 'main'
 const ENDED_TABS_KEPT = 64
 const POPUP_NOTES_KEPT = 32
 const POPUP_SETTLE_MS = 3_000
+const FIRST_NAVIGATION_SILENCE_MS = 5_000
 
 export interface NavFailure {
   url: string
@@ -97,7 +98,7 @@ interface Hold {
   downloads: DownloadHome | null
   arriving: Map<string, { notice: DownloadNotice & { finish: () => void }; wiring: Wiring }>
   unwanted: Set<string>
-  launchArrivals: { origins: Set<string> | null } | null
+  launchArrivals: { origins: Set<string> | null; madeProfile: boolean } | null
 }
 
 interface Birth {
@@ -1683,15 +1684,59 @@ async function watchBirths(state: OwnerBrowserState, hold: Hold, downloads: Down
   if (followed) hold.downloads = downloads
 }
 
-export async function firstNavigation<T>(session: Session, url: string, go: () => Promise<T>): Promise<T> {
+function leftForHost(origins: Set<string>, url: string): boolean {
+  let host: string
+  try {
+    host = new URL(url).hostname
+  } catch {
+    return true
+  }
+  for (const origin of origins) {
+    try {
+      if (new URL(origin).hostname === host) return true
+    } catch {
+      continue
+    }
+  }
+  return false
+}
+
+export async function firstNavigation<T>(session: Session, url: string, go: () => Promise<T>, signal?: AbortSignal): Promise<T> {
   const hold = holdOf(session)
   const arrivals = hold.launchArrivals
   hold.launchArrivals = null
   if (arrivals === null || arrivals.origins === null) return go()
+  const origins = arrivals.origins
+  if (!arrivals.madeProfile) {
+    arrivals.origins = null
+    return go()
+  }
+  const navBefore = session.nav.seq
+  const downloadsBefore = session.downloads.count
+  const underWay = (): boolean => session.nav.seq > navBefore || session.downloads.count > downloadsBefore || leftForHost(origins, url)
+  let again = false
   try {
+    const first = go()
+    if (!/^https?:/i.test(url)) return await first
+    const settled = first.then(value => ({ value }))
+    settled.catch(() => undefined)
+    let bound: ReturnType<typeof setTimeout> | undefined
+    let onAbort: (() => void) | undefined
+    const silence = new Promise<null>(resolve => {
+      bound = setTimeout(() => resolve(null), FIRST_NAVIGATION_SILENCE_MS)
+      onAbort = () => resolve(null)
+      signal?.addEventListener('abort', onAbort, { once: true })
+    })
+    const outcome = await Promise.race([settled, silence]).finally(() => {
+      clearTimeout(bound)
+      if (onAbort !== undefined) signal?.removeEventListener('abort', onAbort)
+    })
+    if (outcome !== null) return outcome.value
+    if (signal?.aborted === true || underWay()) return await first
+    again = true
     return await go()
   } catch (err) {
-    if (!/net::ERR_ABORTED/.test((err as Error | undefined)?.message ?? '') || arrivals.origins.has(originOf(url))) throw err
+    if (again || signal?.aborted === true || !/net::ERR_ABORTED/.test((err as Error | undefined)?.message ?? '') || underWay()) throw err
     return await go()
   } finally {
     arrivals.origins = null
@@ -1898,7 +1943,7 @@ async function placeTab(
         if (hit === undefined || Date.now() - hit.at > 15_000) return null
         return hit
       }
-      const launchArrivals: NonNullable<Hold['launchArrivals']> = { origins: new Set() }
+      const launchArrivals: NonNullable<Hold['launchArrivals']> = { origins: new Set(), madeProfile: false }
       const proxy = await startMetadataProxy(
         reason => { networkRefusal.last = reason; networkRefusal.count++ },
         (target, code) => {
@@ -1913,6 +1958,7 @@ async function placeTab(
       const hostLang = resolveHostLanguages()
       const hostTimeZone = resolveHostTimeZone()
       const profileDir = profileOrigin ? browserProfileDirForOrigin(profileOrigin, owner) : null
+      launchArrivals.madeProfile = profileDir === null || !fs.existsSync(profileDir)
       if (profileDir) {
         for (const other of [...state.holds]) {
           if (other.profileDir !== profileDir) continue
