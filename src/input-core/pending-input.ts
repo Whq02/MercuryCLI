@@ -189,7 +189,7 @@ export async function rekeyToSession(sessionId: string | null, opts?: { landing?
 }
 
 onSessionSwitch(id => {
-  if (getFocusedSessionConnector().sessionId() !== '') return
+  if (!initialized || getFocusedSessionConnector().sessionId() !== '') return
   void rekeyToSession(String(id), { landing: true })
 })
 
