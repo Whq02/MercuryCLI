@@ -1,10 +1,11 @@
-import { spawn } from 'node:child_process'
+import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { vendoredNodeBeside, selfScriptPath } from '../../daemon/daemonBuild.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
 const QUERY_BOUND_MS = 10 * 60_000
+const OWN_BOUND_MARGIN_MS = 5000
 
 function queryBoundMs(): number {
   const raw = (flagEnv('MERCURY_SQLITE_QUERY_BOUND_MS') ?? '').trim()
@@ -33,15 +34,12 @@ interface SqliteQueryPage {
   sql: string
 }
 
-async function sqliteQueryChild() {
+async function sqliteQueryWork(job: SqliteQueryJob): Promise<SqliteQueryPage | { error: string }> {
   const load = Function('name', 'return import(name)') as (name: string) => Promise<any>
   const { DatabaseSync, constants } = await load('node:sqlite')
   const { pathToFileURL } = await load('node:url')
   const { mkdirSync, mkdtempSync, writeFileSync } = await load('node:fs')
   const { join } = await load('node:path')
-  let input = ''
-  for await (const chunk of process.stdin) input += String(chunk)
-  const job = JSON.parse(input) as SqliteQueryJob
   let db: any
   try {
     const url = pathToFileURL(job.file)
@@ -121,11 +119,32 @@ async function sqliteQueryChild() {
         used += shown.length
       }
     } finally { iterator.return?.() }
-    process.stdout.write(JSON.stringify({ columns, rows, more, sql }))
+    return { columns, rows, more, sql }
   } catch (error) {
-    process.stdout.write(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }))
-    process.exitCode = 1
+    return { error: error instanceof Error ? error.message : String(error) }
   } finally { db?.close() }
+}
+
+async function sqliteQueryChild(work: string) {
+  const load = Function('name', 'return import(name)') as (name: string) => Promise<any>
+  const { Worker } = await load('node:worker_threads')
+  let finished = false
+  const die = () => { if (!finished) process.kill(process.pid, 'SIGKILL') }
+  process.on('disconnect', die)
+  let input = ''
+  for await (const chunk of process.stdin) input += String(chunk)
+  const job = JSON.parse(input) as SqliteQueryJob & { ownBoundMs: number }
+  const late = setTimeout(die, job.ownBoundMs)
+  const worker = new Worker(`import('node:worker_threads').then(({ parentPort, workerData }) => (${work})(workerData).then(answer => parentPort.postMessage(answer)))`, { eval: true, workerData: job })
+  let answer: { error?: string } | null = null
+  worker.once('message', (message: { error?: string }) => { answer = message })
+  worker.once('error', (error: unknown) => { answer = { error: error instanceof Error ? error.message : String(error) } })
+  worker.once('exit', () => {
+    finished = true
+    clearTimeout(late)
+    const result = answer ?? { error: 'SQLite query ended without a result.' }
+    process.stdout.write(JSON.stringify(result), () => process.exit(result.error === undefined ? 0 : 1))
+  })
 }
 
 export async function runSqliteQuery(job: SqliteQueryJob, signal: AbortSignal): Promise<SqliteQueryPage> {
@@ -136,11 +155,11 @@ export async function runSqliteQuery(job: SqliteQueryJob, signal: AbortSignal): 
   mkdirSync(job.artifactDirectory, { recursive: true, mode: 0o700 })
   const artifactDirectory = mkdtempSync(join(job.artifactDirectory, 'result-'))
   job = { ...job, artifactDirectory }
-  const child = spawn(executable, ['--input-type=module', '-e', `(${sqliteQueryChild.toString()})()`], {
-    stdio: ['pipe', 'pipe', 'pipe'],
+  const child = spawn(executable, ['--input-type=module', '-e', `(${sqliteQueryChild.toString()})(${JSON.stringify(sqliteQueryWork.toString())})`], {
+    stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
     windowsHide: true,
     env: { LANG: 'C.UTF-8', ...(executable === 'node' && process.env.PATH ? { PATH: process.env.PATH } : {}), ...(process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}), ...(process.env.WINDIR ? { WINDIR: process.env.WINDIR } : {}) },
-  })
+  }) as ChildProcessWithoutNullStreams
   const closed = new Promise<void>(resolve => child.once('close', () => resolve()))
   let output = '', diagnostic = '', completed = false, late = false
   const kill = () => { child.kill('SIGKILL') }
@@ -164,7 +183,7 @@ export async function runSqliteQuery(job: SqliteQueryJob, signal: AbortSignal): 
           else { completed = true; resolve(answer) }
         } catch { reject(new Error(diagnostic || 'SQLite query ended without a result.')) }
       })
-      child.stdin.end(JSON.stringify(job))
+      child.stdin.end(JSON.stringify({ ...job, ownBoundMs: bound + OWN_BOUND_MARGIN_MS }))
       if (signal.aborted) kill()
     })
   } finally {
