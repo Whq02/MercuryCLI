@@ -371,6 +371,13 @@ async function unusable(world: RemoteWorld): Promise<void> {
   if (world.transport === 'local') {
     const windows = await said({ file_path: 'ssh://windows/C:/Users/x/file.txt' })
     check('local: a remote machine with no POSIX shell is said to have none', windows.startsWith('THROWN windows has no POSIX shell that answers') && windows.endsWith('a path that begins ssh:// needs sh, bash or zsh on the remote machine.'), windows)
+    const domain = { file_path: 'ssh://DOMAIN%5Cdeploy@box/etc/hosts' }
+    const connected = world.connectLines().length
+    const taken = await validated(domain)
+    const asks = await decided(domain)
+    const untouched = world.connectLines().length === connected
+    const met = await said(domain)
+    check('local: a domain account, on a client that refuses a backslash in a user as OpenSSH 10.6 does: the path is taken and asked about with nothing connected, and the read then ends in ssh\'s own sentence, whole', taken.result === true && asks.behavior === 'ask' && untouched && met === 'THROWN ssh could not reach DOMAIN\\deploy@box: remote username contains invalid characters', `${JSON.stringify(taken)} | ${asks.behavior} ${JSON.stringify(asks.suggestions?.[0]?.rules)} | ${untouched} | ${met}`)
   }
 }
 
