@@ -720,6 +720,7 @@ function pageStealthInit(langs: string[]): void {
   const origToString = Function.prototype.toString
   const markNative = <T extends Function>(fn: T, name: string): T => {
     nativeStrings.set(fn, `function ${name}() { [native code] }`)
+    Object.defineProperty(fn, 'name', { value: name, configurable: true })
     return fn
   }
   const patchedToString = function toString(this: Function): string {
@@ -812,7 +813,7 @@ function pageStealthInit(langs: string[]): void {
         pageT: Date.now() - start,
         tran: 15,
       }
-    }, 'csi')
+    }, '')
   }
   if (!('loadTimes' in chromeObj) || typeof chromeObj.loadTimes !== 'function') {
     chromeObj.loadTimes = markNative(function loadTimes() {
@@ -838,7 +839,7 @@ function pageStealthInit(langs: string[]): void {
         finishLoadTime: (t?.loadEventEnd || Date.now()) / 1000,
         firstPaintTime: start,
       }
-    }, 'loadTimes')
+    }, '')
   }
   if (!('runtime' in chromeObj) || !chromeObj.runtime) {
     const validExtId = (s: unknown): s is string => typeof s === 'string' && /^[a-p]{32}$/i.test(s)
