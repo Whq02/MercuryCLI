@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor } from '../lib/settingsPopupHarness.ts'
 import { FAKE_BIN, GIB, LIGHTNING_REPO, MAC_32_LOW, MAC_48, QWEN_27B_REPO, QWEN_2B_REPO, RTX_4090, fakeExists, fakeWorld } from './fixtures/world.ts'
 import { FAKE_REPLY_PREFIX } from './fixtures/fake-tensorfold.ts'
+import { PROOF_INSTALLS_NOTHING, cardOf, fetchOffered } from './fixtures/panelCard.ts'
 
 const argAfter = (flag: string): string | undefined => {
   const at = process.argv.indexOf(flag)
@@ -29,6 +30,7 @@ const panel = await import('../../src/commands/tensorfold/tensorfold.tsx')
 const road = await import('../../src/commands/tensorfold/road.ts')
 const engine = await import('../../src/services/tensorfold/engine.ts')
 const serve = await import('../../src/services/tensorfold/serve.ts')
+const pull = await import('../../src/services/tensorfold/pull.ts')
 const receipts = await import('../../src/utils/model/seatReceipts.ts')
 const scene = await import('../../src/commands/tensorfold/scene.ts')
 const refusal = await import('../../src/services/tensorfold/refusal.ts')
@@ -81,6 +83,8 @@ section('the panel through the harness: the two groups, TENSORFOLD unfolded, the
   const io = {
     facts: { cacheRoot: world.cache, machine: MAC_48, env: world.env, home: world.home, platform: 'darwin' as const, exists: fakeExists, servedFile, localModels: () => [], hosts: () => [], app: async () => ({ running: false }), diskFreeBytes: () => 37_578_240_000 },
     road: {
+      install: async () => ({ ok: false as const, step: 'install', line: PROOF_INSTALLS_NOTHING }),
+      pull: { binary, env: world.env, home: world.home, cacheRoot: world.cache, logDir: join(world.root, 'pulls'), exists: fakeExists },
       serve: { binary, cwd: world.cwd, sessionId: 'proof', env: world.env, serviceEnv: world.serviceEnv, servedFile, machine: MAC_48, freeMemoryBytes: async () => 40 * GIB, answersAs: async () => undefined, exists: fakeExists } as never,
       prove: { env: { ...world.env, MERCURY_LOCAL_PROBE_TARGETS: 'none' }, persist: (setting: string) => { switched = setting; return { sentence: ' · saved' } }, setAppState: () => undefined, focusedConnector: () => ({ carrier: 'in-process' }) as never },
       supportLine: async () => 'TensorFold 1.2.2 · Metal · Apple M5 Pro · fixture',
@@ -120,6 +124,16 @@ section('the panel through the harness: the two groups, TENSORFOLD unfolded, the
   const framedJoined = framed.map(line => line.replace(/[│╭╮╰╯─]/g, ' ').trim()).join(' ').replace(/\s+/g, ' ')
   check('↓ ↓ frames the 2B on disk; its card runs the serve with --prompt-cache-gib 1 on the remembered port', framedJoined.includes(`tensorfold serve ${QWEN_2B_REPO} --name qwen3.5-2b --context 262144 --prompt-cache-gib 1 --port ${port}`), framed.filter(line => line.includes('tensorfold serve') || line.includes('--prompt-cache-gib')).join(' | '))
   save('t09-on-disk', columns, rows, framed)
+  const bound = io.road as { install?: unknown; pull?: { binary?: string; cacheRoot?: string; home?: string; env?: NodeJS.ProcessEnv } }
+  check('the road this proof gives its panel names an install that starts nothing and a pull bound to this world\'s own engine and cache', typeof bound.install === 'function' && bound.pull?.binary === binary && bound.pull.cacheRoot === world.cache && bound.pull.home === world.home && bound.pull.env === world.env, JSON.stringify({ install: typeof bound.install, pull: bound.pull?.binary ?? null }))
+  const offered = fetchOffered(cardOf(framed, 'Qwen3.5 2B'))
+  check('before ↵: the framed card offers no install and no download', offered === undefined, offered ?? '')
+  if (offered !== undefined) {
+    m.unmount()
+    await releaseScratchHome(home)
+    console.log(`\nRED (${failures}): the /tensorfold panel through the harness`)
+    process.exit(1)
+  }
   m.push(KEY.enter)
   const served = await waitFor(() => m.lines().some(line => line.includes('serving qwen3.5-2b on 127.0.0.1:')), 20_000)
   await settle(400)
@@ -186,6 +200,9 @@ section('the panel through the harness: the two groups, TENSORFOLD unfolded, the
   await settle(50)
   ;(road as unknown as { __setActForTest?: unknown }).__setActForTest
   m3.unmount()
+  const lightning = join(world.cache, `models--${LIGHTNING_REPO.replace('/', '--')}`, 'blobs', 'weightsblob')
+  const downloaded = typeof bound.install === 'function' && bound.pull !== undefined ? await pull.pullTensorFold(LIGHTNING_REPO, () => undefined, { ...bound.pull, pollMs: 25 } as never).then(() => 'downloaded', (error: unknown) => String(error)) : 'not tried: this road names no pull of its own, and the product\'s would use this machine\'s own engine'
+  check('a download reached through that road is the world\'s stand-in filling the world\'s own cache', downloaded === 'downloaded' && existsSync(lightning) && existsSync(join(world.root, 'pulls')), downloaded)
   check('the GPU-limit refusal renders the sysctl line and its cost in the card data', limited.acts[QWEN_27B_REPO]?.kind === 'refused' && (limited.acts[QWEN_27B_REPO] as { command?: string }).command === 'sudo sysctl iogpu.wired_limit_mb=27174')
 }
 
