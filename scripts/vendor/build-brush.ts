@@ -119,7 +119,7 @@ function packInvalidReason(lock: Lock, entry: LockBuildEntry, dir: string, platf
   if (m.crate !== entry.crate || m.crateVersion !== entry.crateVersion) return `cache was built from ${m.crate} ${m.crateVersion}, the lock pins ${entry.crate} ${entry.crateVersion}`
   if (m.target !== entry.target) return `cache target ${m.target} is not the lock's ${entry.target}`
   if (entry.crateSha256 !== null && m.crateSha256 !== entry.crateSha256) return 'cache crateSha256 does not match the lock'
-  if (platform === 'win-x64' && m.patchSha256 !== sha256(readFileSync(WINDOWS_PATCH))) return 'cache Windows patch sha256 does not match the build source'
+  if (platform.startsWith('win-') && m.patchSha256 !== sha256(readFileSync(WINDOWS_PATCH))) return 'cache Windows patch sha256 does not match the build source'
   const tree = brushPackTreeDigest(dir)
   if (tree.fileCount !== m.fileCount) return `file count drifted: ${tree.fileCount} on disk vs ${m.fileCount} in the manifest`
   if (tree.treeDigest !== m.treeDigest) return 'treeDigest mismatch (pack content drifted)'
@@ -245,7 +245,7 @@ function installPack(cargo: string, lock: Lock, entry: LockBuildEntry, installRo
     crate: entry.crate,
     crateVersion: entry.crateVersion,
     crateSha256,
-    ...(platform === 'win-x64' ? { patchSha256: sha256(readFileSync(WINDOWS_PATCH)) } : {}),
+    ...(platform.startsWith('win-') ? { patchSha256: sha256(readFileSync(WINDOWS_PATCH)) } : {}),
     cargo,
     binary,
     binarySha256: sha256(readFileSync(join(tmp, binary))),

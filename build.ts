@@ -709,6 +709,10 @@ let brushMeta: { source: string; version: string; platform: string; target: stri
         lockWhy = `vendor/brush.lock.json unreadable (${String(e)})`;
       }
     }
+    if (check.state === 'ok' && lockWhy === null && check.manifest.source === 'cargo-build' && packPlatform.startsWith('win-')) {
+      const patch = 'scripts/vendor/patches/brush-0.4.0-windows.patch';
+      if (check.manifest.patchSha256 !== createHash('sha256').update(readFileSync(resolve(ROOT, patch))).digest('hex')) lockWhy = `the pack was built from another Windows patch than ${patch} now holds`;
+    }
     if (check.state === 'ok' && lockWhy === null) {
       const { cpSync } = await import('node:fs');
       cpSync(packDir, resolve(brushDest, packPlatform), { recursive: true });

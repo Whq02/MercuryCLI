@@ -31,6 +31,7 @@
 # gate-watch: src/utils/bash/specs/** src/utils/hooks/commandRunner.ts src/utils/hooks/fire.ts src/utils/permissions/**
 # gate-watch: src/utils/processUserInput/processBashCommand.tsx src/utils/settings/types.ts src/utils/settings/settings.ts src/utils/shell/*
 # gate-watch: src/utils/task/diskOutput.ts vendor/brush.lock.json scripts/vendor/build-brush.ts scripts/vendor/patches/brush-0.4.0-windows.patch src/services/privateChannel/releaseTarget.ts .gitattributes
+# gate-watch: build.ts
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/tools/BashTool/pathValidation.ts src/tools/BashTool/bashCommandHelpers.ts src/tools/BashTool/sedEditParser.ts src/utils/bash/commands.ts src/utils/bash/ParsedCommand.ts
 # gate-watch: src/utils/config/derived.ts src/utils/permissions/shellProtectedPaths.ts src/tools/GrepTool/GrepTool.ts src/utils/verification/scanCeiling.ts
@@ -89,6 +90,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-tool-shell-defaults.ts" || { __rc=
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-tool-shell-markers.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-tool-shell-markers.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-tool-shell-no-auto-consent.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-tool-shell-no-auto-consent.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-windows-shell-patch.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-windows-shell-patch.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-windows-shell-args.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-windows-shell-args.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-engine-pack.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-engine-pack.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-engine-session.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-engine-session.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-engine-stop-releases-session.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-engine-stop-releases-session.ts" "$__t" "$__rc"
