@@ -216,8 +216,11 @@ function ollamaServedMap(psBody: unknown): Map<string, OllamaServed> {
 }
 
 export async function probeOllama(root: string, io: LocalDiscoveryIo): Promise<LocalServerRecord | undefined> {
-  const tags = rec(await probeJson(`${root}/api/tags`, io))
+  const answer = await fetchTensorFold(`${root}/api/tags`, io, resolveLocalApiKeyFor(probeRoot(root), io.env ?? process.env)?.key)
+  const tags = answer !== undefined && answer.status >= 200 && answer.status < 300 ? rec(answer.body) : undefined
   if (!tags || !Array.isArray(tags.models)) return undefined
+  const engine = tensorFoldAnswers(answer) ? await probeTensorFold(root, io) : undefined
+  if (engine) return engine
   const [versionBody, psBody] = await Promise.all([
     probeJson(`${root}/api/version`, io),
     probeJson(`${root}/api/ps`, io),
