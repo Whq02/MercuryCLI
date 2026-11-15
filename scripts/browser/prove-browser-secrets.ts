@@ -11,6 +11,7 @@ const actualSpawn = childProcess.spawnSync
 const scratch = mkdtempSync(join(tmpdir(), 'browser-secrets-'))
 const file = join(scratch, 'browser-secrets.json')
 const originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform')!
+const posixHost = process.platform !== 'win32'
 const store = new Map<string, string>()
 const calls: Array<{ args: string[]; input: string; env: NodeJS.ProcessEnv | undefined }> = []
 let writeFails = false
@@ -23,6 +24,9 @@ function check(label: string, ok: boolean): void {
   checks++
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`)
+}
+function skip(label: string, why: string): void {
+  console.log(`[SKIP] ${label} — ${why}`)
 }
 function save(data: unknown): void {
   writeFileSync(file, JSON.stringify(data), { mode: 0o600 })
@@ -57,63 +61,67 @@ mock.module('node:child_process', () => ({
 }))
 
 try {
-  Object.defineProperty(process, 'platform', { value: 'darwin' })
+  if (posixHost) Object.defineProperty(process, 'platform', { value: 'darwin' })
   const { resolveBrowserSecret, scrubSecretFromText } = await import(join(ROOT, 'src/services/browser/browserSecrets.ts'))
   const resolve = resolveBrowserSecret as (ref: string, opts?: { fileDir?: string; origin?: string }) =>
     | { state: 'ok'; value: string; source: string; origin?: string }
     | { state: 'missing' | 'refused'; note: string }
   const opts = { fileDir: scratch }
-  const password = '  fixture-keychain-password\n'
-  save({ LOGIN: password, KEEP: 'other-login' })
-  process.env.MERCURY_CREDENTIAL_STORE = 'file'
-  const pinned = resolve('LOGIN', opts)
-  check('the file pin never spawns security and leaves its secret on disk', pinned.state === 'ok' && pinned.source === 'file' && calls.length === 0 && hasEntry('LOGIN'))
+  if (posixHost) {
+    const password = '  fixture-keychain-password\n'
+    save({ LOGIN: password, KEEP: 'other-login' })
+    process.env.MERCURY_CREDENTIAL_STORE = 'file'
+    const pinned = resolve('LOGIN', opts)
+    check('the file pin never spawns security and leaves its secret on disk', pinned.state === 'ok' && pinned.source === 'file' && calls.length === 0 && hasEntry('LOGIN'))
 
-  process.env.MERCURY_CREDENTIAL_STORE = 'keychain'
-  process.env.MERCURY_BROWSER_SECRET_CHILD_SENTINEL = 'must-not-reach-child'
-  const migrated = resolve('LOGIN', opts)
-  check('a browser password moves to the OS keychain after read-back', migrated.state === 'ok' && migrated.value === password && migrated.source === 'keychain')
-  check('migration removes only the verified entry, keeping other logins', !hasEntry('LOGIN') && hasEntry('KEEP'))
-  check('the remaining file keeps its owner-only mode', (statSync(file).mode & 0o777) === 0o600)
-  check('the keychain write is followed by a fresh read', calls.length === 2 && calls[0]?.args[0] === '-i' && calls[1]?.args[0] === 'find-generic-password')
-  check('the password travels only on stdin, never argv or child environment', calls.length > 0 && calls.every(c => !c.args.join(' ').includes(password) && !c.args.join(' ').includes(Buffer.from(password).toString('hex')) && c.env?.MERCURY_BROWSER_SECRET_CHILD_SENTINEL === undefined))
-  const keychainOnly = resolve('LOGIN', opts)
-  check('a keychain-only login resolves with whitespace preserved', keychainOnly.state === 'ok' && keychainOnly.source === 'keychain' && keychainOnly.value === password)
-  check('a different config home cannot read that entry', resolve('LOGIN', { fileDir: join(scratch, 'other-home') }).state === 'missing')
+    process.env.MERCURY_CREDENTIAL_STORE = 'keychain'
+    process.env.MERCURY_BROWSER_SECRET_CHILD_SENTINEL = 'must-not-reach-child'
+    const migrated = resolve('LOGIN', opts)
+    check('a browser password moves to the OS keychain after read-back', migrated.state === 'ok' && migrated.value === password && migrated.source === 'keychain')
+    check('migration removes only the verified entry, keeping other logins', !hasEntry('LOGIN') && hasEntry('KEEP'))
+    check('the remaining file keeps its owner-only mode', (statSync(file).mode & 0o777) === 0o600)
+    check('the keychain write is followed by a fresh read', calls.length === 2 && calls[0]?.args[0] === '-i' && calls[1]?.args[0] === 'find-generic-password')
+    check('the password travels only on stdin, never argv or child environment', calls.length > 0 && calls.every(c => !c.args.join(' ').includes(password) && !c.args.join(' ').includes(Buffer.from(password).toString('hex')) && c.env?.MERCURY_BROWSER_SECRET_CHILD_SENTINEL === undefined))
+    const keychainOnly = resolve('LOGIN', opts)
+    check('a keychain-only login resolves with whitespace preserved', keychainOnly.state === 'ok' && keychainOnly.source === 'keychain' && keychainOnly.value === password)
+    check('a different config home cannot read that entry', resolve('LOGIN', { fileDir: join(scratch, 'other-home') }).state === 'missing')
 
-  save({ UPDATE: 'newer-file-value' })
-  writeFails = true
-  const failedWrite = resolve('UPDATE', opts)
-  check('a refused keychain write leaves the working file copy', failedWrite.state === 'ok' && failedWrite.source === 'file' && hasEntry('UPDATE'))
-  writeFails = false
-  wrongReadback = true
-  const mismatch = resolve('UPDATE', opts)
-  check('a successful write with mismatched read-back never removes the file copy', mismatch.state === 'ok' && mismatch.source === 'file' && hasEntry('UPDATE'))
-  wrongReadback = false
-  readThrows = true
-  const unavailable = resolve('UPDATE', opts)
-  check('a read-back exception keeps the file fallback', unavailable.state === 'ok' && unavailable.source === 'file' && hasEntry('UPDATE'))
-  readThrows = false
-  afterRead = () => save({ UPDATE: 'changed-during-keychain-write', ADDED: 'must-survive' })
-  resolve('UPDATE', opts)
-  check('a file changed during migration is not pruned using an old snapshot', hasEntry('UPDATE') && hasEntry('ADDED'))
-  const newer = resolve('UPDATE', opts)
-  check('the newer file entry wins over a stale keychain copy', newer.state === 'ok' && newer.value === 'changed-during-keychain-write' && !hasEntry('UPDATE'))
+    save({ UPDATE: 'newer-file-value' })
+    writeFails = true
+    const failedWrite = resolve('UPDATE', opts)
+    check('a refused keychain write leaves the working file copy', failedWrite.state === 'ok' && failedWrite.source === 'file' && hasEntry('UPDATE'))
+    writeFails = false
+    wrongReadback = true
+    const mismatch = resolve('UPDATE', opts)
+    check('a successful write with mismatched read-back never removes the file copy', mismatch.state === 'ok' && mismatch.source === 'file' && hasEntry('UPDATE'))
+    wrongReadback = false
+    readThrows = true
+    const unavailable = resolve('UPDATE', opts)
+    check('a read-back exception keeps the file fallback', unavailable.state === 'ok' && unavailable.source === 'file' && hasEntry('UPDATE'))
+    readThrows = false
+    afterRead = () => save({ UPDATE: 'changed-during-keychain-write', ADDED: 'must-survive' })
+    resolve('UPDATE', opts)
+    check('a file changed during migration is not pruned using an old snapshot', hasEntry('UPDATE') && hasEntry('ADDED'))
+    const newer = resolve('UPDATE', opts)
+    check('the newer file entry wins over a stale keychain copy', newer.state === 'ok' && newer.value === 'changed-during-keychain-write' && !hasEntry('UPDATE'))
 
-  save({ WIDE: 'never-read' })
-  chmodSync(file, 0o644)
-  const beforeWide = calls.length
-  const wide = resolve('WIDE', opts)
-  check('an exposed file refuses without a keychain write or value disclosure', wide.state === 'refused' && !wide.note.includes('never-read') && calls.length === beforeWide)
-  process.env.MERCURY_BROWSER_SECRET_WIDE = 'environment-override'
-  const env = resolve('WIDE', opts)
-  check('the environment still wins without touching either persisted store', env.state === 'ok' && env.source === 'env' && env.value === 'environment-override' && calls.length === beforeWide)
-  delete process.env.MERCURY_BROWSER_SECRET_WIDE
+    save({ WIDE: 'never-read' })
+    chmodSync(file, 0o644)
+    const beforeWide = calls.length
+    const wide = resolve('WIDE', opts)
+    check('an exposed file refuses without a keychain write or value disclosure', wide.state === 'refused' && !wide.note.includes('never-read') && calls.length === beforeWide)
+    process.env.MERCURY_BROWSER_SECRET_WIDE = 'environment-override'
+    const env = resolve('WIDE', opts)
+    check('the environment still wins without touching either persisted store', env.state === 'ok' && env.source === 'env' && env.value === 'environment-override' && calls.length === beforeWide)
+    delete process.env.MERCURY_BROWSER_SECRET_WIDE
 
-  save({ LARGE: 'x'.repeat(5000) })
-  const beforeLarge = calls.length
-  const large = resolve('LARGE', opts)
-  check('a value larger than the security stdin line stays usable in the file, never in argv', large.state === 'ok' && large.value.length === 5000 && large.source === 'file' && hasEntry('LARGE') && calls.length === beforeLarge)
+    save({ LARGE: 'x'.repeat(5000) })
+    const beforeLarge = calls.length
+    const large = resolve('LARGE', opts)
+    check('a value larger than the security stdin line stays usable in the file, never in argv', large.state === 'ok' && large.value.length === 5000 && large.source === 'file' && hasEntry('LARGE') && calls.length === beforeLarge)
+  } else {
+    skip('the 16 checks of a secret’s move to the OS keychain and of the file’s owner-only mode', 'they play darwin with a stand-in security over this host’s files, and a win32 file carries no owner-only mode for the product to read under that name')
+  }
 
   const seed = 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ'
   const origin = 'https://login.example'
@@ -137,24 +145,32 @@ try {
       save({ BAD: entry })
       check('an unbound or malformed seed refuses without disclosing it', resolve('BAD', { ...opts, origin }).state === 'refused')
     }
-    save({ OTP: { origin, totp: seed } })
-    process.env.MERCURY_CREDENTIAL_STORE = 'keychain'
-    const beforeWrongOrigin = calls.length
-    check('wrong-origin TOTP resolution refuses before migrating the seed', resolve('OTP', { ...opts, origin: 'https://other.example' }).state === 'refused' && calls.length === beforeWrongOrigin && hasEntry('OTP'))
-    const movedCode = resolve('OTP', { ...opts, origin })
-    check('the keychain stores the bound seed, never a soon-expired code', movedCode.state === 'ok' && movedCode.source === 'keychain' && movedCode.value === '081804' && !hasEntry('OTP') && [...store.values()].some(v => v === JSON.stringify({ origin, totp: seed })))
-    const fromKeychain = resolve('OTP', { ...opts, origin })
-    check('a keychain-only seed mints the current code', fromKeychain.state === 'ok' && fromKeychain.source === 'keychain' && fromKeychain.value === '081804')
-    check('keychain-only seeds remain origin-bound', resolve('OTP', { ...opts, origin: 'https://other.example' }).state === 'refused')
-    save({ SLOW_OTP: { origin, totp: seed } })
-    Date.now = () => 59_000
-    afterRead = () => { Date.now = () => 1_111_111_109_000 }
-    const slow = resolve('SLOW_OTP', { ...opts, origin })
-    check('a slow keychain migration mints the code after its read-back', slow.state === 'ok' && slow.value === '081804')
+    if (posixHost) {
+      save({ OTP: { origin, totp: seed } })
+      process.env.MERCURY_CREDENTIAL_STORE = 'keychain'
+      const beforeWrongOrigin = calls.length
+      check('wrong-origin TOTP resolution refuses before migrating the seed', resolve('OTP', { ...opts, origin: 'https://other.example' }).state === 'refused' && calls.length === beforeWrongOrigin && hasEntry('OTP'))
+      const movedCode = resolve('OTP', { ...opts, origin })
+      check('the keychain stores the bound seed, never a soon-expired code', movedCode.state === 'ok' && movedCode.source === 'keychain' && movedCode.value === '081804' && !hasEntry('OTP') && [...store.values()].some(v => v === JSON.stringify({ origin, totp: seed })))
+      const fromKeychain = resolve('OTP', { ...opts, origin })
+      check('a keychain-only seed mints the current code', fromKeychain.state === 'ok' && fromKeychain.source === 'keychain' && fromKeychain.value === '081804')
+      check('keychain-only seeds remain origin-bound', resolve('OTP', { ...opts, origin: 'https://other.example' }).state === 'refused')
+      save({ SLOW_OTP: { origin, totp: seed } })
+      Date.now = () => 59_000
+      afterRead = () => { Date.now = () => 1_111_111_109_000 }
+      const slow = resolve('SLOW_OTP', { ...opts, origin })
+      check('a slow keychain migration mints the code after its read-back', slow.state === 'ok' && slow.value === '081804')
+    } else {
+      skip('the 5 checks of a stored seed’s move to the OS keychain', 'the same: they play darwin over this host’s files')
+    }
   } finally {
     Date.now = originalNow
   }
   for (const platform of ['linux', 'win32']) {
+    if (!posixHost && platform === 'linux') {
+      skip('linux keeps the existing file floor without spawning an OS keychain', 'the product reads the file’s mode under linux, and a win32 file carries none')
+      continue
+    }
     Object.defineProperty(process, 'platform', { value: platform })
     save({ PORTABLE: 'file-floor' })
     const before = calls.length
