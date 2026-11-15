@@ -1760,10 +1760,18 @@ export async function firstNavigation<T>(session: Session, url: string, go: () =
   const underWay = (): boolean => session.nav.web > pagesBefore || session.downloads.count > downloadsBefore || leftForHost(origins, url)
   const web = /^https?:/i.test(url)
   const stopped = (): boolean => signal?.aborted === true
-  const quiet = (until: number): { over: Promise<null>; end: () => void } => {
+  const halted = (): unknown => {
+    void pageKits.get(session.page)?.cdp?.send('Page.stopLoading').catch(() => undefined)
+    return abortReason(signal as AbortSignal)
+  }
+  const quiet = (until: number | null): { over: Promise<null>; end: () => void } => {
     let end = (): void => {}
     const over = new Promise<null>(resolve => {
-      const bound = setTimeout(() => resolve(null), Math.max(0, until - Date.now()))
+      if (stopped()) {
+        resolve(null)
+        return
+      }
+      const bound = until === null ? undefined : setTimeout(() => resolve(null), Math.max(0, until - Date.now()))
       const onAbort = (): void => resolve(null)
       signal?.addEventListener('abort', onAbort, { once: true })
       end = () => {
@@ -1782,22 +1790,24 @@ export async function firstNavigation<T>(session: Session, url: string, go: () =
         (value): { value: T } | { error: unknown } => ({ value }),
         (error: unknown): { value: T } | { error: unknown } => ({ error }),
       )
-      let outcome: { value: T } | { error: unknown } | null
-      if (web && !last) {
-        const silence = quiet(startedAt + FIRST_NAVIGATION_SILENCE_MS)
-        outcome = await Promise.race([settled, silence.over]).finally(silence.end)
-      } else {
-        outcome = await settled
+      const ended = (until: number | null): Promise<{ value: T } | { error: unknown } | null> => {
+        const wait = quiet(until)
+        return Promise.race([settled, wait.over]).finally(wait.end)
       }
-      if (outcome !== null && 'value' in outcome) return outcome.value
+      let outcome = await ended(web && !last ? startedAt + FIRST_NAVIGATION_SILENCE_MS : null)
+      if (outcome === null && !stopped() && underWay()) outcome = await ended(null)
       if (outcome === null) {
-        if (stopped() || underWay()) return await attempt
+        if (stopped()) throw halted()
+      } else if ('value' in outcome) {
+        return outcome.value
       } else {
-        if (last || stopped() || !/net::ERR_ABORTED/.test((outcome.error as Error | undefined)?.message ?? '') || underWay()) throw outcome.error
+        if (stopped()) throw halted()
+        if (last || !/net::ERR_ABORTED/.test((outcome.error as Error | undefined)?.message ?? '') || underWay()) throw outcome.error
         if (starts > 1) {
           const gap = quiet(startedAt + FIRST_NAVIGATION_SILENCE_MS)
           await gap.over.finally(gap.end)
-          if (stopped() || underWay()) throw outcome.error
+          if (stopped()) throw halted()
+          if (underWay()) throw outcome.error
         }
       }
       startedAt = Date.now()

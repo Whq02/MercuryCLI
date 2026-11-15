@@ -29,7 +29,7 @@ const asksFor = (path: string): number => files.filter(seen => seen === path).le
 const A = await serve(0, (req: http.IncomingMessage, res: http.ServerResponse) => {
   const path = new URL(req.url ?? '/', 'http://fixture').pathname
   asked.push({ path, raw: req.rawHeaders })
-  if (path === '/held') {
+  if (path === '/held' || path === '/held-on') {
     held = res
     arrived()
     return
@@ -68,12 +68,14 @@ const halted: Ctx = { agentId: 'first-navigation-halted' }
 const thrice: Ctx = { agentId: 'first-navigation-thrice' }
 const stuck: Ctx = { agentId: 'first-navigation-stuck' }
 const fourth: Ctx = { agentId: 'first-navigation-fourth' }
+const released: Ctx = { agentId: 'first-navigation-released' }
+const waiting: Ctx = { agentId: 'first-navigation-waiting' }
 const kept: Ctx = { agentId: 'first-navigation-kept' }
 const fetched: Ctx = { agentId: 'first-navigation-fetched' }
 
 const { default: driver } = (await import(join(ROOT, 'node_modules/puppeteer-core/lib/puppeteer/puppeteer-core.js'))) as { default: { launch: (options: LaunchOptions) => Promise<Browser> } }
 let unsent = 0
-let silent: { url: string; from: number | null; left?: number; within?: number; held?: () => void } | null = null
+let silent: { url: string; from: number | null; left?: number; within?: number; held?: (release: () => void) => void } | null = null
 let launchedAt = 0
 let attempts = 0
 const paused: Array<{ url: string; at: number }> = []
@@ -90,7 +92,7 @@ sessions.setBrowserLaunchDriverForProof(async (options: LaunchOptions): Promise<
       paused.push({ url: event.request.url, at: Date.now() })
     }
     if (event.resourceType === 'Document' && silent !== null && event.request.url === silent.url && Date.now() - (silent.from ?? launchedAt) <= (silent.within ?? 4000)) {
-      silent.held?.()
+      silent.held?.(() => { void cdp.send('Fetch.continueRequest', { requestId: event.requestId }).catch(() => undefined) })
       silent.left = (silent.left ?? 1) - 1
       if (silent.left <= 0) silent = null
       return
@@ -238,21 +240,23 @@ section('S8 a later navigation of that browser that goes silent is not started a
   check('one navigation was started and nothing reached the server', startsOf(address, began).length === 1 && documents('/later-quiet').length === 0, `${startsOf(address, began).length} | ${documents('/later-quiet').length}`)
 }
 
-section('S9 an interrupt during the silence starts nothing more')
+section('S9 an interrupt during the silence ends the open at once and starts nothing more')
 {
   const address = `${A.origin}/halted`
   const stop = new AbortController()
   let press: ReturnType<typeof setTimeout> | undefined
+  let pressedAt = 0
   const began = Date.now()
-  silent = { url: address, from: null, held: () => { press = setTimeout(() => stop.abort(new DOMException('The operation was aborted.', 'AbortError')), 800) } }
+  silent = { url: address, from: null, held: () => { press = setTimeout(() => { pressedAt = Date.now(); stop.abort(new DOMException('The operation was aborted.', 'AbortError')) }, 800) } }
   const opened = await run({ op: 'open', url: address, timeoutMs: 7000 }, { ...halted, abortController: stop } as Ctx)
+  const answeredAt = Date.now()
   clearTimeout(press)
   silent = null
   const mine = startsOf(address, began)
   if (process.platform === 'win32' && press === undefined && mine.length === 1 && mine[0]!.at - launchedAt >= 4500) console.log("  [SKIP] S9: this launch's browser dropped its first navigation by itself, so the fixture held nothing and no interrupt was sent")
   else {
     check('the navigation was held and the interrupt came during the silence', press !== undefined && stop.signal.aborted, `${press !== undefined} | ${stop.signal.aborted}`)
-    check('the open does not answer with the page', opened.outcome !== 'succeeded', `${opened.outcome} | ${opened.result}`)
+    check('the open answers that it was interrupted, within two seconds of the interrupt', opened.outcome === 'failed' && opened.result.startsWith('open interrupted by the operator') && pressedAt > 0 && answeredAt - pressedAt < 2000, `${opened.outcome} | ${opened.result} | ${answeredAt - pressedAt} ms`)
     check('no navigation was started after the interrupt, nothing reached the server and the origin was not approved', mine.length === 1 && documents('/halted').length === 0 && sessions.originApproved(ownerOf(halted), A.origin) === false, `${mine.length} | ${documents('/halted').length} | ${sessions.originApproved(ownerOf(halted), A.origin)}`)
   }
 }
@@ -280,9 +284,11 @@ section('S11 a first navigation that never leaves is started four times and no m
   const opened = await run({ op: 'open', url: address, timeoutMs: 7000 }, stuck)
   const took = Date.now() - began
   silent = null
+  const sinceLaunch = Date.now() - launchedAt
   const mine = startsOf(address, began)
   check('it waits out its own time on the last start and fails in the words it always had', opened.outcome === 'failed' && opened.result.includes('Navigation timeout of 7000 ms exceeded'), opened.result)
   check('four navigations were started and no more, and nothing reached the server', (selfDropped(address, began) ? mine.length >= 1 && mine.length <= 4 : mine.length === 4) && documents('/never').length === 0, `${mine.length} | ${mine.map(seen => seen.at - began).join(',')} | ${documents('/never').length} | ${took} ms`)
+  check('the last start came fifteen seconds after the launch and was given its own seven', sinceLaunch >= 20500, `${sinceLaunch} ms`)
 }
 
 section('S12 a first navigation aborted every time before a request left fails after four starts')
@@ -291,15 +297,62 @@ section('S12 a first navigation aborted every time before a request left fails a
   unsent = 9
   const began = Date.now()
   const opened = await run({ op: 'open', url: `${A.origin}/four` }, fourth)
-  const took = Date.now() - began
+  const sinceLaunch = Date.now() - launchedAt
   unsent = 0
   check('it fails in the words it always had', opened.outcome === 'failed' && opened.result === ABORTED('/four'), opened.result)
-  check('four navigations were started and no more, and nothing reached the server', (selfDropped(`${A.origin}/four`, began) ? attempts >= 1 && attempts <= 4 : attempts === 4 && took >= 9000) && documents('/four').length === 0, `${attempts} | ${documents('/four').length} | ${took} ms`)
+  check('four navigations were started and no more, five seconds apart from the second on, and nothing reached the server', (selfDropped(`${A.origin}/four`, began) ? attempts >= 1 && attempts <= 4 && sinceLaunch >= 14000 : attempts === 4 && sinceLaunch >= 9000) && documents('/four').length === 0, `${attempts} | ${documents('/four').length} | ${sinceLaunch} ms`)
+}
+
+section('S13 a request the browser lets go after an interrupt reaches nobody')
+{
+  const address = `${A.origin}/let-go`
+  const stop = new AbortController()
+  let press: ReturnType<typeof setTimeout> | undefined
+  const began = Date.now()
+  silent = {
+    url: address,
+    from: null,
+    held: release => {
+      press = setTimeout(() => {
+        stop.abort(new DOMException('The operation was aborted.', 'AbortError'))
+        setTimeout(release, 300)
+      }, 800)
+    },
+  }
+  const opened = await run({ op: 'open', url: address, timeoutMs: 7000 }, { ...released, abortController: stop } as Ctx)
+  clearTimeout(press)
+  silent = null
+  await new Promise(resolve => setTimeout(resolve, 1500))
+  const mine = startsOf(address, began)
+  if (process.platform === 'win32' && press === undefined && mine.length === 1 && mine[0]!.at - launchedAt >= 4500) console.log("  [SKIP] S13: this launch's browser dropped its first navigation by itself, so the fixture held nothing and no interrupt was sent")
+  else {
+    check('the open answers that it was interrupted', opened.outcome === 'failed' && opened.result.startsWith('open interrupted by the operator'), `${opened.outcome} | ${opened.result}`)
+    check('the request let go afterwards reached no server and the origin was not approved', documents('/let-go').length === 0 && sessions.originApproved(ownerOf(released), A.origin) === false, `${documents('/let-go').length} | ${sessions.originApproved(ownerOf(released), A.origin)}`)
+  }
+}
+
+section('S14 an interrupt while the first navigation waits for its server ends the open at once')
+{
+  const stop = new AbortController()
+  const reachedServer = new Promise<void>(resolve => {
+    arrived = resolve
+  })
+  const opening = run({ op: 'open', url: `${A.origin}/held-on` }, { ...waiting, abortController: stop } as Ctx)
+  await Promise.race([reachedServer, new Promise(resolve => setTimeout(resolve, 25000))])
+  const hits = documents('/held-on').length
+  const pressedAt = Date.now()
+  stop.abort(new DOMException('The operation was aborted.', 'AbortError'))
+  const opened = await opening
+  const took = Date.now() - pressedAt
+  ;(held as http.ServerResponse | null)?.destroy()
+  check('the request had reached the server when the interrupt came', hits === 1, String(hits))
+  check('the open answers that it was interrupted, within two seconds of the interrupt', opened.outcome === 'failed' && opened.result.startsWith('open interrupted by the operator') && took < 2000, `${opened.outcome} | ${opened.result} | ${took} ms`)
+  check('the server was asked once and the origin was not approved', documents('/held-on').length === 1 && sessions.originApproved(ownerOf(waiting), A.origin) === false, `${documents('/held-on').length} | ${sessions.originApproved(ownerOf(waiting), A.origin)}`)
 }
 
 sessions.setBrowserLaunchDriverForProof(null)
 
-section('S13 a slow page reached through a redirect the profile remembers is asked for once')
+section('S15 a slow page reached through a redirect the profile remembers is asked for once')
 {
   const first = await run({ op: 'open', url: `${A.origin}/moved-far` }, kept)
   await run({ op: 'close' }, kept)
@@ -315,7 +368,7 @@ section('S13 a slow page reached through a redirect the profile remembers is ask
   check('the redirect came from the profile and the page was asked for once', documents('/moved-far').length === askedRedirect && asksFor('/far') === askedPage + 1, `${documents('/moved-far').length - askedRedirect} | ${asksFor('/far') - askedPage}`)
 }
 
-section('S14 a download reached through a redirect the profile remembers is fetched once')
+section('S16 a download reached through a redirect the profile remembers is fetched once')
 {
   const first = await run({ op: 'open', url: `${A.origin}/moved` }, fetched)
   await run({ op: 'close' }, fetched)
@@ -327,4 +380,4 @@ section('S14 a download reached through a redirect the profile remembers is fetc
   check('the redirect came from the profile and the file was asked for once', documents('/moved').length === askedRedirect && asksFor('/report.csv') === askedFile + 1, `${documents('/moved').length - askedRedirect} | ${asksFor('/report.csv') - askedFile}`)
 }
 
-await finish('prove-browser-first-navigation', [plain, aborted, reached, twice, refused, quiet, slow, halted, thrice, stuck, fourth, kept, fetched])
+await finish('prove-browser-first-navigation', [plain, aborted, reached, twice, refused, quiet, slow, halted, thrice, stuck, fourth, released, waiting, kept, fetched])
