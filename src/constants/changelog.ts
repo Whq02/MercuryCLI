@@ -95,6 +95,8 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed a Read deny rule not applying to the dependency copy of a new worktree on a Windows account that cannot create symbolic links.
 - Fixed the first page a new browser session opens answering net::ERR_ABORTED on Windows.
 - Fixed the built-in browser presenting a different identity inside a frame from another site, and on links and downloads followed there, than on the page around it.
+- Fixed the first page a new browser session opens waiting out its timeout on Windows when credentials are set for the session.
+- Fixed a tab that a link or a script opens sending its first request with its headers in another order than an ordinary navigation's.
 - Fixed the wait estimate beside a local model's status (first byte expected in about …) being far too short for a long prompt: the model's reading pace is measured to its first token, and the remembered pace starts again once.
 - Fixed a chat whose saved local model nothing is serving falling back to the home screen with the chat could not start: the chat opens and says so, and /tensorfold serves the model from inside it.
 - Fixed the note about a new chat's model, such as a sign-in with no usable model, never reaching that chat.
@@ -111,6 +113,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed a garbled first screen on Windows when Mercury is started without its launcher in a console another program had left with only its input code page at UTF-8: the start now sets the console to UTF-8 whatever chcp reports.
 - Fixed /exit waiting on the handoff note when the session's local engine had been stopped: with nothing listening at the model's address the session ends at once, with no note.
 - Fixed an import line written with backslashes on Windows being cut short where its path enters a folder whose name begins with a dot, and an import that opens with a backslash, or with a tilde and a backslash, not being read as an import; an exclude pattern that starts with a drive letter now follows a linked folder as one that starts with a slash does.
+- Fixed the Bash tool on Windows handing a quoted or pattern argument to the programs of Git for Windows changed, under Mercury's bundled shell engine: find . -name '*.ts' failed, grep '"key":' file found nothing and said nothing, and sed 's/"a"/"b"/' left the line as it was; an argument now reaches them as it was written.
 - Fixed a lead's screen filling with identical notice rows while a crew posts to it: a board wake no longer paints a notice row, a compaction no longer leaves the window's old notice rows stacked above its boundary, and the lead reads the board's rule once in a wake's turn instead of twice.
 - Fixed a Read deny rule not applying to an addressed read (a line range, an archive member, a database table) whose file is reached through a link.
 - Fixed reading a SQLite row whose integer key is wider than JavaScript's safe range, finding a text key that looks like a number, and writing an addressed row in release installs; an addressed row is no longer refused for the size of its database.
