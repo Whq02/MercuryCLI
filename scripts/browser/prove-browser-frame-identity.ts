@@ -63,7 +63,7 @@ const add = src => new Promise(done => {
   frame.src = src
   document.body.appendChild(frame)
 })
-add('${cross}/detect').then(() => add('${cross}/first?nest=1&worker=1')).then(() => { window.__framed = true })
+window.__frames = () => (window.__adding ??= add('${cross}/detect').then(() => add('${cross}/first?nest=1&worker=1')).then(() => { window.__framed = true }))
 </script>`)
   }
   if (path === '/workers') {
@@ -197,6 +197,7 @@ const loaded = async <T>(where: string, page: () => Page | null, load: () => Pro
   for (let tries = 1; ; tries++) {
     const now = page()
     if (now === null) return result
+    await within(null, where, now.evaluate(() => void (window as unknown as { __frames?: () => unknown }).__frames?.()).catch(() => undefined))
     for (let waited = 0; waited < 100; waited++) {
       if ((await within(null, where, now.evaluate(() => (window as unknown as { __framed?: boolean }).__framed === true).catch(() => false))) === true) break
       await nap(50)
@@ -360,7 +361,7 @@ section('S4 an emulated identity reaches the frame')
   const plain = await nowIn(undefined, `${CROSS}/first`)
   check('the frame of the same site on the other tab keeps its own page’s identity', plain !== null && plain.userAgent === host.userAgent && plain.platform === host.platform && plain.touch === 0, JSON.stringify(plain))
   const other = host.platform === 'Win32' ? 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36'
-  await run({ op: 'viewport', tab: 'beside', emulation: { device: null, userAgent: other } })
+  await loaded(on('beside'), () => pageOf(lead, 'beside'), () => run({ op: 'viewport', tab: 'beside', emulation: { device: null, userAgent: other } }), () => run({ op: 'reload', tab: 'beside' }))
   const live = await nowIn('beside', `${CROSS}/first`)
   const liveTop = await topOf('beside')
   check('[E6] an identity that needs no reload is read by the frame that is already there', live !== null && live.userAgent === other && live.platform === liveTop.platform && live.platform !== host.platform && live.touch === 0, JSON.stringify(live))
