@@ -198,6 +198,16 @@ const seen = (call: Call | undefined): { served: string; shell: string; path: st
   return { served, shell, path: rest.join('|') }
 }
 
+async function twoAtATime<T>(starts: Array<() => Promise<T>>): Promise<T[]> {
+  const answers: T[] = []
+  let next = 0
+  const lane = async (): Promise<void> => {
+    for (let at = next++; at < starts.length; at = next++) answers[at] = await starts[at]!()
+  }
+  await Promise.all([lane(), lane()])
+  return answers
+}
+
 try {
   section('§1 the rule, read through its platform seam: a Windows host, the path grammar of Windows, real files in a scratch tree')
   {
@@ -292,15 +302,15 @@ try {
     check('a bash stands in for the located Git Bash on this host', standIn, 'no /bin/bash')
 
     const located = { [SEAM]: 'locate', [PIN]: gitBash }
-    const [fired, firedPin, firedSetting, lsThere, systemPin, nothing, noBashLs, posix] = await Promise.all([
-      runLegProcess('fired', 'all', { ...located, PATH: window }),
-      runLegProcess('fired-pin', 'line', { ...located, [ENGINE_PIN]: 'brush', PATH: window }),
-      runLegProcess('fired-setting', 'line', { ...located, PATH: window }, { shell: { engine: 'brush' } }),
-      runLegProcess('ls-there', 'session', { ...located, PATH: windowLs }),
-      runLegProcess('system-pin', 'session', { ...located, [ENGINE_PIN]: 'system', PATH: window }),
-      runLegProcess('nothing', 'all', { [SEAM]: 'no-bash', PATH: window }),
-      runLegProcess('no-bash-ls', 'line', { [SEAM]: 'no-bash', PATH: windowLs }),
-      runLegProcess('posix', 'session', { [ENGINE_PIN]: 'brush', [PIN]: gitBash, PATH: window }),
+    const [fired, firedPin, firedSetting, lsThere, systemPin, nothing, noBashLs, posix] = await twoAtATime([
+      () => runLegProcess('fired', 'all', { ...located, PATH: window }),
+      () => runLegProcess('fired-pin', 'line', { ...located, [ENGINE_PIN]: 'brush', PATH: window }),
+      () => runLegProcess('fired-setting', 'line', { ...located, PATH: window }, { shell: { engine: 'brush' } }),
+      () => runLegProcess('ls-there', 'session', { ...located, PATH: windowLs }),
+      () => runLegProcess('system-pin', 'session', { ...located, [ENGINE_PIN]: 'system', PATH: window }),
+      () => runLegProcess('nothing', 'all', { [SEAM]: 'no-bash', PATH: window }),
+      () => runLegProcess('no-bash-ls', 'line', { [SEAM]: 'no-bash', PATH: windowLs }),
+      () => runLegProcess('posix', 'session', { [ENGINE_PIN]: 'brush', [PIN]: gitBash, PATH: window }),
     ])
     const ruled = `${gitDir}:${window}`
     const engineLine = (binary: string, arm: string, tail: string): string => `the shell engine at ${binary} — the Bash tool runs under it (${shellEngineArmWords(arm as never)})${tail}`
@@ -446,10 +456,10 @@ try {
             })
           })
         }
-        const [firedHealth, nothingHealth, thereHealth] = await Promise.all([
-          health('fired', { ...located, PATH: window }),
-          health('nothing', { [SEAM]: 'no-bash', PATH: window }),
-          health('ls-there', { ...located, PATH: windowLs }),
+        const [firedHealth, nothingHealth, thereHealth] = await twoAtATime([
+          () => health('fired', { ...located, PATH: window }),
+          () => health('nothing', { [SEAM]: 'no-bash', PATH: window }),
+          () => health('ls-there', { ...located, PATH: windowLs }),
         ])
         const firedTail = ` — the Bash tool runs under it (${shellEngineArmWords('windows')})${borrowed}`
         const nothingTail = " — no bash.exe was found on this machine, so the Bash tool runs under Mercury's own bash-compatible engine; ls, cat, grep and the like are not on this machine: Git for Windows carries them"
