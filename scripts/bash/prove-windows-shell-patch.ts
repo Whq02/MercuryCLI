@@ -46,7 +46,10 @@ try {
   check('autocrlf does not change the patch bytes', checkout.rc === 0 && hash(checkout.text) === patchHash, `rc=${checkout.rc}`)
   const build = readFileSync(join(ROOT, 'scripts/vendor/build-brush.ts'), 'utf8')
   check('only the pinned core command and path-lookup sources are patched', [...patch.matchAll(/^\+\+\+ (.+)$/gm)].map(m => m[1]).join(',') === PATCHED_FILES.map(f => `b/brush-core-0.5.0/${f}`).join(','))
-  check('Windows-only command composition retains std arguments', patch.includes('+    let command_path = context.shell.working_dir().join(command_name);') && !/^\+.*(?:raw_arg|Command::new\("cmd)/m.test(patch))
+  check('Windows-only command composition is shell-relative and composes no cmd.exe line', patch.includes('+    let command_path = context.shell.working_dir().join(command_name);') && !/^\+.*Command::new\("cmd/m.test(patch))
+  check('raw arguments are written in one place only: for a program of the POSIX runtime, by posix_runtime_arg', patch.split('\n').filter(line => line.includes('raw_arg')).join('\n') === '+                Some(word) => cmd.raw_arg(posix_runtime_arg(word)),')
+  check('the POSIX runtime is a program, never a batch file, whose own folder holds msys-2.0.dll or cygwin1.dll', patch.includes('+    let posix_runtime = !batch_file\n+        && command_path.parent().is_some_and(|folder| {\n+            folder.join("msys-2.0.dll").is_file() || folder.join("cygwin1.dll").is_file()\n+        });\n'))
+  check('a batch file and a program outside the POSIX runtime retain std arguments', patch.includes('+    if posix_runtime {\n') && patch.includes('+    } else {\n+        cmd.args(args);\n+    }\n+    #[cfg(not(windows))]\n     cmd.args(args);\n'))
   check('Windows PATH lookup returns the resolved PATHEXT file path', patch.includes('+                return crate::sys::fs::resolve_executable(candidate_path);'))
   check('the patch carries Windows-only path and cwd-only tests', patch.includes('#[cfg(all(test, windows))]') && patch.includes('paths_are_shell_relative_without_implicit_cwd_search'))
   check('the script fallback is Windows format-error-only and isolates the shell', patch.includes('spawn_err.raw_os_error() == Some(193)') && patch.includes('ext.eq_ignore_ascii_case("sh")') && patch.includes('let mut subshell = context.shell.clone()') && patch.includes('subshell.open_files_mut().set_fd(fd, file)') && patch.includes('Ok(result.exit_code.into())'))
@@ -127,7 +130,7 @@ mock.module('node:child_process', () => ({ spawnSync(command: string, args: stri
     const text = readFileSync(join(core, 'src/commands.rs'), 'utf8')
     const shellFs = readFileSync(join(core, 'src/shell/fs.rs'), 'utf8')
     if (text.includes('\\r\\n') || shellFs.includes('\\r\\n')) return refuse('fixture: git apply introduced CRLF into patched Rust sources')
-    if (!text.includes('context.shell.working_dir().join(command_name)') || !text.includes('subshell.run_script') || !shellFs.includes('resolve_executable(candidate_path)')) return refuse('fixture: patch not applied before build')
+    if (!text.includes('context.shell.working_dir().join(command_name)') || !text.includes('subshell.run_script') || !text.includes('cmd.raw_arg(posix_runtime_arg(word))') || !shellFs.includes('resolve_executable(candidate_path)')) return refuse('fixture: patch not applied before build')
     const checksum = JSON.parse(readFileSync(join(core, '.cargo-checksum.json'), 'utf8'))
     if (checksum.package !== coreSha || patchedFiles.some((rel: string) => checksum.files[rel] !== sha(join(core, rel)))) return refuse('fixture: package or patched-file checksum wrong')
     if (!existsSync(join(source, '.cargo/config.toml'))) return refuse('fixture: cargo source replacement missing')
@@ -195,6 +198,22 @@ await import(join(root, 'scripts/vendor/build-brush.ts'))
       const end = changed.indexOf('    let mut cmd = std::process::Command::new(command_name);', start)
       check('patched command composition block is sliced non-empty', start !== -1 && end > start)
       const composition = changed.slice(start, end).replaceAll('    #[cfg(windows)]\n', '')
+      const argsStart = changed.indexOf('    // Pass through args.\n', end)
+      const argsEnd = changed.indexOf("    // Use the shell's current working dir.", argsStart)
+      const writerStart = changed.indexOf('#[cfg(windows)]\nfn posix_runtime_arg(')
+      const writerEnd = changed.indexOf('\n}\n', writerStart)
+      check('patched argument block and its writer are sliced non-empty', argsStart !== -1 && argsEnd > argsStart && writerStart !== -1 && writerEnd > writerStart)
+      const windowsHost = process.platform === 'win32'
+      const passArgs = changed
+        .slice(argsStart, argsEnd)
+        .replaceAll('    #[cfg(windows)]\n', '')
+        .replace('    #[cfg(not(windows))]\n    cmd.args(args);\n', '')
+        .replace('use std::os::windows::process::CommandExt as _;', windowsHost ? 'use std::os::windows::process::CommandExt as _;' : 'use RawArg as _;')
+      const writer = changed.slice(writerStart, writerEnd + 3).replace('#[cfg(windows)]\n', '')
+      const rawArgShim = windowsHost ? '' : 'trait RawArg { fn raw_arg<T: AsRef<OsStr>>(&mut self, text: T) -> &mut Self; }\nimpl RawArg for std::process::Command { fn raw_arg<T: AsRef<OsStr>>(&mut self, text: T) -> &mut Self { self.arg(text) } }\n'
+      const words = ['*.ts', 'a b\\\\c', 'C:\\Program Files\\x', 'plain', '']
+      const written = ['"*.ts"', '"a b\\\\\\\\c"', 'C":\\Program Files\\x"', 'plain', '""']
+      const rustList = (list: string[]) => `[${list.map(text => JSON.stringify(text)).join(', ')}]`
       const lookupBody = changedWindowsFs.slice(changedWindowsFs.indexOf('static PATHEXT_EXTENSIONS'), changedWindowsFs.indexOf('impl crate::sys::fs::PathExt'))
       const pathExtStart = changedWindowsFs.indexOf('    fn executable(&self) -> bool {')
       const pathExtEnd = changedWindowsFs.indexOf('    fn exists_and_is_block_device', pathExtStart)
@@ -207,8 +226,8 @@ await import(join(root, 'scripts/vendor/build-brush.ts'))
         .replaceAll('            #[cfg(windows)]\n', '')
         .replaceAll('                #[cfg(windows)]\n', '')
       const mirror = join(scratch, 'path-mirror.rs')
-      writeFileSync(mirror, `use std::{borrow::Cow, path::{Path, PathBuf}, sync::LazyLock};
-pub mod sys {
+      writeFileSync(mirror, `use std::{borrow::Cow, ffi::OsStr, path::{Path, PathBuf}, sync::LazyLock};
+${rawArgShim}${writer}pub mod sys {
     pub mod fs {
         use std::path::PathBuf;
         pub trait PathExt { fn executable(&self) -> bool; }
@@ -227,9 +246,9 @@ impl Shell {
     }
 ${findFirstBody}}
 struct Context { shell: Shell }
-fn compose(context: &Context, command_name: &str, args: &[&str]) -> std::io::Result<std::process::Command> {
+fn compose<S: AsRef<OsStr>>(context: &Context, command_name: &str, args: &[S]) -> std::io::Result<std::process::Command> {
 ${composition}    let mut cmd = std::process::Command::new(command_name);
-    cmd.args(args).current_dir(context.shell.working_dir());
+${passArgs}    cmd.current_dir(context.shell.working_dir());
     Ok(cmd)
 }
 ${lookupBody}
@@ -250,10 +269,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         assert_eq!(cmd.get_args().collect::<Vec<_>>(), ["%VAR%", "^", "a b", ""]);
     }
     if cfg!(windows) {
-        let cmd = compose(&context, r".\\x", &[])?;
+        let cmd = compose(&context, r".\\x", &[] as &[&str])?;
         assert_eq!(Path::new(cmd.get_program()), context.shell.working_dir().join(r".\\x"));
     }
-    for name in ["./bad\\\".cmd", "./bad\\n.cmd", "./bad\\r.bat"] { assert!(compose(&context, name, &[]).is_err()); }
+    for name in ["./bad\\\".cmd", "./bad\\n.cmd", "./bad\\r.bat"] { assert!(compose(&context, name, &[] as &[&str]).is_err()); }
+    let words = ${rustList(words)};
+    let written = ${rustList(written)};
+    for (folder, runtime) in [("msys", Some("msys-2.0.dll")), ("cygwin", Some("cygwin1.dll")), ("native", None)] {
+        let folder = root.join(folder);
+        std::fs::create_dir_all(&folder)?;
+        if let Some(runtime) = runtime { std::fs::write(folder.join(runtime), "")?; }
+        for (program, batch_file) in [("probe.exe", false), ("probe", false), ("probe.cmd", true), ("probe.BAT", true)] {
+            let name = folder.join(program);
+            let cmd = compose(&context, name.to_str().ok_or("utf8")?, &words)?;
+            let args = cmd.get_args().collect::<Vec<_>>();
+            if runtime.is_some() && !batch_file { assert_eq!(args, written, "{program} beside {runtime:?}"); } else { assert_eq!(args, words, "{program} beside {runtime:?}"); }
+        }
+    }
     std::fs::write(context.shell.working_dir().join("cwd-only.cmd"), "CWD_SHIM_MUST_NOT_RUN")?;
     std::fs::write(bin.join("shim-probe.cmd"), "PATH_SHIM_OK")?;
     std::fs::write(bin.join("shim-upper.CMD"), "PATH_SHIM_OK")?;
@@ -276,7 +308,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert!(context.shell.find_first_executable_in_path("cwd-only").is_none());
     assert!(context.shell.find_first_executable_in_path("cwd-only.cmd").is_none());
     assert!(context.shell.find_first_executable_in_path("").is_none());
-    println!("PASS host mirror: relative program paths, literal argument vectors, batch-path refusals, PATH PATHEXT resolution");
+    println!("PASS host mirror: relative program paths, literal argument vectors, batch-path refusals, PATH PATHEXT resolution, POSIX-runtime words beside msys-2.0.dll and cygwin1.dll only");
     Ok(())
 }
 `)
