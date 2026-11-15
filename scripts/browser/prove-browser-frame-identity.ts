@@ -131,12 +131,40 @@ interface First {
   touch: number
 }
 type Ctx = typeof lead
+const reference: Ctx = { agentId: 'frame-identity-reference' }
+const cold: Ctx = { agentId: 'frame-identity-cost' }
 const nap = (ms: number): Promise<void> => new Promise(done => setTimeout(done, ms))
+const READ_BOUND_MS = 10_000
+const LAPSED = Symbol('lapsed')
+const reads = { count: 0, slowest: 0 }
+const answered = `every read of a frame through the driver answers within ${READ_BOUND_MS / 1000} s`
+const within = async <T>(frame: Frame, where: string, read: Promise<T>): Promise<T> => {
+  const began = Date.now()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const lapse = new Promise<typeof LAPSED>(resolve => {
+    timer = setTimeout(() => resolve(LAPSED), READ_BOUND_MS)
+  })
+  read.catch(() => undefined)
+  const got = await Promise.race([read, lapse]).finally(() => clearTimeout(timer))
+  if (got !== LAPSED) {
+    reads.count++
+    reads.slowest = Math.max(reads.slowest, Date.now() - began)
+    return got as T
+  }
+  const client = (of: Frame): string => (of as unknown as { client: { id(): string } }).client.id()
+  const parent = frame.parentFrame()
+  const shared = parent !== null && client(frame) === client(parent)
+  const foreign = parent !== null && new URL(frame.url()).hostname !== new URL(parent.url()).hostname
+  check(answered, false, `the frame ${frame.url()} on ${where} did not answer: the driver holds it on ${shared ? 'its parent’s session' : 'a session of its own'}${shared && foreign ? ', where the scripts of a frame of another site never reach it (the driver’s race between frames of another site attached a few milliseconds apart)' : ''}`)
+  Connection.prototype._rawSend = send
+  return finish('prove-browser-frame-identity', [lead, reference, cold])
+}
+const on = (tab: string | undefined): string => `tab ${tab ?? 'main'}`
 const frameOf = (tab: string | undefined, part: string, page: Page = pageOf(lead, tab)): Frame | null => page.frames().find(frame => frame.parentFrame() !== null && frame.url().includes(part)) ?? null
 const firstIn = async (tab: string | undefined, part: string, page?: Page): Promise<First | null> => {
   for (let waited = 0; waited < 30; waited++) {
     const frame = frameOf(tab, part, page)
-    const got = frame === null ? null : ((await frame.evaluate(() => (window as unknown as { __first?: First }).__first ?? null).catch(() => null)) as First | null)
+    const got = frame === null ? null : ((await within(frame, page === undefined ? on(tab) : 'the reference launch', frame.evaluate(() => (window as unknown as { __first?: First }).__first ?? null).catch(() => null))) as First | null)
     if (got !== null) return got
     await nap(100)
   }
@@ -145,7 +173,7 @@ const firstIn = async (tab: string | undefined, part: string, page?: Page): Prom
 const nowIn = async (tab: string | undefined, part: string): Promise<First | null> => {
   const frame = frameOf(tab, part)
   if (frame === null) return null
-  return (await frame.evaluate(`(() => { ${FIRST}; return window.__first })()`).catch(() => null)) as First | null
+  return (await within(frame, on(tab), frame.evaluate(`(() => { ${FIRST}; return window.__first })()`).catch(() => null))) as First | null
 }
 const topOf = async (tab?: string): Promise<First> => (await pageOf(lead, tab).evaluate(`(() => { ${FIRST}; return window.__first })()`)) as First
 const nineIn = async (tab: string | undefined, part: string): Promise<{ passed: number; total: number; checks: Record<string, boolean> }> => {
@@ -153,20 +181,24 @@ const nineIn = async (tab: string | undefined, part: string): Promise<{ passed: 
   const frame = frameOf(tab, part)
   if (live === null || frame === null) return { passed: 0, total: 9, checks: {} }
   const flags: string[] = live.browser.process()?.spawnargs ?? []
-  return (await frame.evaluate((spawnFlags: string[]) => (window as unknown as { __runDetection: (f: string[]) => Promise<unknown> }).__runDetection(spawnFlags), flags)) as { passed: number; total: number; checks: Record<string, boolean> }
+  return (await within(frame, on(tab), frame.evaluate((spawnFlags: string[]) => (window as unknown as { __runDetection: (f: string[]) => Promise<unknown> }).__runDetection(spawnFlags), flags))) as { passed: number; total: number; checks: Record<string, boolean> }
 }
 const same = (first: First | null, top: First): boolean =>
   first !== null && first.userAgent === top.userAgent && first.appVersion === top.appVersion && first.platform === top.platform && first.languages === top.languages && first.brands === top.brands && first.mobile === top.mobile && first.runtime === 'object'
-const surfaceOf = async (frame: Frame | null): Promise<string> =>
+const surfaceOf = async (frame: Frame | null, where: string): Promise<string> =>
   frame === null
     ? 'no frame'
-    : ((await frame.evaluate(() =>
-        JSON.stringify([
-          Object.getOwnPropertyNames(window).sort(),
-          Object.getOwnPropertyNames(Object.getPrototypeOf(navigator)).sort(),
-          typeof (window as unknown as { chrome?: { runtime?: unknown } }).chrome?.runtime,
-          Function.prototype.toString.toString(),
-        ]),
+    : ((await within(
+        frame,
+        where,
+        frame.evaluate(() =>
+          JSON.stringify([
+            Object.getOwnPropertyNames(window).sort(),
+            Object.getOwnPropertyNames(Object.getPrototypeOf(navigator)).sort(),
+            typeof (window as unknown as { chrome?: { runtime?: unknown } }).chrome?.runtime,
+            Function.prototype.toString.toString(),
+          ]),
+        ),
       )) as string)
 const frameRequest = (from: number): string[] => asked.slice(from).find(hit => hit.path === '/detect' && hit.host === CROSS)?.raw ?? []
 const IDENTITY_HEADERS = ['user-agent', 'sec-ch-ua', 'sec-ch-ua-mobile', 'sec-ch-ua-platform', 'accept-language']
@@ -174,7 +206,7 @@ const identityOf = (raw: string[] | undefined): string => IDENTITY_HEADERS.map(n
 const startedByFrame = async (tab: string | undefined, pagePath: string): Promise<{ frame: string; page: string }> => {
   const mark = asked.length
   const frame = frameOf(tab, `${CROSS}/first`)
-  await frame?.evaluate(() => (document.getElementById('go') as HTMLAnchorElement).click()).catch(() => undefined)
+  if (frame !== null) await within(frame, on(tab), frame.evaluate(() => (document.getElementById('go') as HTMLAnchorElement).click()).catch(() => undefined))
   for (let waited = 0; waited < 30 && !asked.slice(mark).some(hit => hit.search === '?who=clicked'); waited++) await nap(100)
   return { frame: identityOf(asked.slice(mark).find(hit => hit.search === '?who=clicked')?.raw), page: identityOf([...asked].reverse().find(hit => hit.path === pagePath && hit.host !== CROSS)?.raw) }
 }
@@ -213,7 +245,7 @@ section('S1 a frame from another site, on the page a launch starts with')
   const frame = frameOf(undefined, `${CROSS}/first`)
   const workerOf = async (): Promise<{ userAgent: string; brands: string } | null> => {
     for (let waited = 0; waited < 30 && frame !== null; waited++) {
-      const saw = (await frame.evaluate(() => (window as unknown as { __worker?: { userAgent: string; brands: string } }).__worker ?? null).catch(() => null)) as { userAgent: string; brands: string } | null
+      const saw = (await within(frame, on(undefined), frame.evaluate(() => (window as unknown as { __worker?: { userAgent: string; brands: string } }).__worker ?? null).catch(() => null))) as { userAgent: string; brands: string } | null
       if (saw !== null) return saw
       await nap(100)
     }
@@ -271,7 +303,7 @@ section('S4 an emulated identity reaches the frame')
   await run({ op: 'viewport', tab: 'beside', emulation: { timezone: hostTz === 'Asia/Tokyo' ? 'America/Lima' : 'Asia/Tokyo', locale: 'fr-FR' } })
   await run({ op: 'reload', tab: 'beside' })
   const sibling = frameOf(undefined, `${CROSS}/first`)
-  const read = sibling === null ? null : ((await sibling.evaluate(() => [Intl.DateTimeFormat().resolvedOptions().timeZone, new Intl.NumberFormat().resolvedOptions().locale])) as string[])
+  const read = sibling === null ? null : ((await within(sibling, on(undefined), sibling.evaluate(() => [Intl.DateTimeFormat().resolvedOptions().timeZone, new Intl.NumberFormat().resolvedOptions().locale]))) as string[])
   const mine = (await pageOf().evaluate(() => [Intl.DateTimeFormat().resolvedOptions().timeZone, new Intl.NumberFormat().resolvedOptions().locale])) as string[]
   check('a zone and a locale asked on one tab do not enter the other tab’s frame of that site (holds on the parent too)', read !== null && read[0] === hostTz && read[1] === mine[1], JSON.stringify([read, mine]))
   await run({ op: 'viewport', tab: 'beside', emulation: { reset: true } })
@@ -340,7 +372,6 @@ for (const kind of ['throws', 'refused', 'unanswered'] as const) {
 }
 
 section('S7 what a site sees')
-const reference: Ctx = { agentId: 'frame-identity-reference' }
 {
   const plainMark = sent.length
   const bare = (await sessions.ensureBrowserSession(ownerOf(reference), { origin: A.origin, headless: true })) as { page: Page }
@@ -353,14 +384,13 @@ const reference: Ctx = { agentId: 'frame-identity-reference' }
   await run({ op: 'reload', tab: 'beside' })
   await firstIn(undefined, `${CROSS}/first`)
   await firstIn('beside', `${CROSS}/first`)
-  const bareSurface = await surfaceOf(frameOf(undefined, `${CROSS}/first`, bare.page))
-  check('a script in the frame finds the same names on its window and its navigator, and the same prepared surface, as in that launch', bareSurface !== 'no frame' && (await surfaceOf(frameOf(undefined, `${CROSS}/first`))) === bareSurface, bareSurface.slice(0, 200))
-  check('and so it does on a tab born beside another', (await surfaceOf(frameOf('beside', `${CROSS}/first`))) === bareSurface)
+  const bareSurface = await surfaceOf(frameOf(undefined, `${CROSS}/first`, bare.page), 'the reference launch')
+  check('a script in the frame finds the same names on its window and its navigator, and the same prepared surface, as in that launch', bareSurface !== 'no frame' && (await surfaceOf(frameOf(undefined, `${CROSS}/first`), on(undefined))) === bareSurface, bareSurface.slice(0, 200))
+  check('and so it does on a tab born beside another', (await surfaceOf(frameOf('beside', `${CROSS}/first`), on('beside'))) === bareSurface)
 }
 
 section('S8 what it costs')
 {
-  const cold: Ctx = { agentId: 'frame-identity-cost' }
   const mark = sent.length
   await run({ op: 'open', url: `${A.origin}/` }, cold)
   const watches = frameWatches(mark)
@@ -387,5 +417,9 @@ section('S9 the page')
   )
 }
 
+section('S10 the reads themselves')
+check(answered, true)
+console.log(`    ${reads.count} reads of a frame through the driver, the slowest ${reads.slowest} ms`)
+
 Connection.prototype._rawSend = send
-await finish('prove-browser-frame-identity', [lead, reference])
+await finish('prove-browser-frame-identity', [lead, reference, cold])
