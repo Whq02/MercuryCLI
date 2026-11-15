@@ -20,6 +20,7 @@ import {
 } from '../../services/browser/browserResolver.js'
 import {
   BROWSER_CLOSE_BOUND_MS,
+  BROWSER_FINISH_BOUND_MS,
   BROWSER_PROTOCOL_TIMEOUT_MS,
   CONSOLE_RING_CAP,
   MAIN_TAB,
@@ -2778,9 +2779,11 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
               ? `session closed (browser reaped${several}; origin approvals wiped)`
               : closed.outcome === 'killed'
                 ? `session closed — the browser did not answer within ${BROWSER_CLOSE_BOUND_MS / 1000}s and its process was ended (origin approvals wiped${several})`
-                : closed.outcome === 'gone'
-                  ? 'closed (the browser was already gone)'
-                  : 'no open session'
+                : closed.outcome === 'unfinished'
+                  ? `session closed — the browser did not finish quitting within ${BROWSER_FINISH_BOUND_MS / 1000}s and its process was ended (origin approvals wiped${several})`
+                  : closed.outcome === 'gone'
+                    ? 'closed (the browser was already gone)'
+                    : 'no open session'
           outcome = closed.outcome === 'none' ? 'no-change' : 'succeeded'
           break
         }
