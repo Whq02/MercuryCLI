@@ -1,12 +1,12 @@
 
-import { ChildProcess } from 'node:child_process'
+import { ChildProcess, spawnSync } from 'node:child_process'
 import { chromeNetErrorFor, startMetadataProxy } from './metadataProxy.js'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { Browser as DriverBrowser, CDPSession, Frame, HTTPRequest, LaunchOptions, Page, Protocol } from 'puppeteer-core'
 import puppeteerPkg from 'puppeteer-core/package.json' with { type: 'json' }
 import { getMercuryHome } from '../../utils/envUtils.js'
-import { endProcessTree } from '../../utils/processGroup.js'
+import { endProcessTree, win32TaskkillCommand } from '../../utils/processGroup.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { parseOwnerKey, type OwnerKey } from '../run/ownerKey.js'
@@ -243,15 +243,52 @@ export function tempProfileDirOf(browser: DriverBrowser): string | null {
   return /^puppeteer_dev_[a-z]+_profile-/.test(path.basename(dir)) ? dir : null
 }
 
+const TEMP_PROFILE_EXIT_BOUND_MS = 2_000
+const TEMP_PROFILE_EXIT_STEP_MS = 50
+const tempProfiles = new Map<string, DriverBrowser>()
+
 export function removeTempProfile(browser: DriverBrowser): boolean {
   const dir = tempProfileDirOf(browser)
-  if (dir === null || !fs.existsSync(dir)) return false
+  if (dir === null) return false
+  if (!fs.existsSync(dir)) {
+    tempProfiles.delete(dir)
+    return false
+  }
   try {
     fs.rmSync(dir, { recursive: true, force: true })
   } catch {
     return false
   }
+  if (fs.existsSync(dir)) return false
+  tempProfiles.delete(dir)
   return true
+}
+
+function endTempTree(browser: DriverBrowser): void {
+  const child = browser.process()
+  const pid = child?.pid
+  let lives = false
+  try {
+    lives = process.platform === 'win32' && child !== null && pid !== undefined && child.exitCode === null && child.signalCode === null && process.kill(pid, 0)
+  } catch (error) {
+    lives = (error as NodeJS.ErrnoException).code === 'EPERM'
+  }
+  if (lives) {
+    const { file, args } = win32TaskkillCommand(pid!)
+    try {
+      spawnSync(file, args, { windowsHide: true, stdio: 'ignore', timeout: TEMP_PROFILE_EXIT_BOUND_MS, env: subprocessEnv() })
+    } catch {}
+  }
+  killChild(browser)
+}
+
+function clearTempProfilesAtExit(): void {
+  const until = Date.now() + TEMP_PROFILE_EXIT_BOUND_MS
+  for (;;) {
+    for (const browser of [...tempProfiles.values()]) removeTempProfile(browser)
+    if (tempProfiles.size === 0 || Date.now() >= until) return
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, TEMP_PROFILE_EXIT_STEP_MS)
+  }
 }
 
 function killChild(browser: DriverBrowser): void {
@@ -376,6 +413,21 @@ const ownerStates = new OwnerScopedStore<OwnerBrowserState>({
 registerOwnerScopedStore(ownerStates)
 
 let exitHookInstalled = false
+
+function installExitHook(): void {
+  if (exitHookInstalled) return
+  exitHookInstalled = true
+  process.on('exit', () => {
+    for (const browser of tempProfiles.values()) endTempTree(browser)
+    for (const key of ownerStates.owners()) {
+      for (const hold of ownerStates.peek(key)?.holds ?? []) {
+        closeHoldNetwork(hold)
+        killChild(hold.browser)
+      }
+    }
+    clearTempProfilesAtExit()
+  })
+}
 
 export async function disposeBrowserOwner(owner: OwnerKey): Promise<void> {
   await ownerStates.disposeAsync(owner)
@@ -2098,6 +2150,11 @@ async function placeTab(
         args: launchArgs,
       })
       unhanded = browser
+      const temp = tempProfileDirOf(browser)
+      if (temp !== null) {
+        tempProfiles.set(temp, browser)
+        installExitHook()
+      }
       const pages = await browser.pages()
       page = pages[0] ?? (await browser.newPage())
       const kit: PageKit = { cdp: null, identity: null, languages: hostLang.languages, timeZone: hostTimeZone, presented: null, born: null, fetchHeld: false }
@@ -2230,18 +2287,7 @@ async function placeTab(
     }
     if (landed === null) proxyClose?.()
   }
-  if (!exitHookInstalled) {
-    exitHookInstalled = true
-    process.on('exit', () => {
-      for (const key of ownerStates.owners()) {
-        for (const hold of ownerStates.peek(key)?.holds ?? []) {
-          closeHoldNetwork(hold)
-          killChild(hold.browser)
-          removeTempProfile(hold.browser)
-        }
-      }
-    })
-  }
+  installExitHook()
   return landed
 }
 
