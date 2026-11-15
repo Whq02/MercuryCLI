@@ -52,11 +52,12 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Changed the two side rails to name the sections their height dropped.
 - Changed a question card to name the key bound to the external editor.
 - Changed the external editor's value on Windows to be parsed by the system's own command-line rules.
-- Changed TensorFold to 1.2.7 where Mercury names, fetches and verifies the engine; a model card's prompt-cache ceiling follows the engine's rule.
+- Changed TensorFold to 1.2.9 where Mercury names, fetches and verifies the engine; a model card's prompt-cache ceiling follows the engine's rule.
 - Changed the tool descriptions, prompts and bundled skills a model reads: corrected against the product and shortened, by about a tenth where a session sends every tool's definition and by less where tools are loaded on demand.
 - Changed the FilmCraft, PhotoCraft and LightCraft extensions to install FilmCraft 0.20.1, PhotoCraft 0.23.1 and LightCraft 0.21.1.
 - Changed the built-in browser so that every frame of a page is prepared as the page itself is, however many load at once.
 - Changed the answer to a structural pattern that does not parse: it shows patterns of the language asked, in all 57, where it showed JavaScript's.
+- Changed what a structural pattern requires (AstSearch, AstEdit): a word or an operator the pattern writes must be in the code it finds, so async function $F($$$A) { $$$B } finds the async functions and pub fn $N($$$P) $R { $$$B } the pub ones, where each also found the others; the same pattern without the word still finds both.
 - Changed the card of a SQLite row's write: it is titled Write SQLite row and asks Write this row?.
 - Changed the Bash tool on Windows: in a window started from PowerShell, cmd or the Start menu, where ls is not on the path, Mercury's bundled shell engine puts the usr/bin folder of Git for Windows first on its own path, so ls, cat, grep, sed, find and the like run there as they do in Git's bash. A window that already has such programs is left as it is, and mercury health says where they come from.
 - Changed a Gemini 4 model's reply to be asked for in one segment of 65,536 tokens, the size Google serves at once; the notice for a reply cut while thinking names that figure.
@@ -86,6 +87,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed an interrupted call of the Blender tool over its bridge, or of the Aseprite tool, running on until the tool answered: the call ends at once and the Aseprite process is stopped.
 - Fixed a kill by name, such as pkill -f <pattern> 2>/dev/null, being refused when the command redirected its output.
 - Fixed a malformed tool call that a GLM model left in its reply on TensorFold being run with corrupt arguments.
+- Fixed a TensorFold 1.2.9 engine on the port Ollama uses being listed as an Ollama server, on which no turn succeeded.
 - Fixed /health reading the Blender tool as undeclared where it is offered.
 - Fixed a resumed session's starting count running backwards, and a focus switched to a busy session keeping the last turn's tip.
 - Fixed an approved project extension held off in an untrusted folder saying nothing.
@@ -97,6 +99,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed a Read deny rule not applying to the dependency copy of a new worktree on a Windows account that cannot create symbolic links.
 - Fixed the first page a new browser session opens answering net::ERR_ABORTED on Windows.
 - Fixed the built-in browser presenting a different identity inside a frame from another site, and on links and downloads followed there, than on the page around it.
+- Fixed a click or an extract in a frame from another site, or in the first frame of a tab a page opened, sometimes waiting thirty seconds and failing.
 - Fixed the first page a new browser session opens waiting out its timeout on Windows when credentials are set for the session.
 - Fixed a tab that a link or a script opens sending its first request with its headers in another order than an ordinary navigation's.
 - Fixed a close ending a browser that was still writing its profile, which on a slow machine could lose a cookie or a stored value set just before: a browser that has begun to quit now has ten seconds to finish.
