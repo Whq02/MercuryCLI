@@ -70,7 +70,8 @@ const fetched: Ctx = { agentId: 'first-navigation-fetched' }
 
 const { default: driver } = (await import(join(ROOT, 'node_modules/puppeteer-core/lib/puppeteer/puppeteer-core.js'))) as { default: { launch: (options: LaunchOptions) => Promise<Browser> } }
 let unsent = 0
-let silent: { url: string; until: number } | null = null
+let silent: { url: string; from: number | null; held?: () => void } | null = null
+let launchedAt = 0
 let attempts = 0
 const paused: Array<{ url: string; at: number }> = []
 const startsOf = (url: string, since = 0): Array<{ url: string; at: number }> => paused.filter(seen => seen.url === url && seen.at >= since)
@@ -85,7 +86,8 @@ sessions.setBrowserLaunchDriverForProof(async (options: LaunchOptions): Promise<
       attempts++
       paused.push({ url: event.request.url, at: Date.now() })
     }
-    if (event.resourceType === 'Document' && silent !== null && event.request.url === silent.url && Date.now() <= silent.until) {
+    if (event.resourceType === 'Document' && silent !== null && event.request.url === silent.url && Date.now() - (silent.from ?? launchedAt) <= 4000) {
+      silent.held?.()
       silent = null
       return
     }
@@ -97,13 +99,14 @@ sessions.setBrowserLaunchDriverForProof(async (options: LaunchOptions): Promise<
     void cdp.send('Fetch.continueRequest', { requestId: event.requestId }).catch(() => undefined)
   })
   await cdp.send('Fetch.enable', { patterns: [{ urlPattern: '*', requestStage: 'Request' }] })
+  launchedAt = Date.now()
   return browser
 })
 const ringOf = async (ctx: Ctx): Promise<string> => (await run({ op: 'console' }, ctx)).result
 const ABORTED = (path: string): string => `open failed: net::ERR_ABORTED at ${A.origin}${path}`
 const droppedByItself = (opened: { outcome: string }, staged: number, url: string, began: number): boolean => {
   const mine = startsOf(url, began)
-  return process.platform === 'win32' && opened.outcome === 'failed' && mine.length === staged - 1 && mine[0] !== undefined && mine[0].at - began >= 4500
+  return process.platform === 'win32' && opened.outcome === 'failed' && mine.length === staged - 1 && mine[0] !== undefined && mine[0].at - Math.max(began, launchedAt) >= 4500
 }
 const notStaged = (what: string): void => console.log(`  [SKIP] ${what}: this launch's browser dropped its first navigation by itself (its one start came five seconds late), so the fixture's drop was the second and the one more start was already spent`)
 
@@ -190,18 +193,18 @@ section('S6 a first navigation that neither fails nor sends its request is start
   const address = `${A.origin}/detect`
   const before = documents('/detect').length
   const began = Date.now()
-  silent = { url: address, until: began + 4000 }
+  silent = { url: address, from: null }
   const opened = await run({ op: 'open', url: address, timeoutMs: 20000 }, quiet)
   const took = Date.now() - began
   silent = null
   const mine = startsOf(address, began)
-  const alone = process.platform === 'win32' && mine.length === 1 && mine[0]!.at - began >= 4500
+  const alone = process.platform === 'win32' && mine.length === 1 && mine[0]!.at - launchedAt >= 4500
   const nine = opened.outcome === 'succeeded' ? await detect(quiet) : { passed: 0, total: 9, checks: {} }
   const reference = documents('/detect')[0] ?? []
   const sent = documents('/detect')[before] ?? []
   check('the open answers with the page, in the words of an ordinary open', opened.outcome === 'succeeded' && opened.result.startsWith(`open: ${A.origin}/detect [200] — `), opened.result)
   if (alone) console.log("  [SKIP] S6, the count of its starts: this launch's browser dropped its first navigation by itself, so the fixture held nothing and the one start seen is the one more start, five seconds late")
-  else check('the navigation was started twice, the second after five seconds of silence', mine.length === 2 && mine[1]!.at - mine[0]!.at >= 4500 && took < 16000, `${mine.length} | ${mine.map(seen => seen.at - began).join(',')} | ${took} ms`)
+  else check('the navigation was started twice, the second after five seconds of silence', mine.length === 2 && mine[1]!.at - mine[0]!.at >= 4500 && mine[1]!.at - mine[0]!.at < 9000, `${mine.length} | ${mine.map(seen => seen.at - began).join(',')} | ${took} ms`)
   check('the server was asked once', documents('/detect').length === before + 1, String(documents('/detect').length - before))
   check('what the site was sent is, header for header, what an unaborted first open sends', sent.length > 0 && JSON.stringify(sent) === JSON.stringify(reference), `${sent.join(' | ')} || ${reference.join(' | ')}`)
   check('the nine baseline assertions hold on the page it reached', nine.passed === 9 && nine.total === 9, JSON.stringify(nine.checks))
@@ -220,7 +223,7 @@ section('S8 a later navigation of that browser that goes silent is not started a
 {
   const address = `${A.origin}/later-quiet`
   const began = Date.now()
-  silent = { url: address, until: began + 4000 }
+  silent = { url: address, from: began }
   const later = await run({ op: 'open', url: address, timeoutMs: 7000 }, quiet)
   silent = null
   check('it waits out its own time and fails in the words it always had', later.outcome === 'failed' && later.result.includes('Navigation timeout of 7000 ms exceeded'), later.result)
@@ -231,20 +234,26 @@ section('S9 an interrupt during the silence starts nothing more')
 {
   const address = `${A.origin}/halted`
   const stop = new AbortController()
+  let press: ReturnType<typeof setTimeout> | undefined
   const began = Date.now()
-  silent = { url: address, until: began + 4000 }
-  const press = setTimeout(() => stop.abort(new DOMException('The operation was aborted.', 'AbortError')), 800)
+  silent = { url: address, from: null, held: () => { press = setTimeout(() => stop.abort(new DOMException('The operation was aborted.', 'AbortError')), 800) } }
   const opened = await run({ op: 'open', url: address, timeoutMs: 7000 }, { ...halted, abortController: stop } as Ctx)
   clearTimeout(press)
   silent = null
-  check('the open does not answer with the page', opened.outcome !== 'succeeded', `${opened.outcome} | ${opened.result}`)
-  check('no navigation was started after the interrupt, nothing reached the server and the origin was not approved', startsOf(address, began).length <= 1 && documents('/halted').length === 0 && sessions.originApproved(ownerOf(halted), A.origin) === false, `${startsOf(address, began).length} | ${documents('/halted').length} | ${sessions.originApproved(ownerOf(halted), A.origin)}`)
+  const mine = startsOf(address, began)
+  if (process.platform === 'win32' && press === undefined && mine.length === 1 && mine[0]!.at - launchedAt >= 4500) console.log("  [SKIP] S9: this launch's browser dropped its first navigation by itself, so the fixture held nothing and no interrupt was sent")
+  else {
+    check('the navigation was held and the interrupt came during the silence', press !== undefined && stop.signal.aborted, `${press !== undefined} | ${stop.signal.aborted}`)
+    check('the open does not answer with the page', opened.outcome !== 'succeeded', `${opened.outcome} | ${opened.result}`)
+    check('no navigation was started after the interrupt, nothing reached the server and the origin was not approved', mine.length === 1 && documents('/halted').length === 0 && sessions.originApproved(ownerOf(halted), A.origin) === false, `${mine.length} | ${documents('/halted').length} | ${sessions.originApproved(ownerOf(halted), A.origin)}`)
+  }
 }
+
+sessions.setBrowserLaunchDriverForProof(null)
 
 section('S10 a slow page reached through a redirect the profile remembers is asked for once')
 {
   const first = await run({ op: 'open', url: `${A.origin}/moved-far` }, kept)
-  await sessions.activeSession(ownerOf(kept))?.page.goto('about:blank')
   await run({ op: 'close' }, kept)
   const askedRedirect = documents('/moved-far').length
   const askedPage = asksFor('/far')
@@ -270,5 +279,4 @@ section('S11 a download reached through a redirect the profile remembers is fetc
   check('the redirect came from the profile and the file was asked for once', documents('/moved').length === askedRedirect && asksFor('/report.csv') === askedFile + 1, `${documents('/moved').length - askedRedirect} | ${asksFor('/report.csv') - askedFile}`)
 }
 
-sessions.setBrowserLaunchDriverForProof(null)
 await finish('prove-browser-first-navigation', [plain, aborted, reached, twice, refused, quiet, slow, halted, kept, fetched])
