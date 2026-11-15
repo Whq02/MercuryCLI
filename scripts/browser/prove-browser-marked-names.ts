@@ -119,7 +119,9 @@ const MARKS = `(() => {
     const fn = list[key]
     if (typeof fn !== 'function') { out[key] = null; continue }
     const name = d(fn, 'name')
-    out[key] = { name: fn.name, length: fn.length, text: Function.prototype.toString.call(fn), shape: name ? [name.writable ? 'writable' : '', name.enumerable ? 'enumerable' : '', name.configurable ? 'configurable' : ''].filter(Boolean).join(' ') : 'none' }
+    let builds = 'no'
+    try { Reflect.construct(Object, [], fn); builds = 'yes' } catch (e) { builds = 'no' }
+    out[key] = { name: fn.name, length: fn.length, text: Function.prototype.toString.call(fn), shape: name ? [name.writable ? 'writable' : '', name.enumerable ? 'enumerable' : '', name.configurable ? 'configurable' : ''].filter(Boolean).join(' ') : 'none', own: Object.getOwnPropertyNames(fn).join(', '), builds }
   }
   return JSON.stringify(out)
 })()`
@@ -137,6 +139,8 @@ interface Mark {
   length: number
   text: string
   shape: string
+  own: string
+  builds: string
 }
 type Marks = Record<string, Mark | null>
 const RUNTIME: Record<string, string> = {
@@ -177,6 +181,13 @@ check(
   `${keys.length} read; without one of Chrome’s own: ${without.join(', ')}; shapes: ${[...new Set(withNative.map(key => natives[key]!.shape))].join(' | ')}`,
 )
 console.log(`    33 marked functions (32 marks, getParameter on both WebGL contexts): ${withNative.length} stand beside Chrome’s own here, ${without.length} of chrome.runtime beside the key each is reached by`)
+const plainOnes = withNative.filter(key => natives[key]!.own === 'length, name' && natives[key]!.builds === 'no')
+const built = withNative.filter(key => !plainOnes.includes(key))
+check(
+  'of Chrome’s own, all but chrome.csi and chrome.loadTimes have the own property names length and name and cannot be constructed; those two have a prototype too and can',
+  built.join('|') === 'chrome.csi|chrome.loadTimes' && built.every(key => natives[key]!.own === 'length, name, prototype' && natives[key]!.builds === 'yes'),
+  withNative.filter(key => !plainOnes.includes(key)).map(key => `${key}: ${natives[key]!.own}, constructs ${natives[key]!.builds}`).join(' ; '),
+)
 
 const read = async (what: string, registered: string): Promise<void> => {
   const { staged, marks } = await marksAfter(registered)
@@ -193,6 +204,14 @@ const read = async (what: string, registered: string): Promise<void> => {
   check(`${what}: each name is not writable, not enumerable and configurable, as Chrome’s own`, missing.length === 0 && misshaped.length === 0, misshaped.map(key => `${key}: ${marks[key]!.shape}`).join(' ; '))
   const lengths = present.filter(key => natives[key] !== null && marks[key]!.length !== natives[key]!.length)
   check(`${what}: each declares as many parameters as Chrome’s own (holds on the parent too)`, missing.length === 0 && lengths.length === 0, lengths.map(key => `${key}: ${marks[key]!.length} where Chrome’s own declares ${natives[key]!.length}`).join(' ; '))
+  const owned = (key: string): string => (natives[key] === null ? 'length, name' : natives[key]!.own)
+  const constructs = (key: string): string => (natives[key] === null ? 'no' : natives[key]!.builds)
+  const misowned = present.filter(key => marks[key]!.own !== owned(key) || marks[key]!.builds !== constructs(key))
+  check(
+    `${what}: each has the own property names Chrome’s own function has, in their order, and can be constructed only where Chrome’s can; chrome.runtime’s nine have length and name and cannot`,
+    missing.length === 0 && misowned.length === 0,
+    `${misowned.length} of ${present.length}: ${misowned.slice(0, 4).map(key => `${key} has ${marks[key]!.own} and constructs ${marks[key]!.builds} where ${owned(key)} and ${constructs(key)} are read`).join(' ; ')}`,
+  )
   console.log(`    ${what}: chrome.runtime’s nine declare ${Object.keys(RUNTIME).map(key => `${RUNTIME[key]} ${marks[key]?.length ?? '?'}`).join(', ')}`)
 }
 
@@ -202,7 +221,7 @@ await read('the source’s text', sourceText)
 
 section('S2 the text the shipped bundle registers')
 if ('why' in shipped) {
-  console.log(`  [SKIP] the shipped bundle’s text reads the names the source’s reads (six checks) — ${shipped.why}`)
+  console.log(`  [SKIP] the shipped bundle’s text reads the names the source’s reads (seven checks) — ${shipped.why}`)
 } else {
   check('the built bundle carries the script preparation, and Node gives the text it would register', 'text' in shipped, 'lost' in shipped ? shipped.lost : '')
   if ('text' in shipped) {

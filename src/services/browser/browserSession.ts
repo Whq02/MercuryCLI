@@ -723,12 +723,14 @@ function pageStealthInit(langs: string[]): void {
     Object.defineProperty(fn, 'name', { value: name, configurable: true })
     return fn
   }
-  const patchedToString = function toString(this: Function): string {
-    if (typeof this === 'function' && nativeStrings.has(this)) {
-      return nativeStrings.get(this)!
-    }
-    return origToString.call(this)
-  }
+  const patchedToString = {
+    toString(this: Function): string {
+      if (typeof this === 'function' && nativeStrings.has(this)) {
+        return nativeStrings.get(this)!
+      }
+      return origToString.call(this)
+    },
+  }.toString
   markNative(patchedToString, 'toString')
   Object.defineProperty(Function.prototype, 'toString', {
     value: patchedToString,
@@ -739,9 +741,9 @@ function pageStealthInit(langs: string[]): void {
   const navProto = Object.getPrototypeOf(navigator)
   if (navigator.webdriver !== false) {
     Object.defineProperty(navProto, 'webdriver', {
-      get: markNative(function webdriver() {
+      get: markNative({ webdriver() {
         return false
-      }, 'get webdriver'),
+      } }.webdriver, 'get webdriver'),
       enumerable: true,
       configurable: true,
     })
@@ -761,16 +763,16 @@ function pageStealthInit(langs: string[]): void {
     return frozenLangs
   }
   Object.defineProperty(navProto, 'language', {
-    get: markNative(function language() {
+    get: markNative({ language() {
       return currentLanguages()[0] ?? 'en-US'
-    }, 'get language'),
+    } }.language, 'get language'),
     enumerable: true,
     configurable: true,
   })
   Object.defineProperty(navProto, 'languages', {
-    get: markNative(function languages() {
+    get: markNative({ languages() {
       return currentLanguages()
-    }, 'get languages'),
+    } }.languages, 'get languages'),
     enumerable: true,
     configurable: true,
   })
@@ -789,18 +791,18 @@ function pageStealthInit(langs: string[]): void {
       isInstalled: false,
       InstallState: { DISABLED: 'disabled', INSTALLED: 'installed', NOT_INSTALLED: 'not_installed' },
       RunningState: { CANNOT_RUN: 'cannot_run', READY_TO_RUN: 'ready_to_run', RUNNING: 'running' },
-      getDetails: markNative(function getDetails() {
+      getDetails: markNative({ getDetails() {
         if (arguments.length) throw new TypeError('Error in invocation of app.getDetails()')
         return null
-      }, 'getDetails'),
-      getIsInstalled: markNative(function getIsInstalled() {
+      } }.getDetails, 'getDetails'),
+      getIsInstalled: markNative({ getIsInstalled() {
         if (arguments.length) throw new TypeError('Error in invocation of app.getIsInstalled()')
         return false
-      }, 'getIsInstalled'),
-      runningState: markNative(function runningState() {
+      } }.getIsInstalled, 'getIsInstalled'),
+      runningState: markNative({ runningState() {
         if (arguments.length) throw new TypeError('Error in invocation of app.runningState()')
         return 'cannot_run'
-      }, 'runningState'),
+      } }.runningState, 'runningState'),
     }
   }
   if (!('csi' in chromeObj) || typeof chromeObj.csi !== 'function') {
@@ -843,7 +845,7 @@ function pageStealthInit(langs: string[]): void {
   }
   if (!('runtime' in chromeObj) || !chromeObj.runtime) {
     const validExtId = (s: unknown): s is string => typeof s === 'string' && /^[a-p]{32}$/i.test(s)
-    const sendMessage = markNative(function sendMessage(extId?: unknown, _msg?: unknown, opts?: unknown, cb?: unknown) {
+    const sendMessage = markNative({ sendMessage(extId?: unknown, _msg?: unknown, opts?: unknown, cb?: unknown) {
       const pre =
         'Error in invocation of runtime.sendMessage(optional string extensionId, any message, optional object options, optional function responseCallback): '
       if (arguments.length === 0 || arguments.length > 4 || (opts && typeof opts !== 'object') || (cb && typeof cb !== 'function')) {
@@ -855,8 +857,8 @@ function pageStealthInit(langs: string[]): void {
       if (typeof extId !== 'string') throw new TypeError(`${pre}No matching signature.`)
       if (!validExtId(extId)) throw new TypeError(`${pre}Invalid extension id: '${extId}'`)
       return undefined
-    }, 'sendMessage')
-    const connect = markNative(function connect(extId?: unknown, info?: unknown) {
+    } }.sendMessage, 'sendMessage')
+    const connect = markNative({ connect(extId?: unknown, info?: unknown) {
       const pre = 'Error in invocation of runtime.connect(optional string extensionId, optional object connectInfo): '
       if (arguments.length === 0 || (arguments.length === 1 && extId === '')) {
         throw new TypeError(`${pre}chrome.runtime.connect() called from a webpage must specify an Extension ID (string) for its first argument.`)
@@ -869,26 +871,26 @@ function pageStealthInit(langs: string[]): void {
       }
       if (!validExtId(extId)) throw new TypeError(`${pre}Invalid extension id: '${extId}'`)
       const ev = () => ({
-        addListener: markNative(function addListener() {}, 'addListener'),
-        dispatch: markNative(function dispatch() {}, 'dispatch'),
-        hasListener: markNative(function hasListener() {}, 'hasListener'),
-        hasListeners: markNative(function hasListeners() {
+        addListener: markNative({ addListener() {} }.addListener, 'addListener'),
+        dispatch: markNative({ dispatch() {} }.dispatch, 'dispatch'),
+        hasListener: markNative({ hasListener() {} }.hasListener, 'hasListener'),
+        hasListeners: markNative({ hasListeners() {
           return false
-        }, 'hasListeners'),
-        removeListener: markNative(function removeListener() {}, 'removeListener'),
+        } }.hasListeners, 'hasListeners'),
+        removeListener: markNative({ removeListener() {} }.removeListener, 'removeListener'),
       })
       return {
         name: '',
         sender: undefined,
-        disconnect: markNative(function disconnect() {}, 'disconnect'),
+        disconnect: markNative({ disconnect() {} }.disconnect, 'disconnect'),
         onDisconnect: ev(),
         onMessage: ev(),
-        postMessage: markNative(function postMessage() {
+        postMessage: markNative({ postMessage() {
           if (!arguments.length) throw new TypeError('Insufficient number of arguments.')
           throw new Error('Attempting to use a disconnected port object')
-        }, 'postMessage'),
+        } }.postMessage, 'postMessage'),
       }
-    }, 'connect')
+    } }.connect, 'connect')
     chromeObj.runtime = {
       OnInstalledReason: {
         CHROME_UPDATE: 'chrome_update',
@@ -936,16 +938,16 @@ function pageStealthInit(langs: string[]): void {
   }
   if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
     Object.defineProperty(Notification, 'permission', {
-      get: markNative(function permission() {
+      get: markNative({ permission() {
         return 'default'
-      }, 'get permission'),
+      } }.permission, 'get permission'),
       enumerable: true,
       configurable: true,
     })
   }
   if (typeof Permissions !== 'undefined' && Permissions.prototype && typeof Permissions.prototype.query === 'function') {
     const origQuery = Permissions.prototype.query
-    const query = markNative(function query(this: Permissions, desc: PermissionDescriptor) {
+    const query = markNative({ query(this: Permissions, desc: PermissionDescriptor) {
       return origQuery.call(this, desc).then(status => {
         if (desc && (desc as { name?: string }).name === 'notifications' && typeof Notification !== 'undefined') {
           const expected = Notification.permission === 'default' ? 'prompt' : Notification.permission
@@ -961,7 +963,7 @@ function pageStealthInit(langs: string[]): void {
         }
         return status
       })
-    }, 'query')
+    } }.query, 'query')
     Object.defineProperty(Permissions.prototype, 'query', {
       value: query,
       writable: true,
@@ -973,7 +975,7 @@ function pageStealthInit(langs: string[]): void {
     const proto = ctor?.prototype
     if (!proto || typeof proto.getParameter !== 'function') return
     const origGetParameter = proto.getParameter
-    const getParameter = markNative(function getParameter(this: unknown, param: number) {
+    const getParameter = markNative({ getParameter(this: unknown, param: number) {
       const val = origGetParameter.call(this, param)
       if (param === 37445) {
         if (!val || /SwiftShader|Brian Paul|Mesa|llvmpipe|Google Inc\.\s*\(Google\)/i.test(String(val))) {
@@ -988,7 +990,7 @@ function pageStealthInit(langs: string[]): void {
       if (param === 0x1f00 && /Brian Paul/i.test(String(val))) return 'WebKit'
       if (param === 0x1f01 && /Mesa OffScreen|SwiftShader/i.test(String(val))) return 'WebKit WebGL'
       return val
-    }, 'getParameter')
+    } }.getParameter, 'getParameter')
     Object.defineProperty(proto, 'getParameter', {
       value: getParameter,
       writable: true,
@@ -1035,41 +1037,41 @@ function pageStealthInit(langs: string[]): void {
           Object.defineProperty(mimeArr, mDef.type, { value: mObj, enumerable: false })
         }
       })
-      pObj.item = markNative(function item(idx: number) {
+      pObj.item = markNative({ item(idx: number) {
         return pObj[idx] ?? null
-      }, 'item')
-      pObj.namedItem = markNative(function namedItem(k: string) {
+      } }.item, 'item')
+      pObj.namedItem = markNative({ namedItem(k: string) {
         return pObj[k] ?? null
-      }, 'namedItem')
+      } }.namedItem, 'namedItem')
       Object.defineProperty(pluginArr, pIdx, { value: pObj, enumerable: true })
       Object.defineProperty(pluginArr, pName, { value: pObj, enumerable: false })
     })
     Object.defineProperty(pluginArr, 'length', { value: pluginNames.length, enumerable: true })
-    pluginArr.item = markNative(function item(idx: number) {
+    pluginArr.item = markNative({ item(idx: number) {
       return pluginArr[idx] ?? null
-    }, 'item')
-    pluginArr.namedItem = markNative(function namedItem(k: string) {
+    } }.item, 'item')
+    pluginArr.namedItem = markNative({ namedItem(k: string) {
       return pluginArr[k] ?? null
-    }, 'namedItem')
-    pluginArr.refresh = markNative(function refresh() {}, 'refresh')
+    } }.namedItem, 'namedItem')
+    pluginArr.refresh = markNative({ refresh() {} }.refresh, 'refresh')
     Object.defineProperty(mimeArr, 'length', { value: mimeDefs.length, enumerable: true })
-    mimeArr.item = markNative(function item(idx: number) {
+    mimeArr.item = markNative({ item(idx: number) {
       return mimeArr[idx] ?? null
-    }, 'item')
-    mimeArr.namedItem = markNative(function namedItem(k: string) {
+    } }.item, 'item')
+    mimeArr.namedItem = markNative({ namedItem(k: string) {
       return mimeArr[k] ?? null
-    }, 'namedItem')
+    } }.namedItem, 'namedItem')
     Object.defineProperty(navProto, 'plugins', {
-      get: markNative(function plugins() {
+      get: markNative({ plugins() {
         return pluginArr
-      }, 'get plugins'),
+      } }.plugins, 'get plugins'),
       enumerable: true,
       configurable: true,
     })
     Object.defineProperty(navProto, 'mimeTypes', {
-      get: markNative(function mimeTypes() {
+      get: markNative({ mimeTypes() {
         return mimeArr
-      }, 'get mimeTypes'),
+      } }.mimeTypes, 'get mimeTypes'),
       enumerable: true,
       configurable: true,
     })
@@ -1077,20 +1079,20 @@ function pageStealthInit(langs: string[]): void {
   const origOuterW = Object.getOwnPropertyDescriptor(window, 'outerWidth')
   const origOuterH = Object.getOwnPropertyDescriptor(window, 'outerHeight')
   Object.defineProperty(window, 'outerWidth', {
-    get: markNative(function outerWidth() {
+    get: markNative({ outerWidth() {
       const raw = origOuterW?.get ? origOuterW.get.call(window) : (origOuterW?.value ?? 0)
       const inner = window.innerWidth || 1280
       return typeof raw === 'number' && raw >= inner ? raw : inner
-    }, 'get outerWidth'),
+    } }.outerWidth, 'get outerWidth'),
     enumerable: true,
     configurable: true,
   })
   Object.defineProperty(window, 'outerHeight', {
-    get: markNative(function outerHeight() {
+    get: markNative({ outerHeight() {
       const raw = origOuterH?.get ? origOuterH.get.call(window) : (origOuterH?.value ?? 0)
       const inner = window.innerHeight || 800
       return typeof raw === 'number' && raw >= inner ? raw : inner + 85
-    }, 'get outerHeight'),
+    } }.outerHeight, 'get outerHeight'),
     enumerable: true,
     configurable: true,
   })
