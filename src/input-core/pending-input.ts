@@ -160,6 +160,7 @@ export function initSession(
 export async function rekeyToSession(sessionId: string | null, opts?: { landing?: boolean }): Promise<void> {
   const fence = editSeq
   const typedWhileLanding = opts?.landing === true ? draft.text : ''
+  if (opts?.landing === true && readDraftSync(sessionId) === null) owningSessionId = sessionId
   await flushDraftSaves()
   owningSessionId = sessionId
   if (opts?.landing === true && sessionId !== null) await migrateOrphanedDraft(sessionId)
@@ -189,7 +190,7 @@ export async function rekeyToSession(sessionId: string | null, opts?: { landing?
 }
 
 onSessionSwitch(id => {
-  if (getFocusedSessionConnector().sessionId() !== '') return
+  if (!initialized || getFocusedSessionConnector().sessionId() !== '') return
   void rekeyToSession(String(id), { landing: true })
 })
 
