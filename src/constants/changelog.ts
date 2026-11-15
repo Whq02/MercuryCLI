@@ -101,6 +101,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed Ctrl+C twice on the first-run screen handing the terminal back while Mercury kept running.
 - Fixed a Gemini 4 model named without a tier reading a 200,000-token window and no effort levels: it reads the window and the levels of the row it rides.
 - Fixed a Gemini 4 model's effort level being dropped from a first request with an API key when Google's model list was slow or failed to load.
+- Fixed /context failing, or showing a 200k window, on a model whose window comes from its provider's model list when that list had not answered yet: the view waits for it, as a turn does.
 - Fixed a browser started again on a stored profile bringing back the earlier session's pages.
 - Fixed the Git tool's resolve by region into a file an Edit deny rule covers asking before it refused, and its whole-file base and both writing a side without the checkout's line endings and filters; a side the conflict does not have is answered in one sentence.
 - Fixed a command typed while a new chat is still starting being answered by the window instead of the chat: /swarm, /swarmchat, /general, /team, /whisper, /rename, /title, /contract and /crewmates now wait for the session and reach it in the order typed, so /swarm off typed before the first prompt holds.
