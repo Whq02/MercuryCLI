@@ -270,36 +270,92 @@ await run({ op: 'close' })
 console.log("§7 a process that leaves with the browser open takes the browser's temp profile with it")
 {
   const { execFileSync } = await import('node:child_process')
-  const { existsSync, mkdtempSync, writeFileSync } = await import('node:fs')
+  const { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const scratch = mkdtempSync(join(tmpdir(), 'browser-exit-drill-'))
-  const drill = join(scratch, 'drill.ts')
-  writeFileSync(
-    drill,
-    [
-      `process.env.MERCURY_BROWSER ??= '1'`,
-      `const { ensureBrowserSession } = await import(${JSON.stringify(join(ROOT, 'src/services/browser/browserSession.ts'))})`,
-      `const { processOwnerForLane } = await import(${JSON.stringify(join(ROOT, 'src/services/run/resolveOwner.ts'))})`,
-      `const s = await ensureBrowserSession(processOwnerForLane(null))`,
-      `if ('state' in s) { console.log('NO-SESSION ' + s.note); process.exit(3) }`,
-      `await s.page.goto(${JSON.stringify(`${A}/`)}).catch(() => undefined)`,
-      `const dirArg = (s.browser.process()?.spawnargs ?? []).find(a => a.startsWith('--user-data-dir='))`,
-      `console.log('PROFILE ' + (dirArg ? dirArg.slice('--user-data-dir='.length) : '(none)'))`,
-      `process.exit(0)`,
-    ].join('\n'),
-  )
-  let out = ''
-  try {
-    out = execFileSync(process.execPath, [drill], { encoding: 'utf8', env: process.env, timeout: 60_000 })
-  } catch (err) {
-    out = `${(err as { stdout?: string }).stdout ?? ''}\nDRILL FAILED: ${(err as Error).message}`
+  let drills = 0
+  const drill = (leave: string[]): { profile: string; out: string; exitMs: number } => {
+    const file = join(scratch, `drill-${++drills}.ts`)
+    writeFileSync(
+      file,
+      [
+        `process.env.MERCURY_BROWSER ??= '1'`,
+        `const { ensureBrowserSession, disposeBrowserOwner, firstNavigation } = await import(${JSON.stringify(join(ROOT, 'src/services/browser/browserSession.ts'))})`,
+        `const { processOwnerForLane } = await import(${JSON.stringify(join(ROOT, 'src/services/run/resolveOwner.ts'))})`,
+        `const owner = processOwnerForLane(null)`,
+        `const s = await ensureBrowserSession(owner)`,
+        `if ('state' in s) { console.log('NO-SESSION ' + s.note); process.exit(3) }`,
+        `await firstNavigation(s, ${JSON.stringify(`${A}/`)}, () => s.page.goto(${JSON.stringify(`${A}/`)})).catch(() => undefined)`,
+        `const dirArg = (s.browser.process()?.spawnargs ?? []).find(a => a.startsWith('--user-data-dir='))`,
+        `const dir = dirArg ? dirArg.slice('--user-data-dir='.length) : '(none)'`,
+        `console.log('PROFILE ' + dir)`,
+        `let leftAt = 0`,
+        `process.on('exit', () => console.log('EXIT-MS ' + (Date.now() - leftAt)))`,
+        ...leave,
+        `leftAt = Date.now()`,
+        `process.exit(0)`,
+      ].join('\n'),
+    )
+    let out = ''
+    try {
+      out = execFileSync(process.execPath, [file], { encoding: 'utf8', env: process.env, timeout: 90_000 })
+    } catch (err) {
+      out = `${(err as { stdout?: string }).stdout ?? ''}\nDRILL FAILED: ${(err as Error).message}`
+    }
+    return { profile: (/PROFILE (.+)/.exec(out)?.[1] ?? '').trim(), out, exitMs: Number(/EXIT-MS (\d+)/.exec(out)?.[1] ?? -1) }
   }
-  const profile = (/PROFILE (.+)/.exec(out)?.[1] ?? '').trim()
-  check('the drill opened a session on a temp profile of its own', isAbsolute(profile) && /puppeteer_dev_[a-z]+_profile-/.test(profile), out.trim().slice(-300))
-  if (isAbsolute(profile)) {
+  const gone = async (profile: string): Promise<boolean> => {
     const t0 = Date.now()
     while (existsSync(profile) && Date.now() - t0 < 3000) await new Promise(r => setTimeout(r, 50))
-    check('the temp profile folder is gone after the process exit (no Local State left behind)', !existsSync(profile), `${profile} still exists`)
+    return !existsSync(profile)
+  }
+  const left = (profile: string): string => {
+    try {
+      const entries = readdirSync(profile, { recursive: true }) as string[]
+      return `${profile} still exists, holding ${entries.length} entries: ${entries.slice(0, 12).join(', ')}`
+    } catch (error) {
+      return `${profile} still exists (${(error as NodeJS.ErrnoException).code ?? 'not readable'})`
+    }
+  }
+
+  const plain = drill([])
+  check('the drill opened a session on a temp profile of its own', isAbsolute(plain.profile) && /puppeteer_dev_[a-z]+_profile-/.test(plain.profile), plain.out.trim().slice(-300))
+  if (isAbsolute(plain.profile)) {
+    check('the temp profile folder is gone after the process exit (no Local State left behind)', await gone(plain.profile), left(plain.profile))
+    console.log(`    the exit took ${plain.exitMs} ms`)
+  }
+
+  console.log('§7b and so does a process that leaves while its browser’s close is under way')
+  const flying = drill([`void disposeBrowserOwner(owner)`])
+  check('the temp profile folder is gone when the process left with the owner’s disposal under way', isAbsolute(flying.profile) && (await gone(flying.profile)), isAbsolute(flying.profile) ? left(flying.profile) : flying.out.trim().slice(-300))
+  console.log(`    the exit took ${flying.exitMs} ms`)
+
+  console.log('§7c a folder the process cannot empty at its first try is tried again, for two seconds and no longer')
+  if (process.platform === 'win32') {
+    console.log('  [SKIP] a folder that cannot be emptied for 400 ms is gone, and one never let go is left after two seconds (three checks) — not staged on win32: the leg refuses the removal with a POSIX permission; there a file a browser just ended still holds is the real refusal, and the check of §7 reads it')
+  } else {
+    const held = (seconds: number): string[] => [
+      `const { chmodSync } = await import('node:fs')`,
+      `const { spawn } = await import('node:child_process')`,
+      `chmodSync(dir + '/Default', 0o500)`,
+      `spawn('/bin/sh', ['-c', 'sleep ${seconds}; chmod 700 "$0"', dir + '/Default'], { detached: true, stdio: 'ignore' }).unref()`,
+    ]
+    const briefly = drill(held(0.4))
+    const brieflyGone = isAbsolute(briefly.profile) && (await gone(briefly.profile))
+    check('a folder that cannot be emptied for 400 ms is gone all the same, and the exit did not wait out its two seconds', brieflyGone && briefly.exitMs >= 300 && briefly.exitMs < 1500, `${brieflyGone ? 'gone' : isAbsolute(briefly.profile) ? left(briefly.profile) : briefly.out.trim().slice(-300)}; the exit took ${briefly.exitMs} ms`)
+    const never = drill(held(4))
+    check('a folder that is not let go is left where it is (holds on the parent too)', isAbsolute(never.profile) && existsSync(never.profile), never.out.trim().slice(-300))
+    check('and the exit waited two seconds for it and no longer', never.exitMs >= 1900 && never.exitMs < 3500, `the exit took ${never.exitMs} ms`)
+    console.log(`    the exits took ${briefly.exitMs} ms and ${never.exitMs} ms`)
+    for (const profile of [briefly.profile, never.profile]) {
+      for (let tries = 0; tries < 120 && isAbsolute(profile) && existsSync(profile); tries++) {
+        try {
+          rmSync(profile, { recursive: true, force: true })
+        } catch {
+          await new Promise(r => setTimeout(r, 50))
+        }
+      }
+    }
   }
 }
 
