@@ -146,8 +146,8 @@ const nap = (ms: number): Promise<void> => new Promise(done => setTimeout(done, 
 const READ_BOUND_MS = 10_000
 const LAPSED = Symbol('lapsed')
 const reads = { count: 0, slowest: 0 }
-const answered = `every read of a frame through the driver answers within ${READ_BOUND_MS / 1000} s`
-const within = async <T>(frame: Frame, where: string, read: Promise<T>): Promise<T> => {
+const answered = `every read through the driver, of a frame or of a page’s word that its frames are in, answers within ${READ_BOUND_MS / 1000} s`
+const within = async <T>(frame: Frame | null, where: string, read: Promise<T>): Promise<T> => {
   const began = Date.now()
   let timer: ReturnType<typeof setTimeout> | undefined
   const lapse = new Promise<typeof LAPSED>(resolve => {
@@ -161,10 +161,10 @@ const within = async <T>(frame: Frame, where: string, read: Promise<T>): Promise
     return got as T
   }
   const client = (of: Frame): string => (of as unknown as { client: { id(): string } }).client.id()
-  const parent = frame.parentFrame()
-  const shared = parent !== null && client(frame) === client(parent)
-  const foreign = parent !== null && new URL(frame.url()).hostname !== new URL(parent.url()).hostname
-  check(answered, false, `the frame ${frame.url()} on ${where} did not answer: the driver holds it on ${shared ? 'its parent’s session' : 'a session of its own'}${shared && foreign ? ', where the scripts of a frame of another site never reach it (the driver’s race between frames of another site attached a few milliseconds apart)' : ''}`)
+  const parent = frame === null ? null : frame.parentFrame()
+  const shared = frame !== null && parent !== null && client(frame) === client(parent)
+  const foreign = frame !== null && parent !== null && new URL(frame.url()).hostname !== new URL(parent.url()).hostname
+  check(answered, false, frame === null ? `the page on ${where} did not say whether its frames are in` : `the frame ${frame.url()} on ${where} did not answer: the driver holds it on ${shared ? 'its parent’s session' : 'a session of its own'}${shared && foreign ? ', where the scripts of a frame of another site never reach it (the driver’s race between frames of another site attached a few milliseconds apart)' : ''}`)
   Connection.prototype._rawSend = send
   return finish('prove-browser-frame-identity', [lead, reference, cold])
 }
@@ -198,7 +198,7 @@ const loaded = async <T>(where: string, page: () => Page | null, load: () => Pro
     const now = page()
     if (now === null) return result
     for (let waited = 0; waited < 100; waited++) {
-      if ((await now.evaluate(() => (window as unknown as { __framed?: boolean }).__framed === true).catch(() => false)) === true) break
+      if ((await within(null, where, now.evaluate(() => (window as unknown as { __framed?: boolean }).__framed === true).catch(() => false))) === true) break
       await nap(50)
     }
     const left = await leftBehind(now)
@@ -499,7 +499,7 @@ section('S9 the page')
 section('S10 the reads and the loads themselves')
 check(answered, true)
 check(reached, true)
-console.log(`    ${reads.count} reads of a frame through the driver, the slowest ${reads.slowest} ms; ${setAside.length === 0 ? 'no load was set aside' : `${setAside.length} load(s) set aside for the driver’s race: ${setAside.join(', ')}`}`)
+console.log(`    ${reads.count} reads through the driver, the slowest ${reads.slowest} ms; ${setAside.length === 0 ? 'no load was set aside' : `${setAside.length} load(s) set aside for the driver’s race: ${setAside.join(', ')}`}`)
 
 Connection.prototype._rawSend = send
 await finish('prove-browser-frame-identity', [lead, reference, cold])
