@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
@@ -244,12 +244,13 @@ console.log('\n§6 the owner')
 
 console.log('\n§7 a flush waits for a save that is still being written')
 {
+  const drafts = join(HOME, 'drafts')
+  const before = new Set(readdirSync(drafts))
   project('save-in-flight')
   p.initSession('flight-session', '')
   p.edit('seed')
   await p.flushDrafts()
-  const drafts = join(HOME, 'drafts')
-  const file = readdirSync(drafts).filter(name => name.endsWith('.json')).map(name => join(drafts, name)).sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs)[0]!
+  const file = join(drafts, readdirSync(drafts).find(name => name.endsWith('.json') && !before.has(name))!)
   const lockfile = await import('../../src/utils/lockfile.ts')
   const release = await lockfile.lock(file)
   p.edit('typed and left alone')
