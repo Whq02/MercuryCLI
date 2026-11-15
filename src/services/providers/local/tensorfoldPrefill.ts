@@ -21,6 +21,7 @@ export const NEXT_TURN_STAGE_SECONDS = 5
 export const NEXT_TURN_STAGE_FLOOR_TOKENS = 256
 export const NEXT_TURN_LOOK_MS = 300
 export const NEXT_TURN_SLOW_CUT_MS = 500
+const NEXT_TURN_REARM_TURNS = 3
 export const NEXT_TURN_SEED = 'ok'
 const NEXT_TURN_LOOK_TIMEOUT_MS = 1000
 const UNMEASURED_TOKENS_PER_SECOND = 300
@@ -60,14 +61,22 @@ export interface NextTurnPrefillFacts {
   cut: number
   yielded: number
   slowed: number
+  rearmed: number
   last: string | null
+}
+
+interface Slowed {
+  quiet: number
+  since: number | null
+  needMs: number
 }
 
 const state: {
   inFlight: Map<string, number>
   speed: Map<string, number>
+  took: Map<string, number>
   whole: Set<string>
-  slow: Set<string>
+  slow: Map<string, Slowed>
   offer: Offer | null
   timer: ReturnType<typeof setTimeout> | null
   running: AbortController | null
@@ -77,14 +86,23 @@ const state: {
 } = {
   inFlight: new Map(),
   speed: new Map(),
+  took: new Map(),
   whole: new Set(),
-  slow: new Set(),
+  slow: new Map(),
   offer: null,
   timer: null,
   running: null,
   hooked: false,
   io: {},
-  facts: { offered: 0, started: 0, requests: 0, completed: 0, cut: 0, yielded: 0, slowed: 0, last: null },
+  facts: { offered: 0, started: 0, requests: 0, completed: 0, cut: 0, yielded: 0, slowed: 0, rearmed: 0, last: null },
+}
+
+function served(root: string, model: string): string {
+  return `${root}\n${model}`
+}
+
+function unrest(root?: string): void {
+  for (const [slowRoot, slowed] of state.slow) if (root === undefined || slowRoot === root) slowed.since = null
 }
 
 function note(words: string): void {
@@ -128,9 +146,11 @@ function hook(): void {
   if (state.hooked) return
   state.hooked = true
   subscribeEngineModelOverride(() => {
+    unrest()
     if (state.offer !== null && getEngineModel() !== state.offer.seated) cancelNextTurnPrefill('the model changed')
   })
   onTensorFoldStopping(port => {
+    for (const root of state.slow.keys()) if (new URL(root).port === String(port)) unrest(root)
     if (state.offer !== null && new URL(state.offer.root).port === String(port)) cancelNextTurnPrefill('the engine is being stopped')
   })
   registerCleanup(async () => cancelNextTurnPrefill('the session is ending'))
@@ -205,9 +225,9 @@ export function nextTurnStages(rows: readonly CompatWireMessage[], from: number,
   return stages
 }
 
-function tokensPerSecond(offer: Offer): number {
+function tokensPerSecond(offer: Pick<Offer, 'root' | 'model'>): number {
   if (state.io.tokensPerSecond !== undefined) return state.io.tokensPerSecond
-  const measured = state.speed.get(offer.root)
+  const measured = state.speed.get(served(offer.root, offer.model))
   if (measured !== undefined) return measured
   const turn = tensorFoldTurnReadings().findLast(row => row.model === offer.model && row.prefillSeconds !== undefined && row.prefillSeconds > 0 && row.promptTokens - (row.cachedTokens ?? 0) >= MEASURED_FLOOR_TOKENS)
   return turn === undefined ? UNMEASURED_TOKENS_PER_SECOND : (turn.promptTokens - (turn.cachedTokens ?? 0)) / turn.prefillSeconds!
@@ -225,10 +245,10 @@ function watchTheCut(offer: Offer): () => void {
   const timer = setTimeout(() => {
     void engineLoad(offer, controller.signal).then(load => {
       if (controller.signal.aborted || load === undefined || load.waiting === 0) return
-      state.slow.add(offer.root)
+      state.slow.set(offer.root, { quiet: 0, since: null, needMs: 0 })
       state.facts.slowed += 1
       if (state.offer !== null && state.offer.root === offer.root) cancelNextTurnPrefill('the engine is slow to let a read-ahead go')
-      note(`a request had produced no output ${NEXT_TURN_SLOW_CUT_MS} ms after a read-ahead was dropped and the engine reports a queue; nothing is read ahead on that engine again in this session`)
+      note(`a request had produced no output ${NEXT_TURN_SLOW_CUT_MS} ms after a read-ahead was dropped and the engine reports a queue; nothing is read ahead on that engine until ${NEXT_TURN_REARM_TURNS} turns in a row have left it the time a read-ahead takes`)
     })
   }, state.io.slowCutMs ?? NEXT_TURN_SLOW_CUT_MS)
   timer.unref?.()
@@ -352,10 +372,11 @@ async function run(offer: Offer): Promise<void> {
         continue
       }
       read += stage.read
-      if (stage.seconds !== undefined && stage.seconds > 0 && stage.read >= MEASURED_FLOOR_TOKENS) state.speed.set(offer.root, stage.read / stage.seconds)
+      if (stage.seconds !== undefined && stage.seconds > 0 && stage.read >= MEASURED_FLOOR_TOKENS) state.speed.set(served(offer.root, offer.model), stage.read / stage.seconds)
       offer.next += 1
     }
     if (state.offer === offer) state.offer = null
+    state.took.set(served(offer.root, offer.model), Math.max(state.took.get(served(offer.root, offer.model)) ?? 0, Date.now() - startedAt))
     state.facts.completed += 1
     note(`the next turn of ${offer.model} read ahead: ${read} tokens in ${Date.now() - startedAt} ms over ${sent} request(s)`)
   } catch (error) {
@@ -363,6 +384,29 @@ async function run(offer: Offer): Promise<void> {
   } finally {
     if (state.running === controller) state.running = null
   }
+}
+
+function rests(record: LocalModelRecord, sent: CompatStreamOptions, minted: readonly AssistantMessage[]): void {
+  const slowed = state.slow.get(record.baseUrl)
+  if (slowed === undefined || !endsTheTurn(minted)) return
+  const sentRows = sent.request.messages
+  const turn = sentRows.slice(sentRows.findLastIndex(row => !('tools' in row) && row.role === 'user') + 1)
+  const tokens = estimateRequestTokens({ messages: [...turn, ...replyRows(minted, sent.imagesSupported)] }, record.id)
+  const reading = Math.ceil((tokens / tokensPerSecond({ root: record.baseUrl, model: record.id })) * 1000)
+  slowed.needMs = (state.io.settleMs ?? NEXT_TURN_SETTLE_MS) + Math.max(reading, state.took.get(served(record.baseUrl, record.id)) ?? 0)
+  slowed.since = Date.now()
+}
+
+function arrives(root: string): void {
+  const slowed = state.slow.get(root)
+  if (slowed === undefined || slowed.since === null) return
+  const waited = Date.now() - slowed.since
+  slowed.since = null
+  slowed.quiet = waited >= slowed.needMs ? slowed.quiet + 1 : 0
+  if (slowed.quiet < NEXT_TURN_REARM_TURNS) return
+  state.slow.delete(root)
+  state.facts.rearmed += 1
+  note(`${NEXT_TURN_REARM_TURNS} turns in a row left that engine the time a read-ahead takes; the next turn is read ahead again`)
 }
 
 function schedule(): void {
@@ -402,8 +446,10 @@ export function tensorFoldRequestBegins(
     else state.inFlight.delete(root)
     if (left <= 0 && state.offer !== null && state.offer.root === root) schedule()
   }
-  const canOffer = !state.slow.has(root) && nextTurnPrefillApplies(record, options)
-  if (!canOffer && stopWatching === undefined) return { ends }
+  const applies = nextTurnPrefillApplies(record, options)
+  if (applies) arrives(root)
+  else unrest(root)
+  if (!applies && stopWatching === undefined) return { ends }
   return {
     ends,
     transport: sent => ({
@@ -414,7 +460,11 @@ export function tensorFoldRequestBegins(
         }
       })(),
       settle: minted => {
-        if (!canOffer) return
+        if (!applies) return
+        if (state.slow.has(root)) {
+          rests(record, sent, minted)
+          return
+        }
         try {
           offerNextTurn(record, sent, minted, conversation, options)
         } catch (error) {
@@ -437,8 +487,9 @@ export function __resetNextTurnPrefillForTest(): void {
   cancelNextTurnPrefill('reset')
   state.inFlight.clear()
   state.speed.clear()
+  state.took.clear()
   state.whole.clear()
   state.slow.clear()
   state.io = {}
-  state.facts = { offered: 0, started: 0, requests: 0, completed: 0, cut: 0, yielded: 0, slowed: 0, last: null }
+  state.facts = { offered: 0, started: 0, requests: 0, completed: 0, cut: 0, yielded: 0, slowed: 0, rearmed: 0, last: null }
 }

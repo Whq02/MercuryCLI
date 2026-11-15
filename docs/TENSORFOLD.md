@@ -553,7 +553,11 @@ another session's request can also wait for the next look. Once that request
 is seen, the read-ahead is cancelled and the turn is left as it is. Where an
 engine keeps a request of the session waiting more than half a second behind
 a read-ahead that was dropped for it, Mercury reads nothing ahead on that
-engine for the rest of the session. That check is conservative: a neighbour
+engine until three turns in a row have left it the time a read-ahead takes
+(the pause between a reply and the next message, against the time that engine
+needs to read the finished turn ahead; a pause in which a compaction, another
+model or a stop of the engine fell is not counted). That check is
+conservative: a neighbour
 queued behind this session's request can also turn read-ahead off while that
 request has produced no output. While a piece runs, the engine's own log gains
 about three `GET /health` lines a second: those lines are the read-ahead
