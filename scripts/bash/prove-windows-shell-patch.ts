@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { readBrushPackManifest } from '../../src/utils/shell/brushPack.ts'
+import { brushPackTreeDigest, readBrushPackManifest } from '../../src/utils/shell/brushPack.ts'
 
 const ROOT = resolve(import.meta.dir, '../..')
 const PATCH = 'scripts/vendor/patches/brush-0.4.0-windows.patch'
@@ -107,7 +107,7 @@ const sha = (p: string) => createHash('sha256').update(readFileSync(p)).digest('
 const ok = (stdout = '') => ({ status: 0, stdout, stderr: '' })
 const refuse = (stderr: string) => ({ status: 1, stdout: '', stderr })
 mock.module('node:child_process', () => ({ spawnSync(command: string, args: string[], options: any) {
-  if (command === 'rustup') return ok('x86_64-pc-windows-msvc\\n')
+  if (command === 'rustup') return ok('x86_64-pc-windows-msvc\\naarch64-pc-windows-msvc\\n')
   if (command === 'tar' || command.toLowerCase().endsWith('\\\\tar.exe')) {
     if (args.some((a: string) => /^[A-Za-z]:/.test(a) || a === '-C')) return refuse('fixture: tar args must be relative to cwd so GNU tar never sees a drive colon: ' + JSON.stringify(args))
     return realSpawn(command, args, options)
@@ -173,6 +173,11 @@ await import(join(root, 'scripts/vendor/build-brush.ts'))
     check('the product manifest reader preserves the patch digest', readBrushPackManifest(packDir)?.source === 'cargo-build' && (readBrushPackManifest(packDir) as { patchSha256?: string })?.patchSha256 === patchHash)
     check('the patched core and shell licences are retained', existsSync(join(packDir, 'licenses/brush-shell-0.4.0/LICENSE')) && existsSync(join(packDir, 'licenses/brush-core-0.5.0/LICENSE')))
     check('the completed pack revalidates without cargo', buildFixture(['--target', 'windows-x64', '--check']).rc === 0)
+    const armBuilt = buildFixture(['--target', 'windows-arm64', '--force'])
+    const armManifestFile = join(fixture, 'vendor/brush/win-arm64/.vendor-manifest.json')
+    const armManifest = existsSync(armManifestFile) ? JSON.parse(readFileSync(armManifestFile, 'utf8')) : {}
+    check('the win-arm64 build is patched too and its manifest records the same patch digest', armBuilt.rc === 0 && armBuilt.text.includes('build-brush: DONE') && armManifest.patchSha256 === patchHash, armBuilt.text.trim())
+    check('the completed win-arm64 pack revalidates without cargo', buildFixture(['--target', 'windows-arm64', '--check']).rc === 0)
 
     console.log('refusals')
     mkdirSync(packDir, { recursive: true })
@@ -182,6 +187,71 @@ await import(join(root, 'scripts/vendor/build-brush.ts'))
       check(`absent, changed or malformed patch digest refuses reuse (${String(bad)})`, stale.rc === 2 && stale.text.includes('STALE'), stale.text.trim())
     }
     writeFileSync(manifestFile, JSON.stringify(manifest))
+    writeFileSync(armManifestFile, JSON.stringify({ ...armManifest, patchSha256: undefined }))
+    const armStale = buildFixture(['--target', 'windows-arm64', '--check'])
+    check('a win-arm64 pack built before the patch reads STALE and names its remedy', armStale.rc === 2 && armStale.text.includes('STALE — win-arm64: cache Windows patch sha256 does not match the build source') && armStale.text.includes('remedy: bun run scripts/vendor/build-brush.ts --target windows-arm64'), armStale.text.trim())
+
+    console.log("the product build's shell-engine guard — the text of build.ts run over the fixture's packs")
+    const buildScript = readFileSync(join(ROOT, 'build.ts'), 'utf8')
+    const guardStart = buildScript.indexOf('  const brushPrepare = packPlatform ? brushPrepareCommand(')
+    const guardEnd = buildScript.indexOf("\n  } else if (forceNo) {\n    console.warn('MERCURY_BUILD_NO_VENDOR_BRUSH=1", guardStart)
+    check("the product build's shell-engine guard is sliced non-empty", guardStart !== -1 && guardEnd > guardStart)
+    const guard = join(scratch, 'build-guard.ts')
+    writeFileSync(guard, `import { createHash } from 'node:crypto'
+import { readFileSync, statSync } from 'node:fs'
+import { resolve } from 'node:path'
+const { BRUSH_PACK_PATH: brushRelPath, brushLockKindFor, brushPrepareCommand, checkBrushPackDir } = await import(${JSON.stringify(join(ROOT, 'src/utils/shell/brushPack.ts'))})
+const ROOT = ${JSON.stringify(fixture)}
+const CROSS = false
+const TARGET_ARG = null
+const forceNo = false
+const packPlatform: string = process.argv[2]!
+const packDir = resolve(ROOT, brushRelPath, packPlatform)
+const brushDest = resolve(ROOT, 'guard-out', brushRelPath)
+let brushVendored = false
+let brushMeta: unknown = null
+{
+${buildScript.slice(guardStart, guardEnd)}
+  }
+}
+console.log(brushVendored && brushMeta !== null ? 'GUARD VENDORED' : 'GUARD LEFT THE PACK')
+`)
+    const guardRun = (platform: string) => run(process.execPath, [guard, platform], fixture)
+    const vendors = (platform: string) => {
+      const result = guardRun(platform)
+      return { ok: result.rc === 0 && result.text.includes(`VENDORED shell engine brush 0.4.0 ${platform}`) && result.text.includes('GUARD VENDORED'), text: result.text.trim() }
+    }
+    const refuses = (platform: string) => {
+      const result = guardRun(platform)
+      return { ok: result.rc === 1 && result.text.includes(`BUILD FAILED: vendor/brush/${platform} pack is present but stale — the pack was built from another Windows patch than ${PATCH} now holds.\n  remedy: bun run scripts/vendor/build-brush.ts (needs cargo)   (then rebuild)`) && !result.text.includes('GUARD'), text: result.text.trim() }
+    }
+    for (const platform of ['win-x64', 'win-arm64']) {
+      const file = platform === 'win-x64' ? manifestFile : armManifestFile
+      const good = platform === 'win-x64' ? manifest : armManifest
+      for (const bad of [undefined, '0'.repeat(64)]) {
+        writeFileSync(file, JSON.stringify({ ...good, patchSha256: bad }))
+        const refused = refuses(platform)
+        check(`the product build refuses a ${platform} pack built from another patch, or before the digest was kept (${String(bad)}), and names the remedy`, refused.ok, refused.text)
+      }
+      writeFileSync(file, JSON.stringify(good))
+      const kept = vendors(platform)
+      check(`the product build vendors a ${platform} pack built with the patch the tree holds`, kept.ok, kept.text)
+    }
+    const lock = JSON.parse(readFileSync(join(ROOT, 'vendor/brush.lock.json'), 'utf8')) as { version: string; platforms: Record<string, { target: string; archive?: string; sha256?: string }> }
+    for (const platform of ['darwin-arm64', 'linux-x64']) {
+      const dir = join(fixture, 'vendor/brush', platform)
+      rmSync(dir, { recursive: true, force: true })
+      mkdirSync(dir, { recursive: true })
+      writeFileSync(join(dir, 'brush'), `fixture binary for ${platform}`)
+      writeFileSync(join(dir, 'LICENSE'), 'MIT')
+      const tree = brushPackTreeDigest(dir)
+      const entry = lock.platforms[platform]!
+      writeFileSync(join(dir, '.vendor-manifest.json'), JSON.stringify({ name: 'brush', source: 'release-archive', version: lock.version, platform, target: entry.target, archive: entry.archive, archiveSha256: entry.sha256, binary: 'brush', binarySha256: hash(readFileSync(join(dir, 'brush'))), license: 'MIT', licenseFiles: ['LICENSE'], fileCount: tree.fileCount, treeDigest: tree.treeDigest }))
+      const kept = vendors(platform)
+      check(`the product build vendors the fetched ${platform} pack as before: its manifest carries no patch digest and none is asked`, kept.ok, kept.text)
+    }
+
+    console.log('refusals of the pack build, continued')
     const savedPatch = readFileSync(join(fixture, PATCH), 'utf8')
     writeFileSync(join(fixture, PATCH), savedPatch.replace('    let mut cmd = std::process::Command::new(command_name);', '    nonexistent pinned preimage'))
     const badPatch = buildFixture(['--target', 'windows-x64', '--force'])
