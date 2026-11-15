@@ -110,9 +110,9 @@ const ringOf = async (ctx: Ctx): Promise<string> => (await run({ op: 'console' }
 const ABORTED = (path: string): string => `open failed: net::ERR_ABORTED at ${A.origin}${path}`
 const selfDropped = (url: string, began: number): boolean => {
   const mine = startsOf(url, began)
-  return process.platform === 'win32' && (mine[0] === undefined || mine[0].at - Math.max(began, launchedAt) >= 4500)
+  return process.platform === 'win32' && mine[0] !== undefined && mine[0].at - Math.max(began, launchedAt) >= 4500
 }
-const notStaged = (what: string): void => console.log(`  [SKIP] ${what}: this launch's browser dropped starts of its first navigation by itself (the first one the fixture saw came five seconds late or none came), so the starts that were left went to the fixture's own drops`)
+const notStaged = (what: string): void => console.log(`  [SKIP] ${what}: this launch's browser dropped starts of its first navigation by itself (the first one the fixture saw came five seconds late), so the starts that were left went to the fixture's own drops`)
 
 section('S0 control: the first navigation of a launch that nothing aborts (holds on the parent too)')
 {
