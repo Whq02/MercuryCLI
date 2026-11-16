@@ -74,6 +74,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed mercury install --uninstall on Windows stopping half way and leaving a command that could not run: the command and its PATH entry go, and the files in use are removed once the command has ended.
 - Fixed a Gemini conversation that outgrew the model's window ending on the provider's refusal: the conversation is compacted and the request sent again.
 - Fixed a reader losing their place in the transcript at a ctrl+o flip and when a streaming reply settles.
+- Fixed a render error that ended Mercury when a transcript came to fit its window while the view was scrolled up with the jump pill shown.
 - Fixed a resumed session whose run ended inside a tool call: the call reads as answered, and the card says the session resumed with one failed call.
 - Fixed a resumed session reading "the runner is starting" after its admission was refused.
 - Fixed a hosted chat not telling the end of a short first turn sent while its runner was starting.
@@ -105,8 +106,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed a tab that a link or a script opens sending its first request with its headers in another order than an ordinary navigation's.
 - Fixed a close ending a browser that was still writing its profile, which on a slow machine could lose a cookie or a stored value set just before: a browser that has begun to quit now has ten seconds to finish.
 - Fixed uploads and downloads in the built-in browser failing on Windows from a project with a long path.
-- Fixed a temporary browser profile folder staying behind after Mercury exits while a browser is still open.
-- Fixed leaving Mercury on Windows (with /exit, by closing its window or by stopping its daemon) not running an idle session's session.end hooks and leaving its browser's temporary profile folder behind.
+- Fixed a temporary browser profile folder staying behind on macOS and Linux after Mercury exits while a browser is still open.
 - Fixed letters typed in the composer while a new session was starting sometimes vanishing, or a deleted letter coming back, when the session landed.
 - Fixed the wait estimate beside a local model's status (first byte expected in about …) being far too short for a long prompt: the model's reading pace is measured to its first token, and the remembered pace starts again once.
 - Fixed a chat whose saved local model nothing is serving falling back to the home screen with the chat could not start: the chat opens and says so, and /tensorfold serves the model from inside it.
