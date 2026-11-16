@@ -1778,6 +1778,11 @@ export function Chat({
       };
       const viewport = syncViewport((flipInk as unknown as { rootNode?: ScrollNodeLike }).rootNode) ?? handle.getViewportHeight();
       const freshHeight = handle.getFreshScrollHeight();
+      if (freshHeight <= viewport) {
+        scrollRestoreRef.current = null;
+        handle.scrollToBottom();
+        return;
+      }
       const maxAboveTail = Math.max(0, freshHeight - viewport - 1);
       handle.scrollTo(Math.min(maxAboveTail, Math.max(0, freshHeight - viewport - restore.gap)));
     }

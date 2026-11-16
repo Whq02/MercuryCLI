@@ -12,6 +12,7 @@ import React, {
 } from 'react'
 import { WHEEL_ROWS_PER_NOTCH } from '../../components/mercury-ui/composerFloor.js'
 import { markDirty, scheduleRenderFrom, type DOMElement } from '../dom.js'
+import { LayoutEdge } from '../layout/node.js'
 import { markCommitStart } from '../reconciler.js'
 import type { Styles } from '../styles.js'
 import { markScrollActivity } from '../../bootstrap/state.js'
@@ -43,6 +44,7 @@ export type ScrollBoxHandle = {
   getScrollHeight: () => number
   getFreshScrollHeight: () => number
   getViewportHeight: () => number
+  getFreshViewportHeight: () => number
   getViewportTop: () => number
   getElementTop: (el: DOMElement) => number | undefined
   isSticky: () => boolean
@@ -135,6 +137,12 @@ const ScrollBox = forwardRef<ScrollBoxHandle, ScrollBoxProps>(function ScrollBox
         return layout ? Math.ceil(layout.getComputedHeight()) : 0
       },
       getViewportHeight: () => nodeRef.current?.scroll?.scrollViewportHeight ?? 0,
+      getFreshViewportHeight: () => {
+        const node = nodeRef.current
+        const layout = node?.layoutNode
+        if (!layout) return node?.scroll?.scrollViewportHeight ?? 0
+        return Math.max(0, Math.floor(layout.getComputedHeight()) - layout.getComputedPadding(LayoutEdge.Top) - layout.getComputedPadding(LayoutEdge.Bottom))
+      },
       getViewportTop: () => nodeRef.current?.scroll?.scrollViewportTop ?? 0,
       getElementTop: el => {
         const root = contentRef.current

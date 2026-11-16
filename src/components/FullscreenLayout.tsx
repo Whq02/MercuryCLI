@@ -296,7 +296,7 @@ function JumpPill({
       return (
         handle.getScrollTop() +
           handle.getPendingDelta() +
-          handle.getViewportHeight() <
+          handle.getFreshViewportHeight() <
         handle.getFreshScrollHeight()
       )
     },
