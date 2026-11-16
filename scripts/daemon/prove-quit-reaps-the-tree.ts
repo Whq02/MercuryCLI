@@ -70,7 +70,7 @@ section('§2 the hard kill is a BACKSTOP, not the first road')
   if (decideDaemonReap) {
     const d = decideDaemonReap
     check('win32, the ask settled it ⇒ nothing to kill', d({ platform: 'win32', gracefulAsked: true, stillAlive: false }) === 'already-down')
-    check('win32, the ask did NOT settle it ⇒ the hard kill still fires', d({ platform: 'win32', gracefulAsked: true, stillAlive: true }) === 'hard-kill')
+    check('win32, asked and still up ⇒ left to end itself: it asks its runners, they do their own exit work, and its own bounds end it', d({ platform: 'win32', gracefulAsked: true, stillAlive: true }) === 'asked')
     check('win32, no ask ran at all (a crash) ⇒ the hard kill fires', d({ platform: 'win32', gracefulAsked: false, stillAlive: true }) === 'hard-kill')
     check('posix keeps its signal road unchanged', d({ platform: 'linux', gracefulAsked: false, stillAlive: true }) === 'signal')
     check('posix with a dead daemon does nothing', d({ platform: 'darwin', gracefulAsked: false, stillAlive: false }) === 'already-down')
@@ -83,6 +83,8 @@ section('§3 the ordinary quit runs the ask BEFORE any exit hook')
   check('the reaper registers a cleanup (the async road gracefulShutdown awaits)', /registerCleanup\(/.test(src), 'without it the only road left is TerminateProcess')
   check('the sync exit hook still stands behind it', /process\.once\('exit'/.test(src))
   check('the SIGHUP arm is kept', /process\.once\('SIGHUP'/.test(src))
+  const askAt = src.indexOf("process.once('SIGHUP', () => void askToShutDown())")
+  check('on win32 a closed window (SIGHUP) asks the daemon before the reap decides', askAt >= 0 && askAt < src.indexOf("process.once('SIGHUP', reap)"))
   check('the hard kill is gated on the reap decision', /decideDaemonReap\(/.test(src))
 }
 
