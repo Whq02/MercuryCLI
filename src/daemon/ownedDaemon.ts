@@ -51,9 +51,10 @@ export function decideDaemonReap(facts: {
   platform: NodeJS.Platform
   gracefulAsked: boolean
   stillAlive: boolean
-}): 'already-down' | 'signal' | 'hard-kill' {
+}): 'already-down' | 'signal' | 'hard-kill' | 'asked' {
   if (!facts.stillAlive) return 'already-down'
-  return facts.platform === 'win32' ? 'hard-kill' : 'signal'
+  if (facts.platform !== 'win32') return 'signal'
+  return facts.gracefulAsked ? 'asked' : 'hard-kill'
 }
 
 function daemonAlive(pid: number): boolean {
@@ -72,7 +73,7 @@ export async function shutdownOwnedDaemonGracefully(
     alive?: (pid: number) => boolean
     waitMs?: number
   },
-): Promise<'settled' | 'unsettled'> {
+): Promise<'settled' | 'unsettled' | 'asked'> {
   const alive = opts?.alive ?? daemonAlive
   const waitMs = opts?.waitMs ?? DAEMON_GRACEFUL_WAIT_MS
   const rpc =
@@ -82,13 +83,9 @@ export async function shutdownOwnedDaemonGracefully(
       return daemonControlRpc(req as never, o)
     })
   try {
-    await rpc({ op: 'shutdown', reapWorkers: true }, { timeoutMs: Math.min(waitMs, 2000) })
+    const reply = (await rpc({ op: 'shutdown', reapWorkers: true }, { timeoutMs: Math.min(waitMs, 2000) })) as { ok?: unknown; op?: unknown } | null | undefined
+    if (reply?.ok === true && reply.op === 'shutdown') return 'asked'
   } catch {
-  }
-  const deadline = Date.now() + waitMs
-  while (Date.now() < deadline) {
-    if (!alive(pid)) return 'settled'
-    await new Promise(resolve => setTimeout(resolve, 50))
   }
   return alive(pid) ? 'unsettled' : 'settled'
 }
@@ -123,12 +120,26 @@ function reapDaemonOnSessionExit(pid: number): void {
   reapedPids.add(pid)
   let gracefulAsked = false
   if (process.platform === 'win32') {
-    registerCleanup(async () => {
-      if (!daemonAlive(pid)) return
-      if (anotherLiveCockpitHoldsDaemon(process.pid)) return
+    let asking: Promise<void> | null = null
+    let answered = false
+    const askToShutDown = (): Promise<void> => {
+      if (asking) return asking
+      if (!daemonAlive(pid)) return Promise.resolve()
+      if (anotherLiveCockpitHoldsDaemon(process.pid)) return Promise.resolve()
       gracefulAsked = true
-      const outcome = await shutdownOwnedDaemonGracefully(pid)
-      logForDebugging(`[daemon] the owned daemon (pid ${pid}) was asked to shut down: ${outcome}`)
+      asking = shutdownOwnedDaemonGracefully(pid).then(outcome => {
+        logForDebugging(`[daemon] the owned daemon (pid ${pid}) was asked to shut down: ${outcome}`)
+        answered = outcome === 'asked'
+        if (outcome !== 'unsettled') return
+        gracefulAsked = false
+        reap()
+      })
+      return asking
+    }
+    registerCleanup(askToShutDown)
+    process.once('SIGHUP', () => void askToShutDown())
+    process.once('exit', () => {
+      if (!answered) gracefulAsked = false
     })
   }
   const reap = (): void => {
@@ -138,7 +149,7 @@ function reapDaemonOnSessionExit(pid: number): void {
       gracefulAsked,
       stillAlive: daemonAlive(pid),
     })
-    if (verdict === 'already-down') return
+    if (verdict === 'already-down' || verdict === 'asked') return
     try {
       process.kill(pid, 'SIGTERM')
     } catch {
