@@ -698,6 +698,21 @@ function fillInterior(walk: Walk, layoutNode: LayoutNode, x: number, y: number, 
 
 type RectShift = { top: number; bottom: number; delta: number; x0: number; x1: number }
 
+type RowSpan = { top: number; bottom: number }
+
+function joinedRowSpans(spans: RowSpan[]): RowSpan[] {
+  if (spans.length < 2) return spans
+  spans.sort((a, b) => a.top - b.top)
+  const joined: RowSpan[] = [spans[0]!]
+  for (let i = 1; i < spans.length; i++) {
+    const span = spans[i]!
+    const last = joined[joined.length - 1]!
+    if (span.top <= last.bottom) last.bottom = Math.max(last.bottom, span.bottom)
+    else joined.push(span)
+  }
+  return joined
+}
+
 function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: number, y: number, width: number, height: number, layoutNode: LayoutNode, y1: number | undefined, y2: number | undefined, hasRemovedChild: boolean, boxBackgroundColor: Color | undefined, own: Own, rowSampler?: RowGround): void {
   const { buffer, signals } = walk
   const inOuterScroll = walk.scrollDepth > 0
@@ -888,14 +903,18 @@ function composeScrollBox(node: FrameNode, walk: Walk, placement: Placement, x: 
     buffer.clip({ x1: undefined, x2: undefined, y1: incomingTop, y2: incomingBottom + 1 })
     composeScrolledChildren(content, walk, contentLeft, contentTop, childRemoved, undefined, incomingTop - contentTop, incomingBottom + 1 - contentTop, boxBackgroundColor, true)
     buffer.unclip()
+    const overpainted: RowSpan[] = []
     for (const rect of walk.prevAbsoluteRects) {
       if (rect.y >= bottom + 1 || rect.y + rect.height <= top || rect.x >= Math.floor(x) + columns || rect.x + rect.width <= Math.floor(x)) continue
       const shiftedTop = Math.max(top, Math.floor(rect.y) - delta)
       const shiftedBottom = Math.min(bottom + 1, Math.floor(rect.y + rect.height) - delta)
       if (shiftedTop >= shiftedBottom || (shiftedTop >= incomingTop && shiftedBottom <= incomingBottom + 1)) continue
-      fillGround(buffer, Math.floor(x), shiftedTop, columns, shiftedBottom - shiftedTop, boxBackgroundColor)
-      buffer.clip({ x1: undefined, x2: undefined, y1: shiftedTop, y2: shiftedBottom })
-      composeScrolledChildren(content, walk, contentLeft, contentTop, childRemoved, undefined, shiftedTop - contentTop, shiftedBottom - contentTop, boxBackgroundColor, true)
+      overpainted.push({ top: shiftedTop, bottom: shiftedBottom })
+    }
+    for (const span of joinedRowSpans(overpainted)) {
+      fillGround(buffer, Math.floor(x), span.top, columns, span.bottom - span.top, boxBackgroundColor)
+      buffer.clip({ x1: undefined, x2: undefined, y1: span.top, y2: span.bottom })
+      composeScrolledChildren(content, walk, contentLeft, contentTop, childRemoved, undefined, span.top - contentTop, span.bottom - contentTop, boxBackgroundColor, true)
       buffer.unclip()
     }
   } else {
