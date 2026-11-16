@@ -2686,13 +2686,14 @@ export function operatorTookSessionBack(sessionId: string, dir?: string): boolea
 }
 
 export function withdrawParkRequestsBy(by: string, runnerIds: readonly string[], dir?: string): string[] {
+  const asked = (rec: ConcourseWorkerRecordV1 | undefined): rec is ConcourseWorkerRecordV1 => rec !== undefined && rec.endedAt === undefined && rec.parkRequestedBy === by
   const standing = readSessionWorkers(dir)
-  if (!runnerIds.some(runnerId => standing[runnerId]?.parkRequestedBy === by)) return []
+  if (!runnerIds.some(runnerId => asked(standing[runnerId]))) return []
   const withdrawn: string[] = []
   updateConcourseWorkers(workers => {
     for (const runnerId of runnerIds) {
       const rec = workers[runnerId]
-      if (!rec || rec.endedAt !== undefined || rec.parkedAt !== undefined || rec.parkRequestedAt === undefined || rec.parkRequestedBy !== by) continue
+      if (!asked(rec)) continue
       delete rec.parkRequestedAt
       delete rec.parkRequestedBy
       delete rec.parkRequestedReason

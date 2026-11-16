@@ -12,6 +12,8 @@ const distAt = process.argv.indexOf('--dist')
 const DIST = distAt >= 0 && process.argv[distAt + 1] !== undefined ? process.argv[distAt + 1]! : join(REPO, 'dist', 'mercury.mjs')
 const SCENE = process.env.DRAIN_SCREEN_SCENE
 const REAP = 'daemon:owner-orphaned'
+const NOT_STAGED = 75
+const STAGE_TRIES = 3
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -61,19 +63,21 @@ if (SCENE === undefined) {
     check('the withdrawal exists', typeof withdraw === 'function')
     if (typeof withdraw === 'function') {
       sup.updateConcourseWorkers(workers => {
-        workers['concourse-w1'] = midTurn('1', { parkRequestedAt: now, parkRequestedBy: REAP }) as never
+        workers['concourse-w1'] = midTurn('1', { parkRequestedAt: now, parkRequestedBy: REAP, parkRequestedReason: 'a reason the request carried' }) as never
         workers['concourse-w2'] = midTurn('2', { parkRequestedAt: now, parkRequestedBy: 'operator:2147000000' }) as never
         workers['concourse-w3'] = midTurn('3', { parkRequestedAt: now, parkRequestedBy: REAP, parkRequestedReason: 'another reap asked this one' }) as never
         workers['concourse-w4'] = midTurn('4', { parkedAt: now, parkedBy: REAP }) as never
+        workers['concourse-w10'] = midTurn('10', { endedAt: now, parkRequestedAt: now, parkRequestedBy: REAP }) as never
       }, dir)
-      const withdrawn = withdraw(REAP, ['concourse-w1', 'concourse-w2', 'concourse-w4', 'concourse-w9'], dir)
-      check('of the runners it is given it withdraws the one whose standing park the reap asked for, and says which', withdrawn.join(',') === 'concourse-w1' && rec('1')?.parkRequestedAt === undefined && rec('1')?.parkRequestedBy === undefined, j({ withdrawn, rec: rec('1') }))
+      const withdrawn = withdraw(REAP, ['concourse-w1', 'concourse-w2', 'concourse-w4', 'concourse-w9', 'concourse-w10'], dir)
+      check('of the runners it is given it withdraws the one whose standing park the reap asked for, whole (the reason the request carried goes with it), and says which', withdrawn.join(',') === 'concourse-w1' && rec('1')?.parkRequestedAt === undefined && rec('1')?.parkRequestedBy === undefined && rec('1')?.parkRequestedReason === undefined, j({ withdrawn, rec: rec('1') }))
+      check('a session that ended while the reap waited is not one that keeps its turn: its record is left as it stands and is not named', rec('10')?.parkRequestedAt !== undefined && rec('10')?.parkRequestedBy === REAP, j({ withdrawn, rec: rec('10') }))
       check("a park a window asked for at its own quit stands (it is that window's wish, withdrawn by a focus as before)", rec('2')?.parkRequestedAt !== undefined && rec('2')?.parkRequestedBy === 'operator:2147000000', j(rec('2')))
       check('a runner it was not given keeps its request, whoever asked', rec('3')?.parkRequestedAt !== undefined && rec('3')?.parkRequestedReason === 'another reap asked this one', j(rec('3')))
       check('a session that already parked stays parked', rec('4')?.parkedAt !== undefined, j(rec('4')))
       check('the drain set is what still stands', sup.pendingParkRequests(dir).sort().join(',') === 'concourse-w2,concourse-w3', j(sup.pendingParkRequests(dir)))
       const before = readFileSync(join(dir, 'concourse-delta.json'), 'utf8')
-      const again = withdraw(REAP, ['concourse-w1', 'concourse-w2', 'concourse-w4'], dir)
+      const again = withdraw(REAP, ['concourse-w1', 'concourse-w2', 'concourse-w4', 'concourse-w10'], dir)
       check('with nothing of the reap left to withdraw it answers none and writes nothing', again.length === 0 && readFileSync(join(dir, 'concourse-delta.json'), 'utf8') === before, j({ again }))
     }
   }
@@ -169,29 +173,33 @@ if (SCENE === undefined) {
     console.error(`${DIST} missing — run \`bun run build.ts\` first`)
     process.exit(1)
   }
-  const scenes = ['screen-returns', 'nobody-comes']
-  const runs = await Promise.all(
-    scenes.map(
-      scene =>
-        new Promise<{ scene: string; code: number | null; out: string }>(resolve => {
-          const child = spawn(process.execPath, [import.meta.path, ...process.argv.slice(2)], { env: { ...process.env, DRAIN_SCREEN_SCENE: scene }, stdio: ['ignore', 'pipe', 'pipe'] })
-          let out = ''
-          child.stdout.on('data', chunk => (out += String(chunk)))
-          child.stderr.on('data', chunk => (out += String(chunk)))
-          const guard = setTimeout(() => child.kill('SIGKILL'), 300_000)
-          child.on('close', code => {
-            clearTimeout(guard)
-            resolve({ scene, code, out })
-          })
-        }),
-    ),
-  )
+  type SceneRun = { scene: string; code: number | null; out: string; tries: number }
+  const runScene = (scene: string, tries: number): Promise<SceneRun> =>
+    new Promise<SceneRun>(resolve => {
+      const child = spawn(process.execPath, [import.meta.path, ...process.argv.slice(2)], { env: { ...process.env, DRAIN_SCREEN_SCENE: scene }, stdio: ['ignore', 'pipe', 'pipe'] })
+      let out = ''
+      child.stdout.on('data', chunk => (out += String(chunk)))
+      child.stderr.on('data', chunk => (out += String(chunk)))
+      const guard = setTimeout(() => child.kill('SIGKILL'), 300_000)
+      child.on('close', code => {
+        clearTimeout(guard)
+        resolve({ scene, code, out, tries })
+      })
+    })
+  const staged = async (scene: string): Promise<SceneRun> => {
+    let run = await runScene(scene, 1)
+    while (run.code === NOT_STAGED && run.tries < STAGE_TRIES) run = await runScene(scene, run.tries + 1)
+    return run
+  }
+  const runs = await Promise.all(['screen-returns', 'last-second', 'nobody-comes'].map(staged))
   let red = failures > 0 ? 1 : 0
   for (const run of runs) {
     process.stdout.write(run.out)
+    if (run.tries > 1 && run.code !== NOT_STAGED) console.log(`  (scene ${run.scene} staged at try ${run.tries})`)
     if (run.code !== 0) {
       red++
-      if (!/FAIL/.test(run.out)) console.log(`  [FAIL] scene ${run.scene} ended with ${String(run.code)} and named no failure`)
+      if (run.code === NOT_STAGED) console.log(`  [FAIL] scene ${run.scene} did not stage in ${STAGE_TRIES} tries: its moment was missed each time`)
+      else if (!/FAIL/.test(run.out)) console.log(`  [FAIL] scene ${run.scene} ended with ${String(run.code)} and named no failure`)
     }
   }
   console.log(red === 0 ? '\nprove-orphan-drain-screen-returns: all green' : `\nprove-orphan-drain-screen-returns: ${red} PART(S) RED`)
@@ -199,6 +207,8 @@ if (SCENE === undefined) {
 }
 
 const RETURNS = SCENE === 'screen-returns'
+const LAST = SCENE === 'last-second'
+const NOBODY = SCENE === 'nobody-comes'
 const PROBE = 'drain-probe:'
 const ANSWER_END = 'and it ended by itself'
 const DRAIN_CEILING_MINUTES = '0.35'
@@ -223,7 +233,7 @@ const handshake = await import('../../src/daemon/handshake.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
 const turnCut = await import('../../src/utils/messages/turnCut.ts')
 
-type Rec = { runnerId: string; sessionId: string; pid?: number; focusedBy?: string; parkedAt?: number; parkedBy?: string; parkReason?: string; parkRequestedAt?: number; parkRequestedBy?: string; lastDeliveryAt?: number; lastTurnSettledAt?: number; endedAt?: number }
+type Rec = { runnerId: string; sessionId: string; pid?: number; focusedAt?: number; focusedBy?: string; parkedAt?: number; parkedBy?: string; parkReason?: string; parkRequestedAt?: number; parkRequestedBy?: string; lastDeliveryAt?: number; lastTurnSettledAt?: number; endedAt?: number }
 const recordsFile = join(daemonDir, 'concourse-workers.json')
 const readRec = (sid: string): Rec | undefined => {
   try {
@@ -325,10 +335,10 @@ const daemonEnv: Record<string, string | undefined> = {
 delete daemonEnv.MERCURY_DAEMON_PERSIST
 delete daemonEnv.MERCURY_DAEMON_OWNER_FD
 delete daemonEnv.DRAIN_SCREEN_SCENE
-if (!RETURNS) daemonEnv.MERCURY_DAEMON_OWNER_FD = '3'
+if (NOBODY) daemonEnv.MERCURY_DAEMON_OWNER_FD = '3'
 const logFd = openSync(daemonLogPath, 'a')
-const daemon = spawn('node', [DIST, 'daemon', 'run', work], { cwd: work, env: daemonEnv as NodeJS.ProcessEnv, stdio: RETURNS ? ['ignore', logFd, logFd] : ['ignore', logFd, logFd, 'pipe'] })
-const ownerPipe = RETURNS ? null : (daemon.stdio[3] as import('node:net').Socket | null)
+const daemon = spawn('node', [DIST, 'daemon', 'run', work], { cwd: work, env: daemonEnv as NodeJS.ProcessEnv, stdio: NOBODY ? ['ignore', logFd, logFd, 'pipe'] : ['ignore', logFd, logFd] })
+const ownerPipe = NOBODY ? (daemon.stdio[3] as import('node:net').Socket | null) : null
 ownerPipe?.on('error', () => {})
 const daemonGone = (): boolean => daemon.exitCode !== null || daemon.signalCode !== null
 const cleanup = async (): Promise<void> => {
@@ -354,9 +364,12 @@ const cleanup = async (): Promise<void> => {
 }
 const watchBudget = ownerWatch.OWNER_WATCH_INTERVAL_MS * (ownerWatch.OWNER_WATCH_GRACE_CHECKS + 2) + 12_000
 
+let notStaged = false
 console.log(RETURNS
   ? `\nscreen-returns: the owner dies while a turn runs and a second cockpit comes inside the drain (${CEILING_MS / 1000} s): it takes the ownership, the turn goes on to its own end, the daemon stays and watches it`
-  : `\nnobody-comes: the owner's pipe closes while a turn runs (its pid lives on, its stamp still on the session), a stale stamp comes to name a live pid, and no window comes back: at the ceiling (${CEILING_MS / 1000} s) the turn is cut, the session parks and the daemon leaves`)
+  : LAST
+    ? `\nlast-second: the owner dies while a turn runs and a cockpit comes inside the last second before the ceiling (${CEILING_MS / 1000} s), after every look of the drain but its last: that look takes it and the turn is not cut`
+    : `\nnobody-comes: the owner's pipe closes while a turn runs (its pid lives on, its stamp still on the session), a stale stamp comes to name a live pid, and no window comes back: at the ceiling (${CEILING_MS / 1000} s) the turn is cut, the session parks and the daemon leaves`)
 try {
   check('the daemon serves under an owner', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000), logTail())
   const dispatched = (await daemonControlRpc({
@@ -388,7 +401,7 @@ try {
   const draining = readRec(sid)
   check('the park is asked for by the reap, not applied: the runner keeps its turn and the daemon waits', draining?.parkRequestedAt !== undefined && draining.parkRequestedBy === REAP && draining.parkedAt === undefined && draining.focusedBy === `operator:${owner.pid}` && alive(pid) && !daemonGone(), brief(draining))
 
-  if (!RETURNS) {
+  if (NOBODY) {
     const staleAt = reapAt - 3_600_000
     sup.updateConcourseWorkers(workers => {
       workers['concourse-w90'] = { schema: 1, runnerId: 'concourse-w90', sessionId: '00000000-dddd-4000-8000-000000000090', workspaceId: work, isolation: 'exclusive', modelKey: 'claude-opus-5', spawnedAt: staleAt, lastLiveAt: staleAt, pid: 2_147_000_000, lastDeliveryAt: staleAt, lastTurnSettledAt: staleAt + 1, focusedAt: staleAt, focusedBy: `operator:${cockpit.pid}` } as never
@@ -425,6 +438,25 @@ try {
     check('the cockpit that came goes too and nobody is left: the daemon, which stood until then, watched it, parks what it holds and leaves (no daemon that never ends)', stood && (await untilAsync(daemonGone, watchBudget + 10_000)), `stood ${stood} · ${logTail()}`)
     const left = readRec(sid)
     check('…by a second reap in its log, the session at rest parked at once by that reap, its runner gone', count('no live cockpit remains: parking every active session, then self-reaping') === 2 && daemonLog().includes(`owner pid ${cockpit.pid} gone`) && left?.parkedAt !== undefined && left.parkedBy === REAP && left.parkReason !== sup.PARK_DRAIN_CUT_REASON && (await untilAsync(() => !alive(pid), 10_000)), `${brief(left)} · ${logTail()}`)
+  } else if (LAST) {
+    const aim = reapAt + CEILING_MS - 450
+    await sleep(Math.max(0, aim - Date.now() - 30))
+    while (Date.now() < aim) await sleep(1)
+    const came = await focus(cockpit.pid)
+    const stampedAt = readRec(sid)?.focusedAt
+    const beforeCeiling = stampedAt === undefined ? Number.NaN : reapAt + CEILING_MS - stampedAt
+    if (!(came.outcome === 'applied' && readRec(sid)?.focusedBy === `operator:${cockpit.pid}` && beforeCeiling >= 150 && beforeCeiling <= 800)) {
+      notStaged = true
+      console.log(`  [stage] the cockpit's stamp landed ${beforeCeiling} ms before the ceiling (${j(came)}): the scene needs it between the drain's last two looks, 150 to 800 ms before the ceiling — not staged`)
+    } else {
+      check(`a cockpit stands on the running session ${beforeCeiling} ms before the ceiling: after every look of the drain but the one that follows its last sleep`, true)
+      check('that last look takes it: the hand-over in the log, the park the reap asked for withdrawn, and no cut (red when the drain looks before it sleeps: the last second is never looked at and the turn is cut)', (await untilAsync(() => daemonLog().includes(`the screen came back inside the drain — ownership passes to the live cockpit pid ${cockpit.pid}; the daemon stays up`), 6_000)) && readRec(sid)?.parkRequestedAt === undefined && !/drain ceiling/.test(daemonLog()), `${brief(readRec(sid))} · ${logTail()}`)
+      await sleep(Math.max(0, reapAt + CEILING_MS + 4_000 - Date.now()))
+      const past = readRec(sid)
+      check('four seconds past the ceiling the turn still runs: the runner lives, the session is not parked, the daemon stands, and the transcript holds no cut row', !daemonGone() && alive(pid) && past !== undefined && past.parkedAt === undefined && sup.turnInFlightOf(past as never) && seatStreamsEnded === 0 && !/drain ceiling/.test(daemonLog()) && !/\[Request /.test(transcript()), `daemon gone ${daemonGone()}, runner alive ${alive(pid)}, ${brief(past)}, row ${/\[Request [^\]]*\]/.exec(transcript())?.[0] ?? 'none'} · ${logTail()}`)
+      releaseSeat()
+      check("and it ends by itself: the engine's own answer and a completed turn in the transcript", (await untilAsync(() => transcript().includes(ANSWER_END) && /"metaKind":"turn-end","fields":\{[^}]*"status":"completed"/.test(transcript()), 30_000)) && !/\[Request (?:interrupted by user|cut off)/.test(transcript()), j({ answer: transcript().includes(ANSWER_END), turnEnd: /"metaKind":"turn-end","fields":\{[^}]*\}/.exec(transcript())?.[0] ?? null, cutRow: /\[Request [^\]]*\]/.exec(transcript())?.[0] ?? null }))
+    }
   } else {
     const cut = await untilAsync(() => /was still mid-turn at the drain ceiling — its turn is cut and it parks/.test(daemonLog()), CEILING_MS + 20_000)
     const cutAt = stampOf(/was still mid-turn at the drain ceiling/)
@@ -444,5 +476,6 @@ try {
 } finally {
   await cleanup()
 }
+if (notStaged && failures === 0) process.exit(NOT_STAGED)
 console.log(failures === 0 ? `  scene ${SCENE}: green` : `  scene ${SCENE}: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
