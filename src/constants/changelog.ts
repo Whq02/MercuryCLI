@@ -75,6 +75,8 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed a Gemini conversation that outgrew the model's window ending on the provider's refusal: the conversation is compacted and the request sent again.
 - Fixed a reader losing their place in the transcript at a ctrl+o flip and when a streaming reply settles.
 - Fixed a render error that ended Mercury when a transcript came to fit its window while the view was scrolled up with the jump pill shown.
+- Fixed the context figure staying blank through a session's first turn and not moving while a turn ran: it follows the turn.
+- Fixed a running turn being ended and marked as interrupted by you ten minutes after its window was lost, even with another window open on the session: a window that comes back in that time keeps the turn running, and on macOS and Linux a turn ended because none came back is marked Cut off · the window closed and no window came back.
 - Fixed a resumed session whose run ended inside a tool call: the call reads as answered, and the card says the session resumed with one failed call.
 - Fixed a resumed session reading "the runner is starting" after its admission was refused.
 - Fixed a hosted chat not telling the end of a short first turn sent while its runner was starting.
