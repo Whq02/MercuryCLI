@@ -35,7 +35,7 @@ import {
 } from '../constants/xml.js'
 import { isRemotePath } from '../services/remoteFiles/target.js'
 import { isSqliteRowTarget } from '../tools/FileWriteTool/structuredTargets.js'
-import { isSyntheticMessage } from '../utils/messages.js'
+import { isSyntheticMessage, isTurnCutText } from '../utils/messages.js'
 import { stripDisplayTagsAllowEmpty } from '../utils/displayTags.js'
 import { isAdvisorOrigin, isSaturnOrigin, wrappedNoticeBlocks } from '../utils/messages/noticeRows.js'
 import { createBranchSession } from '../services/branches/branchManifest.js'
@@ -83,13 +83,19 @@ function messageText(message: UserMessage): string {
   return last
 }
 
+function isTurnCutRow(message: UserMessage): boolean {
+  const content = message.message.content
+  const first = Array.isArray(content) ? content[0] : undefined
+  return first?.type === 'text' && isTurnCutText(first.text)
+}
+
 export function selectableUserMessagesFilter(
   message: Message,
 ): message is UserMessage {
   if (message.type !== 'user') return false
   const content = message.message.content
   if (Array.isArray(content) && content[0]?.type === 'tool_result') return false
-  if (isSyntheticMessage(message)) return false
+  if (isSyntheticMessage(message) || isTurnCutRow(message)) return false
   if (message.isMeta) return false
   if (message.isCompactSummary) return false
   if (message.isVisibleInTranscriptOnly) return false
@@ -130,7 +136,7 @@ export function messagesAfterAreOnlySynthetic(
       continue
     }
     if (message.type === 'user') {
-      if (isSyntheticMessage(message)) continue
+      if (isSyntheticMessage(message) || isTurnCutRow(message)) continue
       if (message.isMeta) continue
       const content = message.message.content
       if (Array.isArray(content) && content[0]?.type === 'tool_result') continue

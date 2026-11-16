@@ -52,6 +52,7 @@ import { formatPrintsOutcomeRow, refusedOutcome } from './headless/refusalEnvelo
 import { createRosterTransitionMessage, createSeatReceiptMessage } from '../utils/messages/systemMessages.js'
 import { isToolResultMessage } from '../utils/messages/merge.js'
 import { isLocalCommandCaveat } from '../utils/messages/apiPlan.js'
+import { DRAIN_CUT_WORDS } from '../utils/messages/turnCut.js'
 import { dropCredentialMemos, is1PApiCustomer } from '../utils/auth.js'
 import { noteCrewAccountChange } from '../utils/crew/crewAccountChange.js'
 import { hasClaudeAiBillingAccess, hasConsoleBillingAccess } from '../utils/billing.js'
@@ -1807,10 +1808,10 @@ export async function runHeadless(
   })
 
   let signalCode: number | null = null
-  const settleOnSignal = async (code: number): Promise<void> => {
+  const settleOnSignal = async (code: number, cut?: string): Promise<void> => {
     signalCode = code
     const running = inFlightAbort !== null
-    inFlightAbort?.abort()
+    inFlightAbort?.abort(cut)
     if (running) {
       const deadline = new Promise<void>(resolve => setTimeout(resolve, SIGNAL_SETTLE_MS).unref?.())
       await Promise.race([outcomeAfterAbort(), deadline])
@@ -1821,13 +1822,22 @@ export async function runHeadless(
     while (driver.isRunning()) await new Promise(resolve => setTimeout(resolve, 20))
     await lastOutcomeWritten
   }
+  const hostCutWords = (): string | undefined => {
+    if (!isConcourseWorker) return undefined
+    try {
+      const workers = require('../daemon/concourseWorkers.js') as typeof import('../daemon/concourseWorkers.js')
+      return workers.cutAtDrainCeiling(String(getSessionId()), process.pid) ? DRAIN_CUT_WORDS : undefined
+    } catch {
+      return undefined
+    }
+  }
   process.on('SIGINT', () => {
     logForDiagnosticsNoPII('info', 'headless_shutdown_signal', { signal: 'SIGINT' })
     void settleOnSignal(130)
   })
   process.on('SIGTERM', () => {
     logForDiagnosticsNoPII('info', 'headless_shutdown_signal', { signal: 'SIGTERM' })
-    void settleOnSignal(143)
+    void settleOnSignal(143, hostCutWords())
   })
   process.on('SIGHUP', () => {
     logForDiagnosticsNoPII('info', 'headless_shutdown_signal', { signal: 'SIGHUP' })

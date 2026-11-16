@@ -22,7 +22,7 @@ import { stripTerminalControls } from '../stringUtils.js'
 import { transcriptRows } from './rowGraph.js'
 
 const SKIP_FIRST_PROMPT_PATTERN =
-  /^(?:\s*<[a-z][\w-]*[\s>]|\[Request interrupted by user[^\]]*\])/
+  /^(?:\s*<[a-z][\w-]*[\s>]|\[Request (?:interrupted by user|cut off)[^\]]*\])/
 
 export function extractFirstPrompt(transcript: TranscriptMessage[]): string {
   const textContent = getFirstMeaningfulUserMessageTextContent(transcript)

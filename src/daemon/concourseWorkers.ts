@@ -2475,6 +2475,10 @@ export function parkConcourseSession(
   return out
 }
 
+export function cutAtDrainCeiling(sessionId: string, pid: number, dir?: string): boolean {
+  return Object.values(readSessionWorkers(dir)).some(r => r.sessionId === sessionId && r.pid === pid && r.parkReason === PARK_DRAIN_CUT_REASON)
+}
+
 export const RETIREMENT_EXIT_WAIT_MS = 10_000
 
 export type ConcourseRetireOutcome =
@@ -2681,6 +2685,23 @@ export function operatorTookSessionBack(sessionId: string, dir?: string): boolea
   return withdrawn
 }
 
+export function withdrawParkRequestsBy(by: string, runnerIds: readonly string[], dir?: string): string[] {
+  const standing = readSessionWorkers(dir)
+  if (!runnerIds.some(runnerId => standing[runnerId]?.parkRequestedBy === by)) return []
+  const withdrawn: string[] = []
+  updateConcourseWorkers(workers => {
+    for (const runnerId of runnerIds) {
+      const rec = workers[runnerId]
+      if (!rec || rec.endedAt !== undefined || rec.parkedAt !== undefined || rec.parkRequestedAt === undefined || rec.parkRequestedBy !== by) continue
+      delete rec.parkRequestedAt
+      delete rec.parkRequestedBy
+      delete rec.parkRequestedReason
+      withdrawn.push(runnerId)
+    }
+  }, dir)
+  return withdrawn
+}
+
 export const HOSTLESS_RUNNER_GRACE_MS = 3_000
 
 export async function endRunnersLeftWithoutHost(
@@ -2841,7 +2862,7 @@ export function stampedTerminalPid(by: string | undefined): number | undefined {
   return pid === undefined ? undefined : Number(pid)
 }
 
-export function nextLiveCockpitOwner(exceptPid: number | null, dir?: string): number | undefined {
+export function nextLiveCockpitOwner(exceptPid: number | null, dir?: string, since = 0): number | undefined {
   let best: { pid: number; at: number } | undefined
   for (const rec of Object.values(readSessionWorkers(dir))) {
     if (rec.endedAt !== undefined || rec.parkedAt !== undefined) continue
@@ -2852,6 +2873,7 @@ export function nextLiveCockpitOwner(exceptPid: number | null, dir?: string): nu
       const pid = stampedTerminalPid(by)
       if (pid === undefined || pid === exceptPid || !isProcessAlive(pid)) continue
       const stampedAt = at ?? 0
+      if (stampedAt < since) continue
       if (best === undefined || stampedAt < best.at) best = { pid, at: stampedAt }
     }
   }

@@ -116,6 +116,7 @@ export function scanTailForEndedOnError(tail: string): boolean | undefined {
 
 
 const INTERRUPT_MARKER = '[Request interrupted by user'
+const CUT_MARKER = '[Request cut off'
 const FIRST_PROMPT_MAX = 200
 
 type TextBlockish = { type?: unknown; text?: unknown }
@@ -176,7 +177,7 @@ export function extractFirstPromptFromHead(head: string, opts: { promptsOnly?: b
       const bashInput = /<bash-input>(.*?)<\/bash-input>/.exec(text)
       if (bashInput) return `! ${bashInput[1] as string}`
       if (/^\s*<[a-z]/.test(text)) continue
-      if (text.startsWith(INTERRUPT_MARKER)) continue
+      if (text.startsWith(INTERRUPT_MARKER) || text.startsWith(CUT_MARKER)) continue
       if (text.length > FIRST_PROMPT_MAX) return `${sliceHeadAtGrapheme(text, FIRST_PROMPT_MAX).trim()}…`
       return text
     }
