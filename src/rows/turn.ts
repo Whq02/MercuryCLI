@@ -1300,18 +1300,20 @@ export type AskOptions = Omit<ConversationConfig, 'readFileState' | 'initialMess
   operatorPrompt?: boolean
   turn?: number
   mutableMessages?: Message[]
+  onTurnMessages?: (read: (() => readonly Message[]) | null) => void
   getReadFileCache: () => FileStateCache
   setReadFileCache: (cache: FileStateCache) => void
 }
 
 export async function* ask(options: AskOptions): AsyncGenerator<RowDraft, void, unknown> {
-  const { prompt, promptUuid, isMeta, operatorPrompt, origin, skipSlashCommands, syntaxInput, batchUuids, batchTail, initialNotices, promptMode, turn, mutableMessages = [], getReadFileCache, setReadFileCache, ...config } = options
+  const { prompt, promptUuid, isMeta, operatorPrompt, origin, skipSlashCommands, syntaxInput, batchUuids, batchTail, initialNotices, promptMode, turn, mutableMessages = [], onTurnMessages, getReadFileCache, setReadFileCache, ...config } = options
   const conversation = new Conversation({
     ...config,
     initialMessages: mutableMessages,
     readFileState: cloneFileStateCache(getReadFileCache()),
   })
   const seedLength = mutableMessages.length
+  onTurnMessages?.(() => conversation.getMessages())
   try {
     yield* conversation.turn(prompt, {
       syntaxInput,
@@ -1336,5 +1338,6 @@ export async function* ask(options: AskOptions): AsyncGenerator<RowDraft, void, 
       mutableMessages.length = 0
       mutableMessages.push(...settled)
     }
+    onTurnMessages?.(null)
   }
 }
