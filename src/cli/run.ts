@@ -689,6 +689,7 @@ export async function runHeadless(
     sessionStartHooksPromise: options.sessionStartHooksPromise,
   })
   const messages: Message[] = loaded.messages
+  let turnMessages: (() => readonly Message[]) | null = null
   resumeOf = loaded.resumedSessionId
   turnsRun = priorTurnCount(messages)
   let contentReplacementState = reconstructContentReplacementState(messages, loaded.contentReplacements ?? [])
@@ -1407,6 +1408,9 @@ export async function runHeadless(
           fallbackModel: options.fallbackModel,
           jsonSchema: answerSchema,
           mutableMessages: messages,
+          onTurnMessages: read => {
+            turnMessages = read
+          },
           contentReplacementState,
           getReadFileCache,
           setReadFileCache,
@@ -2386,7 +2390,7 @@ export async function runHeadless(
           hasUnknownModelCost: hasUnknownModelCost(),
           unpricedTurns: getTotalUnpricedTurns(),
           modelSpend: sessionModelSpendRows(),
-          context: { model: activeModel ?? getEngineModel(), ...contextFillView(messages, activeModel ?? getEngineModel()) },
+          context: { model: activeModel ?? getEngineModel(), ...contextFillView(turnMessages?.() ?? messages, activeModel ?? getEngineModel()) },
           limitWarning: providerLimitWarning({ model: activeModel ?? getEngineModel() }),
           ...(() => {
             const observed = openaiObservedUsage()
