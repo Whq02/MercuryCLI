@@ -7,7 +7,9 @@ import { createServer, type Server, type Socket } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-quit-reaps-home-'))
+const HOME = mkdtempSync(join(tmpdir(), 'prove-quit-reaps-home-'))
+process.env.MERCURY_CONFIG_DIR = HOME
+process.env.MERCURY_DAEMON_DIR = join(HOME, 'daemon')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -72,13 +74,15 @@ section('§1 the graceful ask is the first road on win32')
     })
     const waited = Date.now() - began
     check(`a daemon that answers and is still up is not waited for: the front lets the person go and the daemon ends itself by its own bounds (${waited} ms)`, stubborn === 'asked' && waited < 250, `${stubborn} after ${waited} ms`)
-    const { daemonControlRpc } = (await import('../../src/daemon/controlSocket.ts')) as { daemonControlRpc: (req: unknown, o: { timeoutMs: number }) => Promise<{ ok?: boolean; code?: string }> }
-    let own = 'it threw'
-    try {
-      const reply = await daemonControlRpc({ op: 'shutdown', reapWorkers: true }, { timeoutMs: 300 })
-      own = `ok ${String(reply.ok)}, code ${String(reply.code)}`
-    } catch (error) {
-      own = `it threw: ${String(error).slice(0, 120)}`
+    const { daemonControlRpc, daemonDir } = (await import('../../src/daemon/controlSocket.ts')) as { daemonControlRpc: (req: unknown, o: { timeoutMs: number }) => Promise<{ ok?: boolean; code?: string }>; daemonDir: () => string }
+    let own = `not called: the daemon folder it would reach, ${daemonDir()}, is not this proof’s own`
+    if (daemonDir() === join(HOME, 'daemon')) {
+      try {
+        const reply = await daemonControlRpc({ op: 'shutdown', reapWorkers: true }, { timeoutMs: 300 })
+        own = `ok ${String(reply.ok)}, code ${String(reply.code)}`
+      } catch (error) {
+        own = `it threw: ${String(error).slice(0, 120)}`
+      }
     }
     check('the product’s own call to a daemon that is not there does not throw: it answers ok: false', own === 'ok false, code ENOCONN', own)
     const noAnswer = (code: string, alive: boolean): Promise<string> =>
@@ -323,6 +327,7 @@ section('§7 DRIVEN — the front’s own reaper in a process of its own, with a
   rmSync(worlds, { recursive: true, force: true })
 }
 
+rmSync(HOME, { recursive: true, force: true })
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-quit-reaps-the-tree${failures ? ` (${failures} failure(s))` : ''}`)
 console.log('FIELD-OWED: the win32 live confirmation — quit an interactive session on the Windows box and census that the daemon, its seats and their children are all gone (this Mac proves the class call-shaped).')
 process.exit(failures === 0 ? 0 : 1)
