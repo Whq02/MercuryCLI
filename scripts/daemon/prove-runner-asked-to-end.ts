@@ -164,6 +164,10 @@ section('S5 how long the daemon’s own stop waits for the runners it asked')
     order.every(place => place !== -1) && order[0]! < order[1]! && order[1]! < order[2]! && front.includes('const DAEMON_GRACEFUL_WAIT_MS = 1_500') && front.includes("return 'asked'"),
     `in shutdown: ${order.join(', ')}`,
   )
+  check(
+    'behind that wait the daemon’s shutdown arms its own exit, 15 s out, as it begins and outside the steps that can be held up',
+    /await roster\?\.askedSettled\(\)[\s\S]{0,160}\}\)\(\)\s+const bail = setTimeout\(\(\) => process\.exit\(1\), 15_000\)/.test(main),
+  )
 }
 
 section('S6 a respawn for another model or effort ends the runner the same way')
