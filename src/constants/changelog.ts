@@ -107,6 +107,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed a close ending a browser that was still writing its profile, which on a slow machine could lose a cookie or a stored value set just before: a browser that has begun to quit now has ten seconds to finish.
 - Fixed uploads and downloads in the built-in browser failing on Windows from a project with a long path.
 - Fixed a temporary browser profile folder staying behind on macOS and Linux after Mercury exits while a browser is still open.
+- Fixed leaving Mercury on Windows with /exit, by closing its window or by stopping its daemon: an idle session's session.end hooks now run, and a browser it left open no longer leaves its temporary profile folder behind. A session that is ended while a turn is running still leaves that folder.
 - Fixed letters typed in the composer while a new session was starting sometimes vanishing, or a deleted letter coming back, when the session landed.
 - Fixed the wait estimate beside a local model's status (first byte expected in about …) being far too short for a long prompt: the model's reading pace is measured to its first token, and the remembered pace starts again once.
 - Fixed a chat whose saved local model nothing is serving falling back to the home screen with the chat could not start: the chat opens and says so, and /tensorfold serves the model from inside it.
