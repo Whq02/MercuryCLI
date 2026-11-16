@@ -136,6 +136,34 @@ if (SCENE === undefined) {
     const fromHead = portable.extractFirstPromptFromHead(rows.map(record).join('\n'))
     check("the portable head reader (the concourse row's label) passes over them", fromHead === 'the prompt the session was given', fromHead)
   }
+
+  console.log("T the rewind picker and the prompts list pass over a cut's row as they pass over the interrupt's: it is never offered as words of the user's")
+  {
+    const messages = await import('../../src/utils/messages.ts')
+    const selector = await import('../../src/components/MessageSelector.tsx')
+    const panel = await import('../../src/components/prompts-panel/rows.ts')
+    const { DeadlineExceededError } = await import('../../src/utils/deadline.ts')
+    type Row = { message: { content: string | Array<{ type: string; text?: string }> } }
+    const wordsOf = (row: Row): string => (typeof row.message.content === 'string' ? row.message.content : row.message.content.map(block => block.text ?? '').join(''))
+    const GIVEN = 'the prompt the session was given'
+    const words = (turnCut as { DRAIN_CUT_WORDS?: string }).DRAIN_CUT_WORDS
+    const rows: Array<[string, Row]> = [
+      ["the interrupt's row", messages.createUserInterruptionMessage({}) as Row],
+      ["the interrupt's row during tool use", messages.createUserInterruptionMessage({ toolUse: true }) as Row],
+      ["the daemon's cut", messages.createUserInterruptionMessage({ reason: words ?? 'the cut has no sentence here' }) as Row],
+      ["the daemon's cut during tool use", messages.createUserInterruptionMessage({ toolUse: true, reason: words ?? 'the cut has no sentence here' }) as Row],
+      ["a no-progress timeout's cut", messages.createUserInterruptionMessage({ reason: new DeadlineExceededError('a fixture', 3_000, 9_000, 2) }) as Row],
+    ]
+    for (const [name, row] of rows) {
+      const prompt = messages.createUserMessage({ content: GIVEN })
+      const session = [prompt, messages.createAssistantMessage({ content: 'a reply' }), row] as never[]
+      const offered = session.filter(selector.selectableUserMessagesFilter as never).map(m => wordsOf(m as Row))
+      const listed = panel.promptRows(session).map(r => (r as { text?: string }).text ?? '')
+      const afterReply = selector.messagesAfterAreOnlySynthetic(session, 1)
+      const afterPrompt = selector.messagesAfterAreOnlySynthetic([prompt, row] as never[], 0)
+      check(`${name} (${wordsOf(row).slice(0, 44)}…): the rewind picker offers the one prompt, the prompts list reads the one row, and nothing after the reply, or after a prompt cut before any reply, counts as the user's`, offered.join(' | ') === GIVEN && listed.join(' | ') === GIVEN && afterReply && afterPrompt, j({ offered, listed, afterReply, afterPrompt }))
+    }
+  }
   rmSync(scratch, { recursive: true, force: true })
   if (!existsSync(DIST)) {
     console.error(`${DIST} missing — run \`bun run build.ts\` first`)
