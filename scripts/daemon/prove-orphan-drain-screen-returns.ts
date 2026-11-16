@@ -191,7 +191,7 @@ if (SCENE === undefined) {
     while (run.code === NOT_STAGED && run.tries < STAGE_TRIES) run = await runScene(scene, run.tries + 1)
     return run
   }
-  const runs = await Promise.all(['screen-returns', 'last-second', 'nobody-comes'].map(staged))
+  const runs = await Promise.all(['screen-returns', 'last-second', 'handed-over', 'nobody-comes'].map(staged))
   let red = failures > 0 ? 1 : 0
   for (const run of runs) {
     process.stdout.write(run.out)
@@ -208,6 +208,7 @@ if (SCENE === undefined) {
 
 const RETURNS = SCENE === 'screen-returns'
 const LAST = SCENE === 'last-second'
+const HANDED = SCENE === 'handed-over'
 const NOBODY = SCENE === 'nobody-comes'
 const PROBE = 'drain-probe:'
 const ANSWER_END = 'and it ended by itself'
@@ -226,7 +227,7 @@ process.env.MERCURY_DAEMON_DIR = daemonDir
 delete process.env.MERCURY_HOME
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(configDir, [work])
-const { daemonControlRpc, readDaemonState } = await import('../../src/daemon/controlSocket.ts')
+const { daemonControlRpc, readDaemonState, writeDaemonState } = await import('../../src/daemon/controlSocket.ts')
 const sup = await import('../../src/daemon/concourseWorkers.ts')
 const ownerWatch = await import('../../src/daemon/ownerWatch.ts')
 const handshake = await import('../../src/daemon/handshake.ts')
@@ -369,7 +370,9 @@ console.log(RETURNS
   ? `\nscreen-returns: the owner dies while a turn runs and a second cockpit comes inside the drain (${CEILING_MS / 1000} s): it takes the ownership, the turn goes on to its own end, the daemon stays and watches it`
   : LAST
     ? `\nlast-second: the owner dies while a turn runs and a cockpit comes inside the last second before the ceiling (${CEILING_MS / 1000} s), after every look of the drain but its last: that look takes it and the turn is not cut`
-    : `\nnobody-comes: the owner's pipe closes while a turn runs (its pid lives on, its stamp still on the session), a stale stamp comes to name a live pid, and no window comes back: at the ceiling (${CEILING_MS / 1000} s) the turn is cut, the session parks and the daemon leaves`)
+    : HANDED
+      ? `\nhanded-over: the owner dies while a turn runs, the daemon record becomes another daemon's (as it is once a successor has taken the plane and this daemon keeps its running session), and a cockpit comes: this daemon takes it as its owner and leaves the record that is not its own as it stands`
+      : `\nnobody-comes: the owner's pipe closes while a turn runs (its pid lives on, its stamp still on the session), a stale stamp comes to name a live pid, and no window comes back: at the ceiling (${CEILING_MS / 1000} s) the turn is cut, the session parks and the daemon leaves`)
 try {
   check('the daemon serves under an owner', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000), logTail())
   const dispatched = (await daemonControlRpc({
@@ -438,6 +441,20 @@ try {
     check('the cockpit that came goes too and nobody is left: the daemon, which stood until then, watched it, parks what it holds and leaves (no daemon that never ends)', stood && (await untilAsync(daemonGone, watchBudget + 10_000)), `stood ${stood} · ${logTail()}`)
     const left = readRec(sid)
     check('…by a second reap in its log, the session at rest parked at once by that reap, its runner gone', count('no live cockpit remains: parking every active session, then self-reaping') === 2 && daemonLog().includes(`owner pid ${cockpit.pid} gone`) && left?.parkedAt !== undefined && left.parkedBy === REAP && left.parkReason !== sup.PARK_DRAIN_CUT_REASON && (await untilAsync(() => !alive(pid), 10_000)), `${brief(left)} · ${logTail()}`)
+  } else if (HANDED) {
+    const own = await readDaemonState()
+    if (own !== null) await writeDaemonState({ ...own, pid: process.pid, ownerPid: owner.pid ?? null })
+    const planes = await readDaemonState()
+    check("the daemon record is another daemon's: it names a live pid that is not this daemon's (the proof's own, standing for a successor's) and the owner that successor started with", own !== null && own.pid === daemon.pid && planes?.pid === process.pid && planes.ownerPid === owner.pid, j({ own: own === null ? null : { pid: own.pid, ownerPid: own.ownerPid }, planes: planes === null ? null : { pid: planes.pid, ownerPid: planes.ownerPid } }))
+    const came = await focus(cockpit.pid)
+    check('a cockpit comes and the daemon that keeps the running session calls its reap off for it', came.outcome === 'applied' && (await untilAsync(() => daemonLog().includes(`the screen came back inside the drain — ownership passes to the live cockpit pid ${cockpit.pid}; the daemon stays up`), 8_000)) && readRec(sid)?.parkRequestedAt === undefined, `${j(came)} ${brief(readRec(sid))} · ${logTail()}`)
+    await sleep(2_000)
+    const after = await readDaemonState()
+    check("it does not write its new owner into a record that is not its own: two seconds on the record still names the other daemon and the owner that daemon holds (red before: the cockpit's pid written over it)", after?.pid === process.pid && after.ownerPid === owner.pid, j(after === null ? null : { pid: after.pid, ownerPid: after.ownerPid }))
+    const hello = await handshake.handshakeDaemon({ timeoutMs: 3000 })
+    check('asked itself, it names the cockpit that came as its owner', hello.daemon?.pid === daemon.pid && hello.daemon.ownerPid === cockpit.pid, `hello pid=${hello.daemon?.pid ?? 'none'} ownerPid=${hello.daemon?.ownerPid ?? 'none'} state=${hello.state}`)
+    releaseSeat()
+    check("and the turn ends by itself: the engine's own answer and a completed turn in the transcript", (await untilAsync(() => transcript().includes(ANSWER_END) && /"metaKind":"turn-end","fields":\{[^}]*"status":"completed"/.test(transcript()), 30_000)) && !/\[Request (?:interrupted by user|cut off)/.test(transcript()) && !/drain ceiling/.test(daemonLog()), j({ answer: transcript().includes(ANSWER_END), turnEnd: /"metaKind":"turn-end","fields":\{[^}]*\}/.exec(transcript())?.[0] ?? null, cutRow: /\[Request [^\]]*\]/.exec(transcript())?.[0] ?? null }))
   } else if (LAST) {
     const aim = reapAt + CEILING_MS - 450
     await sleep(Math.max(0, aim - Date.now() - 30))

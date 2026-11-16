@@ -1556,7 +1556,7 @@ async function daemonRun(args: string[]): Promise<void> {
     const passOwnership = (next: number): void => {
       currentOwnerPid = next
       void readDaemonState()
-        .then(rec => (rec ? writeDaemonState({ ...rec, ownerPid: next }) : undefined))
+        .then(rec => (rec && rec.pid === process.pid ? writeDaemonState({ ...rec, ownerPid: next }) : undefined))
         .catch(() => {})
       void armOwnerWatch(next, false)
     }
