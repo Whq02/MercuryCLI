@@ -44,6 +44,7 @@ import {
   retireConcourseSession,
   revokeConcourseWorkflows,
   turnInFlightOf,
+  withdrawParkRequestsBy,
   workerPidAlive,
 } from './concourseWorkers.js'
 import { answerPermissionAsk, holdWorkerAsk } from './permissionAsks.js'
@@ -1552,11 +1553,19 @@ async function daemonRun(args: string[]): Promise<void> {
       const bail = setTimeout(() => process.exit(1), 15_000)
       bail.unref?.()
     }
+    const passOwnership = (next: number): void => {
+      currentOwnerPid = next
+      void readDaemonState()
+        .then(rec => (rec ? writeDaemonState({ ...rec, ownerPid: next }) : undefined))
+        .catch(() => {})
+      void armOwnerWatch(next, false)
+    }
     let orphanParking = false
     const parkAllThenShutdown = async (signal: string): Promise<void> => {
       if (orphanParking || shuttingDown) return
       orphanParking = true
       try {
+        const orphaned = currentOwnerPid
         const receipt = parkAllConcourseSessions(`daemon:${signal}`, roster ?? undefined)
         // eslint-disable-next-line no-console
         console.error(
@@ -1564,9 +1573,22 @@ async function daemonRun(args: string[]): Promise<void> {
         )
         const ceilingMs = sessionParkDrainMs()
         const startedDrain = Date.now()
-        while (pendingParkRequests().length > 0 && Date.now() - startedDrain < ceilingMs) {
-          await new Promise(resolve => setTimeout(resolve, 1000))
+        const screenCameBack = (): boolean => {
+          const next = shuttingDown ? undefined : nextLiveCockpitOwner(orphaned)
+          if (next === undefined) return false
+          const kept = withdrawParkRequestsBy(`daemon:${signal}`, receipt.draining)
+          orphanParking = false
+          passOwnership(next)
+          // eslint-disable-next-line no-console
+          console.error(`[daemon] the screen came back inside the drain — ownership passes to the live cockpit pid ${next}; the daemon stays up${kept.length > 0 ? ` and ${kept.join(', ')} ${kept.length === 1 ? 'keeps its turn' : 'keep their turns'} (the park asked at the reap is withdrawn)` : ''}`)
+          return true
         }
+        let calledOff = false
+        while (!calledOff && pendingParkRequests().length > 0 && Date.now() - startedDrain < ceilingMs) {
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          calledOff = screenCameBack()
+        }
+        if (calledOff) return
         for (const short of pendingParkRequests()) {
           const rec = readSessionWorkers()[short]
           if (rec === undefined) continue
@@ -1623,13 +1645,9 @@ async function daemonRun(args: string[]): Promise<void> {
           ownerPipe?.close()
           const next = nextLiveCockpitOwner(pid)
           if (next !== undefined) {
-            currentOwnerPid = next
-            void readDaemonState()
-              .then(rec => (rec ? writeDaemonState({ ...rec, ownerPid: next }) : undefined))
-              .catch(() => {})
+            passOwnership(next)
             // eslint-disable-next-line no-console
             console.error(`[daemon] owner pid ${pid} gone (${why}) — ownership passes to the live cockpit pid ${next}; the daemon stays up`)
-            void armOwnerWatch(next, false)
             return
           }
           // eslint-disable-next-line no-console

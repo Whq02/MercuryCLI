@@ -2681,6 +2681,23 @@ export function operatorTookSessionBack(sessionId: string, dir?: string): boolea
   return withdrawn
 }
 
+export function withdrawParkRequestsBy(by: string, runnerIds: readonly string[], dir?: string): string[] {
+  const standing = readSessionWorkers(dir)
+  if (!runnerIds.some(runnerId => standing[runnerId]?.parkRequestedBy === by)) return []
+  const withdrawn: string[] = []
+  updateConcourseWorkers(workers => {
+    for (const runnerId of runnerIds) {
+      const rec = workers[runnerId]
+      if (!rec || rec.endedAt !== undefined || rec.parkedAt !== undefined || rec.parkRequestedAt === undefined || rec.parkRequestedBy !== by) continue
+      delete rec.parkRequestedAt
+      delete rec.parkRequestedBy
+      delete rec.parkRequestedReason
+      withdrawn.push(runnerId)
+    }
+  }, dir)
+  return withdrawn
+}
+
 export const HOSTLESS_RUNNER_GRACE_MS = 3_000
 
 export async function endRunnersLeftWithoutHost(
