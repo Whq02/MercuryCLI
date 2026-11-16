@@ -1,7 +1,7 @@
 
 import type { ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import type { LooseRow } from '../rows/read.js'
+import { turnWaiting, type LooseRow } from '../rows/read.js'
 import type { InputRow } from '../rows/vocabulary.js'
 import type { PermissionRequestParams, SessionAppliedParams } from '../runner/wire/methods.js'
 import type { RpcError } from '../runner/wire/errors.js'
@@ -68,6 +68,17 @@ interface RosterEntry {
 
 const DELIVERED_ID_CAP = 500
 const EXIT_DRAIN_BACKSTOP_MS = 2_000
+export const RUNNER_ASK_BOUND_MS = 5_000
+
+export function decideRunnerEnd(facts: {
+  platform: NodeJS.Platform
+  signal: NodeJS.Signals
+  turnActive: boolean
+  waitingOnAgents: number
+  inputOpen: boolean
+}): 'ask' | 'kill' {
+  return facts.platform === 'win32' && facts.signal === 'SIGTERM' && !facts.turnActive && facts.waitingOnAgents === 0 && facts.inputOpen ? 'ask' : 'kill'
+}
 
 interface LongLivedSeat {
   spec: RunnerChildSpec
@@ -83,6 +94,7 @@ interface LongLivedSeat {
   contextPct?: number
   turnActive?: boolean
   turnStartedAt?: number
+  waitingOnAgents?: number
   turnEdges: number
   seenDispatchIds?: Set<string>
   clearInFlight?: boolean
@@ -120,6 +132,8 @@ interface RosterOptions {
   onChildRelaunched?: (short: string, pid: number) => void
   onChildReady?: (short: string) => void
   onChildCrashed?: (short: string) => void
+  platform?: NodeJS.Platform
+  runnerAskBoundMs?: number
 }
 
 interface DispatchOutcome {
@@ -135,6 +149,7 @@ export class TaskRoster {
   private readonly handles = new Map<string, WorkerHandle>()
   private inFlight = 0
   private readonly degradedSeats = new Map<string, string>()
+  private readonly asked = new Map<ChildProcess, ReturnType<typeof setTimeout>>()
 
   constructor(private readonly opts: RosterOptions) {}
 
@@ -287,11 +302,48 @@ export class TaskRoster {
     }
     h.entry.state = 'retiring'
     try {
-      if (h.child) killProcessGroup(h.child, signal)
+      if (h.child) this.endChild(short, h, h.child, signal)
     } catch (e) {
       logForDebugging(`[daemon] kill(${short}) error: ${e}`)
     }
     return true
+  }
+
+  private endChild(short: string, h: WorkerHandle, child: ChildProcess, signal: NodeJS.Signals): void {
+    const standing = this.asked.get(child)
+    if (standing !== undefined) {
+      if (signal === 'SIGTERM') return
+      clearTimeout(standing)
+      this.asked.delete(child)
+    }
+    const input = child.stdin
+    const verdict = decideRunnerEnd({
+      platform: this.opts.platform ?? process.platform,
+      signal,
+      turnActive: h.longLived?.turnActive === true,
+      waitingOnAgents: h.longLived?.waitingOnAgents ?? 0,
+      inputOpen: h.longLived !== undefined && standing === undefined && input !== null && input !== undefined && !input.destroyed && !input.writableEnded,
+    })
+    if (verdict === 'kill' || input === null || input === undefined) {
+      killProcessGroup(child, signal)
+      return
+    }
+    logForDebugging(`[daemon] kill(${short}): the runner is idle, so its input is ended and it ends itself; its tree is killed if it stands after the bound`)
+    const bound = setTimeout(() => {
+      this.asked.delete(child)
+      killProcessGroup(child, signal)
+    }, this.opts.runnerAskBoundMs ?? RUNNER_ASK_BOUND_MS)
+    bound.unref?.()
+    this.asked.set(child, bound)
+    child.once('exit', () => {
+      clearTimeout(bound)
+      this.asked.delete(child)
+    })
+    input.end()
+  }
+
+  async askedSettled(): Promise<void> {
+    while (this.asked.size > 0) await new Promise(resolve => setTimeout(resolve, 25))
   }
 
   reapSettled(keepRecent = 0): void {
@@ -442,7 +494,7 @@ export class TaskRoster {
     }
     h.longLived.reconfiguring = true
     try {
-      if (h.child) killProcessGroup(h.child, 'SIGTERM')
+      if (h.child) this.endChild(short, h, h.child, 'SIGTERM')
     } catch (e) {
       logForDebugging(`[daemon] reconfigure(${short}) kill failed: ${e}`)
       h.longLived.reconfiguring = false
@@ -609,6 +661,7 @@ export class TaskRoster {
     ll.running = { model: ll.spec.model, effort: ll.spec.effort }
     ll.turnActive = false
     ll.turnStartedAt = undefined
+    ll.waitingOnAgents = 0
     ll.contextPct = undefined
     ll.lastDeliveredAt = undefined
     ll.clearInFlight = false
@@ -712,6 +765,7 @@ export class TaskRoster {
       ).used
       if (pct !== null) ll.contextPct = pct
     }
+    if (turnWaiting(frame)) ll.waitingOnAgents = typeof frame.agents === 'number' && Number.isFinite(frame.agents) ? Math.max(0, Math.floor(frame.agents)) : 0
     if (isTurnOpenRow(frame)) {
       ll.turnEdges += 1
       if (!ll.turnActive) {
