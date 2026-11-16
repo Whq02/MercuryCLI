@@ -346,6 +346,25 @@ section('§6 rows shrink with none leaving until the view rests at the foot: no 
   }
 }
 
+section('§7 every row folds to one line while the view stands at the top with the pill on: the transcript fits, and the pill goes with no render error')
+{
+  const { m, api } = await mountCockpit(tall(1, 24))
+  const handle = api.handle()!
+  await press(m, PAGE_UP)
+  handle.scrollTo(0)
+  await settle(300)
+  const atTop = keepFrame('7-at-the-top', 'PgUp, then the view at the very top of the tall transcript: the pill on', m)
+  check('the view stands at the top with the pill on and the divider armed (the precondition)', pillRow(atTop) > 0 && api.armed() && handle.getScrollTop() === 0 && !handle.isSticky(), `pill row ${pillRow(atTop) + 1} armed ${api.armed()} offset ${handle.getScrollTop()} sticky ${handle.isSticky()}`)
+  api.setRows(previous => previous.map((row, index) => ({ id: row.id, lines: [`after the fold: row ${index + 1}`] })))
+  await waitFor(() => m.screen().includes('after the fold: row 24') || /render error/i.test(m.screen()), 6000)
+  await settle(400)
+  const fitted = keepFrame('7-folded-to-fit', 'all 24 rows fold to one line each, none leaves: the whole transcript fits the viewport', m)
+  check('the fold paints with no render error', !/render error/i.test(fitted.join('\n')) && transcriptRows(fitted).length === 24, `render error ${/render error/i.test(fitted.join('\n'))} rows ${transcriptRows(fitted).length}`)
+  check('no pill stands over a transcript that fits its viewport', eitherPillRow(fitted) === -1, foot(fitted))
+  m.unmount()
+  await settle(80)
+}
+
 if (frameDir !== undefined) {
   const index = ['The jump pill after the transcript shrinks or grows: source renders of the real cockpit at 178x51. One file per state.', ...frames.map(frame => `${frame.name}.txt | ${frame.note}`)]
   writeFileSync(join(frameDir, 'index.txt'), index.join('\n') + '\n')
