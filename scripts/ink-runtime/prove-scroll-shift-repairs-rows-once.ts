@@ -58,7 +58,7 @@ type Shape = 'reaching' | 'tidy'
 type Overlay = { top?: number; bottom?: number; height: number; text: string }
 
 const PILL: Overlay = { bottom: 0, height: 1, text: '[ back to the bottom ]' }
-const APART: Overlay[] = [{ top: 0, height: 1, text: '== a banner over the first row ==' }, { top: 8, height: 3, text: '[ a card three rows tall, in the middle of the pane ]' }, PILL]
+const APART: Overlay[] = [{ top: 8, height: 1, text: '[ a card over a row in the middle ]' }, { top: 0, height: 1, text: '== a banner over the first row ==' }, PILL]
 
 function makeWorld(ctx: ComposeContext, cols: number, rows: number, count: number, shape: Shape, regionScroll: boolean, overlays: Overlay[]) {
   const root = createNode('ink-root')
@@ -162,7 +162,7 @@ for (const regionScroll of [true, false]) {
   check(`${road}: level, and equal to a whole repaint`, !r.stopped && Math.max(...r.handed) <= 2 * Math.max(1, r.handed[0]!) && Math.max(...r.ops) <= 2 * r.ops[0]! && r.drift === null, `rects ${say(r.handed)}; operations ${say(r.ops)}; ${r.drift ?? 'no drift'}`)
 }
 
-console.log('\n§4 Three overlays apart from each other: each span of rows between them is repaired, not the first alone')
+console.log('\n§4 Three overlays apart from each other, the lower one first in the tree: each span of rows is repaired, in the order of the screen')
 for (const shape of ['tidy', 'reaching'] as const) {
   for (const regionScroll of [true, false]) {
     const road = regionScroll ? 'region scroll' : 'rect shift'
