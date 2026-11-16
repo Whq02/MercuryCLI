@@ -55,8 +55,12 @@ const words = (text: string): DOMElement => {
 }
 
 type Shape = 'reaching' | 'tidy'
+type Overlay = { top?: number; bottom?: number; height: number; text: string }
 
-function makeWorld(ctx: ComposeContext, cols: number, rows: number, count: number, shape: Shape, regionScroll: boolean, pillRows: number) {
+const PILL: Overlay = { bottom: 0, height: 1, text: '[ back to the bottom ]' }
+const APART: Overlay[] = [{ top: 0, height: 1, text: '== a banner over the first row ==' }, { top: 8, height: 3, text: '[ a card three rows tall, in the middle of the pane ]' }, PILL]
+
+function makeWorld(ctx: ComposeContext, cols: number, rows: number, count: number, shape: Shape, regionScroll: boolean, overlays: Overlay[]) {
   const root = createNode('ink-root')
   applySceneStyle(root, { flexDirection: 'column', width: cols, height: rows })
   const list = box({ flexDirection: 'column', width: cols, flexShrink: 0 })
@@ -74,8 +78,9 @@ function makeWorld(ctx: ComposeContext, cols: number, rows: number, count: numbe
   const scroller = box({ flexDirection: 'column', width: cols, height: rows, overflowX: 'scroll', overflowY: 'scroll' }, [content])
   setAttribute(scroller, 'stickyScroll', true)
   appendChildNode(root, scroller)
-  if (pillRows > 0) {
-    appendChildNode(root, box({ position: 'absolute', bottom: 0, left: 0, width: cols, height: pillRows }, [words('[ back to the bottom ]')]))
+  for (const overlay of overlays) {
+    const place = overlay.top !== undefined ? { top: overlay.top } : { bottom: overlay.bottom ?? 0 }
+    appendChildNode(root, box({ position: 'absolute', left: 0, width: cols, height: overlay.height, ...place }, [words(overlay.text)]))
   }
   const render = createRenderer(root, ctx.stylePool)
   let front = emptyFrame(rows, cols, ctx.stylePool, ctx.charPool, ctx.hyperlinkPool)
@@ -94,12 +99,11 @@ function makeWorld(ctx: ComposeContext, cols: number, rows: number, count: numbe
 
 type Reading = { handed: number[]; ops: number[]; shifted: number[]; drift: string | null; stopped: boolean }
 
-function wheelUp(shape: Shape, regionScroll: boolean, pillRows: number, steps: number): Reading {
+function wheelUp(shape: Shape, regionScroll: boolean, overlays: Overlay[], steps: number, rows = 12): Reading {
   const cols = 40
-  const rows = 12
   const ctx = makeContext()
-  const live = makeWorld(ctx, cols, rows, 30, shape, regionScroll, pillRows)
-  const fresh = makeWorld(ctx, cols, rows, 30, shape, regionScroll, pillRows)
+  const live = makeWorld(ctx, cols, rows, 50, shape, regionScroll, overlays)
+  const fresh = makeWorld(ctx, cols, rows, 50, shape, regionScroll, overlays)
   live.paint(false)
   fresh.paint(true)
   const reading: Reading = { handed: [], ops: [], shifted: [], drift: null, stopped: false }
@@ -135,7 +139,7 @@ const say = (values: number[]): string => values.join(', ')
 console.log('§1 Rows whose text runs past its own box: nine one-row wheel steps hand the next frame a list that does not grow')
 for (const regionScroll of [true, false]) {
   const road = regionScroll ? 'region scroll' : 'rect shift'
-  const r = wheelUp('reaching', regionScroll, 0, STEPS)
+  const r = wheelUp('reaching', regionScroll, [], STEPS)
   check(`${road}: the scene is the one in question: every step moved rows by reuse of the frame before, and its rows reach past their boxes`, r.shifted.length > 0 && r.shifted.every(cells => cells > 0) && r.handed[0]! > 0, `reused cells per step ${say(r.shifted)}; rects handed on ${say(r.handed)}`)
   check(`${road}: the rects handed to the next frame hold level over ${STEPS} steps`, !r.stopped && r.handed.length === STEPS && Math.max(...r.handed) <= 2 * r.handed[0]!, `rects handed on per step: ${say(r.handed)}${r.stopped ? ' (stopped: forty times the first step)' : ''}`)
   check(`${road}: the painter's work per step holds level`, !r.stopped && Math.max(...r.ops) <= 2 * r.ops[0]!, `operations per step: ${say(r.ops)}`)
@@ -145,7 +149,7 @@ for (const regionScroll of [true, false]) {
 console.log('\n§2 The same under an overlay that stands over the pane (the pill): its rows are repaired, once')
 for (const regionScroll of [true, false]) {
   const road = regionScroll ? 'region scroll' : 'rect shift'
-  const r = wheelUp('reaching', regionScroll, 1, STEPS)
+  const r = wheelUp('reaching', regionScroll, [PILL], STEPS)
   check(`${road}: the rects handed on hold level`, !r.stopped && r.handed.length === STEPS && Math.max(...r.handed) <= 2 * r.handed[0]!, `rects handed on per step: ${say(r.handed)}${r.stopped ? ' (stopped: forty times the first step)' : ''}`)
   check(`${road}: the painter's work per step holds level`, !r.stopped && Math.max(...r.ops) <= 2 * r.ops[0]!, `operations per step: ${say(r.ops)}`)
   check(`${road}: every step paints what a whole repaint paints`, r.drift === null, r.drift ?? '')
@@ -154,8 +158,18 @@ for (const regionScroll of [true, false]) {
 console.log('\n§3 Control: rows that keep inside their boxes were level before and are level now')
 for (const regionScroll of [true, false]) {
   const road = regionScroll ? 'region scroll' : 'rect shift'
-  const r = wheelUp('tidy', regionScroll, 1, STEPS)
+  const r = wheelUp('tidy', regionScroll, [PILL], STEPS)
   check(`${road}: level, and equal to a whole repaint`, !r.stopped && Math.max(...r.handed) <= 2 * Math.max(1, r.handed[0]!) && Math.max(...r.ops) <= 2 * r.ops[0]! && r.drift === null, `rects ${say(r.handed)}; operations ${say(r.ops)}; ${r.drift ?? 'no drift'}`)
+}
+
+console.log('\n§4 Three overlays apart from each other: each span of rows between them is repaired, not the first alone')
+for (const shape of ['tidy', 'reaching'] as const) {
+  for (const regionScroll of [true, false]) {
+    const road = regionScroll ? 'region scroll' : 'rect shift'
+    const r = wheelUp(shape, regionScroll, APART, STEPS, 20)
+    check(`${shape} rows, ${road}: every step paints what a whole repaint paints, under the banner, the card and the pill alike`, r.drift === null, r.drift ?? '')
+    check(`${shape} rows, ${road}: the rects handed on and the painter's work hold level`, !r.stopped && r.handed.length === STEPS && Math.max(...r.handed) <= 2 * Math.max(1, r.handed[0]!) && Math.max(...r.ops) <= 2 * r.ops[0]!, `rects ${say(r.handed)}; operations ${say(r.ops)}`)
+  }
 }
 
 console.log(`\n${checks} checks, ${failures} failed`)
