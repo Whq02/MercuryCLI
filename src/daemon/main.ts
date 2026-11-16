@@ -1544,7 +1544,6 @@ async function daemonRun(args: string[]): Promise<void> {
         if (restartAfterTeardown) spawnSuccessorDaemon()
         await daemonLock?.release().catch(() => {})
         daemonLock = null
-        await roster?.askedSettled()
         clearInterval(keepAlive)
         resolveShutdown()
         setTimeout(() => process.exit(0), 250)
