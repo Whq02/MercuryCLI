@@ -84,7 +84,7 @@ export function sessionPromptFromWindow(chunk: string, builtIn: (name: string) =
         }
         const shell = /<bash-input>([\s\S]*?)<\/bash-input>/.exec(flat)?.[1]
         if (shell) return `! ${shell}`
-        if (/^(?:\s*<[a-z][\w-]*[\s>]|\[Request interrupted by user[^\]]*\])/.test(flat)) continue
+        if (/^(?:\s*<[a-z][\w-]*[\s>]|\[Request (?:interrupted by user|cut off)[^\]]*\])/.test(flat)) continue
         return clippedPrompt(flat)
       }
     } catch {}

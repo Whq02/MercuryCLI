@@ -41,29 +41,31 @@ const alive = (pid: number | undefined): boolean => {
 }
 
 if (SCENE === undefined) {
+  const scratch = mkdtempSync(join(tmpdir(), 'drain-screen-law-'))
+  const dir = join(scratch, 'daemon')
+  mkdirSync(join(scratch, 'home'), { recursive: true })
+  mkdirSync(dir, { recursive: true })
+  process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
+  process.env.MERCURY_DAEMON_DIR = dir
+  delete process.env.MERCURY_HOME
+  const sup = await import('../../src/daemon/concourseWorkers.ts')
+  const turnCut = await import('../../src/utils/messages/turnCut.ts')
+  const now = Date.now()
+  const sid = (tail: string): string => `00000000-dddd-4000-8000-${tail.padStart(12, '0')}`
+  const midTurn = (n: string, extra: Record<string, unknown>): Record<string, unknown> => ({ schema: 1, runnerId: `concourse-w${n}`, sessionId: sid(n), workspaceId: scratch, isolation: 'exclusive', modelKey: 'claude-sonnet-5', spawnedAt: now - 60_000, lastLiveAt: now - 60_000, pid: process.pid, lastDeliveryAt: now - 1_000, lastTurnSettledAt: now - 5_000, ...extra })
+  const rec = (n: string): { parkRequestedAt?: number; parkRequestedBy?: string; parkRequestedReason?: string; parkedAt?: number; parkReason?: string } | undefined => sup.readSessionWorkers(dir)[`concourse-w${n}`]
+
   console.log('P the record law: calling the reap off withdraws the parks that reap asked for, and no other')
   {
-    const scratch = mkdtempSync(join(tmpdir(), 'drain-screen-law-'))
-    const dir = join(scratch, 'daemon')
-    mkdirSync(join(scratch, 'home'), { recursive: true })
-    mkdirSync(dir, { recursive: true })
-    process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
-    process.env.MERCURY_DAEMON_DIR = dir
-    delete process.env.MERCURY_HOME
-    const sup = await import('../../src/daemon/concourseWorkers.ts')
     const withdraw = (sup as { withdrawParkRequestsBy?: (by: string, runnerIds: readonly string[], dir?: string) => string[] }).withdrawParkRequestsBy
     check('the withdrawal exists', typeof withdraw === 'function')
     if (typeof withdraw === 'function') {
-      const now = Date.now()
-      const sid = (tail: string): string => `00000000-dddd-4000-8000-${tail.padStart(12, '0')}`
-      const midTurn = (n: string, extra: Record<string, unknown>): Record<string, unknown> => ({ schema: 1, runnerId: `concourse-w${n}`, sessionId: sid(n), workspaceId: scratch, isolation: 'exclusive', modelKey: 'claude-sonnet-5', spawnedAt: now - 60_000, lastLiveAt: now - 60_000, pid: process.pid, lastDeliveryAt: now - 1_000, lastTurnSettledAt: now - 5_000, ...extra })
       sup.updateConcourseWorkers(workers => {
         workers['concourse-w1'] = midTurn('1', { parkRequestedAt: now, parkRequestedBy: REAP }) as never
         workers['concourse-w2'] = midTurn('2', { parkRequestedAt: now, parkRequestedBy: 'operator:2147000000' }) as never
         workers['concourse-w3'] = midTurn('3', { parkRequestedAt: now, parkRequestedBy: REAP, parkRequestedReason: 'another reap asked this one' }) as never
         workers['concourse-w4'] = midTurn('4', { parkedAt: now, parkedBy: REAP }) as never
       }, dir)
-      const rec = (n: string): { parkRequestedAt?: number; parkRequestedBy?: string; parkRequestedReason?: string; parkedAt?: number } | undefined => sup.readSessionWorkers(dir)[`concourse-w${n}`]
       const withdrawn = withdraw(REAP, ['concourse-w1', 'concourse-w2', 'concourse-w4', 'concourse-w9'], dir)
       check('of the runners it is given it withdraws the one whose standing park the reap asked for, and says which', withdrawn.join(',') === 'concourse-w1' && rec('1')?.parkRequestedAt === undefined && rec('1')?.parkRequestedBy === undefined, j({ withdrawn, rec: rec('1') }))
       check("a park a window asked for at its own quit stands (it is that window's wish, withdrawn by a focus as before)", rec('2')?.parkRequestedAt !== undefined && rec('2')?.parkRequestedBy === 'operator:2147000000', j(rec('2')))
@@ -74,8 +76,54 @@ if (SCENE === undefined) {
       const again = withdraw(REAP, ['concourse-w1', 'concourse-w2', 'concourse-w4'], dir)
       check('with nothing of the reap left to withdraw it answers none and writes nothing', again.length === 0 && readFileSync(join(dir, 'concourse-delta.json'), 'utf8') === before, j({ again }))
     }
-    rmSync(scratch, { recursive: true, force: true })
   }
+
+  console.log('Q a runner reads from its own record alone that the daemon parked it as a turn cut at the drain ceiling')
+  {
+    const cutAt = (sup as { cutAtDrainCeiling?: (sessionId: string, pid: number, dir?: string) => boolean }).cutAtDrainCeiling
+    check('the reading exists', typeof cutAt === 'function')
+    if (typeof cutAt === 'function') {
+      sup.updateConcourseWorkers(workers => {
+        workers['concourse-w5'] = midTurn('5', { parkRequestedAt: now, parkRequestedBy: REAP }) as never
+        workers['concourse-w6'] = midTurn('6', { parkRequestedAt: now, parkRequestedBy: REAP }) as never
+        workers['concourse-w7'] = midTurn('7', { parkedAt: now, parkedBy: 'daemon:stop', parkReason: 'parked — the daemon was stopped' }) as never
+      }, dir)
+      const before = cutAt(sid('5'), process.pid, dir)
+      const killed: string[] = []
+      const cut = sup.parkConcourseSession(sid('5'), REAP, { kill: short => (killed.push(short), true) }, dir, { afterTurn: false, reason: sup.PARK_DRAIN_CUT_REASON })
+      check("the daemon's cut lands the park, with its reason, in the very step that asks for the kill: when that call returns the record on disk reads as a cut at the ceiling (and did not before)", before === false && cut.outcome === 'applied' && killed.join(',') === 'concourse-w5' && rec('5')?.parkedAt !== undefined && rec('5')?.parkReason === sup.PARK_DRAIN_CUT_REASON && cutAt(sid('5'), process.pid, dir) === true, j({ before, cut, killed, rec: rec('5') }))
+      const group = readFileSync(join(REPO, 'src', 'utils', 'processGroup.ts'), 'utf8')
+      const posixAt = group.indexOf('async function endPosixTree(')
+      const posix = posixAt === -1 ? '' : group.slice(posixAt, group.indexOf('\n}\n', posixAt))
+      const tableAt = posix.indexOf('await listPosixProcessTable()')
+      const signalAt = posix.indexOf('process.kill(-pid, signal)')
+      check("…and the kill's signal leaves in a later step than that call (the roster ends a runner's tree through the one owner, which reads the process table before it signals), so the runner hears of the cut after its record says it", readFileSync(join(REPO, 'src', 'daemon', 'roster.ts'), 'utf8').includes('killProcessGroup(child, signal)') && group.includes('void endProcessTree(childProcess, signal)') && tableAt !== -1 && signalAt !== -1 && tableAt < signalAt, j({ posixAt, tableAt, signalAt }))
+      check('the reading is of that runner alone: the same session under another pid reads no, and so does another session under the same pid, and a session nobody holds', cutAt(sid('5'), process.pid + 1, dir) === false && cutAt(sid('6'), process.pid, dir) === false && cutAt(sid('9'), process.pid, dir) === false)
+      check('a park that is only asked for (a signal for any other cause while the drain still waits) reads no, and so does a park for another reason', rec('6')?.parkRequestedAt !== undefined && rec('6')?.parkedAt === undefined && rec('7')?.parkedAt !== undefined && cutAt(sid('7'), process.pid, dir) === false, j({ six: rec('6'), seven: rec('7') }))
+    }
+  }
+
+  console.log("R the sentence is a cut's, never the operator's interrupt, and the readers of a session's prompt pass over a cut row as they pass over an interrupt")
+  {
+    const words = (turnCut as { DRAIN_CUT_WORDS?: string }).DRAIN_CUT_WORDS
+    check("the sentence is the owner's (16 Nov 2026)", words === 'the window closed and no window came back', String(words))
+    const cut = turnCut.turnCutOf(words ?? 'no sentence')
+    check('as an abort reason it is a cut with its words, and its row is not the interrupt row', words !== undefined && cut.kind === 'cut' && cut.detail === words && turnCut.turnCutLine(cut, false) === `[Request cut off: ${words}]` && turnCut.turnCutLine(cut, true) === `[Request cut off during tool use: ${words}]` && turnCut.turnCutLine(cut, false) !== turnCut.INTERRUPT_MESSAGE, j(cut))
+    check('the stored row reads back as that cut, with the words a window paints after "Cut off"', turnCut.turnCutOfText(`[Request cut off: ${words}]`)?.kind === 'cut' && turnCut.turnCutWhy(turnCut.turnCutOfText(`[Request cut off: ${words}]`) ?? { kind: 'operator' }) === words)
+    const chain = await import('../../src/utils/sessionStorage/chain.ts')
+    const sessionIndex = await import('../../src/utils/sessionStorage/sessionIndex.ts')
+    const portable = await import('../../src/utils/sessionStoragePortable.ts')
+    const rows = ['[Request cut off: any words a cut carries]', '[Request cut off during tool use: any words a cut carries]', '[Request cut off by a no-progress timeout (the provider went quiet)]', '[Request interrupted by user]', 'the prompt the session was given']
+    const message = (text: string): unknown => ({ type: 'user', message: { role: 'user', content: [{ type: 'text', text }] } })
+    const record = (text: string): string => JSON.stringify({ schemaVersion: 1, payload: { kind: 'input', content: [{ kind: 'text', text }], meta: {} } })
+    const fromChain = chain.getFirstMeaningfulUserMessageTextContent(rows.map(message) as never)
+    check("the transcript writer's reader (it keeps a session's last prompt) passes over the cut rows", fromChain === 'the prompt the session was given', String(fromChain))
+    const fromWindow = sessionIndex.sessionPromptFromWindow(rows.map(record).join('\n'))
+    check("the session index's reader passes over them", fromWindow === 'the prompt the session was given', fromWindow)
+    const fromHead = portable.extractFirstPromptFromHead(rows.map(record).join('\n'))
+    check("the portable head reader (the concourse row's label) passes over them", fromHead === 'the prompt the session was given', fromHead)
+  }
+  rmSync(scratch, { recursive: true, force: true })
   if (!existsSync(DIST)) {
     console.error(`${DIST} missing — run \`bun run build.ts\` first`)
     process.exit(1)
@@ -132,6 +180,7 @@ const sup = await import('../../src/daemon/concourseWorkers.ts')
 const ownerWatch = await import('../../src/daemon/ownerWatch.ts')
 const handshake = await import('../../src/daemon/handshake.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const turnCut = await import('../../src/utils/messages/turnCut.ts')
 
 type Rec = { runnerId: string; sessionId: string; pid?: number; focusedBy?: string; parkedAt?: number; parkedBy?: string; parkReason?: string; parkRequestedAt?: number; parkRequestedBy?: string; lastDeliveryAt?: number; lastTurnSettledAt?: number; endedAt?: number }
 const recordsFile = join(daemonDir, 'concourse-workers.json')
@@ -333,6 +382,13 @@ try {
     const parked = readRec(sid)
     check('the session is parked as a turn cut at the drain ceiling, and its runner is gone', parked?.parkedAt !== undefined && parked.parkedBy === REAP && parked.parkReason === sup.PARK_DRAIN_CUT_REASON && (await untilAsync(() => !alive(pid), 10_000)), brief(parked))
     check('the model was asked once and the fixture never let its reply go: the turn was cut, not finished', seatStreams === 1 && seatStreamsEnded === 0, `streams ${seatStreams}, ended ${seatStreamsEnded}`)
+    const words = (turnCut as { DRAIN_CUT_WORDS?: string }).DRAIN_CUT_WORDS
+    const cutRow = (): string => /\[Request [^\]]*\]/.exec(transcript())?.[0] ?? 'none'
+    check("the transcript's row for the cut says what it was, in the owner's sentence, and is not the user's interrupt (red before the row's mend: [Request interrupted by user])", (await untilAsync(() => cutRow() !== 'none', 10_000)) && typeof words === 'string' && cutRow() === `[Request cut off: ${words}]` && !transcript().includes('[Request interrupted by user'), `the row reads ${cutRow()}`)
+    const turnEnd = /"metaKind":"turn-end","fields":\{[^}]*\}/.exec(transcript())?.[0] ?? 'none'
+    check("the turn's end is a cut's (failed), never an interrupt's", /"status":"failed"/.test(turnEnd) && !/"status":"interrupted"/.test(transcript()), turnEnd)
+    const lastPrompts = [...transcript().matchAll(/"metaKind":"last-prompt","fields":\{"lastPrompt":"((?:[^"\\]|\\.)*)"/g)].map(m => m[1] ?? '')
+    check("the session keeps the words it was given as its last prompt: the cut's row is not taken for one", lastPrompts.length > 0 && !lastPrompts.some(text => text.startsWith('[Request')), j(lastPrompts.map(text => text.slice(0, 80))))
   }
 } finally {
   await cleanup()

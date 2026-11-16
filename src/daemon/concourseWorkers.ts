@@ -2475,6 +2475,10 @@ export function parkConcourseSession(
   return out
 }
 
+export function cutAtDrainCeiling(sessionId: string, pid: number, dir?: string): boolean {
+  return Object.values(readSessionWorkers(dir)).some(r => r.sessionId === sessionId && r.pid === pid && r.parkReason === PARK_DRAIN_CUT_REASON)
+}
+
 export const RETIREMENT_EXIT_WAIT_MS = 10_000
 
 export type ConcourseRetireOutcome =
