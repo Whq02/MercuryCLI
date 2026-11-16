@@ -73,7 +73,7 @@ export async function shutdownOwnedDaemonGracefully(
     alive?: (pid: number) => boolean
     waitMs?: number
   },
-): Promise<'settled' | 'unsettled'> {
+): Promise<'settled' | 'unsettled' | 'asked'> {
   const alive = opts?.alive ?? daemonAlive
   const waitMs = opts?.waitMs ?? DAEMON_GRACEFUL_WAIT_MS
   const rpc =
@@ -84,14 +84,10 @@ export async function shutdownOwnedDaemonGracefully(
     })
   try {
     await rpc({ op: 'shutdown', reapWorkers: true }, { timeoutMs: Math.min(waitMs, 2000) })
+    return 'asked'
   } catch {
+    return alive(pid) ? 'unsettled' : 'settled'
   }
-  const deadline = Date.now() + waitMs
-  while (Date.now() < deadline) {
-    if (!alive(pid)) return 'settled'
-    await new Promise(resolve => setTimeout(resolve, 50))
-  }
-  return alive(pid) ? 'unsettled' : 'settled'
 }
 
 const DAEMON_GRACEFUL_WAIT_MS = 1_500
@@ -132,6 +128,9 @@ function reapDaemonOnSessionExit(pid: number): void {
       gracefulAsked = true
       asking = shutdownOwnedDaemonGracefully(pid).then(outcome => {
         logForDebugging(`[daemon] the owned daemon (pid ${pid}) was asked to shut down: ${outcome}`)
+        if (outcome !== 'unsettled') return
+        gracefulAsked = false
+        reap()
       })
       return asking
     }

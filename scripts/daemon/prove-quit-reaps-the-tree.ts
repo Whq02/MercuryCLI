@@ -46,7 +46,7 @@ section('§1 the graceful ask is the first road on win32')
     })
     check('it asks the daemon to shut down through the control socket', asked !== null && (asked as { op?: string }).op === 'shutdown', JSON.stringify(asked))
     check('…and asks for the SEATS to be reaped with it (the orphan estate)', (asked as { reapWorkers?: boolean } | null)?.reapWorkers === true, JSON.stringify(asked))
-    check('a daemon that settles reports settled', settled === 'settled', settled)
+    check('a daemon that answers is left to end itself (asked)', settled === 'asked', settled)
     const unreachable = await shutdownOwnedDaemonGracefully(4242, {
       rpc: async () => {
         throw new Error('no socket')
@@ -55,12 +55,22 @@ section('§1 the graceful ask is the first road on win32')
       waitMs: 300,
     })
     check('an unreachable daemon reports unsettled (never a claim of a clean stop)', unreachable === 'unsettled', unreachable)
+    const gone = await shutdownOwnedDaemonGracefully(4242, {
+      rpc: async () => {
+        throw new Error('no socket')
+      },
+      alive: () => false,
+      waitMs: 300,
+    })
+    check('a daemon that does not answer and is already down reports settled', gone === 'settled', gone)
+    const began = Date.now()
     const stubborn = await shutdownOwnedDaemonGracefully(4242, {
       rpc: async () => ({ ok: true, op: 'shutdown', reaped: 0 }),
       alive: () => true,
       waitMs: 300,
     })
-    check('a daemon that answers but does not go down reports unsettled (bounded, never a hang)', stubborn === 'unsettled', stubborn)
+    const waited = Date.now() - began
+    check(`a daemon that answers and is still up is not waited for: the front lets the person go and the daemon ends itself by its own bounds (${waited} ms)`, stubborn === 'asked' && waited < 250, `${stubborn} after ${waited} ms`)
   }
 }
 
@@ -85,6 +95,7 @@ section('§3 the ordinary quit runs the ask BEFORE any exit hook')
   check('the SIGHUP arm is kept', /process\.once\('SIGHUP'/.test(src))
   const askAt = src.indexOf("process.once('SIGHUP', () => void askToShutDown())")
   check('on win32 a closed window (SIGHUP) asks the daemon before the reap decides', askAt >= 0 && askAt < src.indexOf("process.once('SIGHUP', reap)"))
+  check('…and a daemon that does not answer the ask meets the hard kill at once', /if \(outcome !== 'unsettled'\) return\s+gracefulAsked = false\s+reap\(\)/.test(src))
   check('the hard kill is gated on the reap decision', /decideDaemonReap\(/.test(src))
 }
 

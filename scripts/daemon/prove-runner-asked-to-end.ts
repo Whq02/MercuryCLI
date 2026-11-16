@@ -160,8 +160,8 @@ section('S5 how long the daemon’s own stop waits for the runners it asked')
   const order = ['roster.kill(j.short)', 'await roster?.askedSettled()', 'setTimeout(() => process.exit(0), 250)'].map(text => stop.indexOf(text))
   const front = readFileSync(join(ROOT, 'src', 'daemon', 'ownedDaemon.ts'), 'utf8')
   check(
-    'the daemon’s shutdown waits for them after it has struck its runners and before its own exit, and the front waits for its daemon the 1.5 s it did',
-    order.every(place => place !== -1) && order[0]! < order[1]! && order[1]! < order[2]! && front.includes('const DAEMON_GRACEFUL_WAIT_MS = 1_500'),
+    'the daemon’s shutdown waits for them after it has struck its runners and before its own exit, and the front waits 1.5 s at most for its daemon’s answer, not for its end',
+    order.every(place => place !== -1) && order[0]! < order[1]! && order[1]! < order[2]! && front.includes('const DAEMON_GRACEFUL_WAIT_MS = 1_500') && front.includes("return 'asked'"),
     `in shutdown: ${order.join(', ')}`,
   )
 }
