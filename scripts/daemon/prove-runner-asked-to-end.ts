@@ -159,10 +159,12 @@ section('S5 how long the daemon’s own stop waits for the runners it asked')
   const stop = main.slice(main.indexOf('const shutdown = (signal: string) => {'), main.indexOf('const bail = setTimeout(() => process.exit(1), 15_000)'))
   const order = ['roster.kill(j.short)', 'await roster?.askedSettled()', 'setTimeout(() => process.exit(0), 250)'].map(text => stop.indexOf(text))
   const front = readFileSync(join(ROOT, 'src', 'daemon', 'ownedDaemon.ts'), 'utf8')
+  const askFrom = front.indexOf('export async function shutdownOwnedDaemonGracefully(')
+  const ask = askFrom === -1 ? '' : front.slice(askFrom, front.indexOf('\n}\n', askFrom))
   check(
     'the daemon’s shutdown waits for them after it has struck its runners and before its own exit, and the front waits 1.5 s at most for its daemon’s answer, not for its end',
-    order.every(place => place !== -1) && order[0]! < order[1]! && order[1]! < order[2]! && front.includes('const DAEMON_GRACEFUL_WAIT_MS = 1_500') && front.includes("return 'asked'"),
-    `in shutdown: ${order.join(', ')}`,
+    order.every(place => place !== -1) && order[0]! < order[1]! && order[1]! < order[2]! && front.includes('const DAEMON_GRACEFUL_WAIT_MS = 1_500') && ask.includes("return 'asked'") && !ask.includes('setTimeout'),
+    `in shutdown: ${order.join(', ')}; the front’s ask answers asked: ${ask.includes("return 'asked'")}, and holds a wait of its own: ${ask.includes('setTimeout')}`,
   )
   check(
     'behind that wait the daemon’s shutdown arms its own exit, 15 s out, as it begins and outside the steps that can be held up',
