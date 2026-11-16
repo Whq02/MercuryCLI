@@ -225,6 +225,19 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
       `first=${back.includes('FIRST-ROW')} tail=${back.includes('TAIL-END')} pill=${back.includes(PILL)}`,
     )
 
+    appendRow(createAssistantMessage({ content: 'ARRIVED-FIRST a row that lands while the reader watches the tail' }))
+    let one = ''
+    try {
+      one = await waitScreenSettled(`${tag} one row arriving after the flip`, frame => frame.includes('ARRIVED-FIRST') || renderError(frame), 6000)
+    } catch {
+      one = m.screen()
+    }
+    check(
+      `${tag}: the first row that arrives afterwards is painted with no "new" divider above it (the reader is at the tail and has seen everything)`,
+      one.includes('ARRIVED-FIRST') && !/\d+ new ─/.test(one) && !renderError(one),
+      `arrived=${one.includes('ARRIVED-FIRST')} divider=${/\d+ new ─/.exec(one)?.[0] ?? 'none'} render error=${renderError(one)}`,
+    )
+
     const arriving = rows + 6
     for (let n = 0; n < arriving; n++) appendRow(createAssistantMessage({ content: `ARRIVED-${String(n).padStart(2, '0')} a row that lands after the reader came back` }))
     const last = `ARRIVED-${String(arriving - 1).padStart(2, '0')}`
@@ -238,6 +251,18 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
       `${tag}: rows that arrive afterwards are followed to the newest one, with no jump pill (the view stayed pinned to its tail)`,
       followed.includes(last) && !followed.includes('TAIL-END') && !followed.includes(PILL) && !renderError(followed),
       `newest=${followed.includes(last)} the old tail still shown=${followed.includes('TAIL-END')} pill=${followed.includes(PILL)} render error=${renderError(followed)}`,
+    )
+    m.push(WHEEL_UP)
+    let away = ''
+    try {
+      away = await waitScreenSettled(`${tag} one notch up after the rows`, frame => frame.includes('alt+↓') || renderError(frame), 6000)
+    } catch {
+      away = m.screen()
+    }
+    check(
+      `${tag}: a later scroll up shows the plain jump pill, not a count of rows the reader watched arrive`,
+      away.includes(PILL) && !/\d+ new messages?/.test(away) && !renderError(away),
+      `pill=${/\[ [^\]]* alt\+↓ \]/.exec(away)?.[0] ?? 'none'} render error=${renderError(away)}`,
     )
     process.off('uncaughtException', onError)
     process.off('unhandledRejection', onError)

@@ -1734,6 +1734,7 @@ export function Chat({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const unseen = useUnseenDivider(messages.length, scrollRef);
   const captureScrollForFlip = useCallback(() => {
     const handle = scrollRef.current;
     if (!handle) {
@@ -1780,6 +1781,8 @@ export function Chat({
       const freshHeight = handle.getFreshScrollHeight();
       if (freshHeight <= viewport) {
         scrollRestoreRef.current = null;
+        unseen.dividerYRef.current = null;
+        unseen.onRepin();
         handle.scrollToBottom();
         return;
       }
@@ -2088,7 +2091,6 @@ export function Chat({
   const centredModalUp = (localJsx && fullscreen) || compactDetailUp;
   const displayedMessages = inVirtualTranscript ? transcriptMessages : paintedMessages;
 
-  const unseen = useUnseenDivider(messages.length, scrollRef);
   const rekeyedSessionRef = useRef(focusedSessionId);
   useEffect(() => {
     compactWork.set('composer');
