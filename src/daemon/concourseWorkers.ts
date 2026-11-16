@@ -2862,7 +2862,7 @@ export function stampedTerminalPid(by: string | undefined): number | undefined {
   return pid === undefined ? undefined : Number(pid)
 }
 
-export function nextLiveCockpitOwner(exceptPid: number | null, dir?: string): number | undefined {
+export function nextLiveCockpitOwner(exceptPid: number | null, dir?: string, since = 0): number | undefined {
   let best: { pid: number; at: number } | undefined
   for (const rec of Object.values(readSessionWorkers(dir))) {
     if (rec.endedAt !== undefined || rec.parkedAt !== undefined) continue
@@ -2873,6 +2873,7 @@ export function nextLiveCockpitOwner(exceptPid: number | null, dir?: string): nu
       const pid = stampedTerminalPid(by)
       if (pid === undefined || pid === exceptPid || !isProcessAlive(pid)) continue
       const stampedAt = at ?? 0
+      if (stampedAt < since) continue
       if (best === undefined || stampedAt < best.at) best = { pid, at: stampedAt }
     }
   }

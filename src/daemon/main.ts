@@ -1565,16 +1565,15 @@ async function daemonRun(args: string[]): Promise<void> {
       if (orphanParking || shuttingDown) return
       orphanParking = true
       try {
-        const orphaned = currentOwnerPid
+        const startedDrain = Date.now()
         const receipt = parkAllConcourseSessions(`daemon:${signal}`, roster ?? undefined)
         // eslint-disable-next-line no-console
         console.error(
           `[daemon] the screen is gone — parking every active session: parked ${receipt.parked.length}, draining ${receipt.draining.length} (finishing their turns), released ${receipt.released.length} newborn(s), skipped ${receipt.skipped.length}${receipt.refused.length > 0 ? `, refused ${receipt.refused.join(', ')}` : ''}`,
         )
         const ceilingMs = sessionParkDrainMs()
-        const startedDrain = Date.now()
         const screenCameBack = (): boolean => {
-          const next = shuttingDown ? undefined : nextLiveCockpitOwner(orphaned)
+          const next = shuttingDown ? undefined : nextLiveCockpitOwner(null, undefined, startedDrain)
           if (next === undefined) return false
           const kept = withdrawParkRequestsBy(`daemon:${signal}`, receipt.draining)
           orphanParking = false

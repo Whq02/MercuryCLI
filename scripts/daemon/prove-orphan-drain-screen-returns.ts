@@ -78,6 +78,19 @@ if (SCENE === undefined) {
     }
   }
 
+  console.log("S the drain's look counts a stamp only when it was written since the reap began; the look at the moment the owner goes counts any")
+  {
+    const sDir = join(scratch, 'daemon-stamps')
+    mkdirSync(sDir, { recursive: true })
+    const stampedAt = now - 60_000
+    sup.updateConcourseWorkers(workers => {
+      workers['concourse-w1'] = midTurn('1', { focusedAt: stampedAt, focusedBy: `operator:${process.pid}` }) as never
+    }, sDir)
+    const look = sup.nextLiveCockpitOwner as (exceptPid: number | null, dir?: string, since?: number) => number | undefined
+    check('a stamp that names a live pid is a cockpit to the look that reads any stamp, and to a look that began before the stamp was written or in its very millisecond', look(null, sDir) === process.pid && look(null, sDir, stampedAt - 1) === process.pid && look(null, sDir, stampedAt) === process.pid, j([look(null, sDir), look(null, sDir, stampedAt - 1), look(null, sDir, stampedAt)]))
+    check('to a look that began after it was written the same stamp is nobody: a pid that lives says nothing about who wrote a stamp older than the reap', look(null, sDir, stampedAt + 1) === undefined && look(null, sDir, now) === undefined, j([look(null, sDir, stampedAt + 1), look(null, sDir, now)]))
+  }
+
   console.log('Q a runner reads from its own record alone that the daemon parked it as a turn cut at the drain ceiling')
   {
     const cutAt = (sup as { cutAtDrainCeiling?: (sessionId: string, pid: number, dir?: string) => boolean }).cutAtDrainCeiling
@@ -315,7 +328,7 @@ const watchBudget = ownerWatch.OWNER_WATCH_INTERVAL_MS * (ownerWatch.OWNER_WATCH
 
 console.log(RETURNS
   ? `\nscreen-returns: the owner dies while a turn runs and a second cockpit comes inside the drain (${CEILING_MS / 1000} s): it takes the ownership, the turn goes on to its own end, the daemon stays and watches it`
-  : `\nnobody-comes: the owner's pipe closes while a turn runs (its pid lives on, its stamp still on the session) and nobody comes back: at the ceiling (${CEILING_MS / 1000} s) the turn is cut, the session parks and the daemon leaves`)
+  : `\nnobody-comes: the owner's pipe closes while a turn runs (its pid lives on, its stamp still on the session), a stale stamp comes to name a live pid, and no window comes back: at the ceiling (${CEILING_MS / 1000} s) the turn is cut, the session parks and the daemon leaves`)
 try {
   check('the daemon serves under an owner', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000), logTail())
   const dispatched = (await daemonControlRpc({
@@ -346,6 +359,16 @@ try {
   const reapAt = stampOf(/the screen is gone — parking every active session/) ?? Date.now()
   const draining = readRec(sid)
   check('the park is asked for by the reap, not applied: the runner keeps its turn and the daemon waits', draining?.parkRequestedAt !== undefined && draining.parkRequestedBy === REAP && draining.parkedAt === undefined && draining.focusedBy === `operator:${owner.pid}` && alive(pid) && !daemonGone(), brief(draining))
+
+  if (!RETURNS) {
+    const staleAt = reapAt - 3_600_000
+    sup.updateConcourseWorkers(workers => {
+      workers['concourse-w90'] = { schema: 1, runnerId: 'concourse-w90', sessionId: '00000000-dddd-4000-8000-000000000090', workspaceId: work, isolation: 'exclusive', modelKey: 'claude-opus-5', spawnedAt: staleAt, lastLiveAt: staleAt, pid: 2_147_000_000, lastDeliveryAt: staleAt, lastTurnSettledAt: staleAt + 1, focusedAt: staleAt, focusedBy: `operator:${cockpit.pid}` } as never
+    })
+    await sleep(3_000)
+    const held = readRec(sid)
+    check("inside the drain a stamp an hour older than the reap comes to name a live pid (what a dead window's stamp reads as once another program takes its pid; here the proof writes it, for a process of its own): three seconds on the daemon has not taken that process for a window (red before the guard: the reap called off for it, the daemon staying for as long as it lives)", alive(cockpit.pid) && !/the screen came back|ownership passes/.test(daemonLog()) && held?.parkRequestedAt !== undefined && held.parkRequestedBy === REAP && !daemonGone(), `${brief(held)} · ${logTail()}`)
+  }
 
   if (RETURNS) {
     const came = await focus(cockpit.pid)
@@ -378,7 +401,7 @@ try {
     const cut = await untilAsync(() => /was still mid-turn at the drain ceiling — its turn is cut and it parks/.test(daemonLog()), CEILING_MS + 20_000)
     const cutAt = stampOf(/was still mid-turn at the drain ceiling/)
     check('nobody comes: the turn is cut at the ceiling, not before it', cut && cutAt !== null && cutAt - reapAt >= CEILING_MS - 1_500 && cutAt - reapAt <= CEILING_MS + 10_000, `cut ${cut}, ${cutAt === null ? 'no stamp' : `${cutAt - reapAt} ms after the reap began`} · ${logTail()}`)
-    check("the daemon leaves, and the owner it lost is never the cockpit that came back: its pid lives and its stamp stands on the session the whole drain", (await untilAsync(daemonGone, 20_000)) && /owner-orphaned — shutting down/.test(daemonLog()) && !/ownership passes|the screen came back/.test(daemonLog()) && alive(owner.pid), `owner alive ${alive(owner.pid)} · ${logTail()}`)
+    check("the daemon leaves, and no stamp older than its reap was a window that came back: not the stale one, and not its lost owner's, whose pid lives and whose stamp stands on the session the whole drain", (await untilAsync(daemonGone, 20_000)) && /owner-orphaned — shutting down/.test(daemonLog()) && !/ownership passes|the screen came back/.test(daemonLog()) && alive(owner.pid) && alive(cockpit.pid), `owner alive ${alive(owner.pid)}, the other process alive ${alive(cockpit.pid)} · ${logTail()}`)
     const parked = readRec(sid)
     check('the session is parked as a turn cut at the drain ceiling, and its runner is gone', parked?.parkedAt !== undefined && parked.parkedBy === REAP && parked.parkReason === sup.PARK_DRAIN_CUT_REASON && (await untilAsync(() => !alive(pid), 10_000)), brief(parked))
     check('the model was asked once and the fixture never let its reply go: the turn was cut, not finished', seatStreams === 1 && seatStreamsEnded === 0, `streams ${seatStreams}, ended ${seatStreamsEnded}`)
