@@ -256,7 +256,66 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           $archive = Get-Item release-out/*.zip
-          bun run scripts/release/prove-windows-launcher.ts --archive $archive.FullName
+          bun run scripts/release/prove-windows-launcher.ts
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $work = Join-Path $env:RUNNER_TEMP 'launcher-archive'
+          if (Test-Path -LiteralPath $work) { Remove-Item -Recurse -Force -LiteralPath $work }
+          New-Item -ItemType Directory -Path $work | Out-Null
+          $unpacked = Join-Path $work 'unpacked'
+          Expand-Archive -LiteralPath $archive.FullName -DestinationPath $unpacked
+          $check = Join-Path $work 'launcher-archive-check.mjs'
+          @'
+          import { spawnSync } from 'node:child_process'
+          import { createHash } from 'node:crypto'
+          import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+          import { basename, join } from 'node:path'
+          import { pathToFileURL } from 'node:url'
+          const [root, archive, dest, scratch] = process.argv.slice(2)
+          const { checkWindowsLauncher } = await import(pathToFileURL(join(root, 'scripts/release/windowsLauncher.mjs')).href)
+          const targets = ['windows-x64', 'windows-arm64']
+          const target = targets.find(t => basename(archive).includes(t))
+          if (!target) throw new Error(`archive name has no Windows target: ${archive}`)
+          let failed = 0
+          let passed = 0
+          const check = (name, yes) => { console.log(`${yes ? 'PASS' : 'FAIL'} ${name}`); if (yes) passed++; else failed++ }
+          const sha = value => createHash('sha256').update(value).digest('hex')
+          const payload = join(dest, 'mercury')
+          const binary = join(payload, 'mercury.exe')
+          const checked = checkWindowsLauncher(binary, target)
+          const manifest = JSON.parse(readFileSync(join(payload, 'manifest.json'), 'utf8'))
+          const member = manifest.releaseLayout.members.find(m => m.path === 'mercury.exe')
+          check(`${target}: the archive carries the native PE, CMD and PowerShell launchers`, checked.bytes > 512 && existsSync(join(payload, 'mercury.cmd')) && existsSync(join(payload, 'mercury.ps1')))
+          check(`${target}: the archive manifest binds the executable`, member.role === 'launcher' && member.sha256 === checked.sha256 && member.bytes === checked.bytes)
+          const verify = spawnSync('node', [join(root, 'scripts/release/verifyArchive.mjs'), '--archive', archive, '--expect', basename(archive).includes('-unsigned.') ? 'unsigned' : 'signed'], { encoding: 'utf8', timeout: 300_000 })
+          check(`${target}: verifyArchive accepts the packaged archive`, verify.status === 0)
+          if (verify.status !== 0) console.error(verify.stdout, verify.stderr)
+          mkdirSync(scratch, { recursive: true })
+          const sums = join(scratch, `${target}-SHA256SUMS.txt`)
+          writeFileSync(sums, targets.map(t => `${t === target ? sha(readFileSync(archive)) : '0'.repeat(64)}  mercury-v${manifest.version}-${t}.zip`).join('\n') + '\n')
+          const manifests = spawnSync('node', [join(root, 'scripts/release/winget-manifest.mjs'), '--version', manifest.version, '--sums', sums, '--out', join(scratch, target), '--zip', archive], { encoding: 'utf8' })
+          check(`${target}: WinGet generator accepts the zip and writes its three manifests`, manifests.status === 0 && ['.yaml', '.installer.yaml', '.locale.en-US.yaml'].every(suffix => existsSync(join(scratch, target, 'manifests/m/MercuryCLI/MercuryCLI', manifest.version, `MercuryCLI.MercuryCLI${suffix}`))))
+          if (manifests.status !== 0) console.error(manifests.stdout, manifests.stderr)
+          console.log(`${passed} passed, ${failed} failed`)
+          process.exit(failed ? 1 : 0)
+          '@ | Set-Content -LiteralPath $check -Encoding utf8
+          bun run $check $PWD.Path $archive.FullName $unpacked (Join-Path $work 'winget')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Read the legacy extractor on this runner
+        if: matrix.target == 'windows-arm64' && always()
+        continue-on-error: true
+        timeout-minutes: 5
+        run: |
+          $archive = Get-Item release-out/*.zip
+          $dest = Join-Path $env:RUNNER_TEMP 'launcher-legacy'
+          $env:PROOF_ARCHIVE = $archive.FullName
+          $env:PROOF_DEST = $dest
+          $said = & powershell.exe -NoProfile -Command 'Expand-Archive -LiteralPath $env:PROOF_ARCHIVE -DestinationPath $env:PROOF_DEST' 2>&1
+          "legacy Expand-Archive exit code: $LASTEXITCODE"
+          $said | Select-Object -First 20 | ForEach-Object { "$_" }
+          "files under the destination: " + (Get-ChildItem -Recurse -File -LiteralPath $dest -ErrorAction SilentlyContinue | Measure-Object).Count
+          "mercury.exe stands: " + (Test-Path -LiteralPath (Join-Path $dest 'mercury\mercury.exe'))
+          Get-ChildItem -LiteralPath $dest -ErrorAction SilentlyContinue | Select-Object -First 12 | ForEach-Object { $_.FullName }
+          exit 0
       - name: remove the signing key file
         if: always()
         shell: bash
