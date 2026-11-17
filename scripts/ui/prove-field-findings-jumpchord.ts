@@ -73,7 +73,7 @@ console.log('§2 the transcript viewer — PgUp paints the pill, PgDn clears it,
     const res = spawnSync('/usr/bin/python3', [join(ROOT, 'scripts', 'ui', 'vshot.py'), cfgPath], {
       encoding: 'utf8',
       timeout: vshotBudgetMs(120_000),
-      env: { ...process.env, MERCURY_CONFIG_DIR: CONFIG_HOME, MERCURY_OPERATOR: 'op', MERCURY_CHANNEL_ROOM: `jumpchord-${process.pid}` },
+      env: { ...process.env, MERCURY_CONFIG_DIR: CONFIG_HOME, MERCURY_OPERATOR: 'op' },
     })
     check('the viewer journey delivered every send', res.status === 0, (res.stderr ?? '').trim().slice(-300))
     if (res.status === 0) {
