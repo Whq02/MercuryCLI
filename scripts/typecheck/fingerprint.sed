@@ -1,4 +1,3 @@
-
 s/\(([0-9]+),([0-9]+)\)//
 
 s/but it is exported as '[^']*'/but it is exported as '~'/

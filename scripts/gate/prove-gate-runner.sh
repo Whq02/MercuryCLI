@@ -6,7 +6,7 @@ fail=0
 work=$(mktemp -d "${TMPDIR:-/tmp}/gate-runner-proof.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 
-mk_suite() { # $1=name  $2=body
+mk_suite() {
   mkdir -p "$work/$1"
   printf '#!/usr/bin/env bash\n%s\n' "$2" >"$work/$1/run-all.sh"
 }

@@ -46,7 +46,7 @@ static func _used_cells(args: Dictionary, ctx: MercuryVulcanContext) -> Dictiona
 	if t.has("err"):
 		return t.err
 	var used: Array = t.node.call("get_used_cells", t.layer) if t.layered else t.node.call("get_used_cells")
-	var rect = t.node.call("get_used_rect")  # no layer arg on either class (TileMap's spans all layers)
+	var rect = t.node.call("get_used_rect")
 	var sample: Array = []
 	for c in used:
 		sample.append([c.x, c.y])

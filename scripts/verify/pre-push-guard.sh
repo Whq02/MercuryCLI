@@ -21,7 +21,7 @@ targets=()
 while read -r _localref localsha _remoteref _remotesha; do
   [ -z "${localsha:-}" ] && continue
   case "$localsha" in
-    *[!0]*) targets+=("$localsha") ;;   # all-zero = a branch deletion
+    *[!0]*) targets+=("$localsha") ;;
   esac
 done
 if [ "${#targets[@]}" -eq 0 ]; then targets=("$(git rev-parse HEAD)"); fi

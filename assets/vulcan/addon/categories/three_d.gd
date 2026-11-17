@@ -32,7 +32,7 @@ static func _mesh_create(args: Dictionary, ctx: MercuryVulcanContext) -> Diction
 		return r.err
 	var parent: Node = r.node
 	var shape := String(args.get("shape", "box")).to_lower()
-	var mesh = null  # untyped: each primitive subclass has its own size props
+	var mesh = null
 	match shape:
 		"box":
 			mesh = BoxMesh.new()

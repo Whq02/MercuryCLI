@@ -30,7 +30,7 @@ if [ "$WARM" -eq 1 ]; then
 else
   NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=4096" "$TSC" --noEmit -p "$CFG" > "$raw" 2>&1
 fi
-rc=$?   # 0 clean · 2 diagnostics present (tsc 6.0.3 reports
+rc=$?
 MAXOK=2
 if [ "$rc" -gt "$MAXOK" ]; then
   echo "❌ typecheck — tsc aborted mid-run (exit $rc): output is untrustworthy, not clean"

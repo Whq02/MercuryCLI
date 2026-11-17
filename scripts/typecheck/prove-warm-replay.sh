@@ -13,7 +13,7 @@ printf '{"compilerOptions":{"strict":true,"noEmit":true},"files":["%s/a.ts","%s/
 : >"$work/baseline.txt"
 : >"$work/hard-zero.txt"
 
-run_tc() { # $1 = '' | '--warm' → echoes rc; output to $work/last.out
+run_tc() {
   (
     cd "$repo" \
       && MERCURY_TYPECHECK_CFG="$work/tsconfig.json" \

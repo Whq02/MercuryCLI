@@ -17,7 +17,7 @@ git -C . rev-parse --git-dir >/dev/null 2>&1 || true
     && echo v1 >src.txt && git add -A && git commit -qm one
 )
 
-content_tree() { # of $repo's working content (the build.ts / verdict idiom)
+content_tree() {
   local ti t
   ti=$(mktemp)
   t=$(cd "$repo" \
@@ -27,7 +27,7 @@ content_tree() { # of $repo's working content (the build.ts / verdict idiom)
   rm -f "$ti"
   printf '%s' "$t"
 }
-stamp() { # $1=buildTree|null  $2=degraded-json
+stamp() {
   python3 - "$repo/dist/manifest.json" "$1" "$2" <<'PY'
 import json, sys
 tree = None if sys.argv[2] == 'null' else sys.argv[2]
@@ -35,7 +35,7 @@ json.dump({'schema': 1, 'buildTree': tree, 'degraded': json.loads(sys.argv[3])},
           open(sys.argv[1], 'w'))
 PY
 }
-expect() { # $1=label $2=want-rc $3=want-prefix
+expect() {
   local out rc
   out=$(bash "$check" "$repo" 2>&1); rc=$?
   if [ "$rc" = "$2" ] && printf '%s' "$out" | grep -q "^$3"; then

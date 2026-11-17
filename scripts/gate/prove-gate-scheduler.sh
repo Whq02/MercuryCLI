@@ -6,7 +6,7 @@ fail=0
 work=$(mktemp -d "${TMPDIR:-/tmp}/gate-sched-proof.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 
-mk_suite() { # $1=dom  $2=class-header-line (may be empty)  $3=body
+mk_suite() {
   mkdir -p "$work/suites/$1"
   {
     echo '#!/usr/bin/env bash'
@@ -15,7 +15,7 @@ mk_suite() { # $1=dom  $2=class-header-line (may be empty)  $3=body
   } >"$work/suites/$1/run-all.sh"
 }
 
-ts_body() { # $1=dom — record a start/end wall-clock window, hold it 1.2s
+ts_body() {
   echo "python3 -c 'import time;print(time.time())' >'$work/ts/$1.start'; sleep 1.2; python3 -c 'import time;print(time.time())' >'$work/ts/$1.end'"
 }
 
@@ -39,7 +39,7 @@ gate() {
 mkdir -p "$work/ts"
 
 for p in p1 p2 p3 p4; do mk_suite "$p" '# gate-class: pty' "$(ts_body "$p")"; done
-mk_suite u1 '' "$(ts_body u1)"                      # UNDECLARED → pty lane
+mk_suite u1 '' "$(ts_body u1)"
 for c in c1 c2; do mk_suite "$c" '# gate-class: cpu' "$(ts_body "$c")"; done
 for z in z1 z2 z3; do mk_suite "$z" '# gate-class: pure' "$(ts_body "$z")"; done
 mk_suite x1 '# gate-class: exclusive' "$(ts_body x1)"
@@ -403,7 +403,7 @@ printf 'hang\t2\ngrown\t1\ncamelCase\t3\n' >"$work/seed.tsv"
 mk_suite hang '# gate-class: pure' "sleep 30 & echo \$! >'$work/hang-child.pid'; wait"
 mk_suite grown '# gate-class: pure' 'sleep 1.2; exit 0'
 mk_suite newcomer '# gate-class: pure' 'exit 0'
-mk_suite camelCase '# gate-class: pure' 'exit 0'   # a mixed-case name reads its row (turnEngine, sessionStorage)
+mk_suite camelCase '# gate-class: pure' 'exit 0'
 t7=$SECONDS
 out7=$(gate "$work/verdict7.json" MERCURY_GATE_SEED_FILE="$work/seed.tsv" MERCURY_SUITE_TIMEOUT_FLOOR=1); rc7=$?
 dt7=$(( SECONDS - t7 ))
@@ -566,7 +566,7 @@ fi
 gate_yml="$repo/.github/workflows/gate.yml"; drives_yml="$repo/.github/workflows/drives.yml"
 rel_n=$(grep -oE 'ci-shard\.sh "\$\{\{ matrix\.shard \}\}" [0-9]+ --class release' "$gate_yml" | grep -oE '[0-9]+ --class' | grep -oE '[0-9]+' | head -1)
 drv_n=$(grep -oE 'ci-shard\.sh "\$\{\{ matrix\.shard \}\}" [0-9]+ --class drives' "$drives_yml" | grep -oE '[0-9]+ --class' | grep -oE '[0-9]+' | head -1)
-plan_all() { # $1=class $2=shard-count → every suite that plan holds (every shard + the darwin lane)
+plan_all() {
   local i=0
   while [ "$i" -lt "$2" ]; do
     (cd "$repo" && bash scripts/gate/ci-shard.sh "$i" "$2" --class "$1" --plan-only 2>/dev/null)

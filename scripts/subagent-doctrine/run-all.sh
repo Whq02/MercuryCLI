@@ -34,7 +34,7 @@ echo "── dist-grep: the doctrine ships in the built product (string literals
 if [ ! -f "$dist" ]; then
   echo "  [WARN] $dist not built — run 'bun run build.ts' first; skipping dist-greps"
 else
-  grep_ship() { # label, fixed-string
+  grep_ship() {
     local n; n=$(grep -Fc -- "$2" "$dist" 2>/dev/null || true)
     if [ "${n:-0}" -ge 1 ]; then echo "  [PASS] $1 (x$n)"; else echo "  [FAIL] $1 — not found in dist"; fail=1; fi
   }

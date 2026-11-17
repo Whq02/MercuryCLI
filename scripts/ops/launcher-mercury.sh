@@ -68,7 +68,7 @@ fi
 if [ "${MERCURY_LAUNCH_NO_VERIFY:-0}" != "1" ]; then
   BOOTED_ID="$("$MERCURY_NODE_BIN" "$MERCURY_DIST" --version 2>/dev/null)"
   case "$BOOTED_ID" in
-    Mercury\ *) : ;; # verified — the booted banner is Mercury's
+    Mercury\ *) : ;;
     *)
       BOOTED_ERR="$("$MERCURY_NODE_BIN" "$MERCURY_DIST" --version 2>&1 >/dev/null)"
       case "$BOOTED_ERR" in

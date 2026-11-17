@@ -18,7 +18,7 @@ here="$(cd "$(dirname "$0")" && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"
 fails=0
 say() { printf '%s\n' "$*"; }
-check() { # check <label> <expr-exit-code> (0 = pass)
+check() {
   if [ "$2" -eq 0 ]; then say "  ✓ $1"; else say "  ✗ $1"; fails=$((fails + 1)); fi
 }
 

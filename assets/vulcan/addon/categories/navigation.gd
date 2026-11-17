@@ -86,7 +86,7 @@ static func _layers_set(args: Dictionary, ctx: MercuryVulcanContext) -> Dictiona
 	var r := _resolve(String(args.get("node", "")), ctx)
 	if r.has("err"):
 		return r.err
-	var node = r.node  # untyped: navigation_layers lives on region/agent/link classes
+	var node = r.node
 	if not ("navigation_layers" in node):
 		return ctx.err("BAD_TYPE", "%s (%s) has no navigation_layers" % [args.get("node"), node.get_class()], "point 'node' at a NavigationRegion, NavigationAgent, or NavigationLink node")
 	var layers = args.get("layers")

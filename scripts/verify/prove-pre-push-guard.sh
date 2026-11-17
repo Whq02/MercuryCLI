@@ -7,7 +7,7 @@ hook=".githooks/pre-push"
 bun="${BUN:-$HOME/.bun/bin/bun}"
 
 fail=0
-check() { # $1=label $2=condition-result(0/1) $3=detail
+check() {
   if [ "$2" = "0" ]; then printf '  [PASS] %s%s\n' "$1" "${3:+ — $3}"
   else printf '  [FAIL] %s%s\n' "$1" "${3:+ — $3}"; fail=1; fi
 }

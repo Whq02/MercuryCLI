@@ -4,12 +4,12 @@ here="$(cd "$(dirname "$0")" && pwd)"
 verdict_py="$here/ci-verdict.py"
 fail=0
 
-check() { # label rc want_rc
+check() {
   local label="$1" rc="$2" want="$3"
   if [ "$rc" = "$want" ]; then echo "  [PASS] $label"; else echo "  [FAIL] $label — rc=$rc want=$want"; fail=1; fi
 }
 
-json_has() { # label file python-expr (truthy)
+json_has() {
   local label="$1" file="$2" expr="$3"
   if /usr/bin/env python3 -c "import json,sys; v=json.load(open('$file')); sys.exit(0 if ($expr) else 1)"; then
     echo "  [PASS] $label"
@@ -18,7 +18,7 @@ json_has() { # label file python-expr (truthy)
   fi
 }
 
-mk_estate() { # dir suite[:class]... — class defaults to pure; 'none' writes a runner with no header
+mk_estate() {
   local dir="$1"; shift
   local s name cls
   for s in "$@"; do
@@ -32,11 +32,11 @@ mk_estate() { # dir suite[:class]... — class defaults to pure; 'none' writes a
   done
 }
 
-row() { # dom cls rc secs retry_rc retry_secs
+row() {
   printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" "$5" "$6"
 }
 
-run_case() { # name work [scope] — expects $work/$name prepared with scripts/ + results/; stdout parked in out.txt
+run_case() {
   local name="$1" work="$2" scope="${3:-}"
   (
     cd "$work/$name" && unset GITHUB_STEP_SUMMARY

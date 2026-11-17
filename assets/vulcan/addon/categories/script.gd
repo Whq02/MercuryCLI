@@ -285,7 +285,6 @@ static func _validate(args: Dictionary, ctx: MercuryVulcanContext) -> Dictionary
 		result["note"] = "Godot's public API exposes no line/column detail; the parser prints specifics to the editor Output panel (editor_errors reads recent ones). For precise diagnostics use the LSP tool's mercury-godot lane."
 	return ctx.ok(result)
 
-
 static func _write_and_refresh(p: String, text: String, editor) -> void:
 	var w := FileAccess.open(p, FileAccess.WRITE)
 	if w != null:
