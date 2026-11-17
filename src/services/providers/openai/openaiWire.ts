@@ -162,7 +162,7 @@ export interface OpenaiFault {
   outage?: OutageCause
 }
 
-export interface OpenaiInputTransformation {
+interface OpenaiInputTransformation {
   id: string
   action: string
   reason: string
