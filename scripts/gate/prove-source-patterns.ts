@@ -383,7 +383,7 @@ function changeSince(root: string, files: string[]): Change | null {
   const written = commit === '' ? null : git(root, 'show', `${commit}:${TABLE}`)
   if (written === null) return null
   const stood = new Set((git(root, 'ls-tree', '-r', '--name-only', commit, '--', 'src') ?? '').split('\n').filter(Boolean))
-  const differ = (git(root, 'diff', '--name-only', commit, '--', 'src') ?? '').split('\n').filter(Boolean)
+  const differ = (git(root, 'diff', '--name-only', '--no-renames', commit, '--', 'src') ?? '').split('\n').filter(Boolean)
   const touched = [...new Set([...differ, ...files.filter(file => !stood.has(file))])].filter(file => CODE.test(file) && !file.startsWith(PAYLOADS)).sort()
   return {
     commit,
