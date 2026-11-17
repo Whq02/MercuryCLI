@@ -264,8 +264,10 @@ section('§4 the words on disk — the docs say how an operator pre-authorises a
   check('docs/TRUST.md, Non-interactive sessions: says a push on a headless seat waits on a present operator unless a rule pre-authorises it', /git push/.test(sectionText) && /present/.test(sectionText), sectionText.slice(0, 400))
   check('…names the rule shape `Bash(git push *)` and guardrails.allow', /Bash\(git push \*\)/.test(sectionText) && /guardrails\.allow/.test(sectionText), sectionText.slice(0, 400))
   check('…says a push is one of the five Flow asks about and names the sentence it travels with', /one of the five Flow asks about/.test(sectionText) && /it publishes history\./.test(sectionText), sectionText.slice(0, 400))
-  const print = readFileSync(join(ROOT, 'src', 'cli', 'run.ts'), 'utf8')
-  check('the headless entry stamps the boot rules beside the interactivity mark (the seat\'s own context, never a guess)', /markSessionNonInteractive\(getAppState\(\)\.toolPermissionContext\?\.mode\)\n\s*markSessionBootRules\(getAppState\(\)\.toolPermissionContext\)/.test(print), 'run.ts carries no markSessionBootRules(getAppState().toolPermissionContext) after the interactivity mark')
+  const { firstSystemPrompt } = await import('../lib/builtProduct.ts')
+  const ruled = needsLine(await firstSystemPrompt(['--allowed-tools', PUSH_RULE]))
+  const bareBoot = needsLine(await firstSystemPrompt())
+  check('the headless entry stamps the boot rules beside the interactivity mark (the seat\'s own context, never a guess)', /`git push` is pre-authorised at boot by the allow rule `Bash\(git push \*\)` \(cliArg\)/.test(ruled) && /`git push` is not pre-authorised/.test(bareBoot), `with the rule: ${ruled}`)
 }
 
 rmSync(HOME, { recursive: true, force: true })

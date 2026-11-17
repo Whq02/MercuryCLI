@@ -31,12 +31,16 @@ section('§2 THE OUTCOME')
 
 section('§3 THE PRINT ROAD (the existing groove, pinned)')
 {
-  const print = src('src/cli/run.ts')
+  const { FIXTURE_MODEL, fixtureCli } = await import('../lib/builtProduct.ts')
+  const { exitCodeOf } = await import('../../src/rows/vocabulary.ts')
+  const completed = await fixtureCli([{ kind: 'text', text: 'DONE.' }], ['run', '--model', FIXTURE_MODEL, 'hi'])
+  const refusal = { kind: 'error', status: 400, errorType: 'invalid_request_error', message: 'the fixture says no' } as const
+  const failed = await fixtureCli([refusal, refusal, refusal], ['run', '--model', FIXTURE_MODEL, 'hi'])
   check(
     'a non-completed outcome answers its sentence on stderr',
-    /if \(last\.status === 'completed'\) \{[\s\S]{0,800}?await flushWrite\(process\.stderr, `\$\{sentence\}/.test(print),
+    completed.stdout === 'DONE.\n' && completed.stderr === '' && failed.stdout === '' && failed.stderr.includes('the fixture says no'),
   )
-  check('and the exit code derives from the status alone', /exitCodeOf\(last\.status\)/.test(print))
+  check('and the exit code derives from the status alone', completed.status === exitCodeOf('completed') && failed.status === exitCodeOf('failed') && completed.status !== failed.status)
 }
 
 if (failures > 0) {

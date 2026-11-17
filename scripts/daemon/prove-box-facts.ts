@@ -3,6 +3,7 @@ import '../lib/hermetic.ts'
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { liveFactsOf, withLiveRunner } from '../lib/builtProduct.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const ROOT = join(import.meta.dir, '..', '..')
@@ -112,7 +113,8 @@ const absent = await resolveResource('mercury://health/nope', ctx)
 check('the refs note names the box', absent.state === 'absent' && ((absent as { note?: string }).note ?? '').includes('mercury://health/box'), j(absent))
 
 section('§6 the wiring: the child answers it, the daemon publishes it, the Bash tool speaks it')
-check('the runner\'s facts answer carries the reading', readFileSync(join(ROOT, 'src/cli/run.ts'), 'utf8').includes('box: boxReading(),'))
+const liveBox = (await withLiveRunner(liveFactsOf, { env: { MERCURY_BOX_LOCK_DIR: lockDir } })).box
+check('the runner\'s facts answer carries the reading', liveBox?.lock?.dir === lockDir && liveBox.lock.holders.length === 2 && liveBox.cores === reading.cores, j(liveBox))
 check('the reading takes no sample of its own: it reads the last one and refreshes off the answer', readFileSync(join(ROOT, 'src/utils/boxLock.ts'), 'utf8').includes('const last = lastMemorySample(now)') && !readFileSync(join(ROOT, 'src/utils/boxLock.ts'), 'utf8').includes('sampleAvailableMemory('))
 check('the daemon publishes the box row as the child answered it, nothing stamped over it', readFileSync(join(ROOT, 'src/daemon/sessionSeat.ts'), 'utf8').includes("{ box: boxAnswer }"))
 check('the Bash tool appends the line to a result that waited', readFileSync(join(ROOT, 'src/tools/BashTool/BashTool.tsx'), 'utf8').includes('boxLockLineForCommand(input.command'))

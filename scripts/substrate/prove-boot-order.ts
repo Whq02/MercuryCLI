@@ -44,16 +44,8 @@ check('the SIGINT handler carves out run (run.ts owns SIGINT there)', sigintIdx 
 const runIdx = mainBody.indexOf('run(')
 check('B6 the opening band precedes the commander run()/parse', runIdx > prev, `run@${runIdx} vs last landmark@${prev}`)
 
-const print = readFileSync(join(ROOT, 'src', 'cli', 'run.ts'), 'utf-8')
-const rh = print.slice(print.indexOf('export async function runHeadless('))
-const stampIdx = rh.indexOf('markSessionNonInteractive(')
-const promptIdx = Math.min(
-  ...['fetchSystemPromptParts', 'getSystemPrompt('].map(n => {
-    const i = rh.indexOf(n)
-    return i === -1 ? Number.MAX_SAFE_INTEGER : i
-  }),
-)
-check('B7 runHeadless stamps NON-INTERACTIVE before any system-prompt composition', stampIdx !== -1 && stampIdx < promptIdx, `stamp@${stampIdx} prompt@${promptIdx}`)
+const { firstSystemPrompt } = await import('../lib/builtProduct.ts')
+check('B7 runHeadless stamps NON-INTERACTIVE before any system-prompt composition', /^- Session: non-interactive/m.test(await firstSystemPrompt()))
 
 {
   const doors = main.split('announceAbandonedLaunch()').length - 1

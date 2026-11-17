@@ -3,7 +3,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
-import { existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { readFileSync } from 'node:fs'
@@ -343,8 +343,13 @@ async function main(): Promise<void> {
       after.print === before.print + 1 && after.sdk === before.sdk + 1 && (after.verbs['health'] ?? 0) === (before.verbs['health'] ?? 0) + 1 && after.lastAt > 0,
       JSON.stringify(after),
     )
-    const printSrc = src('src/cli/run.ts')
-    check('BM-15: runHeadless notes its activity at entry (one deferred merge, no hot-path write)', printSrc.includes('noteHeadlessActivity('))
+    const { withLiveRunner } = await import('../lib/builtProduct.ts')
+    const entryHome = mkdtempSync(join(tmpdir(), 'speedster-bm-entry-'))
+    writeFileSync(join(entryHome, '.config.json'), JSON.stringify({ theme: 'dark', hasCompletedOnboarding: true }))
+    await withLiveRunner(async () => undefined, { env: { MERCURY_CONFIG_DIR: entryHome } })
+    const entryStamp = (JSON.parse(readFileSync(join(entryHome, '.config.json'), 'utf8')) as { headlessActivity?: { print: number; sdk: number } }).headlessActivity
+    rmSync(entryHome, { recursive: true, force: true })
+    check('BM-15: runHeadless notes its activity at entry (one deferred merge, no hot-path write)', entryStamp?.sdk === 1 && entryStamp.print === 0)
     const mainSrc = src('src/main.tsx')
     check(
       "BM-15: numStartups semantics UNTOUCHED (interactive increment only; main.tsx's one ledger call is the verb stamp, never print/sdk)",

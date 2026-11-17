@@ -484,8 +484,9 @@ section(`§1d THE HEADLESS FLAG: a headless run with --advise has its chat's swi
       check('without --advise: no switch record and the seeded memory untouched', switches.length === 0 && memoryKindsOf(file, SID).join(',') === 'head,note', j(memoryKindsOf(file, SID)))
     }
   }
-  const main = readFileSync(join(ROOT, 'src/main.tsx'), 'utf8')
-  check("--advise is declared in --help and refused off the run road (in a chat, /advise on is the door)", main.includes(".option('--advise', 'Turn on the second model that advises the working model (the advisor) from the run\\'s first turn (at birth)") && main.includes("failCli('--advise requires mercury run: in a chat, /advise on turns the advisor on for that chat')"))
+  const { builtCli, builtHelp } = await import('../lib/builtProduct.ts')
+  const offTheRunRoad = builtCli(['--advise'])
+  check("--advise is declared in --help and refused off the run road (in a chat, /advise on is the door)", builtHelp().includes("--advise Turn on the second model that advises the working model (the advisor) from the run's first turn (at birth)") && offTheRunRoad.status !== 0 && offTheRunRoad.stderr === '--advise requires mercury run: in a chat, /advise on turns the advisor on for that chat\n')
   wire.length = 0
   agentReplies = 0
 }

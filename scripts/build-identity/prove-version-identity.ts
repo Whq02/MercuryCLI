@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { builtCli } from '../lib/builtProduct.ts'
 
 const root = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..')
 let fail = 0
@@ -31,9 +32,9 @@ if (
   ok('build.ts MACRO_VERSION reads package.json (via PKG_JSON) — one version root')
 else bad('build.ts MACRO_VERSION must read package.json (the one root)')
 
-const main = readFileSync(join(root, 'src/main.tsx'), 'utf8')
-const versionLineBody = /function exitWithVersionLine\(\): never \{([\s\S]*?)\n\}/.exec(main)?.[1] ?? ''
-if (versionLineBody.includes('writeSync(1, `Mercury ${MERCURY_VERSION}\\n`)'))
+const viaFlag = builtCli(['--no-commands', '-V'])
+const viaVerb = builtCli(['--no-commands', 'version'])
+if (viaFlag.status === 0 && viaFlag.stdout === `Mercury ${mv}\n`)
   ok('main.tsx exitWithVersionLine prints `Mercury ${MERCURY_VERSION}` (the one print behind -V and the version verb)')
 else bad('main.tsx exitWithVersionLine must print `Mercury ${MERCURY_VERSION}`')
 
@@ -42,10 +43,7 @@ if (cli.includes('console.log(`Mercury ${MACRO.VERSION}`)'))
   ok('cli.tsx --version fast-path renders `Mercury ${MACRO.VERSION}` (zero-import, same root)')
 else bad('cli.tsx fast-path must render `Mercury ${MACRO.VERSION}`')
 
-if (
-  /program\.on\('option:V', \(\) => \{[^}]*exitWithVersionLine\(\)/.test(main) &&
-  /\.command\('version'\)\n[^\n]*\.description\([^\n]*\)\n[^\n]*\.action\(\(\) => \{[^}]*exitWithVersionLine\(\)/.test(main)
-)
+if (viaFlag.status === 0 && viaVerb.status === 0 && viaFlag.stdout !== '' && viaFlag.stdout === viaVerb.stdout)
   ok('`-V` and the `version` verb both end in exitWithVersionLine (main.tsx)')
 else bad('main.tsx `-V` and the `version` verb must both call exitWithVersionLine')
 

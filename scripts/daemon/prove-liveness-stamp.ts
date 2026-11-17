@@ -174,8 +174,11 @@ console.log('\nL6 structural — no surface reads transcript growth as liveness'
   check("the stream core relays the transport's liveness beside the watchdog's note (a quiet chunk) and marks every parsed event", watchdog.includes('activityRelay.noteChunk()') && watchdog.includes('activityRelay.noteEvent()'))
   const machine = read('src/run-core/turn-machine.ts')
   check("the turn machine relays the stream's activity on the runner's status frame, then presents the crew board", /onStreamActivity: atMs => \{\n\s+toolUseContext\.setSDKStatus\?\.\(\{ streamActivity: atMs \}\)\n\s+presentBoard\(\)\n\s+\},/.test(machine))
-  const facts = read('src/cli/run.ts')
-  check('the runner reports its own budget in the facts answer', facts.includes('streamIdleTimeoutMs: streamIdleTimeoutMsForRoute('))
+  const { liveFactsOf, withFixtureRunner, withLiveRunner } = await import('../lib/builtProduct.ts')
+  const { streamIdleTimeoutMs, streamIdleTimeoutMsForRoute } = await import('../../src/services/providers/streamIdleBudget.ts')
+  const pinned = (await withLiveRunner(liveFactsOf, { env: { MERCURY_STREAM_IDLE_TIMEOUT_MS: '4321' } })).streamIdleTimeoutMs
+  const routed = (await withFixtureRunner([], liveFactsOf)).streamIdleTimeoutMs
+  check('the runner reports its own budget in the facts answer', pinned === 4321 && routed === streamIdleTimeoutMsForRoute('anthropic') && routed !== streamIdleTimeoutMs(), `${pinned} · ${routed}`)
 }
 
 console.log(

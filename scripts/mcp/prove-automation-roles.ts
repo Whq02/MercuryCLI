@@ -38,8 +38,9 @@ console.log('mercury mcp-server: lead and coordinator are names a client may sen
 console.log('\nthe server takes both names from its own options and resolves every grant through the one function')
 {
   const server = readFileSync(join(ROOT, 'src/cli/mcpServer.ts'), 'utf8')
-  const main = readFileSync(join(ROOT, 'src/main.tsx'), 'utf8')
-  check('the two options stand on mcp-server', main.includes(".option('--lead <session-id>', 'The session addressed by lead')") && main.includes(".option('--coordinator <session-id>', 'The session addressed by coordinator')"))
+  const { builtHelp } = await import('../lib/builtProduct.ts')
+  const help = builtHelp('mcp-server')
+  check('the two options stand on mcp-server', help.includes('--lead <session-id> The session addressed by lead') && help.includes('--coordinator <session-id> The session addressed by coordinator'))
   check('the server builds the roles from them and passes every grant through clientReach', server.includes('const roles = { lead: options.lead ?? await launchingSession(cwd), coordinator: options.coordinator }') && server.split('clientReach(grant, roles)').length - 1 === 2, String(server.split('clientReach(grant, roles)').length - 1))
 }
 

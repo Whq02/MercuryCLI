@@ -358,12 +358,29 @@ console.log('\n── W13: source pins ──')
   const reconcile = read('src/daemon/reconcileRecords.ts')
   check('W13 reconcile stays daemon-record-driven (no warm special case)', !reconcile.includes('warm'))
   const print = read('src/cli/run.ts')
-  check('W13 the runner-side warm gate keys on the ABSENT identity (concourse role, no resume, no pinned id)', print.includes('options.bootSessionIdPinned !== true') && print.includes('awaitingSessionClaim'))
-  check('W13 the claim validates everything BEFORE mutating (mode transition + effort ladder)', print.indexOf('claim refused —') !== -1 && print.indexOf('claim refused —') < print.indexOf('switchSession(sid as SessionId'))
+  const { refusalOf, withLiveRunner } = await import('../lib/builtProduct.ts')
+  const PINNED = '11111111-2222-4333-8444-555555555555'
+  const CLAIMED = '66666666-7777-4888-8999-000000000000'
+  const claimAtBoot = (argv: string[], worker: boolean): Promise<string> => withLiveRunner(async runner => ((await refusalOf(runner.request('session/claim', { session_id: CLAIMED }))) === null ? 'awaited' : 'identified'), { argv, env: worker ? { MERCURY_CONCOURSE_WORKER: '1' } : {} })
+  const gate = { warm: await claimAtBoot([], true), pinned: await claimAtBoot(['--session-id', PINNED], true), cold: await claimAtBoot([], false) }
+  check('W13 the runner-side warm gate keys on the ABSENT identity (concourse role, no resume, no pinned id)', gate.warm === 'awaited' && gate.pinned === 'identified' && gate.cold === 'identified')
+  const claim = await withLiveRunner(async runner => ({
+    mode: await refusalOf(runner.request('session/claim', { session_id: CLAIMED, mode: 'bogus' })),
+    effort: await refusalOf(runner.request('session/claim', { session_id: CLAIMED, effort: 'banana' })),
+    taken: await refusalOf(runner.request('session/claim', { session_id: CLAIMED })),
+    again: await refusalOf(runner.request('session/claim', { session_id: PINNED })),
+  }), { env: { MERCURY_CONCOURSE_WORKER: '1' } })
+  check('W13 the claim validates everything BEFORE mutating (mode transition + effort ladder)', claim.mode?.message.startsWith('claim refused —') === true && claim.effort?.message.startsWith('claim refused —') === true && claim.taken === null && claim.again?.data?.kind === 'claim')
   check('W13 the claim consumes the transcript-home pin at the id switch (the setup.ts seam deferred)', print.includes('const claimedHome = consumeSessionHomePin()') && print.includes('switchSession(sid as SessionId, claimedHome)'))
   check('W13 the id-keyed wiring arms at claim time (wards/crew/room under the claimed id)', print.includes('await armSessionRunnerWiring(sid)'))
   check('W13 the pre-claim gate parks user frames (belt: the daemon orders claim before words)', print.includes('claimGatedInput'))
-  check('W13 session/set_effort exists as the mid-session verb on the shared ladder', print.includes("'session/set_effort': (params, ref) => {"))
+  const { EFFORT_LEVELS } = await import('../../src/utils/effortLadder.ts')
+  const effortVerb = await withLiveRunner(async runner => {
+    const taken: unknown[] = []
+    for (const effort of EFFORT_LEVELS) taken.push(await runner.request('session/set_effort', { effort }).catch(() => null))
+    return { taken, refused: await refusalOf(runner.request('session/set_effort', { effort: 'banana' })) }
+  })
+  check('W13 session/set_effort exists as the mid-session verb on the shared ladder', JSON.stringify(effortVerb.taken) === JSON.stringify(EFFORT_LEVELS.map(effort => ({ effort, at: 'now' }))) && effortVerb.refused?.data?.kind === 'effort')
   const rosterSrc = read('src/daemon/roster.ts')
   check('W13 the roster claim patch flips the respawn argv (the claimed session resumes, never a fresh warm boot)', rosterSrc.includes('patchSeatClaim') && rosterSrc.includes('respawnExtraArgv: [...patch.respawnExtraArgv]'))
   const repl = read('src/screens/Chat.tsx')

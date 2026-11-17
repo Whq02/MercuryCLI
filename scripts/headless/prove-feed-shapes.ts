@@ -326,8 +326,15 @@ section('F3 — the seat-wire codecs: snake keys out, deep-equal back')
 section('F4 — the effort words on the wire are the one ladder')
 {
   const ladder = [...ladderModule.EFFORT_LEVELS]
-  const printSrc = readFileSync(join(ROOT, 'src/cli/run.ts'), 'utf8')
-  check("the runner's set_effort arm validates against the one ladder (isEffortLevel), no second enum", printSrc.includes("'session/set_effort': (params, ref) => {") && printSrc.includes("if (!isEffortLevel(requestedEffort)) throw refused("))
+  const { refusalOf, withLiveRunner } = await import('../lib/builtProduct.ts')
+  const { isEffortLevel } = await import('../../src/utils/effort.ts')
+  const words = [...ladder, 'banana', 'ultra', 'MAX']
+  const verdicts = await withLiveRunner(async runner => {
+    const out: Array<[string, string]> = []
+    for (const effort of words) out.push([effort, (await refusalOf(runner.request('session/set_effort', { effort })))?.data?.kind ?? 'taken'])
+    return out
+  })
+  check("the runner's set_effort arm validates against the one ladder (isEffortLevel), no second enum", deepEq(verdicts, words.map(word => [word, isEffortLevel(word) ? 'taken' : 'effort'])) && deepEq(verdicts.filter(([, verdict]) => verdict === 'taken').map(([word]) => word), ladder), j(verdicts))
   check('the ladder ends at max', ladder.length >= 3 && ladder.every(word => typeof word === 'string') && ladder.at(-1) === 'max', j(ladder))
 }
 

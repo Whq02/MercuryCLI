@@ -1,6 +1,9 @@
 #!/usr/bin/env bun
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { MERCURY_VERSION } from '../../src/constants/product.ts'
+import { EFFORT_LEVELS } from '../../src/utils/effortLadder.ts'
+import { builtCli, builtHelp } from '../lib/builtProduct.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
@@ -13,19 +16,23 @@ const check = (name: string, ok: boolean, detail?: string): void => {
 }
 const main = readFileSync(join(ROOT, 'src/main.tsx'), 'utf8')
 const cli = readFileSync(join(ROOT, 'src/entrypoints/cli.tsx'), 'utf8')
+const banner = `Mercury ${MERCURY_VERSION}\n`
+const viaListener = builtCli(['--no-commands', '-V'])
+const viaAction = builtCli(['--version', '--no-commands'])
+const flagDoor = builtCli(['run', '--effort', 'banana', 'hi'])
 
 console.log('§P2 — -V prints the same banner as its siblings')
 {
-  check('the -V listener writes `Mercury ${MERCURY_VERSION}`', main.includes('writeSync(1, `Mercury ${MERCURY_VERSION}\\n`)'))
+  check('the -V listener writes `Mercury ${MERCURY_VERSION}`', viaListener.status === 0 && viaListener.stdout === banner)
   check('POISON: the `<version> (<binary>)` form is gone', !main.includes('writeSync(1, `${MERCURY_VERSION} (${cliName})'))
   check('the fast path prints the same `Mercury <version>`', cli.includes('console.log(`Mercury ${MACRO.VERSION}`)'))
-  check('the slow path prints the same `Mercury <version>`', main.includes('console.log(`Mercury ${MACRO.VERSION}`)'))
+  check('the slow path prints the same `Mercury <version>`', viaAction.status === 0 && viaAction.stdout === banner)
 }
 
 console.log('§P3 — --effort refuses honestly and names its values')
 {
-  check('the --help description names the ladder from its owner', main.includes('Reasoning effort level (${EFFORT_LEVELS.join(\', \')})'))
-  check('the refusal names the values without claiming it ignored them', main.includes('`Unrecognised effort level "${value}". Valid values: ${EFFORT_LEVELS.join(\', \')}.`'))
+  check('the --help description names the ladder from its owner', builtHelp().includes(`--effort <level> Reasoning effort level (${EFFORT_LEVELS.join(', ')})`))
+  check('the refusal names the values without claiming it ignored them', flagDoor.status !== 0 && flagDoor.stderr.includes(`Unrecognised effort level "banana". Valid values: ${EFFORT_LEVELS.join(', ')}.`))
   check('POISON: the flag no longer throws the env door\'s ignore-warning', !main.includes("warning ?? 'Valid effort levels: low, medium, high, max'"))
   const effort = readFileSync(join(ROOT, 'src/utils/effort.ts'), 'utf8')
   const ladder = readFileSync(join(ROOT, 'src/utils/effortLadder.ts'), 'utf8')

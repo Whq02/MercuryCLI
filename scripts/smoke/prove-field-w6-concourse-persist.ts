@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { builtHelp } from '../lib/builtProduct.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -57,7 +58,9 @@ console.log('§2 — still exactly one CLI writer of the persisted field')
   const setCalls = (main.match(/setConcourseEnabled\(/g) ?? []).length
   check('setConcourseEnabled is called exactly once in main.tsx', setCalls === 1, `found ${setCalls}`)
   check('the switch is read last-wins from argv', main.includes("[...process.argv].reverse().find(a => a === '--concourse-off' || a === '--concourse-on')"))
-  check('run and runner are built without the interactive boot options (each skips them before it adds the root options)', /if \(INTERACTIVE_BOOT_OPTIONS\.has\(option\.long \?\? ''\)\) continue\n\s*runCommand\.addOption\(/.test(main) && /INTERACTIVE_BOOT_OPTIONS\.has\(option\.long \?\? ''\)\) continue\n\s*runnerCommand\.addOption\(/.test(main))
+  const pages = { root: builtHelp(), run: builtHelp('run'), runner: builtHelp('runner') }
+  const lists = (page: string, flag: string): boolean => page.includes(` ${flag} `)
+  check('run and runner are built without the interactive boot options (each skips them before it adds the root options)', ['--chat', '--concourse-off', '--concourse-on', '--multiplex', '--pr'].every(flag => lists(pages.root, flag) && !lists(pages.run, flag) && !lists(pages.runner, flag)) && ['--model', '--effort'].every(flag => lists(pages.root, flag) && lists(pages.run, flag) && lists(pages.runner, flag)))
 }
 
 process.exit(failures === 0 ? 0 : 1)

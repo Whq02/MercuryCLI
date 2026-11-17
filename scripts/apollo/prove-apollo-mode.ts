@@ -297,10 +297,24 @@ section('the runner accepts Apollo for every host')
       JSON.stringify(seat),
     )
 
-    const printSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'run.ts'), 'utf8')
+    const { liveFactsOf, withLiveRunner } = await import('../lib/builtProduct.ts')
+    const asked = ['implement', 'apollo', 'sovereign', 'bogus']
+    const door = await withLiveRunner(async runner => {
+      const verdicts: Array<{ from: string; answer: string; mode: string }> = []
+      for (const mode of asked) {
+        const from = (await liveFactsOf(runner)).permissionMode
+        const answer = await runner.request('session/set_mode', { mode: mode as never }).then(taken => JSON.stringify(taken), (refusal: { message: string }) => refusal.message)
+        verdicts.push({ from, answer, mode: (await liveFactsOf(runner)).permissionMode })
+      }
+      return verdicts
+    })
+    const ruled = door.map((verdict, at) => {
+      const rule = resolvePermissionModeTransition(asked[at] as never, { ...(baseContext as object), mode: verdict.from } as never)
+      return rule.ok ? { from: verdict.from, answer: JSON.stringify({ mode: asked[at] }), mode: (rule.context as { mode: string }).mode } : { from: verdict.from, answer: rule.error, mode: verdict.from }
+    })
     check(
       "the door's set_mode arm resolves through the one transition rule and answers the mode",
-      /'session\/set_mode': params => \{\s*const resolved = resolvePermissionModeTransition\(params\.mode as WirePermissionMode, getAppState\(\)\.toolPermissionContext\)[\s\S]{0,1200}?return \{ mode: params\.mode \}/.test(printSource),
+      JSON.stringify(door) === JSON.stringify(ruled) && door.filter(verdict => verdict.mode !== verdict.from).length === 2,
     )
   } finally {
     if (priorMarker === undefined) delete process.env.MERCURY_CONCOURSE_WORKER

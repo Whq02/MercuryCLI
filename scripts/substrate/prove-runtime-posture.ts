@@ -177,10 +177,11 @@ section('wiring (structural) — prompts.ts section + print-entry marker')
     "prompts.ts registers the 'runtime_posture' dynamic section",
     /systemPromptSection\('runtime_posture', \(\) => getRuntimePostureSection\(\)\)/.test(prompts),
   )
-  const print = src('src/cli/run.ts')
+  const { firstSystemPrompt } = await import('../lib/builtProduct.ts')
+  const booted = await firstSystemPrompt(['--mode', 'implement'])
   check(
     'runHeadless stamps non-interactive with the resolved boot mode',
-    /markSessionNonInteractive\(getAppState\(\)\.toolPermissionContext\?\.mode\)/.test(print),
+    /^- Session: non-interactive/m.test(booted) && /Permission mode for this run: implement\./.test(booted),
   )
 }
 

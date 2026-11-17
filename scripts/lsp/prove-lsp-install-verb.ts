@@ -253,8 +253,16 @@ section('§5 never an automatic install: nothing under the language service impo
   const walk = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap(entry => (entry.isDirectory() ? walk(join(dir, entry.name)) : [join(dir, entry.name)]))
   const importers = [...walk(join(ROOT, 'src', 'services', 'lsp')), ...walk(join(ROOT, 'src', 'tools', 'LSPTool'))].filter(file => /\.(ts|tsx)$/.test(file) && /cli\/lspVerb/.test(readFileSync(file, 'utf8')))
   check('no language-service or LSP-tool file imports the install verb', importers.length === 0, importers.join(','))
-  const main = source('src/main.tsx')
-  check('main.tsx wires lsp list and lsp install <server> with --yes, through the verb module', /command\('lsp'\)/.test(main) && /command\('list'\)/.test(main) && /command\('install <server>'\)/.test(main) && /option\('--yes'/.test(main) && /cli\/lspVerb\.js/.test(main))
+  const { builtCli, builtHelp } = await import('../lib/builtProduct.ts')
+  const refusedHere = harness()
+  const refusedCode = verb ? await verb.lspInstallCli('clangd-ultra', { yes: true }, refusedHere.io) : -1
+  const proofPath = process.env.PATH ?? ''
+  usePath(systemPath)
+  const lspHelp = builtHelp('lsp')
+  const installHelp = builtHelp('lsp', 'install')
+  const refusedThere = builtCli(['lsp', 'install', 'clangd-ultra', '--yes'])
+  usePath(proofPath)
+  check('main.tsx wires lsp list and lsp install <server> with --yes, through the verb module', lspHelp.includes(' list ') && lspHelp.includes(' install [options] <server> ') && installHelp.includes(' --yes ') && refusedThere.status === refusedCode && refusedThere.stderr === `${refusedHere.err.join('\n')}\n`, refusedThere.stderr)
   check('the catalogue file is read through its exports and not edited for the verb', /export function probeCatalogueEntry\(/.test(source('src/services/lsp/serverCatalogue.ts')) && /export const SERVER_CATALOGUE/.test(source('src/services/lsp/serverCatalogue.ts')) && !/lspVerb|lspInstall/.test(source('src/services/lsp/serverCatalogue.ts')))
   check('AUTOMATION.md names both verbs', /`mercury lsp list`/.test(source('docs/AUTOMATION.md')) && /`mercury lsp install <server>`/.test(source('docs/AUTOMATION.md')))
   for (const file of ['assets/completions/_mercury', 'assets/completions/mercury.bash', 'assets/completions/mercury.fish']) {

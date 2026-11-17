@@ -155,8 +155,9 @@ section('(4) wiring — remedies attached, async spawns, panel f-flow, CLI flags
   check('destructive renders the warning register', panel.includes('DESTRUCTIVE — this discards state'))
   const cli = SRC('src/cli/healthJson.ts')
   check('headless runHealthFixCli exists with only/yes', cli.includes('export async function runHealthFixCli(opts: { only?: string; yes: boolean })'))
-  const main = SRC('src/main.tsx')
-  check('CLI carries --fix/--only/--yes on the health command', main.includes("option('--fix'") && main.includes("option('--only <id>'") && main.includes("option('--yes'"))
+  const { builtHelp } = await import('../lib/builtProduct.ts')
+  const healthHelp = builtHelp('health')
+  check('CLI carries --fix/--only/--yes on the health command', healthHelp.includes(' --fix ') && healthHelp.includes(' --only <id> ') && healthHelp.includes(' --yes '))
   check('MERCURY_HEALTH_FIX registered (frozen spelling)', getFlagSpec('MERCURY_HEALTH_FIX') !== undefined)
 }
 

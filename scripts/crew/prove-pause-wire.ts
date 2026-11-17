@@ -465,11 +465,17 @@ section('W1 THE WIRE — the verb\'s ceremony at each layer, pinned in source')
   check("the seat asks the runner's session/pause_gate and awaits its word under the agent-verb deadline", seatSource.includes("'session/pause_gate', { paused }") && seatSource.includes('export async function pauseSessionGate('))
   const parse = METHODS['session/pause_gate'].params()
   check('the runner door accepts { paused: boolean } for session/pause_gate and refuses a missing boolean', parse.safeParse({ paused: true }).success && parse.safeParse({ paused: false }).success && !parse.safeParse({}).success)
-  const runner = read('src/cli/run.ts')
-  const armAt = runner.indexOf("'session/pause_gate': params => {")
-  const arm = armAt < 0 ? '' : runner.slice(armAt, runner.indexOf("'shell/background': () => {"))
-  check("the runner's arm owns the method: paused closes the one gate, false opens it, the answer is the gate's word", armAt >= 0 && arm.includes('operatorPauseGate.pause()') && arm.includes('operatorPauseGate.resume()') && arm.includes('paused: operatorPauseGate.paused()'), armAt < 0 ? 'no pause_gate arm in run.ts' : arm.slice(0, 200))
-  check("the runner's facts answer publishes the gate's state (pauseGate: paused, parked)", runner.includes('pauseGate: { paused:') && runner.includes('parked:'))
+  const { liveFactsOf, withLiveRunner } = await import('../lib/builtProduct.ts')
+  const gate = await withLiveRunner(async runner => {
+    const rest = (await liveFactsOf(runner)).pauseGate
+    const closed = await runner.request('session/pause_gate', { paused: true })
+    const again = await runner.request('session/pause_gate', { paused: true })
+    const held = (await liveFactsOf(runner)).pauseGate
+    const opened = await runner.request('session/pause_gate', { paused: false })
+    return { rest, closed, again, held, opened, open: (await liveFactsOf(runner)).pauseGate }
+  })
+  check("the runner's arm owns the method: paused closes the one gate, false opens it, the answer is the gate's word", j(gate.closed) === j({ paused: true, parked: 0, changed: true }) && j(gate.again) === j({ paused: true, parked: 0, changed: false }) && j(gate.opened) === j({ paused: false, parked: 0, changed: true }), j(gate))
+  check("the runner's facts answer publishes the gate's state (pauseGate: paused, parked)", j(gate.rest) === j({ paused: false, parked: 0 }) && j(gate.held) === j({ paused: gate.closed.paused, parked: gate.closed.parked }) && j(gate.open) === j({ paused: gate.opened.paused, parked: gate.opened.parked }), j(gate))
   const wire = read('src/services/engine-connector/seatWire.ts')
   check('the facts wire spells the fact pause_gate (snake_case at every depth)', wire.includes("pauseGate: 'pause_gate'"))
   const connectorSource = read('src/services/engine-connector/daemonConnector.ts')

@@ -149,9 +149,15 @@ section('§1 the laws stand in the source: the slot reads the focused session\'s
   check("the Anthropic subscription slot carries the session lines when the subscription bills the session (the Air's shape: a Claude sign-in, no API key)", usage.includes(`{subscriber ? <SlotSpend active={view.activeEntry?.kind === 'subscription-oauth'} route="anthropic" spend={view.sessionSpend} withCost={false} /> : null}`))
   check("the line's words are the old ones: 'This session' and 'This session: 0 tokens.'", SESSION_SPEND_LABEL === 'This session' && SESSION_SPEND_NONE === 'This session: 0 tokens.')
   check('an inactive slot still says it is not the billing source; the workload labels keep their words', usage.includes("INACTIVE_SLOT_LINE = 'not the active billing source this session'") && usage.includes('if (!active) return <Text dimColor>{INACTIVE_SLOT_LINE}</Text>') && usage.includes("SCHEDULED_SPEND_LABEL = 'Scheduled'") && usage.includes("ADVISOR_SPEND_LABEL = 'Advisor'"))
-  const run = read('src/cli/run.ts')
-  const answer = run.slice(run.indexOf("'session/facts': async () => {"), run.indexOf('identity:', run.indexOf("'session/facts': async () => {")))
-  check('the runner answers its per-model ledger beside the totals (modelSpend from the ledger it holds)', answer.includes('modelSpend: sessionModelSpendRows(),') && answer.includes('unpricedTurns: getTotalUnpricedTurns(),') && answer.includes('totalCostUSD: getTotalCostUSD(),') && answer.includes('totalInputTokens: getTotalInputTokens(),'))
+  const { FIXTURE_MODEL, liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
+  const spent = await withFixtureRunner([{ kind: 'text', text: 'the tally turn', usage: { input_tokens: 70038, output_tokens: 581 } as never }], async runner => {
+    const before = (await liveFactsOf(runner)).usage
+    await runner.prompt('go')
+    await runner.waitFor('the tally turn ends', row => row.type === 'outcome').catch(() => undefined)
+    return { before, after: (await liveFactsOf(runner)).usage }
+  })
+  const spendRows = spent.after.modelSpend ?? []
+  check('the runner answers its per-model ledger beside the totals (modelSpend from the ledger it holds)', j(spent.before.modelSpend) === '[]' && spent.before.totalCostUSD === 0 && spendRows.length === 1 && spendRows[0]!.model === FIXTURE_MODEL && spendRows[0]!.inputTokens === 70038 && spendRows[0]!.outputTokens === 581 && spendRows[0]!.costUSD > 0 && spent.after.totalCostUSD === spendRows[0]!.costUSD && spent.after.totalInputTokens === 70038 && spent.after.unpricedTurns === spendRows[0]!.unpricedTurns, j(spent.after))
   const types = read('src/services/engine-connector/types.ts')
   check('the facts carry the rows: model, workload, the four token counts, the cost, the unpriced turns', types.includes('modelSpend?: ModelSpendRowV1[]') && ['model: string', 'workload?: string', 'inputTokens: number', 'cacheCreationInputTokens: number', 'costUSD: number', 'unpricedTurns: number'].every(f => types.includes(f)))
   const frame = read('src/components/MercuryFrame.tsx')

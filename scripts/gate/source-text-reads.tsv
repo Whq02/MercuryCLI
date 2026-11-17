@@ -26,8 +26,7 @@ scripts/accounts/prove-slot-signout-scope.ts	2
 scripts/accounts/prove-start-wait-note.ts	1
 scripts/accounts/prove-terminal-provider-auth.ts	1
 scripts/accounts/prove-xai-login.ts	2
-scripts/advisor/prove-advisor-chip.ts	6
-scripts/advisor/prove-advisor-note-lands.ts	1
+scripts/advisor/prove-advisor-chip.ts	5
 scripts/advisor/prove-advisor-roads.ts	11
 scripts/advisor/prove-advisor-service.ts	1
 scripts/advisor/prove-advisor-summarizer.ts	3
@@ -94,7 +93,7 @@ scripts/api/prove-transport-truth.ts	7
 scripts/api/prove-unrecognised-4xx-sentence.ts	2
 scripts/api/prove-watchdog-pool-reset.ts	2
 scripts/apollo/prove-apollo-exit.ts	6
-scripts/apollo/prove-apollo-mode.ts	26
+scripts/apollo/prove-apollo-mode.ts	25
 scripts/attachments/goldens.json	1
 scripts/attachments/prove-image-road.ts	2
 scripts/attention/prove-attach-return.ts	2
@@ -149,9 +148,9 @@ scripts/browser/prove-browser-drive.ts	7
 scripts/browser/prove-browser-emulation-auth.ts	1
 scripts/browser/prove-browser-provision.ts	4
 scripts/browser/prove-browser-stealth.ts	1
-scripts/build-identity/prove-config-home.ts	7
+scripts/build-identity/prove-config-home.ts	6
 scripts/build-identity/prove-jsx-shadow.ts	1
-scripts/build-identity/prove-version-identity.ts	4
+scripts/build-identity/prove-version-identity.ts	3
 scripts/build/prove-boot-crash-surface.ts	6
 scripts/build/prove-brush-prepare-words.ts	1
 scripts/build/prove-build-search-gate.ts	2
@@ -225,7 +224,7 @@ scripts/compact/prove-preserved-reads-reregistered.ts	1
 scripts/compact/prove-prune-protections.ts	2
 scripts/compact/prove-prune-set.ts	3
 scripts/compact/prove-ptl-recovery-road.ts	1
-scripts/compact/prove-seat-context-receipt.ts	3
+scripts/compact/prove-seat-context-receipt.ts	2
 scripts/compact/prove-window-result-budgets.ts	1
 scripts/compositor/prove-field-findings-keytruth.ts	2
 scripts/compositor/prove-ground-contrast-floors.ts	4
@@ -290,7 +289,7 @@ scripts/crew/prove-helper-rows-words.ts	5
 scripts/crew/prove-launch-receipts.ts	18
 scripts/crew/prove-ndjson-child-settlement.ts	1
 scripts/crew/prove-operator-message-lane.ts	7
-scripts/crew/prove-pause-wire.ts	8
+scripts/crew/prove-pause-wire.ts	7
 scripts/crew/prove-queued-message-turn.ts	2
 scripts/crew/prove-restart-row-marked.ts	2
 scripts/crew/prove-resume-by-name.ts	4
@@ -317,7 +316,7 @@ scripts/critters/prove-persistent-hero.ts	4
 scripts/critters/prove-small-critter-estate.ts	6
 scripts/critters/prove-square-berths.ts	5
 scripts/daemon/prove-birth-replay.ts	5
-scripts/daemon/prove-box-facts.ts	5
+scripts/daemon/prove-box-facts.ts	4
 scripts/daemon/prove-build-order-visible.ts	1
 scripts/daemon/prove-capability-census.ts	3
 scripts/daemon/prove-close-all.ts	5
@@ -350,7 +349,7 @@ scripts/daemon/prove-interrupt-keeps-runner.ts	4
 scripts/daemon/prove-kit-birth.ts	15
 scripts/daemon/prove-leak-sweep.ts	36
 scripts/daemon/prove-live-turn-chars.ts	7
-scripts/daemon/prove-liveness-stamp.ts	7
+scripts/daemon/prove-liveness-stamp.ts	6
 scripts/daemon/prove-midturn-line.ts	6
 scripts/daemon/prove-newborn-grace.ts	4
 scripts/daemon/prove-no-memory-guard.ts	4
@@ -365,12 +364,12 @@ scripts/daemon/prove-process-sweep.ts	1
 scripts/daemon/prove-protocol-shape.ts	3
 scripts/daemon/prove-quit-reaps-the-tree.ts	5
 scripts/daemon/prove-reactivate-door.ts	6
-scripts/daemon/prove-recall-relay.ts	4
+scripts/daemon/prove-recall-relay.ts	3
 scripts/daemon/prove-reconfigure-respawn.ts	1
 scripts/daemon/prove-rename-migration.ts	6
 scripts/daemon/prove-restart-waits-live.ts	1
 scripts/daemon/prove-runner-asked-to-end.ts	2
-scripts/daemon/prove-runner-refusal-drive.ts	2
+scripts/daemon/prove-runner-refusal-drive.ts	1
 scripts/daemon/prove-runners-left-without-host.ts	1
 scripts/daemon/prove-saturn-adversarial.ts	10
 scripts/daemon/prove-saturn-core.ts	8
@@ -496,10 +495,10 @@ scripts/gate/prove-proof-machine-census.ts	3
 scripts/gate/prove-run-root-socket-bound.ts	1
 scripts/gate/prove-shell-door.ts	121
 scripts/gate/prove-vocabulary-seal.ts	29
-scripts/headless/prove-blocked-prompt-honest.ts	3
-scripts/headless/prove-feed-shapes.ts	3
+scripts/headless/prove-blocked-prompt-honest.ts	2
+scripts/headless/prove-feed-shapes.ts	2
 scripts/headless/prove-final-close-handoff.ts	1
-scripts/headless/prove-headless-activity-deferred.ts	3
+scripts/headless/prove-headless-activity-deferred.ts	2
 scripts/headless/prove-headless-command-refusal.ts	2
 scripts/headless/prove-headless-deadlines.ts	1
 scripts/headless/prove-message-reaches-past-foreground-crewmate.ts	5
@@ -517,7 +516,7 @@ scripts/headless/prove-send-now-shell-wait.ts	2
 scripts/headless/prove-send-now-sleep-wait.ts	2
 scripts/headless/prove-shell-parent-death.ts	1
 scripts/headless/prove-turn-ordinal.ts	1
-scripts/headless/prove-two-kinds-of-headless.ts	5
+scripts/headless/prove-two-kinds-of-headless.ts	4
 scripts/headless/prove-usage-fold.ts	1
 scripts/health/prove-boot-spine-order.ts	1
 scripts/health/prove-boot-spine-race.ts	2
@@ -529,8 +528,8 @@ scripts/health/prove-device-headroom.ts	1
 scripts/health/prove-flags-row-retired.ts	1
 scripts/health/prove-foreign-harness-inversion.ts	4
 scripts/health/prove-health-evidence-strings.ts	1
-scripts/health/prove-health-fix.ts	4
-scripts/health/prove-health-one-truth.ts	3
+scripts/health/prove-health-fix.ts	3
+scripts/health/prove-health-one-truth.ts	2
 scripts/health/prove-health-presentation.ts	8
 scripts/health/prove-health-truth.ts	4
 scripts/health/prove-hidden-characters-row.ts	2
@@ -624,7 +623,7 @@ scripts/interaction/prove-selection-delete.ts	6
 scripts/interview/prove-question-card-state.ts	3
 scripts/jev/prove-jev-evidence-shapes.ts	1
 scripts/jev/prove-jev-faces.ts	7
-scripts/jev/prove-jev-facts-ride.ts	8
+scripts/jev/prove-jev-facts-ride.ts	7
 scripts/jev/prove-jev-facts-total.ts	6
 scripts/jev/prove-jev-lead-wake.ts	1
 scripts/jev/prove-jev-popup-owns-keys.ts	8
@@ -667,7 +666,7 @@ scripts/lsp/prove-lsp-cold-start-join.ts	2
 scripts/lsp/prove-lsp-e2e.ts	1
 scripts/lsp/prove-lsp-gating.ts	1
 scripts/lsp/prove-lsp-handler-replay.ts	1
-scripts/lsp/prove-lsp-install-verb.ts	3
+scripts/lsp/prove-lsp-install-verb.ts	2
 scripts/lsp/prove-lsp-manager-integration.ts	1
 scripts/lsp/prove-lsp-request-deadline.ts	3
 scripts/lsp/prove-lsp-restart-command.ts	6
@@ -681,8 +680,7 @@ scripts/lsp/prove-wider-tables.ts	3
 scripts/lsp/prove-win32-bin-resolution.ts	2
 scripts/lsp/refactorsHarness.ts	1
 scripts/mcp/prove-anthropic-connectors-optin.ts	1
-scripts/mcp/prove-automation-roles.ts	2
-scripts/mcp/prove-automation-server.ts	1
+scripts/mcp/prove-automation-roles.ts	1
 scripts/mcp/prove-connect-deadline.ts	2
 scripts/mcp/prove-disable-disconnects.ts	2
 scripts/mcp/prove-headless-mcp-launch-budget.ts	2
@@ -754,7 +752,7 @@ scripts/model-registry/prove-opus-55-row.ts	4
 scripts/model-registry/prove-picker-anthropic-section.ts	1
 scripts/model-registry/prove-picker-composes-without-itself.ts	2
 scripts/model-registry/prove-sonnet-55-row.ts	1
-scripts/model-registry/prove-spelling-fold.ts	5
+scripts/model-registry/prove-spelling-fold.ts	4
 scripts/model-registry/prove-submodel-effort-dial.ts	4
 scripts/model-registry/prove-submodels.ts	4
 scripts/model-registry/prove-token-count-thinking-receipt.ts	5
@@ -763,7 +761,7 @@ scripts/model-registry/prove-usage-truth.ts	7
 scripts/model-routing/prove-behaviour-contract.ts	2
 scripts/model-routing/prove-calibre-effort-matrix.ts	10
 scripts/model-routing/prove-context-window-families.ts	5
-scripts/model-routing/prove-effort-ladder-top.ts	11
+scripts/model-routing/prove-effort-ladder-top.ts	10
 scripts/model-routing/prove-effort-seat-ladder.ts	12
 scripts/model-routing/prove-effort-vocabulary-truth.ts	2
 scripts/model-routing/prove-effort-wire-truth.ts	10
@@ -880,7 +878,6 @@ scripts/permissions/prove-powershell-drive-operand.ts	1
 scripts/permissions/prove-project-grant-persists.ts	1
 scripts/permissions/prove-provider-key-isolation.ts	4
 scripts/permissions/prove-rule-reason.ts	1
-scripts/permissions/prove-seat-push-road.ts	1
 scripts/permissions/prove-skill-readonly-safe.ts	1
 scripts/permissions/prove-sovereign-zero-cards.ts	12
 scripts/permissions/prove-started-command-decision.ts	1
@@ -1149,7 +1146,7 @@ scripts/settings/prove-usage-gemini-used-rows.ts	4
 scripts/settings/prove-usage-header-live.ts	1
 scripts/settings/prove-usage-listing-recency.ts	2
 scripts/settings/prove-usage-popup.ts	1
-scripts/settings/prove-usage-session-tally.ts	6
+scripts/settings/prove-usage-session-tally.ts	5
 scripts/settings/prove-watchers-ignore-special-files.ts	5
 scripts/skills/prove-bundled-skills.ts	4
 scripts/skills/prove-idle-doc-pages.ts	1
@@ -1175,7 +1172,7 @@ scripts/staleness/prove-instruction-invalidation-reaches-composition.ts	6
 scripts/staleness/prove-kit-menu-freshness.ts	3
 scripts/staleness/prove-local-discovery-honest.ts	3
 scripts/staleness/prove-stale-registry.ts	202
-scripts/stop-policy/prove-bm-classes.ts	11
+scripts/stop-policy/prove-bm-classes.ts	10
 scripts/stop-policy/prove-no-stagnation-governor.ts	5
 scripts/stop-policy/prove-prefix-fingerprint.ts	1
 scripts/stop-policy/prove-progress-model.ts	6
@@ -1200,7 +1197,7 @@ scripts/substrate/gen-flag-table.ts	1
 scripts/substrate/gen-lifecycle-manifest.ts	1
 scripts/substrate/prove-agent-needs-you.ts	1
 scripts/substrate/prove-away-summary.ts	3
-scripts/substrate/prove-boot-order.ts	4
+scripts/substrate/prove-boot-order.ts	3
 scripts/substrate/prove-breaker-timeout.ts	3
 scripts/substrate/prove-cache-stability.ts	2
 scripts/substrate/prove-capability-kill.ts	2
@@ -1233,7 +1230,7 @@ scripts/substrate/prove-pidlock-release.ts	3
 scripts/substrate/prove-pidlock.ts	1
 scripts/substrate/prove-prompt-provenance.ts	2
 scripts/substrate/prove-retired-build-debris.ts	2
-scripts/substrate/prove-runtime-posture.ts	2
+scripts/substrate/prove-runtime-posture.ts	1
 scripts/substrate/prove-schema-hint.ts	1
 scripts/substrate/prove-spawn-ledger.ts	3
 scripts/substrate/prove-startup-menu.ts	1
@@ -1286,8 +1283,7 @@ scripts/switchboard/prove-seat-vocabulary.ts	4
 scripts/switchboard/prove-session-kit.ts	20
 scripts/switchboard/prove-session-model-arms.ts	1
 scripts/switchboard/prove-session-receipts.ts	3
-scripts/switchboard/prove-sessions-delete-verb.ts	4
-scripts/switchboard/prove-sessions-list-verb.ts	1
+scripts/switchboard/prove-sessions-delete-verb.ts	3
 scripts/switchboard/prove-snapshot-rebuild-coalesce.ts	1
 scripts/switchboard/prove-spawn-switch.ts	11
 scripts/switchboard/prove-spec-ledger-docs.ts	2
@@ -1485,7 +1481,7 @@ scripts/ui/prove-message-cursor-store.ts	6
 scripts/ui/prove-modal-surfaces-fit.ts	11
 scripts/ui/prove-mode-discipline.ts	4
 scripts/ui/prove-model-chip.ts	3
-scripts/ui/prove-model-name-matcher.ts	3
+scripts/ui/prove-model-name-matcher.ts	2
 scripts/ui/prove-model-picker-edges.ts	1
 scripts/ui/prove-model-picker-groups.ts	1
 scripts/ui/prove-model-picker-hardening.ts	4
