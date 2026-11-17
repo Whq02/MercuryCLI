@@ -473,16 +473,19 @@ python3 - "$work/verdict8.json" "$rc8" <<'PY' || { fail=1; printf '%s\n' "$out8"
 import json, sys
 v = json.load(open(sys.argv[1])); t = v['timeline']; pty = t['lanes']['pty']
 third = max(t['runs'], key=lambda r: r['startS'])
-ok = (sys.argv[2] == '0' and t['slots'] == 4 and pty['cap'] == 3 and 1 <= pty['starvedS'] <= 3
-      and pty['starvedByNonPtyS'] == 0 and third['queueWaitS'] >= 1 and third['queueWaitS'] == pty['starvedS'])
-print(f"  ✓ starvation law: the third pty suite waited {third['queueWaitS']}s under cap 3 on 4 slots — reported as starved {pty['starvedS']}s (none of it held by cpu/pure work)" if ok
-      else f"  ✗ starvation law: rc={sys.argv[2]} slots={t['slots']} pty={pty} third={third}")
+freed = min(r['endS'] for r in t['runs'] if r is not third)
+ok = (sys.argv[2] == '0' and t['slots'] == 4 and pty['cap'] == 3 and len(t['runs']) == 3
+      and pty['starvedByNonPtyS'] == 0 and third['queueWaitS'] >= 1 and third['queueWaitS'] == pty['starvedS']
+      and third['startS'] >= freed)
+print(f"  ✓ starvation law: the third pty suite waited {third['queueWaitS']}s under cap 3 on 4 slots, until the first slot freed at {freed}s — reported as starved {pty['starvedS']}s (none of it held by cpu/pure work)" if ok
+      else f"  ✗ starvation law: the third pty suite starts no earlier than the first freed slot and its whole wait is reported as starved by pty work (scripts/run-all-suites.sh launches, scripts/gate/timeline.py counts): rc={sys.argv[2]} slots={t['slots']} pty={pty} freed={freed} third={third}")
 sys.exit(0 if ok else 1)
 PY
-if printf '%s' "$out8" | grep -qE 'starved [1-3]s'; then
-  echo "  ✓ starvation line: the stopwatch prints the starved seconds"
+starved8=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["timeline"]["lanes"]["pty"]["starvedS"])' "$work/verdict8.json" 2>/dev/null)
+if [ -n "$starved8" ] && printf '%s' "$out8" | grep -qF "starved ${starved8}s, idle-under-cap"; then
+  echo "  ✓ starvation line: the stopwatch prints the verdict's starved seconds (${starved8}s)"
 else
-  echo "  ✗ starvation line missing from the stopwatch"; printf '%s\n' "$out8" | grep 'slots' | sed 's/^/      /'; fail=1
+  echo "  ✗ starvation line: the stopwatch does not print the verdict's starved seconds (${starved8:-none}s) on the pty lane's line of scripts/gate/timeline.py"; printf '%s\n' "$out8" | grep 'slots' | sed 's/^/      /'; fail=1
 fi
 
 rm -rf "$work/suites"
