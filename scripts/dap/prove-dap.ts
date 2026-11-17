@@ -161,9 +161,9 @@ async function main(): Promise<void> {
     const { readFileSync } = await import('node:fs')
     const src = (...p: string[]) => readFileSync(join(import.meta.dir, '..', '..', 'src', ...p), 'utf-8')
     check('tools.ts gates the Debug tool on isDapToolCatalogEnabled', src('tools.ts').includes('isDapToolCatalogEnabled() ? [DebugTool] : []'))
-    const registry = src('substrate', 'flagRegistry.ts')
-    check('registry carries MERCURY_DAP', registry.includes("env: 'MERCURY_DAP'"))
-    check('registry carries MERCURY_DAP_ADAPTERS', registry.includes("env: 'MERCURY_DAP_ADAPTERS'"))
+    const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
+    check('registry carries MERCURY_DAP', getFlagSpec('MERCURY_DAP') !== undefined)
+    check('registry carries MERCURY_DAP_ADAPTERS', getFlagSpec('MERCURY_DAP_ADAPTERS') !== undefined)
   }
 
   console.log('\n' + '='.repeat(60))
