@@ -19,6 +19,7 @@ interface RawEdge {
   from: string
   spec: string
   kind: EdgeKind
+  typeOnly: boolean
   resolved: string | null
 }
 
@@ -29,6 +30,8 @@ interface ImportGraph {
   buildRoots: string[]
   edges: RawEdge[]
   reached: Set<string>
+  codeBehindTypes: Map<string, string>
+  reachFrom: (roots: string[]) => Set<string>
   stubMap: Record<string, string>
 }
 
@@ -77,8 +80,8 @@ export function resolveSpec(
   return null
 }
 
-export function extractSpecs(filePath: string, text: string): Array<{ spec: string; kind: EdgeKind }> {
-  const out: Array<{ spec: string; kind: EdgeKind }> = []
+export function extractSpecs(filePath: string, text: string): Array<{ spec: string; kind: EdgeKind; typeOnly: boolean }> {
+  const out: Array<{ spec: string; kind: EdgeKind; typeOnly: boolean }> = []
   const sf = ts.createSourceFile(
     filePath,
     text,
@@ -89,35 +92,51 @@ export function extractSpecs(filePath: string, text: string): Array<{ spec: stri
   const visit = (node: ts.Node): void => {
     if (ts.isImportDeclaration(node)) {
       if (ts.isStringLiteralLike(node.moduleSpecifier)) {
-        out.push({ spec: node.moduleSpecifier.text, kind: 'static-import' })
+        const clause = node.importClause
+        const named = clause?.namedBindings && ts.isNamedImports(clause.namedBindings) ? clause.namedBindings.elements : null
+        const typeOnly = clause !== undefined && (clause.isTypeOnly || (clause.name === undefined && named !== null && named.length > 0 && named.every(e => e.isTypeOnly)))
+        out.push({ spec: node.moduleSpecifier.text, kind: 'static-import', typeOnly })
       }
     } else if (ts.isExportDeclaration(node)) {
       if (node.moduleSpecifier && ts.isStringLiteralLike(node.moduleSpecifier)) {
-        out.push({ spec: node.moduleSpecifier.text, kind: 'export-from' })
+        const named = node.exportClause && ts.isNamedExports(node.exportClause) ? node.exportClause.elements : null
+        const typeOnly = node.isTypeOnly || (named !== null && named.length > 0 && named.every(e => e.isTypeOnly))
+        out.push({ spec: node.moduleSpecifier.text, kind: 'export-from', typeOnly })
       }
     } else if (ts.isImportEqualsDeclaration(node)) {
       const ref = node.moduleReference
       if (ts.isExternalModuleReference(ref) && ref.expression && ts.isStringLiteralLike(ref.expression)) {
-        out.push({ spec: ref.expression.text, kind: 'import-equals' })
+        out.push({ spec: ref.expression.text, kind: 'import-equals', typeOnly: node.isTypeOnly })
       }
     } else if (ts.isCallExpression(node)) {
       if (node.expression.kind === ts.SyntaxKind.ImportKeyword) {
         const a = node.arguments[0]
-        if (a && ts.isStringLiteralLike(a)) out.push({ spec: a.text, kind: 'dynamic-import' })
+        if (a && ts.isStringLiteralLike(a)) out.push({ spec: a.text, kind: 'dynamic-import', typeOnly: false })
       } else if (ts.isIdentifier(node.expression) && node.expression.text === 'require') {
         const a = node.arguments[0]
-        if (a && ts.isStringLiteralLike(a)) out.push({ spec: a.text, kind: 'require' })
+        if (a && ts.isStringLiteralLike(a)) out.push({ spec: a.text, kind: 'require', typeOnly: false })
       }
     } else if (ts.isImportTypeNode(node)) {
       const arg = node.argument
       if (ts.isLiteralTypeNode(arg) && ts.isStringLiteralLike(arg.literal)) {
-        out.push({ spec: arg.literal.text, kind: 'type-import' })
+        out.push({ spec: arg.literal.text, kind: 'type-import', typeOnly: true })
       }
     }
     ts.forEachChild(node, visit)
   }
   visit(sf)
   return out
+}
+
+export function carriesCode(filePath: string, text: string): boolean {
+  const js = ts.transpileModule(text, {
+    fileName: filePath,
+    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.Preserve, isolatedModules: true, verbatimModuleSyntax: false, removeComments: true },
+  }).outputText
+  return js
+    .split('\n')
+    .map(line => line.trim())
+    .some(line => line !== '' && line !== 'export {};' && !/^import\s/.test(line) && !/^export\s*\{[^}]*\}\s*from\s/.test(line) && !/^export\s*\*\s*from\s/.test(line))
 }
 
 const BUILD = join(GRAPH_ROOT, 'build.ts')
@@ -173,6 +192,7 @@ function graphEntries(buildRoots: string[]): string[] {
 export function buildImportGraph(): ImportGraph {
   const stubMap = readStubMap()
   const files = [...walkDir(SRC)].sort()
+  const texts = new Map<string, string>()
   const edges: RawEdge[] = []
   for (const f of files) {
     let text: string
@@ -181,29 +201,66 @@ export function buildImportGraph(): ImportGraph {
     } catch {
       continue
     }
-    for (const { spec, kind } of extractSpecs(f, text)) {
-      edges.push({ from: f, spec, kind, resolved: resolveSpec(f, spec, stubMap) })
+    texts.set(f, text)
+    for (const { spec, kind, typeOnly } of extractSpecs(f, text)) {
+      edges.push({ from: f, spec, kind, typeOnly, resolved: resolveSpec(f, spec, stubMap) })
     }
   }
-  const byFrom = new Map<string, string[]>()
+  const valueFrom = new Map<string, string[]>()
+  const anyFrom = new Map<string, string[]>()
+  const add = (map: Map<string, string[]>, from: string, to: string): void => {
+    const list = map.get(from)
+    if (list) list.push(to)
+    else map.set(from, [to])
+  }
   for (const e of edges) {
     if (!e.resolved) continue
-    const list = byFrom.get(e.from)
-    if (list) list.push(e.resolved)
-    else byFrom.set(e.from, [e.resolved])
+    add(anyFrom, e.from, e.resolved)
+    if (!e.typeOnly) add(valueFrom, e.from, e.resolved)
+  }
+  const code = new Map<string, boolean>()
+  const runs = (f: string): boolean => {
+    const text = texts.get(f)
+    if (text === undefined) return false
+    let known = code.get(f)
+    if (known === undefined) {
+      known = carriesCode(f, text)
+      code.set(f, known)
+    }
+    return known
+  }
+  const reach = (roots: string[]): { reached: Set<string>; codeBehindTypes: Map<string, string> } => {
+    const value = new Set<string>(roots)
+    const queue = [...roots]
+    while (queue.length) {
+      const f = queue.pop()!
+      for (const target of valueFrom.get(f) ?? []) {
+        if (!value.has(target)) {
+          value.add(target)
+          queue.push(target)
+        }
+      }
+    }
+    const typed = new Map<string, string>()
+    const typeQueue = [...value]
+    while (typeQueue.length) {
+      const f = typeQueue.pop()!
+      for (const target of anyFrom.get(f) ?? []) {
+        if (value.has(target) || typed.has(target)) continue
+        typed.set(target, f)
+        typeQueue.push(target)
+      }
+    }
+    const reached = new Set<string>(value)
+    const codeBehindTypes = new Map<string, string>()
+    for (const [target, importer] of typed) {
+      if (runs(target)) codeBehindTypes.set(target, importer)
+      else reached.add(target)
+    }
+    return { reached, codeBehindTypes }
   }
   const buildRoots = readBuildRoots()
   const entries = graphEntries(buildRoots)
-  const reached = new Set<string>(entries)
-  const queue = [...entries]
-  while (queue.length) {
-    const f = queue.pop()!
-    for (const target of byFrom.get(f) ?? []) {
-      if (!reached.has(target)) {
-        reached.add(target)
-        queue.push(target)
-      }
-    }
-  }
-  return { root: GRAPH_ROOT, files, entries, buildRoots, edges, reached, stubMap }
+  const { reached, codeBehindTypes } = reach(entries)
+  return { root: GRAPH_ROOT, files, entries, buildRoots, edges, reached, codeBehindTypes, reachFrom: roots => reach(roots).reached, stubMap }
 }

@@ -12,5 +12,36 @@
     "broken-path",
     "superseded-unreachable"
   ],
-  "rows": []
+  "rows": [
+    {
+      "file": "src/hooks/toolPermission/PermissionContext.ts",
+      "class": "proof-or-fixture-only",
+      "reason": "The old in-screen permission road: no value import from a root reaches it and it is in no bundle. Proofs mount it. Parked for one commit; it leaves with the hook that imports it."
+    },
+    {
+      "file": "src/hooks/toolPermission/handlers/coordinatorHandler.ts",
+      "class": "proof-or-fixture-only",
+      "reason": "The old in-screen permission road: no value import from a root reaches it and it is in no bundle. Parked for one commit; it leaves with the hook that imports it."
+    },
+    {
+      "file": "src/hooks/toolPermission/handlers/interactiveHandler.ts",
+      "class": "proof-or-fixture-only",
+      "reason": "The old in-screen permission road: no value import from a root reaches it and it is in no bundle. Proofs mount it. Parked for one commit; it leaves with the hook that imports it."
+    },
+    {
+      "file": "src/hooks/toolPermission/permissionLogging.ts",
+      "class": "proof-or-fixture-only",
+      "reason": "The old in-screen permission road: only PermissionContext.ts imports it. Parked for one commit; it leaves with that file."
+    },
+    {
+      "file": "src/hooks/useCanUseTool.tsx",
+      "class": "proof-or-fixture-only",
+      "reason": "The old in-screen permission hook: nothing under src calls it; 37 files import its type CanUseToolFn. Proofs mount it. Parked for one commit; the type moves and the file leaves."
+    },
+    {
+      "file": "src/utils/permissions/decision/trace.ts",
+      "class": "proof-or-fixture-only",
+      "reason": "The decision engine imports its types; its two stage-order tables and its formatter are read by proofs alone. Parked for one commit; the types move and the file leaves."
+    }
+  ]
 }

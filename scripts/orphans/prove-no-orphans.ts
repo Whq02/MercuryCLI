@@ -86,7 +86,14 @@ if (cured.length) {
 if (fresh.length) {
   red = true
   console.log(`  [FAIL] ${fresh.length} NEW orphan(s) — wire them in, delete them, or hand-add a typed exemption:`)
-  for (const f of fresh) console.log(`      - ${f}`)
+  for (const f of fresh) {
+    const importer = graph.codeBehindTypes.get(join(ROOT, f))
+    console.log(
+      importer === undefined
+        ? `      - ${f}`
+        : `      - ${f} (it carries code, and the only road to it from a root passes a type-only import; ${importer.slice(ROOT.length + 1)} names it: move the types its readers use into a file they import types from and delete it, or import a value from it)`,
+    )
+  }
 }
 
 if (red) {

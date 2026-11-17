@@ -20,29 +20,8 @@ const RUNTIME_ROOT_FILES = ['src/entrypoints/cli.tsx', 'src/entrypoints/init.ts'
 const runtimeRoots = graph.entries.filter(e => RUNTIME_ROOT_FILES.includes(rel(e)))
 const sdkRoots = graph.entries.filter(e => !RUNTIME_ROOT_FILES.includes(rel(e)))
 
-const byFrom = new Map<string, string[]>()
-for (const e of graph.edges) {
-  if (!e.resolved) continue
-  const list = byFrom.get(e.from)
-  if (list) list.push(e.resolved)
-  else byFrom.set(e.from, [e.resolved])
-}
-function bfs(entries: string[]): Set<string> {
-  const seen = new Set<string>(entries)
-  const queue = [...entries]
-  while (queue.length) {
-    const f = queue.pop()!
-    for (const t of byFrom.get(f) ?? []) {
-      if (!seen.has(t)) {
-        seen.add(t)
-        queue.push(t)
-      }
-    }
-  }
-  return seen
-}
-const runtimeReach = bfs(runtimeRoots)
-const sdkReach = bfs(sdkRoots)
+const runtimeReach = graph.reachFrom(runtimeRoots)
+const sdkReach = graph.reachFrom(sdkRoots)
 
 const SCRIPTS = join(GRAPH_ROOT, 'scripts')
 function* walkScripts(dir: string): Generator<string> {
