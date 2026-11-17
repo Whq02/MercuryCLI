@@ -81,7 +81,7 @@ export function homeLaneWireForm(reads: DeferralWireReads = {}): DeferralWireVer
   const env = reads.env ?? process.env
   const firstParty = reads.firstPartyBaseUrl ? reads.firstPartyBaseUrl() : isFirstPartyAnthropicBaseUrl()
   if (firstParty) return { form: 'block', why: 'first-party-contract' }
-  const asserted = env.MERCURY_TOOL_SEARCH
+  const asserted = flagEnv('MERCURY_TOOL_SEARCH', env)
   if (asserted !== undefined && asserted !== '') return { form: 'block', why: 'gateway-asserted' }
   const host = gatewayHost(env)
   if (host === null) return { form: 'text', why: 'gateway-unprobed' }

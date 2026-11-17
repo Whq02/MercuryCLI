@@ -1,3 +1,4 @@
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { readStoredXaiApiKey, readStoredXaiManagementApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { readPreferredXaiSource, refreshXaiTokens, xaiStoredTokens, type XaiOauthIo } from './xaiOauth.js'
@@ -9,11 +10,11 @@ export const XAI_GROK_PROXY_CHAT_CLIENT_VERSION = '2026.9.7'
 export type XaiCredentialSource = 'env' | 'stored' | 'oauth'
 
 export function xaiApiBase(env: NodeJS.ProcessEnv = process.env): string {
-  return (env['MERCURY_XAI_API_BASE']?.trim() || XAI_API_BASE_URL).replace(/\/+$/, '')
+  return (flagEnv('MERCURY_XAI_API_BASE', env)?.trim() || XAI_API_BASE_URL).replace(/\/+$/, '')
 }
 
 export function xaiGrokProxyBase(env: NodeJS.ProcessEnv = process.env): string {
-  return (env['MERCURY_XAI_GROK_PROXY_BASE']?.trim() || XAI_GROK_PROXY_BASE_URL).replace(/\/+$/, '')
+  return (flagEnv('MERCURY_XAI_GROK_PROXY_BASE', env)?.trim() || XAI_GROK_PROXY_BASE_URL).replace(/\/+$/, '')
 }
 
 export function xaiInferenceBase(source: XaiCredentialSource, env: NodeJS.ProcessEnv = process.env): string {
@@ -39,7 +40,7 @@ export function xaiGrokProxyBillingHeaders(): Record<string, string> {
 }
 
 export function xaiManagementBase(env: NodeJS.ProcessEnv = process.env): string {
-  return (env['MERCURY_XAI_MANAGEMENT_API_BASE']?.trim() || 'https://management-api.x.ai').replace(/\/+$/, '')
+  return (flagEnv('MERCURY_XAI_MANAGEMENT_API_BASE', env)?.trim() || 'https://management-api.x.ai').replace(/\/+$/, '')
 }
 
 export function resolveXaiManagementApiKey(

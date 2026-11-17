@@ -76,7 +76,7 @@ check(
 )
 check(
   '§D the tip stays quiet when MERCURY_USE_POWERSHELL_TOOL is set',
-  /process\.env\.MERCURY_USE_POWERSHELL_TOOL === undefined/.test(tips),
+  /flagEnv\('MERCURY_USE_POWERSHELL_TOOL'\) === undefined/.test(tips),
 )
 
 const templates = readFileSync(join(ROOT, 'scripts/release/launcherTemplates.mjs'), 'utf8')

@@ -1,3 +1,4 @@
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { readStoredMeliousApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 
@@ -5,7 +6,7 @@ const MELIOUS_API_BASE_URL = 'https://api.melious.ai/v1'
 const MELIOUS_ENV_KEY = 'MELIOUS_API_KEY'
 
 export function meliousApiBase(env: NodeJS.ProcessEnv = process.env): string {
-  return (env.MERCURY_MELIOUS_API_BASE?.trim() || MELIOUS_API_BASE_URL).replace(/\/+$/, '')
+  return (flagEnv('MERCURY_MELIOUS_API_BASE', env)?.trim() || MELIOUS_API_BASE_URL).replace(/\/+$/, '')
 }
 
 export function meliousChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): string {

@@ -169,7 +169,7 @@ function pctOverride(): number | undefined {
 }
 
 function thresholdOverridden(): boolean {
-  const limitRaw = process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
+  const limitRaw = flagEnv('MERCURY_BLOCKING_LIMIT_OVERRIDE')
   if (limitRaw !== undefined && limitRaw !== '') return true
   return pctOverride() !== undefined
 }
@@ -209,7 +209,7 @@ export function compactionSettingsText(): string {
 
 export function getBlockingLimit(model: string, settingsWindow?: number): number {
   let blockingLimit = getEffectiveContextWindowSize(model, settingsWindow) - MANUAL_COMPACT_BUFFER_TOKENS
-  const overrideRaw = process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
+  const overrideRaw = flagEnv('MERCURY_BLOCKING_LIMIT_OVERRIDE')
   if (overrideRaw !== undefined && overrideRaw !== '') {
     const override = Number.parseInt(overrideRaw, 10)
     if (Number.isFinite(override) && override > 0) blockingLimit = override

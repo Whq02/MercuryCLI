@@ -125,7 +125,7 @@ export function classifyGatewayProbe(answer: GatewayProbeAnswer): GatewayProbeCl
 
 export function gatewayProbePolicyAllows(env: Record<string, string | undefined> = process.env): boolean {
   if (flagEnv('MERCURY_TOOL_DEFER_PROBE') !== '1') return false
-  const traffic = env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
+  const traffic = flagEnv('MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', env)
   if (traffic !== undefined && traffic !== '' && traffic !== '0' && traffic.toLowerCase() !== 'false') return false
   return true
 }

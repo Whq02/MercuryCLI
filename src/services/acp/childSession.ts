@@ -7,7 +7,7 @@ import type { LooseRow } from '../../rows/read.js'
 import type { ElicitationAnswer, ElicitationRequestParams, ParamsOf, PermissionAnswer, PermissionRequestParams, ResultOf } from '../../runner/wire/methods.js'
 import { createPeer, PeerClosed, type Peer } from '../../runner/wire/peer.js'
 import type { RpcError } from '../../runner/wire/errors.js'
-import { flagSpellings } from '../../substrate/flagRegistry.js'
+import { flagEnv, flagSpellings } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 
 export interface TurnEndDetail {
@@ -125,7 +125,7 @@ export class MercuryChildSession {
     ]
     const env: NodeJS.ProcessEnv = {
       ...process.env,
-      MERCURY_TASKS: process.env.MERCURY_TASKS ?? '1',
+      MERCURY_TASKS: flagEnv('MERCURY_TASKS') ?? '1',
       MERCURY_TASK_LIST_ID: opts.resumeSessionId ?? opts.sessionId ?? '',
       ...(opts.env ?? {}),
       ...(opts.effort ? { MERCURY_EFFORT_LEVEL: opts.effort } : {}),

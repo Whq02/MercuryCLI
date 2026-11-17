@@ -1,3 +1,4 @@
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { readStoredQwenApiKey, readStoredQwenKeyBase } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
@@ -43,7 +44,7 @@ function qwenWorkspaceId(env: NodeJS.ProcessEnv = process.env): string | undefin
 }
 
 function probeSeam(env: NodeJS.ProcessEnv): string | undefined {
-  const seam = env[QWEN_PROBE_SEAM_ENV]?.trim()
+  const seam = flagEnv(QWEN_PROBE_SEAM_ENV, env)?.trim()
   return seam ? seam.replace(/\/+$/, '') : undefined
 }
 

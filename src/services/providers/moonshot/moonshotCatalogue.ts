@@ -1,3 +1,4 @@
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
@@ -119,7 +120,7 @@ let identityMemo: { epoch: number; spellings: string; identity: string } | null 
 
 function memoisedIdentity(env: NodeJS.ProcessEnv): string {
   const epoch = signInLedgerEpoch()
-  const spellings = `${env.MOONSHOT_API_KEY ?? ''}\u0000${env.MERCURY_MOONSHOT_API_BASE ?? ''}\u0000${env.MERCURY_MOONSHOT_CODING_BASE ?? ''}`
+  const spellings = `${env.MOONSHOT_API_KEY ?? ''}\u0000${flagEnv('MERCURY_MOONSHOT_API_BASE', env) ?? ''}\u0000${flagEnv('MERCURY_MOONSHOT_CODING_BASE', env) ?? ''}`
   if (env === process.env && identityMemo !== null && identityMemo.epoch === epoch && identityMemo.spellings === spellings) return identityMemo.identity
   const identity = catalogueIdentity(env)
   if (env === process.env) identityMemo = { epoch, spellings, identity }

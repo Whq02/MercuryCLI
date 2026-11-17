@@ -1,4 +1,5 @@
 import { chmodSync, mkdirSync, readFileSync } from 'node:fs'
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
@@ -52,22 +53,22 @@ export function kimiRegionLabel(region: KimiRegion): string {
 }
 
 export function moonshotApiBase(env: NodeJS.ProcessEnv = process.env): string {
-  return (env['MERCURY_MOONSHOT_API_BASE']?.trim() || MOONSHOT_API_BASE_URL).replace(/\/+$/, '')
+  return (flagEnv('MERCURY_MOONSHOT_API_BASE', env)?.trim() || MOONSHOT_API_BASE_URL).replace(/\/+$/, '')
 }
 export function moonshotChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): string {
   return `${moonshotApiBase(env)}/chat/completions`
 }
 export function moonshotOauthBase(region: KimiRegion, env: NodeJS.ProcessEnv = process.env): string {
-  return (env['MERCURY_MOONSHOT_OAUTH_BASE']?.trim() || KIMI_REGION_PROFILES[region].oauthHost).replace(
+  return (flagEnv('MERCURY_MOONSHOT_OAUTH_BASE', env)?.trim() || KIMI_REGION_PROFILES[region].oauthHost).replace(
     /\/+$/,
     '',
   )
 }
 export function moonshotOauthClientId(env: NodeJS.ProcessEnv = process.env): string {
-  return env['MERCURY_MOONSHOT_OAUTH_CLIENT_ID']?.trim() || KIMI_OAUTH_CLIENT_ID
+  return flagEnv('MERCURY_MOONSHOT_OAUTH_CLIENT_ID', env)?.trim() || KIMI_OAUTH_CLIENT_ID
 }
 export function kimiCodingBase(region: KimiRegion, env: NodeJS.ProcessEnv = process.env): string {
-  return (env['MERCURY_MOONSHOT_CODING_BASE']?.trim() || KIMI_REGION_PROFILES[region].codingBase).replace(
+  return (flagEnv('MERCURY_MOONSHOT_CODING_BASE', env)?.trim() || KIMI_REGION_PROFILES[region].codingBase).replace(
     /\/+$/,
     '',
   )

@@ -1,3 +1,4 @@
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { readStoredLocalApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { getCachedLocalDiscovery } from './localDiscovery.js'
@@ -17,7 +18,7 @@ export function localRoadBesideSignIn(account: LocalAccountRef | undefined = res
 export function resolveLocalApiKey(
   env: Record<string, string | undefined> = process.env,
 ): { key: string; source: 'env' | 'stored' } | undefined {
-  const envKey = env.MERCURY_LOCAL_API_KEY?.trim()
+  const envKey = flagEnv('MERCURY_LOCAL_API_KEY', env)?.trim()
   if (envKey) return { key: envKey, source: 'env' }
   const fromCommand = resolveProviderKeyCommand('local')
   if (fromCommand) return { key: fromCommand, source: 'stored' }

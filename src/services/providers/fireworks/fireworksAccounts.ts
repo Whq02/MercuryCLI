@@ -1,3 +1,4 @@
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { readStoredFireworksApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 
@@ -5,7 +6,7 @@ const FIREWORKS_API_BASE_URL = 'https://api.fireworks.ai/inference/v1'
 const FIREWORKS_ENV_KEY = 'FIREWORKS_API_KEY'
 
 export function fireworksApiBase(env: NodeJS.ProcessEnv = process.env): string {
-  return (env.MERCURY_FIREWORKS_API_BASE?.trim() || FIREWORKS_API_BASE_URL).replace(/\/+$/, '')
+  return (flagEnv('MERCURY_FIREWORKS_API_BASE', env)?.trim() || FIREWORKS_API_BASE_URL).replace(/\/+$/, '')
 }
 
 export function fireworksChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): string {

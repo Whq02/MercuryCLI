@@ -1,8 +1,9 @@
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { readStoredOrcarouterApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 
 export function orcarouterApiBase(env: NodeJS.ProcessEnv = process.env): string {
-  return (env.MERCURY_ORCAROUTER_API_BASE?.trim() || 'https://api.orcarouter.ai/v1').replace(/\/+$/, '')
+  return (flagEnv('MERCURY_ORCAROUTER_API_BASE', env)?.trim() || 'https://api.orcarouter.ai/v1').replace(/\/+$/, '')
 }
 
 function orcarouterEnvKey(env: NodeJS.ProcessEnv = process.env): { key: string; name: 'ORCAROUTER_API_KEY' } | undefined {

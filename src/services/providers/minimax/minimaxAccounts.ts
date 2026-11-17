@@ -1,3 +1,4 @@
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { readStoredMinimaxApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 
@@ -5,7 +6,7 @@ const MINIMAX_API_BASE_URL = 'https://api.minimax.io/v1'
 export const MINIMAX_ENV_KEY = 'MINIMAX_API_KEY'
 
 export function minimaxApiBase(env: NodeJS.ProcessEnv = process.env): string {
-  return (env.MERCURY_MINIMAX_API_BASE?.trim() || MINIMAX_API_BASE_URL).replace(/\/+$/, '')
+  return (flagEnv('MERCURY_MINIMAX_API_BASE', env)?.trim() || MINIMAX_API_BASE_URL).replace(/\/+$/, '')
 }
 
 export function minimaxChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): string {

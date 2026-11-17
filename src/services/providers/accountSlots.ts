@@ -1,3 +1,4 @@
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { providerDisplayName, declaredRouteOf, type CallModelRoute } from './routeLaw.js'
 import { PROVIDER_CREDENTIAL_ENV_VARS } from './credentialEnvSpellings.js'
 import { maskedKeyTail } from './credentialIdentity.js'
@@ -1183,13 +1184,13 @@ function compatSlots(reads: AccountSlotReads): AccountSlot[] {
     const { configuredCompatEndpoints, compatKeyEnvName } = require('./openaicompat/compatAccounts.js') as typeof import('./openaicompat/compatAccounts.js')
     const endpoints = configuredCompatEndpoints().filter(endpoint => endpoint.named)
     if (endpoints.length > 0) return endpoints.flatMap(endpoint => {
-      const envVar = endpoint.name === 'default' && process.env.MERCURY_COMPAT_API_KEY?.trim() ? 'MERCURY_COMPAT_API_KEY' : compatKeyEnvName(endpoint.name)
+      const envVar = endpoint.name === 'default' && flagEnv('MERCURY_COMPAT_API_KEY')?.trim() ? 'MERCURY_COMPAT_API_KEY' : compatKeyEnvName(endpoint.name)
       return keyLaneSlots({ family: 'openai-compat', envVar, envKey: process.env[envVar]?.trim() || undefined, storedKey: readStoredCompatApiKey(endpoint.name), storedRemoval: { route: 'compat-stored-key', endpoint: endpoint.name } })
         .map(slot => ({ ...slot, id: `openai-compat:${endpoint.name}:${slot.id}`, name: endpoint.name, kindLabel: `${endpoint.label} · ${slot.kindLabel}` }))
     })
   }
   const envKey =
-    reads.compatEnvKey ? reads.compatEnvKey() : process.env.MERCURY_COMPAT_API_KEY?.trim() || undefined
+    reads.compatEnvKey ? reads.compatEnvKey() : flagEnv('MERCURY_COMPAT_API_KEY')?.trim() || undefined
   const storedKey = (reads.compatStoredKey ?? readStoredCompatApiKey)()
   return keyLaneSlots({
     family: 'openai-compat',
@@ -1272,7 +1273,7 @@ function huggingfaceSlots(reads: AccountSlotReads): AccountSlot[] {
 function localSlots(reads: AccountSlotReads): AccountSlot[] {
   const account = (reads.localAccount ?? resolveLocalAccount)()
   const envKey =
-    reads.localEnvKey ? reads.localEnvKey() : process.env.MERCURY_LOCAL_API_KEY?.trim() || undefined
+    reads.localEnvKey ? reads.localEnvKey() : flagEnv('MERCURY_LOCAL_API_KEY')?.trim() || undefined
   const storedKey = (reads.localStoredKey ?? readStoredLocalApiKey)()
   const slots: AccountSlot[] = []
   if (account) {

@@ -1,4 +1,5 @@
 import { createServer, type Server } from 'node:http'
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import {
   chmodSync,
@@ -39,13 +40,13 @@ const OPENAI_CHATGPT_BASE_URL = 'https://chatgpt.com/backend-api/codex'
 const OPENAI_API_BASE_URL = 'https://api.openai.com/v1'
 
 function openaiIssuerBase(env: NodeJS.ProcessEnv = process.env): string {
-  return env['MERCURY_OPENAI_AUTH_BASE']?.trim() || OPENAI_AUTH_ISSUER
+  return flagEnv('MERCURY_OPENAI_AUTH_BASE', env)?.trim() || OPENAI_AUTH_ISSUER
 }
 function openaiChatgptBase(env: NodeJS.ProcessEnv = process.env): string {
-  return env['MERCURY_OPENAI_CHATGPT_BASE']?.trim() || OPENAI_CHATGPT_BASE_URL
+  return flagEnv('MERCURY_OPENAI_CHATGPT_BASE', env)?.trim() || OPENAI_CHATGPT_BASE_URL
 }
 function openaiApiBase(env: NodeJS.ProcessEnv = process.env): string {
-  return env['MERCURY_OPENAI_API_BASE']?.trim() || OPENAI_API_BASE_URL
+  return flagEnv('MERCURY_OPENAI_API_BASE', env)?.trim() || OPENAI_API_BASE_URL
 }
 
 

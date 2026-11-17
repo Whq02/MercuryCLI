@@ -1,4 +1,5 @@
 
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import type { AnthropicClientOptions as ClientOptions } from './anthropicClient.js'
 import {
   APIConnectionError,
@@ -1479,7 +1480,7 @@ async function* queryModel(
       }
 
       const disableFallback =
-        isEnvTruthy(process.env.MERCURY_DISABLE_NONSTREAMING_FALLBACK) ||
+        isEnvTruthy(flagEnv('MERCURY_DISABLE_NONSTREAMING_FALLBACK')) ||
         (streamIdleAborted && streamedToolUse)
 
       if (disableFallback) {
@@ -1849,7 +1850,7 @@ export function getMaxOutputTokensForModel(model: string): number {
 
   const result = validateBoundedIntEnvVar(
     'MERCURY_MAX_OUTPUT_TOKENS',
-    process.env.MERCURY_MAX_OUTPUT_TOKENS,
+    flagEnv('MERCURY_MAX_OUTPUT_TOKENS'),
     maxOutputTokens.default,
     maxOutputTokens.upperLimit,
   )

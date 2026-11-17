@@ -100,7 +100,7 @@ class GeminiPlanIneligibleError extends Error {
 }
 
 export function antigravityCodeAssistBases(env: NodeJS.ProcessEnv = process.env): string[] {
-  const pinned = (env === process.env ? flagEnv('MERCURY_ANTIGRAVITY_CODE_ASSIST_BASE') : env['MERCURY_ANTIGRAVITY_CODE_ASSIST_BASE'])?.trim()
+  const pinned = (env === process.env ? flagEnv('MERCURY_ANTIGRAVITY_CODE_ASSIST_BASE') : flagEnv('MERCURY_ANTIGRAVITY_CODE_ASSIST_BASE', env))?.trim()
   if (pinned && /^https?:\/\//i.test(pinned)) return [pinned.replace(/\/+$/, '')]
   return [...ANTIGRAVITY_CODE_ASSIST_BASES]
 }

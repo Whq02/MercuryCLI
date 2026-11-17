@@ -1,10 +1,11 @@
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { readStoredDeepseekApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 
 const DEEPSEEK_API_BASE_URL = 'https://api.deepseek.com'
 
 export function deepseekApiBase(env: NodeJS.ProcessEnv = process.env): string {
-  return env['MERCURY_DEEPSEEK_API_BASE']?.trim() || DEEPSEEK_API_BASE_URL
+  return flagEnv('MERCURY_DEEPSEEK_API_BASE', env)?.trim() || DEEPSEEK_API_BASE_URL
 }
 export function deepseekChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): string {
   return `${deepseekApiBase(env)}/chat/completions`

@@ -1,3 +1,4 @@
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { readStoredTogetherApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 
@@ -6,7 +7,7 @@ export const TOGETHER_ENV_KEY = 'TOGETHER_API_KEY'
 const TOGETHER_ENV_KEY_ALT = 'TOGETHER_AI_API_KEY'
 
 export function togetherApiBase(env: NodeJS.ProcessEnv = process.env): string {
-  return (env.MERCURY_TOGETHER_API_BASE?.trim() || TOGETHER_API_BASE_URL).replace(/\/+$/, '')
+  return (flagEnv('MERCURY_TOGETHER_API_BASE', env)?.trim() || TOGETHER_API_BASE_URL).replace(/\/+$/, '')
 }
 
 export function togetherChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): string {

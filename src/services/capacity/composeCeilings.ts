@@ -1,3 +1,4 @@
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { seatCeilingFacts, stampedSeats, type SeatCeilingSource } from '../switchboard/capacityCheck.js'
 import { governorCeilings, setGovernorCeilings, type CeilingProvenance, type GovernorCeilings } from './governor.js'
 import type { EffortValue } from '../../utils/effort.js'
@@ -39,13 +40,13 @@ function liveDelegationBand(): { band: 1 | 2 | 3 | null; profileId: string | nul
 }
 
 export function operatorLanesFromEnv(env: NodeJS.ProcessEnv = process.env): number | null {
-  const raw = env['MERCURY_MODEL_LANES'] ?? ''
+  const raw = flagEnv('MERCURY_MODEL_LANES', env) ?? ''
   const n = Number.parseInt(raw, 10)
   return Number.isFinite(n) && n >= 1 ? n : null
 }
 
 export function inheritedSeatsFromEnv(env: NodeJS.ProcessEnv = process.env): number | null {
-  const raw = env['MERCURY_SEATS'] ?? ''
+  const raw = flagEnv('MERCURY_SEATS', env) ?? ''
   const n = Number.parseInt(raw, 10)
   return Number.isFinite(n) && n >= 1 ? n : null
 }

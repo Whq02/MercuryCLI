@@ -45,16 +45,16 @@ const GOOGLE_USERINFO_BASE = 'https://www.googleapis.com'
 const LOGIN_EXCHANGE_TIMEOUT_MS = 15_000
 
 export function geminiApiBase(env: NodeJS.ProcessEnv = process.env): string {
-  return env['MERCURY_GEMINI_API_BASE']?.trim() || GEMINI_API_BASE
+  return flagEnv('MERCURY_GEMINI_API_BASE', env)?.trim() || GEMINI_API_BASE
 }
 function googleOauthAuthBase(env: NodeJS.ProcessEnv = process.env): string {
-  return env['MERCURY_GEMINI_OAUTH_AUTH_BASE']?.trim() || GOOGLE_OAUTH_AUTH_BASE
+  return flagEnv('MERCURY_GEMINI_OAUTH_AUTH_BASE', env)?.trim() || GOOGLE_OAUTH_AUTH_BASE
 }
 function googleOauthTokenBase(env: NodeJS.ProcessEnv = process.env): string {
-  return env['MERCURY_GEMINI_OAUTH_TOKEN_BASE']?.trim() || GOOGLE_OAUTH_TOKEN_BASE
+  return flagEnv('MERCURY_GEMINI_OAUTH_TOKEN_BASE', env)?.trim() || GOOGLE_OAUTH_TOKEN_BASE
 }
 function googleUserinfoBase(env: NodeJS.ProcessEnv = process.env): string {
-  const pinned = (env === process.env ? flagEnv('MERCURY_GOOGLE_USERINFO_BASE') : env['MERCURY_GOOGLE_USERINFO_BASE'])?.trim()
+  const pinned = (env === process.env ? flagEnv('MERCURY_GOOGLE_USERINFO_BASE') : flagEnv('MERCURY_GOOGLE_USERINFO_BASE', env))?.trim()
   return (pinned && /^https?:\/\//i.test(pinned) ? pinned : GOOGLE_USERINFO_BASE).replace(/\/+$/, '')
 }
 
@@ -140,9 +140,9 @@ export function geminiAuthPathForDisplay(): string {
 export function geminiOauthClientConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): (GeminiOauthClientConfig & { source: 'env' | 'stored' }) | undefined {
-  const envId = env['MERCURY_GEMINI_OAUTH_CLIENT_ID']?.trim()
+  const envId = flagEnv('MERCURY_GEMINI_OAUTH_CLIENT_ID', env)?.trim()
   if (envId) {
-    const envSecret = env['MERCURY_GEMINI_OAUTH_CLIENT_SECRET']?.trim()
+    const envSecret = flagEnv('MERCURY_GEMINI_OAUTH_CLIENT_SECRET', env)?.trim()
     return { clientId: envId, ...(envSecret ? { clientSecret: envSecret } : {}), source: 'env' }
   }
   const stored = readAuthFile()?.client

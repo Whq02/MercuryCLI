@@ -1,5 +1,6 @@
 import axios, { AxiosError } from 'axios'
 
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
   ALL_OAUTH_SCOPES,
   INFERENCE_SCOPE,
@@ -449,9 +450,9 @@ export async function revokeOAuthToken(token: string, clientId?: string): Promis
 
 
 export async function populateOAuthAccountInfoIfNeeded(): Promise<void> {
-  const envAccountUuid = process.env.MERCURY_ACCOUNT_UUID
-  const envEmail = process.env.MERCURY_USER_EMAIL
-  const envOrganizationUuid = process.env.MERCURY_ORGANIZATION_UUID
+  const envAccountUuid = flagEnv('MERCURY_ACCOUNT_UUID')
+  const envEmail = flagEnv('MERCURY_USER_EMAIL')
+  const envOrganizationUuid = flagEnv('MERCURY_ORGANIZATION_UUID')
   let usedEnvironment = false
   if (envAccountUuid && envEmail && envOrganizationUuid && !getGlobalConfig().oauthAccount) {
     storeOAuthAccountInfo({

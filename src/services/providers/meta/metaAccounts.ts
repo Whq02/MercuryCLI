@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { publishAuthScopedJson, readStoredMetaApiKey, signInLedgerPath } from '../providerSecrets.js'
@@ -46,7 +47,7 @@ interface MetaAuthFile {
 }
 
 export function metaApiBase(env: NodeJS.ProcessEnv = process.env): string {
-  return (env.MERCURY_META_API_BASE?.trim() || 'https://api.meta.ai/v1').replace(/\/+$/, '')
+  return (flagEnv('MERCURY_META_API_BASE', env)?.trim() || 'https://api.meta.ai/v1').replace(/\/+$/, '')
 }
 
 export function metaChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): string {
@@ -54,7 +55,7 @@ export function metaChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): st
 }
 
 export function metaAuthBase(env: NodeJS.ProcessEnv = process.env): string {
-  const override = env.MERCURY_META_API_BASE?.trim()
+  const override = flagEnv('MERCURY_META_API_BASE', env)?.trim()
   return (override ? override.replace(/\/+$/, '').replace(/\/v1$/, '') : 'https://auth.meta.com').replace(/\/+$/, '')
 }
 
@@ -67,7 +68,7 @@ export function metaDeviceTokenUrl(env: NodeJS.ProcessEnv = process.env): string
 }
 
 export function metaMuseCodeKeyUrl(env: NodeJS.ProcessEnv = process.env): string {
-  const override = env.MERCURY_META_API_BASE?.trim()
+  const override = flagEnv('MERCURY_META_API_BASE', env)?.trim()
   const host = (override ? override.replace(/\/+$/, '').replace(/\/v1$/, '') : 'https://api.meta.ai').replace(/\/+$/, '')
   return `${host}/muse-code/key`
 }

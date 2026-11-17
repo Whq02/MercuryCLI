@@ -1,3 +1,4 @@
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { readStoredGroqApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 
@@ -5,7 +6,7 @@ const GROQ_API_BASE_URL = 'https://api.groq.com/openai/v1'
 const GROQ_ENV_KEY = 'GROQ_API_KEY'
 
 export function groqApiBase(env: NodeJS.ProcessEnv = process.env): string {
-  return (env.MERCURY_GROQ_API_BASE?.trim() || GROQ_API_BASE_URL).replace(/\/+$/, '')
+  return (flagEnv('MERCURY_GROQ_API_BASE', env)?.trim() || GROQ_API_BASE_URL).replace(/\/+$/, '')
 }
 
 export function groqChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): string {
