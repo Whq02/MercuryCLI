@@ -1,8 +1,11 @@
-import { readdirSync, statSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { existsSync, readdirSync, statSync } from 'node:fs'
 import { extname, join } from 'node:path'
 import { commentRanges as hookCommentRanges } from './commentBytes.mjs'
+import { hashCandidate, hashComments, hashKindOf } from './hashComments.ts'
 
 const COMMENT_KEEP_FOLDERS = ['/src/extensions/bundled/', '/vendor/']
+const HASH_KEEP_FOLDERS = ['vendor/', 'native/']
 const SKIP_NAMES = new Set(['node_modules', 'dist', '.git', 'vendor'])
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts'])
 
@@ -23,7 +26,16 @@ export function censusFiles(root: string): string[] {
   return out
 }
 
+export function hashCensusFiles(root: string): string[] {
+  return execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+    .split('\0')
+    .filter(path => path !== '' && hashCandidate(path) && !HASH_KEEP_FOLDERS.some(folder => path.startsWith(folder)))
+    .map(path => join(root, path))
+    .filter(path => existsSync(path))
+}
+
 export function commentRanges(path: string, text: string): CommentRange[] {
+  if (hashKindOf(path, text) !== null) return hashComments(path, text).filter(comment => comment.keep === null).map(comment => ({ pos: comment.pos, end: comment.end }))
   return (hookCommentRanges(path, text) as CommentRange[]).map(range => ({ pos: range.pos, end: range.end })).sort((a, b) => a.pos - b.pos)
 }
 
