@@ -36,14 +36,40 @@ const check = (label: string, ok: boolean, detail = '') => { if (!ok) failures++
 check('runner context starts at the measured 70,619, not the 100k display estimate', fill.usedTokens === 70619 && fill.fillSource === 'usage', JSON.stringify(fill))
 check('usage receipt carries the measured count in the wire vocabulary', (wire.usage as any).context?.used_tokens === 70619, JSON.stringify(wire.usage))
 check('usage receipt survives the decode without changing the number', restored.usage.context?.usedTokens === 70619)
-const { liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
-const published = await withFixtureRunner([{ kind: 'text', text: 'the measured turn', usage: { input_tokens: 70038, output_tokens: 581 } as never }], async runner => {
+const { FIXTURE_MODEL, liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
+const measured = { input_tokens: 70038, output_tokens: 581 } as never
+const published = await withFixtureRunner([{ kind: 'text', text: 'the measured turn', usage: measured }], async runner => {
   const before = (await liveFactsOf(runner)).usage.context
   await runner.prompt('go')
   await runner.waitFor('the measured turn ends', row => row.type === 'outcome').catch(() => undefined)
   return { before, after: (await liveFactsOf(runner)).usage.context }
 })
-check('runner publishes its own context calculation per facts answer', published.before?.usedTokens === null && published.after?.usedTokens === fill.usedTokens && published.after?.fillSource === fill.fillSource, JSON.stringify(published))
+const midTurn = await withFixtureRunner(
+  [
+    { kind: 'tool_use', name: 'Write', input: { file_path: 'note.txt', content: 'one\n' }, usage: measured },
+    { kind: 'paced', deltas: ['one ', 'two ', 'three'], gapMs: 300 },
+  ],
+  async (runner, api) => {
+    runner.onAsk(() => ({ outcome: 'allow' }) as never)
+    await runner.prompt('go')
+    await api.messageRequestStarted(2)
+    const during = (await liveFactsOf(runner)).usage.context
+    await runner.waitFor('the stepped turn ends', row => row.type === 'outcome').catch(() => undefined)
+    return during
+  },
+).catch(() => undefined)
+const own = { model: FIXTURE_MODEL, ...contextFillView([{ ...message, message: { ...message.message, model: FIXTURE_MODEL } }] as never, FIXTURE_MODEL) }
+const windowed = (row: Partial<typeof own> | undefined): string => JSON.stringify(row === undefined ? null : [row.model, row.usedTokens, row.usedPct, row.fillSource, row.window, row.windowSource, row.windowPinned])
+check(
+  'runner publishes its own context calculation per facts answer',
+  published.before?.usedTokens === null &&
+    own.usedTokens === fill.usedTokens &&
+    windowed(published.after) === windowed(own) &&
+    JSON.stringify(Object.keys(published.after ?? {}).sort()) === JSON.stringify(Object.keys(own).sort()) &&
+    midTurn?.fillSource === 'usage' &&
+    (midTurn.usedTokens ?? 0) >= fill.usedTokens,
+  JSON.stringify({ ...published, midTurn, own }),
+)
 const frame = readFileSync(join(import.meta.dir, '../../src/components/MercuryFrame.tsx'), 'utf8')
 const footer = readFileSync(join(import.meta.dir, '../../src/components/PromptInput/Notifications.tsx'), 'utf8')
 check('rail and hint consume the same runner context reader', frame.includes('useFocusedContextFill(messages, windowModel') && footer.includes('useFocusedContextFill(messages, engineModel'))
