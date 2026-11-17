@@ -59,11 +59,6 @@
       "reason": "Frame signing for the channel wire (HMAC under a shared secret, and the operator key). Kept by the operator's ruling at the /say retirement (\"Retire /say but keep the wire so that it stays for the agents\"); no product path imports it, and its consumer is the multiplayer estate planned after release. scripts/channel/prove-channel-primitives.ts proves both signatures."
     },
     {
-      "file": "src/substrate/durableOperationMatrix.ts",
-      "class": "metadata-or-generated",
-      "reason": "The durable-operation machine registry: consumed by scripts/reliability/gen-durable-matrix.ts + prove-durable-matrix.ts (and the fulcrum suite) to render the durable-operation matrix on demand. A generator-consumed metadata owner is correctly outside the runtime import graph."
-    },
-    {
       "file": "src/substrate/identity/accountFacts.ts",
       "class": "living-specimen",
       "reason": "A read-only view of which provider families hold a credential, landed ahead of its consumer for the multiplayer estate planned after release; no product path imports it. Parked on that plan until the operator rules; scripts/operator-identity/prove-operator-identity.ts section 8 proves that a live key cannot be read through the view."

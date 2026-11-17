@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSy
 import { join } from 'node:path'
 import { buildImportGraph, extractSpecs, resolveSpec, readStubMap, GRAPH_ROOT } from './graph.ts'
 import { FLAG_REGISTRY } from '../../src/substrate/flagRegistry.ts'
-import { DURABLE_OPERATION_MATRIX } from '../../src/substrate/durableOperationMatrix.ts'
+import { DURABLE_OPERATION_MATRIX } from '../reliability/durableOperationMatrix.ts'
 
 const CHECK = process.argv.includes('--check')
 const OUT_DIR = join(GRAPH_ROOT, 'scripts', 'orphans', '.out')
@@ -245,7 +245,7 @@ const manifest = {
     ],
     'generated-registries': [
       'src/substrate/flagRegistry.ts',
-      'src/substrate/durableOperationMatrix.ts',
+      'scripts/reliability/durableOperationMatrix.ts',
       'docs/CAPABILITY-GRADUATION-MATRIX.md',
     ],
     'proof-fixture': ['scripts/*/ (suite runners; proof-coverage edges below)'],
