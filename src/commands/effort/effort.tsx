@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { paintStatusRowReceipt } from '../../components/SwitchboardTagBar.js'
 import { LOCAL_COMMAND_STDOUT_TAG } from '../../constants/xml.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
@@ -43,7 +44,7 @@ export type EffortCommandResult = {
 }
 
 function rawOverrideValue(): string {
-  return process.env[EFFORT_ENV_VAR] ?? ''
+  return flagEnv(EFFORT_ENV_VAR) ?? ''
 }
 
 function appliedTruth(

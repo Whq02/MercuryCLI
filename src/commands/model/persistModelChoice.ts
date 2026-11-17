@@ -1,3 +1,4 @@
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { EffortLevel } from '../../utils/effortLadder.js'
 import type { ModelSetting } from '../../utils/model/model.js'
 import { displayConfigHome, getMercuryHome } from '../../utils/envUtils.js'
@@ -51,7 +52,7 @@ export function persistModelChoice(setting: ModelSetting): PersistedModelChoice 
       ? { outcome: 'unchanged', sentence: '', restore }
       : { outcome: 'cleared', sentence: ' · your saved default model is cleared, new sessions start on the family default', restore }
   }
-  const env = process.env.MERCURY_MODEL
+  const env = flagEnv('MERCURY_MODEL')
   if (env !== undefined && env !== '' && env !== setting) {
     return { outcome: 'overridden', sentence: ` · saved as your default, but MERCURY_MODEL=${env} overrides it at boot`, restore }
   }
