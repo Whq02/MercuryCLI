@@ -14,65 +14,38 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
 const estate = realpathSync(mkdtempSync(join(tmpdir(), 'impact-run-estate-')))
-mkdirSync(join(estate, 'scripts', 'gate'), { recursive: true })
-cpSync(join(ROOT, 'scripts/gate/run-suite.sh'), join(estate, 'scripts/gate/run-suite.sh'))
-mkdirSync(join(estate, 'scripts', 'lib'), { recursive: true })
-cpSync(join(ROOT, 'scripts/lib/suite-env.sh'), join(estate, 'scripts/lib/suite-env.sh'))
-cpSync(join(ROOT, 'scripts/lib/firstRunSeed.ts'), join(estate, 'scripts/lib/firstRunSeed.ts'))
-for (const file of ['process-ledger.sh', 'proofScratch.cjs', 'proofBrowser.cjs', 'box_shape.py']) cpSync(join(ROOT, 'scripts/lib', file), join(estate, 'scripts/lib', file))
-for (const [suite, rc] of [
-  ['a', 0],
-  ['b', 0],
-  ['c', 3],
-] as const) {
-  mkdirSync(join(estate, 'scripts', suite))
+const SUITES = ['a', 'b', 'c']
+for (const suite of SUITES) {
+  mkdirSync(join(estate, 'scripts', suite), { recursive: true })
   writeFileSync(
     join(estate, 'scripts', suite, 'run-all.sh'),
-    `#!/usr/bin/env bash\n# gate-class: pure\n# gate-watch: src/${suite}/**\nset -u\n. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"\necho "suite ${suite} ran"\nexit ${rc}\n`,
+    `#!/usr/bin/env bash\n# gate-class: pure\n# gate-watch: src/${suite}/**\nprintf ran > '${join(estate, `ran-${suite}`)}'\n`,
   )
   chmodSync(join(estate, 'scripts', suite, 'run-all.sh'), 0o755)
 }
 mkdirSync(join(estate, 'src', 'a'), { recursive: true })
 
-const env = { ...process.env, MERCURY_SLICE_ROOT: estate, MERCURY_CONFIG_DIR: join(estate, 'home'), MERCURY_GATE_PREBUILT: '1' }
+const env = { ...process.env, MERCURY_SLICE_ROOT: estate, MERCURY_CONFIG_DIR: join(estate, 'home') }
 function impact(args: string[], cwd = ROOT): { code: number; stdout: string; stderr: string } {
   const res = spawnSync(bun, [join(ROOT, 'scripts/verify/impact.ts'), ...args], { cwd, env, encoding: 'utf8' })
   return { code: res.status ?? 1, stdout: res.stdout, stderr: res.stderr }
 }
 
-section('§1 --run over one owed suite')
-const one = impact(['--paths', 'src/a/x.ts', '--run'])
-check('exit 0 with the one suite green', one.code === 0, one.stderr)
-const oneRows = one.stdout.trim().split('\n')
-check('exactly suite a ran, with rc 0 and its seconds', oneRows.length === 1 && /^a\t0\t\d+$/.test(oneRows[0] ?? ''), one.stdout)
-check('the reading names the run', one.stderr.includes('impact --run: 1 suite(s), 0 red'))
-
-section('§2 --run over two suites, one red')
-const two = impact(['--paths', 'src/b/y.ts', 'src/c/z.ts', '--run'])
-check('exit 1 when a suite is red', two.code === 1)
-check('both rows land, c red with its exit code', /^b\t0\t\d+$/m.test(two.stdout) && /^c\t3\t\d+$/m.test(two.stdout), two.stdout)
-check('the reading counts the red', two.stderr.includes('2 suite(s), 1 red'))
-check('a listing (no --run) prints the suites, not rows', impact(['--paths', 'src/b/y.ts']).stdout.trim() === 'b')
-
-section('§2b unclassified execution refuses before any suite starts')
-mkdirSync(join(estate, 'scripts', 'identity'))
-const ran = join(estate, 'unexpected-run')
-writeFileSync(join(estate, 'scripts', 'identity', 'run-all.sh'), `#!/usr/bin/env bash\n# gate-class: pure\nprintf ran > '${ran}'\n`)
+section('§1 --run is unknown input and nothing executes')
 for (const args of [
-  ['--paths', 'unwatched/file.txt', '--run'],
-  ['--paths', 'src/a/x.ts', 'unwatched/file.txt', '--run'],
-  ['--paths', 'unwatched/file.txt', '--run', '--json'],
+  ['--paths', 'src/a/x.ts', '--run'],
+  ['--staged', '--run'],
+  ['--paths', 'src/a/x.ts', '--run', '--json'],
 ]) {
-  const unclassified = impact(args)
-  check('unclassified execution exits nonzero with the missing path and remedy', unclassified.code === 1 && unclassified.stderr.includes('unwatched/file.txt') && /declare|watch|full/i.test(unclassified.stderr), unclassified.stdout + unclassified.stderr)
-  check('even a whole-tree suite does not run for an incomplete selection', !existsSync(ran))
+  const gone = impact(args)
+  check(`${args.join(' ')} exits 2 with the usage line and no listing`, gone.code === 2 && gone.stderr.includes('usage: bun scripts/verify/impact.ts') && gone.stdout === '', gone.stdout + gone.stderr)
 }
-rmSync(join(estate, 'scripts', 'identity'), { recursive: true, force: true })
-const jsonRun = impact(['--paths', 'src/a/x.ts', '--run', '--json'])
-const jsonResult = JSON.parse(jsonRun.stdout)
-check('--run with --json executes the selection and returns actual exits', jsonRun.code === 0 && jsonResult.results?.length === 1 && jsonResult.results[0].suite === 'a' && jsonResult.results[0].rc === 0, jsonRun.stdout)
-const jsonRed = impact(['--paths', 'src/c/z.ts', '--run', '--json'])
-check('--json cannot turn a red execution into a listing success', jsonRed.code === 1 && JSON.parse(jsonRed.stdout).results?.[0]?.rc === 3, jsonRed.stdout)
+
+section('§2 a listing names the suites and the paths nothing watches')
+check('a listing prints the suites', impact(['--paths', 'src/b/y.ts']).stdout.trim() === 'b')
+const stray = impact(['--paths', 'src/a/x.ts', 'unwatched/file.txt'])
+check('a path no suite watches is named and the listing exits 0', stray.code === 0 && stray.stdout.trim() === 'a' && stray.stderr.includes('UNCLASSIFIED (1)') && stray.stderr.includes('unwatched/file.txt'), stray.stdout + stray.stderr)
+check('no suite of the estate ran', SUITES.every(suite => !existsSync(join(estate, `ran-${suite}`))))
 
 section('§3 --staged and --dirty on a scratch repository')
 const repo = join(estate, 'repo')
@@ -99,22 +72,19 @@ const cleanRun = spawnSync(bun, [join(ROOT, 'scripts/verify/impact.ts'), '--dirt
 check('--dirty on a clean tree exits 2 (never reads as nothing to run)', cleanRun.status === 2)
 
 section('§3b renames include removed inputs and preserve path bytes')
-writeFileSync(join(repo, 'scripts/a/run-all.sh'), '#!/usr/bin/env bash\n# gate-class: pure\n# gate-watch: src/a/**\nexit 17\n')
-g('add', 'scripts/a/run-all.sh')
-g('commit', '-q', '-m', 'fixture status')
 mkdirSync(join(repo, 'src', 'b'))
 const renamed = 'src/b/renamed \tfile\n.ts'
 g('mv', 'src/a/x.ts', renamed)
 for (const mode of ['--staged', '--dirty', 'HEAD^..HEAD']) {
   if (mode === 'HEAD^..HEAD') g('commit', '-q', '-m', 'move input')
-  const result = spawnSync(bun, [join(ROOT, 'scripts/verify/impact.ts'), mode, '--json', '--run'], { cwd: repo, env: repoEnv, encoding: 'utf8' })
+  const result = spawnSync(bun, [join(ROOT, 'scripts/verify/impact.ts'), mode, '--json'], { cwd: repo, env: repoEnv, encoding: 'utf8' })
   const data = JSON.parse(result.stdout)
-  check('each diff mode runs both rename owners and retains the failing source result', result.status === 1 && data.results?.some((row: { suite: string; rc: number }) => row.suite === 'a' && row.rc === 17) && data.results?.some((row: { suite: string; rc: number }) => row.suite === 'b' && row.rc === 0), result.stdout + result.stderr)
+  check('each diff mode names both rename owners', result.status === 0 && ['a', 'b'].every(suite => data.suites?.some((row: { suite: string }) => row.suite === suite)), result.stdout + result.stderr)
   check('rename endpoint bytes survive spaces, tabs and newlines', data.perPath['src/a/x.ts']?.includes('a') && data.perPath[renamed]?.includes('b'), result.stdout)
 }
 
 section('§4 the real estate names the suites a change owes')
-const real = spawnSync(bun, [join(ROOT, 'scripts/verify/impact.ts'), '--paths', 'src/utils/settings/types.ts', 'src/ink/launcherAltHold.ts'], { cwd: ROOT, env: { ...process.env, MERCURY_GATE_PREBUILT: '1' }, encoding: 'utf8' })
+const real = spawnSync(bun, [join(ROOT, 'scripts/verify/impact.ts'), '--paths', 'src/utils/settings/types.ts', 'src/ink/launcherAltHold.ts'], { cwd: ROOT, env: process.env, encoding: 'utf8' })
 const named = new Set(real.stdout.trim().split('\n'))
 check('a settings type change owes the settings suite', named.has('settings'))
 check('a terminal runtime change owes the ink-runtime suite', named.has('ink-runtime'))

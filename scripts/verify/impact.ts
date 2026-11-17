@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-//  The impact manifest (impactManifest.ts) maps each suite's `# gate-watch:`
 import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -9,18 +8,19 @@ const ROOT = process.env.MERCURY_SLICE_ROOT ?? resolve(import.meta.dir, '..', '.
 
 const ALWAYS = ['integrity', 'identity', 'consistency-census', 'gate', 'verify', 'ui-census', 'interaction-pure', 'tree-ownership', 'primitives-kernel', 'permissions']
 
+const FLAGS = ['--json', '--explain', '--staged', '--dirty']
 const argv = process.argv.slice(2)
 const json = argv.includes('--json')
 const explain = argv.includes('--explain')
-const run = argv.includes('--run')
 const staged = argv.includes('--staged')
 const dirty = argv.includes('--dirty')
-const args = argv.filter(a => !['--json', '--explain', '--run', '--staged', '--dirty'].includes(a))
+const args = argv.filter(a => !FLAGS.includes(a))
 
 function usage(): never {
-  console.error('usage: bun scripts/verify/impact.ts <rev-range>|--staged|--dirty|--paths <path…> [--explain|--json] [--run]')
+  console.error('usage: bun scripts/verify/impact.ts <rev-range>|--staged|--dirty|--paths <path…> [--explain|--json]')
   process.exit(2)
 }
+if (args.some(a => a.startsWith('--') && a !== '--paths')) usage()
 
 const gitLines = (gitArgs: string[]): string[] =>
   execFileSync('git', [gitArgs[0]!, '-z', ...(gitArgs[0] === 'diff' ? ['--no-renames', '--no-relative'] : []), ...gitArgs.slice(1)], { cwd: ROOT, encoding: 'utf8' })
@@ -58,22 +58,27 @@ const sel = selectImpact(manifest, paths)
 const always = ALWAYS.filter(s => existsSync(join(ROOT, 'scripts', s, 'run-all.sh')))
 const suites = [...new Set([...sel.suites, ...always])].sort()
 
-const report = {
-  suites: suites.map(s => ({
-    suite: s,
-    class: manifest.classes[s] ?? 'undeclared',
-    reason: sel.suites.has(s) ? 'gate-watch' : 'whole-tree ratchet',
-  })),
-  ignored: sel.ignored,
-  unclassified: sel.unclassified,
-  perPath: sel.perPath,
-}
-if (json && !run) {
-  console.log(JSON.stringify(report, null, 2))
+if (json) {
+  console.log(
+    JSON.stringify(
+      {
+        suites: suites.map(s => ({
+          suite: s,
+          class: manifest.classes[s] ?? 'undeclared',
+          reason: sel.suites.has(s) ? 'gate-watch' : 'whole-tree ratchet',
+        })),
+        ignored: sel.ignored,
+        unclassified: sel.unclassified,
+        perPath: sel.perPath,
+      },
+      null,
+      2,
+    ),
+  )
   process.exit(0)
 }
 
-if (!run) for (const s of suites) console.log(s)
+for (const s of suites) console.log(s)
 
 console.error(
   `impact: ${paths.length} changed path(s) → ${sel.suites.size} watched suite(s) + ${always.length} whole-tree ratchet(s) (${always.join(' · ')})`,
@@ -82,39 +87,7 @@ if (sel.ignored.length > 0) console.error(`ignored (${sel.ignored.length}): ${se
 if (sel.unclassified.length > 0) {
   console.error(`UNCLASSIFIED (${sel.unclassified.length}) — no suite watches these paths:`)
   for (const p of sel.unclassified) console.error(`  ${p}`)
-  if (run) {
-    console.error('impact --run: refused before execution. Declare gate-watch coverage for these paths, or run the full gate separately.')
-    if (json) console.log(JSON.stringify({ ...report, results: [], refused: true }, null, 2))
-    process.exit(1)
-  }
 }
 if (explain) {
   for (const [p, claimants] of Object.entries(sel.perPath)) console.error(`  ${p} → ${claimants.join(', ')}`)
-}
-
-if (run) {
-  const { mkdtempSync, readFileSync } = await import('node:fs')
-  const { tmpdir } = await import('node:os')
-  const { spawnSync } = await import('node:child_process')
-  const out = mkdtempSync(join(tmpdir(), 'impact-run-'))
-  const budget = process.env.MERCURY_SUITE_TIMEOUT ?? process.env.MERCURY_SUITE_CEILING ?? '900'
-  let red = 0
-  const results: { suite: string; rc: number; secs: string }[] = []
-  for (const suite of suites) {
-    const runner = join('scripts', suite, 'run-all.sh')
-    const res = spawnSync('bash', ['scripts/gate/run-suite.sh', runner, budget, out, 'impact --run'], { cwd: ROOT, stdio: 'ignore', env: process.env })
-    let rc = res.status ?? 1
-    let secs = '?'
-    try {
-      rc = Number.parseInt(readFileSync(join(out, `${suite}.rc`), 'utf8').trim(), 10)
-      secs = readFileSync(join(out, `${suite}.secs`), 'utf8').trim()
-    } catch {
-    }
-    if (rc !== 0) red++
-    results.push({ suite, rc, secs })
-    if (!json) console.log(`${suite}\t${rc}\t${secs}`)
-  }
-  if (json) console.log(JSON.stringify({ ...report, results, output: out }, null, 2))
-  console.error(`impact --run: ${suites.length} suite(s), ${red} red; output under ${out}`)
-  process.exit(red === 0 ? 0 : 1)
 }

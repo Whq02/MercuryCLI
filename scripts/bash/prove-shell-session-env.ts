@@ -96,8 +96,8 @@ for (const [name, consumer] of [
   ['MERCURY_PROOF_POISON_SCRUB', 'scripts/bash/prove-shell-session-env.ts'],
   ['MERCURY_PROOF_POISON_GUARD', 'scripts/gate/prove-suite-env-guard.sh'],
   ['MERCURY_SLICE_ROOT', 'scripts/verify/impact.ts'],
-  ['MERCURY_SUITE_TIMEOUT', 'scripts/verify/impact.ts'],
-  ['MERCURY_SUITE_CEILING', 'scripts/verify/impact.ts'],
+  ['MERCURY_SUITE_TIMEOUT', 'scripts/gate/ci-shard.sh'],
+  ['MERCURY_SUITE_CEILING', 'scripts/gate/ci-shard.sh'],
 ]) check(`script environment reader ${name} has its actual consumer registered`, getFlagSpec(name!)?.consumer === consumer && readFileSync(join(ROOT, consumer!), 'utf8').includes(name!))
 
 section('§2 the exec seam: scrubbed by default, named on the handle, inherited on request')
