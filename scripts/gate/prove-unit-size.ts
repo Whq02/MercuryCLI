@@ -14,7 +14,7 @@ const FILE_CEILING = 1500
 const NO_UNIT = '-'
 
 type Unit = { name: string; lines: number }
-type Measure = { unit: string; unitLines: number; lines: number; unitText: string; aside: number }
+type Measure = { unit: string; unitLines: number; lines: number; unitText: string; imports: string; aside: number }
 type Row = { unit: string; unitLines: number; lines: number }
 type Table = Map<string, Row>
 type Side = (file: string) => string | null
@@ -46,6 +46,7 @@ function measure(file: string, text: string): Measure {
   }
   let longest: (Unit & { text: string }) | null = null
   let aside = 0
+  let imports = ''
   const take = (name: string, node: ts.Node): void => {
     const at = span(node)
     if (longest === null || at.lines > longest.lines) longest = { name, lines: at.lines, text: at.text }
@@ -55,10 +56,11 @@ function measure(file: string, text: string): Measure {
     else if (ts.isVariableStatement(s) && s.declarationList.declarations.some(d => isFunction(d.initializer))) {
       const alone = s.declarationList.declarations.length === 1
       for (const d of s.declarationList.declarations) if (isFunction(d.initializer)) take(d.name.getText(sf), alone ? s : d)
-    } else if (span(s).lines > UNIT_CEILING) aside++
+    } else if (ts.isImportDeclaration(s) || (ts.isExportDeclaration(s) && s.moduleSpecifier !== undefined)) imports += `${span(s).text}\n`
+    else if (span(s).lines > UNIT_CEILING) aside++
   }
   const found = longest as (Unit & { text: string }) | null
-  return { unit: found?.name ?? NO_UNIT, unitLines: found?.lines ?? 0, lines: lineCount(text), unitText: found?.text ?? '', aside }
+  return { unit: found?.name ?? NO_UNIT, unitLines: found?.lines ?? 0, lines: lineCount(text), unitText: found?.text ?? '', imports, aside }
 }
 
 const needsRow = (m: Row): boolean => m.unitLines > UNIT_CEILING || m.lines > FILE_CEILING
@@ -116,7 +118,9 @@ function judge(held: Map<string, Measure>, table: Table): Over[] {
 const bag = (text: string | null): Map<string, number> => {
   const out = new Map<string, number>()
   if (text === null) return out
-  for (const line of text.split('\n')) out.set(line.trim(), (out.get(line.trim()) ?? 0) + 1)
+  const lines = text.split('\n')
+  if (lines.at(-1) === '') lines.pop()
+  for (const line of lines) out.set(line.trim(), (out.get(line.trim()) ?? 0) + 1)
   return out
 }
 
@@ -147,12 +151,12 @@ function unpaid(was: Table, touched: string[], before: Side, after: Side): Unpai
     if (!needsRow(held)) continue
     const stoodText = before(file)
     const stood = stoodText === null ? { unit: NO_UNIT, unitLines: 0, lines: 0 } : measure(file, stoodText)
+    const arrived = less(bag(now), bag(stoodText))
     const unitRise = held.unitLines > UNIT_CEILING ? Math.max(0, held.unitLines - stood.unitLines) : 0
-    const lineRise = held.lines > FILE_CEILING ? Math.max(0, held.lines - stood.lines) : 0
+    const lineRise = held.lines > FILE_CEILING ? Math.max(0, held.lines - stood.lines - drawn(bag(held.imports), arrived, false)) : 0
     if (unitRise === 0 && lineRise === 0) continue
     const pool = new Map<string, number>()
     for (const [other, lines] of left) if (other !== file) for (const [line, n] of lines) pool.set(line, (pool.get(line) ?? 0) + n)
-    const arrived = less(bag(now), bag(stoodText))
     const unitMoved = drawn(pool, less(bag(held.unitText), bag(stoodText)), false)
     const lineMoved = drawn(pool, arrived, false)
     for (const [other, lines] of left) if (other !== file) drawn(lines, arrived, true)
@@ -173,7 +177,7 @@ function handRaised(was: Table, table: Table, held: Map<string, Measure>): strin
 }
 
 const DO = (unit: string): string => (unit === NO_UNIT ? 'move part of the file into a file of its own' : `move part of ${unit} into a function or file of its own`)
-const MOVE = `A unit is a function, a class or a variable whose initialiser is a function, at the top level of a file. Text that moves whole between files takes its lines along, and bun ${SELF} --write in the same change writes the rows: a new or higher row is written only for lines that left the file of another row`
+const MOVE = `A unit is a function, a class or a variable whose initialiser is a function, at the top level of a file. Text that moves whole between files takes its lines along, and bun ${SELF} --write in the same change writes the rows: a new or higher row is written only for lines that left the file of another row, and the import lines a file needs are not counted`
 
 const told = (over: Over[]): string =>
   `${over.length} file${over.length === 1 ? '' : 's'} above — ${MOVE}:` +
@@ -346,7 +350,14 @@ function plantedEstate(): void {
   const tallEstate = { 'src/planted/tall.ts': text(tall), 'src/planted/other.ts': text(Array.from({ length: FILE_CEILING + 50 }, (_, i) => `export const d${i} = ${i}`)) }
   const tallMoved = { 'src/planted/tall.ts': text(tall.slice(0, FILE_CEILING + 40)), 'src/planted/other.ts': text([...Array.from({ length: FILE_CEILING + 50 }, (_, i) => `export const d${i} = ${i}`), ...tall.slice(FILE_CEILING + 40)]) }
   const tallGrown = { ...tallEstate, 'src/planted/other.ts': text(Array.from({ length: FILE_CEILING + 60 }, (_, i) => `export const d${i} = ${i}`)) }
-  check('the lines of a file over the ceiling rise the same way: by lines that left the file of another row, and not by new ones', said(owed(tallEstate, tallMoved)) === '' && said(owed(tallEstate, tallGrown)) === 'src/planted/other.ts - +0/0 +10/0', `${said(owed(tallEstate, tallMoved))} | ${said(owed(tallEstate, tallGrown))}`)
+  const half = tall.slice(0, FILE_CEILING + 10)
+  const tallSplit = { ...tallEstate, 'src/planted/tall.ts': text(tall.slice(FILE_CEILING + 10)), 'src/planted/half.ts': text(["import { step } from './step.ts'", ...half]) }
+  const tallSplitAndGrown = { ...tallSplit, 'src/planted/half.ts': text(["import { step } from './step.ts'", ...half, 'export const fresh = step']) }
+  check(
+    'the lines of a file over the ceiling rise the same way: by lines that left the file of another row, and not by new ones; the import lines of the file are not counted, and a line that is no import is',
+    said(owed(tallEstate, tallMoved)) === '' && said(owed(tallEstate, tallGrown)) === 'src/planted/other.ts - +0/0 +10/0' && said(owed(tallEstate, tallSplit)) === '' && said(owed(tallEstate, tallSplitAndGrown)) === `src/planted/half.ts - +0/0 +${FILE_CEILING + 11}/${FILE_CEILING + 10}`,
+    `${said(owed(tallEstate, tallMoved))} | ${said(owed(tallEstate, tallGrown))} | ${said(owed(tallEstate, tallSplit))} | ${said(owed(tallEstate, tallSplitAndGrown))}`,
+  )
 }
 
 section('§0 the reader on a planted estate: what a unit is, the table, and the five canaries')
