@@ -50,7 +50,6 @@ section('§2 THE PLAIN RENDERER (HL-07)')
     verdict: 'sound',
     durationMs: 123,
   })
-  // eslint-disable-next-line no-control-regex
   check('zero ANSI/control bytes in plain output', !/[\u001b\u009b\u0007\u0000]/.test(text))
   check(
     'every section, row, and the verdict render completely',

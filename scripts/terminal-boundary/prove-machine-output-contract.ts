@@ -46,7 +46,6 @@ const guard = setTimeout(() => {
 guard.unref?.()
 
 function interactiveBytes(s: string): string | null {
-  // eslint-disable-next-line no-control-regex
   const m = s.match(/\x1b\[[^m]*[A-Za-ln-z]|\x1b\]|\x1b\(|\x1b\[\?/)
   return m ? JSON.stringify(m[0]) : null
 }

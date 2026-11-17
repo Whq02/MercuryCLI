@@ -845,7 +845,6 @@ class FakeStdin extends EventEmitter {
 }
 const ESC = '\u001b'
 function stripEsc(w: string): string {
-  // eslint-disable-next-line no-control-regex
   return w.replace(/\u001b(?:\[[0-9;?<>=$ ]*[a-zA-Z@`]|\][^\u0007\u001b]*(?:\u0007|\u001b\\)|[()][0-9A-B])/g, '')
 }
 function isFrameWrite(w: string): boolean {

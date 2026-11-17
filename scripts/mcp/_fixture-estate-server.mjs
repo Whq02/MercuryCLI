@@ -127,7 +127,6 @@ async function callTool(name, args) {
       return { content: [{ type: 'text', text: '{"ok":true}' }], structuredContent: { ok: true } }
     case 'crash':
       process.exit(3)
-    // eslint-disable-next-line no-fallthrough
     case 'a_tool_whose_name_is_deliberately_far_too_long_for_the_openai_wire_grammar':
       return text(`long:${args?.text ?? ''}`)
     case 'unicode_名前':

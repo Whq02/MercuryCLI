@@ -6,7 +6,6 @@ import { check, finish, section } from './lib.js'
 
 function parsesAsCellBody(code: string): boolean {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
     new Function(`return (async () => {\n${code}\n})()`)
     return true
   } catch {

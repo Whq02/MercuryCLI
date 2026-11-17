@@ -1,16 +1,32 @@
 #!/usr/bin/env bun
+import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { join, relative, resolve } from 'node:path'
 import ts from 'typescript'
-import { declarationOf, functionOf, importOf, unwrap } from './sourceCensus.ts'
+import { FLAG_REGISTRY } from '../../src/substrate/flagRegistry.ts'
+import { ModuleCache, declarationOf, functionOf, importOf, importedDeclaration, unwrap } from './sourceCensus.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const SELF = 'scripts/gate/prove-source-patterns.ts'
+const CENSUS = 'scripts/gate/sourceCensus.ts'
 const TABLE = 'scripts/gate/source-patterns.tsv'
 const CODE = /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/
 const PAYLOADS = 'src/extensions/bundled/'
-const SKIPPED = new Set(['node_modules', 'dist', '.git'])
+const PAYLOAD_FILES = new Set(
+  ['filmcraft/server/bridge.mjs', 'filmcraft/server/install.mjs', 'lightcraft/server/bridge.mjs', 'lightcraft/server/install.mjs', 'mercury-media/server/config.js', 'mercury-media/server/engine-host.js', 'mercury-media/server/remote-client.js', 'mercury-media/server/remote-server.js', 'mercury-media/server/server.js', 'mercury-media/server/setup.js', 'mercury-media/server/workflow.js', 'photocraft/server/bridge.mjs', 'photocraft/server/install.mjs', 'shared/bootstrap.mjs', 'shared/control.mjs', 'shared/install.d.mts', 'shared/install.mjs', 'shared/powershell.mjs'].map(name => PAYLOADS + name),
+)
+const AT_THE_ROOT = new Set(['node_modules', 'dist', '.git'])
 const DOOR = 'flagEnv'
+const LOOSE = 'flagEnvLoose'
+const REGISTERED = new Set(FLAG_REGISTRY.map(row => row.env))
+const DOOR_FILE = ((): string => {
+  const self = ts.createSourceFile(SELF, readFileSync(import.meta.path, 'utf8'), ts.ScriptTarget.Latest, false)
+  for (const s of self.statements) {
+    const named = ts.isImportDeclaration(s) && ts.isStringLiteral(s.moduleSpecifier) ? s.importClause?.namedBindings : undefined
+    if (named && ts.isNamedImports(named) && named.elements.some(el => el.name.text === 'FLAG_REGISTRY')) return relative(ROOT, resolve(import.meta.dir, (s as ts.ImportDeclaration & { moduleSpecifier: ts.StringLiteral }).moduleSpecifier.text)).split('\\').join('/')
+  }
+  return ''
+})()
 
 const SLEEP = 'await sleep(ms, signal) from utils/sleep.ts'
 const CLOCK = 'a module that must own a timer takes its clock from the caller (now, setTimeout, clearTimeout), as StreamTimers in the stream idle budget and the clock of the render scheduler do'
@@ -18,6 +34,8 @@ const TICK = 'for a tick, subscribeUiClock(ms, fn) from utils/cockpit/uiClock.ts
 const YIELD = `await the promise the work depends on, or ${SLEEP} with 0 to let the event loop turn; a scheduler that must defer takes the function from its caller, as the render scheduler takes queueMicrotask in its clock`
 const RENDER = 'compute the value while rendering (plain code or useMemo); read an outside store with useSyncExternalStore; put an action in the handler of the key or event that causes it'
 const NAME_THE_FAILURE = 'catch the one failure that is expected and let the rest throw (isENOENT, isFsInaccessible and isAbortError in utils/errors.ts test for it); a failure that may be passed over is still recorded, with logForDebugging or logError'
+const NO_AMBIENT_DOOR = 'one function for the ambient environment is proposed and not built: until it stands the count holds where it is and does not rise'
+const TYPE_IT = 'narrow the value with a type guard or parse it with its schema; a declared type that is wrong is corrected where it is declared; satisfies checks a literal against a type with no cast'
 
 const HABITS = {
   setTimeout: `to wait, ${SLEEP}; to bound a call, AbortSignal.timeout(ms) or the inactivity deadline in utils/deadline.ts; ${TICK}; ${CLOCK}`,
@@ -25,62 +43,85 @@ const HABITS = {
   setImmediate: YIELD,
   queueMicrotask: YIELD,
   'process.nextTick': YIELD,
+  'Atomics.wait': `a synchronous wait stops the event loop for every caller: in an async caller, ${SLEEP}; a caller that cannot await hands the wait to a worker`,
   useEffect: `${RENDER}; a repeating tick is useInterval or useAnimationFrame from ink/hooks`,
   useLayoutEffect: `${RENDER}; a size is read from the layout the renderer already measured (useTerminalSize, useTerminalViewport), not measured again after the paint`,
   useInsertionEffect: `${RENDER}; a write to the terminal belongs to the renderer, not to a component`,
-  'as-unknown-as': 'narrow the value with a type guard or parse it with its schema; a declared type that is wrong is corrected where it is declared; satisfies checks a literal against a type with no cast',
+  useImperativeHandle: `${RENDER}; a parent that must act on a child hands it the state, not a handle to call`,
+  'lifecycle-method': `a function component: ${RENDER}`,
+  'as-unknown-as': TYPE_IT,
+  'as-never': `${TYPE_IT}; never stands for a branch that cannot be reached, not for a value that is handed on`,
+  'as-any': `${TYPE_IT}; any switches the compiler off for everything the value touches`,
   'ts-ignore': 'type the value at the line: a declaration for the module that has none, a guard for the union',
-  'lint-directive': 'delete the comment: the tree has no linter and no formatter, and nothing reads it',
+  'lint-directive': 'delete the comment: the tree has no linter, no formatter and no coverage tool, and nothing reads it',
   'empty-catch': NAME_THE_FAILURE,
   'empty-catch-handler': NAME_THE_FAILURE,
-  'process.env': `a flag is read with ${DOOR} or flagEnabled once its row stands in the flag registry; a function that needs the environment takes it from its caller as a parameter`,
+  'catch-default': `${NAME_THE_FAILURE}; a default answered for every failure hides the ones nobody expected`,
+  'handler-default': `${NAME_THE_FAILURE}; a default answered for every failure hides the ones nobody expected`,
+  'env-read': `a registered flag is read with ${DOOR} or flagEnabled (each line below says whether its name has a row in the flag registry); for another name, ${NO_AMBIENT_DOOR}`,
+  'env-whole': `a function that needs the environment takes it from its caller as a parameter with no default; ${NO_AMBIENT_DOOR}`,
+  [LOOSE]: `give the name its row in the flag registry and read it with ${DOOR}`,
 } as const
 type Habit = keyof typeof HABITS
 const NAMES = Object.keys(HABITS) as Habit[]
-const OUT_OF_REACH = 'a habit reached through a wrapper or an alias declared in another module, a module loaded by require or a dynamic import, a cast through unknown made in two statements, a handler that is not empty and still passes the failure over, a file under ' + PAYLOADS + ' (payloads that run outside the product and cannot import its doors); the module that exports ' + DOOR + ' is the door of the environment, and its own reads are not counted'
+const BEYOND: Array<[string, string]> = [
+  ['wrapper', 'a named function that arms a timer or runs an effect for what its caller hands in, counted once where it stands and not at its callers'],
+  ['exported-alias', 'a name a module exports for a timer, a hook or the environment, counted where it is made and not where another module imports it'],
+  ['env-whole', 'what is read from the environment after it is handed on whole to a function, a property or a return: the handing on is counted, as the habit env-whole, and the reads behind it are not'],
+  ['two-step-cast', 'a cast of a constant or a parameter typed unknown, which is the cast through unknown made in two statements and most often an honest narrowing'],
+  ['any-type', 'the any keyword in a type, which needs no cast'],
+  ['computed-member', 'a member of globalThis or process under a name computed at run time, in brackets or through Reflect.get'],
+  ['child-sleep', 'a child process named sleep'],
+  ['busy-loop', 'a loop that reads the clock in its test and awaits nothing'],
+  ['all-settled', 'Promise.allSettled with its result dropped'],
+  ['memo-effect', 'a useMemo callback or a useState initialiser with a statement that calls or assigns what is declared outside it'],
+  ['only-calls', 'a catch block or a rejection handler that holds only calls, which may report the failure and still pass it over'],
+]
+const WRAPPED = new Set<string>(['setTimeout', 'setInterval', 'setImmediate', 'queueMicrotask', 'process.nextTick', 'useEffect', 'useLayoutEffect', 'useInsertionEffect'])
 
-type Space = 'global' | 'timers' | 'react' | 'process'
+type Space = 'global' | 'timers' | 'scheduler' | 'react' | 'process' | 'atomics'
 const TIMERS: Array<[string, Habit]> = [['setTimeout', 'setTimeout'], ['setInterval', 'setInterval'], ['setImmediate', 'setImmediate']]
-const EFFECTS: Array<[string, Habit]> = [['useEffect', 'useEffect'], ['useLayoutEffect', 'useLayoutEffect'], ['useInsertionEffect', 'useInsertionEffect']]
 const MEMBERS: Record<Space, Map<string, Habit>> = {
   global: new Map([...TIMERS, ['queueMicrotask', 'queueMicrotask']]),
   timers: new Map(TIMERS),
-  react: new Map(EFFECTS),
-  process: new Map([['nextTick', 'process.nextTick'], ['env', 'process.env']]),
+  scheduler: new Map([['wait', 'setTimeout'], ['yield', 'setImmediate']]),
+  react: new Map([['useEffect', 'useEffect'], ['useLayoutEffect', 'useLayoutEffect'], ['useInsertionEffect', 'useInsertionEffect'], ['useImperativeHandle', 'useImperativeHandle']]),
+  process: new Map([['nextTick', 'process.nextTick'], ['env', 'env-whole']]),
+  atomics: new Map([['wait', 'Atomics.wait']]),
+}
+const INSIDE: Record<Space, Map<string, Space>> = {
+  global: new Map([['globalThis', 'global'], ['global', 'global'], ['window', 'global'], ['self', 'global'], ['process', 'process'], ['Atomics', 'atomics']]),
+  timers: new Map([['promises', 'timers'], ['scheduler', 'scheduler']]),
+  scheduler: new Map(),
+  react: new Map(),
+  process: new Map(),
+  atomics: new Map(),
 }
 const MODULES = new Map<string, Space>([['node:timers', 'timers'], ['timers', 'timers'], ['node:timers/promises', 'timers'], ['timers/promises', 'timers'], ['react', 'react'], ['node:process', 'process'], ['process', 'process']])
-const AMBIENT = new Map<string, Space>([['globalThis', 'global'], ['global', 'global'], ['window', 'global'], ['self', 'global'], ['process', 'process']])
+const AMBIENT = INSIDE.global
 const BARE = new Map<string, Habit>([...MEMBERS.global, ...MEMBERS.react])
-const SUPPRESSION = /@ts-(?:ignore|expect-error|nocheck)\b/
-const LINT = /\b(?:eslint-(?:disable|enable|env)|biome-ignore|prettier-ignore|oxlint-(?:disable|enable)|tslint:(?:disable|enable)|deno-lint-ignore|deno-fmt-ignore|dprint-ignore|jshint|jslint)\b|^\/\*\s*globals?\s/
-const DIRECTIVE_WORD = /@ts-(?:ignore|expect-error|nocheck)|eslint-|biome-ignore|prettier-ignore|oxlint-|tslint:|deno-lint-ignore|deno-fmt-ignore|dprint-ignore|jshint|jslint|\/\*\s*globals?\s/
+const LIFECYCLE = new Set(['componentDidMount', 'componentDidUpdate', 'componentWillUnmount'])
+const CHILD = new Set(['execFileSync', 'execSync', 'spawnSync', 'spawn', 'execFile', 'exec'])
+const SUPPRESSION = /@ts-(?:ignore|expect-error|nocheck)\b/i
+const LINT = /\b(?:eslint-(?:disable|enable|env)|biome-ignore|prettier-ignore|oxlint-(?:disable|enable)|tslint:(?:disable|enable)|deno-lint-ignore|deno-fmt-ignore|dprint-ignore|jshint|jslint|noinspection|stylelint-(?:disable|enable)|cspell:(?:disable|enable|ignore)|nolint|nosonar)\b|\b(?:istanbul|c8|v8) ignore\b|^\/\*\s*(?:globals?|eslint)\s/i
+const DIRECTIVE_WORD = /@ts-(?:ignore|expect-error|nocheck)|eslint|biome-ignore|prettier-ignore|oxlint-|tslint:|deno-lint-ignore|deno-fmt-ignore|dprint-ignore|jshint|jslint|noinspection|stylelint-|cspell:|nolint|nosonar|(?:istanbul|c8|v8) ignore|\/\*\s*globals?\s/i
 
-type Hit = { habit: Habit; file: string; line: number; column: number }
+type Hit = { habit: Habit; file: string; line: number; column: number; print: string; note: string }
 type Rows = Map<Habit, Map<string, number>>
-type Over = { file: string; row: number; lines: number[] }
+type Over = { file: string; row: number; lines: Array<{ line: number; note: string }> }
 type Verdict = { over: Over[]; total: number; allowed: number; files: number; slack: number }
+type Side = (file: string) => string | null
+type Change = { name: string; touched: string[]; taken: Set<string>; before: Side; after: Side }
+type Chain = { from: string; was: Rows; span: Change; links: Change[] }
+type Refusal = { habit: Habit; file: string; lines: number[]; why: string; change: string }
+type Passed = 'empty' | 'default' | 'calls' | undefined
+
+const modules = new ModuleCache(ROOT)
 
 function scriptKind(file: string): ts.ScriptKind {
   if (/\.(?:tsx|jsx)$/.test(file)) return ts.ScriptKind.TSX
   if (/\.(?:js|mjs|cjs)$/.test(file)) return ts.ScriptKind.JS
   return ts.ScriptKind.TS
-}
-
-function moduleOf(decl: ts.Node): { space: Space; name: string } | undefined {
-  const spec = ts.isNamespaceImport(decl) ? decl.parent.parent.moduleSpecifier : undefined
-  const ref = spec && ts.isStringLiteral(spec) ? { module: spec.text, name: '*' } : importOf(decl)
-  const space = ref ? MODULES.get(ref.module) : undefined
-  return ref && space ? { space, name: ref.name } : undefined
-}
-
-function spaceOf(e: ts.Expression): Space | undefined {
-  const x = unwrap(e)
-  if (ts.isPropertyAccessExpression(x)) return spaceOf(x.expression) === 'global' ? AMBIENT.get(x.name.text) : undefined
-  if (!ts.isIdentifier(x)) return undefined
-  const decl = declarationOf(x)
-  if (!decl) return AMBIENT.get(x.text)
-  const from = moduleOf(decl)
-  return from && (from.name === '*' || from.name === 'default') ? from.space : undefined
 }
 
 function isUse(id: ts.Identifier): boolean {
@@ -91,16 +132,22 @@ function isUse(id: ts.Identifier): boolean {
   return named.name !== id && named.propertyName !== id
 }
 
-function habitOfName(id: ts.Identifier, aliases: Map<string, Habit>): Habit | undefined {
-  const alias = aliases.get(id.text)
-  const bare = BARE.get(id.text)
-  if ((!alias && !bare) || !isUse(id)) return undefined
-  const decl = declarationOf(id)
-  if (!decl) return bare
-  const from = moduleOf(decl)
-  if (from) return MEMBERS[from.space].get(from.name)
-  const imported = importOf(decl)
-  return imported && imported.name === id.text ? bare : undefined
+function unwrapAll(e: ts.Expression): ts.Expression {
+  let cur = unwrap(e)
+  while (ts.isAwaitExpression(cur)) cur = unwrap(cur.expression)
+  return cur
+}
+
+function unwrapParens(e: ts.Expression): ts.Expression {
+  let cur = e
+  while (ts.isParenthesizedExpression(cur)) cur = cur.expression
+  return cur
+}
+
+function outOf(n: ts.Node): ts.Node {
+  let cur = n
+  while (ts.isParenthesizedExpression(cur.parent) || ts.isAsExpression(cur.parent) || ts.isNonNullExpression(cur.parent) || ts.isSatisfiesExpression(cur.parent)) cur = cur.parent
+  return cur
 }
 
 const yieldsNothing = (e: ts.Expression): boolean => {
@@ -108,19 +155,46 @@ const yieldsNothing = (e: ts.Expression): boolean => {
   return (ts.isIdentifier(x) && x.text === 'undefined') || (ts.isVoidExpression(x) && ts.isLiteralExpression(unwrap(x.expression)))
 }
 
-function idle(fn: ts.FunctionLikeDeclaration): boolean {
-  const body = fn.body
-  if (!body) return false
-  if (!ts.isBlock(body)) return yieldsNothing(body)
-  return body.statements.every(s => ts.isEmptyStatement(s) || (ts.isReturnStatement(s) && (!s.expression || yieldsNothing(s.expression))))
+const isDefault = (e: ts.Expression): boolean => {
+  const x = unwrap(e)
+  return x.kind === ts.SyntaxKind.NullKeyword || x.kind === ts.SyntaxKind.TrueKeyword || x.kind === ts.SyntaxKind.FalseKeyword || ts.isNumericLiteral(x) || ts.isStringLiteralLike(x) || (ts.isArrayLiteralExpression(x) && x.elements.length === 0) || (ts.isObjectLiteralExpression(x) && x.properties.length === 0) || (ts.isPrefixUnaryExpression(x) && ts.isNumericLiteral(x.operand))
 }
 
-function idleHandler(e: ts.Expression | undefined): boolean {
-  if (!e) return false
+const saysNothing = (s: ts.Statement): boolean => ts.isEmptyStatement(s) || (ts.isExpressionStatement(s) && (ts.isIdentifier(unwrap(s.expression)) || (ts.isVoidExpression(s.expression) && (ts.isIdentifier(unwrap(s.expression.expression)) || ts.isLiteralExpression(unwrap(s.expression.expression))))))
+
+function stripped(e: ts.Expression): ts.Expression {
+  let cur = e
+  while (ts.isVoidExpression(cur) || ts.isAwaitExpression(cur) || ts.isParenthesizedExpression(cur)) cur = cur.expression
+  return cur
+}
+
+function holds(node: ts.Node, test: (n: ts.Node) => boolean): boolean {
+  let found = false
+  const look = (n: ts.Node): void => {
+    if (found || (n !== node && ts.isFunctionLike(n))) return
+    if (test(n)) found = true
+    else ts.forEachChild(n, look)
+  }
+  look(node)
+  return found
+}
+
+function passedOver(statements: readonly ts.Statement[], inFunction: boolean): Passed {
+  const rest = statements.filter(s => !saysNothing(s))
+  if (rest.every(s => inFunction && ts.isReturnStatement(s) && (!s.expression || yieldsNothing(s.expression)))) return 'empty'
+  if (rest.every(s => (ts.isReturnStatement(s) && (!s.expression || yieldsNothing(s.expression) || isDefault(s.expression))) || ts.isContinueStatement(s) || ts.isBreakStatement(s))) return 'default'
+  if (rest.every(s => ts.isExpressionStatement(s) && ts.isCallExpression(stripped(s.expression)))) return 'calls'
+  return undefined
+}
+
+function handlerPasses(e: ts.Expression | undefined): Passed {
+  if (!e) return undefined
   const x = unwrap(e)
-  if (ts.isArrowFunction(x) || ts.isFunctionExpression(x)) return idle(x)
-  const fn = ts.isIdentifier(x) ? functionOf(declarationOf(x)) : undefined
-  return fn !== undefined && idle(fn)
+  const decl = ts.isIdentifier(x) ? declarationOf(x) : undefined
+  const fn = ts.isArrowFunction(x) || ts.isFunctionExpression(x) ? x : decl ? (functionOf(decl) ?? functionOf(importedDeclaration(modules, decl))) : undefined
+  if (!fn?.body) return undefined
+  if (ts.isBlock(fn.body)) return passedOver(fn.body.statements, true)
+  return yieldsNothing(fn.body) ? 'empty' : isDefault(fn.body) ? 'default' : ts.isCallExpression(stripped(fn.body)) ? 'calls' : undefined
 }
 
 function commentsOf(sf: ts.SourceFile, each: (pos: number, text: string) => void): void {
@@ -148,51 +222,303 @@ function commentsOf(sf: ts.SourceFile, each: (pos: number, text: string) => void
   walk(sf)
 }
 
-function habitsIn(file: string, text: string): Hit[] {
-  const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, scriptKind(file))
+const squeeze = (text: string): string => text.replace(/\s+/g, ' ').trim()
+
+function printAt(sf: ts.SourceFile, habit: Habit, pos: number): string {
+  if (habit === 'ts-ignore' || habit === 'lint-directive') {
+    const first = sf.text.indexOf('\n', pos)
+    const end = first < 0 ? -1 : sf.text.indexOf('\n', first + 1)
+    return squeeze(sf.text.slice(pos, end < 0 ? sf.text.length : end))
+  }
+  let node: ts.Node = sf
+  for (;;) {
+    const kid = ts.forEachChild(node, child => (child.getStart(sf) <= pos && pos < child.end ? child : undefined))
+    if (!kid) break
+    node = kid
+  }
+  while (node.parent && !((ts.isStatement(node) && !ts.isBlock(node)) || ts.isClassElement(node) || ts.isParameter(node))) node = node.parent
+  if (ts.isParameter(node)) {
+    const fn = node.parent
+    const holder = fn.parent
+    const name = (ts.isFunctionDeclaration(fn) || ts.isMethodDeclaration(fn) || ts.isFunctionExpression(fn)) && fn.name ? fn.name.getText(sf) : ts.isVariableDeclaration(holder) || ts.isPropertyAssignment(holder) || ts.isPropertyDeclaration(holder) ? holder.name.getText(sf) : ''
+    return squeeze(`${name}(${node.getText(sf)})`)
+  }
+  const exported = (ts.canHaveModifiers(node) ? (ts.getModifiers(node) ?? []) : []).filter(m => m.kind === ts.SyntaxKind.ExportKeyword || m.kind === ts.SyntaxKind.DefaultKeyword).at(-1)
+  return squeeze(sf.text.slice(exported ? exported.end : node.getStart(sf), node.end))
+}
+
+function habitsIn(file: string, text: string, prints = false, beyond?: Map<string, number>): Hit[] {
+  const sf = ts.createSourceFile(join(ROOT, file), text, ts.ScriptTarget.Latest, true, scriptKind(file))
   const out: Hit[] = []
-  const hit = (habit: Habit, pos: number): void => {
-    const at = sf.getLineAndCharacterOfPosition(pos)
-    out.push({ habit, file, line: at.line + 1, column: at.character + 1 })
+  const hit = (habit: Habit, at: ts.Node | number, note = ''): void => {
+    const pos = typeof at === 'number' ? at : at.getStart(sf)
+    const where = sf.getLineAndCharacterOfPosition(pos)
+    out.push({ habit, file, line: where.line + 1, column: where.character + 1, print: prints ? printAt(sf, habit, pos) : '', note })
   }
-  const aliases = new Map<string, Habit>()
-  for (const s of sf.statements) {
-    if (!ts.isImportDeclaration(s) || !ts.isStringLiteral(s.moduleSpecifier)) continue
-    const space = MODULES.get(s.moduleSpecifier.text)
-    const named = s.importClause?.namedBindings
-    if (!space || !named || !ts.isNamedImports(named)) continue
-    for (const el of named.elements) {
-      const habit = MEMBERS[space].get((el.propertyName ?? el.name).text)
-      if (habit) aliases.set(el.name.text, habit)
+  const tally = (form: string): void => void beyond?.set(form, (beyond.get(form) ?? 0) + 1)
+
+  const habitAt = new Map<ts.Node, Habit>()
+  const spaceAt = new Map<ts.Node, Space>()
+  const envAt = new Set<ts.Node>()
+  const names = new Set<string>()
+
+  const spaceOf = (e: ts.Expression): Space | undefined => {
+    const x = unwrapAll(e)
+    if (ts.isIdentifier(x)) {
+      const decl = declarationOf(x)
+      return decl ? spaceAt.get(decl) : AMBIENT.get(x.text)
     }
+    if (ts.isPropertyAccessExpression(x)) {
+      const owner = spaceOf(x.expression)
+      return owner ? INSIDE[owner].get(x.name.text) : undefined
+    }
+    if (ts.isCallExpression(x) && x.arguments[0] && ts.isStringLiteralLike(x.arguments[0])) {
+      const loads = x.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(x.expression) && x.expression.text === 'require' && !declarationOf(x.expression))
+      return loads ? MODULES.get(x.arguments[0].text) : undefined
+    }
+    return undefined
   }
-  const member = (owner: ts.Expression, name: string, at: ts.Node): void => {
+  const reflected = (x: ts.Node): { owner: ts.Expression; key: string; at: ts.Expression } | undefined => {
+    if (!ts.isCallExpression(x) || !ts.isPropertyAccessExpression(x.expression) || x.expression.name.text !== 'get') return undefined
+    const [owner, key] = x.arguments
+    const target = x.expression.expression
+    return ts.isIdentifier(target) && target.text === 'Reflect' && !declarationOf(target) && owner && key && ts.isStringLiteralLike(key) ? { owner, key: key.text, at: key } : undefined
+  }
+  const isOrigin = (x: ts.Node): boolean => {
+    if (ts.isPropertyAccessExpression(x) && x.name.text === 'env') return spaceOf(x.expression) === 'process' || (ts.isIdentifier(x.expression) && x.expression.text === 'Bun' && !declarationOf(x.expression)) || (ts.isMetaProperty(x.expression) && x.expression.name.text === 'meta')
+    const got = reflected(x)
+    if (got) return got.key === 'env' && spaceOf(got.owner) === 'process'
+    return ts.isElementAccessExpression(x) && ts.isStringLiteralLike(x.argumentExpression) && x.argumentExpression.text === 'env' && spaceOf(x.expression) === 'process'
+  }
+  const isEnv = (e: ts.Expression): boolean => {
+    const x = unwrap(e)
+    if (isOrigin(x)) return true
+    if (ts.isIdentifier(x)) {
+      const decl = declarationOf(x)
+      return decl !== undefined && envAt.has(decl)
+    }
+    return ts.isBinaryExpression(x) && (x.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken || x.operatorToken.kind === ts.SyntaxKind.BarBarToken) && isEnv(x.right)
+  }
+  const habitOfValue = (e: ts.Expression): Habit | undefined => {
+    const x = unwrapAll(e)
+    if (ts.isIdentifier(x)) {
+      const decl = declarationOf(x)
+      return decl ? habitAt.get(decl) : BARE.get(x.text)
+    }
+    const got = reflected(x)
+    const owner = ts.isPropertyAccessExpression(x) ? spaceOf(x.expression) : got ? spaceOf(got.owner) : undefined
+    const habit = owner ? MEMBERS[owner].get(ts.isPropertyAccessExpression(x) ? x.name.text : (got?.key ?? '')) : undefined
+    return habit === 'env-whole' ? undefined : habit
+  }
+  const keyOf = (name: ts.Node | undefined): string | undefined => (name && (ts.isIdentifier(name) || ts.isStringLiteralLike(name)) ? name.text : undefined)
+  const takes = (decl: ts.Node, source: ts.Expression, key: string): void => {
+    const space = spaceOf(source)
+    if (!space) return
+    const inner = INSIDE[space].get(key)
+    const habit = MEMBERS[space].get(key)
+    if (inner) spaceAt.set(decl, inner)
+    if (habit === 'env-whole') envAt.add(decl)
+    else if (habit) habitAt.set(decl, habit)
+  }
+  const learn = (n: ts.Node): void => {
+    if (ts.isImportDeclaration(n) && ts.isStringLiteral(n.moduleSpecifier) && n.importClause) {
+      const space = MODULES.get(n.moduleSpecifier.text)
+      const clause = n.importClause
+      if (space && clause.name) spaceAt.set(clause, space)
+      const named = clause.namedBindings
+      if (space && named && ts.isNamespaceImport(named)) spaceAt.set(named, space)
+      if (named && ts.isNamedImports(named)) {
+        for (const el of named.elements) {
+          const imported = (el.propertyName ?? el.name).text
+          names.add(el.name.text)
+          if (imported === LOOSE) habitAt.set(el, LOOSE)
+          else if (!space) {
+            const bare = BARE.get(imported)
+            if (bare) habitAt.set(el, bare)
+          } else {
+            const inner = INSIDE[space].get(imported)
+            const habit = MEMBERS[space].get(imported)
+            if (inner) spaceAt.set(el, inner)
+            if (habit === 'env-whole') envAt.add(el)
+            else if (habit) habitAt.set(el, habit)
+          }
+        }
+      }
+    } else if ((ts.isVariableDeclaration(n) || ts.isParameter(n) || ts.isBindingElement(n)) && ts.isIdentifier(n.name)) {
+      names.add(n.name.text)
+      if (n.initializer && !(ts.isBindingElement(n) && n.propertyName)) {
+        if (isEnv(n.initializer)) envAt.add(n)
+        const space = spaceOf(n.initializer)
+        if (space) spaceAt.set(n, space)
+        const habit = habitOfValue(n.initializer)
+        if (habit) habitAt.set(n, habit)
+      }
+      if (ts.isBindingElement(n) && ts.isObjectBindingPattern(n.parent)) {
+        const holder = n.parent.parent
+        const key = keyOf(n.propertyName ?? n.name)
+        if ((ts.isVariableDeclaration(holder) || ts.isParameter(holder)) && holder.initializer && key) takes(n, holder.initializer, key)
+      }
+    } else if (ts.isBinaryExpression(n) && (n.operatorToken.kind === ts.SyntaxKind.EqualsToken || n.operatorToken.kind === ts.SyntaxKind.QuestionQuestionEqualsToken || n.operatorToken.kind === ts.SyntaxKind.BarBarEqualsToken)) {
+      const left = unwrapParens(n.left)
+      const given = (target: ts.Node, key?: string): void => {
+        const decl = ts.isIdentifier(target) ? declarationOf(target) : undefined
+        if (!decl) return
+        if (key !== undefined) return takes(decl, n.right, key)
+        if (isEnv(n.right)) envAt.add(decl)
+        const space = spaceOf(n.right)
+        if (space) spaceAt.set(decl, space)
+        const habit = habitOfValue(n.right)
+        if (habit) habitAt.set(decl, habit)
+      }
+      if (ts.isIdentifier(left)) given(left)
+      else if (ts.isObjectLiteralExpression(left) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
+        for (const prop of left.properties) {
+          if (ts.isPropertyAssignment(prop)) given(prop.initializer, keyOf(prop.name) ?? '')
+          else if (ts.isShorthandPropertyAssignment(prop)) given(prop.name, prop.name.text)
+        }
+      }
+    }
+    ts.forEachChild(n, learn)
+  }
+  learn(sf)
+  learn(sf)
+
+  const whole = (n: ts.Expression, at: ts.Node): void => {
+    const up = outOf(n)
+    const p = up.parent
+    if ((ts.isPropertyAccessExpression(p) || ts.isElementAccessExpression(p)) && p.expression === up) return
+    if ((ts.isVariableDeclaration(p) || ts.isParameter(p)) && p.initializer === up && ts.isObjectBindingPattern(p.name)) return
+    if (ts.isBinaryExpression(p) && p.right === up && (p.operatorToken.kind === ts.SyntaxKind.InKeyword || (p.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isObjectLiteralExpression(unwrapParens(p.left))))) return
+    hit('env-whole', at)
+  }
+  const named = (key: string): string => `${key} ${REGISTERED.has(key) ? `has a row: ${DOOR}('${key}')` : 'has no row'}`
+  const member = (owner: ts.Expression, key: string, at: ts.Node, node?: ts.Expression): void => {
     const space = spaceOf(owner)
-    const habit = MEMBERS.react.get(name) ?? (space ? MEMBERS[space].get(name) : undefined)
-    if (habit) hit(habit, at.getStart(sf))
+    const habit = MEMBERS.react.get(key) ?? (space ? MEMBERS[space].get(key) : undefined)
+    if (habit === 'env-whole' && node) whole(node, at)
+    else if (habit) hit(habit, at)
+    else if (key === LOOSE) hit(LOOSE, at)
+  }
+  const taken = (source: ts.Expression, key: string | undefined, at: ts.Node): void => {
+    if (key === undefined) return
+    if (isEnv(source)) hit('env-read', at, named(key))
+    else member(source, key, at)
   }
   const walk = (n: ts.Node): void => {
+    if (n.kind === ts.SyntaxKind.AnyKeyword) tally('any-type')
     if (ts.isIdentifier(n)) {
-      const habit = habitOfName(n, aliases)
-      if (habit) hit(habit, n.getStart(sf))
+      if ((names.has(n.text) || BARE.has(n.text)) && isUse(n)) {
+        const decl = declarationOf(n)
+        const habit = decl ? habitAt.get(decl) : BARE.get(n.text)
+        if (habit) hit(habit, n)
+      }
     } else if (ts.isPropertyAccessExpression(n)) {
-      member(n.expression, n.name.text, n.name)
-    } else if (ts.isElementAccessExpression(n) && ts.isStringLiteralLike(n.argumentExpression)) {
-      member(n.expression, n.argumentExpression.text, n.argumentExpression)
-    } else if (ts.isVariableDeclaration(n) && n.initializer && ts.isObjectBindingPattern(n.name)) {
-      for (const el of n.name.elements) {
-        const key = el.propertyName ?? el.name
-        if (ts.isIdentifier(key) || ts.isStringLiteralLike(key)) member(n.initializer, key.text, el)
+      if (isOrigin(n)) whole(n, n.name)
+      else if (isEnv(n.expression)) hit('env-read', n.name, named(n.name.text))
+      else member(n.expression, n.name.text, n.name)
+    } else if (ts.isElementAccessExpression(n)) {
+      const key = ts.isStringLiteralLike(n.argumentExpression) ? n.argumentExpression.text : undefined
+      if (isOrigin(n)) whole(n, n.argumentExpression)
+      else if (isEnv(n.expression)) hit('env-read', n.argumentExpression, key === undefined ? 'a name computed at run time' : named(key))
+      else if (key !== undefined) member(n.expression, key, n.argumentExpression)
+      else if (spaceOf(n.expression) === 'global' || spaceOf(n.expression) === 'process') tally('computed-member')
+    } else if ((ts.isVariableDeclaration(n) || ts.isParameter(n)) && n.initializer && ts.isObjectBindingPattern(n.name)) {
+      for (const el of n.name.elements) taken(n.initializer, keyOf(el.propertyName ?? el.name), el)
+    } else if (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isObjectLiteralExpression(unwrapParens(n.left))) {
+      for (const prop of (unwrapParens(n.left) as ts.ObjectLiteralExpression).properties) if (ts.isPropertyAssignment(prop) || ts.isShorthandPropertyAssignment(prop)) taken(n.right, keyOf(prop.name), prop)
+    } else if (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.InKeyword && isEnv(n.right)) {
+      hit('env-read', n.left, ts.isStringLiteralLike(n.left) ? named(n.left.text) : 'a name computed at run time')
+    } else if (ts.isImportSpecifier(n) && envAt.has(n)) {
+      hit('env-whole', n)
+    } else if (ts.isExportDeclaration(n) && n.moduleSpecifier && ts.isStringLiteral(n.moduleSpecifier) && MODULES.has(n.moduleSpecifier.text)) {
+      const space = MODULES.get(n.moduleSpecifier.text)!
+      if (n.exportClause && ts.isNamedExports(n.exportClause)) {
+        for (const el of n.exportClause.elements) {
+          const habit = MEMBERS[space].get((el.propertyName ?? el.name).text)
+          if (!habit) continue
+          hit(habit, el)
+          tally('exported-alias')
+        }
+      } else {
+        for (const habit of new Set(MEMBERS[space].values())) hit(habit, n)
+        tally('exported-alias')
       }
     } else if (ts.isAsExpression(n) || ts.isTypeAssertionExpression(n)) {
       const inner = unwrapParens(n.expression)
-      if ((ts.isAsExpression(inner) || ts.isTypeAssertionExpression(inner)) && (inner.type.kind === ts.SyntaxKind.UnknownKeyword || inner.type.kind === ts.SyntaxKind.AnyKeyword)) hit('as-unknown-as', inner.type.getStart(sf))
+      const through = (ts.isAsExpression(inner) || ts.isTypeAssertionExpression(inner)) && (inner.type.kind === ts.SyntaxKind.UnknownKeyword || inner.type.kind === ts.SyntaxKind.AnyKeyword)
+      let held: ts.Node = n
+      while (ts.isParenthesizedExpression(held.parent)) held = held.parent
+      const insideAnother = ts.isAsExpression(held.parent) || ts.isTypeAssertionExpression(held.parent)
+      if (through) hit('as-unknown-as', (inner as ts.AsExpression).type)
+      else if (n.type.kind === ts.SyntaxKind.NeverKeyword) hit('as-never', n.type)
+      if (n.type.kind === ts.SyntaxKind.AnyKeyword && !insideAnother) hit('as-any', n.type)
+      if (!through && ts.isIdentifier(inner) && n.type.kind !== ts.SyntaxKind.UnknownKeyword && n.type.kind !== ts.SyntaxKind.AnyKeyword) {
+        const decl = declarationOf(inner)
+        if (decl && (ts.isVariableDeclaration(decl) || ts.isParameter(decl)) && decl.type?.kind === ts.SyntaxKind.UnknownKeyword) tally('two-step-cast')
+      }
     } else if (ts.isCatchClause(n)) {
-      if (n.block.statements.every(ts.isEmptyStatement)) hit('empty-catch', n.getStart(sf))
-    } else if (ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression)) {
-      const method = n.expression.name.text
-      if (method === 'catch' && idleHandler(n.arguments[0])) hit('empty-catch-handler', n.expression.name.getStart(sf))
-      if (method === 'then' && idleHandler(n.arguments[1])) hit('empty-catch-handler', n.arguments[1]!.getStart(sf))
+      const passed = passedOver(n.block.statements, false)
+      if (passed === 'calls') tally('only-calls')
+      else if (passed) hit(passed === 'empty' ? 'empty-catch' : 'catch-default', n)
+    } else if (ts.isMethodDeclaration(n) && ts.isIdentifier(n.name) && LIFECYCLE.has(n.name.text) && ts.isClassLike(n.parent)) {
+      hit('lifecycle-method', n.name)
+    } else if (ts.isAwaitExpression(n)) {
+      const x = unwrap(n.expression)
+      if (x.kind === ts.SyntaxKind.NullKeyword || (ts.isIdentifier(x) && x.text === 'undefined') || (ts.isCallExpression(x) && x.arguments.length === 0 && squeeze(x.expression.getText(sf)) === 'Promise.resolve')) hit('queueMicrotask', n)
+    } else if (ts.isExpressionStatement(n)) {
+      let x: ts.Expression = n.expression
+      while (ts.isVoidExpression(x) || ts.isAwaitExpression(x)) x = x.expression
+      if (ts.isCallExpression(x) && squeeze(x.expression.getText(sf)) === 'Promise.allSettled') tally('all-settled')
+    }
+    if (ts.isCallExpression(n)) {
+      if (ts.isPropertyAccessExpression(n.expression)) {
+        const method = n.expression.name.text
+        const target = n.expression.expression
+        const first = method === 'catch' ? handlerPasses(n.arguments[0]) : undefined
+        const second = method === 'then' ? handlerPasses(n.arguments[1]) : undefined
+        if (first === 'calls' || second === 'calls') tally('only-calls')
+        if (first && first !== 'calls') hit(first === 'empty' ? 'empty-catch-handler' : 'handler-default', n.expression.name)
+        if (second && second !== 'calls') hit(second === 'empty' ? 'empty-catch-handler' : 'handler-default', n.arguments[1]!)
+        if (method === 'then' && ts.isCallExpression(target) && target.arguments.length === 0 && squeeze(target.expression.getText(sf)) === 'Promise.resolve') hit('queueMicrotask', n.expression.name)
+        const got = reflected(n)
+        if (got && isOrigin(n)) whole(n, got.at)
+        else if (got && isEnv(got.owner)) hit('env-read', got.at, named(got.key))
+        else if (got) member(got.owner, got.key, got.at)
+        else if (method === 'get' && ts.isIdentifier(target) && target.text === 'Reflect' && n.arguments[0] && (spaceOf(n.arguments[0]) !== undefined || isEnv(n.arguments[0]))) tally('computed-member')
+      }
+      const callee = ts.isIdentifier(n.expression) ? n.expression.text : ts.isPropertyAccessExpression(n.expression) ? n.expression.name.text : ''
+      const command = n.arguments[0]
+      if (CHILD.has(callee) && command && ts.isStringLiteralLike(command) && /^sleep(?:\s|$)/.test(command.text)) tally('child-sleep')
+      const armed = habitOfValue(n.expression) ?? (ts.isPropertyAccessExpression(n.expression) ? MEMBERS.react.get(n.expression.name.text) : undefined)
+      if (armed && WRAPPED.has(armed) && command) {
+        let fn: ts.Node | undefined = n.parent
+        while (fn && !ts.isFunctionLike(fn)) fn = fn.parent
+        const holder = fn && (ts.isFunctionDeclaration(fn) || ts.isMethodDeclaration(fn) || ((ts.isArrowFunction(fn) || ts.isFunctionExpression(fn)) && ts.isVariableDeclaration(fn.parent))) ? fn : undefined
+        const handed = new Set(holder ? holder.parameters.flatMap(p => (ts.isIdentifier(p.name) ? [p.name.text] : [])) : [])
+        if (handed.size > 0 && ((ts.isIdentifier(command) && handed.has(command.text)) || ((ts.isArrowFunction(command) || ts.isFunctionExpression(command)) && holds(command, x => ts.isIdentifier(x) && handed.has(x.text))))) tally('wrapper')
+      }
+      if ((callee === 'useMemo' || callee === 'useState') && command && (ts.isArrowFunction(command) || ts.isFunctionExpression(command)) && ts.isBlock(command.body)) {
+        const outside = (target: ts.Expression): boolean => {
+          let root = target
+          while (ts.isPropertyAccessExpression(root) || ts.isElementAccessExpression(root) || ts.isCallExpression(root) || ts.isNonNullExpression(root) || ts.isParenthesizedExpression(root)) root = root.expression
+          if (!ts.isIdentifier(root)) return root.kind === ts.SyntaxKind.ThisKeyword
+          const decl = declarationOf(root)
+          return !decl || decl.pos < command.pos || decl.end > command.end
+        }
+        const effect = holds(command.body, s => {
+          if (!ts.isExpressionStatement(s)) return false
+          const x = stripped(s.expression)
+          return ts.isCallExpression(x) ? outside(x.expression) : ts.isBinaryExpression(x) && x.operatorToken.kind === ts.SyntaxKind.EqualsToken && outside(x.left)
+        })
+        if (effect) tally('memo-effect')
+      }
+    }
+    if (ts.isWhileStatement(n) || ts.isDoStatement(n) || ts.isForStatement(n)) {
+      const test = ts.isForStatement(n) ? n.condition : n.expression
+      if (test && holds(test, x => ts.isCallExpression(x) && /^(?:Date|performance)\.now$/.test(squeeze(x.expression.getText(sf)))) && !holds(n.statement, x => ts.isAwaitExpression(x) || ts.isYieldExpression(x))) tally('busy-loop')
+    }
+    if (ts.isVariableStatement(n) && (ts.getModifiers(n) ?? []).some(m => m.kind === ts.SyntaxKind.ExportKeyword)) {
+      for (const d of n.declarationList.declarations) if (d.initializer && (isEnv(d.initializer) || habitOfValue(d.initializer) !== undefined || spaceOf(d.initializer) !== undefined)) tally('exported-alias')
     }
     ts.forEachChild(n, walk)
   }
@@ -203,24 +529,18 @@ function habitsIn(file: string, text: string): Hit[] {
       if (LINT.test(comment)) hit('lint-directive', pos)
     })
   }
-  const door = sf.statements.some(s => ts.isFunctionDeclaration(s) && s.name?.text === DOOR && (ts.getModifiers(s) ?? []).some(m => m.kind === ts.SyntaxKind.ExportKeyword))
-  return out.filter(h => !(door && h.habit === 'process.env')).sort((a, b) => a.line - b.line || a.column - b.column)
-}
-
-function unwrapParens(e: ts.Expression): ts.Expression {
-  let cur = e
-  while (ts.isParenthesizedExpression(cur)) cur = cur.expression
-  return cur
+  const door = file === DOOR_FILE && sf.statements.some(s => ts.isFunctionDeclaration(s) && s.name?.text === DOOR && (ts.getModifiers(s) ?? []).some(m => m.kind === ts.SyntaxKind.ExportKeyword))
+  return out.filter(h => !(door && (h.habit === 'env-read' || h.habit === 'env-whole'))).sort((a, b) => a.line - b.line || a.column - b.column)
 }
 
 function sourceFiles(root: string): string[] {
   const out: string[] = []
   const walk = (rel: string): void => {
     for (const name of readdirSync(join(root, rel)).sort()) {
-      if (SKIPPED.has(name)) continue
+      if (rel === 'src' && AT_THE_ROOT.has(name)) continue
       const path = `${rel}/${name}`
       if (statSync(join(root, path)).isDirectory()) walk(path)
-      else if (CODE.test(name) && !path.startsWith(PAYLOADS)) out.push(path)
+      else if (CODE.test(name) && !PAYLOAD_FILES.has(path)) out.push(path)
     }
   }
   walk('src')
@@ -243,12 +563,13 @@ const render = (rows: Rows): string =>
       .map(([file, count]) => `${habit}\t${file}\t${count}\n`),
   ).join('')
 
-function tableOf(text: string): Rows | null {
+function tableOf(text: string, ofAnotherReader = false): Rows | null {
   const table = rowsOf([])
   for (const line of text.split('\n')) {
     if (line === '') continue
     const m = /^([^\t]+)\t(src\/[^\t]+)\t([1-9][0-9]*)$/.exec(line)
     const files = m ? table.get(m[1] as Habit) : undefined
+    if (m && !files && ofAnotherReader) continue
     if (!m || !files || files.has(m[2]!)) return null
     files.set(m[2]!, Number(m[3]))
   }
@@ -257,8 +578,8 @@ function tableOf(text: string): Rows | null {
 
 function judge(habit: Habit, hits: Hit[], table: Rows): Verdict {
   const allowed = table.get(habit)!
-  const lines = new Map<string, number[]>()
-  for (const h of hits) if (h.habit === habit) lines.set(h.file, [...(lines.get(h.file) ?? []), h.line])
+  const lines = new Map<string, Array<{ line: number; note: string }>>()
+  for (const h of hits) if (h.habit === habit) lines.set(h.file, [...(lines.get(h.file) ?? []), { line: h.line, note: h.note }])
   const over = [...lines]
     .filter(([file, at]) => at.length > (allowed.get(file) ?? 0))
     .map(([file, at]) => ({ file, row: allowed.get(file) ?? 0, lines: at }))
@@ -268,18 +589,157 @@ function judge(habit: Habit, hits: Hit[], table: Rows): Verdict {
   return { over, total, allowed: sum(allowed), files: lines.size, slack }
 }
 
-function owed(found: Verdict, allowed: Map<string, number>, standing: Set<string>): number {
-  const freed = [...allowed].filter(([file]) => !standing.has(file)).reduce((n, [, row]) => n + row, 0)
-  return found.over.reduce((n, o) => n + o.lines.length - o.row, 0) - freed
+function refusals(change: Change, only?: Set<string>): Refusal[] {
+  const out: Refusal[] = []
+  const read = new Map<string, Hit[]>()
+  const printsOf = (side: 'before' | 'after', file: string, habit: Habit): Hit[] => {
+    const key = `${side}\u0000${file}`
+    if (!read.has(key)) {
+      const text = change[side](file)
+      read.set(key, text === null ? [] : habitsIn(file, text, true))
+    }
+    return read.get(key)!.filter(h => h.habit === habit)
+  }
+  for (const habit of NAMES) {
+    let left: Map<string, string[]> | null = null
+    const leftOver = (): Map<string, string[]> => {
+      if (left) return left
+      left = new Map()
+      for (const file of change.touched) {
+        const stay = printsOf('after', file, habit).map(h => h.print)
+        for (const h of printsOf('before', file, habit)) {
+          const kept = stay.indexOf(h.print)
+          if (kept >= 0) stay.splice(kept, 1)
+          else left.set(h.print, [...(left.get(h.print) ?? []), `${file}:${h.line}`])
+        }
+      }
+      return left
+    }
+    for (const file of change.touched) {
+      if (change.taken.has(file) || (only && !only.has(file))) continue
+      const arrived = printsOf('after', file, habit)
+      const stood = printsOf('before', file, habit).map(h => h.print)
+      const base = stood.length
+      if (arrived.length <= base) continue
+      const fresh: number[] = []
+      let moved = 0
+      for (const h of arrived) {
+        const same = stood.indexOf(h.print)
+        if (same >= 0) {
+          stood.splice(same, 1)
+          continue
+        }
+        const from = leftOver().get(h.print)
+        if (from && from.length > 0) {
+          from.shift()
+          moved++
+        } else fresh.push(h.line)
+      }
+      if (arrived.length > base + moved) out.push({ habit, file, lines: fresh, change: change.name, why: `it holds ${arrived.length}: ${base} stood and ${moved} arrived with ${moved === 1 ? 'its statement' : 'their statements'}` })
+    }
+  }
+  return out
 }
 
+function refusedSince(chain: Chain, counts: Rows): Refusal[] {
+  const risen = new Set(chain.span.touched.filter(file => NAMES.some(habit => (counts.get(habit)!.get(file) ?? 0) > (chain.was.get(habit)!.get(file) ?? 0))))
+  const inOneStep = refusals(chain.span, risen)
+  if (inOneStep.length === 0 || chain.links.length === 0) return inOneStep
+  return chain.links.flatMap(link => refusals(link, new Set(inOneStep.map(r => r.file))))
+}
+
+function handRaised(was: Rows, table: Rows, counts: Rows): string[] {
+  const out: string[] = []
+  for (const habit of NAMES) {
+    for (const [file, row] of table.get(habit)!) {
+      const before = was.get(habit)!.get(file) ?? 0
+      const held = counts.get(habit)!.get(file) ?? 0
+      if (row > Math.max(before, held)) out.push(`${file} ${habit}: its row says ${row}, the last written table says ${before} and the file holds ${held}`)
+    }
+  }
+  return out
+}
+
+const MOVE = `A statement that moves whole between files takes its count along, and bun ${SELF} --write in the same change writes the rows. A statement edited while it moves reads as new: move it first and commit that with its table, edit it after`
+
 const told = (habit: Habit, over: Over[]): string =>
-  `${over.length} file${over.length === 1 ? '' : 's'} above — instead: ${HABITS[habit]}. A file that moved takes its rows along through bun ${SELF} --write, which lowers rows and lets one rise only by what the files that are gone held; a row that must rise for code moved between two files that both stand is raised by hand in ${TABLE}, where the diff shows it:` +
+  `${over.length} file${over.length === 1 ? '' : 's'} above — instead: ${HABITS[habit]}. ${MOVE}:` +
   over
     .slice(0, 40)
-    .map(o => `\n      ${o.file} holds ${o.lines.length} of ${habit} and ${o.row === 0 ? 'has no row' : `its row allows ${o.row}`}:` + o.lines.map(line => `\n        ${o.file}:${line} ${habit}`).join(''))
+    .map(o => `\n      ${o.file} holds ${o.lines.length} of ${habit} and ${o.row === 0 ? 'has no row' : `its row allows ${o.row}`}${o.file.startsWith(PAYLOADS) ? ` (a payload that runs outside the product goes on the list of payload files in ${SELF} and is then not read)` : ''}:` + o.lines.map(at => `\n        ${o.file}:${at.line} ${habit}${at.note === '' ? '' : ` · ${at.note}`}`).join(''))
     .join('') +
   (over.length > 40 ? `\n      … and ${over.length - 40} more files` : '')
+
+const toldRefusals = (found: Refusal[]): string =>
+  `${found.length} file${found.length === 1 ? '' : 's'} — ${MOVE}:` +
+  found
+    .slice(0, 40)
+    .map(r => `\n      in ${r.change}, ${r.file} ${r.habit}: ${r.why} — new, instead: ${HABITS[r.habit]}` + r.lines.map(line => `\n        ${r.file}:${line} ${r.habit} is new: no statement that left another file in that change reads the same`).join(''))
+    .join('') +
+  (found.length > 40 ? `\n      … and ${found.length - 40} more` : '')
+
+function git(root: string, ...args: string[]): string | null {
+  try {
+    return execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'ignore'] })
+  } catch {
+    return null
+  }
+}
+
+function blobs(root: string, commit: string, files: string[]): Map<string, string> {
+  const out = new Map<string, string>()
+  if (files.length === 0) return out
+  const held = execFileSync('git', ['cat-file', '--batch'], { cwd: root, input: files.map(file => `${commit}:${file}\n`).join(''), maxBuffer: 1 << 30, stdio: ['pipe', 'pipe', 'ignore'] })
+  let at = 0
+  for (const file of files) {
+    const end = held.indexOf(10, at)
+    if (end < 0) throw new Error(`git cat-file --batch stopped before ${commit}:${file}`)
+    const head = held.toString('utf8', at, end).split(' ')
+    at = end + 1
+    if (head.length !== 3 || head[1] !== 'blob') continue
+    const size = Number(head[2])
+    out.set(file, held.toString('utf8', at, at + size))
+    at += size + 1
+  }
+  return out
+}
+
+function chainSince(root: string, files: string[]): Chain | null {
+  const dirty = git(root, 'status', '--porcelain', '--', 'src', TABLE, SELF, CENSUS)
+  if (dirty === null) return null
+  const lastWrite = (start: string): string => (git(root, 'log', '-1', '--first-parent', '--format=%H', start, '--', TABLE) ?? '').trim()
+  let from = lastWrite(dirty.trim() === '' ? 'HEAD^' : 'HEAD')
+  let written = from === '' ? null : git(root, 'show', `${from}:${TABLE}`)
+  while (from !== '' && written === null) {
+    from = lastWrite(`${from}^`)
+    written = from === '' ? null : git(root, 'show', `${from}:${TABLE}`)
+  }
+  if (from === '' || written === null) return null
+  const differ = (...between: string[]): string[] => (git(root, 'diff', '--name-only', '--no-renames', ...between, '--', 'src') ?? '').split('\n').filter(file => CODE.test(file) && !PAYLOAD_FILES.has(file))
+  const side = (commit: string, touched: string[]): Side => {
+    let held: Map<string, string> | null = null
+    return file => (held ??= blobs(root, commit, touched)).get(file) ?? null
+  }
+  const onDisk: Side = file => (existsSync(join(root, file)) ? readFileSync(join(root, file), 'utf8') : null)
+  const stood = new Set((git(root, 'ls-tree', '-r', '--name-only', 'HEAD', '--', 'src') ?? '').split('\n'))
+  const fresh = files.filter(file => !stood.has(file))
+  const links: Change[] = []
+  for (const line of (git(root, 'rev-list', '--reverse', '--topo-order', '--parents', `${from}..HEAD`) ?? '').split('\n')) {
+    const [commit, first, second] = line.split(' ')
+    if (!commit || !first) continue
+    const touched = differ(first, commit)
+    const fork = second ? (git(root, 'merge-base', first, second) ?? '').trim() : ''
+    const mine = new Set(fork === '' ? [] : differ(fork, first))
+    const theirs = new Set(fork === '' || !second ? [] : differ(second, commit))
+    links.push({ name: `commit ${commit.slice(0, 10)}`, touched, taken: new Set(fork === '' ? [] : touched.filter(file => !mine.has(file) && !theirs.has(file))), before: side(first, touched), after: side(commit, touched) })
+  }
+  if (dirty.trim() !== '') {
+    const touched = [...new Set([...differ('HEAD'), ...fresh])].sort()
+    links.push({ name: 'the working tree', touched, taken: new Set(), before: side('HEAD', touched), after: onDisk })
+  }
+  const touched = [...new Set([...differ(from), ...fresh])].sort()
+  return { from, was: tableOf(written, true) ?? rowsOf([]), span: { name: `the changes since ${from.slice(0, 10)}`, touched, taken: new Set(), before: side(from, touched), after: onDisk }, links }
+}
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -289,6 +749,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 
 function plantedEstate(): void {
+  const doorLines = ['export function flagEnv(name: string): string | undefined {', '  return process.env[name]', '}', 'export const later = setTimeout(() => {}, 1)']
   const planted: Array<{ file: string; lines: string[]; seen: Array<[number, Habit]> }> = [
     {
       file: 'src/planted/timers.ts',
@@ -311,8 +772,32 @@ function plantedEstate(): void {
         'const home = ambient.HOME',
         'export const out = [a, b, c, later, loop, home]',
         'function flagEnv(): void {}',
+        'const host = globalThis',
+        'host.setTimeout(() => {}, 1)',
+        'const proc = process',
+        'proc.nextTick(() => {})',
+        'const arm = setTimeout',
+        'arm(() => {}, 2)',
+        'const { setImmediate: soon } = globalThis',
+        'soon(() => {})',
+        "const lazy = require('node:timers')",
+        'lazy.setInterval(() => {}, 3)',
+        "const { setTimeout: nap } = await import('node:timers/promises')",
+        'await nap(4)',
+        "import { promises as timersPromises } from 'node:timers'",
+        "import { scheduler } from 'node:timers/promises'",
+        'await timersPromises.setTimeout(5)',
+        'await scheduler.wait(6)',
+        'await timers.promises.setImmediate()',
+        'Atomics.wait(cells, 0, 0, 7)',
+        'void Promise.resolve().then(() => {})',
+        'await Promise.resolve()',
+        'await null',
       ],
-      seen: [[4, 'setTimeout'], [5, 'setTimeout'], [6, 'setInterval'], [7, 'setTimeout'], [8, 'setInterval'], [9, 'setImmediate'], [10, 'setImmediate'], [11, 'queueMicrotask'], [12, 'process.nextTick'], [13, 'process.nextTick'], [14, 'setTimeout'], [15, 'setInterval'], [16, 'process.env']],
+      seen: [
+        [3, 'env-whole'], [4, 'setTimeout'], [5, 'setTimeout'], [6, 'setInterval'], [7, 'setTimeout'], [8, 'setInterval'], [9, 'setImmediate'], [10, 'setImmediate'], [11, 'queueMicrotask'], [12, 'process.nextTick'], [13, 'process.nextTick'], [14, 'setTimeout'], [15, 'setInterval'], [16, 'env-read'], [17, 'setInterval'],
+        [20, 'setTimeout'], [22, 'process.nextTick'], [23, 'setTimeout'], [24, 'setTimeout'], [25, 'setImmediate'], [26, 'setImmediate'], [28, 'setInterval'], [29, 'setTimeout'], [30, 'setTimeout'], [33, 'setTimeout'], [34, 'setTimeout'], [35, 'setImmediate'], [36, 'Atomics.wait'], [37, 'queueMicrotask'], [38, 'queueMicrotask'], [39, 'queueMicrotask'],
+      ],
     },
     {
       file: 'src/planted/lookalikes.ts',
@@ -336,17 +821,23 @@ function plantedEstate(): void {
         'const narrow = value as Shape as Other',
         'try { work() } catch (error) { report(error) }',
         'work().catch(error => report(error)).then(done, error => report(error))',
-        'work().catch(() => null).catch(() => void report())',
+        'work().catch(() => fallback()).catch(() => void report())',
         'schema.catch(undefined)',
         'const pattern = /catch \\{\\}|as unknown as|\\/\\/ @ts-ignore/',
-        'export const out = [words, told, handle, able, run, mySetTimeout, setTimeoutMs, resetTimeout, wide, narrow, pattern]',
+        'const typed = (input: any): never[] => []',
+        'function settle(env: NodeJS.ProcessEnv): string | undefined { return env.HOME }',
+        'function recovered(): unknown { try { return work() } catch (error) { return recover(error) } }',
+        'await work()',
+        'Promise.resolve(value).then(done)',
+        'const store = { wait: () => 0 }; store.wait()',
+        'export const out = [words, told, handle, able, run, mySetTimeout, setTimeoutMs, resetTimeout, wide, narrow, pattern, typed, settle, recovered, store]',
       ],
       seen: [],
     },
     {
       file: 'src/planted/Screen.tsx',
       lines: [
-        "import React, { useEffect, useLayoutEffect as useMeasure, useInsertionEffect } from 'react'",
+        "import React, { useEffect, useLayoutEffect as useMeasure, useInsertionEffect, useImperativeHandle } from 'react'",
         "import * as R from 'react'",
         'export function Screen(): React.ReactNode {',
         '  useEffect(() => {}, [])',
@@ -357,10 +848,12 @@ function plantedEstate(): void {
         '  host.React.useEffect(() => {}, [])',
         '  const { useEffect: sync } = React',
         '  const pick = wide ? useEffect : sync',
+        '  useImperativeHandle(ref, () => ({}), [])',
         '  return <Box>{/* eslint-disable-next-line react-hooks/exhaustive-deps */}useEffect(run) // @ts-ignore {process.env.HOME}</Box>',
         '}',
+        'export class Panel extends React.Component { componentDidMount(): void {} componentWillUnmount(): void {} render(): React.ReactNode { return null } }',
       ],
-      seen: [[4, 'useEffect'], [5, 'useLayoutEffect'], [6, 'useInsertionEffect'], [7, 'useEffect'], [8, 'useLayoutEffect'], [9, 'useEffect'], [10, 'useEffect'], [11, 'useEffect'], [12, 'lint-directive'], [12, 'process.env']],
+      seen: [[4, 'useEffect'], [5, 'useLayoutEffect'], [6, 'useInsertionEffect'], [7, 'useEffect'], [8, 'useLayoutEffect'], [9, 'useEffect'], [10, 'useEffect'], [11, 'useEffect'], [11, 'useEffect'], [12, 'useImperativeHandle'], [13, 'lint-directive'], [13, 'env-read'], [15, 'lifecycle-method'], [15, 'lifecycle-method']],
     },
     {
       file: 'src/planted/rest.ts',
@@ -394,16 +887,78 @@ function plantedEstate(): void {
         'const read = (from: NodeJS.ProcessEnv = process.env): string | undefined => from.HOME',
         'process.env.PLANTED = home',
         'export const out = [shape, other, old, deep, user, env, all, read]',
+        'const gone = value as never',
+        'const loose = value as any',
+        'const angled = <any>value',
+        'const dead = (value as unknown) as never',
+        'function a1(): unknown { try { return work() } catch { return null } }',
+        'function a2(): void { try { work() } catch { return } }',
+        'for (const item of items) { try { work(item) } catch { continue } }',
+        'try { work() } catch (error) { void error }',
+        'work().catch(() => null)',
+        'work().catch(() => { return false })',
+        'work().then(done, () => [])',
+        'work().catch(error => { void error })',
+        'const cached = process.env',
+        'const term = cached.TERM',
+        'const path = (options.env ?? process.env).PATH',
+        'const { HOME: house, USER: me } = process.env',
+        "const seen = 'CI' in process.env",
+        'const bun = Bun.env.HOME',
+        'const meta = import.meta.env.MODE',
+        "import { flagEnvLoose } from '../substrate/registry.ts'",
+        "const loosely = flagEnvLoose('MERCURY_PLANTED')",
+        "export { setInterval as each } from 'node:timers'",
+        "export { env as hostEnv } from 'node:process'",
+        'function mine({ env: own } = process): string | undefined { return own.HOME }',
+        '({ env: taken } = process)',
+        '// @TS-NOCHECK',
+        '/* eslint no-console: "off" */',
+        '// noinspection JSUnusedGlobalSymbols',
+        '/* istanbul ignore next */',
+        'export const more = [gone, loose, angled, dead, cached, term, path, house, me, seen, bun, meta, loosely, mine, taken]',
+        'let late: NodeJS.ProcessEnv | undefined',
+        'late = process.env',
+        'const lateHome = late?.HOME',
+        "const reflected = [Reflect.get(process, 'env').SHELL, Reflect.get(globalThis, 'setImmediate'), lateHome]",
       ],
       seen: [
         [2, 'lint-directive'], [3, 'as-unknown-as'], [4, 'as-unknown-as'], [5, 'as-unknown-as'], [6, 'ts-ignore'], [8, 'ts-ignore'], [10, 'lint-directive'], [11, 'lint-directive'], [12, 'lint-directive'],
         [13, 'empty-catch'], [14, 'empty-catch'], [16, 'empty-catch'], [17, 'empty-catch-handler'], [18, 'empty-catch-handler'], [18, 'empty-catch-handler'], [19, 'empty-catch-handler'], [21, 'empty-catch-handler'], [22, 'empty-catch-handler'],
-        [23, 'process.env'], [24, 'process.env'], [25, 'process.env'], [26, 'process.env'], [27, 'process.env'], [28, 'process.env'],
+        [23, 'env-read'], [24, 'env-read'], [25, 'env-whole'], [26, 'env-whole'], [27, 'env-whole'], [27, 'env-read'], [28, 'env-read'],
+        [30, 'as-never'], [31, 'as-any'], [32, 'as-any'], [33, 'as-unknown-as'], [34, 'catch-default'], [35, 'catch-default'], [36, 'catch-default'], [37, 'empty-catch'], [38, 'handler-default'], [39, 'handler-default'], [40, 'handler-default'], [41, 'empty-catch-handler'],
+        [42, 'env-whole'], [43, 'env-read'], [44, 'env-whole'], [44, 'env-read'], [45, 'env-read'], [45, 'env-read'], [46, 'env-read'], [47, 'env-read'], [48, 'env-read'], [50, LOOSE], [51, 'setInterval'], [52, 'env-whole'], [53, 'env-whole'], [53, 'env-read'], [54, 'env-whole'], [55, 'ts-ignore'], [56, 'lint-directive'], [57, 'lint-directive'], [58, 'lint-directive'],
+        [61, 'env-whole'], [62, 'env-read'], [63, 'env-read'], [63, 'setImmediate'],
       ],
     },
-    { file: 'src/planted/door.ts', lines: ['export function flagEnv(name: string): string | undefined {', '  return process.env[name]', '}', 'export const later = setTimeout(() => {}, 1)'], seen: [[4, 'setTimeout']] },
-    { file: 'src/planted/worker.mjs', lines: ["import { setTimeout as pause } from 'timers/promises'", 'await pause(5)', 'setInterval(() => {}, 5)', 'try { run() } catch {}', 'export const home = process.env.HOME'], seen: [[2, 'setTimeout'], [3, 'setInterval'], [4, 'empty-catch'], [5, 'process.env']] },
+    { file: DOOR_FILE, lines: doorLines, seen: [[4, 'setTimeout']] },
+    { file: 'src/planted/door.ts', lines: doorLines, seen: [[2, 'env-read'], [4, 'setTimeout']] },
+    { file: 'src/planted/worker.mjs', lines: ["import { setTimeout as pause } from 'timers/promises'", 'await pause(5)', 'setInterval(() => {}, 5)', 'try { run() } catch {}', 'export const home = process.env.HOME'], seen: [[2, 'setTimeout'], [3, 'setInterval'], [4, 'empty-catch'], [5, 'env-read']] },
+    {
+      file: 'src/planted/beyond.ts',
+      lines: [
+        "import { useMemo, useState } from 'react'",
+        'export function later(run: () => void, ms: number): void { setTimeout(run, ms) }',
+        'const raw: unknown = read()',
+        'const shaped = raw as Shape',
+        'const loose: any = raw',
+        'const key = pick()',
+        'globalThis[key]()',
+        "spawnSync('sleep', ['1'])",
+        'while (Date.now() < until) {}',
+        'void Promise.allSettled(jobs)',
+        'function Panel(): number { const made = useMemo(() => { store.count = 1; return 1 }, []); const [first] = useState(() => { announce(); return 2 }); const kept = useMemo(() => { const list: number[] = []; list.push(1); return list }, []); return made + first + kept.length }',
+        'try { work() } catch (error) { report(error) }',
+        'work().catch(error => report(error))',
+        'export const hostEnv = process.env',
+        'export const out = [shaped, loose, Panel]',
+      ],
+      seen: [[2, 'setTimeout'], [14, 'env-whole']],
+    },
   ]
+  const far = new Map<string, number>()
+  const farHits = planted.flatMap(p => (p.file === 'src/planted/beyond.ts' ? habitsIn(p.file, p.lines.join('\n') + '\n', false, far) : []))
+  const farSeen = BEYOND.map(([form]) => `${form} ${beyondCount(form, far, farHits)}`).join(' · ')
   const hits = planted.flatMap(p => habitsIn(p.file, p.lines.join('\n') + '\n'))
   const seen = hits.map(h => `${h.file}:${h.line} ${h.habit}`)
   const want = planted.flatMap(p => p.seen.map(([line, habit]) => `${p.file}:${line} ${habit}`))
@@ -412,79 +967,143 @@ function plantedEstate(): void {
   const wanted = (file: string): string => want.filter(w => w.startsWith(`${file}:`)).join(' ')
   const stands = (file: string): boolean => of(file) === wanted(file)
   check(
-    'a timer is seen as a call of the global, as a member of globalThis or window, by a bracketed name, under the name an import from node:timers gives it, as a member of that module, as a value handed on, and taken out of globalThis; process.nextTick and the environment are seen under the names an import from node:process gives them',
+    'a timer is seen as a call of the global, as a member of globalThis or window, by a bracketed name, under the name an import gives it, as a member of the timers module, of its promises and of its scheduler, loaded by require or by a dynamic import, as a value, through a constant that holds the global or the timer, and through a name taken out of globalThis, each use counted; process.nextTick, Atomics.wait and a microtask queued through a resolved promise or an await of nothing are seen',
     stands('src/planted/timers.ts'),
     differs,
   )
   check(
-    'an effect is seen as a call of the hook, under the name the import gives it, as a member of React under either import and of the React a host hands in, taken out of React, and as a value; a lint directive in a JSX comment and an environment read in a JSX expression are seen, and the same words in JSX text are not',
+    'an effect is seen as a call of the hook, under the name the import gives it, as a member of React under either import and of the React a host hands in, taken out of React with each use of the taken name, and as a value; useImperativeHandle and the lifecycle methods of a class are seen; a lint directive in a JSX comment and an environment read in a JSX expression are seen, and the same words in JSX text are not',
     stands('src/planted/Screen.tsx'),
     differs,
   )
   check(
-    'a cast through unknown or any is seen in both spellings; @ts-ignore and @ts-expect-error are seen; a lint directive is seen for eslint, biome and prettier, on its own line, after code and under a shebang; a catch block is seen empty, empty over two lines and holding a lone semicolon; a rejection handler is seen empty, yielding undefined, as a function, as the second argument of then, by the name of an idle function of the file and holding a bare return; the environment is seen read, bracketed, taken out of process, spread, as a default and written',
+    'a cast through unknown or any is seen in both spellings, and a cast to never and a cast to any alone; @ts-ignore, @ts-expect-error and @TS-NOCHECK are seen; a lint directive is seen for eslint in its three forms, biome, prettier, an editor inspection and a coverage tool; a catch block is seen empty (also with a lone semicolon or a void of the error) and answering with a default (a return, a return of null, a continue); a rejection handler is seen empty and answering with a default',
     stands('src/planted/rest.ts'),
     differs,
   )
-  check('a plain JavaScript module is read as the TypeScript ones are', stands('src/planted/worker.mjs'), differs)
-  check(`the module that exports ${DOOR} is the door of the environment: its own reads are not counted, its other habits are, and a function of that name that is not exported opens no door`, stands('src/planted/door.ts') && of('src/planted/timers.ts').includes('src/planted/timers.ts:16 process.env'), differs)
   check(
-    'a look-alike is not seen: the words in a string, a template or a regular expression; a type query and a typeof test; a method of that name on a socket or a clock; a function, a parameter or a constant of the file under that name; a property named env; a cast to unknown alone and a cast between two types; a catch block and a handler that do something; a handler that yields a value; a schema fallback',
+    'a name of the environment is seen read, bracketed, written, taken out by a destructure, tested with in, and read through a constant, a parameter or a fallback that holds the whole environment, and through Bun.env and import.meta.env; the whole environment is seen as a default, a spread, a constant, taken out of process in a declaration, a parameter or an assignment, imported or re-exported from node:process; a re-export from the timers module and a call of the loose door of the registry are seen',
+    stands('src/planted/rest.ts') && stands('src/planted/timers.ts'),
+    differs,
+  )
+  check('a plain JavaScript module is read as the TypeScript ones are', stands('src/planted/worker.mjs'), differs)
+  check(`the registry (${DOOR_FILE}, known by its path and its export of ${DOOR}) is the door of the environment: its own reads are not counted and its other habits are; another file that exports a function of that name is counted like any file`, DOOR_FILE !== '' && existsSync(join(ROOT, DOOR_FILE)) && stands(DOOR_FILE) && stands('src/planted/door.ts'), differs)
+  check(
+    'a look-alike is not seen: the words in a string, a template or a regular expression; a type query and a typeof test; a method of that name on a socket, a clock or a store; a function, a parameter or a constant of the file under that name; a property named env; an environment a caller hands in as a parameter with no default; the any keyword and never in a type; a cast to unknown alone and a cast between two types; a catch block and a handler that do something or answer with a computed value; a schema fallback; an await of work and a promise resolved with a value',
     of('src/planted/lookalikes.ts') === '',
     of('src/planted/lookalikes.ts'),
   )
   check(`every habit of the fence is seen on the planted estate (${NAMES.length})`, NAMES.every(habit => hits.some(h => h.habit === habit)), NAMES.filter(habit => !hits.some(h => h.habit === habit)).join(', '))
+  check(
+    `each of the ${BEYOND.length} forms that stay out of reach is counted where it is planted: a wrapper, an exported alias, the environment handed on whole, a cast in two statements, the any keyword, a computed member, a child sleep, a loop on the clock, a dropped allSettled, a useMemo callback and a useState initialiser that change what is outside them (one that fills its own list is not counted), and a catch and a handler that hold only calls`,
+    stands('src/planted/beyond.ts') && farSeen === 'wrapper 1 · exported-alias 1 · env-whole 1 · two-step-cast 1 · any-type 1 · computed-member 1 · child-sleep 1 · busy-loop 1 · all-settled 1 · memo-effect 2 · only-calls 2',
+    `${farSeen} | ${differs}`,
+  )
   const rows = rowsOf(hits)
   const text = render(rows)
   const table = tableOf(text)
-  check('the table is one row for each habit and file with its count, in the order of the habits and then of the files, and reads back as written', table !== null && render(table) === text && text.startsWith('setTimeout\tsrc/planted/door.ts\t1\nsetTimeout\tsrc/planted/timers.ts\t4\nsetTimeout\tsrc/planted/worker.mjs\t1\nsetInterval\t'), text.replaceAll('\n', ' · '))
-  check('a table with a habit the fence does not hold, a file outside src, a count of 0 or a row twice does not read', tableOf('sleep\tsrc/a.ts\t1\n') === null && tableOf('setTimeout\tscripts/a.ts\t1\n') === null && tableOf('setTimeout\tsrc/a.ts\t0\n') === null && tableOf('setTimeout\tsrc/a.ts\t1\nsetTimeout\tsrc/a.ts\t1\n') === null)
+  check('the table is one row for each habit and file with its count, in the order of the habits and then of the files, and reads back as written', table !== null && render(table) === text && text.startsWith('setTimeout\tsrc/planted/beyond.ts\t1\nsetTimeout\tsrc/planted/door.ts\t1\nsetTimeout\tsrc/planted/timers.ts\t') && text.includes('\nsetInterval\tsrc/planted/rest.ts\t1\n'), text.replaceAll('\n', ' · ').slice(0, 400))
+  check('a table with a habit the fence does not hold, a file outside src, a count of 0 or a row twice does not read, and the table of another reader is read for the habits this one holds', tableOf('sleep\tsrc/a.ts\t1\n') === null && tableOf('setTimeout\tscripts/a.ts\t1\n') === null && tableOf('setTimeout\tsrc/a.ts\t0\n') === null && tableOf('setTimeout\tsrc/a.ts\t1\nsetTimeout\tsrc/a.ts\t1\n') === null && tableOf('process.env\tsrc/a.ts\t3\nsetTimeout\tsrc/a.ts\t2\n', true)?.get('setTimeout')?.get('src/a.ts') === 2)
   if (table === null) return
   check('on its own table the planted estate stands for every habit', NAMES.every(habit => judge(habit, hits, table).over.length === 0 && judge(habit, hits, table).total === judge(habit, hits, table).allowed))
-  const unrowed = tableOf(text.replace('process.env\tsrc/planted/Screen.tsx\t1\n', ''))!
-  const lone = judge('process.env', hits, unrowed)
-  check('a file with no row that holds a habit is named with its line and what to use instead', lone.over.length === 1 && lone.total === lone.allowed + 1 && told('process.env', lone.over).includes('src/planted/Screen.tsx:12 process.env') && told('process.env', lone.over).includes('has no row') && told('process.env', lone.over).includes('flagEnv'), told('process.env', lone.over))
-  const lowered = tableOf(text.replace('empty-catch\tsrc/planted/rest.ts\t3\n', 'empty-catch\tsrc/planted/rest.ts\t2\n'))!
+  const unrowed = tableOf(text.replace('env-read\tsrc/planted/Screen.tsx\t1\n', ''))!
+  const lone = judge('env-read', hits, unrowed)
+  check('a file with no row that holds a habit is named with its line and what to use instead, and a name of the environment with whether the registry holds its row', lone.over.length === 1 && lone.total === lone.allowed + 1 && told('env-read', lone.over).includes('src/planted/Screen.tsx:13 env-read · HOME has no row') && told('env-read', lone.over).includes('has no row:') && told('env-read', lone.over).includes(DOOR) && named(hits, 'src/planted/rest.ts', 50) === '', told('env-read', lone.over))
+  const lowered = tableOf(text.replace('empty-catch\tsrc/planted/rest.ts\t4\n', 'empty-catch\tsrc/planted/rest.ts\t3\n'))!
   const raised = judge('empty-catch', hits, lowered)
-  check('a file that holds one more than its row allows is named with every line it holds', raised.over.length === 1 && ['13', '14', '16'].every(line => told('empty-catch', raised.over).includes(`src/planted/rest.ts:${line} empty-catch`)) && told('empty-catch', raised.over).includes('its row allows 2'), told('empty-catch', raised.over))
+  check('a file that holds one more than its row allows is named with every line it holds', raised.over.length === 1 && ['13', '14', '16', '37'].every(line => told('empty-catch', raised.over).includes(`src/planted/rest.ts:${line} empty-catch`)) && told('empty-catch', raised.over).includes('its row allows 3'), told('empty-catch', raised.over))
   const fallen = judge('setTimeout', hits.filter(h => h.file !== 'src/planted/worker.mjs'), table)
-  check('a count that fell stands, and its row is counted as standing above it', fallen.over.length === 0 && fallen.total === 5 && fallen.allowed === 6 && fallen.slack === 1, JSON.stringify(fallen))
-  const standing = new Set(planted.map(p => p.file))
-  const moved = tableOf(text.replace('setTimeout\tsrc/planted/worker.mjs\t1\n', 'setTimeout\tsrc/planted/gone.mjs\t1\n'))!
-  const arrived = judge('setTimeout', hits, moved)
+  check('a count that fell stands, and its row is counted as standing above it', fallen.over.length === 0 && fallen.total === fallen.allowed - 1 && fallen.slack === 1, JSON.stringify(fallen))
+  const lines = (files: Record<string, string[]>): Map<string, string> => new Map(Object.entries(files).map(([file, body]) => [file, body.join('\n') + '\n']))
+  const changed = (before: Record<string, string[]>, after: Record<string, string[]>, taken: string[] = []): Change => {
+    const stood = lines(before)
+    const now = lines(after)
+    return { name: 'planted', touched: [...new Set([...stood.keys(), ...now.keys()])].filter(file => stood.get(file) !== now.get(file)).sort(), taken: new Set(taken), before: file => stood.get(file) ?? null, after: file => now.get(file) ?? null }
+  }
+  const said = (found: Refusal[]): string => found.map(r => `${r.file} ${r.habit} ${r.lines.join(',')}`).join(' · ')
+  const ruled = (before: Record<string, string[]>, after: Record<string, string[]>, taken: string[] = []): string => said(refusals(changed(before, after, taken)))
+  const countsOf = (files: Record<string, string[]>): Rows => rowsOf([...lines(files)].flatMap(([file, body]) => habitsIn(file, body)))
+  const A = ['export function arm(): void {', '  setTimeout(() => stop(), 50)', '}', 'export const keep = setTimeout(() => {}, 1)']
+  const A_LESS = ['export function arm(): void {', '}', 'export const keep = setTimeout(() => {}, 1)']
+  const GONE = ['export const lost = setTimeout(() => {}, 9)']
+  const STILL = ['export const one = setTimeout(() => {}, 2)']
+  const FRESH = 'export const fresh = setTimeout(() => {}, 3)'
+  const estate = { 'src/planted/a.ts': A, 'src/planted/gone.ts': GONE, 'src/planted/still.ts': STILL }
+  const moved = { ...estate, 'src/planted/a.ts': A_LESS, 'src/planted/b.ts': ['setTimeout(() => stop(), 50)'] }
+  const movedAndEdited = { ...estate, 'src/planted/a.ts': A_LESS, 'src/planted/b.ts': ['setTimeout(() => stop(), 60)'] }
+  const grown = { ...estate, 'src/planted/still.ts': [...STILL, FRESH] }
+  const split = ruled(estate, moved)
+  const renamed = ruled(estate, { 'src/planted/a.ts': A, 'src/planted/there.ts': GONE, 'src/planted/still.ts': STILL })
+  const nowExported = ruled({ 'src/planted/a.ts': ['const keep = setTimeout(() => {}, 1)', 'function read(env = process.env): string | undefined { return env.HOME }'] }, { 'src/planted/b.ts': ['export const keep = setTimeout(() => {}, 1)', 'export function read(env = process.env): string | undefined { return env.HOME ?? env.USER }'] })
   check(
-    'the write mode lowers a row freely, lets a row rise by what a file that is gone held, and refuses a rise paid for by an occurrence that left a file that still stands',
-    owed(fallen, table.get('setTimeout')!, standing) <= 0 && arrived.over.length === 1 && owed(arrived, moved.get('setTimeout')!, standing) === 0 && owed(arrived, moved.get('setTimeout')!, new Set([...standing, 'src/planted/gone.mjs'])) === 1,
-    JSON.stringify(arrived),
+    'a file holds more of a habit only with the statement: one that moves whole into a new file is let through, and so is a file that is renamed; a declaration that gains export on the way is the same statement, and a default of a parameter is known by its function and the parameter, so the body may change while the statement that changed in it reads as new',
+    split === '' && renamed === '' && nowExported === 'src/planted/b.ts env-read 2,2',
+    `${split} | ${renamed} | ${nowExported}`,
+  )
+  const paidByAFall = ruled(estate, { ...estate, 'src/planted/a.ts': A_LESS, 'src/planted/b.ts': [FRESH] })
+  const paidByADeletion = ruled(estate, { 'src/planted/a.ts': A, 'src/planted/still.ts': [...STILL, FRESH] })
+  const edited = ruled(estate, movedAndEdited)
+  check('a new occurrence is refused with its line when another left a file that stands, when a file was deleted in the same change, and when the statement was edited while it moved', paidByAFall === 'src/planted/b.ts setTimeout 1' && paidByADeletion === 'src/planted/still.ts setTimeout 2' && edited === 'src/planted/b.ts setTimeout 1', `${paidByAFall} | ${paidByADeletion} | ${edited}`)
+  const chainOf = (steps: Array<Record<string, string[]>>, table: Record<string, string[]>): Chain => ({ from: 'planted', was: countsOf(table), span: changed(steps[0]!, steps.at(-1)!), links: steps.slice(1).map((step, i) => changed(steps[i]!, step)) })
+  const inTwo = said(refusedSince(chainOf([estate, moved, movedAndEdited], estate), countsOf(movedAndEdited)))
+  const inOne = said(refusedSince(chainOf([estate, movedAndEdited], estate), countsOf(movedAndEdited)))
+  const newThenMoved = said(refusedSince(chainOf([estate, grown, { ...grown, 'src/planted/a.ts': A_LESS, 'src/planted/b.ts': ['setTimeout(() => stop(), 50)'] }], estate), countsOf({ ...grown, 'src/planted/a.ts': A_LESS, 'src/planted/b.ts': ['setTimeout(() => stop(), 50)'] })))
+  const underSlack = said(refusedSince(chainOf([estate, grown], grown), countsOf(grown)))
+  check(
+    'each change since the last written table is read on its own when the whole does not read as a move: moved in one commit and edited in the next stands, the same in one commit does not, and a new occurrence in one commit is refused with a move in the next beside it; a file that is not above the last written table is not read again',
+    inTwo === '' && inOne === 'src/planted/b.ts setTimeout 1' && newThenMoved === 'src/planted/still.ts setTimeout 2' && underSlack === '',
+    `${inTwo} | ${inOne} | ${newThenMoved} | ${underSlack}`,
+  )
+  const takenWhole = ruled(estate, grown, ['src/planted/still.ts'])
+  check('a file a merge takes whole from the side that alone changed it is left to the commits of that side', takenWhole === '' && ruled(estate, grown) === 'src/planted/still.ts setTimeout 2', takenWhole)
+  const lifted = (rowsNow: Rows): string => handRaised(countsOf(estate), rowsNow, countsOf(estate)).join(' · ')
+  const byHand = countsOf(estate)
+  byHand.get('setTimeout')!.set('src/planted/still.ts', 2)
+  const afterAFall = handRaised(countsOf(grown), countsOf(grown), countsOf(estate)).join(' · ')
+  const firstCount = handRaised(rowsOf([]), countsOf(estate), countsOf(estate)).join(' · ')
+  check(
+    'a row raised by hand is named: it stands above the last written table and above what its file holds; a row left above its file by a fall is not, and neither is the first count of a habit the last table did not hold',
+    lifted(byHand) === 'src/planted/still.ts setTimeout: its row says 2, the last written table says 1 and the file holds 1' && lifted(countsOf(estate)) === '' && afterAFall === '' && firstCount === '',
+    `${lifted(byHand)} | ${afterAFall} | ${firstCount}`,
   )
 }
 
-section('§0 the reader on a planted estate: each habit is seen with its line, each look-alike is not')
+const named = (hits: Hit[], file: string, line: number): string => hits.find(h => h.file === file && h.line === line)?.note ?? '?'
+function beyondCount(form: string, tallies: Map<string, number>, hits: Hit[]): number {
+  return tallies.get(form) ?? hits.filter(h => h.habit === form).length
+}
+
+section('§0 the reader on a planted estate: each habit is seen with its line, each look-alike is not, and a row rises only with its statement')
 plantedEstate()
 
 section(`§1 the estate: the habits in the code under src, counted for each file and in all, against ${TABLE}`)
 const files = sourceFiles(ROOT)
-const hits = files.flatMap(file => habitsIn(file, readFileSync(join(ROOT, file), 'utf8')))
+const beyond = new Map<string, number>()
+const hits = files.flatMap(file => habitsIn(file, readFileSync(join(ROOT, file), 'utf8'), false, beyond))
 const rows = rowsOf(hits)
 const text = existsSync(join(ROOT, TABLE)) ? readFileSync(join(ROOT, TABLE), 'utf8') : null
 const table = text === null ? null : tableOf(text)
-console.log(`  ${files.length} code files under src (${PAYLOADS} aside) · ${hits.length} occurrences of ${NAMES.length} habits (the reads of the module that exports ${DOOR} aside)`)
-check(`the code under src is read (${files.length} files)`, files.length > 3000)
+const payloads = [...PAYLOAD_FILES].filter(file => existsSync(join(ROOT, file))).length
+console.log(`  ${files.length} code files under src · ${hits.length} occurrences of ${NAMES.length} habits · aside: the ${PAYLOAD_FILES.size} payload files under ${PAYLOADS} (they run outside the product and cannot import its doors) and the environment reads of the registry itself`)
+check(
+  `the code under src is read (${files.length} files), and every payload file of the list stands (${payloads} of ${PAYLOAD_FILES.size})`,
+  files.length > 3000 && payloads === PAYLOAD_FILES.size,
+  `${files.length} files read, more than 3000 wanted; gone from the tree and still on the list of payload files in ${SELF}, to take off it: ${[...PAYLOAD_FILES].filter(file => !existsSync(join(ROOT, file))).join(', ') || 'none'}`,
+)
 if (process.argv.includes('--list')) {
   const asked = NAMES.filter(habit => process.argv.includes(habit))
   for (const h of hits) if (asked.length === 0 || asked.includes(h.habit)) console.log(`${h.habit}\t${h.file}\t${h.line}\t${h.column}`)
 } else if (process.argv.includes('--write')) {
-  const standing = new Set(files)
-  const risen = table === null ? [] : NAMES.filter(habit => owed(judge(habit, hits, table), table.get(habit)!, standing) > 0)
+  const chain = chainSince(ROOT, files)
+  const refused = chain === null ? [] : refusedSince(chain, rows)
   if (failures > 0) console.log('  nothing written: the reader failed on its own estate')
-  else if (text !== null && table === null) check(`${TABLE} reads as rows of a habit, a file and its count`, false, 'put the committed table back, then write')
-  else if (risen.length > 0) check('a row falls or leaves, and one rises only by what the files that are gone held', false, `nothing written — ${risen.map(habit => `${habit}: ${told(habit, judge(habit, hits, table!).over)}`).join('\n    ')}`)
+  else if (refused.length > 0) check(`a file holds more of a habit only with a statement that left another file (the last written table: ${chain!.from.slice(0, 10)})`, false, `nothing written — ${toldRefusals(refused)}`)
   else {
     writeFileSync(join(ROOT, TABLE), render(rows))
-    console.log(`  wrote ${TABLE}: ${NAMES.reduce((n, habit) => n + rows.get(habit)!.size, 0)} rows, ${hits.length} occurrences`)
+    console.log(`  wrote ${TABLE}: ${NAMES.reduce((n, habit) => n + rows.get(habit)!.size, 0)} rows, ${hits.length} occurrences${chain === null ? ' (no commit holds a table: the first one)' : ` (the last written table: ${chain.from.slice(0, 10)}; ${chain.span.touched.length} files differ from it)`}`)
   }
 } else if (table === null) {
-  check(`${TABLE} reads as rows of a habit, a file and its count`, false, text === null ? `no table: bun ${SELF} --write writes the first one` : 'a row is not a habit of the fence, a file under src and a count of 1 or more, or a habit and file stand twice')
+  check(`${TABLE} reads as rows of a habit, a file and its count`, false, text === null ? `no table: put the table of the last commit back (git checkout -- ${TABLE}); a tree that never held one writes the first with bun ${SELF} --write` : `a row is not a habit of the fence, a file under src and a count of 1 or more, or a habit and file stand twice; after a change of the reader, bun ${SELF} --write writes the table of the new one`)
 } else {
   let slack = 0
   for (const habit of NAMES) {
@@ -492,7 +1111,15 @@ if (process.argv.includes('--list')) {
     slack += found.slack
     check(`${habit}: no file holds more than its row allows, a file with no row holds none, and the total is at most the table's (${found.total} in ${found.files} files, ${found.allowed} allowed)`, found.over.length === 0 && found.total <= found.allowed, told(habit, found.over))
   }
-  console.log(`  out of reach: ${OUT_OF_REACH}`)
+  const chain = chainSince(ROOT, files)
+  if (chain === null) console.log('  no commit to read the last written table from: the rows are held to the table as it stands')
+  else {
+    const refused = refusedSince(chain, rows)
+    check(`no file holds more of a habit than at the last written table but by statements that moved (${chain.from.slice(0, 10)}; ${chain.span.touched.length} files differ from it, in ${chain.links.length} change${chain.links.length === 1 ? '' : 's'})`, refused.length === 0, toldRefusals(refused))
+    const lifted = handRaised(chain.was, table, rows)
+    check('no row stands above both the last written table and what its file holds: a row is written by --write and never by hand', lifted.length === 0, `${lifted.length} row${lifted.length === 1 ? '' : 's'} — bun ${SELF} --write puts each row at what its file holds:` + lifted.slice(0, 40).map(row => `\n      ${row}`).join(''))
+  }
+  console.log(`  out of reach, counted here and held by no row: ${BEYOND.map(([form, words]) => `${words} (${beyondCount(form, beyond, hits)} today)`).join('; ')}`)
   if (slack > 0) console.log(`  rows above their file's count: ${slack} (bun ${SELF} --write lowers them)`)
 }
 console.log(failures === 0 ? '\nprove-source-patterns: green' : `\nprove-source-patterns: ${failures} failed`)
