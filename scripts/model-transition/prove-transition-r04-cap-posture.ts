@@ -4,6 +4,7 @@
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { flagRegistryText } from '../lib/flagRegistrySource.ts'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'ctm-r04-config-'))
 process.env.NODE_ENV = 'test'
@@ -365,9 +366,8 @@ section('§I the words — the card names the family; the spend posture is per f
   const band = readFileSync(join(ROOT, 'src/components/CompactIdentityBand.tsx'), 'utf8')
   const markOwner = readFileSync(join(ROOT, 'src/components/mercury-ui/FailoverMark.tsx'), 'utf8')
   check("the strip's three model segments mount the ONE mark beside the served model (the wide statusRow, the compact line, the identity band), and the mark's owner subscribes to the note", (strip.match(/<FailoverMark model=/g) ?? []).length === 2 && band.includes('<FailoverMark model={effectiveModel} />') && markOwner.includes('useSyncExternalStore(subscribeCapHandoff, getCapHandoffVersion, getCapHandoffVersion)') && markOwner.includes("export const FAILOVER_MARK = 'failover'"))
-  const registry = readFileSync(join(ROOT, 'src/substrate/flagRegistry.ts'), 'utf8')
   const menu = readFileSync(join(ROOT, 'src/substrate/startupMenu.ts'), 'utf8')
-  check('the registry row and the /config text spell the neutral law (no favoured family, most recent sign-in first)', registry.includes('NEUTRAL across every signed-in family') && menu.includes('no favourite') && !menu.includes('OpenAI first') && !registry.includes('OpenAI first'))
+  check('the registry row and the /config text spell the neutral law (no favoured family, most recent sign-in first)', getFlagSpec('MERCURY_CAP_FAILOVER')?.summary.includes('NEUTRAL across every signed-in family') === true && menu.includes('no favourite') && !menu.includes('OpenAI first') && !flagRegistryText().includes('OpenAI first'))
   const openaiCall = readFileSync(join(ROOT, 'src/services/providers/openai/openaiCallModel.ts'), 'utf8')
   const messages = readFileSync(join(ROOT, 'src/services/rateLimitMessages.ts'), 'utf8')
   check('the OpenAI wall row carries the cross-family lane remedy through the same composer the Anthropic row uses', openaiCall.includes("crossFamilyLaneRemedy('openai')") && messages.includes("crossFamilyLaneRemedy('anthropic'") && messages.includes('export function crossFamilyLaneRemedy('))
