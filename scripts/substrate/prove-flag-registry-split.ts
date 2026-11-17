@@ -104,7 +104,6 @@ const AREAS: Record<string, string> = {
   'src/utils/privacyLevel.ts': 'permissions.ts',
   'src/utils/spawnLedger.ts': 'permissions.ts',
   'src/utils/subprocessEnv.ts': 'permissions.ts',
-  'src/constants/subagentDoctrine.ts': 'project.ts',
   'src/services/changeTransaction/': 'project.ts',
   'src/services/crew/': 'project.ts',
   'src/services/gitGraph/': 'project.ts',
@@ -126,7 +125,6 @@ const AREAS: Record<string, string> = {
   'src/utils/proofHomeGuard.ts': 'proofs.ts',
   'src/services/host/': 'providers.ts',
   'src/services/providers/': 'providers.ts',
-  'src/utils/managedEnv.ts': 'providers.ts',
   'src/components/': 'screen.ts',
   'src/constants/spinnerVerbs.ts': 'screen.ts',
   'src/context/': 'screen.ts',
@@ -152,14 +150,19 @@ const AREAS: Record<string, string> = {
   'src/utils/glob.ts': 'tools.ts',
   'src/utils/ripgrep.ts': 'tools.ts',
   'src/utils/shell/': 'tools.ts',
-  'src/utils/tasks.ts': 'tools.ts',
   'src/utils/timeouts.ts': 'tools.ts',
   'src/utils/toolSearch.ts': 'tools.ts',
   'src/utils/windowsPaths.ts': 'tools.ts',
 }
 
+const ANCHORS: Record<string, string> = {
+  MERCURY_AGENT_FANOUT_CAP: 'project.ts',
+  MERCURY_PROVIDER_MANAGED_BY_HOST: 'providers.ts',
+  MERCURY_TASKS: 'tools.ts',
+}
+
 type Row = { env: string; consumer: string }
-type Kind = 'tree' | 'exports' | 'shape' | 'door-row' | 'served' | 'not-gathered' | 'file-order' | 'two-files' | 'no-prefix' | 'wrong-file' | 'registry-order' | 'outside-import'
+type Kind = 'tree' | 'exports' | 'shape' | 'door-row' | 'served' | 'not-gathered' | 'file-order' | 'two-files' | 'anchor' | 'no-prefix' | 'wrong-file' | 'registry-order' | 'outside-import'
 type Fault = { kind: Kind; text: string }
 type Held = { file: string; rows: Row[]; alone: Row[] | null; literal: boolean }
 type Reading = { faults: Fault[]; rows: number; files: [string, number][]; walked: number; parsed: number; by: string }
@@ -311,7 +314,7 @@ function shapeOf(file: string, text: string): { shape: string[]; order: string[]
   return { shape, order, literal: true }
 }
 
-async function judge(root: string, areas: Record<string, string>, lists: Lister | null): Promise<Reading> {
+async function judge(root: string, areas: Record<string, string>, anchors: Record<string, string>, lists: Lister | null): Promise<Reading> {
   const faults: Fault[] = []
   const fault = (kind: Kind, text: string): void => {
     faults.push({ kind, text })
@@ -396,7 +399,7 @@ async function judge(root: string, areas: Record<string, string>, lists: Lister 
     if (loose.length > 0) fault('not-gathered', `${file} exports ${loose.length === 1 ? 'a row' : `${loose.length} rows`} the registry does not hold (${loose.slice(0, 3).join(', ')}${loose.length > 3 ? ', …' : ''}): gather its array in ${DOOR}`)
   }
 
-  const table = Object.entries(areas)
+  const table: [string, string, string][] = Object.entries(areas).map(([prefix, file]) => [prefix, file, 'AREAS'])
   const stands = new Map<string, string>()
   const seen = new Map<string, string | null>()
   const names = (rel: string, env: string): boolean => {
@@ -411,6 +414,15 @@ async function judge(root: string, areas: Record<string, string>, lists: Lister 
     }
     return text !== null && text.includes(env)
   }
+  const placedBy = (row: Row): string => {
+    const paths = (row.consumer.match(CONSUMER_PATH) ?? []).map(path => path.replace(/\.+$/, ''))
+    return paths.find(path => names(path, row.env)) ?? paths[0] ?? row.consumer
+  }
+  for (const [env, file] of Object.entries(anchors)) {
+    const row = registry.find(other => other.env === env)
+    if (row === undefined) fault('anchor', `${env} is named in ANCHORS of ${SELF} and is no row of the registry: take the line out, or name a row that stands`)
+    else table.push([placedBy(row), file, `ANCHORS, where ${env} stands for its consumer,`])
+  }
   for (const { file, rows, literal } of held) {
     rows.forEach((row, i) => {
       const before = rows[i - 1]
@@ -418,12 +430,11 @@ async function judge(root: string, areas: Record<string, string>, lists: Lister 
       const other = stands.get(row.env)
       if (other !== undefined && other !== file) fault('two-files', `${row.env} stands in ${other} and in ${file}: an env has one row, in the file its consumer maps to`)
       stands.set(row.env, file)
-      const paths = (row.consumer.match(CONSUMER_PATH) ?? []).map(path => path.replace(/\.+$/, ''))
-      const by = paths.find(path => names(path, row.env)) ?? paths[0] ?? row.consumer
-      let best: [string, string] | undefined
+      const by = placedBy(row)
+      let best: [string, string, string] | undefined
       for (const entry of table) if (by.startsWith(entry[0]) && (best === undefined || entry[0].length > best[0].length)) best = entry
       if (best === undefined) fault('no-prefix', `${row.env} in ${file}: no prefix of AREAS in ${SELF} covers its consumer '${by}': add the prefix there, beside the file that holds the row`)
-      else if (`${ROWS}/${best[1]}` !== file) fault('wrong-file', `${row.env} sits in ${file}: its consumer '${by}' maps to ${ROWS}/${best[1]} by the prefix '${best[0]}' of AREAS in ${SELF}: move the row there`)
+      else if (`${ROWS}/${best[1]}` !== file) fault('wrong-file', `${row.env} sits in ${file}: its consumer '${by}' maps to ${ROWS}/${best[1]} by the prefix '${best[0]}' of ${best[2]} in ${SELF}: move the row there`)
     })
   }
 
@@ -493,14 +504,14 @@ section('§0 the checks on a planted tree: a tree with nothing wrong reads clean
     [`${ROWS}/.DS_Store`]: 'a leftover of the file manager\n',
     [`${ROWS}/notes.md`]: 'a note\n',
   }
-  const planted = async (change: Record<string, string> = {}, lists: Lister | null = null): Promise<Fault[]> => {
+  const planted = async (change: Record<string, string> = {}, lists: Lister | null = null, anchors: Record<string, string> = {}): Promise<Fault[]> => {
     const root = mkdtempSync(join(tmpdir(), 'flag-registry-split-'))
     try {
       for (const [rel, body] of Object.entries({ ...CLEAN, ...change })) {
         mkdirSync(dirname(join(root, rel)), { recursive: true })
         writeFileSync(join(root, rel), body)
       }
-      return (await judge(root, PLANTED, lists)).faults
+      return (await judge(root, PLANTED, anchors, lists)).faults
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
@@ -622,6 +633,10 @@ section('§0 the checks on a planted tree: a tree with nothing wrong reads clean
   })
   check("a row is placed by the first path its consumer names that holds the flag's name, not by the first word (hole 09)", kinds(firstWord) === 'wrong-file' && firstWord[0]!.text.startsWith(`ALPHA_STRAY sits in ${B}: its consumer 'src/a/holds.ts' maps to ${A} by the prefix 'src/a/'`), texts(firstWord))
 
+  const anchored = await planted({}, null, { ALPHA_TWO: 'b.ts', GONE_ROW: 'a.ts' })
+  const followed = await planted({ [A]: rowsFile('A_FLAGS', [['ALPHA_ONE', 'src/a/one.ts']]), [B]: rowsFile('B_FLAGS', [['ALPHA_TWO', 'src/a/two.ts (and a note)'], ['BETA_ONE', 'src/b/one.ts'], ['BETA_TWO', 'src/a/deep/two.ts']]) }, null, { ALPHA_TWO: 'b.ts' })
+  check("a row named in ANCHORS lends its consumer as a prefix, so the table spells no file: the row is named until it sits in the anchor's file, reads clean once it does, and an anchor that names no row is named", kinds(anchored) === 'anchor wrong-file' && anchored[0]!.text.startsWith('GONE_ROW is named in ANCHORS') && anchored[1]!.text.startsWith(`ALPHA_TWO sits in ${A}: its consumer 'src/a/two.ts' maps to ${B} by the prefix 'src/a/two.ts' of ANCHORS, where ALPHA_TWO stands for its consumer,`) && followed.length === 0, texts([...anchored, ...followed]))
+
   const lost = await planted({ [A]: rowsFile('A_FLAGS', [['ALPHA_LOST', 'docs/lost.md'], ['ALPHA_ONE', 'src/a/one.ts'], ['ALPHA_TWO', 'src/a/two.ts']]) })
   check('a consumer no prefix covers is named with its row and the table', kinds(lost) === 'no-prefix' && lost[0]!.text.startsWith(`ALPHA_LOST in ${A}`) && lost[0]!.text.includes(`AREAS in ${SELF}`), texts(lost))
 
@@ -633,7 +648,7 @@ section('§0 the checks on a planted tree: a tree with nothing wrong reads clean
   check('a file with a second export and a types file that exports a value are named', kinds(second) === 'exports shape' && second[0]!.text.startsWith(`${A} has 2 exports`) && kinds(valued) === 'exports' && valued[0]!.text.startsWith(`${TYPES} exports VALUE`), texts([...second, ...valued]))
 }
 
-const real = await judge(ROOT, AREAS, gitLists)
+const real = await judge(ROOT, AREAS, ANCHORS, gitLists)
 const found = (...want: Kind[]): Fault[] => real.faults.filter(f => want.includes(f.kind))
 
 section(`§1 the cut: a row is written in a file under ${ROWS}, never in the door`)
@@ -661,8 +676,9 @@ section('§3 the files: one export each, rows written in order, each row in the 
   check(`each row file is written as one import of the type from '${TYPES_FROM}' and one exported array literal of rows`, found('shape').length === 0, say(found('shape')))
   check('the rows of each file ascend by env as they are written', found('file-order').length === 0, say(found('file-order')))
   check('no env stands in two files', found('two-files').length === 0, say(found('two-files')))
+  check('every row named in ANCHORS stands in the registry', found('anchor').length === 0, say(found('anchor')))
   check('every consumer is covered by a prefix of AREAS', found('no-prefix').length === 0, say(found('no-prefix')))
-  check("each row sits in the file its consumer maps to: the first path the consumer names that holds the flag's name, the longest prefix winning", found('wrong-file').length === 0, say(found('wrong-file')))
+  check("each row sits in the file its consumer maps to: the first path the consumer names that holds the flag's name, the longest prefix of AREAS and ANCHORS winning", found('wrong-file').length === 0, say(found('wrong-file')))
 }
 
 section('§4 the registry: its order is the order of env')
