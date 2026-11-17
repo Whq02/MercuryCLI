@@ -107,28 +107,40 @@ check(
 
 {
   console.log('\n§4 the run road takes the fold too (FC-073)')
-  const printSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'run.ts'), 'utf8')
   const headlessModelSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'headless', 'model.ts'), 'utf8')
+  const { FIXTURE_MODEL, liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
+  const SPOKEN = 'Sonnet 5'
+  const folded = parseUserSpecifiedModel(SPOKEN)
+  const SEAT_DEFS = JSON.stringify({ folder: { description: 'a seat whose model is spoken', prompt: 'You answer.', model: SPOKEN } })
+  const seeded = await withFixtureRunner([], liveFactsOf, { model: null, argv: ['--agent-defs', SEAT_DEFS, '--agent', 'folder'] }).then(facts => facts.model.effective, () => null)
+  const switched = await withFixtureRunner([], async host => ({
+    spoken: await host.request('session/set_model', { model: SPOKEN }).catch(() => null),
+    byDefault: await host.request('session/set_model', { model: 'default' }).catch(() => null),
+    absent: await host.request('session/set_model', {}).catch(() => null),
+  }))
+  const claimed = await withFixtureRunner([], async host => {
+    await host.request('session/claim', { session_id: crypto.randomUUID(), model: SPOKEN })
+    return (await liveFactsOf(host)).model.effective
+  }, { env: { MERCURY_CONCOURSE_WORKER: '1' } }).catch(() => null)
   check(
     'the headless resolver imports and applies the spelling fold (call-shaped)',
     headlessModelSrc.includes("import { parseUserSpecifiedModel } from '../../utils/model/model.js'") &&
       /else model = parseUserSpecifiedModel\(requested\)/.test(headlessModelSrc) &&
       /return model/.test(headlessModelSrc) &&
-      printSrc.includes("import { bootModelRefusalLine, resolveHeadlessModel } from './headless/model.js'"),
+      folded !== SPOKEN &&
+      [seeded, switched.spoken?.model, claimed].every(id => id === folded),
   )
   check(
     'the entry seed folds through the headless resolver (call-shaped)',
-    /bootModel = await resolveHeadlessModel\(options\.userSpecifiedModel\)/.test(printSrc) &&
-      /let activeModel: string \| undefined = bootModel/.test(printSrc),
+    seeded === folded,
   )
   check(
     'the set_model control folds through the headless resolver (call-shaped)',
-    /resolved = await resolveHeadlessModel\(requested === undefined \|\| requested === 'default'\s*\n\s*\? \(getDefaultEngineModelSetting\(\) \?\? getEngineModel\(\)\)\s*\n\s*: requested\)/.test(printSrc),
+    JSON.stringify(switched.spoken) === JSON.stringify({ model: folded, at: 'now' }) && switched.byDefault !== null && switched.byDefault.model === switched.absent?.model && ![folded, FIXTURE_MODEL].includes(switched.byDefault.model),
   )
   check(
     'the warm-claim write folds through the headless resolver (call-shaped)',
-    /claimedModel = await resolveHeadlessModel\(params\.model\)/.test(printSrc) &&
-      /activeModel = claimedModel/.test(printSrc),
+    claimed === folded,
   )
   const { existsSync } = await import('node:fs')
   const { spawn } = await import('node:child_process')
