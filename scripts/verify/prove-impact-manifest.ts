@@ -5,6 +5,7 @@ import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { loadImpactManifest, selectImpact, type ImpactManifest } from './impactManifest.ts'
+import { flagRegistryFiles, isFlagRegistryFile } from '../lib/flagRegistrySource.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
@@ -56,13 +57,22 @@ check(`the manifest sees the full suite estate (${manifest.suites.length} ≥ 90
     doorRows.length > 0 && badDoors.length === 0,
     badDoors.map(d => `${d.behind} ${d.door}`).join(' · ') || 'scripts/gate/impact-doors.txt holds no row',
   )
-  const behind = [...selectImpact(manifest, ['src/substrate/flags/zz-probe.ts']).suites]
-  const door = [...selectImpact(manifest, ['src/substrate/flagRegistry.ts']).suites]
-  const lost = door.filter(s => !behind.includes(s))
+  const probeOf = (behind: string): string => behind.replace(/\*\*.*$/, 'zz-probe.ts')
+  for (const row of doorRows) {
+    const behind = [...selectImpact(manifest, [probeOf(row.behind)]).suites]
+    const door = [...selectImpact(manifest, [row.door]).suites]
+    const lost = door.filter(s => !behind.includes(s))
+    check(
+      `a file behind ${row.door} wakes every suite that file wakes (${door.length} suites)`,
+      door.length > 0 && lost.length === 0,
+      `${lost.length} not woken by ${probeOf(row.behind)}: ${lost.slice(0, 12).join(' ')}`,
+    )
+  }
+  const registry = flagRegistryFiles()[0]
   check(
-    `a file under src/substrate/flags wakes every suite the registry's door wakes (${door.length} suites)`,
-    door.length > 0 && lost.length === 0,
-    `${lost.length} not woken: ${lost.slice(0, 12).join(' ')}; add the row "src/substrate/flags/** src/substrate/flagRegistry.ts" to scripts/gate/impact-doors.txt`,
+    "the folder of flag rows stands behind the flag registry's door",
+    doorRows.some(row => row.door === registry && isFlagRegistryFile(probeOf(row.behind))),
+    `scripts/gate/impact-doors.txt has no row whose door is ${registry} and whose glob holds the registry's row files`,
   )
 }
 
