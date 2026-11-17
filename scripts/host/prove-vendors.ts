@@ -59,7 +59,7 @@ try {
   secrets.writeStoredVastApiKey(' fixture-vast ')
   secrets.writeStoredLambdaApiKey(' fixture-lambda ')
   check('both key slots trim, coexist and preserve the Runpod key', secrets.readStoredVastApiKey() === 'fixture-vast' && secrets.readStoredLambdaApiKey() === 'fixture-lambda' && secrets.readStoredRunpodApiKey() === 'fixture-runpod-preserved')
-  check('vendor keys use the private auth-scoped store', secrets.providerSecretsPathForDisplay().startsWith(home) && ownerOnlyFile(secrets.providerSecretsPathForDisplay()))
+  check('vendor keys use the private auth-scoped store', secrets.providerSecretsPathForDisplay().startsWith(resolve(home)) && ownerOnlyFile(secrets.providerSecretsPathForDisplay()))
   secrets.writeStoredVastApiKey(null); secrets.writeStoredLambdaApiKey(' ')
   check('keys clear independently without losing another vendor', secrets.readStoredVastApiKey() === undefined && secrets.readStoredLambdaApiKey() === undefined && secrets.readStoredRunpodApiKey() === 'fixture-runpod-preserved')
   check('no vendor secrets select a model family', !existsSync(join(home, '.sign-ins.json')))
@@ -311,4 +311,8 @@ try {
   globalThis.fetch = originalFetch
   resetRecipes()
   rmSync(recipeFile, { force: true })
+  const stored = await import('../../src/services/providers/providerSecrets.ts')
+  stored.writeStoredVastApiKey(null)
+  stored.writeStoredLambdaApiKey(null)
+  stored.writeStoredHuggingfaceApiKey(null)
 }
