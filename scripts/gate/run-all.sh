@@ -15,6 +15,7 @@
 # gate-watch: src/utils/wards/wardsRefusals.ts src/utils/wards/wardsShellRead.ts
 # gate-watch: scripts/verify/fast.ts scripts/verify/impact.ts scripts/verify/impactManifest.ts scripts/verify/sliceCore.ts
 # gate-watch: scripts/verify/prove-impact-manifest.ts scripts/verify/prove-impact-run.ts scripts/verify/prove-slice-core.ts
+# gate-watch: scripts/bash/prove-shell-door.ts scripts/substrate/prove-flag-registry-readers.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"
