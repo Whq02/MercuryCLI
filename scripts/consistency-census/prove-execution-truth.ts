@@ -59,7 +59,7 @@ check(
   const escalateSpawn = fastSrc.indexOf("spawnSync('bash', ['scripts/run-all-suites.sh']", escalateIdx)
   check('§D escalation: the profile gate precedes the pool spawn', escalateIdx > 0 && escalateGuard > escalateIdx && escalateGuard < escalateSpawn)
   const subsetGuard = fastSrc.indexOf('fullPoolSupport(resolveExecutionProfile(ROOT))', escalateSpawn)
-  const subsetSpawn = fastSrc.indexOf("['scripts/run-all-suites.sh', ...plan.suites]")
+  const subsetSpawn = fastSrc.indexOf("['scripts/run-all-suites.sh', '--keep-going', ...plan.suites]")
   check('§D pooled subset: the same gate precedes ITS spawn', subsetGuard > 0 && subsetSpawn > subsetGuard)
   check('§D the refusal exit is distinct (3 — refusal, not failure)', fastSrc.includes('process.exit(3)'))
 }

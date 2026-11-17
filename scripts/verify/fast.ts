@@ -388,7 +388,7 @@ if (plan.suites.length > 0 && steps.every(s => s.ok)) {
       run(
         `pooled suites [${plan.suites.join(', ')}]`,
         'bash',
-        ['scripts/run-all-suites.sh', ...plan.suites],
+        ['scripts/run-all-suites.sh', '--keep-going', ...plan.suites],
         45 * 60_000,
         distEnsured ? { MERCURY_GATE_PREBUILT: '1' } : undefined,
       ),

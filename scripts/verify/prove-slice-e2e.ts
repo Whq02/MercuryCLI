@@ -83,7 +83,7 @@ function evidenceRecords(): Array<{ scope: string; coverage: string; ok: boolean
 const marker = (dom: string): string => `mkdir -p '${join(scratch, 'markers')}'; echo ran >>'${join(scratch, 'markers', dom)}'; exit 0`
 mkSuite('typecheck', ['# gate-class: pure'], 'exit 0')
 mkSuite('alpha', ['# gate-class: pure', '# gate-watch: lib/alpha/** lib/wide.txt'], marker('alpha'))
-mkSuite('beta', ['# gate-class: pure', '# gate-watch: lib/beta/** lib/wide.txt'], marker('beta'))
+mkSuite('beta', ['# gate-class: pure', '# gate-watch: lib/beta/** lib/wide.txt'], marker('beta').replace('exit 0', `! grep -q RED '${join(scratch, 'lib/beta/b.txt')}'`))
 mkSuite('gamma', ['# gate-class: pure', '# gate-watch: lib/wide.txt'], marker('gamma'))
 mkSuite('omega', ['# gate-class: pure'], marker('omega'))
 mkSuite('screen-drives', ['# gate-class: pty', '# gate-watch: lib/alpha/**'], marker('screen-drives'))
@@ -234,6 +234,19 @@ try {
       JSON.stringify(last),
     )
     sh('git checkout -- lib/wide.txt')
+  }
+
+  section('H — a red suite does not stop the others: every planned suite is read')
+  {
+    writeVerdict()
+    appendFileSync(join(scratch, 'lib/beta/b.txt'), 'RED\n')
+    appendFileSync(join(scratch, 'lib/alpha/a.txt'), 'dirt\n')
+    resetMarkers()
+    const r = fast([], { MERCURY_GATE_JOBS: '1' })
+    check('exit 1 (a RED run)', r.status === 1, `status=${r.status}`)
+    check('the red suite ran and the suite after it ran too', markers().join(',') === 'alpha,beta', markers().join(','))
+    check('no planned suite is left unlaunched', !r.out.includes('not launched (fail-fast'), r.out.split('\n').find(l => l.includes('not launched (fail-fast')) ?? '')
+    sh('git checkout -- lib/alpha/a.txt lib/beta/b.txt')
   }
 
   section('G — no verdict: the run REFUSES naming the pool; --plan honest at exit 0')
