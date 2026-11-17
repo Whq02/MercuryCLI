@@ -528,6 +528,13 @@ function flagAsSet(env: string): string {
   return `${env}=${flagEnv(env)?.trim() || '0'}`
 }
 
+export const SHELL_READS = {
+  outputLimits: () => import('./shell/outputLimits.js'),
+  engineSession: () => import('./shell/engineSession.js'),
+  engineArm: () => import('./shell/shellEngineArm.js'),
+  windowsRoad: () => import('./shell/windowsShellRoad.js'),
+}
+
 
 const PROVIDER_AUTH_PRESENTATION: Record<string, { label: string; signIn: string }> = {
   anthropic: { label: 'Anthropic', signIn: 'Run /logins (or export ANTHROPIC_API_KEY)' },
@@ -585,8 +592,9 @@ const PROVIDER_AUTH_PRESENTATION: Record<string, { label: string; signIn: string
 }
 
 function routedAuthFamily(): string {
+  const routeLaw = (): typeof import('../services/providers/routeLaw.js') => require('../services/providers/routeLaw.js')
   try {
-    const { declaredRouteOf } = require('../services/providers/routeLaw.js') as typeof import('../services/providers/routeLaw.js')
+    const { declaredRouteOf } = routeLaw()
     if (getUserSpecifiedModelSetting() === null) {
       const decision = computedDefault()
       if (decision.provider !== null) return decision.provider
@@ -610,9 +618,9 @@ function unresolvedDefaultRow(): string | null {
 }
 
 function editOutcomeHealthChecks(): CheckSpec[] {
+  const editOutcomeLedger = (): typeof import('../services/changeTransaction/editOutcomeLedger.js') => require('../services/changeTransaction/editOutcomeLedger.js')
   try {
-    const { editOutcomeLedgerEnabled } =
-      require('../services/changeTransaction/editOutcomeLedger.js') as typeof import('../services/changeTransaction/editOutcomeLedger.js')
+    const { editOutcomeLedgerEnabled } = editOutcomeLedger()
     if (!editOutcomeLedgerEnabled()) return []
   } catch {
     return []
@@ -766,8 +774,9 @@ async function tensorFoldHealthChecks(): Promise<CheckSpec[]> {
 function providerUsageChecks(): CheckSpec[] {
   let owner: typeof import('../services/providers/providerUsage.js')
   let presences: ReturnType<typeof owner.providerFamilyPresences>
+  const providerUsage = (): typeof import('../services/providers/providerUsage.js') => require('../services/providers/providerUsage.js')
   try {
-    owner = require('../services/providers/providerUsage.js') as typeof import('../services/providers/providerUsage.js')
+    owner = providerUsage()
     presences = owner.providerFamilyPresences()
   } catch {
     return []
@@ -787,9 +796,9 @@ function providerUsageChecks(): CheckSpec[] {
 
 function standingWindowWords(family: string): string {
   if (family !== 'anthropic') return ''
+  const anthropicRefusal = (): typeof import('../services/providers/anthropicRefusal.js') => require('../services/providers/anthropicRefusal.js')
   try {
-    const { standingAnthropicRefusal } =
-      require('../services/providers/anthropicRefusal.js') as typeof import('../services/providers/anthropicRefusal.js')
+    const { standingAnthropicRefusal } = anthropicRefusal()
     const standing = standingAnthropicRefusal()
     return standing?.kind === 'window' ? ` · ${standing.words}` : ''
   } catch {
@@ -1870,8 +1879,9 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               return { status: 'ok', evidence, link: '/daemon' }
             }
             let receipt = ''
+            const reconcileRecords = () => import('../daemon/reconcileRecords.js')
             try {
-              const { reconcileDaemonRecords } = await import('../daemon/reconcileRecords.js')
+              const { reconcileDaemonRecords } = await reconcileRecords()
               const rec = await reconcileDaemonRecords()
               if (rec.state === 'reconciled' && rec.cleaned.length > 0) {
                 receipt = `reconciled stale records: removed ${rec.cleaned.join(', ')}${
@@ -2536,9 +2546,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           label: 'Env output limits',
           run: async () => {
             const { validateBoundedIntEnvVar } = await import('./envValidation.js')
-            const { BASH_MAX_OUTPUT_DEFAULT, BASH_MAX_OUTPUT_UPPER_LIMIT, SHELL_MAX_OUTPUT_ENV } = await import(
-              './shell/outputLimits.js'
-            )
+            const { BASH_MAX_OUTPUT_DEFAULT, BASH_MAX_OUTPUT_UPPER_LIMIT, SHELL_MAX_OUTPUT_ENV } = await SHELL_READS.outputLimits()
             const rows: Array<[string, number, number]> = [
               [SHELL_MAX_OUTPUT_ENV, BASH_MAX_OUTPUT_DEFAULT, BASH_MAX_OUTPUT_UPPER_LIMIT],
             ]
@@ -3093,8 +3101,8 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'iface-shell-engine',
           label: 'Shell engine',
           run: async () => {
-            const { engineSessionCeilingPinned, resolveEngineSessionCeiling, resolveShellEngine } = await import('./shell/engineSession.js')
-            const { shellEngineArmWords } = await import('./shell/shellEngineArm.js')
+            const { engineSessionCeilingPinned, resolveEngineSessionCeiling, resolveShellEngine } = await SHELL_READS.engineSession()
+            const { shellEngineArmWords } = await SHELL_READS.engineArm()
             const { getInitialSettings } = await import('./settings/settings.js')
             const settings = getInitialSettings()
             const setting = settings.shell?.engine ?? 'system'
@@ -3199,7 +3207,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'shell',
           label: 'Bash tool shell',
           run: async () => {
-            const { describeWindowsShellRoad } = await import('./shell/windowsShellRoad.js')
+            const { describeWindowsShellRoad } = await SHELL_READS.windowsRoad()
             const shell = describeWindowsShellRoad()
             if (shell.absent) return { status: 'warn', evidence: shell.line, fix: shell.fix }
             return { status: 'ok', evidence: shell.line }
