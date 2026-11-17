@@ -60,9 +60,8 @@ const PROVIDER_AUTH_PRESENTATION: Record<string, { label: string; signIn: string
 }
 
 function routedAuthFamily(): string {
-  const routeLaw = (): typeof import('../../../services/providers/routeLaw.js') => require('../../../services/providers/routeLaw.js')
   try {
-    const { declaredRouteOf } = routeLaw()
+    const { declaredRouteOf } = require('../../../services/providers/routeLaw.js') as typeof import('../../../services/providers/routeLaw.js')
     if (getUserSpecifiedModelSetting() === null) {
       const decision = computedDefault()
       if (decision.provider !== null) return decision.provider
@@ -178,9 +177,8 @@ function providerAuthChecks(): CheckSpec[] {
 function providerUsageChecks(): CheckSpec[] {
   let owner: typeof import('../../../services/providers/providerUsage.js')
   let presences: ReturnType<typeof owner.providerFamilyPresences>
-  const providerUsage = (): typeof import('../../../services/providers/providerUsage.js') => require('../../../services/providers/providerUsage.js')
   try {
-    owner = providerUsage()
+    owner = require('../../../services/providers/providerUsage.js') as typeof import('../../../services/providers/providerUsage.js')
     presences = owner.providerFamilyPresences()
   } catch {
     return []
@@ -200,9 +198,9 @@ function providerUsageChecks(): CheckSpec[] {
 
 function standingWindowWords(family: string): string {
   if (family !== 'anthropic') return ''
-  const anthropicRefusal = (): typeof import('../../../services/providers/anthropicRefusal.js') => require('../../../services/providers/anthropicRefusal.js')
   try {
-    const { standingAnthropicRefusal } = anthropicRefusal()
+    const { standingAnthropicRefusal } =
+      require('../../../services/providers/anthropicRefusal.js') as typeof import('../../../services/providers/anthropicRefusal.js')
     const standing = standingAnthropicRefusal()
     return standing?.kind === 'window' ? ` · ${standing.words}` : ''
   } catch {

@@ -357,9 +357,8 @@ export function crewChecks(): CheckSpec[] {
           return { status: 'ok', evidence, link: '/daemon' }
         }
         let receipt = ''
-        const reconcileRecords = () => import('../../../daemon/reconcileRecords.js')
         try {
-          const { reconcileDaemonRecords } = await reconcileRecords()
+          const { reconcileDaemonRecords } = await import('../../../daemon/reconcileRecords.js')
           const rec = await reconcileDaemonRecords()
           if (rec.state === 'reconciled' && rec.cleaned.length > 0) {
             receipt = `reconciled stale records: removed ${rec.cleaned.join(', ')}${

@@ -37,9 +37,9 @@ function readTsVersion(tsPath: string): string | null {
 }
 
 function editOutcomeHealthChecks(): CheckSpec[] {
-  const editOutcomeLedger = (): typeof import('../../../services/changeTransaction/editOutcomeLedger.js') => require('../../../services/changeTransaction/editOutcomeLedger.js')
   try {
-    const { editOutcomeLedgerEnabled } = editOutcomeLedger()
+    const { editOutcomeLedgerEnabled } =
+      require('../../../services/changeTransaction/editOutcomeLedger.js') as typeof import('../../../services/changeTransaction/editOutcomeLedger.js')
     if (!editOutcomeLedgerEnabled()) return []
   } catch {
     return []
