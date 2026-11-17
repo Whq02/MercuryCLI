@@ -11,7 +11,10 @@ export interface ImpactManifest {
    *  Optional so synthetic fixture manifests stay minimal; loadImpactManifest
    *  always fills it. */
   classes?: Record<string, string>
+  narrowed?: string[]
 }
+
+export const NET_GLOB = 'src/**'
 
 export interface ImpactSelection {
   suites: Set<string>
@@ -45,6 +48,14 @@ export function parseClassHeader(runnerText: string): string {
   return 'undeclared'
 }
 
+function declaredRows(path: string): string[] {
+  if (!existsSync(path)) return []
+  return readFileSync(path, 'utf8')
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l && !l.startsWith('#'))
+}
+
 export function loadImpactManifest(root: string): ImpactManifest {
   const watches: Record<string, string[]> = {}
   const classes: Record<string, string> = {}
@@ -59,18 +70,41 @@ export function loadImpactManifest(root: string): ImpactManifest {
     if (globs.length > 0) watches[dom] = globs
     classes[dom] = parseClassHeader(text)
   }
-  const ignorePath = join(root, 'scripts', 'gate', 'impact-ignore.txt')
-  const ignores = existsSync(ignorePath)
-    ? readFileSync(ignorePath, 'utf8')
-        .split('\n')
-        .map(l => l.trim())
-        .filter(l => l && !l.startsWith('#'))
-    : []
-  return { watches, ignores, suites, classes }
+  const ignores = declaredRows(join(root, 'scripts', 'gate', 'impact-ignore.txt'))
+  const narrowed = declaredRows(join(root, 'scripts', 'gate', 'impact-narrowed.txt'))
+  return { watches, ignores, suites, classes, narrowed }
 }
 
 function matchesAny(path: string, globs: string[]): boolean {
   for (const g of globs) {
+    if (new Bun.Glob(g).match(path)) return true
+  }
+  return false
+}
+
+function literalPrefix(glob: string): string {
+  const wild = glob.search(/[*?[{]/)
+  return wild === -1 ? glob : glob.slice(0, wild)
+}
+
+export function narrowedRow(manifest: ImpactManifest, path: string): string | null {
+  let row: string | null = null
+  let floor = 0
+  for (const area of manifest.narrowed ?? []) {
+    const prefix = literalPrefix(area)
+    if (prefix.length > floor && path.startsWith(prefix) && new Bun.Glob(area).match(path)) {
+      row = area
+      floor = prefix.length
+    }
+  }
+  return row
+}
+
+export function watchClaims(manifest: ImpactManifest, suite: string, path: string): boolean {
+  const row = narrowedRow(manifest, path)
+  const floor = row === null ? 0 : literalPrefix(row).length
+  for (const g of manifest.watches[suite] ?? []) {
+    if (floor > 0 && g !== NET_GLOB && literalPrefix(g).length < floor) continue
     if (new Bun.Glob(g).match(path)) return true
   }
   return false
@@ -85,8 +119,8 @@ export function selectImpact(manifest: ImpactManifest, paths: string[]): ImpactS
     const claimants: string[] = []
     const self = path.match(/^scripts\/([A-Za-z0-9_-]+)\//)
     if (self && manifest.suites.includes(self[1]!)) claimants.push(self[1]!)
-    for (const [dom, globs] of Object.entries(manifest.watches)) {
-      if (!claimants.includes(dom) && matchesAny(path, globs)) claimants.push(dom)
+    for (const dom of Object.keys(manifest.watches)) {
+      if (!claimants.includes(dom) && watchClaims(manifest, dom, path)) claimants.push(dom)
     }
     if (claimants.length > 0) {
       for (const c of claimants) suites.add(c)

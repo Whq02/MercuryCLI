@@ -1,0 +1,13 @@
+# scripts/gate/impact-narrowed.txt — DECLARED narrowed areas for the impact
+# manifest, one glob a row. Inside a narrowed area a suite's gate-watch glob
+# claims a path only when it names the path at least as exactly as the row
+# does: the glob's text before its first wildcard is at least as long as the
+# row's. A folder-wide glob (src/utils/**) stops claiming the area's files; a
+# glob on the area's own folder and a file's own name still claim them. A
+# suite that watches src/** stays on every path as the net. Where two rows
+# hold a path the more exact row sets the bar.
+# A suite whose proofs read a narrowed file must name it: the gate-watch
+# census (scripts/gate/prove-gate-watch-census.ts) reads claims through the
+# same function as the selector and goes RED otherwise.
+# Validated by scripts/verify/prove-impact-manifest.ts (dead row ⇒ RED).
+src/utils/shell/engineSession.ts

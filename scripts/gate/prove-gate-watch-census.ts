@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, wr
 import { tmpdir } from 'node:os'
 import { dirname, join, posix, relative, resolve } from 'node:path'
 import ts from 'typescript'
-import { loadImpactManifest, selectImpact, type ImpactManifest } from '../verify/impactManifest.ts'
+import { loadImpactManifest, narrowedRow, selectImpact, watchClaims, type ImpactManifest } from '../verify/impactManifest.ts'
 import { calleeName, declarationOf, parseSource, slash, stringText, unwrap, visit } from './sourceCensus.ts'
 
 const REAL_ROOT = resolve(import.meta.dir, '..', '..')
@@ -89,7 +89,6 @@ function globOf(pattern: string): InstanceType<typeof Bun.Glob> {
   }
   return g
 }
-const matchesAny = (path: string, patterns: string[]): boolean => patterns.some(p => globOf(p).match(path))
 
 function treeOf(list: string[]): Tree {
   const files = new Set(list)
@@ -445,7 +444,7 @@ function census(root: string, tracked: string[], manifest: ImpactManifest, whole
     }
     return r
   }
-  const claims = (suite: string, path: string): boolean => path.startsWith(`scripts/${suite}/`) || matchesAny(path, manifest.watches[suite] ?? [])
+  const claims = (suite: string, path: string): boolean => path.startsWith(`scripts/${suite}/`) || watchClaims(manifest, suite, path)
   const rows: SuiteRow[] = []
   for (const suite of manifest.suites) {
     const runner = `scripts/${suite}/run-all.sh`
@@ -506,7 +505,9 @@ function census(root: string, tracked: string[], manifest: ImpactManifest, whole
         const sample = hit.unwatched[0]!
         const who = (selectImpact(manifest, [sample]).perPath[sample] ?? []).filter(c => c !== suite && !c.startsWith('('))
         const scope = hit.files.length > 1 ? ` (${hit.unwatched.length} of ${hit.files.length} files outside the watch, e.g. ${sample})` : ''
-        row.misses.push(`${hit.via} reads ${key}${scope} — the gate wakes ${who.length > 0 ? who.join(', ') : 'nothing'} for ${sample}, not ${suite}; add "# gate-watch: ${key}" to the header of ${runner}`)
+        const asked: ImpactManifest = { ...manifest, watches: { [suite]: [key] } }
+        const repair = [...new Set(hit.unwatched.map(f => (watchClaims(asked, suite, f) ? key : (narrowedRow(manifest, f) ?? key))))]
+        row.misses.push(`${hit.via} reads ${key}${scope} — the gate wakes ${who.length > 0 ? who.join(', ') : 'nothing'} for ${sample}, not ${suite}; add "# gate-watch: ${repair.join(' ')}" to the header of ${runner}`)
       }
     }
     for (const text of row.misses) misses.push({ suite, law: 2, text })
@@ -579,6 +580,14 @@ function selfTest(): boolean {
   w('scripts/listed/prove-l.ts', "import { readdirSync } from 'node:fs'\nimport { join } from 'node:path'\nconst ROOT = join(import.meta.dir, '..', '..')\nconst walk = (d: string): string[] => readdirSync(d)\nexport const out = walk(ROOT).length\n")
   w('scripts/delta/run-all.sh', '#!/usr/bin/env bash\n# gate-class: pure\n# gate-watch: src/keys/one.ts\nset -u\nbash "$here/prove-d.sh"\n')
   w('scripts/delta/prove-d.sh', '#!/usr/bin/env bash\ngrep -q one src/keys/one.ts && grep -q two "$root/src/keys/two.ts"\n')
+  w('src/deep/inner/n.ts', 'export const n = 5\n')
+  w('scripts/gate/impact-narrowed.txt', 'src/deep/inner/**\n')
+  w('src/deep/top.ts', 'export const top = 6\n')
+  w('scripts/epsilon/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\n# gate-watch: src/deep/**\nset -u\nfor f in "$here"/prove-*.ts; do ${bun} run "$f"; done\n`)
+  w('scripts/epsilon/prove-n.ts', "import { n } from '../../src/deep/inner/n.ts'\nexport const out = n\n")
+  w('scripts/epsilon/prove-walk.ts', "import { readdirSync } from 'node:fs'\nimport { join } from 'node:path'\nconst ROOT = join(import.meta.dir, '..', '..')\nexport const out = readdirSync(join(ROOT, 'src', 'deep')).length\n")
+  w('scripts/zeta/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\n# gate-watch: src/deep/inner/*\nset -u\n${bun} run "$here/prove-n.ts"\n`)
+  w('scripts/zeta/prove-n.ts', "import { n } from '../../src/deep/inner/n.ts'\nexport const out = n\n")
   const manifest = loadImpactManifest(root)
   const got = census(root, walkAll(root), manifest, { whole: 'walks src for the fixture', gamma: 'a stale registration' })
   rmSync(root, { recursive: true, force: true })
@@ -593,6 +602,8 @@ function selfTest(): boolean {
     '2 beta-2 scripts/beta/prove-b.ts reads src/keys/one.ts — the gate wakes delta for src/keys/one.ts, not beta-2; add "# gate-watch: src/keys/one.ts" to the header of scripts/beta-2/run-all.sh',
     '2 beta-3 scripts/beta-3/run-all.sh reads scripts/beta/prove-c.ts — the gate wakes beta, beta-2 for scripts/beta/prove-c.ts, not beta-3; add "# gate-watch: scripts/beta/prove-c.ts" to the header of scripts/beta-3/run-all.sh',
     '2 delta scripts/delta/prove-d.sh reads src/keys/two.ts — the gate wakes nothing for src/keys/two.ts, not delta; add "# gate-watch: src/keys/two.ts" to the header of scripts/delta/run-all.sh',
+    '2 epsilon scripts/epsilon/prove-n.ts reads src/deep/inner/n.ts — the gate wakes zeta for src/deep/inner/n.ts, not epsilon; add "# gate-watch: src/deep/inner/n.ts" to the header of scripts/epsilon/run-all.sh',
+    '2 epsilon scripts/epsilon/prove-walk.ts reads src/deep/** (1 of 2 files outside the watch, e.g. src/deep/inner/n.ts) — the gate wakes zeta for src/deep/inner/n.ts, not epsilon; add "# gate-watch: src/deep/inner/**" to the header of scripts/epsilon/run-all.sh',
     '2 gamma registered as a whole-tree reader (a stale registration) but no proof it runs reads the whole tree',
     '2 listed scripts/listed/prove-l.ts reads the whole tree (.); the suite is not registered as a whole-tree reader',
     '2 whole scripts/whole/prove-w.ts reads scripts/lib/helper.ts — the gate wakes nothing for scripts/lib/helper.ts, not whole; add "# gate-watch: scripts/lib/helper.ts" to the header of scripts/whole/run-all.sh',

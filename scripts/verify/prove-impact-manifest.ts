@@ -40,6 +40,13 @@ check(
   deadIgnores.length === 0,
   deadIgnores.join(' · '),
 )
+const narrowedRows = manifest.narrowed ?? []
+const deadNarrowed = narrowedRows.filter(g => !alive(g))
+check(
+  `all impact-narrowed rows match ≥1 tracked path (${narrowedRows.length} rows)`,
+  deadNarrowed.length === 0,
+  deadNarrowed.join(' · '),
+)
 check(`the manifest sees the full suite estate (${manifest.suites.length} ≥ 90)`, manifest.suites.length >= 90)
 
 {
@@ -99,6 +106,55 @@ const syn: ImpactManifest = {
 {
   const s = selectImpact(syn, ['mystery/top-level.bin'])
   check('FAIL-CLOSED: an unclaimed, un-ignored path is UNCLASSIFIED', s.unclassified.length === 1 && s.perPath['mystery/top-level.bin']?.[0] === '(UNCLASSIFIED)')
+}
+const narrow: ImpactManifest = {
+  suites: ['wide', 'folder', 'exact', 'net', 'flat'],
+  watches: {
+    wide: ['src/utils/**'],
+    folder: ['src/utils/shell/*'],
+    exact: ['src/utils/shell/engine.ts', 'src/utils/Shell.ts'],
+    net: ['src/**'],
+    flat: ['src/utils/*'],
+  },
+  ignores: [],
+  narrowed: ['src/utils/shell/**', 'src/utils/Shell.ts'],
+}
+const claimed = (m: ImpactManifest, path: string): string => [...selectImpact(m, [path]).suites].sort().join(' ')
+check(
+  'narrowed area: a folder-wide glob no longer claims a path inside it',
+  !selectImpact(narrow, ['src/utils/shell/engine.ts']).suites.has('wide'),
+  claimed(narrow, 'src/utils/shell/engine.ts'),
+)
+check(
+  "narrowed area: a glob on the area's own folder, a file's own name and the src/** net still claim it",
+  claimed(narrow, 'src/utils/shell/engine.ts') === 'exact folder net' && claimed(narrow, 'src/utils/shell/other.ts') === 'folder net',
+  `${claimed(narrow, 'src/utils/shell/engine.ts')} · ${claimed(narrow, 'src/utils/shell/other.ts')}`,
+)
+check(
+  'narrowed area: a path outside every row is claimed as before',
+  claimed(narrow, 'src/utils/other/x.ts') === 'net wide' && claimed(narrow, 'src/utils/top.ts') === 'flat net wide',
+  `${claimed(narrow, 'src/utils/other/x.ts')} · ${claimed(narrow, 'src/utils/top.ts')}`,
+)
+check(
+  'narrowed file row: only its own name and the net claim it',
+  claimed(narrow, 'src/utils/Shell.ts') === 'exact net',
+  claimed(narrow, 'src/utils/Shell.ts'),
+)
+{
+  const s = selectImpact({ ...narrow, watches: { wide: ['src/utils/**'] } }, ['src/utils/shell/unnamed.ts'])
+  check(
+    'narrowed area, FAIL-CLOSED: a path nobody names and no net watches is UNCLASSIFIED',
+    s.suites.size === 0 && s.unclassified.length === 1,
+    JSON.stringify(s.perPath),
+  )
+}
+{
+  const nested: ImpactManifest = { ...narrow, narrowed: ['src/utils/shell/**', 'src/utils/shell/engine.ts'] }
+  check(
+    'narrowed rows that overlap: the more exact row sets the bar for its path alone',
+    claimed(nested, 'src/utils/shell/engine.ts') === 'exact net' && claimed(nested, 'src/utils/shell/other.ts') === 'folder net',
+    `${claimed(nested, 'src/utils/shell/engine.ts')} · ${claimed(nested, 'src/utils/shell/other.ts')}`,
+  )
 }
 
 section('§3 verify:fast --plan runs the real selector end-to-end')

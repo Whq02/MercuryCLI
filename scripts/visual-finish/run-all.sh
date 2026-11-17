@@ -5,6 +5,7 @@
 # gate-watch: src/utils/mercuryTokens.ts src/ink/colorize.ts src/ink/frame-writer.ts
 # gate-watch: src/components/MercuryHome.tsx src/commands/sessions/sessions.tsx
 # gate-watch: scripts/engine-durability/harness.ts scripts/ui/render-tui.ts src/components/** src/utils/**
+# gate-watch: src/utils/shell/engineSession.ts
 # gate-watch: scripts/lib/captureDriver.ts scripts/ui/renderScenarios.ts scripts/ui/vshot.py
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
