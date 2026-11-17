@@ -107,6 +107,10 @@ export function stampFlagOnEnv(
   for (const spelling of flagSpellings(name)) env[spelling] = value
 }
 
+export function stampFlagEnv(name: string, value: string): void {
+  stampFlagOnEnv(process.env, name, value)
+}
+
 export function flagPair(name: string, value: string): Record<string, string> {
   const out: Record<string, string> = {}
   for (const spelling of flagSpellings(name)) out[spelling] = value
