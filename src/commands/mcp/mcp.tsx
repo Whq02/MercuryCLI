@@ -57,7 +57,6 @@ function McpToggle({
       const receipt = await connector.setKit({ mcp: dials })
       onDone(kitDialLine(receipt, asked))
     })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   return null
 }

@@ -79,7 +79,6 @@ export function KimiConnect({
     return () => {
       disposed = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leg])
 
   useInput((input, key, event) => {

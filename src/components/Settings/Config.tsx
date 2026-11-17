@@ -1458,7 +1458,6 @@ export function Config({
         item.label.toLowerCase().includes(needle) ||
         (item.searchText ?? '').toLowerCase().includes(needle),
     )
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- items rebuilt every render; the query is the real input
   }, [query, version, appState, themeSetting, seatFacts, configStamp, servedModel, jevStamp, localServer.stamp, media.settings, media.catalogue, media.config, media.error])
 
   const line = configPopupLine(configPopupFolder(), items.length, items.filter(item => item.setByYou === true).length)

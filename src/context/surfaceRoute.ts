@@ -7,7 +7,6 @@ import { concourseEnabled } from '../services/concourse/concourseEnabled.js'
 
 function stampRouteReady(): void {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { recordLaunchMilestone } = require('../substrate/launchMilestones.js') as typeof import('../substrate/launchMilestones.js')
     recordLaunchMilestone('route-ready')
   } catch {

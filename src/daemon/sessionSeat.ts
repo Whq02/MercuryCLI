@@ -922,7 +922,6 @@ export function onSeatIdle(short: string, roster: SeatRosterPort, dir?: string):
   const seat = seatOf(short)
   const parkedModel = rec.pendingModelKey !== undefined && seat.heldModel === null ? rec.pendingModelKey : undefined
   const parkedEffort = rec.pendingEffort !== undefined && seat.heldEffort === null ? rec.pendingEffort : undefined
-  // eslint-disable-next-line no-console
   console.error(`[daemon] seat idle edge: ${short}${parkedModel !== undefined ? ` — applying the parked model ${parkedModel}` : ''}${parkedEffort !== undefined ? ` — applying the parked effort ${parkedEffort}` : ''}`)
   if (parkedModel !== undefined) void forwardModel(rec, parkedModel, roster, dir, { parked: true, settle: true })
   if (parkedEffort !== undefined) void forwardEffort(rec, parkedEffort, roster, dir, { parked: true })
@@ -1061,7 +1060,6 @@ export async function controlSessionAgent(
   const asked = await askSeat(roster, rec.runnerId, verb === 'stop-agent' ? 'agent/stop' : 'agent/resume', params, verb, deadlineMs)
   if (runnerAnswered(asked)) requestSessionFacts(rec.runnerId, roster, { immediate: true }, dir)
   if (asked.ok) {
-    // eslint-disable-next-line no-console
     console.error(`[daemon] seat ${verb} applied: ${rec.runnerId} → ${agentId}`)
     return appliedDetail(asked.result)
   }
@@ -1080,7 +1078,6 @@ export async function backgroundSessionShell(
   const asked = await askSeat(roster, rec.runnerId, 'shell/background', {}, 'background-shell', deadlineMs)
   if (runnerAnswered(asked)) requestSessionFacts(rec.runnerId, roster, { immediate: true }, dir)
   if (asked.ok) {
-    // eslint-disable-next-line no-console
     console.error(`[daemon] seat background-shell applied: ${rec.runnerId}`)
     return appliedDetail(asked.result)
   }
@@ -1099,7 +1096,6 @@ export async function sendSessionNow(
   const asked = await askSeat(roster, rec.runnerId, 'session/send_now', {}, 'send-now', deadlineMs)
   if (runnerAnswered(asked)) requestSessionFacts(rec.runnerId, roster, { immediate: true }, dir)
   if (asked.ok) {
-    // eslint-disable-next-line no-console
     console.error(`[daemon] seat send-now applied: ${rec.runnerId}`)
     return appliedDetail(asked.result)
   }
@@ -1119,7 +1115,6 @@ export async function pauseSessionGate(
   const asked = await askSeat(roster, rec.runnerId, 'session/pause_gate', { paused }, 'pause-gate', deadlineMs)
   if (runnerAnswered(asked)) requestSessionFacts(rec.runnerId, roster, { immediate: true }, dir)
   if (asked.ok) {
-    // eslint-disable-next-line no-console
     console.error(`[daemon] seat pause-gate applied: ${rec.runnerId} → ${paused ? 'closed' : 'open'}`)
     return appliedDetail(asked.result)
   }
@@ -1154,7 +1149,6 @@ export async function leaveSession(
   const deadlineMs = opts?.deadlineMs ?? LEAVE_ANSWER_DEADLINE_MS
   const asked = await askSeat(roster, rec.runnerId, 'session/leave', {}, 'leave', deadlineMs)
   if (asked.ok) {
-    // eslint-disable-next-line no-console
     console.error(`[daemon] seat leave answered: ${rec.runnerId} → note ${asked.result.note} · ledger ${asked.result.ledger}`)
     return appliedDetail(asked.result)
   }
@@ -1236,7 +1230,6 @@ function unparkModel(rec: ConcourseWorkerRecordV1, dir?: string): void {
 }
 
 function landModel(rec: ConcourseWorkerRecordV1, model: string, roster: SeatRosterPort, dir: string | undefined, settle: boolean, served?: string): void {
-  // eslint-disable-next-line no-console
   console.error(`[daemon] seat set-model applied: ${rec.runnerId} → ${model}`)
   const seat = seatOf(rec.runnerId)
   if (settle) {
@@ -1302,7 +1295,6 @@ export async function setSessionModel(sessionId: string, model: string, roster: 
   const parked = !gone && seatBusyForSwitch(rec.runnerId, roster)
   if (parked) {
     parkModel(rec, model, dir)
-    // eslint-disable-next-line no-console
     console.error(`[daemon] seat set-model parked (the session is mid-turn): ${rec.runnerId} → ${model}`)
     publishSeatFacts(rec.runnerId, dir, roster)
   }
@@ -1353,7 +1345,6 @@ async function respawnOnModel(rec: ConcourseWorkerRecordV1, model: string, roste
       }
     }, dir)
     const receipt = `${goneRunnerWords(rec, row)} — restarting on ${name}`
-    // eslint-disable-next-line no-console
     console.error(`[daemon] seat set-model rides the respawn: ${rec.runnerId} → ${model} (${receipt})`)
     publishSeatFacts(rec.runnerId, dir, roster)
     return { outcome: 'applied', detail: receipt, respawned: true }
@@ -1371,7 +1362,6 @@ async function respawnOnModel(rec: ConcourseWorkerRecordV1, model: string, roste
     return { outcome: 'refused', detail: `${goneRunnerWords(rec, row)} and could not restart on ${model}: ${revived.detail ?? revived.reason}` }
   }
   const receipt = `${goneRunnerWords(rec, row)} — restarted on ${name}`
-  // eslint-disable-next-line no-console
   console.error(`[daemon] seat set-model respawned: ${rec.runnerId} → ${model} (${receipt})`)
   onSeatSpawned(rec.runnerId, roster, dir)
   return { outcome: 'applied', detail: receipt, respawned: true }
@@ -1395,7 +1385,6 @@ function unparkEffort(rec: ConcourseWorkerRecordV1, dir?: string): void {
 }
 
 function landEffort(rec: ConcourseWorkerRecordV1, effort: string, roster: SeatRosterPort, dir?: string): void {
-  // eslint-disable-next-line no-console
   console.error(`[daemon] seat set-effort applied: ${rec.runnerId} → ${effort}`)
   roster.patchSeatEffort(rec.runnerId, effort)
   updateConcourseWorkers(workers => {
@@ -1483,7 +1472,6 @@ export async function setSessionEffort(sessionId: string, effort: string, roster
   const parked = seatBusyForSwitch(rec.runnerId, roster)
   if (parked) {
     parkEffort(rec, effort, dir)
-    // eslint-disable-next-line no-console
     console.error(`[daemon] seat set-effort parked (the session is mid-turn): ${rec.runnerId} → ${effort}`)
     publishSeatFacts(rec.runnerId, dir, roster)
   }
@@ -1535,7 +1523,6 @@ export function setSessionKitDial(
       const w = workers[rec.runnerId]
       if (w && w.endedAt === undefined) w.pendingKitEdits = [...(w.pendingKitEdits ?? []), { edit, by }]
     }, dir)
-    // eslint-disable-next-line no-console
     console.error(`[daemon] seat set-kit parked (the session is mid-turn): ${rec.runnerId}`)
     publishSeatFacts(rec.runnerId, dir, roster)
     return { outcome: 'queued', detail: KIT_DIAL_QUEUED_DETAIL }
@@ -1583,7 +1570,6 @@ export async function setSessionSpawnSwitch(
   if (effectiveOn === toggle.on) return { outcome: 'noop', detail: spawnSwitchToggleReceipt(toggle.kind, toggle.on, 'noop') }
   if (seatBusy(rec.runnerId, roster)) {
     parkSpawnSwitch(rec, toggle, by, dir)
-    // eslint-disable-next-line no-console
     console.error(`[daemon] seat set-spawn-switch parked (the session is mid-turn): ${rec.runnerId} → ${toggle.kind} ${toggle.on ? 'on' : 'off'}`)
     publishSeatFacts(rec.runnerId, dir, roster)
     return forwardSpawnSwitchToBoundary(rec, toggle, by, roster, dir, { parked: true })
@@ -1670,7 +1656,6 @@ function landSpawnSwitchOnRecord(
     if (rest.length > 0) w.pendingSpawnSwitches = rest
     else delete w.pendingSpawnSwitches
   }, dir)
-  // eslint-disable-next-line no-console
   console.error(`[daemon] seat set-spawn-switch applied: ${rec.runnerId} → ${toggle.kind} ${toggle.on ? 'on' : 'off'}${delivered ? '' : ' (no live runner door; the record holds it)'}`)
   publishSeatFacts(rec.runnerId, dir, roster)
   requestSessionFacts(rec.runnerId, roster, { immediate: true }, dir)
@@ -1704,7 +1689,6 @@ function drainPendingSpawnSwitches(short: string, roster: SeatRosterPort, dir?: 
   const seat = seatOf(short)
   const parked = (rec.pendingSpawnSwitches ?? []).flatMap(p => (p.kind === 'subagents' && seat.heldSpawnSwitches[p.kind] === undefined ? [{ ...p, kind: p.kind }] : []))
   if (parked.length === 0) return
-  // eslint-disable-next-line no-console
   console.error(`[daemon] seat set-spawn-switch applying ${parked.length} parked toggle${parked.length === 1 ? '' : 's'} at the turn's end: ${short}`)
   for (const entry of parked) {
     const fresh = liveRecordByShort(short, dir)
@@ -1721,7 +1705,6 @@ function drainPendingKitDials(short: string, roster: SeatRosterPort, dir?: strin
     const w = workers[short]
     if (w && w.endedAt === undefined) delete w.pendingKitEdits
   }, dir)
-  // eslint-disable-next-line no-console
   console.error(`[daemon] seat set-kit applying ${parked.length} parked dial${parked.length === 1 ? '' : 's'} at the turn's end: ${short}`)
   for (const entry of parked) applyConcourseKitOp(rec.sessionId, entry.edit, entry.by, dir)
   forwardSessionKit(short, roster, dir)

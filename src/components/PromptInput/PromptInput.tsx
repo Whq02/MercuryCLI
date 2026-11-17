@@ -600,7 +600,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     if (dispatch !== null) {
       void submitRef.current(dispatch, { fromKeybinding: true })
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the version counter by design
   }, [helmVersion])
 
   const { performUndo, crewmateFooterIndex } = useComposerKeybindings({

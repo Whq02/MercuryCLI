@@ -273,7 +273,6 @@ export function BootSplashScreen(): React.ReactNode {
     } catch {
       return null;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [presenceEpoch, signInEpoch]);
 
   const repoCount = facts.pickerProjects.length + (facts.cwdProject !== null ? 1 : 0);
@@ -345,7 +344,6 @@ export function BootSplashScreen(): React.ReactNode {
         ...(loginsCtx !== null ? { loginsCtx } : {}),
         ...(sessionsCtx !== null ? { sessionsCtx } : {}),
       }) as BootRow[],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [facts, concourseLive, plainWhy, chatBoot, liveCount, armedPresetName, saturnCtx, agentsCtx, loginsCtx, sessionsCtx],
   );
 
@@ -509,7 +507,6 @@ export function BootSplashScreen(): React.ReactNode {
           ? { verdict: cert.data.verdict, age: cert.data.ageLabel }
           : null,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mainModel, presenceEpoch, catalogueEpoch, signInEpoch]);
 
   const selectedIndex = selCleared ? -1 : list.selectedIndex;
@@ -579,7 +576,6 @@ export function BootSplashScreen(): React.ReactNode {
       actionAt: new Map<number, number>(fit.composed.actionLines.map((line, i) => [line + fit.top, i])),
       lastRowFree: fit.faceRows !== rows || fit.top + fit.composed.lines.length <= rows - 1,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [core, columns, rows, isCompact, plainWhy, stripHint, keyMapHint, modelDefaultDoor, updateLine, selectedIndex, composedRows, chips, wordGlow?.peakCell, wordGlow?.gainLevel, rowGlow?.peakCell, rowGlow?.gainLevel]);
 
 

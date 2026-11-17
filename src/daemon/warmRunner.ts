@@ -369,7 +369,6 @@ export async function claimWarmRunner(
     openaiSnapshot !== null && openaiSnapshot.models.length > 0 && openaiSnapshot.fetchedAtMs > 0
       ? { sourceKind: openaiSnapshot.sourceKind, models: openaiSnapshot.models, fetchedAtMs: openaiSnapshot.fetchedAtMs }
       : null
-  // eslint-disable-next-line no-console
   console.error(
     openaiCatalogue !== null
       ? `[daemon] warm claim carries the OpenAI catalogue: ${openaiCatalogue.models.length} model(s), fetched ${Math.round((Date.now() - openaiCatalogue.fetchedAtMs) / 1000)}s ago`
@@ -438,7 +437,6 @@ export function retireWarmRunner(workspaceId: string, reason: string, deps: Warm
   pool.delete(workspaceId)
   const roster = deps.roster()
   const killed = roster !== undefined ? roster.kill(entry.short) : false
-  // eslint-disable-next-line no-console
   console.error(`[daemon] warm runner retired: ${entry.short} (${workspaceId}) — ${reason}${killed ? '' : ' (no live child to kill)'}`)
   return true
 }

@@ -357,7 +357,6 @@ export function ConcourseScreen({
   }, [])
   useEffect(() => {
     if (doorNoteRef.current) clearDoorNote()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [boardSel, region])
   useEffect(() => {
     if (boardArmed !== null && boardSel !== boardArmed) setBoardArmed(null)
@@ -433,7 +432,6 @@ export function ConcourseScreen({
   broadcastArmedRef.current = broadcastArmed
   useEffect(() => {
     if (broadcastArmedRef.current) setBroadcastArmed(false)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveDraft.text, markedIds])
 
   const [note, setNote] = useState<{ tone: 'muted' | 'warning'; text: string; row?: string } | null>(null)
@@ -974,7 +972,6 @@ export function ConcourseScreen({
     return () => {
       presentationCapsule = capsuleRef.current
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const olderNavConsumed = (

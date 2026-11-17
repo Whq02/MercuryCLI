@@ -256,7 +256,6 @@ export function useComposerAttachments({
       setComposerInsert(null)
       void pendingInput.flushDrafts()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- unmount-only flush
   }, [])
 
 

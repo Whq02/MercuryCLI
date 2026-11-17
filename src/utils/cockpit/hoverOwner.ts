@@ -17,7 +17,6 @@ function trace(ev: string, id: string | null): void {
   const p = flagEnv('MERCURY_HOVER_DEBUG')
   if (!p) return
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     ;(require('node:fs') as typeof import('node:fs')).appendFileSync(
       p,
       JSON.stringify({ ev, id, owner: S.owner, down: S.pointerDown }) + '\n',

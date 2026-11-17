@@ -1074,7 +1074,6 @@ export function makeConcourseAdmitHandler(
     if (!admission.ok) {
       const read = admission.reason.startsWith('no-credential:') ? ` — ${describeSignInRead(admission.reason.slice('no-credential:'.length))}` : ''
       const error = `model refused (${admission.reason})${admission.action !== undefined ? ` · ${admission.action}` : ''}${admission.detail !== undefined ? ` — ${admission.detail}` : ''}${read} (got ${JSON.stringify(req.modelKey ?? retainedModelKey ?? '(unset → registry default)')}${retainedModelKey !== undefined && req.modelKey === undefined ? ' — the model this session ran on; --model picks another' : ''})`
-      // eslint-disable-next-line no-console
       console.error(`[daemon] admission refused: ${error}`)
       return { ok: false, code: 'invalid-request', error }
     }
@@ -1117,7 +1116,6 @@ export function makeConcourseAdmitHandler(
     if (req.birthKey !== undefined) {
       const born = Object.values(records).find(r => r.birthKey === req.birthKey && r.endedAt === undefined && r.workspaceId === workspaceId)
       if (born !== undefined) {
-        // eslint-disable-next-line no-console
         console.error(`[daemon] admission replayed: ${born.runnerId} already holds session ${born.sessionId} for this birth`)
         return {
           ok: true,
@@ -1219,7 +1217,6 @@ export function makeConcourseAdmitHandler(
         ...(req.title !== undefined && req.title.length > 0 ? { title: partiallySanitizeUnicode(req.title).slice(0, 120) } : {}),
       })
       if (claimed.claimed) {
-        // eslint-disable-next-line no-console
         console.error(`[daemon] warm claim acked in ${Date.now() - claimStartedAt}ms: ${claimed.short} takes session ${claimSessionId}`)
         const runnerId = claimed.short
         const snapshot = resolveEffectiveSettingsSnapshot({ sessionId: claimSessionId })
@@ -2168,7 +2165,6 @@ export async function reactivateConcourseSession(
       resume: true,
     })
     if (claimed.claimed) {
-      // eslint-disable-next-line no-console
       console.error(`[daemon] warm claim acked in ${Date.now() - claimStartedAt}ms: ${claimed.short} takes back session ${rec.sessionId} (${rec.runnerId} reactivated in place)`)
       const short = claimed.short
       const fields = pidFieldsOf(claimed.pid, claimed.pid === undefined ? null : await getProcessStartInstantAsync(claimed.pid))

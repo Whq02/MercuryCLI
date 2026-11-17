@@ -450,7 +450,6 @@ export function BootHealthScreen({ onClose, fullScene, certificate: given }: Boo
                     : ['the probes are running —', 'settled checks stream in below.'],
             }),
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkRows, cert, progress, loadFailed, trailOpen, fixFlow, selected, list.selectedIndex, list.note, mainModel, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
   const composition = useMemo(() => {

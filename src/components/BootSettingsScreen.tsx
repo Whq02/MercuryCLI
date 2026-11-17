@@ -547,7 +547,6 @@ export function BootSettingsScreen({
           }
         : {}),
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved, effectiveByEnv, seatFacts, motionSetting, jevSettings, jevDetailLines, backgroundLaunchOn, list.selectedIndex, list.note, lastReceipt, changed, liveCount, apply, mainModel, dirTail, profile, concourseLive, plainWorld, chatBoot, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
   const composition = useMemo(() => {

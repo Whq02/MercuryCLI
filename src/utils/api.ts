@@ -184,7 +184,6 @@ export async function toolToAPISchema(
     base = built
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let schema: Record<string, any> = {
     name: base.name,
     description: base.description,

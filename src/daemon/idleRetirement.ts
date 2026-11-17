@@ -187,7 +187,6 @@ export function sweepIdleEmptyConcourseSessions(
       { reason: 'idle-empty', idleMs: decision.idleMs, thresholdMs, at: nowMs },
     )
     if (outcome.outcome !== 'applied') continue
-    // eslint-disable-next-line no-console
     console.error(
       `[daemon] retired ${rec.runnerId} (${rec.title ?? rec.sessionId}): empty and idle for ${formatLimit(decision.idleMs)} (threshold ${formatLimit(thresholdMs)}, MERCURY_SESSION_IDLE_RETIRE_MINUTES) — the row stays on the board as stopped until released`,
     )

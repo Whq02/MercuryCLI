@@ -152,7 +152,6 @@ export function retireWorkerAsks(short: string, cause: string, dir?: string): st
     rememberRetired(requestId, cause)
     retiredIds.push(requestId)
     sessions.add(ask.sessionId)
-    // eslint-disable-next-line no-console
     console.error(`[daemon] permission ask ${requestId} (${ask.toolName} for ${short}) withdrawn — ${cause}`)
     void settleAskObligation(ask, { kind: 'withdrawn', by: `daemon: ${cause}` })
   }
@@ -219,7 +218,6 @@ function settleUnanswered(
   publishAsksFor(ask.sessionId)
   ask.settle?.({ outcome: 'deny', message: expiredAskDenialMessage(ask.toolName, limitMs, cause) })
   const waited = ask.askedAt !== undefined ? formatLimit(Date.now() - ask.askedAt) : 'an unknown time'
-  // eslint-disable-next-line no-console
   console.error(`[daemon] permission ask ${requestId} (${ask.toolName} for ${ask.workerId}) ${cause} after ${waited} — the runner was told`)
   void settleAskObligation(ask, {
     kind: 'withdrawn',
@@ -233,7 +231,6 @@ function denyUnattended(
   rec: { sessionId: string; workspaceId: string; title?: string },
   toolName: string,
 ): PermissionAnswer {
-  // eslint-disable-next-line no-console
   console.error(`[daemon] permission ask ${requestId} (${toolName} for ${short}) denied at once — ${NO_CLIENT_ATTACHED_CAUSE}`)
   void recordSettledObligation({
     ref: `permission:${requestId}`,
@@ -261,7 +258,6 @@ export function holdWorkerAsk(
 ): HeldAsk {
   const toolName = params.tool_name
   if (!short.startsWith('concourse-w')) {
-    // eslint-disable-next-line no-console
     console.error(`[daemon] permission ask (${toolName} for ${short}) denied at once — ${NO_SEAT_OWNER_CAUSE}`)
     return answered({ outcome: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(toolName, NO_SEAT_OWNER_CAUSE) })
   }
@@ -416,7 +412,6 @@ export function onWorkerAskWithdrawn(requestId: string, dir?: string, cause?: st
   const expired = cause !== undefined && isAskExpiredCause(cause)
   if (expired) {
     const waited = ask.askedAt !== undefined ? formatLimit(Date.now() - ask.askedAt) : 'an unknown time'
-    // eslint-disable-next-line no-console
     console.error(`[daemon] permission ask ${requestId} (${ask.toolName} for ${ask.workerId}) ${cause} (after ${waited}) — the runner refused it`)
   }
   void settleAskObligation(ask, { kind: 'withdrawn', by: expired ? `the session: ${cause}` : 'daemon: the session moved on (its ask was cancelled)' })

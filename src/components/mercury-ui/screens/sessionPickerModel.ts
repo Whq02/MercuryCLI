@@ -157,7 +157,6 @@ export function useSessionPickerModel(
             isCleared: id => isSessionCleared(id),
             ...(opts.filterDir !== undefined ? { filterDir: opts.filterDir } : {}),
           }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [logs, nowTick, scope, projectKey, opts.filterDir],
   )
   return { logs, pendingMore, projectKey, flat, elsewhereCount, dropSessions }

@@ -1856,7 +1856,6 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
           return;
         }
         if (key.ctrl || key.meta || key.tab || key.upArrow || key.downArrow || key.leftArrow || key.rightArrow) return;
-        // eslint-disable-next-line no-control-regex
         if (input.length > 0 && !/[\x00-\x1f\x7f]/.test(input)) setDraft(d => d + input);
         return;
       }
@@ -1940,7 +1939,6 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
           return;
         }
         if (key.ctrl || key.meta || key.tab || key.upArrow || key.downArrow || key.leftArrow || key.rightArrow) return;
-        // eslint-disable-next-line no-control-regex
         if (input.length > 0 && !/[\x00-\x1f\x7f]/.test(input)) setDraft(d => d + input);
         return;
       }
@@ -1959,7 +1957,6 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
           return;
         }
         if (key.ctrl || key.meta || key.tab || key.upArrow || key.downArrow || key.leftArrow || key.rightArrow) return;
-        // eslint-disable-next-line no-control-regex
         if (input.length > 0 && !/[\x00-\x1f\x7f]/.test(input)) setDraft(d => d + input);
         return;
       }
@@ -1998,7 +1995,6 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
         return;
       }
       if (key.ctrl || key.meta || key.tab || key.upArrow || key.downArrow || key.leftArrow || key.rightArrow) return;
-      // eslint-disable-next-line no-control-regex
       if (snap.name === 'waiting' && model.pastePromptUp && input.length > 0 && !/[\x00-\x1f\x7f]/.test(input)) {
         setDraft(d => d + input);
       }
@@ -2071,7 +2067,6 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
           }
         : {}),
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facts, list.selectedIndex, list.note, mainModel, flow, pickList.selectedIndex, model.flow, model.pastePromptUp, model.copied, model.shadowWarning, model.accountLabel, draft, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
   const composition = useMemo(() => {

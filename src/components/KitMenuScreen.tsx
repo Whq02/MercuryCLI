@@ -391,7 +391,6 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
         return;
       }
       if (key.ctrl || key.meta || key.tab || key.upArrow || key.downArrow || key.leftArrow || key.rightArrow) return;
-      // eslint-disable-next-line no-control-regex
       if (input.length > 0 && !/[\x00-\x1f\x7f]/.test(input)) {
         setPreset(p => ({ ...p, name: (p.name + input).slice(0, PRESET_NAME_MAX), note: null }));
       }
@@ -465,7 +464,6 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
               ],
             }),
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listRows, states, selectedRow, list.selectedIndex, list.note, lastReceipt, liveCount, preset, presetsLayer, presetsList.selectedIndex, presetsList.note, mainModel, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
   const composition = useMemo(() => {

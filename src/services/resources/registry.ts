@@ -10,7 +10,6 @@ import {
   type ResourceResult,
 } from './contracts.js'
 
-// eslint-disable-next-line no-var
 var adaptersMap: Map<string, ResourceAdapter> | undefined
 function adapters(): Map<string, ResourceAdapter> {
   return (adaptersMap ??= new Map())

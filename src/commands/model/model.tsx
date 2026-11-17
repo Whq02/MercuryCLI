@@ -112,7 +112,6 @@ function ModelReadout({ onDone }: { onDone: LocalJSXCommandOnDone }): React.Reac
       return
     }
     onDone(`Current model: ${renderModelLabel(base)}${parenthetical}`)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   return null
 }
@@ -292,7 +291,6 @@ function ModelSet({
       }
       void applyNow(null)
     })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   if (held) {

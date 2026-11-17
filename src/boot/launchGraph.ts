@@ -12,7 +12,6 @@ export function signalInputLive(): void {
   inputLive = true
   resolveInputLive()
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { recordLaunchMilestone } = require('../substrate/launchMilestones.js') as typeof import('../substrate/launchMilestones.js')
     recordLaunchMilestone('input-live')
   } catch {

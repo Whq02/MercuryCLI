@@ -1,7 +1,6 @@
 import { realpathSync } from 'fs'
 import { cwd } from 'process'
 import type { SessionId } from 'src/types/ids.js'
-// eslint-disable-next-line custom-rules/bootstrap-isolation -- the sanctioned crypto leaf (see note)
 import { randomUUID } from 'src/utils/crypto.js'
 import { createSignal } from 'src/utils/signal.js'
 

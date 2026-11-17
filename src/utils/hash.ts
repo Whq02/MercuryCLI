@@ -17,7 +17,6 @@ export function djb2Hash(str: string): number {
 }
 
 function sha256Hex(...parts: string[]): string {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { createHash } = require('node:crypto') as typeof import('node:crypto')
   const hash = createHash('sha256')
   parts.forEach((part, index) => {

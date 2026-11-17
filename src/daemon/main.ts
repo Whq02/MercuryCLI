@@ -154,7 +154,6 @@ function dropSelfWakesAtFlip(sessionId: string, by: string, why: SaturnSelfWakeD
   try {
     const gone = dropSaturnSelfWakes(sessionId, by, why)
     if (gone.dropped.length > 0) {
-      // eslint-disable-next-line no-console
       console.error(
         `[daemon] ${sessionId}: ${gone.dropped.length} self-paced wake${gone.dropped.length === 1 ? '' : 's'} dropped (${why}) — ${gone.dropped.join(', ')}${gone.droppedHolds > 0 ? `, ${gone.droppedHolds} held fire${gone.droppedHolds === 1 ? '' : 's'} with ${gone.dropped.length === 1 ? 'it' : 'them'}` : ''}`,
       )
@@ -176,16 +175,13 @@ export async function daemonMain(args: string[]): Promise<void> {
     case 'restart':
       return daemonRestartCmd()
     case 'help':
-      // eslint-disable-next-line no-console
       console.log(DAEMON_USAGE)
       return
     case 'unknown':
-      // eslint-disable-next-line no-console
       console.error(`mercury daemon: unknown verb '${verb.word}'\n${DAEMON_USAGE}`)
       process.exitCode = 1
       return
     case 'unknown-flag':
-      // eslint-disable-next-line no-console
       console.error(
         verb.verb === 'stop'
           ? `mercury daemon stop: unknown flag '${verb.word}' — stop takes no flags: it ends the daemon and every session process it runs (every worker) stops with it. Run \`mercury daemon stop\` bare, or \`mercury daemon restart\` to re-execute the daemon once its live sessions finish\n${DAEMON_USAGE}`
@@ -200,40 +196,33 @@ export async function daemonMain(args: string[]): Promise<void> {
 
 async function daemonStatusCmd(): Promise<void> {
   const snapshot = await getMercuryDaemonStatus()
-  // eslint-disable-next-line no-console
   console.log(formatMercuryDaemonStatus(snapshot))
 }
 
 async function daemonStopCmd(): Promise<void> {
   const hosting = await hostedCallerOf(await helperPidsOfHome())
   if (hosting.hosted) {
-    // eslint-disable-next-line no-console
     console.error(hostedCallerRefusalLine('stop'))
     process.exitCode = 1
     return
   }
   const reply = await daemonControlRpc({ op: 'shutdown', reapWorkers: true }, { timeoutMs: 12_000 })
   if (reply.ok && reply.op === 'shutdown') {
-    // eslint-disable-next-line no-console
     console.error(`[daemon] shutdown acknowledged — reaped ${reply.reaped} worker(s)`)
   } else if (!reply.ok && reply.code === 'ENOCONN') {
     const stale = await readDaemonState()
     if (stale && !isProcessAlive(stale.pid)) {
       await clearDeadDaemonRecords()
-      // eslint-disable-next-line no-console
       console.error(`[daemon] no running daemon to stop — swept the stale record of pid ${stale.pid} (control socket unreachable, process gone)`)
     } else if (stale) {
       const verdict = daemonRecordIdentity(stale, stale.startToken ? getProcessStartToken(stale.pid, stale.startToken) : getProcessStartInstant(stale.pid))
       if (verdict === 'not-recorded-process') {
         await clearDeadDaemonRecords()
-        // eslint-disable-next-line no-console
         console.error(`[daemon] no running daemon to stop — swept the stale record of pid ${stale.pid} (the pid was recycled: its live process is not the recorded daemon)`)
       } else if (verdict === 'same-process') {
-        // eslint-disable-next-line no-console
         console.error(`[daemon] control socket unreachable but pid ${stale.pid} is alive and IS the recorded daemon — it may still be binding; retry in a moment, or end that process by hand`)
         process.exitCode = 1
       } else {
-        // eslint-disable-next-line no-console
         console.error(`[daemon] control socket unreachable and pid ${stale.pid}'s identity could not be read — retry in a moment`)
         process.exitCode = 1
       }
@@ -243,19 +232,15 @@ async function daemonStopCmd(): Promise<void> {
       const lockHolder = existsSync(lockPath) ? await probePidLock(lockPath, { liveness: 'assume-alive' }) : null
       if (existsSync(lockPath) && lockHolder === null) {
         await clearDeadDaemonRecords()
-        // eslint-disable-next-line no-console
         console.error('[daemon] no running daemon to stop — swept a lock-only leftover (daemon.lock with no record, its holder gone or not the recorded process)')
       } else if (lockHolder !== null) {
-        // eslint-disable-next-line no-console
         console.error(`[daemon] no running daemon to stop — but daemon.lock is held by live pid ${lockHolder.pid} with no record beside it; if that pid is not a Mercury daemon, end it and re-run, or remove ${lockPath} by hand`)
         process.exitCode = 1
       } else {
-        // eslint-disable-next-line no-console
         console.error('[daemon] no running daemon to stop (control socket unreachable)')
       }
     }
   } else if (!reply.ok) {
-    // eslint-disable-next-line no-console
     console.error(`[daemon] stop failed: ${reply.code} ${reply.error}`)
   }
 }
@@ -265,14 +250,12 @@ async function daemonRestartCmd(): Promise<void> {
   const first = await handshakeDaemon()
   const hosting = await hostedCallerOf(await helperPidsOfHome())
   if (hosting.hosted && first.daemon !== null && restartEndsHostedCaller(first)) {
-    // eslint-disable-next-line no-console
     console.error(hostedCallerRefusalLine('restart'))
     process.exitCode = 1
     return
   }
   const receipt = await restartDaemon({ by: 'mercury daemon restart', posture: 'persistent' })
   const carried = hosting.hosted && receipt.state === 'armed' ? ' — this hosted session is one of them; your turn goes on' : ''
-  // eslint-disable-next-line no-console
   console.error(`[daemon] ${receipt.line}${carried}`)
   if (receipt.state === 'refused') process.exitCode = 1
 }
@@ -289,7 +272,6 @@ async function daemonRun(args: string[]): Promise<void> {
     `${stampDaemonLogLine(`[mercury-daemon] engaged v${MERCURY_VERSION} pid ${process.pid} dir ${dir}`)}\n`,
   )
   if (!foreground) installStampedDaemonLog()
-  // eslint-disable-next-line no-console
   console.error(`[daemon] build ${bootBuildTree ?? 'unstamped'} at ${bootScript || '?'} (${buildHold === 'held' ? 'the build folder is held open for the installer' : 'no manifest beside the bundle'})`)
 
   const scrubbed = scrubDaemonRoleEnv()
@@ -313,7 +295,6 @@ async function daemonRun(args: string[]): Promise<void> {
   } catch (e) {
     logForDebugging(`[daemon] working-dispatch reconcile failed (non-fatal): ${e}`)
   }
-  // eslint-disable-next-line no-console
   console.error(
     `[daemon] starting daemon for ${dir} ` +
       `(per-run cap ${Math.round(getRunTimeoutMs() / 60000)}m; ` +
@@ -372,7 +353,6 @@ async function daemonRun(args: string[]): Promise<void> {
     const stamps = { selfBuildTree: bootBuildTree, successorOf, handoverFrom }
     const refuse = (why: string): void => {
       process.exitCode = 1
-      // eslint-disable-next-line no-console
       console.error(`[daemon] ${stamp}: ${why} (${daemonDir()}) — refusing to start so the live one is not clobbered · ${FREE_THE_PLANE_WORDS}`)
     }
     let decision = decidePlaneBoot(await planeBootFacts(stamps))
@@ -394,15 +374,12 @@ async function daemonRun(args: string[]): Promise<void> {
     if (decision.road === 'handover') {
       handoverPredecessor = decision.from
       daemonLock = await acquireDaemonLock()
-      // eslint-disable-next-line no-console
       console.error(`[daemon] ${stamp}: ${decision.why} — taking the plane${daemonLock ? '' : `; the daemon lock is taken when its holder leaves`}`)
     } else if (decision.road === 'serve') {
       if (successorOf !== null) {
-        // eslint-disable-next-line no-console
         console.error(`[daemon] successor of pid ${successorOf} took the plane over (v${currentVersion()} proto ${MERCURY_DAEMON_PROTO})`)
       }
     } else if (decision.road === 'stand-down') {
-      // eslint-disable-next-line no-console
       console.error(`[daemon] ${stamp}: ${decision.why} — standing down`)
       return
     } else {
@@ -445,7 +422,6 @@ async function daemonRun(args: string[]): Promise<void> {
           publishSeatFacts(short, undefined, roster)
         },
         onDegraded: (reason, short) => {
-          // eslint-disable-next-line no-console
           console.error(`[daemon] ${GLYPH.warn} DAEMON DEGRADED — ${reason}`)
           if (short !== undefined && short.startsWith('concourse-w')) {
             try {
@@ -462,12 +438,10 @@ async function daemonRun(args: string[]): Promise<void> {
           if (short.startsWith('concourse-w') && roster !== null) {
             const parkedWords = `[daemon] ${short} finished its turn and parked (a park was requested while it worked)`
             if (completeRequestedPark(short, roster)) {
-              // eslint-disable-next-line no-console
               console.error(parkedWords)
             } else {
               void retireRequestedPark(short, roster)
                 .then(parked => {
-                  // eslint-disable-next-line no-console
                   if (parked) console.error(parkedWords)
                 })
                 .catch(e => logForDebugging(`[daemon] ${short}: the requested park's retirement threw (ignored): ${e}`))
@@ -481,7 +455,6 @@ async function daemonRun(args: string[]): Promise<void> {
       const warmDeps = {
         roster: () => roster ?? undefined,
         onWarmSpawned: (short: string, workspaceId: string, pid: number | undefined) => {
-          // eslint-disable-next-line no-console
           console.error(
             `[daemon] warm runner pre-spawned: ${short} (pid ${pid}) for ${workspaceId} — unclaimed, model-agnostic, no record`,
           )
@@ -498,7 +471,6 @@ async function daemonRun(args: string[]): Promise<void> {
           roster: () => roster ?? undefined,
           ...warmAdmitDoors,
           onSpawned: (runnerId, spec, pid) => {
-            // eslint-disable-next-line no-console
             console.error(
               `[daemon] concourse worker admitted: ${runnerId} (pid ${pid}) — ${spec.model}@${spec.effort}, cwd ${spec.cwd}`,
             )
@@ -574,7 +546,6 @@ async function daemonRun(args: string[]): Promise<void> {
         const moved = renameSocketForPredecessor(handoverPredecessor)
         handover.notePlaneMoved()
         const held = handover.heldRunners(handoverPredecessor).size
-        // eslint-disable-next-line no-console
         console.error(`[daemon] handover from pid ${handoverPredecessor}: took the plane (v${currentVersion()} proto ${MERCURY_DAEMON_PROTO}); its socket ${moved ? `serves on at ${handover.sockPath}` : 'was not on the path'}; ${held > 0 ? `it keeps ${held} live session(s) until they finish` : 'it holds no live session — it leaves on its own, or is asked to once it reads idle'}`)
       }
       const handoverRef = handover
@@ -582,7 +553,6 @@ async function daemonRun(args: string[]): Promise<void> {
         const rosterRef = roster
         const left = await endRunnersLeftWithoutHost(short => (rosterRef?.has(short).present ?? false) || (handoverRef?.holds(short) ?? false))
         if (left.length > 0) {
-          // eslint-disable-next-line no-console
           console.error(`[daemon] ${left.length} runner${left.length === 1 ? '' : 's'} left by a daemon that died ${left.length === 1 ? 'was' : 'were'} ended: ${left.map(r => `${r.runnerId} (pid ${r.pid})`).join(', ')}; each session answers its next message on a fresh runner`)
           try {
             reconcileWorkingDispatches()
@@ -603,7 +573,6 @@ async function daemonRun(args: string[]): Promise<void> {
         roster: () => roster ?? undefined,
         ...warmAdmitDoors,
         onSpawned: (runnerId, spec, pid) => {
-          // eslint-disable-next-line no-console
           console.error(
             `[daemon] concourse worker admitted: ${runnerId} (pid ${pid}) — ${spec.model}@${spec.effort}, cwd ${spec.cwd}`,
           )
@@ -709,7 +678,6 @@ async function daemonRun(args: string[]): Promise<void> {
                   void replayGitBlockedDispatches(folder, concourseDispatchHandler)
                     .then(rows => {
                       for (const row of rows) {
-                        // eslint-disable-next-line no-console
                         console.error(
                           `[daemon] git-ready replay ${row.clientMessageId} (${row.title ?? 'untitled'}): ${row.ok ? `started as ${row.sessionId ?? '?'}${row.branchName !== undefined ? ` on ${row.branchName}` : ''}` : row.error ?? 'still held'}`,
                         )
@@ -724,7 +692,6 @@ async function daemonRun(args: string[]): Promise<void> {
                     void replayDenyProceedDispatches(folder, concourseDispatchHandler)
                       .then(rows => {
                         for (const row of rows) {
-                          // eslint-disable-next-line no-console
                           console.error(
                             `[daemon] deny-proceed replay ${row.clientMessageId} (${row.title ?? 'untitled'}): ${row.ok ? `started as ${row.sessionId ?? '?'} — in the folder as it is, alone` : row.error ?? 'still held'}`,
                           )
@@ -743,7 +710,6 @@ async function daemonRun(args: string[]): Promise<void> {
               reason: undefined,
               exceptFocusedByLiveTerminal: true,
             })
-            // eslint-disable-next-line no-console
             console.error(
               `[daemon] park-all by ${by}: parked ${all.parked.length}, draining ${all.draining.length}, released ${all.released.length} newborn(s), skipped ${all.skipped.length}${all.refused.length > 0 ? `, refused ${all.refused.join(', ')}` : ''}`,
             )
@@ -968,7 +934,6 @@ async function daemonRun(args: string[]): Promise<void> {
           if (reapWorkers && roster) {
             const live = roster.liveWorkerFacts()
             const parked = parkAllConcourseSessions('daemon:stop', roster, undefined, { reason: 'parked — the daemon was stopped', afterTurn: false })
-            // eslint-disable-next-line no-console
             console.error(`[daemon] stop parks every active session: parked ${parked.parked.length}, released ${parked.released.length} newborn(s), skipped ${parked.skipped.length}${parked.refused.length > 0 ? `, refused ${parked.refused.join(', ')}` : ''}`)
             for (const w of live) {
               if (roster.kill(w.short)) workers.push(w)
@@ -1020,7 +985,6 @@ async function daemonRun(args: string[]): Promise<void> {
           const other = successorRuntime()
           if (other !== null) {
             const detail = otherBuildInstalledDetail(other, live)
-            // eslint-disable-next-line no-console
             console.error(`[daemon] restart asked by ${by} — ${detail}`)
             askLiveSessionsForFacts()
             if (live > 0 || birthsInFlight > 0 || handover?.alive()) {
@@ -1031,14 +995,12 @@ async function daemonRun(args: string[]): Promise<void> {
             return { state: 'refused' as const, live, detail }
           }
           if (installed !== null && isScreenHealAsk(by)) {
-            // eslint-disable-next-line no-console
             console.error(`[daemon] restart asked by ${by} — refused: ${reopenDetail(installed)}`)
             return { state: 'refused' as const, live, detail: reopenDetail(installed) }
           }
           if (handover !== null && handover.alive()) {
             const detail = predecessorsStillHostingDetail(handover, counts)
             restartArmed = true
-            // eslint-disable-next-line no-console
             console.error(`[daemon] restart armed by ${by} — ${detail}`)
             return { state: 'armed' as const, live, detail }
           }
@@ -1051,11 +1013,9 @@ async function daemonRun(args: string[]): Promise<void> {
           }
           if (live > 0 || birthsInFlight > 0) {
             restartArmed = true
-            // eslint-disable-next-line no-console
             console.error(`[daemon] restart armed by ${by} — re-executes as the deployed build when the ${live} live worker(s)${birthsInFlight > 0 ? ` and ${birthsInFlight} session(s) being born` : ''} finish`)
             return { state: 'armed' as const, live }
           }
-          // eslint-disable-next-line no-console
           console.error(`[daemon] restart requested by ${by} — idle, re-executing as the deployed build`)
           restartAfterTeardown = true
           setImmediate(() => requestShutdown('control:restart-when-idle'))
@@ -1138,7 +1098,6 @@ async function daemonRun(args: string[]): Promise<void> {
             const ownSockMissing = ownDoorOnly && ownSockPath !== null && !existsSync(ownSockPath)
             if (ownDoorOnly && !ownSockMissing) return
             if (takeBack) {
-              // eslint-disable-next-line no-console
               console.error(`[daemon] pid ${foreign?.pid} of build ${foreign?.buildTree ?? 'unstamped'} took the plane from the deployed build ${bootBuildTree} — taking it back`)
             } else if (!ownDoorOnly && !sockMissing && !keyMissing && !stateMissing) return
             logForDebugging(
@@ -1197,7 +1156,6 @@ async function daemonRun(args: string[]): Promise<void> {
           installedTreeSeen = tree
           if (tree === null) return
           const asked = askLiveSessionsForFacts()
-          // eslint-disable-next-line no-console
           console.error(`[daemon] the installed build moved to ${tree} — ${asked} live session(s) asked for their facts now`)
         }
         const installedWatchers: FSWatcher[] = []
@@ -1234,13 +1192,11 @@ async function daemonRun(args: string[]): Promise<void> {
           restartArmed = false
           const other = successorRuntime()
           if (other !== null) {
-            // eslint-disable-next-line no-console
             console.error(`[daemon] armed restart — idle now; ${otherBuildInstalledDetail(other, 0)}`)
             requestShutdown('restart-when-idle:armed')
             return
           }
           restartAfterTeardown = true
-          // eslint-disable-next-line no-console
           console.error('[daemon] armed restart — idle now, re-executing as the deployed build')
           requestShutdown('restart-when-idle:armed')
         }, ARMED_RESTART_BEAT_MS)
@@ -1268,12 +1224,10 @@ async function daemonRun(args: string[]): Promise<void> {
           if (!verdict.exit) {
             if (candidate && verdict.hold !== lastHold && !verdict.hold.startsWith('empty for')) {
               lastHold = verdict.hold
-              // eslint-disable-next-line no-console
               console.error(`[daemon] no session is hosted here — held by: ${verdict.hold}`)
             }
             return
           }
-          // eslint-disable-next-line no-console
           console.error(`[daemon] ${verdict.why} — shutting down`)
           requestShutdown('sessionless')
         }, SESSIONLESS_EXIT_BEAT_MS)
@@ -1306,7 +1260,6 @@ async function daemonRun(args: string[]): Promise<void> {
               const holdsLock = daemonLock === null && lockHeldByLivePidSync() === pid
               if (reads < (holdsLock ? 1 : IDLE_PREDECESSOR_READS)) continue
               idleReads.delete(pid)
-              // eslint-disable-next-line no-console
               console.error(`[daemon] the daemon this one took over from (pid ${pid}, v${reply.version}) holds no live session and has not left on its own — asking it to leave`)
               await forwardFrame(predecessorSockPath(pid), JSON.stringify({ op: 'shutdown', reapWorkers: false, forwarded: true }), 3000).catch(() => undefined)
             }
@@ -1338,7 +1291,6 @@ async function daemonRun(args: string[]): Promise<void> {
               if (taken === null) return
               daemonLock = taken
               stopLockBeat?.()
-              // eslint-disable-next-line no-console
               console.error(`[daemon] handover from pid ${handoverPredecessor}: the predecessor released the daemon lock — this daemon holds it now`)
             } finally {
               lockClaimInflight = false
@@ -1355,7 +1307,6 @@ async function daemonRun(args: string[]): Promise<void> {
       stopHostJobs = startHostJobSweep()
       ready = true
       wakeReady()
-      // eslint-disable-next-line no-console
       console.error('[daemon] control socket up — RPC: list/has/status/dispatch/reply/kill/shutdown')
       stopSaturnTicker = startSaturnTicker(
         {
@@ -1399,7 +1350,6 @@ async function daemonRun(args: string[]): Promise<void> {
               roster: () => roster ?? undefined,
               ...warmAdmitDoors,
               onSpawned: (runnerId, _spec, pid) => {
-                // eslint-disable-next-line no-console
                 console.error(`[daemon] schedule-born session admitted: ${runnerId} (pid ${pid})`)
             noteHosted()
             if (roster !== null) onSeatSpawned(runnerId, roster)
@@ -1413,7 +1363,6 @@ async function daemonRun(args: string[]): Promise<void> {
           },
         },
         r => {
-          // eslint-disable-next-line no-console
           console.error(`[daemon] saturn tick: ${r.fired} fired, ${r.replayed} replayed, ${r.held} held, ${r.missed} missed${r.dropped > 0 ? `, ${r.dropped} self-paced wake${r.dropped === 1 ? '' : 's'} dropped (stopped)` : ''}`)
         },
       )
@@ -1421,7 +1370,6 @@ async function daemonRun(args: string[]): Promise<void> {
         void ensureWarmRunner({ workspaceDir: dir, ...(flagEnv('MERCURY_DAEMON_SELF_WARM_CONSENT') === '1' ? { bypassConsent: true } : {}) }, warmDeps)
           .then(w => {
             if (w.state === 'refused') {
-              // eslint-disable-next-line no-console
               console.error(`[daemon] boot self-warm refused — ${w.detail ?? 'unspecified'} (the first dispatch spawns cold)`)
             }
           })
@@ -1466,7 +1414,6 @@ async function daemonRun(args: string[]): Promise<void> {
         reconcileTick.unref?.()
       }
     } catch (e) {
-      // eslint-disable-next-line no-console
       console.error(`[daemon] ${GLYPH.warn} control layer FAILED to start: ${e}`)
       logForDebugging(`[daemon] control layer failed to start — giving the home back and exiting: ${e}`)
       controlServer = null
@@ -1500,12 +1447,10 @@ async function daemonRun(args: string[]): Promise<void> {
       const supersededBy = controlEnabled ? supersededByLivePlaneOwnerSync() : null
       if (supersededBy !== null && restartAfterTeardown) {
         restartAfterTeardown = false
-        // eslint-disable-next-line no-console
         console.error(`[daemon] pid ${supersededBy.pid} (build ${supersededBy.buildTree ?? 'unstamped'}) is already serving; exiting without spawning a successor`)
       }
       if (controlEnabled) markDaemonStoppingSync()
       logForDebugging(`[daemon] received ${signal}, shutting down`)
-      // eslint-disable-next-line no-console
       console.error(`[daemon] ${signal} — shutting down`)
       ownerWatch?.stop()
       ownerWatch = undefined
@@ -1567,7 +1512,6 @@ async function daemonRun(args: string[]): Promise<void> {
       try {
         const startedDrain = Date.now()
         const receipt = parkAllConcourseSessions(`daemon:${signal}`, roster ?? undefined)
-        // eslint-disable-next-line no-console
         console.error(
           `[daemon] the screen is gone — parking every active session: parked ${receipt.parked.length}, draining ${receipt.draining.length} (finishing their turns), released ${receipt.released.length} newborn(s), skipped ${receipt.skipped.length}${receipt.refused.length > 0 ? `, refused ${receipt.refused.join(', ')}` : ''}`,
         )
@@ -1578,7 +1522,6 @@ async function daemonRun(args: string[]): Promise<void> {
           const kept = withdrawParkRequestsBy(`daemon:${signal}`, receipt.draining)
           orphanParking = false
           passOwnership(next)
-          // eslint-disable-next-line no-console
           console.error(`[daemon] the screen came back inside the drain — ownership passes to the live cockpit pid ${next}; the daemon stays up${kept.length > 0 ? ` and ${kept.join(', ')} ${kept.length === 1 ? 'keeps its turn' : 'keep their turns'} (the park asked at the reap is withdrawn)` : ''}`)
           return true
         }
@@ -1592,7 +1535,6 @@ async function daemonRun(args: string[]): Promise<void> {
           const rec = readSessionWorkers()[short]
           if (rec === undefined) continue
           const cut = parkConcourseSession(rec.sessionId, `daemon:${signal}`, roster ?? undefined, undefined, { afterTurn: false, reason: PARK_DRAIN_CUT_REASON })
-          // eslint-disable-next-line no-console
           console.error(`[daemon] ${short} was still mid-turn at the drain ceiling — ${cut.outcome === 'applied' ? 'its turn is cut and it parks' : cut.outcome}`)
         }
       } catch (e) {
@@ -1610,10 +1552,8 @@ async function daemonRun(args: string[]): Promise<void> {
     process.on('SIGBREAK', () => shutdown('SIGBREAK'))
 
     const crashShutdown = (label: string, err: unknown): void => {
-      // eslint-disable-next-line no-console
       console.error(`[daemon] ${label} — reaping workers + control socket, then exiting:`, err)
       try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const crashMod = require('../utils/crashReport.js') as typeof import('../utils/crashReport.js')
         crashMod.persistCrashReport(err, undefined, label === 'uncaughtException' ? 'uncaught-exception' : 'unhandled-rejection')
       } catch {
@@ -1638,18 +1578,15 @@ async function daemonRun(args: string[]): Promise<void> {
       ownerWatch = startOwnerWatch({
         ownerPid: pid,
         baselineToken: ownerStartToken,
-        // eslint-disable-next-line no-console
         log: line => console.error(line),
         onOrphan: why => {
           ownerPipe?.close()
           const next = nextLiveCockpitOwner(pid)
           if (next !== undefined) {
             passOwnership(next)
-            // eslint-disable-next-line no-console
             console.error(`[daemon] owner pid ${pid} gone (${why}) — ownership passes to the live cockpit pid ${next}; the daemon stays up`)
             return
           }
-          // eslint-disable-next-line no-console
           console.error(`[daemon] owner pid ${pid} gone (${why}) — no live cockpit remains: parking every active session, then self-reaping (orphaned auto-start)`)
           void parkAllThenShutdown('owner-orphaned')
         },
@@ -1657,10 +1594,8 @@ async function daemonRun(args: string[]): Promise<void> {
       if (withPipe) {
         const ownerFd = parseOwnerFd()
         if (ownerFd !== null) {
-          // eslint-disable-next-line no-console
           ownerPipe = armOwnerPipe(ownerFd, () => ownerWatch?.ownerPipeClosed(), line => console.error(line))
           if (!ownerPipe.armed) {
-            // eslint-disable-next-line no-console
             console.error(`[daemon] owner pipe not armed (${ownerPipe.why ?? 'unknown'}) — the liveness beat and the minute identity probe watch alone`)
           }
         }
@@ -1778,7 +1713,6 @@ function spawnSuccessorDaemon(): number | undefined {
         delete env[k]
       }
       if (stripped.length > 0) {
-        // eslint-disable-next-line no-console
         console.error(`[daemon] successor scrub — a stored sign-in exists; the successor re-resolves it (dropped: ${stripped.join(', ')})`)
       }
     }
@@ -1794,11 +1728,9 @@ function spawnSuccessorDaemon(): number | undefined {
     })
     child.on('error', e => logForDebugging(`[daemon] successor spawn error (ignored): ${e}`))
     child.unref()
-    // eslint-disable-next-line no-console
     console.error(`[daemon] successor spawned — pid ${child.pid} runs ${script || process.argv[1] || '?'} (this same build, v${currentVersion()}) on ${node}`)
     return child.pid
   } catch (e) {
-    // eslint-disable-next-line no-console
     console.error(`[daemon] successor spawn failed — the next screen starts a daemon: ${e}`)
     return undefined
   }

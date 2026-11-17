@@ -240,7 +240,6 @@ function entryPageSpec() {
 }
 
 function servedMissionHere(): ServedMission | undefined {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const guard = require('../guards/mission.js') as typeof import('../guards/mission.js')
   return guard.servedMission(String(getSessionId()))
 }

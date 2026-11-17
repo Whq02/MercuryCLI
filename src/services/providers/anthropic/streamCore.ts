@@ -618,7 +618,6 @@ async function* queryModel(
   let stream: AnthropicStream | undefined = undefined
   let streamRequestId: string | null | undefined = undefined
   let clientRequestId: string | undefined = undefined
-  // eslint-disable-next-line eslint-plugin-n/no-unsupported-features/node-builtins -- the SDK returns a fetch Response
   let streamResponse: Response | undefined = undefined
 
   function releaseStreamResources(): void {
@@ -1415,7 +1414,6 @@ async function* queryModel(
         startedAt: start,
       })
 
-      // eslint-disable-next-line eslint-plugin-n/no-unsupported-features/node-builtins
       const resp = streamResponse as unknown as Response | undefined
       if (resp) {
         extractQuotaStatusFromHeaders(resp.headers, start)

@@ -1085,7 +1085,6 @@ async function* runEventMachine(
     return emit({ kind: 'notice', message: createSystemMessage(line, 'error') })
   }
 
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     let { toolUseContext } = state
     const {
@@ -2436,7 +2435,6 @@ async function* runEventMachine(
     }
 
 
-    // eslint-disable-next-line custom-rules/require-tool-match-name -- ToolUseBlock.name has no aliases
     const sleepRan = toolUseBlocks.some(b => b.name === SLEEP_TOOL_NAME)
     const currentAgentId = toolUseContext.agentId
     const isMainThread =

@@ -262,7 +262,6 @@ export function useManageMCPConnections(
         flushUpdates()
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-once wiring
   }, [])
 
 
@@ -350,7 +349,6 @@ export function useManageMCPConnections(
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the documented re-run set
   }, [sessionId, authVersion, extensionReloadCounter, dynamicMcpConfig, isStrictMcpConfig])
 
 
@@ -360,7 +358,6 @@ export function useManageMCPConnections(
     return () => {
       bus.stop()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per session
   }, [])
 
 

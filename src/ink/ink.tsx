@@ -843,7 +843,6 @@ export default class Ink {
     if (!this.firstFrameStamped) {
       this.firstFrameStamped = true
       try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const { recordLaunchMilestone } = require('../substrate/launchMilestones.js') as typeof import('../substrate/launchMilestones.js')
         recordLaunchMilestone('first-frame')
       } catch {

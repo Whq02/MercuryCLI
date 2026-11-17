@@ -53,7 +53,6 @@ export function editorHandoverStdinFaultLine(code: string, syscall: string): str
 function resolveRestorationSync(): ShutdownRestorationModule | undefined {
   if (!restorationModule) {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       restorationModule = require('./shutdownRestoration.js') as ShutdownRestorationModule
     } catch (err) {
       logForDebugging(`gracefulShutdown: restoration module require failed: ${String(err)}`)
@@ -147,7 +146,6 @@ export function failLoud(error: unknown, origin: LoudFailureOrigin): void {
     `failLoud(${origin}): ${err.name}: ${truncate(err.message, 2000)}\n${truncate(err.stack ?? '', 4000)}`,
   )
   logForDiagnosticsNoPII('error', 'boot_failed_loud', { origin, moduleFailure })
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { isMissingCwd, MISSING_CWD_LINE } = require('./runtime/nodePolicy.js') as typeof import('./runtime/nodePolicy.js')
   if (isMissingCwd(err)) {
     logForDiagnosticsNoPII('error', 'boot_cwd_missing', { origin })
@@ -160,7 +158,6 @@ export function failLoud(error: unknown, origin: LoudFailureOrigin): void {
   let reportPath: string | null = null
   let reportRefusal = 'the config home refused the write'
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const crash = require('./crashReport.js') as typeof import('./crashReport.js')
     const before = crash.lastCrashReportPath()
     crash.persistCrashReport(err, undefined, 'boot')
@@ -357,7 +354,6 @@ export const setupGracefulShutdown = (): void => {
     if (!persistedUncaughtOnce) {
       persistedUncaughtOnce = true
       try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const crashMod = require('./crashReport.js') as typeof import('./crashReport.js')
         crashMod.persistCrashReport(err, undefined, 'uncaught-exception')
       } catch {
@@ -375,7 +371,6 @@ export const setupGracefulShutdown = (): void => {
       } catch {
       }
       try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const crashMod = require('./crashReport.js') as typeof import('./crashReport.js')
         crashMod.persistCrashReport(err, undefined, 'uncaught-exception')
       } catch {
@@ -399,7 +394,6 @@ export const setupGracefulShutdown = (): void => {
     if (!persistedRejectionOnce && reason instanceof Error) {
       persistedRejectionOnce = true
       try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const crashMod = require('./crashReport.js') as typeof import('./crashReport.js')
         crashMod.persistCrashReport(reason, undefined, 'unhandled-rejection')
       } catch {

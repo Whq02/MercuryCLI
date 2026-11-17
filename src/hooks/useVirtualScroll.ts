@@ -695,7 +695,6 @@ export function useVirtualScroll(
       const buffer = ensureOffsets(keys)
       handle.scrollTo(buffer[index]! + listOriginRef.current)
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [scrollRef],
   )
 

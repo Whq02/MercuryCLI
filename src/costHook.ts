@@ -17,6 +17,5 @@ export function useCostSummary(
     return () => {
       process.off('exit', onExit)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 }

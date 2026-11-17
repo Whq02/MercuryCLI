@@ -562,7 +562,6 @@ export function ExtensionsBoard({
   useEffect(() => {
     if (view.kind === 'ext' && !entries.some(e => e.id === view.id)) toBoard({ section: 'installed' })
     if (view.kind === 'source' && !sources.some(s => s.label === view.label)) toBoard({ section: 'sources' })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, entries, sources])
 
   const routedRef = useRef(false)
@@ -599,7 +598,6 @@ export function ExtensionsBoard({
       else if (offering.length > 1) setNote(`${name} is offered by ${offering.map(o => o.label).join(', ')} — open the source and press i`)
       else void doInstall(offering[0]!.label, name, { section: 'installed' })
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const filter = filterText.trim().toLowerCase()
@@ -635,7 +633,6 @@ export function ExtensionsBoard({
   useEffect(() => {
     if (kb.declined.length === 0) return
     setNote(kb.declined.length === 1 ? kb.declined[0]! : `${kb.declined[0]!} (+${kb.declined.length - 1} more — /keys lists the table)`)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const onSlotInput = (input: string, key: Record<string, boolean>): void => {

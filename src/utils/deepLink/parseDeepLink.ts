@@ -12,7 +12,6 @@ type DeepLinkAction = {
 const MAX_CWD_LENGTH = 4096
 const MAX_QUERY_LENGTH = 5000
 
-// eslint-disable-next-line no-control-regex
 const CONTROL_CHARACTERS = /[\u0000-\u001F\u007F]/
 
 function assertNoControlCharacters(value: string, field: string): void {

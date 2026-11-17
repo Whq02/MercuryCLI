@@ -28,7 +28,6 @@ export function liveMcpRegistryPorts(): McpRegistryPorts {
           resolve()
           return
         }
-        // eslint-disable-next-line no-restricted-syntax -- the registry owns cancellation via the abort signal
         const timer = setTimeout(resolve, ms)
         signal.addEventListener(
           'abort',

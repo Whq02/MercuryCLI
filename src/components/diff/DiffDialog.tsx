@@ -164,7 +164,6 @@ export function DiffDialog({
   const artifactData = useMemo(
     () =>
       source.type === 'artifact' ? artifactDiffData(source.artifactId) : null,
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- revision advance re-reads the stored body
     [source.type === 'artifact' ? source.artifactId : null, reviewRevision],
   )
   const diffData: DiffData =
@@ -213,12 +212,10 @@ export function DiffDialog({
   const marks = useMemo(
     () =>
       reviewMarksForFile(artifactId, selectedFile?.path ?? ''),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- revision advance re-reads
     [artifactId, selectedFile?.path, reviewRevision],
   )
   const counts = useMemo(
     () => artifactReviewCounts(artifactId),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- revision advance re-reads
     [artifactId, reviewRevision],
   )
 

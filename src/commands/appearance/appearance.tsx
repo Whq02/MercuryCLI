@@ -7,7 +7,6 @@ import { CommandCenter } from '../../components/mercury-ui/components.js'
 import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
 import { CRITTERS, getSessionAccent, getSessionAccentOverride, setSessionAccentOverride, useSessionAccent } from '../../components/mercury-ui/sessionAccent.js'
 import { ThemePicker } from '../../components/ThemePicker.js'
-// eslint-disable-next-line custom-rules/prefer-use-keybindings -- 'm' (motion toggle) is center-specific and not in the keybinding schema
 import { Box, Text, useInput } from '../../ink.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 import type { Message } from '../../types/message.js'
