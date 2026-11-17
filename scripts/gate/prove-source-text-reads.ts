@@ -26,9 +26,9 @@ const NAMES_SRC = /src/i
 const INSTEAD = 'import the module and call it, look the value up, or run the built product and read what it prints'
 const OUT_OF_REACH = 'a name assembled from fragments at run time, a path that arrives in a variable, a bare file name whose folder is said elsewhere, a folder that is walked, a glob'
 
-export type Read = { script: string; line: number; file: string }
-export type Src = { files: Map<string, string>; folders: Set<string>; names: Set<string> }
-export type Estate = { scripts: string[]; src: Src }
+type Read = { script: string; line: number; file: string }
+type Src = { files: Map<string, string>; folders: Set<string>; names: Set<string> }
+type Estate = { scripts: string[]; src: Src }
 type Rows = Map<string, Map<string, number>>
 type Over = { script: string; row: number; files: Map<string, number> }
 type Verdict = { over: Over[]; total: number; allowed: number; slack: number }
@@ -45,7 +45,7 @@ function srcOf(files: string[]): Src {
   return src
 }
 
-export function estateOf(root: string): Estate {
+function estateOf(root: string): Estate {
   const listed = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', 'scripts', 'src'], { cwd: root, encoding: 'utf8', maxBuffer: 1 << 28 })
   const files = [...new Set(listed.split('\0').filter(Boolean))].sort()
   return { scripts: files.filter(f => f.startsWith('scripts/')), src: srcOf(files) }
@@ -235,7 +235,7 @@ function textReads(script: string, text: string, src: Src): Read[] {
   return out
 }
 
-export function sourceTextReads(root: string, estate: Estate): { reads: Read[]; read: number } {
+function sourceTextReads(root: string, estate: Estate): { reads: Read[]; read: number } {
   const reads: Read[] = []
   let read = 0
   for (const script of estate.scripts) {
@@ -250,7 +250,7 @@ export function sourceTextReads(root: string, estate: Estate): { reads: Read[]; 
     }
     read++
     const seen = new Set<string>()
-    for (const r of found.sort((a, b) => a.line - b.line || (a.file < b.file ? -1 : 1))) {
+    for (const r of found.sort((a, b) => a.line - b.line || (a.file < b.file ? -1 : a.file > b.file ? 1 : 0))) {
       const key = `${r.line}\t${r.file}`
       if (!seen.has(key)) reads.push(r)
       seen.add(key)
@@ -483,37 +483,34 @@ function report(rows: Rows, asked: string[]): void {
   }
 }
 
-if (import.meta.main) {
-  const WRITE = process.argv.includes('--write')
-  section('§0 the reader on a planted estate: each read is named with its line and file, each import is not')
-  plantedEstate()
+section('§0 the reader on a planted estate: each read is named with its line and file, each import is not')
+plantedEstate()
 
-  section(`§1 the estate: the src files a script names as text, counted for each script and in all, against ${TABLE}`)
-  const estate = estateOf(ROOT)
-  const { reads, read } = sourceTextReads(ROOT, estate)
-  const rows = rowsOf(reads)
-  const total = [...rows.values()].reduce((n, files) => n + files.size, 0)
-  const text = existsSync(join(ROOT, TABLE)) ? readFileSync(join(ROOT, TABLE), 'utf8') : null
-  const table = text === null ? null : tableOf(text)
-  console.log(`  ${estate.scripts.length} files under scripts · ${read} read (documents and binary files aside) · ${estate.src.files.size} files under src · ${rows.size} scripts name a src file outside an import · ${total} text reads`)
-  if (WRITE) {
-    const found = table === null ? null : judge(rows, table)
-    if (failures > 0) console.log('  nothing written: the reader failed on its own estate')
-    else if (text !== null && found === null) check(`${TABLE} reads as rows of a script and its count`, false, 'put the committed table back, then write')
-    else if (found !== null && found.total > found.allowed) check(`the total does not rise (${found.total} now, ${found.allowed} in the table)`, false, `nothing written — ${REPAIR}:${told(found.over)}`)
-    else {
-      writeFileSync(join(ROOT, TABLE), render(rows))
-      console.log(`  wrote ${TABLE}: ${rows.size} rows, ${total} text reads${found === null ? '' : ` (it allowed ${found.allowed})`}`)
-    }
-  } else if (table === null) {
-    check(`${TABLE} reads as rows of a script and its count`, false, text === null ? `no table: bun ${SELF} --write writes the first one` : 'a row is not a script under scripts and a count of 1 or more, or a script stands twice')
-  } else {
-    const found = judge(rows, table)
-    check(`no script names more src files as text than its row allows, and a script with no row names none (${table.size} rows; out of reach: ${OUT_OF_REACH})`, found.over.length === 0, `${found.over.length} found — ${REPAIR}:${told(found.over)}`)
-    check(`the total is at most the table's (${found.total} text reads, ${found.allowed} allowed)`, found.total <= found.allowed, `${found.total - found.allowed} above — ${INSTEAD}`)
-    if (found.slack > 0) console.log(`  rows above their script's count: ${found.slack} (bun ${SELF} --write lowers them)`)
+section(`§1 the estate: the src files a script names as text, counted for each script and in all, against ${TABLE}`)
+const estate = estateOf(ROOT)
+const { reads, read } = sourceTextReads(ROOT, estate)
+const rows = rowsOf(reads)
+const total = [...rows.values()].reduce((n, files) => n + files.size, 0)
+const text = existsSync(join(ROOT, TABLE)) ? readFileSync(join(ROOT, TABLE), 'utf8') : null
+const table = text === null ? null : tableOf(text)
+console.log(`  ${estate.scripts.length} files under scripts · ${read} read (documents and binary files aside) · ${estate.src.files.size} files under src · ${rows.size} scripts name a src file outside an import · ${total} text reads`)
+if (process.argv.includes('--write')) {
+  const found = table === null ? null : judge(rows, table)
+  if (failures > 0) console.log('  nothing written: the reader failed on its own estate')
+  else if (text !== null && found === null) check(`${TABLE} reads as rows of a script and its count`, false, 'put the committed table back, then write')
+  else if (found !== null && found.total > found.allowed) check(`the total does not rise (${found.total} now, ${found.allowed} in the table)`, false, `nothing written — ${REPAIR}:${told(found.over)}`)
+  else {
+    writeFileSync(join(ROOT, TABLE), render(rows))
+    console.log(`  wrote ${TABLE}: ${rows.size} rows, ${total} text reads${found === null ? '' : ` (it allowed ${found.allowed})`}`)
   }
-  if (process.argv.includes('--report')) report(rows, process.argv.flatMap(a => estate.src.files.get(a.toLowerCase()) ?? []))
-  console.log(failures === 0 ? '\nprove-source-text-reads: green' : `\nprove-source-text-reads: ${failures} failed`)
-  process.exit(failures === 0 ? 0 : 1)
+} else if (table === null) {
+  check(`${TABLE} reads as rows of a script and its count`, false, text === null ? `no table: bun ${SELF} --write writes the first one` : 'a row is not a script under scripts and a count of 1 or more, or a script stands twice')
+} else {
+  const found = judge(rows, table)
+  check(`no script names more src files as text than its row allows, and a script with no row names none (${table.size} rows; out of reach: ${OUT_OF_REACH})`, found.over.length === 0, `${found.over.length} found — ${REPAIR}:${told(found.over)}`)
+  check(`the total is at most the table's (${found.total} text reads, ${found.allowed} allowed)`, found.total <= found.allowed, `${found.total - found.allowed} above — ${INSTEAD}`)
+  if (found.slack > 0) console.log(`  rows above their script's count: ${found.slack} (bun ${SELF} --write lowers them)`)
 }
+if (process.argv.includes('--report')) report(rows, process.argv.flatMap(a => estate.src.files.get(a.toLowerCase()) ?? []))
+console.log(failures === 0 ? '\nprove-source-text-reads: green' : `\nprove-source-text-reads: ${failures} failed`)
+process.exit(failures === 0 ? 0 : 1)
