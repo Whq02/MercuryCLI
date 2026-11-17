@@ -75,6 +75,7 @@ run_proof "$here/prove-shard-compile-cache-removed.ts" "${BUN:-$HOME/.bun/bin/bu
 run_proof "$here/../verify/prove-impact-manifest.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../verify/prove-impact-manifest.ts" || fail=1
 run_proof "$here/../verify/prove-impact-run.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../verify/prove-impact-run.ts" || fail=1
 run_proof "$here/../verify/prove-slice-core.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../verify/prove-slice-core.ts" || fail=1
+run_proof "$here/../bash/prove-shell-door.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../bash/prove-shell-door.ts" || fail=1
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ GATE MACHINERY PASS"; else echo "# ❌ GATE MACHINERY FAILED"; fi
 echo "############################################################"
