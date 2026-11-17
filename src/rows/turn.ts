@@ -374,7 +374,7 @@ export class Conversation {
     const costAtStart = getTotalCostUSD()
     const modelUsageAtStart = Object.fromEntries(Object.entries(getModelUsage()).map(([model, row]) => [model, { ...row }]))
     const unpricedAtStart = { ...getUnpricedTurns() }
-    const eagerFlush = isEnvTruthy(process.env.MERCURY_EAGER_FLUSH)
+    const eagerFlush = isEnvTruthy(flagEnv('MERCURY_EAGER_FLUSH'))
     const errorWatermark = getInMemoryErrors().at(-1)
     this.turnOrdinal += 1
     const turnOrdinal = options?.turn ?? this.turnOrdinal

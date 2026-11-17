@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { closeSync, fstatSync, mkdirSync, openSync, readSync, watch } from 'node:fs'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { dirname, join } from 'node:path'
 import { selfScriptPath, nodeForBuild } from '../../daemon/daemonBuild.js'
@@ -125,7 +126,7 @@ export async function sweepHostJobs(options: { stallMs?: number; launch?: (recor
         if (options.launch) await options.launch(record)
         else {
           const script = selfScriptPath()
-          const result = await startService({ sessionId: record.sessionId ?? 'host', spec: { name: serviceName(record.id), command: nodeForBuild(dirname(script)), args: [script, '--mercury-host-job', record.id, record.generation!], cwd: serviceHome(), env: { MERCURY_CONFIG_DIR: getMercuryHome(), ...(process.env.MERCURY_CREDENTIAL_STORE ? { MERCURY_CREDENTIAL_STORE: process.env.MERCURY_CREDENTIAL_STORE } : {}) }, lifecycle: 'project', restart: 'never', readiness: [], readinessMode: 'all' } })
+          const result = await startService({ sessionId: record.sessionId ?? 'host', spec: { name: serviceName(record.id), command: nodeForBuild(dirname(script)), args: [script, '--mercury-host-job', record.id, record.generation!], cwd: serviceHome(), env: { MERCURY_CONFIG_DIR: getMercuryHome(), ...(flagEnv('MERCURY_CREDENTIAL_STORE') ? { MERCURY_CREDENTIAL_STORE: flagEnv('MERCURY_CREDENTIAL_STORE') } : {}) }, lifecycle: 'project', restart: 'never', readiness: [], readinessMode: 'all' } })
           if ('error' in result) throw new Error(result.error)
         }
       } catch (error) {

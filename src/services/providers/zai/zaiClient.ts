@@ -1,3 +1,4 @@
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { SseDecoder } from '../sseDecoder.js'
@@ -24,7 +25,7 @@ export const ZAI_CODING_API_BASE_URL = 'https://api.z.ai/api/coding/paas/v4'
 export type ZaiApiPlan = 'general' | 'coding'
 export function zaiApiBase(env: NodeJS.ProcessEnv = process.env, plan: ZaiApiPlan = 'general'): string {
   const production = plan === 'coding' ? ZAI_CODING_API_BASE_URL : ZAI_API_BASE_URL
-  const pinned = (plan === 'coding' ? env['MERCURY_ZAI_CODING_API_BASE']?.trim() : undefined) || env['MERCURY_ZAI_API_BASE']?.trim()
+  const pinned = (plan === 'coding' ? flagEnv('MERCURY_ZAI_CODING_API_BASE', env)?.trim() : undefined) || flagEnv('MERCURY_ZAI_API_BASE', env)?.trim()
   return (pinned || production).replace(/\/+$/, '')
 }
 export function zaiChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env, plan: ZaiApiPlan = 'general'): string {

@@ -1,4 +1,4 @@
-import { flagEnabled } from '../../../substrate/flagRegistry.js'
+import { flagEnabled, flagEnv } from '../../../substrate/flagRegistry.js'
 import type { MessageParam } from '../../../types/wire.js'
 import type { AnthropicOutputConfig as BetaOutputConfig } from './anthropicWire.js'
 import {
@@ -37,7 +37,7 @@ type JsonObject = { [key: string]: JsonValue }
 type JsonArray = JsonValue[]
 
 function extraObject(name: 'MERCURY_EXTRA_BODY' | 'MERCURY_EXTRA_METADATA', logParseError: boolean): JsonObject {
-  const raw = process.env[name]
+  const raw = flagEnv(name)
   if (!raw) return {}
   const value = safeParseJSON(raw, logParseError)
   if (value && typeof value === 'object' && !Array.isArray(value)) return value as JsonObject

@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, isAbsolute, join, normalize, sep } from 'node:path'
 import { memoize } from 'lodash-es'
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { getMercuryHome, isEnvTruthy } from '../utils/envUtils.js'
 import { getEnabledSettingsForSource, getInitialSettings } from '../utils/settings/settings.js'
 import { findCanonicalGitRoot } from '../utils/git.js'
@@ -11,7 +12,7 @@ import { capSanitizedName } from '../utils/sessionStoragePortable.js'
 import { projectDirectoryIdentity, resolveProjectStore, type StoreSpellingRules } from '../utils/projectStoreIdentity.js'
 
 export function isMnemeEnabled(): boolean {
-  if (isEnvTruthy(process.env.MERCURY_BARE)) return false
+  if (isEnvTruthy(flagEnv('MERCURY_BARE'))) return false
   const setting = getInitialSettings().memory?.enabled
   if (setting !== undefined) return setting
   return true

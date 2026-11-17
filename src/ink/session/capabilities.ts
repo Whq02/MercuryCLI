@@ -1,5 +1,6 @@
 import { coerce } from 'semver'
 import supportsHyperlinksLib from 'supports-hyperlinks'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { env as detectedEnv } from '../../utils/env.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { gte } from '../../utils/semver.js'
@@ -9,7 +10,7 @@ import { CURSOR_HOME, csi, ERASE_SCREEN } from '../termio/csi.js'
 
 
 export function isSyncOutputForcedOff(): boolean {
-  return isEnvTruthy(process.env.MERCURY_NO_SYNC_OUTPUT)
+  return isEnvTruthy(flagEnv('MERCURY_NO_SYNC_OUTPUT'))
 }
 
 export function isSynchronizedOutputSupported(): boolean {
@@ -24,7 +25,7 @@ const SYNC_PROGRAMS = new Set([
 function sniffSynchronizedOutput(): boolean {
   const env = process.env
   if (env.TMUX) return false
-  if (isEnvTruthy(env.MERCURY_FORCE_SYNC_OUTPUT)) return true
+  if (isEnvTruthy(flagEnv('MERCURY_FORCE_SYNC_OUTPUT', env))) return true
   if (SYNC_PROGRAMS.has(env.TERM_PROGRAM ?? '')) return true
   const term = env.TERM ?? ''
   const namedTerm = term.includes('kitty') || term === 'xterm-ghostty' || term.startsWith('foot') || term.includes('alacritty')
@@ -64,7 +65,7 @@ export function syncOutputStatusNow(): { armed: boolean; why: string } {
   }
   if (syncOutputSupported) {
     if (syncUpgradedByProbe) return { armed: true, why: 'DECRQM 2026 probe reply' }
-    if (isEnvTruthy(process.env.MERCURY_FORCE_SYNC_OUTPUT) && !process.env.TMUX) {
+    if (isEnvTruthy(flagEnv('MERCURY_FORCE_SYNC_OUTPUT')) && !process.env.TMUX) {
       return { armed: true, why: 'forced on (MERCURY_FORCE_SYNC_OUTPUT)' }
     }
     return { armed: true, why: 'terminal identity sniff' }

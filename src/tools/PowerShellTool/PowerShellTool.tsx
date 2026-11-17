@@ -1,4 +1,5 @@
 import { z } from 'zod/v4'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { buildTool, stringInputField, type ToolUseContext, type ToolResult } from '../../Tool.js'
 import { POWERSHELL_TOOL_NAME } from './toolName.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
@@ -517,7 +518,7 @@ let gitBashProbe: { key: string; available: boolean } | null = null
 
 function isGitBashAvailable(): boolean {
   if (getPlatform() !== 'windows') return true
-  const probeKey = `${process.env.PATH ?? ''}\u0000${process.env.MERCURY_GIT_BASH_PATH ?? ''}`
+  const probeKey = `${process.env.PATH ?? ''}\u0000${flagEnv('MERCURY_GIT_BASH_PATH') ?? ''}`
   if (gitBashProbe !== null && gitBashProbe.key === probeKey) {
     return gitBashProbe.available
   }
@@ -527,7 +528,7 @@ function isGitBashAvailable(): boolean {
 }
 
 function scanForGitBash(): boolean {
-  const override = process.env.MERCURY_GIT_BASH_PATH
+  const override = flagEnv('MERCURY_GIT_BASH_PATH')
   if (override && existsSync(override)) return true
   const dirs = (process.env.PATH ?? '').split(';').filter(Boolean)
   const candidates = [

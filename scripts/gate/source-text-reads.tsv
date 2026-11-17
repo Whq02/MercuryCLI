@@ -678,7 +678,7 @@ scripts/model-routing/prove-effort-wire-truth.ts	10	20	a85fe3a6335c
 scripts/model-routing/prove-gpt-context-window.ts	3	18	52309f2c7f0c
 scripts/model-routing/prove-gpt-effort-truth.ts	1	2	ac312982f584
 scripts/model-routing/prove-openai-live-provenance.ts	4	28	1252bc13d567
-scripts/model-routing/prove-output-ceiling.ts	3	24	30a13cd7c0e1
+scripts/model-routing/prove-output-ceiling.ts	3	23	30a13cd7c0e1
 scripts/model-routing/prove-qualification-store.ts	1	3	2df08871ec7d
 scripts/model-routing/prove-selector-estate.ts	6	14	f682742af510
 scripts/model-routing/prove-stream-fault-recovery.ts	5	11	36325dc4e341
@@ -735,7 +735,7 @@ scripts/notifications/prove-coordinator-removed.ts	5	11	3c3acf01744f
 scripts/notifications/prove-dispatch-ledger-hot-path.ts	1	7	aec7de4503ce
 scripts/notifications/prove-durable-obligations.ts	1	2	d7eceb2f24e4
 scripts/notifications/prove-journal-attribution.ts	3	7	5a57f1123f96
-scripts/notifications/prove-launch-instrumentation.ts	8	23	825f8cc6c8bc
+scripts/notifications/prove-launch-instrumentation.ts	8	22	825f8cc6c8bc
 scripts/notifications/prove-session-drafts.ts	1	1	9f1805422f0e
 scripts/notifications/prove-session-semantics.ts	1	4	9d6630f13d46
 scripts/notifications/prove-surface-router.ts	4	28	d96b296da515

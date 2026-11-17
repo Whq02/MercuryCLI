@@ -1,3 +1,4 @@
+import { flagEnv } from '../substrate/flagRegistry.js'
 
 type OauthConfig = {
   BASE_API_URL: string
@@ -45,7 +46,7 @@ export type AnthropicClientContract = {
 }
 
 export function describeAnthropicClientContract(): AnthropicClientContract {
-  const raw = process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT
+  const raw = flagEnv('MERCURY_ANTHROPIC_CLIENT_CONTRACT')
   const override = raw === undefined ? '' : raw.trim()
   const asOf = ANTHROPIC_CLIENT_CONTRACT_AS_OF
   if (override !== '' && CLIENT_CONTRACT_VERSION_SHAPE.test(override)) return { presented: override, asOf, source: 'override' }
@@ -94,7 +95,7 @@ export function isLoopbackOauthOrigin(url: string): boolean {
 }
 
 function pinnedOauthBase(): string | undefined {
-  const raw = process.env.MERCURY_ANTHROPIC_OAUTH_BASE
+  const raw = flagEnv('MERCURY_ANTHROPIC_OAUTH_BASE')
   if (!raw) return undefined
   const base = raw.endsWith('/') ? raw.slice(0, -1) : raw
   return isLoopbackOauthOrigin(base) ? base : undefined
@@ -115,7 +116,7 @@ export function getOauthConfig(): OauthConfig {
     config.SUBSCRIPTION_SUCCESS_URL = `${base}/oauth/code/success?app=claude-code`
     config.MANUAL_REDIRECT_URL = `${base}/oauth/code/callback`
   }
-  const clientIdOverride = process.env.MERCURY_OAUTH_CLIENT_ID
+  const clientIdOverride = flagEnv('MERCURY_OAUTH_CLIENT_ID')
   if (clientIdOverride) {
     config.CLIENT_ID = clientIdOverride
   }

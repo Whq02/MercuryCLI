@@ -1,6 +1,7 @@
+import { flagEnv } from '../../substrate/flagRegistry.js'
 
 export function getGlobPreambleCommand(shellPath: string): string | null {
-  if (process.env.MERCURY_SHELL_PREFIX) {
+  if (flagEnv('MERCURY_SHELL_PREFIX')) {
     return '{ shopt -u extglob || setopt NO_EXTENDED_GLOB NO_NOMATCH SH_WORD_SPLIT; } >/dev/null 2>&1 || true'
   }
 

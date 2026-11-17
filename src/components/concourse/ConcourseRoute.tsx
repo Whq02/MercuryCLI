@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { readFileSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
+import { flagEnv } from '../../substrate/flagRegistry.js';
 import { logForDebugging } from '../../utils/debug.js';
 import { getCwd } from '../../utils/cwd.js';
 import { getInitialEffortSetting } from '../../utils/effort.js';
@@ -190,7 +191,7 @@ function useConcourseSnapshot(): {
 
 function readFixtureSnapshot(): ConcourseSnapshotV1 | null {
   try {
-    const path = process.env['MERCURY_CONCOURSE_FIXTURE']
+    const path = flagEnv('MERCURY_CONCOURSE_FIXTURE')
     if (!path) return null
     const parsed = JSON.parse(readFileSync(path, 'utf8')) as ConcourseSnapshotV1
     if (parsed.schema !== 1) return null

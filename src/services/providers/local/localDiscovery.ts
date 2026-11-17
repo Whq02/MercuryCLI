@@ -1,4 +1,5 @@
 import { isDeepStrictEqual } from 'node:util'
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { getApiFetch } from '../../../utils/proxy.js'
@@ -118,7 +119,7 @@ export function rememberedTensorFoldTargets(): { kind: 'tensorfold'; root: strin
 export function localProbeTargets(
   env: NodeJS.ProcessEnv = process.env,
 ): { kind: LocalServerKind; root: string }[] {
-  const pinned = env['MERCURY_LOCAL_PROBE_TARGETS']?.trim()
+  const pinned = flagEnv('MERCURY_LOCAL_PROBE_TARGETS', env)?.trim()
   let targets: { kind: LocalServerKind; root: string }[]
   if (pinned === undefined || pinned === '') {
     targets = [...DEFAULT_LOCAL_PROBE_TARGETS]
@@ -136,7 +137,7 @@ export function localProbeTargets(
     }
     for (const target of rememberedTensorFoldTargets()) if (!targets.some(known => known.root === target.root)) targets.push(target)
   }
-  const override = env['MERCURY_LOCAL_BASE_URL']?.trim()
+  const override = flagEnv('MERCURY_LOCAL_BASE_URL', env)?.trim()
   if (override) {
     const root = override.replace(/\/+$/, '').replace(/\/v1$/, '')
     if (!targets.some(t => t.root === root)) targets.push({ kind: 'openai-compatible', root })
@@ -605,7 +606,7 @@ export async function discoverLocalServers(io: LocalDiscoveryIo = {}): Promise<L
   const targets = localProbeTargets(env)
   let targetCount = targets.length
   const results = await Promise.all(targets.map(async target => {
-    if (target.kind !== 'llamacpp' || target.root !== 'http://127.0.0.1:8080' || env.MERCURY_LOCAL_PROBE_TARGETS?.trim()) return probeTarget(target, io).catch(() => undefined)
+    if (target.kind !== 'llamacpp' || target.root !== 'http://127.0.0.1:8080' || flagEnv('MERCURY_LOCAL_PROBE_TARGETS', env)?.trim()) return probeTarget(target, io).catch(() => undefined)
     let answered = false
     const fetchImpl = io.fetchImpl ?? getApiFetch()
     const first = await probeLlamaCpp(target.root, { ...io, fetchImpl: (async (...args: Parameters<typeof fetch>) => {

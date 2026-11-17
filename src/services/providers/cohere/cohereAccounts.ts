@@ -1,3 +1,4 @@
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { readStoredCohereApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 
@@ -6,7 +7,7 @@ export const COHERE_ENV_KEY = 'COHERE_API_KEY'
 const COHERE_ENV_KEY_ALT = 'CO_API_KEY'
 
 export function cohereApiBase(env: NodeJS.ProcessEnv = process.env): string {
-  return (env.MERCURY_COHERE_API_BASE?.trim() || COHERE_API_BASE_URL).replace(/\/+$/, '')
+  return (flagEnv('MERCURY_COHERE_API_BASE', env)?.trim() || COHERE_API_BASE_URL).replace(/\/+$/, '')
 }
 
 export function cohereChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): string {

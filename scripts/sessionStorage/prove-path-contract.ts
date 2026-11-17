@@ -22,6 +22,7 @@ function fixture(path: typeof posix) {
     publishError: undefined as Error | undefined,
   }
   const project = (cwd: string) => path.join(state.home, 'projects', encodeURIComponent(cwd))
+  const flags: Record<string, string | undefined> = {}
   const ports: Record<string, unknown> = {
     path,
     'fs/promises': {
@@ -62,6 +63,7 @@ function fixture(path: typeof posix) {
         return project(cwd)
       },
     },
+    '../../substrate/flagRegistry.js': { flagEnv: (name: string) => flags[name] },
     '../../rows/storage.js': {
       EPHEMERAL_STORAGE_PROGRESS: new Set(['bash_progress', 'powershell_progress', 'mcp_progress']),
       storageRowPolicy: (type: string) => ['user', 'assistant', 'system', 'attachment'].includes(type) ? { fold: 'message' } : undefined,
@@ -74,12 +76,12 @@ function fixture(path: typeof posix) {
     if (!(key in ports)) throw new Error(`Unexpected dependency ${name}`)
     return ports[key]
   }, api, { env })
-  return { api, state, events, files, directories, project, env }
+  return { api, state, events, files, directories, project, env, flags }
 }
 
 for (const path of [posix, win32]) {
   const f = fixture(path)
-  const { api, state, events, files, directories, project, env } = f
+  const { api, state, events, files, directories, project, env, flags } = f
   const id = 'agent.one' as never
   equal(api.MAX_TRANSCRIPT_READ_BYTES, 50 * 1024 * 1024)
   equal(api.getProjectsDir(), path.join(state.home, 'projects'))
@@ -111,7 +113,7 @@ for (const path of [posix, win32]) {
   deepStrictEqual(events, [['project', 'new-folder'], ['project', 'new-folder']])
   for (const value of [undefined, '', 'test', 'production']) {
     env.NODE_ENV = value
-    env.MERCURY_ENTRYPOINT = value
+    flags.MERCURY_ENTRYPOINT = value
     equal(api.getNodeEnv(), value || 'development')
     equal(api.getEntrypoint(), value)
     equal(api.isCustomTitleEnabled(), true)

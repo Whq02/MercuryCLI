@@ -5,6 +5,7 @@ import type * as tls from 'node:tls'
 import { memoize } from 'lodash-es'
 import { Agent, type Dispatcher } from 'undici'
 
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { getCACertificates } from './caCerts.js'
 import { logForDebugging } from './debug.js'
 
@@ -13,7 +14,7 @@ type MTLSConfig = { cert?: string; key?: string; passphrase?: string }
 type TLSConfig = MTLSConfig & { ca?: string[] }
 
 function readMaterial(variable: string): string | undefined {
-  const path = process.env[variable]
+  const path = flagEnv(variable)
   if (!path) return undefined
   try {
     const content = readFileSync(path, 'utf8')
@@ -28,7 +29,7 @@ function readMaterial(variable: string): string | undefined {
 export const getMTLSConfig = memoize((): MTLSConfig | undefined => {
   const cert = readMaterial('MERCURY_CLIENT_CERT')
   const key = readMaterial('MERCURY_CLIENT_KEY')
-  const passphrase = process.env.MERCURY_CLIENT_KEY_PASSPHRASE || undefined
+  const passphrase = flagEnv('MERCURY_CLIENT_KEY_PASSPHRASE') || undefined
   if (cert === undefined && key === undefined && passphrase === undefined) return undefined
   const config: MTLSConfig = {}
   if (cert !== undefined) config.cert = cert

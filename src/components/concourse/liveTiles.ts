@@ -1,6 +1,7 @@
 import { statSync, watch, type FSWatcher } from 'node:fs'
 import { basename } from 'node:path'
 import { useEffect, useRef, useState } from 'react'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
   readSessionFacts,
   readSessionTail,
@@ -98,7 +99,7 @@ const defaultDeps = (): LiveTileStoreDeps => ({
   activity: rec => tailActivity(rec),
   transcriptPath: rec => workerTranscriptPath(rec),
   nowMs: () => Date.now(),
-  forceDegrade: process.env['MERCURY_TILES_FORCE_DEGRADE'] === '1',
+  forceDegrade: flagEnv('MERCURY_TILES_FORCE_DEGRADE') === '1',
   armMachinery: true,
 })
 

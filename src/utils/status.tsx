@@ -1,5 +1,6 @@
 import React from 'react'
 
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { Text } from '../ink.js'
 import { getAccountInformation } from './auth.js'
 
@@ -48,7 +49,7 @@ export function buildProviderAccountBlocks(
     usability?: () => Partial<Record<string, { blockers: string[] }>>
   },
 ): Property[] {
-  const isDemo = reads?.isDemo ?? Boolean(process.env.MERCURY_DEMO)
+  const isDemo = reads?.isDemo ?? Boolean(flagEnv('MERCURY_DEMO'))
   const allEntries = reads?.entries ? reads.entries() : walletEntries()
   let usabilityByFamily: Partial<Record<string, { blockers: string[] }>> = {}
   try {
@@ -121,7 +122,7 @@ export function buildAccountProperties(): Property[] {
   if (account.apiKeySource) {
     properties.push({ label: 'API key', value: <Text>{account.apiKeySource}</Text> })
   }
-  const isDemo = Boolean(process.env.MERCURY_DEMO)
+  const isDemo = Boolean(flagEnv('MERCURY_DEMO'))
   if (account.organization && !isDemo) {
     properties.push({ label: 'Organization', value: <Text>{account.organization}</Text> })
   }
@@ -145,11 +146,11 @@ export function buildAPIProviderProperties(): Property[] {
   }
   const mtlsConfig = getMTLSConfig()
   if (mtlsConfig) {
-    if (mtlsConfig.cert && process.env.MERCURY_CLIENT_CERT) {
-      properties.push({ label: 'mTLS client cert', value: <Text>{process.env.MERCURY_CLIENT_CERT}</Text> })
+    if (mtlsConfig.cert && flagEnv('MERCURY_CLIENT_CERT')) {
+      properties.push({ label: 'mTLS client cert', value: <Text>{flagEnv('MERCURY_CLIENT_CERT')}</Text> })
     }
-    if (mtlsConfig.key && process.env.MERCURY_CLIENT_KEY) {
-      properties.push({ label: 'mTLS client key', value: <Text>{process.env.MERCURY_CLIENT_KEY}</Text> })
+    if (mtlsConfig.key && flagEnv('MERCURY_CLIENT_KEY')) {
+      properties.push({ label: 'mTLS client key', value: <Text>{flagEnv('MERCURY_CLIENT_KEY')}</Text> })
     }
   }
   return properties

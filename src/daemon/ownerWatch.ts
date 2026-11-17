@@ -1,5 +1,6 @@
 
 import { execFile, spawnSync } from 'node:child_process'
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
 import { existsSync, fstatSync, readFileSync } from 'node:fs'
 import { Socket } from 'node:net'
@@ -394,14 +395,14 @@ export const OWNER_IDENTITY_FLOOR_MS = 60_000
 export const OWNER_PROBE_BACKOFF_FACTOR = 4
 
 export function parseOwnerPid(env: NodeJS.ProcessEnv = process.env): number | null {
-  const raw = env[OWNER_PID_ENV]?.trim()
+  const raw = flagEnv(OWNER_PID_ENV, env)?.trim()
   if (!raw) return null
   const pid = Number(raw)
   return Number.isInteger(pid) && pid > 0 ? pid : null
 }
 
 export function parseOwnerFd(env: NodeJS.ProcessEnv = process.env): number | null {
-  const raw = env[OWNER_FD_ENV]?.trim()
+  const raw = flagEnv(OWNER_FD_ENV, env)?.trim()
   if (!raw) return null
   const fd = Number(raw)
   return Number.isInteger(fd) && fd > 2 ? fd : null

@@ -182,7 +182,7 @@ export async function showSetupScreens(
   commands?: Command[],
 ): Promise<boolean> {
   if (process.env.NODE_ENV === 'test') return false
-  if (process.env.MERCURY_DEMO) return false
+  if (flagEnv('MERCURY_DEMO')) return false
 
   let onboardingShown = false
 

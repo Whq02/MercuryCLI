@@ -1,3 +1,4 @@
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { readStoredCerebrasApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 
@@ -5,7 +6,7 @@ const CEREBRAS_API_BASE_URL = 'https://api.cerebras.ai/v1'
 const CEREBRAS_ENV_KEY = 'CEREBRAS_API_KEY'
 
 export function cerebrasApiBase(env: NodeJS.ProcessEnv = process.env): string {
-  return (env.MERCURY_CEREBRAS_API_BASE?.trim() || CEREBRAS_API_BASE_URL).replace(/\/+$/, '')
+  return (flagEnv('MERCURY_CEREBRAS_API_BASE', env)?.trim() || CEREBRAS_API_BASE_URL).replace(/\/+$/, '')
 }
 
 export function cerebrasChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): string {

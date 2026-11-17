@@ -174,7 +174,7 @@ export function sessionPinArgv(pin: { sessionId: string; cwd: string } | undefin
 }
 
 export function runnerSessionHome(spec: Pick<RunnerChildSpec, 'cwd' | 'extraEnv'>): string {
-  const pinned = spec.extraEnv?.MERCURY_SESSION_HOME
+  const pinned = flagEnv('MERCURY_SESSION_HOME', spec.extraEnv ?? {})
   return typeof pinned === 'string' && pinned !== '' ? pinned : getProjectDir(spec.cwd ?? process.cwd())
 }
 

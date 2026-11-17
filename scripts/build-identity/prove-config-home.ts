@@ -158,7 +158,7 @@ check(
   !renderTui.includes("join(homedir(), '.claude')") && !renderScenarios.includes("join(homedir(), '.claude')"),
 )
 const owned = readFileSync(join(ROOT, 'src', 'daemon', 'ownedDaemon.ts'), 'utf-8')
-check('owned daemons stamp the RESOLVED home (store-identity gating)', owned.includes('env.MERCURY_CONFIG_DIR = getMercuryHome()'))
+check('owned daemons stamp the RESOLVED home (store-identity gating)', owned.includes("stampFlagOnEnv(env, 'MERCURY_CONFIG_DIR', getMercuryHome())"))
 
 if (process.platform !== 'win32') {
   const { mkdtempSync, rmSync, statSync: st, mkdirSync: mkd, chmodSync: chm } = await import('node:fs')

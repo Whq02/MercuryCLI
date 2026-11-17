@@ -1,3 +1,4 @@
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
@@ -6,7 +7,7 @@ import { MERCURY_SCOUT_AGENT } from './built-in/mercuryScoutAgent.js'
 
 export function getBuiltInAgents(): AgentDefinition[] {
   if (
-    isEnvTruthy(process.env.MERCURY_HOST_DISABLE_BUILTIN_AGENTS) &&
+    isEnvTruthy(flagEnv('MERCURY_HOST_DISABLE_BUILTIN_AGENTS')) &&
     getIsNonInteractiveSession()
   ) {
     return []

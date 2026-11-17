@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { isAbsolute, join, relative, sep } from 'node:path'
 
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { getOriginalCwd, getSessionId } from '../bootstrap/state.js'
 import type { AttributionSnapshotEntry, FileAttributionState } from '../types/logs.js'
 import { getCwd } from './cwd.js'
@@ -64,7 +65,7 @@ function getAttributionRepoRoot(): string {
 }
 
 function getClientSurface(): string {
-  const value = process.env.MERCURY_ENTRYPOINT
+  const value = flagEnv('MERCURY_ENTRYPOINT')
   return value === undefined ? 'cli' : value
 }
 

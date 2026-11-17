@@ -135,7 +135,7 @@ check('the calm line names the count, the fill, the limit, that all are loaded, 
     pinnedOverLimitLine({ pinned: 1, used: 9600, limit: 8000 }) === 'Pinned memory: 1 rule, 9.6k of the 8k limit — all still loaded. Trim in /memory or raise the limit in /config.')
 const notices = readFileSync(join(ROOT, 'src/utils/statusNoticeDefinitions.tsx'), 'utf8')
 check('the line is a start-of-session notice row, not a composer line', notices.includes("id: 'pinned-over-limit'") && notices.includes("type: 'info'"))
-check('the line never shows in a headless run', notices.includes("process.env.MERCURY_ENTRYPOINT !== 'headless'"))
+check('the line never shows in a headless run', notices.includes("flagEnv('MERCURY_ENTRYPOINT') !== 'headless'"))
 
 section('the boot wiring')
 const maintenance = readFileSync(join(ROOT, 'src/mneme/mnemeMaintenance.ts'), 'utf8')

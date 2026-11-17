@@ -117,7 +117,7 @@
     {
       "file": "src/utils/permissions/flowLaw.ts",
       "mechanism": "hardcoded-tmp",
-      "excerpt": "for (const temp of [getMercuryTempDir(), tmpdir(), process.env.TMPDIR, process.env.MERCURY_TMPDIR, process.env.TEMP, process.env.TMP, '/tmp'",
+      "excerpt": "for (const temp of [getMercuryTempDir(), tmpdir(), process.env.TMPDIR, flagEnv('MERCURY_TMPDIR'), process.env.TEMP, process.env.TMP, '/tmp',",
       "cls": "platform-owner",
       "why": "POSIX-scoped runtime path behind a platform gate (audited per site in the census review)"
     },

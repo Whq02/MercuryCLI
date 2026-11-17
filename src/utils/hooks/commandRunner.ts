@@ -1,4 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { flagEnv, stampFlagOnEnv } from '../../substrate/flagRegistry.js'
 import { getOriginalCwd, getProjectRoot, getSessionId } from '../../bootstrap/state.js'
 import { scrubSessionEnvStamps } from '../../substrate/envStamps.js'
 import { getExtensionDataDir } from '../../extensions/paths.js'
@@ -96,17 +97,17 @@ async function prepareCommand(run: CommandHookRun): Promise<{ command: string; e
     command = command.replace(/\$\{MERCURY_EXTENSION_DATA\}/g, () => dataPath)
     extensionOptions = loadOptionValues(run.source.id, optionSchemaFor(run.source.id))
     command = substituteOptionsInCommand(command, extensionOptions)
-    env.MERCURY_EXTENSION_ROOT = rootPath
-    env.MERCURY_EXTENSION_DATA = dataPath
+    stampFlagOnEnv(env, 'MERCURY_EXTENSION_ROOT', rootPath)
+    stampFlagOnEnv(env, 'MERCURY_EXTENSION_DATA', dataPath)
     Object.assign(env, optionEnv(extensionOptions))
   } else if (run.source.kind === 'skill') {
-    env.MERCURY_EXTENSION_ROOT = toHookPath(run.source.root)
+    stampFlagOnEnv(env, 'MERCURY_EXTENSION_ROOT', toHookPath(run.source.root))
   }
   if (isWindows && !isPowerShell) command = winShHookCommand(command)
-  const prefix = process.env.MERCURY_SHELL_PREFIX
+  const prefix = flagEnv('MERCURY_SHELL_PREFIX')
   if (!isPowerShell && prefix) command = formatShellPrefixCommand(prefix, command)
   if (!isPowerShell && hookEventWritesEnvFile(run.event)) {
-    env.MERCURY_ENV_FILE = await getHookEnvFilePath(run.event, run.index)
+    stampFlagOnEnv(env, 'MERCURY_ENV_FILE', await getHookEnvFilePath(run.event, run.index))
   }
   const wanted = run.cwd ?? getHookRunContext()?.cwd ?? getCwd()
   const cwd = (await pathExists(wanted)) ? wanted : getOriginalCwd()

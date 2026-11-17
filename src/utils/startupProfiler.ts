@@ -1,3 +1,4 @@
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { getSessionId } from '../bootstrap/state.js'
 import { logForDebugging } from './debug.js'
 import { getMercuryHome } from './envUtils.js'
@@ -7,7 +8,7 @@ import { join } from 'node:path'
 import { formatMs, formatTimelineLine, getPerformance, type MemorySnapshot } from './profilerBase.js'
 
 
-const detailed = process.env.MERCURY_PROFILE_STARTUP === '1'
+const detailed = flagEnv('MERCURY_PROFILE_STARTUP') === '1'
 const profilingOn = detailed
 
 const TOTAL_PAD = 8

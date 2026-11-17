@@ -311,11 +311,11 @@ console.log('── §6 the consumers are wired (source) ──')
   const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
   check('the seam is registered', FLAG_REGISTRY.some(s => s.env === SEAM))
   const utils = read('src/utils/shell/shellToolUtils.ts')
-  check('the PowerShell predicate reads the road and keeps its literal opt-in read', utils.includes("windowsBashRoad().kind === 'absent'") && utils.includes('process.env.MERCURY_USE_POWERSHELL_TOOL'))
+  check('the PowerShell predicate reads the road and keeps its literal opt-in read', utils.includes("windowsBashRoad().kind === 'absent'") && utils.includes("flagEnv('MERCURY_USE_POWERSHELL_TOOL')"))
   const road = read('src/utils/shell/windowsShellRoad.ts')
   check('the road reads the engine owner — the arm is the resolved engine with its arm, required lazily', road.includes("require('./engineSession.js')") && road.includes("resolved.engine === 'brush' ? { path: resolved.binaryPath, arm: resolved.arm } : null"))
   const engine = read('src/utils/shell/engineSession.ts')
-  check('the engine owner asks the road whether bash is absent and whether this is the Windows road, and walks the one ladder', engine.includes('shellEngineRequest(process.env.MERCURY_SHELL_ENGINE, setting, windowsBashAbsent(), windowsShellRoadActive())'))
+  check('the engine owner asks the road whether bash is absent and whether this is the Windows road, and walks the one ladder', engine.includes("shellEngineRequest(flagEnv('MERCURY_SHELL_ENGINE'), setting, windowsBashAbsent(), windowsShellRoadActive())"))
 }
 
 rmSync(SUB_HOME, { recursive: true, force: true })

@@ -1,7 +1,7 @@
 import { OUTPUT_FIT_FLOOR_TOKENS, OUTPUT_FIT_HEADWAY_TOKENS } from './outputFit.js'
 import { isBedrockThrottle } from './bedrockThrottle.js'
 import type { AnthropicClient as Anthropic } from '../providers/anthropic/anthropicClient.js'
-import { flagEnabled } from '../../substrate/flagRegistry.js'
+import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 
 import type { FailoverCause, SystemAPIErrorMessage } from '../../types/message.js'
 import {
@@ -99,7 +99,7 @@ export class FallbackTriggeredError extends Error {
 }
 
 function getDefaultMaxRetries(): number {
-  const env = process.env.MERCURY_MAX_RETRIES
+  const env = flagEnv('MERCURY_MAX_RETRIES')
   if (env !== undefined && env !== '') {
     return Number.parseInt(env, 10)
   }
@@ -407,7 +407,7 @@ export async function* withRetry<T>(
     lastError ??
       new Error(
         zeroAttempts
-          ? `MERCURY_MAX_RETRIES=${process.env.MERCURY_MAX_RETRIES ?? ''} is not a non-negative integer — no request was attempted; unset it or set a number`
+          ? `MERCURY_MAX_RETRIES=${flagEnv('MERCURY_MAX_RETRIES') ?? ''} is not a non-negative integer — no request was attempted; unset it or set a number`
           : 'retry attempts exhausted',
       ),
     retryContext,

@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { spawnOwnedShell } from './parentGuard.js'
 import { randomBytes } from 'node:crypto'
 import { tmpdir } from 'node:os'
@@ -38,7 +39,7 @@ const PARSE_GUARD_TIMEOUT_MS = 5_000
 export const ENGINE_SESSION_CEILING_DEFAULT = 8
 
 function pinnedEngineSessionCeiling(): number | null {
-  const text = process.env.MERCURY_SHELL_ENGINE_SESSIONS
+  const text = flagEnv('MERCURY_SHELL_ENGINE_SESSIONS')
   if (text === undefined || !/^\d+$/.test(text.trim())) return null
   const value = Number(text.trim())
   return Number.isSafeInteger(value) && value >= 1 ? value : null
@@ -60,7 +61,7 @@ export type ShellEngineResolution =
   | { engine: 'system'; requested: 'system' | 'brush'; arm: ShellEngineArm | 'default'; reason: string }
 
 export function resolveShellEngine(setting?: 'system' | 'brush'): ShellEngineResolution {
-  const request = shellEngineRequest(process.env.MERCURY_SHELL_ENGINE, setting, windowsBashAbsent(), windowsShellRoadActive())
+  const request = shellEngineRequest(flagEnv('MERCURY_SHELL_ENGINE'), setting, windowsBashAbsent(), windowsShellRoadActive())
   if (request.requested !== 'brush') {
     return { engine: 'system', requested: 'system', arm: request.arm, reason: `the system shell is selected (${shellEngineArmWords(request.arm)})` }
   }

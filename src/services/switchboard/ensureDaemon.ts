@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import { stampFlagOnEnv } from '../../substrate/flagRegistry.js'
 import { daemonDir, daemonLastUnreachableAt, readDaemonState } from '../../daemon/controlSocket.js'
 import type { DaemonHandshakeVerdict } from '../../daemon/handshake.js'
 import { isProcessAlive } from '../../daemon/ownerWatch.js'
@@ -187,10 +188,10 @@ async function ensureOwnedDaemonInner(): Promise<boolean> {
         const { spawnOwnedDaemon } = await import('../../daemon/ownedDaemon.js')
         const daemonExtraEnv: Record<string, string> = {}
         if (bootCarriesRunnerOptions()) {
-          daemonExtraEnv.MERCURY_DAEMON_NO_SELF_WARM = '1'
+          stampFlagOnEnv(daemonExtraEnv, 'MERCURY_DAEMON_NO_SELF_WARM', '1')
         } else {
           const { bootBirthFacts } = await import('./bootBirthFacts.js')
-          if (bootBirthFacts().bypassConsent) daemonExtraEnv.MERCURY_DAEMON_SELF_WARM_CONSENT = '1'
+          if (bootBirthFacts().bypassConsent) stampFlagOnEnv(daemonExtraEnv, 'MERCURY_DAEMON_SELF_WARM_CONSENT', '1')
         }
         const pid = spawnOwnedDaemon(getCwd(), {
           label: 'switchboard',

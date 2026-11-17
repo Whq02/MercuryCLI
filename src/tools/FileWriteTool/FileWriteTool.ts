@@ -2,6 +2,7 @@ import { dirname } from 'node:path'
 
 import { z } from 'zod/v4'
 
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { buildTool, type ToolUseContext } from '../../Tool.js'
 import {
   recordNoChangeOutcome,
@@ -265,7 +266,7 @@ export const FileWriteTool = buildTool({
     const expandedPath = farTarget !== null ? farTarget.path : expandPath(input.file_path)
     const parentDir = far !== null ? '' : dirname(expandedPath)
 
-    if (far === null && !isEnvTruthy(process.env.MERCURY_BARE)) {
+    if (far === null && !isEnvTruthy(flagEnv('MERCURY_BARE'))) {
       try {
         const dirs = await discoverSkillDirsForPaths([expandedPath], getCwd())
         const fresh = dirs.filter(dir => !context.dynamicSkillDirTriggers?.has(dir))

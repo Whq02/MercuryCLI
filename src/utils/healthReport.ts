@@ -1538,9 +1538,9 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           run: () => {
             
             const home = getMercuryHome()
-            const source = process.env.MERCURY_CONFIG_DIR
+            const source = flagEnv('MERCURY_CONFIG_DIR')
               ? 'explicit MERCURY_CONFIG_DIR'
-              : process.env.MERCURY_HOME
+              : flagEnv('MERCURY_HOME')
                 ? 'MERCURY_HOME'
                 : 'Mercury default home resolution'
             const problems: string[] = []
@@ -2639,7 +2639,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                 resolved = pinned
               }
               const { getEngineModelOverride } = require('../bootstrap/state.js') as typeof import('../bootstrap/state.js')
-              const pinSource = getEngineModelOverride() !== undefined ? 'the --model flag' : process.env.MERCURY_MODEL ? 'MERCURY_MODEL' : 'the settings pin engine.model'
+              const pinSource = getEngineModelOverride() !== undefined ? 'the --model flag' : flagEnv('MERCURY_MODEL') ? 'MERCURY_MODEL' : 'the settings pin engine.model'
               return {
                 status: 'info' as const,
                 evidence: `fresh-session default ${renderModelChip(resolved)} · ${pinSource}${resolved !== pinned ? ` '${pinned}' (resolved)` : ''} — without the pin: ${computed.replace(/^fresh-session default /, '')}${suffix}`,
@@ -3105,7 +3105,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               return {
                 status: 'ok' as const,
                 evidence: `brush ${resolved.version} (${resolved.platform}, ${resolved.source}) — ${armed} — one persistent process per conversation and one per crewmate, up to ${ceiling} at once; shell state persists between calls; a stop while a command runs resets the session`,
-                detail: `setting: ${setting}${process.env.MERCURY_SHELL_ENGINE ? ` · env pin MERCURY_SHELL_ENGINE=${process.env.MERCURY_SHELL_ENGINE}` : ''} · sessions ceiling ${ceiling} (${engineSessionCeilingPinned() ? 'the env pin MERCURY_SHELL_ENGINE_SESSIONS' : 'the shell.sessions setting'})`,
+                detail: `setting: ${setting}${flagEnv('MERCURY_SHELL_ENGINE') ? ` · env pin MERCURY_SHELL_ENGINE=${flagEnv('MERCURY_SHELL_ENGINE')}` : ''} · sessions ceiling ${ceiling} (${engineSessionCeilingPinned() ? 'the env pin MERCURY_SHELL_ENGINE_SESSIONS' : 'the shell.sessions setting'})`,
               }
             }
             const wanted = resolved.requested === 'brush'

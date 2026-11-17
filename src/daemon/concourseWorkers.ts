@@ -11,7 +11,7 @@ import { renameWithWin32RetrySync } from '../substrate/durablePublish.js'
 import { STORE_LOCK_OPTIONS } from '../substrate/fileStore.js'
 import { lockSync } from '../utils/lockfile.js'
 import { daemonHomeStands, publishInDaemonHome, publishTransientInDaemonHome } from './daemonHome.js'
-import { flagSpellings } from '../substrate/flagRegistry.js'
+import { flagEnv, flagSpellings } from '../substrate/flagRegistry.js'
 import { resolveEffectiveSettingsSnapshot } from '../substrate/startupMenu.js'
 import { getProcessStartInstant, getProcessStartInstantAsync, getProcessStartInstantCachedOrRefresh, getProcessStartTokenAsync, isProcessAlive } from './ownerWatch.js'
 import { observeSessionStates } from './sessionStateHooks.js'
@@ -837,7 +837,7 @@ export function stampSpawnPosture(rec: ConcourseWorkerRecordV1, posture: { permi
 }
 
 export function sessionKindOfSpec(spec: Pick<RunnerChildSpec, 'extraEnv'>): SessionKind | undefined {
-  return parseSessionKind(spec.extraEnv?.[SESSION_KIND_ENV])
+  return parseSessionKind(flagEnv(SESSION_KIND_ENV, spec.extraEnv ?? {}))
 }
 
 

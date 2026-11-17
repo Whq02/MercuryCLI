@@ -1,5 +1,6 @@
 
 import { spawnSync } from 'node:child_process'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { existsSync, readFileSync, rmSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
@@ -29,7 +30,7 @@ export function renderTuiCheckoutRoot(from: string = dirname(fileURLToPath(impor
 export function renderTuiRuntime(opts: { env?: NodeJS.ProcessEnv; home?: string } = {}): { bun: string } | { missing: string } {
   const env = opts.env ?? process.env
   const home = opts.home ?? homedir()
-  const pinned = (env.MERCURY_BUN ?? '').trim()
+  const pinned = (flagEnv('MERCURY_BUN', env) ?? '').trim()
   if (pinned !== '') {
     return existsSync(pinned) ? { bun: pinned } : { missing: `the MERCURY_BUN pin ${pinned} does not exist` }
   }

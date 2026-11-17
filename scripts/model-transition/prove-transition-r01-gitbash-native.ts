@@ -52,12 +52,12 @@ check(
 const shellUtils = readFileSync(join(ROOT, 'src/utils/shell/shellToolUtils.ts'), 'utf8')
 check(
   '§C isPowerShellToolEnabled reads MERCURY_USE_POWERSHELL_TOOL',
-  /process\.env\.MERCURY_USE_POWERSHELL_TOOL/.test(shellUtils),
+  /flagEnv\('MERCURY_USE_POWERSHELL_TOOL'\)/.test(shellUtils),
 )
 const psTools = readFileSync(join(ROOT, 'src/tools/PowerShellTool/PowerShellTool.tsx'), 'utf8')
 check(
   '§C the PowerShell availability probe reads MERCURY_GIT_BASH_PATH',
-  /process\.env\.MERCURY_GIT_BASH_PATH/.test(psTools),
+  /flagEnv\('MERCURY_GIT_BASH_PATH'\)/.test(psTools),
 )
 
 const windowsPaths = readFileSync(join(ROOT, 'src/utils/windowsPaths.ts'), 'utf8')
@@ -76,7 +76,7 @@ check(
 )
 check(
   '§D the tip stays quiet when MERCURY_USE_POWERSHELL_TOOL is set',
-  /process\.env\.MERCURY_USE_POWERSHELL_TOOL === undefined/.test(tips),
+  /flagEnv\('MERCURY_USE_POWERSHELL_TOOL'\) === undefined/.test(tips),
 )
 
 const templates = readFileSync(join(ROOT, 'scripts/release/launcherTemplates.mjs'), 'utf8')

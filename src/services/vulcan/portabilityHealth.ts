@@ -232,7 +232,7 @@ async function resolveGodotExecutableNow(opts: ResolveGodotOptions): Promise<Exe
   const env = opts.env ?? process.env
   const fs = opts.fs ?? realRootWalkFs
   const probed = godotWellKnownRoots(platform, env)
-  const pinned = pinnedGodotExecutable(opts.env === undefined ? flagEnv('MERCURY_GODOT_EXECUTABLE') : env.MERCURY_GODOT_EXECUTABLE, fs, probed)
+  const pinned = pinnedGodotExecutable(opts.env === undefined ? flagEnv('MERCURY_GODOT_EXECUTABLE') : flagEnv('MERCURY_GODOT_EXECUTABLE', env), fs, probed)
   if (pinned !== null) return pinned
   const census = opts.census ?? (await runningGodotProcesses({ platform }))
 

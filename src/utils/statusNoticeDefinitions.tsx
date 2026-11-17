@@ -2,6 +2,7 @@ import { relative } from 'node:path'
 
 import React from 'react'
 
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 import { Box, Text } from '../ink.js'
 import { getLargeMemoryFiles, MAX_MEMORY_CHARACTER_COUNT } from '../services/instructions/engine.js'
@@ -181,7 +182,7 @@ function pinnedOverLimit(): PinnedOverLimit {
   if (pinnedOverLimitAtStart !== undefined) return pinnedOverLimitAtStart
   let read: PinnedOverLimit = null
   try {
-    if (mnemeEnabled() && process.env.MERCURY_ENTRYPOINT !== 'headless') {
+    if (mnemeEnabled() && flagEnv('MERCURY_ENTRYPOINT') !== 'headless') {
       const status = readPinnedStatus()
       read = status && status.over ? { pinned: status.pinned, used: status.used, limit: status.limit } : null
     }

@@ -1,5 +1,6 @@
 import { homedir, tmpdir } from 'node:os'
 import { basename, isAbsolute, resolve } from 'node:path'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { Tool, ToolPermissionContext } from '../../Tool.js'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import { readBashRuleVerdict } from '../../tools/BashTool/bashPermissions.js'
@@ -170,11 +171,11 @@ function projectRoots(): string[] {
 }
 
 function ownRoots(): { roots: string[]; temps: string[] } {
-  const key = [getOriginalCwd(), getStartingCwd(), process.env.TMPDIR ?? '', process.env.MERCURY_TMPDIR ?? ''].join('\0')
+  const key = [getOriginalCwd(), getStartingCwd(), process.env.TMPDIR ?? '', flagEnv('MERCURY_TMPDIR') ?? ''].join('\0')
   if (ownRootsCache?.key === key) return ownRootsCache
   const roots = projectRoots().flatMap(root => [root, realForm(root)])
   const temps = new Set<string>()
-  for (const temp of [getMercuryTempDir(), tmpdir(), process.env.TMPDIR, process.env.MERCURY_TMPDIR, process.env.TEMP, process.env.TMP, '/tmp', '/private/tmp', '/var/tmp', '/private/var/tmp']) {
+  for (const temp of [getMercuryTempDir(), tmpdir(), process.env.TMPDIR, flagEnv('MERCURY_TMPDIR'), process.env.TEMP, process.env.TMP, '/tmp', '/private/tmp', '/var/tmp', '/private/var/tmp']) {
     if (!temp) continue
     temps.add(temp.replace(/[\\/]+$/, ''))
     temps.add(realForm(temp).replace(/[\\/]+$/, ''))

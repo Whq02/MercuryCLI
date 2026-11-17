@@ -1,3 +1,4 @@
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { clearCACertsCache } from './caCerts.js'
 import { isEnvTruthy } from './envUtils.js'
 import { isProviderManagedEnvVar, SAFE_ENV_VARS } from './managedEnvConstants.js'
@@ -19,14 +20,14 @@ const TUNNEL_PROTECTED_KEYS = [
 ] as const
 
 function filterTunnelProtected(env: EnvObject): EnvObject {
-  if (process.env.MERCURY_API_UNIX_SOCKET === undefined) return env
+  if (flagEnv('MERCURY_API_UNIX_SOCKET') === undefined) return env
   const out: EnvObject = { ...env }
   for (const key of TUNNEL_PROTECTED_KEYS) delete out[key]
   return out
 }
 
 function filterProviderManaged(env: EnvObject): EnvObject {
-  if (!isEnvTruthy(process.env.MERCURY_PROVIDER_MANAGED_BY_HOST)) return env
+  if (!isEnvTruthy(flagEnv('MERCURY_PROVIDER_MANAGED_BY_HOST'))) return env
   const out: EnvObject = {}
   for (const [key, value] of Object.entries(env)) {
     if (!isProviderManagedEnvVar(key)) out[key] = value

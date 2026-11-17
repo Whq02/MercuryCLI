@@ -5,6 +5,7 @@ import React, {
   useState,
   useSyncExternalStore,
 } from 'react'
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { Box, Text } from '../ink.js'
 import { stringWidth } from '../ink/stringWidth.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
@@ -108,7 +109,7 @@ export function SpinnerWithVerb({
   const engineModel = useSyncExternalStore(subscribeFocusedSpinnerModel, getFocusedSpinnerModel, getFocusedSpinnerModel)
   const reducedMotion =
     useAppState(state => state.settings.view?.reducedMotion === true) ||
-    isEnvTruthy(process.env.MERCURY_REDUCED_MOTION)
+    isEnvTruthy(flagEnv('MERCURY_REDUCED_MOTION'))
   const expandedView = useAppState(state => state.expandedView)
   const appEffort = useAppState(state => state.effortValue)
   const mission = useFocusedMission()
@@ -258,7 +259,7 @@ const STAR_TICK_MS = 160
 export function Spinner(): React.ReactNode {
   const reducedMotion =
     useAppState(state => state.settings.view?.reducedMotion === true) ||
-    isEnvTruthy(process.env.MERCURY_REDUCED_MOTION)
+    isEnvTruthy(flagEnv('MERCURY_REDUCED_MOTION'))
   useNowTick(reducedMotion ? null : STAR_TICK_MS)
   if (reducedMotion) {
     return <Text color="claude">● </Text>

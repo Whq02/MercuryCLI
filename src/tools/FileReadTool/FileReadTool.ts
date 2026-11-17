@@ -4,6 +4,7 @@ import { basename, dirname, join } from 'node:path'
 
 import { z } from 'zod/v4'
 
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { buildTool, type ToolUseContext } from '../../Tool.js'
 import { anchorPatchEnabled } from '../../services/changeTransaction/anchorPatch.js'
 import { staleEditRecoveryEnabled } from '../../services/changeTransaction/stalePatchRecovery.js'
@@ -2109,7 +2110,7 @@ export const FileReadTool = buildTool({
       }
     }
 
-    if (remote === null && !isEnvTruthy(process.env.MERCURY_BARE)) {
+    if (remote === null && !isEnvTruthy(flagEnv('MERCURY_BARE'))) {
       try {
         const dirs = await discoverSkillDirsForPaths([fullFilePath], getCwd())
         const fresh = dirs.filter(dir => !context.dynamicSkillDirTriggers?.has(dir))

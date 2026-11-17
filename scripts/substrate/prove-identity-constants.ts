@@ -18,7 +18,7 @@ console.log('============================================================')
 
 const mainSrc = readFileSync(join(ROOT, 'src/main.tsx'), 'utf8')
 check("process.title = 'mercury'", mainSrc.includes("process.title = 'mercury'"))
-check('entrypoint init stamps the one MERCURY_ENTRYPOINT spelling', mainSrc.includes("process.env.MERCURY_ENTRYPOINT = mcpServe ? 'mcp' : isNonInteractive ? 'headless' : 'cli'"))
+check('entrypoint init stamps the one MERCURY_ENTRYPOINT spelling', mainSrc.includes("setFlagEnv('MERCURY_ENTRYPOINT', mcpServe ? 'mcp' : isNonInteractive ? 'headless' : 'cli')"))
 const mcpSrc = readFileSync(join(ROOT, 'src/entrypoints/mcp.ts'), 'utf8')
 check("mcp serve identity is 'mercury' (OP-4)", mcpSrc.includes("name: 'mercury'"))
 const wtSrc = readFileSync(join(ROOT, 'src/utils/worktree.ts'), 'utf8')

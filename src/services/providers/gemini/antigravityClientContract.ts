@@ -139,7 +139,7 @@ export function antigravityUserAgent(presented: AntigravityClientPresented = pre
 }
 
 export function antigravityManifestBase(env: NodeJS.ProcessEnv = process.env): string {
-  const pinned = (env === process.env ? flagEnv('MERCURY_ANTIGRAVITY_MANIFEST_BASE') : env['MERCURY_ANTIGRAVITY_MANIFEST_BASE'])?.trim()
+  const pinned = (env === process.env ? flagEnv('MERCURY_ANTIGRAVITY_MANIFEST_BASE') : flagEnv('MERCURY_ANTIGRAVITY_MANIFEST_BASE', env))?.trim()
   return pinned && /^https?:\/\//i.test(pinned) ? pinned.replace(/\/+$/, '') : ANTIGRAVITY_MANIFEST_DEFAULT_BASE
 }
 

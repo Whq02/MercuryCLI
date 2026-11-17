@@ -1,3 +1,4 @@
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { APIError, AuthenticationError, APIConnectionError, NotFoundError } from '../../services/api/sdkErrors.js'
 
 import { getEmptyToolPermissionContext } from '../../Tool.js'
@@ -429,7 +430,7 @@ export async function validateModel(model: string): Promise<ValidateModelResult>
     return { valid: false, error: `Model "${trimmed}" is not in the list of available models` }
   }
   if (isModelAlias(trimmed.toLowerCase())) return { valid: true }
-  if (trimmed === process.env.MERCURY_CUSTOM_MODEL_OPTION) return { valid: true }
+  if (trimmed === flagEnv('MERCURY_CUSTOM_MODEL_OPTION')) return { valid: true }
   if (validatedModels.has(trimmed)) return { valid: true }
 
   const { declaredRouteOf } = await import(

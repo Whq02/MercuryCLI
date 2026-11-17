@@ -1,3 +1,4 @@
+import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { getGlobalConfig } from '../../../utils/config.js'
 import { getSettingsForSource } from '../../../utils/settings/settings.js'
 import { COMPAT_ENDPOINT_NAME, CompatEndpointSchema, CompatProviderSchema, type CompatEndpointSettings } from '../../../utils/settings/compatProvider.js'
@@ -36,15 +37,15 @@ export function configuredCompatEndpoints(env: NodeJS.ProcessEnv = process.env):
   const entries: Array<[string, CompatEndpointSettings]> = named
     ? Object.entries(block) as Array<[string, CompatEndpointSettings]>
     : [['default', block as CompatEndpointSettings]]
-  if (named && !Object.hasOwn(block, 'default') && env.MERCURY_COMPAT_BASE_URL?.trim()) entries.unshift(['default', {}])
+  if (named && !Object.hasOwn(block, 'default') && flagEnv('MERCURY_COMPAT_BASE_URL', env)?.trim()) entries.unshift(['default', {}])
   const endpoints: CompatEndpoint[] = []
   for (const [name, entry] of entries) {
-    const baseUrl = (name === 'default' ? env.MERCURY_COMPAT_BASE_URL?.trim() || entry.baseUrl?.trim() : entry.baseUrl?.trim())?.replace(/\/+$/, '')
+    const baseUrl = (name === 'default' ? flagEnv('MERCURY_COMPAT_BASE_URL', env)?.trim() || entry.baseUrl?.trim() : entry.baseUrl?.trim())?.replace(/\/+$/, '')
     if (!baseUrl) continue
     const validated = CompatProviderSchema().safeParse({ baseUrl })
     if (!validated.success) throw new Error(`compatProvider.${name}.baseUrl: must be an http(s) URL without credentials, query or fragment`)
-    const label = (name === 'default' ? env.MERCURY_COMPAT_LABEL?.trim() : undefined) || entry.label?.trim() || (named ? name : 'Custom endpoint')
-    const envModels = name === 'default' ? env.MERCURY_COMPAT_MODELS?.trim() : undefined
+    const label = (name === 'default' ? flagEnv('MERCURY_COMPAT_LABEL', env)?.trim() : undefined) || entry.label?.trim() || (named ? name : 'Custom endpoint')
+    const envModels = name === 'default' ? flagEnv('MERCURY_COMPAT_MODELS', env)?.trim() : undefined
     const models = envModels ? envModels.split(',').map(id => id.trim()).filter(Boolean) : (entry.models ?? []).map(id => id.trim()).filter(Boolean)
     endpoints.push({ ...entry, name, named, baseUrl, label, models })
   }
@@ -85,7 +86,7 @@ export function compatKeyEnvName(name: string): string {
 }
 
 export function resolveCompatApiKey(env: Record<string, string | undefined> = process.env, name = 'default'): { key: string; source: 'env' | 'stored' } | undefined {
-  const envKey = (name === 'default' ? env.MERCURY_COMPAT_API_KEY?.trim() : undefined) || env[compatKeyEnvName(name)]?.trim()
+  const envKey = (name === 'default' ? flagEnv('MERCURY_COMPAT_API_KEY', env)?.trim() : undefined) || env[compatKeyEnvName(name)]?.trim()
   if (envKey) return { key: envKey, source: 'env' }
   const fromCommand = resolveProviderKeyCommand(`compat:${name}`)
   if (fromCommand) return { key: fromCommand, source: 'stored' }
@@ -96,7 +97,7 @@ export function resolveCompatApiKey(env: Record<string, string | undefined> = pr
 function compatEndpointAccount(endpoint: CompatEndpoint, env: NodeJS.ProcessEnv): { kind: 'api-key' | 'keyless'; label: string; keySource?: 'env' | 'stored' } | undefined {
   const key = resolveCompatApiKey(env, endpoint.name)
   if (key) {
-    const envName = endpoint.name === 'default' && env.MERCURY_COMPAT_API_KEY?.trim() ? 'MERCURY_COMPAT_API_KEY' : compatKeyEnvName(endpoint.name)
+    const envName = endpoint.name === 'default' && flagEnv('MERCURY_COMPAT_API_KEY', env)?.trim() ? 'MERCURY_COMPAT_API_KEY' : compatKeyEnvName(endpoint.name)
     return { kind: 'api-key', label: key.source === 'env' ? `${endpoint.label} — ${envName} (env)` : `${endpoint.label} — API key (stored, auth-scoped)`, keySource: key.source }
   }
   if (configuredProviderKeyCommand(`compat:${endpoint.name}`)) return undefined
