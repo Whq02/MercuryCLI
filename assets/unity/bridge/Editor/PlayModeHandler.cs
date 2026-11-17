@@ -1,4 +1,3 @@
-
 using System.Collections.Generic;
 using UnityEditor;
 
@@ -6,9 +5,6 @@ namespace Mercury.UnityBridge
 {
     internal static class PlayModeHandler
     {
-        /** Domain reload on entering play is the DEFAULT; the project can
-         *  disable it via Enter Play Mode Settings (enterPlayModeOptions
-         *  DisableDomainReload). */
         public static bool WillReloadOnPlay()
         {
             if (!EditorSettings.enterPlayModeOptionsEnabled) return true;

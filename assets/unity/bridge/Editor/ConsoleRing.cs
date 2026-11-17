@@ -1,4 +1,3 @@
-
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -73,7 +72,6 @@ namespace Mercury.UnityBridge
             }
         }
 
-        /** The tail: newest-last, floor-filtered, bounded by limit. */
         public static Dictionary<string, object> Tail(int limit, string severityFloor)
         {
             int floor = Rank(severityFloor ?? "log");

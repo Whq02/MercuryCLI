@@ -1,4 +1,3 @@
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -13,11 +12,6 @@ namespace Mercury.UnityBridge
 
         private static string _cachedRoot;
 
-        /** The project root: Application.dataPath is <project>/Assets.
-         *  CACHED on first call — the first call happens in the server's
-         *  [InitializeOnLoad] static constructor ON THE MAIN THREAD, and
-         *  every later socket-thread read (the per-hello token read) sees
-         *  only the cached string, never the Unity API. */
         public static string ProjectRoot()
         {
             if (_cachedRoot == null)
@@ -47,8 +41,6 @@ namespace Mercury.UnityBridge
             return DefaultPort;
         }
 
-        /** Null when absent/malformed — the server then refuses every hello
-         *  with the install hint instead of running open. */
         public static string ReadToken()
         {
             try
@@ -70,8 +62,6 @@ namespace Mercury.UnityBridge
             }
         }
 
-        /** True when the absolute path stays inside the project root — every
-         *  path-taking verb runs its arguments through this fence. */
         public static bool InsideProject(string absolutePath)
         {
             try
@@ -87,9 +77,6 @@ namespace Mercury.UnityBridge
             }
         }
 
-        /** Resolve a wire path argument (absolute, or project-relative like
-         *  "Assets/Scenes/Main.unity") to an absolute path inside the
-         *  project; null when it escapes. */
         public static string ResolveInsideProject(string wirePath)
         {
             if (string.IsNullOrEmpty(wirePath)) return null;
