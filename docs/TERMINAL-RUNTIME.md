@@ -309,8 +309,11 @@ own libraries and the Linux binary is static. A command starts from the
 environment Mercury was started with, PATH first, and from the aliases,
 functions and options of your bash files (`~/.bash_profile` or `~/.profile`
 at login, `~/.bashrc`); what is written for zsh in `~/.zshrc` or `~/.zshenv`
-is not read. The session's shell line and the health check's `shell` row name
-the shell that runs and its version.
+is not read. The session's shell line names the shell that runs and its
+version. Inside a command `$SHELL` names the shipped bash; a `bash` the
+command starts by name, or a script that begins `#!/usr/bin/env bash`, runs
+whichever bash PATH finds, which on a Mac is the system's 3.2 unless a newer
+one stands earlier on PATH.
 
 The optional **brush** engine is a vendored Rust bash-compatible shell (MIT),
 shipped as an upstream release binary per platform at

@@ -189,6 +189,10 @@ export function completionDialect(): ShellDialect | null {
   return 'bash'
 }
 
+export function profileShellWords(record: ShellRecord | null): string {
+  return windowsShellRoadActive() ? 'bash or zsh' : (record?.dialect ?? 'bash')
+}
+
 export const OLD_BASH_SENTENCE =
   "on this bash a here-document inside $( ) breaks when its text holds an unpaired quote, backquote or parenthesis or a line ending in a backslash, so give such text to the command on standard input instead (git commit -F - <<'EOF')"
 

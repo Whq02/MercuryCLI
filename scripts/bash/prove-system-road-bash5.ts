@@ -233,12 +233,27 @@ const roadOf = (report: Report): { bash: string; brush: string; zsh: string; she
 }
 const told = (report: Report): string => `exit ${String(report.exitCode)} · ${report.served} requests · results ${JSON.stringify(report.results.map(result => result.text.slice(0, 160)))} · stderr ${JSON.stringify(report.stderr.slice(-300))}`
 
-function judge(where: string, shipped: Report, away: Report, bare: Report | null, bareWhy: string): void {
-  const first = roadOf(shipped)
-  check(`${where}: a session from the built bundle prints the pinned BASH_VERSION through the Bash tool (${PINNED})`, first?.bash === PINNED, told(shipped))
-  check(`${where}: the shell that ran is the bundle's own bash, and $SHELL names it though the session's $SHELL named zsh`, first !== null && first.shell.endsWith('/bash') && first.shell.includes('/vendor/bash/') && first.zsh === 'none' && first.brush === 'none', JSON.stringify(first))
-  check(`${where}: the prompt's shell line names that shell and its version`, shipped.shellLines.length === 1 && shipped.shellLines[0] === `Shell: bash ${bashLock.version}`, JSON.stringify(shipped.shellLines))
-  check(`${where}: the Bash tool's description names the dialect of that shell`, shipped.description.includes('each call starts from your profile (bash).'), shipped.description.slice(-140))
+type Pack = { carried: boolean; why: string }
+function packOf(bundle: string): Pack {
+  const manifestPath = join(dirname(bundle), 'manifest.json')
+  if (!existsSync(manifestPath)) return { carried: false, why: `${manifestPath} is absent` }
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { bash?: { vendored?: boolean; remedy?: string } }
+  return manifest.bash?.vendored === true ? { carried: true, why: '' } : { carried: false, why: manifest.bash?.remedy ?? 'its manifest records no bash pack' }
+}
+
+function judge(where: string, pack: Pack, shipped: Report, away: Report, bare: Report | null, bareWhy: string): void {
+  check(
+    `${where}: the bundle under proof carries the bash pack`,
+    pack.carried,
+    `${pack.why} — build the pack (bun run scripts/vendor/build-bash.ts, with --target <release target> for another platform), rebuild the bundle (bun run build.ts) and run this proof again; the legs on the system bash and on the engine are judged below`,
+  )
+  if (pack.carried) {
+    const first = roadOf(shipped)
+    check(`${where}: a session from the built bundle prints the pinned BASH_VERSION through the Bash tool (${PINNED})`, first?.bash === PINNED, told(shipped))
+    check(`${where}: the shell that ran is the bundle's own bash, and $SHELL names it though the session's $SHELL named zsh`, first !== null && first.shell.endsWith('/bash') && first.shell.includes('/vendor/bash/') && first.zsh === 'none' && first.brush === 'none', JSON.stringify(first))
+    check(`${where}: the prompt's shell line names that shell and its version`, shipped.shellLines.length === 1 && shipped.shellLines[0] === `Shell: bash ${bashLock.version}`, JSON.stringify(shipped.shellLines))
+    check(`${where}: the Bash tool's description names the dialect of that shell`, shipped.description.includes('each call starts from your profile (bash).'), shipped.description.slice(-140))
+  }
 
   const second = roadOf(away)
   const system = away.system
@@ -299,7 +314,7 @@ try {
     } else {
       bareWhy = `nothing on ${process.platform} hides the system bash from one process without changing the machine; the container leg (--linux-dist) renames it inside a container`
     }
-    judge(process.platform === 'darwin' ? 'macOS' : process.platform, shipped, away, bare, bareWhy)
+    judge(process.platform === 'darwin' ? 'macOS' : process.platform, packOf(DIST), shipped, away, bare, bareWhy)
   }
 
   if (LINUX_DIST !== undefined) {
@@ -315,7 +330,7 @@ try {
       const script = [leg('shipped', []), leg('away', ['--without-pack']), leg('no-bash', ['--without-pack', '--hide-bash'])].join(' ; ')
       const ran = spawnSync('docker', ['run', '--rm', '--network', 'none', '-v', `${linuxDist}:/dist:ro`, '-v', `${dirname(driver)}:/drive:ro`, '-v', `${out}:/out`, LINUX_IMAGE, 'sh', '-c', script], { encoding: 'utf8', timeout: 600_000 })
       const report = (name: string): Report => readReport(join(out, `${name}.json`)) ?? empty(`the container wrote no report for ${name} (exit ${String(ran.status)}): ${(ran.stderr ?? '').slice(-400)}`)
-      judge(`Linux container (${LINUX_IMAGE})`, report('shipped'), report('away'), report('no-bash'), '')
+      judge(`Linux container (${LINUX_IMAGE})`, packOf(join(linuxDist, 'mercury.mjs')), report('shipped'), report('away'), report('no-bash'), '')
     }
   } else {
     note('the Linux container legs run with --linux-dist <a dist built for linux-arm64 or linux-x64>')
