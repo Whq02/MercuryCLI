@@ -18,6 +18,8 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
 const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.js')
 const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.js')
 const { parseForSecurity } = await import('../../src/utils/permissions/decision/commandAnalysis.js')
+const { refusalOfShellCommand } = await import('../../src/utils/wards/wardsRefusals.js')
+const { shellCredentialWritePath, shellSelfProtectionReason } = await import('../../src/utils/permissions/shellProtectedPaths.js')
 
 const bash = {
   name: 'Bash',
@@ -92,6 +94,43 @@ for (const [label, command, want] of CONTROLS) {
 const heredoc = await parseForSecurity("cat <<'EOF'\nrm -rf /\nEOF")
 check('a here-document body on the next lines reads as before', heredoc.kind === 'simple', shown(heredoc))
 check('a read-only pipeline of three stages alone is still allowed with no question', (await decide('ls | sort | head')) === 'allow')
+
+const texts = (second: string): string[] => [...pipelines, 'ls | sort |& head', 'ls | sort | head -n 3'].flatMap(first => BREAKS.flatMap(lineBreak => TAILS.map(tail => `${first}${lineBreak}${second}${tail}`)))
+const STOPPED: Array<[string, string]> = [['sudo zzarg', 'no-sudo'], ['shutdown -h now', 'no-system-halt'], ['crontab zzjobs.txt', 'cron-persist'], ['git config --global user.name zz', 'git-config-global']]
+const ward = async (command: string): Promise<string> => {
+  const verdict = await refusalOfShellCommand({ toolName: 'Bash', input: { command }, shellCommand: command } as never, '/work')
+  return verdict.allow ? 'allowed' : (verdict.rule?.name ?? 'refused')
+}
+for (const [program, name] of STOPPED) {
+  const passed: string[] = []
+  const all = [...texts(program), ...texts(`zzfirst && ${program}`), ...texts(`zzfirst; ${program}`)]
+  for (const command of all) if ((await ward(command)) !== name) passed.push(shown(command))
+  check(`the ward ${name} refuses ${program} alone and on the line after a pipeline (${all.length} texts)`, (await ward(program)) === name && passed.length === 0, `${passed.length} not refused by it, e.g. ${passed[0]}`)
+}
+check('a command the wards stop nowhere is allowed on the line after a pipeline', (await ward('ls | sort | head\nzzprog zzarg 2>/dev/null')) === 'allowed')
+
+const FLOORS: Array<[string, string, (command: string, powershell: boolean, cwd: string) => Promise<unknown>]> = [
+  ['a write to the keys a login accepts', 'tee -a ~/.ssh/authorized_keys', shellCredentialWritePath],
+  ['a copy over the keys a login accepts', 'cp zzkey.pub ~/.ssh/authorized_keys', shellCredentialWritePath],
+  ["a recursive delete of Mercury's own home", `rm -rf ${join(scratch, 'home')}`, shellSelfProtectionReason],
+]
+for (const [label, program, floor] of FLOORS) {
+  const passed: string[] = []
+  const all = texts(program)
+  for (const command of all) if ((await floor(command, false, '/work')) === null) passed.push(shown(command))
+  check(`${label} is stopped alone and on the line after a pipeline (${all.length} texts)`, (await floor(program, false, '/work')) !== null && passed.length === 0, `${passed.length} passed, e.g. ${passed[0]}`)
+}
+
+const ruled = async (command: string, mode: string): Promise<string> => (await bashToolHasPermission({ command }, { ...getEmptyToolPermissionContext(), mode, alwaysAllowRules: {}, alwaysDenyRules: { localSettings: ['Bash(zzprog *)'] }, alwaysAskRules: {} } as never)).behavior
+for (const mode of ['sovereign', 'flow']) {
+  const passed: string[] = []
+  const all = SECONDS.flatMap(texts)
+  for (const command of all) if ((await ruled(command, mode)) !== 'deny') passed.push(shown(command))
+  check(`in ${mode} mode a deny rule on a program denies it alone and on the line after a pipeline (${all.length} texts)`, (await ruled('zzprog zzarg', mode)) === 'deny' && passed.length === 0, `${passed.length} not denied, e.g. ${passed[0]}`)
+}
+const asked: string[] = []
+for (const command of SECONDS.flatMap(texts)) if ((await ruled(command, 'default')) === 'allow') asked.push(shown(command))
+check('in default mode the same rule never lets it through with no question', asked.length === 0, `${asked.length} allowed, e.g. ${asked[0]}`)
 
 const refused = await parseForSecurity('ls | sort | head\nzzprog zzarg 2>/dev/null')
 check('the refusal says what to change', refused.kind === 'too-complex' && /line break/.test(refused.reason) && /; or &&/.test(refused.reason), shown(refused))

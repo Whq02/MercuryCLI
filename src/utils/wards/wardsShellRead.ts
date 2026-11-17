@@ -1,6 +1,6 @@
 import { posix } from 'node:path'
 import { peelWrappers, shellCommandText } from '../bash/ast.js'
-import { parseCommandRaw, type Node } from '../bash/parser.js'
+import { misreadWordList, parseCommandRaw, type Node } from '../bash/parser.js'
 
 export const UNREAD_PART = '\uFFFC'
 
@@ -1449,7 +1449,7 @@ async function readInto(reading: Reading, text: string, frame: Frame, depth: num
       reading.markUnread(text.length > 10_000 ? 'it is longer than the shell parser reads' : 'the shell parser is not available', text)
       return
     }
-    if (root.type === 'ERROR') reading.markUnread('the shell parser found incomplete or invalid syntax in it', text)
+    if (root.type === 'ERROR') reading.markUnread(misreadWordList(root) === null ? 'the shell parser found incomplete or invalid syntax in it' : 'a line break stands between the words of one command in it', text)
     new PosixWalk(reading, text).node(root.type === 'ERROR' ? { ...root, type: 'program' } : root, frame)
   }
   const scripts = reading.pending.splice(from)

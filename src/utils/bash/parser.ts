@@ -7,6 +7,9 @@ export type Node = TsNode
 const LONGEST_PARSEABLE_COMMAND = 10_000
 
 export const PARSE_ABORTED: unique symbol = Symbol('PARSE_ABORTED')
+export type WordListFault = 'unplaced' | 'line-break'
+const JOINED_LINE = /\\\r?\n/g
+const WORD_LISTS = ['command', 'declaration_command', 'unset_command']
 type RawParse = Node | null | typeof PARSE_ABORTED
 const parseScope = new AsyncLocalStorage<Map<string, Promise<RawParse>>>()
 let lastCommand: string | undefined
@@ -39,6 +42,26 @@ export function withBashParseScope<T>(run: () => T): T {
   return parseScope.getStore() ? run() : parseScope.run(new Map(), run)
 }
 
+export function wordListFault(node: Node): WordListFault | null {
+  if (node.text.length !== node.endIndex - node.startIndex) return 'unplaced'
+  let end: number | null = null
+  for (const child of node.children) {
+    if (end !== null && node.text.slice(end - node.startIndex, child.startIndex - node.startIndex).replace(JOINED_LINE, '').includes('\n')) return 'line-break'
+    end = child.endIndex
+  }
+  return null
+}
+
+export function misreadWordList(node: Node): WordListFault | null {
+  const own = WORD_LISTS.includes(node.type) ? wordListFault(node) : null
+  if (own !== null) return own
+  for (const child of node.children) {
+    const inner = misreadWordList(child)
+    if (inner !== null) return inner
+  }
+  return null
+}
+
 function snapshot(root: TSNode): Node {
   const copy = (node: TSNode): Node => ({
     type: node.isMissing ? 'ERROR' : node.type,
@@ -48,7 +71,7 @@ function snapshot(root: TSNode): Node {
     children: node.children.filter((child): child is TSNode => child !== null).map(copy),
   })
   const result = copy(root)
-  if (root.hasError) result.type = 'ERROR'
+  if (root.hasError || misreadWordList(result) !== null) result.type = 'ERROR'
   return result
 }
 

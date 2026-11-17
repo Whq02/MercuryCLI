@@ -1,7 +1,7 @@
 import { SHELL_KEYWORDS } from './bashParser.js'
 import { hiddenCommandCharacterReason } from '../sanitization.js'
 import { extractHeredocs } from './heredoc.js'
-import { PARSE_ABORTED, parseCommandRaw, preparedCommandRoot, type Node } from './parser.js'
+import { misreadWordList, PARSE_ABORTED, parseCommandRaw, preparedCommandRoot, wordListFault, type Node, type WordListFault } from './parser.js'
 
 export type Redirect = {
   op: '>' | '>>' | '<' | '<<' | '>&' | '>|' | '<&' | '&>' | '&>>' | '<<<'
@@ -84,7 +84,10 @@ const REFUSED_KINDS: readonly string[] = [
 ]
 
 function refuseNode(node: Node): never {
-  if (node.type === 'ERROR') refuse('the shell parser found incomplete or invalid syntax; fix the quotes or operators, or approve', node.type)
+  if (node.type === 'ERROR') {
+    refuseWordListFault(misreadWordList(node), node.type)
+    refuse('the shell parser found incomplete or invalid syntax; fix the quotes or operators, or approve', node.type)
+  }
   if (node.type === 'command_substitution') refuse('a command substitution supplies an argument at runtime; spell out its value or run the inner command separately, or approve', node.type)
   if (node.type === 'process_substitution') refuse('a process substitution starts another command; run that command separately, or approve', node.type)
   if (node.type === 'simple_expansion' || node.type === 'expansion') refuse(`the expansion ${JSON.stringify(node.text)} supplies a value at runtime; spell out the value, or approve`, node.type)
@@ -224,19 +227,9 @@ function refuseBraceExpansion(node: Node): void {
   if (BRACE_EXPANSION_RE.test(node.text)) refuse('contains brace expansion syntax', node.type)
 }
 
-const JOINED_LINE_RE = /\\\r?\n/g
-
-function refuseLineBreakBetweenWords(node: Node): void {
-  if (node.text.length !== node.endIndex - node.startIndex) {
-    refuse('the shell parser cannot place the words of this command in its text; split it into explicit commands, or approve', node.type)
-  }
-  let end: number | null = null
-  for (const child of node.children) {
-    if (end !== null && node.text.slice(end - node.startIndex, child.startIndex - node.startIndex).replace(JOINED_LINE_RE, '').includes('\n')) {
-      refuse('a line break stands between the words of one command, and the shell runs what follows it as a command of its own; put a ; or && between the two commands, or approve', node.type)
-    }
-    end = child.endIndex
-  }
+function refuseWordListFault(fault: WordListFault | null, nodeType: string): void {
+  if (fault === 'unplaced') refuse('the shell parser cannot place the words of this command in its text; split it into explicit commands, or approve', nodeType)
+  if (fault === 'line-break') refuse('a line break stands between the words of one command, and the shell runs what follows it as a command of its own; put a ; or && between the two commands, or approve', nodeType)
 }
 
 function unescapeWord(text: string): string {
@@ -896,7 +889,7 @@ class Walk {
   }
 
   command(node: Node, scope: Scope): void {
-    refuseLineBreakBetweenWords(node)
+    refuseWordListFault(wordListFault(node), node.type)
     const argv: string[] = []
     const envVars: { name: string; value: string }[] = []
     const redirects: Redirect[] = []
@@ -957,7 +950,7 @@ class Walk {
   }
 
   declaration(node: Node, scope: Scope): void {
-    refuseLineBreakBetweenWords(node)
+    refuseWordListFault(wordListFault(node), node.type)
     const argv: string[] = []
 
     for (const child of node.children) {
@@ -1017,7 +1010,7 @@ class Walk {
   }
 
   unset(node: Node, scope: Scope): void {
-    refuseLineBreakBetweenWords(node)
+    refuseWordListFault(wordListFault(node), node.type)
     const argv: string[] = []
     for (const child of node.children) {
       if (argv.length === 0 && (child.type === 'unset' || child.type === 'unsetenv')) {
