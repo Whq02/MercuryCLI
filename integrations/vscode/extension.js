@@ -1,4 +1,3 @@
-
 'use strict'
 
 const vscode = require('vscode')
@@ -8,12 +7,10 @@ const { randomUUID } = require('node:crypto')
 
 const ACP_PROTOCOL_VERSION = 1
 
-
 let output = null
 function log(line) {
   if (output) output.appendLine(`${new Date().toISOString().slice(11, 19)} ${line}`)
 }
-
 
 class AcpClient {
   constructor(command, args, cwd, onNotification, onExit) {
@@ -130,7 +127,6 @@ class AcpClient {
   }
 }
 
-
 let client = null
 let activeSessionId = null
 let sessionModes = null
@@ -227,7 +223,6 @@ async function ensureSession(context) {
   return activeSessionId
 }
 
-
 function firstLocation(update) {
   const loc = Array.isArray(update.locations) && update.locations.length > 0 ? update.locations[0] : null
   if (!loc) return ''
@@ -319,7 +314,6 @@ async function handleAgentMessage(method, params, respond) {
   }
 }
 
-
 class PreviewProvider {
   constructor() {
     this.docs = new Map()
@@ -364,7 +358,6 @@ async function closeTabsWhere(predicate) {
   if (matching.length > 0) await groups.close(matching, true)
   return matching.length
 }
-
 
 let chatSeq = 0
 
@@ -503,7 +496,6 @@ async function sendPrompt(context, text, extraBlocks) {
   refreshAllViews()
 }
 
-
 let contextTimer = null
 
 function liveContextEnabled() {
@@ -565,7 +557,6 @@ function pushEditorContext() {
   }, 250)
 }
 
-
 class SimpleTree {
   constructor(fetchRows) {
     this.fetchRows = fetchRows
@@ -609,7 +600,6 @@ function treeItem(label, description, tooltip, command) {
   return item
 }
 
-
 async function showReviewComments(context) {
   const c = await ensureClient(context)
   const artifacts = await c.request('_mercury/artifacts', {})
@@ -646,7 +636,6 @@ async function showReviewComments(context) {
   }
   vscode.window.setStatusBarMessage(`Mercury: ${decorated} review comment(s) decorated`, 5000)
 }
-
 
 function activate(context) {
   output = vscode.window.createOutputChannel('Mercury')
