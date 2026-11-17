@@ -5,6 +5,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { isFlagRegistryFile } from '../lib/flagRegistrySource.ts'
 import { runTurns, type TurnRequest } from '../lib/rows.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -177,7 +178,7 @@ section('§4 the spawn roads — every road answers the receipt, and nothing out
   const owner = src('src/services/switchboard/spawnSwitches.ts')
   check('the owner attributes through realEnvPin (the one boot-env attribution owner)', owner.includes('realEnvPin(row, env) !== null'))
   const srcWalk = (dir: string): string[] => readdirSync(join(ROOT, dir), { withFileTypes: true }).flatMap(e => (e.isDirectory() ? srcWalk(join(dir, e.name)) : /\.(ts|tsx)$/.test(e.name) ? [join(dir, e.name)] : []))
-  const readers = srcWalk('src').filter(f => !f.endsWith('spawnSwitches.ts') && !f.endsWith('flagRegistry.ts') && !f.endsWith('startupMenu.ts') && (src(f).includes(SUB) || src(f).includes(WF)))
+  const readers = srcWalk('src').filter(f => !f.endsWith('spawnSwitches.ts') && !isFlagRegistryFile(f) && !f.endsWith('startupMenu.ts') && (src(f).includes(SUB) || src(f).includes(WF)))
   check('no second reader of the switch rows outside the owner (the registry and the menu table declare, never read — one owner per fact)', readers.length === 0, readers.join(','))
 }
 
