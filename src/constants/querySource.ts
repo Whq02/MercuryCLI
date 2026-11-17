@@ -22,7 +22,6 @@ type ClassifierSource =
 
 type UtilitySource =
   | 'side_question'
-  | 'speculation'
   | 'verification_agent'
   | 'agent_creation'
   | 'agent_summary'

@@ -94,6 +94,9 @@ section('(2) provider shape — every op present; effectful ops bound, not drive
   for (const op of ops) {
     check(`op ${op} bound`, typeof (pinnedCommandAnalysis as Record<string, unknown>)[op] === 'function')
   }
+  const held = Object.keys(pinnedCommandAnalysis).sort().join(' ')
+  const listed = [...ops].sort().join(' ')
+  check('the record holds these ops and no other', held === listed, `the record holds ${held}; this check lists ${listed}; an op that enters or leaves pinnedCommandAnalysis enters or leaves ops here`)
 }
 
 const SPLIT_CORPUS = [

@@ -576,12 +576,16 @@ const identityCheckers: CommandIdentityCheckers = {
   isDirectoryChange: isNormalizedCdCommand,
 }
 
-export function bashToolHasPermission(
+type TwoParameters<F extends (...args: never[]) => unknown> = [Parameters<F>['length']] extends [2] ? ([2] extends [Parameters<F>['length']] ? F : never) : never
+
+function ruleEntry(
   input: BashInput,
   context: ToolPermissionContext,
 ): Promise<PermissionResult> {
   return shellTextVerdict(input, context, true)
 }
+
+export const bashToolHasPermission: TwoParameters<typeof ruleEntry> = ruleEntry
 
 function shellTextVerdict(input: BashInput, context: ToolPermissionContext, knownForCommand: boolean): Promise<PermissionResult> {
   return withBashParseScope(async () => {
