@@ -8,6 +8,7 @@
 import { existsSync, mkdtempSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { flagRegistryFiles, flagRegistryText, isFlagRegistryFile } from '../lib/flagRegistrySource.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const scratch = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), 'mercury-memory-always-on-'))
@@ -65,7 +66,9 @@ const files: string[] = []
 for (const dir of ['src/mneme', 'src/tools/MemoryTools', 'src/components/memory', 'src/commands/memory', 'src/utils/capability', 'src/utils/cockpit', 'src/services/mcp', 'src/substrate', 'src/query', 'src/utils/attachments']) {
   walk(join(ROOT, dir), files)
 }
-const carriers = files.filter(p => /MERCURY_MNEME|MERCURY_MEMORY_OBSERVE|mneme_observe|mneme_catalog|mneme_grep|mneme_read|mneme_correct|mneme_retire/.test(readFileSync(p, 'utf8')))
+const gateWords = /MERCURY_MNEME|MERCURY_MEMORY_OBSERVE|mneme_observe|mneme_catalog|mneme_grep|mneme_read|mneme_correct|mneme_retire/
+const carriers = files.filter(p => !isFlagRegistryFile(p.slice(ROOT.length + 1)) && gateWords.test(readFileSync(p, 'utf8')))
+if (gateWords.test(flagRegistryText())) carriers.push(join(ROOT, flagRegistryFiles()[0]!))
 check('no memory source names a memory gate or the old observe verbs', carriers.length === 0, carriers.map(p => p.slice(ROOT.length + 1)).join(', '))
 
 console.log('\n' + '═'.repeat(76))
