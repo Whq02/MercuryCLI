@@ -217,6 +217,13 @@ let parentEnv: NodeJS.ProcessEnv = {}
     JSON.stringify(r),
   )
   check('default env: the owner reads process.env — the applied row is not a pin', menu.realEnvPin(B) === null)
+  const { settingsChecks } = await import('../../src/utils/health/sections/settings.ts')
+  const flagsRow = await settingsChecks().find(row => row.id === 'flags')?.run()
+  check(
+    "reader /health's Env overrides row: the applied row is a saved boot default, never an override",
+    flagsRow?.evidence.includes('saved boot defaults (boot-env.json, not an override): ') === true && flagsRow.evidence.includes(`${B}=${String(b1).slice(0, 12)}`) && !(flagsRow.detail ?? '').includes(`${B}=`),
+    flagsRow?.evidence,
+  )
   check('default env: bootEnvAppliedKeys (the in-process receipt) still names the apply', menu.bootEnvAppliedKeys().has(B))
   check(
     'default env: the snapshot on process.env reads the row as profile',
@@ -224,6 +231,14 @@ let parentEnv: NodeJS.ProcessEnv = {}
   )
   for (const sp of flagSpellings(B)) delete process.env[sp]
   delete process.env.MERCURY_BOOT_ENV_APPLIED
+  process.env[B] = 'set-by-hand'
+  const byHand = await settingsChecks().find(row => row.id === 'flags')?.run()
+  delete process.env[B]
+  check(
+    "reader /health's Env overrides row: never re-decides attribution from the in-process receipt — the receipt still names the row, and a value set by hand reads as an override",
+    menu.bootEnvAppliedKeys().has(B) && (byHand?.detail ?? '').includes(`${B}=set-by-hand (`) && byHand?.evidence.includes('saved boot defaults') === false,
+    `${byHand?.evidence} · ${byHand?.detail}`,
+  )
 }
 
 {
@@ -250,7 +265,7 @@ let parentEnv: NodeJS.ProcessEnv = {}
     'registry: the receipt is a registered self-stamped value row owned by the applier',
     registryRow?.kind === 'value' && registryRow.selfStamped === true && registryRow.consumer === 'src/substrate/startupMenu.ts',
   )
-  const readers = ['src/commands/caching/caching.tsx', 'src/utils/readiness.ts', 'src/utils/healthReport.ts']
+  const readers = ['src/commands/caching/caching.tsx', 'src/utils/readiness.ts']
   for (const f of readers) {
     const text = read(f)
     check(`reader ${f}: imports the one owner`, /import \{[^}]*\brealEnvPin\b[^}]*\} from '(?:\.\.\/)+substrate\/startupMenu\.js'/.test(text))

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { localFixture } from './localFixture.ts'
@@ -131,11 +131,10 @@ try {
   assert.ok(session.describeVoiceReadiness().detail.includes(`a debug copy of every take is written to ${dump}`))
   assert.ok(!session.describeVoiceReadiness().detail.includes('nothing is written to disk'))
   delete process.env.MERCURY_VOICE_DEBUG_WAV_DIR
-  const healthSource = readFileSync(join(import.meta.dir, '../../src/utils/healthReport.ts'), 'utf8')
-  const healthRow = healthSource.slice(healthSource.indexOf("id: 'iface-voice'"), healthSource.indexOf("id: 'iface-computer-use'"))
-  assert.ok(healthRow.includes('const readiness = describeVoiceReadiness()'))
-  assert.ok(healthRow.includes("readiness.ready ? ('ok' as const) : ('info' as const)"))
-  assert.ok(healthRow.includes('evidence: readiness.line, detail: readiness.detail'))
+  const { interfaceChecks } = await import('../../src/utils/health/sections/interface.ts')
+  const voiceSays = await interfaceChecks().find(row => row.id === 'iface-voice')?.run()
+  const readinessNow = session.describeVoiceReadiness()
+  assert.deepEqual(voiceSays, { status: readinessNow.ready ? 'ok' : 'info', evidence: readinessNow.line, detail: readinessNow.detail })
   assert.doesNotMatch(words.join('\n'), /API key|\/logins|openai|gemini/i)
   pending.edit('')
   await session.toggleVoiceCapture()

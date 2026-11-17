@@ -21,6 +21,8 @@
 # gate-watch: src/daemon/headlessRun.ts src/services/acp/childSession.ts src/services/host/jobs.ts src/services/projectServices/serviceManager.ts
 # gate-watch: src/components/Feedback.tsx docs/README.md docs/NIX.md nix/**
 # gate-watch: .gitignore scripts/lib/treeIgnore.ts
+# gate-watch: src/utils/health/sections/identity.ts
+# gate-watch: src/utils/health/sections/runtime.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"

@@ -45,9 +45,11 @@ const FILES = [
   'src/utils/healthReport.ts',
 ]
 
-const ALLOW: Array<[string, string, string]> = [
-  ['src/utils/healthReport.ts', 'clamped for tmux', 'the colour clamp names the real terminal the session runs inside'],
-  ['src/utils/healthReport.ts', 'terminal-overrides', "the same row's remedy for that real terminal"],
+const ALLOW: Array<[string, string, string]> = []
+
+const ROW_ALLOW: Array<[string, string]> = [
+  ['clamped for tmux', 'the colour clamp names the real terminal the session runs inside'],
+  ['terminal-overrides', "the same row's remedy for that real terminal"],
 ]
 
 type Hit = { line: number; text: string; needle: string }
@@ -141,6 +143,29 @@ for (const rel of FILES) {
   )
 }
 console.log(`  (${allowedCount} allowed literal(s) — each with its reason in ALLOW)`)
+
+console.log('— §1b the words the health rows print —')
+{
+  const globals = globalThis as Record<string, unknown>
+  if (globals.MACRO === undefined) globals.MACRO = { VERSION: '1.0.0' }
+  const { runHealthReport } = await import('../../src/utils/healthReport.ts')
+  const cert = await runHealthReport({ depth: 'fast' })
+  const fsV = await import('node:fs')
+  const osV = await import('node:os')
+  const places = [process.cwd(), osV.homedir(), osV.tmpdir(), process.env.MERCURY_CONFIG_DIR ?? '', cert.head.branch ?? ''].filter(place => place.length > 1)
+  const real = places.flatMap(place => {
+    try {
+      return [fsV.realpathSync(place)]
+    } catch {
+      return []
+    }
+  })
+  const machine = [...new Set([...places, ...real])].sort((a, b) => b.length - a.length)
+  const needles = NEEDLES.filter(([, re]) => !(process.env.TMUX !== undefined && re.test('tmux')))
+  const said = cert.sections.flatMap(entry => entry.checks.flatMap(row => [row.label, row.evidence, row.fix ?? ''].map(text => ({ id: row.id, text: machine.reduce((rest, place) => rest.split(place).join('…'), text) }))))
+  const retired = said.flatMap(piece => needles.filter(([, re]) => re.test(piece.text) && !ROW_ALLOW.some(([fragment]) => piece.text.includes(fragment))).map(([needle]) => `${piece.id} [${needle}] ${piece.text.slice(0, 100)}`))
+  check(`the rows of a fast certificate print no retired word in a label, an evidence line or a fix (${said.length} strings; this machine's folders and branch aside, and the multiplexer's name aside inside a real session of it)`, said.length > 0 && retired.length === 0, retired.join(' | '))
+}
 
 console.log('— §2 every allowed fragment still exists (no dead exception) —')
 for (const [file, fragment, reason] of ALLOW) {

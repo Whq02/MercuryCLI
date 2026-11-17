@@ -75,10 +75,23 @@ console.log('\nhealth coherence keys on the AUTH home (a foreign slot is not a s
   const restAuthHome = envUtils.getAuthConfigHomeDir()
   check('at rest the auth home is the resolved session home', restAuthHome === envUtils.getMercuryHome())
   check('at rest the env-less service is suffixed (the split test still bites on a bare one)', /-[0-9a-f]{8}$/.test(kc.getMacOsKeychainStorageServiceName()))
-  const healthSrc = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf-8')
-  check('health config-home keys the keychain test on getAuthConfigHomeDir()', healthSrc.includes('const authHome = getAuthConfigHomeDir()') && healthSrc.includes('UN-suffixed for the auth home'))
-  check('/health carries no foreign-home arm', !healthSrc.includes(".claude')"))
-  check('a live slot is NAMED in the ok evidence, never flagged', healthSrc.includes('auth scope slotted →'))
+  const rowHome = probe(true, saved.mcd ?? (await import('node:fs')).mkdtempSync(join((await import('node:os')).tmpdir(), 'config-home-row-')), undefined)
+  const { crewChecks } = await import('../../src/utils/health/sections/crew.js')
+  const configHomeRow = crewChecks().find(row => row.id === 'config-home')
+  const atRest = await configHomeRow?.run()
+  check('health config-home keys the keychain test on getAuthConfigHomeDir()', atRest?.status === 'ok' && atRest.evidence.startsWith(`${rowHome} via explicit MERCURY_CONFIG_DIR · keychain …${kc.getMacOsKeychainStorageServiceName().slice(-12)}`) && !atRest.evidence.includes('auth scope slotted'), atRest?.evidence)
+  envUtils.setAuthScope(join(home, '.claude'))
+  let slotted: { status: string; evidence: string } | undefined
+  let slotHome = ''
+  try {
+    slotHome = envUtils.getAuthConfigHomeDir()
+    slotted = await configHomeRow?.run()
+  } finally {
+    envUtils.clearAuthScope()
+  }
+  check('/health carries no foreign-home arm', slotted?.status === 'ok', slotted?.evidence)
+  check('a live slot is NAMED in the ok evidence, never flagged', slotted?.status === 'ok' && slotted.evidence.includes(`auth scope slotted → ${slotHome}`), slotted?.evidence)
+  probe(true, undefined, undefined)
 }
 
 console.log('\nstore-plane agreement — every inline resolver follows the ONE resolver')

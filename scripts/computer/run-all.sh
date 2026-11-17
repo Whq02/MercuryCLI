@@ -25,6 +25,7 @@
 # gate-watch: src/services/eval/kernelManager.ts src/tools/EvalTool/EvalTool.ts
 # gate-watch: src/services/providers/gemini/geminiCodec.ts src/services/schema/jsonSchemaEngine.ts
 # gate-watch: docs/COMPUTER-USE.md src/cli/headless/runnerAsks.ts src/daemon/concourseWorkers.ts src/daemon/permissionAsks.ts src/runner/wire/peer.ts src/services/engine-connector/daemonConnector.ts src/tools/BashTool/webContent.ts src/utils/messages/rejectionText.ts src/utils/permissions/askClock.ts
+# gate-watch: src/utils/health/sections/interface.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

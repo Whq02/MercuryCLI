@@ -176,8 +176,19 @@ section('§5 one owner: the verb ages, /health\'s sentence, the connector\'s rec
   for (const [verb, v] of Object.entries(born)) check(`the age table agrees with the wire's history: ${verb} → v${v}`, DAEMON_VERB_BORN_AT[verb] === v, `table says ${DAEMON_VERB_BORN_AT[verb]}`)
   check('an action born after its op reads its own age; a verb the wire has always had reads the floor', verbBornAt('sessionControl', 'set-spawn-switch') === 6 && verbBornAt('sessionControl', 'pause') === 3 && verbBornAt('ping') === MIN_PROTO)
   check("the door's default binary is the product's one launcher (binaryName)", restartDaemonWords() === restartDaemonWords(binaryName()))
-  const health = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
-  check("/health's older-daemon row reads the one sentence owner", health.includes('restartDaemonWords(binaryName())') && !health.includes('`restart the daemon: \\`${binaryName()} daemon restart\\``'))
+  {
+    const fsH = await import('node:fs')
+    const rowPlane = fsH.mkdtempSync((await import('node:path')).join((await import('node:os')).tmpdir(), 'health-daemon-row-'))
+    const planeBefore = process.env.MERCURY_DAEMON_DIR
+    process.env.MERCURY_DAEMON_DIR = rowPlane
+    const { daemonStatePath } = await import('../../src/daemon/controlSocket.ts')
+    fsH.writeFileSync(daemonStatePath(), JSON.stringify({ pid: process.pid, version: '0.0.0-fixture', startedAt: Date.now() }))
+    const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+    const signInRow = await crewChecks().find(row => row.id === 'daemon-sign-ins')?.run()
+    if (planeBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
+    else process.env.MERCURY_DAEMON_DIR = planeBefore
+    check("/health's older-daemon row reads the one sentence owner", signInRow?.status === 'warn' && signInRow.evidence.endsWith('— a daemon of an older build') && signInRow.fix === `${restartDaemonWords(binaryName())} — the successor answers the sign-in verb.`, JSON.stringify(signInRow))
+  }
   const connector = readFileSync(join(ROOT, 'src', 'services', 'engine-connector', 'daemonConnector.ts'), 'utf8')
   check("the connector's rewind receipt carries the door's sentence whole (no second spelling)", connector.includes("reply.refusal === 'daemon-older'") && !connector.includes('the daemon predates the rewind verb'))
   check("the connector's crew verbs carry the door's sentence whole (no second spelling)", !connector.includes('the daemon predates the crew stop and resume verbs'))

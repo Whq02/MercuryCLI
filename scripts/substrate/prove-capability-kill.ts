@@ -202,10 +202,18 @@ section('FC-145 — malformed MERCURY_AGENT_CAP: forgive, clamp, name')
       'the cockpit posture row names unreadable parts (call-shaped)',
       /getAgentCapParseRejects/.test(snapshotSrc) && /FAIL CLOSED/.test(snapshotSrc),
     )
-    const healthSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'healthReport.ts'), 'utf8')
+    const capBefore = process.env.MERCURY_AGENT_CAP
+    process.env.MERCURY_AGENT_CAP = 'worker:max-risk=sideways'
+    const { settingsChecks } = await import('../../src/utils/health/sections/settings.ts')
+    const { getAgentCapParseRejects: rejectsNow } = await import('../../src/utils/permissions/capabilityGate.ts')
+    const killsSays = await settingsChecks().find(row => row.id === 'kills')?.run()
+    const capRejects = rejectsNow()
+    if (capBefore === undefined) delete process.env.MERCURY_AGENT_CAP
+    else process.env.MERCURY_AGENT_CAP = capBefore
     check(
       '/health gate row consults the rejects and can WARN (call-shaped)',
-      /getAgentCapParseRejects/.test(healthSrc) && /capRejects\.length > 0/.test(healthSrc),
+      capRejects.length > 0 && killsSays?.status === 'warn' && killsSays.evidence.includes(`agent-cap posture: ${capRejects.length} unreadable part(s) FAIL CLOSED at max-risk=low`),
+      `${killsSays?.status}: ${killsSays?.evidence} · rejects: ${JSON.stringify(capRejects)}`,
     )
   }
 

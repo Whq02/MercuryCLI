@@ -169,8 +169,13 @@ section('§5 the wiring: the chat restores the held words to an empty composer a
   check('the /logins and /model completions ask the hold to resend with the composer taken once (rearmed)', chat.includes("if (seatCommand.name === 'logins' || seatCommand.name === 'model') {") && chat.includes("authWallHold.afterDoor(seatCommand.name, hold => {\n            void onSubmitRef.current(hold.text, INERT_PROMPT_HELPERS, undefined, { rearmed: true });"))
   const setup = readFileSync(join(ROOT, 'src/setup.ts'), 'utf8')
   check('an interactive boot runs the sign-in check once at open', setup.includes('if (getIsInteractive() && !getIsNonInteractiveSession()) void signInsCheckedAtOpen()'))
-  const health = readFileSync(join(ROOT, 'src/utils/healthReport.ts'), 'utf8')
-  check('/health probes the OpenAI subscription the same way and names an expired one (PROPOSED ROW WORDS)', health.includes("evidence: 'ChatGPT subscription — sign-in expired'") && health.includes("credentialWallLine('openai', 'sign-in')"))
+  writeFileSync(join(HOME, '.openai-auth.json'), JSON.stringify({ version: 1, tokens: { accessToken: 'fixture-openai-access-0001', refreshToken: '' } }) + '\n', { mode: 0o600 })
+  reread()
+  const { credentialWallLine } = await import('../../src/services/providers/credentialWall.ts')
+  const { healthContext } = await import('../../src/utils/healthReport.ts')
+  const { authChecks } = await import('../../src/utils/health/sections/auth.ts')
+  const openaiRow = await authChecks(await healthContext()).find(row => row.id === 'auth-openai')?.run()
+  check('/health probes the OpenAI subscription the same way and names an expired one (PROPOSED ROW WORDS)', openaiRow?.status === 'warn' && openaiRow.evidence === 'ChatGPT subscription — sign-in expired' && openaiRow.fix === credentialWallLine('openai', 'sign-in'), JSON.stringify(openaiRow))
 }
 
 server.stop(true)

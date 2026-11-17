@@ -295,10 +295,19 @@ async function main(): Promise<void> {
     {
       const { readFileSync } = await import('node:fs')
       const { join } = await import('node:path')
-      const healthSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'healthReport.ts'), 'utf8')
+      const fsH = await import('node:fs')
+      const { settingsChecks } = await import('../../src/utils/health/sections/settings.ts')
+      const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+      const guard = await import('../../src/guards/wardsGuard.ts')
+      const unreadable = fsH.mkdtempSync(join((await import('node:os')).tmpdir(), 'wards-health-row-'))
+      fsH.mkdirSync(join(unreadable, '.mercury'), { recursive: true })
+      fsH.writeFileSync(join(unreadable, '.mercury', 'wards.json'), '{nope')
+      const wardsSays = await runWithCwdOverride(unreadable, () => settingsChecks().find(row => row.id === 'wards')!.run())
+      const reportNow = guard.loadProjectWardsWithReport(unreadable)
       check(
         "health carries a wards row that names problems (call-shaped: id 'wards' + loadProjectWardsWithReport)",
-        /id: 'wards'/.test(healthSrc) && /loadProjectWardsWithReport/.test(healthSrc),
+        guard.wardsEnabled() ? reportNow.problems.length > 0 && wardsSays.status === 'warn' && wardsSays.evidence.includes(`${reportNow.problems.length} problem(s): ${reportNow.problems.slice(0, 3).join(' | ')}`) : wardsSays.status === 'off',
+        `${wardsSays.status}: ${wardsSays.evidence}`,
       )
       const hookSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'guards', 'wardsGuard.ts'), 'utf8')
       check(

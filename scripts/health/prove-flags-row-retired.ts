@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
+import { existsSync, mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { flagRegistryText } from '../lib/flagRegistrySource.ts'
@@ -34,7 +34,13 @@ console.log('§1 the registry knows registered flags and nothing else')
   const registry = flagRegistryText()
   check('a name that left the registry is unknown to it', UNKNOWN.every(name => getFlagSpec(name) === undefined))
   check('the registry keeps no table of retired names and no reader of one', !registry.includes('RETIRED_FLAGS') && !registry.includes('retiredFlagsSet') && !registry.includes('replacedBy'))
-  check('the health report reads no such table', !readFileSync(join(REPO, 'src/utils/healthReport.ts'), 'utf8').includes('retired'))
+  const { settingsChecks } = await import('../../src/utils/health/sections/settings.ts')
+  const flagsCheck = settingsChecks().find(row => row.id === 'flags')
+  const unset = JSON.stringify(await flagsCheck?.run())
+  for (const name of UNKNOWN) process.env[name] = 'set-by-the-proof'
+  const set = JSON.stringify(await flagsCheck?.run())
+  for (const name of UNKNOWN) delete process.env[name]
+  check('the health report reads no such table', flagsCheck !== undefined && set === unset && !/retired/.test(set), set.slice(0, 200))
 }
 
 console.log('\n§2 the Env overrides row names the registered overrides only')

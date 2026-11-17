@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -82,8 +82,13 @@ section('§3 the reading when no request has gone out: the gate of this home is 
   const off = snapshot()
   check('with the clock off the reading names the flag', off.engaged === false && off.reason === 'the clock is off (MERCURY_CACHE_CLOCK=0)', j(off))
   delete process.env.MERCURY_CACHE_CLOCK
-  const health = readFileSync(join(repoRoot, 'src/utils/healthReport.ts'), 'utf8')
-  check("the health probe's row reads the gate through promptCache1hEligibility when no request has gone out, and the session's reason otherwise", health.includes('cacheClockGateWords(promptCache1hEligibility())') && health.includes('clock not engaged this session: ${snap.reason'), '')
+  const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+  const clockRow = crewChecks().find(row => row.id === 'cache-clock')
+  const unsent = await clockRow?.run()
+  process.env.MERCURY_CACHE_CLOCK = '0'
+  const switchedOff = await clockRow?.run()
+  delete process.env.MERCURY_CACHE_CLOCK
+  check("the health probe's row reads the gate through promptCache1hEligibility when no request has gone out, and the session's reason otherwise", unsent?.status === 'off' && unsent.evidence === `clock not engaged in this process: ${shut}` && switchedOff?.status === 'off' && switchedOff.evidence === 'clock not engaged this session: the clock is off (MERCURY_CACHE_CLOCK=0)', j({ unsent, switchedOff }))
 }
 
 console.log(`\n${count} checks, ${failures} failures`)

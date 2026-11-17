@@ -197,8 +197,20 @@ try {
   check('receipt shape: file · [section] · key · previous → next · why', single === 'project.godot [autoload] X: a → b — because')
 
   section('6. the words — health row, prompt, plugin guard, optable')
-  const health = readFileSync(join(ROOT, 'src/utils/healthReport.ts'), 'utf8')
-  check('the health row reads the presence owner and its nudge', health.includes("await import('../services/vulcan/editorPresence.js')") && health.includes('fix: presenceNudge(presence, s)') && !/focus\/restart the editor/.test(health))
+  {
+    const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+    const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
+    const presenceOwner = await import('../../src/services/vulcan/editorPresence.ts')
+    const installOwner = await import('../../src/services/vulcan/addonInstaller.ts')
+    const toolsFlag = process.env.MERCURY_GODOT_TOOLS
+    process.env.MERCURY_GODOT_TOOLS = '1'
+    const vulcanSays = await runWithCwdOverride(proj, () => runtimeChecks().find(row => row.id === 'vulcan')!.run())
+    const status = installOwner.vulcanInstallStatus(proj)
+    const presence = await presenceOwner.probeVulcanEditorPresence(proj)
+    if (toolsFlag === undefined) delete process.env.MERCURY_GODOT_TOOLS
+    else process.env.MERCURY_GODOT_TOOLS = toolsFlag
+    check('the health row reads the presence owner and its nudge', vulcanSays.status === 'warn' && vulcanSays.fix === presenceOwner.presenceNudge(presence, status) && vulcanSays.evidence.includes(presence.reachable ? `bridge up :${presence.port}` : `${presence.words} (:${presence.port} dark)`) && !/focus\/restart the editor/.test(`${vulcanSays.evidence} ${vulcanSays.fix}`), JSON.stringify(vulcanSays))
+  }
   const prompt = readFileSync(join(ROOT, 'src/tools/GodotTool/prompt.ts'), 'utf8')
   check('the tool prompt requires an explicit operator instance and names class refresh', prompt.includes('Pass args.instance') && prompt.includes('never choose the operator-editor role unless the call explicitly names it') && prompt.includes('project_refresh_classes') && !/picks it up on focus/.test(prompt))
   const plugin = readFileSync(join(ROOT, 'assets/vulcan/addon/plugin.gd'), 'utf8')

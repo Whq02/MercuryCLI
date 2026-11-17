@@ -18,6 +18,7 @@ enableConfigs()
 const { setEngineModelOverride } = await import(`${root}/src/bootstrap/state.ts`)
 const { publishContextUsage } = await import(`${root}/src/utils/cockpit/contextUsageLive.ts`)
 const { runHealthReport } = await import(`${root}/src/utils/healthReport.ts`)
+await import(`${root}/src/services/resources/registry.ts`)
 const { liveModelsReferenceText } = await import(`${root}/src/services/resources/adapters/models.ts`)
 let checks = 0
 let failures = 0

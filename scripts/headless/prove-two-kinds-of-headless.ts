@@ -112,9 +112,9 @@ await guarded(async () => {
     wireDoor.startsWith('- Session: oculus') && printDoor.line.startsWith('- Session: non-interactive') && printDoor.status === 'blocked' && bareBoot.startsWith('- Session: non-interactive'),
     JSON.stringify({ wireDoor: wireDoor.slice(0, 60), printDoor: { line: printDoor.line.slice(0, 60), status: printDoor.status }, bareBoot: bareBoot.slice(0, 60) }),
   )
-  const healthSrc = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
-  const healthRow = healthSrc.slice(healthSrc.indexOf("id: 'session-kind'"), healthSrc.indexOf("id: 'session-kind'") + 2000)
-  check("/health carries the Session kind row, read from the focused session's record and spoken in the vocabulary's words", healthSrc.includes("id: 'session-kind'") && /readSessionWorkers\(\)\)\.find\(rec => rec\.sessionId === sessionId/.test(healthRow) && /sessionKindWords\(record\.kind\)/.test(healthRow))
+  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const kindRow = await runtimeChecks().find(row => row.id === 'session-kind')?.run()
+  check("/health carries the Session kind row, read from the focused session's record and spoken in the vocabulary's words", kindRow?.status === 'info' && kindRow.evidence.startsWith('no session is focused here') && kindRow.evidence.includes('oculus: a screen belongs to it') && kindRow.evidence.includes('headless: unattended'), kindRow?.evidence)
   check('the two kinds have two sentences, each leading with its word', kinds.sessionKindWords('oculus').startsWith('oculus — a screen belongs to this session') && kinds.sessionKindWords('headless').startsWith('headless — unattended'))
   const saved = process.env.MERCURY_SESSION_KIND
   process.env.MERCURY_SESSION_KIND = 'oculus'

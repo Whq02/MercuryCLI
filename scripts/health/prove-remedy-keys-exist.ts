@@ -68,15 +68,13 @@ function keysNamedBy(text: string): string[] {
   return keys
 }
 
-section('§1 the remedy reader finds the keys a remedy names, and the report source names no retired key')
+section('§1 the remedy reader finds the keys a remedy names')
 {
-  const source = readFileSync(join(REPO, 'src', 'utils', 'healthReport.ts'), 'utf8')
   check('a remedy that names a dotted key under settings.json yields that key', keysNamedBy('Set guardrails.allow in settings.json to permit it.').join(',') === 'guardrails.allow')
   check('a remedy that names no settings.json yields nothing', keysNamedBy('Set guardrails.allow to permit it.').length === 0)
   check('file names and the settings.* prefix are not keys', keysNamedBy('Edit settings.json (settings.local.json, docs/SETTINGS.md).').length === 0)
   check('the schema declares guardrails.allow', keyExists('guardrails.allow'))
   check('the schema declares no top-level sandbox key', !keyExists('sandbox.enabled'))
-  check('no remedy in the report source names a sandbox key', !/sandbox\.enabled|guardrails\.sandbox/.test(source), source.split('\n').filter(l => /sandbox\.enabled|guardrails\.sandbox/.test(l)).join(' | '))
 }
 
 section('§2 every settings key a live certificate\'s remedies name exists in the schema')
@@ -87,6 +85,8 @@ section('§2 every settings key a live certificate\'s remedies name exists in th
   const named: Array<{ id: string; key: string }> = []
   for (const row of checks) for (const key of keysNamedBy(`${row.fix ?? ''}`)) named.push({ id: row.id, key })
   console.log(`  remedies naming a settings key on a bare home: ${named.length === 0 ? 'none' : JSON.stringify(named)}`)
+  const sandboxed = checks.filter(row => /sandbox\.enabled|guardrails\.sandbox/.test(`${row.fix ?? ''}\n${row.detail ?? ''}\n${row.evidence ?? ''}`)).map(row => row.id)
+  check('no row of the live certificate names a sandbox key in its evidence, detail or fix', checks.length > 100 && sandboxed.length === 0, `${checks.length} rows · ${sandboxed.join(', ')}`)
   const missing = named.filter(n => !keyExists(n.key))
   check('every key a remedy tells the user to set exists in the schema', missing.length === 0, JSON.stringify(missing))
 }

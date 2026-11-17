@@ -57,8 +57,18 @@ console.log('L4 the surfaces (source pins)')
 {
   const status = readFileSync(join(SRC, 'utils/status.tsx'), 'utf8')
   check('/status paints the outcome sentence', status.includes('extraCaCertsStatusLine()'))
-  const health = readFileSync(join(SRC, 'utils/healthReport.ts'), 'utf8')
-  check('/health carries the row', health.includes("id: 'extra-ca-certs'") && health.includes('extraCaCertsCheck()'))
+  const { healthContext } = await import(join(SRC, 'utils/healthReport.ts'))
+  const { authChecks } = await import(join(SRC, 'utils/health/sections/auth.ts'))
+  const { getExtraCaCertsOutcome } = await import(join(SRC, 'utils/caCerts.ts'))
+  const caRow = authChecks(await healthContext()).find((row: { id: string }) => row.id === 'extra-ca-certs')
+  const unset = await caRow?.run()
+  process.env.NODE_EXTRA_CA_CERTS = join(SRC, 'no-such-bundle.pem')
+  ca.clearCACertsCache()
+  const missing = await caRow?.run()
+  const missingOutcome = getExtraCaCertsOutcome()
+  delete process.env.NODE_EXTRA_CA_CERTS
+  ca.clearCACertsCache()
+  check('/health carries the row', unset?.status === 'ok' && unset.evidence.startsWith('NODE_EXTRA_CA_CERTS unset') && missing?.status === 'fail' && missingOutcome !== null && missing.evidence.startsWith(`${missingOutcome.path} could not be read`), `${unset?.evidence} | ${missing?.evidence}`)
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

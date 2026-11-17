@@ -12,6 +12,7 @@
 # gate-watch: src/substrate/flagRegistry.ts
 # gate-watch: scripts/command-catalogue/fake-gh.mjs scripts/command-catalogue/prove-beta-journey-matrix.ts scripts/command-catalogue/prove-feedback-issue-road.ts scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts
 # gate-watch: scripts/ui/renderScenarios.ts scripts/ui/vshot.py src/services/privateChannel/channelCore.ts src/utils/config.ts src/utils/healthReport.ts
+# gate-watch: src/utils/health/**
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

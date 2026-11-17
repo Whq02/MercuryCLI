@@ -54,10 +54,33 @@ const renderTui = readFileSync(join(ROOT, 'scripts/ui/render-tui.ts'), 'utf8')
 check('§C render-tui consumes the capture-driver contract', renderTui.includes('resolveCaptureDriver('))
 const baselineGen = readFileSync(join(ROOT, 'scripts/ui/generate-visual-baseline.ts'), 'utf8')
 check('§C the baseline generator consumes it too', baselineGen.includes('resolveCaptureDriver('))
-const health = readFileSync(join(ROOT, 'src/utils/healthReport.ts'), 'utf8')
-check('§C /health probes through the shared lookup owner (PATHEXT-aware)', health.includes("whichSync('python3')"))
-check('§C /health names the ConPTY/hosted remedy on Windows source', health.includes('scripts/winreg') && health.includes('windows-ui workflow'))
-check('§C the remedy spelling is the registry-canonical MERCURY_PYTHON', health.includes('point MERCURY_PYTHON at one'))
+const { healthContext } = await import('../../src/utils/healthReport.ts')
+const { proofsChecks } = await import('../../src/utils/health/sections/proofs.ts')
+const { whichSync } = await import('../../src/utils/which.ts')
+const rendersRow = proofsChecks(await healthContext()).find(row => row.id === 'renders')
+const python = whichSync('python3') ?? whichSync('python')
+const rendersHere = await rendersRow?.run()
+check('§C /health probes through the shared lookup owner (PATHEXT-aware)', rendersHere !== undefined && (python === null ? !/python (?:at|present)/.test(rendersHere.evidence) : rendersHere.evidence.includes(process.platform === 'win32' ? `python present: ${python}` : `python at ${python}`)), rendersHere?.evidence)
+const platformNow = Object.getOwnPropertyDescriptor(process, 'platform')!
+Object.defineProperty(process, 'platform', { ...platformNow, value: 'win32' })
+let rendersOnWindows: Awaited<ReturnType<NonNullable<typeof rendersRow>['run']>> | undefined
+try {
+  rendersOnWindows = await rendersRow?.run()
+} finally {
+  Object.defineProperty(process, 'platform', platformNow)
+}
+check('§C /health names the ConPTY/hosted remedy on Windows source', rendersOnWindows?.fix === 'Capture UI frames via scripts/winreg locally, or the hosted windows-ui workflow.', JSON.stringify(rendersOnWindows))
+const pathNow = process.env.PATH
+process.env.PATH = join(ROOT, 'scripts', 'consistency-census')
+if (process.platform === 'win32') Object.defineProperty(process, 'platform', { ...platformNow, value: 'linux' })
+let rendersNoPython: Awaited<ReturnType<NonNullable<typeof rendersRow>['run']>> | undefined
+try {
+  rendersNoPython = await rendersRow?.run()
+} finally {
+  process.env.PATH = pathNow
+  Object.defineProperty(process, 'platform', platformNow)
+}
+check('§C the remedy spelling is the registry-canonical MERCURY_PYTHON', rendersNoPython?.status === 'warn' && rendersNoPython.fix?.includes('point MERCURY_PYTHON at one') === true, JSON.stringify(rendersNoPython))
 
 console.log(failed === 0 ? '\n ✅ SHELL-STRING CENSUS RATCHET HOLDS' : `\n ❌ ${failed} FAILED`)
 process.exit(failed === 0 ? 0 : 1)

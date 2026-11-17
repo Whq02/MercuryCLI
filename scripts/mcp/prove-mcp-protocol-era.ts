@@ -206,8 +206,14 @@ section('(5) the health row reading')
     'the behind wording is kept for the next published revision',
     owner.includes('is published — SDK behind') && owner.includes('update Mercury when a build ships the migration'),
   )
-  const health = SRC('src/utils/healthReport.ts')
-  check('the health row reads its line from the owner', health.includes('describeMcpProtocolCurrency()') && !health.includes('KNOWN_NEXT_MCP_REV'))
+  ;(await import('../../src/utils/config/globalConfig.js')).enableConfigs()
+  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const { publishMcpConnections } = await import('../../src/utils/cockpit/mcpGauge.ts')
+  const { describeMcpProtocolCurrency: currencyNow } = await import('../../src/services/mcp/protocolRevision.ts')
+  publishMcpConnections([{ name: 'fixture-srv', type: 'pending' } as never])
+  const mcpSays = await runtimeChecks().find(row => row.id === 'mcp')?.run()
+  publishMcpConnections([])
+  check('the health row reads its line from the owner', mcpSays?.evidence.startsWith('1 server(s): fixture-srv (starting) · policy ') === true && mcpSays.evidence.includes(` · ${currencyNow().line} · `), mcpSays?.evidence)
 }
 
 section('(6) the in-process mercury server negotiates the current era the way production serves it')

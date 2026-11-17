@@ -358,7 +358,7 @@ async function main(): Promise<void> {
         mainSrc.includes("noteHeadlessActivity(`verb:${names.join(':')}`)") &&
         !/noteHeadlessActivity\(\s*'(?:print|sdk)'/.test(mainSrc),
     )
-    check("BM-15: /health carries the activity row (wedge detection reads BOTH)", src('src/utils/healthReport.ts').includes("id: 'activity'"))
+    check("BM-15: /health carries the activity row (wedge detection reads BOTH)", (await import('../../src/utils/health/sections/crew.ts')).crewChecks().some(row => row.id === 'activity' && row.label === 'Activity counts'))
   }
 
   section('WK — the worktree preflight refuses BEFORE allocation, deterministically')

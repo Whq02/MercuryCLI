@@ -405,7 +405,13 @@ section('§5 the sign-in owners — every credential-landing site records; the r
   check('the session default projects the one computed default (model.ts)', between(model, 'export function getDefaultEngineModelSetting', '\n}').includes('computedDefault()') && !model.includes('credentiallessGptDefault') && !model.includes('applyDefaultProviderRung'))
   check('the default description and label use the computed result', between(model, 'export function getDefaultModelDescription', '\n}').includes('computedDefault()') && between(model, 'export function renderDefaultModelLabel', '\n}').includes('computedDefault()'))
   check('the picker has no synthetic default builder', !/defaultRow|getDefaultOptionForUser|DEFAULT_LABEL/.test(src('utils/model/modelOptions.ts')))
-  check("/health's Default model row projects it", between(src('utils/healthReport.ts'), "id: 'frontier'", 'link:').includes('computedDefault()'))
+  {
+    const { settingsChecks } = await import('../../src/utils/health/sections/settings.ts')
+    const { computedDefault: decide, describeComputedDefault: describe } = await import('../../src/utils/model/computedDefault.ts')
+    const { providerDisplayName: nameOf } = await import('../../src/services/providers/routeLaw.ts')
+    const frontier = await settingsChecks().find(row => row.id === 'frontier')?.run()
+    check("/health's Default model row projects it", frontier?.evidence.includes(describe(decide(), nameOf)) === true && frontier.link === '/model', frontier?.evidence)
+  }
   const resolver = src('utils/model/computedDefault.ts')
   check('the key lanes answer from their pin tables before any picker composition (no probe rides a default resolution)', resolver.includes("if (KEY_LANES.has(family)) return keyLaneRow(") && resolver.indexOf('KEY_LANES.has(family)') !== -1 && resolver.indexOf('KEY_LANES.has(family)') < resolver.indexOf('rows = livePickerRows()') && between(resolver, 'function keyLaneRow', '\n}').includes('const pins = keyLanePins(family)') && between(resolver, 'function keyLaneRow', '\n}').includes(': pins[0]'))
   check("the boot face chip prints the decision's own row word on a keyless default (no sign-in yet · no usable row yet)", src('components/BootSplashScreen.tsx').includes("decision.source === 'keyless' ? decision.row : null") && src('components/BootSplashScreen.tsx').includes('keylessRow ?? renderModelChip(mainModel)'))
