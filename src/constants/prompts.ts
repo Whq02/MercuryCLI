@@ -1,4 +1,5 @@
 import { platform, release, type as osType, version as osVersion } from 'node:os'
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { canAnswerAsks, getOriginalCwd, getProjectRoot, getSessionId, getSessionKind } from '../bootstrap/state.js'
 import { getCwd } from '../utils/cwd.js'
 import { composeSystemPrompt } from '../prompt/composer.js'
@@ -335,7 +336,7 @@ async function getLocalSystemPrompt(
     keyedSystemPromptSection('local_law', () => model, () => localLaw(model)),
   ])
   const law = layers === 'replace' ? promptReplacementText() : frozenLaw ?? localLaw(model)
-  if (isEnvTruthy(process.env.MERCURY_BARE)) return [`${head}\n\n${law}`]
+  if (isEnvTruthy(flagEnv('MERCURY_BARE'))) return [`${head}\n\n${law}`]
 
   const toolNames: ReadonlySet<string> = new Set((tools as ReadonlyArray<{ name: string }>).map(tool => tool.name))
   noteSessionEngine(model)
@@ -398,7 +399,7 @@ export async function getSystemPrompt(
   const head = `Working directory: ${getOriginalCwd()}`
   if (layers === 'whole') return [head, promptReplacementText()]
   const law = layers === 'replace' ? promptReplacementText() : stockLaw
-  if (isEnvTruthy(process.env.MERCURY_BARE)) return [`${head}\n\n${law}`]
+  if (isEnvTruthy(flagEnv('MERCURY_BARE'))) return [`${head}\n\n${law}`]
 
   const toolNames: ReadonlySet<string> = new Set((tools as ReadonlyArray<{ name: string }>).map(tool => tool.name))
   noteSessionEngine(model)
