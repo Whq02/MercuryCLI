@@ -266,8 +266,12 @@ section('§4 the words on disk — the docs say how an operator pre-authorises a
   check('…says a push is one of the five Flow asks about and names the sentence it travels with', /one of the five Flow asks about/.test(sectionText) && /it publishes history\./.test(sectionText), sectionText.slice(0, 400))
   const { firstSystemPrompt } = await import('../lib/builtProduct.ts')
   const ruled = needsLine(await firstSystemPrompt(['--allowed-tools', PUSH_RULE]))
+  const savedHome = mkdtempSync(join(tmpdir(), 'push-road-saved-rule-'))
+  writeFileSync(join(savedHome, 'settings.json'), JSON.stringify({ guardrails: { allow: [PUSH_RULE] } }))
+  const saved = needsLine(await firstSystemPrompt([], { MERCURY_CONFIG_DIR: savedHome }))
+  rmSync(savedHome, { recursive: true, force: true })
   const bareBoot = needsLine(await firstSystemPrompt())
-  check('the headless entry stamps the boot rules beside the interactivity mark (the seat\'s own context, never a guess)', /`git push` is pre-authorised at boot by the allow rule `Bash\(git push \*\)` \(cliArg\)/.test(ruled) && /`git push` is not pre-authorised/.test(bareBoot), `with the rule: ${ruled}`)
+  check('the headless entry stamps the boot rules beside the interactivity mark (the seat\'s own context, never a guess)', /`git push` is pre-authorised at boot by the allow rule `Bash\(git push \*\)` \(cliArg\)/.test(ruled) && /`git push` is pre-authorised at boot by the allow rule `Bash\(git push \*\)` \(userSettings\)/.test(saved) && /`git push` is not pre-authorised/.test(bareBoot), `with the rule: ${ruled} · with the saved rule: ${saved}`)
 }
 
 rmSync(HOME, { recursive: true, force: true })
