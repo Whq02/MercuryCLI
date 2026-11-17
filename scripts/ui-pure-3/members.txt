@@ -8,9 +8,7 @@ prove-caret-blink.ts
 prove-classify-tool-error.ts
 prove-command-domains.ts
 prove-command-palette.ts
-prove-composer-draft-survives-dispatch.ts
 prove-composer-persist-roads.ts
-prove-paste-keeps-tabs.ts
 prove-lanes-rows-painted.ts
 prove-trace-readers-session-own.ts
 prove-frame-thinking-pulse.ts
@@ -79,10 +77,6 @@ prove-visual-manifest.ts
 prove-width-oracle-sot.ts
 prove-model-picker-popup-frames.ts
 prove-agent-view-frames.ts
-prove-crew-composer-roads.ts
-prove-crew-composer-click-after-focus.ts
-prove-crew-look-frames.ts
-prove-crew-ledger.ts
 prove-silent-command-surface.ts
 prove-crews-dialog-gone.ts
 prove-diff-chip-session-own.ts
@@ -91,12 +85,8 @@ prove-command-popup-slot.ts
 prove-effort-popup-frames.ts
 prove-zen-frames.ts
 prove-composer-down-to-strip.ts
-prove-crew-view-commands.ts
-prove-crew-view-enter-compact.ts
-prove-crew-view-mouse.ts
 prove-browse-command.ts
 prove-health-popup-frames.ts
-prove-activity-screen-keys.ts
 prove-modal-routes-reach.ts
 prove-bang-clear-leaves-shell-mode.ts
 prove-bang-card-frame.ts
@@ -118,9 +108,6 @@ prove-diff-hunk-coordinates.ts
 prove-hardening-consent-chords.ts
 prove-hardening-input-ownership.ts
 prove-vitals-live-refresh.ts
-prove-paste-sent-whole.ts
-prove-command-argument-pasted.ts
-prove-landing-lines-sent-in-order.ts
 prove-crewmate-shell-output.ts
 prove-crewmate-transcript-shell.ts
 prove-flip-restore-yields.ts
@@ -131,4 +118,3 @@ prove-lanes-cursor-across-four-rows.ts
 prove-question-card-footer-key.ts
 prove-untrusted-project-extension-words.ts
 prove-stream-settle-near-tail.ts
-prove-paste-type-interleaving.ts

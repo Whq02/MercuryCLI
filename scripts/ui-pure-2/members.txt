@@ -91,3 +91,9 @@ prove-status-card-key-owner.ts
 prove-sticky-prompt-header-gone.ts
 prove-rails-whole-or-absent.ts
 prove-exit-notice-owns-its-row.ts
+prove-composer-draft-survives-dispatch.ts
+prove-paste-keeps-tabs.ts
+prove-paste-sent-whole.ts
+prove-command-argument-pasted.ts
+prove-landing-lines-sent-in-order.ts
+prove-paste-type-interleaving.ts
