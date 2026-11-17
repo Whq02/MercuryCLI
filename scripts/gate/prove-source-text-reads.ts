@@ -10,7 +10,7 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 const SELF = 'scripts/gate/prove-source-text-reads.ts'
 const TABLE = 'scripts/gate/source-text-reads.tsv'
 const CODE = /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/
-const DOCUMENT = /\.md$/
+const SHELL = /\.(?:sh|bash|zsh|py|ps1)$|(?:^|\/)[^./]+$/
 const SEP = String.raw`(?:\[[\\/]+\]|[\\/])+`
 const NAME = 'A-Za-z0-9_@+-'
 const OWN_TREE = String.raw`(?<![.${NAME}])(?<!(?<![$${NAME}])[${NAME}]+[\\/]+)`
@@ -239,7 +239,7 @@ function sourceTextReads(root: string, estate: Estate): { reads: Read[]; read: n
   const reads: Read[] = []
   let read = 0
   for (const script of estate.scripts) {
-    if (DOCUMENT.test(script)) continue
+    if (!CODE.test(script) && !SHELL.test(script)) continue
     let found: Read[]
     try {
       const text = readFileSync(join(root, script), 'utf8')
@@ -397,8 +397,8 @@ function plantedEstate(): void {
       named: [[4, ONE], [5, THREE], [7, TWO]],
     },
     { file: 'scripts/a/reader.py', lines: ['# src/planted/one.ts in a comment', "text = open('src/planted/two.tsx').read()", "rows = open(os.path.join(ROOT, 'src', 'planted', 'rows.json')).read()"], named: [[2, TWO], [3, JSON_ROWS]] },
-    { file: 'scripts/a/list.txt', lines: ['# paths a reader opens', 'src/lone.ts', 'planted/deep/three.ts'], named: [[2, LONE], [3, THREE]] },
-    { file: 'scripts/a/rows.json', lines: [String.raw`{ "file": "src\/planted\/rows.json", "other": "src/planted/one.ts" }`], named: [[1, ONE], [1, JSON_ROWS]] },
+    { file: 'scripts/a/list.txt', lines: ['# paths a reader opens', 'src/lone.ts', 'planted/deep/three.ts'], named: [] },
+    { file: 'scripts/a/rows.json', lines: [String.raw`{ "file": "src\/planted\/rows.json", "other": "src/planted/one.ts" }`], named: [] },
     { file: 'scripts/a/hook', lines: ['#!/bin/sh', 'grep -q export src/lone.ts'], named: [[2, LONE]] },
     { file: 'scripts/a/notes.md', lines: ['src/planted/one.ts is where the rows live'], named: [] },
     { file: 'scripts/a/packed.bin', lines: ['\0src/planted/one.ts'], named: [] },
@@ -441,22 +441,22 @@ function plantedEstate(): void {
     of('scripts/a/prove-imports.ts').length === 0,
     of('scripts/a/prove-imports.ts').join(' · '),
   )
-  check('shell, Python, a list, JSON and a script with no extension are read as text, line by line: a whole path, a path in quoted segments and a path from inside src, alone or after a shell variable, are named, and a comment line, an import spelled in a command and a bare name after a cd are not', ['run-all.sh', 'reader.py', 'list.txt', 'rows.json', 'hook'].every(f => of(`scripts/a/${f}`).length > 0) && differs === '', differs)
-  check(`a document and a binary file are not read (${read} of ${planted.length} files read), and out of reach stay ${OUT_OF_REACH}; a path that names no file, a bare name beside no name that says src and a src folder of another tree are no reads`, read === planted.length - 2 && of('scripts/a/notes.md').length + of('scripts/a/packed.bin').length + of('scripts/a/out-of-reach.ts').length === 0, differs)
+  check('shell, Python and a script with no extension are read as text, line by line: a whole path, a path in quoted segments and a path from inside src, alone or after a shell variable, are named, and a comment line, an import spelled in a command and a bare name after a cd are not', ['run-all.sh', 'reader.py', 'hook'].every(f => of(`scripts/a/${f}`).length > 0) && differs === '', differs)
+  check(`a data file (a list, JSON), a document and a binary file are not read (${read} of ${planted.length} files read), and out of reach stay ${OUT_OF_REACH}; a path that names no file, a bare name beside no name that says src and a src folder of another tree are no reads`, read === planted.length - 4 && ['list.txt', 'rows.json', 'notes.md', 'packed.bin', 'out-of-reach.ts'].every(f => of(`scripts/a/${f}`).length === 0), differs)
   const rows = rowsOf(reads)
   const text = render(rows)
   const table = tableOf(text)
-  check('the table is one row per script that names a src file, with the number of distinct files, in order, and reads back as written', text === 'scripts/a/hook\t1\nscripts/a/list.txt\t2\nscripts/a/prove-reads.ts\t5\nscripts/a/reader.py\t2\nscripts/a/rows.json\t2\nscripts/a/run-all.sh\t3\n' && table !== null && render(rowsOf(reads)) === text, text.replaceAll('\n', ' · '))
+  check('the table is one row per script that names a src file, with the number of distinct files, in order, and reads back as written', text === 'scripts/a/hook\t1\nscripts/a/prove-reads.ts\t5\nscripts/a/reader.py\t2\nscripts/a/run-all.sh\t3\n' && table !== null && render(rowsOf(reads)) === text, text.replaceAll('\n', ' · '))
   check('a table with a row that is no script and a count, or with a script twice, does not read', tableOf('scripts/a/hook\tone\n') === null && tableOf('scripts/a/hook\t0\n') === null && tableOf('scripts/a/hook\t1\nscripts/a/hook\t1\n') === null && tableOf('src/lone.ts\t1\n') === null)
   if (table === null) return
   const held = judge(rows, table)
-  check('on its own table the estate stands: no script over its row, 15 reads of 15 allowed', held.over.length === 0 && held.total === 15 && held.allowed === 15 && held.slack === 0, JSON.stringify(held))
+  check('on its own table the estate stands: no script over its row, 11 reads of 11 allowed', held.over.length === 0 && held.total === 11 && held.allowed === 11 && held.slack === 0, JSON.stringify(held))
   const unrowed = judge(rows, new Map([...table].filter(([script]) => script !== 'scripts/a/hook')))
   check('a script with no row that names a file is named with the line and the file', unrowed.over.length === 1 && told(unrowed.over).includes('scripts/a/hook names 1 src file as text and has no row:') && told(unrowed.over).includes('scripts/a/hook:2 src/lone.ts') && unrowed.total > unrowed.allowed, told(unrowed.over))
   const raised = judge(rows, new Map([...table].map(([script, n]) => [script, script === 'scripts/a/run-all.sh' ? 1 : n])))
   check('a script that names one file more than its row allows is named with every line and file it holds', raised.over.length === 1 && told(raised.over).includes('its row allows 1:') && told(raised.over).includes('scripts/a/run-all.sh:4 src/planted/one.ts') && told(raised.over).includes('scripts/a/run-all.sh:5 src/planted/deep/three.ts'), told(raised.over))
-  const fallen = judge(rowsOf(reads.filter(r => r.script !== 'scripts/a/list.txt' && r.file !== JSON_ROWS)), table)
-  check('a count that fell stands, and its rows are counted as standing above it', fallen.over.length === 0 && fallen.total === 10 && fallen.slack === 4, JSON.stringify(fallen))
+  const fallen = judge(rowsOf(reads.filter(r => r.script !== 'scripts/a/hook' && r.file !== JSON_ROWS)), table)
+  check('a count that fell stands, and its rows are counted as standing above it', fallen.over.length === 0 && fallen.total === 8 && fallen.slack === 3, JSON.stringify(fallen))
 }
 
 function report(rows: Rows, asked: string[]): void {
@@ -493,7 +493,7 @@ const rows = rowsOf(reads)
 const total = [...rows.values()].reduce((n, files) => n + files.size, 0)
 const text = existsSync(join(ROOT, TABLE)) ? readFileSync(join(ROOT, TABLE), 'utf8') : null
 const table = text === null ? null : tableOf(text)
-console.log(`  ${estate.scripts.length} files under scripts · ${read} read (documents and binary files aside) · ${estate.src.files.size} files under src · ${rows.size} scripts name a src file outside an import · ${total} text reads`)
+console.log(`  ${estate.scripts.length} files under scripts · ${read} read (code and shell scripts; data files, documents and binary files aside) · ${estate.src.files.size} files under src · ${rows.size} scripts name a src file outside an import · ${total} text reads`)
 if (process.argv.includes('--write')) {
   const found = table === null ? null : judge(rows, table)
   if (failures > 0) console.log('  nothing written: the reader failed on its own estate')
