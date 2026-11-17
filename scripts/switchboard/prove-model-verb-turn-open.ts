@@ -37,7 +37,19 @@ console.log('T2 the roster row carries the raw fact (source pin)')
 console.log('T3 the runner defers the breadcrumbs to the turn boundary (source pins)')
 {
   const runner = readFileSync(join(SRC, 'cli/run.ts'), 'utf8')
-  check('set_model holds while a turn is in flight and answers where the verb lands', runner.includes('heldSeatModel = { requestId: ref.id, model: String(resolved), ...(words === undefined ? {} : { words }) }') && runner.includes("return { model: String(resolved), at: SEAT_VERB_AT(true) }") )
+  const { FIXTURE_MODEL, liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
+  const NEXT_MODEL = 'claude-sonnet-4-6'
+  const held = await withFixtureRunner([{ kind: 'paced', deltas: ['one ', 'two ', 'three'], gapMs: 300 }], async (host, api) => {
+    await host.prompt('go')
+    await api.messageRequestStarted(1)
+    const verb = host.send('session/set_model', { model: NEXT_MODEL })
+    const answer = await verb.answer.catch(() => null)
+    const during = (await liveFactsOf(host)).model.effective
+    await host.waitFor('the paced turn ends', row => row.type === 'outcome').catch(() => undefined)
+    const after = (await liveFactsOf(host)).model.effective
+    return { answer, during, after, applied: host.notifications.filter(note => note.method === 'session/applied'), id: verb.id }
+  })
+  check('set_model holds while a turn is in flight and answers where the verb lands', JSON.stringify(held.answer) === JSON.stringify({ model: NEXT_MODEL, at: 'turn_end' }) && held.during === FIXTURE_MODEL && held.after === NEXT_MODEL && JSON.stringify(held.applied) === JSON.stringify([{ method: 'session/applied', params: { request_id: held.id, verb: 'set_model', model: NEXT_MODEL } }]), JSON.stringify(held))
   const boundaryAt = runner.indexOf('      if (heldSeatModel !== null) {')
   const boundary = boundaryAt === -1 ? '' : runner.slice(boundaryAt, boundaryAt + 1200)
   check('the turn boundary applies the held verb before the deferred rows flush', boundary.includes('await applySeatModel(held.model, held.words)') && boundary.indexOf('await injectModelSwitchBreadcrumbs(crumb.to, crumb.from)') !== -1 && boundary.indexOf('await applySeatModel(held.model, held.words)') < boundary.indexOf('await injectModelSwitchBreadcrumbs(crumb.to, crumb.from)'))

@@ -73,10 +73,13 @@ try {
   }
   section('§3 the words and the door agree: --help names the listing, a bare `sessions` lists instead of printing the delete help and failing')
   {
-    const main = source('src/main.tsx')
-    check("the sessions command's description names list and delete", main.includes("description('Saved sessions: list, delete')"))
-    check('a bare `sessions` runs the listing (an action on the parent command)', /command\('sessions'\)[\s\S]{0,900}\.action\(async \(options: \{ all\?: boolean; limit\?: number \}\) => \{\s*const \{ sessionsListCli \}/.test(main))
-    check('`sessions list` is a sub-command with --all and --limit', main.includes(".command('list')") && main.includes("'--all', 'List the saved sessions of every project, not only this one'"))
+    const { builtCli, builtHelp } = await import('../lib/builtProduct.ts')
+    const bare = builtCli(['sessions'])
+    const listed = builtCli(['sessions', 'list'])
+    const unplaced = (text: string): string => text.replace(/\(.*?\)/, '()')
+    check("the sessions command's description names list and delete", builtHelp('sessions').includes('Saved sessions: list, delete'))
+    check('a bare `sessions` runs the listing (an action on the parent command)', bare.status === 0 && bare.stdout.startsWith('No saved sessions for this project') && unplaced(bare.stdout) === unplaced(listed.stdout) && builtHelp('sessions').includes('--limit <n>'))
+    check('`sessions list` is a sub-command with --all and --limit', builtHelp('sessions', 'list').includes('Usage: mercury sessions list [options]') && builtHelp('sessions', 'list').includes('--all List the saved sessions of every project, not only this one') && builtHelp('sessions', 'list').includes('--limit <n>'))
     const readme = source('docs/AUTOMATION.md')
     check('AUTOMATION.md names `mercury sessions list`', readme.includes('`mercury sessions list`'))
   }

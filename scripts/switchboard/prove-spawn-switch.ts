@@ -297,9 +297,25 @@ section("§6 the seat verb — idle applies, busy parks and forwards, the runner
   check('…and a socket that still names the retired switch is answered a no-op before the seat is asked', daemonMain.indexOf("if (spawnSwitch.kind === 'workflows') return { outcome: 'noop' as const }") !== -1 && daemonMain.indexOf("if (spawnSwitch.kind === 'workflows') return { outcome: 'noop' as const }") < daemonMain.indexOf('setSessionSpawnSwitch(sessionId, { kind: spawnSwitch.kind, on: spawnSwitch.on }, by, roster)'))
   check('the control server admits the action and narrows the payload', src('src/daemon/controlServer.ts').includes("raw.action === 'set-spawn-switch'") && src('src/daemon/controlServer.ts').includes("spawnSwitch refused — { kind: subagents|workflows, on: boolean }"))
   const printSrc = src('src/cli/run.ts')
-  check("the runner answers a 'spawn_switch' with where it lands — now when idle, the turn boundary otherwise — and lands a deferred one at the turn's end with the session/applied notification", printSrc.includes("'session/set_spawn_switch': (params, ref) => {") && printSrc.includes('deferredSpawnSwitches = [...deferredSpawnSwitches.filter(d => d.kind !== toggle.kind), { ...toggle, requestId: ref.id }]') && printSrc.includes("return { switch: toggle.kind, on: toggle.on, at: SEAT_VERB_AT(true) }") && printSrc.includes("return { switch: toggle.kind, on: toggle.on, at: SEAT_VERB_AT(false) }") && printSrc.includes("io.outbound.enqueue({ method: 'session/applied', params: { request_id: toggle.requestId, verb: 'set_spawn_switch', switch: toggle.kind, on: toggle.on } })"))
-  check('…the landing moves the switch and marks the transition row', printSrc.includes('const landed = setSpawnSwitch(kind, on)') && printSrc.includes('messages.push(createRosterTransitionMessage(kind, on, spawnSwitchTransitionLine(kind, on)))'))
-  check("the runner's facts carry its switches", printSrc.includes('spawnSwitches: spawnSwitchFacts(),'))
+  const { liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
+  const live = await withFixtureRunner([{ kind: 'paced', deltas: ['one ', 'two ', 'three'], gapMs: 300 }], async (runner, api) => {
+    const rest = (await liveFactsOf(runner)).spawnSwitches
+    await runner.prompt('go')
+    await api.messageRequestStarted(1)
+    const first = runner.send('session/set_spawn_switch', { switch: 'subagents', on: false })
+    const second = runner.send('session/set_spawn_switch', { switch: 'subagents', on: false })
+    const held = [await first.answer, await second.answer]
+    const during = (await liveFactsOf(runner)).spawnSwitches
+    await runner.waitFor('the paced turn ends', row => row.type === 'outcome')
+    const landed = (await liveFactsOf(runner)).spawnSwitches
+    const applied = runner.notifications.filter(note => note.method === 'session/applied')
+    const idle = await runner.request('session/set_spawn_switch', { switch: 'subagents', on: true })
+    return { rest, held, during, landed, applied, lastId: second.id, idle, back: (await liveFactsOf(runner)).spawnSwitches }
+  })
+  const heldAnswer = { switch: 'subagents', on: false, at: 'turn_end' }
+  check("the runner answers a 'spawn_switch' with where it lands — now when idle, the turn boundary otherwise — and lands a deferred one at the turn's end with the session/applied notification", j(live.held) === j([heldAnswer, heldAnswer]) && j(live.during?.subagents) === j(live.rest?.subagents) && j(live.applied) === j([{ method: 'session/applied', params: { request_id: live.lastId, verb: 'set_spawn_switch', switch: 'subagents', on: false } }]) && j(live.idle) === j({ switch: 'subagents', on: true, at: 'now' }), j(live))
+  check('…the landing moves the switch and marks the transition row', live.landed?.subagents.on === false && live.landed.subagents.source === 'in-session' && printSrc.includes('messages.push(createRosterTransitionMessage(kind, on, spawnSwitchTransitionLine(kind, on)))'), j(live.landed))
+  check("the runner's facts carry its switches", live.rest?.subagents.on === true && live.rest.subagents.source === 'default' && live.landed?.subagents.on === false && live.back?.subagents.on === true && live.back.subagents.source === 'in-session', j([live.rest, live.landed, live.back]))
 }
 
 section('§7 the preserved-thinking seam — a roster transition is a lawful prefix change that names the toggle')
