@@ -48,8 +48,6 @@ reserved to built-ins:
   permission engine like any MCP tool.
 - **language**: language servers in Mercury's config format, started as
   `ext:<name>:<server>`.
-- **channels**: which of the extension's own servers may post channel messages into the
-  session once approved; an undeclared server's posts are dropped with a health note.
 - **keybindings**: default chords for the extension's own commands and skills, applied
   only when your keybindings leave the chord free.
 
@@ -107,9 +105,6 @@ model reads and is passed only to hook and server environments.
 | `contributes.language.<name>.diagnosticsOnly` | boolean | no | A linter-class lane: participates in document sync and diagnostics, never as the primary for navigation/refactor operations. |
 | `contributes.language.<name>.idleTimeoutMs` | integer | no | Stop the server after this long with no requests; it restarts lazily on next use. |
 | `contributes.language.<name>.rootMarkers` | list of string | no | Workspace files that mark a project this server owns ("Cargo.toml", "*.sln") — detection metadata for catalogue-style offers. |
-| `contributes.channels` | list of object | no | Servers of this extension allowed to post channel messages into the session after approval. A server not declared here has its posts dropped with a health note. |
-| `contributes.channels[].server` | string | yes | One of THIS extension's servers (its key under `servers`). |
-| `contributes.channels[].label` | string | yes | How the channel is named on the approval card and in the session. |
 | `contributes.keybindings` | map of name → string | no | Default chords → one of THIS extension's own commands or skills (`/<name>:…`). Applied only when the operator's keybindings leave the chord free. |
 | `needs` | object | no | What the extension requires from the machine and the operator. |
 | `needs.binaries` | list of string | no | Executables that must be on PATH. Probed at health time; missing ⇒ partial with "x not on PATH". |
@@ -224,4 +219,4 @@ what each extension needs, who maintains it, and the licence.
 
 The repository carries a complete extension exercising every kind:
 `scripts/extensions/fixtures/fixture-source/kitchen-sink/`. Its manifest declares skills,
-commands, agents, hooks, an MCP server, a language server, a channel and a keybinding.
+commands, agents, hooks, an MCP server, a language server and a keybinding.

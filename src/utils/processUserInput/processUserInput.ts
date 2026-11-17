@@ -1,7 +1,6 @@
 
 import { randomUUID, type UUID } from 'node:crypto'
-import type { SetToolJSXFn, ToolUseContext } from '../../Tool.js'
-import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
+import type { CanUseToolFn, SetToolJSXFn, ToolUseContext } from '../../Tool.js'
 import type { QuerySource } from '../../constants/querySource.js'
 import type { ContentBlockParam, ImageBlockParam } from '../../types/wire.js'
 import type {

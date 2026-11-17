@@ -77,7 +77,7 @@ import {
 import type { BashProgress } from '../../types/tools.js'
 import type { ToolResultBlockParam } from '../../types/wire.js'
 import type { AssistantMessage } from '../../types/message.js'
-import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
+import type { CanUseToolFn } from '../../Tool.js'
 import { existsSync, readFileSync } from 'node:fs'
 import { modifiedSinceReadMessage } from '../FileEditTool/otherSession.js'
 import { tailFile } from '../../utils/fsOperations.js'

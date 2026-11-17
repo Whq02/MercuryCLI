@@ -47,9 +47,6 @@
 | `contributes.language.<name>.diagnosticsOnly` | boolean | no | A linter-class lane: participates in document sync and diagnostics, never as the primary for navigation/refactor operations. |
 | `contributes.language.<name>.idleTimeoutMs` | integer | no | Stop the server after this long with no requests; it restarts lazily on next use. |
 | `contributes.language.<name>.rootMarkers` | list of string | no | Workspace files that mark a project this server owns ("Cargo.toml", "*.sln") — detection metadata for catalogue-style offers. |
-| `contributes.channels` | list of object | no | Servers of this extension allowed to post channel messages into the session after approval. A server not declared here has its posts dropped with a health note. |
-| `contributes.channels[].server` | string | yes | One of THIS extension's servers (its key under `servers`). |
-| `contributes.channels[].label` | string | yes | How the channel is named on the approval card and in the session. |
 | `contributes.keybindings` | map of name → string | no | Default chords → one of THIS extension's own commands or skills (`/<name>:…`). Applied only when the operator's keybindings leave the chord free. |
 | `needs` | object | no | What the extension requires from the machine and the operator. |
 | `needs.binaries` | list of string | no | Executables that must be on PATH. Probed at health time; missing ⇒ partial with "x not on PATH". |

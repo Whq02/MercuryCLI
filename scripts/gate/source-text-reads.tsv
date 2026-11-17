@@ -1,7 +1,7 @@
 scripts/accounts/prove-account-slots.ts	2	7	290088506c0f
 scripts/accounts/prove-accounts-display.ts	6	29	007c68509107
 scripts/accounts/prove-accounts-honesty.ts	2	16	290088506c0f
-scripts/accounts/prove-accounts-inventory-only.ts	2	22	290088506c0f
+scripts/accounts/prove-accounts-inventory-only.ts	2	20	290088506c0f
 scripts/accounts/prove-anthropic-slot-preference.ts	2	8	ef85e1e1ef0c
 scripts/accounts/prove-api-key-helper-failure.ts	1	2	0685f35f6f0b
 scripts/accounts/prove-identity-words.ts	6	17	6fd43f4e7ed3
@@ -378,7 +378,7 @@ scripts/dap/prove-dap-readiness-honesty.ts	2	7	8bc4e18352cc
 scripts/dap/prove-dap.ts	1	1	7b381cf3e55b
 scripts/dap/prove-debugpy-pycache-keys.ts	1	5	e517a14df52f
 scripts/dap/prove-trust-family-agnostic.ts	6	1	e5825d837f4e
-scripts/decisions/prove-command-analysis.ts	23	3	587c468e8e51
+scripts/decisions/prove-command-analysis.ts	22	3	d932c945f4ce
 scripts/default-model/prove-computed-default.ts	19	55	f4c38c522e1f
 scripts/default-model/prove-model-choice-outcome.ts	2	11	b426524d62ab
 scripts/default-provider/prove-default-provider.ts	1	2	cb2701529660
@@ -486,7 +486,7 @@ scripts/health/prove-foreign-harness-inversion.ts	4	8	a8f666563b59
 scripts/health/prove-health-evidence-strings.ts	1	4	28bca0c5568e
 scripts/health/prove-health-fix.ts	3	9	aa205f50867b
 scripts/health/prove-health-one-truth.ts	2	2	592ae92de3f5
-scripts/health/prove-health-presentation.ts	8	42	78cf6972bec3
+scripts/health/prove-health-presentation.ts	8	41	78cf6972bec3
 scripts/health/prove-health-truth.ts	4	15	bcb6e2d44d09
 scripts/health/prove-install-provenance.ts	3	8	6e5f48cad404
 scripts/health/prove-model-refusals-row.ts	1	3	28bca0c5568e
@@ -511,7 +511,7 @@ scripts/ide/prove-ide-status.ts	1	3	28bca0c5568e
 scripts/ide/prove-python-project.ts	1	1	7b381cf3e55b
 scripts/ide/prove-runner-debug.ts	1	8	f6ef3bce806a
 scripts/ide/render-transaction-replay.tsx	1	0	f83d9750cb31
-scripts/identity/prove-ask-clock-words-gone.ts	4	8	7de2bc14196c
+scripts/identity/prove-ask-clock-words-gone.ts	3	7	627575cd9717
 scripts/identity/prove-docs-names.ts	7	6	40f80f9d665f
 scripts/identity/prove-editor-prompt-file.ts	2	3	6d15d0640374
 scripts/identity/prove-embed-pack-everywhere-words.ts	1	3	28bca0c5568e
@@ -604,7 +604,7 @@ scripts/mcp/prove-automation-roles.ts	1	3	8c344c7a9675
 scripts/mcp/prove-connect-deadline.ts	2	15	acb17aab30e3
 scripts/mcp/prove-disable-disconnects.ts	2	8	77b6b1f165ed
 scripts/mcp/prove-headless-mcp-launch-budget.ts	2	9	cb9aa3149011
-scripts/mcp/prove-kit-dials.ts	12	40	b9b0bbe48cb4
+scripts/mcp/prove-kit-dials.ts	12	38	b9b0bbe48cb4
 scripts/mcp/prove-kit-presets.ts	16	48	4c52ce5f3289
 scripts/mcp/prove-kit-runner.ts	9	22	733803bc520d
 scripts/mcp/prove-mcp-cli-truth.ts	2	11	16a8e7aa6f90
@@ -756,7 +756,6 @@ scripts/ownership/prove-contract-inventory.ts	48	0	34ead950c61d
 scripts/permissions/prove-agent-mode-within-consent.ts	4	7	ee0b5f2f1692
 scripts/permissions/prove-boot-add-dirs.ts	11	4	ef48b7f92c57
 scripts/permissions/prove-bypass-posture-needs-launch-flag.ts	1	3	938356fcefb2
-scripts/permissions/prove-can-use-tool-ladder.ts	2	4	05457d4980c5
 scripts/permissions/prove-card-editor-key.ts	3	7	2e5a0e707d4b
 scripts/permissions/prove-card-mark-moves-by-keys-only.ts	2	3	fc3052fc9a14
 scripts/permissions/prove-command-content-checks.ts	2	2	a593df4ced5a
@@ -765,7 +764,7 @@ scripts/permissions/prove-consent-preview-bounded.ts	17	16	cdabc67403ab
 scripts/permissions/prove-consent-rides-every-door.ts	7	11	e0ba1afb8f45
 scripts/permissions/prove-crewmate-resource-rules.ts	1	1	e7f0e1ce7bc8
 scripts/permissions/prove-field-w6-switchboard-denial.ts	1	5	96aa539010f1
-scripts/permissions/prove-flow-ladder.ts	12	42	4d3a385e55b7
+scripts/permissions/prove-flow-ladder.ts	10	40	a602613b808b
 scripts/permissions/prove-glob-permission.ts	4	8	8171ab7a57e2
 scripts/permissions/prove-kill-switch-spellings.ts	1	3	28bca0c5568e
 scripts/permissions/prove-mcp-roots-wide.ts	1	13	f703e665577d
@@ -1251,7 +1250,7 @@ scripts/ui/prove-consent-queue-marker.ts	2	7	c77366c16cc1
 scripts/ui/prove-content-search.ts	4	19	e04933c42f5b
 scripts/ui/prove-contract-card-fit.ts	2	3	32bd40e1d941
 scripts/ui/prove-crews-dialog-gone.ts	4	11	92d32aff27b1
-scripts/ui/prove-ctrl-o-stable.ts	1	7	39a39ece9c17
+scripts/ui/prove-ctrl-o-stable.ts	1	5	39a39ece9c17
 scripts/ui/prove-cwd-ground-beat.ts	10	24	c7e781183340
 scripts/ui/prove-declared-keys-unshadowed.ts	37	24	b54e2c687939
 scripts/ui/prove-deepseek-live-rows-drive.ts	1	1	15870076997b

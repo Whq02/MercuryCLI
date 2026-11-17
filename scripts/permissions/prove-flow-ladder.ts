@@ -27,11 +27,9 @@ section('the Flow band (decision/wrapper.ts → flowPolicy.ts): the floors it ke
   check('the kept floors: an ask rule, an operator-only safety check, a hook, a tool that asks the human, the MCP ask ceiling', policy.includes("return 'ask-rule'") && policy.includes("if (reasonCarriesOperatorSafety(reason)) return 'safety'") && policy.includes("if (reason.type === 'safetyCheck') return reason.operatorOnly") && policy.includes("reason?.type === 'hook'") && policy.includes('tool.requiresUserInteraction?.()') && policy.includes("tool.mcpInfo?.effectiveMaxPermission === 'ask'"))
   check('the five are read from one table (FLOW_LAW) and the ask sentence has one shape', law.includes('export const FLOW_LAW = {') && law.includes('return `Flow asks before ${ask.subject}: ${ask.why}.`'))
   check('nothing else asks: the shortcuts, the PowerShell guard, the install floor and the read-only tool set are gone from the wrapper', !wrapper.includes('implementFastPath') && !wrapper.includes('allowlistFastPath') && !wrapper.includes('powershellGuard') && !wrapper.includes('flowPushOrInstall') && !wrapper.includes('readOnlyAllowlist') && !wrapper.includes('flowRequiresFreshApproval'))
-  check('a plain yes in Flow saves nothing on its own (the auto-remembered rule is gone)', !policy.includes('flowUserAllowUpdates') && !src('hooks', 'toolPermission', 'PermissionContext.ts').includes('flowUserAllowUpdates') && !src('cli', 'headless', 'runnerAsks.ts').includes('flowUserAllowUpdates'))
+  check('a plain yes in Flow saves nothing on its own (the auto-remembered rule is gone)', !policy.includes('flowUserAllowUpdates') && !src('cli', 'headless', 'runnerAsks.ts').includes('flowUserAllowUpdates'))
   const engine = src('utils', 'permissions', 'decision', 'engine.ts')
   check('kill-switch is step 0 of the ladder (per-call agentType)', engine.includes('ports.isToolKilled(tool, context.agentType)'))
-  const trace = src('utils', 'permissions', 'decision', 'trace.ts')
-  check('the trace names the three Flow stages in order, between the dontAsk conversion and the headless band', /'dontAskConversion',\n  'flowFloors',\n  'flowLaw',\n  'flowAllow',\n  'headlessHooks',\n  'headlessAutoDeny',/.test(trace))
 }
 
 section('Flow availability is the settings lock alone')

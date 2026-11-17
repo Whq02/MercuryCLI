@@ -1,5 +1,4 @@
-import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
-import type { Tool, ToolUseContext } from '../../Tool.js'
+import type { CanUseToolFn, Tool, ToolUseContext } from '../../Tool.js'
 import type { AssistantMessage } from '../../types/message.js'
 import type { PermissionResult } from '../../types/permissions.js'
 import { modeBypassesPermissions } from '../../utils/permissions/PermissionMode.js'

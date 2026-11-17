@@ -29,12 +29,11 @@ export const CONTRIBUTION_KINDS = [
   'hooks',
   'servers',
   'language',
-  'channels',
   'keybindings',
 ] as const
 export type ContributionKind = (typeof CONTRIBUTION_KINDS)[number]
 
-export const SWITCH_KINDS = ['hooks', 'servers', 'language', 'agents', 'skills', 'channels', 'keybindings'] as const
+export const SWITCH_KINDS = ['hooks', 'servers', 'language', 'agents', 'skills', 'keybindings'] as const
 export type SwitchKind = (typeof SWITCH_KINDS)[number]
 
 
@@ -88,13 +87,6 @@ const remoteServerSchema = lazySchema(() =>
 
 const serverSchema = lazySchema(() => z.union([stdioServerSchema(), remoteServerSchema()]))
 
-const channelSchema = lazySchema(() =>
-  z.strictObject({
-    server: z.string().min(1).describe("One of THIS extension's servers (its key under `servers`)."),
-    label: z.string().min(1).describe('How the channel is named on the approval card and in the session.'),
-  }),
-)
-
 const optionSchema = lazySchema(() =>
   z.strictObject({
     type: z.enum(['string', 'number', 'boolean', 'directory', 'file']).describe('The value kind the operator is asked for.'),
@@ -126,7 +118,6 @@ export const ContributesSchema = lazySchema(() =>
       .record(z.string(), LspServerConfigSchema())
       .optional()
       .describe("Language servers by short name, Mercury's language-server config shape. Started as ext:<name>:<server>."),
-    channels: z.array(channelSchema()).optional().describe("Servers of this extension allowed to post channel messages into the session after approval. A server not declared here has its posts dropped with a health note."),
     keybindings: z
       .record(z.string(), z.string())
       .optional()
@@ -367,7 +358,6 @@ export function contributionCounts(manifest: ExtensionManifest): Partial<Record<
   }
   if (c.servers && Object.keys(c.servers).length) counts.servers = Object.keys(c.servers).length
   if (c.language && Object.keys(c.language).length) counts.language = Object.keys(c.language).length
-  if (c.channels?.length) counts.channels = c.channels.length
   if (c.keybindings && Object.keys(c.keybindings).length) counts.keybindings = Object.keys(c.keybindings).length
   return counts
 }

@@ -180,9 +180,7 @@ export async function showSetupScreens(
   permissionMode: InternalPermissionMode,
   allowDangerouslySkipPermissions: boolean,
   commands?: Command[],
-  devChannels?: unknown,
 ): Promise<boolean> {
-  void devChannels
   if (process.env.NODE_ENV === 'test') return false
   if (process.env.MERCURY_DEMO) return false
 

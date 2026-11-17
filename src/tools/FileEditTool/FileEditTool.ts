@@ -71,7 +71,7 @@ import { getFsImplementation } from '../../utils/fsOperations.js'
 import { validateInputForSettingsFileEdit } from '../../utils/settings/validateEditTool.js'
 import type { UUID } from 'node:crypto'
 
-import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
+import type { CanUseToolFn } from '../../Tool.js'
 import type { FileState } from '../../utils/fileStateCache.js'
 import { MAX_LINES_TO_READ } from '../FileReadTool/prompt.js'
 import { checkIntroducedParseError } from '../FileWriteTool/parseCheck.js'

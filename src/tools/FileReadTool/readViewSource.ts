@@ -2,7 +2,7 @@ import { closeSync } from 'node:fs'
 import { expandPath } from '../../utils/path.js'
 import { isRemotePath } from '../../services/remoteFiles/target.js'
 import { openRegularFileSync } from '../../utils/regularFile.js'
-import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
+import type { CanUseToolFn } from '../../Tool.js'
 import type { ReadQueryRequest } from './readQuery.js'
 
 export async function withReadViewSource<T>(request: ReadQueryRequest, source: string, read: (file: string) => Promise<T>, additional = false): Promise<T> {

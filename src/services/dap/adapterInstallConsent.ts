@@ -1,5 +1,4 @@
-import type { Tool, ToolUseContext } from '../../Tool.js'
-import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
+import type { CanUseToolFn, Tool, ToolUseContext } from '../../Tool.js'
 import type { AssistantMessage } from '../../types/message.js'
 import { installPermission } from '../../extensions/installConsent.js'
 import { installOptionalAdapter, optionalAdapterPlan } from './optionalAdapters.js'

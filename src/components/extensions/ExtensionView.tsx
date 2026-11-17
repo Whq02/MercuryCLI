@@ -28,7 +28,6 @@ const KIND_LETTER: Record<SwitchKind, string> = {
   hooks: 'h',
   servers: 'm',
   language: 'l',
-  channels: 'c',
   keybindings: 'k',
 }
 
@@ -121,7 +120,6 @@ export function ExtensionView({
     if (kind === 'hooks') return resolution.hooks.length > 0
     if (kind === 'servers') return resolution.servers.length > 0
     if (kind === 'language') return resolution.language.length > 0
-    if (kind === 'channels') return resolution.channels.length > 0
     return resolution.keybindings.length > 0
   }
 
@@ -149,7 +147,6 @@ export function ExtensionView({
       const line = `${config.command}${config.args?.length ? ` ${config.args.join(' ')}` : ''}  ·  ${Object.keys(config.extensionToLanguage).join(' ')}`
       addLines.push({ kind: 'language', what: `${language.key}  →  ${shortRoot(line, entry.root)}` })
     }
-    for (const channel of resolution.channels) addLines.push({ kind: 'channels', what: `${channel.label}  (server ${channel.server})` })
     for (const binding of resolution.keybindings) {
       addLines.push({ kind: 'keybindings', what: `${binding.chord}  →  ${binding.target}  ·  ${binding.taken ? 'chord is taken — inert' : 'chord is yours'}` })
     }

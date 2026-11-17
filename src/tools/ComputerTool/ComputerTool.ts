@@ -81,7 +81,7 @@ import {
   type ScreenMap,
 } from './screenMap.js'
 import { renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage, userFacingName } from './UI.js'
-import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
+import type { CanUseToolFn } from '../../Tool.js'
 import { type ScreenFacts, STATE_LINE, candidateWords, clippedWords, nearestOnScreen, regionRefusal, withOrdinal, sameWindow, settledCapture, stateWord, windowOnDisplay, targetMatches, targetElement, targetPoint, targetWords, readObservation, settledObservation, observationChanged, treeObservation, verificationWords, pageContentNote, type CaptureRegion, type DesktopObservation } from './fastRoad.js'
 import { CAPTCHA_ASK_UNAVAILABLE, CAPTCHA_OPERATOR_COMPLETES, CAPTCHA_QUESTION, captchaNote, titleSight, treeSight, type CaptchaSight } from './captcha.js'
 import { OPERATOR_TYPING_REFUSAL, operatorIsTyping, waitForOperatorPause } from './operatorPause.js'

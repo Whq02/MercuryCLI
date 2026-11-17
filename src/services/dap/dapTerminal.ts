@@ -1,7 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { delimiter, resolve } from 'node:path'
-import type { Tool, ToolUseContext } from '../../Tool.js'
-import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
+import type { CanUseToolFn, Tool, ToolUseContext } from '../../Tool.js'
 import type { AssistantMessage } from '../../types/message.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { scrubSessionEnvStamps } from '../../substrate/envStamps.js'

@@ -58,7 +58,6 @@ setTimeout	src/daemon/sessionSeat.ts	5
 setTimeout	src/daemon/workerParentWatch.ts	1
 setTimeout	src/history.ts	1
 setTimeout	src/hooks/fileSuggestions.ts	1
-setTimeout	src/hooks/toolPermission/handlers/interactiveHandler.ts	1
 setTimeout	src/hooks/useAgentsChange.ts	1
 setTimeout	src/hooks/useClipboardImageHint.ts	1
 setTimeout	src/hooks/useDoublePress.ts	1

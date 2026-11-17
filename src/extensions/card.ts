@@ -56,9 +56,6 @@ function reachLines(manifest: ExtensionManifest, resolution: Resolution): Line[]
   for (const key of Object.keys(c.servers ?? {})) {
     lines.push({ text: `tools     the ${key} server's tools, asking by your permission mode like any MCP tool` })
   }
-  for (const channel of c.channels ?? []) {
-    lines.push({ text: `channel   ${channel.label} may post into your session (server ${channel.server})` })
-  }
   for (const [chord, target] of Object.entries(c.keybindings ?? {})) {
     lines.push({ text: `key       ${chord}  →  ${target} (only when the chord is free)` })
   }
@@ -131,7 +128,7 @@ export function approvalCardLines(input: CardInput): string[] {
   out.push(...(runs.length > 0 ? render(runs, '  ') : ['    nothing — no hooks, servers or language servers']))
   out.push('')
   out.push('reaches the model')
-  out.push(...(reach.length > 0 ? render(reach, '  ') : ['    nothing — no skills, commands, agents, tools or channels']))
+  out.push(...(reach.length > 0 ? render(reach, '  ') : ['    nothing — no skills, commands, agents or tools']))
   out.push('')
   out.push('needs')
   out.push(...(needs.length > 0 ? render(needs, '  ') : ['    nothing']))

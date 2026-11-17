@@ -29,7 +29,7 @@
 # gate-watch: src/components/messages/CollapsedReadSearchContent.tsx
 # gate-watch: src/components/permissions/FilePermissionDialog/useFilePermissionDialog.ts
 # gate-watch: src/constants/** src/daemon/* src/fabric/entryCodec.ts
-# gate-watch: src/fabric/ordinal.ts src/hooks/* src/hooks/toolPermission/handlers/interactiveHandler.ts
+# gate-watch: src/fabric/ordinal.ts src/hooks/*
 # gate-watch: src/ink/components/App.tsx src/ink/ink.tsx src/ink/session/capabilities.ts
 # gate-watch: src/ink/stringWidth.ts src/input-core/command-queue.ts
 # gate-watch: src/keybindings/KeybindingProviderSetup.tsx src/mneme/mnemeConsolidate.ts
@@ -62,7 +62,7 @@
 # gate-watch: scripts/tool-economy/fixtures/definition-corpus.json
 # gate-watch: scripts/tool-economy/prove-definition-corpus-parity.ts
 # gate-watch: src/ink/instances.ts
-# gate-watch: src/services/tools/earlyStarts.ts src/hooks/toolPermission/PermissionContext.ts
+# gate-watch: src/services/tools/earlyStarts.ts
 # gate-watch: scripts/lib/settingsPopupHarness.ts src/components/design-system/ThemeProvider.tsx src/components/messages/UserToolResultMessage/UserToolErrorMessage.tsx
 # gate-watch: src/services/gitGraph/observe.ts
 # gate-watch: src/services/remoteFiles/** scripts/remote-files/remoteKit.ts scripts/lib/removeScratch.ts scripts/lib/firstRunSeed.ts src/services/privateChannel/vendoredRuntime.ts vendor/json-query.lock.json

@@ -6,7 +6,7 @@ import picomatch from 'picomatch'
 import { z } from 'zod/v4'
 
 import { buildTool, type ToolPermissionContext, type ToolUseContext } from '../../Tool.js'
-import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
+import type { CanUseToolFn } from '../../Tool.js'
 import { isRemotePath } from '../../services/remoteFiles/target.js'
 import { anchorPatchEnabled } from '../../services/changeTransaction/anchorPatch.js'
 import { staleEditRecoveryEnabled } from '../../services/changeTransaction/stalePatchRecovery.js'

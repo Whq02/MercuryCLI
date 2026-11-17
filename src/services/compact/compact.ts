@@ -1,7 +1,6 @@
 import { canAnswerAsks, getInvokedSkillsForAgent } from '../../bootstrap/state.js'
 import { formatTokens } from '../../utils/format.js'
-import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
-import type { ToolUseContext } from '../../Tool.js'
+import type { CanUseToolFn, ToolUseContext } from '../../Tool.js'
 import type { NonNullableUsage } from '../api/emptyUsage.js'
 import type {
   AssistantMessage,

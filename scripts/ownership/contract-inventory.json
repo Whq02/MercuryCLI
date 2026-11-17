@@ -191,7 +191,6 @@
     "getDenyRules",
     "getRuleByContentsForTool",
     "getRuleByContentsForToolName",
-    "guardHookUpdatedInput",
     "hasPermissionsToUseTool",
     "permissionRuleSourceDisplayString",
     "syncPermissionRulesFromDisk",
@@ -274,7 +273,6 @@
     "createReadRuleSuggestion",
     "persistPermissionUpdate",
     "persistPermissionUpdates",
-    "supportsPersistence",
     "type:PersistVerdict"
    ],
    "src/utils/permissions/permissionExplainer.ts": [
@@ -289,6 +287,10 @@
     "INTERNAL_PERMISSION_MODES",
     "PERMISSION_MODES",
     "type:BypassedAskRoad",
+    "type:DecisionEntry",
+    "type:DecisionStageId",
+    "type:DecisionStageRecord",
+    "type:DecisionTrace",
     "type:ExternalPermissionMode",
     "type:InternalPermissionMode",
     "type:PermissionAllowDecision",
@@ -310,7 +312,10 @@
     "type:PermissionUpdateDestination",
     "type:RiskLevel",
     "type:ToolPermissionContext",
-    "type:ToolPermissionRulesBySource"
+    "type:ToolPermissionRulesBySource",
+    "type:WrapperStageId",
+    "type:WrapperStageRecord",
+    "type:WrapperTrace"
    ]
   },
   "mcp": {
@@ -688,7 +693,6 @@
   "activity",
   "apollo",
   "briefs",
-  "channels",
   "compatProvider",
   "context",
   "credentials",

@@ -12,9 +12,7 @@ import { z } from 'zod/v4'
 const { decideToolPermissionWithModes, defaultWrapperPorts } = await import(
   '../../src/utils/permissions/decision/wrapper.ts'
 )
-const { WRAPPER_STAGE_ORDER } = await import(
-  '../../src/utils/permissions/decision/trace.ts'
-)
+const WRAPPER_STAGE_ORDER: readonly string[] = ['dontAskConversion', 'flowFloors', 'flowLaw', 'flowAllow', 'headlessHooks', 'headlessAutoDeny']
 const { hasPermissionsToUseTool } = await import(
   '../../src/utils/permissions/permissions.ts'
 )
@@ -93,11 +91,15 @@ type Outcome = {
   engineTrace: { decidedBy: string }
   wrapper: { stages: Array<{ stage: string; outcome: string; note?: string }>; decidedBy: string }
 }
-const run = (tool: unknown, ctx: unknown, ports: Ports): Promise<Outcome> =>
-  decideToolPermissionWithModes(tool as never, {}, ctx as never, ASSISTANT, 'toolu_wrapper', ports) as never
+const recorded = new Set<string>()
+const run = async (tool: unknown, ctx: unknown, ports: Ports): Promise<Outcome> => {
+  const outcome = (await decideToolPermissionWithModes(tool as never, {}, ctx as never, ASSISTANT, 'toolu_wrapper', ports)) as never as Outcome
+  for (const s of outcome.wrapper.stages) recorded.add(s.stage)
+  return outcome
+}
 
 function checkSubsequenceLaw(label: string, wrapper: Outcome['wrapper']): void {
-  const order = WRAPPER_STAGE_ORDER as readonly string[]
+  const order = WRAPPER_STAGE_ORDER
   let cursor = -1
   let inOrder = true
   for (const s of wrapper.stages) {
@@ -122,7 +124,6 @@ section('the Flow band — the kept floors, the five, then allow')
 {
   const FLOW_WALK = ['flowFloors', 'flowLaw', 'flowAllow']
   check('no port asks a model for the decision; the only port left is the headless hook band', !('classify' in defaultWrapperPorts) && Object.keys(defaultWrapperPorts).sort().join(',') === 'runHeadlessHooks', Object.keys(defaultWrapperPorts).join(','))
-  check('the stage order carries no verdict stage, no denial ledger stage and no shortcut stage', !(WRAPPER_STAGE_ORDER as readonly string[]).some(s => /classif|denial|FastPath|Guard|Immunity/i.test(s)), j(WRAPPER_STAGE_ORDER))
 
   let r = await run(makeTool({ behavior: 'ask' }), makeContext({ mode: 'flow' }), makePorts({}))
   check("flow: a plain ask none of the five name → allow, decided by flowAllow with the mode as its reason", r.decision.behavior === 'allow' && r.wrapper.decidedBy === 'flowAllow' && r.decision.decisionReason?.type === 'mode', j(r))
@@ -202,6 +203,9 @@ section('pass-through identity + public-entry parity (default ports)')
     check(`${mode}: hasPermissionsToUseTool === wrapper decision`, j(b) === j(a.decision), j({ a: a.decision, b }))
   }
 }
+
+section('every stage the runs above recorded')
+check('each is a stage of the order this proof states: no verdict stage, no denial ledger stage and no shortcut stage', recorded.size > 0 && [...recorded].every(s => WRAPPER_STAGE_ORDER.includes(s)) && ![...recorded].some(s => /classif|denial|FastPath|Guard|Immunity/i.test(s)), j([...recorded]))
 
 console.log('\n============================================================')
 if (failures === 0) {

@@ -22,7 +22,6 @@ enableConfigs()
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { createPermissionContext } = await import('../../src/hooks/toolPermission/PermissionContext.ts')
 const { decisionOfAnswer } = await import('../../src/cli/headless/runnerAsks.ts')
 const HOST_STOP_WORDS = 'stopped by the host'
 const { CANCEL_MESSAGE, REJECT_MESSAGE, REJECT_MESSAGE_WITH_REASON_PREFIX } = await import('../../src/utils/messages/rejectionText.ts')
@@ -127,10 +126,12 @@ async function run(scene: Scene, label: string): Promise<Run> {
     }
     const lateMs = scene.calls[ids.indexOf(toolUseID)]?.lateMs
     if (lateMs !== undefined) await new Promise(resolve => setTimeout(resolve, lateMs))
-    const permission = createPermissionContext(tool, input, toolUseContext, assistantMessage, toolUseID, () => {})
-    const decision = answer === 'declined in the window' || answer === 'stopped by the host'
-      ? decisionOfAnswer({ outcome: 'deny', message: answer === 'stopped by the host' ? HOST_STOP_WORDS : REJECT_MESSAGE, ...(answer === 'stopped by the host' ? { stop: true } : {}) } as never, tool, input, toolUseContext)
-      : answer === 'allow' ? permission.buildAllow(input) : permission.cancelAndAbort(answer === 'decline with words' ? 'read the other file' : undefined, false)
+    const reply = answer === 'allow' ? { outcome: 'allow' }
+      : answer === 'stopped by the host' ? { outcome: 'deny', message: HOST_STOP_WORDS, stop: true }
+      : answer === 'declined in the window' ? { outcome: 'deny', message: REJECT_MESSAGE }
+      : answer === 'decline with words' ? { outcome: 'deny', message: `${REJECT_MESSAGE_WITH_REASON_PREFIX}read the other file` }
+      : { outcome: 'deny', message: REJECT_MESSAGE, stop: true }
+    const decision = decisionOfAnswer(reply as never, tool, input, toolUseContext)
     settledAsks++
     wake?.()
     return decision
@@ -258,7 +259,7 @@ section('a read that has already run keeps its result when the read beside it is
   const hook = await run({ calls: [{ name: 'Read', input: { file_path: '/tmp/declined/a.txt' }, answer: 'allow' }, { name: 'Read', input: { file_path: '/tmp/declined/b.txt' }, answer: 'decline', afterMs: 200 }], replyWaitsForEveryAnswer: true }, 'ran-then-no')
   const later = await run({ calls: [{ name: 'Read', input: { file_path: '/tmp/declined/a.txt' }, answer: 'allow' }, { name: 'Read', input: { file_path: '/tmp/declined/b.txt' }, answer: 'stopped by the host', afterMs: 200 }] }, 'ran-then-stop-later')
   check('and the same pair when the stop comes after the reply has ended: the result as before', later.ran.length === 1 && (later.results.get(later.ids[0]!) ?? '').includes('Read ran') && later.turnAborted, brief(later))
-  check('the same when the stop is a wordless No on the in-process road', hook.ran.length === 1 && (hook.results.get(hook.ids[0]!) ?? '').includes('Read ran') && (hook.results.get(hook.ids[1]!) ?? '').includes(REJECT_MESSAGE) && hook.turnAborted, brief(hook))
+  check('the same when the stop is a wordless No on the card that carries the stop', hook.ran.length === 1 && (hook.results.get(hook.ids[0]!) ?? '').includes('Read ran') && (hook.results.get(hook.ids[1]!) ?? '').includes(REJECT_MESSAGE) && hook.turnAborted, brief(hook))
   const pending = await run({ calls: [{ name: 'Read', input: { file_path: '/tmp/declined/a.txt' }, answer: 'stopped by the host' }, { name: 'Read', input: { file_path: '/tmp/declined/b.txt' }, answer: 'allow', afterMs: 400 }], replyWaitsForEveryAnswer: true }, 'stop-then-pending')
   check('a read still waiting for its answer when the stop comes does not run and gets the stopped line', pending.ran.length === 0 && (pending.results.get(pending.ids[1]!) ?? '').includes(CANCEL_MESSAGE) && pending.turnAborted, brief(pending))
 }
@@ -273,7 +274,7 @@ section('a read still running when the stop lands on the read beside it is cut b
   check("a host's stop after the reply has ended: one request, the turn stopped, the stopped read answered by the stop", host.requests === 1 && host.turnAborted && answerOf(host, 1).includes(HOST_STOP_WORDS), brief(host))
   check('the running read is told it was interrupted, not "Cut off: retry"', isInterruptedResultText(answerOf(host, 0)) && !answerOf(host, 0).startsWith('Cut off'), brief(host))
   const hook = await run({ calls: [{ ...A, answer: 'allow' }, { ...B, answer: 'decline', lateMs: 150 }], answersAfterReply: true, callMs: 1200 }, 'running-then-no')
-  check('the same when the stop is a wordless No on the in-process road', hook.requests === 1 && hook.turnAborted && isInterruptedResultText(answerOf(hook, 0)) && answerOf(hook, 1).includes(REJECT_MESSAGE), brief(hook))
+  check('the same when the stop is a wordless No on the card that carries the stop', hook.requests === 1 && hook.turnAborted && isInterruptedResultText(answerOf(hook, 0)) && answerOf(hook, 1).includes(REJECT_MESSAGE), brief(hook))
   const arriving = await run({ calls: [{ ...A, answer: 'allow' }, { ...B, answer: 'stopped by the host', afterMs: 60 }], replyWaitsForEveryAnswer: true, callMs: 1200 }, 'running-while-arriving')
   check('the reply still arriving: the running read is asked once and told it was interrupted, not that it never ran', arriving.requests === 1 && arriving.turnAborted && once(arriving) && isInterruptedResultText(answerOf(arriving, 0)) && !answerOf(arriving, 0).includes(CANCEL_MESSAGE), brief(arriving))
   const settledRoad = await run({ calls: [{ name: 'Edit', input: A.input, answer: 'allow' }, { ...A, answer: 'allow' }, { name: 'Read', input: { ...A.input, offset: 1 }, answer: 'stopped by the host', afterMs: 60 }], callMs: 1200 }, 'running-settled')

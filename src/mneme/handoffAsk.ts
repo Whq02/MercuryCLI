@@ -1,5 +1,5 @@
 import { getSessionId, isRunInputClosed } from '../bootstrap/state.js'
-import type { CanUseToolFn } from '../hooks/useCanUseTool.js'
+import type { CanUseToolFn } from '../Tool.js'
 import { getCommandQueue } from '../input-core/command-queue.js'
 import type { Message } from '../types/message.js'
 import type { PermissionDecision } from '../types/permissions.js'

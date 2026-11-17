@@ -67,9 +67,10 @@ if (REGEN) {
 console.log('============================================================')
 console.log(' no-orphans ratchet — syntax-aware reachability from the entrypoints')
 console.log('============================================================')
-const reachedTs = graph.files.filter(f => graph.reached.has(f)).length
+const reachedCode = graph.files.filter(f => graph.reached.has(f)).length
+const notTypeScript = graph.files.filter(f => !/\.(ts|tsx)$/.test(f)).length
 console.log(
-  `  reachable: ${reachedTs}/${graph.files.length} src ts files (+${graph.reached.size - reachedTs} resolved assets) · edges: ${graph.edges.length} · orphans: ${orphans.length} (typed baseline ${baseline.rows.length})`,
+  `  reachable: ${reachedCode}/${graph.files.length} src code files (${notTypeScript} of them not TypeScript; +${graph.reached.size - reachedCode} resolved assets) · edges: ${graph.edges.length} · orphans: ${orphans.length} (typed baseline ${baseline.rows.length})`,
 )
 
 let red = false
@@ -86,7 +87,14 @@ if (cured.length) {
 if (fresh.length) {
   red = true
   console.log(`  [FAIL] ${fresh.length} NEW orphan(s) — wire them in, delete them, or hand-add a typed exemption:`)
-  for (const f of fresh) console.log(`      - ${f}`)
+  for (const f of fresh) {
+    const importer = graph.codeBehindTypes.get(join(ROOT, f))
+    console.log(
+      importer === undefined
+        ? `      - ${f}`
+        : `      - ${f} (it carries code, and the only road to it from a root passes a type-only import; ${importer.slice(ROOT.length + 1)} names it: move the types its readers use into a file they import types from and delete it, or import a value from it)`,
+    )
+  }
 }
 
 if (red) {

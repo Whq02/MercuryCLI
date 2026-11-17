@@ -1,5 +1,4 @@
-import type { AnyObject, Tool, ToolUseContext } from '../../Tool.js'
-import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
+import type { AnyObject, CanUseToolFn, Tool, ToolUseContext } from '../../Tool.js'
 import type { AssistantMessage } from '../../types/message.js'
 import type { PermissionDecision, PermissionDecisionReason } from '../../types/permissions.js'
 import { getSessionId } from '../../bootstrap/state.js'

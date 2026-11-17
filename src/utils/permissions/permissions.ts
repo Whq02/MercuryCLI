@@ -108,7 +108,6 @@ export async function checkRuleBasedPermissions(
 
 export { addPermissionRulesToSettings } from './permissionsLoader.js'
 export { createPermissionRequestMessage } from './decision/requestMessage.js'
-export { guardHookUpdatedInput } from './decision/wrapper.js'
 export {
   getAllowRules, getAskRules, getDenyRules,
   getAskRuleForTool, getDenyRuleForTool, toolAlwaysAllowedRule,

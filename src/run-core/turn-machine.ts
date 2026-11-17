@@ -1,5 +1,5 @@
 import type { ToolResultBlockParam, ToolUseBlock } from '../types/wire.js'
-import type { CanUseToolFn } from '../hooks/useCanUseTool.js'
+import type { CanUseToolFn } from '../Tool.js'
 import { FallbackTriggeredError } from '../services/api/withRetry.js'
 import { backupEngineNoticeLine, engineLadderOf } from '../services/api/backupEngines.js'
 import { resetSessionEnvNoticeOnCompaction } from '../tools/shared/sessionEnvNotice.js'
