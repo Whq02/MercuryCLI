@@ -284,7 +284,7 @@ function pickerRowFor(family: string, rows: ModelOption[] | null): LaneRowVerdic
     const { isProviderActionRow } = require('./modelOptions.js') as typeof import('./modelOptions.js')
     const { declaredRouteOf } =
       require('../../services/providers/routeLaw.js') as typeof import('../../services/providers/routeLaw.js')
-    const { providerFrontierFact } =
+    const { providerFrontierFact, openaiFrontierRelease } =
       require('./providerFrontier.js') as typeof import('./providerFrontier.js')
     const { normalizeModelStringForAPI } = require('./model.js') as typeof import('./model.js')
     const familyRows = rows.filter(
@@ -311,8 +311,8 @@ function pickerRowFor(family: string, rows: ModelOption[] | null): LaneRowVerdic
     const fact = providerFrontierFact(family as CallModelRoute)
     const sameId = (value: string, id: string): boolean =>
       normalizeModelStringForAPI(value).toLowerCase() === normalizeModelStringForAPI(id).toLowerCase()
-    const preferred =
-      fact !== undefined ? selectable.find(option => sameId(option.value as string, fact.modelId)) : undefined
+    const wanted = family === 'openai' ? openaiFrontierRelease() : fact !== undefined ? [fact.modelId] : []
+    const preferred = wanted.map(id => selectable.find(option => sameId(option.value as string, id))).find(row => row !== undefined)
     const { newestGeminiGenerationFirst, geminiGeneration } =
       require('../../services/providers/gemini/geminiCatalogue.js') as typeof import('../../services/providers/gemini/geminiCatalogue.js')
     const byGeneration = newestGeminiGenerationFirst(selectable, option => normalizeModelStringForAPI(option.value as string))

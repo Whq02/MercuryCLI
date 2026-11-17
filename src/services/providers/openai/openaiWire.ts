@@ -162,6 +162,35 @@ export interface OpenaiFault {
   outage?: OutageCause
 }
 
+interface OpenaiInputTransformation {
+  id: string
+  action: string
+  reason: string
+}
+
+export function readInputTransformations(response: Record<string, unknown> | undefined): OpenaiInputTransformation[] {
+  const rows = Array.isArray(response?.input_transformations) ? response.input_transformations : []
+  const out: OpenaiInputTransformation[] = []
+  for (const raw of rows) {
+    const row = asRecord(raw)
+    if (!row) continue
+    out.push({
+      id: typeof row.id === 'string' ? row.id : 'unnamed',
+      action: typeof row.action === 'string' ? row.action : 'removed',
+      reason: typeof row.reason === 'string' ? row.reason : 'unstated',
+    })
+  }
+  return out
+}
+
+export function inputTransformationsLine(model: string, rows: readonly OpenaiInputTransformation[]): string {
+  const counts = new Map<string, number>()
+  for (const row of rows) counts.set(row.reason, (counts.get(row.reason) ?? 0) + 1)
+  const reasons = [...counts].map(([reason, count]) => `${reason} ${count}`).join(', ')
+  const items = rows.map(row => `${row.id} ${row.action} ${row.reason}`).join('; ')
+  return `[openai] input_transformations on ${model}: the provider withheld ${rows.length} reasoning item${rows.length === 1 ? '' : 's'} of this request from the model (${reasons}): ${items}`
+}
+
 export type OpenaiStreamEvent =
   | { type: 'response-id'; id: string }
   | { type: 'reasoning-delta'; text: string }
@@ -187,6 +216,7 @@ export type OpenaiStreamEvent =
       unknownItemTypes: string[]
       incompleteDetail?: string
       responseId?: string
+      inputTransformations?: OpenaiInputTransformation[]
     }
   | {
       type: 'stream-fault'
@@ -857,6 +887,7 @@ export class ResponsesStreamFold {
     } else {
       reason = this.toolCalls.length > 0 ? 'tool_calls' : 'completed'
     }
+    const inputTransformations = readInputTransformations(response)
     return {
       type: 'finish',
       reason,
@@ -870,6 +901,7 @@ export class ResponsesStreamFold {
       citations: [...this.citations],
       ...(incompleteDetail !== undefined ? { incompleteDetail } : {}),
       ...(this.responseId ? { responseId: this.responseId } : {}),
+      ...(inputTransformations.length > 0 ? { inputTransformations } : {}),
     }
   }
 

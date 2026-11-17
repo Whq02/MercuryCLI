@@ -287,7 +287,7 @@ const PRICING_OWNERS: Record<CallModelRoute, PricingOwner> = {
   nous: model => nousCataloguePricing(model),
   zen: (model, promptTokens) => {
     const pin = zenDisplayPin(model)
-    return recorded(engineTier(pin?.longContext && promptTokens !== undefined && promptTokens >= (pin.longContextThreshold ?? Infinity) ? { ...pin.longContext, cacheWritePerMtok: pin.cacheWritePerMtok } : pin))
+    return recorded(engineTier(pin?.longContext && promptTokens !== undefined && promptTokens > (pin.longContextThreshold ?? Infinity) ? pin.longContext : pin))
   },
   minimax: (model, promptTokens) => {
     const pin = minimaxDisplayPin(model)

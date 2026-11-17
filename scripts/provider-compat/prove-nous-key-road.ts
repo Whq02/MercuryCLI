@@ -85,7 +85,7 @@ try {
   console.log('── the picker: recommended rows lead, the door opens the full list ──')
   const options = getModelOptions().filter(row => row.group === cat.NOUS_MODEL_GROUP)
   const modelRows = options.filter(row => row.value.startsWith('nous/'))
-  check('the Portal-recommended agentic rows lead the group (the Portal list read 2026-10-25; the unlisted Gemini recommendation is skipped)', modelRows[0]?.value === 'nous/anthropic/claude-sonnet-5.5' && modelRows[1]?.value === 'nous/openai/gpt-6.1-sol' && modelRows[2]?.value === 'nous/deepseek/deepseek-v4.1-flash-1017', modelRows.slice(0, 4).map(r => r.value).join(','))
+  check('the Portal-recommended agentic rows lead the group (the Portal list read 2026-11-17; the unlisted GPT-6.2 Astra and Gemini recommendations are skipped)', modelRows[0]?.value === 'nous/anthropic/claude-sonnet-5.5' && modelRows[1]?.value === 'nous/openai/gpt-6.2-sol' && modelRows[2]?.value === 'nous/deepseek/deepseek-v4.1-flash-1017', modelRows.slice(0, 4).map(r => r.value).join(','))
   check('the bounded view holds 24 rows and a door names the full count', modelRows.length === 24 && options.some(row => isCatalogueDoorRow(row.value) && row.catalogueDoor?.total === 10 + NOUS_FIXTURE_FILLER_ROWS), `${modelRows.length} rows`)
   check('a :batch variant sinks below the plain rows', modelRows.findIndex(r => r.value.endsWith(':batch')) === -1 || modelRows.findIndex(r => r.value.endsWith(':batch')) > modelRows.findIndex(r => r.value === 'nous/fixture/chat-only'))
   const full = cat.getNousFullModelOptions()

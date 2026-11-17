@@ -69,8 +69,8 @@ function familyRows(): FamilyCachingRow[] {
       route: 'openai',
       lines: [
         'automatic for prompts ≥1,024 tokens — no code changes, nothing to adjust',
-        "GPT-5.6+: fixed 30m TTL — prompt_cache_options.ttl offers '30m' as its one supported value",
-        'cached input 0.1× the uncached rate · GPT-5.6+ cache writes 1.25× (observed 2026-08-24)',
+        "GPT-5.6+: 30m TTL by default — prompt_cache_options.ttl also offers '12h', not asked for",
+        'cached input 0.1× (GPT-6.1/6.2: 0.05×) · GPT-5.6+ cache writes 1.25× (observed 2026-11-17)',
       ],
     },
     {

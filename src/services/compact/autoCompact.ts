@@ -7,7 +7,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import type { CacheSafeParams } from '../../utils/forkedAgent.js'
 import { logError } from '../../utils/log.js'
-import { getContextWindowForModel, getModelMaxOutputTokens } from '../../utils/model/capabilities.js'
+import { getContextWindowForModel, getModelInputCeiling, getModelMaxOutputTokens } from '../../utils/model/capabilities.js'
 import { awaitContextWindowSource } from '../../utils/model/contextWindowWarmup.js'
 import { getTokenUsage, tokenCountWithEstimation, usageAnchorModel } from '../../utils/tokens.js'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
@@ -127,7 +127,7 @@ export type TokenWarningLevel = 'ok' | 'warn' | 'compact' | 'blocked'
 
 
 function modelMaxWindow(model: string): number {
-  return getContextWindowForModel(model, getSdkBetas())
+  return getModelInputCeiling(model, getContextWindowForModel(model, getSdkBetas()))
 }
 
 export function resolveAutoCompactWindow(

@@ -935,6 +935,12 @@ export function getContextWindowForModel(
   return resolveContextWindow(model, betas).effectiveWindow
 }
 
+export function getModelInputCeiling(model: string, window: number): number {
+  const pin = gptDisplayPin(model)
+  if (pin?.maxInputTokens === undefined || pin.contextWindow !== window) return window
+  return Math.min(pin.maxInputTokens, window)
+}
+
 function baseGetModelMaxOutputTokens(model: string): {
   default: number
   upperLimit: number
