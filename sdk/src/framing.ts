@@ -3,6 +3,7 @@ import { MAX_LINE_BYTES } from './wire.js'
 import { MercuryWireError } from './errors.js'
 
 export const CUT_LINE = 'the last stdout line was cut off'
+export const CUT_GRACE_MS = 100
 
 export function readLines(stream: Readable, line: (value: string, whole: boolean) => void, fail: (error: MercuryWireError) => void): void {
   let parts: Buffer[] = []

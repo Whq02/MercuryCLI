@@ -58,6 +58,21 @@ async def cut_runner():
         assert cut_exit(error, 'runner'), repr(error)
 
 
+async def cut_alive():
+    task = await run('x', mercury=mercury('cut-alive-run'))
+    try:
+        error = await asyncio.wait_for(expect(task.outcome, MercuryError), 4)
+        assert isinstance(error, MercuryExitError) and error.door == 'run' and error.exit.signal == 'SIGTERM' and str(error).endswith('the last stdout line was cut off'), repr(error)
+        assert (await asyncio.wait_for(task.exit, 2)).signal == 'SIGTERM' and task.child.returncode is not None
+    finally: task.kill()
+
+
+async def after_outcome():
+    task = await run('x', mercury=mercury('after-outcome-run'))
+    assert (await asyncio.wait_for(task.outcome, 10)).get('answer') == 'ok'
+    assert (await asyncio.wait_for(task.exit, 10)).code == 0
+
+
 async def cancelled_waits():
     task = await run('x', mercury=mercury('late-run'))
     async def wait(name): return await getattr(task, name)
@@ -163,6 +178,8 @@ async def deaf_runner():
 async def main():
     await check('run: a process killed mid-row raises its exit, not a wire error, and a whole last row without a newline is still read', cut_run)
     await check('session: a runner killed mid-row fails its requests with the exit, not a wire error', cut_runner)
+    if not WINDOWS: await check('run: a child that closes its output mid-row and stays alive is ended and raises its exit, not left waiting', cut_alive)
+    await check('run: a fragment after a whole outcome row is ignored and the run resolves with the outcome it read', after_outcome)
     await check('run: a cancelled or timed-out wait on session, outcome or exit leaves the handle whole, and close returns', cancelled_waits)
     await check('session: a timed-out wait on exit does not make close raise CancelledError', session_exit_wait)
     if not WINDOWS: await check('run_sync: Ctrl-C reaches the program as KeyboardInterrupt instead of hanging', ctrl_c)

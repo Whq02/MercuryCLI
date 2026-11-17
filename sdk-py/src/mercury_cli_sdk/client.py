@@ -12,7 +12,7 @@ from dataclasses import dataclass, field, replace
 from typing import Any, Callable, AsyncIterable, AsyncIterator, Literal, Generic, TypedDict, TypeVar, Unpack, cast, overload
 from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryUsageError, MercuryWireError, RunExit
 from .generated import InputRow, OutcomeRow, SessionRow, TypedOutcome, MAX_LINE_BYTES, PermissionMode, EffortLevel, InputBlock
-from .framing import CUT_LINE, read_lines
+from .framing import CUT_GRACE, CUT_LINE, read_lines
 from .executable import executable_of
 from .structured import StructuredSchema, schema_object, validate_outcome
 from .helpers import ToolDefinition, ToolServer, serve_tools
@@ -407,6 +407,11 @@ class MercuryRun(Settles):
             self.error = error if isinstance(error, MercuryError) else MercuryWireError('', 'invalid', issues=[Issue('', str(error))])
             self._stdin.close()
             await end_child(self.child)
+        if cut:
+            try: await asyncio.wait_for(self.child.wait(), CUT_GRACE)
+            except asyncio.TimeoutError:
+                self._stdin.close()
+                await end_child(self.child)
         code = await self.child.wait()
         untrack(self.child)
         if self._tools: await self._tools.close()

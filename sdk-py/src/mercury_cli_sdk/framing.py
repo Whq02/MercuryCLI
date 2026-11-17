@@ -7,6 +7,7 @@ from .parse import Issue
 
 
 CUT_LINE = 'the last stdout line was cut off'
+CUT_GRACE = 0.1
 
 
 async def read_lines(stream: asyncio.StreamReader) -> AsyncIterator[tuple[str, bool]]:

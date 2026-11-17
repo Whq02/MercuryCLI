@@ -14,7 +14,7 @@ const text = { type: 'text', seq: 2, timestamp: '2000-01-01T00:00:00.000Z', sess
 assert(rowOf(text).ok, 'the fixture text row is a valid row')
 const [turn, outcome] = fixtureTurn({ answer: 'ok' })
 writeFileSync(fixture, `import { createInterface } from 'node:readline'
-import { writeSync } from 'node:fs'
+import { closeSync, writeSync } from 'node:fs'
 const scenario = process.argv[2]
 const session = ${JSON.stringify(fixtureSessionRow())}
 const text = ${JSON.stringify(text)}
@@ -32,6 +32,8 @@ else if (scenario === 'text-run') { line(session); line(text); line(outcome) }
 else if (scenario === 'stderr-run') { process.stderr.write('a warning line\\n'); line(session); line(outcome) }
 else if (scenario === 'deaf-runner') setInterval(() => {}, 1000)
 else if (scenario === 'failed-run') { line(session); line(failed) }
+else if (scenario === 'cut-alive-run') { line(session); writeSync(1, JSON.stringify(text).slice(0, 40)); closeSync(1); setInterval(() => {}, 1000) }
+else if (scenario === 'after-outcome-run') { line(session); line(outcome); writeSync(1, JSON.stringify(text).slice(0, 40)) }
 else createInterface({ input: process.stdin }).on('line', raw => {
   const message = JSON.parse(raw)
   const reply = result => line({ jsonrpc: '2.0', id: message.id, result })
@@ -52,6 +54,10 @@ const check = async (name: string, body: () => Promise<void>): Promise<void> => 
   catch (error) { failures.push(name); console.error(`FAIL ${name}\n${error instanceof Error ? error.stack : String(error)}`) }
 }
 const cutExit = (door: 'run' | 'runner') => (error: unknown): boolean => error instanceof MercuryExitError && error.door === door && error.message.endsWith('the last stdout line was cut off') && (windows || error.exit?.signal === 'SIGKILL')
+const within = <T>(ms: number, promise: Promise<T>): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  return Promise.race([promise, new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(`still waiting after ${ms} ms`)), ms) })]).finally(() => clearTimeout(timer))
+}
 const guard = setTimeout(() => { console.error('FAIL the second hardening proof timed out'); process.exit(1) }, 150000)
 try {
   await check('a run whose process is killed mid-row rejects with its exit, not a wire error, and a whole last row without a newline is still read', async () => {
@@ -70,6 +76,17 @@ try {
     const started = performance.now()
     await assert.rejects(connect({ mercury: mercury('deaf-runner'), timeoutMs: 100 }), error => error instanceof MercuryTimeoutError && error.method === 'initialize')
     assert(performance.now() - started < 3000, `the timeout error took ${Math.round(performance.now() - started)} ms`)
+  })
+  if (!windows) await check('a run whose child closes its output mid-row and stays alive is ended and rejects with its exit, not left waiting', async () => {
+    const alive = run({ mercury: mercury('cut-alive-run'), prompt: 'x' })
+    try {
+      const error = await within(4000, alive.outcome.then(() => null, (reason: unknown) => reason))
+      assert(error instanceof MercuryExitError && error.door === 'run' && error.exit?.signal === 'SIGTERM' && error.message.endsWith('the last stdout line was cut off'), String(error))
+      assert.equal((await within(2000, alive.exit)).signal, 'SIGTERM')
+    } finally { alive.kill() }
+  })
+  await check('a fragment after a whole outcome row is ignored: the run resolves with the outcome it read', async () => {
+    assert.equal((await within(10000, run({ mercury: mercury('after-outcome-run'), prompt: 'x' }).outcome)).answer, 'ok')
   })
   const py = spawnSync(PYTHON, [join(root, 'scripts/sdk/python-hardening-2.py'), fixture], { cwd: root, env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(root, 'sdk-py/src') }, encoding: 'utf8', timeout: 120000 })
   process.stdout.write(py.stdout)

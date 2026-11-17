@@ -1,6 +1,6 @@
 /// <reference types="node" preserve="true" />
 /// <reference lib="esnext.disposable" preserve="true" />
-import { CUT_LINE, readLines, readText } from './framing.js'
+import { CUT_GRACE_MS, CUT_LINE, readLines, readText } from './framing.js'
 import { executableOf } from './executable.js'
 import { StructuredSchema, schemaObject, validateOutcome, type OutputSchema } from './structured.js'
 import { serveTools, withTools, type ToolDefinition, type ToolServer } from './helpers.js'
@@ -386,6 +386,11 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
   #fatal(error: MercuryError): void {
     if (this.#error) return
     this.#error = error
+    this.#stop()
+  }
+
+  #stop(): void {
+    clearTimeout(this.#stopTimer)
     this.child.stdin!.end()
     this.terminate()
     this.#stopTimer = setTimeout(() => this.kill(), 1000)
@@ -396,7 +401,11 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
     if (this.#error || line.trim() === '') return
     const read = parseRow(line)
     if (!read.ok) {
-      if (!whole && read.reason === 'not_json') { this.#cut = true; return }
+      if (!whole && read.reason === 'not_json') {
+        this.#cut = true
+        this.#stopTimer = setTimeout(() => this.#stop(), CUT_GRACE_MS)
+        return
+      }
       this.#fatal(new MercuryWireError(line, read.reason, read.type, read.issues, null))
       return
     }
