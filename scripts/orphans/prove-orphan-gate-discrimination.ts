@@ -19,7 +19,8 @@ mkdirSync(join(estate, 'scripts', 'orphans'), { recursive: true })
 mkdirSync(join(estate, 'src', 'entrypoints'), { recursive: true })
 for (const name of ['graph.ts', 'prove-no-orphans.ts']) copyFileSync(join(import.meta.dir, name), join(estate, 'scripts', 'orphans', name))
 symlinkSync(join(ROOT, 'node_modules'), join(estate, 'node_modules'), 'junction')
-writeFileSync(join(estate, 'build.ts'), "await Bun.build({ entrypoints: [resolve(SRC, 'bundled.ts')] })\n")
+const CLI_BUILD = "await Bun.build({ entrypoints: [resolve(SRC, 'entrypoints/cli.tsx')] })\n"
+writeFileSync(join(estate, 'build.ts'), `${CLI_BUILD}await Bun.build({ entrypoints: [resolve(SRC, 'bundled.ts')] })\n`)
 writeFileSync(join(estate, 'src', 'entrypoints', 'cli.tsx'), "import '../reached.js'\nimport type { Shape } from '../shapes.js'\nimport type { Other } from '../typedCode.js'\nexport type Both = Shape | Other\n")
 writeFileSync(join(estate, 'src', 'shapes.ts'), 'export type Shape = { n: number }\n')
 writeFileSync(join(estate, 'src', 'typedCode.ts'), 'export type Other = { m: number }\nexport function neverCalled(): number {\n  return 1\n}\n')
@@ -128,6 +129,50 @@ t.section('§6 — a type import is no reach for code: a file of types alone is 
   t.check('gate exits non-zero on code that only an import type reaches', r.code !== 0, `exit=${r.code}`)
   t.check('the red names the file and the road', r.out.includes(`${TYPED.file} (it carries code`) && r.out.includes('type-only import; src/entrypoints/cli.tsx names it'), r.out.trim().split('\n').slice(-4).join(' | '))
   t.check('the file of types alone is not named', !r.out.includes('src/shapes.ts'))
+}
+
+t.section('§7 — the build-entry reader stops with the line where it cannot read; a list no build uses and a folder make no root; every code file is counted')
+{
+  const build = join(estate, 'build.ts')
+  const standing = readFileSync(build, 'utf8')
+  const listed = join(scratch, 'entries.json')
+  writeFileSync(listed, JSON.stringify({ schema: 1, rows: [PARKED, TYPED] }, null, 2))
+  const last = (r: GateRun): string => r.out.trim().split('\n').slice(-3).join(' | ')
+  const withBuild = (text: string): GateRun => {
+    writeFileSync(build, text)
+    const r = runGate(['--baseline', listed], ESTATE_GATE, estate)
+    writeFileSync(build, standing)
+    return r
+  }
+  const unread: Array<[string, string, number]> = [
+    ['a list held in a constant', `${CLI_BUILD}const entries = [resolve(SRC, 'bundled.ts')]\nawait Bun.build({ entrypoints: entries })\n`, 3],
+    ['a spread of a constant', `${CLI_BUILD}const entries = [resolve(SRC, 'bundled.ts')]\nawait Bun.build({ entrypoints: [...entries] })\n`, 3],
+    ['options held in a constant', `${CLI_BUILD}const options = { entrypoints: [resolve(SRC, 'bundled.ts')] }\nawait Bun.build(options)\n`, 3],
+    ['a resolve of three arguments', `${CLI_BUILD}await Bun.build({ entrypoints: [resolve(SRC, 'entrypoints', 'cli.tsx')] })\n`, 2],
+    ['a path that names no file', `${CLI_BUILD}await Bun.build({ entrypoints: [resolve(SRC, 'gone.ts')] })\n`, 2],
+  ]
+  for (const [name, text, line] of unread) {
+    const r = withBuild(text)
+    t.check(`${name} stops the gate with the line of build.ts and names no orphan`, r.code !== 0 && r.out.includes(`build.ts:${line}: `) && !r.out.includes('NEW orphan'), last(r))
+  }
+  const none = withBuild("const entries = [resolve(SRC, 'entrypoints/cli.tsx')]\n")
+  t.check('a build.ts that calls no Bun.build stops the gate', none.code !== 0 && none.out.includes('found no Bun.build call') && !none.out.includes('NEW orphan'), last(none))
+  const quoted = withBuild(`${CLI_BUILD}await Bun.build({ 'entrypoints': [resolve(SRC, 'bundled.ts')] })\n`)
+  t.check('a quoted key is the same list: its file is still a root', quoted.code === 0 && quoted.out.includes('orphans: 2 (typed baseline 2)'), last(quoted))
+  const unbuilt = withBuild(`${CLI_BUILD}const unbuilt = { entrypoints: [resolve(SRC, 'bundled.ts')] }\nvoid unbuilt\n`)
+  t.check('a list no build uses makes no root: its file is named', unbuilt.code !== 0 && unbuilt.out.includes('NEW orphan') && unbuilt.out.includes('src/bundled.ts'), last(unbuilt))
+  writeFileSync(join(estate, 'src', 'entrypoints', 'side.ts'), "import '../behind.js'\n")
+  writeFileSync(join(estate, 'src', 'behind.ts'), 'export const behind = 1\n')
+  const folder = runGate(['--baseline', listed], ESTATE_GATE, estate)
+  t.check('a file in src/entrypoints that no build names is no root: it and what only it imports are named', folder.code !== 0 && folder.out.includes('src/entrypoints/side.ts') && folder.out.includes('src/behind.ts'), last(folder))
+  rmSync(join(estate, 'src', 'entrypoints', 'side.ts'))
+  rmSync(join(estate, 'src', 'behind.ts'))
+  for (const name of ['worker.mjs', 'older.js', 'module.mts']) writeFileSync(join(estate, 'src', name), 'export const loose = 1\n')
+  const loose = runGate(['--baseline', listed], ESTATE_GATE, estate)
+  t.check('a code file that is not TypeScript is counted: three that nothing reaches are named', loose.code !== 0 && ['src/worker.mjs', 'src/older.js', 'src/module.mts'].every(file => loose.out.includes(file)), last(loose))
+  writeFileSync(join(estate, 'src', 'reached.ts'), "export const reached = ['worker.mjs', new URL('./older.js', import.meta.url).pathname]\nexport { loose } from './module.mjs'\n")
+  const named = runGate(['--baseline', listed], ESTATE_GATE, estate)
+  t.check('…and each is reached when a reached file names it: by its file name beside it, by a URL of its own folder, by an import', named.code === 0 && named.out.includes('3 of them not TypeScript'), last(named))
 }
 
 rmSync(scratch, { recursive: true, force: true })

@@ -67,9 +67,10 @@ if (REGEN) {
 console.log('============================================================')
 console.log(' no-orphans ratchet — syntax-aware reachability from the entrypoints')
 console.log('============================================================')
-const reachedTs = graph.files.filter(f => graph.reached.has(f)).length
+const reachedCode = graph.files.filter(f => graph.reached.has(f)).length
+const notTypeScript = graph.files.filter(f => !/\.(ts|tsx)$/.test(f)).length
 console.log(
-  `  reachable: ${reachedTs}/${graph.files.length} src ts files (+${graph.reached.size - reachedTs} resolved assets) · edges: ${graph.edges.length} · orphans: ${orphans.length} (typed baseline ${baseline.rows.length})`,
+  `  reachable: ${reachedCode}/${graph.files.length} src code files (${notTypeScript} of them not TypeScript; +${graph.reached.size - reachedCode} resolved assets) · edges: ${graph.edges.length} · orphans: ${orphans.length} (typed baseline ${baseline.rows.length})`,
 )
 
 let red = false

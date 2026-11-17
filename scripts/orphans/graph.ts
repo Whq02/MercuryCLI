@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import ts from 'typescript'
 
 export const GRAPH_ROOT = join(import.meta.dir, '..', '..')
@@ -14,6 +14,9 @@ type EdgeKind =
   | 'require'
   | 'import-equals'
   | 'type-import'
+  | 'file-url'
+  | 'sibling-name'
+  | 'generated-from'
 
 interface RawEdge {
   from: string
@@ -35,12 +38,21 @@ interface ImportGraph {
   stubMap: Record<string, string>
 }
 
+const CODE_FILE = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/
+const TYPESCRIPT_FILE = /\.(ts|tsx)$/
+
 function* walkDir(dir: string): Generator<string> {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     const p = join(dir, e.name)
     if (e.isDirectory()) yield* walkDir(p)
-    else if (/\.(ts|tsx)$/.test(e.name) && !e.name.endsWith('.d.ts')) yield p
+    else if (CODE_FILE.test(e.name) && !e.name.endsWith('.d.ts')) yield p
   }
+}
+
+function scriptKindOf(filePath: string): ts.ScriptKind {
+  if (filePath.endsWith('.tsx')) return ts.ScriptKind.TSX
+  if (filePath.endsWith('.jsx')) return ts.ScriptKind.JSX
+  return /\.(js|mjs|cjs)$/.test(filePath) ? ts.ScriptKind.JS : ts.ScriptKind.TS
 }
 
 export function readStubMap(): Record<string, string> {
@@ -69,6 +81,8 @@ export function resolveSpec(
     base.replace(/\.js$/, '.tsx'),
     base.replace(/\.jsx$/, '.tsx'),
     base.replace(/\.jsx$/, '.ts'),
+    base.replace(/\.mjs$/, '.mts'),
+    base.replace(/\.cjs$/, '.cts'),
     base + '.ts',
     base + '.tsx',
     join(base, 'index.ts'),
@@ -80,14 +94,14 @@ export function resolveSpec(
   return null
 }
 
-export function extractSpecs(filePath: string, text: string): Array<{ spec: string; kind: EdgeKind; typeOnly: boolean }> {
+export function extractSpecs(filePath: string, text: string, siblings?: ReadonlySet<string>): Array<{ spec: string; kind: EdgeKind; typeOnly: boolean }> {
   const out: Array<{ spec: string; kind: EdgeKind; typeOnly: boolean }> = []
   const sf = ts.createSourceFile(
     filePath,
     text,
     ts.ScriptTarget.ES2022,
      false,
-    filePath.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+    scriptKindOf(filePath),
   )
   const visit = (node: ts.Node): void => {
     if (ts.isImportDeclaration(node)) {
@@ -121,6 +135,13 @@ export function extractSpecs(filePath: string, text: string): Array<{ spec: stri
       if (ts.isLiteralTypeNode(arg) && ts.isStringLiteralLike(arg.literal)) {
         out.push({ spec: arg.literal.text, kind: 'type-import', typeOnly: true })
       }
+    } else if (ts.isNewExpression(node)) {
+      const [target, base] = node.arguments ?? []
+      if (ts.isIdentifier(node.expression) && node.expression.text === 'URL' && target && ts.isStringLiteralLike(target) && target.text.startsWith('.') && base && base.getText(sf) === 'import.meta.url') {
+        out.push({ spec: target.text, kind: 'file-url', typeOnly: false })
+      }
+    } else if (siblings !== undefined && ts.isStringLiteralLike(node) && siblings.has(node.text)) {
+      out.push({ spec: `./${node.text}`, kind: 'sibling-name', typeOnly: false })
     }
     ts.forEachChild(node, visit)
   }
@@ -140,33 +161,52 @@ export function carriesCode(filePath: string, text: string): boolean {
 }
 
 const BUILD = join(GRAPH_ROOT, 'build.ts')
+const GENERATED_ASSETS = join(GRAPH_ROOT, 'scripts', 'gate', 'generated-assets.tsv')
+const TEACH = 'or teach readBuildEntrypoints in scripts/orphans/graph.ts the new form'
+
+function propertyName(property: ts.ObjectLiteralElementLike): string | undefined {
+  const name = property.name
+  if (name === undefined) return undefined
+  return ts.isIdentifier(name) || ts.isStringLiteralLike(name) ? name.text : undefined
+}
 
 export function readBuildEntrypoints(): string[] {
   const sf = ts.createSourceFile(BUILD, readFileSync(BUILD, 'utf-8'), ts.ScriptTarget.ES2022, false, ts.ScriptKind.TS)
   const bases: Record<string, string> = { ROOT: GRAPH_ROOT, SRC }
   const roots: string[] = []
+  let builds = 0
+  const stop = (node: ts.Node, words: string): never => {
+    throw new Error(`build.ts:${sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1}: ${words}`)
+  }
   const visit = (node: ts.Node): void => {
-    if (
-      ts.isPropertyAssignment(node) &&
-      ts.isIdentifier(node.name) &&
-      node.name.text === 'entrypoints' &&
-      ts.isArrayLiteralExpression(node.initializer)
-    ) {
-      for (const el of node.initializer.elements) {
-        const [base, path] = ts.isCallExpression(el) && ts.isIdentifier(el.expression) && el.expression.text === 'resolve' ? el.arguments : []
+    if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && ts.isIdentifier(node.expression.expression) && node.expression.expression.text === 'Bun' && node.expression.name.text === 'build') {
+      builds++
+      const options = node.arguments[0]
+      const property = options && ts.isObjectLiteralExpression(options) ? options.properties.find(p => propertyName(p) === 'entrypoints') : undefined
+      if (property === undefined) {
+        return stop(node, `the reachability reader cannot read this build's entrypoints; pass Bun.build an object literal that holds entrypoints: [resolve(SRC, '<path>')] in build.ts, ${TEACH}`)
+      }
+      if (!ts.isPropertyAssignment(property) || !ts.isArrayLiteralExpression(property.initializer)) {
+        return stop(property, `the reachability reader cannot read this entrypoints list; write it where Bun.build is called as an array literal, entrypoints: [resolve(SRC, '<path>')], ${TEACH}`)
+      }
+      for (const el of property.initializer.elements) {
+        const args = ts.isCallExpression(el) && ts.isIdentifier(el.expression) && el.expression.text === 'resolve' ? el.arguments : undefined
+        const [base, path] = args !== undefined && args.length === 2 ? args : []
         if (!base || !path || !ts.isIdentifier(base) || !(base.text in bases) || !ts.isStringLiteralLike(path)) {
-          const line = sf.getLineAndCharacterOfPosition(el.getStart(sf)).line + 1
-          throw new Error(
-            `build.ts:${line}: the reachability reader cannot read this entrypoint; write it as resolve(SRC, '<path>') or resolve(ROOT, '<path>') in build.ts, or teach readBuildEntrypoints in scripts/orphans/graph.ts the new form`,
-          )
+          return stop(el, `the reachability reader cannot read this entrypoint; write it as resolve(SRC, '<path>') or resolve(ROOT, '<path>') in build.ts, ${TEACH}`)
         }
-        roots.push(join(bases[base.text]!, path.text))
+        const file = join(bases[base.text]!, path.text)
+        if (!file.startsWith(SRC + '/') || !existsSync(file) || !statSync(file).isFile()) {
+          return stop(el, `this entrypoint names no file under src (${file.slice(GRAPH_ROOT.length + 1)}); name the file the build bundles, or take the build out of build.ts`)
+        }
+        roots.push(file)
       }
     }
     ts.forEachChild(node, visit)
   }
   visit(sf)
-  return [...new Set(roots)].filter(p => p.startsWith(SRC + '/') && existsSync(p)).sort()
+  if (builds === 0) throw new Error(`build.ts: the reachability reader found no Bun.build call, so nothing under src has a root; call Bun.build({ entrypoints: [resolve(SRC, '<path>')] }) in build.ts, ${TEACH}`)
+  return [...new Set(roots)].sort()
 }
 
 export function readBuildRoots(): string[] {
@@ -178,20 +218,38 @@ export function readBuildRoots(): string[] {
   return [...new Set(roots)].sort()
 }
 
-function graphEntries(buildRoots: string[]): string[] {
-  const entries = [
-    join(SRC, 'entrypoints', 'cli.tsx'),
-    ...readdirSync(join(SRC, 'entrypoints'))
-      .filter(f => f.endsWith('.ts') || f.endsWith('.tsx'))
-      .map(f => join(SRC, 'entrypoints', f)),
-    ...buildRoots,
-  ]
-  return [...new Set(entries)].filter(p => existsSync(p))
+function generatedSourceEdges(files: string[]): RawEdge[] {
+  if (!existsSync(GENERATED_ASSETS)) return []
+  const rel = (file: string): string => file.slice(GRAPH_ROOT.length + 1)
+  const edges: RawEdge[] = []
+  for (const line of readFileSync(GENERATED_ASSETS, 'utf-8').split('\n')) {
+    if (line.trim() === '' || line.startsWith('#')) continue
+    const columns = line.split('\t')
+    const assets = (columns[0] ?? '').split(/\s+/).filter(Boolean).map(glob => new Bun.Glob(glob))
+    const sources = (columns[3] ?? '').split(/\s+/).filter(Boolean)
+    const built = files.filter(file => assets.some(glob => glob.match(rel(file))))
+    if (built.length === 0) continue
+    for (const source of sources) {
+      const glob = new Bun.Glob(source)
+      for (const file of files) {
+        if (!glob.match(rel(file))) continue
+        for (const asset of built) if (asset !== file) edges.push({ from: asset, spec: source, kind: 'generated-from', typeOnly: false, resolved: file })
+      }
+    }
+  }
+  return edges
 }
 
 export function buildImportGraph(): ImportGraph {
   const stubMap = readStubMap()
   const files = [...walkDir(SRC)].sort()
+  const loose = new Map<string, Set<string>>()
+  for (const f of files) {
+    if (TYPESCRIPT_FILE.test(f)) continue
+    const names = loose.get(dirname(f))
+    if (names) names.add(basename(f))
+    else loose.set(dirname(f), new Set([basename(f)]))
+  }
   const texts = new Map<string, string>()
   const edges: RawEdge[] = []
   for (const f of files) {
@@ -202,10 +260,11 @@ export function buildImportGraph(): ImportGraph {
       continue
     }
     texts.set(f, text)
-    for (const { spec, kind, typeOnly } of extractSpecs(f, text)) {
+    for (const { spec, kind, typeOnly } of extractSpecs(f, text, loose.get(dirname(f)))) {
       edges.push({ from: f, spec, kind, typeOnly, resolved: resolveSpec(f, spec, stubMap) })
     }
   }
+  edges.push(...generatedSourceEdges(files))
   const valueFrom = new Map<string, string[]>()
   const anyFrom = new Map<string, string[]>()
   const add = (map: Map<string, string[]>, from: string, to: string): void => {
@@ -260,7 +319,7 @@ export function buildImportGraph(): ImportGraph {
     return { reached, codeBehindTypes }
   }
   const buildRoots = readBuildRoots()
-  const entries = graphEntries(buildRoots)
+  const entries = buildRoots
   const { reached, codeBehindTypes } = reach(entries)
   return { root: GRAPH_ROOT, files, entries, buildRoots, edges, reached, codeBehindTypes, reachFrom: roots => reach(roots).reached, stubMap }
 }
