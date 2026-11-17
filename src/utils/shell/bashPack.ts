@@ -4,11 +4,12 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { brushPackTreeDigest } from './brushPack.js'
 
-export const BASH_PACK_PATH = 'vendor/bash'
+const BASH_PACK_SEGMENTS = ['vendor', 'bash'] as const
+export const BASH_PACK_PATH = BASH_PACK_SEGMENTS.join('/')
 export const BASH_PACK_NAME = 'bash'
 export const BASH_PACK_BINARY = 'bash'
 export const BASH_PACK_MANIFEST_FILE = '.vendor-manifest.json'
-export const BASH_PACK_PREPARE = 'bun run scripts/vendor/build-bash.ts'
+const BASH_PACK_PREPARE = 'bun run scripts/vendor/build-bash.ts'
 
 export const BASH_PACK_PLATFORMS = ['darwin-arm64', 'darwin-x64', 'linux-x64', 'linux-arm64'] as const
 export type BashPackPlatform = (typeof BASH_PACK_PLATFORMS)[number]
@@ -159,14 +160,14 @@ export function resolveBashPackDir(moduleDir: string = path.dirname(fileURLToPat
   if (platform === null) {
     return { state: 'unavailable', note: `no bash pack exists for ${process.platform}/${process.arch}` }
   }
-  const vendored = path.join(moduleDir, ...BASH_PACK_PATH.split('/'), platform)
+  const vendored = path.join(moduleDir, ...BASH_PACK_SEGMENTS, platform)
   const vendoredCheck = checkBashPackDir(vendored, { platform })
   if (vendoredCheck.state === 'ok') {
     return { state: 'ok', dir: vendored, binaryPath: vendoredCheck.binaryPath, manifest: vendoredCheck.manifest, source: 'vendored' }
   }
   let dir = moduleDir
   for (let i = 0; i < 6; i++) {
-    const candidate = path.join(dir, ...BASH_PACK_PATH.split('/'), platform)
+    const candidate = path.join(dir, ...BASH_PACK_SEGMENTS, platform)
     const check = checkBashPackDir(candidate, { platform })
     if (check.state === 'ok') return { state: 'ok', dir: candidate, binaryPath: check.binaryPath, manifest: check.manifest, source: 'workspace' }
     if (check.state === 'mismatch') return { state: 'unavailable', note: check.note }

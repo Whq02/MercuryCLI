@@ -65,7 +65,8 @@ if (pack.state === 'ok') {
 check('the record the session asks for is the same one', JSON.stringify(await record.shellRecord()) === JSON.stringify(road) && JSON.stringify(record.shellRecordNow()) === JSON.stringify(road))
 check('the provider the Bash tool spawns runs that path', (await getShellConfig()).provider.shellPath === road.path)
 {
-  const handle = await exec('echo "ran:$BASH_VERSION:${ZSH_VERSION:-none}:$SHELL"', new AbortController().signal, 'bash', { timeout: 30_000, preventCwdChanges: true })
+  const probe = ['echo', '"ran:$BASH_VERSION:${ZSH_VERSION:-none}:$SHELL"'].join(' ')
+  const handle = await exec(probe, new AbortController().signal, 'bash', { timeout: 30_000, preventCwdChanges: true })
   const result = await handle.result
   handle.cleanup()
   const line = result.stdout.split('\n').find(text => text.startsWith('ran:')) ?? ''

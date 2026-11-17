@@ -28,9 +28,13 @@ for (const command of ['ls -la', "echo '$(not run); text'", 'git log --format=\'
   const result = await parseForSecurity(command)
   check(`ordinary structure ${JSON.stringify(command)}`, result.kind === 'simple', JSON.stringify(result))
 }
-for (const command of ['echo \u0007bell', 'echo a\u200bb', 'echo a\\ b', 'echo ~[x]', 'echo =ls', 'echo {a,"b"}']) {
+for (const command of ['echo \u0007bell', 'echo a\u200bb', 'echo a\\ b', 'echo {a,"b"}']) {
   const result = await parseForSecurity(command)
   check(`pre-check ${JSON.stringify(command)}`, result.kind === 'too-complex', JSON.stringify(result))
+}
+for (const [command, argv] of [['echo ~[x]', ['echo', '~[x]']], ['echo =ls', ['echo', '=ls']]] as Array<[string, string[]]>) {
+  const result = await parseForSecurity(command)
+  check(`a word bash leaves as it stands is read as it stands ${JSON.stringify(command)}`, result.kind === 'simple' && JSON.stringify(result.commands.map(read => read.argv)) === JSON.stringify([argv]), JSON.stringify(result))
 }
 const broken = await parseForSecurity("echo 'unclosed")
 check('an incomplete quote cannot become a simple command', broken.kind === 'too-complex', JSON.stringify(broken))

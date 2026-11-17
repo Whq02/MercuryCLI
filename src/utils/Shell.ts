@@ -44,7 +44,10 @@ const getPsProvider = memoize(async (): Promise<ShellProvider> => {
 })
 
 const PROVIDER_TABLE: Record<ShellType, () => Promise<ShellProvider>> = {
-  bash: async () => (await getShellConfig()).provider,
+  bash: async () => {
+    const fallback = await fallbackEngineBinary()
+    return fallback === null ? (await getShellConfig()).provider : createEngineCommandProvider(fallback)
+  },
   powershell: () => getPsProvider(),
 }
 
@@ -196,7 +199,7 @@ export async function exec(
     }
   }
 
-  const engineBinary = shellType === 'bash' ? (perCommandEngineBinary(getInitialSettings().shell?.engine) ?? (await fallbackEngineBinary())) : null
+  const engineBinary = shellType === 'bash' ? perCommandEngineBinary(getInitialSettings().shell?.engine) : null
   const provider = engineBinary === null ? await PROVIDER_TABLE[shellType]() : createEngineCommandProvider(engineBinary)
 
   const invocationId = Math.floor(Math.random() * 0x10000)

@@ -26,7 +26,7 @@ export type ShellRecord = {
 const SHELL_FALLBACK_DIRECTORIES = ['/bin', '/usr/bin', '/usr/local/bin', '/opt/homebrew/bin']
 const START_PROBE_TIMEOUT_MS = 5_000
 
-export const NO_SHELL_MESSAGE =
+const NO_SHELL_MESSAGE =
   'No shell found. Mercury runs commands in the bash it ships, then in the system bash, then in its bundled engine, and none of the three starts here; reinstall Mercury or install bash, then restart Mercury.'
 
 function startedBashVersion(path: string): Promise<string | null> {
@@ -179,11 +179,6 @@ export function shellRecordNow(): ShellRecord | null {
   return armedEngineRecord() ?? settledSystemRecord
 }
 
-export function resetShellRecordForTest(): void {
-  systemShellRecord.cache.clear?.()
-  settledSystemRecord = null
-}
-
 export function windowsShellName(): string {
   const shellRaw = process.env.SHELL ?? 'unknown'
   return shellRaw.includes('zsh') ? 'zsh' : shellRaw.includes('bash') ? 'bash' : shellRaw
@@ -204,7 +199,7 @@ export function shellRecordWords(record: ShellRecord): string {
   return Number(number.split('.')[0]) < 4 ? `bash ${number} — ${OLD_BASH_SENTENCE}` : `bash ${number}`
 }
 
-export async function shellRecordIfAny(): Promise<ShellRecord | null> {
+async function shellRecordIfAny(): Promise<ShellRecord | null> {
   try {
     return await shellRecord()
   } catch (error) {
