@@ -12,7 +12,7 @@
 # gate-watch: src/services/providers/qwen/qwenAccounts.ts
 # gate-watch: src/services/providers/callModelRouter.ts src/services/providers/credentialEnvSpellings.ts
 # gate-watch: src/services/providers/local/localCatalogue.ts src/services/providers/local/localDiscovery.ts
-# gate-watch: src/services/providers/routeLaw.ts src/services/providers/zai/glmPins.ts
+# gate-watch: src/services/providers/routeLaw.ts src/services/providers/zai/glmPins.ts src/services/providers/zen/zenPins.ts
 # gate-watch: src/substrate/flagRegistry.ts src/utils/*
 # gate-watch: src/utils/cockpit/helmLanesModel.ts src/utils/cockpit/helmVitalsModel.ts
 set -u
