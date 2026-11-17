@@ -413,8 +413,6 @@ else:
     resizes = _resizes_raw
 
 def _resize_due_s(step, marks_fired_s, last_resize_s):
-    """Seconds after start at which `step` is due; None while its anchor
-    (a mark or a previous resize) has not fired."""
     if "afterMark" in step:
         base = marks_fired_s.get(step["afterMark"])
         if base is None:

@@ -125,7 +125,9 @@ section('(5) one config home, one spelling')
 section('(6) the build-tree stamp rides the staleness sweep')
 {
   const build = readFileSync(join(ROOT, 'build.ts'), 'utf8')
-  const sweep = build.slice(build.indexOf("rmSync(resolve(OUT, 'manifest.json')"), build.indexOf('SELF-CONTAINMENT TRIPWIRE'))
+  const sweepEnd = build.indexOf("const bundlePath = resolve(OUT, 'mercury.mjs')")
+  check('the end of the staleness sweep is in build.ts', sweepEnd !== -1, "the end of the slice is not in the file: const bundlePath = resolve(OUT, 'mercury.mjs')")
+  const sweep = sweepEnd === -1 ? '' : build.slice(build.indexOf("rmSync(resolve(OUT, 'manifest.json')"), sweepEnd)
   check('the sweep removes the stale build-tree stamp beside the manifest', sweep.includes("rmSync(resolve(OUT, '.build-tree'), { force: true })"))
   check('the stamp is still written on success (after the sweep, not before)', build.indexOf("rmSync(resolve(OUT, '.build-tree')") !== -1 && build.indexOf("writeFileSync(resolve(OUT, '.build-tree')") > build.indexOf("rmSync(resolve(OUT, '.build-tree')"))
 }

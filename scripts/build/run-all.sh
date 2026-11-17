@@ -88,7 +88,6 @@ smoke() {
   local out all="" rc
   for cmd in "--help" "--version" "mcp list"; do
     rc=0
-    # shellcheck disable=SC2086 -- fixed two-word-max literals
     run_smoke_cmd out env "$@" "$node_bin" "$dist" $cmd || rc=$?
     if [[ "$rc" == "124" ]]; then bad "smoke TIMEOUT ($label): '$cmd' exceeded 120s"; return; fi
     all+="$out"$'\n'
@@ -106,7 +105,6 @@ fresh_home_smoke() {
   local out rc
   for cmd in "--help" "--version" "mcp list"; do
     rc=0
-    # shellcheck disable=SC2086 -- fixed two-word-max literals
     run_smoke_cmd out env HOME="$fh" CI=true TERM=dumb "$node_bin" "$dist" $cmd || rc=$?
     if [[ "$rc" == "124" ]]; then
       bad "smoke TIMEOUT (fresh-home): '$cmd' exceeded 120s on a brand-new HOME (first-run wedge class)"

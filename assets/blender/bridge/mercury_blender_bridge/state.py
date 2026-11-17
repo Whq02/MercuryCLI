@@ -1,11 +1,3 @@
-"""Shared module state + the contract constants (Mercury Blender bridge).
-
-The constants MIRROR services/blender/bridgeProtocol.ts — the TypeScript
-contract module is the source of truth and the structural prover
-(scripts/blender-bridge/prove-blender-bridge-package.ts) pins equality; a
-drift here is a build failure, not a runtime surprise.
-"""
-
 import threading
 
 PROTOCOL_VERSION = 1

@@ -96,7 +96,9 @@ await new Promise<void>(resolve => { child.once('exit', () => resolve()); setTim
 
 console.log('§3 the build step and the facility agree on the layout')
 const buildSrc = readFileSync(join(ROOT, 'build.ts'), 'utf8')
-const vendoring = buildSrc.slice(buildSrc.indexOf("const typescriptRelPath = 'vendor/typescript'"), buildSrc.indexOf('// Post-build: vendor the IMAGE PROCESSOR pack'))
+const vendoringEnd = buildSrc.indexOf('const { IMAGE_PACK_PATH: imagePackRelPath')
+check('the end of the typescript vendoring step is in build.ts', vendoringEnd !== -1, 'the end of the slice is not in the file: const { IMAGE_PACK_PATH: imagePackRelPath')
+const vendoring = vendoringEnd === -1 ? '' : buildSrc.slice(buildSrc.indexOf("const typescriptRelPath = 'vendor/typescript'"), vendoringEnd)
 check('build.ts copies lib/lib.*.d.ts beside typescript.js in the same vendoring step and records them in vendor.json', vendoring.includes("readDir(tsLibDir).filter(name => /^lib(\\..*)?\\.d\\.ts$/.test(name)).sort()") && vendoring.includes('copyFileSync(resolve(tsLibDir, name), resolve(tsDest, name))') && vendoring.includes('libraries: { count: libraryFiles.length, bytes: libraryBytes }'))
 check('the build report names what the libraries added', /VENDORED typescript \$\{typescriptVersion\}[^\n]*librar/.test(buildSrc))
 

@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
@@ -20,7 +19,6 @@ const TRUECOLOR =
   !/^(dumb|linux)$/.test(process.env.TERM || '') &&
   TRUECOLOR_FLAG !== '0' &&
   (['1', 'true', 'yes', 'on'].includes(TRUECOLOR_FLAG) || truecolorFingerprintOf(process.env) !== null)
-
 
 const COMPACT_HOST_COLS = 100
 const COMPACT_HOST_ROWS = 26
@@ -470,7 +468,7 @@ process.on('exit', () => {
     process.stderr.write(
       'mercury splash: chip read failure(s) — ' + chipReadFailures.join(' · ') + '\n',
     )
-  } catch {  }
+  } catch { }
 })
 
 function resolveConfigFile() {
@@ -483,7 +481,7 @@ function readSavedBootEnv() {
   try {
     const o = JSON.parse(readFileSync(BOOT_ENV_PATH, 'utf8'))
     if (o && o.version === 1 && o.env && typeof o.env === 'object' && !Array.isArray(o.env)) return o.env
-  } catch {  }
+  } catch { }
   return {}
 }
 
@@ -518,7 +516,7 @@ function flushBootEnv() {
   try {
     mkdirSync(CONFIG_HOME, { recursive: true })
     writeFileSync(BOOT_ENV_PATH, JSON.stringify({ version: 1, savedAt: new Date().toISOString(), env }, null, 2) + '\n')
-  } catch {  }
+  } catch { }
 }
 
 
@@ -564,7 +562,7 @@ function scanRecentProjects() {
           if (raw && raw.schema === 1 && typeof raw.dir === 'string' && raw.dir && typeof raw.firstChatAt === 'number') {
             card = { dir: raw.dir, firstChatAt: raw.firstChatAt }
           }
-        } catch {  }
+        } catch { }
       }
       let newest = 0
       let newestFile = null
@@ -576,7 +574,7 @@ function scanRecentProjects() {
             newest = st.mtimeMs
             newestFile = join(dir, f)
           }
-        } catch {  }
+        } catch { }
       }
       if (!newestFile && !card) continue
       perDir.push({ file: newestFile, mtime: Math.max(newest, card ? card.firstChatAt : 0), card })
@@ -590,7 +588,7 @@ function scanRecentProjects() {
           const head = readHead(e.file)
           const m = /"cwd"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(head)
           if (m) cwd = JSON.parse('"' + m[1] + '"')
-        } catch {  }
+        } catch { }
       }
       if (!cwd) continue
       const normPath = p => (process.platform === 'win32' ? p.toLowerCase() : p).replace(/\\/g, '/')
@@ -654,7 +652,7 @@ function computeCritterKey() {
     try {
       const cfg = JSON.parse(readFileSync(resolveConfigFile(), 'utf8'))
       if (typeof cfg.defaultCritter === 'string') c = cfg.defaultCritter.trim()
-    } catch (err) { noteChipFailure('theme', err)  }
+    } catch (err) { noteChipFailure('theme', err) }
   }
   return c ? accentFamilyKeyOf(c) : DEFAULT_CRITTER
 }
@@ -742,7 +740,7 @@ function projectHomeDir(root) {
   const hashed = join(projects, sanitizeProjectPath(canonical) + '-' + createHash('sha256').update(canonical).digest('hex').slice(0, 8))
   try {
     if (statSync(hashed).isDirectory()) return hashed
-  } catch {  }
+  } catch { }
   const legacyCanonical = join(projects, sanitizeProjectPath(canonical))
   if (holdsTranscripts(legacyCanonical)) return legacyCanonical
   const legacyRaw = join(projects, sanitizeProjectPath(folded.normalize('NFC')))
@@ -774,7 +772,7 @@ function writeSplashAction(action, dir) {
       join(CONFIG_HOME, 'splash-action.json'),
       JSON.stringify({ version: 1, ts: Date.now(), action, ...(dir ? { dir } : {}), ...(LAUNCH_ID ? { launchId: LAUNCH_ID } : {}) }) + '\n',
     )
-  } catch {  }
+  } catch { }
 }
 
 function writeScreenReceipt(screen) {
@@ -792,7 +790,7 @@ function writeScreenReceipt(screen) {
         screen,
       }) + '\n',
     )
-  } catch {  }
+  } catch { }
 }
 
 function stampBootAttempt() {
@@ -805,11 +803,11 @@ function stampBootAttempt() {
       if (o && o.version === 1 && Array.isArray(o.attempts)) {
         attempts = o.attempts.filter(t => typeof t === 'number')
       }
-    } catch {  }
+    } catch { }
     attempts.push(Date.now())
     if (attempts.length > 20) attempts = attempts.slice(-20)
     writeFileSync(p, JSON.stringify({ version: 1, attempts }) + '\n')
-  } catch {  }
+  } catch { }
 }
 
 let cardSel = 0
@@ -827,7 +825,6 @@ function cardRows(menuRows = menuAvailable) {
     concourse: process.env.MERCURY_SPLASH_CHAT === '1' ? null : { ctx: 'the multi-session board, once' },
   })
 }
-
 
 function composeStrip(w) {
   const cert = certInfo()
@@ -1229,7 +1226,7 @@ function restoreAndBrand() {
     writeScreenReceipt('restored')
     if (!cancelled) stampBootAttempt()
   }
-  try { process.stdin.setRawMode(false) } catch {  }
+  try { process.stdin.setRawMode(false) } catch { }
 }
 
 let exiting = false
@@ -1260,7 +1257,6 @@ function cancelExit() {
   leaving = true
   collapse(130)
 }
-
 
 let inRipple = false
 let rippleAbort = 0
@@ -1294,7 +1290,7 @@ if (ONESHOT) {
     try {
       const p = join(CONFIG_HOME, f)
       if (Date.now() - statSync(p).mtimeMs > 10 * 60 * 1000) unlinkSync(p)
-    } catch {  }
+    } catch { }
   }
 }
 
@@ -1310,7 +1306,7 @@ function cycleChoice(d) {
   paintView()
 }
 
-try { process.stdin.setRawMode(true) } catch {  }
+try { process.stdin.setRawMode(true) } catch { }
 process.stdin.resume()
 let leaving = false
 

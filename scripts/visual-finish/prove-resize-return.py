@@ -35,8 +35,6 @@ def render(scenario):
 
 
 def furniture_rows(g):
-    """[(y, x, text, [fg...])] for the pane's top border row and the four
-    rows under it (the berth card), clipped to SPAN columns from the corner."""
     out = []
     for y, row in enumerate(g['grid']):
         text = cell_text(row)

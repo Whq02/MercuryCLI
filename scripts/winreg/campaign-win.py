@@ -26,8 +26,6 @@ def _long_path(p):
 
 
 def _short_path(p):
-    """8.3 form — the ONLY safe way to hand a spaced exe to the driver's
-    concatenation spawn model (bringup NOTE)."""
     if os.name != "nt":
         return p
     try:

@@ -1,4 +1,3 @@
-
 import { resolve } from 'node:path';
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync, realpathSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';

@@ -151,7 +151,7 @@ for r in runs:
 pty = [r for r in runs if r['lane'] == 'pty']
 if {r['suite'] for r in pty} != {'p1', 'p2', 'p3', 'p4', 'u1'} or any(r['weight'] != 2 for r in pty):
     bad(f'pty lane membership/weight wrong: {[(r["suite"], r["weight"]) for r in pty]}')
-for r in pty:   # occupancy at every launch never above the cap
+for r in pty:
     live = sum(1 for o in pty if o['startS'] <= r['startS'] < o['endS'])
     if live > cap:
         bad(f'{live} pty runs in flight at {r["suite"]}\'s launch (cap {cap})')
@@ -497,10 +497,6 @@ out8b=$(gate "$work/verdict8b.json" MERCURY_GATE_JOBS=2 MERCURY_GATE_SEED_FILE="
 python3 - "$work/verdict8b.json" "$rc8b" <<'PY' || { fail=1; printf '%s\n' "$out8b" | sed 's/^/      /'; }
 import json, sys
 v = json.load(open(sys.argv[1])); t = v['timeline']; runs = {r['suite']: r for r in t['runs']}
-# ORDER-RELATIVE (gate run 3, hosted 2-core): launch latency put wave 1 at
-# +1s absolute, so startS==0 pinned hardware, not law. The law is the ORDER:
-# z rides wave 1 beside p (within 1 s jitter), strictly before c (cpu-first
-# would park z behind c), and c joins while z still runs.
 ok = (sys.argv[2] == '0'
       and abs(runs['z']['startS'] - runs['p']['startS']) <= 1
       and runs['z']['startS'] < runs['c']['startS']

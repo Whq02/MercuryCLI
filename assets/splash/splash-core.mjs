@@ -1,6 +1,3 @@
-
-
-
 const T256 = { cream: 230, red: 167, faint: 243, dim: 137, dimred: 95 }
 const CREAM = [240, 232, 214]
 const RED = [221, 68, 68]
@@ -731,7 +728,6 @@ function composeProjects(projects, selIdx, w) {
   lines.push(faint + ' ↑↓ pick · ↵ open there · esc back' + R)
   return { lines: lines.map(l => '  ' + l), rowLines }
 }
-
 
 function panelLines(title, contentLines, w) {
   const bc = paint(DUNE)

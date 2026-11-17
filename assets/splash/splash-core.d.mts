@@ -1,4 +1,3 @@
-
 export interface SplashHintSegment {
   key: string
   label: string

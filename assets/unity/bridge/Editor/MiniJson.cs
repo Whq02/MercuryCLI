@@ -1,4 +1,3 @@
-
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -18,7 +17,6 @@ namespace Mercury.UnityBridge
             if (pos != json.Length) throw new FormatException("trailing content after JSON value");
             return value;
         }
-
 
         private static object ParseValue(string s, ref int pos)
         {
@@ -40,7 +38,7 @@ namespace Mercury.UnityBridge
         private static Dictionary<string, object> ParseObject(string s, ref int pos)
         {
             var obj = new Dictionary<string, object>();
-            pos++; // '{'
+            pos++;
             SkipWhitespace(s, ref pos);
             if (pos < s.Length && s[pos] == '}') { pos++; return obj; }
             while (true)
@@ -63,7 +61,7 @@ namespace Mercury.UnityBridge
         private static List<object> ParseArray(string s, ref int pos)
         {
             var arr = new List<object>();
-            pos++; // '['
+            pos++;
             SkipWhitespace(s, ref pos);
             if (pos < s.Length && s[pos] == ']') { pos++; return arr; }
             while (true)
@@ -80,7 +78,7 @@ namespace Mercury.UnityBridge
         private static string ParseString(string s, ref int pos)
         {
             var sb = new StringBuilder();
-            pos++; // opening quote
+            pos++;
             while (true)
             {
                 if (pos >= s.Length) throw new FormatException("unterminated string");
@@ -140,7 +138,6 @@ namespace Mercury.UnityBridge
         {
             while (pos < s.Length && (s[pos] == ' ' || s[pos] == '\t' || s[pos] == '\n' || s[pos] == '\r')) pos++;
         }
-
 
         public static string Serialize(object value)
         {

@@ -1,5 +1,9 @@
 #!/usr/bin/env bun
 
+import { spawnSync } from 'node:child_process'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
 import {
   BLENDER_BRIDGE_DIGEST,
   BLENDER_BRIDGE_FILES,
@@ -28,6 +32,125 @@ function file(p: string): string {
 }
 
 const MOD = 'mercury_blender_bridge'
+
+const PROBE = [
+  'import importlib.util, json, logging, sys, types',
+  'sys.dont_write_bytecode = True',
+  'd = sys.argv[1]',
+  "pkg = types.ModuleType('mbb'); pkg.__path__ = [d]; sys.modules['mbb'] = pkg",
+  "handlers = types.ModuleType('bpy.app.handlers'); handlers.persistent = lambda f: f",
+  "app = types.ModuleType('bpy.app'); app.handlers = handlers",
+  "bpy = types.ModuleType('bpy'); bpy.app = app",
+  'bpy.context = types.SimpleNamespace(scene=None); bpy.data = types.SimpleNamespace(scenes=[], filepath="")',
+  "sys.modules.update({'bpy': bpy, 'bpy.app': app, 'bpy.app.handlers': handlers})",
+  'def load(name):',
+  "    spec = importlib.util.spec_from_file_location('mbb.' + name, d + '/' + name + '.py')",
+  "    mod = importlib.util.module_from_spec(spec); sys.modules['mbb.' + name] = mod; spec.loader.exec_module(mod); return mod",
+  "state = load('state'); ring = load('ring'); server = load('server'); ops = load('ops')",
+  "out = {'python': sys.version.split()[0]}",
+  "record = logging.LogRecord('probe', logging.ERROR, 'probe', 1, 'a line', (), None)",
+  'append = ring._append',
+  'def refuse(*a, **k):',
+  "    raise RuntimeError('the ring refused')",
+  'ring._append = refuse',
+  'try:',
+  '    ring._RingLogHandler().emit(record)',
+  "    out['emitWithAppendRaising'] = 'returned'",
+  'except Exception as error:',
+  "    out['emitWithAppendRaising'] = 'raised ' + type(error).__name__",
+  'ring._append = append',
+  "held = len(ring.tail()['entries'])",
+  'try:',
+  '    ring._RingLogHandler().emit(record)',
+  'except Exception as error:',
+  "    out['emitError'] = type(error).__name__",
+  "out['emitAppends'] = len(ring.tail()['entries']) - held",
+  'seen = []',
+  'server.emit = lambda event, data: seen.append(event)',
+  "state.render_job['active'] = False",
+  "held = len(ring.tail()['entries'])",
+  'try:',
+  '    ops._on_render_complete(None); ops._on_render_cancel(None)',
+  'except Exception as error:',
+  "    out['notOursError'] = type(error).__name__",
+  "out['eventsNotOurs'] = list(seen); out['reportsNotOurs'] = len(ring.tail()['entries']) - held",
+  'del seen[:]',
+  "state.render_job.update({'active': True, 'outputPath': d + '/no-such-render.png', 'frame': 1, 'prev_filepath': '', 'prev_frame': 1, 'started_at': 0.0})",
+  'try:',
+  '    ops._on_render_complete(None)',
+  'except Exception as error:',
+  "    out['oursError'] = type(error).__name__",
+  "out['eventsOurs'] = list(seen); out['activeAfter'] = state.render_job['active']",
+  'import socket, time',
+  "token = d + '/probe-token'",
+  "open(token, 'w', encoding='utf-8').write('probe-token-value')",
+  'bridge = server.BridgeServer(0, token)',
+  'def said(sock):',
+  "    data = b''",
+  "    while not data.endswith(b'\\n'):",
+  '        chunk = sock.recv(65536)',
+  '        if not chunk:',
+  '            return None',
+  '        data += chunk',
+  "    return json.loads(data.decode('utf-8').split('\\n')[0])",
+  'def dial():',
+  "    sock = socket.create_connection(('127.0.0.1', bridge.listener.getsockname()[1]), timeout=5)",
+  '    sock.settimeout(5)',
+  '    return sock',
+  "hello = (json.dumps({'op': 'hello', 'token': 'probe-token-value', 'version': state.PROTOCOL_VERSION}) + '\\n').encode('utf-8')",
+  "ping = (json.dumps({'id': 7, 'op': 'ping'}) + '\\n').encode('utf-8')",
+  'try:',
+  '    if bridge.start():',
+  '        first = dial(); first.sendall(hello); greeted = said(first)',
+  '        probe = dial()',
+  '        time.sleep(0.3)',
+  '        first.sendall(ping); pong = said(first)',
+  '        probe.sendall(hello); taken = said(probe)',
+  '        try:',
+  "            dropped = first.recv(65536) == b''",
+  '        except OSError:',
+  '            dropped = True',
+  "        out['newest'] = {'firstGreeted': bool(greeted and greeted.get('ok')), 'firstAnswersBesideAProbe': bool(pong and pong.get('id') == 7 and pong.get('ok')), 'secondGreeted': bool(taken and taken.get('ok')), 'firstDroppedAtSecondHello': dropped}",
+  'except Exception as error:',
+  "    out['newestError'] = type(error).__name__ + ': ' + str(error)",
+  'finally:',
+  '    bridge.stop()',
+  'print(json.dumps(out))',
+  '',
+].join('\n')
+
+type BridgeProbe = { python?: string; emitWithAppendRaising?: string; emitAppends?: number; eventsNotOurs?: string[]; reportsNotOurs?: number; eventsOurs?: string[]; activeAfter?: boolean; newest?: { firstGreeted: boolean; firstAnswersBesideAProbe: boolean; secondGreeted: boolean; firstDroppedAtSecondHello: boolean }; newestError?: string }
+
+type BridgeRun = { ran: string; probe: BridgeProbe; said: string }
+let bridgeRun: BridgeRun | null = null
+function bridgeUnderPython(): BridgeRun {
+  bridgeRun ??= runBridgeUnderPython()
+  return bridgeRun
+}
+
+function runBridgeUnderPython(): BridgeRun {
+  const pack = join(import.meta.dir, '..', '..', 'vendor', 'python', 'extracted', `${process.platform === 'win32' ? 'win' : process.platform}-${process.arch}`, process.platform === 'win32' ? 'python.exe' : join('bin', 'python3'))
+  const python = existsSync(pack) ? pack : 'python3'
+  const home = mkdtempSync(join(tmpdir(), 'blender-bridge-probe-'))
+  try {
+    for (const f of BLENDER_BRIDGE_FILES) {
+      mkdirSync(dirname(join(home, f.path)), { recursive: true })
+      writeFileSync(join(home, f.path), f.content)
+    }
+    writeFileSync(join(home, 'probe.py'), PROBE)
+    const run = spawnSync(python, ['-B', join(home, 'probe.py'), join(home, MOD)], { encoding: 'utf8', env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' }, timeout: 30_000 })
+    const said = `${run.stdout ?? ''}${run.stderr ?? ''}`.trim()
+    let probe: BridgeProbe = {}
+    try {
+      probe = JSON.parse((run.stdout ?? '').trim().split('\n').at(-1) ?? '') as BridgeProbe
+    } catch {
+      probe = {}
+    }
+    return { ran: `${existsSync(pack) ? 'the vendored Python' : 'python3 on PATH (no vendored pack here)'} ${probe.python ?? '?'}`, probe, said }
+  } finally {
+    rmSync(home, { recursive: true, force: true })
+  }
+}
 
 section('1. the bundle — files present, digest sane')
 {
@@ -106,7 +229,12 @@ section('4. the main-thread law lives in the source')
     server.includes('listener.bind(("127.0.0.1"') && !/bind\(\("0\.0\.0\.0"/.test(server),
   )
   check('the command queue is the one road to the main thread', server.includes('command_queue = queue.Queue()'))
-  check('accept-newest fires at HELLO time (probe-immune)', server.includes('ACCEPT-NEWEST AT HELLO TIME'))
+  const newest = bridgeUnderPython()
+  check(
+    'accept-newest fires at HELLO time (probe-immune)',
+    newest.probe.newest !== undefined && Object.values(newest.probe.newest).every(held => held === true),
+    `under ${newest.ran}, the add-on's own server on a loopback port: ${JSON.stringify(newest.probe.newest ?? newest.probe.newestError ?? newest.said.slice(-300))}`,
+  )
   check('the unauthed receive deadline is enforced in the reap', server.includes('UNAUTHED_DEADLINE_S'))
   check('ping answered on the socket thread (busy ≠ dead)', /op == "ping"/.test(server))
   check('the token is RE-READ per hello (rotation-safe)', server.includes('_read_token'))
@@ -125,7 +253,12 @@ section('5. the verb mechanics live in the source')
   check('blend_open refuses BLEND_NOT_FOUND', ops.includes('BLEND_NOT_FOUND'))
   check('render_still runs as a JOB (INVOKE_DEFAULT + write_still)', ops.includes(`"INVOKE_DEFAULT", write_still=True`))
   check('render_still restores the scene’s own output settings', ops.includes('prev_filepath') && ops.includes('prev_frame'))
-  check('the finish handlers guard renders the bridge did not start', /\ndef _finish_render\(ok\):\n    if not state\.render_job\["active"\]:\n        return\n/.test(ops))
+  const bridge = bridgeUnderPython()
+  check(
+    'the finish handlers guard renders the bridge did not start',
+    bridge.probe.eventsNotOurs?.length === 0 && bridge.probe.reportsNotOurs === 0 && bridge.probe.eventsOurs?.join() === 'render_finished' && bridge.probe.activeAfter === false,
+    `under ${bridge.ran}: both finish handlers called with a render that is not the bridge's emit ${JSON.stringify(bridge.probe.eventsNotOurs ?? bridge.said.slice(-300))} and report ${bridge.probe.reportsNotOurs ?? '?'} line(s); with a render of the bridge's they emit ${JSON.stringify(bridge.probe.eventsOurs ?? [])}`,
+  )
   check('render_finished ok is the FILE truth (isfile at completion)', ops.includes('os.path.isfile(job["outputPath"])'))
   check('python_run enforces the source cap as BAD_ARGS', ops.includes('PYTHON_SOURCE_CAP_BYTES'))
   check('python_run answers PYTHON_EXCEPTION with a bounded traceback tail', ops.includes('PYTHON_EXCEPTION') && ops.includes('traceback (tail):'))
@@ -135,7 +268,11 @@ section('5. the verb mechanics live in the source')
   check('load_post updates the snapshot AND emits blend_changed', ops.includes('_on_load_post') && ops.includes('"blend_changed"'))
   const ring = file(`${MOD}/ring.py`)
   check('the ring counts evictions honestly', ring.includes('_dropped += 1'))
-  check('the logging handler tolerates any thread and never raises', /\n    def emit\(self, record\):\n        try:\n[\s\S]*?\n            _append\(sev, record\.getMessage\(\), "logging"\)\n        except Exception:\n            pass\n/.test(ring))
+  check(
+    'the logging handler tolerates any thread and never raises',
+    bridge.probe.emitWithAppendRaising === 'returned' && bridge.probe.emitAppends === 1,
+    `under ${bridge.ran}: emit with the ring refusing ${bridge.probe.emitWithAppendRaising ?? bridge.said.slice(-300)}; emit with the ring open appends ${bridge.probe.emitAppends ?? '?'} line(s)`,
+  )
 }
 
 section('6. nothing dials out or spawns')

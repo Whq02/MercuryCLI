@@ -56,7 +56,6 @@ export function decideVerifyReceiptBind(facts) {
   return { ok: false, reason: 'no-covering-row', detail: `no green gate-ledger verdict covers the staged tree ${short(buildTree)}` }
 }
 
-
 const git = (root, args, env) =>
   execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], ...(env ? { env } : {}) }).trim()
 
