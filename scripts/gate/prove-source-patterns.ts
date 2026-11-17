@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import ts from 'typescript'
@@ -6,6 +7,7 @@ import { declarationOf, functionOf, importOf, unwrap } from './sourceCensus.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const SELF = 'scripts/gate/prove-source-patterns.ts'
+const CENSUS = 'scripts/gate/sourceCensus.ts'
 const TABLE = 'scripts/gate/source-patterns.tsv'
 const CODE = /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/
 const PAYLOADS = 'src/extensions/bundled/'
@@ -55,10 +57,13 @@ const SUPPRESSION = /@ts-(?:ignore|expect-error|nocheck)\b/
 const LINT = /\b(?:eslint-(?:disable|enable|env)|biome-ignore|prettier-ignore|oxlint-(?:disable|enable)|tslint:(?:disable|enable)|deno-lint-ignore|deno-fmt-ignore|dprint-ignore|jshint|jslint)\b|^\/\*\s*globals?\s/
 const DIRECTIVE_WORD = /@ts-(?:ignore|expect-error|nocheck)|eslint-|biome-ignore|prettier-ignore|oxlint-|tslint:|deno-lint-ignore|deno-fmt-ignore|dprint-ignore|jshint|jslint|\/\*\s*globals?\s/
 
-type Hit = { habit: Habit; file: string; line: number; column: number }
+type Hit = { habit: Habit; file: string; line: number; column: number; print: string }
 type Rows = Map<Habit, Map<string, number>>
 type Over = { file: string; row: number; lines: number[] }
 type Verdict = { over: Over[]; total: number; allowed: number; files: number; slack: number }
+type Side = (file: string) => string | null
+type Change = { commit: string; was: Rows; reader: boolean; touched: string[]; before: Side; after: Side }
+type Refusal = { habit: Habit; file: string; lines: number[]; why: string }
 
 function scriptKind(file: string): ts.ScriptKind {
   if (/\.(?:tsx|jsx)$/.test(file)) return ts.ScriptKind.TSX
@@ -148,12 +153,30 @@ function commentsOf(sf: ts.SourceFile, each: (pos: number, text: string) => void
   walk(sf)
 }
 
-function habitsIn(file: string, text: string): Hit[] {
+const squeeze = (text: string): string => text.replace(/\s+/g, ' ').trim()
+
+function printAt(sf: ts.SourceFile, habit: Habit, pos: number): string {
+  if (habit === 'ts-ignore' || habit === 'lint-directive') {
+    const first = sf.text.indexOf('\n', pos)
+    const end = first < 0 ? -1 : sf.text.indexOf('\n', first + 1)
+    return squeeze(sf.text.slice(pos, end < 0 ? sf.text.length : end))
+  }
+  let node: ts.Node = sf
+  for (;;) {
+    const kid = ts.forEachChild(node, child => (child.getStart(sf) <= pos && pos < child.end ? child : undefined))
+    if (!kid) break
+    node = kid
+  }
+  while (node.parent && !((ts.isStatement(node) && !ts.isBlock(node)) || ts.isClassElement(node))) node = node.parent
+  return squeeze(node.getText(sf))
+}
+
+function habitsIn(file: string, text: string, prints = false): Hit[] {
   const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, scriptKind(file))
   const out: Hit[] = []
   const hit = (habit: Habit, pos: number): void => {
     const at = sf.getLineAndCharacterOfPosition(pos)
-    out.push({ habit, file, line: at.line + 1, column: at.character + 1 })
+    out.push({ habit, file, line: at.line + 1, column: at.character + 1, print: prints ? printAt(sf, habit, pos) : '' })
   }
   const aliases = new Map<string, Habit>()
   for (const s of sf.statements) {
@@ -243,12 +266,13 @@ const render = (rows: Rows): string =>
       .map(([file, count]) => `${habit}\t${file}\t${count}\n`),
   ).join('')
 
-function tableOf(text: string): Rows | null {
+function tableOf(text: string, ofAnotherReader = false): Rows | null {
   const table = rowsOf([])
   for (const line of text.split('\n')) {
     if (line === '') continue
     const m = /^([^\t]+)\t(src\/[^\t]+)\t([1-9][0-9]*)$/.exec(line)
     const files = m ? table.get(m[1] as Habit) : undefined
+    if (m && !files && ofAnotherReader) continue
     if (!m || !files || files.has(m[2]!)) return null
     files.set(m[2]!, Number(m[3]))
   }
@@ -268,18 +292,108 @@ function judge(habit: Habit, hits: Hit[], table: Rows): Verdict {
   return { over, total, allowed: sum(allowed), files: lines.size, slack }
 }
 
-function owed(found: Verdict, allowed: Map<string, number>, standing: Set<string>): number {
-  const freed = [...allowed].filter(([file]) => !standing.has(file)).reduce((n, [, row]) => n + row, 0)
-  return found.over.reduce((n, o) => n + o.lines.length - o.row, 0) - freed
+function refusals(change: Change, counts: Rows, judged: Rows): Refusal[] {
+  const out: Refusal[] = []
+  const touched = new Set(change.touched)
+  const read = new Map<string, Hit[]>()
+  const printsOf = (side: 'before' | 'after', file: string, habit: Habit): Hit[] => {
+    const key = `${side}\u0000${file}`
+    if (!read.has(key)) {
+      const text = change[side](file)
+      read.set(key, text === null ? [] : habitsIn(file, text, true))
+    }
+    return read.get(key)!.filter(h => h.habit === habit)
+  }
+  for (const habit of NAMES) {
+    const was = change.was.get(habit)!
+    const risen = [...judged.get(habit)!].filter(([file, row]) => row > (was.get(file) ?? 0)).sort(([a], [b]) => inOrder(a, b))
+    if (risen.length === 0) continue
+    let left: Map<string, string[]> | null = null
+    const leftOver = (): Map<string, string[]> => {
+      if (left) return left
+      left = new Map()
+      for (const file of change.touched) {
+        const stay = printsOf('after', file, habit).map(h => h.print)
+        for (const h of printsOf('before', file, habit)) {
+          const kept = stay.indexOf(h.print)
+          if (kept >= 0) stay.splice(kept, 1)
+          else left.set(h.print, [...(left.get(h.print) ?? []), `${file}:${h.line}`])
+        }
+      }
+      return left
+    }
+    for (const [file, row] of risen) {
+      const held = counts.get(habit)!.get(file) ?? 0
+      if (!touched.has(file)) {
+        if (!(change.reader && row <= held)) out.push({ habit, file, lines: [], why: `its row says ${row}, the last written table says ${was.get(file) ?? 0}, and the file is as it stood` })
+        continue
+      }
+      const stood = printsOf('before', file, habit).map(h => h.print)
+      const base = change.reader ? Math.max(was.get(file) ?? 0, stood.length) : (was.get(file) ?? 0)
+      const fresh: number[] = []
+      let moved = 0
+      for (const h of printsOf('after', file, habit)) {
+        const same = stood.indexOf(h.print)
+        if (same >= 0) {
+          stood.splice(same, 1)
+          continue
+        }
+        const from = leftOver().get(h.print)
+        if (from && from.length > 0) {
+          from.shift()
+          moved++
+        } else fresh.push(h.line)
+      }
+      if (row > base + moved) out.push({ habit, file, lines: fresh, why: `its row says ${row}: ${base} stood and ${moved} arrived with ${moved === 1 ? 'its statement' : 'their statements'}` })
+    }
+  }
+  return out
 }
 
+const MOVE = `A statement that moves whole between files takes its row along: bun ${SELF} --write in the same change reads the last written table and lets a row rise only by statements that left another file. A statement edited while it moves reads as new: move it first, write the table, edit it after`
+
 const told = (habit: Habit, over: Over[]): string =>
-  `${over.length} file${over.length === 1 ? '' : 's'} above — instead: ${HABITS[habit]}. A file that moved takes its rows along through bun ${SELF} --write, which lowers rows and lets one rise only by what the files that are gone held; a row that must rise for code moved between two files that both stand is raised by hand in ${TABLE}, where the diff shows it:` +
+  `${over.length} file${over.length === 1 ? '' : 's'} above — instead: ${HABITS[habit]}. ${MOVE}:` +
   over
     .slice(0, 40)
     .map(o => `\n      ${o.file} holds ${o.lines.length} of ${habit} and ${o.row === 0 ? 'has no row' : `its row allows ${o.row}`}:` + o.lines.map(line => `\n        ${o.file}:${line} ${habit}`).join(''))
     .join('') +
   (over.length > 40 ? `\n      … and ${over.length - 40} more files` : '')
+
+const toldRefusals = (found: Refusal[]): string =>
+  `${found.length} row${found.length === 1 ? '' : 's'} — ${MOVE}:` +
+  found
+    .slice(0, 40)
+    .map(r => `\n      ${r.file} ${r.habit}: ${r.why}${r.lines.length > 0 ? ` — new, instead: ${HABITS[r.habit]}` : ''}` + r.lines.map(line => `\n        ${r.file}:${line} ${r.habit} is new: no statement that left another file reads the same`).join(''))
+    .join('') +
+  (found.length > 40 ? `\n      … and ${found.length - 40} more rows` : '')
+
+function git(root: string, ...args: string[]): string | null {
+  try {
+    return execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'ignore'] })
+  } catch {
+    return null
+  }
+}
+
+function changeSince(root: string, files: string[]): Change | null {
+  const dirty = git(root, 'status', '--porcelain', '--', 'src', TABLE, SELF, CENSUS)
+  if (dirty === null) return null
+  const commit = (git(root, 'log', '-1', '--first-parent', '--format=%H', dirty.trim() === '' ? 'HEAD^' : 'HEAD', '--', TABLE) ?? '').trim()
+  const written = commit === '' ? null : git(root, 'show', `${commit}:${TABLE}`)
+  if (written === null) return null
+  const stood = new Set((git(root, 'ls-tree', '-r', '--name-only', commit, '--', 'src') ?? '').split('\n').filter(Boolean))
+  const differ = (git(root, 'diff', '--name-only', commit, '--', 'src') ?? '').split('\n').filter(Boolean)
+  const touched = [...new Set([...differ, ...files.filter(file => !stood.has(file))])].filter(file => CODE.test(file) && !file.startsWith(PAYLOADS)).sort()
+  return {
+    commit,
+    was: tableOf(written, true) ?? rowsOf([]),
+    reader: (git(root, 'diff', '--name-only', commit, '--', SELF, CENSUS) ?? '').trim() !== '',
+    touched,
+    before: file => (stood.has(file) ? git(root, 'show', `${commit}:${file}`) : null),
+    after: file => (existsSync(join(root, file)) ? readFileSync(join(root, file), 'utf8') : null),
+  }
+}
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -449,13 +563,49 @@ function plantedEstate(): void {
   check('a file that holds one more than its row allows is named with every line it holds', raised.over.length === 1 && ['13', '14', '16'].every(line => told('empty-catch', raised.over).includes(`src/planted/rest.ts:${line} empty-catch`)) && told('empty-catch', raised.over).includes('its row allows 2'), told('empty-catch', raised.over))
   const fallen = judge('setTimeout', hits.filter(h => h.file !== 'src/planted/worker.mjs'), table)
   check('a count that fell stands, and its row is counted as standing above it', fallen.over.length === 0 && fallen.total === 5 && fallen.allowed === 6 && fallen.slack === 1, JSON.stringify(fallen))
-  const standing = new Set(planted.map(p => p.file))
-  const moved = tableOf(text.replace('setTimeout\tsrc/planted/worker.mjs\t1\n', 'setTimeout\tsrc/planted/gone.mjs\t1\n'))!
-  const arrived = judge('setTimeout', hits, moved)
+  const lines = (rows: Record<string, string[]>): Map<string, string> => new Map(Object.entries(rows).map(([file, text]) => [file, text.join('\n') + '\n']))
+  const ruled = (before: Record<string, string[]>, after: Record<string, string[]>, reader = false, raise: Array<[Habit, string, number]> = [], wasNone = false): string => {
+    const stood = lines(before)
+    const stands = lines(after)
+    const counts = rowsOf([...stands].flatMap(([file, body]) => habitsIn(file, body)))
+    const judged = rowsOf([...stands].flatMap(([file, body]) => habitsIn(file, body)))
+    for (const [habit, file, row] of raise) judged.get(habit)!.set(file, row)
+    const change: Change = {
+      commit: 'planted',
+      was: wasNone ? rowsOf([]) : rowsOf([...stood].flatMap(([file, body]) => habitsIn(file, body))),
+      reader,
+      touched: [...new Set([...stood.keys(), ...stands.keys()])].filter(file => stood.get(file) !== stands.get(file)).sort(),
+      before: file => stood.get(file) ?? null,
+      after: file => stands.get(file) ?? null,
+    }
+    return refusals(change, counts, judged)
+      .map(r => `${r.file} ${r.habit} ${r.lines.join(',')}`)
+      .join(' · ')
+  }
+  const A = ['export function arm(): void {', '  setTimeout(() => stop(), 50)', '}', 'export const keep = setTimeout(() => {}, 1)']
+  const A_LESS = ['export function arm(): void {', '}', 'export const keep = setTimeout(() => {}, 1)']
+  const GONE = ['export const lost = setTimeout(() => {}, 9)']
+  const STILL = ['export const one = setTimeout(() => {}, 2)']
+  const estate = { 'src/planted/a.ts': A, 'src/planted/gone.ts': GONE, 'src/planted/still.ts': STILL }
   check(
-    'the write mode lowers a row freely, lets a row rise by what a file that is gone held, and refuses a rise paid for by an occurrence that left a file that still stands',
-    owed(fallen, table.get('setTimeout')!, standing) <= 0 && arrived.over.length === 1 && owed(arrived, moved.get('setTimeout')!, standing) === 0 && owed(arrived, moved.get('setTimeout')!, new Set([...standing, 'src/planted/gone.mjs'])) === 1,
-    JSON.stringify(arrived),
+    'a row rises only with its statement: a statement that moves whole into a new file is let through, and so is a file that is renamed',
+    ruled(estate, { ...estate, 'src/planted/a.ts': A_LESS, 'src/planted/b.ts': ['setTimeout(() => stop(), 50)'] }) === '' && ruled(estate, { 'src/planted/a.ts': A, 'src/planted/there.ts': GONE, 'src/planted/still.ts': STILL }) === '',
+    `${ruled(estate, { ...estate, 'src/planted/a.ts': A_LESS, 'src/planted/b.ts': ['setTimeout(() => stop(), 50)'] })} | ${ruled(estate, { 'src/planted/a.ts': A, 'src/planted/there.ts': GONE, 'src/planted/still.ts': STILL })}`,
+  )
+  check(
+    'a new occurrence is refused with its line when another left a file that stands, when a file was deleted in the same change, and when the statement was edited while it moved',
+    ruled(estate, { ...estate, 'src/planted/a.ts': A_LESS, 'src/planted/b.ts': ['export const fresh = setTimeout(() => {}, 3)'] }) === 'src/planted/b.ts setTimeout 1' &&
+      ruled(estate, { 'src/planted/a.ts': A, 'src/planted/still.ts': [...STILL, 'export const fresh = setTimeout(() => {}, 3)'] }) === 'src/planted/still.ts setTimeout 2' &&
+      ruled(estate, { ...estate, 'src/planted/a.ts': A_LESS, 'src/planted/b.ts': ['setTimeout(() => stop(), 60)'] }) === 'src/planted/b.ts setTimeout 1',
+    ruled(estate, { 'src/planted/a.ts': A, 'src/planted/still.ts': [...STILL, 'export const fresh = setTimeout(() => {}, 3)'] }),
+  )
+  check(
+    'a row raised by hand is refused, with the file as it stood or with new occurrences under it; a reader that changed counts the code that stood and still refuses a new occurrence',
+    ruled(estate, estate, false, [['setTimeout', 'src/planted/still.ts', 2]]) === 'src/planted/still.ts setTimeout ' &&
+      ruled(estate, { ...estate, 'src/planted/still.ts': [...STILL, 'export const fresh = setTimeout(() => {}, 3)'] }, false, [['setTimeout', 'src/planted/still.ts', 2]]) === 'src/planted/still.ts setTimeout 2' &&
+      ruled(estate, estate, true, [], true) === '' &&
+      ruled(estate, { ...estate, 'src/planted/still.ts': [...STILL, 'export const fresh = setTimeout(() => {}, 3)'] }, true, [], true) === 'src/planted/still.ts setTimeout 2',
+    ruled(estate, estate, true, [], true),
   )
 }
 
@@ -474,23 +624,29 @@ if (process.argv.includes('--list')) {
   const asked = NAMES.filter(habit => process.argv.includes(habit))
   for (const h of hits) if (asked.length === 0 || asked.includes(h.habit)) console.log(`${h.habit}\t${h.file}\t${h.line}\t${h.column}`)
 } else if (process.argv.includes('--write')) {
-  const standing = new Set(files)
-  const risen = table === null ? [] : NAMES.filter(habit => owed(judge(habit, hits, table), table.get(habit)!, standing) > 0)
+  const change = changeSince(ROOT, files)
+  const refused = change === null ? [] : refusals(change, rows, rows)
   if (failures > 0) console.log('  nothing written: the reader failed on its own estate')
-  else if (text !== null && table === null) check(`${TABLE} reads as rows of a habit, a file and its count`, false, 'put the committed table back, then write')
-  else if (risen.length > 0) check('a row falls or leaves, and one rises only by what the files that are gone held', false, `nothing written — ${risen.map(habit => `${habit}: ${told(habit, judge(habit, hits, table!).over)}`).join('\n    ')}`)
+  else if (text !== null && table === null) check(`${TABLE} reads as rows of a habit, a file and its count`, false, `put the table of the last commit back (git checkout -- ${TABLE}), then write`)
+  else if (refused.length > 0) check(`a row rises only with its statement (the last written table: ${change!.commit.slice(0, 10)})`, false, `nothing written — ${toldRefusals(refused)}`)
   else {
     writeFileSync(join(ROOT, TABLE), render(rows))
-    console.log(`  wrote ${TABLE}: ${NAMES.reduce((n, habit) => n + rows.get(habit)!.size, 0)} rows, ${hits.length} occurrences`)
+    console.log(`  wrote ${TABLE}: ${NAMES.reduce((n, habit) => n + rows.get(habit)!.size, 0)} rows, ${hits.length} occurrences${change === null ? ' (no commit holds a table: the first one)' : ` (the last written table: ${change.commit.slice(0, 10)}${change.reader ? ', read by another reader' : ''})`}`)
   }
 } else if (table === null) {
-  check(`${TABLE} reads as rows of a habit, a file and its count`, false, text === null ? `no table: bun ${SELF} --write writes the first one` : 'a row is not a habit of the fence, a file under src and a count of 1 or more, or a habit and file stand twice')
+  check(`${TABLE} reads as rows of a habit, a file and its count`, false, text === null ? `no table: put the table of the last commit back (git checkout -- ${TABLE}); a tree that never held one writes the first with bun ${SELF} --write` : 'a row is not a habit of the fence, a file under src and a count of 1 or more, or a habit and file stand twice')
 } else {
   let slack = 0
   for (const habit of NAMES) {
     const found = judge(habit, hits, table)
     slack += found.slack
     check(`${habit}: no file holds more than its row allows, a file with no row holds none, and the total is at most the table's (${found.total} in ${found.files} files, ${found.allowed} allowed)`, found.over.length === 0 && found.total <= found.allowed, told(habit, found.over))
+  }
+  const change = changeSince(ROOT, files)
+  if (change === null) console.log('  no commit to read the last written table from: the rows are held to the table as it stands')
+  else {
+    const refused = refusals(change, rows, table)
+    check(`no row stands above the last written table but by statements that moved (${change.commit.slice(0, 10)}${change.reader ? ', read by another reader' : ''}; ${change.touched.length} files differ from it)`, refused.length === 0, toldRefusals(refused))
   }
   console.log(`  out of reach: ${OUT_OF_REACH}`)
   if (slack > 0) console.log(`  rows above their file's count: ${slack} (bun ${SELF} --write lowers them)`)
