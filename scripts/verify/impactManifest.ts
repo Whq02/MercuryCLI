@@ -1,4 +1,3 @@
-//  (`# gate-watch: <glob> …`, repeatable), each suite implicitly watches its
 import { readdirSync, readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -6,15 +5,13 @@ export interface ImpactManifest {
   watches: Record<string, string[]>
   ignores: string[]
   suites: string[]
-  /** suite → declared `# gate-class:` (absent/invalid ⇒ 'undeclared' — the
-   *  scheduler and the slice estimator both treat that as pty-conservative).
-   *  Optional so synthetic fixture manifests stay minimal; loadImpactManifest
-   *  always fills it. */
   classes?: Record<string, string>
   narrowed?: string[]
 }
 
 export const NET_GLOB = 'src/**'
+
+export const RATCHETS = ['integrity', 'identity', 'consistency-census', 'gate', 'verify', 'ui-census', 'interaction-pure', 'tree-ownership', 'primitives-kernel', 'permissions']
 
 export interface ImpactSelection {
   suites: Set<string>
@@ -33,9 +30,6 @@ export function parseWatchHeader(runnerText: string): string[] {
   return globs
 }
 
-/** The suite's declared `# gate-class:` — same header discipline as the
- *  scheduler's suite_class(): first declaration wins, anything else (absent,
- *  misspelled) is 'undeclared' and schedules pty-conservative. */
 export function parseClassHeader(runnerText: string): string {
   for (const line of runnerText.split('\n')) {
     const m = line.match(/^# gate-class:\s*(\S+)/)

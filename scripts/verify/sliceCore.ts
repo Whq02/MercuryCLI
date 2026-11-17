@@ -1,6 +1,6 @@
 
 import type { ImpactManifest, ImpactSelection } from './impactManifest.ts'
-import { selectImpact } from './impactManifest.ts'
+import { RATCHETS, selectImpact } from './impactManifest.ts'
 
 export type GateClass = 'pure' | 'cpu' | 'pty' | 'exclusive' | 'undeclared'
 
@@ -32,6 +32,7 @@ export interface SlicePlanInput {
 interface SliceLedger {
   selection: ImpactSelection | null
   suites: string[]
+  ratchets: string[]
   outside: string[]
   sliceEstimateS: number | null
   poolEstimateS: number
@@ -152,6 +153,7 @@ export function planSlice(input: SlicePlanInput): SlicePlan {
   const base: SliceLedger = {
     selection: null,
     suites: [],
+    ratchets: [],
     outside: [],
     sliceEstimateS: null,
     poolEstimateS,
@@ -169,14 +171,19 @@ export function planSlice(input: SlicePlanInput): SlicePlan {
   }
   const selection = selectImpact(input.manifest, input.changedPaths)
   const selected = [...selection.suites].sort()
-  const suites = selected.filter(pooled)
-  const outside = selected.filter(suite => !pooled(suite))
+  const owed =
+    input.changedPaths.length === 0
+      ? []
+      : RATCHETS.filter(suite => input.manifest.suites.includes(suite) && !selection.suites.has(suite))
+  const ratchets = owed.filter(pooled).sort()
+  const suites = [...selected.filter(pooled), ...ratchets].sort()
+  const outside = [...selected, ...owed].filter(suite => !pooled(suite)).sort()
   const hubs = Object.entries(selection.perPath)
     .filter(([, who]) => who[0] !== '(ignored)' && who[0] !== '(UNCLASSIFIED)')
     .map(([path, who]) => ({ path, fanout: who.filter(pooled).length }))
     .filter(hub => hub.fanout > input.hubCeiling)
     .sort((a, b) => b.fanout - a.fanout)
-  const ledger: SliceLedger = { ...base, selection, suites, outside, hubs }
+  const ledger: SliceLedger = { ...base, selection, suites, ratchets, outside, hubs }
   if (selection.unclassified.length > 0) {
     return {
       kind: 'escalate',

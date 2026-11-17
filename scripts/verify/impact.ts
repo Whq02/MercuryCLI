@@ -2,11 +2,9 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { loadImpactManifest, selectImpact } from './impactManifest.ts'
+import { loadImpactManifest, RATCHETS, selectImpact } from './impactManifest.ts'
 
 const ROOT = process.env.MERCURY_SLICE_ROOT ?? resolve(import.meta.dir, '..', '..')
-
-const ALWAYS = ['integrity', 'identity', 'consistency-census', 'gate', 'verify', 'ui-census', 'interaction-pure', 'tree-ownership', 'primitives-kernel', 'permissions']
 
 const FLAGS = ['--json', '--explain', '--staged', '--dirty']
 const argv = process.argv.slice(2)
@@ -55,7 +53,7 @@ if (args[0] === '--paths') {
 
 const manifest = loadImpactManifest(ROOT)
 const sel = selectImpact(manifest, paths)
-const always = ALWAYS.filter(s => existsSync(join(ROOT, 'scripts', s, 'run-all.sh')))
+const always = RATCHETS.filter(s => existsSync(join(ROOT, 'scripts', s, 'run-all.sh')))
 const suites = [...new Set([...sel.suites, ...always])].sort()
 
 if (json) {

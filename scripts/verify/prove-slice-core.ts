@@ -319,6 +319,53 @@ section('§7 the plan stays inside what the anchor read')
   )
 }
 
+section('§9 every change owes the whole-tree ratchets the anchor read')
+{
+  const estate: ImpactManifest = {
+    suites: ['bus', 'gate', 'heavy', 'identity', 'smoke', 'verify'],
+    watches: { bus: ['src/utils/crew/**'], heavy: ['src/heavy/**'], identity: ['docs/**'], smoke: ['src/**'] },
+    ignores: ['notes/**'],
+  }
+  const owing = (over: Partial<SlicePlanInput>): SlicePlanInput =>
+    input({
+      manifest: estate,
+      classes: { bus: 'pure', gate: 'pure', heavy: 'cpu', identity: 'cpu', smoke: 'cpu', verify: 'pty' },
+      durations: { bus: 40, gate: 60, heavy: 2000, identity: 50, smoke: 200, verify: 600 },
+      anchor: { ...ANCHOR, read: ['bus', 'gate', 'heavy', 'identity', 'smoke'], present: estate.suites },
+      ...over,
+    })
+  const shown = (p: ReturnType<typeof planSlice>): string =>
+    JSON.stringify(p.kind === 'run' ? [p.suites, p.ledger.ratchets, p.ledger.outside] : [p.kind, p.reason])
+  const src = planSlice(owing({ changedPaths: ['src/utils/crew/bus.ts'] }))
+  check(
+    'a source change runs its watchers and the ratchets, and names the ratchet the anchor did not read',
+    src.kind === 'run' && src.suites.join(',') === 'bus,gate,identity,smoke' && src.ledger.ratchets.join(',') === 'gate,identity' && src.ledger.outside.join(',') === 'verify',
+    shown(src),
+  )
+  const docs = planSlice(owing({ changedPaths: ['docs/x.md'] }))
+  check(
+    'a ratchet that also watches the change is listed once, as a watcher',
+    docs.kind === 'run' && docs.suites.join(',') === 'gate,identity' && docs.ledger.ratchets.join(',') === 'gate',
+    shown(docs),
+  )
+  const ignoredOnly = planSlice(owing({ changedPaths: ['notes/x.txt'] }))
+  check(
+    'a change no suite watches still owes the ratchets, and the estimate counts them (60s)',
+    ignoredOnly.kind === 'run' && ignoredOnly.suites.join(',') === 'gate,identity' && ignoredOnly.ledger.sliceEstimateS === 60,
+    `${shown(ignoredOnly)} ${ignoredOnly.ledger.sliceEstimateS}`,
+  )
+  const clean = planSlice(owing({ changedPaths: [] }))
+  check('no change owes nothing', clean.kind === 'run' && clean.suites.length === 0 && clean.ledger.ratchets.length === 0, shown(clean))
+  const ceiling = planSlice(owing({ changedPaths: ['src/utils/crew/bus.ts'], hubCeiling: 2 }))
+  check('the ratchets do not count toward the fan-out ceiling (2 watchers under a ceiling of 2 run 4 suites)', ceiling.kind === 'run' && ceiling.suites.length === 4, shown(ceiling))
+  const silent = planSlice(owing({ changedPaths: ['src/utils/crew/bus.ts'], anchor: ANCHOR }))
+  check(
+    'an anchor that does not say what it read owes every ratchet',
+    silent.kind === 'run' && silent.suites.join(',') === 'bus,gate,identity,smoke,verify' && silent.ledger.outside.length === 0,
+    shown(silent),
+  )
+}
+
 section('§8 the class header')
 {
   check('parseClassHeader reads a declared class', parseClassHeader('#!/usr/bin/env bash\n# gate-class: pty\nset -u\n') === 'pty')

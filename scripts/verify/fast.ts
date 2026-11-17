@@ -252,6 +252,8 @@ if (selection && selection.ignored.length > 0)
   console.log(`  ignored (declared no-runtime-surface): ${selection.ignored.length} path(s)`)
 if (plan.ledger.suites.length > 0)
   console.log(`  affected suites: ${plan.ledger.suites.join(', ')}`)
+if (plan.ledger.ratchets.length > 0)
+  console.log(`  whole-tree ratchets, owed by every change: ${plan.ledger.ratchets.join(', ')}`)
 if (plan.ledger.outside.length > 0)
   console.log(`  not read by the anchor's full run, so not run here: ${plan.ledger.outside.join(', ')}`)
 if (plan.ledger.sliceEstimateS !== null) {
