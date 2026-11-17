@@ -39,7 +39,11 @@ const AREAS: Record<string, string> = {
   'src/bootstrap/': 'boot.ts',
   'src/main.tsx': 'boot.ts',
   'src/services/privateChannel/': 'boot.ts',
-  'src/substrate/': 'boot.ts',
+  'src/substrate/durablePublish.ts': 'boot.ts',
+  'src/substrate/envStamps.ts': 'boot.ts',
+  'src/substrate/identity/': 'boot.ts',
+  'src/substrate/splashHandover.ts': 'boot.ts',
+  'src/substrate/startupMenu.ts': 'boot.ts',
   'src/utils/envUtils.ts': 'boot.ts',
   'src/services/agentNeedsYou.ts': 'cockpit.ts',
   'src/utils/cockpit/': 'cockpit.ts',
@@ -244,10 +248,7 @@ async function judge(root: string, areas: Record<string, string>): Promise<Readi
   const held: { file: string; rows: Row[] }[] = []
   for (const file of listed) {
     if (file === DOOR) continue
-    if (!file.endsWith('.ts')) {
-      fault('exports', `${file} is no rows file: ${ROWS} holds one .ts file per area, and ${TYPES}`)
-      continue
-    }
+    if (posix.basename(file).startsWith('.') || !CODE.test(file)) continue
     const mod = await load(file)
     if (mod === null) continue
     const names = Object.keys(mod)
@@ -339,6 +340,8 @@ section('§0 the checks on a planted tree: a tree with nothing wrong reads clean
     'src/a/flags/local.ts': 'export const local = 1\n',
     'src/a/user.ts': `import { local } from './flags/local.js'\nexport const twice = local * 2\n`,
     [SELF]: `const rows = await import('${spec(SELF, A)}')\nexport const seen = rows\n`,
+    [`${ROWS}/.DS_Store`]: 'a leftover of the file manager\n',
+    [`${ROWS}/notes.md`]: 'a note\n',
   }
   const planted = async (change: Record<string, string> = {}): Promise<Fault[]> => {
     const root = mkdtempSync(join(tmpdir(), 'flag-registry-split-'))
@@ -356,7 +359,7 @@ section('§0 the checks on a planted tree: a tree with nothing wrong reads clean
   check(`the helper lists the door and takes a file under ${ROWS} as a registry file`, DOOR !== '' && isFlagRegistryFile(TYPES) && !isFlagRegistryFile(`${ROWS}.ts`), `door '${DOOR}'`)
 
   const none = await planted()
-  check('a tree with nothing wrong reads clean: the door, a file of the folder, this proof, an import of the door and a folder of the same name elsewhere are let through', none.length === 0, texts(none))
+  check('a tree with nothing wrong reads clean: the door, a file of the folder, this proof, an import of the door, a folder of the same name elsewhere and a leftover in the folder that is no code are let through', none.length === 0, texts(none))
 
   const doorRow = await planted({ [DOOR]: doorFile(['a', 'b'], `, { env: 'DOOR_ROW', consumer: 'src/a/late.ts' }`) })
   const BESIDE = `${posix.dirname(DOOR)}/more.ts`
