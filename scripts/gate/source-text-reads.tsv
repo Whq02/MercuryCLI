@@ -94,7 +94,6 @@ scripts/api/prove-unrecognised-4xx-sentence.ts	2
 scripts/api/prove-watchdog-pool-reset.ts	2
 scripts/apollo/prove-apollo-exit.ts	6
 scripts/apollo/prove-apollo-mode.ts	25
-scripts/attachments/goldens.json	1
 scripts/attachments/prove-image-road.ts	2
 scripts/attention/prove-attach-return.ts	2
 scripts/attention/prove-attention-focus.ts	3
@@ -155,7 +154,6 @@ scripts/build/prove-boot-crash-surface.ts	6
 scripts/build/prove-brush-prepare-words.ts	1
 scripts/build/prove-build-search-gate.ts	2
 scripts/build/prove-win32-seam-ratchet.ts	8
-scripts/build/win32-seam-baseline.json	58
 scripts/builtin-tools/census-gen.ts	2
 scripts/builtin-tools/prove-builtin-tools-census.ts	1
 scripts/builtin-tools/prove-census-reasons.ts	1
@@ -239,11 +237,9 @@ scripts/computer/prove-computer-refusals.ts	2
 scripts/computer/prove-computer-retention.ts	5
 scripts/computer/prove-computer-round-two.ts	1
 scripts/computer/prove-computer-tree.ts	2
-scripts/consistency-census/basename-census.json	17
 scripts/consistency-census/gen-basename-census.ts	14
 scripts/consistency-census/gen-lockup-census.ts	16
 scripts/consistency-census/gen-shellstring-census.ts	2
-scripts/consistency-census/lockup-census.json	11
 scripts/consistency-census/prove-basename-census.ts	4
 scripts/consistency-census/prove-identity-transition.ts	1
 scripts/consistency-census/prove-lockup-census.ts	4
@@ -252,7 +248,6 @@ scripts/consistency-census/prove-shellstring-census.ts	1
 scripts/consistency-census/prove-turn-status.ts	4
 scripts/consistency-census/prove-view-coherence.ts	5
 scripts/consistency-census/prove-worktree-settlement.ts	2
-scripts/consistency-census/shellstring-census.json	7
 scripts/context/prove-compaction-epoch.ts	1
 scripts/context/prove-context-fill-agreement.ts	8
 scripts/context/prove-context-free-space-agreement.ts	2
@@ -461,10 +456,7 @@ scripts/engine-durability/prove-coalescer-owner.ts	2
 scripts/engine-durability/prove-projection-freshness.ts	2
 scripts/engine-durability/prove-receipt-contract.ts	6
 scripts/engine-durability/prove-write-route-ratchet.ts	1
-scripts/engine-durability/write-routes.baseline.json	63
 scripts/engine-pass/build-scene.ts	1
-scripts/engine-pass/contract-59a987410.json	3
-scripts/engine-pass/contract-moved.tsv	3
 scripts/engine-pass/prove-engine-contract.ts	3
 scripts/eval/prove-cell-running-row.ts	2
 scripts/eval/prove-env-filter.ts	1
@@ -487,9 +479,6 @@ scripts/extensions/prove-source-row-plain-text.ts	3
 scripts/extensions/prove-update-discipline.ts	1
 scripts/formal-models/prove-selection-budget-owner.ts	1
 scripts/formal-models/prove-task-lock-stall.ts	1
-scripts/gate/generated-assets.tsv	86
-scripts/gate/impact-doors.txt	1
-scripts/gate/impact-narrowed.txt	2
 scripts/gate/prove-proof-home-discipline.ts	1
 scripts/gate/prove-proof-machine-census.ts	3
 scripts/gate/prove-run-root-socket-bound.ts	1
@@ -711,7 +700,6 @@ scripts/media/prove-media-privacy.ts	7
 scripts/media/prove-media-runtime-variants.ts	1
 scripts/media/prove-media-sdxl-family.ts	1
 scripts/media/prove-media-slot.ts	1
-scripts/memory-lifecycle/fixtures/entry-knapsack/states.json	3
 scripts/memory-lifecycle/prove-entry-knapsack.ts	5
 scripts/memory-lifecycle/prove-entry-state.ts	1
 scripts/memory-lifecycle/prove-handoff-write-receipt.ts	1
@@ -847,7 +835,6 @@ scripts/orphans/prove-export-census.ts	1
 scripts/orphans/prove-orphan-gate-discrimination.ts	2
 scripts/outcome-pack/ordering.ts	1
 scripts/outcome-pack/tasks/6/script.ts	1
-scripts/ownership/contract-inventory.json	47
 scripts/ownership/prove-contract-inventory.ts	48
 scripts/permissions/prove-agent-mode-within-consent.ts	4
 scripts/permissions/prove-bash-deny-rules-every-spelling.ts	1
@@ -892,7 +879,6 @@ scripts/primitives-kernel/prove-primitives-kernel-census.ts	2
 scripts/project-intel/prove-capsule-lifecycle.ts	3
 scripts/project-intel/prove-compiler-facility.ts	1
 scripts/project-intel/prove-path-tokens-linear.ts	1
-scripts/project-services/fixtures/inventory.json	8
 scripts/project-services/gen-completions.ts	2
 scripts/project-services/inventory.ts	8
 scripts/project-services/prove-service-project-key.ts	2
@@ -971,7 +957,6 @@ scripts/provider-compat/prove-reasoning-only-nudge.ts	1
 scripts/provider-compat/prove-route-law.ts	2
 scripts/provider-compat/prove-transport-reached-via-router.ts	11
 scripts/provider-compat/prove-typed-catalogue-consumers.ts	14
-scripts/providers/fixtures/xai-subscription-contract.json	1
 scripts/providers/prove-anthropic-extra-usage-open.ts	3
 scripts/providers/prove-anthropic-fable-pool-wire.ts	2
 scripts/providers/prove-anthropic-latch-from-headers.ts	1
@@ -1065,7 +1050,6 @@ scripts/run-recovery/prove-resume-facts-owner.ts	2
 scripts/run-recovery/prove-sigkill-resume-fallback.ts	1
 scripts/run-recovery/prove-worktree-resume-keeps-record.ts	2
 scripts/run/prove-run-resume.ts	2
-scripts/samples/fixtures/samples-doc-reference.json	5
 scripts/samples/prove-samples-cockpit-facts.ts	3
 scripts/samples/prove-samples-doc.ts	2
 scripts/samples/prove-samples-road-words.ts	3
@@ -1376,7 +1360,6 @@ scripts/tree-ownership/prove-tree-ownership-namespace.ts	1
 scripts/turnEngine/prove-ptl-recovery.ts	1
 scripts/turnEngine/prove-turn-engine-contracts.ts	3
 scripts/turnEngine/prove-turn-laws.ts	1
-scripts/typecheck/hard-zero.txt	71
 scripts/ui/motion-menu-stills.ts	4
 scripts/ui/prove-accent-override.ts	3
 scripts/ui/prove-accent-subscriptions.ts	3
