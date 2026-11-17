@@ -34,6 +34,8 @@ const DIR_ANCHORS = new Set(['import.meta.dir', '__dirname', 'HERE', 'here', 'DI
 const ROOT_ANCHORS = new Set(['ROOT', 'REPO', 'repo', 'root', 'repoRoot', 'REPO_ROOT', 'repo_root'])
 const CLASSES = new Set(['pure', 'cpu', 'pty', 'exclusive'])
 const SPAWN_WINDOW = 6
+const SHELL_WORDS = /^\s*(?:say|echo|printf)\s[^;&|`$]*$/
+const REBOUND_ANCHOR = /\b(?:const|let|var)\s+(here|HERE|DIR|dir)\s*=\s*(?!.*(?:import\.meta|__dirname|dirname\())/g
 
 function codeLines(path: string): string[] {
   const ext = extOf(path)
@@ -125,6 +127,7 @@ function shellTargets(root: string, file: string): Set<string> {
       }
     }
     if (raw.includes(PREFLIGHT)) continue
+    if (SHELL_WORDS.test(raw)) continue
     const line = raw
       .replace(SHELL_FILE_TEST, ' ')
       .replace(/"\$\(dirname "\$0"\)"/g, dir)
@@ -162,7 +165,9 @@ function edgesOf(root: string, file: string, lines: string[], ctx: LineCtx[]): S
     const r = resolveModule(full)
     if (r) out.add(r)
   }
-  const anchored = (anchor: string, rest: string): string | null => (ROOT_ANCHORS.has(anchor) ? join(root, rest) : DIR_ANCHORS.has(anchor) ? join(dir, rest) : null)
+  const rebound = new Set(lines.flatMap(l => [...l.matchAll(REBOUND_ANCHOR)].map(m => m[1]!)))
+  const ownDir = (anchor: string): boolean => DIR_ANCHORS.has(anchor) && !rebound.has(anchor)
+  const anchored = (anchor: string, rest: string): string | null => (ROOT_ANCHORS.has(anchor) ? join(root, rest) : ownDir(anchor) ? join(dir, rest) : null)
   lines.forEach((line, i) => {
     const c = ctx[i]!
     if (c.read) return
@@ -183,7 +188,7 @@ function edgesOf(root: string, file: string, lines: string[], ctx: LineCtx[]): S
     for (const m of line.matchAll(/\b(?:join|resolve)\(\s*([A-Za-z_.]+)\s*((?:,\s*['"][^'"]+['"])+)\s*\)/g)) {
       const anchor = m[1]!
       const segs = [...m[2]!.matchAll(/['"]([^'"]+)['"]/g)].map(x => x[1]!)
-      const base = DIR_ANCHORS.has(anchor) ? dir : ROOT_ANCHORS.has(anchor) ? root : null
+      const base = ownDir(anchor) ? dir : ROOT_ANCHORS.has(anchor) ? root : null
       if (base && EXT_RE.test(segs[segs.length - 1]!)) add(join(base, ...segs))
     }
   })
@@ -357,7 +362,7 @@ function judge(quiet: Map<string, string[]>, table: Map<string, number>): { over
 }
 
 const WRITE_COMMAND = `bun ${relative(REAL_ROOT, SELF)} --write`
-const WRITE_WORDS = `${WRITE_COMMAND} lowers a row and writes no total above the one it finds`
+const WRITE_WORDS = `${WRITE_COMMAND} lowers a row and never raises or adds one`
 
 function told(o: Over): string {
   const plain = o.suite.endsWith('-drives') ? o.suite.slice(0, -'-drives'.length) : null
@@ -365,7 +370,7 @@ function told(o: Over): string {
     plain === null
       ? `list the members that drive in scripts/${o.suite}-drives/members.txt, run by scripts/${o.suite}-drives/run-all.sh through scripts/lib/drive-members.sh, and give scripts/${o.suite}/run-all.sh the class the rest need (pure or cpu)`
       : `move each to the plain suite scripts/${plain}/run-all.sh and off scripts/${o.suite}/members.txt`
-  return `${o.suite} is a terminal suite and ${o.members.length} of its members drive no terminal (${o.row === 0 ? 'it has no row' : `its row in ${TABLE} allows ${o.row}`}): ${o.members.join(' ')} — ${repair}; a member that does open a terminal in a form this census does not follow is mended in this census, with a planted case; ${WRITE_WORDS}`
+  return `${o.suite} is a terminal suite and ${o.members.length} of its members ${o.members.length === 1 ? 'drives' : 'drive'} no terminal (${o.row === 0 ? 'it has no row' : `its row in ${TABLE} allows ${o.row}`}): ${o.members.join(' ')} — ${repair}; a member that does open a terminal in a form this census does not follow is mended in this census, with a planted case; ${WRITE_WORDS}`
 }
 
 function selfTest(): boolean {
@@ -424,10 +429,17 @@ function selfTest(): boolean {
   w('scripts/shared-terminal/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pty\n${bun} run "$here/prove-t.ts"\n${bun} run "$here/prove-u.ts"\n`)
   w('scripts/shared-terminal/prove-t.ts', "import { spawnSync } from 'node:child_process'\nspawnSync(d.python, [join(ROOT, 'scripts', 'ui', 'engine.py')])\n")
   w('scripts/shared-terminal/prove-u.ts', 'export const u = 1\n')
+  w('scripts/slice/run-all.sh', `#!/usr/bin/env bash\n# gate-class: cpu\nclaimed=$(cat scripts/slice-*/members.txt 2>/dev/null | grep -v '^#')\nfor f in "$here"/prove-*.ts; do ${bun} run "$f"; done\nbash "$here/prove-x.sh"\n`)
+  w('scripts/slice/prove-v.ts', "import { spawnSync } from 'node:child_process'\nconst dir = join(scratch, 'scripts', 'stub')\nconst runner = join(dir, 'run-all.sh')\nspawnSync('bash', [runner])\n")
+  w('scripts/slice/prove-w.ts', "import { spawnSync } from 'node:child_process'\nspawnSync(d.python, [join(ROOT, 'scripts', 'ui', 'engine.py')])\n")
+  w('scripts/slice/prove-x.sh', '#!/usr/bin/env bash\nbash "$here/guard.sh"\n')
+  w('scripts/slice/guard.sh', `#!/usr/bin/env bash\nsay "declare them in the owning suite's run-all.sh,"\n`)
+  w('scripts/slice-2/run-all.sh', '#!/usr/bin/env bash\n# gate-class: pty\nwhile read -r name; do f="scripts/slice/$name"; bun "$f"; done < scripts/slice-2/members.txt\n')
+  w('scripts/slice-2/members.txt', 'prove-w.ts\n')
   const c = census(root)
   rmSync(root, { recursive: true, force: true })
   const drives = [...new Set(c.suites.filter(s => s.chain.length > 0).map(s => s.suite))].sort()
-  const want = ['capture-door', 'carried', 'handed-on', 'multi-line', 'named-list', 'py-direct', 'resolved-drive', 'shared-terminal', 'template-import', 'template-spawn', 'via-import-2']
+  const want = ['capture-door', 'carried', 'handed-on', 'multi-line', 'named-list', 'py-direct', 'resolved-drive', 'shared-terminal', 'slice-2', 'template-import', 'template-spawn', 'via-import-2']
   const okEngines = c.engines.join(',') === 'engine.py,prove-e.py'
   const okDrives = drives.join(',') === want.join(',')
   const parentDropsMember = c.suites.find(s => s.suite === 'via-import')?.files === 1
@@ -498,9 +510,9 @@ if (import.meta.main) {
     else if (text !== null && found === null) {
       failures++
       console.log(`  [FAIL] §4 ${TABLE} reads as rows of a suite and its count — put the committed table back, then write`)
-    } else if (found !== null && found.total > found.allowed) {
+    } else if (found !== null && found.over.length > 0) {
       failures++
-      console.log(`  [FAIL] §4 the count does not rise (${found.total} now, ${found.allowed} in the table), nothing written — ${found.over.map(told).join(' · ')}`)
+      console.log(`  [FAIL] §4 no row rises and none is added (${found.total} now, ${found.allowed} in the table), nothing written — ${found.over.map(told).join(' · ')}`)
     } else {
       writeFileSync(join(REAL_ROOT, TABLE), render(quietNow))
       console.log(`  wrote ${TABLE}: ${quietNow.size} rows, ${quietTotal} members${found === null ? '' : ` (it allowed ${found.allowed})`}`)

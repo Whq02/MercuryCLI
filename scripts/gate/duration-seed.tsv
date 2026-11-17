@@ -73,7 +73,8 @@ terminal-boundary	120
 agent-experience	87
 harness-compare	1
 run-recovery	92
-verify	667
+verify	44
+verify-drives	1089
 navigation	3
 visual-finish	149
 compositor	55

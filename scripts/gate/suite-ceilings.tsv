@@ -107,3 +107,4 @@ health	2400
 # its measured hosted envelope (about 1,000 s whole) with the siblings' slack.
 crew	1500
 host	2400
+verify-drives	1500
