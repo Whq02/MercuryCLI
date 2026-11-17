@@ -1,7 +1,7 @@
 import { isMap, isScalar, isSeq, Lexer, parseDocument, Scalar } from 'yaml'
 
-export type HashKind = 'shell' | 'python' | 'yaml' | 'gdscript' | 'powershell' | 'toml' | 'sed'
-export type HashComment = { pos: number; end: number; keep: string | null; embedded: boolean }
+type HashKind = 'shell' | 'python' | 'yaml' | 'gdscript' | 'powershell' | 'toml' | 'sed'
+type HashComment = { pos: number; end: number; keep: string | null; embedded: boolean }
 
 type Range = { pos: number; end: number }
 type Place = { pos: number; line: number; column: number; before: string }
