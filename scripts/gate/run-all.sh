@@ -11,6 +11,7 @@
 # gate-watch: src/tools/BashTool/pathValidation.ts src/tools/BashTool/readOnlyValidation.ts
 # gate-watch: src/tools/PowerShellTool/readOnlyValidation.ts src/utils/bash/ast.ts src/utils/bash/specs/pyright.ts
 # gate-watch: src/utils/shell/readOnlyCommandValidation.ts
+# gate-watch: src/utils/permissions/flowLaw.ts src/utils/permissions/runtimeProtection.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"

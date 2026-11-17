@@ -28,6 +28,9 @@
 # gate-watch: src/services/providers/routeLaw.ts
 # gate-watch: src/daemon/concourseWorktrees.ts src/run-core/pauseGate.ts src/types/ids.ts
 # gate-watch: src/services/instructions/engine.ts src/setup.ts src/substrate/flagRegistry.ts scripts/hooks/lib/runDoor.ts
+# gate-watch: src/utils/permissions/decision/engine.ts src/utils/permissions/filesystem.ts
+# gate-watch: src/utils/permissions/permissions.ts src/utils/permissions/permissionsLoader.ts
+# gate-watch: src/utils/permissions/protectedPaths.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

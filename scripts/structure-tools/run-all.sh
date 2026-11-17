@@ -11,6 +11,7 @@
 # gate-watch: src/utils/api.ts src/utils/toolSchemaCache.ts src/utils/messages.ts src/utils/attachments/orchestrator.ts
 # gate-watch: src/utils/model/model.ts src/Tool.ts src/services/projectIntel/steering.ts
 # gate-watch: src/services/providers/anthropic/boundPrefixRecord.ts src/services/providers/toolEconomy.ts src/services/providers/deferralWire.ts
+# gate-watch: src/utils/permissions/permissions.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

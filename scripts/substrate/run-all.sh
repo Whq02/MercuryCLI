@@ -35,6 +35,7 @@
 # gate-watch: src/utils/subprocessEnv.ts src/tools/AgentTool/reviewerPolicy.ts
 # gate-watch: src/services/tools/toolExecution.ts
 # gate-watch: src/services/dap/dapClient.ts src/tools/AsepriteTool/AsepriteTool.ts src/tools/BlenderTool/BlenderTool.ts src/tools/DebugTool/DebugTool.ts src/tools/GodotTool/GodotTool.ts src/tools/UnityTool/UnityTool.ts
+# gate-watch: src/utils/permissions/capabilityGate.ts src/utils/permissions/filesystem.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

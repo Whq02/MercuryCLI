@@ -21,6 +21,8 @@
 # gate-watch: src/state/vitalsBus.ts src/substrate/flagRegistry.ts src/tools/**
 # gate-watch: design-system/live/grids/**
 # gate-watch: src/tools/BashTool/** src/tools/PowerShellTool/**
+# gate-watch: src/utils/permissions/PermissionMode.ts src/utils/permissions/askWords.ts
+# gate-watch: src/utils/permissions/decision/rules.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

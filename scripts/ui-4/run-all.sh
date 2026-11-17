@@ -14,6 +14,7 @@
 # gate-watch: src/services/providers/huggingface/huggingfaceCatalogue.ts
 # gate-watch: src/services/providers/openrouter/openrouterCatalogue.ts src/services/providers/providerUsage.ts
 # gate-watch: src/substrate/startupMenu.ts src/tools/GlobTool/GlobTool.ts src/tools/GlobTool/prompt.ts
+# gate-watch: src/utils/permissions/askClock.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
