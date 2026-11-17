@@ -1,6 +1,7 @@
 import { readFile, stat } from 'node:fs/promises'
 import { dirname, isAbsolute } from 'node:path'
 
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { buildTool, type ToolUseContext } from '../../Tool.js'
 import type { ChangeSetMemberEdit, ExactEditOutcome } from '../../services/changeTransaction/changeSetContracts.js'
 import { changeTransactionEnabled } from '../../services/changeTransaction/contracts.js'
@@ -1240,7 +1241,7 @@ export const FileEditTool = buildTool({
     const mode = editMode(input)
     const anchorChecked = changeTransactionEnabled() && hasText(input.expected_anchor)
 
-    if (far === null && !isEnvTruthy(process.env.MERCURY_BARE)) {
+    if (far === null && !isEnvTruthy(flagEnv('MERCURY_BARE'))) {
       await discoverSkillsForPath(context, expandedPath)
     }
     if (far === null) context.nestedMemoryAttachmentTriggers?.add(expandedPath)

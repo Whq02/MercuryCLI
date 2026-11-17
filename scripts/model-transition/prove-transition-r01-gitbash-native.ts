@@ -57,7 +57,7 @@ check(
 const psTools = readFileSync(join(ROOT, 'src/tools/PowerShellTool/PowerShellTool.tsx'), 'utf8')
 check(
   '§C the PowerShell availability probe reads MERCURY_GIT_BASH_PATH',
-  /process\.env\.MERCURY_GIT_BASH_PATH/.test(psTools),
+  /flagEnv\('MERCURY_GIT_BASH_PATH'\)/.test(psTools),
 )
 
 const windowsPaths = readFileSync(join(ROOT, 'src/utils/windowsPaths.ts'), 'utf8')

@@ -1,5 +1,6 @@
 
 import { z } from 'zod/v4'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { changeViewSearchText } from '../StructureTool/StructureTool.js'
 import { relative } from 'node:path'
 import { existsSync, readFileSync } from 'node:fs'
@@ -911,7 +912,7 @@ async function runApply(
       if (res.ok) publishedRegisters.push(name)
     }
   }
-  if (!isEnvTruthy(process.env.MERCURY_BARE)) {
+  if (!isEnvTruthy(flagEnv('MERCURY_BARE'))) {
     const paths = changedTargets.flatMap(t => (t.fileOp === 'move' && t.newPath !== undefined ? [t.canonicalPath, t.newPath] : [t.canonicalPath]))
     discoverSkillDirsForPaths(paths, getCwd())
       .then(dirs => (dirs.length > 0 ? addSkillDirectories(dirs) : undefined))
