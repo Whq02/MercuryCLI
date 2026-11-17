@@ -172,7 +172,18 @@ console.log('\n— the sent word: resolved · no key · unresolved —')
   check('a model that takes no effort sends no key (null)', effortSentOf(noKey) === null)
   const read = (rel: string): string => readFileSync(rel, 'utf8')
   const print = read('src/cli/run.ts')
-  check("the runner's facts answer spells the sent word through the one owner, leaving the key ABSENT while unresolved", print.includes('effortSentOf(resolveEffortTruth(') && print.includes("return sent === undefined ? {} : { effortSent: sent }"))
+  const { liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
+  const SEAT_MODEL = 'claude-sonnet-4-6'
+  const asked = [undefined, ...effort.EFFORT_LEVELS]
+  const seatSent = await withFixtureRunner([], async host => {
+    const sent: unknown[] = []
+    for (const word of asked) {
+      if (word !== undefined) await host.request('session/set_effort', { effort: word }).catch(() => null)
+      sent.push((await liveFactsOf(host)).effortSent)
+    }
+    return sent
+  }, { model: SEAT_MODEL })
+  check("the runner's facts answer spells the sent word through the one owner, leaving the key ABSENT while unresolved", JSON.stringify(seatSent) === JSON.stringify(asked.map(word => effortSentOf(effort.resolveEffortTruth(SEAT_MODEL, word)))) && seatSent[asked.indexOf('xhigh')] === 'high' && print.includes("return sent === undefined ? {} : { effortSent: sent }"), JSON.stringify(seatSent))
   const hook = read('src/hooks/useDisplayedSessionModel.ts')
   check('the screen\'s hook keeps the three states (unresolved · none · sent)', hook.includes("return 'unresolved'") && hook.includes("return 'none'") && hook.includes("if (sent === 'unresolved') return undefined"))
   const chip = read('src/components/mercury-ui/EffortChip.tsx')

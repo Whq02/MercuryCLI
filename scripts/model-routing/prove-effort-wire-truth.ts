@@ -413,7 +413,19 @@ section('§7 the surfaces read the owner')
 {
   const print = src('src/cli/run.ts')
   check('print: the initialize catalogue lists the owner\'s stops per model', print.includes('resolveEffortTruth(resolved, undefined).selectable'))
-  check('run: session/facts reports the tier the next request sends, from the owner (effortSent beside the seat\'s asked word)', /const sent = effortSentOf\(resolveEffortTruth\(activeModel \?\? get\w+Model\(\), state\.effortValue\)\)/.test(print) && print.includes("return sent === undefined ? {} : { effortSent: sent }"))
+  const { liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
+  const { effortSentOf } = await import('../../src/services/engine-connector/seatProjections.ts')
+  const SEAT_MODEL = 'claude-sonnet-4-6'
+  const asked = [undefined, ...effort.EFFORT_LEVELS]
+  const seatSent = await withFixtureRunner([], async host => {
+    const sent: unknown[] = []
+    for (const word of asked) {
+      if (word !== undefined) await host.request('session/set_effort', { effort: word }).catch(() => null)
+      sent.push((await liveFactsOf(host)).effortSent)
+    }
+    return sent
+  }, { model: SEAT_MODEL })
+  check('run: session/facts reports the tier the next request sends, from the owner (effortSent beside the seat\'s asked word)', JSON.stringify(seatSent) === JSON.stringify(asked.map(word => effortSentOf(effort.resolveEffortTruth(SEAT_MODEL, word)))) && seatSent[asked.indexOf('xhigh')] === 'high' && print.includes("return sent === undefined ? {} : { effortSent: sent }"), JSON.stringify(seatSent))
   const studio = src('src/components/agents/studio/StudioEditor.tsx')
   check('the studio offers no stops for a no-dial model (no full-ladder fallback)', studio.includes('const options = stops.map(') && !studio.includes('stops : EFFORT_LEVELS'))
   const modelCmd = src('src/commands/model/model.tsx')
@@ -432,9 +444,13 @@ section('§8 the two effort doors say what they do')
   check("…and never claims the run went ahead ('ignoring')", !/ignoring/i.test(String(refused.refusal)))
   check('the flag keeps the one normalizer: med → medium, max effort → max', effort.parseCliEffort('med').level === 'medium' && effort.parseCliEffort('max effort').level === 'max')
   const mainSrc = src('src/main.tsx')
-  check('--help names the ladder and the flag door prints the owner\'s refusal sentence', mainSrc.includes("Reasoning effort level (${EFFORT_LEVELS.join(', ')})") && mainSrc.includes('`Unrecognised effort level "${value}". Valid values: ${EFFORT_LEVELS.join(\', \')}.`') && String(effort.parseCliEffort('banana').refusal) === 'Unrecognised effort level "banana". Valid values: low, medium, high, xhigh, max.')
+  const { builtCli, builtHelp } = await import('../lib/builtProduct.ts')
+  const flagDoor = builtCli(['run', '--effort', 'banana', 'hi'])
+  check('--help names the ladder and the flag door prints the owner\'s refusal sentence', builtHelp().includes(`Reasoning effort level (${effort.EFFORT_LEVELS.join(', ')})`) && flagDoor.status !== 0 && flagDoor.stderr.includes(String(effort.parseCliEffort('banana').refusal)) && String(effort.parseCliEffort('banana').refusal) === 'Unrecognised effort level "banana". Valid values: low, medium, high, xhigh, max.')
   check('the owner carries no sentence that claims the value was ignored', !/ignoring it in favour/.test(src('src/utils/effort.ts')))
-  check('the boot notes an ignored env word (interactive: a boot note; headless: stderr)', mainSrc.includes("if (effortEnv.state === 'ignored') addBootNote('warn', effortEnv.sentence)") && mainSrc.includes("if (effortEnv.state === 'ignored') process.stderr.write(`${effortEnv.sentence}\\n`)"))
+  const ignored = effort.describeEffortEnvOverride({ MERCURY_EFFORT_LEVEL: 'banana' })
+  const envDoor = builtCli(['run', 'hi'], { env: { MERCURY_EFFORT_LEVEL: 'banana' } })
+  check('the boot notes an ignored env word (interactive: a boot note; headless: stderr)', mainSrc.includes("if (effortEnv.state === 'ignored') addBootNote('warn', effortEnv.sentence)") && ignored.state === 'ignored' && envDoor.stderr.split('\n')[0] === ignored.sentence)
   const view = (raw: string | undefined) => effort.describeEffortEnvOverride(raw === undefined ? {} : { MERCURY_EFFORT_LEVEL: raw })
   check('env absent', view(undefined).state === 'absent' && view(undefined).override === undefined)
   check('env auto/unset defers (null)', view('auto').state === 'deferred' && view('auto').override === null && view('unset').override === null)
