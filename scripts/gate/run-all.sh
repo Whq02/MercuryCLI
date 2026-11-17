@@ -13,6 +13,8 @@
 # gate-watch: src/utils/shell/readOnlyCommandValidation.ts
 # gate-watch: src/utils/permissions/flowLaw.ts src/utils/permissions/runtimeProtection.ts
 # gate-watch: src/utils/wards/wardsRefusals.ts src/utils/wards/wardsShellRead.ts
+# gate-watch: scripts/verify/fast.ts scripts/verify/impact.ts scripts/verify/impactManifest.ts scripts/verify/sliceCore.ts
+# gate-watch: scripts/verify/prove-impact-manifest.ts scripts/verify/prove-impact-run.ts scripts/verify/prove-slice-core.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"
@@ -70,6 +72,9 @@ run_proof "$here/prove-vocabulary-seal.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$he
 run_proof "$here/prove-seal-in-gate.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-seal-in-gate.ts" || fail=1
 run_proof "$here/../typecheck/prove-warm-replay.sh" bash "$here/../typecheck/prove-warm-replay.sh" || fail=1
 run_proof "$here/prove-shard-compile-cache-removed.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-shard-compile-cache-removed.ts" || fail=1
+run_proof "$here/../verify/prove-impact-manifest.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../verify/prove-impact-manifest.ts" || fail=1
+run_proof "$here/../verify/prove-impact-run.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../verify/prove-impact-run.ts" || fail=1
+run_proof "$here/../verify/prove-slice-core.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../verify/prove-slice-core.ts" || fail=1
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ GATE MACHINERY PASS"; else echo "# ❌ GATE MACHINERY FAILED"; fi
 echo "############################################################"
