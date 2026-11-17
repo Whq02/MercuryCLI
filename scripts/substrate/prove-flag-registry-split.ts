@@ -17,7 +17,8 @@ const TYPES_FROM = `./${posix.basename(TYPES).replace(/\.ts$/, '.js')}`
 const CODE = /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/
 const NAMED = new RegExp(`['"\`/\\\\]${posix.basename(ROWS)}['"\`/\\\\]`, 'i')
 const CONSUMER_PATH = /(?:src|scripts|assets)\/[A-Za-z0-9_@./-]+/g
-const SKIPPED = new Set(['node_modules', '.git', 'dist', 'vendor'])
+const SKIPPED = new Set(['node_modules', '.git', 'dist'])
+const PACKS = 'vendor'
 const OUT_OF_REACH = 'a path assembled at run time, and a path handed over in a variable that is no constant of the file, such as a loop over the list the helper returns'
 
 const AREAS: Record<string, string> = {
@@ -191,7 +192,7 @@ function walk(root: string, rel: string, out: string[]): void {
   for (const entry of entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
     const path = rel === '' ? entry.name : `${rel}/${entry.name}`
     if (entry.isDirectory()) {
-      if (!SKIPPED.has(entry.name)) walk(root, path, out)
+      if (!SKIPPED.has(entry.name) && path !== PACKS) walk(root, path, out)
     } else if (entry.isFile() && CODE.test(entry.name)) out.push(path)
   }
 }
@@ -616,6 +617,10 @@ section('§0 the checks on a planted tree: a tree with nothing wrong reads clean
   const unlisted = await planted(BENCH, () => [])
   const ignored = await planted(BENCH, () => [SELF])
   check('a tree git lists no file of, as a copy that sits in an ignored folder, is walked, and the import past the door is named there; where git lists this proof its list is what is read, so a file it leaves out is not', lines(unlisted, 'bench/outside.ts') === '1' && unlisted.length === 1 && ignored.length === 0, texts([...unlisted, ...ignored]))
+
+  const reaching = (file: string): string => `import { A_FLAGS } from '${spec(file, A)}'\nexport const loaded = A_FLAGS\n`
+  const nested = await planted({ 'scripts/vendor/fetch.ts': reaching('scripts/vendor/fetch.ts'), 'vendor/pack/index.ts': reaching('vendor/pack/index.ts'), 'node_modules/dep/index.ts': reaching('node_modules/dep/index.ts') })
+  check('the walk reads a folder named vendor under scripts, and leaves the packs at the root and the dependencies unread', lines(nested, 'scripts/vendor/fetch.ts') === '1' && nested.length === 1, texts(nested))
 
   const order = await planted({ [A]: rowsFile('A_FLAGS', [['ALPHA_TWO', 'src/a/two.ts'], ['ALPHA_ONE', 'src/a/one.ts']]) })
   check('a row out of order in its file is named as it is written', kinds(order) === 'file-order' && order[0]!.text.startsWith(`${A}:5 ALPHA_ONE is written after ALPHA_TWO`), texts(order))
