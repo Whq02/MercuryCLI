@@ -1,32 +1,3 @@
-"""The loopback socket server — STDLIB ONLY, ZERO bpy (Mercury Blender bridge).
-
-THE MAIN-THREAD LAW (info_gotchas_threading.rst: "While threads are
-running, no code (including the main thread) may use bpy or any Blender
-API - only standard Python or third-party modules"): this thread NEVER
-touches bpy. Every verb rides command_queue to the pump timer on the main
-thread — the bpy.app.timers page's own documented pattern ("Use a Timer to
-react to events in another thread"; queue.Queue carries the locking
-semantics). Answers and events come back through each connection's outbox,
-written by THIS thread — one writer per socket, no interleaving.
-
-Answered HERE (no Blender truth needed): the hello (from the
-main-thread-refreshed snapshot in state.py), ping (busy is not dead — a
-long python_run blocks the pump, never the heartbeat), UNKNOWN_OP (the verb
-table is static), AUTH_FAILED and VERSION_SKEW.
-
-THE CONNECTION LAWS (the wire contract, kept verbatim):
- · loopback only — the listener binds 127.0.0.1, never 0.0.0.0;
- · ONE authed connection — ACCEPT-NEWEST AT HELLO TIME: only an
-   authenticated newer hello displaces the older client; a bare connect (a
-   reachability probe) never does;
- · unauthed sockets die on the UNAUTHED_DEADLINE_S receive deadline;
- · frames capped MAX_LINE_BYTES both directions — an oversized inbound
-   buffer drops the connection, an oversized answer is REPLACED by an
-   INTERNAL error carrying the same id (never silent truncation);
- · the token is RE-READ from the file beside this add-on on every hello, so
-   a reinstall's rotation takes effect without a Blender restart.
-"""
-
 import json
 import os
 import queue
@@ -50,7 +21,6 @@ def set_active(server):
 
 
 def emit(event, data):
-    """Main-thread event door (ops/pump call this; never the socket thread)."""
     with _active_lock:
         server = _active
     if server is not None:
@@ -58,7 +28,6 @@ def emit(event, data):
 
 
 def answer(conn, frame):
-    """Main-thread answer door for the pump."""
     with _active_lock:
         server = _active
     if server is not None:
@@ -243,7 +212,6 @@ class BridgeServer:
             return None
 
     def _reply_now(self, conn, frame):
-        """Socket-thread reply (handshake/ping/UNKNOWN_OP only)."""
         data = (json.dumps(frame) + "\n").encode("utf-8")
         with self.lock:
             if not conn.dead:

@@ -1,15 +1,3 @@
-"""The report ring — what Python can honestly see (Mercury Blender bridge).
-
-Sources: Python logging (a root-logger handler attached while the add-on is
-enabled), the bridge's own operation notes, and lifecycle handler events.
-C-level terminal prints (render progress lines and friends) never pass
-Python logging and are OUT of this ring's reach — the Mercury tool's
-description says exactly that, so nobody mistakes this tail for the
-terminal.
-
-Dropped-oldest is COUNTED: the ring never pretends to be complete.
-"""
-
 import collections
 import logging
 import threading

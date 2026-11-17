@@ -121,7 +121,6 @@ def load_reel(path):
 
 
 def paint_units(chunks):
-    """[(t_ms, bytes, synced)] — one entry per visual step (see header)."""
     units = []
     buf = b''
     for t, data in chunks:
@@ -158,8 +157,6 @@ def snap_grid(screen, cols, rows):
 
 
 def frame_walk(header, chunks, events):
-    """Yield (idx, t, synced, screen, cols, rows) after each paint unit,
-    applying recorded resizes to the emulator at their capture times."""
     cols, rows = header['cols'], header['rows']
     screen, stream = make_screen(cols, rows)
     resize_events = sorted([e for e in events if e.get('ev') == 'resize'],
@@ -180,7 +177,6 @@ def frame_text(screen, cols, rows):
 
 
 def coverage(screen, cols, rows):
-    """Glyph coverage: overall fraction + a 3x3 region density map."""
     filled = 0
     regions = [[0] * 3 for _ in range(3)]
     counts = [[0] * 3 for _ in range(3)]

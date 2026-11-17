@@ -54,12 +54,6 @@ def leg(name, ok, detail="", **extra):
 
 
 def fresh_home(tag):
-    """A fresh config home, SEEDED through the ONE first-run seeder (theme,
-    onboarding, workspace trust for the launcher's cwd, the fixture key's
-    consent) — the same seed every capture lane and gate shard boots on.
-    Unseeded, the runtime's first landing is Onboarding, and a drill that
-    waits for a menu behind it waits forever (every hosted run
-    sat there)."""
     home = os.path.join(SCRATCH, f"home-{tag}")
     os.makedirs(home, exist_ok=True)
     seed = subprocess.run(
@@ -106,10 +100,6 @@ CMD_EXE = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", 
 
 
 def mercury_node_pids():
-    """PIDs of node processes running THE DRILL'S OWN mercury.mjs (matched on
-    the drill payload dirs — a bare `mercury.mjs` match would count, and
-    kill_mercury_tree would KILL, any unrelated Mercury session when this
-    script runs outside the clean CI runner)."""
     try:
         out = subprocess.run(
             ["powershell", "-NoProfile", "-Command",
@@ -140,8 +130,6 @@ def kill_mercury_tree():
 
 
 class Drive:
-    """One ConPTY run of the shipped launcher."""
-
     def __init__(self, tag, home, extra_env=None):
         self.tag = tag
         self.screen = pyte.Screen(COLS, ROWS)
@@ -172,8 +160,6 @@ class Drive:
         return "\n".join(self.screen.display)
 
     def wait_for(self, name, pred, ceiling_s, settle_ticks=0):
-        """Observable-driven wait: poll `pred` every tick up to a generous
-        ceiling; `settle_ticks` consecutive true reads settle the phase."""
         deadline = time.monotonic() + ceiling_s
         settled = 0
         while time.monotonic() < deadline:

@@ -1,17 +1,4 @@
 #!/usr/bin/env python3
-"""mount-smoke.py — launch the built TUI in a PTY and assert it MOUNTS without a
-runtime crash. This is the gate that would have caught the `n is not defined` regression
-(Chat.tsx away-summary effect referenced an undefined var): it crashed every interactive
-mount, but every other gate missed it — Chat.tsx is outside the strict typecheck floor,
-and run/transcript-render proofs never mount the live Chat effects.
-
-Tests the CURRENT dist/mercury.mjs (build it first; the gate runs after a build). A fresh
-session mounts the full Chat + its mount-time effects (incl. the default-ON
-away-summary) WITHOUT making an API turn, so this is deterministic and offline.
-
-PASS = a positive mount signal appears AND no crash pattern. FAIL = a crash pattern, or
-no mount signal within the window (silent failure). Exit 0/1.
-"""
 import atexit, os, shutil, subprocess, sys, pty, tempfile, time, select, signal, re
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -43,8 +30,6 @@ MOUNT = re.compile(r"ready|describeatask|forshortcuts|mercury|❯")
 
 
 def _norm(text: str) -> str:
-    """Strip ANSI escapes, then ALL whitespace, lowercase — so cell-positioned overlay
-    text (where chars are spread across cells) matches the same as contiguous text."""
     no_esc = re.sub(r"\x1b\[[0-9;?]*[a-zA-Z]", "", text)
     return re.sub(r"\s+", "", no_esc).lower()
 
