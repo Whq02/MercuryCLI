@@ -6,7 +6,7 @@ package="${MERCURY_SDK_PYTHON_PACKAGE:-$root/sdk-py}"
 push=false
 case "${1:-}" in '') ;; --push) push=true ;; *) echo 'usage: publish-pypi.sh [--push]' >&2; exit 2;; esac
 [ "$#" -le 1 ] || exit 2
-python3 -m twine --version >/dev/null 2>&1 || { echo "publish-pypi.sh: python3 has no twine module, so the upload cannot start; install twine for it, or run: uv run --no-project --with twine --python python3 bash scripts/sdk/publish-pypi.sh${1:+ $1}" >&2; exit 1; }
+python3 -m twine --version >/dev/null 2>&1 || { echo "publish-pypi.sh: python3 has no twine module, so the upload cannot start; install twine for it, or run: uv run --no-project --with twine --python $(command -v python3 || echo python3) bash scripts/sdk/publish-pypi.sh${1:+ $1}" >&2; exit 1; }
 rm -rf "$package/dist"
 python3 "$package/build_backend.py" "$package/dist"
 python3 - "$package" <<'PY'
