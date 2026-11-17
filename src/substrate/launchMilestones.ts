@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { getMercuryHome } from '../utils/envUtils.js'
-import { flagSpellings } from './flagRegistry.js'
+import { flagEnv, flagSpellings } from './flagRegistry.js'
 
 export type LaunchMilestone =
   | 'runtime-entry'
@@ -33,7 +33,7 @@ const MAX_ROWS = 400
 
 const bootLaunchId: string | undefined = (() => {
   for (const name of flagSpellings('MERCURY_LAUNCH_ID')) {
-    const v = process.env[name]
+    const v = flagEnv(name)
     if (typeof v === 'string' && v.length > 0) return v
   }
   return undefined

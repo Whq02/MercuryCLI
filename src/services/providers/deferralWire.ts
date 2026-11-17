@@ -146,7 +146,7 @@ export function gptModelCarriesNativeDeferral(model: string): boolean {
 
 export function openaiGatewayHost(env: Record<string, string | undefined> = process.env): { firstParty: true } | { firstParty: false; host: string | null } {
   for (const key of OPENAI_BASE_ENV_KEYS) {
-    const baseUrl = env[key]?.trim()
+    const baseUrl = flagEnv(key, env)?.trim()
     if (!baseUrl) continue
     try {
       const host = new URL(baseUrl).host

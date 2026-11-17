@@ -2251,13 +2251,12 @@ env-read	src/services/providers/cerebras/cerebrasAccounts.ts	1
 env-read	src/services/providers/cohere/cohereAccounts.ts	2
 env-read	src/services/providers/deepseek/deepseekAccounts.ts	1
 env-read	src/services/providers/deepseek/deepseekLogin.ts	1
-env-read	src/services/providers/deferralWire.ts	2
+env-read	src/services/providers/deferralWire.ts	1
 env-read	src/services/providers/fireworks/fireworksAccounts.ts	1
 env-read	src/services/providers/gemini/geminiAccounts.ts	2
 env-read	src/services/providers/groq/groqAccounts.ts	1
 env-read	src/services/providers/huggingface/huggingfaceAccounts.ts	2
 env-read	src/services/providers/huggingface/huggingfaceCallModel.ts	1
-env-read	src/services/providers/idSpaces.ts	1
 env-read	src/services/providers/melious/meliousAccounts.ts	1
 env-read	src/services/providers/meta/metaAccounts.ts	1
 env-read	src/services/providers/minimax/minimaxAccounts.ts	1
@@ -2305,7 +2304,6 @@ env-read	src/services/wallet/wallet.ts	3
 env-read	src/substrate/envStamps.ts	8
 env-read	src/substrate/identity/identity.ts	2
 env-read	src/substrate/invocationRecord.ts	8
-env-read	src/substrate/launchMilestones.ts	1
 env-read	src/substrate/startupMenu.ts	7
 env-read	src/tools.ts	1
 env-read	src/tools/AgentTool/reviewerPolicy.ts	1
@@ -2319,7 +2317,6 @@ env-read	src/tools/testing/TestingPermissionTool.tsx	1
 env-read	src/utils/Shell.ts	1
 env-read	src/utils/api.ts	1
 env-read	src/utils/auth.ts	15
-env-read	src/utils/authFileDescriptor.ts	1
 env-read	src/utils/bash/ShellSnapshot.ts	1
 env-read	src/utils/bash/shellCompletion.ts	1
 env-read	src/utils/browser.ts	2

@@ -29,7 +29,17 @@ const foreignTable = readFileSync(join(ROOT, 'src', 'utils', 'knownAgentClis.ts'
 check('ALWAYS_STRIP_TOKEN_VARS is exported + carries the OAuth token (own spelling + the table-derived foreign spellings)', /export const ALWAYS_STRIP_TOKEN_VARS[\s\S]{0,240}MERCURY_OAUTH_TOKEN/.test(subEnv) && subEnv.includes('...AGENT_CLI_SESSION_ENV_VARS') && foreignTable.includes(`'${FOREIGN}_OAUTH_TOKEN'`))
 
 section('source: auth resolution has an env→keychain fallback (so scrub is safe)')
-check('getClaudeAIOAuthTokens checks MERCURY_OAUTH_TOKEN env first', /const envToken = flagEnv\('MERCURY_OAUTH_TOKEN'\)\n\s*if \(envToken\)/.test(auth))
+process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
+const heldToken = process.env.MERCURY_OAUTH_TOKEN
+process.env.MERCURY_OAUTH_TOKEN = 'env-scrub-proof-token'
+;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
+const { getClaudeAIOAuthTokens, getClaudeAIOAuthTokensAsync } = await import('../../src/utils/auth.ts')
+const viaSync = getClaudeAIOAuthTokens()
+const viaAsync = await getClaudeAIOAuthTokensAsync()
+if (heldToken === undefined) delete process.env.MERCURY_OAUTH_TOKEN
+else process.env.MERCURY_OAUTH_TOKEN = heldToken
+check('getClaudeAIOAuthTokens answers the token of the environment before any store', viaSync?.accessToken === 'env-scrub-proof-token', JSON.stringify(viaSync?.accessToken ?? null))
+check('getClaudeAIOAuthTokensAsync answers the token of the environment before any store', viaAsync?.accessToken === 'env-scrub-proof-token', JSON.stringify(viaAsync?.accessToken ?? null))
 check('…then falls back to the keychain (secureStorage.read().claudeAiOauth)', /getSecureStorage\(\)\.read\(\)\?\.claudeAiOauth/.test(auth))
 
 section('behavioural mirror: the scrub removes the pinned vars (guard true) / keeps (false)')

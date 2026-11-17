@@ -135,9 +135,6 @@ check(
 )
 
 section('§2c a default-on switch has one off rule: no reader compares its value with the bare string 0')
-const PRE_BOOT_BARE = new Map<string, string>([
-  ['MERCURY_WIN32_UTF8', 'read at the entry seam before the registry loads, in a decision that takes its env as a parameter, and beside the Windows launcher'],
-])
 const defaultOn = new Set(FLAG_REGISTRY.filter(f => f.kind === 'default-on').map(f => f.env))
 const bareReads: string[] = []
 const srcFiles = execSync('git ls-files -z src', { cwd: root, maxBuffer: 64 * 1024 * 1024 })
@@ -149,10 +146,10 @@ for (const file of srcFiles) {
   const named = new Map<string, string>()
   for (const m of text.matchAll(/\bconst (\w+)(?::\s*string)? = '(MERCURY_[A-Z_0-9]+)'/g)) named.set(m[1]!, m[2]!)
   const note = (env: string | undefined): void => {
-    if (env !== undefined && defaultOn.has(env) && !PRE_BOOT_BARE.has(env)) bareReads.push(`${env} @ ${file}`)
+    if (env !== undefined && defaultOn.has(env)) bareReads.push(`${env} @ ${file}`)
   }
-  for (const m of text.matchAll(/(?:flagEnv(?:Loose)?\(\s*(?:'(MERCURY_[A-Z_0-9]+)'|(\w+))\s*\)|\benv\.(MERCURY_[A-Z_0-9]+))\s*[!=]==\s*'0'/g)) note(m[1] ?? m[3] ?? named.get(m[2] ?? ''))
-  for (const m of text.matchAll(/\bconst (\w+) = flagEnv\(\s*'(MERCURY_[A-Z_0-9]+)'\s*\)/g)) {
+  for (const m of text.matchAll(/(?:flagEnv(?:Loose)?\(\s*(?:'(MERCURY_[A-Z_0-9]+)'|(\w+))\s*(?:,[^()]*)?\)|\benv\.(MERCURY_[A-Z_0-9]+))\s*[!=]==\s*'0'/g)) note(m[1] ?? m[3] ?? named.get(m[2] ?? ''))
+  for (const m of text.matchAll(/\bconst (\w+) = flagEnv\(\s*'(MERCURY_[A-Z_0-9]+)'\s*(?:,[^()]*)?\)/g)) {
     if (new RegExp(`\\b${m[1]} [!=]== '0'`).test(text.slice(m.index!, m.index! + 240))) note(m[2])
   }
 }
@@ -161,7 +158,6 @@ check(
   bareReads.length === 0,
   `${new Set(bareReads.map(r => r.split(' @ ')[0])).size} switches: ${bareReads.slice(0, 8).join(', ')}`,
 )
-check('the switches still read bare are named pre-boot rows, each a default-on row', [...PRE_BOOT_BARE.keys()].every(env => defaultOn.has(env)), [...PRE_BOOT_BARE.keys()].join(', '))
 const OFF_RULE_READERS: Array<[env: string, file: string, reader: string]> = [
   ['MERCURY_CRITTER_GAZE', 'utils/cockpit/critterGaze.ts', 'critterGazeEnabled'],
   ['MERCURY_CRITTER_IDLE', 'utils/cockpit/critterIdle.ts', 'critterIdleEnabled'],

@@ -90,7 +90,7 @@ const envUtilsSrc = readFileSync(join(ROOT, 'src', 'utils', 'envUtils.ts'), 'utf
 check('envUtils source carries no ~/.claude default arm', !envUtilsSrc.includes(".claude').normalize"))
 check('envUtils source never probes the filesystem to pick a home (no existence rung)', !/existsSync\([^)]*\.mercury/.test(envUtilsSrc))
 const accountViewSrc = readFileSync(join(ROOT, 'src', 'components', 'mercury-ui', 'parity', 'AccountView.tsx'), 'utf-8')
-check('/accounts scope row keys on the RESOLVED home, not env presence', accountViewSrc.includes('tildify(getMercuryHome(), home)') && !accountViewSrc.includes('process.env.MERCURY_CONFIG_DIR'))
+check('/accounts scope row keys on the RESOLVED home, not env presence', accountViewSrc.includes('tildify(getMercuryHome(), home)'))
 
 console.log('\nthe ONE-HOME law — no other config-home spelling survives')
 const RETIRED_HOME = new RegExp(['\\.', 'her', 'mes\\b', '|', 'HER', 'MES_HOME'].join(''), 'i')

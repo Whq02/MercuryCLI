@@ -85,7 +85,7 @@ scripts/api/prove-reconnect-ladder.ts	1	1	8581e1acac65
 scripts/api/prove-resumed-agent-context.ts	3	7	2e530da80965
 scripts/api/prove-sent-prefix-frozen.ts	4	5	742e74a100ea
 scripts/api/prove-switch-row-says-default.ts	3	5	765b63b0c611
-scripts/api/prove-transport-truth.ts	7	16	e797e2bcf3c6
+scripts/api/prove-transport-truth.ts	6	14	d329c51b641a
 scripts/api/prove-unrecognised-4xx-sentence.ts	2	2	d8779a7d9d0d
 scripts/api/prove-watchdog-pool-reset.ts	2	4	0da3c54019d1
 scripts/apollo/prove-apollo-exit.ts	6	6	63847f44e5c7
@@ -141,7 +141,7 @@ scripts/browser/prove-browser-drive.ts	7	38	a7652cced645
 scripts/browser/prove-browser-emulation-auth.ts	1	2	92f92005a431
 scripts/browser/prove-browser-provision.ts	4	8	bee49ab9dd4a
 scripts/browser/prove-browser-stealth.ts	1	1	1966e8f4ce87
-scripts/build-identity/prove-config-home.ts	7	15	936213e4bf59
+scripts/build-identity/prove-config-home.ts	7	14	936213e4bf59
 scripts/build-identity/prove-jsx-shadow.ts	1	2	0d4db3ede2e8
 scripts/build-identity/prove-version-identity.ts	3	4	3dbf063adfcb
 scripts/build/prove-boot-crash-surface.ts	6	13	ed54e8526f85
@@ -303,7 +303,7 @@ scripts/daemon/prove-compact-state-word.ts	7	8	83aa00850477
 scripts/daemon/prove-compaction-hold.ts	8	13	5578a2f7d83b
 scripts/daemon/prove-control-layer-held.ts	1	1	c24dc3f7fbaa
 scripts/daemon/prove-daemon-departure.ts	3	13	69e00236437f
-scripts/daemon/prove-daemon-env-scrub.ts	6	13	4e86a478cdf3
+scripts/daemon/prove-daemon-env-scrub.ts	6	12	4e86a478cdf3
 scripts/daemon/prove-daemon-handshake.ts	6	30	f4d19b674a4a
 scripts/daemon/prove-daemon-home-census.ts	9	65	aebde4443d39
 scripts/daemon/prove-daemon-lock.ts	1	6	c24dc3f7fbaa
@@ -964,7 +964,7 @@ scripts/sessionStorage/prove-history-walk-fresh.ts	1	24	39a39ece9c17
 scripts/sessionStorage/prove-listing-memo.ts	1	6	d3a23650e253
 scripts/sessionStorage/prove-old-transcript-kinds-parse.ts	4	12	a481f5904bf4
 scripts/sessionStorage/prove-path-contract.ts	1	0	fc961dff950d
-scripts/sessionStorage/prove-project-home-fold.ts	2	4	b8e44555f7bf
+scripts/sessionStorage/prove-project-home-fold.ts	1	2	fc961dff950d
 scripts/sessionStorage/prove-project-recognition.ts	2	4	0434678c9268
 scripts/sessionStorage/prove-resume-snapshot-honesty.ts	1	2	4ef190b59513
 scripts/sessionStorage/prove-session-model-entry.ts	1	2	7c258c370929
@@ -1371,7 +1371,7 @@ scripts/ui/prove-status-spine-unity.ts	1	6	0017a06bb718
 scripts/ui/prove-sticky-prompt-header-gone.ts	5	0	bee1cec8a4b1
 scripts/ui/prove-streaming-nameplate.ts	3	13	21937dc0a5e0
 scripts/ui/prove-submit-while-landing.ts	2	31	cba956a2522d
-scripts/ui/prove-sup2-hardening.ts	64	245	bb865f054fec
+scripts/ui/prove-sup2-hardening.ts	64	242	bb865f054fec
 scripts/ui/prove-surface-claim.ts	2	21	e35e4315178a
 scripts/ui/prove-swarm-party-receipt.ts	4	7	1068ab321c7b
 scripts/ui/prove-tasks-mission.ts	1	11	de271ec2ed92

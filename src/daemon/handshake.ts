@@ -1,4 +1,5 @@
 
+import { flagPair } from '../substrate/flagRegistry.js'
 import { describeArtifactIdentity } from '../utils/artifactIdentity.js'
 import { logForDebugging } from '../utils/debug.js'
 import { comparePrivateVersions, parsePrivateVersion } from '../services/privateChannel/channelCore.js'
@@ -541,9 +542,9 @@ export async function handoverDaemonVersion(
   const dir = record?.dir ?? process.cwd()
   const ownsIt = d.ownerPid === process.pid
   const env: Record<string, string | undefined> = {
-    [HANDOVER_FROM_ENV]: String(d.pid),
+    ...flagPair(HANDOVER_FROM_ENV, String(d.pid)),
     MERCURY_DAEMON_SUCCESSOR_OF: undefined,
-    ...(d.ownerPid === null ? { [OWNER_PID_ENV]: undefined, MERCURY_DAEMON_PERSIST: '1' } : { [OWNER_PID_ENV]: String(d.ownerPid) }),
+    ...(d.ownerPid === null ? { [OWNER_PID_ENV]: undefined, ...flagPair('MERCURY_DAEMON_PERSIST', '1') } : { ...flagPair(OWNER_PID_ENV, String(d.ownerPid)) }),
   }
   const spawn =
     opts.spawn ??

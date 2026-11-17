@@ -119,7 +119,7 @@ section('§K3 call-site census (source-shape: every non-warm road passes the kit
   t('K12 the cold mint HOISTS one kit for spec and stamp (record and process can never disagree)', daemon.includes('const kit = req.kit ?? preset?.kit ?? deriveSessionKitForWorkspace(workspaceId)') && daemon.includes('...kitStampOf(kit),'))
   t("K13 the reactivate cold road hands the revive its restamp kit (the spec is built BEFORE the restamp writes)", daemon.includes('kitOverride: kit,'))
   t("K14 the revive's default is the record's standing kit; the hand-back road carries rec.kit", daemon.includes('const reviveKit = opts?.kitOverride ?? rec.kit') && daemon.includes('...(rec.kit !== undefined ? { kit: rec.kit } : {})'))
-  const spawnEnvWrites = daemon.split('MERCURY_SESSION_KIT: JSON.stringify').length - 1
+  const spawnEnvWrites = daemon.split("flagPair('MERCURY_SESSION_KIT', JSON.stringify").length - 1
   t('K15 the spec builder is the ONE env writer in the daemon (a single key-write site; comments free to name the spelling)', spawnEnvWrites === 1, `${spawnEnvWrites} sites`)
   const main = readFileSync(join(REPO, 'src', 'main.tsx'), 'utf8')
   t('K16 the runner consumes the pin ONCE, before MCP resolution and the command load (the shared prep)', main.includes('consumeSessionKitPin()') && main.indexOf('consumeSessionKitPin()') < main.indexOf('parseDynamicMcpConfigs('))
