@@ -44,6 +44,7 @@ type Row = { file: string; line: string; why: string }
 type Near = { before: ts.Node | undefined; after: ts.Node | undefined; argument: boolean }
 
 const NAMED: Row[] = [
+  { file: 'scripts/gate/impact-doors.txt', line: 'src/@S@/flags/** src/@S@/@M@.ts', why: "the planner's door row: a glob and a path that scripts/verify/impactManifest.ts matches against changed paths; it opens no registry file" },
   { file: 'scripts/identity/prove-docs-altitude.ts', line: "const CONFIG_INDEX_SPELLING = J('src/@S@/', '@M@.ts')", why: 'the spelling a document may cite: the proof strips it from document text and opens no registry file' },
   { file: 'scripts/memory/prove-memory-always-on.ts', line: "for (const dir of ['src/mneme', 'src/tools/MemoryTools', 'src/components/memory', 'src/commands/memory', 'src/utils/capability', 'src/utils/cockpit', 'src/services/mcp', 'src/@S@', 'src/query', 'src/utils/attachments']) {", why: "ten folders walked for memory gate words: the registry's files are skipped by the path test and read through the door" },
   { file: 'scripts/motion/prove-motion-wire-trip.ts', line: "check('the governor is still config-free (flag reads only)', !/utils\\/config/.test(governorSrc) && /@M@/.test(governorSrc))", why: "tests the motion governor's own source for its import of the registry: it reads the governor" },
@@ -54,7 +55,7 @@ const NAMED: Row[] = [
   { file: 'scripts/vulcan/vulcan-audit-waves.js', line: 'The new surfaces: src/utils/vulcan/*, src/services/vulcan/*, src/tools/GodotTool/*, assets/vulcan/addon/**, scripts/vulcan/*, plus edits in src/tools.ts, src/constants/prompts.ts, src/constants/subagentDoctrine.ts, src/utils/cockpit/harnessMap.ts, src/@S@/startupMenu.ts, src/@S@/@M@.ts, src/utils/healthReport.ts, assets/splash/mercury-splash.mjs.', why: 'a file list inside the audit prompt text: the script opens none of them' },
   { file: 'scripts/wards/prove-wards-model-free.ts', line: "'../@S@/@M@.js',", why: "an import specifier the wards guard may carry: the proof reads the guard's imports" },
 ].map(row => ({ ...row, line: spell(row.line) }))
-const NAMED_ROWS = 9
+const NAMED_ROWS = 10
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
