@@ -21,7 +21,6 @@ Object.assign(process.env, {
   TZ: 'UTC',
   LANG: 'en_GB.UTF-8',
 })
-process.env.MERCURY_CONFIG_DIR = HOME
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -170,8 +169,7 @@ section('§5 the wiring: the chat restores the held words to an empty composer a
   check('the /logins and /model completions ask the hold to resend with the composer taken once (rearmed)', chat.includes("if (seatCommand.name === 'logins' || seatCommand.name === 'model') {") && chat.includes("authWallHold.afterDoor(seatCommand.name, hold => {\n            void onSubmitRef.current(hold.text, INERT_PROMPT_HELPERS, undefined, { rearmed: true });"))
   const setup = readFileSync(join(ROOT, 'src/setup.ts'), 'utf8')
   check('an interactive boot runs the sign-in check once at open', setup.includes('if (getIsInteractive() && !getIsNonInteractiveSession()) void signInsCheckedAtOpen()'))
-  const { openaiAuthPathForDisplay } = await import('../../src/services/providers/openai/openaiAccounts.ts')
-  writeFileSync(openaiAuthPathForDisplay(), JSON.stringify({ version: 1, tokens: { accessToken: 'fixture-openai-access-0001', refreshToken: '' } }) + '\n', { mode: 0o600 })
+  writeFileSync(join(HOME, '.openai-auth.json'), JSON.stringify({ version: 1, tokens: { accessToken: 'fixture-openai-access-0001', refreshToken: '' } }) + '\n', { mode: 0o600 })
   reread()
   const { credentialWallLine } = await import('../../src/services/providers/credentialWall.ts')
   const { healthContext } = await import('../../src/utils/healthReport.ts')
