@@ -86,6 +86,7 @@ mkSuite('alpha', ['# gate-class: pure', '# gate-watch: lib/alpha/** lib/wide.txt
 mkSuite('beta', ['# gate-class: pure', '# gate-watch: lib/beta/** lib/wide.txt'], marker('beta'))
 mkSuite('gamma', ['# gate-class: pure', '# gate-watch: lib/wide.txt'], marker('gamma'))
 mkSuite('omega', ['# gate-class: pure'], marker('omega'))
+mkSuite('screen-drives', ['# gate-class: pty', '# gate-watch: lib/alpha/**'], marker('screen-drives'))
 
 mkdirSync(join(scratch, 'scripts', 'gate'), { recursive: true })
 cpSync(join(REPO, 'scripts/run-all-suites.sh'), join(scratch, 'scripts/run-all-suites.sh'))
@@ -165,6 +166,11 @@ try {
     check('plan exits 0', plan.status === 0, `status=${plan.status}`)
     check('plan verdict RUN suites [alpha]', plan.out.includes('plan verdict: RUN suites [alpha]'), plan.out.split('\n').find(l => l.includes('plan verdict')) ?? '')
     check('plan executes nothing', !plan.out.includes('━━ ') && markers().length === 0)
+    check(
+      'the plan names the suite the anchor did not read',
+      plan.out.split('\n').some(l => l.includes('not read by the anchor') && l.includes('screen-drives')),
+      plan.out.split('\n').find(l => l.includes('screen-drives')) ?? '',
+    )
 
     const r = fast([])
     check('run exits 0', r.status === 0, `status=${r.status}`)

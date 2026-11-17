@@ -13,6 +13,8 @@ export interface SliceAnchor {
   source: string
   headSha: string | null
   ageCommits: number | null
+  read?: string[] | null
+  present?: string[] | null
 }
 
 export interface SlicePlanInput {
@@ -30,6 +32,7 @@ export interface SlicePlanInput {
 interface SliceLedger {
   selection: ImpactSelection | null
   suites: string[]
+  outside: string[]
   sliceEstimateS: number | null
   poolEstimateS: number
   hubs: Array<{ path: string; fanout: number }>
@@ -37,7 +40,7 @@ interface SliceLedger {
 
 type SlicePlan =
   | { kind: 'refuse'; reason: 'anchor-absent' | 'not-faster'; message: string; ledger: SliceLedger }
-  | { kind: 'escalate'; reason: 'unclassified' | 'hub-fanout'; message: string; ledger: SliceLedger }
+  | { kind: 'escalate'; reason: 'unclassified' | 'new-suite' | 'hub-fanout'; message: string; ledger: SliceLedger }
   | { kind: 'run'; suites: string[]; ledger: SliceLedger }
 
 interface RunningSuite {
@@ -138,7 +141,9 @@ export function estimatePooledWallS(
 }
 
 export function planSlice(input: SlicePlanInput): SlicePlan {
-  const poolEstimateS = estimatePooledWallS(input.manifest.suites, {
+  const read = input.anchor?.read ? new Set(input.anchor.read) : null
+  const pooled = (suite: string): boolean => read === null || read.has(suite)
+  const poolEstimateS = estimatePooledWallS(input.manifest.suites.filter(pooled), {
     durations: input.durations,
     classes: input.classes,
     cores: input.cores,
@@ -147,6 +152,7 @@ export function planSlice(input: SlicePlanInput): SlicePlan {
   const base: SliceLedger = {
     selection: null,
     suites: [],
+    outside: [],
     sliceEstimateS: null,
     poolEstimateS,
     hubs: [],
@@ -162,12 +168,15 @@ export function planSlice(input: SlicePlanInput): SlicePlan {
     }
   }
   const selection = selectImpact(input.manifest, input.changedPaths)
-  const suites = [...selection.suites].sort()
+  const selected = [...selection.suites].sort()
+  const suites = selected.filter(pooled)
+  const outside = selected.filter(suite => !pooled(suite))
   const hubs = Object.entries(selection.perPath)
-    .filter(([, who]) => who[0] !== '(ignored)' && who[0] !== '(UNCLASSIFIED)' && who.length > input.hubCeiling)
-    .map(([path, who]) => ({ path, fanout: who.length }))
+    .filter(([, who]) => who[0] !== '(ignored)' && who[0] !== '(UNCLASSIFIED)')
+    .map(([path, who]) => ({ path, fanout: who.filter(pooled).length }))
+    .filter(hub => hub.fanout > input.hubCeiling)
     .sort((a, b) => b.fanout - a.fanout)
-  const ledger: SliceLedger = { ...base, selection, suites, hubs }
+  const ledger: SliceLedger = { ...base, selection, suites, outside, hubs }
   if (selection.unclassified.length > 0) {
     return {
       kind: 'escalate',
@@ -175,6 +184,18 @@ export function planSlice(input: SlicePlanInput): SlicePlan {
       message:
         `${selection.unclassified.length} UNCLASSIFIED changed path(s) — no suite watches them and they are ` +
         'not declared ignorable; the manifest cannot bound the blast radius',
+      ledger,
+    }
+  }
+  const present = input.anchor.present ? new Set(input.anchor.present) : null
+  const fresh = outside.filter(suite => present === null || !present.has(suite))
+  if (fresh.length > 0) {
+    return {
+      kind: 'escalate',
+      reason: 'new-suite',
+      message:
+        `${fresh.length} suite(s) the anchor's tree did not hold (${fresh.join(', ')}) — ` +
+        'only a full pool plans and reads a new suite',
       ledger,
     }
   }

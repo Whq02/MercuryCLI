@@ -57,7 +57,7 @@ function dirtyPaths(): string[] {
     .map(l => (l.includes(' -> ') ? l.split(' -> ')[1]! : l))
 }
 
-function localGreenTree(): { tree: string; headSha: string | null } | null {
+function localGreenTree(): { tree: string; headSha: string | null; read: string[] | null } | null {
   try {
     const v = JSON.parse(readFileSync(join(projectLocalPath(ROOT, 'gate'), 'verdict.json'), 'utf8'))
     if (v?.ok !== true || typeof v?.treeSha !== 'string') return null
@@ -65,10 +65,25 @@ function localGreenTree(): { tree: string; headSha: string | null } | null {
     if (kind !== 'tree') return null
     const headSha =
       typeof v?.headSha === 'string' && /^[0-9a-f]{40}$/.test(v.headSha) ? v.headSha : null
-    return { tree: v.treeSha, headSha }
+    const read =
+      Array.isArray(v?.pass) && v.pass.length > 0 && v.pass.every((s: unknown) => typeof s === 'string')
+        ? (v.pass as string[])
+        : null
+    return { tree: v.treeSha, headSha, read }
   } catch {
     return null
   }
+}
+
+function suitesIn(tree: string): string[] | null {
+  const out = gitOut(['ls-tree', '-r', '--name-only', tree, '--', 'scripts'])
+  if (out === null) return null
+  const suites: string[] = []
+  for (const line of out.split('\n')) {
+    const m = /^scripts\/([^/]+)\/run-all\.sh$/.exec(line.trim())
+    if (m) suites.push(m[1]!)
+  }
+  return suites
 }
 
 function ledgerGreenTrees(): Array<{ tree: string; headSha: string; kind: string }> {
@@ -122,11 +137,18 @@ interface AnchorCandidate {
   source: string
   headSha: string | null
   changed: string[]
+  read?: string[] | null
 }
 const candidates: AnchorCandidate[] = []
 const local = localGreenTree()
 if (local) {
-  candidates.push({ tree: local.tree, source: 'local verdict', headSha: local.headSha, changed: changedFrom(local.tree) })
+  candidates.push({
+    tree: local.tree,
+    source: 'local verdict',
+    headSha: local.headSha,
+    changed: changedFrom(local.tree),
+    read: local.read,
+  })
 }
 const fromLedger = ledgerGreenTrees()
 for (const row of fromLedger) {
@@ -158,6 +180,8 @@ const anchor: SliceAnchor | null = base
         const n = gitOut(['rev-list', '--count', `${base.headSha}..HEAD`])?.trim() ?? null
         return n !== null && /^\d+$/.test(n) ? Number.parseInt(n, 10) : null
       })(),
+      read: base.read ?? null,
+      present: base.read ? suitesIn(base.tree) : null,
     }
   : null
 
@@ -228,6 +252,8 @@ if (selection && selection.ignored.length > 0)
   console.log(`  ignored (declared no-runtime-surface): ${selection.ignored.length} path(s)`)
 if (plan.ledger.suites.length > 0)
   console.log(`  affected suites: ${plan.ledger.suites.join(', ')}`)
+if (plan.ledger.outside.length > 0)
+  console.log(`  not read by the anchor's full run, so not run here: ${plan.ledger.outside.join(', ')}`)
 if (plan.ledger.sliceEstimateS !== null) {
   const pct = Math.round((plan.ledger.sliceEstimateS / Math.max(1, plan.ledger.poolEstimateS)) * 100)
   console.log(
@@ -293,7 +319,7 @@ if (plan.kind === 'escalate') {
   await recordRow(
     ok,
     'full-gate',
-    `full gate (escalated from verify:fast — ${plan.reason === 'hub-fanout' ? plan.message.split(' — ')[0] : `${selection?.unclassified.length ?? 0} unclassified path(s)`})`,
+    `full gate (escalated from verify:fast — ${plan.reason === 'unclassified' ? `${selection?.unclassified.length ?? 0} unclassified path(s)` : plan.message.split(' — ')[0]})`,
   )
   process.exit(r.status ?? 1)
 }

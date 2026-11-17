@@ -245,6 +245,81 @@ section('§6 the plan hands the selector set (sorted) to the lanes')
     JSON.stringify(p.kind === 'run' ? p.suites : p.kind),
   )
 }
+section('§7 the plan stays inside what the anchor read')
+{
+  const read = ['smoke', 'bus', 'mission', 'memory', 'bench']
+  const held: SliceAnchor = { ...ANCHOR, read, present: Object.keys(CLASSES) }
+  const p = planSlice(input({ anchor: held, changedPaths: ['src/components/x.tsx'], clearlyUnderRatio: 0.999 }))
+  check(
+    'suites the anchor did not read are named, not run',
+    p.kind === 'run' && p.suites.join(',') === 'smoke' && p.ledger.outside.join(',') === 'flux,pulse,ui',
+    JSON.stringify(p.kind === 'run' ? [p.suites, p.ledger.outside] : p.kind),
+  )
+  check('the pool estimate counts only what the anchor read (300s, not 1300s)', p.ledger.poolEstimateS === 300, `${p.ledger.poolEstimateS}`)
+  const weighed = planSlice(input({ anchor: held, changedPaths: ['src/utils/crew/bus.ts'] }))
+  check(
+    'the slice is weighed against that pool (bus and smoke, 200s of 300s, refuses)',
+    weighed.kind === 'refuse' && weighed.reason === 'not-faster',
+    weighed.kind,
+  )
+  const whole = planSlice(input({ changedPaths: ['src/components/x.tsx'], clearlyUnderRatio: 0.999 }))
+  check(
+    'an anchor that does not say what it read keeps every selected suite',
+    whole.kind === 'run' && whole.suites.join(',') === 'flux,pulse,smoke,ui' && whole.ledger.outside.length === 0,
+    JSON.stringify(whole.kind === 'run' ? [whole.suites, whole.ledger.outside] : whole.kind),
+  )
+  const only: ImpactManifest = { ...MANIFEST, watches: { ...MANIFEST.watches, ui: ['src/components/**', 'tui/**'] } }
+  const floors = planSlice(input({ anchor: held, manifest: only, changedPaths: ['tui/x.ts'] }))
+  check(
+    'a path only outside suites watch runs the floors and names them',
+    floors.kind === 'run' && floors.suites.length === 0 && floors.ledger.outside.join(',') === 'ui',
+    JSON.stringify(floors.kind === 'run' ? [floors.suites, floors.ledger.outside] : floors.kind),
+  )
+  const fresh = planSlice(
+    input({
+      anchor: { ...ANCHOR, read, present: [...read, 'ui', 'flux'] },
+      changedPaths: ['src/components/x.tsx'],
+      clearlyUnderRatio: 0.999,
+    }),
+  )
+  check(
+    'a suite the anchor tree did not hold escalates and is named',
+    fresh.kind === 'escalate' && fresh.reason === 'new-suite' && fresh.message.includes('pulse') && !fresh.message.includes('flux'),
+    fresh.kind === 'escalate' ? fresh.message : fresh.kind,
+  )
+  const blind = planSlice(input({ anchor: { ...ANCHOR, read }, changedPaths: ['src/components/x.tsx'], clearlyUnderRatio: 0.999 }))
+  check(
+    'an anchor that says what it read but not what its tree held escalates on a suite outside',
+    blind.kind === 'escalate' && blind.reason === 'new-suite',
+    blind.kind,
+  )
+  const lost = planSlice(input({ anchor: held, changedPaths: ['mystery/top-level.bin', 'src/components/x.tsx'] }))
+  check('an unclassified path still outranks it', lost.kind === 'escalate' && lost.reason === 'unclassified', lost.kind)
+}
+{
+  const wide: ImpactManifest = {
+    suites: ['s1', 's2', 's3', 's4', 's5'],
+    watches: { s1: ['lib/hub.ts'], s2: ['lib/hub.ts'], s3: ['lib/hub.ts'], s4: ['lib/hub.ts'] },
+    ignores: [],
+  }
+  const p = planSlice(
+    input({
+      anchor: { ...ANCHOR, read: ['s3', 's4', 's5'], present: wide.suites },
+      changedPaths: ['lib/hub.ts'],
+      manifest: wide,
+      classes: { s1: 'pty', s2: 'pty', s3: 'pure', s4: 'pure', s5: 'pure' },
+      durations: { s1: 10, s2: 10, s3: 10, s4: 10, s5: 300 },
+      hubCeiling: 3,
+    }),
+  )
+  check(
+    'fan-out counts only suites the anchor read (2 of 4 under a ceiling of 3 runs)',
+    p.kind === 'run' && p.suites.join(',') === 's3,s4' && p.ledger.outside.join(',') === 's1,s2',
+    JSON.stringify(p.kind === 'run' ? [p.suites, p.ledger.outside] : p.kind),
+  )
+}
+
+section('§8 the class header')
 {
   check('parseClassHeader reads a declared class', parseClassHeader('#!/usr/bin/env bash\n# gate-class: pty\nset -u\n') === 'pty')
   check('parseClassHeader treats a misspelled class as undeclared', parseClassHeader('# gate-class: ptyy\n') === 'undeclared')
