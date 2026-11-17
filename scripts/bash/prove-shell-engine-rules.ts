@@ -193,7 +193,7 @@ section('§2 the seam ratchet — the rule road never learns the engine')
   const more = (which: string): unknown => new Proxy(() => undefined, { get: (_target, key) => (did.push(`read ${String(key)} of a ${which} argument`), undefined), apply: () => (did.push(`called a ${which} argument`), undefined) })
   await (bashToolHasPermission as (...args: unknown[]) => Promise<unknown>)({ command: 'npm run build' }, base, more('third'), more('fourth'))
   check(
-    'the rule entry takes the input and the context — no engine parameter',
+    'at run time the rule entry counts two parameters and neither reads nor calls two more handed to it; TwoParameters in bashPermissions refuses a third parameter of any kind at typecheck',
     bashToolHasPermission.length === 2 && did.length === 0,
     `bashToolHasPermission declares ${bashToolHasPermission.length} parameters and, handed four arguments, ${did.join(', ') || 'used neither of the two more'}: its parameters are the input and the context, in the bashPermissions module of the Bash tool`,
   )
