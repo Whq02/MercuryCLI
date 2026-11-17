@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -261,7 +261,20 @@ console.log('\n── R6: the warm claim binds and acks, then loads the transcri
   const settlingAt = claimBody.indexOf('const settling = (async')
   const boundAt = claimBody.indexOf('claimSettling = settling')
   check('R6 `resume: true` loads the transcript through the cold boot\'s own loader behind the ack (the claim is the binding; the load never holds the answer)', claimBody.includes('if (params.resume === true) {') && loadAt !== -1 && ackAt !== -1 && settlingAt !== -1 && boundAt !== -1 && settlingAt < loadAt && loadAt < boundAt && boundAt < ackAt)
-  check('R6 a missing transcript refuses the claim before it binds and hands the home pin back', claimBody.includes("throw refused(`claim refused — no conversation found for session ${sid}`, 'claim')") && claimBody.indexOf('no conversation found for session') < settlingAt && claimBody.includes("setFlagEnv('MERCURY_SESSION_HOME', claimedHome)"))
+  const { refusalOf, withLiveRunner } = await import('../lib/builtProduct.ts')
+  const UNSEEN = '11111111-2222-4333-8444-555555555555'
+  const CLAIMED = '66666666-7777-4888-8999-000000000000'
+  const pinnedHome = mkdtempSync(join(tmpdir(), 'reactivate-home-pin-'))
+  const refusedClaim = await withLiveRunner(
+    async runner => ({
+      resume: await refusalOf(runner.request('session/claim', { session_id: UNSEEN, resume: true })),
+      fresh: await refusalOf(runner.request('session/claim', { session_id: CLAIMED })),
+      pinned: readdirSync(pinnedHome),
+    }),
+    { env: { MERCURY_CONCOURSE_WORKER: '1', MERCURY_SESSION_HOME: pinnedHome } },
+  ).catch(() => null)
+  rmSync(pinnedHome, { recursive: true, force: true })
+  check('R6 a missing transcript refuses the claim before it binds and hands the home pin back', refusedClaim?.resume?.message === `claim refused — no conversation found for session ${UNSEEN}` && refusedClaim.fresh === null && refusedClaim.pinned.some(name => name.startsWith(`${CLAIMED}.jsonl`)), JSON.stringify(refusedClaim))
   check('R6 the live conversation is the loaded one (spliced in place — the turn loop holds the same array)', claimBody.includes('messages.splice(0, messages.length, ...resumed.messages)'))
   check('R6 the same restore steps as a cold --resume boot (identity switch, file pointer, state, metadata) and the run hydration', claimBody.includes('switchSession(sid as SessionId, resumed.fullPath ? dirname(resumed.fullPath) : claimedHome)') && claimBody.includes('await resetSessionFilePointer()') && claimBody.includes('restoreSessionStateFromLog(resumed, setAppState)') && claimBody.includes('restoreSessionMetadata(resumed)') && claimBody.includes('if (params.resume === true) await hydrateResumedRun()'))
   const clearAt = claimBody.indexOf('clearSystemPromptSections()')

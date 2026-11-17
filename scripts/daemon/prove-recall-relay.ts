@@ -121,15 +121,17 @@ section('§5 the wire: the reply keys, the router, the age, the runner\'s switch
   check("the daemon's action arm relays through the seat's one relay and requires the identity", main.includes("if (action === 'withdraw-send')") && main.includes('withdrawSessionSend(sessionId, clientMessageId, roster)') && main.includes("'withdraw-send requires clientMessageId'"))
   const { liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
   const recall = await withFixtureRunner([{ kind: 'paced', deltas: ['one ', 'two ', 'three'], gapMs: 300 }], async (host, api) => {
-    await host.prompt('the first line')
+    await host.prompt('the first line', { id: 'line-1' })
     await api.messageRequestStarted(1)
     await host.prompt('the second line', { id: 'line-2' })
     const queued = (await liveFactsOf(host)).queue.map(row => row.uuid)
     const known = await host.request('queue/withdraw', { id: 'line-2' })
     const again = await host.request('queue/withdraw', { id: 'line-2' })
-    return { queued, known, again, left: (await liveFactsOf(host)).queue.length }
+    await host.waitFor('the paced turn ends', row => row.type === 'outcome')
+    const taken = await host.request('queue/withdraw', { id: 'line-1' })
+    return { queued, known, again, taken, left: (await liveFactsOf(host)).queue.length }
   })
-  check("the runner's arm owns the method: the queue's one pop by identity, a typed answer either way", j(recall.queued) === j(['line-2']) && j(recall.known) === j({ withdrawn: true, text: 'the second line' }) && j(recall.again) === j({ withdrawn: false, reason: 'unknown' }) && recall.left === 0, j(recall))
+  check("the runner's arm owns the method: the queue's one pop by identity, a typed answer either way", j(recall.queued) === j(['line-2']) && j(recall.known) === j({ withdrawn: true, text: 'the second line' }) && j(recall.again) === j({ withdrawn: false, reason: 'unknown' }) && j(recall.taken) === j({ withdrawn: false, reason: 'taken' }) && recall.left === 0, j(recall))
   const methods = readFileSync(join(ROOT, 'src', 'runner', 'wire', 'methods.ts'), 'utf8')
   check("the door's method table carries queue/withdraw with the row's identity", methods.includes("'queue/withdraw': method({") && methods.includes("name: 'queue/withdraw'"))
 }
