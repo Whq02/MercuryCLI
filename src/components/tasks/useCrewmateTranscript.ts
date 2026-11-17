@@ -173,7 +173,6 @@ export function useCrewmateTranscript(crewmate: CrewmateInView | null, rosterSta
       alive = false
       clearInterval(timer)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the roster stamp re-arms the read on the crew's own cadence
   }, [taskId, file, agentId, rosterStamp])
   useEffect(() => {
     lastStamp.current = ''

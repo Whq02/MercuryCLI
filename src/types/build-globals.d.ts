@@ -11,5 +11,4 @@ declare const MACRO: {
   readonly ISSUES_EXPLAINER: string;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const Bun: any;

@@ -407,7 +407,6 @@ function isCapturableExpression(segment: string, leadingGroupSafe: boolean): boo
   if (/^[.+\-*/%&|^<>?:,)\]}]/.test(trimmed)) return false
   if (!leadingGroupSafe && /^[([]/.test(trimmed)) return false
   try {
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
     new Function(`return async () => (${trimmed}\n);`)
     return true
   } catch {

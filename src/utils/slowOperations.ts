@@ -39,11 +39,9 @@ export function jsonStringify(
   return JSON.stringify(value, replacer ?? undefined, space)
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function jsonParse(
   text: string,
   reviver?: (this: unknown, key: string, value: unknown) => unknown,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): any {
   if (reviver === undefined) return JSON.parse(text)
   return JSON.parse(text, reviver)

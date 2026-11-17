@@ -89,7 +89,6 @@ export function realProbes(overrides: Partial<Probes> = {}): Probes {
 
 const FRONTMATTER_BLOCK = /^---\r?\n([\s\S]*?)\r?\n---/
 
-// eslint-disable-next-line no-control-regex
 const SKILL_NAME_HOSTILE = /[\x00-\x1f\x7f\s/\\:]/
 
 function isLegalSkillName(name: string): boolean {

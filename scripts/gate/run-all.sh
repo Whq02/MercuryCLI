@@ -85,6 +85,7 @@ run_proof "$here/prove-shell-door.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/pr
 run_proof "$here/../substrate/prove-flag-registry-readers.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../substrate/prove-flag-registry-readers.ts" || fail=1
 run_proof "$here/../substrate/prove-flag-registry-split.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../substrate/prove-flag-registry-split.ts" || fail=1
 run_proof "$here/prove-source-text-reads.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-source-text-reads.ts" || fail=1
+run_proof "$here/prove-source-patterns.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-source-patterns.ts" || fail=1
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ GATE MACHINERY PASS"; else echo "# ❌ GATE MACHINERY FAILED"; fi
 echo "############################################################"

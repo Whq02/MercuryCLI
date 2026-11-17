@@ -52,7 +52,6 @@ export async function* handleStopHooks(
 
   if (!isBareMode()) {
     {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const suggestion = require('../services/PromptSuggestion/promptSuggestion.js') as {
         executePromptSuggestion: (context: TurnAnswerContext) => Promise<void>
       }
@@ -61,7 +60,6 @@ export async function* handleStopHooks(
       })
     }
     if (!agentId) {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const mneme = require('../mneme/mnemeMaintenance.js') as {
         scheduleMnemeMaintenance: (trigger: 'turn-end') => void
       }

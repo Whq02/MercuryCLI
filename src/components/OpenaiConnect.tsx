@@ -94,7 +94,6 @@ export function OpenaiConnect({
       alive = false
       handles.cancel('cancelled from the connect surface')
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode])
 
   const [copied, setCopied] = useState(false)

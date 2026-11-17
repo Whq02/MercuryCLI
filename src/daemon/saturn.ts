@@ -116,7 +116,6 @@ function cleanString(v: unknown, cap: number): string | null {
   if (typeof v !== 'string') return null
   const s = v.trim()
   if (s.length === 0 || s.length > cap) return null
-  // eslint-disable-next-line no-control-regex
   if (/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(s)) return null
   return s
 }

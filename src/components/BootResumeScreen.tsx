@@ -416,7 +416,6 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
     } else if (selected !== null && projectFilter !== null) {
       setProjectFilter(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
   const anchorIdRef = useRef<string | null>(null);
   anchorIdRef.current = selectedId;
@@ -425,7 +424,6 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
     if (want === null) return;
     const at = selectable.findIndex(r => selectableIdOf(r) === want);
     if (at !== -1 && at !== list.selectedIndex) list.moveTo(at);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectable]);
 
   useInput(
@@ -516,7 +514,6 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
           }),
       ...(pruneOverride ?? {}),
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flat, elsewhereCount, pendingMore, loading, scope, selected, selectable.length, list.selectedIndex, list.note, prune, mainModel, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
   const composition = useMemo(() => {

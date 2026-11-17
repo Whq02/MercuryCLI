@@ -436,7 +436,6 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
       lastSearchTokenRef.current = null
       runUnifiedFetch(token)
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(
@@ -691,7 +690,6 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
         clearSuggestions()
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [input, mode, suppressSuggestions, commands, rosterStamp])
 
   function describeAgent(
@@ -1080,7 +1078,6 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
     markAccepted?.()
     const text = promptSuggestion.text
     const { getModeFromInput, getValueFromInput } =
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       require('../components/PromptInput/inputModes.js') as typeof import('../components/PromptInput/inputModes.js')
     const impliedMode = getModeFromInput(text)
     if (impliedMode !== 'prompt' && onModeChange) {

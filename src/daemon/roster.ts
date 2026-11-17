@@ -891,7 +891,6 @@ export class TaskRoster {
       logForDebugging(
         `[daemon] long-lived ${short} crashed (code=${code} sig=${signal}); ${decision.action} (${ll.respawns}/${ll.cfg.maxRespawns})`,
       )
-      // eslint-disable-next-line no-console
       console.error(
         `[daemon] long-lived ${short} crashed (code=${code} sig=${signal}); ${decision.action} (${ll.respawns}/${ll.cfg.maxRespawns})${keptText ? ` — ${keptText}` : ''}`,
       )

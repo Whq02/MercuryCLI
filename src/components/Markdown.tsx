@@ -129,7 +129,6 @@ export function Markdown({
 
   const { elements, firstIsProse } = useMemo<Rendered>(() => {
     const sanitized = stripAnsi(children).replace(
-      // eslint-disable-next-line no-control-regex -- the control filter is the point
       /[\u0000-\u0008\u000b-\u001f\u007f]/g,
       '',
     )

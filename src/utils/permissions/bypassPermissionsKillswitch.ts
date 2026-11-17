@@ -53,6 +53,5 @@ export function useKickOffCheckAndDisableSovereignIfNeeded(): void {
     started.current = true
     if (getIsRemoteMode()) return
     void checkAndDisableSovereignIfNeeded(toolPermissionContext, setAppState)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 }

@@ -73,7 +73,6 @@ export function AppStateProvider({
         ),
       }))
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const applyChangedSourceRef = useRef((source: Parameters<typeof applySettingsChange>[0]) => {
@@ -84,7 +83,6 @@ export function AppStateProvider({
       applyChangedSourceRef.current(source)
     })
     return unsubscribe
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (

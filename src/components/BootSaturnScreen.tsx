@@ -909,7 +909,6 @@ export function BootSaturnScreen({ onClose, fullScene, facts: given, nowMs: give
         return;
       }
       if (key.ctrl || key.meta || key.tab || key.upArrow || key.downArrow || key.leftArrow || key.rightArrow) return;
-      // eslint-disable-next-line no-control-regex
       if (input.length > 0 && !/[\x00-\x1f\x7f]/.test(input)) {
         setFormPrompt({ ...p, draft: (p.draft + input).slice(0, formPromptCap(p.field)) });
       }
@@ -1013,7 +1012,6 @@ export function BootSaturnScreen({ onClose, fullScene, facts: given, nowMs: give
           ? saturnDetailLines(selected, nowMs, (receiptsOf ?? liveReceiptsOf)(selected))
           : saturnEmptyDetailLines(facts),
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facts, nowMs, selected, list.selectedIndex, list.note, note, mainModel, receiptsOf, form, formNote, formPrompt, formPick, formList.selectedIndex, pickList.selectedIndex, givenNow, preflightOf, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
   const composition = useMemo(() => {

@@ -219,7 +219,6 @@ export function useNotifications(): {
     if (store.getState().notifications.queue.length > 0) {
       promote(setAppState)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only; the store is a stable ref
   }, [])
 
   return { addNotification, removeNotification }

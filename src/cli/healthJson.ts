@@ -3,7 +3,6 @@ import { jsonStringify } from '../utils/slowOperations.js'
 import { writeOutAndExit } from './healthPresentation.js'
 import { beginReadOnlyDiagnostic } from '../utils/diagnosticReadOnly.js'
 
-/* eslint-disable custom-rules/no-process-exit -- CLI subcommand handler intentionally exits */
 
 function emitAndExit(value: unknown, code: number): Promise<never> {
   let text = '{}\n'

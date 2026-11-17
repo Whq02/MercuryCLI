@@ -55,7 +55,6 @@ const HUMAN_CALLS = 'a question to the operator (AskUserQuestion), a review appr
 
 function pushVerdictAtBoot(context: ToolPermissionContext): PermissionResult | null {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const bash = require('../../tools/BashTool/bashPermissions.js') as typeof import('../../tools/BashTool/bashPermissions.js')
     return bash.readBashRuleVerdict({ command: PUSH_PROBE }, context)
   } catch {

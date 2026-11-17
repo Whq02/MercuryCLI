@@ -141,7 +141,6 @@ async function agentMetaFor(agentId: string): Promise<AgentMetaFact | null> {
 
 function realpathSafe(p: string): string {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     return (require('node:fs') as typeof import('node:fs')).realpathSync(p)
   } catch {
     return p

@@ -32,7 +32,6 @@ type ImmutablePrimitive =
   | boolean
   | string
   | number
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   | Function
 
 export type DeepImmutable<T> = unknown extends T

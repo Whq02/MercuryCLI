@@ -892,7 +892,6 @@ export function readDenialFilter(context: ToolPermissionContext, root: string): 
 }
 
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ToolLike = { getPath?: (input: any) => string | undefined; name: string }
 
 function ask(message: string, reason: PermissionDecision['decisionReason']): PermissionDecision {

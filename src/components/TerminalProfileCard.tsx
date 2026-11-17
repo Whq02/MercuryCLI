@@ -54,7 +54,6 @@ export function TerminalProfileCard({
       if (ticks >= RERESOLVE_TICKS) clearInterval(timer)
     }, RERESOLVE_TICK_MS)
     return () => clearInterval(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   React.useEffect(() => {

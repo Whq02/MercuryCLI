@@ -3,13 +3,10 @@ import * as fsp from 'node:fs/promises'
 import * as path from 'node:path'
 import type { Readable, Writable } from 'node:stream'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — deep esm import (typings ride the package root)
 import { getCSSLanguageService, getLESSLanguageService, getSCSSLanguageService } from 'vscode-css-languageservice/lib/esm/cssLanguageService.js'
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — deep esm import (typings ride the package root)
 import { getLanguageService as getHtmlLanguageService } from 'vscode-html-languageservice/lib/esm/htmlLanguageService.js'
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — deep esm import (typings ride the package root)
 import { getLanguageService as getJsonLanguageService } from 'vscode-json-languageservice/lib/esm/jsonLanguageService.js'
 import { TextDocument } from 'vscode-languageserver-textdocument'
@@ -23,7 +20,6 @@ import {
   type JsonRpcId,
 } from '../sidecarFraming.js'
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — no published typings for the lib/esm deep import
 import { getLanguageService as getYamlLanguageService } from 'yaml-language-server/lib/esm/languageservice/yamlLanguageService.js'
 

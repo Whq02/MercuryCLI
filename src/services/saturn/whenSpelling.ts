@@ -90,7 +90,6 @@ export function compileWhenSpelling(raw: string, nowMs: number): WhenSpellingCom
   if (spelling.length > SATURN_SPELLING_CAP) {
     return no(`a schedule spelling stays under ${SATURN_SPELLING_CAP} characters`)
   }
-  // eslint-disable-next-line no-control-regex
   if (/[\x00-\x1f\x7f]/.test(spelling)) return no('a schedule spelling is one plain line')
   const s = spelling.toLowerCase().replace(/\s+/g, ' ')
 

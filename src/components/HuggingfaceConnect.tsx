@@ -75,7 +75,6 @@ export function HuggingfaceConnect({
     return () => {
       disposed = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leg])
 
   useInput((input, key, event) => {

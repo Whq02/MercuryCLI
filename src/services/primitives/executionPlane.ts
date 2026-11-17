@@ -78,7 +78,6 @@ interface DomainHooks {
   requestStop?: ExecutionStopHandler
 }
 
-// eslint-disable-next-line no-var
 var domainHooksMap: Map<ExecutionKind, DomainHooks> | undefined
 function domainHooks(): Map<ExecutionKind, DomainHooks> {
   return (domainHooksMap ??= new Map())

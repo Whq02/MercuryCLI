@@ -173,7 +173,6 @@ function NotificationsColumn({
     } catch {
       return { state: 'not-logged-in' }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notAuthenticated, engineModel, signInEpoch, catalogueEpoch])
   const sessionBlocked = walletGate.state !== 'ok'
   const tokenUsage = useFocusedContextFill(messages, engineModel).usedTokens ?? 0

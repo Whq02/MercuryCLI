@@ -186,7 +186,6 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
   const surfaceRef = useElevatedSurface()
   React.useEffect(() => {
     markTransitionEnd('picker-open')
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const TERRA = useSessionAccent().accent
   const tokens = useMercuryTokens()
@@ -275,7 +274,6 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
   const filtering = filter.trim() !== ''
   const lines = React.useMemo(
     () => composePickerLines(groups, folds, filter, fullRowsOf),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [groups, folds, filter, listed],
   )
   const { columns: cols, rows: termRows } = useTerminalSize()

@@ -15,7 +15,6 @@ export function useHoverOwned(id: string): boolean {
     const p = flagEnv('MERCURY_HOVER_DEBUG')
     if (!p) return
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       ;(require('node:fs') as typeof import('node:fs')).appendFileSync(
         p,
         JSON.stringify({ ev: 'commit', id, owned }) + '\n',

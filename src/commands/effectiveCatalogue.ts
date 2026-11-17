@@ -52,7 +52,6 @@ function toSurface(cmd: Command): EffectiveSurface {
 }
 
 export function effectiveCatalogue(): EffectiveSurface[] {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { builtinCommands } = require('../commands.js') as typeof import('../commands.js')
   return builtinCommands().map(toSurface)
 }

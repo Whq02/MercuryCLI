@@ -840,7 +840,6 @@ export function BootAgentsScreen({
         return;
       }
       if (key.ctrl || key.meta || key.tab || key.upArrow || key.downArrow || key.leftArrow || key.rightArrow) return;
-      // eslint-disable-next-line no-control-regex
       if (input.length > 0 && !/[\x00-\x1f\x7f]/.test(input)) {
         const cap = promptField === 'body' ? BODY_CAP : TEXT_CAP;
         f.machine.setTextBuffer((snap.textBuffer + input).slice(0, cap));
@@ -1126,7 +1125,6 @@ export function BootAgentsScreen({
       legend: confirm ? AGENT_FACE_LEGEND_CONFIRM : AGENT_FACE_LEGEND,
       detailOverride,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [counts, listRows, built, defs, list.selectedRow, list.selectedIndex, list.note, note, confirm, trash, trashList.selectedIndex, trashList.note, form, formSnap, formPrompt, formPick, formRowIds, formList.selectedIndex, pickList.selectedIndex, modelPick, modelPickList.selectedIndex, modelPickList.note, mainModel, faceTools, workspaceDir, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
   const composition = useMemo(() => {

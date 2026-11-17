@@ -178,7 +178,6 @@ function buildToolCensusRow(tool: Tool, inCatalogNow: boolean): ToolCensusRow {
 
 function supplementalTools(): Tool[] {
   const loaders: Array<() => Tool> = [
-    /* eslint-disable @typescript-eslint/no-require-imports */
     () => require('../../tools/GlobTool/GlobTool.js').GlobTool,
     () => require('../../tools/GrepTool/GrepTool.js').GrepTool,
     () => require('../../tools/DebugTool/DebugTool.js').DebugTool,
@@ -200,7 +199,6 @@ function supplementalTools(): Tool[] {
     () => require('../../tools/JevEvalTool/JevEvalTool.js').JevEvalTool,
     () => require('../../tools/AskAdvisorTool/AskAdvisorTool.js').AskAdvisorTool,
     () => require('../../services/crewBoard/seam.js').swarmCensusTool(),
-    /* eslint-enable @typescript-eslint/no-require-imports */
   ]
   const out: Tool[] = []
   for (const load of loaders) {

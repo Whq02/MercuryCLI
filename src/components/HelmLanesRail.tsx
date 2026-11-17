@@ -456,7 +456,6 @@ function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: 
   const rowsSig = model.rows.map(helmRowSig).join('|')
   useEffect(() => {
     publishHelmRows('lanes', model.rows)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rowsSig])
 
   const isOn = (i: number): boolean => focused && cur === i

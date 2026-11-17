@@ -247,7 +247,6 @@ let highlighter: HighlightApi | null = null
 
 function getHighlighter(): HighlightApi {
   if (highlighter) return highlighter
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const loaded = require('highlight.js') as { default?: HighlightApi } & HighlightApi
   highlighter = typeof loaded.highlight === 'function' ? loaded : (loaded.default as HighlightApi)
   return highlighter

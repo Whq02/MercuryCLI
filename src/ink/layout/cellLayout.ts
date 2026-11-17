@@ -223,7 +223,6 @@ class CellLayoutNode implements LayoutNode {
   }
 
   private markSubtreeDirty(): void {
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
     let node: CellLayoutNode | null = this
     while (node) {
       node.measureEntries.length = 0

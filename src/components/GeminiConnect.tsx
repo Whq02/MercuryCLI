@@ -236,7 +236,6 @@ export function GeminiConnect({
       handlesRef.current = undefined
       handles.cancel('cancelled from the connect surface')
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leg, step])
 
   useInput((input, key, event) => {

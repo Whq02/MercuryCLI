@@ -111,7 +111,6 @@ export function CommandCenter({
   const elevatedRef = useElevatedSurface()
   React.useEffect(() => {
     if (!embedded) markTransitionEnd('screen-switch')
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const closable = closeKeys !== 'none'
   const overlayToken = useRegisterOverlay(`center:${view}`, captureInput && !embedded && closable)

@@ -1441,7 +1441,6 @@ export function Chat({
         .then(m => m.warmContextWindowSources())
         .catch(() => {});
     }, 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -1449,7 +1448,6 @@ export function Chat({
       addNotification({ key: UPDATE_NOTICE_KEY, text, priority: 'high', color: 'warning', timeoutMs: Infinity }),
     );
     return disarm;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -1472,7 +1470,6 @@ export function Chat({
       alive = false;
       unsubscribe();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -1516,7 +1513,6 @@ export function Chat({
       offStore();
       offFacts?.();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusedConnector]);
 
   useEffect(() => {
@@ -1543,7 +1539,6 @@ export function Chat({
     };
     paintDegradation();
     return subscribeTranscriptLoadDegradation(paintDegradation);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusedConnector]);
 
   useEffect(() => {
@@ -1560,7 +1555,6 @@ export function Chat({
         });
       })
       .catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -1572,7 +1566,6 @@ export function Chat({
       priority: 'high',
       timeoutMs: 60_000,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -1622,7 +1615,6 @@ export function Chat({
       }
     } catch {
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -1657,12 +1649,10 @@ export function Chat({
       }
     } catch {
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     void apiKeyVerification.reverify({ probe: false }).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -1723,7 +1713,6 @@ export function Chat({
       priority: 'low',
       timeoutMs: 20_000,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -1731,7 +1720,6 @@ export function Chat({
     void maybeGetTmuxMouseHint().then(hint => {
       if (hint) addNotification({ key: 'tmux-mouse-hint', text: hint, priority: 'low', timeoutMs: RECEIPT_TIMEOUT_MS });
     }).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const unseen = useUnseenDivider(messages.length, scrollRef);
@@ -2069,7 +2057,6 @@ export function Chat({
   const focusedSessionId = focusedConnector.sessionId();
   const paintedMessages = useMemo(
     () => paintedTranscriptOf(messages, enteringWarmth(), focusedSessionId),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the store version keys the warmth read
     [messages, warmthVersion, focusedSessionId],
   );
   const entryLoadingLine = entryLoadingLineOf(enteringWarmth(), messages.length === 0, focusedSessionId);
@@ -2104,7 +2091,6 @@ export function Chat({
       void pendingInput.rekeyToSession(focusedSessionId === '' ? null : focusedSessionId, { landing });
       rekeyCommandQueueToSession(focusedSessionId === '' ? null : focusedSessionId, { landing });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusedSessionId]);
   const slotHasSession = useSyncExternalStore(subscribeFocusedSessionConnector, hasFocusedSession, hasFocusedSession);
   const toolJSXRef = useRef(toolJSX);

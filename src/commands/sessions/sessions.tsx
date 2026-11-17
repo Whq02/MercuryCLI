@@ -59,7 +59,6 @@ function SessionsErrorCard({
   useEffect(() => {
     const timer = setTimeout(() => onDone(undefined, { display: 'skip' }), 0)
     return () => clearTimeout(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   return (
     <MessageResponse>
@@ -113,7 +112,6 @@ function SessionsLogPicker({
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showAllProjects, reloadNonce])
 
   const handleSelect = (log: SessionListing): void => {
@@ -234,7 +232,6 @@ function SessionsByArgument({
         setCardMessage(`Failed to resume: ${errorMessage(thrown)}`)
       }
     })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   if (cardMessage !== null) {

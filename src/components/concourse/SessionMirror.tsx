@@ -74,7 +74,6 @@ function useSessionReceiptsNewestFirst(
     } catch {
       return []
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- state + foldLength are the re-read triggers
   }, [sessionId, workspaceId, state, foldLength])
 }
 

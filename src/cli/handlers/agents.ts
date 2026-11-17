@@ -23,7 +23,6 @@ type RenderableAgent = {
   shadowedBy: string | undefined
 }
 
-// eslint-disable-next-line no-control-regex
 const INVENTORY_HOSTILE = /[\x00-\x1f\x7f]/g
 
 export function renderAgentLine(entry: RenderableAgent): string {
