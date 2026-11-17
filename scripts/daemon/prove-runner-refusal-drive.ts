@@ -286,8 +286,15 @@ try {
 
 section('§7 the kernel, the ask and the turn are the refusals the runner speaks; the daemon side records the last one')
 {
-  const print = await Bun.file(join(ROOT, 'src', 'cli', 'run.ts')).text()
-  check('the runner names the turn before the queue, the tasks and the census', /refusal: \(\) => \{\s*if \(driver\.isRunning\(\)\) return 'a turn is running'\s*if \(getCommandQueue\(\)\.some\(isMainThreadCommand\)\) return 'a prompt is queued'/.test(print))
+  const { liveFactsOf, refusalOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
+  const park = await withFixtureRunner([{ kind: 'paced', deltas: ['one ', 'two ', 'three'], gapMs: 300 }], async (runner, api) => {
+    await runner.prompt('the first line')
+    await api.messageRequestStarted(1)
+    await runner.prompt('the second line', { id: 'line-2' })
+    const queued = (await liveFactsOf(runner)).queue.length
+    return { queued, refusal: await refusalOf(runner.request('session/quiesce', { action: 'prepare', token: 'refusal-order-token-0001' })) }
+  })
+  check('the runner names the turn before the queue, the tasks and the census', park.queued === 1 && park.refusal?.message === 'a turn is running' && park.refusal.data?.kind === 'quiesce', j(park))
   const daemon = await Bun.file(join(ROOT, 'src', 'daemon', 'concourseWorkers.ts')).text()
   check('a refused retirement lands parkRefused on the record with the reason and who asked', /w\.parkRefused = \{ reason: result\.reason, at: Date\.now\(\), by \}/.test(daemon))
 }
