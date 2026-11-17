@@ -1,0 +1,100 @@
+import { strict as assert } from 'node:assert'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+const home = mkdtempSync(join(tmpdir(), 'gpt62-family-row-'))
+process.env.MERCURY_CONFIG_DIR = home
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
+process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9'
+process.env.MERCURY_OPENAI_CHATGPT_BASE = 'http://127.0.0.1:9'
+process.env.NODE_ENV = 'test'
+for (const key of ['MERCURY_HOME', 'MERCURY_AUTH_SCOPE_DIR', 'OPENAI_API_KEY', 'OPENCODE_API_KEY', 'NOUS_API_KEY', 'MERCURY_EFFORT_LEVEL', 'MERCURY_DISABLE_1M_CONTEXT']) delete process.env[key]
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+
+const { GPT_DISPLAY_PINS } = await import('../../src/services/providers/openai/gptPins.js')
+const { providerFrontierFact, providerFrontierLine, openaiLightChoice } = await import('../../src/utils/model/providerFrontier.js')
+const { effortFamiliesLabel } = await import('../../src/utils/effort.js')
+const { ZEN_DISPLAY_PINS, zenDisplayPin, zenServedShapeOf, zenAcceptsEffort } = await import('../../src/services/providers/zen/zenPins.js')
+const { NOUS_PORTAL_RECOMMENDED } = await import('../../src/services/providers/nous/nousCatalogue.js')
+const { readModelListFacts } = await import('../../src/services/providers/typedModelIds.js')
+const { resolveModelPricing } = await import('../../src/utils/modelCost.js')
+const { getContextWindowForModel } = await import('../../src/utils/context.js')
+const { getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.js')
+
+const astra = 'gpt-6.2-astra'
+const sol = 'gpt-6.2-sol'
+const ladder = ['low', 'medium', 'high', 'xhigh', 'max']
+const zenRows = [
+  { id: astra, name: 'GPT 6.2 Astra', short: [8, 0.4, 10, 40], long: { costInPerMtok: 16, costOutPerMtok: 60, cachedInPerMtok: 0.8 } },
+  { id: sol, name: 'GPT 6.2 Sol', short: [2, 0.1, 2.5, 10], long: { costInPerMtok: 4, costOutPerMtok: 15, cachedInPerMtok: 0.2 } },
+]
+const failures: string[] = []
+let checks = 0
+function check(label: string, run: () => void): void {
+  checks++
+  try { run(); console.log(`PASS ${label}`) } catch (e) { failures.push(label); console.error(`FAIL ${label}: ${String(e)}`) }
+}
+try {
+  check('the 6.2 release is the two models the provider lists', () => {
+    assert.deepEqual(GPT_DISPLAY_PINS.map(pin => pin.id).filter(id => id.startsWith('gpt-6.2-')), [astra, sol])
+  })
+  check('the 6.2 rows lead the table and the rows before them keep their order', () => {
+    assert.deepEqual(GPT_DISPLAY_PINS.slice(0, 7).map(pin => pin.id), [astra, sol, 'gpt-6-astra', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-sol', 'gpt-6-luna'])
+  })
+  check('the family frontier is GPT-6.2 Astra, the flagship the models page names', () => {
+    assert.deepEqual(providerFrontierFact('openai'), { modelId: astra, displayName: 'GPT-6.2 Astra', observedAt: '2026-11-17' })
+    assert.equal(providerFrontierLine('openai'), 'frontier: GPT-6.2 Astra · 2026-11-17')
+  })
+  check('the light choice is the newest plain row under the 6.2 frontier, never a 6.2 row', () => {
+    assert.equal(openaiLightChoice([astra, sol, 'gpt-5.5', 'gpt-5.4'], { major: 6, minor: 2 }), 'gpt-5.5')
+    assert.equal(openaiLightChoice([astra, sol], { major: 6, minor: 2 }), undefined)
+  })
+  for (const id of [astra, sol]) check(`the effort ladder names the GPT family when ${id} alone serves a level`, () => {
+    assert.equal(effortFamiliesLabel(probe => probe === id), 'GPT')
+  })
+  check('the typed OpenAI ids hold both 6.2 models', () => {
+    const typed = readModelListFacts({} as NodeJS.ProcessEnv).find(fact => fact.family === 'openai')?.typed ?? []
+    assert.ok(typed.includes(astra) && typed.includes(sol), typed.join(', '))
+  })
+  check('the Zen table lists both 6.2 rows first, as its page does', () => {
+    assert.deepEqual(ZEN_DISPLAY_PINS.slice(0, 2).map(pin => pin.id), [astra, sol])
+  })
+  for (const row of zenRows) check(`the Zen row of ${row.id}: the page's name, the Responses shape, its prices and the 272,000 tier`, () => {
+    const pin = zenDisplayPin(`zen/${row.id}`)
+    assert.ok(pin)
+    assert.equal(pin.displayName, row.name)
+    assert.equal(pin.shape, 'responses')
+    assert.equal(zenServedShapeOf(`zen/${row.id}`), 'responses')
+    assert.equal(pin.observedAt, '2026-11-17')
+    assert.equal(pin.source, 'https://opencode.ai/docs/zen/')
+    assert.deepEqual([pin.costInPerMtok, pin.cachedInPerMtok, pin.cacheWritePerMtok, pin.costOutPerMtok], row.short)
+    assert.equal(pin.longContextThreshold, 272_000)
+    assert.deepEqual(pin.longContext, row.long)
+    assert.deepEqual(pin.efforts, ladder)
+    assert.equal(pin.images, true)
+    assert.equal(zenAcceptsEffort(`zen/${row.id}`, 'max'), true)
+    assert.equal(zenAcceptsEffort(`zen/${row.id}`, 'none'), false)
+    assert.equal(zenAcceptsEffort(`zen/${row.id}`, 'minimal'), false)
+  })
+  for (const row of zenRows) check(`the Zen row of ${row.id} prices and budgets through the one owner`, () => {
+    const p = resolveModelPricing(`zen/${row.id}`)
+    assert.equal(p.basis, 'recorded')
+    assert.deepEqual([p.costs.inputTokens, p.costs.promptCacheReadTokens, p.costs.promptCacheWriteTokens, p.costs.outputTokens], row.short)
+    const long = resolveModelPricing(`zen/${row.id}`, { promptTokens: 272_001 }).costs
+    assert.deepEqual([long.inputTokens, long.promptCacheReadTokens, long.outputTokens], [row.long.costInPerMtok, row.long.cachedInPerMtok, row.long.costOutPerMtok])
+    assert.equal(getContextWindowForModel(`zen/${row.id}`), 1_050_000)
+    assert.deepEqual(getModelMaxOutputTokens(`zen/${row.id}`), { default: 128_000, upperLimit: 128_000 })
+  })
+  check('the Nous head names both 6.2 ids its list serves, ahead of GPT-6.1 Sol', () => {
+    const at = (id: string): number => NOUS_PORTAL_RECOMMENDED.indexOf(id)
+    assert.ok(at('openai/gpt-6.2-astra') >= 0 && at('openai/gpt-6.2-astra') < at('openai/gpt-6.2-sol'), NOUS_PORTAL_RECOMMENDED.join(', '))
+    assert.ok(at('openai/gpt-6.2-sol') < at('openai/gpt-6.1-sol'), NOUS_PORTAL_RECOMMENDED.join(', '))
+    assert.equal(NOUS_PORTAL_RECOMMENDED[0], 'anthropic/claude-sonnet-5.5')
+  })
+} finally {
+  rmSync(home, { recursive: true, force: true })
+}
+console.log(`${checks - failures.length}/${checks} passed; facts read 2026-11-17: https://developers.openai.com/api/docs/models; https://opencode.ai/docs/zen/; https://inference-api.nousresearch.com/v1/models`)
+process.exit(failures.length ? 1 : 0)

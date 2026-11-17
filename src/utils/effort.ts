@@ -490,7 +490,7 @@ const FAMILY_PROBES: Array<{ display: string; probes: string[] }> = [
   { display: 'Sonnet 4.6+', probes: ['claude-sonnet-4-6'] },
   { display: 'Sonnet 5', probes: ['claude-sonnet-5'] },
   { display: 'Fable', probes: ['claude-fable-5', 'claude-fable-5-1', 'claude-fable-5-2'] },
-  { display: 'GPT', probes: ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'] },
+  { display: 'GPT', probes: ['gpt-6.2-astra', 'gpt-6.2-sol', 'gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'] },
 ]
 
 export function effortFamiliesLabel(supports: (modelId: string) => boolean): string {

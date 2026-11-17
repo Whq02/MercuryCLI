@@ -127,6 +127,8 @@ export function gptPriceTierFor(
 }
 
 export const GPT_DISPLAY_PINS: readonly GptDisplayPin[] = [
+  { id: 'gpt-6.2-astra', displayName: 'GPT-6.2 Astra', observedAt: '2026-11-17', source: 'https://developers.openai.com/api/docs/models/gpt-6.2-astra', contextWindow: 1_050_000, outputMax: 128_000, costInPerMtok: 8, costOutPerMtok: 40, cachedInPerMtok: 0.4, cacheWritePerMtok: 10, inputModalities: ['text', 'image'], knowledgeCutoff: '2026-05-18', longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 } },
+  { id: 'gpt-6.2-sol', displayName: 'GPT-6.2 Sol', observedAt: '2026-11-17', source: 'https://developers.openai.com/api/docs/models/gpt-6.2-sol', contextWindow: 1_050_000, outputMax: 128_000, costInPerMtok: 2, costOutPerMtok: 10, cachedInPerMtok: 0.1, cacheWritePerMtok: 2.5, inputModalities: ['text', 'image'], knowledgeCutoff: '2026-06-01', longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 } },
   {
     id: 'gpt-6-astra',
     displayName: 'GPT-6 Astra',

@@ -58,7 +58,7 @@ section('§1 THE ROW — the pin states the model-page facts; everything derives
 {
   const pin = pins.gptDisplayPin(ID)
   check('the row exists in the one table', pin !== undefined)
-  check('the table lists it FIRST (newest first, like the 5.6 rows before it)', pins.GPT_DISPLAY_PINS[0]?.id === ID)
+  check('the table lists it third, after the two 6.2 rows (newest first)', pins.GPT_DISPLAY_PINS[2]?.id === ID, String(pins.GPT_DISPLAY_PINS[2]?.id))
   check(`the display name is '${NAME}'`, pin?.displayName === NAME)
   check('the window is 1,050,000', pin?.contextWindow === 1_050_000, String(pin?.contextWindow))
   check('the output ceiling is 128,000', pin?.outputMax === 128_000, String(pin?.outputMax))
@@ -169,7 +169,7 @@ section('§1 THE ROW — the pin states the model-page facts; everything derives
   check('uncredentialed, the budget is the pinned window (a dated record, not a live claim)', getContextWindowForModel(ID) === 1_050_000, String(getContextWindowForModel(ID)))
 
   const frontier = providerFrontierFact('openai')
-  check('the grammar ranks GPT-6.1 Sol above 6 (developers.openai.com/api/docs/models, read 2026-10-25)', frontier?.modelId === 'gpt-6.1-sol' && frontier.displayName === 'GPT-6.1 Sol', JSON.stringify(frontier))
+  check('the grammar ranks GPT-6.2 Astra above 6 and 6.1 (developers.openai.com/api/docs/models, read 2026-11-17)', frontier?.modelId === 'gpt-6.2-astra' && frontier.displayName === 'GPT-6.2 Astra', JSON.stringify(frontier))
   const light = providerLightFact('openai')
   check('uncredentialed, the openai light fact is silence: a live list names the tier, never the typed table', light === undefined, JSON.stringify(light))
 }

@@ -278,10 +278,12 @@ export function nousWireModelId(modelId: string, env: NodeJS.ProcessEnv = proces
 }
 
 const NOUS_PORTAL_RECOMMENDATION = {
-  observedAt: '2026-10-25',
+  observedAt: '2026-11-17',
   source: 'https://inference-api.nousresearch.com/v1/models',
   ids: [
     'anthropic/claude-sonnet-5.5',
+    'openai/gpt-6.2-astra',
+    'openai/gpt-6.2-sol',
     'openai/gpt-6.1-sol',
     'google/gemini-4-argon',
     'deepseek/deepseek-v4.1-flash-1017',
