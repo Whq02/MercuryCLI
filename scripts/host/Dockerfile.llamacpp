@@ -33,7 +33,6 @@ ENV PATH="/opt/mercury-hf/bin:${PATH}"
 FROM runtime AS validation
 ARG LLAMA_CPP_SHA=b1b770d90d94cad9e9ea5b993bdbc383a522fb28
 COPY --from=build /usr/local/cuda/targets/x86_64-linux/lib/stubs/libcuda.so /opt/cuda-driver/libcuda.so.1
-# llama-server --version prints its build info on stderr; the binary must name the commit this image declares.
 RUN LD_LIBRARY_PATH=/opt/cuda-driver:$LD_LIBRARY_PATH llama-server --version > /opt/engine-version.txt 2>&1 && test -s /opt/engine-version.txt && grep -q "$LLAMA_CPP_SHA" /opt/engine-version.txt && env PATH=/usr/local/bin:/usr/bin:/bin hf version && LD_LIBRARY_PATH=/opt/cuda-driver:$LD_LIBRARY_PATH ldd /usr/local/bin/llama-server > /opt/runtime-libraries.txt && cat /opt/engine-version.txt /opt/runtime-libraries.txt && ! grep -q "not found" /opt/runtime-libraries.txt
 
 FROM runtime
