@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# gate-class: pty
-# gate-env: MERCURY_ARENA_DIST
+# gate-class: pure
 # gate-watch: scripts/lib/seedTranscript.ts
 # gate-watch: scripts/streaming/ptydrive.py scripts/streaming/screengrab.py
 # gate-watch: src/components/LiveStreamingTail* src/components/Markdown* src/ink/**
@@ -17,7 +16,9 @@ prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/script
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fail=0
 echo "── FLUX terminal-fluidity proofs ──"
+claimed=$(cd "$here/../.." && cat scripts/streaming-*/members.txt 2>/dev/null | grep -v '^#' | grep -v '^$')
 for f in "$here"/prove-*.ts; do
+  printf '%s\n' "$claimed" | grep -qx "$(basename "$f")" && continue
   [ -e "$f" ] || continue
   __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$f" || { __rc=$?; fail=1; }; prover_mark "$f" "$__t" "$__rc"
 done

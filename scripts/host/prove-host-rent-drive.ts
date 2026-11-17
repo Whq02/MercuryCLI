@@ -14,7 +14,7 @@ const frames = option('--frames')
 if (frames) mkdirSync(frames, { recursive: true })
 let checks = 0
 const check = (name: string, truth: unknown): void => { assert.ok(truth, name); checks++; console.log('PASS ' + name) }
-const bundle = option('--bundle')
+const bundle = option('--bundle') ?? join(import.meta.dir, '../../dist/mercury.mjs')
 if (bundle) {
   const { runArtifactArena } = await import('../streaming/artifactArena.ts')
   const arena = await runArtifactArena({ distPath: resolve(bundle), turns: [], sends: [

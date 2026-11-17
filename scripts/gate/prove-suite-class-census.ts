@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-//  drives set (pty) from each suite's `# gate-class:` header, so a header that
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join as nativeJoin, relative as nativeRelative, resolve as nativeResolve } from 'node:path'
@@ -9,8 +8,10 @@ const relative: typeof nativeRelative = process.platform === 'win32' ? (from, to
 const resolve: typeof nativeResolve = process.platform === 'win32' ? (...parts) => nativeResolve(...parts).replace(/\\/g, '/') : nativeResolve
 
 const REPORT = process.argv.includes('--report')
+const WRITE = process.argv.includes('--write')
 const REAL_ROOT = resolve(import.meta.dir, '..', '..')
 const SELF = resolve(import.meta.path)
+const TABLE = 'scripts/gate/suite-class-census.tsv'
 
 type Ext = 'ts' | 'tsx' | 'mjs' | 'js' | 'py' | 'sh'
 const EXT_RE = /\.(ts|tsx|mjs|js|py|sh)$/
@@ -18,7 +19,7 @@ const extOf = (p: string): Ext | null => (EXT_RE.exec(p)?.[1] as Ext | undefined
 
 const PY_PTY = /\b(?:pty\.fork|pty\.openpty|os\.openpty|os\.forkpty|pty\.spawn)\s*\(/
 const NODE_PTY = /(?:from\s*|require\s*\(\s*|import\s*\(\s*)['"]node-pty['"]/
-const SPAWN_CALL = /\b(?:spawn|spawnSync|execFile|execFileSync|exec|execSync|subprocess\.(?:run|Popen|call|check_output)|Bun\.spawn(?:Sync)?)\b/
+const SPAWN_CALL = /\b(?:spawn|spawnSync|spawnCaptureSync|execFile|execFileSync|exec|execSync|subprocess\.(?:run|Popen|call|check_output)|Bun\.spawn(?:Sync)?)\b/
 const SHELL_PYTHON = /(?:^|[\s"'(])python3?\b/
 const spawnShape = (line: string, ext: Ext | null): boolean => SPAWN_CALL.test(line) || (ext === 'sh' && SHELL_PYTHON.test(line))
 const PREFLIGHT = '--preflight'
@@ -26,12 +27,15 @@ const SHELL_FILE_TEST = /(?:\[\[?|\btest)\s+(?:!\s+)?-[a-zA-Z]\s+(?:"[^"]*"|'[^'
 const READ = /\b(?:readFileSync|readFile|existsSync|statSync|readdirSync|Bun\.file)\s*\(/
 const ASSIGN = /^\s*(?:export\s+)?(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*(?::[^=]+)?=[^=]|^\s*[A-Za-z_$][\w$.]*\s*=[^=]/
 const ENGINE_RESOLVER = /\b(?:captureEngineEntry|CAPTURE_ENGINE_ENTRY)\b/
+const RESOLVER_CALL = /(?<!function\s)\bcaptureEngineEntry\s*\(/
 const ENV_GATED = /\$\{[A-Z_]+:-0\}"?\s*=\s*"1"/
 const TYPE_IMPORT = /^\s*(?:import|export)\s+type\b/
 const DIR_ANCHORS = new Set(['import.meta.dir', '__dirname', 'HERE', 'here', 'DIR', 'dir'])
 const ROOT_ANCHORS = new Set(['ROOT', 'REPO', 'repo', 'root', 'repoRoot', 'REPO_ROOT', 'repo_root'])
 const CLASSES = new Set(['pure', 'cpu', 'pty', 'exclusive'])
 const SPAWN_WINDOW = 6
+const SHELL_WORDS = /^\s*(?:say|echo|printf)\s[^;&|`$]*$/
+const REBOUND_ANCHOR = /\b(?:const|let|var)\s+(here|HERE|DIR|dir)\s*=\s*(?!.*(?:import\.meta|__dirname|dirname\())/g
 
 function codeLines(path: string): string[] {
   const ext = extOf(path)
@@ -123,6 +127,7 @@ function shellTargets(root: string, file: string): Set<string> {
       }
     }
     if (raw.includes(PREFLIGHT)) continue
+    if (SHELL_WORDS.test(raw)) continue
     const line = raw
       .replace(SHELL_FILE_TEST, ' ')
       .replace(/"\$\(dirname "\$0"\)"/g, dir)
@@ -160,7 +165,9 @@ function edgesOf(root: string, file: string, lines: string[], ctx: LineCtx[]): S
     const r = resolveModule(full)
     if (r) out.add(r)
   }
-  const anchored = (anchor: string, rest: string): string | null => (ROOT_ANCHORS.has(anchor) ? join(root, rest) : DIR_ANCHORS.has(anchor) ? join(dir, rest) : null)
+  const rebound = new Set(lines.flatMap(l => [...l.matchAll(REBOUND_ANCHOR)].map(m => m[1]!)))
+  const ownDir = (anchor: string): boolean => DIR_ANCHORS.has(anchor) && !rebound.has(anchor)
+  const anchored = (anchor: string, rest: string): string | null => (ROOT_ANCHORS.has(anchor) ? join(root, rest) : ownDir(anchor) ? join(dir, rest) : null)
   lines.forEach((line, i) => {
     const c = ctx[i]!
     if (c.read) return
@@ -181,7 +188,7 @@ function edgesOf(root: string, file: string, lines: string[], ctx: LineCtx[]): S
     for (const m of line.matchAll(/\b(?:join|resolve)\(\s*([A-Za-z_.]+)\s*((?:,\s*['"][^'"]+['"])+)\s*\)/g)) {
       const anchor = m[1]!
       const segs = [...m[2]!.matchAll(/['"]([^'"]+)['"]/g)].map(x => x[1]!)
-      const base = DIR_ANCHORS.has(anchor) ? dir : ROOT_ANCHORS.has(anchor) ? root : null
+      const base = ownDir(anchor) ? dir : ROOT_ANCHORS.has(anchor) ? root : null
       if (base && EXT_RE.test(segs[segs.length - 1]!)) add(join(base, ...segs))
     }
   })
@@ -193,7 +200,11 @@ function evidenceOf(lines: string[], ctx: LineCtx[], fileSpawns: boolean, engine
   const pyHit = lines.find(l => PY_PTY.test(l))
   if (pyHit) ev.push(`opens a pty: ${pyHit.trim().slice(0, 72)}`)
   if (lines.some(l => NODE_PTY.test(l))) ev.push('imports node-pty')
-  if (!fileSpawns) return ev
+  const resolvedCall = lines.some((l, i) => !ctx[i]!.read && RESOLVER_CALL.test(l) && !l.includes(PREFLIGHT) && !IMPORT_LINE.test(l))
+  if (!fileSpawns) {
+    if (resolvedCall) ev.push('spawns the resolved capture engine')
+    return ev
+  }
   for (let i = 0; i < lines.length; i++) {
     const c = ctx[i]!
     if (c.read || !c.spawn) continue
@@ -205,7 +216,7 @@ function evidenceOf(lines: string[], ctx: LineCtx[], fileSpawns: boolean, engine
     }
   }
   const resolvedDrive = lines.some((l, i) => ctx[i]!.spawn && !ctx[i]!.read && ENGINE_RESOLVER.test(l) && !l.includes(PREFLIGHT) && !IMPORT_LINE.test(l))
-  if (!ev.some(e => e.startsWith('spawns')) && resolvedDrive) ev.push('spawns the resolved capture engine')
+  if (!ev.some(e => e.startsWith('spawns')) && (resolvedDrive || resolvedCall)) ev.push('spawns the resolved capture engine')
   return ev
 }
 
@@ -300,6 +311,68 @@ export function census(root: string): { engines: string[]; suites: SuiteCensus[]
   return { engines, suites: out }
 }
 
+function quietMembers(suites: SuiteCensus[]): Map<string, string[]> {
+  const out = new Map<string, string[]>()
+  for (const s of suites) {
+    if (s.cls !== 'pty') continue
+    const members = s.executed.filter(f => !s.drivers.includes(f))
+    if (members.length > 0) out.set(s.suite, members)
+  }
+  return out
+}
+
+function tableOf(text: string): Map<string, number> | null {
+  const rows = new Map<string, number>()
+  for (const line of text.split('\n')) {
+    if (line === '') continue
+    const m = /^([A-Za-z0-9_-]+)\t([1-9][0-9]*)$/.exec(line)
+    if (!m || rows.has(m[1]!)) return null
+    rows.set(m[1]!, Number(m[2]))
+  }
+  return rows
+}
+
+const render = (quiet: Map<string, string[]>): string =>
+  [...quiet]
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+    .map(([suite, members]) => `${suite}\t${members.length}\n`)
+    .join('')
+
+interface Over {
+  suite: string
+  members: string[]
+  row: number
+}
+
+function judge(quiet: Map<string, string[]>, table: Map<string, number>): { over: Over[]; total: number; allowed: number; slack: number } {
+  const over: Over[] = []
+  let total = 0
+  for (const [suite, members] of quiet) {
+    total += members.length
+    const row = table.get(suite) ?? 0
+    if (members.length > row) over.push({ suite, members, row })
+  }
+  let allowed = 0
+  let slack = 0
+  for (const [suite, row] of table) {
+    allowed += row
+    if ((quiet.get(suite)?.length ?? 0) < row) slack++
+  }
+  return { over, total, allowed, slack }
+}
+
+const WRITE_COMMAND = `bun ${relative(REAL_ROOT, SELF)} --write`
+const WRITE_WORDS = `${WRITE_COMMAND} lowers a row and never raises or adds one`
+
+function told(o: Over): string {
+  const plain = o.suite.endsWith('-drives') ? o.suite.slice(0, -'-drives'.length) : null
+  const repair =
+    plain === null
+      ? `list the members that drive in scripts/${o.suite}-drives/members.txt, run by scripts/${o.suite}-drives/run-all.sh through scripts/lib/drive-members.sh, and give scripts/${o.suite}/run-all.sh the class the rest need (pure or cpu)`
+      : `move each to the plain suite scripts/${plain}/run-all.sh and off scripts/${o.suite}/members.txt`
+  return `${o.suite} is a terminal suite and ${o.members.length} of its members ${o.members.length === 1 ? 'drives' : 'drive'} no terminal (${o.row === 0 ? 'it has no row' : `its row in ${TABLE} allows ${o.row}`}): ${o.members.join(' ')} — ${repair}; a member that does open a terminal in a form this census does not follow is mended in this census, with a planted case; ${WRITE_WORDS}`
+}
+
 function selfTest(): boolean {
   const root = mkdtempSync(join(tmpdir(), 'suite-census-'))
   const w = (rel: string, body: string): void => {
@@ -345,25 +418,60 @@ function selfTest(): boolean {
   w('scripts/template-import/prove-o.ts', "const ROOT = join(import.meta.dir, '..', '..')\nconst { run } = await import(`${ROOT}/scripts/lib/arena.ts`)\nrun('.')\n")
   w('scripts/template-spawn/run-all.sh', `#!/usr/bin/env bash\n# gate-class: cpu\n${bun} run "$here/prove-p.ts"\n`)
   w('scripts/template-spawn/prove-p.ts', "import { spawnSync } from 'node:child_process'\nconst ROOT = join(import.meta.dir, '..', '..')\nconst res = spawnSync(\n  process.execPath,\n  [`${ROOT}/scripts/ui/engine.py`, '--cols', '80'],\n)\n")
+  w('scripts/lib/spawnCapture.ts', "import { spawnSync } from 'node:child_process'\nexport const spawnCaptureSync: typeof spawnSync = ((...args: Parameters<typeof spawnSync>) => spawnSync(...args)) as typeof spawnSync\n")
+  w('scripts/capture-door/run-all.sh', `#!/usr/bin/env bash\n# gate-class: cpu\n${bun} run "$here/prove-q.ts"\n`)
+  w('scripts/capture-door/prove-q.ts', "import { spawnCaptureSync } from '../lib/spawnCapture.ts'\nconst capture = spawnCaptureSync(d.python, [join(import.meta.dir, '../ui/engine.py'), cfg], { encoding: 'utf8' })\n")
+  w('scripts/lib/child.ts', "import { spawn } from 'node:child_process'\nexport const runChild = (argv: string[], cwd: string) => spawn(argv[0]!, argv.slice(1), { cwd })\n")
+  w('scripts/handed-on/run-all.sh', `#!/usr/bin/env bash\n# gate-class: cpu\n${bun} run "$here/prove-r.ts"\n`)
+  w('scripts/handed-on/prove-r.ts', "import { runChild } from '../lib/child.ts'\nimport { captureEngineEntry, resolveDriver } from '../lib/resolver.ts'\nconst d = resolveDriver()\nconst result = await runChild([d.python, captureEngineEntry(d, ROOT), cfgPath], cwd)\n")
+  w('scripts/carried/run-all.sh', `#!/usr/bin/env bash\n# gate-class: cpu\n${bun} run "$here/prove-s.ts"\n`)
+  w('scripts/carried/prove-s.ts', "import { spawnSync } from 'node:child_process'\nimport { captureEngineEntry, resolveDriver } from '../lib/resolver.ts'\nconst d = resolveDriver()\nconst found = ((): { python: string; entry: string } => {\n  return { python: d.python, entry: captureEngineEntry(d, ROOT) }\n})()\nwriteFileSync(cfgPath, JSON.stringify({ cols: 40 }))\nspawnSync(found.python, [found.entry, cfgPath], { encoding: 'utf8' })\n")
+  w('scripts/shared-terminal/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pty\n${bun} run "$here/prove-t.ts"\n${bun} run "$here/prove-u.ts"\n`)
+  w('scripts/shared-terminal/prove-t.ts', "import { spawnSync } from 'node:child_process'\nspawnSync(d.python, [join(ROOT, 'scripts', 'ui', 'engine.py')])\n")
+  w('scripts/shared-terminal/prove-u.ts', 'export const u = 1\n')
+  w('scripts/slice/run-all.sh', `#!/usr/bin/env bash\n# gate-class: cpu\nclaimed=$(cat scripts/slice-*/members.txt 2>/dev/null | grep -v '^#')\nfor f in "$here"/prove-*.ts; do ${bun} run "$f"; done\nbash "$here/prove-x.sh"\n`)
+  w('scripts/slice/prove-v.ts', "import { spawnSync } from 'node:child_process'\nconst dir = join(scratch, 'scripts', 'stub')\nconst runner = join(dir, 'run-all.sh')\nspawnSync('bash', [runner])\n")
+  w('scripts/slice/prove-w.ts', "import { spawnSync } from 'node:child_process'\nspawnSync(d.python, [join(ROOT, 'scripts', 'ui', 'engine.py')])\n")
+  w('scripts/slice/prove-x.sh', '#!/usr/bin/env bash\nbash "$here/guard.sh"\n')
+  w('scripts/slice/guard.sh', `#!/usr/bin/env bash\nsay "declare them in the owning suite's run-all.sh,"\n`)
+  w('scripts/slice-2/run-all.sh', '#!/usr/bin/env bash\n# gate-class: pty\nwhile read -r name; do f="scripts/slice/$name"; bun "$f"; done < scripts/slice-2/members.txt\n')
+  w('scripts/slice-2/members.txt', 'prove-w.ts\n')
   const c = census(root)
   rmSync(root, { recursive: true, force: true })
   const drives = [...new Set(c.suites.filter(s => s.chain.length > 0).map(s => s.suite))].sort()
-  const want = ['multi-line', 'named-list', 'py-direct', 'resolved-drive', 'template-import', 'template-spawn', 'via-import-2']
+  const want = ['capture-door', 'carried', 'handed-on', 'multi-line', 'named-list', 'py-direct', 'resolved-drive', 'shared-terminal', 'slice-2', 'template-import', 'template-spawn', 'via-import-2']
   const okEngines = c.engines.join(',') === 'engine.py,prove-e.py'
   const okDrives = drives.join(',') === want.join(',')
   const parentDropsMember = c.suites.find(s => s.suite === 'via-import')?.files === 1
   const chainOk = c.suites.find(s => s.suite === 'via-import-2')?.chain.join(' → ') === 'scripts/via-import/prove-a.ts → scripts/lib/arena.ts'
   const resolvedEvidence = c.suites.find(s => s.suite === 'resolved-drive')?.evidence
   const resolvedOk = resolvedEvidence === 'spawns the resolved capture engine'
-  const ok = okEngines && okDrives && parentDropsMember === true && chainOk && resolvedOk
+  const evidenceOfSuite = (suite: string): string => c.suites.find(s => s.suite === suite)?.evidence ?? 'no evidence'
+  const formsOk = evidenceOfSuite('capture-door') === 'spawns engine.py' && evidenceOfSuite('handed-on') === 'spawns the resolved capture engine' && evidenceOfSuite('carried') === 'spawns the resolved capture engine'
+  const quiet = quietMembers(c.suites)
+  const quietRead = [...quiet].map(([suite, members]) => `${suite}: ${members.join(' ')}`).join(' · ')
+  const held = judge(quiet, new Map([['shared-terminal', 1]]))
+  const bare = judge(quiet, new Map())
+  const fallen = judge(quiet, new Map([['shared-terminal', 2], ['gone', 3]]))
+  const judgeOk =
+    quietRead === 'shared-terminal: scripts/shared-terminal/prove-u.ts' &&
+    held.over.length === 0 && held.total === 1 && held.allowed === 1 && held.slack === 0 &&
+    bare.over.length === 1 && bare.over[0]!.suite === 'shared-terminal' && bare.over[0]!.row === 0 && bare.over[0]!.members.join() === 'scripts/shared-terminal/prove-u.ts' &&
+    fallen.over.length === 0 && fallen.allowed === 5 && fallen.slack === 2 &&
+    tableOf('a\t1\nb\t2\n')?.get('b') === 2 && tableOf('a\t0\n') === null && tableOf('a\t1\na\t2\n') === null && tableOf('a 1\n') === null &&
+    render(quiet) === 'shared-terminal\t1\n' &&
+    told(bare.over[0]!).includes('scripts/shared-terminal-drives/members.txt') &&
+    told({ suite: 'shared-drives', members: ['scripts/shared/prove-u.ts'], row: 0 }).includes('the plain suite scripts/shared/run-all.sh')
+  const ok = okEngines && okDrives && parentDropsMember === true && chainOk && resolvedOk && formsOk && judgeOk
   console.log(
-    `  [${ok ? 'PASS' : 'FAIL'}] §3 self-test: engines derived (${c.engines.join(',')}) · drives = {${drives.join(', ')}} (want {${want.join(', ')}}) · the complement runner drops the member (${String(parentDropsMember)}) · the member's chain runs through the helper (${String(chainOk)}) · the resolver spawned for real reads as a drive (${resolvedEvidence ?? 'no evidence'})`,
+    `  [${ok ? 'PASS' : 'FAIL'}] §3 self-test: engines derived (${c.engines.join(',')}) · drives = {${drives.join(', ')}} (want {${want.join(', ')}}) · the complement runner drops the member (${String(parentDropsMember)}) · the member's chain runs through the helper (${String(chainOk)}) · the resolver spawned for real reads as a drive (${resolvedEvidence ?? 'no evidence'}) · the capture door, the entry handed to a helper and the entry carried to a later spawn read as drives (${['capture-door', 'handed-on', 'carried'].map(evidenceOfSuite).join(' / ')}) · a terminal suite's member that drives nothing is named, and the table judges a held row, no row and a fallen row (${String(judgeOk)}: ${quietRead || 'none named'})`,
   )
   return ok
 }
 
 if (import.meta.main) {
-  let failures = selfTest() ? 0 : 1
+  const selfOk = selfTest()
+  let failures = selfOk ? 0 : 1
   const c = census(REAL_ROOT)
   console.log(`  census: ${c.suites.length} suites · engines derived: ${c.engines.join(' ')}`)
   const wrong = c.suites.filter(s => s.chain.length > 0 && s.cls !== 'pty')
@@ -389,6 +497,37 @@ if (import.meta.main) {
     console.log(`  [FAIL] ${s.suite} declares no valid # gate-class header (${s.cls})`)
   }
   if (quiet.length > 0) console.log(`  info: pty suites with no terminal evidence in this census (wall-clock class by declaration): ${quiet.map(s => s.suite).join(' ')}`)
+  const terminal = c.suites.filter(s => s.cls === 'pty')
+  const quietNow = quietMembers(c.suites)
+  const quietTotal = [...quietNow.values()].reduce((n, members) => n + members.length, 0)
+  const text = existsSync(join(REAL_ROOT, TABLE)) ? readFileSync(join(REAL_ROOT, TABLE), 'utf8') : null
+  const table = text === null ? null : tableOf(text)
+  const found = table === null ? null : judge(quietNow, table)
+  console.log(`  terminal suites: ${terminal.length} · ${terminal.reduce((n, s) => n + s.files, 0)} members · ${quietTotal} drive no terminal, in ${quietNow.size} suites${found === null ? '' : ` (${TABLE} allows ${found.allowed})`}`)
+  if (REPORT) for (const [suite, members] of quietNow) console.log(`  quiet  ${suite.padEnd(24)} ${members.map(m => basename(m)).join(' ')}`)
+  if (WRITE) {
+    if (!selfOk) console.log('  nothing written: the census failed on its own estate')
+    else if (text !== null && found === null) {
+      failures++
+      console.log(`  [FAIL] §4 ${TABLE} reads as rows of a suite and its count — put the committed table back, then write`)
+    } else if (found !== null && found.over.length > 0) {
+      failures++
+      console.log(`  [FAIL] §4 no row rises and none is added (${found.total} now, ${found.allowed} in the table), nothing written — ${found.over.map(told).join(' · ')}`)
+    } else {
+      writeFileSync(join(REAL_ROOT, TABLE), render(quietNow))
+      console.log(`  wrote ${TABLE}: ${quietNow.size} rows, ${quietTotal} members${found === null ? '' : ` (it allowed ${found.allowed})`}`)
+    }
+  } else if (found === null) {
+    failures++
+    console.log(`  [FAIL] §4 ${TABLE} reads as rows of a suite and its count — ${text === null ? `no table: ${WRITE_COMMAND} writes the first one` : 'a row is not a suite and a count of 1 or more, or a suite stands twice'}`)
+  } else {
+    for (const o of found.over) {
+      failures++
+      console.log(`  [FAIL] §4 ${told(o)}`)
+    }
+    if (found.over.length === 0) console.log(`  [PASS] §4 every member of a terminal suite drives a terminal, but for the ${found.total} that ${TABLE} holds in ${quietNow.size} suites (a suite with no row holds none)`)
+    if (found.slack > 0) console.log(`  rows above their suite's count: ${found.slack} (${WRITE_WORDS})`)
+  }
   console.log(`\n${failures === 0 ? '✅' : '❌'} prove-suite-class-census — ${failures === 0 ? 'all checks pass' : `${failures} check(s) failed`}`)
   process.exit(failures === 0 ? 0 : 1)
 }

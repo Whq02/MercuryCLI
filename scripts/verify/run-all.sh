@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# gate-class: pty
-# gate-env: MERCURY_GIT_DRIVE_SURFACES MERCURY_GIT_DRIVE_FACE_TICKS MERCURY_GIT_DRIVE_IDLE_TICKS MERCURY_GIT_DRIVE_KEEP MERCURY_TREE_DRIVE_IDLE_TICKS MERCURY_TREE_DRIVE_KEEP
+# gate-class: cpu
 # gate-watch: scripts/verify/** src/utils/verification/**
 # gate-watch: .githooks/** scripts/gate/ledger.ts scripts/gate/impact-narrowed.txt
 # gate-watch: scripts/outcome-pack/** scripts/daemon/dupline-world.ts
@@ -16,7 +15,9 @@ echo "############################################################"
 echo "# verification evidence model — proof harness"
 echo "############################################################"
 shopt -s nullglob
+claimed=$(cd "$here/../.." && cat scripts/verify-*/members.txt 2>/dev/null | grep -v '^#' | grep -v '^$')
 for proof in "$here"/prove-*.ts; do
+  printf '%s\n' "$claimed" | grep -qx "$(basename "$proof")" && continue
   echo
   echo ">>> $(basename "$proof")"
   run_proof "$proof" "$bun" run "$proof" || fail=1

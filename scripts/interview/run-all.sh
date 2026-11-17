@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gate-class: pty
+# gate-class: pure
 # gate-watch: scripts/interview/**
 # gate-watch: src/tools/AskUserQuestionTool/** src/components/permissions/AskUserQuestionPermissionRequest/**
 # gate-watch: src/utils/messages/attachmentText.ts
@@ -24,7 +24,9 @@ echo "############################################################"
 echo "# INTERVIEW — the evidence-first design-conversation lane"
 echo "############################################################"
 
+claimed=$(cd "$here/../.." && cat scripts/interview-*/members.txt 2>/dev/null | grep -v '^#' | grep -v '^$')
 for proof in "$here"/prove-*.ts; do
+  printf '%s\n' "$claimed" | grep -qx "$(basename "$proof")" && continue
   [ -e "$proof" ] || continue
   echo
   echo "── $(basename "$proof") ──"
@@ -32,6 +34,7 @@ for proof in "$here"/prove-*.ts; do
 done
 
 for repro in "$here"/repro-*.ts; do
+  printf '%s\n' "$claimed" | grep -qx "$(basename "$repro")" && continue
   [ -e "$repro" ] || continue
   echo
   echo "── $(basename "$repro") ──"
