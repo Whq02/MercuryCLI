@@ -220,6 +220,18 @@ function modelListsCheck(): CheckSpec {
   }
 }
 
+export const ENGINE_UNAVAILABLE_CODES = [
+  'discovery-pending:',
+  'no-executable:',
+  'no-auth:',
+  'no-api-key:',
+  'no-account:',
+  'not-configured:',
+  'no-server:',
+  'no-credential:',
+  'disabled:',
+]
+
 function providerSlotsCheck(): CheckSpec {
   return {
     id: 'provider-slots',
@@ -236,17 +248,6 @@ function providerSlotsCheck(): CheckSpec {
       const anthropic = snap.providers.find(p => p.id === 'anthropic')
       const classes = (['opus', 'sonnet', 'fable'] as const).map(c => snap.resolve(c))
       const engines = snap.providers.filter(p => p.id !== 'anthropic')
-      const ENGINE_UNAVAILABLE_CODES = [
-        'discovery-pending:',
-        'no-executable:',
-        'no-auth:',
-        'no-api-key:',
-        'no-account:',
-        'not-configured:',
-        'no-server:',
-        'no-credential:',
-        'disabled:',
-      ]
       const enginesHonest = engines.every(
         p => p.available || ENGINE_UNAVAILABLE_CODES.some(code => p.reason?.startsWith(code)),
       )
