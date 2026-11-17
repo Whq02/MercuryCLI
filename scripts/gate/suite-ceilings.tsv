@@ -22,7 +22,9 @@ scroll	1500
 diffws	1500
 prompts-panel	1200
 cockpit-interaction	1200
-ui-pure-3	1800
+ui-pure-1	1500
+ui-pure-2	1500
+ui-pure-3	1500
 streaming	1200
 interview	1200
 switchboard	1200
