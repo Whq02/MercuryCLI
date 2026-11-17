@@ -22,7 +22,7 @@ import { axiomDeepChecks } from './sections/axiom-deep.js'
 import { vanguardChecks } from './sections/vanguard.js'
 import { arsenalDeepChecks } from './sections/arsenal-deep.js'
 
-export interface HealthSectionRows {
+interface HealthSectionRows {
   id: string
   title: string
   checks: (context: HealthContext) => CheckSpec[]
