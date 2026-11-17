@@ -21,6 +21,7 @@ import {
   workGlyphForTime,
 } from '../../src/utils/cockpit/liveGlyphs.js'
 import { GLYPH, displayWidth } from '../../src/components/mercury-ui/glyphs.js'
+import { getFlagSpec } from '../../src/substrate/flagRegistry.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -204,8 +205,7 @@ section('adoption + hygiene pins (source greps)')
   check('deck countdowns ride the same tick', deck.includes('useNowTick(30_000)'))
   const frame = readFileSync('src/components/MercuryFrame.tsx', 'utf8')
   check('MercuryFrame turn counter wears ValueGlow', frame.includes('ValueGlow'))
-  const reg = readFileSync('src/substrate/flagRegistry.ts', 'utf8')
-  check('MERCURY_LIVE_GLYPHS registered in flagRegistry', reg.includes("'MERCURY_LIVE_GLYPHS'"))
+  check('MERCURY_LIVE_GLYPHS registered in flagRegistry', getFlagSpec('MERCURY_LIVE_GLYPHS') !== undefined)
   check(
     'ValueGlow resets on non-flash paths (no stranded glow)',
     (live.match(/setGlowing\(false\)\s*\n\s*return/g) ?? []).length >= 1,

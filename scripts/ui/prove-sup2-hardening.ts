@@ -2,6 +2,7 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { flagRegistryText } from '../lib/flagRegistrySource.ts'
 import { formsMissing, rowsBinding, shippedKeyForms } from '../lib/shippedKeyForms.ts'
 
 const SUP2_SCRATCH_HOME = mkdtempSync(join(tmpdir(), 'sup2-home-'))
@@ -103,10 +104,10 @@ console.log('§5 runner availability — PATHEXT applies on win32')
 console.log('§6 max-retries — the registry row and the refusal tell the truth')
 {
   const retry = read('src/services/api/withRetry.ts')
-  const registry = read('src/substrate/flagRegistry.ts')
+  const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
   check('the ruled no-run parse stands untouched', retry.includes('return Number.parseInt(env, 10)'))
-  check('poison gone: the registry row no longer promises a fall-through', !registry.includes('unparseable values fall through to the default'))
-  check('the registry row names the refusal', registry.includes('refuse without one request'))
+  check('poison gone: the registry row no longer promises a fall-through', !flagRegistryText().includes('unparseable values fall through to the default'))
+  check('the registry row names the refusal', getFlagSpec('MERCURY_MAX_RETRIES')?.summary.includes('refuse without one request') === true)
   check('the zero-attempt throw names the variable, not exhaustion', retry.includes('is not a non-negative integer — no request was attempted'))
   check('a genuine exhaustion still says exhausted', retry.includes("'retry attempts exhausted'"))
   const neverRuns = (n: number): boolean => !(1 <= n + 1)

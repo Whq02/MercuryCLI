@@ -1,6 +1,8 @@
 #!/usr/bin/env bun
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { FLAG_REGISTRY } from '../../src/substrate/flagRegistry.ts'
+import { flagRegistryText } from '../lib/flagRegistrySource.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const read = (p: string) => readFileSync(join(REPO, p), 'utf8')
@@ -85,8 +87,8 @@ check('the presence estate is gone (no module, no cockpit re-export, no DeckPane
     !/collectPresenceSeats|presence-seats/.test(read('src/substrate/stateLifecycle.ts')))
 check("the operator's display name lives in its own identity module and the flag registry names it",
   /export function getOperatorName\(\): string/.test(readIf('src/substrate/identity/operatorDisplayName.ts')) &&
-    /consumer: 'src\/substrate\/identity\/operatorDisplayName\.ts'/.test(read('src/substrate/flagRegistry.ts')) &&
-    !/presenceLive/.test(read('src/substrate/flagRegistry.ts')))
+    FLAG_REGISTRY.some(row => row.consumer === 'src/substrate/identity/operatorDisplayName.ts') &&
+    !/presenceLive/.test(flagRegistryText()))
 check("'seat' left the density floor", !/'seat'/.test(read('src/utils/helmDensity.ts')))
 check('CREW sources from app-store tasks, not a fleetGauge() call',
   /useAppState\(s => s\.tasks\)/.test(lanes) && !/fleetGauge\(/.test(lanes))

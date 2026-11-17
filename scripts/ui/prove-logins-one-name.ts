@@ -72,8 +72,9 @@ t.section('§2 — THE ONE NAME stands where the second name stood')
   const login = code('src/commands/login/login.tsx')
   t.check("the popup title word is logins (the lockup reads Mercury · logins)", login.includes("view: 'logins'") && read('src/components/mercury-ui/components.tsx').includes('const title = `Mercury${separator}${view}`'))
   t.check('the footer says what esc does and the close receipt says /logins', login.includes("hint: 'esc or click outside closes'") && login.includes("'/logins closed — no credential changed'"))
-  const row = read('src/substrate/flagRegistry.ts').split('\n').find(l => l.includes("env: 'MERCURY_LOGIN_COMMAND'")) ?? ''
-  t.check('the flag keeps its env name and its words say /logins', row.includes("summary: 'the /logins command; =0 removes it'") && row.includes("off: '=0 no /logins'"), row.slice(0, 160))
+  const row = (await import('../../src/substrate/flagRegistry.js')).getFlagSpec('MERCURY_LOGIN_COMMAND')
+  const shown = row ? `  { ${Object.entries(row).map(([key, value]) => `${key}: ${typeof value === 'string' ? `'${value}'` : JSON.stringify(value)}`).join(', ')} },` : ''
+  t.check('the flag keeps its env name and its words say /logins', row?.summary === 'the /logins command; =0 removes it' && row.off === '=0 no /logins', shown.slice(0, 160))
   t.check('the bundled skill and its source name the current sign-in and account commands only', ['src/skills/bundled/provider-apis/SKILL.md', 'mercury-skills/provider-apis/SKILL.md'].every(path => {
     const text = read(path)
     return text.includes('`/logins`') && text.includes('`/accounts`') && !STRAY[0]!.re.test(text)
