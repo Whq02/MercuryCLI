@@ -37,7 +37,7 @@ static func _create(args: Dictionary, ctx: MercuryVulcanContext) -> Dictionary:
 	var r := _resolve(String(args.get("parent", ".")), ctx)
 	if r.has("err"):
 		return r.err
-	var node = ClassDB.instantiate(_TYPES[kind])  # untyped: amount/process_material are subclass props
+	var node = ClassDB.instantiate(_TYPES[kind])
 	node.name = String(args.get("name", _TYPES[kind]))
 	if args.has("amount"):
 		node.amount = maxi(1, int(args.get("amount")))

@@ -456,7 +456,6 @@ static func _group_remove(args: Dictionary, ctx: MercuryVulcanContext) -> Dictio
 	ctx.undo.action("vulcan: node_group_remove", do_grp, undo_grp)
 	return ctx.ok({"node": node_path, "group": group, "undoable": true})
 
-
 static func _anchored_equal(current, expected) -> bool:
 	if typeof(current) == typeof(expected):
 		if typeof(current) == TYPE_FLOAT:

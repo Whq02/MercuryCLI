@@ -55,7 +55,7 @@ static func _shape_add(args: Dictionary, ctx: MercuryVulcanContext) -> Dictionar
 		return ctx.err("BAD_TYPE", "%s is a %s — not a 2D/3D node" % [args.get("body"), body.get_class()], "point 'body' at a PhysicsBody/Area node")
 	var kind := String(args.get("shape", "")).to_lower()
 	var size = ctx.types.parse(args.get("size")) if args.has("size") else null
-	var shape = null  # untyped: subclass-specific size/radius props
+	var shape = null
 	var shape3 = null
 	match kind:
 		"rectangle":
@@ -133,7 +133,7 @@ static func _layers_set(args: Dictionary, ctx: MercuryVulcanContext) -> Dictiona
 	var r := _resolve(String(args.get("node", "")), ctx)
 	if r.has("err"):
 		return r.err
-	var node = r.node  # untyped: collision_layer/mask live on CollisionObject subclasses
+	var node = r.node
 	if not ("collision_layer" in node):
 		return ctx.err("BAD_TYPE", "%s (%s) has no collision layers" % [args.get("node"), node.get_class()], "point 'node' at a PhysicsBody, Area, or CollisionObject node")
 	if not args.has("layers") and not args.has("masks"):

@@ -171,7 +171,7 @@ static func _stylebox_set(args: Dictionary, ctx: MercuryVulcanContext) -> Dictio
 	if name == "" or type == "":
 		return ctx.err("BAD_ARGS", "name and type are required", "e.g. {\"name\": \"normal\", \"type\": \"Button\", \"stylebox\": \"flat\", \"properties\": {\"bg_color\": \"#222233\"}}")
 	var kind := String(args.get("stylebox", "flat")).to_lower()
-	var sb = null  # untyped: subclass-specific setters below
+	var sb = null
 	match kind:
 		"flat":
 			sb = StyleBoxFlat.new()
