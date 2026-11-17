@@ -2630,7 +2630,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
       total: 110, cols, rows,
     }
   }
-  if (['critter', 'crewmates', 'deck', 'sessions', 'substrate', 'trace', 'fleet', 'ledger', 'cards', 'ide', 'config', 'permissions', 'hooks', 'agents', 'diff', 'tickets', 'memory', 'workbench', 'surfaces', 'palette', 'realms', 'status'].includes(name)) {
+  if (['critter', 'crewmates', 'deck', 'sessions', 'substrate', 'trace', 'fleet', 'ledger', 'cards', 'ide', 'config', 'permissions', 'hooks', 'agents', 'diff', 'tickets', 'memory', 'workbench', 'surfaces', 'palette', 'status'].includes(name)) {
     writeSyntheticSession('short')
     const sends = [{ atTick: 30, data: `/${name}` }, { atTick: 36, data: '\r' }]
     const settled = name === 'sessions'

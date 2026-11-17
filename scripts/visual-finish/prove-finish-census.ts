@@ -47,7 +47,6 @@ t.section('§1 — the branch glyph is vocabulary (D13)')
   )
   const promoted = [
     'src/components/MercuryHome.tsx',
-    'src/components/mercury-ui/parity/RealmsView.tsx',
     'src/components/DeckPane.tsx',
     'src/components/BootSettingsScreen.tsx',
   ]

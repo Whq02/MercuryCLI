@@ -43,7 +43,6 @@ import type { VimMode } from '../../types/textInputTypes.js'
 import {
   consumeCommandDispatch,
   consumeHelmActivation,
-  consumePromptPrefill,
   getHelmFocus,
   getHelmVersion,
   setHelmFocus,
@@ -578,7 +577,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   useEffect(() => {
     const activation = consumeHelmActivation()
     const dispatch = consumeCommandDispatch()
-    const prefill = consumePromptPrefill()
     if (activation !== null) {
       switch (activation.type) {
         case 'crewmate':
@@ -601,10 +599,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     }
     if (dispatch !== null) {
       void submitRef.current(dispatch, { fromKeybinding: true })
-    }
-    if (prefill !== null) {
-      setHelmFocus('prompt')
-      insertAtCursor(prefill)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the version counter by design
   }, [helmVersion])

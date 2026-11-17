@@ -42,7 +42,7 @@ section('§2 the census: one owner spells the chip')
     .filter(f => !EXEMPT.has(f) && /GLYPH\.branch\b/.test(readFileSync(join(ROOT, f), 'utf8')))
   check('no painter under src/ reads GLYPH.branch itself (the chip owner and the PR badge excepted)', spellers.length === 0, spellers.join(', '))
   const painters = walk(join(ROOT, 'src')).map(f => f.slice(ROOT.length + 1)).filter(f => /\bbranchChip\(/.test(readFileSync(join(ROOT, f), 'utf8')) && f !== 'src/components/mercury-ui/glyphs.ts')
-  check('the painters read the owner (the frame, the footer, the tag bar, the deck, the home, the settings screen, the health rows, the concourse, the fullscreen, the realms)', painters.length >= 10, `${painters.length}: ${painters.join(', ')}`)
+  check('the painters read the owner (the frame, the footer, the tag bar, the deck, the home, the settings screen, the health rows, the concourse, the fullscreen)', painters.length >= 9, `${painters.length}: ${painters.join(', ')}`)
 }
 
 console.log(`\n ${checks} checks, ${failures} failures`)

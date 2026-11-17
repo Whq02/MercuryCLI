@@ -32,7 +32,7 @@ process.exit(7)
   assert.deepEqual(readdirSync(invokingHome), before)
   assert.equal(readFileSync(join(invokingHome, 'canary'), 'utf8'), 'unchanged')
   assert.deepEqual(readdirSync(ownedTmp), [])
-  for (const file of ['scripts/realms/prove-realm-registry.ts', 'scripts/wards/prove-delete-ward-resolves-path.ts', 'scripts/gate/prove-run-root-socket-bound.ts']) {
+  for (const file of ['scripts/wards/prove-delete-ward-resolves-path.ts', 'scripts/gate/prove-run-root-socket-bound.ts']) {
     const refAt = process.argv.indexOf('--ref')
     const ref = refAt < 0 ? undefined : process.argv[refAt + 1]
     const text = ref ? execFileSync('git', ['show', `${ref}:${file}`], { cwd: ROOT, encoding: 'utf8' }) : readFileSync(join(ROOT, file), 'utf8')

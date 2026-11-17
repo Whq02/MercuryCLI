@@ -133,20 +133,6 @@ export function consumeCommandDispatch(): string | null {
   return c
 }
 
-let pendingPrefill: string | null = null
-
-export function requestPromptPrefill(text: string): void {
-  if (refuseGestureWhileModal('the prompt prefill')) return
-  pendingPrefill = text
-  notify()
-}
-
-export function consumePromptPrefill(): string | null {
-  const t = pendingPrefill
-  pendingPrefill = null
-  return t
-}
-
 export function subscribeHelmFocus(cb: () => void): () => void {
   listeners.add(cb)
   return () => listeners.delete(cb)
@@ -265,7 +251,6 @@ export function resetHelmFocusForTest(): void {
   rowsSig.vitals = ''
   pendingActivation = null
   pendingCommand = null
-  pendingPrefill = null
   vitalsAvailable = true
   railEnteredAt = 0
   version = 0

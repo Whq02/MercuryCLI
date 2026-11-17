@@ -40,9 +40,6 @@ same owner the write uses so the wording and the grant always match).
 Accepting records the grant (session-only in the home directory, persisted
 everywhere else); declining exits Mercury.
 
-The `/realms` surface manages trusted project folders directly: `/realms add
-<path>` grants trust to a folder.
-
 ## What the gate holds closed
 
 Until trust is granted in an interactive session:

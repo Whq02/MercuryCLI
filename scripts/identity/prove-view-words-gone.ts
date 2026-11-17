@@ -35,6 +35,10 @@ const WORDS: Array<[string, RegExp]> = [
   ['the rail scenario', new RegExp(J('cockpit-con', 'sole\\b'))],
   ['the rail trace panel header in a stored frame', new RegExp(J('⟡ TR', 'ACE\\b'))],
   ['the rail console panel header in a stored frame', new RegExp(J('❯ CON', 'SOLE\\b'))],
+  ['the realms panel module', new RegExp(J('Realms', 'View\\b'))],
+  ['the realms registry module', new RegExp(J('[rR]ealm', 'Registry'))],
+  ['the realms command folder', new RegExp(J('commands/', 'realms\\b'))],
+  ['the realms suite folder', new RegExp(J('scripts/', 'realms\\b'))],
 ]
 
 const EXCLUDED_AREAS: Array<[string, string]> = [
@@ -83,7 +87,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 console.log('============================================================')
-console.log(' the sessions box, the title row, the vitals rail\'s old name, the rail\'s console and trace sections and their words are gone: no tracked file spells them outside the pins that prove their absence')
+console.log(' the sessions box, the title row, the vitals rail\'s old name, the rail\'s console and trace sections, the realms command and their words are gone: no tracked file spells them outside the pins that prove their absence')
 console.log('============================================================')
 
 const files = execFileSync('git', ['-C', ROOT, 'ls-files', '-z'], { encoding: 'utf8', maxBuffer: 1 << 28 }).split('\0').filter(Boolean)
@@ -115,7 +119,7 @@ for (const rel of scoped) {
 
 console.log(`  scanned ${scanned} files; ${hits.length} line(s) still spell a retired word; ${pinned.size} pin(s) hold one`)
 check(
-  'no line under src, scripts, docs or the design system spells the box switch, the box module, the title row module, the box label, the title row, the flip action, the box command, the vitals rail\'s old module, model, bus, hook, row id, paint mark or painted header, or the rail\'s console and trace sections (their row kinds, ids, compose verbs, text shapers, hints, scenario and painted headers), outside the pins that prove their absence',
+  'no line under src, scripts, docs or the design system spells the box switch, the box module, the title row module, the box label, the title row, the flip action, the box command, the vitals rail\'s old module, model, bus, hook, row id, paint mark or painted header, or the rail\'s console and trace sections (their row kinds, ids, compose verbs, text shapers, hints, scenario and painted headers), or the realms panel, registry, command folder or suite folder, outside the pins that prove their absence',
   hits.length === 0,
   `${hits.length} found:` + hits.slice(0, 60).map(h => `\n      ${h.file}:${h.line} (${h.word}) ${h.text}`).join('') + (hits.length > 60 ? `\n      … and ${hits.length - 60} more` : ''),
 )
@@ -125,9 +129,9 @@ const missingPins = PINS.filter(([p]) => !files.includes(p)).map(([p]) => p)
 check('every pin exists', missingPins.length === 0, missingPins.join(', '))
 const idlePins = PINS.filter(([p]) => files.includes(p) && !pinned.has(p)).map(([p]) => p)
 check('every pin still names a retired word (a pin that names none is not a pin)', idlePins.length === 0, idlePins.join(', '))
-const modules = ['src/components/mercury-ui/SessionTabs.tsx', 'src/utils/cockpit/sessionsBar.ts', 'src/components/HelmCenterHeader.tsx', 'src/commands/view', 'src/commands/view.ts', J('src/components/HelmTele', 'metryRail.tsx'), J('src/state/tele', 'metryBus.ts'), J('src/utils/cockpit/helmTele', 'metryModel.ts')]
+const modules = ['src/components/mercury-ui/SessionTabs.tsx', 'src/utils/cockpit/sessionsBar.ts', 'src/components/HelmCenterHeader.tsx', 'src/commands/view', 'src/commands/view.ts', J('src/components/HelmTele', 'metryRail.tsx'), J('src/state/tele', 'metryBus.ts'), J('src/utils/cockpit/helmTele', 'metryModel.ts'), J('src/commands/', 'realms'), J('src/utils/realm', 'Registry.ts'), J('src/components/mercury-ui/parity/Realms', 'View.tsx'), J('scripts/', 'realms')]
 const standing = modules.filter(p => existsSync(join(ROOT, p)))
-check('the box module, its switch, the title row module, the box command module and the vitals rail\'s old module, model and bus are gone from the tree', standing.length === 0, standing.join(', '))
+check('the box module, its switch, the title row module, the box command module, the vitals rail\'s old module, model and bus and the realms command, registry, panel and suite are gone from the tree', standing.length === 0, standing.join(', '))
 
 if (REPORT) {
   for (const [p, why] of [...EXCLUDED_AREAS, ...PINS]) console.log(`  ${p} — ${why}`)

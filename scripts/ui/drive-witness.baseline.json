@@ -120,7 +120,6 @@
     "scripts/primitives-kernel/render-primitives-kernel-cards.tsx": 1,
     "scripts/project-services/render-project-services-cards.tsx": 1,
     "scripts/prompt-input/prove-image-paste-drive.ts": 27,
-    "scripts/prompt-input/prove-prompt-input-async-note.ts": 3,
     "scripts/prompt-input/prove-prompt-input-change-view.ts": 1,
     "scripts/prompt-input/prove-prompt-input-chip-atomicity.ts": 9,
     "scripts/prompt-input/prove-prompt-input-paste-prune.ts": 2,

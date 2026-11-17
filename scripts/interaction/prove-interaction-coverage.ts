@@ -105,7 +105,6 @@ reg(
     'src/components/Onboarding.tsx',
     'src/components/mercury-ui/RailPanel.tsx',
     'src/components/mercury-ui/parity/AccountView.tsx',
-    'src/components/mercury-ui/parity/RealmsView.tsx',
     'src/components/samples/SamplesListView.tsx',
   ],
   'shared-list',

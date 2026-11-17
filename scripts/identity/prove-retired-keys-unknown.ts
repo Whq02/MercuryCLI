@@ -224,6 +224,21 @@ section('§4 the global config: a retired spelling steers nothing and is carried
   check('the file keeps its bytes: no rewrite at read', readFileSync(configPath, 'utf8') === `${JSON.stringify(written, null, 2)}\n`)
 }
 
+section('§5 a file an earlier version kept in the config home is left as it was and read by nothing')
+{
+  const RETIRED_HOME_FILES: Record<string, string> = {
+    'realms.json': `${JSON.stringify({ version: 1, realms: [{ id: 'fixture-0000', name: 'fixture', dir: PROJ, addedAt: '2026-01-01T00:00:00.000Z' }], ledger: [] }, null, 2)}\n`,
+  }
+  for (const [name, bytes] of Object.entries(RETIRED_HOME_FILES)) {
+    writeFileSync(join(HOME, name), bytes)
+    readGlobalConfigAgain()
+    getGlobalConfig()
+    check(`${name}: the file keeps its bytes across a config read`, readFileSync(join(HOME, name), 'utf8') === bytes)
+    const readers = srcFiles.filter(file => readFileSync(join(REPO, file), 'utf8').includes(name))
+    check(`${name}: no module under src names it`, readers.length === 0, readers.join(', '))
+  }
+}
+
 process.chdir(launchDir)
 rmSync(HOME, { recursive: true, force: true })
 rmSync(PROJ, { recursive: true, force: true })
