@@ -16,7 +16,7 @@ export function flagRegistryFiles(root: string = ROOT): string[] {
     const entries = readdirSync(join(root, rel), { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
     for (const entry of entries) {
       if (entry.isDirectory()) walk(`${rel}/${entry.name}`)
-      else out.push(`${rel}/${entry.name}`)
+      else if (entry.name.endsWith('.ts')) out.push(`${rel}/${entry.name}`)
     }
   }
   if (existsSync(join(root, MODULE))) out.push(MODULE)
