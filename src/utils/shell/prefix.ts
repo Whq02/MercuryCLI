@@ -1,6 +1,5 @@
 import { memoizeWithLRU } from '../memoize.js'
 import { logForDebugging } from '../debug.js'
-import { sideQuery } from '../sideQuery.js'
 
 export type CommandPrefixResult = { commandPrefix: string | null }
 
@@ -75,6 +74,7 @@ export function createCommandPrefixExtractor(config: PrefixExtractorConfig) {
 
     try {
       const { systemPrompt, userMessage } = buildPrompts(config, command)
+      const { sideQuery } = await import('../sideQuery.js')
       const response = await sideQuery({
         systemPrompt,
         userPrompt: userMessage,
