@@ -268,8 +268,13 @@ function judge(habit: Habit, hits: Hit[], table: Rows): Verdict {
   return { over, total, allowed: sum(allowed), files: lines.size, slack }
 }
 
+function owed(found: Verdict, allowed: Map<string, number>, standing: Set<string>): number {
+  const freed = [...allowed].filter(([file]) => !standing.has(file)).reduce((n, [, row]) => n + row, 0)
+  return found.over.reduce((n, o) => n + o.lines.length - o.row, 0) - freed
+}
+
 const told = (habit: Habit, over: Over[]): string =>
-  `${over.length} file${over.length === 1 ? '' : 's'} above — instead: ${HABITS[habit]}. A habit that moved with its code takes its rows along through bun ${SELF} --write, which writes no total above the one it finds:` +
+  `${over.length} file${over.length === 1 ? '' : 's'} above — instead: ${HABITS[habit]}. A file that moved takes its rows along through bun ${SELF} --write, which lowers rows and lets one rise only by what the files that are gone held; a row that must rise for code moved between two files that both stand is raised by hand in ${TABLE}, where the diff shows it:` +
   over
     .slice(0, 40)
     .map(o => `\n      ${o.file} holds ${o.lines.length} of ${habit} and ${o.row === 0 ? 'has no row' : `its row allows ${o.row}`}:` + o.lines.map(line => `\n        ${o.file}:${line} ${habit}`).join(''))
@@ -444,6 +449,14 @@ function plantedEstate(): void {
   check('a file that holds one more than its row allows is named with every line it holds', raised.over.length === 1 && ['13', '14', '16'].every(line => told('empty-catch', raised.over).includes(`src/planted/rest.ts:${line} empty-catch`)) && told('empty-catch', raised.over).includes('its row allows 2'), told('empty-catch', raised.over))
   const fallen = judge('setTimeout', hits.filter(h => h.file !== 'src/planted/worker.mjs'), table)
   check('a count that fell stands, and its row is counted as standing above it', fallen.over.length === 0 && fallen.total === 5 && fallen.allowed === 6 && fallen.slack === 1, JSON.stringify(fallen))
+  const standing = new Set(planted.map(p => p.file))
+  const moved = tableOf(text.replace('setTimeout\tsrc/planted/worker.mjs\t1\n', 'setTimeout\tsrc/planted/gone.mjs\t1\n'))!
+  const arrived = judge('setTimeout', hits, moved)
+  check(
+    'the write mode lowers a row freely, lets a row rise by what a file that is gone held, and refuses a rise paid for by an occurrence that left a file that still stands',
+    owed(fallen, table.get('setTimeout')!, standing) <= 0 && arrived.over.length === 1 && owed(arrived, moved.get('setTimeout')!, standing) === 0 && owed(arrived, moved.get('setTimeout')!, new Set([...standing, 'src/planted/gone.mjs'])) === 1,
+    JSON.stringify(arrived),
+  )
 }
 
 section('§0 the reader on a planted estate: each habit is seen with its line, each look-alike is not')
@@ -461,10 +474,11 @@ if (process.argv.includes('--list')) {
   const asked = NAMES.filter(habit => process.argv.includes(habit))
   for (const h of hits) if (asked.length === 0 || asked.includes(h.habit)) console.log(`${h.habit}\t${h.file}\t${h.line}\t${h.column}`)
 } else if (process.argv.includes('--write')) {
-  const risen = table === null ? [] : NAMES.filter(habit => sum(rows.get(habit)!) > sum(table.get(habit)!))
+  const standing = new Set(files)
+  const risen = table === null ? [] : NAMES.filter(habit => owed(judge(habit, hits, table), table.get(habit)!, standing) > 0)
   if (failures > 0) console.log('  nothing written: the reader failed on its own estate')
   else if (text !== null && table === null) check(`${TABLE} reads as rows of a habit, a file and its count`, false, 'put the committed table back, then write')
-  else if (risen.length > 0) check('no total rises', false, `nothing written — ${risen.map(habit => `${habit} is ${sum(rows.get(habit)!)} now and ${sum(table!.get(habit)!)} in the table — instead: ${HABITS[habit]}`).join(' · ')}`)
+  else if (risen.length > 0) check('a row falls or leaves, and one rises only by what the files that are gone held', false, `nothing written — ${risen.map(habit => `${habit}: ${told(habit, judge(habit, hits, table!).over)}`).join('\n    ')}`)
   else {
     writeFileSync(join(ROOT, TABLE), render(rows))
     console.log(`  wrote ${TABLE}: ${NAMES.reduce((n, habit) => n + rows.get(habit)!.size, 0)} rows, ${hits.length} occurrences`)
