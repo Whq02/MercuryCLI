@@ -56,6 +56,7 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(home, [work])
 const ownerWatch = await import('../../src/daemon/ownerWatch.ts')
 const { controlSockPath } = await import('../../src/daemon/controlSocket.ts')
+const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 
 const IDLE_MS = 120_000
 const SETTLE_MS = 5_000
@@ -481,13 +482,12 @@ section('§9 THE WIRING — source pins')
 {
   const main = read(join(ROOT, 'src/daemon/main.ts'))
   const owned = read(join(ROOT, 'src/daemon/ownedDaemon.ts'))
-  const registry = read(join(ROOT, 'src/substrate/flagRegistry.ts'))
   const ticker = read(join(ROOT, 'src/daemon/saturnTicker.ts'))
   check('the daemon wires the one owner watch and the owner pipe', main.includes('ownerWatch = startOwnerWatch({') && main.includes('armOwnerPipe(ownerFd'))
   check('no beat-cadence probe survives in the daemon (the beat is the watch\'s own)', !/setInterval\([^)]*OWNER_WATCH_INTERVAL_MS/.test(main) && !main.includes('getProcessStartTokenAsync(ownerPid)'))
   check('the spawner passes the owner pipe at stdio index 3 on POSIX and stamps its fd', owned.includes("['ignore', outFd, outFd, 'pipe']") && owned.includes('flagPair(OWNER_FD_ENV, String(OWNER_PIPE_STDIO_INDEX))') && owned.includes("process.platform !== 'win32'"))
   check('the spawner holds its pipe end unref\'d for its whole life', owned.includes('pipeEnd.unref()') && owned.includes('ownerPipeEnds.add(pipeEnd)'))
-  check('the registry names the owner-fd stamp', registry.includes("env: 'MERCURY_DAEMON_OWNER_FD'"))
+  check('the registry names the owner-fd stamp', getFlagSpec('MERCURY_DAEMON_OWNER_FD') !== undefined)
   check('the plane heal runs on its directory watch with a 30 s floor', main.includes('const PLANE_HEAL_FLOOR_MS = 30_000') && main.includes('watchDir(planeDir, { persistent: false }') && main.includes('}, PLANE_HEAL_FLOOR_MS)'))
   check('the reconcile tick keeps the minute floor behind a change gate', main.includes('const RECONCILE_TICK_MS = 60_000') && main.includes('stamp !== reconcileRecordsStamp || reconcileHadLive'))
   check('the Saturn ticker gates its walk on the stores\' move stamps', ticker.includes('if (pending === 0 && stamp === storeStamp) return') && ticker.includes('export function saturnStoreStamp'))

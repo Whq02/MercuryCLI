@@ -36,6 +36,7 @@ const { RpcError, RPC_REFUSED } = await import('../../src/runner/wire/errors.ts'
 type StandInRunner = ReturnType<typeof standInRunner>
 type RunnerDoor = import('../../src/daemon/runnerConnection.ts').RunnerDoor
 const { STARTUP_MENU } = await import('../../src/substrate/startupMenu.ts')
+const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -375,8 +376,7 @@ console.log('\n── W13: source pins ──')
   check('W13 (item 8) the screen stamps the launch consent onto the owned daemon spawn from the boot facts', ensureDaemonSrc.includes('MERCURY_DAEMON_SELF_WARM_CONSENT') && ensureDaemonSrc.includes('bootBirthFacts().bypassConsent'))
   const statusSrc = read('src/daemon/status.ts')
   check('W13 daemon status names warm runners on their own honest line', statusSrc.includes('warm runner'))
-  const registry = read('src/substrate/flagRegistry.ts')
-  check('W13 the warm idle knob has its registry row', registry.includes('MERCURY_WARM_RUNNER_IDLE_RETIRE_MINUTES'))
+  check('W13 the warm idle knob has its registry row', getFlagSpec('MERCURY_WARM_RUNNER_IDLE_RETIRE_MINUTES') !== undefined)
   const proto = read('src/daemon/protocol.ts')
   check("W13 DaemonOp includes 'concourseWarm' with request + reply rows", /\|\s*'concourseWarm'/.test(proto) && proto.includes("op: 'concourseWarm'") && proto.includes("ok: true; op: 'concourseWarm'"))
   check('W13 WireStatus carries warmRunners (optional-additive)', /warmRunners\?: number/.test(proto))
@@ -621,8 +621,7 @@ console.log('\n── WR: the restart reason travels to the resumed runner (item
 
   const printSrc = read('src/cli/run.ts')
   check('WR run.ts reads the reason at boot and from the claim frame, coerces it, and passes it to the reconciliation', printSrc.includes("flagEnv('MERCURY_RUNNER_RESTART_REASON')") && printSrc.includes('runnerRestartReason = params.restart_reason') && /reconcileBackgroundLaunchesOnResume\(messages, getAppState, setAppState, Date\.now\(\), coerceRestartReason\(runnerRestartReason\)\)/.test(printSrc))
-  const registry = read('src/substrate/flagRegistry.ts')
-  check('WR the reason knob has its registry row', registry.includes("env: 'MERCURY_RUNNER_RESTART_REASON'"))
+  check('WR the reason knob has its registry row', getFlagSpec('MERCURY_RUNNER_RESTART_REASON') !== undefined)
 }
 
 console.log('\n' + '═'.repeat(60))

@@ -16,6 +16,7 @@ const {
   HEADLESS_PERMISSION_MODE_DEFAULT,
 } = await import('../../src/daemon/headlessRun.js')
 const { PERMISSION_MODES } = await import('../../src/types/permissions.js')
+const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -135,10 +136,9 @@ section('cross-checks against the real CLI + the one-shot seam')
     'roster dispatch passes allowedTools: resolveWorkerReconAllow()',
     /runTaskHeadless\(\s*(?:\/\/[^\n]*\n\s*)*\{[\s\S]{0,300}allowedTools: resolveWorkerReconAllow\(\)/.test(rosterSrc),
   )
-  const reg = readFileSync(join(import.meta.dir, '../../src/substrate/flagRegistry.ts'), 'utf8')
   check(
     'MERCURY_DAEMON_PERMISSION_MODE registered → headlessRun consumer',
-    /MERCURY_DAEMON_PERMISSION_MODE'[^\n]*src\/daemon\/headlessRun\.ts/.test(reg),
+    getFlagSpec('MERCURY_DAEMON_PERMISSION_MODE')?.consumer.includes('src/daemon/headlessRun.ts') === true,
   )
 }
 

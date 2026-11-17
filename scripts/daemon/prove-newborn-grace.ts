@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
+import { flagRegistryText } from '../lib/flagRegistrySource.ts'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'newborn-grace-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -25,6 +26,7 @@ const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'ut
 
 const sup = await import('../../src/daemon/concourseWorkers.ts')
 const idle = await import('../../src/daemon/idleRetirement.ts')
+const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 const dir = process.env.MERCURY_DAEMON_DIR!
 
 const DEAD_PID = 2_147_000_000
@@ -126,8 +128,7 @@ console.log('N4 the birth crosses the wire and stamps both mints')
   check('N4 the birth door sends bornBlank: true', birth.includes('bornBlank: true'))
   const protocol = read('src/daemon/protocol.ts')
   check('N4 the protocol names the field on the admit op', /op: 'sessionAdmit'[\s\S]{0,1200}bornBlank\?: true/.test(protocol))
-  const registry = read('src/substrate/flagRegistry.ts')
-  check('N4 the grace knob is a registered row under its session spelling and no other', registry.includes("env: 'MERCURY_SESSION_NEWBORN_GRACE_MINUTES'") && !registry.includes('MERCURY_CONCOURSE_' + 'NEWBORN_GRACE_MINUTES'))
+  check('N4 the grace knob is a registered row under its session spelling and no other', getFlagSpec('MERCURY_SESSION_NEWBORN_GRACE_MINUTES') !== undefined && !flagRegistryText().includes('MERCURY_CONCOURSE_' + 'NEWBORN_GRACE_MINUTES'))
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
