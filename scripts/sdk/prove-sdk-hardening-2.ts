@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { connect, MercuryExitError, rowOf, run } from '../../sdk/src/index.ts'
+import { connect, MercuryExitError, MercuryTimeoutError, rowOf, run } from '../../sdk/src/index.ts'
 import { fixtureOutcomeRow, fixtureSessionRow, fixtureTurn } from '../../sdk/src/testing.ts'
 import { PYTHON } from './runtime.ts'
 
@@ -29,6 +29,7 @@ else if (scenario === 'late-run') setTimeout(() => { line(session); setTimeout((
 else if (scenario === 'hang-run') { process.stderr.write('up\\n'); line(session); setInterval(() => {}, 1000) }
 else if (scenario === 'text-run') { line(session); line(text); line(outcome) }
 else if (scenario === 'stderr-run') { process.stderr.write('a warning line\\n'); line(session); line(outcome) }
+else if (scenario === 'deaf-runner') setInterval(() => {}, 1000)
 else createInterface({ input: process.stdin }).on('line', raw => {
   const message = JSON.parse(raw)
   const reply = result => line({ jsonrpc: '2.0', id: message.id, result })
@@ -62,6 +63,11 @@ try {
   await check('a session whose runner is killed mid-row rejects its requests with the exit, not a wire error', async () => {
     const session = await connect({ mercury: mercury('cut-runner') })
     try { await assert.rejects(session.facts(), cutExit('runner')) } finally { await session.close() }
+  })
+  await check('connect with timeoutMs rejects within the bound when the runner neither answers nor ends with its input', async () => {
+    const started = performance.now()
+    await assert.rejects(connect({ mercury: mercury('deaf-runner'), timeoutMs: 100 }), error => error instanceof MercuryTimeoutError && error.method === 'initialize')
+    assert(performance.now() - started < 3000, `the timeout error took ${Math.round(performance.now() - started)} ms`)
   })
   const py = spawnSync(PYTHON, [join(root, 'scripts/sdk/python-hardening-2.py'), fixture], { cwd: root, env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(root, 'sdk-py/src') }, encoding: 'utf8', timeout: 120000 })
   process.stdout.write(py.stdout)

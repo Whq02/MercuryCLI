@@ -422,7 +422,12 @@ export async function connect(options: ConnectOptions = {}): Promise<MercurySess
       void session.exit.then(() => signal.removeEventListener('abort', end))
     }
     return session
-  } catch (error) { await session.close(); throw error }
+  } catch (error) {
+    const closed = session.close()
+    session.child.kill('SIGTERM')
+    await closed
+    throw error
+  }
 }
 
 export function prewarm(options: Omit<ConnectOptions, 'warm' | 'sessionId' | 'resume' | 'continue' | 'fork'> = {}): Promise<MercurySession> {

@@ -533,6 +533,7 @@ async def connect(*, warm: bool = False, checkpoints: bool = True, timeout: floa
         session.initialized = await session.request('initialize', boot, timeout=timeout)
         return session
     except BaseException:
+        send_signal(session.child, 'SIGTERM')
         await session.close()
         raise
 

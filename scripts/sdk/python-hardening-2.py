@@ -3,7 +3,8 @@ import logging
 import os
 import signal
 import sys
-from mercury_cli_sdk import MercuryError, MercuryExitError, MercuryWireError, connect, run
+import time
+from mercury_cli_sdk import MercuryError, MercuryExitError, MercuryTimeoutError, MercuryWireError, connect, run
 
 WINDOWS = os.name == 'nt'
 failures = []
@@ -142,6 +143,12 @@ async def shared_iteration():
     assert all(isinstance(error, MercuryExitError) for error in await asyncio.wait_for(asyncio.gather(fail(), fail()), 8))
 
 
+async def deaf_runner():
+    started = time.monotonic()
+    error = await expect(connect(mercury=mercury('deaf-runner'), timeout=0.1), MercuryTimeoutError)
+    assert error.method == 'initialize' and time.monotonic() - started < 3, time.monotonic() - started
+
+
 async def main():
     await check('run: a process killed mid-row raises its exit, not a wire error, and a whole last row without a newline is still read', cut_run)
     await check('session: a runner killed mid-row fails its requests with the exit, not a wire error', cut_runner)
@@ -151,6 +158,7 @@ async def main():
     await check('a row listener that raises ends the run or session with that error as the cause, not a wire error', listener_errors)
     await check('a stderr, end or error listener that raises is logged and the run still settles', side_channel_errors)
     await check('run: two tasks iterating one run both end, with the run error when it failed', shared_iteration)
+    await check('connect with a timeout raises within the bound when the runner neither answers nor ends with its input', deaf_runner)
 
 
 asyncio.run(asyncio.wait_for(main(), 240))
