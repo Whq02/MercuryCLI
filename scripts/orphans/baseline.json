@@ -12,16 +12,5 @@
     "broken-path",
     "superseded-unreachable"
   ],
-  "rows": [
-    {
-      "file": "src/substrate/identity/accountFacts.ts",
-      "class": "living-specimen",
-      "reason": "A read-only view of which provider families hold a credential, landed ahead of its consumer for the multiplayer estate planned after release; no product path imports it. Parked on that plan until the operator rules; scripts/operator-identity/prove-operator-identity.ts section 8 proves that a live key cannot be read through the view."
-    },
-    {
-      "file": "src/substrate/identity/index.ts",
-      "class": "living-specimen",
-      "reason": "The one-import barrel of src/substrate/identity. No product path and no proof imports it: the product imports the modules it re-exports. Parked with accountFacts.ts on the multiplayer estate planned after release until the operator rules; scripts/operator-identity/prove-operator-identity.ts section 5 reads it for a second key derivation."
-    }
-  ]
+  "rows": []
 }

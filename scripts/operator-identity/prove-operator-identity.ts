@@ -104,8 +104,8 @@ section('(5) the keyed id is the only id')
   const ROOT = join(import.meta.dir, '..', '..')
   const names = Object.keys(identity).sort()
   check('the identity module answers the operator and the assistant principals and nothing else', names.join(',') === 'assistantPrincipal,operatorPrincipal', names.join(','))
-  const barrel = readFileSync(join(ROOT, 'src/substrate/identity/index.ts'), 'utf8')
-  check('no other derivation exists to recognise or re-key a record by', !existsSync(join(ROOT, 'src/substrate/identity/rekey.ts')) && !/rekey|OwnsRecord/i.test(barrel), barrel.match(/rekey|OwnsRecord/i)?.[0] ?? '')
+  const rekeyNames = [...names, ...Object.keys(keys)].filter(name => /rekey|OwnsRecord/i.test(name))
+  check('no other derivation exists to recognise or re-key a record by', !existsSync(join(ROOT, 'src/substrate/identity/rekey.ts')) && rekeyNames.length === 0, rekeyNames.join(','))
   const crew = readFileSync(join(ROOT, 'src/services/crew/identity.ts'), 'utf8')
   const conversations = readFileSync(join(ROOT, 'src/services/crew/conversations.ts'), 'utf8')
   check('the crew boot and the conversations store re-key nothing', !/rekey/i.test(crew) && !/rekey/i.test(conversations))
@@ -150,25 +150,6 @@ section('(7) sign / verify — authorship the key can prove')
   const foreignRaw = Buffer.from((foreign.publicKey.export({ format: 'jwk' }) as { x: string }).x, 'base64url')
   check("a foreign key's public half refuses this signature", !keys.verifyOperatorSignature('hello authorship', sig, foreignRaw))
   check('malformed key material is a refusal, never a crash', !keys.verifyOperatorSignature('x', sig, Buffer.from('too-short')))
-}
-
-section('(8) account facts attach — and no secret is reachable through them')
-{
-  const POISON = 'sk-ant-poison-e2e-0123456789abcdef0123456789'
-  process.env.ANTHROPIC_API_KEY = POISON
-  try {
-    const facts = await import('../../src/substrate/identity/accountFacts.js')
-    const view = await facts.operatorIdentity()
-    check('the view carries the keyed principal + the public half', view.principal.id === first.id && Buffer.from(view.publicKey, 'base64url').length === 32)
-    const anthropic = view.accounts.families.find(f => f.id === 'anthropic')
-    check('the planted credential reads as PRESENCE for its family', anthropic !== undefined && anthropic.credentialed === true)
-    const json = JSON.stringify(view)
-    check('the POISON key string is unreachable through the view', !json.includes(POISON))
-    check('no secret-shaped field rides the view (existence + label only)', !/"(apiKey|api_key|token|secret|credential)"\s*:/.test(json))
-    check('facts are neutral data: family id · credentialed · label', view.accounts.families.every(f => typeof f.id === 'string' && typeof f.credentialed === 'boolean'))
-  } finally {
-    delete process.env.ANTHROPIC_API_KEY
-  }
 }
 
 console.log(failures === 0 ? '\n ✅ OPERATOR IDENTITY PROVEN' : `\n ❌ ${failures} FAILED`)
