@@ -6,7 +6,7 @@ import uuid
 from contextlib import suppress
 from dataclasses import dataclass, field, replace
 from typing import Any, Awaitable, Callable, AsyncIterator, Literal, Mapping, TypeVar, Unpack, cast, overload
-from .client import ConnectKwargs, Listener, RunOptions, Settles, argv_of, end_child, exit_of, prepare_tools, read_stderr, send_signal, spawn, untrack, warm_options
+from .client import ConnectKwargs, Listener, RunOptions, Settles, argv_of, call_listeners, end_child, exit_of, prepare_tools, read_stderr, send_signal, spawn, untrack, warm_options
 from .errors import MercuryConnectionError, MercuryError, MercuryExitError, MercuryRefusal, MercuryTimeoutError, MercuryUsageError, MercuryWireError, RunExit
 from .generated import InitializeResultFile_checkpoints, TypedOutcome, FsReadTextFileParams, FsReadTextFileResult, FsWriteTextFileParams, FsWriteTextFileResult, DEFAULT_TIMEOUT, METHODS, RUNNER_PROTOCOL, RPC_REFUSED, DefaultTimeout, TypedRequests, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimParams, SessionClaimResult, McpToolsResult, McpActionResult, SessionPauseGateResult, SessionQuiesceResult, SessionLeaveResult, SessionSetSpawnSwitchResult, ShellBackgroundResult, SessionSendNowResult
 from .framing import CUT_LINE, read_lines
@@ -98,7 +98,7 @@ class MercurySession(Settles, TypedRequests):
         return self
 
     def _emit(self, type: str, value: Any) -> None:
-        for fn in tuple(self._listeners.get(type, [])): fn(value)
+        call_listeners(self._listeners, type, value)
 
     async def _write(self, value: Any) -> None:
         if self._closing: raise MercuryConnectionError('session is closing or closed; connect a new session before sending requests')

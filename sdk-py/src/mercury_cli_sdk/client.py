@@ -4,6 +4,7 @@ import atexit
 import codecs
 from datetime import datetime, timezone
 import json
+import logging
 import os
 import signal
 import time
@@ -18,6 +19,16 @@ from .helpers import ToolDefinition, ToolServer, serve_tools
 from .parse import Issue, StreamRow, cap_queue, cap_rows, clear_queue, parse_row, input_row_of
 
 Listener = Callable[[Any], object]
+SIDE_EVENTS = ('stderr', 'error', 'end')
+logger = logging.getLogger(__name__)
+
+
+def call_listeners(listeners: dict[str, list[Listener]], type: str, value: Any) -> None:
+    for listener in tuple(listeners.get(type, [])):
+        try: listener(value)
+        except Exception as error:
+            if type not in SIDE_EVENTS: raise MercuryError(f'a listener for {type} raised {error.__class__.__name__}: {error}') from error
+            logger.exception('a listener for %s raised', type)
 
 
 @dataclass
@@ -288,7 +299,9 @@ async def read_stderr(handle: Any) -> None:
         if not delivered: return
         handle.stderr += delivered
         handle._emit('stderr', delivered)
-        if handle.options.on_stderr is not None: handle.options.on_stderr(delivered)
+        if handle.options.on_stderr is not None:
+            try: handle.options.on_stderr(delivered)
+            except Exception: logger.exception('the on_stderr callback raised')
     while chunk := await handle._stderr.read(65536): deliver(decoder.decode(chunk))
     deliver(decoder.decode(b'', final=True), True)
 
@@ -356,7 +369,7 @@ class MercuryRun(Settles):
         return self
 
     def _emit(self, type: str, value: Any) -> None:
-        for listener in tuple(self._listeners.get(type, [])): listener(value)
+        call_listeners(self._listeners, type, value)
 
     async def _watch_cancel(self, event: asyncio.Event) -> None:
         try:
@@ -402,8 +415,10 @@ class MercuryRun(Settles):
             last = interrupted_outcome(self.rows, self._started_at)
             self.rows.append(last)
             self._queue.put_nowait(last)
-            self._emit('row', last)
-            self._emit('outcome', last)
+            try:
+                self._emit('row', last)
+                self._emit('outcome', last)
+            except MercuryError as error: self.error = error
         if self.error is None:
             if last and last['status'] == 'refused': self.error = MercuryRefusal(last, exit)
             elif last is None: self.error = MercuryUsageError(exit) if code == 2 else MercuryExitError(exit, 'run', 'no input row was sent before stdin was closed' if self.options.input == 'rows' and self._sent == 0 and not self.rows else CUT_LINE if cut else None)

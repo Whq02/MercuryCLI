@@ -136,6 +136,8 @@ async def main():
     await check('run: a cancelled or timed-out wait on session, outcome or exit leaves the handle whole, and close returns', cancelled_waits)
     await check('session: a timed-out wait on exit does not make close raise CancelledError', session_exit_wait)
     await check('run_sync: Ctrl-C reaches the program as KeyboardInterrupt instead of hanging', ctrl_c)
+    await check('a row listener that raises ends the run or session with that error as the cause, not a wire error', listener_errors)
+    await check('a stderr, end or error listener that raises is logged and the run still settles', side_channel_errors)
 
 
 asyncio.run(asyncio.wait_for(main(), 240))
