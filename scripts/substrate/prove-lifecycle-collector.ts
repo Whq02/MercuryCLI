@@ -25,6 +25,7 @@ delete process.env.MERCURY_DELIVERY_ARTIFACT
 
 const lifecycle = await import('../../src/substrate/stateLifecycle.ts')
 const housekeeping = await import('../../src/utils/backgroundHousekeeping.ts')
+const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -381,7 +382,7 @@ section('§9 WIRING')
   )
   check(
     'the delivery flag row documents the headless gate',
-    src('src/substrate/flagRegistry.ts').includes('headless run completion mints nothing'),
+    getFlagSpec('MERCURY_DELIVERY_ARTIFACT')?.summary.includes('headless run completion mints nothing') === true,
   )
   check(
     'the sentinel is stamped ONLY by the complete-success path',

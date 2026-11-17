@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { execSync } from 'node:child_process'
+import { execFileSync, execSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { isFlagRegistryFile } from '../lib/flagRegistrySource.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { FLAG_REGISTRY, flagEnabled, flagEnv } = await import('../../src/substrate/flagRegistry.ts')
@@ -25,6 +26,17 @@ const grep = (pattern: string, extraArgs = ''): string => {
     return ''
   }
 }
+const grepOutside = (pattern: string, skip: (rel: string) => boolean): string => {
+  try {
+    return execFileSync('grep', ['-rEo', pattern, 'src'], { encoding: 'utf8', cwd: root, maxBuffer: 64 * 1024 * 1024 })
+      .split('\n')
+      .filter(l => l.includes(':') && !skip(l.slice(0, l.indexOf(':'))))
+      .map(l => l.slice(l.indexOf(':') + 1))
+      .join('\n')
+  } catch {
+    return ''
+  }
+}
 const FLAG_NAME = '(MERCURY_[A-Z_0-9]+)'
 const SWEPT_SPELLINGS = new Set([
   'MERCURY_TANK',
@@ -42,7 +54,7 @@ const literalReads = new Set(
     .filter(Boolean),
 )
 const quotedFlagLiterals = new Set(
-  grep(`['"]${FLAG_NAME}['"]`, '--exclude=flagRegistry.ts')
+  grepOutside(`['"]${FLAG_NAME}['"]`, isFlagRegistryFile)
     .split('\n')
     .map(l => (l.match(/(MERCURY_[A-Z_0-9]+)/) ?? [])[1] ?? '')
     .filter(Boolean),
@@ -289,7 +301,6 @@ check(
 
 section('§5 compat pairing is TYPED, never prose-only; paired spellings are live')
 {
-  const registrySrc = readFileSync(join(root, 'src/substrate/flagRegistry.ts'), 'utf8')
   const proseOnly: string[] = []
   for (const spec of FLAG_REGISTRY) {
     const m = /compat spelling (CLAUDE[A-Z_]*)/.exec(spec.summary)
@@ -313,7 +324,6 @@ section('§5 compat pairing is TYPED, never prose-only; paired spellings are liv
     if (!found) dead.push(`${spec.env}→${compat}`)
   }
   check('every typed compat spelling is read at a boundary in src', dead.length === 0, dead.join(', '))
-  void registrySrc
 }
 
 

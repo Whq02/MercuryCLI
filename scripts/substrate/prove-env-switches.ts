@@ -2,6 +2,7 @@
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { flagRegistryText } from '../lib/flagRegistrySource.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(join(import.meta.dir, '..', '..'))
@@ -73,7 +74,7 @@ section('§2 each switch at its owner')
   off('MERCURY_PROMPT_CACHING_SONNET'); check('sonnet caching: =0 ⇒ off on the sonnet tier alone', !getPromptCachingEnabled(sonnet) && getPromptCachingEnabled(opus)); unset('MERCURY_PROMPT_CACHING_SONNET')
   off('MERCURY_PROMPT_CACHING_OPUS'); check('opus caching: =0 ⇒ off on the opus tier alone', !getPromptCachingEnabled(opus) && getPromptCachingEnabled(sonnet)); unset('MERCURY_PROMPT_CACHING_OPUS')
 
-  check('interleaved thinking: no switch and no header; neither the beta builder nor the registry names MERCURY_INTERLEAVED_THINKING', !src('src/utils/model/capabilities.ts').includes('MERCURY_INTERLEAVED_THINKING') && !src('src/substrate/flagRegistry.ts').includes('MERCURY_INTERLEAVED_THINKING'))
+  check('interleaved thinking: no switch and no header; neither the beta builder nor the registry names MERCURY_INTERLEAVED_THINKING', !src('src/utils/model/capabilities.ts').includes('MERCURY_INTERLEAVED_THINKING') && !flagRegistryText().includes('MERCURY_INTERLEAVED_THINKING'))
 
   check('compaction: unset ⇒ the automatic fold is on', isAutoCompactEnabled() === true)
   off('MERCURY_COMPACT'); check('compaction: =0 ⇒ the automatic fold is off', isAutoCompactEnabled() === false); unset('MERCURY_COMPACT')
