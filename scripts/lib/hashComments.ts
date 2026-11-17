@@ -24,7 +24,7 @@ type HashComment = { pos: number; end: number; keep: string | null; embedded: bo
 type Form = 'comment' | 'module docstring' | 'docstring' | 'statement'
 type Found = { pos: number; end: number; kind: HashKind; form: Form; embedded: boolean; kept?: string }
 type Place = { path: string; text: string; pos: number; line: number; column: number; before: string; form: Form; embedded: boolean }
-type KeepRule = { name: string; reader: string; kinds: HashKind[]; test: (comment: string, at: Place) => boolean }
+type KeepRule = { name: string; reader: string; kinds: HashKind[]; prose?: true; test: (comment: string, at: Place) => boolean }
 
 const HASH_KINDS: [kind: HashKind, extensions: string[]][] = [
   ['typescript', ['ts', 'tsx', 'mts', 'cts']],
@@ -96,12 +96,14 @@ export const HASH_KEEP_RULES: KeepRule[] = [
     name: 'read docstring',
     reader: 'the module itself, through __doc__',
     kinds: ['python'],
+    prose: true,
     test: (_c, at) => !at.embedded && at.form === 'module docstring' && /(^|[^\w.])__doc__\b/.test(at.text),
   },
   {
     name: 'sdk docstring',
     reader: "an SDK user's editor and help(), and scripts/sdk/prove-sdk-build.ts",
     kinds: ['python'],
+    prose: true,
     test: (_c, at) => !at.embedded && at.path.startsWith('sdk-py/src/') && (at.form === 'docstring' || at.form === 'module docstring'),
   },
 ]

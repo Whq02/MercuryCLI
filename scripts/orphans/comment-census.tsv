@@ -1,37 +1,20 @@
-files	typescript under src and scripts	8640
-files	csharp	8
-files	dockerfile	2
-files	fish	1
-files	gdscript	51
-files	ignore	7
-files	ini	6
-files	javascript	101
-files	json	334
-files	nix	5
-files	powershell	3
-files	python	101
-files	rust	2
-files	sed	1
-files	shader	2
-files	shell	293
-files	toml	4
-files	typescript	45
-files	yaml	15
-kept	action pin	84
-kept	compdef	1
-kept	encoding	0
-kept	gate header	3271
-kept	generated marker	2
-kept	quiet	0
 kept	read docstring	1
-kept	reference	6
-kept	requires	3
 kept	sdk docstring	70
-kept	shebang	334
-excepted	native/	28	137
-excepted	scripts/field-tasks/field-kit/task/	2	2
-excepted	src/extensions/bundled/mercury-media/server/	10	0
-excepted	vendor/	13	0
+kept-file	bench/harbor/mercury_harbor/trajectory.py	1
+kept-file	sdk-py/src/mercury_cli_sdk/__init__.py	1
+kept-file	sdk-py/src/mercury_cli_sdk/client.py	18
+kept-file	sdk-py/src/mercury_cli_sdk/errors.py	7
+kept-file	sdk-py/src/mercury_cli_sdk/helpers.py	7
+kept-file	sdk-py/src/mercury_cli_sdk/parse.py	9
+kept-file	sdk-py/src/mercury_cli_sdk/runner.py	11
+kept-file	sdk-py/src/mercury_cli_sdk/structured.py	4
+kept-file	sdk-py/src/mercury_cli_sdk/support.py	4
+kept-file	sdk-py/src/mercury_cli_sdk/sync.py	4
+kept-file	sdk-py/src/mercury_cli_sdk/testing.py	5
+excepted	native/	7	137
+excepted	scripts/field-tasks/field-kit/task/	1	2
+excepted	src/extensions/bundled/mercury-media/server/	0	0
+excepted	vendor/	0	0
 excepted-file	native/voice/Cargo.toml	2
 excepted-file	native/voice/build.rs	3
 excepted-file	native/voice/src/lib.rs	23

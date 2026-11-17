@@ -8,7 +8,6 @@ const ROOT = join(import.meta.dir, '..', '..')
 const TABLE = join(import.meta.dir, 'comment-census.tsv')
 const TABLE_NAME = 'scripts/orphans/comment-census.tsv'
 const WRITE = process.argv.includes('--write')
-const WALKED = 'typescript under src and scripts'
 const OUT_OF_REACH = "a program quoted to node, awk, sed, bash or python, and a no-op ':' with a quoted string"
 let failures = 0
 let checks = 0
@@ -37,6 +36,9 @@ const tree = censusTree(ROOT)
 const outside: string[] = []
 const kinds = new Map<string, number>()
 const keptByRule = new Map<string, number>(HASH_KEEP_RULES.map(rule => [rule.name, 0]))
+const PROSE = HASH_KEEP_RULES.filter(rule => rule.prose).map(rule => rule.name)
+const proseFiles = new Map<string, number[]>()
+const linesOf = (text: string, at: { pos: number }[]): number[] => at.map(one => text.slice(0, one.pos).split('\n').length)
 let outsideComments = 0
 const firstOf = (path: string, text: string, open: { pos: number; end: number }[]): string => `${path}:${text.slice(0, open[0]!.pos).split('\n').length}: ${open.length} (first: ${JSON.stringify(text.slice(open[0]!.pos, Math.min(open[0]!.end, open[0]!.pos + 60)))})`
 for (const file of tree.read) {
@@ -44,6 +46,8 @@ for (const file of tree.read) {
   kinds.set(file.kind, (kinds.get(file.kind) ?? 0) + 1)
   const comments = hashComments(file.path, text)
   for (const comment of comments) if (comment.keep !== null) keptByRule.set(comment.keep, (keptByRule.get(comment.keep) ?? 0) + 1)
+  const prose = comments.filter(comment => comment.keep !== null && PROSE.includes(comment.keep))
+  if (prose.length > 0) proseFiles.set(file.path, linesOf(text, prose))
   const open = comments.filter(comment => comment.keep === null)
   if (open.length === 0) continue
   outsideComments += open.length
@@ -79,18 +83,20 @@ check(
 
 const exceptedRows: string[] = []
 const exceptedNames: string[] = []
-const exceptedFiles = new Map<string, { count: number; first: string }>()
+const exceptedFiles = new Map<string, number[]>()
 for (const [folder, held] of tree.excepted) {
   let comments = 0
+  let commented = 0
   for (const file of held) {
     const text = readFileSync(join(ROOT, file.path), 'utf8')
     const open = hashComments(file.path, text).filter(comment => comment.keep === null)
     if (open.length === 0) continue
     comments += open.length
-    exceptedFiles.set(file.path, { count: open.length, first: firstOf(file.path, text, open) })
+    commented++
+    exceptedFiles.set(file.path, linesOf(text, open))
   }
-  exceptedRows.push(`excepted\t${folder}\t${held.length}\t${comments}`)
-  exceptedNames.push(`${folder} ${comments} in ${held.length} file(s)`)
+  exceptedRows.push(`excepted\t${folder}\t${commented}\t${comments}`)
+  exceptedNames.push(`${folder} ${comments} in ${commented} of ${held.length} file(s)`)
 }
 const unreasoned = keepFolders().filter(folder => !KEEP_REASONS.some(([under, reason]) => under === folder && reason.trim() !== ''))
 check(
@@ -100,11 +106,10 @@ check(
 )
 
 const rows: string[] = [
-  `files\t${WALKED}\t${files}`,
-  ...[...kinds].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([kind, n]) => `files\t${kind}\t${n}`),
-  ...[...keptByRule].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([rule, n]) => `kept\t${rule}\t${n}`),
+  ...[...PROSE].sort().map(rule => `kept\t${rule}\t${keptByRule.get(rule) ?? 0}`),
+  ...[...proseFiles].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([path, lines]) => `kept-file\t${path}\t${lines.length}`),
   ...exceptedRows.sort(),
-  ...[...exceptedFiles].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([path, file]) => `excepted-file\t${path}\t${file.count}`),
+  ...[...exceptedFiles].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([path, lines]) => `excepted-file\t${path}\t${lines.length}`),
 ]
 const keyOf = (row: string): string => row.split('\t').slice(0, 2).join('\t')
 const lastOf = (row: string): number => Number(row.split('\t').at(-1))
@@ -118,7 +123,7 @@ if (WRITE) {
   }
   const before = new Map((held ?? []).map(row => [keyOf(row), lastOf(row)]))
   const rises: string[] = []
-  for (const family of ['kept', 'excepted-file']) {
+  for (const family of ['kept-file', 'excepted-file']) {
     let up = 0
     let down = 0
     const named: string[] = []
@@ -131,10 +136,10 @@ if (WRITE) {
       } else down += was - n
     }
     for (const [key, was] of before) if (key.startsWith(`${family}\t`) && !after.has(key)) down += was
-    if (held !== null && up > down) rises.push(`${family === 'kept' ? 'kept lines' : 'comments in excepted files'} rise by ${up} and fall by ${down}: ${named.join(' · ')}`)
+    if (held !== null && up > down) rises.push(`${family === 'kept-file' ? 'lines of prose kept by rule' : 'comments in excepted files'} rise by ${up} and fall by ${down}: ${named.join(' · ')}`)
   }
   if (rises.length > 0) {
-    console.log(`\n--write refused, ${TABLE_NAME} is unchanged: ${rises.join('; ')}. A kept line or an excepted comment that is new is raised by hand in the table, one row, with its reader.`)
+    console.log(`\n--write refused, ${TABLE_NAME} is unchanged: ${rises.join('; ')}. Delete the new docstring or comment; one that has a reader is raised by hand in the table, its file's row alone.`)
     process.exit(1)
   }
   if (held !== null && held.join('\n') === rows.join('\n')) console.log(`\n${TABLE_NAME} is current (${rows.length} rows)`)
@@ -153,17 +158,18 @@ if (held !== null) {
     const was = before.get(key)
     if (was === row) continue
     const name = key.replace('\t', ' ')
-    const where = key.startsWith('excepted-file\t') ? ` (${exceptedFiles.get(key.split('\t')[1]!)?.first ?? ''})` : ''
+    const lines = key.startsWith('excepted-file\t') ? exceptedFiles.get(key.split('\t')[1]!) : key.startsWith('kept-file\t') ? proseFiles.get(key.split('\t')[1]!) : undefined
+    const where = lines === undefined ? '' : ` (${key.split('\t')[1]!}:${lines[0]}, every one at lines ${lines.join(', ')})`
     moved.push(was === undefined ? `${name}: no row, the tree reads ${row.split('\t').slice(2).join(' ')}${where}` : `${name}: the table holds ${was.split('\t').slice(2).join(' ')}, the tree reads ${row.split('\t').slice(2).join(' ')}${where}`)
   }
   for (const [key, row] of before) if (!after.has(key)) moved.push(`${key.replace('\t', ' ')}: the table holds ${row.split('\t').slice(2).join(' ')}, the tree reads nothing`)
 }
 check(
-  `${TABLE_NAME} holds what the census read: files by kind, kept lines by rule, the excepted folders and files with their counts (${rows.length} rows)`,
+  `${TABLE_NAME} holds what the census read of the counts that may only fall: prose kept by rule and the comments of the excepted folders, file by file (${rows.length} rows)`,
   held !== null && moved.length === 0,
   held === null
     ? `${TABLE_NAME} is absent; write it once: bun scripts/orphans/prove-comment-census.ts --write --first`
-    : `${moved.length} row(s) moved; when the tree changed and no list widened, the fold writes the table: bun scripts/orphans/prove-comment-census.ts --write\n    ${moved.join('\n    ')}`,
+    : `${moved.length} row(s) moved; delete the new docstring or comment, and where one left write the table: bun scripts/orphans/prove-comment-census.ts --write\n    ${moved.join('\n    ')}`,
 )
 
 const fixture = [
