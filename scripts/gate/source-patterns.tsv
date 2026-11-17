@@ -2347,7 +2347,6 @@ env-read	src/utils/fullscreen.ts	6
 env-read	src/utils/git.ts	1
 env-read	src/utils/git/gitFilesystem.ts	1
 env-read	src/utils/gracefulShutdown.ts	2
-env-read	src/utils/health/sections/settings.ts	1
 env-read	src/utils/imagePaste.ts	1
 env-read	src/utils/managedEnv.ts	1
 env-read	src/utils/model/providers.ts	1

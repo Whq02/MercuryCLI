@@ -79,7 +79,7 @@ export function settingsChecks(): CheckSpec[] {
         ]
         const findings: string[] = []
         for (const [name, def, cap] of rows) {
-          const r = validateBoundedIntEnvVar(name, process.env[name], def, cap)
+          const r = validateBoundedIntEnvVar(name, flagEnv(name), def, cap)
           if (r.status !== 'valid' && r.message) findings.push(`${name}: ${r.message}`)
         }
         if (findings.length === 0) {
