@@ -11,7 +11,7 @@ from dataclasses import dataclass, field, replace
 from typing import Any, Callable, AsyncIterable, AsyncIterator, Literal, Generic, TypedDict, TypeVar, Unpack, cast, overload
 from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryUsageError, MercuryWireError, RunExit
 from .generated import InputRow, OutcomeRow, SessionRow, TypedOutcome, MAX_LINE_BYTES, PermissionMode, EffortLevel, InputBlock
-from .framing import read_lines
+from .framing import CUT_LINE, read_lines
 from .executable import executable_of
 from .structured import StructuredSchema, schema_object, validate_outcome
 from .helpers import ToolDefinition, ToolServer, serve_tools
@@ -342,11 +342,15 @@ class MercuryRun:
     async def _read(self) -> None:
         stderr = asyncio.create_task(read_stderr(self))
         last: OutcomeRow | None = None
+        cut = False
         try:
-            async for line in read_lines(self._stdout):
+            async for line, whole in read_lines(self._stdout):
                 if not line.strip(): continue
                 read = parse_row(line)
                 if not read.ok:
+                    if not whole and read.reason == 'not_json':
+                        cut = True
+                        continue
                     raise MercuryWireError(line, read.reason or 'invalid', read.type, read.issues)
                 row = read.row
                 assert row is not None
@@ -377,7 +381,7 @@ class MercuryRun:
             self._emit('outcome', last)
         if self.error is None:
             if last and last['status'] == 'refused': self.error = MercuryRefusal(last, exit)
-            elif last is None: self.error = MercuryUsageError(exit) if code == 2 else MercuryExitError(exit, 'run', 'no input row was sent before stdin was closed' if self.options.input == 'rows' and self._sent == 0 and not self.rows else None)
+            elif last is None: self.error = MercuryUsageError(exit) if code == 2 else MercuryExitError(exit, 'run', 'no input row was sent before stdin was closed' if self.options.input == 'rows' and self._sent == 0 and not self.rows else CUT_LINE if cut else None)
         if self.error is None and last is not None:
             try: last = validate_outcome(last, self.options.schema, self.options.cwd)
             except Exception as error: self.error = error if isinstance(error, MercuryError) else MercuryError(str(error), exit)

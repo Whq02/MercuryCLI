@@ -9,7 +9,7 @@ from typing import Any, Awaitable, Callable, AsyncIterator, Literal, Mapping, Ty
 from .client import ConnectKwargs, Listener, RunOptions, argv_of, end_child, exit_of, prepare_tools, read_stderr, send_signal, spawn, untrack, warm_options
 from .errors import MercuryConnectionError, MercuryError, MercuryExitError, MercuryRefusal, MercuryTimeoutError, MercuryUsageError, MercuryWireError, RunExit
 from .generated import InitializeResultFile_checkpoints, TypedOutcome, FsReadTextFileParams, FsReadTextFileResult, FsWriteTextFileParams, FsWriteTextFileResult, DEFAULT_TIMEOUT, METHODS, RUNNER_PROTOCOL, RPC_REFUSED, DefaultTimeout, TypedRequests, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimParams, SessionClaimResult, McpToolsResult, McpActionResult, SessionPauseGateResult, SessionQuiesceResult, SessionLeaveResult, SessionSetSpawnSwitchResult, ShellBackgroundResult, SessionSendNowResult
-from .framing import read_lines
+from .framing import CUT_LINE, read_lines
 from .structured import MercurySchemaError, StructuredSchema, schema_object, schema_problem, schema_refusal, validate_outcome
 from .support import RunnerSupport, runner_support, unsupported_feature
 
@@ -179,11 +179,16 @@ class MercurySession(TypedRequests):
 
     async def _read(self) -> None:
         stderr = asyncio.create_task(read_stderr(self))
+        cut = False
         try:
-            async for line in read_lines(self._stdout):
+            async for line, whole in read_lines(self._stdout):
                 if not line.strip(): continue
                 try: message = json.loads(line)
-                except json.JSONDecodeError as error: raise MercuryWireError(line, 'not_json') from error
+                except json.JSONDecodeError as error:
+                    if not whole:
+                        cut = True
+                        continue
+                    raise MercuryWireError(line, 'not_json') from error
                 if not isinstance(message, dict) or message.get('jsonrpc') != '2.0': raise MercuryWireError(line, 'invalid')
                 method, id = message.get('method'), message.get('id')
                 if 'method' in message and not isinstance(method, str): raise MercuryWireError(line, 'invalid')
@@ -271,7 +276,7 @@ class MercurySession(TypedRequests):
         if self._tools: await self._tools.close()
         await stderr
         exit = exit_of(self.child, code, self.stderr)
-        self._fail(MercuryUsageError(exit, 'runner') if code == 2 and not hasattr(self, 'initialized') else MercuryExitError(exit, 'runner'), self._closing)
+        self._fail(MercuryUsageError(exit, 'runner') if code == 2 and not hasattr(self, 'initialized') else MercuryExitError(exit, 'runner', CUT_LINE if cut else None), self._closing)
         if self._submissions: await asyncio.gather(*self._submissions, return_exceptions=True)
         self.exit.set_result(exit)
 

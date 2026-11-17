@@ -2,7 +2,9 @@ import type { Readable } from 'node:stream'
 import { MAX_LINE_BYTES } from './wire.js'
 import { MercuryWireError } from './errors.js'
 
-export function readLines(stream: Readable, line: (value: string) => void, fail: (error: MercuryWireError) => void): void {
+export const CUT_LINE = 'the last stdout line was cut off'
+
+export function readLines(stream: Readable, line: (value: string, whole: boolean) => void, fail: (error: MercuryWireError) => void): void {
   let parts: Buffer[] = []
   let size = 0
   let failed = false
@@ -17,22 +19,22 @@ export function readLines(stream: Readable, line: (value: string) => void, fail:
     parts.push(part); size += part.length
     return true
   }
-  const flush = () => {
+  const flush = (whole: boolean) => {
     const value = Buffer.concat(parts, size).toString('utf8').replace(/^\uFEFF/, '')
     parts = []; size = 0
-    line(value)
+    line(value, whole)
   }
   stream.on('data', (chunk: Buffer) => {
     if (failed) return
     let start = 0
     for (let end = chunk.indexOf(10); end !== -1; end = chunk.indexOf(10, start)) {
       if (!append(chunk.subarray(start, end))) return
-      flush()
+      flush(true)
       start = end + 1
     }
     if (start < chunk.length) append(chunk.subarray(start))
   })
-  stream.on('end', () => { if (!failed && size) flush() })
+  stream.on('end', () => { if (!failed && size) flush(false) })
 }
 
 export function readText(stream: Readable, text: (chunk: string) => void): void {
