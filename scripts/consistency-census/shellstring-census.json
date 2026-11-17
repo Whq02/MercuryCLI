@@ -822,6 +822,20 @@
       "why": "script-land shell program — the shell is named explicitly at the call"
     },
     {
+      "file": "scripts/gate/prove-proof-machine-census.ts",
+      "mechanism": "shell-dash-c",
+      "excerpt": "const unguarded = spawnSync('bash', ['-c', NAMES_SET], { cwd: ROOT, env: clean(redirected), encoding: 'utf8' })",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
+    },
+    {
+      "file": "scripts/gate/prove-proof-machine-census.ts",
+      "mechanism": "shell-dash-c",
+      "excerpt": "const redirectedSuite = spawnSync('bash', ['-c', `. \"$1\" || exit 78; suite_env_guard \"$2\" >/dev/null 2>&1; ${NAMES_SET}`, '_', join(ROOT, 's",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
+    },
+    {
       "file": "scripts/gate/prove-proof-scratch.ts",
       "mechanism": "shell-dash-c",
       "excerpt": "return spawnSync('bash', ['-c', 'cd \"$1\" && /bin/rmdir \"$1\" && exec \"$2\" -e \\'console.log(\"alive\")\\'', 'bash', gone, runtime], { env, encodi",
@@ -841,6 +855,13 @@
       "excerpt": "const PYTHON = '/usr/bin/python3'",
       "cls": "platform-owner",
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
+    },
+    {
+      "file": "scripts/gate/prove-source-text-reads.ts",
+      "mechanism": "execSync-string",
+      "excerpt": "\"const command = execSync('grep -c export src/planted/two.tsx src/lone.ts')\",",
+      "cls": "intentional-shell",
+      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
     {
       "file": "scripts/gate/prove-suite-class-census.ts",
