@@ -164,8 +164,8 @@ section('§C ring bounds, reset, untracked sources')
 
   det.resetPromptCacheBreakDetection()
   const before = det.recentCacheBreakReceipts().length
-  det.recordPromptState(baseSnap({ querySource: 'speculation' as never }))
-  await det.checkResponseForCacheBreak('speculation' as never, 1_000, 0, [])
+  det.recordPromptState(baseSnap({ querySource: 'side_question' as never }))
+  await det.checkResponseForCacheBreak('side_question' as never, 1_000, 0, [])
   check('untracked sources stay untracked (no state, no receipt)', det.recentCacheBreakReceipts().length === before)
 }
 
