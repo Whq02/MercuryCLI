@@ -21,6 +21,7 @@
 # gate-watch: src/utils/shell/windowsBatchInvocation.ts src/utils/shell/windowsBatchLine.ts
 # gate-watch: src/utils/permissions/capabilityGate.ts src/utils/permissions/decision/rules.ts
 # gate-watch: src/utils/permissions/permissionSetup.ts src/utils/permissions/permissions.ts
+# gate-watch: src/utils/wards/wards.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

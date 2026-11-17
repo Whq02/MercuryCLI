@@ -19,3 +19,4 @@ src/tools/BashTool/**
 src/tools/PowerShellTool/**
 src/tasks/LocalShellTask/**
 src/utils/permissions/**
+src/utils/wards/**

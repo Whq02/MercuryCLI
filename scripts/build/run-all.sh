@@ -9,6 +9,7 @@
 # gate-watch: assets/splash/mercury-splash.mjs assets/splash/splash-core.mjs
 # gate-watch: src/utils/shell/brushPack.ts docs/INSTALL-WINDOWS-FROM-SOURCE.md vendor/brush.lock.json
 # gate-watch: src/utils/permissions/filesystem.ts src/utils/permissions/flowLaw.ts
+# gate-watch: src/utils/wards/wardsRefusals.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"
