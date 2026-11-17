@@ -12,7 +12,7 @@ export interface ImpactManifest {
 
 export const NET_GLOB = 'src/**'
 
-export const RATCHETS = ['integrity', 'identity', 'consistency-census', 'gate', 'verify', 'ui-census', 'interaction-pure', 'tree-ownership', 'primitives-kernel', 'permissions']
+export const RATCHETS = ['integrity', 'identity', 'consistency-census', 'gate', 'verify', 'ui-census', 'interaction-pure', 'tree-ownership', 'primitives-kernel', 'permissions', 'orphans']
 
 export interface ImpactSelection {
   suites: Set<string>
