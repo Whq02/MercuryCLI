@@ -184,7 +184,7 @@ for (const word of ['false', 'no', 'off', 'OFF']) {
 section('(4) cli.tsx placement — after --version, before route dispatch')
 {
   const cli = readFileSync(join(ROOT, 'src', 'entrypoints', 'cli.tsx'), 'utf8')
-  const guard = cli.indexOf("process.env.MERCURY_WIN32_UTF8_PRESET !== '1'")
+  const guard = cli.indexOf("flagEnv('MERCURY_WIN32_UTF8_PRESET') !== '1'")
   const importLine = cli.indexOf("await import('../utils/runtime/win32Console.js')")
   const versionFastPath = cli.indexOf("console.log(`Mercury ${MACRO.VERSION}`)")
   const firstRoute = cli.indexOf("profileCheckpoint('cli_entry')")
@@ -194,7 +194,7 @@ section('(4) cli.tsx placement — after --version, before route dispatch')
   check('seam sits BEFORE the first route checkpoint (pre-paint)', firstRoute !== -1 && guard < firstRoute)
   check('ensureWin32ConsoleUtf8 is invoked at the seam', /ensureWin32ConsoleUtf8\(\)\n/.test(cli))
   check('the boot entry reads the switch nowhere itself: the seam decides, by the one rule', !/MERCURY_WIN32_UTF8(?!_PRESET)/.test(cli), cli.split('\n').filter(line => /MERCURY_WIN32_UTF8(?!_PRESET)/.test(line)).join(' | '))
-  check('both places the entry reaches the seam keep the launcher marker in front of the import', cli.split("process.env.MERCURY_WIN32_UTF8_PRESET !== '1'").length === 3 && cli.split("await import('../utils/runtime/win32Console.js')").length === 3)
+  check('both places the entry reaches the seam keep the launcher marker in front of the import', cli.split("flagEnv('MERCURY_WIN32_UTF8_PRESET') !== '1'").length === 3 && cli.split("await import('../utils/runtime/win32Console.js')").length === 3)
 }
 
 section('(5) the built bundle carries the seam')
