@@ -1,0 +1,3 @@
+prove-hold-takeover.ts
+prove-resize-ghost.ts
+prove-wire-census.ts
