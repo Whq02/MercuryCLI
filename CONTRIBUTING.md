@@ -39,6 +39,14 @@ status is the verdict (the drive suites run apart through `scripts/run-drives.sh
   (`<generator> --register` writes the row alone); a tracked file that
   declares a generator and has no row is a red on the commit gate's census
   (`bun scripts/gate/generated-assets.ts --census`).
+- A `MERCURY_*` switch has a row in the registry and is named at the
+  environment only through `src/substrate/flagRegistry.ts`:
+  `flagEnabled(name)` answers a default-on or opt-in switch;
+  `flagEnv(name)` reads a value at the process and `flagEnv(name, env)` at
+  an environment that is handed in; `setFlagEnv` and `deleteFlagEnv` write
+  and delete the session's own stamp; `stampFlagEnv` writes with no record;
+  `stampFlagOnEnv(env, name, value)` and `flagPair(name, value)` write into
+  an environment built for a child.
 - Documentation describes what Mercury does, in the present tense.
 
 ## Licence
