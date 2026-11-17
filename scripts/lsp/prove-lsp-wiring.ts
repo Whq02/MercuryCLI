@@ -1,6 +1,7 @@
 
 import { readFileSync } from 'node:fs'
 import * as path from 'node:path'
+import { getFlagSpec } from '../../src/substrate/flagRegistry.ts'
 
 const repo = path.resolve(import.meta.dir, '../..')
 const read = (p: string) => readFileSync(path.join(repo, p), 'utf8')
@@ -152,10 +153,9 @@ function check(name: string, ok: boolean, detail?: string): void {
 }
 
 {
-  const s = read('src/substrate/flagRegistry.ts')
   check(
     'the flag registry carries MERCURY_LSP + MERCURY_LSP_SERVERS',
-    s.includes('MERCURY_LSP') && s.includes('MERCURY_LSP_SERVERS'),
+    getFlagSpec('MERCURY_LSP') !== undefined && getFlagSpec('MERCURY_LSP_SERVERS') !== undefined,
   )
 }
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import * as net from 'node:net'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
@@ -43,6 +43,7 @@ const { parseBridgeTarget, isLoopbackHost } = await import(
   '../../src/services/tcpBridge/entry.js'
 )
 const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
+const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'godot-lane-'))
 const proj = path.join(scratch, 'game')
@@ -281,17 +282,17 @@ section('§6 · DAP adapter (editor launch contract)')
 
 section('§7 · registry honesty')
 {
-  const registry = readFileSync(path.join(repo, 'src/substrate/flagRegistry.ts'), 'utf8')
+  const godotRow = getFlagSpec('MERCURY_GODOT')
   check(
     'flagRegistry: MERCURY_GODOT opt-in row with this proof as evidence',
-    registry.includes("env: 'MERCURY_GODOT'") &&
-      registry.includes('scripts/lsp/prove-godot-lane.ts'),
+    godotRow !== undefined &&
+      godotRow.evidence === 'scripts/lsp/prove-godot-lane.ts',
   )
   check(
     'flagRegistry: port + bridge-entry value rows',
-    registry.includes("env: 'MERCURY_GODOT_LSP_PORT'") &&
-      registry.includes("env: 'MERCURY_GODOT_DAP_PORT'") &&
-      registry.includes("env: 'MERCURY_TCP_BRIDGE_ENTRY'"),
+    getFlagSpec('MERCURY_GODOT_LSP_PORT') !== undefined &&
+      getFlagSpec('MERCURY_GODOT_DAP_PORT') !== undefined &&
+      getFlagSpec('MERCURY_TCP_BRIDGE_ENTRY') !== undefined,
   )
 }
 

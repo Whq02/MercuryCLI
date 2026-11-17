@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
@@ -30,6 +30,7 @@ const {
 const { getMercuryLspServerSources } = await import(
   '../../src/services/lsp/builtinServers.js'
 )
+const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'clangd-lane-'))
 const savedEnv = { ...process.env }
@@ -232,15 +233,11 @@ section('§5 · operator override outranks the builtin lane (first-wins)')
 
 section('§6 · registry honesty')
 {
-  const repo = path.resolve(import.meta.dir, '../..')
-  const registry = readFileSync(
-    path.join(repo, 'src/substrate/flagRegistry.ts'),
-    'utf8',
-  )
+  const cppRow = getFlagSpec('MERCURY_LSP_CPP')
   check(
     "flagRegistry: MERCURY_LSP_CPP row (default-on, this proof as evidence)",
-    registry.includes("env: 'MERCURY_LSP_CPP'") &&
-      registry.includes('scripts/lsp/prove-clangd-lane.ts'),
+    cppRow !== undefined &&
+      cppRow.evidence === 'scripts/lsp/prove-clangd-lane.ts',
   )
 }
 
