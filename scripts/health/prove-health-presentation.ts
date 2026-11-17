@@ -16,6 +16,7 @@ const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', 
 const { resolveHealthPresentation, renderPlainCertificate } = await import(
   '../../src/cli/healthPresentation.ts'
 )
+const { builtHelp } = await import('../lib/builtProduct.ts')
 
 section('§1 THE PRESENTATION TABLE (HL-02..06)')
 {
@@ -160,7 +161,7 @@ section('§5 WIRING (HL-01/13/16/21/30)')
   )
   check(
     'health is the one word for the health check: the command carries no alias (HL-03/21)',
-    main.includes("program.command('health [topic]')") && !/command\('health \[topic\]'\)[\s\S]{0,400}?\.alias\(/.test(main),
+    builtHelp('health').includes('Usage: mercury health [options] [topic]') && builtHelp().includes(' health [options] [topic] ') && !/command\('health \[topic\]'\)[\s\S]{0,400}?\.alias\(/.test(main),
   )
   const healthJson = src('src/cli/healthJson.ts')
   check(
@@ -250,7 +251,7 @@ section('§7 · RICH convergence + LEGACY RETIREMENT (HL-10/19/22/23/25/32/33)')
   )
   check(
     'the health command description no longer claims stdio servers are spawned (HL-25)',
-    src('src/main.tsx').includes('WITHOUT starting them'),
+    builtHelp('health').includes('WITHOUT starting them'),
   )
   check(
     'Enter = the documented expand action; esc = the one close (HL-19)',

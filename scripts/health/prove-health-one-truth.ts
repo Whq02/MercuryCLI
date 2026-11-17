@@ -109,8 +109,23 @@ section('§2 EDIT OUTCOMES — the cockpit\'s /health counts the SESSION\'s edit
   releaseFocusedSessionConnector()
   const plain = await rowOf()
   check('with no chat focused the row reads this process\'s own ledger (no attempts here)', plain?.status === 'ok' && String(plain?.evidence) === 'no edit attempts this session', j(plain))
-  const run = read('src/cli/run.ts')
-  check('the runner answers its edit ledger in the session facts', run.includes('editOutcomes: editOutcomeRows(processMainOwner())'))
+  const { FIXTURE_MODEL, liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
+  const edits = await withFixtureRunner(
+    [
+      { kind: 'tool_use', name: 'Write', input: { file_path: 'note.txt', content: 'one\n' } },
+      { kind: 'tool_use', name: 'Edit', input: { file_path: 'note.txt', old_string: 'one', new_string: 'two' } },
+      { kind: 'tool_use', name: 'Edit', input: { file_path: 'note.txt', old_string: 'absent words', new_string: 'three' } },
+      { kind: 'text', text: 'edited' },
+    ],
+    async runner => {
+      runner.onAsk(() => ({ outcome: 'allow' }))
+      const before = (await liveFactsOf(runner)).editOutcomes
+      await runner.prompt('go')
+      await runner.waitFor('the editing turn ends', row => row.type === 'outcome').catch(() => undefined)
+      return { before, after: (await liveFactsOf(runner)).editOutcomes ?? [] }
+    },
+  )
+  check('the runner answers its edit ledger in the session facts', j(edits.before) === '[]' && edits.after.some(row => row.model === FIXTURE_MODEL && row.outcome === 'applied' && row.count === 1) && edits.after.reduce((sum, row) => sum + row.count, 0) === 2, j(edits))
   const wire = read('src/services/engine-connector/seatWire.ts')
   check('the wire carries the rows as edit_outcomes', wire.includes("editOutcomes: 'edit_outcomes'"))
 }
