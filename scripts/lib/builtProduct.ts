@@ -169,11 +169,13 @@ export function builtHelp(...path: string[]): string {
 
 export async function fixtureCli(turns: ScriptedTurn[], args: readonly string[], opts: Drive & { timeoutMs?: number } = {}): Promise<BuiltCliAnswer & { api: FixtureApi }> {
   const dist = bundle(opts.tree)
-  const api = await startFixtureApi(turns)
   const made = scratch('fix')
-  const child = spawnInOwnGroup(nodeBinPath(), [dist, ...args], { cwd: made.cwd, env: cliEnv(made, fixtureEnv(api, opts.env)), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
-  track(child, made.cwd)
+  const api = await startFixtureApi(turns)
+  let started: ChildProcess | null = null
   try {
+    const child = spawnInOwnGroup(nodeBinPath(), [dist, ...args], { cwd: made.cwd, env: cliEnv(made, fixtureEnv(api, opts.env)), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
+    started = child
+    track(child, made.cwd)
     let stdout = ''
     let stderr = ''
     child.stdout!.on('data', chunk => (stdout += String(chunk)))
@@ -186,8 +188,10 @@ export async function fixtureCli(turns: ScriptedTurn[], args: readonly string[],
     clearTimeout(ceiling)
     return { status, stdout, stderr, api }
   } finally {
-    endProcessGroup(child)
-    settled(child)
+    if (started !== null) {
+      endProcessGroup(started)
+      settled(started)
+    }
     await api.close()
     dropScratch(made)
   }
