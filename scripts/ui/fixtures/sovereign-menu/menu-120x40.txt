@@ -25,7 +25,7 @@
    │   Samples                                        default (off) │  ╭────────────────────────────────────────────╮
    │                                                                │  │ LAUNCH SUMMARY                             │
    │ AGENTS                                                         │  │ Profile    r1 · custom · 1 set             │
-   │   Crewmates                                       default (on) │  │ Harness    helm · console                  │
+   │   Crewmates                                       default (on) │  │ Harness    helm                            │
    │                                                                │  │ Readiness  ● ready                         │
    │ MISCELLANEOUS                                                  │  ╰────────────────────────────────────────────╯
    │   Launch animation                                default (on) │  ╭────────────────────────────────────────────╮

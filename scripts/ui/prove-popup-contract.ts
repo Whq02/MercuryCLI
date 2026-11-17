@@ -552,7 +552,7 @@ for (const cols of [80, 120]) {
       return lines.find(line => /[❯›▸] /.test(line) && !/↑↓|pgup/.test(line))?.trim() ?? ''
     }
     try {
-      await settledFrame(scene, frame => frame.includes(name === 'localsetup' ? 'Fixture model' : name === 'health' ? 'FIXTURE' : name === 'ground' ? 'ground-' : 'CONSOLE'))
+      await settledFrame(scene, frame => frame.includes(name === 'localsetup' ? 'Fixture model' : name === 'health' ? 'FIXTURE' : name === 'ground' ? 'ground-' : 'ADVISOR'))
       if (name === 'localsetup' && focus() === '') {
         scene.push(keys.down)
         await waitFor(() => focus() !== '', 1800)
@@ -720,10 +720,6 @@ for (const cols of [80, 120]) {
 const readinessModule = await import('../../src/utils/readiness.ts')
 const readinessRows = options.map(row => ({ id: row.value, kind: 'tool', label: 'capability-' + row.value, state: 'ready', detail: 'Fixture capability ' + row.value, source: 'fixture', remedy: '', lastCheckedAt: Date.now() }))
 mock.module('../../src/utils/readiness.ts', () => ({ ...readinessModule, collectReadiness: () => ({ records: readinessRows }) }))
-const realmsModule = await import('../../src/utils/realmRegistry.ts')
-const realms = options.map(row => ({ id: row.value, name: 'realm-' + row.value, dir: '/fixture/realm-' + row.value, issuedCount: 0 }))
-let realmPicked = ''
-mock.module('../../src/utils/realmRegistry.ts', () => ({ ...realmsModule, readRealmRegistry: () => ({ state: 'ready', realms, ledger: [] }), realmGitBranch: () => null, realmRegistryPath: () => '/fixture/realms.json', recordRealmLaunchIssued: (id: string) => { realmPicked = id; return { ok: true, message: 'mercury /fixture/realm-' + id } } }))
 const osModule = await import('node:os')
 mock.module('node:os', () => ({ ...osModule, homedir: () => process.env.MERCURY_CONFIG_DIR! }))
 const accountsModule = await import('../../src/services/providers/accountSlots.ts')
@@ -732,18 +728,16 @@ mock.module('../../src/services/providers/accountSlots.ts', () => ({ ...accounts
 const discoveryModule = await import('../../src/services/providers/providerDiscovery.ts')
 mock.module('../../src/services/providers/providerDiscovery.ts', () => ({ ...discoveryModule, refreshProviderDiscovery: async () => undefined }))
 const { CapabilityManagerView } = await import('../../src/components/mercury-ui/parity/CapabilityManagerView.tsx')
-const { RealmsView } = await import('../../src/components/mercury-ui/parity/RealmsView.tsx')
 const { AccountView } = await import('../../src/components/mercury-ui/parity/AccountView.tsx')
 for (const cols of [80, 120]) {
-  for (const name of ['capabilities', 'realms', 'accounts']) {
+  for (const name of ['capabilities', 'accounts']) {
     let closed = false
     const close = () => { closed = true }
-    realmPicked = ''
-    const body = name === 'capabilities' ? h(CapabilityManagerView, { onClose: close }) : name === 'realms' ? h(RealmsView, { onClose: close }) : h(AccountView, { onClose: close })
+    const body = name === 'capabilities' ? h(CapabilityManagerView, { onClose: close }) : h(AccountView, { onClose: close })
     const scene = await mount(h(ModalContext.Provider, { value: { rows: 28, columns: cols, scrollRef: null } }, body), cols, 28)
-    const selected = () => scene.lines().find(line => /[▸❯›] /.test(line) && /capability-|realm-|account-/.test(line))?.match(/capability-\d+|realm-\d+|account-\d+/)?.[0] ?? ''
+    const selected = () => scene.lines().find(line => /[▸❯›] /.test(line) && /capability-|account-/.test(line))?.match(/capability-\d+|account-\d+/)?.[0] ?? ''
     try {
-      await settledFrame(scene, frame => frame.includes(name === 'capabilities' ? 'capability-0' : name === 'realms' ? 'realm-0' : 'account-0'))
+      await settledFrame(scene, frame => frame.includes(name === 'capabilities' ? 'capability-0' : 'account-0'))
       const first = selected()
       scene.push(keys.down)
       check(cols + ' ' + name + ': Down moves selection', await waitFor(() => selected() !== first && selected() !== '', 1800), scene.screen())
@@ -758,7 +752,7 @@ for (const cols of [80, 120]) {
       check(cols + ' ' + name + ': PageUp returns toward the top', await waitFor(() => selected() !== page, 1800), scene.screen())
       const before = scene.screen()
       scene.push(keys.enter)
-      check(cols + ' ' + name + ': Enter opens its existing detail or route', await waitFor(() => closed || realmPicked !== '' || scene.screen() !== before, 2500), scene.screen())
+      check(cols + ' ' + name + ': Enter opens its existing detail or route', await waitFor(() => closed || scene.screen() !== before, 2500), scene.screen())
       if (!closed) scene.push(keys.esc)
       check(cols + ' ' + name + ': Escape closes', await waitFor(() => closed, 1800))
     } catch (error) { check(cols + ' ' + name + ': drive completes', false, String(error) + '\n' + scene.screen()) }

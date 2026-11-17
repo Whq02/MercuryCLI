@@ -31,14 +31,14 @@ import {
 } from './modelOptions.js'
 import { parseUserSpecifiedModel } from './model.js'
 
-export type SubModelContainer = 'console' | 'advisor'
+export type SubModelContainer = 'advisor'
 
-export const SUB_MODEL_CONTAINERS: readonly SubModelContainer[] = ['console', 'advisor']
+export const SUB_MODEL_CONTAINERS: readonly SubModelContainer[] = ['advisor']
 
 export const SUB_MODEL_UNSET_HINT = 'use /submodels to pin one of the available model catalogues'
 
-export function subModelEnvVar(container: SubModelContainer): string {
-  return container === 'advisor' ? 'MERCURY_ADVISOR_MODEL' : 'MERCURY_CONSOLE_MODEL'
+export function subModelEnvVar(_container: SubModelContainer): string {
+  return 'MERCURY_ADVISOR_MODEL'
 }
 
 export function canonicalSubModelId(value: string): string {
@@ -76,26 +76,6 @@ export function resolveSubModel(container: SubModelContainer): SubModelResolutio
     return { origin: 'saved', model, route: declaredRouteOf(model) ?? 'unrecognised' }
   }
   return { origin: 'unset', hint: SUB_MODEL_UNSET_HINT }
-}
-
-export function consoleModelOverride(sessionModel: string): string | undefined {
-  const resolved = resolveSubModel('console')
-  if (resolved.origin === 'unset') return undefined
-  return canonicalSubModelId(sessionModel) === canonicalSubModelId(resolved.model)
-    ? undefined
-    : resolved.model
-}
-
-export function subModelIdentityLine(container: SubModelContainer, pin: SubModelPin): string {
-  const name =
-    container === 'advisor'
-      ? 'the Advisor, a second model that advises the working model (never the operator)'
-      : 'the Console, the side-question assistant'
-  return (
-    `Engine identity — a fact stamped by the Mercury harness (you cannot know it on your own): ` +
-    `you are ${name}, running on model id "${pin.model}" via the ${providerDisplayName(pin.route)} wire. ` +
-    `When asked what model you are, answer with exactly that id and wire; never guess another name.`
-  )
 }
 
 
@@ -345,17 +325,17 @@ export function setSubModel(
   }))
   return {
     ok: true,
-    receipt: `${label} model set to ${entry.displayName} (${providerDisplayName(entry.source)}), ${subModelEffortClause(container, wanted)} (${container === 'advisor' ? 'live on the next note' : 'live on the next side question'})`,
+    receipt: `${label} model set to ${entry.displayName} (${providerDisplayName(entry.source)}), ${subModelEffortClause(container, wanted)} (live on the next note)`,
   }
 }
 
 
-function containerLabel(container: SubModelContainer): string {
-  return container === 'advisor' ? 'Advisor' : 'Console'
+function containerLabel(_container: SubModelContainer): string {
+  return 'Advisor'
 }
 
-export function subModelEffortContext(container: SubModelContainer): EffortTruthContext {
-  return container === 'advisor' ? { thinkingEnabled: false } : {}
+export function subModelEffortContext(_container: SubModelContainer): EffortTruthContext {
+  return { thinkingEnabled: false }
 }
 
 export function resolveSubModelEffort(container: SubModelContainer): EffortLevel | undefined {

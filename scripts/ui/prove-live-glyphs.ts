@@ -242,7 +242,6 @@ section('adoption — the alive-Chat pass (breath · glint · nudge; the tool ro
   const assets = readFileSync('src/components/mercury-ui/assets.tsx', 'utf8')
   check('the inline Sigil glints via TwinkleSpark', assets.includes('<TwinkleSpark color={accent} />'))
   const cursorFiles = [
-    'src/commands/console/console.tsx',
     'src/commands/health/HealthCertificate.tsx',
     'src/components/mercury-ui/parity/DaemonView.tsx',
   ]
@@ -250,7 +249,7 @@ section('adoption — the alive-Chat pass (breath · glint · nudge; the tool ro
     const src = readFileSync(f, 'utf8')
     return src.includes('<CursorCell ') || src.includes('<NavigablePanes')
   }).length
-  check(`CursorCell adopted at ≥3 navigable lists`, adopted >= 3, `${adopted}/${cursorFiles.length}`)
+  check(`CursorCell adopted at ≥2 navigable lists`, adopted >= 2, `${adopted}/${cursorFiles.length}`)
   check(
     'the NavigablePanes shell itself hosts CursorCell (the framework cursor)',
     readFileSync('src/components/mercury-ui/NavigablePanes.tsx', 'utf8').includes('<CursorCell '),

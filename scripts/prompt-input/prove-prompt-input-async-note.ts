@@ -1,66 +1,81 @@
 #!/usr/bin/env bun
-import { spawnSync } from 'node:child_process'
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { mountOffscreen, waitFor } from '../lib/settingsPopupHarness.ts'
 
 const home = mkdtempSync(join(tmpdir(), 'kinetic-note-'))
 process.env.MERCURY_CONFIG_DIR = home
-const stubDir = join(home, 'bin')
-mkdirSync(stubDir)
-const fireLog = join(home, 'gh-fires.log')
-writeFileSync(join(stubDir, 'gh'), `#!/bin/bash\necho "$(date +%s) $*" >> ${fireLog}\nsleep 4\nexit 1\n`)
-chmodSync(join(stubDir, 'gh'), 0o755)
+process.env.HOME = home
+process.env.USERPROFILE = home
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
+process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
+process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+process.env.MERCURY_LIVE_CLOCK = '0'
+process.env.MERCURY_LIVE_GLYPHS = '0'
+mkdirSync(home, { recursive: true })
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { scenario, cleanupScenario } = await import('../ui/renderScenarios.ts')
-const cfg = scenario('resume-2turn', 120, 40)
+const React = await import('react')
+const { Box, Text } = await import('../../src/ink.ts')
+const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.tsx')
+const { AppStateProvider } = await import('../../src/state/AppState.tsx')
+const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
+const { useInteractiveList } = await import('../../src/components/mercury-ui/useInteractiveList.ts')
+const { InteractiveRow } = await import('../../src/components/mercury-ui/InteractiveRow.tsx')
+const { enableConfigs } = await import('../../src/utils/config.ts')
+enableConfigs()
+const h = React.createElement
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
   if (!ok) failures = 1
 }
 
-type Grid = { grid: { c: string }[][]; sendReceipts?: unknown }
-const rowsOf = (g: Grid): string[] => g.grid.map(r => r.map(c => c.c || ' ').join(''))
+let probes = 0
+let closes = 0
+let settleProbe: (words: string) => void = () => {}
+const rows = [{ id: 'first' }, { id: 'second' }]
 
-function capture(tag: string, sends: unknown[], total: number): string[] {
-  const out = join(home, `${tag}.json`)
-  const cfgPath = join(home, `${tag}-cfg.json`)
-  writeFileSync(cfgPath, JSON.stringify({ argv: cfg.argv, cwd: cfg.cwd, sends, total, cols: 120, rows: 40, out }))
-  const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {
-    encoding: 'utf8',
-    timeout: vshotBudgetMs(200_000),
-    env: {
-      ...process.env,
-      PATH: `${stubDir}:${process.env.PATH}`,
-      MERCURY_AWAY_SUMMARY: '0',
-      MERCURY_UPDATE_NOTICE: '0',
-      MERCURY_CONFIG_DIR: home,
-    },
+function ProbeList(): React.ReactNode {
+  const list = useInteractiveList({
+    rows,
+    rowId: row => row.id,
+    idNamespace: 'async-note',
+    onClose: () => { closes++ },
+    actions: [
+      {
+        key: 'g',
+        hint: 'probe',
+        run: () => ({
+          pending: 'checking the probe…',
+          result: new Promise<string>(resolve => { probes++; settleProbe = resolve }),
+        }),
+      },
+    ],
   })
-  if (res.status !== 0) throw new Error(`vshot ${tag} failed: ${res.stderr?.slice(-500)}`)
-  return rowsOf(JSON.parse(readFileSync(out, 'utf8')) as Grid)
+  return h(
+    Box,
+    { flexDirection: 'column' },
+    ...rows.map((row, index) => h(InteractiveRow, { key: row.id, ...list.rowProps(row, index) }, h(Text, {}, `row ${row.id}`))),
+    h(Text, {}, `note: ${list.note ?? 'none'}`),
+  )
 }
 
-const ESC = '\u001b'
-const sends = [
-  { atTick: 40, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: '/realms\r' },
-  { requireAwait: true, awaitText: 'Trusted realms', awaitSettleTicks: 1, data: 'g' },
-  { afterPrevTicks: 1, data: ESC },
-]
-
+const scene = await mountOffscreen(h(ThemeProvider, {}, h(AppStateProvider, {}, h(KeybindingSetup, {}, h(Box, { width: 80, height: 12, flexDirection: 'column' }, h(ProbeList))))), 80, 12)
 try {
-  const mid = capture('mid', sends, 52)
-  t('esc closes /realms while the auth probe is still running',
-    !mid.some(r => r.includes('Trusted realms')))
-  const fires = existsSync(fireLog) ? readFileSync(fireLog, 'utf8').trim().split('\n').filter(Boolean) : []
-  const probeFires = fires.filter(l => l.includes('auth status'))
-  t('the probe actually ran (gh auth status fired exactly once)', probeFires.length === 1,
-    `probe fires=${probeFires.length} of ${fires.length} gh call(s): [${fires.map(l => l.split(' ').slice(1).join(' ')).join(' | ')}]`)
+  t('the list paints its rows with no note', await waitFor(() => scene.screen().includes('row first') && scene.screen().includes('note: none'), 4000), scene.screen())
+  scene.push('g')
+  t('the action starts and the list paints its pending note', await waitFor(() => scene.screen().includes('note: checking the probe…'), 2500), scene.screen())
+  scene.push('\x1b')
+  t('esc closes the list while the probe is still running', await waitFor(() => closes === 1, 2500), `closes=${closes}\n${scene.screen()}`)
+  t('the probe ran exactly once', probes === 1, `probes=${probes}`)
+  settleProbe('the probe answered late')
+  await waitFor(() => scene.screen().includes('the probe answered late'), 300)
+  t('the list closed once: the late answer closes nothing again', closes === 1, `closes=${closes}`)
 } finally {
-  cleanupScenario('resume-2turn')
+  scene.unmount()
 }
 
 console.log(failures === 0 ? '✅ kinetic async-note law holds' : '❌ kinetic async-note BROKEN')

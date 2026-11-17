@@ -118,7 +118,6 @@ console.log('== reversible detection + IME prerequisites (source pins) ==')
   const read = (p: string): string => readFileSync(join(root, p), 'utf8')
   const caps = read('src/ink/session/capabilities.ts')
   const baseText = read('src/components/BaseTextInput.tsx')
-  const consoleSrc = read('src/commands/console/console.tsx')
   const promptsPanel = read('src/components/prompts-panel/PromptsPanel.tsx')
   const fullscreen = read('src/components/FullscreenLayout.tsx')
 
@@ -136,7 +135,6 @@ console.log('== reversible detection + IME prerequisites (source pins) ==')
     }
   }
   check('the composer declares the hardware cursor (use-declared-cursor)', baseText.includes('use-declared-cursor') || baseText.includes('useDeclaredCursor'))
-  check('the console editor rides the SAME machinery (TextInput)', consoleSrc.includes('<TextInput'))
   check('the prompts-panel editor rides the SAME machinery (TextInput)', promptsPanel.includes('<TextInput'))
   check('the fullscreen autocomplete renders ABOVE the composer (never obscures the cursor)', fullscreen.includes('<PromptOverlayStrip />\n      {overlay ?? null}\n      {bottom}'))
   check('the width oracle is grapheme-true (ZWJ family = one cell-cluster width)', stringWidth('\u{1F468}‍\u{1F469}‍\u{1F467}') <= 2 && stringWidth('漢') === 2 && stringWidth('é') === 1)

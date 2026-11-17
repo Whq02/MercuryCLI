@@ -12,7 +12,7 @@
 # gate-watch: scripts/engine-durability/bench-prompt-attribution.ts scripts/engine-durability/harness.ts
 # gate-watch: scripts/gate/ledger.ts scripts/lib/* scripts/ui/vshot.py
 # gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: src/utils/cockpit/helmLanesModel.ts
+# gate-watch: src/utils/cockpit/helmLanesModel.ts src/utils/cockpit/helmFocus.ts src/utils/cockpit/helmVitalsModel.ts
 # gate-watch: src/Task.ts src/bootstrap/state.ts src/commands/workbench/workbench.tsx src/constants/subagentDoctrine.ts
 # gate-watch: src/context/overlayStack.ts src/hooks/useTurnEndPing.ts src/ink.ts src/ink/root/frame-trace.ts src/ink/session/focus-store.ts
 # gate-watch: src/ink/session/terminalProfile.ts src/ink/session/windowsHostSetup.ts src/interactiveHelpers.tsx src/services/attention/statusFeed.ts

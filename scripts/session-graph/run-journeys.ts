@@ -16,16 +16,6 @@ interface JourneyLeg {
 
 const LEGS: JourneyLeg[] = [
   {
-    journey: 'Main/Console parallelism (two identities, no merge)',
-    prover: 'scripts/session-graph/prove-continuity-handoffs.ts',
-    needles: ['the ask mints a NEW id (never the main id)', 'a failed side helper reads STALLED'],
-  },
-  {
-    journey: 'Console side-thread handoff (both ids, lineage, never merge)',
-    prover: 'scripts/session-graph/prove-continuity-handoffs.ts',
-    needles: ['both sides carry the handoff edge', 'NO transcript moved'],
-  },
-  {
     journey: 'Same-thread cross-surface view (same ids + cursor)',
     prover: 'scripts/session-graph/prove-graph-continuity.ts',
     needles: ['deliberately opening one thread from two surfaces agrees on id + cursor + resume'],

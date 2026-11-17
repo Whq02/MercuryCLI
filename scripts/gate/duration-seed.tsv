@@ -121,7 +121,6 @@ tools	182
 agents	88
 structure-tools	32
 health	900
-helm-console	3
 model-transition	35
 lsp	75
 daemon	410
@@ -137,7 +136,6 @@ formal-models	6
 model-routing	27
 permissions	227
 consistency-census	37
-realms	1
 smoke	46
 samples	19
 samples-drives	322
@@ -234,7 +232,6 @@ critters-drives	305
 engine-connector-drives	171
 daemon-drives	269
 health-drives	247
-helm-console-drives	65
 distribution-drives	33
 mcp-drives	29
 mission-runner-drives	18

@@ -29,7 +29,7 @@
 | Chat cockpit (direct boot / --continue / --resume <id>) | `src/screens/Chat.tsx → src/ink/components/AlternateScreen.tsx` | claims the held screen (outermost mount consumes + arms the takeover erase) |
 | non-takeover argv paths (run · --help · subcommands · piped stdout) | `src/entrypoints/cli.tsx` | releases the hold before any output |
 
-## Slash routes — modal-slot views (local-jsx: 49)
+## Slash routes — modal-slot views (local-jsx: 47)
 
 Host: the FullscreenLayout modal slot (opaque claim; SURFACE-CLAIM
 INVARIANT forces height = terminalRows at peek 0). Kernel signals name
@@ -43,7 +43,6 @@ the interaction primitives the view actually mounts (1-hop join).
 | /browse | — | `src/commands/browse` |
 | /caching | irow | `src/commands/caching` |
 | /capabilities | — | `src/commands/capabilities` |
-| /console | irow | `src/commands/console` |
 | /context | — | `src/commands/context` |
 | /contract | — | `src/commands/contract` |
 | /copy | — | `src/commands/copy` |
@@ -70,7 +69,6 @@ the interaction primitives the view actually mounts (1-hop join).
 | /model | irow | `src/commands/model` |
 | /palette | — | `src/commands/palette` |
 | /permissions | — | `src/commands/permissions` |
-| /realms | ilist irow | `src/commands/realms` |
 | /rename | — | `src/commands/rename` |
 | /run | irow | `src/commands/run` |
 | /runs | — | `src/commands/tasks` |

@@ -61,18 +61,15 @@ console.log('== membership + consumption + editor-ownership source pins ==')
   const panes = read('src/components/mercury-ui/useNavigablePanes.ts')
   const flat = read('src/components/mercury-ui/useFlatList.ts')
   const picker = read('src/components/MercuryModelPicker.tsx')
-  const consoleSrc = read('src/commands/console/console.tsx')
   const promptsPanel = read('src/components/prompts-panel/PromptsPanel.tsx')
   const logsel = read('src/components/LogSelector.tsx')
 
   check('kit lists register as overlays (pre-existing)', list.includes("useRegisterOverlay('list'"))
   check('boards register as overlays', panes.includes("useRegisterOverlay('board'"))
   check('model picker registers', picker.includes("useRegisterOverlay('model-picker'"))
-  check('console registers', consoleSrc.includes("useRegisterOverlay('console'"))
   for (const [name, src] of [
     ['boards', panes],
     ['model picker', picker],
-    ['console', consoleSrc],
   ] as const) {
     check(`${name}: esc guarded by isTopOverlayNow`, src.includes('isTopOverlayNow(overlayToken)'))
   }
@@ -82,8 +79,6 @@ console.log('== membership + consumption + editor-ownership source pins ==')
   check('useFlatList consumes when acting', (flat.match(/stopImmediatePropagation\(\)/g) ?? []).length >= 3)
   check('declined non-top esc does NOT consume (list)', /isTopOverlayNow\(overlayToken\)\) return\n\s+event\.stopImmediatePropagation/.test(list))
 
-  check('console ask line is a real TextInput', consoleSrc.includes('<TextInput') && consoleSrc.includes('onChangeCursorOffset'))
-  check('console: the setTimeout ready flag is DEAD (event-identity gate)', !consoleSrc.includes('setReady') && consoleSrc.includes('useOpenEventGate'))
   check('prompts-panel editor is a real TextInput', promptsPanel.includes('<TextInput') && promptsPanel.includes('onChangeCursorOffset'))
   check('prompts-panel: the append-only ⌫ branch is dead', !promptsPanel.includes('buffer: ed.buffer.slice(0, -1)'))
   check('LogSelector rename rides TextInput (pre-existing)', logsel.includes('<TextInput value={renameValue}'))

@@ -70,7 +70,7 @@ export function composeSovereignMenu(cols: number, rows: number, options: Sovere
   const m = {
     entries,
     selIdx,
-    summary: { profile: `r${changed} · ${changed > 0 ? `custom · ${changed} set` : 'default'}`, harness: 'helm · console' },
+    summary: { profile: `r${changed} · ${changed > 0 ? `custom · ${changed} set` : 'default'}`, harness: 'helm' },
     environment: { model: 'Opus 5', critter: 'Octopus', critterHue: '#B07BE0', dirBase: 'orchard-src', dirTail: '' },
     statusRight: changed > 0 ? `${changed} choice saved — applies to new sessions` : 'changes reach new sessions',
     legend: '↑↓ move · ↵ change (saved) · ⌫ default · a apply receipts · esc back',

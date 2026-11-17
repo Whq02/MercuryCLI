@@ -28,7 +28,8 @@ const walkFiles = (dir: string, re: RegExp): string[] => readdirSync(dir).flatMa
   return re.test(entry) && !entry.endsWith('.d.ts') ? [path] : []
 })
 const productFiles = (dir: string): string[] => walkFiles(dir, /\.tsx?$/)
-const RETIRED_ENVS = ['MERCURY_ROUTER', 'MERCURY_ROUTER_POSTURE', 'MERCURY_ROUTER_STATE_DIR', 'MERCURY_MISSION_POLICY']
+const RETIRED_ENVS = ['MERCURY_ROUTER', 'MERCURY_ROUTER_POSTURE', 'MERCURY_ROUTER_STATE_DIR', 'MERCURY_MISSION_POLICY', 'MERCURY_HELM_CONSOLE', 'MERCURY_CONSOLE_MODEL']
+const RETIRED_MENU_ROWS: Record<string, string> = { MERCURY_HELM_CONSOLE: join('src', 'substrate', 'startupMenu.ts') }
 const RETIRED_POSTURES = ['adaptive', 'quality', 'balanced', 'fast', 'fixed']
 const OLD_ROUTER_REL = join('utils', 'router')
 const POSTURE_FILENAME = `${'posture'}.json`
@@ -44,7 +45,11 @@ console.log('entering a provider key has one home: /logins')
   const spellings = new Map<string, string[]>()
   for (const path of productFiles(join(REPO, 'src'))) {
     const text = readFileSync(path, 'utf8')
-    for (const env of RETIRED_ENVS) if (text.includes(env)) spellings.set(env, [...(spellings.get(env) ?? []), relative(REPO, path)])
+    for (const env of RETIRED_ENVS) if (text.includes(env) && RETIRED_MENU_ROWS[env] !== relative(REPO, path)) spellings.set(env, [...(spellings.get(env) ?? []), relative(REPO, path)])
+  }
+  for (const [env, rel] of Object.entries(RETIRED_MENU_ROWS)) {
+    const text = readFileSync(join(REPO, rel), 'utf8')
+    check(`${env} is spelled once in ${rel}, in the list of saved boot-menu rows it sets aside`, text.split(env).length === 2 && (text.match(/const RETIRED_MENU_ENV[^']*'([^']+)'/)?.[1] ?? '').split(' ').includes(env))
   }
   check('no product file spells a retired flag', spellings.size === 0, [...spellings].map(([env, paths]) => `${env}: ${paths.join(', ')}`).join(' · '))
   const stalePathHits: string[] = []
@@ -308,6 +313,8 @@ console.log('entering a provider key has one home: /logins')
           MERCURY_ROUTER_POSTURE: RETIRED_POSTURES[1],
           MERCURY_ROUTER_STATE_DIR: '/tmp/retired-router',
           MERCURY_MISSION_POLICY: 'specialist-sol',
+          MERCURY_HELM_CONSOLE: '0',
+          MERCURY_CONSOLE_MODEL: 'claude-opus-4-8',
         },
       },
     }),

@@ -31,9 +31,8 @@ switch above every chat. The advisor runs for a chat only when both are on.
   `on · every 10 minutes · /advise turns it on per chat`.
 - **`/config` → Advisor interval**: how many minutes pass between notes:
   2 · 5 · 10 · 20 · 30 · 45 · 60 (10 by default; the floor is 1).
-- **`/submodels` → ADVISOR**: picks the advisor's model from any connected
-  provider, gateway or local server. `Tab` moves between the CONSOLE
-  and ADVISOR sections; `↵` selects a row; `e` sets that section's effort level.
+- **`/submodels`**: picks the advisor's model from any connected
+  provider, gateway or local server. `↵` selects a row; `e` sets the effort level.
   `MERCURY_ADVISOR_MODEL` pins it from the environment and locks the picker.
 - **`mercury run --advise`**: a headless run has no interactive chat to type `/advise on`
   in, so the flag turns its advisor on when the run starts. The settings in the run's

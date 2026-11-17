@@ -3,7 +3,7 @@
 # gate-watch: scripts/session-graph/**
 # gate-watch: src/services/attention/** src/services/attention/relations.ts
 # gate-watch: src/services/workbench/** src/services/acp/** src/input-core/composer-document.ts
-# gate-watch: src/utils/artifacts/** src/utils/sideQuestion.ts
+# gate-watch: src/utils/artifacts/**
 # gate-watch: scripts/engine-durability/harness.ts scripts/lib/codeText.ts scripts/lib/shippedKeyForms.ts scripts/streaming/artifactArena.ts
 # gate-watch: scripts/ui/render-tui.ts src/cli/run.ts src/commands/crew/index.ts
 # gate-watch: src/components/concourse/ConcourseRoute.tsx src/components/prompts-panel/PromptsPanel.tsx
@@ -11,7 +11,7 @@
 # gate-watch: src/keybindings/defaultBindings.ts src/services/concourse/concourseSnapshot.ts
 # gate-watch: src/services/crew/**
 # gate-watch: src/daemon/permissionAsks.ts src/daemon/controlServer.ts
-# gate-watch: src/services/resources/registry.ts src/utils/cockpit/helmConsole.ts
+# gate-watch: src/services/resources/registry.ts
 # gate-watch: src/components/messages/AttachmentMessage.tsx
 # gate-watch: src/components/mercury-ui/screens/CrewView.tsx
 # gate-watch: src/tools/SendMessageTool/SendMessageTool.ts src/utils/messages/attachmentText.ts

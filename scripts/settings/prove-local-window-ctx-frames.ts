@@ -24,7 +24,7 @@ const HOME = mkdtempSync(join(SCRATCH_ROOT, 'local-window-ctx-'))
 for (const name of Object.keys(process.env)) {
   if (/^(MERCURY_|ANTHROPIC_|CLAUDE_|OPENAI_|ZAI_|OPENROUTER_|GOOGLE_|GEMINI_|MOONSHOT_|DEEPSEEK_|HF_|HUGGINGFACE_|AWS_|AZURE_)/.test(name) || /proxy/i.test(name)) delete process.env[name]
 }
-Object.assign(process.env, { HOME, MERCURY_CONFIG_DIR: HOME, MERCURY_AUTH_SCOPE_DIR: HOME, MERCURY_HOME: HOME, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_EVOLUTION_LEDGER: '0', MERCURY_HELM_CONSOLE: '0', MERCURY_LIVE_GLYPHS: '0', MERCURY_CTX_FORECAST: '0', BROWSER: '/usr/bin/true', TZ: 'UTC', LANG: 'en_GB.UTF-8', LC_ALL: 'en_GB.UTF-8' })
+Object.assign(process.env, { HOME, MERCURY_CONFIG_DIR: HOME, MERCURY_AUTH_SCOPE_DIR: HOME, MERCURY_HOME: HOME, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_EVOLUTION_LEDGER: '0', MERCURY_LIVE_GLYPHS: '0', MERCURY_CTX_FORECAST: '0', BROWSER: '/usr/bin/true', TZ: 'UTC', LANG: 'en_GB.UTF-8', LC_ALL: 'en_GB.UTF-8' })
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const GIB = 1024 ** 3

@@ -15,7 +15,6 @@ import { getEngineModel, renderModelName } from '../utils/model/model.js'
 import { focusedSessionModelFacts } from '../services/engine-connector/focusedConnector.js'
 import { shownIdentityWords } from '../services/providers/providerIdentityLine.js'
 import {
-  canonicalSubModelId,
   composeSubModelRegistry,
   resolveSubModel,
   setSubModel,
@@ -41,7 +40,6 @@ const CONTAINER_META: Record<
   SubModelContainer,
   { label: string; blurb: string }
 > = {
-  console: { label: 'CONSOLE', blurb: 'side questions' },
   advisor: { label: 'ADVISOR', blurb: 'advises the working model, not you' },
 }
 
@@ -95,13 +93,6 @@ function ContainerHeader({
   const meta = CONTAINER_META[container]
   const resolved = resolveSubModel(container)
   const originWords = containerOriginWords(container, resolved)
-  const mainModel = canonicalSubModelId(focusedSessionModelFacts()?.effective ?? getEngineModel())
-  const cacheWords =
-    container === 'console' && resolved.origin !== 'unset'
-      ? resolved.model === mainModel
-        ? ' · shares the main prompt cache'
-        : ' · ≠ main — re-reads uncached'
-      : ''
   const headerModel = resolved.origin === 'unset' ? 'unset' : renderModelName(resolved.model)
   const headerEffort = ((): string => {
     if (resolved.origin === 'unset') return ''
@@ -117,7 +108,7 @@ function ContainerHeader({
         <Text color={t.textMuted}> — {meta.blurb} · </Text>
         <Text color={active ? t.textPrimary : t.textMuted}>{headerModel}</Text>
         <Text color={resolved.origin === 'env' ? t.warning : t.textMuted}>
-          {`${headerEffort} · ${originWords}${cacheWords}`}
+          {`${headerEffort} · ${originWords}`}
         </Text>
       </Text>
     </Box>
@@ -413,7 +404,7 @@ function ContainerList({
 export function SubModelPicker({
   onClose,
   onRoute,
-  initialContainer = 'console',
+  initialContainer = 'advisor',
   initialNote,
   initialModelId,
 }: {
@@ -425,19 +416,8 @@ export function SubModelPicker({
 }): React.ReactNode {
   const t = useMercuryTokens()
   const { columns, rows: termRows } = useTerminalSize()
-  const [container, setContainer] = useState<SubModelContainer>(initialContainer)
+  const container = initialContainer
   const [epoch, setEpoch] = useState(0)
-  useInput(
-    (_input, key, event) => {
-      if (!key.tab) return
-      event.stopImmediatePropagation()
-      const at = SUB_MODEL_CONTAINERS.indexOf(container)
-      const step = key.shift ? -1 : 1
-      const next = SUB_MODEL_CONTAINERS[(at + step + SUB_MODEL_CONTAINERS.length) % SUB_MODEL_CONTAINERS.length]
-      if (next !== undefined) setContainer(next)
-    },
-    { isActive: true },
-  )
 
   const width = Math.max(56, Math.min(100, columns - 6))
   const listRows = Math.max(4, termRows - 13 - (SUB_MODEL_CONTAINERS.length - 1))
@@ -463,7 +443,7 @@ export function SubModelPicker({
         compact={false}
         epoch={epoch}
         onChanged={() => setEpoch(n => n + 1)}
-        {...(initialNote !== undefined && container === initialContainer ? { initialNote } : {})}
+        {...(initialNote !== undefined ? { initialNote } : {})}
         {...(initialModelId !== undefined ? { initialModelId } : {})}
       />
     </Box>

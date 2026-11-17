@@ -16,7 +16,6 @@ Object.assign(process.env, {
   MERCURY_AUTH_SCOPE_DIR: home,
   MERCURY_CREDENTIAL_STORE: 'file',
   MERCURY_LOCAL_PROBE_TARGETS: 'none',
-  MERCURY_HELM_CONSOLE: '0',
   MERCURY_EVOLUTION_LEDGER: '0',
   ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key',
 })

@@ -942,7 +942,7 @@ silently fall through to another provider; each runtime returns typed refusals:
   request larger than a local model's stated served window refuses before the
   send, naming the window, its source and the in-app road that raises it, since
   the server would silently truncate it;
-- sub-model containers surface the owning catalogue's refusal reasons verbatim.
+- the `/submodels` picker surfaces the owning catalogue's refusal reasons verbatim.
 
 One vocabulary decides what may run where, and what a picker shows is what
 dispatch allows. The

@@ -335,16 +335,6 @@ export function interviewSnapshot(): InterviewSessionState {
   return liveState
 }
 
-export function currentInterviewRef(): string | null {
-  const s = liveState
-  if (s.sessionId === null || s.phase === 'completed' || s.phase === 'cancelled') return null
-  const focusedQid = s.discussing ?? (s.focus && s.focus !== 'review' ? s.focus : null)
-  const decisionId = focusedQid ? s.questions[focusedQid]?.question.decisionId : undefined
-  return decisionId
-    ? `mercury://interview/${s.sessionId}/${decisionId}`
-    : `mercury://interview/${s.sessionId}`
-}
-
 export function interviewEvents(): readonly InterviewEvent[] {
   return liveEvents
 }

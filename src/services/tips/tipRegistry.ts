@@ -278,7 +278,7 @@ const GENERAL_TIPS: Tip[] = [
     id: 'submodels-seats',
     cooldownSessions: 20,
     async content() {
-      return "/submodels seats the Console's and the Advisor's models — side questions and advice."
+      return "/submodels seats the Advisor's model — the second model that advises the working one."
     },
     async isRelevant() {
       return true

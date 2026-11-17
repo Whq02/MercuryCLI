@@ -54,28 +54,6 @@ t.section('§1 — conversation identity')
   t.check('a deliberate open of a KNOWN thread reuses its id and record', reopened.conversationId === main.conversationId && reopened.title === 'the main thread')
 }
 
-t.section('§2 — handoff links, never merges')
-{
-  const all = await conv.listConversations({ dir })
-  const main = all.find(c => c.kind === 'main')!
-  const side = all.find(c => c.kind === 'console-side')!
-  await conv.appendConversationEvent(side.conversationId, { kind: 'message', label: 'side finding' }, { dir })
-  const linked = await conv.linkConversation(side.conversationId, main.conversationId, 'handoff', {
-    ref: 'receipt:msg-1',
-    dir,
-  })
-  t.check('the handoff records', linked === true)
-  const after = await conv.conversationOf(side.conversationId, { dir })
-  const target = await conv.conversationOf(main.conversationId, { dir })
-  t.check('the source keeps its id + transcript', after!.conversationId === side.conversationId && after!.events.length === 1)
-  t.check('the target gained NO transcript events from the handoff', target!.events.length === 0)
-  t.check(
-    'both sides carry the handoff edge',
-    after!.lineage.some(l => l.kind === 'handoff' && l.direction === 'from') &&
-      target!.lineage.some(l => l.kind === 'handoff' && l.direction === 'to'),
-  )
-}
-
 t.section('§3 — events + per-operator cursors')
 {
   const all = await conv.listConversations({ dir })

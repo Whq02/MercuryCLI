@@ -97,7 +97,7 @@ check(
 )
 check('every advertised command resolves in the command table, none retired or hidden', [...seenCommands].every(c => roster.has(c)), [...seenCommands].filter(c => !roster.has(c)).join(','))
 const submodels = await tips.find(t => t.id === 'submodels-seats')!.content({ theme: 'dark' })
-check("the submodels tip names the command's scope — the Console's and the Advisor's models", submodels.includes("Console's and the Advisor's"), submodels)
+check("the submodels tip names the command's scope — the Advisor's model", submodels === "/submodels seats the Advisor's model — the second model that advises the working one.", submodels)
 check('the chord parser reads the ctrl+x family whole and never eats the next word', chordsSpelled('ctrl+x s opens it; shift+tab cycles').join(',') === 'ctrl+x s,shift+tab')
 check('the mode tip spells a chord the table carries', chordsSpelled(await tips.find(t => t.id === 'cycle-mode')!.content({ theme: 'dark' })).length === 1)
 

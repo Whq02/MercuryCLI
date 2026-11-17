@@ -24,34 +24,6 @@ check(
     /saturnSection\(\), glanceSection\(\)\]/.test(rail),
 );
 
-const { requestPromptPrefill, consumePromptPrefill } = await import(
-  '../../src/utils/cockpit/helmFocus.js'
-);
-requestPromptPrefill('/realms add ');
-check('prefill channel: request → consume returns the text', consumePromptPrefill() === '/realms add ');
-check('prefill channel: consume is one-shot', consumePromptPrefill() === null);
-const promptInput = readFileSync('src/components/PromptInput/PromptInput.tsx', 'utf8');
-check(
-  'PromptInput consumes the prefill as INSERT-AT-CURSOR, never a submit',
-  promptInput.includes('const prefill = consumePromptPrefill()') &&
-    /if \(prefill !== null\) \{\s*setHelmFocus\('prompt'\)\s*insertAtCursor\(prefill\)/.test(promptInput),
-);
-const realms = readFileSync('src/components/mercury-ui/parity/RealmsView.tsx', 'utf8');
-check(
-  "RealmsView ↵ labeled for its true consequence ('launch command')",
-  realms.includes("hint: 'launch command'"),
-);
-check(
-  'RealmsView n/g/⌫ BEGIN their workflows via prefill',
-  realms.includes("prefillAndClose('/realms add ')") &&
-    realms.includes("prefillAndClose('/realms clone ')") &&
-    realms.includes('prefillAndClose(`/realms revoke ${r.name} `)'),
-);
-check(
-  'clone stays gated on the real auth probe (unauthed ⇒ honest note, no prefill)',
-  /if \(!gh\.authed\) return gh\.note/.test(realms),
-);
-
 check(
   'the sessions strip is gone: no module under src seeds a tabs cache',
   !existsSync('src/components/mercury-ui/SessionTabs.tsx'),

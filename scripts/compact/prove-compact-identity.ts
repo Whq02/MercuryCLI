@@ -183,8 +183,6 @@ console.log('\nI5 THE FOCUS LAW — /compact applies to the FOCUSED session (ope
   check('F4 the Chat paints the FOCUSED live view', repl.includes('subscribeFocusedSeatLive'))
   const blank = readFileSync(join(root, 'src/services/engine-connector/noSessionConnector.ts'), 'utf8')
   check('F5 the blank chat refuses the send (REFUSED_NO_CHAT) — no global fold exists', /sendWords\(\): Promise<SendReceiptV1> \{\s*\n\s*return REFUSED_NO_CHAT/.test(blank))
-  const helmConsole = readFileSync(join(root, 'src/utils/cockpit/helmConsole.ts'), 'utf8')
-  check('F6 the console /compact truth is production-consumed', helmConsole.includes('CONSOLE_COMPACT_TRUTH') && helmConsole.includes('answer: CONSOLE_COMPACT_TRUTH'))
   console.log('  [NOTE] the concourse SessionMirror strip carries no composer road in this tree — the one typing road into a session is the focused chat composer (F2).')
 }
 

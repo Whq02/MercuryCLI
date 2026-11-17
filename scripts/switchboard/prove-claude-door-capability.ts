@@ -144,9 +144,6 @@ section('§4 the guarantee — a future Claude id starts from EVERY door, the wi
     const advisor = resolveAdvisorModel()
     check("door · the advisor pick (/submodels) and AskAdvisor's model", picked.ok && advisor.origin === 'saved' && advisor.model === id && advisor.route === 'anthropic', `${text(picked)} ${text(advisor)}`)
     setSubModel('advisor', null)
-    const console_ = setSubModel('console', id)
-    check('door · the console pick', console_.ok, text(console_))
-    setSubModel('console', null)
   }
   check("door · the Chat's /model <id>: the validator's home-lane road admits the id and hands it to the wire (no catalogue read between)", typeof validateModel === 'function' && (() => {
     const { readFileSync } = require('node:fs') as typeof import('node:fs')

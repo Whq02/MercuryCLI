@@ -32,8 +32,8 @@ function SubModelsSurface({
   return (
     <CommandCenter
       view="submodels"
-      subtitle="the Console's and the Advisor's models"
-      footer="↑↓ browse · ↵ select / sign in · e effort · tab container · esc close"
+      subtitle="the Advisor's model"
+      footer="↑↓ browse · ↵ select / sign in · e effort · esc close"
       onClose={close}
       captureInput={false}
       closeKeys="esc"
@@ -52,7 +52,7 @@ function SubModelsSurface({
 export const call: LocalJSXCommandCall = async (onDone, _context) => {
   const parked = parkedPick
   parkedPick = null
-  let initialContainer: SubModelContainer = 'console'
+  let initialContainer: SubModelContainer = 'advisor'
   let initialNote: string | undefined
   let initialModelId: string | undefined
   if (parked !== null) {

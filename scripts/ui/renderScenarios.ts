@@ -1557,34 +1557,6 @@ function scenarioInner(name: string, cols: number, rows: number) {
       chromeMarkers: ['❯', '╭', '│', '╰', 'terminal too small'],
     }
   }
-  if (name === 'console-open' || name === 'console-ask-dead-wire') {
-    writeSyntheticSession('short')
-    writeFileSync(join(CONFIG_HOME, '.openai-auth.json'), JSON.stringify({
-      version: 1,
-      tokens: {
-        idToken: '',
-        accessToken: 'fixture-access',
-        refreshToken: 'fixture-refresh',
-        accountId: 'acct_fixture',
-        planType: 'plus',
-      },
-    }))
-    process.env.MERCURY_MODEL = 'gpt-5.6-sol'
-    process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
-    process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9'
-    process.env.MERCURY_OPENAI_CHATGPT_BASE = 'http://127.0.0.1:9'
-    process.env.MERCURY_OPENAI_AUTH_BASE = 'http://127.0.0.1:9'
-    return {
-      argv: ['node', BIN, '--resume', SID],
-      sends: [
-        { atTick: 30, data: name === 'console-open' ? '/console' : '/console what does this repository do, in two sentences?' },
-        { atTick: 36, data: '\r' },
-      ],
-      total: name === 'console-open' ? 80 : 140,
-      cols,
-      rows,
-    }
-  }
   if (name === 'concourse-hostile') {
     const scratch = join(tmpdir(), `mercury-render-concourse-hostile-${process.pid}`)
     rmSync(scratch, { recursive: true, force: true })
@@ -2630,7 +2602,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
       total: 110, cols, rows,
     }
   }
-  if (['critter', 'crewmates', 'deck', 'sessions', 'substrate', 'trace', 'fleet', 'ledger', 'cards', 'ide', 'config', 'permissions', 'hooks', 'agents', 'diff', 'tickets', 'memory', 'workbench', 'surfaces', 'palette', 'realms', 'status'].includes(name)) {
+  if (['critter', 'crewmates', 'deck', 'sessions', 'substrate', 'trace', 'fleet', 'ledger', 'cards', 'ide', 'config', 'permissions', 'hooks', 'agents', 'diff', 'tickets', 'memory', 'workbench', 'surfaces', 'palette', 'status'].includes(name)) {
     writeSyntheticSession('short')
     const sends = [{ atTick: 30, data: `/${name}` }, { atTick: 36, data: '\r' }]
     const settled = name === 'sessions'

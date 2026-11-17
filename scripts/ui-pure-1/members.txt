@@ -102,3 +102,6 @@ prove-crew-view-commands.ts
 prove-crew-view-enter-compact.ts
 prove-crew-view-mouse.ts
 prove-activity-screen-keys.ts
+prove-hip-vocab.ts
+prove-desert-verbs-cadence.ts
+prove-wrap-plain.ts
