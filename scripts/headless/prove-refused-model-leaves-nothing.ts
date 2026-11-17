@@ -112,7 +112,8 @@ const transcripts = (world: World): string[] => walk(join(world.configDir, 'proj
 const rowsOf = (out: string): Array<Record<string, unknown>> => out.split('\n').filter(l => l.startsWith('{')).map(l => { try { return JSON.parse(l) as Record<string, unknown> } catch { return {} } })
 const turns = (): Array<{ body: unknown }> => api.messageRequests().filter(r => !r.path.includes('count_tokens'))
 const modelsSent = (from: number): string[] => turns().slice(from).map(r => String((r.body as { model?: unknown } | null)?.model ?? ''))
-
+let refusedBeforeTheSession = false
+let recordedModelSkipped = false
 console.log('§1 first-party posture: a refused --model leaves nothing behind')
 {
   const w = mkHome('refused', 'first-party')
@@ -125,6 +126,7 @@ console.log('§1 first-party posture: a refused --model leaves nothing behind')
   check('no transcript was written in the home', transcripts(w).length === 0, transcripts(w).join(','))
   const rows = await run(w, ['run', '--format', 'rows', '--model', BAD, '--', 'hi'])
   check('--format rows: the same refusal as one refused outcome row naming the id, exit 1, no other row, still no transcript', rows.code === 1 && rowsOf(rows.out).length === 1 && rowsOf(rows.out)[0]?.type === 'outcome' && String((rowsOf(rows.out)[0] as { status?: string }).status) === 'refused' && rows.out.includes(`'${BAD}' is not a model id`) && transcripts(w).length === 0, `${rows.code} · ${clip(rows.out)} · ${clip(rows.err)}`)
+  refusedBeforeTheSession = text.code === 1 && turns().length === before && rows.code === 1 && rowsOf(rows.out).length === 1 && rowsOf(rows.out)[0]?.type === 'outcome' && transcripts(w).length === 0
   rmSync(w.home, { recursive: true, force: true })
   rmSync(w.cwd, { recursive: true, force: true })
 }
@@ -156,6 +158,7 @@ console.log('§2 first-party posture: a good run, then --continue over the trans
   check(`the request carried the default model, never '${BAD}'`, modelsSent(mid).length === 1 && modelsSent(mid)[0] === firstModel, JSON.stringify(modelsSent(mid)))
   check('a notice row names the unusable recorded model and the model this run uses instead', notice !== undefined && String(notice.level) === 'warning' && String(notice.text).includes(`'${BAD}' is not usable`) && String(notice.text).includes(`this run uses ${firstModel} instead`), clip(JSON.stringify(notice ?? null)))
   check("the session row's model is the one that ran", session?.model === firstModel, JSON.stringify(session?.model))
+  recordedModelSkipped = cont.code === 0 && modelsSent(mid).length === 1 && modelsSent(mid)[0] === firstModel && notice !== undefined && String(notice.text).includes(`'${BAD}' is not usable`) && String(notice.text).includes(`this run uses ${firstModel} instead`)
   rmSync(w.home, { recursive: true, force: true })
   rmSync(w.cwd, { recursive: true, force: true })
 }
@@ -175,8 +178,8 @@ console.log('§4 the decision is the router\'s own: the boot and the retention s
   const router = readFileSync(join(REPO, 'src/services/providers/callModelRouter.ts'), 'utf8')
   const runSrc = readFileSync(join(REPO, 'src/cli/run.ts'), 'utf8')
   check('the router exports the before-any-request refusal over the same verdict and admission owner the call uses', /export async function modelRefusalBeforeAnyRequest\(model: string\)[\s\S]{0,400}classifyAfterLiveLists\(model\)[\s\S]{0,300}homeLaneAdmissionRefusal\(model\)/.test(router))
-  check('the boot refuses a user-given --model before the stdio object and the session (the headless resolver carries the same before-any-request refusal)', runSrc.indexOf('resolveHeadlessModel(options.userSpecifiedModel)') !== -1 && runSrc.indexOf('resolveHeadlessModel(options.userSpecifiedModel)') < runSrc.indexOf('const io = new StructuredIO(') && /await modelRefusalBeforeAnyRequest\(model\)/.test(readFileSync(join(REPO, 'src/cli/headless/model.ts'), 'utf8')))
-  check('the retention site skips a recorded model the resolver refuses and enqueues the notice naming the fallback (a recorded compat route refuses instead: never another provider)', /bootModel = await resolveHeadlessModel\(recorded\)\s*\n\s*setEngineModelOverride\(bootModel\)/.test(runSrc) && runSrc.includes("if (recorded.toLowerCase().startsWith('compat/')) {") && runSrc.includes("is not usable (${errorMessage(error)}) — this run uses ${getEngineModel()} instead."))
+  check('the boot refuses a user-given --model before the stdio object and the session (the headless resolver carries the same before-any-request refusal)', refusedBeforeTheSession && /await modelRefusalBeforeAnyRequest\(model\)/.test(readFileSync(join(REPO, 'src/cli/headless/model.ts'), 'utf8')))
+  check('the retention site skips a recorded model the resolver refuses and enqueues the notice naming the fallback (a recorded compat route refuses instead: never another provider)', recordedModelSkipped && runSrc.includes("if (recorded.toLowerCase().startsWith('compat/')) {"))
 }
 
 await api.close()

@@ -51,7 +51,17 @@ section('§2 the runner side: every method a host sends has an arm, and the bind
   const hostNotifications = methodsFrom('host', 'notification').map(spec => spec.name)
   const armless = [...hostRequests, ...hostNotifications].filter(name => name !== 'initialize' && name !== '$/cancel_request' && !print.includes(`'${name}':`))
   check("every host method but initialize and $/cancel_request has an arm in the runner's arms object", armless.length === 0, j(armless))
-  check('initialize is registered on its own (it gates the others)', print.includes("peer.onRequest('initialize'"))
+  const { refusalOf, withLiveRunner } = await import('../lib/builtProduct.ts')
+  const { RPC_NOT_INITIALIZED } = await import('../../src/runner/wire/errors.ts')
+  const gate = await withLiveRunner(
+    async runner => ({
+      early: await Promise.all(RUNNER_REQUEST_METHODS.map(name => refusalOf(runner.request(name as never, {} as never)))),
+      protocol: await runner.initialize().then(answer => answer.protocol, () => null),
+      late: await refusalOf(runner.request('session/facts', {})),
+    }),
+    { initialize: false },
+  )
+  check('initialize is registered on its own (it gates the others)', gate.early.every(refusal => refusal?.code === RPC_NOT_INITIALIZED) && gate.protocol === 1 && gate.late === null, j(gate.early.map(refusal => refusal?.code)))
   check('the binder lists every host request but initialize', j([...RUNNER_REQUEST_METHODS].sort()) === j(hostRequests.filter(name => name !== 'initialize').sort()), j(RUNNER_REQUEST_METHODS))
   check('the binder lists every host notification but $/cancel_request (the peer owns the cancel)', j([...RUNNER_NOTIFICATION_METHODS].sort()) === j(hostNotifications.filter(name => name !== '$/cancel_request').sort()), j(RUNNER_NOTIFICATION_METHODS))
 }
