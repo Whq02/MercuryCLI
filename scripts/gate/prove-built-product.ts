@@ -5,7 +5,7 @@ import { connect } from 'node:net'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { FLAG_REGISTRY } from '../../src/substrate/flagRegistry.ts'
-import { builtCli, withLiveRunner } from '../lib/builtProduct.ts'
+import { builtCli, fixtureCli, withLiveRunner } from '../lib/builtProduct.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
 
 const SELF = import.meta.path
@@ -86,6 +86,30 @@ async function goneWithin(pid: number, ms: number): Promise<boolean> {
 if (process.argv[2] === '--dump') {
   const ran = builtCli(['dump'], { tree: process.argv[3]! })
   console.log(JSON.stringify({ status: ran.status, parent: dirname((JSON.parse(ran.stdout) as Dump).cwd) }))
+  process.exit(0)
+}
+
+if (process.argv[2] === '--no-scratch') {
+  const tree = process.argv[3]!
+  const { Server } = await import('node:http')
+  const { listen, close } = Server.prototype as unknown as Record<'listen' | 'close', (...args: unknown[]) => unknown>
+  let opened = 0
+  let listening = 0
+  Object.assign(Server.prototype, {
+    listen(this: unknown, ...args: unknown[]) {
+      opened++
+      listening++
+      return listen.apply(this, args)
+    },
+    close(this: unknown, ...args: unknown[]) {
+      listening--
+      return close.apply(this, args)
+    },
+  })
+  const ran = await fixtureCli([{ kind: 'text', text: 'ok' }], ['dump'], { tree })
+  rmSync(dirname((JSON.parse(ran.stdout) as Dump).cwd), { recursive: true, force: true })
+  const refused = await fixtureCli([{ kind: 'text', text: 'ok' }], ['dump'], { tree }).then(() => '', (error: Error) => error.message)
+  console.log(JSON.stringify({ refused, opened, listening }))
   process.exit(0)
 }
 
@@ -226,6 +250,10 @@ try {
   const other = again(['--dump', fresh])
   const otherParent = (JSON.parse(other.stdout || '{}') as { parent?: string }).parent ?? ''
   check('a process that ends takes its parent folder with it', other.status === 0 && basename(otherParent).startsWith('built-product-') && real(otherParent) !== real(dirname(cli.cwd)) && !existsSync(otherParent), `${otherParent} · rc ${other.status} ${other.stderr.slice(0, 200)}`)
+
+  const unmade = again(['--no-scratch', fresh])
+  const drive = JSON.parse(unmade.stdout.trim().split('\n').at(-1) || '{}') as { refused?: string; opened?: number; listening?: number }
+  check('a drive whose scratch cannot be made is refused with the reason and leaves no fixture server listening', unmade.status === 0 && (drive.refused ?? '').includes('ENOENT') && (drive.opened ?? 0) >= 1 && drive.listening === 0, `${unmade.stdout.slice(0, 300)} ${unmade.stderr.slice(0, 200)}`)
 
   section('§5 a proof that is ended takes its runner with it')
   if (!POSIX) console.log('  [SKIP] signals, process groups and the ledger reader are POSIX: not run on this host')
