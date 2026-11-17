@@ -86,7 +86,6 @@ class BridgeServer:
         self.conns = []
         self.current = None
 
-
     def start(self):
         try:
             listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -125,7 +124,6 @@ class BridgeServer:
                 pass
             self.listener = None
 
-
     def send_frame(self, conn, frame):
         data = (json.dumps(frame) + "\n").encode("utf-8")
         if len(data) > state.MAX_LINE_BYTES:
@@ -151,7 +149,6 @@ class BridgeServer:
         with self.lock:
             if self.current is not None and not self.current.dead:
                 self.current.outbox.append(frame)
-
 
     def _close(self, conn):
         conn.dead = True

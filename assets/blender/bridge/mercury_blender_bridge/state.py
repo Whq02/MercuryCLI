@@ -29,7 +29,6 @@ VERBS = (
     "python_run",
 )
 
-
 _snapshot_lock = threading.Lock()
 _snapshot = {"blender": "", "blendFile": "", "background": False}
 
