@@ -12,9 +12,8 @@ const CENSUS = 'scripts/gate/sourceCensus.ts'
 const TABLE = 'scripts/gate/source-patterns.tsv'
 const CODE = /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/
 const PAYLOADS = 'src/extensions/bundled/'
-const PAYLOAD_FILES = new Set(
-  ['filmcraft/server/bridge.mjs', 'filmcraft/server/install.mjs', 'lightcraft/server/bridge.mjs', 'lightcraft/server/install.mjs', 'mercury-media/server/config.js', 'mercury-media/server/engine-host.js', 'mercury-media/server/remote-client.js', 'mercury-media/server/remote-server.js', 'mercury-media/server/server.js', 'mercury-media/server/setup.js', 'mercury-media/server/workflow.js', 'photocraft/server/bridge.mjs', 'photocraft/server/install.mjs', 'shared/bootstrap.mjs', 'shared/control.mjs', 'shared/install.d.mts', 'shared/install.mjs', 'shared/powershell.mjs'].map(name => PAYLOADS + name),
-)
+const PAYLOAD_LIST = 'scripts/gate/source-patterns-payloads.txt'
+const PAYLOAD_FILES = new Set(readFileSync(join(ROOT, PAYLOAD_LIST), 'utf8').split('\n').filter(Boolean).map(name => PAYLOADS + name))
 const AT_THE_ROOT = new Set(['node_modules', 'dist', '.git'])
 const DOOR = 'flagEnv'
 const LOOSE = 'flagEnvLoose'
@@ -1088,7 +1087,7 @@ console.log(`  ${files.length} code files under src · ${hits.length} occurrence
 check(
   `the code under src is read (${files.length} files), and every payload file of the list stands (${payloads} of ${PAYLOAD_FILES.size})`,
   files.length > 3000 && payloads === PAYLOAD_FILES.size,
-  `${files.length} files read, more than 3000 wanted; gone from the tree and still on the list of payload files in ${SELF}, to take off it: ${[...PAYLOAD_FILES].filter(file => !existsSync(join(ROOT, file))).join(', ') || 'none'}`,
+  `${files.length} files read, more than 3000 wanted; gone from the tree and still on the list of payload files in ${PAYLOAD_LIST}, to take off it: ${[...PAYLOAD_FILES].filter(file => !existsSync(join(ROOT, file))).join(', ') || 'none'}`,
 )
 if (process.argv.includes('--list')) {
   const asked = NAMES.filter(habit => process.argv.includes(habit))
