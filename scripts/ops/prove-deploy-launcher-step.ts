@@ -71,7 +71,9 @@ check('no launcher at the path: the step says so and the deploy still succeeds',
 
 section('§4 the source: the not-ours arm prints the quiet line, and REFUSED stays for a launcher that is ours')
 const src = readFileSync(DEPLOY, 'utf8')
-const arm = src.slice(src.indexOf('if not is_mercury_launcher:'), src.indexOf('# the pairing guard'))
+const armEnd = src.indexOf('outside = src if span is None else')
+check('the end of the not-ours arm is in scripts/splash/deploy.sh', armEnd !== -1, 'the end of the slice is not in the file: outside = src if span is None else')
+const arm = armEnd === -1 ? '' : src.slice(src.indexOf('if not is_mercury_launcher:'), armEnd)
 check(`${RED}: the not-ours arm says skipped — not ours, never REFUSED`, arm.includes("skipped — not ours: {launcher}") && !arm.includes('REFUSED') && !arm.includes('does not look like a Mercury launcher'), arm.trim())
 check('the arm exits 0 (the splash deploy is whole without the block)', /sys\.exit\(0\)/.test(arm))
 check('REFUSED remains the word for a launcher that is ours and wrong (the old generation, a broken marker pair)', src.includes("is an OLD-generation launcher") && src.includes("print(f'launcher action block: REFUSED — {launcher}: {why};"))
