@@ -94,3 +94,11 @@ prove-vim-word-line-end.ts
 prove-local-command-order.ts
 prove-midturn-local-commands.ts
 prove-wheel-surfaces.ts
+prove-crew-composer-roads.ts
+prove-crew-composer-click-after-focus.ts
+prove-crew-look-frames.ts
+prove-crew-ledger.ts
+prove-crew-view-commands.ts
+prove-crew-view-enter-compact.ts
+prove-crew-view-mouse.ts
+prove-activity-screen-keys.ts
