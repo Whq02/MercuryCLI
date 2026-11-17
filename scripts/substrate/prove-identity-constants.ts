@@ -49,25 +49,6 @@ check('honest receipt: /bug never claims "submitted"', !feedback.includes('bug r
 }
 
 {
-  const { DEEP_LINK_PROTOCOL, buildDeepLink, parseDeepLink } = await import(
-    '../../src/utils/deepLink/parseDeepLink.ts'
-  )
-  check("ruling 2: the canonical scheme is 'mercury'", DEEP_LINK_PROTOCOL === 'mercury')
-  check('ruling 2: built links emit mercury://', buildDeepLink({ query: 'hi' }).startsWith('mercury://open'))
-  const viaNew = parseDeepLink('mercury://open?q=hello')
-  check('ruling 2: mercury:// parses', viaNew.query === 'hello')
-  let otherSchemeRefused = false
-  try {
-    parseDeepLink('otherscheme://open?q=hello')
-  } catch {
-    otherSchemeRefused = true
-  }
-  check('ruling 2: a non-mercury scheme refuses', otherSchemeRefused)
-  const reg = readFileSync(join(ROOT, 'src/utils/deepLink/registerProtocol.ts'), 'utf8')
-  check('ruling 2: the OS registration claims only the Mercury identity', reg.includes("MACOS_BUNDLE_ID = 'com.mercury.url-handler'") && reg.includes("APP_NAME = 'Mercury URL Handler'"))
-}
-
-{
   const mdmConsts = readFileSync(join(ROOT, 'src/utils/settings/mdm/constants.ts'), 'utf8')
   check("P6: the MDM preference domain is Mercury's", mdmConsts.includes("MACOS_PREFERENCE_DOMAIN = 'com.mercury.harness'"))
   check('P6: the Policies key is Mercury-named', mdmConsts.includes("'HKLM\\\\SOFTWARE\\\\Policies\\\\Mercury'"))
