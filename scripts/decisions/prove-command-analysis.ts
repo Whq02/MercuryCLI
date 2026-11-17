@@ -83,7 +83,6 @@ section('(2) provider shape — every op present; effectful ops bound, not drive
     'checkSemantics',
     'nodeTypeId',
     'splitCommand',
-    'getCommandSubcommandPrefix',
     'extractOutputRedirections',
     'tryParseShellCommand',
     'parsePowerShellCommand',
@@ -96,10 +95,6 @@ section('(2) provider shape — every op present; effectful ops bound, not drive
   for (const op of ops) {
     check(`op ${op} bound`, typeof (pinnedCommandAnalysis as Record<string, unknown>)[op] === 'function')
   }
-  check(
-    'getCommandSubcommandPrefix keeps its memo cache (API-backed, /clear-cleared)',
-    typeof (pinnedCommandAnalysis.getCommandSubcommandPrefix as unknown as { cache?: { clear?: unknown } }).cache?.clear === 'function',
-  )
 }
 
 const SPLIT_CORPUS = [

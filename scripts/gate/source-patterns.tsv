@@ -251,7 +251,6 @@ setTimeout	src/utils/sessionStorage/writer.ts	1
 setTimeout	src/utils/settings/changeDetector.ts	2
 setTimeout	src/utils/shell/engineSession.ts	3
 setTimeout	src/utils/shell/parentGuard.ts	1
-setTimeout	src/utils/shell/prefix.ts	1
 setTimeout	src/utils/skills/skillChangeDetector.ts	1
 setTimeout	src/utils/sleep.ts	1
 setTimeout	src/utils/staticRender.tsx	2
@@ -1674,7 +1673,6 @@ process.env	src/utils/shell/engineSession.ts	2
 process.env	src/utils/shell/globPreamble.ts	1
 process.env	src/utils/shell/outputLimits.ts	1
 process.env	src/utils/shell/powershellProvider.ts	2
-process.env	src/utils/shell/prefix.ts	1
 process.env	src/utils/shell/shellToolUtils.ts	1
 process.env	src/utils/shell/windowsBatchInvocation.ts	2
 process.env	src/utils/shell/windowsShellRoad.ts	1

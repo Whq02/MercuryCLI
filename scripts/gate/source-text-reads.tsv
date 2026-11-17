@@ -124,7 +124,7 @@ scripts/bash/prove-scratch-leases.ts	2
 scripts/bash/prove-shell-cwd-record.ts	2
 scripts/bash/prove-shell-engine-exec.ts	2
 scripts/bash/prove-shell-engine-pack.ts	1
-scripts/bash/prove-shell-engine-rules.ts	3
+scripts/bash/prove-shell-engine-rules.ts	2
 scripts/bash/prove-shell-output-filter.ts	2
 scripts/bash/prove-shell-providers-detach-alike.ts	3
 scripts/bash/prove-shell-session-env.ts	6
@@ -1476,7 +1476,7 @@ scripts/ui/prove-navigablepanes-windowing.ts	1
 scripts/ui/prove-never-stranded-input.ts	4
 scripts/ui/prove-no-color-honored.ts	1
 scripts/ui/prove-no-emoji-presentation.ts	1
-scripts/ui/prove-no-new-hex.ts	11
+scripts/ui/prove-no-new-hex.ts	10
 scripts/ui/prove-overlay-stack.ts	2
 scripts/ui/prove-panel-dismissal.ts	5
 scripts/ui/prove-picker-id-line-guard.ts	2

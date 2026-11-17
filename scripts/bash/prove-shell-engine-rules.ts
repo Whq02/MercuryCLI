@@ -189,10 +189,13 @@ section('§2 the seam ratchet — the rule road never learns the engine')
     'the tool hands its permission decision to bashToolHasPermission(input, context) unchanged',
     /async checkPermissions\(input: BashToolInput, context: ToolUseContext\) \{\s*return bashToolHasPermission\(input, context\.getAppState\(\)\.toolPermissionContext as ToolPermissionContext\)/.test(tool),
   )
-  const entry = readFileSync(join(bashToolDir, 'bashPermissions.ts'), 'utf8')
+  const did: string[] = []
+  const fourth = new Proxy({}, { get: (_target, key) => (did.push(`read ${String(key)} of a fourth argument`), undefined) })
+  await (bashToolHasPermission as (...args: unknown[]) => Promise<unknown>)({ command: 'npm run build' }, base, async (command: string) => (did.push(`asked the prefix of ${command}`), null), fourth)
   check(
     'the rule entry takes the input, the context, and a prefix function — no engine parameter',
-    /export function bashToolHasPermission\(\s*input: BashInput,\s*context: ToolPermissionContext,\s*prefixFn: PrefixFn = pinnedCommandAnalysis\.getCommandSubcommandPrefix,\s*\): Promise<PermissionResult>/.test(entry),
+    bashToolHasPermission.length === 3 && did.length > 0 && did.every(row => row === 'asked the prefix of npm run build'),
+    `bashToolHasPermission declares ${bashToolHasPermission.length} parameters and, handed four arguments, ${did.join(', ') || 'asked no prefix'}: its parameters are the input, the context and an optional prefix function, in the bashPermissions module of the Bash tool`,
   )
 }
 

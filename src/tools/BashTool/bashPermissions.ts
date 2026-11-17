@@ -589,12 +589,12 @@ const identityCheckers: CommandIdentityCheckers = {
 export function bashToolHasPermission(
   input: BashInput,
   context: ToolPermissionContext,
-  prefixFn: PrefixFn = pinnedCommandAnalysis.getCommandSubcommandPrefix,
+  prefixFn?: PrefixFn,
 ): Promise<PermissionResult> {
   return shellTextVerdict(input, context, prefixFn, true)
 }
 
-function shellTextVerdict(input: BashInput, context: ToolPermissionContext, prefixFn: PrefixFn, knownForCommand: boolean): Promise<PermissionResult> {
+function shellTextVerdict(input: BashInput, context: ToolPermissionContext, prefixFn: PrefixFn | undefined, knownForCommand: boolean): Promise<PermissionResult> {
   return withBashParseScope(async () => {
     const resolvedInput = input.cwd === undefined ? input : { ...input, cwd: resolveShellCwd(input.cwd) }
     const reached = await decideWithDenyRuleReach(resolvedInput, context, prefixFn, 0)
@@ -627,7 +627,7 @@ function keptByFlow(result: PermissionResult): boolean {
   return false
 }
 
-async function namesMercuryConfiguration(input: BashInput, context: ToolPermissionContext, prefixFn: PrefixFn, depth: number, budget?: ReachBudget): Promise<string | null> {
+async function namesMercuryConfiguration(input: BashInput, context: ToolPermissionContext, prefixFn: PrefixFn | undefined, depth: number, budget?: ReachBudget): Promise<string | null> {
   const plain = { ...context, alwaysDenyRules: {} } as ToolPermissionContext
   const reach = await denyRuleReach(input.command, resolveShellCwd(input.cwd), plain, {
     judge: async (command, cwd, left) => {
@@ -650,7 +650,7 @@ async function namesMercuryConfiguration(input: BashInput, context: ToolPermissi
 async function decideWithDenyRuleReach(
   input: BashInput,
   context: ToolPermissionContext,
-  prefixFn: PrefixFn,
+  prefixFn: PrefixFn | undefined,
   depth: number,
   budget?: ReachBudget,
 ): Promise<{ result: PermissionResult; hidden: HiddenDenyRule | null; unread: HiddenDenyRule | null }> {
@@ -754,7 +754,7 @@ export async function startedCommandVerdict(
   const context = (toolUseContext?.getAppState?.().toolPermissionContext ?? getEmptyToolPermissionContext()) as ToolPermissionContext
   let held: PermissionResult | null = null
   for (const one of started) {
-    const verdict = await shellTextVerdict(one.cwd === undefined ? { command: one.command } : { command: one.command, cwd: one.cwd }, context, pinnedCommandAnalysis.getCommandSubcommandPrefix, knownForCommand)
+    const verdict = await shellTextVerdict(one.cwd === undefined ? { command: one.command } : { command: one.command, cwd: one.cwd }, context, undefined, knownForCommand)
     if (verdict.behavior === 'deny') return verdict
     if (verdict.behavior !== 'ask' || held !== null) continue
     const reason = verdict.decisionReason
@@ -766,7 +766,7 @@ export async function startedCommandVerdict(
 async function decideBashPermission(
   input: BashInput,
   context: ToolPermissionContext,
-  prefixFn: PrefixFn,
+  prefixFn: PrefixFn | undefined,
   depth = 0,
   inheritedHasCd = false,
 ): Promise<PermissionResult> {
@@ -801,7 +801,7 @@ async function decideBashPermission(
     }
   }
   let compoundHasCd = inheritedHasCd
-  const customPrefixFn = prefixFn !== pinnedCommandAnalysis.getCommandSubcommandPrefix
+  const customPrefixFn = prefixFn !== undefined
 
   let astCommands: SimpleCommand[] | null = null
   if (command.length > 10_000) {
