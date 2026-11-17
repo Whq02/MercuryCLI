@@ -481,7 +481,7 @@ scripts/health/prove-boot-spine-setup-boundary.ts	1	8	1cd8b18798a1
 scripts/health/prove-browser-row.ts	2	6	68c4c05226bc
 scripts/health/prove-cert-clean-hands.ts	1	1	28bca0c5568e
 scripts/health/prove-daemon-signin-view.ts	1	12	28bca0c5568e
-scripts/health/prove-device-headroom.ts	1	9	28bca0c5568e
+scripts/health/prove-device-headroom.ts	1	11	28bca0c5568e
 scripts/health/prove-flags-row-retired.ts	2	4	6809f1ab1a77
 scripts/health/prove-foreign-harness-inversion.ts	4	8	a8f666563b59
 scripts/health/prove-health-evidence-strings.ts	1	4	28bca0c5568e
@@ -651,7 +651,7 @@ scripts/messages/prove-interrupt-result.ts	14	3	968b731a0180
 scripts/messages/prove-stream-commit-throttle.ts	4	10	3007ae7a4f44
 scripts/messages/prove-structured-output-dialect.ts	2	2	7a332d670ca1
 scripts/messages/prove-transcript-calm-identity.ts	3	4	19a3389608bd
-scripts/mission/prove-goal-end-state.ts	4	17	e93430bb6bf9
+scripts/mission/prove-goal-end-state.ts	4	20	e93430bb6bf9
 scripts/mission/prove-mission-continuity.ts	1	4	60a32f21e7e2
 scripts/mission/prove-mission-hook.ts	4	34	e93430bb6bf9
 scripts/model-policy/prove-frontier-policy.ts	1	3	459bc868ff68
@@ -990,7 +990,7 @@ scripts/settings/prove-extra-ca-outcome.ts	2	3	0a4ebb86bc96
 scripts/settings/prove-global-config-read-as-written.ts	4	4	3148130ae8f8
 scripts/settings/prove-helper-lifetime.ts	3	7	6d2fe9c1b771
 scripts/settings/prove-identity-line.ts	3	5	c55392a788a9
-scripts/settings/prove-instruction-imports-scope.ts	1	2	53e2794aada2
+scripts/settings/prove-instruction-imports-scope.ts	2	3	2e5cd53e1a54
 scripts/settings/prove-journal-setting-default.ts	1	2	29fe4bba7fa6
 scripts/settings/prove-local-setup-dialog.ts	2	3	cefd64ce6b85
 scripts/settings/prove-mdm-probe-memo.ts	4	10	22b49eea4ef9
@@ -998,6 +998,7 @@ scripts/settings/prove-mdm-tier-at-boot.ts	2	7	7207374c398e
 scripts/settings/prove-native-entry-road.ts	2	0	8dca155e667c
 scripts/settings/prove-openrouter-routing-setting.ts	1	1	29fe4bba7fa6
 scripts/settings/prove-rules-dir-listing-cache.ts	1	5	53e2794aada2
+scripts/settings/prove-settings-pipeline.ts	1	5	28bca0c5568e
 scripts/settings/prove-settings-salvage.ts	1	2	a8271f08d99a
 scripts/settings/prove-settings-write-scope.ts	1	5	29fe4bba7fa6
 scripts/settings/prove-silent-disclosures.ts	3	7	28d21530342d
@@ -1102,7 +1103,7 @@ scripts/switchboard/prove-chat-birth.ts	2	5	0c79d8db1fed
 scripts/switchboard/prove-chat-forward-first-paint.ts	5	28	b8744fceaa3c
 scripts/switchboard/prove-chat-mode-polish.ts	18	72	44f7856789b2
 scripts/switchboard/prove-chat-tag-live-title.ts	2	3	2407249275ae
-scripts/switchboard/prove-claude-door-capability.ts	1	3	059a6170f0a2
+scripts/switchboard/prove-claude-door-capability.ts	12	6	cdff24c5d6a8
 scripts/switchboard/prove-close-chord.ts	4	68	d4fe9f684bc7
 scripts/switchboard/prove-command-table.ts	12	18	5b82416631dc
 scripts/switchboard/prove-compact-card-floor.ts	3	11	8f0179672364
@@ -1133,6 +1134,7 @@ scripts/switchboard/prove-seat-lifecycle.ts	9	102	b88cf1c81dde
 scripts/switchboard/prove-seat-setting.ts	5	14	bd678954a9f9
 scripts/switchboard/prove-seat-vocabulary.ts	4	7	e07cde51643a
 scripts/switchboard/prove-session-kit.ts	16	99	71e3998802f1
+scripts/switchboard/prove-session-model-arms.ts	1	1	1e19e7dcd89c
 scripts/switchboard/prove-session-receipts.ts	3	9	a86ee12676ea
 scripts/switchboard/prove-sessions-delete-verb.ts	4	9	bb5d01a74712
 scripts/switchboard/prove-sessions-list-verb.ts	1	4	1cd8b18798a1
@@ -1274,7 +1276,7 @@ scripts/ui/prove-failover-compact-rows.ts	3	11	e2dab06a467a
 scripts/ui/prove-field-findings-cards.ts	8	38	b84882b25df1
 scripts/ui/prove-field-findings-composer.ts	6	17	8fd42b6a4b5b
 scripts/ui/prove-field-findings-concourse-2.ts	3	6	9dbf649ad60f
-scripts/ui/prove-field-findings-concourse.ts	2	34	d58eec467708
+scripts/ui/prove-field-findings-concourse.ts	4	37	326c42b3450d
 scripts/ui/prove-field-findings-daemon.ts	4	17	421e6a26bbeb
 scripts/ui/prove-field-findings-jumpchord.ts	1	2	c6193943e435
 scripts/ui/prove-field-findings-keysetup.ts	1	4	80362ceea0a2
@@ -1370,7 +1372,7 @@ scripts/ui/prove-spinner-hud.ts	6	26	99ffa6e03415
 scripts/ui/prove-spinner-tips.ts	1	4	cd088bf585d0
 scripts/ui/prove-status-band.ts	6	40	2313194a6f11
 scripts/ui/prove-status-card-key-owner.ts	1	1	39a39ece9c17
-scripts/ui/prove-status-spine-unity.ts	1	4	0017a06bb718
+scripts/ui/prove-status-spine-unity.ts	1	6	0017a06bb718
 scripts/ui/prove-sticky-prompt-header-gone.ts	5	0	bee1cec8a4b1
 scripts/ui/prove-streaming-nameplate.ts	3	13	21937dc0a5e0
 scripts/ui/prove-submit-while-landing.ts	2	31	cba956a2522d
@@ -1415,12 +1417,14 @@ scripts/updater/prove-release-targets.ts	2	5	a2d4a4a5ffac
 scripts/updater/prove-shim-pointer-containment.ts	1	2	d4fc84a8d2dd
 scripts/updater/prove-signing-surfaces.ts	3	16	538e5cd65177
 scripts/updater/prove-status-check-agreement.ts	1	4	d4fc84a8d2dd
+scripts/updater/prove-update-journey.ts	1	3	fef04e9eedd8
 scripts/updater/prove-update-prune-live-version.ts	3	9	7b574b655bf2
 scripts/updater/prove-verifier-bundle.ts	2	6	dc51d72ae962
 scripts/updater/prove-version-contract.ts	1	1	24934174eb23
 scripts/usage-warning/prove-limit-warning-relay.ts	4	17	48d599caf116
 scripts/usage-warning/prove-warning-tiers.ts	4	5	9091862fa205
 scripts/verify/prove-pre-push-guard.sh	1	1	afa44040ab42
+scripts/verify/prove-project-gates.ts	1	11	40fa8571fd66
 scripts/verify/prove-tree-fingerprint-budget.ts	8	4	b796f927ca0c
 scripts/visual-contract/prove-focal-ramp.ts	3	7	024f123dcd0f
 scripts/visual-contract/prove-hyperlink-coverage.ts	1	1	9e8a0d3ba2fe

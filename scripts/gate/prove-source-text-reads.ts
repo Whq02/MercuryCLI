@@ -71,7 +71,9 @@ const ofTheModule = (decl: ts.VariableDeclaration): boolean => ts.isVariableStat
 function nameOf(call: ts.CallExpression | ts.NewExpression): string | undefined {
   const callee = unwrap(call.expression)
   const decl = ts.isIdentifier(callee) ? declOf(callee) : undefined
-  return decl && ts.isImportSpecifier(decl) && decl.propertyName ? decl.propertyName.text : calleeName(call)
+  if (decl && (ts.isImportSpecifier(decl) || ts.isBindingElement(decl)) && decl.propertyName && ts.isIdentifier(decl.propertyName)) return decl.propertyName.text
+  const held = decl && ts.isVariableDeclaration(decl) && decl.initializer ? unwrap(decl.initializer) : undefined
+  return held && ts.isIdentifier(held) ? held.text : held && ts.isPropertyAccessExpression(held) ? held.name.text : calleeName(call)
 }
 
 function memberships(fn: ts.FunctionLikeDeclaration): ts.Expression[] {
@@ -993,9 +995,11 @@ function plantedEstate(): void {
         "const load = async (rel: string): Promise<{ mod: unknown; text: string }> => ({ mod: await import(join(ROOT, rel)), text: readFileSync(join(ROOT, rel), 'utf8') })",
         "const { text } = await load('src/planted/one.ts')",
         "const picked = await import(readFileSync(join(ROOT, 'src/lone.ts'), 'utf8').includes('x') ? 'node:path' : 'node:os')",
-        "console.log(text.includes('y'), picked)",
+        "const { join: j } = await import('node:path')",
+        "const aliased = readFileSync(j(ROOT, 'src/planted/two.tsx'), 'utf8')",
+        "console.log(text.includes('y'), picked, aliased)",
       ],
-      events: [[5, ONE], [6, LONE], [7, ONE]],
+      events: [[5, ONE], [6, LONE], [8, TWO], [9, ONE]],
       searches: 2,
       namesOnly: [],
     },
@@ -1051,7 +1055,7 @@ function plantedEstate(): void {
   check('a search on text read from a pinned file is counted where it is made: includes, test, split, indexOf, match, startsWith and endsWith, one for each call of a helper that searches what it is handed (9 on the one line)', facts.get(PINS)?.searches.every(s => s.line === 23) === true && facts.get(PINS)?.searches.length === 9, differs(PINS))
   check('a name that is only listed is no pin and is counted apart: a list nothing opens, a label, a pattern, a test that the file is there, a fixture written under another root, a file run as a program, a sentence', holds('scripts/a/prove-names.ts'), differs('scripts/a/prove-names.ts'))
   check('an import is neither: static, for its effect, of a type, of data, re-exported, assigned from require, dynamic, dynamic on a built path or a template, require, in a type, through mock.module, through a helper that imports what it is handed, in the text of a child program, and neither is a comment', holds('scripts/a/prove-imports.ts'), differs('scripts/a/prove-imports.ts'))
-  check('a helper that imports what it is handed and reads it as text too opens it, and so does a read inside the argument of an import', holds('scripts/a/prove-closed.ts'), differs('scripts/a/prove-closed.ts'))
+  check('a helper that imports what it is handed and reads it as text too opens it, and so do a read inside the argument of an import and a path joined by a joiner taken under another name', holds('scripts/a/prove-closed.ts'), differs('scripts/a/prove-closed.ts'))
   check('a helper module holds the pin of the file its own function names, and nothing for the path it is handed', holds('scripts/lib/door.ts'), differs('scripts/lib/door.ts'))
   check('in shell, Python and a script with no extension every name on a line that is no comment is taken as opened, and each such line as one search', ['run-all.sh', 'reader.py', 'hook'].every(f => holds(`scripts/a/${f}`)), ['run-all.sh', 'reader.py', 'hook'].map(f => differs(`scripts/a/${f}`)).join(' · '))
   const far = facts.get('scripts/a/out-of-reach.ts')
@@ -1064,11 +1068,11 @@ function plantedEstate(): void {
   const text = render(rows)
   const table = tableOf(text)
   const counts = [...rows].map(([script, row]) => `${script} ${row.pins} ${row.searches}`).join(' · ')
-  check('the table is one row for each script that opens a src file: the files it opens, its searches, a digest of the files, in order, and reads back as written', counts === 'scripts/lib/door.ts 1 0 · scripts/a/prove-pins.ts 5 9 · scripts/a/prove-closed.ts 2 2 · scripts/a/run-all.sh 3 4 · scripts/a/reader.py 2 2 · scripts/a/hook 1 1' && table !== null && render(table) === text && text.startsWith('scripts/a/hook\t1\t1\t'), counts)
+  check('the table is one row for each script that opens a src file: the files it opens, its searches, a digest of the files, in order, and reads back as written', counts === 'scripts/lib/door.ts 1 0 · scripts/a/prove-pins.ts 5 9 · scripts/a/prove-closed.ts 3 2 · scripts/a/run-all.sh 3 4 · scripts/a/reader.py 2 2 · scripts/a/hook 1 1' && table !== null && render(table) === text && text.startsWith('scripts/a/hook\t1\t1\t'), counts)
   check('a table with a row that is no script with its two counts and its digest, or with a script twice, does not read', tableOf('scripts/a/hook\t1\n') === null && tableOf('scripts/a/hook\t0\t0\t0123456789ab\n') === null && tableOf('scripts/a/hook\t1\t1\t0123456789ab\nscripts/a/hook\t1\t1\t0123456789ab\n') === null && tableOf('src/lone.ts\t1\t0\t0123456789ab\n') === null)
   if (table === null) return
   const held = judge(facts, table)
-  check('on its own table the estate stands: 14 files opened, 18 searches, no row above its script', held.over.length === 0 && held.pins === 14 && held.searches === 18 && held.allowed === 14 && held.slack === 0, JSON.stringify(held))
+  check('on its own table the estate stands: 15 files opened, 18 searches, no row above its script', held.over.length === 0 && held.pins === 15 && held.searches === 18 && held.allowed === 15 && held.slack === 0, JSON.stringify(held))
   const with_ = (script: string, row: Partial<Row>): Table => new Map([...table].map(([s, r]) => [s, s === script ? { ...r, ...row } : r]))
   const without = (script: string): Table => new Map([...table].filter(([s]) => s !== script))
   const unrowed = judge(facts, without('scripts/a/hook'))
@@ -1077,7 +1081,7 @@ function plantedEstate(): void {
   check('a script that opens one file more than its row allows is named with every file it opens', raised.over.length === 1 && ['its row allows 2 files:', 'scripts/a/run-all.sh:4 src/planted/one.ts', 'scripts/a/run-all.sh:5 src/planted/deep/three.ts', 'scripts/a/run-all.sh:7 src/planted/two.tsx'].every(s => told(raised.over, facts).includes(s)), told(raised.over, facts))
   const worded = judge(facts, with_(PINS, { searches: 8 }))
   check('a script that searches once more than its row allows is named with the line and file of every search', worded.over.length === 1 && told(worded.over, facts).includes('its row allows 8 searches:') && told(worded.over, facts).split(`${PINS}:23 `).length === 10, told(worded.over, facts))
-  const swapped = judge(facts, with_('scripts/a/prove-closed.ts', { digest: digestOf([ONE, TWO]) }))
+  const swapped = judge(facts, with_('scripts/a/prove-closed.ts', { digest: digestOf([ONE, TWO, THREE]) }))
   check('a script that opens as many files as its row and not the same ones is named: one was swapped for another', swapped.over.length === 1 && swapped.over[0]!.why.includes('swapped'), told(swapped.over, facts))
   const fallen = judge(facts, with_('scripts/a/hook', { pins: 2, searches: 3 }))
   check('a row above its script passes and is counted', fallen.over.length === 0 && fallen.slack === 1, JSON.stringify(fallen))
@@ -1087,7 +1091,7 @@ function plantedEstate(): void {
     'the write rule: a row is written when it falls, leaves or holds other files; a new row and a higher row are refused; a row moves with its file when git reads the rename and its counts are no higher',
     refused(facts, table, new Map()).length === 0 &&
       refused(facts, with_('scripts/a/hook', { pins: 5, searches: 5 }), new Map()).length === 0 &&
-      refused(facts, with_('scripts/a/prove-closed.ts', { digest: digestOf([ONE, TWO]) }), new Map()).length === 0 &&
+      refused(facts, with_('scripts/a/prove-closed.ts', { digest: digestOf([ONE, TWO, THREE]) }), new Map()).length === 0 &&
       refused(facts, without('scripts/a/hook'), new Map()).map(o => o.script).join() === 'scripts/a/hook' &&
       refused(facts, with_(PINS, { pins: 4 }), new Map()).map(o => o.script).join() === PINS &&
       refused(facts, with_(PINS, { searches: 8 }), new Map()).map(o => o.script).join() === PINS &&
@@ -1095,7 +1099,7 @@ function plantedEstate(): void {
       refused(facts, renamed({ pins: 1, searches: 0, digest: digestOf([LONE]) }), moved).map(o => o.script).join() === 'scripts/a/hook',
     JSON.stringify(refused(facts, renamed({ pins: 1, searches: 0, digest: '' }), moved)),
   )
-  const before = new Map([...renamed({ pins: 1, searches: 1, digest: digestOf([LONE]) })].filter(([s]) => s !== 'scripts/a/reader.py').map(([s, r]): [string, Row] => [s, s === PINS ? { ...r, searches: 8 } : s === 'scripts/a/prove-closed.ts' ? { ...r, digest: digestOf([ONE, TWO]) } : r]))
+  const before = new Map([...renamed({ pins: 1, searches: 1, digest: digestOf([LONE]) })].filter(([s]) => s !== 'scripts/a/reader.py').map(([s, r]): [string, Row] => [s, s === PINS ? { ...r, searches: 8 } : s === 'scripts/a/prove-closed.ts' ? { ...r, digest: digestOf([ONE, TWO, THREE]) } : r]))
   const read2 = risen(before, table, moved)
   check(
     'the comparison of two tables prints a row that is new, a row that is higher and a row that holds other files, counts the first two, and passes a row that moved with its file; a table of the older shape gives its count of names for the files',
