@@ -4,6 +4,7 @@
 # gate-watch: scripts/verify/** src/utils/verification/**
 # gate-watch: .githooks/** scripts/gate/ledger.ts scripts/gate/impact-narrowed.txt
 # gate-watch: scripts/outcome-pack/** scripts/daemon/dupline-world.ts
+# gate-watch: src/utils/Shell.ts src/utils/shell/bashProvider.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"

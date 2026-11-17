@@ -31,6 +31,7 @@
 # gate-watch: src/prompt/recordedComposition.ts scripts/lib/firstRunSeed.ts vendor/**
 # gate-watch: src/mneme/memoryVerbs.ts src/mneme/mnemeConsolidate.ts src/mneme/mnemeFrontPage.ts src/mneme/mnemeGates.ts scripts/prompt/fixtures/**
 # gate-watch: src/utils/cwd.ts
+# gate-watch: src/tools/BashTool/BashTool.tsx
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

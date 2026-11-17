@@ -20,6 +20,7 @@
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: scripts/lib/seatDoor.ts
 # gate-watch: scripts/compact/overflowFixture.ts
+# gate-watch: src/tasks/LocalShellTask/LocalShellTask.tsx src/tools/BashTool/BashTool.tsx
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 cd "$(dirname "$0")/../.." || exit 1
