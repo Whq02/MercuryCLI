@@ -647,7 +647,6 @@ as-unknown-as	src/tools/AgentTool/agentToolUtils.ts	2
 as-unknown-as	src/tools/AgentTool/loadAgentsDir.ts	1
 as-unknown-as	src/tools/AstEditTool/AstEditTool.ts	1
 as-unknown-as	src/tools/BashTool/BashTool.tsx	1
-as-unknown-as	src/tools/BashTool/bashPermissions.ts	2
 as-unknown-as	src/tools/BashTool/modeValidation.ts	1
 as-unknown-as	src/tools/BlenderTool/show.ts	1
 as-unknown-as	src/tools/ChangeSetTool/ChangeSetTool.ts	2
