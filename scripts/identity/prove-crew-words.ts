@@ -2,8 +2,10 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import ts from 'typescript'
+import { flagRegistryFiles, isFlagRegistryFile } from '../lib/flagRegistrySource.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
+const REGISTRY = flagRegistryFiles()[0]!
 const REPORT = process.argv.includes('--report')
 const J = (...parts: string[]): string => parts.join('')
 
@@ -38,7 +40,7 @@ const ALLOW: Row[] = [
     ['src/services/providers/xai/xaiUsageState.ts', "console.x.ai's settings page unlocks the team usage meter"],
     ['src/services/providers/xai/xaiUsageState.ts', 'API key team lookup'],
     ['src/services/providers/xai/xaiUsageState.ts', 'check the key and its team permissions; /logins xai'],
-    ['src/substrate/flagRegistry.ts', 'xAI Management API base for team billing reads'],
+    [REGISTRY, 'xAI Management API base for team billing reads'],
   ].map(([path, fragment]) => ({ path: path!, fragment: fragment!, why: "xAI's billing account, not a Mercury crew" })),
   { path: 'src/commands/team/index.ts', fragment: 'Post to one team on the board', why: 'The owner channel command targets the board delivery label.' },
   { path: 'src/services/crewBoard/party.ts', fragment: 'joined · team', why: "The joined row names the seat's board delivery label in the owner's words." },
@@ -228,7 +230,7 @@ for (const full of files) {
   const source = readFileSync(full, 'utf8')
   if (!/team/i.test(source)) continue
   for (const found of scanSource(rel, source)) {
-    const row = ALLOW.find(r => (rel === r.path || rel.startsWith(r.path)) && (r.fragment === null || found.text.includes(r.fragment)) && (r.path !== 'src/tools/' || /\/prompt\.ts$/.test(rel))) ?? null
+    const row = ALLOW.find(r => (rel === r.path || rel.startsWith(r.path) || (r.path === REGISTRY && isFlagRegistryFile(rel))) && (r.fragment === null || found.text.includes(r.fragment)) && (r.path !== 'src/tools/' || /\/prompt\.ts$/.test(rel))) ?? null
     hits.push({ rel, line: found.line, text: found.text, allowed: row })
   }
 }
