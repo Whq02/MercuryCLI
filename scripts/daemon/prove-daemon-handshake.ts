@@ -461,21 +461,15 @@ section('G · wiring: ensureDaemon rides the handshake; main wires hello/restart
   const repl = read('src/screens/Chat.tsx')
   check('G8 the Chat paints the one line and clears it on match', repl.includes('subscribeDaemonHandshake') && repl.includes("removeNotification(key)"))
   {
-    const fsH = await import('node:fs')
-    const rowPlane = fsH.mkdtempSync((await import('node:path')).join((await import('node:os')).tmpdir(), 'health-daemon-row-'))
-    const planeBefore = process.env.MERCURY_DAEMON_DIR
-    process.env.MERCURY_DAEMON_DIR = rowPlane
-    const { daemonStatePath } = await import('../../src/daemon/controlSocket.ts')
-    fsH.writeFileSync(daemonStatePath(), JSON.stringify({ pid: process.pid, version: '0.0.0-fixture', startedAt: Date.now() }))
-    const handshake = await import('../../src/daemon/handshake.ts')
+    const dir = freshPlane()
+    seedRecords(dir, { 'concourse-w1': { workerId: 'concourse-w1', sessionId: 's1', pid: process.pid } })
+    seedDaemonRecord(dir, { pid: process.pid, version: '1.5.6', origin: 'transient', startedAt: Date.now() - 60_000, dir: '/tmp/p', controlSock: controlSockPath() })
+    const old = await startOldDaemon({ version: '1.5.6', jobs: [{ short: 'concourse-w1', sessionId: 's1', prompt: '', source: 'user', state: 'ready', startedAt: 1, cliVersion: '1.5.6' }] })
     const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
     const daemonRow = await crewChecks().find(row => row.id === 'daemon')?.run()
-    const hs = await handshake.handshakeDaemon({ timeoutMs: 1000 })
-    if (planeBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
-    else process.env.MERCURY_DAEMON_DIR = planeBefore
-    const skew = handshake.daemonSkewLine(hs)
-    const said = hs.line !== null ? daemonRow?.status === 'warn' && daemonRow.fix === (hs.heal === 'reopen' ? handshake.reopenWayOut(hs) : hs.line) : skew !== null ? daemonRow?.status === 'warn' && daemonRow.fix === skew : daemonRow?.status === 'ok'
-    check('G9 the certificate daemon row runs the handshake and the line IS the fix (the reopen case carries the full way out, which the notice row has no room for)', daemonRow !== undefined && daemonRow.evidence.startsWith('daemon.json: ') && daemonRow.evidence.endsWith(` · ${handshake.daemonHandshakeEvidence(hs)}`) && daemonRow.link === '/daemon' && said, JSON.stringify(daemonRow))
+    const seen = await hsMod.handshakeDaemon({ timeoutMs: 500 })
+    await old.close()
+    check('G9 the certificate daemon row runs the handshake and the line IS the fix (the reopen case, which carries the full way out, is driven over a real daemon by E1b of prove-field-e004-daemon-skew.ts)', seen.line === 'daemon v1.5.6 running with 1 live session — new features wait until it restarts · /daemon restart when ready' && daemonRow?.status === 'warn' && daemonRow.fix === seen.line && daemonRow.evidence.startsWith('daemon.json: ') && daemonRow.evidence.endsWith(` · ${hsMod.daemonHandshakeEvidence(seen)}`) && daemonRow.link === '/daemon', JSON.stringify(daemonRow))
   }
   const statusSrc = read('src/daemon/status.ts')
   check('G10 the status probe handshakes BEFORE the keyed ops (an old daemon still reports)', statusSrc.indexOf('snapshot.handshake = await handshakeDaemon') !== -1 && statusSrc.indexOf('snapshot.handshake = await handshakeDaemon') < statusSrc.indexOf("daemonControlRpc({ op: 'status'"))

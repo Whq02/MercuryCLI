@@ -205,6 +205,26 @@ section('§C the heal moves a release install: a daemon of the old payload is su
   check('C1 a daemon started from the OLD payload answers with the old tree', up && first !== null && first.buildTree === OLD_TREE.slice(0, 12), `${text(first)}\n${old.log.join('').slice(-800)}`)
   const verdict = await hsMod.handshakeDaemon({ timeoutMs: 1500, client: screen })
   check('C2 the screen of the new build reads it as rebuilt', verdict.state === 'rebuilt' && verdict.heal === 'restart-when-idle', text({ state: verdict.state, line: verdict.line }))
+  {
+    const entryBefore = process.argv[1]
+    process.argv[1] = join(newDir, 'mercury.mjs')
+    hsMod.resetDaemonHandshakeForTesting()
+    const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+    const { identityChecks } = await import('../../src/utils/health/sections/identity.ts')
+    const { healthContext } = await import('../../src/utils/healthReport.ts')
+    const { artifactIdentityLine, describeArtifactIdentity } = await import('../../src/utils/artifactIdentity.ts')
+    const context = await healthContext()
+    const daemonRow = await crewChecks().find(row => row.id === 'daemon')?.run()
+    const buildRow = await identityChecks(context).find(row => row.id === 'build-identity')?.run()
+    const seen = await hsMod.handshakeDaemon({ timeoutMs: 1000 })
+    const identityLine = artifactIdentityLine(describeArtifactIdentity(context.version))
+    process.argv[1] = entryBefore!
+    hsMod.resetDaemonHandshakeForTesting()
+    const skew = hsMod.daemonSkewLine(seen)
+    check('E1 the "Scheduler daemon" row warns on the skew itself, the skew line as the fix (run here as the installed build, over the old daemon)', seen.state === 'rebuilt' && seen.line === null && skew !== null && daemonRow?.status === 'warn' && daemonRow.fix === skew && daemonRow.evidence.endsWith(` · ${hsMod.daemonHandshakeEvidence(seen)}`) && daemonRow.link === '/daemon', text({ row: daemonRow, state: seen.state, heal: seen.heal, line: seen.line, skew }))
+    const beside = hsMod.daemonBuildBesideScreen(seen)
+    check('E2 the "Mercury build" row shows the daemon\'s build beside the screen\'s', beside !== null && buildRow?.evidence.startsWith(`${identityLine} · ${beside} · `) === true, text({ row: buildRow?.evidence, beside }))
+  }
   const direct = await sock.daemonControlRpc({ op: 'restart-when-idle', proto: MERCURY_DAEMON_PROTO, by: 'mercury daemon restart' }, { timeoutMs: 3000 })
   check('C3 THE FIELD DEFECT, closed at the root: the old daemon never re-executes another build with its own words — asked to restart while another build is installed, it names that build and leaves (now, being idle), spawning nothing', direct.ok && direct.op === 'restart-when-idle' && direct.state === 'refused' && typeof direct.detail === 'string' && direct.detail.startsWith(`another build (v${NEW_VERSION}) is installed`) && direct.detail.includes('starts its own daemon; this one leaves now, re-executing nothing') && (await until(() => !isProcessAlive(old.pid), 20_000, 200)) && !old.log.join('').includes('successor spawned'), `${text(direct)} ${old.log.join('').split('\n').filter(l => /restart|successor|shutting/.test(l)).join(' | ').slice(-500)}`)
   const heal = await hsMod.healDaemonVersion(verdict, { by: 'screen 4242' })
@@ -219,6 +239,17 @@ section('§C the heal moves a release install: a daemon of the old payload is su
   const oldScreen = { proto: MERCURY_DAEMON_PROTO, version: OLD_VERSION, buildTree: OLD_TREE.slice(0, 12) }
   const reversed = await hsMod.handshakeDaemon({ timeoutMs: 1500, client: oldScreen })
   check('C7 THE REVERSED ARM on a real daemon: a screen that is not the installed build, over the daemon that runs it, reads reopen with both trees named', reversed.state === 'rebuilt' && reversed.heal === 'reopen' && reversed.line === `chat engine: the installed build ${NEW_TREE.slice(0, 12)}, not this Mercury's · /daemon` && hsMod.reopenWayOut(reversed) === `this chat's engine is the installed build (tree ${NEW_TREE.slice(0, 12)}), not this Mercury's (tree ${OLD_TREE.slice(0, 12)}) — ${hsMod.OTHER_BUILD_WAY_OUT}`, text({ heal: reversed.heal, line: reversed.line }))
+  {
+    const entryBefore = process.argv[1]
+    process.argv[1] = join(oldDir, 'mercury.mjs')
+    hsMod.resetDaemonHandshakeForTesting()
+    const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+    const reopenRow = await crewChecks().find(row => row.id === 'daemon')?.run()
+    const seen = await hsMod.handshakeDaemon({ timeoutMs: 1000 })
+    process.argv[1] = entryBefore!
+    hsMod.resetDaemonHandshakeForTesting()
+    check('E1b the same row over the reversed arm: a screen that is not the installed build reads warn, and its fix is the full way out, not the one line', seen.heal === 'reopen' && seen.line === reversed.line && reopenRow?.status === 'warn' && reopenRow.fix === hsMod.reopenWayOut(seen) && reopenRow.fix !== seen.line, text({ row: reopenRow, heal: seen.heal, line: seen.line }))
+  }
   const noAsk = await hsMod.healDaemonVersion(reversed, { by: 'screen 4242' })
   check('C8 the other-build screen asks the daemon for nothing — no restart, no handover (the heal answers none)', noAsk.state === 'none' && (await helloFrom())?.pid === successor?.pid, text(noAsk))
   const asOldBuild = await sock.daemonControlRpc({ op: 'restart-when-idle', proto: MERCURY_DAEMON_PROTO, by: 'screen 4242' }, { timeoutMs: 3000 })
@@ -379,29 +410,6 @@ section('§D2 a daemon of an older build whose restart re-executes its own bundl
 section('§E the wiring: the rows, the verb, the daemon')
 {
   const read = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
-  {
-    const fsH = await import('node:fs')
-    const rowPlane = fsH.mkdtempSync((await import('node:path')).join((await import('node:os')).tmpdir(), 'health-daemon-row-'))
-    const planeBefore = process.env.MERCURY_DAEMON_DIR
-    process.env.MERCURY_DAEMON_DIR = rowPlane
-    const { daemonStatePath } = await import('../../src/daemon/controlSocket.ts')
-    fsH.writeFileSync(daemonStatePath(), JSON.stringify({ pid: process.pid, version: '0.0.0-fixture', startedAt: Date.now() }))
-    const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
-    const { identityChecks } = await import('../../src/utils/health/sections/identity.ts')
-    const { healthContext } = await import('../../src/utils/healthReport.ts')
-    const { artifactIdentityLine, describeArtifactIdentity } = await import('../../src/utils/artifactIdentity.ts')
-    const context = await healthContext()
-    const daemonRow = await crewChecks().find(row => row.id === 'daemon')?.run()
-    const buildRow = await identityChecks(context).find(row => row.id === 'build-identity')?.run()
-    const hs = await hsMod.handshakeDaemon({ timeoutMs: 1000 })
-    if (planeBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
-    else process.env.MERCURY_DAEMON_DIR = planeBefore
-    const skew = hsMod.daemonSkewLine(hs)
-    const said = hs.line !== null ? daemonRow?.status === 'warn' && daemonRow.fix === (hs.heal === 'reopen' ? hsMod.reopenWayOut(hs) : hs.line) : skew !== null ? daemonRow?.status === 'warn' && daemonRow.fix === skew : daemonRow?.status === 'ok'
-    check('E1 the "Scheduler daemon" row warns on the skew itself, the skew line as the fix', daemonRow !== undefined && daemonRow.evidence.endsWith(` · ${hsMod.daemonHandshakeEvidence(hs)}`) && said, JSON.stringify(daemonRow))
-    const beside = hsMod.daemonBuildBesideScreen(hs)
-    check('E2 the "Mercury build" row shows the daemon\'s build beside the screen\'s', buildRow?.evidence.startsWith(`${artifactIdentityLine(describeArtifactIdentity(context.version))}${beside === null ? '' : ` · ${beside}`}`) === true, `${buildRow?.evidence} · beside: ${beside}`)
-  }
   const update = read('src/cli/update.ts')
   check('E3 `mercury update` finishes by moving the daemon and says so (text and --json), then tells the user about windows still open', update.includes("moveDaemonToDeployedBuild({ by: 'mercury update' })") && update.includes('const daemon = installCurrent ? await moveDaemonAfterUpdate() : null') && update.includes('${shimLine}${shellWords}${daemonLine}${openWindowsLineText}') && update.includes('{ ...base, daemon }') && update.includes("const openWindows = result.state === 'updated' ? openWindowsLine(result.from) : null"))
   check('E3b `mercury update --rollback` runs the mover too and ends with the same lines', update.includes("const daemon = rolled.state === 'rolled-back' ? await moveDaemonAfterUpdate() : null") && update.includes("emitJson({ mode: 'rollback', ...rolled, daemon, openWindows })"))
