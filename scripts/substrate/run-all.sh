@@ -108,6 +108,8 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-live-e2e-hermetic.ts" || { __rc=$?
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-friction-stopwatch.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-friction-stopwatch.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-health-self-recognition.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-health-self-recognition.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-headless-one-shot-roster.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-headless-one-shot-roster.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-flag-door-environment.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-flag-door-environment.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-lean-is-the-sessions-stamp.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-lean-is-the-sessions-stamp.ts" "$__t" "$__rc"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL SUBSTRATE PROOFS PASS"; else echo "# ❌ SOME SUBSTRATE PROOFS FAILED"; fi
 echo "############################################################"
