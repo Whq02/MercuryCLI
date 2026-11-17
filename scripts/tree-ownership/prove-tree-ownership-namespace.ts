@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { flagEnv, flagPair, flagSpellings } from '../../src/substrate/flagRegistry.ts'
 import { projectLocalPath } from '../../src/services/projectLocal/paths.js'
+import { flagRegistryText } from '../lib/flagRegistrySource.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 
@@ -61,7 +62,7 @@ section('(2) one-spelling reader (real flagEnv over a mutated env)')
 
 section('(3) the one-spelling rule over src/')
 {
-  const registrySrc = readFileSync(join(ROOT, 'src', 'substrate', 'flagRegistry.ts'), 'utf8')
+  const registrySrc = flagRegistryText()
   check('the registry declares one spelling per row (no alias field)', !/\blegacy\??:/.test(registrySrc))
 }
 
