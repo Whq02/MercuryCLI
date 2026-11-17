@@ -5,7 +5,6 @@
   "contributes": {
     "skills": ["./skills", "./missing-skills"],
     "hooks": { "NotAnEvent": [ { "run": "true" } ] },
-    "channels": [ { "server": "nope", "label": "names no server" } ],
     "keybindings": { "ctrl+x p": "/other-extension:thing" }
   },
   "needs": { "binaries": ["fixture-binary-that-does-not-exist"], "env": ["FIXTURE_UNSET_ENV"] }

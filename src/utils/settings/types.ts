@@ -214,7 +214,6 @@ export const SettingsSchema = lazySchema(() => {
         transport: z.enum(['http', 'websocket']).optional(),
       }).optional().describe('The OpenAI API-key road\'s transport: http (the default) posts every request; websocket keeps one connection per conversation and sends only the new input against the previous response, falling back to http on any connect or stream fault before the response begins'),
     }).passthrough().optional(),
-    channels: z.object({ enabled: z.boolean().optional() }).passthrough().optional(),
     apollo: z.object({ preflightQuestions: z.number().int().min(1).max(20).optional() }).optional().describe('Apollo Mode: pre-flight interview poll budget (default 7)'),
     workspace: z.object({
       worktree: z.object({

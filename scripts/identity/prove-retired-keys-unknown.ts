@@ -98,6 +98,7 @@ const RETIRED_SETTINGS_ROOTS: Record<string, unknown> = {
   shellEngineSessions: 2,
   openrouterRouting: { zeroDataRetention: true },
   channelsEnabled: false,
+  channels: { enabled: true },
   worktree: { sparsePaths: ['x'] },
   localServer: { maxLoadedModels: 2 },
   autoMode: { allow: ['Bash(echo *)'], soft_deny: ['Write'], environment: ['a fixture environment line'] },
@@ -134,7 +135,7 @@ const editTime = (key: string, value: unknown): { valid: boolean; words: string 
   const words = (result.errors ?? []).map(error => `${String(error.path ?? '')} ${error.message ?? ''}`).join(' | ')
   return { valid: result.isValid, words }
 }
-const NEW_PATHS = /credentials\.|files\.|records\.|briefs\.|memory\.|turns\.|environment\.|credit\.|guardrails|engine\.|kit\.|events\.|extensions\.|voice\.|activity\.|view\.|context\.|input\.|shell\.|routing\.|channels\.|workspace\.|local\./
+const NEW_PATHS = /credentials\.|files\.|records\.|briefs\.|memory\.|turns\.|environment\.|credit\.|guardrails|engine\.|kit\.|events\.|extensions\.|voice\.|activity\.|view\.|context\.|input\.|shell\.|routing\.|workspace\.|local\./
 
 section('§1 every retired settings root is an unknown key: the loader carries it, reads nothing from it, applies the declared sibling, writes no byte — exactly as a nonsense key')
 {
@@ -241,6 +242,20 @@ section('§5 a file an earlier version kept in the config home is left as it was
   }
 }
 
+section('§6 a retired extension contribution is an unknown key of the manifest: refused in the words a made-up contribution is refused in, at load and under the validator')
+{
+  const { parseManifestValue } = await import('../../src/extensions/manifest.js')
+  const RETIRED_CONTRIBUTIONS = ['channels']
+  const read = (key: string, strict: boolean): string => {
+    const parsed = parseManifestValue({ name: 'retired-probe', version: '1.0.0', description: 'a probe', contributes: { [key]: [{ server: 'app', label: 'notices' }] } }, { strict })
+    return j({ ok: parsed.ok, errors: parsed.ok ? [] : parsed.errors })
+  }
+  for (const strict of [false, true]) {
+    const control = read(NONSENSE, strict)
+    check(`control (${strict ? 'the validator' : 'load'}): a made-up contribution is refused naming the key`, control.includes('"ok":false') && control.includes(NONSENSE), control)
+    for (const key of RETIRED_CONTRIBUTIONS) check(`contributes.${key} (${strict ? 'the validator' : 'load'}): refused as the made-up contribution is`, read(key, strict) === control.replaceAll(NONSENSE, key), read(key, strict))
+  }
+}
 process.chdir(launchDir)
 rmSync(HOME, { recursive: true, force: true })
 rmSync(PROJ, { recursive: true, force: true })

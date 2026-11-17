@@ -14,7 +14,6 @@ export type RuntimeFacts = {
 
 type HookFailure = { count: number; last: string }
 const hookFailures = new Map<string, Map<string, HookFailure>>()
-const droppedChannelPosts = new Map<string, Map<string, number>>()
 
 export function recordHookFailure(extensionId: string, hookLabel: string, reason: string): void {
   let byHook = hookFailures.get(extensionId)
@@ -28,22 +27,12 @@ export function recordHookFailure(extensionId: string, hookLabel: string, reason
   byHook.set(hookLabel, entry)
 }
 
-export function recordDroppedChannelPost(extensionId: string, serverName: string): void {
-  let byServer = droppedChannelPosts.get(extensionId)
-  if (!byServer) {
-    byServer = new Map()
-    droppedChannelPosts.set(extensionId, byServer)
-  }
-  byServer.set(serverName, (byServer.get(serverName) ?? 0) + 1)
-}
-
 export function hookFailuresFor(extensionId: string): Map<string, HookFailure> {
   return hookFailures.get(extensionId) ?? new Map()
 }
 
 export function resetRuntimeCounters(): void {
   hookFailures.clear()
-  droppedChannelPosts.clear()
 }
 
 
@@ -104,9 +93,6 @@ export function computeHealth(entry: RosterEntry, facts: RuntimeFacts = {}, opti
   }
   for (const [hookLabel, failure] of hookFailuresFor(entry.id)) {
     reasons.push(`hook ${hookLabel}: ${failure.count} failure${failure.count === 1 ? '' : 's'} this session · last: ${failure.last}`)
-  }
-  for (const [serverName, count] of droppedChannelPosts.get(entry.id) ?? new Map<string, number>()) {
-    reasons.push(`channel ${serverName}: ${count} post${count === 1 ? '' : 's'} dropped (not declared under channels)`)
   }
 
   const outcome: HealthOutcome = reasons.length === 0 ? 'loads' : 'partial'

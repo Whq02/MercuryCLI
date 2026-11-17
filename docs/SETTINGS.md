@@ -256,7 +256,6 @@ the server definitions themselves.
 | `extensions.blocked` | Extension ids or source labels on the blocklist. |
 | `extensions.options` | Non-secret option values grouped by extension id and option name. |
 | `extensions.exclusive` | A managed lock: `true` for every customization surface, or a list drawn from `skills`, `agents`, `hooks`, `mcp`. |
-| `channels.enabled` | Enables messages from approved MCP channels. |
 
 [KIT.md](KIT.md) explains the per-repository menu and the session's dials;
 [EXTENSIONS.md](EXTENSIONS.md) explains manifests, sources and approval.

@@ -38,7 +38,6 @@ export function validateExtensionFolder(root: string, probes: Probes = realProbe
   if (resolution.hooks.length) counts.push(`${resolution.hooks.length} hook${resolution.hooks.length === 1 ? '' : 's'}`)
   if (resolution.servers.length) counts.push(`${resolution.servers.length} server${resolution.servers.length === 1 ? '' : 's'}`)
   if (resolution.language.length) counts.push(`${resolution.language.length} language server${resolution.language.length === 1 ? '' : 's'}`)
-  if (resolution.channels.length) counts.push(`${resolution.channels.length} channel${resolution.channels.length === 1 ? '' : 's'}`)
   if (resolution.keybindings.length) counts.push(`${resolution.keybindings.length} keybinding${resolution.keybindings.length === 1 ? '' : 's'}`)
   report.summary.push(`${manifest.name} ${manifest.version} — ${manifest.description}`)
   report.summary.push(`adds ${counts.length > 0 ? counts.join(' · ') : 'nothing'}`)

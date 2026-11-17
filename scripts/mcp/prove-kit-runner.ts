@@ -285,8 +285,8 @@ section('§E the extension AND: off in EITHER store contributes NOTHING, every k
     manifest: { name },
     root: `/x/${name}`,
     health: { outcome: 'ok' },
-    resolution: { skills: [], commands: [], servers: [], hooks: [], agents: [], channels: [], keybindings: [], language: [] },
-    switches: { skills: true, servers: true, commands: true, hooks: true, agents: true, channels: true, keybindings: true, language: true, ...switches },
+    resolution: { skills: [], commands: [], servers: [], hooks: [], agents: [], keybindings: [], language: [] },
+    switches: { skills: true, servers: true, commands: true, hooks: true, agents: true, keybindings: true, language: true, ...switches },
     options: {},
   })
   const seed = (...exts: unknown[]): void => {

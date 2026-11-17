@@ -1814,7 +1814,6 @@ async function interactiveLaunch(args: {
     args.permissionMode,
     args.allowDangerousSkip,
     commands,
-    undefined,
   )
   if (onboardingShown && inputPrompt?.trim().toLowerCase() === '/logins') {
     inputPrompt = undefined

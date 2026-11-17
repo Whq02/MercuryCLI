@@ -1165,15 +1165,6 @@
       },
       "additionalProperties": {}
     },
-    "channels": {
-      "type": "object",
-      "properties": {
-        "enabled": {
-          "type": "boolean"
-        }
-      },
-      "additionalProperties": {}
-    },
     "apollo": {
       "description": "Apollo Mode: pre-flight interview poll budget (default 7)",
       "type": "object",
