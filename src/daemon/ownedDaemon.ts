@@ -10,7 +10,7 @@ import { hasStoredOAuthToken } from '../utils/auth.js'
 import { subscribeSignInEpoch } from '../utils/accounts/signInLedger.js'
 import { STORED_TOKEN_SCRUB_VARS } from '../utils/subprocessEnv.js'
 import { isProcessAlive, OWNER_FD_ENV, OWNER_PID_ENV } from './ownerWatch.js'
-import { flagEnv, flagPair, flagSpellings } from '../substrate/flagRegistry.js'
+import { flagEnv, flagPair, flagSpellings, stampFlagOnEnv } from '../substrate/flagRegistry.js'
 import { stampSpawnReceipt } from '../substrate/envStamps.js'
 import type { Socket } from 'node:net'
 
@@ -268,9 +268,9 @@ export function spawnOwnedDaemon(
   spawnHistory.set(label, { lastAt: now, count: (history?.count ?? 0) + 1 })
   try {
     const env: NodeJS.ProcessEnv = { ...process.env, ...flagPair(OWNER_PID_ENV, String(process.pid)) }
-    const pinnedHome = process.env.MERCURY_CONFIG_DIR
+    const pinnedHome = flagEnv('MERCURY_CONFIG_DIR')
     const homeStamped = !pinnedHome || canonicalHomeSpelling(pinnedHome) !== getMercuryHome()
-    env.MERCURY_CONFIG_DIR = getMercuryHome()
+    stampFlagOnEnv(env, 'MERCURY_CONFIG_DIR', getMercuryHome())
     const storedTokenAtSpawn = hasStoredOAuthToken()
     if (storedTokenAtSpawn) {
       for (const k of STORED_TOKEN_SCRUB_VARS) {
