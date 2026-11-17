@@ -531,23 +531,19 @@ section('§10 the seat facts a hosted session answers carry the credential\'s ow
     }
     return ''
   })()
-  check('the runner\'s session_facts arm composes the identity block the seat wire carries', identityLiteral.startsWith('{') && identityLiteral.includes('accountEmail:'), identityLiteral.slice(0, 160))
+  const { liveFactsOf, withLiveRunner } = await import('../lib/builtProduct.ts')
   const billing = await import(join(ROOT, 'src/utils/billing.ts'))
-  const identityOf = (): SeatIdentity | string => {
-    try {
-      const compose = new Function('is1PApiCustomer', 'hasConsoleBillingAccess', 'hasClaudeAiBillingAccess', 'getGlobalConfig', 'anthropicSignInEmail', `return (${identityLiteral})`) as (...readers: unknown[]) => SeatIdentity
-      return compose(auth.is1PApiCustomer, billing.hasConsoleBillingAccess, billing.hasClaudeAiBillingAccess, config.getGlobalConfig, usage.anthropicSignInEmail)
-    } catch (error) {
-      return `the identity block did not evaluate: ${error instanceof Error ? error.message : String(error)}`
-    }
-  }
-  const emailOnFacts = (): string => {
-    const identity = identityOf()
-    return typeof identity === 'string' ? identity : JSON.stringify(identity.accountEmail)
-  }
+  const ownIdentity = (): SeatIdentity => ({ firstPartyApi: auth.is1PApiCustomer(), consoleBilling: billing.hasConsoleBillingAccess(), claudeAiBilling: billing.hasClaudeAiBillingAccess(), accountEmail: usage.anthropicSignInEmail() ?? null })
+  const identityOf = (): Promise<SeatIdentity | string> =>
+    withLiveRunner(liveFactsOf, { env: { MERCURY_CONFIG_DIR: HOME, MERCURY_AUTH_SCOPE_DIR: HOME, ...(process.env.ANTHROPIC_API_KEY === undefined ? {} : { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY }) } }).then(
+      facts => facts.identity,
+      (error: unknown) => `the runner did not answer its facts: ${error instanceof Error ? error.message : String(error)}`,
+    )
   settleFixture({ profile: PROFILE_EMAIL, receipt: PROFILE_EMAIL, record: RECORD_EMAIL })
-  const identity = identityOf()
-  check('the seat facts\' identity.accountEmail is the credential\'s own email, never the config record', typeof identity !== 'string' && identity.accountEmail === PROFILE_EMAIL, emailOnFacts())
+  const identity = await identityOf()
+  const readerSays = [JSON.stringify(typeof identity === 'string' ? identity : identity) === JSON.stringify(ownIdentity())]
+  check('the runner\'s session_facts arm composes the identity block the seat wire carries', typeof identity !== 'string' && JSON.stringify(Object.keys(identity).sort()) === JSON.stringify(['accountEmail', 'claudeAiBilling', 'consoleBilling', 'firstPartyApi']), JSON.stringify(identity))
+  check('the seat facts\' identity.accountEmail is the credential\'s own email, never the config record', typeof identity !== 'string' && identity.accountEmail === PROFILE_EMAIL, JSON.stringify(identity))
   check('the other identity facts stand (a subscriber: not a first-party API customer, claude.ai billing)', typeof identity !== 'string' && identity.firstPartyApi === false && identity.claudeAiBilling === true && identity.consoleBilling === false, typeof identity === 'string' ? identity : JSON.stringify(identity))
   const seatWire = await import(join(ROOT, 'src/services/engine-connector/seatWire.ts'))
   const zeroUsage = { totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false }
@@ -616,11 +612,15 @@ section('§10 the seat facts a hosted session answers carry the credential\'s ow
   runnerAnswers(RECEIPT_EMAIL)
   check('a fresh answer replaces the published address; the connector built on it reads the new one', (await settled(who => who?.accountEmail === RECEIPT_EMAIL)) && new DaemonSessionConnector(record).identity().accountEmail === RECEIPT_EMAIL, JSON.stringify(published()))
   settleFixture({ record: RECORD_EMAIL })
-  check('a credential with no stored email puts null on the facts, never the record', emailOnFacts() === 'null', emailOnFacts())
+  const unstored = await identityOf()
+  readerSays.push(JSON.stringify(unstored) === JSON.stringify(ownIdentity()))
+  check('a credential with no stored email puts null on the facts, never the record', typeof unstored !== 'string' && unstored.accountEmail === null, JSON.stringify(unstored))
   settleFixture({ envKey: true })
-  check('a key-based sign-in puts null on the facts (unchanged)', emailOnFacts() === 'null', emailOnFacts())
+  const keyed = await identityOf()
+  readerSays.push(JSON.stringify(keyed) === JSON.stringify(ownIdentity()))
+  check('a key-based sign-in puts null on the facts (unchanged)', typeof keyed !== 'string' && keyed.accountEmail === null, JSON.stringify(keyed))
   settleFixture({ profile: PROFILE_EMAIL, receipt: PROFILE_EMAIL, record: RECORD_EMAIL })
-  check('the runner composes accountEmail through the one sign-in email reader, never the config record', identityLiteral.includes('accountEmail: anthropicSignInEmail() ?? null') && !identityLiteral.includes('oauthAccount'), identityLiteral)
+  check('the runner composes accountEmail through the one sign-in email reader, never the config record', readerSays.length === 3 && readerSays.every(Boolean) && !identityLiteral.includes('oauthAccount'), JSON.stringify({ readerSays, identity, unstored, keyed }))
   check('the runner imports the reader from the presence owner', /import \{[^}]*\banthropicSignInEmail\b[^}]*\} from '\.\.\/services\/providers\/providerUsage\.js'/.test(runner))
   check('the wire table spells the key account_email, the type keeps accountEmail: string | null', read('src/services/engine-connector/seatWire.ts').includes("accountEmail: 'account_email'") && read('src/services/engine-connector/types.ts').includes('accountEmail: string | null'))
   const relays = ['src/services/engine-connector/daemonConnector.ts', 'src/daemon/sessionSeat.ts', 'src/services/engine-connector/noSessionConnector.ts', 'src/services/engine-connector/seatWire.ts', 'src/services/engine-connector/seatProjections.ts']
@@ -630,7 +630,7 @@ section('§10 the seat facts a hosted session answers carry the credential\'s ow
   const readers = ['src/screens/Chat.tsx', 'src/components/MercuryFrame.tsx', 'src/components/tasks/BackgroundTasksDialog.tsx', 'src/components/mercury-ui/screens/CrewView.tsx']
   check('the cockpit\'s readers of the connector identity read its billing word and compose no address of their own', readers.every(relative => read(relative).includes('identity().consoleBilling') && !read(relative).includes('oauthAccount') && !read(relative).includes('accountEmail')), readers.filter(relative => !read(relative).includes('identity().consoleBilling')).join(', '))
   const runnerSource = read('src/cli/run.ts')
-  check("the runner's facts answer names the account through anthropicSignInEmail, the one reader of the sign-in (never the config record); the door's handlers compose no address", runnerSource.includes('accountEmail: anthropicSignInEmail() ?? null') && !runnerSource.includes('oauthAccount') && !read('src/cli/headless/controlHandlers.ts').includes('oauthAccount'))
+  check("the runner's facts answer names the account through anthropicSignInEmail, the one reader of the sign-in (never the config record); the door's handlers compose no address", readerSays.every(Boolean) && !runnerSource.includes('oauthAccount') && !read('src/cli/headless/controlHandlers.ts').includes('oauthAccount'))
   check('getAccountInformation().email in this home is the credential\'s own (the same sign-in the facts answer reads)', auth.getAccountInformation()?.email === PROFILE_EMAIL, JSON.stringify(auth.getAccountInformation()))
   delete process.env.MERCURY_DAEMON_DIR
 }
