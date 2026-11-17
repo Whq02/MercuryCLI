@@ -1,5 +1,6 @@
 import { mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { flagPair } from '../../substrate/flagRegistry.js'
 import type { McpServerConfig, ScopedMcpServerConfig } from '../../services/mcp/types.js'
 import { activeFor } from '../active.js'
 import { optionEnv, substituteOptionsInCommand, substituteRootAndData } from '../options.js'
@@ -35,7 +36,7 @@ export function getExtensionMcpServers(): Record<string, ScopedMcpServerConfig> 
           type: 'stdio',
           command: runtimeCommand,
           args: (declared.args ?? []).map(resolve),
-          env: { 'MERCURY_EXTENSION_ROOT': root, 'MERCURY_EXTENSION_DATA': dataDir, ...optionEnv(ext.options), ...declaredEnv, ...(installKey ? { MERCURY_CRAFT_INSTALL_KEY: installKey } : {}) },
+          env: { ...flagPair('MERCURY_EXTENSION_ROOT', root), ...flagPair('MERCURY_EXTENSION_DATA', dataDir), ...optionEnv(ext.options), ...declaredEnv, ...(installKey ? { ...flagPair('MERCURY_CRAFT_INSTALL_KEY', installKey) } : {}) },
         }
       } else {
         const declared = server.config as { type: 'http' | 'sse'; url: string; headers?: Record<string, string> }

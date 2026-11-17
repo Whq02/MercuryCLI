@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { logForDebugging } from './debug.js'
 
 type Slot = string | null | undefined
@@ -21,7 +22,7 @@ function resolveCredential(config: {
 }): string | null {
   if (config.slot !== undefined) return config.slot
 
-  const fdRaw = process.env[config.envVar]
+  const fdRaw = flagEnv(config.envVar)
   if (fdRaw === undefined) {
     config.setSlot(null)
     return null

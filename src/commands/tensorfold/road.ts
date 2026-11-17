@@ -1,4 +1,4 @@
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnv, flagPair } from '../../substrate/flagRegistry.js'
 import { setClipboardWithReceipt } from '../../ink/termio/osc.js'
 import { hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
 import { ggufServerRoots } from '../../services/localSetup/ggufServers.js'
@@ -99,7 +99,7 @@ export function discoveryEnvFor(root: string, env: NodeJS.ProcessEnv = process.e
   const pinned = flagEnv('MERCURY_LOCAL_PROBE_TARGETS', env)?.trim()
   const defaults = pinned === undefined || pinned === '' ? [...DEFAULT_LOCAL_PROBE_TARGETS.map(target => `${target.kind}=${target.root}`), ...ggufServerRoots().map(target => `llamacpp=${target}`)] : pinned.toLowerCase() === 'none' ? [] : pinned.split(',')
   if (defaults.some(entry => entry.trim().endsWith(`=${root}`))) return env
-  return { ...env, MERCURY_LOCAL_PROBE_TARGETS: [...defaults, `tensorfold=${root}`].join(',') }
+  return { ...env, ...flagPair('MERCURY_LOCAL_PROBE_TARGETS', [...defaults, `tensorfold=${root}`].join(',')) }
 }
 
 export function supportFocusOf(row: Pick<TensorFoldInventoryRow, 'repo' | 'drafter' | 'promptCacheGib'> | undefined, window?: number): TensorFoldSupportFocus | undefined {

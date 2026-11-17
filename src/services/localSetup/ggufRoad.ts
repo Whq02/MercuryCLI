@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import { flagPair } from '../../substrate/flagRegistry.js'
 import { bankedHostRecipes, bankFolder, bankFree, bankModelPath, bankState, bytesWords, rememberBankFolder, verifyBank } from '../host/bank.js'
 import { pullIntoBank } from '../host/bankPull.js'
 import { huggingFaceHubBase, huggingFaceToken } from '../host/hfRecipes.js'
@@ -127,7 +128,7 @@ export async function* runLocalSetupRoad(consent: SetupConsentFn, seam: GgufSetu
     const use = plan('6', 'Use this model', 'local/' + ggufModelName(model.recipe), 'reply with the single word ready')
     yield { type: 'step', plan: use }
     if (await ask(use) !== 'run') { yield done('stopped', ''); return }
-    const ready = await pickAndProve(ggufModelName(model.recipe), { ...seam, signal, pickAfterReply: true, env: { ...io.env, MERCURY_LOCAL_PROBE_TARGETS: 'llamacpp=' + started.root }, root: started.root, server: 'llamacpp' })
+    const ready = await pickAndProve(ggufModelName(model.recipe), { ...seam, signal, pickAfterReply: true, env: { ...io.env, ...flagPair('MERCURY_LOCAL_PROBE_TARGETS', 'llamacpp=' + started.root) }, root: started.root, server: 'llamacpp' })
     if (!ready.ok || ['refused', 'unavailable'].includes(ready.settled)) throw new Error(ready.fault ?? ready.settledDetail ?? ready.words)
     io.writeWindow(ready.wireId, model.fit.window)
     keptServer = true
