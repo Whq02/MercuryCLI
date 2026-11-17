@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
@@ -67,14 +66,6 @@ console.log('L3 controls — a healthy first discovery records nothing; explicit
   client.fetchToolsForClient.cache.delete('healthy-srv')
   await client.fetchToolsForClient(healthy.connection as never)
   t('the listChanged/onclose invalidation road still refetches at once', healthy.calls() === 2, `request calls=${healthy.calls()}`)
-}
-
-console.log('L4 the roster rows read the reason (structural)')
-{
-  const stdio = readFileSync(join(SRC, 'components/mcp/MCPStdioServerMenu.tsx'), 'utf8')
-  const remote = readFileSync(join(SRC, 'components/mcp/MCPRemoteServerMenu.tsx'), 'utf8')
-  t('the stdio server menu names a discovery failure beside a zero tool count', stdio.includes('getToolDiscoveryFailure(server.name)'))
-  t('the remote server menu does too', remote.includes('getToolDiscoveryFailure(server.name)'))
 }
 
 console.log(failures === 0 ? 'TOOL DISCOVERY RETRY: ALL PASS' : 'TOOL DISCOVERY RETRY: RED')

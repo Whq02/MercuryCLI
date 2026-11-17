@@ -14,109 +14,49 @@
   ],
   "rows": [
     {
-      "file": "src/services/mcp/MCPConnectionManager.tsx",
-      "class": "proof-or-fixture-only",
-      "reason": "Fold 46ac unmounted the screen's second MCP owner; scripts/mcp/prove-config-display-redaction.ts still mounts this manager as its isolated menu fixture. The session runner owns live MCP connections."
-    },
-    {
-      "file": "src/services/mcp/useManageMCPConnections.ts",
-      "class": "proof-or-fixture-only",
-      "reason": "Fold 46ac left the screen connection hook unmounted. scripts/media/prove-media-live-setup.ts mounts it for setup notification coverage, and the MCP redaction specimen uses it through MCPConnectionManager."
-    },
-    {
-      "file": "src/services/mcp/registry/serverRegistry.ts",
-      "class": "proof-or-fixture-only",
-      "reason": "Fold 46ac retired the screen registry's runtime consumer. scripts/mcp/prove-mcp-registry.ts and scripts/tools/prove-mcp-reconnect-singleflight.ts directly exercise this registry as a connection lifecycle specimen."
-    },
-    {
-      "file": "src/services/mcp/registry/livePorts.ts",
-      "class": "proof-or-fixture-only",
-      "reason": "Fold 46ac unmounted useManageMCPConnections, this adapter's runtime consumer. scripts/mcp/prove-kit-dials.ts still drives its process-kit toggle port directly."
-    },
-    {
       "file": "src/services/mcp/channelAllowlist.ts",
       "class": "proof-or-fixture-only",
-      "reason": "Fold 46ac removed the screen MCP hook's live edge. scripts/channels/prove-channel-bus.ts directly drives the allowlist matrix and the retained hook specimen imports it."
+      "reason": "The gate of the local channel bus (MERCURY_CHANNELS), imported by localChannelBus.ts alone. Nothing in the product starts the bus. Parked with it on the operator's ruling at the /say retirement (\"Retire /say but keep the wire so that it stays for the agents\") until he rules on the bus; scripts/channels/prove-channel-bus.ts drives its on and off matrix."
     },
     {
       "file": "src/services/mcp/channelNotification.ts",
       "class": "proof-or-fixture-only",
-      "reason": "Fold 46ac removed the screen MCP hook's live edge. This notification adapter remains a dependency of the hook mounted by scripts/media/prove-media-live-setup.ts and the MCP menu specimens."
+      "reason": "Wraps a bus record as the <channel> message a session reads, imported by localChannelBus.ts alone. Parked with the bus on the operator's ruling at the /say retirement (\"Retire /say but keep the wire so that it stays for the agents\") until he rules on the bus; scripts/channels/prove-channel-bus-live.ts reads the wrapped message the bus delivers."
     },
     {
       "file": "src/services/mcp/channelsRoot.ts",
       "class": "proof-or-fixture-only",
-      "reason": "Fold 46ac unmounted the screen-owned local channel bus. scripts/channels/prove-channel-bus-live.ts still exercises that bus and its contained config-home root."
+      "reason": "The config-home root of the bus's rooms, imported by localChannelBus.ts alone. Parked with the bus on the operator's ruling at the /say retirement (\"Retire /say but keep the wire so that it stays for the agents\") until he rules on the bus; scripts/channels/prove-channel-bus.ts holds the room path under this root."
     },
     {
       "file": "src/services/mcp/localChannelBus.ts",
       "class": "proof-or-fixture-only",
-      "reason": "Fold 46ac unmounted the screen's channel-bus owner. scripts/channels/prove-channel-bus-live.ts directly drives message delivery and scripts/channels/prove-channel-bus.ts checks its path containment."
-    },
-    {
-      "file": "src/services/mcp/toolsetReadmission.ts",
-      "class": "proof-or-fixture-only",
-      "reason": "Fold 46ac unmounted the screen MCP hook; its toolset readmission adapter remains part of the hook's complete dependency graph for scripts/media/prove-media-live-setup.ts."
-    },
-    {
-      "file": "src/components/mcp/CapabilitiesSection.tsx",
-      "class": "proof-or-fixture-only",
-      "reason": "Count-line fixture imported by the stdio and remote menu specimens driven by scripts/mcp/prove-config-display-redaction.ts and prove-tool-discovery-retry.ts; the runtime uses commands/mcp/McpPopup.tsx."
-    },
-    {
-      "file": "src/components/mcp/MCPAgentServerMenu.tsx",
-      "class": "proof-or-fixture-only",
-      "reason": "Agent-server redaction specimen directly mounted by scripts/mcp/prove-config-display-redaction.ts; no runtime caller after the MCP popup fold."
-    },
-    {
-      "file": "src/components/mcp/MCPRemoteServerMenu.tsx",
-      "class": "proof-or-fixture-only",
-      "reason": "Remote-config redaction and discovery-error specimen mounted by scripts/mcp/prove-config-display-redaction.ts and prove-tool-discovery-retry.ts; runtime actions now use the runner-backed MCP popup."
-    },
-    {
-      "file": "src/components/mcp/MCPStdioServerMenu.tsx",
-      "class": "proof-or-fixture-only",
-      "reason": "Stdio-config redaction and discovery-error specimen mounted by scripts/mcp/prove-config-display-redaction.ts and prove-tool-discovery-retry.ts; runtime actions now use the runner-backed MCP popup."
-    },
-    {
-      "file": "src/components/mcp/types.ts",
-      "class": "proof-or-fixture-only",
-      "reason": "View-model types used by the three MCP menu proof specimens; runtime roster and tool views use engine-connector/types.ts instead."
-    },
-    {
-      "file": "src/components/mcp/utils/reconnectHelpers.tsx",
-      "class": "proof-or-fixture-only",
-      "reason": "Outcome mapper imported by the stdio and remote menu proof specimens; runtime reconnect uses the focused connector and its typed receipt."
-    },
-    {
-      "file": "src/utils/screenshotClipboard.ts",
-      "class": "proof-or-fixture-only",
-      "reason": "Clipboard dependency of MCPRemoteServerMenu, retained so the mounted redaction specimen has its complete module graph; the runtime MCP popup does not import it."
+      "reason": "The local channel bus, a room inbox under the config home that a session tails; its runner names it the agents' wire of the retired /say door. The operator ruled at that retirement \"Retire /say but keep the wire so that it stays for the agents\". No session starts it: fold 46ac unmounted the screen MCP hook, its one starter, and the hook is deleted. Parked until the operator rules whether to mount it or delete it; scripts/channels/prove-channel-bus-live.ts drives delivery and scripts/channels/prove-channel-bus.ts the gate and the path containment."
     },
     {
       "file": "src/services/channel/frame.ts",
       "class": "living-specimen",
-      "reason": "The multiplayer wire kept deliberately at the /say retirement (operator-ruled: \"Retire /say but keep the wire so that it stays for the agents\"); the extracted channel home is maintained estate awaiting the post-release multiplayer consumer."
+      "reason": "The frame envelope of the channel wire. Kept by the operator's ruling at the /say retirement (\"Retire /say but keep the wire so that it stays for the agents\"); no product path imports it, and its consumer is the multiplayer estate planned after release. scripts/channel/prove-channel-primitives.ts proves the seal, the CRC and the decode failures, and scripts/notifications/prove-journal-attribution.ts reads it for credential material."
     },
     {
       "file": "src/services/channel/hlc.ts",
       "class": "living-specimen",
-      "reason": "The multiplayer wire kept deliberately at the /say retirement (operator-ruled: \"Retire /say but keep the wire so that it stays for the agents\"); the extracted channel home is maintained estate awaiting the post-release multiplayer consumer."
+      "reason": "The hybrid clock of the channel wire. Kept by the operator's ruling at the /say retirement (\"Retire /say but keep the wire so that it stays for the agents\"); no product path imports it, and its consumer is the multiplayer estate planned after release. scripts/channel/prove-channel-primitives.ts proves its total order under adversarial clocks."
     },
     {
       "file": "src/services/channel/index.ts",
       "class": "living-specimen",
-      "reason": "The multiplayer wire kept deliberately at the /say retirement (operator-ruled: \"Retire /say but keep the wire so that it stays for the agents\"); the extracted channel home is maintained estate awaiting the post-release multiplayer consumer."
+      "reason": "The one-import barrel of the channel wire. Kept with the wire by the operator's ruling at the /say retirement (\"Retire /say but keep the wire so that it stays for the agents\"). No product path and no proof imports it: scripts/channel/prove-channel-primitives.ts imports the four modules it re-exports. It goes or stays with the wire on the operator's word."
     },
     {
       "file": "src/services/channel/sealedChannel.ts",
       "class": "living-specimen",
-      "reason": "The multiplayer wire kept deliberately at the /say retirement (operator-ruled: \"Retire /say but keep the wire so that it stays for the agents\"); the extracted channel home is maintained estate awaiting the post-release multiplayer consumer."
+      "reason": "The sealed link of the channel wire (handshake, derived keys, the loopback rule). Kept by the operator's ruling at the /say retirement (\"Retire /say but keep the wire so that it stays for the agents\"); no product path imports it, and its consumer is the multiplayer estate planned after release. scripts/channel/prove-channel-primitives.ts proves that the invite token never crosses the wire."
     },
     {
       "file": "src/services/channel/signing.ts",
       "class": "living-specimen",
-      "reason": "The multiplayer wire kept deliberately at the /say retirement (operator-ruled: \"Retire /say but keep the wire so that it stays for the agents\"); the extracted channel home is maintained estate awaiting the post-release multiplayer consumer."
+      "reason": "Frame signing for the channel wire (HMAC under a shared secret, and the operator key). Kept by the operator's ruling at the /say retirement (\"Retire /say but keep the wire so that it stays for the agents\"); no product path imports it, and its consumer is the multiplayer estate planned after release. scripts/channel/prove-channel-primitives.ts proves both signatures."
     },
     {
       "file": "src/substrate/durableOperationMatrix.ts",
@@ -126,17 +66,17 @@
     {
       "file": "src/substrate/identity/accountFacts.ts",
       "class": "living-specimen",
-      "reason": "The MPEXTRACT account-facts surface (hardening 3): a neutral read-only view of credentialed provider families, landed contract-first for the multi-auth agents' \"usage stays on my account\" fact; consumers arrive with the multiplayer estate post-release. The poison pin (live key unreachable through the serialized view) keeps it honest while dormant."
+      "reason": "A read-only view of which provider families hold a credential, landed ahead of its consumer for the multiplayer estate planned after release; no product path imports it. Parked on that plan until the operator rules; scripts/operator-identity/prove-operator-identity.ts section 8 proves that a live key cannot be read through the view."
     },
     {
       "file": "src/substrate/identity/index.ts",
       "class": "living-specimen",
-      "reason": "The MPEXTRACT account-facts surface (hardening 3): a neutral read-only view of credentialed provider families, landed contract-first for the multi-auth agents' \"usage stays on my account\" fact; consumers arrive with the multiplayer estate post-release. The poison pin (live key unreachable through the serialized view) keeps it honest while dormant. index.ts is its one-import barrel."
+      "reason": "The one-import barrel of src/substrate/identity. No product path and no proof imports it: the product imports the modules it re-exports. Parked with accountFacts.ts on the multiplayer estate planned after release until the operator rules; scripts/operator-identity/prove-operator-identity.ts section 5 reads it for a second key derivation."
     },
     {
       "file": "src/utils/accounts/scopedReauth.ts",
       "class": "proof-or-fixture-only",
-      "reason": "The scoped reauth machinery whose board consumer was retired by the operator-sighted inventory-only ruling (/accounts hosts no flow; the login gesture reroutes to Logins). That ruling keeps the module, covered by scripts/accounts/prove-scoped-reauth.ts — the auth-scope bracket and snapshot-heal laws stay pinned while no board hosts the flow."
+      "reason": "Re-authorises one account scope by a pasted code and saves through the auth-scope bracket. No screen hosts the flow since the operator's inventory-only ruling on /accounts (the login gesture reroutes to Logins); this row has recorded that the ruling keeps the module, so it stays parked until the operator rules. scripts/accounts/prove-scoped-reauth.ts proves the link, the refusals and the bracketed save."
     }
   ]
 }

@@ -56,10 +56,6 @@ export const McpServerConfigSchema = once(() => z.union([
 ]))
 export const McpJsonConfigSchema = once(() => z.object({ mcpServers: z.record(z.string(), McpServerConfigSchema()) }))
 
-export type McpStdioServerConfig = z.infer<ReturnType<typeof McpStdioServerConfigSchema>>
-export type McpSSEServerConfig = z.infer<ReturnType<typeof McpSSEServerConfigSchema>>
-export type McpHTTPServerConfig = z.infer<ReturnType<typeof McpHTTPServerConfigSchema>>
-export type McpAnthropicProxyServerConfig = z.infer<ReturnType<typeof McpAnthropicProxyServerConfigSchema>>
 export type McpServerConfig = z.infer<ReturnType<typeof McpServerConfigSchema>>
 export type McpUnexpandedStrings = { command?: string; args?: string[]; url?: string; env?: Record<string, string> }
 export type ScopedMcpServerConfig = McpServerConfig & { scope: ConfigScope; extensionSource?: string; unexpanded?: McpUnexpandedStrings; bundledBootstrap?: McpBootstrapManifest }

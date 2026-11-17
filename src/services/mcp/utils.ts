@@ -11,7 +11,6 @@ import { normalizeNameForMCP } from './normalization.js'
 import type {
   ConfigScope,
   McpServerConfig,
-  MCPServerConnection,
   McpUnexpandedStrings,
   ScopedMcpServerConfig,
   ServerResource,
@@ -52,27 +51,6 @@ export function excludeCommandsByServer<T extends NamedCommand>(
   return commands.filter(command => !commandBelongsToServer(command, serverName))
 }
 
-export function filterMcpPromptsByServer<T extends NamedCommand>(
-  commands: T[],
-  serverName: string,
-): T[] {
-  const prefix = getMcpPrefix(serverName)
-  return commands.filter(command => {
-    if (!command.name.startsWith(prefix)) return false
-    if (command.type === 'prompt' && command.source === 'mcp' && command.isMcp !== true) {
-      return false
-    }
-    return true
-  })
-}
-
-export function filterResourcesByServer(
-  resources: ServerResource[],
-  serverName: string,
-): ServerResource[] {
-  return resources.filter(resource => resource.server === serverName)
-}
-
 export function excludeResourcesByServer(
   resources: Record<string, ServerResource[]>,
   serverName: string,
@@ -98,48 +76,6 @@ function sortKeysDeep(value: unknown): unknown {
   }
   return value
 }
-
-function hashMcpConfig(config: McpServerConfig | ScopedMcpServerConfig): string {
-  const { scope: _scope, ...content } = config as ScopedMcpServerConfig
-  const canonical = JSON.stringify(sortKeysDeep(content))
-  return createHash('sha256').update(canonical).digest('hex').slice(0, 16)
-}
-
-export function excludeStaleExtensionClients<
-  S extends {
-    clients: MCPServerConnection[]
-    tools: NamedTool[]
-    commands: NamedCommand[]
-    resources: Record<string, ServerResource[]>
-  },
->(mcpState: S, configs: Record<string, ScopedMcpServerConfig>): { state: S; staleClients: MCPServerConnection[] } {
-  const staleClients = mcpState.clients.filter(client => {
-    const fresh = configs[client.name]
-    if (fresh !== undefined) return hashMcpConfig(fresh) !== hashMcpConfig(client.config)
-    return client.config.scope === 'dynamic'
-  })
-  if (staleClients.length === 0) return { state: mcpState, staleClients: [] }
-  const staleNames = new Set(staleClients.map(client => client.name))
-  let tools = mcpState.tools
-  let commands = mcpState.commands
-  let resources = mcpState.resources
-  for (const name of staleNames) {
-    tools = excludeToolsByServer(tools, name)
-    commands = excludeCommandsByServer(commands, name)
-    resources = excludeResourcesByServer(resources, name)
-  }
-  return {
-    state: {
-      ...mcpState,
-      clients: mcpState.clients.filter(client => !staleNames.has(client.name)),
-      tools,
-      commands,
-      resources,
-    },
-    staleClients,
-  }
-}
-
 
 export function describeMcpConfigFilePath(scope: ConfigScope | string): string {
   switch (scope) {

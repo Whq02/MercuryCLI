@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -23,9 +23,6 @@ const maskedUrl = 'http://127.0.0.1:1/mcp?api_key=[redacted]&region=[redacted]&a
 const credentialUrl = `http://${username}:${password}@127.0.0.1:1/mcp?token=${queryValue}`
 const headers = { Authorization: 'Bearer HEADER_FIXTURE_22da', 'X-Trace': 'trace-visible' }
 const args = ['-e', 'process.exit(0)', 'ARG_FIXTURE=visible-arg']
-const framesIndex = process.argv.indexOf('--frames')
-const frames = framesIndex < 0 ? undefined : process.argv[framesIndex + 1]
-if (frames) mkdirSync(frames, { recursive: true })
 let failures = 0
 function check(label: string, good: boolean, detail = ''): void {
   if (!good) failures++
@@ -68,7 +65,7 @@ try {
   }
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
   enableConfigs()
-  const { getMcpConfigByName, setMcpServerEnabled } = await import('../../src/services/mcp/config.ts')
+  const { setMcpServerEnabled } = await import('../../src/services/mcp/config.ts')
   const names = ['display-stdio', 'display-http', 'display-sse', 'display-userinfo', 'display-ws', 'display-claudeai-proxy']
   for (const name of names) setMcpServerEnabled(name, false)
   const { getGlobalMercuryFile } = await import('../../src/utils/env.ts')
@@ -98,41 +95,7 @@ try {
   check('mcp list keeps address and query names', listed.includes(maskedUrl), listed)
   check('mcp list keeps stdio args', listed.includes(args.join(' ')), listed)
 
-  const React = await import('react')
-  const { renderToString } = await import('../../src/utils/staticRender.tsx')
-  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-  const { MCPConnectionManager } = await import('../../src/services/mcp/MCPConnectionManager.tsx')
-  const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.js')
-  const { MCPRemoteServerMenu } = await import('../../src/components/mcp/MCPRemoteServerMenu.tsx')
-  const { MCPStdioServerMenu } = await import('../../src/components/mcp/MCPStdioServerMenu.tsx')
-  const { MCPAgentServerMenu } = await import('../../src/components/mcp/MCPAgentServerMenu.tsx')
-  for (const [columns, rows] of [[178, 51], [80, 21]]) {
-    for (const name of names.filter(name => name !== 'display-ws')) {
-      const config = getMcpConfigByName(name)!
-      const server = { name, config, scope: 'user', transport: config.type, isAuthenticated: false, client: { type: 'disabled', name, config } }
-      const component = name === 'display-stdio' ? MCPStdioServerMenu : MCPRemoteServerMenu
-      const frame = await renderToString(React.createElement(TerminalSizeContext.Provider, { value: { columns, rows } },
-        React.createElement(AppStateProvider, { children: React.createElement(MCPConnectionManager, {
-          dynamicMcpConfig: {}, isStrictMcpConfig: true,
-          children: React.createElement(component, { server: server as never, serverToolsCount: 0, onViewTools() {}, onCancel() {}, onComplete() {} }),
-        }) })), columns)
-      if (frames) writeFileSync(join(frames, `${name}-${columns}x${rows}.txt`), frame + '\n')
-      safe(`/mcp ${name} ${columns}x${rows}`, frame)
-      check(`/mcp ${name} ${columns}x${rows} renders real menu rows`, frame.includes('Status: disabled') && frame.includes('Config:'), frame)
-      const compact = unwrapped(frame)
-      if (name === 'display-stdio') check(`/mcp stdio ${columns}x${rows} keeps args`, frame.includes(args.join(' ')), frame)
-      else if (name === 'display-userinfo') check(`/mcp userinfo ${columns}x${rows} keeps redacted address`, compact.includes('http://[redacted]@127.0.0.1:1/mcp?token=[redacted]'), frame)
-      else check(`/mcp ${name} ${columns}x${rows} keeps all address parts`, compact.includes(maskedUrl), frame)
-    }
-    const agentFrame = await renderToString(React.createElement(TerminalSizeContext.Provider, { value: { columns, rows } },
-      React.createElement(AppStateProvider, { children: React.createElement(MCPAgentServerMenu, {
-        agentServer: { name: 'agent-display', transport: 'http', url: stored['display-http'].url, needsAuth: true, isAuthenticated: false, sourceAgents: ['fixture-agent'] }, onBack() {},
-      }) })), columns)
-    if (frames) writeFileSync(join(frames, `agent-display-${columns}x${rows}.txt`), agentFrame + '\n')
-    safe(`/mcp agent menu ${columns}x${rows}`, agentFrame)
-    check(`/mcp agent menu ${columns}x${rows} keeps address and query names`, unwrapped(agentFrame).includes(maskedUrl), agentFrame)
-  }
-  check('get/list/render never rewrite the stored server configs', JSON.stringify(JSON.parse(readFileSync(getGlobalMercuryFile(), 'utf8')).mcpServers) === JSON.stringify(stored))
+  check('get/list never rewrite the stored server configs', JSON.stringify(JSON.parse(readFileSync(getGlobalMercuryFile(), 'utf8')).mcpServers) === JSON.stringify(stored))
   const { describeUrlRedacted, describeEnvRedacted } = await import('../../src/utils/redactHeaders.ts')
   check('the shared redaction owner covers URLs and env', typeof describeUrlRedacted === 'function' && typeof describeEnvRedacted === 'function')
   if (typeof describeUrlRedacted === 'function' && typeof describeEnvRedacted === 'function') {

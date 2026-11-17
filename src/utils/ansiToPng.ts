@@ -272,7 +272,7 @@ function encodePng(pixels: Buffer, width: number, height: number): Buffer {
 }
 
 
-export type AnsiToPngOptions = {
+type AnsiToPngOptions = {
   scale?: number
   paddingX?: number
   paddingY?: number

@@ -20,7 +20,7 @@
 # gate-watch: src/constants/* src/query/transitions.ts
 # gate-watch: src/services/compact/autoCompact.ts src/services/compact/compact.ts
 # gate-watch: src/services/desktop/screenshotRetention.ts src/services/engine-connector/seatLive.ts
-# gate-watch: src/services/mcp/useManageMCPConnections.ts src/services/providers/*
+# gate-watch: src/services/providers/*
 # gate-watch: src/services/providers/gemini/geminiCallModel.ts
 # gate-watch: src/services/providers/openaicompat/compatCallModel.ts
 # gate-watch: src/services/providers/openaicompat/compatChatClient.ts src/services/run/requestContextPlan.ts

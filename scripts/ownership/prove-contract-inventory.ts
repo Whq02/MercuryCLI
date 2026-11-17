@@ -68,7 +68,6 @@ const MODULES: Record<string, string[]> = {
     'src/services/mcp/config.ts',
     'src/services/mcp/client.ts',
     'src/services/mcp/types.ts',
-    'src/services/mcp/useManageMCPConnections.ts',
   ],
   tools: [
     'src/services/tools/toolExecution.ts',
