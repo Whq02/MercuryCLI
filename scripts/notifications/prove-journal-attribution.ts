@@ -25,13 +25,6 @@ const src = (p: string) => readFileSync(join(REPO, p), 'utf8')
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 
-console.log('§1 — no credential material in the channel frame path')
-{
-  const emitters = ['src/services/channel/frame.ts']
-  const offenders = emitters.filter(p => /openai-auth|ANTHROPIC_API_KEY|apiKey|access_token|client_secret/.test(src(p)))
-  check('the frame emitter references NO account-connection material', offenders.length === 0, offenders.join(','))
-}
-
 console.log('§2 — attention comes from TYPED events only')
 {
   const bridge = src('src/services/crew/obligationsBridge.ts')

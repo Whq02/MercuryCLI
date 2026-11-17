@@ -34,31 +34,6 @@
       "reason": "The local channel bus, a room inbox under the config home that a session tails; its runner names it the agents' wire of the retired /say door. The operator ruled at that retirement \"Retire /say but keep the wire so that it stays for the agents\". No session starts it: fold 46ac unmounted the screen MCP hook, its one starter, and the hook is deleted. Parked until the operator rules whether to mount it or delete it; scripts/channels/prove-channel-bus-live.ts drives delivery and scripts/channels/prove-channel-bus.ts the gate and the path containment."
     },
     {
-      "file": "src/services/channel/frame.ts",
-      "class": "living-specimen",
-      "reason": "The frame envelope of the channel wire. Kept by the operator's ruling at the /say retirement (\"Retire /say but keep the wire so that it stays for the agents\"); no product path imports it, and its consumer is the multiplayer estate planned after release. scripts/channel/prove-channel-primitives.ts proves the seal, the CRC and the decode failures, and scripts/notifications/prove-journal-attribution.ts reads it for credential material."
-    },
-    {
-      "file": "src/services/channel/hlc.ts",
-      "class": "living-specimen",
-      "reason": "The hybrid clock of the channel wire. Kept by the operator's ruling at the /say retirement (\"Retire /say but keep the wire so that it stays for the agents\"); no product path imports it, and its consumer is the multiplayer estate planned after release. scripts/channel/prove-channel-primitives.ts proves its total order under adversarial clocks."
-    },
-    {
-      "file": "src/services/channel/index.ts",
-      "class": "living-specimen",
-      "reason": "The one-import barrel of the channel wire. Kept with the wire by the operator's ruling at the /say retirement (\"Retire /say but keep the wire so that it stays for the agents\"). No product path and no proof imports it: scripts/channel/prove-channel-primitives.ts imports the four modules it re-exports. It goes or stays with the wire on the operator's word."
-    },
-    {
-      "file": "src/services/channel/sealedChannel.ts",
-      "class": "living-specimen",
-      "reason": "The sealed link of the channel wire (handshake, derived keys, the loopback rule). Kept by the operator's ruling at the /say retirement (\"Retire /say but keep the wire so that it stays for the agents\"); no product path imports it, and its consumer is the multiplayer estate planned after release. scripts/channel/prove-channel-primitives.ts proves that the invite token never crosses the wire."
-    },
-    {
-      "file": "src/services/channel/signing.ts",
-      "class": "living-specimen",
-      "reason": "Frame signing for the channel wire (HMAC under a shared secret, and the operator key). Kept by the operator's ruling at the /say retirement (\"Retire /say but keep the wire so that it stays for the agents\"); no product path imports it, and its consumer is the multiplayer estate planned after release. scripts/channel/prove-channel-primitives.ts proves both signatures."
-    },
-    {
       "file": "src/substrate/identity/accountFacts.ts",
       "class": "living-specimen",
       "reason": "A read-only view of which provider families hold a credential, landed ahead of its consumer for the multiplayer estate planned after release; no product path imports it. Parked on that plan until the operator rules; scripts/operator-identity/prove-operator-identity.ts section 8 proves that a live key cannot be read through the view."
