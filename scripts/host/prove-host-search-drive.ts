@@ -124,13 +124,15 @@ try {
   check('without a query the popup is today’s popup plus the search line and the Bank row', plain.includes(HF_SEARCH_PLACEHOLDER) && plain.includes('Bank · your weights') && names.every(name => plain.includes(name)) && plain.includes('Machines I’m paying for') && plain.includes('My computers') && plain.includes('Refresh stock and prices') && plain.includes('More options') && !plain.includes('HUGGING FACE') && !plain.includes('VERIFIED RECIPES'))
   check('the cursor starts on the cheapest in-stock model and no row carries a tier stamp', !/ · (measured|documented|community|unverified)\b/.test(plain) && hourlyPrices.length > 0 && first.includes('$' + Math.min(...hourlyPrices).toFixed(2) + '/hr') && first.includes('in stock'))
   check('opening the door never creates a pod or reaches Hugging Face', rp.state.creates === 0 && hf.state.searches === 0)
-  hf.state.delayMs = 300
+  hf.state.delayMs = 1500
   type('deepseek')
   assert.ok(await waitFor(() => !screen().includes('GLM-5.3-Flash') && screen().includes('DeepSeek-V4.1-Flash-1017'), 400), 'the verified rows narrow at once\n' + screen())
   const narrowed = screen()
   check('typing filters models by name', narrowed.includes('MODELS') && narrowed.includes('DeepSeek-V4-Pro-0813') && !narrowed.includes('Qwen3.8-27B') && !narrowed.includes('Machines I’m paying for') && narrowed.includes('/ deepseek'))
   await until('HUGGING FACE · fetching…', 3000)
-  check('the Hugging Face section says fetching while the request runs and the verified rows stand', screen().includes('DeepSeek-V4.1-Flash-1017') && hf.state.searches === 1)
+  assert.ok(await waitFor(() => hf.state.searches > 0, 3000), 'the search reaches Hugging Face while the section says fetching\n' + screen())
+  check('the Hugging Face section says fetching while the request runs and the verified rows stand', screen().includes('HUGGING FACE · fetching…') && screen().includes('DeepSeek-V4.1-Flash-1017') && hf.state.searches === 1)
+  hf.state.delayMs = 300
   await until(hfHeading)
   const results = screen().replace(/[│\s]+/g, ' ')
   check('search retains model facts and access without provenance', results.includes('deepseek-ai/DeepSeek-V4.1-Flash-1017') && results.includes('284B · safetensors FP8 · ↓ 3.4M · MIT') && results.includes('unsloth/' + ggufRow) && results.includes('284B · GGUF Q4_K_M · ↓ 412k · MIT') && results.includes('mercury-bounties/deepseek-coder-v4-bounty') && results.includes('gated') && results.includes(HF_NOT_CHAT_WORDS) && !results.includes('unverified'))
