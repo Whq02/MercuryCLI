@@ -18,6 +18,7 @@ const ledger = await import('../../src/services/changeTransaction/editOutcomeLed
 const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
 const { disposeOwner } = await import('../../src/services/run/ownerLifecycle.ts')
 const plan = await import('../../src/services/changeTransaction/changeSetPlan.ts')
+const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -158,8 +159,8 @@ section('§6 the wiring, structural')
   check('the terminal-effect seam counts applied/no-change for file.edit', /op === 'file\.edit'[\s\S]{0,700}recordEditOutcome/.test(toolExec))
   const changeSet = readFileSync(join(root, 'src/tools/ChangeSetTool/ChangeSetTool.ts'), 'utf8')
   check('the ChangeSet settle chokepoint counts applies with typed codes', /input\.op === 'apply'[\s\S]{0,900}changeSetRefusalCodeOfResult/.test(changeSet))
-  const registry = readFileSync(join(root, 'src/substrate/flagRegistry.ts'), 'utf8')
-  check('the display-tier flag row stands with its off arm', registry.includes("env: 'MERCURY_EDIT_LEDGER'") && registry.includes('counters are removed entirely'))
+  const ledgerRow = getFlagSpec('MERCURY_EDIT_LEDGER')
+  check('the display-tier flag row stands with its off arm', ledgerRow !== undefined && ledgerRow.off.includes('counters are removed entirely'))
   const health = readFileSync(join(root, 'src/utils/healthReport.ts'), 'utf8')
   check('the /health check vanishes with the flag off (conditional composition)', /editOutcomeHealthChecks\(\)/.test(health) && /if \(!editOutcomeLedgerEnabled\(\)\) return \[\]/.test(health))
 }
