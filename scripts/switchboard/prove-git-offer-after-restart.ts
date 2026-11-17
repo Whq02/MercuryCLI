@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -79,11 +79,19 @@ const openRowSoon = async (requestId: string): Promise<boolean> => {
   return false
 }
 
+const storeLocks = (): string[] => [home, daemonDir].flatMap(d => (readdirSync(d, { recursive: true }) as string[]).filter(n => n.endsWith('.lock')).map(n => join(d, n)))
+const firstDaemonIsQuiet = async (): Promise<string[]> => {
+  for (let i = 0; i < 100 && storeLocks().length > 0; i++) await sleep(50)
+  return storeLocks()
+}
+
 console.log('a git offer answered after the daemon that raised it is gone: the answer applies once and the card leaves with it')
 for (const [folder, allow] of [[yesFolder, true], [noFolder, false]] as const) {
   const word = allow ? 'Yes' : 'No'
   const minted = asks.mintGitInitAsk(folder) as { requestId: string }
   check(`${word}: the first daemon raises the offer and its card stands (the row and the sidecar are on disk)`, typeof minted.requestId === 'string' && (await openRowSoon(minted.requestId)) && existsSync(join(daemonDir, 'git-init-asks.json')), JSON.stringify(minted))
+  const held = await firstDaemonIsQuiet()
+  check(`${word}: the first daemon holds no store lock when the next one answers`, held.length === 0, `still standing after 5 s: ${held.join(', ')} (the commit lane in src/substrate/groupCommit.ts releases after it publishes; this process must not block while it does)`)
   const said = answerInANewProcess(minted.requestId, allow)
   check(`${word}: the next daemon holds nothing in memory and still knows the offer from its sidecar`, said !== null && said.heldBefore === false && said.first.outcome === 'applied', JSON.stringify(said))
   check(`${word}: …and the first answer settles the card as answered by the operator (red on the base: the row stays open and the card stands)`, said?.afterFirst?.status === 'answered' && said.afterFirst.by === 'operator', JSON.stringify(said?.afterFirst))
