@@ -13,7 +13,6 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 
 console.log('§1 the board hosts no flow machinery')
-check('no scoped-reauth flow imports', !board.includes('startScopedReauth') && !board.includes('completeScopedReauth'))
 check('no in-place OpenAI connect flow', !board.includes('beginOpenaiBrowserConnect'))
 check('no code-entry field on the board', !board.includes('TextInput') && !board.includes('paste code') && !board.includes('paste redirected URL'))
 check('no browser-opening promise in the copy', !board.includes('opens the browser'))

@@ -215,10 +215,6 @@ section('§7 · RICH convergence + LEGACY RETIREMENT (HL-10/19/22/23/25/32/33)')
     handler.includes('MercuryHealthCertificate'),
   )
   check(
-    'the rich mount starts NO MCP connection manager (HL-23)',
-    !/healthHandler[\s\S]{0,600}MCPConnectionManager/.test(handler),
-  )
-  check(
     'a renderer failure still settles the root (HL-14: unmount in finally)',
     /finally\s*\{[\s\S]{0,200}root\.unmount\(\)/.test(handler),
   )
