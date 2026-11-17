@@ -19,7 +19,7 @@ function walk(path: string): void {
     }
   } else if (/\.(tsx?|[cm]?js|json|md|txt|sh|ya?ml|tsv|csv)$/.test(path)) {
     const text = readFileSync(path, 'utf8').toLowerCase()
-    if (forbidden.some(word => text.includes(word) || !rel.startsWith('scripts/eval/prove-') && rel.toLowerCase().includes(word))) hits.push(rel)
+    if (forbidden.some(word => text.includes(word) || rel.toLowerCase().includes(word))) hits.push(rel)
   }
 }
 for (const path of process.argv.slice(2).length ? process.argv.slice(2) : ['src', 'scripts', 'docs', 'design-system']) walk(resolve(root, path))

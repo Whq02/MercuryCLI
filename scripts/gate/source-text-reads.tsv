@@ -472,10 +472,10 @@ scripts/engine-pass/prove-engine-contract.ts	3
 scripts/eval/prove-cell-running-row.ts	2
 scripts/eval/prove-env-filter.ts	1
 scripts/eval/prove-eval-catalogue.ts	3
+scripts/eval/prove-eval-merged-catalogue.ts	1
 scripts/eval/prove-js-transform.ts	1
 scripts/eval/prove-kernel-loopback-transport.ts	3
 scripts/eval/prove-schema-conformance.ts	4
-scripts/eval/prove-workshop-merged-catalogue.ts	1
 scripts/exit-handle/prove-background-probes-unref.ts	3
 scripts/exit-handle/prove-exit-cliff-drain.ts	2
 scripts/extensions/gen-bundled.ts	1
