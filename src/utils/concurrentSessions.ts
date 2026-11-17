@@ -1,6 +1,7 @@
 import { chmod, mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { getOriginalCwd, getSessionId, onSessionSwitch } from '../bootstrap/state.js'
 import { registerCleanup } from './cleanupRegistry.js'
 import { logForDebugging } from './debug.js'
@@ -55,7 +56,7 @@ const ownRecord = (): SessionRecord => ({
   cwd: getOriginalCwd(),
   startedAt: Date.now(),
   kind: 'interactive',
-  entrypoint: process.env.MERCURY_ENTRYPOINT,
+  entrypoint: flagEnv('MERCURY_ENTRYPOINT'),
 })
 
 export async function registerSession(): Promise<boolean> {

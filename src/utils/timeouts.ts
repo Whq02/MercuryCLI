@@ -1,3 +1,4 @@
+import { flagEnv } from '../substrate/flagRegistry.js'
 
 const DEFAULT_BASH_TIMEOUT_MS = 120_000
 const MAX_BASH_TIMEOUT_MS = 600_000
@@ -10,10 +11,10 @@ function parsePositiveInteger(value: string | undefined): number | null {
 }
 
 export function getDefaultBashTimeoutMs(env: NodeJS.ProcessEnv = process.env): number {
-  return parsePositiveInteger(env.MERCURY_SHELL_TIMEOUT_MS) ?? DEFAULT_BASH_TIMEOUT_MS
+  return parsePositiveInteger(flagEnv('MERCURY_SHELL_TIMEOUT_MS', env)) ?? DEFAULT_BASH_TIMEOUT_MS
 }
 
 export function getMaxBashTimeoutMs(env: NodeJS.ProcessEnv = process.env): number {
-  const max = parsePositiveInteger(env.MERCURY_SHELL_MAX_TIMEOUT_MS) ?? MAX_BASH_TIMEOUT_MS
+  const max = parsePositiveInteger(flagEnv('MERCURY_SHELL_MAX_TIMEOUT_MS', env)) ?? MAX_BASH_TIMEOUT_MS
   return Math.max(max, getDefaultBashTimeoutMs(env))
 }

@@ -1,3 +1,4 @@
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { EFFORT_LEVELS, type EffortLevel } from './effortLadder.js'
 import { nearestSupportedWireEffort, wireEffortForListDefault } from '../services/providers/openai/gptPins.js'
 import { isGlmModelId } from '../services/providers/zai/glmPins.js'
@@ -115,7 +116,7 @@ export type EffortEnvOverrideView =
   | { state: 'ignored'; raw: string; override: undefined; sentence: string }
 
 export function describeEffortEnvOverride(env: NodeJS.ProcessEnv = process.env): EffortEnvOverrideView {
-  const raw = env.MERCURY_EFFORT_LEVEL
+  const raw = flagEnv('MERCURY_EFFORT_LEVEL', env)
   if (raw === undefined) return { state: 'absent', override: undefined }
   const lowered = raw.toLowerCase()
   if (lowered === 'unset' || lowered === 'auto') return { state: 'deferred', raw, override: null }

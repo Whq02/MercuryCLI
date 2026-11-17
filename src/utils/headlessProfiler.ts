@@ -1,3 +1,4 @@
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { getIsInteractive } from '../bootstrap/state.js'
 import { getPerformance } from './profilerBase.js'
 
@@ -56,5 +57,5 @@ export function logHeadlessProfilerTurn(): void {
   if (queryStart !== undefined && requestSent !== undefined) {
     metadata.msQueryOverhead = Math.round(requestSent - queryStart)
   }
-  if (process.env.MERCURY_ENTRYPOINT) metadata.entrypoint = process.env.MERCURY_ENTRYPOINT
+  if (flagEnv('MERCURY_ENTRYPOINT')) metadata.entrypoint = flagEnv('MERCURY_ENTRYPOINT')
 }

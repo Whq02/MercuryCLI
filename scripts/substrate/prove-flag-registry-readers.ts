@@ -50,12 +50,13 @@ const NAMED: Row[] = [
   { file: 'scripts/motion/prove-motion-wire-trip.ts', line: "check('the governor is still config-free (flag reads only)', !/utils\\/config/.test(governorSrc) && /@M@/.test(governorSrc))", why: "tests the motion governor's own source for its import of the registry: it reads the governor" },
   { file: 'scripts/notifications/prove-surface-router.ts', line: "l => l.includes('@M@') || l.includes('ink/events/input-event') || l.includes('utils/fullscreen') || l.includes('services/concourse/concourseEnabled') || l.includes('components/mercury-ui/keyHintLabel'),", why: "an import the route owner may carry: the proof reads the owner's import lines" },
   { file: 'scripts/orphans/gen-reachability-manifest.ts', line: "'src/@S@/@M@.ts',", why: 'a root-class label written into the generated manifest: the generator reads the rows through its import' },
+  { file: 'scripts/sessionStorage/prove-path-contract.ts', line: "'../../@S@/@M@.js': { flagEnv: (name: string) => flags[name] },", why: 'the specifier the sandboxed paths module asks for, answered with a stand-in that reads the flags the proof sets: the proof opens no registry file' },
   { file: 'scripts/substrate/gen-flag-table.ts', line: '> Derived from \\`src/@S@/@M@.ts\\` by \\`scripts/@S@/gen-flag-table.ts\\`.', why: 'a sentence in the header of the rendered table: the renderer reads the rows through its import' },
   { file: 'scripts/transcript-rows/prove-motion-governor.ts', line: "check('the governor is config-free (flag reads only — the ink layer taps it)', !/utils\\/config/.test(governor) && /@M@/.test(governor))", why: "tests the motion governor's own source for its import of the registry: it reads the governor" },
   { file: 'scripts/vulcan/vulcan-audit-waves.js', line: 'The new surfaces: src/utils/vulcan/*, src/services/vulcan/*, src/tools/GodotTool/*, assets/vulcan/addon/**, scripts/vulcan/*, plus edits in src/tools.ts, src/constants/prompts.ts, src/constants/subagentDoctrine.ts, src/utils/cockpit/harnessMap.ts, src/@S@/startupMenu.ts, src/@S@/@M@.ts, src/utils/healthReport.ts, assets/splash/mercury-splash.mjs.', why: 'a file list inside the audit prompt text: the script opens none of them' },
   { file: 'scripts/wards/prove-wards-model-free.ts', line: "'../@S@/@M@.js',", why: "an import specifier the wards guard may carry: the proof reads the guard's imports" },
 ].map(row => ({ ...row, line: spell(row.line) }))
-const NAMED_ROWS = 10
+const NAMED_ROWS = 11
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {

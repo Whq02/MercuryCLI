@@ -163,7 +163,7 @@ export function getProxyFetchOptions(opts?: { forAnthropicAPI?: boolean }): Reco
   const isBun = isBunRuntime()
 
   if (opts?.forAnthropicAPI === true && isBun) {
-    const socket = process.env.MERCURY_API_UNIX_SOCKET
+    const socket = flagEnv('MERCURY_API_UNIX_SOCKET')
     if (socket) return { ...base, unix: socket }
   }
 
@@ -248,7 +248,7 @@ export function getProxyAgent(uri: string): Dispatcher {
 
 function buildTunnelAgentOptions(): Record<string, unknown> {
   const options: Record<string, unknown> = { ...(tlsConnectMaterial() ?? {}) }
-  if (isEnvTruthy(process.env.MERCURY_PROXY_RESOLVES_HOSTS)) {
+  if (isEnvTruthy(flagEnv('MERCURY_PROXY_RESOLVES_HOSTS'))) {
     options.lookup = (
       hostname: string,
       lookupOptions: { family?: number | string; all?: boolean },

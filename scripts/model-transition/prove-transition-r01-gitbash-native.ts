@@ -52,7 +52,7 @@ check(
 const shellUtils = readFileSync(join(ROOT, 'src/utils/shell/shellToolUtils.ts'), 'utf8')
 check(
   '§C isPowerShellToolEnabled reads MERCURY_USE_POWERSHELL_TOOL',
-  /process\.env\.MERCURY_USE_POWERSHELL_TOOL/.test(shellUtils),
+  /flagEnv\('MERCURY_USE_POWERSHELL_TOOL'\)/.test(shellUtils),
 )
 const psTools = readFileSync(join(ROOT, 'src/tools/PowerShellTool/PowerShellTool.tsx'), 'utf8')
 check(

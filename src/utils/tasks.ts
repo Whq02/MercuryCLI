@@ -3,6 +3,7 @@ import * as fs from 'node:fs'
 
 import { z } from 'zod'
 
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { getIsNonInteractiveSession, getSessionId } from '../bootstrap/state.js'
 import { publishAtomic } from '../substrate/fileStore.js'
 import { groupCommitLane, type GroupCommitLane } from '../substrate/groupCommit.js'
@@ -38,11 +39,11 @@ export const TaskSchema = lazySchema(() =>
 export type Task = z.infer<ReturnType<typeof TaskSchema>>
 
 export function isTaskToolsEnabled(): boolean {
-  return isEnvTruthy(process.env.MERCURY_TASKS) || !getIsNonInteractiveSession()
+  return isEnvTruthy(flagEnv('MERCURY_TASKS')) || !getIsNonInteractiveSession()
 }
 
 export function getTaskListId(): string {
-  return process.env.MERCURY_TASK_LIST_ID || getSessionId()
+  return flagEnv('MERCURY_TASK_LIST_ID') || getSessionId()
 }
 
 export async function listSessionMission(): Promise<Task[]> {

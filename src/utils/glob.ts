@@ -1,5 +1,6 @@
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { statSync } from 'node:fs'
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { resolveRelativePatternPrefix } from './globPrefix.js'
 
 import type { ToolPermissionContext } from '../Tool.js'
@@ -45,7 +46,7 @@ function fixDrive(baseDir: string): string {
 }
 
 function envFlagDefaultOn(name: string): boolean {
-  const raw = process.env[name]
+  const raw = flagEnv(name)
   return isEnvTruthy(raw === undefined || raw === '' ? '1' : raw)
 }
 

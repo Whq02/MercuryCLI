@@ -1,4 +1,5 @@
 
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
   getRateLimitTier,
   isClaudeAISubscriber,
@@ -157,7 +158,7 @@ export function newestPermittedMirror(): string | null {
 export function gatherFrontierFacts(): FrontierFacts {
   const settings = getInitialSettings() || {}
   const allowlist = settings.engine?.roster
-  const fableEnvPin = !!process.env.MERCURY_DEFAULT_FABLE_MODEL
+  const fableEnvPin = !!flagEnv('MERCURY_DEFAULT_FABLE_MODEL')
   const head = getDefaultFableModel()
   const fableId = fableEnvPin || allowlist === undefined ? head : (newestPermittedGeneration('fable', head) ?? head)
   const opusFallback = getDefaultOpusModel() + (isOpus1mMergeEnabled() && !isDefaultOpusNatively1M() ? '[1m]' : '')

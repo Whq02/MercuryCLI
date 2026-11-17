@@ -70,7 +70,7 @@ export async function getAttachments(
   options?: { localSubmission?: boolean; operatorPrompt?: boolean },
 ): Promise<Attachment[]> {
   messages ??= toolUseContext.messages
-  if (isEnvTruthy(process.env.MERCURY_BARE)) {
+  if (isEnvTruthy(flagEnv('MERCURY_BARE'))) {
     return [
       ...await getQueuedCommandAttachments(queuedCommands, { messages, model: toolUseContext.options.engineModel }),
       ...await getToolManualAttachments({ ...toolUseContext, messages }),

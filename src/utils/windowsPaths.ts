@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { subprocessEnv } from './subprocessEnv.js'
 import { existsSync, writeSync } from 'node:fs'
 import { dirname, resolve, sep, win32 as pathWin32 } from 'node:path'
@@ -89,7 +90,7 @@ export const GIT_BASH_REMEDY =
   '(for example C:\\Program Files\\Git\\bin\\bash.exe) if already installed, or turn the shell engine on.'
 
 export const locateGitBash = memoize((): GitBashLocation => {
-  const override = process.env.MERCURY_GIT_BASH_PATH
+  const override = flagEnv('MERCURY_GIT_BASH_PATH')
   if (override !== undefined && override !== '') {
     if (pathExists(override)) return { path: override }
     releaseLauncherAltHoldNow()

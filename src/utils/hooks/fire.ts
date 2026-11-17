@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { AppState } from '../../state/AppState.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { hookEndingSentence, secondsWord, type HookEnding } from '../../rows/vocabulary.js'
@@ -185,7 +186,7 @@ export function workspaceUntrustedForHooks(): boolean {
 }
 
 export async function prepareHooks<E extends HookEvent>(event: E, fields: HookFields<E>, options: HookFireOptions): Promise<PreparedHooks> {
-  if (isEnvTruthy(process.env.MERCURY_BARE)) return { names: [], timeoutsS: [], run: async () => nothingFired(event) }
+  if (isEnvTruthy(flagEnv('MERCURY_BARE'))) return { names: [], timeoutsS: [], run: async () => nothingFired(event) }
   if (workspaceUntrustedForHooks()) {
     logForDebugging(`${event}: the workspace is not trusted yet, so no hook runs`)
     return { names: [], timeoutsS: [], run: async () => nothingFired(event) }

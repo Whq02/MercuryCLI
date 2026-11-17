@@ -1,6 +1,6 @@
 import memoize from 'lodash-es/memoize.js'
 import { modelHasRecordedFacts, operatorModelFacts } from './modelOverrides.js'
-import { flagEnabled } from 'src/substrate/flagRegistry.js'
+import { flagEnabled, flagEnv } from 'src/substrate/flagRegistry.js'
 import { EFFORT_LEVELS, type EffortLevel } from '../effortLadder.js'
 import { getSdkBetas } from '../../bootstrap/state.js'
 import {
@@ -561,7 +561,7 @@ function statedOutputTokens(upperLimit: number): { default: number; upperLimit: 
 }
 
 export function is1mContextDisabled(): boolean {
-  return isEnvTruthy(process.env.MERCURY_DISABLE_1M_CONTEXT)
+  return isEnvTruthy(flagEnv('MERCURY_DISABLE_1M_CONTEXT'))
 }
 
 export function has1mContext(model: string): boolean {
@@ -1079,8 +1079,8 @@ const KEY_SEP = String.fromCharCode(0)
 
 function betasEnvFingerprint(): string {
   return [
-    process.env.MERCURY_DISABLE_1M_CONTEXT ?? '',
-    process.env.MERCURY_PROVIDER_BETAS ?? '',
+    flagEnv('MERCURY_DISABLE_1M_CONTEXT') ?? '',
+    flagEnv('MERCURY_PROVIDER_BETAS') ?? '',
     isClaudeAISubscriber() ? 'subscription' : 'api-key',
   ].join(KEY_SEP)
 }
@@ -1103,9 +1103,10 @@ export const getAllModelBetas = memoize((model: string): string[] => {
     betaHeaders.push(CONTEXT_1M_BETA_HEADER)
   }
 
-  if (process.env.MERCURY_PROVIDER_BETAS) {
+  const providerBetas = flagEnv('MERCURY_PROVIDER_BETAS')
+  if (providerBetas) {
     betaHeaders.push(
-      ...process.env.MERCURY_PROVIDER_BETAS.split(',')
+      ...providerBetas.split(',')
         .map(_ => _.trim())
         .filter(Boolean),
     )

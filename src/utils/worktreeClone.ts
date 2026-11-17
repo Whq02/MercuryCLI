@@ -3,6 +3,7 @@ import { appendFileSync, constants, existsSync, lstatSync, lutimesSync, readdirS
 import { chmod, copyFile, lstat, mkdir, readdir, readlink, realpath, rename, rm, stat, symlink, unlink, utimes } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { logForDebugging } from './debug.js'
 import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { subprocessEnv } from './subprocessEnv.js'
@@ -87,7 +88,7 @@ function inTurn<T>(work: () => Promise<T>): Promise<T> {
 }
 
 function cloneRoad(): CloneRoad | null {
-  const seam = process.env.MERCURY_WORKTREE_CLONE
+  const seam = flagEnv('MERCURY_WORKTREE_CLONE')
   if (seam === 'off') return null
   if (seam === 'files') return 'walk'
   if (seam === 'cp') return 'cp'

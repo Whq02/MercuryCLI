@@ -29,7 +29,7 @@ const foreignTable = readFileSync(join(ROOT, 'src', 'utils', 'knownAgentClis.ts'
 check('ALWAYS_STRIP_TOKEN_VARS is exported + carries the OAuth token (own spelling + the table-derived foreign spellings)', /export const ALWAYS_STRIP_TOKEN_VARS[\s\S]{0,240}MERCURY_OAUTH_TOKEN/.test(subEnv) && subEnv.includes('...AGENT_CLI_SESSION_ENV_VARS') && foreignTable.includes(`'${FOREIGN}_OAUTH_TOKEN'`))
 
 section('source: auth resolution has an env→keychain fallback (so scrub is safe)')
-check('getClaudeAIOAuthTokens checks MERCURY_OAUTH_TOKEN env first', /if \(process\.env\.MERCURY_OAUTH_TOKEN\)/.test(auth))
+check('getClaudeAIOAuthTokens checks MERCURY_OAUTH_TOKEN env first', /const envToken = flagEnv\('MERCURY_OAUTH_TOKEN'\)\n\s*if \(envToken\)/.test(auth))
 check('…then falls back to the keychain (secureStorage.read().claudeAiOauth)', /getSecureStorage\(\)\.read\(\)\?\.claudeAiOauth/.test(auth))
 
 section('behavioural mirror: the scrub removes the pinned vars (guard true) / keeps (false)')

@@ -1,6 +1,7 @@
 import { accessSync, constants, existsSync, readdirSync, statSync } from 'node:fs'
 import { homedir, userInfo } from 'node:os'
 import { posix } from 'node:path'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getShellCwd } from '../Shell.js'
 import { defaultMercuryHome, getAuthScope, getMercuryHome } from '../envUtils.js'
 import { CREDENTIALS_SERVICE_SUFFIX, getMacOsKeychainStorageServiceName, getRawSpellingKeychainStorageServiceName } from '../secureStorage/macOsKeychainHelpers.js'
@@ -1093,7 +1094,7 @@ function foldersOnDisk(pattern: string): string[] {
     }
     if (next.length > FOLDER_CAP) {
       if (mercury === undefined) {
-        mercury = [...mercuryHomes(), ...protectedPathForms(process.env.MERCURY_DAEMON_DIR || getMercuryHome())]
+        mercury = [...mercuryHomes(), ...protectedPathForms(flagEnv('MERCURY_DAEMON_DIR') || getMercuryHome())]
         home = [process.env.HOME, process.env.USERPROFILE, homedir()].filter((path): path is string => !!path).flatMap(path => protectedPathForms(path))
       }
       const ways = mercury
@@ -1547,7 +1548,7 @@ function withinMercuryRecords(word: string, cwd: string, homes: readonly string[
 async function readSelfProtection(command: string, powershell: boolean, cwd: string): Promise<string | null> {
   const read = await readForFloors(command, powershell, cwd)
   if (read === null) return null
-  const homes = [...mercuryHomes(), ...protectedPathForms(process.env.MERCURY_DAEMON_DIR || getMercuryHome())]
+  const homes = [...mercuryHomes(), ...protectedPathForms(flagEnv('MERCURY_DAEMON_DIR') || getMercuryHome())]
   const changing = (path: string, hit: string): string => 'Changing ' + path + ' is refused: ' + hit + ' is part of Mercury’s running runtime.'
   for (const { simple, here } of read.commands.flatMap((simple, at) => foldersAfter(read, at, cwd).folders.map(here => ({ simple, here })))) {
     const feeders = (piped: boolean): ReadCommand[] => {

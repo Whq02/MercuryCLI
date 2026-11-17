@@ -1,3 +1,4 @@
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { validateBoundedIntEnvVar } from '../envValidation.js'
 
 export const BASH_MAX_OUTPUT_UPPER_LIMIT = 150_000
@@ -13,7 +14,7 @@ export type OutputBudget = { effective: number; requested?: number; clampedTo?: 
 export function getMaxOutputLength(): number {
   const result = validateBoundedIntEnvVar(
     SHELL_MAX_OUTPUT_ENV,
-    process.env.MERCURY_SHELL_MAX_OUTPUT,
+    flagEnv('MERCURY_SHELL_MAX_OUTPUT'),
     BASH_MAX_OUTPUT_DEFAULT,
     BASH_MAX_OUTPUT_UPPER_LIMIT,
   )

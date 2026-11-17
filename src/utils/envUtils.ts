@@ -15,12 +15,12 @@ export function defaultMercuryHome(): string {
 
 export const getMercuryHome = memoize((): string => {
   const resolved =
-    process.env.MERCURY_CONFIG_DIR || flagEnv('MERCURY_HOME') || defaultMercuryHome()
+    flagEnv('MERCURY_CONFIG_DIR') || flagEnv('MERCURY_HOME') || defaultMercuryHome()
   return canonicalHomeSpelling(resolved)
 }, () =>
   JSON.stringify([
-    process.env.MERCURY_CONFIG_DIR ?? null,
-    process.env.MERCURY_HOME ?? null,
+    flagEnv('MERCURY_CONFIG_DIR') ?? null,
+    flagEnv('MERCURY_HOME') ?? null,
   ]))
 
 export function canonicalHomeSpelling(raw: string, platform: string = process.platform): string {
@@ -35,7 +35,7 @@ export function canonicalHomeSpelling(raw: string, platform: string = process.pl
 }
 
 export function rawConfigHomePinSpelling(): string | null {
-  const raw = process.env.MERCURY_CONFIG_DIR || flagEnv('MERCURY_HOME')
+  const raw = flagEnv('MERCURY_CONFIG_DIR') || flagEnv('MERCURY_HOME')
   return raw ? raw.normalize('NFC') : null
 }
 
@@ -104,6 +104,6 @@ export function isEnvDefinedFalsy(v: string | boolean | undefined): boolean {
 }
 
 export function isBareMode(): boolean {
-  return isEnvTruthy(process.env.MERCURY_BARE) || readSessionOption(process.argv.slice(2), '--lean').present
+  return isEnvTruthy(flagEnv('MERCURY_BARE')) || readSessionOption(process.argv.slice(2), '--lean').present
 }
 

@@ -13,6 +13,7 @@ import {
 import { appendFile as fsAppendFile, mkdir, readFile, stat } from 'fs/promises'
 import { basename, dirname } from 'path'
 import memoize from 'lodash-es/memoize.js'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
   getPlanSlugCache,
   getPromptId,
@@ -710,7 +711,7 @@ class Project {
       getNodeEnv() === 'test' ||
       getInitialSettings()?.records?.retentionDays === 0 ||
       isSessionPersistenceDisabled() ||
-      isEnvTruthy(process.env.MERCURY_SKIP_PROMPT_HISTORY)
+      isEnvTruthy(flagEnv('MERCURY_SKIP_PROMPT_HISTORY'))
     )
   }
 

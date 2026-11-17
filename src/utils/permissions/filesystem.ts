@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { homedir, tmpdir } from 'node:os'
 import { isAbsolute, sep as platformSep, posix as posixPath } from 'node:path'
 import ignore from 'ignore'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getOriginalCwd, getSessionId } from '../../bootstrap/state.js'
 import { getCwd, getStartingCwd } from '../cwd.js'
 import { permissionRuleValueFromString } from './permissionRuleParser.js'
@@ -237,7 +238,7 @@ let tempDirCache: string | null = null
 
 export function getMercuryTempDir(): string {
   if (tempDirCache) return tempDirCache
-  const envBase = process.env.MERCURY_TMPDIR
+  const envBase = flagEnv('MERCURY_TMPDIR')
   const base = envBase ?? (getPlatform() === 'windows' ? tmpdir() : '/tmp')
   let resolvedBase = base
   try {
