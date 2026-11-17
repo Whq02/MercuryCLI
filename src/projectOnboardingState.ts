@@ -1,4 +1,5 @@
 import { memoize } from 'lodash-es'
+import { flagEnv } from './substrate/flagRegistry.js'
 import { composedGuideFilesAt } from './services/instructions/adapters/index.js'
 import { getCurrentProjectConfig, saveCurrentProjectConfig } from './utils/config.js'
 import { getCwd } from './utils/cwd.js'
@@ -73,7 +74,7 @@ export const shouldShowProjectOnboarding = memoize((): boolean => {
   if ((config.projectOnboardingSeenCount ?? 0) >= ONBOARDING_SEEN_COUNT_LIMIT) {
     return false
   }
-  if (process.env.MERCURY_DEMO) {
+  if (flagEnv('MERCURY_DEMO')) {
     return false
   }
   return !isProjectOnboardingComplete()

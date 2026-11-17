@@ -247,7 +247,7 @@ const SPECIAL_TOOL_NAMES = new Set([
 
 export function getTools(permissionContext: ToolPermissionContext, agentId?: string): Tools {
   const selected = permissionContext.baseTools
-  if (selected === undefined && isEnvTruthy(process.env.MERCURY_BARE)) {
+  if (selected === undefined && isEnvTruthy(flagEnv('MERCURY_BARE'))) {
     return filterToolsByDenyRules([BashTool, FileReadTool, FileEditTool, FileWriteTool] as Tool[], permissionContext)
   }
   const base = getAllBaseTools(agentId).filter(tool => !SPECIAL_TOOL_NAMES.has(tool.name) && (selected === undefined || selected.includes(tool.name)))

@@ -184,7 +184,7 @@ export async function showSetupScreens(
 ): Promise<boolean> {
   void devChannels
   if (process.env.NODE_ENV === 'test') return false
-  if (process.env.MERCURY_DEMO) return false
+  if (flagEnv('MERCURY_DEMO')) return false
 
   let onboardingShown = false
 
