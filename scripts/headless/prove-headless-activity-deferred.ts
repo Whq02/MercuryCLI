@@ -165,8 +165,23 @@ section('§4 source pins')
   check('the deferred writer arms the exit flush at the deferral', /pendingDeferredUpdaters\.push\(updater\)\s*\n\s*armDeferredExitFlush\(\)/.test(cfgSrc))
   check("the exit listener publishes pending changes synchronously", cfgSrc.includes("process.once('exit', () => {") && cfgSrc.includes('if (hasPendingDeferredGlobalConfigSaves()) saveGlobalConfig(current => current)'))
   check('…armed exactly once per process', /if \(deferredExitFlushArmed\) return\s*\n\s*deferredExitFlushArmed = true/.test(cfgSrc))
-  const printSrc = readFileSync(join(ROOT, 'src/cli/run.ts'), 'utf8')
-  check('the headless entry still stamps its activity at entry', /noteHeadlessActivity\(\s*\n?\s*options\.outputFormat === 'rows' && streamingInput \? 'sdk' : 'print',?\s*\n?\s*\)/.test(printSrc))
+  const { FIXTURE_MODEL, fixtureCli, withLiveRunner } = await import('../lib/builtProduct.ts')
+  const stampOf = async (boot: (stampHome: string) => Promise<unknown>): Promise<Activity | undefined> => {
+    const stampHome = mkdtempSync(join(tmpdir(), 'activity-entry-'))
+    writeFileSync(join(stampHome, '.config.json'), JSON.stringify({ theme: 'dark', hasCompletedOnboarding: true }))
+    await boot(stampHome)
+    let stamp: Activity | undefined
+    try {
+      stamp = (JSON.parse(readFileSync(join(stampHome, '.config.json'), 'utf8')) as { headlessActivity?: Activity }).headlessActivity
+    } catch {
+      stamp = undefined
+    }
+    rmSync(stampHome, { recursive: true, force: true })
+    return stamp
+  }
+  const wired = await stampOf(stampHome => withLiveRunner(async () => undefined, { env: { MERCURY_CONFIG_DIR: stampHome } }))
+  const printed = await stampOf(stampHome => fixtureCli([{ kind: 'text', text: 'ok' }], ['run', '--model', FIXTURE_MODEL, 'hi'], { env: { MERCURY_CONFIG_DIR: stampHome } }))
+  check('the headless entry still stamps its activity at entry', wired?.sdk === 1 && wired.print === 0 && wired.lastKind === 'sdk' && printed?.print === 1 && printed.sdk === 0 && printed.lastKind === 'print', j({ wired, printed }))
 }
 
 rmSync(HOME, { recursive: true, force: true })
