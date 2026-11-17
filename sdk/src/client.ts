@@ -1,6 +1,6 @@
 /// <reference types="node" preserve="true" />
 /// <reference lib="esnext.disposable" preserve="true" />
-import { readLines, readText } from './framing.js'
+import { CUT_GRACE_MS, CUT_LINE, readLines, readText } from './framing.js'
 import { executableOf } from './executable.js'
 import { StructuredSchema, schemaObject, validateOutcome, type OutputSchema } from './structured.js'
 import { serveTools, withTools, type ToolDefinition, type ToolServer } from './helpers.js'
@@ -191,6 +191,7 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
   #sessionRow: SessionRow | null = null
   #spawnFailure: unknown = undefined
   #sent = 0
+  #cut = false
   #resolveOutcome!: (row: OutcomeRow<T>) => void
   #rejectOutcome!: (error: MercuryError) => void
   #resolveSession!: (row: SessionRow) => void
@@ -251,7 +252,7 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
       windowsHide: true,
     })
     track(this.child)
-    readLines(this.child.stdout!, line => this.#line(line), error => this.#fatal(error))
+    readLines(this.child.stdout!, (line, whole) => this.#line(line, whole), error => this.#fatal(error))
     readText(this.child.stderr!, chunk => {
       this.#stderr += chunk
       this.#emit('stderr', chunk)
@@ -385,16 +386,26 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
   #fatal(error: MercuryError): void {
     if (this.#error) return
     this.#error = error
+    this.#stop()
+  }
+
+  #stop(): void {
+    clearTimeout(this.#stopTimer)
     this.child.stdin!.end()
     this.terminate()
     this.#stopTimer = setTimeout(() => this.kill(), 1000)
     this.#stopTimer.unref()
   }
 
-  #line(line: string): void {
+  #line(line: string, whole: boolean): void {
     if (this.#error || line.trim() === '') return
     const read = parseRow(line)
     if (!read.ok) {
+      if (!whole && read.reason === 'not_json') {
+        this.#cut = true
+        this.#stopTimer = setTimeout(() => this.#stop(), CUT_GRACE_MS)
+        return
+      }
       this.#fatal(new MercuryWireError(line, read.reason, read.type, read.issues, null))
       return
     }
@@ -429,7 +440,7 @@ export class MercuryRun<T = unknown> implements AsyncIterable<StreamRow> {
       if (this.#spawnFailure !== undefined && this.#outcomeRow === null) this.#error = new MercurySpawnError(this.command, this.#spawnFailure)
       else if (this.#outcomeRow !== null && this.#outcomeRow.status === 'refused') this.#error = new MercuryRefusal(this.#outcomeRow, exit)
       else if (this.#outcomeRow === null && code === 2) this.#error = new MercuryUsageError(exit)
-      else if (this.#outcomeRow === null) this.#error = new MercuryExitError(exit, 'run', this.#streaming && this.#sent === 0 && this.rows.length === 0 ? 'no input row was sent before stdin was closed' : undefined)
+      else if (this.#outcomeRow === null) this.#error = new MercuryExitError(exit, 'run', this.#streaming && this.#sent === 0 && this.rows.length === 0 ? 'no input row was sent before stdin was closed' : this.#cut ? CUT_LINE : undefined)
     }
     let outcome: OutcomeRow<T> | undefined
     if (this.#error === null && this.#outcomeRow) {

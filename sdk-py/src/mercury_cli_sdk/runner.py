@@ -6,10 +6,10 @@ import uuid
 from contextlib import suppress
 from dataclasses import dataclass, field, replace
 from typing import Any, Awaitable, Callable, AsyncIterator, Literal, Mapping, TypeVar, Unpack, cast, overload
-from .client import ConnectKwargs, Listener, RunOptions, argv_of, end_child, exit_of, prepare_tools, read_stderr, send_signal, spawn, untrack, warm_options
+from .client import ConnectKwargs, Listener, RunOptions, Settles, argv_of, call_listeners, end_child, exit_of, prepare_tools, read_stderr, send_signal, spawn, untrack, warm_options
 from .errors import MercuryConnectionError, MercuryError, MercuryExitError, MercuryRefusal, MercuryTimeoutError, MercuryUsageError, MercuryWireError, RunExit
 from .generated import InitializeResultFile_checkpoints, TypedOutcome, FsReadTextFileParams, FsReadTextFileResult, FsWriteTextFileParams, FsWriteTextFileResult, DEFAULT_TIMEOUT, METHODS, RUNNER_PROTOCOL, RPC_REFUSED, DefaultTimeout, TypedRequests, ElicitationRequestParams, ElicitationRequestResult, InitializeParamsCapabilities, InitializeParamsHost, InputRow, OutcomeRow, InitializeResult, PermissionRequestParams, PermissionRequestResult, QueueAddResult, SessionFactsResult, TurnInterruptResult, QueueWithdrawResult, SessionSetModelResult, SessionSetEffortResult, SessionSetModeResult, SessionSetKitResult, SessionRewindResult, AgentStopResult, AgentResumeResult, SessionClaimParams, SessionClaimResult, McpToolsResult, McpActionResult, SessionPauseGateResult, SessionQuiesceResult, SessionLeaveResult, SessionSetSpawnSwitchResult, ShellBackgroundResult, SessionSendNowResult
-from .framing import read_lines
+from .framing import CUT_LINE, read_lines
 from .structured import MercurySchemaError, StructuredSchema, schema_object, schema_problem, schema_refusal, validate_outcome
 from .support import RunnerSupport, runner_support, unsupported_feature
 
@@ -51,10 +51,13 @@ def folded_prompt_words(turn: int | None, status: str) -> str:
     return f'prompt: turn {"?" if turn is None else turn} ended {status} and the runner holds this prompt neither queued nor in a turn; a prompt sent while a turn runs can be folded into that turn, so interrupt() it or await its outcome before prompting again'
 
 
-class MercurySession(TypedRequests):
+class MercurySession(Settles, TypedRequests):
     """One ``mercury runner`` process hosted over JSON-RPC: prompts go in, rows stream out, asks are answered by your handlers.
 
     ``request(method, params, timeout=...)`` and ``notify(method, params)`` are typed per method by the generated overloads."""
+    _waits = ('exit',)
+    exit: asyncio.Future[RunExit]
+
     def __init__(self, child: asyncio.subprocess.Process, handlers: Mapping[str, HostHandler], tools: ToolServer | None = None, options: RunOptions | None = None):
         self.options = options or RunOptions()
         self._tools = tools
@@ -68,7 +71,8 @@ class MercurySession(TypedRequests):
         self.rows: list[StreamRow] = []
         self.stderr = ''
         self.last_prompt_id: str | None = None
-        self.exit: asyncio.Future[RunExit] = asyncio.get_running_loop().create_future()
+        self._arm()
+        self._ended = asyncio.Event()
         self._closed: Exception | None = None
         self._pending: dict[int, tuple[str, asyncio.Future[Any]]] = {}
         self._asks: dict[int, tuple[RequestContext, asyncio.Task[None]]] = {}
@@ -96,16 +100,16 @@ class MercurySession(TypedRequests):
         return self
 
     def _emit(self, type: str, value: Any) -> None:
-        for fn in tuple(self._listeners.get(type, [])): fn(value)
+        call_listeners(self._listeners, type, value)
 
     async def _write(self, value: Any) -> None:
         if self._closing: raise MercuryConnectionError('session is closing or closed; connect a new session before sending requests')
         if self._closed: raise self._closed
-        if self.child.returncode is not None or self._stdin.is_closing(): raise MercuryConnectionError('runner input is not open; reconnect before sending more requests', self.exit.result() if self.exit.done() else None)
+        if self.child.returncode is not None or self._stdin.is_closing(): raise MercuryConnectionError('runner input is not open; reconnect before sending more requests', self._settled['exit'][1] if 'exit' in self._settled else None)
         try:
             self._stdin.write((json.dumps(value) + '\n').encode())
             await self._stdin.drain()
-        except OSError as error: raise MercuryConnectionError(f'runner input failed: {error}; reconnect before sending more requests', self.exit.result() if self.exit.done() else None) from error
+        except OSError as error: raise MercuryConnectionError(f'runner input failed: {error}; reconnect before sending more requests', self._settled['exit'][1] if 'exit' in self._settled else None) from error
 
     async def _request(self, method: str, params: Any = None, *, timeout: float | None | DefaultTimeout = DEFAULT_TIMEOUT) -> Any:
         spec = METHODS.get(method)
@@ -179,11 +183,16 @@ class MercurySession(TypedRequests):
 
     async def _read(self) -> None:
         stderr = asyncio.create_task(read_stderr(self))
+        cut = False
         try:
-            async for line in read_lines(self._stdout):
+            async for line, whole in read_lines(self._stdout):
                 if not line.strip(): continue
                 try: message = json.loads(line)
-                except json.JSONDecodeError as error: raise MercuryWireError(line, 'not_json') from error
+                except json.JSONDecodeError as error:
+                    if not whole:
+                        cut = True
+                        continue
+                    raise MercuryWireError(line, 'not_json') from error
                 if not isinstance(message, dict) or message.get('jsonrpc') != '2.0': raise MercuryWireError(line, 'invalid')
                 method, id = message.get('method'), message.get('id')
                 if 'method' in message and not isinstance(method, str): raise MercuryWireError(line, 'invalid')
@@ -271,9 +280,10 @@ class MercurySession(TypedRequests):
         if self._tools: await self._tools.close()
         await stderr
         exit = exit_of(self.child, code, self.stderr)
-        self._fail(MercuryUsageError(exit, 'runner') if code == 2 and not hasattr(self, 'initialized') else MercuryExitError(exit, 'runner'), self._closing)
+        self._fail(MercuryUsageError(exit, 'runner') if code == 2 and not hasattr(self, 'initialized') else MercuryExitError(exit, 'runner', CUT_LINE if cut else None), self._closing)
         if self._submissions: await asyncio.gather(*self._submissions, return_exceptions=True)
-        self.exit.set_result(exit)
+        self._settle('exit', exit)
+        self._ended.set()
 
     def _uncorrelated(self, id: str) -> bool: return id in self._prompt_turns and self._prompt_turns[id] is None
 
@@ -476,13 +486,13 @@ class MercurySession(TypedRequests):
             context.cancelled.set()
             task.cancel()
         self._stdin.close()
-        try: await asyncio.wait_for(asyncio.shield(self.exit), 5)
+        try: await asyncio.wait_for(self._ended.wait(), 5)
         except asyncio.TimeoutError:
             send_signal(self.child, 'SIGTERM')
-            try: await asyncio.wait_for(asyncio.shield(self.exit), 5)
+            try: await asyncio.wait_for(self._ended.wait(), 5)
             except asyncio.TimeoutError:
                 send_signal(self.child, 'SIGKILL')
-                await self.exit
+                await self._ended.wait()
 
     async def __aenter__(self) -> MercurySession: return self
     async def __aexit__(self, *exc: Any) -> None: await self.close()
@@ -525,6 +535,7 @@ async def connect(*, warm: bool = False, checkpoints: bool = True, timeout: floa
         session.initialized = await session.request('initialize', boot, timeout=timeout)
         return session
     except BaseException:
+        send_signal(session.child, 'SIGTERM')
         await session.close()
         raise
 

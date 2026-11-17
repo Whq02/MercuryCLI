@@ -1,6 +1,6 @@
 /// <reference lib="esnext.disposable" preserve="true" />
 import { spawn, type ChildProcess } from 'node:child_process'
-import { readLines, readText } from './framing.js'
+import { CUT_LINE, readLines, readText } from './framing.js'
 import { capRows, endChild, missingCwd, track, unlimitedSignal } from './lifecycle.js'
 import { randomUUID } from 'node:crypto'
 import { argvOf, warmOptions, type RunOptions } from './client.js'
@@ -68,6 +68,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   #normalEnd = false
   #promptWait: PromptWait | undefined
   #activeTurn: string | null = null
+  #cut = false
 
   constructor(private options: ConnectOptions = {}, private readonly toolServer?: ToolServer) {
     if (options.warm && (options.sessionId || options.resume || options.continue || options.fork)) throw new MercuryError('warm cannot be combined with session identity options', null)
@@ -87,14 +88,14 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     this.child.stdin!.on('error', e => { if (!this.#closing) this.#fail(new MercuryConnectionError(`runner input failed: ${e.message}; reconnect before sending more requests`, null, { cause: e })) })
     this.child.stdout!.on('error', e => this.#fail(new MercuryConnectionError(`runner output failed: ${e.message}; reconnect before sending more requests`, null, { cause: e })))
     this.child.on('error', e => this.#fail(new MercurySpawnError(argv.command, cwdProblem ?? e)))
-    readLines(this.child.stdout!, line => { if (!this.#closed) void this.#read(line).catch(e => this.#fail(e)) }, error => this.#fail(error))
+    readLines(this.child.stdout!, (line, whole) => { if (!this.#closed) void this.#read(line, whole).catch(e => this.#fail(e)) }, error => this.#fail(error))
     this.child.stdout!.once('end', () => {
       if (!this.#closed && !this.#closing) this.#eofTimer = setTimeout(() => this.#fail(new MercuryConnectionError('runner output closed while the process was still running; reconnect before sending more requests', null)), 100)
     })
     this.exit = new Promise(resolve => this.child.once('close', async (code, signal) => {
       clearTimeout(this.#eofTimer)
       const exit = { code, signal, stderr: this.stderr }
-      this.#fail(code === 2 && (this.initialized as ResultOf<'initialize'> | undefined) === undefined ? new MercuryUsageError(exit, 'runner') : new MercuryExitError(exit, 'runner'), this.#closing)
+      this.#fail(code === 2 && (this.initialized as ResultOf<'initialize'> | undefined) === undefined ? new MercuryUsageError(exit, 'runner') : new MercuryExitError(exit, 'runner', this.#cut ? CUT_LINE : undefined), this.#closing)
       clearTimeout(this.#stopTimer)
       await this.toolServer?.close()
       resolve(exit)
@@ -157,10 +158,13 @@ export class MercurySession implements AsyncIterable<StreamRow> {
     this.#write({ jsonrpc: '2.0', method, params })
   }
 
-  async #read(line: string): Promise<void> {
+  async #read(line: string, whole: boolean): Promise<void> {
     if (line.trim() === '') return
     let msg: any
-    try { msg = JSON.parse(line) } catch { throw new MercuryWireError(line, 'not_json', undefined, [], null) }
+    try { msg = JSON.parse(line) } catch {
+      if (!whole) { this.#cut = true; return }
+      throw new MercuryWireError(line, 'not_json', undefined, [], null)
+    }
     if (!msg || msg.jsonrpc !== '2.0') throw new MercuryWireError(line, 'invalid', undefined, [], null)
     if ('method' in msg && typeof msg.method !== 'string') throw new MercuryWireError(line, 'invalid', undefined, [], null)
     if (typeof msg.method !== 'string') {
@@ -418,7 +422,12 @@ export async function connect(options: ConnectOptions = {}): Promise<MercurySess
       void session.exit.then(() => signal.removeEventListener('abort', end))
     }
     return session
-  } catch (error) { await session.close(); throw error }
+  } catch (error) {
+    const closed = session.close()
+    session.child.kill('SIGTERM')
+    await closed
+    throw error
+  }
 }
 
 export function prewarm(options: Omit<ConnectOptions, 'warm' | 'sessionId' | 'resume' | 'continue' | 'fork'> = {}): Promise<MercurySession> {
