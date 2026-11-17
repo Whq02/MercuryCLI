@@ -81,7 +81,6 @@ async def session_exit_wait():
 
 
 async def ctrl_c():
-    if WINDOWS: return
     program = "import sys\nfrom mercury_cli_sdk import run_sync\ntry: run_sync('x', mercury=['node', sys.argv[1], 'hang-run'], on_stderr=lambda chunk: print('READY', flush=True))\nexcept KeyboardInterrupt: print('INTERRUPTED', flush=True)\n"
     child = await asyncio.create_subprocess_exec(sys.executable, '-c', program, sys.argv[1], stdout=asyncio.subprocess.PIPE, start_new_session=True)
     assert child.stdout is not None
@@ -154,7 +153,7 @@ async def main():
     await check('session: a runner killed mid-row fails its requests with the exit, not a wire error', cut_runner)
     await check('run: a cancelled or timed-out wait on session, outcome or exit leaves the handle whole, and close returns', cancelled_waits)
     await check('session: a timed-out wait on exit does not make close raise CancelledError', session_exit_wait)
-    await check('run_sync: Ctrl-C reaches the program as KeyboardInterrupt instead of hanging', ctrl_c)
+    if not WINDOWS: await check('run_sync: Ctrl-C reaches the program as KeyboardInterrupt instead of hanging', ctrl_c)
     await check('a row listener that raises ends the run or session with that error as the cause, not a wire error', listener_errors)
     await check('a stderr, end or error listener that raises is logged and the run still settles', side_channel_errors)
     await check('run: two tasks iterating one run both end, with the run error when it failed', shared_iteration)
