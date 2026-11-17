@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSy
 import { join } from 'node:path'
 import { buildImportGraph, extractSpecs, resolveSpec, readStubMap, GRAPH_ROOT } from './graph.ts'
 import { FLAG_REGISTRY } from '../../src/substrate/flagRegistry.ts'
-import { DURABLE_OPERATION_MATRIX } from '../../src/substrate/durableOperationMatrix.ts'
+import { DURABLE_OPERATION_MATRIX } from '../reliability/durableOperationMatrix.ts'
 
 const CHECK = process.argv.includes('--check')
 const OUT_DIR = join(GRAPH_ROOT, 'scripts', 'orphans', '.out')
@@ -237,11 +237,15 @@ const manifest = {
     'daemon-scheduler': ['src/entrypoints/cli.tsx (mercury daemon)'],
     'spawned-workers-agents': ['src/entrypoints/cli.tsx (subagent/workflow re-entry)'],
     'acp-vscode-mcp': ['src/entrypoints/mcp.ts', 'src/entrypoints/cli.tsx (external seat attach)'],
-    'sdk-barrels': graph.entries.filter(e => !RUNTIME_ROOT_FILES.includes(rel(e))).map(rel).sort(),
-    'build-package-metadata': ['build.ts (stub map)', 'package.json (bin)'],
+    'sdk-barrels': graph.entries.filter(e => rel(e).startsWith('src/entrypoints/') && !RUNTIME_ROOT_FILES.includes(rel(e))).map(rel).sort(),
+    'build-package-metadata': [
+      'build.ts (stub map)',
+      'package.json (bin)',
+      ...graph.buildRoots.map(rel).filter(e => !e.startsWith('src/entrypoints/')).map(e => `${e} (build.ts entrypoint or import)`),
+    ],
     'generated-registries': [
       'src/substrate/flagRegistry.ts',
-      'src/substrate/durableOperationMatrix.ts',
+      'scripts/reliability/durableOperationMatrix.ts',
       'docs/CAPABILITY-GRADUATION-MATRIX.md',
     ],
     'proof-fixture': ['scripts/*/ (suite runners; proof-coverage edges below)'],

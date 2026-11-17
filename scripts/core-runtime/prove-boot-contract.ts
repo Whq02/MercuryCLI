@@ -352,11 +352,6 @@ function staticImports(src: string): {
   )
   at('runnerArgv: runnerArgvFromBoot(process.argv.slice(2)),')
   at('getMercuryMcpConfigs(dynamicMcpConfig).then(resolved => resolved.servers)')
-  const managerSrc = readFileSync(join(SRC, 'services/mcp/MCPConnectionManager.tsx'), 'utf8')
-  check(
-    'launch-graph: MCPConnectionManager forwards --only-mcp into the registry hook',
-    managerSrc.includes('useManageMCPConnections(dynamicMcpConfig, isStrictMcpConfig)'),
-  )
   const armAt = at('armBackgroundDiscovery();')
   check(
     'launch-graph: background discovery arms before the launch site',

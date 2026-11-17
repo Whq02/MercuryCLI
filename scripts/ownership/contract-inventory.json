@@ -315,7 +315,6 @@
   },
   "mcp": {
    "src/services/mcp/auth.ts": [
-    "AuthenticationCancelledError",
     "MercuryMcpAuthProvider",
     "clearMcpClientConfig",
     "clearServerTokensFromLocalStorage",
@@ -415,18 +414,11 @@
     "type:ConfigScope",
     "type:ConnectedMCPServer",
     "type:MCPServerConnection",
-    "type:McpAnthropicProxyServerConfig",
-    "type:McpHTTPServerConfig",
-    "type:McpSSEServerConfig",
     "type:McpServerConfig",
-    "type:McpStdioServerConfig",
     "type:McpUnexpandedStrings",
     "type:ScopedMcpServerConfig",
     "type:ServerResource",
     "type:Transport"
-   ],
-   "src/services/mcp/useManageMCPConnections.ts": [
-    "useManageMCPConnections"
    ]
   },
   "tools": {

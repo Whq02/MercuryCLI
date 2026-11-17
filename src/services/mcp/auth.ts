@@ -34,7 +34,7 @@ import type { McpServerConfig } from './types.js'
 
 
 
-export class AuthenticationCancelledError extends Error {
+class AuthenticationCancelledError extends Error {
   constructor(message = 'Authentication cancelled') {
     super(message)
     this.name = 'AuthenticationCancelledError'

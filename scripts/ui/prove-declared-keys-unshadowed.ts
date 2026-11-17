@@ -61,7 +61,6 @@ const CAPTURE_RULES: Record<string, Rule> = {
       { file: 'src/components/mcp/ElicitationDialog.tsx', needles: ['isCancelActive={(!fieldFocused || buttonFocused) && !accordionOpen}'] },
       { file: 'src/components/ExportDialog.tsx', needles: ["context: 'Settings',", "isActive: screen === 'filename',"] },
       { file: 'src/components/LogSelector.tsx', needles: ["context: 'Settings',", 'isActive: inRename,'] },
-      { file: 'src/components/mcp/MCPRemoteServerMenu.tsx', needles: ['isCancelActive={pasteSubmit === null}', "{ context: 'Settings', isActive: phase.id === 'auth' && pasteSubmit !== null }"] },
     ],
   },
   Chat: {
@@ -145,7 +144,7 @@ section('§1b a design-system Dialog that hosts a text field turns its cancel of
 {
   const DIALOG_FIELD_NOTES: Record<string, string> = {}
   const dialogHosts = files.filter(rel => hostsTextField(read(rel)) && /<Dialog\b/.test(read(rel)))
-  check('the census is populated (≥ 2 Dialog text hosts)', dialogHosts.length >= 2, dialogHosts.join(' · '))
+  check('the census is populated (≥ 1 Dialog text host)', dialogHosts.length >= 1, dialogHosts.join(' · '))
   for (const rel of dialogHosts) {
     const src = read(rel)
     if (src.includes('isCancelActive=')) {
@@ -263,11 +262,6 @@ section('§2b text-field hosts that compare raw single letters gate them off whi
       legendIn: 'src/components/mercury-ui/NavigablePanes.tsx',
       legend: [/composerSlot\?\.active\s*\n\s*\? 'esc composer'/],
       reason: 'a adds only while no editor is open; the panes engine swaps the footer to the slot while the editor captures',
-    },
-    'src/components/mcp/MCPRemoteServerMenu.tsx': {
-      gate: ["if (input === 'c' && !key.ctrl && !key.meta && authUrl && pasteText === '') {", 'event.stopImmediatePropagation()'],
-      legend: ["pasteText === '' ? 'Press c to copy the URL.' : '↵ submits the pasted URL.'"],
-      reason: 'c copies the authorisation URL only on an empty paste draft and is consumed ahead of the field (mounted later, so it listens after); once the URL is being typed, c is a letter and the hint names the submit instead',
     },
     'src/components/Settings/Jev.tsx': {
       gate: ['{ isActive: entry === null }'],

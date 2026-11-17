@@ -5,7 +5,7 @@
 # gate-watch: src/services/voice/fileTranscript.ts
 # gate-watch: scripts/tools/prove-read-reminder-persistence.ts src/tools/FileReadTool/FileReadTool.ts
 # gate-watch: src/services/providers/local/schemaTyping.ts
-# gate-watch: src/Tool* src/bootstrap/state* src/services/mcp/registry/serverRegistry* src/types/ids.ts src/mneme/mnemeFrontPage.ts
+# gate-watch: src/Tool* src/bootstrap/state* src/types/ids.ts src/mneme/mnemeFrontPage.ts
 # gate-watch: src/services/run/effectObserver* src/services/tools/toolExecution*
 # gate-watch: src/services/structure/tsFacility.ts src/services/video/**
 # gate-watch: src/tools/AgentTool/AgentTool*
@@ -38,7 +38,6 @@
 # gate-watch: src/services/concourse/concourseSnapshot.ts src/services/concourse/workerTranscript.ts
 # gate-watch: src/services/dap/dapClient.ts
 # gate-watch: src/services/lsp/LSPDiagnosticRegistry.ts src/services/lsp/manager.ts src/services/mcp/client.ts
-# gate-watch: src/services/mcp/useManageMCPConnections.ts
 # gate-watch: src/services/privateChannel/quietUpdateNotice.ts src/services/providers/* src/context/notifications.tsx
 # gate-watch: src/services/providers/anthropic/** src/services/providers/openai/*
 # gate-watch: src/services/providers/zai/zaiCodec.ts src/services/resources/registry.ts

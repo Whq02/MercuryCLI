@@ -58,10 +58,6 @@ section('§3 every failed re-mark carries a reason')
 {
   const mainSrc = read('src/main.tsx')
   check("the interactive mount's connect-failure re-mark carries the failure's own sentence", mainSrc.includes("entry.name === name ? { name, type: 'failed' as const, config, error: reason } : entry"))
-  const registrySrc = read('src/services/mcp/registry/serverRegistry.ts')
-  check('a lost local connection is re-marked with why and the retry verb', registrySrc.includes('error: `the server closed its connection — a local server is not restarted on its own; /mcp reconnect ${name} starts it again`'))
-  const menuSrc = read('src/components/mcp/MCPRemoteServerMenu.tsx')
-  check('a cleared sign-in names itself on the failed row', menuSrc.includes('error: `signed out of ${server.name} — /mcp reconnect ${server.name} signs in again`'))
   const { execSync } = await import('node:child_process')
   const files = execSync("git ls-files 'src/**/*.ts' 'src/**/*.tsx'", { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean).filter(file => existsSync(join(ROOT, file)))
   const bareMints: string[] = []

@@ -11,7 +11,7 @@
 # gate-watch: src/ink/root/terminalModeLedger.ts src/main.tsx src/query.ts src/run-core/turn-machine.ts
 # gate-watch: src/screens/ResumeConversation.tsx src/services/api/recoveryBudget.ts
 # gate-watch: src/services/api/sdkErrors.ts src/services/attention/store.ts src/services/capacity/*
-# gate-watch: src/services/channel/frame.ts src/services/concourse/**
+# gate-watch: src/services/concourse/**
 # gate-watch: src/services/engine-connector/crewFacts.ts src/services/mcp/renderTuiTool.ts
 # gate-watch: src/services/providers/openai/*
 # gate-watch: src/services/providers/providerUsage.ts src/services/switchboard/capacityCheck.ts

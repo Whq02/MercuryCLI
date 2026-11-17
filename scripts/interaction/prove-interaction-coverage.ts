@@ -176,7 +176,6 @@ reg(
     'src/components/ModelPicker.tsx',
     'src/components/LogSelector.tsx',
     'src/components/mcp/ElicitationDialog.tsx',
-    'src/components/mcp/MCPRemoteServerMenu.tsx',
     'src/commands/mcp/McpPopup.tsx',
  'src/components/agents/studio/AgentStudio.tsx',
  'src/components/agents/studio/StudioEditor.tsx',

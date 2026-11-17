@@ -103,7 +103,6 @@ writeFileSync(cfgPath, JSON.stringify(cfg))
 const env: NodeJS.ProcessEnv = {
   ...process.env,
   MERCURY_CONFIG_DIR: CONFIG_HOME,
-  MERCURY_CHANNEL_ROOM: `notepad-leftovers-${process.pid}`,
 }
 const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf-8', timeout: vshotBudgetMs(90000), env })
 check('the drive exits 0', res.status === 0, `status ${res.status}: ${(res.stdout ?? '').slice(-400)} ${(res.stderr ?? '').slice(-400)}`)

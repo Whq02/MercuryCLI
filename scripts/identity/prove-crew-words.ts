@@ -92,7 +92,6 @@ const ALLOW: Row[] = [
   { path: 'src/skills/bundled/', fragment: null, why: 'skill prompts are the model\'s' },
   { path: 'src/main.tsx', fragment: null, why: "the hidden spawn-identity options an older build's spawner passes; --help never shows them" },
   { path: 'src/constants/changelog.ts', fragment: null, why: 'past release notes stay as published' },
-  { path: 'src/substrate/durableOperationMatrix.ts', fragment: null, why: 'names the on-disk paths and journal kinds an older build wrote, as written' },
   { path: 'src/substrate/recoveryOrchestrator.ts', fragment: null, why: 'recovery names the journal an older build wrote' },
   { path: 'src/commands/run/runInspectorModel.ts', fragment: 'journal:', why: 'the run inspector names that same journal' },
   { path: 'src/utils/healthReport.ts', fragment: 'daemon journals', why: 'the same journal in the health row' },

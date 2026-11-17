@@ -73,7 +73,6 @@ section('§2 SCOPE-SETTER FLOOR — setAuthScope/clearAuthScope only in the swit
   const sanctioned = new Set([
     'src/utils/accounts/scopedCredentialRead.ts',
     'src/utils/envUtils.ts',
-    'src/utils/accounts/scopedReauth.ts',
   ])
   for (const call of ['setAuthScope(', 'clearAuthScope(']) {
     const callers = callerFiles(call)

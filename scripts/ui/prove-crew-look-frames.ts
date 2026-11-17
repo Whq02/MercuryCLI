@@ -19,7 +19,6 @@ process.env.MERCURY_LIVE_GLYPHS = '0'
 process.env.MERCURY_LIVE_CLOCK = '0'
 process.env.MERCURY_REDUCED_MOTION = '1'
 process.env.MERCURY_OPERATOR = 'op'
-process.env.MERCURY_CHANNEL_ROOM = `crew-look-frames-${process.pid}`
 process.env.FORCE_COLOR = '3'
 delete process.env.MERCURY_RECESS
 process.env.MERCURY_CRITTER_IDLE = '0'

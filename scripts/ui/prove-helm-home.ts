@@ -79,11 +79,10 @@ check('the rail paints no SEAT section (no seat key, label, self row or peer cap
   !/section\('seat'/.test(lanes) && !/'SEAT'/.test(lanes) && !/\(you\)/.test(lanes) && !/PEER_ROWS/.test(lanes) && !/peerWord/.test(lanes))
 check('the rail imports nothing from presence (no presence store, seat type or operator name)',
   !/presenceLive/.test(lanes) && !/getLivePresence|subscribePresence|getPresenceVersion|PresenceSeat|getOperatorName/.test(lanes))
-check('the presence estate is gone (no module, no cockpit re-export, no DeckPane seats row, no MCP heartbeat)',
+check('the presence estate is gone (no module, no cockpit re-export, no DeckPane seats row)',
   !existsSync(join(REPO, 'src/utils/cockpit/presenceLive.ts')) &&
     !/presenceLive/.test(read('src/utils/cockpit/index.ts')) &&
     !/getLivePresence|subscribePresence|seats\.length/.test(read('src/components/DeckPane.tsx')) &&
-    !/recordSelfPresence|startPresenceTail|PRESENCE_HEARTBEAT_MS/.test(read('src/services/mcp/useManageMCPConnections.ts')) &&
     !/collectPresenceSeats|presence-seats/.test(read('src/substrate/stateLifecycle.ts')))
 check("the operator's display name lives in its own identity module and the flag registry names it",
   /export function getOperatorName\(\): string/.test(readIf('src/substrate/identity/operatorDisplayName.ts')) &&

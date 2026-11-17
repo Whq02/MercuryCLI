@@ -145,8 +145,6 @@ section('§5 the login gesture reroutes to Logins (board wiring — operator-rul
   const board = readFileSync(join(import.meta.dir, '../../src/components/mercury-ui/parity/AccountView.tsx'), 'utf8')
   check('↵ on the current anthropic scope reroutes to Logins, family-focused', board.includes("rerouteToLogins('anthropic'"))
   check('a non-current scope names the honest road (never the wrong store)', board.includes('MERCURY_CONFIG_DIR='))
-  const reauth = readFileSync(join(import.meta.dir, '../../src/utils/accounts/scopedReauth.ts'), 'utf8')
-  check('the reauth save lands through the audited scope bracket', reauth.includes('setAuthScope(pending.dir)') && reauth.includes('saveOAuthTokensIfNeeded'))
   check('the board headers carry the family name alone; the ceiling decides only whether the plain count chip paints', board.includes('familySigninCeiling(group.family.id)') && board.includes('{`${familyDisplayName(group.family.id)} accounts`}') && !board.includes('familySigninHeaderNote'))
 }
 

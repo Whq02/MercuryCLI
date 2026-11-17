@@ -88,7 +88,6 @@ switchboard-5	7
 switchboard-6	5
 builtin-tools	149
 visual-contract	62
-channel	0
 operator-identity	1
 changesets	38
 substrate	78
@@ -161,7 +160,6 @@ decisions	6
 model-policy	6
 vulcan	26
 behaviour-laws	2
-channels	10
 dap	76
 run	1
 task-durability	3

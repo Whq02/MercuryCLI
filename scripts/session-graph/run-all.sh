@@ -16,7 +16,6 @@
 # gate-watch: src/components/mercury-ui/screens/CrewView.tsx
 # gate-watch: src/tools/SendMessageTool/SendMessageTool.ts src/utils/messages/attachmentText.ts
 # gate-watch: src/utils/tasks.ts
-# gate-watch: src/substrate/durableOperationMatrix.ts
 # gate-watch: src/rows/* src/runner/wire/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

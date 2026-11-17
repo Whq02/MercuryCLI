@@ -7,7 +7,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 import { FLAG_REGISTRY } from '../../src/substrate/flagRegistry.ts'
-import { DURABLE_OPERATION_MATRIX } from '../../src/substrate/durableOperationMatrix.ts'
+import { DURABLE_OPERATION_MATRIX } from '../reliability/durableOperationMatrix.ts'
 
 const t = checker()
 const ROOT = join(import.meta.dir, '..', '..')

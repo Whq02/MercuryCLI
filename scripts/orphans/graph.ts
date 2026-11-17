@@ -26,6 +26,7 @@ interface ImportGraph {
   root: string
   files: string[]
   entries: string[]
+  buildRoots: string[]
   edges: RawEdge[]
   reached: Set<string>
   stubMap: Record<string, string>
@@ -119,18 +120,54 @@ export function extractSpecs(filePath: string, text: string): Array<{ spec: stri
   return out
 }
 
-function graphEntries(): string[] {
+const BUILD = join(GRAPH_ROOT, 'build.ts')
+
+export function readBuildEntrypoints(): string[] {
+  const sf = ts.createSourceFile(BUILD, readFileSync(BUILD, 'utf-8'), ts.ScriptTarget.ES2022, false, ts.ScriptKind.TS)
+  const bases: Record<string, string> = { ROOT: GRAPH_ROOT, SRC }
+  const roots: string[] = []
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isPropertyAssignment(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === 'entrypoints' &&
+      ts.isArrayLiteralExpression(node.initializer)
+    ) {
+      for (const el of node.initializer.elements) {
+        const [base, path] = ts.isCallExpression(el) && ts.isIdentifier(el.expression) && el.expression.text === 'resolve' ? el.arguments : []
+        if (!base || !path || !ts.isIdentifier(base) || !(base.text in bases) || !ts.isStringLiteralLike(path)) {
+          const line = sf.getLineAndCharacterOfPosition(el.getStart(sf)).line + 1
+          throw new Error(
+            `build.ts:${line}: the reachability reader cannot read this entrypoint; write it as resolve(SRC, '<path>') or resolve(ROOT, '<path>') in build.ts, or teach readBuildEntrypoints in scripts/orphans/graph.ts the new form`,
+          )
+        }
+        roots.push(join(bases[base.text]!, path.text))
+      }
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sf)
+  return [...new Set(roots)].filter(p => p.startsWith(SRC + '/') && existsSync(p)).sort()
+}
+
+export function readBuildRoots(): string[] {
+  const roots = readBuildEntrypoints()
+  for (const { spec } of extractSpecs(BUILD, readFileSync(BUILD, 'utf-8'))) {
+    const resolved = resolveSpec(BUILD, spec, {})
+    if (resolved && resolved.startsWith(SRC + '/')) roots.push(resolved)
+  }
+  return [...new Set(roots)].sort()
+}
+
+function graphEntries(buildRoots: string[]): string[] {
   const entries = [
-    'src/entrypoints/cli.tsx',
+    join(SRC, 'entrypoints', 'cli.tsx'),
     ...readdirSync(join(SRC, 'entrypoints'))
       .filter(f => f.endsWith('.ts') || f.endsWith('.tsx'))
-      .map(f => `src/entrypoints/${f}`),
+      .map(f => join(SRC, 'entrypoints', f)),
+    ...buildRoots,
   ]
-  const build = readFileSync(join(GRAPH_ROOT, 'build.ts'), 'utf8')
-  if (build.includes("entrypoints: [resolve(SRC, 'services/crewBoard/implementation.ts')]")) {
-    entries.push('src/services/crewBoard/implementation.ts')
-  }
-  return [...new Set(entries)].map(e => join(GRAPH_ROOT, e)).filter(p => existsSync(p))
+  return [...new Set(entries)].filter(p => existsSync(p))
 }
 
 export function buildImportGraph(): ImportGraph {
@@ -155,7 +192,8 @@ export function buildImportGraph(): ImportGraph {
     if (list) list.push(e.resolved)
     else byFrom.set(e.from, [e.resolved])
   }
-  const entries = graphEntries()
+  const buildRoots = readBuildRoots()
+  const entries = graphEntries(buildRoots)
   const reached = new Set<string>(entries)
   const queue = [...entries]
   while (queue.length) {
@@ -167,5 +205,5 @@ export function buildImportGraph(): ImportGraph {
       }
     }
   }
-  return { root: GRAPH_ROOT, files, entries, edges, reached, stubMap }
+  return { root: GRAPH_ROOT, files, entries, buildRoots, edges, reached, stubMap }
 }

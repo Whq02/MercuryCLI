@@ -67,9 +67,6 @@ console.log(failures === 0 ? '\nprove-lawful-change-owners: all green' : `\nprov
   clearConversationToolSchemas()
   law.resetLawfulPrefixChanges()
 }
-const adapter = readFileSync(join(ROOT, 'src/services/mcp/useManageMCPConnections.ts'), 'utf8')
-check('the interactive adapter requests refreshed definitions after a successful manual reconnect', /event\.cause === 'reconnect-manual' && event\.connection\.type === 'connected' && event\.tools !== undefined\) \{\s*requestDeliberateToolChange/.test(adapter))
-check('…and after a tools/list_changed refetch, so the refreshed definitions are seen without a restart', /gateRefetchedTools\(client\.name, refetched as Tool\[\]\)\s*\n\s*requestDeliberateToolChange\(/.test(adapter))
 
 console.log(failures === 0 ? 'deliberate tool changes: all green' : `deliberate tool changes: ${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)

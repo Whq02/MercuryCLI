@@ -5,7 +5,6 @@ import { join } from 'node:path'
 
 process.env.NODE_ENV = 'test'
 
-import { describeReconnectOutcome } from '../../src/components/mcp/utils/reconnectHelpers.js'
 import { hunkPatchText } from '../../src/components/diff/DiffDialog.js'
 import { getRelativeMemoryPath } from '../../src/components/memory/MemoryUpdateNotification.js'
 import {
@@ -29,33 +28,6 @@ function section(name: string): void {
 }
 const ROOT = new URL('../../', import.meta.url).pathname
 const src = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
-
-section('reconnect outcome mapper')
-{
-  const config = { type: 'stdio', command: 'x', scope: 'user' } as never
-  check(
-    'connected reads as success',
-    describeReconnectOutcome('srv', { type: 'connected', name: 'srv', config } as never).success,
-  )
-  const needsAuth = describeReconnectOutcome('srv', {
-    type: 'needs-auth',
-    name: 'srv',
-    config,
-  } as never)
-  check(
-    'needs-auth fails and points at the authenticate option in /mcp',
-    !needsAuth.success && needsAuth.message.includes('/mcp') && needsAuth.message.toLowerCase().includes('authenticate'),
-  )
-  check(
-    'failed reads as failure',
-    !describeReconnectOutcome('srv', { type: 'failed', name: 'srv', config } as never).success,
-  )
-  check(
-    'anything else (pending/disabled/missing) is the unknown fallback',
-    !describeReconnectOutcome('srv', undefined).success &&
-      describeReconnectOutcome('srv', { type: 'pending', name: 'srv', config } as never).message.includes('unknown'),
-  )
-}
 
 section('hunk patch grammar')
 {
@@ -172,26 +144,6 @@ section('structural pins — transcript renderers')
 
 section('structural pins — OAuth surfaces + elicitation')
 {
-  const remote = src('src/components/mcp/MCPRemoteServerMenu.tsx')
-  check(
-    'unmount aborts the flow, clears the copy timer, and marks unmounted',
-    remote.includes('abortRef.current?.abort()') &&
-      remote.includes('clearTimeout(copyTimerRef.current)') &&
-      remote.includes('unmountedRef.current = true'),
-  )
-  check(
-    'a revoke before re-auth preserves step-up state',
-    remote.includes('preserveStepUpState: true'),
-  )
-  check(
-    'the proxy server id rewrites mcprs → mcpsrv',
-    remote.includes("replace(/^mcprs/, 'mcpsrv')"),
-  )
-  const agentMenu = src('src/components/mcp/MCPAgentServerMenu.tsx')
-  check(
-    'the agent menu aborts its flow on unmount too',
-    agentMenu.includes('abortRef.current?.abort()'),
-  )
   const elicit = src('src/components/mcp/ElicitationDialog.tsx')
   check(
     'every validation rule comes from the S45 owner',
@@ -239,11 +191,6 @@ section('structural pins — /help + misc')
   check(
     'no external documentation URL (fork requirement)',
     !/https?:\/\//.test(help),
-  )
-  const stdio = src('src/components/mcp/MCPStdioServerMenu.tsx')
-  check(
-    'the stdio menu keeps BOTH config-location reads',
-    stdio.includes('getMcpConfigByName(server.name)') && stdio.includes("?? 'dynamic'"),
   )
   const list = src('src/commands/mcp/McpPopup.tsx')
   check(

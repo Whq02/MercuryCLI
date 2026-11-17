@@ -6,7 +6,7 @@ import {
   FAILURE_CLASSES,
   RESOURCE_BOUNDS,
   STATE_CLASSES,
-} from '../../src/substrate/durableOperationMatrix.ts'
+} from './durableOperationMatrix.ts'
 
 let failures = 0
 const ok = (cond: boolean, label: string) => {
