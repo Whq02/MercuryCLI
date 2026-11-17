@@ -176,11 +176,13 @@ fi
 
 mkdir -p "$OUT"
 
-ambient_home="${MERCURY_CONFIG_DIR:-$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/mercury-proof-home.XXXXXX")}"
+shard_temp="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
+shard_temp="${shard_temp%/}"
+ambient_home="${MERCURY_CONFIG_DIR:-$(mktemp -d "$shard_temp/mercury-proof-home.XXXXXX")}"
 export MERCURY_CONFIG_DIR="$ambient_home"
 "${BUN:-$HOME/.bun/bin/bun}" run scripts/lib/firstRunSeed.ts "$ambient_home" "$(pwd)"
 
-dead_letter_dir=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/mercury-dead-letter.XXXXXX")
+dead_letter_dir=$(mktemp -d "$shard_temp/mercury-dead-letter.XXXXXX")
 /usr/bin/python3 scripts/gate/dead-letter.py "$dead_letter_dir/port" &
 dead_letter_pid=$!
 shard_compile_cache=""
@@ -229,7 +231,7 @@ FAILED=0
 echo "shard $IDX/$TOTAL ($CLASS): ${#MINE[@]} suites — ${MINE[*]:-none}"
 printf '  box: %s · %s cores\n' "$(uname -sm 2>/dev/null || echo unknown)" "$( (getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo '?') | head -1)"
 if [ -z "${NODE_COMPILE_CACHE:-}" ]; then
-  shard_compile_cache=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/mercury-node-compile-cache.XXXXXX")
+  shard_compile_cache=$(mktemp -d "$shard_temp/mercury-node-compile-cache.XXXXXX")
   export NODE_COMPILE_CACHE="$shard_compile_cache"
 fi
 [ -f dist/mercury.mjs ] && node dist/mercury.mjs --version >/dev/null 2>&1 || true
