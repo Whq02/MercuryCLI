@@ -103,7 +103,7 @@ function stagedCommentGrowth(cwd) {
 if (process.argv[1] && process.argv[1].endsWith('commentBytes.mjs') && process.argv.includes('--staged')) {
   const offenders = stagedCommentGrowth(process.cwd())
   if (offenders.length > 0) {
-    console.error('commit refused: comments are not written; the reasoning goes in the commit message and the receipt. Remove the comment lines added in:')
+    console.error('commit refused: comments are not written. Remove the comment lines added in:')
     for (const o of offenders) console.error(`  ${o.path} (+${o.bytes} bytes of comment)`)
     console.error('Machine lines pass: a shebang, @ts-expect-error, eslint or prettier directives, gate-class and gate-watch header lines.')
     process.exit(1)
