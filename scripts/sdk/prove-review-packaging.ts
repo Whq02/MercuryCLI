@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { delimiter, join, resolve } from 'node:path'
 import { BUN, PYTHON } from './runtime.ts'
 
 const root = resolve(import.meta.dir, '../..')
@@ -69,6 +69,9 @@ def local(url, *args, **kwargs):
     return io.BytesIO(json.dumps(data).encode())
 urllib.request.urlopen = local
 `)
+  mkdirSync(join(scratch, 'twine'))
+  writeFileSync(join(scratch, 'twine/__init__.py'), '')
+  writeFileSync(join(scratch, 'twine/__main__.py'), "print('twine fixture')\n")
   const env = { ...process.env, NODE_OPTIONS: `--import=${join(scratch, 'registry.mjs')}`, PYTHONPATH: scratch, npm_config_cache: join(scratch, 'npm-cache'), npm_config_update_notifier: 'false', npm_config_offline: 'true' }
   for (const name of ['pypi', 'npm']) run('bash', [join(scratch, `scripts/sdk/publish-${name}.sh`)], env)
   for (const dir of ['sdk', 'sdk-py']) assert(!existsSync(join(scratch, dir, 'dist/stale.file')))
@@ -89,4 +92,13 @@ urllib.request.urlopen = local
     assert(!result.stdout.includes('DRY RUN: would publish'))
   }
   console.log('PASS both publication scripts refuse an already-published version; PyPI names that version in one sentence')
+  writeFileSync(index, JSON.stringify(previous))
+  mkdirSync(join(scratch, 'no-twine/twine'), { recursive: true })
+  writeFileSync(join(scratch, 'no-twine/twine/__init__.py'), "raise ImportError('no twine in this fixture')\n")
+  writeFileSync(join(scratch, 'sdk-py/dist/kept.file'), 'kept')
+  const bare = spawnSync('bash', [join(scratch, 'scripts/sdk/publish-pypi.sh')], { cwd: join(scratch, 'no-twine'), env: { ...env, PYTHONPATH: [join(scratch, 'no-twine'), scratch].join(delimiter) }, encoding: 'utf8', timeout: 120000 })
+  assert.equal(bare.status, 1, bare.stdout + bare.stderr)
+  assert.match(bare.stderr, /has no twine module.*uv run --no-project --with twine/s)
+  assert(!bare.stdout.includes('DRY RUN: would publish') && existsSync(join(scratch, 'sdk-py/dist/kept.file')))
+  console.log('PASS the PyPI script stops before it builds when its python3 cannot run twine, and says how to run it')
 } finally { rmSync(scratch, { recursive: true, force: true }) }
