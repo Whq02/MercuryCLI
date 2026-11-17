@@ -56,15 +56,15 @@ try {
     assert.equal(pin.knowledgeCutoff, '2026-06-01')
     assert.equal(pin.availabilityNote, undefined)
   })
-  check('the page enumerates no effort levels and names no default, so the row states neither', () => {
+  check('the row states the ladder low to max and the default medium', () => {
     const pin = gptDisplayPin(id)
     assert.ok(pin)
-    assert.equal(pin.supportedReasoningEfforts, undefined)
-    assert.equal(pin.defaultReasoningEffort, undefined)
+    assert.deepEqual(pin.supportedReasoningEfforts, listed)
+    assert.equal(pin.defaultReasoningEffort, 'medium')
   })
-  check('the row sits second in the table, after its Astra sibling', () => {
-    assert.equal(GPT_DISPLAY_PINS[0]?.id, sibling)
-    assert.equal(GPT_DISPLAY_PINS[1]?.id, id)
+  check('the row leads the table, which makes it the session default, and its Astra sibling follows it', () => {
+    assert.equal(GPT_DISPLAY_PINS[0]?.id, id)
+    assert.equal(GPT_DISPLAY_PINS[1]?.id, sibling)
   })
   check('the grammar reads the id: major 6, minor 2, variant sol', () => {
     const identity = parseGptModelId(`${id}[served]`)
@@ -102,23 +102,27 @@ try {
   })
   process.env.OPENAI_API_KEY = 'fixture-key-not-real'
   await seed({ data: [{ id: sibling, priority: 1 }, { id, priority: 2 }, { id: 'gpt-6.1-sol', priority: 3 }] })
-  check('a bare API list takes the input kinds from the page and no effort vocabulary', () => {
+  check('a bare API list takes the input kinds and the ladder from the row', () => {
     const row = catalogue.evaluateGptCandidate(id, 'api-key')
     assert.ok(row.ok)
     assert.equal(row.candidate.pin?.id, id)
     assert.deepEqual(row.candidate.live.inputModalities, ['text', 'image'])
     assert.ok(modelReceivesImageBlocks(id))
-    assert.deepEqual(row.candidate.live.supportedReasoningEfforts, [])
-    assert.equal(row.candidate.live.defaultReasoningEffort, undefined)
+    assert.deepEqual(row.candidate.live.supportedReasoningEfforts, listed)
+    assert.equal(row.candidate.live.defaultReasoningEffort, 'medium')
   })
-  for (const word of asked) check(`on a bare API list ${word} is never sent, so the refused word none cannot ride`, () => {
+  for (const word of asked) check(`on a bare API list ${word} asked sends ${listed.includes(word) ? word : 'low'}, so the refused word none cannot ride`, () => {
     const row = catalogue.evaluateGptCandidate(id, 'api-key')
     assert.ok(row.ok)
     const profile = catalogue.resolveGptReasoningProfile(word, row.candidate.live)
-    assert.equal(profile.wireEffort, undefined)
-    const request = requestFor(profile.wireEffort)
-    assert.equal(request.reasoning?.effort, undefined)
-    assert.deepEqual(openaiEffortWireFact(request, true), { kind: 'omitted' })
+    const sent = listed.includes(word) ? word : 'low'
+    assert.equal(profile.wireEffort, sent)
+    assert.deepEqual(openaiEffortWireFact(requestFor(profile.wireEffort), true), { kind: 'sent', parameter: 'reasoning.effort', value: sent })
+  })
+  check('a bare API list with nothing asked sends the default medium', () => {
+    const row = catalogue.evaluateGptCandidate(id, 'api-key')
+    assert.ok(row.ok)
+    assert.equal(catalogue.resolveGptReasoningProfile(undefined, row.candidate.live).wireEffort, 'medium')
   })
   check('the picker row: the page name, the OpenAI group, selectable, in the live order', () => {
     const rows = getModelOptions()

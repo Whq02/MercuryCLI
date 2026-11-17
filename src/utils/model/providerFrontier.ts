@@ -123,6 +123,16 @@ export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFac
   }
 }
 
+export function openaiFrontierRelease(): string[] {
+  const frontier = providerFrontierFact('openai')
+  const head = frontier ? parseGptModelId(frontier.modelId) : undefined
+  if (!head) return []
+  return GPT_DISPLAY_PINS.filter(pin => {
+    const identity = parseGptModelId(pin.id)
+    return identity !== undefined && identity.major === head.major && identity.minor === head.minor
+  }).map(pin => pin.id)
+}
+
 type GptRank = { id: string; major: number; minor: number }
 
 function newerThan(a: GptRank, b: GptRank): boolean {

@@ -136,6 +136,7 @@ import type {
   OpenaiStreamEvent,
   OpenaiUsage,
 } from './openaiWire.js'
+import { inputTransformationsLine } from './openaiWire.js'
 import type { RefusedToolCall } from '../../../types/message.js'
 import { gateToolCalls, refusalAnswersAsToolResult, refusedCallInput, toolCallRefusalDiagnostic, toolCallRefusalNote } from '../toolCallGate.js'
 import { planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
@@ -1544,6 +1545,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
             : {}),
         }
         if (event.responseId && !responseId) responseId = event.responseId
+        if (event.inputTransformations !== undefined) logForDebugging(inputTransformationsLine(modelId, event.inputTransformations))
         break
       case 'stream-fault':
         fault = fault ?? event.fault

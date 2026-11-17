@@ -1,9 +1,6 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
-## 1.0.12
-- Added GPT-6.2 Astra and GPT-6.2 Sol to the model picker with their windows, output ceilings and prices from OpenAI's pages of 17 November: Astra at $8 a million input tokens, $40 output, $0.40 cached and $10 cache write, Sol at $2, $10, $0.10 and $2.50, and a request over 272,000 input tokens at twice the input and cache rates and one and a half times the output rate. An unlisted model had run on a 200,000-token fallback and its usage went unpriced. Both are also on OpenCode Zen, with effort low to max, and in the head rows of the Nous Portal list.
-
 ## 1.0.11
 - Added a way to run the Blender tool with no window: with Blender located and no bridge answering, a call runs one background Blender process and returns its exit status, its output and its whole traceback.
 - Added script and argv to the Blender tool's python_run: it runs a script file in the project with its arguments.

@@ -75,6 +75,15 @@ section('§1 THE ROW — the pin states the model-page facts; everything derives
     pin?.longContext?.aboveInputTokens === 272_000 && pin.longContext.inputMultiplier === 2 && pin.longContext.outputMultiplier === 1.5,
     JSON.stringify(pin?.longContext),
   )
+  check(
+    "the row states the levels its page states (low, medium, high, xhigh, max; read 2026-11-17) and medium, the API reference's default for the parameter",
+    JSON.stringify(pin?.supportedReasoningEfforts) === JSON.stringify(LADDER) && pin?.defaultReasoningEffort === 'medium',
+    JSON.stringify([pin?.supportedReasoningEfforts, pin?.defaultReasoningEffort]),
+  )
+  check(
+    'GPT-6 Sol and GPT-6 Luna state what their pages state: none, low, medium (default), high, xhigh, max (read 2026-11-17)',
+    (['gpt-6-sol', 'gpt-6-luna'] as const).every(id => JSON.stringify(pins.gptDisplayPin(id)?.supportedReasoningEfforts) === JSON.stringify(['none', ...LADDER]) && pins.gptDisplayPin(id)?.defaultReasoningEffort === 'medium'),
+  )
 
   const identity = pins.parseGptModelId(ID)
   check(
@@ -169,7 +178,7 @@ section('§1 THE ROW — the pin states the model-page facts; everything derives
   check('uncredentialed, the budget is the pinned window (a dated record, not a live claim)', getContextWindowForModel(ID) === 1_050_000, String(getContextWindowForModel(ID)))
 
   const frontier = providerFrontierFact('openai')
-  check('the grammar ranks GPT-6.2 Astra above 6 and 6.1 (developers.openai.com/api/docs/models, read 2026-11-17)', frontier?.modelId === 'gpt-6.2-astra' && frontier.displayName === 'GPT-6.2 Astra', JSON.stringify(frontier))
+  check('the frontier is the first row of the newest release, GPT-6.2 Sol, above 6 and 6.1 (developers.openai.com/api/docs/models, read 2026-11-17)', frontier?.modelId === 'gpt-6.2-sol' && frontier.displayName === 'GPT-6.2 Sol', JSON.stringify(frontier))
   const light = providerLightFact('openai')
   check('uncredentialed, the openai light fact is silence: a live list names the tier, never the typed table', light === undefined, JSON.stringify(light))
 }
@@ -292,6 +301,28 @@ process.env.OPENAI_API_KEY = 'prover-key'
     JSON.stringify(withoutRow),
   )
   check('unserved, the effort view reports the live truth as unavailable for it (no invented ladder)', capabilities.gptEffortVocabularyView(ID).state !== 'live', JSON.stringify(capabilities.gptEffortVocabularyView(ID)))
+  catalogue.__resetOpenaiCatalogueForTest()
+  await catalogue.refreshOpenaiCatalogue('api-key', { force: true, fetchImpl: fetchOf([{ id: ID }, { id: 'gpt-6-sol' }, { id: 'gpt-6-luna' }]) })
+  const bare = catalogue.evaluateGptCandidate(ID, 'api-key')
+  const bareLive = bare.ok ? bare.candidate.live : undefined
+  check(
+    "on a bare API list the dial is sent as asked: 'max' rides, nothing asked rides 'medium', 'none' answers with 'low'",
+    bareLive !== undefined &&
+      catalogue.resolveGptReasoningProfile('max', bareLive).wireEffort === 'max' &&
+      catalogue.resolveGptReasoningProfile(undefined, bareLive).wireEffort === 'medium' &&
+      catalogue.resolveGptReasoningProfile('none', bareLive).wireEffort === 'low',
+    JSON.stringify(bareLive?.supportedReasoningEfforts),
+  )
+  check(
+    "on a bare API list GPT-6 Sol and GPT-6 Luna send 'none' and 'max' as asked and 'medium' when nothing is asked",
+    (['gpt-6-sol', 'gpt-6-luna'] as const).every(id => {
+      const row = catalogue.evaluateGptCandidate(id, 'api-key')
+      return row.ok &&
+        catalogue.resolveGptReasoningProfile('none', row.candidate.live).wireEffort === 'none' &&
+        catalogue.resolveGptReasoningProfile('max', row.candidate.live).wireEffort === 'max' &&
+        catalogue.resolveGptReasoningProfile(undefined, row.candidate.live).wireEffort === 'medium'
+    }),
+  )
   catalogue.__resetOpenaiCatalogueForTest()
 }
 delete process.env.OPENAI_API_KEY

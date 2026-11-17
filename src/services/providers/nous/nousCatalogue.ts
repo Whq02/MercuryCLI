@@ -284,7 +284,6 @@ const NOUS_PORTAL_RECOMMENDATION = {
     'anthropic/claude-sonnet-5.5',
     'openai/gpt-6.2-astra',
     'openai/gpt-6.2-sol',
-    'openai/gpt-6.1-sol',
     'google/gemini-4-argon',
     'deepseek/deepseek-v4.1-flash-1017',
   ],
