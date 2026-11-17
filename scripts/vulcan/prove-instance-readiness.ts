@@ -1,10 +1,8 @@
 import { randomBytes } from 'node:crypto'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer, type Socket } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { pathToFileURL } from 'node:url'
-import * as ts from 'typescript'
 
 const ROOT = resolve(import.meta.dir, '../..')
 const scratch = mkdtempSync(join(tmpdir(), 'instance-readiness-'))

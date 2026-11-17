@@ -1,6 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 process.env.NODE_ENV = 'test'
 process.env.MERCURY_KILL = ''

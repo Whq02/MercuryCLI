@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'node:fs'
 import { freemem } from 'node:os'
 import { parseMemAvailable, parseVmStat, deviceHeadroom } from '../../src/utils/cockpit/deviceHeadroom.ts'
 

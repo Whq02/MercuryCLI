@@ -1,7 +1,5 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const { ocrReadinessCheck } = await import('../../src/utils/healthReport.ts')

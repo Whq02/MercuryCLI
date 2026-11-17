@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
 import ts from 'typescript'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -90,16 +90,37 @@ function programFor(files: string[]): ts.Program {
   return ts.createProgram(files, { ...parsed.options, noEmit: true, skipLibCheck: true })
 }
 
+function composerFiles(program: ts.Program, entry: ts.SourceFile): ts.SourceFile[] {
+  const checker = program.getTypeChecker()
+  const imported = (file: ts.SourceFile): ts.SourceFile[] => {
+    const out: ts.SourceFile[] = []
+    const visit = (node: ts.Node): void => {
+      const spec = ts.isImportDeclaration(node) ? node.moduleSpecifier : ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword ? node.arguments[0] : undefined
+      const target = spec && ts.isStringLiteralLike(spec) ? checker.getSymbolAtLocation(spec)?.valueDeclaration : undefined
+      if (target && ts.isSourceFile(target) && !out.includes(target)) out.push(target)
+      ts.forEachChild(node, visit)
+    }
+    visit(file)
+    return out
+  }
+  const list = imported(entry).find(file => {
+    const module = checker.getSymbolAtLocation(file)
+    return module !== undefined && checker.getExportsOfModule(module).some(symbol => symbol.name === 'HEALTH_SECTIONS')
+  })
+  return list ? [entry, list, ...imported(list).filter(file => file !== entry)] : [entry]
+}
+
 console.log('the health composer: every interpolated value is a string or a number')
 const started = Date.now()
 const program = programFor([TARGET])
 const source = program.getSourceFile(TARGET)
 if (!source) throw new Error(`source not loaded: ${TARGET}`)
-const findings = dishonestSpans(program, source)
+const composer = composerFiles(program, source)
+const findings = composer.flatMap(file => dishonestSpans(program, file).map(f => ({ ...f, file: relative(REPO, file.fileName) })))
 check(
-  `src/utils/healthReport.ts interpolates no object and joins no object array (${Date.now() - started}ms)`,
-  findings.length === 0,
-  findings.map(f => `L${f.line} ${f.kind} ${f.text} : ${f.type}`).join(' · '),
+  `src/utils/healthReport.ts and the ${composer.length - 1} modules of the row list it imports interpolate no object and join no object array (${Date.now() - started}ms)`,
+  composer.length > 2 && findings.length === 0,
+  composer.length > 2 ? findings.map(f => `${f.file}:${f.line} ${f.kind} ${f.text} : ${f.type}`).join(' · ') : 'the row list was not reached: src/utils/healthReport.ts imports the module that exports HEALTH_SECTIONS, and this proof follows that import',
 )
 
 console.log('poison: a source interpolating an object and joining an object array trips the walker')

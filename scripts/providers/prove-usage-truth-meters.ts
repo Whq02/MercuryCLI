@@ -346,7 +346,6 @@ section('§7 one vocabulary: the feed + freshness words live in one module; no s
     'src/components/DeckPane.tsx',
     'src/components/MercuryFrame.tsx',
     'src/components/Settings/Usage.tsx',
-    'src/utils/healthReport.ts',
   ]
   const home = src('src/services/providers/usageFreshness.ts')
   check('the vocabulary is spelled in its one home', vocabulary.every(word => home.includes(`'${word}`) || home.includes(word)))
