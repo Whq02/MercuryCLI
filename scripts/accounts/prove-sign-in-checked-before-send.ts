@@ -21,6 +21,7 @@ Object.assign(process.env, {
   TZ: 'UTC',
   LANG: 'en_GB.UTF-8',
 })
+process.env.MERCURY_CONFIG_DIR = HOME
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const ROOT = join(import.meta.dir, '..', '..')

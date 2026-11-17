@@ -48,16 +48,18 @@ check('substrateSnapshot uses isMcpPolicyActive() — the canonical bug line is 
 
 section('panels color/warn off the boolean, NOT the displayed === \'high\' string')
 {
-  const globals = globalThis as Record<string, unknown>
-  if (globals.MACRO === undefined) globals.MACRO = { VERSION: '1.0.0' }
+  ;(await import('../../src/utils/config.ts')).enableConfigs()
   const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
-  const { mcpGauge } = await import('../../src/utils/cockpit/mcpGauge.ts')
-  const mcpSays = await runtimeChecks().find(row => row.id === 'mcp')?.run()
-  const gauge = mcpGauge()
+  const { publishMcpConnections } = await import('../../src/utils/cockpit/mcpGauge.ts')
+  const mcpRow = runtimeChecks().find(row => row.id === 'mcp')
+  publishMcpConnections([{ name: 'fixture-srv', type: 'pending' } as never])
+  const permissive = withEnv(undefined, () => mcpRow?.run()) as { status: string; evidence: string; fix?: string } | undefined
+  const clamped = withEnv('untrusted-srv:low', () => mcpRow?.run()) as { status: string; evidence: string; fix?: string } | undefined
+  publishMcpConnections([])
   check(
     'the health mcp row keys off mcpPolicyActive',
-    mcpSays !== undefined && (gauge.state === 'live' ? mcpSays.evidence.includes(` · policy ${gauge.data.mcpPolicyHint} · `) && (mcpSays.status !== 'ok' || gauge.data.mcpPolicyActive === true) && (mcpSays.status !== 'info' || gauge.data.mcpPolicyActive === false) : gauge.state === 'off' ? mcpSays.evidence.startsWith(`no MCP servers configured · policy ${gauge.data.mcpPolicyHint} · `) : mcpSays.status === 'unknown'),
-    mcpSays?.evidence,
+    permissive?.status === 'info' && permissive.evidence.includes(' · policy high · permissive · ') && permissive.fix?.startsWith('Tighten if desired') === true && clamped?.status === 'ok' && clamped.evidence.includes(' · policy default high · untrusted-srv:low · '),
+    `${permissive?.status}: ${permissive?.evidence} | ${clamped?.status}: ${clamped?.evidence}`,
   )
 }
 
