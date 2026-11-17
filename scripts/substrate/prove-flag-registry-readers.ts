@@ -50,22 +50,28 @@ const NAMED: Row[] = [
   { file: 'scripts/motion/prove-motion-wire-trip.ts', line: "check('the governor is still config-free (flag reads only)', !/utils\\/config/.test(governorSrc) && /@M@/.test(governorSrc))", why: "tests the motion governor's own source for its import of the registry: it reads the governor" },
   { file: 'scripts/notifications/prove-surface-router.ts', line: "l => l.includes('@M@') || l.includes('ink/events/input-event') || l.includes('utils/fullscreen') || l.includes('services/concourse/concourseEnabled') || l.includes('components/mercury-ui/keyHintLabel'),", why: "an import the route owner may carry: the proof reads the owner's import lines" },
   { file: 'scripts/orphans/gen-reachability-manifest.ts', line: "'src/@S@/@M@.ts',", why: 'a root-class label written into the generated manifest: the generator reads the rows through its import' },
-  { file: 'scripts/sessionStorage/prove-path-contract.ts', line: "'../../@S@/@M@.js': { flagEnv: (name: string) => flags[name] },", why: 'the specifier the sandboxed paths module asks for, answered with a stand-in that reads the flags the proof sets: the proof opens no registry file' },
   { file: 'scripts/substrate/gen-flag-table.ts', line: '> Derived from \\`src/@S@/@M@.ts\\` by \\`scripts/@S@/gen-flag-table.ts\\`.', why: 'a sentence in the header of the rendered table: the renderer reads the rows through its import' },
   { file: 'scripts/transcript-rows/prove-motion-governor.ts', line: "check('the governor is config-free (flag reads only — the ink layer taps it)', !/utils\\/config/.test(governor) && /@M@/.test(governor))", why: "tests the motion governor's own source for its import of the registry: it reads the governor" },
   { file: 'scripts/vulcan/vulcan-audit-waves.js', line: 'The new surfaces: src/utils/vulcan/*, src/services/vulcan/*, src/tools/GodotTool/*, assets/vulcan/addon/**, scripts/vulcan/*, plus edits in src/tools.ts, src/constants/prompts.ts, src/constants/subagentDoctrine.ts, src/utils/cockpit/harnessMap.ts, src/@S@/startupMenu.ts, src/@S@/@M@.ts, src/utils/healthReport.ts, assets/splash/mercury-splash.mjs.', why: 'a file list inside the audit prompt text: the script opens none of them' },
   { file: 'scripts/wards/prove-wards-model-free.ts', line: "'../@S@/@M@.js',", why: "an import specifier the wards guard may carry: the proof reads the guard's imports" },
 ].map(row => ({ ...row, line: spell(row.line) }))
-const NAMED_ROWS = 11
+const NAMED_ROWS = 10
 
 type Place = { file: string; line: number; flag: string; form: string; say: string }
 type Kept = { file: string; flag: string; places: number; why: string }
 type Constants = { all: Map<string, string>; exported: Map<string, string>; aliases: Set<string> }
+type Call = { file: string; line: number; flag: string; verb: string; taken: boolean }
+type Key = { file: string; line: number; flag: string; text: string }
+type Law = { file: string; flag: string; why: string }
+type Unseen = { file: string; fn: string; at: string; kind: 'read' | 'write' | 'delete' | 'key' | 'text'; places: number; why: string }
+type Computed = { file: string; line: number; fn: string; at: string; use: 'read' | 'write' | 'delete' }
+type Told = { file: string; line: number; flag: string }
 
 const REFLECTION = ['Reflect.get', 'Reflect.has', 'Reflect.set', 'Reflect.deleteProperty', 'Reflect.getOwnPropertyDescriptor', 'Object.hasOwn', 'Object.getOwnPropertyDescriptor']
 const OWN_KEY_TESTS = ['hasOwnProperty', 'propertyIsEnumerable']
-const THE_VERBS = spell("the door is src/@S@/@M@.ts: flagEnv(name) reads the process environment and flagEnv(name, env) another one, setFlagEnv and deleteFlagEnv write and delete, stampFlagEnv writes what is not the session's own stamp, stampFlagOnEnv and flagPair write into an environment that is being built")
-const PAST_REACH = 'a name assembled at run time, a name handed in from another file, a name that arrives through a re-export, the key of an object literal (flagPair builds that one)'
+const DOOR_VERBS = ['flagEnv', 'flagEnvLoose', 'flagEnabled', 'setFlagEnv', 'stampFlagEnv', 'deleteFlagEnv', 'stampFlagOnEnv', 'flagPair', 'flagSpellings', 'getFlagSpec']
+const THE_VERBS = spell("the door is src/@S@/@M@.ts: flagEnv(name) reads the process environment and flagEnv(name, env) another one, flagEnabled(name) answers a switch, setFlagEnv and deleteFlagEnv write and delete, stampFlagEnv writes what is not the session's own stamp, stampFlagOnEnv and flagPair write into an environment that is being built")
+const PAST_REACH = 'a name assembled at run time, a name taken out of a list or a table, a name handed in from another file, a name that arrives through a re-export, program text held as a string'
 const PAYLOAD = 'a payload copied out of the product and run by node on its own: it cannot import the registry'
 const KEPT: Kept[] = [
   { file: 'src/extensions/@B@/shared/bootstrap.mjs', flag: 'MERCURY_CRAFT_INSTALL_KEY', places: 2, why: PAYLOAD },
@@ -73,6 +79,50 @@ const KEPT: Kept[] = [
   { file: 'src/extensions/@B@/shared/install.mjs', flag: 'MERCURY_CRAFT_PLATFORM', places: 1, why: PAYLOAD },
 ].map(row => ({ ...row, file: row.file.replace('@B@', J('bund', 'led')) }))
 const KEPT_PLACES = 4
+
+const ABSENT: Law[] = [
+  { file: 'src/services/api/client.ts', flag: 'MERCURY_API_TIMEOUT_MS', why: 'the client rides apiTimeoutMsOverride and parses no timeout of its own' },
+  { file: 'src/services/providers/anthropic/streamCore.ts', flag: 'MERCURY_API_TIMEOUT_MS', why: 'the stream core rides the owner through the patience ceiling and parses no timeout of its own' },
+  { file: 'src/components/mercury-ui/parity/AccountView.tsx', flag: 'MERCURY_CONFIG_DIR', why: 'the scope row keys on the resolved home, not on the pin being set' },
+]
+const TAKEN_ONCE: Law[] = [
+  { file: 'src/components/messages/SystemAPIErrorMessage.tsx', flag: 'MERCURY_API_TIMEOUT_MS', why: "the panel takes the raw value into a constant: it glues no 'ms' onto the read and hides no hint behind it" },
+  { file: 'src/components/messages/AssistantTextMessage.tsx', flag: 'MERCURY_API_TIMEOUT_MS', why: 'the timeout hint reaches the operator who has not set the flag: the read is taken into a constant, not used in place as the condition' },
+]
+const AMBIENT = 'ambient environment: waits for the environment door'
+const MIXED = 'a list that holds names with no row beside the registered ones, on an environment that is not the process: flagEnv throws on the others and flagEnvLoose takes no environment'
+const NO_REMOVE = 'the key holds undefined, which takes the flag out of the child: no verb of the door says remove'
+const UNSEEN: Unseen[] = [
+  { file: 'src/services/providers/accountSlots.ts', fn: 'compatSlots', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
+  { file: 'src/services/llmHost/index.ts', fn: 'runLlmHost', at: 'process.env', kind: 'read', places: 2, why: AMBIENT },
+  { file: 'src/services/providers/modelRegistry.ts', fn: 'snapshotKey', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
+  { file: 'src/services/providers/providerIdentityLine.ts', fn: 'memoKey', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
+  { file: 'src/services/wallet/wallet.ts', fn: 'entriesKey', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
+  { file: 'src/services/providers/providerUsage.ts', fn: 'refreshProviderUsage', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
+  { file: 'src/utils/redactSecrets.ts', fn: 'sessionSecretValues', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
+  { file: 'src/utils/redactSecrets.ts', fn: 'createShellResultRedactor', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
+  { file: 'src/utils/subprocessEnv.ts', fn: 'subprocessEnv', at: 'env', kind: 'read', places: 1, why: AMBIENT },
+  { file: 'src/services/browser/browserSecrets.ts', fn: 'resolveBrowserSecret', at: 'process.env', kind: 'read', places: 1, why: AMBIENT },
+  { file: 'src/daemon/headlessRun.ts', fn: 'scrubDaemonRoleEnv', at: 'env', kind: 'read', places: 1, why: MIXED },
+  { file: 'src/daemon/main.ts', fn: 'spawnSuccessorDaemon', at: 'env', kind: 'read', places: 1, why: MIXED },
+  { file: 'src/daemon/ownedDaemon.ts', fn: 'spawnOwnedDaemon', at: 'env', kind: 'read', places: 1, why: MIXED },
+  { file: 'src/main.tsx', fn: 'applyMergedConfigEnv', at: 'process.env', kind: 'write', places: 1, why: "every key of the settings' environment block goes into the process: setFlagEnv and stampFlagEnv throw on a name with no row" },
+  { file: 'src/utils/managedEnv.ts', fn: 'applyFiltered', at: 'process.env', kind: 'write', places: 1, why: 'every key of the managed environment goes into the process: setFlagEnv and stampFlagEnv throw on a name with no row' },
+  { file: 'src/daemon/ownedDaemon.ts', fn: 'spawnOwnedDaemon', at: 'env', kind: 'write', places: 1, why: 'every key of the extra environment is copied: a mixed map, and stampFlagOnEnv throws on a name with no row' },
+  { file: 'src/extensions/options.ts', fn: 'optionEnv', at: 'env', kind: 'write', places: 1, why: 'the name is built from the family prefix and a key: the whole name has no row' },
+  { file: 'src/daemon/headlessRun.ts', fn: 'scrubDaemonRoleEnv', at: 'env', kind: 'delete', places: 1, why: MIXED },
+  { file: 'src/daemon/headlessRun.ts', fn: 'cloneEnvWithoutRoles', at: 'env', kind: 'delete', places: 1, why: MIXED },
+  { file: 'src/daemon/headlessRun.ts', fn: 'buildRunnerInvocation', at: 'env', kind: 'delete', places: 1, why: MIXED },
+  { file: 'src/daemon/main.ts', fn: 'spawnSuccessorDaemon', at: 'env', kind: 'delete', places: 1, why: MIXED },
+  { file: 'src/daemon/ownedDaemon.ts', fn: 'spawnOwnedDaemon', at: 'env', kind: 'delete', places: 2, why: MIXED },
+  { file: 'src/utils/subprocessEnv.ts', fn: 'deleteNames', at: 'env', kind: 'delete', places: 1, why: AMBIENT },
+  { file: 'src/utils/subprocessEnv.ts', fn: 'subprocessEnv', at: 'clone', kind: 'delete', places: 1, why: AMBIENT },
+  { file: 'src/daemon/handshake.ts', fn: '', at: 'MERCURY_DAEMON_SUCCESSOR_OF', kind: 'key', places: 1, why: NO_REMOVE },
+  { file: 'src/daemon/handshake.ts', fn: '', at: 'MERCURY_DAEMON_OWNER_PID', kind: 'key', places: 2, why: NO_REMOVE },
+  { file: 'src/services/eval/jsRunnerSource.ts', fn: '', at: '', kind: 'text', places: 2, why: 'the text of a program that another node runs: it cannot import the registry' },
+  { file: 'src/services/eval/pyRunnerSource.ts', fn: '', at: '', kind: 'text', places: 2, why: 'the text of a Python program: it cannot import the registry' },
+]
+const UNSEEN_PLACES = 33
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -220,7 +270,7 @@ function moduleFile(from: string, spec: string, known: Set<string>): string | un
   return [base, `${stem}.ts`, `${stem}.tsx`, `${stem}.mts`, `${stem}.js`, `${stem}.mjs`, `${stem}/index.ts`, `${stem}/index.tsx`].find(file => known.has(file))
 }
 
-function flagPlaces(root: string, files: string[], flags: Set<string>): { read: number; places: Place[] } {
+function flagPlaces(root: string, files: string[], flags: Set<string>, held: Unseen[] = []): { read: number; places: Place[]; calls: Call[]; keys: Key[]; computed: Computed[]; told: Told[] } {
   const texts = new Map<string, string>()
   for (const file of files) {
     if (!CODE.test(file) || isFlagRegistryFile(file)) continue
@@ -256,8 +306,14 @@ function flagPlaces(root: string, files: string[], flags: Set<string>): { read: 
   const carriedNames = [...new Set([...carried.values()].flatMap(held => [...held.keys()]))]
   const namesACarried = carriedNames.length === 0 ? null : new RegExp(carriedNames.map(name => name.replace(/[$]/g, '\\$&')).join('|'))
   const places: Place[] = []
+  const calls: Call[] = []
+  const keys: Key[] = []
+  const computed: Computed[] = []
+  const inText: Told[] = []
+  const holders = new Set(held.filter(row => row.kind !== 'key' && row.kind !== 'text').map(row => row.at))
+  const wanted = new Set(held.map(row => row.file))
   for (const [file, text] of texts) {
-    if (!mayName(text) && (namesACarried === null || !namesACarried.test(text))) continue
+    if (!wanted.has(file) && !mayName(text) && (namesACarried === null || !namesACarried.test(text))) continue
     const { source, constants } = parse(file)
     const handed = new Map<string, string>()
     for (const statement of source.statements) {
@@ -303,21 +359,64 @@ function flagPlaces(root: string, files: string[], flags: Set<string>): { read: 
       ts.forEachChild(node, collect)
     }
     collect(source)
+    const all = text.split('\n')
+    const lineOf = (node: ts.Node): number => source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1
+    const fnOf = (node: ts.Node): string => {
+      for (let at: ts.Node | undefined = node.parent; at !== undefined; at = at.parent) {
+        if ((ts.isFunctionDeclaration(at) || ts.isMethodDeclaration(at)) && at.name !== undefined && ts.isIdentifier(at.name)) return at.name.text
+        if (ts.isVariableDeclaration(at) && ts.isIdentifier(at.name) && at.initializer !== undefined) {
+          const made = peel(at.initializer)
+          if (ts.isArrowFunction(made) || ts.isFunctionExpression(made)) return at.name.text
+        }
+      }
+      return ''
+    }
     const note = (node: ts.Node, flag: string, form: string, say: string): void => {
-      places.push({ file, line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1, flag, form, say })
+      places.push({ file, line: lineOf(node), flag, form, say })
     }
     const holder = (object: ts.Node): string => (isProcessEnv(object) ? '' : peel(object).getText(source).replace(/\s+/g, ' ').slice(0, 60))
     const visit = (node: ts.Node): void => {
-      if (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) {
+      if (ts.isStringLiteralLike(node) || ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node)) {
+        for (const m of node.text.matchAll(/(?:process\.env\.|os\.environ\.get\(["'])([A-Z][A-Z0-9_]+)/g)) {
+          if (flags.has(m[1] ?? '')) inText.push({ file, line: lineOf(node), flag: m[1] ?? '' })
+        }
+      }
+      if (ts.isElementAccessExpression(node)) {
+        const key = peel(node.argumentExpression)
+        const object = peel(node.expression)
+        const at = isProcessEnv(object) ? 'process.env' : ts.isIdentifier(object) ? object.text : ''
+        const walksTheDoor = (name: string): boolean => {
+          for (let at: ts.Node | undefined = node.parent; at !== undefined; at = at.parent) {
+            if (ts.isForOfStatement(at) && ts.isVariableDeclarationList(at.initializer) && at.initializer.declarations.some(d => ts.isIdentifier(d.name) && d.name.text === name)) {
+              const walked = peel(at.expression)
+              return ts.isCallExpression(walked) && ts.isIdentifier(walked.expression) && walked.expression.text === 'flagSpellings'
+            }
+          }
+          return false
+        }
+        const fixed = ts.isStringLiteralLike(key) || ts.isNumericLiteral(key) || (ts.isIdentifier(key) && (constants.all.has(key.text) || handed.has(key.text) || walksTheDoor(key.text)))
+        if (!fixed && (at === 'process.env' || holders.has(at))) {
+          let up: ts.Node = node
+          while (ts.isParenthesizedExpression(up.parent) || ts.isNonNullExpression(up.parent)) up = up.parent
+          const parent = up.parent
+          const written = ts.isBinaryExpression(parent) && parent.left === up && parent.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && parent.operatorToken.kind <= ts.SyntaxKind.LastAssignment
+          computed.push({ file, line: lineOf(node), fn: fnOf(node), at, use: ts.isDeleteExpression(parent) ? 'delete' : written ? 'write' : 'read' })
+        }
+      }
+      if ((ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node)) && ts.isObjectLiteralExpression(node.parent) && !(ts.isBinaryExpression(node.parent.parent) && node.parent.parent.left === node.parent)) {
+        const flag = nameOf(node.name)
+        if (flag !== undefined) keys.push({ file, line: lineOf(node), flag, text: (all[lineOf(node) - 1] ?? '').trim() })
+      } else if (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) {
         const flag = ts.isPropertyAccessExpression(node) ? flagOf(node.name.text) : keyOf(node.argumentExpression)
         if (flag !== undefined) {
           const env = holder(node.expression)
+          const given = env === '' ? '' : `, ${env}${node.questionDotToken === undefined ? '' : ' ?? {}'}`
           let up: ts.Node = node
           while (ts.isParenthesizedExpression(up.parent) || ts.isNonNullExpression(up.parent)) up = up.parent
           const parent = up.parent
           if (ts.isDeleteExpression(parent)) note(node, flag, 'delete', env === '' ? `delete it with deleteFlagEnv('${flag}')` : `delete it with for (const spelling of flagSpellings('${flag}')) delete ${env}[spelling]`)
           else if (ts.isBinaryExpression(parent) && parent.left === up && parent.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && parent.operatorToken.kind <= ts.SyntaxKind.LastAssignment) note(node, flag, 'write', env === '' ? `write it with setFlagEnv('${flag}', value), or with stampFlagEnv('${flag}', value) where the write is not the session's own stamp` : `write it with stampFlagOnEnv(${env}, '${flag}', value)`)
-          else note(node, flag, ts.isPropertyAccessExpression(node) ? 'member' : 'key', `read it with flagEnv('${flag}'${env === '' ? '' : `, ${env}`})`)
+          else note(node, flag, ts.isPropertyAccessExpression(node) ? 'member' : 'key', `read it with flagEnv('${flag}'${given})`)
         }
       } else if (ts.isBindingElement(node) && ts.isObjectBindingPattern(node.parent)) {
         const flag = nameOf(node.propertyName ?? node.name)
@@ -337,6 +436,15 @@ function flagPlaces(root: string, files: string[], flags: Set<string>): { read: 
       } else if (ts.isCallExpression(node)) {
         const callee = peel(node.expression)
         if (ts.isIdentifier(callee)) {
+          if (DOOR_VERBS.includes(callee.text)) {
+            const flag = keyOf(node.arguments[callee.text === 'stampFlagOnEnv' ? 1 : 0])
+            if (flag !== undefined) {
+              let up: ts.Node = node
+              while (ts.isParenthesizedExpression(up.parent)) up = up.parent
+              const owner = up.parent
+              calls.push({ file, line: lineOf(node), flag, verb: callee.text, taken: ts.isVariableDeclaration(owner) && owner.initializer === up && (owner.parent.flags & ts.NodeFlags.Const) !== 0 })
+            }
+          }
           for (const index of helpers.get(callee.text) ?? []) {
             const flag = keyOf(node.arguments[index])
             if (flag !== undefined) note(node.arguments[index] ?? node, flag, 'helper', `${callee.text} reads the environment by the name it is handed: read it there with flagEnv`)
@@ -355,7 +463,7 @@ function flagPlaces(root: string, files: string[], flags: Set<string>): { read: 
     }
     visit(source)
   }
-  return { read: texts.size, places }
+  return { read: texts.size, places, calls, keys, computed, told: inText }
 }
 
 function judgeKept(places: Place[], kept: Kept[]): { unlisted: Place[]; stale: string[] } {
@@ -375,6 +483,37 @@ function judgeKept(places: Place[], kept: Kept[]): { unlisted: Place[]; stale: s
 }
 
 const told = (places: Place[]): string => places.slice(0, 60).map(p => `\n      ${p.file}:${p.line} ${p.flag} — ${p.say}`).join('') + (places.length > 60 ? `\n      … and ${places.length - 60} more` : '')
+
+function judgeLaws(places: Place[], calls: Call[], absent: Law[], takenOnce: Law[]): { broken: string[]; stale: string[] } {
+  const broken: string[] = []
+  const stale: string[] = []
+  const bare = (row: Law): string[] => places.filter(p => p.file === row.file && p.flag === row.flag).map(p => `${p.file}:${p.line} names ${p.flag} at the environment — ${row.why}`)
+  for (const row of absent) {
+    broken.push(...bare(row), ...calls.filter(c => c.file === row.file && c.flag === row.flag).map(c => `${c.file}:${c.line} ${c.verb}('${c.flag}') — this file names the flag by no verb: ${row.why}`))
+  }
+  for (const row of takenOnce) {
+    const here = calls.filter(c => c.file === row.file && c.flag === row.flag)
+    if (here.length === 0) stale.push(`${row.file} ${row.flag}: the file reads the flag no more, so the row is an absence row now`)
+    broken.push(...bare(row), ...here.filter(c => !(c.verb === 'flagEnv' && c.taken)).map(c => `${c.file}:${c.line} ${c.verb}('${c.flag}') used in place — take it into a constant: ${row.why}`))
+  }
+  return { broken, stale }
+}
+
+function judgeUnseen(rows: Unseen[], keys: Key[], computed: Computed[], told: Told[]): { stale: string[]; loose: Key[] } {
+  const stale = rows.flatMap(row => {
+    const found =
+      row.kind === 'key'
+        ? keys.filter(key => key.file === row.file && key.flag === row.at).length
+        : row.kind === 'text'
+          ? told.filter(t => t.file === row.file).length
+          : computed.filter(c => c.file === row.file && c.fn === row.fn && c.at === row.at && c.use === row.kind).length
+    if (found === row.places) return []
+    const what = row.kind === 'key' ? `key ${row.at}` : row.kind === 'text' ? 'program text' : `${row.kind} at ${row.at}[name] in ${row.fn === '' ? 'the module' : row.fn}`
+    return [`${row.file} ${what}: the row holds ${row.places} and ${found} stand — ${found < row.places ? `lower it${found === 0 ? ' (delete the row)' : ''} and the count with it` : 'a new place of the same shape: take it through the door'}`]
+  })
+  const loose = keys.filter(key => !rows.some(row => row.kind === 'key' && row.file === key.file && row.at === key.flag))
+  return { stale, loose }
+}
 
 section('§0 the reading on a planted estate: every reader the net reaches is named with its line')
 {
@@ -602,13 +741,75 @@ section('§3 the reading of src on a planted estate: a registered flag named at 
     !judged.unlisted.some(p => p.file === payload || p.file === screen) && judged.unlisted.length === got.places.length - 3 && judged.unlisted.filter(p => p.file === FORMS && p.flag === 'MERCURY_PLANT_B').length === 5 && judged.stale.length === 1 && (judged.stale[0] ?? '').startsWith(`${screen} MERCURY_PLANT_A: the row keeps 2 and 1 stand`),
     `unlisted ${judged.unlisted.length} of ${got.places.length} · stale ${judged.stale.join(' | ')}`,
   )
+  const optional = at(13)?.say
+  check('an optional holder is told ?? {}, so an absent holder reads nothing and never the process', optional === "read it with flagEnv('MERCURY_PLANT_A', spec.extraEnv ?? {})", String(optional))
+  const lawful = 'src/planted/lawful.ts'
+  const keyed = 'src/planted/keyed.ts'
+  const more = mkdtempSync(join(tmpdir(), 'flag-door-laws-'))
+  const extra: Array<{ file: string; lines: string[] }> = [
+    {
+      file: lawful,
+      lines: [
+        "import { flagEnabled, flagEnv } from '../@S@/@M@.js'",
+        "export const once = flagEnv('MERCURY_PLANT_A')",
+        "export const glued = `${flagEnv('MERCURY_PLANT_A')}ms`",
+        "export const parsed = Number.parseInt(flagEnv('MERCURY_PLANT_B', {}) ?? '', 10)",
+        "export const on = flagEnabled('MERCURY_PLANT_B')",
+      ],
+    },
+    {
+      file: keyed,
+      lines: [
+        "import { flagPair } from '../@S@/@M@.js'",
+        "const KEY = 'MERCURY_PLANT_B'",
+        "export const child = { ...process.env, MERCURY_PLANT_A: '1', [KEY]: undefined }",
+        "export const built = { ...process.env, ...flagPair('MERCURY_PLANT_A', '1') }",
+        "export const other = { HOME: '/', MERCURY_NO_ROW: '1' }",
+        'export type Shape = { MERCURY_PLANT_A: string }',
+        "export const removed = { MERCURY_PLANT_A: undefined }",
+        'export function scrub(env: NodeJS.ProcessEnv, names: string[]): void { for (const name of names) delete env[name] }',
+        "export const walked = (names: string[]): string[] => names.map(name => process.env[name] ?? '')",
+        "export const text = 'const home = process.env.MERCURY_PLANT_A'",
+      ],
+    },
+  ]
+  for (const { file, lines } of extra) {
+    mkdirSync(dirname(join(more, file)), { recursive: true })
+    writeFileSync(join(more, file), spell(lines.join('\n') + '\n'))
+  }
+  const plantedRows: Unseen[] = [
+    { file: keyed, fn: '', at: 'MERCURY_PLANT_A', kind: 'key', places: 1, why: 'planted' },
+    { file: keyed, fn: 'scrub', at: 'env', kind: 'delete', places: 1, why: 'planted' },
+    { file: keyed, fn: 'walked', at: 'process.env', kind: 'read', places: 2, why: 'planted' },
+    { file: keyed, fn: '', at: '', kind: 'text', places: 1, why: 'planted' },
+    { file: lawful, fn: 'gone', at: 'env', kind: 'read', places: 1, why: 'planted' },
+  ]
+  const seenMore = flagPlaces(more, extra.map(p => p.file), new Set(['MERCURY_PLANT_A', 'MERCURY_PLANT_B']), plantedRows)
+  const laws = judgeLaws(seenMore.places, seenMore.calls, [{ file: lawful, flag: 'MERCURY_PLANT_B', why: 'planted' }], [{ file: lawful, flag: 'MERCURY_PLANT_A', why: 'planted' }, { file: keyed, flag: 'MERCURY_PLANT_B', why: 'planted' }])
+  check(
+    'a file under an absence row is red for the flag spelled through any verb of the door, and a file whose read must be taken into a constant is red for a read used in place and not for the constant',
+    laws.broken.length === 3 && laws.broken.some(b => b.startsWith(`${lawful}:4 flagEnv('MERCURY_PLANT_B')`)) && laws.broken.some(b => b.startsWith(`${lawful}:5 flagEnabled('MERCURY_PLANT_B')`)) && laws.broken.some(b => b.startsWith(`${lawful}:3 flagEnv('MERCURY_PLANT_A') used in place`)) && laws.stale.length === 1 && (laws.stale[0] ?? '').startsWith(`${keyed} MERCURY_PLANT_B`),
+    `broken ${laws.broken.join(' | ')} · stale ${laws.stale.join(' | ')}`,
+  )
+  const unseen = judgeUnseen(plantedRows, seenMore.keys, seenMore.computed, seenMore.told)
+  rmSync(more, { recursive: true, force: true })
+  check(
+    'the key of an object literal is seen by name and through a constant, and a key built by flagPair, a key with no row and a type are not; a key with no row of the list is named',
+    seenMore.keys.map(k => `${k.line} ${k.flag}`).join(' · ') === '3 MERCURY_PLANT_A · 3 MERCURY_PLANT_B · 7 MERCURY_PLANT_A' && unseen.loose.map(k => `${k.line} ${k.flag}`).join(' · ') === '3 MERCURY_PLANT_B',
+    `keys ${seenMore.keys.map(k => `${k.line} ${k.flag}`).join(' · ')} · loose ${unseen.loose.map(k => `${k.line} ${k.flag}`).join(' · ')}`,
+  )
+  check(
+    'a listed place is held from the syntax tree by its file, its function and its holder: a delete by a name from a list and a read inside program text stand as listed, a row above what stands is told to fall, a row whose place is gone is told to go, and a second place of a listed shape is told to go through the door',
+    seenMore.computed.map(c => `${c.line} ${c.fn} ${c.at} ${c.use}`).join(' · ') === '8 scrub env delete · 9 walked process.env read' && seenMore.told.map(t => `${t.line} ${t.flag}`).join(' · ') === '10 MERCURY_PLANT_A' && unseen.stale.length === 3 && unseen.stale.some(s => s.includes('a new place of the same shape')) && unseen.stale.some(s => s.includes('lower it and the count')) && unseen.stale.some(s => s.includes('lower it (delete the row)')),
+    `computed ${seenMore.computed.map(c => `${c.line} ${c.fn} ${c.at} ${c.use}`).join(' · ')} · text ${seenMore.told.map(t => `${t.line} ${t.flag}`).join(' · ')} · stale ${unseen.stale.join(' | ')}`,
+  )
 }
 
 section('§4 the estate: no file under src but the door and the row files names a registered flag at the environment')
 {
   const files = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', 'src'], { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28 }).split('\0').filter(Boolean)
   const flags = new Set(FLAG_REGISTRY.map(row => row.env))
-  const got = flagPlaces(ROOT, files, flags)
+  const got = flagPlaces(ROOT, files, flags, UNSEEN)
   const { unlisted, stale } = judgeKept(got.places, KEPT)
   const keptPlaces = KEPT.reduce((n, row) => n + row.places, 0)
   console.log(`  ${files.length} files under src · ${got.read} code files read (the door and its row files aside) · ${flags.size} registered flags · ${got.places.length} places name one at the environment past the door · ${got.places.length - unlisted.length} kept, each with its reason · ${unlisted.length} unlisted`)
@@ -621,6 +822,32 @@ section('§4 the estate: no file under src but the door and the row files names 
   )
   check('every kept row still holds its places (a row above what stands is lowered, and the count below with it)', stale.length === 0, stale.join(' · '))
   check(`the kept list holds ${KEPT_PLACES} places, each row once and with its reason`, keptPlaces === KEPT_PLACES && KEPT.every(row => row.why.trim().length > 0 && row.places > 0) && new Set(KEPT.map(row => `${row.file}\t${row.flag}`)).size === KEPT.length, `places ${keptPlaces}`)
+  const laws = judgeLaws(got.places, got.calls, ABSENT, TAKEN_ONCE)
+  check(
+    `a flag a file must not read is read there by no verb and no bare form, and a read that must be taken once is used nowhere in place (${ABSENT.length} absence rows, ${TAKEN_ONCE.length} taken-once rows)`,
+    laws.broken.length === 0 && laws.stale.length === 0,
+    [...laws.broken, ...laws.stale].map(line => `\n      ${line}`).join(''),
+  )
+  const unseen = judgeUnseen(UNSEEN, got.keys, got.computed, got.told)
+  const unseenPlaces = UNSEEN.reduce((n, row) => n + row.places, 0)
+  const byKind = (kind: Unseen['kind']): number => UNSEEN.filter(row => row.kind === kind).reduce((n, row) => n + row.places, 0)
+  console.log(`  what the check cannot name, held by file, function and holder: ${unseenPlaces} places · reads ${byKind('read')} · writes ${byKind('write')} · deletes ${byKind('delete')} · keys ${byKind('key')} · program text ${byKind('text')}`)
+  for (const row of UNSEEN) {
+    const lines = row.kind === 'key' ? got.keys.filter(k => k.file === row.file && k.flag === row.at).map(k => k.line) : row.kind === 'text' ? got.told.filter(t => t.file === row.file).map(t => t.line) : got.computed.filter(c => c.file === row.file && c.fn === row.fn && c.at === row.at && c.use === row.kind).map(c => c.line)
+    console.log(`    listed: ${row.file}:${[...new Set(lines)].join(',')} ${row.kind === 'key' ? `key ${row.at}` : row.kind === 'text' ? 'program text' : `${row.kind} at ${row.at}[name] in ${row.fn}`} × ${row.places} — ${row.why}`)
+  }
+  if (process.argv.includes('--list')) {
+    for (const c of got.computed) console.log(['computed', c.file, c.line, c.fn, c.at, c.use].join('\t'))
+    for (const t of got.told) console.log(['text', t.file, t.line, t.flag].join('\t'))
+    for (const k of got.keys) console.log(['key', k.file, k.line, k.flag].join('\t'))
+  }
+  check(
+    'no key of an object literal hands a registered flag to an environment but the listed ones (write the others with ...flagPair(name, value))',
+    unseen.loose.length === 0,
+    unseen.loose.map(key => `\n      ${key.file}:${key.line} ${key.flag} — write it with ...flagPair('${key.flag}', value)`).join(''),
+  )
+  check('every listed place still stands, as often as its row says (a row above what stands is lowered, and the count below with it; a computed name in a function with no row is out of reach, as the label above says)', unseen.stale.length === 0, unseen.stale.map(line => `\n      ${line}`).join(''))
+  check(`the list of what the check cannot name holds ${UNSEEN_PLACES} places, each with its reason, and may only fall`, unseenPlaces === UNSEEN_PLACES && UNSEEN.every(row => row.why.trim().length > 0 && row.places > 0), `places ${unseenPlaces}`)
 }
 
 console.log(failures === 0 ? '\nprove-flag-registry-readers: green' : `\nprove-flag-registry-readers: ${failures} failed`)

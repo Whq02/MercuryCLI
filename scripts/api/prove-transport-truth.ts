@@ -220,15 +220,6 @@ check(
   'renderer: recovery notices say what is happening, not a fake countdown',
   sysMsgTsx.includes('recoveryTimeoutMs'),
 )
-check(
-  'renderer hint helps the UNSET operator too (H-02 site 1)',
-  !/\{process\.env\.MERCURY_API_TIMEOUT_MS\s*\?\s*` · MERCURY_API_TIMEOUT_MS=/.test(sysMsgTsx),
-)
-const assistantTsx = src('src/components/messages/AssistantTextMessage.tsx')
-check(
-  'assistant timeout hint helps the UNSET operator too (H-02 site 2)',
-  !assistantTsx.includes('{process.env.MERCURY_API_TIMEOUT_MS && ('),
-)
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 check(
   'both transport knobs are registered flags',

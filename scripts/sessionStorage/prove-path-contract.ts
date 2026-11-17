@@ -2,6 +2,7 @@ import { deepStrictEqual, equal, rejects, strictEqual, throws } from 'node:asser
 import { readFileSync } from 'node:fs'
 import { posix, resolve, win32 } from 'node:path'
 import ts from 'typescript'
+import * as door from '../../src/substrate/flagRegistry.ts'
 
 type Paths = typeof import('../../src/utils/sessionStorage/paths.js')
 const compiled = ts.transpileModule(readFileSync(resolve(import.meta.dir, '../../src/utils/sessionStorage/paths.ts'), 'utf8'), {
@@ -22,7 +23,7 @@ function fixture(path: typeof posix) {
     publishError: undefined as Error | undefined,
   }
   const project = (cwd: string) => path.join(state.home, 'projects', encodeURIComponent(cwd))
-  const flags: Record<string, string | undefined> = {}
+  const real: Record<string, unknown> = { flagRegistry: door }
   const ports: Record<string, unknown> = {
     path,
     'fs/promises': {
@@ -63,7 +64,6 @@ function fixture(path: typeof posix) {
         return project(cwd)
       },
     },
-    '../../substrate/flagRegistry.js': { flagEnv: (name: string) => flags[name] },
     '../../rows/storage.js': {
       EPHEMERAL_STORAGE_PROGRESS: new Set(['bash_progress', 'powershell_progress', 'mcp_progress']),
       storageRowPolicy: (type: string) => ['user', 'assistant', 'system', 'attachment'].includes(type) ? { fold: 'message' } : undefined,
@@ -73,15 +73,17 @@ function fixture(path: typeof posix) {
   const api = {} as Paths
   new Function('require', 'exports', 'process', compiled)((name: string) => {
     const key = name.replace(/^node:/, '')
-    if (!(key in ports)) throw new Error(`Unexpected dependency ${name}`)
-    return ports[key]
+    const stem = key.slice(key.lastIndexOf('/') + 1).replace(/\.[cm]?js$/, '')
+    if (key in ports) return ports[key]
+    if (key.startsWith('.') && stem in real) return real[stem]
+    throw new Error(`Unexpected dependency ${name}`)
   }, api, { env })
-  return { api, state, events, files, directories, project, env, flags }
+  return { api, state, events, files, directories, project, env }
 }
 
 for (const path of [posix, win32]) {
   const f = fixture(path)
-  const { api, state, events, files, directories, project, env, flags } = f
+  const { api, state, events, files, directories, project, env } = f
   const id = 'agent.one' as never
   equal(api.MAX_TRANSCRIPT_READ_BYTES, 50 * 1024 * 1024)
   equal(api.getProjectsDir(), path.join(state.home, 'projects'))
@@ -111,13 +113,17 @@ for (const path of [posix, win32]) {
   equal(api.getProjectDir('new-folder'), project('new-folder'))
   equal(api.getProjectDir('new-folder'), project('new-folder'))
   deepStrictEqual(events, [['project', 'new-folder'], ['project', 'new-folder']])
+  const held = process.env.MERCURY_ENTRYPOINT
   for (const value of [undefined, '', 'test', 'production']) {
     env.NODE_ENV = value
-    flags.MERCURY_ENTRYPOINT = value
+    if (value === undefined) delete process.env.MERCURY_ENTRYPOINT
+    else process.env.MERCURY_ENTRYPOINT = value
     equal(api.getNodeEnv(), value || 'development')
     equal(api.getEntrypoint(), value)
     equal(api.isCustomTitleEnabled(), true)
   }
+  if (held === undefined) delete process.env.MERCURY_ENTRYPOINT
+  else process.env.MERCURY_ENTRYPOINT = held
 
   state.override = undefined
   state.resolutionError = absent
