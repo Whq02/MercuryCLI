@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, posix, relative, resolve } from 'node:path'
@@ -8,11 +9,16 @@ import { flagRegistryFiles, isFlagRegistryFile } from '../lib/flagRegistrySource
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const SELF = relative(ROOT, import.meta.path).replaceAll('\\', '/')
+const HELPER = posix.join(posix.dirname(SELF), '..', 'lib', 'flagRegistrySource.ts')
 const DOOR = flagRegistryFiles(ROOT)[0] ?? ''
 const ROWS = `${posix.dirname(DOOR)}/flags`
 const TYPES = `${ROWS}/spec.ts`
+const TYPES_FROM = `./${posix.basename(TYPES).replace(/\.ts$/, '.js')}`
 const CODE = /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/
-const NAMED = new RegExp(`['"\`/\\\\]${posix.basename(ROWS)}['"\`/\\\\]`)
+const NAMED = new RegExp(`['"\`/\\\\]${posix.basename(ROWS)}['"\`/\\\\]`, 'i')
+const CONSUMER_PATH = /(?:src|scripts|assets)\/[A-Za-z0-9_@./-]+/g
+const SKIPPED = new Set(['node_modules', '.git', 'dist', 'vendor'])
+const OUT_OF_REACH = 'a path assembled at run time, and a path handed over in a variable that is no constant of the file, such as a loop over the list the helper returns'
 
 const AREAS: Record<string, string> = {
   'src/cli/handlers/auth.ts': 'accounts.ts',
@@ -148,9 +154,10 @@ const AREAS: Record<string, string> = {
 }
 
 type Row = { env: string; consumer: string }
-type Kind = 'tree' | 'exports' | 'door-row' | 'not-gathered' | 'file-order' | 'two-files' | 'no-prefix' | 'wrong-file' | 'registry-order' | 'outside-import'
+type Kind = 'tree' | 'exports' | 'shape' | 'door-row' | 'served' | 'not-gathered' | 'file-order' | 'two-files' | 'no-prefix' | 'wrong-file' | 'registry-order' | 'outside-import'
 type Fault = { kind: Kind; text: string }
-type Reading = { faults: Fault[]; rows: number; files: [string, number][]; walked: number; parsed: number }
+type Held = { file: string; rows: Row[]; alone: Row[] | null; literal: boolean }
+type Reading = { faults: Fault[]; rows: number; files: [string, number][]; walked: number; parsed: number; by: string }
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -161,8 +168,9 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 
 const isRows = (value: unknown): value is Row[] =>
   Array.isArray(value) && value.every(row => typeof row === 'object' && row !== null && typeof (row as Row).env === 'string' && typeof (row as Row).consumer === 'string')
-const underRows = (rel: string): boolean => rel === ROWS || (rel !== DOOR && isFlagRegistryFile(rel))
-const holds = (path: string, folder: string): boolean => `/${path}/`.includes(`/${folder}/`)
+const low = (text: string): string => text.toLowerCase()
+const underRows = (rel: string): boolean => low(rel) === low(ROWS) || low(rel).startsWith(`${low(ROWS)}/`)
+const holds = (path: string, folder: string): boolean => `/${low(path)}/`.includes(`/${low(folder)}/`)
 
 function walk(root: string, rel: string, out: string[]): void {
   let entries
@@ -172,14 +180,33 @@ function walk(root: string, rel: string, out: string[]): void {
     return
   }
   for (const entry of entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+    const path = rel === '' ? entry.name : `${rel}/${entry.name}`
     if (entry.isDirectory()) {
-      if (entry.name !== 'node_modules') walk(root, `${rel}/${entry.name}`, out)
-    } else if (entry.isFile() && CODE.test(entry.name)) out.push(`${rel}/${entry.name}`)
+      if (!SKIPPED.has(entry.name)) walk(root, path, out)
+    } else if (entry.isFile() && CODE.test(entry.name)) out.push(path)
+  }
+}
+
+function codeFiles(root: string, tracked: boolean): { files: string[]; by: string } {
+  const walked = (): { files: string[]; by: string } => {
+    const files: string[] = []
+    walk(root, '', files)
+    return { files, by: 'found by a walk of the tree' }
+  }
+  if (!tracked) return walked()
+  const env: Record<string, string | undefined> = { ...process.env }
+  for (const name of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE']) delete env[name]
+  try {
+    const listed = execFileSync('git', ['-C', root, 'ls-files', '-z', '--cached', '--others', '--exclude-standard'], { encoding: 'utf8', maxBuffer: 1 << 28, env, stdio: ['ignore', 'pipe', 'ignore'] })
+    return { files: listed.split('\0').filter(file => CODE.test(file)).sort(), by: 'tracked or new in the tree' }
+  } catch {
+    return walked()
   }
 }
 
 function written(file: string, spec: string): string | null {
   const path = spec.replaceAll('\\', '/')
+  if (/\s/.test(path)) return null
   if (path.startsWith('.')) {
     const target = posix.normalize(posix.join(posix.dirname(file), path))
     return underRows(target) ? target : null
@@ -190,7 +217,11 @@ function written(file: string, spec: string): string | null {
 function computed(file: string, at: ts.Node): string | null {
   const parts: string[] = []
   const gather = (node: ts.Node): void => {
-    if (ts.isStringLiteralLike(node) || ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node)) parts.push(node.text.replaceAll('\\', '/'))
+    if (ts.isFunctionLike(node) || ts.isObjectLiteralExpression(node) || ts.isArrayLiteralExpression(node)) return
+    if (ts.isStringLiteralLike(node) || ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node)) {
+      const text = node.text.replaceAll('\\', '/')
+      if (!/\s/.test(text)) parts.push(text)
+    }
     ts.forEachChild(node, gather)
   }
   gather(at)
@@ -206,32 +237,83 @@ function computed(file: string, at: ts.Node): string | null {
 function rowImports(file: string, text: string): { line: number; what: string }[] {
   const kind = /\.(?:tsx|jsx)$/.test(file) ? ts.ScriptKind.TSX : /\.(?:js|mjs|cjs)$/.test(file) ? ts.ScriptKind.JS : ts.ScriptKind.TS
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, kind)
-  const out: { line: number; what: string }[] = []
-  const site = (at: ts.Node): void => {
-    const what = ts.isStringLiteralLike(at) ? written(file, at.text) : computed(file, at)
-    if (what !== null) out.push({ line: source.getLineAndCharacterOfPosition(at.getStart(source)).line + 1, what })
+  const constants = new Map<string, ts.Expression>()
+  const collect = (node: ts.Node): void => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer !== undefined && (node.parent.flags & ts.NodeFlags.Const) !== 0 && !constants.has(node.name.text)) constants.set(node.name.text, node.initializer)
+    ts.forEachChild(node, collect)
+  }
+  collect(source)
+  const reach = (at: ts.Node, depth: number): string | null => {
+    if (ts.isParenthesizedExpression(at) || ts.isAsExpression(at) || ts.isNonNullExpression(at) || ts.isSatisfiesExpression(at)) return reach(at.expression, depth)
+    if (ts.isIdentifier(at)) {
+      const held = constants.get(at.text)
+      return held !== undefined && depth < 4 ? reach(held, depth + 1) : null
+    }
+    return ts.isStringLiteralLike(at) ? written(file, at.text) : computed(file, at)
+  }
+  const hits = new Map<number, string>()
+  const site = (at: ts.Node, importing: boolean): void => {
+    const what = reach(at, 0)
+    const line = source.getLineAndCharacterOfPosition(at.getStart(source)).line + 1
+    if (what !== null && !hits.has(line)) hits.set(line, importing ? `imports ${what}` : `passes ${what} to a call`)
   }
   const visit = (node: ts.Node): void => {
-    if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier !== undefined) site(node.moduleSpecifier)
-    else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)) site(node.moduleReference.expression)
-    else if (ts.isImportTypeNode(node)) site(ts.isLiteralTypeNode(node.argument) ? node.argument.literal : node.argument)
-    else if (ts.isCallExpression(node) && node.arguments[0] !== undefined && (node.expression.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(node.expression) && node.expression.text === 'require'))) site(node.arguments[0])
+    if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier !== undefined) site(node.moduleSpecifier, true)
+    else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference)) site(node.moduleReference.expression, true)
+    else if (ts.isImportTypeNode(node)) site(ts.isLiteralTypeNode(node.argument) ? node.argument.literal : node.argument, true)
+    else if ((ts.isCallExpression(node) || ts.isNewExpression(node)) && node.arguments?.[0] !== undefined) {
+      const callee = node.expression
+      site(node.arguments[0], ts.isCallExpression(node) && (callee.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(callee) && callee.text === 'require')))
+    }
     ts.forEachChild(node, visit)
   }
   visit(source)
-  return out
+  return [...hits].map(([line, what]) => ({ line, what }))
 }
 
-async function judge(root: string, areas: Record<string, string>): Promise<Reading> {
+function shapeOf(file: string, text: string): { shape: string[]; order: string[]; literal: boolean } {
+  const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  const at = (node: ts.Node): number => source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1
+  const shape: string[] = []
+  const order: string[] = []
+  const imports = source.statements.filter(ts.isImportDeclaration)
+  for (const statement of imports) {
+    const from = ts.isStringLiteralLike(statement.moduleSpecifier) ? statement.moduleSpecifier.text : ''
+    if (!(statement.importClause?.isTypeOnly === true && from === TYPES_FROM)) shape.push(`${file}:${at(statement)} imports '${from}': a row file imports the type from '${TYPES_FROM}' and nothing else`)
+  }
+  if (imports.length === 0) shape.push(`${file} has no import: a row file imports the type from '${TYPES_FROM}'`)
+  const rest = source.statements.filter(statement => !ts.isImportDeclaration(statement))
+  const first = rest[0]
+  const only = rest.length === 1 && first !== undefined && ts.isVariableStatement(first) && first.declarationList.declarations.length === 1 ? first : undefined
+  const exported = only?.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword) === true
+  const literal = exported ? only?.declarationList.declarations[0]?.initializer : undefined
+  if (literal === undefined || !ts.isArrayLiteralExpression(literal)) {
+    shape.push(`${file}: beside its import the file is not one exported array literal of rows: a call, a cast or a second statement stands there`)
+    return { shape, order, literal: false }
+  }
+  let before = ''
+  for (const element of literal.elements) {
+    if (!ts.isObjectLiteralExpression(element)) {
+      shape.push(`${file}:${at(element)} is no row written in the file: a spread or a call stands there`)
+      continue
+    }
+    const env = element.properties.flatMap(property => (ts.isPropertyAssignment(property) && property.name.getText(source) === 'env' && ts.isStringLiteralLike(property.initializer) ? [property.initializer.text] : []))[0] ?? ''
+    if (!(before < env)) order.push(`${file}:${at(element)} ${env} is written after ${before}: the rows of a file ascend by env as they are written`)
+    before = env
+  }
+  return { shape, order, literal: true }
+}
+
+async function judge(root: string, areas: Record<string, string>, tracked: boolean): Promise<Reading> {
   const faults: Fault[] = []
   const fault = (kind: Kind, text: string): void => {
     faults.push({ kind, text })
   }
-  const load = async (rel: string): Promise<Record<string, unknown> | null> => {
+  const load = async (path: string, name: string): Promise<Record<string, unknown> | null> => {
     try {
-      return (await import(pathToFileURL(join(root, rel)).href)) as Record<string, unknown>
+      return (await import(pathToFileURL(path).href)) as Record<string, unknown>
     } catch (error) {
-      fault('tree', `${rel} does not load: ${(error instanceof Error ? error.message : String(error)).split('\n')[0]}`)
+      fault('tree', `${name} does not load: ${(error instanceof Error ? error.message : String(error)).split('\n')[0]}`)
       return null
     }
   }
@@ -240,50 +322,101 @@ async function judge(root: string, areas: Record<string, string>): Promise<Readi
   let registry: Row[] = []
   if (!listed.includes(DOOR)) fault('tree', `${DOOR} is missing`)
   else {
-    const door = await load(DOOR)
+    const door = await load(join(root, DOOR), DOOR)
     if (door !== null && isRows(door['FLAG_REGISTRY'])) registry = door['FLAG_REGISTRY']
     else if (door !== null) fault('tree', `${DOOR} exports no FLAG_REGISTRY array of rows`)
   }
 
-  const held: { file: string; rows: Row[] }[] = []
-  for (const file of listed) {
-    if (file === DOOR) continue
-    if (posix.basename(file).startsWith('.') || !CODE.test(file)) continue
-    const mod = await load(file)
-    if (mod === null) continue
-    const names = Object.keys(mod)
-    if (file === TYPES) {
-      if (names.length > 0) fault('exports', `${file} exports ${names.join(', ')}: it holds the types and exports no value`)
-      continue
+  const held: Held[] = []
+  const apart = mkdtempSync(join(tmpdir(), 'flag-registry-rows-alone-'))
+  try {
+    for (const file of listed) {
+      if (file === DOOR || !file.endsWith('.ts')) continue
+      const mod = await load(join(root, file), file)
+      if (mod === null) continue
+      const names = Object.keys(mod)
+      if (file === TYPES) {
+        if (names.length > 0) fault('exports', `${file} exports ${names.join(', ')}: it holds the types and exports no value`)
+        continue
+      }
+      const arrays = names.map(name => mod[name]).filter(isRows)
+      if (names.length !== 1 || arrays.length !== 1) fault('exports', `${file} has ${names.length} exports${names.length > 0 ? ` (${names.join(', ')})` : ''}: a file under ${ROWS} has one export, an array of rows`)
+      const text = readFileSync(join(root, file), 'utf8')
+      const read = shapeOf(file, text)
+      for (const said of read.shape) fault('shape', said)
+      for (const said of read.order) fault('file-order', said)
+      let alone: Row[] | null = null
+      if (read.shape.length === 0) {
+        const copy = join(apart, file)
+        mkdirSync(dirname(copy), { recursive: true })
+        writeFileSync(copy, text)
+        const second = await load(copy, `${file}, loaded alone from a copy`)
+        if (second !== null) alone = Object.values(second).filter(isRows).flat()
+      }
+      held.push({ file, rows: arrays.flat(), alone, literal: read.literal })
     }
-    const arrays = names.map(name => mod[name]).filter(isRows)
-    if (names.length !== 1 || arrays.length !== 1) fault('exports', `${file} has ${names.length} exports${names.length > 0 ? ` (${names.join(', ')})` : ''}: a file under ${ROWS} has one export, an array of rows`)
-    held.push({ file, rows: arrays.flat() })
+  } finally {
+    rmSync(apart, { recursive: true, force: true })
+  }
+  const inFolder: string[] = []
+  walk(root, ROWS, inFolder)
+  for (const file of inFolder) {
+    if (!file.endsWith('.ts')) fault('exports', `${file}: a code file under ${ROWS} whose name does not end .ts is read by no check: name it .ts or take it out`)
   }
 
-  const exported = new Set(held.flatMap(h => h.rows))
+  const home = new Map<Row, Held>()
+  for (const file of held) for (const row of file.rows) home.set(row, file)
   const gathered = new Set(registry)
+  const served = new Set(registry.map(row => row.env))
   for (const row of registry) {
-    if (!exported.has(row)) fault('door-row', `${row.env} is a row of the registry and of no file under ${ROWS}: write it in the file its consumer maps to, not in ${DOOR}`)
+    const at = home.get(row)
+    if (at === undefined) {
+      fault('door-row', `${row.env} is a row of the registry and of no file under ${ROWS}: write it in the file its consumer maps to, not in ${DOOR}`)
+      continue
+    }
+    if (at.alone === null) continue
+    const own = at.alone.find(other => other.env === row.env)
+    if (own === undefined) fault('door-row', `${row.env} is a row of the registry and is not written in ${at.file}: loaded alone the file does not hold it, so it is put into the file's array from outside; write it in the file`)
+    else if (JSON.stringify(own) !== JSON.stringify(row)) {
+      const a = own as Record<string, unknown>
+      const b = row as Record<string, unknown>
+      const fields = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter(key => JSON.stringify(a[key]) !== JSON.stringify(b[key]))
+      fault('served', `${row.env}: the registry serves other values than ${at.file} writes (${fields.join(', ')}): a row is written in its file and changed nowhere else`)
+    }
   }
-  for (const { file, rows } of held) {
-    const loose = rows.filter(row => !gathered.has(row))
-    if (loose.length > 0) fault('not-gathered', `${file} exports ${loose.length === 1 ? 'a row' : `${loose.length} rows`} the registry does not hold (${loose.slice(0, 3).map(row => row.env).join(', ')}${loose.length > 3 ? ', …' : ''}): gather its array in ${DOOR}`)
+  for (const { file, rows, alone } of held) {
+    const loose = [...new Set([...rows.filter(row => !gathered.has(row)), ...(alone ?? []).filter(row => !served.has(row.env))].map(row => row.env))]
+    if (loose.length > 0) fault('not-gathered', `${file} exports ${loose.length === 1 ? 'a row' : `${loose.length} rows`} the registry does not hold (${loose.slice(0, 3).join(', ')}${loose.length > 3 ? ', …' : ''}): gather its array in ${DOOR}`)
   }
 
   const table = Object.entries(areas)
   const stands = new Map<string, string>()
-  for (const { file, rows } of held) {
+  const seen = new Map<string, string | null>()
+  const names = (rel: string, env: string): boolean => {
+    let text = seen.get(rel)
+    if (text === undefined) {
+      try {
+        text = readFileSync(join(root, rel), 'utf8')
+      } catch {
+        text = null
+      }
+      seen.set(rel, text)
+    }
+    return text !== null && text.includes(env)
+  }
+  for (const { file, rows, literal } of held) {
     rows.forEach((row, i) => {
       const before = rows[i - 1]
-      if (before !== undefined && !(before.env < row.env)) fault('file-order', `${file}: ${row.env} stands after ${before.env}: the rows of a file ascend by env`)
+      if (!literal && before !== undefined && !(before.env < row.env)) fault('file-order', `${file}: ${row.env} stands after ${before.env}: the rows of a file ascend by env`)
       const other = stands.get(row.env)
       if (other !== undefined && other !== file) fault('two-files', `${row.env} stands in ${other} and in ${file}: an env has one row, in the file its consumer maps to`)
       stands.set(row.env, file)
+      const paths = (row.consumer.match(CONSUMER_PATH) ?? []).map(path => path.replace(/\.+$/, ''))
+      const by = paths.find(path => names(path, row.env)) ?? paths[0] ?? row.consumer
       let best: [string, string] | undefined
-      for (const entry of table) if (row.consumer.startsWith(entry[0]) && (best === undefined || entry[0].length > best[0].length)) best = entry
-      if (best === undefined) fault('no-prefix', `${row.env} in ${file}: no prefix of AREAS in ${SELF} covers its consumer '${row.consumer}': add the prefix there, beside the file that holds the row`)
-      else if (`${ROWS}/${best[1]}` !== file) fault('wrong-file', `${row.env} sits in ${file}: its consumer '${row.consumer}' maps to ${ROWS}/${best[1]} by the prefix '${best[0]}' of AREAS in ${SELF}: move the row there`)
+      for (const entry of table) if (by.startsWith(entry[0]) && (best === undefined || entry[0].length > best[0].length)) best = entry
+      if (best === undefined) fault('no-prefix', `${row.env} in ${file}: no prefix of AREAS in ${SELF} covers its consumer '${by}': add the prefix there, beside the file that holds the row`)
+      else if (`${ROWS}/${best[1]}` !== file) fault('wrong-file', `${row.env} sits in ${file}: its consumer '${by}' maps to ${ROWS}/${best[1]} by the prefix '${best[0]}' of AREAS in ${SELF}: move the row there`)
     })
   }
 
@@ -292,19 +425,22 @@ async function judge(root: string, areas: Record<string, string>): Promise<Readi
     if (before !== undefined && !(before.env < row.env)) fault('registry-order', `FLAG_REGISTRY: ${row.env} stands after ${before.env}: ${DOOR} sorts the gathered rows by env`)
   })
 
-  const files: string[] = []
-  walk(root, 'src', files)
-  walk(root, 'scripts', files)
+  const { files, by } = codeFiles(root, tracked)
   let parsed = 0
   for (const file of files) {
-    if (file === SELF || isFlagRegistryFile(file)) continue
-    const text = readFileSync(join(root, file), 'utf8')
+    if (file === SELF || file === HELPER || isFlagRegistryFile(file)) continue
+    let text: string
+    try {
+      text = readFileSync(join(root, file), 'utf8')
+    } catch {
+      continue
+    }
     if (!NAMED.test(text)) continue
     parsed++
-    for (const hit of rowImports(file, text)) fault('outside-import', `${file}:${hit.line} imports ${hit.what}: import from ${DOOR}`)
+    for (const hit of rowImports(file, text)) fault('outside-import', `${file}:${hit.line} ${hit.what}: import from ${DOOR}`)
   }
 
-  return { faults, rows: registry.length, files: held.map(h => [h.file, h.rows.length]), walked: files.length, parsed }
+  return { faults, rows: registry.length, files: held.map(h => [h.file, h.rows.length]), walked: files.length, parsed, by }
 }
 
 const kinds = (faults: Fault[]): string => faults.map(f => f.kind).join(' ')
@@ -316,19 +452,25 @@ section('§0 the checks on a planted tree: a tree with nothing wrong reads clean
   const A = `${ROWS}/a.ts`
   const B = `${ROWS}/b.ts`
   const C = `${ROWS}/c.ts`
+  const SIDE = posix.dirname(DOOR)
+  const CASED = `${SIDE}/${posix.basename(ROWS).replace(/^./, first => first.toUpperCase())}`
   const PLANTED: Record<string, string> = { 'src/a/': 'a.ts', 'src/a/deep/': 'b.ts', 'src/b/': 'b.ts', 'src/c/': 'c.ts' }
+  const SORT = '.sort((a, b) => (a.env < b.env ? -1 : a.env > b.env ? 1 : 0))'
   const spec = (from: string, to: string): string => {
     const path = posix.relative(posix.dirname(from), to)
     return path.startsWith('.') ? path : `./${path}`
   }
   const js = (file: string): string => file.replace(/\.ts$/, '.js')
+  const head = (file: string): string => `import type { FlagSpec } from '${spec(file, js(TYPES))}'`
   const rowsFile = (name: string, rows: [string, string][]): string =>
-    [`import type { FlagSpec } from '${spec(A, js(TYPES))}'`, '', `export const ${name}: readonly FlagSpec[] = [`, ...rows.map(([env, consumer]) => `  { env: '${env}', consumer: '${consumer}' },`), ']', ''].join('\n')
-  const doorFile = (names: string[], more = '', sorted = true): string =>
+    [head(A), '', `export const ${name}: readonly FlagSpec[] = [`, ...rows.map(([env, consumer]) => `  { env: '${env}', consumer: '${consumer}' },`), ']', ''].join('\n')
+  const doorFile = (names: string[], more = '', sorted = true, before = '', after = ''): string =>
     [
       ...names.map(name => `import { ${name.toUpperCase()}_FLAGS } from '${spec(DOOR, `${ROWS}/${name}.js`)}'`),
       '',
-      `export const FLAG_REGISTRY = [${names.map(name => `...${name.toUpperCase()}_FLAGS`).join(', ')}${more}]${sorted ? '.sort((a, b) => (a.env < b.env ? -1 : a.env > b.env ? 1 : 0))' : ''}`,
+      before,
+      `export const FLAG_REGISTRY = [${names.map(name => `...${name.toUpperCase()}_FLAGS`).join(', ')}${more}]${sorted ? SORT : ''}`,
+      after,
       '',
     ].join('\n')
   const CLEAN: Record<string, string> = {
@@ -339,6 +481,7 @@ section('§0 the checks on a planted tree: a tree with nothing wrong reads clean
     'src/a/reader.ts': `import { FLAG_REGISTRY } from '${spec('src/a/reader.ts', js(DOOR))}'\nexport const count = FLAG_REGISTRY.length\n`,
     'src/a/flags/local.ts': 'export const local = 1\n',
     'src/a/user.ts': `import { local } from './flags/local.js'\nexport const twice = local * 2\n`,
+    'scripts/b/list.ts': `import { join } from 'node:path'\nimport { flagRegistryFiles } from '../lib/list.ts'\nfor (const rel of flagRegistryFiles(ROOT).slice(1)) await import(join(ROOT, rel))\n`,
     [SELF]: `const rows = await import('${spec(SELF, A)}')\nexport const seen = rows\n`,
     [`${ROWS}/.DS_Store`]: 'a leftover of the file manager\n',
     [`${ROWS}/notes.md`]: 'a note\n',
@@ -350,7 +493,7 @@ section('§0 the checks on a planted tree: a tree with nothing wrong reads clean
         mkdirSync(dirname(join(root, rel)), { recursive: true })
         writeFileSync(join(root, rel), body)
       }
-      return (await judge(root, PLANTED)).faults
+      return (await judge(root, PLANTED, false)).faults
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
@@ -359,15 +502,38 @@ section('§0 the checks on a planted tree: a tree with nothing wrong reads clean
   check(`the helper lists the door and takes a file under ${ROWS} as a registry file`, DOOR !== '' && isFlagRegistryFile(TYPES) && !isFlagRegistryFile(`${ROWS}.ts`), `door '${DOOR}'`)
 
   const none = await planted()
-  check('a tree with nothing wrong reads clean: the door, a file of the folder, this proof, an import of the door, a folder of the same name elsewhere and a leftover in the folder that is no code are let through', none.length === 0, texts(none))
+  check('a tree with nothing wrong reads clean: the door, a file of the folder, this proof, an import of the door, a folder of the same name elsewhere and a leftover in the folder that is no code are let through, and so is a script that imports every path the helper lists, which is out of reach', none.length === 0, texts(none))
 
   const doorRow = await planted({ [DOOR]: doorFile(['a', 'b'], `, { env: 'DOOR_ROW', consumer: 'src/a/late.ts' }`) })
-  const BESIDE = `${posix.dirname(DOOR)}/more.ts`
+  const BESIDE = `${SIDE}/more.ts`
   const beside = await planted({
     [BESIDE]: `export const MORE_FLAGS = [{ env: 'DELTA_ONE', consumer: 'src/a/more.ts' }]\n`,
     [DOOR]: `import { MORE_FLAGS } from '${spec(DOOR, js(BESIDE))}'\n${doorFile(['a', 'b'], ', ...MORE_FLAGS')}`,
   })
   check('a row written in the door is named, and so is a row the door gathers from a file beside the folder', kinds(doorRow) === 'door-row' && doorRow[0]!.text.startsWith('DOOR_ROW ') && kinds(beside) === 'door-row' && beside[0]!.text.startsWith('DELTA_ONE '), texts([...doorRow, ...beside]))
+
+  const pushed = await planted({ [DOOR]: doorFile(['a', 'b'], '', true, `;(A_FLAGS as unknown[]).push({ env: 'ALPHA_PUSHED', consumer: 'src/a/pushed.ts' })\n`) })
+  check("a row the door puts into a file's array is named: the file loaded alone does not hold it (hole 04)", kinds(pushed) === 'door-row' && pushed[0]!.text.startsWith(`ALPHA_PUSHED is a row of the registry and is not written in ${A}`), texts(pushed))
+
+  const rewritten = await planted({ [DOOR]: doorFile(['a', 'b'], '', true, '', `Object.assign(FLAG_REGISTRY.find(row => row.env === 'ALPHA_ONE'), { consumer: 'src/a/rewritten.ts' })`) })
+  check('a field the door rewrites after it gathers is named with the field (hole 05)', kinds(rewritten) === 'served' && rewritten[0]!.text.startsWith(`ALPHA_ONE: the registry serves other values than ${A} writes (consumer)`), texts(rewritten))
+
+  const OUTSIDE = `${SIDE}/outsideRows.ts`
+  const lent = await planted({
+    [OUTSIDE]: `export const OUTSIDE_ROWS = [{ env: 'ALPHA_TWO', consumer: 'src/a/two.ts' }]\n`,
+    [A]: [head(A), `import { OUTSIDE_ROWS } from '${spec(A, js(OUTSIDE))}'`, '', 'export const A_FLAGS: readonly FlagSpec[] = [', `  { env: 'ALPHA_ONE', consumer: 'src/a/one.ts' },`, `  ...OUTSIDE_ROWS.filter(row => row.env === 'ALPHA_TWO'),`, ']', ''].join('\n'),
+  })
+  check('a row file that takes a row from a file beside the folder is named at its import and at the spread (holes 06 and 07)', kinds(lent) === 'shape shape' && lent[0]!.text.startsWith(`${A}:2 imports '${spec(A, js(OUTSIDE))}'`) && lent[1]!.text.startsWith(`${A}:6 is no row written in the file`), texts(lent))
+
+  const sortedAtLoad = await planted({ [A]: [head(A), '', 'export const A_FLAGS: readonly FlagSpec[] = [', `  { env: 'ALPHA_TWO', consumer: 'src/a/two.ts' },`, `  { env: 'ALPHA_ONE', consumer: 'src/a/one.ts' },`, `]${SORT}`, ''].join('\n') })
+  check('a row file written out of order that sorts its array as it exports it is named (hole 08)', kinds(sortedAtLoad) === 'shape' && sortedAtLoad[0]!.text.startsWith(`${A}: beside its import the file is not one exported array literal of rows`), texts(sortedAtLoad))
+
+  const typed = await planted({ [B]: rowsFile('B_FLAGS', [['BETA_ONE', 'src/b/one.ts'], ['BETA_TWO', 'src/a/deep/two.ts']]).replace(head(A), `import type { FlagSpec } from '${spec(B, js(DOOR))}'`) })
+  check('a row file that takes its type from the door is named (hole 10)', kinds(typed) === 'shape' && typed[0]!.text.startsWith(`${B}:1 imports '${spec(B, js(DOOR))}'`), texts(typed))
+
+  const LOOSE = `${ROWS}/loose.mts`
+  const notTs = await planted({ [LOOSE]: `export const LOOSE_FLAGS = [{ env: 'LOOSE_ONE', consumer: 'src/a/loose.ts' }]\n` })
+  check('a code file under the folder whose name does not end .ts is named (hole 14)', kinds(notTs) === 'exports' && notTs[0]!.text.startsWith(`${LOOSE}: a code file under ${ROWS}`), texts(notTs))
 
   const loose = await planted({ [C]: rowsFile('C_FLAGS', [['GAMMA_ONE', 'src/c/one.ts']]) })
   check('a file the door does not gather is named', kinds(loose) === 'not-gathered' && loose[0]!.text.startsWith(`${C} `) && loose[0]!.text.includes('GAMMA_ONE'), texts(loose))
@@ -399,27 +565,50 @@ section('§0 the checks on a planted tree: a tree with nothing wrong reads clean
     '',
   ].join('\n')
   const outside = await planted({ 'src/a/forms.ts': forms, 'scripts/b/prove-built.ts': built })
-  const at = (file: string): string => outside.filter(f => f.text.startsWith(`${file}:`)).map(f => f.text.slice(file.length + 1).split(' ')[0]).join(' ')
+  const lines = (found: Fault[], file: string): string => found.filter(f => f.text.startsWith(`${file}:`)).map(f => f.text.slice(file.length + 1).split(' ')[0]).join(' ')
   check(
     'an outside import is named with its file and line in every form: import, import type, export from, export *, import(), require(), the import() type, import = require and the folder itself',
-    at('src/a/forms.ts') === '1 2 3 4 5 6 7 8 9',
+    lines(outside, 'src/a/forms.ts') === '1 2 3 4 5 6 7 8 9',
     texts(outside),
   )
   check(
     'an import whose path is computed is read by its literal parts and a bare path from the root as one; an import of the door and a string that is no import are not named',
-    at('scripts/b/prove-built.ts') === '2 3 4 5 6',
+    lines(outside, 'scripts/b/prove-built.ts') === '2 3 4 5 6',
     texts(outside),
   )
   check(`nothing else is named, and every one of them says to import from ${DOOR}`, outside.length === 14 && outside.every(f => f.kind === 'outside-import' && f.text.endsWith(`: import from ${DOOR}`)), texts(outside))
 
+  const VARIABLE = `${SIDE}/byVariable.ts`
+  const REQUIRE = `${SIDE}/byRequire.ts`
+  const CASE = `${SIDE}/byCase.ts`
+  const past = await planted({
+    [VARIABLE]: `const target = '${spec(VARIABLE, A)}'\nconst mod = await import(target)\nexport const loaded = mod\n`,
+    [REQUIRE]: `import { createRequire } from 'node:module'\nconst load = createRequire(import.meta.url)\nexport const loaded = load('${spec(REQUIRE, A)}')\n`,
+    [CASE]: `import { A_FLAGS } from '${spec(CASE, `${CASED}/a.ts`)}'\nexport const loaded = A_FLAGS\n`,
+    'bench/outside.ts': `import { A_FLAGS } from '${spec('bench/outside.ts', A)}'\nexport const loaded = A_FLAGS\n`,
+    'scripts/b/case.ts': `import { A_FLAGS } from '${spec('scripts/b/case.ts', `${CASED}/a.ts`)}'\nexport const loaded = A_FLAGS\n`,
+    'scripts/b/variable.ts': `import { join } from 'node:path'\nconst target = join(ROOT, '${A}')\nconst mod = await import(target)\nexport const loaded = mod\n`,
+  })
+  check('a path held in a constant of the file is read through, in src and in a script (holes 01 and 15)', lines(past, VARIABLE) === '2' && lines(past, 'scripts/b/variable.ts') === '3', texts(past))
+  check('a call that is not spelled import or require is named when its first argument resolves under the folder (hole 02)', lines(past, REQUIRE) === '3' && past.some(f => f.text.startsWith(`${REQUIRE}:3 passes ${A} to a call`)), texts(past))
+  check("the folder's name is read without case, in src and in a script (holes 03 and 13)", lines(past, CASE) === '1' && lines(past, 'scripts/b/case.ts') === '1', texts(past))
+  check('a file beside src and scripts is read too (hole 12), and nothing else is named', lines(past, 'bench/outside.ts') === '1' && past.length === 6 && past.every(f => f.kind === 'outside-import'), texts(past))
+
   const order = await planted({ [A]: rowsFile('A_FLAGS', [['ALPHA_TWO', 'src/a/two.ts'], ['ALPHA_ONE', 'src/a/one.ts']]) })
-  check('a row out of order in its file is named', kinds(order) === 'file-order' && order[0]!.text.startsWith(`${A}: ALPHA_ONE stands after ALPHA_TWO`), texts(order))
+  check('a row out of order in its file is named as it is written', kinds(order) === 'file-order' && order[0]!.text.startsWith(`${A}:5 ALPHA_ONE is written after ALPHA_TWO`), texts(order))
 
   const unsorted = await planted({ [DOOR]: doorFile(['b', 'a'], '', false) })
   check('a registry out of order is named', kinds(unsorted) === 'registry-order' && unsorted[0]!.text.startsWith('FLAG_REGISTRY: ALPHA_ONE stands after BETA_TWO'), texts(unsorted))
 
   const stray = await planted({ [A]: rowsFile('A_FLAGS', [['ALPHA_ONE', 'src/a/one.ts'], ['ALPHA_STRAY', 'src/a/deep/stray.ts'], ['ALPHA_TWO', 'src/a/two.ts']]) })
   check('a row in the wrong file is named with the file its consumer maps to, the longest prefix winning', kinds(stray) === 'wrong-file' && stray[0]!.text.startsWith(`ALPHA_STRAY sits in ${A}`) && stray[0]!.text.includes(`maps to ${B} by the prefix 'src/a/deep/'`), texts(stray))
+
+  const firstWord = await planted({
+    'src/b/first.ts': 'export const nothing = 0\n',
+    'src/a/holds.ts': `export const read = process.env['ALPHA_STRAY']\n`,
+    [B]: rowsFile('B_FLAGS', [['ALPHA_STRAY', 'src/b/first.ts, src/a/holds.ts'], ['BETA_ONE', 'src/b/one.ts'], ['BETA_TWO', 'src/a/deep/two.ts']]),
+  })
+  check("a row is placed by the first path its consumer names that holds the flag's name, not by the first word (hole 09)", kinds(firstWord) === 'wrong-file' && firstWord[0]!.text.startsWith(`ALPHA_STRAY sits in ${B}: its consumer 'src/a/holds.ts' maps to ${A} by the prefix 'src/a/'`), texts(firstWord))
 
   const lost = await planted({ [A]: rowsFile('A_FLAGS', [['ALPHA_LOST', 'docs/lost.md'], ['ALPHA_ONE', 'src/a/one.ts'], ['ALPHA_TWO', 'src/a/two.ts']]) })
   check('a consumer no prefix covers is named with its row and the table', kinds(lost) === 'no-prefix' && lost[0]!.text.startsWith(`ALPHA_LOST in ${A}`) && lost[0]!.text.includes(`AREAS in ${SELF}`), texts(lost))
@@ -429,33 +618,39 @@ section('§0 the checks on a planted tree: a tree with nothing wrong reads clean
 
   const second = await planted({ [A]: `${CLEAN[A]}export const MORE = 1\n` })
   const valued = await planted({ [TYPES]: `${CLEAN[TYPES]}export const VALUE = 1\n` })
-  check('a file with a second export and a types file that exports a value are named', kinds(second) === 'exports' && second[0]!.text.startsWith(`${A} has 2 exports`) && kinds(valued) === 'exports' && valued[0]!.text.startsWith(`${TYPES} exports VALUE`), texts([...second, ...valued]))
+  check('a file with a second export and a types file that exports a value are named', kinds(second) === 'exports shape' && second[0]!.text.startsWith(`${A} has 2 exports`) && kinds(valued) === 'exports' && valued[0]!.text.startsWith(`${TYPES} exports VALUE`), texts([...second, ...valued]))
 }
 
-const real = await judge(ROOT, AREAS)
+const real = await judge(ROOT, AREAS, true)
 const found = (...want: Kind[]): Fault[] => real.faults.filter(f => want.includes(f.kind))
 
 section(`§1 the cut: a row is written in a file under ${ROWS}, never in the door`)
 {
   console.log(`  ${real.rows} rows in the registry · ${real.files.length} row files · rows written in the door: ${found('door-row').length}`)
   check('the registry loads, it holds rows, and the folder holds row files', found('tree').length === 0 && real.rows > 0 && real.files.length > 0, found('tree').length > 0 ? say(found('tree')) : `${real.rows} rows, ${real.files.length} row files under ${ROWS}`)
-  check(`no row is written in ${DOOR}: every row of FLAG_REGISTRY is the row a file under ${ROWS} exports (0 written in the door)`, found('door-row').length === 0, say(found('door-row')))
-  check('every row a file exports is in the registry', found('not-gathered').length === 0, say(found('not-gathered')))
+  check(`no row is written in ${DOOR}: every row of FLAG_REGISTRY is the row a file under ${ROWS} exports, and that file holds it when it is loaded alone (0 written in the door)`, found('door-row').length === 0, say(found('door-row')))
+  check('the registry serves each row as its file writes it, field for field', found('served').length === 0, say(found('served')))
+  check('every row a file exports, loaded with the door or alone, is in the registry', found('not-gathered').length === 0, say(found('not-gathered')))
 }
 
 section(`§2 the door: the rows are reached through ${DOOR}`)
 {
-  check(`no file under src or scripts imports a file under ${ROWS}, except the door, the files of that folder and this proof (${real.walked} files, ${real.parsed} read to their imports)`, found('outside-import').length === 0, say(found('outside-import')))
+  check(
+    `no file of the tree reaches a file under ${ROWS} past the door, the files of that folder, the helper and this proof aside: an import in any form and any call whose first argument resolves there, the folder's name read without case and a constant of the same file read through (${real.walked} code files ${real.by}, ${real.parsed} read to their syntax; out of reach: ${OUT_OF_REACH})`,
+    found('outside-import').length === 0,
+    say(found('outside-import')),
+  )
 }
 
-section('§3 the files: one export each, rows in order, each row in the file of its consumer')
+section('§3 the files: one export each, rows written in order, each row in the file of its consumer')
 {
   if (real.files.length > 0) console.log(`  ${real.files.map(([file, rows]) => `${posix.basename(file)} ${rows}`).join(' · ')}`)
-  check(`each file has one export, an array of rows, and ${TYPES} exports no value`, found('exports').length === 0, say(found('exports')))
-  check('the rows of each file ascend by env', found('file-order').length === 0, say(found('file-order')))
+  check(`each file has one export, an array of rows, ${TYPES} exports no value, and every code file under the folder ends .ts`, found('exports').length === 0, say(found('exports')))
+  check(`each row file is written as one import of the type from '${TYPES_FROM}' and one exported array literal of rows`, found('shape').length === 0, say(found('shape')))
+  check('the rows of each file ascend by env as they are written', found('file-order').length === 0, say(found('file-order')))
   check('no env stands in two files', found('two-files').length === 0, say(found('two-files')))
   check('every consumer is covered by a prefix of AREAS', found('no-prefix').length === 0, say(found('no-prefix')))
-  check('each row sits in the file its consumer maps to, the longest prefix winning', found('wrong-file').length === 0, say(found('wrong-file')))
+  check("each row sits in the file its consumer maps to: the first path the consumer names that holds the flag's name, the longest prefix winning", found('wrong-file').length === 0, say(found('wrong-file')))
 }
 
 section('§4 the registry: its order is the order of env')
