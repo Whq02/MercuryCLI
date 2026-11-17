@@ -4,7 +4,7 @@ import os
 import signal
 import sys
 import time
-from mercury_cli_sdk import MercuryError, MercuryExitError, MercuryTimeoutError, MercuryWireError, connect, run
+from mercury_cli_sdk import MercuryError, MercuryExitError, MercuryOutcomeError, MercuryTimeoutError, MercuryWireError, assert_completed, connect, run
 
 WINDOWS = os.name == 'nt'
 failures = []
@@ -104,6 +104,18 @@ async def listener_errors():
         assert not isinstance(error, MercuryWireError) and isinstance(error.__cause__, KeyError) and 'a listener for outcome raised KeyError' in str(error), repr(error)
 
 
+async def typed_listener_errors():
+    task = await run('x', mercury=mercury('failed-run'))
+    task.on('outcome', assert_completed)
+    error = await expect(task.outcome, MercuryError)
+    assert type(error) is MercuryOutcomeError and error.outcome['status'] == 'failed' and error.__cause__ is None, repr(error)
+    async with await connect(mercury=mercury('row-runner')) as session:
+        def typed(row): raise MercuryOutcomeError(row)
+        session.on('outcome', typed)
+        error = await expect(session.prompt('x', timeout=10), MercuryError)
+        assert type(error) is MercuryOutcomeError and error.outcome['status'] == 'completed' and error.__cause__ is None, repr(error)
+
+
 async def side_channel_errors():
     records = []
     class Capture(logging.Handler):
@@ -155,6 +167,7 @@ async def main():
     await check('session: a timed-out wait on exit does not make close raise CancelledError', session_exit_wait)
     if not WINDOWS: await check('run_sync: Ctrl-C reaches the program as KeyboardInterrupt instead of hanging', ctrl_c)
     await check('a row listener that raises ends the run or session with that error as the cause, not a wire error', listener_errors)
+    await check('a row listener that raises one of the package\'s own errors ends the run or session with that error unchanged', typed_listener_errors)
     await check('a stderr, end or error listener that raises is logged and the run still settles', side_channel_errors)
     await check('run: two tasks iterating one run both end, with the run error when it failed', shared_iteration)
     await check('connect with a timeout raises within the bound when the runner neither answers nor ends with its input', deaf_runner)

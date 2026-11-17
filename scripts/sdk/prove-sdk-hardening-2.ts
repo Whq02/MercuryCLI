@@ -21,6 +21,7 @@ const text = ${JSON.stringify(text)}
 const turn = ${JSON.stringify({ ...turn, state: 'started' })}
 const outcome = ${JSON.stringify(fixtureOutcomeRow({ answer: 'ok' }))}
 const turnOutcome = ${JSON.stringify(outcome)}
+const failed = ${JSON.stringify(fixtureOutcomeRow({ status: 'failed' }))}
 const line = value => writeSync(1, JSON.stringify(value) + '\\n')
 const die = () => process.kill(process.pid, 'SIGKILL')
 if (scenario === 'cut-run') { line(session); writeSync(1, JSON.stringify(text).slice(0, 40)); die() }
@@ -30,6 +31,7 @@ else if (scenario === 'hang-run') { process.stderr.write('up\\n'); line(session)
 else if (scenario === 'text-run') { line(session); line(text); line(outcome) }
 else if (scenario === 'stderr-run') { process.stderr.write('a warning line\\n'); line(session); line(outcome) }
 else if (scenario === 'deaf-runner') setInterval(() => {}, 1000)
+else if (scenario === 'failed-run') { line(session); line(failed) }
 else createInterface({ input: process.stdin }).on('line', raw => {
   const message = JSON.parse(raw)
   const reply = result => line({ jsonrpc: '2.0', id: message.id, result })

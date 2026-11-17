@@ -27,8 +27,9 @@ def call_listeners(listeners: dict[str, list[Listener]], type: str, value: Any) 
     for listener in tuple(listeners.get(type, [])):
         try: listener(value)
         except Exception as error:
-            if type not in SIDE_EVENTS: raise MercuryError(f'a listener for {type} raised {error.__class__.__name__}: {error}') from error
-            logger.exception('a listener for %s raised', type)
+            if type in SIDE_EVENTS: logger.exception('a listener for %s raised', type)
+            elif isinstance(error, MercuryError): raise
+            else: raise MercuryError(f'a listener for {type} raised {error.__class__.__name__}: {error}') from error
 
 
 @dataclass
