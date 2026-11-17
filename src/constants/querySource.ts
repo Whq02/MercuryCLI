@@ -35,7 +35,6 @@ type UtilitySource =
   | 'skill_improvement_apply'
   | 'feedback'
   | 'magic_docs'
-  | 'bash_extract_prefix'
   | 'mcp_datetime_parse'
   | 'web_search_tool'
   | 'web_fetch_apply'
