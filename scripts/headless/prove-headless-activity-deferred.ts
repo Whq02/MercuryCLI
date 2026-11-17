@@ -181,7 +181,9 @@ section('§4 source pins')
   }
   const wired = await stampOf(stampHome => withLiveRunner(async () => undefined, { env: { MERCURY_CONFIG_DIR: stampHome } }))
   const printed = await stampOf(stampHome => fixtureCli([{ kind: 'text', text: 'ok' }], ['run', '--model', FIXTURE_MODEL, 'hi'], { env: { MERCURY_CONFIG_DIR: stampHome } }))
-  check('the headless entry still stamps its activity at entry', wired?.sdk === 1 && wired.print === 0 && wired.lastKind === 'sdk' && printed?.print === 1 && printed.sdk === 0 && printed.lastKind === 'print', j({ wired, printed }))
+  const rowsPrinted = await stampOf(stampHome => fixtureCli([{ kind: 'text', text: 'ok' }], ['run', '--format', 'rows', '--model', FIXTURE_MODEL, 'hi'], { env: { MERCURY_CONFIG_DIR: stampHome } }))
+  const printKind = (stamp: Activity | undefined): boolean => stamp?.print === 1 && stamp.sdk === 0 && stamp.lastKind === 'print'
+  check('the headless entry still stamps its activity at entry', wired?.sdk === 1 && wired.print === 0 && wired.lastKind === 'sdk' && printKind(printed) && printKind(rowsPrinted), j({ wired, printed, rowsPrinted }))
 }
 
 rmSync(HOME, { recursive: true, force: true })

@@ -158,7 +158,7 @@ console.log('§2 first-party posture: a good run, then --continue over the trans
   check(`the request carried the default model, never '${BAD}'`, modelsSent(mid).length === 1 && modelsSent(mid)[0] === firstModel, JSON.stringify(modelsSent(mid)))
   check('a notice row names the unusable recorded model and the model this run uses instead', notice !== undefined && String(notice.level) === 'warning' && String(notice.text).includes(`'${BAD}' is not usable`) && String(notice.text).includes(`this run uses ${firstModel} instead`), clip(JSON.stringify(notice ?? null)))
   check("the session row's model is the one that ran", session?.model === firstModel, JSON.stringify(session?.model))
-  recordedModelSkipped = cont.code === 0 && modelsSent(mid).length === 1 && modelsSent(mid)[0] === firstModel && notice !== undefined && String(notice.text).includes(`'${BAD}' is not usable`) && String(notice.text).includes(`this run uses ${firstModel} instead`)
+  recordedModelSkipped = cont.code === 0 && modelsSent(mid).length === 1 && modelsSent(mid)[0] === firstModel && notice !== undefined && String(notice.text).includes(`'${BAD}' is not usable (`) && String(notice.text).endsWith(`) — this run uses ${firstModel} instead.`)
   rmSync(w.home, { recursive: true, force: true })
   rmSync(w.cwd, { recursive: true, force: true })
 }
