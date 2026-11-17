@@ -26,7 +26,8 @@ const TEXT_IMPORT_SPELLED = /\bimport\b[^'"`;]*['"`][^'"`]*\bsrc[\\/][^'"`]*['"`
 const AS_TEXT = /\b(?:text|file)\b/
 const NAMES_SRC = /src/i
 const UNKNOWN = '\0'
-const STEPS = 250_000
+const STEPS = 2_000_000
+const DEEP = 48
 const READERS = new Set(['readFileSync', 'readFile', 'createReadStream', 'openSync'])
 const RUNNERS = new Set(['exec', 'execSync', 'execFile', 'execFileSync', 'spawn', 'spawnSync'])
 const READ_TOOL = /(?:^|[\s/])(?:grep|egrep|fgrep|rg|cat|sed|awk|head|tail|wc|diff|cmp|show|cat-file|blame)(?:$|\s)/
@@ -43,18 +44,18 @@ const INSTEAD = 'import the module and call it, look the value up, or run the bu
 
 type Hit = { line: number; file: string }
 type Name = Hit & { asText: boolean }
-type Src = { files: Map<string, string>; folders: Set<string>; names: Set<string> }
+type Src = { files: Map<string, string>; folders: Set<string>; names: Set<string>; parts: Set<string> }
 type Estate = { scripts: string[]; src: Src; listed: boolean }
-type Facts = { pins: Map<string, number>; events: string[]; searches: Hit[]; namesOnly: Map<string, number>; folder: boolean; fragment: boolean; childText: boolean; shell: boolean }
+type Facts = { pins: Map<string, number>; events: string[]; searches: Hit[]; namesOnly: Map<string, number>; folder: boolean; fragment: boolean; childText: boolean; shell: boolean; spent: boolean }
 type Row = { pins: number; searches: number; digest: string }
 type Table = Map<string, Row>
 type Over = { script: string; why: string; lines: Hit[] }
 type Verdict = { over: Over[]; pins: number; searches: number; allowed: number; slack: number }
 type Value = { paths: string[]; text: string[] }
 type Env = Map<ts.Node, Value>
-type Cx = { root: string; src: Src; modules: ModuleCache; sf: ts.SourceFile; pins: Map<string, number>; events: Set<string>; searches: Hit[]; helpers: Set<ts.FunctionLikeDeclaration>; entered: Set<ts.Node>; stack: Set<ts.Node>; fills: Map<ts.Node, ts.Expression[]>; walked: Map<ts.Node, Map<string, Array<{ file: string; search: boolean }>>>; log: Array<{ file: string; search: boolean }>; steps: number; fragment: boolean }
+type Cx = { root: string; src: Src; modules: ModuleCache; sf: ts.SourceFile; pins: Map<string, number>; events: Set<string>; searches: Hit[]; helpers: Set<ts.FunctionLikeDeclaration>; entered: Set<ts.Node>; stack: Set<ts.Node>; valuing: Set<ts.Node>; fills: Map<ts.Node, ts.Expression[]>; walked: Map<ts.Node, Map<string, Array<{ file: string; search: boolean }>>>; log: Array<{ file: string; search: boolean }>; steps: number; fragment: boolean }
 
-const KNOWN = { decls: new WeakMap<ts.Identifier, ts.Node | null>(), fns: new WeakMap<ts.CallExpression, ts.FunctionLikeDeclaration | null>(), paths: new WeakMap<ts.Node, string[]>(), text: new WeakMap<ts.Node, string[]>(), inert: new WeakMap<ts.Node, boolean>() }
+const KNOWN = { decls: new WeakMap<ts.Identifier, ts.Node | null>(), fns: new WeakMap<ts.CallExpression, ts.FunctionLikeDeclaration | null>(), paths: new WeakMap<ts.Node, string[]>(), text: new WeakMap<ts.Node, string[]>(), inert: new WeakMap<ts.Node, boolean>(), pathsIn: new WeakMap<Env, Map<ts.Node, string[]>>(), textIn: new WeakMap<Env, Map<ts.Node, string[]>>() }
 
 function declOf(id: ts.Identifier): ts.Node | undefined {
   let decl = KNOWN.decls.get(id)
@@ -86,13 +87,14 @@ function memberships(fn: ts.FunctionLikeDeclaration): ts.Expression[] {
 }
 
 function srcOf(files: string[]): Src {
-  const src: Src = { files: new Map(), folders: new Set(['src']), names: new Set() }
+  const src: Src = { files: new Map(), folders: new Set(['src']), names: new Set(), parts: new Set(['src']) }
   for (const file of files) {
     if (!file.startsWith('src/')) continue
     const key = file.toLowerCase()
     src.files.set(key, file)
     src.names.add(key.slice(key.lastIndexOf('/') + 1))
     for (let at = key.lastIndexOf('/'); at > 3; at = key.lastIndexOf('/', at - 1)) src.folders.add(key.slice(0, at))
+    for (const part of key.split('/')) src.parts.add(part).add(part.replace(/\.[^.]*$/, ''))
   }
   return src
 }
@@ -418,7 +420,7 @@ function evDecl(cx: Cx, decl: ts.Node, name: string, env: Env, d: number): strin
     if (known) return known
     const held = union(ev(cx, decl.initializer, env, d + 1), ...filled(cx, decl, name).map(a => ev(cx, a, env, d + 1)))
     const values = NAMES_SRC.test(name) && !held.some(v => /(?:^|[\\/])src(?:[\\/]|$)/i.test(v)) ? union(held, [`${UNKNOWN}/src`]) : held
-    if (ofTheModule(decl) && d < 6) KNOWN.paths.set(decl, values)
+    if (ofTheModule(decl) && d < DEEP / 2) KNOWN.paths.set(decl, values)
     return values
   }
   if (ts.isParameter(decl)) {
@@ -433,7 +435,18 @@ function evDecl(cx: Cx, decl: ts.Node, name: string, env: Env, d: number): strin
 }
 
 function ev(cx: Cx, e: ts.Node | undefined, env: Env, d = 0): string[] {
-  if (!e || d > 12) return [UNKNOWN]
+  if (!e || d > DEEP || cx.steps++ > STEPS) return [UNKNOWN]
+  const seen = KNOWN.pathsIn.get(env) ?? new Map<ts.Node, string[]>()
+  KNOWN.pathsIn.set(env, seen)
+  const known = seen.get(e)
+  if (known) return known
+  seen.set(e, [UNKNOWN])
+  const values = evNow(cx, e, env, d)
+  seen.set(e, values)
+  return values
+}
+
+function evNow(cx: Cx, e: ts.Node, env: Env, d: number): string[] {
   if (ts.isSpreadElement(e)) return ev(cx, e.expression, env, d + 1)
   const x = unwrapAwait(e as ts.Expression)
   const literal = stringText(x)
@@ -484,10 +497,13 @@ function ev(cx: Cx, e: ts.Node | undefined, env: Env, d = 0): string[] {
     if (recv && name === 'filter' && handed && isFunctionNode(handed)) return union(ev(cx, recv, env, d + 1), ...memberships(handed).map(held => ev(cx, held, env, d + 1)))
     if (recv && KEEPS.has(name)) return name === 'concat' ? union(ev(cx, recv, env, d + 1), ...args.map(a => ev(cx, a, env, d + 1))) : ev(cx, recv, env, d + 1)
   }
-  const fn = d < 8 ? fnOfCall(cx, call) : undefined
-  if (!fn) return [UNKNOWN]
+  const fn = d < DEEP / 2 ? fnOfCall(cx, call) : undefined
+  if (!fn || cx.valuing.has(fn) || cx.valuing.size >= 6) return [UNKNOWN]
   const inner = bind(cx, fn, args, env, d)
-  return union(...returnedExpressions(fn).map(r => ev(cx, r, inner, d + 2)))
+  cx.valuing.add(fn)
+  const returned = union(...returnedExpressions(fn).map(r => ev(cx, r, inner, d + 2)))
+  cx.valuing.delete(fn)
+  return returned
 }
 
 function sourceOf(cx: Cx, e: ts.Expression): string[] {
@@ -542,7 +558,7 @@ function textDecl(cx: Cx, decl: ts.Node, name: string, env: Env, d: number): str
     const known = KNOWN.text.get(decl)
     if (known) return known
     const files = union(textOf(cx, decl.initializer, env, d + 1), ...filled(cx, decl, name).map(a => textOf(cx, a, env, d + 1)))
-    if (ofTheModule(decl) && d < 6) KNOWN.text.set(decl, files)
+    if (ofTheModule(decl) && d < DEEP / 2) KNOWN.text.set(decl, files)
     return files
   }
   if (ts.isParameter(decl)) {
@@ -558,7 +574,18 @@ function textDecl(cx: Cx, decl: ts.Node, name: string, env: Env, d: number): str
 }
 
 function textOf(cx: Cx, e: ts.Node | undefined, env: Env, d = 0): string[] {
-  if (!e || d > 12) return []
+  if (!e || d > DEEP || cx.steps++ > STEPS) return []
+  const seen = KNOWN.textIn.get(env) ?? new Map<ts.Node, string[]>()
+  KNOWN.textIn.set(env, seen)
+  const known = seen.get(e)
+  if (known) return known
+  seen.set(e, [])
+  const files = textNow(cx, e, env, d)
+  seen.set(e, files)
+  return files
+}
+
+function textNow(cx: Cx, e: ts.Node, env: Env, d: number): string[] {
   if (ts.isSpreadElement(e)) return textOf(cx, e.expression, env, d + 1)
   const x = unwrapAwait(e as ts.Expression)
   if (ts.isIdentifier(x)) {
@@ -589,10 +616,13 @@ function textOf(cx: Cx, e: ts.Node | undefined, env: Env, d = 0): string[] {
   }
   if (name !== undefined && recv && KEEPS.has(name)) return union(textOf(cx, recv, env, d + 1), ...(name === 'concat' ? args.map(a => textOf(cx, a, env, d + 1)) : []))
   if (name !== undefined && (FIRST_ARG.has(name) || OF_OBJECT.has(name))) return args[0] ? textOf(cx, args[0], env, d + 1) : recv ? textOf(cx, recv, env, d + 1) : []
-  const fn = d < 8 ? fnOfCall(cx, x) : undefined
-  if (!fn) return []
+  const fn = d < DEEP / 2 ? fnOfCall(cx, x) : undefined
+  if (!fn || cx.valuing.has(fn) || cx.valuing.size >= 6) return []
   const inner = bind(cx, fn, args, env, d)
-  return union(...returnedExpressions(fn).map(r => textOf(cx, r, inner, d + 2)))
+  cx.valuing.add(fn)
+  const returned = union(...returnedExpressions(fn).map(r => textOf(cx, r, inner, d + 2)))
+  cx.valuing.delete(fn)
+  return returned
 }
 
 function pin(cx: Cx, file: string, line: number): void {
@@ -635,7 +665,7 @@ function walk(cx: Cx, node: ts.Node, env: Env, at: number | undefined, depth: nu
     if (!fn.body || depth >= 5 || cx.stack.has(fn) || cx.steps > STEPS || inert(cx, fn)) return
     cx.entered.add(fn)
     const bound = inner()
-    const key = JSON.stringify([...bound.values()].map(v => [v.paths, v.text]))
+    const key = JSON.stringify([...bound.values()].map(v => [v.paths.filter(p => p.split(/[\\/]+/).some(part => cx.src.parts.has(part.toLowerCase()))), v.text]))
     const done = cx.walked.get(fn) ?? new Map<string, Array<{ file: string; search: boolean }>>()
     cx.walked.set(fn, done)
     const again = done.get(key)
@@ -650,7 +680,7 @@ function walk(cx: Cx, node: ts.Node, env: Env, at: number | undefined, depth: nu
     done.set(key, cx.log.slice(mark))
   }
   const step = (n: ts.Node): void => {
-    if (cx.steps++ > STEPS) return
+    if (depth > 0 && cx.steps++ > STEPS) return
     if (isFunctionNode(n) && namedFunctionDecl(n) !== undefined) {
       if (n.getSourceFile() === cx.sf) cx.helpers.add(n)
       return
@@ -680,7 +710,7 @@ function walk(cx: Cx, node: ts.Node, env: Env, at: number | undefined, depth: nu
 function codeFacts(root: string, src: Src, modules: ModuleCache, script: string): Facts {
   const { sf } = parseSource(root, join(root, script))
   const { names, folder, childText } = codeNames(sf, src)
-  const cx: Cx = { root, src, modules, sf, pins: new Map(), events: new Set(), searches: [], helpers: new Set(), entered: new Set(), stack: new Set(), fills: new Map(), walked: new Map(), log: [], steps: 0, fragment: false }
+  const cx: Cx = { root, src, modules, sf, pins: new Map(), events: new Set(), searches: [], helpers: new Set(), entered: new Set(), stack: new Set(), valuing: new Set(), fills: new Map(), walked: new Map(), log: [], steps: 0, fragment: false }
   for (const n of names) if (n.asText) pin(cx, n.file, n.line)
   walk(cx, sf, new Map(), undefined, 0)
   for (const fn of cx.helpers) {
@@ -690,14 +720,14 @@ function codeFacts(root: string, src: Src, modules: ModuleCache, script: string)
   }
   const namesOnly = new Map<string, number>()
   for (const n of names) if (!cx.pins.has(n.file) && !namesOnly.has(n.file)) namesOnly.set(n.file, n.line)
-  return { pins: cx.pins, events: [...cx.events], searches: cx.searches, namesOnly, folder, fragment: cx.fragment, childText, shell: false }
+  return { pins: cx.pins, events: [...cx.events], searches: cx.searches, namesOnly, folder, fragment: cx.fragment, childText, shell: false, spent: cx.steps > STEPS }
 }
 
 function shellFacts(text: string, src: Src): Facts {
   const hits = textReads(text, src)
   const pins = new Map<string, number>()
   for (const h of hits) if (!pins.has(h.file)) pins.set(h.file, h.line)
-  return { pins, events: hits.map(h => `${h.line} ${h.file}`), searches: hits, namesOnly: new Map(), folder: false, fragment: false, childText: false, shell: true }
+  return { pins, events: hits.map(h => `${h.line} ${h.file}`), searches: hits, namesOnly: new Map(), folder: false, fragment: false, childText: false, shell: true, spent: false }
 }
 
 function factsOf(root: string, estate: Estate): { facts: Map<string, Facts>; read: number; aside: number } {
@@ -1135,7 +1165,7 @@ const count = (of: (f: Facts) => boolean): number => [...facts.values()].filter(
 const totals = { pins: sum(f => f.pins.size), searches: sum(f => (f.pins.size > 0 ? f.searches.length : 0)), namesOnly: sum(f => f.namesOnly.size) }
 const text = existsSync(join(ROOT, TABLE)) ? readFileSync(join(ROOT, TABLE), 'utf8') : null
 const table = text === null ? null : tableOf(text)
-const REACH = `the fence reads scripts/ and counts files under src/: a test in another folder and source outside src/ are not read. Out of reach, with the scripts that do it today: a folder under src that is walked, globbed or searched by a tool, or the base of a name built at run time (${count(f => f.folder)} name one); a name under src assembled at run time (${count(f => f.fragment)} read one); a search in a shell or Python script, where every name counts as opened and every line that names a file as one search (${count(f => f.shell && f.pins.size > 0)}); a text import spelled in the text of a child program (${count(f => f.childText)}); a list kept in a data file or a document (${aside} such files name a src file); and with no count a path that arrives from outside the file, a copy of the tree under a named folder, a search by another method than includes, indexOf, match, search, split, startsWith, endsWith, test and exec, and more needles handed to one call`
+const REACH = `the fence reads scripts/ and counts files under src/: a test in another folder and source outside src/ are not read. Out of reach, with the scripts that do it today: a folder under src that is walked, globbed or searched by a tool, or the base of a name built at run time (${count(f => f.folder)} name one); a name under src assembled at run time (${count(f => f.fragment)} read one); a search in a shell or Python script, where every name counts as opened and every line that names a file as one search (${count(f => f.shell && f.pins.size > 0)}); a text import spelled in the text of a child program (${count(f => f.childText)}); a script whose helper calls outrun the ${STEPS} steps the reader follows them for (${count(f => f.spent)}); a list kept in a data file or a document (${aside} such files name a src file); and with no count a path that arrives from outside the file, a copy of the tree under a named folder, a search by another method than includes, indexOf, match, search, split, startsWith, endsWith, test and exec, and more needles handed to one call`
 const REPAIR = `${INSTEAD}; a row is written only when it falls, leaves, holds other files or moves with its file (git mv, then bun ${SELF} --write)`
 console.log(`  ${estate.scripts.length} files under scripts · ${read} read (code by its syntax tree, shell and Python by the line; data files, documents and binary files aside) · ${estate.src.files.size} files under src · ${rows.size} scripts open a src file as text · ${totals.pins} files opened · ${totals.searches} searches · ${totals.namesOnly} names only`)
 const low = floor(estate, read)

@@ -306,7 +306,7 @@ scripts/daemon/prove-control-layer-held.ts	1	1	c24dc3f7fbaa
 scripts/daemon/prove-daemon-departure.ts	3	13	69e00236437f
 scripts/daemon/prove-daemon-env-scrub.ts	6	13	4e86a478cdf3
 scripts/daemon/prove-daemon-handshake.ts	6	30	f4d19b674a4a
-scripts/daemon/prove-daemon-home-census.ts	9	54	aebde4443d39
+scripts/daemon/prove-daemon-home-census.ts	9	65	aebde4443d39
 scripts/daemon/prove-daemon-lock.ts	1	6	c24dc3f7fbaa
 scripts/daemon/prove-daemon-log-stamps.ts	1	3	c24dc3f7fbaa
 scripts/daemon/prove-daemon-owner-watch-budget.ts	4	18	fc96fc366058
@@ -513,7 +513,7 @@ scripts/ide/prove-python-project.ts	1	1	7b381cf3e55b
 scripts/ide/prove-runner-debug.ts	1	8	f6ef3bce806a
 scripts/ide/render-transaction-replay.tsx	1	0	f83d9750cb31
 scripts/identity/prove-ask-clock-words-gone.ts	4	8	7de2bc14196c
-scripts/identity/prove-docs-names.ts	7	2	40f80f9d665f
+scripts/identity/prove-docs-names.ts	7	6	40f80f9d665f
 scripts/identity/prove-editor-prompt-file.ts	2	3	6d15d0640374
 scripts/identity/prove-embed-pack-everywhere-words.ts	1	3	28bca0c5568e
 scripts/identity/prove-floor-delivery.ts	13	9	44b2f1c6a6f3
@@ -543,7 +543,7 @@ scripts/ink-runtime/prove-truncate-per-line.ts	2	2	768d1708de9c
 scripts/ink-runtime/prove-writer-reset-removed.ts	2	2	9c50e82536f6
 scripts/interaction/prove-board-coverage.ts	5	10	8b8c1315f397
 scripts/interaction/prove-chord-grace.ts	1	7	dcfb8579e4fb
-scripts/interaction/prove-click-expand.ts	7	9	a1a71d987a4e
+scripts/interaction/prove-click-expand.ts	8	16	a7e2f07a125d
 scripts/interaction/prove-composer-editing.ts	12	25	e8bae8e1e693
 scripts/interaction/prove-composer-input-claims.ts	10	19	54fdbabfadb1
 scripts/interaction/prove-composer-mouse.ts	5	15	aea0ca78e6fc
@@ -596,7 +596,7 @@ scripts/lsp/prove-lsp-restart-command.ts	4	7	2112181168da
 scripts/lsp/prove-lsp-revalidation.ts	4	6	33e85ed2d9f3
 scripts/lsp/prove-lsp-split-words.ts	1	1	cac34088f7a7
 scripts/lsp/prove-lsp-tool-mounted.ts	3	4	64ec3721f119
-scripts/lsp/prove-lsp-wiring.ts	16	56	4d10ca81d8d0
+scripts/lsp/prove-lsp-wiring.ts	16	57	4d10ca81d8d0
 scripts/lsp/prove-spawn-plan-cmd-line.ts	3	8	6cc484bfa317
 scripts/lsp/prove-wider-tables.ts	3	12	78701c0cf3ed
 scripts/lsp/prove-win32-bin-resolution.ts	2	4	d585b00454ab
@@ -720,10 +720,12 @@ scripts/node-runtime/prove-compile-cache.ts	1	20	8987db768251
 scripts/node-runtime/prove-direct-splash.ts	2	10	7149c9766fc9
 scripts/node-runtime/prove-entry-gate.ts	2	8	082fa995e4da
 scripts/node-runtime/prove-field-findings-exit-writes.ts	6	11	46132edf7d4f
-scripts/node-runtime/prove-launchers.ts	2	5	47f268e7f4f8
+scripts/node-runtime/prove-launcher-probe-redirect.ts	2	14	47f268e7f4f8
+scripts/node-runtime/prove-launchers.ts	2	178	47f268e7f4f8
 scripts/node-runtime/prove-node-policy.ts	1	3	14000d585432
 scripts/node-runtime/prove-session-env-own-stamps.ts	1	2	8648716e8557
 scripts/node-runtime/prove-spawn-window-discipline.ts	2	1	8729c25b34cb
+scripts/node-runtime/prove-static-banner-colour.ts	2	1	47f268e7f4f8
 scripts/node-runtime/prove-win32-console.ts	3	18	321fb57f5934
 scripts/node-runtime/prove-windows-seams.ts	14	52	64d1001bd8c3
 scripts/notifications/prove-board-control.ts	4	12	970194f7f680
@@ -792,7 +794,7 @@ scripts/pings/prove-strip-badge.ts	3	10	0883fffc8925
 scripts/pings/prove-switch-settle-note.ts	7	29	69f01ac1d701
 scripts/primitives-kernel/prove-primitives-kernel-census.ts	2	12	1d1dacaaade9
 scripts/project-intel/prove-capsule-lifecycle.ts	3	3	125eba31bdcf
-scripts/project-services/inventory.ts	1	3	f260e5e7fe6a
+scripts/project-services/inventory.ts	1	4	f260e5e7fe6a
 scripts/project-services/prove-service-project-key.ts	2	9	3ca46d810d65
 scripts/project-services/prove-service-restart-truth.ts	1	10	de1da7f13837
 scripts/project-services/prove-service-stop-ownership.ts	1	8	de1da7f13837
@@ -870,7 +872,7 @@ scripts/providers/prove-anthropic-verdict-lifetime.ts	2	11	4c23da076110
 scripts/providers/prove-anthropic-verdict-owner.ts	6	14	c028df572372
 scripts/providers/prove-anthropic-window-owner.ts	1	3	ab52daa4112c
 scripts/providers/prove-bad-model-line.ts	1	6	5b3f9d072ee5
-scripts/providers/prove-callmodel-contract.ts	4	19	1420beae2871
+scripts/providers/prove-callmodel-contract.ts	4	22	1420beae2871
 scripts/providers/prove-cap-offer-rule.ts	4	14	028be0ebfdb9
 scripts/providers/prove-cap-offer-settles.ts	4	37	91e528975e2c
 scripts/providers/prove-compact-vitals-binding-pool.ts	1	2	a2747627ffe3
@@ -909,7 +911,7 @@ scripts/providers/prove-usage-truth-meters.ts	19	66	ba0501b2162e
 scripts/providers/prove-xai-contract.ts	10	4	75b30268b90e
 scripts/providers/prove-zai-catalogue.ts	3	8	7f9aedadd225
 scripts/providers/prove-zai-env-key-plan.ts	2	3	d3a97b156a6e
-scripts/providers/prove-zai-image-road.ts	2	1	ea9d8c9fa994
+scripts/providers/prove-zai-image-road.ts	2	2	ea9d8c9fa994
 scripts/providers/prove-zen-contract.ts	10	3	cd74f6161837
 scripts/release/launcherTemplates.mjs	2	4	47f268e7f4f8
 scripts/release/notesFromChangelog.mjs	1	3	24934174eb23
@@ -1405,12 +1407,13 @@ scripts/updater/prove-current-release-words.ts	5	7	8aba54a4e1fe
 scripts/updater/prove-gh-timeout-live.ts	1	7	baf81f2aa8d9
 scripts/updater/prove-gitbash-resolution.ts	1	2	ff3b799055e4
 scripts/updater/prove-install-layout.ts	5	30	d79267f17e94
+scripts/updater/prove-install-path.ts	2	20	47f268e7f4f8
 scripts/updater/prove-never-public.ts	2	4	1e18710d3ffc
 scripts/updater/prove-nix-ownership.ts	1	2	d41a137e2ea0
 scripts/updater/prove-node-pack.ts	4	5	47f837014371
 scripts/updater/prove-release-targets.ts	2	5	a2d4a4a5ffac
 scripts/updater/prove-shim-pointer-containment.ts	1	2	d4fc84a8d2dd
-scripts/updater/prove-signing-surfaces.ts	1	3	28bca0c5568e
+scripts/updater/prove-signing-surfaces.ts	3	16	538e5cd65177
 scripts/updater/prove-status-check-agreement.ts	1	4	d4fc84a8d2dd
 scripts/updater/prove-update-prune-live-version.ts	3	9	7b574b655bf2
 scripts/updater/prove-verifier-bundle.ts	2	6	dc51d72ae962
