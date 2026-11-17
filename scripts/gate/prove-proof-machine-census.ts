@@ -324,6 +324,30 @@ try {
   const colour = stamped.stdout.split('\n')[2] ?? ''
   check(stamped.status === 0 && colour === '', 'a scripts/ entry launched under an inherited NO_COLOR=1 FORCE_COLOR=0 runs with neither set (the capture rows of scripts/ui/prove-visual-baseline.ts read the styled cells)', `rc=${stamped.status} colour=${JSON.stringify(colour)}`)
   check(/delete process\.env\.NO_COLOR\n\s*delete process\.env\.FORCE_COLOR/.test(code('scripts/lib/proofHomePreload.ts')), 'scripts/lib/proofHomePreload.ts drops the pair beside its probe pin for every scripts/ entry')
+
+  section("a caller's git redirection never reaches a proof: a fixture repository a proof makes lands in its scratch, not on the caller's repository")
+  const repositoryNames = spawnSync('git', ['rev-parse', '--local-env-vars'], { cwd: scratch, env: clean({}), encoding: 'utf8' }).stdout.split('\n').filter(name => name !== '' && name !== 'GIT_CONFIG_PARAMETERS' && name !== 'GIT_CONFIG_COUNT')
+  const KEPT = 'GIT_TERMINAL_PROMPT'
+  const redirected = { ...Object.fromEntries(repositoryNames.map(name => [name, join(scratch, 'caller-repository', name)])), [KEPT]: '0' }
+  const gitNames = (text: string): string => text.split(/\s+/).filter(Boolean).sort().join(' ')
+  const NAMES_SET = 'env | sed -n "s/^\\(GIT_[A-Z_]*\\)=.*/\\1/p"'
+  check(repositoryNames.includes('GIT_DIR') && repositoryNames.includes('GIT_INDEX_FILE') && repositoryNames.includes('GIT_WORK_TREE'), `git names the variables it clears for another repository (${repositoryNames.length} names, its two config carriers aside)`, repositoryNames.join(' '))
+  const unguarded = spawnSync('bash', ['-c', NAMES_SET], { cwd: ROOT, env: clean(redirected), encoding: 'utf8' })
+  check(gitNames(unguarded.stdout) === [...repositoryNames, KEPT].sort().join(' '), `with no guard in front a child carries all ${repositoryNames.length} and ${KEPT}, the one git variable set here that names no repository`, gitNames(unguarded.stdout))
+  const redirectedEntry = spawnSync(BUN, ['scripts/lib/proofHomePreload.ts'], {
+    cwd: ROOT,
+    env: clean({ MERCURY_CONFIG_DIR: join(scratch, 'pinned'), ...redirected }),
+    encoding: 'utf8',
+  })
+  const keptByEntry = gitNames(redirectedEntry.stdout.split('\n')[3] ?? '')
+  check(redirectedEntry.status === 0 && keptByEntry === KEPT, `a scripts/ entry launched under them runs with ${KEPT} alone`, `rc=${redirectedEntry.status} set: ${keptByEntry || 'none read'}; a repository name left here joins CALLER_REPOSITORY in scripts/lib/proofHomePreload.ts`)
+  const redirectedSuite = spawnSync('bash', ['-c', `. "$1" || exit 78; suite_env_guard "$2" >/dev/null 2>&1; ${NAMES_SET}`, '_', join(ROOT, 'scripts', 'lib', 'suite-env.sh'), join(ROOT, 'scripts', 'gate', 'run-all.sh')], {
+    cwd: ROOT,
+    env: clean({ MERCURY_CONFIG_DIR: join(scratch, 'suite-home'), BUN: '/usr/bin/false', ...redirected }),
+    encoding: 'utf8',
+  })
+  const keptBySuite = gitNames(redirectedSuite.stdout)
+  check(redirectedSuite.status === 0 && keptBySuite === KEPT, `a suite runner started under them hands its proofs ${KEPT} alone`, `rc=${redirectedSuite.status} set: ${keptBySuite || 'none read'}; a repository name left here joins the unset line of suite_env_guard in scripts/lib/suite-env.sh`)
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

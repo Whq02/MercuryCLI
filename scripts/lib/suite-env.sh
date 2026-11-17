@@ -3,6 +3,7 @@
 suite_env_guard() {
   local runner="${1:?suite_env_guard: the path of the runner}" dir name line declared="" foreign=""
   local -a inputs
+  unset GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_CONFIG GIT_OBJECT_DIRECTORY GIT_DIR GIT_WORK_TREE GIT_IMPLICIT_WORK_TREE GIT_GRAFT_FILE GIT_INDEX_FILE GIT_NO_REPLACE_OBJECTS GIT_REPLACE_REF_BASE GIT_PREFIX GIT_SHALLOW_FILE GIT_COMMON_DIR
   export BROWSER="${BROWSER:-/usr/bin/true}"
   suite_home_guard "$runner"
   suite_scratch_init "$runner"

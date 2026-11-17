@@ -7,6 +7,7 @@ import { installProofScratch, singleRunRootMadeHere, SINGLE_RUN_OWNER } from './
 const root = resolve(import.meta.dir, '..', '..')
 const bunMain = (globalThis as { Bun?: { main?: unknown } }).Bun?.main
 const entryTakesProofHome = proofEntry()
+const CALLER_REPOSITORY = ['GIT_ALTERNATE_OBJECT_DIRECTORIES', 'GIT_CONFIG', 'GIT_OBJECT_DIRECTORY', 'GIT_DIR', 'GIT_WORK_TREE', 'GIT_IMPLICIT_WORK_TREE', 'GIT_GRAFT_FILE', 'GIT_INDEX_FILE', 'GIT_NO_REPLACE_OBJECTS', 'GIT_REPLACE_REF_BASE', 'GIT_PREFIX', 'GIT_SHALLOW_FILE', 'GIT_COMMON_DIR']
 
 function startAgainOnThisEnvironment(): void {
   if (process.platform === 'win32' || typeof bunMain !== 'string') return
@@ -35,6 +36,7 @@ function startAgainOnThisEnvironment(): void {
 }
 
 if (entryTakesProofHome) {
+  for (const name of CALLER_REPOSITORY) delete process.env[name]
   installProofScratch({ ownHome: configHomeIsReal() })
   process.env.MERCURY_LOCAL_PROBE_TARGETS ??= 'none'
   delete process.env.NO_COLOR
@@ -51,4 +53,4 @@ if (entryTakesProofHome && singleRunRootMadeHere() !== '') {
   startAgainOnThisEnvironment()
 }
 
-if (import.meta.main) console.log(`${process.env.MERCURY_CONFIG_DIR ?? ''}\n${process.env.MERCURY_LOCAL_PROBE_TARGETS ?? ''}\n${process.env.NO_COLOR ?? ''}${process.env.FORCE_COLOR ?? ''}`)
+if (import.meta.main) console.log(`${process.env.MERCURY_CONFIG_DIR ?? ''}\n${process.env.MERCURY_LOCAL_PROBE_TARGETS ?? ''}\n${process.env.NO_COLOR ?? ''}${process.env.FORCE_COLOR ?? ''}\n${Object.keys(process.env).filter(name => name.startsWith('GIT_')).sort().join(' ')}`)
