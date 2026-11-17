@@ -4,7 +4,7 @@ import { join, posix } from 'node:path'
 import ts from 'typescript'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const SELF = 'scripts/bash/prove-shell-door.ts'
+const SELF = 'scripts/gate/prove-shell-door.ts'
 const PARSE_DOOR = 'src/utils/permissions/decision/commandAnalysis.ts'
 const PROBE = 'src/tools/BashTool/bashPermissions.ts'
 
