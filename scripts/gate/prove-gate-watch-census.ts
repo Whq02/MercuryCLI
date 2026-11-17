@@ -72,7 +72,7 @@ const MAX_DEPTH = 5
 
 type ReadKind = 'file' | 'dir' | 'glob'
 type ReadHow = 'import' | 'text' | 'runner'
-type Read = { path: string; kind: ReadKind; via: string; how: ReadHow }
+type Read = { path: string; kind: ReadKind; via: string; how: ReadHow; far?: boolean }
 type Tree = { list: string[]; files: Set<string>; dirs: Set<string> }
 type FileReads = { imports: string[]; files: string[]; dirs: string[] }
 type Miss = { suite: string; law: 1 | 2; text: string }
@@ -460,28 +460,36 @@ function census(root: string, tracked: string[], manifest: ImpactManifest, whole
     if (complement) for (const [sib, m] of members) if (sib.startsWith(`${complement}-`)) for (const f of m.files) executed.delete(f)
     const reads: Read[] = []
     const seen = new Set<string>()
-    const add = (rel: string, via: string, how: ReadHow): void => {
+    const add = (rel: string, via: string, how: ReadHow, far = false): void => {
       const key = `${rel}\0${via}`
       if (seen.has(key)) return
       seen.add(key)
       const r = classify(tree, rel, via, how)
-      if (r) reads.push(r)
+      if (r) reads.push(far ? { ...r, far } : r)
     }
     const queue = [...executed]
     const visited = new Set<string>()
+    const followed = new Set<string>()
     while (queue.length > 0) {
       const file = queue.shift()!
       if (visited.has(file)) continue
       visited.add(file)
-      if (!file.startsWith(own)) add(file, runner, 'runner')
-      if (![...descend].some(d => file.startsWith(d))) continue
+      const far = followed.has(file)
+      if (!file.startsWith(own) && !far) add(file, runner, 'runner')
+      if (!(far || [...descend].some(d => file.startsWith(d)))) continue
       const r = readsOf(file)
       for (const imp of r.imports) {
-        if ([...descend].some(d => imp.startsWith(d))) queue.push(imp)
-        else add(imp, file, 'import')
+        if (!far && [...descend].some(d => imp.startsWith(d))) queue.push(imp)
+        else {
+          add(imp, file, 'import', far)
+          if (imp.startsWith('scripts/') && !visited.has(imp)) {
+            followed.add(imp)
+            queue.push(imp)
+          }
+        }
       }
-      for (const f of r.files) add(f, file, 'text')
-      for (const d of r.dirs) add(d, file, 'text')
+      for (const f of r.files) add(f, file, 'text', far)
+      for (const d of r.dirs) add(d, file, 'text', far)
     }
     const wholeReads = reads.filter(isWhole)
     const reason = whole[suite]
@@ -494,7 +502,7 @@ function census(root: string, tracked: string[], manifest: ImpactManifest, whole
       for (const read of reads) {
         if (isWhole(read)) continue
         const files = filesOf(tree, read)
-        const unwatched = files.filter(f => !claims(suite, f) && ![...scopes].some(s => underScope(f, s)))
+        const unwatched = files.filter(f => !claims(suite, f) && (narrowedRow(manifest, f) !== null || (read.far !== true && ![...scopes].some(s => underScope(f, s)))))
         if (unwatched.length === 0) continue
         const key = read.kind === 'file' ? read.path : `${read.path}${read.kind === 'dir' ? '/**' : ''}`
         if (perPath.has(key)) continue
@@ -575,7 +583,7 @@ function selfTest(): boolean {
   w('scripts/gamma/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\nset -u\n# gate-watch: src/gamma/**\n${bun} run "$here/prove-g.ts"\n`)
   w('scripts/gamma/prove-g.ts', "export const out = 'src/gamma/g.ts'.length\n")
   w('scripts/whole/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\nset -u\n${bun} run "$here/prove-w.ts"\n`)
-  w('scripts/whole/prove-w.ts', "import { readdirSync, readFileSync } from 'node:fs'\nimport { join } from 'node:path'\nimport { lib } from '../lib/helper.ts'\nconst ROOT = join(import.meta.dir, '..', '..')\nconst one = readFileSync(join(ROOT, 'src/keys/one.ts'), 'utf8')\nexport const out = readdirSync(join(ROOT, 'src')).length + lib + one.length\n")
+  w('scripts/whole/prove-w.ts', "import { readdirSync, readFileSync } from 'node:fs'\nimport { join } from 'node:path'\nimport { lib } from '../lib/helper.ts'\nconst ROOT = join(import.meta.dir, '..', '..')\nconst one = readFileSync(join(ROOT, 'src/keys/one.ts'), 'utf8')\nconst deep = readFileSync(join(ROOT, 'src/deep/inner/n.ts'), 'utf8')\nexport const out = readdirSync(join(ROOT, 'src')).length + lib + one.length + deep.length\n")
   w('scripts/listed/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\nset -u\n${bun} run "$here/prove-l.ts"\n`)
   w('scripts/listed/prove-l.ts', "import { readdirSync } from 'node:fs'\nimport { join } from 'node:path'\nconst ROOT = join(import.meta.dir, '..', '..')\nconst walk = (d: string): string[] => readdirSync(d)\nexport const out = walk(ROOT).length\n")
   w('scripts/delta/run-all.sh', '#!/usr/bin/env bash\n# gate-class: pure\n# gate-watch: src/keys/one.ts\nset -u\nbash "$here/prove-d.sh"\n')
@@ -588,6 +596,9 @@ function selfTest(): boolean {
   w('scripts/epsilon/prove-walk.ts', "import { readdirSync } from 'node:fs'\nimport { join } from 'node:path'\nconst ROOT = join(import.meta.dir, '..', '..')\nexport const out = readdirSync(join(ROOT, 'src', 'deep')).length\n")
   w('scripts/zeta/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\n# gate-watch: src/deep/inner/*\nset -u\n${bun} run "$here/prove-n.ts"\n`)
   w('scripts/zeta/prove-n.ts', "import { n } from '../../src/deep/inner/n.ts'\nexport const out = n\n")
+  w('scripts/lib/deep.ts', "import { n } from '../../src/deep/inner/n.ts'\nimport { a } from '../../src/alpha/a.ts'\nexport const deep = n + a\n")
+  w('scripts/eta/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\n# gate-watch: scripts/lib/deep.ts\nset -u\n${bun} run "$here/prove-h.ts"\n`)
+  w('scripts/eta/prove-h.ts', "import { deep } from '../lib/deep.ts'\nexport const out = deep\n")
   const manifest = loadImpactManifest(root)
   const got = census(root, walkAll(root), manifest, { whole: 'walks src for the fixture', gamma: 'a stale registration' })
   rmSync(root, { recursive: true, force: true })
@@ -604,9 +615,11 @@ function selfTest(): boolean {
     '2 delta scripts/delta/prove-d.sh reads src/keys/two.ts — the gate wakes nothing for src/keys/two.ts, not delta; add "# gate-watch: src/keys/two.ts" to the header of scripts/delta/run-all.sh',
     '2 epsilon scripts/epsilon/prove-n.ts reads src/deep/inner/n.ts — the gate wakes zeta for src/deep/inner/n.ts, not epsilon; add "# gate-watch: src/deep/inner/n.ts" to the header of scripts/epsilon/run-all.sh',
     '2 epsilon scripts/epsilon/prove-walk.ts reads src/deep/** (1 of 2 files outside the watch, e.g. src/deep/inner/n.ts) — the gate wakes zeta for src/deep/inner/n.ts, not epsilon; add "# gate-watch: src/deep/inner/**" to the header of scripts/epsilon/run-all.sh',
+    '2 eta scripts/lib/deep.ts reads src/deep/inner/n.ts — the gate wakes zeta for src/deep/inner/n.ts, not eta; add "# gate-watch: src/deep/inner/n.ts" to the header of scripts/eta/run-all.sh',
     '2 gamma registered as a whole-tree reader (a stale registration) but no proof it runs reads the whole tree',
     '2 listed scripts/listed/prove-l.ts reads the whole tree (.); the suite is not registered as a whole-tree reader',
     '2 whole scripts/whole/prove-w.ts reads scripts/lib/helper.ts — the gate wakes nothing for scripts/lib/helper.ts, not whole; add "# gate-watch: scripts/lib/helper.ts" to the header of scripts/whole/run-all.sh',
+    '2 whole scripts/whole/prove-w.ts reads src/deep/inner/n.ts — the gate wakes zeta for src/deep/inner/n.ts, not whole; add "# gate-watch: src/deep/inner/n.ts" to the header of scripts/whole/run-all.sh',
   ]
   const seen = got.misses.map(m => `${m.law} ${m.suite} ${m.text}`).sort()
   const wholeOk = got.suites.find(s => s.suite === 'whole')?.whole === 'walks src for the fixture'
