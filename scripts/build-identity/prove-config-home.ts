@@ -174,8 +174,12 @@ if (process.platform !== 'win32') {
   probe(true, looseHome, undefined)
   envUtils.ensurePrivateConfigHome()
   check('existing 0755 home tightened to 0700', (st(looseHome).mode & 0o777) === 0o700)
-  const mainSrc = readFileSync(join(ROOT, 'src', 'main.tsx'), 'utf-8')
-  check('main() calls ensurePrivateConfigHome at boot', mainSrc.includes('ensurePrivateConfigHome()'))
+  const { builtCli } = await import('../lib/builtProduct.ts')
+  const bootHome = join(scratchRoot, 'boot-home')
+  mkd(bootHome)
+  chm(bootHome, 0o755)
+  const booted = builtCli(['--no-commands', 'version'], { env: { MERCURY_CONFIG_DIR: bootHome } })
+  check('main() calls ensurePrivateConfigHome at boot', booted.status === 0 && (st(bootHome).mode & 0o777) === 0o700)
   rmSync(scratchRoot, { recursive: true, force: true })
 }
 
