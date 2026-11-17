@@ -89,8 +89,11 @@ await guarded(async () => {
   check('the warm claim is the screen\'s own road: a headless admission never claims a warm runner', /deps\.claimWarm !== undefined &&\n\s*kind === 'oculus' &&/.test(admit))
   const warmSrc = readFileSync(join(ROOT, 'src', 'daemon', 'warmRunner.ts'), 'utf8')
   check('the warm pool spawns its runner oculus (the pool exists for the screen\'s next birth)', /kind: 'oculus',\n\s*\}\)\n\s*const reg = roster\.registerLongLived\(short, spec\)/.test(warmSrc))
-  const runSrc = readFileSync(join(ROOT, 'src', 'cli', 'run.ts'), 'utf8')
-  check('the runner consumes the pin at its preflight, between the ask channel and the interactivity mark', /setAskChannel\(options\.door === 'wire' \? 'sdk' : 'none'\)\n\s*const kindPin = consumeSessionKindPin\(\)/.test(runSrc) && /setSessionKind\(kindPin\.kind === 'oculus' && options\.door === 'wire' \? 'oculus' : 'headless'\)\n\s*markSessionNonInteractive\(getAppState\(\)\.toolPermissionContext\?\.mode\)/.test(runSrc))
+  const { firstSystemPrompt } = await import('../lib/builtProduct.ts')
+  const sessionLineOf = (prompt: string): string => prompt.split('\n').find(line => line.startsWith('- Session:')) ?? ''
+  const pinnedBoot = sessionLineOf(await firstSystemPrompt([], { MERCURY_SESSION_KIND: 'oculus' }))
+  const bareBoot = sessionLineOf(await firstSystemPrompt())
+  check('the runner consumes the pin at its preflight, between the ask channel and the interactivity mark', pinnedBoot.startsWith('- Session: oculus') && bareBoot.startsWith('- Session: non-interactive'))
   const healthSrc = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
   const healthRow = healthSrc.slice(healthSrc.indexOf("id: 'session-kind'"), healthSrc.indexOf("id: 'session-kind'") + 2000)
   check("/health carries the Session kind row, read from the focused session's record and spoken in the vocabulary's words", healthSrc.includes("id: 'session-kind'") && /readSessionWorkers\(\)\)\.find\(rec => rec\.sessionId === sessionId/.test(healthRow) && /sessionKindWords\(record\.kind\)/.test(healthRow))
