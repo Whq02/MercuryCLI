@@ -36,8 +36,14 @@ const check = (label: string, ok: boolean, detail = '') => { if (!ok) failures++
 check('runner context starts at the measured 70,619, not the 100k display estimate', fill.usedTokens === 70619 && fill.fillSource === 'usage', JSON.stringify(fill))
 check('usage receipt carries the measured count in the wire vocabulary', (wire.usage as any).context?.used_tokens === 70619, JSON.stringify(wire.usage))
 check('usage receipt survives the decode without changing the number', restored.usage.context?.usedTokens === 70619)
-const run = readFileSync(join(import.meta.dir, '../../src/cli/run.ts'), 'utf8')
-check('runner publishes its own context calculation per facts answer', /context:.*contextFillView\(turnMessages\?\.\(\) \?\? messages, activeModel \?\? getEngineModel\(\)\)/.test(run))
+const { liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
+const published = await withFixtureRunner([{ kind: 'text', text: 'the measured turn', usage: { input_tokens: 70038, output_tokens: 581 } as never }], async runner => {
+  const before = (await liveFactsOf(runner)).usage.context
+  await runner.prompt('go')
+  await runner.waitFor('the measured turn ends', row => row.type === 'outcome').catch(() => undefined)
+  return { before, after: (await liveFactsOf(runner)).usage.context }
+})
+check('runner publishes its own context calculation per facts answer', published.before?.usedTokens === null && published.after?.usedTokens === fill.usedTokens && published.after?.fillSource === fill.fillSource, JSON.stringify(published))
 const frame = readFileSync(join(import.meta.dir, '../../src/components/MercuryFrame.tsx'), 'utf8')
 const footer = readFileSync(join(import.meta.dir, '../../src/components/PromptInput/Notifications.tsx'), 'utf8')
 check('rail and hint consume the same runner context reader', frame.includes('useFocusedContextFill(messages, windowModel') && footer.includes('useFocusedContextFill(messages, engineModel'))
