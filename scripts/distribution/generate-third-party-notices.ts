@@ -78,6 +78,15 @@ const jsDebug = vendorLock('js-debug.lock.json')
 const nodeRuntime = vendorLock('node.lock.json')
 const pythonRuntime = vendorLock('python.lock.json') as { version?: string; release?: string; license?: string; repository?: string; licenseFiles?: string[] }
 const brush = vendorLock('brush.lock.json')
+const bash = vendorLock('bash.lock.json') as {
+  release?: string
+  patchLevel?: number
+  license?: string
+  homepage?: string
+  licenseFiles?: string[]
+  sourceNote?: string
+  linuxBuilder?: { libc?: { name?: string; version?: string; license?: string; licenseFile?: string } }
+}
 const tsMeta = pkgMeta('typescript')
 const treeSitterMeta = pkgMeta('@vscode/tree-sitter-wasm')
 const ripgrepMeta = pkgMeta('@vscode/ripgrep')
@@ -232,6 +241,10 @@ lines.push(
 }
 lines.push(
   `- **shell engine pack** (\`dist/vendor/brush/<platform>/brush\`, \`brush.exe\` on Windows) — brush, a bash-compatible shell written in Rust, ${brush.license ?? 'MIT'} (${brush.repository ?? 'https://github.com/reubeno/brush'}). Receipt: vendor/brush.lock.json (one upstream release archive + sha256 per platform, every digest copied from that release's published \`<archive>.sha256\` asset; for win-x64, where upstream publishes no binary, the published crate \`brush-shell\` at the same version and its crate archive's sha256). A macOS or Linux archive ships the platform's engine binary and upstream's own \`LICENSE\` + \`THIRD_PARTY_LICENSES.html\` (the crate notices of everything linked into the binary) at dist/vendor/brush/<platform>/; the Windows archive ships the binary built from that crate with \`NOTICES.json\` (every linked crate: name, version, licence, repository) and \`licenses/<crate>-<version>/\` (each crate's own licence text) beside it, and carries the pack on every Windows install, since a box with no bash runs the Bash tool through it.`,
+)
+const bashLibc = bash.linuxBuilder?.libc ?? {}
+lines.push(
+  `- **bash pack** (\`dist/vendor/bash/<platform>/bash\`, macOS and Linux) — GNU bash ${bash.release ?? '5.3'} at patch level ${bash.patchLevel ?? 0}, Free Software Foundation, ${bash.license ?? 'GPL-3.0-or-later'} (${bash.homepage ?? 'https://www.gnu.org/software/bash/'}), the shell the Bash tool runs. Mercury starts it as a separate program and links nothing of it. Receipt: vendor/bash.lock.json (the GNU release tarball and each official patch with its url and sha256, every digest computed on bytes whose detached signature verified against the maintainer's key, and the build's flags). The pack is built from that tarball by scripts/vendor/build-bash.ts and never fetched as a binary; nothing of the tarball is in this repository. A macOS or Linux archive ships the platform's binary at dist/vendor/bash/<platform>/ with the licence text (\`${(bash.licenseFiles ?? ['COPYING']).join('`, `')}\`, from the tarball) and a \`${bash.sourceNote ?? 'SOURCE'}\` note that names the tarball, every patch, their digests and the flags: the corresponding source is exactly those files, at the urls the note gives, built by the script and lock of this repository. The macOS binaries link the operating system's own libraries and nothing else; the Linux binaries are static and carry ${bashLibc.name ?? 'musl'} ${bashLibc.version ?? ''} (${bashLibc.license ?? 'MIT'}, https://musl.libc.org/), whose licence text ships beside them as \`${bashLibc.licenseFile ?? 'LICENSE.musl'}\`.`,
 )
 lines.push('')
 lines.push('## Preserved NOTICE files (Apache-2.0 §4(d))')

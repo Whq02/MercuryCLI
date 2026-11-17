@@ -200,7 +200,9 @@ also bundles the `vendor/embed` addon built for its platform and the 118 MB
 `bge-base-en-v1.5` embedding model ([MNEME.md](MNEME.md)); on the Linux and
 Windows archives the addon runs a vectorised maths kernel, about a tenth of a
 second per Recall by meaning (a few hundredths on macOS through Accelerate). The
-two Windows archives bundle the `brush` shell engine, and the Windows
+macOS and Linux archives bundle GNU bash 5.3, the shell the Bash tool runs
+there (GPL-3.0-or-later, with its licence text and a note naming its source);
+the two Windows archives bundle the `brush` shell engine, and the Windows
 recursive-delete safety rule
 enforces parity across drive roots, `Users`, system folders, share roots and
 PowerShell pipelines ([TRUST.md](TRUST.md)).

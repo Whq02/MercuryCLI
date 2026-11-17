@@ -18,6 +18,7 @@ vendor/js-debug
 vendor/node
 vendor/python
 vendor/brush
+vendor/bash
 vendor/voice
 native/voice/target/
 vendor/whisper

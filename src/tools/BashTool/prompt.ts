@@ -2,6 +2,7 @@ import { getDefaultBashTimeoutMs, getMaxBashTimeoutMs } from '../../utils/timeou
 import { getMaxOutputLength, getMinOutputLength } from '../../utils/shell/outputLimits.js'
 import { PREVIEW_SIZE_CHARS } from '../../utils/toolResultStorage.js'
 import { resolveShellEngine, resolveEngineSessionCeiling } from '../../utils/shell/engineSession.js'
+import { shellRecordNow } from '../../utils/shell/shellRecord.js'
 import { windowsBashAbsent } from '../../utils/shell/windowsShellRoad.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import { ideTerminalAvailable } from '../../services/acp/ideToolBridge.js'
@@ -40,7 +41,8 @@ const EDITOR_TERMINAL_PARAGRAPH =
 
 export function getSimplePrompt(offered: ReadonlySet<string> | null = null): string {
   void offered
-  const brush = resolveShellEngine(getInitialSettings().shell?.engine).engine === 'brush'
+  const shell = shellRecordNow()
+  const brush = shell?.origin === 'engine'
   const sections: string[] = []
   sections.push(
     'Runs one shell command and returns its output, stdout and stderr merged in the order written. The output comes back to you; the operator sees at most a folded preview.',
@@ -48,10 +50,10 @@ export function getSimplePrompt(offered: ReadonlySet<string> | null = null): str
   if (brush) sections.push('When `timeout` passes, the command is killed (exit 143) and the shell session resets.')
   sections.push(buildOutputParagraph())
   if (brush) {
-    sections.push(...brushShellParagraphs())
+    sections.push(...brushShellParagraphs(windowsBashAbsent() || resolveShellEngine(getInitialSettings().shell?.engine).engine !== 'brush'))
   } else {
     sections.push(
-      'In the main conversation the working directory persists between calls (a crewmate\'s does not); shell variables, functions and options never do, and each call starts from your profile (bash or zsh).',
+      `In the main conversation the working directory persists between calls (a crewmate's does not); shell variables, functions and options never do, and each call starts from your profile (${shell?.dialect ?? 'bash'}).`,
     )
   }
   if (ideTerminalAvailable()) sections.push(EDITOR_TERMINAL_PARAGRAPH)
@@ -62,7 +64,7 @@ function buildOutputParagraph(): string {
   return `Up to ${getMaxOutputLength()} characters come back inline; a longer output is saved to a file, and the result carries its path with about ${PREVIEW_SIZE_CHARS} characters from its start and end. A non-zero exit comes back as an error ending \`Exited with code N\`, except exit 1 when the last command is grep, rg, find, diff, cmp, pgrep, test, \`[\`, which or \`command -v\`: a result labelled with what the exit means, such as \`no matches found (exit code 1)\`.`
 }
 
-function brushShellParagraphs(): string[] {
+function brushShellParagraphs(backgroundInEngine: boolean): string[] {
   const paragraphs: string[] = []
   paragraphs.push(
     'One shell session serves the whole conversation: the working directory, variables, functions, aliases and options persist from call to call. Each crewmate has a shell session of its own, which ends with the crewmate. An operator stop ends the command and resets the session, as do a bare `exit` or a `set -u` failure; the result says when earlier state was lost. A `run_in_background` call runs in its own shell and shares no state with the session.',
@@ -70,7 +72,7 @@ function brushShellParagraphs(): string[] {
   const ceiling = resolveEngineSessionCeiling(getInitialSettings().shell?.sessions)
   paragraphs.push(
     ceiling === 1
-      ? `The shell.sessions setting is 1: only the main conversation has an engine session. A crewmate's call is refused with the reason; a \`run_in_background\` call still runs, in its own ${windowsBashAbsent() ? 'engine process' : 'system shell'}.`
+      ? `The shell.sessions setting is 1: only the main conversation has an engine session. A crewmate's call is refused with the reason; a \`run_in_background\` call still runs, in its own ${backgroundInEngine ? 'engine process' : 'system shell'}.`
       : `At most ${ceiling} engine sessions are kept alive at once (the shell.sessions setting): the main conversation's own and ${ceiling - 1} for crewmates. A crewmate that needs one when all are in use waits for a free session, bounded by the call's timeout.`,
   )
   return paragraphs

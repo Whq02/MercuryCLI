@@ -1,0 +1,67 @@
+{
+  "name": "bash",
+  "version": "5.3.20",
+  "release": "5.3",
+  "patchLevel": 20,
+  "license": "GPL-3.0-or-later",
+  "licenseFiles": ["COPYING"],
+  "sourceNote": "SOURCE",
+  "homepage": "https://www.gnu.org/software/bash/",
+  "signingKey": "7C0135FB088AAF6C66C650B9BB5869F064EA74AB",
+  "tarball": {
+    "file": "bash-5.3.tar.gz",
+    "url": "https://ftp.gnu.org/gnu/bash/bash-5.3.tar.gz",
+    "sha256": "0d5cd86965f869a26cf64f4b71be7b96f90a3ba8b3d74e27e8e9d9d5550f31ba"
+  },
+  "patches": [
+    { "file": "bash53-001", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-001", "sha256": "1f608434364af86b9b45c8b0ea3fb3b165fb830d27697e6cdfc7ac17dee3287f" },
+    { "file": "bash53-002", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-002", "sha256": "e385548a00130765ec7938a56fbdca52447ab41fabc95a25f19ade527e282001" },
+    { "file": "bash53-003", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-003", "sha256": "f245d9c7dc3f5a20d84b53d249334747940936f09dc97e1dcb89fc3ab37d60ed" },
+    { "file": "bash53-004", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-004", "sha256": "9591d245045529f32f0812f94180b9d9ce9023f5a765c039b852e5dfc99747d0" },
+    { "file": "bash53-005", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-005", "sha256": "cca1ef52dbbf433bc98e33269b64b2c814028efe2538be1e2c9a377da90bc99d" },
+    { "file": "bash53-006", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-006", "sha256": "29119addefed8eff91ae37fd51822c31780ee30d4a28376e96002706c995ff10" },
+    { "file": "bash53-007", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-007", "sha256": "c0976bbfffa1453c7cfdd62058f206a318568ff2d690f5d4fa048793fa3eb299" },
+    { "file": "bash53-008", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-008", "sha256": "097cd723cbfb8907674ac32214063a3fd85282657ec5b4e544d2c0f719653fb4" },
+    { "file": "bash53-009", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-009", "sha256": "eee30fe78a4b0cb2fe20e010e00308899cfc613e0774ebb3c8557a1552f24f8c" },
+    { "file": "bash53-010", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-010", "sha256": "cf76f1cce2ea300c18bff9f002d21f280cc931acd17c28518110b93fe6e72569" },
+    { "file": "bash53-011", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-011", "sha256": "0298df8f5ea2a31d3be43ed7d269c5b3c7c342dd5b570bea7f64d66dcbbe7531" },
+    { "file": "bash53-012", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-012", "sha256": "d71379b39bebaedaf123414414e77fb458a0a43b9ad3116594c6df7ca6754573" },
+    { "file": "bash53-013", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-013", "sha256": "042f9cda967e24bf4211944697441e93d06ff42b4b998629a98a1b249279f200" },
+    { "file": "bash53-014", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-014", "sha256": "bd4360b401d38507e358783dcad8536a99c6789f0d3a5bd0cfb8c4a34144696c" },
+    { "file": "bash53-015", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-015", "sha256": "55b79ceee2fc27f6767eed697e939a7eb2fe2a28c01556bd75f18d581014f46e" },
+    { "file": "bash53-016", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-016", "sha256": "9ea29b266b7d24cb34d0ff3f1c4631e4d527bfe2d1ef15d17cdb924bf31ef767" },
+    { "file": "bash53-017", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-017", "sha256": "443b927b45c1558ca72052410f8b8f6e5152b617ed707061a2781d4375b0d1c3" },
+    { "file": "bash53-018", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-018", "sha256": "ae715d76c50341d7d7095e9a8d2eeed1ca9546152c2ac7289206f90cf30ac697" },
+    { "file": "bash53-019", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-019", "sha256": "a25c581e4d0057dea3833918438a930e2e86ee4c6dc17fe15267b7f04cbc4e3d" },
+    { "file": "bash53-020", "url": "https://ftp.gnu.org/gnu/bash/bash-5.3-patches/bash53-020", "sha256": "df217ed3a9122aa2286d9b67bbe348661b6a9db262b580c29150dae55d532896" }
+  ],
+  "build": {
+    "cflags": "-O2",
+    "configure": ["--without-bash-malloc", "--disable-nls", "--enable-readline", "--without-installed-readline"],
+    "make": ["YACC=false"]
+  },
+  "platforms": {
+    "darwin-arm64": { "target": "aarch64-apple-darwin", "deploymentTarget": "13.5", "configure": ["ac_cv_func_strchrnul=no", "bash_cv_func_strchrnul_works=no"] },
+    "darwin-x64": { "target": "x86_64-apple-darwin", "deploymentTarget": "13.5", "configure": ["ac_cv_func_strchrnul=no", "bash_cv_func_strchrnul_works=no"] },
+    "linux-x64": { "target": "x86_64-linux-musl", "docker": "linux/amd64", "configure": ["--enable-static-link"] },
+    "linux-arm64": { "target": "aarch64-linux-musl", "docker": "linux/arm64", "configure": ["--enable-static-link"] }
+  },
+  "linuxBuilder": {
+    "image": "alpine@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf",
+    "release": "3.24",
+    "packages": ["gcc", "musl-dev", "make"],
+    "libc": {
+      "name": "musl",
+      "version": "1.2.6",
+      "license": "MIT",
+      "licenseFile": "LICENSE.musl",
+      "tarball": {
+        "file": "musl-1.2.6.tar.gz",
+        "url": "https://musl.libc.org/releases/musl-1.2.6.tar.gz",
+        "sha256": "d585fd3b613c66151fc3249e8ed44f77020cb5e6c1e635a616d3f9f82460512a",
+        "member": "musl-1.2.6/COPYRIGHT"
+      }
+    }
+  },
+  "notes": "The shipped shell: GNU bash 5.3 at patch level 20, the shell Mercury's Bash tool runs on macOS and Linux (src/utils/shell/shellRecord.ts; the system's own bash and then the bundled engine are the fallbacks). GPL-3.0-or-later: Mercury starts it as a separate program and links nothing of it; the pack carries the licence text (COPYING, copied from the tarball) and a SOURCE note that names the tarball, every patch and the flags below, so the corresponding source is exactly what this lock names. Built from the GNU release tarball and the twenty official patches by `bun run scripts/vendor/build-bash.ts` (the host platform by default, --platform <p> / --all for the others); nothing of the tarball enters the repository. Pinned 2026-11-17, the newest patch at the pin (bash53-020, signed 2026-09-14). Every sha256 here was computed on bytes whose detached signature (the .sig beside each file on ftp.gnu.org) verified against the GNU keyring's key for Chet Ramey, the fingerprint in signingKey; the build verifies each sha256 before it unpacks or patches. macOS: built with the host's clang at the deployment target the shipped Node runtime declares, the x64 pack under Rosetta on an Apple-silicon host; it links the operating system's libSystem and libncurses and nothing else, and the build refuses a binary that imports a symbol newer than the deployment target. Linux: a static build against musl in the pinned Alpine image under docker (the packages are Alpine's own, signed, at whatever revision the release branch holds; the manifest records the compiler and libc that were used), with bash's own readline and termcap; the pack carries musl's licence text (LICENSE.musl, from the pinned musl release tarball). YACC=false makes the build fail if a patch would need the parser regenerated: the parser that ships is the one the tarball and the patches carry. Update procedure: add the new patches with their urls, verify each signature, copy each sha256, bump version and patchLevel, run `bun run scripts/vendor/build-bash.ts --all`, rebuild, re-run `bash scripts/bash/run-all.sh`."
+}

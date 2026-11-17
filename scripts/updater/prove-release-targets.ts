@@ -227,7 +227,10 @@ section('§9 the Windows archive carries the bundled shell engine — the contra
   const lock = JSON.parse(read('vendor/brush.lock.json')) as { version: string; platforms: Record<string, { crate?: string; crateVersion?: string }> }
   const entry = lock.platforms['win-x64']!
   check('the pinned version and the licence path follow the lock', pack?.version === lock.version && (pack?.files.includes(`licenses/${entry.crate}-${entry.crateVersion}/LICENSE`) ?? false), `${pack?.version} vs ${lock.version}`)
-  for (const t of ['linux-x64', 'macos-arm64', 'macos-x64']) check(`${t} bundles nothing beyond the build's own packs`, typeof contract.bundledVendorPacks === 'function' && packsOf(t).length === 0)
+  for (const t of ['linux-x64', 'linux-arm64', 'macos-arm64', 'macos-x64']) {
+    const bundled = packsOf(t)
+    check(`${t} bundles exactly one pack beyond the build's own set: the bash Mercury ships, and no engine pack`, bundled.length === 1 && bundled[0]?.name === 'bash' && bundled[0].degradation === 'shell-bash' && bundled[0].manifestKey === 'bash' && bundled[0].binary === 'bash', JSON.stringify(bundled))
+  }
 
   const fixture = mkdtempSync(join(tmpdir(), 'bundled-shell-'))
   try {

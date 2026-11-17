@@ -287,7 +287,7 @@ the server definitions themselves.
 | Key | What it sets |
 | --- | --- |
 | `shell.kind` | The default shell tool: `bash` or `powershell`. |
-| `shell.engine` | `system` or the persistent `brush` engine. |
+| `shell.engine` | `system` (on macOS and Linux the bash Mercury ships, then the system's bash) or the persistent `brush` engine. |
 | `shell.sessions` | The live shell-engine session ceiling, 1–64, 8 by default; the main conversation owns one. |
 | `shell.filterOutput` | Filters a command's output before the model reads it: progress-bar redraws collapse to their last line, package-manager install chatter is dropped, runs of identical lines fold to one with a count, and a footer names what was left out and the file holding the raw output. Off by default. |
 | `turns.loopGuard` | Allows the loop guard to end a turn after a repeated cycle is detected twice; off by default. |

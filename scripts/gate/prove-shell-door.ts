@@ -517,6 +517,45 @@ section('(3) what no reader can follow — require(), import() and createRequire
   )
 }
 
+section('(4) the record — which shell this is, asked in one place: lines that test a shell\'s name or spell one shell\'s own words, in the files a command runs through')
+{
+  const RECORD = 'src/utils/shell/shellRecord.ts'
+  const ASKERS = ['src/constants/prompts.ts', 'src/utils/Shell.ts', 'src/utils/bash/ShellSnapshot.ts', 'src/utils/bash/shellCompletion.ts']
+  const WORDS = /ZSH_VERSION|BASH_VERSION|BASHPID|setopt |shopt |pipestatus/i
+  const scope = files.filter(file => file.startsWith('src/utils/shell/') || ASKERS.includes(file))
+  const linesOf = (file: string): number[] => {
+    const text = readFileSync(join(ROOT, file), 'utf8')
+    const source = ts.createSourceFile(file, text, ts.ScriptTarget.ESNext, true, /\.tsx$/.test(file) ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
+    const rows = text.split('\n')
+    const hit = new Set<number>()
+    const lineAt = (pos: number): number => source.getLineAndCharacterOfPosition(pos).line
+    const visit = (node: ts.Node): void => {
+      if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'includes' && node.arguments.length === 1) {
+        const asked = node.arguments[0]!
+        if (ts.isStringLiteralLike(asked) && (asked.text === 'zsh' || asked.text === 'bash')) hit.add(lineAt(node.getStart(source)) + 1)
+      }
+      if (ts.isStringLiteralLike(node) || ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node)) {
+        for (let line = lineAt(node.getStart(source)); line <= lineAt(node.end); line++) if (WORDS.test(rows[line] ?? '')) hit.add(line + 1)
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(source)
+    return [...hit].sort((a, b) => a - b)
+  }
+  const found = scope.map(file => ({ file, lines: linesOf(file) })).filter(row => row.lines.length > 0)
+  const outside = found.filter(row => row.file !== RECORD)
+  const inside = found.find(row => row.file === RECORD)?.lines.length ?? 0
+  check(
+    `no file but the record asks which shell this is: ${outside.reduce((n, row) => n + row.lines.length, 0)} lines in ${outside.length} files outside ${RECORD} (18 lines in 6 files before the record stood), ${inside} lines inside it, over ${scope.length} files`,
+    known.has(RECORD) && outside.length === 0,
+    known.has(RECORD)
+      ? [
+          ...outside.flatMap(row => row.lines.map(line => `${row.file}:${line} tests a shell's name or spells one shell's own words`)),
+          `ask ${RECORD} instead: shellRecord() and systemShellRecord() give the path, the dialect, the version and the origin; shellRecordWords() the prompt's words; getGlobPreambleCommand(origin) the preamble; a word only one shell understands is a constant of the record`,
+        ]
+      : [`${RECORD} is gone: name the module that owns the record of the shell in RECORD of ${SELF}`],
+  )
+}
 console.log('')
 console.log(failures === 0 ? 'prove-shell-door: BOTH COUNTS HOLD' : `prove-shell-door: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

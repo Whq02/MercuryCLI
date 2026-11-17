@@ -61,7 +61,7 @@ const strays = patches.flatMap(([, file]) =>
 )
 check('each patch changes files of its own package and holds no marker of the installer’s', strays.length === 0, strays.join(', '))
 
-for (const vendor of ['ripgrep', 'debugpy', 'pyright', 'js-debug', 'TypeScript compiler', 'tree-sitter', 'tree-sitter-wasms', 'Node.js runtime', 'voice capture pack', 'shell engine pack', 'on-device transcriber pack', 'Whisper speech models']) {
+for (const vendor of ['ripgrep', 'debugpy', 'pyright', 'js-debug', 'TypeScript compiler', 'tree-sitter', 'tree-sitter-wasms', 'Node.js runtime', 'voice capture pack', 'shell engine pack', 'bash pack', 'on-device transcriber pack', 'Whisper speech models']) {
   check(`vendor payload named: ${vendor}`, notices.includes(vendor))
 }
 {
