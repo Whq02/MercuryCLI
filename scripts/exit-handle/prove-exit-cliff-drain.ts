@@ -39,6 +39,7 @@ guard.unref?.()
 const drain = await import('../../src/utils/exitCliffDrain.ts')
 const { drainNamedSeams, drainExitCliffSeams, registerExitCliffSeam, listExitCliffSeams, EXIT_CLIFF_DRAIN_MS } = drain
 type Seam = import('../../src/utils/exitCliffDrain.ts').ExitCliffSeam
+const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 
 section('§1 — the drain owner: bounded, never-throw, phased, by name')
 check(
@@ -225,10 +226,10 @@ section('§3 — POISONS (source shape)')
     'POISON (the unregistered writer): getProject registers the transcript-writer seam at phase 1 with its flush as the settle',
     /registerExitCliffSeam\(\{\s*name: 'transcript-writer',\s*phase: 1,\s*settle: \(\) => project\?\.flush\(\)/.test(writerSrc),
   )
-  const registry = readFileSync(join(ROOT, 'src/substrate/flagRegistry.ts'), 'utf8')
+  const drainRow = getFlagSpec('MERCURY_EXIT_CLIFF_DRAIN')
   check(
     'the poison seam is a registered default-on flag whose evidence is the census prover',
-    /env: 'MERCURY_EXIT_CLIFF_DRAIN', kind: 'default-on'[^\n]*evidence: 'scripts\/exit-handle\/prove-exit-cliff-census\.ts'/.test(registry) &&
+    drainRow?.kind === 'default-on' && drainRow.evidence === 'scripts/exit-handle/prove-exit-cliff-census.ts' &&
       existsSync(join(ROOT, 'scripts/exit-handle/prove-exit-cliff-census.ts')),
   )
 }
