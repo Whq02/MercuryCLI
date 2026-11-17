@@ -15,6 +15,7 @@ export interface SliceAnchor {
   ageCommits: number | null
   read?: string[] | null
   present?: string[] | null
+  fullRunS?: number | null
 }
 
 export interface SlicePlanInput {
@@ -36,6 +37,7 @@ interface SliceLedger {
   outside: string[]
   sliceEstimateS: number | null
   poolEstimateS: number
+  poolMeasured: boolean
   hubs: Array<{ path: string; fanout: number }>
 }
 
@@ -144,12 +146,16 @@ export function estimatePooledWallS(
 export function planSlice(input: SlicePlanInput): SlicePlan {
   const read = input.anchor?.read ? new Set(input.anchor.read) : null
   const pooled = (suite: string): boolean => read === null || read.has(suite)
-  const poolEstimateS = estimatePooledWallS(input.manifest.suites.filter(pooled), {
-    durations: input.durations,
-    classes: input.classes,
-    cores: input.cores,
-    ptyMax: input.ptyMax,
-  })
+  const measured = input.anchor?.fullRunS
+  const poolMeasured = typeof measured === 'number' && Number.isFinite(measured) && measured > 0
+  const poolEstimateS = poolMeasured
+    ? Math.round(measured as number)
+    : estimatePooledWallS(input.manifest.suites.filter(pooled), {
+        durations: input.durations,
+        classes: input.classes,
+        cores: input.cores,
+        ptyMax: input.ptyMax,
+      })
   const base: SliceLedger = {
     selection: null,
     suites: [],
@@ -157,6 +163,7 @@ export function planSlice(input: SlicePlanInput): SlicePlan {
     outside: [],
     sliceEstimateS: null,
     poolEstimateS,
+    poolMeasured,
     hubs: [],
   }
   if (input.anchor === null) {

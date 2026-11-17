@@ -366,6 +366,28 @@ section('§9 every change owes the whole-tree ratchets the anchor read')
   )
 }
 
+section('§10 the full run is weighed at its measured time when the anchor carries one')
+{
+  const read = ['smoke', 'bus', 'mission', 'memory', 'bench']
+  const held: SliceAnchor = { ...ANCHOR, read, present: Object.keys(CLASSES) }
+  const guessed = planSlice(input({ anchor: held, changedPaths: ['src/utils/crew/bus.ts'] }))
+  check(
+    'with no measured time the estimate stands (200s of an estimated 300s refuses)',
+    guessed.kind === 'refuse' && guessed.reason === 'not-faster' && guessed.ledger.poolEstimateS === 300 && guessed.ledger.poolMeasured === false,
+    JSON.stringify([guessed.kind, guessed.ledger.poolEstimateS, guessed.ledger.poolMeasured]),
+  )
+  const measured = planSlice(input({ anchor: { ...held, fullRunS: 1000 }, changedPaths: ['src/utils/crew/bus.ts'] }))
+  check(
+    'a measured 1000s is the figure the slice is weighed against (200s of 1000s runs)',
+    measured.kind === 'run' && measured.ledger.poolEstimateS === 1000 && measured.ledger.poolMeasured === true,
+    JSON.stringify([measured.kind, measured.ledger.poolEstimateS, measured.ledger.poolMeasured]),
+  )
+  const short = planSlice(input({ anchor: { ...held, fullRunS: 390 }, changedPaths: ['src/utils/crew/bus.ts'] }))
+  check('a measured 390s refuses the same slice (200s is over half)', short.kind === 'refuse' && short.reason === 'not-faster', short.kind)
+  const zero = planSlice(input({ anchor: { ...held, fullRunS: 0 }, changedPaths: ['src/utils/crew/bus.ts'] }))
+  check('a measured time of zero is no measurement', zero.ledger.poolEstimateS === 300 && zero.ledger.poolMeasured === false, JSON.stringify([zero.ledger.poolEstimateS, zero.ledger.poolMeasured]))
+}
+
 section('§8 the class header')
 {
   check('parseClassHeader reads a declared class', parseClassHeader('#!/usr/bin/env bash\n# gate-class: pty\nset -u\n') === 'pty')

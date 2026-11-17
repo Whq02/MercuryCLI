@@ -57,7 +57,7 @@ function dirtyPaths(): string[] {
     .map(l => (l.includes(' -> ') ? l.split(' -> ')[1]! : l))
 }
 
-function localGreenTree(): { tree: string; headSha: string | null; read: string[] | null } | null {
+function localGreenTree(): { tree: string; headSha: string | null; read: string[] | null; fullRunS: number | null } | null {
   try {
     const v = JSON.parse(readFileSync(join(projectLocalPath(ROOT, 'gate'), 'verdict.json'), 'utf8'))
     if (v?.ok !== true || typeof v?.treeSha !== 'string') return null
@@ -69,7 +69,9 @@ function localGreenTree(): { tree: string; headSha: string | null; read: string[
       Array.isArray(v?.pass) && v.pass.length > 0 && v.pass.every((s: unknown) => typeof s === 'string')
         ? (v.pass as string[])
         : null
-    return { tree: v.treeSha, headSha, read }
+    const fullRunS =
+      typeof v?.durationS === 'number' && Number.isFinite(v.durationS) && v.durationS > 0 ? v.durationS : null
+    return { tree: v.treeSha, headSha, read, fullRunS }
   } catch {
     return null
   }
@@ -138,6 +140,7 @@ interface AnchorCandidate {
   headSha: string | null
   changed: string[]
   read?: string[] | null
+  fullRunS?: number | null
 }
 const candidates: AnchorCandidate[] = []
 const local = localGreenTree()
@@ -148,6 +151,7 @@ if (local) {
     headSha: local.headSha,
     changed: changedFrom(local.tree),
     read: local.read,
+    fullRunS: local.fullRunS,
   })
 }
 const fromLedger = ledgerGreenTrees()
@@ -182,6 +186,7 @@ const anchor: SliceAnchor | null = base
       })(),
       read: base.read ?? null,
       present: base.read ? suitesIn(base.tree) : null,
+      fullRunS: base.fullRunS ?? null,
     }
   : null
 
@@ -259,10 +264,10 @@ if (plan.ledger.outside.length > 0)
 if (plan.ledger.sliceEstimateS !== null) {
   const pct = Math.round((plan.ledger.sliceEstimateS / Math.max(1, plan.ledger.poolEstimateS)) * 100)
   console.log(
-    `  estimate: slice ≈ ${plan.ledger.sliceEstimateS}s pooled vs full pool ≈ ${plan.ledger.poolEstimateS}s (${pct}%)`,
+    `  estimate: slice ≈ ${plan.ledger.sliceEstimateS}s pooled vs full pool ≈ ${plan.ledger.poolEstimateS}s${plan.ledger.poolMeasured ? ' measured' : ''} (${pct}%)`,
   )
 } else {
-  console.log(`  estimate: full pool ≈ ${plan.ledger.poolEstimateS}s (no slice wall — ${plan.kind})`)
+  console.log(`  estimate: full pool ≈ ${plan.ledger.poolEstimateS}s${plan.ledger.poolMeasured ? ' measured' : ''} (no slice wall — ${plan.kind})`)
 }
 
 if (PLAN_ONLY) {
