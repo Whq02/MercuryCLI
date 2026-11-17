@@ -68,6 +68,7 @@ splash	37
 motion	100
 build	34
 ide	111
+ide-drives	5
 gate	275
 agent-dispatch	164
 terminal-boundary	120
@@ -88,7 +89,8 @@ switchboard-3	73
 switchboard-4	8
 switchboard-5	7
 switchboard-6	5
-builtin-tools	149
+builtin-tools	142
+builtin-tools-drives	5
 visual-contract	62
 operator-identity	1
 changesets	38
