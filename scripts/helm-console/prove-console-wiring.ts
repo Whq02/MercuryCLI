@@ -6,6 +6,7 @@ import {
   helmRowSig,
   type HelmRow,
 } from '../../src/utils/cockpit/helmFocus.js'
+import { getFlagSpec } from '../../src/substrate/flagRegistry.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -69,9 +70,9 @@ check('the store keeps no compose line (no buffer, no cursor, no recall)', !stor
 check('the store reads nothing from the focus model', !store.includes('helmFocus.js'))
 
 section('flag registry — MERCURY_HELM_CONSOLE')
-const reg = read('src/substrate/flagRegistry.ts')
-check('row present', reg.includes("env: 'MERCURY_HELM_CONSOLE'"))
-check('default-on + additive + evidence names this suite', /MERCURY_HELM_CONSOLE'[^}]*kind: 'default-on'[^}]*tier: 'additive'[^}]*evidence: 'scripts\/helm-console\/run-all\.sh'/.test(reg))
+const consoleRow = getFlagSpec('MERCURY_HELM_CONSOLE')
+check('row present', consoleRow !== undefined)
+check('default-on + additive + evidence names this suite', consoleRow?.kind === 'default-on' && consoleRow.tier === 'additive' && consoleRow.evidence === 'scripts/helm-console/run-all.sh')
 
 section('side-question hardening — the abort actually reaches the fork')
 const sq = read('src/utils/sideQuestion.ts')

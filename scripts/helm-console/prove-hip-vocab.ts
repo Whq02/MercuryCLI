@@ -8,6 +8,7 @@ import {
   quicksilverMode,
   sampleSpinnerVerb,
 } from '../../src/constants/spinnerVerbs.js'
+import { getFlagSpec } from '../../src/substrate/flagRegistry.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -91,8 +92,8 @@ check('animation row derives cadence from the displayed head', row.includes('isQ
 check('…and threads it to the glyph', row.includes('cadence={cadence}'))
 
 section('flag registry — MERCURY_HIP promoted (legacy alias bounded)')
-const reg = readFileSync('src/substrate/flagRegistry.ts', 'utf8')
-check("kind flipped to 'mixed' with the main-vocab contract", /MERCURY_HIP'[^}]*kind: 'mixed'[^}]*MAIN VOCAB/.test(reg))
+const hipRow = getFlagSpec('MERCURY_HIP')
+check("kind flipped to 'mixed' with the main-vocab contract", hipRow?.kind === 'mixed' && hipRow.summary.includes('MAIN VOCAB'))
 
 console.log('')
 if (failures > 0) {
