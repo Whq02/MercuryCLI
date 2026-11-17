@@ -1,4 +1,5 @@
 import { writeSync } from 'node:fs'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { cliOk } from '../exit.js'
 import {
   clearApiKeyHelperCache,
@@ -134,9 +135,9 @@ export async function authLogin(opts: {
     : !opts.console
   const forcedOrgUUID = getInitialSettings().credentials?.organisation
 
-  const envRefreshToken = process.env.MERCURY_OAUTH_REFRESH_TOKEN
+  const envRefreshToken = flagEnv('MERCURY_OAUTH_REFRESH_TOKEN')
   if (envRefreshToken) {
-    const scopesRaw = process.env.MERCURY_OAUTH_SCOPES
+    const scopesRaw = flagEnv('MERCURY_OAUTH_SCOPES')
     if (!scopesRaw) {
       console.error(
         'MERCURY_OAUTH_SCOPES must be set to the space-separated scope list the refresh token was issued with (for example "org:create_api_key user:profile user:inference").',
