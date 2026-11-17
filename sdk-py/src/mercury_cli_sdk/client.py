@@ -531,6 +531,7 @@ class MercuryRun(Settles):
             raise StopAsyncIteration
         row = await self._queue.get()
         if row is None:
+            self._queue.put_nowait(None)
             if self.error: raise self.error
             raise StopAsyncIteration
         return row

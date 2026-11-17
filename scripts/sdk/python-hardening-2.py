@@ -130,6 +130,18 @@ async def side_channel_errors():
         logger.propagate = True
 
 
+async def shared_iteration():
+    task = await run('x', mercury=mercury('text-run'))
+    async def read(): return [row['type'] async for row in task]
+    first, second = await asyncio.wait_for(asyncio.gather(read(), read()), 8)
+    assert sorted(first + second) == ['outcome', 'session', 'text'], (first, second)
+    assert [row['type'] async for row in task] == []
+    failed = await run('x', mercury=mercury('cut-run'))
+    async def fail(): return await expect(read_all(failed), MercuryExitError)
+    async def read_all(handle): return [row['type'] async for row in handle]
+    assert all(isinstance(error, MercuryExitError) for error in await asyncio.wait_for(asyncio.gather(fail(), fail()), 8))
+
+
 async def main():
     await check('run: a process killed mid-row raises its exit, not a wire error, and a whole last row without a newline is still read', cut_run)
     await check('session: a runner killed mid-row fails its requests with the exit, not a wire error', cut_runner)
@@ -138,6 +150,7 @@ async def main():
     await check('run_sync: Ctrl-C reaches the program as KeyboardInterrupt instead of hanging', ctrl_c)
     await check('a row listener that raises ends the run or session with that error as the cause, not a wire error', listener_errors)
     await check('a stderr, end or error listener that raises is logged and the run still settles', side_channel_errors)
+    await check('run: two tasks iterating one run both end, with the run error when it failed', shared_iteration)
 
 
 asyncio.run(asyncio.wait_for(main(), 240))
