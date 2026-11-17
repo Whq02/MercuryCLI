@@ -1,0 +1,42 @@
+files	typescript under src and scripts	8640
+files	csharp	8
+files	dockerfile	2
+files	fish	1
+files	gdscript	51
+files	ignore	7
+files	ini	6
+files	javascript	101
+files	json	334
+files	nix	5
+files	powershell	3
+files	python	101
+files	rust	2
+files	sed	1
+files	shader	2
+files	shell	293
+files	toml	4
+files	typescript	45
+files	yaml	15
+kept	action pin	84
+kept	compdef	1
+kept	encoding	0
+kept	gate header	3271
+kept	generated marker	2
+kept	quiet	0
+kept	read docstring	1
+kept	reference	6
+kept	requires	3
+kept	sdk docstring	70
+kept	shebang	334
+excepted	native/	28	137
+excepted	scripts/field-tasks/field-kit/task/	2	2
+excepted	src/extensions/bundled/mercury-media/server/	10	0
+excepted	vendor/	13	0
+excepted-file	native/voice/Cargo.toml	2
+excepted-file	native/voice/build.rs	3
+excepted-file	native/voice/src/lib.rs	23
+excepted-file	native/voice/src/tty.rs	36
+excepted-file	native/whisper/Cargo.toml	3
+excepted-file	native/whisper/build.rs	5
+excepted-file	native/whisper/src/lib.rs	65
+excepted-file	scripts/field-tasks/field-kit/task/src/ledger.mjs	2
