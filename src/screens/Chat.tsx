@@ -769,7 +769,7 @@ export function Chat({
   );
 
   const prefersReducedMotion = useAppState(state => state.settings.view?.reducedMotion === true);
-  const reducedMotion = prefersReducedMotion || isEnvTruthy(process.env.MERCURY_REDUCED_MOTION);
+  const reducedMotion = prefersReducedMotion || isEnvTruthy(flagEnv('MERCURY_REDUCED_MOTION'));
   const streamingSuppressed = streamingRevealSuppressed(reducedMotion, fullscreen);
 
   const sessionAsks = useSyncExternalStore(subscribeFocusedAsks, getFocusedAsks, getFocusedAsks);
