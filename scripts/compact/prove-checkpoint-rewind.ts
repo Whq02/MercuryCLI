@@ -20,6 +20,7 @@ const cr = await import('../../src/services/compact/checkpointRewind.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
 const { CheckpointTool } = await import('../../src/tools/CheckpointTool/CheckpointTool.tsx')
 const { RewindTool } = await import('../../src/tools/RewindTool/RewindTool.tsx')
+const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 type Message = import('../../src/types/message.ts').Message
 
 const asst = (blocks: unknown[]): Message => createAssistantMessage({ content: blocks as never }) as Message
@@ -155,8 +156,7 @@ section('§D the machine + registry pins (structural)')
   check("the Continue union carries 'checkpoint_settle_guard'", transitions.includes("'checkpoint_settle_guard'"))
   const tools = readFileSync(join(ROOT, 'src/tools.ts'), 'utf8')
   check('the catalogue offers the pair behind the default-on flag', tools.includes('checkpointRewindEnabled') && tools.includes('CheckpointTool, RewindTool'))
-  const registry = readFileSync(join(ROOT, 'src/substrate/flagRegistry.ts'), 'utf8')
-  check('MERCURY_CHECKPOINT_REWIND carries its registry row', registry.includes('MERCURY_CHECKPOINT_REWIND'))
+  check('MERCURY_CHECKPOINT_REWIND carries its registry row', getFlagSpec('MERCURY_CHECKPOINT_REWIND') !== undefined)
   const plan = readFileSync(join(ROOT, 'src/services/run/requestContextPlan.ts'), 'utf8')
   const compact = readFileSync(join(ROOT, 'src/services/compact/compact.ts'), 'utf8')
   check('both provider-bound projections consult projectRewoundWindows', plan.includes('projectRewoundWindows') && compact.includes('projectRewoundWindows'))
