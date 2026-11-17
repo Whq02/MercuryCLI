@@ -14,6 +14,7 @@ for (const key of ['MERCURY_HOME', 'MERCURY_AUTH_SCOPE_DIR', 'OPENAI_API_KEY', '
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const { GPT_DISPLAY_PINS } = await import('../../src/services/providers/openai/gptPins.js')
+const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
 const { providerFrontierFact, providerFrontierLine, openaiFrontierRelease, openaiLightChoice } = await import('../../src/utils/model/providerFrontier.js')
 const { effortFamiliesLabel } = await import('../../src/utils/effort.js')
 const { ZEN_DISPLAY_PINS, zenDisplayPin, zenServedShapeOf, zenAcceptsEffort } = await import('../../src/services/providers/zen/zenPins.js')
@@ -90,6 +91,24 @@ try {
   })
   check('the Nous head holds one release of the family: the two 6.2 ids, GPT-6.1 Sol gone, five rows', () => {
     assert.deepEqual([...NOUS_PORTAL_RECOMMENDED], ['anthropic/claude-sonnet-5.5', 'openai/gpt-6.2-astra', 'openai/gpt-6.2-sol', 'google/gemini-4-argon', 'deepseek/deepseek-v4.1-flash-1017'])
+  })
+  check("a ChatGPT sign-in's list wins over the row: its own effort words and default are sent, and a list that states none takes none from the row", () => {
+    catalogue.__resetOpenaiCatalogueForTest()
+    const now = Date.now()
+    assert.equal(catalogue.primeOpenaiCatalogue({ sourceKind: 'chatgpt-subscription', fetchedAtMs: now, models: [sol, astra].map((id, index) => ({ id, priority: index + 1, supportedReasoningEfforts: ['low', 'medium'], reasoningEffortsStated: true, defaultReasoningEffort: 'low' })) }), true)
+    for (const id of [sol, astra]) {
+      const row = catalogue.evaluateGptCandidate(id, 'chatgpt-subscription')
+      assert.ok(row.ok, id)
+      assert.deepEqual(row.candidate.live.supportedReasoningEfforts, ['low', 'medium'])
+      assert.equal(catalogue.resolveGptReasoningProfile('max', row.candidate.live).wireEffort, 'medium')
+      assert.equal(catalogue.resolveGptReasoningProfile(undefined, row.candidate.live).wireEffort, 'low')
+    }
+    assert.equal(catalogue.primeOpenaiCatalogue({ sourceKind: 'chatgpt-subscription', fetchedAtMs: now + 1, models: [{ id: sol, supportedReasoningEfforts: [], reasoningEffortsStated: false }] }), true)
+    const unstated = catalogue.evaluateGptCandidate(sol, 'chatgpt-subscription')
+    assert.ok(unstated.ok)
+    assert.deepEqual(unstated.candidate.live.supportedReasoningEfforts, [])
+    assert.equal(catalogue.resolveGptReasoningProfile('max', unstated.candidate.live).wireEffort, undefined)
+    catalogue.__resetOpenaiCatalogueForTest()
   })
 } finally {
   rmSync(home, { recursive: true, force: true })
