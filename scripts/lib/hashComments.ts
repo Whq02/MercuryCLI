@@ -26,7 +26,7 @@ type Found = { pos: number; end: number; kind: HashKind; form: Form; embedded: b
 type Place = { path: string; text: string; pos: number; line: number; column: number; before: string; form: Form; embedded: boolean }
 type KeepRule = { name: string; reader: string; kinds: HashKind[]; test: (comment: string, at: Place) => boolean }
 
-export const HASH_KINDS: [kind: HashKind, extensions: string[]][] = [
+const HASH_KINDS: [kind: HashKind, extensions: string[]][] = [
   ['typescript', ['ts', 'tsx', 'mts', 'cts']],
   ['javascript', ['js', 'mjs', 'cjs', 'jsx']],
   ['shell', ['sh', 'bash', 'zsh', 'command']],
@@ -80,7 +80,7 @@ export const HASH_KEEP_RULES: KeepRule[] = [
   },
   {
     name: 'generated marker',
-    reader: 'src/utils/wards/wards.ts GENERATED_MARKER, and scripts/health/prove-deployed-assets.ts for the block the launcher embeds',
+    reader: "the product's generated-file ward (GENERATED_MARKER), and scripts/health/prove-deployed-assets.ts for the block the launcher embeds",
     kinds: HASH_STYLE,
     test: (c, at) => !at.embedded && /^# (generated|composed|managed) by (bun run |bun |node |bash |sh |python3? )?([A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+\.(ts|tsx|mts|mjs|cjs|js|sh|py)( — do not hand-edit)?$/.test(c),
   },

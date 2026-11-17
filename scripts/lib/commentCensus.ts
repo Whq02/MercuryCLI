@@ -74,10 +74,6 @@ export function censusTree(root: string): TreeCensus {
   return census
 }
 
-export function hashCensusFiles(root: string): string[] {
-  return censusTree(root).read.map(file => join(root, file.path))
-}
-
 export function commentRanges(path: string, text: string): CommentRange[] {
   if (hashKindOf(path, text) !== null) return hashComments(path, text).filter(comment => comment.keep === null).map(comment => ({ pos: comment.pos, end: comment.end }))
   return (hookCommentRanges(path, text) as CommentRange[]).map(range => ({ pos: range.pos, end: range.end })).sort((a, b) => a.pos - b.pos)

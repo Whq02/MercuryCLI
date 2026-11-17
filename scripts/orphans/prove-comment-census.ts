@@ -397,7 +397,7 @@ const HASH_CASES: HashCase[] = [
   },
   {
     path: 'fixture.cfg',
-    lines: ['; a banner line', '[plugin]', 'name="a;b"', ''],
+    lines: ['; a banner line', '[section]', 'name="a;b"', ''],
     kept: [],
     gone: ['; a banner line'],
     stays: ['name="a;b"'],
