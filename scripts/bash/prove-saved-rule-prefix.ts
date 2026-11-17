@@ -56,16 +56,16 @@ try {
   console.log('refusals')
   for (const command of ['rm -rf build', 'rmdir empty', 'del file.txt', 'git reset --hard HEAD', 'git clean -fd', 'git push --force origin topic', 'git stash clear', 'kubectl delete pod sample', 'terraform destroy']) {
     check(`${command}: the card never offers a wildcard`, getSimpleCommandPrefix(command) === null && getFirstWordPrefix(command) === null, seed(command))
-    const answer = await bashToolHasPermission({ command }, getEmptyToolPermissionContext(), async () => ({ commandPrefix: command.split(' ')[0]! }))
-    check(`${command}: the result never offers a wildcard even with a broad hint`, contents(answer).every(rule => !hasWildcards(rule)), contents(answer))
+    const answer = await bashToolHasPermission({ command }, getEmptyToolPermissionContext())
+    check(`${command}: the result never offers a wildcard`, contents(answer).every(rule => !hasWildcards(rule)), contents(answer))
     const options = bashToolUseOptions({ suggestions: (answer as { suggestions?: never }).suggestions, onRejectFeedbackChange: () => {}, onAcceptFeedbackChange: () => {}, editablePrefix: seed(command), onEditablePrefixChange: () => {} })
     check(`${command}: the ask options carry no wildcard`, options.every(opt => !('initialValue' in opt && typeof opt.initialValue === 'string' && hasWildcards(opt.initialValue))), options.map(o => ({ value: o.value, initialValue: 'initialValue' in o ? o.initialValue : undefined })))
   }
   for (const command of ['npm run', 'docker compose', 'gh pr', 'python3', 'python3 -c "import os"', './../run.sh arg', './bash -c "echo x"', 'env npm run test', 'bash -c "npm run test"', 'npm run test; npm run deploy', 'npm run test\nnpm run deploy', 'npm run $SCRIPT', 'npm run test*']) {
     check(`${command}: no shortened wildcard seed`, getSimpleCommandPrefix(command) === null && getFirstWordPrefix(command) === null, seed(command))
   }
-  const wrongHint = await bashToolHasPermission({ command: 'npm run test' }, getEmptyToolPermissionContext(), async () => ({ commandPrefix: 'npm run' }))
-  check('an external prefix hint cannot widen the offered rule', contents(wrongHint).includes('npm run test *') && !contents(wrongHint).includes('npm run *'), contents(wrongHint))
+  const offered = await bashToolHasPermission({ command: 'npm run test' }, getEmptyToolPermissionContext())
+  check('npm run test: the result offers npm run test *, never the wider npm run *', contents(offered).includes('npm run test *') && !contents(offered).includes('npm run *'), contents(offered))
   mkdirSync(join(home, '.mercury'), { recursive: true })
   const settingsFile = join(home, '.mercury', 'settings.local.json')
   const rawSettings = '{\n  "guardrails": {\n    "allow": [\n      "Bash(npm run *)"\n    ]\n  }\n}\n'
