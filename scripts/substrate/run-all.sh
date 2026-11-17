@@ -59,6 +59,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-filestore-stat-gate.ts" || { __rc=
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-gauge-owners.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-gauge-owners.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-pidlock.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-pidlock.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-flag-registry.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-flag-registry.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-flag-registry-readers.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-flag-registry-readers.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-env-names.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-env-names.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-env-switches.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-env-switches.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-prompt-provenance.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-prompt-provenance.ts" "$__t" "$__rc"
