@@ -385,7 +385,6 @@ section('§5 the sign-in owners — every credential-landing site records; the r
   const machine = src('components/mercury-ui/screens/anthropicLoginModel.ts')
   check('the Anthropic machine records the arm that landed, after the save and the mint — and no first-login record', machine.includes("deps.recordSignIn(deps.usesClaudeAiAuth(tokens.scopes) ? 'oauth' : 'api-key')") && machine.includes("recordSignIn: kind => recordSignInLedger('anthropic', kind)") && !machine.includes('recordFirstLogin'))
   check('the headless auth door records after its save and mint', src('cli/handlers/auth.ts').includes("recordSignIn('anthropic', shouldUseClaudeAIAuth(tokens.scopes) ? 'oauth' : 'api-key')"))
-  check('the scoped reauth records inside its scope bracket', src('utils/accounts/scopedReauth.ts').includes("recordSignIn('anthropic', 'oauth')"))
   check('the first-party token owner (the refresh path) never records', !src('utils/auth.ts').includes('recordSignIn('))
   for (const rel of ['services/providers/openai/openaiAccounts.ts', 'services/providers/gemini/geminiAccounts.ts', 'services/providers/moonshot/moonshotAccounts.ts', 'services/providers/huggingface/huggingfaceAccounts.ts']) {
     const text = src(rel)

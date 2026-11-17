@@ -22,11 +22,6 @@
       "file": "src/substrate/identity/index.ts",
       "class": "living-specimen",
       "reason": "The one-import barrel of src/substrate/identity. No product path and no proof imports it: the product imports the modules it re-exports. Parked with accountFacts.ts on the multiplayer estate planned after release until the operator rules; scripts/operator-identity/prove-operator-identity.ts section 5 reads it for a second key derivation."
-    },
-    {
-      "file": "src/utils/accounts/scopedReauth.ts",
-      "class": "proof-or-fixture-only",
-      "reason": "Re-authorises one account scope by a pasted code and saves through the auth-scope bracket. No screen hosts the flow since the operator's inventory-only ruling on /accounts (the login gesture reroutes to Logins); this row has recorded that the ruling keeps the module, so it stays parked until the operator rules. scripts/accounts/prove-scoped-reauth.ts proves the link, the refusals and the bracketed save."
     }
   ]
 }
