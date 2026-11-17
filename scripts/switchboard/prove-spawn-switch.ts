@@ -315,7 +315,8 @@ section("§6 the seat verb — idle applies, busy parks and forwards, the runner
   const heldAnswer = { switch: 'subagents', on: false, at: 'turn_end' }
   check("the runner answers a 'spawn_switch' with where it lands — now when idle, the turn boundary otherwise — and lands a deferred one at the turn's end with the session/applied notification", j(live.held) === j([heldAnswer, heldAnswer]) && j(live.during?.subagents) === j(live.rest?.subagents) && j(live.applied) === j([{ method: 'session/applied', params: { request_id: live.lastId, verb: 'set_spawn_switch', switch: 'subagents', on: false } }]) && j(live.idle) === j({ switch: 'subagents', on: true, at: 'now' }), j(live))
   check('…the landing moves the switch and marks the transition row', live.landed?.subagents.on === false && live.landed.subagents.source === 'in-session' && printSrc.includes('messages.push(createRosterTransitionMessage(kind, on, spawnSwitchTransitionLine(kind, on)))'), j(live.landed))
-  check("the runner's facts carry its switches", live.rest?.subagents.on === true && live.rest.subagents.source === 'default' && live.landed?.subagents.on === false && live.back?.subagents.on === true && live.back.subagents.source === 'in-session', j([live.rest, live.landed, live.back]))
+  const atRest = { ...sw.spawnSwitchFacts(), subagents: { on: true, source: 'default' } }
+  check("the runner's facts carry its switches", j(live.rest) === j(atRest) && j(live.landed) === j({ ...atRest, subagents: { on: false, source: 'in-session' } }) && j(live.back) === j({ ...atRest, subagents: { on: true, source: 'in-session' } }), j([live.rest, live.landed, live.back]))
 }
 
 section('§7 the preserved-thinking seam — a roster transition is a lawful prefix change that names the toggle')
