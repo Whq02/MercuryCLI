@@ -15,7 +15,7 @@
 # gate-watch: src/utils/wards/wardsRefusals.ts src/utils/wards/wardsShellRead.ts
 # gate-watch: scripts/verify/fast.ts scripts/verify/impact.ts scripts/verify/impactManifest.ts scripts/verify/sliceCore.ts
 # gate-watch: scripts/verify/prove-impact-manifest.ts scripts/verify/prove-impact-run.ts scripts/verify/prove-slice-core.ts
-# gate-watch: scripts/substrate/prove-flag-registry-readers.ts
+# gate-watch: scripts/substrate/prove-flag-registry-readers.ts scripts/substrate/prove-flag-registry-split.ts
 # gate-watch: src/tasks/LocalShellTask/killShellTasks.ts src/tasks/LocalShellTask/LocalShellTask.tsx src/tools/BashTool/bashPermissions.ts src/tools/BashTool/BashTool.tsx
 # gate-watch: src/tools/BashTool/BashToolResultMessage.tsx src/tools/BashTool/UI.tsx src/tools/BashTool/utils.ts src/tools/PowerShellTool/PowerShellTool.tsx
 # gate-watch: src/tools/PowerShellTool/UI.tsx src/utils/bash/registry.ts src/utils/permissions/commandContent.ts src/utils/permissions/decision/commandAnalysis.ts
@@ -83,6 +83,7 @@ run_proof "$here/../verify/prove-impact-run.ts" "${BUN:-$HOME/.bun/bin/bun}" run
 run_proof "$here/../verify/prove-slice-core.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../verify/prove-slice-core.ts" || fail=1
 run_proof "$here/prove-shell-door.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-shell-door.ts" || fail=1
 run_proof "$here/../substrate/prove-flag-registry-readers.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../substrate/prove-flag-registry-readers.ts" || fail=1
+run_proof "$here/../substrate/prove-flag-registry-split.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../substrate/prove-flag-registry-split.ts" || fail=1
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ GATE MACHINERY PASS"; else echo "# ❌ GATE MACHINERY FAILED"; fi
 echo "############################################################"
