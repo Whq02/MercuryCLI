@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { readFileSync } from 'node:fs'
 import { displayWidth } from '../../src/components/mercury-ui/glyphs.js'
-import { fmtTok, wrapPlain } from '../../src/utils/cockpit/helmConsoleText.js'
+import { wrapPlain } from '../../src/utils/cockpit/wrapPlain.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -13,7 +13,7 @@ function section(t: string): void {
 }
 
 console.log('============================================================')
-console.log(' helm console text shaping — wrap · fmt')
+console.log(' cockpit text shaping — wrap')
 console.log('============================================================')
 
 section('wrapPlain — width honesty')
@@ -32,23 +32,14 @@ check('hard-broken word reassembles', longWord.join('') === 'averyveryverylongun
 const paras = wrapPlain('one\n\ntwo', 10)
 check('paragraph break survives as a blank line', paras.length === 3 && paras[1] === '')
 
-section('fmtTok — boundaries')
-check('999 → 999', fmtTok(999) === '999')
-check('1000 → 1k', fmtTok(1000) === '1k')
-check('1500 → 1.5k', fmtTok(1500) === '1.5k')
-check('9999 → 10k', fmtTok(9999) === '10k')
-check('41234 → 41k', fmtTok(41234) === '41k')
-check('1.2m', fmtTok(1_200_000) === '1.2m')
-check('negative/NaN → 0', fmtTok(-5) === '0' && fmtTok(Number.NaN) === '0')
-
 section('width-oracle delegation (structural)')
-const src = readFileSync('src/utils/cockpit/helmConsoleText.ts', 'utf8')
+const src = readFileSync('src/utils/cockpit/wrapPlain.ts', 'utf8')
 check('imports the glyphs facade', src.includes("from '../../components/mercury-ui/glyphs.js'"))
 check('defines no width primitive of its own', !/function\s+(charWidth|displayWidth|stringWidth)\s*\(/.test(src))
 
 console.log('')
 if (failures > 0) {
-  console.log(`❌ prove-console-text: ${failures} FAILURE(S)`)
+  console.log(`❌ prove-wrap-plain: ${failures} FAILURE(S)`)
   process.exit(1)
 }
-console.log('✅ prove-console-text: ALL GREEN')
+console.log('✅ prove-wrap-plain: ALL GREEN')

@@ -137,7 +137,6 @@ reg(
     'src/commands/appearance/appearance.tsx',
     'src/commands/caching/caching.tsx',
     'src/commands/context/context.tsx',
-    'src/commands/console/console.tsx',
     'src/commands/health/HealthCertificate.tsx',
     'src/commands/effort/EffortPopup.tsx',
     'src/commands/run/run.tsx',

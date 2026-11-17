@@ -18,7 +18,6 @@ export type AttentionOwner =
   | 'agent-results'
   | 'steering'
   | 'tasks'
-  | 'side-question'
   | 'obligations'
 
 export type AttentionReasonCode =

@@ -38,7 +38,6 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     label: 'memory & goals',
     names: [
       'memory',
-      'console',
     ],
   },
   {

@@ -22,7 +22,7 @@ import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.j
 import { PopupFrameContext } from '../../components/PopupGutter.js'
 import { estateGroundBg } from '../../utils/mercuryTokens.js'
 import { commandPopupClaim, growCommandPopup, type CommandPopupShape } from '../../utils/cockpit/commandPopup.js'
-import { wrapPlain } from '../../utils/cockpit/helmConsoleText.js'
+import { wrapPlain } from '../../utils/cockpit/wrapPlain.js'
 import { stripTerminalControls } from '../../utils/stringUtils.js'
 
 const subscribe = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener))

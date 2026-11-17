@@ -9,7 +9,7 @@ const home = mkdtempSync(join(parent, 'expired-signin-'))
 for (const name of Object.keys(process.env)) {
   if (/^(MERCURY_|ANTHROPIC_|CLAUDE_|OPENROUTER_|OPENAI_|ZAI_|GOOGLE_|GEMINI_|MOONSHOT_|DEEPSEEK_|HF_|HUGGINGFACE_|TYPESAFE_|AWS_|AZURE_|XAI_)/.test(name) || /proxy/i.test(name)) delete process.env[name]
 }
-Object.assign(process.env, { MERCURY_CONFIG_DIR: home, MERCURY_AUTH_SCOPE_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_HELM_CONSOLE: '0', MERCURY_EVOLUTION_LEDGER: '0', MERCURY_LOCAL_PROBE_TARGETS: 'none', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key' })
+Object.assign(process.env, { MERCURY_CONFIG_DIR: home, MERCURY_AUTH_SCOPE_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_EVOLUTION_LEDGER: '0', MERCURY_LOCAL_PROBE_TARGETS: 'none', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key' })
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()

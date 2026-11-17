@@ -2,7 +2,7 @@
 # gate-class: pty
 # gate-watch: scripts/attention/**
 # gate-watch: src/services/attention/** src/services/workbench/** src/input-core/**
-# gate-watch: src/utils/sideQuestion.ts src/services/acp/** src/components/tasks/**
+# gate-watch: src/services/acp/** src/components/tasks/**
 # gate-watch: scripts/engine-durability/harness.ts scripts/lib/captureDriver.ts
 # gate-watch: scripts/streaming/artifactArena.ts scripts/ui/render-tui.ts
 # gate-watch: src/components/mercury-ui/NavigablePanes.tsx src/components/mercury-ui/useNavigablePanes.ts

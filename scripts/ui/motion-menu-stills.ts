@@ -62,7 +62,7 @@ export function composeMotionMenu(cols: number, rows: number, setting: 'auto' | 
   const m = {
     entries,
     selIdx: entries.length - 1,
-    summary: { profile: 'r0 · default', harness: 'helm · console', integrity: 'enforce', integritySet: false },
+    summary: { profile: 'r0 · default', harness: 'helm', integrity: 'enforce', integritySet: false },
     environment: { model: 'Opus 5', critter: 'Octopus', critterHue: '#B07BE0', dirBase: 'orchard-src', dirTail: '' },
     statusRight: 'changes reach new sessions',
     legend: '↑↓ move · ↵ change (saved) · ⌫ default · a apply receipts · esc back',

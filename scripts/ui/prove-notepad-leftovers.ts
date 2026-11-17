@@ -120,10 +120,10 @@ if (res.status === 0 && !undelivered) {
   check('neither the old note nor its refinement leaks into the cockpit', !/ship the telemetry|proof paths/.test(cockpit))
   check('nothing on the cockpit names the curator (its two product spellings)', !/MINERVA|Minerva/.test(cockpit), cockpit.split('\n').filter(l => /MINERVA|Minerva/.test(l)).join(' | '))
   check('the retired boot-env choice raised no error line', !/error|refused|crash/i.test(cockpit), cockpit.split('\n').filter(l => /error|refused|crash/i.test(l)).join(' | '))
-  check('/submodels opened on the Console', /CONSOLE — side questions/.test(submodels), submodels.split('\n').slice(4, 10).join(' | '))
-  check('…UNSET — the leftover minerva pick is never read', /CONSOLE — side questions · unset · no model pinned/.test(submodels), submodels.split('\n').filter(l => /CONSOLE/.test(l)).join(' | '))
+  check('/submodels opened on the Advisor', /ADVISOR — advises the working model, not you/.test(submodels), submodels.split('\n').slice(4, 10).join(' | '))
+  check('…UNSET — the leftover minerva pick is never read', /ADVISOR — advises the working model, not you · unset · no model pinned/.test(submodels), submodels.split('\n').filter(l => /ADVISOR/.test(l)).join(' | '))
   check('…and the picker names no other container', !/MINERVA|Minerva/.test(submodels))
-  check('esc closes it back to the cockpit', /RECENT|NEXT/.test(final) && !/CONSOLE — side questions/.test(final))
+  check('esc closes it back to the cockpit', /RECENT|NEXT/.test(final) && !/ADVISOR — advises the working model/.test(final))
   const configPath = join(CONFIG_HOME, '.mercury.json')
   const conversationsPath = join(process.env.MERCURY_CREW_DIR!, `conversations-${projectKey}.json`)
   for (const [path, body] of seeded) {
@@ -133,7 +133,7 @@ if (res.status === 0 && !undelivered) {
   const configAfter = JSON.parse(readFileSync(configPath, 'utf8')) as { subModels?: Record<string, unknown> }
   check(
     'the leftover container pick and effort survive this build\'s own config writes',
-    configAfter.subModels?.minerva === 'claude-opus-5' && (configAfter.subModels?.effort as Record<string, unknown> | undefined)?.minerva === 'xhigh' && configAfter.subModels?.console === undefined,
+    configAfter.subModels?.minerva === 'claude-opus-5' && (configAfter.subModels?.effort as Record<string, unknown> | undefined)?.minerva === 'xhigh' && configAfter.subModels?.advisor === undefined,
     JSON.stringify(configAfter.subModels),
   )
   const conversationsAfter = JSON.parse(readFileSync(conversationsPath, 'utf8')) as { conversations?: Record<string, { kind?: string }> }

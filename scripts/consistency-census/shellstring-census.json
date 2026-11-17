@@ -521,13 +521,6 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
-      "file": "scripts/critters/prove-critter-sleep.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "viewCalls = execSync(",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
       "file": "scripts/critters/prove-ghost-wipe-live.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(REPO, 'scripts/ui/vshot.py'), cfgPath], {",
@@ -902,20 +895,6 @@
       "file": "scripts/health/prove-process-census-other-build.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "observation(77001, 1, ['/usr/bin/python3', '/Users/op/pre27-air/runwatch.py', 'mercury.mjs'], { exe: 'python3' }),",
-      "cls": "platform-owner",
-      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
-    },
-    {
-      "file": "scripts/helm-console/live-console-e2e.ts",
-      "mechanism": "hardcoded-tmp",
-      "excerpt": "writeFileSync('/tmp/vshot-live-console.json', JSON.stringify({ ...cfg, out: gridPath }))",
-      "cls": "platform-owner",
-      "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
-    },
-    {
-      "file": "scripts/helm-console/live-console-e2e.ts",
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },

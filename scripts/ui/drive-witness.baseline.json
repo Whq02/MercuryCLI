@@ -55,7 +55,6 @@
     "scripts/health/prove-health-mcp-row.ts": 3,
     "scripts/health/prove-model-lists-health-drive.ts": 8,
     "scripts/health/prove-process-sweep-health-drive.ts": 9,
-    "scripts/helm-console/live-console-e2e.ts": 7,
     "scripts/interaction/prove-click-expand.ts": 2,
     "scripts/interaction/prove-composer-editing.ts": 19,
     "scripts/interaction/prove-composer-input-claims.ts": 7,

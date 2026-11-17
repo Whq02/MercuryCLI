@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 delete process.env.NODE_ENV
-for (const ambient of ['MERCURY_MODEL', 'MERCURY_OAUTH_TOKEN', 'MERCURY_SCRIPTED_STREAM', 'MERCURY_BARE', 'MERCURY_ADVISOR_MODEL', 'MERCURY_CONSOLE_MODEL', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOKENS']) {
+for (const ambient of ['MERCURY_MODEL', 'MERCURY_OAUTH_TOKEN', 'MERCURY_SCRIPTED_STREAM', 'MERCURY_BARE', 'MERCURY_ADVISOR_MODEL', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOKENS']) {
   delete process.env[ambient]
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'advisor-service-home-'))
@@ -193,7 +193,7 @@ section('§0 the settings: off by default, ten minutes, a trim-to-defaults write
   const off = advisor.setAdvisorEnabled(false)
   check('advisor off again removes the block entirely', !off.enabled && config.getGlobalConfig().advisor === undefined, j(config.getGlobalConfig().advisor))
   check('the ladder the /config row cycles is 2 · 5 · 10 · 20 · 30 · 45 · 60 minutes, 10 still the default (red on the base: 10 · 20 · 30 · 45 · 60)', j(advisor.ADVISOR_MINUTES_LADDER) === j([2, 5, 10, 20, 30, 45, 60]) && advisor.ADVISOR_DEFAULT_MINUTES === 10 && advisor.ADVISOR_MINUTES_FLOOR === 1 && advisor.ADVISOR_SEATS_LADDER === undefined, j(advisor.ADVISOR_MINUTES_LADDER))
-  check("the advisor is a second sub-model container beside the console, with its own env pin", j(slots.SUB_MODEL_CONTAINERS) === j(['console', 'advisor']) && slots.subModelEnvVar('advisor') === 'MERCURY_ADVISOR_MODEL' && slots.subModelEnvVar('console') === 'MERCURY_CONSOLE_MODEL', j(slots.SUB_MODEL_CONTAINERS))
+  check("the advisor is the one sub-model container, with its own env pin", j(slots.SUB_MODEL_CONTAINERS) === j(['advisor']) && slots.subModelEnvVar('advisor') === 'MERCURY_ADVISOR_MODEL', j(slots.SUB_MODEL_CONTAINERS))
   check('unpinned, the advisor model is UNSET and answers the /submodels hint', advisor.resolveAdvisorModel().origin === 'unset')
   process.env.MERCURY_ADVISOR_MODEL = ` ${ADVISOR_MODEL}[1m] `
   const pinned = advisor.resolveAdvisorModel()
@@ -204,11 +204,7 @@ section('§0 the settings: off by default, ten minutes, a trim-to-defaults write
   config.saveGlobalConfig(c => ({ ...c, subModels: { ...c.subModels, advisor: ADVISOR_MODEL } }))
   const saved = advisor.resolveAdvisorModel()
   check('the saved /submodels pick is the second rung', saved.origin === 'saved' && saved.model === ADVISOR_MODEL, j(saved))
-  const identity = slots.subModelIdentityLine('advisor', saved as never)
-  check('the identity line names the advisor and the model, never the operator as its audience', identity.includes('the Advisor') && identity.includes(ADVISOR_MODEL) && identity.includes('never the operator'), identity)
-  const consoleIdentity = slots.subModelIdentityLine('console', { origin: 'saved', model: ADVISOR_MODEL, route: 'anthropic' } as never)
-  check("the console's identity line is untouched", consoleIdentity.includes('the Console, the side-question assistant'))
-  check("the advisor's effort context says its calls run with thinking off; the console's stays the session's", j(slots.subModelEffortContext('advisor')) === j({ thinkingEnabled: false }) && j(slots.subModelEffortContext('console')) === j({}))
+  check("the advisor's effort context says its calls run with thinking off", j(slots.subModelEffortContext('advisor')) === j({ thinkingEnabled: false }))
   check('the workload vocabulary carries the advisor beside cron', workload.WORKLOAD_ADVISOR === 'advisor' && workload.WORKLOAD_CRON === 'cron')
   check('the receipt words name the state and the model', advisor.advisorReceiptWords({ enabled: true, minutes: 5 }).includes('every 5 minutes') && advisor.advisorReceiptWords({ enabled: false, minutes: 10 }).startsWith('Advisor off'))
   check('the interval words: minutes, one of them singular', advisor.advisorIntervalWords(10) === 'every 10 minutes' && advisor.advisorIntervalWords(1) === 'every 1 minute' && advisor.advisorValueWords({ enabled: true, minutes: 10 }) === 'on · every 10 minutes · /advise turns it on per chat' && advisor.advisorValueWords({ enabled: false, minutes: 10 }) === 'off')

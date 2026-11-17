@@ -94,3 +94,6 @@ prove-vim-word-line-end.ts
 prove-local-command-order.ts
 prove-midturn-local-commands.ts
 prove-wheel-surfaces.ts
+prove-hip-vocab.ts
+prove-desert-verbs-cadence.ts
+prove-wrap-plain.ts

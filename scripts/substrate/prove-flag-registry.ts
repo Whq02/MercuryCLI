@@ -155,7 +155,6 @@ const OFF_RULE_READERS: Array<[env: string, file: string, reader: string]> = [
   ['MERCURY_CRITTER_IDLE', 'utils/cockpit/critterIdle.ts', 'critterIdleEnabled'],
   ['MERCURY_LIVE_GLYPHS', 'utils/cockpit/liveGlyphs.ts', 'liveGlyphsEnabled'],
   ['MERCURY_TURN_RECEIPT', 'utils/cockpit/turnReceipt.ts', 'isTurnReceiptEnabled'],
-  ['MERCURY_HELM_CONSOLE', 'utils/cockpit/helmConsole.ts', 'consoleEnabled'],
   ['MERCURY_CTX_FORECAST', 'utils/cockpit/ctxForecast.ts', 'ctxForecastEnabled'],
   ['MERCURY_RUNTIME_POSTURE', 'utils/cockpit/runtimePosture.ts', 'runtimePostureEnabled'],
   ['MERCURY_LSP', 'services/lsp/mercuryLsp.ts', 'mercuryLspEnabled'],

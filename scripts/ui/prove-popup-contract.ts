@@ -552,7 +552,7 @@ for (const cols of [80, 120]) {
       return lines.find(line => /[❯›▸] /.test(line) && !/↑↓|pgup/.test(line))?.trim() ?? ''
     }
     try {
-      await settledFrame(scene, frame => frame.includes(name === 'localsetup' ? 'Fixture model' : name === 'health' ? 'FIXTURE' : name === 'ground' ? 'ground-' : 'CONSOLE'))
+      await settledFrame(scene, frame => frame.includes(name === 'localsetup' ? 'Fixture model' : name === 'health' ? 'FIXTURE' : name === 'ground' ? 'ground-' : 'ADVISOR'))
       if (name === 'localsetup' && focus() === '') {
         scene.push(keys.down)
         await waitFor(() => focus() !== '', 1800)

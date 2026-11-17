@@ -93,10 +93,7 @@ section('§G D03/D04 — role/handoff/delivery truth where it ships')
     /if \(retryingUnknown && !seat\.declaresIdempotentDelivery\) \{\s*return retryingUnknown\s*\}/.test(dispatchCode) &&
       /if \(retryingUnknown\) \{\s*return retryingUnknown\s*\}/.test(dispatchCode),
   )
-  const handoffSrc = readFileSync(join(ROOT, 'src/services/crew/consoleHandoff.ts'), 'utf8')
-  check('handoff links BOTH lineages with no id change', handoffSrc.includes("linkConversation(sideConversationId, targetConversationId, 'handoff'"))
-  check('a conversation cannot hand off to itself (typed refusal)', handoffSrc.includes('cannot hand off to itself'))
-  for (const suite of ['scripts/helm-console/run-all.sh', 'scripts/crew/run-all.sh']) {
+  for (const suite of ['scripts/crew/run-all.sh']) {
     const { existsSync } = await import('node:fs')
     check(`standing journey suite present: ${suite}`, existsSync(join(ROOT, suite)))
   }

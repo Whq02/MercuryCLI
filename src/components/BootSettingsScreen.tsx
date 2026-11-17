@@ -79,7 +79,6 @@ import { branchChip } from './mercury-ui/glyphs.js';
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js';
 import { renderSceneLine } from './mercury-ui/SceneCanvas.js';
 import { isFullscreenEnvEnabled, isHelmHomeEnabled } from '../utils/fullscreen.js';
-import { consoleEnabled } from '../utils/cockpit/helmConsole.js';
 import { useGreetingShimmer } from './mercury-ui/useGreetingShimmer.js';
 import { useInteractiveList } from './mercury-ui/useInteractiveList.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
@@ -516,7 +515,6 @@ export function BootSettingsScreen({
     });
     const harness = [
       isHelmHomeEnabled() ? 'helm' : null,
-      consoleEnabled() ? 'console' : null,
     ].filter(Boolean) as string[];
     const critterKey = getSessionCritterKey();
     const idleStatus =

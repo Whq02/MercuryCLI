@@ -130,11 +130,6 @@ function recompute(): void {
   armClock()
 }
 
-export function noteCritterRealActivity(): void {
-  lastAgentEventTs = Date.now()
-  recompute()
-}
-
 export function critterSleepSince(): number {
   return sleepSince
 }

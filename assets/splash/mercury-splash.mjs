@@ -901,7 +901,6 @@ function menuData() {
   const harness = [
     val('MERCURY_PARTY') === '1' ? 'party' : null,
     process.env.MERCURY_HELM_HOME === '0' ? null : 'helm',
-    process.env.MERCURY_HELM_CONSOLE === '0' ? null : 'console',
   ].filter(Boolean)
   return {
     entries,

@@ -613,7 +613,7 @@ try:
         return None
 
     raw = run_pty(150, 60, {'MERCURY_SPLASH_VIEW': 'menu', 'MERCURY_HOME': home4,
-                            'MERCURY_HELM_HOME': '0', 'MERCURY_HELM_CONSOLE': '0'})
+                            'MERCURY_HELM_HOME': '0'})
     plain_lines = [STRIP.sub('', l) for l in vis_lines(raw)]
     harness_tail = panel_tail(plain_lines, 'Harness')
     check('Harness row reflects the saved offs (was: constants)',

@@ -2,110 +2,12 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, realpathSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
 
-const scratch = realpathSync(mkdtempSync(join(realpathSync(tmpdir()), 'crew-continuity-')))
-const dir = join(scratch, 'store')
-
-const conv = await import('../../src/services/crew/conversations.ts')
-const consoleHandoff = await import('../../src/services/crew/consoleHandoff.ts')
-const inbox = await import('../../src/services/crew/inbox.ts')
 const composer = await import('../../src/input-core/composer-document.ts')
 const picker = await import('../../src/services/crew/targetPicker.ts')
-
-const OPERATOR = { kind: 'operator' as const, principalId: 'op-continuity' }
-
-t.section('§1 — console asks mint their OWN conversation identity')
-{
-  const main = await conv.mintConversation({
-    kind: 'main',
-    title: 'main',
-    participants: [OPERATOR],
-    adoptId: conv.MAIN_CONVERSATION_ID,
-    dir,
-  })
-  const side = await consoleHandoff.openSideConversation({
-    question: 'what broke the tail checks?',
-    askedBy: OPERATOR,
-    dir,
-  })
-  t.check('the ask mints a NEW id (never the main id)', side.conversationId !== main.conversationId)
-  t.check('the side conversation is console-side kind', side.kind === 'console-side')
-  t.check(
-    'parent lineage lands on the side thread',
-    side.lineage.some(l => l.kind === 'parent' && l.otherConversationId === main.conversationId),
-  )
-  const afterAsk = await conv.conversationOf(side.conversationId, { dir })
-  t.check('the asked question is the first event', afterAsk!.events[0]?.kind === 'message')
-  await consoleHandoff.recordSideOutcome(
-    side.conversationId,
-    { kind: 'answered', response: 'the vitest pin moved' },
-    { dir },
-  )
-  const answered = await conv.conversationOf(side.conversationId, { dir })
-  t.check(
-    'an answer settles ITS conversation (message + completion)',
-    answered!.events.some(e => e.kind === 'completion'),
-  )
-  t.check(
-    'the settled side thread reads completed in the inbox fold',
-    inbox.deriveInboxRow(answered!, answered!.lastEventSeq).bucket === 'completed',
-  )
-  const failedSide = await consoleHandoff.openSideConversation({
-    question: 'a doomed ask',
-    askedBy: OPERATOR,
-    dir,
-  })
-  await consoleHandoff.recordSideOutcome(failedSide.conversationId, { kind: 'failed', reason: 'stream died' }, { dir })
-  const failed = await conv.conversationOf(failedSide.conversationId, { dir })
-  t.check(
-    'a failed side helper reads STALLED (unresolved failure event) — and only ITS thread moves',
-    inbox.deriveInboxRow(failed!, 0).bucket === 'stalled' &&
-      (await conv.conversationOf(main.conversationId, { dir }))!.events.length === 0,
-  )
-}
-
-t.section('§2 — the handoff law: lineage, never merge')
-{
-  const all = await conv.listConversations({ dir })
-  const side = all.find(c => c.kind === 'console-side' && c.events.some(e => e.kind === 'completion'))!
-  const sideEventsBefore = side.events.length
-  const receipt = await consoleHandoff.handOffSideConversation(
-    side.conversationId,
-    conv.MAIN_CONVERSATION_ID,
-    { deliveryRef: 'receipt:hn-1', dir },
-  )
-  t.check('the handoff records ok', receipt.ok === true)
-  const after = await conv.conversationOf(side.conversationId, { dir })
-  const target = await conv.conversationOf(conv.MAIN_CONVERSATION_ID, { dir })
-  t.check('the source keeps its id', after!.conversationId === side.conversationId)
-  t.check(
-    'both sides carry the handoff edge with the delivery ref',
-    after!.lineage.some(l => l.kind === 'handoff' && l.direction === 'from' && l.ref === 'receipt:hn-1') &&
-      target!.lineage.some(l => l.kind === 'handoff' && l.direction === 'to'),
-  )
-  t.check(
-    'NO transcript moved — the target gained no message events',
-    target!.events.every(e => e.kind !== 'message'),
-  )
-  t.check(
-    'the source transcript is intact (plus its own handoff activity event)',
-    after!.events.length >= sideEventsBefore,
-  )
-  const self = await consoleHandoff.handOffSideConversation(side.conversationId, side.conversationId, { dir })
-  t.check('a self-handoff refuses', self.ok === false)
-  const ghost = await consoleHandoff.handOffSideConversation(
-    'cv-ghost000000' as never,
-    conv.MAIN_CONVERSATION_ID,
-    { dir },
-  )
-  t.check('an unknown conversation refuses (never a silent edge)', ghost.ok === false)
-}
 
 t.section('§4 — per-conversation draft identity on the ONE document owner')
 {

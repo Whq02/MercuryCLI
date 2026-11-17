@@ -212,7 +212,7 @@ section('§3 the consequential ones steer nothing: no rule, no hook, no model, n
 section('§4 the global config: a retired spelling steers nothing and is carried as written, like any unknown key')
 {
   const configPath = join(HOME, '.mercury.json')
-  const written = { showExpandedTodos: true, lastPlanModeUse: 1700000000000, clientDataCache: { rows: [] }, advisor: { enabled: true, seats: 20, crewmates: true }, supervisorEnabled: true, notAConfigKey: true, verbose: true, autoUpdates: false, autoUpdatesProtectedForNative: true, cachedChangelog: '## old', migrationVersion: 13, projects: { [PROJ]: { history: ['old'] } } }
+  const written = { showExpandedTodos: true, lastPlanModeUse: 1700000000000, clientDataCache: { rows: [] }, advisor: { enabled: true, seats: 20, crewmates: true }, supervisorEnabled: true, notAConfigKey: true, verbose: true, autoUpdates: false, autoUpdatesProtectedForNative: true, cachedChangelog: '## old', migrationVersion: 13, subModels: { console: 'claude-opus-4-8', effort: { console: 'high' } }, projects: { [PROJ]: { history: ['old'] } } }
   writeFileSync(configPath, `${JSON.stringify(written, null, 2)}\n`)
   readGlobalConfigAgain()
   const config = getGlobalConfig() as unknown as Record<string, unknown>
@@ -221,6 +221,8 @@ section('§4 the global config: a retired spelling steers nothing and is carried
   check('the retired spellings are carried as written, like the nonsense key beside them', config.showExpandedTodos === true && config.lastPlanModeUse === 1700000000000 && j(config.clientDataCache) === j({ rows: [] }) && config.supervisorEnabled === true && config.notAConfigKey === true && config.verbose === true && config.autoUpdates === false && config.autoUpdatesProtectedForNative === true && config.cachedChangelog === '## old' && config.migrationVersion === 13, j(config))
   check('a retired key inside a project record is carried as written too', j((config.projects as Record<string, Record<string, unknown>>)[PROJ]?.history) === j(['old']), j(config.projects))
   check('the advisor block is carried whole: nothing drops a key nothing reads', j(config.advisor) === j(written.advisor), j(config.advisor))
+  const slots = await import('../../src/utils/model/subModelSlots.js')
+  check('the retired sub-model container is carried as written and picks nothing: no container of that name, the Advisor unset, no effort read', j(config.subModels) === j(written.subModels) && !(slots.SUB_MODEL_CONTAINERS as readonly string[]).includes('console') && slots.resolveSubModel('advisor').origin === 'unset' && slots.resolveSubModelEffort('advisor') === undefined, j([config.subModels, slots.SUB_MODEL_CONTAINERS, slots.resolveSubModel('advisor')]))
   check('the file keeps its bytes: no rewrite at read', readFileSync(configPath, 'utf8') === `${JSON.stringify(written, null, 2)}\n`)
 }
 

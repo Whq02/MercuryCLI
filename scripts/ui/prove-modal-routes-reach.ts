@@ -157,7 +157,7 @@ const commands = await getCommands(process.cwd())
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
 const routes = commands.filter(command => command.type === 'local-jsx' && !NOT_A_VIEW.has(command.name) && (onlyRoute === undefined || command.name === onlyRoute))
 console.log(`routes: ${routes.map(command => command.name).join(' ')}`)
-const expectedRoutes = ['agents', 'appearance', 'caching', 'capabilities', 'console', 'context', 'critter', 'daemon', 'defaultprovider', 'diff', 'effort', 'export', 'extensions', 'feedback', 'health', 'help', 'hooks', 'keys', 'logins', 'mcp', 'memory', 'model', 'palette', 'permissions', 'run', 'runs', 'samples', 'saturn', 'sessions', 'skills', 'submodels', 'trace', 'workbench']
+const expectedRoutes = ['agents', 'appearance', 'caching', 'capabilities', 'context', 'critter', 'daemon', 'defaultprovider', 'diff', 'effort', 'export', 'extensions', 'feedback', 'health', 'help', 'hooks', 'keys', 'logins', 'mcp', 'memory', 'model', 'palette', 'permissions', 'run', 'runs', 'samples', 'saturn', 'sessions', 'skills', 'submodels', 'trace', 'workbench']
 if (onlyRoute === undefined) check('every view route the compositor census knows is in the walk (the nine that never paint a view are named)', expectedRoutes.every(name => routes.some(command => command.name === name)), expectedRoutes.filter(name => !routes.some(command => command.name === name)).join(' '))
 
 const sessionFile = workerTranscriptPath({ sessionId: SEED_SESSION, workspaceId: process.cwd() })
@@ -301,7 +301,7 @@ const boxedMarker = (lines: string[]): boolean => {
   const rows = region(lines)
   return rows.some((line, index) => /^│\s*╭─+╮\s*│/.test(line) && /^│\s*│ \S/.test(rows[index + 1] ?? ''))
 }
-const MARKER_ALWAYS = new Set(['accounts', 'appearance', 'caching', 'capabilities', 'console', 'critter', 'defaultprovider', 'effort', 'export', 'feedback', 'health', 'hooks', 'keys', 'logins', 'memory', 'model', 'palette', 'samples', 'sessions', 'submodels', 'tensorfold'])
+const MARKER_ALWAYS = new Set(['accounts', 'appearance', 'caching', 'capabilities', 'critter', 'defaultprovider', 'effort', 'export', 'feedback', 'health', 'hooks', 'keys', 'logins', 'memory', 'model', 'palette', 'samples', 'sessions', 'submodels', 'tensorfold'])
 const MARKER_AFTER_WALK = new Set(['permissions'])
 const MARKER_WIDE_NAV = new Set(['extensions', 'workbench'])
 const diffListsFiles = (lines: string[]): boolean => region(lines).some(line => /Mercury — diff · \d+ files? /.test(line))

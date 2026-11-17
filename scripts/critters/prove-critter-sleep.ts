@@ -530,13 +530,8 @@ t.section('§10 — THE WAKE EDGES (the operator\'s word): a turn wakes, a view 
   let off = sleep.subscribeCritterSleep(() => {})
   t.check('aged-quiet store is asleep (the wake legs start from real sleep)', sleep.isCritterAsleep())
   t.check(
-    'asleep with daemon OFF: no clock is armed — the dispatch stamp must be a push',
+    'asleep with daemon OFF: no clock is armed — a wake must be a push',
     !sleep.critterSleepStatsForProofs().clockArmed,
-  )
-  sleep.noteCritterRealActivity()
-  t.check(
-    'a Console DISPATCH wakes the critter in the same tick (push, no poll)',
-    !sleep.isCritterAsleep(),
   )
   off()
 
@@ -563,28 +558,6 @@ t.section('§10 — THE WAKE EDGES (the operator\'s word): a turn wakes, a view 
   off()
   sleep.resetCritterSleepForTests()
 
-  const consoleSrc = await Bun.file('src/utils/cockpit/helmConsoleAsk.ts').text()
-  t.check(
-    'the console ask stamps at dispatch and settle',
-    (consoleSrc.match(/noteCritterRealActivity\(\)/g) ?? []).length === 2,
-  )
-  {
-    const { execSync } = await import('node:child_process')
-    let viewCalls = ''
-    try {
-      viewCalls = execSync(
-        "grep -rl 'noteCritterRealActivity' src/components src/screens 2>/dev/null || true",
-        { encoding: 'utf8' },
-      ).trim()
-    } catch {
-      viewCalls = ''
-    }
-    t.check(
-      'no component or screen calls the wake seam (a view can never stamp work)',
-      viewCalls === '',
-      viewCalls,
-    )
-  }
 }
 
 t.section('§11 — the per-critter SLEEP GLYPH LADDER (bubbles for the clam, Zzz for the rest)')

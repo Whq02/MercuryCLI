@@ -7,7 +7,7 @@
 # gate-watch: src/components/CritterSelect.tsx src/components/BaseTextInput.tsx src/components/FullscreenLayout.tsx
 # gate-watch: src/components/prompts-panel/PromptsPanel.tsx
 # gate-watch: src/components/CustomSelect/use-select-navigation.ts src/components/permissions/AskUserQuestionPermissionRequest/QuestionView.tsx
-# gate-watch: src/commands/console/console.tsx src/commands/effort/effort.tsx src/hooks/useTextInput.ts
+# gate-watch: src/commands/effort/effort.tsx src/hooks/useTextInput.ts
 # gate-watch: src/components/concourse/ConcourseRoute.tsx src/ink/session/capabilities.ts src/ink/root/screen-session.ts
 # gate-watch: scripts/lib/codeText.ts src/ink/termio/csi.ts src/ink/widest-line.ts src/ink/wrap-text.ts
 set -uo pipefail

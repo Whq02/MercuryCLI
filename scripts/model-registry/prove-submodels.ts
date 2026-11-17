@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'submodels-proof-'))
-delete process.env.MERCURY_CONSOLE_MODEL
+delete process.env.MERCURY_ADVISOR_MODEL
 for (const key of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR']) {
   delete process.env[key]
 }
@@ -17,11 +17,9 @@ enableConfigs()
 const {
   canonicalSubModelId,
   composeSubModelRegistry,
-  consoleModelOverride,
   resolveSubModel,
   setSubModel,
   subModelConnectHome,
-  subModelIdentityLine,
 } = await import('../../src/utils/model/subModelSlots.ts')
 const { providerDisplayName } = await import('../../src/services/providers/routeLaw.ts')
 const { getGlobalConfig, saveGlobalConfig } = await import('../../src/utils/config.ts')
@@ -183,7 +181,7 @@ section("3b · THE UNSET DEFAULT (the operator's word) — the choice is the ope
     'openrouter/nvidia/nemotron-3.5-lightning:free',
   ]) {
     process.env.MERCURY_MODEL = main
-    for (const container of ['console', 'advisor'] as const) {
+    for (const container of ['advisor'] as const) {
       const resolution = resolveSubModel(container)
       check(
         `main ${main}: ${container} resolves UNSET with the hint`,
@@ -198,42 +196,42 @@ section("3b · THE UNSET DEFAULT (the operator's word) — the choice is the ope
 
 section('4 · persistence — env pin > saved pick > UNSET')
 {
-  const initial = resolveSubModel('console')
+  const initial = resolveSubModel('advisor')
   check('nothing saved ⇒ UNSET origin', initial.origin === 'unset', JSON.stringify(initial))
-  const written = setSubModel('console', 'fable[1m]', reads)
+  const written = setSubModel('advisor', 'fable[1m]', reads)
   check('a selectable pick lands with a receipt', written.ok, JSON.stringify(written))
   check(
     'the stored pick is CANONICAL (alias resolved, [1m] folded)',
-    getGlobalConfig().subModels?.console === canonicalSubModelId('fable[1m]'),
-    String(getGlobalConfig().subModels?.console),
+    getGlobalConfig().subModels?.advisor === canonicalSubModelId('fable[1m]'),
+    String(getGlobalConfig().subModels?.advisor),
   )
-  const saved = resolveSubModel('console')
+  const saved = resolveSubModel('advisor')
   check('saved origin resolves', saved.origin === 'saved' && saved.model === canonicalSubModelId('fable'))
 
-  const refused = setSubModel('console', 'gpt-5.2', reads)
+  const refused = setSubModel('advisor', 'gpt-5.2', reads)
   check('a signed-out pick is refused typed', !refused.ok)
   check(
     'a refused write leaves the config untouched',
-    getGlobalConfig().subModels?.console === canonicalSubModelId('fable'),
+    getGlobalConfig().subModels?.advisor === canonicalSubModelId('fable'),
   )
-  const unknown = setSubModel('console', 'no-such-model-9', reads)
+  const unknown = setSubModel('advisor', 'no-such-model-9', reads)
   check('an unknown id is refused', !unknown.ok && String((unknown as { reason: string }).reason).includes('not in the live catalogue'))
 
-  process.env.MERCURY_CONSOLE_MODEL = 'kimi-k3'
-  const pinned = resolveSubModel('console')
+  process.env.MERCURY_ADVISOR_MODEL = 'kimi-k3'
+  const pinned = resolveSubModel('advisor')
   check(
     'the env pin outranks the saved pick and NAMES itself',
-    pinned.origin === 'env' && pinned.model === 'kimi-k3' && pinned.envVar === 'MERCURY_CONSOLE_MODEL',
+    pinned.origin === 'env' && pinned.model === 'kimi-k3' && pinned.envVar === 'MERCURY_ADVISOR_MODEL',
   )
-  const lockedWrite = setSubModel('console', 'fable', reads)
+  const lockedWrite = setSubModel('advisor', 'fable', reads)
   check(
     'a pinned container refuses writes naming the var',
-    !lockedWrite.ok && String((lockedWrite as { reason: string }).reason).includes('MERCURY_CONSOLE_MODEL'),
+    !lockedWrite.ok && String((lockedWrite as { reason: string }).reason).includes('MERCURY_ADVISOR_MODEL'),
   )
-  delete process.env.MERCURY_CONSOLE_MODEL
+  delete process.env.MERCURY_ADVISOR_MODEL
 
-  const cleared = setSubModel('console', null, reads)
-  check('null clears back to UNSET', cleared.ok && resolveSubModel('console').origin === 'unset')
+  const cleared = setSubModel('advisor', null, reads)
+  check('null clears back to UNSET', cleared.ok && resolveSubModel('advisor').origin === 'unset')
   check(
     'the clearing receipt carries the hint (the operator reads what an ask will answer)',
     cleared.ok && cleared.receipt.includes('use /submodels to pin one of the available model catalogues'),
@@ -249,20 +247,20 @@ section('4 · persistence — env pin > saved pick > UNSET')
     ...config,
     subModels: { ...(config.subModels as Record<string, unknown>), minerva: 'claude-opus-5', effort: { minerva: 'xhigh' } } as never,
   }))
-  const leftoverRead = resolveSubModel('console')
-  check('a leftover pick for an unknown container leaves the Console UNSET', leftoverRead.origin === 'unset', JSON.stringify(leftoverRead))
-  const besideLeftover = setSubModel('console', 'opus', reads)
+  const leftoverRead = resolveSubModel('advisor')
+  check('a leftover pick for an unknown container leaves the Advisor UNSET', leftoverRead.origin === 'unset', JSON.stringify(leftoverRead))
+  const besideLeftover = setSubModel('advisor', 'opus', reads)
   const leftoverConfig = getGlobalConfig().subModels as Record<string, unknown> | undefined
   check(
     "this build's own write lands beside the leftover and leaves it untouched",
     besideLeftover.ok &&
-      leftoverConfig?.console === canonicalSubModelId('opus') &&
+      leftoverConfig?.advisor === canonicalSubModelId('opus') &&
       leftoverConfig?.minerva === 'claude-opus-5' &&
       (leftoverConfig?.effort as Record<string, unknown> | undefined)?.minerva === 'xhigh',
     JSON.stringify(leftoverConfig),
   )
-  setSubModel('console', null, reads)
-  check('clearing the Console pick keeps the leftover (never pruned by a write it did not own)', (getGlobalConfig().subModels as Record<string, unknown> | undefined)?.minerva === 'claude-opus-5', JSON.stringify(getGlobalConfig().subModels))
+  setSubModel('advisor', null, reads)
+  check('clearing the Advisor pick keeps the leftover (never pruned by a write it did not own)', (getGlobalConfig().subModels as Record<string, unknown> | undefined)?.minerva === 'claude-opus-5', JSON.stringify(getGlobalConfig().subModels))
   saveGlobalConfig(config => {
     const { subModels: _dropped, ...rest } = config
     return rest as typeof config
@@ -272,8 +270,8 @@ section('4 · persistence — env pin > saved pick > UNSET')
   check(
     'a pick persists',
     (() => {
-      const wrote = setSubModel('console', 'opus', reads)
-      return wrote.ok && resolveSubModel('console').origin === 'saved'
+      const wrote = setSubModel('advisor', 'opus', reads)
+      return wrote.ok && resolveSubModel('advisor').origin === 'saved'
     })(),
   )
 
@@ -288,7 +286,7 @@ section('4 · persistence — env pin > saved pick > UNSET')
           `const { enableConfigs } = await import(${JSON.stringify(join(import.meta.dir, '..', '..', 'src', 'utils', 'config.ts'))})`,
           `enableConfigs()`,
           `const { resolveSubModel } = await import(${JSON.stringify(join(import.meta.dir, '..', '..', 'src', 'utils', 'model', 'subModelSlots.ts'))})`,
-          `console.log(JSON.stringify({ console: resolveSubModel('console') }))`,
+          `console.log(JSON.stringify({ advisor: resolveSubModel('advisor') }))`,
         ].join('\n'),
       ],
       {
@@ -298,43 +296,21 @@ section('4 · persistence — env pin > saved pick > UNSET')
       },
     )
     const line = (child.stdout ?? '').trim().split('\n').at(-1) ?? ''
-    let restarted: { console?: { origin?: string; model?: string } } = {}
+    let restarted: { advisor?: { origin?: string; model?: string } } = {}
     try {
       restarted = JSON.parse(line) as typeof restarted
     } catch {
       restarted = {}
     }
     check(
-      'a fresh process resolves the persisted console pick (survives a restart)',
+      'a fresh process resolves the persisted advisor pick (survives a restart)',
       child.status === 0 &&
-        restarted.console?.origin === 'saved' &&
-        restarted.console?.model === canonicalSubModelId('opus'),
+        restarted.advisor?.origin === 'saved' &&
+        restarted.advisor?.model === canonicalSubModelId('opus'),
       `status=${String(child.status)} stdout=${line.slice(0, 200)} stderr=${(child.stderr ?? '').slice(0, 200)}`,
     )
   }
-  setSubModel('console', null, reads)
-}
-
-section('5 · the console dispatch read — override only on a real difference, nothing when unset')
-{
-  check(
-    'an UNSET console overrides nothing (it never dispatches)',
-    resolveSubModel('console').origin === 'unset' && consoleModelOverride('gpt-5.2') === undefined,
-  )
-  const wrote = setSubModel('console', 'opus', reads)
-  check('seed pick landed', wrote.ok)
-  const pinned = resolveSubModel('console')
-  const resolved = pinned.origin === 'unset' ? '' : pinned.model
-  check('the pick resolves as a saved pin', pinned.origin === 'saved' && resolved !== '')
-  check(
-    'an identical session model ⇒ NO override (the cache-hit prefix survives)',
-    consoleModelOverride(resolved) === undefined && consoleModelOverride(`${resolved}[1m]`) === undefined,
-  )
-  check(
-    'a different session model ⇒ the resolved pick overrides',
-    consoleModelOverride('gpt-5.2') === resolved,
-  )
-  setSubModel('console', null, reads)
+  setSubModel('advisor', null, reads)
 }
 
 section('6 · the frontier row — an ordinary tier row of the SHARED catalog (ruled)')
@@ -692,83 +668,39 @@ section("8 · CATALOGUE EQUALITY — both containers list exactly the main picke
     presences: presencesWithCarrier,
     providers,
   } as never
-  const consolePick = setSubModel('console', 'openrouter/fixture-vendor/hummingbird:free', carrierReads)
-  check(
-    'an OpenRouter row persists for the Console',
-    consolePick.ok && getGlobalConfig().subModels?.console === 'openrouter/fixture-vendor/hummingbird:free',
-    JSON.stringify([consolePick, getGlobalConfig().subModels]),
-  )
-  const consoleResolved = resolveSubModel('console')
-  check(
-    'the carrier pick resolves on the openrouter route',
-    consoleResolved.origin === 'saved' && consoleResolved.route === 'openrouter',
-    JSON.stringify(consoleResolved),
-  )
   const advisorPick = setSubModel('advisor', 'openrouter/fixture-vendor/ox-alpha', carrierReads)
   check(
-    'an OpenRouter row persists for the Advisor beside the Console, each under its own key',
-    advisorPick.ok && getGlobalConfig().subModels?.advisor === 'openrouter/fixture-vendor/ox-alpha' && getGlobalConfig().subModels?.console === 'openrouter/fixture-vendor/hummingbird:free',
+    'an OpenRouter row persists for the Advisor',
+    advisorPick.ok && getGlobalConfig().subModels?.advisor === 'openrouter/fixture-vendor/ox-alpha',
     JSON.stringify([advisorPick, getGlobalConfig().subModels]),
   )
   const advisorResolved = resolveSubModel('advisor')
   check(
-    "the advisor's pick resolves on its own route, independent of the console's",
+    'the carrier pick resolves on the openrouter route',
     advisorResolved.origin === 'saved' && advisorResolved.model === 'openrouter/fixture-vendor/ox-alpha' && advisorResolved.route === 'openrouter',
     JSON.stringify(advisorResolved),
   )
   setSubModel('advisor', null, carrierReads)
-  check('clearing the advisor leaves the console pick standing', resolveSubModel('advisor').origin === 'unset' && getGlobalConfig().subModels?.console === 'openrouter/fixture-vendor/hummingbird:free')
-  setSubModel('console', null, carrierReads)
   delete process.env.OPENROUTER_API_KEY
   __resetOpenrouterCatalogueForTest()
 }
 
-section('9 · THE IDENTITY STAMP — the fact line names the resolved slot')
-{
-  const wrote = setSubModel('console', 'opus', reads)
-  const pin = resolveSubModel('console')
-  check('a pick resolves as a pin', wrote.ok && pin.origin === 'saved', JSON.stringify(pin))
-  if (pin.origin !== 'unset') {
-    const line = subModelIdentityLine('console', pin)
-    check('the line carries the resolved model id verbatim, quoted', line.includes(`model id "${pin.model}"`), line)
-    check('…and the wire by the routing law\'s display name', line.includes(`via the ${providerDisplayName(pin.route)} wire`), line)
-    check(
-      '…as a harness-stamped fact the model answers with',
-      line.includes('stamped by the Mercury harness') && line.includes('answer with exactly that id and wire'),
-    )
-    check('the line names the Console', line.includes('you are the Console'))
-    process.env.MERCURY_CONSOLE_MODEL = 'kimi-k3'
-    const envPin = resolveSubModel('console')
-    check(
-      'an env pin stamps ITS id (the line follows the resolver, never the saved pick)',
-      envPin.origin === 'env' && subModelIdentityLine('console', envPin).includes('model id "kimi-k3"'),
-    )
-    delete process.env.MERCURY_CONSOLE_MODEL
-  }
-  setSubModel('console', null, reads)
-}
-
-section('10 · THE ADVISOR CONTAINER — a second container identical in shape to the console, its own pin, its own words')
+section('10 · THE ADVISOR CONTAINER — the one container, its own pin, its own words')
 {
   const { SUB_MODEL_CONTAINERS, subModelEnvVar, subModelEffortContext } = await import('../../src/utils/model/subModelSlots.ts')
-  check('two containers, console then advisor (red on the base: the console alone)', JSON.stringify(SUB_MODEL_CONTAINERS) === JSON.stringify(['console', 'advisor']), JSON.stringify(SUB_MODEL_CONTAINERS))
-  check('each container has its own env pin', subModelEnvVar('advisor') === 'MERCURY_ADVISOR_MODEL' && subModelEnvVar('console') === 'MERCURY_CONSOLE_MODEL')
+  check('one container, the advisor', JSON.stringify(SUB_MODEL_CONTAINERS) === JSON.stringify(['advisor']), JSON.stringify(SUB_MODEL_CONTAINERS))
+  check('the container has its own env pin', subModelEnvVar('advisor') === 'MERCURY_ADVISOR_MODEL')
   const wrote = setSubModel('advisor', 'opus', reads)
   const pin = resolveSubModel('advisor')
-  check('a pick for the advisor lands under subModels.advisor and resolves as a saved pin', wrote.ok && wrote.receipt.startsWith('Advisor model set to') && pin.origin === 'saved' && getGlobalConfig().subModels?.advisor === canonicalSubModelId('opus') && getGlobalConfig().subModels?.console === undefined, JSON.stringify([wrote, getGlobalConfig().subModels]))
-  if (pin.origin !== 'unset') {
-    const line = subModelIdentityLine('advisor', pin)
-    check('the identity line names the Advisor and its audience, with the resolved id quoted', line.includes('you are the Advisor') && line.includes('never the operator') && line.includes(`model id "${pin.model}"`), line)
-  }
+  check('a pick for the advisor lands under subModels.advisor and resolves as a saved pin', wrote.ok && wrote.receipt.startsWith('Advisor model set to') && pin.origin === 'saved' && getGlobalConfig().subModels?.advisor === canonicalSubModelId('opus'), JSON.stringify([wrote, getGlobalConfig().subModels]))
   const refused = setSubModel('advisor', 'gpt-5.2', reads)
   check("a signed-out family is refused for the advisor with the row's honest reason, the pick untouched", !refused.ok && getGlobalConfig().subModels?.advisor === canonicalSubModelId('opus'), JSON.stringify(refused))
   process.env.MERCURY_ADVISOR_MODEL = 'kimi-k3'
   const envPin = resolveSubModel('advisor')
   const locked = setSubModel('advisor', 'opus', reads)
   check('the env pin outranks the saved pick and locks the picker, naming its own var', envPin.origin === 'env' && envPin.model === 'kimi-k3' && envPin.envVar === 'MERCURY_ADVISOR_MODEL' && !locked.ok && locked.reason.includes('MERCURY_ADVISOR_MODEL'), JSON.stringify([envPin, locked]))
-  check("the console is not pinned by the advisor's var", resolveSubModel('console').origin === 'unset')
   delete process.env.MERCURY_ADVISOR_MODEL
-  check("the advisor's calls run with thinking off; the console's context is the session's", JSON.stringify(subModelEffortContext('advisor')) === JSON.stringify({ thinkingEnabled: false }) && JSON.stringify(subModelEffortContext('console')) === JSON.stringify({}))
+  check("the advisor's calls run with thinking off", JSON.stringify(subModelEffortContext('advisor')) === JSON.stringify({ thinkingEnabled: false }))
   const cleared = setSubModel('advisor', null, reads)
   check('null clears the advisor back to UNSET with the advisor receipt', cleared.ok && cleared.receipt.startsWith('Advisor model unset') && resolveSubModel('advisor').origin === 'unset' && getGlobalConfig().subModels === undefined, JSON.stringify([cleared, getGlobalConfig().subModels]))
 }

@@ -117,7 +117,7 @@ t.section("§3 — THE COMPOSER STAYS ONE: composeBootMenu's host fields are opt
   const legacy = {
     entries: legacyEntries,
     selIdx: 0,
-    summary: { profile: 'r3 · custom · 1 set', harness: 'helm · console', integrity: 'enforce', integritySet: false },
+    summary: { profile: 'r3 · custom · 1 set', harness: 'helm', integrity: 'enforce', integritySet: false },
     environment: { model: 'Opus 5', critter: 'Crab', critterHue: '#DD4444', dirBase: 'proj', dirTail: '  ⌥main · clean' },
     statusRight: 'no blocking issues detected — changes reach new sessions',
     legend: '↑↓ move · pgup/pgdn page · ↵ change (saved) · ⌫ default · a apply receipts · esc back',

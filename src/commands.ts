@@ -75,7 +75,6 @@ import saturn from './commands/saturn/index.js'
 import seats from './commands/seats/index.js'
 import accounts from './commands/accounts/index.js'
 import crewmates from './commands/crewmates/index.js'
-import consoleCommand from './commands/console/index.js'
 import submodels from './commands/submodels/index.js'
 import palette from './commands/palette/index.js'
 import orient from './commands/orient/index.js'
@@ -199,7 +198,6 @@ const COMMANDS = memoize((): Command[] => [
   seats,
   accounts,
   crewmates,
-  consoleCommand,
   submodels,
   palette,
   orient,

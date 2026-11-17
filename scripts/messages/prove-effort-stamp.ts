@@ -259,14 +259,14 @@ section('§C the Anthropic road: adaptive thinking, effort max and high — the 
   check("a legacy first-party id with no effort dial: applied says 'not supported by this model', wire none, and the body carries no output_config.effort", sameStamp(stampOf(none.rows.at(-1)), { asked: 'high', applied: 'not supported by this model', wire: 'none' }) && (none.body?.output_config as { effort?: string } | undefined)?.effort === undefined, `stamp ${j(stampOf(none.rows.at(-1)))} output_config ${j(none.body?.output_config)}`)
 }
 
-section('§D a sub-model call (the console seat) stamps the word its own dial dispatched')
+section('§D a sub-model call (the advisor seat) stamps the word its own dial dispatched')
 {
-  const set = setSubModelEffort('console', 'low')
-  const dispatch = subModelDispatchEffort('console', 'claude-fable-5-1')
-  check("the console's dial is low and dispatches low", set.ok && dispatch.effortValue === 'low', j({ set, dispatch }))
-  const console_ = await driveAnthropic('claude-fable-5-1', dispatch.effortValue, 'disabled', { querySource: 'console_ask' })
-  check('the console ask rode output_config.effort = low', (console_.body?.output_config as { effort?: string } | undefined)?.effort === 'low', j(console_.body?.output_config))
-  check("the console ask's record stamps {asked low, applied low, wire output_config.effort=low}", sameStamp(stampOf(console_.rows.at(-1)), { asked: 'low', applied: 'low', wire: 'output_config.effort=low' }), j(stampOf(console_.rows.at(-1))))
+  const set = setSubModelEffort('advisor', 'low')
+  const dispatch = subModelDispatchEffort('advisor', 'claude-fable-5-1')
+  check("the advisor's dial is low and dispatches low", set.ok && dispatch.effortValue === 'low', j({ set, dispatch }))
+  const advisor = await driveAnthropic('claude-fable-5-1', dispatch.effortValue, 'disabled', { querySource: 'advisor' })
+  check('the advisor call rode output_config.effort = low', (advisor.body?.output_config as { effort?: string } | undefined)?.effort === 'low', j(advisor.body?.output_config))
+  check("the advisor call's record stamps {asked low, applied low, wire output_config.effort=low}", sameStamp(stampOf(advisor.rows.at(-1)), { asked: 'low', applied: 'low', wire: 'output_config.effort=low' }), j(stampOf(advisor.rows.at(-1))))
 }
 
 const user = (content: string): Message => ({ type: 'user', uuid: randomUUID(), timestamp: new Date().toISOString(), message: { role: 'user', content } }) as Message

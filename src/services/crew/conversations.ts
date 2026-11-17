@@ -347,58 +347,6 @@ export async function resolveConversationEvent(
   })
 }
 
-export async function linkConversation(
-  fromConversationId: CrewConversationId,
-  toConversationId: CrewConversationId,
-  kind: 'branch' | 'handoff',
-  opts?: { ref?: string; dir?: string },
-): Promise<boolean> {
-  const store = conversationStore(opts?.dir)
-  return store.update<boolean>(current => {
-    const from = current.conversations[fromConversationId]
-    const to = current.conversations[toConversationId]
-    if (!from || !to) return { next: current, result: false }
-    const now = Date.now()
-    return {
-      next: {
-        ...current,
-        conversations: {
-          ...current.conversations,
-          [fromConversationId]: {
-            ...from,
-            lineage: [
-              ...from.lineage,
-              {
-                kind,
-                direction: 'from',
-                otherConversationId: toConversationId,
-                atMs: now,
-                ...(opts?.ref !== undefined ? { ref: opts.ref } : {}),
-              },
-            ],
-            updatedAt: now,
-          },
-          [toConversationId]: {
-            ...to,
-            lineage: [
-              ...to.lineage,
-              {
-                kind,
-                direction: 'to',
-                otherConversationId: fromConversationId,
-                atMs: now,
-                ...(opts?.ref !== undefined ? { ref: opts.ref } : {}),
-              },
-            ],
-            updatedAt: now,
-          },
-        },
-      },
-      result: true,
-    }
-  })
-}
-
 export async function setConversationPriority(
   conversationId: CrewConversationId,
   priority: number | undefined,

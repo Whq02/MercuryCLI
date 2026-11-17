@@ -121,7 +121,6 @@ tools	182
 agents	88
 structure-tools	32
 health	900
-helm-console	3
 model-transition	35
 lsp	75
 daemon	410
@@ -233,7 +232,6 @@ critters-drives	305
 engine-connector-drives	171
 daemon-drives	269
 health-drives	247
-helm-console-drives	65
 distribution-drives	33
 mcp-drives	29
 mission-runner-drives	18

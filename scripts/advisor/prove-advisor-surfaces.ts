@@ -18,7 +18,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_OPERATOR = 'sam'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_EVOLUTION_LEDGER = '0'
-for (const name of ['ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'HF_TOKEN', 'MERCURY_COMPAT_BASE_URL', 'MERCURY_LOCAL_BASE_URL', 'MERCURY_AUTH_SCOPE_DIR', 'MERCURY_USAGE_SEED', 'MERCURY_MOCK_LIMITS', 'MERCURY_USAGE_POLL_MS', 'MERCURY_MODEL', 'MERCURY_ADVISOR_MODEL', 'MERCURY_CONSOLE_MODEL', 'NODE_ENV', 'CI']) {
+for (const name of ['ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'HF_TOKEN', 'MERCURY_COMPAT_BASE_URL', 'MERCURY_LOCAL_BASE_URL', 'MERCURY_AUTH_SCOPE_DIR', 'MERCURY_USAGE_SEED', 'MERCURY_MOCK_LIMITS', 'MERCURY_USAGE_POLL_MS', 'MERCURY_MODEL', 'MERCURY_ADVISOR_MODEL', 'NODE_ENV', 'CI']) {
   delete process.env[name]
 }
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
@@ -204,7 +204,7 @@ const pickerFrames = new Map<string, string>()
     let painted = (): void => {}
     const firstFrame = new Promise<void>(resolve => { painted = resolve })
     const instance = await render(
-      React.createElement(SubModelPicker, { onClose: () => {}, onRoute: () => {}, initialContainer: 'console', ...(initialModelId !== undefined ? { initialModelId } : {}) }),
+      React.createElement(SubModelPicker, { onClose: () => {}, onRoute: () => {}, initialContainer: 'advisor', ...(initialModelId !== undefined ? { initialModelId } : {}) }),
       { stdout: stdout as never, stdin: stdin as never, patchConsole: false, onFrame: () => painted() },
     )
     await firstFrame
@@ -222,30 +222,23 @@ const pickerFrames = new Map<string, string>()
   for (const [columns, rows] of [[178, 51], [80, 21]] as const) {
     const panel = await mountPanel(columns, rows, MODEL)
     const rest = flat(panel.frame())
-    check(`${columns} columns: both containers are listed, the console first and marked, the advisor beneath with its blurb (red on the base: the console alone)`, /▸ CONSOLE — side questions · unset/.test(rest) && / ADVISOR — advises the working model, not you · unset · no model pinned/.test(rest) && rest.includes('CONSOLE') && rest.includes('ADVISOR') && rest.indexOf('CONSOLE') < rest.indexOf('ADVISOR'), rest.slice(0, 400))
-    check(`${columns} columns: the cursor opens on the named row in the console list (the effort range beneath it)`, /runs @high \(the model default\)/.test(rest), rest.slice(-300))
-    pickerFrames.set(`console-${columns}x${rows}`, panel.frame())
-    await panel.press('\t')
-    const tabbed = flat(panel.frame())
-    check(`${columns} columns: tab marks the advisor container and opens its list on the same row`, /▸ ADVISOR — advises the working model, not you/.test(tabbed) && !/▸ CONSOLE/.test(tabbed) && /runs @high \(the model default\)/.test(tabbed), tabbed.slice(-300))
+    check(`${columns} columns: the one container is listed and marked, the advisor with its blurb`, /▸ ADVISOR — advises the working model, not you · unset · no model pinned/.test(rest) && !rest.includes('CONSOLE'), rest.slice(0, 400))
+    check(`${columns} columns: the cursor opens on the named row in the advisor list (the effort range beneath it)`, /runs @high \(the model default\)/.test(rest), rest.slice(-300))
     pickerFrames.set(`advisor-${columns}x${rows}`, panel.frame())
     if (columns === 178) {
       await panel.press('\r')
       const picked = flat(panel.frame())
-      check('↵ on the advisor list persists the pick under subModels.advisor alone and paints the Advisor receipt, live on the next note', getGlobalConfig().subModels?.advisor === MODEL && getGlobalConfig().subModels?.console === undefined && /Advisor model set to Opus 4\.8 \(Anthropic\), runs @high \(the model default\) \(live on the next note\)/.test(picked), `${j(getGlobalConfig().subModels)} · ${picked.slice(-300)}`)
-      check('the advisor header now names the model and its saved pick; the console header stays unset', /▸ ADVISOR — advises the working model, not you · Opus 4\.8 · @high \(the model default\) · saved pick/.test(picked) && / CONSOLE — side questions · unset · no model pinned/.test(picked), picked.slice(0, 400))
+      check('↵ on the advisor list persists the pick under subModels.advisor and paints the Advisor receipt, live on the next note', getGlobalConfig().subModels?.advisor === MODEL && /Advisor model set to Opus 4\.8 \(Anthropic\), runs @high \(the model default\) \(live on the next note\)/.test(picked), `${j(getGlobalConfig().subModels)} · ${picked.slice(-300)}`)
+      check('the advisor header now names the model and its saved pick', /▸ ADVISOR — advises the working model, not you · Opus 4\.8 · @high \(the model default\) · saved pick/.test(picked), picked.slice(0, 400))
       pickerFrames.set('advisor-picked-178x51', panel.frame())
-      await panel.press(`${ESC}[Z`)
-      const back = flat(panel.frame())
-      check('shift-tab returns to the console, still unset, the advisor pick standing', /▸ CONSOLE — side questions · unset/.test(back) && / ADVISOR — advises the working model, not you · Opus 4\.8/.test(back), back.slice(0, 400))
       slots.setSubModel('advisor', null)
     }
     panel.unmount()
   }
   const command = (await import('../../src/commands/submodels/index.ts')).default as { description: string }
-  check("the command's description says the surface picks both models", command.description.includes("Advisor's") && command.description.includes('advising the working model'), command.description)
+  check("the command's description says the surface picks the Advisor's model", command.description === "The Advisor's model — the second model that advises the working model", command.description)
   const surface = readFileSync(join(ROOT, 'src/commands/submodels/submodels.tsx'), 'utf8')
-  check("the surface's subtitle and footer name both containers and the tab", surface.includes(`subtitle="the Console's and the Advisor's models"`) && surface.includes('tab container'))
+  check("the surface's subtitle names the Advisor's model and its footer names no tab", surface.includes(`subtitle="the Advisor's model"`) && !surface.includes('tab container'))
 }
 
 if (frameDir !== null) {
@@ -261,7 +254,7 @@ if (frameDir !== null) {
   for (const [name, frame] of pickerFrames) {
     const file = `submodels-${name}.txt`
     writeFileSync(join(frameDir, file), `${frame.replace(/\n$/, '')}\n`)
-    index.push(`${file} — the /submodels picker: both containers listed, ${name.startsWith('advisor') ? 'the advisor container active' : 'the console container active'}`)
+    index.push(`${file} — the /submodels picker: the advisor container${name.startsWith('advisor-picked') ? ', a model picked' : ''}`)
     console.log(`  wrote ${file}`)
   }
   writeFileSync(join(frameDir, 'index-surfaces.txt'), `${index.join('\n')}\n`)

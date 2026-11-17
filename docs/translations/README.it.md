@@ -395,7 +395,7 @@ I flag di runtime sono definiti in `src/substrate/flagRegistry.ts`, esposti come
 | current work | `/run` `/runs` `/workbench` `/diff` `/mission` (/goal) |
 | crew & delegation | `/agents` `/crewmates` `/crew` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/restart` |
-| memory & goals | `/memory` `/console` |
+| memory & goals | `/memory` |
 | model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` `/tensorfold` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` `/lsp` |

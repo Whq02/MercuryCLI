@@ -212,10 +212,8 @@ type ModelChoices = {
     minutes?: number
   }
   subModels?: {
-    console?: string
     advisor?: string
     effort?: {
-      console?: string
       advisor?: string
     }
   }
