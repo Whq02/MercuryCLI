@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { getFlagSpec } from '../../src/substrate/flagRegistry.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -22,8 +23,8 @@ section('the reader is the one owner of the transcript file')
   check('an append still in flight folds nothing', reader.includes('if (lastNl === -1) return none(state, st.size)'))
   check('the resume snapshot keeps its one writer (the reader only calls it)', (reader.match(/writeResumeSnapshot\(/g) ?? []).length >= 2 && !reader.includes('durableAtomicPublishSync'))
   check('the kill switch is the registered flag', reader.includes("flagEnabled('MERCURY_TRANSCRIPT_READER')"))
-  const registry = src('substrate/flagRegistry.ts')
-  check('the registry row names the reader and its evidence', /env: 'MERCURY_TRANSCRIPT_READER', kind: 'default-on', tier: 'behavioral', evidence: 'scripts\/sessionStorage\/prove-transcript-tail-reader\.ts'/.test(registry))
+  const readerRow = getFlagSpec('MERCURY_TRANSCRIPT_READER')
+  check('the registry row names the reader and its evidence', readerRow?.kind === 'default-on' && readerRow.tier === 'behavioral' && readerRow.evidence === 'scripts/sessionStorage/prove-transcript-tail-reader.ts')
 }
 
 section('the resume load reads the fold through the reader')

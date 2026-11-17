@@ -3,6 +3,7 @@ import { execSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { isFlagRegistryFile } from '../lib/flagRegistrySource.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -97,8 +98,8 @@ const tracked = execSync('git ls-files -z -- src', { cwd: ROOT }).toString('utf8
 const srcOf = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 {
   const homes = tracked.filter(p => /\.tsx?$/.test(p) && /ANTHROPIC_CLIENT_CONTRACT_(?:VERSION|AS_OF)|getAnthropicClientContractVersion|describeAnthropicClientContract/.test(srcOf(p))).sort()
-  const expected = ['src/constants/oauth.ts', 'src/constants/system.ts', 'src/services/api/clientContractLearned.ts', 'src/services/providers/anthropic/modelRefusal.ts', 'src/substrate/flagRegistry.ts', 'src/utils/healthReport.ts']
-  check('the contract version has exactly its six declared code homes in src (a seventh is a leak; the bundled skill prose may name it)', JSON.stringify(homes) === JSON.stringify(expected), homes.join(', '))
+  const expected = ['src/constants/oauth.ts', 'src/constants/system.ts', 'src/services/api/clientContractLearned.ts', 'src/services/providers/anthropic/modelRefusal.ts', 'src/utils/healthReport.ts']
+  check('the contract version has exactly its six declared code homes in src (a seventh is a leak; the bundled skill prose may name it)', JSON.stringify(homes.filter(p => !isFlagRegistryFile(p))) === JSON.stringify(expected) && homes.some(isFlagRegistryFile), homes.join(', '))
   const clientSrc = readFileSync(join(ROOT, 'src/services/api/client.ts'), 'utf8')
   check("the first-party client's agent is the product agent at source", clientSrc.includes("'User-Agent': getUserAgent()"))
   const httpSrc = readFileSync(join(ROOT, 'src/utils/http.ts'), 'utf8')

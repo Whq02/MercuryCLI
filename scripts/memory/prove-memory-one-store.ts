@@ -6,6 +6,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { flagRegistryText } from '../lib/flagRegistrySource.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const scratch = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), 'mercury-memory-one-store-'))
@@ -48,11 +49,11 @@ check('no source names experience cards (the intake recognises the old header, n
 const SETTINGS_LANE = ['src/utils/settings/types.ts']
 check('no source names the taste loop or the notes upkeep (the settings key and its spelling row are the settings lane\'s queue row)', carriers(/tasteLoop|taste_recall|memoryUpkeep/, SETTINGS_LANE).length === 0, carriers(/tasteLoop|taste_recall|memoryUpkeep/, SETTINGS_LANE).join(', '))
 check('no command is registered under the memory words that are not Mercury\'s', !/remember|\bcards\b|\bmeh\b|\bgood\b/.test(read('src/commands.ts').split('\n').filter(l => /^import .* from '\.\/commands\//.test(l)).join('\n')))
-const registry = read('src/substrate/flagRegistry.ts')
+const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
 for (const flag of ['MERCURY_EXPERIENCE_CARDS', 'MERCURY_TASTE_LOOP', 'MERCURY_CARD_DEDUP', 'MERCURY_CARD_PROMOTE_GATE', 'MERCURY_CARD_PROMOTE_RUNGATE', 'MERCURY_CARD_RECALL_PRECISION', 'MERCURY_CARD_SUPERSEDE', 'MERCURY_CARD_TRACE_GROUND']) {
-  check(`the registry has no ${flag} row`, !registry.includes(`env: '${flag}'`))
+  check(`the registry has no ${flag} row`, getFlagSpec(flag) === undefined)
 }
-check('the flag registry\'s table of unknown names carries no memory flag', !/RETIRED_FLAGS[\s\S]*MERCURY_(MNEME|EXPERIENCE_CARDS|TASTE_LOOP|RELEVANT_RECALL|CARD_)/.test(registry))
+check('the flag registry\'s table of unknown names carries no memory flag', !/RETIRED_FLAGS[\s\S]*MERCURY_(MNEME|EXPERIENCE_CARDS|TASTE_LOOP|RELEVANT_RECALL|CARD_)/.test(flagRegistryText()))
 const types = read('src/utils/memory/types.ts')
 check('the instruction-file type union is the four instruction kinds only', /\['User', 'Project', 'Local', 'Managed'\]/.test(types) && !types.includes('AutoMem'))
 

@@ -24,6 +24,7 @@ const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/pr
 const { credentialEnvNames } = await import('../../src/services/providers/providerSecrets.ts')
 const { deriveFamilySlotGroups } = await import('../../src/services/providers/accountSlots.ts')
 const { __resetMistralUsageForTest, mistralObservedUsage } = await import('../../src/services/providers/mistral/mistralUsageState.ts')
+const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 const root = join(import.meta.dir, '..', '..')
 const read = (path: string): string => readFileSync(join(root, path), 'utf8')
 let count = 0
@@ -93,6 +94,6 @@ try {
     check(`${file} exports a declared contract`, names.length > 0)
     console.log(`[EXPORTS] ${file}: ${names.join(', ')}`)
   }
-  check('the Mistral base is registered and pinned by the hermetic gate', read('src/substrate/flagRegistry.ts').includes("env: 'MERCURY_MISTRAL_API_BASE'") && read('scripts/gate/ci-shard.sh').includes('MERCURY_MISTRAL_API_BASE'))
+  check('the Mistral base is registered and pinned by the hermetic gate', getFlagSpec('MERCURY_MISTRAL_API_BASE') !== undefined && read('scripts/gate/ci-shard.sh').includes('MERCURY_MISTRAL_API_BASE'))
   console.log(`MISTRAL CONTRACT GREEN (${count} checks; loopback fixture only)`)
 } finally { fixture.stop(); rmSync(proofHome, { recursive: true, force: true }) }

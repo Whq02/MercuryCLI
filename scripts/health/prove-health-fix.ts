@@ -18,6 +18,7 @@ import {
   runHeadlessFix,
 } from '../../src/utils/healthFix.js'
 import { getCwd } from '../../src/utils/cwd.js'
+import { getFlagSpec } from '../../src/substrate/flagRegistry.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -156,8 +157,7 @@ section('(4) wiring — remedies attached, async spawns, panel f-flow, CLI flags
   check('headless runHealthFixCli exists with only/yes', cli.includes('export async function runHealthFixCli(opts: { only?: string; yes: boolean })'))
   const main = SRC('src/main.tsx')
   check('CLI carries --fix/--only/--yes on the health command', main.includes("option('--fix'") && main.includes("option('--only <id>'") && main.includes("option('--yes'"))
-  const registry = SRC('src/substrate/flagRegistry.ts')
-  check('MERCURY_HEALTH_FIX registered (frozen spelling)', registry.includes("env: 'MERCURY_HEALTH_FIX'"))
+  check('MERCURY_HEALTH_FIX registered (frozen spelling)', getFlagSpec('MERCURY_HEALTH_FIX') !== undefined)
 }
 
 console.log('\n============================================================')

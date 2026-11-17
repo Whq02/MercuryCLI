@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { getFlagSpec } from '../../src/substrate/flagRegistry.ts'
 import { corpusSha256, runBenchmark, type Corpus } from './bench-sim.ts'
 
 const root = join(import.meta.dir, '..', '..')
@@ -73,15 +74,15 @@ check(
 )
 
 section('(4) registry binding + the extractor stays out of the gate')
-const registry = readFileSync(join(root, 'src', 'substrate', 'flagRegistry.ts'), 'utf8')
-const row = registry.match(/\{ env: 'MERCURY_CACHE_CLOCK',(?:\s*legacy:\s*'[A-Z0-9_]+',)?\s*kind:\s*'([a-z-]+)',\s*tier:\s*'([a-z]+)',\s*evidence:\s*'([^']+)'/)
+const spec = getFlagSpec('MERCURY_CACHE_CLOCK')
+const row = spec?.tier && spec.evidence ? spec : undefined
 check('MERCURY_CACHE_CLOCK registry row exists with tier + evidence', !!row)
 if (row) {
-  check("row tier is 'behavioral' (the ladder's evidence-bearing tier)", row[2] === 'behavioral')
+  check("row tier is 'behavioral' (the ladder's evidence-bearing tier)", row.tier === 'behavioral')
   check(
     'row evidence names this verdict',
-    row[3] === 'scripts/cache/fixtures/verdict.json',
-    row[3],
+    row.evidence === 'scripts/cache/fixtures/verdict.json',
+    row.evidence,
   )
 }
 const scriptsDir = join(root, 'scripts')

@@ -25,6 +25,7 @@ const config = await import('../../src/utils/config/globalConfig.ts')
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
 const { createAgentWorktree, createWorktreeForSession, keepWorktree, prepareWorktreeFiles, readWorktreeDelta } = await import('../../src/utils/worktree.ts')
 const cloneModule = await import('../../src/utils/worktreeClone.ts').catch(() => null)
+const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-clone-')))
 const links = accountLinks(scratch)
@@ -479,7 +480,8 @@ check('the sessions page says an install stays in the worktree where the filesys
 check('…and lands in the checkout elsewhere', sessionsDoc.includes("Elsewhere each is a link to the checkout's copy") && sessionsDoc.includes('an install run inside the worktree installs into the checkout'))
 check('…that a session\'s worktree is carried into as well, with the same things left behind, and where the figures are', sessionsDoc.includes('On a filesystem that can clone the worktree also starts with everything else the checkout holds that git ignores (build output, caches, generated files, `.env` files), each its own copy; build output comes from the checkout as it stood while the worktree holds the commit.') && sessionsDoc.includes("Mercury's own folders and instruction files, a folder that holds a `pyvenv.cfg` or a `CMakeCache.txt`, a folder that is another git worktree and whatever a Read deny rule matches stay behind, and a worktree cut from a pull request's head, made sparse, or made in a repository that holds your home directory starts with the dependency folders only.") && sessionsDoc.includes('[CREW.md](CREW.md) has the figures and the two ways to keep the links.'))
 check('the settings page says the setting keeps a folder a link', settingsDoc.includes("| `workspace.worktree.symlinkDirectories` | Directories linked into a managed worktree; a folder named here is a link to the checkout's where it would otherwise be cloned. |"))
-check('the flag registry names the switch as the one the page gives a user, the two other values as proof seams', readFileSync(join(ROOT, 'src/substrate/flagRegistry.ts'), 'utf8').includes('the switch docs/CREW.md names for a user who wants the links, and the road a proof reads on a volume that can; proof seams: `files` takes') && readFileSync(join(ROOT, 'src/substrate/flagRegistry.ts'), 'utf8').includes("retirement: 'permanent (a product switch; `files` and `cp` are proof seams)'"))
+const cloneSwitch = getFlagSpec('MERCURY_WORKTREE_CLONE')
+check('the flag registry names the switch as the one the page gives a user, the two other values as proof seams', cloneSwitch !== undefined && cloneSwitch.summary.includes('the switch docs/CREW.md names for a user who wants the links, and the road a proof reads on a volume that can; proof seams: `files` takes') && cloneSwitch.retirement === 'permanent (a product switch; `files` and `cp` are proof seams)')
 
 enter(ROOT)
 for (const folder of [join(unreadable, 'node_modules', 'sealed')]) {

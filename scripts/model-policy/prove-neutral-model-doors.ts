@@ -2,6 +2,7 @@
 import { existsSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { flagRegistryText } from '../lib/flagRegistrySource.ts'
 
 const scratch = mkdtempSync(join(tmpdir(), 'neutral-model-doors-'))
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spelling] = scratch
@@ -169,7 +170,7 @@ section('§3 the floor is gone: no substitution anywhere, no telemetry of one, n
   const { substrateSnapshot } = await import('../../src/utils/cockpit/substrateSnapshot.ts')
   const rows = substrateSnapshot().data.sections.flatMap(s => s.rows)
   check('the substrate panel carries no floor row', rows.length > 0 && rows.every(r => !/floor/i.test(r.name) && !/Haiku/.test(r.hint)), rows.filter(r => /floor|Haiku/i.test(`${r.name} ${r.hint}`)).map(r => r.name).join(', '))
-  const flags = src('substrate', 'flagRegistry.ts')
+  const flags = flagRegistryText()
   check('the worker-parent flag row names no floor', !/never-Haiku|worker-loop floor/.test(flags))
   const ledger = await import('../../src/utils/accounts/signInLedger.ts')
   ledger.recordSignIn('anthropic', 'api-key')

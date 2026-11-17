@@ -2,6 +2,7 @@
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { flagRegistryFiles, isFlagRegistryFile } from '../lib/flagRegistrySource.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const REPORT = process.argv.includes('--report')
@@ -50,7 +51,6 @@ const XAI_BILLING_SURFACES = new Set([
   'src/services/providers/xai/xaiLogin.ts',
   'src/services/providers/xai/xaiUsageState.ts',
   'src/skills/bundled/provider-apis/references/chat-completions.md',
-  'src/substrate/flagRegistry.ts',
 ])
 const XAI_BILLING_WORDS = /\bpersonal-team-blocked:spending-limit\b|team(?:_id|Id|-fixture|-cycle)|\/teams\/|\/team\/default\/management-keys|\bteam (?:usage|balance|permissions|meter|credits|record|spend|lookup|billing)|team[’']s prepaid credits|prepaid-only teams|identifies the team|optional management key for the (?:API )?team\b(?:[’']s)?|xAI's team|These are team/i
 const boardLabelSurface = (rel: string): boolean => rel.startsWith('src/services/crewBoard/') || /^scripts\/crew\/prove-(?:swarm|run)-/.test(rel) || rel === 'scripts/api/prove-cache-divergence-replay.ts' || ['docs/CREW.md', 'src/skills/bundled/deep-research/SKILL.md', 'scripts/skills/prove-crew-skills.ts', 'src/commands/swarmchat/index.ts', 'src/commands/swarmchat/swarmchat.ts', 'src/types/message.ts', 'src/components/messages/CrewChatRow.tsx', 'src/tools/AgentTool/AgentTool.tsx', 'src/tools/AgentTool/runAgent.ts', 'src/tools/AgentTool/prompt.ts', 'scripts/providers/prove-gemini-plan-shape.ts', 'scripts/builtin-tools/fixtures/tool-census.json', 'scripts/tool-economy/fixtures/definition-corpus.json', 'scripts/prompt/prove-briefing-replay.ts', 'src/commands.ts', 'src/commands/team/index.ts', 'src/utils/crew/channelCommand.ts', 'src/utils/suggestions/commandSuggestions.ts', 'scripts/command-catalogue/prove-swarm-channel-completion.ts', 'scripts/switchboard/prove-command-table.ts'].includes(rel)
@@ -59,7 +59,7 @@ const NOT_THE_CREW: Array<[RegExp, string, ((rel: string) => boolean)?]> = [
   [/\bteamCandidates\b/g, 'The channel-completion proof names its label candidates.', rel => rel === 'scripts/command-catalogue/prove-swarm-channel-completion.ts'],
   [/\/team(?![\w/-])/g, 'The owner channel command in the README roster and the generated surface census, not a crew identity.', rel => rel === 'README.md' || rel === 'scripts/compositor/fixtures/surface-census.md'],
   [/\b(?:teams?|assignTeam|setTeam|teamOf|validTeam|canonicalTeam|teamAssigned|peerTeam|swarm_team)\b/gi, 'Board delivery labels and their fields; the retired teammate and ownership-system spellings remain forbidden.', boardLabelSurface],
-  [XAI_BILLING_WORDS, "xAI's billing account and documented wire fields, not a Mercury crew", rel => XAI_BILLING_SURFACES.has(rel)],
+  [XAI_BILLING_WORDS, "xAI's billing account and documented wire fields, not a Mercury crew", rel => XAI_BILLING_SURFACES.has(rel) || isFlagRegistryFile(rel)],
   [new RegExp(J('s', 'team'), 'i'), 'Steam, the games store the Aseprite and Godot bridges look in'],
   [new RegExp(J('rot', 'eamento'), 'i'), 'Portuguese for routing, in the Brazilian Portuguese README', rel => rel === 'docs/translations/README.pt-BR.md'],
   [new RegExp(J('(?:\\b', 'team', ": ')?[Cc]laude[ _]", 'Team'), ''), 'the Claude Team plan, the provider\'s name for it, and the plan table row keyed by its wire value'],
@@ -127,7 +127,7 @@ check('the xAI billing vocabulary is excused only on its named surfaces',
 check('a crew spelling beside xAI billing words still trips',
   OLD.test(crewRemainder('src/services/providers/xai/xaiUsageState.ts', 'team usage; ask a teammate')))
 check('the xAI spending refusal stays literal only on its recorded billing surfaces',
-  ['scripts/providers/fixtures/xai-subscription-contract.json', 'src/substrate/flagRegistry.ts'].every(rel =>
+  ['scripts/providers/fixtures/xai-subscription-contract.json', ...flagRegistryFiles()].every(rel =>
     !OLD.test(crewRemainder(rel, 'personal-team-blocked:spending-limit')) &&
       OLD.test(crewRemainder(rel, 'personal-team-blocked:spending-limit; ask a teammate'))) &&
     OLD.test(crewRemainder('src/utils/crew/agentLaunchPlan.ts', 'personal-team-blocked:spending-limit')))
@@ -162,7 +162,7 @@ for (const rel of scoped) {
   const aliasPin = ALIAS_PINS.find(([p]) => rel === p)
   if (excluded || aliasTable || aliasPin) {
     if (aliasTable || aliasPin) excusedFiles.set(rel, (excusedFiles.get(rel) ?? 0) + 1)
-    if (rel !== 'src/substrate/flagRegistry.ts') continue
+    if (!isFlagRegistryFile(rel)) continue
   }
   scanned++
   const text = readFileSync(join(ROOT, rel), 'utf8')

@@ -14,6 +14,7 @@ delete process.env.MERCURY_SELECTION_BUDGET
 const t = checker()
 const ROOT = join(import.meta.dir, '..', '..')
 const { resolveSelectionBudget } = await import('../../src/services/run/contextSelection.ts')
+const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 
 t.section('§1 — accepted default: unset ⇒ the caller budget passes through identically')
 {
@@ -64,8 +65,7 @@ t.section('§4 — the ONE builder threads it; the registry row exists and the d
   const builder = readFileSync(join(ROOT, 'src/services/run/requestContextPlan.ts'), 'utf8')
   t.check('requestContextPlan resolves through resolveSelectionBudget', builder.includes('resolveSelectionBudget(input.selectionBudget)'))
   t.check('no direct input-only budget path survives', !builder.includes('input.selectionBudget ?? null'))
-  const registry = readFileSync(join(ROOT, 'src/substrate/flagRegistry.ts'), 'utf8')
-  t.check('the registry row exists', registry.includes("env: 'MERCURY_SELECTION_BUDGET'"))
+  t.check('the registry row exists', getFlagSpec('MERCURY_SELECTION_BUDGET') !== undefined)
 }
 
 t.finish('prove-selection-budget-owner')

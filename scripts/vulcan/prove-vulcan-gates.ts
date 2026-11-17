@@ -4,6 +4,7 @@ process.env.MERCURY_DESKTOP_DRIVER = 'none'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
+import { flagRegistryText } from '../lib/flagRegistrySource.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -180,7 +181,7 @@ section('§6 · flag registry rows')
   const master = getFlagSpec('MERCURY_GODOT_TOOLS')
   check('MERCURY_GODOT_TOOLS registered opt-in/behavioral', master?.kind === 'opt-in' && master?.tier === 'behavioral')
   check('the retired fixed-port and shared-token rows are gone', getFlagSpec('MERCURY_GODOT_TOOLS_PORT') === undefined && getFlagSpec('MERCURY_GODOT_TOOLS_TOKEN') === undefined)
-  check('the registry keeps no table of retired names — an unregistered name is simply unknown', !readFileSync(path.join(import.meta.dir, '..', '..', 'src/substrate/flagRegistry.ts'), 'utf8').includes('RETIRED_FLAGS'))
+  check('the registry keeps no table of retired names — an unregistered name is simply unknown', !flagRegistryText().includes('RETIRED_FLAGS'))
   check('LITE opt-in/infra row', getFlagSpec('MERCURY_GODOT_TOOLS_LITE')?.kind === 'opt-in' && getFlagSpec('MERCURY_GODOT_TOOLS_LITE')?.tier === 'infra')
 }
 

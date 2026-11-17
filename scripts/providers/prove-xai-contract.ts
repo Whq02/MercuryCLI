@@ -5,6 +5,7 @@ import { strict as assert } from 'node:assert'
 import { readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import ts from 'typescript'
+import { getFlagSpec } from '../../src/substrate/flagRegistry.ts'
 
 const root = join(import.meta.dir, '..', '..')
 const rename = (s: string): string => s.replace(/DEEPSEEK/g, 'XAI').replace(/Deepseek|DeepSeek/g, 'Xai').replace(/deepseek/g, 'xai')
@@ -51,14 +52,13 @@ try {
     console.log(`[PASS] ${to}: all ${mirrored} mirrored exports and function signatures`)
   }
   for (const name of DEEPSEEK_RATE_ONLY) assert.ok(exportsOf(join(root, 'src/services/providers/deepseek/deepseekPins.ts')).has(name), `${name} is a DeepSeek pin`)
-  const flags = readFileSync(join(root, 'src/substrate/flagRegistry.ts'), 'utf8')
   const shard = readFileSync(join(root, 'scripts/gate/ci-shard.sh'), 'utf8')
-  assert.ok(flags.includes("env: 'MERCURY_XAI_API_BASE'"))
+  assert.ok(getFlagSpec('MERCURY_XAI_API_BASE') !== undefined)
   for (const base of ['MERCURY_XAI_API_BASE', 'MERCURY_XAI_GROK_PROXY_BASE', 'MERCURY_XAI_AUTH_BASE', 'MERCURY_XAI_MANAGEMENT_API_BASE']) {
     assert.ok(shard.includes(base), `${base} joins the loopback census`)
-    assert.ok(flags.includes(`env: '${base}'`), `${base} is registered`)
+    assert.ok(getFlagSpec(base) !== undefined, `${base} is registered`)
   }
-  assert.ok(flags.includes("env: 'MERCURY_XAI_MANAGEMENT_API_BASE'"))
+  assert.ok(getFlagSpec('MERCURY_XAI_MANAGEMENT_API_BASE') !== undefined)
   const accounts = exportsOf(join(root, 'src/services/providers/xai/xaiAccounts.ts'))
   for (const name of ['resolveXaiApiKey', 'resolveXaiManagementApiKey', 'xaiApiBase', 'xaiGrokProxyBase', 'xaiInferenceBase', 'xaiManagementBase', 'resolveXaiAccount']) assert.ok(accounts.has(name), name)
   const usage = exportsOf(join(root, 'src/services/providers/xai/xaiUsageState.ts'))

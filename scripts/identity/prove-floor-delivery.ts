@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { flagRegistryText } from '../lib/flagRegistrySource.ts'
 const J = (...parts: string[]): string => parts.join('')
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'floor-delivery-'))
@@ -128,7 +129,7 @@ section('§3 contract sections — no identity or doctrine section; the constitu
 {
   const sections = contract.getMercuryContractSections()
   check('the contract sections carry no identity text and no doctrine', sections.every(s => !s.text.includes('You are') && s.name !== J('identity', '-floor') && s.name !== J('mercury', '-doctrine')))
-  check('no gate flag names the constitution', !SRC('src/prompt/mercuryContract.ts').includes(J('MERCURY_WRAPPER', '_APPEND')) && !SRC('src/substrate/flagRegistry.ts').includes(J('MERCURY_WRAPPER', '_APPEND')))
+  check('no gate flag names the constitution', !SRC('src/prompt/mercuryContract.ts').includes(J('MERCURY_WRAPPER', '_APPEND')) && !flagRegistryText().includes(J('MERCURY_WRAPPER', '_APPEND')))
 }
 
 section('§4 composer + renderers — position law, both wires')

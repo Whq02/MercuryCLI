@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
+import { flagRegistryText } from '../lib/flagRegistrySource.ts'
 
 const repoRoot = resolve(new URL('../..', import.meta.url).pathname)
 
@@ -24,8 +25,7 @@ function gitGrep(args: string[]): string {
   ok('no src/ module references glassbird', hits.trim() === '', hits.trim().slice(0, 200))
 }
 {
-  const hits = gitGrep(['-i', 'GLASSBIRD', '--', 'src/substrate/flagRegistry.ts'])
-  ok('no glassbird flag in the runtime registry (overlay seam is scripts-side only)', hits.trim() === '')
+  ok('no glassbird flag in the runtime registry (overlay seam is scripts-side only)', !/GLASSBIRD/i.test(flagRegistryText()))
 }
 {
   const hits = gitGrep(['-l', 'glassbird', '--', '*.ts', ':!scripts', ':!docs'])

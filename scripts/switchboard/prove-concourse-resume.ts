@@ -409,7 +409,7 @@ console.log('C — the renames: the idle knob speaks the session estate; the acc
   check('C1 the knob graph is symmetric: idle ↔ grace', (canonRow?.interactsWith ?? []).includes(GRACE) && (graceRow?.interactsWith ?? []).includes(CANON))
   check('C1 grace: the reaper reads the session spelling through the ONE bounded reader, nothing below it', reaper.includes(`flagEnv('${GRACE}'),`) && !reaper.includes(GRACE_OLD))
   const sibling = read('scripts/daemon/prove-newborn-grace.ts')
-  check('C1 grace: the sibling prover pins the session spelling and knows no other', sibling.includes(`env: '${GRACE}'`) && sibling.includes(`process.env.${GRACE} = '45'`) && !sibling.includes(GRACE_OLD))
+  check('C1 grace: the sibling prover pins the session spelling and knows no other', sibling.includes(`getFlagSpec('${GRACE}')`) && sibling.includes(`process.env.${GRACE} = '45'`) && !sibling.includes(GRACE_OLD))
   const accent = read('src/components/mercury-ui/sessionAccent.ts')
   check('C2 the chat-first phrasing is gone ("Session-only", "the critter session-theme", "the active session critter")', !accent.includes('Session-only') && !accent.includes('critter session-theme') && !accent.includes('The active session critter') && !accent.includes('the live session critter'))
   check('C2 the exported spellings stand (the sweep is named, not smuggled)', accent.includes('export function getSessionAccent(): Critter') && accent.includes('export function useSessionAccent(): Critter'))

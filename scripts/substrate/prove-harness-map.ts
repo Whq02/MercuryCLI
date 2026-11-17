@@ -175,11 +175,8 @@ check(
   resetHarnessMapForTest()
 }
 
-const registrySrc = readFileSync(
-  join(import.meta.dir, '../../src/substrate/flagRegistry.ts'),
-  'utf8',
-)
-const rowCount = registrySrc.split("env: 'MERCURY_HARNESS_MAP'").length - 1
+const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.js')
+const rowCount = FLAG_REGISTRY.filter(row => row.env === 'MERCURY_HARNESS_MAP').length
 check('flagRegistry row present exactly once', rowCount === 1, `count=${rowCount}`)
 
 for (const [k, v] of Object.entries({

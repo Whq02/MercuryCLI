@@ -18,6 +18,7 @@ console.log('============================================================')
 
 const spellings = await import('../../src/services/providers/credentialEnvSpellings.ts')
 const idSpaces = await import('../../src/services/providers/idSpaces.ts')
+const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 
 section('§1 the strip set derives from the route-law family table')
 {
@@ -107,8 +108,8 @@ section('§5 the wiring, structural')
     const src = readFileSync(join(ROOT, file), 'utf8')
     check(`${file} spawns through languageServerEnv`, src.includes('languageServerEnv()') && !src.includes('subprocessEnv()'))
   }
-  const registry = readFileSync(join(ROOT, 'src/substrate/flagRegistry.ts'), 'utf8')
-  check('the isolation flag is registered with its off arm', registry.includes("env: 'MERCURY_SUBPROCESS_CREDENTIAL_ISOLATION'") && registry.includes('ambient inheritance, byte-identical'))
+  const isolationRow = getFlagSpec('MERCURY_SUBPROCESS_CREDENTIAL_ISOLATION')
+  check('the isolation flag is registered with its off arm', isolationRow !== undefined && isolationRow.off.includes('ambient inheritance, byte-identical'))
   const subEnvSrc = readFileSync(join(ROOT, 'src/utils/subprocessEnv.ts'), 'utf8')
   check('the strip path emits no log or diagnostic (no credential value can leak through one)', !/console\.|logError|logForDebugging/.test(subEnvSrc))
   check('the CI list derives from the family table (no hand-kept provider spellings)', subEnvSrc.includes('...ALL_PROVIDER_CREDENTIAL_ENV_VARS') && !subEnvSrc.includes("'OPENAI_API_KEY'"))

@@ -29,6 +29,7 @@ async function main(): Promise<void> {
   const { registerWardsGuard, resetWardsEngagedSessionsForTest, wardsEnabled, WARDS_HOOK_ID } =
     await import('../../src/guards/wardsGuard.js')
   const { judgeToolCall, guardsEngaged } = await import('../../src/guards/guards.js')
+  const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
   type Judge = (toolName: string, input: Record<string, unknown>, toolUseId?: string) => Promise<unknown>
   const judgeFor = (key: string): Judge => async (toolName, input, toolUseId = 'wards-call') => {
     const verdict = await judgeToolCall(key, {
@@ -342,15 +343,13 @@ async function main(): Promise<void> {
     const print = src('cli', 'run.ts')
     check('the turn registers for EVERY session kind (the one chokepoint)', engine.includes('registerWardsGuard(config.setAppState, sessionId)'))
     check('print path registers too (wards.registerWardsHook)', print.includes('wards.registerWardsGuard('))
-    check('flag registry carries the MERCURY_WARDS row', src('substrate', 'flagRegistry.ts').includes("env: 'MERCURY_WARDS'"))
+    check('flag registry carries the MERCURY_WARDS row', getFlagSpec('MERCURY_WARDS') !== undefined)
   }
 
   section('6. the autonomous delete-ward (the incident class)')
   {
     const { AUTONOMOUS_WARDS } = await import('../../src/utils/wards/wards.js')
     const { deleteWardActive } = await import('../../src/guards/wardsGuard.js')
-    const { readFileSync } = await import('node:fs')
-    const { join } = await import('node:path')
     const bash = (command: string) => ({ toolName: 'Bash', input: { command }, shellCommand: command })
     const denied = (cmd: string) => !evaluateWards(AUTONOMOUS_WARDS, bash(cmd)).allow
     check('denies rm -rf of a /Users path', denied('rm -rf /Users/alice/Developer/some-repo'))
@@ -379,8 +378,7 @@ async function main(): Promise<void> {
     delete process.env.MERCURY_SPAWNED_BY
     check(
       'flag registry carries the MERCURY_DELETE_WARD row',
-      readFileSync(join(import.meta.dir, '..', '..', 'src', 'substrate', 'flagRegistry.ts'), 'utf-8')
-        .includes("env: 'MERCURY_DELETE_WARD'"),
+      getFlagSpec('MERCURY_DELETE_WARD') !== undefined,
     )
   }
 

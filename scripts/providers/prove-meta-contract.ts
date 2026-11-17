@@ -18,6 +18,7 @@ const { keyLegTitle, keyLegStoreLine, keyLegGuardOpts, keyPromptPaneLines, login
 const { keyLaneProviderRows, keyConnectValue } = await import('../../src/utils/model/modelOptions.ts')
 const { subModelConnectHome } = await import('../../src/utils/model/subModelSlots.ts')
 const { buildProviderSnapshot } = await import('../../src/services/providers/modelRegistry.ts')
+const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 const root = join(import.meta.dir, '..', '..')
 const read = (path: string): string => readFileSync(join(root, path), 'utf8')
 let count = 0
@@ -50,6 +51,6 @@ try {
     check(`${file} exports a declared contract`, names.length > 0)
     console.log(`[EXPORTS] ${file}: ${names.join(', ')}`)
   }
-  check('the Meta base is registered and pinned by the hermetic gate', read('src/substrate/flagRegistry.ts').includes("env: 'MERCURY_META_API_BASE'") && read('scripts/gate/ci-shard.sh').includes('MERCURY_META_API_BASE'))
+  check('the Meta base is registered and pinned by the hermetic gate', getFlagSpec('MERCURY_META_API_BASE') !== undefined && read('scripts/gate/ci-shard.sh').includes('MERCURY_META_API_BASE'))
   console.log(`META CONTRACT GREEN (${count} checks; no provider request)`)
 } finally { rmSync(proofHome, { recursive: true, force: true }) }

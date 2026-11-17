@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { readFileSync } from 'node:fs'
+import { getFlagSpec } from '../../src/substrate/flagRegistry.ts'
 
 let failures = 0
 const t = (name: string, ok: boolean): void => {
@@ -24,8 +25,7 @@ t('/tmp + /private/tmp advertised on POSIX', handler.includes("add('/tmp')") && 
 t('win32 skips the POSIX tmp literals', handler.includes("process.platform !== 'win32'"))
 t('dedupe guard present', handler.includes('if (!roots.includes(uri)) roots.push(uri)'))
 
-const reg = readFileSync('src/substrate/flagRegistry.ts', 'utf8')
-t('flag registered', reg.includes("env: 'MERCURY_MCP_ROOTS_WIDE'"))
+t('flag registered', getFlagSpec('MERCURY_MCP_ROOTS_WIDE') !== undefined)
 
 console.log(failures ? '\n❌ MCP-ROOTS-WIDE RED' : '\n✅ MCP-ROOTS-WIDE GREEN')
 process.exit(failures)

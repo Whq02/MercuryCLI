@@ -22,6 +22,7 @@ const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'ut
 const sup = await import('../../src/daemon/concourseWorkers.ts')
 const idle = await import('../../src/daemon/idleRetirement.ts')
 const handover = await import('../../src/substrate/splashHandover.ts')
+const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 const { retiringRunners } = await import('./retiring-runners.ts')
 const dir = process.env.MERCURY_DAEMON_DIR!
 const DEAD_PID = 2_147_000_000
@@ -91,8 +92,8 @@ console.log('Q2 the drain ceiling knob')
   process.env.MERCURY_SESSION_PARK_DRAIN_MINUTES = '0'
   check('0 ⇒ no wait', idle.sessionParkDrainMs() === 0)
   delete process.env.MERCURY_SESSION_PARK_DRAIN_MINUTES
-  const registry = read('src/substrate/flagRegistry.ts')
-  check('the knob is a registered row naming its consumer and the cut wording', registry.includes("env: 'MERCURY_SESSION_PARK_DRAIN_MINUTES'") && registry.includes('sessionParkDrainMs') && registry.includes("'parked — turn cut at the drain ceiling'"))
+  const knob = getFlagSpec('MERCURY_SESSION_PARK_DRAIN_MINUTES')
+  check('the knob is a registered row naming its consumer and the cut wording', knob !== undefined && knob.consumer.includes('sessionParkDrainMs') && knob.summary.includes("'parked — turn cut at the drain ceiling'"))
   check('the cut reason has ONE owner', sup.PARK_DRAIN_CUT_REASON === 'parked — turn cut at the drain ceiling')
 }
 

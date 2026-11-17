@@ -12,6 +12,7 @@ delete process.env.MERCURY_ANTHROPIC_CONNECTORS
 const { anthropicConnectorsArmed, fetchAnthropicConnectorsIfEligible, clearAnthropicConnectorsCache } = await import(
   '../../src/services/mcp/anthropicConnectors.ts'
 )
+const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -53,8 +54,7 @@ section('§2 THE LIVE GATE')
 section('§3 WIRING')
 {
   const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
-  const registry = src('src/substrate/flagRegistry.ts')
-  check('MERCURY_ANTHROPIC_CONNECTORS is REGISTERED (opt-in)', registry.includes("env: 'MERCURY_ANTHROPIC_CONNECTORS'"))
+  check('MERCURY_ANTHROPIC_CONNECTORS is REGISTERED (opt-in)', getFlagSpec('MERCURY_ANTHROPIC_CONNECTORS') !== undefined)
   const gate = src('src/services/mcp/anthropicConnectors.ts')
   check(
     'the fetch consults the canonical row THROUGH the registry resolver',

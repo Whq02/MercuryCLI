@@ -29,6 +29,7 @@ function restore(...keys: string[]): void {
 const pyright = await import('../../src/services/lsp/pyrightLane.js')
 const ruff = await import('../../src/services/lsp/ruffLane.js')
 const { getMercuryLspServerSources } = await import('../../src/services/lsp/builtinServers.js')
+const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
 
 console.log('============================================================')
 console.log(' python lanes — gating · probes · config resolver · merge order')
@@ -167,10 +168,9 @@ section('(5) the deliberate .py multi-provider merge order')
 
 section('(6) registry rows')
 {
-  const registry = readFileSync(join(ROOT, 'src', 'substrate', 'flagRegistry.ts'), 'utf8')
-  check('MERCURY_LSP_PYTHON registered', registry.includes("env: 'MERCURY_LSP_PYTHON'"))
-  check('MERCURY_PYRIGHT_VENDOR_DIR registered', registry.includes("env: 'MERCURY_PYRIGHT_VENDOR_DIR'"))
-  check('the Python language-server flag is a registered row', registry.includes('MERCURY_LSP_PYTHON'))
+  check('MERCURY_LSP_PYTHON registered', getFlagSpec('MERCURY_LSP_PYTHON') !== undefined)
+  check('MERCURY_PYRIGHT_VENDOR_DIR registered', getFlagSpec('MERCURY_PYRIGHT_VENDOR_DIR') !== undefined)
+  check('the Python language-server flag is a registered row', getFlagSpec('MERCURY_LSP_PYTHON') !== undefined)
 }
 
 console.log('\n============================================================')

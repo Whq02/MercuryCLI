@@ -421,7 +421,7 @@ async function main(): Promise<void> {
     )
     check(
       'the flag registry row names the ladder',
-      src('substrate', 'flagRegistry.ts').includes('env override > the vendored dist/vendor/js-debug bundle > the legacy ~/.js-debug unpack'),
+      (await import('../../src/substrate/flagRegistry.js')).getFlagSpec('MERCURY_JS_DEBUG_DAP')?.summary.includes('env override > the vendored dist/vendor/js-debug bundle > the legacy ~/.js-debug unpack') === true,
     )
   }
 

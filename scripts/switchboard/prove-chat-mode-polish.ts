@@ -85,7 +85,8 @@ t.section('§E — the boot face per twin: no row in --chat; the live-view door 
   const keysOf = (concourse: { ctx: string } | null): string[] => (assembleCardRows({ cwdBase: 'proj', continueTarget: null, menuAvailable: true, concourse, projects: [] }) as Array<{ key: string }>).map(r => r.key)
   t.check('the --chat card carries no concourse key and is exactly one row shorter than the card that does', !keysOf(null).includes('concourse') && keysOf({ ctx: 'the live board' }).includes('concourse') && keysOf({ ctx: 'x' }).length === keysOf(null).length + 1)
   t.check('the launcher exports the --chat mark for the splash and the splash composes the --chat card from it', read('scripts/ops/launcher-mercury.sh').includes('--chat|-chat) export MERCURY_SPLASH_CHAT=1 ;;') && read('assets/splash/mercury-splash.mjs').includes("concourse: process.env.MERCURY_SPLASH_CHAT === '1' ? null : { ctx: 'the multi-session board, once' }"))
-  t.check('the new env read has its flag-registry row (consumer: the splash)', read('src/substrate/flagRegistry.ts').includes("env: 'MERCURY_SPLASH_CHAT'"))
+  const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
+  t.check('the new env read has its flag-registry row (consumer: the splash)', getFlagSpec('MERCURY_SPLASH_CHAT') !== undefined)
   t.check("the boot settings layer's 'o' door is absent in --chat too, kept in --concourse-off", read('src/components/BootSettingsScreen.tsx').includes('...(concourseLive && !chatBoot') && read('src/components/BootSettingsScreen.tsx').includes("${concourseLive && !chatBoot ? ` · o ${plainWorld ? 'live view' : 'concourse'}` : ''}"))
 }
 

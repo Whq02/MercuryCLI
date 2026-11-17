@@ -2,6 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { flagRegistryText } from '../lib/flagRegistrySource.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
@@ -102,7 +103,7 @@ section('§3 the title row is gone: the pane opens on the berth card')
 section('§4 structure: the clock is gone; the glyph reads the crew')
 {
   check('the clock module is gone', !existsSync('src/utils/cockpit/liveClock.ts'))
-  const registry = readFileSync('src/substrate/flagRegistry.ts', 'utf8')
+  const registry = flagRegistryText()
   check('the clock\'s flag left the registry with its reader', !registry.includes('MERCURY_LIVE_CLOCK'))
   const tag = readFileSync('src/components/SwitchboardTagBar.tsx', 'utf8')
   check('the bottom row paints no glyph and no session name (the title row alone names the session)', !tag.includes('<WorkingGlyph') && !tag.includes('{title}') && !/seatDisplayTitle\(status\)/.test(tag))

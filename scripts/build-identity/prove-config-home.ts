@@ -3,6 +3,7 @@ import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { flagRegistryText } from '../lib/flagRegistrySource.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -125,7 +126,7 @@ for (const path of trackedFiles) {
   }
 }
 check(`no other config-home spelling in ${trackedFiles.length} swept files`, homeHits.length === 0, homeHits.slice(0, 10).join(' · '))
-const registrySrc = readFileSync(join(ROOT, 'src', 'substrate', 'flagRegistry.ts'), 'utf-8')
+const registrySrc = flagRegistryText()
 check('the flag registry carries no alias field', !/\blegacy\??:/.test(registrySrc))
 check('flagEnv reads the registered spelling and nothing else', /return process\.env\[spec\.env\]\n\}/.test(registrySrc) && !registrySrc.includes('formerly'))
 

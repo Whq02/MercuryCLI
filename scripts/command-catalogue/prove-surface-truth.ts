@@ -2,6 +2,7 @@
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
+import { isFlagRegistryFile } from '../lib/flagRegistrySource.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 process.chdir(REPO)
@@ -184,8 +185,8 @@ check('the four family defaults spell no table key (they read the table)', defau
 check('the picker rows spell no generation (no literal previous-key list, no literal frontier row)', !has('src/utils/model/modelOptions.ts', 'PREVIOUS_LARGE_KEYS') && !has('src/utils/model/modelOptions.ts', 'getFable51Option') && !has('src/utils/model/modelOptions.ts', "strings.fable51"))
 check("the router's class defaults spell no id", !/'claude-[a-z0-9-]+(\[1m\])?'/.test(codeOnly(src('src/services/providers/anthropic/anthropicAdapter.ts')).split('function classDefaultModel')[1]?.split('\n}')[0] ?? "'claude-x'"))
 check('the frontier policy spells no generation in code', !/Fable 5/.test(codeOnly(src('src/utils/model/frontierPolicy.ts'))))
-const DISPLAY_OWNERS = new Set(['src/utils/model/model.ts', 'src/services/providers/openai/gptPins.ts', 'src/substrate/flagRegistry.ts'])
-const strayDisplay = SRC_FILES.filter(f => !DISPLAY_OWNERS.has(f)).filter(f => {
+const DISPLAY_OWNERS = new Set(['src/utils/model/model.ts', 'src/services/providers/openai/gptPins.ts'])
+const strayDisplay = SRC_FILES.filter(f => !DISPLAY_OWNERS.has(f) && !isFlagRegistryFile(f)).filter(f => {
   const code = codeOnly(src(f))
   return /['"`]Fable 5(\.1)?['"` (]/.test(code) || GPT_DISPLAY_PINS.some(p => code.includes(`'${p.displayName}'`) || code.includes(`"${p.displayName}"`))
 })
