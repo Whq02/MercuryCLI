@@ -126,7 +126,8 @@ const boxDirNow = box.boxLockDir()
 const boxStateNow = boxDirNow === null ? null : box.readBoxLockState(boxDirNow)
 if (lockDirBefore === undefined) delete process.env.MERCURY_BOX_LOCK_DIR
 else process.env.MERCURY_BOX_LOCK_DIR = lockDirBefore
-check('/health carries the Box lock row', boxRow?.status === 'ok' && boxStateNow !== null && boxRow.evidence === `${boxDirNow}: ${box.boxLockStateWords(boxStateNow)}`, j(boxRow))
+const unclocked = (text: string): string => text.replace(/ \d+s/g, ' #s')
+check('/health carries the Box lock row', boxRow?.status === 'ok' && boxStateNow !== null && boxStateNow.holders.length === 2 && boxStateNow.waiters.length === 3 && unclocked(boxRow.evidence) === unclocked(`${boxDirNow}: ${box.boxLockStateWords(boxStateNow)}`), j(boxRow))
 
 rmSync(scratch, { recursive: true, force: true })
 console.log('\n' + '─'.repeat(76))

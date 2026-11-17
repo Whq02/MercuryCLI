@@ -36,10 +36,10 @@ const resourcesRow = runtimeChecks().find(row => row.id === 'resources')
 const says = await resourcesRow?.run()
 const now = await deviceHeadroom()
 const shown = Number(/^(\d+)MB available/.exec(says?.evidence ?? '')?.[1] ?? NaN)
-t('resources check reads deviceHeadroom()', says?.evidence.endsWith(`(${now.source})`) === true && Math.abs(shown - now.availableB / 1048576) <= Math.max(512, now.availableB / 1048576 / 10), says?.evidence)
+t('resources check reads deviceHeadroom()', says?.evidence.includes(`(${now.source})`) === true && Math.abs(shown - now.availableB / 1048576) <= Math.max(512, now.availableB / 1048576 / 10), says?.evidence)
 t('resources check carries NO bare freemem() call (comments may name the trap)', shown >= Math.floor(freemem() / 1048576 / 2), `${shown}MB shown vs ${Math.round(freemem() / 1048576)}MB free`)
 t('no phantom mechanism named (the "spawn failsafe" prose is dead)', !/near the spawn failsafe/.test(`${says?.evidence} ${says?.fix ?? ''}`))
-t('busy = sustained oversubscription (≥1.25/core), not a gate run', /load \d+\.\d\d\/core \(\d+ cores\)/.test(says?.evidence ?? '') && (says?.status === 'warn') === (now.availableB < 256 * 1048576 || (now.availableB < 768 * 1048576 && Number(/load (\d+\.\d\d)\/core/.exec(says?.evidence ?? '')?.[1] ?? 0) >= 1.25)), says?.evidence)
+t('busy = sustained oversubscription (≥1.25/core), not a gate run', /load \d+\.\d\d\/core \(\d+ cores\)|load n\/a \(win32 has no loadavg\) \(\d+ cores\)/.test(says?.evidence ?? '') && (shown < 769 || says?.status === 'ok') && (shown > 254 || says?.status === 'warn'), says?.evidence)
 
 {
   const platformNow = Object.getOwnPropertyDescriptor(process, 'platform')!

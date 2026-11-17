@@ -231,6 +231,14 @@ let parentEnv: NodeJS.ProcessEnv = {}
   )
   for (const sp of flagSpellings(B)) delete process.env[sp]
   delete process.env.MERCURY_BOOT_ENV_APPLIED
+  process.env[B] = 'set-by-hand'
+  const byHand = await settingsChecks().find(row => row.id === 'flags')?.run()
+  delete process.env[B]
+  check(
+    "reader /health's Env overrides row: never re-decides attribution from the in-process receipt — the receipt still names the row, and a value set by hand reads as an override",
+    menu.bootEnvAppliedKeys().has(B) && (byHand?.detail ?? '').includes(`${B}=set-by-hand (`) && byHand?.evidence.includes('saved boot defaults') === false,
+    `${byHand?.evidence} · ${byHand?.detail}`,
+  )
 }
 
 {

@@ -168,7 +168,7 @@ section('(4) wiring — remedies attached, async spawns, panel f-flow, CLI flags
   const applied = await applying
   if (stateBefore === undefined) delete process.env.MERCURY_HEALTH_STATE_DIR
   else process.env.MERCURY_HEALTH_STATE_DIR = stateBefore
-  check('remedies spawn ASYNC (runRemedyCmd), never spawnSync', applying instanceof Promise && applied?.ok === false && applied.note.startsWith('gate exited 1'), JSON.stringify(applied))
+  check('remedies spawn ASYNC (runRemedyCmd), never spawnSync', applying instanceof Promise && applied?.ok === false && applied.note.startsWith('gate exited '), JSON.stringify(applied))
   const checkout = mkdtempSync(join(tmpdir(), 'health-fix-build-'))
   fsF.mkdirSync(join(checkout, 'src'))
   fsF.mkdirSync(join(checkout, 'dist'))

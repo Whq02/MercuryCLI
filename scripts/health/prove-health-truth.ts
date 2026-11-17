@@ -30,8 +30,11 @@ const context = await healthContext()
 const rows = new Map(HEALTH_SECTIONS.flatMap(entry => entry.checks(context)).map(row => [row.id, row]))
 const run = async (id: string) => rows.get(id)!.run()
 
+const { getSettingsWithAllErrors } = await import('../../src/utils/settings/allErrors.ts')
 const settingsRow = await run('settings')
-t('settings errors compose file · path · message', settingsRow.status === 'warn' && /first: \S*settings\.json · \S/.test(settingsRow.evidence), settingsRow.evidence)
+const settingsErrors = getSettingsWithAllErrors().errors
+const firstError = settingsErrors[0]
+t('settings errors compose file · path · message', firstError !== undefined && String(firstError.file).endsWith('settings.json') && String(firstError.message).length > 0 && settingsRow.status === 'warn' && settingsRow.evidence === `${settingsErrors.length} settings validation error(s) — first: ${[firstError.file, firstError.path, firstError.message].filter(Boolean).join(' · ').slice(0, 120)}`, settingsRow.evidence)
 t('…the phantom .error cast is dead', !/undefined|\[object/.test(settingsRow.evidence), settingsRow.evidence)
 
 const plain = FLAG_REGISTRY.find(f => f.selfStamped !== true)!

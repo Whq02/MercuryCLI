@@ -56,9 +56,11 @@ section('panels color/warn off the boolean, NOT the displayed === \'high\' strin
   const permissive = withEnv(undefined, () => mcpRow?.run()) as { status: string; evidence: string; fix?: string } | undefined
   const clamped = withEnv('untrusted-srv:low', () => mcpRow?.run()) as { status: string; evidence: string; fix?: string } | undefined
   publishMcpConnections([])
+  const { describeMcpProtocolCurrency } = await import('../../src/services/mcp/protocolRevision.ts')
+  const behind = describeMcpProtocolCurrency().behind
   check(
     'the health mcp row keys off mcpPolicyActive',
-    permissive?.status === 'info' && permissive.evidence.includes(' · policy high · permissive · ') && permissive.fix?.startsWith('Tighten if desired') === true && clamped?.status === 'ok' && clamped.evidence.includes(' · policy default high · untrusted-srv:low · '),
+    permissive?.status === (behind ? 'warn' : 'info') && permissive.evidence.includes(' · policy high · permissive · ') && (behind || permissive.fix?.startsWith('Tighten if desired') === true) && clamped?.status === (behind ? 'warn' : 'ok') && clamped.evidence.includes(' · policy default high · untrusted-srv:low · '),
     `${permissive?.status}: ${permissive?.evidence} | ${clamped?.status}: ${clamped?.evidence}`,
   )
 }

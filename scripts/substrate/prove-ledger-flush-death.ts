@@ -48,6 +48,12 @@ section('§1 invocation trace — injection: unwritable sidecar retains + escala
   await trace.flushTraceNow()
   h = trace.getTraceFlushHealth()
   check('streak reaches the escalation mark (3)', h.streak === 3, `streak=${h.streak}`)
+  {
+    const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+    const says = await crewChecks().find(row => row.id === 'invocation-trace')?.run()
+    const named = /^mercury-trace\.jsonl flush failing — streak (\d+), (\d+) pending/.exec(says?.evidence ?? '')
+    check('the /health trace row reads that streak from the owner: warn, the streak and the pending count named', says?.status === 'warn' && named !== null && Number(named[1]) >= h.streak && Number(named[1]) <= trace.getTraceFlushHealth().streak && Number(named[2]) === h.pending, `${says?.status}: ${says?.evidence.slice(0, 70)}`)
+  }
   check('nothing landed on the occupied path', diskLines().length === 0)
 }
 
@@ -135,6 +141,12 @@ section('§4 cache-clock rollups — counted streak + recovery')
   clock.flushCacheClockNow()
   ch = clock.getCacheClockFlushHealth()
   check('rollup failures count a streak (≥3 escalates)', ch.streak >= 3, `streak=${ch.streak}`)
+  {
+    const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+    const says = await crewChecks().find(row => row.id === 'cache-clock')?.run()
+    const named = /^session rollup writes failing — streak (\d+): /.exec(says?.evidence ?? '')
+    check('the /health metering row reads that streak from the owner: warn, the streak named', says?.status === 'warn' && named !== null && Number(named[1]) >= ch.streak && Number(named[1]) <= clock.getCacheClockFlushHealth().streak, `${says?.status}: ${says?.evidence.slice(0, 70)}`)
+  }
   check('failure detail recorded', ch.lastFailure !== null)
   rmSync(sess, { force: true })
   clock.flushCacheClockNow()
