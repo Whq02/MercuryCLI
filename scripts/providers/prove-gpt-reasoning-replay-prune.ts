@@ -16,6 +16,7 @@ function section(t: string): void {
 const ROOT = join(import.meta.dir, '..', '..')
 
 const bridge = await import('../../src/services/providers/openai/responsesBridge.ts')
+const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 type BridgeMessage = import('../../src/services/providers/openai/responsesBridge.ts').BridgeMessage
 type Item = import('../../src/services/providers/openai/openaiWire.ts').OpenaiInputItem
 
@@ -75,8 +76,7 @@ section('P3 THE COUNT — bytes per request')
 
 section('P4 wiring')
 {
-  const registry = readFileSync(join(ROOT, 'src/substrate/flagRegistry.ts'), 'utf8')
-  check("the flag row is registered opt-in with a byte-identical off arm", /env: 'MERCURY_GPT_PRUNE_PRIOR_REASONING', kind: 'opt-in'/.test(registry))
+  check("the flag row is registered opt-in with a byte-identical off arm", getFlagSpec('MERCURY_GPT_PRUNE_PRIOR_REASONING')?.kind === 'opt-in')
   const src = readFileSync(join(ROOT, 'src/services/providers/openai/responsesBridge.ts'), 'utf8')
   check('the mapper reads the flag per call (the gate reader) and keys the prune on the last user message', /const prunePrior = flagEnabled\('MERCURY_GPT_PRUNE_PRIOR_REASONING'\)/.test(src) && /prunePrior && index < lastUserIndex/.test(src))
   check('only reasoning items are ever dropped, only from turns before the last user message', /item\.type !== 'reasoning'/.test(src))

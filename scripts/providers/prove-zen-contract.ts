@@ -26,6 +26,7 @@ const { resolveModelPricing } = await import('../../src/utils/modelCost.ts')
 const { effortVocabularyFor, resolveContextWindow, getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.ts')
 const { readModelListFacts } = await import('../../src/services/providers/typedModelIds.ts')
 const { PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.ts')
+const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 const root = join(import.meta.dir, '..', '..')
 const read = (path: string): string => readFileSync(join(root, path), 'utf8')
 let count = 0
@@ -68,7 +69,7 @@ try {
     check(`${file} exports a declared contract`, names.length > 0)
     console.log(`[EXPORTS] ${file}: ${names.join(', ')}`)
   }
-  check('both Zen bases are registered and pinned by the hermetic gate', read('src/substrate/flagRegistry.ts').includes("env: 'MERCURY_ZEN_API_BASE'") && read('src/substrate/flagRegistry.ts').includes("env: 'MERCURY_ZEN_GO_API_BASE'") && read('scripts/gate/ci-shard.sh').includes('MERCURY_ZEN_API_BASE MERCURY_ZEN_GO_API_BASE'))
+  check('both Zen bases are registered and pinned by the hermetic gate', getFlagSpec('MERCURY_ZEN_API_BASE') !== undefined && getFlagSpec('MERCURY_ZEN_GO_API_BASE') !== undefined && read('scripts/gate/ci-shard.sh').includes('MERCURY_ZEN_API_BASE MERCURY_ZEN_GO_API_BASE'))
   check('no product surface carries bespoke words for what the road does not serve', !/this build/.test(read('src/services/providers/zen/zenCallModel.ts') + read('src/services/providers/zen/zenCatalogue.ts') + read('src/utils/model/modelOptions.ts')))
   console.log(`ZEN CONTRACT GREEN (${count} checks; no provider request)`)
 } finally { rmSync(proofHome, { recursive: true, force: true }) }
