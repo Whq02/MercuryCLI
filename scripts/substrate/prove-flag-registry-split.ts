@@ -163,6 +163,7 @@ type Kind = 'tree' | 'exports' | 'shape' | 'door-row' | 'served' | 'not-gathered
 type Fault = { kind: Kind; text: string }
 type Held = { file: string; rows: Row[]; alone: Row[] | null; literal: boolean }
 type Reading = { faults: Fault[]; rows: number; files: [string, number][]; walked: number; parsed: number; by: string }
+type Lister = (root: string) => string[] | null
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -192,21 +193,22 @@ function walk(root: string, rel: string, out: string[]): void {
   }
 }
 
-function codeFiles(root: string, tracked: boolean): { files: string[]; by: string } {
-  const walked = (): { files: string[]; by: string } => {
-    const files: string[] = []
-    walk(root, '', files)
-    return { files, by: 'found by a walk of the tree' }
-  }
-  if (!tracked) return walked()
+const gitLists: Lister = root => {
   const env: Record<string, string | undefined> = { ...process.env }
   for (const name of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE']) delete env[name]
   try {
-    const listed = execFileSync('git', ['-C', root, 'ls-files', '-z', '--cached', '--others', '--exclude-standard'], { encoding: 'utf8', maxBuffer: 1 << 28, env, stdio: ['ignore', 'pipe', 'ignore'] })
-    return { files: listed.split('\0').filter(file => CODE.test(file)).sort(), by: 'tracked or new in the tree' }
+    return execFileSync('git', ['-C', root, 'ls-files', '-z', '--cached', '--others', '--exclude-standard'], { encoding: 'utf8', maxBuffer: 1 << 28, env, stdio: ['ignore', 'pipe', 'ignore'] }).split('\0')
   } catch {
-    return walked()
+    return null
   }
+}
+
+function codeFiles(root: string, lists: Lister | null): { files: string[]; by: string } {
+  const listed = (lists?.(root) ?? []).filter(file => CODE.test(file)).sort()
+  if (listed.includes(SELF)) return { files: listed, by: 'tracked or new in the tree' }
+  const files: string[] = []
+  walk(root, '', files)
+  return { files, by: 'found by a walk of the tree' }
 }
 
 function written(file: string, spec: string): string | null {
@@ -309,7 +311,7 @@ function shapeOf(file: string, text: string): { shape: string[]; order: string[]
   return { shape, order, literal: true }
 }
 
-async function judge(root: string, areas: Record<string, string>, tracked: boolean): Promise<Reading> {
+async function judge(root: string, areas: Record<string, string>, lists: Lister | null): Promise<Reading> {
   const faults: Fault[] = []
   const fault = (kind: Kind, text: string): void => {
     faults.push({ kind, text })
@@ -430,7 +432,7 @@ async function judge(root: string, areas: Record<string, string>, tracked: boole
     if (before !== undefined && !(before.env < row.env)) fault('registry-order', `FLAG_REGISTRY: ${row.env} stands after ${before.env}: ${DOOR} sorts the gathered rows by env`)
   })
 
-  const { files, by } = codeFiles(root, tracked)
+  const { files, by } = codeFiles(root, lists)
   let parsed = 0
   for (const file of files) {
     if (file === SELF || file === HELPER || isFlagRegistryFile(file)) continue
@@ -491,14 +493,14 @@ section('§0 the checks on a planted tree: a tree with nothing wrong reads clean
     [`${ROWS}/.DS_Store`]: 'a leftover of the file manager\n',
     [`${ROWS}/notes.md`]: 'a note\n',
   }
-  const planted = async (change: Record<string, string> = {}): Promise<Fault[]> => {
+  const planted = async (change: Record<string, string> = {}, lists: Lister | null = null): Promise<Fault[]> => {
     const root = mkdtempSync(join(tmpdir(), 'flag-registry-split-'))
     try {
       for (const [rel, body] of Object.entries({ ...CLEAN, ...change })) {
         mkdirSync(dirname(join(root, rel)), { recursive: true })
         writeFileSync(join(root, rel), body)
       }
-      return (await judge(root, PLANTED, false)).faults
+      return (await judge(root, PLANTED, lists)).faults
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
@@ -599,6 +601,11 @@ section('§0 the checks on a planted tree: a tree with nothing wrong reads clean
   check("the folder's name is read without case, in src and in a script (holes 03 and 13)", lines(past, CASE) === '1' && lines(past, 'scripts/b/case.ts') === '1', texts(past))
   check('a file beside src and scripts is read too (hole 12), and nothing else is named', lines(past, 'bench/outside.ts') === '1' && past.length === 6 && past.every(f => f.kind === 'outside-import'), texts(past))
 
+  const BENCH = { 'bench/outside.ts': `import { A_FLAGS } from '${spec('bench/outside.ts', A)}'\nexport const loaded = A_FLAGS\n` }
+  const unlisted = await planted(BENCH, () => [])
+  const ignored = await planted(BENCH, () => [SELF])
+  check('a tree git lists no file of, as a copy that sits in an ignored folder, is walked, and the import past the door is named there; where git lists this proof its list is what is read, so a file it leaves out is not', lines(unlisted, 'bench/outside.ts') === '1' && unlisted.length === 1 && ignored.length === 0, texts([...unlisted, ...ignored]))
+
   const order = await planted({ [A]: rowsFile('A_FLAGS', [['ALPHA_TWO', 'src/a/two.ts'], ['ALPHA_ONE', 'src/a/one.ts']]) })
   check('a row out of order in its file is named as it is written', kinds(order) === 'file-order' && order[0]!.text.startsWith(`${A}:5 ALPHA_ONE is written after ALPHA_TWO`), texts(order))
 
@@ -626,7 +633,7 @@ section('§0 the checks on a planted tree: a tree with nothing wrong reads clean
   check('a file with a second export and a types file that exports a value are named', kinds(second) === 'exports shape' && second[0]!.text.startsWith(`${A} has 2 exports`) && kinds(valued) === 'exports' && valued[0]!.text.startsWith(`${TYPES} exports VALUE`), texts([...second, ...valued]))
 }
 
-const real = await judge(ROOT, AREAS, true)
+const real = await judge(ROOT, AREAS, gitLists)
 const found = (...want: Kind[]): Fault[] => real.faults.filter(f => want.includes(f.kind))
 
 section(`§1 the cut: a row is written in a file under ${ROWS}, never in the door`)
