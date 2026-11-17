@@ -99,7 +99,6 @@ class FakeStdin extends EventEmitter {
 }
 
 type Mounted = { push: (data: string) => void; screen: () => string; unmount: () => void }
-// eslint-disable-next-line no-control-regex
 const PROBE_CSI = /\x1b\[(?:[<>=][0-9;]*[a-zA-Z]|\?[0-9;]*\$p|\?[0-9;]*u|[0-9;]*c|6n)/g
 const emulatorRefusals: string[] = []
 function mount(element: React.ReactElement): Mounted {

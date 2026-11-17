@@ -125,7 +125,6 @@ section('§E the full journey, both postures — warning → offer/auto → cont
     } else {
       mock.setMockRateLimitScenario(scenario as never)
     }
-    // eslint-disable-next-line eslint-plugin-n/no-unsupported-features/node-builtins
     limits.extractQuotaStatusFromHeaders(new globalThis.Headers())
     return limits.currentLimits
   }
