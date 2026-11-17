@@ -21,6 +21,7 @@
 # gate-watch: src/tools/PowerShellTool/UI.tsx src/utils/bash/registry.ts src/utils/permissions/commandContent.ts src/utils/permissions/decision/commandAnalysis.ts
 # gate-watch: src/utils/permissions/decision/rules.ts src/utils/permissions/permissionSetup.ts src/utils/permissions/ruleReason.ts src/utils/permissions/shellProtectedPaths.ts
 # gate-watch: src/utils/permissions/shellRuleMatching.ts src/utils/Shell.ts src/utils/ShellCommand.ts
+# gate-watch: src/cli/run.ts src/main.tsx
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"
@@ -35,6 +36,7 @@ run_proof "$here/prove-proof-scratch.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here
 run_proof "$here/prove-proof-guard.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-proof-guard.ts" || fail=1
 run_proof "$here/prove-node-preload-path.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-node-preload-path.ts" || fail=1
 run_proof "$here/prove-remove-scratch.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-remove-scratch.ts" || fail=1
+run_proof "$here/prove-built-product.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-built-product.ts" || fail=1
 run_proof "$here/prove-suite-env-guard.sh" bash "$here/prove-suite-env-guard.sh" || fail=1
 run_proof "$here/prove-suite-home-guard.sh" bash "$here/prove-suite-home-guard.sh" || fail=1
 run_proof "$here/prove-screen-slot-claims.sh" bash "$here/prove-screen-slot-claims.sh" || fail=1

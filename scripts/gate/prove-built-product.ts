@@ -174,7 +174,7 @@ try {
     if (value === undefined) delete process.env[name]
     else process.env[name] = value
   }
-  const bare = Object.keys(JSON.parse(spawnSync(nodeBinPath(), ['-e', 'process.stdout.write(JSON.stringify(process.env))'], { env: {}, encoding: 'utf8' }).stdout || '{}') as Record<string, string>)
+  const bare = Object.keys(JSON.parse(spawnSync(nodeBinPath(), ['-e', 'process.stdout.write(JSON.stringify(process.env))'], { env: { HOME: work, MERCURY_CONFIG_DIR: join(work, 'no-home'), MERCURY_LOCAL_PROBE_TARGETS: 'none' }, encoding: 'utf8' }).stdout || '{}') as Record<string, string>)
   const bases = FLAG_REGISTRY.map(row => row.env).filter(name => /^(?:MERCURY_UPDATE_API_BASE_URL|MERCURY_[A-Z0-9_]+_BASE)$/.test(name))
   const allowed = new Set(['PATH', 'TMPDIR', 'NODE_COMPILE_CACHE', 'HOME', 'TERM', 'MERCURY_CONFIG_DIR', 'MERCURY_DAEMON_DIR', 'MERCURY_LOCAL_PROBE_TARGETS', 'MERCURY_CREDENTIAL_STORE', 'ANTHROPIC_BASE_URL', ...bases, ...bare])
   const strangers = (env: Record<string, string>, passed: string[] = []): string[] => Object.keys(env).filter(name => !allowed.has(name) && !passed.includes(name))
@@ -276,9 +276,46 @@ try {
     await pause(500)
     const orphaned = killed.at !== null && alive(killed.at.runner) && alive(killed.at.child) && existsSync(entryPath)
     check('SIGKILL is out of reach of the proof: its runner lives on and its ledger entry stands', orphaned, JSON.stringify(killed.at))
-    const reaped = spawnSync('bash', ['-c', '. "$1" && process_ledger_reap "$2"', 'reap', join(import.meta.dir, '..', 'lib', 'process-ledger.sh'), ledger], { encoding: 'utf8' })
-    check("the suite's own ledger reader ends that runner and the child it started", killed.at !== null && reaped.status === 0 && reaped.stdout.includes(`process ledger: ended ${killed.at.runner} `) && (await goneWithin(killed.at.runner, 5_000)) && (await goneWithin(killed.at.child, 5_000)), `${reaped.stdout}${reaped.stderr}`.slice(0, 300))
     check('what a SIGKILL leaves is one parent folder under the temp folder of the run, for the suite to remove with its run root', left(killed.temp).length === 1 && killed.at !== null && real(join(killed.temp, left(killed.temp)[0]!)) === real(killed.at.parent), left(killed.temp).join(' '))
+    for (const pid of killed.at === null ? [] : [killed.at.runner, killed.at.child]) {
+      try {
+        process.kill(pid, 'SIGKILL')
+      } catch {
+        continue
+      }
+    }
+
+    const shell = (text: string): string => `'${text.replaceAll("'", "'\\''")}'`
+    const suite = join(work, 'killed-suite')
+    const suiteOut = join(work, 'out-suite')
+    mkdirSync(suite, { recursive: true })
+    mkdirSync(suiteOut, { recursive: true })
+    writeFileSync(
+      join(suite, 'run-all.sh'),
+      [
+        '#!/usr/bin/env bash',
+        'set -u',
+        `${shell(process.execPath)} ${shell(SELF)} --hold ${shell(fresh)} ${shell(suiteOut)} wait &`,
+        'proof=$!',
+        `for tick in $(seq 1 600); do [ -s ${shell(join(suiteOut, 'held.json'))} ] && break; sleep 0.1; done`,
+        `cp -R "$MERCURY_PROCESS_LEDGER_DIR" ${shell(join(suiteOut, 'ledger'))}`,
+        `printf '%s' "$MERCURY_SUITE_TMPDIR" > ${shell(join(suiteOut, 'run-root'))}`,
+        'kill -9 "$proof"',
+        'wait "$proof" 2>/dev/null',
+        'exit 0',
+        '',
+      ].join('\n'),
+    )
+    const suiteRun = spawnSync('bash', [join(import.meta.dir, 'run-suite.sh'), join(suite, 'run-all.sh'), '120', suite, '', 'fixed'], { cwd: join(import.meta.dir, '..', '..'), env: { ...process.env, BUN: process.execPath }, encoding: 'utf8', timeout: 150_000 })
+    const underSuite = existsSync(join(suiteOut, 'held.json')) ? (JSON.parse(readFileSync(join(suiteOut, 'held.json'), 'utf8')) as Held) : null
+    if (underSuite !== null) started.push(underSuite.runner, underSuite.child)
+    const runRoot = existsSync(join(suiteOut, 'run-root')) ? readFileSync(join(suiteOut, 'run-root'), 'utf8') : ''
+    const suiteEntryPath = join(suiteOut, 'ledger', `${underSuite?.runner}.entry`)
+    const suiteEntry = existsSync(suiteEntryPath) ? readFileSync(suiteEntryPath, 'utf8').replace(/\n$/, '').split('\t') : []
+    const suiteWords = existsSync(join(suite, 'killed-suite.out')) ? readFileSync(join(suite, 'killed-suite.out'), 'utf8') : ''
+    check("under a suite runner the runner stands in the suite's own ledger, in a folder under the suite's run root", underSuite !== null && runRoot !== '' && suiteEntry.length === 5 && suiteEntry[0] === String(underSuite.runner) && (suiteEntry[2] ?? '') !== '' && (suiteEntry[3] ?? '').startsWith(`${runRoot}/`) && real(underSuite.parent).startsWith(`${real(dirname(runRoot))}/`), JSON.stringify({ underSuite, runRoot, suiteEntry }))
+    check("a proof killed with SIGKILL under a suite runner: the suite's own teardown ends its runner and the child it started", underSuite !== null && suiteRun.status === 0 && suiteWords.includes(`process ledger: ended ${underSuite.runner} (`) && (await goneWithin(underSuite.runner, 5_000)) && (await goneWithin(underSuite.child, 5_000)), `rc ${suiteRun.status} · ${suiteWords.slice(-400)} ${String(suiteRun.stderr).slice(0, 200)}`)
+    check('…and the scratch goes with the run root of the suite', underSuite !== null && runRoot !== '' && !existsSync(runRoot) && !existsSync(underSuite.parent), runRoot)
 
     const tidy = await held('tidy', 'wait', ledger)
     const tidyEntry = join(ledger, `${tidy.at?.runner}.entry`)
