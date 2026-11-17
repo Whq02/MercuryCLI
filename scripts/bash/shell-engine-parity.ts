@@ -1,9 +1,11 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, isAbsolute, join, relative, resolve } from 'node:path'
+import { getFlagSpec } from '../../src/substrate/flagRegistry.ts'
 import { brushPackPlatform } from '../../src/utils/shell/brushPack.ts'
+import { flagRegistryText } from '../lib/flagRegistrySource.ts'
 
 const ENGINES = ['system', 'brush'] as const
 export type Engine = (typeof ENGINES)[number]
@@ -99,9 +101,8 @@ export function findVendoredBrush(root: string = ROOT): string | null {
 }
 
 export function engineLaneState(root: string = ROOT): LaneState {
-  const registry = join(root, 'src', 'substrate', 'flagRegistry.ts')
-  const text = existsSync(registry) ? readFileSync(registry, 'utf8') : ''
-  if (!text.includes(`'${ENGINE_ENV}'`)) {
+  const registered = root === ROOT ? getFlagSpec(ENGINE_ENV) !== undefined : flagRegistryText(root).includes(`'${ENGINE_ENV}'`)
+  if (!registered) {
     return {
       state: 'unwired',
       reason: `${ENGINE_ENV} has no flag-registry row in this tree: the engine lane is not wired, so a "brush" run is a system run`,
