@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -179,9 +180,16 @@ section('wiring (structural) — prompts.ts section + print-entry marker')
   )
   const { firstSystemPrompt } = await import('../lib/builtProduct.ts')
   const booted = await firstSystemPrompt(['--mode', 'implement'])
+  const savedHome = mkdtempSync(join(tmpdir(), 'posture-saved-mode-'))
+  writeFileSync(join(savedHome, 'settings.json'), JSON.stringify({ guardrails: { mode: 'implement' } }))
+  const saved = await firstSystemPrompt([], { MERCURY_CONFIG_DIR: savedHome })
+  rmSync(savedHome, { recursive: true, force: true })
+  const bare = await firstSystemPrompt()
+  const modeOf = (prompt: string): string => /Permission mode for this run: ([A-Za-z]+)\./.exec(prompt)?.[1] ?? ''
   check(
     'runHeadless stamps non-interactive with the resolved boot mode',
-    /^- Session: non-interactive/m.test(booted) && /Permission mode for this run: implement\./.test(booted),
+    /^- Session: non-interactive/m.test(booted) && modeOf(booted) === 'implement' && modeOf(saved) === 'implement' && modeOf(bare) === 'default',
+    JSON.stringify({ flag: modeOf(booted), saved: modeOf(saved), bare: modeOf(bare) }),
   )
 }
 

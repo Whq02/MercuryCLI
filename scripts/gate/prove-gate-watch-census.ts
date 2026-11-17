@@ -68,17 +68,20 @@ const TEXT_METHODS = new Set(['includes', 'startsWith', 'endsWith', 'indexOf', '
 const DIR_READER = /^(?:Glob|readdir|opendir|scan|walk|glob|ls|list|collect|census|gather|crawl|enumerate|discover|files|tree|load|git)/i
 const COMPARISONS = new Set([ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken, ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsToken])
 const WHOLE_DIRS = new Set(['', 'src', 'scripts'])
+const BUILT_PRODUCT = 'scripts/lib/builtProduct.ts'
+const BUILT_ENTRIES = /^src\/(?:main\.tsx|cli\/run\.ts)$/
 const MAX_DEPTH = 5
 
 type ReadKind = 'file' | 'dir' | 'glob'
 type ReadHow = 'import' | 'text' | 'runner'
-type Read = { path: string; kind: ReadKind; via: string; how: ReadHow; far?: boolean }
+type Read = { path: string; kind: ReadKind; via: string; how: ReadHow; far?: boolean; owed?: boolean }
 type Tree = { list: string[]; files: Set<string>; dirs: Set<string> }
 type FileReads = { imports: string[]; files: string[]; dirs: string[] }
 type Miss = { suite: string; law: 1 | 2; text: string }
 type Unwatched = { path: string; kind: ReadKind; via: string; files: string[] }
 type SuiteRow = { suite: string; executed: string[]; reads: Read[]; misses: string[]; whole: string | null; unwatched: Unwatched[] }
 type Census = { suites: SuiteRow[]; globs: number; misses: Miss[] }
+type Built = { helper: string; entries: RegExp }
 
 const globs = new Map<string, InstanceType<typeof Bun.Glob>>()
 function globOf(pattern: string): InstanceType<typeof Bun.Glob> {
@@ -406,8 +409,9 @@ function membersOf(root: string, tree: Tree, suite: string): Members | null {
   return { parent, files }
 }
 
-function census(root: string, tracked: string[], manifest: ImpactManifest, whole: Record<string, string>): Census {
+function census(root: string, tracked: string[], manifest: ImpactManifest, whole: Record<string, string>, built: Built = { helper: BUILT_PRODUCT, entries: BUILT_ENTRIES }): Census {
   const tree = treeOf(tracked)
+  const entries = tree.list.filter(file => built.entries.test(file))
   const misses: Miss[] = []
   let globCount = 0
   for (const suite of manifest.suites) {
@@ -460,12 +464,12 @@ function census(root: string, tracked: string[], manifest: ImpactManifest, whole
     if (complement) for (const [sib, m] of members) if (sib.startsWith(`${complement}-`)) for (const f of m.files) executed.delete(f)
     const reads: Read[] = []
     const seen = new Set<string>()
-    const add = (rel: string, via: string, how: ReadHow, far = false): void => {
+    const add = (rel: string, via: string, how: ReadHow, far = false, owed = false): void => {
       const key = `${rel}\0${via}`
       if (seen.has(key)) return
       seen.add(key)
       const r = classify(tree, rel, via, how)
-      if (r) reads.push(far ? { ...r, far } : r)
+      if (r) reads.push({ ...r, ...(far ? { far } : {}), ...(owed ? { owed } : {}) })
     }
     const queue = [...executed]
     const visited = new Set<string>()
@@ -479,6 +483,7 @@ function census(root: string, tracked: string[], manifest: ImpactManifest, whole
       if (!(far || [...descend].some(d => file.startsWith(d)))) continue
       const r = readsOf(file)
       for (const imp of r.imports) {
+        if (imp === built.helper) for (const entry of entries) add(entry, `${file} runs the bundle through ${built.helper} and so`, 'import', false, true)
         if (!far && [...descend].some(d => imp.startsWith(d))) queue.push(imp)
         else {
           add(imp, file, 'import', far)
@@ -502,7 +507,7 @@ function census(root: string, tracked: string[], manifest: ImpactManifest, whole
       for (const read of reads) {
         if (isWhole(read)) continue
         const files = filesOf(tree, read)
-        const unwatched = files.filter(f => !claims(suite, f) && (narrowedRow(manifest, f) !== null || (read.far !== true && ![...scopes].some(s => underScope(f, s)))))
+        const unwatched = files.filter(f => !claims(suite, f) && (narrowedRow(manifest, f) !== null || read.owed === true || (read.far !== true && ![...scopes].some(s => underScope(f, s)))))
         if (unwatched.length === 0) continue
         const key = read.kind === 'file' ? read.path : `${read.path}${read.kind === 'dir' ? '/**' : ''}`
         if (perPath.has(key)) continue
@@ -583,7 +588,12 @@ function selfTest(): boolean {
   w('scripts/gamma/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\nset -u\n# gate-watch: src/gamma/**\n${bun} run "$here/prove-g.ts"\n`)
   w('scripts/gamma/prove-g.ts', "export const out = 'src/gamma/g.ts'.length\n")
   w('scripts/whole/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\nset -u\n${bun} run "$here/prove-w.ts"\n`)
-  w('scripts/whole/prove-w.ts', "import { readdirSync, readFileSync } from 'node:fs'\nimport { join } from 'node:path'\nimport { lib } from '../lib/helper.ts'\nconst ROOT = join(import.meta.dir, '..', '..')\nconst one = readFileSync(join(ROOT, 'src/keys/one.ts'), 'utf8')\nconst deep = readFileSync(join(ROOT, 'src/deep/inner/n.ts'), 'utf8')\nexport const out = readdirSync(join(ROOT, 'src')).length + lib + one.length + deep.length\n")
+  w('scripts/whole/prove-w.ts', "import { readdirSync, readFileSync } from 'node:fs'\nimport { join } from 'node:path'\nimport { lib } from '../lib/helper.ts'\nimport { built } from '../lib/built.ts'\nconst ROOT = join(import.meta.dir, '..', '..')\nconst one = readFileSync(join(ROOT, 'src/keys/one.ts'), 'utf8')\nconst deep = readFileSync(join(ROOT, 'src/deep/inner/n.ts'), 'utf8')\nexport const out = readdirSync(join(ROOT, 'src')).length + lib + built + one.length + deep.length\n")
+  w('src/entry/one.ts', 'export const one = 1\n')
+  w('src/entry/two.ts', 'export const two = 2\n')
+  w('scripts/lib/built.ts', 'export const built = 1\n')
+  w('scripts/theta/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\n# gate-watch: scripts/lib/built.ts src/entry/two.ts\nset -u\n${bun} run "$here/prove-t.ts"\n`)
+  w('scripts/theta/prove-t.ts', "import { built } from '../lib/built.ts'\nexport const out = built\n")
   w('scripts/listed/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\nset -u\n${bun} run "$here/prove-l.ts"\n`)
   w('scripts/listed/prove-l.ts', "import { readdirSync } from 'node:fs'\nimport { join } from 'node:path'\nconst ROOT = join(import.meta.dir, '..', '..')\nconst walk = (d: string): string[] => readdirSync(d)\nexport const out = walk(ROOT).length\n")
   w('scripts/delta/run-all.sh', '#!/usr/bin/env bash\n# gate-class: pure\n# gate-watch: src/keys/one.ts\nset -u\nbash "$here/prove-d.sh"\n')
@@ -600,7 +610,7 @@ function selfTest(): boolean {
   w('scripts/eta/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\n# gate-watch: scripts/lib/deep.ts\nset -u\n${bun} run "$here/prove-h.ts"\n`)
   w('scripts/eta/prove-h.ts', "import { deep } from '../lib/deep.ts'\nexport const out = deep\n")
   const manifest = loadImpactManifest(root)
-  const got = census(root, walkAll(root), manifest, { whole: 'walks src for the fixture', gamma: 'a stale registration' })
+  const got = census(root, walkAll(root), manifest, { whole: 'walks src for the fixture', gamma: 'a stale registration' }, { helper: 'scripts/lib/built.ts', entries: /^src\/entry\/(?:one|two)\.ts$/ })
   rmSync(root, { recursive: true, force: true })
   const want = [
     '1 alpha scripts/alpha/run-all.sh: gate-watch src/gone/** matches no tracked path',
@@ -618,8 +628,12 @@ function selfTest(): boolean {
     '2 eta scripts/lib/deep.ts reads src/deep/inner/n.ts — the gate wakes zeta for src/deep/inner/n.ts, not eta; add "# gate-watch: src/deep/inner/n.ts" to the header of scripts/eta/run-all.sh',
     '2 gamma registered as a whole-tree reader (a stale registration) but no proof it runs reads the whole tree',
     '2 listed scripts/listed/prove-l.ts reads the whole tree (.); the suite is not registered as a whole-tree reader',
+    '2 theta scripts/theta/prove-t.ts runs the bundle through scripts/lib/built.ts and so reads src/entry/one.ts — the gate wakes nothing for src/entry/one.ts, not theta; add "# gate-watch: src/entry/one.ts" to the header of scripts/theta/run-all.sh',
+    '2 whole scripts/whole/prove-w.ts reads scripts/lib/built.ts — the gate wakes theta for scripts/lib/built.ts, not whole; add "# gate-watch: scripts/lib/built.ts" to the header of scripts/whole/run-all.sh',
     '2 whole scripts/whole/prove-w.ts reads scripts/lib/helper.ts — the gate wakes nothing for scripts/lib/helper.ts, not whole; add "# gate-watch: scripts/lib/helper.ts" to the header of scripts/whole/run-all.sh',
     '2 whole scripts/whole/prove-w.ts reads src/deep/inner/n.ts — the gate wakes zeta for src/deep/inner/n.ts, not whole; add "# gate-watch: src/deep/inner/n.ts" to the header of scripts/whole/run-all.sh',
+    '2 whole scripts/whole/prove-w.ts runs the bundle through scripts/lib/built.ts and so reads src/entry/one.ts — the gate wakes nothing for src/entry/one.ts, not whole; add "# gate-watch: src/entry/one.ts" to the header of scripts/whole/run-all.sh',
+    '2 whole scripts/whole/prove-w.ts runs the bundle through scripts/lib/built.ts and so reads src/entry/two.ts — the gate wakes theta for src/entry/two.ts, not whole; add "# gate-watch: src/entry/two.ts" to the header of scripts/whole/run-all.sh',
   ]
   const seen = got.misses.map(m => `${m.law} ${m.suite} ${m.text}`).sort()
   const wholeOk = got.suites.find(s => s.suite === 'whole')?.whole === 'walks src for the fixture'

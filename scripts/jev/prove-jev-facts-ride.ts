@@ -296,8 +296,17 @@ section('§6 the source pins')
   check('each of the three reads the one session reader', surfaces.every(([, src]) => src.includes("from '../../services/jev/jevSessionFacts.js'")))
   check('each of the three repaints when the focused facts move', surfaces.every(([, src]) => src.includes('useSyncExternalStore(subscribeJevSessionFacts, jevSessionFactsStamp, jevSessionFactsStamp)')))
   const { liveFactsOf, withLiveRunner } = await import('../lib/builtProduct.ts')
-  const liveJev = (await withLiveRunner(liveFactsOf, { env: { MERCURY_CONFIG_DIR: HOME, MERCURY_JEV_BASE: process.env.MERCURY_JEV_BASE } })).usage.jev
-  check('the runner answers usage.jev from its own ledger snapshot and its own resolver', liveJev !== undefined && j(liveJev.status) === j(status.jevStatus()) && liveJev.calls === 0 && liveJev.spendUsd === 0 && liveJev.lastRequestId === null, j(liveJev))
+  const liveJevOf = async (): Promise<{ live: Awaited<ReturnType<typeof liveFactsOf>>['usage']['jev']; own: ReturnType<typeof status.jevStatus> }> => ({ live: (await withLiveRunner(liveFactsOf, { env: { MERCURY_CONFIG_DIR: HOME, MERCURY_JEV_BASE: process.env.MERCURY_JEV_BASE } })).usage.jev, own: status.jevStatus() })
+  const switchedOff = await liveJevOf()
+  setting.setJevEnabled(true)
+  const keyless = await liveJevOf()
+  setting.setJevEnabled(false)
+  const liveJev = switchedOff.live
+  check(
+    'the runner answers usage.jev from its own ledger snapshot and its own resolver',
+    liveJev !== undefined && j(liveJev.status) === j(switchedOff.own) && switchedOff.own.kind === 'off' && j(keyless.live?.status) === j(keyless.own) && keyless.own.kind === 'no-key' && liveJev.calls === 0 && liveJev.spendUsd === 0 && liveJev.lastRequestId === null,
+    j({ switchedOff, keyless }),
+  )
   const types = readFileSync(join(REPO, 'src/services/engine-connector/types.ts'), 'utf8')
   check('the field is declared OPTIONAL on UsageFactsV1 and the kind rides a type-only import', /^\s+jev\?: JevFactsV1$/m.test(types) && types.includes("import type { JevStatusKind } from '../jev/jevContract.js'") && !/^import \{[^}]*\} from '\.\.\/jev\//m.test(types))
   const wireSrc = readFileSync(join(REPO, 'src/services/engine-connector/seatWire.ts'), 'utf8')

@@ -329,8 +329,18 @@ section('§5 the shape')
   check('the ledger persists and restores the count with the cost row', tracker.includes('lastUnpricedTurns: { ...getUnpricedTurns() }') && tracker.includes('unpricedTurns: config.lastUnpricedTurns'))
   check('the compat lane names its wire-stated cost as a price', (compat.includes("usageSeen.statedCostUSD !== undefined ? { basis: 'wire-stated' } : undefined") || compat.includes("usageSeen?.statedCostUSD !== undefined ? { basis: 'wire-stated' } : undefined")))
   const facts = readFileSync(join(ROOT, 'src/services/engine-connector/types.ts'), 'utf8')
-  const runner = readFileSync(join(ROOT, 'src/cli/run.ts'), 'utf8')
-  check("the session's usage facts carry the count (additive) and the runner fills it", facts.includes('unpricedTurns?: number') && runner.includes('unpricedTurns: getTotalUnpricedTurns(),'))
+  const { liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
+  const UNPRICED = 'fixture-unpriced-1'
+  const counted = await withFixtureRunner([{ kind: 'text', text: 'ok', model: UNPRICED }, { kind: 'text', text: 'ok' }], async host => {
+    const before = (await liveFactsOf(host)).usage.unpricedTurns
+    await host.prompt('go')
+    await host.waitFor('the unpriced turn ends', row => row.type === 'outcome')
+    const after = (await liveFactsOf(host)).usage.unpricedTurns
+    await host.prompt('again')
+    await host.waitFor('the priced turn ends', row => row.type === 'outcome' && row.turn === 2)
+    return { before, after, still: (await liveFactsOf(host)).usage.unpricedTurns }
+  }).catch(() => null)
+  check("the session's usage facts carry the count (additive) and the runner fills it", facts.includes('unpricedTurns?: number') && cost.modelPricingBasis(UNPRICED) === 'unpriced' && counted !== null && counted.before === 0 && counted.after === 1 && counted.still === 1, JSON.stringify(counted))
   for (const [file, needle] of [
     ['src/utils/cockpit/helmVitalsModel.ts', 'formatLaneSpend(usage.spend)'],
     ['src/components/DeckPane.tsx', 'formatSessionCost(cost, unpricedTurns)'],

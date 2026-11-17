@@ -110,13 +110,14 @@ section("§1 the runner's own facts: advisorFacts() reads the effective test, th
   check('settings on, /advise on, a model pinned: on with the minutes and the model', j(on) === j({ on: true, chat: true, settings: true, minutes: 20, model: MODEL }), j(on))
   const { liveFactsOf, withLiveRunner } = await import('../lib/builtProduct.ts')
   const liveAdvisor = (await withLiveRunner(liveFactsOf, { env: { MERCURY_CONFIG_DIR: home } })).advisor
+  const liveAdvised = (await withLiveRunner(liveFactsOf, { argv: ['--advise'], env: { MERCURY_CONFIG_DIR: home } })).advisor
   advisor.setAdvisorEnabled(false)
   const master = advisor.advisorFacts()
   check('the settings off: chat still on, on false', j(master) === j({ on: false, chat: true, settings: false, minutes: 20, model: MODEL }), j(master))
   storage.saveAdvisorSwitch(false)
   advisor.setAdvisorMinutes(10)
   saveGlobalConfig(c => { const next = { ...c.subModels }; delete next.advisor; return { ...c, subModels: Object.keys(next).length > 0 ? next : undefined } })
-  check("the session facts answer carries `advisor: advisorFacts()` beside the pause gate, so the screen reads THIS chat's state through its connector", j(liveAdvisor) === j({ ...on, on: false, chat: false }), j(liveAdvisor))
+  check("the session facts answer carries `advisor: advisorFacts()` beside the pause gate, so the screen reads THIS chat's state through its connector", j(liveAdvisor) === j({ ...on, on: false, chat: false }) && j(liveAdvised) === j(on), j({ liveAdvisor, liveAdvised }))
   const projection = src('src/services/engine-connector/seatProjections.ts')
   const types = src('src/services/engine-connector/types.ts')
   check('the answer type and the connector door are declared', projection.includes('advisor?: AdvisorFactsV1') && types.includes('advisorFacts(): AdvisorFactsV1 | null'))

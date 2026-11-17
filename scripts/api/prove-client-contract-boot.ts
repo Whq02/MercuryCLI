@@ -51,7 +51,21 @@ section('§0 the boot owner — both session roads start the peek from the defer
   const main = readFileSync(join(ROOT, 'src/main.tsx'), 'utf8')
   const owner = main.slice(main.indexOf('export function startDeferredPrefetches'), main.indexOf('export function startDeferredPrefetches') + 600)
   check('the constant parses', /^\d+\.\d+\.\d+$/.test(CONTRACT), CONTRACT)
-  check('the deferred-prefetch owner starts the peek (after init, bare mode excluded)', owner.includes('if (isBareMode()) return') && owner.includes('startClientContractPeek()'), owner.slice(0, 300))
+  const { FIXTURE_MODEL, fixtureCli } = await import('../lib/builtProduct.ts')
+  const asked: string[] = []
+  const counter = createServer((req, res) => {
+    asked.push(`${req.method} ${req.url}`)
+    res.writeHead(503, { 'content-type': 'application/json' })
+    res.end('{}')
+  })
+  await new Promise<void>(r => counter.listen(0, '127.0.0.1', r))
+  const counted = { MERCURY_NPM_REGISTRY_BASE: `http://127.0.0.1:${(counter.address() as { port: number }).port}` }
+  const plain = await fixtureCli([{ kind: 'text', text: 'ok' }], ['run', '--model', FIXTURE_MODEL, 'hi'], { env: counted })
+  const afterPlain = asked.splice(0)
+  const lean = await fixtureCli([{ kind: 'text', text: 'ok' }], ['run', '--lean', '--model', FIXTURE_MODEL, 'hi'], { env: counted })
+  const afterLean = asked.splice(0)
+  await new Promise<void>(r => counter.close(() => r()))
+  check('the deferred-prefetch owner starts the peek (after init, bare mode excluded)', owner.includes('if (isBareMode()) return') && plain.status === 0 && lean.status === 0 && JSON.stringify(afterPlain) === JSON.stringify(['GET /@anthropic-ai/claude-code/latest']) && afterLean.length === 0, JSON.stringify({ plain: plain.status, afterPlain, lean: lean.status, afterLean }))
   const headless = /\n {2}if \(!isBareMode\(\)\) \{\n {4}startDeferredPrefetches\(\)\n {4}startBackgroundHousekeeping\(\)\n {2}\}\n/.exec(main)
   const runner = main.indexOf('    await runHeadless(')
   check('the interactive road runs that owner as a background node and the headless road calls it before the run', main.includes("registerBackgroundNode('deferred-prefetches', () => {\n    startDeferredPrefetches()") && headless !== null && runner > headless.index, `headless=${headless?.index ?? 'none'} runner=${runner}`)

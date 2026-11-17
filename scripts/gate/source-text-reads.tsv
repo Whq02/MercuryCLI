@@ -70,7 +70,7 @@ scripts/agents/prove-worktree-unlocked-at-end.ts	2	4	2daa46639f8b
 scripts/agents/run-all.sh	3	3	383a0d6028f0
 scripts/api/node-transport-lane.mjs	2	7	1609dd4a8dc6
 scripts/api/prove-cache-prefix-stable.ts	1	2	a092c9665ab4
-scripts/api/prove-client-contract-boot.ts	2	8	022c835ed2db
+scripts/api/prove-client-contract-boot.ts	2	7	022c835ed2db
 scripts/api/prove-client-contract-door.ts	4	9	f9aa0a8f10bb
 scripts/api/prove-client-contract-heal.ts	2	5	50b228ecafba
 scripts/api/prove-empty-reply-nudge.ts	5	9	36325dc4e341
@@ -157,7 +157,7 @@ scripts/builtin-tools/prove-webfetch-summariser-fallback.ts	6	11	98b103db5629
 scripts/cache/prove-cache-clock-gate-words.ts	1	2	28bca0c5568e
 scripts/cache/prove-cache-clock.ts	3	7	31b4172c543e
 scripts/cache/prove-lane-priced-ledger.ts	2	6	6880afa24ba9
-scripts/cache/prove-pricing-by-provider.ts	13	57	5748cfeef34d
+scripts/cache/prove-pricing-by-provider.ts	12	56	cf7598d751b5
 scripts/capabilities/prove-capability-wiring.ts	1	2	ca92d1afe836
 scripts/changesets/prove-changeset-migration.ts	4	12	e82fa978fa7e
 scripts/changesets/prove-compensation-isolation.ts	1	9	1e497c20f454
@@ -341,7 +341,7 @@ scripts/daemon/prove-parked-wake-exit.ts	1	4	c24dc3f7fbaa
 scripts/daemon/prove-process-sweep-tables.ts	3	8	6919ec3f99d4
 scripts/daemon/prove-protocol-shape.ts	3	18	bcdd7a1e3eda
 scripts/daemon/prove-quit-reaps-the-tree.ts	5	19	e78d9c89c2c2
-scripts/daemon/prove-reactivate-door.ts	6	45	25d37ea227ba
+scripts/daemon/prove-reactivate-door.ts	6	42	25d37ea227ba
 scripts/daemon/prove-recall-relay.ts	3	9	628041df89f7
 scripts/daemon/prove-reconfigure-respawn.ts	1	9	98f49752786b
 scripts/daemon/prove-rename-migration.ts	6	20	fc1c6c9fcb4e
@@ -981,7 +981,7 @@ scripts/settings/prove-config-popup-esc.ts	2	4	8ca1d80305ca
 scripts/settings/prove-config-popup-rows.ts	3	6	5b8d1aae4955
 scripts/settings/prove-config-unreadable-honesty.ts	1	13	80dbe8bddeaa
 scripts/settings/prove-corrupt-config-backup-road.ts	2	24	f23dcf08bde9
-scripts/settings/prove-email-surfaces.ts	19	31	3b84080e82ff
+scripts/settings/prove-email-surfaces.ts	19	30	3b84080e82ff
 scripts/settings/prove-extra-ca-outcome.ts	2	3	0a4ebb86bc96
 scripts/settings/prove-global-config-read-as-written.ts	4	4	3148130ae8f8
 scripts/settings/prove-helper-lifetime.ts	3	7	6d2fe9c1b771
