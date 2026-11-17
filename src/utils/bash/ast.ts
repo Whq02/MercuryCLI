@@ -224,6 +224,21 @@ function refuseBraceExpansion(node: Node): void {
   if (BRACE_EXPANSION_RE.test(node.text)) refuse('contains brace expansion syntax', node.type)
 }
 
+const JOINED_LINE_RE = /\\\r?\n/g
+
+function refuseLineBreakBetweenWords(node: Node): void {
+  if (node.text.length !== node.endIndex - node.startIndex) {
+    refuse('the shell parser cannot place the words of this command in its text; split it into explicit commands, or approve', node.type)
+  }
+  let end: number | null = null
+  for (const child of node.children) {
+    if (end !== null && node.text.slice(end - node.startIndex, child.startIndex - node.startIndex).replace(JOINED_LINE_RE, '').includes('\n')) {
+      refuse('a line break stands between the words of one command, and the shell runs what follows it as a command of its own; put a ; or && between the two commands, or approve', node.type)
+    }
+    end = child.endIndex
+  }
+}
+
 function unescapeWord(text: string): string {
   return text.replace(/\\(.)/g, '$1')
 }
@@ -881,6 +896,7 @@ class Walk {
   }
 
   command(node: Node, scope: Scope): void {
+    refuseLineBreakBetweenWords(node)
     const argv: string[] = []
     const envVars: { name: string; value: string }[] = []
     const redirects: Redirect[] = []
@@ -941,6 +957,7 @@ class Walk {
   }
 
   declaration(node: Node, scope: Scope): void {
+    refuseLineBreakBetweenWords(node)
     const argv: string[] = []
 
     for (const child of node.children) {
@@ -1000,6 +1017,7 @@ class Walk {
   }
 
   unset(node: Node, scope: Scope): void {
+    refuseLineBreakBetweenWords(node)
     const argv: string[] = []
     for (const child of node.children) {
       if (argv.length === 0 && (child.type === 'unset' || child.type === 'unsetenv')) {
