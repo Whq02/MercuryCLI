@@ -1,6 +1,7 @@
 import { proofHome } from '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import { spawn, type ChildProcess } from 'node:child_process'
+import { builtHelp } from '../lib/builtProduct.ts'
 import { endProcessGroup, spawnInOwnGroup } from '../lib/processGroup.ts'
 import { createHash, randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -203,7 +204,7 @@ try {
   refusal.stderr.on('data', chunk => { reason += chunk.toString() })
   assert.notEqual(await new Promise(resolve => refusal.once('close', resolve)), 0)
   assert.match(reason, /Trust this folder/)
-  assert.ok(readFileSync(join(root, 'src/main.tsx'), 'utf8').includes(".description('Serve Mercury tools over MCP (stdio or authenticated HTTP)')"))
+  assert.ok(builtHelp('mcp-server').includes('Serve Mercury tools over MCP (stdio or authenticated HTTP)'))
   check('untrusted startup refusal and exact help line')
   console.log(`${count} checks passed`)
 } finally {
