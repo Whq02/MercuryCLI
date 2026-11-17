@@ -4,6 +4,7 @@
 # gate-watch: src/screens/Chat.tsx src/components/PromptInput/**
 # gate-watch: src/input-core/** src/components/mercury-ui/useInteractiveList.ts
 # gate-watch: src/utils/promptDraft.ts
+# gate-watch: src/ink.ts src/components/design-system/ThemeProvider.tsx src/state/AppState.tsx src/keybindings/KeybindingProviderSetup.tsx src/components/mercury-ui/InteractiveRow.tsx
 # gate-watch: src/components/InlineChangeView.tsx src/tools/StructureTool/**
 # gate-watch: src/services/structure/** src/tools/LSPTool/**
 # gate-watch: src/utils/Cursor.ts src/utils/inputRange.ts
@@ -30,6 +31,7 @@ overall=0
 for p in \
   scripts/prompt-input/prove-composer-mouse-tail.ts \
   scripts/prompt-input/prove-prompt-input-switch-fence.ts \
+  scripts/prompt-input/prove-prompt-input-async-note.ts \
   scripts/prompt-input/prove-prompt-input-change-view.ts \
   scripts/prompt-input/prove-prompt-input-chip-atomicity.ts \
   scripts/prompt-input/prove-prompt-input-paste-prune.ts \
