@@ -78,7 +78,7 @@ try {
     const listed = builtCli(['sessions', 'list'])
     const unplaced = (text: string): string => text.replace(/\(.*?\)/, '()')
     check("the sessions command's description names list and delete", builtHelp('sessions').includes('Saved sessions: list, delete'))
-    check('a bare `sessions` runs the listing (an action on the parent command)', bare.status === 0 && bare.stdout.startsWith('No saved sessions for this project') && unplaced(bare.stdout) === unplaced(listed.stdout) && builtHelp('sessions').includes('--limit <n>'))
+    check('a bare `sessions` runs the listing (an action on the parent command)', bare.status === 0 && bare.stdout.startsWith('No saved sessions for this project') && unplaced(bare.stdout) === unplaced(listed.stdout) && builtHelp('sessions').includes(' --all ') && builtHelp('sessions').includes(' --limit <n> '))
     check('`sessions list` is a sub-command with --all and --limit', builtHelp('sessions', 'list').includes('Usage: mercury sessions list [options]') && builtHelp('sessions', 'list').includes('--all List the saved sessions of every project, not only this one') && builtHelp('sessions', 'list').includes('--limit <n>'))
     const readme = source('docs/AUTOMATION.md')
     check('AUTOMATION.md names `mercury sessions list`', readme.includes('`mercury sessions list`'))
