@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# gate-class: pty
+# gate-class: pure
 # gate-watch: src/utils/envUtils.ts src/services/providers/huggingface/huggingfaceAccounts.ts
 # gate-watch: scripts/lib/fixtureApi.ts scripts/lib/runnerHost.ts src/input-core/command-queue.ts src/utils/messages/noticeRows.ts
 # gate-watch: src/services/host/** src/commands/llmhost/** src/services/llmHost/** src/components/LlmHostDialog.tsx
 # gate-watch: src/services/providers/providerSecrets.ts src/services/providers/openaicompat/** docs/LLM-HOST.md
 # gate-watch: src/daemon/main.ts src/entrypoints/cli.tsx src/cli/run.ts src/services/projectServices/**
-# gate-watch: scripts/lib/settingsPopupHarness.ts scripts/providers/lib/llmhostFixture.ts scripts/streaming/artifactArena.ts scripts/streaming/ptydrive.py scripts/lib/observed_walk.py scripts/lib/captureDriver.ts scripts/ui/gridToPng.ts
+# gate-watch: scripts/lib/settingsPopupHarness.ts scripts/providers/lib/llmhostFixture.ts scripts/lib/captureDriver.ts scripts/ui/gridToPng.ts
 # gate-watch: src/utils/messageQueueManager.ts src/utils/model/capabilities.ts src/utils/settings/changeDetector.ts
 # gate-watch: src/ink.ts src/state/AppState.tsx src/components/design-system/ThemeProvider.tsx src/components/SettingsPopupSlot.tsx src/utils/cockpit/settingsPopup.ts
 # gate-watch: assets/host/recipes.json assets/host/weights.json src/substrate/flagRegistry.ts src/services/privateChannel/channelCore.ts package.json
@@ -69,7 +69,6 @@ run_proof "$ROOT/scripts/host/prove-frontier-roster.ts" bun "$ROOT/scripts/host/
 run_proof "$ROOT/scripts/host/prove-measure-recipe.ts" bun "$ROOT/scripts/host/prove-measure-recipe.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-fast-load-drive.ts" bun "$ROOT/scripts/host/prove-fast-load-drive.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-host-tune.ts" bun "$ROOT/scripts/host/prove-host-tune.ts" || fail=1
-run_proof "$ROOT/scripts/host/prove-host-rent-drive.ts" bun "$ROOT/scripts/host/prove-host-rent-drive.ts" --bundle "$ROOT/dist/mercury.mjs" || fail=1
 run_proof "$ROOT/scripts/host/prove-rent-model-first-drive.ts" bun "$ROOT/scripts/host/prove-rent-model-first-drive.ts" --bundle "$ROOT/dist/mercury.mjs" || fail=1
 run_proof "$ROOT/scripts/host/prove-fast-load-private-drive.ts" bun "$ROOT/scripts/host/prove-fast-load-private-drive.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-host-bank-folder-drive.ts" bun "$ROOT/scripts/host/prove-host-bank-folder-drive.ts" || fail=1

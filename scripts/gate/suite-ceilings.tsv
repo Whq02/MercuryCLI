@@ -106,3 +106,4 @@ health	2400
 # with the notice, run-wake and isolation work to 821 s on the Mac. The row is
 # its measured hosted envelope (about 1,000 s whole) with the siblings' slack.
 crew	1500
+host	2400
