@@ -1,7 +1,7 @@
 import type { FlagSpec } from './spec.js'
 
 export const MODEL_FLAGS: readonly FlagSpec[] = [
-  { env: 'MERCURY_ADVISOR_MODEL', kind: 'value', summary: 'Advisor container model pin — the second model that advises the working model on a cadence (canonicalized; outranks the saved /submodels pick; the picker refuses writes while set and names this var; the resolved id is stamped into the advisor’s framing as its engine identity)', off: 'unset ⇒ the saved /submodels pick, else UNSET: the advisor is silent with one debug line and no model call is spent (the choice is the operator’s — no tier default)', consumer: 'src/utils/model/subModelSlots.ts' },
+  { env: 'MERCURY_ADVISOR_MODEL', kind: 'value', summary: 'Advisor container model pin — the second model that advises the working model on a cadence (canonicalized; outranks the saved /submodels pick; the picker refuses writes while set and names this var)', off: 'unset ⇒ the saved /submodels pick, else UNSET: the advisor is silent with one debug line and no model call is spent (the choice is the operator’s — no tier default)', consumer: 'src/utils/model/subModelSlots.ts' },
   { env: 'MERCURY_CUSTOM_MODEL_OPTION', kind: 'value', summary: 'a custom model id offered as its own row in the /model picker (validated as-is)', off: 'no custom row', consumer: 'src/utils/model/modelOptions.ts' },
   { env: 'MERCURY_CUSTOM_MODEL_OPTION_DESCRIPTION', kind: 'value', summary: 'the description of the custom /model row', off: 'no description', consumer: 'src/utils/model/modelOptions.ts' },
   { env: 'MERCURY_CUSTOM_MODEL_OPTION_NAME', kind: 'value', summary: 'the label of the custom /model row', off: 'the model id itself', consumer: 'src/utils/model/modelOptions.ts' },
