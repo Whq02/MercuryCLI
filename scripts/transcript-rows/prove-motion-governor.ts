@@ -31,6 +31,7 @@ import {
   REDUCED_TICK_MS,
   WORK_TICK_MS,
 } from '../../src/utils/cockpit/liveGlyphs.js'
+import { getFlagSpec } from '../../src/substrate/flagRegistry.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -290,9 +291,8 @@ section('G11 the seams')
   check('the critter reads its tick through the level', /critterIdleTickMs\(motionLevel, asleep\)/.test(critter) && !/critterIdleEnabled\(/.test(critter))
   const governor = src('src/utils/cockpit/motionGovernor.ts')
   check('the governor is config-free (flag reads only — the ink layer taps it)', !/utils\/config/.test(governor) && /flagRegistry/.test(governor))
-  const registry = src('src/substrate/flagRegistry.ts')
-  check('the registry rows name the Motion choice for both switches', /MERCURY_CRITTER_IDLE'.*the critter part of the Motion choice/.test(registry) && /MERCURY_LIVE_GLYPHS'.*the glyph part of the Motion choice/.test(registry))
-  check('the cost pad has its registry row', /env: 'MERCURY_FRAME_COST_PAD_MS'/.test(registry))
+  check('the registry rows name the Motion choice for both switches', getFlagSpec('MERCURY_CRITTER_IDLE')?.summary.includes('the critter part of the Motion choice') === true && getFlagSpec('MERCURY_LIVE_GLYPHS')?.summary.includes('the glyph part of the Motion choice') === true)
+  check('the cost pad has its registry row', getFlagSpec('MERCURY_FRAME_COST_PAD_MS') !== undefined)
 }
 reset()
 
