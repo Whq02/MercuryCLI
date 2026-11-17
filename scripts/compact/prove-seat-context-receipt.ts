@@ -38,11 +38,14 @@ check('usage receipt carries the measured count in the wire vocabulary', (wire.u
 check('usage receipt survives the decode without changing the number', restored.usage.context?.usedTokens === 70619)
 const { FIXTURE_MODEL, liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
 const measured = { input_tokens: 70038, output_tokens: 581 } as never
+const NEXT_MODEL = 'claude-sonnet-4-6'
 const published = await withFixtureRunner([{ kind: 'text', text: 'the measured turn', usage: measured }], async runner => {
   const before = (await liveFactsOf(runner)).usage.context
   await runner.prompt('go')
   await runner.waitFor('the measured turn ends', row => row.type === 'outcome').catch(() => undefined)
-  return { before, after: (await liveFactsOf(runner)).usage.context }
+  const after = (await liveFactsOf(runner)).usage.context
+  await runner.request('session/set_model', { model: NEXT_MODEL }).catch(() => null)
+  return { before, after, switched: (await liveFactsOf(runner)).usage.context }
 })
 const midTurn = await withFixtureRunner(
   [
@@ -59,16 +62,20 @@ const midTurn = await withFixtureRunner(
   },
 ).catch(() => undefined)
 const own = { model: FIXTURE_MODEL, ...contextFillView([{ ...message, message: { ...message.message, model: FIXTURE_MODEL } }] as never, FIXTURE_MODEL) }
+const ownNext = { model: NEXT_MODEL, ...contextFillView([] as never, NEXT_MODEL) }
 const windowed = (row: Partial<typeof own> | undefined): string => JSON.stringify(row === undefined ? null : [row.model, row.usedTokens, row.usedPct, row.fillSource, row.window, row.windowSource, row.windowPinned])
+const windowOf = (row: Partial<typeof own> | undefined): string => JSON.stringify(row === undefined ? null : [row.model, row.window, row.windowSource, row.windowPinned])
 check(
   'runner publishes its own context calculation per facts answer',
   published.before?.usedTokens === null &&
     own.usedTokens === fill.usedTokens &&
     windowed(published.after) === windowed(own) &&
+    ownNext.window !== own.window &&
+    windowOf(published.switched) === windowOf(ownNext) &&
     JSON.stringify(Object.keys(published.after ?? {}).sort()) === JSON.stringify(Object.keys(own).sort()) &&
     midTurn?.fillSource === 'usage' &&
     (midTurn.usedTokens ?? 0) >= fill.usedTokens,
-  JSON.stringify({ ...published, midTurn, own }),
+  JSON.stringify({ ...published, midTurn, own, ownNext }),
 )
 const frame = readFileSync(join(import.meta.dir, '../../src/components/MercuryFrame.tsx'), 'utf8')
 const footer = readFileSync(join(import.meta.dir, '../../src/components/PromptInput/Notifications.tsx'), 'utf8')
