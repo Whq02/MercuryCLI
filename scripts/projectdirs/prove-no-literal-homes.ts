@@ -1,8 +1,10 @@
 #!/usr/bin/env bun
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { flagRegistryFiles, isFlagRegistryFile } from '../lib/flagRegistrySource.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
+const REGISTRY = flagRegistryFiles()[0]!
 
 const JOIN_ALLOWLIST: Record<string, string> = {
   'src/utils/projectConfig.ts': 'THE seam — the home names live here',
@@ -25,7 +27,7 @@ const PROSE_ALLOWLIST: Record<string, string> = {
     'the .mercury parcel doctrine — operator-ruled instruction prose names the project-local working directory',
  'src/tools/EnterWorktreeTool/prompt.ts': 'truthful naming of the worktree store under the project-local home',
   'src/services/privateChannel/installLayout.ts': 'the stable shim BODY carries the full home chain (the D-1 runtime mirror)',
-  'src/substrate/flagRegistry.ts': 'registry off:/summary prose names the sticky store truthfully (F9)',
+  [REGISTRY]: 'registry off:/summary prose names the sticky store truthfully (F9)',
 }
 
 const PROSE_CENSUS: Record<string, number> = {
@@ -94,14 +96,15 @@ const joinLive = new Set<string>()
 const proseLive = new Set<string>()
 for (const full of walk(join(ROOT, 'src'))) {
   const rel = relative(ROOT, full).replaceAll('\\', '/')
+  const proseHome = isFlagRegistryFile(rel) ? REGISTRY : rel
   for (const line of maskComments(readFileSync(full, 'utf8')).split('\n')) {
     if (JOIN_RE.test(line)) {
       joinLive.add(rel)
       if (!JOIN_ALLOWLIST[rel]) joinOffenders.set(rel, (joinOffenders.get(rel) ?? 0) + 1)
     }
     if (PROSE_RE.test(line)) {
-      proseLive.add(rel)
-      if (!PROSE_ALLOWLIST[rel] && !JOIN_ALLOWLIST[rel])
+      proseLive.add(proseHome)
+      if (!PROSE_ALLOWLIST[proseHome] && !JOIN_ALLOWLIST[rel])
         proseCounts.set(rel, (proseCounts.get(rel) ?? 0) + 1)
     }
   }
