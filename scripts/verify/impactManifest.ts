@@ -7,6 +7,7 @@ export interface ImpactManifest {
   suites: string[]
   classes?: Record<string, string>
   narrowed?: string[]
+  doors?: Array<{ behind: string; door: string }>
 }
 
 export const NET_GLOB = 'src/**'
@@ -66,7 +67,11 @@ export function loadImpactManifest(root: string): ImpactManifest {
   }
   const ignores = declaredRows(join(root, 'scripts', 'gate', 'impact-ignore.txt'))
   const narrowed = declaredRows(join(root, 'scripts', 'gate', 'impact-narrowed.txt'))
-  return { watches, ignores, suites, classes, narrowed }
+  const doors = declaredRows(join(root, 'scripts', 'gate', 'impact-doors.txt')).map(row => {
+    const [behind = '', door = ''] = row.split(/\s+/)
+    return { behind, door }
+  })
+  return { watches, ignores, suites, classes, narrowed, doors }
 }
 
 function matchesAny(path: string, globs: string[]): boolean {
@@ -104,6 +109,10 @@ export function watchClaims(manifest: ImpactManifest, suite: string, path: strin
   return false
 }
 
+export function doorsOf(manifest: ImpactManifest, path: string): string[] {
+  return (manifest.doors ?? []).filter(row => row.behind !== '' && row.door !== '' && new Bun.Glob(row.behind).match(path)).map(row => row.door)
+}
+
 export function selectImpact(manifest: ImpactManifest, paths: string[]): ImpactSelection {
   const suites = new Set<string>()
   const ignored: string[] = []
@@ -113,8 +122,10 @@ export function selectImpact(manifest: ImpactManifest, paths: string[]): ImpactS
     const claimants: string[] = []
     const self = path.match(/^scripts\/([A-Za-z0-9_-]+)\//)
     if (self && manifest.suites.includes(self[1]!)) claimants.push(self[1]!)
+    const doors = doorsOf(manifest, path)
     for (const dom of Object.keys(manifest.watches)) {
-      if (!claimants.includes(dom) && watchClaims(manifest, dom, path)) claimants.push(dom)
+      if (claimants.includes(dom)) continue
+      if (watchClaims(manifest, dom, path) || doors.some(door => watchClaims(manifest, dom, door))) claimants.push(dom)
     }
     if (claimants.length > 0) {
       for (const c of claimants) suites.add(c)

@@ -48,6 +48,23 @@ check(
   deadNarrowed.join(' · '),
 )
 check(`the manifest sees the full suite estate (${manifest.suites.length} ≥ 90)`, manifest.suites.length >= 90)
+{
+  const doorRows = manifest.doors ?? []
+  const badDoors = doorRows.filter(d => !d.behind || !d.door || !tracked.includes(d.door))
+  check(
+    `every impact-doors row names a glob and a tracked door file (${doorRows.length} rows)`,
+    doorRows.length > 0 && badDoors.length === 0,
+    badDoors.map(d => `${d.behind} ${d.door}`).join(' · ') || 'scripts/gate/impact-doors.txt holds no row',
+  )
+  const behind = [...selectImpact(manifest, ['src/substrate/flags/zz-probe.ts']).suites]
+  const door = [...selectImpact(manifest, ['src/substrate/flagRegistry.ts']).suites]
+  const lost = door.filter(s => !behind.includes(s))
+  check(
+    `a file under src/substrate/flags wakes every suite the registry's door wakes (${door.length} suites)`,
+    door.length > 0 && lost.length === 0,
+    `${lost.length} not woken: ${lost.slice(0, 12).join(' ')}; add the row "src/substrate/flags/** src/substrate/flagRegistry.ts" to scripts/gate/impact-doors.txt`,
+  )
+}
 
 {
   const KNOWN = new Set(['gate-watch', 'gate-class'])
@@ -154,6 +171,31 @@ check(
     'narrowed rows that overlap: the more exact row sets the bar for its path alone',
     claimed(nested, 'src/utils/shell/engine.ts') === 'exact net' && claimed(nested, 'src/utils/shell/other.ts') === 'folder net',
     `${claimed(nested, 'src/utils/shell/engine.ts')} · ${claimed(nested, 'src/utils/shell/other.ts')}`,
+  )
+}
+
+{
+  const doors: ImpactManifest = {
+    suites: ['door', 'folder', 'other'],
+    watches: { door: ['src/reg/door.ts'], folder: ['src/reg/**'], other: ['src/else/**'] },
+    ignores: [],
+    doors: [{ behind: 'src/reg/rows/**', door: 'src/reg/door.ts' }],
+  }
+  check(
+    'door: a change behind a door also wakes the suites that watch the door',
+    claimed(doors, 'src/reg/rows/a.ts') === 'door folder',
+    claimed(doors, 'src/reg/rows/a.ts'),
+  )
+  check(
+    'door: a path outside the row wakes its own watchers alone',
+    claimed(doors, 'src/reg/other.ts') === 'folder' && claimed(doors, 'src/else/x.ts') === 'other',
+    `${claimed(doors, 'src/reg/other.ts')} · ${claimed(doors, 'src/else/x.ts')}`,
+  )
+  const lone = selectImpact({ ...doors, watches: { door: ['src/reg/door.ts'] } }, ['src/reg/rows/a.ts'])
+  check(
+    'door: a path behind a door that no glob names is claimed through the door, not UNCLASSIFIED',
+    lone.suites.has('door') && lone.suites.size === 1 && lone.unclassified.length === 0,
+    JSON.stringify(lone.perPath),
   )
 }
 
