@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getBundledDir } from '../paths.js'
 import { MERCURY_VERSION } from '../../constants/product.js'
 import { bundledMetadata, bundledPayloads } from './content.generated.js'
@@ -45,7 +46,7 @@ function shipped(): BundledExtensionDefinition[] {
 }
 
 function craftPlatform(): string {
-  const pinned = process.env.MERCURY_CRAFT_PLATFORM?.trim()
+  const pinned = flagEnv('MERCURY_CRAFT_PLATFORM')?.trim()
   if (pinned) return pinned
   return `${process.platform === 'win32' ? 'win' : process.platform}-${process.arch}`
 }
@@ -65,7 +66,7 @@ export function bundledReleaseMissingFor(root: string, name: string): string | n
 
 export function bundledRoster(): BundledExtensionDefinition[] {
   const roster = shipped()
-  const fixture = process.env.MERCURY_EXTENSIONS_BUNDLED_FIXTURE
+  const fixture = flagEnv('MERCURY_EXTENSIONS_BUNDLED_FIXTURE')
   if (fixture && fixture.trim() !== '' && existsSync(fixture)) {
     for (const entry of readdirSync(fixture).sort()) {
       const root = join(fixture, entry)
