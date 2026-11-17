@@ -160,15 +160,15 @@ PY
     sed -n 's/^\([A-Za-z0-9-][A-Za-z0-9-]*\)	\([0-9][0-9]*\)$/\1 \2/p' "$SEED_FILE" 2>/dev/null
   } || true
 )
-dur_row() { # $1=dom → the recorded seconds, or empty when no row exists (first hit wins)
+dur_row() {
   printf '%s\n' "$DUR_TABLE" | awk -v k="$1" '$1==k{print $2; exit}'
 }
-dur_of() { # $1=dom → seconds for ordering (30 when unknown)
+dur_of() {
   local d
   d=$(dur_row "$1")
   printf '%s' "${d:-30}"
 }
-budget_of() { # $1=dom → the watchdog seconds this suite runs under
+budget_of() {
   local last b grant
   if [ -n "$BUDGET_OVERRIDE" ]; then printf '%s' "$BUDGET_OVERRIDE"; return; fi
   last=$(dur_row "$1")
@@ -178,7 +178,7 @@ budget_of() { # $1=dom → the watchdog seconds this suite runs under
   [ "${grant:-0}" -gt "$b" ] && b=$grant
   printf '%s' "$b"
 }
-budget_note() { # $1=dom → the rule text the kill marker carries
+budget_note() {
   local last grant
   if [ -n "$BUDGET_OVERRIDE" ]; then printf 'MERCURY_SUITE_TIMEOUT=%s' "$BUDGET_OVERRIDE"; return; fi
   last=$(dur_row "$1")
@@ -205,7 +205,7 @@ while read -r _secs dom; do
   esac
 done <<<"$sorted_by_dur"
 
-PREBUILD_KIND=none   # none | hit | built | skipped
+PREBUILD_KIND=none
 PREBUILD_S=0
 if [ "${#want[@]}" -eq 0 ]; then
   if [ "$CLASS" = drives ]; then
@@ -287,41 +287,41 @@ trap 'exit 129' HUP
 
 declare -a PASS=() FAIL=() PRINTED=()
 was_printed() { local d; for d in ${PRINTED[@]+"${PRINTED[@]}"}; do [ "$d" = "$1" ] && return 0; done; return 1; }
-drop_fail() { # $1=dom — a re-run turned it green
+drop_fail() {
   local keep=() d
   for d in ${FAIL[@]+"${FAIL[@]}"}; do [ "$d" = "$1" ] || keep+=("$d"); done
   FAIL=(${keep[@]+"${keep[@]}"})
 }
 
 FLK_DOM=(); FLK_PRC=(); FLK_PSEC=(); FLK_R1RC=(); FLK_R1SEC=(); FLK_R1T0=(); FLK_R2RC=(); FLK_R2SEC=(); FLK_R2T0=()
-flk_idx() { # $1=dom → index or -1
+flk_idx() {
   local i=0
   for d in ${FLK_DOM[@]+"${FLK_DOM[@]}"}; do [ "$d" = "$1" ] && { printf '%s' "$i"; return; }; i=$(( i + 1 )); done
   printf -- '-1'
 }
 
-pend_retry=()   # in-pool re-runs waiting for a pty slot
-solo_doms=()    # after-drain solo re-runs
+pend_retry=()
+solo_doms=()
 
 slots=0; pty_n=0; pure_n=0; excl_n=0
 qi_pty=0; qi_cpu=0; qi_pure=0; qi_excl=0
 n_pty=${#q_pty[@]}; n_cpu=${#q_cpu[@]}; n_pure=${#q_pure[@]}; n_excl=${#q_excl[@]}
 T_POOL0=$SECONDS
 now() { printf '%s' "$(( SECONDS - T_POOL0 ))"; }
-ev() { # $1=kind $2=dom $3=attempt $4=lane $5=wt $6=budget $7=extra
+ev() {
   printf '%s %s %s %s %s %s %s %s %s %s %s %s %s %s\n' "$(now)" "$1" "$2" "$3" "$4" "$5" "$6" \
     "$(( n_pty - qi_pty + ${#pend_retry[@]} ))" "$(( n_cpu - qi_cpu ))" "$(( n_pure - qi_pure ))" \
     "$pty_n" "$pure_n" "$slots" "$7" >>"$EVENTS"
 }
 
-read_num() { # $1=file $2=default — a torn/garbled number reads as the default
+read_num() {
   local v
   v=$(cat "$1" 2>/dev/null || echo "$2")
   case "$v" in ('' | *[!0-9]*) v=$2 ;; esac
   printf '%s' "$v"
 }
 
-red_proof_lines() { # $1 = captured suite output
+red_proof_lines() {
   awk -v max=12 '
     function flush(head) {
       print "      ┆ " head
@@ -335,9 +335,9 @@ red_proof_lines() { # $1 = captured suite output
   ' "$1" 2>/dev/null
 }
 
-print_done() { # $1 = dom  $2 = dir
+print_done() {
   local dom=$1 dir=$2 rc dt
-  rc=$(read_num "$dir/$dom.rc" 1)   # a torn/garbled rc reads as RED, never a bash error
+  rc=$(read_num "$dir/$dom.rc" 1)
   dt=$(read_num "$dir/$dom.secs" 0)
   if [ "$rc" -eq 0 ]; then
     PASS+=("$dom"); printf '  ✅ %-18s %3ds\n' "$dom" "$dt"
@@ -349,12 +349,12 @@ print_done() { # $1 = dom  $2 = dir
   PRINTED+=("$dom")
 }
 
-pure_head_outlasts_cpu() { # the pure queue's head fits the floor AND runs longer than the cpu queue's head
+pure_head_outlasts_cpu() {
   [ "$qi_pure" -lt "$n_pure" ] && [ "$pure_n" -lt "$PURE_MAX" ] && [ $(( slots + 1 )) -le "$SLOTS_TOTAL" ] \
     && [ "$(dur_of "${q_pure[$qi_pure]}")" -gt "$(dur_of "${q_cpu[$qi_cpu]}")" ]
 }
 
-launch() { # $1=dom $2=lane(pty|cpu|pure|exclusive) $3=weight $4=attempt $5=dir — mutates the running_* arrays + lane counters
+launch() {
   local budget
   budget=$(budget_of "$1")
   bash scripts/gate/run-suite.sh "$SUITES_DIR/$1/run-all.sh" "$budget" "$5" "$(budget_note "$1")" >/dev/null 2>&1 &
@@ -364,7 +364,7 @@ launch() { # $1=dom $2=lane(pty|cpu|pure|exclusive) $3=weight $4=attempt $5=dir 
   ev launch "$1" "$4" "$2" "$3" "$budget" "class=$(suite_class "$1")"
 }
 
-finish() { # $1=dom $2=lane $3=attempt $4=dir
+finish() {
   local dom=$1 lane=$2 att=$3 dir=$4 rc secs cpu i
   rc=$(read_num "$dir/$dom.rc" 1); secs=$(read_num "$dir/$dom.secs" 0); cpu=$(read_num "$dir/$dom.cpu" 0)
   ev finish "$dom" "$att" "$lane" - - "rc=$rc,secs=$secs,cpu=$cpu"
@@ -434,7 +434,7 @@ else
         if [ -f "$dir/$dom.rc" ]; then
           finished=1
         elif ! kill -0 "$pid" 2>/dev/null; then
-          sleep 0.2 # grace: .rc may be mid-rename
+          sleep 0.2
           if [ ! -f "$dir/$dom.rc" ]; then
             echo "__SUITE_HELPER_DIED without publishing a result__" >>"$dir/$dom.out" 2>/dev/null || true
             echo 1 >"$dir/$dom.rc"
@@ -575,7 +575,7 @@ while [ "$i" -lt "$nflk" ]; do
 done
 
 TIMELINE_JSON=null
-WALL_S=$(( SECONDS - T_START ))   # the ONE wall the timeline and the verdict's durationS share
+WALL_S=$(( SECONDS - T_START ))
 if [ "${#want[@]}" -eq 0 ]; then
   printf '{"cores": %d, "slots": %d, "ptyMax": %d, "pureMax": %d, "sequential": %s, "retryMode": "%s", "budget": {"floorS": %d, "k": %d, "overrideS": %s}, "phases": {"prebuild": "%s", "prebuildS": %d, "poolStartS": %d, "poolEndS": %d, "soloEndS": %d}, "distMutated": %s}\n' \
     "$CORES" "$SLOTS_TOTAL" "$PTY_MAX" "$PURE_MAX" "$([ "$SEQUENTIAL" -eq 1 ] && echo true || echo false)" "$RETRY_MODE" \

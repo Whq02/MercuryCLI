@@ -73,17 +73,17 @@ node_bin="$(command -v node)"
 TIMEOUT_BIN=""
 if command -v timeout >/dev/null 2>&1; then TIMEOUT_BIN="timeout"
 elif command -v gtimeout >/dev/null 2>&1; then TIMEOUT_BIN="gtimeout"; fi
-with_deadline() { # cmd...
+with_deadline() {
   if [[ -n "$TIMEOUT_BIN" ]]; then "$TIMEOUT_BIN" 120 "$@"; else "$@"; fi
 }
-run_smoke_cmd() { # outvar  env-and-cmd...
+run_smoke_cmd() {
   local __out_var="$1"; shift
   local __out __rc=0
   __out=$(with_deadline "$@" </dev/null 2>&1) || __rc=$?
   printf -v "$__out_var" '%s' "$__out"
   return "$__rc"
 }
-smoke() { # label  env...
+smoke() {
   local label="$1"; shift
   local out all="" rc
   for cmd in "--help" "--version" "mcp list"; do

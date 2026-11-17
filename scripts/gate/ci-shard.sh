@@ -44,7 +44,7 @@ BUDGET_FLOOR=${MERCURY_SUITE_TIMEOUT_FLOOR:-600}
 case "$BUDGET_FLOOR" in ('' | *[!0-9]*) BUDGET_FLOOR=600 ;; esac
 BUDGET_OVERRIDE=${MERCURY_SUITE_TIMEOUT:-}
 case "$BUDGET_OVERRIDE" in (*[!0-9]*) BUDGET_OVERRIDE= ;; esac
-seed_row() { # $1=dom → seed seconds or empty
+seed_row() {
   sed -n "s/^$1	\([0-9][0-9]*\)$/\1/p" "$SEED_FILE" 2>/dev/null | head -1
 }
 CEILING_DEFAULT=${MERCURY_SUITE_CEILING:-900}
@@ -52,13 +52,13 @@ case "$CEILING_DEFAULT" in ('' | *[!0-9]*) CEILING_DEFAULT=900 ;; esac
 RETRY_MAX=${MERCURY_CI_RETRY_MAX_SECS:-1200}
 case "$RETRY_MAX" in ('' | *[!0-9]*) RETRY_MAX=1200 ;; esac
 DRIVE_CEILING_K=2
-seed_ceiling_of() { # $1=dom → DRIVE_CEILING_K × the seeded wall (0 without a row); drives plan only
+seed_ceiling_of() {
   local s
   [ "$CLASS" = drives ] || { printf '0'; return; }
   s=$(seed_row "$1")
   printf '%s' $(( ${s:-0} * DRIVE_CEILING_K ))
 }
-ceiling_of() { # $1=dom → ceiling seconds: the grant or the default, raised to the seed rule under the drives plan
+ceiling_of() {
   local c s
   c=$(suite_grant "$1" "$CEILING_FILE")
   c=${c:-$CEILING_DEFAULT}
@@ -66,7 +66,7 @@ ceiling_of() { # $1=dom → ceiling seconds: the grant or the default, raised to
   [ "$s" -gt "$c" ] && c=$s
   printf '%s' "$c"
 }
-budget_of() { # $1=dom — the rule (or the operator pin), CAPPED at the ceiling; under the drives plan the ceiling itself
+budget_of() {
   local last b c
   c=$(ceiling_of "$1")
   if [ -n "$BUDGET_OVERRIDE" ]; then
@@ -81,7 +81,7 @@ budget_of() { # $1=dom — the rule (or the operator pin), CAPPED at the ceiling
   [ "$b" -gt "$c" ] && b=$c
   printf '%s' "$b"
 }
-budget_note_of() { # $1=dom — names the ceiling when it is the binding bound, and the seed rule when that made it
+budget_note_of() {
   local c s
   c=$(ceiling_of "$1")
   [ "$(budget_of "$1")" -eq "$c" ] || return 0
@@ -219,7 +219,7 @@ suite_class() {
   c=$(sed -n 's/^# gate-class:[[:space:]]*//p' "$SUITES_DIR/$1/run-all.sh" 2>/dev/null | head -1 | tr -d '[:space:]')
   case "$c" in (pure | cpu | pty | exclusive) printf '%s' "$c" ;; (*) printf 'undeclared' ;; esac
 }
-stuck_note() { # $1=captured output → the capture driver's first stuck-send report, or empty
+stuck_note() {
   grep -a -m1 -E 'UNFIRED-SENDS|UNDELIVERED-SENDS|first stuck:' "$1" 2>/dev/null | tr '\t' ' ' | cut -c1-240
 }
 

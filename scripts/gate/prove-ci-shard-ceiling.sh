@@ -6,7 +6,7 @@ fail=0
 work=$(mktemp -d "${TMPDIR:-/tmp}/ci-shard-ceiling-proof.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 
-mk_suite() { # $1=dom  $2=class-header-line (may be empty)  $3=body
+mk_suite() {
   mkdir -p "$work/suites/$1"
   {
     echo '#!/usr/bin/env bash'
@@ -18,7 +18,7 @@ mk_suite() { # $1=dom  $2=class-header-line (may be empty)  $3=body
 export MERCURY_CONFIG_DIR="$work/config-home"
 mkdir -p "$MERCURY_CONFIG_DIR"
 
-shard() { # $1=out-subdir, then env pins; runs the WHOLE synthetic estate as shard 0/1
+shard() {
   local out=$1; shift
   (
     cd "$repo" && env -u MERCURY_SUITE_TIMEOUT -u MERCURY_SUITE_TIMEOUT_FLOOR -u MERCURY_SUITE_CEILING \
@@ -112,14 +112,14 @@ mk_suite d2 '# gate-class: pty' "if [ -f '$work/d2.once' ]; then exit 0; else to
 mk_suite u1 '' 'exit 0'
 printf 'r1\t1\nr2\t2\nx1\t1\nd1\t3\nd2\t4\nu1\t1\n' >"$work/seed.tsv"
 : >"$work/ceilings.tsv"
-plan_of() { # $1=class → shard 0/1's bucket for that class, stderr parked
+plan_of() {
   (
     cd "$repo" && MERCURY_CI_SHARD_SUITES_DIR="$work/suites" MERCURY_CI_SHARD_SEED_FILE="$work/seed.tsv" \
       MERCURY_CI_SHARD_CEILING_FILE="$work/ceilings.tsv" MERCURY_CI_SHARD_OUT="$work/planC" \
       bash scripts/gate/ci-shard.sh 0 1 --class "$1" --plan-only 2>"$work/plan-$1.err"
   )
 }
-shard_class() { # $1=out-subdir $2=class, then env pins; runs the estate as shard 0/1 of that class
+shard_class() {
   local out=$1 cls=$2; shift 2
   (
     cd "$repo" && env -u MERCURY_SUITE_TIMEOUT -u MERCURY_SUITE_TIMEOUT_FLOOR -u MERCURY_SUITE_CEILING \

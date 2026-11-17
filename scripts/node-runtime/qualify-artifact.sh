@@ -10,7 +10,7 @@ nodev="$(node --version 2>/dev/null || echo none)"
 echo "  · qualifying with node $nodev ($mode)"
 [ -f "$dist" ] || fail "artifact missing: $dist"
 
-run_leg() { # args...
+run_leg() {
   out=$(node "$dist" "$@" </dev/null 2>&1)
   rc=$?
 }

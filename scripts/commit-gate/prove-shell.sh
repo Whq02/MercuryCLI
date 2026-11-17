@@ -14,7 +14,7 @@ echo "=== PROOF 2b — verify && commit: red blocks, green passes ==="
 echo
 
 echo "change" > f.txt && git add f.txt
-false && git commit -q -m "should NOT land"   # `false` = failing build/test
+false && git commit -q -m "should NOT land"
 after_red="$(git rev-parse HEAD)"
 if [ "$base" = "$after_red" ]; then
   echo "  [PASS] failing verify (false &&) → commit did NOT run (HEAD unchanged)"
@@ -22,7 +22,7 @@ else
   echo "  [FAIL] commit ran despite failing verify"; fail=1
 fi
 
-true && git commit -q -m "lands on green"      # `true` = passing build/test
+true && git commit -q -m "lands on green"
 after_green="$(git rev-parse HEAD)"
 if [ "$base" != "$after_green" ]; then
   echo "  [PASS] passing verify (true &&) → commit landed (HEAD advanced)"
