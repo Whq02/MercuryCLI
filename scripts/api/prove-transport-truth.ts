@@ -229,10 +229,10 @@ check(
   'assistant timeout hint helps the UNSET operator too (H-02 site 2)',
   !assistantTsx.includes('{process.env.MERCURY_API_TIMEOUT_MS && ('),
 )
-const registryTs = src('src/substrate/flagRegistry.ts')
+const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 check(
   'both transport knobs are registered flags',
-  registryTs.includes("'MERCURY_CONNECT_TIMEOUT_MS'") && registryTs.includes("'MERCURY_MAX_CONNECTIONS'"),
+  getFlagSpec('MERCURY_CONNECT_TIMEOUT_MS') !== undefined && getFlagSpec('MERCURY_MAX_CONNECTIONS') !== undefined,
 )
 
 if (failures > 0) {
