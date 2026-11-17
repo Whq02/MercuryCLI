@@ -123,3 +123,17 @@ export async function withFixtureRunner<T>(turns: ScriptedTurn[], use: (runner: 
     await api.close()
   }
 }
+
+export function firstSystemPrompt(argv: string[] = [], env: Env = {}): Promise<string> {
+  return withFixtureRunner(
+    [{ kind: 'text', text: 'ok' }],
+    async (runner, api) => {
+      await runner.prompt('go')
+      await runner.waitFor('the first turn ends', row => row.type === 'outcome')
+      const system = (api.messageRequests().find(request => !request.path.includes('count_tokens'))?.body as { system?: unknown } | undefined)?.system
+      if (typeof system === 'string') return system
+      return Array.isArray(system) ? system.map(block => String((block as { text?: unknown }).text ?? '')).join('\n') : ''
+    },
+    { argv, env },
+  )
+}
