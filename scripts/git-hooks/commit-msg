@@ -1,18 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 msg="$1"
-
-tmp="$(mktemp)"
-grep -Ev \
-  -e '^[[:space:]]*(Claude-)?[Ss]ession(-[A-Za-z]+)?:.*(https?://|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-)' \
-  -e '^[[:space:]]*https?://(claude|www\.claude)\.(ai|com)/(s|session)(/[^[:space:]]*)?[[:space:]]*$' \
-  "$msg" > "$tmp" || true
-mv "$tmp" "$msg"
-
-if grep -Eq 'claude\.(ai|com)/(s|session)/' "$msg"; then
-  echo "commit-msg: session URL in the commit message — session metadata never lands in commits" >&2
-  exit 1
-fi
 if grep -Eiq '^[[:space:]]*Co-Authored-By:.*mercury' "$msg"; then
   if grep -Ei '^[[:space:]]*Co-Authored-By:.*mercury' "$msg" | grep -Evq '^Co-Authored-By: Mercury <https://mercury-cli\.ai>$'; then
     echo "commit-msg: the attribution trailer must read exactly: Co-Authored-By: Mercury <https://mercury-cli.ai>" >&2

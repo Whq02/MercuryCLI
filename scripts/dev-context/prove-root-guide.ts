@@ -47,7 +47,7 @@ section('(3) no tool-specific developer estate is tracked')
   check('nothing under .claude/ or .mercury/ is tracked', tracked === '', tracked.split('\n').slice(0, 3).join(', '))
 }
 
-section('(4) the commit-msg hook: strip trailers, reject body URLs, keep attribution')
+section('(4) the commit-msg hook: a message passes as written, the attribution trailer is spelled exactly')
 {
   const HOOK = join(ROOT, 'scripts', 'git-hooks', 'commit-msg')
   const hookDir = mkdtempSync(join(tmpdir(), 'commit-hook-'))
@@ -61,21 +61,17 @@ section('(4) the commit-msg hook: strip trailers, reject body URLs, keep attribu
     })
     return { status: res.status ?? 1, after: readFileSync(file, 'utf8') }
   }
-  const clean = 'fix: a change\n\nBody prose explaining the durable reason.\n'
+  const clean = 'Add a change.\n'
   const a = runHook(clean)
-  check('clean message passes byte-unchanged', a.status === 0 && a.after === clean)
-  const withTrailer = clean + 'Claude-Session: https://claude.ai/s/abc123\n'
-  const b = runHook(withTrailer)
-  check(
-    'a session trailer is stripped (exit 0, trailer gone, rest intact)',
-    b.status === 0 && !b.after.includes('Claude-Session') && b.after.includes('durable reason'),
-  )
-  const bodyUrl = 'fix: a change\n\nSee https://claude.ai/session/xyz for the transcript.\n'
-  const c = runHook(bodyUrl)
-  check('an in-body session URL is rejected (exit 1)', c.status !== 0)
-  const attribution = clean + 'Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\n'
-  const d = runHook(attribution)
-  check('Co-Authored-By attribution passes byte-unchanged', d.status === 0 && d.after === attribution)
+  check('a message passes byte-unchanged', a.status === 0 && a.after === clean)
+  const other = clean + '\nCo-Authored-By: A Person <person@example.invalid>\n'
+  const b = runHook(other)
+  check('another co-author passes byte-unchanged', b.status === 0 && b.after === other)
+  const attribution = clean + '\nCo-Authored-By: Mercury <https://mercury-cli.ai>\n'
+  const c = runHook(attribution)
+  check('the attribution trailer passes byte-unchanged', c.status === 0 && c.after === attribution)
+  const d = runHook(clean + '\nCo-Authored-By: Mercury <https://mercury-cli.com>\n')
+  check('a misspelled attribution trailer is refused (exit 1)', d.status === 1)
   rmSync(hookDir, { recursive: true, force: true })
 }
 
