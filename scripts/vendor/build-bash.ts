@@ -110,6 +110,13 @@ function selectPlatforms(lock: Lock): BashPackPlatform[] {
     }
     return [platform]
   }
+  const named = argv.indexOf('--platform')
+  if (named !== -1) {
+    const value = argv[named + 1] ?? ''
+    const platform = known.find(candidate => candidate === value)
+    if (platform === undefined) fail(`--platform wants one of ${known.join(', ')} (got ${value || 'nothing'})`)
+    return [platform]
+  }
   const host = bashPackPlatform()
   if (host === null || !known.includes(host)) {
     console.log(`build-bash: no bash pack layout exists for ${process.platform}/${process.arch} — nothing to build`)
