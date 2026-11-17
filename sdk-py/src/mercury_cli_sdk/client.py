@@ -293,7 +293,32 @@ async def read_stderr(handle: Any) -> None:
     deliver(decoder.decode(b'', final=True), True)
 
 
-class MercuryRun:
+def settle(future: asyncio.Future[Any], settled: tuple[bool, Any]) -> None:
+    if settled[0]: future.set_exception(settled[1])
+    else: future.set_result(settled[1])
+
+
+class Settles:
+    _settled: dict[str, tuple[bool, Any]]
+
+    def _arm(self, name: str) -> asyncio.Future[Any]:
+        future: asyncio.Future[Any] = asyncio.get_running_loop().create_future()
+        def renew(done: asyncio.Future[Any]) -> None:
+            if not done.cancelled(): done.exception()
+            elif getattr(self, name) is done: self._arm(name)
+        future.add_done_callback(renew)
+        setattr(self, name, future)
+        if name in self._settled: settle(future, self._settled[name])
+        return future
+
+    def _settle(self, name: str, value: Any = None, error: BaseException | None = None) -> None:
+        self._settled[name] = (error is not None, value if error is None else error)
+        future: asyncio.Future[Any] = getattr(self, name)
+        if future.done(): self._arm(name)
+        else: settle(future, self._settled[name])
+
+
+class MercuryRun(Settles):
     """One ``mercury run`` process: an async iterator of its rows, with ``outcome``, ``session`` and ``exit`` awaitable."""
     def __init__(self, child: asyncio.subprocess.Process, options: RunOptions, tools: ToolServer | None = None):
         self._tools = tools
@@ -306,11 +331,11 @@ class MercuryRun:
         self.rows: list[StreamRow] = []
         self.stderr = ''
         self.error: MercuryError | None = None
-        loop = asyncio.get_running_loop()
-        self.outcome: asyncio.Future[OutcomeRow] = loop.create_future()
-        self.session: asyncio.Future[SessionRow] = loop.create_future()
-        self.exit: asyncio.Future[RunExit] = loop.create_future()
-        for future in (self.outcome, self.session): future.add_done_callback(lambda f: None if f.cancelled() else f.exception())
+        self._settled: dict[str, tuple[bool, Any]] = {}
+        self._ended = asyncio.Event()
+        self.outcome: asyncio.Future[OutcomeRow] = self._arm('outcome')
+        self.session: asyncio.Future[SessionRow] = self._arm('session')
+        self.exit: asyncio.Future[RunExit] = self._arm('exit')
         self._listeners: dict[str, list[Listener]] = {}
         self._queue: asyncio.Queue[StreamRow | None] = asyncio.Queue()
         self._input_task: asyncio.Task[None] | None = None
@@ -356,8 +381,8 @@ class MercuryRun:
                 assert row is not None
                 self.rows.append(row)
                 cap_rows(self.rows, self.options.max_rows)
-                if row['type'] == 'session' and not self.session.done():
-                    self.session.set_result(row)
+                if row['type'] == 'session' and 'session' not in self._settled:
+                    self._settle('session', row)
                     if self._interrupt_requested: self.interrupt()
                 if row['type'] == 'outcome': last = row
                 self._queue.put_nowait(row)
@@ -387,14 +412,15 @@ class MercuryRun:
             except Exception as error: self.error = error if isinstance(error, MercuryError) else MercuryError(str(error), exit)
         if self.error:
             self.error.exit = exit
-            self.outcome.set_exception(self.error)
-            if not self.session.done(): self.session.set_exception(self.error)
+            self._settle('outcome', error=self.error)
+            if 'session' not in self._settled: self._settle('session', error=self.error)
             self._emit('error', self.error)
         else:
             assert last is not None
-            self.outcome.set_result(last)
-            if not self.session.done(): self.session.set_exception(MercuryExitError(exit))
-        self.exit.set_result(exit)
+            self._settle('outcome', last)
+            if 'session' not in self._settled: self._settle('session', error=MercuryExitError(exit))
+        self._settle('exit', exit)
+        self._ended.set()
         if self._cancel_task: self._cancel_task.cancel()
         if self._input_task: self._input_task.cancel()
         self._queue.put_nowait(None)
@@ -405,12 +431,12 @@ class MercuryRun:
             if isinstance(prompt, list): await self.send_prompt(prompt)
             else:
                 async for row in prompt:
-                    if self.exit.done(): break
+                    if 'exit' in self._settled: break
                     await self.send({'type': 'prompt', 'content': row} if isinstance(row, str) else row)
             self.close_input()
         except asyncio.CancelledError: raise
         except Exception as error:
-            if not self.exit.done():
+            if 'exit' not in self._settled:
                 self.error = error if isinstance(error, MercuryError) else MercuryError(str(error))
                 await end_child(self.child)
         finally:
@@ -419,14 +445,14 @@ class MercuryRun:
 
     async def send(self, row: InputRow) -> None:
         """Write one input row to a run started with ``input='rows'``."""
-        if self.exit.done() or self.child.returncode is not None or self.options.input != 'rows' or self._stdin.is_closing(): raise MercuryError('input rows is not open')
+        if 'exit' in self._settled or self.child.returncode is not None or self.options.input != 'rows' or self._stdin.is_closing(): raise MercuryError('input rows is not open')
         read = input_row_of(row)
         if not read.ok: raise MercuryWireError(json.dumps(row), read.reason or 'invalid', read.type, read.issues)
         try:
             self._stdin.write((json.dumps(row) + '\n').encode())
             await self._stdin.drain()
             self._sent += 1
-        except OSError as error: raise MercuryError(str(error), self.exit.result() if self.exit.done() else None) from error
+        except OSError as error: raise MercuryError(str(error), self._settled['exit'][1] if 'exit' in self._settled else None) from error
 
     async def send_prompt(self, content: str | list[InputBlock], **options: Any) -> None:
         await self.send(cast(InputRow, {**options, 'type': 'prompt', 'content': content}))
@@ -448,8 +474,8 @@ class MercuryRun:
     def interrupt(self) -> None:
         """End the running turn with SIGINT; before the session row arrives the signal waits for it, so the turn ends as ``interrupted`` rather than killing a booting CLI."""
         if self._tools: self._tools.cancel()
-        if self.exit.done(): return
-        if not self.session.done():
+        if 'exit' in self._settled: return
+        if 'session' not in self._settled:
             self._interrupt_requested = True
             return
         if self.child.returncode is None:
@@ -467,13 +493,13 @@ class MercuryRun:
     async def close(self) -> None:
         """End stdin and wait for the exit; SIGTERM after five seconds, SIGKILL after ten."""
         self.close_input()
-        try: await asyncio.wait_for(asyncio.shield(self.exit), 5)
+        try: await asyncio.wait_for(self._ended.wait(), 5)
         except asyncio.TimeoutError:
             self.terminate()
-            try: await asyncio.wait_for(asyncio.shield(self.exit), 5)
+            try: await asyncio.wait_for(self._ended.wait(), 5)
             except asyncio.TimeoutError:
                 self.kill()
-                await self.exit
+                await self._ended.wait()
 
     async def __aenter__(self) -> MercuryRun:
         return self
@@ -485,7 +511,7 @@ class MercuryRun:
         return self
 
     async def __anext__(self) -> StreamRow:
-        if self.exit.done() and self._queue.empty():
+        if 'exit' in self._settled and self._queue.empty():
             if self.error: raise self.error
             raise StopAsyncIteration
         row = await self._queue.get()

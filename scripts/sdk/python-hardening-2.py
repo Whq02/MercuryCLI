@@ -133,6 +133,9 @@ async def side_channel_errors():
 async def main():
     await check('run: a process killed mid-row raises its exit, not a wire error, and a whole last row without a newline is still read', cut_run)
     await check('session: a runner killed mid-row fails its requests with the exit, not a wire error', cut_runner)
+    await check('run: a cancelled or timed-out wait on session, outcome or exit leaves the handle whole, and close returns', cancelled_waits)
+    await check('session: a timed-out wait on exit does not make close raise CancelledError', session_exit_wait)
+    await check('run_sync: Ctrl-C reaches the program as KeyboardInterrupt instead of hanging', ctrl_c)
 
 
 asyncio.run(asyncio.wait_for(main(), 240))
