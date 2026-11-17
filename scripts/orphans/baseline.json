@@ -94,11 +94,6 @@
       "reason": "Clipboard dependency of MCPRemoteServerMenu, retained so the mounted redaction specimen has its complete module graph; the runtime MCP popup does not import it."
     },
     {
-      "file": "src/constants/legalNotice.ts",
-      "class": "metadata-or-generated",
-      "reason": "The notice-slot owner: build.ts imports it dynamically at stamp time (stampNoticeOnSource/hasCurrentNoticeStamp) and the notices generator + prove-notice-stamp.ts consume CURRENT_NOTICE_SLOTS. A build-time owner is correctly outside the runtime import graph."
-    },
-    {
       "file": "src/services/channel/frame.ts",
       "class": "living-specimen",
       "reason": "The multiplayer wire kept deliberately at the /say retirement (operator-ruled: \"Retire /say but keep the wire so that it stays for the agents\"); the extracted channel home is maintained estate awaiting the post-release multiplayer consumer."
@@ -122,11 +117,6 @@
       "file": "src/services/channel/signing.ts",
       "class": "living-specimen",
       "reason": "The multiplayer wire kept deliberately at the /say retirement (operator-ruled: \"Retire /say but keep the wire so that it stays for the agents\"); the extracted channel home is maintained estate awaiting the post-release multiplayer consumer."
-    },
-    {
-      "file": "src/services/privateChannel/verifyArtifactStandalone.ts",
-      "class": "sdk-or-external-contract",
-      "reason": "The shipped verify-artifact entrypoint: packaged as its own standalone file by the release packager and executed offline by installers (`verify-artifact.mjs --deep`); reached from the packaged artifact, not the runtime graph."
     },
     {
       "file": "src/substrate/durableOperationMatrix.ts",

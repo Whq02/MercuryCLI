@@ -237,8 +237,12 @@ const manifest = {
     'daemon-scheduler': ['src/entrypoints/cli.tsx (mercury daemon)'],
     'spawned-workers-agents': ['src/entrypoints/cli.tsx (subagent/workflow re-entry)'],
     'acp-vscode-mcp': ['src/entrypoints/mcp.ts', 'src/entrypoints/cli.tsx (external seat attach)'],
-    'sdk-barrels': graph.entries.filter(e => !RUNTIME_ROOT_FILES.includes(rel(e))).map(rel).sort(),
-    'build-package-metadata': ['build.ts (stub map)', 'package.json (bin)'],
+    'sdk-barrels': graph.entries.filter(e => rel(e).startsWith('src/entrypoints/') && !RUNTIME_ROOT_FILES.includes(rel(e))).map(rel).sort(),
+    'build-package-metadata': [
+      'build.ts (stub map)',
+      'package.json (bin)',
+      ...graph.buildRoots.map(rel).filter(e => !e.startsWith('src/entrypoints/')).map(e => `${e} (build.ts entrypoint or import)`),
+    ],
     'generated-registries': [
       'src/substrate/flagRegistry.ts',
       'src/substrate/durableOperationMatrix.ts',
