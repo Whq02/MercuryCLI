@@ -11,9 +11,9 @@ const root = resolve(import.meta.dir, '../..')
 const scratch = mkdtempSync(join(tmpdir(), 'sdk-hardening-'))
 const fixture = join(scratch, 'runner.mjs')
 writeFileSync(fixture, `import { createInterface } from 'node:readline'
-import { closeSync } from 'node:fs'
+import { closeSync, writeSync } from 'node:fs'
 const scenario = process.argv[2]
-const send = value => process.stdout.write(JSON.stringify(value) + '\\n')
+const send = value => writeSync(1, JSON.stringify(value) + '\\n')
 let interrupted = 0
 let queued = 0
 let clock = 0
