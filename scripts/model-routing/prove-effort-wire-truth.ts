@@ -413,7 +413,7 @@ section('§7 the surfaces read the owner')
 {
   const print = src('src/cli/run.ts')
   check('print: the initialize catalogue lists the owner\'s stops per model', print.includes('resolveEffortTruth(resolved, undefined).selectable'))
-  const { liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
+  const { FIXTURE_MODEL, liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
   const { effortSentOf } = await import('../../src/services/engine-connector/seatProjections.ts')
   const SEAT_MODEL = 'claude-sonnet-4-6'
   const asked = [undefined, ...effort.EFFORT_LEVELS]
@@ -423,9 +423,13 @@ section('§7 the surfaces read the owner')
       if (word !== undefined) await host.request('session/set_effort', { effort: word }).catch(() => null)
       sent.push((await liveFactsOf(host)).effortSent)
     }
+    await host.request('session/set_effort', { effort: 'xhigh' }).catch(() => null)
+    await host.request('session/set_model', { model: FIXTURE_MODEL }).catch(() => null)
+    sent.push((await liveFactsOf(host)).effortSent)
     return sent
   }, { model: SEAT_MODEL })
-  check('run: session/facts reports the tier the next request sends, from the owner (effortSent beside the seat\'s asked word)', JSON.stringify(seatSent) === JSON.stringify(asked.map(word => effortSentOf(effort.resolveEffortTruth(SEAT_MODEL, word)))) && seatSent[asked.indexOf('xhigh')] === 'high' && print.includes("return sent === undefined ? {} : { effortSent: sent }"), JSON.stringify(seatSent))
+  const sentBy = (model: string, word: (typeof asked)[number]): unknown => effortSentOf(effort.resolveEffortTruth(model, word))
+  check('run: session/facts reports the tier the next request sends, from the owner (effortSent beside the seat\'s asked word)', JSON.stringify(seatSent) === JSON.stringify([...asked.map(word => sentBy(SEAT_MODEL, word)), sentBy(FIXTURE_MODEL, 'xhigh')]) && seatSent[asked.indexOf('xhigh')] === 'high' && sentBy(FIXTURE_MODEL, 'xhigh') !== 'high' && print.includes("return sent === undefined ? {} : { effortSent: sent }"), JSON.stringify(seatSent))
   const studio = src('src/components/agents/studio/StudioEditor.tsx')
   check('the studio offers no stops for a no-dial model (no full-ladder fallback)', studio.includes('const options = stops.map(') && !studio.includes('stops : EFFORT_LEVELS'))
   const modelCmd = src('src/commands/model/model.tsx')
