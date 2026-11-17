@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs'
 import { constants as osConstants } from 'node:os'
 import { join } from 'node:path'
 import { runningBundlePayloadDir } from '../services/privateChannel/vendoredRuntime.js'
-import { setFlagEnv } from './flagRegistry.js'
+import { flagEnv, setFlagEnv, stampFlagOnEnv } from './flagRegistry.js'
 
 export const SPLASH_EXIT = {
   HANDOFF_HELD: 0,
@@ -38,12 +38,12 @@ export type DirectSplashDecision = { run: true } | { run: false; reason: DirectS
 export function decideDirectSplash(f: DirectSplashFacts): DirectSplashDecision {
   if (f.args.length > 0) return { run: false, reason: 'argv' }
   if (!f.stdinTTY || !f.stdoutTTY) return { run: false, reason: 'not-a-tty' }
-  if (f.env.MERCURY_SPLASH_HANDOFF !== undefined || f.env.MERCURY_ALT_HELD !== undefined) {
+  if (flagEnv('MERCURY_SPLASH_HANDOFF', f.env) !== undefined || flagEnv('MERCURY_ALT_HELD', f.env) !== undefined) {
     return { run: false, reason: 'launcher-handed-over' }
   }
-  if (f.env.MERCURY_SPLASH === 'off') return { run: false, reason: 'splash-off' }
-  if (f.env.MERCURY_SPLASH === 'static') return { run: false, reason: 'splash-static' }
-  if (f.env.MERCURY_NO_BANNER === '1') return { run: false, reason: 'no-banner' }
+  if (flagEnv('MERCURY_SPLASH', f.env) === 'off') return { run: false, reason: 'splash-off' }
+  if (flagEnv('MERCURY_SPLASH', f.env) === 'static') return { run: false, reason: 'splash-static' }
+  if (flagEnv('MERCURY_NO_BANNER', f.env) === '1') return { run: false, reason: 'no-banner' }
   return { run: true }
 }
 
@@ -91,12 +91,12 @@ export function applySplashExit(
 ): SplashHandoverVerdict {
   if (code === SPLASH_EXIT.CANCEL) return 'cancel'
   if (code === SPLASH_EXIT.HANDOFF_HELD || code === SPLASH_EXIT.HANDOFF_RESTORED) {
-    env.MERCURY_SPLASH_HANDOFF = '1'
+    stampFlagOnEnv(env, 'MERCURY_SPLASH_HANDOFF', '1')
   } else {
     write(SPLASH_ABNORMAL_HEAL)
   }
-  if (code === SPLASH_EXIT.HANDOFF_HELD && env.MERCURY_FULLSCREEN !== '0') {
-    env.MERCURY_ALT_HELD = '1'
+  if (code === SPLASH_EXIT.HANDOFF_HELD && flagEnv('MERCURY_FULLSCREEN', env) !== '0') {
+    stampFlagOnEnv(env, 'MERCURY_ALT_HELD', '1')
   }
   return 'boot'
 }
@@ -125,7 +125,7 @@ export function runDirectSplash(opts: { home: string | null }): DirectSplashRun 
   if (!decision.run) return { verdict: 'skipped', reason: decision.reason }
   const asset = resolveSplashAsset({ bundleDir: runningBundlePayloadDir(), home: opts.home })
   if (asset === null) return { verdict: 'skipped', reason: 'asset-absent' }
-  if (!process.env.MERCURY_LAUNCH_ID) {
+  if (!flagEnv('MERCURY_LAUNCH_ID')) {
     setFlagEnv('MERCURY_LAUNCH_ID', `direct-${process.pid}-${Date.now()}`)
   }
   const outlive = (): void => {}
