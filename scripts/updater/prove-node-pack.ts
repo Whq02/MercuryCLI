@@ -270,8 +270,11 @@ section('§7 the packager + the workflows')
 
 section('§8 the surfaces — health, status, dry-run, registry, notices, docs, launcher')
 {
-  const health = read('src/utils/healthReport.ts')
-  check('/health runtime row classifies the running node through the owner', health.includes("const { runningRuntime } = await import('../services/privateChannel/updateService.js')") && health.includes('runtimeLine(which)'))
+  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const { runningRuntime: runningNow } = await import('../../src/services/privateChannel/updateService.ts')
+  const { runtimeLine: lineOfRuntime } = await import('../../src/services/privateChannel/vendoredRuntime.ts')
+  const nodeSays = await runtimeChecks().find(row => row.id === 'runtime')?.run()
+  check('/health runtime row classifies the running node through the owner', nodeSays?.evidence.startsWith(lineOfRuntime(runningNow())) === true, nodeSays?.evidence)
   const update = read('src/cli/update.ts')
   check('update --status prints the runtime line', update.includes('`runtime:           ${statusRuntimeLine(status)}`'))
   const install = read('src/cli/installVerb.ts')

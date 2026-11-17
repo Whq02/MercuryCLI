@@ -122,8 +122,15 @@ try {
   const unrecognizedRow = artifactSignatureCheck(asManaged(signedDir), 'fast', [])
   check('/health unrecognized-key row: warn + names the roster gap', unrecognizedRow.status === 'warn' && unrecognizedRow.evidence.includes('NOT in this build') && (unrecognizedRow.fix ?? '').includes('signingTrust'))
 
-  const healthSrc = readFileSync(join(ROOT, 'src/utils/healthReport.ts'), 'utf8')
-  check('/health mounts artifact-signature (fast) + artifact-signature-payload (deep)', healthSrc.includes("id: 'artifact-signature'") && healthSrc.includes("id: 'artifact-signature-payload'") && healthSrc.includes('artifactSignatureCheck'))
+  const { healthContext } = await import('../../src/utils/healthReport.ts')
+  const { identityChecks } = await import('../../src/utils/health/sections/identity.ts')
+  const { resolveInstallProvenance } = await import('../../src/services/privateChannel/installProvenance.ts')
+  const identityRows = identityChecks(await healthContext())
+  const fastRow = identityRows.find(row => row.id === 'artifact-signature')
+  const deepRow = identityRows.find(row => row.id === 'artifact-signature-payload')
+  const fastSays = await fastRow?.run()
+  const fastDirect = await artifactSignatureCheck(resolveInstallProvenance(), 'fast')
+  check('/health mounts artifact-signature (fast) + artifact-signature-payload (deep)', fastRow !== undefined && (fastRow.depth ?? 'fast') === 'fast' && deepRow?.depth === 'deep' && deepRow.probe === 'functional' && JSON.stringify(fastSays) === JSON.stringify(fastDirect))
 
   const shipped = join(ROOT, 'dist', 'verify-artifact.mjs')
   if (!existsSync(shipped)) {

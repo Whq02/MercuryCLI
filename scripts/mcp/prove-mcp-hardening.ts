@@ -203,14 +203,19 @@ section('(5) health `mcp` currency — auth summary + protocol-rev seam')
     'empty store ⇒ zero tokens, honest zeros',
     auth !== null && auth.tokens === 0 && auth.expired === 0 && auth.expiringSoon === 0,
   )
-  const health = SRC('src/utils/healthReport.ts')
-  check('health mcp check reads the protocol-revision line from its owner', health.includes('describeMcpProtocolCurrency()') && health.includes('currency.behind'))
+  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const { mcpGauge } = await import('../../src/utils/cockpit/mcpGauge.ts')
+  const { describeMcpProtocolCurrency } = await import('../../src/services/mcp/protocolRevision.ts')
+  const mcpSays = await runtimeChecks().find(row => row.id === 'mcp')?.run()
+  const gaugeNow = mcpGauge()
+  const currency = describeMcpProtocolCurrency()
+  check('health mcp check reads the protocol-revision line from its owner', mcpSays !== undefined && (gaugeNow.state === 'live' ? mcpSays.evidence.includes(` · ${currency.line} · `) && (!currency.behind || mcpSays.status === 'warn') : gaugeNow.state === 'off' ? mcpSays.evidence.startsWith('no MCP servers configured · policy ') : mcpSays.status === 'unknown'), mcpSays?.evidence)
   const revision = SRC('src/services/mcp/protocolRevision.ts')
   check(
     'the revision owner carries the negotiated and the published revision and the behind text',
     revision.includes("MCP_PROTOCOL_REVISION = '2026-07-28'") && revision.includes('MCP_PUBLISHED_REVISION') && revision.includes('SDK behind'),
   )
-  check('health mcp check carries the auth-currency line', health.includes('summarizeMcpAuthCurrency'))
+  check('health mcp check carries the auth-currency line', mcpSays !== undefined && (gaugeNow.state === 'live' ? mcpSays.evidence.endsWith(auth === null ? 'auth unknown' : auth.tokens === 0 ? 'no oauth tokens' : mcpSays.evidence.slice(mcpSays.evidence.lastIndexOf('auth '))) && / · (auth unknown|no oauth tokens|auth \d+ token\(s\))/.test(mcpSays.evidence) : !/oauth|auth \d/.test(mcpSays.evidence)), mcpSays?.evidence)
 }
 
 section('(6) consent surfaces — explicit-open only + posture + attribution')

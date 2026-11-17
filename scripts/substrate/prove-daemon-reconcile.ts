@@ -251,10 +251,18 @@ check(
 )
 const headlessTs = src('src/daemon/headlessRun.ts')
 check('headless settle ledgers an exit row', headlessTs.includes('recordSpawnExit'))
-check(
-  'health daemon row runs the reconcile (verb-path cleanup)',
-  src('src/utils/healthReport.ts').includes('reconcileDaemonRecords'),
-)
+{
+  const fsH = await import('node:fs')
+  fsH.mkdirSync(dirname(supPath), { recursive: true })
+  fsH.writeFileSync(supPath, JSON.stringify({ pid: deadPid, startedAt: Date.now() - 60_000 }))
+  const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+  const daemonSays = await crewChecks().find(row => row.id === 'daemon')?.run()
+  check(
+    'health daemon row runs the reconcile (verb-path cleanup)',
+    daemonSays !== undefined && /reconciled stale records: removed /.test(daemonSays.evidence) && !fsH.existsSync(supPath),
+    `${daemonSays?.status}: ${daemonSays?.evidence}`,
+  )
+}
 check(
   'ownedDaemon keeps the bounded daemon.log rotation (G14: logs are records, never debris)',
   src('src/daemon/ownedDaemon.ts').includes('statSync(logPath).size > 5 * 1024 * 1024') &&

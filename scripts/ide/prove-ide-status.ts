@@ -80,10 +80,35 @@ try {
 
   section('(4) health parity — the ide-plane-fast check calls the SAME probes')
   {
-    const src = (await import('node:fs')).readFileSync(path.join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
-    check('health carries the ide-plane-fast check', src.includes("id: 'ide-plane-fast'"))
-    for (const probe of ['selectPythonInterpreter', 'probeBuiltinPyright', 'probeRuff', 'probeBuiltinClangd', 'probeCompileDb', 'latestTransaction', 'latestRun']) {
-      check(`health row consumes ${probe} (probe parity)`, src.slice(src.indexOf("id: 'ide-plane-fast'")).slice(0, 3000).includes(probe))
+    const { codingLoopFastChecks } = await import('../../src/utils/health/sections/coding-loop-fast.ts')
+    const planeRow = codingLoopFastChecks().find(row => row.id === 'ide-plane-fast')
+    check('health carries the ide-plane-fast check', planeRow?.label === 'IDE plane')
+    const planeSays = await planeRow?.run()
+    const planeWords = `${planeSays?.evidence}\n${planeSays?.detail}`
+    const pyProject = await import('../../src/services/ide/pythonProject.ts')
+    const { probeBuiltinPyright } = await import('../../src/services/lsp/pyrightLane.ts')
+    const { probeRuff } = await import('../../src/services/lsp/ruffLane.ts')
+    const clang = await import('../../src/services/lsp/clangdLane.ts')
+    const { latestTransaction } = await import('../../src/services/ide/ideTransaction.ts')
+    const { latestRun } = await import('../../src/services/ide/pythonTests.ts')
+    const py = pyProject.selectPythonInterpreter()
+    const pyright = probeBuiltinPyright()
+    const ruff = probeRuff()
+    const clangd = clang.probeBuiltinClangd()
+    const db = clang.probeCompileDb()
+    const tx = latestTransaction()
+    const lastRun = latestRun()
+    const parity: Array<[string, string]> = [
+      ['selectPythonInterpreter', py.state === 'ok' ? `python ${py.version} (${py.envKind})` : `python UNAVAILABLE (${py.detail.slice(0, 80)})`],
+      ['probeBuiltinPyright', py.state === 'ok' ? `pyright ${pyright.available ? `${pyright.source}${pyright.version ? ` ${pyright.version}` : ''}` : 'ABSENT'}` : 'python UNAVAILABLE'],
+      ['probeRuff', py.state === 'ok' ? `ruff ${ruff.available ? (ruff.version ?? 'ok') : 'ABSENT'}` : 'python UNAVAILABLE'],
+      ['probeBuiltinClangd', clangd.available ? `clangd ${clangd.clangdPath}` : `clangd ABSENT (${clangd.reason?.slice(0, 60)})`],
+      ['probeCompileDb', clangd.available ? `compile DB ${db.compileDb ?? 'ABSENT'}` : 'clangd ABSENT'],
+      ['latestTransaction', `latest transaction ${tx ? `${tx.id} [${tx.verdict}]` : '—'}`],
+      ['latestRun', `latest test run ${lastRun ? `${lastRun.id} (${lastRun.counts.failed === 0 ? 'green' : `${lastRun.counts.failed} failing`})` : '—'}`],
+    ]
+    for (const [probe, said] of parity) {
+      check(`health row consumes ${probe} (probe parity)`, planeWords.includes(said), `wanted: ${said} · row: ${planeWords.slice(0, 400)}`)
     }
   }
 } finally {

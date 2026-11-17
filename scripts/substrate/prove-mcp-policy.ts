@@ -208,10 +208,16 @@ section('FC-141 — a mistyped tightening never widens SILENTLY (forgive + name)
     junkDesc,
   )
   {
-    const health = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'healthReport.ts'), 'utf8')
+    const globals = globalThis as Record<string, unknown>
+    if (globals.MACRO === undefined) globals.MACRO = { VERSION: '1.0.0' }
+    ;(await import('../../src/utils/config.ts')).enableConfigs()
+    const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+    const { getMcpPolicyRejects: rejectsNow } = await import('../../src/services/mcp/toolPolicy.ts')
+    const mcpSays = await runtimeChecks().find(row => row.id === 'mcp')?.run()
     check(
       '/health MCP-policy row consults the rejects and can WARN (call-shaped)',
-      /getMcpPolicyRejects\(\)/.test(health) && /policyRejects\.length > 0 \? 'warn'/.test(health),
+      rejectsNow().length > 0 && mcpSays?.status === 'warn' && mcpSays.fix?.startsWith('MERCURY_MCP_MAX_RISK carries token(s) the parser cannot read') === true,
+      `${JSON.stringify(mcpSays)} · rejects: ${JSON.stringify(rejectsNow())}`,
     )
   }
   process.env.MERCURY_MCP_MAX_RISK = 'low,scratch:medium'

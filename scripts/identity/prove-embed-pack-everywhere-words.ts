@@ -94,7 +94,11 @@ console.log('\n§3 no page says the pack is the Apple silicon archive\'s alone')
     for (const hit of macOnlyHits(read(page))) offenders.push(`${page} ${hit}`)
   }
   check(`the README and ${pages.length - 1} docs pages carry no macOS-only pack claim`, offenders.length === 0, offenders.slice(0, 6).join(' · '))
-  check('the health row names no platform for the embedder', !/darwin|macOS|Apple silicon|Windows|Linux/.test(read('src/utils/healthReport.ts').split("id: 'memory-embedder'")[1]?.split("id: 'context'")[0] ?? 'Windows'))
+  const globals = globalThis as Record<string, unknown>
+  if (globals.MACRO === undefined) globals.MACRO = { VERSION: '1.0.0' }
+  ;(await import('../../src/utils/config.ts')).enableConfigs()
+  const embedderSays = await (await import('../../src/utils/health/sections/memory.ts')).memoryChecks().find(row => row.id === 'memory-embedder')?.run()
+  check('the health row names no platform for the embedder', embedderSays !== undefined && /present: |degraded: /.test(embedderSays.evidence) && !/darwin|macOS|Apple silicon|Windows|Linux/.test(`${embedderSays.evidence} ${embedderSays.fix ?? ''}`), embedderSays?.evidence)
 }
 
 console.log('\n' + '='.repeat(60))

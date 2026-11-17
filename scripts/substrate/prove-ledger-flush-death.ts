@@ -157,16 +157,24 @@ section('§5 wiring anchors')
   check('trace teardown registers one final attempt + notice', traceTs.includes('registerCleanup(') && traceTs.includes('unflushed'))
   const clockTs = src('src/utils/cache/cacheClock.ts')
   check('cache-clock teardown registers one final attempt + notice', clockTs.includes('registerCleanup(') && clockTs.includes('unflushed'))
-  const healthTs = src('src/utils/healthReport.ts')
+  const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+  const crewRows = crewChecks()
   check(
     '/health carries freshness probes for all three ledgers',
-    healthTs.includes("id: 'history'") &&
-      healthTs.includes("id: 'invocation-trace'") &&
-      healthTs.includes("id: 'cache-clock'"),
+    ['history', 'invocation-trace', 'cache-clock'].every(id => crewRows.filter(row => row.id === id).length === 1),
   )
+  const traceOwner = await import('../../src/utils/observability/invocationTrace.ts')
+  const clockOwner = await import('../../src/utils/cache/cacheClock.ts')
+  const traceSays = await crewRows.find(row => row.id === 'invocation-trace')?.run()
+  const traceHealth = traceOwner.getTraceFlushHealth()
+  const clockSays = await crewRows.find(row => row.id === 'cache-clock')?.run()
+  const clockSnap = clockOwner.cacheClockSnapshot()
+  const clockHealth = clockOwner.getCacheClockFlushHealth()
   check(
     'the health probes read the owners’ health accessors',
-    healthTs.includes('getTraceFlushHealth') && healthTs.includes('getCacheClockFlushHealth'),
+    traceSays !== undefined && (!traceOwner.isInvocationTraceEnabled() ? traceSays.status === 'off' : traceHealth.streak >= 3 ? traceSays.status === 'warn' && traceSays.evidence.includes(`streak ${traceHealth.streak}`) : traceSays.status === 'ok' && traceSays.evidence.startsWith(traceHealth.pending === 0 ? 'appends healthy' : `${traceHealth.pending} pending`)) &&
+      clockSays !== undefined && (!clockSnap.engaged ? clockSays.status === 'off' : clockHealth.streak >= 3 ? clockSays.status === 'warn' && clockSays.evidence.includes(`streak ${clockHealth.streak}`) : clockSays.status === 'ok'),
+    `${traceSays?.evidence} | ${clockSays?.evidence}`,
   )
 }
 

@@ -47,10 +47,18 @@ const sub = src('utils', 'cockpit', 'substrateSnapshot.ts')
 check('substrateSnapshot uses isMcpPolicyActive() — the canonical bug line is fixed', /isMcpPolicyActive\(\)/.test(sub) && !/=== 'high'\s*[?)]/.test(sub.split('\n').filter(l => /mcpPolic/i.test(l)).join('\n')))
 
 section('panels color/warn off the boolean, NOT the displayed === \'high\' string')
-for (const [name, p] of [
-  ['healthReport', ['utils', 'healthReport.ts']],
-] as const) {
-  check(`${name} keys off mcpPolicyActive`, /mcpPolicyActive/.test(src(...p)))
+{
+  const globals = globalThis as Record<string, unknown>
+  if (globals.MACRO === undefined) globals.MACRO = { VERSION: '1.0.0' }
+  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const { mcpGauge } = await import('../../src/utils/cockpit/mcpGauge.ts')
+  const mcpSays = await runtimeChecks().find(row => row.id === 'mcp')?.run()
+  const gauge = mcpGauge()
+  check(
+    'the health mcp row keys off mcpPolicyActive',
+    mcpSays !== undefined && (gauge.state === 'live' ? mcpSays.evidence.includes(` · policy ${gauge.data.mcpPolicyHint} · `) && (mcpSays.status !== 'ok' || gauge.data.mcpPolicyActive === true) && (mcpSays.status !== 'info' || gauge.data.mcpPolicyActive === false) : gauge.state === 'off' ? mcpSays.evidence.startsWith(`no MCP servers configured · policy ${gauge.data.mcpPolicyHint} · `) : mcpSays.status === 'unknown'),
+    mcpSays?.evidence,
+  )
 }
 
 console.log('\n' + '═'.repeat(76))

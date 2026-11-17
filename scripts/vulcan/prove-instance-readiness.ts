@@ -35,28 +35,10 @@ for (const file of VULCAN_ADDON_FILES) {
   writeFileSync(target, file.content)
 }
 
-const healthFile = join(ROOT, 'src/utils/healthReport.ts')
-const healthSource = ts.createSourceFile(healthFile, readFileSync(healthFile, 'utf8'), ts.ScriptTarget.Latest, true)
-let healthCode = ''
-function visit(node: ts.Node): void {
-  if (ts.isObjectLiteralExpression(node)) {
-    const id = node.properties.find(p => ts.isPropertyAssignment(p) && p.name.getText(healthSource) === 'id')
-    if (id && ts.isPropertyAssignment(id) && ts.isStringLiteral(id.initializer) && id.initializer.text === 'vulcan') {
-      const run = node.properties.find(p => ts.isPropertyAssignment(p) && p.name.getText(healthSource) === 'run')
-      if (run && ts.isPropertyAssignment(run)) healthCode = run.initializer.getText(healthSource)
-    }
-  }
-  ts.forEachChild(node, visit)
-}
-visit(healthSource)
-if (!healthCode) throw new Error('health Godot row was not found')
-healthCode = healthCode.replace(/import\((['"])(\.[^'"]+)\1\)/g, (_match, _quote, specifier) => {
-  let file = resolve(dirname(healthFile), specifier)
-  if (!existsSync(file)) file = file.replace(/\.js$/, '.ts')
-  return `import(${JSON.stringify(pathToFileURL(file).href)})`
-})
-const compiled = new Bun.Transpiler({ loader: 'ts' }).transformSync(`const run = ${healthCode}`)
-const healthRow = new Function(`${compiled}; return run`)() as () => Promise<{ status: string; evidence: string; fix?: string }>
+const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+const vulcanSpec = runtimeChecks().find(row => row.id === 'vulcan')
+if (!vulcanSpec) throw new Error('health Godot row was not found')
+const healthRow = vulcanSpec.run as () => Promise<{ status: string; evidence: string; fix?: string }>
 let failures = 0
 function check(label: string, value: unknown, detail: unknown = ''): void {
   if (!value) failures++

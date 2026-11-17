@@ -63,15 +63,29 @@ function check(name: string, ok: boolean, detail?: string): void {
 }
 
 {
-  const s = read('src/utils/healthReport.ts')
-  check("healthReport: check id 'lsp' present", s.includes("id: 'lsp'"))
+  const globals = globalThis as Record<string, unknown>
+  if (globals.MACRO === undefined) globals.MACRO = { VERSION: '1.0.0' }
+  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const { probeBuiltinTsServer } = await import('../../src/services/lsp/builtinServers.ts')
+  const lspRow = runtimeChecks().find(row => row.id === 'lsp')
+  check("health list: check id 'lsp' present", lspRow?.label === 'IDE-hands (LspRead)')
+  const lspFlag = process.env.MERCURY_LSP
+  delete process.env.MERCURY_LSP
+  const armedSays = await lspRow?.run()
+  const tsProbe = probeBuiltinTsServer()
   check(
-    'healthReport: uses the SAME probe as boot (probeBuiltinTsServer)',
-    s.includes('probeBuiltinTsServer()'),
+    'health list: uses the SAME probe as boot (probeBuiltinTsServer)',
+    armedSays !== undefined && armedSays.status !== 'off' && (tsProbe.typescriptPath ? armedSays.evidence.includes('typescript@') : armedSays.evidence.includes('no workspace typescript') || armedSays.evidence.includes(tsProbe.reason ?? '\0')),
+    armedSays?.evidence,
   )
+  process.env.MERCURY_LSP = '0'
+  const offSays = await lspRow?.run()
+  if (lspFlag === undefined) delete process.env.MERCURY_LSP
+  else process.env.MERCURY_LSP = lspFlag
   check(
-    "healthReport: off state names the registered flag as it was set (flagAsSet('MERCURY_LSP'))",
-    s.includes("flagAsSet('MERCURY_LSP')} — IDE-hands bridge disabled by flag"),
+    "health list: off state names the registered flag as it was set (flagAsSet('MERCURY_LSP'))",
+    offSays?.status === 'off' && offSays.evidence === 'MERCURY_LSP=0 — IDE-hands bridge disabled by flag',
+    offSays?.evidence,
   )
 }
 
@@ -181,14 +195,26 @@ function check(name: string, ok: boolean, detail?: string): void {
   )
 }
 {
-  const s = read('src/utils/healthReport.ts')
+  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const clang = await import('../../src/services/lsp/clangdLane.ts')
+  const { probeGodotLane } = await import('../../src/services/lsp/godotLane.ts')
+  const lspFlag = process.env.MERCURY_LSP
+  delete process.env.MERCURY_LSP
+  const says = await runtimeChecks().find(row => row.id === 'lsp')?.run()
+  if (lspFlag !== undefined) process.env.MERCURY_LSP = lspFlag
+  const cpp = clang.probeBuiltinClangd()
+  const cppWords = !clang.mercuryLspCppEnabled() ? 'cpp lane off (' : !cpp.available || !cpp.clangdPath ? 'no clangd' : 'clangd ok'
+  const godot = probeGodotLane()
+  const godotWords = !godot.enabled ? 'godot lane off (MERCURY_GODOT)' : !godot.projectRoot ? 'godot armed · no project.godot here' : `:${godot.lspPort}`
   check(
-    'healthReport: lsp check reads the lane probes (clangd + godot)',
-    s.includes('probeBuiltinClangd()') && s.includes('probeGodotLane()'),
+    'health list: lsp check reads the lane probes (clangd + godot)',
+    says?.evidence.includes(cppWords) === true && says.evidence.includes(godotWords),
+    `${says?.evidence} · wanted: ${cppWords} · ${godotWords}`,
   )
   check(
-    'healthReport: godot evidence probes editor reachability',
-    s.includes('probeGodotEditorReachable('),
+    'health list: godot evidence probes editor reachability',
+    godot.enabled && godot.projectRoot ? /godot editor (NOT )?listening :\d+/.test(says?.evidence ?? '') : says?.evidence.includes(godotWords) === true,
+    says?.evidence,
   )
 }
 

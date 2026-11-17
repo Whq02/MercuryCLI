@@ -96,10 +96,16 @@ const dapSource = readFileSync(join(ROOT, 'src/services/dap/dapClient.ts'), 'utf
 check('the Debug gate reads the flag and the reachable adapters', dapSource.includes('return mercuryDapEnabled() && reachableDapAdapterKeys().length > 0'))
 const gatesSource = readFileSync(join(ROOT, 'src/utils/vulcan/vulcanGates.ts'), 'utf8')
 check('the Godot gate reads the flag and the executable presence', gatesSource.includes('return vulcanEnabled() && godotExecutablePresence().present'))
-const healthSource = readFileSync(join(ROOT, 'src/utils/healthReport.ts'), 'utf8')
-check("/health's TOOL CAPABILITY section carries the Tools withheld row", healthSource.includes("id: 'tools-withheld'") && healthSource.includes("label: 'Tools withheld'"))
+const { toolCapabilityFastChecks } = await import('../../src/utils/health/sections/tool-capability-fast.ts')
+const withheldRow = toolCapabilityFastChecks().find(row => row.id === 'tools-withheld')
+check("/health's TOOL CAPABILITY section carries the Tools withheld row", withheldRow?.label === 'Tools withheld')
 check('the census reads the adapter table through the memo, never the live probes', dapSource.includes("const table = builtinAdapters('memo')") && dapSource.includes('if (lldbDapFromMemo() !== null) reachable.push(key)'))
-check("/health's row waits for the toolchain probes before it reads the census", healthSource.includes('await settleDapAdapterProbes()'))
+{
+  const withheldSays = await withheldRow?.run()
+  const withheldOwner = await import('../../src/utils/withheldTools.ts')
+  const settledList = withheldOwner.withheldTools()
+  check("/health's row waits for the toolchain probes before it reads the census", withheldSays?.evidence === withheldOwner.withheldToolsLine(settledList) && (settledList.length === 0 ? withheldSays.status === 'ok' : withheldSays.status === 'info' && withheldSays.detail === settledList.map(w => `${w.tool} — needs ${w.dependency}: ${w.why}`).join('\n')), withheldSays?.evidence)
+}
 
 section('§6 the toolchain probes answer in the background: the catalog build reads their memo')
 dap._resetLldbDapForTesting()

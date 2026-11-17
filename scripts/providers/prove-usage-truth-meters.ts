@@ -90,9 +90,19 @@ section('§1 the per-model pools ride the active-source view, and every renderer
   const tab = src('src/components/Settings/Usage.tsx')
   check('the tab reads the pools through the owner\'s pool view, titled by label', tab.includes('anthropicPoolWindowViews()') && tab.includes('`Current week (${w.label})`'))
   check('the tab decodes the fetch response nowhere (one owner, one decode)', !tab.includes('data.seven_day_') && !tab.includes('data.five_hour'))
-  const health = src('src/utils/healthReport.ts')
-  check('/health mounts one usage row per signed-in family from the owner', health.includes('id: `usage-${presence.id}`') && health.includes('owner.usageSummaryWords(owner.usageForProvider(presence.id))'))
-  check('…in the AUTH section after the credential rows', health.includes('...providerAuthChecks(), ...providerUsageChecks()'))
+  const { healthContext } = await import('../../src/utils/healthReport.ts')
+  const { authChecks } = await import('../../src/utils/health/sections/auth.ts')
+  const zaiKey = process.env.ZAI_API_KEY
+  process.env.ZAI_API_KEY = 'fixture-zai-key'
+  const authRows = authChecks(await healthContext())
+  const credentialed = owner.providerFamilyPresences().filter(presence => presence.credentialed).map(presence => presence.id)
+  const usageSays = await authRows.find(row => row.id === 'usage-zai')?.run()
+  const usageWords = owner.usageSummaryWords(owner.usageForProvider('zai'))
+  if (zaiKey === undefined) delete process.env.ZAI_API_KEY
+  else process.env.ZAI_API_KEY = zaiKey
+  const authIds = authRows.map(row => row.id)
+  check('/health mounts one usage row per signed-in family from the owner', usageSays?.status === 'info' && usageSays.evidence === usageWords && JSON.stringify(authIds.filter(id => id.startsWith('usage-'))) === JSON.stringify(credentialed.map(id => `usage-${id}`)), `${usageSays?.evidence} · rows: ${authIds.filter(id => id.startsWith('usage-')).join(' ')} · credentialed: ${credentialed.join(' ')}`)
+  check('…in the AUTH section after the credential rows', authIds.findIndex(id => id.startsWith('usage-')) > authIds.findLastIndex(id => id.startsWith('auth-')), authIds.join(' '))
 }
 
 section('§2 the binding window is the model\'s own: its family\'s pool, the shared pair, never another family\'s week')
@@ -538,8 +548,17 @@ section('§9 the carry words: a reached window says what carries the requests fr
   check('the OpenAI wall row carries them after the wire\'s words', openaiWall.includes("usageCarryWords(usageForProvider('openai').carry)") && openaiWall.includes('— ${outcome.fault.message}${carryClause}. The next request goes to OpenAI again; resume any time.'))
   const strip = src('src/services/providers/limitWarning.ts')
   check('the strip warning appends them only at 100%', strip.includes('if (facts === null || facts.pct < 100) return facts') && strip.includes('text: `${facts.view.text} · ${carry}`'))
-  const health = src('src/utils/healthReport.ts')
-  check('the health row rides the summary words (which now carry them) and the standing refusal words', health.includes('owner.usageSummaryWords(owner.usageForProvider(presence.id))') && health.includes('standingWindowWords(presence.id)'))
+  const { healthContext } = await import('../../src/utils/healthReport.ts')
+  const { authChecks } = await import('../../src/utils/health/sections/auth.ts')
+  const { standingAnthropicRefusal } = await import('../../src/services/providers/anthropicRefusal.ts')
+  const anthropicKey = process.env.ANTHROPIC_API_KEY
+  if (!owner.anthropicCredentialPresence().credentialed) process.env.ANTHROPIC_API_KEY = 'fixture-anthropic-key'
+  const anthropicUsage = await authChecks(await healthContext()).find(row => row.id === 'usage-anthropic')?.run()
+  const standing = standingAnthropicRefusal()
+  const expected = `${owner.usageSummaryWords(owner.usageForProvider('anthropic'))}${standing?.kind === 'window' ? ` · ${standing.words}` : ''}`
+  if (anthropicKey === undefined) delete process.env.ANTHROPIC_API_KEY
+  else process.env.ANTHROPIC_API_KEY = anthropicKey
+  check('the health row rides the summary words (which now carry them) and the standing refusal words', anthropicUsage?.evidence === expected, `${anthropicUsage?.evidence} · wanted: ${expected}`)
 }
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-usage-truth-meters${failures ? ` (${failures} failure(s))` : ''}`)

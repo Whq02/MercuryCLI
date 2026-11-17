@@ -38,6 +38,10 @@ for (const f of providerFiles) {
   for (const m of src.matchAll(/reason: '([a-z-]+:[a-z-]+)'/g)) emitted.add(m[1]!)
 }
 check('provider reason literals found', emitted.size >= 2, [...emitted].join(', '))
+const { ENGINE_UNAVAILABLE_CODES } = await import('../../src/utils/health/sections/auth.ts')
+for (const reason of emitted) {
+  check(`'${reason}' starts with a code the row accepts`, ENGINE_UNAVAILABLE_CODES.some(code => reason.startsWith(code)), `accepted codes: ${ENGINE_UNAVAILABLE_CODES.join(' ')}`)
+}
 const standing = [...emitted].filter(reason => unavailable.includes(reason))
 check('a home with no account holds provider reasons the adapters spell', standing.length >= 2, `standing: ${standing.join(', ')} · spelled: ${[...emitted].join(', ')}`)
 for (const reason of standing) {
