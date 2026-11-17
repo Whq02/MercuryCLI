@@ -99,7 +99,8 @@ substrate	78
 reliability	40
 updater	239
 updater-drives	163
-command-catalogue	364
+command-catalogue	18
+command-catalogue-drives	770
 ownership	19
 memory	15
 primitives-kernel	27
