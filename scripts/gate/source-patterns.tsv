@@ -704,7 +704,6 @@ as-unknown-as	src/utils/toolResultStorage.ts	1
 as-unknown-as	src/utils/usageHistory.ts	1
 as-unknown-as	src/utils/yaml.ts	1
 ts-ignore	src/components/agents/studio/studioEditorModel.ts	1
-ts-ignore	src/services/lsp/webSidecar/sidecar.ts	4
 empty-catch	src/boot/launchGraph.ts	1
 empty-catch	src/bootstrap/state.ts	1
 empty-catch	src/chatLauncher.tsx	2
