@@ -14,26 +14,6 @@
   ],
   "rows": [
     {
-      "file": "src/services/mcp/channelAllowlist.ts",
-      "class": "proof-or-fixture-only",
-      "reason": "The gate of the local channel bus (MERCURY_CHANNELS), imported by localChannelBus.ts alone. Nothing in the product starts the bus. Parked with it on the operator's ruling at the /say retirement (\"Retire /say but keep the wire so that it stays for the agents\") until he rules on the bus; scripts/channels/prove-channel-bus.ts drives its on and off matrix."
-    },
-    {
-      "file": "src/services/mcp/channelNotification.ts",
-      "class": "proof-or-fixture-only",
-      "reason": "Wraps a bus record as the <channel> message a session reads, imported by localChannelBus.ts alone. Parked with the bus on the operator's ruling at the /say retirement (\"Retire /say but keep the wire so that it stays for the agents\") until he rules on the bus; scripts/channels/prove-channel-bus-live.ts reads the wrapped message the bus delivers."
-    },
-    {
-      "file": "src/services/mcp/channelsRoot.ts",
-      "class": "proof-or-fixture-only",
-      "reason": "The config-home root of the bus's rooms, imported by localChannelBus.ts alone. Parked with the bus on the operator's ruling at the /say retirement (\"Retire /say but keep the wire so that it stays for the agents\") until he rules on the bus; scripts/channels/prove-channel-bus.ts holds the room path under this root."
-    },
-    {
-      "file": "src/services/mcp/localChannelBus.ts",
-      "class": "proof-or-fixture-only",
-      "reason": "The local channel bus, a room inbox under the config home that a session tails; its runner names it the agents' wire of the retired /say door. The operator ruled at that retirement \"Retire /say but keep the wire so that it stays for the agents\". No session starts it: fold 46ac unmounted the screen MCP hook, its one starter, and the hook is deleted. Parked until the operator rules whether to mount it or delete it; scripts/channels/prove-channel-bus-live.ts drives delivery and scripts/channels/prove-channel-bus.ts the gate and the path containment."
-    },
-    {
       "file": "src/substrate/identity/accountFacts.ts",
       "class": "living-specimen",
       "reason": "A read-only view of which provider families hold a credential, landed ahead of its consumer for the multiplayer estate planned after release; no product path imports it. Parked on that plan until the operator rules; scripts/operator-identity/prove-operator-identity.ts section 8 proves that a live key cannot be read through the view."

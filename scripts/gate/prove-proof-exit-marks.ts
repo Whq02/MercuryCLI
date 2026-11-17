@@ -87,8 +87,6 @@ try {
     const rows = marks(result.stdout)
     check(`outcome-pack: a runner whose one command is its proof marks it with code ${code} and exits with it`, rows.length === 1 && rows[0]!.code === code && result.status === code)
   }
-  const channels = spawnSync('bash', [join(root, 'scripts/channels/run-all.sh')], { cwd: root, env: env(23), encoding: 'utf8', timeout: 10000 })
-  check('a failed first command in a chained condition keeps its original code', marks(channels.stdout).length === 2 && marks(channels.stdout).every(row => row.code === 23))
   const estate = join(scratch, 'estate')
   mkdirSync(join(estate, 'scripts/lib'), { recursive: true })
   mkdirSync(join(estate, 'dist'))

@@ -162,7 +162,6 @@ src/services/lsp/pyrightLane.ts :: probeCache :: ttl-bounded
 src/services/lsp/ruffLane.ts :: versionCache :: ttl-bounded
 src/services/lsp/unityLane.ts :: probeCache :: ttl-bounded
 src/services/mcp/auth.ts :: metadataCache :: static-for-process
-src/services/mcp/channelsRoot.ts :: channelsRootCache :: static-for-process
 src/services/mcp/anthropicConnectors.ts :: fetchAnthropicConnectorsIfEligible :: static-for-process
 src/services/mcp/client.ts :: connectToServer :: invalidator=transport.onclose
 src/services/mcp/client.ts :: fetchCommandsForClient :: invalidator=transport.onclose

@@ -28,7 +28,7 @@ const walkFiles = (dir: string, re: RegExp): string[] => readdirSync(dir).flatMa
   return re.test(entry) && !entry.endsWith('.d.ts') ? [path] : []
 })
 const productFiles = (dir: string): string[] => walkFiles(dir, /\.tsx?$/)
-const RETIRED_ENVS = ['MERCURY_ROUTER', 'MERCURY_ROUTER_POSTURE', 'MERCURY_ROUTER_STATE_DIR', 'MERCURY_MISSION_POLICY', 'MERCURY_HELM_CONSOLE', 'MERCURY_CONSOLE_MODEL']
+const RETIRED_ENVS = ['MERCURY_ROUTER', 'MERCURY_ROUTER_POSTURE', 'MERCURY_ROUTER_STATE_DIR', 'MERCURY_MISSION_POLICY', 'MERCURY_HELM_CONSOLE', 'MERCURY_CONSOLE_MODEL', 'MERCURY_CHANNELS', 'MERCURY_CHANNEL_ROOM', 'MERCURY_LOCAL_CHANNELS']
 const RETIRED_MENU_ROWS: Record<string, string> = { MERCURY_HELM_CONSOLE: join('src', 'substrate', 'startupMenu.ts') }
 const RETIRED_POSTURES = ['adaptive', 'quality', 'balanced', 'fast', 'fixed']
 const OLD_ROUTER_REL = join('utils', 'router')
