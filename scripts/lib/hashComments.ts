@@ -828,7 +828,7 @@ function jsonFound(text: string): Found[] {
 }
 
 function scriptFound(path: string, text: string, kind: 'typescript' | 'javascript', offset = 0, embedded = false): Found[] {
-  return (scriptComments(path, text) as { pos: number; end: number; keep: string | null }[]).map(range => ({ pos: offset + range.pos, end: offset + range.end, kind, form: 'comment' as const, embedded, ...(range.keep === null ? {} : { kept: range.keep }) }))
+  return scriptComments(path, text).map(range => ({ pos: offset + range.pos, end: offset + range.end, kind, form: 'comment' as const, embedded, ...(range.keep === null ? {} : { kept: range.keep }) }))
 }
 
 function yamlFound(text: string): Found[] {
