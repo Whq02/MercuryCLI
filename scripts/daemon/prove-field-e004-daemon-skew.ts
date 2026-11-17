@@ -379,9 +379,29 @@ section('§D2 a daemon of an older build whose restart re-executes its own bundl
 section('§E the wiring: the rows, the verb, the daemon')
 {
   const read = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
-  const health = read('src/utils/healthReport.ts')
-  check('E1 the "Scheduler daemon" row warns on the skew itself, the skew line as the fix', health.includes('const skew = daemonSkewLine(hs)') && health.includes("if (skew !== null) return { status: 'warn', evidence, fix: skew, link: '/daemon' }"))
-  check('E2 the "Mercury build" row shows the daemon\'s build beside the screen\'s', health.includes('daemonBuildBesideScreen(await handshakeDaemon({ timeoutMs: 1000 }))') && health.includes('${artifactIdentityLine(identity)}${daemonBuild}'))
+  {
+    const fsH = await import('node:fs')
+    const rowPlane = fsH.mkdtempSync((await import('node:path')).join((await import('node:os')).tmpdir(), 'health-daemon-row-'))
+    const planeBefore = process.env.MERCURY_DAEMON_DIR
+    process.env.MERCURY_DAEMON_DIR = rowPlane
+    const { daemonStatePath } = await import('../../src/daemon/controlSocket.ts')
+    fsH.writeFileSync(daemonStatePath(), JSON.stringify({ pid: process.pid, version: '0.0.0-fixture', startedAt: Date.now() }))
+    const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+    const { identityChecks } = await import('../../src/utils/health/sections/identity.ts')
+    const { healthContext } = await import('../../src/utils/healthReport.ts')
+    const { artifactIdentityLine, describeArtifactIdentity } = await import('../../src/utils/artifactIdentity.ts')
+    const context = await healthContext()
+    const daemonRow = await crewChecks().find(row => row.id === 'daemon')?.run()
+    const buildRow = await identityChecks(context).find(row => row.id === 'build-identity')?.run()
+    const hs = await hsMod.handshakeDaemon({ timeoutMs: 1000 })
+    if (planeBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
+    else process.env.MERCURY_DAEMON_DIR = planeBefore
+    const skew = hsMod.daemonSkewLine(hs)
+    const said = hs.line !== null ? daemonRow?.status === 'warn' && daemonRow.fix === (hs.heal === 'reopen' ? hsMod.reopenWayOut(hs) : hs.line) : skew !== null ? daemonRow?.status === 'warn' && daemonRow.fix === skew : daemonRow?.status === 'ok'
+    check('E1 the "Scheduler daemon" row warns on the skew itself, the skew line as the fix', daemonRow !== undefined && daemonRow.evidence.endsWith(` · ${hsMod.daemonHandshakeEvidence(hs)}`) && said, JSON.stringify(daemonRow))
+    const beside = hsMod.daemonBuildBesideScreen(hs)
+    check('E2 the "Mercury build" row shows the daemon\'s build beside the screen\'s', buildRow?.evidence.startsWith(`${artifactIdentityLine(describeArtifactIdentity(context.version))}${beside === null ? '' : ` · ${beside}`}`) === true, `${buildRow?.evidence} · beside: ${beside}`)
+  }
   const update = read('src/cli/update.ts')
   check('E3 `mercury update` finishes by moving the daemon and says so (text and --json), then tells the user about windows still open', update.includes("moveDaemonToDeployedBuild({ by: 'mercury update' })") && update.includes('const daemon = installCurrent ? await moveDaemonAfterUpdate() : null') && update.includes('${shimLine}${shellWords}${daemonLine}${openWindowsLineText}') && update.includes('{ ...base, daemon }') && update.includes("const openWindows = result.state === 'updated' ? openWindowsLine(result.from) : null"))
   check('E3b `mercury update --rollback` runs the mover too and ends with the same lines', update.includes("const daemon = rolled.state === 'rolled-back' ? await moveDaemonAfterUpdate() : null") && update.includes("emitJson({ mode: 'rollback', ...rolled, daemon, openWindows })"))

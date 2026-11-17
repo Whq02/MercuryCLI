@@ -127,12 +127,26 @@ check('the honest line (names joined, a string, a boolean, undefined) is clean',
 rmSync(scratch, { recursive: true, force: true })
 
 {
-  const src95 = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
+  const globals = globalThis as Record<string, unknown>
+  if (globals.MACRO === undefined) globals.MACRO = { VERSION: '1.0.0' }
+  const probeTargets = process.env.MERCURY_LOCAL_PROBE_TARGETS
+  process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+  const { enableConfigs } = await import('../../src/utils/config.ts')
+  enableConfigs()
+  const { runHealthReport } = await import('../../src/utils/healthReport.ts')
+  const cert = await runHealthReport({ depth: 'fast' })
+  if (probeTargets === undefined) delete process.env.MERCURY_LOCAL_PROBE_TARGETS
+  else process.env.MERCURY_LOCAL_PROBE_TARGETS = probeTargets
+  const printed = cert.sections.flatMap(entry => entry.checks)
+  const objects = printed.filter(row => /\[object [A-Za-z]+\]/.test(`${row.evidence} ${row.detail ?? ''} ${row.fix ?? ''}`)).map(row => row.id)
+  check(`no row of a fast certificate prints an object as [object …] (${printed.length} rows run here)`, printed.length > 100 && objects.length === 0, objects.join(', '))
+  const slots = printed.find(row => row.id === 'provider-slots')
   check(
     "FC-095: the router row's engine word is 'configured' (never LIVE without a probe)",
-    src95.includes("p.available ? 'configured' : (p.reason ?? 'unavailable')") && src95.includes('anthropic configured ('),
+    slots?.evidence.startsWith('anthropic configured (') === true,
+    slots?.evidence,
   )
-  check('FC-095: the LIVE spelling is out of the router row', !src95.includes("p.available ? 'LIVE'") && !src95.includes('anthropic LIVE ('))
+  check('FC-095: the LIVE spelling is out of the router row', slots !== undefined && !/\bLIVE\b/.test(slots.evidence), slots?.evidence)
 }
 
 console.log(failures === 0 ? 'HEALTH EVIDENCE STRING LAWS HOLD' : `${failures} FAILURE(S)`)

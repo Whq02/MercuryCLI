@@ -261,8 +261,9 @@ section('§0 the road: the JavaScript image processor is forced, and the health 
   check('the product is on the JavaScript image road (MERCURY_IMAGE_PROCESSOR=javascript)', state.road === 'javascript', j(state))
   const described = await describeImageProcessor()
   check('/health\'s words for that road say an image it cannot size is left out of the request', described.ready === false && /left out of the request/.test(described.detail ?? ''), j(described))
-  const health = readFileSync(join(ROOT, 'src/utils/healthReport.ts'), 'utf8')
-  check('the "Image processor" row is warn, not info, when the JavaScript road serves', health.includes("return { status: road.ready ? ('ok' as const) : ('warn' as const), evidence: road.line"), 'the row still reads info')
+  const { interfaceChecks } = await import('../../src/utils/health/sections/interface.ts')
+  const row = await interfaceChecks().find(entry => entry.id === 'iface-image-processor')?.run()
+  check('the "Image processor" row is warn, not info, when the JavaScript road serves', row?.status === 'warn' && row.evidence === described.line, j(row))
 }
 
 section('§1 the refusal sentences say what is true now')

@@ -460,8 +460,23 @@ section('G · wiring: ensureDaemon rides the handshake; main wires hello/restart
   check('G7 daemon.json carries the version fact and the LIVE owner (the hand-over updates it)', dmain.includes('proto: MERCURY_DAEMON_PROTO') && dmain.includes('let currentOwnerPid = parseOwnerPid()') && dmain.includes('ownerPid: currentOwnerPid'))
   const repl = read('src/screens/Chat.tsx')
   check('G8 the Chat paints the one line and clears it on match', repl.includes('subscribeDaemonHandshake') && repl.includes("removeNotification(key)"))
-  const health = read('src/utils/healthReport.ts')
-  check('G9 the certificate daemon row runs the handshake and the line IS the fix (the reopen case carries the full way out, which the notice row has no room for)', health.includes('daemonHandshakeEvidence') && health.includes("fix: hs.heal === 'reopen' ? reopenWayOut(hs) : hs.line"))
+  {
+    const fsH = await import('node:fs')
+    const rowPlane = fsH.mkdtempSync((await import('node:path')).join((await import('node:os')).tmpdir(), 'health-daemon-row-'))
+    const planeBefore = process.env.MERCURY_DAEMON_DIR
+    process.env.MERCURY_DAEMON_DIR = rowPlane
+    const { daemonStatePath } = await import('../../src/daemon/controlSocket.ts')
+    fsH.writeFileSync(daemonStatePath(), JSON.stringify({ pid: process.pid, version: '0.0.0-fixture', startedAt: Date.now() }))
+    const handshake = await import('../../src/daemon/handshake.ts')
+    const { crewChecks } = await import('../../src/utils/health/sections/crew.ts')
+    const daemonRow = await crewChecks().find(row => row.id === 'daemon')?.run()
+    const hs = await handshake.handshakeDaemon({ timeoutMs: 1000 })
+    if (planeBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
+    else process.env.MERCURY_DAEMON_DIR = planeBefore
+    const skew = handshake.daemonSkewLine(hs)
+    const said = hs.line !== null ? daemonRow?.status === 'warn' && daemonRow.fix === (hs.heal === 'reopen' ? handshake.reopenWayOut(hs) : hs.line) : skew !== null ? daemonRow?.status === 'warn' && daemonRow.fix === skew : daemonRow?.status === 'ok'
+    check('G9 the certificate daemon row runs the handshake and the line IS the fix (the reopen case carries the full way out, which the notice row has no room for)', daemonRow !== undefined && daemonRow.evidence.startsWith('daemon.json: ') && daemonRow.evidence.endsWith(` · ${handshake.daemonHandshakeEvidence(hs)}`) && daemonRow.link === '/daemon' && said, JSON.stringify(daemonRow))
+  }
   const statusSrc = read('src/daemon/status.ts')
   check('G10 the status probe handshakes BEFORE the keyed ops (an old daemon still reports)', statusSrc.indexOf('snapshot.handshake = await handshakeDaemon') !== -1 && statusSrc.indexOf('snapshot.handshake = await handshakeDaemon') < statusSrc.indexOf("daemonControlRpc({ op: 'status'"))
   const hsSrc = read('src/daemon/handshake.ts')

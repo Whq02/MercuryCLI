@@ -58,7 +58,7 @@ section('§1 CALLER FLOOR — getAuthConfigHomeDir() only in the credential stor
     'src/services/providers/nous/nousClientContract.ts',
     'src/services/providers/gemini/antigravityClientContract.ts',
     'src/utils/auth.ts',
-    'src/utils/healthReport.ts',
+    'src/utils/health/sections/crew.ts',
     'src/daemon/saturnAccount.ts',
     'src/daemon/signInView.ts',
   ])

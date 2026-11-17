@@ -146,10 +146,46 @@ await (async () => {
 
 section('(4) wiring — remedies attached, async spawns, panel f-flow, CLI flags')
 {
-  const report = SRC('src/utils/healthReport.ts')
-  check('gate check attaches a remedy behind healthFixEnabled()', /fixable && healthFixEnabled\(\)/.test(report))
-  check('build-fresh check attaches a rebuild remedy', report.includes('rebuild dist (') && report.includes("class: 'safe' as const"))
-  check('remedies spawn ASYNC (runRemedyCmd), never spawnSync', report.includes('runRemedyCmd(') && !report.includes('spawnSync('))
+  const fsF = await import('node:fs')
+  const { execFileSync } = await import('node:child_process')
+  const { gateVerdictPath, healthContext } = await import('../../src/utils/healthReport.ts')
+  const { proofsChecks } = await import('../../src/utils/health/sections/proofs.ts')
+  const { identityChecks } = await import('../../src/utils/health/sections/identity.ts')
+  const project = mkdtempSync(join(tmpdir(), 'health-fix-gate-'))
+  fsF.mkdirSync(join(project, 'scripts'), { recursive: true })
+  fsF.writeFileSync(join(project, 'scripts', 'run-all-suites.sh'), '#!/bin/bash\nexit 1\n')
+  const stateBefore = process.env.MERCURY_HEALTH_STATE_DIR
+  process.env.MERCURY_HEALTH_STATE_DIR = join(project, 'state')
+  fsF.mkdirSync(join(gateVerdictPath(), '..'), { recursive: true })
+  fsF.writeFileSync(gateVerdictPath(), JSON.stringify({ ok: false, ranAt: new Date().toISOString(), pass: [], fail: ['fixture-suite'] }))
+  const gateRow = proofsChecks({ ...(await healthContext()), cwd: project, head: { sha: null, branch: null, dirty: null } }).find(row => row.id === 'gate')
+  const armed = await gateRow?.run()
+  process.env.MERCURY_HEALTH_FIX = '0'
+  const disarmed = await gateRow?.run()
+  delete process.env.MERCURY_HEALTH_FIX
+  check('gate check attaches a remedy behind healthFixEnabled()', armed?.status === 'fail' && armed.remedy?.class === 'safe' && disarmed?.status === 'fail' && disarmed.remedy === undefined, JSON.stringify({ armed: armed?.status, plan: armed?.remedy?.plan, disarmed: disarmed?.remedy?.plan }))
+  const applying = armed?.remedy?.apply()
+  const applied = await applying
+  if (stateBefore === undefined) delete process.env.MERCURY_HEALTH_STATE_DIR
+  else process.env.MERCURY_HEALTH_STATE_DIR = stateBefore
+  check('remedies spawn ASYNC (runRemedyCmd), never spawnSync', applying instanceof Promise && applied?.ok === false && applied.note.startsWith('gate exited 1'), JSON.stringify(applied))
+  const checkout = mkdtempSync(join(tmpdir(), 'health-fix-build-'))
+  fsF.mkdirSync(join(checkout, 'src'))
+  fsF.mkdirSync(join(checkout, 'dist'))
+  fsF.writeFileSync(join(checkout, 'build.ts'), '')
+  fsF.writeFileSync(join(checkout, 'src', 'a.ts'), 'export {}\n')
+  fsF.writeFileSync(join(checkout, 'dist', 'mercury.mjs'), '')
+  const yesterday = new Date(Date.now() - 86_400_000)
+  fsF.utimesSync(join(checkout, 'dist', 'mercury.mjs'), yesterday, yesterday)
+  const git = (...args: string[]): void => void execFileSync('git', ['-C', checkout, '-c', 'user.name=fixture', '-c', 'user.email=fixture@mercury.invalid', '-c', 'commit.gpgsign=false', ...args], { stdio: 'ignore' })
+  git('init', '-q')
+  git('add', 'build.ts', 'src/a.ts')
+  git('commit', '-q', '-m', 'fixture')
+  const entryBefore = process.argv[1]
+  process.argv[1] = join(checkout, 'dist', 'mercury.mjs')
+  const stale = await identityChecks(await healthContext()).find(row => row.id === 'build-fresh')?.run()
+  process.argv[1] = entryBefore!
+  check('build-fresh check attaches a rebuild remedy', stale?.status === 'stale' && stale.remedy?.class === 'safe' && stale.remedy.plan.startsWith('rebuild dist ('), JSON.stringify({ status: stale?.status, evidence: stale?.evidence, plan: stale?.remedy?.plan }))
   const panel = SRC('src/commands/health/HealthCertificate.tsx')
   check("panel wires f → consent → applyRemedy", panel.includes("input === 'f'") && panel.includes('applyRemedy(check)'))
   check('destructive renders the warning register', panel.includes('DESTRUCTIVE — this discards state'))

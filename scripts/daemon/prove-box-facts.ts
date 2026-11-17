@@ -118,7 +118,15 @@ check('the runner\'s facts answer carries the reading', liveBox?.lock?.dir === l
 check('the reading takes no sample of its own: it reads the last one and refreshes off the answer', readFileSync(join(ROOT, 'src/utils/boxLock.ts'), 'utf8').includes('const last = lastMemorySample(now)') && !readFileSync(join(ROOT, 'src/utils/boxLock.ts'), 'utf8').includes('sampleAvailableMemory('))
 check('the daemon publishes the box row as the child answered it, nothing stamped over it', readFileSync(join(ROOT, 'src/daemon/sessionSeat.ts'), 'utf8').includes("{ box: boxAnswer }"))
 check('the Bash tool appends the line to a result that waited', readFileSync(join(ROOT, 'src/tools/BashTool/BashTool.tsx'), 'utf8').includes('boxLockLineForCommand(input.command'))
-check('/health carries the Box lock row', readFileSync(join(ROOT, 'src/utils/healthReport.ts'), 'utf8').includes("id: 'box-lock'"))
+const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+const lockDirBefore = process.env.MERCURY_BOX_LOCK_DIR
+process.env.MERCURY_BOX_LOCK_DIR = lockDir
+const boxRow = await runtimeChecks().find(row => row.id === 'box-lock')?.run()
+const boxDirNow = box.boxLockDir()
+const boxStateNow = boxDirNow === null ? null : box.readBoxLockState(boxDirNow)
+if (lockDirBefore === undefined) delete process.env.MERCURY_BOX_LOCK_DIR
+else process.env.MERCURY_BOX_LOCK_DIR = lockDirBefore
+check('/health carries the Box lock row', boxRow?.status === 'ok' && boxStateNow !== null && boxRow.evidence === `${boxDirNow}: ${box.boxLockStateWords(boxStateNow)}`, j(boxRow))
 
 rmSync(scratch, { recursive: true, force: true })
 console.log('\n' + '─'.repeat(76))

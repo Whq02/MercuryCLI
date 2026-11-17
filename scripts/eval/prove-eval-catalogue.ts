@@ -77,10 +77,13 @@ _resetInterpreterProbeCacheForTesting()
   check('the settled table answers py available', evalAvailability(process.cwd()).find(r => r.language === 'py')?.available === true)
 }
 
-section('one probe serves schema and /health (source pins)')
-const health = src('src', 'utils', 'healthReport.ts')
-check("health carries the 'eval-kernels' check", health.includes("id: 'eval-kernels'"))
-check('the health check reads the SAME availability probe (the settled table)', /eval-kernels'[\s\S]{0,900}primeEvalAvailability/.test(health))
+section('one probe serves schema and /health (the row, run here)')
+const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+const evalRow = runtimeChecks().find(row => row.id === 'eval-kernels')
+check("health carries the 'eval-kernels' check", evalRow !== undefined && evalRow.label === 'Eval languages')
+const evalSays = await evalRow?.run()
+const settled = evalAvailability(process.cwd())
+check('the health check reads the SAME availability probe (the settled table)', settled.length > 0 && settled.every(row => evalSays?.evidence.includes(row.available ? `${row.language} ${row.version ?? 'ok'} @ ${row.interpreterPath ?? '?'}` : `${row.language} UNAVAILABLE (${row.whyNot ?? 'unknown'})`) === true), evalSays?.evidence)
 
 section('registry + census rows')
 const flagNames = new Set((FLAG_REGISTRY as ReadonlyArray<{ env: string }>).map(row => row.env))

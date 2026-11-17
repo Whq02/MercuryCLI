@@ -45,8 +45,14 @@ console.log('§1 FC-105 — the deep probe BOOTS the resolved server')
     'the fast row speaks resolution, not liveness (the child-road-is-live claim is gone)',
     readiness.includes('resolution only; health --deep boots it') && !readiness.includes('the startDebugging child road is live'),
   )
-  const report = readFileSync(path.join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
-  check('the deep row is registered (js-debugger)', report.includes("id: 'js-debugger'") && report.includes('probeJsDebugBoot'))
+  const { healthContext } = await import('../../src/utils/healthReport.ts')
+  const { ideLoopChecks } = await import('../../src/utils/health/sections/ide-loop.ts')
+  const deepProbes = await import('../../src/utils/healthDeepProbes.ts')
+  const jsRow = ideLoopChecks(await healthContext('deep')).find(row => row.id === 'js-debugger')
+  const jsSays = await jsRow?.run()
+  const jsDirect = await deepProbes.probeJsDebugBoot()
+  const portless = (text: string): string => text.replace(/127\.0\.0\.1:\d+/, '127.0.0.1')
+  check('the deep row is registered (js-debugger)', jsRow?.depth === 'deep' && jsRow.probe === 'functional' && jsSays?.status === jsDirect.status && portless(jsSays.evidence) === portless(jsDirect.evidence), `${jsSays?.status}: ${jsSays?.evidence.slice(0, 140)}`)
 }
 
 console.log('§2 FC-106 — the debugpy remedy names the actual fault')

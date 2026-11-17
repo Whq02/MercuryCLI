@@ -161,8 +161,15 @@ section('§6 the wiring, structural')
   check('the ChangeSet settle chokepoint counts applies with typed codes', /input\.op === 'apply'[\s\S]{0,900}changeSetRefusalCodeOfResult/.test(changeSet))
   const ledgerRow = getFlagSpec('MERCURY_EDIT_LEDGER')
   check('the display-tier flag row stands with its off arm', ledgerRow !== undefined && ledgerRow.off.includes('counters are removed entirely'))
-  const health = readFileSync(join(root, 'src/utils/healthReport.ts'), 'utf8')
-  check('the /health check vanishes with the flag off (conditional composition)', /editOutcomeHealthChecks\(\)/.test(health) && /if \(!editOutcomeLedgerEnabled\(\)\) return \[\]/.test(health))
+  const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
+  const ledgerFlag = process.env.MERCURY_EDIT_LEDGER
+  process.env.MERCURY_EDIT_LEDGER = '0'
+  const listedOff = runtimeChecks().some(row => row.id === 'edit-outcomes')
+  process.env.MERCURY_EDIT_LEDGER = '1'
+  const listedOn = runtimeChecks().some(row => row.id === 'edit-outcomes')
+  if (ledgerFlag === undefined) delete process.env.MERCURY_EDIT_LEDGER
+  else process.env.MERCURY_EDIT_LEDGER = ledgerFlag
+  check('the /health check vanishes with the flag off (conditional composition)', !listedOff && listedOn, `listed with the flag off: ${listedOff} · on: ${listedOn}`)
 }
 
 console.log('\n' + '='.repeat(60))

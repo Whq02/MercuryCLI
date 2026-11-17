@@ -80,14 +80,17 @@ console.log('[3] the truths driven on this box')
   check('Glob names the search binary', glob !== undefined && glob.reason.includes('search binary'), glob?.reason)
 }
 
-console.log('[4] /health prints the lines (source pin)')
+console.log('[4] /health prints the lines (the row, run here)')
 {
-  const health = readFileSync(join(repoRoot, 'src/utils/healthReport.ts'), 'utf8')
-  const at = health.indexOf("id: 'capability-census'")
-  const body = at === -1 ? '' : health.slice(at, at + 2400)
-  check('the census check reads censusGapLines', body.includes('censusGapLines(c)'))
-  check('…and prints every line as the row’s detail', body.includes('{ detail }') && body.includes("g.support === 'conditional' ? 'conditional' : 'off'"))
-  check('…and a reasonless row warns the check', body.includes("reasonless.length > 0 ? ('warn' as const)"))
+  const { toolCapabilityFastChecks } = await import('../../src/utils/health/sections/tool-capability-fast.ts')
+  const row = await toolCapabilityFastChecks().find(entry => entry.id === 'capability-census')?.run()
+  const lines = censusGapLines(buildToolCensus())
+  const printed = (row?.detail ?? '').split('\n')
+  check('the census check reads censusGapLines', row !== undefined && lines.length > 0 && printed.length === lines.length, `${printed.length} lines printed, ${lines.length} gap lines`)
+  const unlike = lines.findIndex((g, i) => printed[i] !== `${g.support === 'conditional' ? 'conditional' : 'off'} · ${g.tools.join(', ')} — ${g.reason}`)
+  check('…and prints every line as the row’s detail', unlike === -1, printed[unlike] ?? '')
+  const reasonless = lines.filter(g => g.reason === CENSUS_NO_REASON).flatMap(g => g.tools)
+  check('…and a reasonless row warns the check', reasonless.length > 0 ? row?.status === 'warn' && row.evidence.includes(`NO REASON DECLARED: ${reasonless.join(', ')}`) : row?.status === 'ok' && !row.evidence.includes('NO REASON DECLARED'), row?.evidence)
 }
 
 console.log(failures === 0 ? '\n ✅ CENSUS REASONS — GREEN' : `\n ❌ ${failures} FAILED`)

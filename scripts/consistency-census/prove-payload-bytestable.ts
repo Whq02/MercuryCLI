@@ -96,8 +96,11 @@ check('§D repeated resolution agrees on ONE cache root', env.PYTHONPYCACHEPREFI
   check('§F the projection carries version + distribution', id.version === '9.9.9-fixture' && ['packaged-install', 'source-build', 'source-run'].includes(id.distribution))
   const line = artifactIdentityLine(id)
   check('§F the concise line leads with the UNMANGLED semver', line.startsWith('v9.9.9-fixture ·'))
-  const healthSrc = readFileSync(join(ROOT, 'src/utils/healthReport.ts'), 'utf8')
-  check('§F /health build row consumes the ONE projection', healthSrc.includes('describeArtifactIdentity(') && healthSrc.includes('artifactIdentityLine('))
+  const { healthContext } = await import('../../src/utils/healthReport.ts')
+  const { identityChecks } = await import('../../src/utils/health/sections/identity.ts')
+  const context = await healthContext()
+  const buildRow = await identityChecks(context).find(row => row.id === 'build-identity')?.run()
+  check('§F /health build row consumes the ONE projection', buildRow?.evidence.startsWith(artifactIdentityLine(describeArtifactIdentity(context.version))) === true, buildRow?.evidence)
 }
 
 console.log(failed === 0 ? '\n ✅ MANAGED PAYLOADS STAY BYTE-STABLE' : `\n ❌ ${failed} FAILED`)
