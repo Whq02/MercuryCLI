@@ -15,7 +15,7 @@ import type {
   PermissionDenyDecision,
   PermissionResult,
 } from '../PermissionResult.js'
-import type { BypassedAskRoad, PermissionMode } from '../../../types/permissions.js'
+import type { BypassedAskRoad, DecisionEntry, DecisionStageId, DecisionStageRecord, DecisionTrace, PermissionMode } from '../../../types/permissions.js'
 import { refusalWithReason, ruleSentence, wholeToolDenyRulesCovering, withRuleReason } from '../ruleReason.js'
 import { createPermissionRequestMessage, ORG_ASK_REASON } from './requestMessage.js'
 import {
@@ -23,12 +23,6 @@ import {
   getDenyRuleForTool,
   toolAlwaysAllowedRule,
 } from './rules.js'
-import type {
-  DecisionEntry,
-  DecisionStageId,
-  DecisionStageRecord,
-  DecisionTrace,
-} from './trace.js'
 
 interface DecisionPorts {
   isToolKilled(tool: Tool, agentType: string | undefined): boolean

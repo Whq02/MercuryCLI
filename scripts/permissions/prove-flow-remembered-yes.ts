@@ -1,6 +1,7 @@
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { PassThrough } from 'node:stream'
 import { z } from 'zod/v4'
 import { ruleRoot } from '../lib/platformPath.ts'
 
@@ -13,7 +14,6 @@ process.chdir(world)
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createPermissionContext } = await import('../../src/hooks/toolPermission/PermissionContext.ts')
 const { decisionOfAnswer } = await import('../../src/cli/headless/runnerAsks.ts')
 const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
 const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
@@ -50,25 +50,23 @@ function diskRules(): string[] {
   const path = getSettingsFilePathForSource('localSettings')!
   return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')).guardrails?.allow ?? [] : []
 }
-async function yes(h: ReturnType<typeof harness>, command: string, road: string, updates: any[] = []) {
+async function yes(h: ReturnType<typeof harness>, command: string, updates: any[] = []) {
   await (await import('../../src/utils/permissions/decision/commandAnalysis.ts')).parseForSecurity(command)
-  if (road === 'host') return decisionOfAnswer({ outcome: 'allow', rules: updates }, tool, { command }, h.context)
-  const ctx = createPermissionContext(tool, { command }, h.context, assistant, 'yes', h.set)
-  return ctx.handleUserAllow({ command }, updates)
+  return decisionOfAnswer({ outcome: 'allow', rules: updates }, tool, { command }, h.context)
 }
 const exactRule = (command: string) => [{ type: 'addRules', destination: 'localSettings', behavior: 'allow', rules: [{ toolName: 'Bash', ruleContent: command }] }]
 try {
-  for (const road of ['card', 'host']) {
+  for (const road of ['host']) {
     const command = `${PUSH}-${road}`
     const rule = permissionRuleValueToString({ toolName: 'Bash', ruleContent: command })
     const first = await decideToolPermissionWithModes(tool, { command }, harness().context, assistant, 'first')
     check(`${road}: the push asks first, in the five's words`, first.decision.behavior === 'ask' && first.decision.message === PUSH_WORDS, JSON.stringify(first.decision))
     const h = harness()
     const before = JSON.stringify(diskRules())
-    await yes(h, command, road)
+    await yes(h, command)
     check(`${road}: a plain yes answers this call and saves nothing`, before === JSON.stringify(diskRules()) && h.rules().length === 0)
     check(`${road}: the same push asks again after a plain yes`, (await decideToolPermissionWithModes(tool, { command }, h.context, assistant, 'again')).decision.behavior === 'ask')
-    await yes(h, command, road, exactRule(command))
+    await yes(h, command, exactRule(command))
     check(`${road}: a don't-ask-again yes saves the exact command in the project allow list`, diskRules().includes(rule))
     check(`${road}: the saved rule is live immediately`, h.rules().includes(rule))
     const fresh = harness('flow', diskRules())
@@ -80,18 +78,16 @@ try {
     fresh.set(removed)
     check(`${road}: removing the rule restores the ask`, (await decideToolPermissionWithModes(tool, { command }, fresh.context, assistant, 'removed')).decision.behavior === 'ask')
   }
-  for (const road of ['card', 'host']) {
+  for (const road of ['host']) {
     const h = harness()
     const input = { file_path: join(homedir(), `.flow-external-${road}.txt`) }
     const fileTool = { name: 'Write', getPath: (value: any) => value.file_path, isReadOnly: () => false } as never
     check(`${road}: a file outside the project starts with an ask`, checkWritePermissionForTool(fileTool, input, (h.context as any).getAppState().toolPermissionContext).behavior === 'ask')
     const before = JSON.stringify(diskRules())
-    if (road === 'host') decisionOfAnswer({ outcome: 'allow' }, fileTool, input, h.context)
-    else await createPermissionContext(fileTool, input, h.context, assistant, 'path', h.set).handleUserAllow(input, [])
+    decisionOfAnswer({ outcome: 'allow' }, fileTool, input, h.context)
     check(`${road}: a plain yes on the file saves nothing`, before === JSON.stringify(diskRules()) && h.rules().length === 0)
     const grant = [{ type: 'addRules', destination: 'localSettings', behavior: 'allow', rules: [{ toolName: 'Edit', ruleContent: ruleRoot(input.file_path) }] }]
-    if (road === 'host') decisionOfAnswer({ outcome: 'allow', rules: grant } as never, fileTool, input, h.context)
-    else await createPermissionContext(fileTool, input, h.context, assistant, 'path', h.set).handleUserAllow(input, grant as never)
+    decisionOfAnswer({ outcome: 'allow', rules: grant } as never, fileTool, input, h.context)
     const fresh = harness('flow', diskRules())
     check(`${road}: the saved exact file rule works after reload`, checkWritePermissionForTool(fileTool, input, (fresh.context as any).getAppState().toolPermissionContext).behavior === 'allow')
     check(`${road}: the file yes does not grant its whole directory`, checkWritePermissionForTool(fileTool, { file_path: input.file_path + '-other' }, (fresh.context as any).getAppState().toolPermissionContext).behavior === 'ask')
@@ -99,19 +95,38 @@ try {
   for (const mode of ['default', 'implement', 'sovereign', 'dontAsk']) {
     const h = harness(mode)
     const before = JSON.stringify(diskRules())
-    await yes(h, `bun run ${mode}`, 'card')
-    await yes(h, `bun run ${mode}`, 'host')
+    await yes(h, `bun run ${mode}`)
     check(`${mode}: a plain yes has no saved-rule effect`, before === JSON.stringify(diskRules()) && h.rules().length === 0)
   }
   const h = harness()
   const before = JSON.stringify(diskRules())
-  await yes(h, 'printf "*"', 'card')
+  await yes(h, 'printf "*"')
   check('a literal star never silently becomes a wildcard allow', before === JSON.stringify(diskRules()) && h.rules().length === 0)
-  const ctx = createPermissionContext({ ...(tool as object), name: 'UnscopedProbe' } as never, { action: 'once' }, h.context, assistant, 'opaque', h.set)
-  await ctx.handleUserAllow({ action: 'once' }, [])
+  decisionOfAnswer({ outcome: 'allow' }, { ...(tool as object), name: 'UnscopedProbe' } as never, { action: 'once' }, h.context)
   check('an unrepresentable input never becomes a tool-wide grant', before === JSON.stringify(diskRules()) && h.rules().length === 0)
-  await createPermissionContext(tool, { command: 'bun run hook-only' }, h.context, assistant, 'hook', h.set).handleHookAllow({ command: 'bun run hook-only' }, [])
-  check('a hook yes is not an operator yes', before === JSON.stringify(diskRules()) && h.rules().length === 0)
+  const { createRunnerAsks } = await import('../../src/cli/headless/runnerAsks.ts')
+  const { createPeer } = await import('../../src/runner/wire/peer.ts')
+  const { addSessionHooks } = await import('../../src/utils/hooks/sessionHooks.ts')
+  const { getSessionId } = await import('../../src/bootstrap/state.ts')
+  const toHost = new PassThrough()
+  const toRunner = new PassThrough()
+  const runner = createPeer({ input: toRunner, output: toHost, side: 'runner', log() {} })
+  const host = createPeer({ input: toHost, output: toRunner, side: 'host', log() {} })
+  const capabilities = { holds_asks: true, elicitation: false, partial_rows: false }
+  runner.onRequest('initialize', () => ({ protocol: 1, runner: { version: '1.0.0', pid: process.pid }, session_id: 'flow-yes' }))
+  await host.request('initialize', { protocol: 1, host: { name: 'proof', version: '1' }, capabilities })
+  let reachedHost = 0
+  host.onRequest('permission/request', () => {
+    reachedHost++
+    return new Promise(() => {}) as never
+  })
+  const hooked = harness()
+  const seat = { ...(hooked.context as object), agentId: 'flow-yes-seat' } as never
+  addSessionHooks((hooked.context as any).setAppState, { sessionId: String(getSessionId()), crewmateId: 'flow-yes-seat' }, { 'permission.ask': [{ name: 'yes hook', match: 'Bash', run: `echo '{"permission":"allow"}'` }] } as never, { kind: 'agent', type: 'flow-yes' })
+  const hookYes: any = await createRunnerAsks(runner, () => capabilities).createCanUseTool()(tool, { command: 'bun run hook-only' }, seat, assistant, 'hook', { behavior: 'ask', message: 'probe' } as never)
+  check('a hook yes is not an operator yes: it answers the call on the hosted road and saves nothing', hookYes.behavior === 'allow' && hookYes.decisionReason?.type === 'hook' && reachedHost === 1 && before === JSON.stringify(diskRules()) && hooked.rules().length === 0, JSON.stringify(hookYes))
+  host.end()
+  runner.end()
 } finally {
   process.chdir(original)
   rmSync(world, { recursive: true, force: true })

@@ -5,7 +5,7 @@ import { clearInvokedSkillsForAgent, getProjectRoot } from '../../bootstrap/stat
 import { INTERRUPT_MESSAGE } from '../../utils/messages/rejectionText.js'
 import { findCommand, getMcpSkillCommands, getSkillToolCommands } from '../../commands.js'
 import { COMMAND_MESSAGE_TAG } from '../../constants/xml.js'
-import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
+import type { CanUseToolFn } from '../../Tool.js'
 import {
   buildTool,
   type ToolCallProgress,

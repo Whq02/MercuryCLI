@@ -11,9 +11,10 @@ import { z } from 'zod/v4'
 
 const { decideToolPermission, decideRuleBasedPermissions, defaultDecisionPorts } =
   await import('../../src/utils/permissions/decision/engine.ts')
-const { DECISION_STAGE_ORDER, WRAPPER_STAGE_ORDER, formatDecisionTrace } = await import(
-  '../../src/utils/permissions/decision/trace.ts'
-)
+const DECISION_STAGE_ORDER: Record<'full' | 'ruleSubset', readonly string[]> = {
+  full: ['killSwitch', 'toolDenyRule', 'toolAskRule', 'toolVerdict', 'toolVerdictDeny', 'userInteractionAsk', 'toolAskRuleCarried', 'contentAskRule', 'orgAskCeiling', 'safetyCheckAsk', 'bypassPosture', 'toolAllowRule', 'resolution'],
+  ruleSubset: ['toolDenyRule', 'toolAskRule', 'toolVerdict', 'toolVerdictDeny', 'toolAskRuleCarried', 'contentAskRule', 'orgAskCeiling', 'safetyCheckAsk'],
+}
 const { hasPermissionsToUseTool } = await import(
   '../../src/utils/permissions/permissions.ts'
 )
@@ -29,9 +30,6 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const j = (v: unknown): string => JSON.stringify(v)
-const flowStages = ['flowFloors', 'flowLaw', 'flowAllow'].map(stage => (WRAPPER_STAGE_ORDER as readonly string[]).indexOf(stage))
-check('the Flow band has its three stages in order, after the dontAsk conversion and before the hook band', flowStages[0] === 1 && flowStages[1] === 2 && flowStages[2] === 3 && WRAPPER_STAGE_ORDER[4] === 'headlessHooks')
-
 const guard = setTimeout(() => {
   console.log('\n❌ TIMEOUT — trace proof exceeded 60s')
   process.exit(1)
@@ -137,7 +135,7 @@ const subset = (tool: unknown, ctx: unknown, ports?: unknown): Promise<{ decisio
   decideRuleBasedPermissions(tool as never, {}, ctx as never, (ports ?? defaultDecisionPorts) as never) as never
 
 function checkPrefixLaw(label: string, trace: Trace): void {
-  const order = DECISION_STAGE_ORDER[trace.entry as 'full' | 'ruleSubset'] as readonly string[]
+  const order = DECISION_STAGE_ORDER[trace.entry as 'full' | 'ruleSubset']
   const ids = trace.stages.map(s => s.stage)
   const isPrefix =
     ids.length <= order.length && ids.every((id, i) => id === order[i])
@@ -148,7 +146,7 @@ function checkPrefixLaw(label: string, trace: Trace): void {
       : last?.stage === trace.decidedBy &&
         last?.outcome === 'decided' &&
         trace.stages.slice(0, -1).every(s => s.outcome === 'pass')
-  check(`${label} — prefix law + terminal marking`, isPrefix && terminalOk, formatDecisionTrace(trace as never))
+  check(`${label} — prefix law + terminal marking`, isPrefix && terminalOk, j(trace))
 }
 
 console.log('============================================================')

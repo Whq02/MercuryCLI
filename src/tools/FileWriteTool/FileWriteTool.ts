@@ -44,7 +44,7 @@ import { getFsImplementation } from '../../utils/fsOperations.js'
 import type { UUID } from 'node:crypto'
 
 import { modifiedSinceReadMessage, unreadExistingWriteMessage } from '../FileEditTool/otherSession.js'
-import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
+import type { CanUseToolFn } from '../../Tool.js'
 import { stripSequentialReadPrefixes } from '../FileEditTool/utils.js'
 import { spellLineRanges } from '../FileEditTool/readThrough.js'
 import { APPLIED_NO_REREAD_NOTE, isFullReadEntry } from '../FileEditTool/FileEditTool.js'

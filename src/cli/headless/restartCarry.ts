@@ -1,6 +1,5 @@
 import { randomUUID, type UUID } from 'node:crypto'
 import { statSync } from 'node:fs'
-import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { AppState } from '../../state/AppStateStore.js'
 import {
   AGENT_RELAUNCH_NOTE,
@@ -16,7 +15,7 @@ import {
   type RestartCarryCounts,
   type RunnerRestartReason,
 } from '../../tasks/LocalAgentTask/launchReceipts.js'
-import type { ToolUseContext } from '../../Tool.js'
+import type { CanUseToolFn, ToolUseContext } from '../../Tool.js'
 import type { Message } from '../../types/message.js'
 import type { QueuedCommand } from '../../types/textInputTypes.js'
 import type { AgentId } from '../../types/ids.js'

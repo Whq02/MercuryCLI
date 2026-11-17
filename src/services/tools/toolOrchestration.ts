@@ -1,5 +1,4 @@
-import type { ToolUseContext } from '../../Tool.js'
-import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
+import type { CanUseToolFn, ToolUseContext } from '../../Tool.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import type { ToolUseBlock } from '../../types/wire.js'
 import { all } from '../../utils/generators.js'

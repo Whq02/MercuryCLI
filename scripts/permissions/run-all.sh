@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/Tool* src/hooks/toolPermission/handlers/interactiveHandler*
+# gate-watch: src/Tool*
 # gate-watch: src/tools/SkillTool/SkillTool*
 # gate-watch: src/constants/tools.ts src/tools/ResumeAgentTool/** src/tools/SendMessageTool/**
 # gate-watch: src/utils/betas* src/utils/hooks/** src/utils/messages/streaming*
@@ -18,7 +18,7 @@
 # gate-watch: src/components/MercuryFrame.tsx src/components/mercury-ui/compactModeChip.ts
 # gate-watch: src/components/permissions/** src/context.ts src/daemon/concourseWorkers.ts src/daemon/headlessRun.ts
 # gate-watch: src/daemon/permissionAsks.ts src/daemon/runnerConnection.ts src/daemon/sessionKit.ts src/daemon/warmRunner.ts
-# gate-watch: src/hooks/toolPermission/PermissionContext.ts src/hooks/useCancelRequest.ts src/ink.ts
+# gate-watch: src/hooks/useCancelRequest.ts src/ink.ts
 # gate-watch: src/ink/components/StdinContext.ts src/ink/components/TerminalSizeContext.tsx src/ink/stringWidth.ts
 # gate-watch: src/interactiveHelpers.tsx src/main.tsx src/screens/Chat.tsx src/services/agents/codec.ts
 # gate-watch: src/services/desktop/toolName.ts src/services/engine-connector/daemonConnector.ts
@@ -47,7 +47,7 @@
 # gate-watch: src/utils/wards/wards.ts src/utils/windowsPaths.ts
 # gate-watch: src/utils/sessionStorage/logs.ts src/utils/sessionTitle.ts src/utils/sanitization.ts
 # gate-watch: src/guards/** src/utils/artifactIdentity.ts src/utils/genericProcessUtils.ts src/utils/execFileNoThrow.ts src/daemon/ownerWatch.ts src/cli/update.ts src/tools/JourneyTool/JourneyTool.ts src/tools/ServiceTool/ServiceTool.ts
-# gate-watch: src/hooks/useCanUseTool.tsx src/keybindings/KeybindingContext.tsx
+# gate-watch: src/keybindings/KeybindingContext.tsx
 # gate-watch: src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts
 # gate-watch: scripts/lib/settingsPopupHarness.ts
 # gate-watch: scripts/lib/platformPath.ts

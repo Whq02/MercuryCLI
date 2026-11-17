@@ -22,7 +22,7 @@ enableConfigs()
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { createPermissionContext } = await import('../../src/hooks/toolPermission/PermissionContext.ts')
+const { decisionOfAnswer } = await import('../../src/cli/headless/runnerAsks.ts')
 const { CANCEL_MESSAGE, REJECT_MESSAGE, REJECT_MESSAGE_WITH_REASON_PREFIX } = await import('../../src/utils/messages/rejectionText.ts')
 const { INTERRUPT_MESSAGE_FOR_TOOL_USE } = await import('../../src/utils/messages/turnCut.ts')
 
@@ -120,21 +120,21 @@ async function run(scene: Scene): Promise<Run> {
     updateFileHistoryState: () => {},
     updateAttributionState: () => {},
   }
-  const canUseTool = (tool: never, input: Record<string, unknown>, toolUseContext: { abortController: AbortController }, assistantMessage: never, toolUseID: string) => new Promise(resolve => {
+  const canUseTool = (tool: never, input: Record<string, unknown>, toolUseContext: { abortController: AbortController }, _assistantMessage: never, toolUseID: string) => new Promise(resolve => {
     asked.push(toolUseID)
-    const permission = createPermissionContext(tool, input, toolUseContext as never, assistantMessage, toolUseID, () => {})
     const signal = toolUseContext.abortController.signal
     const onAbort = (): void => {
       withdrawn.push(toolUseID)
       cards.delete(toolUseID)
-      resolve(permission.cancelAndAbort(undefined, true))
+      resolve({ behavior: 'deny', message: 'Tool permission request failed: aborted', decisionReason: { type: 'other', reason: 'permission request failed' } })
     }
     if (signal.aborted) return onAbort()
     signal.addEventListener('abort', onAbort, { once: true })
     const answer = (given: Answer): void => {
       signal.removeEventListener('abort', onAbort)
       cards.delete(toolUseID)
-      resolve(given === 'allow' ? permission.buildAllow(input) : permission.cancelAndAbort(given === 'decline with words' ? 'read the other file' : undefined, false))
+      const reply = given === 'allow' ? { outcome: 'allow' } : given === 'decline with words' ? { outcome: 'deny', message: `${REJECT_MESSAGE_WITH_REASON_PREFIX}read the other file` } : { outcome: 'deny', message: REJECT_MESSAGE, stop: true }
+      resolve(decisionOfAnswer(reply as never, tool, input, toolUseContext as never))
     }
     cards.set(toolUseID, answer)
     if (toolUseID !== OLD) answer(scene.answerRest ?? 'allow')

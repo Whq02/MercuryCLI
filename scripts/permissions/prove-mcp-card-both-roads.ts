@@ -29,14 +29,13 @@ function check(label: string, ok: boolean, detail = ''): void {
 const section = (title: string): void => console.log(`\n${title}`)
 const j = (value: unknown): string => JSON.stringify(value)
 
-console.log("an MCP tool's permission card says the same thing whichever process paints it: the session's own, or the window of a session the daemon hosts")
+console.log("an MCP tool's permission card, painted by the window of a session the daemon hosts, says what the session's own client built")
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { fetchToolsForClient } = await import('../../src/services/mcp/client.ts')
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { default: useCanUseTool } = await import('../../src/hooks/useCanUseTool.tsx')
 const { createRunnerAsks } = await import('../../src/cli/headless/runnerAsks.ts')
 const { createPeer } = await import('../../src/runner/wire/peer.ts')
 const daemonAsks = await import('../../src/daemon/permissionAsks.ts')
@@ -116,35 +115,7 @@ section("§1 the tool as the session's own MCP client builds it")
   check('a tool with no words of its own on a server the operator named trusted has no description', (await ping?.description()) === '', j(await ping?.description()))
 }
 
-section("§2 the session's own card")
-let queue: Confirm[] = []
-let ownDoor: ((...args: unknown[]) => Promise<unknown>) | null = null
-function Door(): null {
-  ownDoor = useCanUseTool(updater => { queue = updater(queue as never) as never }, () => {}) as never
-  return null
-}
-const doorMount = await mountOffscreen(wrap(h(Door)), 120, 30)
-await waitFor(() => ownDoor !== null, 3000)
-async function ownCard(tool: ToolLike | undefined, input: Record<string, unknown>, needle: string, frame: string): Promise<Card | null> {
-  if (tool === undefined || ownDoor === null) return null
-  queue = []
-  const context = contextOf()
-  const decision = ownDoor(tool, input, context, assistant, `toolu_own_${frame}`)
-  await waitFor(() => queue.length === 1, 4000)
-  const card = queue[0] === undefined ? null : await paint(queue[0], needle, frame)
-  context.abortController.abort()
-  await Promise.race([decision, settle(1500)])
-  return card
-}
-const ownEcho = await ownCard(echo, { value: 'from-model' }, '(value: "from-model")', 'own-echo')
-const ownPost = await ownCard(post, { text: 'hello' }, '(text: "hello")', 'own-post')
-const ownPing = await ownCard(ping, { value: 'x' }, '(value: "x")', 'own-ping')
-doorMount.unmount()
-check('the read-only tool: the untrusted-source line, a gap, the server\'s words, then the question', j(ownEcho?.described) === j([HEADER, '', ECHO_WORDS]), j(ownEcho?.lines))
-check('the open-world tool: the line that says it reaches external systems', j(ownPost?.described) === j([HEADER_OPEN, '', POST_WORDS]), j(ownPost?.lines))
-check('the trusted tool without words: nothing between its name and the question', j(ownPing?.described) === j([]), j(ownPing?.lines))
-
-section('§3 the ask a hosted session sends for the same call')
+section('§2 the ask a hosted session sends for the call')
 const toHost = new PassThrough()
 const toRunner = new PassThrough()
 const runner = createPeer({ input: toRunner, output: toHost, side: 'runner', log() {} })
@@ -187,14 +158,14 @@ check('…an empty one too, so the window can tell "this tool has no words" from
 check('the title, the name and the input ride as before', hostedEcho.ask?.title !== undefined && hostedEcho.ask.tool_name === 'mcp__fixture__popup_echo' && j(hostedEcho.ask.input) === j({ value: 'from-model' }), j(hostedEcho.ask))
 check("the daemon publishes the description with the session's ask", typeof hostedEcho.row?.description === 'string' && hostedEcho.row.description === hostedEcho.ask?.description && hostedEcho.row.toolName === 'mcp__fixture__popup_echo', j(hostedEcho.row))
 
-section("§4 the window's card of the hosted session")
-check("the read-only tool's card is described line for line as the session's own card", hostedEcho.card !== null && j(hostedEcho.card.described) === j(ownEcho?.described) && j(hostedEcho.card.described) === j([HEADER, '', ECHO_WORDS]), j(hostedEcho.card?.lines))
-check("the open-world tool's card says it reaches external systems, as the session's own card does", hostedPost.card !== null && j(hostedPost.card.described) === j(ownPost?.described) && j(hostedPost.card.described) === j([HEADER_OPEN, '', POST_WORDS]), j(hostedPost.card?.lines))
-check("the trusted tool without words: nothing under its name, as on the session's own card", hostedPing.card !== null && j(hostedPing.card.described) === j([]) && j(ownPing?.described) === j([]), j(hostedPing.card?.lines))
-check("the card names the server, the tool and the input on its first line as the session's own card spells them", hostedEcho.card?.name === 'fixture - popup_echo(value: "from-model") (MCP)' && hostedEcho.card.name === ownEcho?.name, j([hostedEcho.card?.name, ownEcho?.name]))
+section("§3 the window's card of the hosted session")
+check("the read-only tool: the untrusted-source line, a gap, the server's words, then the question", hostedEcho.card !== null && j(hostedEcho.card.described) === j([HEADER, '', ECHO_WORDS]), j(hostedEcho.card?.lines))
+check('the open-world tool: the line that says it reaches external systems', hostedPost.card !== null && j(hostedPost.card.described) === j([HEADER_OPEN, '', POST_WORDS]), j(hostedPost.card?.lines))
+check('the trusted tool without words: nothing between its name and the question', hostedPing.card !== null && j(hostedPing.card.described) === j([]), j(hostedPing.card?.lines))
+check('the card names the server, the tool and the input on its first line', hostedEcho.card?.name === 'fixture - popup_echo(value: "from-model") (MCP)', j(hostedEcho.card?.name))
 check("the ask's message is the window's own sentence, not the description", hostedEcho.confirm?.permissionResult.message === 'mcp__fixture__popup_echo asks to run', j(hostedEcho.confirm?.permissionResult.message))
 
-section('§5 what stays as it was')
+section('§4 what stays as it was')
 {
   daemonAsks.holdWorkerAsk(WORKER, { kind: 'tool', tool_use_id: 'toolu_older', tool_name: 'mcp__fixture__popup_echo', title: 'popup_echo', input: { value: 'from-model' } }, daemonDir, undefined, () => 'attached')
   window.readAsks()

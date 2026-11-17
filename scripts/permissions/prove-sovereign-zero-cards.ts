@@ -86,16 +86,16 @@ const assistant = { message: { id: 'zero-cards' } } as never
 section('§0 the law in source: one posture predicate, one card road')
 {
   check('the posture predicate is the shared modeBypassesPermissions read on the permission context', postureBypassesAsks({ mode: 'sovereign' }) === true && postureBypassesAsks({ mode: 'default' }) === false && postureBypassesAsks({ mode: 'flow' }) === false)
-  const pushers: string[] = []
+  const senders: string[] = []
   const walk = (dir: string): void => {
     for (const entry of readdirSync(dir)) {
       const path = join(dir, entry)
       if (statSync(path).isDirectory()) walk(path)
-      else if (/\.(ts|tsx)$/.test(entry) && /\bpushToQueue\(/.test(readFileSync(path, 'utf8'))) pushers.push(relativeSlashed(ROOT, path))
+      else if (/\.(ts|tsx)$/.test(entry) && /\.send\('permission\/request'/.test(readFileSync(path, 'utf8'))) senders.push(relativeSlashed(ROOT, path))
     }
   }
   walk(join(ROOT, 'src'))
-  check('the permission card has ONE pusher in src (the interactive handler) besides the queue definition', pushers.sort().join(',') === 'src/hooks/toolPermission/PermissionContext.ts,src/hooks/toolPermission/handlers/interactiveHandler.ts', pushers.join(','))
+  check("the permission card has ONE sender in src: the hosted runner's door", senders.sort().join(',') === 'src/cli/headless/runnerAsks.ts', senders.join(','))
   const declaring: string[] = []
   const walkTools = (dir: string): void => {
     for (const entry of readdirSync(dir)) {

@@ -8,7 +8,7 @@ import { crewmateModelOverride } from '../../utils/crew/crewmateModelWord.js'
 import { recordAfterResume } from '../../utils/crew/crewmateRecord.js'
 import type { Message } from '../../types/message.js'
 import type { AgentId } from '../../types/ids.js'
-import type { ToolUseContext } from '../../Tool.js'
+import type { CanUseToolFn, ToolUseContext } from '../../Tool.js'
 import { assembleToolPool } from '../../tools.js'
 import { latchSwarmAgent, settleSwarmAgent, swarmResumeAdmitted } from '../../services/crewBoard/seam.js'
 import {
@@ -34,7 +34,6 @@ import { settleToolUsesOfEndedRun } from '../../utils/messages/apiFilters.js'
 import { createUserMessage } from '../../utils/messages.js'
 import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
 import { errorMessage } from '../../utils/errors.js'
-import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { getQuerySourceForAgent } from '../../utils/promptCategory.js'
 import {
   getAgentTranscript,

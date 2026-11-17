@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { PassThrough } from 'node:stream'
 import { check, finish, ROOT, scratchDir, section } from './computerProofKit.ts'
 import { allowEverything, ownerOf, resultOf, toolContext, toolUseTurn, withScreenshot } from './computerToolKit.ts'
 import type { DesktopDriver } from '../../src/services/desktop/driver.ts'
@@ -49,7 +50,7 @@ const hostOf = (asks: PermissionDecision[], answer: () => 'allow' | 'deny' | 'ex
   onAnswer()
   const verdict = answer()
   if (verdict === 'allow') return { behavior: 'allow', updatedInput: input }
-  if (verdict === 'deny') return { behavior: 'ask', message: `${REJECT_MESSAGE_WITH_REASON_PREFIX}${CAPTCHA_OPERATOR_COMPLETES}` }
+  if (verdict === 'deny') return { behavior: 'deny', message: `${REJECT_MESSAGE_WITH_REASON_PREFIX}${CAPTCHA_OPERATOR_COMPLETES}` }
   return { behavior: 'deny', message: unansweredAskRefusal('Computer', 60_000), decisionReason: { type: 'other', reason: unansweredAskRefusal('Computer', 60_000) } }
 }) as never
 const treeReads = (driver: DesktopDriver & { acts: { act: string; detail: Record<string, unknown> }[] }, from: number) => driver.acts.slice(from).filter(a => a.act === 'accessibilityTree').map(a => `${a.detail.count}/${a.detail.depth}`)
@@ -213,17 +214,35 @@ section("§4c the card's answer: the typing check and the targets run again afte
   check('the Enter that answered the card is operator typing: the act waits it out instead of refusing', after.outcome === 'succeeded' && clicks() === 1 && Date.now() - started >= 1_300, `${after.result} after ${Date.now() - started}ms`)
   const kinds = driver.acts.slice(from).map(a => a.act)
   check('the targets are resolved again after the card, before the act', asks.length === 1 && kinds.slice(0, kinds.indexOf('click')).filter(kind => kind === 'accessibilityTree').length >= 2, `${reads.join(',')} · ${kinds.join(',')}`)
-  const { createPermissionContext, createPermissionQueueOps } = await import('../../src/hooks/toolPermission/PermissionContext.ts')
-  const { handleInteractivePermission } = await import('../../src/hooks/toolPermission/handlers/interactiveHandler.ts')
-  const queue: Array<{ onReject: (feedback?: string) => void }> = []
+  const { createRunnerAsks } = await import('../../src/cli/headless/runnerAsks.ts')
+  const { createPeer } = await import('../../src/runner/wire/peer.ts')
+  const daemonAsks = await import('../../src/daemon/permissionAsks.ts')
+  const { concourseWorkersPath } = await import('../../src/daemon/concourseWorkers.ts')
+  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+  const toHost = new PassThrough()
+  const toRunner = new PassThrough()
+  const runner = createPeer({ input: toRunner, output: toHost, side: 'runner', log() {} })
+  const daemon = createPeer({ input: toHost, output: toRunner, side: 'host', log() {} })
+  const capabilities = { holds_asks: true, elicitation: false, partial_rows: false }
+  runner.onRequest('initialize', () => ({ protocol: 1, runner: { version: '1.0.0', pid: process.pid }, session_id: 'sess-captcha-card' }))
+  await daemon.request('initialize', { protocol: 1, host: { name: 'proof', version: '1' }, capabilities })
+  writeFileSync(concourseWorkersPath(), JSON.stringify({ version: 1, workers: { 'concourse-w1': { runnerId: 'concourse-w1', sessionId: 'sess-captcha-card', workspaceId: ROOT, title: 'captcha card', createdAt: Date.now(), startedAt: Date.now(), permissionMode: 'default' } } }))
+  daemon.onRequest('permission/request', params => daemonAsks.holdWorkerAsk('concourse-w1', params, undefined, undefined, () => 'attached').answer as never)
+  const connector = new DaemonSessionConnector({ sessionId: 'sess-captcha-card', runnerId: 'concourse-w1', title: 'captcha card', projectLabel: 'proof', workspaceId: ROOT, home: join(scratch, 'sessions'), modelKey: 'claude-opus-4-8' } as never)
+  const cockpit = connector as never as { readAsks: () => void; asks: () => ReadonlyArray<{ confirm: { onReject: (feedback?: string) => Promise<void> } }>; rpc: (req: Record<string, unknown>) => Promise<Record<string, unknown>> }
+  cockpit.rpc = async req => ({ ok: true, ...daemonAsks.answerPermissionAsk(String(req.requestId), req.allow === true, String(req.by), undefined, req.answer as never) })
   const askContext = toolContext({ messages: context.messages })
   const parent = toolUseTurn('captcha-card', 'Computer', { action: 'click', ...firstName })
-  const ctx = createPermissionContext(ComputerTool as never, { action: 'click', ...firstName, captcha: true }, askContext, parent as never, 'captcha-card', () => undefined, createPermissionQueueOps(updater => { queue.splice(0, queue.length, ...(updater(queue as never) as never)) }))
-  const decision = await new Promise<PermissionDecision>(resolve => {
-    handleInteractivePermission({ ctx, description: 'Computer', result: (asks[0] ?? { behavior: 'ask', message: 'the challenge question' }) as never, awaitAutomatedChecksBeforeDialog: false, channelCallbacks: undefined } as never, resolve)
-    setTimeout(() => queue[0]?.onReject(CAPTCHA_OPERATOR_COMPLETES), 10)
-  })
-  check('No on the card answers with the resume sentence as feedback and leaves the turn running', !askContext.abortController.signal.aborted && decision.behavior === 'ask' && 'message' in decision && decision.message.includes(CAPTCHA_OPERATOR_COMPLETES), JSON.stringify(decision))
+  const pending = createRunnerAsks(runner, () => capabilities).createCanUseTool()(ComputerTool as never, { action: 'click', ...firstName, captcha: true }, askContext, parent as never, 'captcha-card', (asks[0] ?? { behavior: 'ask', message: 'the challenge question' }) as never)
+  for (let tries = 0; tries < 300 && cockpit.asks().length === 0; tries += 1) {
+    await new Promise(resolve => setTimeout(resolve, 10))
+    cockpit.readAsks()
+  }
+  await cockpit.asks()[0]?.confirm.onReject(CAPTCHA_OPERATOR_COMPLETES)
+  const decision = await Promise.race([pending, new Promise<PermissionDecision>(resolve => setTimeout(() => resolve({ behavior: 'deny', message: 'the card was never answered', decisionReason: { type: 'other', reason: 'timeout' } }), 5_000))])
+  daemon.end()
+  runner.end()
+  check('No on the card answers with the resume sentence as feedback and leaves the turn running', !askContext.abortController.signal.aborted && decision.behavior === 'deny' && decision.message.includes(CAPTCHA_OPERATOR_COMPLETES), JSON.stringify(decision))
 }
 
 section("§4c' the challenge card answered in the operator's own terminal: the act brings the page back in front and runs, as the first-act card does")
