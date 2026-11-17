@@ -43,17 +43,24 @@ const STAGES = ['ls', 'sort', 'head', 'tail', 'wc']
 const pipelines = [1, 2, 3, 4, 5].map(count => STAGES.slice(0, count).join(' | '))
 const TAILS = [' 2>/dev/null', ' >out.txt', ' >>out.txt', ' 2>&1', ' <in.txt', ' && true', ' || true', '', ' ; true']
 
+const BREAKS = ['\n', '\n\n', '\r\n', '\n\t', ' \n ']
+const SECONDS = ['zzprog zzarg', 'zzfirst && zzprog zzarg', 'zzfirst; zzprog zzarg']
+
 let glued: string[] = []
 let readings = 0
 for (const first of [...pipelines, 'ls | sort |& head', 'ls | sort | head -n 3']) {
-  for (const tail of TAILS) {
-    const command = `${first}\nzzprog zzarg${tail}`
-    const reading = await parseForSecurity(command)
-    readings++
-    if (reading.kind !== 'simple') continue
-    const own = reading.commands.some(c => c.argv[0] === 'zzprog')
-    const inside = reading.commands.some(c => c.argv.indexOf('zzprog') > 0)
-    if (!own || inside) glued.push(`${shown(command)} read as ${shown(reading.commands.map(c => c.argv))}`)
+  for (const lineBreak of BREAKS) {
+    for (const second of SECONDS) {
+      for (const tail of TAILS) {
+        const command = `${first}${lineBreak}${second}${tail}`
+        const reading = await parseForSecurity(command)
+        readings++
+        if (reading.kind !== 'simple') continue
+        const own = reading.commands.some(c => c.argv[0] === 'zzprog')
+        const inside = reading.commands.some(c => c.argv.slice(1).some(word => word === 'zzprog' || word === 'zzfirst'))
+        if (!own || inside) glued.push(`${shown(command)} read as ${shown(reading.commands.map(c => c.argv))}`)
+      }
+    }
   }
 }
 check(`a command on the next line is read as a command of its own or not read at all, never as words of the line before (${readings} texts)`, glued.length === 0, `${glued.length} glued, e.g. ${glued[0]}`)
