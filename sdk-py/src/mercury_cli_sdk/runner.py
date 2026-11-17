@@ -55,6 +55,9 @@ class MercurySession(Settles, TypedRequests):
     """One ``mercury runner`` process hosted over JSON-RPC: prompts go in, rows stream out, asks are answered by your handlers.
 
     ``request(method, params, timeout=...)`` and ``notify(method, params)`` are typed per method by the generated overloads."""
+    _waits = ('exit',)
+    exit: asyncio.Future[RunExit]
+
     def __init__(self, child: asyncio.subprocess.Process, handlers: Mapping[str, HostHandler], tools: ToolServer | None = None, options: RunOptions | None = None):
         self.options = options or RunOptions()
         self._tools = tools
@@ -68,9 +71,8 @@ class MercurySession(Settles, TypedRequests):
         self.rows: list[StreamRow] = []
         self.stderr = ''
         self.last_prompt_id: str | None = None
-        self._settled: dict[str, tuple[bool, Any]] = {}
+        self._arm()
         self._ended = asyncio.Event()
-        self.exit: asyncio.Future[RunExit] = self._arm('exit')
         self._closed: Exception | None = None
         self._pending: dict[int, tuple[str, asyncio.Future[Any]]] = {}
         self._asks: dict[int, tuple[RequestContext, asyncio.Task[None]]] = {}

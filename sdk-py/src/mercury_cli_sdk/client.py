@@ -8,8 +8,9 @@ import logging
 import os
 import signal
 import time
+import weakref
 from dataclasses import dataclass, field, replace
-from typing import Any, Callable, AsyncIterable, AsyncIterator, Literal, Generic, TypedDict, TypeVar, Unpack, cast, overload
+from typing import TYPE_CHECKING, Any, Callable, AsyncIterable, AsyncIterator, Literal, Generic, TypedDict, TypeVar, Unpack, cast, overload
 from .errors import MercuryError, MercuryExitError, MercuryRefusal, MercurySpawnError, MercuryUsageError, MercuryWireError, RunExit
 from .generated import InputRow, OutcomeRow, SessionRow, TypedOutcome, MAX_LINE_BYTES, PermissionMode, EffortLevel, InputBlock
 from .framing import CUT_GRACE, CUT_LINE, read_lines
@@ -308,32 +309,56 @@ async def read_stderr(handle: Any) -> None:
 
 
 def settle(future: asyncio.Future[Any], settled: tuple[bool, Any]) -> None:
-    if settled[0]: future.set_exception(settled[1])
+    if settled[0]:
+        future.set_exception(settled[1])
+        future.exception()
     else: future.set_result(settled[1])
 
 
 class Settles:
+    _waits: tuple[str, ...] = ()
+    _loop: asyncio.AbstractEventLoop
     _settled: dict[str, tuple[bool, Any]]
+    _mine: dict[str, weakref.WeakKeyDictionary[Any, asyncio.Future[Any]]]
+    _open: dict[str, list[asyncio.Future[Any]]]
 
-    def _arm(self, name: str) -> asyncio.Future[Any]:
-        future: asyncio.Future[Any] = asyncio.get_running_loop().create_future()
-        def renew(done: asyncio.Future[Any]) -> None:
-            if not done.cancelled(): done.exception()
-            elif getattr(self, name) is done: self._arm(name)
-        future.add_done_callback(renew)
-        setattr(self, name, future)
-        if name in self._settled: settle(future, self._settled[name])
+    def _arm(self) -> None:
+        self._loop = asyncio.get_running_loop()
+        self._settled = {}
+        self._mine = {name: weakref.WeakKeyDictionary() for name in self._waits}
+        self._open = {name: [] for name in self._waits}
+
+    if not TYPE_CHECKING:
+        def __getattr__(self, name):
+            return self._waiter(name) if name in self._waits else object.__getattribute__(self, name)
+
+    def _waiter(self, name: str) -> asyncio.Future[Any]:
+        try: home = asyncio.get_running_loop() is self._loop
+        except RuntimeError: home = False
+        reader: Any = (asyncio.current_task() if home else None) or self
+        future = self._mine[name].get(reader)
+        if future is None or future.cancelled():
+            future = self._mine[name][reader] = self._loop.create_future()
+            if name in self._settled: settle(future, self._settled[name])
+            else:
+                if home: self._open[name][:] = [waiter for waiter in self._open[name] if not waiter.done()]
+                self._open[name].append(future)
         return future
 
     def _settle(self, name: str, value: Any = None, error: BaseException | None = None) -> None:
         self._settled[name] = (error is not None, value if error is None else error)
-        future: asyncio.Future[Any] = getattr(self, name)
-        if future.done(): self._arm(name)
-        else: settle(future, self._settled[name])
+        for future in self._open[name]:
+            if not future.done(): settle(future, self._settled[name])
+        del self._open[name][:]
 
 
 class MercuryRun(Settles):
     """One ``mercury run`` process: an async iterator of its rows, with ``outcome``, ``session`` and ``exit`` awaitable."""
+    _waits = ('outcome', 'session', 'exit')
+    outcome: asyncio.Future[OutcomeRow]
+    session: asyncio.Future[SessionRow]
+    exit: asyncio.Future[RunExit]
+
     def __init__(self, child: asyncio.subprocess.Process, options: RunOptions, tools: ToolServer | None = None):
         self._tools = tools
         self.child = child
@@ -345,11 +370,8 @@ class MercuryRun(Settles):
         self.rows: list[StreamRow] = []
         self.stderr = ''
         self.error: MercuryError | None = None
-        self._settled: dict[str, tuple[bool, Any]] = {}
+        self._arm()
         self._ended = asyncio.Event()
-        self.outcome: asyncio.Future[OutcomeRow] = self._arm('outcome')
-        self.session: asyncio.Future[SessionRow] = self._arm('session')
-        self.exit: asyncio.Future[RunExit] = self._arm('exit')
         self._listeners: dict[str, list[Listener]] = {}
         self._queue: asyncio.Queue[StreamRow | None] = asyncio.Queue()
         self._input_task: asyncio.Task[None] | None = None

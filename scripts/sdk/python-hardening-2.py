@@ -1,4 +1,5 @@
 import asyncio
+import gc
 import logging
 import os
 import signal
@@ -86,6 +87,27 @@ async def cancelled_waits():
     assert (await asyncio.wait_for(task.exit, 10)).code == 0
     await asyncio.wait_for(task.close(), 3)
     assert [row['type'] async for row in task] == ['session', 'outcome']
+
+
+async def shared_waits():
+    names = ('session', 'outcome', 'exit')
+    task = await run('x', mercury=mercury('late-run'))
+    async def watch(handle, name): return await getattr(handle, name)
+    watchers = [asyncio.create_task(watch(task, name)) for name in names]
+    seen = []
+    async def listen(): task.outcome.add_done_callback(lambda done: seen.append(done.result()['status']))
+    await asyncio.create_task(listen())
+    gc.collect()
+    for name in names: await expect(asyncio.wait_for(getattr(task, name), 0), asyncio.TimeoutError)
+    session, outcome, exit = await asyncio.wait_for(asyncio.gather(*watchers), 10)
+    assert session['type'] == 'session' and outcome['status'] == 'completed' and exit.code == 0 and seen == ['completed'], (session, outcome, exit, seen)
+    assert task.outcome is task.outcome and (await task.outcome)['status'] == 'completed'
+    hosted = await connect(mercury=mercury('closing'))
+    watching = asyncio.create_task(watch(hosted, 'exit'))
+    await asyncio.sleep(0)
+    await expect(asyncio.wait_for(hosted.exit, 0), asyncio.TimeoutError)
+    await asyncio.wait_for(hosted.close(), 8)
+    assert (await asyncio.wait_for(watching, 5)).code == 0
 
 
 async def session_exit_wait():
@@ -181,6 +203,7 @@ async def main():
     if not WINDOWS: await check('run: a child that closes its output mid-row and stays alive is ended and raises its exit, not left waiting', cut_alive)
     await check('run: a fragment after a whole outcome row is ignored and the run resolves with the outcome it read', after_outcome)
     await check('run: a cancelled or timed-out wait on session, outcome or exit leaves the handle whole, and close returns', cancelled_waits)
+    await check('a wait that is cancelled or times out leaves another task\'s wait on the same run or session whole', shared_waits)
     await check('session: a timed-out wait on exit does not make close raise CancelledError', session_exit_wait)
     if not WINDOWS: await check('run_sync: Ctrl-C reaches the program as KeyboardInterrupt instead of hanging', ctrl_c)
     await check('a row listener that raises ends the run or session with that error as the cause, not a wire error', listener_errors)
