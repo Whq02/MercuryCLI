@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { flagRegistryText } from '../lib/flagRegistrySource.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -30,7 +31,7 @@ for (const name of UNKNOWN) delete process.env[name]
 
 console.log('§1 the registry knows registered flags and nothing else')
 {
-  const registry = readFileSync(join(REPO, 'src/substrate/flagRegistry.ts'), 'utf8')
+  const registry = flagRegistryText()
   check('a name that left the registry is unknown to it', UNKNOWN.every(name => getFlagSpec(name) === undefined))
   check('the registry keeps no table of retired names and no reader of one', !registry.includes('RETIRED_FLAGS') && !registry.includes('retiredFlagsSet') && !registry.includes('replacedBy'))
   check('the health report reads no such table', !readFileSync(join(REPO, 'src/utils/healthReport.ts'), 'utf8').includes('retired'))
