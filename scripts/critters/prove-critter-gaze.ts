@@ -19,6 +19,7 @@ import {
   CRITTERS,
   heroBlinkRows,
 } from '../../src/utils/cockpit/critterData.js'
+import { getFlagSpec } from '../../src/substrate/flagRegistry.js'
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
@@ -252,8 +253,7 @@ console.log('— view + decode wiring (static) —')
   t('CritterArt applies gaze BEFORE blink', /applyGazeKey\(base, gazeKey\)[\s\S]{0,200}heroBlinkRows\(gazed\)/.test(cart))
   const scen = readFileSync('scripts/ui/renderScenarios.ts', 'utf8')
   t('renderScenarios pins MERCURY_CRITTER_GAZE off', scen.includes("process.env.MERCURY_CRITTER_GAZE = process.env.MERCURY_CRITTER_GAZE ?? '0'"))
-  const reg = readFileSync('src/substrate/flagRegistry.ts', 'utf8')
-  t('flag registered', reg.includes("env: 'MERCURY_CRITTER_GAZE'"))
+  t('flag registered', getFlagSpec('MERCURY_CRITTER_GAZE') !== undefined)
 }
 
 console.log(failures ? '\n❌ CRITTER-GAZE RED' : '\n✅ CRITTER-GAZE GREEN')
