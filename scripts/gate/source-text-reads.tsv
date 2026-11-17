@@ -528,13 +528,13 @@ scripts/health/prove-browser-row.ts	2
 scripts/health/prove-cert-clean-hands.ts	1
 scripts/health/prove-daemon-signin-view.ts	1
 scripts/health/prove-device-headroom.ts	1
-scripts/health/prove-doctor-truth.ts	4
 scripts/health/prove-flags-row-retired.ts	1
 scripts/health/prove-foreign-harness-inversion.ts	4
 scripts/health/prove-health-evidence-strings.ts	1
 scripts/health/prove-health-fix.ts	4
 scripts/health/prove-health-one-truth.ts	3
 scripts/health/prove-health-presentation.ts	8
+scripts/health/prove-health-truth.ts	4
 scripts/health/prove-hidden-characters-row.ts	2
 scripts/health/prove-install-provenance.ts	3
 scripts/health/prove-model-refusals-row.ts	1
