@@ -15,7 +15,6 @@ function check(label: string, ok: boolean, detail = ''): void {
 const { gitStatus, gitDiff } = await import('../../src/services/gitGraph/observe.ts')
 const { preparePlan, applyPlan, _resetGitPlanStoreForTesting } = await import('../../src/services/gitGraph/plan.ts')
 const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
-await import('../../src/services/resources/adapters/git.ts')
 
 const owner = processMainOwner()
 const env = { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@local', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@local' }

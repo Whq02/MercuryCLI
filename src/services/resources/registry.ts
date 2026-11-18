@@ -9,14 +9,40 @@ import {
   type ResourceContext,
   type ResourceResult,
 } from './contracts.js'
+import { fileAdapter } from './adapters/file.js'
+import { runAdapter } from './adapters/run.js'
+import { receiptAdapter } from './adapters/receipt.js'
+import { taskAdapter } from './adapters/task.js'
+import { artifactAdapter } from './adapters/artifact.js'
+import { healthAdapter } from './adapters/health.js'
+import { agentAdapter } from './adapters/agent.js'
+import { ownerAdapter } from './adapters/owner.js'
+import { executionAdapter } from './adapters/execution.js'
+import { transactionAdapter } from './adapters/transaction.js'
+import { evidenceAdapter } from './adapters/evidence.js'
+import { seatAdapter } from './adapters/seat.js'
+import { modelsAdapter } from './adapters/models.js'
 
 var adaptersMap: Map<string, ResourceAdapter> | undefined
 function adapters(): Map<string, ResourceAdapter> {
-  return (adaptersMap ??= new Map())
-}
-
-export function registerResourceAdapter(adapter: ResourceAdapter): void {
-  adapters().set(adapter.kind, adapter)
+  return (adaptersMap ??= new Map(
+    [
+      fileAdapter,
+      runAdapter,
+      receiptAdapter,
+      taskAdapter,
+      artifactAdapter,
+      healthAdapter,
+      agentAdapter,
+      ownerAdapter,
+      executionAdapter,
+      transactionAdapter,
+      evidenceAdapter,
+      seatAdapter,
+      modelsAdapter,
+      ...(require('./kinds.js') as typeof import('./kinds.js')).resourceKinds(),
+    ].map((adapter): [string, ResourceAdapter] => [adapter.kind, adapter]),
+  ))
 }
 
 export function resourceAdapterKinds(): { kind: string; describe: string }[] {
@@ -84,36 +110,4 @@ export async function listResourceKind(
 
 export function _resourceAdapterCountForTesting(): number {
   return adapters().size
-}
-
-import { fileAdapter } from './adapters/file.js'
-import { runAdapter } from './adapters/run.js'
-import { receiptAdapter } from './adapters/receipt.js'
-import { taskAdapter } from './adapters/task.js'
-import { artifactAdapter } from './adapters/artifact.js'
-import { healthAdapter } from './adapters/health.js'
-import { agentAdapter } from './adapters/agent.js'
-import { ownerAdapter } from './adapters/owner.js'
-import { executionAdapter } from './adapters/execution.js'
-import { transactionAdapter } from './adapters/transaction.js'
-import { evidenceAdapter } from './adapters/evidence.js'
-import { seatAdapter } from './adapters/seat.js'
-import { modelsAdapter } from './adapters/models.js'
-
-for (const adapter of [
-  fileAdapter,
-  runAdapter,
-  receiptAdapter,
-  taskAdapter,
-  artifactAdapter,
-  healthAdapter,
-  agentAdapter,
-  ownerAdapter,
-  executionAdapter,
-  transactionAdapter,
-  evidenceAdapter,
-  seatAdapter,
-  modelsAdapter,
-]) {
-  registerResourceAdapter(adapter)
 }

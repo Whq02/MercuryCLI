@@ -15,7 +15,6 @@ import {
 import { buildPythonProjectProfile } from '../../ide/pythonProject.js'
 import { buildUnityBridgeIdeSession } from '../../ide/unityBridgeSession.js'
 import { buildBlenderBridgeIdeSession } from '../../ide/blenderBridgeSession.js'
-import { registerResourceAdapter } from '../registry.js'
 import type { ParsedRef, ResourceAdapter, ResourceChild, ResourceResult } from '../contracts.js'
 
 const KNOWN: ResourceChild[] = [
@@ -61,7 +60,7 @@ const KNOWN: ResourceChild[] = [
   },
 ]
 
-const ideAdapter: ResourceAdapter = {
+export const ideAdapter: ResourceAdapter = {
   kind: 'ide',
   describe: 'IDE-plane projections: python/project · godot/session · unity/session · cpp/project · launch (unified profiles)',
   async resolve(ref: ParsedRef, ctx): Promise<ResourceResult> {
@@ -296,5 +295,3 @@ const ideAdapter: ResourceAdapter = {
     return KNOWN
   },
 }
-
-registerResourceAdapter(ideAdapter)

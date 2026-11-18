@@ -18,7 +18,6 @@ const {
 const {
   _resourceAdapterCountForTesting,
   resolveResource,
-  registerResourceAdapter,
   resourceAdapterKinds,
 } = await import('../../src/services/resources/registry.ts')
 const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
@@ -77,14 +76,13 @@ section('S. state honesty')
     unknown.state === 'absent' && unknown.note.includes('known kinds:') && unknown.note.includes('file'))
   check('S2 adapter census ≥ 10 built-ins', _resourceAdapterCountForTesting() >= 10)
 
-  registerResourceAdapter({
-    kind: 'boom',
-    describe: 'a throwing fixture adapter',
-    async resolve() {
+  const boom = await resolveResource('mercury://seat', {
+    ...ctx,
+    engineModel: 'fixture-model',
+    getAppState: () => {
       throw new Error('fixture explosion')
     },
-  })
-  const boom = await resolveResource('mercury://boom/x', ctx as never)
+  } as never)
   check('S3 a throwing adapter degrades to UNAVAILABLE with the error named',
     boom.state === 'unavailable' && boom.note.includes('fixture explosion'))
 

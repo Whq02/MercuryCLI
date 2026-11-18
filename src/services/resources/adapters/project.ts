@@ -7,7 +7,6 @@ import { projectImpact } from '../../projectIntel/impact.js'
 import { suggestWorkSplit } from '../../projectIntel/split.js'
 import { getProjectSnapshot } from '../../projectIntel/snapshot.js'
 import { renderRepoSurfaceMap } from '../../../utils/cockpit/repoSurfaceMap.js'
-import { registerResourceAdapter } from '../registry.js'
 import type { ResourceAdapter, ResourceChild } from '../contracts.js'
 
 const CHILDREN: ResourceChild[] = [
@@ -59,7 +58,7 @@ function generationLine(gen: {
   return `generation ${digest} · HEAD ${head}${gen.branch ? ` (${gen.branch})` : ''} · base build ${gen.buildMs}ms`
 }
 
-const projectAdapter: ResourceAdapter = {
+export const projectAdapter: ResourceAdapter = {
   kind: 'project',
   describe: 'the generation-keyed project snapshot (current · modules · changes · knowledge · checks)',
   async resolve(ref, ctx) {
@@ -339,5 +338,3 @@ function emptyChild(title: string, note: string, from: string) {
     mutable: true,
   }
 }
-
-registerResourceAdapter(projectAdapter)

@@ -10,7 +10,6 @@ delete process.env.MERCURY_SERVICES
 delete process.env.MERCURY_REFS
 
 const { resolveResource } = await import('../../src/services/resources/registry.ts')
-await import('../../src/services/resources/adapters/service.ts')
 const { startService, stopService, waitForReady } =
   await import('../../src/services/projectServices/serviceManager.ts')
 const P = await import('../../src/services/primitives/index.ts')
