@@ -220,8 +220,8 @@ function createRipgrepShellIntegration(): RipgrepShellIntegration {
   return { type: 'function', snippet: createResilientRgFunction(rgCommand) }
 }
 
-async function getMercurySnapshotContent(binShell: string): Promise<string> {
-  const pathValue = await resolveSnapshotPathValue(binShell)
+async function getMercurySnapshotContent(binShell: string, sessionPath: string | undefined): Promise<string> {
+  const pathValue = sessionPath ?? (await resolveSnapshotPathValue(binShell))
   const rgIntegration = createRipgrepShellIntegration()
 
   const sections: string[] = []
@@ -369,7 +369,9 @@ export async function createAndSaveSnapshot(
     )
 
     const configExists = await pathExists(configFilePath)
-    const mercuryContent = await getMercurySnapshotContent(shellPath)
+    const inherited = withRoadPrograms(subprocessEnv(), shell.origin, shellPath)
+    const pathOfTheEngine = shell.origin === 'engine' ? Object.entries(inherited).find(([name]) => name.toUpperCase() === 'PATH')?.[1] : undefined
+    const mercuryContent = await getMercurySnapshotContent(shellPath, pathOfTheEngine)
     const script = buildCaptureScript({
       snapshotFilePath,
       configFilePath,
@@ -378,7 +380,6 @@ export async function createAndSaveSnapshot(
       mercuryContent,
     })
 
-    const inherited = withRoadPrograms(subprocessEnv(), shell.origin, shellPath)
     const captureEnv: NodeJS.ProcessEnv = {
       ...inherited,
       ...(bashOfThisMachine ? {} : { SHELL: shellPath }),
