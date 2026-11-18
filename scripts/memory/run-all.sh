@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gate-class: pty
+# gate-class: pure
 # gate-watch: src/mneme/** src/tools/JournalTool/** src/constants/tools.ts src/utils/settings/types.ts src/components/Settings/Config.tsx
 # gate-watch: docs/MNEME.md docs/MEMORY-FINDINGS.md src/utils/detectSecrets.ts
 # gate-watch: src/components/memory/MemoryCentreView.tsx src/components/memory/memoryCentreLayout.ts src/commands/memory/memory.tsx src/services/compact/compact.ts
@@ -25,6 +25,7 @@
 # gate-watch: scripts/lib/flagRegistrySource.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -33,7 +34,9 @@ fail=0
 echo "############################################################"
 echo "# Memory — proof harness"
 echo "############################################################"
+claimed=$(cd "$here/../.." && members_cat scripts/memory-*/members.txt)
 for f in "$here"/prove-*.ts; do
+  printf '%s\n' "$claimed" | grep -qx "$(basename "$f")" && continue
   [ -e "$f" ] || continue
   __t=$SECONDS; __rc=0; "$bun" run "$f" || { __rc=$?; fail=1; }; prover_mark "$f" "$__t" "$__rc"
 done
