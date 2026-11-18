@@ -127,7 +127,7 @@ scripts/bash/prove-stop-ends-the-tree.ts	4	12	3ba1e864d9a8
 scripts/bash/prove-teardown-ends-the-tree.ts	4	18	fc303cea8b69
 scripts/bash/prove-win32-console-close-cleanup.ts	3	10	bcf0e2f1667c
 scripts/bash/prove-windows-batch-invocation.ts	2	4	d74278536f3d
-scripts/bash/prove-windows-shell-road.ts	5	9	4e4d4083af1b
+scripts/bash/prove-windows-shell-road.ts	4	7	92017cbca4a1
 scripts/bash/shell-engine-parity.ts	1	2	8483e5c32179
 scripts/behaviour-laws/prove-behaviour-laws-contract.ts	1	7	79afa40efa25
 scripts/blender-bridge/prove-blender-bridge-session.ts	2	4	2a6bdef9b589
@@ -291,11 +291,11 @@ scripts/daemon/prove-build-order-visible.ts	1	3	a7860446a057
 scripts/daemon/prove-capability-census.ts	2	2	fc018eb92f2c
 scripts/daemon/prove-close-all.ts	5	48	dfe85d4dd720
 scripts/daemon/prove-compact-state-word.ts	5	6	b057a4ec67c9
-scripts/daemon/prove-compaction-hold.ts	8	13	5578a2f7d83b
+scripts/daemon/prove-compaction-hold.ts	7	10	56cb76e5f1c9
 scripts/daemon/prove-control-layer-held.ts	1	1	c24dc3f7fbaa
 scripts/daemon/prove-daemon-departure.ts	2	7	cdf305118c12
 scripts/daemon/prove-daemon-env-scrub.ts	5	10	8530045a0d59
-scripts/daemon/prove-daemon-handshake.ts	5	19	d096c230e141
+scripts/daemon/prove-daemon-handshake.ts	4	17	3a9091c5153e
 scripts/daemon/prove-daemon-home-census.ts	9	65	aebde4443d39
 scripts/daemon/prove-daemon-lock.ts	1	5	c24dc3f7fbaa
 scripts/daemon/prove-daemon-log-stamps.ts	1	3	c24dc3f7fbaa
@@ -354,7 +354,7 @@ scripts/daemon/prove-think-pulse-reading.ts	1	1	127bf0941f54
 scripts/daemon/prove-transient-publish-held-file.ts	1	4	02e14c981b0d
 scripts/daemon/prove-unattended-ask-denied.ts	2	3	0c0df0c6117d
 scripts/daemon/prove-warm-claim-binds-first.ts	3	6	c320f2950a6b
-scripts/daemon/prove-warm-runner.ts	12	29	ee756fd3b091
+scripts/daemon/prove-warm-runner.ts	11	28	f51acea5f5db
 scripts/daemon/prove-wire-answer-whole.ts	2	11	3842c9eb03d0
 scripts/daemon/prove-worker-liveness-identity.ts	2	3	6e5743284407
 scripts/daemon/prove-worker-recon.ts	2	5	7eac464fd3c7
@@ -406,7 +406,7 @@ scripts/engine-connector/prove-face-census.ts	10	18	23a5a7224e12
 scripts/engine-connector/prove-foreground-crewmate-wait-words.ts	1	2	39a39ece9c17
 scripts/engine-connector/prove-header-truth.ts	3	24	b63d98d6009f
 scripts/engine-connector/prove-held-for-compaction.ts	3	5	a8cc1f2c0055
-scripts/engine-connector/prove-hosted-window-hears-the-store-fail.ts	2	11	e7dc72392585
+scripts/engine-connector/prove-hosted-window-hears-the-store-fail.ts	1	3	eac662bfcfbb
 scripts/engine-connector/prove-liveness-owner.ts	1	4	a7860446a057
 scripts/engine-connector/prove-mission-one-owner.ts	5	9	fa3e2e02cb08
 scripts/engine-connector/prove-model-switch-receipt.ts	4	6	77cb3214f51b
@@ -643,7 +643,7 @@ scripts/model-registry/prove-token-count-thinking-receipt.ts	5	15	98ac60ac500b
 scripts/model-registry/prove-token-count-thinking.ts	1	3	a092c9665ab4
 scripts/model-registry/prove-usage-truth.ts	7	27	da0a9a4866cb
 scripts/model-routing/prove-calibre-effort-matrix.ts	10	15	a33db518c0ee
-scripts/model-routing/prove-context-window-families.ts	10	7	38808de5ef2f
+scripts/model-routing/prove-context-window-families.ts	8	4	de2fde3ee120
 scripts/model-routing/prove-effort-ladder-top.ts	9	12	5bee59f9e46b
 scripts/model-routing/prove-effort-seat-ladder.ts	10	17	4595ff02bdc0
 scripts/model-routing/prove-effort-vocabulary-truth.ts	2	6	96eb3986a429
@@ -860,7 +860,7 @@ scripts/providers/prove-openai-wall-slot-truth.ts	3	5	63ec56b65768
 scripts/providers/prove-openai-window-follows-credential.ts	4	11	11308aea57ab
 scripts/providers/prove-openai-window-relay.ts	1	1	82bc89e328ff
 scripts/providers/prove-provider-deadlines.ts	17	9	96765378973a
-scripts/providers/prove-quiet-boot-roads.ts	7	17	eb29e323944b
+scripts/providers/prove-quiet-boot-roads.ts	7	16	eb29e323944b
 scripts/providers/prove-session-spend-prompt-total.ts	1	1	a2747627ffe3
 scripts/providers/prove-slot-ceiling-hygiene.ts	3	5	f3d585a84310
 scripts/providers/prove-slot-switch-header-caches.ts	1	6	2a722f4b6480
@@ -883,7 +883,7 @@ scripts/release/notesFromChangelog.mjs	1	3	24934174eb23
 scripts/release/package.mjs	3	3	67f34cc40b31
 scripts/release/prove-windows-launcher.ts	2	0	47f268e7f4f8
 scripts/release/windowsLauncher.mjs	2	0	47f268e7f4f8
-scripts/reliability/prove-crash-report-identity.ts	3	9	6424e8bd4a63
+scripts/reliability/prove-crash-report-identity.ts	2	3	4ab86d85c679
 scripts/reliability/prove-crash-shutdown.ts	3	18	6e55cef02248
 scripts/reliability/prove-durable-publish.ts	7	2	5cd0c2a7ad66
 scripts/reliability/prove-journal-live-sibling.ts	1	3	db44ac505169
@@ -907,7 +907,7 @@ scripts/run-continuity/prove-lane-identity.ts	2	3	d047af5dd837
 scripts/run-continuity/prove-stream-fault-presentation.ts	6	17	18179d76638b
 scripts/run-recovery/prove-resume-facts-owner.ts	2	11	edda7d3dbae2
 scripts/run-recovery/prove-worktree-resume-keeps-record.ts	1	7	600d7a6db346
-scripts/run/prove-run-resume.ts	2	7	c6d93c26f84c
+scripts/run/prove-run-resume.ts	1	6	914ea0e5d4d8
 scripts/samples/prove-samples-cockpit-facts.ts	1	1	eac662bfcfbb
 scripts/samples/prove-samples-doc.ts	1	1	52c73cd2ee92
 scripts/samples/prove-samples-marks-message.ts	1	1	494bc1e514d6
@@ -935,9 +935,7 @@ scripts/sessionStorage/prove-project-home-fold.ts	1	2	fc961dff950d
 scripts/sessionStorage/prove-project-recognition.ts	2	4	0434678c9268
 scripts/sessionStorage/prove-resume-snapshot-honesty.ts	1	2	4ef190b59513
 scripts/sessionStorage/prove-session-model-entry.ts	1	2	7c258c370929
-scripts/sessionStorage/prove-store-failure-surfaces.ts	1	3	39a39ece9c17
 scripts/sessionStorage/prove-transcript-consumers-owned.ts	20	73	4452b319b120
-scripts/sessionStorage/prove-transcript-degradation-stated.ts	1	4	39a39ece9c17
 scripts/settings/prove-account-identity.ts	2	15	79bf7430d7ff
 scripts/settings/prove-account-slots.ts	1	8	7e7a92bf9773
 scripts/settings/prove-capacity-render-async.ts	2	0	9a8a2405e3b9
@@ -1024,7 +1022,7 @@ scripts/substrate/prove-fgts-carve.ts	1	8	005aabee8c8c
 scripts/substrate/prove-flag-registry-readers.ts	1	4	8483e5c32179
 scripts/substrate/prove-flag-registry-split.ts	1	0	8483e5c32179
 scripts/substrate/prove-flag-registry.ts	2	7	014932d27be4
-scripts/substrate/prove-friction-stopwatch.ts	5	6	1fbfdd2baa44
+scripts/substrate/prove-friction-stopwatch.ts	4	5	19ca0471416b
 scripts/substrate/prove-gauge-owners.ts	1	1	41f4723c2cbe
 scripts/substrate/prove-git-cache-coldread.ts	1	2	908d19b2ff59
 scripts/substrate/prove-git-facts-owner.ts	8	28	57cb025ff641
@@ -1061,7 +1059,7 @@ scripts/switchboard/prove-broadcast.ts	4	101	a6d516ef068a
 scripts/switchboard/prove-capacity-receipt-tail.ts	1	2	848e5fc01bab
 scripts/switchboard/prove-chat-birth.ts	2	5	0c79d8db1fed
 scripts/switchboard/prove-chat-forward-first-paint.ts	5	28	b8744fceaa3c
-scripts/switchboard/prove-chat-mode-polish.ts	18	70	44f7856789b2
+scripts/switchboard/prove-chat-mode-polish.ts	18	69	44f7856789b2
 scripts/switchboard/prove-chat-tag-live-title.ts	2	3	2407249275ae
 scripts/switchboard/prove-claude-door-capability.ts	12	6	cdff24c5d6a8
 scripts/switchboard/prove-close-chord.ts	4	68	d4fe9f684bc7
@@ -1071,7 +1069,7 @@ scripts/switchboard/prove-concourse-design.ts	5	87	0523baf323e0
 scripts/switchboard/prove-concourse-resume.ts	13	149	87639f3527cc
 scripts/switchboard/prove-contracts.ts	20	84	7efdefdb56ae
 scripts/switchboard/prove-crewmates-command.ts	1	4	4d263fffb3d7
-scripts/switchboard/prove-cross-project.ts	28	139	5441fbeca9ff
+scripts/switchboard/prove-cross-project.ts	27	138	6c4ac58dca5f
 scripts/switchboard/prove-esc-one-owner.ts	1	4	848e5fc01bab
 scripts/switchboard/prove-exit-everywhere.ts	7	26	28695e521ece
 scripts/switchboard/prove-folder-project.ts	6	22	38439ca49f62
@@ -1085,12 +1083,12 @@ scripts/switchboard/prove-new-chat-effort-seed.ts	3	4	b00112cf9d5c
 scripts/switchboard/prove-newborn-ready-state.ts	1	8	3c0c566f8066
 scripts/switchboard/prove-no-runner-line.ts	1	6	1e19e7dcd89c
 scripts/switchboard/prove-now-cell-live-phase.ts	4	10	38c9c13b7689
-scripts/switchboard/prove-one-door-lifecycle.ts	17	93	097dfee787b9
+scripts/switchboard/prove-one-door-lifecycle.ts	16	88	a2fe5f59c67f
 scripts/switchboard/prove-operator-now-cell.ts	2	7	a4b49f91ca01
 scripts/switchboard/prove-projects-truth.ts	5	24	249a06fda7dc
 scripts/switchboard/prove-seat-ceiling.ts	2	2	036de2b394f0
 scripts/switchboard/prove-seat-covered-dialog-gate.ts	4	12	1bef684c8cf9
-scripts/switchboard/prove-seat-lifecycle.ts	9	102	b88cf1c81dde
+scripts/switchboard/prove-seat-lifecycle.ts	9	100	b88cf1c81dde
 scripts/switchboard/prove-seat-setting.ts	4	11	b8414dcac555
 scripts/switchboard/prove-seat-vocabulary.ts	4	7	e07cde51643a
 scripts/switchboard/prove-session-kit.ts	16	99	71e3998802f1
@@ -1138,7 +1136,7 @@ scripts/tools/prove-monitor-wake.ts	1	5	76bfd45984b4
 scripts/tools/prove-parity2-bus.ts	2	5	26c8d34b88a1
 scripts/tools/prove-parity2-durability.ts	1	1	a8414f5814cf
 scripts/tools/prove-parity2-input.ts	3	5	a16a6aa5bb8f
-scripts/tools/prove-parity2-render-economy.ts	6	7	3c2b8c95745f
+scripts/tools/prove-parity2-render-economy.ts	5	5	01e0d88f75d8
 scripts/tools/prove-parity2-security.ts	1	8	96aa539010f1
 scripts/tools/prove-parity2-storage.ts	3	4	0ae822d4ad87
 scripts/tools/prove-parity2-tier1w.ts	1	1	25e3f79d37d3

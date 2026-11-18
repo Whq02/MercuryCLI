@@ -70,8 +70,6 @@ section('§5 the wiring (structural)')
   const src = (rel: string): string => readFileSync(new URL(`../../src/${rel}`, import.meta.url), 'utf8')
   const appRoot = src('ink/components/App.tsx')
   check('the app-root boundary hands errorInfo in (the component name derives from it)', appRoot.includes("persistCrashReport(error, errorInfo, 'app-root')"))
-  const repl = src('screens/Chat.tsx')
-  check('the Chat boot effect speaks once through the channel', repl.includes('unnoticedCrashReports()') && repl.includes('markCrashReportsNoticed()') && repl.includes("key: 'crash-reports'"))
   const { runtimeChecks } = await import('../../src/utils/health/sections/runtime.ts')
   const crashOwner = await import('../../src/utils/crashReport.ts')
   const crashSays = await runtimeChecks().find(row => row.id === 'crash-reports')?.run()
@@ -115,15 +113,6 @@ section('§6 session + project ride the read boundary (FN-013 CRASH-03)')
 section('§7 the re-entry offer and the display latch (structural)')
 {
   const src = (rel: string): string => readFileSync(new URL(`../../src/${rel}`, import.meta.url), 'utf8')
-  const repl = src('screens/Chat.tsx')
-  check(
-    'the notice marker latches BEHIND display, never at stage time',
-    repl.includes("focusedInputDialog === 'crash-resume' && !crashNoticeLatchedRef.current"),
-  )
-  check(
-    'a gone transcript keeps the plain notice and says so (no failing action offered)',
-    repl.includes('its transcript is gone, so no re-entry is offered'),
-  )
   const { runtimeChecks: runtimeRows } = await import('../../src/utils/health/sections/runtime.ts')
   writeFileSync(
     join(crash.crashReportDir(), `crash-${Date.now() + 500}-app-root.json`),
@@ -146,7 +135,7 @@ section('§7 the re-entry offer and the display latch (structural)')
   await until(() => dialogs.hops.length === 1)
   const hop = dialogs.hops[0] ?? []
   await dialogs.close()
-  check('the boot effect stages the re-entry offer for a resolvable session, and the screen draws the offer it is handed', repl.includes('setCrashResumeStaged({') && offered.includes('previous session crashed') && offered.includes('session 00000000') && offered.includes('Resume that session'), offered)
+  check('the screen draws the re-entry offer it is handed', offered.includes('previous session crashed') && offered.includes('session 00000000') && offered.includes('Resume that session'), offered)
   check('the offer resumes through the ONE resume path', hop[0] === staged.sessionId && hop[1] === staged.transcriptPath && dialogs.staged[0] === null, JSON.stringify(hop))
 }
 

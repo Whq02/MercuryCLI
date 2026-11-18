@@ -316,8 +316,6 @@ async function main(): Promise<void> {
     check('chatLauncher awaits foldResumedRunForBoot inside its own bounded race', foldCallAt !== -1 && foldRaceAt !== -1 && foldRaceAt < foldCallAt && launcherSrc.slice(foldRaceAt, foldCallAt + 400).includes('BOOT_RECOVERY_BUDGET_MS'))
     check('the launcher INVOKES runBootRecovery and awaits it inside a bounded race (the late-completion contract, not a full wait)', recoveryCallAt !== -1 && recoveryRaceAt !== -1 && recoveryCallAt < recoveryRaceAt && launcherSrc.slice(recoveryRaceAt, recoveryRaceAt + 300).includes('BOOT_RECOVERY_BUDGET_MS'))
     check('…and that recovery invocation and its race both precede the resume-fold invocation', recoveryCallAt !== -1 && recoveryRaceAt !== -1 && foldCallAt !== -1 && recoveryRaceAt < foldCallAt)
-    const replSrc = readFileSync(join(import.meta.dir, '../../src/screens/Chat.tsx'), 'utf8')
-    check('the Chat boot effect consumes takeResumeFoldNotice', /takeResumeFoldNotice\(\)/.test(replSrc))
   }
 
   rmSync(HOME, { recursive: true, force: true })

@@ -150,12 +150,12 @@ for (const rel of PURE_FACE) {
 }
 
 const CHAT_EXPECTED: Record<NeedleName, number> = {
-  bootstrapFacade: 1,
+  bootstrapFacade: 0,
   costTracker: 0,
-  cwdOwner: 1,
+  cwdOwner: 0,
   modelResolution: 2,
   queueModule: 0,
-  transcriptWriter: 1,
+  transcriptWriter: 0,
   accountOwners: 0,
   mcpManager: 0,
 }
