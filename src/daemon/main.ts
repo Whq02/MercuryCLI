@@ -116,7 +116,6 @@ import {
   reassertControlKey,
   daemonExitTeardownSync,
   daemonStatePath,
-  type DaemonLock,
   writeDaemonState,
 } from './controlSocket.js'
 import { armDaemonHomeWatch, daemonHomeStands } from './daemonHome.js'
@@ -311,7 +310,6 @@ async function daemonRun(args: string[]): Promise<void> {
   let requestShutdown: (signal: string) => void = () => {}
 
   if (controlEnabled) {
-    let daemonLock: DaemonLock | null = null
     const successorOf = parseHandoverFrom(flagEnv('MERCURY_DAEMON_SUCCESSOR_OF'))
     const handoverFrom = parseHandoverFrom(flagEnv('MERCURY_DAEMON_HANDOVER_FROM'))
     const stamp = successorOf !== null ? `successor of pid ${successorOf}` : handoverFrom !== null ? `handover from pid ${handoverFrom}` : 'boot'
@@ -330,16 +328,16 @@ async function daemonRun(args: string[]): Promise<void> {
       if (decision.road === 'wait-lock') decision = { road: 'refuse', why: `the predecessor pid ${decision.for} did not release the daemon lock within ${SUCCESSOR_LOCK_WAIT_MS / 1000}s` }
     }
     if (decision.road === 'serve') {
-      daemonLock = await acquireDaemonLock()
-      if (!daemonLock) {
+      state.daemonLock = await acquireDaemonLock()
+      if (!state.daemonLock) {
         decision = decidePlaneBoot(await planeBootFacts(stamps))
         if (decision.road !== 'handover') return refuse('the daemon lock was taken while this daemon booted')
       }
     }
     if (decision.road === 'handover') {
       handoverPredecessor = decision.from
-      daemonLock = await acquireDaemonLock()
-      console.error(`[daemon] ${stamp}: ${decision.why} — taking the plane${daemonLock ? '' : `; the daemon lock is taken when its holder leaves`}`)
+      state.daemonLock = await acquireDaemonLock()
+      console.error(`[daemon] ${stamp}: ${decision.why} — taking the plane${state.daemonLock ? '' : `; the daemon lock is taken when its holder leaves`}`)
     } else if (decision.road === 'serve') {
       if (successorOf !== null) {
         console.error(`[daemon] successor of pid ${successorOf} took the plane over (v${currentVersion()} proto ${MERCURY_DAEMON_PROTO})`)
@@ -350,7 +348,6 @@ async function daemonRun(args: string[]): Promise<void> {
     } else {
       return refuse(decision.why)
     }
-    state.daemonLock = daemonLock
     process.once('exit', code => {
       if (!state.teardownComplete) daemonExitTeardownSync('exit-before-teardown', code)
     })
@@ -1164,7 +1161,7 @@ async function daemonRun(args: string[]): Promise<void> {
           stopBeat?.()
         }
       }
-      if (handoverPredecessor !== null && daemonLock === null) {
+      if (handoverPredecessor !== null && state.daemonLock === null) {
         let lockClaimInflight = false
         const lockBeat = setInterval(() => {
           void (async () => {
@@ -1302,7 +1299,7 @@ async function daemonRun(args: string[]): Promise<void> {
       logForDebugging(`[daemon] control layer failed to start — giving the home back and exiting: ${e}`)
       state.controlServer = null
       roster = null
-      state.roster = null
+      state.roster = roster
       const holder = await planeAnswer(bootBuildTree).catch(() => null)
       try {
         writeSync(2, `[daemon] ${planeHeldLine(holder)}\n`)

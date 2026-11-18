@@ -56,7 +56,7 @@ src/daemon/concourseDispatch.ts	unit	makeConcourseDispatchHandler	390
 src/daemon/concourseWorkers.ts	file	-	3013
 src/daemon/concourseWorkers.ts	unit	makeConcourseAdmitHandler	419
 src/daemon/controlServer.ts	unit	routeControlRequest	722
-src/daemon/main.ts	unit	daemonRun	1104
+src/daemon/main.ts	unit	daemonRun	1102
 src/daemon/roster.ts	unit	TaskRoster	890
 src/daemon/saturnTicker.ts	unit	tickSaturnOnce	450
 src/daemon/sessionSeat.ts	file	-	1740
