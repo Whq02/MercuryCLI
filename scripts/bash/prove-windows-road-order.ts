@@ -1,9 +1,43 @@
 #!/usr/bin/env bun
-import { spawnSync } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { plugin } from 'bun'
+import { spawn, spawnSync } from 'node:child_process'
+import { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
+
+if (process.argv.includes('--no-shell-leg')) {
+  plugin({
+    name: 'stub-color-diff-napi',
+    setup(build) {
+      build.module('color-diff-napi', () => ({ loader: 'object', exports: { ColorDiff: class {}, ColorFile: class {}, getSyntaxTheme: () => ({}) } }))
+    },
+  })
+  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+  const { formatError } = await import('../../src/utils/toolErrors.ts')
+  const told: string[] = []
+  let appState = getDefaultAppState()
+  const context = {
+    options: { engineModel: 'claude-sonnet-5', tools: [], commands: [], mcpClients: [], mcpResources: {} },
+    readFileState: new Map(),
+    getAppState: () => appState,
+    setAppState: (update: (state: typeof appState) => typeof appState) => { appState = update(appState) },
+    abortController: new AbortController(),
+    toolUseId: 'no-shell-call',
+    appendSystemMessage: (message: { content?: unknown }) => { told.push(String(message.content)) },
+  } as never
+  const call = async (): Promise<string> => {
+    try {
+      await BashTool.call({ command: 'echo ran' }, context)
+      return 'the command ran'
+    } catch (error) {
+      return formatError(error)
+    }
+  }
+  console.log(`NOSHELL ${JSON.stringify({ first: await call(), second: await call(), told })}`)
+  process.exit(0)
+}
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
@@ -215,9 +249,34 @@ try {
   const none = leg('no-bash-system-pin', { MERCURY_WINDOWS_SHELL_ROAD: 'no-bash', MERCURY_SHELL_ENGINE: 'system' })
   check('with no bash of any origin and MERCURY_SHELL_ENGINE=system nothing answers: no shell is named, the Bash tool is off the roster', none !== null && none.served === null && none.kind === 'absent' && none.tool === false && (none.error ?? '').includes('No shell found'), JSON.stringify(none))
 
+  const MODEL_LINE = 'Bash cannot run in this session: no shell starts on this machine, and no shell tool is offered.'
+  const { NO_SHELL_WAYS_OUT } = (await import('../../src/utils/shell/windowsShellRoad.ts')) as { NO_SHELL_WAYS_OUT?: string }
+  const waysOut = NO_SHELL_WAYS_OUT ?? 'the road names no ways out'
+  const adviceFree = (text: string): boolean => !/install|Git for Windows|MERCURY_GIT_BASH_PATH|restart/i.test(text)
+  {
+    mkdirSync(join(scratch, 'no-shell'), { recursive: true })
+    const ran = spawnSync(process.execPath, [import.meta.path, '--no-shell-leg'], {
+      cwd: scratch,
+      encoding: 'utf8',
+      timeout: 120_000,
+      env: { ...process.env, MERCURY_CONFIG_DIR: join(scratch, 'no-shell', 'config'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_SHELL_ENGINE: 'system', MERCURY_SHELL_PREFIX: undefined, MERCURY_GIT_BASH_PATH: undefined, MERCURY_WINDOWS_SHELL_ROAD: 'no-bash', BASH_ENV: undefined, ENV: undefined },
+    })
+    const line = (ran.stdout ?? '').split('\n').find(text => text.startsWith('NOSHELL '))
+    const said = line === undefined ? null : (JSON.parse(line.slice(8)) as { first: string; second: string; told: string[] })
+    const shown = `${JSON.stringify(said)} ${(ran.stderr ?? '').slice(-300)}`
+    check('where no shell serves, a Bash call answers the model with one short line and no install advice, each time', said !== null && said.first === MODEL_LINE && said.second === MODEL_LINE && adviceFree(said.first), shown)
+    check(
+      'the user is told once, where the first Bash result stands: that the session has no shell tool, each candidate with why it did not serve, the ways out and to restart Mercury',
+      said !== null && said.told.length === 1 && said.told[0]!.startsWith('No shell starts on this machine, so this session has no shell tool — passed over: ') && said.told[0]!.includes('the bundled engine is turned off') && said.told[0]!.endsWith(waysOut),
+      shown,
+    )
+    check('the install guide has the ways out in the same words', readFileSync(join(ROOT, 'docs', 'INSTALL.md'), 'utf8').replace(/`/g, '').replace(/\s+/g, ' ').includes(waysOut), waysOut)
+  }
+
   section('(4) the built bundle under Node, which is what a user runs: the same question, the same limit')
   {
-    const bundle = join(ROOT, 'dist', 'mercury.mjs')
+    const distAt = process.argv.indexOf('--dist')
+    const bundle = distAt === -1 ? join(ROOT, 'dist', 'mercury.mjs') : resolve(process.argv[distAt + 1]!)
     if (WIN || SYSTEM_BASH === null || !existsSync(bundle)) {
       console.log(`  [SKIP] ${existsSync(bundle) ? 'the stand-in program is an sh script: this leg is run on a machine with /bin/bash' : 'dist/mercury.mjs absent — build first (the gate prebuilds)'}`)
     } else {
@@ -253,6 +312,84 @@ try {
       const counting = script('counting-bash', `#!/bin/sh\necho asked >> '${asked}'\nexec ${SYSTEM_BASH} "$@"\n`)
       const version = spawnSync(nodeBinPath(), [bundle, '--version'], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, MERCURY_CONFIG_DIR: join(scratch, 'version-home'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_SHELL_ENGINE: undefined, MERCURY_WINDOWS_SHELL_ROAD: 'locate', MERCURY_GIT_BASH_PATH: counting } })
       check('--version on the Windows road asks no bash for its version: nothing is started before a command or the shell line needs the record', version.status === 0 && /^Mercury /.test(version.stdout) && !existsSync(asked), `status ${String(version.status)} · ${version.stdout.slice(0, 60)} · asked ${existsSync(asked)}`)
+
+      const { FIXTURE_API_KEY, seedFirstRun } = await import('../lib/firstRunSeed.ts')
+      const { startFixtureApi } = await import('../lib/fixtureApi.ts')
+      const view = join(scratch, 'dist-without-the-pack')
+      mkdirSync(join(view, 'vendor'), { recursive: true })
+      for (const name of readdirSync(dirname(bundle))) {
+        if (name !== 'vendor' && lstatSync(join(dirname(bundle), name)).isFile()) copyFileSync(join(dirname(bundle), name), join(view, name))
+      }
+      for (const name of readdirSync(join(dirname(bundle), 'vendor'))) {
+        if (name !== 'bash') symlinkSync(join(dirname(bundle), 'vendor', name), join(view, 'vendor', name))
+      }
+      const world = join(scratch, 'settles-on-nothing')
+      const [userHome, config, cwd] = ['user-home', 'config-home', 'work'].map(name => join(world, name)) as [string, string, string]
+      for (const dir of [userHome, config, cwd]) mkdirSync(dir, { recursive: true })
+      seedFirstRun(config, [cwd])
+      const pinAsked = join(scratch, 'pin-asked')
+      const noBash = script('pinned-and-no-bash', `#!/bin/sh\necho asked >> '${pinAsked}'\nexit 0\n`)
+      const api = await startFixtureApi([
+        { kind: 'tool_use', name: 'Bash', id: 'toolu_first', input: { command: 'echo first', description: 'the first command' } },
+        { kind: 'tool_use', name: 'Bash', id: 'toolu_second', input: { command: 'echo second', description: 'the second command' } },
+        { kind: 'text', text: 'done' },
+      ])
+      const env = {
+        HOME: userHome,
+        SHELL: '/bin/zsh',
+        TERM: 'dumb',
+        PATH: '/usr/bin:/bin:/usr/sbin:/sbin',
+        TMPDIR: tmpdir(),
+        MERCURY_CONFIG_DIR: config,
+        MERCURY_DAEMON_DIR: join(config, 'daemon'),
+        MERCURY_CREDENTIAL_STORE: 'file',
+        MERCURY_LOCAL_PROBE_TARGETS: 'none',
+        MERCURY_WINDOWS_SHELL_ROAD: 'locate',
+        MERCURY_GIT_BASH_PATH: noBash,
+        MERCURY_SHELL_ENGINE: 'system',
+        ANTHROPIC_API_KEY: FIXTURE_API_KEY,
+        ANTHROPIC_BASE_URL: api.url,
+      }
+      const session = spawn(nodeBinPath(), [join(view, 'mercury.mjs'), 'run', '--mode', 'sovereign', '--model', 'claude-opus-4-8', '--format', 'text', 'settles-on-nothing'], { cwd, env, stdio: ['ignore', 'ignore', 'pipe'] })
+      let stderr = ''
+      session.stderr.on('data', chunk => { stderr += String(chunk) })
+      const guard = setTimeout(() => session.kill('SIGKILL'), 150_000)
+      const exit = await new Promise<number | null>(done => session.once('close', code => done(code)))
+      clearTimeout(guard)
+      type Part = { type?: string; tool_use_id?: string; content?: unknown; text?: string }
+      const results = new Map<string, string>()
+      let offered = 0
+      for (const request of api.messageRequests()) {
+        const body = request.body as { tools?: Array<{ name?: string }>; messages?: Array<{ role?: string; content?: unknown }> } | null
+        if (body?.tools?.some(tool => tool.name === 'Bash')) offered++
+        for (const message of body?.messages ?? []) {
+          if (message.role !== 'user' || !Array.isArray(message.content)) continue
+          for (const part of message.content as Part[]) {
+            if (part.type !== 'tool_result' || part.tool_use_id === undefined) continue
+            results.set(part.tool_use_id, typeof part.content === 'string' ? part.content : Array.isArray(part.content) ? (part.content as Part[]).map(inner => (inner.type === 'text' ? (inner.text ?? '') : '')).join('') : '')
+          }
+        }
+      }
+      await api.close()
+      const told = stderr.split('\n').filter(text => text.includes('this session has no shell tool'))
+      const shown = `exit ${String(exit)} · ${JSON.stringify([...results])} · stderr ${JSON.stringify(stderr.slice(-900))}`
+      check('a session whose pin is no bash, whose pack is gone and whose engine is off still offers Bash (the roster stays as taken)', offered >= 2, `${offered} requests offered Bash · ${shown}`)
+      check('…each Bash call answers the model with the one short line, and no install advice', (results.get('toolu_first') ?? '').includes(MODEL_LINE) && (results.get('toolu_second') ?? '').includes(MODEL_LINE) && adviceFree(`${results.get('toolu_first') ?? ''}${results.get('toolu_second') ?? ''}`), shown)
+      check(
+        '…and the user is told once on stderr: no shell tool, each candidate with why it did not serve, the ways out, restart Mercury',
+        told.length === 1 && told[0]!.includes(`${noBash}, named by MERCURY_GIT_BASH_PATH, did not answer as a bash`) && told[0]!.includes('this install carries no bash of its own') && told[0]!.includes('the bundled engine is turned off') && told[0]!.endsWith(waysOut),
+        shown,
+      )
+      const pinStarts = existsSync(pinAsked) ? readFileSync(pinAsked, 'utf8').trim().split('\n').length : 0
+      check('…and the pin was asked once in the whole session: nothing starts a bash before the first request that offers Bash, and none is asked again', pinStarts === 1, `${pinStarts} starts`)
+      const after = spawnSync(nodeBinPath(), [join(view, 'mercury.mjs'), 'health', '--json'], { cwd, env, encoding: 'utf8', timeout: 180_000, maxBuffer: 64 * 1024 * 1024 })
+      let row: { status?: string; evidence?: string; fix?: string } | undefined
+      try {
+        row = (JSON.parse(after.stdout) as { sections?: Array<{ checks: Array<{ id: string; status?: string; evidence?: string; fix?: string }> }> }).sections?.flatMap(part => part.checks).find(found => found.id === 'shell')
+      } catch {
+        row = undefined
+      }
+      check('…and the health row of that machine warns that a session has no shell tool, names what was passed over, and its fix is the same ways out', row?.status === 'warn' && (row.evidence ?? '').includes('a session here has no shell tool') && (row.evidence ?? '').includes('did not answer as a bash') && row.fix === waysOut, JSON.stringify(row))
     }
   }
 } finally {

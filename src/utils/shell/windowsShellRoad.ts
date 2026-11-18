@@ -32,6 +32,8 @@ export const WINDOWS_BASH_NOTICE =
 export const WINDOWS_BASH_NOTICE_NO_PACK =
   'Bash tool absent — no bash.exe found and the bundled shell engine is unavailable: install Git for Windows, set MERCURY_GIT_BASH_PATH=<path to bash.exe>, or restore the bash pack or the shell engine pack (a release archive carries both; a source build makes them with bun run scripts/vendor/fetch-bash-win.ts and bun run scripts/vendor/build-brush.ts, then bun run build.ts)'
 
+export const NO_SHELL_WAYS_OUT = 'Install Git for Windows, set MERCURY_GIT_BASH_PATH to a bash.exe, or reinstall Mercury; then restart Mercury.'
+
 function roadProbe(): 'no-bash' | 'pack' | 'locate' | null {
   const value = flagEnv('MERCURY_WINDOWS_SHELL_ROAD')
   return value === 'no-bash' || value === 'pack' || value === 'locate' ? value : null
@@ -307,8 +309,8 @@ export function describeWindowsShellRoad(): {
     return {
       road: 'absent',
       absent: true,
-      line: 'no bash starts on this machine, neither an installed one nor the one Mercury ships, and the bundled engine does not serve — the Bash tool is absent from the roster; the PowerShell tool is present',
-      fix: WINDOWS_BASH_NOTICE_NO_PACK,
+      line: 'no bash starts on this machine, neither an installed one nor the one Mercury ships, and the bundled engine does not serve — a session here has no shell tool',
+      fix: NO_SHELL_WAYS_OUT,
     }
   }
   return {

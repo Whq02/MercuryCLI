@@ -62,6 +62,8 @@ import {
   resizeShellImageOutput,
   applyShellOutputFilter,
   redactedCopy,
+  refuseWhereNoShellStarts,
+  truncateForSummary,
 } from './utils.js'
 import { maxOutputCharsField, readMaxOutputChars, refuseMaxOutputChars } from './maxOutputChars.js'
 import { resolveOutputBudget } from '../../utils/shell/outputLimits.js'
@@ -874,6 +876,7 @@ export const BashTool = buildTool({
       if (input._simulatedSedEdit) {
         return { data: await runSimulatedSedEdit(input, context, parentMessageId) }
       }
+      await refuseWhereNoShellStarts(context)
       const generator = runBash(input, context, agentId)
       let step = await generator.next()
       while (!step.done) {
@@ -904,8 +907,4 @@ export const BashTool = buildTool({
   renderToolUseErrorMessage,
 })
 
-const TOOL_USE_SUMMARY_LIMIT = 100
 const EMPTY_COMMAND_REFUSAL = 'Nothing to run: the command is empty. Pass the command to execute.'
-function truncateForSummary(command: string): string {
-  return command.length > TOOL_USE_SUMMARY_LIMIT ? command.slice(0, TOOL_USE_SUMMARY_LIMIT) : command
-}

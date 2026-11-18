@@ -171,6 +171,10 @@ Bash tool on a bash alone.
 Read the health check's `shell` row to see which shell is active and why: a
 bash found on the machine or named by the pin, the bash Mercury ships, or the
 bundled engine (armed by the pin or the setting, or because no bash starts).
+When no bash starts and the engine does not serve, a session has no shell
+tool: its first Bash call tells you once which programs were passed over and
+why. Install Git for Windows, set `MERCURY_GIT_BASH_PATH` to a `bash.exe`, or
+reinstall Mercury; then restart Mercury.
 
 On macOS and Linux the Bash tool runs the bash Mercury ships (GNU bash 5.3),
 whatever your login shell is; the system's own bash serves when that pack is

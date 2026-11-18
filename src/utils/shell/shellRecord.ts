@@ -13,7 +13,7 @@ import { which } from '../which.js'
 import { bashPackProgramsDir, resolveBashPackDir, type BashPackResolution } from './bashPack.js'
 import { resolveBrushPackDir } from './brushPack.js'
 import { shellEngineArmWords, type ShellEngineArm } from './shellEngineArm.js'
-import { bashToolAvailable, describeWindowsShellRoad, engineMayServe, settleWindowsShell, shippedWindowsBash, windowsBashCandidates, windowsShellRoadActive, withoutShellStartFiles } from './windowsShellRoad.js'
+import { NO_SHELL_WAYS_OUT, bashToolAvailable, describeWindowsShellRoad, engineMayServe, settleWindowsShell, shippedWindowsBash, windowsBashCandidates, windowsShellRoadActive, withoutShellStartFiles } from './windowsShellRoad.js'
 
 export type ShellDialect = 'bash'
 export type ShellOrigin = 'shipped' | 'system' | 'engine'
@@ -312,6 +312,16 @@ export type ShellRow = { status: 'ok' | 'warn'; evidence: string; fix?: string }
 
 const SHELL_ROW_WAITS_MS = 15_000
 const LAST_ROAD_FIX = 'Reinstall Mercury to restore the bash it ships, or install bash so that it is on PATH, then restart Mercury.'
+const NO_SHELL_FOR_THE_MODEL = 'Bash cannot run in this session: no shell starts on this machine, and no shell tool is offered.'
+
+let noShellTold = false
+
+export async function noShellHere(): Promise<{ model: string; user: string | null } | null> {
+  if ((await shellRecordIfAny()) !== null) return null
+  const user = noShellTold ? null : `No shell starts on this machine, so this session has no shell tool${passedOver.length > 0 ? ` — passed over: ${passedOver.join('; ')}` : ''}. ${windowsShellRoadActive() ? NO_SHELL_WAYS_OUT : LAST_ROAD_FIX}`
+  noShellTold = true
+  return { model: NO_SHELL_FOR_THE_MODEL, user }
+}
 
 export async function shellRow(waitMs: number = SHELL_ROW_WAITS_MS): Promise<ShellRow> {
   const waited = new AbortController()
