@@ -98,12 +98,12 @@ try {
   chmodSync(nodeStub, 0o755)
   writeFileSync(stub, fixture)
   const copiedRunners = new Map<string, string>()
-  console.log('each counted suite\'s expected mark count is read from its runner: one mark per timed command (__t=$SECONDS) or run_proof line, a for loop multiplied by its words with a glob matched against the census\'s own fixture files; every guard in a runner passes in this estate by construction (a dist file, the fixture files, the close-arc switch)')
+  console.log('each counted suite\'s expected mark count is read from its runner: one mark per timed command (__t=$SECONDS) or run_proof line, a for loop multiplied by its words with a glob matched against the census\'s own fixture files; every guard in a runner passes in this estate by construction (a dist file, the fixture files)')
   for (const [name, files] of [
     ['smoke', []],
     ['api', []],
     ['attention', ['prove-fixture.ts', 'journey-fixture.ts']],
-    ['session-graph', ['run-journeys.ts', 'run-sensitivity.ts']],
+    ['session-graph', ['prove-fixture.ts', 'repro-fixture.ts']],
     ['golden-journeys', []],
     ['node-runtime', ['qualify-artifact.sh']],
     ['splash', []],
@@ -122,7 +122,7 @@ try {
     const count = promisedMarks(text, ['run-all.sh', ...files])
     check(`${name}: the runner promises at least one mark (${count} read from its own lines)`, count > 0)
     for (const code of [0, 29]) {
-      const result = spawnSync('bash', [runner], { cwd: estate, env: { ...env(code), TMPDIR: scratch, CONSTELLATION_CLOSE_ARC: '1' }, encoding: 'utf8', timeout: 10000 })
+      const result = spawnSync('bash', [runner], { cwd: estate, env: { ...env(code), TMPDIR: scratch }, encoding: 'utf8', timeout: 10000 })
       const rows = marks(result.stdout)
       check(`${name}: every individual command records code ${code} (${rows.length} of ${count} marks the runner promises)`, rows.length === count && rows.every(row => row.code === code))
       check(`${name}: individual checks retain the suite result for code ${code}`, result.status === (code === 0 ? 0 : 1))

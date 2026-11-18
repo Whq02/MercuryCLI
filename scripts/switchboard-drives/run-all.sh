@@ -15,6 +15,7 @@
 # gate-watch: src/services/switchboard/hopIntoSession.ts src/substrate/launchMilestones.ts src/utils/config.ts
 # gate-watch: src/utils/model/* src/utils/sessionStorage/paths.ts src/utils/sessionStorage/transcriptReader.ts
 # gate-watch: src/services/crewBoard/store.ts src/utils/messages/factories.ts src/utils/messages/systemMessages.ts src/utils/sessionStorage/vnext.ts
+# gate-watch: scripts/ui/gridToPng.ts scripts/ui/replay-tee-grid.py
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

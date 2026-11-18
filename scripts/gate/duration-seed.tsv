@@ -64,7 +64,7 @@ mission-runner	188
 session-graph	11
 session-graph-drives	29
 typecheck	48
-attention	35
+attention	17
 usage-warning	264
 splash	37
 motion	100
@@ -87,7 +87,7 @@ project-services	58
 project-services-drives	6
 critters	39
 orphans	38
-switchboard	157
+switchboard	189
 switchboard-2	15
 switchboard-3	73
 switchboard-4	8
@@ -99,7 +99,7 @@ visual-contract	62
 operator-identity	1
 changesets	7
 changesets-drives	44
-substrate	78
+substrate	77
 reliability	40
 updater	239
 updater-drives	163
@@ -110,12 +110,13 @@ memory	15
 primitives-kernel	27
 eval	77
 editor-bridge	276
+editor-bridge-drives	5
 default-provider	22
 default-model	3
 language-sidecars	17
 agent-definitions	17
 engine-durability	15
-longrun-invariants	17
+longrun-invariants	23
 mcp	70
 capabilities	14
 idiom	29
@@ -209,7 +210,8 @@ jev	96
 scroll	303
 apollo	3
 commit-gate	2
-pings	497
+pings	10
+pings-drives	694
 provauth	28
 provider-compat	411
 wallet	2
@@ -227,13 +229,13 @@ desktop	64
 local-setup	6
 tensorfold	214
 media	4
-advisor	33
+advisor	101
 sdk	0
 release	90
 outcome-pack	92
 # The real-terminal drive halves of the split suites: an estimate from each
 # parent's measured wall (the drives carry most of it) until a run re-seeds.
-attention-drives	33
+attention-drives	132
 bash-drives	129
 core-runtime-drives	108
 critters-drives	305
@@ -262,7 +264,8 @@ ui-drives	2735
 local-setup-drives	18
 tensorfold-drives	444
 docs	4
-host	1208
+host	555
+host-2	605
 host-drives	77
 usage	6
 extensions-drives	600

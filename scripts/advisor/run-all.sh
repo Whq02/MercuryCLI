@@ -20,16 +20,11 @@ here="$(pwd)/scripts/advisor"
 bun="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
 export MERCURY_CREDENTIAL_STORE="${MERCURY_CREDENTIAL_STORE:-file}"
-for proof in "$here"/prove-advisor-service.ts "$here"/prove-advisor-evidence.ts "$here"/prove-advisor-roads.ts "$here"/prove-advisor-surfaces.ts "$here"/prove-advisor-chip.ts "$here"/prove-advisor-note-lands.ts "$here"/prove-advisor-summarizer.ts; do
+for proof in "$here"/prove-advisor-service.ts "$here"/prove-advisor-evidence.ts "$here"/prove-advisor-roads.ts "$here"/prove-advisor-surfaces.ts "$here"/prove-advisor-chip.ts "$here"/prove-advisor-note-lands.ts "$here"/prove-advisor-summarizer.ts "$here"/prove-advise-switch-drive.ts; do
   echo
   echo ">>> $(basename "$proof")"
   __t=$SECONDS; __rc=0; "$bun" run "$proof" || { __rc=$?; fail=1; }; prover_mark "$proof" "$__t" "$__rc"
 done
-if [ "${ADVISOR_DRIVE:-0}" = "1" ]; then
-  echo
-  echo ">>> prove-advise-switch-drive.ts (the real-product drive; ADVISOR_DRIVE=1 runs it once, never a gate member)"
-  __t=$SECONDS; __rc=0; "$bun" run "$here/prove-advise-switch-drive.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-advise-switch-drive.ts" "$__t" "$__rc"
-fi
 echo
 if [ "$fail" -eq 0 ]; then echo "ADVISOR SUITE GREEN"; else echo "ADVISOR SUITE RED"; fi
 exit "$fail"

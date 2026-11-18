@@ -6,8 +6,17 @@ drive_member_jobs() {
   printf '%s' "$jobs"
 }
 
+members_cat() {
+  local list
+  for list in "$@"; do
+    [ -f "$list" ] || continue
+    grep -v -e '^#' -e '^$' "$list" || true
+  done
+  return 0
+}
+
 drive_member_run() {
-  local suite="$1" f="$2" name="$3" bun="${BUN:-$HOME/.bun/bin/bun}" t0=$SECONDS rc=0
+  local suite="$1" f="$2" name="$3" skip="${4:-}" bun="${BUN:-$HOME/.bun/bin/bun}" t0=$SECONDS rc=0
   printf '── %s: %s\n' "$suite" "$name"
   case "$name" in
     (*.py) /usr/bin/python3 "$f" || rc=$? ;;
@@ -17,11 +26,15 @@ drive_member_run() {
   local p="$f"
   case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac
   printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - t0 ))" "$rc"
+  if [ -n "$skip" ] && [ "$rc" = "$skip" ]; then
+    printf '⏭  %s SKIP — machine gate honoured (exit %s is the skip code of %s)\n' "$name" "$rc" "$suite"
+    return 0
+  fi
   return "$rc"
 }
 
 drive_members() {
-  local suite="$1" template="$2" members="$3" jobs
+  local suite="$1" template="$2" members="$3" skip="${4:-}" jobs
   jobs=$(drive_member_jobs)
   local failed=0 name f
   local -a names=() files=()
@@ -38,7 +51,7 @@ drive_members() {
   if [ "$jobs" -le 1 ] || [ "${#names[@]}" -le 1 ]; then
     local i
     for i in "${!names[@]}"; do
-      drive_member_run "$suite" "${files[$i]}" "${names[$i]}" || failed=1
+      drive_member_run "$suite" "${files[$i]}" "${names[$i]}" "$skip" || failed=1
     done
     return "$failed"
   fi
@@ -54,7 +67,7 @@ drive_members() {
   while [ "$next" -lt "$total" ] || [ "$running" -gt 0 ]; do
     while [ "$next" -lt "$total" ] && [ "$running" -lt "$jobs" ]; do
       i=$next
-      ( drive_member_run "$suite" "${files[$i]}" "${names[$i]}" > "$out/$i.out" 2>&1; echo "$?" > "$out/$i.rc" ) &
+      ( drive_member_run "$suite" "${files[$i]}" "${names[$i]}" "$skip" > "$out/$i.out" 2>&1; echo "$?" > "$out/$i.rc" ) &
       pids+=("$!"); idxs+=("$i"); running=$(( running + 1 )); next=$(( next + 1 ))
     done
     sleep 1

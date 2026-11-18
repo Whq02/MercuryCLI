@@ -37,6 +37,7 @@
 # gate-watch: src/services/providers/modelRegistry.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -47,7 +48,7 @@ echo "############################################################"
 echo "# /health certificate — proof harness"
 echo "############################################################"
 shopt -s nullglob
-claimed=$(cat scripts/health-*/members.txt 2>/dev/null | grep -v '^#' | grep -v '^$')
+claimed=$(members_cat scripts/health-*/members.txt)
 
 for proof in "$here"/prove-*.ts; do
   if printf '%s\n' "$claimed" | grep -qx "$(basename "$proof")"; then continue; fi

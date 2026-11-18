@@ -605,17 +605,27 @@ section('UI-009 — every prover is enrolled in a permanent suite')
   check('UI-009: an unterminated final row is not consumed by read', memberPaths(fixtureRunner, 'prove-fixture.ts').length === 0)
   check('UI-009: an unconsumed list enrolls nothing', memberPaths('f="scripts/fixture/$name"', 'prove-fixture.ts\n').length === 0)
   check('UI-009: a member belongs only to its actual parent', !memberPaths(fixtureRunner, 'prove-fixture.ts\n').includes('other/prove-fixture.ts'))
+  const namedByARunner = (dir: string, prover: string, ownRunner: string, everyRunner: string): boolean =>
+    ownRunner.includes(prover) || ownRunner.includes(prover.replace(/\.ts$/, '')) || everyRunner.includes(`scripts/${dir}/${prover}`)
+  const foreignRunner = 'bun run "$here/../../scripts/fixture/prove-fixture.ts"'
+  const silentRunner = 'bun run "$here/prove-other.ts"'
+  check('UI-009: a prover named only by another suite\'s runner, as scripts/<dir>/<file>, is enrolled', namedByARunner('fixture', 'prove-fixture.ts', silentRunner, `${silentRunner}\n${foreignRunner}`))
+  check('UI-009: a prover no runner names is an orphan', !namedByARunner('fixture', 'prove-fixture.ts', silentRunner, `${silentRunner}\nbun run scripts/other/prove-fixture.ts`))
   const orphans: string[] = []
   const suiteDirs = readdirSync(join(ROOT, 'scripts'), { withFileTypes: true })
     .filter(d => d.isDirectory())
     .map(d => d.name)
   const listed = new Set<string>()
+  const runnerTexts: string[] = []
   for (const dir of suiteDirs) {
     const runAll = join(ROOT, 'scripts', dir, 'run-all.sh')
     const members = join(ROOT, 'scripts', dir, 'members.txt')
-    if (!existsSync(runAll) || !existsSync(members)) continue
+    if (!existsSync(runAll)) continue
+    runnerTexts.push(readFileSync(runAll, 'utf8'))
+    if (!existsSync(members)) continue
     for (const path of memberPaths(readFileSync(runAll, 'utf8'), readFileSync(members, 'utf8'))) listed.add(path)
   }
+  const everyRunner = runnerTexts.join('\n')
   for (const dir of suiteDirs) {
     const runAll = join(ROOT, 'scripts', dir, 'run-all.sh')
     if (!existsSync(runAll)) continue
@@ -626,13 +636,13 @@ section('UI-009 — every prover is enrolled in a permanent suite')
       f => f.startsWith('prove-') && f.endsWith('.ts'),
     )
     for (const p of provers) {
-      if (!runner.includes(p) && !runner.includes(p.replace(/\.ts$/, '')) && !listed.has(`${dir}/${p}`)) {
+      if (!namedByARunner(dir, p, runner, everyRunner) && !listed.has(`${dir}/${p}`)) {
         orphans.push(`${dir}/${p}`)
       }
     }
   }
   check(
-    'UI-009: zero orphaned provers — every prove-*.ts in a listed suite is enrolled (or the suite globs)',
+    'UI-009: zero orphaned provers — every prove-*.ts in a listed suite is enrolled (its own runner names it, a runner names it as scripts/<dir>/<file>, a member list holds it, or the suite globs)',
     orphans.length === 0,
     orphans.join(', '),
   )

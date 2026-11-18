@@ -82,9 +82,6 @@ run_proof "$here/prove-seal-in-gate.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/
 run_proof "$here/../typecheck/prove-warm-replay.sh" bash "$here/../typecheck/prove-warm-replay.sh" || fail=1
 run_proof "$here/prove-shard-compile-cache-removed.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-shard-compile-cache-removed.ts" || fail=1
 run_proof "$here/prove-shard-temp-spelling.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-shard-temp-spelling.ts" || fail=1
-run_proof "$here/../verify/prove-impact-manifest.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../verify/prove-impact-manifest.ts" || fail=1
-run_proof "$here/../verify/prove-impact-run.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../verify/prove-impact-run.ts" || fail=1
-run_proof "$here/../verify/prove-slice-core.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../verify/prove-slice-core.ts" || fail=1
 run_proof "$here/prove-shell-door.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-shell-door.ts" || fail=1
 run_proof "$here/../substrate/prove-flag-registry-readers.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../substrate/prove-flag-registry-readers.ts" || fail=1
 run_proof "$here/../substrate/prove-flag-registry-split.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../substrate/prove-flag-registry-split.ts" || fail=1

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gate-class: cpu
+# gate-class: pure
 # gate-watch: scripts/verify/** src/utils/verification/**
 # gate-watch: .githooks/** scripts/gate/ledger.ts scripts/gate/impact-narrowed.txt
 # gate-watch: scripts/outcome-pack/** scripts/daemon/dupline-world.ts
@@ -8,6 +8,7 @@
 # gate-watch: src/utils/shell/shellRecord.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
 . "$(dirname "$0")/../lib/proof-runner.sh"
 here="$(cd "$(dirname "$0")" && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"
@@ -16,7 +17,7 @@ echo "############################################################"
 echo "# verification evidence model — proof harness"
 echo "############################################################"
 shopt -s nullglob
-claimed=$(cd "$here/../.." && cat scripts/verify-*/members.txt 2>/dev/null | grep -v '^#' | grep -v '^$')
+claimed=$(cd "$here/../.." && members_cat scripts/verify-*/members.txt)
 for proof in "$here"/prove-*.ts; do
   printf '%s\n' "$claimed" | grep -qx "$(basename "$proof")" && continue
   echo

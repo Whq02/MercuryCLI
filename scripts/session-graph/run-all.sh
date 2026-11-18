@@ -47,14 +47,6 @@ for repro in "$here"/repro-*.ts; do
   __t=$SECONDS; __rc=0; (cd "$repo" && "$bun" run "$repro") || { __rc=$?; fail=1; }; prover_mark "$repro" "$__t" "$__rc"
 done
 
-if [ "${CONSTELLATION_CLOSE_ARC:-0}" = "1" ]; then
-  for runner in "$here"/run-journeys.ts "$here"/run-sensitivity.ts; do
-    echo
-    echo "── $(basename "$runner") (close-arc lane) ──"
-    __t=$SECONDS; __rc=0; (cd "$repo" && "$bun" run "$runner") || { __rc=$?; fail=1; }; prover_mark "$runner" "$__t" "$__rc"
-  done
-fi
-
 echo
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ session-graph PASS"; else echo "# ❌ session-graph FAILED"; fi
