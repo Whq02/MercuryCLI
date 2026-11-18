@@ -124,18 +124,6 @@ export class LivePart {
     return this.liveStateWord
   }
 
-  streamingBlock(): 'thinking' | 'text' | 'tool_use' | null {
-    return this.streamBlock
-  }
-
-  blockSince(): number | null {
-    return this.blockSinceMs
-  }
-
-  interruptPressedAt(): number | null {
-    return this.interruptPressedAtMs
-  }
-
   pressed(): { interrupting: boolean; hardStopping: boolean } {
     return { interrupting: this.interrupting, hardStopping: this.hardStopping }
   }
@@ -235,7 +223,7 @@ export class LivePart {
     }
   }
 
-  setLiveStateWord(word: 'compacting' | 'waiting-on-agents' | null, agentsWaiting = 0): void {
+  private setLiveStateWord(word: 'compacting' | 'waiting-on-agents' | null, agentsWaiting = 0): void {
     const count = word === 'waiting-on-agents' ? agentsWaiting : 0
     if (this.liveStateWord === word && this.liveAgentsWaiting === count) return
     const wasCompacting = this.liveStateWord === 'compacting'

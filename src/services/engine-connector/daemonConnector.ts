@@ -590,24 +590,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     return this.foldPart.subscribeFold(listener)
   }
 
-  private setLiveStateWord(word: 'compacting' | 'waiting-on-agents' | null, agentsWaiting = 0): void {
-    this.livePart.setLiveStateWord(word, agentsWaiting)
-  }
-
   private get liveStateWord(): 'compacting' | 'waiting-on-agents' | null {
     return this.livePart.stateWord()
-  }
-
-  private get streamBlock(): 'thinking' | 'text' | 'tool_use' | null {
-    return this.livePart.streamingBlock()
-  }
-
-  private get blockSinceMs(): number | null {
-    return this.livePart.blockSince()
-  }
-
-  private get interruptPressedAtMs(): number | null {
-    return this.livePart.interruptPressedAt()
   }
 
   private syncFeedCadence(inFlight: boolean): void {
@@ -894,7 +878,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       this.completionPart.noteSendTaken()
     }
     const enqueuedUnderTheFold = current !== undefined && (current.state !== 'queued' || current.heldFor === 'compaction')
-    const heldFor = state === 'queued' && this.livePart.stateWord() === 'compacting' && enqueuedUnderTheFold ? ('compaction' as const) : undefined
+    const heldFor = state === 'queued' && this.liveStateWord === 'compacting' && enqueuedUnderTheFold ? ('compaction' as const) : undefined
     this.sends = this.sends.map(s => {
       if (s.clientMessageId !== clientMessageId) return s
       const next: SeatSend = { ...s, state }
@@ -1047,7 +1031,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       else held.push({ seq: notice.seq, row: notice.row })
     }
     held.sort((a, b) => a.seq - b.seq)
-    for (const committed of this.tailPart.committedRows()) {
+    for (const committed of this.textRows) {
       const at = held.findIndex(entry => entry.seq > committed.seq)
       const entry = { seq: committed.seq, row: committed.row }
       if (at === -1) held.push(entry)
@@ -1265,7 +1249,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         this.echoRows.delete(clientMessageId)
         this.paint()
       } else {
-        const queuedNow = this.factsBusy || this.livePart.stateWord() === 'compacting'
+        const queuedNow = this.factsBusy || this.liveStateWord === 'compacting'
         this.dressSend(clientMessageId, queuedNow ? 'queued' : 'delivered')
         connectorTrace({ ev: 'send', sid: this.record.sessionId, state: queuedNow ? 'queued' : 'delivered' })
       }

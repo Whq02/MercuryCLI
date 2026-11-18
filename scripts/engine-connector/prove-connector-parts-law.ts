@@ -19,7 +19,7 @@ const PARTS: Readonly<Record<string, { file: string; type: string }>> = {
 
 const OF_THE_DOOR: readonly string[] = ['carrier', 'record', 'attached', 'factsFeed', 'asksFeed', 'tailFeed', 'progressFeed', 'turnInFlight', 'verbChain']
 
-const REACHED_BY_PROOFS: readonly string[] = ['textRows', 'liveStateWord', 'streamBlock', 'blockSinceMs', 'interruptPressedAtMs']
+const REACHED_BY_PROOFS: readonly string[] = ['textRows', 'liveStateWord']
 
 const AWAITING_THEIR_PART: Readonly<Record<string, readonly string[]>> = {
   facts: ['facts', 'factsBusy', 'busyStallDeadline', 'BUSY_STALL_MS', 'carrierGoneTicks', 'carrierGoneAtFactsMs', 'carrierProbeInFlight', 'carrierSeen', 'CARRIER_GONE_TICKS', 'modelListeners', 'permissionListeners'],

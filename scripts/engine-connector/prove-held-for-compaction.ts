@@ -31,7 +31,7 @@ type Guts = {
   echoRows: Map<string, { queued?: true; heldFor?: 'compaction'; timestamp?: string }>
   rpc: (req: Record<string, unknown>) => Promise<Record<string, unknown>>
   dressSend: (id: string, state: Send['state']) => void
-  setLiveStateWord: (word: 'compacting' | 'waiting-on-agents' | null, agentsWaiting?: number) => void
+  readTail: () => void
   liveStateWord: 'compacting' | 'waiting-on-agents' | null
   factsBusy: boolean
   paint: () => void
@@ -56,9 +56,15 @@ const seed = (id: string, text: string, state: Send['state']): void => {
 const sendOf = (id: string): Send | undefined => g.sends.find(s => s.clientMessageId === id)
 const rowOf = (id: string) => g.echoRows.get(id)
 
+const { publishSessionTail } = await import(join(SRC, 'services/engine-connector/seatProjections.ts'))
+let tailStamp = 0
+const tailSays = (word: 'compacting' | 'waiting-on-agents' | null): void => {
+  publishSessionTail({ schema: 1, sessionId: 'held-proof', atMs: ++tailStamp, text: null, ...(word !== null ? { stateWord: word } : {}) })
+  g.readTail.call(connector)
+}
 const foldRunning = (on: boolean): void => {
   g.factsBusy = on
-  g.setLiveStateWord(on ? 'compacting' : null)
+  tailSays(on ? 'compacting' : null)
 }
 
 section('H1 a send during the compaction is held, and says so')
@@ -108,7 +114,7 @@ seed(settled, 'sent during a fold the turn settled', 'delivered')
 g.dressSend(settled, 'queued')
 check('held while the fold runs', sendOf(settled)?.heldFor === 'compaction')
 g.factsBusy = false
-g.setLiveStateWord('waiting-on-agents')
+tailSays('waiting-on-agents')
 check('the turn settling clears the held dress through the recompute road', sendOf(settled)?.heldFor === undefined && g.liveStateWord === null, j([sendOf(settled), g.liveStateWord]))
 
 section('H6 the composer and the plate (source pins)')
