@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gate-class: pty
+# gate-class: pure
 # gate-watch: scripts/lib/seedTranscript.ts
 # gate-watch: scripts/visual-contract/**
 # gate-watch: assets/splash/** src/components/mercury-ui/** src/components/mercuryPalette.ts
@@ -9,6 +9,7 @@
 # gate-watch: scripts/lib/firstRunSeed.ts scripts/ui/render-tui.ts scripts/ui/vshot.py
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -20,7 +21,9 @@ echo "############################################################"
 echo "# visual-contract — the frontier presentation & interaction lane"
 echo "############################################################"
 
+claimed=$(cd "$here/../.." && members_cat scripts/visual-contract-*/members.txt)
 for proof in "$here"/prove-*.ts; do
+  printf '%s\n' "$claimed" | grep -qx "$(basename "$proof")" && continue
   [ -e "$proof" ] || continue
   echo
   echo "── $(basename "$proof") ──"
@@ -28,6 +31,7 @@ for proof in "$here"/prove-*.ts; do
 done
 
 for repro in "$here"/repro-*.ts; do
+  printf '%s\n' "$claimed" | grep -qx "$(basename "$repro")" && continue
   [ -e "$repro" ] || continue
   echo
   echo "── $(basename "$repro") ──"
