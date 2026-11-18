@@ -36,13 +36,28 @@ t.section('§1 adapterSilenceMessage — the OS is named, never guessed')
   t.check('the read is memoised (a second call answers the same)', darwinDebuggerAuthorisationHint() === hint)
 }
 
-t.section('§2 the IDE plane row names the macOS authorisation state')
+t.section('§2 the IDE plane row names the macOS authorisation state: both answers of the probe, handed in, on any host')
 {
-  const { codingLoopFastChecks } = await import('../../src/utils/health/sections/coding-loop-fast.ts')
-  const plane = await codingLoopFastChecks().find(row => row.id === 'ide-plane-fast')?.run()
-  const authorisation = darwinDebuggerAuthorisationHint()
-  t.check('the row reads darwinDebuggerAuthorisationHint', plane !== undefined && (authorisation === null ? !/native debug/.test(`${plane.evidence}\n${plane.detail}`) : plane.detail?.includes(`native debug: ${authorisation}`) === true), plane?.detail)
-  t.check('an off setting is named in the evidence and carries the fix', plane !== undefined && (authorisation === null ? !plane.evidence.includes('native debug authorisation OFF') : plane.status === 'warn' && plane.evidence.endsWith('native debug authorisation OFF') && (plane.fix === 'sudo DevToolsSecurity -enable (macOS debugger authorisation; durable across reboots).' || plane.fix === 'Install Python 3, or point MERCURY_PYTHON at one.')), plane?.evidence)
+  const { codingLoopFastChecks, idePlaneFastCheck } = await import('../../src/utils/health/sections/coding-loop-fast.ts')
+  const OFF = 'Developer mode is currently disabled.'
+  const ON = 'Developer mode is currently enabled.'
+  const hintOff = darwinDebuggerAuthorisationHint(() => OFF)
+  t.check(
+    "the hint is a function of the probe's answer: disabled names the setting and the durable fix; enabled, and no answer, give none",
+    hintOff !== null && hintOff.includes('DevToolsSecurity -status: disabled') && hintOff.endsWith('sudo DevToolsSecurity -enable') && darwinDebuggerAuthorisationHint(() => ON) === null && darwinDebuggerAuthorisationHint(() => null) === null,
+    String(hintOff),
+  )
+  const off = await idePlaneFastCheck(() => OFF).run()
+  const on = await idePlaneFastCheck(() => ON).run()
+  const pythonMissing = off.evidence.startsWith('python UNAVAILABLE')
+  t.check("with the authorisation off the row warns, names it in the evidence and carries the owner's line in the detail", off.status === 'warn' && off.evidence.endsWith(' · native debug authorisation OFF') && off.detail?.includes(`native debug: ${hintOff}`) === true, `${off.status}: ${off.evidence} | ${off.detail}`)
+  t.check(
+    "with the authorisation off the fix is the command the owner's line ends on (on a host with no Python the row's fix is Python's, which comes first)",
+    pythonMissing ? off.fix === 'Install Python 3, or point MERCURY_PYTHON at one.' : off.fix !== undefined && off.fix.startsWith('sudo DevToolsSecurity -enable ') && !off.fix.includes('-disable'),
+    String(off.fix),
+  )
+  t.check('with the authorisation on the row says nothing of native debug and carries no fix for it', !/native debug|DevToolsSecurity/.test(`${on.evidence}\n${on.detail}\n${on.fix ?? ''}`), `${on.evidence} | ${on.detail} | ${on.fix}`)
+  t.check("the list runs that row once, with the machine's own probe", codingLoopFastChecks().filter(row => row.id === 'ide-plane-fast').length === 1)
 }
 
 t.section('§3 the debugger doc')
