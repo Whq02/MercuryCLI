@@ -2451,7 +2451,7 @@ env-whole	src/services/providers/melious/meliousAccounts.ts	5
 env-whole	src/services/providers/melious/meliousCatalogue.ts	4
 env-whole	src/services/providers/melious/meliousLogin.ts	1
 env-whole	src/services/providers/meta/metaAccounts.ts	13
-env-whole	src/services/providers/meta/metaCatalogue.ts	7
+env-whole	src/services/providers/meta/metaCatalogue.ts	6
 env-whole	src/services/providers/meta/metaLogin.ts	5
 env-whole	src/services/providers/meta/metaUsageState.ts	1
 env-whole	src/services/providers/minimax/minimaxAccounts.ts	6
@@ -2459,7 +2459,7 @@ env-whole	src/services/providers/minimax/minimaxCatalogue.ts	8
 env-whole	src/services/providers/minimax/minimaxLogin.ts	1
 env-whole	src/services/providers/minimax/minimaxUsageState.ts	5
 env-whole	src/services/providers/mistral/mistralAccounts.ts	6
-env-whole	src/services/providers/mistral/mistralCatalogue.ts	8
+env-whole	src/services/providers/mistral/mistralCatalogue.ts	7
 env-whole	src/services/providers/mistral/mistralLogin.ts	2
 env-whole	src/services/providers/mistral/mistralUsageState.ts	5
 env-whole	src/services/providers/moonshot/moonshotAccounts.ts	19
@@ -2467,7 +2467,7 @@ env-whole	src/services/providers/moonshot/moonshotCatalogue.ts	9
 env-whole	src/services/providers/moonshot/moonshotLogin.ts	2
 env-whole	src/services/providers/moonshot/moonshotUsageState.ts	7
 env-whole	src/services/providers/nous/nousAccounts.ts	10
-env-whole	src/services/providers/nous/nousCatalogue.ts	13
+env-whole	src/services/providers/nous/nousCatalogue.ts	12
 env-whole	src/services/providers/nous/nousClientContract.ts	6
 env-whole	src/services/providers/nous/nousLogin.ts	3
 env-whole	src/services/providers/nous/nousOauth.ts	2

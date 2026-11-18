@@ -27,6 +27,105 @@ const read = (path: string): string => {
 }
 const UNKNOWN_SESSION = '00000000-0000-4000-8000-000000000000'
 const UNORDERED = ['boot process census', '[daemon] hello from client', '[daemon] seat idle edge: ']
+const CLOCK = String.raw`if (process.argv.includes('daemon') && process.argv.includes('run') && process.env.DMR_CLOCK) {
+  const fs = require('fs')
+  const net = require('net')
+  const path = require('path')
+  const writeSync = fs.writeSync
+  const readFileSync = fs.readFileSync
+  const say = line => {
+    try {
+      writeSync(2, '[daemon] clock: ' + line + '\n')
+    } catch {}
+  }
+  const PLANE = /^(?:daemon\.json|control\.key|daemon\.lock|control\.sock(?:\.\d+)?)$/
+  const named = at => (typeof at === 'string' && PLANE.test(path.basename(at)) ? path.basename(at) : null)
+  let ticking = false
+  const wrap = (holder, fn, at, changes) => {
+    const real = holder[fn]
+    if (typeof real !== 'function') return
+    const wrapped = function (...args) {
+      const target = args[at]
+      if (ticking && typeof target === 'string') say('  ' + fn + ' ' + target.replace(/\.\d+\.[0-9a-f]+\.tmp$/, '.<n>.tmp'))
+      else if (changes && named(target) !== null) say(fn + ' ' + named(target) + (fn.startsWith('open') ? ' ' + String(args[1] === undefined ? 'r' : args[1]) : ''))
+      return real.apply(this, args)
+    }
+    holder[fn] = Object.assign(wrapped, real)
+  }
+  for (const fn of ['existsSync', 'readFileSync', 'statSync', 'lstatSync', 'readdirSync', 'accessSync', 'readlinkSync']) wrap(fs, fn, 0, false)
+  for (const fn of ['writeFileSync', 'unlinkSync', 'rmSync', 'openSync']) wrap(fs, fn, 0, true)
+  for (const fn of ['renameSync', 'linkSync', 'symlinkSync']) wrap(fs, fn, 1, true)
+  for (const fn of ['writeFile', 'unlink', 'rm', 'open']) wrap(fs.promises, fn, 0, true)
+  for (const fn of ['rename', 'link', 'symlink']) wrap(fs.promises, fn, 1, true)
+  const watch = fs.watch
+  fs.watch = function (...args) {
+    say('a watch on ' + String(args[0]))
+    return watch.apply(this, args)
+  }
+  const listen = net.Server.prototype.listen
+  net.Server.prototype.listen = function (...args) {
+    const at = typeof args[0] === 'string' ? args[0] : args[0] && typeof args[0] === 'object' ? args[0].path : undefined
+    if (typeof at === 'string') say('a server listens on ' + path.basename(at))
+    return listen.apply(this, args)
+  }
+  require('module').syncBuiltinESMExports()
+  const every = ms => ms / 1000 + 's'
+  const rows = []
+  const rowOf = new Map()
+  const arm = globalThis.setInterval
+  const clear = globalThis.clearInterval
+  const clearOnce = globalThis.clearTimeout
+  globalThis.setInterval = function (work, ms, ...rest) {
+    if (process.env.DMR_CLOCK_REFUSES === String(ms)) {
+      say('an interval every ' + every(ms) + ' is refused')
+      throw new Error('the clock of the recording refused an interval every ' + every(ms))
+    }
+    const row = { n: rows.length + 1, ms, work: () => work(...rest), stopped: false }
+    const timer = arm(() => {}, 2147483647)
+    rows.push(row)
+    rowOf.set(timer, row)
+    say('interval #' + row.n + ' armed, every ' + every(ms))
+    const unref = timer.unref.bind(timer)
+    timer.unref = () => {
+      say('interval #' + row.n + ' does not hold the process')
+      unref()
+      return timer
+    }
+    return timer
+  }
+  const stop = real =>
+    function (timer) {
+      const row = rowOf.get(timer)
+      if (row !== undefined && !row.stopped) {
+        row.stopped = true
+        say('interval #' + row.n + ' stopped')
+      }
+      return real.call(this, timer)
+    }
+  globalThis.clearInterval = stop(clear)
+  globalThis.clearTimeout = stop(clearOnce)
+  process.on('SIGUSR2', () => {
+    let order = ''
+    try {
+      order = readFileSync(process.env.DMR_CLOCK, 'utf8').trim()
+    } catch {}
+    const asked = /^tick (\d+)$/.exec(order)
+    const row = asked === null ? undefined : rows[Number(asked[1]) - 1]
+    if (row === undefined) return say('no interval answers the order "' + order + '"')
+    if (row.stopped) return say('interval #' + row.n + ' is stopped and does not tick')
+    say('tick of #' + row.n + ', every ' + every(row.ms))
+    ticking = true
+    try {
+      row.work()
+    } catch (error) {
+      say('  the tick threw: ' + (error && error.message))
+    } finally {
+      ticking = false
+    }
+    say('tick of #' + row.n + ' returned')
+  })
+}
+`
 const DEAD_ENV = ['MERCURY_HOME', 'MERCURY_DAEMON_DIR', 'MERCURY_CREW_DIR', 'MERCURY_DAEMON_OWNER_PID', 'MERCURY_DAEMON_OWNER_FD', 'MERCURY_DAEMON_PERSIST', 'MERCURY_DAEMON_SUCCESSOR_OF', 'MERCURY_DAEMON_HANDOVER_FROM', 'MERCURY_DAEMON_CONTROL', 'MERCURY_DAEMON_CONTROL_DISABLED', 'MERCURY_WORKER_PARENT_PID', 'MERCURY_CONCOURSE_WORKER', 'NODE_ENV', 'NODE_OPTIONS']
 
 type Reply = Record<string, unknown>
@@ -223,6 +322,27 @@ class World {
     try {
       process.kill(daemon.pid, signal)
     } catch {}
+  }
+
+  clock(refuses?: number): Record<string, string> {
+    const preload = join(this.root, 'clock.cjs')
+    if (!existsSync(preload)) writeFileSync(preload, CLOCK)
+    return { NODE_OPTIONS: `--require ${preload}`, DMR_CLOCK: join(this.root, 'clock.order'), ...(refuses === undefined ? {} : { DMR_CLOCK_REFUSES: String(refuses) }) }
+  }
+
+  armed(daemon: Daemon): number {
+    return this.logOf(daemon).split('clock: interval #').filter(rest => /^\d+ armed/.test(rest)).length
+  }
+
+  async tick(daemon: Daemon, n: number): Promise<void> {
+    const returned = `clock: tick of #${n} returned`
+    const before = this.logOf(daemon).split(returned).length
+    writeFileSync(join(this.root, 'clock.order'), `tick ${n}\n`)
+    this.say(`> tick of interval #${n} of ${daemon.label}`)
+    try {
+      process.kill(daemon.pid, 'SIGUSR2')
+    } catch {}
+    await this.until(`interval #${n} of ${daemon.label} ticked`, () => this.logOf(daemon).split(returned).length > before, 15_000)
   }
 
   async cli(label: string, args: string[], dist?: string): Promise<{ code: number | null; text: string }> {
@@ -942,6 +1062,82 @@ export const SCENARIOS: Scenario[] = [
       const f = await w.boot('d3', { wait: 'exit', waitMs: 30_000, extra: { MERCURY_DAEMON_SUCCESSOR_OF: String(third.pid) } })
       void f
       w.files('refused')
+    },
+  },
+  {
+    name: 'periodic-cold',
+    about: 'a cold start under a clock the scenario owns: each interval as it is armed among the steps of the boot, with its period; one tick of each, with the files it reads; and what stops it on SIGTERM',
+    seconds: 8,
+    covers: { boot: ['serve'], periodic: ['the plane heal (armed, ticked, stopped)', 'the armed-restart beat (armed, ticked, stopped)', 'the sessionless beat (armed, ticked, stopped)', 'the reconcile tick (armed, ticked)', 'the keep-alive (armed, ticked, stopped)'], waysOut: ['SIGTERM'] },
+    run: async w => {
+      const d = await w.boot('d1', { extra: w.clock() })
+      const armed = w.armed(d)
+      for (let n = 1; n <= armed; n++) await w.tick(d, n)
+      w.signal(d, 'SIGTERM')
+      await w.left(d)
+      w.files('left')
+    },
+  },
+  {
+    name: 'periodic-handover',
+    about: 'a handover under a clock the scenario owns: the two beats a handover adds, armed in their place; the first sweep, a second after the boot, asks the idle older daemon to leave; a tick of the lock beat takes the lock; and what stops each in the older daemon and in the newer',
+    seconds: 20,
+    covers: { boot: ['handover'], periodic: ['the idle-predecessor sweep (armed, its first run, stopped)', 'the handover lock beat (armed, ticked, stops itself)', 'the plane heal (armed, ticked, stopped)'], waysOut: ['control:shutdown asked by the successor', 'control:shutdown'] },
+    run: async w => {
+      const a = w.payload('a')
+      w.deploy(a)
+      const older = await w.boot('older', { dist: a, extra: w.clock() })
+      const b = w.payload('b')
+      w.deploy(b)
+      await w.logged(older, /the installed build moved to/, 15_000)
+      const newer = await w.boot('newer', { dist: b, extra: { ...w.clock(), MERCURY_DAEMON_HANDOVER_FROM: String(older.pid) } })
+      await w.left(older, 30_000)
+      for (const n of [1, 2, 3]) await w.tick(newer, n)
+      await w.tick(newer, 5)
+      await w.logged(newer, /the predecessor released the daemon lock/, 15_000)
+      const armed = w.armed(newer)
+      for (let n = 6; n <= armed; n++) await w.tick(newer, n)
+      await w.rpc('hello of the plane', { op: 'hello', clientVersion: '1.0.0', clientBuildTree: null })
+      w.files('the newer one holds the lock')
+      await w.cli('mercury daemon stop', ['daemon', 'stop'], b)
+      await w.left(newer)
+      w.files('left')
+    },
+  },
+  {
+    name: 'periodic-restart',
+    about: 'a restart under a clock the scenario owns: armed behind a session, it is taken by one tick of the armed-restart beat and by no other; what the leaving daemon stops, and each interval of the successor as it is armed',
+    seconds: 30,
+    covers: { boot: ['serve as successor (wait-lock)'], doors: ['restartWhenIdle'], periodic: ['the armed-restart beat (its tick takes the restart)', 'the sessionless beat (its tick does not)'], waysOut: ['restart-when-idle:armed', 'the restart after teardown'] },
+    run: async w => {
+      const d = await w.boot('d1', { extra: { ...w.clock(), MERCURY_MAX_RETRIES: '0' } })
+      const s = await w.admit('s1')
+      await w.rpc('restart-when-idle behind a session', { op: 'restart-when-idle', by: 'recorder' })
+      await w.control('stop s1', s.sid, 'stop')
+      await w.until('s1 stopped', () => w.record(s.sid)?.stoppedAt !== undefined && !alive(s.pid), 30_000)
+      await w.tick(d, 3)
+      await w.rpc('hello, the restart still armed', { op: 'hello', clientVersion: '1.0.0', clientBuildTree: null })
+      await w.tick(d, 2)
+      await w.left(d, 30_000)
+      const next = await w.successor(d)
+      await w.rpc('hello of the successor', { op: 'hello', clientVersion: '1.0.0', clientBuildTree: null })
+      await w.cli('mercury daemon stop', ['daemon', 'stop'])
+      await w.until('the successor left', () => !alive(next), 20_000)
+      w.files('left')
+    },
+  },
+  {
+    name: 'periodic-failed-boot',
+    about: 'a boot that fails with intervals armed, under a clock the scenario owns: the clock refuses the third interval, before the daemon is ready, and in a second daemon the one armed after it is ready; nothing stops the ones that were armed, the home is given back, exit 1',
+    seconds: 8,
+    covers: { boot: ['the control layer fails to start (intervals armed)'], periodic: ['the plane heal (armed, a failed boot stops nothing)'], waysOut: ['the failed boot (intervals armed)'] },
+    run: async w => {
+      const early = await w.boot('d1', { wait: 'exit', extra: w.clock(5000) })
+      void early
+      w.files('the first left')
+      const late = await w.boot('d2', { wait: 'exit', extra: w.clock(60_000) })
+      void late
+      w.files('the second left')
     },
   },
 ]
