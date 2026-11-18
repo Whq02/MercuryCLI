@@ -307,7 +307,7 @@ export const SNAPSHOT_KEEPS_ALIASES = 'echo "shopt -s expand_aliases" >> "$SNAPS
 
 export const SNAPSHOT_OPTIONS: readonly string[] = [
   `shopt -p | head -n 1000 >> "$SNAPSHOT_FILE"`,
-  `set -o | grep on | awk '{print $1}' | sed 's/^/set -o /' | head -n 1000 >> "$SNAPSHOT_FILE"`,
+  `set -o | awk '$2 == "on" { print "set -o " $1 }' | head -n 1000 >> "$SNAPSHOT_FILE"`,
   SNAPSHOT_KEEPS_ALIASES,
 ]
 

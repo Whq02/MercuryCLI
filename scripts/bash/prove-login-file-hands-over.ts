@@ -246,6 +246,8 @@ const HOMES: Record<string, { dir: string; env?: Record<string, string> }> = {
       '.bash_profile': 'shopt -s extglob\n_helper() { echo helper-ran; }\ncalls_helper() { _helper; }\nuses_extglob() { case "$1" in +(a|b)) echo extglob-fn-matched;; *) echo extglob-fn-no-match;; esac; }\nalias ll="ls -la"\n',
     }),
   },
+  'engine-armed': { dir: home('engine-armed', { '.profile': 'alias ll="ls -la"\nmyfunc() { echo fn-from-the-login-file; }\n' }), env: { MERCURY_SHELL_ENGINE: 'brush' } },
+  'engine-armed-bash-env': { dir: home('engine-armed-bash-env', { '.profile': 'alias ll="ls -la"\nmyfunc() { echo fn-from-the-login-file; }\n', '.bashenv': 'export FROM_BASH_ENV=1\n' }) },
   'posix-mode': { dir: home('posix-mode', { '.bash_profile': 'alias ll="ls -la"\nmyfunc() { echo fn-from-the-login-file; }\nset -o posix\n' }) },
   'many-functions': { dir: home('many-functions', { '.bash_profile': `${Array.from({ length: 300 }, (_, index) => `fn_${index}() { echo ${index}; }`).join('\n')}\n` }) },
   'guarded-bashrc': {
@@ -256,6 +258,7 @@ const HOMES: Record<string, { dir: string; env?: Record<string, string> }> = {
   },
 }
 HOMES['ends-unread']!.env = { BASH_ENV: join(HOMES['ends-unread']!.dir, '.bashenv') }
+HOMES['engine-armed-bash-env']!.env = { MERCURY_SHELL_ENGINE: 'brush', BASH_ENV: join(HOMES['engine-armed-bash-env']!.dir, '.bashenv') }
 const locked = join(HOMES['no-snapshot-folder']!.dir, 'locked')
 mkdirSync(locked, { mode: 0o555 })
 HOMES['no-snapshot-folder']!.env = { MERCURY_CONFIG_DIR: join(locked, 'config-home') }
@@ -396,6 +399,26 @@ try {
     whatIsCarried !== null && whatIsCarried.extglobOn.text === 'extglob-fn-matched',
     JSON.stringify(whatIsCarried?.extglobOn),
   )
+  const engineArmed = of('engine-armed').row
+  const engineWithBashEnv = of('engine-armed-bash-env').row
+  if (!/^brush /.test(engineArmed?.said?.evidence ?? '')) console.log('  [SKIP] engine-armed: the bundled engine does not serve here (its pack is absent), so its login run is not driven')
+  else {
+    check(
+      'engine-armed: under the bundled engine what ~/.profile defines is carried to a command, its alias and its function',
+      engineArmed !== null && engineArmed.carried.text.includes("alias ll='ls -la'") && engineArmed.carried.text.includes('fn-from-the-login-file'),
+      JSON.stringify(engineArmed?.carried),
+    )
+    check(
+      'engine-armed: a command there runs with job control off, and onecmd off: the options carried are those that are on',
+      engineArmed?.options.text === 'braceexpand=on monitor=off noclobber=off onecmd=off',
+      JSON.stringify(engineArmed?.options),
+    )
+    check(
+      'engine-armed-bash-env: with BASH_ENV set where Mercury was started the engine still takes its login run, and commands run with what ~/.profile defines',
+      engineWithBashEnv !== null && engineWithBashEnv.first.code === 0 && engineWithBashEnv.carried.text.includes("alias ll='ls -la'") && engineWithBashEnv.carried.text.includes('fn-from-the-login-file'),
+      JSON.stringify({ first: engineWithBashEnv?.first, carried: engineWithBashEnv?.carried }),
+    )
+  }
   const posixMode = of('posix-mode').row
   check(
     'posix-mode: under set -o posix the alias is carried as an alias, with the function',

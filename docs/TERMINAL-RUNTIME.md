@@ -381,7 +381,9 @@ long-lived brush process serves the main conversation and a separate process ser
 each crewmate: variables, functions, aliases and options persist between
 calls for their owner (state set by one crewmate is isolated from other crewmates and
 the main conversation, and a crewmate's shell process exits when the crewmate finishes), and
-the same shell runs on every OS without requiring Git for Windows. On
+the same shell runs on every OS without requiring Git for Windows. A session
+of the engine starts from one login run of the engine itself: the aliases,
+functions and options `~/.profile` defines are carried into it. On
 Windows it finds a `.cmd` or `.bat` program such as `npm` or `npx` by its
 bare name through PATHEXT, passes `%VAR%` and `^` to a batch file unchanged,
 and runs a program named by a relative path after a `cd`.

@@ -15,7 +15,7 @@ import { strikeProcessGroupNow } from '../processGroup.js'
 import { ripgrepCommand } from '../ripgrep.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { SNAPSHOT_KEEPS_ALIASES, SNAPSHOT_OPTIONS, argv0FunctionBody, noteLoginFiles, snapshotProfileOf, type LoginFilesAbsence, type ShellRecord } from '../shell/shellRecord.js'
-import { withShippedPrograms } from '../shell/windowsShellRoad.js'
+import { withRoadPrograms, withShippedPrograms } from '../shell/windowsShellRoad.js'
 import { quote } from './shellQuote.js'
 
 
@@ -236,17 +236,15 @@ fi`)
 
 
 const MERCURY_CONTENT_DELIMITER = '__MERCURY_SNAPSHOT_CONTENT__'
-const OPTIONS_THAT_ARE_ON = `set -o | awk '$2 == "on" { print "set -o " $1 }' | head -n 1000 >> "$SNAPSHOT_FILE"`
 
 function buildCaptureScript(args: {
   snapshotFilePath: string
   configFilePath: string
   configExists: boolean
   definitions: boolean
-  optionsByState: boolean
   mercuryContent: string
 }): string {
-  const { snapshotFilePath, configFilePath, configExists, definitions, optionsByState, mercuryContent } = args
+  const { snapshotFilePath, configFilePath, configExists, definitions, mercuryContent } = args
   const lines: string[] = []
 
   lines.push(`SNAPSHOT_FILE=${quote([snapshotFilePath])}`)
@@ -269,7 +267,7 @@ done`)
     lines.push('echo "} >/dev/null 2>&1" >> "$SNAPSHOT_FILE"')
 
     lines.push('echo "# Shell Options" >> "$SNAPSHOT_FILE"')
-    lines.push(...(optionsByState ? SNAPSHOT_OPTIONS.map(line => (line.startsWith('set -o ') ? OPTIONS_THAT_ARE_ON : line)) : SNAPSHOT_OPTIONS))
+    lines.push(...SNAPSHOT_OPTIONS)
 
     lines.push('echo "# Aliases" >> "$SNAPSHOT_FILE"')
     const winptyFilter = getPlatform() === 'windows' ? ' | grep -v winpty' : ''
@@ -377,11 +375,10 @@ export async function createAndSaveSnapshot(
       configFilePath,
       configExists,
       definitions: bashOfThisMachine || configExists,
-      optionsByState: bashOfThisMachine,
       mercuryContent,
     })
 
-    const inherited = withShippedPrograms(subprocessEnv(), shellPath)
+    const inherited = withRoadPrograms(subprocessEnv(), shell.origin, shellPath)
     const captureEnv: NodeJS.ProcessEnv = {
       ...inherited,
       ...(bashOfThisMachine ? {} : { SHELL: shellPath }),
@@ -389,7 +386,7 @@ export async function createAndSaveSnapshot(
       MERCURY: '1',
     }
 
-    const outcome = await runBounded(shellPath, ['-c', '-l', script], captureEnv, SNAPSHOT_CAPTURE_BOUND_MS, true)
+    const outcome = await runBounded(shellPath, shell.origin === 'engine' ? ['-l', '-c', script] : ['-c', '-l', script], captureEnv, SNAPSHOT_CAPTURE_BOUND_MS, true)
 
     if (outcome.killed || outcome.exitCode !== 0) {
       const absence = loginRunLeftNothing(outcome)
