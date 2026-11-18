@@ -17,7 +17,7 @@ import {
 import { isUnsignedThinkingBlock } from '../../utils/messages.js'
 import { getMessagesAfterCompactBoundary } from '../../utils/messages/systemMessages.js'
 import { contextFill, usageAnchorModel } from '../../utils/tokens.js'
-import { getBlockingLimit, resolveAutoCompactWindow } from '../compact/autoCompact.js'
+import { autoCompactWindowIsInputLimit, getBlockingLimit, resolveAutoCompactWindow } from '../compact/autoCompact.js'
 import { declaredRouteOf } from './routeLaw.js'
 
 import { toBridgeMessages } from './openai/openaiCallModel.js'
@@ -64,11 +64,13 @@ export function transitionWindowFact(
   const count = Math.max(fenced.tokens, anchored.tokens)
   const countModel = usageWins ? usageAnchorModel(live) : undefined
   const limit = getBlockingLimit(target)
+  const window = resolveAutoCompactWindow(target).window
   return {
     count,
     countSource: usageWins ? 'usage' : 'estimate',
     ...(countModel !== undefined ? { countModel } : {}),
-    window: resolveAutoCompactWindow(target).window,
+    window,
+    ...(autoCompactWindowIsInputLimit(target, window) ? { inputLimit: true as const } : {}),
     windowSource: resolveContextWindow(target, getSdkBetas()).source,
     limit,
     fits: count < limit,
@@ -311,7 +313,7 @@ export function transitionPlanSummary(plan: TransitionPlan): string {
   if (plan.window !== undefined && !plan.window.fits) {
     const fmt = (n: number): string => n.toLocaleString('en-US')
     parts.push(
-      `about ${fmt(plan.window.count)} tokens by Mercury's count against the ${fmt(plan.window.window)}-token window — the conversation folds before the first request`,
+      `about ${fmt(plan.window.count)} tokens by Mercury's count against the ${fmt(plan.window.window)}-token ${plan.window.inputLimit === true ? 'input limit' : 'window'} — the conversation folds before the first request`,
     )
   }
   return ` · this switch: ${parts.join(' · ')} — ${TRANSITION_CARRIED_WORDS}`

@@ -10,7 +10,7 @@ import {
   NEAR_WINDOW_SHARE,
 } from '../api/overflowSignal.js'
 import { tokenCountWithEstimation } from '../../utils/tokens.js'
-import { autoCompactDisabledReason, COMPACTION_PAUSED_KEY, compactionBreakerText, compactionSettingsText, getAutoCompactThreshold, rapidRefillPauseText, resolveAutoCompactWindow, type AutoCompactTrackingState } from './autoCompact.js'
+import { autoCompactDisabledReason, autoCompactWindowIsInputLimit, COMPACTION_PAUSED_KEY, compactionBreakerText, compactionSettingsText, getAutoCompactThreshold, rapidRefillPauseText, resolveAutoCompactWindow, type AutoCompactTrackingState } from './autoCompact.js'
 import { FOLD_WINDOW_REFUSAL_KEY } from './compact.js'
 import { compactionBreakerAllows } from './compactionPolicy.js'
 
@@ -144,7 +144,7 @@ export function requestSizeWarning(messages: readonly Message[], model: string):
   const window = resolveAutoCompactWindow(model).window
   if (!(window > 0) || tokens < Math.floor(window * SIZE_WARNING_SHARE)) return null
   const fmt = (n: number): string => n.toLocaleString('en-US')
-  const size = `about ${fmt(tokens)} of the model's ${fmt(window)}-token window by Mercury's count`
+  const size = `about ${fmt(tokens)} of the model's ${fmt(window)}-token ${autoCompactWindowIsInputLimit(model, window) ? 'input limit' : 'window'} by Mercury's count`
   const next = autoCompactDisabledReason() === null && tokens >= getAutoCompactThreshold(model)
     ? 'Mercury folds it before the next request'
     : '/compact folds it by hand'

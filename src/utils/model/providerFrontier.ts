@@ -14,7 +14,6 @@ export interface ProviderFrontierFact {
   modelId: string
   displayName: string
   observedAt?: string
-  source?: string
 }
 
 export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFact | undefined {
@@ -46,19 +45,19 @@ export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFac
         return { modelId: best.pin.id, displayName: best.pin.displayName, observedAt: best.pin.observedAt }
       }
       case 'xai': {
-        const { xaiCatalogueRows, xaiCatalogueSourceWords } = require('../../services/providers/xai/xaiCatalogue.js') as typeof import('../../services/providers/xai/xaiCatalogue.js')
+        const { xaiCatalogueRows } = require('../../services/providers/xai/xaiCatalogue.js') as typeof import('../../services/providers/xai/xaiCatalogue.js')
         const row = xaiCatalogueRows().rows[0]
-        return row ? { modelId: row.id, displayName: row.displayName, source: xaiCatalogueSourceWords() } : undefined
+        return row ? { modelId: row.id, displayName: row.displayName } : undefined
       }
       case 'meta': {
-        const { newestMetaModel, metaCatalogueRows, metaCatalogueSourceWords } = require('../../services/providers/meta/metaCatalogue.js') as typeof import('../../services/providers/meta/metaCatalogue.js')
+        const { newestMetaModel, metaCatalogueRows } = require('../../services/providers/meta/metaCatalogue.js') as typeof import('../../services/providers/meta/metaCatalogue.js')
         const row = metaCatalogueRows().rows.find(row => row.id === newestMetaModel())
-        return row ? { modelId: row.id, displayName: row.displayName, source: metaCatalogueSourceWords() } : undefined
+        return row ? { modelId: row.id, displayName: row.displayName } : undefined
       }
       case 'mistral': {
-        const { mistralCatalogueRows, mistralCatalogueSourceWords } = require('../../services/providers/mistral/mistralCatalogue.js') as typeof import('../../services/providers/mistral/mistralCatalogue.js')
+        const { mistralCatalogueRows } = require('../../services/providers/mistral/mistralCatalogue.js') as typeof import('../../services/providers/mistral/mistralCatalogue.js')
         const row = mistralCatalogueRows().rows[0]
-        return row ? { modelId: row.id, displayName: row.displayName, source: mistralCatalogueSourceWords() } : undefined
+        return row ? { modelId: row.id, displayName: row.displayName } : undefined
       }
       case 'zai':
       case 'moonshot':
@@ -66,7 +65,7 @@ export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFac
         const pin = keyLanePins(route)[0]
         if (!pin) return undefined
         const liveWords = route === 'deepseek' ? deepseekCatalogueSourceWords() : route === 'moonshot' ? moonshotCatalogueSourceWords() : zaiCatalogueSourceWords()
-        if (liveWords !== undefined) return { modelId: pin.id, displayName: pin.displayName, source: liveWords }
+        if (liveWords !== undefined) return { modelId: pin.id, displayName: pin.displayName }
         return { modelId: pin.id, displayName: pin.displayName, observedAt: pin.observedAt }
       }
       case 'gemini':
@@ -82,19 +81,19 @@ export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFac
       case 'fireworks':
         return undefined
       case 'minimax': {
-        const { minimaxCatalogueRows, minimaxCatalogueSourceWords } = require('../../services/providers/minimax/minimaxCatalogue.js') as typeof import('../../services/providers/minimax/minimaxCatalogue.js')
+        const { minimaxCatalogueRows } = require('../../services/providers/minimax/minimaxCatalogue.js') as typeof import('../../services/providers/minimax/minimaxCatalogue.js')
         const row = minimaxCatalogueRows().rows[0]
-        return row ? { modelId: row.id, displayName: row.displayName, source: minimaxCatalogueSourceWords() } : undefined
+        return row ? { modelId: row.id, displayName: row.displayName } : undefined
       }
       case 'cohere': {
-        const { cohereCatalogueRows, cohereCatalogueSourceWords } = require('../../services/providers/cohere/cohereCatalogue.js') as typeof import('../../services/providers/cohere/cohereCatalogue.js')
+        const { cohereCatalogueRows } = require('../../services/providers/cohere/cohereCatalogue.js') as typeof import('../../services/providers/cohere/cohereCatalogue.js')
         const row = cohereCatalogueRows().rows[0]
-        return row ? { modelId: row.id, displayName: row.displayName, source: cohereCatalogueSourceWords() } : undefined
+        return row ? { modelId: row.id, displayName: row.displayName } : undefined
       }
       case 'qwen': {
-        const { qwenCatalogueRows, qwenCatalogueSourceWords } = require('../../services/providers/qwen/qwenCatalogue.js') as typeof import('../../services/providers/qwen/qwenCatalogue.js')
+        const { qwenCatalogueRows } = require('../../services/providers/qwen/qwenCatalogue.js') as typeof import('../../services/providers/qwen/qwenCatalogue.js')
         const row = qwenCatalogueRows().rows[0]
-        return row ? { modelId: row.id, displayName: row.displayName, source: qwenCatalogueSourceWords() } : undefined
+        return row ? { modelId: row.id, displayName: row.displayName } : undefined
       }
       case 'huggingface': {
         const { getCachedHuggingfaceCatalogue } =
@@ -112,10 +111,10 @@ export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFac
         return { modelId: `huggingface/${pin.id}`, displayName: pin.displayName, observedAt: pin.observedAt }
       }
       case 'nous': {
-        const { getNousModelOptions, nousCatalogueSourceWords, NOUS_MODEL_PREFIX } =
+        const { getNousModelOptions, NOUS_MODEL_PREFIX } =
           require('../../services/providers/nous/nousCatalogue.js') as typeof import('../../services/providers/nous/nousCatalogue.js')
         const row = getNousModelOptions().find(option => option.value.startsWith(NOUS_MODEL_PREFIX) && option.unavailable === undefined)
-        return row ? { modelId: row.value, displayName: row.label, source: nousCatalogueSourceWords() } : undefined
+        return row ? { modelId: row.value, displayName: row.label } : undefined
       }
     }
   } catch {
@@ -132,15 +131,15 @@ function newerThan(a: GptRank, b: GptRank): boolean {
 const OPENAI_SESSION_TIER = 'sol'
 
 export function openaiSessionDefault(served: readonly string[]): ProviderFrontierFact | undefined {
-  const known: Array<GptRank & { variant: string; pin: (typeof GPT_DISPLAY_PINS)[number] }> = []
+  const general: Array<GptRank & { variant: string; pin: (typeof GPT_DISPLAY_PINS)[number] }> = []
   for (const pin of GPT_DISPLAY_PINS) {
     const identity = parseGptModelId(pin.id)
-    if (identity && served.includes(pin.id)) known.push({ id: pin.id, major: identity.major, minor: identity.minor, variant: identity.variant, pin })
+    if (identity && pin.variantKind === undefined && served.includes(pin.id)) general.push({ id: pin.id, major: identity.major, minor: identity.minor, variant: identity.variant, pin })
   }
   let newest: GptRank | undefined
-  for (const row of known) if (newest === undefined || newerThan(row, newest)) newest = row
+  for (const row of general) if (newest === undefined || newerThan(row, newest)) newest = row
   if (newest === undefined) return undefined
-  const release = known.filter(row => row.major === newest.major && row.minor === newest.minor)
+  const release = general.filter(row => row.major === newest.major && row.minor === newest.minor)
   const pick = release.find(row => row.variant === OPENAI_SESSION_TIER) ?? release[0]!
   return { modelId: pick.pin.id, displayName: pick.pin.displayName, observedAt: pick.pin.observedAt }
 }
@@ -191,11 +190,4 @@ export function providerLightFact(route: CallModelRoute): ProviderFrontierFact |
   } catch {
     return undefined
   }
-}
-
-export function providerFrontierLine(route: CallModelRoute): string | undefined {
-  const fact = providerFrontierFact(route)
-  if (!fact) return undefined
-  const detail = fact.source ?? fact.observedAt
-  return `frontier: ${fact.displayName}${detail ? ` · ${detail}` : ''}`
 }

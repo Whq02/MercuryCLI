@@ -25,6 +25,7 @@
 # gate-watch: src/utils/messages/attachmentText.ts src/utils/settings/types.ts
 # gate-watch: src/tools/ContextLeftTool/ContextLeftTool.ts src/utils/settings/settingsCache.ts
 # gate-watch: scripts/lib/crossfamilyConcourseFixture.ts src/services/compact/compact.ts
+# gate-watch: src/services/compact/overflowRecovery.ts
 # gate-watch: scripts/lib/builtProduct.ts
 # gate-watch: src/run-core/turn/**
 # gate-watch: scripts/core-runtime/turnScenarios.ts
