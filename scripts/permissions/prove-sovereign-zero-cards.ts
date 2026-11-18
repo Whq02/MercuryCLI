@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { PassThrough } from 'node:stream'
 import { getPlatform } from '../../src/utils/platform.js'
@@ -335,7 +336,38 @@ section('§5 the hosted runner and the daemon-hosted cockpit (E): the runner par
   host.end()
   runner.end()
   getPlatform.cache.delete(undefined)
-  check('the daemon-hosted cockpit paints only what the runner parked (readAsks → buildConfirm reads no posture of its own: an empty projection is an empty queue)', /readSessionAsks\(this\.record\.sessionId\)/.test(source('src/services/engine-connector/daemonConnector.ts')) && /private buildConfirm\(row: SessionAskProjectionV1\)/.test(source('src/services/engine-connector/daemonConnector.ts')))
+  {
+    const plane = mkdtempSync(join(tmpdir(), 'zero-cards-cockpit-'))
+    const planeBefore = process.env.MERCURY_DAEMON_DIR
+    process.env.MERCURY_DAEMON_DIR = plane
+    const { AsksPart } = await import('../../src/services/engine-connector/daemon/asks.ts')
+    const { publishSessionAsks } = await import('../../src/services/engine-connector/seatProjections.ts')
+    const sessionId = 'zero-cards-cockpit'
+    const cockpit = new AsksPart({
+      record: () => ({ sessionId }),
+      rows: () => [],
+      facts: () => null,
+      permissionMode: () => 'sovereign' as never,
+      chainRpc: async () => ({ ok: true, outcome: 'applied' }),
+      deliver: async () => ({ state: 'accepted' }) as never,
+    })
+    cockpit.readAsks()
+    const unpublished = cockpit.asks().length
+    publishSessionAsks({ schema: 1, sessionId, asks: [] })
+    cockpit.readAsks()
+    const empty = cockpit.asks().length
+    publishSessionAsks({ schema: 1, sessionId, asks: [{ requestId: 'parked-1', toolUseId: 'toolu_parked', toolName: 'Edit', input: { file_path: SHARE }, description: 'edit the share', askedAt: 1 }] })
+    cockpit.readAsks()
+    const parked = cockpit.asks()
+    check(
+      'the daemon-hosted cockpit paints only what the runner parked (readAsks → buildConfirm reads no posture of its own: an empty projection is an empty queue)',
+      unpublished === 0 && empty === 0 && parked.length === 1 && parked[0]!.id === 'parked-1' && parked[0]!.toolName === 'Edit' && JSON.stringify(parked[0]!.confirm.input) === JSON.stringify({ file_path: SHARE }) && parked[0]!.confirm.permissionResult.behavior === 'ask',
+      JSON.stringify({ unpublished, empty, parked: parked.map(ask => [ask.id, ask.toolName]) }),
+    )
+    if (planeBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
+    else process.env.MERCURY_DAEMON_DIR = planeBefore
+    rmSync(plane, { recursive: true, force: true })
+  }
 }
 
 section('§6 the arming of sovereign is untouched: the launch flag or the Boot Menu row, never a typed mode or a saved setting')

@@ -8,6 +8,7 @@ const PARTS_DIR = 'src/services/engine-connector/daemon'
 const SELF = 'scripts/engine-connector/prove-connector-parts-law.ts'
 
 const PARTS: Readonly<Record<string, { file: string; type: string }>> = {
+  asksPart: { file: 'asks.ts', type: 'AsksPart' },
   completionPart: { file: 'completion.ts', type: 'CompletionPart' },
   foldPart: { file: 'fold.ts', type: 'FoldPart' },
   workPart: { file: 'work.ts', type: 'WorkPart' },
@@ -16,7 +17,6 @@ const PARTS: Readonly<Record<string, { file: string; type: string }>> = {
 const OF_THE_DOOR: readonly string[] = ['carrier', 'record', 'attached', 'factsFeed', 'asksFeed', 'tailFeed', 'progressFeed', 'turnInFlight', 'verbChain']
 
 const AWAITING_THEIR_PART: Readonly<Record<string, readonly string[]>> = {
-  asks: ['askEntries', 'confirms', 'askListeners'],
   admission: ['admission', 'refusedAdmission', 'awaitingRunnerFacts', 'openedAtMs', 'startShownSinceMs', 'seedFactsAtMs'],
   tail: ['tailStore', 'tailAtMs', 'tailMessageId', 'interruptedMessageId', 'withdrawnMessageId', 'tailSeq', 'tailSinceMs', 'textRows', 'arrivalSeq'],
   live: ['effectiveLive', 'liveListeners', 'liveTurnChars', 'liveTurnOutputTokens', 'liveTurnThinkingChars', 'liveTurnThinkingBlocks', 'liveFirstByteAtMs', 'liveStateWord', 'liveAgentsWaiting', 'liveWait', 'liveWaitOwnAge', 'lastEventAtMs', 'streamBlock', 'blockSinceMs', 'toolBudgets', 'livenessTicker', 'interrupting', 'interruptPressedAtMs', 'hardStopping', 'progressAtMs', 'publishedProgressSeqs'],

@@ -643,7 +643,8 @@ as-unknown-as	src/services/changeTransaction/blockAnchors.ts	1
 as-unknown-as	src/services/changeTransaction/snapshotAnchor.ts	1
 as-unknown-as	src/services/compact/foldTransaction.ts	1
 as-unknown-as	src/services/desktop/nativeDriver.ts	1
-as-unknown-as	src/services/engine-connector/daemonConnector.ts	10
+as-unknown-as	src/services/engine-connector/daemon/asks.ts	3
+as-unknown-as	src/services/engine-connector/daemonConnector.ts	7
 as-unknown-as	src/services/engine-connector/endedRunCalls.ts	1
 as-unknown-as	src/services/engine-connector/midTurnText.ts	1
 as-unknown-as	src/services/engine-connector/queuedNotices.ts	1
@@ -794,7 +795,8 @@ as-never	src/services/concourse/concourseSnapshot.ts	1
 as-never	src/services/concourse/sessionTitleMint.ts	2
 as-never	src/services/crew/dispatch.ts	3
 as-never	src/services/crew/projection.ts	2
-as-never	src/services/engine-connector/daemonConnector.ts	6
+as-never	src/services/engine-connector/daemon/asks.ts	3
+as-never	src/services/engine-connector/daemonConnector.ts	3
 as-never	src/services/engine-connector/noSessionConnector.ts	4
 as-never	src/services/eval/evalBridge.ts	5
 as-never	src/services/host/worker.ts	1
@@ -1405,7 +1407,8 @@ empty-catch-handler	src/services/crew/seatBridge.ts	1
 empty-catch-handler	src/services/crewBoard/party.ts	1
 empty-catch-handler	src/services/dap/dapClient.ts	9
 empty-catch-handler	src/services/desktop/desktopClaim.ts	2
-empty-catch-handler	src/services/engine-connector/daemonConnector.ts	5
+empty-catch-handler	src/services/engine-connector/daemon/asks.ts	1
+empty-catch-handler	src/services/engine-connector/daemonConnector.ts	4
 empty-catch-handler	src/services/eval/kernelManager.ts	2
 empty-catch-handler	src/services/host/boxEngine.ts	1
 empty-catch-handler	src/services/host/ggufHeader.ts	3

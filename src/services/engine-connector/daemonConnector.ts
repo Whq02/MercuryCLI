@@ -3,16 +3,13 @@ import { flagEnv, flagEnabled } from '../../substrate/flagRegistry.js'
 import { armInactivityDeadline } from '../../utils/deadline.js'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
 import { basename, dirname, join } from 'node:path'
-import type { Message, AssistantMessage } from '../../types/message.js'
+import type { Message } from '../../types/message.js'
 import { readClearModelReceipt } from '../switchboard/sessionReceipts.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import type { PermissionMode } from '../../types/permissions.js'
-import { decodeDecisionReasonFromWire } from '../../utils/permissions/decisionReasonWire.js'
 import type { PastedContent } from '../../utils/config/schema.js'
 import { storedImageRefBlock } from '../../utils/imageStore.js'
 import { submitTrace } from '../../utils/submitTrace.js'
-import type { Tool, ToolUseContext } from '../../Tool.js'
-import type { ToolUseConfirm } from '../../components/permissions/PermissionRequest.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { randomUUID } from 'node:crypto'
 import type { SessionKitEditV1 } from '../../daemon/sessionKit.js'
@@ -22,15 +19,11 @@ const BOTH_SWITCHES_ON: SpawnSwitchFacts = Object.freeze({
   subagents: Object.freeze({ on: true, source: 'default' as const }),
   workflows: Object.freeze({ on: true, source: 'default' as const }),
 })
-import { createAssistantMessage, createUserMessage } from '../../utils/messages/factories.js'
+import { createUserMessage } from '../../utils/messages/factories.js'
 import { createModelTransitionMessage, createSeatReceiptMessage } from '../../utils/messages/systemMessages.js'
 import { providerFamilyOfSetting } from '../../utils/model/modelTransition.js'
 import { createLiveTurnFold, deserializeLiveMessages, type LiveTurnFold } from '../../utils/conversationRecovery.js'
 import type { TranscriptChainCursor } from '../../utils/sessionStorage/transcriptReader.js'
-import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } from '../../utils/fileStateCache.js'
-import { getAllBaseTools } from '../../tools.js'
-import { MCPTool } from '../../tools/MCPTool/MCPTool.js'
-import { mcpInfoFromString } from '../mcp/mcpStringUtils.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { createStreamingTailStore, type StreamingTailStore } from '../../utils/messages/streamingTailStore.js'
 import { adoptOpenaiObservedUsage, adoptOpenaiWindowFact } from '../providers/openai/openaiLimitState.js'
@@ -40,7 +33,6 @@ import { mergeRecordsContentKeyed } from './recordIdentity.js'
 import { placeLocalCommandRows } from './localCommandRows.js'
 import { endedRunResults } from './endedRunCalls.js'
 import {
-  readSessionAsks,
   readSessionFacts,
   readSessionProgress,
   readSessionTail,
@@ -52,7 +44,6 @@ import {
   sessionProgressPath,
   sessionTailDir,
   sessionTailPath,
-  type SessionAskProjectionV1,
   type SessionFactsV1,
   type SessionProgressEntryV1,
 } from './seatProjections.js'
@@ -105,6 +96,7 @@ import type {
 } from './types.js'
 import { bootBirthFacts, type BootBirthFacts } from '../switchboard/bootBirthFacts.js'
 import { seatInitialPermissionMode } from '../../daemon/concourseWorkers.js'
+import { AsksPart } from './daemon/asks.js'
 import { CompletionPart } from './daemon/completion.js'
 import { FoldPart } from './daemon/fold.js'
 import { emitAll, type Listeners } from './daemon/shared.js'
@@ -268,17 +260,6 @@ function textOfUserRow(m: Message): string {
       .join('')
   }
   return ''
-}
-
-function toolFor(name: string): Tool {
-  const known = getAllBaseTools().find(t => t.name === name)
-  if (known) return known
-  const served = mcpInfoFromString(name)
-  return {
-    ...MCPTool,
-    name,
-    userFacingName: () => (served?.toolName === undefined ? name : `${served.serverName} - ${served.toolName} (MCP)`),
-  } as unknown as Tool
 }
 
 export function projectionChangeKey(stat: { mtimeMs: number; size: number; ino: number }): string {
@@ -545,10 +526,15 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private readonly permissionListeners: Listeners = new Set()
   private readonly workPart = new WorkPart({ facts: () => this.facts, carrierGone: () => this.carrierGoneAtFactsMs !== null })
 
-  private askEntries: SessionAskV1[] = []
-  private readonly confirms = new Map<string, ToolUseConfirm>()
+  private readonly asksPart = new AsksPart({
+    record: () => this.record,
+    rows: () => this.rawRecords,
+    facts: () => this.facts,
+    permissionMode: () => this.permissionMode(),
+    chainRpc: req => this.chainRpc(req),
+    deliver: (text, opts) => this.deliver(text, opts),
+  })
   private readonly asksFeed: ProjectionFeed
-  private readonly askListeners: Listeners = new Set()
 
   private readonly tailFeed: ProjectionFeed
   private readonly tailStore: StreamingTailStore = createStreamingTailStore()
@@ -1572,131 +1558,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   private readAsks(): void {
-    const projection = readSessionAsks(this.record.sessionId)
-    const rows: SessionAskProjectionV1[] = projection?.asks ?? []
-    const nextIds = rows.map(r => r.requestId)
-    const sameIds = nextIds.length === this.askEntries.length && nextIds.every((id, i) => id === this.askEntries[i]!.id)
-    if (sameIds && projection !== null) return
-    if (projection === null && this.askEntries.length === 0) return
-    const next: SessionAskV1[] = []
-    for (const row of rows) {
-      let confirm = this.confirms.get(row.requestId)
-      if (confirm === undefined) {
-        confirm = this.buildConfirm(row)
-        this.confirms.set(row.requestId, confirm)
-      }
-      next.push({
-        id: row.requestId,
-        confirm,
-        toolName: row.toolName,
-        ...(row.agentId !== undefined ? { agentId: row.agentId } : {}),
-        askedAt: row.askedAt,
-        ...(row.limitMs !== undefined ? { limitMs: row.limitMs } : {}),
-      })
-    }
-    for (const id of [...this.confirms.keys()]) if (!nextIds.includes(id)) this.confirms.delete(id)
-    this.askEntries = next
-    emitAll(this.askListeners, 'asks')
-  }
-
-  private assistantRecordFor(toolUseId: string, toolName: string, input: Record<string, unknown>): AssistantMessage {
-    for (let i = this.rawRecords.length - 1; i >= 0; i--) {
-      const m = this.rawRecords[i]!
-      if (m.type !== 'assistant') continue
-      const content = (m as { message?: { content?: unknown } }).message?.content
-      if (Array.isArray(content) && content.some(b => (b as { type?: string; id?: string }).type === 'tool_use' && (b as { id?: string }).id === toolUseId)) {
-        return m as AssistantMessage
-      }
-    }
-    return createAssistantMessage({
-      content: [{ type: 'tool_use', id: toolUseId, name: toolName, input }] as unknown as Parameters<
-        typeof createAssistantMessage
-      >[0]['content'],
-    })
-  }
-
-  private standInToolUseContext(): ToolUseContext {
-    const facts = this.facts
-    return {
-      options: {
-        commands: [],
-        debug: false,
-        verbose: false,
-        engineModel: facts?.model.effective ?? this.record.modelKey ?? getEngineModel(),
-        tools: getAllBaseTools(),
-        mcpClients: [],
-        isNonInteractiveSession: false,
-        agentDefinitions: { activeAgents: [], allAgents: [] },
-      },
-      abortController: new AbortController(),
-      readFileState: createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE),
-      getAppState: () => {
-        throw new Error('a daemon-hosted session has no in-process app state')
-      },
-      setAppState: () => {},
-      messages: this.rawRecords,
-      setResponseLength: () => {},
-      updateFileHistoryState: () => {},
-      updateAttributionState: () => {},
-    } as unknown as ToolUseContext
-  }
-
-  private buildConfirm(row: SessionAskProjectionV1): ToolUseConfirm {
-    const tool = toolFor(row.toolName)
-    const decisionReason =
-      decodeDecisionReasonFromWire(row.decisionReasonDetail) ??
-      (row.decisionReason !== undefined ? { type: 'other' as const, reason: row.decisionReason } : undefined)
-    const permissionResult = {
-      behavior: 'ask' as const,
-      message: `${row.toolName} asks to run`,
-      ...(row.suggestions !== undefined ? { suggestions: row.suggestions } : {}),
-      ...(row.blockedPath !== undefined ? { blockedPath: row.blockedPath } : {}),
-      ...(decisionReason !== undefined ? { decisionReason } : {}),
-    }
-    let description = row.description ?? tool.userFacingName(row.input as never) ?? row.toolName
-    const confirm: ToolUseConfirm = {
-      assistantMessage: this.assistantRecordFor(row.toolUseId, row.toolName, row.input),
-      tool,
-      get description() {
-        return description
-      },
-      input: row.input,
-      toolUseContext: this.standInToolUseContext(),
-      toolUseID: row.toolUseId,
-      permissionResult: permissionResult as ToolUseConfirm['permissionResult'],
-      permissionPromptStartTimeMs: row.askedAt,
-      ...(row.cwd !== undefined ? { cwd: row.cwd } : {}),
-      onUserInteraction: () => {},
-      onAbort: () => {
-        void this.answerThroughDaemon(row.requestId, { kind: 'abort' })
-      },
-      onAllow: async (updatedInput, permissionUpdates, feedback, contentBlocks) => {
-        await this.answerThroughDaemon(row.requestId, {
-          kind: 'allow',
-          updatedInput: updatedInput as Record<string, unknown>,
-          permissionUpdates,
-          feedback,
-          contentBlocks,
-        })
-      },
-      onReject: async (feedback, contentBlocks) => {
-        await this.answerThroughDaemon(row.requestId, { kind: 'deny', feedback, contentBlocks })
-      },
-      recheckPermission: async () => {},
-    }
-    if (row.description !== undefined) return confirm
-    void Promise.resolve(
-      tool.description(row.input as never, {
-        isNonInteractiveSession: false,
-        toolPermissionContext: { mode: this.permissionMode() ?? 'default' } as never,
-        tools: getAllBaseTools(),
-      }),
-    )
-      .then(text => {
-        if (typeof text === 'string' && text.trim() !== '') description = text
-      })
-      .catch(() => {})
-    return confirm
+    this.asksPart.readAsks()
   }
 
 
@@ -1710,41 +1572,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const link = this.verbChain.then(() => this.rpc(req))
     this.verbChain = link.catch(() => {})
     return link
-  }
-
-  private async answerThroughDaemon(requestId: string, answer: AskAnswerV1): Promise<AskReceiptV1> {
-    this.settleAsk(requestId)
-    try {
-      const reply = await this.chainRpc({
-        op: 'sessionControl',
-        action: 'answer-permission',
-        sessionId: this.record.sessionId,
-        by: 'operator',
-        requestId,
-        allow: answer.kind === 'allow',
-        answer:
-          answer.kind === 'allow'
-            ? {
-                ...(answer.updatedInput !== undefined ? { updatedInput: answer.updatedInput } : {}),
-                ...(answer.permissionUpdates !== undefined && answer.permissionUpdates.length > 0
-                  ? { permissionUpdates: answer.permissionUpdates }
-                  : {}),
-              }
-            : answer.kind === 'deny'
-              ? { ...(answer.feedback !== undefined ? { feedback: answer.feedback } : {}) }
-              : { interrupt: true },
-      })
-      const ok = reply.ok === true && reply.outcome === 'applied'
-      if (!ok) return { ok: false, detail: String(reply.detail ?? reply.error ?? 'the ask was already answered') }
-      const feedback = answer.kind === 'allow' || answer.kind === 'deny' ? answer.feedback?.trim() : undefined
-      const blocks = answer.kind === 'allow' || answer.kind === 'deny' ? answer.contentBlocks : undefined
-      if ((answer.kind === 'allow' && feedback) || (blocks !== undefined && blocks.length > 0)) {
-        void this.deliver(feedback ?? '', { extraBlocks: blocks })
-      }
-      return { ok: true }
-    } catch (e) {
-      return { ok: false, detail: `the daemon was unreachable — ${e instanceof Error ? e.message : String(e)}` }
-    }
   }
 
   private async deliver(
@@ -1915,36 +1742,25 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   asks(): readonly SessionAskV1[] {
-    return this.askEntries
+    return this.asksPart.asks()
   }
 
   subscribeAsks(listener: () => void): () => void {
-    this.askListeners.add(listener)
-    return () => {
-      this.askListeners.delete(listener)
-    }
+    return this.asksPart.subscribeAsks(listener)
   }
 
   answerAsk(askId: string, answer: AskAnswerV1): Promise<AskReceiptV1> {
-    if (!this.askEntries.some(a => a.id === askId)) {
-      return Promise.resolve({ ok: false, detail: 'no pending ask carries that id' })
-    }
-    return this.answerThroughDaemon(askId, answer)
+    return this.asksPart.answerAsk(askId, answer)
   }
 
   settleAsk(askId: string): void {
-    if (!this.askEntries.some(a => a.id === askId)) return
-    this.askEntries = this.askEntries.filter(a => a.id !== askId)
-    this.confirms.delete(askId)
-    emitAll(this.askListeners, 'asks')
+    this.asksPart.settleAsk(askId)
   }
 
   interrupt(): boolean {
-    const wasRunning = this.effectiveLive.inFlight || this.askEntries.length > 0
+    const wasRunning = this.effectiveLive.inFlight || this.asksPart.asks().length > 0
     if (!wasRunning) return false
-    for (const entry of this.askEntries) this.confirms.delete(entry.id)
-    this.askEntries = []
-    emitAll(this.askListeners, 'asks')
+    this.asksPart.dropAll()
     if (this.interrupting && this.hardStopping) return true
     const hard = this.interrupting
     if (hard) this.hardStopping = true
