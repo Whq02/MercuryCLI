@@ -920,7 +920,7 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
   await scenario('carrier-gone-and-back', async h => {
     h.daemonRecord('alive')
     await h.hold(true)
-    await h.transcript('a turn waits on its crew', [h.user('run the errands'), h.assistant('msg_crew', [{ type: 'tool_use', id: 'toolu_crew', name: 'Agent', input: { prompt: 'go' } }])])
+    await h.transcript('a turn waits on its crew', [h.user('run the errands'), h.assistant('msg_crew', [{ type: 'tool_use', id: 'toolu_crew', name: 'Crewmate', input: { prompt: 'go' } }])])
     await h.facts({ busy: true, turnStartedAt: clock.now(), work: [crewRow('agent-a', 'running')], mission: [{ id: 'm1', title: 'the mission', status: 'running' }], samples: [{ id: 's1', label: 'a sample' }] })
     await h.advance(1000)
     await h.carrierGone()
