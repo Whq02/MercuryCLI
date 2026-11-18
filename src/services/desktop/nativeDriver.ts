@@ -5,6 +5,7 @@ import { getProjectsDir } from '../../utils/sessionStorage/paths.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { sleep } from '../../utils/sleep.js'
 import { voiceCheckoutRoot } from '../voice/voicePack.js'
 import { computerAccessWords } from './computerAccess.js'
 import { bundleWebEngine } from './webEngine.js'
@@ -499,7 +500,7 @@ class NativeDesktopDriver implements DesktopDriver {
     if (first.kind === 'captured') return { ok: true, value: first.raw }
     if (first.kind === 'failed') return fail(classifyThrown(new Error(first.note)))
     const wait = CAPTURE_CHILD_RETRY_WAIT_MS[0] + Math.floor(Math.random() * (CAPTURE_CHILD_RETRY_WAIT_MS[1] - CAPTURE_CHILD_RETRY_WAIT_MS[0]))
-    await new Promise<void>(resolve => { const timer = setTimeout(done, wait); function done() { clearTimeout(timer); signal.removeEventListener('abort', done); resolve() } signal.addEventListener('abort', done, { once: true }) })
+    await sleep(wait, signal)
     if (signal.aborted) return desktopAbortedAnswer()
     const second = await this.captureInChild(display, region, signal)
     if (signal.aborted) return desktopAbortedAnswer()
@@ -703,7 +704,7 @@ class NativeDesktopDriver implements DesktopDriver {
       if (signal.aborted) return desktopAbortedAnswer()
       if (front.ok && front.value.identity === app.identity && front.value.pid === app.pid) return front
       if (Date.now() >= deadline) break
-      await new Promise<void>(resolve => { const timer = setTimeout(done, 50); function done() { clearTimeout(timer); signal.removeEventListener('abort', done); resolve() } signal.addEventListener('abort', done, { once: true }) })
+      await sleep(50, signal)
     }
     return signal.aborted ? desktopAbortedAnswer() : fail({ kind: 'display', note: `${app.name} did not come to the front` })
   }
