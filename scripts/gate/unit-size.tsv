@@ -94,8 +94,8 @@ src/services/dap/dapClient.ts	file	-	2413
 src/services/dap/dapClient.ts	unit	DapSession	1161
 src/services/desktop/fakeDesktopDriver.ts	unit	FakeDesktopDriver	408
 src/services/desktop/nativeDriver.ts	unit	NativeDesktopDriver	591
-src/services/engine-connector/daemonConnector.ts	file	-	1972
-src/services/engine-connector/daemonConnector.ts	unit	DaemonSessionConnector	1618
+src/services/engine-connector/daemonConnector.ts	file	-	1902
+src/services/engine-connector/daemonConnector.ts	unit	DaemonSessionConnector	1536
 src/services/eval/jsCellTransform.ts	unit	createJsCellTransformer	527
 src/services/eval/jsRunnerSource.ts	text	JS_RUNNER_SOURCE	440
 src/services/eval/kernelManager.ts	unit	EvalKernelManager	449

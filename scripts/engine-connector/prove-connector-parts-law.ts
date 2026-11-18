@@ -479,7 +479,7 @@ section('§2 the estate: the class holds the parts and what the door needs; the 
   const declared = fieldsOf(connector)
   const awaiting = Object.values(AWAITING_THEIR_PART).flat().length
   const by = (law: Law): Finding[] => found.filter(f => f.law === law)
-  check(`no field is declared on DaemonSessionConnector beyond the list (${declared.length} with the record its constructor holds: ${Object.keys(PARTS).length} parts, ${OF_THE_DOOR.length} of the door, ${awaiting} awaiting their part)`, by('field').length === 0, told(by('field')))
+  check(`no field is declared on DaemonSessionConnector beyond the list (${declared.length} with the record and the hands its constructor holds: ${Object.keys(PARTS).length} parts, ${OF_THE_DOOR.length} of the door, ${awaiting} awaiting their part)`, by('field').length === 0, told(by('field')))
   check('the list holds no field the class has let go, and each part is the class its file declares', by('list').length === 0, told(by('list')))
   check(`the class declares an accessor only for a name a proof reaches through a cast (${REACHED_BY_PROOFS.length}: ${REACHED_BY_PROOFS.join(', ') || 'none'})`, by('accessor').length === 0, told(by('accessor')))
   check(`no file under ${PARTS_DIR}/ imports the door (${partFiles(estate).length} files read)`, by('import').length === 0, told(by('import')))
