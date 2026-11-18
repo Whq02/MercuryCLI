@@ -25,7 +25,8 @@ if (process.argv[2] === '--child') {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   const mode = process.argv[3] as Mode
   const depth = process.argv[4] as Depth
-  if (process.argv[6] === PLANTED) {
+  const planted = process.argv[6] === PLANTED
+  if (planted) {
     const { changeSetJournalDir } = await import('../../src/services/changeTransaction/changeSetContracts.ts')
     mkdirSync(changeSetJournalDir(), { recursive: true })
     writeFileSync(join(changeSetJournalDir(), PLANTED), 'not an operation')
@@ -35,14 +36,17 @@ if (process.argv[2] === '--child') {
   const inOrder = [...HEALTH_SECTIONS]
   const ordered = mode === 'reversed' ? [...inOrder].reverse() : mode === 'rotated' ? [...inOrder.slice(ROTATE), ...inOrder.slice(0, ROTATE)] : inOrder
   const called: string[] = []
-  const handed = ordered.map(entry => ({
-    id: entry.id,
-    title: entry.title,
-    checks: (context: Parameters<typeof entry.checks>[0]) => {
-      called.push(entry.id)
-      return entry.checks(context)
-    },
-  }))
+  const handed = ordered
+    .filter(entry => !planted || entry.id === 'durability')
+    .map(entry => ({
+      id: entry.id,
+      title: entry.title,
+      checks: async (context: Parameters<typeof entry.checks>[0]) => {
+        called.push(entry.id)
+        const rows = await entry.checks(context)
+        return planted ? rows.filter(row => row.id === 'durable-journals' || row.id === 'store-quarantines').reverse() : rows
+      },
+    }))
   const cert = await runHealthReport({ depth }, handed)
   const rows: Record<string, RowWords> = {}
   for (const section of cert.sections) {
@@ -178,13 +182,13 @@ for (const depth of ['fast', 'deep'] as const) {
   }
 }
 
-section('a row settles what it reads: an undecodable journal file in the home is named by the Store quarantines row of the same report')
+section('a row settles what it reads: an undecodable journal file in the home is named by the Store quarantines row of the same report, with that row started first (the two rows handed alone, in that order)')
 {
   const planted = await runOrder('list', 'fast', 'refused-journal', PLANTED)
   const quarantines = planted.run?.rows['store-quarantines']
   const journals = planted.run?.rows['durable-journals']
   check(
-    'the Operation journals row finds the file and the Store quarantines row, which starts beside it, names it in that same report',
+    'the Store quarantines row, started before the Operation journals row has read the folder, names the file in that same report',
     journals?.status === 'ok' && quarantines?.status === 'warn' && quarantines.evidence?.startsWith('1 damaged-store event(s) in the last 24h (1 on the ledger) — latest: operation-journal (') === true && quarantines.evidence.includes(`${PLANTED} is not a decodable operation`) && quarantines.evidence.endsWith(', bytes left in place'),
     planted.run === null
       ? [planted.why]
