@@ -18,7 +18,7 @@ import type { ParamsOf } from '../../runner/wire/methods.js'
 import type { ToolPermissionContext } from '../../Tool.js'
 import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
 
-const DAEMON_ANSWERED = 'EUNKNOWN'
+const DAEMON_REFUSED = 'EREFUSED'
 const DAEMON_REFUSED_THE_SIZE = 'ETOOLARGE'
 
 function badParameter(message: string, ...paths: string[]): RpcError {
@@ -76,7 +76,7 @@ export async function projectQuery(input: ParamsOf<'project/query'>, permissions
       if (reply.ok !== true) {
         const words = typeof reply.error === 'string' ? reply.error : 'The session did not take the message'
         if (reply.code === DAEMON_REFUSED_THE_SIZE) throw badParameter(words, 'message')
-        throw reply.code === DAEMON_ANSWERED ? refused(words, 'project') : new Error(words)
+        throw reply.code === DAEMON_REFUSED ? refused(words, 'project') : new Error(words)
       }
       return { ...reply }
     }

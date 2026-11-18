@@ -865,13 +865,13 @@ async function routeControlRequest(
       const workspaceDir = String(raw.workspaceDir ?? '')
       const targetSessionId = typeof raw.targetSessionId === 'string' && raw.targetSessionId ? raw.targetSessionId : undefined
       if (raw.origin !== undefined && isScreenCommandOrigin(raw.origin) && targetSessionId === undefined) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'A screen command\'s meta row requires an existing target session' })
+        return answer(sock, { ok: false, code: 'EREFUSED', error: 'A screen command\'s meta row requires an existing target session' })
       }
       if (raw.origin !== undefined && !isScreenCommandOrigin(raw.origin) && (!isOutsideReportOrigin(raw.origin) || targetSessionId === undefined)) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'An outside report requires a sender and an existing target session' })
+        return answer(sock, { ok: false, code: 'EREFUSED', error: 'An outside report requires a sender and an existing target session' })
       }
       if (!clientMessageId || !prompt || (!workspaceDir && targetSessionId === undefined)) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionDispatch requires { clientMessageId, prompt, workspaceDir } (workspaceDir optional with targetSessionId)' })
+        return answer(sock, { ok: false, code: 'EREFUSED', error: 'sessionDispatch requires { clientMessageId, prompt, workspaceDir } (workspaceDir optional with targetSessionId)' })
       }
       const isolation =
         raw.isolation === 'exclusive' || raw.isolation === 'worktree-isolated' || raw.isolation === 'read-only'
@@ -880,20 +880,20 @@ async function routeControlRequest(
       if (raw.isolation !== undefined && isolation === undefined) {
         return answer(sock, {
           ok: false,
-          code: 'EUNKNOWN',
+          code: 'EREFUSED',
           error: `unknown isolation '${String(raw.isolation)}' — the closed vocabulary is exclusive | worktree-isolated | read-only`,
         })
       }
       if (raw.runnerArgv !== undefined) {
         const refusal = refuseRunnerArgv(raw.runnerArgv)
-        if (refusal !== null) return answer(sock, { ok: false, code: 'EUNKNOWN', error: `runnerArgv refused — ${refusal}` })
+        if (refusal !== null) return answer(sock, { ok: false, code: 'EREFUSED', error: `runnerArgv refused — ${refusal}` })
       }
       if (raw.kitPreset !== undefined && (typeof raw.kitPreset !== 'string' || raw.kitPreset === '')) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'kitPreset must be a saved preset name (a non-empty string)' })
+        return answer(sock, { ok: false, code: 'EREFUSED', error: 'kitPreset must be a saved preset name (a non-empty string)' })
       }
       const named = requestedModel(raw)
       if (named.conflict !== undefined) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: `${named.conflict}; nothing was dispatched` })
+        return answer(sock, { ok: false, code: 'EREFUSED', error: `${named.conflict}; nothing was dispatched` })
       }
       const r = await deps.concourseDispatch({
         clientMessageId,
@@ -921,7 +921,7 @@ async function routeControlRequest(
       if (!r.ok) {
         return answer(sock, {
           ok: false,
-          code: 'EUNKNOWN',
+          code: 'EREFUSED',
           error: r.error ?? 'dispatch refused',
           refusal: r.replay,
           ...pickDefined(r, DISPATCH_REFUSAL_WIRE_KEYS),
