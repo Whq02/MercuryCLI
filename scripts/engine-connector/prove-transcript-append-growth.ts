@@ -15,12 +15,12 @@ function check(label: string, ok: boolean, detail = ''): void {
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 
 const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 
 type Seam = {
   tickOnce: () => Promise<void>
   rawRecords: unknown[]
-  factsBusy: boolean
   recomputeLive: () => void
   feedCadencesForProofs: () => { transcript: number; facts: number; asks: number; tail: number; progress: number }
   attach: () => Promise<void>
@@ -63,7 +63,6 @@ async function appendPass(label: string, turns: number): Promise<{ ms: number; o
   await conn.attach()
   const before = conn.rawRecords.length
   const first = conn.rawRecords[0]
-  conn.factsBusy = false
   conn.recomputeLive()
   const cadences = conn.feedCadencesForProofs()
   appendFileSync(path, lines[lines.length - 1] + '\n')
@@ -107,16 +106,21 @@ check(
   writeFileSync(join(home, `${sessionId}.jsonl`), lines.join('\n') + '\n')
   const conn = new DaemonSessionConnector({ sessionId, runnerId: 'concourse-w2', title: 'turn', projectLabel: 'scratch', workspaceId: home, home }) as unknown as Seam
   await conn.attach()
-  conn.factsBusy = true
-  conn.recomputeLive()
+  const runnerSays = (busy: boolean, atMs: number): void => publishSessionFacts({ schema: 1, sessionId, atMs, busy, pendingModel: null, model: { effective: 'claude-sonnet-5', setting: null }, usage: {}, queue: [] } as never)
+  const feedReads = async (factsMs: number): Promise<void> => {
+    for (let waited = 0; conn.feedCadencesForProofs().facts !== factsMs && waited < 15_000; waited += 20) await sleep(20)
+  }
+  const saidAt = Date.now()
+  runnerSays(true, saidAt)
+  await feedReads(400)
   const busy = conn.feedCadencesForProofs()
   check(
     '§2 a turn in flight puts every feed at the full heartbeat (400 ms)',
     busy.transcript === 400 && busy.facts === 400 && busy.asks === 400 && busy.tail === 400 && busy.progress === 400,
     JSON.stringify(busy),
   )
-  conn.factsBusy = false
-  conn.recomputeLive()
+  runnerSays(false, saidAt + 1)
+  await feedReads(10_000)
   const idle = conn.feedCadencesForProofs()
   check('§2 the turn settling returns every feed to its floor', idle.transcript === 2000 && idle.facts === 10_000, JSON.stringify(idle))
   conn.detach()

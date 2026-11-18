@@ -34,7 +34,7 @@ async function connectorScenes(): Promise<void> {
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
   enableConfigs()
   const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
-  const { publishSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
+  const { publishSessionFacts, publishSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
   const { createAssistantMessage, createUserMessage, createUserInterruptionMessage } = await import('../../src/utils/messages/factories.ts')
   const { recordTranscript, flushSessionStorage } = await import('../../src/utils/sessionStorage.ts')
   const { getTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
@@ -43,18 +43,15 @@ async function connectorScenes(): Promise<void> {
     attached: boolean
     tick: () => Promise<void>
     readTail: () => void
-    recomputeLive: () => void
-    chainRpc: (req: Record<string, unknown>) => Promise<Record<string, unknown>>
-    factsBusy: boolean
+    readFacts: () => void
     textRows?: unknown[]
   }
   const transcript = getTranscriptPath()
   const sid = path.basename(transcript, '.jsonl')
   const home = path.dirname(transcript)
-  const connector = new DaemonSessionConnector({ sessionId: sid, home, workspaceId: '/tmp', title: 'rig', projectLabel: 'p' } as never)
-  const g = connector as unknown as Guts
   let pressAnswer: Record<string, unknown> = { ok: true, outcome: 'applied' }
-  g.chainRpc = () => Promise.resolve(pressAnswer)
+  const connector = new DaemonSessionConnector({ sessionId: sid, home, workspaceId: '/tmp', title: 'rig', projectLabel: 'p' } as never, { rpc: () => Promise.resolve(pressAnswer) })
+  const g = connector as unknown as Guts
 
   let clock = Date.now() - 60_000
   const feed = (tail: { text: string | null; messageId?: string; streamBlock?: 'text' | 'tool_use' }): void => {
@@ -69,9 +66,10 @@ async function connectorScenes(): Promise<void> {
     await g.tick.call(connector)
     g.attached = false
   }
+  let factsStamp = Date.now()
   const busy = (on: boolean): void => {
-    g.factsBusy = on
-    g.recomputeLive.call(connector)
+    publishSessionFacts({ schema: 1, sessionId: sid, atMs: ++factsStamp, busy: on, queueReady: false, pendingModel: null, model: { effective: 'claude-sonnet-5', setting: null }, usage: {}, queue: [] } as never)
+    g.readFacts.call(connector)
   }
   const press = async (): Promise<boolean> => {
     const took = connector.interrupt()

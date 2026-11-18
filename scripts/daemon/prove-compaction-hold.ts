@@ -50,7 +50,7 @@ type Guts = {
   rawRecords: Message[]
   reconcileQueuedSends: (facts: Record<string, unknown>) => void
   readTail: () => void
-  factsBusy: boolean
+  readFacts: () => void
   paint: () => void
 }
 let answer: (req: Reply) => Promise<Reply> = async () => ({ ok: true, op: 'sessionControl', outcome: 'applied' })
@@ -74,14 +74,19 @@ const sendOf = (id: string): Send | undefined => g.sends.find(s => s.clientMessa
 const painted = (): string => JSON.stringify(connector.records())
 const queued = (entries: Array<{ uuid: string; value: string }>): Array<{ uuid: string; value: string; mode: string; priority: string }> =>
   entries.map(e => ({ ...e, mode: 'prompt', priority: 'next' }))
-const { publishSessionTail } = await import(join(SRC, 'services/engine-connector/seatProjections.ts'))
+const { publishSessionFacts, publishSessionTail } = await import(join(SRC, 'services/engine-connector/seatProjections.ts'))
+let factsStamp = Date.now()
+const runnerSays = (busy: boolean): void => {
+  publishSessionFacts({ schema: 1, sessionId: 'compaction-hold-proof', atMs: ++factsStamp, busy, queueReady: false, pendingModel: null, model: { effective: 'claude-sonnet-5', setting: null }, usage: {}, queue: [] } as never)
+  g.readFacts.call(connector)
+}
 let tailStamp = 0
 const tailSays = (word: 'compacting' | 'waiting-on-agents' | null): void => {
   publishSessionTail({ schema: 1, sessionId: 'compaction-hold-proof', atMs: ++tailStamp, text: null, ...(word !== null ? { stateWord: word } : {}) })
   g.readTail.call(connector)
 }
 const foldRunning = (on: boolean): void => {
-  g.factsBusy = on
+  runnerSays(on)
   tailSays(on ? 'compacting' : null)
 }
 

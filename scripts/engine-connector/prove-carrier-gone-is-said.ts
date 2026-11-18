@@ -54,7 +54,6 @@ const crewRow = { id: 'agent-sleep', agentId: 'agent-sleep', kind: 'agent' as co
 
 type Guts = {
   displayRows: Array<{ row: { type?: string; subtype?: string; content?: string; level?: string } }>
-  factsBusy: boolean
   readFacts: () => void
 }
 type Live = { inFlight: boolean; phase: string }
@@ -89,15 +88,15 @@ section("§1 the daemon carrying a busy, waiting session is gone (its record cle
   check('the running crew row of the dead daemon is gone from the roster', !connector.workRoster().rows.some(r => r.status === 'running'), j(connector.workRoster().rows))
   check(`one notice row names the daemon's end: "${CARRIER_GONE_WORDS}"`, noticeRows(g).length === 1 && noticeRows(g)[0] === CARRIER_GONE_WORDS, j(noticeRows(g)))
   g.readFacts()
-  check("a re-read of the same stale facts (another road's refresh) does not revive the dead daemon's busy word", connector.live().inFlight === false && g.factsBusy === false && !connector.workRoster().rows.some(r => r.status === 'running'), j(connector.live()))
+  check("a re-read of the same stale facts (another road's refresh) does not revive the dead daemon's busy word", connector.live().inFlight === false && !connector.workRoster().rows.some(r => r.status === 'running'), j(connector.live()))
   await sleep(1_200)
   check('the notice is said once', noticeRows(g).length === 1, j(noticeRows(g)))
   publishBusy(sid, Date.now())
   g.readFacts()
   check(
     'a FRESH publication (a new daemon speaks: a new stamp) lifts the latch and the busy word is believed again',
-    connector.workRoster().gone !== true && connector.workRoster().rows.some(r => r.status === 'running') && connector.live().inFlight === true && g.factsBusy === true,
-    `${j({ roster: connector.workRoster(), live: connector.live(), busy: g.factsBusy })} — the roster is no longer gone, its running row is back and the turn is in flight: CarrierPart.factsFromCarrier in src/services/engine-connector/daemon/carrier.ts lets go of the verdict when the facts carry another stamp`,
+    connector.workRoster().gone !== true && connector.workRoster().rows.some(r => r.status === 'running') && connector.live().inFlight === true,
+    `${j({ roster: connector.workRoster(), live: connector.live() })} — the roster is no longer gone, its running row is back and the turn is in flight: CarrierPart.factsFromCarrier in src/services/engine-connector/daemon/carrier.ts lets go of the verdict when the facts carry another stamp`,
   )
   connector.detach()
 }

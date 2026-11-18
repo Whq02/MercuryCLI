@@ -30,7 +30,7 @@ type Guts = {
   dressSend: (id: string, state: Send['state']) => void
   readTail: () => void
   liveStateWord: 'compacting' | 'waiting-on-agents' | null
-  factsBusy: boolean
+  readFacts: () => void
   paint: () => void
 }
 
@@ -51,14 +51,19 @@ const seed = (id: string, text: string, state: Send['state']): void => {
 }
 const sendOf = (id: string): Send | undefined => g.sends.find(s => s.clientMessageId === id)
 const rowOf = (id: string) => g.echoRows.get(id)
-const { publishSessionTail } = await import(join(SRC, 'services/engine-connector/seatProjections.ts'))
+const { publishSessionFacts, publishSessionTail } = await import(join(SRC, 'services/engine-connector/seatProjections.ts'))
+let factsStamp = Date.now()
+const runnerSays = (busy: boolean): void => {
+  publishSessionFacts({ schema: 1, sessionId: 'fold-line-proof', atMs: ++factsStamp, busy, queueReady: false, pendingModel: null, model: { effective: 'claude-sonnet-5', setting: null }, usage: {}, queue: [] } as never)
+  g.readFacts.call(connector)
+}
 let tailStamp = 0
 const tailSays = (word: 'compacting' | 'waiting-on-agents' | null): void => {
   publishSessionTail({ schema: 1, sessionId: 'fold-line-proof', atMs: ++tailStamp, text: null, ...(word !== null ? { stateWord: word } : {}) })
   g.readTail.call(connector)
 }
 const foldRunning = (on: boolean): void => {
-  g.factsBusy = on
+  runnerSays(on)
   tailSays(on ? 'compacting' : null)
 }
 
