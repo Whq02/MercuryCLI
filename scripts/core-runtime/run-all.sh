@@ -68,6 +68,9 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-geometry-contract.ts
 echo "── core-runtime: runloop contract (T8)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-runloop-contract.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-runloop-contract.ts "$__t" "$__rc"
 
+echo "── core-runtime: the turn machine, recorded scenario by scenario"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-turn-recording.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-turn-recording.ts "$__t" "$__rc"
+
 echo "── core-runtime: the pause gate parks every loop at its two safe points"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-pause-gate.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-pause-gate.ts "$__t" "$__rc"
 
