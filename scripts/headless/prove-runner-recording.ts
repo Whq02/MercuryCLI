@@ -14,7 +14,7 @@ type Want = 'answer' | 'refused' | 'invalid' | 'failed'
 type Answer = { result: unknown } | { error: { code?: number; message: string; data?: unknown } }
 type Taken = { arm: string; call: string; want: Want; params: unknown; answer: Answer }
 type PrintRun = { name: string; format: string; args: string[]; status: number | null; stdout: string; stderr: string }
-type Recording = { arms: Taken[]; scenes: Record<string, unknown>; prints: PrintRun[] }
+type Recording = { arms: Taken[]; scenes: Record<string, unknown>; prints: PrintRun[]; later?: { calls: Taken[]; scenes: Record<string, unknown> } }
 
 const argOf = (flag: string): string | undefined => {
   const at = process.argv.indexOf(flag)
@@ -34,8 +34,9 @@ const OTHER_MODEL = 'claude-sonnet-5'
 const QUIESCE_TOKEN = 'recording-token-0001'
 
 const taken: Taken[] = []
+const takenLater: Taken[] = []
 
-async function call(runner: HostedRunner, arm: string, name: string, want: Want, params: unknown, deadlineMs = 30_000): Promise<Answer> {
+async function call(runner: HostedRunner, arm: string, name: string, want: Want, params: unknown, deadlineMs = 30_000, into: Taken[] = taken): Promise<Answer> {
   let answer: Answer
   try {
     answer = { result: await runner.peer.request(arm as never, params as never, { deadlineMs }) }
@@ -43,7 +44,7 @@ async function call(runner: HostedRunner, arm: string, name: string, want: Want,
     const e = error as { code?: number; message?: string; data?: unknown }
     answer = { error: { ...(e.code !== undefined ? { code: e.code } : {}), message: String(e.message), ...(e.data !== undefined ? { data: e.data } : {}) } }
   }
-  taken.push({ arm, call: name, want, params, answer })
+  into.push({ arm, call: name, want, params, answer })
   return answer
 }
 
@@ -273,7 +274,7 @@ async function trustedFolderScene(): Promise<unknown> {
     return await withFixtureRunner(
       turns,
       async runner => {
-        const a = (name: string, want: Want, params: unknown): Promise<Answer> => call(runner, 'project/query', `in a trusted folder: ${name}`, want, params)
+        const a = (name: string, want: Want, params: unknown): Promise<Answer> => call(runner, 'project/query', `in a trusted folder: ${name}`, want, params, 30_000, takenLater)
         await runner.prompt('say the trusted answer')
         await settled(runner, 1)
         const own = String(runner.rows.find(row => row.type === 'session')?.session_id)
@@ -374,11 +375,11 @@ function masked(recording: Recording): Recording {
           return words(line)
         }
       })
-  return {
-    arms: recording.arms.map(t => walk(t) as Taken),
-    scenes: walk(recording.scenes) as Record<string, unknown>,
-    prints: recording.prints.map(p => ({ ...p, args: p.args.map(words), stdout: lines(p.stdout) as never, stderr: lines(p.stderr) as never })),
-  }
+  const arms = recording.arms.map(t => walk(t) as Taken)
+  const scenes = walk(recording.scenes) as Record<string, unknown>
+  const prints = recording.prints.map(p => ({ ...p, args: p.args.map(words), stdout: lines(p.stdout) as never, stderr: lines(p.stderr) as never }))
+  const later = recording.later === undefined ? undefined : { calls: recording.later.calls.map(t => walk(t) as Taken), scenes: walk(recording.later.scenes) as Record<string, unknown> }
+  return { arms, scenes, prints, ...(later !== undefined ? { later } : {}) }
 }
 
 function differences(a: unknown, b: unknown, path = '$', out: string[] = []): string[] {
@@ -410,12 +411,13 @@ scenes.idle = await idleScene()
 scenes.inFlight = await inFlightScene()
 scenes.claim = await claimScene()
 scenes.closedMidTurn = await closedMidTurnScene()
-scenes.closedAfterTurn = await closedAfterTurnScene()
-scenes.trustedFolder = await trustedFolderScene()
+const laterScenes: Record<string, unknown> = {}
+laterScenes.closedAfterTurn = await closedAfterTurnScene()
+laterScenes.trustedFolder = await trustedFolderScene()
 const arms = [...RUNNER_REQUEST_METHODS, ...RUNNER_NOTIFICATION_METHODS]
 const requested = RUNNER_REQUEST_METHODS.filter(arm => taken.filter(t => t.arm === arm && t.want === 'answer').length >= 1 || taken.filter(t => t.arm === arm).length >= 3)
-const wrong = taken.filter(t => classOf(t.answer) !== t.want)
-check(`every call came back in its class: an answer, a refusal of the runner (${RPC_REFUSED}) or params the wire refuses (${RPC_INVALID_PARAMS}) (${taken.length} calls)`, wrong.length === 0, wrong.map(t => `${t.arm} · ${t.call}: wanted ${t.want}, got ${JSON.stringify(t.answer).slice(0, 200)}`).join('\n      '))
+const wrong = [...taken, ...takenLater].filter(t => classOf(t.answer) !== t.want)
+check(`every call came back in its class: an answer, a refusal of the runner (${RPC_REFUSED}) or params the wire refuses (${RPC_INVALID_PARAMS}) (${taken.length + takenLater.length} calls)`, wrong.length === 0, wrong.map(t => `${t.arm} · ${t.call}: wanted ${t.want}, got ${JSON.stringify(t.answer).slice(0, 200)}`).join('\n      '))
 const thin = RUNNER_REQUEST_METHODS.filter(arm => taken.filter(t => t.arm === arm).length < 3 || taken.filter(t => t.arm === arm && t.want !== 'answer').length < 2)
 check(`each of the ${RUNNER_REQUEST_METHODS.length} request arms is called at least three times, two of them calls it must refuse (${arms.length} arms with the notification)`, thin.length === 0 && requested.length === RUNNER_REQUEST_METHODS.length, thin.join(', '))
 const afterNotice = taken.find(t => t.call === 'the facts after credentials/changed')
@@ -429,9 +431,10 @@ const spendRows = (type: string): SpendRow[] => ((scenes.closedMidTurn as { rows
 const spendOf = (rows: SpendRow[]): string => `${rows.reduce((sum, row) => sum + (row.usage?.input_tokens ?? 0), 0)} in ${rows.reduce((sum, row) => sum + (row.usage?.output_tokens ?? 0), 0)} out`
 check("the outcome of a turn the input closed in counts its steps' model calls and not the note's, which the close row carries: a client that adds each outcome and the close row counts every call once", spendRows('step').length === 1 && spendRows('close').length === 1 && spendOf(spendRows('close')) !== '0 in 0 out' && spendOf(spendRows('outcome')) === spendOf(spendRows('step')), `steps ${spendOf(spendRows('step'))} · close ${spendOf(spendRows('close'))} · outcome ${spendOf(spendRows('outcome'))} at ${spendRows('outcome')[0]?.cost_usd} USD`)
 type CostRow = { type?: string; cost_usd?: number; models?: Record<string, { cost_usd?: number }> }
-const costRows = (scene: string): CostRow[] => ((scenes[scene] as { rows?: CostRow[] }).rows ?? []).filter(row => row.type === 'outcome' || row.type === 'close')
+const sceneOf = (scene: string): unknown => scenes[scene] ?? laterScenes[scene]
+const costRows = (scene: string): CostRow[] => ((sceneOf(scene) as { rows?: CostRow[] }).rows ?? []).filter(row => row.type === 'outcome' || row.type === 'close')
 const usdOf = (row: CostRow): number => (row.type === 'outcome' ? (row.cost_usd ?? 0) : Object.values(row.models ?? {}).reduce((sum, model) => sum + (model.cost_usd ?? 0), 0))
-const ledgerOf = (scene: string): number | null => (scenes[scene] as { ledger_usd?: number | null }).ledger_usd ?? null
+const ledgerOf = (scene: string): number | null => (sceneOf(scene) as { ledger_usd?: number | null }).ledger_usd ?? null
 const addsUp = (scene: string, order: string): boolean => {
   const rows = costRows(scene)
   const ledger = ledgerOf(scene)
@@ -442,7 +445,7 @@ check(
   addsUp('closedMidTurn', 'close outcome') && addsUp('closedAfterTurn', 'outcome close'),
   ['closedMidTurn', 'closedAfterTurn'].map(scene => `${scene}: ${costRows(scene).map(row => `${row.type} ${usdOf(row)}`).join(', ')} on the rows, ${ledgerOf(scene)} USD on the ledger`).join(' · '),
 )
-const trustedCalls = taken.filter(t => t.call.startsWith('in a trusted folder: '))
+const trustedCalls = takenLater
 const errorOf = (t: Taken): { code?: number; message?: string; data?: { kind?: string; method?: string; issues?: Array<{ path?: unknown; message?: unknown }> } } => ('error' in t.answer ? (t.answer.error as never) : {})
 const inWireForm = (t: Taken): boolean => errorOf(t).code === RPC_INVALID_PARAMS && errorOf(t).message === 'invalid params for project/query' && errorOf(t).data?.method === 'project/query' && (errorOf(t).data?.issues ?? []).length > 0 && (errorOf(t).data?.issues ?? []).every(issue => typeof issue.path === 'string' && typeof issue.message === 'string' && issue.message !== '')
 const ofTheProject = (t: Taken): boolean => errorOf(t).code === RPC_REFUSED && errorOf(t).data?.kind === 'project' && typeof errorOf(t).message === 'string' && errorOf(t).message !== ''
@@ -458,14 +461,15 @@ const statusOf = (name: string): string => prints.filter(p => p.name === name).m
 check('each print run ended with an exit code', prints.every(p => p.status !== null), prints.map(p => `${p.name}/${p.format}: ${p.status}`).join(' · '))
 check('the completed run exits 0 and the others do not', prints.filter(p => p.name === 'completed').every(p => p.status === 0) && prints.filter(p => p.name !== 'completed').every(p => p.status !== 0), ['completed', 'refused', 'failed', 'turn limit', 'blocked'].map(name => `${name}: ${statusOf(name)}`).join(' | '))
 
-const recording = masked({ arms: taken, scenes, prints })
+const whole: Recording = { arms: taken, scenes, prints, later: { calls: takenLater, scenes: laterScenes } }
+const recording = masked(whole)
 const out = argOf('--out')
 if (out !== undefined) {
   writeFileSync(out, JSON.stringify(recording, null, 1) + '\n')
   console.log(`  wrote ${out}`)
 }
 const raw = argOf('--raw')
-if (raw !== undefined) writeFileSync(raw, JSON.stringify({ arms: taken, scenes, prints }, null, 1) + '\n')
+if (raw !== undefined) writeFileSync(raw, JSON.stringify(whole, null, 1) + '\n')
 const against = argOf('--against')
 if (against !== undefined) {
   section(`§3 the recording against ${against}`)
