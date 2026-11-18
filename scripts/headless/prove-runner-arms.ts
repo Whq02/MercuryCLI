@@ -354,7 +354,7 @@ section('§8 session/facts: each fact comes from its one owner, and a fact its o
     providerLimitWarning: { provider: 'anthropic', text: 'the warning the owner holds' } satisfies Owned<typeof import('../../src/services/providers/limitWarning.ts').providerLimitWarning>,
     anthropicObservedUsage: { owner: 'the owner of the observation', fiveHour: { utilization: 0.41, resetsAt: 1_800_000_000, observedAtMs: 1_700_000_000_000 } } satisfies Owned<typeof import('../../src/services/anthropicLimits.ts').anthropicObservedUsage>,
     anthropicWindowFact: { status: 'allowed_warning', observedAtMs: 1_700_000_000_000, owner: 'the owner of the window' } satisfies Owned<typeof import('../../src/services/anthropicLimits.ts').anthropicWindowFact>,
-    openaiCatalogueFact: { sourceKind: 'api-key', models: [{ id: 'gpt-fixture', displayName: 'GPT Fixture' }], fetchedAtMs: 1_700_000_000_000 } satisfies Owned<typeof import('../../src/services/providers/openai/openaiCatalogue.ts').openaiCatalogueFact>,
+    openaiCatalogueFact: { sourceKind: 'api-key', models: [{ id: 'gpt-fixture', displayName: 'GPT Fixture', supportedReasoningEfforts: ['low', 'high'], reasoningEffortsStated: true }], fetchedAtMs: 1_700_000_000_000 } satisfies Owned<typeof import('../../src/services/providers/openai/openaiCatalogue.ts').openaiCatalogueFact>,
     openaiObservedUsage: { primary: { used: 41 } },
     sampleRowsOf: [{ id: 'sample-1', title: 'the sample the owner holds' }],
     anthropicSignInEmail: 'who@example.test',
