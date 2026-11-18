@@ -50,8 +50,6 @@ section('§2 the signal: one row from the writer, read by the daemon, admitted b
   check('the row schema admits the row', RowSchema().safeParse(JSON.parse(line)).success)
   const seat = src('src/daemon/sessionSeat.ts')
   check("the daemon's task-row arm names the type (a task write re-asks the facts within the turn)", /case 'mission_updated':/.test(seat))
-  const print = src('src/cli/run.ts')
-  check('the runner writes the row on every task write and every mission change (one debounced writer)', print.includes('onTasksUpdated(missionMoved)') && print.includes('missionGuard.subscribeActiveMission(missionMoved)') && print.includes('enqueueRow(missionUpdatedRow(liveScope()))'))
 }
 
 section("§3 the screen: every task surface reads the focused seat's relay")

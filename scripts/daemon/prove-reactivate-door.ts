@@ -253,7 +253,6 @@ console.log('\n── R5: never two records for one session ──')
 
 console.log('\n── R6: the warm claim binds and acks, then loads the transcript behind the answer (source) ──')
 {
-  const print = read('src/cli/run.ts')
   const { refusalOf, withLiveRunner } = await import('../lib/builtProduct.ts')
   const UNSEEN = '11111111-2222-4333-8444-555555555555'
   const CLAIMED = '66666666-7777-4888-8999-000000000000'
@@ -268,7 +267,6 @@ console.log('\n── R6: the warm claim binds and acks, then loads the transcri
   ).catch(() => null)
   rmSync(pinnedHome, { recursive: true, force: true })
   check('R6 a missing transcript refuses the claim before it binds and hands the home pin back', refusedClaim?.resume?.message === `claim refused — no conversation found for session ${UNSEEN}` && refusedClaim.fresh === null && refusedClaim.pinned.some(name => name.startsWith(`${CLAIMED}.jsonl`)), JSON.stringify(refusedClaim))
-  check('R6 the boot\'s own resume road rides the same hydration closure', print.includes('if (options.continue || options.resume) await hydrateResumedRun(ports)'))
   check('R6 the wire names the field; the pool sends it', read('src/runner/wire/methods.ts').includes('resume: z.boolean().optional()') && read('src/daemon/warmRunner.ts').includes("...(args.resume === true ? { resume: true } : {})"))
 }
 

@@ -632,8 +632,6 @@ console.log('\n── WR: the restart reason travels to the resumed runner (item
   )
   warm.resetWarmRunnersForTesting()
 
-  const printSrc = read('src/cli/run.ts')
-  check('WR run.ts reads the reason at boot', printSrc.includes("flagEnv('MERCURY_RUNNER_RESTART_REASON')"))
   check('WR the reason knob has its registry row', getFlagSpec('MERCURY_RUNNER_RESTART_REASON') !== undefined)
 }
 

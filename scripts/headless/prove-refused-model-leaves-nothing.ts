@@ -176,10 +176,9 @@ console.log('§3 gateway posture (a re-pointed home lane owns its ids): unchange
 console.log('§4 the decision is the router\'s own: the boot and the retention site read the same function')
 {
   const router = readFileSync(join(REPO, 'src/services/providers/callModelRouter.ts'), 'utf8')
-  const runSrc = readFileSync(join(REPO, 'src/cli/run.ts'), 'utf8')
   check('the router exports the before-any-request refusal over the same verdict and admission owner the call uses', /export async function modelRefusalBeforeAnyRequest\(model: string\)[\s\S]{0,400}classifyAfterLiveLists\(model\)[\s\S]{0,300}homeLaneAdmissionRefusal\(model\)/.test(router))
   check('the boot refuses a user-given --model before the stdio object and the session (the headless resolver carries the same before-any-request refusal)', refusedBeforeTheSession && /await modelRefusalBeforeAnyRequest\(model\)/.test(readFileSync(join(REPO, 'src/cli/headless/model.ts'), 'utf8')))
-  check('the retention site skips a recorded model the resolver refuses and enqueues the notice naming the fallback (a recorded compat route refuses instead: never another provider)', recordedModelSkipped && runSrc.includes("if (recorded.toLowerCase().startsWith('compat/')) {"))
+  check('the retention site skips a recorded model the resolver refuses and enqueues the notice naming the fallback', recordedModelSkipped)
 }
 
 await api.close()

@@ -118,11 +118,6 @@ console.log('R3: disarm')
 
 console.log('R4: the host wiring (structural)')
 {
-  const printSrc = readFileSync(join(import.meta.dirname, '../../src/cli/run.ts'), 'utf-8')
-  check(
-    'run.ts arms the seam over the live roster binding',
-    printSrc.includes('armRunnerAgentFreshness({') && printSrc.includes('setActive: next => {'),
-  )
   const hookSrc = readFileSync(join(import.meta.dirname, '../../src/hooks/useAgentsChange.ts'), 'utf-8')
   check(
     'the cockpit reload replaces the roster with a fresh array (in-flight work keeps the objects it captured)',

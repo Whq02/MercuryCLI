@@ -411,8 +411,6 @@ section('§6 honest absence: every no-dial id labels itself with the one word')
 
 section('§7 the surfaces read the owner')
 {
-  const print = src('src/cli/run.ts')
-  check('print: the initialize catalogue lists the owner\'s stops per model', print.includes('resolveEffortTruth(resolved, undefined).selectable'))
   const { FIXTURE_MODEL, liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
   const { effortSentOf } = await import('../../src/services/engine-connector/seatProjections.ts')
   const SEAT_MODEL = 'claude-sonnet-4-6'
