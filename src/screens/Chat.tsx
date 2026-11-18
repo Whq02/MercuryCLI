@@ -24,39 +24,25 @@ import { MessageActionsBar } from '../components/messageActions.js';
 import { FocusedSessionStatusRow } from '../components/SwitchboardTagBar.js';
 import { useLayoutChrome } from '../context/layoutChromeContext.js';
 import { useCompactWorkControls } from '../components/tasks/CompactWorkSummary.js';
-import {
-  useKickOffCheckAndDisableSovereignIfNeeded,
-} from '../utils/permissions/bypassPermissionsKillswitch.js';
-import { useExtensions } from '../hooks/useExtensions.js';
-import { useCostSummary } from '../costHook.js';
-import { useFpsMetrics } from '../context/fpsMetrics.js';
-import { startBackgroundHousekeeping } from '../utils/backgroundHousekeeping.js';
-import { scheduleQuietUpdateNotice, UPDATE_NOTICE_KEY } from '../services/privateChannel/quietUpdateNotice.js';
 import { isSettingsPopupOpen } from '../utils/cockpit/settingsPopup.js';
 import { publishMcpConnections } from '../utils/cockpit/mcpGauge.js';
 import { useSeatReceipts } from '../hooks/useSeatReceipts.js';
 import { useAgentNeedsYou } from '../hooks/useAgentNeedsYou.js';
 import { useMcpConnectivityStatus } from '../hooks/notifs/useMcpConnectivityStatus.js';
-import { recordBootInteractive } from '../utils/observability/frictionStopwatch.js';
 import { submitTrace } from '../utils/submitTrace.js';
 import { fluxMark, fluxWhy } from '../utils/flux/fluxProbe.js';
 import { useMercuryTokens } from '../components/mercury-ui/useMercuryTokens.js';
 import { LOCAL_COMMAND_STDOUT_TAG } from '../constants/xml.js';
 import { CockpitBottomStatus } from '../context/cockpitActiveContext.js';
 import { MercuryFrame } from '../components/MercuryFrame.js';
-import { splitWayOut, useNotifications } from '../context/notifications.js';
+import { useNotifications } from '../context/notifications.js';
 import { performUiRouteAlias } from '../context/routeAliases.js';
 import { currentSurfaceRoute, subscribeSurfaceRoute } from '../context/surfaceRoute.js';
-import { useAgentsChange } from '../hooks/useAgentsChange.js';
 import { useApiKeyVerification } from '../hooks/useApiKeyVerification.js';
 import { useEngineModel } from '../hooks/useEngineModel.js';
 import { useMergedCommands } from '../hooks/useMergedCommands.js';
 import { useMergedTools } from '../hooks/useMergedTools.js';
 import { useTurnEndPing } from '../hooks/useTurnEndPing.js';
-import { useFinishMarks } from '../hooks/useFinishMarks.js';
-import { useSessionTitleMint } from '../hooks/useSessionTitleMint.js';
-import { useSettingsChange } from '../hooks/useSettingsChange.js';
-import { useSkillsChange } from '../hooks/useSkillsChange.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { useDeprecationWarningNotification } from '../hooks/notifs/useDeprecationWarningNotification.js';
 import { useLspInitializationNotification } from '../hooks/notifs/useLspInitializationNotification.js';
@@ -91,7 +77,7 @@ import { RECEIPT_TIMEOUT_MS, SWITCH_STATUS_TIMEOUT_MS } from './chat/limits.js';
 import type { Screen as ScreenName } from './chat/screen.js';
 import type { PaintsRows, ResumableLog } from './chat/sessionShapes.js';
 import { useChatAsks, useChatAsksCard } from './chat/useChatAsks.js';
-import { loadContextWindowWarmup, loadDaemonHandshake, loadEnsureDaemon, loadProjectSnapshot, useChatBootLines, useChatCrashResume } from './chat/useChatBoot.js';
+import { loadProjectSnapshot, useChatBootLines, useChatBootStart, useChatCrashResume } from './chat/useChatBoot.js';
 import { type ToolJSXState, useChatDialogPaints, useChatDialogs, useChatDialogsView } from './chat/useChatDialogs.js';
 import { useChatDraft } from './chat/useChatDraft.js';
 import { useChatScroll, useChatScrollFollow, useChatScrollPin } from './chat/useChatScroll.js';
@@ -724,68 +710,7 @@ export function Chat({
     })();
   }, [armedMessage, landing, setAppState]);
 
-  useFinishMarks();
-  useSessionTitleMint();
-  useSettingsChange(() => {});
-  useAgentsChange(getCwd());
-  useSkillsChange(getCwd(), () => {});
-  useKickOffCheckAndDisableSovereignIfNeeded();
-  useExtensions({ enabled: true });
-  useCostSummary(useFpsMetrics());
-
-  useEffect(() => {
-    recordBootInteractive();
-    setTimeout(() => {
-      void loadEnsureDaemon()
-        .then(async m => {
-          if (await m.ensureOwnedDaemon()) await m.warmSessionRunner(getCwd());
-        })
-        .catch(() => {});
-    }, 0);
-    setTimeout(() => {
-      void loadContextWindowWarmup()
-        .then(m => m.warmContextWindowSources())
-        .catch(() => {});
-    }, 0);
-  }, []);
-
-  useEffect(() => {
-    const disarm = scheduleQuietUpdateNotice(text =>
-      addNotification({ key: UPDATE_NOTICE_KEY, text, priority: 'high', color: 'warning', timeoutMs: Infinity }),
-    );
-    return disarm;
-  }, []);
-
-  useEffect(() => {
-    const key = 'daemon-version';
-    let alive = true;
-    let unsubscribe = (): void => {};
-    void loadDaemonHandshake()
-      .then(hs => {
-        if (!alive) return;
-        const paint = (): void => {
-          const line = hs.lastDaemonHandshake()?.line ?? null;
-          if (line !== null) addNotification({ key, ...splitWayOut(line), priority: 'high', color: 'warning', timeoutMs: 60_000 });
-          else removeNotification(key);
-        };
-        paint();
-        unsubscribe = hs.subscribeDaemonHandshake(paint);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-      unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (submitCount !== 1) return;
-    try {
-      startBackgroundHousekeeping();
-    } catch (error) {
-      logForDebugging(`background housekeeping failed to start: ${String(error)}`);
-    }
-  }, [submitCount]);
+  useChatBootStart({ submitCount, addNotification, removeNotification });
 
   useChatTurnSignals({ isLoading, textActive, toolUseConfirmQueue, messages });
 

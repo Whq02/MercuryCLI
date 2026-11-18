@@ -1,16 +1,30 @@
 import { useEffect, useRef, useState } from 'react';
-import type { useNotifications } from '../../context/notifications.js';
+import { splitWayOut, type useNotifications } from '../../context/notifications.js';
+import { useFpsMetrics } from '../../context/fpsMetrics.js';
+import { useCostSummary } from '../../costHook.js';
+import { useAgentsChange } from '../../hooks/useAgentsChange.js';
+import { useExtensions } from '../../hooks/useExtensions.js';
+import { useFinishMarks } from '../../hooks/useFinishMarks.js';
+import { useSessionTitleMint } from '../../hooks/useSessionTitleMint.js';
+import { useSettingsChange } from '../../hooks/useSettingsChange.js';
+import { useSkillsChange } from '../../hooks/useSkillsChange.js';
 import { Box, Text } from '../../ink.js';
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js';
 import { hasSeatLive } from '../../services/engine-connector/seatLive.js';
 import type { EngineConnectorV1 } from '../../services/engine-connector/types.js';
+import { scheduleQuietUpdateNotice, UPDATE_NOTICE_KEY } from '../../services/privateChannel/quietUpdateNotice.js';
+import { startBackgroundHousekeeping } from '../../utils/backgroundHousekeeping.js';
+import { getCwd } from '../../utils/cwd.js';
+import { logForDebugging } from '../../utils/debug.js';
+import { recordBootInteractive } from '../../utils/observability/frictionStopwatch.js';
+import { useKickOffCheckAndDisableSovereignIfNeeded } from '../../utils/permissions/bypassPermissionsKillswitch.js';
 import type { CrashResumeStaged } from './crashResume.js';
 import { RECEIPT_TIMEOUT_MS } from './limits.js';
 
 const loadHopIntoSession = () => import('../../services/switchboard/hopIntoSession.js');
-export const loadEnsureDaemon = () => import('../../services/switchboard/ensureDaemon.js');
-export const loadContextWindowWarmup = () => import('../../utils/model/contextWindowWarmup.js');
-export const loadDaemonHandshake = () => import('../../daemon/handshake.js');
+const loadEnsureDaemon = () => import('../../services/switchboard/ensureDaemon.js');
+const loadContextWindowWarmup = () => import('../../utils/model/contextWindowWarmup.js');
+const loadDaemonHandshake = () => import('../../daemon/handshake.js');
 export const loadProjectSnapshot = () => import('../../services/projectIntel/snapshot.js');
 
 export function useChatCrashResume() {
@@ -73,4 +87,77 @@ export function useChatBootLines({
     paintLostLine();
     return focusedConnector.subscribeLive(paintLostLine);
   }, [focusedConnector, addNotification]);
+}
+
+export function useChatBootStart({
+  submitCount,
+  addNotification,
+  removeNotification,
+}: {
+  submitCount: number;
+  addNotification: ReturnType<typeof useNotifications>['addNotification'];
+  removeNotification: ReturnType<typeof useNotifications>['removeNotification'];
+}) {
+  useFinishMarks();
+  useSessionTitleMint();
+  useSettingsChange(() => {});
+  useAgentsChange(getCwd());
+  useSkillsChange(getCwd(), () => {});
+  useKickOffCheckAndDisableSovereignIfNeeded();
+  useExtensions({ enabled: true });
+  useCostSummary(useFpsMetrics());
+
+  useEffect(() => {
+    recordBootInteractive();
+    setTimeout(() => {
+      void loadEnsureDaemon()
+        .then(async m => {
+          if (await m.ensureOwnedDaemon()) await m.warmSessionRunner(getCwd());
+        })
+        .catch(() => {});
+    }, 0);
+    setTimeout(() => {
+      void loadContextWindowWarmup()
+        .then(m => m.warmContextWindowSources())
+        .catch(() => {});
+    }, 0);
+  }, []);
+
+  useEffect(() => {
+    const disarm = scheduleQuietUpdateNotice(text =>
+      addNotification({ key: UPDATE_NOTICE_KEY, text, priority: 'high', color: 'warning', timeoutMs: Infinity }),
+    );
+    return disarm;
+  }, []);
+
+  useEffect(() => {
+    const key = 'daemon-version';
+    let alive = true;
+    let unsubscribe = (): void => {};
+    void loadDaemonHandshake()
+      .then(hs => {
+        if (!alive) return;
+        const paint = (): void => {
+          const line = hs.lastDaemonHandshake()?.line ?? null;
+          if (line !== null) addNotification({ key, ...splitWayOut(line), priority: 'high', color: 'warning', timeoutMs: 60_000 });
+          else removeNotification(key);
+        };
+        paint();
+        unsubscribe = hs.subscribeDaemonHandshake(paint);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (submitCount !== 1) return;
+    try {
+      startBackgroundHousekeeping();
+    } catch (error) {
+      logForDebugging(`background housekeeping failed to start: ${String(error)}`);
+    }
+  }, [submitCount]);
 }
