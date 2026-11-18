@@ -96,6 +96,7 @@ import type {
 } from './types.js'
 import { bootBirthFacts, type BootBirthFacts } from '../switchboard/bootBirthFacts.js'
 import { seatInitialPermissionMode } from '../../daemon/concourseWorkers.js'
+import { AdmissionPart } from './daemon/admission.js'
 import { AsksPart } from './daemon/asks.js'
 import { CompletionPart } from './daemon/completion.js'
 import { FoldPart } from './daemon/fold.js'
@@ -517,10 +518,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   private facts: SessionFactsV1 | null
   private readonly completionPart: CompletionPart
-  private openedAtMs = Date.now()
-  private startShownSinceMs: number | null = null
-  private seedFactsAtMs: number | null
-  private awaitingRunnerFacts: boolean
+  private readonly admissionPart = new AdmissionPart({ wakeLive: () => emitAll(this.liveListeners, 'live') })
   private readonly factsFeed: ProjectionFeed
   private readonly modelListeners: Listeners = new Set()
   private readonly permissionListeners: Listeners = new Set()
@@ -567,8 +565,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private readonly publishedProgressSeqs = new Map<string, number>()
 
   private attached = false
-  private admission: Promise<string | null> | null = null
-  private refusedAdmission: string | null = null
 
   constructor(readonly record: DaemonSessionRecordV1) {
     this.transcriptPath = join(record.home, `${record.sessionId}.jsonl`)
@@ -580,8 +576,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       hasUnreadTranscript: () => this.hasUnreadTranscript(),
       tick: () => this.tick(),
     })
-    this.seedFactsAtMs = this.facts?.atMs ?? null
-    this.awaitingRunnerFacts = record.runnerId === ''
+    this.admissionPart.seed(this.facts?.atMs ?? null, record.runnerId === '')
     this.workPart.refreshWork()
     const idleFloor = (): number => (this.turnInFlight ? HEARTBEAT_MS : IDLE_PROJECTION_FLOOR_MS)
     this.factsFeed = new ProjectionFeed(sessionFactsDir(), sessionFactsPath(record.sessionId), () => this.readFacts(), idleFloor)
@@ -958,44 +953,22 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   adoptRecord(next: DaemonSessionRecordV1, runnerLive = false): void {
     if (next.sessionId !== this.record.sessionId) return
-    if (next.runnerId === '' && (!this.awaitingRunnerFacts || this.refusedAdmission !== null)) {
+    if (this.admissionPart.parksAgain(next.runnerId)) {
       this.facts = readSessionFacts(next.sessionId) ?? this.facts
-      this.seedFactsAtMs = this.facts?.atMs ?? null
-      this.openedAtMs = Date.now()
-      this.startShownSinceMs = null
-      this.refusedAdmission = null
-      this.awaitingRunnerFacts = true
+      this.admissionPart.parked(this.facts?.atMs ?? null)
     }
     Object.assign(this.record, next)
-    if (runnerLive) this.refusedAdmission = null
-    if (runnerLive && this.awaitingRunnerFacts) {
-      this.awaitingRunnerFacts = false
-      this.startShownSinceMs = this.openedAtMs
-    }
+    if (runnerLive) this.admissionPart.runnerLive()
     emitAll(this.modelListeners, 'model')
     emitAll(this.liveListeners, 'live')
   }
 
   awaitAdmission(admission: Promise<string | null>): void {
-    this.admission = admission
-    if (this.refusedAdmission !== null) {
-      this.refusedAdmission = null
-      emitAll(this.liveListeners, 'live')
-    }
-    void admission.then(refusal => {
-      if (this.admission !== admission) return
-      if (refusal !== null) {
-        this.refusedAdmission = refusal
-        emitAll(this.liveListeners, 'live')
-      }
-    })
-    void admission.finally(() => {
-      if (this.admission === admission) this.admission = null
-    })
+    this.admissionPart.awaitAdmission(admission)
   }
 
   admissionRefusal(): string | null {
-    return this.refusedAdmission
+    return this.admissionPart.admissionRefusal()
   }
 
 
@@ -1071,7 +1044,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       this.reconcileSends()
       this.retireTextRows()
       this.paint()
-      if (this.awaitingRunnerFacts || this.facts?.runner?.state === 'starting') this.readFacts()
+      if (this.admissionPart.awaiting() || this.facts?.runner?.state === 'starting') this.readFacts()
       this.recomputeLive()
     } catch (error) {
       if (fpNow !== null) this.transcriptUnreadableFp = fpNow
@@ -1496,15 +1469,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       }
       return
     }
-    if (this.awaitingRunnerFacts) {
-      if (this.seedFactsAtMs !== null && next.atMs <= this.seedFactsAtMs) return
-      this.awaitingRunnerFacts = false
-      this.startShownSinceMs = this.refusedAdmission === null ? this.openedAtMs : null
-      this.refusedAdmission = null
-    }
+    if (!this.admissionPart.factsArrive(next.atMs)) return
     const prev = this.facts
     this.facts = this.factsFromCarrier(next)
-    if (this.facts.runner?.state !== 'starting' || this.facts.runner.respawns !== 0) this.startShownSinceMs = null
+    this.admissionPart.runnerReported(this.facts.runner)
     this.workPart.refreshCheckpoints()
     adoptOpenaiObservedUsage(next.usage?.openaiObserved)
     adoptOpenaiWindowFact(next.usage?.openaiWindow)
@@ -1619,10 +1587,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         connectorTrace({ ev: 'send', sid: this.record.sessionId, state: queuedNow ? 'queued' : 'delivered' })
       }
       this.retainedSend = state === 'held' || state === 'failed' ? { text: expanded, id: clientMessageId } : null
-      if (state === 'delivered' && this.refusedAdmission !== null) {
-        this.refusedAdmission = null
-        if (this.awaitingRunnerFacts) this.openedAtMs = Date.now()
-      }
+      if (state === 'delivered') this.admissionPart.sendDelivered()
       emitAll(this.liveListeners, 'live')
       if (state === 'delivered') {
         return { state: 'accepted' }
@@ -1630,7 +1595,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       return { state: 'refused', detail: detail ?? (state === 'held' ? 'held — ↵ again replays it' : 'the session did not take it') }
     }
     try {
-      const refusal = this.admission !== null ? await this.admission : null
+      const admission = this.admissionPart.pending()
+      const refusal = admission !== null ? await admission : null
       if (refusal !== null) {
         return settle('failed', `the session could not resume — ${refusal} · ↵ again retries`)
       }
@@ -2022,10 +1988,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   modelFacts(): ModelFactsV1 {
-    const retained = this.awaitingRunnerFacts ? this.record.modelKey : undefined
+    const retained = this.admissionPart.awaiting() ? this.record.modelKey : undefined
     const effective = retained ?? this.facts?.model.effective ?? this.record.modelKey ?? getEngineModel()
     const effectiveSource: 'live' | 'record' | 'ambient' =
-      this.facts !== null && !this.awaitingRunnerFacts ? 'live' : this.facts !== null || this.record.modelKey !== undefined ? 'record' : 'ambient'
+      this.facts !== null && !this.admissionPart.awaiting() ? 'live' : this.facts !== null || this.record.modelKey !== undefined ? 'record' : 'ambient'
     return {
       effective,
       effectiveSource,
@@ -2358,11 +2324,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       stuck,
       ...(this.record.isolation !== undefined ? { isolation: this.record.isolation } : {}),
       ...(this.record.branchLabel !== undefined ? { branchLabel: this.record.branchLabel } : {}),
-      runner: this.awaitingRunnerFacts
-        ? this.refusedAdmission !== null
-          ? null
-          : { state: 'starting', sinceMs: this.openedAtMs, respawns: 0, maxRespawns: 0 }
-        : this.runnerOnTheShownClock(),
+      runner: this.admissionPart.runnerShown(this.facts?.runner ?? null),
     }
   }
 
@@ -2370,12 +2332,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (wait.promise === true) return true
     if (this.liveWaitOwnAge?.wait !== wait) this.liveWaitOwnAge = { wait, own: compatEndpointIsSelfHosted(this.modelFacts().effective) }
     return this.liveWaitOwnAge.own
-  }
-
-  private runnerOnTheShownClock(): NonNullable<SessionFactsV1['runner']> | null {
-    const runner = this.facts?.runner ?? null
-    if (runner === null || this.startShownSinceMs === null || runner.sinceMs <= this.startShownSinceMs) return runner
-    return { ...runner, sinceMs: this.startShownSinceMs }
   }
 }
 
