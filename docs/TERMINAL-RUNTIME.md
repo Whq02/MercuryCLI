@@ -290,8 +290,9 @@ default is the bash Mercury ships (GNU bash 5.3), spawning a fresh child per
 command where the working directory carries from call to call and everything
 else resets; `system` is that road's name in the setting. When the shipped
 bash is absent or does not start, the system's own bash runs the command,
-whatever its version, and when no bash starts the bundled engine does. The Bash
-tool never runs a command in zsh and never hands one to it, whatever `$SHELL` names.
+whatever its version, and when no bash starts the bundled engine does. On
+those two systems the Bash tool never runs a command in zsh and never hands
+one to it, whatever `$SHELL` names.
 On Windows the default is a bash 5 too: one
 that is installed first (Git for Windows ships one, found through `git`, or
 the `bash.exe` that `MERCURY_GIT_BASH_PATH` names), then the bash that rides
@@ -309,20 +310,24 @@ patches and the build's flags. Mercury starts it as a separate program. It
 links nothing outside the operating system: the macOS binary uses the system's
 own libraries and the Linux binary is static. A command starts from the
 environment Mercury was started with, unchanged: `PATH` first, and `SHELL` as
-the launcher had it (`$BASH` names the shell that runs). No command is a login
-shell. Your bash login files are read once a session, in one login run that
-has no input and is ended after ten seconds, and the aliases, functions and
-options they define are carried to each command: from `~/.bash_profile` (or
-`~/.bash_login`, or `~/.profile`) and from `~/.bashrc`, whether or not
-`~/.bashrc` exists. Every function is carried, whatever its name, and an alias
-under `set -o posix` too. One option is not: `extglob` is off when a command
-starts, whatever the files set, because Mercury reads a command's words
-without it; a function whose patterns need it switches it on in its own body.
-What the files export, and a `PATH` they set, is not carried either: a command
-starts from the environment Mercury was started with. A `~/.bashrc` that returns early for a shell that is not
-interactive carries nothing written below that line. A login file that ends
-the shell, hands it to another program or runs past the ten seconds carries
-nothing; commands then run without it, and the session says so. The login run
+the launcher had it (`$BASH` names the shell that runs; a program that starts
+`$SHELL` itself, as an editor's `!` command does, starts your own shell). No
+command is a login shell. Your bash login files are read once a session, in
+one login run that has no input and is ended after ten seconds, and the
+aliases, functions and options they define are carried to each command: from
+`~/.bash_profile` (or `~/.bash_login`, or `~/.profile`) and from `~/.bashrc`,
+whether or not `~/.bashrc` exists. Every function is carried, whatever its
+name, and an alias under `set -o posix` too. One option is not: `extglob` is
+off when a command starts, whatever the files set, because Mercury reads a
+command's words without it; a function whose patterns need it switches it on
+in its own body. What the files export, and a `PATH` they set, is not carried
+either: a command starts from the environment Mercury was started with. A
+`~/.bashrc` that returns early for a shell that is not interactive carries
+nothing written below that line. A login file that ends the shell, hands it
+to another program or runs past the ten seconds carries nothing; commands
+then run without it, and the session says so. A file that hands the shell
+over to zsh (`exec zsh -l`) carries what it defines once it hands over only
+in an interactive shell (`case $- in *i*) exec zsh -l ;; esac`). The login run
 begins when the session prepares its first request and is over before that
 request is sent (a session that is handed no prompt takes none), so the Bash
 tool's description says there that no call carries your profile; the first
