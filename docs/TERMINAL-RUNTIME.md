@@ -357,7 +357,9 @@ wrapper runs reads that line and no word of the command. The line starts
 `/bin/sh` on a few words that start Mercury's shell on the command where its
 path can be run and, where it cannot (the wrapper went into a container or to
 another host), the `bash` on `PATH` there; with no bash there the command
-fails with a line that says so. On Windows the wrapper is handed the command's
+fails with a line that says so. A hook under the wrapper is handed one quoted
+line too, which starts `/bin/sh` on the hook, so the wrapper's shell reads no
+word of it. On Windows the wrapper is handed the command's
 line itself, as before, and the shell it starts reads that line. A command
 that starts zsh itself (`zsh -c '…'`) is asked about: Mercury does not read
 the script zsh will run.

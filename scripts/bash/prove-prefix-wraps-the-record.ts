@@ -16,7 +16,17 @@ if (process.argv.includes('--under-the-prefix')) {
     const result = await handle.result
     return { code: result.code, text: `${result.stdout ?? ''}${result.stderr ?? ''}`.trim() }
   }
+  const { startCommandHook } = await import('../../src/utils/hooks/commandRunner.ts')
+  const hook = async (command: string): Promise<Ran> => {
+    const started = await startCommandHook({ command, shell: 'bash', name: 'prefix-proof', event: 'PreToolUse', index: 0, payloadJson: '{}', timeoutMs: 20_000, source: { kind: 'settings' } })
+    const end = await started.result
+    return { code: end.kind === 'exited' ? end.code : -1, text: `${end.stdout}${end.stderr}`.trim() }
+  }
+  const hookWhere = await hook('echo "hook read by zsh=${ZSH_VERSION:-no}"')
+  const hookWords = await hook('echo =ls; X="a b"; printf "[%s]" $X; echo')
   const answers = {
+    hookWhere,
+    hookWords,
     record: (await systemShellRecord()).path,
     where: await run('echo "runs in zsh=${ZSH_VERSION:-no} bash=${BASH_VERSION:-no}"'),
     split: await run('X="a b"; printf "[%s]" $X; echo'),
@@ -68,7 +78,7 @@ try {
   Object.assign(env, { HOME: userHome, SHELL: '/bin/zsh', MERCURY_CONFIG_DIR: join(scratch, 'config-home'), MERCURY_SHELL_PREFIX: `${wrapper} -c` })
   const child = spawnSync(process.execPath, [import.meta.path, '--under-the-prefix'], { encoding: 'utf8', env })
   const line = (child.stdout ?? '').split('\n').find(text => text.startsWith('ANSWERS '))
-  const answers = line === undefined ? null : (JSON.parse(line.slice(8)) as { record: string; where: Ran; split: Ran; glob: Ran; equals: Ran; stays: Ran; after: Ran; pattern: string; elsewhere: string })
+  const answers = line === undefined ? null : (JSON.parse(line.slice(8)) as { hookWhere: Ran; hookWords: Ran; record: string; where: Ran; split: Ran; glob: Ran; equals: Ran; stays: Ran; after: Ran; pattern: string; elsewhere: string })
   const told = `${JSON.stringify(answers)} · exit ${String(child.status)} · ${JSON.stringify(String(child.stderr ?? '').slice(-300))}`
 
   console.log(`\n(1) the wrapper runs ${other}; the command is read by the record's shell`)
@@ -81,7 +91,7 @@ try {
   console.log('\n(2) what the wrapper was handed')
   const counts = existsSync(`${log}.counts`) ? readFileSync(`${log}.counts`, 'utf8').trim().split('\n') : []
   const handed = existsSync(`${log}.line`) ? readFileSync(`${log}.line`, 'utf8') : ''
-  check('the wrapper is started once for each command, with its flag and one line', counts.length === 6 && counts.every(count => count === '2'), JSON.stringify(counts))
+  check('the wrapper is started once for each of the two hooks and the six commands, with its flag and one line', counts.length === 8 && counts.every(count => count === '2'), JSON.stringify(counts))
   const { tryParseShellCommand } = await import('../../src/utils/bash/shellQuote.ts')
   const parsed = tryParseShellCommand(handed)
   const words = parsed.success ? parsed.tokens : []
@@ -91,6 +101,10 @@ try {
     JSON.stringify(handed.slice(0, 400)),
   )
   check('every word of the line is quoted, with single quotes alone, which sh, bash and zsh read alike', handed.startsWith("'/bin/sh' '-c' '") && /^(?:'[^']*'|\\'| )+$/.test(handed), JSON.stringify(handed.slice(0, 200)))
+
+  console.log('\n(2b) a hook under the prefix: the wrapper is handed one quoted line that starts /bin/sh on the hook')
+  check('the hook is not read by the shell the wrapper starts', answers !== null && answers.hookWhere.code === 0 && answers.hookWhere.text === 'hook read by zsh=no', JSON.stringify(answers?.hookWhere))
+  check('a word that begins with = stays the word in a hook, and an unquoted expansion splits', answers?.hookWords.text === '=ls\n[a][b]', JSON.stringify(answers?.hookWords))
 
   console.log('\n(3) a wrapper that leaves the machine: the line lands where the record\'s path cannot be run')
   const landed = (path: string): { status: number | null; text: string } => {
@@ -108,7 +122,7 @@ try {
     JSON.stringify(without),
   )
 
-  console.log('\n(4) the prefix\'s other users are handed what they were: a hook\'s command and an MCP server\'s go through formatShellPrefixCommand as before')
+  console.log('\n(4) formatShellPrefixCommand joins a wrapper and one line as before: the line it is given is the caller\'s')
   const { formatShellPrefixCommand } = await import('../../src/utils/bash/shellPrefix.ts')
   const SAME: Array<[string, string, string]> = [
     ['/bin/zsh -c', 'echo hi', "/bin/zsh -c 'echo hi'"],
