@@ -40,6 +40,19 @@
 # gate-watch: src/services/switchboard/runnerArgv.ts
 # gate-watch: src/utils/cockpit/harnessMap.ts src/substrate/startupMenu.ts src/utils/attachments/orchestrator.ts
 # gate-watch: scripts/provider-compat/tensorfoldPromptFixture.ts src/mneme/handoffAsk.ts src/mneme/exitHandoff.ts src/services/api/reconnectLadder.ts
+# gate-watch: src/cli/headless/*
+# gate-watch: src/commands.ts src/constants/agentMessage.ts src/constants/systemPromptSections.ts src/daemon/runnerCapabilityCensus.ts src/guards/mission.ts
+# gate-watch: src/run-core/pauseGate.ts src/services/advisor/index.ts src/services/agentResults/summaryRoom.ts src/services/agents/operatorStop.ts
+# gate-watch: src/services/anthropicLimits.ts src/services/engine-connector/rosterTerms.ts src/services/engine-connector/seatProjections.ts
+# gate-watch: src/services/mcp/config.ts src/services/mcp/elicitationHandler.ts src/services/mcp/kitCompletion.ts src/services/mcp/sessionKitPin.ts
+# gate-watch: src/services/notices/idleNudge.ts src/services/notices/unreadLedger.ts src/services/providers/lawfulPrefixChange.ts
+# gate-watch: src/services/providers/limitWarning.ts src/services/providers/openai/openaiCatalogue.ts src/services/providers/openai/openaiLimitState.ts
+# gate-watch: src/services/providers/providerUsage.ts src/services/providers/toolEconomy.ts src/services/run/runCoordinator.ts src/services/samples/facts.ts
+# gate-watch: src/services/saturn/sessionScheduleBridge.ts src/services/switchboard/sessionReceipts.ts src/services/switchboard/spawnSwitches.ts
+# gate-watch: src/skills/kitGovernance.ts src/substrate/recoveryOrchestrator.ts src/tasks/LocalAgentTask/pauseCarry.ts src/tasks/LocalShellTask/guards.ts
+# gate-watch: src/tasks/taskLaunchLedger.ts src/tools/AgentTool/resumeAgent.ts src/tools/MonitorTool/laneWall.ts src/tools/MonitorTool/watchReceipts.ts
+# gate-watch: src/utils/crew/crewAccountChange.ts src/utils/hooks/background.ts src/utils/messages/noticeRows.ts src/utils/messages/text.ts src/utils/model/model.ts
+# gate-watch: src/utils/permissions/modeTransitions.ts src/utils/skills/skillChangeDetector.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
