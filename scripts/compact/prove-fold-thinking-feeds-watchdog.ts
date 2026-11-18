@@ -100,6 +100,7 @@ setIsInteractive(false)
 const { compactConversation, setFoldBoundsForTests, ERROR_MESSAGE_FOLD_TIMEOUT } = await import('../../src/services/compact/compact.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/query.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 let failures = 0
@@ -116,7 +117,7 @@ async function fold(model: string, next: Shape): Promise<{ ms: number; requests:
   posted.length = 0
   let activity = 0
   const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
-  const context: any = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, setSDKStatus: (value: any) => { if (typeof value?.streamActivity === 'number') activity++ }, messages: [], readFileState: new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024), options: { tools: [], commands: [], mcpClients: [], engineModel: model, maxThinkingTokens: 0, thinkingConfig: { type: 'adaptive' }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
+  const context: any = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, setSDKStatus: (value: any) => { if (typeof value?.streamActivity === 'number') activity++ }, messages: [], startTurn, readFileState: new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024), options: { tools: [], commands: [], mcpClients: [], engineModel: model, maxThinkingTokens: 0, thinkingConfig: { type: 'adaptive' }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
   const messages = [createUserMessage({ content: 'Preserve the parser result and continue with CLI verification.' })]
   const cache = { systemPrompt: asSystemPrompt(['Synthetic thinking-feed proof.']), userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: messages }
   const guard = setTimeout(() => context.abortController.abort(), 60_000)

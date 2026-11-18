@@ -76,6 +76,7 @@ const { runCrewmateHook } = await import('../../src/utils/hooks/crewmateRunner.t
 const { hookAnswerSchema } = await import('../../src/utils/hooks/contract.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/query.ts')
 const { createServer } = await import('node:http')
 const { modelThinkingAlwaysOn } = await import('../../src/utils/model/capabilities.ts')
 const { z } = await import('zod/v4')
@@ -128,6 +129,7 @@ const crewmateContext = (): unknown => {
     getAppState: () => state,
     setAppState: (next: (prev: never) => never): void => { state = next(state as never) as unknown as Record<string, unknown> },
     messages: [],
+    startTurn,
     readFileState: createFileStateCacheWithSizeLimit(100),
     setInProgressToolUseIDs: () => {},
     setResponseLength: () => {},

@@ -98,6 +98,7 @@ const { compileJsonSchema } = await import('../../src/services/schema/jsonSchema
 await import('../../src/tasks.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/query.ts')
 
 type Command = import('../../src/types/command.ts').Command
 type AppState = ReturnType<typeof getDefaultAppState>
@@ -152,6 +153,7 @@ check('/code-review runs bare with optional [target]', reviewCmd !== undefined &
 const makeSlashContext = (commands: Command[]) => ({
   options: { commands, tools: [SkillTool], mcpClients: [], mcpResources: {}, engineModel: 'claude-opus-4-8', agentDefinitions: { activeAgents: getBuiltInAgents(), allAgents: getBuiltInAgents() }, debug: false, verbose: false, isNonInteractiveSession: false },
   abortController: new AbortController(),
+  startTurn,
   readFileState: new Map(),
   getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext(), mcp: { clients: [], commands: [] }, sessionHooks: new Map() }),
   setAppState: () => {},
@@ -571,6 +573,7 @@ async function runLaunchProof(sessionUuid: string, boardLabel: string, researche
         agentDefinitions: { activeAgents: builtIns, allAgents: builtIns },
       },
       messages: [],
+      startTurn,
       readFileState: createFileStateCacheWithSizeLimit(100),
       setInProgressToolUseIDs: () => {},
       setResponseLength: () => {},

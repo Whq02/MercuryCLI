@@ -79,6 +79,7 @@ const { DEFAULT_AGENT_IDLE_MINUTES, agentIdleLimitMs, runAgent } = await import(
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/query.ts')
 const { enableDebugLogging, getDebugLogPath } = await import('../../src/utils/debug.ts')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
 const { buildTool } = await import('../../src/Tool.ts')
@@ -114,7 +115,7 @@ async function drive(kind: string) {
     abortController: owner,
     options: { commands: [], tools: [], engineModel: model, thinkingConfig: { type: 'adaptive' }, mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, debug: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
     getAppState: () => state, setAppState: (update: any) => { state = update(state) }, setAppStateForTasks: (update: any) => { state = update(state) },
-    messages: [], readFileState: createFileStateCacheWithSizeLimit(100), setInProgressToolUseIDs: () => {}, setResponseLength: () => {}, updateFileHistoryState: () => {}, updateAttributionState: () => {},
+    messages: [], startTurn, readFileState: createFileStateCacheWithSizeLimit(100), setInProgressToolUseIDs: () => {}, setResponseLength: () => {}, updateFileHistoryState: () => {}, updateAttributionState: () => {},
   }
   const rows: any[] = []
   const asks: Array<{ heldMs: number; decision: string }> = []

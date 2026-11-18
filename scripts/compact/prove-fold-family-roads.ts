@@ -63,6 +63,7 @@ const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/query.ts')
 const { getModelMaxOutputTokens, resolveContextWindow } = await import('../../src/utils/model/capabilities.ts')
 const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
 await refreshLocalDiscovery({ force: true })
@@ -123,6 +124,7 @@ function makeContext(model: string, opts?: { thinking?: { type: string } }): Ctx
     messages: [],
     agentType: undefined,
     agentId: undefined,
+    startTurn,
     readFileState,
     options: {
       tools: [],
@@ -461,6 +463,7 @@ section("§8b the OpenAI road: the fold re-sends the session's LAST REQUEST's ro
       appState = f(appState as never) as unknown as Record<string, unknown>
     },
     messages: [],
+    startTurn,
     readFileState: createFileStateCacheWithSizeLimit(100),
     setInProgressToolUseIDs: () => {},
     setResponseLength: () => {},

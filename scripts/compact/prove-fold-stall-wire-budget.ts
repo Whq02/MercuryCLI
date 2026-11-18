@@ -97,6 +97,7 @@ Object.assign(process.env, fixture.env)
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const compactModule = await import('../../src/services/compact/compact.ts')
+const { query: startTurn } = await import('../../src/query.ts')
 const { compactConversation, shouldRideCacheSharingFork } = compactModule
 const foldStallMsFor: ((model: string, floorMs?: number) => number) | undefined = (compactModule as { foldStallMsFor?: (model: string, floorMs?: number) => number }).foldStallMsFor
 const { streamIdleTimeoutMsForRoute, STREAM_IDLE_DEFAULT_MS } = await import('../../src/services/providers/streamIdleBudget.ts')
@@ -148,6 +149,7 @@ async function runFold(model: string, history: unknown[] = makeMessages(model)):
     messages: [],
     agentType: undefined,
     agentId: undefined,
+    startTurn,
     readFileState,
     options: { tools: [], mcpClients: [], engineModel: model, maxThinkingTokens: 0, thinkingConfig: { type: 'disabled' as const }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } },
   }

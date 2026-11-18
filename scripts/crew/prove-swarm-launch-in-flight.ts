@@ -36,6 +36,7 @@ const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
 const { killAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
 const { getCommandQueue } = await import('../../src/input-core/command-queue.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/query.ts')
 const { readAgentMetadata } = await import('../../src/utils/sessionStorage/paths.ts')
 const { enableDebugLogging, getDebugLogPath } = await import('../../src/utils/debug.ts')
 type AppState = ReturnType<typeof getDefaultAppState>
@@ -82,6 +83,7 @@ function launch(input: { name: string; run_in_background?: boolean; team?: strin
     setAppStateForTasks: set,
     options: { commands: [], tools: [], engineModel: 'claude-opus-4-8', thinkingConfig: { type: 'disabled' }, mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, debug: false, verbose: false, agentDefinitions: { activeAgents: [seatType], allAgents: [seatType] } },
     messages: [],
+    startTurn,
     readFileState: createFileStateCacheWithSizeLimit(100),
     setInProgressToolUseIDs: () => {},
     setResponseLength: () => {},

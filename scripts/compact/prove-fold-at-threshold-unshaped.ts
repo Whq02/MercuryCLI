@@ -51,6 +51,7 @@ const { rosterOwnerFromToolUseContext } = await import('../../src/services/run/r
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
 const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/query.ts')
 const { compactConversation, shouldRideCacheSharingFork, PROSE_SKIPPED_KEY } = await import('../../src/services/compact/compact.ts')
 
 const GEMINI = 'gemini-3-pro'
@@ -100,7 +101,7 @@ async function atThreshold(label: string, model: string, family: string, resultC
   record(`${built.messages.length} messages (${built.ids.length} Read rounds of ${resultChars.toLocaleString('en-US')} chars, ${(bytes / 1_048_576).toFixed(1)} MB of JSON); the calibrated gauge reads ${gauge.toLocaleString('en-US')} on a ${window.toLocaleString('en-US')} window — the fold threshold is ${threshold.toLocaleString('en-US')}, the blocking limit ${blocking.toLocaleString('en-US')}; by density the request reads ${byDensity.toLocaleString('en-US')} (fixed material ${fixed.toLocaleString('en-US')}, ratio ${ratio})`)
   check(`${label}: the gauge sits exactly at the auto-compact threshold`, gauge === threshold, `${gauge} vs ${threshold}`)
   check(`${label}: by density too the conversation is under the blocking limit (a normal day's fold, not the dead seat's)`, byDensity < blocking && byDensity > threshold - 25_000, `${byDensity} vs ${blocking}`)
-  const context: any = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: built.messages, readFileState: new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024), options: { tools: [FileReadTool], commands: [], mcpClients: [], engineModel: model, maxThinkingTokens: 0, thinkingConfig, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
+  const context: any = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: built.messages, startTurn, readFileState: new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024), options: { tools: [FileReadTool], commands: [], mcpClients: [], engineModel: model, maxThinkingTokens: 0, thinkingConfig, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
   const systemPrompt = asSystemPrompt(['Synthetic fold request proof.'])
   const owner = String(rosterOwnerFromToolUseContext(context))
   fixture.script([{ text: 'Reading module next.' }])

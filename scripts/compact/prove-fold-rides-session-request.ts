@@ -20,6 +20,7 @@ const { createUserMessage, createAssistantMessage } = await import('../../src/ut
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/query.ts')
 const { recordSentRequest } = await import('../../src/utils/forkedAgent.ts')
 const { rosterOwnerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
@@ -84,7 +85,7 @@ async function drive(road: { lane: string; model: string; dialect: string }, eff
   const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: effort }
   const tools = [FileReadTool]
   const messages = opts.messages ?? historyFor(road, opts.redacted)
-  const context: any = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: opts.messages ?? [], readFileState: new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024), options: { tools, commands: [], mcpClients: [], engineModel: road.model, maxThinkingTokens: thinkingConfig.budgetTokens ?? 0, thinkingConfig, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
+  const context: any = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: opts.messages ?? [], startTurn, readFileState: new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024), options: { tools, commands: [], mcpClients: [], engineModel: road.model, maxThinkingTokens: thinkingConfig.budgetTokens ?? 0, thinkingConfig, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
   const systemPrompt = asSystemPrompt(['Synthetic fold request proof.'])
   fixture.script([{ text: summary }])
   const referenceAt = fixture.captured.length

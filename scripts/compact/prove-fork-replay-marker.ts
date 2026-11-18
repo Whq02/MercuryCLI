@@ -19,6 +19,7 @@ enableConfigs()
 const { runForkedAgent } = await import('../../src/utils/forkedAgent.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
 const { FileStateCache } = await import('../../src/utils/fileStateCache.ts')
+const { query: startTurn } = await import('../../src/query.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { flushSessionStorage } = await import('../../src/utils/sessionStorage/writer.ts')
@@ -27,7 +28,7 @@ const history = [createUserMessage({ content: 'fixture request' }), createAssist
 const before = JSON.stringify(history)
 const prompt = createUserMessage({ content: 'Summarise this fixture.' })
 const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'high' }
-const context = { abortController: new AbortController(), getAppState: () => state, setAppState() {}, messages: history, readFileState: new FileStateCache(100, 1024 * 1024), options: { tools: [], mcpClients: [], commands: [], engineModel: 'claude-opus-4-8', thinkingConfig: { type: 'disabled' }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } } as never
+const context = { abortController: new AbortController(), getAppState: () => state, setAppState() {}, messages: history, startTurn, readFileState: new FileStateCache(100, 1024 * 1024), options: { tools: [], mcpClients: [], commands: [], engineModel: 'claude-opus-4-8', thinkingConfig: { type: 'disabled' }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } } as never
 try {
   const result = await runForkedAgent({ promptMessages: [prompt], cacheSafeParams: { systemPrompt: asSystemPrompt(['fixture']), userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: history }, canUseTool: (async () => ({ behavior: 'deny', message: 'no tools in this fixture' })) as never, querySource: 'compact' as never, forkLabel: 'compact', maxTurns: 1 })
   await flushSessionStorage()
