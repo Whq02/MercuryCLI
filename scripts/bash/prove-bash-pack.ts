@@ -36,7 +36,7 @@ type Lock = {
   license: string
   licenseFiles: string[]
   sourceNote: string
-  signingKey: string
+  pinsVerifiedWith?: { key?: string; on?: string; how?: string }
   tarball: Pinned
   patches: Pinned[]
   build: { cflags: string; configure: string[]; make: string[] }
@@ -64,6 +64,12 @@ check('the lock names the four platforms the pack is built for, and the door nam
 check('the Linux packs are static builds in a builder image pinned by digest', /^[a-z0-9./-]+@sha256:[0-9a-f]{64}$/.test(lock.linuxBuilder.image) && ['linux-x64', 'linux-arm64'].every(p => lock.platforms[p]!.configure.includes('--enable-static-link')), lock.linuxBuilder.image)
 check("every build uses bash's own readline and its own allocator's absence is stated: no installed library is named", lock.build.configure.includes('--without-installed-readline') && lock.build.configure.includes('--without-bash-malloc') && lock.build.make.includes('YACC=false'), lock.build.configure.join(' '))
 check('the door maps a host to its pack and gives none for Windows, which has its own road', bashPackPlatform('darwin', 'arm64') === 'darwin-arm64' && bashPackPlatform('darwin', 'x64') === 'darwin-x64' && bashPackPlatform('linux', 'x64') === 'linux-x64' && bashPackPlatform('linux', 'arm64') === 'linux-arm64' && bashPackPlatform('win32', 'x64') === null)
+const verifiedWith = lock.pinsVerifiedWith ?? {}
+check(
+  'the pin is the digest: the key stands in the lock as a note of what the pins were verified with, how and on which day, and no field calls it a signing key',
+  /^[0-9A-F]{40}$/.test(verifiedWith.key ?? '') && /^\d{4}-\d{2}-\d{2}$/.test(verifiedWith.on ?? '') && /no signature/.test(verifiedWith.how ?? '') && !('signingKey' in lock),
+  JSON.stringify(lock.pinsVerifiedWith ?? null),
+)
 
 section('(2) the packs that stand in this checkout')
 const built = BASH_PACK_PLATFORMS.filter(platform => existsSync(join(ROOT, ...BASH_PACK_PATH.split('/'), platform, BASH_PACK_MANIFEST_FILE)))
@@ -89,8 +95,8 @@ for (const platform of built) {
   check(`${platform}: the licence text rides with the binary (COPYING, the GNU General Public License, version 3)`, licence.includes('GNU GENERAL PUBLIC LICENSE') && licence.includes('Version 3, 29 June 2007'))
   const note = readFileSync(join(dir, lock.sourceNote), 'utf8')
   check(
-    `${platform}: the SOURCE note names the tarball, every patch, each sha256, the flags and the signing key`,
-    [lock.tarball, ...lock.patches].every(pinned => note.includes(pinned.url) && note.includes(pinned.sha256)) && flags.every(flag => note.includes(flag)) && note.includes(lock.signingKey) && note.includes(`patch level ${lock.patchLevel}`),
+    `${platform}: the SOURCE note names the tarball, every patch, each sha256, the flags and the key the maintainer signs with`,
+    [lock.tarball, ...lock.patches].every(pinned => note.includes(pinned.url) && note.includes(pinned.sha256)) && flags.every(flag => note.includes(flag)) && verifiedWith.key !== undefined && note.includes(verifiedWith.key) && note.includes(`patch level ${lock.patchLevel}`),
   )
   if (platform.startsWith('linux-')) {
     const libc = lock.linuxBuilder.libc
@@ -122,6 +128,12 @@ if (host !== null && built.includes(host)) {
     const libraries = (linked.stdout ?? '').split('\n').slice(1).map(line => line.trim().split(' (')[0] ?? '').filter(Boolean)
     check('otool -L names only libraries of the operating system', linked.status === 0 && libraries.length > 0 && libraries.every(library => library.startsWith('/usr/lib/')), libraries.join(' '))
   }
+  const checked = spawnSync(process.execPath, ['run', join(ROOT, 'scripts', 'vendor', 'build-bash.ts'), '--check'], { cwd: ROOT, encoding: 'utf8' })
+  check(
+    'build-bash.ts --check says what it holds the pack to: the digests, and that it checks no signature',
+    checked.status === 0 && /valid against the lock's digests \(the tarball and \d+ patches by sha256/.test(checked.stdout ?? '') && /no signature is checked/.test(checked.stdout ?? ''),
+    `exit ${String(checked.status)} · ${JSON.stringify(`${checked.stdout ?? ''}${checked.stderr ?? ''}`.slice(0, 400))}`,
+  )
 
   section('(4) the door refuses a pack that is not what its record says')
   const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'bash-pack-')))
