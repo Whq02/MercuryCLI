@@ -93,6 +93,14 @@ const RECORDED: Readonly<Record<string, { whole: string; events: string }>> = {
     whole: 'b1f3894d5892e950732f682b46edbd292a07f54cf8a2246c13461efa76784c53',
     events: '53962a1d0a3147d8552ae53159ba4b981fc4b2e5171466b817142fadff2d',
   },
+  'busy-turn-with-no-facts': {
+    whole: 'dcc19422e0e00f562d3fdf9c7a073076d09fb92736cf31ec22701fb8f53ffc5e',
+    events: 'cf5d61551d3347d81759552a31ea13f0033f1325990e4480aac547d818cc1a4d4c96f4a91aa647d818cc4b279dae92ab36b947d817dc18cca9c88e54f8413c4947d86006b4fa47d818cc17142fad7399',
+  },
+  'feeds-while-attached': {
+    whole: '7abf71156a7cf3d58803102f35e32e9650aeadb1bb39cbf58c679d4696263482',
+    events: 'ce3d2a1d495c068621d59d131759552a7689a5e547d8a419b64339d7fc09109be2b387fef5db17144a1617142fadff2d',
+  },
 }
 
 let failures = 0

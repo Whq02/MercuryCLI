@@ -596,8 +596,15 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
       })
     }
 
-    advance(ms: number): Promise<void> {
-      return this.step(`the clock moves ${ms} ms`, [], () => clock.advance(ms))
+    advance(ms: number, script: ScriptedReply[] = []): Promise<void> {
+      return this.step(`the clock moves ${ms} ms`, script, () => clock.advance(ms))
+    }
+
+    feed(label: string, publish: () => void): Promise<void> {
+      return this.step(`a feed reads: ${label}`, [], () => {
+        publish()
+        clock.advance(10_000)
+      })
     }
 
     carrierGone(): Promise<void> {
@@ -1193,6 +1200,36 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
       toolu_mcp: { toolUseID: 'toolu_mcp_inner', dataType: 'mcp_progress', seq: 1, latestLine: 'half way', mcpProgress: 5, mcpTotal: 10 },
       toolu_ps: { toolUseID: 'toolu_ps_inner', dataType: 'powershell_progress', seq: 1, latestLine: 'a line', totalLines: 1 },
     })
+  })
+
+  await scenario('busy-turn-with-no-facts', async h => {
+    await h.facts({ busy: true, turnStartedAt: clock.now() })
+    await h.advance(44_999)
+    await h.advance(1, [applied()])
+    await h.facts({ busy: true, turnStartedAt: clock.now() })
+    await h.advance(45_000, [outcome('refused', { detail: 'no runner holds the session' })])
+    await h.facts({ busy: true, turnStartedAt: clock.now() })
+    await h.advance(45_000, [refusedBy('no such session')])
+    await h.facts({ busy: true, turnStartedAt: clock.now() })
+    h.breakCarrier('ECONNREFUSED')
+    await h.advance(45_000)
+    h.mendCarrier()
+    await h.facts({ busy: true, turnStartedAt: clock.now() })
+    await h.facts({ busy: false })
+    await h.advance(45_000)
+  })
+
+  await scenario('feeds-while-attached', async h => {
+    await h.call('attach', [], [{ apart: applied() }])
+    await h.feed('the facts', () => h.publishFacts({ busy: false, effort: 'high', work: [crewRow('agent-a', 'running')] }))
+    await h.feed('the same facts, published again', () => h.publishFacts({ busy: false, effort: 'high', work: [crewRow('agent-a', 'running')] }))
+    await h.feed('an ask', () => projections.publishSessionAsks({ schema: 1, sessionId: h.sessionId, asks: [{ requestId: 'ask-fed', toolUseId: 'toolu_fed', toolName: 'Bash', input: { command: 'ls' }, description: 'list the folder', askedAt: clock.now() }] }, daemonDir))
+    await h.feed('the tail', () => projections.publishSessionTail({ schema: 1, sessionId: h.sessionId, atMs: clock.now(), text: 'words through the feed', messageId: 'msg_fed', turnChars: 22 }, daemonDir))
+    await h.feed('tool progress', () => h.publishProgress({ toolu_fed: { toolUseID: 'toolu_fed_inner', dataType: 'bash_progress', seq: 1, latestLine: 'one line', elapsedTimeSeconds: 1, totalLines: 1, budgetMs: 60000 } }))
+    await h.feed('tool progress that moved, and one that did not', () => h.publishProgress({ toolu_fed: { toolUseID: 'toolu_fed_inner', dataType: 'bash_progress', seq: 2, latestLine: 'two lines', elapsedTimeSeconds: 2, totalLines: 2, budgetMs: 60000 }, toolu_old: { toolUseID: 'toolu_old_inner', dataType: 'bash_progress', seq: 0 } }))
+    await h.feed('no tool progress', () => h.publishProgress({}))
+    await h.feed('nothing new', () => {})
+    await h.call('detach')
   })
 
   server.close()
