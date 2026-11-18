@@ -43,13 +43,10 @@ async function* drainQueuedCommands(run: RunCtx, iter: IterationState, updatedTo
   const { emit, querySource, awaitingReply, consumedCommandUuids } = run
   const { toolUseContext, messagesForQuery, assistantMessages, toolResults, toolUseBlocks } = iter
   const sleepRan = toolUseBlocks.some(b => b.name === SLEEP_TOOL_NAME)
-  const currentAgentId = toolUseContext.agentId
-  const isMainThread =
-    currentAgentId === undefined &&
-    (querySource.startsWith('main_thread') || querySource === 'sdk')
+  const isMainThread = querySource.startsWith('main_thread') || querySource === 'sdk'
   const queuedCommandsSnapshot = selectDrainableCommands(
     getDrainableCommands(sleepRan),
-    { sleepRan, isMainThread, agentId: currentAgentId },
+    { sleepRan, isMainThread, agentId: toolUseContext.agentId },
     isSlashCommand,
   )
   markDraining(queuedCommandsSnapshot)

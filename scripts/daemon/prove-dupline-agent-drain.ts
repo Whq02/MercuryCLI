@@ -33,7 +33,7 @@ section('S the drain scope reads the agent id before the query source (the tool 
   check(
     "a query that runs under an agent id is never the main thread's drain, whatever its source label",
     leftAlone(agentLabelledSdk) && leftAlone(agentLabelledMain) && j(mainThread.drained) === j([SENT]) && j(mainThread.consumed) === j([SENT]) && mainThread.left.length === 0,
-    `the operator's line queued at a tool boundary — under an agent id labelled sdk: ${j(agentLabelledSdk)}; under an agent id labelled main_thread: ${j(agentLabelledMain)}; the main thread itself: ${j(mainThread)} — the drain of src/run-core/turn/afterTools.ts takes the main thread's queue only for a run with no agent id`,
+    `the operator's line queued at a tool boundary — under an agent id labelled sdk: ${j(agentLabelledSdk)}; under an agent id labelled main_thread: ${j(agentLabelledMain)}; the main thread itself: ${j(mainThread)} — selectDrainableCommands of src/run-core/attachment-drain.ts gives the main thread's queue only to a scope with no agent id, and the drain of src/run-core/turn/afterTools.ts hands it the agent id of the run's context`,
   )
 }
 

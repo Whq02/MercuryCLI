@@ -859,26 +859,24 @@ async function* queuedMessage(run: RunCtx, iter: IterationState, reply: NoToolRe
   const { emit } = run
   const { toolUseContext, messagesForQuery, tracking, assistantMessages } = iter
   const { turnCount } = iter.state
-  if (toolUseContext.agentId) {
-    const queued = getAgentPendingMessageAttachments(toolUseContext).map(attachment => createAttachmentMessage(attachment))
-    if (queued.length > 0) {
-      for (const row of queued) yield emit({ kind: 'attachment', message: row })
-      const next: NextTurn = {
-        messages: [...messagesForQuery, ...assistantMessages, ...queued],
-        toolUseContext,
-        autoCompactTracking: tracking,
-        turnCount: turnCount + 1,
-        maxOutputTokensRecoveryCount: 0,
-        streamFaultRecoveryCount: 0,
-        toolCallRefusalRecoveryCount: 0,
-        maxOutputTokensOverride: undefined,
-        stopHookActive: undefined,
-        overflowEpisode: FRESH_OVERFLOW_EPISODE,
-        pendingOverflow: undefined,
-        transition: { reason: 'queued_message', count: queued.length },
-      }
-      return { kind: 'hand_over', next }
+  const queued = getAgentPendingMessageAttachments(toolUseContext).map(attachment => createAttachmentMessage(attachment))
+  if (queued.length > 0) {
+    for (const row of queued) yield emit({ kind: 'attachment', message: row })
+    const next: NextTurn = {
+      messages: [...messagesForQuery, ...assistantMessages, ...queued],
+      toolUseContext,
+      autoCompactTracking: tracking,
+      turnCount: turnCount + 1,
+      maxOutputTokensRecoveryCount: 0,
+      streamFaultRecoveryCount: 0,
+      toolCallRefusalRecoveryCount: 0,
+      maxOutputTokensOverride: undefined,
+      stopHookActive: undefined,
+      overflowEpisode: FRESH_OVERFLOW_EPISODE,
+      pendingOverflow: undefined,
+      transition: { reason: 'queued_message', count: queued.length },
     }
+    return { kind: 'hand_over', next }
   }
 }
 
