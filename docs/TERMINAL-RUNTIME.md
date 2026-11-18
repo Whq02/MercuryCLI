@@ -337,7 +337,16 @@ shell by path, with `-c` and one line as the arguments; before the first
 command of a session it asks once for that shell on a harmless line, and an
 editor that errors or does not print the answer within ten seconds is passed
 over for the session: commands run in the local shell and the first result
-says so. On macOS and Linux a `MERCURY_SHELL_PREFIX` wrapper is handed one
+says so. A command whose request for a terminal the editor does not answer
+within thirty seconds is not run again in the local shell: the result is an
+error that says the command may be running in the editor's terminal. When a
+command ends, Mercury reads the terminal's output until the editor reports the
+exit with it or the output has stood still for a second, three seconds at
+most; the result says so when the output was still growing then, and when the
+editor reports that it truncated the output. A command in the editor's
+terminal reads no standard input, as in the local shell.
+
+On macOS and Linux a `MERCURY_SHELL_PREFIX` wrapper is handed one
 line, every word of it quoted with single quotes alone, so whichever shell the
 wrapper runs reads that line and no word of the command. The line starts
 `/bin/sh` on a few words that start Mercury's shell on the command where its
