@@ -99,7 +99,7 @@ const txnGaps = census.rows
 check('file-mutating tools declare transactions', txnGaps.length === 0, txnGaps.join(', '))
 
 const { resourceAdapterKinds } = await import('../../src/services/resources/registry.ts')
-const kinds = new Set(resourceAdapterKinds().map((k: { kind: string }) => k.kind))
+const kinds = new Set((await resourceAdapterKinds()).map((k: { kind: string }) => k.kind))
 const resGaps = census.rows
   .flatMap(r => (r.declared?.resources ?? []).map(kind => ({ name: r.name, kind })))
   .filter(({ kind }) => !kinds.has(kind))

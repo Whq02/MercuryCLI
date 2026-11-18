@@ -41,8 +41,8 @@ export type Output = {
   version?: string
 }
 
-function kindsLine(): string {
-  return resourceAdapterKinds().map(k => k.kind).join(', ')
+async function kindsLine(): Promise<string> {
+  return (await resourceAdapterKinds()).map(k => k.kind).join(', ')
 }
 
 export const InspectTool = buildTool({
@@ -61,7 +61,7 @@ export const InspectTool = buildTool({
   async prompt() {
     return `Read Mercury records by reference. Returns bounded pages and distinct absent, expired or unavailable states. Omitting the id lists objects of that kind.
 
-Kinds: ${kindsLine()}.
+Kinds: ${await kindsLine()}.
 models — mercury://models lists reachable models live; mercury://models/known lists this build's pin tables, not reachability.
 seat — mercury://seat gives this turn's model, effort, posture and session engine history with switch times.`
   },

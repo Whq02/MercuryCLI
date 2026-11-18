@@ -277,7 +277,7 @@ section('(5) the mercury://workbench adapter through the REAL registry')
   const { resourceAdapterKinds } = await import('../../src/services/resources/registry.js')
   check(
     'workbench kind is in the runtime census',
-    resourceAdapterKinds().some(k => k.kind === 'workbench'),
+    (await resourceAdapterKinds()).some(k => k.kind === 'workbench'),
   )
 }
 

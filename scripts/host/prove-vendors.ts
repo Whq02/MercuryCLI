@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { existsSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs'
 import { ownerOnlyFile } from '../lib/ownerOnly.ts'
 import { createHash } from 'node:crypto'
 import { join, resolve } from 'node:path'
@@ -55,6 +55,8 @@ try {
     check('HF implements the managed contract without root disk or SSH', managed.vendor === 'huggingface' && managed.capabilities.managed && managed.capabilities.stop && managed.capabilities.persistentDisk === 'none' && Boolean(managed.managedEndpoint))
     check('HF lists real shapes and does not offer B200 stock', (await managed.offers(signal())).every(row => row.recipe.gpu !== 'B200') && managed.shapes().length > 0)
   } finally { await hf.close() }
+  const signIns = (): string | null => (existsSync(join(home, '.sign-ins.json')) ? readFileSync(join(home, '.sign-ins.json'), 'utf8') : null)
+  const signInsBefore = signIns()
   secrets.writeStoredRunpodApiKey('fixture-runpod-preserved')
   secrets.writeStoredVastApiKey(' fixture-vast ')
   secrets.writeStoredLambdaApiKey(' fixture-lambda ')
@@ -62,7 +64,7 @@ try {
   check('vendor keys use the private auth-scoped store', secrets.providerSecretsPathForDisplay().startsWith(resolve(home)) && ownerOnlyFile(secrets.providerSecretsPathForDisplay()))
   secrets.writeStoredVastApiKey(null); secrets.writeStoredLambdaApiKey(' ')
   check('keys clear independently without losing another vendor', secrets.readStoredVastApiKey() === undefined && secrets.readStoredLambdaApiKey() === undefined && secrets.readStoredRunpodApiKey() === 'fixture-runpod-preserved')
-  check('no vendor secrets select a model family', !existsSync(join(home, '.sign-ins.json')))
+  check('no vendor secrets select a model family', signIns() === signInsBefore)
   secrets.writeStoredHuggingfaceApiKey('fixture-hf-shared-token')
   check('HF rental reads the existing login token without another key slot', vendorKey('huggingface') === 'fixture-hf-shared-token')
   secrets.writeStoredHuggingfaceApiKey(null)
