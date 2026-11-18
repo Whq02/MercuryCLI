@@ -58,7 +58,8 @@ import {
   getAgentPendingMessageAttachments,
 } from '../../utils/attachments.js'
 import { getModelMaxOutputTokens } from '../../utils/model/capabilities.js'
-import { getTotalCostUSD, ledgerMark, ledgerSpentSince } from '../../bootstrap/state.js'
+import { getTotalCostUSD } from '../../bootstrap/state.js'
+import { ledgerMark, ledgerSpentSince } from '../../utils/ledgerMark.js'
 import { handleStopHooks } from '../../query/stopHooks.js'
 import { announcesNextStep } from '../../services/run/completionEvaluator.js'
 import { NO_CONTENT_MESSAGE } from '../../constants/messages.js'
