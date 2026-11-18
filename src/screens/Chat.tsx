@@ -428,10 +428,6 @@ export function Chat({
   const crashNoticeLatchedRef = useRef(false);
   const [showBashesDialog, setShowBashesDialog] = useState<string | boolean>(false);
 
-  const [tools, setToolsState] = useState<Tool[]>(initialTools);
-  useEffect(() => {
-    setToolsState(initialTools);
-  }, [initialTools]);
   const mcpState = useAppState(state => state.mcp);
   useEffect(() => {
     publishMcpConnections(mcpState.clients);
@@ -442,7 +438,7 @@ export function Chat({
   const verbose = useAppState(state => state.verbose);
   const spinnerTip = useAppState(state => state.spinnerTip);
   const commands = useMergedCommands(initialCommands, mcpState.commands);
-  const mergedTools = useMergedTools(tools, mcpState.tools, toolPermissionContext);
+  const mergedTools = useMergedTools(initialTools, mcpState.tools, toolPermissionContext);
   const commandsRef = useRef(commands);
   commandsRef.current = commands;
   const apiKeyVerification = useApiKeyVerification();
