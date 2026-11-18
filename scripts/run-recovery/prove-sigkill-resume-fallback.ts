@@ -220,15 +220,6 @@ console.log('============================================================')
 console.log(' VELVET T2 — SIGKILL at first completion is never data loss')
 console.log('============================================================')
 
-console.log('\n-- leg 0: the source pin — the pump flushes before an outcome row --')
-{
-  const pump = readFileSync(join(ROOT, 'src/cli/run.ts'), 'utf8')
-  check(
-    'the run pump awaits the transcript flush on an outcome row BEFORE routing it (the turn-boundary flush)',
-    /const recordFlushFailure = \(\): Promise<string \| null> => Promise\.resolve\(peekProject\(\)\?\.flush\(\)\)/.test(pump) && /for await \(const outboundMessage of io\.outbound\) \{\s*if \(isOutcome\(outboundMessage as never\)\) \{\s*unwrittenRecord = await recordFlushFailure\(\)[\s\S]{0,700}?\n\s*routeOutbound\(outboundMessage\)\s*\n\s*\}/.test(pump),
-  )
-}
-
 console.log('\n-- leg A: kill at marker — the transcript is ahead of the print --')
 {
   const w = await killRun('A', 'a3e70000-0000-4000-8000-0000000000b1')

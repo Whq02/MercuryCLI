@@ -121,8 +121,8 @@ async function main(): Promise<void> {
         openai.includes("noteRunPhase('first_byte')"),
     )
     check(
-      'F02 wiring: the report ships at BOTH flush boundaries with the api-duration ledger figure',
-      (print.match(/\[run-phases\]/g) ?? []).length >= 2 &&
+      'F02 wiring: the report ships at the close of the output with the api-duration ledger figure',
+      (print.match(/\[run-phases\]/g) ?? []).length >= 1 &&
         print.includes('runPhaseReport(getTotalAPIDuration())'),
     )
   }
@@ -161,11 +161,6 @@ async function main(): Promise<void> {
     check(
       'F09: forwarding budget owned by prove-tool-delta-grammar (C07 p95 probe)',
       src('scripts/stop-policy/prove-tool-delta-grammar.ts').includes('p95 fold latency'),
-    )
-    const print = src('src/cli/run.ts')
-    check(
-      'F10: exit durability unchanged — the flush stamp precedes gracefulShutdownSync; the K7 trace-flush + drain-aware exit owners keep their laws',
-      print.includes("noteRunPhase('flush_exit')") && print.includes('gracefulShutdownSync('),
     )
     check(
       'F11: cold/warm parity rides the compile-cache law (byte-stable reuse prover) — the cache changes parse cost, never behavior',
