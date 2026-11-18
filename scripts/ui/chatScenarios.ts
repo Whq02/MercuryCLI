@@ -52,6 +52,7 @@ export type Stage = {
   assistant: (text: string) => Message
   askFor: (id: string, command: string) => SessionAskV1
   screen: () => string
+  paintedAfter: (words: string) => Promise<number>
   steps: Step[]
 }
 
@@ -364,6 +365,7 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
     return h(TerminalWriteContext.Provider, { value: tapped as never }, props.children)
   }
   const element = h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(StoreTap, null), h(TitleTap, null, h(SurfaceRouter, null, h(Chat, { commands, initialTools: [] }))))
+  const mountedAt = performance.now()
   const view = await mountOffscreen(element, columns, rows, { mouseTracking: true })
   const mask = maskerFor(home)
   const steps: Step[] = []
@@ -457,6 +459,14 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
         focused.calls.push(word)
       }),
     screen: () => frameOf().join('\n'),
+    paintedAfter: async words => {
+      const deadline = performance.now() + SETTLE_CEILING_MS
+      while (performance.now() < deadline) {
+        if (view.screen().includes(words)) return performance.now() - mountedAt
+        await settle(2)
+      }
+      throw new Error(`the screen never painted "${words}" within ${SETTLE_CEILING_MS}ms`)
+    },
     steps,
   }
   return stage

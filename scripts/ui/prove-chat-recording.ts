@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pinSourceRef } from '../lib/settingsPopupHarness.ts'
-import { SCENARIOS, recordScenario, renderRecording } from './chatScenarios.ts'
+import { SCENARIOS, closeStage, openStage, recordScenario, renderRecording } from './chatScenarios.ts'
 
 const SELF = 'scripts/ui/prove-chat-recording.ts'
 const arg = (name: string): string | undefined => {
@@ -20,6 +20,15 @@ if (one !== undefined) {
   const text = renderRecording(recording)
   if (out !== undefined) writeFileSync(out, text)
   else process.stdout.write(text)
+  process.exit(0)
+}
+
+if (process.argv.includes('--first-paint')) {
+  pinSourceRef()
+  const stage = await openStage('first-paint')
+  const ms = await stage.paintedAfter('Type a prompt')
+  await closeStage(stage)
+  process.stdout.write(`first-paint-ms ${ms.toFixed(1)}\n`)
   process.exit(0)
 }
 
