@@ -50,6 +50,13 @@ async function call(runner: HostedRunner, arm: string, name: string, want: Want,
 const outcomes = (runner: HostedRunner): number => runner.rows.filter(row => row.type === 'outcome').length
 const settled = (runner: HostedRunner, n: number): Promise<unknown> => runner.waitFor(`outcome ${n}`, () => outcomes(runner) >= n, 60_000)
 const pause = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
+async function serversSettled(runner: HostedRunner): Promise<void> {
+  for (let tries = 0; tries < 150; tries++) {
+    const facts = (await runner.peer.request('session/facts' as never, {} as never, { deadlineMs: 30_000 })) as { mcp?: Array<{ type?: string }> }
+    if ((facts.mcp ?? []).length > 0 && (facts.mcp ?? []).every(row => row.type !== 'pending')) return
+    await pause(200)
+  }
+}
 
 async function idleScene(): Promise<unknown> {
   const turns: ScriptedTurn[] = [handoffTurn(), { kind: 'text', text: 'First answer.' }]
@@ -193,6 +200,7 @@ async function claimScene(): Promise<unknown> {
       await a('session/claim', 'a resume of a session nothing recorded', 'refused', { session_id: UNSEEN, resume: true })
       await a('session/claim', 'a session id that is a number', 'invalid', { session_id: 5 })
       await a('session/claim', 'the claim', 'answer', { session_id: CLAIMED, model: FIXTURE_MODEL, mode: 'implement', effort: 'high', title: 'the recorded claim', restart_reason: 'crash' })
+      await serversSettled(runner)
       await a('session/facts', 'the facts after the claim', 'answer', {})
       await a('session/claim', 'a second claim', 'refused', { session_id: UNSEEN })
       await a('queue/add', 'a prompt on the claimed session', 'answer', { type: 'prompt', content: 'say the claimed answer' })
