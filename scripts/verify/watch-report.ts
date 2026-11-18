@@ -247,7 +247,7 @@ say(`- beside scripts/orphans/graph.ts on src: ${sameGraph.files} files, ${sameG
 say()
 say('## Words')
 say()
-say('- **member**: a file the runner launches (the class census reads the runner). **touched**: a file a member or a script it reaches imports, runs, names as text or walks, and a src file such a script imports itself. **deep**: a src file reached only through other src files, by imports that load with the module. **lazy**: a src file reached only through an import inside a function.')
+say('- **member**: a file the runner launches (scripts/lib/runnerLaunches.ts reads the runner). **touched**: a file a member, a script it reaches or a file the runner sources imports, runs, names as text or walks, and a src file such a script imports itself; the planner reads this tier as the computed watch. **deep**: a src file reached only through other src files, by imports that load with the module. **lazy**: a src file reached only through an import inside a function.')
 say("- **hand**: the tracked files the header claims, by the planner's rule (the suite's own folder, its globs under the narrowing list, the doors). **missed**: files the suite depends on that the header does not claim. **covered / partial / unread**: a header glob whose matches are all, some or none of the files the suite depends on.")
 say('- **bundle**: members with a road to dist/mercury.mjs over all members; such a member depends on all of src, and that is not in the file counts. **whole**: the scopes a member walks whole (`.` the tree, `src`, `scripts`); not in the file counts either. **blind**: i imports whose specifier is built at run time, p reads of a tree path built at run time, c child programs that name no tracked script, g git children.')
 say()
