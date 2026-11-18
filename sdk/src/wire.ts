@@ -5,7 +5,7 @@ import type { JsonSchema } from './rows.js'
 export const RUNNER_PROTOCOL = 1 as const
 export const BAD_LINE_LIMIT = 3 as const
 export const MAX_LINE_BYTES = 33554432 as const
-export const REFUSAL_KINDS = ["protocol","claim","model","effort","mode","spawn-switch","kit","rewind","pause-gate","quiesce","queue","agent","no-shell","nothing-to-resume","already-initialized","capability","trust"] as const
+export const REFUSAL_KINDS = ["protocol","claim","model","effort","mode","spawn-switch","kit","rewind","pause-gate","quiesce","queue","agent","no-shell","nothing-to-resume","already-initialized","capability","trust","project"] as const
 export const RPC_CANCELLED = -32800 as const
 export const RPC_ERROR_CODES = [-32700,-32600,-32601,-32602,-32603,-32002,-32010,-32800] as const
 export const RPC_INVALID_PARAMS = -32602 as const

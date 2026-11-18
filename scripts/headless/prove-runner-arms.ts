@@ -86,11 +86,19 @@ let trusted: boolean | null = null
   const real = { ...((await import(at('src/utils/config/trust.ts'))) as { isPathTrusted: (path: string) => boolean }) }
   mock.module(at('src/utils/config/trust.ts'), () => ({ ...real, isPathTrusted: (path: string): boolean => (trusted === null ? real.isPathTrusted(path) : trusted) }))
 }
+async function lent(rel: string, names: string[]): Promise<void> {
+  const real = { ...((await import(at(rel))) as Record<string, (...args: unknown[]) => unknown>) }
+  mock.module(at(rel), () => ({ ...real, ...Object.fromEntries(names.map(name => [name, (...args: unknown[]): unknown => (answers.has(name) ? answers.get(name)!(...args) : real[name]!(...args))])) }))
+}
+await lent('src/utils/sessionStorage/paths.ts', ['getProjectDir'])
+await lent('src/daemon/concourseWorkers.ts', ['readSessionWorkers', 'sessionOwnedByLiveWorker'])
+await lent('src/daemon/controlSocket.ts', ['daemonControlRpc'])
+await lent('src/utils/permissions/filesystem.ts', ['checkReadPermissionForTool'])
 
 const { runnerArmsOf } = await import('../../src/cli/headless/runnerArms.ts')
 const { createRunnerState } = await import('../../src/cli/headless/runnerPorts.ts')
 const { RUNNER_NOTIFICATION_METHODS, RUNNER_REQUEST_METHODS } = await import('../../src/cli/headless/runnerMethods.ts')
-const { RPC_REFUSED } = await import('../../src/runner/wire/errors.ts')
+const { RPC_INVALID_PARAMS, RPC_REFUSED } = await import('../../src/runner/wire/errors.ts')
 const { isLocalShellTask } = await import('../../src/tasks/LocalShellTask/guards.ts')
 const { AGENT_INTERRUPT_BY_OPERATOR, AGENT_RESUME_NOTE, peekOperatorMessages } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
 const { drainRows } = await import('../../src/utils/sdkEventQueue.ts')
@@ -103,7 +111,7 @@ const { capabilityHoldWords, runnerCapabilityHolds } = await import('../../src/d
 const { sessionKitOf, setProcessSessionKit } = await import('../../src/services/mcp/sessionKitPin.ts')
 const { answerSessionFacts } = await import('../../src/cli/headless/sessionFactsArm.ts')
 const { sessionFactsFromWire, sessionFactsToWire } = await import('../../src/services/engine-connector/seatWire.ts')
-const { getSessionId } = await import('../../src/bootstrap/state.ts')
+const { getOriginalCwd, getSessionId } = await import('../../src/bootstrap/state.ts')
 const { getEngineModel } = await import('../../src/utils/model/model.ts')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
@@ -287,13 +295,83 @@ section('§4 agent/resume: a running crewmate is told, a stopped one rides the o
   check("agent/resume for a crewmate nothing recorded answers the typed refusal of kind agent with the owner's sentence, and a fault of the owner stays a fault", owner.AgentNotRecorded !== undefined && unrecorded?.code === RPC_REFUSED && unrecorded.data?.kind === 'agent' && unrecorded.message === 'No transcript found for crewmate a-none' && broken?.code === undefined && broken?.message === 'the resume owner broke', `${j({ code: unrecorded?.code, kind: unrecorded?.data?.kind, message: unrecorded?.message })} · ${j({ code: broken?.code, message: broken?.message })}`)
 }
 
-section('§4b project/query: a folder nobody trusted is refused, by its kind')
+section('§4b project/query: a folder nobody trusted, a parameter that is missing or malformed, and what the project does not hold or will not serve')
 {
   const { ports } = stubPorts({ getAppState: () => ({ toolPermissionContext: {} }) })
+  const query = (params: Record<string, unknown>): Promise<Refusal | null> => refusalOf(runnerArmsOf(ports)['project/query'](params as never, ref, signalOf()))
+  const shown = (answer: Refusal | null): string => j({ code: answer?.code, message: answer?.message, data: answer?.data })
   trusted = false
-  const untrusted = await refusalOf(runnerArmsOf(ports)['project/query']({ op: 'sessions' }, ref, signalOf()))
-  trusted = null
+  const untrusted = await query({ op: 'sessions' })
   check('project/query in a folder nobody trusted answers the typed refusal of kind trust with the sentence it printed', untrusted?.code === RPC_REFUSED && untrusted.data?.kind === 'trust' && untrusted.message === 'Trust this folder in Mercury before serving its project', j({ code: untrusted?.code, kind: untrusted?.data?.kind, message: untrusted?.message }))
+
+  trusted = true
+  forget()
+  const projects = mkdtempSync(join(tmpdir(), 'runner-arms-project-'))
+  const SAVED = '11111111-2222-4333-8444-555555555555'
+  const UNSAVED = '99999999-8888-4777-a666-555555555555'
+  const NEEDS_ID = 'A session_id UUID is required'
+  const NEEDS_BOTH = 'sender and message are required'
+  const NEEDS_REF = 'A mercury:// reference is required'
+  writeFileSync(join(projects, `${SAVED}.jsonl`), '')
+  answers.set('getProjectDir', () => projects)
+  const badParameter = (answer: Refusal | null, sentence: string, ...paths: string[]): boolean => answer?.code === RPC_INVALID_PARAMS && answer.message === sentence && j(answer.data) === j({ method: 'project/query', issues: paths.map(path => ({ path, message: sentence })) })
+  const notServed = (answer: Refusal | null, sentence: string): boolean => answer?.code === RPC_REFUSED && j(answer.data) === j({ kind: 'project' }) && answer.message === sentence
+  const held: Array<{ name: string; answer: Refusal | null; ok: boolean }> = []
+  const hold = async (name: string, params: Record<string, unknown>, ok: (answer: Refusal | null) => boolean): Promise<void> => {
+    const answer = await query(params)
+    held.push({ name, answer, ok: ok(answer) })
+  }
+  await hold('rows with no session_id', { op: 'rows' }, answer => badParameter(answer, NEEDS_ID, 'session_id'))
+  await hold('rows with a session_id that is no UUID', { op: 'rows', session_id: 'not-a-uuid' }, answer => badParameter(answer, NEEDS_ID, 'session_id'))
+  await hold('send with no sender', { op: 'send', session_id: SAVED, message: 'words' }, answer => badParameter(answer, NEEDS_BOTH, 'sender'))
+  await hold('send with no message', { op: 'send', session_id: SAVED, sender: 'a-client' }, answer => badParameter(answer, NEEDS_BOTH, 'message'))
+  await hold('send with neither', { op: 'send', session_id: SAVED }, answer => badParameter(answer, NEEDS_BOTH, 'sender', 'message'))
+  await hold('recall with no query', { op: 'recall' }, answer => badParameter(answer, 'query is required', 'query'))
+  await hold('resource with no ref', { op: 'resource' }, answer => badParameter(answer, NEEDS_REF, 'ref'))
+  await hold('resource with a ref that is no mercury:// reference', { op: 'resource', ref: 'https://example.test/x' }, answer => badParameter(answer, NEEDS_REF, 'ref'))
+  await hold('resource with a transcript reference whose id is no UUID', { op: 'resource', ref: 'mercury://transcript/session/not-a-uuid' }, answer => badParameter(answer, NEEDS_ID, 'ref'))
+  const parameters = held.splice(0)
+  check(
+    "project/query refuses a parameter that is missing or malformed with the wire's code for bad parameters (-32602), the sentence it printed as the message, and the parameter by name: session_id, sender, message, query and ref",
+    parameters.length === 9 && parameters.every(one => one.ok),
+    parameters.filter(one => !one.ok).map(one => `${one.name}: ${shown(one.answer)}`).join(' · '),
+  )
+
+  type WorkerRecord = ReturnType<typeof import('../../src/daemon/concourseWorkers.ts').readSessionWorkers>[string]
+  type DaemonAnswer = Awaited<ReturnType<typeof import('../../src/daemon/controlSocket.ts').daemonControlRpc>>
+  type ReadDecision = ReturnType<typeof import('../../src/utils/permissions/filesystem.ts').checkReadPermissionForTool>
+  const elsewhere = { sessionId: SAVED, workspaceId: join(tmpdir(), 'another-project') } satisfies Pick<WorkerRecord, 'sessionId' | 'workspaceId'>
+  const here = { sessionId: SAVED, workspaceId: getOriginalCwd() } satisfies Pick<WorkerRecord, 'sessionId' | 'workspaceId'>
+  const daemonSaysNo = { ok: false, code: 'EUNKNOWN', error: 'the session is held by another caller' } satisfies DaemonAnswer
+  const daemonUnreached = { ok: false, code: 'ENOCONN', error: 'the daemon is not reachable (ENOCONN)' } satisfies DaemonAnswer
+  const denied = { behavior: 'deny', message: 'Permission to read that file has not been granted.', decisionReason: { type: 'other', reason: 'a deny rule of this proof' } } satisfies ReadDecision
+  const allowed = { behavior: 'allow' } satisfies ReadDecision
+  const letter = { op: 'send', session_id: SAVED, sender: 'a-client', message: 'words' }
+  await hold('rows of a session that is not saved', { op: 'rows', session_id: UNSAVED }, answer => notServed(answer, `No saved session ${UNSAVED} in this project`))
+  await hold('a transcript reference to a session that is not saved', { op: 'resource', ref: `mercury://transcript/session/${UNSAVED}` }, answer => notServed(answer, `No saved session ${UNSAVED} in this project`))
+  await hold('send to a session that is not live', letter, answer => notServed(answer, `Session ${SAVED} is not live`))
+  answers.set('sessionOwnedByLiveWorker', () => 'runner-1')
+  answers.set('readSessionWorkers', () => ({ 'runner-1': elsewhere }))
+  await hold('send to a session of another project', letter, answer => notServed(answer, 'The session belongs to another project'))
+  answers.set('readSessionWorkers', () => ({ 'runner-1': here }))
+  answers.set('daemonControlRpc', async () => daemonSaysNo)
+  await hold('send that the daemon does not take', letter, answer => notServed(answer, daemonSaysNo.error))
+  answers.set('checkReadPermissionForTool', () => denied)
+  await hold('a file the read rules do not allow', { op: 'resource', ref: 'mercury://file/README.md' }, answer => notServed(answer, denied.message))
+  answers.set('checkReadPermissionForTool', () => allowed)
+  await hold('a file outside the project', { op: 'resource', ref: 'mercury://file/../outside.txt' }, answer => notServed(answer, 'File resources must stay inside this project'))
+  const refusals = held.splice(0)
+  check(
+    'project/query refuses what the project does not hold or will not serve with the typed refusal of kind project and the sentence it printed: a session that is not saved, by its id and by a transcript reference, a session that is not live, a session of another project, a message the daemon does not take, a file the read rules do not allow, a file outside the project',
+    refusals.length === 7 && refusals.every(one => one.ok),
+    refusals.filter(one => !one.ok).map(one => `${one.name}: ${shown(one.answer)}`).join(' · '),
+  )
+  answers.set('daemonControlRpc', async () => daemonUnreached)
+  const unreached = await query(letter)
+  check('a daemon that cannot be reached stays a fault of the run: the sentence with no code and no kind, which the wire sends as the internal error', unreached !== null && unreached.code === undefined && unreached.data === undefined && unreached.message === daemonUnreached.error, shown(unreached))
+  rmSync(projects, { recursive: true, force: true })
+  forget()
+  trusted = null
 }
 
 section('§5 session/send_now: only while a turn is in flight, from the one send-now function')
