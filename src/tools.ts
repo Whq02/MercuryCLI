@@ -1,4 +1,5 @@
 import type { Tool, ToolPermissionContext, Tools } from './Tool.js'
+import { getIsNonInteractiveSession } from './bootstrap/state.js'
 import { swarmTools } from './services/crewBoard/seam.js'
 import { withBundledAppInstallConsent } from './extensions/installConsent.js'
 import { isEnvTruthy } from './utils/envUtils.js'
@@ -107,6 +108,7 @@ import { TransactionTool } from './tools/TransactionTool/TransactionTool.js'
 import { WebFetchTool } from './tools/WebFetchTool/WebFetchTool.js'
 import { WebSearchTool } from './tools/WebSearchTool/WebSearchTool.js'
 import { ProviderSearchTool } from './tools/WebSearchTool/ProviderSearchTool.js'
+import { beginLoginFiles } from './utils/shell/shellRecord.js'
 import { isPowerShellToolEnabled } from './utils/shell/shellToolUtils.js'
 
 import './services/resources/adapters/git.js'
@@ -246,6 +248,12 @@ const SPECIAL_TOOL_NAMES = new Set([
 ])
 
 export function getTools(permissionContext: ToolPermissionContext, agentId?: string): Tools {
+  const settled = settledTools(permissionContext, agentId)
+  if (getIsNonInteractiveSession() && settled.some(tool => tool.name === BashTool.name)) beginLoginFiles()
+  return settled
+}
+
+function settledTools(permissionContext: ToolPermissionContext, agentId?: string): Tools {
   const selected = permissionContext.baseTools
   if (selected === undefined && isEnvTruthy(flagEnv('MERCURY_BARE'))) {
     return filterToolsByDenyRules([BashTool, FileReadTool, FileEditTool, FileWriteTool] as Tool[], permissionContext)

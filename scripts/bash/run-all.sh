@@ -13,6 +13,7 @@
 # gate-watch: src/utils/collapseBackgroundBashNotifications* src/utils/messages/text.ts
 # gate-watch: src/utils/worktree.ts src/services/projectLocal/paths.ts
 # gate-watch: src/utils/bash/ShellSnapshot.ts src/utils/shell/engineSession.ts src/utils/shell/brushPack.ts
+# gate-watch: src/tools.ts
 # gate-watch: src/services/lsp/LSPClient.ts src/services/dap/dapClient.ts
 # gate-watch: src/utils/bash/bashPipeCommand* src/utils/bash/shellQuoting* src/utils/shell/bashProvider*
 # gate-watch: src/utils/bash/bashPipeCommand* src/utils/bash/shellQuoting* src/utils/shell/bashProvider* src/utils/shell/shellProvider*

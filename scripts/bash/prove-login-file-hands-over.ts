@@ -10,6 +10,7 @@ type Said = { status: string; evidence: string; fix?: string }
 type Row = { first: Ran; second: Ran; carried: Ran; options: Ran; wiped: Ran; waitedOnAlive: boolean | null; absence: string | null; snapshots: number; otherShellStarts: number; pathHead: string; described: { ms: number; text: string }; toolNeverStarted: string; toolFirst: string; toolSecond: string; said: Said | null; many: Ran; readWithNoProgram: string; helper: Ran; extglobOn: Ran }
 type Asked = { said: Said | null; ms: number; limit: number | null; snapshotFolder: boolean; tempLeft: number; waitedOnAlive: boolean | null; otherShellStarts: number }
 type First = { withoutBash: number; begunMs: number | null; startsInAll: number; described: string }
+type Listed = { drawnOnAScreen: boolean; offeredWithout: boolean; withoutBash: number; offeredWith: boolean; beforeAnyRequest: number; runsInAll: number; described: string }
 
 function waitedOn(home: string): boolean | null {
   if (!existsSync(join(home, 'waited-on.pid'))) return null
@@ -166,6 +167,49 @@ if (process.argv.includes('--first-prompt')) {
   process.exit(0)
 }
 
+if (process.argv.includes('--tool-list')) {
+  ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+  plugin({
+    name: 'stub-color-diff-napi',
+    setup(build) {
+      build.module('color-diff-napi', () => ({ loader: 'object', exports: { ColorDiff: class {}, ColorFile: class {}, getSyntaxTheme: () => ({}) } }))
+    },
+  })
+  const home = homedir()
+  const runs = (): number => (existsSync(join(home, 'login-runs')) ? readFileSync(join(home, 'login-runs'), 'utf8').trim().split('\n').length : 0)
+  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  enableConfigs()
+  const { getTools } = await import('../../src/tools.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
+  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+  const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+  const empty = getEmptyToolPermissionContext()
+  setIsInteractive(true)
+  const drawn = getTools(empty)
+  setIsInteractive(false)
+  const without = getTools({ ...empty, baseTools: ['Read'] })
+  await pause(1_500)
+  const withoutBash = runs()
+  const withBash = getTools(empty)
+  const began = Date.now()
+  while (runs() === 0 && Date.now() - began < 8_000) await pause(25)
+  const beforeAnyRequest = runs()
+  await getSystemPrompt([BashTool] as never, 'claude-opus-4-8')
+  const description = await BashTool.prompt({ tools: [] } as never)
+  const listed: Listed = {
+    drawnOnAScreen: drawn.some(tool => tool.name === 'Bash'),
+    offeredWithout: without.some(tool => tool.name === 'Bash'),
+    withoutBash,
+    offeredWith: withBash.some(tool => tool.name === 'Bash'),
+    beforeAnyRequest,
+    runsInAll: runs(),
+    described: description.split('\n\n').find(part => part.startsWith('In the main conversation')) ?? '',
+  }
+  console.log(`LIST ${JSON.stringify(listed)}`)
+  process.exit(0)
+}
+
 if (process.argv.includes('--ends-early')) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   plugin({
@@ -176,7 +220,15 @@ if (process.argv.includes('--ends-early')) {
   })
   const home = homedir()
   const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-  void BashTool.prompt({ tools: [] } as never)
+  if (process.argv.includes('--by-the-tool-list')) {
+    const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+    enableConfigs()
+    const { getTools } = await import('../../src/tools.ts')
+    const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+    getTools(getEmptyToolPermissionContext())
+  } else {
+    void BashTool.prompt({ tools: [] } as never)
+  }
   const began = Date.now()
   while (!existsSync(join(home, 'waited-on.pid')) && Date.now() - began < 8_000) await pause(25)
   console.log(`EARLY ${JSON.stringify({ started: existsSync(join(home, 'waited-on.pid')) })}`)
@@ -272,6 +324,8 @@ const ALONE: Record<string, string> = {
 const ANOTHER_ROW = home('alone-another-row-asked', HANDS_OVER)
 const FIRST_PROMPT = home('first-prompt', HANDS_OVER)
 const ENDS_EARLY = home('ends-early', WAITS)
+const ENDS_EARLY_LISTED = home('ends-early-by-the-tool-list', WAITS)
+const TOOL_LIST = home('tool-list', { '.bash_profile': 'echo run >> "$HOME/login-runs"\nmyfunc() { echo fn-from-the-login-file; }\n' })
 
 function drive<T>(dir: string, mode: string, mark: string, env: Record<string, string> = {}): Promise<{ row: T | null; said: string }> {
   const childEnv: Record<string, string> = {}
@@ -299,14 +353,17 @@ const BOUND_MS = 10_000
 try {
   const names = Object.keys(HOMES)
   const aloneNames = Object.keys(ALONE)
-  const [answers, alone, anotherRow, firstPrompt, endsEarly] = await Promise.all([
+  const [answers, alone, anotherRow, firstPrompt, endsEarly, endsEarlyListed, toolList] = await Promise.all([
     Promise.all(names.map(name => drive<Row>(HOMES[name]!.dir, '--row', 'ROW ', HOMES[name]!.env))),
     Promise.all(aloneNames.map(name => drive<Asked>(ALONE[name]!, '--asked-alone', 'ASKED '))),
     drive<Asked>(ANOTHER_ROW, '--asked-alone --another-row-asked', 'ASKED '),
     drive<First>(FIRST_PROMPT, '--first-prompt', 'FIRST '),
     drive<{ started: boolean }>(ENDS_EARLY, '--ends-early', 'EARLY '),
+    drive<{ started: boolean }>(ENDS_EARLY_LISTED, '--ends-early --by-the-tool-list', 'EARLY '),
+    drive<Listed>(TOOL_LIST, '--tool-list', 'LIST '),
   ])
   const leftByTheEarlyEnd = waitedOn(ENDS_EARLY)
+  const leftByTheEarlyEndListed = waitedOn(ENDS_EARLY_LISTED)
   const of = (name: string): { row: Row | null; said: string } => answers[names.indexOf(name)]!
   const ranInBash = (ran: Ran | undefined): boolean => ran !== undefined && ran.code === 0 && /ran: bash=\d/.test(ran.text) && ran.text.includes('zsh=no')
   const told = (name: string): string => JSON.stringify(of(name).row ?? of(name).said).slice(0, 700)
@@ -553,7 +610,7 @@ try {
     JSON.stringify(anotherRow.row ?? anotherRow.said).slice(0, 900),
   )
   check(
-    'the login run begins when a request that offers the Bash tool is prepared, beside the rest of that request: a request that does not offer it starts none, and the description then waits for that one run and takes no second',
+    'where no tool list was settled first, the login run begins when a request that offers the Bash tool is prepared, beside the rest of that request: a request that does not offer it starts none, and the description then waits for that one run and takes no second',
     firstPrompt.row !== null && firstPrompt.row.withoutBash === 0 && firstPrompt.row.begunMs !== null && firstPrompt.row.startsInAll === 1 && firstPrompt.row.described.endsWith('and no call carries the aliases, functions or options of your profile (bash) in this session.'),
     JSON.stringify(firstPrompt.row ?? firstPrompt.said).slice(0, 900),
   )
@@ -561,6 +618,21 @@ try {
     'a process that ends while its login run is still going ends what that run started',
     endsEarly.row !== null && endsEarly.row.started && leftByTheEarlyEnd === false,
     `${JSON.stringify(endsEarly.row ?? endsEarly.said).slice(0, 600)} · alive after the process ended: ${String(leftByTheEarlyEnd)}`,
+  )
+  check(
+    'the login run starts when a process that is no screen settles a tool list with the Bash tool in it, before any request is prepared; a list without Bash starts none, and the list a screen takes to draw its rows, Bash among them, starts none',
+    toolList.row !== null && toolList.row.drawnOnAScreen === true && toolList.row.offeredWithout === false && toolList.row.withoutBash === 0 && toolList.row.offeredWith === true && toolList.row.beforeAnyRequest === 1,
+    JSON.stringify(toolList.row ?? toolList.said).slice(0, 900),
+  )
+  check(
+    '…the first request then waits for that one run and takes no second, and its description says the files are carried',
+    toolList.row !== null && toolList.row.runsInAll === 1 && toolList.row.described.endsWith('and each call starts from your profile (bash).'),
+    JSON.stringify(toolList.row ?? toolList.said).slice(0, 900),
+  )
+  check(
+    'a process that ends while the run its tool list started is still going leaves no child of it',
+    endsEarlyListed.row !== null && endsEarlyListed.row.started && leftByTheEarlyEndListed === false,
+    `${JSON.stringify(endsEarlyListed.row ?? endsEarlyListed.said).slice(0, 600)} · alive after the process ended: ${String(leftByTheEarlyEndListed)}`,
   )
 } finally {
   rmSync(scratch, { recursive: true, force: true })
