@@ -4,7 +4,6 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { mock } from 'bun:test'
 import { z } from 'zod/v4'
 
 const TMP = tmpdir()
@@ -128,8 +127,7 @@ function masker(): (value: unknown) => unknown {
   return value => walk(value, undefined, [])
 }
 
-const queryModule = await import('../../src/query.ts')
-const realQuery = queryModule.query
+const { query } = await import('../../src/query.ts')
 const { productionDeps } = await import('../../src/query/deps.ts')
 
 let tape: Tape | undefined
@@ -180,7 +178,7 @@ export function startTurn(params: Row): AsyncGenerator<unknown, unknown> {
     }),
   )
   const deps = { ...((params.deps as Row | undefined) ?? (productionDeps() as unknown as Row)), ...scriptedDeps(on, turn) }
-  const inner = realQuery({ ...params, deps } as never) as AsyncGenerator<unknown, unknown>
+  const inner = query({ ...params, deps } as never) as AsyncGenerator<unknown, unknown>
   return (async function* () {
     let settled = false
     try {
@@ -209,8 +207,6 @@ export function startTurn(params: Row): AsyncGenerator<unknown, unknown> {
     }
   })()
 }
-
-mock.module('../../src/query.ts', () => ({ ...queryModule, query: startTurn }))
 
 const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setOriginalCwd(CWD)
