@@ -84,6 +84,7 @@ const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi
 const INSTANT = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z/g
 const DAY = /\d{4}-\d{2}-\d{2}/g
 const AGENT_ID = /a(?:[a-z_]+-)?[0-9a-f]{16}(?![0-9a-f])/g
+const PROJECT = /(\/config\/projects\/)[^/\s]+/g
 
 function masker(): (value: unknown) => unknown {
   const ids = new Map<string, string>()
@@ -101,6 +102,7 @@ function masker(): (value: unknown) => unknown {
       .replace(INSTANT, '<instant>')
       .replace(DAY, '<day>')
       .replace(AGENT_ID, '<agent>')
+      .replace(PROJECT, '$1<project>')
     return masked.length > LONG_TEXT ? `<${masked.length} characters, sha256 ${createHash('sha256').update(masked).digest('hex').slice(0, 16)}>` : masked
   }
   const walk = (value: unknown, key: string | undefined, above: readonly unknown[]): unknown => {
