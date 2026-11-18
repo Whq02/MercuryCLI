@@ -116,8 +116,6 @@ section('§7 the re-entry offer and the display latch (structural)')
 {
   const src = (rel: string): string => readFileSync(new URL(`../../src/${rel}`, import.meta.url), 'utf8')
   const repl = src('screens/Chat.tsx')
-  check('the boot effect stages the re-entry offer for a resolvable session', repl.includes('setCrashResumeStaged({') && repl.includes('CrashResumeDialog'))
-  check('the offer resumes through the ONE resume path', repl.includes('focusResumedSession(staged.sessionId, staged.transcriptPath'))
   check(
     'the notice marker latches BEHIND display, never at stage time',
     repl.includes("focusedInputDialog === 'crash-resume' && !crashNoticeLatchedRef.current"),
@@ -135,6 +133,21 @@ section('§7 the re-entry offer and the display latch (structural)')
   check('the /health row locates the crash (session + project)', locatedSays?.status === 'info' && locatedSays.evidence.includes('newest: 2026-09-02T05:00:00.000Z app-root in LocatedCard — located fixture · session 00000000 in /tmp/project-q · '), locatedSays?.evidence)
   const dialog = src('components/CrashResumeDialog.tsx')
   check('the dialog offers one-keypress resume and esc dismissal', dialog.includes("value: 'resume'") && dialog.includes("onClose={() => onDone('dismiss')}"))
+  const { openDialogsPart } = await import('../ui/chatScenarios.ts')
+  const dialogs = await openDialogsPart('crash-identity-dialogs', { keepHome: true })
+  const staged = { origin: 'app-root', component: null, message: 'the staged fixture', sessionId: '00000000-cccc-dddd-eeee-000000000c05', cwd: '/tmp/project-r', transcriptPath: '/tmp/project-r/00000000-cccc-dddd-eeee-000000000c05.jsonl', moreCount: 0 }
+  await dialogs.plant({ focusedInputDialog: 'crash-resume', crashResumeStaged: staged })
+  const until = async (ready: () => boolean): Promise<void> => {
+    for (let turn = 0; turn < 75 && !ready(); turn++) await new Promise(resolve => setTimeout(resolve, 40))
+  }
+  await until(() => dialogs.frame().includes('Resume that session'))
+  const offered = dialogs.frame()
+  dialogs.part.view.push('\r')
+  await until(() => dialogs.hops.length === 1)
+  const hop = dialogs.hops[0] ?? []
+  await dialogs.close()
+  check('the boot effect stages the re-entry offer for a resolvable session, and the screen draws the offer it is handed', repl.includes('setCrashResumeStaged({') && offered.includes('previous session crashed') && offered.includes('session 00000000') && offered.includes('Resume that session'), offered)
+  check('the offer resumes through the ONE resume path', hop[0] === staged.sessionId && hop[1] === staged.transcriptPath && dialogs.staged[0] === null, JSON.stringify(hop))
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

@@ -42,10 +42,16 @@ check(
   /focusedInputDialog === 'message-selector' && !chatSurfaceCovered/.test(repl),
 )
 
-check(
-  'G4 the bottom dialogs are null when covered',
-  /const focusedBottomDialog: React\.ReactNode = chatSurfaceCovered \? null :/.test(repl),
-)
+{
+  const { openDialogsPart } = await import('../ui/chatScenarios.ts')
+  const dialogs = await openDialogsPart('seat-covered-dialogs', { keepHome: true })
+  await dialogs.plant({ focusedInputDialog: 'cost-threshold' })
+  const uncovered = dialogs.part.value().focusedBottomDialog !== null
+  await dialogs.plant({ chatSurfaceCovered: true })
+  const covered = dialogs.part.value().focusedBottomDialog !== null
+  await dialogs.close()
+  check('G4 the bottom dialogs are null when covered', uncovered && !covered, `drawn uncovered ${uncovered} · drawn covered ${covered}`)
+}
 
 {
   const kb = read('src/keybindings/useKeybinding.ts')

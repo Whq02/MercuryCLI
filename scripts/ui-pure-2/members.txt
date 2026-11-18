@@ -105,3 +105,4 @@ prove-chat-scroll-part.ts
 prove-chat-asks-part.ts
 prove-chat-draft-part.ts
 prove-chat-keys-part.ts
+prove-chat-dialogs-part.ts

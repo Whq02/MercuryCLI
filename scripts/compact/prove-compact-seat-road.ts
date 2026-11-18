@@ -32,8 +32,20 @@ check('a chosen summary model replaces only the engine model of the context it i
 const dialog = read('src/components/tasks/BackgroundTasksDialog.tsx')
 check('the compact-summary dialog discards the dialog context it is handed and calls no model with it', dialog.includes('void toolUseContext') && !/compactConversation|routedCallModel|runForkedAgent|callModel\(/.test(dialog))
 
-const chat = read('src/screens/Chat.tsx')
-check("the cockpit's dialog context reaches the compact-summary view only (no other compaction entry rides it)", (chat.match(/getToolUseContext\(messages, \[\], new AbortController\(\), focusedEffectiveModel\)/g) ?? []).length === 1 && chat.includes('<BackgroundTasksDialog entry="compact-summary"'))
+{
+  const { openDialogsPart } = await import('../ui/chatScenarios.ts')
+  const { BackgroundTasksDialog } = await import('../../src/components/tasks/BackgroundTasksDialog.tsx')
+  const dialogs = await openDialogsPart('compact-seat-road-dialogs')
+  const React = await import('react')
+  await dialogs.plant({ focusedInputDialog: 'cost-threshold' })
+  await dialogs.plant({ focusedInputDialog: undefined, toolJSX: { jsx: React.createElement(React.Fragment), shouldHidePromptInput: false, isLocalJSXCommand: true } as never, localJsx: true })
+  const builtElsewhere = dialogs.contexts.length
+  await dialogs.plant({ toolJSX: null, localJsx: false, compactDetailUp: true })
+  const modal = dialogs.part.value().centredModal as { type?: unknown; props?: { entry?: string; toolUseContext?: { planted?: string } } } | null
+  const built = dialogs.contexts.length
+  await dialogs.close()
+  check("the cockpit's dialog context reaches the compact-summary view only (no other compaction entry rides it)", builtElsewhere === 0 && built === 1 && modal?.type === BackgroundTasksDialog && modal.props?.entry === 'compact-summary' && modal.props.toolUseContext?.planted === 'context', `contexts built with no compact summary up ${builtElsewhere}, with it ${built} · the modal is the background tasks dialog ${String(modal?.type === BackgroundTasksDialog)} · entry ${String(modal?.props?.entry)}`)
+}
 
 console.log(failures === 0 ? '\nprove-compact-seat-road: ALL LAWS HOLD' : `\nprove-compact-seat-road: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

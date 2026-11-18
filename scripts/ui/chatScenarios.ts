@@ -1074,6 +1074,108 @@ export async function openKeysPart(tag: string, options: { keepHome?: boolean } 
   }
 }
 
+type DialogsModule = typeof import('../../src/screens/chat/useChatDialogs.tsx')
+type DialogsViewArgs = Parameters<DialogsModule['useChatDialogsView']>[0]
+type DialogsViewValue = ReturnType<DialogsModule['useChatDialogsView']>
+
+type DialogsPart = {
+  module: DialogsModule
+  part: PartMount<DialogsViewValue>
+  plant: (over: Partial<DialogsViewArgs>) => Promise<void>
+  frame: () => string
+  costShown: boolean[]
+  contexts: unknown[][]
+  staged: unknown[]
+  notices: Array<{ key: string; text: string }>
+  removed: string[]
+  hops: unknown[][]
+  hop: { outcome: { ok: true } | { ok: false; reason: string } }
+  setUsage: (costUSD: number, consoleBilling: boolean) => void
+  close: () => Promise<void>
+}
+
+export async function openDialogsPart(tag: string, options: { keepHome?: boolean } = {}): Promise<DialogsPart> {
+  const home = options.keepHome === true ? null : pinScratchHome(tag)
+  const React = await import('react')
+  const h = React.createElement
+  const hops: unknown[][] = []
+  const hop: DialogsPart['hop'] = { outcome: { ok: true } }
+  const realHop = { ...(await import('../../src/services/switchboard/hopIntoSession.ts')) }
+  mock.module('../../src/services/switchboard/hopIntoSession.ts', () => ({
+    ...realHop,
+    focusResumedSession: async (...call: unknown[]) => {
+      hops.push(call)
+      return hop.outcome
+    },
+  }))
+  const module = await import('../../src/screens/chat/useChatDialogs.tsx')
+  const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
+  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
+  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+  const before = slot.hasFocusedSession() ? slot.getFocusedSessionConnector() : null
+  const base = new NoSessionConnector()
+  const zeroUsage = base.usage()
+  const noIdentity = base.identity()
+  let usage = { totalCostUSD: 0, consoleBilling: false }
+  slot.setFocusedSessionConnector(Object.assign(base, { sessionId: () => tag, usage: () => ({ ...zeroUsage, totalCostUSD: usage.totalCostUSD }), identity: () => ({ ...noIdentity, consoleBilling: usage.consoleBilling }) }) as never)
+  const costShown: boolean[] = []
+  const contexts: unknown[][] = []
+  const staged: unknown[] = []
+  const notices: Array<{ key: string; text: string }> = []
+  const removed: string[] = []
+  let args: Omit<DialogsViewArgs, 'store'> = {
+    toolJSX: null,
+    dialogSlotRef: { current: null },
+    localJsx: false,
+    compactDetailUp: false,
+    setShowCostThreshold: show => void costShown.push(show),
+    messages: [],
+    fullscreen: true,
+    compactWork: { read: () => 'composer', set: () => {}, toggleSummary: () => {}, bindToggle: () => {}, detailState: { selectedId: null, detailTaskId: undefined } },
+    getToolUseContext: ((...call: unknown[]) => {
+      contexts.push(call)
+      return { planted: 'context' }
+    }) as never,
+    focusedEffectiveModel: 'claude-sonnet-4-5',
+    chatSurfaceCovered: false,
+    focusedInputDialog: undefined,
+    elicitationQueue: [],
+    respondToElicitation: () => {},
+    dismissElicitationWaiting: () => {},
+    crashResumeStaged: null,
+    setCrashResumeStaged: next => void staged.push(next),
+    addNotification: ((notice: { key: string; text?: string }) => void notices.push({ key: String(notice.key), text: String(notice.text ?? '') })) as never,
+    removeNotification: ((key: string) => void removed.push(String(key))) as never,
+  }
+  const use = (store: AppStateStore): DialogsViewValue => module.useChatDialogsView({ ...args, store })
+  const part = await mountPart(use, { columns: 110, rows: 30, draw: value => h(KeybindingSetup, null, h(React.Fragment, null, value.bottomImmediateJsx, value.inlineToolJsx, value.focusedBottomDialog)) })
+  return {
+    module,
+    part,
+    plant: async over => {
+      args = { ...args, ...over }
+      await part.set(use)
+    },
+    frame: () => part.view.lines().join('\n'),
+    costShown,
+    contexts,
+    staged,
+    notices,
+    removed,
+    hops,
+    hop,
+    setUsage: (costUSD, consoleBilling) => {
+      usage = { totalCostUSD: costUSD, consoleBilling }
+    },
+    close: async () => {
+      part.unmount()
+      if (before === null) slot.releaseFocusedSessionConnector()
+      else slot.setFocusedSessionConnector(before)
+      if (home !== null) await releaseScratchHome(home)
+    },
+  }
+}
+
 export async function closeStage(stage: Stage): Promise<void> {
   stage.view.unmount()
   await releaseScratchHome(stage.home)
