@@ -152,11 +152,18 @@ async function main(): Promise<void> {
   section('W3 the wiring: the Chat composes the words as the proof did, over the focused roster')
   {
     const repl = read('src/screens/Chat.tsx')
-    const connector = read('src/services/engine-connector/daemonConnector.ts')
+    const { LivePart } = await import(src('services/engine-connector/daemon/live.ts'))
+    const phaseOver = (transcript: SessionLiveV1): string => {
+      const seatLive = new LivePart({ sessionId: () => 'proof', attached: () => false, factsBusy: () => true, work: () => [], factsTurnStartedAt: () => undefined, streamIdleTimeoutMs: () => undefined, model: () => 'the-model', anySendDelivered: () => false, redressQueuedSends: () => {}, transcriptLive: () => IDLE_LIVE, toolStartedAtMs: () => null, tailHeld: () => false, clearTail: () => {}, tailInterrupted: () => {}, tailInterruptUndone: () => {}, foldStillRuns: () => true, setLiveFold: () => {}, dropRunningFoldAtIdle: () => {}, stepTurnCompletion: () => false, syncFeedCadence: () => {}, probeCarrier: () => {}, transcriptLive: () => transcript } as never)
+      seatLive.takeTail({ schema: 1, sessionId: 'proof', atMs: 1, text: null, stateWord: 'waiting-on-agents', waitingOnAgents: 1 } as never)
+      return seatLive.live().phase
+    }
+    const overTool = phaseOver({ ...IDLE_LIVE, inFlight: true, phase: 'tool', inProgressToolUseIDs: new Set(['toolu_1']) })
+    const overThinking = phaseOver({ ...IDLE_LIVE, inFlight: true, phase: 'thinking' })
     check('the Chat no longer composes a duplicate delegation-wait sentence', !repl.includes('viewDelegationWait') && !repl.includes('const viewAgentWait ='))
     check('the spinner override is reserved for compaction and attention', repl.includes('viewCompacting ? FOLD_ROW_HEAD : null}'))
     check('compact attention still uses the real status facts', repl.includes('statusRowWarns(seatLive, compactSeatStatus)') && repl.includes('statusLine(seatLive, compactSeatStatus, null, true)'))
-    check('a running tool keeps the tool phase in the connector (the foreground case never reads as a bare wait)', connector.includes("this.liveStateWord === 'waiting-on-agents' && this.liveState.phase !== 'tool'"))
+    check('a running tool keeps the tool phase in the connector (the foreground case never reads as a bare wait)', overTool === 'tool' && overThinking === 'waiting', `over a running tool ${overTool} · over thinking ${overThinking}`)
   }
 
   console.log(`\n${checks} checks, ${failures} failed`)

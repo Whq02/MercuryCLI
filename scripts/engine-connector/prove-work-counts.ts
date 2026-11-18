@@ -107,8 +107,20 @@ console.log('\nC7 the held turn\'s wait words name the KINDS over the same count
   check('C7 a parked ask rides the words', workWaitingWords(counts({ agents: 1, asks: 1 })) === 'waiting on 1 crewmate · 1 ask')
   check('C7 nothing running answers null (the count\'s own words stand)', workWaitingWords(counts({})) === null)
   const read = (rel: string): string => readFileSync(rel, 'utf8')
-  const connector = read('src/services/engine-connector/daemonConnector.ts')
-  check("C7 the connector counts the wait's kinds over the runner's roster (the same facts read)", connector.includes("phase === 'waiting' ? workCounts(this.facts?.work ?? [])"))
+  const { LivePart } = await import('../../src/services/engine-connector/daemon/live.ts')
+  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+  const liveWith = (over: Record<string, unknown> = {}): InstanceType<typeof LivePart> => new LivePart({ sessionId: () => 'proof', attached: () => false, factsBusy: () => true, work: () => [], factsTurnStartedAt: () => undefined, streamIdleTimeoutMs: () => undefined, model: () => 'the-model', anySendDelivered: () => false, redressQueuedSends: () => {}, transcriptLive: () => IDLE_LIVE, toolStartedAtMs: () => null, tailHeld: () => false, clearTail: () => {}, tailInterrupted: () => {}, tailInterruptUndone: () => {}, foldStillRuns: () => true, setLiveFold: () => {}, dropRunningFoldAtIdle: () => {}, stepTurnCompletion: () => false, syncFeedCadence: () => {}, probeCarrier: () => {}, ...over } as never)
+  const tailOf = (says: Record<string, unknown>): never => ({ schema: 1, sessionId: 'proof', atMs: 1, text: null, ...says }) as never
+  const roster: WorkRowV1[] = [
+    { id: 'agent-a', kind: 'agent', name: 'an errand', status: 'running', startTime: 1 },
+    { id: 'agent-b', kind: 'agent', name: 'another', status: 'running', startTime: 1, pendingAsks: 1 },
+    { id: 'agent-c', kind: 'agent', name: 'a finished one', status: 'completed', startTime: 1 },
+    { id: 'sh-1', kind: 'shell', name: 'npm test', status: 'running', startTime: 1 },
+  ]
+  const waiting = liveWith({ work: () => roster, transcriptLive: () => ({ ...IDLE_LIVE, inFlight: true, phase: 'thinking' }) })
+  waiting.takeTail(tailOf({ stateWord: 'waiting-on-agents', waitingOnAgents: 2 }))
+  const held = waiting.live()
+  check("C7 the connector counts the wait's kinds over the runner's roster (the same facts read)", held.phase === 'waiting' && held.agentsWaiting === 2 && JSON.stringify(held.waitingOn) === JSON.stringify(workCounts(roster)) && JSON.stringify(held.waitingOn) === JSON.stringify({ agents: 2, shells: 1, asks: 1 }), JSON.stringify(held))
   const tagBar = read('src/components/SwitchboardTagBar.tsx')
   const repl = read('src/screens/Chat.tsx')
   check('C7 the status row retains work-kind facts while the spinner adds no duplicate sentence', tagBar.includes('workWaitingWords(live.waitingOn)') && tagBar.includes('crewWaitingWords(live.agentsWaiting)') && repl.includes('viewCompacting ? FOLD_ROW_HEAD : null}') && !repl.includes('crewWaitingWords('))

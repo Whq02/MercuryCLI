@@ -290,7 +290,8 @@ setInterval	src/services/blender/bridgeClient.ts	1
 setInterval	src/services/compact/compact.ts	1
 setInterval	src/services/concourse/sessionTitleMint.ts	1
 setInterval	src/services/desktop/desktopClaim.ts	1
-setInterval	src/services/engine-connector/daemonConnector.ts	4
+setInterval	src/services/engine-connector/daemon/live.ts	1
+setInterval	src/services/engine-connector/daemonConnector.ts	3
 setInterval	src/services/eval/kernelManager.ts	1
 setInterval	src/services/host/bankPull.ts	1
 setInterval	src/services/host/index.ts	2

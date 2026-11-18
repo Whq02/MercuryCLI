@@ -90,9 +90,18 @@ check('the respawn clears the half-count', (tail()?.turnChars ?? 0) === 0, JSON.
 console.log('\nT7 the wiring — connector to ref to spinner (structural)')
 {
   const read = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
-  const connector = read('src/services/engine-connector/daemonConnector.ts')
-  check('the connector relays the live count (turnChars)', connector.includes('turnChars'))
-  check('the connector relays the wire figure beside it (turnOutputTokens), absent as null', connector.includes('turnOutputTokens(): number | null') && connector.includes("typeof tail.turnOutputTokens === 'number' ? tail.turnOutputTokens : null"))
+  const { LivePart } = await import('../../src/services/engine-connector/daemon/live.ts')
+  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+  const liveWith = (over: Record<string, unknown> = {}): InstanceType<typeof LivePart> => new LivePart({ sessionId: () => 'proof', attached: () => false, factsBusy: () => true, work: () => [], factsTurnStartedAt: () => undefined, streamIdleTimeoutMs: () => undefined, model: () => 'the-model', anySendDelivered: () => false, redressQueuedSends: () => {}, transcriptLive: () => IDLE_LIVE, toolStartedAtMs: () => null, tailHeld: () => false, clearTail: () => {}, tailInterrupted: () => {}, tailInterruptUndone: () => {}, foldStillRuns: () => true, setLiveFold: () => {}, dropRunningFoldAtIdle: () => {}, stepTurnCompletion: () => false, syncFeedCadence: () => {}, probeCarrier: () => {}, ...over } as never)
+  const tailOf = (says: Record<string, unknown>): never => ({ schema: 1, sessionId: 'proof', atMs: 1, text: null, ...says }) as never
+  const relay = liveWith()
+  relay.takeTail(tailOf({ turnChars: 1234, turnOutputTokens: 56 }))
+  const counted = { chars: relay.turnChars(), tokens: relay.turnOutputTokens() }
+  relay.takeTail(tailOf({ turnChars: 1300 }))
+  const unsaid = relay.turnOutputTokens()
+  relay.takeTail(tailOf({ turnChars: 1300, turnOutputTokens: 'many' }))
+  check('the connector relays the live count (turnChars)', counted.chars === 1234 && relay.turnChars() === 1300, JSON.stringify(counted))
+  check('the connector relays the wire figure beside it (turnOutputTokens), absent as null', counted.tokens === 56 && unsaid === null && relay.turnOutputTokens() === null, JSON.stringify({ counted, unsaid }))
   const seatLive = read('src/services/engine-connector/seatLive.ts')
   check('the seat-live extension declares the accessor', seatLive.includes('turnChars'))
   check('the seat-live extension declares the wire figure accessor', seatLive.includes('turnOutputTokens?(): number | null'))

@@ -12,16 +12,16 @@ const PARTS: Readonly<Record<string, { file: string; type: string }>> = {
   asksPart: { file: 'asks.ts', type: 'AsksPart' },
   completionPart: { file: 'completion.ts', type: 'CompletionPart' },
   foldPart: { file: 'fold.ts', type: 'FoldPart' },
+  livePart: { file: 'live.ts', type: 'LivePart' },
   tailPart: { file: 'tail.ts', type: 'TailPart' },
   workPart: { file: 'work.ts', type: 'WorkPart' },
 }
 
 const OF_THE_DOOR: readonly string[] = ['carrier', 'record', 'attached', 'factsFeed', 'asksFeed', 'tailFeed', 'progressFeed', 'turnInFlight', 'verbChain']
 
-const REACHED_BY_PROOFS: readonly string[] = ['textRows']
+const REACHED_BY_PROOFS: readonly string[] = ['textRows', 'liveStateWord', 'streamBlock', 'blockSinceMs', 'interruptPressedAtMs']
 
 const AWAITING_THEIR_PART: Readonly<Record<string, readonly string[]>> = {
-  live: ['effectiveLive', 'liveListeners', 'liveTurnChars', 'liveTurnOutputTokens', 'liveTurnThinkingChars', 'liveTurnThinkingBlocks', 'liveFirstByteAtMs', 'liveStateWord', 'liveAgentsWaiting', 'liveWait', 'liveWaitOwnAge', 'lastEventAtMs', 'streamBlock', 'blockSinceMs', 'toolBudgets', 'livenessTicker', 'interrupting', 'interruptPressedAtMs', 'hardStopping', 'progressAtMs', 'publishedProgressSeqs'],
   facts: ['facts', 'factsBusy', 'busyStallDeadline', 'BUSY_STALL_MS', 'carrierGoneTicks', 'carrierGoneAtFactsMs', 'carrierProbeInFlight', 'carrierSeen', 'CARRIER_GONE_TICKS', 'modelListeners', 'permissionListeners'],
   sends: ['sends', 'echoRows', 'deliveredNotices', 'sendSeq', 'textRetiredRowUuids', 'retainedSend', 'runnerGeneration', 'lostLineNotice', 'settleWaiters'],
   transcript: ['rawRecords', 'recordSigs', 'painted', 'keptRecords', 'answeredRows', 'liveState', 'displayRows', 'clearModelReceipt', 'rowsAfterTail', 'lastSize', 'lastLen', 'transcriptUnreadableFp', 'chainCursor', 'liveFold', 'releaseTranscript', 'transcriptWatcher', 'transcriptTimer', 'transcriptTimerMs', 'tickInFlight', 'tickDirty', 'transcriptPath', 'recordListeners'],

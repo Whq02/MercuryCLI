@@ -156,10 +156,33 @@ console.log('\nL5 the outcome keeps the stamp and clears the block; a respawn ze
 console.log('\nL6 structural — no surface reads transcript growth as liveness')
 {
   const read = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
-  const connector = read('src/services/engine-connector/daemonConnector.ts')
-  check('the connector carries no transcript-growth clock (lastGrewAtMs is gone)', !connector.includes('lastGrewAtMs'))
-  check('the connector reads the seat’s stamp off the tail projection', connector.includes('tail.lastEventAtMs') && connector.includes('tail.streamBlock'))
-  check('the stuck verdict is measured against the watchdog’s own warning point (one owner, streamIdleBudget)', connector.includes('streamIdleWarningMsOf(watchdogMs)'))
+  const { LivePart } = await import('../../src/services/engine-connector/daemon/live.ts')
+  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+  const liveWith = (over: Record<string, unknown> = {}): InstanceType<typeof LivePart> => new LivePart({ sessionId: () => 'proof', attached: () => false, factsBusy: () => true, work: () => [], factsTurnStartedAt: () => undefined, streamIdleTimeoutMs: () => undefined, model: () => 'the-model', anySendDelivered: () => false, redressQueuedSends: () => {}, transcriptLive: () => IDLE_LIVE, toolStartedAtMs: () => null, tailHeld: () => false, clearTail: () => {}, tailInterrupted: () => {}, tailInterruptUndone: () => {}, foldStillRuns: () => true, setLiveFold: () => {}, dropRunningFoldAtIdle: () => {}, stepTurnCompletion: () => false, syncFeedCadence: () => {}, probeCarrier: () => {}, ...over } as never)
+  const tailOf = (says: Record<string, unknown>): never => ({ schema: 1, sessionId: 'proof', atMs: 1, text: null, ...says }) as never
+  const { streamIdleWarningMsOf } = await import('../../src/services/providers/streamIdleBudget.ts')
+  const realNow = Date.now
+  let clock = 5_000_000
+  Date.now = () => clock
+  const WATCHDOG = 90_000
+  const seat = { title: 'the chat', projectLabel: 'proof', runner: null }
+  let grown = IDLE_LIVE
+  const seatLive = liveWith({ streamIdleTimeoutMs: () => WATCHDOG, transcriptLive: () => grown })
+  seatLive.recomputeLive()
+  grown = { ...IDLE_LIVE, inFlight: true, phase: 'thinking', turnStartedAtMs: clock - 60_000 }
+  seatLive.recomputeLive()
+  const unstamped = seatLive.status(seat)
+  check('the connector carries no transcript-growth clock (lastGrewAtMs is gone)', unstamped.quietMs === null && unstamped.stuck === false && unstamped.phaseMs === 60_000, JSON.stringify(unstamped))
+  seatLive.takeTail(tailOf({ lastEventAtMs: clock - 5000, streamBlock: 'text', blockSinceMs: clock - 2000 }))
+  const stamped = seatLive.status(seat)
+  check('the connector reads the seat’s stamp off the tail projection', stamped.quietMs === 5000 && stamped.phaseMs === 2000 && seatLive.live().phase === 'responding', JSON.stringify(stamped))
+  const warnAt = streamIdleWarningMsOf(WATCHDOG)
+  seatLive.takeTail(tailOf({ lastEventAtMs: clock - (warnAt - 1), streamBlock: 'text', blockSinceMs: clock }))
+  const before = seatLive.status(seat).stuck
+  clock += 1
+  const at = seatLive.status(seat)
+  check('the stuck verdict is measured against the watchdog’s own warning point (one owner, streamIdleBudget)', before === false && at.stuck === true && at.watchdogMs === WATCHDOG && at.quietMs === warnAt, JSON.stringify({ before, at, warnAt }))
+  Date.now = realNow
   const contract = read('src/services/engine-connector/seatLive.ts')
   check('SeatStatusV1 carries no silenceMs (the proxy is gone from the contract)', !contract.includes('silenceMs'))
   check('SeatStatusV1 carries the owner’s facts and its verdict', ['quietMs', 'watchdogMs', 'phaseMs', 'toolBudgetMs', 'stuck'].every(f => contract.includes(f)))

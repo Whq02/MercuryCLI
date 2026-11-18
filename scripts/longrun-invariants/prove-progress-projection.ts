@@ -93,8 +93,8 @@ section('§C wiring pins — the transcript never sees an ephemeral frame')
       return []
     }
   })()
-  check('the store has exactly ONE writer home — daemonConnector (the LIVEPAINT road; a second writer or a vanished one reds this for its own re-true)',
-    writerCensus.length === 1 && writerCensus[0] === 'src/services/engine-connector/daemonConnector.ts',
+  check("the store has exactly ONE writer home — the connector's live part (the LIVEPAINT road; a second writer or a vanished one reds this for its own re-true)",
+    writerCensus.length === 1 && writerCensus[0] === 'src/services/engine-connector/daemon/live.ts',
     writerCensus.join(', '))
 
   const row = readFileSync(join(import.meta.dir, '..', '..', 'src', 'components', 'MessageRow.tsx'), 'utf8')

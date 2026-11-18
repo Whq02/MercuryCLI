@@ -56,9 +56,21 @@ section('§1 the fold hands a start for an in-flight turn only')
 
 section("§2 the seat reads the roster's clock through the facts — never one it minted")
 {
-  const src = readFileSync(join(ROOT, 'src/services/engine-connector/daemonConnector.ts'), 'utf8')
-  check("the effective facts read the daemon's turnStartedAt, else the record's fold, else nothing", src.includes('turnStartedAtMs: this.facts?.turnStartedAt ?? this.liveState.turnStartedAtMs ?? null'))
-  check('no facts path mints a clock of its own (no latch, no inline Date.now())', !/turnStartedAtMs: [^\n]*Date\.now\(\)/.test(src) && !src.includes('turnStartLatch'))
+  const { LivePart } = await import('../../src/services/engine-connector/daemon/live.ts')
+  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+  const liveWith = (over: Record<string, unknown> = {}): InstanceType<typeof LivePart> => new LivePart({ sessionId: () => 'proof', attached: () => false, factsBusy: () => true, work: () => [], factsTurnStartedAt: () => undefined, streamIdleTimeoutMs: () => undefined, model: () => 'the-model', anySendDelivered: () => false, redressQueuedSends: () => {}, transcriptLive: () => IDLE_LIVE, toolStartedAtMs: () => null, tailHeld: () => false, clearTail: () => {}, tailInterrupted: () => {}, tailInterruptUndone: () => {}, foldStillRuns: () => true, setLiveFold: () => {}, dropRunningFoldAtIdle: () => {}, stepTurnCompletion: () => false, syncFeedCadence: () => {}, probeCarrier: () => {}, ...over } as never)
+  const tailOf = (says: Record<string, unknown>): never => ({ schema: 1, sessionId: 'proof', atMs: 1, text: null, ...says }) as never
+  const realNow = Date.now
+  Date.now = () => 999_999
+  const startOf = (facts: number | undefined, fold: number | null): number | null => {
+    const seatLive = liveWith({ factsTurnStartedAt: () => facts, transcriptLive: () => ({ ...IDLE_LIVE, inFlight: true, phase: 'thinking', turnStartedAtMs: fold }) })
+    seatLive.recomputeLive()
+    return seatLive.live().turnStartedAtMs
+  }
+  const starts = { both: startOf(500, 300), foldOnly: startOf(undefined, 300), neither: startOf(undefined, null) }
+  Date.now = realNow
+  check("the effective facts read the daemon's turnStartedAt, else the record's fold, else nothing", starts.both === 500 && starts.foldOnly === 300 && starts.neither === null, j(starts))
+  check('no facts path mints a clock of its own (no latch, no inline Date.now())', Object.values(starts).every(start => start !== 999_999), j(starts))
   const seat = readFileSync(join(ROOT, 'src/daemon/sessionSeat.ts'), 'utf8')
   const roster = readFileSync(join(ROOT, 'src/daemon/roster.ts'), 'utf8')
   check("the daemon's facts carry the roster's open-turn start (one clock, the roster's edge)", seat.includes('turnStartedAt: seatTurnStartedAt(short, roster)') && roster.includes('e.turnStartedAt = h.longLived.turnStartedAt'))
