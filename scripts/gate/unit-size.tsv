@@ -63,7 +63,7 @@ src/ink/ink.tsx	Ink	1824	2060
 src/ink/layout/cellLayout.ts	CellLayoutNode	1088	1265
 src/main.tsx	defaultAction	488	2454
 src/rows/turn.ts	Conversation	982	1348
-src/runner/wire/peer.ts	Peer	432	672
+src/runner/wire/peer.ts	Peer	432	683
 src/screens/Chat.tsx	Chat	1702	2037
 src/services/acp/acpServer.ts	runAcpServer	822	1583
 src/services/acp/childSession.ts	MercuryChildSession	340	434

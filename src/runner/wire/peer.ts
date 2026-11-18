@@ -234,6 +234,17 @@ function isRpcId(value: unknown): value is RpcId {
   return typeof value === 'number' && Number.isInteger(value) && value > 0
 }
 
+function notificationDelivery(method: string, handler: (params: unknown) => unknown, params: unknown, log: (line: string) => void): { run: () => void; fail: () => void } {
+  return {
+    run: () => {
+      void Promise.resolve()
+        .then(() => handler(params))
+        .catch(error => log(`runner wire: notification ${method} failed: ${error instanceof Error ? error.message : String(error)}`))
+    },
+    fail: () => log(`runner wire: notification ${method} arrived before initialize was answered and is dropped with it`),
+  }
+}
+
 export class Peer {
   readonly side: PeerSide
   readonly done: Promise<void>
@@ -529,20 +540,9 @@ export class Peer {
       this.log(`runner wire: notification ${method} carried params its schema refused`)
       return
     }
-    const deliver = (): void => {
-      void Promise.resolve()
-        .then(() => handler(check.value))
-        .catch(error => this.log(`runner wire: notification ${method} failed: ${error instanceof Error ? error.message : String(error)}`))
-    }
-    if (this.initState === 'done') {
-      deliver()
-      return
-    }
-    this.initWaiters.push({
-      id: null,
-      run: deliver,
-      fail: () => this.log(`runner wire: notification ${method} arrived before initialize was answered and is dropped with it`),
-    })
+    const delivery = notificationDelivery(method, handler, check.value, this.log)
+    if (this.initState === 'done') delivery.run()
+    else this.initWaiters.push({ id: null, ...delivery })
   }
 
   private onRequestLine(id: RpcId, method: string, params: unknown): void {
