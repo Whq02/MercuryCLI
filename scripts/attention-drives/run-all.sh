@@ -7,6 +7,7 @@
 # gate-watch: scripts/streaming/artifactArena.ts scripts/ui/render-tui.ts
 # gate-watch: src/components/mercury-ui/NavigablePanes.tsx src/components/mercury-ui/useNavigablePanes.ts
 # gate-watch: src/components/prompts-panel/PromptsPanel.tsx src/keybindings/actionGraph.ts
+# gate-watch: scripts/streaming/bench-stream-fluidity.ts src/components/mercury-ui/toolCardGrammar.ts src/components/mercury-ui/toolGlyphs.ts src/tools.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

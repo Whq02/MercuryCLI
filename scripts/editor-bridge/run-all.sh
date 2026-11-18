@@ -33,7 +33,9 @@ bun=${BUN:-$HOME/.bun/bin/bun}
 cd "$(dirname "$0")/../.." || exit 1
 
 red=0
+claimed=$(cat scripts/editor-bridge-*/members.txt 2>/dev/null | grep -v '^#' | grep -v '^$')
 for proof in scripts/editor-bridge/prove-*.ts; do
+  printf '%s\n' "$claimed" | grep -qx "$(basename "$proof")" && continue
   echo "== $proof"
   __t=$SECONDS; __rc=0; if ! { "$bun" run "$proof"; __rc=$?; [ "$__rc" -eq 0 ]; }; then
     echo "RED: $proof"
