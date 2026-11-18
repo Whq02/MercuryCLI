@@ -148,6 +148,8 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-bash-pack.ts" || { __rc=$?; fail=1
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-record.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-record.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-system-road-bash5.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-system-road-bash5.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-profile-environment.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-profile-environment.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-login-file-hands-over.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-login-file-hands-over.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-prefix-wraps-the-record.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-prefix-wraps-the-record.ts" "$__t" "$__rc"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL BASH PERMISSION PROOFS PASS"; else echo "# ❌ SOME BASH PERMISSION PROOFS FAILED"; fi
 echo "############################################################"

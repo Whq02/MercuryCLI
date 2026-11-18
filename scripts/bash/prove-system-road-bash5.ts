@@ -35,7 +35,7 @@ const arg = name => {
 const has = name => process.argv.includes(name)
 const world = realpathSync(arg('--world'))
 const ASK = 'system-road-probe'
-const COMMAND = 'echo "road:$BASH_VERSION:' + '$' + '{BRUSH_VERSION:-none}:' + '$' + '{ZSH_VERSION:-none}:$SHELL"'
+const COMMAND = 'echo "road:$BASH_VERSION:' + '$' + '{BRUSH_VERSION:-none}:' + '$' + '{ZSH_VERSION:-none}:' + '$' + '{BASH:-none}:$SHELL"'
 const KEY = 'sk-ant-fixture-' + 'k'.repeat(48)
 
 let dist = arg('--dist')
@@ -225,11 +225,11 @@ const brushLock = JSON.parse(readFileSync(join(ROOT, 'vendor', 'brush.lock.json'
 const PINNED = `${bashLock.version}(1)-release`
 const OLD_BASH = 'on this bash a here-document inside $( ) breaks'
 
-const roadOf = (report: Report): { bash: string; brush: string; zsh: string; shell: string } | null => {
+const roadOf = (report: Report): { bash: string; brush: string; zsh: string; ran: string; shell: string } | null => {
   const line = report.results.map(result => result.text).join('\n').split('\n').find(text => text.startsWith('road:'))
   if (line === undefined) return null
-  const [, bash = '', brush = '', zsh = '', ...shell] = line.split(':')
-  return { bash, brush, zsh, shell: shell.join(':') }
+  const [, bash = '', brush = '', zsh = '', ran = '', ...shell] = line.split(':')
+  return { bash, brush, zsh, ran, shell: shell.join(':') }
 }
 const told = (report: Report): string => `exit ${String(report.exitCode)} · ${report.served} requests · results ${JSON.stringify(report.results.map(result => result.text.slice(0, 160)))} · stderr ${JSON.stringify(report.stderr.slice(-300))}`
 
@@ -250,14 +250,14 @@ function judge(where: string, pack: Pack, shipped: Report, away: Report, bare: R
   if (pack.carried) {
     const first = roadOf(shipped)
     check(`${where}: a session from the built bundle prints the pinned BASH_VERSION through the Bash tool (${PINNED})`, first?.bash === PINNED, told(shipped))
-    check(`${where}: the shell that ran is the bundle's own bash, and $SHELL names it though the session's $SHELL named zsh`, first !== null && first.shell.endsWith('/bash') && first.shell.includes('/vendor/bash/') && first.zsh === 'none' && first.brush === 'none', JSON.stringify(first))
+    check(`${where}: the shell that ran is the bundle's own bash ($BASH names it), and $SHELL is what the launcher had, zsh, not rewritten`, first !== null && first.ran.endsWith('/bash') && first.ran.includes('/vendor/bash/') && first.shell === '/bin/zsh' && first.zsh === 'none' && first.brush === 'none', JSON.stringify(first))
     check(`${where}: the prompt's shell line names that shell and its version`, shipped.shellLines.length === 1 && shipped.shellLines[0] === `Shell: bash ${bashLock.version}`, JSON.stringify(shipped.shellLines))
     check(`${where}: the Bash tool's description names the dialect of that shell`, shipped.description.includes('each call starts from your profile (bash).'), shipped.description.slice(-140))
   }
 
   const second = roadOf(away)
   const system = away.system
-  check(`${where}: with the pack moved away the system's bash answers (${system ? `${system.path}, ${system.version}` : 'none found'})`, system !== null && second?.bash === system.version && /^\/(?:usr\/(?:local\/)?)?bin\/bash$/.test(second.shell) && second.zsh === 'none' && second.brush === 'none', `${JSON.stringify(second)} · ${told(away)}`)
+  check(`${where}: with the pack moved away the system's bash answers (${system ? `${system.path}, ${system.version}` : 'none found'})`, system !== null && second?.bash === system.version && /^\/(?:usr\/(?:local\/)?)?bin\/bash$/.test(second.ran) && second.shell === '/bin/zsh' && second.zsh === 'none' && second.brush === 'none', `${JSON.stringify(second)} · ${told(away)}`)
   if (system !== null) {
     const number = /^\d+(?:\.\d+)*/.exec(system.version)?.[0] ?? ''
     const old = Number(number.split('.')[0]) < 4

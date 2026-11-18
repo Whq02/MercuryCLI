@@ -1,5 +1,5 @@
 import { spawnOwnedShell } from './shell/parentGuard.js'
-import { closeSync, constants as fsConstants, openSync, readFileSync } from 'node:fs'
+import { closeSync, constants as fsConstants, existsSync, openSync, readFileSync } from 'node:fs'
 import { isAbsolute, resolve as resolvePath } from 'node:path'
 import { memoize } from 'lodash-es'
 import { getOriginalCwd, setCwdState, subscribeCwdState } from '../bootstrap/state.js'
@@ -24,7 +24,7 @@ import { getTaskOutputDir } from './task/diskOutput.js'
 import { TaskOutput } from './task/TaskOutput.js'
 import { nativeCwdFromShellRecord, posixPathToWindowsPath } from './windowsPaths.js'
 import { planWindowsBatchInvocation, runWindowsBatchCommand } from './shell/windowsBatchInvocation.js'
-import { withGitPrograms } from './shell/windowsShellRoad.js'
+import { windowsShellRoadActive, withGitPrograms } from './shell/windowsShellRoad.js'
 
 type ShellConfig = {
   provider: ShellProvider
@@ -49,6 +49,69 @@ const PROVIDER_TABLE: Record<ShellType, () => Promise<ShellProvider>> = {
     return fallback === null ? (await getShellConfig()).provider : createEngineCommandProvider(fallback)
   },
   powershell: () => getPsProvider(),
+}
+
+type SpawnRoad = { provider: ShellProvider; engineBinary: string | null; recordsBash: boolean }
+
+async function spawnRoad(shellType: ShellType): Promise<SpawnRoad> {
+  const engineBinary = shellType === 'bash' ? perCommandEngineBinary(getInitialSettings().shell?.engine) : null
+  const provider = engineBinary === null ? await PROVIDER_TABLE[shellType]() : createEngineCommandProvider(engineBinary)
+  const recordsBash = shellType === 'bash' && engineBinary === null && !windowsShellRoadActive() && (await fallbackEngineBinary()) === null
+  return { provider, engineBinary, recordsBash }
+}
+
+async function commandEnvironment(
+  road: SpawnRoad,
+  shellType: ShellType,
+  command: string,
+  inheritSessionEnv: boolean,
+): Promise<{ env: NodeJS.ProcessEnv; scrubbed: string[] }> {
+  const environmentOverrides = await road.provider.getEnvironmentOverrides(command)
+  const base = inheritSessionEnv
+    ? { env: subprocessEnv(), scrubbed: [] as string[] }
+    : scrubSessionEnvStamps(subprocessEnv())
+  const env = toolShellEnv(base.env, {
+    ...(road.recordsBash ? {} : { SHELL: shellType === 'bash' ? road.provider.shellPath : undefined }),
+    ...environmentOverrides,
+  })
+  return { env, scrubbed: base.scrubbed }
+}
+
+export async function terminalShellInvocation(
+  command: string,
+  inheritSessionEnv: boolean,
+): Promise<{
+  file: string
+  args: string[]
+  argsFor: (line: string) => string[]
+  env: NodeJS.ProcessEnv
+  scrubbed: string[]
+  leftBehind: string[]
+}> {
+  const road = await spawnRoad('bash')
+  const invocationId = Math.floor(Math.random() * 0x10000)
+    .toString(16)
+    .padStart(4, '0')
+  const built = await road.provider.buildExecCommand(command, { id: invocationId })
+  const { env, scrubbed } = await commandEnvironment(road, 'bash', command, inheritSessionEnv)
+  const native = (path: string): string => (getPlatform() === 'windows' ? posixPathToWindowsPath(path) : path)
+  return {
+    file: road.provider.shellPath,
+    args: road.provider.getSpawnArgs(built.commandString),
+    argsFor: line => road.provider.getSpawnArgs(line),
+    env: road.engineBinary === null ? env : withGitPrograms(env),
+    scrubbed,
+    leftBehind: [built.cwdFilePath, ...(built.pipelineStatusPath === undefined ? [] : [built.pipelineStatusPath])].map(native),
+  }
+}
+
+const SHELL_ENDED_UNREAD =
+  'The shell ended before it read this command, so nothing ran. A file the shell reads when it starts can end it or hand it to another program: BASH_ENV names such a file.'
+
+async function shellGoneWords(shellPath: string): Promise<string> {
+  const origin = (await systemShellRecord()).origin
+  const which = origin === 'shipped' ? 'the bash Mercury ships' : "the system's bash"
+  return `The shell this session runs commands in is gone: ${which} was at ${shellPath} and that file is no longer there. A session keeps its shell for its life, so no command can run in this one; restart Mercury and the new session takes the next road (${origin === 'shipped' ? "the system's bash, then the bundled engine" : 'another bash on this machine, then the bundled engine'}).`
 }
 
 
@@ -199,8 +262,8 @@ export async function exec(
     }
   }
 
-  const engineBinary = shellType === 'bash' ? perCommandEngineBinary(getInitialSettings().shell?.engine) : null
-  const provider = engineBinary === null ? await PROVIDER_TABLE[shellType]() : createEngineCommandProvider(engineBinary)
+  const road = await spawnRoad(shellType)
+  const { provider, engineBinary } = road
 
   const invocationId = Math.floor(Math.random() * 0x10000)
     .toString(16)
@@ -233,21 +296,12 @@ export async function exec(
   const spawnFile = provider.shellPath
   const spawnArgs = provider.getSpawnArgs(built.commandString)
 
-  const environmentOverrides = await provider.getEnvironmentOverrides(command)
-
   const taskId = generateTaskId('local_bash')
   const pipeMode = options.onStdout !== undefined
   const taskOutput = new TaskOutput(taskId, options.onProgress ?? null, !pipeMode)
   await getFsImplementation().mkdir(getTaskOutputDir())
 
-  const base = options.inheritSessionEnv === true
-    ? { env: subprocessEnv(), scrubbed: [] as string[] }
-    : scrubSessionEnvStamps(subprocessEnv())
-
-  const childEnv = toolShellEnv(base.env, {
-    SHELL: shellType === 'bash' ? provider.shellPath : undefined,
-    ...environmentOverrides,
-  })
+  const { env: childEnv, scrubbed } = await commandEnvironment(road, shellType, command, options.inheritSessionEnv === true)
 
   const cwdBefore = cwd
   let outputFd: number | undefined
@@ -280,7 +334,7 @@ export async function exec(
       taskOutput,
       engineBinary === null && (options.shouldAutoBackground ?? false),
     )
-    shellCommand.scrubbedSessionEnv = base.scrubbed
+    shellCommand.scrubbedSessionEnv = scrubbed
 
     if (outputFd !== undefined) {
       await new Promise<void>(resolveTick => setImmediate(resolveTick))
@@ -309,6 +363,7 @@ export async function exec(
     logForDebugging(`spawn failed for shell command: ${errorMessage(spawnError)}`)
     const code = (spawnError as NodeJS.ErrnoException).code
     const message = errorMessage(spawnError)
+    if (road.recordsBash && code === 'ENOENT' && !existsSync(spawnFile)) return createFailedCommand(await shellGoneWords(spawnFile))
     return createFailedCommand(code === 'ENAMETOOLONG' || code === 'E2BIG'
       ? `The shell command exceeds the platform's command-line limit (${code}). Put the command in a script file and run that file instead. ${message}`
       : message)
@@ -318,12 +373,20 @@ export async function exec(
     const cwdFilePath =
       getPlatform() === 'windows' ? posixPathToWindowsPath(built.cwdFilePath) : built.cwdFilePath
 
+    const frameRead = !road.recordsBash || existsSync(cwdFilePath)
+    if (!frameRead && !result.interrupted && result.backgroundTaskId === undefined) {
+      result.stderr = result.stderr === '' ? SHELL_ENDED_UNREAD : `${result.stderr}\n${SHELL_ENDED_UNREAD}`
+      if (result.code === 0) result.code = 126
+    }
+
     try {
       if (result && !options.preventCwdChanges && cwdOverride === undefined && result.backgroundTaskId === undefined) {
         const record = readFileSync(cwdFilePath, 'utf8')
         const recorded =
           getPlatform() === 'windows' ? nativeCwdFromShellRecord(record) : { path: record.trim() }
-        if ('refused' in recorded) {
+        if (road.recordsBash && record.trim() === '') {
+          logForDebugging('bash cwd tracking: the shell directory stays put — the command left no directory')
+        } else if ('refused' in recorded) {
           logForDebugging(`bash cwd tracking: the shell directory stays put — ${recorded.refused}`)
         } else if (recorded.path.normalize('NFC') !== cwdBefore.normalize('NFC')) {
           recordShellCwd(recorded.path, cwdBefore)

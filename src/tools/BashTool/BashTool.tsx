@@ -10,7 +10,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { isRunInputClosed } from '../../bootstrap/state.js'
 import { SLEEP_TOOL_NAME } from '../SleepTool/prompt.js'
 import { TASK_STOP_TOOL_NAME } from '../TaskStopTool/prompt.js'
-import { exec, resolveShellCwd } from '../../utils/Shell.js'
+import { exec, resolveShellCwd, terminalShellInvocation } from '../../utils/Shell.js'
 import { captureVerificationStart } from '../../utils/verification/verificationState.js'
 import { processOwnerForLane } from '../../services/run/resolveOwner.js'
 import { execViaIdeTerminal, IdeTerminalUnavailableError, ideTerminalAvailable } from '../../services/acp/ideToolBridge.js'
@@ -328,15 +328,15 @@ async function* runBash(
   const verificationStart = captureVerificationStart(input.command, cwd, processOwnerForLane(agentId ?? null))
   const ideShellCommand =
     isMainThread && !input.run_in_background && ideTerminalAvailable()
-      ? await execViaIdeTerminal(input.command, abortController.signal, {
+      ? await execViaIdeTerminal(abortController.signal, {
           cwd,
           timeout: effectiveTimeout,
+          shell: await terminalShellInvocation(input.command, input.inherit_session_env === true),
           shouldAutoBackground,
-          inheritSessionEnv: input.inherit_session_env === true,
           onProgress,
         }).catch((error: unknown) => {
           if (!(error instanceof IdeTerminalUnavailableError)) throw error
-          editorTerminalNote = `The editor could not open a terminal (${error.message}); this command ran in the local shell.`
+          editorTerminalNote = `The editor's terminal was not used (${error.message}); this command ran in the local shell.`
           return null
         })
       : null

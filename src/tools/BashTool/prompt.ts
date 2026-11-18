@@ -36,7 +36,7 @@ export const EDITOR_TERMINAL_RESULT_NOTE =
   'This command ran in the editor terminal: its working directory and shell variables end with the call; start a command that needs a directory with `cd dir && …` in the same call.'
 
 const EDITOR_TERMINAL_PARAGRAPH =
-  "Editor terminal: in this session a foreground command from the main conversation runs in a fresh terminal of the editor, in the session folder, not in the shell described above. The working directory and shell variables do not carry to the next call, so a command that needs a directory starts with `cd dir && …` in the same call. A `run_in_background` command and a crewmate's command run in the shell described above."
+  "Editor terminal: in this session a foreground command from the main conversation runs in a fresh terminal of the editor, in the session folder. The editor is asked to start there the same shell a `run_in_background` command runs in, so the command is read as it is everywhere else; when the editor cannot start it the command runs in the local shell and the result says so. The working directory and shell variables do not carry to the next call, so a command that needs a directory starts with `cd dir && …` in the same call. A `run_in_background` command and a crewmate's command run in the shell described above."
 
 
 export function getSimplePrompt(offered: ReadonlySet<string> | null = null): string {

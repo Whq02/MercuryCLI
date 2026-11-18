@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, posix as posixPath } from 'node:path'
-import { createAndSaveSnapshot } from '../bash/ShellSnapshot.js'
+import { createAndSaveSnapshot, shellSnapshotAbsence } from '../bash/ShellSnapshot.js'
 import { quote } from '../bash/shellQuote.js'
 import { rearrangePipeCommand } from '../bash/bashPipeCommand.js'
 import {
@@ -34,6 +34,10 @@ function protectBackslashRunsFromMsysArgv(script: string): string {
   return script.replace(MSYS_ARGV_HALVED_BACKSLASH_RUN_RE, run => run + run)
 }
 
+function markFrameRead(cwdFileInShell: string): string {
+  return `{ : >| ${quote([cwdFileInShell])}; } 2>/dev/null`
+}
+
 export async function createBashShellProvider(
   record: ShellRecord,
   options?: { skipSnapshot?: boolean },
@@ -53,11 +57,12 @@ export async function createBashShellProvider(
     async buildExecCommand(command: string, opts: BuildExecCommandOptions) {
       let snapshot = snapshotPath
       if (snapshot && !existsSync(snapshot)) {
-        logForDebugging(`shell snapshot ${snapshot} vanished; falling back to login shell`)
+        logForDebugging(`shell snapshot ${snapshot} vanished; commands run without it`)
         snapshot = undefined
         snapshotPath = undefined
       }
       usedSnapshotThisExecution = snapshot !== undefined
+      if (!snapshot) logForDebugging(`no shell snapshot in use${shellSnapshotAbsence() === null ? '' : ` (${shellSnapshotAbsence()})`}`)
 
       const name = cwdFileName(opts.id)
       const isWindows = getPlatform() === 'windows'
@@ -93,18 +98,16 @@ export async function createBashShellProvider(
 
       let commandString = parts.join(' && ')
       const prefix = shellPrefix()
-      if (prefix) commandString = formatShellPrefixCommand(prefix, commandString)
+      if (prefix) commandString = formatShellPrefixCommand(prefix, isWindows ? commandString : `${quoteShellCommand(shellPath, false)} -c ${quoteShellCommand(commandString, false)}`)
+      if (!isWindows) commandString = `${markFrameRead(cwdFileInShell)}; ${commandString}`
 
       return { commandString, cwdFilePath: cwdFileForEngine, ...(pipelineStatusPath === undefined ? {} : { pipelineStatusPath }) }
     },
 
     getSpawnArgs(commandString: string): string[] {
-      const script = getPlatform() === 'windows' ? protectBackslashRunsFromMsysArgv(commandString) : commandString
-      if (!usedSnapshotThisExecution) {
-        logForDebugging('no shell snapshot in use; adding the login flag')
-        return ['-c', '-l', script]
-      }
-      return ['-c', script]
+      if (getPlatform() !== 'windows') return ['-c', commandString]
+      const script = protectBackslashRunsFromMsysArgv(commandString)
+      return usedSnapshotThisExecution ? ['-c', script] : ['-c', '-l', script]
     },
 
     async getEnvironmentOverrides(_command: string): Promise<Record<string, string>> {

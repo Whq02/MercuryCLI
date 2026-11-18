@@ -206,9 +206,10 @@ section('§4 nothing else changes')
   const untouched = ['', 'echo hi', String.raw`echo 'a\b' "c\d" e\.f`, String.raw`printf %s "a\"b"`, String.raw`echo "x\\"`, String.raw`echo x\\`, 'echo a\\\n']
   const flagsOf = (provider: Provider): string[] => provider.getSpawnArgs('x').slice(0, -1)
   const sameArgs = (provider: Provider): boolean => untouched.every(text => JSON.stringify(provider.getSpawnArgs(text)) === JSON.stringify([...flagsOf(provider), text]))
-  check('the flags are -c, and -l only when no snapshot is in use', JSON.stringify(flagsOf(loginShell)) === '["-c","-l"]' && ['["-c"]', '["-c","-l"]'].includes(JSON.stringify(flagsOf(withSnapshot))), JSON.stringify([flagsOf(loginShell), flagsOf(withSnapshot)]))
+  const noSnapshotFlags = process.platform === 'win32' ? '["-c","-l"]' : '["-c"]'
+  check('the flags are -c alone on macOS and Linux, with a snapshot or without: no command is a login shell (on Windows -l stands in for a missing snapshot)', JSON.stringify(flagsOf(loginShell)) === noSnapshotFlags && ['["-c"]', noSnapshotFlags].includes(JSON.stringify(flagsOf(withSnapshot))), JSON.stringify([flagsOf(loginShell), flagsOf(withSnapshot)]))
   check('a script whose runs bash already kept reaches the spawn call unchanged, on the snapshot provider', sameArgs(withSnapshot))
-  check('…and on a provider that adds the login flag', sameArgs(loginShell))
+  check('…and on a provider with no snapshot', sameArgs(loginShell))
 
   const powershell = createPowerShellProvider('pwsh')
   const psText = String.raw`Write-Output 'a\\b' "c\\\\d"`
@@ -248,7 +249,7 @@ section('§4 nothing else changes')
   }
   for (const platform of ['linux', 'darwin']) {
     const { answered, detail } = argsOn(platform)
-    check(`on ${platform} the spawn arguments are the command string untouched`, answered !== null && answered.every((args, i) => JSON.stringify(args) === JSON.stringify(['-c', '-l', inputs[i]![0]])), detail)
+    check(`on ${platform} the spawn arguments are -c and the command string untouched, with no login flag though no snapshot stands`, answered !== null && answered.every((args, i) => JSON.stringify(args) === JSON.stringify(['-c', inputs[i]![0]])), detail)
   }
   const { answered, detail } = argsOn('win32')
   check(
