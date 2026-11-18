@@ -14,7 +14,7 @@ import { getPlatform } from '../platform.js'
 import { ripgrepCommand } from '../ripgrep.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { SNAPSHOT_KEEPS_ALIASES, SNAPSHOT_OPTIONS, argv0FunctionBody, snapshotProfileOf, type ShellRecord } from '../shell/shellRecord.js'
-import { withRoadPrograms } from '../shell/windowsShellRoad.js'
+import { withShippedPrograms } from '../shell/windowsShellRoad.js'
 import { quote } from './shellQuote.js'
 
 
@@ -51,7 +51,7 @@ type SnapshotPathExecutor = (
 const SNAPSHOT_PATH_PROBE_TIMEOUT_MS = 10_000
 const SNAPSHOT_PATH_PROBE_SETTLE_GRACE_MS = 250
 
-const snapshotPathExecutor = (env: NodeJS.ProcessEnv): SnapshotPathExecutor => (file, args, timeoutMs) =>
+const defaultSnapshotPathExecutor: SnapshotPathExecutor = (file, args, timeoutMs) =>
   new Promise(resolve => {
     let settled = false
     let guard: ReturnType<typeof setTimeout> | null = null
@@ -67,7 +67,7 @@ const snapshotPathExecutor = (env: NodeJS.ProcessEnv): SnapshotPathExecutor => (
       {
         windowsHide: true,
         encoding: 'utf8',
-        env: { ...env },
+        env: { ...withShippedPrograms(subprocessEnv(), file) },
         timeout: timeoutMs,
         maxBuffer: 1024 * 1024,
       },
@@ -91,13 +91,13 @@ const snapshotPathExecutor = (env: NodeJS.ProcessEnv): SnapshotPathExecutor => (
 
 export async function resolveSnapshotPathValue(
   shellPath: string,
-  options?: { platform?: string; exec?: SnapshotPathExecutor; probeTimeoutMs?: number; env?: NodeJS.ProcessEnv },
+  options?: { platform?: string; exec?: SnapshotPathExecutor; probeTimeoutMs?: number },
 ): Promise<string> {
   const platform = options?.platform ?? getPlatform()
   const processPath = process.env.PATH ?? ''
   if (platform !== 'windows') return processPath
   if (!isPosixSnapshotShell(shellPath)) return processPath
-  const exec = options?.exec ?? snapshotPathExecutor(options?.env ?? subprocessEnv())
+  const exec = options?.exec ?? defaultSnapshotPathExecutor
   const timeoutMs = options?.probeTimeoutMs ?? SNAPSHOT_PATH_PROBE_TIMEOUT_MS
   try {
     const result = await exec(shellPath, ['-c', 'echo $PATH'], timeoutMs)
@@ -192,8 +192,8 @@ function createRipgrepShellIntegration(): RipgrepShellIntegration {
   return { type: 'function', snippet: createResilientRgFunction(rgCommand) }
 }
 
-async function getMercurySnapshotContent(binShell: string, env: NodeJS.ProcessEnv): Promise<string> {
-  const pathValue = await resolveSnapshotPathValue(binShell, { env })
+async function getMercurySnapshotContent(binShell: string): Promise<string> {
+  const pathValue = await resolveSnapshotPathValue(binShell)
   const rgIntegration = createRipgrepShellIntegration()
 
   const sections: string[] = []
@@ -317,9 +317,7 @@ export async function createAndSaveSnapshot(shell: Pick<ShellRecord, 'path' | 'o
     )
 
     const configExists = await pathExists(configFilePath)
-    const ambient = subprocessEnv()
-    const inherited = shell.origin === 'engine' ? ambient : withRoadPrograms(ambient, shell.origin, shellPath)
-    const mercuryContent = await getMercurySnapshotContent(shellPath, inherited)
+    const mercuryContent = await getMercurySnapshotContent(shellPath)
     const script = buildCaptureScript({
       snapshotFilePath,
       configFilePath,
@@ -327,6 +325,7 @@ export async function createAndSaveSnapshot(shell: Pick<ShellRecord, 'path' | 'o
       mercuryContent,
     })
 
+    const inherited = withShippedPrograms(subprocessEnv(), shellPath)
     const captureEnv: NodeJS.ProcessEnv = {
       ...inherited,
       SHELL: shellPath,

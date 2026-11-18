@@ -196,11 +196,15 @@ export function withoutShellStartFiles(env: NodeJS.ProcessEnv, platform: string 
   return kept
 }
 
-export function withRoadPrograms(env: NodeJS.ProcessEnv, origin: ShellOrigin, shellPath: string): NodeJS.ProcessEnv {
-  if (origin === 'engine') return withoutShellStartFiles(windowsShellRoadActive() ? withGitPrograms(env) : env)
-  if (!windowsShellRoadActive() || origin === 'system') return env
+export function withShippedPrograms(env: NodeJS.ProcessEnv, shellPath: string): NodeJS.ProcessEnv {
+  if (!windowsShellRoadActive()) return env
   const shipped = shippedWindowsBash()
   return shipped === null || shipped.programsDir === null || shipped.path !== shellPath ? env : withProgramsFirst(env, shipped.programsDir)
+}
+
+export function withRoadPrograms(env: NodeJS.ProcessEnv, origin: ShellOrigin, shellPath: string): NodeJS.ProcessEnv {
+  if (origin === 'engine') return withoutShellStartFiles(windowsShellRoadActive() ? withGitPrograms(env) : env)
+  return origin === 'system' ? env : withShippedPrograms(env, shellPath)
 }
 
 function resolvedShellEngine(): ShellEngineResolution {
