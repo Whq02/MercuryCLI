@@ -368,7 +368,10 @@ The host sends `initialize` first and waits for the answer before sending work:
   returns `-32602` (`path: ["schema"]`), after which `initialize` can be sent
   again. A notification sent before `initialize` is answered
   (`credentials/changed`) is kept until an `initialize` is answered with a
-  result, and is then taken in the order it arrived.
+  result. The notifications that waited and the requests that waited with
+  them are then taken in the order they arrived; a request of a scope, one
+  the runner takes one at a time (`session/claim`, `session/set_mode`,
+  `queue/add` and their like), is taken after those, in its scope's turn.
 - **File checkpoints:** A hosted runner does not capture per-turn file
   checkpoints by default, so `session/rewind` with `mode: "code"` returns
   `capture-off`. Pass `"file_checkpoints": true` in `initialize` to enable
