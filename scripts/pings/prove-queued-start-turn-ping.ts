@@ -149,12 +149,23 @@ const recordWrite = (s: string): void => {
 }
 const osc9Count = (): number => writes.filter(w => w.includes(']9;') && w.includes(PING_MESSAGE)).length
 
-const chatSrc = readFileSync(join(import.meta.dir, '../../src/screens/Chat.tsx'), 'utf8')
-const chatSwitchBlock = chatSrc.slice(
-  chatSrc.indexOf('if (connectorCompletedRef.current.connector !== focusedConnector)'),
-  chatSrc.indexOf('const completed = hasConnectorCompleted'),
-)
-const switchResetsTipWhenLoading = chatSwitchBlock.includes('if (isLoading) tipPickedThisTurnRef.current = false')
+const switchResetsTipWhenLoading = await (async (): Promise<boolean> => {
+  const { openStatusPart } = await import('../ui/chatScenarios.ts')
+  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+  const status = await openStatusPart('queued-ping-turn-end', { keepHome: true })
+  const busy = { ...IDLE_LIVE, inFlight: true, phase: 'thinking' as const }
+  await status.plant({ seatLive: busy })
+  status.session.completedAt = 1
+  await status.plant({ seatLive: IDLE_LIVE })
+  const afterTheFirstTurn = status.tips.asked.length
+  status.session.completedAt = 5
+  await status.focus('queued-ping-turn-end-busy', { seatLive: busy })
+  status.session.completedAt = 9
+  await status.plant({ seatLive: IDLE_LIVE })
+  const afterTheBusySessionSettled = status.tips.asked.length
+  await status.close()
+  return afterTheFirstTurn === 1 && afterTheBusySessionSettled === 2
+})()
 let tipsPicked = 0
 
 function PingHarness(): React.ReactNode {

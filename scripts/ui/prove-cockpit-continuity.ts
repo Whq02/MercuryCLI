@@ -26,19 +26,50 @@ check(
   capsule.includes('React.useMemo'),
 );
 
-const repl = readFileSync('src/screens/Chat.tsx', 'utf8');
-check(
-  'spinnerSlotReserved carries every non-streaming gate',
-  repl.includes('const spinnerSlotReserved = (!toolJSX || toolJSX.showSpinner === true)'),
-);
-check(
-  'showSpinner = slot && the streaming-prose swap only',
-  /const showSpinner = spinnerSlotReserved && \(\s*\n(?:\s*\/\/[^\n]*\n)*\s*!textActive \|\| streamingSuppressed\s*\n\s*\);/.test(repl),
-);
-check(
-  'the streaming hold keeps the 1-row slot while prose streams',
-  /: spinnerSlotReserved \? <StreamingHoldRow [\s\S]{0,220}\/> : null\}/.test(repl),
-);
+{
+  const { openStatusPart } = await import('./chatScenarios.ts');
+  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts');
+  const status = await openStatusPart('cockpit-continuity-status', { keepHome: true });
+  const flying = { ...IDLE_LIVE, inFlight: true, phase: 'thinking' as const };
+  const quiet = { seatLive: flying, toolJSX: null, toolUseConfirmQueue: [], isStopping: false, textActive: false, streamingSuppressed: false, messages: [] };
+  const slot = async (over: Parameters<typeof status.plant>[0]): Promise<boolean> => {
+    await status.plant({ ...quiet, ...over } as never);
+    return status.part.value().spinnerSlotReserved;
+  };
+  const row = (): string => (status.handed.spinner !== null ? 'spinner' : status.handed.hold !== null ? 'hold' : 'none');
+  const gates = {
+    flying: await slot({}),
+    stopping: await slot({ seatLive: IDLE_LIVE, isStopping: true }),
+    resting: await slot({ seatLive: IDLE_LIVE }),
+    dialog: await slot({ toolJSX: { jsx: null, shouldHidePromptInput: false } as never }),
+    dialogWithSpinner: await slot({ toolJSX: { jsx: null, shouldHidePromptInput: false, showSpinner: true } as never }),
+    card: await slot({ toolUseConfirmQueue: [{ toolUseID: 'toolu_gate' }] as never }),
+  };
+  await slot({});
+  const plain = row();
+  const streamingSlot = await slot({ textActive: true });
+  const streaming = row();
+  await slot({ textActive: true, streamingSuppressed: true });
+  const suppressed = row();
+  await slot({ textActive: true, toolUseConfirmQueue: [{ toolUseID: 'toolu_gate' }] as never });
+  const streamingUnderCard = row();
+  await status.close();
+  check(
+    'spinnerSlotReserved carries every non-streaming gate',
+    gates.flying && gates.stopping && !gates.resting && !gates.dialog && gates.dialogWithSpinner && !gates.card,
+    JSON.stringify(gates),
+  );
+  check(
+    'showSpinner = slot && the streaming-prose swap only',
+    plain === 'spinner' && streaming === 'hold' && suppressed === 'spinner' && streamingUnderCard === 'none',
+    `${plain} · ${streaming} · ${suppressed} · ${streamingUnderCard}`,
+  );
+  check(
+    'the streaming hold keeps the 1-row slot while prose streams',
+    streamingSlot && streaming === 'hold',
+    `${streamingSlot} · ${streaming}`,
+  );
+}
 const holdRow = readFileSync('src/components/Spinner/StreamingHoldRow.tsx', 'utf8');
 check(
   'StreamingHoldRow itself is the slot footprint: one row until the turn took two (the strip height latch, keyed by the turn clock)',

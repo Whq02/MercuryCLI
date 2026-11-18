@@ -84,7 +84,6 @@ export type PermissionRequestProps<Input = Record<string, unknown>> = {
   onReject: () => void
   verbose: boolean
   workerBadge: WorkerBadgeProps | undefined
-  setStickyFooter?: (jsx: React.ReactNode | null) => void
 }
 
 

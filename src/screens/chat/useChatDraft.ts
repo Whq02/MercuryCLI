@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useAuthWallHold } from '../../hooks/useAuthWallHold.js';
 import type { VimMode } from '../../hooks/useVimInput.js';
 import * as pendingInput from '../../input-core/pending-input.js';
@@ -22,7 +22,7 @@ export function useChatDraft({
   repinToBottom: () => void;
   lastUserScrollAtRef: { current: number };
 }) {
-  const [isPromptInputActive, setIsPromptInputActive] = useState(false);
+  const isPromptInputActive = useSyncExternalStore(pendingInput.subscribeActive, pendingInput.active, pendingInput.active);
   const [inputMode, setInputModeState] = useState<PromptInputMode>(() => pendingInput.mode());
   void inputMode;
   const [vimMode, setVimMode] = useState<VimMode>('INSERT');
@@ -56,7 +56,6 @@ export function useChatDraft({
         if (Date.now() - lastUserScrollAtRef.current < RECENT_SCROLL_REPIN_WINDOW_MS) return;
         repinToBottom();
       },
-      onActiveChange: setIsPromptInputActive,
     });
   }, [fullscreen, repinToBottom]);
 

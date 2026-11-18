@@ -98,7 +98,14 @@ async function main(): Promise<void> {
     const planAt = tagBar.indexOf('const plan = statusRowPlan({ columns, head, rest, samples, folder, branch, backHint })')
     const heldAt = tagBar.indexOf('const held = receipt')
     check('the row composes the tail once, after every state decision, through the fit that protects the state words', tagBar.includes("const fitted = columns - fixedWidth < STATUS_ROW_WORDS_FLOOR ? '' : fitStatusWords(rest, samples, columns, fixedWidth)") && planAt >= 0 && heldAt >= 0 && planAt > heldAt && !tagBar.includes('fitStatusLine(spoken'))
-    check('the working strip adds neither a wait sentence nor sample metadata', !repl.includes('viewDelegationWait') && repl.includes('viewCompacting ? FOLD_ROW_HEAD : null}') && !repl.includes('withSampleWords(') && !repl.includes('useFocusedSamples'))
+    const { openStatusPart } = await import(join(ROOT, 'scripts/ui/chatScenarios.ts'))
+    const strip = await openStatusPart('samples-status-strip', { keepHome: true })
+    Object.assign(slot.getFocusedSessionConnector(), { workRoster: () => ({ rows, mission: [], samples: samples(2), reported: true }) })
+    await strip.plant({ seatLive: waiting })
+    const handedWords = Object.values(strip.handed.spinner ?? {}).filter((value): value is string => typeof value === 'string')
+    const stripSays = { override: strip.handed.spinner?.overrideMessage, waits: strip.handed.spinner?.waitingOnCrewmates, words: handedWords }
+    await strip.close()
+    check('the working strip adds neither a wait sentence nor sample metadata', !repl.includes('viewDelegationWait') && stripSays.override === null && stripSays.waits === true && handedWords.every(words => !words.includes('sample') && !words.includes('waiting on')) && !repl.includes('withSampleWords(') && !repl.includes('useFocusedSamples'), JSON.stringify(stripSays))
     check('statusLine and the wait composer carry no sample of their own', /export function statusLine\(live: SessionLiveV1, s: SeatStatusV1, crew: CrewClockV1 \| null = null, compact = false\): string/.test(tagBar) && /export function waitingStatusWords\(live: SessionLiveV1\): string/.test(tagBar))
   }
 

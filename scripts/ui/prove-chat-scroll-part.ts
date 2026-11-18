@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { mock } from 'bun:test'
 import { pinScratchHome, releaseScratchHome, settle } from '../lib/settingsPopupHarness.ts'
 import { mountPart } from './chatScenarios.ts'
 
@@ -13,8 +14,16 @@ function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
 }
 
+const cursorStore = { ...(await import('../../src/components/messageCursorStore.ts')) }
+const cursorWrites: unknown[] = []
+mock.module('../../src/components/messageCursorStore.ts', () => ({
+  ...cursorStore,
+  setMessageCursor: (next: Parameters<typeof cursorStore.setMessageCursor>[0]) => {
+    cursorWrites.push(next)
+    cursorStore.setMessageCursor(next)
+  },
+}))
 const { useChatScroll, useChatScrollFollow, useChatScrollPin } = await import('../../src/screens/chat/useChatScroll.ts')
-const cursorStore = await import('../../src/components/messageCursorStore.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
 type Message = import('../../src/types/message.ts').Message
 type ScrollRestore = import('../../src/screens/chat/useChatScroll.ts').ScrollRestore
@@ -73,8 +82,10 @@ section('§2 the fold line: what is unseen below a reader who scrolled away')
   box.calls.length = 0
   box.top = 40
   scrollRestoreRef.current = { gap: 9, sticky: false }
+  cursorStore.setMessageCursor({ uuid: 'u0', type: 'user', expanded: false } as never)
   await act(() => part.value().onScroll(false, handle as never))
   check('a scroll away from the tail drops the kept scroll, stamps the user and plants the fold line at the row count', scrollRestoreRef.current === null && noted === 1 && part.value().unseen.dividerIndex === 2, `${noted} · ${String(part.value().unseen.dividerIndex)}`)
+  check('a scroll leaves the message cursor where it stands and writes nothing to its store', (cursorStore.getMessageCursor() as { uuid?: string } | null)?.uuid === 'u0' && cursorWrites.length === 0, `${JSON.stringify(cursorStore.getMessageCursor())} · ${cursorWrites.length} writes`)
   rows = [...rows, assistant('an answer the reader has not seen'), assistant('and another')]
   await part.set(use)
   check('answers that arrive below the fold line are counted and the fold line is drawn above them', part.value().newMessageCount >= 1 && part.value().unseenDivider !== undefined, `${part.value().newMessageCount} · ${JSON.stringify(part.value().unseenDivider)}`)
@@ -88,8 +99,11 @@ section('§2 the fold line: what is unseen below a reader who scrolled away')
   scrollRestoreRef.current = { gap: 9, sticky: false }
   await act(() => part.value().onPillClick())
   check('the pill drops the kept scroll, clears the message cursor in its store and goes to the bottom', scrollRestoreRef.current === null && cursorStore.getMessageCursor() === null && box.calls.join() === 'scrollToBottom', `${box.calls.join()} · ${JSON.stringify(cursorStore.getMessageCursor())}`)
+  cursorStore.setMessageCursor({ uuid: 'u2', type: 'user', expanded: false } as never)
   await act(() => part.value().onScroll(true, handle as never))
   check('a scroll that lands on the tail takes the fold line away', part.value().unseen.dividerIndex === null && part.value().newMessageCount === 0 && noted === 2)
+  check('and it too leaves the message cursor where it stands', (cursorStore.getMessageCursor() as { uuid?: string } | null)?.uuid === 'u2', JSON.stringify(cursorStore.getMessageCursor()))
+  cursorStore.setMessageCursor(null)
 
   section('§3 the scroll kept across a flip of the view')
   scrollRef.current = null as never
@@ -124,6 +138,7 @@ section('§2 the fold line: what is unseen below a reader who scrolled away')
   box.calls.length = 0
   await act(() => part.value().setFlipGeneration(generation => generation + 1))
   check('a view that fits its box after the flip is pinned to the bottom and holds no fold line', box.calls.includes('scrollToBottom') && scrollRestoreRef.current === null && part.value().unseen.dividerYRef.current === null, box.calls.join())
+  check('over all of this the part wrote the message cursor once: the pill cleared it', cursorWrites.length === 1 && cursorWrites[0] === null, JSON.stringify(cursorWrites))
   part.unmount()
 }
 

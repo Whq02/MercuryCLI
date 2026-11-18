@@ -171,15 +171,48 @@ section('§3 — the surfaces tell the truth')
   check('the option descriptions no longer promise a summary-and-fork that never happened', !selector.includes('will be summarised and the conversation forked'))
   check('the branch forks the FOCUSED session\'s transcript with a caught failure (rank 68)', selector.includes("typeof focused.transcriptFile === 'function' ? focused.transcriptFile() : null") && selector.includes('setErrorText(`branch failed — ') && !selector.includes('getTranscriptPathForSession(String(getSessionId()))'))
   const repl = read('src/screens/Chat.tsx')
-  check("the Chat's restore road calls the connector's rewind and paints the receipt", repl.includes('connector.rewind({ userMessageId: message.uuid, mode })') && repl.includes("key: 'rewind-receipt'"))
-  const onRestoreAt = repl.indexOf('const onRestore = useCallback(')
-  const onRestoreBody = onRestoreAt === -1 ? '' : repl.slice(onRestoreAt, repl.indexOf('\n  );\n', onRestoreAt))
-  const landedGate = braceBlock(onRestoreBody, "if (receipt.outcome === 'applied' && receipt.conversation !== undefined) {")
-  check('the Chat onRestore callback, its landed-rewind gate and the resubmit all exist inside that one callback', onRestoreBody !== '' && landedGate !== '' && landedGate.includes('const resubmit = textForResubmit(message);'), j({ onRestoreAt, body: onRestoreBody.length, gate: landedGate.length }))
-  const resubmitAt = onRestoreBody.indexOf('const resubmit = textForResubmit(message);')
-  const rewindCallAt = onRestoreBody.indexOf('await connector.rewind(')
-  check('the composer takes the words back only after a LANDED conversation rewind', landedGate !== '' && resubmitAt >= 0 && rewindCallAt >= 0 && resubmitAt > rewindCallAt && landedGate.includes('pendingInput.edit(resubmit.text, { restored: true })') && !onRestoreBody.slice(0, onRestoreBody.indexOf(landedGate)).includes('pendingInput.edit('))
-  check('a running turn is interrupted and given a bounded settle before the ask', repl.includes('connector.interrupt();') && repl.includes('REWIND_SETTLE_WAIT_MS'))
+  {
+    const { openSelectorPart } = await import('../ui/chatScenarios.ts')
+    const selector = await openSelectorPart('rewind-cockpit-selector', { keepHome: true })
+    const anchor = { type: 'user', uuid: '00000000-0000-4000-8000-00000000a001', message: { role: 'user', content: 'the words to wind back to' } } as never
+    const draftWhenAsked: string[] = []
+    const answer = (outcome: 'applied' | 'refused', conversation: boolean) => (request: Record<string, unknown>) => {
+      draftWhenAsked.push(selector.draft().text)
+      return outcome === 'refused' ? { outcome, mode: String(request.mode), refusal: 'not-found', detail: 'no such point' } : { outcome, mode: String(request.mode), ...(conversation ? { conversation: { removed: 2 } } : { code: { filesChanged: ['a.ts'], insertions: 1, deletions: 0 } }) }
+    }
+    selector.session.rewind = answer('applied', true)
+    await selector.selector().onRestore(anchor, 'both')
+    const asked = selector.session.calls.splice(0)
+    const receipts = selector.notices.splice(0)
+    const landedDraft = selector.draft().text
+    check("the Chat's restore road calls the connector's rewind and paints the receipt", asked.join() === `rewind ${JSON.stringify({ userMessageId: '00000000-0000-4000-8000-00000000a001', mode: 'both' })}` && receipts.length === 1 && receipts[0]!.key === 'rewind-receipt' && receipts[0]!.text.startsWith('rewound: '), `${asked.join()} · ${j(receipts)}`)
+    check('the Chat onRestore callback, its landed-rewind gate and the resubmit all exist inside that one callback', landedDraft === 'the words to wind back to' && selector.calls.splice(0).join() === 'setInputMode prompt', j({ landedDraft }))
+    const pendingStore = await import('../../src/input-core/pending-input.ts')
+    pendingStore.edit('')
+    selector.session.rewind = answer('refused', false)
+    await selector.selector().onRestore(anchor, 'both')
+    const afterRefusal = selector.draft().text
+    selector.session.rewind = answer('applied', false)
+    await selector.selector().onRestore(anchor, 'code')
+    const afterCodeOnly = selector.draft().text
+    check('the composer takes the words back only after a LANDED conversation rewind', draftWhenAsked.join('|') === '||' && afterRefusal === '' && afterCodeOnly === '' && landedDraft !== '', j({ draftWhenAsked, afterRefusal, afterCodeOnly, landedDraft }))
+    selector.session.calls.length = 0
+    selector.session.turnActive = true
+    selector.session.onInterrupt = () => void setTimeout(() => (selector.session.turnActive = false), 300)
+    selector.session.rewind = answer('applied', false)
+    const settledAt = Date.now()
+    await selector.selector().onRestore(anchor, 'code')
+    const settledIn = Date.now() - settledAt
+    const settledOrder = selector.session.calls.splice(0).map(call => call.split(' ')[0]).join(' · ')
+    selector.session.turnActive = true
+    selector.session.onInterrupt = undefined
+    const boundedAt = Date.now()
+    await selector.selector().onRestore(anchor, 'code')
+    const boundedIn = Date.now() - boundedAt
+    const boundedOrder = selector.session.calls.splice(0).map(call => call.split(' ')[0]).join(' · ')
+    await selector.close()
+    check('a running turn is interrupted and given a bounded settle before the ask', settledOrder === 'interrupt · rewind' && settledIn >= 250 && settledIn < 3000 && boundedOrder === 'interrupt · rewind' && boundedIn >= 4500 && boundedIn < 9000, j({ settledOrder, settledIn, boundedOrder, boundedIn }))
+  }
   check("the old 'not available for a managed session yet' refusal no longer fronts the rewind", !repl.includes("refuseSessionRewrite('rewinding the conversation')") && !repl.includes("refuseSessionRewrite('restoring files to a checkpoint')"))
   const config = read('src/components/Settings/Config.tsx')
   check("Settings carries 'Checkpoints in this session' beside the switch, read from the focused connector", config.includes("label: 'Checkpoints in this session'") && config.includes('getFocusedSessionConnector().checkpointFacts()'))

@@ -40,7 +40,6 @@ export type StashedPrompt = {
 export type EditInterceptors = {
   interceptSuggestion?: (prev: string, next: string) => boolean
   onEmptyToNonempty?: () => void
-  onActiveChange?: (active: boolean) => void
 }
 
 const PROMPT_SUPPRESSION_MS = 1500
@@ -62,6 +61,14 @@ let editSeq = 0
 let commitSeq = 0
 
 const changed = createSignal()
+let typedIn = false
+const activeChanged = createSignal()
+
+function setActive(next: boolean): void {
+  if (typedIn === next) return
+  typedIn = next
+  activeChanged.emit()
+}
 
 function commit(): void {
   commitSeq++
@@ -99,6 +106,11 @@ const SUBMITTED_PAGE_WINDOW_MS = 15_000
 
 
 export const subscribePendingInput = changed.subscribe
+export const subscribeActive = activeChanged.subscribe
+
+export function active(): boolean {
+  return typedIn
+}
 
 export function text(): string {
   return draft.text
@@ -213,6 +225,7 @@ export function resetPendingInputForTests(): void {
   owningSessionId = null
   editSeq = 0
   commitSeq = 0
+  typedIn = false
   if (suppressionTimer !== null) {
     clearTimeout(suppressionTimer)
     suppressionTimer = null
@@ -228,7 +241,7 @@ function armSuppressionTimer(nonempty: boolean): void {
   if (!nonempty) return
   suppressionTimer = setTimeout(() => {
     suppressionTimer = null
-    interceptors.onActiveChange?.(false)
+    setActive(false)
   }, PROMPT_SUPPRESSION_MS)
 }
 
@@ -248,7 +261,7 @@ export function edit(raw: string, options?: { restored?: boolean }): void {
   persistDraft()
   activityManager.recordUserActivity()
   updateLastInteractionTime(true)
-  interceptors.onActiveChange?.(value.trim().length > 0)
+  setActive(value.trim().length > 0)
   armSuppressionTimer(value.trim().length > 0)
   markTypingActivity()
 }

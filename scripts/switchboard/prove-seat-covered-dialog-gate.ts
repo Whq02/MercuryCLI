@@ -37,15 +37,26 @@ check(
   check('G2 the permission overlay render requires !chatSurfaceCovered', uncovered && !covered, `drawn uncovered ${uncovered} · drawn covered ${covered}`)
 }
 
-check(
-  'G3 the message selector render requires !chatSurfaceCovered',
-  /focusedInputDialog === 'message-selector' && !chatSurfaceCovered/.test(repl),
-)
+{
+  const { openSelectorPart } = await import('../ui/chatScenarios.ts')
+  const selector = await openSelectorPart('seat-covered-selector', { keepHome: true })
+  const uncovered = selector.part.value().messageSelector !== null
+  await selector.plant({ chatSurfaceCovered: true })
+  const covered = selector.part.value().messageSelector !== null
+  await selector.close()
+  check('G3 the message selector render requires !chatSurfaceCovered', uncovered && !covered, `drawn uncovered ${uncovered} · drawn covered ${covered}`)
+}
 
-check(
-  'G4 the bottom dialogs are null when covered',
-  /const focusedBottomDialog: React\.ReactNode = chatSurfaceCovered \? null :/.test(repl),
-)
+{
+  const { openDialogsPart } = await import('../ui/chatScenarios.ts')
+  const dialogs = await openDialogsPart('seat-covered-dialogs', { keepHome: true })
+  await dialogs.plant({ focusedInputDialog: 'cost-threshold' })
+  const uncovered = dialogs.part.value().focusedBottomDialog !== null
+  await dialogs.plant({ chatSurfaceCovered: true })
+  const covered = dialogs.part.value().focusedBottomDialog !== null
+  await dialogs.close()
+  check('G4 the bottom dialogs are null when covered', uncovered && !covered, `drawn uncovered ${uncovered} · drawn covered ${covered}`)
+}
 
 {
   const kb = read('src/keybindings/useKeybinding.ts')

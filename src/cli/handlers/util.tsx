@@ -6,7 +6,6 @@ import { MERCURY_VERSION } from '../../constants/product.js'
 import { Box, Text, type Root } from '../../ink.js'
 import { KeybindingSetup } from '../../keybindings/KeybindingProviderSetup.js'
 import { AppStateProvider } from '../../state/AppState.js'
-import { onChangeAppState } from '../../state/onChangeAppState.js'
 import { isAnthropicAuthEnabled } from '../../utils/auth.js'
 import { logError } from '../../utils/log.js'
 
@@ -14,7 +13,7 @@ export async function setupTokenHandler(root: Root): Promise<void> {
   const showExistingCredentialWarning = !isAnthropicAuthEnabled()
   await new Promise<void>(resolve => {
     root.render(
-      <AppStateProvider onChangeAppState={onChangeAppState}>
+      <AppStateProvider>
         <KeybindingSetup>
           <Box flexDirection="column" gap={1}>
             <Box flexDirection="column">
@@ -48,7 +47,7 @@ export async function healthHandler(root: Root): Promise<void> {
   try {
     await new Promise<void>(resolve => {
       root.render(
-        <AppStateProvider onChangeAppState={onChangeAppState}>
+        <AppStateProvider>
           <KeybindingSetup>
             <Suspense>
               <MercuryHealthCertificate onClose={() => resolve()} />

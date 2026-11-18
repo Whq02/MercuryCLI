@@ -24,8 +24,13 @@ check('the sentence names the cause without narrating the summariser', text.incl
 
 console.log('L3 the refused road is still refused (the why)')
 {
-  const repl = readFileSync(join(SRC, 'screens/Chat.tsx'), 'utf8')
-  check("the message selector's summarise action refuses the session rewrite", repl.includes("refuseSessionRewrite('summarising a stretch of the conversation')"))
+  const { openSelectorPart } = await import('../ui/chatScenarios.ts')
+  const selector = await openSelectorPart('ptl-recovery-selector')
+  await selector.selector().onSummarize()
+  const refusal = selector.notices.find(notice => notice.key === 'session-rewrite')
+  const asked = selector.session.calls.length
+  await selector.close()
+  check("the message selector's summarise action refuses the session rewrite", refusal !== undefined && refusal.text.startsWith('summarising a stretch of the conversation acts on the session') && asked === 0, `${refusal?.text ?? 'no notice'} · ${asked} calls on the session`)
 }
 
 console.log('L4 the stable key still leads')

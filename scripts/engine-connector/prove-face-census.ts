@@ -154,7 +154,7 @@ const CHAT_EXPECTED: Record<NeedleName, number> = {
   costTracker: 0,
   cwdOwner: 1,
   modelResolution: 2,
-  queueModule: 1,
+  queueModule: 0,
   transcriptWriter: 1,
   accountOwners: 0,
   mcpManager: 0,

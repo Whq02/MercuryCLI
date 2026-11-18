@@ -611,8 +611,22 @@ section('§10 the seat facts a hosted session answers carry the credential\'s ow
   check('the relays derive no address of their own (the seat, the connector, the resting slot, the codecs read no config record)', relays.every(relative => !read(relative).includes('oauthAccount') && !read(relative).includes('emailAddress')), relays.filter(relative => read(relative).includes('oauthAccount') || read(relative).includes('emailAddress')).join(', '))
   check('the connector answers the facts\' identity as published, null when none', read('src/services/engine-connector/daemonConnector.ts').includes('return this.facts?.identity ?? { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null }'))
   check('the seat\'s skeleton and the resting slot name nobody', read('src/daemon/sessionSeat.ts').includes('identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null }') && read('src/services/engine-connector/noSessionConnector.ts').includes('accountEmail: null,'))
-  const readers = ['src/screens/Chat.tsx', 'src/components/MercuryFrame.tsx', 'src/components/tasks/BackgroundTasksDialog.tsx', 'src/components/mercury-ui/screens/CrewView.tsx']
-  check('the cockpit\'s readers of the connector identity read its billing word and compose no address of their own', readers.every(relative => read(relative).includes('identity().consoleBilling') && !read(relative).includes('oauthAccount') && !read(relative).includes('accountEmail')), readers.filter(relative => !read(relative).includes('identity().consoleBilling')).join(', '))
+  const readers = ['src/components/MercuryFrame.tsx', 'src/components/tasks/BackgroundTasksDialog.tsx', 'src/components/mercury-ui/screens/CrewView.tsx']
+  const silent = ['src/screens/Chat.tsx', ...readers]
+  const { openDialogsPart } = await import('../ui/chatScenarios.ts')
+  const askedOverThreshold = async (consoleBilling: boolean): Promise<boolean> => {
+    const dialogs = await openDialogsPart('email-surfaces-dialogs', { keepHome: true })
+    const quiet = connector.usage
+    Object.assign(connector, { usage: () => ({ ...quiet(), totalCostUSD: 6 }), identity: () => ({ firstPartyApi: false, consoleBilling, claudeAiBilling: false, accountEmail: null }) })
+    await dialogs.plant({ messages: [{}] as never })
+    const asked = dialogs.costShown.includes(true)
+    Object.assign(connector, { usage: quiet })
+    await dialogs.close()
+    return asked
+  }
+  const billedAsked = await askedOverThreshold(true)
+  const unbilledAsked = await askedOverThreshold(false)
+  check('the cockpit\'s readers of the connector identity read its billing word and compose no address of their own', readers.every(relative => read(relative).includes('identity().consoleBilling')) && silent.every(relative => !read(relative).includes('oauthAccount') && !read(relative).includes('accountEmail')) && billedAsked && !unbilledAsked, `${readers.filter(relative => !read(relative).includes('identity().consoleBilling')).join(', ')} · the chat screen asks a session over its cost threshold on console billing ${billedAsked}, off it ${unbilledAsked}`)
   const runnerSource = read('src/cli/run.ts')
   check("the runner's facts answer names the account through anthropicSignInEmail, the one reader of the sign-in (never the config record); the door's handlers compose no address", readerSays.every(Boolean) && !runnerSource.includes('oauthAccount') && !read('src/cli/headless/controlHandlers.ts').includes('oauthAccount'))
   check('getAccountInformation().email in this home is the credential\'s own (the same sign-in the facts answer reads)', auth.getAccountInformation()?.email === PROFILE_EMAIL, JSON.stringify(auth.getAccountInformation()))

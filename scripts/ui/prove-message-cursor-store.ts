@@ -61,10 +61,43 @@ section('§2 the wiring — by census at every owner')
     process.chdir(ROOT)
     check('the Chat keeps no cursor state of its own (its one clear — the jump-to-new pill — writes the store)', !repl.includes('useState<MessageActionsState | null>') && cleared && jumps.join() === 'bottom', `cleared ${cleared} · ${jumps.join()}`)
   }
-  check('the Chat subscribes to the active flag only', repl.includes('const messageCursorActive = useMessageCursorActive();') && repl.includes("import { useMessageCursorActive } from '../components/messageCursorStore.js';"))
-  check('the bar and the key handlers mount on the active flag', repl.includes('messageCursorActive && !messageActionsDisabled ? <MessageActionsBar /> : composerGroup') && repl.includes('{fullscreen && messageCursorActive ? ('))
+  const { openSelectorPart } = await import('./chatScenarios.ts')
+  const selector = await openSelectorPart('message-cursor-store-selector', { keepHome: true })
+  const settled = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 80))
+  const idle = selector.part.value().messageCursorActive
+  const rendersIdle = selector.part.renders()
+  store.setMessageCursor(at('u1'))
+  await settled()
+  const active = selector.part.value().messageCursorActive
+  const rendersActive = selector.part.renders()
+  for (const uuid of ['u2', 'u3', 'u4']) store.setMessageCursor(at(uuid))
+  await settled()
+  const rendersMoved = selector.part.renders()
+  const navRef = selector.part.value().messageNavRef
+  const cursorActions = selector.part.value().messageActions
+  let asked = 0
+  navRef.current = { enter: () => void asked++, prev: () => {}, next: () => {}, prevUser: () => {}, nextUser: () => {}, top: () => {}, bottom: () => {}, getSelected: () => undefined }
+  cursorActions.enter()
+  cursorActions.handlers['messageActions:escape']!()
+  const leftByEscape = store.getMessageCursor() === null
+  await selector.close()
+  store._resetMessageCursorForTest()
+  process.chdir(ROOT)
+  check('the Chat subscribes to the active flag only', idle === false && active === true && rendersActive === rendersIdle + 1 && rendersMoved === rendersActive, `idle ${idle} · active ${active} · renders on entering ${rendersActive - rendersIdle} · renders over three moves ${rendersMoved - rendersActive}`)
+  {
+    const { openKeysPart } = await import('./chatScenarios.ts')
+    const keys = await openKeysPart('message-cursor-store-keys', { keepHome: true })
+    const withoutCursor = keys.handed.actions === null
+    await keys.plant({ messageCursorActive: true })
+    const withCursor = keys.handed.actions !== null
+    await keys.plant({ fullscreen: false })
+    const outsideFullscreen = keys.handed.actions === null
+    await keys.close()
+    process.chdir(ROOT)
+    check('the bar and the key handlers mount on the active flag', repl.includes('messageCursorActive && !messageActionsDisabled ? <MessageActionsBar /> : composerGroup') && withoutCursor && withCursor && outsideFullscreen, `handlers absent with no cursor ${withoutCursor} · mounted with one ${withCursor} · absent outside the fullscreen layout ${outsideFullscreen}`)
+  }
   check('the live transcript owns the cursor; no transcript mount passes a cursor prop', /ownsCursor\s*\n\s*cursorNavRef=\{messageNavRef\}/.test(repl) && !/\bcursor=\{/.test(repl))
-  check('the hook takes the nav ref and the capabilities, reading the cursor live', repl.includes('useMessageActions(messageNavRef, {'))
+  check('the hook takes the nav ref and the capabilities, reading the cursor live', asked === 1 && leftByEscape, `enter reached the nav ref ${asked} times · escape cleared the cursor it read ${leftByEscape}`)
 
   const messages = read('src/components/Messages.tsx')
   check('the transcript reads the store when it owns the cursor', messages.includes('const liveCursor = useMessageCursor()') && messages.includes('const cursor: MessageActionsState | null = ownsCursor ? liveCursor : null') && messages.includes('const setCursor = ownsCursor ? setMessageCursor : undefined'))

@@ -27,14 +27,6 @@ const armAt = attach.indexOf('armEntryWarmth(sessionId,')
 check('the entry arms the hint at the decision, before the landing', armAt >= 0 && armAt < attach.indexOf('const landing = withLanding('))
 check('the landing settles the hint in its finally (per-session)', attach.includes('settleEntryWarmth(sessionId)'))
 const repl = readFileSync('src/screens/Chat.tsx', 'utf8')
-check(
-  'the Chat paints through the one pure composer, keyed on the store version AND the focused identity',
-  repl.includes('paintedTranscriptOf(messages, enteringWarmth(), focusedSessionId)'),
-)
-check(
-  'the live view alone paints the hint (one lane: the composed list, never a deferred copy of it)',
-  repl.includes('inVirtualTranscript ? transcriptMessages : paintedMessages') && !repl.includes('useDeferredValue'),
-)
 {
   const { openTranscriptPart } = await import('../ui/chatScenarios.ts')
   const view = await openTranscriptPart('swift-warmth-transcript', { keepHome: true })
@@ -52,13 +44,8 @@ check(
   )
 }
 check(
-  'the Chat settles the hint at fold-complete replace (evict + settle)',
-  repl.includes('evictSessionWarmth(warmth.sessionId)') && repl.includes('settleEntryWarmth(warmth.sessionId)'),
-)
-check(
-  'the cold loading line renders as chrome at the live transcript slot, keyed the same way',
-  repl.includes('entryLoadingLineOf(enteringWarmth(), messages.length === 0, focusedSessionId)') &&
-    /entryLoadingLine !== null \? \(\s*<Box paddingLeft=\{1\} marginTop=\{1\}>\s*<Text dimColor>\{entryLoadingLine\}<\/Text>/.test(repl),
+  'the cold loading line renders as chrome at the live transcript slot',
+  /entryLoadingLine !== null \? \(\s*<Box paddingLeft=\{1\} marginTop=\{1\}>\s*<Text dimColor>\{entryLoadingLine\}<\/Text>/.test(repl),
 )
 
 console.log('\n§2 the store (bounded by construction · per-session settle)')
@@ -168,14 +155,51 @@ check('(c) …and never wears the entry\'s loading line', w.entryLoadingLineOf(w
 check('(c) …and never borrows the armed warmth', !JSON.stringify(w.paintedTranscriptOf([] as never, w.enteringWarmth(), 'T')).includes('warm A again'))
 check('the resting slot ("" — landing in flight) still paints the warmth', JSON.stringify(w.paintedTranscriptOf([] as never, w.enteringWarmth(), '')).includes('warm A again'))
 check(
-  'the Chat settle spares armed-or-covered',
-  repl.includes('focusedId !== warmth.sessionId && focusedId !== warmth.coveredSessionId'),
-)
-check(
   'the entry decision captures the covered identity at the arm',
   /armEntryWarmth\(sessionId, row\?\.title \?\? parked\?\.title, hasFocusedSession\(\) \? getFocusedSessionConnector\(\)\.sessionId\(\) : undefined\)/.test(route),
 )
 w._resetSessionWarmthForTesting()
+
+console.log('\n§4 the chat screen, read off its mounted session part')
+{
+  const { openSessionPart } = await import('../ui/chatScenarios.ts')
+  const session = await openSessionPart('warmth-covered', { keepHome: true })
+  const covered = [row(500, 'the covered chat words')] as never[]
+  const warm = [row(501, 'warm tail of the entered chat')] as never[]
+  await session.plant({ messages: covered })
+  w.rememberSessionWarmth('warmth-entered', warm as never, 0)
+  w.armEntryWarmth('warmth-entered', 'the entered chat', 'warmth-covered')
+  await session.plant({})
+  const overCovered = session.part.value().paintedMessages
+  const shownLive = session.part.value().displayedMessages
+  const frozen = [row(502, 'a frozen transcript row')] as never[]
+  await session.plant({ inVirtualTranscript: true, transcriptMessages: frozen })
+  const shownInTranscript = session.part.value().displayedMessages
+  await session.plant({ inVirtualTranscript: false })
+  const armedOverCovered = w.enteringWarmth()?.sessionId
+  await session.focus('warmth-entered', { messages: [] })
+  const armedInEntered = w.enteringWarmth()?.sessionId
+  const landedRows = [row(503, 'the entered chat landed')] as never[]
+  await session.plant({ messages: landedRows })
+  await new Promise(resolve => setTimeout(resolve, 80))
+  const afterFold = w.enteringWarmth()
+  const paintedAfterFold = session.part.value().paintedMessages
+  w.armEntryWarmth('warmth-entered', 'the entered chat again')
+  const keptAfterFold = w.enteringWarmth()?.rows.length
+  w.settleEntryWarmth('warmth-entered')
+  w.armEntryWarmth('warmth-cold', 'the cold chat')
+  await session.focus('warmth-cold', { messages: [] })
+  const coldLine = session.part.value().entryLoadingLine
+  await session.focus('warmth-third')
+  await new Promise(resolve => setTimeout(resolve, 80))
+  const afterThird = w.enteringWarmth()
+  await session.close()
+  check('the Chat paints through the one pure composer, keyed on the store version AND the focused identity', overCovered.length === 1 && overCovered[0] === warm[0] && paintedAfterFold === landedRows, `${overCovered.length} rows over the covered chat`)
+  check('the live view alone paints the hint (one lane: the composed list, never a deferred copy of it)', shownLive === overCovered && shownInTranscript === frozen && !repl.includes('useDeferredValue'))
+  check('the Chat settles the hint at fold-complete replace (evict + settle)', armedInEntered === 'warmth-entered' && afterFold === null && keptAfterFold === 0, `${String(armedInEntered)} · ${JSON.stringify(afterFold)} · ${String(keptAfterFold)} rows still kept`)
+  check('the cold loading line is keyed the same way', coldLine === 'opening the cold chat — loading the conversation…', String(coldLine))
+  check('the Chat settle spares armed-or-covered', armedOverCovered === 'warmth-entered' && armedInEntered === 'warmth-entered' && afterThird === null, `${String(armedOverCovered)} · ${String(armedInEntered)} · ${JSON.stringify(afterThird)}`)
+}
 
 console.log(failures === 0 ? '\nprove-swift-entry-warmth: ALL LAWS HOLD' : `\nprove-swift-entry-warmth: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

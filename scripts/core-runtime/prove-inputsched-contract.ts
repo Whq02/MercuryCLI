@@ -243,17 +243,6 @@ console.log('native-core T13/T14 — input-scheduling contract')
   q.rekeyCommandQueueToSession('order-A')
   check('rekey: submit ordering unchanged across the round trip (now>next>later, FIFO within bands)',
     q.dequeue()?.value === 'n1' && q.dequeue()?.value === 'n2' && q.dequeue()?.value === 'l1')
-
-  const replSrc = readFileSync('src/screens/Chat.tsx', 'utf8')
-  const hopBlock = replSrc.slice(replSrc.indexOf('rekeyedSessionRef.current !== focusedSessionId'))
-  check('rekey: the Chat hop effect re-keys the queue beside pending-input, inside the same guard',
-    hopBlock.slice(0, 600).includes("rekeyCommandQueueToSession(focusedSessionId === '' ? null : focusedSessionId, { landing })") &&
-      hopBlock.includes("pendingInput.rekeyToSession(focusedSessionId === '' ? null : focusedSessionId, { landing })") &&
-      hopBlock.indexOf('pendingInput.rekeyToSession') !== -1 &&
-      hopBlock.indexOf('rekeyCommandQueueToSession(focusedSessionId') !== -1 &&
-      hopBlock.indexOf('pendingInput.rekeyToSession') < hopBlock.indexOf('rekeyCommandQueueToSession(focusedSessionId'))
-  check('rekey: the landing word is the slot-fill fact, computed once for both owners',
-    replSrc.includes("const landing = rekeyedSessionRef.current === '' && focusedSessionId !== '';"))
   q.resetCommandQueue()
   q.rekeyCommandQueueToSession(null)
   q.enqueue(cmd('queued while landing'))
@@ -618,8 +607,8 @@ console.log('native-core T13/T14 — input-scheduling contract')
       return consumeNext
     },
     onEmptyToNonempty: () => journal.push('empty->nonempty'),
-    onActiveChange: a => journal.push(`active:${a}`),
   })
+  pi.subscribeActive(() => void journal.push(`active:${pi.active()}`))
 
   pi.edit('a')
   check('choke: order — intercept ≺ empty→nonempty ≺ commit ≺ active flip',
@@ -1028,6 +1017,17 @@ function isFrameWrite(w: string): boolean {
   const atExit = handled.length
   await settle()
   check('dispatch: unmount cancels queued delivery', handled.length === atExit && !handled.includes('AFTER_UNMOUNT'), handled.join(','))
+}
+
+{
+  const { sessionRekeys } = await import('../ui/chatScenarios.ts')
+  const rekeys = await sessionRekeys('inputsched-session')
+  check('rekey: the Chat hop effect re-keys the queue beside pending-input, inside the same guard',
+    rekeys.atMount === '' && rekeys.hop === 'draft inputsched-session-b landing=false · queue inputsched-session-b landing=false' && rekeys.again === '',
+    `at mount "${rekeys.atMount}" · on a hop "${rekeys.hop}" · on the next render "${rekeys.again}"`)
+  check('rekey: the landing word is the slot-fill fact, computed once for both owners',
+    rekeys.rest === 'draft null landing=false · queue null landing=false' && rekeys.landing === 'draft inputsched-session-c landing=true · queue inputsched-session-c landing=true',
+    `on rest "${rekeys.rest}" · on the landing "${rekeys.landing}"`)
 }
 
 rmSync(HERMETIC_HOME, { recursive: true, force: true })

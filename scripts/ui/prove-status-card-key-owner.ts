@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { WorkRowV1 } from '../../src/services/engine-connector/types.ts'
 import { pinSourceRef, pinScratchHome, mountOffscreen, waitFor, releaseScratchHome } from '../lib/settingsPopupHarness.ts'
@@ -116,8 +116,17 @@ for (const [columns, rows, view] of [[120, 40, 'lead'], [213, 60, 'lead'], [213,
   } finally { scene.unmount() }
 }
 focused.setFocusedSessionConnector(noSessionConnector())
-const chat = readFileSync(join(import.meta.dir, '../../src/screens/Chat.tsx'), 'utf8')
-check('the chat screen holds Escape for help, history search and the message cursor, the three that take the key and register no overlay', chat.includes('useHoldsEscape(helpOpen || isSearchingHistory || messageCursorActive)'))
+const { openKeysPart } = await import('./chatScenarios.ts')
+const keys = await openKeysPart('status-card-key-owner-keys', { keepHome: true })
+const holders: string[] = []
+for (const [name, up, down] of [['help', { helpOpen: true }, { helpOpen: false }], ['history search', { isSearchingHistory: true }, { isSearchingHistory: false }], ['message cursor', { messageCursorActive: true }, { messageCursorActive: false }]] as const) {
+  await keys.plant(up)
+  if (keys.escapeHeld()) holders.push(name)
+  await keys.plant(down)
+  if (keys.escapeHeld()) holders.push(`${name} still held`)
+}
+check('the chat screen holds Escape for help, history search and the message cursor, the three that take the key and register no overlay', holders.join() === 'help,history search,message cursor', holders.join())
+await keys.close()
 console.log(`status-card-key-owner: ${checks} checks, ${failures} failed`)
 await releaseScratchHome(home)
 process.exit(failures ? 1 : 0)

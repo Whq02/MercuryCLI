@@ -49,13 +49,6 @@ console.log('C — close all chats ⇒ the boot menu (rule 5)')
   const restHelper = board.slice(board.indexOf('async function restFocusedSlotAfterRelease('), board.indexOf('removeSession: sessionId => {'))
   check('C1 releasing the focused row re-points at a SURVIVOR first (the reaped-session ghost stays closed)', removeBody.includes('await restFocusedSlotAfterRelease(sessionId') && restHelper.includes('hops.hopIntoBoardSession(next.sessionId)'))
   check('C1 releasing the LAST row rests the slot and the board stays (no menu bounce) — no ghost minted at the screen\'s cwd', restHelper.includes('slot.releaseFocusedSessionConnector()') && !removeBody.includes('enterBootSettings()') && !removeBody.includes('focusNascentSession') && !removeBody.includes('getEngineModel'))
-  const repl = read('src/screens/Chat.tsx')
-  const backstopAt = repl.indexOf('const slotHasSession = useSyncExternalStore(subscribeFocusedSessionConnector, hasFocusedSession, hasFocusedSession);')
-  const backstopEnd = repl.indexOf('}, [slotHasSession, landing, chatSurfaceCovered, localJsx, armedMessage]);', backstopAt)
-  const backstop = backstopAt !== -1 && backstopEnd !== -1 ? repl.slice(backstopAt, backstopEnd) : ''
-  check('C2 the root Chat yields whenever it would front a resting slot, handing the frame to the router\'s one absent-chat landing (settleAbsentChat, never a return token onto the empty chat)', backstop !== '' && backstop.includes('settleAbsentChat()') && !backstop.includes('enterBootSettings()') && backstop.includes('hasFocusedSession()'))
-  check('C2 the yield settles one beat and re-reads every fact at fire time (a mounting dialog is never buried)', backstop.includes('NO_CHAT_SETTLE_MS') && backstop.includes("currentSurfaceRoute().kind !== 'repl'") && backstop.includes('toolJSXRef.current?.isLocalJSXCommand === true'))
-  check('C2 an inline boot keeps its Chat (CB-10: no frame for the face)', backstop.includes('if (!isFullscreenEnvEnabled()) return;'))
   const route = read('src/context/surfaceRoute.ts')
   check('C2 the router\'s home verb never routes into an absent chat (no chat ⇒ no movement, no armed exception left)', route.includes('export function enterRootChat(): ChatEntry {') && route.includes('if (!chatPresent()) {') && route.includes("return { ok: false, code: 'no-chat', reason: NO_CHAT_HINT }") && !route.includes('armedRootCommand'))
   const face = read('src/components/BootSplashScreen.tsx')
@@ -154,6 +147,32 @@ console.log('F — the two switches (the amendment)')
   const face = read('src/components/BootSplashScreen.tsx')
   check('F5 B1: the boot menu keeps Projects un-dimmed with the concourse off (the face passes no projectsDim)', face.includes('projects={facts.pickerProjects.map(p => {') && !face.includes('projectsDim'))
   check('F5 the concourse row stays enterable with the switch off and says what it is (live view only)', face.includes('live view only — ${facts.why}${count}') && face.includes('ctx: concourseRowCtx({ live: concourseLive, why: plainWhy, liveCount })'))
+}
+
+console.log('C2 — the chat that fronts a resting slot, read off the mounted session part of the chat screen')
+{
+  const { openSessionPart } = await import('../ui/chatScenarios.ts')
+  const session = await openSessionPart('one-door-session', { keepHome: true })
+  const kind = (): string => session.route.currentSurfaceRoute().kind
+  const beat = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 450))
+  const dialog = { jsx: null, shouldHidePromptInput: false, isLocalJSXCommand: true } as never
+  process.env.MERCURY_FULLSCREEN = '0'
+  await session.focus(null)
+  await beat()
+  const inline = kind()
+  process.env.MERCURY_FULLSCREEN = '1'
+  await session.plant({ localJsx: true })
+  await session.plant({ localJsx: false, toolJSXRef: { current: dialog } })
+  await beat()
+  const underDialog = kind()
+  await session.plant({ localJsx: true })
+  await session.plant({ localJsx: false, toolJSXRef: { current: null } })
+  for (let turn = 0; turn < 75 && kind() === 'repl'; turn++) await new Promise(resolve => setTimeout(resolve, 40))
+  const resting = kind()
+  await session.close()
+  check('C2 the root Chat yields whenever it would front a resting slot, handing the frame to the router\'s one absent-chat landing (settleAbsentChat, never a return token onto the empty chat)', resting === 'boot-settings' && session.route.activeReturnToken() === null, `${resting} · return token ${JSON.stringify(session.route.activeReturnToken())}`)
+  check('C2 the yield settles one beat and re-reads every fact at fire time (a mounting dialog is never buried)', underDialog === 'repl', underDialog)
+  check('C2 an inline boot keeps its Chat (CB-10: no frame for the face)', inline === 'repl', inline)
 }
 
 removeScratch(SCRATCH)

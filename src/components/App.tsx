@@ -4,7 +4,6 @@ import { FpsMetricsProvider } from '../context/fpsMetrics.js'
 import { StatsProvider, type StatsStore } from '../context/stats.js'
 import { AppStateProvider } from '../state/AppState.js'
 import type { AppState } from '../state/AppStateStore.js'
-import { onChangeAppState } from '../state/onChangeAppState.js'
 import type { FpsMetrics } from '../utils/fpsTracker.js'
 
 export function App({
@@ -21,10 +20,7 @@ export function App({
   return (
     <FpsMetricsProvider getFpsMetrics={getFpsMetrics}>
       <StatsProvider store={stats}>
-        <AppStateProvider
-          initialState={initialState}
-          onChangeAppState={onChangeAppState}
-        >
+        <AppStateProvider initialState={initialState}>
           {children}
         </AppStateProvider>
       </StatsProvider>

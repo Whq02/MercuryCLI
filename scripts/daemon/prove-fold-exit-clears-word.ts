@@ -421,9 +421,19 @@ section("P8 an older daemon's tail (the word standing over an exited record): th
 
 section('P7 the header paints the phase (structural): the word beside the logo is the phase and nothing else')
 {
-  const repl = readFileSync(join(import.meta.dir, '..', '..', 'src/screens/Chat.tsx'), 'utf8')
-  check("the header's compacting dress follows seatLive.phase === 'compacting'", repl.includes("const viewCompacting = seatLive.phase === 'compacting'"))
-  check(`the header's word under that dress is the fold's head ("${FOLD_ROW_HEAD}"), still`, repl.includes('viewCompacting ? FOLD_ROW_HEAD') && repl.includes('still={viewCompacting}'))
+  const { openStatusPart } = await import('../ui/chatScenarios.ts')
+  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+  const status = await openStatusPart('fold-exit-status', { keepHome: true })
+  const dress = async (phase: 'compacting' | 'thinking' | 'responding'): Promise<string> => {
+    await status.plant({ seatLive: { ...IDLE_LIVE, inFlight: true, phase } })
+    return `${String(status.handed.spinner?.overrideMessage)} still=${String(status.handed.spinner?.still)}`
+  }
+  const compacting = await dress('compacting')
+  const thinking = await dress('thinking')
+  const responding = await dress('responding')
+  await status.close()
+  check("the header's compacting dress follows seatLive.phase === 'compacting'", compacting !== thinking && thinking === 'null still=false' && responding === 'null still=false', `${compacting} | ${thinking} | ${responding}`)
+  check(`the header's word under that dress is the fold's head ("${FOLD_ROW_HEAD}"), still`, compacting === `${FOLD_ROW_HEAD} still=true`, compacting)
 }
 
 cockpit.detach()

@@ -133,16 +133,32 @@ section('W2 the connector busy-union never claims writing for a fold-idle transc
   rmSync(scratch, { recursive: true, force: true })
 }
 
+let heldFigure: number | undefined
 section('W3 the Chat hands the spinner all three live phases')
 {
-  const src = readFileSync(join(ROOT, 'src/screens/Chat.tsx'), 'utf8')
+  const { openStatusPart } = await import('../ui/chatScenarios.ts')
+  const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+  const status = await openStatusPart('writing-indicator-status', { keepHome: true })
+  const modeOf = async (phase: 'tool' | 'thinking' | 'responding'): Promise<string> => {
+    await status.plant({ seatLive: { ...IDLE_LIVE, inFlight: true, phase } })
+    return String(status.handed.spinner?.mode)
+  }
+  const toolMode = await modeOf('tool')
+  const thinkingMode = await modeOf('thinking')
+  const respondingMode = await modeOf('responding')
+  status.session.chars = 777
+  await status.plant({ textActive: true })
+  heldFigure = (status.handed.hold?.responseLengthRef as { current: number } | undefined)?.current
+  await status.close()
   check(
     "the 'tool' phase maps to the dedicated 'tool-use' spinner mode",
-    src.includes("seatLive.phase === 'tool' ? 'tool-use'"),
+    toolMode === 'tool-use' && respondingMode === 'responding',
+    `${toolMode} · ${respondingMode}`,
   )
   check(
     'the thinking arm survives beside it',
-    src.includes("seatLive.phase === 'thinking' ? 'thinking'"),
+    thinkingMode === 'thinking',
+    thinkingMode,
   )
 }
 
@@ -161,10 +177,10 @@ section('W4 the streaming hold row IS the writing indicator')
     "still-waiting derives from the count's own movement, not the process-local pulse",
     !src.includes('getPulsePhase') && !src.includes('getPulseActivity'),
   )
-  const repl = readFileSync(join(ROOT, 'src/screens/Chat.tsx'), 'utf8')
   check(
     'the Chat feeds the hold row the live ref',
-    /StreamingHoldRow[\s\S]{0,220}responseLengthRef=\{responseLengthRef\}/.test(repl),
+    heldFigure === 777,
+    String(heldFigure),
   )
 }
 
