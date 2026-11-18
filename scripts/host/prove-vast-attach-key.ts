@@ -22,14 +22,15 @@ let instancePath = ''
 let reads = 0
 let wait = plain
 let afterAttach = plain
+let windowEnds = 0
 globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: RequestInit) => {
   const request = new Request(input, init)
   const url = new URL(request.url)
   if (!['127.0.0.1', '[::1]'].includes(url.hostname)) { escaped.push(request.url); throw new Error('Attach-key proof permits loopback only') }
-  if (url.pathname === instancePath + 'ssh/') { reads = 0; wait = afterAttach }
+  if (url.pathname === instancePath + 'ssh/') { reads = 0; wait = afterAttach; windowEnds = Date.now() + deadlineMs }
   else if (url.pathname === instancePath && request.method === 'GET') {
     reads++
-    if (reads === wait.hold) { reads = 0; wait = plain; return new Promise<Response>((_, reject) => { if (request.signal.aborted) reject(request.signal.reason); else request.signal.addEventListener('abort', () => reject(request.signal.reason), { once: true }) }) }
+    if (reads === wait.hold && Date.now() < windowEnds - 100) { reads = 0; wait = plain; return new Promise<Response>((_, reject) => { if (request.signal.aborted) reject(request.signal.reason); else request.signal.addEventListener('abort', () => reject(request.signal.reason), { once: true }) }) }
     if (reads === wait.pass) { reads = 0; skew += deadlineMs }
   }
   return nativeFetch(request)
@@ -79,6 +80,7 @@ try {
     }
     const record = queueHostSetup({ id: pod.id, vendor: 'vast', name: pod.name, recipe: offer.recipe.id, price: pod.cost, startedAt: pod.createdAt, status: pod.status, apiBaseUrl: vast.baseUrl, sshKey: key.path, sessionId: 'attach-key-session' })
     const start = Date.now()
+    windowEnds = start + deadlineMs
     await runHostJob(record.id, record.generation!, { runner, pauseMs: 20, timeoutMs: deadlineMs, engineGraceMs: 100, keepAlive: false })
     instancePath = ''
     const ended = readHostRecord(pod.id)!
