@@ -122,15 +122,16 @@ import { forwardFrame, handoverRoadOf, handoverState, parseHandoverFrom, predece
 import { holdBuild, invokedScriptPath, selfScriptPath } from './daemonBuild.js'
 import { decidePlaneBoot, type PlaneBootFactsV1 } from './planeBoot.js'
 import { lockHeldByLivePidSync, readPlaneOwnerSync, type PlaneOwnerV1 } from './planeRecords.js'
-import { getMercuryDaemonStatus, formatMercuryDaemonStatus, helperPidSocketsOnDisk, helperPidsOfHome } from './status.js'
+import { getMercuryDaemonStatus, formatMercuryDaemonStatus, helperPidsOfHome } from './status.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 import { sleep } from '../utils/sleep.js'
 import { makeDaemonRunState, markDaemonReady } from './run/state.js'
+import { armHandoverBeats } from './run/handover.js'
 import { armPlaneHeal } from './run/heal.js'
 import { armOwnerWatch, makeSessionlessBeat, markHosted } from './run/owner.js'
 import { periodicArmer } from './run/periodic.js'
 import { bindWayOut, shutdownDaemon } from './run/shutdown.js'
-import { armedRestartBeat, restartWhenIdle, spawnSuccessorDaemon, successorRuntime } from './run/restart.js'
+import { armedRestartBeat, restartWhenIdle, spawnSuccessorDaemon } from './run/restart.js'
 
 function resolveDir(args: string[]): string {
   const arg = args.find(a => !a.startsWith('-'))
@@ -1000,67 +1001,7 @@ async function daemonRun(args: string[]): Promise<void> {
       })
       armPeriodic('the armed-restart beat', () => armedRestartBeat(state, restartNeeds))
       armPeriodic('the sessionless beat', makeSessionlessBeat(state, { liveWorkers, requestShutdown: signal => requestShutdown(signal) }))
-      if (handover !== null) {
-        const idleReads = new Map<number, number>()
-        let sweepInflight = false
-        const predecessors = handover
-        const askIdlePredecessorsToLeave = async (): Promise<void> => {
-          if (sweepInflight || planeServedByOther !== null || successorRuntime() !== null) return
-          sweepInflight = true
-          try {
-            for (const pid of helperPidSocketsOnDisk()) {
-              if (pid !== process.pid && !isProcessAlive(pid) && daemonHomeStands('the departed-helper sweep')) await unlink(predecessorSockPath(pid)).catch(() => undefined)
-            }
-            for (const pid of predecessors.predecessorPids()) {
-              if (predecessors.heldRunners(pid).size > 0) {
-                idleReads.delete(pid)
-                continue
-              }
-              const reply = await forwardFrame(predecessorSockPath(pid), JSON.stringify({ op: 'hello', proto: MERCURY_DAEMON_PROTO, clientVersion: currentVersion(), clientBuildTree: bootBuildTree }), 1500)
-              if (!reply.ok || reply.op !== 'hello' || reply.pid !== pid || reply.live > 0 || !isProcessAlive(pid)) {
-                idleReads.delete(pid)
-                continue
-              }
-              const reads = (idleReads.get(pid) ?? 0) + 1
-              idleReads.set(pid, reads)
-              const holdsLock = state.daemonLock === null && lockHeldByLivePidSync() === pid
-              if (reads < (holdsLock ? 1 : IDLE_PREDECESSOR_READS)) continue
-              idleReads.delete(pid)
-              console.error(`[daemon] the daemon this one took over from (pid ${pid}, v${reply.version}) holds no live session and has not left on its own — asking it to leave`)
-              await forwardFrame(predecessorSockPath(pid), JSON.stringify({ op: 'shutdown', reapWorkers: false, forwarded: true }), 3000).catch(() => undefined)
-            }
-          } finally {
-            sweepInflight = false
-          }
-        }
-        const sweepNow = (): void => {
-          void askIdlePredecessorsToLeave().catch(e => logForDebugging(`[daemon] the idle-predecessor sweep failed (the next beat retries): ${e}`))
-        }
-        armPeriodic('the idle-predecessor sweep', sweepNow)
-        setTimeout(sweepNow, FIRST_IDLE_SWEEP_MS).unref?.()
-      }
-      if (handoverPredecessor !== null && state.daemonLock === null) {
-        let lockClaimInflight = false
-        const lockBeat = (): void => {
-          void (async () => {
-            if (state.daemonLock !== null || lockClaimInflight) return
-            if (lockHeldByLivePidSync() !== null) return
-            lockClaimInflight = true
-            try {
-              const taken = await acquireDaemonLock()
-              if (taken === null) return
-              state.daemonLock = taken
-              state.stopLockBeat?.()
-              console.error(`[daemon] handover from pid ${handoverPredecessor}: the predecessor released the daemon lock — this daemon holds it now`)
-            } finally {
-              lockClaimInflight = false
-            }
-          })()
-        }
-        armPeriodic('the handover lock beat', lockBeat, () => {
-          state.stopLockBeat = null
-        })
-      }
+      armHandoverBeats(state, { handoverPredecessor, armPeriodic })
       const { startHostJobSweep } = await import('../services/host/jobs.js')
       state.stopHostJobs = startHostJobSweep()
       markDaemonReady(state)
@@ -1229,8 +1170,6 @@ async function daemonRun(args: string[]): Promise<void> {
 
 const SUCCESSOR_LOCK_WAIT_MS = 10_000
 const PREDECESSOR_SHUTDOWN_WAIT_MS = 6_000
-const IDLE_PREDECESSOR_READS = 3
-const FIRST_IDLE_SWEEP_MS = 1_000
 
 export const FREE_THE_PLANE_WORDS = '`mercury daemon stop` asks the daemon that holds this home to leave (it answers over the control pipe from any Mercury build); if it does not answer, end its pid by hand, then start again'
 

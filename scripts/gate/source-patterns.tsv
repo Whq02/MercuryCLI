@@ -47,10 +47,11 @@ setTimeout	src/daemon/controlServer.ts	1
 setTimeout	src/daemon/controlSocket.ts	1
 setTimeout	src/daemon/handover.ts	1
 setTimeout	src/daemon/headlessRun.ts	3
-setTimeout	src/daemon/main.ts	3
+setTimeout	src/daemon/main.ts	2
 setTimeout	src/daemon/ownerWatch.ts	1
 setTimeout	src/daemon/processSweepWindows.ts	2
 setTimeout	src/daemon/roster.ts	4
+setTimeout	src/daemon/run/handover.ts	1
 setTimeout	src/daemon/run/heal.ts	2
 setTimeout	src/daemon/run/shutdown.ts	2
 setTimeout	src/daemon/runnerConnection.ts	1
@@ -1365,11 +1366,12 @@ empty-catch-handler	src/components/tensorfold/tensorfoldModelFacts.ts	2
 empty-catch-handler	src/daemon/concourseDispatch.ts	2
 empty-catch-handler	src/daemon/controlServer.ts	1
 empty-catch-handler	src/daemon/controlSocket.ts	6
-empty-catch-handler	src/daemon/main.ts	9
+empty-catch-handler	src/daemon/main.ts	7
 empty-catch-handler	src/daemon/ownedDaemon.ts	2
 empty-catch-handler	src/daemon/processSweepRun.ts	2
 empty-catch-handler	src/daemon/processSweepWindows.ts	1
 empty-catch-handler	src/daemon/roster.ts	8
+empty-catch-handler	src/daemon/run/handover.ts	2
 empty-catch-handler	src/daemon/run/owner.ts	1
 empty-catch-handler	src/daemon/run/shutdown.ts	3
 empty-catch-handler	src/daemon/workerParentWatch.ts	1
