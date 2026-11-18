@@ -296,10 +296,10 @@ scripts/daemon/prove-control-layer-held.ts	1	1	c24dc3f7fbaa
 scripts/daemon/prove-daemon-departure.ts	2	7	cdf305118c12
 scripts/daemon/prove-daemon-env-scrub.ts	5	10	8530045a0d59
 scripts/daemon/prove-daemon-handshake.ts	5	19	d096c230e141
-scripts/daemon/prove-daemon-home-census.ts	9	65	aebde4443d39
+scripts/daemon/prove-daemon-home-census.ts	8	59	a5ad6360bec3
 scripts/daemon/prove-daemon-lock.ts	1	5	c24dc3f7fbaa
 scripts/daemon/prove-daemon-log-stamps.ts	1	3	c24dc3f7fbaa
-scripts/daemon/prove-daemon-owner-watch-budget.ts	4	16	fc96fc366058
+scripts/daemon/prove-daemon-owner-watch-budget.ts	4	12	fc96fc366058
 scripts/daemon/prove-daemon-stop-parks.ts	1	3	c24dc3f7fbaa
 scripts/daemon/prove-daemon-verbs.ts	4	37	ebb373ea7827
 scripts/daemon/prove-dispatch-death-settles.ts	1	8	c24dc3f7fbaa
@@ -309,7 +309,7 @@ scripts/daemon/prove-field-e004-daemon-skew.ts	4	13	3a0fc52ac2fc
 scripts/daemon/prove-field-findings-daemon-older.ts	1	3	82bc89e328ff
 scripts/daemon/prove-focus-one-writer.ts	7	24	9aea55a54bf8
 scripts/daemon/prove-headless-permission-mode.ts	2	4	d2188a2d3e2c
-scripts/daemon/prove-idle-daemon-launches-nothing.ts	3	7	b8c8624bf106
+scripts/daemon/prove-idle-daemon-launches-nothing.ts	3	6	b8c8624bf106
 scripts/daemon/prove-install-fresh-folder.ts	1	1	a6c271ba6cae
 scripts/daemon/prove-interrupt-agent-wait.ts	6	18	3f1a4772978a
 scripts/daemon/prove-interrupt-keeps-runner.ts	3	23	f67c5ba90479

@@ -27,6 +27,122 @@ const read = (path: string): string => {
 }
 const UNKNOWN_SESSION = '00000000-0000-4000-8000-000000000000'
 const UNORDERED = ['boot process census', '[daemon] hello from client', '[daemon] seat idle edge: ']
+const CLOCK = String.raw`if (process.argv.includes('daemon') && process.argv.includes('run') && process.env.DMR_CLOCK) {
+  const fs = require('fs')
+  const net = require('net')
+  const path = require('path')
+  const writeSync = fs.writeSync
+  const readFileSync = fs.readFileSync
+  const say = line => {
+    try {
+      writeSync(2, '[daemon] clock: ' + line + '\n')
+    } catch {}
+  }
+  const PLANE = /^(?:daemon\.json|control\.key|daemon\.lock|control\.sock(?:\.\d+)?)$/
+  const named = at => (typeof at === 'string' && PLANE.test(path.basename(at)) ? path.basename(at) : null)
+  let ticking = false
+  const holds = process.env.DMR_CLOCK_HOLDS
+  let held = false
+  let letGo = null
+  const wrap = (holder, fn, at, changes) => {
+    const real = holder[fn]
+    if (typeof real !== 'function') return
+    const wrapped = function (...args) {
+      const target = args[at]
+      const run = () => {
+        if (ticking && typeof target === 'string') say('  ' + fn + ' ' + target.replace(/\.\d+\.[0-9a-f]+\.tmp$/, '.<n>.tmp'))
+        else if (changes && named(target) !== null) say(fn + ' ' + named(target) + (fn.startsWith('open') ? ' ' + String(args[1] === undefined ? 'r' : args[1]) : ''))
+        return real.apply(this, args)
+      }
+      if (holds === undefined || held || fn + ' ' + named(target) !== holds) return run()
+      held = true
+      say('held at ' + holds)
+      return new Promise(release => {
+        letGo = release
+      }).then(run)
+    }
+    holder[fn] = Object.assign(wrapped, real)
+  }
+  for (const fn of ['existsSync', 'readFileSync', 'statSync', 'lstatSync', 'readdirSync', 'accessSync', 'readlinkSync']) wrap(fs, fn, 0, false)
+  for (const fn of ['writeFileSync', 'unlinkSync', 'rmSync', 'openSync']) wrap(fs, fn, 0, true)
+  for (const fn of ['renameSync', 'linkSync', 'symlinkSync']) wrap(fs, fn, 1, true)
+  for (const fn of ['writeFile', 'unlink', 'rm', 'open']) wrap(fs.promises, fn, 0, true)
+  for (const fn of ['rename', 'link', 'symlink']) wrap(fs.promises, fn, 1, true)
+  const watch = fs.watch
+  fs.watch = function (...args) {
+    say('a watch on ' + String(args[0]))
+    return watch.apply(this, args)
+  }
+  const listen = net.Server.prototype.listen
+  net.Server.prototype.listen = function (...args) {
+    const at = typeof args[0] === 'string' ? args[0] : args[0] && typeof args[0] === 'object' ? args[0].path : undefined
+    if (typeof at === 'string') say('a server listens on ' + path.basename(at))
+    return listen.apply(this, args)
+  }
+  require('module').syncBuiltinESMExports()
+  const every = ms => ms / 1000 + 's'
+  const rows = []
+  const rowOf = new Map()
+  const arm = globalThis.setInterval
+  const clear = globalThis.clearInterval
+  const clearOnce = globalThis.clearTimeout
+  globalThis.setInterval = function (work, ms, ...rest) {
+    if (process.env.DMR_CLOCK_REFUSES === String(ms)) {
+      say('an interval every ' + every(ms) + ' is refused')
+      throw new Error('the clock of the recording refused an interval every ' + every(ms))
+    }
+    const row = { n: rows.length + 1, ms, work: () => work(...rest), stopped: false }
+    const timer = arm(() => {}, 2147483647)
+    rows.push(row)
+    rowOf.set(timer, row)
+    say('interval #' + row.n + ' armed, every ' + every(ms))
+    const unref = timer.unref.bind(timer)
+    timer.unref = () => {
+      say('interval #' + row.n + ' does not hold the process')
+      unref()
+      return timer
+    }
+    return timer
+  }
+  const stop = real =>
+    function (timer) {
+      const row = rowOf.get(timer)
+      if (row !== undefined && !row.stopped) {
+        row.stopped = true
+        say('interval #' + row.n + ' stopped')
+      }
+      return real.call(this, timer)
+    }
+  globalThis.clearInterval = stop(clear)
+  globalThis.clearTimeout = stop(clearOnce)
+  process.on('SIGUSR2', () => {
+    let order = ''
+    try {
+      order = readFileSync(process.env.DMR_CLOCK, 'utf8').trim()
+    } catch {}
+    if (order === 'go' && letGo !== null) {
+      say('held no longer')
+      const release = letGo
+      letGo = null
+      return release()
+    }
+    const asked = /^tick (\d+)$/.exec(order)
+    const row = asked === null ? undefined : rows[Number(asked[1]) - 1]
+    if (row === undefined) return say('no interval answers the order "' + order + '"')
+    if (row.stopped) return say('interval #' + row.n + ' is stopped and does not tick')
+    say('tick of #' + row.n + ', every ' + every(row.ms))
+    ticking = true
+    try {
+      row.work()
+    } catch (error) {
+      say('  the tick threw: ' + (error && error.message))
+    } finally {
+      ticking = false
+    }
+    say('tick of #' + row.n + ' returned')
+  })
+}
+`
 const DEAD_ENV = ['MERCURY_HOME', 'MERCURY_DAEMON_DIR', 'MERCURY_CREW_DIR', 'MERCURY_DAEMON_OWNER_PID', 'MERCURY_DAEMON_OWNER_FD', 'MERCURY_DAEMON_PERSIST', 'MERCURY_DAEMON_SUCCESSOR_OF', 'MERCURY_DAEMON_HANDOVER_FROM', 'MERCURY_DAEMON_CONTROL', 'MERCURY_DAEMON_CONTROL_DISABLED', 'MERCURY_WORKER_PARENT_PID', 'MERCURY_CONCOURSE_WORKER', 'NODE_ENV', 'NODE_OPTIONS']
 
 type Reply = Record<string, unknown>
@@ -223,6 +339,73 @@ class World {
     try {
       process.kill(daemon.pid, signal)
     } catch {}
+  }
+
+  clock(refuses?: number, holds?: string): Record<string, string> {
+    const preload = join(this.root, 'clock.cjs')
+    if (!existsSync(preload)) writeFileSync(preload, CLOCK)
+    return { NODE_OPTIONS: `--require ${preload}`, DMR_CLOCK: join(this.root, 'clock.order'), ...(refuses === undefined ? {} : { DMR_CLOCK_REFUSES: String(refuses) }), ...(holds === undefined ? {} : { DMR_CLOCK_HOLDS: holds }) }
+  }
+
+  async goOn(daemon: Daemon): Promise<void> {
+    writeFileSync(join(this.root, 'clock.order'), 'go\n')
+    this.say(`> ${daemon.label} is held no longer`)
+    try {
+      process.kill(daemon.pid, 'SIGUSR2')
+    } catch {}
+    await this.until(`${daemon.label} goes on`, () => this.logOf(daemon).includes('clock: held no longer'), 15_000)
+  }
+
+  window(label: string): { said: () => string } {
+    const script = join(this.root, `${label}.ts`)
+    const lines = [
+      ';(globalThis as Record<string, unknown>).MACRO ??= { VERSION: \'1.0.0\' }',
+      `process.argv[1] = ${JSON.stringify(join(this.dist, 'mercury.mjs'))}`,
+      `try {\n  Object.defineProperty(process, 'execPath', { value: ${JSON.stringify(this.node)}, configurable: true, writable: true })\n} catch {\n  process.execPath = ${JSON.stringify(this.node)}\n}`,
+      `if (process.execPath !== ${JSON.stringify(this.node)}) console.log('the window could not take the node of the build: it runs ' + process.execPath)`,
+      `const { ensureOwnedDaemon } = await import(${JSON.stringify(join(ROOT, 'src/services/switchboard/ensureDaemon.ts'))})`,
+      "console.log('the window asks for its daemon')",
+      'const usable = await ensureOwnedDaemon()',
+      "console.log('the daemon of the window is usable: ' + usable)",
+      'setInterval(() => {}, 1 << 30)',
+    ]
+    writeFileSync(script, lines.join('\n') + '\n')
+    const child = spawn(process.execPath, [script], { cwd: this.work, env: this.env({ MERCURY_DAEMON_PERSIST: undefined }), stdio: ['ignore', 'pipe', 'inherit'] })
+    this.others.push(child)
+    this.pid(child.pid ?? 0, label)
+    let said = ''
+    child.stdout?.on('data', data => (said += String(data)))
+    this.say(`> ${label} opens: it asks for its daemon as a window does`)
+    return { said: () => said }
+  }
+
+  async direct(label: string, daemon: Daemon, request: Reply, timeoutMs = 10_000): Promise<Reply> {
+    ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
+    const { forwardFrame, predecessorSockPath } = await import('../../src/daemon/handover.ts')
+    let reply: Reply
+    try {
+      reply = (await forwardFrame(predecessorSockPath(daemon.pid), JSON.stringify(request), timeoutMs)) as Reply
+    } catch (error) {
+      reply = { ok: false, thrown: String(error) }
+    }
+    this.say(`> ${label}`)
+    this.say(`< ${this.mask(JSON.stringify(reply))}`)
+    return reply
+  }
+
+  armed(daemon: Daemon): number {
+    return this.logOf(daemon).split('clock: interval #').filter(rest => /^\d+ armed/.test(rest)).length
+  }
+
+  async tick(daemon: Daemon, n: number): Promise<void> {
+    const returned = `clock: tick of #${n} returned`
+    const before = this.logOf(daemon).split(returned).length
+    writeFileSync(join(this.root, 'clock.order'), `tick ${n}\n`)
+    this.say(`> tick of interval #${n} of ${daemon.label}`)
+    try {
+      process.kill(daemon.pid, 'SIGUSR2')
+    } catch {}
+    await this.until(`interval #${n} of ${daemon.label} ticked`, () => this.logOf(daemon).split(returned).length > before, 15_000)
   }
 
   async cli(label: string, args: string[], dist?: string): Promise<{ code: number | null; text: string }> {
@@ -944,13 +1127,134 @@ export const SCENARIOS: Scenario[] = [
       w.files('refused')
     },
   },
+  {
+    name: 'periodic-cold',
+    about: 'a cold start under a clock the scenario owns: each interval as it is armed among the steps of the boot, with its period; one tick of each, with the files it reads; and what stops it on SIGTERM',
+    seconds: 8,
+    covers: { boot: ['serve'], periodic: ['the plane heal (armed, ticked, stopped)', 'the armed-restart beat (armed, ticked, stopped)', 'the sessionless beat (armed, ticked, stopped)', 'the reconcile tick (armed, ticked)', 'the keep-alive (armed, ticked, stopped)'], waysOut: ['SIGTERM'] },
+    run: async w => {
+      const d = await w.boot('d1', { extra: w.clock() })
+      const armed = w.armed(d)
+      for (let n = 1; n <= armed; n++) await w.tick(d, n)
+      w.signal(d, 'SIGTERM')
+      await w.left(d)
+      w.files('left')
+    },
+  },
+  {
+    name: 'periodic-handover',
+    about: 'a handover under a clock the scenario owns: the two beats a handover adds, armed in their place; the first sweep, a second after the boot, asks the idle older daemon to leave; a tick of the lock beat takes the lock; and what stops each in the older daemon and in the newer',
+    seconds: 20,
+    covers: { boot: ['handover'], periodic: ['the idle-predecessor sweep (armed, its first run, stopped)', 'the handover lock beat (armed, ticked, stops itself)', 'the plane heal (armed, ticked, stopped)'], waysOut: ['control:shutdown asked by the successor', 'control:shutdown'] },
+    run: async w => {
+      const a = w.payload('a')
+      w.deploy(a)
+      const older = await w.boot('older', { dist: a, extra: w.clock() })
+      const b = w.payload('b')
+      w.deploy(b)
+      await w.logged(older, /the installed build moved to/, 15_000)
+      const newer = await w.boot('newer', { dist: b, extra: { ...w.clock(), MERCURY_DAEMON_HANDOVER_FROM: String(older.pid) } })
+      await w.left(older, 30_000)
+      for (const n of [1, 2, 3]) await w.tick(newer, n)
+      await w.tick(newer, 5)
+      await w.logged(newer, /the predecessor released the daemon lock/, 15_000)
+      const armed = w.armed(newer)
+      for (let n = 6; n <= armed; n++) await w.tick(newer, n)
+      await w.rpc('hello of the plane', { op: 'hello', clientVersion: '1.0.0', clientBuildTree: null })
+      w.files('the newer one holds the lock')
+      await w.cli('mercury daemon stop', ['daemon', 'stop'], b)
+      await w.left(newer)
+      w.files('left')
+    },
+  },
+  {
+    name: 'periodic-restart',
+    about: 'a restart under a clock the scenario owns: armed behind a session, it is taken by one tick of the armed-restart beat and by no other; what the leaving daemon stops, and each interval of the successor as it is armed',
+    seconds: 30,
+    covers: { boot: ['serve as successor (wait-lock)'], doors: ['restartWhenIdle'], periodic: ['the armed-restart beat (its tick takes the restart)', 'the sessionless beat (its tick does not)'], waysOut: ['restart-when-idle:armed', 'the restart after teardown'] },
+    run: async w => {
+      const d = await w.boot('d1', { extra: { ...w.clock(), MERCURY_MAX_RETRIES: '0' } })
+      const s = await w.admit('s1')
+      await w.rpc('restart-when-idle behind a session', { op: 'restart-when-idle', by: 'recorder' })
+      await w.control('stop s1', s.sid, 'stop')
+      await w.until('s1 stopped', () => w.record(s.sid)?.stoppedAt !== undefined && !alive(s.pid), 30_000)
+      await w.tick(d, 3)
+      await w.rpc('hello, the restart still armed', { op: 'hello', clientVersion: '1.0.0', clientBuildTree: null })
+      await w.tick(d, 2)
+      await w.left(d, 30_000)
+      const next = await w.successor(d)
+      await w.rpc('hello of the successor', { op: 'hello', clientVersion: '1.0.0', clientBuildTree: null })
+      await w.cli('mercury daemon stop', ['daemon', 'stop'])
+      await w.until('the successor left', () => !alive(next), 20_000)
+      w.files('left')
+    },
+  },
+  {
+    name: 'periodic-failed-boot',
+    about: 'a boot that fails with intervals armed, under a clock the scenario owns: the clock refuses the third interval, before the daemon is ready, and in a second daemon the one armed after it is ready; nothing stops the ones that were armed, the home is given back, exit 1',
+    seconds: 8,
+    covers: { boot: ['the control layer fails to start (intervals armed)'], periodic: ['the plane heal (armed, a failed boot stops nothing)'], waysOut: ['the failed boot (intervals armed)'] },
+    run: async w => {
+      const early = await w.boot('d1', { wait: 'exit', extra: w.clock(5000) })
+      void early
+      w.files('the first left')
+      const late = await w.boot('d2', { wait: 'exit', extra: w.clock(60_000) })
+      void late
+      w.files('the second left')
+    },
+  },
+]
+
+const MENDED: Scenario[] = [
+  {
+    name: 'stop-during-boot',
+    about: 'a stop that reaches a daemon while it boots: the boot is held where the control server listens and the way out is not yet bound, the stop is sent there and acknowledged, the boot goes on, and the daemon leaves',
+    seconds: 8,
+    covers: { doors: ['onShutdown (during the boot)'], waysOut: ['control:shutdown asked during the boot'] },
+    run: async w => {
+      const d = await w.boot('d1', { wait: 'none', extra: w.clock(undefined, 'rename control.sock') })
+      await w.logged(d, /clock: held at rename control\.sock/, 30_000)
+      await w.direct('shutdown while the boot is held', d, { op: 'shutdown', reapWorkers: true })
+      await w.goOn(d)
+      await w.logged(d, /control socket up/, 30_000)
+      await w.left(d, 10_000)
+      w.files('left')
+    },
+  },
+  {
+    name: 'second-while-first-leaves',
+    about: 'a daemon is held on its way out, its record marked stopping: a second daemon started by hand is refused; a window that opens waits, starts no daemon beside the one that leaves, and has its own once the first has left',
+    seconds: 15,
+    covers: { boot: ['refuse (the record marked stopping)'], waysOut: ['SIGTERM', 'refused start'] },
+    run: async w => {
+      const d = await w.boot('d1', { extra: w.clock(undefined, 'unlink daemon.json') })
+      w.signal(d, 'SIGTERM')
+      await w.logged(d, /clock: held at unlink daemon\.json/, 30_000)
+      w.files('the first is leaving')
+      const second = await w.boot('d2', { wait: 'exit' })
+      void second
+      const opened = w.window('window')
+      await w.until('the window asks for its daemon', () => opened.said().includes('asks for its daemon'), 30_000)
+      await sleep(1500)
+      w.note('what the window has said while the first holds the plane', opened.said().trim())
+      w.files('the window waits')
+      await w.goOn(d)
+      await w.left(d)
+      await w.until('the window has its daemon', () => opened.said().includes('is usable: '), 45_000)
+      w.note('what the window says once the first has left', opened.said().trim().split('\n').at(-1) ?? '')
+      const served = (await w.hello()) as { pid?: number }
+      w.stray(served.pid)
+      await w.rpc('hello of the daemon the window started', { op: 'hello', clientVersion: '1.0.0', clientBuildTree: null })
+      w.files('the window has its daemon')
+    },
+  },
 ]
 
 const WORLDS: World[] = []
 
 async function recordScenario(name: string, dist: string, keep = false): Promise<string> {
-  const scenario = SCENARIOS.find(s => s.name === name)
-  if (scenario === undefined) throw new Error(`no scenario named ${name}; the names: ${SCENARIOS.map(s => s.name).join(', ')}`)
+  const scenario = [...SCENARIOS, ...MENDED].find(s => s.name === name)
+  if (scenario === undefined) throw new Error(`no scenario named ${name}; the names: ${[...SCENARIOS, ...MENDED].map(s => s.name).join(', ')}`)
   const w = new World(dist)
   WORLDS.push(w)
   w.say(`# ${scenario.name}: ${scenario.about}`)
@@ -970,7 +1274,7 @@ if (import.meta.main) {
   const after = (flag: string): string | undefined => (args.includes(flag) ? args[args.indexOf(flag) + 1] : undefined)
   const name = args.find(a => !a.startsWith('--') && a !== after('--dist') && a !== after('--out'))
   if (args.includes('--list') || name === undefined) {
-    for (const s of SCENARIOS) console.log(`${s.name}\t${s.seconds}s\t${s.about}`)
+    for (const s of [...SCENARIOS, ...MENDED]) console.log(`${s.name}\t${s.seconds}s\t${s.about}`)
     process.exit(name === undefined && !args.includes('--list') ? 2 : 0)
   }
   const guard = setTimeout(() => {

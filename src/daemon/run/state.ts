@@ -44,6 +44,7 @@ export interface DaemonRunState extends Readonly<DaemonRunBootFacts> {
   ownerWatch: OwnerWatchHandleV1 | undefined
   ownerPipe: OwnerPipeHandleV1 | undefined
   orphanParking: boolean
+  askedToLeave: string | null
   shuttingDown: boolean
   teardownComplete: boolean
 }
@@ -84,6 +85,7 @@ export function makeDaemonRunState(boot: DaemonRunBootFacts): DaemonRunState {
     ownerWatch: undefined,
     ownerPipe: undefined,
     orphanParking: false,
+    askedToLeave: null,
     shuttingDown: false,
     teardownComplete: false,
   }
