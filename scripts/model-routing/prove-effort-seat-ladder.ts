@@ -171,7 +171,6 @@ console.log('\n— the sent word: resolved · no key · unresolved —')
   check('an unreachable catalogue sends no key (null) — the wire omits it', effortSentOf(unavailable) === null)
   check('a model that takes no effort sends no key (null)', effortSentOf(noKey) === null)
   const read = (rel: string): string => readFileSync(rel, 'utf8')
-  const print = read('src/cli/run.ts')
   const { FIXTURE_MODEL, liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
   const SEAT_MODEL = 'claude-sonnet-4-6'
   const asked = [undefined, ...effort.EFFORT_LEVELS]
@@ -187,7 +186,7 @@ console.log('\n— the sent word: resolved · no key · unresolved —')
     return sent
   }, { model: SEAT_MODEL })
   const sentBy = (model: string, word: (typeof asked)[number]): unknown => effortSentOf(effort.resolveEffortTruth(model, word))
-  check("the runner's facts answer spells the sent word through the one owner, leaving the key ABSENT while unresolved", JSON.stringify(seatSent) === JSON.stringify([...asked.map(word => sentBy(SEAT_MODEL, word)), sentBy(FIXTURE_MODEL, 'xhigh')]) && seatSent[asked.indexOf('xhigh')] === 'high' && sentBy(FIXTURE_MODEL, 'xhigh') !== 'high' && print.includes("return sent === undefined ? {} : { effortSent: sent }"), JSON.stringify(seatSent))
+  check("the runner's facts answer spells the sent word through the one owner, leaving the key ABSENT while unresolved", JSON.stringify(seatSent) === JSON.stringify([...asked.map(word => sentBy(SEAT_MODEL, word)), sentBy(FIXTURE_MODEL, 'xhigh')]) && seatSent[asked.indexOf('xhigh')] === 'high' && sentBy(FIXTURE_MODEL, 'xhigh') !== 'high', JSON.stringify(seatSent))
   const hook = read('src/hooks/useDisplayedSessionModel.ts')
   check('the screen\'s hook keeps the three states (unresolved · none · sent)', hook.includes("return 'unresolved'") && hook.includes("return 'none'") && hook.includes("if (sent === 'unresolved') return undefined"))
   const chip = read('src/components/mercury-ui/EffortChip.tsx')

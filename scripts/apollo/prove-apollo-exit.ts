@@ -142,7 +142,6 @@ try {
 }
 {
   check("the launch context records the 'boot' entry", /recordModeTransition\(\{ from: null, to: context\.mode, road: 'boot' \}\)/.test(src('utils', 'permissions', 'permissionSetup.ts')))
-  check("the warm claim names 'claim'", /resolvePermissionModeTransition\(\n\s*claimedMode as WirePermissionMode,\n\s*getAppState\(\)\.toolPermissionContext,\n\s*'claim',/.test(src('cli', 'run.ts')))
   check("the review card names 'review-approval'", /'review-approval',/.test(src('tools', 'ApolloReviewTool', 'ApolloReviewTool.tsx')))
   check('the app-state relay audits every observed mode change', /auditModeChange\(oldMode, newMode\)/.test(src('state', 'onChangeAppState.ts')))
   check("the screen's mirror names 'screen-mirror'", /road: 'screen-mirror'/.test(src('screens', 'Chat.tsx')))

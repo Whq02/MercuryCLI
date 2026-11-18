@@ -2,7 +2,9 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mock } from 'bun:test'
-import { join, resolve } from 'node:path'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const at = (rel: string): string => join(ROOT, rel)
@@ -14,6 +16,12 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 const j = (value: unknown): string => JSON.stringify(value)
+const UNSETTLED = Symbol('unsettled')
+const within = <T,>(work: Promise<T> | T, ms = 3_000): Promise<T | typeof UNSETTLED> => Promise.race([Promise.resolve(work), new Promise<typeof UNSETTLED>(done => setTimeout(() => done(UNSETTLED), ms))])
+setTimeout(() => {
+  console.log('  [FAIL] the proof ended within its two minutes')
+  process.exit(1)
+}, 120_000).unref()
 
 type Call = { name: string; args: unknown[] }
 const seen: Call[] = []
@@ -46,12 +54,33 @@ const sendNowReal = await spied('src/cli/headless/sendNow.ts', ['sendQueuedWords
 await spied('src/commands.ts', ['clearCommandMemoizationCaches', 'getCommands'])
 await spied('src/services/mcp/kitCompletion.ts', ['completeSessionKitFromRoster'])
 await spied('src/utils/config.ts', ['readGlobalConfigAgain'])
-await spied('src/services/anthropicLimits.ts', ['resetLimitsForCredentialSwitch'])
+await spied('src/services/anthropicLimits.ts', ['resetLimitsForCredentialSwitch', 'anthropicObservedUsage', 'anthropicWindowFact'])
 await spied('src/utils/auth.ts', ['dropCredentialMemos'])
-await spied('src/services/providers/openai/openaiCatalogue.ts', ['readOpenaiAccountAgain', 'primeOpenaiCatalogue'])
+await spied('src/services/providers/openai/openaiCatalogue.ts', ['readOpenaiAccountAgain', 'primeOpenaiCatalogue', 'openaiCatalogueFact'])
 await spied('src/utils/crew/crewAccountChange.ts', ['noteCrewAccountChange'])
 await spied('src/utils/gracefulShutdown.ts', ['gracefulShutdownSync', 'gracefulShutdown'])
 await spied('src/utils/hooks/sessionHooks.ts', ['pruneSkillSessionHooks'])
+await spied('src/services/mcp/config.ts', ['setMcpServerEnabled'])
+await spied('src/services/notices/unreadLedger.ts', ['noticeRows'])
+await spied('src/services/providers/limitWarning.ts', ['providerLimitWarning'])
+await spied('src/services/providers/openai/openaiLimitState.ts', ['openaiObservedUsage'])
+await spied('src/utils/tasks.ts', ['listSessionMission'])
+await spied('src/services/samples/facts.ts', ['sampleRowsOf'])
+await spied('src/services/providers/providerUsage.ts', ['anthropicSignInEmail'])
+await spied('src/services/engine-connector/seatProjections.ts', ['effortSentOf'])
+await spied('src/services/engine-connector/rosterTerms.ts', ['skillsRosterOf'])
+await spied('src/skills/kitGovernance.ts', ['offSkillNamesOf'])
+await spied('src/cli/headless/model.ts', ['resolveHeadlessModel'])
+await spied('src/utils/sessionStorage/sessionHomePin.ts', ['consumeSessionHomePin'])
+await spied('src/utils/sessionStorage/sessionWriter.ts', ['claimSessionWriter'])
+await spied('src/constants/systemPromptSections.ts', ['clearSystemPromptSections'])
+await spied('src/utils/conversationRecovery.ts', ['loadConversationForResume'])
+await spied('src/utils/sessionRestore.ts', ['restoreConversationModel', 'restoreSessionStateFromLog'])
+await spied('src/bootstrap/state.ts', ['switchSession', 'setEngineModelOverride'])
+await spied('src/utils/sessionStorage.ts', ['resetSessionFilePointer', 'restoreSessionMetadata', 'saveSessionModel'])
+await spied('src/utils/cockpit/runtimePosture.ts', ['markSessionPermissionModeAtClaim'])
+await spied('src/utils/sessionStorage/logs.ts', ['saveCustomTitle'])
+await spied('src/cli/headless/resume.ts', ['emitLoadError'])
 
 const { runnerArmsOf } = await import('../../src/cli/headless/runnerArms.ts')
 const { createRunnerState } = await import('../../src/cli/headless/runnerPorts.ts')
@@ -62,6 +91,14 @@ const { AGENT_INTERRUPT_BY_OPERATOR, AGENT_RESUME_NOTE, peekOperatorMessages } =
 const { drainRows } = await import('../../src/utils/sdkEventQueue.ts')
 const { dequeue } = await import('../../src/utils/messageQueueManager.ts')
 const { sessionKitOf, setProcessSessionKit } = await import('../../src/services/mcp/sessionKitPin.ts')
+const { answerSessionFacts } = await import('../../src/cli/headless/sessionFactsArm.ts')
+const { sessionFactsFromWire, sessionFactsToWire } = await import('../../src/services/engine-connector/seatWire.ts')
+const { getSessionId } = await import('../../src/bootstrap/state.ts')
+const { getEngineModel } = await import('../../src/utils/model/model.ts')
+const { claimSession } = await import('../../src/cli/headless/claimSession.ts')
+const { clearModeTransitions, modeTransitions } = await import('../../src/utils/permissions/modeTransitions.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { openaiCatalogueFromWire } = await import('../../src/services/engine-connector/seatWire.ts')
 
 type Ports = Parameters<typeof runnerArmsOf>[0]
 type Refusal = { code?: number; message?: string; data?: { kind?: string } }
@@ -72,6 +109,7 @@ function stubPorts(given: Record<string, unknown> = {}): { ports: Ports; live: P
     new Proxy(function () {}, {
       apply: (_target, _self, args: unknown[]) => {
         used.push({ name, args })
+        seen.push({ name: `port:${name}`, args })
         return undefined
       },
       get: (_target, key) => (typeof key === 'symbol' || key === 'then' ? undefined : recorder(`${name}.${key}`)),
@@ -296,6 +334,196 @@ section('§7 credentials/changed: every memo of the old account is dropped, in o
   check("the runner's control loop takes a credentials/changed notification", typeof arm === 'function' && answer === undefined && RUNNER_NOTIFICATION_METHODS.includes('credentials/changed'), String(answer))
   check('…and resets the limit verdict and drops its credential memos there', order.includes('resetLimitsForCredentialSwitch') && order.includes('dropCredentialMemos') && order.indexOf('readGlobalConfigAgain') === 0, j(order))
   check("the runner's credential_change arm reads the OpenAI account again beside the Anthropic reset", order.includes('readOpenaiAccountAgain') && order.indexOf('readOpenaiAccountAgain') > order.indexOf('resetLimitsForCredentialSwitch') && order.includes('noteCrewAccountChange'), j(order))
+}
+
+section('§8 session/facts: each fact comes from its one owner, and a fact its owner does not hold is absent')
+{
+  const appState = { mcp: { clients: [], tools: [] }, toolPermissionContext: { mode: 'implement' }, effortValue: 'xhigh', tasks: {}, fileHistory: { snapshots: [], trackedFiles: new Set<string>(), rewindUndo: undefined } }
+  const scene = (): { ports: Ports; live: Ports['live']; used: Call[] } => stubPorts({ getAppState: () => appState, liveMcp: { addedAt: new Map() }, mcpSignIns: new Map(), messages: [], missionGuard: { missionCardView: () => null } })
+  const tasks = [{ id: '1', subject: 'S'.repeat(140), status: 'in_progress', blocks: ['2'], blockedBy: [], metadata: { ledger: ' the ledger ' } }, { id: '2', subject: 'second', activeForm: 'Seconding', status: 'pending', blocks: [], blockedBy: ['1'], metadata: {} }]
+  const held = {
+    noticeRows: [{ key: 'n-1', state: 'unread', summary: 'a notice the owner holds' }],
+    providerLimitWarning: { words: 'the warning the owner holds' },
+    anthropicObservedUsage: { observed: 'the observation the owner holds' },
+    anthropicWindowFact: { window: 'the verdict the owner holds' },
+    openaiCatalogueFact: { catalogue: 'the catalogue the owner holds' },
+    openaiObservedUsage: { primary: { used: 41 } },
+    sampleRowsOf: [{ id: 'sample-1', title: 'the sample the owner holds' }],
+    anthropicSignInEmail: 'who@example.test',
+    effortSentOf: 'high',
+    skillsRosterOf: [{ name: 'the roster the owner holds' }],
+    offSkillNamesOf: ['a-skill-that-is-off'],
+  }
+  const arm = (): void => {
+    forget()
+    for (const [name, value] of Object.entries(held)) answers.set(name, () => value)
+    answers.set('listSessionMission', async () => tasks)
+    answers.set('sampleRowsOf', async () => held.sampleRowsOf)
+  }
+  arm()
+  const full = scene()
+  full.live.activeModel = 'the-seat-model'
+  full.live.activeCommands = [{ name: 'first-skill' }, { name: 'second-skill' }] as never
+  const wire = await answerSessionFacts(full.ports)
+  const facts = sessionFactsFromWire(wire)
+  const got = facts as unknown as Record<string, unknown> & { usage: Record<string, unknown>; identity: Record<string, unknown> }
+  check('the session_facts arm is found, and the answer is sent through the wire codec', facts !== null && 'permission_mode' in wire && !('permissionMode' in wire) && j(sessionFactsToWire(facts)) === j(wire), Object.keys(wire).join(' '))
+  check('the runner reads its latch fact and its catalogue fact once per answer', said('anthropicWindowFact').length === 1 && said('openaiCatalogueFact').length === 1, `${said('anthropicWindowFact').length} · ${said('openaiCatalogueFact').length}`)
+  check('N6 the facts answer carries the ledger', j(got.notices) === j(held.noticeRows), j(got.notices))
+  check('the child answers limitWarning from the ONE owner (providerLimitWarning) on its own model', j(got.usage.limitWarning) === j(held.providerLimitWarning) && j(said('providerLimitWarning').map(call => call.args[0])) === j([{ model: 'the-seat-model' }]), `${j(got.usage.limitWarning)} · ${j(said('providerLimitWarning').map(call => call.args[0]))}`)
+  check('the facts answer carries anthropicObserved beside the window verdict', j(got.usage.anthropicObserved) === j(held.anthropicObservedUsage) && j(got.usage.anthropicWindow) === j(held.anthropicWindowFact), `${j(got.usage.anthropicObserved)} · ${j(got.usage.anthropicWindow)}`)
+  check('§1 the session_facts answer spreads openaiObservedUsage() under the openaiObserved key', j(got.usage.openaiObserved) === j(held.openaiObservedUsage), j(got.usage.openaiObserved))
+  check('the runner relays listSessionMission: each task with its id, its subject and active form cut to 120, its status, its links and its ledger', j(got.mission) === j([{ id: '1', subject: 'S'.repeat(120), status: 'in_progress', blocks: ['2'], ledger: 'the ledger' }, { id: '2', subject: 'second', activeForm: 'Seconding', status: 'pending', blockedBy: ['1'] }]), j(got.mission))
+  check('F6d the runner relays the rows with its facts', j(got.samples) === j(held.sampleRowsOf) && said('sampleRowsOf')[0]?.args[0] === getSessionId(), j(got.samples))
+  check('the runner composes accountEmail through the one sign-in email reader of the presence owner', got.identity.accountEmail === 'who@example.test' && said('anthropicSignInEmail').length === 1, j(got.identity))
+  check("the runner's facts answer spells the sent word through the one owner", got.effortSent === 'high' && said('effortSentOf').length === 1, j(got.effortSent))
+  const roster = said('skillsRosterOf')[0]?.args
+  const off = said('offSkillNamesOf')[0]?.args
+  check('S5 the child projects off rows beside the table roster', j(got.skills) === j(held.skillsRosterOf) && roster?.[0] === full.live.activeCommands && roster[1] === held.offSkillNamesOf && j(off?.[1]) === j(['first-skill', 'second-skill']) && off?.[0] === sessionKitOf(), `${j(got.skills)} · ${j(off?.[1])}`)
+  arm()
+  for (const name of ['anthropicObservedUsage', 'anthropicWindowFact', 'openaiCatalogueFact', 'anthropicSignInEmail', 'effortSentOf']) answers.set(name, () => undefined)
+  answers.set('openaiObservedUsage', () => ({}))
+  answers.set('listSessionMission', async () => Promise.reject(new Error('the task list is unreadable')))
+  const bare = scene()
+  const none = sessionFactsFromWire(await answerSessionFacts(bare.ports)) as unknown as typeof got
+  check('…and spreads them onto the usage row and the answer, absent when undefined', !('anthropicWindow' in none.usage) && !('openaiCatalogue' in none) && !('anthropicObserved' in none.usage) && 'anthropicWindow' in got.usage && j(got.openaiCatalogue) === j(held.openaiCatalogueFact), `${Object.keys(none.usage).join(' ')} · ${j(got.openaiCatalogue)}`)
+  check('an OpenAI observation with neither window is not spread, an unsent effort leaves its key ABSENT, no sign-in email is null, and an unreadable task list is an empty mission', !('openaiObserved' in none.usage) && !('effortSent' in none) && none.identity.accountEmail === null && j(none.mission) === j([]), `${Object.keys(none.usage).join(' ')} · ${j(none.identity)} · ${j(none.mission)}`)
+  check('with no model of its own the seat answers on the engine model, and asks the owner of the warning about that one', j(said('providerLimitWarning').map(call => call.args[0])) === j([{ model: getEngineModel() }]) && (none as unknown as { model: { effective: string } }).model.effective === getEngineModel(), j(said('providerLimitWarning').map(call => call.args[0])))
+}
+
+section('§9 session/claim: the claim binds and answers, the load runs behind the answer, and every step keeps its place')
+{
+  const SID = '6f1d2c3b-4a59-4e68-9f70-a1b2c3d4e5f6'
+  const FRESH = '0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d'
+  const home = mkdtempSync(join(tmpdir(), 'runner-arms-claim-'))
+  mkdirSync(join(home, 'recorded'), { recursive: true })
+  writeFileSync(join(home, `${SID}.jsonl`), '')
+  const resumed = {
+    sessionId: SID,
+    fullPath: join(home, 'recorded', `${SID}.jsonl`),
+    messages: [
+      { type: 'user', uuid: 'u-1', message: { role: 'user', content: 'the first words' } },
+      { type: 'assistant', uuid: 'a-1', message: { role: 'assistant', content: [{ type: 'text', text: 'the answer' }] } },
+    ],
+    contentReplacements: [],
+  }
+  const catalogue = { source_kind: 'chatgpt', models: [], fetched_at_ms: 5 }
+  type Scene = { ports: Ports; live: Ports['live']; messages: unknown[]; state: () => Record<string, unknown> }
+  const scene = (): Scene => {
+    let state: Record<string, unknown> = { toolPermissionContext: getEmptyToolPermissionContext() }
+    const messages: unknown[] = [{ type: 'user', uuid: 'stale', message: { role: 'user', content: 'a line from before the claim' } }]
+    const { ports, live } = stubPorts({
+      getAppState: () => state,
+      setAppState: (updater: (previous: unknown) => Record<string, unknown>) => void (state = updater(state)),
+      messages,
+      options: {},
+      liveMcp: { refresh: async () => {} },
+      peer: { holdScope: (scope: string) => (seen.push({ name: `hold:${scope}`, args: [] }), () => void seen.push({ name: `release:${scope}`, args: [] })) },
+    })
+    live.awaitingSessionClaim = true
+    return { ports, live, messages, state: () => state }
+  }
+  const names = (): string[] => seen.map(call => call.name)
+  const order = (...wanted: string[]): boolean => {
+    const at = wanted.map(name => names().indexOf(name))
+    return at.every((index, i) => index !== -1 && (i === 0 || index > at[i - 1]!))
+  }
+  const pause = (ms: number): Promise<void> => new Promise(done => setTimeout(done, ms))
+  const armed = (): void => {
+    forget()
+    answers.set('resolveHeadlessModel', async model => model)
+    answers.set('consumeSessionHomePin', () => home)
+    answers.set('openaiObservedUsage', () => ({}))
+    for (const name of ['listSessionMission', 'sampleRowsOf']) answers.set(name, async () => [])
+    for (const name of ['noticeRows', 'skillsRosterOf', 'offSkillNamesOf']) answers.set(name, () => [])
+  }
+
+  armed()
+  const refusals: Array<[string, Refusal | null, number]> = []
+  for (const [why, params, prepare] of [
+    ['a session id that is no uuid', { session_id: 'not-a-uuid' }, null],
+    ['a mode that is none', { session_id: SID, mode: 'bogus' }, null],
+    ['an effort off the ladder', { session_id: SID, effort: 'banana' }, null],
+    ['a runner that carries its identity', { session_id: SID }, (live: Ports['live']) => void (live.awaitingSessionClaim = false)],
+    ['a claim still settling', { session_id: SID }, (live: Ports['live']) => void (live.claimSettling = new Promise(() => {}))],
+  ] as Array<[string, Parameters<typeof claimSession>[0], ((live: Ports['live']) => void) | null]>) {
+    const refusedScene = scene()
+    prepare?.(refusedScene.live)
+    refusals.push([why, (await within(refusalOf(claimSession(params, refusedScene.ports)))) as Refusal | null, seen.length])
+  }
+  check('W13 the claim validates everything BEFORE mutating: a claim it refuses drops no memo, clears no section, holds no scope and binds no file', refusals.every(([, refusal, calls]) => refusal?.code === RPC_REFUSED && refusal.data?.kind === 'claim' && String(refusal.message).startsWith('claim refused — ') && calls === 0), j(refusals))
+
+  armed()
+  let open!: () => void
+  const gate = new Promise<void>(done => (open = done))
+  let restored!: () => void
+  const restoring = new Promise<void>(done => (restored = done))
+  answers.set('loadConversationForResume', async () => (await gate, resumed))
+  answers.set('restoreSessionStateFromLog', async () => await restoring)
+  clearModeTransitions()
+  const warm = scene()
+  const claiming = claimSession({ session_id: SID, resume: true, mode: 'implement', effort: 'high', model: 'the-claimed-model', restart_reason: 'crash', title: '  the claimed title  ', openai_catalogue: catalogue }, warm.ports)
+  const answer = await within(claiming, 1_000)
+  const settling = warm.live.claimSettling
+  const atAnswer = { names: names(), awaiting: warm.live.awaitingSessionClaim, messages: warm.messages.length, settling: settling !== null }
+  const facts = { done: false }
+  const appState = { mcp: { clients: [], tools: [] }, toolPermissionContext: { mode: 'implement' }, tasks: {}, fileHistory: { snapshots: [], trackedFiles: new Set<string>(), rewindUndo: undefined } }
+  const asked = answerSessionFacts(stubPorts({ live: warm.live, getAppState: () => appState, liveMcp: { addedAt: new Map() }, mcpSignIns: new Map(), messages: [], missionGuard: { missionCardView: () => null } }).ports).then(() => void (facts.done = true))
+  await pause(40)
+  const factsHeld = !facts.done
+  check(
+    "R6 `resume: true` loads the transcript through the cold boot's own loader behind the ack (the claim is the binding; the load never holds the answer)",
+    j(answer) === j({ session_id: SID }) && atAnswer.settling && atAnswer.awaiting && atAnswer.messages === 1 && j(said('loadConversationForResume').map(call => call.args)) === j([[SID, join(home, `${SID}.jsonl`)]]) && !atAnswer.names.includes('switchSession'),
+    j(atAnswer),
+  )
+  check('the claim answers after binding; the load runs behind the answer', atAnswer.names.indexOf('claimSessionWriter') !== -1 && atAnswer.names.indexOf('claimSessionWriter') < atAnswer.names.indexOf('hold:session') && atAnswer.names.indexOf('hold:session') < atAnswer.names.indexOf('loadConversationForResume') && said('claimSessionWriter')[0]?.args[0] === join(home, `${SID}.jsonl`), j(atAnswer.names))
+  check('the warm claim drops the credential memos BEFORE it applies the session (presence is live at the claim)', atAnswer.names[0] === 'dropCredentialMemos' && atAnswer.names.indexOf('dropCredentialMemos') < atAnswer.names.indexOf('consumeSessionHomePin'), j(atAnswer.names))
+  check('K10b the runner decodes the snapshot the claim carries and primes its catalogue with it at the claim', j(said('primeOpenaiCatalogue').map(call => call.args[0])) === j([openaiCatalogueFromWire(catalogue)]) && atAnswer.names.indexOf('primeOpenaiCatalogue') < atAnswer.names.indexOf('claimSessionWriter'), j(said('primeOpenaiCatalogue')))
+  check("the warm claim names 'claim': the mode it carries enters the ledger under the claim's own road, before anything is bound", j(modeTransitions().map(entry => [entry.from, entry.to, entry.road])) === j([['default', 'implement', 'claim']]), j(modeTransitions()))
+  check('WR the claim frame carries the restart reason into the runner before the load, for the reconciliation to read', warm.live.runnerRestartReason === 'crash')
+  open()
+  await pause(40)
+  const midRestore = { names: names(), messages: warm.messages.length }
+  check('every road that restores a session awaits the restore, so the ledger is rebuilt before the first turn', midRestore.names.includes('restoreSessionStateFromLog') && !midRestore.names.includes('restoreSessionMetadata') && midRestore.messages === 1 && !facts.done, j(midRestore.names))
+  restored()
+  await within(claiming)
+  await within(settling ?? warm.live.claimSettling)
+  await within(asked)
+  check('session/facts answers only once the claimed session is loaded', factsHeld && facts.done && warm.live.claimSettling === null)
+  check('session verbs queue behind the load (the session scope is held until the claim settles)', atAnswer.names.includes('hold:session') && !atAnswer.names.includes('release:session') && !midRestore.names.includes('release:session') && names().filter(name => name === 'release:session').length === 1 && order('port:settleClearBirth', 'port:heldNoticeWaits', 'release:session'), j(names().slice(-8)))
+  check('the runner holds queue/add until the claim settles', !midRestore.names.includes('port:releaseQueueUntilClaimed') && order('port:hydrateResumedRun', 'port:releaseQueueUntilClaimed', 'release:session') && !warm.live.awaitingSessionClaim, j(names().slice(-6)))
+  check(
+    'R6 the live conversation is the loaded one (spliced in place — the turn loop holds the same array)',
+    warm.ports.messages === (warm.messages as never) && j(warm.messages) === j(resumed.messages) && warm.live.turnsRun === 1 && warm.live.resumeOf === SID,
+    `${warm.messages.length} messages · turns ${warm.live.turnsRun} · resume of ${String(warm.live.resumeOf)}`,
+  )
+  check(
+    'R6 the same restore steps as a cold --resume boot (identity switch, file pointer, state, metadata) and the run hydration',
+    order('switchSession', 'resetSessionFilePointer', 'restoreSessionStateFromLog', 'restoreSessionMetadata', 'port:settleSessionBriefs', 'port:armSessionRunnerWiring', 'port:hydrateResumedRun', 'port:settleClearBirth') && j(said('switchSession')[0]?.args) === j([SID, dirname(resumed.fullPath)]) && said('restoreSessionStateFromLog')[0]?.args[0] === resumed && j(said('port:settleSessionBriefs')[0]?.args[1]) === 'true',
+    j(names()),
+  )
+  check('every headless resume road hands the loaded facts to restoreSessionMetadata: the warm claim', said('restoreSessionMetadata').length === 1 && said('restoreSessionMetadata')[0]?.args[0] === resumed)
+  check('RED WHERE THE CLAIM CLEARS NO SECTION: the claim clears the section cache before it loads the transcript, after the validations and before the loader seeds a record', said('clearSystemPromptSections').length === 1 && order('hold:session', 'clearSystemPromptSections', 'loadConversationForResume'), j(names().slice(0, 9)))
+  check('W13 the id-keyed wiring arms at claim time (wards/crew/room under the claimed id)', j(said('port:armSessionRunnerWiring').map(call => call.args)) === j([[SID]]) && order('switchSession', 'port:armSessionRunnerWiring'))
+  check('…the warm claim (resume: true) runs the one resume closure, once, after the wiring', said('port:hydrateResumedRun').length === 1)
+  check('C3 the runner compares the inherited model with its effective model on the warm claim, once the claimed model is the seat\'s', said('port:settleClearBirth').length === 1 && warm.live.activeModel === 'the-claimed-model' && order('setEngineModelOverride', 'saveSessionModel', 'port:settleClearBirth') && j(said('saveCustomTitle').map(call => call.args)) === j([[SID, 'the claimed title']]), `${String(warm.live.activeModel)} · ${j(said('saveCustomTitle'))}`)
+  check('the claimed mode and effort land on the seat at the settle', (warm.state().toolPermissionContext as { mode?: string }).mode === 'implement' && warm.state().effortValue === 'high' && j(said('markSessionPermissionModeAtClaim').map(call => call.args)) === j([['implement']]), j(warm.state().effortValue))
+
+  armed()
+  answers.set('consumeSessionHomePin', () => '/the/pinned/home')
+  const fresh = scene()
+  const freshAnswer = await within(claimSession({ session_id: FRESH }, fresh.ports))
+  await within(fresh.live.claimSettling)
+  check('W13 the claim consumes the transcript-home pin at the id switch (the setup.ts seam deferred)', said('consumeSessionHomePin').length === 1 && j(said('switchSession').map(call => call.args)) === j([[FRESH, '/the/pinned/home']]) && said('claimSessionWriter')[0]?.args[0] === join('/the/pinned/home', `${FRESH}.jsonl`), j(said('switchSession')))
+  check('the claim is the conversation boundary on BOTH arms: a fresh claim clears the section cache too, before the id switch, loads nothing and hydrates nothing', j(freshAnswer) === j({ session_id: FRESH }) && order('clearSystemPromptSections', 'switchSession', 'port:settleSessionBriefs', 'port:armSessionRunnerWiring', 'port:settleClearBirth', 'port:releaseQueueUntilClaimed', 'release:session') && said('loadConversationForResume').length === 0 && said('port:hydrateResumedRun').length === 0 && fresh.messages.length === 1 && !fresh.live.awaitingSessionClaim, j(names()))
+
+  armed()
+  answers.set('loadConversationForResume', async () => null)
+  const lost = scene()
+  await within(claimSession({ session_id: SID, resume: true }, lost.ports))
+  await within(lost.live.claimSettling)
+  check('a claimed session whose transcript does not load ends as a cold runner would: the load error, exit 1, the session scope released, and nothing of the session applied', j(said('emitLoadError').map(call => call.args[0])) === j([`No conversation found for session id ${SID}`]) && j(said('gracefulShutdownSync').map(call => call.args[0])) === j([1]) && names().at(-1) === 'release:session' && !names().includes('switchSession') && lost.live.awaitingSessionClaim && said('port:releaseQueueUntilClaimed').length === 0, j(names()))
+  rmSync(home, { recursive: true, force: true })
 }
 
 console.log(failures === 0 ? '\nprove-runner-arms: green' : `\nprove-runner-arms: ${failures} failed`)

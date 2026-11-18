@@ -112,12 +112,10 @@ check('after a credential switch nothing of the record is relayed', limits.anthr
 
 section('§5 the seam: the runner relays the record in its facts, the connector adopts it, the rail paints the age tail of the record it reads')
 {
-  const run = readFileSync(join(REPO, 'src/cli/run.ts'), 'utf8')
   const connector = readFileSync(join(REPO, 'src/services/engine-connector/daemonConnector.ts'), 'utf8')
   const types = readFileSync(join(REPO, 'src/services/engine-connector/types.ts'), 'utf8')
   const rail = readFileSync(join(REPO, 'src/utils/cockpit/helmVitalsModel.ts'), 'utf8')
   const seat = readFileSync(join(REPO, 'src/daemon/sessionSeat.ts'), 'utf8')
-  check('the facts answer carries anthropicObserved beside the window verdict', run.includes('const anthropicObserved = anthropicObservedUsage()') && run.includes('...(anthropicObserved !== undefined ? { anthropicObserved } : {}),'))
   check('the connector adopts it with the window verdict', connector.includes('adoptAnthropicObservedUsage(next.usage?.anthropicObserved)'))
   check('the usage facts type names it', types.includes('anthropicObserved?: AnthropicObservedUsageV1'))
   check('the rail\'s meter tail is the freshness owner\'s age tail over the record', rail.includes('const age = usageAgeTail(w, readNow)') && rail.includes('usageViewIsStale(w, readNow)'))

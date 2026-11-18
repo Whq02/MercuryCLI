@@ -371,8 +371,6 @@ console.log('\n── W13: source pins ──')
     again: await refusalOf(runner.request('session/claim', { session_id: PINNED })),
   }), { env: { MERCURY_CONCOURSE_WORKER: '1' } })
   check('W13 the claim validates everything BEFORE mutating (mode transition + effort ladder)', claim.mode?.message.startsWith('claim refused —') === true && claim.effort?.message.startsWith('claim refused —') === true && claim.taken === null && claim.again?.data?.kind === 'claim')
-  check('W13 the claim consumes the transcript-home pin at the id switch (the setup.ts seam deferred)', print.includes('const claimedHome = consumeSessionHomePin()') && print.includes('switchSession(sid as SessionId, claimedHome)'))
-  check('W13 the id-keyed wiring arms at claim time (wards/crew/room under the claimed id)', print.includes('await armSessionRunnerWiring(sid)'))
   check('W13 the pre-claim gate parks user frames (belt: the daemon orders claim before words)', print.includes('claimGatedInput'))
   const { EFFORT_LEVELS } = await import('../../src/utils/effortLadder.ts')
   const effortVerb = await withLiveRunner(async runner => {
