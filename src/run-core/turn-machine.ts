@@ -214,6 +214,31 @@ import { createEventMint, type RunEvent } from './events.js'
 import { operatorPauseGate, pauseGateKeyOf, pauseGateModelWords, pauseGateSeatOf } from './pauseGate.js'
 import { acquireModelPermit, releaseModelPermitByCall } from '../services/capacity/governor.js'
 import { refreshGovernorCeilings } from '../services/capacity/composeCeilings.js'
+import {
+  CUT_TOOL_CALL_RECOVERY_LIMIT,
+  EMPTY_REPLY_RECOVERY_LIMIT,
+  PAUSE_TURN_CONTINUATION_LIMIT,
+  REASONING_CUT_RECOVERY_LIMIT,
+  STREAM_FAULT_RECOVERY_LIMIT,
+  TOOL_CALL_REFUSAL_RECOVERY_LIMIT,
+  decideCutToolCallRecovery,
+  decideEmptyReplyRecovery,
+  decidePauseTurnContinuation,
+  decideReasoningOnlyRecovery,
+  decideStreamFaultRecovery,
+  decideToolCallRefusalRecovery,
+} from './turn/judgements.js'
+
+export {
+  PAUSE_TURN_CONTINUATION_LIMIT,
+  decideCutToolCallRecovery,
+  decideEmptyReplyRecovery,
+  decidePauseTurnContinuation,
+  decideReasoningOnlyRecovery,
+  decideStreamFaultRecovery,
+  decideToolCallRefusalRecovery,
+  type CutToolCallDecision,
+} from './turn/judgements.js'
 
 const OUTPUT_LIMIT_RECOVERY_TEXT =
   'The reply hit the output ceiling. Carry on from exactly where it stopped — no recap, no apology — in smaller pieces.'
@@ -432,43 +457,6 @@ type MaxOutputTokensDecision =
   | { kind: 'nudge'; attempt: number }
   | { kind: 'surface'; why: keyof typeof OUTPUT_LIMIT_STOP_WORDS }
 
-const STREAM_FAULT_RECOVERY_LIMIT = 1
-
-const TOOL_CALL_REFUSAL_RECOVERY_LIMIT = 3
-
-type StreamFaultDecision = { kind: 'continue'; attempt: number } | { kind: 'surface' }
-
-export function decideToolCallRefusalRecovery(input: {
-  refusals: number
-  recoveryCount: number
-}): StreamFaultDecision {
-  if (input.refusals > 0 && input.recoveryCount < TOOL_CALL_REFUSAL_RECOVERY_LIMIT) {
-    return { kind: 'continue', attempt: input.recoveryCount + 1 }
-  }
-  return { kind: 'surface' }
-}
-
-const CUT_TOOL_CALL_RECOVERY_LIMIT = 2
-
-export type CutToolCallDecision = { kind: 'retry'; attempt: number; outputTokens: number } | { kind: 'surface' }
-
-export function decideCutToolCallRecovery(input: {
-  recoveryCount: number
-  sentCap: number | undefined
-  cutAt: number
-  upperLimit: number
-  room: number
-  routeTakesCap: boolean
-}): CutToolCallDecision {
-  if (!input.routeTakesCap || input.recoveryCount >= CUT_TOOL_CALL_RECOVERY_LIMIT) return { kind: 'surface' }
-  if (![input.sentCap ?? 0, input.cutAt, input.upperLimit, input.room].every(Number.isFinite)) return { kind: 'surface' }
-  const base = Math.max(input.sentCap ?? 0, input.cutAt, 1)
-  const ceiling = Math.min(input.upperLimit, input.room > 0 ? input.room : input.upperLimit)
-  const outputTokens = Math.min(base * 2, ceiling)
-  if (outputTokens <= base) return { kind: 'surface' }
-  return { kind: 'retry', attempt: input.recoveryCount + 1, outputTokens }
-}
-
 function cutToolCallOf(assistantMessages: readonly AssistantMessage[], refused: readonly RefusedToolCall[]): { name: string; cutAt: number } | null {
   const cut = refused.find(r => r.code === 'invalid-json')
   if (cut === undefined) return null
@@ -479,31 +467,10 @@ function cutToolCallOf(assistantMessages: readonly AssistantMessage[], refused: 
   return { name: cut.name || 'unnamed', cutAt }
 }
 
-export const PAUSE_TURN_CONTINUATION_LIMIT = 8
-
-export function decidePauseTurnContinuation(input: { continuations: number }): StreamFaultDecision {
-  if (input.continuations < PAUSE_TURN_CONTINUATION_LIMIT) return { kind: 'continue', attempt: input.continuations + 1 }
-  return { kind: 'surface' }
-}
-
 function pausedReplyOf(assistantMessages: readonly AssistantMessage[]): AssistantMessage | null {
   const reply = assistantMessages.filter(m => m.isApiErrorMessage !== true).at(-1)
   if (reply === undefined || reply.message.stop_reason !== 'pause_turn') return null
   return Array.isArray(reply.message.content) && reply.message.content.length > 0 ? reply : null
-}
-
-const EMPTY_REPLY_RECOVERY_LIMIT = 1
-
-const REASONING_ONLY_RECOVERY_LIMIT = 1
-
-const REASONING_CUT_RECOVERY_LIMIT = 2
-
-export function decideReasoningOnlyRecovery(input: { recoveryCount: number; maxTokens: boolean }): StreamFaultDecision {
-  const limit = input.maxTokens ? REASONING_CUT_RECOVERY_LIMIT : REASONING_ONLY_RECOVERY_LIMIT
-  if (input.recoveryCount < limit) {
-    return { kind: 'continue', attempt: input.recoveryCount + 1 }
-  }
-  return { kind: 'surface' }
 }
 
 type ReasoningOnlyTurn = { reply: AssistantMessage; maxTokens: boolean }
@@ -539,23 +506,6 @@ function withReasoningCutMarker(reply: AssistantMessage): AssistantMessage {
   const content = Array.isArray(reply.message.content) ? reply.message.content : []
   const marker = { type: 'text' as const, text: REASONING_CUT_MARKER, citations: null }
   return { ...reply, message: { ...reply.message, content: [...content, marker] as AssistantMessage['message']['content'] } }
-}
-
-export function decideEmptyReplyRecovery(input: { recoveryCount: number }): StreamFaultDecision {
-  if (input.recoveryCount < EMPTY_REPLY_RECOVERY_LIMIT) {
-    return { kind: 'continue', attempt: input.recoveryCount + 1 }
-  }
-  return { kind: 'surface' }
-}
-
-export function decideStreamFaultRecovery(input: {
-  continuableTail: boolean
-  recoveryCount: number
-}): StreamFaultDecision {
-  if (input.continuableTail && input.recoveryCount < STREAM_FAULT_RECOVERY_LIMIT) {
-    return { kind: 'continue', attempt: input.recoveryCount + 1 }
-  }
-  return { kind: 'surface' }
 }
 
 function decideMaxOutputTokensRecovery(input: {
