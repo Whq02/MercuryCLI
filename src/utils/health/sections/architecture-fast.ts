@@ -25,9 +25,8 @@ export function architectureFastChecks(): CheckSpec[] {
       id: 'primitive-resources',
       label: 'Resource kinds',
       run: async () => {
-        const { resourceAdapterKinds, settleResourceKinds } = await import('../../../services/resources/registry.js')
-        await settleResourceKinds()
-        const kinds = resourceAdapterKinds().map(k => k.kind)
+        const { resourceAdapterKinds } = await import('../../../services/resources/registry.js')
+        const kinds = (await resourceAdapterKinds()).map(k => k.kind)
         const wanted = ['owner', 'execution', 'transaction', 'evidence']
         const missing = wanted.filter(k => !kinds.includes(k))
         return {
