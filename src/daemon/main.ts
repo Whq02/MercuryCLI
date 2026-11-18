@@ -123,14 +123,14 @@ import { deployedRuntime, forwardFrame, handoverRoadOf, handoverState, parseHand
 import { holdBuild, invokedScriptPath, selfScriptPath } from './daemonBuild.js'
 import { decidePlaneBoot, sameBuildTree, type PlaneBootFactsV1 } from './planeBoot.js'
 import { lockHeldByLivePidSync, readPlaneOwnerSync, type PlaneOwnerV1 } from './planeRecords.js'
-import { SESSIONLESS_EXIT_BEAT_MS } from './sessionlessExit.js'
 import { getMercuryDaemonStatus, formatMercuryDaemonStatus, helperPidSocketsOnDisk, helperPidsOfHome } from './status.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 import { sleep } from '../utils/sleep.js'
-import { makeDaemonRunState, markDaemonReady, type DaemonRunState } from './run/state.js'
+import { makeDaemonRunState, markDaemonReady } from './run/state.js'
 import { armOwnerWatch, makeSessionlessBeat, markHosted } from './run/owner.js'
+import { periodicArmer } from './run/periodic.js'
 import { shutdownDaemon } from './run/shutdown.js'
-import { ARMED_RESTART_BEAT_MS, armedRestartBeat, restartWhenIdle, spawnSuccessorDaemon, successorRuntime } from './run/restart.js'
+import { armedRestartBeat, restartWhenIdle, spawnSuccessorDaemon, successorRuntime } from './run/restart.js'
 
 function resolveDir(args: string[]): string {
   const arg = args.find(a => !a.startsWith('-'))
@@ -1338,7 +1338,6 @@ async function daemonRun(args: string[]): Promise<void> {
 }
 
 const SUCCESSOR_LOCK_WAIT_MS = 10_000
-const HANDOVER_LOCK_BEAT_MS = 2_000
 const PREDECESSOR_SHUTDOWN_WAIT_MS = 6_000
 const IDLE_PREDECESSOR_READS = 3
 const FIRST_IDLE_SWEEP_MS = 1_000
@@ -1374,48 +1373,5 @@ async function planeBootFacts(stamps: { selfBuildTree: string | null; successorO
     plane: await planeAnswer(stamps.selfBuildTree),
   }
 }
-const PLANE_HEAL_FLOOR_MS = 30_000
 const PLANE_HEAL_COALESCE_MS = 250
 const INSTALLED_POINTER_NAMES = new Set(['current', 'dist', 'current.txt'])
-const RECONCILE_TICK_MS = 60_000
-
-type PeriodicStop = 'stopPlaneHeal' | 'stopArmedBeat' | 'stopSessionlessBeat' | 'stopLockBeat'
-
-interface PeriodicRow {
-  readonly name: string
-  readonly everyMs: number
-  readonly holdsTheProcess: boolean
-  readonly stoppedBy: PeriodicStop | null
-}
-
-const PERIODIC = [
-  { name: 'the plane heal floor', everyMs: PLANE_HEAL_FLOOR_MS, holdsTheProcess: false, stoppedBy: 'stopPlaneHeal' },
-  { name: 'the armed-restart beat', everyMs: ARMED_RESTART_BEAT_MS, holdsTheProcess: false, stoppedBy: 'stopArmedBeat' },
-  { name: 'the sessionless beat', everyMs: SESSIONLESS_EXIT_BEAT_MS, holdsTheProcess: false, stoppedBy: 'stopSessionlessBeat' },
-  { name: 'the idle-predecessor sweep', everyMs: SESSIONLESS_EXIT_BEAT_MS, holdsTheProcess: false, stoppedBy: 'stopSessionlessBeat' },
-  { name: 'the handover lock beat', everyMs: HANDOVER_LOCK_BEAT_MS, holdsTheProcess: false, stoppedBy: 'stopLockBeat' },
-  { name: 'the reconcile tick', everyMs: RECONCILE_TICK_MS, holdsTheProcess: false, stoppedBy: null },
-  { name: 'the keep-alive', everyMs: 1 << 30, holdsTheProcess: true, stoppedBy: null },
-] as const satisfies readonly PeriodicRow[]
-
-function periodicArmer(state: DaemonRunState): (name: (typeof PERIODIC)[number]['name'], work: () => void, alsoStops?: () => void) => ReturnType<typeof setInterval> {
-  let next = 0
-  return (name, work, alsoStops) => {
-    const at = PERIODIC.findIndex(row => row.name === name)
-    if (at < next) throw new Error(`the daemon's periodic work is armed in the order of its list: "${name}" was asked after "${PERIODIC[next - 1]?.name ?? 'nothing'}"`)
-    next = at + 1
-    const row = PERIODIC[at]!
-    const timer = setInterval(work, row.everyMs)
-    if (!row.holdsTheProcess) timer.unref?.()
-    const stoppedBy = row.stoppedBy
-    if (stoppedBy !== null) {
-      const before = state[stoppedBy]
-      state[stoppedBy] = () => {
-        clearInterval(timer)
-        alsoStops?.()
-        before?.()
-      }
-    }
-    return timer
-  }
-}

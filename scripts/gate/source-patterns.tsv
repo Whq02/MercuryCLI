@@ -248,8 +248,8 @@ setInterval	src/components/tasks/ShellDetailDialog.tsx	1
 setInterval	src/components/tasks/useCrewmateModel.ts	1
 setInterval	src/components/tasks/useCrewmateTranscript.ts	1
 setInterval	src/components/tensorfold/tensorfoldModelFacts.ts	1
-setInterval	src/daemon/main.ts	1
 setInterval	src/daemon/ownerWatch.ts	1
+setInterval	src/daemon/run/periodic.ts	1
 setInterval	src/daemon/saturnTicker.ts	1
 setInterval	src/daemon/warmRunner.ts	1
 setInterval	src/daemon/workerParentWatch.ts	1
