@@ -25,8 +25,8 @@ const hooks: ProofHooks = {
   setup(build) {
     build.onLoad({ filter: new RegExp(`^${escapePath(ensurePath)}$`) }, () => {
       const real = readFileSync(ensurePath, 'utf8').replace(
-        'export async function ensureOwnedDaemon(): Promise<boolean> {',
-        'async function _realEnsureOwnedDaemon(): Promise<boolean> {',
+        /export async function ensureOwnedDaemon\((.*)\): Promise<boolean> \{/,
+        'async function _realEnsureOwnedDaemon($1): Promise<boolean> {',
       )
       return {
         loader: 'ts',
