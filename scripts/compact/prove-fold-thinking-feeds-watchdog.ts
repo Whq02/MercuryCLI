@@ -1,5 +1,5 @@
 import { createServer } from 'node:http'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -10,6 +10,15 @@ process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+const ROAD_RECORD = mkdtempSync(join(tmpdir(), 'fold-thinking-feeds-roads-'))
+process.env.MERCURY_WIRE_DUMP = ROAD_RECORD
+const foldRoads = (): string[] =>
+  readdirSync(ROAD_RECORD)
+    .flatMap(name => readFileSync(join(ROAD_RECORD, name), 'utf8').split('\n'))
+    .filter(line => line.includes('"kind":"fold"'))
+    .map(line => JSON.parse(line) as { seq: number; road: string; outcome: string; detail?: string })
+    .sort((a, b) => a.seq - b.seq)
+    .map(row => `${row.road}:${row.outcome}${row.detail !== undefined ? ` (${row.detail})` : ''}`)
 
 const summary = 'The synthetic parser accepts quoted commas and its 14 checks passed. Preserve the test command and continue with CLI verification.'
 const STALL_MS = 2_000
@@ -110,12 +119,13 @@ const check = (label: string, ok: boolean, detail: unknown = ''): void => {
   if (!ok) failures++
   console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ` — ${JSON.stringify(detail)}`}`)
 }
-async function fold(model: string, next: Shape): Promise<{ ms: number; requests: number; posted: string[]; beats: number; summary: boolean; error: string | undefined; activity: number }> {
+async function fold(model: string, next: Shape): Promise<{ ms: number; requests: number; posted: string[]; beats: number; summary: boolean; error: string | undefined; activity: number; roads: string[] }> {
   shape = next
   requests = 0
   reasoningBeats = 0
   posted.length = 0
   let activity = 0
+  const roadsBefore = foldRoads().length
   const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
   const context: any = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, setSDKStatus: (value: any) => { if (typeof value?.streamActivity === 'number') activity++ }, messages: [], startTurn, readFileState: new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024), options: { tools: [], commands: [], mcpClients: [], engineModel: model, maxThinkingTokens: 0, thinkingConfig: { type: 'adaptive' }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
   const messages = [createUserMessage({ content: 'Preserve the parser result and continue with CLI verification.' })]
@@ -131,13 +141,14 @@ async function fold(model: string, next: Shape): Promise<{ ms: number; requests:
   } finally {
     clearTimeout(guard)
   }
-  return { ms: Date.now() - start, requests, posted: [...posted], beats: reasoningBeats, summary: result?.summaryMessages.some(row => String(row.message.content).includes(summary)) === true, error, activity }
+  return { ms: Date.now() - start, requests, posted: [...posted], beats: reasoningBeats, summary: result?.summaryMessages.some(row => String(row.message.content).includes(summary)) === true, error, activity, roads: foldRoads().slice(roadsBefore) }
 }
 setFoldBoundsForTests({ stallMs: STALL_MS, ingestMsPer1kTokens: 0 })
 try {
   console.log(`stall ${STALL_MS} ms · the model reasons for ${THINK_MS} ms (${Math.floor(THINK_MS / STALL_MS)} stall windows) before its first text, one reasoning event every ${BEAT_MS} ms`)
   const anthropic = await fold('claude-fable-5-1', 'anthropic-thinking')
   check('Anthropic (the cache-sharing fork): thinking deltas alone keep the fold alive through three stall windows and the summary lands on the first request', anthropic.requests === 1 && anthropic.summary && anthropic.ms >= THINK_MS && anthropic.beats >= 10, anthropic)
+  check("…and the fold's road record reads that the fork lane itself carried that summary: one row, fork:summary, no hand-over to the direct lane", anthropic.roads.join(' · ') === 'fork:summary', { roads: anthropic.roads, change: 'summarizeViaCacheSharingFork (src/services/compact/compact.ts) hands a failure of its nested turn to the direct lane, which lands the same summary: the context this proof builds must let that turn start (startTurn) and carry what runForkedAgent reads' })
   const zai = await fold('glm-5.2', 'chat-reasoning')
   check('chat dialect (Z.AI): reasoning_content deltas alone keep the fold alive and the summary lands on the first request', zai.requests === 1 && zai.summary && zai.ms >= THINK_MS && zai.beats >= 10, zai)
   const openrouter = await fold('openrouter/fixture/model', 'chat-comments')
@@ -147,11 +158,13 @@ try {
   const silent = await fold('claude-fable-5-1', 'anthropic-silent')
   check('a stream with NO bytes for a whole stall window is the wedge the watchdog is for: both lanes cut it for silence and nothing is folded', !silent.summary && silent.error === ERROR_MESSAGE_FOLD_TIMEOUT && silent.requests === 2, silent)
   check(`the silent stream was cut near the stall window, not at a wall (fork then direct, each one window ≈ ${STALL_MS} ms, under ${THINK_MS} ms)`, silent.ms >= 2 * STALL_MS && silent.ms < THINK_MS, silent.ms)
+  check("…and the road record reads the two cuts as the lanes' own: the fork lane handed over at its fold bound, then the direct lane timed out", silent.roads.length === 2 && /^fork:handover \(fold bound after \d+ ms/.test(silent.roads[0] ?? '') && (silent.roads[1] ?? '').startsWith('direct:timeout'), { roads: silent.roads, change: 'a fork row that hands over for another reason than its fold bound is a failure of the nested turn itself (src/services/compact/compact.ts, summarizeViaCacheSharingFork): the context this proof builds must let that turn start' })
 } finally {
   setFoldBoundsForTests(null)
   server.closeAllConnections()
   await new Promise<void>(resolve => server.close(() => resolve()))
   rmSync(home, { recursive: true, force: true })
+  rmSync(ROAD_RECORD, { recursive: true, force: true })
 }
 console.log(`${failures ? 'FAIL' : 'PASS'} fold-thinking-feeds-watchdog: ${checks} checks, ${failures} failures`)
 process.exit(failures ? 1 : 0)

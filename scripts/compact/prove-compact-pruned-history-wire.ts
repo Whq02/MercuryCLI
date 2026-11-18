@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -33,6 +33,15 @@ for (const ambient of [
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'pruned-history-wire-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'pruned-history-wire-daemon-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+const ROAD_RECORD = mkdtempSync(join(tmpdir(), 'pruned-history-wire-roads-'))
+process.env.MERCURY_WIRE_DUMP = ROAD_RECORD
+const foldRoads = (): string[] =>
+  readdirSync(ROAD_RECORD)
+    .flatMap(name => readFileSync(join(ROAD_RECORD, name), 'utf8').split('\n'))
+    .filter(line => line.includes('"kind":"fold"'))
+    .map(line => JSON.parse(line) as { seq: number; road: string; outcome: string; detail?: string })
+    .sort((a, b) => a.seq - b.seq)
+    .map(row => `${row.road}:${row.outcome}${row.detail !== undefined ? ` (${row.detail})` : ''}`)
 
 const { startOverflowFixture } = await import('./overflowFixture.ts')
 const fixture = await startOverflowFixture()
@@ -152,8 +161,9 @@ async function drive(ctx: Record<string, unknown>, messages: unknown[]): Promise
 
 const cacheSafeFor = (ctx: Record<string, unknown>, messages: unknown[]) =>
   ({ systemPrompt: ['fixture system prompt'], userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: messages }) as never
-async function compactOnce(ctx: Record<string, unknown>, messages: unknown[], limit = '8000'): Promise<{ result: Record<string, unknown>; wire: ReturnType<typeof fixture.captured.slice>; threw: string | undefined }> {
+async function compactOnce(ctx: Record<string, unknown>, messages: unknown[], limit = '8000'): Promise<{ result: Record<string, unknown>; wire: ReturnType<typeof fixture.captured.slice>; threw: string | undefined; roads: string[] }> {
   const before = fixture.captured.length
+  const roadsBefore = foldRoads().length
   ctx.abortController = new AbortController()
   process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = limit
   let result: Record<string, unknown> = {}
@@ -165,7 +175,7 @@ async function compactOnce(ctx: Record<string, unknown>, messages: unknown[], li
   } finally {
     delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
   }
-  return { result, wire: fixture.captured.slice(before), threw }
+  return { result, wire: fixture.captured.slice(before), threw, roads: foldRoads().slice(roadsBefore) }
 }
 
 function textHistory(rounds: number, model: string): unknown[] {
@@ -555,6 +565,7 @@ section('C4 the cache-sharing path (the Anthropic wire): a pairing refusal is cl
   fixture.script([{ error: { status: 400, body: ANTHROPIC_PAIRING_REFUSAL } }, { error: { status: 400, body: ANTHROPIC_PAIRING_REFUSAL } }, { text: 'never reached' }])
   const r = await compactOnce(ctxF, historyF)
   check('exactly one summary request reached the Anthropic wire (no hand-over to the direct call)', r.threw === undefined && r.wire.length === 1 && r.wire[0]!.dialect === 'anthropic', `threw=${r.threw ?? 'no'} requests=${JSON.stringify(r.wire.map(w => w.dialect))}`)
+  check("…and the fold's road record reads that request as the fork lane's own: one row, fork:refused", r.roads.length === 1 && (r.roads[0] ?? '').startsWith('fork:refused'), `${r.roads.join(' · ') || 'no row'} — summarizeViaCacheSharingFork (src/services/compact/compact.ts) hands a failure of its nested turn to the direct lane, which meets the same refusal: the context makeCtx builds must let that turn start (startTurn) and carry what runForkedAgent reads`)
   check('the breaker applied at once and the pause is the run\'s', r.result.consecutiveFailures === 3 && r.result.paused === true && typeof r.result.refusal === 'string' && (r.result.refusal as string).includes('paused for the rest of this run'), JSON.stringify({ consecutiveFailures: r.result.consecutiveFailures, paused: r.result.paused }))
   check("the line names the class and carries the provider's own words, the call id included", typeof r.result.refusal === 'string' && /malformed history/i.test(r.result.refusal as string) && (r.result.refusal as string).includes('call_bad') && (r.result.refusal as string).includes('without `tool_result` blocks'), String(r.result.refusal ?? ''))
 
@@ -563,6 +574,7 @@ section('C4 the cache-sharing path (the Anthropic wire): a pairing refusal is cl
   fixture.script([{ error: { status: 400, body: ANTHROPIC_PARAMETER_REFUSAL } }, { error: { status: 400, body: ANTHROPIC_PARAMETER_REFUSAL } }, { text: 'never reached' }])
   const h = await compactOnce(ctxF, historyF)
   check('two requests: the cache-sharing call, then the direct call it handed over to', h.threw === undefined && h.wire.length === 2 && h.wire.every(w => w.dialect === 'anthropic'), `threw=${h.threw ?? 'no'} requests=${JSON.stringify(h.wire.map(w => w.dialect))}`)
+  check("…and the road record reads the hand-over as the fork lane's own decision on the answer it got: fork:handover (no usable summary), then direct:refused", h.roads.length === 2 && h.roads[0] === 'fork:handover (no usable summary)' && (h.roads[1] ?? '').startsWith('direct:refused'), `${h.roads.join(' · ') || 'no row'} — a fork row that hands over for another reason is a failure of the nested turn itself (src/services/compact/compact.ts, summarizeViaCacheSharingFork): the context makeCtx builds must let that turn start`)
   check('one failure counted, no pause, the reason carried', h.result.consecutiveFailures === 1 && h.result.paused === undefined && typeof h.result.refusal === 'string' && (h.result.refusal as string).includes("Unknown parameter: 'parallel_tool_calls'") && !/malformed history/i.test(h.result.refusal as string), JSON.stringify({ consecutiveFailures: h.result.consecutiveFailures, paused: h.result.paused, refusal: String(h.result.refusal ?? '').slice(0, 120) }))
 }
 
