@@ -3,10 +3,12 @@ setTimeout	src/bootstrap/runtime/scroll-gate.ts	1
 setTimeout	src/chatLauncher.tsx	2
 setTimeout	src/cli/agentFreshness.ts	1
 setTimeout	src/cli/headless/hostAskLiveness.ts	2
+setTimeout	src/cli/headless/runnerArms.ts	1
 setTimeout	src/cli/headless/runnerAsks.ts	1
+setTimeout	src/cli/headless/sessionFactsArm.ts	1
 setTimeout	src/cli/healthJson.ts	1
 setTimeout	src/cli/healthPresentation.ts	1
-setTimeout	src/cli/run.ts	9
+setTimeout	src/cli/run.ts	7
 setTimeout	src/commands/feedback/healthSection.ts	1
 setTimeout	src/commands/logout/logout.tsx	1
 setTimeout	src/commands/mission/mission-jsx.tsx	1
@@ -1333,8 +1335,9 @@ empty-catch	src/utils/worktreeClone.ts	3
 empty-catch-handler	src/cli/agentFreshness.ts	1
 empty-catch-handler	src/cli/handlers/mcp.tsx	1
 empty-catch-handler	src/cli/handlers/usage.ts	1
+empty-catch-handler	src/cli/headless/mcpArms.ts	1
 empty-catch-handler	src/cli/headless/runnerAsks.ts	1
-empty-catch-handler	src/cli/run.ts	7
+empty-catch-handler	src/cli/run.ts	6
 empty-catch-handler	src/commands/model/mercuryModel.tsx	2
 empty-catch-handler	src/commands/tensorfold/road.ts	2
 empty-catch-handler	src/commands/tensorfold/scene.ts	1
@@ -2092,8 +2095,10 @@ catch-default	src/utils/windowsPaths.ts	1
 catch-default	src/utils/wireStdoutGuard.ts	1
 catch-default	src/utils/worktree.ts	11
 catch-default	src/utils/worktreeClone.ts	7
+handler-default	src/cli/headless/mcpArms.ts	1
 handler-default	src/cli/headless/restartCarry.ts	1
-handler-default	src/cli/run.ts	3
+handler-default	src/cli/headless/sessionFactsArm.ts	1
+handler-default	src/cli/run.ts	1
 handler-default	src/commands/crew/index.ts	1
 handler-default	src/commands/model/mercuryModel.tsx	6
 handler-default	src/commands/tensorfold/scene.ts	1
