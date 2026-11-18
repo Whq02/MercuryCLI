@@ -5,6 +5,7 @@ import { createRequire } from 'node:module'
 import { BOARD_PACKET_RULE, SEAT_NAME_REFUSAL, boardReachNote, boardSeatName, boardLabelKey, type BoardChannel, type BoardEvent, type BoardPacket, type BoardPost, type BoardPrincipal, type BoardReach, type BoardReceipt, type BoardSeat, type BoardStore, type BoardViewSnapshot } from './contracts.js'
 import { CHAT_OFF, type BoardChat } from './party.js'
 import type { CrewChatLifecycle } from '../../types/message.js'
+import { sleep } from '../../utils/sleep.js'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
 import { boardAddressesSeat, boardWaitWords, parseBoardWait } from './waits.js'
 import { createWakeState } from './wakeState.js'
@@ -30,11 +31,14 @@ const normalize = (input: BoardPost) => ({
 })
 const feeds = new Map<string, Set<() => void>>()
 const validTeam = (team: string): boolean => /^[\p{L}\p{N}_][\p{L}\p{N}_.-]{0,79}$/u.test(team) && !['all', 'general'].includes(team.toLowerCase())
+const BOARD_WAKE_FLOOR_MS = 2000
 const watchBoard = (path: string, emit: () => void): (() => void) => {
   const watcher = watch(resolveWatchRoot(dirname(path)), { persistent: false }, (_event, file) => {
     if (file === null || [basename(path), `${basename(path)}-wal`].includes(String(file)) || (String(file).startsWith(`${basename(path)}.`) && String(file).endsWith('.notify'))) emit()
   })
-  return () => watcher.close()
+  const floor = new AbortController()
+  void (async () => { while (!floor.signal.aborted) { await sleep(BOARD_WAKE_FLOOR_MS, floor.signal, { unref: true }); if (!floor.signal.aborted) emit() } })()
+  return () => { watcher.close(); floor.abort() }
 }
 
 export function open(path: string, sessionId: string, now: () => number = Date.now, readOnly = false, live: (agent: string) => boolean = () => true): BoardStore {
