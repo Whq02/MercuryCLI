@@ -48,6 +48,7 @@
 # gate-watch: src/utils/health/sections/runtime.ts
 # gate-watch: src/utils/shell/shellRecord.ts src/utils/shell/bashPack.ts src/constants/prompts.ts vendor/bash.lock.json scripts/vendor/build-bash.ts scripts/release/payloadContract.mjs
 # gate-watch: scripts/vendor/fetch-bash-win.ts scripts/vendor/lay-bash-win-pack.ts
+# gate-watch: src/services/acp/ideToolBridge.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -153,6 +154,11 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-windows-road-order.ts" || { __rc=$
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-record.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-record.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-system-road-bash5.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-system-road-bash5.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-profile-environment.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-profile-environment.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-login-file-hands-over.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-login-file-hands-over.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-prefix-wraps-the-record.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-prefix-wraps-the-record.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-editor-terminal-shell.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-editor-terminal-shell.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-recorded-shell-gone.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-recorded-shell-gone.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-engine-session-frame.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-engine-session-frame.ts" "$__t" "$__rc"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL BASH PERMISSION PROOFS PASS"; else echo "# ❌ SOME BASH PERMISSION PROOFS FAILED"; fi
 echo "############################################################"

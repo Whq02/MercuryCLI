@@ -2,7 +2,7 @@
 import { spawn } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
 import { Readable, Writable } from 'node:stream'
 import * as acp from '@agentclientprotocol/sdk'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
@@ -163,16 +163,41 @@ async function byTheDaemon(): Promise<void> {
   judge('started by the daemon (the hosted runner)', w, resultOf(api), why)
 }
 
-async function byAnEditor(): Promise<void> {
+type EditorTerminal = 'not offered' | 'starts what it is asked' | 'starts nothing'
+type Asked = { command: string; args: string[] | null; shell: string | null }
+
+async function byAnEditor(name: string, situation: string, terminal: EditorTerminal): Promise<void> {
   const api = await startFixtureApi(TURNS)
-  const w = world('editor', api)
+  const w = world(name, api)
   let why = ''
   const child = spawn(nodeBinPath(), [DIST, 'acp'], { cwd: w.cwd, env: w.env, stdio: ['pipe', 'pipe', 'pipe'] })
   let stderr = ''
   child.stderr.on('data', chunk => { stderr += String(chunk) })
   const exited = new Promise<void>(done => child.once('close', () => done()))
+  const asked: Asked[] = []
+  const terminals = new Map<string, { output: string; exit: Promise<number | null> }>()
+  const of = (params: unknown): { output: string; exit: Promise<number | null> } => terminals.get((params as { terminalId: string }).terminalId) ?? { output: '', exit: Promise.resolve(1) }
   const app = acp.client({ name: 'profile-environment-proof' })
     .onNotification('session/update', () => {})
+    .onRequest('terminal/create', ctx => {
+      const params = ctx.params as { command: string; args?: string[]; cwd?: string | null; env?: Array<{ name: string; value: string }> }
+      asked.push({ command: params.command, args: params.args ?? null, shell: params.env?.find(entry => entry.name === 'SHELL')?.value ?? null })
+      const terminalId = `terminal-${asked.length}`
+      if (terminal !== 'starts what it is asked') {
+        terminals.set(terminalId, { output: 'the editor started nothing\n', exit: Promise.resolve(0) })
+        return { terminalId }
+      }
+      const started = spawn(params.command, params.args ?? [], { cwd: params.cwd ?? w.cwd, env: Object.fromEntries((params.env ?? []).map(entry => [entry.name, entry.value])), stdio: ['ignore', 'pipe', 'pipe'] })
+      const row = { output: '', exit: new Promise<number | null>(done => { started.once('close', code => done(code)); started.once('error', () => done(127)) }) }
+      started.stdout.on('data', chunk => { row.output += String(chunk) })
+      started.stderr.on('data', chunk => { row.output += String(chunk) })
+      terminals.set(terminalId, row)
+      return { terminalId }
+    })
+    .onRequest('terminal/output', ctx => ({ output: of(ctx.params).output, truncated: false }))
+    .onRequest('terminal/wait_for_exit', async ctx => ({ exitCode: await of(ctx.params).exit }))
+    .onRequest('terminal/kill', () => ({}))
+    .onRequest('terminal/release', () => ({}))
     .onRequest('session/request_permission', ctx => {
       const options = (ctx.params as { options?: Array<{ optionId: string; kind?: string }> }).options ?? []
       const allow = options.find(option => option.kind === 'allow_once') ?? options.find(option => option.optionId.startsWith('allow')) ?? options[0]
@@ -180,7 +205,7 @@ async function byAnEditor(): Promise<void> {
     })
   const conn = app.connect(acp.ndJsonStream(Writable.toWeb(child.stdin) as WritableStream<Uint8Array>, Readable.toWeb(child.stdout) as ReadableStream<Uint8Array>))
   try {
-    await bounded(conn.agent.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION, clientCapabilities: {} } as never), 'the editor handshake')
+    await bounded(conn.agent.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION, clientCapabilities: terminal === 'not offered' ? {} : { terminal: true } } as never), 'the editor handshake')
     const created = await bounded(conn.agent.request('session/new', { cwd: w.cwd, mcpServers: [] }), 'the editor session')
     const turn = await bounded(conn.agent.request('session/prompt', { sessionId: created.sessionId, prompt: [{ type: 'text', text: ASK }] }), 'the editor turn')
     why = `stop ${String(turn.stopReason)}`
@@ -192,11 +217,24 @@ async function byAnEditor(): Promise<void> {
     await Promise.race([exited, new Promise(done => setTimeout(done, 5_000))])
     await api.close()
   }
-  judge('started by an editor (mercury acp)', w, resultOf(api), why)
+  const result = resultOf(api)
+  judge(situation, w, result, why)
+  if (terminal === 'not offered') return
+  const told = JSON.stringify(asked.map(row => ({ command: row.command, args: row.args?.map(arg => arg.slice(0, 90)) ?? null, shell: row.shell }))).slice(0, 900)
+  const shipped = join(dirname(DIST), 'vendor', 'bash', `${process.platform === 'darwin' ? 'darwin' : 'linux'}-${process.arch === 'arm64' ? 'arm64' : 'x64'}`, 'bash')
+  const byPath = (row: Asked): boolean => isAbsolute(row.command) && basename(row.command) === 'bash' && (!existsSync(shipped) || row.command === shipped) && row.args !== null && row.args.length === 2 && row.args[0] === '-c'
+  check(`${situation}: every terminal/create names the shell by its path, with -c and one line as its arguments, and none hands over the raw command`, asked.length > 0 && asked.every(byPath) && asked.every(row => row.command !== COMMAND), told)
+  check(`${situation}: the first thing asked of the editor is that shell on a harmless line, to see that the editor starts it`, /^printf '%s\\n' mercury-shell-[0-9a-f]+$/.test(asked[0]?.args?.[1] ?? ''), told)
+  check(`${situation}: the editor's terminal is handed the SHELL the launcher had`, asked.length > 0 && asked.every(row => row.shell === w.env.SHELL), told)
+  if (terminal === 'starts what it is asked') {
+    check(`${situation}: the second thing asked is the command, inside the line the local road builds (eval and the quoted text)`, asked.length === 2 && (asked[1]?.args?.[1] ?? '').includes("eval 'echo \"path=$PATH\"") && result.includes('ran in the editor terminal'), `${told} · ${JSON.stringify(result.slice(-200))}`)
+  } else {
+    check(`${situation}: an editor whose terminal does not start the shell is asked once and not again, and the result says in one sentence that the command ran in the local shell`, asked.length === 1 && /The editor's terminal could not start Mercury's shell \(.*\); this command ran in the local shell, and so will the rest of this session's\./.test(result), `${told} · ${JSON.stringify(result.slice(-300))}`)
+  }
 }
 
 console.log('============================================================')
-console.log(' What a command sees: the launcher\'s environment and the user\'s bash files, in three launch situations')
+console.log(' What a command sees: the launcher\'s environment and the user\'s bash files, in three launch situations and through an editor\'s terminal')
 console.log('============================================================')
 console.log(`build under proof: ${DIST}`)
 
@@ -206,7 +244,9 @@ try {
   else {
     await fromATerminal()
     await byTheDaemon()
-    await byAnEditor()
+    await byAnEditor('editor', 'started by an editor (mercury acp)', 'not offered')
+    await byAnEditor('editor-terminal', 'started by an editor that offers its terminal and starts what it is asked', 'starts what it is asked')
+    await byAnEditor('editor-nothing', 'started by an editor whose terminal starts nothing', 'starts nothing')
   }
 } finally {
   if (KEEP) console.log(`world kept: ${scratch}`)

@@ -74,7 +74,7 @@ export const SHELL_C_MAX_DEPTH = 4
 export function extractShellCScript(command: SimpleCommand): string | null {
   const [shell, flag, script] = command.argv
   if (command.argv.length !== 3 || command.envVars.length !== 0 || command.globOperand) return null
-  if (!/^(?:\/(?:usr\/)?bin\/)?(?:sh|bash|zsh)$/.test(shell ?? '') || (flag !== '-c' && flag !== '-lc')) return null
+  if (!/^(?:\/(?:usr\/)?bin\/)?(?:sh|bash)$/.test(shell ?? '') || (flag !== '-c' && flag !== '-lc')) return null
   if (command.redirects.some(redirect => redirect.op !== '<' && redirect.op !== '<&')) return null
   return script ?? null
 }

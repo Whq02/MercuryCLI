@@ -50,12 +50,21 @@ type SnapshotPathExecutor = (
 
 const SNAPSHOT_PATH_PROBE_TIMEOUT_MS = 10_000
 const SNAPSHOT_PATH_PROBE_SETTLE_GRACE_MS = 250
+const SNAPSHOT_CAPTURE_BOUND_MS = 10_000
 
-const defaultSnapshotPathExecutor: SnapshotPathExecutor = (file, args, timeoutMs) =>
-  new Promise(resolve => {
+type BoundedRun = { exitCode?: number; stdout: string; stderr: string; killed: boolean }
+
+function runBounded(
+  file: string,
+  args: string[],
+  env: NodeJS.ProcessEnv,
+  timeoutMs: number,
+  login: boolean,
+): Promise<BoundedRun> {
+  return new Promise(resolve => {
     let settled = false
     let guard: ReturnType<typeof setTimeout> | null = null
-    const settle = (result: { exitCode?: number; stdout?: string }): void => {
+    const settle = (result: BoundedRun): void => {
       if (settled) return
       settled = true
       if (guard !== null) clearTimeout(guard)
@@ -67,27 +76,42 @@ const defaultSnapshotPathExecutor: SnapshotPathExecutor = (file, args, timeoutMs
       {
         windowsHide: true,
         encoding: 'utf8',
-        env: { ...withShippedPrograms(subprocessEnv(), file) },
+        env,
         timeout: timeoutMs,
         maxBuffer: 1024 * 1024,
+        ...(login ? { killSignal: 'SIGKILL' as const } : {}),
       },
-      (error, stdout) => {
+      (error, stdout, stderr) => {
         if (error) {
           const exitCode = typeof error.code === 'number' ? error.code : undefined
-          settle({ exitCode, stdout })
+          settle({ exitCode, stdout, stderr, killed: error.killed === true })
           return
         }
-        settle({ exitCode: 0, stdout })
+        settle({ exitCode: 0, stdout, stderr, killed: false })
       },
     )
+    if (login) {
+      let said = ''
+      child.stdin?.end()
+      child.stderr?.on('data', (chunk: string) => {
+        said += chunk
+      })
+      child.once('exit', code => {
+        if (code !== null) settle({ exitCode: code, stdout: '', stderr: said, killed: false })
+      })
+    }
     guard = setTimeout(() => {
       try {
-        child.kill()
+        child.kill(login ? 'SIGKILL' : undefined)
       } catch {
       }
-      settle({ exitCode: undefined, stdout: '' })
+      settle({ exitCode: undefined, stdout: '', stderr: '', killed: true })
     }, timeoutMs + SNAPSHOT_PATH_PROBE_SETTLE_GRACE_MS)
   })
+}
+
+const defaultSnapshotPathExecutor: SnapshotPathExecutor = (file, args, timeoutMs) =>
+  runBounded(file, args, { ...withShippedPrograms(subprocessEnv(), file) }, timeoutMs, false)
 
 export async function resolveSnapshotPathValue(
   shellPath: string,
@@ -208,14 +232,17 @@ fi`)
 
 
 const MERCURY_CONTENT_DELIMITER = '__MERCURY_SNAPSHOT_CONTENT__'
+const OPTIONS_THAT_ARE_ON = `set -o | awk '$2 == "on" { print "set -o " $1 }' | head -n 1000 >> "$SNAPSHOT_FILE"`
 
 function buildCaptureScript(args: {
   snapshotFilePath: string
   configFilePath: string
   configExists: boolean
+  definitions: boolean
+  optionsByState: boolean
   mercuryContent: string
 }): string {
-  const { snapshotFilePath, configFilePath, configExists, mercuryContent } = args
+  const { snapshotFilePath, configFilePath, configExists, definitions, optionsByState, mercuryContent } = args
   const lines: string[] = []
 
   lines.push(`SNAPSHOT_FILE=${quote([snapshotFilePath])}`)
@@ -229,7 +256,7 @@ function buildCaptureScript(args: {
   lines.push('echo "# Mercury shell environment snapshot" >| "$SNAPSHOT_FILE"')
   lines.push(`echo "unalias -a 2>/dev/null || true" >> "$SNAPSHOT_FILE"`)
 
-  if (configExists) {
+  if (definitions) {
     lines.push('echo "# Functions" >> "$SNAPSHOT_FILE"')
     lines.push(`for __mercury_fn in $(declare -F | awk '{print $NF}'); do
   case "$__mercury_fn" in
@@ -242,7 +269,7 @@ function buildCaptureScript(args: {
 done`)
 
     lines.push('echo "# Shell Options" >> "$SNAPSHOT_FILE"')
-    lines.push(...SNAPSHOT_OPTIONS)
+    lines.push(...(optionsByState ? SNAPSHOT_OPTIONS.map(line => (line.startsWith('set -o ') ? OPTIONS_THAT_ARE_ON : line)) : SNAPSHOT_OPTIONS))
 
     lines.push('echo "# Aliases" >> "$SNAPSHOT_FILE"')
     const winptyFilter = getPlatform() === 'windows' ? ' | grep -v winpty' : ''
@@ -264,31 +291,10 @@ fi`)
 }
 
 
-type CaptureOutcome = {
-  stdout: string
-  stderr: string
-  error?: Error & { code?: unknown; signal?: unknown; killed?: boolean }
-}
+let captureLeftNoFile: string | null = null
 
-function runCaptureShell(
-  shellPath: string,
-  script: string,
-  env: NodeJS.ProcessEnv,
-): Promise<CaptureOutcome> {
-  return new Promise(resolve => {
-    execFile(
-      shellPath,
-      ['-c', '-l', script],
-      { windowsHide: true, env, timeout: 10_000, maxBuffer: 1024 * 1024, encoding: 'utf8' },
-      (error, stdout, stderr) => {
-        if (error) {
-          resolve({ stdout, stderr, error })
-          return
-        }
-        resolve({ stdout, stderr })
-      },
-    )
-  })
+export function shellSnapshotAbsence(): string | null {
+  return captureLeftNoFile
 }
 
 function randomSnapshotSuffix(): string {
@@ -316,33 +322,36 @@ export async function createAndSaveSnapshot(shell: Pick<ShellRecord, 'path' | 'o
       `snapshot-${profile.kind}-${Date.now()}-${randomSnapshotSuffix()}.sh`,
     )
 
+    const bashOfThisMachine = shell.origin !== 'engine' && getPlatform() !== 'windows'
     const configExists = await pathExists(configFilePath)
     const mercuryContent = await getMercurySnapshotContent(shellPath)
     const script = buildCaptureScript({
       snapshotFilePath,
       configFilePath,
       configExists,
+      definitions: bashOfThisMachine || configExists,
+      optionsByState: bashOfThisMachine,
       mercuryContent,
     })
 
     const inherited = withShippedPrograms(subprocessEnv(), shellPath)
     const captureEnv: NodeJS.ProcessEnv = {
       ...inherited,
-      SHELL: shellPath,
+      ...(bashOfThisMachine ? {} : { SHELL: shellPath }),
       GIT_EDITOR: 'true',
       MERCURY: '1',
     }
 
-    const outcome = await runCaptureShell(shellPath, script, captureEnv)
+    const outcome = await runBounded(shellPath, ['-c', '-l', script], captureEnv, SNAPSHOT_CAPTURE_BOUND_MS, true)
 
-    if (outcome.error) {
-      const error = outcome.error
+    if (outcome.killed || outcome.exitCode !== 0) {
+      captureLeftNoFile = outcome.killed
+        ? `the login run of ${shellPath} did not end within ${SNAPSHOT_CAPTURE_BOUND_MS / 1000} s and was killed: a login file waits or runs long`
+        : `the login run of ${shellPath} ended with exit ${String(outcome.exitCode)}`
       logForDebugging(
         [
           'shell snapshot capture failed',
-          `  error: ${errorMessage(error)}`,
-          `  code: ${String(error.code)} signal: ${String(error.signal)} killed: ${String(error.killed)}`,
-          `  shell: ${shellPath}`,
+          `  ${captureLeftNoFile}`,
           `  config file: ${configFilePath} (exists: ${configExists})`,
           `  cwd: ${getCwd()}`,
           `  mercury home: ${mercuryHome}`,
@@ -356,7 +365,7 @@ export async function createAndSaveSnapshot(shell: Pick<ShellRecord, 'path' | 'o
             : '  stderr: none captured',
         ].join('\n'),
       )
-      logError(`shell snapshot creation failed: ${errorMessage(error)}`)
+      logError(`shell snapshot creation failed: ${captureLeftNoFile}`)
       return undefined
     }
 
@@ -364,7 +373,8 @@ export async function createAndSaveSnapshot(shell: Pick<ShellRecord, 'path' | 'o
       const stats = await stat(snapshotFilePath)
       logForDebugging(`shell snapshot created at ${snapshotFilePath} (${stats.size} bytes)`)
     } catch {
-      logForDebugging(`shell snapshot file missing after capture: ${snapshotFilePath}`)
+      captureLeftNoFile = `the login run of ${shellPath} ended before it wrote the snapshot: a login file ended the shell or handed it to another program`
+      logForDebugging(`shell snapshot file missing after capture: ${snapshotFilePath} (${captureLeftNoFile})`)
       try {
         const entries = await fs.readdir(snapshotsDir)
         logForDebugging(`snapshots directory ${snapshotsDir} holds ${entries.length} entries`)
@@ -374,6 +384,7 @@ export async function createAndSaveSnapshot(shell: Pick<ShellRecord, 'path' | 'o
       return undefined
     }
 
+    captureLeftNoFile = null
     registerCleanup(async () => {
       try {
         await getFsImplementation().unlink(snapshotFilePath)
@@ -392,6 +403,7 @@ export async function createAndSaveSnapshot(shell: Pick<ShellRecord, 'path' | 'o
         stack ? `\n${stack}` : ''
       }`,
     )
+    captureLeftNoFile = `the login run of ${shellPath} could not be started: ${errorMessage(unexpectedError)}`
     logError(`shell snapshot creation failed: ${errorMessage(unexpectedError)}`)
     return undefined
   }

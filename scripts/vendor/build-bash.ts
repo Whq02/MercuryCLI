@@ -46,7 +46,7 @@ interface Lock {
   license: string
   licenseFiles: string[]
   sourceNote: string
-  signingKey: string
+  pinsVerifiedWith: { key: string; on: string; how: string }
   tarball: PinnedFile
   patches: PinnedFile[]
   build: { cflags: string; configure: string[]; make: string[] }
@@ -76,9 +76,10 @@ function readLock(): Lock {
   if (!existsSync(LOCK_PATH)) fail(`lock file missing: ${LOCK_PATH}`)
   const lock = JSON.parse(readFileSync(LOCK_PATH, 'utf8')) as Lock
   if (lock.name !== BASH_PACK_NAME) fail(`lock names ${String(lock.name)}, not ${BASH_PACK_NAME}`)
-  for (const key of ['version', 'release', 'license', 'sourceNote', 'signingKey'] as const) {
+  for (const key of ['version', 'release', 'license', 'sourceNote'] as const) {
     if (!lock[key]) fail(`lock is missing '${key}'`)
   }
+  if (!lock.pinsVerifiedWith?.key || !lock.pinsVerifiedWith.on) fail("lock is missing 'pinsVerifiedWith' (the key the pins were verified with by hand, and the day)")
   if (!Array.isArray(lock.licenseFiles) || lock.licenseFiles.length === 0) fail('lock names no licence files')
   if (!Array.isArray(lock.patches) || lock.patches.length !== lock.patchLevel) fail(`lock names ${lock.patches?.length ?? 0} patches for patch level ${String(lock.patchLevel)}`)
   if (lock.version !== `${lock.release}.${lock.patchLevel}`) fail(`lock version ${lock.version} is not release ${lock.release} at patch level ${lock.patchLevel}`)
@@ -301,7 +302,7 @@ function sourceNote(lock: Lock, platform: BashPackPlatform, built: Built): strin
     '',
     'The corresponding source is the GNU release tarball with the official patches applied in order:',
     ...[lock.tarball, ...lock.patches].flatMap(pinned => [`  ${pinned.url}`, `    sha256 ${pinned.sha256}`]),
-    `Each file is signed by the bash maintainer: the .sig beside it on the same server, key ${lock.signingKey}.`,
+    `Each file is signed by the bash maintainer: the .sig beside it on the same server, key ${lock.pinsVerifiedWith.key}.`,
     '',
     'How this binary was built, by scripts/vendor/build-bash.ts from vendor/bash.lock.json of the Mercury source tree (https://github.com/Whq02/MercuryCLI):',
     `  CFLAGS=${lock.build.cflags} ./configure ${configureArgs(lock, platform).join(' ')}`,
@@ -392,7 +393,7 @@ async function main(): Promise<void> {
     let stale = 0
     for (const platform of platforms) {
       const invalid = packInvalidReason(lock, platform)
-      if (invalid === null) console.log(`build-bash --check: OK — ${BASH_PACK_NAME} ${lock.version} ${platform} pack valid against the lock`)
+      if (invalid === null) console.log(`build-bash --check: OK — ${BASH_PACK_NAME} ${lock.version} ${platform} pack valid against the lock's digests (the tarball and ${lock.patches.length} patches by sha256, the flags, the binary's own sha256); no signature is checked: the key in the lock is a note of what the pins were verified with by hand on ${lock.pinsVerifiedWith.on}`)
       else {
         stale++
         console.error(`build-bash --check: STALE — ${platform}: ${invalid}`)

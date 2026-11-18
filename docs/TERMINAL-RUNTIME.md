@@ -290,8 +290,9 @@ default is the bash Mercury ships (GNU bash 5.3), spawning a fresh child per
 command where the working directory carries from call to call and everything
 else resets; `system` is that road's name in the setting. When the shipped
 bash is absent or does not start, the system's own bash runs the command,
-whatever its version, and when no bash starts the bundled engine does. zsh is
-never run, whatever `$SHELL` names. On Windows the default is a bash 5 too: one
+whatever its version, and when no bash starts the bundled engine does. The Bash
+tool never runs a command in zsh and never hands one to it, whatever `$SHELL` names.
+On Windows the default is a bash 5 too: one
 that is installed first (Git for Windows ships one, found through `git`, or
 the `bash.exe` that `MERCURY_GIT_BASH_PATH` names), then the bash that rides
 every Windows archive, and the bundled engine when no bash starts. An
@@ -307,14 +308,32 @@ text (`COPYING`, GPL-3.0-or-later) and a `SOURCE` note naming the tarball, the
 patches and the build's flags. Mercury starts it as a separate program. It
 links nothing outside the operating system: the macOS binary uses the system's
 own libraries and the Linux binary is static. A command starts from the
-environment Mercury was started with, PATH first, and from the aliases,
-functions and options of your bash files (`~/.bash_profile` or `~/.profile`
-at login, `~/.bashrc`); what is written for zsh in `~/.zshrc` or `~/.zshenv`
-is not read. The session's shell line names the shell that runs and its
-version. Inside a command `$SHELL` names the shipped bash; a `bash` the
-command starts by name, or a script that begins `#!/usr/bin/env bash`, runs
-whichever bash PATH finds, which on a Mac is the system's 3.2 unless a newer
-one stands earlier on PATH.
+environment Mercury was started with, unchanged: `PATH` first, and `SHELL` as
+the launcher had it (`$BASH` names the shell that runs). No command is a login
+shell. Your bash login files are read once a session, in one login run that
+has no input and is ended after ten seconds, and the aliases, functions and
+options they define are carried to each command: from `~/.bash_profile` (or
+`~/.bash_login`, or `~/.profile`) and from `~/.bashrc`, whether or not
+`~/.bashrc` exists. A `~/.bashrc` that returns early for a shell that is not
+interactive carries nothing written below that line. A login file that ends
+the shell, hands it to another program or runs past the ten seconds carries
+nothing; commands then run without it. What is written for zsh in `~/.zshrc`
+or `~/.zshenv` is not read. The session's shell line names the shell that runs
+and its version. A `bash` the command starts by name, or a script that begins
+`#!/usr/bin/env bash`, runs whichever bash PATH finds, which on a Mac is the
+system's 3.2 unless a newer one stands earlier on PATH.
+
+Two roads that once put a command in front of another shell start Mercury's
+own. In an editor that offers its terminal, Mercury asks the editor for its
+shell by path, with `-c` and one line as the arguments; before the first
+command of a session it asks once for that shell on a harmless line, and an
+editor that errors or does not print the answer within ten seconds is passed
+over for the session: commands run in the local shell and the first result
+says so. A `MERCURY_SHELL_PREFIX` wrapper is handed one line that starts
+Mercury's shell on the command, quoted with single quotes alone, so whichever
+shell the wrapper runs reads that line and no word of the command. A command
+that starts zsh itself (`zsh -c '…'`) is asked about: Mercury does not read
+the script zsh will run.
 
 The bash of the Windows archives is GNU bash 5.3 as the MSYS2 project packages
 it, with the MSYS2 runtime (`msys-2.0.dll`) and the programs a command names

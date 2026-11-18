@@ -521,32 +521,67 @@ section('(4) the record — which shell this is, asked in one place: places that
 {
   const RECORD = 'src/utils/shell/shellRecord.ts'
   const WORDS = /ZSH_VERSION|BASH_VERSION|BASHPID|setopt |shopt |pipestatus/i
+  const STILL_OUTSIDE: Record<string, number> = {
+    'src/utils/bash/ShellSnapshot.ts': 1,
+  }
+  const SHELL_WORDS = new Set(['bash', 'zsh', 'sh', 'dash', 'ksh', 'fish', 'ash', 'mksh', 'yash', 'csh', 'tcsh'])
+  const namesAShell = (text: string): boolean => /^(?:.*\/)?(?:zsh|bash)(?:\.exe)?$/.test(text)
+  const NAME_METHODS = new Set(['includes', 'endsWith', 'startsWith', 'indexOf'])
+  const EQUALITY = new Set([ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken, ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsToken])
+  const toolTypeRead = (node: ts.Expression): boolean => (ts.isIdentifier(node) && /^(?:shell)?type$/i.test(node.text)) || (ts.isPropertyAccessExpression(node) && /^(?:shell)?type$/i.test(node.name.text))
   const askers = new Set(edges.filter(edge => edge.to === RECORD).map(edge => edge.from))
   const scope = files.filter(file => file.startsWith('src/utils/shell/') || askers.has(file))
-  const placesOf = (file: string): number[] => {
-    const source = ts.createSourceFile(file, readFileSync(join(ROOT, file), 'utf8'), ts.ScriptTarget.ESNext, true, file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
+  const placesIn = (file: string, text: string): number[] => {
+    const source = ts.createSourceFile(file, text, ts.ScriptTarget.ESNext, true, file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
     const hit = new Set<number>()
     const lineOf = (node: ts.Node): number => source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1
     const visit = (node: ts.Node): void => {
-      if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'includes' && node.arguments.length === 1) {
+      if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && NAME_METHODS.has(node.expression.name.text) && node.arguments.length >= 1) {
         const asked = node.arguments[0]!
-        if (ts.isStringLiteralLike(asked) && (asked.text === 'zsh' || asked.text === 'bash')) hit.add(lineOf(node))
+        if (ts.isStringLiteralLike(asked) && namesAShell(asked.text)) hit.add(lineOf(node))
       }
+      if (ts.isBinaryExpression(node) && EQUALITY.has(node.operatorToken.kind)) {
+        const [name, other] = ts.isStringLiteralLike(node.left) ? [node.left, node.right] : ts.isStringLiteralLike(node.right) ? [node.right, node.left] : [null, null]
+        if (name !== null && other !== null && namesAShell(name.text) && !toolTypeRead(other)) hit.add(lineOf(node))
+      }
+      if (ts.isCaseClause(node) && ts.isStringLiteralLike(node.expression) && namesAShell(node.expression.text) && !toolTypeRead(node.parent.parent.expression)) hit.add(lineOf(node))
+      if (ts.isRegularExpressionLiteral(node) && /(?:^|[^a-z])(?:zsh|bash)(?:[^a-z]|$)/i.test(node.text)) hit.add(lineOf(node))
+      if (ts.isArrayLiteralExpression(node) && node.elements.filter(element => ts.isStringLiteralLike(element) && SHELL_WORDS.has(element.text)).length >= 2) hit.add(lineOf(node))
       if ((ts.isStringLiteralLike(node) || ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node)) && WORDS.test(node.text)) hit.add(lineOf(node))
       ts.forEachChild(node, visit)
     }
     visit(source)
     return [...hit].sort((a, b) => a - b)
   }
-  const found = scope.map(file => ({ file, lines: placesOf(file) })).filter(row => row.lines.length > 0)
+  const SPELLINGS: Array<[string, string]> = [
+    ['includes', "const a = shell.includes('zsh')"],
+    ['endsWith', "const a = shell.endsWith('/zsh')"],
+    ['startsWith', "const a = name.startsWith('bash')"],
+    ['an equality', "const a = basename(shell) === 'zsh'"],
+    ['an inequality', "const a = name !== 'bash'"],
+    ['a case', "switch (name) { case 'zsh': break }"],
+    ['a pattern', 'const a = /(?:^|\\/)zsh$/.test(shell)'],
+    ['a set of names', "const NAMES = new Set(['bash', 'zsh', 'sh', 'dash'])"],
+    ["one shell's own word", "const a = 'setopt NO_NOMATCH'"],
+  ]
+  const unread = SPELLINGS.filter(([, text]) => placesIn('spelling.ts', text).length !== 1).map(([name]) => name)
+  check(`a comparison of a shell's name is read however it is spelled: ${SPELLINGS.map(([name]) => name).join(', ')}`, unread.length === 0, unread.map(name => `${name} is not read`))
+  const NOT_A_NAME = ["if (shellType === 'bash') run()", "const TYPES = ['bash', 'powershell'] as const", "if (provider.type !== 'bash') run()", "const found = which('bash')"]
+  const misread = NOT_A_NAME.filter(text => placesIn('spelling.ts', text).length !== 0)
+  check("the tool's own type word is not a shell's name: shellType and a provider's type against 'bash', the list of tool types, a search for a program", misread.length === 0, misread.map(text => `${text} is read as a comparison of a shell's name`))
+
+  const found = scope.map(file => ({ file, lines: placesIn(file, readFileSync(join(ROOT, file), 'utf8')) })).filter(row => row.lines.length > 0)
   const outside = found.filter(row => row.file !== RECORD)
   const inside = found.find(row => row.file === RECORD)?.lines.length ?? 0
+  const unlisted = outside.filter(row => row.lines.length > (STILL_OUTSIDE[row.file] ?? 0))
+  const fallen = Object.entries(STILL_OUTSIDE).filter(([file, count]) => (outside.find(row => row.file === file)?.lines.length ?? 0) < count)
   check(
-    `no file but the record asks which shell this is: ${outside.reduce((n, row) => n + row.lines.length, 0)} places in ${outside.length} files outside ${RECORD}, ${inside} inside it, over the ${scope.length} files of the shell folder and the record's askers (${askers.size})`,
-    known.has(RECORD) && askers.size > 0 && outside.length === 0,
+    `no file but the record asks which shell this is, but for the list that may only fall: ${outside.reduce((n, row) => n + row.lines.length, 0)} places in ${outside.length} files outside ${RECORD} (the list holds ${Object.values(STILL_OUTSIDE).reduce((n, count) => n + count, 0)}: ${Object.keys(STILL_OUTSIDE).join(', ')}), ${inside} inside it, over the ${scope.length} files of the shell folder and the record's askers (${askers.size})`,
+    known.has(RECORD) && askers.size > 0 && unlisted.length === 0 && fallen.length === 0,
     known.has(RECORD)
       ? [
-          ...outside.flatMap(row => row.lines.map(line => `${row.file}:${line} tests a shell's name or spells one shell's own words`)),
+          ...unlisted.flatMap(row => row.lines.map(line => `${row.file}:${line} tests a shell's name or spells one shell's own words`)),
+          ...fallen.map(([file, count]) => `${file} holds fewer than its row of ${count}: lower the row in STILL_OUTSIDE of ${SELF}, or delete it at 0`),
           `ask ${RECORD} instead: shellRecord() and systemShellRecord() give the path, the dialect, the version and the origin; shellRecordWords() the prompt's words; getGlobPreambleCommand(origin) the preamble; a word only one shell understands is a constant of the record`,
         ]
       : [

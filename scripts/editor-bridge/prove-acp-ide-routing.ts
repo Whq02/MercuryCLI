@@ -56,12 +56,13 @@ const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 interface ClientHandlers {
   onReadTextFile?: (params: { sessionId: string; path: string; line?: number | null; limit?: number | null }) => { content: string } | Promise<{ content: string }>
   onWriteTextFile?: (params: { sessionId: string; path: string; content: string }) => Record<string, never> | Promise<Record<string, never>>
-  onTerminalCreate?: (params: { sessionId: string; command: string; cwd?: string | null }) => { terminalId: string } | Promise<{ terminalId: string }>
+  onTerminalCreate?: (params: { sessionId: string; command: string; args?: string[]; cwd?: string | null }) => { terminalId: string } | Promise<{ terminalId: string }>
   onTerminalOutput?: (params: { sessionId: string; terminalId: string }) => { output: string; truncated: boolean; exitStatus?: { exitCode?: number | null } | null }
   onTerminalWaitForExit?: (params: { sessionId: string; terminalId: string }) => { exitCode?: number | null } | Promise<{ exitCode?: number | null }>
   onTerminalKill?: (params: { sessionId: string; terminalId: string }) => Record<string, never>
   onTerminalRelease?: (params: { sessionId: string; terminalId: string }) => Record<string, never>
   onRequestPermission?: (params: Record<string, unknown>) => { outcome: { outcome: 'selected'; optionId: string } }
+  shellQuestionGoesToTheHandler?: boolean
 }
 
 function connectClient(server: ChildProcess, handlers: ClientHandlers = {}) {
@@ -70,6 +71,9 @@ function connectClient(server: ChildProcess, handlers: ClientHandlers = {}) {
   const fsReads: Array<{ path: string; line?: number | null; limit?: number | null }> = []
   const fsWrites: Array<{ path: string; content: string }> = []
   const termCalls: Array<{ op: string; payload: Record<string, unknown> }> = []
+  const shellQuestions = new Map<string, string>()
+  const shellQuestionOf = (params: unknown): string | null => /^printf '%s\\n' (mercury-shell-[0-9a-f]+)$/.exec(((params as { args?: string[] }).args ?? [])[1] ?? '')?.[1] ?? null
+  const shellAnswerOf = (params: unknown): string | undefined => shellQuestions.get((params as { terminalId: string }).terminalId)
 
   const app = acp
     .client({ name: 'ide-routing-proof' })
@@ -93,26 +97,37 @@ function connectClient(server: ChildProcess, handlers: ClientHandlers = {}) {
       return handlers.onWriteTextFile(ctx.params)
     })
     .onRequest('terminal/create', async ctx => {
+      const question = shellQuestionOf(ctx.params)
+      if (question !== null && handlers.onTerminalCreate && handlers.shellQuestionGoesToTheHandler !== true) {
+        const terminalId = `shell-question-${shellQuestions.size + 1}`
+        shellQuestions.set(terminalId, question)
+        return { terminalId }
+      }
       termCalls.push({ op: 'create', payload: ctx.params as unknown as Record<string, unknown> })
       if (!handlers.onTerminalCreate) throw new Error('terminal/create not configured')
       return handlers.onTerminalCreate(ctx.params)
     })
     .onRequest('terminal/output', ctx => {
+      const answer = shellAnswerOf(ctx.params)
+      if (answer !== undefined) return { output: `${answer}\n`, truncated: false, exitStatus: { exitCode: 0 } }
       termCalls.push({ op: 'output', payload: ctx.params as unknown as Record<string, unknown> })
       if (!handlers.onTerminalOutput) return { output: '', truncated: false }
       return handlers.onTerminalOutput(ctx.params)
     })
     .onRequest('terminal/wait_for_exit', async ctx => {
+      if (shellAnswerOf(ctx.params) !== undefined) return { exitCode: 0 }
       termCalls.push({ op: 'wait_for_exit', payload: ctx.params as unknown as Record<string, unknown> })
       if (!handlers.onTerminalWaitForExit) return { exitCode: 0 }
       return handlers.onTerminalWaitForExit(ctx.params)
     })
     .onRequest('terminal/kill', ctx => {
+      if (shellAnswerOf(ctx.params) !== undefined) return {}
       termCalls.push({ op: 'kill', payload: ctx.params as unknown as Record<string, unknown> })
       if (handlers.onTerminalKill) return handlers.onTerminalKill(ctx.params)
       return {}
     })
     .onRequest('terminal/release', ctx => {
+      if (shellAnswerOf(ctx.params) !== undefined) return {}
       termCalls.push({ op: 'release', payload: ctx.params as unknown as Record<string, unknown> })
       if (handlers.onTerminalRelease) return handlers.onTerminalRelease(ctx.params)
       return {}
@@ -465,12 +480,12 @@ section('§6 terminal only (fs.readTextFile: false, fs.writeTextFile: false, ter
     { kind: 'text', text: 'terminal only done' },
   ])
   const commands = new Map<string, string>()
-  const exitOf = (id: string): number => (commands.get(id) === 'exit 3' ? 3 : 0)
+  const exitOf = (id: string): number => ((commands.get(id) ?? '').includes("eval 'exit 3'") ? 3 : 0)
   const server = spawnServer(api.url)
   const h = connectClient(server, {
     onTerminalCreate: p => {
       const id = `t${commands.size + 1}`
-      commands.set(id, p.command)
+      commands.set(id, (p.args ?? []).join(' '))
       return { terminalId: id }
     },
     onTerminalOutput: p => ({ output: exitOf(p.terminalId) === 3 ? 'boom\n' : 'hi\n', truncated: false, exitStatus: { exitCode: exitOf(p.terminalId) } }),
@@ -516,6 +531,7 @@ section('§7 the editor cannot create a terminal: the command runs in the local 
   ])
   const server = spawnServer(api.url)
   const h = connectClient(server, {
+    shellQuestionGoesToTheHandler: true,
     onTerminalCreate: () => {
       throw new acp.RequestError(-32603, 'no pty available in this editor')
     },
@@ -534,6 +550,11 @@ section('§7 the editor cannot create a terminal: the command runs in the local 
       'the result states that the editor could not open a terminal, why, and that the local shell ran the command',
       results.some(r => /editor/i.test(r) && /terminal/i.test(r) && r.includes('no pty available in this editor') && /local shell/i.test(r)),
       j(results),
+    )
+    check(
+      'the editor was asked once, for Mercury\'s shell by its path on a harmless line, and never handed the command',
+      h.termCalls.filter(c => c.op === 'create').length === 1 && h.termCalls.every(c => c.op !== 'create' || (String(c.payload.command).endsWith('/bash') && /^printf '%s\\n' mercury-shell-[0-9a-f]+$/.test(String((c.payload.args as string[] | undefined)?.[1] ?? '')))),
+      j(h.termCalls),
     )
     await h.agent.request('session/close', { sessionId }).catch(() => {})
   } finally {

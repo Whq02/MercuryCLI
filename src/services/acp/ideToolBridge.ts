@@ -12,8 +12,6 @@ import { generateTaskId } from '../../Task.js'
 import { createAbortedCommand, type ExecResult, type ShellCommand } from '../../utils/ShellCommand.js'
 import type { ProcessTreeKillReceipt } from '../../utils/processGroup.js'
 import { getTaskOutputDir } from '../../utils/task/diskOutput.js'
-import { subprocessEnv } from '../../utils/subprocessEnv.js'
-import { scrubSessionEnvStamps } from '../../substrate/envStamps.js'
 
 interface IdeToolCapabilities {
   readTextFile: boolean
@@ -41,6 +39,7 @@ const virtualGenerations = new Map<string, { generation: string; mtimeMs: number
 
 export function registerIdeToolDoor(door: IdeToolDoor | null): void {
   activeDoor = door
+  editorShellAsked = null
   if (door === null) virtualGenerations.clear()
 }
 
@@ -247,35 +246,98 @@ async function settleCapturedOutput(text: string): Promise<Pick<ExecResult, 'std
   }
 }
 
+type EditorTerminalShell = {
+  file: string
+  args: string[]
+  argsFor: (line: string) => string[]
+  env: NodeJS.ProcessEnv
+  scrubbed: readonly string[]
+  leftBehind: readonly string[]
+}
+
+const EDITOR_SHELL_PROBE_MS = 10_000
+
+let editorShellAsked: { refusal: Promise<string | null>; said: boolean } | null = null
+
+async function editorShellRefusal(
+  door: IdeToolDoor,
+  shell: EditorTerminalShell,
+  env: Array<{ name: string; value: string }>,
+  cwd: string,
+  abortSignal: AbortSignal,
+): Promise<string | null> {
+  const word = `mercury-shell-${Math.random().toString(16).slice(2, 14)}`
+  const bound = AbortSignal.any([abortSignal, AbortSignal.timeout(EDITOR_SHELL_PROBE_MS)])
+  let terminalId: string
+  try {
+    const created = await door.terminalCreate(
+      { command: shell.file, args: shell.argsFor(`printf '%s\\n' ${word}`), cwd, env, output_byte_limit: 4096 },
+      bound,
+    )
+    terminalId = created.terminal_id
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error)
+  }
+  let refusal: string | null
+  try {
+    await door.terminalWaitForExit({ terminal_id: terminalId }, bound)
+    const said = await door.terminalOutput({ terminal_id: terminalId }, bound)
+    refusal = said.output.includes(word) ? null : `asked to start ${shell.file} on one line, it did not print what that line prints`
+  } catch (error) {
+    refusal = `asked to start ${shell.file} on one line, it did not answer within ${EDITOR_SHELL_PROBE_MS / 1000} s: ${error instanceof Error ? error.message : String(error)}`
+    try {
+      await door.terminalKill({ terminal_id: terminalId })
+    } catch (killError) {
+      refusal = `${refusal}; ending that terminal failed too: ${killError instanceof Error ? killError.message : String(killError)}`
+    }
+  }
+  try {
+    await door.terminalRelease({ terminal_id: terminalId })
+  } catch (releaseError) {
+    if (refusal !== null) refusal = `${refusal}; releasing that terminal failed too: ${releaseError instanceof Error ? releaseError.message : String(releaseError)}`
+  }
+  return refusal
+}
+
 export async function execViaIdeTerminal(
-  command: string,
   abortSignal: AbortSignal,
   options: {
     cwd: string
     timeout: number
+    shell: EditorTerminalShell
     shouldAutoBackground?: boolean
-    inheritSessionEnv?: boolean
     onProgress?: (recent: string, all: string, lines: number, bytes: number, incomplete: boolean) => void
   },
 ): Promise<ShellCommand | null> {
   if (!ideTerminalAvailable() || activeDoor === null) return null
   const door = activeDoor
   if (abortSignal.aborted) return createAbortedCommand()
-
-  const base = options.inheritSessionEnv === true
-    ? { env: subprocessEnv(), scrubbed: [] as string[] }
-    : scrubSessionEnvStamps(subprocessEnv())
+  const shell = options.shell
 
   const envList: Array<{ name: string; value: string }> = []
-  for (const [k, v] of Object.entries(base.env)) {
+  for (const [k, v] of Object.entries(shell.env)) {
     if (typeof v === 'string') envList.push({ name: k, value: v })
+  }
+
+  editorShellAsked ??= { refusal: editorShellRefusal(door, shell, envList, options.cwd, abortSignal), said: false }
+  const asked = editorShellAsked
+  const refusal = await asked.refusal
+  if (abortSignal.aborted) {
+    if (refusal !== null && !asked.said && editorShellAsked === asked) editorShellAsked = null
+    return createAbortedCommand()
+  }
+  if (refusal !== null) {
+    if (asked.said) return null
+    asked.said = true
+    throw new IdeTerminalUnavailableError(`The editor's terminal could not start Mercury's shell (${refusal}); this command ran in the local shell, and so will the rest of this session's.`)
   }
 
   let terminalId: string
   try {
     const created = await door.terminalCreate(
       {
-        command,
+        command: shell.file,
+        args: shell.args,
         cwd: options.cwd,
         env: envList,
         output_byte_limit: IDE_TERMINAL_OUTPUT_BYTES,
@@ -285,7 +347,7 @@ export async function execViaIdeTerminal(
     terminalId = created.terminal_id
   } catch (error) {
     if (abortSignal.aborted) return createAbortedCommand()
-    throw new IdeTerminalUnavailableError(error instanceof Error ? error.message : String(error))
+    throw new IdeTerminalUnavailableError(`The editor could not open a terminal (${error instanceof Error ? error.message : String(error)}); this command ran in the local shell.`)
   }
 
   const taskId = generateTaskId('local_bash')
@@ -404,6 +466,7 @@ export async function execViaIdeTerminal(
       }
     } finally {
       abortSignal.removeEventListener('abort', onAbort)
+      void Promise.allSettled(shell.leftBehind.map(path => getFsImplementation().unlink(path)))
     }
   })()
 
@@ -435,7 +498,7 @@ export async function execViaIdeTerminal(
         }
       : {}),
     taskOutput,
-    scrubbedSessionEnv: base.scrubbed,
+    scrubbedSessionEnv: shell.scrubbed,
   }
   return handle
 }

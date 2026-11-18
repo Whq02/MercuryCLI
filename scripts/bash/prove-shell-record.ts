@@ -65,12 +65,12 @@ if (pack.state === 'ok') {
 check('the record the session asks for is the same one', JSON.stringify(await record.shellRecord()) === JSON.stringify(road) && JSON.stringify(record.shellRecordNow()) === JSON.stringify(road))
 check('the provider the Bash tool spawns runs that path', (await getShellConfig()).provider.shellPath === road.path)
 {
-  const probe = ['echo', '"ran:$BASH_VERSION:${ZSH_VERSION:-none}:$SHELL"'].join(' ')
+  const probe = ['echo', '"ran:$BASH_VERSION:${ZSH_VERSION:-none}:${BASH:-none}:$SHELL"'].join(' ')
   const handle = await exec(probe, new AbortController().signal, 'bash', { timeout: 30_000, preventCwdChanges: true })
   const result = await handle.result
   handle.cleanup()
   const line = result.stdout.split('\n').find(text => text.startsWith('ran:')) ?? ''
-  check('a command through the road runs in that shell, and its $SHELL names it', road.origin === 'engine' ? line.endsWith(`:${road.path}`) : line === `ran:${road.version}:none:${road.path}`, JSON.stringify(result.stdout.slice(0, 200)))
+  check('a command through the road runs in that shell ($BASH names it), and its $SHELL is the one the launcher had, not rewritten', road.origin === 'engine' ? line.endsWith(`:${road.path}`) : line === `ran:${road.version}:none:${road.path}:/bin/zsh`, JSON.stringify(result.stdout.slice(0, 200)))
 }
 
 section('(2) the words the prompt and the tool read from the record')
@@ -161,6 +161,34 @@ section('(4) the sentence a bash before 4.0 is given, held to what that bash doe
     const committed = spawnSync(oldBash, ['--norc', '--noprofile', '-c', "git commit -q --allow-empty -F - <<'EOF'\nfix: it's the reader's guard (one\nEOF"], { cwd: repo, encoding: 'utf8', env: { PATH: process.env.PATH ?? '/usr/bin:/bin', HOME: userHome, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@mercury.invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@mercury.invalid', GIT_CONFIG_NOSYSTEM: '1' } })
     const subject = git(['log', '-1', '--format=%s']).trim()
     check(`${oldBash}: the command the sentence gives commits the message whole`, committed.status === 0 && subject === "fix: it's the reader's guard (one", `status ${String(committed.status)} ${committed.stderr.slice(0, 160)} subject ${JSON.stringify(subject)}`)
+  }
+}
+
+section("(5) a reviewer's verification command is wrapped with the shell that runs it")
+{
+  const { canonicalReviewerReceipt, restrictReviewerTools } = await import('../../src/tools/AgentTool/reviewerPolicy.ts')
+  const { BASH_TOOL_NAME } = await import('../../src/tools/BashTool/toolName.ts')
+  const frozen = join(scratch, 'frozen')
+  mkdirSync(join(frozen, 'scripts', 'checks'), { recursive: true })
+  writeFileSync(join(frozen, 'scripts', 'checks', 'prove-read.ts'), 'console.log("review proof ran")\n')
+  const report = join(scratch, 'report.md')
+  writeFileSync(report, '# Report\n\n## Review\npending\n')
+  let handed = ''
+  const standIn = { name: BASH_TOOL_NAME, isReadOnly: () => false, call: async (input: { command: string }) => { handed = input.command; return { data: {} } } }
+  const wrapped = restrictReviewerTools([standIn] as never, canonicalReviewerReceipt(report, frozen), frozen)[0] as unknown as { call: (input: { command: string }, context: unknown) => Promise<unknown> }
+  let refused = ''
+  try {
+    await wrapped.call({ command: ['bun', 'scripts/checks/prove-read.ts'].join(' ') }, {})
+  } catch (error) {
+    refused = error instanceof Error ? error.message : String(error)
+  }
+  if (/confinement/.test(refused)) console.log(`  [SKIP] this host has no confinement for a reviewer's command (${refused})`)
+  else {
+    check(
+      'the line handed to the Bash tool starts, inside the confinement, "${BASH:-/bin/bash}" -c: the shell that runs the line, whose $BASH section (1) holds to the record\'s path, and not /bin/bash by its name',
+      handed.includes(' "${BASH:-/bin/bash}" -c ') && !handed.includes(' /bin/bash -c '),
+      `${refused} ${JSON.stringify(handed.slice(0, 220))}`,
+    )
   }
 }
 
