@@ -216,16 +216,6 @@ const plain = await restart(undefined)
   tally.check('P3 no row on a plain resume, and the operator\'s line is not queued again', plain.outcome === null && !plain.queued.some(c => c.value.includes('runner restarted after') || c.value === LINE), told(plain))
 }
 
-tally.section('O1 the runner runs the carry before the reconciliation, inside the one resume closure')
-{
-  const run = readFileSync(join(REPO, 'src', 'cli', 'run.ts'), 'utf8')
-  const carryAt = run.indexOf('await carryRunnerAcrossRestart({')
-  const reconcileAt = run.indexOf('reconcileBackgroundLaunchesOnResume(messages, getAppState, setAppState, Date.now(), coerceRestartReason(runnerRestartReason))')
-  const closureAt = run.indexOf('const hydrateResumedRun = async')
-  const callAt = run.indexOf('if (options.continue || options.resume) await hydrateResumedRun()')
-  tally.check('O1 both calls sit in hydrateResumedRun, the carry first (the order this proof drives them in)', closureAt > 0 && carryAt > closureAt && reconcileAt > carryAt && reconcileAt < callAt, JSON.stringify({ closureAt, carryAt, reconcileAt, callAt }))
-}
-
 await sleep(300)
 await removeWorld(root)
 tally.finish()

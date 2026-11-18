@@ -268,7 +268,7 @@ console.log('\n── R6: the warm claim binds and acks, then loads the transcri
   ).catch(() => null)
   rmSync(pinnedHome, { recursive: true, force: true })
   check('R6 a missing transcript refuses the claim before it binds and hands the home pin back', refusedClaim?.resume?.message === `claim refused — no conversation found for session ${UNSEEN}` && refusedClaim.fresh === null && refusedClaim.pinned.some(name => name.startsWith(`${CLAIMED}.jsonl`)), JSON.stringify(refusedClaim))
-  check('R6 the boot\'s own resume road rides the same hydration closure', print.includes('if (options.continue || options.resume) await hydrateResumedRun()'))
+  check('R6 the boot\'s own resume road rides the same hydration closure', print.includes('if (options.continue || options.resume) await hydrateResumedRun(ports)'))
   check('R6 the wire names the field; the pool sends it', read('src/runner/wire/methods.ts').includes('resume: z.boolean().optional()') && read('src/daemon/warmRunner.ts').includes("...(args.resume === true ? { resume: true } : {})"))
 }
 
