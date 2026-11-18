@@ -73,7 +73,7 @@ const armedByTheProduct = (): boolean => {
   return stack.includes(PRODUCT) || stack.includes(PRODUCT.split(sep).join('/'))
 }
 
-function installClock(): { now: () => number; advance: (ms: number) => void } {
+function installClock(): { now: () => number; advance: (ms: number) => void; begin: (hour: number) => void } {
   let now = CLOCK_ZERO
   let nextId = 1
   const timers: FakeTimer[] = []
@@ -113,6 +113,11 @@ function installClock(): { now: () => number; advance: (ms: number) => void } {
   Object.defineProperty(globalThis.performance, 'now', { value: () => now - CLOCK_ZERO, configurable: true, writable: true })
   return {
     now: () => now,
+    begin: hour => {
+      for (const t of timers) t.dead = true
+      timers.length = 0
+      now = CLOCK_ZERO + hour * 3_600_000
+    },
     advance: ms => {
       const target = now + ms
       for (;;) {
@@ -247,7 +252,7 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
     readonly home: string
     readonly transcriptPath: string
     readonly connector: InstanceType<typeof DaemonSessionConnector>
-    private readonly guts: { attached: boolean; tick: () => Promise<void>; readFacts: () => void; readTail: () => void; readAsks: () => void; settleCarrierGone: () => void; armTranscriptWatcher: () => void; rpc?: (req: Reply) => Promise<Reply> }
+    private readonly guts: { attached: boolean; tick: () => Promise<void>; readFacts: () => void; readTail: () => void; readAsks: () => void; armTranscriptWatcher: () => void; rpc?: (req: Reply) => Promise<Reply> }
     private readonly ids = new Map<string, string>()
     private readonly last = new Map<string, string>()
     private rows: Row[] = []
@@ -429,7 +434,10 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
     private async settle(what: string): Promise<void> {
       await within(`${this.name}: ${what}: the carrier was scripted ${this.script.length} more replies than it was asked for`, this.serving)
       await Promise.all(this.closing.splice(0))
-      for (const entry of this.apart.splice(0)) this.event(entry)
+      const apart = this.apart.splice(0)
+      const place = (entry: Record<string, unknown>): string => JSON.stringify(entry.carrier).replace(new RegExp(UUID.source, 'gi'), '<id>')
+      if (apart.length > 1) apart.sort((a, b) => (place(a) < place(b) ? -1 : place(a) > place(b) ? 1 : 0))
+      for (const entry of apart) this.event(entry)
       if (this.guts.attached) await this.guts.tick.call(this.connector)
       for (let i = 0; i < 4; i++) await turn()
       await pause(1)
@@ -650,15 +658,14 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
       })
     }
 
-    carrierGone(): Promise<void> {
-      return this.step('the carrier is read gone', [], () => this.guts.settleCarrierGone.call(this.connector))
-    }
-
     beat(): Promise<void> {
       return this.step('the clock moves 1000 ms and the probe of the carrier ends', [], async () => {
         clock.advance(1000)
         for (let i = 0; i < 4; i++) await turn()
-        for (let i = 0; i < 8; i++) await readFile(daemonStatePath(), 'utf8').catch(() => null)
+        for (let round = 0; round < 3; round++) {
+          for (let i = 0; i < 8; i++) await readFile(daemonStatePath(), 'utf8').catch(() => null)
+          await pause(1)
+        }
         for (let i = 0; i < 4; i++) await turn()
       })
     }
@@ -694,8 +701,11 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
   const outcome = (word: string, extra: Reply = {}): Reply => ({ ok: true, op: 'sessionControl', outcome: word, ...extra })
   const refusedBy = (error: string, extra: Reply = {}): Reply => ({ ok: false, code: 'EREFUSED', error, ...extra })
   const dispatched: Reply = { ok: true, op: 'sessionDispatch', state: 'delivered' }
+  let scenariosSeen = 0
   const scenario = async (name: string, run: (h: Harness) => Promise<void>, record: Record<string, unknown> = {}, before: (h: Harness) => void = () => {}): Promise<void> => {
+    const hour = scenariosSeen++
     if (only.length > 0 && !only.includes(name)) return
+    clock.begin(hour)
     _resetDaemonUsableMemoForProofs()
     rmSync(concourseWorkersPath(daemonDir), { force: true })
     rmSync(daemonStatePath(), { force: true })
@@ -973,12 +983,13 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
     await h.hold(true)
     await h.transcript('a turn waits on its crew', [h.user('run the errands'), h.assistant('msg_crew', [{ type: 'tool_use', id: 'toolu_crew', name: 'Crewmate', input: { prompt: 'go' } }])])
     await h.facts({ busy: true, turnStartedAt: clock.now(), work: [crewRow('agent-a', 'running')], mission: [{ id: 'm1', title: 'the mission', status: 'running' }], samples: [{ id: 's1', label: 'a sample' }] })
-    await h.advance(1000)
-    await h.carrierGone()
-    await h.carrierGone()
+    await h.beat()
+    h.daemonRecord('gone')
+    for (let i = 0; i < 3; i++) await h.beat()
+    await h.beat()
     await h.rereadFacts()
     await h.facts({ busy: true, turnStartedAt: clock.now(), work: [crewRow('agent-a', 'running')] })
-    await h.carrierGone()
+    for (let i = 0; i < 3; i++) await h.beat()
     await h.dropFacts()
   })
 
@@ -1354,8 +1365,9 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
       (h.connector.asks() as Array<{ id: string; confirm: never }>).find(a => a.id === id)!.confirm
     const cardA = card('ask-a')
     const byRequest = (req: Reply): Reply => (req.op === 'sessionDispatch' ? dispatched : req.allow === true ? applied() : outcome('refused', { detail: 'the ask was already answered' }))
-    await h.step('the card of ask-a is allowed with words and rejected in the same tick', [byRequest, byRequest, { apart: byRequest }], async () => {
+    await h.step('the card of ask-a is allowed with words and rejected in the same tick', [{ apart: byRequest }, { apart: byRequest }, { apart: byRequest }], async () => {
       await Promise.all([cardA.onAllow({ command: 'make' }, [], 'go on', undefined), cardA.onReject('no', undefined)])
+      for (let i = 0; i < 2000 && h.connector.queuedSendCount() !== 1; i++) await pause(1)
     })
     await h.step('ask-b is answered twice through the door in one tick', [applied()], async () => {
       const both = await Promise.all([h.connector.answerAsk('ask-b', { kind: 'deny', feedback: 'not now' }), h.connector.answerAsk('ask-b', { kind: 'allow' })])
