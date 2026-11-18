@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-watch: src/components/mercury-ui/toolCardGrammar* src/ink/**
+# gate-watch: src/ink/**
 # gate-watch: src/services/agentResults/normalize* src/services/changeTransaction/receipts*
 # gate-watch: src/services/changeTransaction/snapshotAnchor* src/services/dap/dapClient*
 # gate-watch: src/services/lsp/LSPServerInstance* src/services/primitives/**
@@ -10,7 +10,6 @@
 # gate-watch: src/services/resources/registry* src/services/run/**
 # gate-watch: src/utils/task/executionProjection* src/utils/task/framework*
 # gate-watch: src/utils/verification/verificationState*
-# gate-watch: scripts/lib/proofHome.ts scripts/primitives-kernel/render-primitives-kernel-cards.tsx src/ink.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

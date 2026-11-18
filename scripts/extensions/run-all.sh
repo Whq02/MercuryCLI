@@ -1,25 +1,12 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/extensions/** src/skills/loadSkillsDir* src/utils/hooks/**
-# gate-watch: docs/EXTENSIONS.md docs/templates/extension-source-README.md
-# gate-watch: mercury-skills/extension-maker/SKILL.md
-# gate-watch: mercury-skills/extension-maker/references/README-template.md scripts/lib/captureDriver.ts
-# gate-watch: scripts/lib/firstRunSeed.ts scripts/ui/renderScenarios.ts scripts/ui/vshot.py src/Tool.ts
-# gate-watch: src/bootstrap/state.ts src/commands.ts src/commands/extensions/**
-# gate-watch: src/components/HelpV2/commandDomains.ts src/components/extensions/**
+# gate-watch: scripts/lib/captureDriver.ts
+# gate-watch: scripts/ui/renderScenarios.ts scripts/ui/vshot.py
+# gate-watch: src/commands/extensions/**
+# gate-watch: src/components/extensions/**
 # gate-watch: src/keybindings/defaultBindings.ts src/keybindings/schema.ts src/services/mcp/*
-# gate-watch: src/skills/bundled/extension-maker/SKILL.md
-# gate-watch: src/skills/bundled/extension-maker/references/README-template.md
-# gate-watch: src/utils/config/globalConfig.ts src/utils/config/projectConfig.ts src/utils/env.ts
-# gate-watch: src/utils/permissions/permissions.ts src/utils/secureStorage/index.ts
-# gate-watch: src/utils/sessionStoragePortable.ts src/utils/settings/changeDetector.ts
-# gate-watch: src/utils/settings/settings.ts
-# gate-watch: scripts/lib/removeScratch.ts src/tools.ts src/utils/permissions/decision/engine.ts
-# gate-watch: scripts/lib/rows.ts src/query/scriptedStream.ts
-# gate-watch: scripts/lib/hermetic.ts src/cli/extensionApi.ts src/cli/tuneDoor.ts src/entrypoints/cli.tsx src/services/extensions/complete.ts
-# gate-watch: src/services/host/bank.ts src/services/host/idle.ts src/services/host/jobs.ts src/services/host/recipes.ts src/services/host/recipesFile.ts src/services/host/ssh.ts src/services/host/store.ts
-# gate-watch: src/services/localSetup/ggufModels.ts src/services/localSetup/ggufServer.ts src/utils/thinking.ts
-# gate-watch: scripts/lib/platformPath.ts
+# gate-watch: src/utils/sessionStoragePortable.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

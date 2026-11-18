@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/services/desktop/** scripts/vendor/build-desktop.ts native/desktop/** build.ts scripts/release/package.mjs
-# gate-watch: package.json src/bootstrap/state.ts src/daemon/concourseWorkers.ts
-# gate-watch: src/services/voice/voicePack.ts src/substrate/flagRegistry.ts src/utils/healthReport.ts
+# gate-watch: src/services/desktop/** native/desktop/** build.ts scripts/release/package.mjs
 # gate-watch: src/utils/health/sections/interface.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

@@ -1,15 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: scripts/gate/generated-assets.tsv scripts/lib/hermetic.ts src/services/providers/meta/metaPins.ts
-# gate-watch: src/services/providers/mistral/mistralPins.ts
-# gate-watch: src/services/providers/minimax/minimaxPins.ts src/services/providers/cohere/coherePins.ts src/services/providers/groq/groqPins.ts src/services/providers/cerebras/cerebrasPins.ts src/services/providers/fireworks/fireworksPins.ts src/services/providers/qwen/qwenPins.ts
-# gate-watch: assets/splash/** scripts/ui/vshot.py src/substrate/startupMenu*
-# gate-watch: docs/INSTALL-WINDOWS-FROM-SOURCE.md scripts/engine-durability/harness.ts
-# gate-watch: scripts/lib/generated-assets-map.mjs src/components/mercury-ui/focalRamp.ts
-# gate-watch: src/components/mercuryPalette.ts src/ink/colorize.ts src/substrate/* src/utils/*
-# gate-watch: scripts/ink-runtime/ansiEmulator.ts
-# gate-watch: src/utils/cockpit/critterData.ts src/utils/cockpit/greetingShimmer.ts src/utils/model/* src/services/providers/xai/xaiPins.ts
-# gate-watch: src/services/providers/deepseek/deepseekPins.ts src/services/providers/moonshot/kimiPins.ts src/services/providers/zai/zaiAdapter.ts
+# gate-watch: assets/splash/** scripts/ui/vshot.py
+# gate-watch: src/substrate/* src/utils/*
+# gate-watch: src/utils/model/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

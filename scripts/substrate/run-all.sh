@@ -1,43 +1,14 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/bootstrap/state* src/commands/kill/**
-# gate-watch: src/components/messages/nullRenderingAttachments* src/constants/** src/daemon/**
-# gate-watch: src/hooks/useAgentNeedsYou*
-# gate-watch: src/services/agentNeedsYou* src/services/agentStateHeuristic*
-# gate-watch: src/services/compact/microCompactDigest*
-# gate-watch: src/services/compact/verbatimTail* src/services/mcp/**
-# gate-watch: src/utils/secrets/secretScanner* src/substrate/**
-# gate-watch: src/tools/FileEditTool/constants* src/tools/FileReadTool/prompt*
-# gate-watch: src/tools/FileWriteTool/prompt* src/tools/NotebookEditTool/constants*
-# gate-watch: src/tools/ScheduleCronTool/prompt* src/tools/ToolSearchTool/prompt*
+# gate-watch: src/constants/** src/daemon/**
+# gate-watch: src/services/mcp/**
+# gate-watch: src/substrate/**
 # gate-watch: src/utils/**
-# gate-watch: assets/splash/mercury-splash.mjs assets/splash/splash-core.mjs package.json src/* src/*.ts
-# gate-watch: src/bootstrap/runtime/posture.ts src/cli/run.ts src/cli/update.ts src/commands/daemon/index.ts
-# gate-watch: src/commands/effectiveCatalogue.ts src/commands/feedback/index.ts src/commands/health/index.ts
-# gate-watch: src/commands/login/index.ts src/commands/logout/index.ts src/components/*
-# gate-watch: src/components/mercury-ui/components.tsx
-# gate-watch: src/components/mercury-ui/parity/DaemonView.tsx
-# gate-watch: src/components/messages/SystemTextMessage.tsx src/context/stats.tsx src/entrypoints/mcp.ts
-# gate-watch: src/prompt/behaviourContract.ts src/prompt/mercuryContract.ts
-# gate-watch: src/screens/Chat.tsx src/services/compact/*
-# gate-watch: src/services/gitGraph/observe.ts src/services/primitives/executionPlane.ts
-# gate-watch: src/services/projectIntel/snapshot.ts src/services/providers/anthropic/requestParams.ts
-# gate-watch: src/services/providers/deferralWire.ts src/services/providers/routeLaw.ts
-# gate-watch: src/services/run/resolveOwner.ts src/services/switchboard/hopIntoSession.ts
-# gate-watch: src/services/workbench/projection.ts src/state/vitalsBus.ts
-# gate-watch: src/tools/BashTool/BashTool.tsx
-# gate-watch: src/tools/LSPTool/LSPTool.ts src/tools/ScheduleWakeupTool/prompt.ts
+# gate-watch: src/* src/*.ts
+# gate-watch: src/components/*
+# gate-watch: src/services/compact/*
 # gate-watch: src/tools/SendMessageTool/SendMessageTool.ts
 # gate-watch: src/chatLauncher.tsx
-# gate-watch: src/types/command.ts src/services/privateChannel/installPath.ts
-# gate-watch: src/mneme/entryKnapsack.ts src/utils/config/globalConfig.ts
-# gate-watch: src/utils/timeouts.ts src/utils/shell/outputLimits.ts src/utils/managedEnvConstants.ts
-# gate-watch: src/utils/subprocessEnv.ts src/tools/AgentTool/reviewerPolicy.ts
-# gate-watch: src/services/tools/toolExecution.ts
-# gate-watch: src/services/dap/dapClient.ts src/tools/AsepriteTool/AsepriteTool.ts src/tools/BlenderTool/BlenderTool.ts src/tools/DebugTool/DebugTool.ts src/tools/GodotTool/GodotTool.ts src/tools/UnityTool/UnityTool.ts
-# gate-watch: src/utils/permissions/capabilityGate.ts src/utils/permissions/filesystem.ts
-# gate-watch: tsconfig.json
-# gate-watch: src/entrypoints/cli.tsx src/extensions/paths.ts src/guards/runStopAdapter.ts src/services/tokenEstimation.ts
 # gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

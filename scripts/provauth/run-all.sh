@@ -1,25 +1,18 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/services/providers/openrouter/** src/services/providers/gemini/**
-# gate-watch: src/services/providers/providerSecrets.ts src/services/providers/providerDiscovery.ts src/services/providers/**
-# gate-watch: src/services/wallet/** src/services/providers/accountSlots* src/services/providers/providerUsage*
-# gate-watch: src/services/anthropicLimits* src/services/api/usage* src/services/providers/providerUsability*
-# gate-watch: src/bootstrap/state.ts src/cli/run.ts src/commands/effectiveCatalogue.ts
-# gate-watch: src/commands/logout/logout.tsx src/components/*
-# gate-watch: src/components/Settings/Config.tsx src/components/Settings/Usage.tsx src/daemon/saturnAccount.ts
-# gate-watch: src/components/Settings/usageLine.ts src/hooks/useDisplayedSessionModel.ts src/services/providers/zai/zaiCodec.ts
-# gate-watch: src/daemon/saturnTicker.ts src/extensions/sources.ts src/ink.ts src/services/api/*
-# gate-watch: src/services/oauth/client.ts src/services/providers/*
-# gate-watch: src/services/providers/deepseek/deepseekUsageState.ts src/services/providers/huggingface/*
+# gate-watch: src/services/providers/**
+# gate-watch: src/services/wallet/**
+# gate-watch: src/services/anthropicLimits*
+# gate-watch: src/cli/run.ts
+# gate-watch: src/components/*
+# gate-watch: src/services/api/*
+# gate-watch: src/services/providers/*
+# gate-watch: src/services/providers/huggingface/*
 # gate-watch: src/services/providers/moonshot/* src/services/providers/openai/* src/services/providers/meta/**
-# gate-watch: src/services/providers/openaicompat/compatChatCallModel.ts src/services/search/brave.ts
-# gate-watch: src/services/search/tavily.ts src/utils/* src/utils/accounts/signInLedger.ts
-# gate-watch: src/utils/cockpit/quota.ts src/utils/model/* src/utils/accounts/signInRefusal.ts src/daemon/signInView.ts
-# gate-watch: src/utils/cockpit/helmVitalsModel.ts src/Tool.ts src/utils/crew/engineDispatch.ts src/state/AppState.tsx
-# gate-watch: src/services/engine-connector/daemonConnector.ts src/services/engine-connector/types.ts src/daemon/sessionSeat.ts
-# gate-watch: src/services/providers/openai/openaiAccounts.ts src/services/providers/openai/openaiCatalogue.ts src/utils/effort.ts src/services/engine-connector/seatProjections.ts
-# gate-watch: src/tools/ToolSearchTool/prompt.ts
-# gate-watch: src/query.ts src/query/deps.ts src/state/AppStateStore.ts src/run-core/turn-machine.ts src/services/compact/**
+# gate-watch: src/utils/*
+# gate-watch: src/utils/model/*
+# gate-watch: src/run-core/turn-machine.ts src/services/compact/**
 # gate-watch: src/run-core/turn/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

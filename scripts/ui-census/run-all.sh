@@ -1,34 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: scripts/ui/prove-declared-keys-unshadowed.ts scripts/ui/prove-exit-reachability.ts scripts/ui-census/**
 # gate-watch: src/components/** src/screens/** src/commands/** src/keybindings/**
-# gate-watch: src/hooks/useCancelRequest* src/utils/model/modelPickerFooter* src/ink/events/input-event*
-# gate-watch: src/utils/cockpit/settingsPopup.ts
-# gate-watch: scripts/lib/settingsPopupHarness.ts
-# gate-watch: scripts/ui/chatScenarios.ts
-# gate-watch: src/Tool.ts
-# gate-watch: src/bootstrap/state.ts
-# gate-watch: src/commands.ts
-# gate-watch: src/context/overlayStack.ts
-# gate-watch: src/context/surfaceRoute.ts
-# gate-watch: src/hooks/useLayoutTier.ts
-# gate-watch: src/ink/hooks/use-input.ts
-# gate-watch: src/ink/terminalWrite.ts
-# gate-watch: src/input-core/pending-input.ts
-# gate-watch: src/services/engine-connector/focusedConnector.ts
-# gate-watch: src/services/engine-connector/noSessionConnector.ts
-# gate-watch: src/services/engine-connector/seatLive.ts
-# gate-watch: src/state/AppState.tsx
-# gate-watch: src/state/AppStateStore.ts
-# gate-watch: src/tools/BashTool/BashTool.tsx
-# gate-watch: src/utils/cockpit/composerSeed.ts
-# gate-watch: src/utils/config.ts
-# gate-watch: src/utils/crashReport.ts
-# gate-watch: src/utils/daemonStanddown.ts
-# gate-watch: src/utils/earlyInput.ts
-# gate-watch: src/utils/editor.ts
-# gate-watch: src/utils/messages/factories.ts
-# gate-watch: src/utils/messages/streamingTailStore.ts
+# gate-watch: src/ink/events/input-event*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

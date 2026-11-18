@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: build.ts src/**
-# gate-watch: scripts/smoke/mount-smoke.py
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

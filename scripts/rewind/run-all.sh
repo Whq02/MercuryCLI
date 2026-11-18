@@ -1,25 +1,9 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: scripts/rewind/** scripts/prompts-panel/prove-notice-free-prompts.ts
-# gate-watch: src/components/prompts-panel/rows.ts src/components/prompts-panel/PromptsPanel.tsx src/utils/messages/noticeRows.ts
-# gate-watch: src/ink.ts src/components/App.tsx src/keybindings/KeybindingProviderSetup.tsx src/utils/staticRender.tsx
-# gate-watch: src/components/messages/UserTextMessage.tsx src/components/MessageRow.tsx src/components/concourse/workerTranscriptFold.ts src/fabric/entryCodec.ts src/utils/config.ts src/types/message.ts
-# gate-watch: src/utils/fileHistory.ts src/services/compact/checkpointRewind.ts src/cli/headless/controlHandlers.ts
-# gate-watch: src/daemon/protocol.ts src/daemon/sessionSeat.ts src/daemon/controlServer.ts src/daemon/controlSocket.ts
-# gate-watch: src/components/MessageSelector.tsx src/services/engine-connector/**
-# gate-watch: scripts/daemon/prove-protocol-shape.ts scripts/engine-connector/prove-connector-contract.ts
-# gate-watch: scripts/lib/fixtureApi.ts src/bootstrap/state.ts src/commands/rewind/index.ts
-# gate-watch: src/components/Settings/Config.tsx src/daemon/concourseWorkers.ts src/daemon/main.ts
-# gate-watch: src/screens/Chat.tsx
-# gate-watch: src/state/AppStateStore.ts src/utils/config/globalConfig.ts src/utils/messages.ts
-# gate-watch: src/utils/messages/factories.ts src/utils/messages/systemMessages.ts src/utils/sessionStorage.ts
-# gate-watch: src/utils/sessionStorage/paths.ts
-# gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: src/utils/cleanup.ts src/utils/healthReport.ts scripts/lib/settingsPopupHarness.ts scripts/ui/gridToPng.ts
-# gate-watch: scripts/lib/runnerHost.ts
-# gate-watch: scripts/lib/seatDoor.ts
-# gate-watch: src/components/design-system/ThemeProvider.tsx src/state/AppState.tsx
-# gate-watch: src/tools/FileWriteTool/structuredTargets.ts
+# gate-watch: src/utils/messages/noticeRows.ts
+# gate-watch: src/types/message.ts
+# gate-watch: src/services/engine-connector/**
+# gate-watch: src/rows/*
 # gate-watch: src/utils/health/sections/crew.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

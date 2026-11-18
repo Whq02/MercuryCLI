@@ -1,15 +1,9 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/services/run/** src/run-core/turn-machine* src/guards/runStopAdapter*
+# gate-watch: src/services/run/**
 # gate-watch: src/services/providers/openai/openaiCallModel* src/services/providers/zai/zaiCallModel*
-# gate-watch: src/services/providers/emptyReply* docs/DURABILITY.md
-# gate-watch: scripts/daemon/dupline-world.ts scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/lib/rows.ts src/rows/vocabulary.ts
-# gate-watch: scripts/stop-policy/* src/constants/changelog.ts scripts/lib/fixtureApi.ts
-# gate-watch: src/services/api/errors.ts src/services/tools/toolOrchestration.ts
-# gate-watch: src/tools/AgentTool/agentToolUtils.ts
-# gate-watch: src/services/tools/loopGuard.ts src/services/tools/toolExecution.ts
+# gate-watch: scripts/stop-policy/*
 # gate-watch: src/run-core/turn/**
-# gate-watch: scripts/core-runtime/turnScenarios.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

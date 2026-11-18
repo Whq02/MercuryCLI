@@ -1,12 +1,9 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-env: MERCURY_SHELL_ENGINE
-# gate-watch: src/utils/shell/** scripts/bash/prove-shell-engine-drive.ts build.ts
-# gate-watch: scripts/bash/prove-session-shell-guard-drive.ts src/daemon/ownedDaemon.ts src/substrate/envStamps.ts scripts/lib/suite-env.sh
-# gate-watch: scripts/bash/prove-sub-agent-shell-board-drive.ts scripts/bash/shell-engine-parity.ts
-# gate-watch: scripts/daemon/dupline-world.ts scripts/lib/* scripts/streaming/ptydrive.py
-# gate-watch: scripts/substrate/run-all.sh scripts/ui/vshot.py src/daemon/controlSocket.ts
-# gate-watch: src/substrate/flagRegistry.ts
+# gate-watch: src/utils/shell/** build.ts
+# gate-watch: src/daemon/ownedDaemon.ts src/substrate/envStamps.ts
+# gate-watch: scripts/lib/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

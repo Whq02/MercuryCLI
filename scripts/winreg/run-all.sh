@@ -1,14 +1,10 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: scripts/lib/settingsPopupHarness.ts
-# gate-watch: scripts/winreg/** scripts/ui/vshot.py scripts/lib/firstRunSeed.ts package.json src/daemon/runPtyHost.ts scripts/lib/nodeBin.ts
+# gate-watch: scripts/ui/vshot.py package.json
 # gate-watch: scripts/lib/captureDriver.ts scripts/lib/capture_refusal.py scripts/switchboard/prove-session-unification.ts
-# gate-watch: scripts/engine-durability/harness.ts scripts/lib/capturePreflight.ts scripts/ui/render-tui.ts
-# gate-watch: src/Task.ts src/Tool.ts src/bootstrap/state.ts src/cli/structuredIO.ts src/daemon/*
-# gate-watch: src/hooks/useSkillsChange.ts src/native-ts/file-index/index.ts
-# gate-watch: src/services/privateChannel/installLayout.ts src/services/privateChannel/updateService.ts
-# gate-watch: src/utils/* src/utils/config/globalConfig.ts src/utils/permissions/filesystem.ts
-# gate-watch: src/utils/secureStorage/plainTextStorage.ts
+# gate-watch: scripts/lib/capturePreflight.ts scripts/ui/render-tui.ts
+# gate-watch: src/daemon/*
+# gate-watch: src/utils/*
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/utils/health/sections/crew.ts
 set -uo pipefail

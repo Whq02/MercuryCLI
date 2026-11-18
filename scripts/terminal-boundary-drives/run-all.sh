@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/terminal-boundary/**
-# gate-watch: src/cli/run* src/utils/process.ts src/utils/crashReport* src/ink/components/ErrorOverview* src/ink/components/App.tsx src/components/RowErrorBoundary* src/main.tsx src/ink/launcherAltHold.ts src/entrypoints/cli.tsx scripts/ops/launcher-mercury.sh
-# gate-watch: scripts/lib/fixtureApi.ts scripts/streaming/artifactArena.ts scripts/streaming/ptydrive.py
+# gate-watch: src/cli/run* src/utils/process.ts src/ink/components/ErrorOverview* src/ink/components/App.tsx src/components/RowErrorBoundary* src/main.tsx src/ink/launcherAltHold.ts src/entrypoints/cli.tsx
 # gate-watch: src/components/** src/ink/session/querier.ts src/screens/**
-# gate-watch: src/utils/gracefulShutdown.ts src/utils/sessionStoragePortable.ts src/utils/sessionStorage/clearedSessions.ts scripts/lib/firstRunSeed.ts scripts/lib/seedTranscript.ts
+# gate-watch: src/utils/gracefulShutdown.ts src/utils/sessionStorage/clearedSessions.ts
 # gate-watch: src/rows/* src/runner/wire/* scripts/lib/rows.ts
 # gate-watch: scripts/lib/runnerHost.ts
 set -uo pipefail

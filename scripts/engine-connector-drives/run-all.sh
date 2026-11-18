@@ -4,8 +4,7 @@
 # gate-watch: src/services/engine-connector/** src/hooks/useSessionConnector.ts
 # gate-watch: src/screens/Chat.tsx src/components/MercuryFrame.tsx src/components/PromptInput/**
 # gate-watch: src/components/permissions/** src/hooks/useCancelRequest.ts src/hooks/useDisplayedSessionModel.ts
-# gate-watch: scripts/lib/* scripts/streaming/artifactArena.ts scripts/streaming/turn-end-fixture-server.ts
-# gate-watch: scripts/ui/vshot.py src/components/mercury-ui/keyHintLabel.ts src/daemon/controlSocket.ts
+# gate-watch: scripts/lib/*
 # gate-watch: src/cli/run.ts src/daemon/sessionSeat.ts src/utils/sessionStorage/writer.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

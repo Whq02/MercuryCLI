@@ -1,44 +1,22 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: scripts/ui/** scripts/ui-pure-2/** src/bootstrap/state*
-# gate-watch: src/commands/appearance/index* src/commands/appearance/appearance* src/commands/health/HealthCertificate*
+# gate-watch: scripts/ui/**
 # gate-watch: src/commands/run/runInspectorModel*
-# gate-watch: src/commands/crew/index* src/components/** src/context/overlayContext*
-# gate-watch: src/context/overlayStack* src/daemon/** src/hooks/useLayoutTier* src/hooks/useCwdState* src/hooks/useFocusedWorkspaceCwd* src/ink/**
-# gate-watch: src/keybindings/KeybindingProviderSetup* src/services/anthropicLimits*
+# gate-watch: src/commands/crew/index* src/context/overlayContext*
+# gate-watch: src/daemon/** src/hooks/useCwdState* src/hooks/useFocusedWorkspaceCwd*
+# gate-watch: src/services/anthropicLimits*
 # gate-watch: src/utils/ripgrep.ts src/hooks/fileSuggestions.ts
-# gate-watch: src/services/rateLimitMessages* src/services/run/** src/state/AppState*
-# gate-watch: src/state/AppStateStore* src/substrate/bootNotes*
+# gate-watch: src/services/rateLimitMessages* src/services/run/**
+# gate-watch: src/substrate/bootNotes*
 # gate-watch: src/types/logs* src/utils/**
-# gate-watch: assets/splash/mercury-splash.mjs assets/splash/splash-core.mjs design-system/live/manifest.json
-# gate-watch: docs/ENGINES.md scripts/critters/prove-critter-mini-drive.ts
-# gate-watch: scripts/engine-durability/harness.ts scripts/ink-runtime/ansiEmulator.ts
-# gate-watch: scripts/ink-runtime/prove-viewport-clamp.ts scripts/lib/* scripts/search/lib/bundle-for-node.ts
-# gate-watch: src/* src/commands/config/config.tsx
-# gate-watch: src/commands/feedback/issueForms.ts
-# gate-watch: src/commands/model/mercuryModel.tsx src/constants/figures.ts src/context/modalContext.tsx
-# gate-watch: src/context/surfaceRoute.ts src/hooks/useCancelRequest.ts src/keybindings/*
-# gate-watch: src/native-ts/color-diff/index.ts src/screens/Chat.tsx src/screens/ResumeConversation.tsx
-# gate-watch: src/services/agents/* src/services/api/errors.ts src/services/api/usage.ts
-# gate-watch: src/services/capFailover.ts src/services/concourse/concourseSnapshot.ts
-# gate-watch: src/services/engine-connector/daemonConnector.ts
-# gate-watch: src/services/mockRateLimits.ts src/services/providers/deepseek/deepseekCallModel.ts
-# gate-watch: src/services/providers/deepseek/deepseekLogin.ts src/services/providers/gemini/geminiAccounts.ts
-# gate-watch: src/services/providers/huggingface/huggingfaceLogin.ts
-# gate-watch: src/services/providers/moonshot/moonshotLogin.ts src/services/providers/providerUsage.ts
-# gate-watch: src/services/providers/routeLaw.ts src/services/providers/zai/zaiCallModel.ts
-# gate-watch: src/services/saturn/whenSpelling.ts src/services/switchboard/hopIntoSession.ts
-# gate-watch: src/state/store.ts src/substrate/flagRegistry.ts src/substrate/splashHandover.ts
-# gate-watch: src/tools/AgentTool/* src/tools/FileEditTool/FileEditTool.ts src/tools/FileEditTool/UI.tsx
-# gate-watch: src/tools/FileReadTool/UI.tsx src/tools/FileWriteTool/UI.tsx
-# gate-watch: src/components/MercuryModelPicker.tsx src/utils/model/modelPickerGroups.ts src/utils/model/modelPickerFooter.ts
-# gate-watch: scripts/providers/anthropicAccountsFixture.ts
-# gate-watch: src/services/engine-connector/types.ts src/services/engine-connector/seatLive.ts src/services/engine-connector/noSessionConnector.ts src/services/engine-connector/focusedConnector.ts
-# gate-watch: src/utils/Shell.ts
-# gate-watch: src/input-core/pending-input.ts
-# gate-watch: src/tools/BashTool/BashTool.tsx
-# gate-watch: src/utils/permissions/modeTransitions.ts
-# gate-watch: src/utils/permissions/permissionFocus.ts
+# gate-watch: scripts/lib/*
+# gate-watch: src/*
+# gate-watch: src/keybindings/*
+# gate-watch: src/native-ts/color-diff/index.ts
+# gate-watch: src/services/agents/*
+# gate-watch: src/tools/AgentTool/* src/tools/FileEditTool/UI.tsx
+# gate-watch: src/tools/FileWriteTool/UI.tsx
+# gate-watch: src/services/engine-connector/types.ts
 # gate-watch: src/screens/chat/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

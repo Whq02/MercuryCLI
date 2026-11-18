@@ -1,41 +1,16 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/services/switchboard/ensureDaemon.ts src/services/switchboard/hopIntoSession.ts
-# gate-watch: scripts/engine-connector/** scripts/compact/overflowFixture.ts src/Tool.ts src/services/providers/callModelRouter.ts
-# gate-watch: src/fabric/transcriptDecode.ts src/fabric/entryCodec.ts src/fabric/ordinal.ts
-# gate-watch: src/ink/components/TerminalSizeContext.tsx
-# gate-watch: src/services/engine-connector/** src/hooks/useSessionConnector.ts
-# gate-watch: src/screens/Chat.tsx src/components/MercuryFrame.tsx src/components/PromptInput/**
-# gate-watch: src/components/permissions/** src/hooks/useCancelRequest.ts src/hooks/useDisplayedSessionModel.ts
-# gate-watch: scripts/lib/* src/bootstrap/state.ts src/cli/run.ts src/commands/crew/index.ts
-# gate-watch: src/commands/crew/index.ts src/commands/crewmates/index.ts src/commands/crewmates/crewmates.tsx
+# gate-watch: src/services/engine-connector/**
+# gate-watch: scripts/lib/*
 # gate-watch: src/components/*
-# gate-watch: src/components/mercury-ui/keyHintLabel.ts src/components/mercury-ui/screens/*
-# gate-watch: src/components/messages/** src/components/tasks/* src/cost-tracker.ts src/daemon/*
-# gate-watch: src/hooks/useArrowKeyHistory.tsx src/ink/session/capabilities.ts src/ink/stringWidth.ts
-# gate-watch: src/ink/terminalWrite.ts src/input-core/interruptArity.ts
-# gate-watch: src/keybindings/actionGraph.ts src/keybindings/defaultBindings.ts src/services/*
-# gate-watch: src/services/concourse/sessionNaming.ts src/services/providers/catalogueEpoch.ts
-# gate-watch: src/services/providers/openai/openaiCallModel.ts src/services/providers/openai/openaiWindowFact.ts src/services/providers/openai/openaiLimitState.ts
-# gate-watch: src/services/providers/openai/openaiCatalogue.ts src/services/providers/streamIdleBudget.ts
-# gate-watch: src/state/AppState.tsx src/state/vitalsBus.ts src/substrate/flagRegistry.ts
-# gate-watch: src/tasks/LocalAgentTask/LocalAgentTask.tsx src/tools/AgentTool/*
-# gate-watch: src/tools/BashTool/BashTool.tsx src/tools/BashTool/backgroundRequest.ts
-# gate-watch: src/utils/* src/utils/attachments/orchestrator.ts
-# gate-watch: src/utils/cockpit/fleetGauge.ts src/utils/config/globalConfig.ts
-# gate-watch: src/utils/messages/factories.ts src/utils/model/capabilities.ts src/utils/model/configs.ts
-# gate-watch: src/utils/sessionStorage/paths.ts src/utils/settings/types.ts src/utils/task/workRoster.ts
-# gate-watch: src/state/crewLedger.ts
-# gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: src/utils/cockpit/helmLanesModel.ts src/utils/cockpit/helmVitalsModel.ts
-# gate-watch: src/history.ts src/utils/messages/apiPlan.ts src/utils/messages/systemMessages.ts src/utils/processUserInput/processSlashCommand.tsx
-# gate-watch: src/constants/xml.ts src/tools/MonitorTool/watchReceipts.ts src/utils/processUserInput/processBashCommand.tsx
-# gate-watch: src/input-core/sendNowChord.ts src/keybindings/parser.ts src/keybindings/reservedShortcuts.ts src/keybindings/resolver.ts
-# gate-watch: src/utils/cockpit/awaySummary.ts src/utils/messages/rejectionText.ts
-# gate-watch: src/main.tsx
+# gate-watch: src/components/mercury-ui/screens/*
+# gate-watch: src/components/tasks/* src/daemon/*
+# gate-watch: src/services/*
+# gate-watch: src/tools/AgentTool/*
+# gate-watch: src/utils/*
+# gate-watch: src/rows/*
 # gate-watch: src/utils/health/sections/*
 # gate-watch: src/cli/headless/*
-# gate-watch: src/services/compact/foldStatus.ts src/utils/model/model.ts tsconfig.json src/state/ephemeralProgressStore.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

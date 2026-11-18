@@ -1,79 +1,21 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: scripts/remote-files/remoteKit.ts
-# gate-watch: src/utils/attachments/toolManuals.ts src/utils/api.ts scripts/tools/prove-wire-manuals.ts
-# gate-watch: src/services/voice/fileTranscript.ts
-# gate-watch: scripts/tools/prove-read-reminder-persistence.ts src/tools/FileReadTool/FileReadTool.ts
-# gate-watch: src/services/providers/local/schemaTyping.ts
-# gate-watch: src/Tool* src/bootstrap/state* src/types/ids.ts src/mneme/mnemeFrontPage.ts
-# gate-watch: src/services/run/effectObserver* src/services/tools/toolExecution*
-# gate-watch: src/services/structure/tsFacility.ts src/services/video/**
-# gate-watch: src/tools/AgentTool/AgentTool*
-# gate-watch: src/tools/AskUserQuestionTool/AskUserQuestionTool*
-# gate-watch: src/tools/DebugTool/DebugTool* src/tools/MonitorTool/**
-# gate-watch: src/tools/TaskListTool/** src/utils/tasks.ts src/tasks.ts
-# gate-watch: src/tools/SyntheticOutputTool/** src/tools.ts
-# gate-watch: src/tools/SleepTool/SleepTool*
-# gate-watch: src/tools/ToolSearchTool/ToolSearchTool* src/tools/ToolSearchTool/cooccurPrior*
+# gate-watch: src/services/video/**
 # gate-watch: src/utils/**
-# gate-watch: src/tools/TaskStopTool/* src/tasks/stopTask* src/tasks/taskOutcomeEnvelope*
-# gate-watch: src/tools/GrepTool/**
-# gate-watch: docs/TERMINAL-RUNTIME.md docs/DOCUMENTS.md scripts/builtin-tools/fixtures/tool-census.json
-# gate-watch: scripts/daemon/dupline-world.ts scripts/lib/hermetic.ts scripts/lib/scriptedTurn.ts scripts/lib/platformPath.ts src/*
-# gate-watch: scripts/lib/distProvenance.ts scripts/lib/firstRunSeed.ts scripts/lib/seedTranscript.ts
-# gate-watch: src/substrate/startupMenu.ts src/substrate/bootNotes.ts
-# gate-watch: src/cli/headless/controlHandlers.ts src/cli/headless/turnDriver.ts src/components/*
-# gate-watch: src/components/CustomSelect/select.tsx src/components/Spinner/utils.ts
-# gate-watch: src/components/design-system/ProgressBar.tsx src/components/mercury-ui/toolGlyphs.ts
-# gate-watch: src/components/messages/AssistantToolUseMessage.tsx
-# gate-watch: src/components/messages/CollapsedReadSearchContent.tsx
-# gate-watch: src/components/permissions/FilePermissionDialog/useFilePermissionDialog.ts
-# gate-watch: src/constants/** src/daemon/* src/fabric/entryCodec.ts
-# gate-watch: src/fabric/ordinal.ts src/hooks/*
-# gate-watch: src/ink/components/App.tsx src/ink/ink.tsx src/ink/session/capabilities.ts
-# gate-watch: src/ink/stringWidth.ts src/input-core/command-queue.ts
-# gate-watch: src/keybindings/KeybindingProviderSetup.tsx src/mneme/mnemeConsolidate.ts
-# gate-watch: src/query/stopHooks.ts src/run-core/model-lane.ts src/run-core/turn-machine.ts
-# gate-watch: src/screens/Chat.tsx src/screens/toolJsxArbitration.ts src/services/agents/watch.ts
-# gate-watch: src/services/concourse/concourseSnapshot.ts src/services/concourse/workerTranscript.ts
-# gate-watch: src/services/dap/dapClient.ts
-# gate-watch: src/services/lsp/LSPDiagnosticRegistry.ts src/services/lsp/manager.ts src/services/mcp/client.ts
-# gate-watch: src/services/privateChannel/quietUpdateNotice.ts src/services/providers/* src/context/notifications.tsx
-# gate-watch: src/services/providers/anthropic/** src/services/providers/openai/*
-# gate-watch: src/services/providers/zai/zaiCodec.ts src/services/resources/registry.ts
-# gate-watch: src/services/tools/toolOrchestration.ts src/services/tools/toolOutputCheck.ts src/services/vulcan/portabilityHealth.ts
-# gate-watch: src/state/AppState.tsx src/state/AppStateStore.ts src/substrate/flagRegistry.ts
-# gate-watch: src/tasks/LocalAgentTask/LocalAgentTask.tsx src/tools/** src/types/logs.ts src/vim/types.ts
+# gate-watch: src/tasks/stopTask* src/tasks/taskOutcomeEnvelope*
+# gate-watch: src/*
+# gate-watch: src/cli/headless/controlHandlers.ts src/components/*
+# gate-watch: src/daemon/*
+# gate-watch: src/hooks/*
+# gate-watch: src/services/providers/*
+# gate-watch: src/services/providers/openai/*
 # gate-watch: src/components/messages/AttachmentMessage.tsx src/components/messages/TranscriptNameplate.tsx
-# gate-watch: src/fabric/transcriptDecode.ts src/fabric/validate.ts src/services/tools/toolHooks.ts
-# gate-watch: src/cli/headless/runnerAsks.ts
-# gate-watch: docs/HOOKS.md src/utils/hooks/contract.ts
-# gate-watch: bunfig.toml
-# gate-watch: src/rows/* src/runner/wire/* scripts/lib/mcpInProcess.ts
-# gate-watch: scripts/lib/fixtureApi.ts scripts/lib/firstRunSeed.ts src/services/changeTransaction/snapshotAnchor.ts scripts/edit-tools/prove-read-dedup-delivery.ts
-# gate-watch: src/vim/transitions.ts src/vim/types.ts
-# gate-watch: src/components/messages/UserNoticeMessage.tsx
-# gate-watch: src/cli/run.ts src/extensions/installConsent.ts src/tasks/LocalShellTask/LocalShellTask.tsx
-# gate-watch: src/services/changeTransaction/seenLines.ts src/services/run/resolveOwner.ts
-# gate-watch: scripts/builtin-tools/webfetchFixtureDns.ts src/services/providers/local/localDiscovery.ts src/services/providers/openaicompat/compatAccounts.ts src/services/providers/openaicompat/compatCatalogue.ts src/services/providers/openaicompat/compatEffort.ts src/services/providers/openaicompat/compatProbe.ts
-# gate-watch: scripts/lib/rows.ts src/services/providers/toolCallGate.ts src/rows/project.ts src/tools/MCPTool/absentToolShim.ts
-# gate-watch: src/components/messages/nullRenderingAttachments.ts src/utils/attachments/toolManuals.ts
-# gate-watch: src/extensions/bundled/filmcraft/server/filmcraft.lock.json src/extensions/bundled/shared/install.mjs
-# gate-watch: scripts/tool-economy/fixtures/definition-corpus.json
-# gate-watch: scripts/tool-economy/prove-definition-corpus-parity.ts
-# gate-watch: src/ink/instances.ts
+# gate-watch: src/utils/hooks/contract.ts
+# gate-watch: src/rows/* src/runner/wire/*
+# gate-watch: src/cli/run.ts
 # gate-watch: src/services/tools/earlyStarts.ts
-# gate-watch: scripts/lib/settingsPopupHarness.ts src/components/design-system/ThemeProvider.tsx src/components/messages/UserToolResultMessage/UserToolErrorMessage.tsx
-# gate-watch: src/services/gitGraph/observe.ts
-# gate-watch: src/services/remoteFiles/** scripts/remote-files/remoteKit.ts scripts/lib/removeScratch.ts scripts/lib/firstRunSeed.ts src/services/privateChannel/vendoredRuntime.ts vendor/json-query.lock.json
-# gate-watch: src/tools/BashTool/** src/tools/PowerShellTool/** src/utils/Shell.ts src/utils/ShellCommand.ts
-# gate-watch: src/utils/shell/powershellProvider.ts
-# gate-watch: src/utils/permissions/askClock.ts src/utils/permissions/capabilityGate.ts
-# gate-watch: src/utils/permissions/decision/engine.ts src/utils/permissions/filesystem.ts
-# gate-watch: src/utils/permissions/pathValidation.ts src/utils/permissions/permissions.ts
-# gate-watch: src/utils/permissions/ruleBraces.ts src/utils/permissions/windowsPath.ts
+# gate-watch: src/services/remoteFiles/** src/services/privateChannel/vendoredRuntime.ts
 # gate-watch: src/run-core/turn/**
-# gate-watch: scripts/core-runtime/turnScenarios.ts
 # gate-watch: src/cli/headless/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

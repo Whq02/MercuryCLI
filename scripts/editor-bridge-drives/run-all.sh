@@ -5,7 +5,7 @@
 # gate-watch: src/services/acp/** src/services/walkthrough/**
 # gate-watch: src/utils/artifacts/** src/components/diff/** src/components/prompts-panel/**
 # gate-watch: integrations/vscode/extension.js integrations/vscode/package.json integrations/vscode/LICENSE.txt LICENSE.md NOTICE
-# gate-watch: scripts/engine-durability/harness.ts scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts
+# gate-watch: scripts/engine-durability/harness.ts scripts/lib/fixtureApi.ts
 # gate-watch: scripts/prompts-panel/prove-panel-captures.ts scripts/release/package.mjs
 # gate-watch: scripts/release/payloadContract.mjs scripts/vscode/build-vsix.sh scripts/vscode/host-test/run.sh
 # gate-watch: src/bootstrap/state.ts src/cli/editorBridge.ts src/cli/run.ts
@@ -21,7 +21,6 @@
 # gate-watch: scripts/consistency-census/prove-worktree-settlement.ts
 # gate-watch: scripts/lib/processGroup.ts
 # gate-watch: scripts/lib/toolShellTree.ts
-# gate-watch: scripts/lib/ptyRecorder.ts src/components/ConsoleOAuthFlow.tsx src/components/loginFamilyRows.ts src/ink.ts src/ink/instances.ts
 # gate-watch: src/Tool.ts src/utils/sessionStorage/vnext.ts
 # gate-watch: src/services/engine-connector/midTurnText.ts src/utils/sessionStorage/*
 set -uo pipefail

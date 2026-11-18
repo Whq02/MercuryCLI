@@ -6,14 +6,7 @@
 # gate-watch: src/components/prompts-panel/**
 # gate-watch: src/services/workbench/**
 # gate-watch: src/components/diff/**
-# gate-watch: src/components/messages/AssistantTextMessage.tsx
-# gate-watch: src/utils/messages/lookups.ts
-# gate-watch: src/services/api/errors.ts
-# gate-watch: scripts/ui/render-tui.ts src/rows/turn.ts
-# gate-watch: src/components/Message.tsx src/components/mercury-ui/components.tsx
-# gate-watch: src/components/messages/SystemTextMessage.tsx src/run-core/turn-machine.ts
-# gate-watch: src/utils/messages/normalize.ts src/utils/messages/systemMessages.ts
-# gate-watch: scripts/core-runtime/turnScenarios.ts
+# gate-watch: src/components/mercury-ui/components.tsx
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

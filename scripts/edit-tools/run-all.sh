@@ -1,32 +1,14 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: scripts/lib/captureDriver.ts
-# gate-watch: src/utils/messages/toolSchemaDialect.ts
-# gate-watch: scripts/edit-tools/fixtures/**
 # gate-watch: src/tools/FileReadTool/** src/tools/FileEditTool/** src/tools/FileWriteTool/**
 # gate-watch: src/services/changeTransaction/** src/services/ide/** src/services/resources/**
 # gate-watch: src/tools/TransactionTool/** src/utils/verification/**
-# gate-watch: src/tools/AgentTool/resumeAgent.ts src/utils/conversationRecovery.ts src/cli/headless/resume.ts
-# gate-watch: src/utils/sessionStorage/logs.ts src/utils/sessionStorage/paths.ts src/utils/sessionStorage/vnext.ts
-# gate-watch: scripts/ide/prove-transaction-capture.ts scripts/ide/transactionProof.ts
-# gate-watch: src/services/repoHost/** src/tools/GitTool/** src/tools/TestTool/** src/tools/LaunchTool/** src/utils/healthReport.ts
-# gate-watch: scripts/daemon/dupline-world.ts scripts/lib/scriptedTurn.ts scripts/lib/fixtureApi.ts src/Tool.ts
-# gate-watch: src/native-ts/color-diff/index.ts src/services/gitGraph/observe.ts
-# gate-watch: src/services/providers/callModelRouter.ts src/services/run/* src/services/tools/toolExecution.ts
-# gate-watch: src/substrate/flagRegistry.ts src/substrate/operationJournal.ts src/tools.ts
-# gate-watch: src/tools/ChangeSetTool/ChangeSetTool.ts src/tools/GrepTool/GrepTool.ts
-# gate-watch: src/tools/ToolSearchTool/ToolSearchTool.ts src/utils/* src/utils/config/globalConfig.ts
-# gate-watch: src/services/providers/local/localCatalogue.ts src/services/providers/local/localDiscovery.ts
+# gate-watch: src/services/repoHost/** src/tools/GitTool/** src/tools/TestTool/** src/tools/LaunchTool/**
+# gate-watch: src/services/run/*
+# gate-watch: src/utils/*
 # gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: src/bootstrap/state.ts src/mneme/ledger.ts src/mneme/paths.ts
-# gate-watch: src/services/schema/jsonSchemaEngine.ts src/services/providers/zai/zaiCodec.ts src/services/providers/openai/responsesBridge.ts src/services/providers/gemini/geminiCodec.ts src/services/structure/grammarFacility.ts src/services/structure/grammarRegistry.ts
-# gate-watch: src/services/compact/checkpointRewind.ts
-# gate-watch: src/constants/localPromptProfile.ts src/utils/model/capabilities.ts src/services/providers/idSpaces.ts src/services/providers/routeLaw.ts src/services/providers/deferralWire.ts
-# gate-watch: src/services/providers/zai/zaiAdapter.ts src/services/providers/moonshot/moonshotAdapter.ts src/services/providers/moonshot/moonshotCatalogue.ts src/services/providers/deepseek/deepseekAdapter.ts src/services/providers/huggingface/huggingfaceAdapter.ts
-# gate-watch: src/cli/headless/projectQuery.ts src/tools/InspectTool/InspectTool.ts
-# gate-watch: src/utils/attachments/fileAttachments.ts scripts/document-read/fixtures.ts scripts/tools/fixtures/read-formats/**
-# gate-watch: scripts/voice/localFixture.ts
-# gate-watch: src/utils/health/sections/runtime.ts
+# gate-watch: src/mneme/ledger.ts src/mneme/paths.ts
+# gate-watch: scripts/tools/fixtures/read-formats/**
 # gate-watch: src/utils/health/sections/coding-loop-fast.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

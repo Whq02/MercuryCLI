@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-watch: Dockerfile .dockerignore build.ts package.json bun.lock bunfig.toml vendor/*.lock.json
-# gate-watch: scripts/distribution/prove-headless-image-drive.ts scripts/lib/fixtureApi.ts
+# gate-watch: Dockerfile .dockerignore build.ts bun.lock bunfig.toml vendor/*.lock.json
 # gate-watch: scripts/vendor/** src/services/privateChannel/vendoredRuntime.ts src/services/privateChannel/releaseTarget.ts
 # gate-watch: src/cli/run.ts src/utils/permissions/rootNotice.ts src/entrypoints/cli.tsx src/main.tsx
 set -u

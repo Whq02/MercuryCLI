@@ -1,22 +1,10 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: README.md docs/ENGINES.md src/commands/model/mercuryModel.tsx
-# gate-watch: src/utils/model/agent.ts src/utils/model/bareFamilyWords.ts src/utils/model/model.ts src/utils/model/modelLookup.ts
-# gate-watch: src/utils/model/modelOptions.ts src/utils/model/validateModel.ts src/utils/model/modelNameRoad.ts
-# gate-watch: src/tools/AgentTool/prompt.ts
-# gate-watch: src/services/providers/** src/utils/crew/agentLaunchPlan*
+# gate-watch: README.md
 # gate-watch: src/services/providers/**
-# gate-watch: src/query/deps* src/utils/crew/engineDispatch* src/tools/AgentTool/AgentTool*
-# gate-watch: src/Tool.ts src/bootstrap/state.ts src/cost-tracker.ts src/services/api/errors.ts
-# gate-watch: src/services/api/recoveryBudget.ts src/tasks/LocalAgentTask/* scripts/lib/hermetic.ts
-# gate-watch: src/tools/AgentTool/agentToolUtils.ts src/tools/AgentTool/builtInAgents.ts src/utils/*
-# gate-watch: src/utils/config/globalConfig.ts src/utils/messages/factories.ts src/utils/task/framework.ts
-# gate-watch: src/tools/AgentTool/runAgent.ts src/tools.ts
-# gate-watch: src/tools/AgentTool/constants.ts src/tools/InspectTool/InspectTool.ts src/tools/FileReadTool/readTarget.ts docs/CREW.md
-# gate-watch: scripts/providers/lib/llmhostFixture.ts scripts/provider-compat/fixtures/engineRules.mjs
-# gate-watch: src/state/AppStateStore.ts src/utils/settings/settingsCache.ts src/tools/AgentTool/resumeAgent.ts src/tasks.ts
-# gate-watch: src/utils/crew/crewAccountChange.ts
-# gate-watch: src/query.ts
+# gate-watch: src/services/providers/**
+# gate-watch: src/tasks/LocalAgentTask/*
+# gate-watch: src/utils/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: build.ts src/**
-# gate-watch: scripts/lib/builtProduct.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"

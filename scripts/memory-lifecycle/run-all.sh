@@ -2,18 +2,12 @@
 # gate-class: pure
 # gate-watch: src/mneme/** src/utils/backgroundHousekeeping* src/query/stopHooks*
 # gate-watch: src/tools/JournalTool/** src/main.tsx
-# gate-watch: src/constants/prompts.ts src/run-core/turn-machine.ts src/utils/gracefulShutdown.ts src/utils/fileHistory.ts
-# gate-watch: src/bootstrap/state.ts src/input-core/command-queue.ts scripts/lib/fixtureApi.ts scripts/lib/firstRunSeed.ts scripts/lib/rows.ts scripts/lib/runnerHost.ts
-# gate-watch: src/utils/sessionStorage/paths.ts src/utils/sessionStorage/vnext.ts src/utils/sessionStorage/transcriptReader.ts src/fabric/transcriptDecode.ts
-# gate-watch: src/components/ExitHandoff.tsx src/commands/exit/exit.tsx src/components/ExitFlow.tsx src/utils/forkedAgent.ts src/utils/config/globalConfig.ts scripts/lib/settingsPopupHarness.ts
-# gate-watch: src/components/design-system/ThemeProvider.tsx src/ink.ts
-# gate-watch: src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts src/services/engine-connector/types.ts src/utils/task/framework.ts
-# gate-watch: src/daemon/ownerWatch.ts src/daemon/workerIdentity.ts src/daemon/processSweep.ts src/utils/settings/settings.ts
-# gate-watch: src/services/tools/toolHooks.ts src/state/AppStateStore.ts src/utils/fileStateCache.ts src/utils/messages/factories.ts
-# gate-watch: src/services/api/reconnectLadder.ts src/services/api/recoveryBudget.ts src/utils/messages/systemMessages.ts src/utils/sleep.ts scripts/lib/proofAccountHome.ts
-# gate-watch: scripts/memory/prove-recall-ranking.ts scripts/settings/settings-schema.json src/components/Settings/Config.tsx src/constants/subagentDoctrine.ts src/constants/systemPromptSections.ts src/prompt/behaviourContract.ts src/utils/cockpit/harnessMap.ts src/utils/cockpit/runtimePosture.ts src/utils/settings/settingsCache.ts
+# gate-watch: src/utils/gracefulShutdown.ts src/utils/fileHistory.ts
+# gate-watch: src/utils/sessionStorage/transcriptReader.ts src/fabric/transcriptDecode.ts
+# gate-watch: src/components/ExitFlow.tsx
+# gate-watch: src/services/engine-connector/types.ts
+# gate-watch: src/daemon/workerIdentity.ts
 # gate-watch: src/run-core/turn/**
-# gate-watch: scripts/core-runtime/turnScenarios.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

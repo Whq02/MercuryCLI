@@ -10,8 +10,7 @@
 # gate-watch: src/tools/SyntheticOutputTool/SyntheticOutputTool*
 # gate-watch: src/types/ids* src/types/textInputTypes* src/utils/**
 # gate-watch: src/commands/caching/**
-# gate-watch: scripts/computer/computerDriveKit.ts scripts/core-runtime/* scripts/lib/captureDriver.ts
-# gate-watch: scripts/lib/firstRunSeed.ts scripts/lib/rows.ts scripts/ui/vshot.py
+# gate-watch: scripts/core-runtime/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

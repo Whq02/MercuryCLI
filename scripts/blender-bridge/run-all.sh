@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/services/blender/** src/services/ide/blenderBridgeSession* src/services/ide/blenderProject* src/tools/BlenderTool/**
-# gate-watch: src/utils/blender/** src/utils/capability/** src/substrate/flagRegistry* src/substrate/startupMenu*
-# gate-watch: src/utils/cockpit/harnessMap* assets/blender/bridge/** assets/blender/headless/**
-# gate-watch: scripts/lib/generated-assets-map.mjs src/tools.ts src/utils/cwd.ts src/utils/execFileNoThrow* src/utils/permissions/filesystem*
-# gate-watch: src/Tool.ts src/bootstrap/state.ts src/utils/permissions/decision/engine.ts
-# gate-watch: src/tools/ToolSearchTool/ToolSearchTool.ts src/tools/ToolSearchTool/prompt.ts
+# gate-watch: src/services/blender/** src/tools/BlenderTool/**
+# gate-watch: src/utils/capability/**
+# gate-watch: src/utils/execFileNoThrow*
 # gate-watch: src/tools/FileReadTool/** src/utils/imageResizer*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

@@ -1,23 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/utils/cache/cacheClock* src/utils/cache/cacheClockCore* src/utils/modelCost*
-# gate-watch: src/bootstrap/state.ts src/cli/run.ts src/components/*
-# gate-watch: src/components/Settings/Usage.tsx src/cost-tracker.ts src/services/engine-connector/types.ts
-# gate-watch: src/services/providers/anthropic/** src/services/providers/deepseek/deepseekPins.ts
-# gate-watch: src/services/providers/gemini/geminiPins.ts
-# gate-watch: src/services/providers/huggingface/huggingfacePins.ts
-# gate-watch: src/services/providers/moonshot/kimiPins.ts src/services/providers/openai/gptPins.ts
-# gate-watch: src/services/providers/nous/nousCatalogue.ts
-# gate-watch: src/services/providers/openaicompat/compatChatCallModel.ts src/services/providers/openaicompat/compatChatClient.ts
-# gate-watch: src/services/providers/openrouter/openrouterCatalogue.ts src/services/providers/providerUsage.ts
-# gate-watch: src/services/providers/qwen/qwenAccounts.ts
-# gate-watch: src/services/providers/callModelRouter.ts src/services/providers/credentialEnvSpellings.ts
-# gate-watch: src/services/providers/local/localCatalogue.ts src/services/providers/local/localDiscovery.ts
-# gate-watch: src/services/providers/routeLaw.ts src/services/providers/zai/glmPins.ts src/services/providers/zen/zenPins.ts
-# gate-watch: src/substrate/flagRegistry.ts src/utils/*
-# gate-watch: src/utils/cockpit/helmLanesModel.ts src/utils/cockpit/helmVitalsModel.ts
-# gate-watch: src/main.tsx
-# gate-watch: src/utils/health/sections/crew.ts
+# gate-watch: src/components/*
+# gate-watch: src/services/providers/zen/zenPins.ts
+# gate-watch: src/utils/*
 # gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

@@ -1,37 +1,17 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: scripts/providers/lib/llmhostFixture.ts
-# gate-watch: src/Tool* src/bootstrap/state* src/services/compact/compact*
-# gate-watch: src/tools/AgentTool/AgentTool* src/tools/AgentTool/built-in/mercuryCrewAgent* src/tools/AgentTool/built-in/mercuryScoutAgent*
-# gate-watch: src/tools/AgentTool/builtInAgents* src/tools.ts src/tools/MCPTool/absentToolShim.ts
-# gate-watch: src/tools/AgentTool/reviewerPolicy.ts src/tools/AgentTool/runAgent.ts src/tools/AgentTool/constants.ts
-# gate-watch: src/utils/** src/services/providers/providerDiscovery.ts
+# gate-watch: src/services/compact/compact*
+# gate-watch: src/tools/MCPTool/absentToolShim.ts
+# gate-watch: src/utils/**
 # gate-watch: src/cli/run.ts
-# gate-watch: scripts/daemon/dupline-world.ts scripts/lib/* src/cli/handlers/agents.ts
-# gate-watch: src/components/tasks/AsyncAgentDetailDialog.tsx
-# gate-watch: src/components/tasks/taskStatusUtils.tsx src/constants/prompts.ts
-# gate-watch: src/constants/subagentDoctrine.ts src/extensions/load/contributions.ts src/fabric/entryCodec.ts
-# gate-watch: src/fabric/ordinal.ts src/main.tsx src/services/agentResults/lifecycle.ts
+# gate-watch: scripts/lib/*
+# gate-watch: src/constants/subagentDoctrine.ts
 # gate-watch: src/skills/bundled/mercuryDocs.ts src/commands/verify.ts src/tools/SkillTool/constants.ts src/skills/bundled/provider-apis/SKILL.md
-# gate-watch: src/services/providers/openai/openaiCatalogue.ts src/services/resources/adapters/agent.ts
-# gate-watch: src/services/resources/adapters/transcript.ts src/state/AppStateStore.ts src/components/BootAgentsScreen.tsx src/services/agents/resolver.ts
-# gate-watch: src/tasks/stopTask.ts src/components/prompts-panel/rows.ts
-# gate-watch: src/skills/bundled/loop.ts src/services/loopFire.ts docs/CREW.md src/tools/ResumeAgentTool/** src/tools/SendMessageTool/**
-# gate-watch: src/tools/AgentTool/* src/tools/BashTool/BashTool.tsx src/tools/FileEditTool/FileEditTool.ts
-# gate-watch: src/tools/SendMessageTool/SendMessageTool.ts src/tools/TaskStopTool/TaskStopTool.ts
-# gate-watch: src/utils/crew/agentTranscriptReader.ts src/tools/SyntheticOutputTool/structuredOutputTool.ts
-# gate-watch: src/tasks/LocalAgentTask/launchReceipts.ts src/tasks/LocalAgentTask/LocalAgentTask.tsx src/tasks.ts src/Task.ts src/services/api/mediaRefusal.ts
+# gate-watch: src/tools/ResumeAgentTool/** src/tools/SendMessageTool/**
+# gate-watch: src/tools/AgentTool/*
+# gate-watch: src/tools/SendMessageTool/SendMessageTool.ts
 # gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: src/tools/BashTool/readOnlyValidation.ts scripts/providers/lib/llmhostFixture.ts
-# gate-watch: src/tools/EnterWorktreeTool/EnterWorktreeTool.ts
-# gate-watch: src/tools/FileReadTool/FileReadTool.ts
-# gate-watch: src/services/providers/routeLaw.ts
-# gate-watch: src/daemon/concourseWorktrees.ts src/run-core/pauseGate.ts src/types/ids.ts
-# gate-watch: src/services/instructions/engine.ts src/setup.ts src/substrate/flagRegistry.ts scripts/hooks/lib/runDoor.ts
-# gate-watch: src/utils/permissions/decision/engine.ts src/utils/permissions/filesystem.ts
-# gate-watch: src/utils/permissions/permissions.ts src/utils/permissions/permissionsLoader.ts
-# gate-watch: src/utils/permissions/protectedPaths.ts
-# gate-watch: src/query.ts
+# gate-watch: src/tools/BashTool/readOnlyValidation.ts
 # gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

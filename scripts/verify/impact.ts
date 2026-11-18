@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { loadImpactManifest, RATCHETS, selectImpact } from './impactManifest.ts'
+import { computedWatch } from './watchGraph.ts'
 
 const ROOT = process.env.MERCURY_SLICE_ROOT ?? resolve(import.meta.dir, '..', '..')
 
@@ -51,7 +52,7 @@ if (args[0] === '--paths') {
   }
 }
 
-const manifest = loadImpactManifest(ROOT)
+const manifest = loadImpactManifest(ROOT, computedWatch(ROOT))
 const sel = selectImpact(manifest, paths)
 const always = RATCHETS.filter(s => existsSync(join(ROOT, 'scripts', s, 'run-all.sh')))
 const suites = [...new Set([...sel.suites, ...always])].sort()
@@ -63,7 +64,7 @@ if (json) {
         suites: suites.map(s => ({
           suite: s,
           class: manifest.classes[s] ?? 'undeclared',
-          reason: sel.suites.has(s) ? 'gate-watch' : 'whole-tree ratchet',
+          reason: sel.computed.has(s) ? 'computed' : sel.suites.has(s) ? 'gate-watch' : 'whole-tree ratchet',
         })),
         ignored: sel.ignored,
         unclassified: sel.unclassified,
@@ -79,7 +80,7 @@ if (json) {
 for (const s of suites) console.log(s)
 
 console.error(
-  `impact: ${paths.length} changed path(s) → ${sel.suites.size} watched suite(s) + ${always.length} whole-tree ratchet(s) (${always.join(' · ')})`,
+  `impact: ${paths.length} changed path(s) → ${sel.suites.size} watched suite(s), ${sel.computed.size} of them by what their proofs touch + ${always.length} whole-tree ratchet(s) (${always.join(' · ')})`,
 )
 if (sel.ignored.length > 0) console.error(`ignored (${sel.ignored.length}): ${sel.ignored.join(' ')}`)
 if (sel.unclassified.length > 0) {

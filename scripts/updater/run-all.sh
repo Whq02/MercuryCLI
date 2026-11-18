@@ -1,28 +1,13 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-env: MERCURY_UPDATER_NETWORK MERCURY_JOURNEY_DIST MERCURY_BRIDGE_CANDIDATE MERCURY_BRIDGE_SLUG MERCURY_BRIDGE_PREVIOUS MERCURY_BRIDGE_PREVIOUS_TAG
-# gate-watch: src/services/privateChannel/** src/cli/update.ts src/cli/installVerb.ts src/utils/ripgrep.ts scripts/lib/signedRipgrepPayload.ts scripts/lib/nodeBin.ts
-# gate-watch: scripts/release/** .github/workflows/private-release.yml package.json src/constants/changelog.ts THIRD_PARTY_NOTICES.md
-# gate-watch: assets/splash/mercury-splash.mjs src/utils/windowsPaths.ts
-# gate-watch: scripts/lib/settingsPopupHarness.ts src/components/App.tsx src/components/BootSplashScreen.tsx src/components/SurfaceRouter.tsx src/screens/Chat.tsx src/state/AppState.tsx src/state/AppStateStore.ts
-# gate-watch: src/keybindings/KeybindingProviderSetup.tsx src/context/surfaceRoute.ts src/context/notifications.tsx src/hooks/useLayoutTier.ts src/utils/config.ts src/input-core/pending-input.ts src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts src/utils/daemonStanddown.ts
-# gate-watch: src/services/engine-connector/seatLive.ts src/utils/messages/streamingTailStore.ts
-# gate-watch: assets/splash/splash-core.mjs docs/COMPATIBILITY.md docs/INSTALL-WINDOWS-FROM-SOURCE.md docs/TERMINAL-RUNTIME.md docs/releases/1.0.0-beta.3.md scripts/distribution/generate-third-party-notices.ts
-# gate-watch: scripts/gate/gate-ledger.jsonl scripts/lib/proofHomePreload.ts scripts/ops/launcher-mercury.sh scripts/splash/run-all.sh scripts/vendor/build-desktop.ts scripts/vendor/build-voice.ts
-# gate-watch: scripts/vendor/build-whisper.ts scripts/vendor/fetch-node.ts scripts/vendor/fetch-platform-packages.ts scripts/vendor/platformPackages.ts scripts/vscode/build-vsix.sh src/services/voice/voicePack.ts
-# gate-watch: scripts/vendor/build-embed.ts scripts/vendor/fetch-embed-models.ts src/mneme/embedModels.ts
-# gate-watch: src/substrate/flagRegistry.ts src/tools/FileReadTool/imagePackArm.ts src/utils/auth.ts src/utils/envUtils.ts src/utils/healthReport.ts src/utils/runtime/nodePolicy.ts
-# gate-watch: src/utils/shell/brushPack.ts vendor/brush.lock.json vendor/node.lock.json src/ink/root/teardown.ts src/ink/termio/*
-# gate-watch: docs/INSTALL.md docs/TRUST.md docs/translations/* CONTRIBUTING.md src/components/BootLoginsScreen.tsx src/services/providers/gemini/geminiAccounts.ts
-# gate-watch: src/main.tsx scripts/lib/captureDriver.ts
-# gate-watch: build.ts scripts/vendor/fetch-python.ts vendor/python.lock.json
-# gate-watch: scripts/lib/removeScratch.ts scripts/lib/platformPath.ts
-# gate-watch: src/daemon/ownerWatch.ts src/daemon/processSweep.ts src/daemon/processSweepRun.ts src/daemon/processSweepPosix.ts src/daemon/processSweepWindows.ts src/daemon/daemonBuild.ts
+# gate-watch: scripts/release/**
+# gate-watch: src/ink/termio/*
+# gate-watch: CONTRIBUTING.md
+# gate-watch: scripts/lib/captureDriver.ts
+# gate-watch: src/daemon/processSweep.ts src/daemon/processSweepRun.ts src/daemon/processSweepPosix.ts src/daemon/processSweepWindows.ts
 # gate-watch: src/daemon/headlessRun.ts src/services/acp/childSession.ts src/services/host/jobs.ts src/services/projectServices/serviceManager.ts
 # gate-watch: src/components/Feedback.tsx docs/README.md docs/NIX.md nix/**
-# gate-watch: .gitignore scripts/lib/treeIgnore.ts
-# gate-watch: src/utils/health/sections/identity.ts
-# gate-watch: src/utils/health/sections/runtime.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"

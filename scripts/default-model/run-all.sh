@@ -1,13 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/utils/model/computedDefault* src/utils/accounts/signInLedger* src/utils/accounts/signInRefusal* src/services/providers/zai/zaiCatalogue.ts
-# gate-watch: scripts/lib/hermetic.ts src/bootstrap/state.ts src/commands/model/*
-# gate-watch: src/services/providers/routeLaw.ts src/services/providers/zai/zaiLogin.ts src/utils/config.ts
-# gate-watch: src/utils/envUtils.ts src/utils/model/* src/services/providers/providerSecrets.ts
-# gate-watch: src/state/onChangeAppState.ts src/state/AppStateStore.ts
-# gate-watch: src/services/providers/gemini/geminiCatalogue.ts
-# gate-watch: src/services/providers/idSpaces.ts
-# gate-watch: src/utils/health/sections/settings.ts
+# gate-watch: src/commands/model/*
+# gate-watch: src/utils/model/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

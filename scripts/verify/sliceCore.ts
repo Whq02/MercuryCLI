@@ -28,6 +28,8 @@ export interface SlicePlanInput {
   ptyMax: number
   hubCeiling: number
   clearlyUnderRatio: number
+  launched?: Record<string, string[]>
+  alone?: string[]
 }
 
 interface SliceLedger {
@@ -39,6 +41,7 @@ interface SliceLedger {
   poolEstimateS: number
   poolMeasured: boolean
   hubs: Array<{ path: string; fanout: number }>
+  members: Array<{ suite: string; file: string; alone: boolean }>
 }
 
 type SlicePlan =
@@ -165,6 +168,7 @@ export function planSlice(input: SlicePlanInput): SlicePlan {
     poolEstimateS,
     poolMeasured,
     hubs: [],
+    members: [],
   }
   if (input.anchor === null) {
     return {
@@ -190,7 +194,12 @@ export function planSlice(input: SlicePlanInput): SlicePlan {
     .map(([path, who]) => ({ path, fanout: who.filter(pooled).length }))
     .filter(hub => hub.fanout > input.hubCeiling)
     .sort((a, b) => b.fanout - a.fanout)
-  const ledger: SliceLedger = { ...base, selection, suites, ratchets, outside, hubs }
+  const members = outside.flatMap(suite =>
+    (input.launched?.[suite] ?? [])
+      .filter(file => input.changedPaths.includes(file))
+      .map(file => ({ suite, file, alone: input.alone?.includes(suite) === true })),
+  )
+  const ledger: SliceLedger = { ...base, selection, suites, ratchets, outside, hubs, members }
   if (selection.unclassified.length > 0) {
     return {
       kind: 'escalate',

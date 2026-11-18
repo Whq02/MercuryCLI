@@ -1,12 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/components/mercury-ui/sessionAccent* src/components/mercury-ui/CritterArt.tsx src/components/mercury-ui/AnimatedCritterArt.tsx src/components/Onboarding.tsx src/utils/config/**
+# gate-watch: src/utils/config/**
 # gate-watch: src/utils/cockpit/**
-# gate-watch: assets/splash/mercury-splash.mjs scripts/engine-durability/harness.ts
-# gate-watch: scripts/lib/codeText.ts
-# gate-watch: scripts/ink-runtime/ansiEmulator.ts scripts/settings/settings-schema.json
-# gate-watch: scripts/ui/renderScenarios.ts
-# gate-watch: src/substrate/flagRegistry.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -1,20 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/guards/mission* src/commands/mission/**
-# gate-watch: src/bootstrap/state.ts src/components/HelmLanesRail.tsx
-# gate-watch: src/services/engine-connector/focusedConnector.ts
-# gate-watch: src/services/engine-connector/noSessionConnector.ts src/services/mission/missionCard.ts
+# gate-watch: src/commands/mission/**
 # gate-watch: src/services/mission/** src/services/jev/**
 # gate-watch: src/guards/**
-# gate-watch: src/components/concourse/liveTiles.ts src/services/concourse/concourseSnapshot.ts src/services/concourse/workerTranscript.ts
-# gate-watch: src/fabric/entryCodec.ts src/fabric/ordinal.ts
-# gate-watch: scripts/jev/lib/jevStandin.ts
-# gate-watch: src/commands.ts
-# gate-watch: src/services/run/continuationLatch.ts
-# gate-watch: src/utils/config/globalConfig.ts
-# gate-watch: src/utils/suggestions/commandSuggestions.ts
-# gate-watch: src/utils/verification/verificationState.ts
-# gate-watch: src/utils/model/utilityModel.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

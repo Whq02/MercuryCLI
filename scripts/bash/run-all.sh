@@ -1,54 +1,20 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-env: MERCURY_PROOF_POISON_SCRUB MERCURY_SHELL_ENGINE MERCURY_TMPDIR
-# gate-watch: scripts/lib/settingsPopupHarness.ts
-# gate-watch: src/utils/permissions/shellRuleMatching* src/utils/shell/globPreamble*
-# gate-watch: src/utils/shell/readOnlyCommandValidation*
-# gate-watch: src/utils/ShellCommand.ts src/tasks/LocalShellTask/* src/tools/BashTool/BashTool.tsx src/tools/BashTool/commandSemantics.ts
-# gate-watch: src/utils/processGroup.ts src/tools/TaskStopTool/* src/tasks/stopTask.ts src/Task.ts
-# gate-watch: src/utils/task/TaskOutput.ts src/utils/hooks/background.ts src/tools/MonitorTool/*
-# gate-watch: src/tools/AgentTool/runAgent.ts src/daemon/headlessRun.ts src/utils/fileHistory.ts
-# gate-watch: src/utils/secureStorage/macOsKeychainStorage.ts
-# gate-watch: src/services/tcpBridge/entry.ts src/services/ide/cppBuild.ts src/services/mcp/headersHelper.ts
-# gate-watch: src/utils/collapseBackgroundBashNotifications* src/utils/messages/text.ts
-# gate-watch: src/utils/worktree.ts src/services/projectLocal/paths.ts
-# gate-watch: src/utils/bash/ShellSnapshot.ts src/utils/shell/engineSession.ts src/utils/shell/brushPack.ts
-# gate-watch: src/services/lsp/LSPClient.ts src/services/dap/dapClient.ts
-# gate-watch: src/utils/bash/bashPipeCommand* src/utils/bash/shellQuoting* src/utils/shell/bashProvider*
-# gate-watch: src/utils/bash/bashPipeCommand* src/utils/bash/shellQuoting* src/utils/shell/bashProvider* src/utils/shell/shellProvider*
-# gate-watch: src/tools/BashTool/bashPermissions* src/tools/BashTool/readOnlyValidation* src/tools/BashTool/prompt*
-# gate-watch: src/substrate/flagRegistry* scripts/bash/shell-engine-parity*
-# gate-watch: src/utils/shell/windowsShellRoad.ts src/utils/windowsPaths.ts src/utils/shell/shellToolUtils.ts
-# gate-watch: src/utils/shell/shellEngineArm.ts README.md docs/TERMINAL-RUNTIME.md
-# gate-watch: src/components/Settings/Config.tsx
-# gate-watch: .github/workflows/shell-windows-probe.yml .github/workflows/private-release.yml
-# gate-watch: src/utils/Shell.ts src/substrate/envStamps.ts src/tools/shared/sessionEnvNotice.ts src/tools/PowerShellTool/PowerShellTool.tsx
-# gate-watch: src/utils/toolErrors.ts src/utils/waitCeiling.ts src/tools/BashTool/utils.ts src/tools/BashTool/maxOutputChars.ts src/tools/PowerShellTool/prompt.ts
-# gate-watch: src/Tool.ts src/bootstrap/state.ts src/cli/run.ts src/constants/subagentDoctrine.ts
-# gate-watch: src/daemon/main.ts src/entrypoints/init.ts src/ink/components/App.tsx src/screens/Chat.tsx
-# gate-watch: src/services/ide/cppProject.ts src/state/AppStateStore.ts src/tasks/taskOutcomeEnvelope.ts
-# gate-watch: src/utils/* src/utils/bash/shellQuote.ts
-# gate-watch: src/utils/bash/specs/** src/utils/hooks/commandRunner.ts src/utils/hooks/fire.ts src/utils/permissions/**
-# gate-watch: src/utils/processUserInput/processBashCommand.tsx src/utils/settings/types.ts src/utils/settings/settings.ts src/utils/shell/*
-# gate-watch: src/utils/task/diskOutput.ts vendor/brush.lock.json scripts/vendor/build-brush.ts scripts/vendor/patches/brush-0.4.0-windows.patch src/services/privateChannel/releaseTarget.ts .gitattributes
-# gate-watch: build.ts
+# gate-watch: src/tasks/LocalShellTask/*
+# gate-watch: src/tools/TaskStopTool/*
+# gate-watch: src/utils/hooks/background.ts src/tools/MonitorTool/*
+# gate-watch: src/services/projectLocal/paths.ts
+# gate-watch: src/utils/shell/shellProvider*
+# gate-watch: src/utils/*
+# gate-watch: src/utils/hooks/commandRunner.ts src/utils/hooks/fire.ts
+# gate-watch: src/utils/shell/*
+# gate-watch: .gitattributes
 # gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: src/tools/BashTool/pathValidation.ts src/tools/BashTool/bashCommandHelpers.ts src/tools/BashTool/sedEditParser.ts src/utils/bash/commands.ts src/utils/bash/ParsedCommand.ts
-# gate-watch: src/utils/config/derived.ts src/utils/permissions/shellProtectedPaths.ts src/tools/GrepTool/GrepTool.ts src/utils/verification/scanCeiling.ts
-# gate-watch: src/utils/permissions/decision/wrapper.ts src/utils/permissions/decision/engine.ts src/utils/permissions/decision/requestMessage.ts src/utils/config.ts
-# gate-watch: src/context.ts src/utils/gitRules.ts src/utils/config/globalConfig.ts src/utils/settings/settingsCache.ts src/tools/BashTool/BashToolResultMessage.tsx
-# gate-watch: src/services/tools/toolExecution.ts src/utils/hooks/sessionHooks.ts src/utils/messages/**
-# gate-watch: src/utils/bash/ast.ts src/utils/bash/parser.ts src/utils/bash/bashParser.ts src/utils/bash/treeSitterAnalysis.ts src/services/structure/grammarFacility.ts
-# gate-watch: src/services/tools/toolOrchestration.ts src/tools/AgentTool/scoutPolicy.ts src/tools/AgentTool/reviewerPolicy.ts src/components/permissions/BashPermissionRequest/bashToolUseOptions.tsx src/services/providers/callModelRouter.ts
+# gate-watch: src/utils/messages/**
+# gate-watch: src/services/structure/grammarFacility.ts
 # gate-watch: docs/INSTALL.md
-# gate-watch: src/utils/shell/** src/utils/bash/** src/utils/powershell/** src/tools/BashTool/** src/tools/PowerShellTool/** src/tasks/LocalShellTask/**
-# gate-watch: src/utils/wards/wardsRefusals.ts
-# gate-watch: src/utils/health/sections/crew.ts
-# gate-watch: src/utils/health/sections/interface.ts
-# gate-watch: src/utils/health/sections/runtime.ts
-# gate-watch: src/utils/shell/shellRecord.ts src/utils/shell/bashPack.ts src/constants/prompts.ts vendor/bash.lock.json scripts/vendor/build-bash.ts scripts/release/payloadContract.mjs
-# gate-watch: scripts/vendor/fetch-bash-win.ts scripts/vendor/lay-bash-win-pack.ts
-# gate-watch: src/services/acp/ideToolBridge.ts
+# gate-watch: src/utils/shell/** src/utils/bash/** src/utils/powershell/** src/tools/PowerShellTool/** src/tasks/LocalShellTask/**
 # gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

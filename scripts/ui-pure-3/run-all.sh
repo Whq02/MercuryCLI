@@ -1,28 +1,17 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: scripts/ui/** scripts/ui-pure-3/** src/bootstrap/state* scripts/notifications/concourseReferenceSeed.ts
-# gate-watch: src/commands/appearance/index* src/commands/health/HealthCertificate*
-# gate-watch: src/commands/run/runInspectorModel*
-# gate-watch: src/commands/crew/index* src/components/** src/context/overlayContext*
-# gate-watch: src/context/overlayStack* src/daemon/** src/hooks/useLayoutTier* src/hooks/useCwdState* src/hooks/useFocusedWorkspaceCwd* src/ink/**
-# gate-watch: src/keybindings/KeybindingProviderSetup* src/services/anthropicLimits*
+# gate-watch: scripts/ui/**
+# gate-watch: src/daemon/** src/hooks/useCwdState* src/ink/**
+# gate-watch: src/services/anthropicLimits*
 # gate-watch: src/utils/ripgrep.ts src/hooks/fileSuggestions.ts
-# gate-watch: src/services/rateLimitMessages* src/services/run/** src/state/AppState*
-# gate-watch: src/state/AppStateStore* src/substrate/bootNotes*
+# gate-watch: src/services/run/**
+# gate-watch: src/substrate/bootNotes*
 # gate-watch: src/types/logs* src/utils/**
-# gate-watch: assets/splash/splash-core.mjs design-system/live/manifest.json design-system/readme.md
-# gate-watch: mercury-skills/provider-apis/SKILL.md scripts/engine-durability/harness.ts
-# gate-watch: scripts/ink-runtime/ansiEmulator.ts scripts/lib/* src/commands.ts src/commands/**
-# gate-watch: src/context/surfaceRoute.ts src/extensions/load/keybindings.ts src/hooks/* src/ink.ts
-# gate-watch: src/input-core/pending-input.ts src/keybindings/* src/native-ts/color-diff/index.ts
-# gate-watch: src/screens/** src/services/concourse/* src/services/engine-connector/*
-# gate-watch: src/services/switchboard/bornSession.ts src/services/tips/tipRegistry.ts
-# gate-watch: src/services/tips/tipScheduler.ts src/skills/bundled/provider-apis/SKILL.md
-# gate-watch: src/state/vitalsBus.ts src/substrate/flagRegistry.ts src/tools/**
-# gate-watch: design-system/live/grids/**
-# gate-watch: src/tools/BashTool/** src/tools/PowerShellTool/**
-# gate-watch: src/utils/permissions/PermissionMode.ts src/utils/permissions/askWords.ts
-# gate-watch: src/utils/permissions/decision/rules.ts
+# gate-watch: scripts/lib/*
+# gate-watch: src/hooks/*
+# gate-watch: src/keybindings/*
+# gate-watch: src/services/concourse/* src/services/engine-connector/*
+# gate-watch: src/services/switchboard/bornSession.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

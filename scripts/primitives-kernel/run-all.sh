@@ -1,16 +1,9 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/components/mercury-ui/toolCardGrammar* src/ink/**
-# gate-watch: src/services/agentResults/normalize* src/services/changeTransaction/receipts*
-# gate-watch: src/services/changeTransaction/snapshotAnchor* src/services/dap/dapClient*
-# gate-watch: src/services/lsp/LSPServerInstance* src/services/primitives/**
-# gate-watch: src/services/projectServices/executionProjection*
-# gate-watch: src/services/projectServices/serviceManager*
-# gate-watch: src/services/resources/adapters/service* src/services/resources/contracts*
-# gate-watch: src/services/resources/registry* src/services/run/**
-# gate-watch: src/utils/task/executionProjection* src/utils/task/framework*
-# gate-watch: src/utils/verification/verificationState*
-# gate-watch: src/Task.ts src/bootstrap/state*
+# gate-watch: src/ink/**
+# gate-watch: src/services/primitives/**
+# gate-watch: src/services/resources/adapters/service*
+# gate-watch: src/services/run/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -1,18 +1,11 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-env: MERCURY_RENDER_CWD
-# gate-watch: scripts/ui/** scripts/ui-3/**
+# gate-watch: scripts/ui/**
 # gate-watch: src/bootstrap/state* src/components/** src/context/overlayContext*
-# gate-watch: src/context/overlayStack* src/daemon/** src/hooks/useLayoutTier* src/ink/**
+# gate-watch: src/context/overlayStack* src/daemon/** src/ink/**
 # gate-watch: src/services/run/** src/state/AppState* src/utils/**
-# gate-watch: design-system/live/manifest.json scripts/computer/computerDriveKit.ts scripts/lib/*
-# gate-watch: scripts/notifications/concourseReferenceSeed.ts
-# gate-watch: scripts/provider-compat/fixtures/huggingface-models-2026-08-22.json
-# gate-watch: scripts/streaming/artifactArena.ts
-# gate-watch: src/commands/login/login.tsx src/constants/figures.ts src/fabric/entryCodec.ts
-# gate-watch: src/commands/config/config.tsx src/commands/usage/usage.tsx
-# gate-watch: src/fabric/ordinal.ts src/services/api/errors.ts src/services/tips/tipRegistry.ts
-# gate-watch: src/substrate/startupMenu.ts src/tools/GlobTool/GlobTool.ts src/tools/GlobTool/prompt.ts
+# gate-watch: scripts/lib/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

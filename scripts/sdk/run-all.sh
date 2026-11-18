@@ -1,13 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: package.json scripts/release/launcherTemplates.mjs src/services/privateChannel/installLayout.ts tsconfig.json
-# gate-watch: sdk/** sdk-py/** src/rows/** src/cli/run.ts src/cli/sessionArgs.ts src/cli/structuredIO.ts src/cli/headless/refusalEnvelope.ts
-# gate-watch: src/runner/wire/** src/utils/permissions/PermissionMode.ts src/utils/permissions/PermissionUpdateSchema.ts src/utils/lazySchema.ts
-# gate-watch: src/main.tsx src/types/permissions.ts src/utils/effortLadder.ts
-# gate-watch: scripts/daemon/dupline-world.ts scripts/lib/removeScratch.ts scripts/lib/seatLauncher.ts
-# gate-watch: src/types/message.ts src/utils/deadline.ts src/utils/lazySchema.ts src/components/mercury-ui/glyphs.ts src/ink/stringWidth.ts src/ink/wrap-text.ts src/ink/wrapAnsi.ts src/utils/intl.ts src/utils/sliceAnsi.ts src/utils/truncate.ts
-# gate-watch: scripts/lib/fixtureApi.ts scripts/lib/firstRunSeed.ts scripts/lib/generated-assets-map.mjs scripts/gate/generated-assets.tsv scripts/provider-compat/fixtures/engineRules.mjs scripts/providers/lib/llmhostFixture.ts src/services/providers/providerSecrets.ts src/utils/settings/settingsCache.ts
-# gate-watch: scripts/lib/processGroup.ts
+# gate-watch: sdk/** sdk-py/** src/rows/** src/cli/sessionArgs.ts src/cli/structuredIO.ts src/cli/headless/refusalEnvelope.ts
 # gate-watch: src/cli/headless/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

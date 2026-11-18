@@ -1,16 +1,10 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-env: MERCURY_BROWSER_CACHE_DIR
-# gate-watch: scripts/document/** src/tools/DocumentTool/** vendor/document-libs.lock.json vendor/pdfjs.lock.json
-# gate-watch: src/skills/bundled/research* src/skills/bundled/index.ts src/tools.ts package.json bun.lock
-# gate-watch: src/utils/permissions/filesystem.ts src/services/browser/browserResolver.ts
-# gate-watch: scripts/vendor/documentLibraries.ts vendor/document-licences/** mercury-skills/research/** build.ts .gitattributes
-# gate-watch: scripts/lib/hermetic.ts scripts/ast-tools/lib/harness.ts src/Tool.ts src/bootstrap/state.ts
-# gate-watch: src/services/changeTransaction/receipts.ts src/tools/ToolSearchTool/prompt.ts
-# gate-watch: src/services/browser/browserSession.ts src/services/run/ownerKey.ts
-# gate-watch: src/skills/bundled/research/** src/skills/bundledSkills.ts src/utils/execFileNoThrow.ts src/utils/which.ts
-# gate-watch: src/extensions/bundled/mercury-media/server/manifest.json src/extensions/bundled/shared/install.d.mts
-# gate-watch: src/utils/permissions/permissions.ts
+# gate-watch: src/tools/DocumentTool/** vendor/pdfjs.lock.json
+# gate-watch: src/skills/bundled/research* src/skills/bundled/index.ts bun.lock
+# gate-watch: src/utils/permissions/filesystem.ts
+# gate-watch: vendor/document-licences/** build.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 trap suite_home_cleanup EXIT

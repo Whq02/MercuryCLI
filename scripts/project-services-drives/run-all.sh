@@ -9,15 +9,14 @@
 # gate-watch: src/tasks/LocalAgentTask/LocalAgentTask* src/tools/** src/utils/artifacts/store*
 # gate-watch: src/utils/messageQueueManager* src/utils/messages/attachmentText* src/utils/tasks*
 # gate-watch: src/utils/verification/verificationState* assets/completions/**
-# gate-watch: scripts/dap/mock-dap-adapter.mjs scripts/lib/generated-assets-map.mjs scripts/lib/proofHome.ts
-# gate-watch: src/fabric/entryCodec.ts src/fabric/ordinal.ts src/ink.ts
+# gate-watch: scripts/dap/mock-dap-adapter.mjs scripts/lib/generated-assets-map.mjs
+# gate-watch: src/fabric/entryCodec.ts src/fabric/ordinal.ts
 # gate-watch: src/utils/capability/census.ts src/utils/toolErrors.ts src/bootstrap/state.ts
 # gate-watch: src/utils/crashReport.ts src/utils/gracefulShutdown.ts
 # gate-watch: src/utils/execFileNoThrow.ts
 # gate-watch: src/utils/envUtils.ts src/utils/sessionStoragePortable.ts
 # gate-watch: src/utils/zodToJsonSchema.ts
 # gate-watch: src/utils/crew/agentTranscriptReader.ts
-# gate-watch: scripts/project-services/render-project-services-cards.tsx
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

@@ -1,58 +1,20 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/services/providers/temporaryStreamError.ts src/services/providers/busyRetry.ts src/services/providers/openai/openaiWire.ts src/services/api/retryJitter.ts scripts/lib/nodeBin.ts
-# gate-watch: scripts/gate/ci-shard.sh scripts/lib/hermetic.ts
-# gate-watch: src/services/providers/melious/** scripts/providers/fixtures/melious-documented-2026-10-24.json
-# gate-watch: scripts/provider-compat/fixtures/gemini-usage-roads-2026-09-30.json scripts/provider-compat/fixtures/huggingface-whoami-v2-documented.json
-# gate-watch: src/commands/defaultprovider/defaultprovider.tsx src/state/AppState.tsx
-# gate-watch: src/services/providers/modelRegistry.ts src/services/providers/providerDiscovery.ts
-# gate-watch: src/services/providers/deepseek/deepseekAdapter.ts src/services/providers/xai/xaiAdapter.ts
-# gate-watch: src/services/providers/zai/zaiAdapter.ts src/services/providers/zai/zaiCatalogue.ts src/utils/crew/engineDispatch.ts scripts/providers/fixtures/zai-models-2026-10-05.json
-# gate-watch: src/services/providers/providerUsability* src/services/providers/providerUsage* src/services/providers/openai/openaiLimitState* src/services/engine-connector/daemonConnector*
-# gate-watch: src/services/providers/accountSlots* src/components/ConsoleOAuthFlow*
-# gate-watch: src/services/providers/sseDecoder*
-# gate-watch: docs/ENGINES.md scripts/lib/fixtureApi.ts scripts/staleness/prove-stale-registry.ts src/*
-# gate-watch: src/bootstrap/state.ts src/cli/run.ts src/cli/handlers/usage.ts src/commands/feedback/index.ts
-# gate-watch: src/commands/login/login.tsx
-# gate-watch: src/commands/model/mercuryModel.tsx src/commands/model/model.tsx
-# gate-watch: src/components/* src/components/PromptInput/PromptInput.tsx src/components/Settings/Usage.tsx src/components/PromptInput/useComposerModelDoors.tsx
-# gate-watch: src/components/mercury-ui/RailPanel.tsx src/components/mercury-ui/components.tsx
-# gate-watch: src/components/mercury-ui/parity/AccountView.tsx src/components/tasks/useFocusedWork.ts
-# gate-watch: src/constants/oauth.ts src/context/notifications.tsx src/daemon/main.ts
-# gate-watch: src/daemon/sessionSeat.ts src/daemon/saturnAccount.ts src/hooks/*
-# gate-watch: src/hooks/notifs/useRateLimitWarningNotification.tsx src/ink/components/StdinContext.ts
-# gate-watch: src/ink/squash-text-nodes.ts src/ink/stringWidth.ts src/keybindings/useKeybinding.ts
-# gate-watch: src/run-core/turn-machine.ts src/screens/Chat.tsx src/services/* src/services/api/*
-# gate-watch: src/services/concourse/workerModels.ts src/services/engine-connector/*
-# gate-watch: src/services/mcp/client.ts src/services/oauth/client.ts src/services/providers/**
-# gate-watch: src/services/switchboard/bootBirthFacts.ts src/services/switchboard/bornSession.ts
-# gate-watch: src/services/wallet/wallet.ts src/state/vitalsBus.ts src/substrate/flagRegistry.ts
-# gate-watch: src/tools/AgentTool/runAgent.ts src/tools/WebFetchTool/utils.ts src/utils/*
-# gate-watch: src/utils/accounts/scopeScan.ts src/utils/accounts/signInLedger.ts
-# gate-watch: src/utils/cockpit/healthCertSnapshot.ts src/utils/cockpit/quota.ts
-# gate-watch: src/utils/config/globalConfig.ts src/utils/model/* src/services/providers/providerSecrets.ts
-# gate-watch: src/utils/settings/mdm/settings.ts src/utils/settings/settings.ts
-# gate-watch: src/utils/settings/settingsCache.ts
+# gate-watch: src/*
+# gate-watch: src/components/* src/components/PromptInput/PromptInput.tsx
+# gate-watch: src/hooks/*
+# gate-watch: src/ink/squash-text-nodes.ts
+# gate-watch: src/services/* src/services/api/*
+# gate-watch: src/services/engine-connector/*
+# gate-watch: src/utils/*
+# gate-watch: src/utils/model/*
 # gate-watch: src/commands/usage/usage.tsx
 # gate-watch: src/ink/events/input-event.ts
-# gate-watch: src/utils/cockpit/settingsPopup.ts
-# gate-watch: src/tools/FileWriteTool/FileWriteTool.ts src/types/message.ts
-# gate-watch: src/runner/wire/methods.ts src/tasks/LocalAgentTask/LocalAgentTask.tsx src/tasks/LocalAgentTask/agentPause.ts src/tools/AgentTool/resumeAgent.ts src/tools/AgentTool/agentToolUtils.ts src/state/AppStateStore.ts src/utils/sessionStorage/logs.ts src/utils/config/globalConfig.ts
-# gate-watch: src/services/providers/emptyStreamRetry.ts scripts/lib/firstRunSeed.ts scripts/lib/captureDriver.ts
-# gate-watch: src/utils/cockpit/helmLanesModel.ts src/utils/cockpit/helmVitalsModel.ts
-# gate-watch: src/utils/messages/apiPlan.ts src/utils/messages/factories.ts src/services/providers/zai/glmPins.ts
-# gate-watch: docs/SETTINGS.md scripts/settings/settings-schema.json src/services/providers/openai/openaiSocketTransport.ts src/utils/settings/types.ts
-# gate-watch: scripts/crew/crew-world.ts
-# gate-watch: src/commands/effort/** src/services/providers/openaicompat/compatEffort.ts src/services/host/recipesFile.ts assets/host/recipes.json scripts/providers/prove-host-effort.ts
-# gate-watch: scripts/lib/settingsPopupHarness.ts scripts/providers/lib/llmhostFixture.ts scripts/providers/prove-llmhost-slots.ts src/services/host/recipes.ts src/services/llmHost/** src/commands/llmhost/** src/components/LlmHostDialog.tsx
-# gate-watch: scripts/host/fixtures/pod-get-running.json scripts/host/runpodFixture.mjs scripts/ui/gridToPng.ts
-# gate-watch: scripts/providers/prove-orphan-endpoints.ts src/services/host/index.ts src/services/host/door.ts src/services/host/store.ts src/services/host/jobs.ts src/services/host/cluster.ts
-# gate-watch: src/services/projectServices/serviceManager.ts src/services/projectServices/contracts.ts src/components/loginFamilyRows.ts src/components/SettingsPopupSlot.tsx src/components/design-system/ThemeProvider.tsx src/ink.ts src/state/store.ts
-# gate-watch: scripts/provider-compat/fixtures/orcarouter-documented.json
-# gate-watch: scripts/lib/pickerCells.ts
-# gate-watch: src/utils/health/sections/auth.ts
+# gate-watch: src/commands/effort/** src/services/host/recipesFile.ts assets/host/recipes.json
+# gate-watch: src/services/llmHost/** src/commands/llmhost/**
+# gate-watch: src/services/host/door.ts src/services/host/cluster.ts
+# gate-watch: src/services/projectServices/contracts.ts
 # gate-watch: src/run-core/turn/**
-# gate-watch: scripts/core-runtime/turnScenarios.ts
 # gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

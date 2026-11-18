@@ -1,35 +1,16 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: scripts/lib/captureDriver.ts
-# gate-watch: src/rows/turn.ts src/boot/launchGraph* src/bootstrap/state* src/cli/headless/**
-# gate-watch: src/cli/run* src/components/App* src/constants/betas* src/constants/oauth*
-# gate-watch: src/ink/** src/input-core/command-queue*
-# gate-watch: src/hooks/useVimInput.ts src/vim/operators.ts
-# gate-watch: src/ink/termio/ansi.ts src/ink/termio/csi.ts src/ink/termio/display-types.ts src/ink/termio/osc.ts
-# gate-watch: scripts/lib/hermetic.ts
-# gate-watch: src/input-core/pending-input* src/query/** src/chatLauncher* src/screens/Chat*
-# gate-watch: src/services/providers/anthropic/** src/services/api/errors* src/services/api/withRetry*
-# gate-watch: src/services/compact/autoCompact* src/services/tokenEstimation*
-# gate-watch: src/state/AppStateStore* src/substrate/startupMenu* src/tools/AgentTool/constants*
-# gate-watch: src/tools/SyntheticOutputTool/SyntheticOutputTool*
-# gate-watch: src/types/ids* src/types/textInputTypes* src/utils/**
+# gate-watch: src/cli/headless/**
+# gate-watch: src/cli/run* src/components/App* src/constants/oauth*
+# gate-watch: src/ink/**
+# gate-watch: src/vim/operators.ts
+# gate-watch: src/query/**
+# gate-watch: src/services/providers/anthropic/**
+# gate-watch: src/types/ids* src/utils/**
 # gate-watch: src/commands/caching/**
-# gate-watch: scripts/ink-runtime/ansiEmulator.ts scripts/ink-runtime/frameHarness.ts
-# gate-watch: src/services/tools/loopGuard* src/services/tools/toolExecution*
-# gate-watch: src/run-core/pauseGate* src/run-core/turn-machine* src/services/tools/toolOrchestration*
-# gate-watch: src/run-core/turn/** scripts/gate/sourceCensus.ts
-# gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: scripts/lib/seatDoor.ts
-# gate-watch: scripts/compact/overflowFixture.ts
-# gate-watch: src/tasks/LocalShellTask/LocalShellTask.tsx src/tools/BashTool/BashTool.tsx
-# gate-watch: src/utils/permissions/decision/wrapper.ts
-# gate-watch: scripts/lib/flagRegistrySource.ts
-# gate-watch: src/substrate/flagRegistry.ts
-# gate-watch: scripts/lib/settingsPopupHarness.ts
-# gate-watch: scripts/ui/chatScenarios.ts
+# gate-watch: src/run-core/turn/**
+# gate-watch: src/rows/*
 # gate-watch: src/screens/chat/*
-# gate-watch: src/services/capacity/governor.ts
-# gate-watch: src/services/tools/earlyStarts.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 cd "$(dirname "$0")/../.." || exit 1

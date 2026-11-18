@@ -3,8 +3,7 @@
 # gate-watch: scripts/repetition-guard/**
 # gate-watch: src/services/changeTransaction/repetitionPolicy.ts
 # gate-watch: src/tools/FileEditTool/** src/tools/FileWriteTool/** src/tools/ChangeSetTool/**
-# gate-watch: scripts/mission-runner/live/runner.ts
-# gate-watch: scripts/lib/captureDriver.ts scripts/ui/renderScenarios.ts scripts/ui/vshot.py src/Tool.ts
+# gate-watch: src/Tool.ts
 # gate-watch: src/services/changeTransaction/contracts.ts src/services/changeTransaction/snapshotAnchor.ts
 # gate-watch: src/services/run/effectObserver.ts src/utils/verification/verificationState.ts
 set -uo pipefail

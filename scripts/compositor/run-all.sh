@@ -1,16 +1,11 @@
 #!/bin/bash
 # gate-class: pure
-# gate-watch: assets/splash/mercury-splash.mjs src/commands/** src/components/*
-# gate-watch: src/components/Settings/Config.tsx src/components/concourse/*
-# gate-watch: src/components/mercury-ui/sessionAccent.ts src/entrypoints/cli.tsx src/hooks/useTextInput.ts
-# gate-watch: src/ink/* src/ink/components/AlternateScreen.tsx src/ink/components/App.tsx
-# gate-watch: src/ink/geometry/selection-model.ts src/ink/root/screen-session.ts
-# gate-watch: src/ink/root/terminalModeLedger.ts src/ink/session/terminalExperience.ts src/ink/termio/*
-# gate-watch: src/interactiveHelpers.tsx src/keybindings/* src/prompt/mercuryContract.ts src/screens/Chat.tsx
-# gate-watch: src/screens/ResumeConversation.tsx src/ink/termio/notifyPing.ts src/hooks/useTurnEndPing.ts
-# gate-watch: src/services/providers/openai/openaiCallModel.ts src/services/providers/openai/openaiWire.ts
-# gate-watch: src/skills/bundled/keybindings.ts src/utils/bash/ShellSnapshot.ts src/utils/cockpit/*
-# gate-watch: src/utils/config/schema.ts src/utils/mercuryTokens.ts src/utils/messages/streaming.ts src/utils/truncate.ts
+# gate-watch: src/components/*
+# gate-watch: src/components/concourse/*
+# gate-watch: src/ink/*
+# gate-watch: src/ink/termio/*
+# gate-watch: src/keybindings/*
+# gate-watch: src/utils/cockpit/*
 # gate-watch: src/utils/sessionStoragePortable.ts
 # gate-watch: src/components/HelpV2/HelpV2.tsx src/components/PromptInput/PromptInput.tsx src/context/overlayStack.ts src/context/surfaceRoute.ts src/hooks/useLayoutTier.ts src/ink.ts src/ink/session/delivery.ts src/state/AppStateStore.ts src/utils/config.ts
 set -uo pipefail

@@ -1,110 +1,29 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join, posix, relative, resolve } from 'node:path'
-import ts from 'typescript'
-import { loadImpactManifest, narrowedRow, selectImpact, watchClaims, type ImpactManifest } from '../verify/impactManifest.ts'
-import { calleeName, declarationOf, parseSource, slash, stringText, unwrap, visit } from './sourceCensus.ts'
+import { dirname, join, relative, resolve } from 'node:path'
+import { loadImpactManifest, selectImpact, type ImpactManifest } from '../verify/impactManifest.ts'
+import { computedWatch } from '../verify/watchGraph.ts'
+import { slash } from './sourceCensus.ts'
 
 const REAL_ROOT = resolve(import.meta.dir, '..', '..')
+const SELF = 'scripts/gate/prove-gate-watch-census.ts'
+const TABLE = 'scripts/gate/watch-hand-list.tsv'
 const REPORT = process.argv.includes('--report')
+const WRITE = process.argv.includes('--write')
+const CUT = process.argv.includes('--cut')
+const CHAIN = 'bun scripts/verify/watch-report.ts --chain <suite> <path>'
+const HAND_LAW =
+  "a header line stands only for what the reader of a suite's proofs cannot see: an area a member that runs the built bundle covers, a file one import or more into src, a path built at run time; what a proof imports, runs, names or walks wakes its suite with no line"
 
-const WHOLE_TREE: Record<string, string> = {
-  accounts: 'prove-keychain-miss-is-quiet walks src (the keychain-miss law)',
-  bash: 'prove-shell-engine-census walks scripts (the shell-engine compatibility census)',
-  build: 'prove-boot-crash-surface and prove-win32-seam-ratchet walk src (boot modules, win32 seams)',
-  cache: 'prove-cache-clock-benchmark lists every suite dir under scripts (the benchmark corpus)',
-  'command-catalogue': 'prove-no-literal-disabled-branches, prove-settings-popup-commands and prove-surface-truth walk src and scripts (command surfaces)',
-  compositor: 'prove-uiux-wave0-census walks scripts (its proof roster)',
-  'consistency-census': 'prove-ordering-pin-teeth walks scripts; a whole-tree ratchet owed by every fold',
-  distribution: 'prove-no-os-sandbox walks src (no OS-sandbox import may return); a whole-tree ratchet owed by every fold',
-  'core-runtime': 'prove-provider-contract walks src (provider edges)',
-  critters: 'prove-small-critter-estate scans src/**/*.{ts,tsx} (the critter estate)',
-  daemon: 'prove-daemon-dir-seam walks src (daemon-dir readers)',
-  eval: 'prove-schema-conformance walks src (eval schemas)',
-  gate: 'the gate censuses read every runner and proof under scripts; a whole-tree ratchet owed by every fold',
-  identity: 'prove-docs-altitude walks the whole tree (doc surfaces); a whole-tree ratchet owed by every fold',
-  host: 'prove-host-words-truth walks src (every sentence a user reads on the host surfaces against the four words laws); a whole-tree ratchet owed by every fold',
-  'ink-runtime': 'prove-deep-import-policy walks src (deep ink imports)',
-  'interaction-pure': 'prove-board-coverage walks src (master-detail boards)',
-  mcp: 'prove-disable-disconnects and prove-sdk-doorway walk src (MCP client seams)',
-  memory: 'prove-memory-one-store walks src (one memory store, one vocabulary)',
-  'model-policy': 'prove-model-pin-census and prove-neutral-model-doors walk src (model pins and doors)',
-  'node-runtime': 'prove-spawn-window-discipline walks src (every child-process spawn carries windowsHide)',
-  orphans: 'prove-reachability-manifest walks src and scripts (the reachability graph)',
-  permissions: 'prove-sovereign-zero-cards walks src (every pusher of the permission card and every tool declaring an interaction-mandatory ask); a whole-tree ratchet owed by every fold',
-  projectdirs: 'prove-no-literal-homes walks src (literal home paths)',
-  provauth: 'prove-signin-roads-pinned walks scripts (sign-in road pins)',
-  'run-recovery': 'prove-worktree-resume-keeps-record walks src and scripts (the retired resume road names nothing)',
-  'provider-compat': 'prove-route-law and prove-transport-reached-via-router walk src (provider routes)',
-  providers: 'prove-callmodel-contract walks src (the one road contract: no borrowed transport type, no cast onto it)',
-  'stop-policy': 'prove-surface-sweep walks src (the Stop-hook family census)',
-  substrate: 'prove-live-e2e-hermetic walks scripts (hermetic-fixture hygiene)',
-  switchboard: 'prove-seat-lifecycle walks src (seat ghosts)',
-  'switchboard-5': 'prove-concourse-resume walks src (concourse resume seams)',
-  'switchboard-5-drives': 'prove-exit-everywhere walks src (ctrl-c handlers)',
-  'switchboard-6': 'prove-status-prune walks src (retention numbers)',
-  'switchboard-6-drives': 'prove-esc-led-sends walks scripts (esc-led drives)',
-  'tree-ownership': 'prove-suite-membership reads every runner under scripts (the membership law)',
-  ui: 'prove-terminal-handback and prove-tty-suspend walk src (terminal owners)',
-  'ui-2': 'prove-vshot-send-hygiene walks scripts (vshot sends)',
-  'ui-pure-1': 'prove-branch-chip walks src (chip owners)',
-  'ui-pure-2': 'prove-notepad-retired walks src (retired module absence)',
-  'ui-pure-3': 'prove-no-new-hex walks src (hex colours); prove-width-oracle-sot walks src (width oracles)',
-  verify: 'prove-impact-manifest loads every runner under scripts and reads git ls-files; a whole-tree ratchet owed by every fold',
-  'visual-contract': 'prove-focal-ramp walks src (focal ramps)',
-}
-
-const ENV_GATED = /\$\{[A-Z_]+:-0\}"?\s*=\s*"1"/
-const RUNNER_TOKEN = /[A-Za-z0-9_@./*-]+\.(?:ts|tsx|mjs|js|sh|py)\b/g
-const SHELL_PATH = /(?<![A-Za-z0-9_@./-])(?:\.{1,2}\/)?(?:src|scripts|docs|assets|design-system|bin|\.github)\/[A-Za-z0-9_@./*-]+/g
-const PY_STRING = /['"]([^'"\s]+)['"]/g
-const LITERAL_SHAPE = /^(?:\.{1,2}\/)?[A-Za-z0-9_@][A-Za-z0-9_@./*+-]*$/
-const ROOT_ANCHORS = new Set(['ROOT', 'REPO', 'root', 'repo', 'repoRoot', 'REPO_ROOT', 'repo_root', 'REAL_ROOT'])
-const DIR_ANCHORS = new Set(['__dirname', 'HERE', 'here', 'DIR', 'dir', 'SUITE_DIR'])
-const JOINERS = new Set(['join', 'resolve'])
-const TEXT_METHODS = new Set(['includes', 'startsWith', 'endsWith', 'indexOf', 'lastIndexOf', 'replace', 'replaceAll', 'split', 'test', 'match', 'matchAll', 'has', 'get', 'set', 'delete', 'localeCompare', 'padEnd', 'padStart', 'concat', 'add', 'push', 'log', 'error', 'warn'])
-const DIR_READER = /^(?:Glob|readdir|opendir|scan|walk|glob|ls|list|collect|census|gather|crawl|enumerate|discover|files|tree|load|git)/i
-const COMPARISONS = new Set([ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken, ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsToken])
-const WHOLE_DIRS = new Set(['', 'src', 'scripts'])
-const BUILT_PRODUCT = 'scripts/lib/builtProduct.ts'
-const BUILT_ENTRIES = /^src\/(?:main\.tsx|cli\/run\.ts)$/
-const MAX_DEPTH = 5
-
-type ReadKind = 'file' | 'dir' | 'glob'
-type ReadHow = 'import' | 'text' | 'runner'
-type Read = { path: string; kind: ReadKind; via: string; how: ReadHow; far?: boolean; owed?: boolean }
-type Tree = { list: string[]; files: Set<string>; dirs: Set<string> }
-type FileReads = { imports: string[]; files: string[]; dirs: string[] }
-type Miss = { suite: string; law: 1 | 2; text: string }
-type Unwatched = { path: string; kind: ReadKind; via: string; files: string[] }
-type SuiteRow = { suite: string; executed: string[]; reads: Read[]; misses: string[]; whole: string | null; unwatched: Unwatched[] }
-type Census = { suites: SuiteRow[]; globs: number; misses: Miss[] }
-type Built = { helper: string; entries: RegExp }
-
-const globs = new Map<string, InstanceType<typeof Bun.Glob>>()
-function globOf(pattern: string): InstanceType<typeof Bun.Glob> {
-  let g = globs.get(pattern)
-  if (!g) {
-    g = new Bun.Glob(pattern)
-    globs.set(pattern, g)
-  }
-  return g
-}
-
-function treeOf(list: string[]): Tree {
-  const files = new Set(list)
-  const dirs = new Set<string>()
-  for (const f of list) {
-    let d = posix.dirname(f)
-    while (d !== '.' && !dirs.has(d)) {
-      dirs.add(d)
-      d = posix.dirname(d)
-    }
-  }
-  return { list, files, dirs }
-}
+type Glob = { glob: string; line: number; matches: number; covered: boolean }
+type SuiteRow = { suite: string; globs: Glob[] }
+type Miss = { law: 1 | 2; suite: string; text: string }
+type Census = { suites: SuiteRow[]; misses: Miss[] }
+type Table = Map<string, number>
+type Over = { suite: string; now: number; row: number; covered: Glob[]; hand: Glob[] }
+type Cut = { runner: string; line: number; gone: string[]; left: string[] }
 
 function trackedOf(root: string): string[] {
   return execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
@@ -126,407 +45,124 @@ function walkAll(root: string): string[] {
   return out
 }
 
-function insideRoot(root: string, abs: string): string | null {
-  const rel = slash(relative(root, abs))
-  if (rel === '..' || rel.startsWith('../') || rel.startsWith('/')) return null
-  return rel === '.' ? '' : rel
-}
-
-function classify(tree: Tree, rel: string, via: string, how: ReadHow): Read | null {
-  if (rel.includes('*')) return tree.list.some(t => globOf(rel).match(t)) ? { path: rel, kind: 'glob', via, how } : null
-  if (tree.files.has(rel)) return { path: rel, kind: 'file', via, how }
-  if (rel === '' || tree.dirs.has(rel)) return { path: rel, kind: 'dir', via, how }
-  return null
-}
-
-function filesOf(tree: Tree, read: Read): string[] {
-  if (read.kind === 'file') return [read.path]
-  if (read.kind === 'glob') return tree.list.filter(t => globOf(read.path).match(t))
-  if (read.path === '') return tree.list
-  const prefix = `${read.path}/`
-  return tree.list.filter(t => t.startsWith(prefix))
-}
-
-const wholeScope = (read: Read): string | null => {
-  if (read.kind === 'dir') return WHOLE_DIRS.has(read.path) ? read.path : null
-  if (read.kind !== 'glob') return null
-  const m = /^(?:(src|scripts)\/)?\*\*(?:\/.*)?$/.exec(read.path)
-  return m ? (m[1] ?? '') : null
-}
-const isWhole = (read: Read): boolean => wholeScope(read) !== null
-const underScope = (path: string, scope: string): boolean => scope === '' || path.startsWith(`${scope}/`)
-
-function resolveImport(root: string, tree: Tree, fromFile: string, spec: string): string | null {
-  if (!spec.startsWith('.')) return null
-  const base = insideRoot(root, resolve(dirname(fromFile), spec))
-  if (base === null) return null
-  const stem = base.replace(/\.js$/, '')
-  for (const cand of [base, `${stem}.ts`, `${stem}.tsx`, `${base}.ts`, `${base}.tsx`, `${base}/index.ts`, `${base}.mjs`, `${base}.js`]) if (tree.files.has(cand)) return cand
-  return null
-}
-
-function isTextContext(n: ts.Node): boolean {
-  const p = n.parent
-  if (ts.isElementAccessExpression(p) && p.argumentExpression === n) return true
-  if (ts.isPropertyAccessExpression(p) && p.expression === n) return true
-  if (ts.isComputedPropertyName(p) || ts.isLiteralTypeNode(p) || ts.isCaseClause(p)) return true
-  if ((ts.isPropertyAssignment(p) || ts.isPropertyDeclaration(p) || ts.isMethodDeclaration(p) || ts.isPropertySignature(p)) && p.name === n) return true
-  if (ts.isBinaryExpression(p) && COMPARISONS.has(p.operatorToken.kind)) return true
-  if (ts.isImportDeclaration(p) || ts.isExportDeclaration(p) || ts.isExternalModuleReference(p)) return true
-  if (ts.isCallExpression(p) && p.arguments.includes(n as ts.Expression)) {
-    const callee = unwrap(p.expression)
-    if (callee.kind === ts.SyntaxKind.ImportKeyword) return true
-    if (ts.isIdentifier(callee) && callee.text === 'require') return true
-    if (ts.isPropertyAccessExpression(callee) && TEXT_METHODS.has(callee.name.text)) return true
-  }
-  return false
-}
-
-function typeOnly(s: ts.ImportDeclaration | ts.ExportDeclaration): boolean {
-  if (ts.isExportDeclaration(s)) return s.isTypeOnly
-  const clause = s.importClause
-  if (!clause) return false
-  if (clause.isTypeOnly) return true
-  const named = clause.namedBindings
-  return clause.name === undefined && named !== undefined && ts.isNamedImports(named) && named.elements.length > 0 && named.elements.every(el => el.isTypeOnly)
-}
-
-function isCallArgument(n: ts.Node): ts.CallExpression | ts.NewExpression | null {
-  const p = n.parent
-  if ((ts.isCallExpression(p) || ts.isNewExpression(p)) && p.arguments?.includes(n as ts.Expression)) return p
-  return null
-}
-
-function scriptReads(root: string, tree: Tree, file: string): FileReads {
-  const src = parseSource(root, join(root, file))
-  const fileDir = posix.dirname(file)
-  const out: FileReads = { imports: [], files: [], dirs: [] }
-  const consumed = new Set<ts.Node>()
-  const literalPath = (text: string, base: string): string | null => {
-    if (!LITERAL_SHAPE.test(text)) return null
-    if (text.startsWith('./') || text.startsWith('../')) return insideRoot(root, resolve(root, base, text))
-    return text.includes('/') ? insideRoot(root, resolve(root, text)) : null
-  }
-  const pathOf = (e: ts.Expression, depth: number): string | null => {
-    if (depth > MAX_DEPTH) return null
-    const x = unwrap(e)
-    const t = stringText(x)
-    if (t !== undefined) return literalPath(t, fileDir)
-    if (ts.isIdentifier(x)) {
-      const decl = declarationOf(x)
-      if (decl && ts.isVariableDeclaration(decl)) {
-        const init = decl.initializer ? unwrap(decl.initializer) : undefined
-        if (!init) return null
-        if (ts.isBinaryExpression(init) && (init.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken || init.operatorToken.kind === ts.SyntaxKind.BarBarToken)) return pathOf(init.right, depth + 1)
-        return pathOf(init, depth + 1)
-      }
-      if (decl && !ts.isImportSpecifier(decl) && !ts.isImportClause(decl)) return null
-      if (ROOT_ANCHORS.has(x.text)) return ''
-      if (DIR_ANCHORS.has(x.text)) return fileDir
-      return null
-    }
-    if (ts.isPropertyAccessExpression(x) && ts.isMetaProperty(x.expression) && (x.name.text === 'dir' || x.name.text === 'dirname')) return fileDir
-    if (ts.isCallExpression(x)) {
-      const name = calleeName(x)
-      if (name === 'cwd' && ts.isPropertyAccessExpression(unwrap(x.expression))) return ''
-      if (!name || !JOINERS.has(name) || x.arguments.length === 0) return null
-      const args = x.arguments.map(a => unwrap(a))
-      let i = 0
-      let base = ''
-      if (stringText(args[0]!) === undefined) {
-        const b = pathOf(args[0]!, depth + 1)
-        if (b === null) return null
-        base = b
-        i = 1
-      }
-      const segs: string[] = []
-      for (; i < args.length; i++) {
-        const seg = stringText(args[i]!)
-        if (seg === undefined) return null
-        segs.push(seg)
-      }
-      return insideRoot(root, resolve(root, base, ...segs))
-    }
-    if (ts.isTemplateExpression(x) && x.head.text === '' && x.templateSpans.length === 1) {
-      const span = x.templateSpans[0]!
-      const base = pathOf(span.expression, depth + 1)
-      if (base === null || !span.literal.text.startsWith('/')) return null
-      return insideRoot(root, resolve(root, base, span.literal.text.slice(1)))
-    }
-    if (ts.isBinaryExpression(x) && x.operatorToken.kind === ts.SyntaxKind.PlusToken) {
-      const base = pathOf(x.left, depth + 1)
-      const tail = stringText(unwrap(x.right))
-      if (base === null || tail === undefined || !tail.startsWith('/')) return null
-      return insideRoot(root, resolve(root, base, tail.slice(1)))
-    }
-    return null
-  }
-  const spec = (s: string): void => {
-    const target = resolveImport(root, tree, src.path, s)
-    if (target) out.imports.push(target)
-  }
-  const scannedGlob = (call: ts.CallExpression | ts.NewExpression): string | null => {
-    const callee = unwrap(call.expression)
-    if (!ts.isPropertyAccessExpression(callee) || !/^scan(?:Sync)?$/.test(callee.name.text)) return null
-    const receiver = unwrap(callee.expression)
-    const pattern = ts.isNewExpression(receiver) && receiver.arguments?.[0] ? stringText(unwrap(receiver.arguments[0])) : undefined
-    return pattern ?? null
-  }
-  const emit = (n: ts.Node, p: string | null): void => {
-    if (p === null) return
-    const rel = posix.normalize(p).replace(/^\.$/, '')
-    if (tree.files.has(rel)) {
-      out.files.push(rel)
-      return
-    }
-    if (rel !== '' && !rel.includes('*') && !tree.dirs.has(rel)) return
-    const call = isCallArgument(n)
-    if (!call || !DIR_READER.test(calleeName(call) ?? '')) return
-    if (rel.includes('*')) {
-      out.files.push(rel)
-      return
-    }
-    const pattern = scannedGlob(call)
-    if (pattern !== null) out.files.push(posix.normalize(posix.join(rel, pattern)))
-    else out.dirs.push(rel)
-  }
-  for (const s of src.sf.statements) {
-    if ((ts.isImportDeclaration(s) || ts.isExportDeclaration(s)) && s.moduleSpecifier && ts.isStringLiteral(s.moduleSpecifier) && !typeOnly(s)) spec(s.moduleSpecifier.text)
-  }
-  visit(src.sf, n => {
-    if (ts.isCallExpression(n)) {
-      const callee = unwrap(n.expression)
-      const first = n.arguments[0]
-      if (first && (callee.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(callee) && callee.text === 'require'))) {
-        const t = stringText(unwrap(first))
-        if (t !== undefined) spec(t)
-        return
-      }
-      const name = calleeName(n)
-      if (name && JOINERS.has(name)) {
-        for (const a of n.arguments) if (stringText(unwrap(a)) !== undefined) consumed.add(unwrap(a))
-        emit(n, pathOf(n, 0))
-      }
-      return
-    }
-    if (ts.isTemplateExpression(n) || (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.PlusToken)) {
-      emit(n, pathOf(n, 0))
-      return
-    }
-    if (ts.isIdentifier(n) && isCallArgument(n)) {
-      const p = pathOf(n, 0)
-      if (p !== null && !tree.files.has(posix.normalize(p))) emit(n, p)
-      return
-    }
-    if ((ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) && !consumed.has(n) && !isTextContext(n)) emit(n, literalPath(n.text, fileDir))
-  })
-  return out
-}
-
-function shellCode(text: string): string[] {
-  const out: string[] = []
-  let gated = false
-  for (const raw of text.split('\n')) {
-    const t = raw.trim()
-    if (t.startsWith('#') || t === '') continue
-    if (gated) {
-      if (/^\s*fi\b/.test(raw)) gated = false
-      continue
-    }
-    if (/^\s*if\b/.test(raw) && ENV_GATED.test(raw)) {
-      gated = true
-      continue
-    }
-    if (ENV_GATED.test(raw)) continue
-    out.push(raw.replace(/\s#\s.*$/, ''))
-  }
-  return out
-}
-
-function substitute(line: string, dir: string): string {
-  return line
-    .replace(/"?\$\(dirname "\$\{?BASH_SOURCE\[0\]\}?"\)"?/g, dir)
-    .replace(/"?\$\(dirname "\$0"\)"?/g, dir)
-    .replace(/"?\$\{?(?:here|HERE|dir|DIR|SUITE_DIR|suite_dir)\}?"?(?=\/)/g, dir)
-    .replace(/"?\$\{?(?:root|ROOT|repo|REPO|repo_root|REPO_ROOT)\}?"?\//g, '')
-}
-
-function shellReads(root: string, file: string): FileReads {
-  const dir = posix.dirname(file)
-  const out: FileReads = { imports: [], files: [], dirs: [] }
-  for (const line of shellCode(readFileSync(join(root, file), 'utf8'))) {
-    for (const tok of substitute(line, dir).match(SHELL_PATH) ?? []) {
-      const rel = tok.startsWith('.') ? insideRoot(root, resolve(root, dir, tok)) : posix.normalize(tok)
-      if (rel !== null) out.files.push(rel.replace(/\/$/, ''))
-    }
-  }
-  return out
-}
-
-function pythonReads(root: string, file: string): FileReads {
-  const out: FileReads = { imports: [], files: [], dirs: [] }
-  const text = readFileSync(join(root, file), 'utf8').replace(/^\s*#.*$/gm, '')
-  for (const m of text.matchAll(PY_STRING)) if (LITERAL_SHAPE.test(m[1]!) && m[1]!.includes('/') && !m[1]!.startsWith('.')) out.files.push(posix.normalize(m[1]!))
-  return out
-}
-
-const SUITE_STEM = /(?<![A-Za-z0-9_@./-])(?:prove|drive|journey|bench)-[A-Za-z0-9_-]+(?:\.(?:ts|tsx|sh|py|mjs))?(?![A-Za-z0-9_@./-])/g
-const STEM_EXTENSIONS = ['', '.ts', '.tsx', '.sh', '.py', '.mjs']
-
-function runnerTargets(root: string, tree: Tree, suite: string): Set<string> {
-  const dir = `scripts/${suite}`
-  const out = new Set<string>()
-  for (const line of shellCode(readFileSync(join(root, dir, 'run-all.sh'), 'utf8'))) {
-    const substituted = substitute(line, dir)
-    for (const tok of substituted.match(RUNNER_TOKEN) ?? []) {
-      const rel = tok.startsWith('/') ? insideRoot(root, tok) : posix.normalize(tok)
-      if (rel === null || !rel.startsWith('scripts/') || rel.startsWith('scripts/lib/') || rel === `${dir}/run-all.sh`) continue
-      if (rel.includes('*')) for (const t of tree.list) if (globOf(rel).match(t)) out.add(t)
-      if (tree.files.has(rel)) out.add(rel)
-    }
-    for (const stem of substituted.match(SUITE_STEM) ?? []) {
-      for (const ext of STEM_EXTENSIONS) {
-        const rel = `${dir}/${stem}${ext}`
-        if (tree.files.has(rel)) out.add(rel)
-      }
-    }
-  }
-  return out
-}
-
-type Members = { parent: string; files: string[] }
-
-function membersOf(root: string, tree: Tree, suite: string): Members | null {
-  const list = `scripts/${suite}/members.txt`
-  if (!tree.files.has(list)) return null
-  const parent = /scripts\/([A-Za-z0-9_-]+)\/\$name/.exec(readFileSync(join(root, 'scripts', suite, 'run-all.sh'), 'utf8'))?.[1]
-  if (!parent) return null
-  const files: string[] = []
-  for (const line of readFileSync(join(root, list), 'utf8').split('\n')) {
-    const name = line.split('#')[0]!.trim()
-    if (name && tree.files.has(`scripts/${parent}/${name}`)) files.push(`scripts/${parent}/${name}`)
-  }
-  return { parent, files }
-}
-
-function census(root: string, tracked: string[], manifest: ImpactManifest, whole: Record<string, string>, built: Built = { helper: BUILT_PRODUCT, entries: BUILT_ENTRIES }): Census {
-  const tree = treeOf(tracked)
-  const entries = tree.list.filter(file => built.entries.test(file))
+function census(root: string, tracked: string[], manifest: ImpactManifest, computed: Record<string, string[]>): Census {
   const misses: Miss[] = []
-  let globCount = 0
+  const suites: SuiteRow[] = []
+  const matching = new Map<string, string[]>()
+  const matchesOf = (glob: string): string[] => {
+    let hit = matching.get(glob)
+    if (!hit) {
+      const g = new Bun.Glob(glob)
+      hit = tracked.filter(t => g.match(t))
+      matching.set(glob, hit)
+    }
+    return hit
+  }
   for (const suite of manifest.suites) {
     const runner = `scripts/${suite}/run-all.sh`
-    const lines = readFileSync(join(root, runner), 'utf8').split('\n')
-    const declared = manifest.watches[suite] ?? []
-    globCount += declared.length
-    for (const g of declared) {
-      if (tree.list.some(t => globOf(g).match(t))) continue
-      const top = g.split('/')[0] ?? g
-      if (top === 'sdk' && !tree.list.some(t => t.startsWith('sdk/'))) continue
-      misses.push({ suite, law: 1, text: `${runner}: gate-watch ${g} matches no tracked path` })
-    }
-    let header = true
-    lines.forEach((line, i) => {
-      if (header && line !== '' && !line.startsWith('#')) header = false
-      if (!header && /^# gate-watch:/.test(line)) misses.push({ suite, law: 1, text: `${runner}:${i + 1}: a gate-watch line below the header block is never read` })
-    })
-  }
-  const members = new Map<string, Members>()
-  for (const suite of manifest.suites) {
-    const m = membersOf(root, tree, suite)
-    if (m) members.set(suite, m)
-  }
-  const readCache = new Map<string, FileReads>()
-  const readsOf = (file: string): FileReads => {
-    let r = readCache.get(file)
-    if (!r) {
-      if (/\.(?:ts|tsx|mjs|js)$/.test(file)) r = scriptReads(root, tree, file)
-      else if (file.endsWith('.sh')) r = shellReads(root, file)
-      else if (file.endsWith('.py')) r = pythonReads(root, file)
-      else r = { imports: [], files: [], dirs: [] }
-      readCache.set(file, r)
-    }
-    return r
-  }
-  const claims = (suite: string, path: string): boolean => path.startsWith(`scripts/${suite}/`) || watchClaims(manifest, suite, path)
-  const rows: SuiteRow[] = []
-  for (const suite of manifest.suites) {
-    const runner = `scripts/${suite}/run-all.sh`
+    const touched = new Set(computed[suite] ?? [])
     const own = `scripts/${suite}/`
-    const descend = new Set([own])
-    const executed = runnerTargets(root, tree, suite)
-    const shard = members.get(suite)
-    if (shard) {
-      descend.add(`scripts/${shard.parent}/`)
-      for (const f of shard.files) executed.add(f)
-    }
-    const complement = /cat scripts\/([A-Za-z0-9_-]+)-\*\/members\.txt/.exec(readFileSync(join(root, runner), 'utf8'))?.[1]
-    if (complement) for (const [sib, m] of members) if (sib.startsWith(`${complement}-`)) for (const f of m.files) executed.delete(f)
-    const reads: Read[] = []
-    const seen = new Set<string>()
-    const add = (rel: string, via: string, how: ReadHow, far = false, owed = false): void => {
-      const key = `${rel}\0${via}`
-      if (seen.has(key)) return
-      seen.add(key)
-      const r = classify(tree, rel, via, how)
-      if (r) reads.push({ ...r, ...(far ? { far } : {}), ...(owed ? { owed } : {}) })
-    }
-    const queue = [...executed]
-    const visited = new Set<string>()
-    const followed = new Set<string>()
-    while (queue.length > 0) {
-      const file = queue.shift()!
-      if (visited.has(file)) continue
-      visited.add(file)
-      const far = followed.has(file)
-      if (!file.startsWith(own) && !far) add(file, runner, 'runner')
-      if (!(far || [...descend].some(d => file.startsWith(d)))) continue
-      const r = readsOf(file)
-      for (const imp of r.imports) {
-        if (imp === built.helper) for (const entry of entries) add(entry, `${file} runs the bundle through ${built.helper} and so`, 'import', false, true)
-        if (!far && [...descend].some(d => imp.startsWith(d))) queue.push(imp)
-        else {
-          add(imp, file, 'import', far)
-          if (imp.startsWith('scripts/') && !visited.has(imp)) {
-            followed.add(imp)
-            queue.push(imp)
-          }
+    const globs: Glob[] = []
+    let header = true
+    readFileSync(join(root, runner), 'utf8')
+      .split('\n')
+      .forEach((line, i) => {
+        if (header && line !== '' && !line.startsWith('#')) header = false
+        const watch = /^# gate-watch:\s*(.+)$/.exec(line)
+        if (!watch) return
+        if (!header) {
+          misses.push({ law: 1, suite, text: `${runner}:${i + 1}: a gate-watch line below the header block is never read` })
+          return
         }
-      }
-      for (const f of r.files) add(f, file, 'text', far)
-      for (const d of r.dirs) add(d, file, 'text', far)
-    }
-    const wholeReads = reads.filter(isWhole)
-    const reason = whole[suite]
-    const row: SuiteRow = { suite, executed: [...executed].sort(), reads, misses: [], whole: wholeReads.length > 0 && reason ? reason : null, unwatched: [] }
-    const scopes = new Set(row.whole === null ? [] : wholeReads.map(r => wholeScope(r)!))
-    if (row.whole === null) for (const r of wholeReads) row.misses.push(`${r.via} reads the whole tree (${r.path || '.'}); the suite is not registered as a whole-tree reader`)
-    if (wholeReads.length === 0 && reason) row.misses.push(`registered as a whole-tree reader (${reason}) but no proof it runs reads the whole tree`)
-    {
-      const perPath = new Map<string, { via: string; files: string[]; unwatched: string[] }>()
-      for (const read of reads) {
-        if (isWhole(read)) continue
-        const files = filesOf(tree, read)
-        const unwatched = files.filter(f => !claims(suite, f) && (narrowedRow(manifest, f) !== null || read.owed === true || (read.far !== true && ![...scopes].some(s => underScope(f, s)))))
-        if (unwatched.length === 0) continue
-        const key = read.kind === 'file' ? read.path : `${read.path}${read.kind === 'dir' ? '/**' : ''}`
-        if (perPath.has(key)) continue
-        perPath.set(key, { via: read.via, files, unwatched })
-        row.unwatched.push({ path: read.path, kind: read.kind, via: read.via, files: unwatched })
-      }
-      for (const [key, hit] of [...perPath].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
-        const sample = hit.unwatched[0]!
-        const who = (selectImpact(manifest, [sample]).perPath[sample] ?? []).filter(c => c !== suite && !c.startsWith('('))
-        const scope = hit.files.length > 1 ? ` (${hit.unwatched.length} of ${hit.files.length} files outside the watch, e.g. ${sample})` : ''
-        const asked: ImpactManifest = { ...manifest, watches: { [suite]: [key] } }
-        const repair = [...new Set(hit.unwatched.map(f => (watchClaims(asked, suite, f) ? key : (narrowedRow(manifest, f) ?? key))))]
-        row.misses.push(`${hit.via} reads ${key}${scope} — the gate wakes ${who.length > 0 ? who.join(', ') : 'nothing'} for ${sample}, not ${suite}; add "# gate-watch: ${repair.join(' ')}" to the header of ${runner}`)
-      }
-    }
-    for (const text of row.misses) misses.push({ suite, law: 2, text })
-    rows.push(row)
+        for (const glob of watch[1]!.trim().split(/\s+/)) {
+          const hits = matchesOf(glob)
+          globs.push({ glob, line: i + 1, matches: hits.length, covered: hits.length > 0 && hits.every(file => touched.has(file) || file.startsWith(own)) })
+          if (hits.length > 0) continue
+          if (glob.split('/')[0] === 'sdk' && !tracked.some(t => t.startsWith('sdk/'))) continue
+          misses.push({ law: 1, suite, text: `${runner}: gate-watch ${glob} matches no tracked path` })
+        }
+      })
+    suites.push({ suite, globs })
   }
-  return { suites: rows, globs: globCount, misses }
+  return { suites, misses }
+}
+
+function tableOf(text: string): Table | null {
+  const table: Table = new Map()
+  for (const line of text.split('\n')) {
+    if (line === '') continue
+    const m = /^([A-Za-z0-9_-]+)\t([1-9][0-9]*)$/.exec(line)
+    if (!m || table.has(m[1]!)) return null
+    table.set(m[1]!, Number(m[2]))
+  }
+  return table
+}
+
+const render = (suites: SuiteRow[]): string =>
+  suites
+    .filter(s => s.globs.length > 0)
+    .sort((a, b) => (a.suite < b.suite ? -1 : 1))
+    .map(s => `${s.suite}\t${s.globs.length}\n`)
+    .join('')
+
+function judge(suites: SuiteRow[], table: Table): { over: Over[]; globs: number; covered: number; allowed: number; slack: number } {
+  const over: Over[] = []
+  let globs = 0
+  let covered = 0
+  for (const s of suites) {
+    globs += s.globs.length
+    covered += s.globs.filter(g => g.covered).length
+    const row = table.get(s.suite) ?? 0
+    if (s.globs.length > row) over.push({ suite: s.suite, now: s.globs.length, row, covered: s.globs.filter(g => g.covered), hand: s.globs.filter(g => !g.covered) })
+  }
+  let allowed = 0
+  let slack = 0
+  for (const [suite, row] of table) {
+    allowed += row
+    if ((suites.find(s => s.suite === suite)?.globs.length ?? 0) < row) slack++
+  }
+  return { over, globs, covered, allowed, slack }
+}
+
+const WRITE_WORDS = `bun ${SELF} --write lowers a row and never raises or adds one`
+
+function told(o: Over): string {
+  const runner = `scripts/${o.suite}/run-all.sh`
+  const names = (list: Glob[]): string => list.slice(0, 24).map(g => `\n      ${runner}:${g.line} ${g.glob} (${g.matches} file${g.matches === 1 ? '' : 's'})`).join('') + (list.length > 24 ? `\n      … and ${list.length - 24} more` : '')
+  const needless = o.covered.length === 0 ? '' : `\n    ${o.covered.length} of its globs the computation covers: the suite's proofs touch every file each of them matches, so the suite wakes with no line (${CHAIN} prints the road). If the new line is one of these, take it out:${names(o.covered)}`
+  const held = o.hand.length === 0 ? '' : `\n    ${o.hand.length} it does not cover. If the new line is one of these, ${CHAIN} says which of the three it stands for; a line that must stand raises the suite's row by hand in the same commit, where the diff shows it:${names(o.hand)}`
+  return `${runner} holds ${o.now} watch globs and ${o.row === 0 ? 'has no row' : `its row in ${TABLE} allows ${o.row}`}: a line was added. ${HAND_LAW}.${needless}${held}`
+}
+
+function cutsOf(root: string, suites: SuiteRow[]): Cut[] {
+  const cuts: Cut[] = []
+  for (const s of suites) {
+    const runner = `scripts/${s.suite}/run-all.sh`
+    const covered = new Map<number, Set<string>>()
+    for (const g of s.globs) if (g.covered) covered.set(g.line, (covered.get(g.line) ?? new Set()).add(g.glob))
+    if (covered.size === 0) continue
+    const lines = readFileSync(join(root, runner), 'utf8').split('\n')
+    for (const [line, gone] of [...covered].sort((a, b) => a[0] - b[0])) {
+      const globs = /^# gate-watch:\s*(.+)$/.exec(lines[line - 1]!)![1]!.trim().split(/\s+/)
+      cuts.push({ runner, line, gone: globs.filter(g => gone.has(g)), left: globs.filter(g => !gone.has(g)) })
+    }
+  }
+  return cuts
+}
+
+function applyCuts(root: string, cuts: Cut[]): void {
+  const byRunner = new Map<string, Cut[]>()
+  for (const cut of cuts) byRunner.set(cut.runner, [...(byRunner.get(cut.runner) ?? []), cut])
+  for (const [runner, list] of byRunner) {
+    const lines: Array<string | null> = readFileSync(join(root, runner), 'utf8').split('\n')
+    for (const cut of list) lines[cut.line - 1] = cut.left.length === 0 ? null : `# gate-watch: ${cut.left.join(' ')}`
+    writeFileSync(join(root, runner), lines.filter(line => line !== null).join('\n'))
+  }
+}
+
+const claimantsOf = (root: string, tracked: string[], computed: Record<string, string[]>): string => {
+  const picked = selectImpact(loadImpactManifest(root, computed), tracked)
+  return tracked.map(path => `${path}\t${[...(picked.perPath[path] ?? [])].sort().join(' ')}`).join('\n')
 }
 
 function selfTest(): boolean {
@@ -536,137 +172,115 @@ function selfTest(): boolean {
     writeFileSync(join(root, rel), body)
   }
   const bun = '"${BUN:-$HOME/.bun/bin/bun}"'
-  w('src/alpha/a.ts', 'export const a = 1\n')
+  w('src/alpha/a.ts', "import { deep } from './deep.ts'\nexport const a = deep\n")
+  w('src/alpha/deep.ts', 'export const deep = 1\n')
   w('src/beta/b.ts', 'export const b = 2\n')
-  w('src/beta/c.ts', 'export const c = 3\n')
-  w('src/beta/data.json', '{}\n')
-  w('src/gamma/g.ts', 'export const g = 4\n')
-  w('src/types.ts', 'export type T = number\n')
-  w('src/keys/one.ts', 'export const one = 1\n')
-  w('src/keys/two.ts', 'export const two = 2\n')
-  w('src/keys/three.ts', 'export const three = 3\n')
-  w('README.md', '# fixture\n')
+  w('src/area/one.ts', 'export const one = 1\n')
+  w('src/area/two.ts', 'export const two = 2\n')
   w('scripts/lib/helper.ts', 'export const lib = 1\n')
-  w('scripts/lib/suite-env.sh', 'suite_env_guard() { :; }\n')
-  w('scripts/alpha/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\n# gate-watch: src/alpha/** src/gone/**\nset -u\n. "$(dirname "$0")/../lib/suite-env.sh"\nfor f in "$here"/prove-*.ts; do ${bun} run "$f"; done\n`)
-  w('scripts/alpha/helper.ts', "import { g } from '../../src/gamma/g.ts'\nexport const h = g\n")
-  w('scripts/alpha/prove-a.ts', [
-    "import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'",
-    "import { tmpdir } from 'node:os'",
-    "import { join } from 'node:path'",
-    "import { a } from '../../src/alpha/a.ts'",
-    "import { b } from '../../src/beta/b.ts'",
-    "import type { T } from '../../src/types.ts'",
-    "import { h } from './helper.ts'",
-    "import { lib } from '../lib/helper.ts'",
-    "const ROOT = join(import.meta.dir, '..', '..')",
-    "const scratch = mkdtempSync(join(tmpdir(), 'fixture-'))",
-    "writeFileSync(join(scratch, 'README.md'), 'x')",
-    "const data = readFileSync(join(ROOT, 'src/beta/data.json'), 'utf8')",
-    "const keys = (...parts: string[]): string => readFileSync(join(ROOT, 'src', ...parts), 'utf8')",
-    "const label: Record<string, number> = { 'src/alpha/a.ts': 1 }",
-    "const same = data === 'src/beta/c.ts'",
-    "export const out: T = a + b + h + lib + keys('alpha', 'a.ts').length + label['src/alpha/a.ts'] + (same ? 1 : 0)",
-    '',
-  ].join('\n'))
-  w('scripts/beta/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\n# gate-watch: src/beta/**\nset -u\nclaimed=$(cat scripts/beta-*/members.txt 2>/dev/null | grep -v '^#')\nfor f in scripts/beta/prove-*.ts; do ${bun} run "$f"; done\n`)
-  w('scripts/beta/prove-b.ts', [
-    "import { readFileSync } from 'node:fs'",
-    "import { join } from 'node:path'",
-    "const ROOT = join(import.meta.dir, '..', '..')",
-    "const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')",
-    "const { one } = await import('../../src/keys/one.ts')",
-    "export const out = read('src/beta/b.ts').length + one",
-    '',
-  ].join('\n'))
-  w('scripts/beta/prove-c.ts', "import { c } from '../../src/beta/c.ts'\nexport const out = c\n")
-  w('scripts/beta/prove-e.ts', "import { readdirSync } from 'node:fs'\nimport { join } from 'node:path'\nconst ROOT = join(import.meta.dir, '..', '..')\nconst KEYS = join(ROOT, 'src', 'keys')\nexport const out = readdirSync(KEYS).length\n")
-  w('scripts/beta-2/run-all.sh', '#!/usr/bin/env bash\n# gate-class: pure\n# gate-watch: scripts/beta/** src/beta/**\nset -u\nwhile read -r name; do f="scripts/beta/$name"; bun "$f"; done < scripts/beta-2/members.txt\n')
-  w('scripts/beta-2/members.txt', '# members\nprove-b.ts\n')
-  w('scripts/beta-3/run-all.sh', '#!/usr/bin/env bash\n# gate-class: pure\n# gate-watch: src/beta/**\nset -u\nwhile read -r name; do f="scripts/beta/$name"; bun "$f"; done < scripts/beta-3/members.txt\n')
-  w('scripts/beta-3/members.txt', 'prove-c.ts\n')
-  w('scripts/gamma/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\nset -u\n# gate-watch: src/gamma/**\n${bun} run "$here/prove-g.ts"\n`)
-  w('scripts/gamma/prove-g.ts', "export const out = 'src/gamma/g.ts'.length\n")
-  w('scripts/whole/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\nset -u\n${bun} run "$here/prove-w.ts"\n`)
-  w('scripts/whole/prove-w.ts', "import { readdirSync, readFileSync } from 'node:fs'\nimport { join } from 'node:path'\nimport { lib } from '../lib/helper.ts'\nimport { built } from '../lib/built.ts'\nconst ROOT = join(import.meta.dir, '..', '..')\nconst one = readFileSync(join(ROOT, 'src/keys/one.ts'), 'utf8')\nconst deep = readFileSync(join(ROOT, 'src/deep/inner/n.ts'), 'utf8')\nexport const out = readdirSync(join(ROOT, 'src')).length + lib + built + one.length + deep.length\n")
-  w('src/entry/one.ts', 'export const one = 1\n')
-  w('src/entry/two.ts', 'export const two = 2\n')
-  w('scripts/lib/built.ts', 'export const built = 1\n')
-  w('scripts/theta/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\n# gate-watch: scripts/lib/built.ts src/entry/two.ts\nset -u\n${bun} run "$here/prove-t.ts"\n`)
-  w('scripts/theta/prove-t.ts', "import { built } from '../lib/built.ts'\nexport const out = built\n")
-  w('scripts/listed/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\nset -u\n${bun} run "$here/prove-l.ts"\n`)
-  w('scripts/listed/prove-l.ts', "import { readdirSync } from 'node:fs'\nimport { join } from 'node:path'\nconst ROOT = join(import.meta.dir, '..', '..')\nconst walk = (d: string): string[] => readdirSync(d)\nexport const out = walk(ROOT).length\n")
-  w('scripts/delta/run-all.sh', '#!/usr/bin/env bash\n# gate-class: pure\n# gate-watch: src/keys/one.ts\nset -u\nbash "$here/prove-d.sh"\n')
-  w('scripts/delta/prove-d.sh', '#!/usr/bin/env bash\ngrep -q one src/keys/one.ts && grep -q two "$root/src/keys/two.ts"\n')
-  w('src/deep/inner/n.ts', 'export const n = 5\n')
-  w('scripts/gate/impact-narrowed.txt', 'src/deep/inner/**\n')
-  w('src/deep/top.ts', 'export const top = 6\n')
-  w('scripts/epsilon/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\n# gate-watch: src/deep/**\nset -u\nfor f in "$here"/prove-*.ts; do ${bun} run "$f"; done\n`)
-  w('scripts/epsilon/prove-n.ts', "import { n } from '../../src/deep/inner/n.ts'\nexport const out = n\n")
-  w('scripts/epsilon/prove-walk.ts', "import { readdirSync } from 'node:fs'\nimport { join } from 'node:path'\nconst ROOT = join(import.meta.dir, '..', '..')\nexport const out = readdirSync(join(ROOT, 'src', 'deep')).length\n")
-  w('scripts/zeta/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\n# gate-watch: src/deep/inner/*\nset -u\n${bun} run "$here/prove-n.ts"\n`)
-  w('scripts/zeta/prove-n.ts', "import { n } from '../../src/deep/inner/n.ts'\nexport const out = n\n")
-  w('scripts/lib/deep.ts', "import { n } from '../../src/deep/inner/n.ts'\nimport { a } from '../../src/alpha/a.ts'\nexport const deep = n + a\n")
-  w('scripts/eta/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\n# gate-watch: scripts/lib/deep.ts\nset -u\n${bun} run "$here/prove-h.ts"\n`)
-  w('scripts/eta/prove-h.ts', "import { deep } from '../lib/deep.ts'\nexport const out = deep\n")
-  const manifest = loadImpactManifest(root)
-  const got = census(root, walkAll(root), manifest, { whole: 'walks src for the fixture', gamma: 'a stale registration' }, { helper: 'scripts/lib/built.ts', entries: /^src\/entry\/(?:one|two)\.ts$/ })
-  rmSync(root, { recursive: true, force: true })
-  const want = [
-    '1 alpha scripts/alpha/run-all.sh: gate-watch src/gone/** matches no tracked path',
-    '1 gamma scripts/gamma/run-all.sh:4: a gate-watch line below the header block is never read',
-    '2 alpha scripts/alpha/helper.ts reads src/gamma/g.ts — the gate wakes nothing for src/gamma/g.ts, not alpha; add "# gate-watch: src/gamma/g.ts" to the header of scripts/alpha/run-all.sh',
-    '2 alpha scripts/alpha/prove-a.ts reads scripts/lib/helper.ts — the gate wakes nothing for scripts/lib/helper.ts, not alpha; add "# gate-watch: scripts/lib/helper.ts" to the header of scripts/alpha/run-all.sh',
-    '2 alpha scripts/alpha/prove-a.ts reads src/beta/b.ts — the gate wakes beta, beta-2, beta-3 for src/beta/b.ts, not alpha; add "# gate-watch: src/beta/b.ts" to the header of scripts/alpha/run-all.sh',
-    '2 alpha scripts/alpha/prove-a.ts reads src/beta/data.json — the gate wakes beta, beta-2, beta-3 for src/beta/data.json, not alpha; add "# gate-watch: src/beta/data.json" to the header of scripts/alpha/run-all.sh',
-    '2 beta scripts/beta/prove-e.ts reads src/keys/** (3 of 3 files outside the watch, e.g. src/keys/one.ts) — the gate wakes delta for src/keys/one.ts, not beta; add "# gate-watch: src/keys/**" to the header of scripts/beta/run-all.sh',
-    '2 beta-2 scripts/beta/prove-b.ts reads src/keys/one.ts — the gate wakes delta for src/keys/one.ts, not beta-2; add "# gate-watch: src/keys/one.ts" to the header of scripts/beta-2/run-all.sh',
-    '2 beta-3 scripts/beta-3/run-all.sh reads scripts/beta/prove-c.ts — the gate wakes beta, beta-2 for scripts/beta/prove-c.ts, not beta-3; add "# gate-watch: scripts/beta/prove-c.ts" to the header of scripts/beta-3/run-all.sh',
-    '2 delta scripts/delta/prove-d.sh reads src/keys/two.ts — the gate wakes nothing for src/keys/two.ts, not delta; add "# gate-watch: src/keys/two.ts" to the header of scripts/delta/run-all.sh',
-    '2 epsilon scripts/epsilon/prove-n.ts reads src/deep/inner/n.ts — the gate wakes zeta for src/deep/inner/n.ts, not epsilon; add "# gate-watch: src/deep/inner/n.ts" to the header of scripts/epsilon/run-all.sh',
-    '2 epsilon scripts/epsilon/prove-walk.ts reads src/deep/** (1 of 2 files outside the watch, e.g. src/deep/inner/n.ts) — the gate wakes zeta for src/deep/inner/n.ts, not epsilon; add "# gate-watch: src/deep/inner/**" to the header of scripts/epsilon/run-all.sh',
-    '2 eta scripts/lib/deep.ts reads src/deep/inner/n.ts — the gate wakes zeta for src/deep/inner/n.ts, not eta; add "# gate-watch: src/deep/inner/n.ts" to the header of scripts/eta/run-all.sh',
-    '2 gamma registered as a whole-tree reader (a stale registration) but no proof it runs reads the whole tree',
-    '2 listed scripts/listed/prove-l.ts reads the whole tree (.); the suite is not registered as a whole-tree reader',
-    '2 theta scripts/theta/prove-t.ts runs the bundle through scripts/lib/built.ts and so reads src/entry/one.ts — the gate wakes nothing for src/entry/one.ts, not theta; add "# gate-watch: src/entry/one.ts" to the header of scripts/theta/run-all.sh',
-    '2 whole scripts/whole/prove-w.ts reads scripts/lib/built.ts — the gate wakes theta for scripts/lib/built.ts, not whole; add "# gate-watch: scripts/lib/built.ts" to the header of scripts/whole/run-all.sh',
-    '2 whole scripts/whole/prove-w.ts reads scripts/lib/helper.ts — the gate wakes nothing for scripts/lib/helper.ts, not whole; add "# gate-watch: scripts/lib/helper.ts" to the header of scripts/whole/run-all.sh',
-    '2 whole scripts/whole/prove-w.ts reads src/deep/inner/n.ts — the gate wakes zeta for src/deep/inner/n.ts, not whole; add "# gate-watch: src/deep/inner/n.ts" to the header of scripts/whole/run-all.sh',
-    '2 whole scripts/whole/prove-w.ts runs the bundle through scripts/lib/built.ts and so reads src/entry/one.ts — the gate wakes nothing for src/entry/one.ts, not whole; add "# gate-watch: src/entry/one.ts" to the header of scripts/whole/run-all.sh',
-    '2 whole scripts/whole/prove-w.ts runs the bundle through scripts/lib/built.ts and so reads src/entry/two.ts — the gate wakes theta for src/entry/two.ts, not whole; add "# gate-watch: src/entry/two.ts" to the header of scripts/whole/run-all.sh',
-  ]
+  w('scripts/alpha/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\n# gate-watch: src/alpha/a.ts scripts/lib/helper.ts src/alpha/**\n# gate-watch: src/beta/b.ts\n# gate-watch: src/gone/** scripts/alpha/notes.txt\nset -u\nfor f in "$here"/prove-*.ts; do ${bun} run "$f"; done\n`)
+  w('scripts/alpha/notes.txt', 'a note the proofs do not read\n')
+  w('scripts/alpha/prove-a.ts', "import { a } from '../../src/alpha/a.ts'\nimport { b } from '../../src/beta/b.ts'\nimport { lib } from '../lib/helper.ts'\nexport const out = a + b + lib\n")
+  w('scripts/beta/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\n# gate-watch: src/area/**\nset -u\n# gate-watch: src/beta/**\n${bun} run "$here/prove-b.ts"\n`)
+  w('scripts/beta/prove-b.ts', "import { one } from '../../src/area/one.ts'\nexport const out = one\n")
+  w('scripts/gamma/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\nset -u\n${bun} run "$here/prove-g.ts"\n`)
+  w('scripts/gamma/prove-g.ts', "import { b } from '../../src/beta/b.ts'\nexport const out = b\n")
+  const tracked = walkAll(root)
+  const computed = computedWatch(root)
+  const got = census(root, tracked, loadImpactManifest(root), computed)
   const seen = got.misses.map(m => `${m.law} ${m.suite} ${m.text}`).sort()
-  const wholeOk = got.suites.find(s => s.suite === 'whole')?.whole === 'walks src for the fixture'
-  const betaOk = got.suites.find(s => s.suite === 'beta')?.executed.join(',') === 'scripts/beta/prove-e.ts'
-  const ok = seen.join('\n') === want.join('\n') && wholeOk && betaOk
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] §0 self-test on a synthetic estate: ${got.misses.length} misses (want ${want.length}) · the registered whole-tree reader passes (${String(wholeOk)}) · the complement parent drops the members (${String(betaOk)})`)
+  const want = ['1 alpha scripts/alpha/run-all.sh: gate-watch src/gone/** matches no tracked path', '1 beta scripts/beta/run-all.sh:5: a gate-watch line below the header block is never read']
+  const states = got.suites.map(s => `${s.suite}: ${s.globs.map(g => `${g.glob} ${g.covered ? 'covered' : 'hand'}`).join(', ')}`).join(' · ')
+  const wantStates = 'alpha: src/alpha/a.ts covered, scripts/lib/helper.ts covered, src/alpha/** hand, src/beta/b.ts covered, src/gone/** hand, scripts/alpha/notes.txt covered · beta: src/area/** hand · gamma: '
+  const text = render(got.suites)
+  const table = tableOf(text)
+  const held = table === null ? null : judge(got.suites, table)
+  const bare = judge(got.suites, new Map())
+  const lowered = judge(got.suites, new Map([['alpha', 5], ['beta', 1]]))
+  const fallen = judge(got.suites, new Map([['alpha', 9], ['beta', 1], ['gone', 2]]))
+  const judgeOk =
+    text === 'alpha\t6\nbeta\t1\n' &&
+    held !== null && held.over.length === 0 && held.globs === 7 && held.covered === 4 && held.allowed === 7 && held.slack === 0 &&
+    bare.over.map(o => `${o.suite} ${o.now}`).join(' · ') === 'alpha 6 · beta 1' &&
+    lowered.over.length === 1 && lowered.over[0]!.suite === 'alpha' && told(lowered.over[0]!).includes('its row in scripts/gate/watch-hand-list.tsv allows 5') && told(lowered.over[0]!).includes('4 of its globs the computation covers') && told(lowered.over[0]!).includes('scripts/alpha/run-all.sh:3 src/alpha/a.ts (1 file)') && told(lowered.over[0]!).includes('scripts/alpha/run-all.sh:3 src/alpha/** (2 files)') &&
+    told(bare.over[1]!).includes('scripts/beta/run-all.sh:3 src/area/** (2 files)') && told(bare.over[1]!).includes('has no row') && told(bare.over[1]!).includes('raises the suite') &&
+    fallen.over.length === 0 && fallen.slack === 2 &&
+    tableOf('a\t2\nb\t3\n')?.get('b') === 3 && tableOf('a\t0\n') === null && tableOf('a\t1\t2\n') === null && tableOf('a\t1\na\t1\n') === null && tableOf('a 1\n') === null
+  const before = claimantsOf(root, tracked, computed)
+  const cuts = cutsOf(root, got.suites)
+  applyCuts(root, cuts)
+  const after = census(root, tracked, loadImpactManifest(root), computedWatch(root))
+  const header = readFileSync(join(root, 'scripts/alpha/run-all.sh'), 'utf8').split('\n').slice(0, 5).join(' | ')
+  const cutOk =
+    cuts.map(c => `${c.runner}:${c.line} -${c.gone.join(',')} +${c.left.join(',')}`).join(' · ') === 'scripts/alpha/run-all.sh:3 -src/alpha/a.ts,scripts/lib/helper.ts +src/alpha/** · scripts/alpha/run-all.sh:4 -src/beta/b.ts + · scripts/alpha/run-all.sh:5 -scripts/alpha/notes.txt +src/gone/**' &&
+    header === '#!/usr/bin/env bash | # gate-class: pure | # gate-watch: src/alpha/** | # gate-watch: src/gone/** | set -u' &&
+    render(after.suites) === 'alpha\t2\nbeta\t1\n' && after.suites.every(s => s.globs.every(g => !g.covered)) &&
+    claimantsOf(root, tracked, computedWatch(root)) === before
+  rmSync(root, { recursive: true, force: true })
+  const ok = seen.join('\n') === want.join('\n') && states === wantStates && judgeOk && cutOk
+  console.log(
+    `  [${ok ? 'PASS' : 'FAIL'}] §0 self-test on a planted estate: a glob that names no tracked path and a watch line below the header are named (${seen.length} of ${want.length}) · a glob is covered when the suite's proofs touch every file it matches or the file stands in the suite's own folder, and held by hand when it reaches a file they do not (${String(states === wantStates)}) · the table holds the size of each header: a held row passes, a header above its row or with no row is named with its covered globs and its hand globs apart, a fallen row is counted, and the table reads back as written (${String(judgeOk)}) · the cut takes the covered globs out of the header, drops a line it empties, and no file of the estate changes its claimants (${String(cutOk)})`,
+  )
   if (!ok) {
     for (const s of seen) console.log(`         seen: ${s}`)
-    for (const s of want) console.log(`         want: ${s}`)
+    console.log(`         states: ${states}`)
+    console.log(`         table: ${JSON.stringify(text)} · header: ${header}`)
   }
   return ok
 }
 
 if (import.meta.main) {
   let failures = selfTest() ? 0 : 1
-  const manifest = loadImpactManifest(REAL_ROOT)
-  const c = census(REAL_ROOT, trackedOf(REAL_ROOT), manifest, WHOLE_TREE)
-  const law1 = c.misses.filter(m => m.law === 1)
-  const law2 = c.misses.filter(m => m.law === 2)
-  console.log(`  census: ${c.suites.length} suites · ${c.globs} gate-watch globs · ${c.suites.reduce((n, s) => n + s.executed.length, 0)} executed files · ${c.suites.reduce((n, s) => n + s.reads.length, 0)} static reads`)
+  const tracked = trackedOf(REAL_ROOT)
+  const computed = computedWatch(REAL_ROOT)
+  const c = census(REAL_ROOT, tracked, loadImpactManifest(REAL_ROOT), computed)
+  const globs = c.suites.reduce((n, s) => n + s.globs.length, 0)
+  const covered = c.suites.reduce((n, s) => n + s.globs.filter(g => g.covered).length, 0)
+  const cuts = cutsOf(REAL_ROOT, c.suites)
+  console.log(`  census: ${c.suites.length} suites · ${globs} gate-watch globs · ${covered} of them covered by the computation, ${globs - covered} held by hand · ${Object.values(computed).reduce((n, files) => n + files.length, 0)} suite-and-file pairs the proofs touch`)
+  console.log(`  ${HAND_LAW}`)
   if (REPORT) {
-    for (const s of c.suites) {
-      const outside = s.reads.filter(r => !r.path.startsWith(`scripts/${s.suite}/`))
-      console.log(`  ${s.suite.padEnd(28)} ${String(s.executed.length).padStart(3)} executed  ${String(outside.length).padStart(4)} reads outside its dir${s.whole ? `  · whole-tree reader: ${s.whole}` : ''}`)
-      for (const r of outside) console.log(`${' '.repeat(34)}${r.how.padEnd(7)}${r.kind === 'file' ? '' : `${r.kind} `}${r.path}  ← ${r.via}`)
-    }
+    for (const cut of cuts) console.log(`  cut  ${cut.runner}:${cut.line}\t${cut.gone.join(' ')}\t${cut.left.length === 0 ? '(the line goes)' : `# gate-watch: ${cut.left.join(' ')}`}`)
+    console.log(`  the cut: ${cuts.reduce((n, cut) => n + cut.gone.length, 0)} globs on ${cuts.length} lines of ${new Set(cuts.map(cut => cut.runner)).size} runners · ${cuts.filter(cut => cut.left.length === 0).length} lines go whole`)
   }
-  if (law1.length === 0) console.log(`  [PASS] §1 every gate-watch glob names a tracked path and every gate-watch line is read (${c.globs} globs / ${c.suites.length} runners)`)
+  const law1 = c.misses.filter(m => m.law === 1)
+  if (law1.length === 0) console.log(`  [PASS] §1 every gate-watch glob names a tracked path and every gate-watch line is read (${globs} globs / ${c.suites.length} runners)`)
   for (const m of law1) console.log(`  [FAIL] §1 ${m.text}`)
-  const listed = c.suites.filter(s => s.whole !== null)
-  if (law2.length === 0) console.log(`  [PASS] §2 every proof reads inside its suite's watch (${listed.length} whole-tree readers registered: ${listed.map(s => s.suite).join(' ')})`)
-  for (const m of law2) console.log(`  [FAIL] §2 ${m.suite}: ${m.text}`)
-  failures += c.misses.length
+  failures += law1.length
+  const text = existsSync(join(REAL_ROOT, TABLE)) ? readFileSync(join(REAL_ROOT, TABLE), 'utf8') : null
+  const table = text === null ? null : tableOf(text)
+  if (CUT) {
+    if (failures > 0) console.log('  nothing cut: the census failed above')
+    else {
+      applyCuts(REAL_ROOT, cuts)
+      console.log(`  cut ${cuts.reduce((n, cut) => n + cut.gone.length, 0)} covered globs from ${new Set(cuts.map(cut => cut.runner)).size} runner headers; run the census again, then ${WRITE_WORDS}`)
+    }
+  } else if (WRITE) {
+    const against = table === null ? null : judge(c.suites, table)
+    if (failures > 0) console.log('  nothing written: the census failed above')
+    else if (text !== null && table === null) {
+      failures++
+      console.log(`  [FAIL] §2 ${TABLE} reads as rows of a suite and the watch globs of its header — put the committed table back, then write`)
+    } else if (against !== null && against.over.length > 0) {
+      failures++
+      console.log(`  [FAIL] §2 no row rises and none is added, nothing written — ${against.over.map(told).join('\n    ')}`)
+    } else {
+      writeFileSync(join(REAL_ROOT, TABLE), render(c.suites))
+      console.log(`  wrote ${TABLE}: ${c.suites.filter(s => s.globs.length > 0).length} rows · ${globs} globs${against === null ? ' (the first table)' : ` (it allowed ${against.allowed})`}`)
+    }
+  } else if (table === null) {
+    failures++
+    console.log(`  [FAIL] §2 ${TABLE} reads as rows of a suite and the watch globs of its header — ${text === null ? `no table: bun ${SELF} --write writes the first one` : 'a row is not a suite and a count of 1 or more, or a suite stands twice'}`)
+  } else {
+    const found = judge(c.suites, table)
+    for (const o of found.over) {
+      failures++
+      console.log(`  [FAIL] §2 ${told(o)}`)
+    }
+    if (found.over.length === 0) console.log(`  [PASS] §2 no header holds more watch globs than its row in ${TABLE} (${found.globs} globs, ${found.allowed} allowed; a suite with no row holds none): a line cannot be added without a row raised by hand`)
+    console.log(`  of the ${found.globs} globs the computation covers ${found.covered} (bun ${SELF} --cut takes them out of the headers, and no path changes its suites) and ${found.globs - found.covered} are held by hand`)
+    if (found.slack > 0) console.log(`  rows above their header's count: ${found.slack} (${WRITE_WORDS})`)
+  }
   console.log(`\n${failures === 0 ? '✅' : '❌'} prove-gate-watch-census — ${failures === 0 ? 'all checks pass' : `${failures} check(s) failed`}`)
   process.exit(failures === 0 ? 0 : 1)
 }

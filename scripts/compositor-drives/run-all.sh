@@ -12,10 +12,6 @@
 # gate-watch: src/services/providers/openai/openaiCallModel.ts src/services/providers/openai/openaiWire.ts
 # gate-watch: src/skills/bundled/keybindings.ts src/utils/bash/ShellSnapshot.ts src/utils/cockpit/*
 # gate-watch: src/utils/config/schema.ts src/utils/mercuryTokens.ts src/utils/messages/streaming.ts src/utils/truncate.ts
-# gate-watch: src/utils/sessionStoragePortable.ts
-# gate-watch: src/components/HelpV2/HelpV2.tsx src/components/PromptInput/PromptInput.tsx src/context/overlayStack.ts src/context/surfaceRoute.ts src/hooks/useLayoutTier.ts src/ink.ts src/ink/session/delivery.ts src/state/AppStateStore.ts src/utils/config.ts
-# gate-watch: scripts/compositor/prove-hold-takeover.ts scripts/compositor/prove-resize-ghost.ts scripts/compositor/prove-wire-census.ts scripts/ink-runtime/ansiEmulator.ts scripts/ink-runtime/frameHarness.ts scripts/lib/captureDriver.ts
-# gate-watch: scripts/lib/proofHome.ts scripts/lib/seedTranscript.ts scripts/lib/settingsPopupHarness.ts scripts/streaming/artifactArena.ts scripts/ui/popupFrameSettle.ts scripts/ui/vshot.py
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

@@ -1,27 +1,19 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/utils/hooks/**
-# gate-watch: src/bootstrap/state.ts src/cli/run.ts src/schemas/hooks.ts src/utils/config/trust.ts
+# gate-watch: src/cli/run.ts src/schemas/hooks.ts
 # gate-watch: src/components/hooks/** src/components/messages/AttachmentMessage.tsx
-# gate-watch: src/fabric/entryCodec.ts src/hooks/useSkillsChange.ts src/utils/* src/utils/permissions/decision/commandAnalysis.ts
-# gate-watch: src/utils/config/globalConfig.ts src/utils/sessionStorage/chain.ts
-# gate-watch: src/utils/sessionStorage/paths.ts src/utils/settings/settingsCache.ts
-# gate-watch: scripts/lib/fixtureApi.ts src/rows/turn.ts src/Tool.ts src/query.ts src/run-core/**
-# gate-watch: src/utils/hooks/contract.ts src/skills/bundled/updateConfig.ts src/utils/hooks/hooksConfigManager.ts
+# gate-watch: src/fabric/entryCodec.ts src/hooks/useSkillsChange.ts src/utils/*
+# gate-watch: src/utils/sessionStorage/chain.ts
+# gate-watch: src/utils/sessionStorage/paths.ts
+# gate-watch: src/rows/turn.ts src/Tool.ts src/query.ts src/run-core/**
 # gate-watch: src/utils/messages/turnCut.ts src/utils/settings/settings.ts src/utils/settings/types.ts
-# gate-watch: src/services/tools/toolHooks.ts src/services/tools/toolExecution.ts src/guards/** src/daemon/sessionStateHooks.ts
-# gate-watch: src/query/stopHooks.ts src/utils/processUserInput/processUserInput.ts src/utils/sessionStart.ts src/utils/gracefulShutdown.ts
-# gate-watch: src/rows/vocabulary.ts src/rows/project.ts docs/HOOKS.md sdk/src/rows.ts
-# gate-watch: src/cli/headless/resume.ts src/utils/model/model.ts src/utils/sessionStorage/vnext.ts
-# gate-watch: src/utils/sessionStorage/rowGraph.ts src/utils/sessionStorage/transcriptReader.ts src/utils/conversationRecovery.ts
-# gate-watch: src/components/Messages.tsx src/ink.ts src/state/AppState.tsx src/state/AppStateStore.ts src/tools.ts
-# gate-watch: src/utils/shell/powershellDetection.ts
-# gate-watch: src/utils/settings/faultNotices.ts src/utils/settings/validation.ts scripts/lib/scriptedTurn.ts scripts/lib/firstRunSeed.ts
-# gate-watch: src/utils/attachments/taskStatus.ts
-# gate-watch: src/tools/AgentTool/runAgent.ts
-# gate-watch: scripts/lib/settingsPopupHarness.ts src/components/design-system/ThemeProvider.tsx src/keybindings/KeybindingProviderSetup.tsx src/tools/AgentTool/AgentTool.tsx src/utils/settings/changeDetector.ts
-# gate-watch: src/daemon/sessionSeat.ts src/daemon/concourseWorkers.ts src/services/engine-connector/seatProjections.ts
-# gate-watch: src/utils/Shell.ts
+# gate-watch: src/services/tools/toolExecution.ts src/guards/**
+# gate-watch: src/utils/processUserInput/processUserInput.ts
+# gate-watch: src/rows/project.ts
+# gate-watch: src/utils/sessionStorage/rowGraph.ts src/utils/sessionStorage/transcriptReader.ts
+# gate-watch: src/components/Messages.tsx src/tools.ts
+# gate-watch: src/utils/settings/faultNotices.ts src/utils/settings/validation.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

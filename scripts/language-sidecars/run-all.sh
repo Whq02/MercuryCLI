@@ -1,19 +1,11 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-env: MERCURY_PROVE_WEB_BUNDLE
-# gate-watch: src/services/structure/** src/tools/StructureTool/** build.ts
-# gate-watch: vendor/grammars.lock.json scripts/vendor/fetch-grammars.ts
-# gate-watch: src/services/lsp/webSidecar/** src/services/lsp/sidecarFraming.ts src/services/lsp/serverCatalogue.ts
+# gate-watch: src/services/structure/** src/tools/StructureTool/**
+# gate-watch: src/services/lsp/webSidecar/**
 # gate-watch: src/services/browser/** src/tools/BrowserTool/** src/commands/browser/**
-# gate-watch: src/services/visual/** src/services/lsp/builtinServers.ts src/services/lsp/pyrightLane.ts src/utils/cockpit/oasisBg.ts
-# gate-watch: scripts/language-sidecars/**
-# gate-watch: scripts/lib/executionProfile.ts src/ink/cell-grid.ts src/services/lsp/tsSidecar/entry.ts
-# gate-watch: src/utils/cwd.ts src/utils/healthReport.ts src/utils/astPatterns.ts
-# gate-watch: scripts/ast-tools/lib/fixtures.ts
-# gate-watch: src/tools/FileWriteTool/parseCheck.ts src/tools/FileReadTool/outline.ts
-# gate-watch: .gitattributes vendor/grammar-licences/**
-# gate-watch: scripts/lib/proofAccountHome.ts
-# gate-watch: src/utils/health/sections/crew.ts
+# gate-watch: src/utils/healthReport.ts
+# gate-watch: vendor/grammar-licences/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

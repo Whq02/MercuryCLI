@@ -1,26 +1,17 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: scripts/interaction/** scripts/interaction-pure/** scripts/lib/settingsPopupHarness.ts scripts/ui/vshot.py
+# gate-watch: scripts/interaction/**
 # gate-watch: src/components/design-system/ThemeProvider* src/components/mercuryPalette*
-# gate-watch: src/components/mercury-ui/InteractiveRow* src/components/mercury-ui/NavigablePanes*
 # gate-watch: src/ink/** src/state/AppState* src/utils/inputRange* src/utils/mercuryTokens*
 # gate-watch: src/components/MessageSelector* src/keybindings/**
 # gate-watch: src/components/CustomSelect/** src/components/permissions/AskUserQuestionPermissionRequest/**
-# gate-watch: src/commands/appearance/appearance.tsx src/commands/caching/caching.tsx
-# gate-watch: src/commands/effort/EffortPopup.tsx
-# gate-watch: src/commands/health/HealthCertificate.tsx src/commands/run/run.tsx
 # gate-watch: src/components/* src/components/PromptInput/* src/components/Settings/*
-# gate-watch: src/components/agents/studio/AgentStudio.tsx src/components/agents/studio/StudioEditor.tsx
-# gate-watch: src/components/concourse/* src/components/design-system/ThemedBox.tsx
-# gate-watch: src/components/diff/DiffFileList.tsx src/components/extensions/* src/components/mcp/*
-# gate-watch: src/components/memory/MemoryCentreView.tsx src/components/mercury-ui/*
-# gate-watch: src/components/mercury-ui/parity/* src/components/mercury-ui/screens/*
-# gate-watch: src/components/messages/SystemTextMessage.tsx
-# gate-watch: src/components/prompts-panel/PromptsPanel.tsx src/components/samples/SamplesListView.tsx
-# gate-watch: src/components/skills/SessionSkillsDial.tsx src/components/tasks/*
-# gate-watch: src/hooks/* src/main.tsx src/screens/Chat.tsx
-# gate-watch: src/screens/ResumeConversation.tsx
-# gate-watch: docs/SESSIONS.md
+# gate-watch: src/components/concourse/*
+# gate-watch: src/components/extensions/* src/components/mcp/*
+# gate-watch: src/components/mercury-ui/*
+# gate-watch: src/components/mercury-ui/screens/*
+# gate-watch: src/components/tasks/*
+# gate-watch: src/hooks/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

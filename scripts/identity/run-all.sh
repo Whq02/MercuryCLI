@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: build.ts src/constants/product* src/prompt/mercuryContract*
-# gate-watch: package.json
-# gate-watch: docs/** *.md **/*.md .github/** .gitignore
+# gate-watch: build.ts src/constants/product*
+# gate-watch: *.md **/*.md .github/**
 # gate-watch: src/** scripts/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

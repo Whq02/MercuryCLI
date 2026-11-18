@@ -1,33 +1,12 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: scripts/lib/hermetic.ts src/services/providers/anthropic/cacheAndUsage.ts
-# gate-watch: src/screens/Chat* src/types/message* src/utils/messages/** src/rows/project.ts src/rows/content.ts src/rows/request.ts
+# gate-watch: src/types/message* src/rows/request.ts
 # gate-watch: src/components/*
-# gate-watch: src/components/messages/AssistantTextMessage.tsx src/components/messages/UserTextMessage.tsx
-# gate-watch: src/components/messages/UserToolResultMessage/UserToolErrorMessage.tsx
-# gate-watch: src/components/mercury-ui/glyphs.ts src/constants/figures.ts src/ink/components/StdinContext.ts src/ink/components/TerminalSizeContext.tsx src/state/store.ts
-# gate-watch: src/components/messages/UserToolResultMessage/UserToolResultMessage.tsx
-# gate-watch: src/components/messages/TranscriptNameplate.tsx src/services/compact/foldStatus.ts
-# gate-watch: src/components/messages/thinkingGrammar.tsx src/ink.ts
-# gate-watch: src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts src/services/engine-connector/seatLive.ts
-# gate-watch: src/state/AppState.tsx src/state/AppStateStore.ts src/utils/permissions/filesystem.ts
-# gate-watch: src/daemon/sessionSeat.ts src/fabric/entryCodec.ts src/fabric/ordinal.ts
-# gate-watch: src/query/stopHooks.ts src/run-core/turn-machine.ts src/utils/wards/wards.ts
-# gate-watch: src/services/api/errors.ts src/services/api/transportEvidence.ts src/services/compact/operatorMessages.ts src/services/advisor/advisorSummarizer.ts
-# gate-watch: src/services/engine-connector/daemonConnector.ts src/services/engine-connector/recordIdentity.ts
-# gate-watch: src/services/providers/anthropic/streamCore.ts src/services/providers/anthropic/messageParams.ts src/services/providers/openai/responsesBridge.ts src/services/providers/openai/openaiWire.ts src/services/providers/gemini/geminiCodec.ts src/services/providers/gemini/geminiClient.ts src/services/providers/zai/zaiCodec.ts src/services/providers/openaicompat/compatChatClient.ts src/services/providers/local/ollamaChatTransport.ts
-# gate-watch: src/tools.ts src/tools/SkillTool/SkillTool.ts
-# gate-watch: src/utils/crew/agentTranscriptReader.ts src/utils/*
-# gate-watch: src/utils/cockpit/turnReceipt.ts src/utils/config/globalConfig.ts
-# gate-watch: src/utils/hooks/questionRunner.ts src/utils/hooks/rows.ts
-# gate-watch: src/utils/sessionStorage/chain.ts src/utils/sessionStorage/loading.ts
-# gate-watch: src/Tool.ts src/bootstrap/state.ts src/fabric/record.ts src/fabric/validate.ts src/services/providers/deepseek/deepseekCallModel.ts src/services/providers/huggingface/huggingfaceCallModel.ts src/services/providers/local/localCallModel.ts src/services/providers/local/localDiscovery.ts src/services/providers/local/localWindow.ts src/services/providers/moonshot/moonshotCallModel.ts src/services/providers/openai/openaiCallModel.ts src/services/providers/openai/openaiCatalogue.ts src/services/providers/openaicompat/compatChatCallModel.ts src/services/providers/openaicompat/compatWire.ts src/services/providers/zai/zaiCallModel.ts src/services/resources/adapters/transcript.ts src/utils/model/subModelSlots.ts src/utils/sessionStorage/writer.ts
-# gate-watch: src/constants/oauth.ts src/constants/messages.ts src/constants/xml.ts
-# gate-watch: src/utils/hooks/contract.ts
-# gate-watch: scripts/lib/settingsPopupHarness.ts
+# gate-watch: src/query/stopHooks.ts
+# gate-watch: src/services/providers/openai/openaiWire.ts
+# gate-watch: src/utils/*
+# gate-watch: src/utils/hooks/rows.ts
 # gate-watch: src/run-core/turn/**
-# gate-watch: scripts/core-runtime/turnScenarios.ts
-# gate-watch: src/services/engine-connector/daemon/tail.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

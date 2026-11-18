@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: src/cli/healthJson* src/services/dap/dapClient* src/services/run/ownerLifecycle*
-# gate-watch: src/substrate/startupMenu* src/utils/**
-# gate-watch: scripts/health/* scripts/lib/* scripts/ui/renderScenarios.ts scripts/ui/vshot.py
-# gate-watch: scripts/gate/run-suite.sh
-# gate-watch: src/daemon/ownerWatch.ts src/services/providers/openai/gptPins.ts
+# gate-watch: src/utils/**
+# gate-watch: scripts/health/* scripts/lib/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

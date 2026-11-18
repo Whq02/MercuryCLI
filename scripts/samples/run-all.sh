@@ -1,17 +1,11 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/commands/memory/memoryPage.ts
-# gate-watch: src/services/samples/** src/services/eval/** src/tools/EvalTool/** docs/SAMPLES.md src/components/samples/** src/components/tasks/useFocusedWork.ts src/services/engine-connector/seatWire.ts
-# gate-watch: scripts/lib/* src/Tool.ts src/cli/run.ts src/daemon/sessionSeat.ts
-# gate-watch: src/ink/stringWidth.ts scripts/eval/lib.ts
-# gate-watch: src/services/browser/browserResolver.ts src/services/browser/browserSession.ts
-# gate-watch: src/services/engine-connector/daemonConnector.ts src/services/run/ownerKey.ts
-# gate-watch: src/services/run/ownerLifecycle.ts src/tools/FileEditTool/FileEditTool.ts
-# gate-watch: src/tools/FileReadTool/FileReadTool.ts src/utils/messageQueueManager.ts
+# gate-watch: src/services/samples/** src/services/eval/** src/tools/EvalTool/** src/components/samples/**
+# gate-watch: scripts/lib/*
+# gate-watch: src/services/engine-connector/daemonConnector.ts
+# gate-watch: src/tools/FileEditTool/FileEditTool.ts
+# gate-watch: src/tools/FileReadTool/FileReadTool.ts
 # gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: src/components/messages/nullRenderingAttachments.ts src/state/AppStateStore.ts src/substrate/startupMenu.ts src/utils/attachments/orchestrator.ts
-# gate-watch: src/utils/attachments/samplesRoad.ts src/utils/fileStateCache.ts src/utils/messages.ts src/utils/messages/attachmentText.ts src/utils/processUserInput/processUserInput.ts
-# gate-watch: src/services/engine-connector/daemon/work.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

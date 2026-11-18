@@ -1,19 +1,10 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/services/run/** src/guards/mission*
-# gate-watch: src/guards/runStopAdapter* src/guards/runStop* src/query/stopHooks*
-# gate-watch: src/utils/verification/verificationState* src/substrate/pidLock* src/rows/turn.ts
-# gate-watch: src/services/providers/openai/openaiWire* src/services/providers/openai/openaiCallModel*
+# gate-watch: src/services/run/**
+# gate-watch: src/query/stopHooks*
 # gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: scripts/cache/fixtures/verdict.json scripts/node-runtime/prove-compile-cache.ts src/bootstrap/state.ts src/cli/run.ts src/constants/subagentDoctrine.ts src/entrypoints/cli.tsx
-# gate-watch: src/input-core/command-queue.ts src/main.tsx src/prompt/mercuryContract.ts src/run-core/turn-machine.ts src/services/api/prefixFingerprint.ts src/services/providers/anthropic/cacheAndUsage.ts
-# gate-watch: src/services/providers/anthropic/streamCore.ts src/tasks/LocalAgentTask/LocalAgentTask.tsx src/tools/AgentTool/AgentTool.tsx src/utils/activityLedger.ts src/utils/cache/cacheClock.ts src/utils/cache/cacheClockCore.ts
-# gate-watch: src/utils/cache/cacheDomain.ts src/utils/config/globalConfig.ts src/utils/healthReport.ts src/utils/hooks/fire.ts src/guards/** src/utils/messages/streaming.ts src/utils/runPhases.ts
-# gate-watch: src/utils/worktree.ts
-# gate-watch: scripts/providers/lib/refused-call-result.ts
-# gate-watch: scripts/lib/builtProduct.ts
-# gate-watch: src/utils/health/sections/crew.ts
-# gate-watch: src/run-core/turn/** scripts/core-runtime/turnScenarios.ts
+# gate-watch: src/utils/healthReport.ts src/utils/hooks/fire.ts src/guards/**
+# gate-watch: src/run-core/turn/**
 # gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

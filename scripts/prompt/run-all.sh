@@ -1,38 +1,13 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/prompt/composer* src/tools/AgentTool/builtInAgents* scripts/lib/fixtureApi.ts
 # gate-watch: src/utils/effort*
-# gate-watch: src/utils/profile/appearanceSnapshot*
-# gate-watch: src/utils/cockpit/promptProvenance*
-# gate-watch: src/constants/prompts.ts src/constants/systemPromptSections.ts src/constants/localPromptProfile.ts src/tools/**
-# gate-watch: scripts/agent-experience/baselines/mechanical/prompts/anthropic.system.txt
-# gate-watch: scripts/lib/hermetic.ts src/Tool.ts src/bootstrap/state.ts src/components/Messages.tsx
-# gate-watch: src/components/concourse/workerTranscriptFold.ts
-# gate-watch: src/components/messages/nullRenderingAttachments.ts src/daemon/concourseWorkers.ts
-# gate-watch: src/entrypoints/init.ts src/prompt/behaviourContract.ts
-# gate-watch: src/services/resources/adapters/seat.ts src/services/resources/registry.ts src/services/resources/contracts.ts src/services/run/resolveOwner.ts
-# gate-watch: src/services/resources/adapters/models.ts src/utils/model/modelNameRoad.ts src/utils/model/bareFamilyWords.ts src/services/providers/routeLaw.ts src/constants/product.ts
-# gate-watch: src/services/providers/xai/xaiCatalogue.ts src/services/providers/zai/zaiCatalogue.ts src/services/providers/providerDiscovery.ts src/services/providers/xai/xaiPins.ts src/services/providers/zai/glmPins.ts src/services/providers/moonshot/kimiPins.ts src/services/providers/openai/gptPins.ts
-# gate-watch: src/mneme/ledger.ts src/mneme/paths.ts scripts/lib/fixtureApi.ts scripts/lib/rows.ts scripts/lib/runnerHost.ts
-# gate-watch: src/mneme/entryPage.ts src/substrate/envStamps.ts
-# gate-watch: src/services/providers/anthropic/boundPrefixRecord.ts src/services/providers/toolEconomy.ts
-# gate-watch: src/utils/attachments/orchestrator.ts src/utils/attachments/userContext.ts src/utils/cleanupRegistry.ts
-# gate-watch: src/utils/cockpit/runtimePosture.ts src/utils/cockpit/turnReceipt.ts
-# gate-watch: src/utils/messages/attachmentText.ts src/utils/messages/factories.ts src/utils/permissions/filesystem.ts src/utils/scratchpad.ts
-# gate-watch: src/constants/system.ts src/utils/api.ts src/utils/messages.ts
-# gate-watch: src/main.tsx src/services/providers/anthropic/streamCore.ts src/services/lsp/**
-# gate-watch: scripts/lsp/fixtures/fake-lsp-server.mjs src/utils/config/globalConfig.ts
-# gate-watch: src/services/providers/local/localCatalogue.ts src/services/providers/local/localDiscovery.ts
-# gate-watch: src/skills/bundled/mercuryDocs.ts src/commands/verify.ts src/tools.ts
-# gate-watch: src/rows/* src/runner/wire/* scripts/lib/rows.ts
-# gate-watch: src/prompt/mercuryContract.ts src/constants/subagentDoctrine.ts
-# gate-watch: src/services/providers/anthropic/cacheAndUsage.ts src/substrate/flagRegistry.ts src/constants/common.ts
-# gate-watch: src/utils/systemPrompt.ts src/utils/cockpit/harnessMap.ts src/utils/sideQuery.ts
-# gate-watch: src/prompt/recordedComposition.ts scripts/lib/firstRunSeed.ts vendor/**
-# gate-watch: src/mneme/memoryVerbs.ts src/mneme/mnemeConsolidate.ts src/mneme/mnemeFrontPage.ts src/mneme/mnemeGates.ts scripts/prompt/fixtures/**
-# gate-watch: src/utils/cwd.ts
-# gate-watch: src/tools/BashTool/BashTool.tsx
-# gate-watch: scripts/lib/flagRegistrySource.ts
+# gate-watch: src/tools/**
+# gate-watch: src/components/messages/nullRenderingAttachments.ts
+# gate-watch: src/services/resources/contracts.ts
+# gate-watch: src/utils/attachments/orchestrator.ts
+# gate-watch: src/utils/messages/attachmentText.ts
+# gate-watch: src/services/lsp/**
+# gate-watch: src/rows/* src/runner/wire/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

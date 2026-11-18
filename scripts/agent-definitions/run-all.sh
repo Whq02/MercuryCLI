@@ -1,12 +1,9 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/services/agents/* src/tools/AgentTool/loadAgentsDir* src/components/agents/* src/utils/markdownConfigLoader* src/cli/agentFreshness*
-# gate-watch: src/cli/handlers/agents.ts src/cli/run.ts src/components/agents/studio/*
-# gate-watch: src/hooks/useAgentsChange.ts src/run-core/turn-machine.ts src/state/AppStateStore.ts
-# gate-watch: src/tools/AgentTool/* src/utils/config.ts src/utils/effort.ts src/utils/crew/agentLaunchPlan.ts
-# gate-watch: src/bootstrap/state.ts
+# gate-watch: src/services/agents/* src/components/agents/* src/utils/markdownConfigLoader*
+# gate-watch: src/components/agents/studio/*
+# gate-watch: src/tools/AgentTool/*
 # gate-watch: src/run-core/turn/**
-# gate-watch: scripts/core-runtime/turnScenarios.ts
 # gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

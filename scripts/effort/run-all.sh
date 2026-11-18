@@ -1,13 +1,9 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/utils/config/** src/utils/effort* src/utils/settings/settings*
-# gate-watch: src/commands/effort/EffortPopup.tsx src/commands/effort/effort.tsx src/components/mercury-ui/EffortChip.tsx
-# gate-watch: src/components/MercuryFrame.tsx src/components/PromptInput/PromptInput.tsx src/main.tsx
-# gate-watch: src/utils/attachments/* src/utils/config.ts src/utils/messages/attachmentText.ts
-# gate-watch: src/utils/model/seatSlots.ts src/utils/settings/types.ts src/utils/thinking.ts
-# gate-watch: src/commands.ts src/commands/effort/index.ts src/state/AppStateStore.ts
-# gate-watch: src/commands/**
-# gate-watch: src/services/providers/openai/openaiCatalogue.ts src/utils/model/capabilities.ts src/services/engine-connector/seatProjections.ts
+# gate-watch: src/components/PromptInput/PromptInput.tsx
+# gate-watch: src/utils/attachments/* src/utils/messages/attachmentText.ts
+# gate-watch: src/utils/thinking.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

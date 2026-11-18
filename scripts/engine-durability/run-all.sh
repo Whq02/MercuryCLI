@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/services/run/** src/services/workbench/** src/query.ts
-# gate-watch: src/substrate/serialGeneration.ts src/substrate/fileStore.ts
-# gate-watch: src/substrate/durablePublish.ts src/run-core/turn-machine.ts
-# gate-watch: src/bootstrap/state.ts src/services/changeTransaction/contracts.ts src/services/changeTransaction/receipts.ts src/services/changeTransaction/repetitionPolicy.ts
-# gate-watch: src/services/ide/txAutoCapture.ts src/state/vitalsBus.ts src/substrate/sourceState.ts src/utils/cleanupRegistry.ts src/utils/config/globalConfig.ts src/utils/lockfile.ts
-# gate-watch: src/utils/tasks.ts src/utils/artifacts/reviewStore.ts
+# gate-watch: src/services/run/** src/services/workbench/**
 # gate-watch: src/run-core/turn/**
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

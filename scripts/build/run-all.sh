@@ -1,15 +1,11 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-env: MERCURY_SMOKE_LIVE
-# gate-watch: build.ts bun.lock package.json scripts/lib/nodeBin.ts
+# gate-watch: bun.lock
 # gate-watch: scripts/vendor/**
-# gate-watch: src/tools/** src/utils/ripgrep*
-# gate-watch: src/utils/gracefulShutdown* src/utils/proxy* src/utils/mtls* src/utils/lockfile* src/utils/caCerts*
-# gate-watch: src/entrypoints/cli* src/entrypoints/init*
-# gate-watch: assets/splash/mercury-splash.mjs assets/splash/splash-core.mjs
-# gate-watch: src/utils/shell/brushPack.ts docs/INSTALL-WINDOWS-FROM-SOURCE.md vendor/brush.lock.json
-# gate-watch: src/utils/permissions/filesystem.ts src/utils/permissions/flowLaw.ts
-# gate-watch: src/utils/wards/wardsRefusals.ts
+# gate-watch: src/tools/**
+# gate-watch: src/utils/caCerts*
+# gate-watch: src/entrypoints/init*
 # gate-watch: src/utils/health/sections/interface.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

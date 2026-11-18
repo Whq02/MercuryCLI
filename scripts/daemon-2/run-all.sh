@@ -1,33 +1,19 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: scripts/daemon/** scripts/daemon-2/**
-# gate-watch: src/daemon/** src/substrate/flagRegistry* src/types/permissions* src/components/SwitchboardTagBar.tsx
+# gate-watch: scripts/daemon/**
+# gate-watch: src/daemon/** src/types/permissions* src/components/SwitchboardTagBar.tsx
 # gate-watch: src/utils/boxLock* src/services/resources/adapters/health*
-# gate-watch: src/services/engine-connector/seatProjections* src/utils/spawnLedger* docs/DURABILITY.md
+# gate-watch: docs/DURABILITY.md
 # gate-watch: src/services/concourse/concourseEnabled.ts
 # gate-watch: src/tools/MonitorTool/** src/tools/ScheduleCronTool/** src/utils/cron.ts src/services/engine-connector/seatWire.ts
-# gate-watch: src/cli/headless/turnDriver* src/cli/headless/runnerAsks.ts src/cli/run* src/services/saturn/** src/tools/ScheduleWakeupTool/**
-# gate-watch: docs/SESSIONS.md scripts/dap/mock-dap-adapter.mjs scripts/journey/switch-fixture-server.ts
+# gate-watch: src/cli/headless/runnerAsks.ts src/cli/run* src/services/saturn/** src/tools/ScheduleWakeupTool/**
+# gate-watch: scripts/dap/mock-dap-adapter.mjs
 # gate-watch: scripts/lib/* scripts/staleness/prove-stale-registry.ts
-# gate-watch: scripts/streaming/turn-end-fixture-server.ts
-# gate-watch: src/services/api/recoveryBudget.ts
 # gate-watch: scripts/ops/deploy-runtime.sh scripts/ops/launcher-mercury.sh scripts/ops/deploy-launcher.sh scripts/splash/deploy.sh docs/TERMINAL-RUNTIME.md
 # gate-watch: src/cli/update.ts src/services/privateChannel/installLayout.ts src/services/privateChannel/vendoredRuntime.ts package.json
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: scripts/lib/seatDoor.ts
-# gate-watch: src/services/engine-connector/daemonConnector.ts src/services/engine-connector/seatLive.ts src/components/Spinner/liveCounterWords.ts src/components/Spinner/spinnerHud.ts src/components/Spinner/SpinnerAnimationRow.tsx
 # gate-watch: src/tasks/LocalAgentTask/* src/input-core/* src/state/AppState*
-# gate-watch: src/cli/editorBridge.ts src/cli/healthProcesses.ts src/constants/tools.ts src/screens/Chat.tsx src/services/acp/childSession.ts
-# gate-watch: src/services/blender/bridgeFiles.generated.ts src/services/compact/compact.ts src/services/compact/foldStatus.ts src/services/compact/operatorMessages.ts src/services/compact/prompt.ts
-# gate-watch: src/services/crew/adapters/ndjsonChild.ts src/services/dap/debugpyResolver.ts src/services/eval/interpreters.ts
-# gate-watch: src/services/eval/kernelEnv.ts src/services/oauth/client.ts src/services/privateChannel/installPath.ts src/services/structure/grammarFacility.ts src/services/switchboard/bootBirthFacts.ts
-# gate-watch: src/services/switchboard/bornSession.ts src/services/switchboard/hopIntoSession.ts src/services/tcpBridge/entry.ts src/services/unity/bridgeFiles.generated.ts src/services/vulcan/addonFiles.generated.ts
-# gate-watch: src/substrate/directSplash.ts src/substrate/durablePublish.ts src/substrate/fileStore.ts src/tools/AgentTool/constants.ts
-# gate-watch: src/utils/accounts/signInLedger.ts src/utils/auth.ts src/utils/config/globalConfig.ts src/utils/editor.ts src/utils/execFileNoThrow.ts
-# gate-watch: src/utils/messages/attachmentText.ts src/utils/messages/factories.ts src/utils/messages/normalize.ts src/utils/processGroup.ts src/utils/redactHeaders.ts
-# gate-watch: src/services/providers/providerDiscovery.ts src/utils/runtime/win32Console.ts src/utils/secureStorage/index.ts src/utils/sessionStorage/paths.ts src/utils/skills/skillChangeDetector.ts
-# gate-watch: src/utils/shell/parentGuard.ts src/utils/subprocessEnv.ts src/utils/worktree.ts
-# gate-watch: src/services/host/jobCredentials.ts
 # gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

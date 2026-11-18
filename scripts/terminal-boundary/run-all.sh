@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/cli/run* src/utils/process.ts src/utils/crashReport* src/ink/components/ErrorOverview* src/ink/components/App.tsx src/components/RowErrorBoundary* src/main.tsx src/ink/launcherAltHold.ts src/entrypoints/cli.tsx scripts/ops/launcher-mercury.sh
-# gate-watch: scripts/lib/fixtureApi.ts scripts/streaming/artifactArena.ts scripts/streaming/ptydrive.py
-# gate-watch: src/components/** src/ink/session/querier.ts src/screens/**
-# gate-watch: src/utils/gracefulShutdown.ts src/utils/sessionStoragePortable.ts src/utils/sessionStorage/clearedSessions.ts scripts/lib/firstRunSeed.ts scripts/lib/seedTranscript.ts
-# gate-watch: src/rows/* src/runner/wire/* scripts/lib/rows.ts
-# gate-watch: scripts/lib/runnerHost.ts
+# gate-watch: src/cli/run* src/utils/process.ts src/utils/crashReport* src/ink/components/ErrorOverview* src/ink/components/App.tsx src/main.tsx src/ink/launcherAltHold.ts src/entrypoints/cli.tsx scripts/ops/launcher-mercury.sh
+# gate-watch: scripts/streaming/artifactArena.ts scripts/streaming/ptydrive.py
+# gate-watch: src/utils/gracefulShutdown.ts src/utils/sessionStoragePortable.ts src/utils/sessionStorage/clearedSessions.ts scripts/lib/seedTranscript.ts
+# gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/cli/headless/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

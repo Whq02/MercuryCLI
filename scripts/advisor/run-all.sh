@@ -1,16 +1,9 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/services/advisor/** src/utils/model/subModelSlots.ts src/utils/messages/noticeRows.ts src/utils/messages/text.ts src/utils/workloadContext.ts src/constants/querySource.ts src/services/providers/anthropic/streamCore.ts src/utils/model/capabilities.ts src/utils/messages/apiView.ts src/types/message.ts src/components/messages/SystemTextMessage.tsx
-# gate-watch: src/tools/AskAdvisorTool/** src/cli/headless/turnDriver.ts src/tools/AgentTool/runAgent.ts src/utils/attachments/queuedCommands.ts
-# gate-watch: scripts/builtin-tools/fixtures/tool-census.json src/bootstrap/state.ts src/cli/run.ts src/commands/submodels/index.ts src/commands/submodels/submodels.tsx src/components/Settings/Usage.tsx src/components/SubModelPicker.tsx src/components/messages/AttachmentMessage.tsx src/constants/tools.ts src/cost-tracker.ts src/fabric/entryCodec.ts src/ink.ts src/ink/components/StdinContext.ts src/input-core/command-queue.ts src/query.ts src/query/deps.ts src/services/compact/autoCompact.ts src/services/providers/providerUsage.ts src/state/AppStateStore.ts src/tools.ts src/utils/config.ts src/utils/config/globalConfig.ts src/utils/fileStateCache.ts src/utils/messages.ts src/utils/messages/attachmentText.ts src/utils/messages/factories.ts src/utils/modelCost.ts src/utils/sessionStorage/paths.ts src/utils/sessionStorage/writer.ts
-# gate-watch: scripts/lib/firstRunSeed.ts src/components/Message.tsx src/state/AppState.tsx src/utils/conversationRecovery.ts src/utils/messages/lookups.ts src/utils/messages/normalize.ts src/utils/sessionStorage/transcriptReader.ts
-# gate-watch: src/utils/forkedAgent.ts
-# gate-watch: src/rows/turn.ts src/cli/headless/resume.ts src/main.tsx src/commands.ts src/commands/advise/** src/components/HelpV2/commandDomains.ts src/utils/attachments/orchestrator.ts src/utils/sessionStorage.ts src/utils/sessionStorage/resumeSnapshot.ts src/utils/sessionStoragePortable.ts
-# gate-watch: src/components/App.tsx src/components/FullscreenLayout.tsx src/components/MercuryFrame.tsx src/context/surfaceRoute.ts src/hooks/useLayoutTier.ts src/ink/ink.tsx src/ink/instances.ts src/keybindings/KeybindingProviderSetup.tsx src/services/engine-connector/** src/utils/cockpit/helmFocus.ts
-# gate-watch: scripts/lib/rows.ts scripts/lib/fixtureApi.ts
+# gate-watch: src/services/advisor/** src/types/message.ts src/components/messages/SystemTextMessage.tsx
+# gate-watch: src/tools/AskAdvisorTool/** src/cli/headless/turnDriver.ts
+# gate-watch: src/services/engine-connector/**
 # gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: scripts/compact/overflowFixture.ts src/services/providers/callModelRouter.ts
-# gate-watch: scripts/lib/builtProduct.ts
 # gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

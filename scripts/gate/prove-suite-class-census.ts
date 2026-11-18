@@ -2,11 +2,8 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { basename, dirname, join as nativeJoin, relative as nativeRelative, resolve as nativeResolve } from 'node:path'
-
-const join: typeof nativeJoin = process.platform === 'win32' ? (...parts) => nativeJoin(...parts).replace(/\\/g, '/') : nativeJoin
-const relative: typeof nativeRelative = process.platform === 'win32' ? (from, to) => nativeRelative(from, to).replace(/\\/g, '/') : nativeRelative
-const resolve: typeof nativeResolve = process.platform === 'win32' ? (...parts) => nativeResolve(...parts).replace(/\\/g, '/') : nativeResolve
+import { basename, dirname } from 'node:path'
+import { EXT_RE, PREFLIGHT, codeLines, extOf, isFile, join, relative, resolve, runnerLaunches, shellTargets, type Ext } from '../lib/runnerLaunches.ts'
 
 const REPORT = process.argv.includes('--report')
 const WRITE = process.argv.includes('--write')
@@ -14,29 +11,23 @@ const REAL_ROOT = resolve(import.meta.dir, '..', '..')
 const SELF = resolve(import.meta.path)
 const TABLE = 'scripts/gate/suite-class-census.tsv'
 
-type Ext = 'ts' | 'tsx' | 'mjs' | 'js' | 'py' | 'sh'
-const EXT_RE = /\.(ts|tsx|mjs|js|py|sh)$/
-const extOf = (p: string): Ext | null => (EXT_RE.exec(p)?.[1] as Ext | undefined) ?? null
 
 const PY_PTY = /\b(?:pty\.fork|pty\.openpty|os\.openpty|os\.forkpty|pty\.spawn)\s*\(/
 const NODE_PTY = /(?:from\s*|require\s*\(\s*|import\s*\(\s*)['"]node-pty['"]/
 const SPAWN_CALL = /\b(?:spawn|spawnSync|spawnCaptureSync|execFile|execFileSync|exec|execSync|subprocess\.(?:run|Popen|call|check_output)|Bun\.spawn(?:Sync)?)\b/
 const SHELL_PYTHON = /(?:^|[\s"'(])python3?\b/
 const spawnShape = (line: string, ext: Ext | null): boolean => SPAWN_CALL.test(line) || (ext === 'sh' && SHELL_PYTHON.test(line))
-const PREFLIGHT = '--preflight'
-const SHELL_FILE_TEST = /(?:\[\[?|\btest)\s+(?:!\s+)?-[a-zA-Z]\s+(?:"[^"]*"|'[^']*'|\S+)(?:\s+\]\]?)?/g
 const READ = /\b(?:readFileSync|readFile|existsSync|statSync|readdirSync|Bun\.file)\s*\(/
+const PY_READ = /\bopen\s*\(|\bos\.path\.(?:exists|isfile|isdir|getsize|getmtime)\s*\(|\.read_(?:text|bytes)\s*\(/
 const ASSIGN = /^\s*(?:export\s+)?(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*(?::[^=]+)?=[^=]|^\s*[A-Za-z_$][\w$.]*\s*=[^=]/
 const ENGINE_RESOLVER = /\b(?:captureEngineEntry|CAPTURE_ENGINE_ENTRY)\b/
 const RESOLVER_CALL = /(?<!function\s)\bcaptureEngineEntry\s*\(/
-const ENV_GATED = /\$\{[A-Z_]+:-0\}"?\s*=\s*"1"/
 const TYPE_IMPORT = /^\s*(?:import|export)\s+type\b/
 const DIR_ANCHORS = new Set(['import.meta.dir', '__dirname', 'HERE', 'here', 'DIR', 'dir'])
 const ROOT_ANCHORS = new Set(['ROOT', 'REPO', 'repo', 'root', 'repoRoot', 'REPO_ROOT', 'repo_root'])
 const CLASSES = new Set(['pure', 'cpu', 'pty', 'exclusive'])
 const SPAWN_WINDOW = 6
 const BUILT_REACH = 80
-const SHELL_WORDS = /^\s*(?:say|echo|printf)\s[^;&|`$]*$/
 const REBOUND_ANCHOR = /\b(?:const|let|var)\s+(here|HERE|DIR|dir)\s*=\s*(?!.*(?:import\.meta|__dirname|dirname\())/g
 const NAMED = /^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=[^=]/
 const CONTINUES = /^\s*(?:[?:.+]|\|\||&&)/
@@ -47,7 +38,6 @@ const TERMINAL_OPTION = /(?:^|[{,\s])terminal\s*:\s*\{/
 const BUN_TERMINAL = 'opens a pseudo-terminal: Bun.spawn with a terminal'
 const WIN_ONLY_GUARD = /^(\s*)if\s*\(\s*process\.platform\s*!==\s*['"]win32['"]\s*\)\s*(?:return|throw|process\.exit)\b/
 const WIN_ONLY_BLOCK = /^(\s*)if\s*\(\s*process\.platform\s*===\s*['"]win32['"]\s*\)\s*\{\s*$/
-const COMPLEMENT = /cat\s+(?:scripts\/|"\$here"\/\.\.\/)([A-Za-z0-9_-]+)-\*\/members\.txt/
 const CAPTURE_SLOT = 'a capture slot'
 const LAUNCHES: Array<{ thing: string; sign: RegExp }> = [
   { thing: 'a container engine', sign: /\b(?:spawn|spawnSync|execFile|execFileSync)\(\s*['"]docker['"]/ },
@@ -66,31 +56,6 @@ const depthOf = (line: string): number => {
   return (b.match(/[([{]/g)?.length ?? 0) - (b.match(/[)\]}]/g)?.length ?? 0)
 }
 const indentOf = (line: string): number => line.length - line.trimStart().length
-
-function codeLines(path: string): string[] {
-  const ext = extOf(path)
-  const out: string[] = []
-  let block = false
-  for (const raw of readFileSync(path, 'utf8').split('\n')) {
-    const t = raw.trim()
-    if (ext === 'py' || ext === 'sh') {
-      if (t.startsWith('#')) continue
-      out.push(raw.replace(/\s#\s.*$/, ''))
-      continue
-    }
-    if (block) {
-      if (t.includes('*/')) block = false
-      continue
-    }
-    if (t.startsWith('/*')) {
-      if (!t.includes('*/')) block = true
-      continue
-    }
-    if (t.startsWith('//') || t.startsWith('*')) continue
-    out.push(raw.replace(/\s\/\/\s.*$/, ''))
-  }
-  return out
-}
 
 interface LineCtx {
   read: boolean
@@ -143,18 +108,9 @@ function contextOf(lines: string[], ext: Ext | null): { ctx: LineCtx[]; fileSpaw
       }
     })
   }
-  const ctx = lines.map((l, i) => ({ read: READ.test(l) || arm[i]!, spawn: call[i]! || built[i]! || (fileSpawns && !arm[i] && ASSIGN.test(l)), call: call[i]! }))
+  const reads = ext === 'py' ? PY_READ : READ
+  const ctx = lines.map((l, i) => ({ read: reads.test(l) || arm[i]!, spawn: call[i]! || built[i]! || (fileSpawns && !arm[i] && ASSIGN.test(l)), call: call[i]! }))
   return { ctx, fileSpawns }
-}
-
-function isFile(p: string): boolean {
-  return existsSync(p) && statSync(p).isFile()
-}
-
-function globDir(dir: string, pattern: string): string[] {
-  if (!existsSync(dir)) return []
-  const re = new RegExp(`^${pattern.split('*').map(s => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`)
-  return readdirSync(dir).filter(n => re.test(n)).map(n => join(dir, n)).filter(isFile)
 }
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -168,49 +124,6 @@ function walk(dir: string, out: string[] = []): string[] {
   return out
 }
 
-function shellTargets(root: string, file: string): Set<string> {
-  const scriptsDir = join(root, 'scripts')
-  const dir = dirname(file)
-  const out = new Set<string>()
-  let gated = false
-  for (const raw of codeLines(file)) {
-    if (gated) {
-      if (/^\s*fi\b/.test(raw)) gated = false
-      continue
-    }
-    if (/^\s*if\b/.test(raw) && ENV_GATED.test(raw)) {
-      gated = true
-      continue
-    }
-    if (ENV_GATED.test(raw)) continue
-    const loop = /^\s*for\s+\w+\s+in\s+((?:prove-[A-Za-z0-9_-]+\s+)*prove-[A-Za-z0-9_-]+)\s*;/.exec(raw)
-    if (loop) {
-      for (const n of loop[1]!.split(/\s+/)) {
-        const p = join(dir, `${n}.ts`)
-        if (isFile(p)) out.add(p)
-      }
-    }
-    if (raw.includes(PREFLIGHT)) continue
-    if (SHELL_WORDS.test(raw)) continue
-    const line = raw
-      .replace(SHELL_FILE_TEST, ' ')
-      .replace(/"\$\(dirname "\$0"\)"/g, dir)
-      .replace(/"?\$\{?(?:here|HERE|DIR|dir|SUITE_DIR)\}?"?(?=\/)/g, dir)
-      .replace(/"?\$\{?(?:root|ROOT|REPO|repo|repo_root|REPO_ROOT)\}?"?(?=\/)/g, root)
-    const tokens = process.platform === 'win32'
-      ? line.match(/(?:[A-Za-z]:)?[A-Za-z0-9_./*-]+\.(?:ts|tsx|mjs|js|py|sh)\b/g)
-      : line.match(/[A-Za-z0-9_./*-]+\.(?:ts|tsx|mjs|js|py|sh)\b/g)
-    for (const tok of tokens ?? []) {
-      let p = tok.startsWith('/') || (process.platform === 'win32' && /^[A-Za-z]:\//.test(tok)) ? tok : tok.startsWith('scripts/') ? join(root, tok) : join(dir, tok)
-      p = resolve(p)
-      if (!p.startsWith(`${scriptsDir}/`)) continue
-      if (p.includes('*')) for (const g of globDir(dirname(p), basename(p))) out.add(g)
-      else if (isFile(p)) out.add(p)
-    }
-  }
-  return out
-}
-
 function resolveModule(p: string): string | null {
   for (const c of [p, p.replace(/\.js$/, '.ts'), `${p}.ts`, `${p}.tsx`, join(p, 'index.ts')]) if (isFile(c)) return c
   return null
@@ -219,7 +132,6 @@ function resolveModule(p: string): string | null {
 function edgesOf(root: string, file: string, lines: string[], ctx: LineCtx[]): Set<string> {
   const ext = extOf(file)
   if (ext === 'sh') return shellTargets(root, file)
-  if (ext === 'py') return new Set()
   const scriptsDir = join(root, 'scripts')
   const dir = dirname(file)
   const out = new Set<string>()
@@ -310,22 +222,6 @@ export function census(root: string): { engines: string[]; suites: SuiteCensus[]
     .map(p => basename(p))
     .filter((n, i, a) => a.indexOf(n) === i)
     .sort()
-  const suites = readdirSync(scriptsDir)
-    .filter(d => isFile(join(scriptsDir, d, 'run-all.sh')))
-    .sort()
-  const members = new Map<string, Set<string>>()
-  for (const s of suites) {
-    const mf = join(scriptsDir, s, 'members.txt')
-    if (!isFile(mf)) continue
-    const parent = /scripts\/([A-Za-z0-9_-]+)\/\$name/.exec(readFileSync(join(scriptsDir, s, 'run-all.sh'), 'utf8'))?.[1]
-    if (!parent) continue
-    const set = new Set<string>()
-    for (const line of readFileSync(mf, 'utf8').split('\n')) {
-      const n = line.split('#')[0]!.trim()
-      if (n && isFile(join(scriptsDir, parent, n))) set.add(join(scriptsDir, parent, n))
-    }
-    members.set(s, set)
-  }
   const cache = new Map<string, { lines: string[]; ctx: LineCtx[]; fileSpawns: boolean }>()
   const analysed = (p: string): { lines: string[]; ctx: LineCtx[]; fileSpawns: boolean } => {
     let a = cache.get(p)
@@ -365,21 +261,15 @@ export function census(root: string): { engines: string[]; suites: SuiteCensus[]
     return LAUNCHES.find(({ sign }) => a.lines.some((l, i) => !a.ctx[i]!.read && sign.test(l)))?.thing ?? null
   }
   const out: SuiteCensus[] = []
-  for (const s of suites) {
-    const runner = join(scriptsDir, s, 'run-all.sh')
-    const text = readFileSync(runner, 'utf8')
-    const cls = text.match(/^# gate-class:\s*(\S+)/m)?.[1] ?? 'undeclared'
-    const start = new Set<string>([...shellTargets(root, runner), ...(members.get(s) ?? [])])
-    const complement = COMPLEMENT.exec(text)?.[1]
-    if (complement) for (const [sib, set] of members) if (sib.startsWith(`${complement}-`)) for (const f of set) start.delete(f)
-    start.delete(runner)
+  for (const { suite: s, launched } of runnerLaunches(root)) {
+    const cls = readFileSync(join(scriptsDir, s, 'run-all.sh'), 'utf8').match(/^# gate-class:\s*(\S+)/m)?.[1] ?? 'undeclared'
     const drivers: string[] = []
     const executed: string[] = []
     const why: Record<string, string> = {}
     const needs: Record<string, string> = {}
     let first: { chain: string[]; evidence: string } | null = null
-    for (const f of [...start].sort()) {
-      const rel = relative(root, f)
+    for (const rel of launched) {
+      const f = join(root, rel)
       executed.push(rel)
       const c = chainOf(f)
       if (!c) {
@@ -392,7 +282,7 @@ export function census(root: string): { engines: string[]; suites: SuiteCensus[]
       needs[rel] = CAPTURE_SLOT
       first ??= c
     }
-    out.push({ suite: s, cls, files: start.size, executed, drivers, chain: first?.chain ?? [], evidence: first?.evidence ?? '', why, needs })
+    out.push({ suite: s, cls, files: launched.length, executed, drivers, chain: first?.chain ?? [], evidence: first?.evidence ?? '', why, needs })
   }
   return { engines, suites: out }
 }
@@ -518,6 +408,10 @@ function selfTest(): boolean {
   w('scripts/gated/render-x.ts', "import { spawnSync } from 'node:child_process'\nspawnSync('/usr/bin/python3', [join(ROOT, 'scripts', 'ui', 'engine.py')])\n")
   w('scripts/py-direct/run-all.sh', '#!/usr/bin/env bash\n# gate-class: pty\n/usr/bin/python3 "$here/prove-e.py"\n')
   w('scripts/py-direct/prove-e.py', `import pty\npid, fd = ${forkCall}\n`)
+  w('scripts/py-launch/run-all.sh', '#!/usr/bin/env bash\n# gate-class: cpu\n/usr/bin/python3 "$here/prove-ai.py"\n/usr/bin/python3 "$here/prove-aj.py"\n/usr/bin/python3 "$here/prove-ak.py"\n')
+  w('scripts/py-launch/prove-ai.py', "import subprocess\nr = subprocess.run(\n    ['bun', 'run', 'scripts/lib/tui.ts',\n     '--cols', '80'],\n    cwd=REPO, capture_output=True, text=True)\n")
+  w('scripts/py-launch/prove-aj.py', "import os\nimport subprocess\ntext = open(os.path.join(REPO, 'scripts', 'lib', 'tui.ts')).read()\nr = subprocess.run(['git', 'status'], cwd=REPO)\n")
+  w('scripts/py-launch/prove-ak.py', "import os\nimport subprocess\nTUI = os.path.join(REPO, 'scripts', 'lib', 'tui.ts')\nr = subprocess.run(['bun', 'run', TUI], cwd=REPO)\n")
   w('scripts/named-list/run-all.sh', `#!/usr/bin/env bash\n# gate-class: cpu\nfor prover in prove-f prove-g; do ${bun} run "$here/$prover.ts"; done\n`)
   w('scripts/named-list/prove-f.ts', 'export const f = 1\n')
   w('scripts/named-list/prove-g.ts', "import { spawnSync } from 'node:child_process'\nconst ENGINE = join(REPO, 'scripts/ui/engine.py')\nspawnSync('/usr/bin/python3', [ENGINE])\n")
@@ -575,7 +469,7 @@ function selfTest(): boolean {
   const c = census(root)
   rmSync(root, { recursive: true, force: true })
   const drives = [...new Set(c.suites.filter(s => s.chain.length > 0).map(s => s.suite))].sort()
-  const want = ['args-above', 'capture-door', 'carried', 'handed-on', 'multi-line', 'named-list', 'path-table', 'py-direct', 'recorded', 'resolved-drive', 'shared-terminal', 'slice-2', 'template-import', 'template-spawn', 'via-here-drives', 'via-import-2']
+  const want = ['args-above', 'capture-door', 'carried', 'handed-on', 'multi-line', 'named-list', 'path-table', 'py-direct', 'py-launch', 'recorded', 'resolved-drive', 'shared-terminal', 'slice-2', 'template-import', 'template-spawn', 'via-here-drives', 'via-import-2']
   const okEngines = c.engines.join(',') === 'engine.py,prove-e.py'
   const okDrives = drives.join(',') === want.join(',')
   const parentDropsMember = c.suites.find(s => s.suite === 'via-import')?.files === 1
@@ -591,6 +485,9 @@ function selfTest(): boolean {
     suiteOf('recorded')?.chain.join(' → ') === 'scripts/recorded/prove-ab.ts → scripts/lib/recorder.ts' && evidenceOfSuite('recorded') === BUN_TERMINAL &&
     suiteOf('win-arm')?.drivers.length === 0 &&
     suiteOf('via-here')?.files === 1 && suiteOf('via-here')?.drivers.length === 0
+  const pythonOk =
+    suiteOf('py-launch')?.drivers.join(' ') === 'scripts/py-launch/prove-ai.py scripts/py-launch/prove-ak.py' &&
+    suiteOf('py-launch')?.why['scripts/py-launch/prove-ai.py'] === 'scripts/py-launch/prove-ai.py → scripts/lib/tui.ts — spawns engine.py'
   const allQuiet = quietMembers(c.suites)
   const quietRead = [...allQuiet].map(([suite, members]) => `${suite}: ${members.join(' ')}`).join(' · ')
   const others = suiteOf('other-things-drives')?.needs ?? {}
@@ -615,9 +512,9 @@ function selfTest(): boolean {
     risen(new Map([['a', 2], ['b', 1], ['c', 1]]), new Map([['a', 1], ['b', 1]])).join(' · ') === 'a 2 stands above the committed 1 · c 1 is a new row' &&
     risen(new Map([['a', 1]]), new Map([['a', 2], ['b', 3]])).length === 0 &&
     toldDrivers(suiteOf('shared-terminal')!).includes('scripts/shared-terminal/prove-t.ts → scripts/shared-terminal-drives/members.txt')
-  const ok = okEngines && okDrives && parentDropsMember === true && chainOk && resolvedOk && formsOk && laterFormsOk && needsOk && judgeOk
+  const ok = okEngines && okDrives && parentDropsMember === true && chainOk && resolvedOk && formsOk && laterFormsOk && pythonOk && needsOk && judgeOk
   console.log(
-    `  [${ok ? 'PASS' : 'FAIL'}] §3 self-test: engines derived (${c.engines.join(',')}) · drives = {${drives.join(', ')}} (want {${want.join(', ')}}) · the complement runner drops the member (${String(parentDropsMember)}) · the member's chain runs through the helper (${String(chainOk)}) · the resolver spawned for real reads as a drive (${resolvedEvidence ?? 'no evidence'}) · the capture door, the entry handed to a helper and the entry carried to a later spawn read as drives (${['capture-door', 'handed-on', 'carried'].map(evidenceOfSuite).join(' / ')}) · an argument list built above the spawn, a table of paths a spawn runs and Bun's terminal through a recorder read as drives, a Windows-only arm as none, and the "$here"/../ spelling of a complement drops the twin's member (${String(laterFormsOk)}: ${['args-above', 'path-table', 'recorded'].map(evidenceOfSuite).join(' / ')} · win-arm ${suiteOf('win-arm')?.drivers.length ?? '?'} · via-here ${suiteOf('via-here')?.files ?? '?'}) · a container engine and an application are named from what a member launches and a member that only names them is quiet (${String(needsOk)}) · a terminal suite's member that needs nothing is named, and the table judges a held row, no row, a fallen row, and a row new or higher than the committed one (${String(judgeOk)}: ${quietRead || 'none named'})`,
+    `  [${ok ? 'PASS' : 'FAIL'}] §3 self-test: engines derived (${c.engines.join(',')}) · drives = {${drives.join(', ')}} (want {${want.join(', ')}}) · the complement runner drops the member (${String(parentDropsMember)}) · the member's chain runs through the helper (${String(chainOk)}) · the resolver spawned for real reads as a drive (${resolvedEvidence ?? 'no evidence'}) · the capture door, the entry handed to a helper and the entry carried to a later spawn read as drives (${['capture-door', 'handed-on', 'carried'].map(evidenceOfSuite).join(' / ')}) · an argument list built above the spawn, a table of paths a spawn runs and Bun's terminal through a recorder read as drives, a Windows-only arm as none, and the "$here"/../ spelling of a complement drops the twin's member (${String(laterFormsOk)}: ${['args-above', 'path-table', 'recorded'].map(evidenceOfSuite).join(' / ')} · win-arm ${suiteOf('win-arm')?.drivers.length ?? '?'} · via-here ${suiteOf('via-here')?.files ?? '?'}) · a Python member that starts a script through subprocess, by its path or by a path it joined, drives through that script, and one that only opens the script's file does not (${String(pythonOk)}: ${suiteOf('py-launch')?.drivers.map(d => basename(d)).join(' ') ?? 'no such suite'}) · a container engine and an application are named from what a member launches and a member that only names them is quiet (${String(needsOk)}) · a terminal suite's member that needs nothing is named, and the table judges a held row, no row, a fallen row, and a row new or higher than the committed one (${String(judgeOk)}: ${quietRead || 'none named'})`,
   )
   return ok
 }

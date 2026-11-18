@@ -1,30 +1,13 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-env: MERCURY_PROOF_DIST
-# gate-watch: src/bootstrap/state* src/services/mcp/** src/state/AppState* src/utils/Shell*
-# gate-watch: src/utils/config/** src/utils/mcp/elicitationValidation*
-# gate-watch: src/cli/handlers/mcp.tsx src/commands/mcp/* src/components/mcp/* src/utils/redactHeaders.ts
-# gate-watch: scripts/lib/hermetic.ts scripts/lib/removeScratch.ts src/services/vulcan/engine/leases.ts src/tools/AgentTool/runAgent.ts
-# gate-watch: src/components/MCPServerApprovalDialog.tsx src/components/MCPServerMultiselectDialog.tsx src/services/mcpServerApproval.tsx src/utils/projectConfig.ts src/commands/mcp/route.ts
-# gate-watch: src/utils/env.ts src/utils/staticRender.tsx src/ink/components/TerminalSizeContext.tsx
-# gate-watch: assets/splash/splash-core.mjs package.json scripts/daemon/dupline-world.ts
-# gate-watch: docs/TRUST.md
-# gate-watch: scripts/lib/firstRunSeed.ts scripts/lib/scriptedTurn.ts scripts/lib/rows.ts src/utils/readiness.ts src/utils/cockpit/mcpGauge.ts
-# gate-watch: src/rows/* src/runner/wire/* sdk/src/** src/cli/mcpServer.ts src/cli/headless/projectQuery.ts src/main.tsx scripts/sdk/compatRoadFixture.ts scripts/sdk/runtime.ts scripts/provider-compat/fixtures/engineRules.mjs
-# gate-watch: scripts/lib/seatDoor.ts scripts/lib/mcpInProcess.ts scripts/lib/settingsPopupHarness.ts
-# gate-watch: scripts/providers/lib/llmhostFixture.ts scripts/ui/gridToPng.ts
-# gate-watch: src/cli/run.ts scripts/lib/fixtureApi.ts src/utils/settings/settings.ts
-# gate-watch: src/utils/messages/outsideReport.ts src/utils/sessionStorage/paths.ts src/daemon/concourseDispatch.ts
-# gate-watch: scripts/lib/processGroup.ts
-# gate-watch: scripts/lib/removeScratch.ts
-# gate-watch: src/Tool.ts src/types/message.ts src/utils/attachments/types.ts src/utils/attachments/orchestrator.ts
-# gate-watch: src/state/AppStateStore.ts src/utils/fileStateCache.ts src/utils/messages/factories.ts src/utils/messages/attachmentText.ts
-# gate-watch: src/tools/ToolSearchTool/ToolSearchTool.ts
-# gate-watch: src/utils/config.ts src/utils/secureStorage/index.ts
-# gate-watch: src/utils/Shell.ts
-# gate-watch: src/substrate/flagRegistry.ts
-# gate-watch: scripts/lib/builtProduct.ts
-# gate-watch: src/utils/health/sections/runtime.ts
+# gate-watch: src/services/mcp/** src/utils/Shell*
+# gate-watch: src/commands/mcp/* src/components/mcp/*
+# gate-watch: src/utils/projectConfig.ts
+# gate-watch: src/utils/staticRender.tsx src/ink/components/TerminalSizeContext.tsx
+# gate-watch: src/utils/readiness.ts
+# gate-watch: src/rows/* sdk/src/** src/cli/headless/projectQuery.ts
+# gate-watch: src/types/message.ts src/utils/attachments/types.ts
 # gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

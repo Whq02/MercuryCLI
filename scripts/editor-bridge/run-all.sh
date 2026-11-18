@@ -1,28 +1,17 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: scripts/editor-bridge/** scripts/lib/nodeBin.ts
 # gate-watch: src/services/workbench/** src/services/resources/adapters/workbench.ts
-# gate-watch: src/services/acp/** src/services/walkthrough/**
+# gate-watch: src/services/acp/**
 # gate-watch: src/utils/artifacts/** src/components/diff/** src/components/prompts-panel/**
-# gate-watch: integrations/vscode/extension.js integrations/vscode/package.json integrations/vscode/LICENSE.txt LICENSE.md NOTICE
-# gate-watch: scripts/engine-durability/harness.ts scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts
-# gate-watch: scripts/prompts-panel/prove-panel-captures.ts scripts/release/package.mjs
-# gate-watch: scripts/release/payloadContract.mjs scripts/vscode/build-vsix.sh scripts/vscode/host-test/run.sh
-# gate-watch: src/bootstrap/state.ts src/cli/editorBridge.ts src/cli/run.ts
-# gate-watch: src/keybindings/defaultBindings.ts src/keybindings/schema.ts src/services/journeys/runner.ts
-# gate-watch: src/services/mcp/client.ts src/services/resources/registry.ts src/services/run/*
-# gate-watch: src/substrate/sourceState.ts src/utils/* src/utils/git/gitFilesystem.ts
+# gate-watch: LICENSE.md NOTICE
+# gate-watch: src/cli/run.ts
+# gate-watch: src/services/mcp/client.ts src/services/run/*
+# gate-watch: src/utils/*
 # gate-watch: scripts/idiom/prove-body-shape-registry.ts src/fabric/validate.ts
 # gate-watch: src/utils/attachments/mentionResolvers.ts src/utils/attachments/types.ts
 # gate-watch: src/utils/messages/attachmentText.ts
-# gate-watch: src/utils/sessionStorage/paths.ts src/types/permissions.ts src/types/ids.ts src/utils/settings/validationTips.ts
-# gate-watch: src/fabric/entryCodec.ts src/fabric/ordinal.ts src/utils/settings/settingsCache.ts
-# gate-watch: src/rows/* src/runner/wire/* scripts/mcp/_fixture-estate-server.mjs src/tools/AskUserQuestionTool/** src/tools/BashTool/prompt.ts
-# gate-watch: scripts/consistency-census/prove-worktree-settlement.ts
-# gate-watch: scripts/lib/processGroup.ts
-# gate-watch: scripts/lib/toolShellTree.ts
+# gate-watch: src/rows/* src/runner/wire/* src/tools/AskUserQuestionTool/**
 # gate-watch: scripts/lib/ptyRecorder.ts src/components/ConsoleOAuthFlow.tsx src/components/loginFamilyRows.ts src/ink.ts src/ink/instances.ts
-# gate-watch: src/Tool.ts src/utils/sessionStorage/vnext.ts
 # gate-watch: src/services/engine-connector/midTurnText.ts src/utils/sessionStorage/*
 # gate-watch: src/cli/headless/*
 set -u

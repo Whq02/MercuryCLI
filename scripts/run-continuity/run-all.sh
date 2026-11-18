@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/commands/run/run.tsx
-# gate-watch: src/components/mercury-ui/PaletteView.tsx
 # gate-watch: src/components/prompts-panel/**
 # gate-watch: src/services/workbench/**
 # gate-watch: src/components/diff/**
@@ -9,7 +7,7 @@
 # gate-watch: src/utils/messages/lookups.ts
 # gate-watch: src/services/api/errors.ts
 # gate-watch: scripts/ui/render-tui.ts src/rows/turn.ts
-# gate-watch: src/components/Message.tsx src/components/mercury-ui/components.tsx
+# gate-watch: src/components/Message.tsx
 # gate-watch: src/components/messages/SystemTextMessage.tsx src/run-core/turn-machine.ts
 # gate-watch: src/utils/messages/normalize.ts src/utils/messages/systemMessages.ts
 # gate-watch: src/run-core/turn/** scripts/core-runtime/turnScenarios.ts

@@ -2,9 +2,11 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join, resolve } from 'node:path'
 import { loadImpactManifest, selectImpact, type ImpactManifest } from './impactManifest.ts'
+import { computedWatch, watchGraphOf } from './watchGraph.ts'
 import { flagRegistryFiles, isFlagRegistryFile } from '../lib/flagRegistrySource.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -220,7 +222,7 @@ section('§3 verify:fast --plan runs the real selector end-to-end')
   check('--plan never runs a step', !/━━ /.test(out))
 }
 {
-  const s = selectImpact(manifest, [
+  const s = selectImpact(loadImpactManifest(ROOT, computedWatch(ROOT)), [
     'src/services/lsp/config.ts',
     'src/components/anything.tsx',
     'scripts/ui/vshot.py',
@@ -237,6 +239,132 @@ section('§3 verify:fast --plan runs the real selector end-to-end')
       s.perPath['src/main.tsx']?.includes('smoke') === true,
     JSON.stringify({ unclassified: s.unclassified, ignored: s.ignored, docs: s.perPath['docs/ROADMAP.md'], main: s.perPath['src/main.tsx'] }),
   )
+}
+
+section('§4 a planted estate: what a suite\'s proofs touch wakes it, with no header line; what the reader cannot see still takes one')
+{
+  const estate = mkdtempSync(join(tmpdir(), 'computed-watch-estate-'))
+  const w = (rel: string, body: string): void => {
+    mkdirSync(dirname(join(estate, rel)), { recursive: true })
+    writeFileSync(join(estate, rel), body)
+  }
+  const head = ["import { join } from 'node:path'", "const ROOT = join(import.meta.dir, '..', '..')"]
+  const runner = (watch: string, body: string): string => `#!/usr/bin/env bash\n# gate-class: pure\n${watch}set -u\n. "$(dirname "$0")/../lib/suite-env.sh"\nhere="$(cd "$(dirname "$0")" && pwd)"\n${body}`
+  const each = 'for f in "$here"/prove-*.ts; do "${BUN:-bun}" run "$f"; done\n'
+  w('src/alpha/a.ts', "import { deep } from './deep.ts'\nexport const a = deep\n")
+  w('src/alpha/deep.ts', 'export const deep = 1\n')
+  w('src/beta/b.ts', 'export const b = 2\n')
+  w('src/gamma/g.ts', 'export const g = 3\n')
+  w('src/keys/one.ts', 'export const one = 1\n')
+  w('src/keys/two.ts', 'export const two = 2\n')
+  w('src/hidden/h.ts', 'export const h = 4\n')
+  w('docs/page.md', '# page\n')
+  w('scripts/lib/suite-env.sh', 'suite_env_guard() { :; }\n')
+  w('scripts/lib/child.ts', "import { g } from '../../src/gamma/g.ts'\nconsole.log(g)\n")
+  w('scripts/template/run-all.sh', runner('# gate-watch: src/alpha/deep.ts\n', `claimed=$(cat scripts/template-*/members.txt 2>/dev/null | grep -v '^#')\n${each}`))
+  w('scripts/template/prove-template.ts', [...head, 'const { a } = await import(`${ROOT}/src/alpha/a.ts`)', 'console.log(a)', ''].join('\n'))
+  w('scripts/template/prove-drive.ts', "import { b } from '../../src/beta/b.ts'\nconsole.log(b)\n")
+  w('scripts/template-drives/run-all.sh', '#!/usr/bin/env bash\n# gate-class: pty\nset -u\n. "$(dirname "$0")/../lib/suite-env.sh"\nwhile read -r name; do f="scripts/template/$name"; bun "$f"; done < scripts/template-drives/members.txt\n')
+  w('scripts/template-drives/members.txt', 'prove-drive.ts\n')
+  w('scripts/handed/run-all.sh', runner('', each))
+  w('scripts/handed/prove-handed.ts', ["import { readFileSync } from 'node:fs'", ...head, "const src = (rel: string): string => readFileSync(join(ROOT, 'src', rel), 'utf8')", "console.log(src('beta/b.ts').includes('b'))", ''].join('\n'))
+  w('scripts/child/run-all.sh', runner('', each))
+  w('scripts/child/prove-child.ts', ["import { spawnSync } from 'node:child_process'", ...head, "const ran = spawnSync(process.execPath, [join(ROOT, 'scripts/lib/child.ts')])", 'console.log(ran.status)', ''].join('\n'))
+  w('scripts/named/run-all.sh', runner('', each))
+  w('scripts/named/prove-named.ts', ["import { existsSync, readFileSync } from 'node:fs'", ...head, "console.log(readFileSync(join(ROOT, 'docs/page.md'), 'utf8').length, existsSync(join(ROOT, 'src/keys/one.ts')))", ''].join('\n'))
+  w('scripts/walked/run-all.sh', runner('', each))
+  w('scripts/walked/prove-walked.ts', ["import { readdirSync } from 'node:fs'", ...head, "console.log(readdirSync(join(ROOT, 'src', 'keys')).length)", ''].join('\n'))
+  w('src/main.tsx', 'export const main = 1\n')
+  w('src/cli/run.ts', 'export const run = 1\n')
+  w('scripts/lib/builtProduct.ts', "export const builtCli = (): string => 'dist/mercury.mjs'\n")
+  w('scripts/built/run-all.sh', runner('', each))
+  w('scripts/built/prove-built.ts', "import { builtCli } from '../lib/builtProduct.ts'\nconsole.log(builtCli())\n")
+  w('scripts/lister/run-all.sh', runner('', each))
+  w('scripts/lister/prove-lister.ts', ["import { readdirSync, readFileSync } from 'node:fs'", ...head, "const texts = (sub: string): string[] => readdirSync(join(ROOT, sub)).map(f => readFileSync(join(ROOT, sub, f), 'utf8'))", "console.log(texts('src/keys').length)", ''].join('\n'))
+  w('scripts/pyrun/run-all.sh', runner('', '/usr/bin/python3 "$here/prove-py.py"\n'))
+  w('scripts/pyrun/prove-py.py', ['import os', 'import subprocess', 'REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))', "CHILD = os.path.join(REPO, 'scripts', 'lib', 'child.ts')", "page = open(os.path.join(REPO, 'docs', 'page.md')).read()", "ran = subprocess.run(['bun', 'run', CHILD], cwd=REPO)", ''].join('\n'))
+  w('scripts/blind/run-all.sh', runner('# gate-watch: src/hidden/**\n', each))
+  w(
+    'scripts/blind/prove-blind.ts',
+    [
+      "import { spawnSync } from 'node:child_process'",
+      "import { readdirSync, readFileSync } from 'node:fs'",
+      ...head,
+      'const name = process.argv[2]',
+      "const late = await import(join(ROOT, 'src', 'hidden', `${name}.ts`))",
+      "const built = readFileSync(join(ROOT, name), 'utf8')",
+      "const tool = spawnSync('true', [])",
+      "const git = spawnSync('git', ['status'])",
+      "const bundle = spawnSync(process.execPath, [join(ROOT, 'dist', 'mercury.mjs'), '--version'])",
+      "const all = readdirSync(join(ROOT, 'src'))",
+      'console.log(late, built, tool.status, git.status, bundle.status, all.length)',
+      '',
+    ].join('\n'),
+  )
+  const computed = computedWatch(estate)
+  const graph = watchGraphOf(estate)
+  const hand = loadImpactManifest(estate)
+  const both = loadImpactManifest(estate, computed)
+  const SOURCED = 'scripts/lib/suite-env.sh'
+  const want: Record<string, string[]> = {
+    blind: ['scripts/blind/prove-blind.ts', SOURCED],
+    built: ['scripts/built/prove-built.ts', 'scripts/lib/builtProduct.ts', SOURCED, 'src/cli/run.ts', 'src/main.tsx'],
+    child: ['scripts/child/prove-child.ts', 'scripts/lib/child.ts', SOURCED, 'src/gamma/g.ts'],
+    handed: ['scripts/handed/prove-handed.ts', SOURCED, 'src/beta/b.ts'],
+    lister: [SOURCED, 'scripts/lister/prove-lister.ts', 'src/keys/one.ts', 'src/keys/two.ts'],
+    named: ['docs/page.md', SOURCED, 'scripts/named/prove-named.ts', 'src/keys/one.ts'],
+    pyrun: ['docs/page.md', 'scripts/lib/child.ts', SOURCED, 'scripts/pyrun/prove-py.py', 'src/gamma/g.ts'],
+    template: [SOURCED, 'scripts/template/prove-template.ts', 'src/alpha/a.ts'],
+    'template-drives': [SOURCED, 'scripts/template-drives/members.txt', 'scripts/template/prove-drive.ts', 'src/beta/b.ts'],
+    walked: [SOURCED, 'scripts/walked/prove-walked.ts', 'src/keys/one.ts', 'src/keys/two.ts'],
+  }
+  const listOf = (map: Record<string, string[]>): string => Object.keys(map).sort().map(suite => `${suite}: ${map[suite]!.join(' ')}`).join(' · ')
+  check(
+    "the computed list of a suite holds what its proofs touch: an import on a template, a path handed to a helper, a child script and what it imports, a name read as text, a walked folder, what the runner sources, a twin's member in its parent's folder, the two entry files for a proof that runs the bundle through scripts/lib/builtProduct.ts, for a Python member the script it starts through subprocess with what that script imports, and every file of a folder handed to a helper that lists it and opens what it lists",
+    listOf(computed) === listOf(want),
+    `seen ${listOf(computed)} · want ${listOf(want)}`,
+  )
+  const blind = graph.suites.find(s => s.suite === 'blind')
+  const sight = blind === undefined ? 'no such suite' : `imports ${blind.blind.imports} · paths ${blind.blind.paths} · children ${blind.blind.children} · git ${blind.blind.git} · bundle ${blind.bundle.join(' ')} · whole ${blind.whole.map(walk => walk.scope).join(' ')}`
+  check(
+    'what the reader cannot see is counted and not listed: an import and a path built at run time, a child program that names no script, a git child, the built bundle, a walk of all of src',
+    sight === 'imports 1 · paths 1 · children 1 · git 1 · bundle scripts/blind/prove-blind.ts · whole src',
+    sight,
+  )
+  const claimants = (m: ImpactManifest, path: string): string[] => (selectImpact(m, [path]).perPath[path] ?? []).filter(c => !c.startsWith('('))
+  const TOUCHED: Array<[string, string]> = [
+    ['template', 'src/alpha/a.ts'],
+    ['handed', 'src/beta/b.ts'],
+    ['child', 'scripts/lib/child.ts'],
+    ['child', 'src/gamma/g.ts'],
+    ['named', 'docs/page.md'],
+    ['named', 'src/keys/one.ts'],
+    ['walked', 'src/keys/two.ts'],
+    ['walked', SOURCED],
+    ['template-drives', 'scripts/template/prove-drive.ts'],
+    ['template-drives', 'src/beta/b.ts'],
+    ['built', 'src/main.tsx'],
+    ['built', 'src/cli/run.ts'],
+    ['pyrun', 'scripts/lib/child.ts'],
+    ['pyrun', 'src/gamma/g.ts'],
+    ['pyrun', 'docs/page.md'],
+    ['lister', 'src/keys/one.ts'],
+    ['lister', 'src/keys/two.ts'],
+  ]
+  const asleep = TOUCHED.filter(([suite, path]) => claimants(hand, path).includes(suite)).map(([suite, path]) => `${suite} ${path}`)
+  check('the hand map alone wakes none of these suites for the file its proof touches (the header holds no line for it)', asleep.length === 0, asleep.join(' · '))
+  const stillAsleep = TOUCHED.filter(([suite, path]) => !claimants(both, path).includes(suite) || !selectImpact(both, [path]).computed.has(suite)).map(([suite, path]) => `${suite} ${path}`)
+  check('with the computed list in the manifest each of them is woken, and the selection names it as computed', stillAsleep.length === 0, stillAsleep.join(' · '))
+  const hidden = selectImpact(both, ['src/hidden/h.ts'])
+  const deep = selectImpact(both, ['src/alpha/deep.ts'])
+  check(
+    'a file out of sight (an import on a name built at run time) and a file one import into src are in no computed list: the hand line of the header claims each, and the selection does not name them as computed',
+    !computed.blind!.includes('src/hidden/h.ts') && !computed.template!.includes('src/alpha/deep.ts') && claimants(both, 'src/hidden/h.ts').join() === 'blind' && claimants(both, 'src/alpha/deep.ts').join() === 'template' && hidden.computed.size === 0 && deep.computed.size === 0,
+    `${claimants(both, 'src/hidden/h.ts').join()} · ${claimants(both, 'src/alpha/deep.ts').join()} · computed ${[...hidden.computed, ...deep.computed].join()}`,
+  )
+  const lost = graph.listed.flatMap(path => claimants(hand, path).filter(suite => !claimants(both, path).includes(suite)).map(suite => `${suite} ${path}`))
+  check(`no file of the estate loses a claimant when the computed list joins the hand map (${graph.listed.length} files)`, lost.length === 0, lost.join(' · '))
+  rmSync(estate, { recursive: true, force: true })
 }
 
 console.log('\n' + '═'.repeat(60))

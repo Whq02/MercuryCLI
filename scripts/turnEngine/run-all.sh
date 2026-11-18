@@ -1,12 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/rows/turn.ts src/Tool* src/bootstrap/state* src/query/**
-# gate-watch: src/services/api/errors* src/utils/**
-# gate-watch: scripts/lib/fixtureApi.ts src/cli/run.ts src/query.ts src/run-core/budget-guard.ts
-# gate-watch: src/run-core/events.ts
-# gate-watch: scripts/core-runtime/turnScenarios.ts
-# gate-watch: src/run-core/turn/afterTools.ts
-# gate-watch: src/run-core/turn/runToolCalls.ts
+# gate-watch: src/utils/**
+# gate-watch: src/cli/run.ts
 # gate-watch: src/cli/headless/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

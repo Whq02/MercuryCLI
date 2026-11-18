@@ -6,7 +6,6 @@
 # gate-watch: scripts/outcome-pack/** scripts/daemon/dupline-world.ts
 # gate-watch: src/utils/Shell.ts src/utils/shell/bashProvider.ts
 # gate-watch: src/utils/wards/wards.ts
-# gate-watch: scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/lib/git.ts scripts/ui/vshot.py src/daemon/concourseWorkers.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

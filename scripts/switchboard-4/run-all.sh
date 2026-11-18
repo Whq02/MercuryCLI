@@ -1,22 +1,11 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: scripts/switchboard/** scripts/switchboard-4/**
-# gate-watch: src/services/concourse/** src/components/concourse/** src/daemon/concourseWorkers.ts
-# gate-watch: src/daemon/concourseDispatch.ts src/daemon/permissionAsks.ts src/services/switchboard/attachedSession.ts
-# gate-watch: src/components/SwitchboardTagBar.tsx src/context/surfaceRoute.ts
+# gate-watch: scripts/switchboard/**
+# gate-watch: src/services/concourse/** src/components/concourse/**
+# gate-watch: src/services/switchboard/attachedSession.ts
+# gate-watch: src/components/SwitchboardTagBar.tsx
 # gate-watch: src/constants/prompts.ts
-# gate-watch: docs/SESSIONS.md scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts src/commands.ts
-# gate-watch: src/commands/clear/clear.ts src/commands/enablement.ts
-# gate-watch: src/components/HelmLanesRail.tsx src/components/messages/TranscriptNameplate.tsx
-# gate-watch: src/daemon/headlessRun.ts src/fabric/entryCodec.ts src/fabric/ordinal.ts
-# gate-watch: src/main.tsx src/screens/Chat.tsx
-# gate-watch: src/services/engine-connector/daemonConnector.ts
-# gate-watch: src/services/engine-connector/focusedConnector.ts src/services/switchboard/hopIntoSession.ts
-# gate-watch: src/services/switchboard/launchAuthority.ts src/state/vitalsBus.ts
-# gate-watch: src/utils/config/globalConfig.ts src/utils/processUserInput/processSlashCommand.tsx
 # gate-watch: src/utils/sessionStorage/*
-# gate-watch: scripts/lib/rows.ts
-# gate-watch: scripts/lib/removeScratch.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

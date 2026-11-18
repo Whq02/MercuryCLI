@@ -2,12 +2,11 @@
 # gate-class: pty
 # gate-env: MERCURY_HELD_CONTINUE_BIN MERCURY_HELD_CONTINUE_CAPTURE_DIR MERCURY_HELD_CONTINUE_KEEP MERCURY_ONEDOOR_CAPTURE_DIR MERCURY_ONEDOOR_KEEP MERCURY_REACTIVATE_CAPTURE_DIR MERCURY_REACTIVATE_DRIVE_MODEL MERCURY_REACTIVATE_KEEP
 # gate-watch: scripts/switchboard/** scripts/switchboard-4/**
-# gate-watch: src/services/concourse/** src/components/concourse/** src/daemon/concourseWorkers.ts
+# gate-watch: src/services/concourse/** src/components/concourse/**
 # gate-watch: src/daemon/concourseDispatch.ts src/daemon/permissionAsks.ts src/services/switchboard/attachedSession.ts
 # gate-watch: src/components/SwitchboardTagBar.tsx src/context/surfaceRoute.ts
 # gate-watch: src/constants/prompts.ts
-# gate-watch: scripts/lib/* scripts/ui/vshot.py src/components/mercury-ui/keyHintLabel.ts
-# gate-watch: src/daemon/controlSocket.ts src/utils/sessionStorage/paths.ts
+# gate-watch: scripts/lib/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

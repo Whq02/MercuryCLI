@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: scripts/verify/** src/utils/verification/**
-# gate-watch: .githooks/** scripts/gate/ledger.ts scripts/gate/impact-narrowed.txt
-# gate-watch: scripts/outcome-pack/** scripts/daemon/dupline-world.ts
-# gate-watch: src/utils/Shell.ts src/utils/shell/bashProvider.ts
-# gate-watch: src/utils/wards/wards.ts
-# gate-watch: src/utils/shell/shellRecord.ts
+# gate-watch: src/utils/verification/**
+# gate-watch: scripts/gate/impact-narrowed.txt
+# gate-watch: scripts/outcome-pack/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

@@ -6,7 +6,7 @@
 # gate-watch: src/services/resources/adapters/** src/services/resources/registry* src/services/resources/contracts.ts
 # gate-watch: src/services/run/resolveOwner* src/services/structure/** src/substrate/flagRegistry*
 # gate-watch: src/tools/** src/utils/capability/** src/utils/blender/bridgeGates.ts
-# gate-watch: scripts/daemon/dupline-world.ts scripts/lib/* src/bootstrap/state.ts src/ink.ts
+# gate-watch: scripts/daemon/dupline-world.ts scripts/lib/* src/bootstrap/state.ts
 # gate-watch: src/services/api/** src/services/providers/** src/tools.ts src/utils/*
 # gate-watch: src/utils/config/globalConfig.ts src/utils/messages/** src/utils/model/model.ts
 # gate-watch: src/constants/tools.ts
@@ -20,7 +20,6 @@
 # gate-watch: src/services/run/ownerKey.ts src/state/AppStateStore.ts
 # gate-watch: src/commands/swarm/swarm.ts
 # gate-watch: src/tools/BashTool/BashTool.tsx src/tools/BashTool/prompt.ts src/tools/BashTool/webContent.ts
-# gate-watch: scripts/builtin-tools/render-builtin-tools-cards.tsx
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

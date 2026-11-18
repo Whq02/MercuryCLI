@@ -1,29 +1,19 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/bootstrap/state.ts src/cli/headless/turnDriver.ts src/cli/run.ts
-# gate-watch: src/components/MessageRow.tsx src/components/mercury-ui/screens/CrewView.tsx
-# gate-watch: src/components/mercury-ui/screens/crewStopChord.ts src/components/mercury-ui/theme.ts
+# gate-watch: src/cli/run.ts
+# gate-watch: src/components/mercury-ui/theme.ts
 # gate-watch: src/components/messages/* src/components/tasks/* src/daemon/*
-# gate-watch: src/fabric/entryCodec.ts src/fabric/ordinal.ts src/hooks/* src/main.tsx src/screens/Chat.tsx
-# gate-watch: src/services/agentResults/normalize.ts src/services/agents/operatorStop.ts
-# gate-watch: src/services/compact/autoCompact.ts src/services/engine-connector/*
-# gate-watch: src/services/instructions/engine.ts src/services/projectIntel/snapshot.ts
-# gate-watch: src/services/providers/openai/openaiCatalogue.ts src/services/resources/adapters/agent.ts
-# gate-watch: src/services/resources/contracts.ts
-# gate-watch: src/services/resources/registry.ts src/services/run/* src/state/* src/tasks.ts
-# gate-watch: src/tasks/LocalAgentTask/LocalAgentTask.tsx src/tasks/LocalAgentTask/agentWait.ts
+# gate-watch: src/hooks/* src/main.tsx
+# gate-watch: src/services/engine-connector/*
+# gate-watch: src/services/run/* src/state/*
 # gate-watch: src/tasks/LocalShellTask/LocalShellTask.tsx
-# gate-watch: src/tools/AgentTool/* src/tools/BashTool/BashTool.tsx src/tools/FileWriteTool/FileWriteTool.ts
-# gate-watch: src/tools/PowerShellTool/PowerShellTool.tsx src/tools/TaskCreateTool/TaskCreateTool.ts
-# gate-watch: src/tools/TaskUpdateTool/TaskUpdateTool.ts src/types/ids.ts src/utils/*
-# gate-watch: src/utils/attachments/* src/utils/config/globalConfig.ts src/utils/hooks/*
-# gate-watch: src/utils/messages/factories.ts src/utils/messages/systemMessages.ts src/utils/model/agent.ts
-# gate-watch: src/utils/sessionStorage/* src/utils/task/workRoster.ts
-# gate-watch: src/utils/verification/verificationState.ts
+# gate-watch: src/tools/AgentTool/*
+# gate-watch: src/tools/PowerShellTool/PowerShellTool.tsx
+# gate-watch: src/utils/*
+# gate-watch: src/utils/attachments/* src/utils/hooks/*
+# gate-watch: src/utils/sessionStorage/*
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/guards/**
-# gate-watch: src/fabric/transcriptDecode.ts
-# gate-watch: src/utils/crew/agentTranscriptReader.ts
 # gate-watch: src/cli/headless/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

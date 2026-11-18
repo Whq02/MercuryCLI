@@ -1,23 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/services/providers/** src/utils/toolSearch* src/utils/api.ts src/services/host/recipes.ts
-# gate-watch: src/tools/TestTool/* src/tools/BashTool/* src/utils/cwd.ts src/services/ide/projectRunners.ts
-# gate-watch: src/tools/ToolSearchTool/** src/utils/attachments/deltas* src/utils/model/capabilities*
-# gate-watch: src/utils/settings/settingsCache.ts
-# gate-watch: src/Tool.ts src/bootstrap/state.ts src/components/messages/nullRenderingAttachments.ts
-# gate-watch: src/services/api/prefixFingerprint.ts src/services/tools/toolExecution.ts src/tools.ts
-# gate-watch: src/tools/MCPTool/MCPTool.ts src/utils/attachments/orchestrator.ts
-# gate-watch: src/services/dap/dapClient.ts src/tools/LSPTool/LSPTool.ts src/tools/DebugTool/DebugTool.ts
-# gate-watch: src/utils/config/globalConfig.ts src/utils/messages.ts src/utils/messages/attachmentText.ts
-# gate-watch: src/services/providers/** src/utils/sessionStorage/chain.ts src/utils/sessionStorage/writer.ts src/utils/toolSchemaCache.ts
-# gate-watch: src/prompt/composer.ts src/utils/settings/settings.ts scripts/lib/hermetic.ts src/services/eval/interpreters.ts src/tools/ComputerTool/ComputerTool.ts
-# gate-watch: scripts/engine-durability/harness.ts
-# gate-watch: src/run-core/turn-machine.ts src/services/run/resolveOwner.ts src/state/AppStateStore.ts src/utils/fileStateCache.ts
-# gate-watch: src/query.ts src/query/deps.ts src/services/compact/compact.ts src/utils/toolResultStorage.ts
-# gate-watch: src/utils/cockpit/runtimePosture.ts
-# gate-watch: src/services/crewBoard/seam.ts src/commands/swarm/swarm.ts src/utils/messages/factories.ts src/types/message.ts src/utils/attachments/types.ts src/tools/AgentTool/runAgent.ts
-# gate-watch: src/tools/ListMcpResourcesTool/ListMcpResourcesTool.ts
-# gate-watch: scripts/lib/fixtureApi.ts scripts/lib/firstRunSeed.ts
+# gate-watch: src/tools/TestTool/* src/tools/BashTool/* src/services/ide/projectRunners.ts
+# gate-watch: src/tools/ToolSearchTool/** src/utils/model/capabilities*
+# gate-watch: src/types/message.ts src/utils/attachments/types.ts
 # gate-watch: src/run-core/turn/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

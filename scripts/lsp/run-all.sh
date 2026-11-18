@@ -1,31 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/services/dap/dapClient* src/services/lsp/** src/services/run/effectObserver*
-# gate-watch: src/services/run/ownerKey* src/services/tcpBridge/entry* src/substrate/flagRegistry*
-# gate-watch: src/tools/LSPTool/** src/utils/**
-# gate-watch: src/services/diagnosticTracking.ts
-# gate-watch: src/Tool.ts src/bootstrap/state.ts src/constants/subagentDoctrine.ts
-# gate-watch: src/entrypoints/cli.tsx src/services/changeTransaction/changeSetCommit.ts
-# gate-watch: src/services/changeTransaction/contracts.ts src/tools.ts src/tools/DebugTool/DebugTool.ts
-# gate-watch: scripts/ast-tools/lib/harness.ts
-# gate-watch: src/cli/lspVerb.ts src/main.tsx assets/completions/_mercury assets/completions/mercury.bash assets/completions/mercury.fish scripts/lib/hermetic.ts
-# gate-watch: src/services/providers/toolEconomy.ts src/services/providers/toolCallGate.ts src/services/providers/anthropic/boundPrefixRecord.ts
-# gate-watch: src/tools/AgentTool/agentToolUtils.ts src/tools/ToolSearchTool/** src/fabric/** src/tools/MCPTool/absentToolShim.ts
-# gate-watch: build.ts
-# gate-watch: src/tools/FileEditTool/FileEditTool.ts src/tools/FileWriteTool/FileWriteTool.ts src/tools/ChangeSetTool/ChangeSetTool.ts src/tools/AstEditTool/AstEditTool.ts
-# gate-watch: README.md src/commands.ts src/commands/lsp/** src/components/HelpV2/commandDomains.ts src/services/structure/grammarRegistry.ts src/tools/DebugTool/prompt.ts vendor/grammars.lock.json
-# gate-watch: src/query/stopHooks.ts src/run-core/turn-machine.ts src/services/run/resolveOwner.ts
-# gate-watch: src/tools/AgentTool/runAgent.ts src/tools/BashTool/toolName.ts src/tools/FileReadTool/FileReadTool.ts
-# gate-watch: docs/AUTOMATION.md
-# gate-watch: scripts/lib/removeScratch.ts scripts/lib/firstRunSeed.ts scripts/lib/processGroup.ts
-# gate-watch: src/utils/shell/windowsBatchInvocation.ts src/utils/shell/windowsBatchLine.ts
-# gate-watch: src/utils/permissions/capabilityGate.ts src/utils/permissions/decision/rules.ts
-# gate-watch: src/utils/permissions/permissionSetup.ts src/utils/permissions/permissions.ts
-# gate-watch: src/utils/wards/wards.ts
-# gate-watch: scripts/lib/builtProduct.ts
-# gate-watch: src/cli/run.ts
+# gate-watch: src/utils/**
+# gate-watch: src/tools/ToolSearchTool/** src/fabric/**
 # gate-watch: src/run-core/turn/**
-# gate-watch: scripts/core-runtime/turnScenarios.ts
 # gate-watch: src/cli/headless/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

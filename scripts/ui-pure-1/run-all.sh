@@ -1,49 +1,25 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: scripts/ui/** scripts/ui-pure-1/** src/bootstrap/state*
-# gate-watch: scripts/host/runpodFixture.mjs scripts/providers/lib/llmhostFixture.ts scripts/ui/gridToPng.ts src/services/host/** src/commands/llmhost/** src/components/LlmHostDialog.tsx src/components/shell/** src/tools/BashTool/** src/commands/restart/**
-# gate-watch: README.md src/commands/mcp/**
-# gate-watch: src/commands/appearance/index* src/commands/health/HealthCertificate*
+# gate-watch: scripts/ui/**
+# gate-watch: src/services/host/** src/commands/llmhost/** src/tools/BashTool/** src/commands/restart/**
+# gate-watch: src/commands/mcp/**
+# gate-watch: src/commands/appearance/index*
 # gate-watch: src/commands/run/runInspectorModel*
-# gate-watch: src/commands/crew/index* src/components/** src/context/overlayContext*
-# gate-watch: src/context/overlayStack* src/daemon/** src/hooks/useLayoutTier* src/hooks/useCwdState* src/hooks/useFocusedWorkspaceCwd* src/ink/**
-# gate-watch: src/keybindings/KeybindingProviderSetup* src/services/anthropicLimits*
-# gate-watch: src/utils/ripgrep.ts src/hooks/fileSuggestions.ts
-# gate-watch: src/services/rateLimitMessages* src/services/run/** src/state/AppState*
-# gate-watch: src/state/AppStateStore* src/substrate/bootNotes*
+# gate-watch: src/commands/crew/index* src/context/overlayContext*
+# gate-watch: src/daemon/** src/ink/**
+# gate-watch: src/services/anthropicLimits*
+# gate-watch: src/services/run/**
+# gate-watch: src/substrate/bootNotes*
 # gate-watch: src/types/logs* src/utils/**
-# gate-watch: assets/splash/mercury-splash.mjs assets/splash/splash-core.mjs scripts/splash/bake-menu.mjs
-# gate-watch: scripts/cockpit-interaction/prove-action-graph.ts scripts/engine-durability/harness.ts
-# gate-watch: scripts/gate/prove-suite-class-census.ts scripts/gate/sourceCensus.ts
-# gate-watch: scripts/ink-runtime/prove-viewport-clamp.ts scripts/lib/* scripts/ops/launcher-mercury.sh
-# gate-watch: scripts/release/launcherTemplates.mjs scripts/search/lib/bundle-for-node.ts
-# gate-watch: src/commands/config/config.tsx src/commands/context/context.tsx src/commands/export/export.tsx
-# gate-watch: src/commands/feedback/index.ts src/commands/login/login.tsx
-# gate-watch: src/commands/keysetup/keysetup.tsx
-# gate-watch: src/context/* src/hooks/* src/ink.ts src/input-core/* src/interactiveHelpers.tsx
-# gate-watch: src/keybindings/* src/native-ts/color-diff/index.ts src/screens/Chat.tsx
-# gate-watch: src/screens/ResumeConversation.tsx src/services/api/*
-# gate-watch: src/services/changeTransaction/changeSetCommit.ts
-# gate-watch: src/services/engine-connector/* src/services/ide/projectRunners.ts src/services/kitMenu/*
-# gate-watch: src/services/lsp/serverCatalogue.ts src/services/mcp/* src/services/oauth/client.ts
-# gate-watch: src/services/privateChannel/updateService.ts src/services/projectServices/serviceManager.ts
-# gate-watch: src/services/providers/anthropic/streamCore.ts src/services/providers/deepseek/deepseekLogin.ts
-# gate-watch: src/services/providers/gemini/geminiLogin.ts
-# gate-watch: src/services/providers/huggingface/huggingfaceAccounts.ts
-# gate-watch: src/services/providers/huggingface/huggingfaceLogin.ts
-# gate-watch: src/services/providers/moonshot/moonshotLogin.ts src/services/providers/openai/openaiLogin.ts
-# gate-watch: src/services/providers/openrouter/openrouterLogin.ts src/services/providers/patience.ts
-# gate-watch: src/services/providers/zai/zaiLogin.ts src/services/switchboard/* src/state/store.ts
-# gate-watch: src/substrate/* src/tools/BashTool/BashTool.tsx src/tools/BashTool/UI.tsx
-# gate-watch: src/tools/PowerShellTool/PowerShellTool.tsx src/tools/PowerShellTool/UI.tsx
-# gate-watch: src/tools/commandDisplay.ts src/vim/*
-# gate-watch: scripts/ink-runtime/frameHarness.ts
-# gate-watch: scripts/daemon/dupline-world.ts scripts/lib/scriptedTurn.ts scripts/lib/settingsPopupHarness.ts src/cli/run.ts src/cli/headless/turnDriver.ts src/types/textInputTypes.ts src/input-core/command-queue.ts src/utils/sessionStorage/transcriptReader.ts src/utils/messages/normalize.ts src/utils/cockpit/turnReceipt.ts src/ink.ts
-# gate-watch: src/utils/ShellCommand.ts
-# gate-watch: src/utils/permissions/bypassPermissionsKillswitch.ts
-# gate-watch: src/commands.ts src/commands/crewmates/crewmates.tsx src/commands/usage/usage.tsx src/state/vitalsBus.ts
-# gate-watch: src/constants/spinnerVerbs*
-# gate-watch: src/main.tsx
+# gate-watch: scripts/lib/*
+# gate-watch: src/context/* src/hooks/* src/input-core/*
+# gate-watch: src/keybindings/*
+# gate-watch: src/services/api/*
+# gate-watch: src/services/engine-connector/*
+# gate-watch: src/services/mcp/*
+# gate-watch: src/services/switchboard/*
+# gate-watch: src/substrate/*
+# gate-watch: src/cli/headless/turnDriver.ts src/types/textInputTypes.ts src/input-core/command-queue.ts
 # gate-watch: src/screens/chat/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

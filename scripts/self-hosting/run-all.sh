@@ -1,15 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/services/instructions/** src/constants/prompts.ts src/prompt/** AGENTS.md
-# gate-watch: src/bootstrap/state.ts src/mneme/mnemeFrontPage.ts src/tools.ts src/utils/cockpit/promptProvenance.ts
-# gate-watch: src/utils/config/globalConfig.ts src/utils/config/projectConfig.ts src/utils/settings/types.ts
-# gate-watch: src/Tool.ts src/context.ts src/utils/attachments/nestedMemory.ts src/utils/fileStateCache.ts src/tools/AgentTool/built-in/mercuryCrewAgent.ts
-# gate-watch: scripts/lib/firstRunSeed.ts
-# gate-watch: src/projectOnboardingState.ts src/utils/cockpit/repoSurfaceMap.ts src/utils/config/trust.ts
+# gate-watch: src/prompt/**
+# gate-watch: src/utils/cockpit/repoSurfaceMap.ts src/utils/config/trust.ts
 # gate-watch: src/components/mercury-ui/TrimChip.tsx
-# gate-watch: docs/COMPATIBILITY.md src/utils/envUtils.ts
-# gate-watch: src/utils/platform.ts
-# gate-watch: scripts/agents/prove-worktree-carry.ts scripts/lib/cloneRoad.ts src/utils/worktree.ts src/utils/worktreeClone.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

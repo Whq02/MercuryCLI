@@ -1,13 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/services/localSetup/** src/services/localServer/** src/services/providers/local/** scripts/lib/hermetic.ts
-# gate-watch: src/commands/model/persistModelChoice.ts src/utils/model/modelTransition.ts src/utils/settings/settings.ts src/utils/config.ts
-# gate-watch: scripts/host/hfFixture.mjs src/services/host/ggufHeader.ts
-# gate-watch: scripts/lib/removeScratch.ts
-# gate-watch: src/services/host/bank.ts src/services/projectServices/serviceManager.ts
-# gate-watch: src/commands/localsetup/localsetup.tsx src/components/LocalSetupDialog.tsx
-# gate-watch: src/utils/cockpit/helmFocus.ts
-# gate-watch: scripts/lib/settingsPopupHarness.ts src/components/SettingsPopupSlot.tsx src/components/design-system/ThemeProvider.tsx src/ink.ts src/state/AppState.tsx src/utils/cockpit/settingsPopup.ts
+# gate-watch: src/services/localSetup/** src/services/localServer/** src/services/providers/local/**
+# gate-watch: src/commands/model/persistModelChoice.ts src/utils/model/modelTransition.ts src/utils/settings/settings.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

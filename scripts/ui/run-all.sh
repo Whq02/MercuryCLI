@@ -1,49 +1,35 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-watch: scripts/tools/readViewKit.ts src/tools/FileReadTool/** src/tools/FileWriteTool/**
-# gate-watch: scripts/voice/localFixture.ts
+# gate-watch: src/tools/FileReadTool/** src/tools/FileWriteTool/**
 # gate-watch: src/screens/Chat.tsx src/services/engine-connector/** src/guards/** src/query/stopHooks.ts src/cli/run.ts src/services/mission/**
 # gate-env: MERCURY_UI_BILLED MERCURY_LOGINS_COPY_KEEP MERCURY_LOGINS_COPY_FRAMES MERCURY_RENDER_CWD MERCURY_CARD_FIT_CAPTURE_DIR MERCURY_MODE_BAND_DRIVE_CAPTURE_DIR
-# gate-watch: scripts/ui/render-tui.ts scripts/ui/vshot.py scripts/ui/jobcontrol-host.py scripts/command-catalogue/fake-gh.mjs src/bootstrap/state*
 # gate-watch: src/commands/appearance/index* src/commands/health/HealthCertificate*
 # gate-watch: src/commands/run/runInspectorModel* src/commands/feedback/** src/commands/exit/exit.tsx
 # gate-watch: src/commands/crew/index* src/components/** src/context/overlayContext*
-# gate-watch: src/context/overlayStack* src/daemon/** src/hooks/useLayoutTier* src/hooks/useCwdState* src/hooks/useFocusedWorkspaceCwd* src/ink/**
+# gate-watch: src/context/overlayStack* src/daemon/** src/hooks/useCwdState* src/hooks/useFocusedWorkspaceCwd* src/ink/**
 # gate-watch: src/context/notifications*
-# gate-watch: src/keybindings/KeybindingProviderSetup* src/services/anthropicLimits*
+# gate-watch: src/services/anthropicLimits*
 # gate-watch: src/utils/ripgrep.ts src/hooks/fileSuggestions.ts
-# gate-watch: src/services/rateLimitMessages* src/services/run/** src/state/AppState*
+# gate-watch: src/services/rateLimitMessages* src/services/run/**
 # gate-watch: scripts/providers/anthropicAccountsFixture.ts
-# gate-watch: src/state/AppStateStore* src/substrate/bootNotes*
+# gate-watch: src/substrate/bootNotes*
 # gate-watch: src/types/logs* src/utils/**
-# gate-watch: assets/splash/mercury-splash.mjs assets/splash/splash-core.mjs design-system/live/manifest.json
 # gate-watch: design-system/readme.md docs/ENGINES.md mercury-skills/provider-apis/SKILL.md
-# gate-watch: native/voice/Cargo.toml native/voice/src/** scripts/cockpit-interaction/prove-action-graph.ts
-# gate-watch: scripts/computer/computerDriveKit.ts scripts/critters/prove-critter-mini-drive.ts
-# gate-watch: scripts/engine-durability/harness.ts scripts/ink-runtime/ansiEmulator.ts
-# gate-watch: scripts/ink-runtime/prove-viewport-clamp.ts scripts/interaction/prove-exit-copy-journeys.ts
-# gate-watch: scripts/journey/cap-offer-fixture-server.ts scripts/lib/* scripts/navigation/arena.ts
-# gate-watch: scripts/navigation/fixture1k.ts scripts/notifications/concourseReferenceSeed.ts
+# gate-watch: scripts/cockpit-interaction/prove-action-graph.ts
+# gate-watch: scripts/critters/prove-critter-mini-drive.ts
+# gate-watch: scripts/engine-durability/harness.ts
+# gate-watch: scripts/ink-runtime/prove-viewport-clamp.ts
+# gate-watch: scripts/lib/*
 # gate-watch: scripts/ops/launcher-mercury.sh
-# gate-watch: scripts/provider-compat/fixtures/huggingface-models-2026-08-22.json
-# gate-watch: scripts/release/launcherTemplates.mjs package.json scripts/render-continuity/lib/attrgrab.py
-# gate-watch: scripts/search/lib/bundle-for-node.ts scripts/streaming/artifactArena.ts
-# gate-watch: scripts/streaming/screengrab.py scripts/voice/fixtures/on-device-take.wav
-# gate-watch: scripts/voice/voice-transcriber-fixture-server.ts
-# gate-watch: scripts/interview/baseline-capture.ts scripts/typecheck/run-all.sh
-# gate-watch: scripts/visual-contract/baseline-capture.ts
+# gate-watch: scripts/search/lib/bundle-for-node.ts
 # gate-watch: src/commands/config/config.tsx src/commands/login/login.tsx src/commands/usage/usage.tsx
-# gate-watch: src/commands/model/mercuryModel.tsx src/services/providers/catalogueEpoch.ts src/services/providers/anthropic/anthropicCatalogue.ts src/services/wallet/identityWords.ts src/services/providers/huggingface/huggingfaceCatalogue.ts
-# gate-watch: scripts/ui/fixtures/settings-popup-header/*
-# gate-watch: src/services/switchboard/capacityCheck.ts src/context/surfaceRoute.ts
+# gate-watch: src/services/providers/anthropic/anthropicCatalogue.ts src/services/wallet/identityWords.ts
+# gate-watch: src/services/switchboard/capacityCheck.ts
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/components/mercury-ui/CritterArt.tsx
-# gate-watch: src/services/engine-connector/daemonConnector.ts src/services/engine-connector/queuedNotices.ts src/tasks/LocalAgentTask/LocalAgentTask.tsx src/input-core/command-queue.ts
-# gate-watch: src/Tool.ts src/types/message.ts src/tools/BashTool/BashTool.tsx src/tasks/LocalShellTask/LocalShellTask.tsx
-# gate-watch: scripts/ui/fixtures/shell-live-tail/*
+# gate-watch: src/services/engine-connector/queuedNotices.ts src/tasks/LocalAgentTask/LocalAgentTask.tsx src/input-core/command-queue.ts
+# gate-watch: src/types/message.ts src/tools/BashTool/BashTool.tsx
 # gate-watch: scripts/host/runpodFixture.mjs scripts/providers/lib/llmhostFixture.ts
-# gate-watch: src/utils/wards/wards.ts
-# gate-watch: src/substrate/flagRegistry.ts
 # gate-watch: src/cli/headless/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

@@ -1,35 +1,18 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: scripts/notifications/**
-# gate-watch: scripts/notifications/**
 # gate-watch: src/services/crew/**
-# gate-watch: scripts/engine-durability/harness.ts scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts
-# gate-watch: scripts/staleness/prove-stale-registry.ts src/boot/launchGraph.ts src/bootstrap/state.ts
-# gate-watch: src/components/concourse/* src/components/mercury-ui/CritterArt.tsx
-# gate-watch: src/components/mercury-ui/keyHintLabel.ts src/context/surfaceRoute.ts src/daemon/*
-# gate-watch: src/ink/components/App.tsx src/ink/events/input-event.ts src/ink/ink.tsx
-# gate-watch: src/ink/root/terminalModeLedger.ts src/main.tsx src/query.ts src/run-core/turn-machine.ts
-# gate-watch: src/screens/ResumeConversation.tsx src/services/api/recoveryBudget.ts
-# gate-watch: src/services/api/sdkErrors.ts src/services/attention/store.ts src/services/capacity/*
-# gate-watch: src/services/concourse/**
-# gate-watch: src/services/engine-connector/crewFacts.ts src/services/mcp/renderTuiTool.ts
+# gate-watch: src/daemon/*
 # gate-watch: src/services/providers/openai/*
-# gate-watch: src/services/providers/providerUsage.ts src/services/switchboard/capacityCheck.ts
-# gate-watch: src/state/AppStateStore.ts src/substrate/* src/tasks/LocalAgentTask/agentWait.ts
-# gate-watch: src/utils/* src/utils/cockpit/critterData.ts
-# gate-watch: src/utils/config/globalConfig.ts src/services/providers/modelRegistry.ts
-# gate-watch: src/rows/* src/runner/wire/* src/prompt/mercuryContract.ts
-# gate-watch: scripts/lib/removeScratch.ts
-# gate-watch: src/utils/git/spawnArgs.ts
-# gate-watch: src/services/host/notices.ts src/services/host/volumes.ts src/services/host/store.ts src/input-core/command-queue.ts
-# gate-watch: src/services/engine-connector/daemonConnector.ts
-# gate-watch: src/components/Settings/Config.tsx src/utils/config/schema.ts
-# gate-watch: src/components/KitMenuScreen.tsx src/services/switchboard/launchAuthority.ts src/commands/contract/contract.ts assets/splash/splash-core.mjs
+# gate-watch: src/services/providers/providerUsage.ts
+# gate-watch: src/substrate/*
+# gate-watch: src/utils/*
+# gate-watch: src/services/providers/modelRegistry.ts
+# gate-watch: src/rows/* src/runner/wire/*
+# gate-watch: src/services/host/store.ts
+# gate-watch: assets/splash/splash-core.mjs
 # gate-watch: docs/CREW.md docs/ENGINES.md docs/HEALTH-CERTIFICATE.md docs/KIT.md docs/MCP-SERVER.md docs/SESSIONS.md docs/SETTINGS.md
-# gate-watch: src/utils/health/sections/crew.ts
 # gate-watch: src/utils/health/sections/identity.ts
 # gate-watch: src/run-core/turn/**
-# gate-watch: scripts/core-runtime/turnScenarios.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -1,31 +1,12 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/bootstrap/state.ts src/constants/oauth.ts src/constants/system.ts
 # gate-watch: src/utils/**
-# gate-watch: scripts/lib/* src/rows/turn.ts src/cli/run.ts src/commands/model/mercuryModel.tsx
-# gate-watch: src/cli/headless/model.ts
-# gate-watch: src/commands/submodels/submodels.tsx src/components/* src/components/PromptInput/PromptInput.tsx src/components/PromptInput/useComposerModelDoors.tsx
-# gate-watch: src/components/Settings/Usage.tsx src/components/agents/studio/StudioEditor.tsx
-# gate-watch: src/components/mercury-ui/EffortStrip.tsx src/constants/betas.ts src/constants/prompts.ts
-# gate-watch: src/ink.ts
-# gate-watch: src/services/capFailover.ts
-# gate-watch: src/services/concourse/workerModels.ts
+# gate-watch: scripts/lib/*
+# gate-watch: src/components/*
 # gate-watch: src/services/providers/* src/services/providers/anthropic/*
-# gate-watch: src/services/tokenEstimation.ts src/services/vcr.ts src/services/api/client.ts
-# gate-watch: src/services/providers/gemini/geminiCatalogue.ts src/services/providers/local/localCatalogue.ts
-# gate-watch: src/services/providers/local/localDiscovery.ts src/services/providers/openai/*
-# gate-watch: src/services/providers/openaicompat/compatWire.ts
-# gate-watch: src/services/providers/openrouter/openrouterAccounts.ts
-# gate-watch: src/services/providers/openrouter/openrouterCatalogue.ts src/services/providers/zai/glmPins.ts
-# gate-watch: src/services/providers/zai/zaiCodec.ts src/skills/bundled/provider-apis/** mercury-skills/provider-apis/**
-# gate-watch: src/state/AppState.tsx src/state/store.ts src/tools/AgentTool/agentToolUtils.ts
-# gate-watch: src/tools/AgentTool/runAgent.ts
-# gate-watch: docs/ENGINES.md docs/SESSIONS.md src/components/agents/ModelSelector.tsx src/keybindings/KeybindingProviderSetup.tsx
-# gate-watch: src/context/overlayStack.ts src/context/surfaceRoute.ts src/hooks/useLayoutTier.ts src/services/compact/autoCompact.ts
-# gate-watch: src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts src/state/AppStateStore.ts
-# gate-watch: scripts/compact/overflowFixture.ts src/query.ts src/query/deps.ts
-# gate-watch: src/commands/effort/effort.tsx
-# gate-watch: src/main.tsx
+# gate-watch: src/services/vcr.ts src/services/api/client.ts
+# gate-watch: src/services/providers/openai/*
+# gate-watch: src/skills/bundled/provider-apis/** mercury-skills/provider-apis/**
 # gate-watch: src/cli/headless/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

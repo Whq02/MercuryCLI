@@ -1,52 +1,22 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/utils/attachments/toolManuals.ts src/utils/attachments/orchestrator.ts src/utils/api.ts scripts/api/prove-quiet-wire.ts
-# gate-watch: src/utils/cockpit/runtimePosture.ts
-# gate-watch: src/components/App.tsx src/components/Spinner.tsx src/components/Spinner/liveCounterWords.ts
-# gate-watch: src/ink/ink.tsx src/ink/instances.ts
-# gate-watch: src/services/providers/openaicompat/compatPrefill.ts src/services/providers/openaicompat/compatResponsesTransport.ts
-# gate-watch: src/components/messages/SystemTextMessage.tsx
-# gate-watch: src/services/providers/anthropic/** src/services/api/client* src/services/api/transportEvidence* src/services/api/withRetry.ts src/services/api/errors.ts scripts/api/authRetry* scripts/api/prove-authentication-retry.ts
-# gate-watch: src/services/providers/streamIdleBudget* src/services/providers/openai/** src/services/providers/zai/** src/services/providers/gemini/** src/services/providers/openrouter/**
-# gate-watch: src/utils/proxy* src/utils/mtls* src/components/messages/SystemAPIErrorMessage*
-# gate-watch: src/utils/messages/apiFilters* src/utils/messages/apiView* scripts/lib/scratchSeat.ts
-# gate-watch: src/services/api/** src/run-core/turn-machine.ts
-# gate-watch: .node-version docs/SESSIONS.md package.json scripts/compact/overflowFixture.ts
-# gate-watch: scripts/daemon/dupline-world.ts scripts/lib/* src/* src/bootstrap/state.ts src/cli/run.ts
-# gate-watch: src/components/SwitchboardTagBar.tsx src/components/concourse/ConcourseRoute.tsx
+# gate-watch: src/utils/attachments/toolManuals.ts
+# gate-watch: src/services/providers/anthropic/** src/services/api/client*
+# gate-watch: src/services/providers/openai/** src/services/providers/zai/** src/services/providers/gemini/** src/services/providers/openrouter/**
+# gate-watch: src/services/api/**
+# gate-watch: scripts/lib/* src/*
 # gate-watch: src/components/messages/AssistantTextMessage.tsx
-# gate-watch: src/components/messages/nullRenderingAttachments.ts
-# gate-watch: src/utils/normalizeToolSchema.ts src/utils/api.ts src/tools/GrepTool/GrepTool.ts
-# gate-watch: src/constants/* src/query/transitions.ts
-# gate-watch: src/services/compact/autoCompact.ts src/services/compact/compact.ts
-# gate-watch: src/services/desktop/screenshotRetention.ts src/services/engine-connector/seatLive.ts
+# gate-watch: src/constants/*
 # gate-watch: src/services/providers/*
-# gate-watch: src/services/providers/gemini/geminiCallModel.ts
-# gate-watch: src/services/providers/openaicompat/compatCallModel.ts
-# gate-watch: src/services/providers/openaicompat/compatChatClient.ts src/services/run/requestContextPlan.ts
-# gate-watch: src/services/run/resolveOwner.ts src/services/search/searchContract.ts
-# gate-watch: src/services/tools/toolExecution.ts src/state/AppStateStore.ts src/substrate/flagRegistry.ts
-# gate-watch: src/tools/ChangeSetTool/ChangeSetTool.ts
-# gate-watch: src/tools/LSPTool/mercuryOps.ts src/tools/ToolSearchTool/ToolSearchTool.ts
-# gate-watch: src/tools/ToolSearchTool/prompt.ts src/utils/*
-# gate-watch: src/utils/attachments/orchestrator.ts src/utils/attachments/userContext.ts src/utils/attachments/deltas.ts
-# gate-watch: src/commands/compact/compact.ts src/tools/FileReadTool/FileReadTool.ts src/tools/FileReadTool/imageProcessor.ts src/utils/imageResizer.ts
-# gate-watch: src/utils/config/globalConfig.ts src/utils/messages/*
-# gate-watch: src/utils/model/configs.ts src/utils/permissions/filesystem.ts src/utils/sessionStorage/*
+# gate-watch: src/utils/*
+# gate-watch: src/utils/messages/*
+# gate-watch: src/utils/sessionStorage/*
 # gate-watch: src/utils/settings/*
-# gate-watch: src/components/Settings/Config.tsx src/services/providers/idSpaces.ts src/services/providers/patience.ts src/services/providers/streamIdleBudget.ts
-# gate-watch: src/services/providers/moonshot/moonshotCatalogue.ts
-# gate-watch: src/tools/AgentTool/runAgent.ts src/services/crewBoard/seam.ts scripts/crew/crew-world.ts scripts/api/read-instruction-heading.ts
-# gate-watch: src/services/providers/openaicompat/compatChatCallModel.ts
-# gate-watch: src/rows/* src/runner/wire/* scripts/settings/settings-schema.json
-# gate-watch: src/commands/model/mercuryModel.tsx src/commands/model/model.tsx src/commands/model/persistModelChoice.ts src/components/PromptInput/useComposerModelDoors.tsx
-# gate-watch: src/query/deps.ts src/utils/attachments/toolSchemaDelta.ts
-# gate-watch: src/services/desktop/desktopSession.ts src/utils/messages/wireEdits.ts
-# gate-watch: src/tools/AgentTool/resumeAgent.ts src/utils/attachments/types.ts
-# gate-watch: src/utils/health/sections/interface.ts
+# gate-watch: src/services/crewBoard/seam.ts
+# gate-watch: src/rows/* src/runner/wire/*
+# gate-watch: src/utils/attachments/types.ts
 # gate-watch: src/utils/health/sections/memory.ts
 # gate-watch: src/run-core/turn/**
-# gate-watch: scripts/core-runtime/turnScenarios.ts
 # gate-watch: src/cli/headless/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

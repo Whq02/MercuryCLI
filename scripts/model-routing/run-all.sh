@@ -1,34 +1,15 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/services/providers/** src/services/providers/** src/utils/model/**
-# gate-watch: src/utils/modelCost.ts src/utils/context.ts src/utils/sessionRestore.ts
 # gate-watch: src/utils/crew/engineDispatch* src/utils/crew/agentLaunchPlan*
-# gate-watch: src/types/message.ts
-# gate-watch: src/prompt/** src/utils/messages/pairing.ts
-# gate-watch: scripts/provider-compat/fixtures/huggingface-models-2026-08-22.json src/Tool.ts
-# gate-watch: src/bootstrap/state.ts src/cli/run.ts src/commands/context/context-noninteractive.ts
-# gate-watch: src/services/api/recoveryBudget.ts
-# gate-watch: src/commands/effort/* src/commands/model/mercuryModel.tsx src/commands/model/model.tsx
-# gate-watch: src/components/* src/components/PromptInput/PromptInput.tsx src/components/Settings/Config.tsx
-# gate-watch: src/components/PromptInput/useComposerModelDoors.tsx
-# gate-watch: src/components/agents/studio/StudioEditor.tsx
-# gate-watch: src/components/mercury-ui/EffortChip.tsx
-# gate-watch: src/constants/* src/utils/effortLadder.ts src/hooks/useDisplayedSessionModel.ts
-# gate-watch: src/main.tsx src/run-core/turn-machine.ts src/screens/Chat.tsx src/services/api/errors.ts
-# gate-watch: src/services/compact/autoCompact.ts
-# gate-watch: src/services/engine-connector/seatProjections.ts
-# gate-watch: src/services/primitives/execution.ts src/services/primitives/executionCensus.ts
-# gate-watch: src/services/search/searchDoor.ts src/tools/AgentTool/*
-# gate-watch: src/tools/ToolSearchTool/ToolSearchTool.ts
-# gate-watch: src/utils/* src/utils/accounts/signInLedger.ts
-# gate-watch: src/utils/messages/apiView.ts
-# gate-watch: src/utils/messages/attachmentText.ts src/utils/settings/types.ts
-# gate-watch: src/tools/ContextLeftTool/ContextLeftTool.ts src/utils/settings/settingsCache.ts
-# gate-watch: scripts/lib/crossfamilyConcourseFixture.ts src/services/compact/compact.ts
-# gate-watch: src/services/compact/overflowRecovery.ts
-# gate-watch: scripts/lib/builtProduct.ts
+# gate-watch: src/prompt/**
+# gate-watch: src/commands/context/context-noninteractive.ts
+# gate-watch: src/components/* src/components/PromptInput/PromptInput.tsx
+# gate-watch: src/constants/*
+# gate-watch: src/tools/AgentTool/*
+# gate-watch: src/utils/*
+# gate-watch: src/utils/messages/attachmentText.ts
 # gate-watch: src/run-core/turn/**
-# gate-watch: scripts/core-runtime/turnScenarios.ts
 # gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

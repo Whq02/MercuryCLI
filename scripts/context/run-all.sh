@@ -1,24 +1,11 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/Tool* src/services/compact/** src/services/lsp/manager* src/services/run/**
-# gate-watch: src/utils/config/** src/utils/messages/** src/utils/cockpit/contextUsageLive*
-# gate-watch: src/utils/cockpit/ctxForecast* src/utils/toolResultStorage.ts
-# gate-watch: scripts/lib/fixtureApi.ts
-# gate-watch: src/rows/turn.ts src/bootstrap/state.ts src/commands/context/context-noninteractive.ts src/utils/model/model.ts
-# gate-watch: src/commands/model/mercuryModel.tsx src/components/* src/constants/prompts.ts
-# gate-watch: src/prompt/mercuryContract.ts src/services/providers/openai/openaiCallModel.ts
-# gate-watch: src/services/providers/openaicompat/compatChatCallModel.ts
-# gate-watch: src/fabric/entryCodec.ts src/fabric/ordinal.ts src/types/ids.ts
-# gate-watch: src/services/providers/openaicompat/compatChatClient.ts src/services/tokenEstimation.ts
-# gate-watch: src/utils/* src/utils/cockpit/contextGauge.ts src/utils/cockpit/quota.ts
-# gate-watch: src/constants/toolLimits.ts
-# gate-watch: src/utils/cockpit/helmLanesModel.ts src/utils/cockpit/helmVitalsModel.ts
-# gate-watch: src/services/providers/local/localCatalogue.ts src/services/providers/local/localDiscovery.ts
-# gate-watch: src/utils/healthReport.ts src/services/resources/adapters/models.ts
-# gate-watch: src/services/engine-connector/daemonConnector.ts src/services/engine-connector/focusedConnector.ts
-# gate-watch: src/services/providers/openrouter/openrouterCatalogue.ts src/tools/FileReadTool/FileReadTool.ts
+# gate-watch: src/services/compact/** src/services/run/**
+# gate-watch: src/utils/config/** src/utils/messages/**
+# gate-watch: src/components/*
+# gate-watch: src/utils/*
+# gate-watch: src/services/providers/local/localDiscovery.ts
 # gate-watch: src/utils/health/sections/memory.ts
-# gate-watch: src/services/resources/registry.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

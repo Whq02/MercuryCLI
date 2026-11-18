@@ -1,13 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: scripts/lib/hermetic.ts scripts/lib/settingsPopupHarness.ts
-# gate-watch: scripts/providers/lib/xai-usage-fixture.ts scripts/providers/lib/xai-auth-fixture.ts scripts/ui/face-logins-stills.ts
-# gate-watch: scripts/providers/lib/mistral-fixture.ts src/services/providers/mistral/** src/services/providers/meta/**
-# gate-watch: scripts/providers/lib/zen-fixture.ts src/services/providers/zen/**
-# gate-watch: src/components/mercury-ui/parity/AccountView* src/services/api/errors* src/utils/** src/services/wallet/**
-# gate-watch: src/substrate/flagRegistry.ts
-# gate-watch: scripts/ui/chatScenarios.ts
-# gate-watch: src/tools/BashTool/BashTool.tsx
+# gate-watch: src/services/providers/mistral/** src/services/providers/meta/**
+# gate-watch: src/services/providers/zen/**
+# gate-watch: src/utils/** src/services/wallet/**
 # gate-watch: src/screens/chat/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

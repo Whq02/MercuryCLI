@@ -1,42 +1,10 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/cli/healthJson* src/services/dap/dapClient* src/services/run/ownerLifecycle*
-# gate-watch: src/substrate/startupMenu* src/utils/** src/services/providers/openai/openaiAdapter.ts src/services/providers/zai/zaiAdapter.ts
-# gate-watch: assets/splash/launcher-action-block.sh
-# gate-watch: scripts/lib/firstRunSeed.ts scripts/ops/launcher-mercury.sh scripts/splash/deploy.sh
-# gate-watch: scripts/lib/scriptedTurn.ts scripts/hooks/lib/runDoor.ts src/utils/text/hiddenCodePoints.ts src/utils/text/hiddenCharacterFindings.ts
-# gate-watch: scripts/ui/renderScenarios.ts
-# gate-watch: src/bootstrap/state.ts src/cli/handlers/auth.ts src/cli/handlers/util.tsx src/cli/healthPresentation.ts src/cli/update.ts
-# gate-watch: src/commands/health/HealthCertificate.tsx src/commands/health/health.tsx src/daemon/*
-# gate-watch: src/history.ts src/keybindings/loadUserBindings.ts src/main.tsx
-# gate-watch: src/services/instructions/contracts.ts src/services/instructions/engine.ts src/services/instructions/adapters/index.ts
-# gate-watch: src/services/privateChannel/installProvenance.ts
-# gate-watch: src/cli/run.ts src/services/engine-connector/daemonConnector.ts src/services/engine-connector/focusedConnector.ts src/services/engine-connector/seatProjections.ts src/services/engine-connector/seatWire.ts
-# gate-watch: src/services/providers/anthropic/anthropicCatalogue.ts
-# gate-watch: src/services/providers/anthropic/modelRefusal.ts
-# gate-watch: src/services/providers/anthropic/thinkingBinding.ts src/constants/oauth.ts
-# gate-watch: src/services/providers/credentialEnvSpellings.ts
-# gate-watch: src/services/providers/deepseek/deepseekCatalogue.ts
-# gate-watch: src/services/providers/deepseek/deepseekPins.ts src/services/providers/gemini/geminiCatalogue.ts
-# gate-watch: src/services/providers/gemini/geminiPins.ts
-# gate-watch: src/services/providers/huggingface/huggingfaceCatalogue.ts
-# gate-watch: src/services/providers/huggingface/huggingfacePins.ts
-# gate-watch: src/services/providers/moonshot/kimiPins.ts src/services/providers/moonshot/moonshotCatalogue.ts
-# gate-watch: src/services/providers/openai/gptPins.ts src/services/providers/openai/openaiCatalogue.ts
-# gate-watch: src/services/providers/typedModelIds.ts src/substrate/flagRegistry.ts
-# gate-watch: src/substrate/launchMilestones.ts src/context/surfaceRoute.ts src/boot/launchGraph.ts
-# gate-watch: scripts/settings/settings-schema.json
-# gate-watch: scripts/lib/hermetic.ts src/services/privateChannel/installPath.ts scripts/daemon/dupline-world.ts
-# gate-watch: src/mneme/embedModels.ts src/mneme/embedPack.ts
-# gate-watch: src/services/providers/local/tensorfoldHealth.ts src/services/providers/local/tensorfoldSupport.ts src/services/providers/local/tensorfoldState.ts
-# gate-watch: src/constants/prompts.ts src/substrate/stateLifecycle.ts
-# gate-watch: src/utils/Shell.ts
-# gate-watch: src/utils/permissions/filesystem.ts
-# gate-watch: scripts/lib/flagRegistrySource.ts
-# gate-watch: scripts/lib/builtProduct.ts
-# gate-watch: src/services/providers/modelRegistry.ts
-# gate-watch: scripts/lib/healthRowLiterals.ts
-# gate-watch: src/utils/shell/shellRecord.ts
+# gate-watch: src/utils/**
+# gate-watch: src/cli/handlers/auth.ts
+# gate-watch: src/daemon/*
+# gate-watch: src/services/instructions/adapters/index.ts
+# gate-watch: src/services/providers/local/tensorfoldState.ts
 # gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

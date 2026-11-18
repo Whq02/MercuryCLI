@@ -1,74 +1,38 @@
 #!/usr/bin/env bash
-# gate-watch: src/ink.ts
-# gate-watch: scripts/lib/hermetic.ts src/utils/Shell.ts src/utils/cwd.ts
 # gate-watch: src/services/providers/local/ollamaChatTransport.ts src/services/providers/openaicompat/compatChatCallModel.ts
 # gate-watch: src/substrate/operationJournal.ts
 # gate-class: cpu
-# gate-watch: src/services/run/resolveOwner.ts src/services/agentResults/summaryRoom.ts src/utils/attachments/queuedCommands.ts src/utils/attachments/orchestrator.ts src/services/tools/toolOrchestration.ts src/services/tools/toolExecution.ts src/utils/toolResultStorage.ts src/services/run/requestContextPlan.ts scripts/lib/seedTranscript.ts src/types/textInputTypes.ts src/types/messageQueueTypes.ts
-# gate-watch: src/tools/SendMessageTool/** src/tools/ResumeAgentTool/** src/services/crewBoard/** src/commands/swarm/** src/commands.ts src/components/prompts-panel/** src/utils/settings/** scripts/ui/gridToPng.ts scripts/ui/renderScenarios.ts
+# gate-watch: src/services/agentResults/summaryRoom.ts src/types/textInputTypes.ts src/types/messageQueueTypes.ts
+# gate-watch: src/tools/SendMessageTool/** src/tools/ResumeAgentTool/** src/commands/swarm/** src/components/prompts-panel/** src/utils/settings/** scripts/ui/gridToPng.ts scripts/ui/renderScenarios.ts
 # gate-watch: src/services/providers/toolEconomy.ts src/services/providers/anthropic/boundPrefixRecord.ts
-# gate-watch: scripts/ui/vshot.py src/daemon/**
+# gate-watch: src/daemon/**
 # gate-watch: src/utils/daemonBreaker*
-# gate-watch: src/fabric/transcriptDecode.ts src/utils/sessionStorage/settledSidechainMessages.ts src/run-core/project-legacy.ts
-# gate-watch: scripts/providers/anthropicAccountsFixture.ts
-# gate-watch: src/tasks/LocalAgentTask/launchReceipts* src/tools/AgentTool/resumeAgent*
-# gate-watch: docs/SESSIONS.md scripts/daemon/dupline-world.ts scripts/lib/firstRunSeed.ts
-# gate-watch: scripts/lib/fixtureApi.ts scripts/lib/captureDriver.ts src/Task.ts src/bootstrap/state.ts src/cli/run.ts
-# gate-watch: scripts/lib/runnerHost.ts src/commands/swarmchat/** src/components/messages/CrewChatRow.tsx src/utils/sessionStorage/rowGraph.ts src/utils/conversationRecovery.ts src/fabric/entryCodec.ts
-# gate-watch: src/commands/exit/exit.tsx src/components/MercuryExitConfirm.tsx
-# gate-watch: src/components/PromptInput/Notifications.tsx src/components/mercury-ui/screens/CrewView.tsx
-# gate-watch: src/components/mercury-ui/screens/crewPauseDoor.ts src/run-core/pauseGate.ts src/run-core/turn-machine.ts
+# gate-watch: src/run-core/project-legacy.ts
+# gate-watch: src/commands/swarmchat/** src/utils/sessionStorage/rowGraph.ts src/utils/conversationRecovery.ts
 # gate-watch: src/state/crewLedger.ts
-# gate-watch: src/query.ts src/rows/turn.ts src/cli/headless/turnDriver.ts
-# gate-watch: src/screens/Chat.tsx src/components/messages/TranscriptNameplate.tsx src/utils/staticRender.tsx
-# gate-watch: src/components/messages/UserAgentNotificationMessage.tsx src/fabric/entryCodec.ts
-# gate-watch: src/fabric/ordinal.ts src/hooks/useCancelRequest.ts src/input-core/command-queue.ts
-# gate-watch: src/cli/headless/restartCarry.ts src/components/MessageSelector.tsx src/components/messages/UserTextMessage.tsx src/utils/sessionStorage/chain.ts
-# gate-watch: src/services/agentResults/normalize.ts
-# gate-watch: src/services/agents/operatorStop.ts src/services/api/errors.ts src/services/compact/compact.ts
-# gate-watch: src/services/compact/prompt.ts src/services/concourse/workerModels.ts
-# gate-watch: src/services/crew/adapters/ndjsonChild.ts src/services/crew/dispatch.ts
-# gate-watch: src/services/engine-connector/* src/services/notices/idleNudge.ts
-# gate-watch: src/services/notices/unreadLedger.ts src/services/resources/adapters/agent.ts
-# gate-watch: src/services/resources/adapters/transcript.ts src/services/resources/contracts.ts
-# gate-watch: src/state/AppStateStore.ts src/state/crewLedger.ts src/substrate/flagRegistry.ts src/substrate/storeRecovery.ts
-# gate-watch: src/tasks.ts src/tasks/LocalAgentTask/* src/tasks/LocalMainSessionTask.ts
-# gate-watch: src/tasks/stopTask.ts src/tools/AgentTool/*
-# gate-watch: src/tools/AgentTool/built-in/mercuryCrewAgent.ts
-# gate-watch: src/types/ids.ts src/utils/*
-# gate-watch: src/utils/accounts/signInLedger.ts src/utils/attachments/orchestrator.ts
-# gate-watch: src/utils/config/globalConfig.ts src/utils/messages/* src/utils/model/computedDefault.ts
-# gate-watch: src/utils/model/configs.ts src/utils/sessionStorage/logs.ts src/utils/sessionStorage/paths.ts src/utils/sessionStorage/writer.ts
+# gate-watch: src/services/concourse/workerModels.ts
+# gate-watch: src/services/engine-connector/*
+# gate-watch: src/state/crewLedger.ts
+# gate-watch: src/tools/AgentTool/*
+# gate-watch: src/utils/*
+# gate-watch: src/utils/accounts/signInLedger.ts
+# gate-watch: src/utils/messages/* src/utils/model/computedDefault.ts
+# gate-watch: src/utils/model/configs.ts
 # gate-watch: src/utils/task/*
-# gate-watch: src/components/PromptInput/PromptInput.tsx src/components/tasks/crewmateInterrupt.ts src/state/selectors.ts src/state/crewmateViewHelpers.ts src/utils/attachments/queuedCommands.ts src/utils/cockpit/crewmateWords.ts src/components/PromptInput/useComposerSubmit.ts
+# gate-watch: src/components/PromptInput/PromptInput.tsx
 # gate-watch: src/components/tasks/useCrewmateTranscript.ts
 # gate-watch: package.json scripts/builtin-tools/fixtures/tool-census.json scripts/builtin-tools/fixtures/tool-census.md scripts/project-services/fixtures/inventory.json
-# gate-watch: src/components/mercury-ui/toolGlyphs.ts src/components/messages/AssistantToolUseMessage.tsx src/state/AppState.tsx src/tools.ts src/tools/MCPTool/absentToolShim.ts src/Tool.ts
 # gate-watch: src/utils/capability/declarations.ts src/utils/crew/agentLaunchPlan.ts
 # gate-watch: src/utils/hooks/hookEvents.ts src/utils/hooks/fire.ts src/services/oauth/client.ts
 # gate-watch: src/utils/tasks.ts src/utils/agentContext.ts
 # gate-watch: src/commands/tasks/index.ts src/components/tasks/BackgroundTasksDialog.tsx src/services/crew/identity.ts
-# gate-watch: scripts/lib/scriptedTurn.ts scripts/lib/processGroup.ts src/utils/crew/crewStart.ts src/utils/crew/crewWorktreeReminder.ts
+# gate-watch: src/utils/crew/crewStart.ts
 # gate-watch: src/utils/crew/crewAccountChange.ts
-# gate-watch: docs/CREW.md docs/ENGINES.md README.md src/main.tsx src/setup.ts src/components/Settings/Config.tsx src/utils/config/schema.ts
-# gate-watch: scripts/lib/rows.ts
-# gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: scripts/lib/runnerHost.ts
-# gate-watch: scripts/lib/seatDoor.ts
-# gate-watch: src/components/HelmLanesRail.tsx src/components/concourse/ConcourseRoute.tsx src/components/concourse/ConcourseStrips.tsx src/components/concourse/controlManifest.ts src/components/mercury-ui/glyphs.ts src/components/mercuryPalette.ts
-# gate-watch: src/components/messages/AssistantTextMessage.tsx src/services/switchboard/spawnSwitches.ts src/tasks/LocalShellTask/LocalShellTask.tsx src/tasks/LocalShellTask/killShellTasks.ts src/tasks/taskOutcomeEnvelope.ts src/utils/sdkEventQueue.ts src/utils/cockpit/crewmateWords.ts
-# gate-watch: src/services/api/recoveryBudget.ts src/services/vulcan/engine/leases.ts src/tools/TaskStopTool/TaskStopTool.ts src/tasks/LocalAgentTask/pauseCarry.ts src/tasks/stopTask.ts src/services/agents/operatorStop.ts
-# gate-watch: src/services/providers/callModelRouter.ts
-# gate-watch: src/tools/ToolSearchTool/prompt.ts
-# gate-watch: src/components/Messages.tsx src/utils/sessionStorage/transcriptReader.ts src/utils/sessionStorage/vnext.ts
-# gate-watch: src/utils/sessionStorage/loading.ts
-# gate-watch: scripts/lib/settingsPopupHarness.ts src/components/App.tsx src/components/SurfaceRouter.tsx src/context/surfaceRoute.ts src/hooks/useLayoutTier.ts src/input-core/pending-input.ts
-# gate-watch: src/guards/mission.ts src/services/saturn/sessionScheduleBridge.ts src/tools/MonitorTool/watchReceipts.ts src/constants/agentMessage.ts src/services/host/notices.ts
-# gate-watch: scripts/lib/builtProduct.ts
+# gate-watch: docs/CREW.md docs/ENGINES.md README.md src/setup.ts src/components/Settings/Config.tsx
+# gate-watch: src/rows/*
+# gate-watch: src/constants/agentMessage.ts
 # gate-watch: src/run-core/turn/**
-# gate-watch: scripts/core-runtime/turnScenarios.ts
 # gate-watch: src/cli/headless/*
-# gate-watch: src/services/engine-connector/daemon/work.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

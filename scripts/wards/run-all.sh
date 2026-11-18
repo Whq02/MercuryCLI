@@ -1,29 +1,10 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: scripts/lib/proofAccountHome.ts
-# gate-watch: sdk-py/README.md sdk/README.md
-# gate-watch: src/utils/hooks/sessionHooks* src/guards/wardsGuard* src/utils/wards/wards*
-# gate-watch: assets/splash/splash-core.mjs design-system/live/manifest.json docs/EXTENSIONS.md
-# gate-watch: native/desktop/Cargo.lock scripts/builtin-tools/fixtures/tool-census.json
-# gate-watch: scripts/gate/generated-assets.tsv scripts/settings/settings-schema.json
-# gate-watch: scripts/skills/gen-bundled.ts scripts/splash/deploy.sh
-# gate-watch: src/components/mercury-ui/sessionAccent.ts src/components/mercuryPalette.ts
-# gate-watch: src/daemon/workerRecon.ts src/skills/bundled/mcp-smithy.ts
-# gate-watch: src/skills/bundled/mcp-smithy/SKILL.md src/skills/bundled/updateConfig.ts
-# gate-watch: src/substrate/flagRegistry.ts src/tools/**/*.{ts,tsx} src/utils/* src/utils/hooks/fire.ts src/guards/**
-# gate-watch: src/guards/generatedAssets.ts src/services/tools/toolExecution.ts
-# gate-watch: scripts/lib/linearGrowth.ts scripts/daemon/dupline-world.ts
-# gate-watch: src/skills/bundled/** scripts/ui/lib/emojiProperties.ts
-# gate-watch: scripts/lib/fixtureApi.ts scripts/lib/firstRunSeed.ts
-# gate-watch: docs/INSTALL.md
-# gate-watch: docs/TRUST.md src/Tool.ts src/bootstrap/state.ts
-# gate-watch: src/utils/bash/ast.ts src/utils/bash/parser.ts
-# gate-watch: src/utils/config/trust.ts src/services/projectServices/serviceManager.ts
-# gate-watch: src/daemon/controlSocket.ts src/utils/permissions/decision/wrapper.ts src/utils/secureStorage/macOsKeychainHelpers.ts
-# gate-watch: src/utils/permissions/shellProtectedPaths.ts src/utils/permissions/runtimeProtection.ts src/utils/permissions/protectedPaths.ts
-# gate-watch: src/utils/permissions/serviceInputHistory.ts src/entrypoints/mcp.ts
-# gate-watch: src/tools/BashTool/** src/tools/PowerShellTool/**
-# gate-watch: src/utils/health/sections/settings.ts
+# gate-watch: src/utils/hooks/sessionHooks*
+# gate-watch: src/utils/* src/utils/hooks/fire.ts src/guards/**
+# gate-watch: src/skills/bundled/**
+# gate-watch: src/utils/bash/parser.ts
+# gate-watch: src/utils/permissions/runtimeProtection.ts src/utils/permissions/protectedPaths.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

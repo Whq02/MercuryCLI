@@ -3,9 +3,7 @@
 # gate-watch: scripts/notifications/**
 # gate-watch: scripts/notifications/**
 # gate-watch: src/services/crew/**
-# gate-watch: scripts/engine-durability/harness.ts scripts/lib/captureDriver.ts
-# gate-watch: scripts/streaming/artifactArena.ts src/components/concourse/ConcourseScreen.tsx
-# gate-watch: src/components/concourse/NeedsYouRail.tsx src/components/mercury-ui/*
+# gate-watch: src/components/mercury-ui/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

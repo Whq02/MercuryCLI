@@ -1,23 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/utils/sessionStorage/** src/utils/sessionStoragePortable.ts src/history.ts src/rows/storage.ts
-# gate-watch: scripts/engine-durability/harness.ts scripts/lib/codeText.ts scripts/lib/goldenReplay.ts
-# gate-watch: scripts/staleness/prove-stale-registry.ts src/Tool.ts src/bootstrap/state.ts
-# gate-watch: src/daemon/concourseWorkers.ts src/fabric/transcriptDecode.ts src/hooks/useHistorySearch.ts
-# gate-watch: src/screens/Chat.tsx src/services/engine-connector/daemonConnector.ts
-# gate-watch: src/services/switchboard/hopIntoSession.ts src/services/tools/toolExecution.ts src/utils/*
-# gate-watch: src/utils/suggestions/shellHistoryCompletion.ts
-# gate-watch: src/hooks/useArrowKeyHistory.tsx src/ink.ts src/state/AppState.tsx src/utils/config/globalConfig.ts
-# gate-watch: scripts/lib/platformPath.ts scripts/hooks/lib/runDoor.ts sdk/src/index.ts
-# gate-watch: src/utils/conversationRecovery.ts src/cli/headless/resume.ts src/cli/sessionsVerb.ts
-# gate-watch: src/utils/messages/attachmentText.ts src/components/messages/nullRenderingAttachments.ts src/utils/sessionStorage/vnext.ts
-# gate-watch: src/utils/attachments/types.ts src/keybindings/loadUserBindings.ts src/fabric/transcriptDecode.ts src/components/mercury-ui/toolGlyphs.ts src/commands/crewmates/index.ts src/keybindings/actionGraph.ts src/keybindings/parser.ts src/main.tsx src/state/AppStateStore.ts src/substrate/operationJournal.ts src/tools/AgentTool/AgentTool.tsx src/utils/envUtils.ts src/utils/zodToJsonSchema.ts
-# gate-watch: src/utils/hooks/hooksConfigSnapshot.ts src/utils/hooks/sessionHooks.ts
-# gate-watch: src/utils/attachments/orchestrator.ts src/tasks.ts src/utils/messages/factories.ts
-# gate-watch: scripts/lib/removeScratch.ts
-# gate-watch: src/services/ide/pythonTests.ts
-# gate-watch: src/services/compact/compact.ts src/utils/messages/systemMessages.ts
-# gate-watch: src/substrate/flagRegistry.ts
+# gate-watch: src/utils/sessionStorage/**
+# gate-watch: src/utils/*
+# gate-watch: src/utils/attachments/types.ts src/state/AppStateStore.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

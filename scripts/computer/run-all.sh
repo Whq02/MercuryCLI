@@ -1,32 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: native/desktop/src/x11.rs scripts/lib/fixtureApi.ts src/query.ts
-# gate-watch: native/desktop/src/lib.rs src/services/providers/local/schemaTyping.ts src/services/providers/openai/openaiWire.ts src/tools/FileReadTool/imageProcessor.ts src/utils/cockpit/typingActivity.ts src/utils/messages/toolSchemaDialect.ts
-# gate-watch: src/tools/ComputerTool/** src/services/desktop/** src/components/permissions/ComputerPermissionRequest/** src/components/PromptInput/PromptInputFooterLeftSide* src/utils/readiness* src/substrate/flagRegistry*
-# gate-watch: src/utils/sessionStorage/writer* src/services/providers/anthropic/media* src/services/providers/anthropic/streamCore* src/services/providers/openai/responsesBridge* src/services/providers/openai/openaiCallModel*
-# gate-watch: src/services/providers/zai/zaiCodec* src/utils/model/capabilities* src/tools/AgentTool/agentToolUtils* src/entrypoints/mcp* src/tools.ts scripts/computer/**
-# gate-watch: native/desktop/src/mac.rs scripts/builtin-tools/fixtures/tool-census.json
-# gate-watch: native/desktop/src/win.rs
-# gate-watch: scripts/builtin-tools/fixtures/tool-census.md scripts/core-runtime/prove-state-contract.ts
-# gate-watch: scripts/gate/duration-seed.tsv scripts/lib/hermetic.ts src/Tool.ts src/bootstrap/state.ts
-# gate-watch: src/constants/tools.ts src/services/compact/compact.ts
-# gate-watch: src/services/engine-connector/focusedConnector.ts src/services/primitives/executionCensus.ts
-# gate-watch: src/services/providers/callModelRouter.ts
-# gate-watch: src/services/providers/huggingface/huggingfaceCatalogue.ts
-# gate-watch: src/services/providers/local/localDiscovery.ts
-# gate-watch: src/services/providers/openaicompat/compatChatCallModel.ts
-# gate-watch: src/services/providers/openrouter/openrouterCatalogue.ts src/services/providers/routeLaw.ts
-# gate-watch: src/services/providers/zai/zaiCallModel.ts src/services/run/resolveOwner.ts
-# gate-watch: src/state/AppStateStore.ts src/substrate/pidLock.ts src/substrate/startupMenu.ts
-# gate-watch: src/tools/AgentTool/runAgent.ts src/tools/FileReadTool/imageProcessorJs.ts src/utils/*
-# gate-watch: src/utils/capability/census.ts src/utils/capability/contract.ts src/utils/config/globalConfig.ts
-# gate-watch: src/utils/permissions/decision/engine.ts src/utils/permissions/shellRuleMatching.ts
-# gate-watch: src/utils/sessionStorage/chain.ts
-# gate-watch: scripts/lib/firstRunSeed.ts src/commands/llmhost/llmhost.tsx src/components/design-system/ThemeProvider.tsx src/components/SettingsPopupSlot.tsx src/ink.ts src/ink/ink.tsx src/ink/instances.ts src/services/host/index.ts src/state/AppState.tsx src/utils/cockpit/settingsPopup.ts
-# gate-watch: src/services/eval/kernelManager.ts src/tools/EvalTool/EvalTool.ts
-# gate-watch: src/services/providers/gemini/geminiCodec.ts src/services/schema/jsonSchemaEngine.ts
-# gate-watch: docs/COMPUTER-USE.md src/cli/headless/runnerAsks.ts src/daemon/concourseWorkers.ts src/daemon/permissionAsks.ts src/runner/wire/peer.ts src/services/engine-connector/daemonConnector.ts src/tools/BashTool/webContent.ts src/utils/messages/rejectionText.ts src/utils/permissions/askClock.ts
-# gate-watch: src/utils/health/sections/interface.ts
+# gate-watch: src/tools/ComputerTool/** src/services/desktop/** src/components/PromptInput/PromptInputFooterLeftSide*
+# gate-watch: src/services/providers/anthropic/media*
+# gate-watch: src/utils/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

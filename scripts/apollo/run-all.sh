@@ -1,28 +1,11 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/prompt/apolloMode* src/tools/ApolloReviewTool/**
-# gate-watch: src/tools/AskUserQuestionTool/apolloLetters* src/types/permissions*
-# gate-watch: src/utils/permissions/getNextPermissionMode* src/utils/permissions/PermissionMode* src/utils/settings/settingsCache*
-# gate-watch: src/utils/permissions/modeTransitions* src/utils/permissions/PermissionUpdate* src/utils/permissions/filesystem*
-# gate-watch: src/utils/attachments/modeLifecycles* src/utils/messages/attachmentText* src/state/onChangeAppState*
+# gate-watch: src/tools/ApolloReviewTool/**
+# gate-watch: src/utils/permissions/PermissionUpdate*
 # gate-watch: src/components/CustomSelect/** src/components/permissions/AskUserQuestionPermissionRequest/**
-# gate-watch: src/components/permissions/ApolloReviewPermissionRequest/** src/utils/settings/types*
-# gate-watch: src/bootstrap/state.ts src/cli/headless/controlHandlers.ts src/cli/run.ts src/components/mercury-ui/glyphs.ts
-# gate-watch: src/daemon/concourseWorkers.ts src/daemon/headlessRun.ts src/ink.ts
-# gate-watch: src/tools/ToolSearchTool/prompt.ts src/utils/* src/utils/permissions/permissionSetup.ts
-# gate-watch: src/utils/settings/settings.ts
+# gate-watch: src/utils/*
 # gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: scripts/lib/hermetic.ts
-# gate-watch: src/services/providers/gemini/geminiCodec.ts
-# gate-watch: src/services/providers/openai/responsesBridge.ts
-# gate-watch: src/services/providers/zai/zaiCodec.ts
-# gate-watch: src/services/schema/jsonSchemaEngine.ts
-# gate-watch: src/Tool.ts
-# gate-watch: scripts/lib/builtProduct.ts
-# gate-watch: src/main.tsx
 # gate-watch: src/cli/headless/*
-# gate-watch: scripts/ui/chatScenarios.ts
-# gate-watch: src/tools/BashTool/BashTool.tsx
 # gate-watch: src/screens/chat/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

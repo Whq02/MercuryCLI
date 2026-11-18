@@ -1,31 +1,12 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-env: MERCURY_WORK_CHIP_SIZE
-# gate-watch: scripts/switchboard/**
-# gate-watch: src/services/concourse/** src/components/concourse/** src/daemon/concourseWorkers.ts
-# gate-watch: src/daemon/concourseDispatch.ts src/daemon/permissionAsks.ts src/services/switchboard/attachedSession.ts
-# gate-watch: src/components/SwitchboardTagBar.tsx src/context/surfaceRoute.ts src/daemon/handshake.ts src/daemon/controlSocket.ts src/daemon/protocol.ts src/utils/cockpit/motionSetting.ts src/utils/cockpit/motionGovernor.ts
-# gate-watch: src/constants/prompts.ts
-# gate-watch: assets/splash/mercury-splash.mjs assets/splash/splash-core.mjs docs/CREW.md
-# gate-watch: assets/completions/_mercury assets/completions/mercury.bash assets/completions/mercury.fish
-# gate-watch: scripts/compact/overflowFixture.ts scripts/engine-durability/harness.ts scripts/lib/* scripts/daemon/dupline-world.ts
-# gate-watch: scripts/ops/launcher-mercury.sh scripts/crew/crew-world.ts src/daemon/main.ts
-# gate-watch: docs/ENGINES.md
-# gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: scripts/lib/seatDoor.ts
-# gate-watch: src/daemon/headlessRun.ts src/utils/config.ts src/utils/sessionStorage/paths.ts src/utils/sessionStorage/vnext.ts src/utils/model/model.ts src/components/mercury-ui/EffortChip.tsx
-# gate-watch: src/utils/sessionStorage/rowGraph.ts src/utils/sessionStorage/chain.ts src/utils/sessionStorage/transcriptReader.ts src/utils/sessionStorage/writer.ts src/utils/sessionStorage/loading.ts src/services/engine-connector/daemonConnector.ts src/commands/restart/restart.ts
-# gate-watch: scripts/ui/gridToPng.ts scripts/ui/replay-tee-grid.py src/services/crewBoard/** src/utils/cockpit/turnReceipt.ts src/components/messages/CrewChatRow.tsx src/components/Messages.tsx src/ink.ts src/ink/** src/types/message.ts
-# gate-watch: docs/AUTOMATION.md
-# gate-watch: scripts/notifications/concourseReferenceSeed.ts src/components/design-system/ThemeProvider.tsx src/state/AppState.tsx
-# gate-watch: src/utils/Shell.ts
-# gate-watch: src/utils/permissions/decisionReasonWire.ts src/utils/permissions/getNextPermissionMode.ts
-# gate-watch: src/substrate/flagRegistry.ts
-# gate-watch: src/cli/run.ts src/main.tsx
-# gate-watch: src/utils/health/sections/crew.ts
+# gate-watch: src/utils/cockpit/motionSetting.ts src/utils/cockpit/motionGovernor.ts
+# gate-watch: scripts/compact/overflowFixture.ts scripts/lib/*
+# gate-watch: src/rows/*
+# gate-watch: src/utils/sessionStorage/rowGraph.ts
+# gate-watch: scripts/ui/gridToPng.ts scripts/ui/replay-tee-grid.py src/services/crewBoard/** src/components/Messages.tsx src/ink/** src/types/message.ts
 # gate-watch: src/cli/headless/*
-# gate-watch: scripts/ui/chatScenarios.ts
-# gate-watch: src/tools/BashTool/BashTool.tsx
 # gate-watch: src/screens/chat/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

@@ -2,12 +2,9 @@
 # gate-class: pty
 # gate-env: MERCURY_SCROLL_REFLOW_STRICT
 # gate-watch: scripts/scroll/**
-# gate-watch: scripts/computer/computerDriveKit.ts scripts/lib/* src/screens/Chat.tsx src/utils/sessionStorage/paths.ts
-# gate-watch: scripts/lib/seedTranscript.ts
+# gate-watch: scripts/lib/* src/screens/Chat.tsx
 # gate-watch: src/hooks/useVirtualScroll* src/ink/components/ScrollBox*
 # gate-watch: src/components/ScrollKeybindingHandler* src/components/VirtualMessageList*
-# gate-watch: scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/ui/vshot.py
-# gate-watch: src/utils/sessionStoragePortable.ts
 # gate-watch: scripts/lib/settingsPopupHarness.ts src/components/HelpV2/HelpV2.tsx src/components/mercury-ui/components.tsx src/ink.ts src/utils/config.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

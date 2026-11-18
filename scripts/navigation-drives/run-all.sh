@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-watch: scripts/streaming/ptydrive.py scripts/ui/render-tui.ts scripts/ui/vshot.py
 # gate-watch: src/components/mercury-ui/** src/context/overlayStack* src/ink/events/input-event*
 # gate-watch: src/ink/input/input-decoder* src/ink/stringWidth*
 # gate-watch: src/components/Mercury*.tsx src/components/ScrollKeybindingHandler.tsx src/components/LogSelector.tsx
@@ -9,8 +8,6 @@
 # gate-watch: src/components/CustomSelect/use-select-navigation.ts src/components/permissions/AskUserQuestionPermissionRequest/QuestionView.tsx
 # gate-watch: src/commands/effort/effort.tsx src/hooks/useTextInput.ts
 # gate-watch: src/components/concourse/ConcourseRoute.tsx src/ink/session/capabilities.ts src/ink/root/screen-session.ts
-# gate-watch: scripts/lib/captureDriver.ts scripts/navigation/prove-size-matrix.ts
-# gate-watch: scripts/ui/renderScenarios.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

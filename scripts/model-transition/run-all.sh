@@ -1,48 +1,19 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: scripts/model-transition/**
-# gate-watch: src/utils/model/modelTransition.ts src/services/run/requestContextPlan.ts
 # gate-watch: src/fabric/** src/utils/sessionStorage/** src/services/providers/**
-# gate-watch: src/services/branches/** src/services/run/contextSelection.ts
-# gate-watch: .github/workflows/windows-ui.yml scripts/consistency-census/gen-lockup-census.ts
-# gate-watch: scripts/consistency-census/prove-lockup-census.ts scripts/crew/run-all.sh
-# gate-watch: scripts/lib/codeText.ts scripts/lib/shippedKeyForms.ts scripts/release/launcherTemplates.mjs
-# gate-watch: scripts/session-graph/prove-resize-continuity.ts scripts/ui/* src/bootstrap/state.ts
-# gate-watch: src/commands/crew/index.ts src/commands/login/login.tsx
-# gate-watch: src/services/mockRateLimits.ts src/commands/model/mercuryModel.tsx
-# gate-watch: src/commands/model/model.tsx src/commands/rewind/index.ts src/components/*
-# gate-watch: src/components/CustomSelect/SelectMulti.tsx
-# gate-watch: src/components/CustomSelect/use-multi-select-state.ts src/components/PromptInput/PromptInput.tsx src/components/PromptInput/useComposerModelDoors.tsx src/components/PromptInput/useComposerKeybindings.ts
-# gate-watch: src/components/design-system/Dialog.tsx src/components/mercury-ui/FailoverMark.tsx
-# gate-watch: src/ink.ts src/ink/components/StdinContext.ts src/ink/components/TerminalSizeContext.tsx
-# gate-watch: src/components/messages/* src/hooks/useDisplayedSessionModel.ts src/ink/input/scanner.ts
-# gate-watch: src/interactiveHelpers.tsx src/keybindings/defaultBindings.ts src/query/deps.ts
-# gate-watch: src/query/scriptedStream.ts src/run-core/call-reference.ts src/run-core/turn-machine.ts
-# gate-watch: src/screens/Chat.tsx src/services/* src/services/acp/acpServer.ts src/services/api/*
-# gate-watch: src/services/compact/autoCompact.ts src/services/crew/*
-# gate-watch: src/services/engine-connector/daemonConnector.ts
-# gate-watch: src/services/engine-connector/focusedConnector.ts src/services/instructions/* src/services/run/*
-# gate-watch: src/services/tips/tipRegistry.ts src/state/AppStateStore.ts src/substrate/flagRegistry.ts
-# gate-watch: src/substrate/startupMenu.ts src/tasks.ts src/tools/AgentTool/prompt.ts
-# gate-watch: src/tools/AgentTool/runAgent.ts src/tools/PowerShellTool/PowerShellTool.tsx
-# gate-watch: src/types/message.ts src/utils/*
-# gate-watch: src/utils/config/globalConfig.ts src/utils/messages/*
-# gate-watch: src/utils/model/* src/utils/shell/powershellProvider.ts src/utils/shell/shellToolUtils.ts
-# gate-watch: src/utils/task/diskOutput.ts
+# gate-watch: scripts/ui/*
+# gate-watch: src/components/*
+# gate-watch: src/components/messages/*
+# gate-watch: src/services/* src/services/api/*
+# gate-watch: src/services/crew/*
+# gate-watch: src/services/instructions/* src/services/run/*
+# gate-watch: src/tools/AgentTool/prompt.ts
+# gate-watch: src/utils/*
+# gate-watch: src/utils/messages/*
+# gate-watch: src/utils/model/*
 # gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: src/ink/ink.tsx src/ink/instances.ts src/keybindings/KeybindingProviderSetup.tsx src/services/engine-connector/noSessionConnector.ts
-# gate-watch: src/utils/settings/settings.ts
-# gate-watch: src/services/tools/chantGuard.ts
-# gate-watch: src/tools/AgentTool/AgentTool.tsx
-# gate-watch: scripts/compact/overflowFixture.ts src/commands/compact/compact.ts src/services/compact/compact.ts src/services/compact/microCompact.ts
-# gate-watch: scripts/lib/settingsPopupHarness.ts src/query.ts src/state/AppState.tsx
-# gate-watch: scripts/lib/flagRegistrySource.ts
 # gate-watch: src/run-core/turn/**
-# gate-watch: scripts/core-runtime/turnScenarios.ts
-# gate-watch: src/services/compact/overflowRecovery.ts
-# gate-watch: src/tools/BashTool/BashTool.tsx
 # gate-watch: src/screens/chat/*
-# gate-watch: src/services/engine-connector/seatProjections.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

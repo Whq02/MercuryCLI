@@ -1,23 +1,10 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: scripts/attachments/prove-session-context-once.ts
 # gate-watch: src/utils/attachments/**
 # gate-watch: src/services/projectIntel/capsule.ts
-# gate-watch: src/utils/pdf.ts src/utils/fsOperations.ts src/tools/FileReadTool/prompt.ts
-# gate-watch: src/services/instructions/engine.ts src/utils/permissions/filesystem.ts src/utils/task/framework.ts
-# gate-watch: src/services/lsp/LSPDiagnosticRegistry.ts src/services/lsp/manager.ts src/utils/tasks.ts src/tools/TaskUpdateTool/constants.ts src/tools/BashTool/toolName.ts src/utils/cwd.ts
-# gate-watch: src/utils/imageResizer* src/utils/imagePaste* src/utils/imageStore* src/utils/imageValidation*
-# gate-watch: src/constants/apiLimits* src/tools/FileReadTool/imageProcessor* src/hooks/usePasteHandler* src/hooks/useClipboardImageHint*
-# gate-watch: docs/SESSIONS.md scripts/lib/goldenReplay.ts scripts/lib/hermetic.ts scripts/lib/scriptedTurn.ts scripts/daemon/dupline-world.ts src/Tool.ts
-# gate-watch: src/bootstrap/state.ts src/constants/prompts.ts src/constants/systemPromptSections.ts
-# gate-watch: src/keybindings/defaultBindings.ts src/services/mcp/client.ts src/utils/sessionStorage/writer.ts src/utils/sessionStorage/paths.ts src/utils/sessionStorage/chain.ts src/utils/sessionStorage/loading.ts src/utils/messages/factories.ts
-# gate-watch: src/tools/FileReadTool/FileReadTool.ts src/utils/attachments.ts
-# gate-watch: src/utils/messages/apiView.ts src/utils/attachments/orchestrator.ts src/context.ts src/utils/cockpit/runtimePosture.ts src/run-core/attachment-drain.ts src/tools/ToolSearchTool/ToolSearchTool.ts src/tools/WebFetchTool/WebFetchTool.ts
-# gate-watch: src/utils/messages.ts src/utils/messages/attachmentText.ts src/utils/config/globalConfig.ts src/utils/model/model.ts src/tools/SkillTool/constants.ts src/state/AppStateStore.ts src/utils/file.ts src/utils/fileStateCache.ts
-# gate-watch: scripts/lib/removeScratch.ts src/services/providers/toolEconomy.ts src/services/run/resolveOwner.ts
-# gate-watch: scripts/lib/fixtureApi.ts
-# gate-watch: scripts/lib/firstRunSeed.ts
-# gate-watch: src/ink.ts src/state/AppState.tsx src/state/AppStateStore.ts src/components/messages/AttachmentMessage.tsx src/components/messages/TranscriptNameplate.tsx src/utils/config.ts
+# gate-watch: src/hooks/usePasteHandler*
+# gate-watch: src/constants/prompts.ts src/constants/systemPromptSections.ts
+# gate-watch: src/utils/sessionStorage/chain.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -1,63 +1,28 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: scripts/lib/hermetic.ts scripts/providers/lib/xai-usage-fixture.ts scripts/providers/lib/xai-auth-fixture.ts src/services/providers/xai/xaiOauth.ts
-# gate-watch: src/utils/hooks/contract.ts src/utils/hooks/matcherGrammar.ts
-# gate-watch: scripts/providers/lib/mistral-fixture.ts src/services/providers/mistral/**
-# gate-watch: scripts/providers/lib/zen-fixture.ts src/services/providers/zen/**
-# gate-watch: scripts/provider-compat/fixtures/huggingface-whoami-v2-documented.json
-# gate-watch: scripts/providers/fixtures/anthropic-oauth-usage.json scripts/providers/fixtures/openai-chatgpt-usage.json
-# gate-watch: src/constants/localPromptProfile.ts src/services/host/recipes.ts src/services/host/store.ts src/services/host/tensorfoldPod.ts src/services/providers/callModelRouter.ts
-# gate-watch: src/cli/handlers/usage.ts scripts/providers/lib/usage-plan-world.ts
-# gate-watch: src/context/modalContext.tsx src/services/providers/credentialEnvSpellings.ts
-# gate-watch: src/services/api/sdkErrors.ts
+# gate-watch: src/services/providers/mistral/**
+# gate-watch: src/services/providers/zen/**
 # gate-watch: src/services/providers/patience.ts
-# gate-watch: src/utils/model/providerFrontier.ts src/services/providers/local/tensorfoldHelper.ts src/services/providers/local/tensorfoldHosts.ts src/services/compact/autoCompact.ts src/utils/messages/factories.ts
-# gate-watch: src/bootstrap/state* src/bootstrap/runtime/posture.ts
-# gate-watch: src/state/AppStateStore.ts
-# gate-watch: src/utils/settings/** src/utils/config/** src/utils/config.ts src/services/compact/autoCompact.ts src/components/Settings/Config.tsx
-# gate-watch: src/utils/fileRead* scripts/lib/scratchSeat.ts src/mneme/paths.ts
-# gate-watch: src/components/BootSettingsScreen* src/services/switchboard/capacityCheck* src/services/switchboard/backgroundLaunch* src/services/switchboard/launchAuthority.ts src/ink/stringWidth.ts src/substrate/startupMenu.ts
-# gate-watch: src/components/Settings/** src/services/providers/providerUsage* src/commands/usage/**
-# gate-watch: src/services/providers/accountSlots* src/components/mercury-ui/parity/AccountView*
-# gate-watch: src/components/HelmVitalsRail* src/components/BootLoginsScreen* src/components/BootSplashScreen* src/services/wallet/** src/utils/accounts/** src/utils/auth.ts src/services/oauth/**
-# gate-watch: src/cli/handlers/auth.ts src/utils/status.tsx src/state/AppState.tsx src/cli/sessionArgs.ts
-# gate-watch: src/cli/run.ts src/cli/headless/controlHandlers.ts src/daemon/sessionSeat.ts src/daemon/concourseWorkers.ts src/services/engine-connector/** src/screens/Chat.tsx src/components/MercuryFrame.tsx src/components/tasks/BackgroundTasksDialog.tsx src/components/mercury-ui/screens/CrewView.tsx
-# gate-watch: scripts/lib/codeText.ts scripts/lib/settingsPopupHarness.ts scripts/ui/gridToPng.ts
-# gate-watch: scripts/lib/fixtureApi.ts scripts/lib/runnerHost.ts src/services/providers/openai/openaiCatalogue.ts src/services/providers/catalogueOnDemand.ts src/hooks/useCatalogueEpoch.ts src/services/providers/moonshot/moonshotAccounts.ts src/services/providers/huggingface/huggingfaceAccounts.ts src/services/providers/huggingface/huggingfaceCatalogue.ts src/services/providers/local/localDiscovery.ts src/services/providers/local/localAccounts.ts src/components/ConfigurableShortcutHint.tsx src/components/HelmLanesRail.tsx
-# gate-watch: scripts/providers/lib/usage-plan-world.ts src/* src/commands/config/config.tsx
-# gate-watch: src/components/InvalidConfigDialog.tsx src/components/InvalidSettingsDialog.tsx src/components/SettingsPopupSlot.tsx src/context/popupFormContext.ts
-# gate-watch: src/mneme/journal.ts src/mneme/journalSetting.ts src/components/memory/memoryCentreLayout.ts
-# gate-watch: src/components/design-system/ThemeProvider.tsx src/components/mercury-ui/RailPanel.tsx
-# gate-watch: src/components/mercury-ui/components.tsx src/components/tasks/useFocusedWork.ts
-# gate-watch: src/context/notifications.tsx src/entrypoints/init.ts src/hooks/useExitOnCtrlCD.ts
-# gate-watch: src/ink/components/App.tsx src/ink/components/StdinContext.ts src/ink/recessLayer.ts
-# gate-watch: src/ink/squash-text-nodes.ts src/keybindings/useKeybinding.ts src/keybindings/writeBindings.ts
-# gate-watch: src/services/anthropicLimits.ts src/services/engine-connector/focusedConnector.ts
+# gate-watch: src/utils/model/providerFrontier.ts
+# gate-watch: src/bootstrap/runtime/posture.ts
+# gate-watch: src/utils/settings/**
+# gate-watch: src/utils/fileRead*
+# gate-watch: src/components/Settings/**
+# gate-watch: src/utils/accounts/** src/services/oauth/**
+# gate-watch: src/services/engine-connector/**
+# gate-watch: scripts/ui/gridToPng.ts
+# gate-watch: src/services/providers/openai/openaiCatalogue.ts src/hooks/useCatalogueEpoch.ts src/services/providers/huggingface/huggingfaceCatalogue.ts src/services/providers/local/localAccounts.ts src/components/ConfigurableShortcutHint.tsx
+# gate-watch: src/*
 # gate-watch: src/services/instructions/* src/services/instructions/adapters/**
-# gate-watch: src/utils/fsOperations.ts src/utils/permissions/filesystem.ts
-# gate-watch: src/services/mcp/anthropicConnectors.ts src/services/providers/openai/openaiLimitState.ts
-# gate-watch: src/services/providers/usageFreshness.ts src/state/vitalsBus.ts src/utils/*
-# gate-watch: src/utils/cockpit/* src/utils/model/computedDefault.ts src/utils/permissions/PermissionUpdate.ts src/utils/permissions/PermissionMode.ts
-# gate-watch: src/utils/permissions/bypassPermissionsKillswitch.ts src/utils/permissions/permissionSetup.ts src/services/providers/providerDiscovery.ts
-# gate-watch: src/services/providers/providerIdentityLine.ts src/services/providers/moonshot/** src/services/providers/huggingface/** src/services/providers/gemini/** src/services/providers/openrouter/** src/services/providers/local/** src/services/providers/openaicompat/** src/services/providers/deepseek/** src/services/providers/providerSecrets.ts src/services/providers/modelRegistry.ts src/ink/events/input-event.ts src/ink/input/interpreter.ts
-# gate-watch: src/services/localServer/** src/services/providers/catalogueOnDemand.ts src/services/search/searchSetting.ts
-# gate-watch: src/commands/localsetup/** src/components/LocalSetupDialog.tsx src/components/BootSaturnScreen.tsx src/components/HelpV2/commandDomains.ts src/components/MercuryModelPicker.tsx src/components/geminiConnectGuide.ts
-# gate-watch: src/utils/model/modelOptions.ts src/utils/model/model.ts src/commands/model/persistModelChoice.ts
-# gate-watch: src/components/DeckPane.tsx src/hooks/useDisplayedSessionModel.ts src/hooks/useEngineModel.ts src/hooks/useProviderUsageOnShow.ts src/services/advisor/index.ts
-# gate-watch: src/rows/* src/runner/wire/* scripts/lib/rows.ts
-# gate-watch: docs/SETTINGS.md docs/SESSIONS.md scripts/lib/fixtureApi.ts src/utils/sessionStorage/paths.ts src/utils/cleanup.ts
-# gate-watch: src/schemas/hooks.ts src/utils/hooks/matching.ts src/utils/hooks/matcherGrammar.ts
-# gate-watch: src/services/api/errors.ts src/services/providers/anthropicRefusal.ts scripts/ui/saturn-screen-stills.ts scripts/ui/fixtures/settings-popup-header/* src/commands/model/mercuryModel.tsx
-# gate-watch: scripts/providers/lib/nous-fixture.ts src/services/providers/nous/nousUsageState.ts src/services/providers/nous/nousAccounts.ts
-# gate-watch: src/components/Onboarding.tsx src/components/loginFamilyRows.ts
-# gate-watch: scripts/lib/firstRunSeed.ts scripts/lib/scriptedTurn.ts
-# gate-watch: scripts/daemon/dupline-world.ts scripts/lib/seatForensics.ts scripts/lib/seatLauncher.ts scripts/lib/runnerHost.ts src/entrypoints/cli.tsx src/utils/settings/changeDetector.ts src/utils/watchRoot.ts src/utils/git.ts
-# gate-watch: src/commands/keysetup/keysetup.tsx
-# gate-watch: src/utils/model/utilityModel.ts
-# gate-watch: scripts/tensorfold/fixtures/world.ts src/services/localSetup/ggufServer.ts src/services/projectServices/serviceManager.ts src/services/run/ownerLifecycle.ts src/services/run/resolveOwner.ts src/services/tensorfold/engine.ts src/services/tensorfold/serve.ts
-# gate-watch: scripts/lib/builtProduct.ts
-# gate-watch: src/utils/health/sections/auth.ts
-# gate-watch: src/utils/health/sections/settings.ts
+# gate-watch: src/utils/permissions/filesystem.ts
+# gate-watch: src/utils/*
+# gate-watch: src/utils/cockpit/* src/utils/permissions/PermissionUpdate.ts
+# gate-watch: src/services/providers/moonshot/** src/services/providers/huggingface/** src/services/providers/gemini/** src/services/providers/openrouter/** src/services/providers/local/** src/services/providers/openaicompat/** src/services/providers/deepseek/** src/services/providers/providerSecrets.ts
+# gate-watch: src/services/localServer/**
+# gate-watch: src/rows/* src/runner/wire/*
+# gate-watch: scripts/ui/fixtures/settings-popup-header/*
+# gate-watch: src/services/providers/nous/nousAccounts.ts
+# gate-watch: src/utils/git.ts
 # gate-watch: src/utils/health/sections/crew.ts
 # gate-watch: src/cli/headless/*
 set -u

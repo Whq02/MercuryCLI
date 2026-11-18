@@ -1,19 +1,11 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: src/run-core/** src/services/run/** src/substrate/** src/services/primitives/**
-# gate-watch: src/cli/headless/** src/utils/sessionStorage/** src/query.ts
-# gate-watch: src/utils/sessionRestore.ts src/utils/conversationRecovery.ts src/utils/toolResultSummary.ts src/utils/cockpit/awaySummary.ts
-# gate-watch: scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/sessionStorage/forkedFixture.ts
-# gate-watch: src/Tool.ts src/bootstrap/state.ts src/cli/run.ts src/constants/prompts.ts
-# gate-watch: src/constants/systemPromptSections.ts src/daemon/controlSocket.ts src/daemon/warmRunner.ts
-# gate-watch: src/services/engine-connector/daemonConnector.ts
-# gate-watch: src/services/providers/anthropic/boundPrefixRecord.ts src/services/providers/toolEconomy.ts
-# gate-watch: src/state/AppStateStore.ts src/tools/RecordConventionTool/prompt.ts
-# gate-watch: src/tools/TaskCreateTool/constants.ts src/types/ids.ts
-# gate-watch: sdk/src/index.ts
-# gate-watch: src/utils/* src/utils/config/globalConfig.ts src/utils/messages/factories.ts
-# gate-watch: scripts/headless/mid-turn-reply-fixture-server.ts src/utils/sessionStorage/paths.ts
-# gate-watch: src/rows/turn.ts src/rows/storage.ts src/daemon/concourseWorkers.ts src/daemon/headlessRun.ts src/commands/export/transcript.ts scripts/lib/runnerHost.ts
+# gate-watch: src/cli/headless/** src/utils/sessionStorage/**
+# gate-watch: src/cli/run.ts
+# gate-watch: src/tools/TaskCreateTool/constants.ts
+# gate-watch: src/utils/*
+# gate-watch: src/rows/storage.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

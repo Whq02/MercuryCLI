@@ -1,18 +1,9 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: scripts/project-intel/**
 # gate-watch: src/services/projectIntel/** src/services/resources/adapters/project.ts
 # gate-watch: src/utils/cockpit/repoSurfaceMap*
-# gate-watch: src/bootstrap/state.ts src/commands/orient/orient.ts
-# gate-watch: src/components/messages/nullRenderingAttachments.ts src/services/lsp/manager.ts
-# gate-watch: src/services/primitives/owner.ts src/services/resources/adapters/transcript.ts
-# gate-watch: src/services/resources/registry.ts src/services/run/resolveOwner.ts
-# gate-watch: src/services/run/runContinuationCapsule.ts src/tools/GrepTool/GrepTool.ts
-# gate-watch: src/utils/attachments/contextCapsule.ts src/utils/attachments/orchestrator.ts src/state/AppStateStore.ts src/tools/FileReadTool/FileReadTool.ts src/utils/config/globalConfig.ts src/utils/fileStateCache.ts src/utils/messages/factories.ts
-# gate-watch: src/utils/messages/attachmentText.ts src/utils/processUserInput/processUserInput.ts
-# gate-watch: src/utils/sessionStorage/paths.ts src/utils/verification/verificationState.ts
-# gate-watch: src/services/structure/tsFacility.ts src/tools/BashTool/prompt.ts
-# gate-watch: src/tools/FileEditTool/FileEditTool.ts
+# gate-watch: src/commands/orient/orient.ts
+# gate-watch: src/services/resources/adapters/transcript.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

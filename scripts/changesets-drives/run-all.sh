@@ -5,7 +5,7 @@
 # gate-watch: src/components/permissions/ChangeSetPermissionRequest/** src/components/InlineChangeView.tsx
 # gate-watch: src/substrate/operationJournal.ts src/substrate/recoveryOrchestrator.ts
 # gate-watch: src/tools/LSPTool/mercuryOps.ts src/services/structure/transform.ts src/tools/AstEditTool/AstEditTool.ts
-# gate-watch: scripts/lib/captureDriver.ts scripts/ui/renderScenarios.ts scripts/ui/vshot.py src/Tool.ts
+# gate-watch: src/Tool.ts
 # gate-watch: src/services/primitives/transactionPlane.ts src/services/run/effectObserver.ts
 # gate-watch: src/services/run/resolveOwner.ts src/services/structure/query.ts src/substrate/durablePublish.ts
 # gate-watch: src/substrate/flagRegistry.ts src/tools.ts src/utils/config.ts

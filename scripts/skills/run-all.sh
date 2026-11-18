@@ -1,29 +1,12 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/commands/** mercury-skills/** src/skills/bundled/** src/skills/bundledSkills*
-# gate-watch: src/utils/permissions/filesystem* scripts/skills/** scripts/gate/generated-assets.tsv scripts/lib/generated-assets-map.mjs scripts/lib/codeText.ts
-# gate-watch: src/Tool.ts src/bootstrap/state.ts src/commands.ts src/extensions/load/contributions.ts
-# gate-watch: src/hooks/useSkillsChange.ts src/services/engine-connector/rosterTerms.ts
-# gate-watch: src/extensions/bundled/mercury-media/server/manifest.json src/services/providers/idSpaces.ts src/services/providers/mistral/mistralCallModel.ts src/services/providers/mistral/mistralPins.ts
-# gate-watch: src/services/instructions/sourceText.ts src/services/kitMenu/kitCatalogue.ts
-# gate-watch: src/services/mcp/sessionKitPin.ts src/skills/* src/tools/AgentTool/loadAgentsDir.ts
-# gate-watch: src/tools/SkillTool/* src/utils/* src/utils/attachments/skillListing.ts
-# gate-watch: src/tools/AgentTool/constants.ts src/tools/TaskUpdateTool/prompt.ts
-# gate-watch: src/utils/cockpit/substrateSnapshot.ts src/utils/config/globalConfig.ts
-# gate-watch: src/utils/messages/attachmentText.ts src/utils/messages/rejectionText.ts
-# gate-watch: src/utils/processUserInput/processSlashCommand.tsx src/utils/skills/skillChangeDetector.ts
-# gate-watch: src/utils/suggestions/commandSuggestions.ts
-# gate-watch: scripts/lib/fixtureApi.ts scripts/lib/firstRunSeed.ts scripts/lib/rows.ts scripts/lib/runnerHost.ts
-# gate-watch: scripts/lib/scriptedTurn.ts scripts/daemon/dupline-world.ts
+# gate-watch: src/commands/** mercury-skills/**
+# gate-watch: src/skills/*
+# gate-watch: src/tools/SkillTool/* src/utils/*
 # gate-watch: src/rows/turn.ts src/utils/config/trust.ts
-# gate-watch: src/interactiveHelpers.tsx src/components/TrustDialog/TrustDialog.tsx
-# gate-watch: README.md docs/** src/utils/settings/**
-# gate-watch: src/extensions/bundled/mercury-media/server/server.js src/extensions/bundled/mercury-media/server/catalog.json src/services/mcp/sdk.ts src/services/schema/jsonSchemaEngine.ts
-# gate-watch: src/extensions/active.ts src/extensions/load/commands.ts src/extensions/bundled/**
-# gate-watch: src/tools.ts src/tasks.ts src/state/AppStateStore.ts src/services/crewBoard/** src/tools/AgentTool/** src/tools/SyntheticOutputTool/constants.ts
-# gate-watch: src/utils/health/sections.ts
-# gate-watch: src/utils/health/sections/tool-capability-fast.ts
-# gate-watch: src/query.ts
+# gate-watch: README.md src/utils/settings/**
+# gate-watch: src/extensions/load/commands.ts src/extensions/bundled/**
+# gate-watch: src/services/crewBoard/** src/tools/AgentTool/**
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

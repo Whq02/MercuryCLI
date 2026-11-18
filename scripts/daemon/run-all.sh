@@ -1,34 +1,19 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/utils/config.ts src/utils/worktree.ts
-# gate-watch: src/daemon/** src/substrate/flagRegistry* src/types/permissions* src/components/SwitchboardTagBar.tsx
-# gate-watch: src/utils/boxLock* src/services/resources/adapters/health*
-# gate-watch: src/services/engine-connector/seatProjections* src/utils/spawnLedger* docs/DURABILITY.md
-# gate-watch: src/tools/MonitorTool/** src/tools/ScheduleCronTool/** src/utils/cron.ts src/services/engine-connector/seatWire.ts
-# gate-watch: src/cli/headless/turnDriver* src/cli/headless/runnerAsks.ts src/cli/run* src/services/saturn/** src/tools/ScheduleWakeupTool/**
-# gate-watch: docs/SESSIONS.md scripts/dap/mock-dap-adapter.mjs scripts/journey/switch-fixture-server.ts
-# gate-watch: scripts/lib/* scripts/staleness/prove-stale-registry.ts scripts/hooks/lib/runDoor.ts
+# gate-watch: src/utils/worktree.ts
+# gate-watch: src/services/resources/adapters/health*
+# gate-watch: src/tools/MonitorTool/** src/tools/ScheduleCronTool/**
+# gate-watch: src/cli/run* src/services/saturn/** src/tools/ScheduleWakeupTool/**
+# gate-watch: docs/SESSIONS.md scripts/journey/switch-fixture-server.ts
+# gate-watch: scripts/lib/*
 # gate-watch: scripts/streaming/turn-end-fixture-server.ts
-# gate-watch: scripts/ops/deploy-runtime.sh scripts/ops/launcher-mercury.sh scripts/ops/deploy-launcher.sh scripts/splash/deploy.sh docs/TERMINAL-RUNTIME.md
-# gate-watch: src/utils/healthReport.ts src/cli/update.ts src/services/privateChannel/installLayout.ts src/services/privateChannel/vendoredRuntime.ts package.json
-# gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: scripts/lib/seatDoor.ts
-# gate-watch: src/services/engine-connector/daemonConnector.ts src/services/engine-connector/seatLive.ts src/components/Spinner/liveCounterWords.ts src/components/Spinner/spinnerHud.ts src/components/Spinner/SpinnerAnimationRow.tsx
-# gate-watch: src/tasks/LocalAgentTask/* src/input-core/* src/state/AppState*
-# gate-watch: src/services/providers/openaicompat/compatAccounts.ts src/services/providers/openaicompat/compatCatalogue.ts src/services/providers/openaicompat/compatAdapter.ts src/services/providers/providerDiscovery.ts src/services/concourse/workerModels.ts src/services/switchboard/bootBirthFacts.ts src/utils/auth.ts
-# gate-watch: src/services/switchboard/sessionReceipts.ts src/utils/sessionStorage/paths.ts src/commands/restart/* src/tasks/LocalShellTask/*
-# gate-watch: scripts/providers/lib/llmhostFixture.ts scripts/provider-compat/fixtures/engineRules.mjs
-# gate-watch: src/services/providers/providerSecrets.ts src/utils/settings/settingsCache.ts
-# gate-watch: src/components/BootSaturnScreen.tsx src/utils/staticRender.tsx
+# gate-watch: src/services/privateChannel/installLayout.ts
+# gate-watch: src/rows/*
+# gate-watch: src/components/Spinner/liveCounterWords.ts src/components/Spinner/spinnerHud.ts src/components/Spinner/SpinnerAnimationRow.tsx
+# gate-watch: src/tasks/LocalAgentTask/* src/input-core/*
+# gate-watch: src/services/providers/openaicompat/compatAdapter.ts
+# gate-watch: src/commands/restart/* src/tasks/LocalShellTask/*
 # gate-watch: src/services/providers/local/** src/services/providers/routeLaw.ts
-# gate-watch: src/tools/BashTool/BashTool.tsx src/utils/Shell.ts
-# gate-watch: src/utils/permissions/runtimeProtection.ts
-# gate-watch: src/main.tsx
-# gate-watch: src/utils/health/sections/crew.ts
-# gate-watch: src/utils/health/sections/identity.ts
-# gate-watch: src/utils/health/sections/runtime.ts
-# gate-watch: src/utils/artifactIdentity.ts
-# gate-watch: scripts/core-runtime/turnScenarios.ts
 # gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

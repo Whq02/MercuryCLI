@@ -1,16 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/constants/** src/tools/AgentTool/built-in/** src/tools/AgentTool/loadAgentsDir*
-# gate-watch: src/prompt/mercuryContract.ts
-# gate-watch: src/mneme/mnemeFrontPage.ts src/mneme/mnemeBuffer.ts src/mneme/mnemeConsolidate.ts src/mneme/mnemeGates.ts src/mneme/mnemeUsage.ts
-# gate-watch: src/tools/AgentTool/agentToolUtils.ts src/tools/AgentTool/AgentTool.tsx src/tools/AgentTool/resumeAgent.ts src/tools/AgentTool/scoutPolicy.ts src/tools/AgentTool/runAgent.ts src/tools/AgentTool/prompt.ts src/tools/AgentTool/foregroundExecution.tsx docs/CREW.md src/tools.ts src/Tool.ts src/bootstrap/state.ts src/utils/config.ts
-# gate-watch: src/services/providers/toolEconomy.ts src/services/providers/callModelRouter.ts src/utils/config/globalConfig.ts src/utils/messages.ts scripts/lib/hermetic.ts
-# gate-watch: src/tools/AskAdvisorTool/AskAdvisorTool.ts src/tools/ComputerTool/ComputerTool.ts src/tools/ContractTool/ContractTool.ts src/tools/DebugTool/DebugTool.ts src/tools/EvalTool/EvalTool.ts src/tools/JevEvalTool/JevEvalTool.ts src/tools/JournalTool/JournalTool.ts src/tools/LSPTool/LSPTool.ts
-# gate-watch: src/tools/EnterWorktreeTool/EnterWorktreeTool.ts src/tools/ExitWorktreeTool/ExitWorktreeTool.ts src/tools/TaskCreateTool/TaskCreateTool.ts src/tools/TaskGetTool/TaskGetTool.ts src/tools/TaskListTool/TaskListTool.ts src/tools/TaskUpdateTool/TaskUpdateTool.ts src/tools/ServiceTool/ServiceTool.ts
-# gate-watch: src/services/run/ownerLifecycle.ts src/services/run/ownerScopedStore.ts src/services/run/resolveOwner.ts src/services/eval/kernelManager.ts src/services/eval/procKernel.ts src/services/projectServices/serviceManager.ts src/services/journeys/runner.ts
-# gate-watch: src/services/browser/browserSession.ts src/services/dap/dapClient.ts src/services/primitives/evidencePlane.ts src/tasks/LocalShellTask/LocalShellTask.tsx src/tasks/LocalShellTask/killShellTasks.ts src/utils/ShellCommand.ts src/utils/task/TaskOutput.ts src/Task.ts src/utils/processGroup.ts src/utils/cleanupRegistry.ts
-# gate-watch: src/tools/TaskStopTool/TaskStopTool.ts
-# gate-watch: src/tools/ToolSearchTool/prompt.ts src/tools/ToolSearchTool/ToolSearchTool.ts
+# gate-watch: src/constants/**
+# gate-watch: src/services/run/ownerScopedStore.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
