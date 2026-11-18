@@ -7,6 +7,7 @@
 # gate-watch: src/services/engine-connector/seatProjections.ts src/services/engine-connector/seatWire.ts src/services/engine-connector/types.ts src/services/mockRateLimits.ts src/services/oauth/client.ts src/services/providers/openai/openaiWire.ts
 # gate-watch: src/services/providers/usageFreshness.ts src/utils/accounts/signInLedger.ts src/utils/attachments/sessionContext.ts src/utils/auth.ts src/utils/config.ts src/utils/config/globalConfig.ts src/utils/settings/types.ts src/utils/settings/settings.ts src/utils/settings/settingsCache.ts src/bootstrap/state*
 # gate-watch: src/utils/messages/attachmentText.ts
+# gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"

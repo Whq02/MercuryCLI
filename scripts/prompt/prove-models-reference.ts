@@ -81,7 +81,7 @@ type KnownPage = import('../../src/services/resources/adapters/models.ts').Known
 section('§1 the models kind exists beside the seat, with two forms and a listing')
 {
   check('the models adapter module exists (RED on the base: absent)', pages !== null)
-  check('the models kind is registered for the Inspect prompt and names both pages', resourceAdapterKinds().some(kind => kind.kind === 'models' && kind.describe.includes('mercury://models') && kind.describe.includes('mercury://models/known')), j(resourceAdapterKinds().map(kind => kind.kind)))
+  check('the models kind is registered for the Inspect prompt and names both pages', (await resourceAdapterKinds()).some(kind => kind.kind === 'models' && kind.describe.includes('mercury://models') && kind.describe.includes('mercury://models/known')), j((await resourceAdapterKinds()).map(kind => kind.kind)))
   const wrong = await resolveResource('mercury://models/other', { owner, cwd })
   check('an id other than known is absent, with the two forms named', wrong.state === 'absent' && wrong.note.includes('mercury://models/known'), j(wrong))
   const listing = await listResourceKind('models', { owner, cwd })

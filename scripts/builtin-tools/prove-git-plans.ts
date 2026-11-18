@@ -25,7 +25,6 @@ const {
 const { transactionById } = await import('../../src/services/primitives/transactionPlane.ts')
 const { resolveResource } = await import('../../src/services/resources/registry.ts')
 const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
-await import('../../src/services/resources/adapters/git.ts')
 
 const owner = processMainOwner()
 const root = mkdtempSync(join(tmpdir(), 'builtin-tools-plans-'))

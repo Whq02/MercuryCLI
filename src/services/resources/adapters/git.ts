@@ -9,7 +9,6 @@ import {
   gitWorktrees,
 } from '../../gitGraph/observe.js'
 import { getPlan, listPlans, planExpired } from '../../gitGraph/plan.js'
-import { registerResourceAdapter } from '../registry.js'
 import { boundedTextView, type ResourceAdapter } from '../contracts.js'
 import type { ToolPermissionContext } from '../../../Tool.js'
 import { repositoryDenied, withheldLine } from '../referencePaths.js'
@@ -313,5 +312,3 @@ export const gitAdapter: ResourceAdapter = {
     return rows
   },
 }
-
-registerResourceAdapter(gitAdapter)

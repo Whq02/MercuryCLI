@@ -172,7 +172,6 @@ try {
 
   section('(7) resources + honesty')
   {
-    await import('../../src/services/resources/adapters/test.js')
     const { resolveResource } = await import('../../src/services/resources/registry.js')
     const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
     const owner = makeOwnerKey({ workspace: proj, sessionId: 'pytests-res', lane: 'main' })

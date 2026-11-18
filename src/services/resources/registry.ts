@@ -9,24 +9,46 @@ import {
   type ResourceContext,
   type ResourceResult,
 } from './contracts.js'
+import { fileAdapter } from './adapters/file.js'
+import { runAdapter } from './adapters/run.js'
+import { receiptAdapter } from './adapters/receipt.js'
+import { taskAdapter } from './adapters/task.js'
+import { artifactAdapter } from './adapters/artifact.js'
+import { healthAdapter } from './adapters/health.js'
+import { agentAdapter } from './adapters/agent.js'
+import { ownerAdapter } from './adapters/owner.js'
+import { executionAdapter } from './adapters/execution.js'
+import { transactionAdapter } from './adapters/transaction.js'
+import { evidenceAdapter } from './adapters/evidence.js'
+import { seatAdapter } from './adapters/seat.js'
+import { modelsAdapter } from './adapters/models.js'
 
 var adaptersMap: Map<string, ResourceAdapter> | undefined
-function adapters(): Map<string, ResourceAdapter> {
-  return (adaptersMap ??= new Map())
+async function adapters(): Promise<Map<string, ResourceAdapter>> {
+  return (adaptersMap ??= new Map(
+    [
+      fileAdapter,
+      runAdapter,
+      receiptAdapter,
+      taskAdapter,
+      artifactAdapter,
+      healthAdapter,
+      agentAdapter,
+      ownerAdapter,
+      executionAdapter,
+      transactionAdapter,
+      evidenceAdapter,
+      seatAdapter,
+      modelsAdapter,
+      ...(await import('./kinds.js')).resourceKinds(),
+    ].map((adapter): [string, ResourceAdapter] => [adapter.kind, adapter]),
+  ))
 }
 
-export function registerResourceAdapter(adapter: ResourceAdapter): void {
-  adapters().set(adapter.kind, adapter)
-}
-
-export function resourceAdapterKinds(): { kind: string; describe: string }[] {
-  return [...adapters().values()]
+export async function resourceAdapterKinds(): Promise<{ kind: string; describe: string }[]> {
+  return [...(await adapters()).values()]
     .map(a => ({ kind: a.kind, describe: a.describe }))
     .sort((a, b) => a.kind.localeCompare(b.kind))
-}
-
-export function getResourceAdapter(kind: string): ResourceAdapter | undefined {
-  return adapters().get(kind)
 }
 
 export async function resolveResource(
@@ -43,9 +65,9 @@ export async function resolveResource(
       note: `not a valid mercury:// ref: '${raw}' — the grammar is mercury://<kind>/<id>[?lines=A-B&q=…&cursor=N&limit=N&child=name]`,
     }
   }
-  const adapter = adapters().get(parsed.kind)
+  const adapter = (await adapters()).get(parsed.kind)
   if (!adapter) {
-    const kinds = resourceAdapterKinds().map(k => k.kind).join(', ')
+    const kinds = (await resourceAdapterKinds()).map(k => k.kind).join(', ')
     return {
       state: 'absent',
       note: `unknown resource kind '${parsed.kind}' — known kinds: ${kinds}`,
@@ -70,7 +92,7 @@ export async function listResourceKind(
   kind: string,
   ctx: ResourceContext,
 ): Promise<{ state: 'ok'; children: ResourceChild[] } | { state: 'unavailable'; note: string }> {
-  const adapter = adapters().get(kind)
+  const adapter = (await adapters()).get(kind)
   if (!adapter?.list) {
     return { state: 'unavailable', note: `kind '${kind}' has no listing` }
   }
@@ -80,40 +102,4 @@ export async function listResourceKind(
     const msg = err instanceof Error ? err.message : String(err)
     return { state: 'unavailable', note: `listing '${kind}' failed: ${msg.slice(0, 200)}` }
   }
-}
-
-export function _resourceAdapterCountForTesting(): number {
-  return adapters().size
-}
-
-import { fileAdapter } from './adapters/file.js'
-import { runAdapter } from './adapters/run.js'
-import { receiptAdapter } from './adapters/receipt.js'
-import { taskAdapter } from './adapters/task.js'
-import { artifactAdapter } from './adapters/artifact.js'
-import { healthAdapter } from './adapters/health.js'
-import { agentAdapter } from './adapters/agent.js'
-import { ownerAdapter } from './adapters/owner.js'
-import { executionAdapter } from './adapters/execution.js'
-import { transactionAdapter } from './adapters/transaction.js'
-import { evidenceAdapter } from './adapters/evidence.js'
-import { seatAdapter } from './adapters/seat.js'
-import { modelsAdapter } from './adapters/models.js'
-
-for (const adapter of [
-  fileAdapter,
-  runAdapter,
-  receiptAdapter,
-  taskAdapter,
-  artifactAdapter,
-  healthAdapter,
-  agentAdapter,
-  ownerAdapter,
-  executionAdapter,
-  transactionAdapter,
-  evidenceAdapter,
-  seatAdapter,
-  modelsAdapter,
-]) {
-  registerResourceAdapter(adapter)
 }

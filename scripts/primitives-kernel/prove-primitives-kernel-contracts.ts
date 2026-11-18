@@ -69,7 +69,7 @@ const {
 }
 
 console.log('resource honesty law')
-const { resolveResource, registerResourceAdapter } =
+const { resolveResource } =
   await import('../../src/services/resources/registry.ts')
 const { boundedTextView } = await import('../../src/services/resources/contracts.ts')
 const ctx = {
@@ -84,14 +84,13 @@ const ctx = {
   const unknown = await resolveResource('mercury://no-such-kind/x', ctx)
   check('unknown kind ⇒ absent naming known kinds',
     unknown.state === 'absent' && unknown.note.includes('known kinds') && unknown.note.includes('file'))
-  registerResourceAdapter({
-    kind: 'axiom-throw',
-    describe: 'proof adapter that throws',
-    resolve: async () => {
+  const thrown = await resolveResource('mercury://seat', {
+    ...ctx,
+    engineModel: 'axiom-model',
+    getAppState: () => {
       throw new Error('boom')
     },
   })
-  const thrown = await resolveResource('mercury://axiom-throw/x', ctx)
   check('throwing adapter degrades to explicit unavailable',
     thrown.state === 'unavailable' && thrown.note.includes('boom'))
   process.env.MERCURY_REFS = '0'

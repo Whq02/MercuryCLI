@@ -65,7 +65,7 @@ const flagNames = new Set(FLAG_REGISTRY.map((f: { env: string }) => f.env))
 const executionKinds = new Set(
   EXECUTION_DOMAIN_CENSUS.map((e: { kind?: string }) => e.kind).filter(Boolean),
 )
-const resourceKinds = new Set(resourceAdapterKinds().map((k: { kind: string }) => k.kind))
+const resourceKinds = new Set((await resourceAdapterKinds()).map((k: { kind: string }) => k.kind))
 
 const badFlags: string[] = []
 const badExecution: string[] = []

@@ -74,7 +74,7 @@ export async function projectQuery(input: ParamsOf<'project/query'>, permissions
       return { ...searchPointers(input.query, { limit: input.limit }) }
     }
     case 'resources':
-      return { resources: resourceAdapterKinds().map(row => ({ uri: `mercury://${row.kind}`, name: row.kind, description: row.describe, mimeType: 'application/json' })) }
+      return { resources: (await resourceAdapterKinds()).map(row => ({ uri: `mercury://${row.kind}`, name: row.kind, description: row.describe, mimeType: 'application/json' })) }
     case 'resource': {
       const ref = parseMercuryRef(input.ref ?? '')
       if (ref === null) throw new Error('A mercury:// reference is required')

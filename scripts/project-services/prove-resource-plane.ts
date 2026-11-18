@@ -16,9 +16,7 @@ const {
   parseMercuryRef,
 } = await import('../../src/services/resources/contracts.ts')
 const {
-  _resourceAdapterCountForTesting,
   resolveResource,
-  registerResourceAdapter,
   resourceAdapterKinds,
 } = await import('../../src/services/resources/registry.ts')
 const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
@@ -75,16 +73,15 @@ section('S. state honesty')
   const unknown = await resolveResource('mercury://nosuchkind/x', ctx as never)
   check('S1 unknown kind names the known kinds',
     unknown.state === 'absent' && unknown.note.includes('known kinds:') && unknown.note.includes('file'))
-  check('S2 adapter census ≥ 10 built-ins', _resourceAdapterCountForTesting() >= 10)
+  check('S2 adapter census ≥ 10 built-ins', (await resourceAdapterKinds()).length >= 10)
 
-  registerResourceAdapter({
-    kind: 'boom',
-    describe: 'a throwing fixture adapter',
-    async resolve() {
+  const boom = await resolveResource('mercury://seat', {
+    ...ctx,
+    engineModel: 'fixture-model',
+    getAppState: () => {
       throw new Error('fixture explosion')
     },
-  })
-  const boom = await resolveResource('mercury://boom/x', ctx as never)
+  } as never)
   check('S3 a throwing adapter degrades to UNAVAILABLE with the error named',
     boom.state === 'unavailable' && boom.note.includes('fixture explosion'))
 
@@ -245,7 +242,7 @@ section('I. the Inspect tool end-to-end')
   check('I2 the agent adapter reads session tasks through getAppState',
     agent.data.state === 'ok' && agent.data.result.includes('fixture shell'))
 
-  const kinds = resourceAdapterKinds().map(k => k.kind)
+  const kinds = (await resourceAdapterKinds()).map(k => k.kind)
   check('I3 the kind census covers the built-in graph',
     ['file', 'run', 'receipt', 'task', 'artifact', 'health', 'agent']
       .every(k => kinds.includes(k)))

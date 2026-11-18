@@ -250,7 +250,6 @@ section('(4) engine laws — flag gate + stable reference')
 section('(5) the mercury://workbench adapter through the REAL registry')
 {
   const { resolveResource } = await import('../../src/services/resources/registry.js')
-  await import('../../src/services/resources/adapters/workbench.js')
   const { processMainOwner } = await import('../../src/services/run/resolveOwner.js')
   const ctx = { owner: processMainOwner(), cwd: process.cwd() }
 
@@ -278,7 +277,7 @@ section('(5) the mercury://workbench adapter through the REAL registry')
   const { resourceAdapterKinds } = await import('../../src/services/resources/registry.js')
   check(
     'workbench kind is in the runtime census',
-    resourceAdapterKinds().some(k => k.kind === 'workbench'),
+    (await resourceAdapterKinds()).some(k => k.kind === 'workbench'),
   )
 }
 

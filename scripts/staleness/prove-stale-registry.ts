@@ -339,8 +339,9 @@ src/utils/settings/snapshot.ts :: lastSnapshot :: keyed-by-truth
 src/utils/shell/engineSession.ts :: snapshotPromise :: static-for-process
 src/utils/shell/powershellDetection.ts :: cachedPowerShellPath :: static-for-process
 src/utils/shell/shellRecord.ts :: systemShellRecord :: static-for-process
+src/utils/shell/windowsShellRoad.ts :: firstWindowsBashRoad :: static-for-process
 src/utils/shell/windowsShellRoad.ts :: locatedWindowsBash :: static-for-process
-src/utils/shell/windowsShellRoad.ts :: windowsBashRoad :: static-for-process
+src/utils/shell/windowsShellRoad.ts :: shippedWindowsBash :: static-for-process
 src/utils/suggestions/directoryCompletion.ts :: pathCache :: ttl-bounded
 src/utils/suggestions/shellHistoryCompletion.ts :: corpusCache :: ttl-bounded
 src/utils/suggestions/slackChannelSuggestions.ts :: responseCache :: keyed-by-truth
@@ -356,6 +357,7 @@ src/utils/verification/verificationState.ts :: verifiableCache :: ttl-bounded
 src/utils/wards/wards.ts :: homePatternCache :: keyed-by-truth
 src/utils/wards/wards.ts :: otherUserDeleteCache :: keyed-by-truth
 src/utils/wards/wards.ts :: pipelineRemovalCache :: keyed-by-truth
+src/utils/windowsPaths.ts :: installedGitBashes :: static-for-process
 src/utils/windowsPaths.ts :: locateGitBash :: static-for-process
 src/utils/zodToJsonSchema.ts :: conversionCache :: keyed-by-truth
 `.trim()
