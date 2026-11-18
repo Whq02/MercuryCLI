@@ -154,7 +154,7 @@ async function main(): Promise<void> {
     const repl = read('src/screens/Chat.tsx')
     const { LivePart } = await import(src('services/engine-connector/daemon/live.ts'))
     const phaseOver = (transcript: SessionLiveV1): string => {
-      const seatLive = new LivePart({ sessionId: () => 'proof', attached: () => false, factsBusy: () => true, work: () => [], factsTurnStartedAt: () => undefined, streamIdleTimeoutMs: () => undefined, model: () => 'the-model', anySendDelivered: () => false, redressQueuedSends: () => {}, transcriptLive: () => IDLE_LIVE, toolStartedAtMs: () => null, tailHeld: () => false, clearTail: () => {}, tailInterrupted: () => {}, tailInterruptUndone: () => {}, foldStillRuns: () => true, setLiveFold: () => {}, dropRunningFoldAtIdle: () => {}, stepTurnCompletion: () => false, syncFeedCadence: () => {}, probeCarrier: () => {}, transcriptLive: () => transcript } as never)
+      const seatLive = new LivePart({ sessionId: () => 'proof', attached: () => false, factsBusy: () => true, work: () => [], factsTurnStartedAt: () => undefined, streamIdleTimeoutMs: () => undefined, model: () => 'the-model', anySendDelivered: () => false, redressQueuedSends: () => {}, toolStartedAtMs: () => null, tailHeld: () => false, clearTail: () => {}, tailInterrupted: () => {}, tailInterruptUndone: () => {}, foldStillRuns: () => true, setLiveFold: () => {}, dropRunningFoldAtIdle: () => {}, stepTurnCompletion: () => false, syncFeedCadence: () => {}, probeCarrier: () => {}, transcriptLive: () => transcript } as never)
       seatLive.takeTail({ schema: 1, sessionId: 'proof', atMs: 1, text: null, stateWord: 'waiting-on-agents', waitingOnAgents: 1 } as never)
       return seatLive.live().phase
     }
