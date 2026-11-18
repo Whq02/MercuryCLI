@@ -99,7 +99,11 @@ when it is a bash 5, with nothing to set. A release archive carries a bash of
 its own for a machine that has none (GNU bash 5.3 as the MSYS2 project
 packages it, with `ls`, `grep`, `sed` and the other programs a command names),
 and its bash-compatible shell engine (brush, built from its published crate),
-which serves when no bash starts or when you choose it. The `health` report's
+which serves when no bash starts or when you choose it. Where the engine
+serves, it finds a `.cmd` or `.bat` program such as
+`npm` by its bare name through PATHEXT, passes `%VAR%` and `^` to a batch
+file unchanged, and runs a program named by a relative path after a `cd`.
+The `health` report's
 **Bash tool shell** row (check id `shell`) says which of the three runs, its
 version and why. A source build gets the bash pack once step 7 fetches it and
 the engine once step 7 builds it; until then the Bash tool runs under
