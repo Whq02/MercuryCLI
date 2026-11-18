@@ -350,7 +350,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
     if (api.capabilities.managed) {
       if (!api.managedEndpoint) throw new Error('The managed provider has no readiness reader.')
       while (!signal.aborted && Date.now() + pause < deadline) {
-        const observed = await readOnly('endpoint', readSignal => api.managedEndpoint!(id, readSignal)).catch(error => { if (notFound(error)) throw new HostPodMissing('the vendor no longer lists pod ' + id); throw error })
+        let failed = false; const observed = await readOnly('endpoint', readSignal => api.managedEndpoint!(id, readSignal).catch(error => { failed ||= !readSignal.aborted; throw error })).catch(error => { if (notFound(error)) throw new HostPodMissing('the vendor no longer lists pod ' + id); if (!failed && hostReadFailureWords(error) && Date.now() >= deadline - pause) return undefined; throw error }); if (!observed) break
         patchHostRecord(id, { status: observed.pod.status })
         if (observed.pod.status === 'ERROR') throw new Error('HF endpoint failed to start. ' + await failureLog(readOnly))
         if (observed.pod.status === 'RUNNING' && observed.baseUrl) { endpointBase = observed.baseUrl; break }
