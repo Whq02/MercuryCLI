@@ -25,9 +25,11 @@ const { getModelInputCeiling, resolveContextWindow } = await import('../../src/u
 const { getAutoCompactThreshold, getBlockingLimit, calculateTokenWarningState } = await import('../../src/services/compact/autoCompact.js')
 const { contextFillView } = await import('../../src/utils/contextFill.js')
 const { contextLeftText } = await import('../../src/tools/ContextLeftTool/ContextLeftTool.js')
+const { requestSizeWarning } = await import('../../src/services/compact/overflowRecovery.js')
+const { buildTransitionPlan, transitionPlanSummary } = await import('../../src/services/providers/transitionPreview.js')
 
 const stated = ['gpt-6.2-sol', 'gpt-6.2-astra', 'gpt-6-astra', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-sol', 'gpt-6-luna', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna']
-const zenStated = ['gpt-6.2-astra', 'gpt-6.2-sol', 'gpt-6-astra', 'gpt-6.1-sol', 'gpt-6-sol', 'gpt-6-luna', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna']
+const zenStated = ['gpt-6.2-astra', 'gpt-6.2-sol', 'gpt-6-astra', 'gpt-6.1-sol', 'gpt-6-sol', 'gpt-6-luna', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5', 'gpt-5.4']
 const failures: string[] = []
 let checks = 0
 function check(label: string, run: () => void): void {
@@ -54,6 +56,8 @@ function gaugeSpeaksInOneUnit(model: string, tokens: number): void {
   assert.ok(contextLeftText(view).includes(`${left.toLocaleString('en-US')} tokens (${share}% of the window)`), contextLeftText(view))
   assert.equal(Math.round(view.usedPct ?? -1), Math.round((tokens / view.window) * 100), `${model} at ${tokens}: used`)
 }
+const sizeWarningAt = (model: string, tokens: number): string | null => requestSizeWarning(turn(model, tokens) as never, model)
+const switchCardAt = (model: string, tokens: number): string => transitionPlanSummary(buildTransitionPlan({ messages: turn('gpt-6.1-sol', tokens) as never, from: 'gpt-6.1-sol', to: model }))
 try {
   check('the ten rows whose pages state "Maximum input tokens: 922,000" carry it, and no other row carries one', () => {
     assert.deepEqual(GPT_DISPLAY_PINS.filter(pin => pin.maxInputTokens !== undefined).map(pin => pin.id), stated)
@@ -79,7 +83,7 @@ try {
       assert.equal(resolveContextWindow(id).source, 'static-pin', id)
       assert.equal(getModelInputCeiling(id), 922_000, id)
     }
-    for (const id of ['gpt-5.5', 'zen/gpt-5.5']) assert.equal(getModelInputCeiling(id), 1_050_000, id)
+    for (const id of ['gpt-5.5', 'zen/gpt-5.5-pro']) assert.equal(getModelInputCeiling(id), 1_050_000, id)
   })
   for (const id of ['gpt-6.2-sol', 'gpt-6.1-sol', 'gpt-5.6-terra']) check(`the gauge speaks in one unit on ${id}: the share it prints as left until the fold is the tokens left over the window it names, at five sizes`, () => {
     for (const tokens of [50_000, 300_000, 500_000, 860_000, 900_000]) gaugeSpeaksInOneUnit(id, tokens)
@@ -89,17 +93,48 @@ try {
     gaugeSpeaksInOneUnit('gpt-5.5', 500_000)
     assert.equal(contextFillView(turn('gpt-5.5', 500_000) as never, 'gpt-5.5').leftUntilCompactPct, 48)
   })
-  check('the same model on OpenCode Zen: the nine rows carry the maximum their GPT row carries and compact at 879,000 of the 1,050,000 window they name', () => {
+  check('the size warning says what its number is: "input limit" on GPT-6.2 Sol, whose 922,000 is the maximum input, and "window" on GPT-5.5, whose two numbers are equal', () => {
+    assert.equal(sizeWarningAt('gpt-6.2-sol', 900_000), "the request failed and this conversation is near the window (about 900,000 of the model's 922,000-token input limit by Mercury's count) — a request this size can be refused; Mercury folds it before the next request")
+    assert.equal(sizeWarningAt('gpt-5.5', 1_010_000), "the request failed and this conversation is near the window (about 1,010,000 of the model's 1,050,000-token window by Mercury's count) — a request this size can be refused; Mercury folds it before the next request")
+  })
+  check('the switch card says what its number is: "input limit" on GPT-6.2 Sol and "window" on GPT-5.5', () => {
+    assert.equal(switchCardAt('gpt-6.2-sol', 900_000), " · this switch: about 900,000 tokens by Mercury's count against the 922,000-token input limit — the conversation folds before the first request — text and tool results carry over unchanged")
+    assert.equal(switchCardAt('gpt-5.5', 1_030_000), " · this switch: about 1,030,000 tokens by Mercury's count against the 1,050,000-token window — the conversation folds before the first request — text and tool results carry over unchanged")
+  })
+  check('the same model on OpenCode Zen: the eleven rows carry the maximum their source states and compact at 879,000 of the 1,050,000 window they name', () => {
     assert.deepEqual(ZEN_DISPLAY_PINS.filter(pin => pin.maxInputTokens !== undefined).map(pin => pin.id), zenStated)
     for (const id of zenStated) {
-      assert.equal(zenDisplayPin(`zen/${id}`)?.maxInputTokens, gptDisplayPin(id)?.maxInputTokens, id)
+      assert.equal(zenDisplayPin(`zen/${id}`)?.maxInputTokens, 922_000, id)
       assert.equal(getContextWindowForModel(`zen/${id}`), 1_050_000, id)
       assert.equal(getAutoCompactThreshold(`zen/${id}`), 879_000, id)
     }
     gaugeSpeaksInOneUnit('zen/gpt-6.2-astra', 500_000)
   })
-  check('a Zen row of a model whose page states no maximum keeps its window: GPT 5.5 and GPT 5.4 compact at 1,007,000', () => {
-    for (const id of ['zen/gpt-5.5', 'zen/gpt-5.4']) assert.equal(getAutoCompactThreshold(id), 1_007_000, id)
+  check('Zen GPT 5.5 and GPT 5.4 carry the 922,000 models.dev states for them and compact at 879,000; the same two models with an OpenAI API key, whose own pages state no maximum, keep 1,007,000, and so does a Zen row with none', () => {
+    for (const id of ['gpt-5.5', 'gpt-5.4']) {
+      assert.equal(zenDisplayPin(`zen/${id}`)?.maxInputTokens, 922_000, id)
+      assert.equal(getAutoCompactThreshold(`zen/${id}`), 879_000, id)
+      assert.equal(gptDisplayPin(id)?.maxInputTokens, undefined, id)
+      assert.equal(getAutoCompactThreshold(id), 1_007_000, id)
+    }
+    assert.equal(getAutoCompactThreshold('zen/gpt-5.5-pro'), 1_007_000)
+  })
+  check('a row cites the page that states each of its numbers: the eleven Zen rows name the Zen page for their prices and the models.dev file of the model for their window, maximum input and output ceiling', () => {
+    assert.deepEqual(ZEN_DISPLAY_PINS.filter(pin => pin.limitsSource !== undefined).map(pin => pin.id), zenStated)
+    for (const id of zenStated) {
+      const pin = zenDisplayPin(`zen/${id}`)!
+      assert.equal(pin.source, 'https://opencode.ai/docs/zen/', id)
+      assert.equal(pin.limitsSource, `https://raw.githubusercontent.com/sst/models.dev/dev/models/openai/${id}.toml`, id)
+      assert.ok((pin.observedAt ?? '') >= '2026-11-17', `${id}: ${pin.observedAt}`)
+    }
+  })
+  check("the five GPT rows whose model page prints no cache-write price, or no long-context price, name OpenAI's pricing page for it beside the model page, both read 2026-11-18", () => {
+    assert.deepEqual(GPT_DISPLAY_PINS.filter(pin => pin.priceSource !== undefined).map(pin => pin.id), ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.6-cyber', 'gpt-5.5-pro'])
+    for (const pin of GPT_DISPLAY_PINS.filter(row => row.priceSource !== undefined)) {
+      assert.equal(pin.priceSource, 'https://developers.openai.com/api/docs/pricing', pin.id)
+      assert.ok(pin.source?.startsWith(`https://developers.openai.com/api/docs/models/${pin.id}`), `${pin.id}: ${pin.source}`)
+      assert.equal(pin.observedAt, '2026-11-18', pin.id)
+    }
   })
   process.env.NOUS_API_KEY = 'fixture-key-not-real'
   nous.__resetNousCatalogueForTest()
@@ -159,22 +194,32 @@ try {
     assert.equal(resolveContextWindow(id).source, 'live-current')
     assert.equal(getAutoCompactThreshold(id), 1_007_000)
   })
+  operatorStates({ 'gpt-6.2-sol': { contextWindow: 500_000 } })
+  check("a window the operator states below a list's own is not the window in force, and the list still decides for its own door: 1,050,000 from the list, compaction at 1,007,000", () => {
+    assert.equal(getContextWindowForModel('gpt-6.2-sol'), 1_050_000)
+    assert.equal(getAutoCompactThreshold('gpt-6.2-sol'), 1_007_000)
+  })
+  await seed(codexList(872_000, 272_000))
+  operatorStates({ 'gpt-6.2-sol': { contextWindow: 1_050_000 } })
+  check("a window the operator states above a list's own is the window in force and stays under the row's maximum input: 1,050,000 stated over the list's 872,000, compaction at 879,000", () => {
+    assert.equal(getContextWindowForModel('gpt-6.2-sol'), 1_050_000)
+    assert.equal(getAutoCompactThreshold('gpt-6.2-sol'), 879_000)
+  })
+  operatorStates({})
   catalogue.__resetOpenaiCatalogueForTest()
   delete process.env.OPENAI_API_KEY
-  operatorStates({ 'gpt-6.2-sol': { contextWindow: 1_050_000 }, 'zen/gpt-6.2-astra': { contextWindow: 1_050_000 } })
-  for (const id of ['gpt-6.2-sol', 'zen/gpt-6.2-astra']) check(`a window the operator states for ${id} decides for itself, whatever its number: 1,050,000 stated, compaction at 1,007,000`, () => {
-    assert.equal(resolveContextWindow(id).source, 'operator')
-    assert.equal(getAutoCompactThreshold(id), 1_007_000)
-  })
-  operatorStates({ 'gpt-6.2-sol': { contextWindow: 500_000 }, 'zen/gpt-6.2-astra': { contextWindow: 922_000 } })
-  for (const id of ['gpt-6.2-sol', 'zen/gpt-6.2-astra']) check(`a window the operator states for ${id} below the row's is not the window in force (the build keeps the row's 1,050,000), so the row's maximum applies: compaction at 879,000`, () => {
-    assert.equal(getContextWindowForModel(id), 1_050_000)
-    assert.equal(getAutoCompactThreshold(id), 879_000)
-  })
-  operatorStates({ 'gpt-6.2-sol': { contextWindow: 2_000_000 } })
-  check("a window the operator states above the row's decides for itself: 2,000,000 stated on gpt-6.2-sol, compaction at 1,957,000", () => {
-    assert.equal(getContextWindowForModel('gpt-6.2-sol'), 2_000_000)
-    assert.equal(getAutoCompactThreshold('gpt-6.2-sol'), 1_957_000)
+  for (const [how, statedWindow] of [['at', 1_050_000], ['above', 2_000_000], ['below', 500_000]] as Array<[string, number]>) {
+    operatorStates({ 'gpt-6.2-sol': { contextWindow: statedWindow }, 'zen/gpt-6.2-astra': { contextWindow: statedWindow } })
+    for (const id of ['gpt-6.2-sol', 'zen/gpt-6.2-astra']) check(`a window the operator states ${how} the row's for ${id} (${statedWindow.toLocaleString('en-US')}) never lifts compaction above the row's maximum input: the window reads ${Math.max(statedWindow, 1_050_000).toLocaleString('en-US')} and compaction stays at 879,000`, () => {
+      assert.equal(resolveContextWindow(id).source, 'operator')
+      assert.equal(getContextWindowForModel(id), Math.max(statedWindow, 1_050_000))
+      assert.equal(getModelInputCeiling(id), 922_000)
+      assert.equal(getAutoCompactThreshold(id), 879_000)
+    })
+  }
+  operatorStates({ 'gpt-5.5': { contextWindow: 2_000_000 } })
+  check('a window the operator states for a row with no maximum input is its budget as before: 2,000,000 stated on gpt-5.5, compaction at 1,957,000', () => {
+    assert.equal(getAutoCompactThreshold('gpt-5.5'), 1_957_000)
   })
   operatorStates({})
   check('with the operator fact gone the row decides again: 879,000', () => {
@@ -190,5 +235,5 @@ try {
 } finally {
   rmSync(home, { recursive: true, force: true })
 }
-console.log(`${checks - failures.length}/${checks} passed; "Maximum input tokens: 922,000" read 2026-11-17 and 2026-11-18 on the ten model pages under https://developers.openai.com/api/docs/models/`)
+console.log(`${checks - failures.length}/${checks} passed; "Maximum input tokens: 922,000" read 2026-11-17 and 2026-11-18 on the ten model pages under https://developers.openai.com/api/docs/models/; "input = 922_000" read 2026-11-18 in the eleven files under https://raw.githubusercontent.com/sst/models.dev/dev/models/openai/`)
 process.exit(failures.length ? 1 : 0)

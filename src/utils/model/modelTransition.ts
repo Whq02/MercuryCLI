@@ -232,6 +232,7 @@ export type TransitionWindowFact = {
   countSource: 'usage' | 'estimate'
   countModel?: string
   window: number
+  inputLimit?: true
   windowSource: TransitionWindowSource
   limit: number
   fits: boolean

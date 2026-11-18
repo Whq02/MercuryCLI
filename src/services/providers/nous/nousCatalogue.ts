@@ -430,11 +430,6 @@ function nousCatalogueRows(models: NousLiveModel[], source: string, bound: numbe
   return rows
 }
 
-export function nousCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  const availability = getNousAvailability(env)
-  return availability.state === 'ready' ? `${availability.modelCount} ${availability.modelCount === 1 ? 'model' : 'models'} live` : undefined
-}
-
 export function __resetNousCatalogueForTest(): void {
   catalogueCache.clear()
   catalogueInFlight.clear()

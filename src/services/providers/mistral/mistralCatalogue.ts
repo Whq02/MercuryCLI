@@ -179,13 +179,6 @@ export function newestMistralModel(env: NodeJS.ProcessEnv = process.env): string
   return mistralCatalogueRows(env).rows[0]?.id
 }
 
-export function mistralCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  const snapshot = getCachedMistralCatalogue(env)
-  if (snapshot?.lastError) return snapshot.lastError
-  const { source } = mistralCatalogueRows(env)
-  return source.kind === 'live' ? `${source.count} ${source.count === 1 ? 'model' : 'models'} live` : undefined
-}
-
 export function mistralModelFacts(id: string, env: NodeJS.ProcessEnv = process.env): { contextWindow?: number; reasoning?: boolean; images?: boolean; tools?: boolean; efforts: readonly string[] } {
   const pin = mistralDisplayPin(id)
   const live = mistralListedModel(getCachedMistralCatalogue(env), id)
