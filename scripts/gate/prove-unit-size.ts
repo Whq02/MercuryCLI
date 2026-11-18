@@ -104,9 +104,9 @@ function measure(file: string, text: string): Measure {
     if (ts.isClassLike(code)) return lineAt(Math.max(code.members.pos - 1, code.getStart(sf)))
     return first((ts.isFunctionLike(code) ? (code as ts.FunctionLikeDeclaration).body : undefined) ?? code)
   }
-  const unit = (name: string, node: ts.Node, code: ts.Node): void => {
+  const unit = (name: string, node: ts.Node, end: ts.Node, code: ts.Node): void => {
     const from = first(node)
-    const to = lineAt(node.end)
+    const to = lineAt(end.end)
     const part: Part = { kind: 'unit', name, line: from + 1, from, to, head: Math.min(Math.max(opens(code) - from + 1, 1), to - from + 1), entries: null }
     const twin = units.get(name)
     if (twin === undefined) units.set(name, parts.push(part) - 1)
@@ -115,29 +115,33 @@ function measure(file: string, text: string): Measure {
   const datum = (name: string, node: ts.Node, init: ts.Expression | undefined): void => {
     if (span(node) > UNIT_CEILING) parts.push({ kind: 'data', name, line: first(node) + 1, from: first(node), to: lineAt(node.end), head: 0, entries: entriesOf(init) })
   }
-  const codeOf = (e: ts.Expression | undefined): { code: ts.Node; wrapped: boolean } | undefined => {
+  const codeOf = (e: ts.Expression | undefined): { code: ts.Node; last: ts.Node; wrapped: boolean } | undefined => {
     const cur = peeled(e)
     if (cur === undefined) return undefined
-    if (ts.isArrowFunction(cur) || ts.isFunctionExpression(cur) || ts.isClassExpression(cur)) return { code: cur, wrapped: false }
+    if (ts.isArrowFunction(cur) || ts.isFunctionExpression(cur) || ts.isClassExpression(cur)) return { code: cur, last: cur, wrapped: false }
     if (!ts.isCallExpression(cur)) return undefined
-    let best: ts.Node | undefined
+    let code: ts.Node | undefined
+    let last: ts.Node | undefined
     for (const arg of cur.arguments) {
       const inner = peeled(arg)
-      const code = inner === undefined ? undefined : ts.isObjectLiteralExpression(inner) || ts.isArrayLiteralExpression(inner) ? (holdsFunction(inner) ? inner : undefined) : codeOf(inner)?.code
-      if (code !== undefined && (best === undefined || span(code) > span(best))) best = code
+      const found = inner === undefined ? undefined : ts.isObjectLiteralExpression(inner) || ts.isArrayLiteralExpression(inner) ? (holdsFunction(inner) ? { code: inner, last: inner } : undefined) : codeOf(inner)
+      if (found === undefined) continue
+      code ??= found.code
+      last = found.last
     }
-    return best === undefined ? undefined : { code: best, wrapped: true }
+    return code === undefined || last === undefined ? undefined : { code, last, wrapped: true }
   }
   const declared = (name: string, whole: ts.Node, init: ts.Expression | undefined): void => {
     const found = codeOf(init)
-    const measured = found === undefined ? undefined : found.wrapped ? found.code : whole
-    if (found !== undefined && measured !== undefined) unit(name, measured, found.code)
-    if (measured === undefined || span(measured) <= UNIT_CEILING) datum(name, whole, init)
+    const from = found === undefined ? undefined : found.wrapped ? found.code : whole
+    const to = found === undefined ? undefined : found.wrapped ? found.last : whole
+    if (found !== undefined && from !== undefined && to !== undefined) unit(name, from, to, found.code)
+    if (from === undefined || to === undefined || lineAt(to.end) - first(from) + 1 <= UNIT_CEILING) datum(name, whole, init)
   }
   for (const s of sf.statements) {
     if (ts.isFunctionDeclaration(s)) {
-      if (s.body !== undefined) unit(s.name?.text ?? 'default', s, s)
-    } else if (ts.isClassDeclaration(s)) unit(s.name?.text ?? 'default', s, s)
+      if (s.body !== undefined) unit(s.name?.text ?? 'default', s, s, s)
+    } else if (ts.isClassDeclaration(s)) unit(s.name?.text ?? 'default', s, s, s)
     else if (ts.isVariableStatement(s)) {
       const alone = s.declarationList.declarations.length === 1
       for (const d of s.declarationList.declarations) declared(d.name.getText(sf), alone ? s : d, d.initializer)
@@ -611,6 +615,14 @@ function plantedEstate(): void {
     'export const twice = memo(forwardRef((props: Props): void => {',
     ...body(6),
     '}))',
+    'export const both = memoize(',
+    '  (a: number): number => {',
+    ...body(4),
+    '  },',
+    '  (a: number): string => {',
+    ...body(3),
+    '  },',
+    ')',
     'export const recipes = withCaching([{ id: 1 }, ...[2, 3].map(id => ({ id }))])',
     'export const frozen = Object.freeze({ a: 1, b: 2 })',
     'type Shape = {',
@@ -623,8 +635,8 @@ function plantedEstate(): void {
   const seen = measure(`${P}/kinds.ts`, kinds)
   const sizes = seen.parts.map(part => `${part.name} ${sizeOf(part)}/${part.head}`).join(' ')
   check(
-    'a unit is a function, a class, a variable whose initialiser is a function (an arrow, a function expression, either one in parentheses or under a cast) or the argument of a call that wraps code (a function, an object or a list that holds one, a wrap inside a wrap), at the top level of a file; it is named by the function, the class or the variable and measured from its first line to its last, the wrapped one by the argument alone; its head ends on the line that opens its body; a table, a type and a call that wraps data alone are no units; every unit of a file is taken, and the file with its lines',
-    sizes === 'declared 5/1 Held 7/3 arrow 10/1 cast 12/1 wrapped 34/3 tool 25/1 twice 8/1 recipes 1/1 default 3/1' && seen.lines === lineCount(kinds) && measure(`${P}/empty.ts`, 'export const table = { a: 1 }\n').parts.length === 0 && measure(`${P}/empty.ts`, '').lines === 0 && measure(`${P}/one.ts`, 'export const a = 1').lines === 1,
+    'a unit is a function, a class, a variable whose initialiser is a function (an arrow, a function expression, either one in parentheses or under a cast) or the argument of a call that wraps code (a function, an object or a list that holds one, a wrap inside a wrap), at the top level of a file; it is named by the function, the class or the variable and measured from its first line to its last, the wrapped one by the argument alone, and by the first such argument to the last where a call takes several; its head ends on the line that opens its body; a table, a type and a call that wraps data alone are no units; every unit of a file is taken, and the file with its lines',
+    sizes === 'declared 5/1 Held 7/3 arrow 10/1 cast 12/1 wrapped 34/3 tool 25/1 twice 8/1 both 11/1 recipes 1/1 default 3/1' && seen.lines === lineCount(kinds) && measure(`${P}/empty.ts`, 'export const table = { a: 1 }\n').parts.length === 0 && measure(`${P}/empty.ts`, '').lines === 0 && measure(`${P}/one.ts`, 'export const a = 1').lines === 1,
     sizes,
   )
 
@@ -820,9 +832,10 @@ const fresh = rowsOf(held, DATA)
 const text = existsSync(join(ROOT, TABLE)) ? readFileSync(join(ROOT, TABLE), 'utf8') : null
 const table = text === null ? null : tableOf(text)
 const of = (kind: Kind, rows: Table = fresh): Row[] => [...rows.values()].filter(row => row.kind === kind)
+const linesIn = (kind: Kind, rows: Table = fresh): number => of(kind, rows).reduce((n, row) => n + row.count, 0)
 const grows = [...held].flatMap(([file, m]) => m.parts.filter(part => listedAs(file, part, DATA)?.kind === 'grows').map(part => sizeOf(part)))
 console.log(
-  `  ${files.length} TypeScript files under src · ${of('unit').length} units over ${UNIT_CEILING} lines in ${new Set(of('unit').map(row => row.file)).size} files, ${of('unit').filter(row => row.count > 1000).length} of them over 1000 · ${of('file').length} files over ${FILE_CEILING} lines · on the list of data: ${of('table').length} tables held by their entries, ${of('text').length} texts held by their lines, ${grows.length} that may grow (${grows.reduce((n, c) => n + c, 0)} lines today)`,
+  `  ${files.length} TypeScript files under src · ${of('unit').length} units over ${UNIT_CEILING} lines in ${new Set(of('unit').map(row => row.file)).size} files, ${of('unit').filter(row => row.count > 1000).length} of them over 1000, ${linesIn('unit')} lines in all · ${of('file').length} files over ${FILE_CEILING} lines, ${linesIn('file')} lines in all · on the list of data: ${of('table').length} tables held by their entries, ${of('text').length} texts held by their lines, ${grows.length} that may grow (${grows.reduce((n, c) => n + c, 0)} lines today)`,
 )
 check(`the TypeScript under src is read (${files.length} files)`, files.length > 3000, `${files.length} files read, more than 3000 wanted`)
 const strays = straysOf(held, DATA)
@@ -850,7 +863,7 @@ if (process.argv.includes('--list')) {
       const born = [...fresh.keys()].filter(key => !walked.stood.has(key)).length
       const dropped = [...walked.stood.keys()].filter(key => !fresh.has(key)).length
       writeFileSync(join(ROOT, TABLE), render(fresh))
-      console.log(`  wrote ${TABLE}: ${fresh.size} rows; ${lowered} lowered, ${born} new, ${dropped} dropped${walked.base === null ? '' : ` (the floor holds no table of this shape: the first one is held to what ${spoken(walked.base)} measures)`}`)
+      console.log(`  wrote ${TABLE}: ${fresh.size} rows; ${lowered} lowered, ${born} new, ${dropped} dropped; the unit rows hold ${linesIn('unit')} lines in all where they held ${linesIn('unit', walked.stood)}, the file rows ${linesIn('file')} where they held ${linesIn('file', walked.stood)}${walked.base === null ? '' : ` (the floor holds no table of this shape: the first one is held to what ${spoken(walked.base)} measures)`}`)
     }
   }
 } else if (table === null) {
