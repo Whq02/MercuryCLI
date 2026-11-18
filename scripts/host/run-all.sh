@@ -118,5 +118,6 @@ run_proof "$ROOT/scripts/host/prove-tensorfold-bank-safety.ts" bun "$ROOT/script
 run_proof "$ROOT/scripts/host/prove-vast-log-location.ts" bun "$ROOT/scripts/host/prove-vast-log-location.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-host-terminal-state.ts" bun "$ROOT/scripts/host/prove-host-terminal-state.ts" || fail=1
 run_proof "$ROOT/scripts/host/prove-loopback-only.ts" bun "$ROOT/scripts/host/prove-loopback-only.ts" || fail=1
+run_proof "$ROOT/scripts/host/prove-host-runner-output.ts" bun "$ROOT/scripts/host/prove-host-runner-output.ts" || fail=1
 if [ "$fail" = "0" ]; then echo "✅ host suite GREEN"; else echo "❌ host suite RED"; fi
 exit "$fail"
