@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { proofHome } from '../lib/hermetic.ts'
 import { plugin } from 'bun'
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -43,6 +43,7 @@ type LegReport = {
   manual: string
   readings: string
   processPath: string
+  roadPaths: { engine: string; system: string }
 }
 
 const sha = (text: string): string => createHash('sha256').update(text).digest('hex')
@@ -118,6 +119,7 @@ async function runLeg(leg: string, depth: Depth): Promise<LegReport> {
     calls.monitor = await streamed(SEEN)
   }
   const described = road.describeWindowsShellRoad()
+  const handed = (origin: 'engine' | 'system'): string => road.withRoadPrograms({ PATH: process.env.PATH ?? '' }, origin, resolution.engine === 'brush' ? resolution.binaryPath : '').PATH ?? ''
   const report: LegReport = {
     leg,
     engineBinary: resolution.engine === 'brush' ? resolution.binaryPath : null,
@@ -127,6 +129,7 @@ async function runLeg(leg: string, depth: Depth): Promise<LegReport> {
     manual: sha(getSimplePrompt()),
     readings,
     processPath: process.env.PATH ?? '',
+    roadPaths: { engine: handed('engine'), system: handed('system') },
   }
   await engine.endEngineSession()
   return report
@@ -278,6 +281,9 @@ try {
     const absent = { Path: window }
     check('no Git for Windows found and no ls: nothing is borrowed, the environment comes back as it was', withGit(absent, noGit) === absent)
     check('…and the reading says the programs are nowhere', programs(absent, noGit).from === 'nowhere', JSON.stringify(programs(absent, noGit)))
+    const fromPack = programs(absent, { platform: 'win32', gitBash: { absent: true }, packDir: usrBin })
+    check('no Git for Windows found, no ls, and a bash pack on the install: the folder of the pack\'s programs is lent instead', fromPack.from === 'pack' && fromPack.dir === usrBin && fromPack.path === `${usrBin};${window}` && withGit(absent, { platform: 'win32', gitBash: { absent: true }, packDir: usrBin }).Path === `${usrBin};${window}`, JSON.stringify(fromPack))
+    check('…and Git for Windows, when it is found, lends before the pack does', programs(absent, { platform: 'win32', gitBash: { path: gitBash }, packDir: join(tree, 'msys64', 'usr', 'bin') }).from === 'git')
     check('a located bash whose usr\\bin holds no ls lends nothing', withGit(absent, found(bareGit)) === absent)
     check('…and that reading is nowhere too', programs(absent, found(bareGit)).from === 'nowhere', JSON.stringify(programs(absent, found(bareGit))))
     check('off the Windows road (a Mac, Linux) the rule is not read: the environment comes back whatever stands on the machine', withGit(absent, null) === absent && programs(absent, null).from === 'path')
@@ -309,11 +315,11 @@ try {
     check('a bash stands in for the located Git Bash on this host', standIn, 'no /bin/bash')
 
     const located = { [SEAM]: 'locate', [PIN]: gitBash }
-    const [fired, firedPin, firedSetting, lsThere, systemPin, nothing, noBashLs, posix] = await twoAtATime([
-      () => runLegProcess('fired', 'all', { ...located, PATH: window }),
-      () => runLegProcess('fired-pin', 'line', { ...located, [ENGINE_PIN]: 'brush', PATH: window }),
+    const [fired, unarmed, firedSetting, lsThere, systemPin, nothing, noBashLs, posix] = await twoAtATime([
+      () => runLegProcess('fired', 'all', { ...located, [ENGINE_PIN]: 'brush', PATH: window }),
+      () => runLegProcess('unarmed', 'session', { ...located, PATH: window }),
       () => runLegProcess('fired-setting', 'line', { ...located, PATH: window }, { shell: { engine: 'brush' } }),
-      () => runLegProcess('ls-there', 'session', { ...located, PATH: windowLs }),
+      () => runLegProcess('ls-there', 'session', { ...located, [ENGINE_PIN]: 'brush', PATH: windowLs }),
       () => runLegProcess('system-pin', 'session', { ...located, [ENGINE_PIN]: 'system', PATH: window }),
       () => runLegProcess('nothing', 'all', { [SEAM]: 'no-bash', PATH: window }),
       () => runLegProcess('no-bash-ls', 'line', { [SEAM]: 'no-bash', PATH: windowLs }),
@@ -325,14 +331,16 @@ try {
     const noBashLine = (binary: string, tail: string): string => `the bundled shell engine at ${binary} — no bash.exe was found on this machine, so the Bash tool runs under Mercury's own bash-compatible engine${tail}`
     const ownProcess: Array<[string, string]> = [['background', 'a run_in_background call'], ['inherit', 'an inherit_session_env call'], ['monitor', 'a Monitor-shaped call']]
 
-    section('§2 the Windows road with Git found and no ls on the window\'s path: the Bash tool finds ls')
+    const standInVersion = spawnSync(gitBash, ['--norc', '--noprofile', '-c', 'printf %s "$BASH_VERSION"'], { encoding: 'utf8' }).stdout
+
+    section('§2 the Windows road with the engine armed by its pin, Git found and no ls on the window\'s path: the Bash tool finds ls')
     {
       const r = fired.report
       check('the leg ran and reported', r !== null, fired.text.slice(-1500))
       if (r !== null) {
         const main = seen(r.calls.mainSeen)
         const crew = seen(r.calls.crewSeen)
-        check('the engine is the road, by the Windows default', (r.engineBinary ?? '').includes('brush') && r.arm === 'windows', JSON.stringify({ engine: r.engineBinary, arm: r.arm }))
+        check('the engine is the road, by the MERCURY_SHELL_ENGINE pin', (r.engineBinary ?? '').includes('brush') && r.arm === 'pin', JSON.stringify({ engine: r.engineBinary, arm: r.arm }))
         check('ls in the session runs Git\'s (before: error: command not found: ls, exit 127)', r.calls.mainLs?.out === GIT_LS && r.calls.mainLs.code === 0, JSON.stringify(r.calls.mainLs))
         check('the session\'s shell is the engine, and the first entry of its path is <Git>/usr/bin with the window\'s own path after it', main.served === VERSION && main.shell === r.engineBinary && main.path === ruled, JSON.stringify(r.calls.mainSeen))
         check('…that folder has a space in its name, as Program Files has, and it is one entry of the path all the same', gitDir.includes(' ') && main.path.split(':').length === 2 && main.path.split(':')[0] === gitDir, main.path)
@@ -365,6 +373,13 @@ try {
         check('MERCURY_SHELL_ENGINE=system on the Windows road: Git\'s own bash serves the plain call and no engine is armed', kept.engineBinary === null && plain.served === 'system' && plain.shell === gitBash, JSON.stringify(kept.calls.mainSeen))
         check('…and its path has no entry of the rule\'s', !plain.path.split(':').includes(gitDir), plain.path)
       }
+      const plainRoad = unarmed.report
+      check('the unarmed leg ran and reported', plainRoad !== null, unarmed.text.slice(-1500))
+      if (plainRoad !== null) {
+        const plain = seen(plainRoad.calls.mainSeen)
+        check('the Windows road with a bash found and nothing set: no engine is armed, and the found bash serves the plain call', plainRoad.engineBinary === null && plainRoad.arm === 'default' && plain.served === 'system' && plain.shell === gitBash, JSON.stringify({ arm: plainRoad.arm, seen: plainRoad.calls.mainSeen }))
+        check('…and its path has no entry of the rule\'s', !plain.path.split(':').includes(gitDir), plain.path)
+      }
       const none = nothing.report
       check('the no-Git leg ran and reported', none !== null, nothing.text.slice(-1500))
       if (none !== null) {
@@ -383,21 +398,29 @@ try {
       }
     }
 
+    section('§4b each start of a command takes its environment through the road')
+    {
+      check('the path the road hands the engine carries the rule, and the one it hands a found bash is the tool\'s own', fired.report?.roadPaths.engine === ruled && fired.report.roadPaths.system === window, JSON.stringify(fired.report?.roadPaths))
+      check('with an ls already there the road hands the engine the window\'s path as it was', lsThere.report?.roadPaths.engine === windowLs, JSON.stringify(lsThere.report?.roadPaths))
+      check('off the Windows road nothing is located and nothing is lent, whichever shell is asked for', posix.report?.roadPaths.engine === window && posix.report.roadPaths.system === window, JSON.stringify(posix.report?.roadPaths))
+    }
+
     section('§5 the health report\'s Bash tool shell line: two lines say where the ordinary programs are, the others stand as they were')
     {
       type Leg = { report: LegReport | null; text: string }
       const line = (leg: Leg): string => leg.report?.health.line ?? ''
       const binary = (leg: Leg): string => leg.report?.engineBinary ?? ''
       const stands = (leg: Leg): boolean => leg.report?.health.road === 'engine' && leg.report.health.absent === false && leg.report.health.fix === null
-      check('the rule fired, the Windows default', line(fired) === engineLine(binary(fired), 'windows', borrowed), line(fired))
-      check('the rule fired, the MERCURY_SHELL_ENGINE pin', firedPin.report?.arm === 'pin' && line(firedPin) === engineLine(binary(firedPin), 'pin', borrowed), line(firedPin) || firedPin.text.slice(-600))
+      check('the rule fired, the MERCURY_SHELL_ENGINE pin', fired.report?.arm === 'pin' && line(fired) === engineLine(binary(fired), 'pin', borrowed), line(fired) || fired.text.slice(-600))
       check('the rule fired, the Shell engine setting', firedSetting.report?.arm === 'setting' && line(firedSetting) === engineLine(binary(firedSetting), 'setting', borrowed), line(firedSetting) || firedSetting.text.slice(-600))
       check('nothing to borrow (no Git for Windows found, no ls on the path)', line(nothing) === noBashLine(binary(nothing), '; ls, cat, grep and the like are not on this machine: Git for Windows carries them'), line(nothing))
-      check('an ls already there, Git found: the line as it stood', line(lsThere) === engineLine(binary(lsThere), 'windows', ', no Git dependency'), line(lsThere))
+      check('an ls already there, Git found: the line as it stood', line(lsThere) === engineLine(binary(lsThere), 'pin', ', no Git dependency'), line(lsThere))
       check('an ls already there, no Git found: the line as it stood', noBashLs.report?.arm === 'no-bash' && line(noBashLs) === noBashLine(binary(noBashLs), ''), line(noBashLs) || noBashLs.text.slice(-600))
-      check('the system shell kept by the pin: the git-bash line as it stood', line(systemPin) === `git-bash at ${gitBash} — found on this machine; the Bash tool runs under it`, line(systemPin))
-      check('a POSIX host: the line as it stood', line(posix) === 'the system shell (bash or zsh on PATH) — the Bash tool runs under it', line(posix))
-      check('the row does not move with the words: the engine road, present, with no fix, in all six engine legs', [fired, firedPin, firedSetting, nothing, lsThere, noBashLs].every(stands), JSON.stringify([fired, firedPin, firedSetting, nothing, lsThere, noBashLs].map(leg => leg.report?.health)))
+      const foundLine = `bash ${standInVersion} at ${gitBash} — found on this machine; the Bash tool runs under it`
+      check('the system shell kept by the pin: the found bash is named with the version it answered', /^\d/.test(standInVersion) && line(systemPin) === foundLine, line(systemPin))
+      check('a bash found and nothing set: the same line, the found bash being the road', line(unarmed) === foundLine && unarmed.report?.health.road === 'git-bash', line(unarmed))
+      check('a POSIX host with the engine pinned: the line names the engine the record names', line(posix) === `brush ${VERSION} at ${binary(posix)} — Mercury's bundled bash-compatible engine; the Bash tool runs under it`, line(posix))
+      check('the row does not move with the words: the engine road, present, with no fix, in all five engine legs', [fired, firedSetting, nothing, lsThere, noBashLs].every(stands), JSON.stringify([fired, firedSetting, nothing, lsThere, noBashLs].map(leg => leg.report?.health)))
     }
 
     section('§6 the permission layer reads a command by its name: the same readings whichever ls would run')
@@ -424,9 +447,9 @@ try {
 
     section('§7 the Bash tool\'s manual does not move with the rule')
     {
-      check('the manual is the same text with the rule fired and with an ls already there (the engine by the Windows default)', fired.report !== null && fired.report.manual === lsThere.report?.manual, JSON.stringify([fired.report?.manual, lsThere.report?.manual]))
+      check('the manual is the same text with the rule fired and with an ls already there (the engine by its pin)', fired.report !== null && fired.report.manual === lsThere.report?.manual, JSON.stringify([fired.report?.manual, lsThere.report?.manual]))
       check('…and the same with nothing to borrow and with an ls there on a machine with no Git', nothing.report !== null && nothing.report.manual === noBashLs.report?.manual, JSON.stringify([nothing.report?.manual, noBashLs.report?.manual]))
-      console.log(`  (manual sha256 ${[fired, nothing, systemPin, posix].map(leg => (leg.report?.manual ?? '').slice(0, 12)).join(' ')}: the Windows default, no bash, the system pin, a POSIX host with the engine pinned)`)
+      console.log(`  (manual sha256 ${[fired, nothing, systemPin, posix].map(leg => (leg.report?.manual ?? '').slice(0, 12)).join(' ')}: the engine by its pin, no bash, the system pin, a POSIX host with the engine pinned)`)
     }
 
     section('§8 the built bundle through the seam: health --json and the readiness row carry the same line')
@@ -463,20 +486,20 @@ try {
           })
         }
         const [firedHealth, nothingHealth, thereHealth] = await twoAtATime([
-          () => health('fired', { ...located, PATH: window }),
+          () => health('fired', { ...located, [ENGINE_PIN]: 'brush', PATH: window }),
           () => health('nothing', { [SEAM]: 'no-bash', PATH: window }),
-          () => health('ls-there', { ...located, PATH: windowLs }),
+          () => health('ls-there', { ...located, [ENGINE_PIN]: 'brush', PATH: windowLs }),
         ])
-        const firedTail = ` — the Bash tool runs under it (${shellEngineArmWords('windows')})${borrowed}`
+        const firedTail = ` — the Bash tool runs under it (${shellEngineArmWords('pin')})${borrowed}`
         const nothingTail = " — no bash.exe was found on this machine, so the Bash tool runs under Mercury's own bash-compatible engine; ls, cat, grep and the like are not on this machine: Git for Windows carries them"
-        const thereTail = ` — the Bash tool runs under it (${shellEngineArmWords('windows')}), no Git dependency`
+        const thereTail = ` — the Bash tool runs under it (${shellEngineArmWords('pin')}), no Git dependency`
         const carries = (row: Row | null, head: string, tail: string): boolean => {
           const text = row?.evidence ?? ''
           return text.startsWith(head) && text.endsWith(tail) && text.slice(head.length, text.length - tail.length).includes('brush')
         }
         check('the rule fired: the shell check carries the line, and stays ok', carries(firedHealth.shell, 'the shell engine at ', firedTail) && firedHealth.shell?.status === 'ok', JSON.stringify(firedHealth.shell) + firedHealth.text)
         check('…the readiness row tool:shell carries the same string, and stays ready', firedHealth.shell !== null && firedHealth.ready?.detail === firedHealth.shell.evidence && firedHealth.ready?.state === 'ready', JSON.stringify(firedHealth.ready))
-        check('nothing to borrow: the shell check carries the line, and stays ok', carries(nothingHealth.shell, 'the bundled shell engine at ', nothingTail) && nothingHealth.shell?.status === 'ok', JSON.stringify(nothingHealth.shell) + nothingHealth.text)
+        check('nothing to borrow: the shell check carries the line, and warns that the last road is the one that serves', carries(nothingHealth.shell, 'the bundled shell engine at ', nothingTail) && nothingHealth.shell?.status === 'warn', JSON.stringify(nothingHealth.shell) + nothingHealth.text)
         check('…the readiness row tool:shell carries the same string, and stays ready', nothingHealth.shell !== null && nothingHealth.ready?.detail === nothingHealth.shell.evidence && nothingHealth.ready?.state === 'ready', JSON.stringify(nothingHealth.ready))
         check('an ls already there: the line as it stood, the same status and state', carries(thereHealth.shell, 'the shell engine at ', thereTail) && thereHealth.shell?.status === 'ok' && thereHealth.ready?.detail === thereHealth.shell?.evidence && thereHealth.ready?.state === 'ready', JSON.stringify(thereHealth.shell) + thereHealth.text)
       }
@@ -504,7 +527,7 @@ try {
           })
           const env: NodeJS.ProcessEnv = childEnv(home, Number(new URL(fixture.base).port))
           for (const name of [ENGINE_PIN, 'MERCURY_SHELL_ENGINE_SESSIONS', SEAM, PIN, 'MERCURY_SHELL_PREFIX', 'MERCURY_ENV_FILE', 'SHELL']) delete env[name]
-          Object.assign(env, located, { PATH: path, HOME: join(scratch, 'user'), MERCURY_TMPDIR: realpathSync(mkdtempSync(join(scratch, `${label}-run-tmp-`))) })
+          Object.assign(env, located, { [ENGINE_PIN]: 'brush', PATH: path, HOME: join(scratch, 'user'), MERCURY_TMPDIR: realpathSync(mkdtempSync(join(scratch, `${label}-run-tmp-`))) })
           const run = await new Promise<{ code: number | null; out: string }>(resolvePromise => {
             const child = spawn(NODE, [DIST, 'run', ASK, '--format', 'rows', '--mode', 'sovereign', '--model', MODEL], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
             let out = ''
@@ -541,11 +564,7 @@ try {
   {
     const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n')
     const engine = read('src/utils/shell/engineSession.ts')
-    const shell = read('src/utils/Shell.ts')
-    const roadSource = read('src/utils/shell/windowsShellRoad.ts')
     check('the engine session (the main conversation\'s and each crewmate\'s) is started with the ruled environment', engine.includes('env: withGitPrograms(toolShellEnv(base.env, { SHELL: binaryPath, ...envOverrides() })),'))
-    check('a command the session cannot take (run_in_background, inherit_session_env, Monitor) is started with the ruled environment when the engine runs it, and with the tool environment as it was otherwise', shell.includes('env: engineBinary === null ? childEnv : withGitPrograms(childEnv),'))
-    check('the rule is read on the Windows road alone, with the Git the road already located: off the road nothing is located', roadSource.includes('world: ProgramsWorld | null = windowsShellRoadActive() ? { platform: process.platform, gitBash: locatedWindowsBash() } : null,') && roadSource.includes("if (world === null) return { from: 'path' }"))
     const walk = (dir: string): string[] =>
       readdirSync(dir).flatMap(name => {
         const path = join(dir, name)

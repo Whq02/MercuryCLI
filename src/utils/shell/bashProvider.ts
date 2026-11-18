@@ -48,6 +48,7 @@ export async function createBashShellProvider(
   const provider: ShellProvider = {
     type: 'bash',
     shellPath,
+    origin: record.origin,
     detached: getPlatform() !== 'windows',
 
     async buildExecCommand(command: string, opts: BuildExecCommandOptions) {

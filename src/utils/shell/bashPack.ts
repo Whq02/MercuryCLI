@@ -179,8 +179,6 @@ type BashPackCheck =
   | { state: 'absent'; note: string }
   | { state: 'mismatch'; note: string }
 
-const inPack = (dir: string, file: string): string => path.join(dir, ...file.split('/'))
-
 export function checkBashPackDir(dir: string, opts: { digest?: boolean; tree?: boolean; platform?: string } = {}): BashPackCheck {
   const manifest = readBashPackManifest(dir)
   if (manifest === null) {
@@ -196,10 +194,10 @@ export function checkBashPackDir(dir: string, opts: { digest?: boolean; tree?: b
   if ((manifest.source === 'msys2-packages') !== bashPackIsFetched(platform)) {
     return { state: 'mismatch', note: `the pack at ${dir} is ${manifest.source}, which is not how the ${platform} pack is made` }
   }
-  const binaryPath = inPack(dir, manifest.binary)
+  const binaryPath = path.join(dir, manifest.binary)
   if (!existsSync(binaryPath)) return { state: 'mismatch', note: `the manifest at ${dir} names ${manifest.binary} but the file is absent` }
   for (const file of [...manifest.licenseFiles, manifest.sourceNote, ...(manifest.source === 'msys2-packages' ? [manifest.runtime] : [])]) {
-    if (!existsSync(inPack(dir, file))) return { state: 'mismatch', note: `the pack at ${dir} lacks ${file}` }
+    if (!existsSync(path.join(dir, file))) return { state: 'mismatch', note: `the pack at ${dir} lacks ${file}` }
   }
   if (opts.digest) {
     const actual = createHash('sha256').update(readFileSync(binaryPath)).digest('hex')
@@ -217,7 +215,7 @@ export function checkBashPackDir(dir: string, opts: { digest?: boolean; tree?: b
 }
 
 export function bashPackProgramsDir(dir: string, manifest: BashPackManifest): string | null {
-  return manifest.source === 'msys2-packages' ? inPack(dir, manifest.programsDir) : null
+  return manifest.source === 'msys2-packages' ? path.join(dir, manifest.programsDir) : null
 }
 
 export interface BashMsys2Lock {

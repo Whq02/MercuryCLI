@@ -25,7 +25,7 @@ import { getFsImplementation } from '../fsOperations.js'
 import { resolveBrushPackDir, type BrushPackResolution } from './brushPack.js'
 import { nativeCwdFromShellRecord } from '../windowsPaths.js'
 import { shellEngineArmWords, shellEngineRequest, type ShellEngineArm } from './shellEngineArm.js'
-import { windowsBashAbsent, windowsShellRoadActive, withGitPrograms } from './windowsShellRoad.js'
+import { windowsBashAbsent, withGitPrograms } from './windowsShellRoad.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import type { ExecResult, ShellCommand } from '../ShellCommand.js'
 
@@ -61,15 +61,12 @@ export type ShellEngineResolution =
   | { engine: 'system'; requested: 'system' | 'brush'; arm: ShellEngineArm | 'default'; reason: string }
 
 export function resolveShellEngine(setting?: 'system' | 'brush'): ShellEngineResolution {
-  const request = shellEngineRequest(flagEnv('MERCURY_SHELL_ENGINE'), setting, windowsBashAbsent(), windowsShellRoadActive())
+  const request = shellEngineRequest(flagEnv('MERCURY_SHELL_ENGINE'), setting, windowsBashAbsent())
   if (request.requested !== 'brush') {
     return { engine: 'system', requested: 'system', arm: request.arm, reason: `the system shell is selected (${shellEngineArmWords(request.arm)})` }
   }
   const pack = resolvedPack()
   if (pack.state !== 'ok') {
-    if (request.arm === 'windows') {
-      return { engine: 'system', requested: 'system', arm: 'default', reason: `the system shell serves: the bundled engine's pack is absent on this Windows box — ${pack.note}` }
-    }
     return {
       engine: 'system',
       requested: 'brush',
@@ -120,6 +117,7 @@ export function createEngineCommandProvider(binaryPath: string): ShellProvider {
   return {
     type: 'bash',
     shellPath: binaryPath,
+    origin: 'engine',
     detached: getPlatform() !== 'windows',
     async buildExecCommand(command, options) {
       const record = join(tmpdir(), `mercury-cwd-${options.id}`)

@@ -265,10 +265,10 @@ section('§4 the Windows road WITH a bash located (MERCURY_WINDOWS_SHELL_ROAD=lo
     check('a bash stands in for the located Git Bash on this host', false, process.platform === 'win32' ? 'no Git Bash located' : 'no /bin/bash')
   } else {
     const shellSees = process.platform === 'win32' ? execFileSync(located, ['-c', 'cygpath -u -- "$1"', '_', located], { encoding: 'utf8', windowsHide: true }).trim() : located
-    const { report: r, text } = await runLegProcess('located', { MERCURY_WINDOWS_SHELL_ROAD: 'locate', MERCURY_GIT_BASH_PATH: located })
+    const { report: r, text } = await runLegProcess('located', { MERCURY_WINDOWS_SHELL_ROAD: 'locate', MERCURY_GIT_BASH_PATH: located, MERCURY_SHELL_ENGINE: 'brush' })
     check('the leg ran and reported', r !== null, text.slice(-1500))
     if (r !== null) {
-      check('the engine is the road (the Windows default)', (r.engineBinary ?? '').includes('brush') && r.plain.session && r.plain.out === `plain:${VERSION}:kept:scrubbed`, JSON.stringify(r.plain))
+      check('the engine is the road (armed by its pin, a bash being found)', (r.engineBinary ?? '').includes('brush') && r.plain.session && r.plain.out === `plain:${VERSION}:kept:scrubbed`, JSON.stringify(r.plain))
       check('the Monitor-shaped, background and inheriting calls run under the located bash', r.monitor.chunks.includes(`tick1:system:${shellSees}`) && r.background.out === `background:system:none:${shellSees}` && r.inherit.out === `inherit:system:none:cli:unseeded:${shellSees}`, JSON.stringify({ monitor: r.monitor.chunks, background: r.background.out, inherit: r.inherit.out }))
       check("…and a crewmate's way round under a ceiling of 1 names that system shell", r.crewmate.refusal.includes('run_in_background (its own system shell)'), JSON.stringify(r.crewmate))
     }

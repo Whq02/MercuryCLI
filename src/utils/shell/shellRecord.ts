@@ -1,6 +1,4 @@
 import { execFile } from 'node:child_process'
-import { constants as fsConstants } from 'node:fs'
-import { access } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import memoize from 'lodash-es/memoize.js'
 import { logForDebugging } from '../debug.js'
@@ -9,9 +7,10 @@ import { logError } from '../log.js'
 import { getInitialSettings } from '../settings/settings.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { which } from '../which.js'
-import { resolveBashPackDir, type BashPackResolution } from './bashPack.js'
+import { bashPackProgramsDir, resolveBashPackDir, type BashPackResolution } from './bashPack.js'
 import { resolveBrushPackDir } from './brushPack.js'
-import { windowsShellRoadActive } from './windowsShellRoad.js'
+import { shellEngineArmWords, type ShellEngineArm } from './shellEngineArm.js'
+import { bashToolAvailable, describeWindowsShellRoad, engineMayServe, settleWindowsShell, shippedWindowsBash, windowsBashCandidates, windowsShellRoadActive } from './windowsShellRoad.js'
 
 export type ShellDialect = 'bash'
 export type ShellOrigin = 'shipped' | 'system' | 'engine'
@@ -28,6 +27,9 @@ const START_PROBE_TIMEOUT_MS = 5_000
 
 const NO_SHELL_MESSAGE =
   'No shell found. Mercury runs commands in the bash it ships, then in the system bash, then in its bundled engine, and none of the three starts here; reinstall Mercury or install bash, then restart Mercury.'
+
+const NO_WINDOWS_SHELL_MESSAGE =
+  'No shell found. On Windows Mercury runs commands in a bash 5 that is installed (Git for Windows ships one), then in the bash it ships, then in its bundled engine, and none of the three starts here; install Git for Windows, set MERCURY_GIT_BASH_PATH to a bash.exe, or reinstall Mercury, then restart Mercury.'
 
 function startedBashVersion(path: string): Promise<string | null> {
   return new Promise(resolve => {
@@ -68,6 +70,11 @@ function shippedBash(): BashPackResolution {
   }
 }
 
+export function shippedBashOnDisk(): { path: string; programsDir: string | null } | null {
+  const pack = shippedBash()
+  return pack.state === 'ok' ? { path: pack.binaryPath, programsDir: bashPackProgramsDir(pack.dir, pack.manifest) } : null
+}
+
 async function posixSystemRecord(): Promise<ShellRecord> {
   const pack = shippedBash()
   if (pack.state === 'ok') {
@@ -90,61 +97,32 @@ async function posixSystemRecord(): Promise<ShellRecord> {
   throw new Error(NO_SHELL_MESSAGE)
 }
 
-function namesSupportedShell(path: string): boolean {
-  return path.includes('bash') || path.includes('zsh')
-}
+let settledWindowsNotes: { pinned: boolean; passed: string[] } = { pinned: false, passed: [] }
 
-async function isExecutableShell(path: string): Promise<boolean> {
-  try {
-    await access(path, fsConstants.X_OK)
-    return true
-  } catch {
-    try {
-      await new Promise<void>((resolveProbe, rejectProbe) => {
-        execFile(path, ['--version'], { windowsHide: true, timeout: 1000, env: { ...subprocessEnv() } }, error => {
-          if (error) rejectProbe(error)
-          else resolveProbe()
-        })
-      })
-      return true
-    } catch {
-      return false
-    }
+async function windowsSystemRecord(): Promise<ShellRecord> {
+  const candidates = windowsBashCandidates()
+  const choice = await settleWindowsShell({
+    pinned: candidates.pinned,
+    installed: candidates.installed,
+    shipped: () => {
+      const shipped = shippedWindowsBash()
+      return shipped === null ? { absent: shippedBashNote() } : { path: shipped.path }
+    },
+    engine: () => {
+      const engine = resolveBrushPackDir()
+      return engine.state === 'ok' ? { path: engine.binaryPath, version: engine.manifest.version } : { absent: engine.note }
+    },
+    engineAllowed: engineMayServe(),
+    start: startedBashVersion,
+  })
+  for (const line of choice.passed) logForDebugging(`shell record: ${line}`)
+  settledWindowsNotes = { pinned: choice.pinned, passed: choice.passed }
+  if (choice.origin === 'none') {
+    logError(NO_WINDOWS_SHELL_MESSAGE)
+    throw new Error(NO_WINDOWS_SHELL_MESSAGE)
   }
-}
-
-async function windowsShellPath(): Promise<string> {
-  const loginShell = process.env.SHELL
-  const prefersBash = loginShell !== undefined && loginShell.includes('bash')
-  const preferredName = prefersBash ? 'bash' : 'zsh'
-  const otherName = prefersBash ? 'zsh' : 'bash'
-
-  const [locatedZsh, locatedBash] = await Promise.all([which('zsh'), which('bash')])
-  const locatedPreferred = prefersBash ? locatedBash : locatedZsh
-  const locatedOther = prefersBash ? locatedZsh : locatedBash
-
-  const candidates: string[] = []
-  for (const name of [preferredName, otherName]) {
-    for (const directory of SHELL_FALLBACK_DIRECTORIES) {
-      candidates.push(join(directory, name))
-    }
-  }
-  if (locatedPreferred) candidates.unshift(locatedPreferred)
-  if (locatedOther) candidates.push(locatedOther)
-  if (loginShell && namesSupportedShell(loginShell) && (await isExecutableShell(loginShell))) {
-    candidates.unshift(loginShell)
-  }
-
-  for (const candidate of candidates) {
-    if (await isExecutableShell(candidate)) {
-      return candidate
-    }
-  }
-
-  const message =
-    'No suitable shell found. Mercury CLI requires a POSIX shell environment (bash or zsh); install one or point the SHELL environment variable at one, then restart Mercury.'
-  logError(message)
-  throw new Error(message)
+  logForDebugging(`shell record: ${choice.origin} at ${choice.path} serves the Windows road`)
+  return { path: choice.path, dialect: 'bash', version: choice.version, origin: choice.origin }
 }
 
 let settledSystemRecord: ShellRecord | null = null
@@ -154,21 +132,28 @@ export function systemShellAt(path: string): ShellRecord {
 }
 
 export const systemShellRecord = memoize(async (): Promise<ShellRecord> => {
-  const record = windowsShellRoadActive() ? systemShellAt(await windowsShellPath()) : await posixSystemRecord()
+  const record = windowsShellRoadActive() ? await windowsSystemRecord() : await posixSystemRecord()
   settledSystemRecord = record
   return record
 })
 
+export function settledSystemShell(): ShellRecord | null {
+  return settledSystemRecord
+}
+
 export async function fallbackEngineBinary(): Promise<string | null> {
-  if (windowsShellRoadActive()) return null
   const record = await systemShellRecord()
   return record.origin === 'engine' ? record.path : null
 }
 
-function armedEngineRecord(): ShellRecord | null {
+function armedEngine(): { record: ShellRecord; arm: ShellEngineArm } | null {
   const { resolveShellEngine } = require('./engineSession.js') as typeof import('./engineSession.js')
   const engine = resolveShellEngine(getInitialSettings().shell?.engine)
-  return engine.engine === 'brush' ? { path: engine.binaryPath, dialect: 'bash', version: engine.version, origin: 'engine' } : null
+  return engine.engine === 'brush' ? { record: { path: engine.binaryPath, dialect: 'bash', version: engine.version, origin: 'engine' }, arm: engine.arm } : null
+}
+
+function armedEngineRecord(): ShellRecord | null {
+  return armedEngine()?.record ?? null
 }
 
 export async function shellRecord(): Promise<ShellRecord> {
@@ -179,22 +164,18 @@ export function shellRecordNow(): ShellRecord | null {
   return armedEngineRecord() ?? settledSystemRecord
 }
 
-export function windowsShellName(): string {
-  const shellRaw = process.env.SHELL ?? 'unknown'
-  return shellRaw.includes('zsh') ? 'zsh' : shellRaw.includes('bash') ? 'bash' : shellRaw
-}
-
 export function completionDialect(): ShellDialect | null {
-  if (process.platform === 'win32') return windowsShellName() === 'bash' ? 'bash' : null
-  return 'bash'
+  return bashToolAvailable() ? 'bash' : null
 }
 
 export function profileShellWords(record: ShellRecord | null): string {
-  return windowsShellRoadActive() ? 'bash or zsh' : (record?.dialect ?? 'bash')
+  return record?.dialect ?? 'bash'
 }
 
 export const OLD_BASH_SENTENCE =
   "on this bash a here-document inside $( ) breaks when its text holds an unpaired quote, backquote or parenthesis or a line ending in a backslash, so give such text to the command on standard input instead (git commit -F - <<'EOF')"
+
+export const WINDOWS_SHELL_SENTENCE = 'use Unix shell syntax, not Windows (for example /dev/null rather than NUL, and forward slashes in paths)'
 
 export function shellRecordWords(record: ShellRecord): string {
   if (record.origin === 'engine') return `brush ${record.version} (bash-compatible)`
@@ -213,23 +194,58 @@ async function shellRecordIfAny(): Promise<ShellRecord | null> {
 }
 
 export async function settleShellRecord(): Promise<void> {
-  if (!windowsShellRoadActive()) await shellRecordIfAny()
+  await shellRecordIfAny()
 }
 
 export async function shellLineWords(): Promise<string> {
   const record = await shellRecordIfAny()
-  return record === null ? 'none found' : shellRecordWords(record)
+  const words = record === null ? 'none found' : shellRecordWords(record)
+  return process.platform === 'win32' ? `${words} — ${WINDOWS_SHELL_SENTENCE}` : words
 }
 
 export function describeShellRecord(record: ShellRecord): string {
-  if (record.origin === 'shipped') return `bash ${record.version} at ${record.path} — the bash Mercury ships; the Bash tool runs under it`
-  if (record.origin === 'system') return `bash ${record.version} at ${record.path} — the system's bash; the Bash tool runs under it${windowsShellRoadActive() ? '' : ` because the shipped bash is absent or does not start (${shippedBashNote()})`}`
+  const onWindowsRoad = windowsShellRoadActive()
+  if (record.origin === 'shipped') return `bash ${record.version} at ${record.path} — the bash Mercury ships; the Bash tool runs under it${onWindowsRoad ? ', no bash 5 being installed on this machine' : ''}`
+  if (record.origin === 'system') {
+    if (!onWindowsRoad) return `bash ${record.version} at ${record.path} — the system's bash; the Bash tool runs under it because the shipped bash is absent or does not start (${shippedBashNote()})`
+    return `bash${record.version === '' ? '' : ` ${record.version}`} at ${record.path} — ${settledWindowsNotes.pinned ? 'named by MERCURY_GIT_BASH_PATH' : 'found on this machine'}; the Bash tool runs under it`
+  }
   return `brush ${record.version} at ${record.path} — Mercury's bundled bash-compatible engine; the Bash tool runs under it`
 }
 
 function shippedBashNote(): string {
   const pack = shippedBash()
   return pack.state === 'ok' ? `${pack.binaryPath} is present and did not answer` : pack.note
+}
+
+export function shellRoadWordsNow(): string {
+  const record = shellRecordNow()
+  return record === null ? 'bash — the bash Mercury ships, else the system\'s bash, else the bundled engine; which one is settled when the first command needs a shell' : describeShellRecord(record)
+}
+
+export type ShellRow = { status: 'ok' | 'warn'; evidence: string; fix?: string }
+
+export async function shellRow(): Promise<ShellRow> {
+  const record = await shellRecordIfAny()
+  const pack = shippedBash()
+  const skipped = pack.state === 'ok' ? null : pack.note
+  const fix = skipped === null ? {} : { fix: `The bash pack is skipped in this install: ${skipped}` }
+  const onWindowsRoad = windowsShellRoadActive()
+  const passed = onWindowsRoad && settledWindowsNotes.passed.length > 0 ? ` — passed over: ${settledWindowsNotes.passed.join('; ')}` : ''
+  if (onWindowsRoad) {
+    const road = describeWindowsShellRoad()
+    if (road.absent) return { status: 'warn', evidence: road.line, ...(road.fix === undefined ? {} : { fix: road.fix }) }
+    if (record === null) return { status: 'warn', evidence: `${NO_WINDOWS_SHELL_MESSAGE}${passed}`, ...fix }
+    const armed = armedEngine()
+    const names = skipped !== null && !passed.includes(skipped) ? ` — this install carries no bash pack: ${skipped}` : ''
+    const lastRoad = road.road === 'engine' && (armed === null || armed.arm === 'no-bash')
+    return { status: lastRoad ? 'warn' : 'ok', evidence: `${road.line}${names}${passed}`, ...(lastRoad ? fix : {}) }
+  }
+  if (record === null) return { status: 'warn', evidence: NO_SHELL_MESSAGE, ...fix }
+  const armed = armedEngine()
+  if (armed !== null) return { status: 'ok', evidence: `${describeShellRecord(record)} (${shellEngineArmWords(armed.arm)})${skipped === null ? '' : ` — this install carries no bash pack: ${skipped}`}` }
+  if (record.origin === 'shipped') return { status: 'ok', evidence: describeShellRecord(record) }
+  return { status: 'warn', evidence: describeShellRecord(record), ...fix }
 }
 
 export const BASH_GLOB_PREAMBLE = 'shopt -u extglob 2>/dev/null || true'

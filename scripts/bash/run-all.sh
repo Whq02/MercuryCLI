@@ -147,6 +147,8 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-tracker-known-values.ts" || { __rc
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-line-break-inside-command.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-line-break-inside-command.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-bash-pack.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-bash-pack.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-bash-win-pack.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-bash-win-pack.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-windows-bash-detector.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-windows-bash-detector.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-windows-road-no-zsh.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-windows-road-no-zsh.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-record.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-record.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-system-road-bash5.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-system-road-bash5.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-profile-environment.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-profile-environment.ts" "$__t" "$__rc"

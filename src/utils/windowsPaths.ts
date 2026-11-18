@@ -56,6 +56,8 @@ function findExecutableCandidates(name: string): string[] {
   return candidates
 }
 
+const GIT_TOOLCHAIN_FOLDERS: ReadonlySet<string> = new Set(['mingw64', 'mingw32', 'ucrt64', 'clang64', 'clangarm64', 'usr'])
+
 export function gitBashCandidatePaths(gitPaths: string[]): string[] {
   const seen = new Set<string>()
   const candidates: string[] = []
@@ -71,10 +73,7 @@ export function gitBashCandidatePaths(gitPaths: string[]): string[] {
     const holderName = pathWin32.basename(holder).toLowerCase()
     const parent = pathWin32.dirname(holder)
     const parentName = pathWin32.basename(parent).toLowerCase()
-    const installRoot =
-      holderName === 'bin' && (parentName === 'mingw64' || parentName === 'mingw32' || parentName === 'usr')
-        ? pathWin32.dirname(parent)
-        : parent
+    const installRoot = holderName === 'bin' && GIT_TOOLCHAIN_FOLDERS.has(parentName) ? pathWin32.dirname(parent) : parent
     push(pathWin32.join(installRoot, 'bin', 'bash.exe'))
   }
   push('C:\\Program Files\\Git\\bin\\bash.exe')
@@ -85,9 +84,9 @@ export function gitBashCandidatePaths(gitPaths: string[]): string[] {
 export type GitBashLocation = { path: string } | { absent: true }
 
 export const GIT_BASH_REMEDY =
-  'Mercury on Windows requires git-bash for the Bash tool. Download it from https://git-scm.com/downloads/win, ' +
+  'Mercury found no bash for the Bash tool on this Windows machine. Download Git for Windows from https://git-scm.com/downloads/win, ' +
   'set MERCURY_GIT_BASH_PATH=<path to bash.exe> ' +
-  '(for example C:\\Program Files\\Git\\bin\\bash.exe) if already installed, or turn the shell engine on.'
+  '(for example C:\\Program Files\\Git\\bin\\bash.exe) if one is already installed, or turn the shell engine on.'
 
 export const locateGitBash = memoize((): GitBashLocation => {
   const override = flagEnv('MERCURY_GIT_BASH_PATH')
@@ -105,6 +104,13 @@ export const locateGitBash = memoize((): GitBashLocation => {
   }
   return { absent: true }
 })
+
+export function pinnedGitBash(): string | null {
+  const override = flagEnv('MERCURY_GIT_BASH_PATH')
+  return override !== undefined && override !== '' && pathExists(override) ? override : null
+}
+
+export const installedGitBashes = memoize((): string[] => gitBashCandidatePaths(findExecutableCandidates('git')).filter(pathExists))
 
 export function findGitBashPath(): string {
   const location = locateGitBash()

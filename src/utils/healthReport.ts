@@ -416,7 +416,7 @@ export const SHELL_READS = {
   outputLimits: () => import('./shell/outputLimits.js'),
   engineSession: () => import('./shell/engineSession.js'),
   engineArm: () => import('./shell/shellEngineArm.js'),
-  windowsRoad: () => import('./shell/windowsShellRoad.js'),
+  shellRecord: () => import('./shell/shellRecord.js'),
 }
 
 
