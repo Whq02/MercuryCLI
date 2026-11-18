@@ -416,6 +416,7 @@ const some = <T>(found: T[], line: (one: T) => string): string =>
     .map(one => `\n      ${line(one)}`)
     .join('') + (found.length > 40 ? `\n      … and ${found.length - 40} more` : '')
 const arrivals = (row: Row, arrived: number, moved: number): string => `of the ${arrived} lines that arrived in it, ${moved} left a ${holder(row.kind)} that has a row and the rest is new`
+const spoken = (id: string): string => (id === 'HEAD' ? 'the last commit' : id.endsWith('^') ? `the commit before ${id.slice(0, 10)}` : `commit ${id.slice(0, 10)}`)
 
 const told = (over: Over[], walked: Walked | null): string =>
   `${over.length} above — ${LAW}:` +
@@ -423,6 +424,7 @@ const told = (over: Over[], walked: Walked | null): string =>
     const is = row.kind === 'file' ? `${row.file}: the file is ${row.count} lines` : `${row.file}: ${row.name} ${row.kind === 'unit' ? 'is' : 'holds'} ${row.count} ${worth(row.kind)}`
     if (allowed === null && (row.kind === 'table' || row.kind === 'text')) return `${is} and has no row — bun ${SELF} --write writes the row of what stands on the list of data`
     const counted = walked?.since(row) ?? null
+    if (allowed === null && counted !== null && counted.moved >= counted.arrived) return `${is} and has no row; all ${counted.arrived} lines that arrived in it left a ${holder(row.kind)} that has a row — bun ${SELF} --write writes its row`
     return `${is} and ${allowed === null ? `has no row, so it may hold at most ${row.kind === 'file' ? FILE_CEILING : UNIT_CEILING}` : `its row allows ${allowed}`}${counted === null ? '' : `; ${arrivals(row, counted.arrived, counted.moved)}`} — ${DO(row)}`
   })
 
@@ -815,14 +817,14 @@ if (process.argv.includes('--list')) {
       const born = [...fresh.keys()].filter(key => !walked.stood.has(key)).length
       const dropped = [...walked.stood.keys()].filter(key => !fresh.has(key)).length
       writeFileSync(join(ROOT, TABLE), render(fresh))
-      console.log(`  wrote ${TABLE}: ${fresh.size} rows; ${lowered} lowered, ${born} new, ${dropped} dropped${walked.base === null ? '' : ` (the floor holds no table of this shape: the first one is held to what ${walked.base === 'HEAD' ? 'the last commit' : walked.base} measures)`}`)
+      console.log(`  wrote ${TABLE}: ${fresh.size} rows; ${lowered} lowered, ${born} new, ${dropped} dropped${walked.base === null ? '' : ` (the floor holds no table of this shape: the first one is held to what ${spoken(walked.base)} measures)`}`)
     }
   }
 } else if (table === null) {
   check(`${TABLE} reads as rows of a file, a kind (file, unit, table, text), a name and a count`, false, text === null ? `no table: put the table of the last commit back (git checkout -- ${TABLE}); a tree that never held one writes the first with bun ${SELF} --write` : `a row is not a file under src, one of the four kinds, a name and a count over its ceiling, or a row stands twice, or the table is of the first shape or holds the marks of a merge; bun ${SELF} --write writes it again from the tree, and reads the rows it may not raise from git and not from this file`)
 } else {
-  const chain = gitChain(ROOT, files, texts, table)
   const started = Date.now()
+  const chain = gitChain(ROOT, files, texts, table)
   const walked = typeof chain === 'string' ? null : walk(chain, held, DATA)
   const over = judge(fresh, table)
   check(`nothing is above its row: no unit, no file, no listed table or text; and what has no row is at or under its ceiling, ${UNIT_CEILING} lines a unit and ${FILE_CEILING} a file (${fresh.size} need a row, ${table.size} rows)`, over.length === 0, told(over, walked))
@@ -830,7 +832,7 @@ if (process.argv.includes('--list')) {
   else {
     const marks = [...walked.marks.values()]
     check(
-      `no row was raised and none is new but by lines that moved, in any write of the table since the floor, each read against the one before (the floor ${FLOOR.slice(0, 10)}; ${walked.writes} write${walked.writes === 1 ? '' : 's'} since and the tree as it stands${walked.base === null ? '' : `; the floor holds no table of this shape, so the first one is held to what ${walked.base === 'HEAD' ? 'the last commit' : walked.base} measures`})`,
+      `no row was raised and none is new but by lines that moved, in any write of the table since the floor, each read against the one before (the floor ${FLOOR.slice(0, 10)}; ${walked.writes} write${walked.writes === 1 ? '' : 's'} since and the tree as it stands${walked.base === null ? '' : `; the floor holds no table of this shape, so the first one is held to what ${spoken(walked.base)} measures`})`,
       marks.length === 0,
       toldMarks(marks, fresh),
     )
