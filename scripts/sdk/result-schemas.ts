@@ -2,11 +2,17 @@ import ts from 'typescript'
 import { join } from 'node:path'
 
 type Schema = Record<string, any>
+export const RESULT_SCHEMA_SOURCES = {
+  projections: 'src/services/engine-connector/seatProjections.ts',
+  encoders: 'src/services/engine-connector/seatWire.ts',
+  protocol: 'src/daemon/protocol.ts',
+  arms: 'src/cli/headless/runnerArms.ts',
+} as const
 export async function resultSchemas(root: string): Promise<Record<string, Schema>> {
-  const { sessionFactsToWire, rewindOutcomeToWire } = await import(join(root, 'src/services/engine-connector/seatWire.ts'))
+  const { sessionFactsToWire, rewindOutcomeToWire } = await import(join(root, RESULT_SCHEMA_SOURCES.encoders))
   const config = ts.readConfigFile(join(root, 'tsconfig.json'), ts.sys.readFile)
   const options = ts.parseJsonConfigFileContent(config.config, ts.sys, root).options
-  const files = ['src/services/engine-connector/seatProjections.ts', 'src/daemon/protocol.ts', 'src/cli/headless/runnerArms.ts']
+  const files = [RESULT_SCHEMA_SOURCES.projections, RESULT_SCHEMA_SOURCES.protocol, RESULT_SCHEMA_SOURCES.arms]
   const program = ts.createProgram(files.map(file => join(root, file)), options)
   const checker = program.getTypeChecker()
   const shape = (type: ts.Type, seen = new Set<ts.Type>()): Schema => {
