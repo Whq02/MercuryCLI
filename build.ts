@@ -744,10 +744,11 @@ let brushMeta: { source: string; version: string; platform: string; target: stri
   }
 }
 
-const { BASH_PACK_PATH: bashRelPath, bashPackPlatform, bashPatchesDigest, bashPrepareCommand, checkBashPackDir } = await import('./src/utils/shell/bashPack.ts');
+const { BASH_PACK_PATH: bashRelPath, bashMsys2LockMismatch, bashPackIsFetched, bashPackPlatform, bashPatchesDigest, bashPrepareCommand, checkBashPackDir } = await import('./src/utils/shell/bashPack.ts');
 let bashVendored = false;
 let bashOwed = false;
-let bashMeta: { version: string; bashVersion: string; platform: string; target: string; binary: string; binarySha256: string; license: string; tarballSha256: string; links: string[] } | null = null;
+let bashFetched = false;
+let bashMeta: ({ version: string; bashVersion: string; platform: string; target: string; binary: string; binarySha256: string; license: string } & ({ source: 'gnu-tarball'; tarballSha256: string; links: string[] } | { source: 'msys2-packages'; emulated: boolean; runtime: string; runtimeVersion: string; runtimeSha256: string; programsDir: string; databaseSha256: string; fileCount: number; treeDigest: string })) | null = null;
 {
   const bashDest = resolve(OUT, bashRelPath);
   rmSync(bashDest, { recursive: true, force: true });
@@ -756,20 +757,23 @@ let bashMeta: { version: string; bashVersion: string; platform: string; target: 
   const packDir = packPlatform ? resolve(ROOT, bashRelPath, packPlatform) : null;
   const bashPrepare = packPlatform ? bashPrepareCommand(packPlatform, CROSS) : '';
   bashOwed = packPlatform !== null;
+  bashFetched = packPlatform !== null && bashPackIsFetched(packPlatform);
   if (!forceNo && packPlatform && packDir && statSync(resolve(packDir, '.vendor-manifest.json'), { throwIfNoEntry: false })?.isFile()) {
-    const check = checkBashPackDir(packDir, { digest: true, platform: packPlatform });
+    const check = checkBashPackDir(packDir, { digest: true, tree: bashFetched, platform: packPlatform });
     let lockWhy: string | null = null;
     if (check.state === 'ok') {
       try {
         const lock = JSON.parse(readFileSync(resolve(ROOT, 'vendor', 'bash.lock.json'), 'utf8')) as {
-          version?: string;
+          version: string;
           tarball?: { sha256?: string };
           patches?: Array<{ file: string; sha256: string }>;
           build?: { configure?: string[] };
-          platforms?: Record<string, { configure?: string[] }>;
+          platforms: Record<string, { kind?: string; target: string; binary?: string; runtime?: string; emulated?: boolean; configure?: string[] }>;
+          msys2?: { bashVersion: string; runtimeVersion: string; database: { sha256: string }; packages: Array<{ file: string; sha256: string; source: { file: string; sha256: string } }> };
         };
         const flags = [...(lock.build?.configure ?? []), ...(lock.platforms?.[packPlatform]?.configure ?? [])];
-        if (lock.version !== check.manifest.version) lockWhy = `the pack is ${check.manifest.version}, the lock pins ${String(lock.version)}`;
+        if (check.manifest.source === 'msys2-packages') lockWhy = bashMsys2LockMismatch(check.manifest, lock, packPlatform);
+        else if (lock.version !== check.manifest.version) lockWhy = `the pack is ${check.manifest.version}, the lock pins ${String(lock.version)}`;
         else if (lock.tarball?.sha256 !== check.manifest.tarballSha256) lockWhy = "the pack's tarball digest is not the lock's";
         else if (bashPatchesDigest(lock.patches ?? []) !== check.manifest.patchesSha256) lockWhy = "the pack's patch set is not the lock's";
         else if (JSON.stringify(flags) !== JSON.stringify(check.manifest.configure)) lockWhy = "the pack was configured with other flags than the lock's";
@@ -782,7 +786,7 @@ let bashMeta: { version: string; bashVersion: string; platform: string; target: 
       cpSync(packDir, resolve(bashDest, packPlatform), { recursive: true });
       chmodSync(resolve(bashDest, packPlatform, check.manifest.binary), 0o755);
       bashVendored = true;
-      bashMeta = {
+      const shared = {
         version: check.manifest.version,
         bashVersion: check.manifest.bashVersion,
         platform: packPlatform,
@@ -790,10 +794,25 @@ let bashMeta: { version: string; bashVersion: string; platform: string; target: 
         binary: check.manifest.binary,
         binarySha256: check.manifest.binarySha256,
         license: check.manifest.license,
-        tarballSha256: check.manifest.tarballSha256,
-        links: check.manifest.links,
       };
-      console.log(`VENDORED bash ${check.manifest.bashVersion} ${packPlatform} (built from the GNU release tarball and its official patches, sha256-verified; ${check.manifest.license})\n  -> ${resolve(bashDest, packPlatform)}`);
+      bashMeta =
+        check.manifest.source === 'msys2-packages'
+          ? {
+              ...shared,
+              source: 'msys2-packages',
+              emulated: check.manifest.emulated,
+              runtime: check.manifest.runtime,
+              runtimeVersion: check.manifest.runtimeVersion,
+              runtimeSha256: check.manifest.runtimeSha256,
+              programsDir: check.manifest.programsDir,
+              databaseSha256: check.manifest.databaseSha256,
+              fileCount: check.manifest.fileCount,
+              treeDigest: check.manifest.treeDigest,
+            }
+          : { ...shared, source: 'gnu-tarball', tarballSha256: check.manifest.tarballSha256, links: check.manifest.links };
+      console.log(
+        `VENDORED bash ${check.manifest.bashVersion} ${packPlatform} (${check.manifest.source === 'msys2-packages' ? `MSYS2's packages of GNU bash with its runtime ${check.manifest.runtimeVersion} and ${check.manifest.programs.length} program names beside it, ${check.manifest.fileCount} files, tree digest verified` : 'built from the GNU release tarball and its official patches, sha256-verified'}; ${check.manifest.license})\n  -> ${resolve(bashDest, packPlatform)}`,
+      );
     } else {
       const why = check.state !== 'ok' ? check.note : lockWhy;
       console.error(
@@ -808,7 +827,7 @@ let bashMeta: { version: string; bashVersion: string; platform: string; target: 
   } else if (!packPlatform) {
     console.warn(`no bash pack is built for ${SHIP_KEY} — the artifact ships without it; the Bash tool's road on that platform is its own.`);
   } else {
-    console.warn(`no bash pack for ${packPlatform} — the artifact ships WITHOUT the bash Mercury runs commands in (degraded: shell-bash; the Bash tool runs the system's bash, then the bundled engine). Prepare it: ${bashPrepare}`);
+    console.warn(`no bash pack for ${packPlatform} — the artifact ships WITHOUT the bash Mercury runs commands in (degraded: shell-bash; the Bash tool runs ${bashFetched ? 'a bash 5 that is installed on the machine' : "the system's bash"}, then the bundled engine). Prepare it: ${bashPrepare}`);
   }
 }
 
@@ -1450,25 +1469,18 @@ const manifest = {
     ? {
         vendored: true,
         name: 'bash',
-        source: 'gnu-tarball',
         path: `${bashRelPath}/${bashMeta.platform}`,
-        version: bashMeta.version,
-        bashVersion: bashMeta.bashVersion,
-        platform: bashMeta.platform,
-        target: bashMeta.target,
-        binary: bashMeta.binary,
-        binarySha256: bashMeta.binarySha256,
-        license: bashMeta.license,
-        tarballSha256: bashMeta.tarballSha256,
-        links: bashMeta.links,
+        ...bashMeta,
       }
     : {
         vendored: false,
         name: 'bash',
         path: bashRelPath,
-        remedy: bashOwed
-          ? 'build the bash pack (`bun run scripts/vendor/build-bash.ts`; a Mac needs the Xcode command line tools, a Linux pack needs docker), then re-run `bun run build.ts` — the Bash tool runs the system bash meanwhile, then the bundled engine'
-          : 'no bash pack is built for this platform',
+        remedy: bashFetched
+          ? 'fetch the bash pack (`bun run scripts/vendor/fetch-bash-win.ts`), then re-run `bun run build.ts` — the Bash tool runs a bash 5 that is installed on the machine meanwhile (Git for Windows ships one), then the bundled engine'
+          : bashOwed
+            ? 'build the bash pack (`bun run scripts/vendor/build-bash.ts`; a Mac needs the Xcode command line tools, a Linux pack needs docker), then re-run `bun run build.ts` — the Bash tool runs the system bash meanwhile, then the bundled engine'
+            : 'no bash pack is built for this platform',
       },
   onDeviceTranscriber: whisperVendored && whisperMeta
     ? {

@@ -9,6 +9,7 @@ import {
   BASH_PACK_MANIFEST_FILE,
   BASH_PACK_PATH,
   BASH_PACK_PLATFORMS,
+  bashPackIsFetched,
   bashPackPlatform,
   bashPackTreeDigest,
   bashPatchesDigest,
@@ -40,7 +41,7 @@ type Lock = {
   tarball: Pinned
   patches: Pinned[]
   build: { cflags: string; configure: string[]; make: string[] }
-  platforms: Record<string, { target: string; deploymentTarget?: string; docker?: string; configure: string[] }>
+  platforms: Record<string, { kind?: string; target: string; deploymentTarget?: string; docker?: string; configure: string[] }>
   linuxBuilder: { image: string; libc: { name: string; version: string; licenseFile: string; tarball: Pinned } }
 }
 const lock = JSON.parse(readFileSync(join(ROOT, 'vendor', 'bash.lock.json'), 'utf8')) as Lock
@@ -60,13 +61,19 @@ check(
   JSON.stringify(patchNames) === JSON.stringify(wanted) && lock.patches.every(patch => patch.url === `https://ftp.gnu.org/gnu/bash/bash-${lock.release}-patches/${patch.file}` && /^[0-9a-f]{64}$/.test(patch.sha256)),
   patchNames.join(' '),
 )
-check('the lock names the four platforms the pack is built for, and the door names the same four', JSON.stringify(Object.keys(lock.platforms).sort()) === JSON.stringify([...BASH_PACK_PLATFORMS].sort()), Object.keys(lock.platforms).join(' '))
+const BUILT_PLATFORMS = BASH_PACK_PLATFORMS.filter(platform => !bashPackIsFetched(platform))
+check('the lock names the six platforms of the pack and the door names the same six', JSON.stringify(Object.keys(lock.platforms).sort()) === JSON.stringify([...BASH_PACK_PLATFORMS].sort()), Object.keys(lock.platforms).join(' '))
+check(
+  'four are built from the GNU tarball and the two for Windows are fetched as MSYS2 packages (scripts/bash/prove-bash-win-pack.ts holds those)',
+  JSON.stringify(BUILT_PLATFORMS) === JSON.stringify(['darwin-arm64', 'darwin-x64', 'linux-x64', 'linux-arm64']) && Object.keys(lock.platforms).every(platform => (lock.platforms[platform]!.kind === 'msys2') === bashPackIsFetched(platform)),
+  Object.entries(lock.platforms).map(([platform, entry]) => `${platform}:${entry.kind ?? 'built'}`).join(' '),
+)
 check('the Linux packs are static builds in a builder image pinned by digest', /^[a-z0-9./-]+@sha256:[0-9a-f]{64}$/.test(lock.linuxBuilder.image) && ['linux-x64', 'linux-arm64'].every(p => lock.platforms[p]!.configure.includes('--enable-static-link')), lock.linuxBuilder.image)
 check("every build uses bash's own readline and its own allocator's absence is stated: no installed library is named", lock.build.configure.includes('--without-installed-readline') && lock.build.configure.includes('--without-bash-malloc') && lock.build.make.includes('YACC=false'), lock.build.configure.join(' '))
-check('the door maps a host to its pack and gives none for Windows, which has its own road', bashPackPlatform('darwin', 'arm64') === 'darwin-arm64' && bashPackPlatform('darwin', 'x64') === 'darwin-x64' && bashPackPlatform('linux', 'x64') === 'linux-x64' && bashPackPlatform('linux', 'arm64') === 'linux-arm64' && bashPackPlatform('win32', 'x64') === null)
+check('the door maps a host to its pack, a Windows host to its fetched one, and gives none for a host no pack is made for', bashPackPlatform('darwin', 'arm64') === 'darwin-arm64' && bashPackPlatform('darwin', 'x64') === 'darwin-x64' && bashPackPlatform('linux', 'x64') === 'linux-x64' && bashPackPlatform('linux', 'arm64') === 'linux-arm64' && bashPackPlatform('win32', 'x64') === 'win-x64' && bashPackPlatform('win32', 'arm64') === 'win-arm64' && bashPackPlatform('freebsd', 'x64') === null)
 
 section('(2) the packs that stand in this checkout')
-const built = BASH_PACK_PLATFORMS.filter(platform => existsSync(join(ROOT, ...BASH_PACK_PATH.split('/'), platform, BASH_PACK_MANIFEST_FILE)))
+const built = BUILT_PLATFORMS.filter(platform => existsSync(join(ROOT, ...BASH_PACK_PATH.split('/'), platform, BASH_PACK_MANIFEST_FILE)))
 const host = bashPackPlatform()
 if (host === null) console.log(`  [SKIP] no bash pack is built for ${process.platform}/${process.arch}`)
 else if (!built.includes(host)) console.log(`  [SKIP] this checkout holds no pack for ${host} (bun run scripts/vendor/build-bash.ts builds it): the rows that read it are skipped, the rows on the built bundle stand`)
@@ -76,7 +83,7 @@ for (const platform of built) {
   const verdict = checkBashPackDir(dir, { digest: true, platform })
   const manifest = readBashPackManifest(dir)
   check(`${platform}: the pack reads whole and its binary matches its record`, verdict.state === 'ok', verdict.state === 'ok' ? '' : verdict.note)
-  if (manifest === null) continue
+  if (manifest === null || manifest.source !== 'gnu-tarball') continue
   const flags = [...lock.build.configure, ...lock.platforms[platform]!.configure]
   check(
     `${platform}: the record names the lock's version, tarball, patch set, target and flags`,
@@ -136,7 +143,7 @@ if (host !== null && built.includes(host)) {
     rmSync(join(copy, 'COPYING'))
     const unlicensed = checkBashPackDir(copy, { platform: host })
     check('a pack without its licence text is refused, naming the file', unlicensed.state === 'mismatch' && unlicensed.note.includes('COPYING'), unlicensed.state === 'ok' ? 'passed' : unlicensed.note)
-    const other = BASH_PACK_PLATFORMS.find(platform => platform !== host)!
+    const other = BUILT_PLATFORMS.find(platform => platform !== host)!
     const foreign = checkBashPackDir(dir, { platform: other })
     check(`the pack of one platform is refused on another (${other})`, foreign.state === 'mismatch', foreign.state === 'ok' ? 'passed' : foreign.note)
     const absent = resolveBashPackDir(scratch)
