@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# gate-class: pty
+# gate-watch: scripts/repetition-guard/**
+# gate-watch: src/services/changeTransaction/repetitionPolicy.ts
+# gate-watch: src/tools/FileEditTool/** src/tools/FileWriteTool/** src/tools/ChangeSetTool/**
+# gate-watch: scripts/mission-runner/live/runner.ts
+# gate-watch: scripts/lib/captureDriver.ts scripts/ui/renderScenarios.ts scripts/ui/vshot.py src/Tool.ts
+# gate-watch: src/services/changeTransaction/contracts.ts src/services/changeTransaction/snapshotAnchor.ts
+# gate-watch: src/services/run/effectObserver.ts src/utils/verification/verificationState.ts
+set -uo pipefail
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
+
+cd "$(dirname "$0")/../.." || exit 1
+here="scripts/repetition-guard-drives"
+if [ ! -f dist/mercury.mjs ]; then
+  printf '%s\n' 'repetition-guard-drives: dist/mercury.mjs absent; build before running terminal drives'
+  exit 1
+fi
+
+drive_members repetition-guard-drives 'scripts/repetition-guard/$name' "$here/members.txt"
