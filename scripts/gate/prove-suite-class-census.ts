@@ -18,6 +18,7 @@ const SPAWN_CALL = /\b(?:spawn|spawnSync|spawnCaptureSync|execFile|execFileSync|
 const SHELL_PYTHON = /(?:^|[\s"'(])python3?\b/
 const spawnShape = (line: string, ext: Ext | null): boolean => SPAWN_CALL.test(line) || (ext === 'sh' && SHELL_PYTHON.test(line))
 const READ = /\b(?:readFileSync|readFile|existsSync|statSync|readdirSync|Bun\.file)\s*\(/
+const PY_READ = /\bopen\s*\(|\bos\.path\.(?:exists|isfile|isdir|getsize|getmtime)\s*\(|\.read_(?:text|bytes)\s*\(/
 const ASSIGN = /^\s*(?:export\s+)?(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*(?::[^=]+)?=[^=]|^\s*[A-Za-z_$][\w$.]*\s*=[^=]/
 const ENGINE_RESOLVER = /\b(?:captureEngineEntry|CAPTURE_ENGINE_ENTRY)\b/
 const RESOLVER_CALL = /(?<!function\s)\bcaptureEngineEntry\s*\(/
@@ -107,7 +108,8 @@ function contextOf(lines: string[], ext: Ext | null): { ctx: LineCtx[]; fileSpaw
       }
     })
   }
-  const ctx = lines.map((l, i) => ({ read: READ.test(l) || arm[i]!, spawn: call[i]! || built[i]! || (fileSpawns && !arm[i] && ASSIGN.test(l)), call: call[i]! }))
+  const reads = ext === 'py' ? PY_READ : READ
+  const ctx = lines.map((l, i) => ({ read: reads.test(l) || arm[i]!, spawn: call[i]! || built[i]! || (fileSpawns && !arm[i] && ASSIGN.test(l)), call: call[i]! }))
   return { ctx, fileSpawns }
 }
 
@@ -130,7 +132,6 @@ function resolveModule(p: string): string | null {
 function edgesOf(root: string, file: string, lines: string[], ctx: LineCtx[]): Set<string> {
   const ext = extOf(file)
   if (ext === 'sh') return shellTargets(root, file)
-  if (ext === 'py') return new Set()
   const scriptsDir = join(root, 'scripts')
   const dir = dirname(file)
   const out = new Set<string>()
@@ -407,6 +408,10 @@ function selfTest(): boolean {
   w('scripts/gated/render-x.ts', "import { spawnSync } from 'node:child_process'\nspawnSync('/usr/bin/python3', [join(ROOT, 'scripts', 'ui', 'engine.py')])\n")
   w('scripts/py-direct/run-all.sh', '#!/usr/bin/env bash\n# gate-class: pty\n/usr/bin/python3 "$here/prove-e.py"\n')
   w('scripts/py-direct/prove-e.py', `import pty\npid, fd = ${forkCall}\n`)
+  w('scripts/py-launch/run-all.sh', '#!/usr/bin/env bash\n# gate-class: cpu\n/usr/bin/python3 "$here/prove-ai.py"\n/usr/bin/python3 "$here/prove-aj.py"\n/usr/bin/python3 "$here/prove-ak.py"\n')
+  w('scripts/py-launch/prove-ai.py', "import subprocess\nr = subprocess.run(\n    ['bun', 'run', 'scripts/lib/tui.ts',\n     '--cols', '80'],\n    cwd=REPO, capture_output=True, text=True)\n")
+  w('scripts/py-launch/prove-aj.py', "import os\nimport subprocess\ntext = open(os.path.join(REPO, 'scripts', 'lib', 'tui.ts')).read()\nr = subprocess.run(['git', 'status'], cwd=REPO)\n")
+  w('scripts/py-launch/prove-ak.py', "import os\nimport subprocess\nTUI = os.path.join(REPO, 'scripts', 'lib', 'tui.ts')\nr = subprocess.run(['bun', 'run', TUI], cwd=REPO)\n")
   w('scripts/named-list/run-all.sh', `#!/usr/bin/env bash\n# gate-class: cpu\nfor prover in prove-f prove-g; do ${bun} run "$here/$prover.ts"; done\n`)
   w('scripts/named-list/prove-f.ts', 'export const f = 1\n')
   w('scripts/named-list/prove-g.ts', "import { spawnSync } from 'node:child_process'\nconst ENGINE = join(REPO, 'scripts/ui/engine.py')\nspawnSync('/usr/bin/python3', [ENGINE])\n")
@@ -464,7 +469,7 @@ function selfTest(): boolean {
   const c = census(root)
   rmSync(root, { recursive: true, force: true })
   const drives = [...new Set(c.suites.filter(s => s.chain.length > 0).map(s => s.suite))].sort()
-  const want = ['args-above', 'capture-door', 'carried', 'handed-on', 'multi-line', 'named-list', 'path-table', 'py-direct', 'recorded', 'resolved-drive', 'shared-terminal', 'slice-2', 'template-import', 'template-spawn', 'via-here-drives', 'via-import-2']
+  const want = ['args-above', 'capture-door', 'carried', 'handed-on', 'multi-line', 'named-list', 'path-table', 'py-direct', 'py-launch', 'recorded', 'resolved-drive', 'shared-terminal', 'slice-2', 'template-import', 'template-spawn', 'via-here-drives', 'via-import-2']
   const okEngines = c.engines.join(',') === 'engine.py,prove-e.py'
   const okDrives = drives.join(',') === want.join(',')
   const parentDropsMember = c.suites.find(s => s.suite === 'via-import')?.files === 1
@@ -480,6 +485,9 @@ function selfTest(): boolean {
     suiteOf('recorded')?.chain.join(' → ') === 'scripts/recorded/prove-ab.ts → scripts/lib/recorder.ts' && evidenceOfSuite('recorded') === BUN_TERMINAL &&
     suiteOf('win-arm')?.drivers.length === 0 &&
     suiteOf('via-here')?.files === 1 && suiteOf('via-here')?.drivers.length === 0
+  const pythonOk =
+    suiteOf('py-launch')?.drivers.join(' ') === 'scripts/py-launch/prove-ai.py scripts/py-launch/prove-ak.py' &&
+    suiteOf('py-launch')?.why['scripts/py-launch/prove-ai.py'] === 'scripts/py-launch/prove-ai.py → scripts/lib/tui.ts — spawns engine.py'
   const allQuiet = quietMembers(c.suites)
   const quietRead = [...allQuiet].map(([suite, members]) => `${suite}: ${members.join(' ')}`).join(' · ')
   const others = suiteOf('other-things-drives')?.needs ?? {}
@@ -504,9 +512,9 @@ function selfTest(): boolean {
     risen(new Map([['a', 2], ['b', 1], ['c', 1]]), new Map([['a', 1], ['b', 1]])).join(' · ') === 'a 2 stands above the committed 1 · c 1 is a new row' &&
     risen(new Map([['a', 1]]), new Map([['a', 2], ['b', 3]])).length === 0 &&
     toldDrivers(suiteOf('shared-terminal')!).includes('scripts/shared-terminal/prove-t.ts → scripts/shared-terminal-drives/members.txt')
-  const ok = okEngines && okDrives && parentDropsMember === true && chainOk && resolvedOk && formsOk && laterFormsOk && needsOk && judgeOk
+  const ok = okEngines && okDrives && parentDropsMember === true && chainOk && resolvedOk && formsOk && laterFormsOk && pythonOk && needsOk && judgeOk
   console.log(
-    `  [${ok ? 'PASS' : 'FAIL'}] §3 self-test: engines derived (${c.engines.join(',')}) · drives = {${drives.join(', ')}} (want {${want.join(', ')}}) · the complement runner drops the member (${String(parentDropsMember)}) · the member's chain runs through the helper (${String(chainOk)}) · the resolver spawned for real reads as a drive (${resolvedEvidence ?? 'no evidence'}) · the capture door, the entry handed to a helper and the entry carried to a later spawn read as drives (${['capture-door', 'handed-on', 'carried'].map(evidenceOfSuite).join(' / ')}) · an argument list built above the spawn, a table of paths a spawn runs and Bun's terminal through a recorder read as drives, a Windows-only arm as none, and the "$here"/../ spelling of a complement drops the twin's member (${String(laterFormsOk)}: ${['args-above', 'path-table', 'recorded'].map(evidenceOfSuite).join(' / ')} · win-arm ${suiteOf('win-arm')?.drivers.length ?? '?'} · via-here ${suiteOf('via-here')?.files ?? '?'}) · a container engine and an application are named from what a member launches and a member that only names them is quiet (${String(needsOk)}) · a terminal suite's member that needs nothing is named, and the table judges a held row, no row, a fallen row, and a row new or higher than the committed one (${String(judgeOk)}: ${quietRead || 'none named'})`,
+    `  [${ok ? 'PASS' : 'FAIL'}] §3 self-test: engines derived (${c.engines.join(',')}) · drives = {${drives.join(', ')}} (want {${want.join(', ')}}) · the complement runner drops the member (${String(parentDropsMember)}) · the member's chain runs through the helper (${String(chainOk)}) · the resolver spawned for real reads as a drive (${resolvedEvidence ?? 'no evidence'}) · the capture door, the entry handed to a helper and the entry carried to a later spawn read as drives (${['capture-door', 'handed-on', 'carried'].map(evidenceOfSuite).join(' / ')}) · an argument list built above the spawn, a table of paths a spawn runs and Bun's terminal through a recorder read as drives, a Windows-only arm as none, and the "$here"/../ spelling of a complement drops the twin's member (${String(laterFormsOk)}: ${['args-above', 'path-table', 'recorded'].map(evidenceOfSuite).join(' / ')} · win-arm ${suiteOf('win-arm')?.drivers.length ?? '?'} · via-here ${suiteOf('via-here')?.files ?? '?'}) · a Python member that starts a script through subprocess, by its path or by a path it joined, drives through that script, and one that only opens the script's file does not (${String(pythonOk)}: ${suiteOf('py-launch')?.drivers.map(d => basename(d)).join(' ') ?? 'no such suite'}) · a container engine and an application are named from what a member launches and a member that only names them is quiet (${String(needsOk)}) · a terminal suite's member that needs nothing is named, and the table judges a held row, no row, a fallen row, and a row new or higher than the committed one (${String(judgeOk)}: ${quietRead || 'none named'})`,
   )
   return ok
 }
