@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import memoize from 'lodash-es/memoize.js'
 import { logForDebugging } from '../debug.js'
@@ -113,32 +114,43 @@ export function shippedBashOnDisk(): { path: string; programsDir: string | null 
   return pack.state === 'ok' ? { path: pack.binaryPath, programsDir: bashPackProgramsDir(pack.dir, pack.manifest) } : null
 }
 
+const passedOver: string[] = []
+let noneStarts = false
+
+function passOver(line: string): void {
+  passedOver.push(line)
+  logForDebugging(`shell record: ${line}`)
+}
+
+export function noSystemShellStarts(): boolean {
+  return noneStarts
+}
+
 async function posixSystemRecord(): Promise<ShellRecord> {
   const pack = shippedBash()
   if (pack.state === 'ok') {
     const version = await startedBashVersion(pack.binaryPath)
     if (version !== null) return { path: pack.binaryPath, dialect: 'bash', version, origin: 'shipped' }
-    logForDebugging(`shell record: the shipped bash at ${pack.binaryPath} does not start; the system bash is next`)
+    passOver(`the bash Mercury ships, ${pack.binaryPath}, does not start`)
   } else {
-    logForDebugging(`shell record: no shipped bash (${pack.note}); the system bash is next`)
+    passOver(`this install carries no bash of its own: ${pack.note}`)
   }
-  for (const candidate of await systemBashCandidates()) {
+  const found = (await systemBashCandidates()).filter(candidate => existsSync(candidate))
+  for (const candidate of found) {
     const version = await startedBashVersion(candidate)
     if (version !== null) return { path: candidate, dialect: 'bash', version, origin: 'system' }
+    passOver(`${candidate} does not start`)
   }
+  if (found.length === 0) passOver(`no bash is on PATH or in ${SHELL_FALLBACK_DIRECTORIES.join(', ')}`)
   const engine = resolveBrushPackDir()
   if (engine.state === 'ok') {
     logForDebugging(`shell record: no bash starts on this machine; the bundled engine at ${engine.binaryPath} serves`)
     return { path: engine.binaryPath, dialect: 'bash', version: engine.manifest.version, origin: 'engine' }
   }
+  passOver(`the bundled engine is unavailable: ${engine.note}`)
+  noneStarts = true
   logError(NO_SHELL_MESSAGE)
   throw new Error(NO_SHELL_MESSAGE)
-}
-
-let settledWindowsNotes: { passed: string[]; none: boolean } = { passed: [], none: false }
-
-export function noSystemShellStarts(): boolean {
-  return settledWindowsNotes.none
 }
 
 async function windowsSystemRecord(): Promise<ShellRecord> {
@@ -156,9 +168,10 @@ async function windowsSystemRecord(): Promise<ShellRecord> {
     },
     engineAllowed: engineMayServe(),
     start: startedBashVersion,
+    passed: passedOver,
   })
   for (const line of choice.passed) logForDebugging(`shell record: ${line}`)
-  settledWindowsNotes = { passed: choice.passed, none: choice.origin === 'none' }
+  noneStarts = choice.origin === 'none'
   if (choice.origin === 'none') {
     logError(NO_WINDOWS_SHELL_MESSAGE)
     throw new Error(NO_WINDOWS_SHELL_MESSAGE)
@@ -292,13 +305,16 @@ export function beginLoginFiles(): void {
 
 export type ShellRow = { status: 'ok' | 'warn'; evidence: string; fix?: string }
 
+const LAST_ROAD_FIX = 'Reinstall Mercury to restore the bash it ships, or install bash so that it is on PATH, then restart Mercury.'
+
 export async function shellRow(): Promise<ShellRow> {
   const record = await shellRecordIfAny()
+  const passedNow = passedOver.length > 0 ? ` — passed over: ${passedOver.join('; ')}` : ''
   const pack = shippedBash()
   const skipped = pack.state === 'ok' ? null : pack.note
   const fix = skipped === null ? {} : { fix: `The bash pack is skipped in this install: ${skipped}` }
   const onWindowsRoad = windowsShellRoadActive()
-  const passed = onWindowsRoad && settledWindowsNotes.passed.length > 0 ? ` — passed over: ${settledWindowsNotes.passed.join('; ')}` : ''
+  const passed = onWindowsRoad ? passedNow : ''
   if (onWindowsRoad) {
     const road = describeWindowsShellRoad()
     if (road.absent) return { status: 'warn', evidence: `${road.line}${passed}`, ...(road.fix === undefined ? {} : { fix: road.fix }) }
@@ -308,9 +324,12 @@ export async function shellRow(): Promise<ShellRow> {
     const lastRoad = road.road === 'engine' && (armed === null || armed.arm === 'no-bash')
     return { status: lastRoad ? 'warn' : 'ok', evidence: `${road.line}${names}${passed}`, ...(lastRoad ? fix : {}) }
   }
-  if (record === null) return { status: 'warn', evidence: NO_SHELL_MESSAGE, ...fix }
+  if (record === null) return { status: 'warn', evidence: `${NO_SHELL_MESSAGE}${passedNow}`, fix: skipped === null ? LAST_ROAD_FIX : `The bash pack is skipped in this install: ${skipped}` }
   const armed = armedEngine()
   if (armed !== null) return { status: 'ok', evidence: `${describeShellRecord(record)} (${shellEngineArmWords(armed.arm)})${skipped === null ? '' : ` — this install carries no bash pack: ${skipped}`}` }
+  if (record.origin === 'engine') {
+    return { status: 'warn', evidence: `${describeShellRecord(record)}, because no bash starts on this machine${passedNow}`, fix: skipped === null ? LAST_ROAD_FIX : `The bash pack is skipped in this install: ${skipped}` }
+  }
   const absent = await loginFilesSettled()
   if (absent !== null) {
     return {

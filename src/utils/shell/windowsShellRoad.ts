@@ -78,12 +78,13 @@ export type WindowsShellWorld = {
   engine: () => { path: string; version: string } | { absent: string }
   engineAllowed: boolean
   start: (path: string) => Promise<string | null>
+  passed?: string[]
 }
 
 export type WindowsShellChoice = { origin: ShellOrigin | 'none'; path: string; version: string; pinned: boolean; passed: string[] }
 
 export async function settleWindowsShell(world: WindowsShellWorld): Promise<WindowsShellChoice> {
-  const passed: string[] = []
+  const passed: string[] = world.passed ?? []
   if (world.pinned !== null) {
     const version = await world.start(world.pinned)
     if (version !== null) return { origin: 'system', path: world.pinned, version, pinned: true, passed }
