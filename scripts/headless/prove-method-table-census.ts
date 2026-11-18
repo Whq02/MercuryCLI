@@ -46,11 +46,12 @@ section('§1 every method declares its direction, its kind, a params schema and 
 
 section('§2 the runner side: every method a host sends has an arm, and the binder binds them all')
 {
-  const print = src('src/cli/run.ts')
+  const { runnerArmsOf } = await import('../../src/cli/headless/runnerArms.ts')
+  const arms = Object.keys(runnerArmsOf(new Proxy({}, { get: () => undefined }) as never))
   const hostRequests = methodsFrom('host', 'request').map(spec => spec.name)
   const hostNotifications = methodsFrom('host', 'notification').map(spec => spec.name)
-  const armless = [...hostRequests, ...hostNotifications].filter(name => name !== 'initialize' && name !== '$/cancel_request' && !print.includes(`'${name}':`))
-  check("every host method but initialize and $/cancel_request has an arm in the runner's arms object", armless.length === 0, j(armless))
+  const armless = [...hostRequests, ...hostNotifications].filter(name => name !== 'initialize' && name !== '$/cancel_request' && !arms.includes(name))
+  check("every host method but initialize and $/cancel_request has an arm in the runner's arms object", armless.length === 0 && arms.length === hostRequests.length + hostNotifications.length - 2, j({ armless, arms: arms.length }))
   const { refusalOf, withLiveRunner } = await import('../lib/builtProduct.ts')
   const { RPC_NOT_INITIALIZED } = await import('../../src/runner/wire/errors.ts')
   const gate = await withLiveRunner(

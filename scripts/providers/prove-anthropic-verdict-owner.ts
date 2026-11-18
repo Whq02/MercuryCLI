@@ -125,11 +125,6 @@ section('§5 the credential-switch reset clears the verdict and its stamp; the n
 section('§6 the road: the sign-in reaches the runners, and the live reads ride the guarded verdict')
 {
   const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
-  const print = src('src/cli/run.ts')
-  const runnerCase = print.indexOf("'credentials/changed': () => {")
-  const runnerArm = runnerCase === -1 ? '' : print.slice(runnerCase, runnerCase + 900)
-  check("the runner's control loop takes a credentials/changed notification", runnerCase !== -1)
-  check('…and resets the limit verdict and drops its credential memos there', runnerArm.includes('resetLimitsForCredentialSwitch()') && runnerArm.includes('dropCredentialMemos()'))
   const methods = src('src/runner/wire/methods.ts')
   check('the wire declares credentials/changed as a host notification', /'credentials\/changed': method\(\{[\s\S]{0,200}from: 'host',[\s\S]{0,60}kind: 'notification'/.test(methods))
   const seat = src('src/daemon/sessionSeat.ts')

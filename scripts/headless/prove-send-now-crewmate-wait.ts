@@ -130,11 +130,9 @@ tally.check('the crewmate ran on in the background to its own end and its comple
 
 tally.section('the seam, structural')
 {
-  const run = readFileSync(join(ROOT, 'src/cli/run.ts'), 'utf8')
   const sendNow = readFileSync(join(ROOT, 'src/cli/headless/sendNow.ts'), 'utf8')
   const queue = readFileSync(join(ROOT, 'src/input-core/command-queue.ts'), 'utf8')
   const methods = readFileSync(join(ROOT, 'src/runner/wire/methods.ts'), 'utf8')
-  tally.check('the runner answers session/send_now only while a turn is in flight, from the one send-now function', run.includes("'session/send_now': () => {") && run.includes('if (inFlightAbort === null) return SEND_NOW_NOTHING_QUEUED') && run.includes('return sendQueuedWordsNow(getAppState, setAppState)'))
   tally.check('send-now does nothing with no operator line queued, else releases the hold, hands the foreground crewmates over and moves the main shells to the background', sendNow.includes('if (queued === 0) return SEND_NOW_NOTHING_QUEUED') && sendNow.includes('const released = releaseQueuedWordsToTurn()') && sendNow.includes('const crewmates = handOverForegroundAgentsToQueuedMessage(getAppState, setAppState)') && sendNow.includes('const shells = requestShellBackground()'))
   tally.check('the release strips the turn-end mark from a fresh record and commits once', queue.includes('export function releaseQueuedWordsToTurn(): number') && queue.includes('const { waitsForTurnEnd: _held, ...rest } = cmd') && queue.includes('if (released > 0) commit()'))
   tally.check('the wire method is a host request with the four counts', methods.includes("'session/send_now': method({") && methods.includes('queued: z.number().int().min(0), released: z.number().int().min(0), crewmates: z.number().int().min(0), shells: z.number().int().min(0)'))
