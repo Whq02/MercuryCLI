@@ -33,7 +33,7 @@ type Reply = Record<string, unknown>
 type Exit = { code: number | null; signal: string | null }
 type Daemon = { label: string; pid: number; child: ChildProcess; logPath: string; exit: Exit | null }
 type Session = { sid: string; runnerId: string; pid: number }
-type BootOptions = { env?: Record<string, string | undefined>; dist?: string; wait?: 'serve' | 'exit' | 'none'; waitMs?: number }
+type BootOptions = { extra?: Record<string, string | undefined>; dist?: string; wait?: 'serve' | 'exit' | 'none'; waitMs?: number }
 type Covers = { verbs?: string[]; doors?: string[]; periodic?: string[]; waysOut?: string[]; boot?: string[] }
 export type Scenario = { name: string; about: string; covers: Covers; seconds: number; run: (w: World) => Promise<void> }
 
@@ -185,14 +185,14 @@ class World {
   async boot(label: string, opts: BootOptions = {}): Promise<Daemon> {
     const logPath = join(this.root, `${label}.log`)
     const log = openSync(logPath, 'a')
-    const child = spawn(this.node, [join(opts.dist ?? this.dist, 'mercury.mjs'), 'daemon', 'run', this.work, '--log-stderr'], { cwd: this.work, env: this.env(opts.env), stdio: ['ignore', log, log] })
+    const child = spawn(this.node, [join(opts.dist ?? this.dist, 'mercury.mjs'), 'daemon', 'run', this.work, '--log-stderr'], { cwd: this.work, env: this.env(opts.extra), stdio: ['ignore', log, log] })
     const daemon: Daemon = { label, pid: child.pid ?? 0, child, logPath, exit: null }
     child.once('exit', (code, signal) => {
       daemon.exit = { code, signal }
     })
     this.daemons.push(daemon)
     this.pid(daemon.pid, label)
-    this.say(`> boot ${label}${opts.env ? ` ${this.mask(JSON.stringify(opts.env))}` : ''}`)
+    this.say(`> boot ${label}${opts.extra ? ` ${this.mask(JSON.stringify(opts.extra))}` : ''}`)
     const wait = opts.wait ?? 'serve'
     if (wait === 'serve') {
       await this.until(`${label} serves`, async () => {
@@ -529,7 +529,7 @@ export const SCENARIOS: Scenario[] = [
     seconds: 60,
     covers: { verbs: ['answer-permission', 'park-all', 'park', 'set-title', 'contract', 'set-schedule', 'mcp-action', 'mcp-tools', 'set-kit', 'set-model', 'set-effort', 'set-spawn-switch', 'set-permission-mode', 'session-facts', 'focus', 'blur', 'interrupt', 'stop-agent', 'resume-agent', 'withdraw-send', 'background-shell', 'send-now', 'board-post', 'pause-gate', 'leave', 'stop', 'attach', 'detach', 'grant-workflows', 'revoke-workflows', 'pause', 'resume'], doors: ['concourseAdmit', 'concourseControl', 'concourseList', 'concourseRelease', 'hello', 'onShutdown'], waysOut: ['control:shutdown with a worker reaped'] },
     run: async w => {
-      const d = await w.boot('d1', { env: { MERCURY_MAX_RETRIES: '0' } })
+      const d = await w.boot('d1', { extra: { MERCURY_MAX_RETRIES: '0' } })
       await verbsOn(w, 'nobody', UNKNOWN_SESSION)
       for (const action of ['park', 'park-all', 'attach', 'detach', 'leave', 'stop', 'set-model']) await w.control(`${action} on nobody`, UNKNOWN_SESSION, action, action === 'set-model' ? { model: 'claude-sonnet-5' } : {})
       const s = await w.admit('s1')
@@ -590,8 +590,8 @@ export const SCENARIOS: Scenario[] = [
     run: async w => {
       const d = await w.boot('d1')
       const second = await w.boot('d2', { wait: 'exit' })
-      const third = await w.boot('d3', { wait: 'exit', env: { MERCURY_DAEMON_SUCCESSOR_OF: '1' } })
-      const fourth = await w.boot('d4', { wait: 'exit', env: { MERCURY_DAEMON_HANDOVER_FROM: String(d.pid) } })
+      const third = await w.boot('d3', { wait: 'exit', extra: { MERCURY_DAEMON_SUCCESSOR_OF: '1' } })
+      const fourth = await w.boot('d4', { wait: 'exit', extra: { MERCURY_DAEMON_HANDOVER_FROM: String(d.pid) } })
       void second
       void third
       void fourth
@@ -623,7 +623,7 @@ export const SCENARIOS: Scenario[] = [
     seconds: 6,
     covers: { boot: ['control disabled'], periodic: ['the keep-alive'], waysOut: ['SIGTERM without a control layer'] },
     run: async w => {
-      const d = await w.boot('d1', { wait: 'none', env: { MERCURY_DAEMON_CONTROL: '0' } })
+      const d = await w.boot('d1', { wait: 'none', extra: { MERCURY_DAEMON_CONTROL: '0' } })
       await w.logged(d, /starting daemon for/)
       await sleep(500)
       await w.rpc('ping finds nobody', { op: 'ping' }, 1500)
@@ -687,7 +687,7 @@ export const SCENARIOS: Scenario[] = [
       const plant = join(w.root, 'plant.cjs')
       writeFileSync(plant, "if (process.argv.includes('daemon')) process.on('SIGUSR2', () => { if (process.env.DMR_PLANT === 'rejection') Promise.reject(new Error('the planted rejection')); else setImmediate(() => { throw new Error('the planted exception') }) })\n")
       for (const [label, kind] of [['d1', 'exception'], ['d2', 'rejection']] as const) {
-        const d = await w.boot(label, { env: { NODE_OPTIONS: `--require ${plant}`, DMR_PLANT: kind } })
+        const d = await w.boot(label, { extra: { NODE_OPTIONS: `--require ${plant}`, DMR_PLANT: kind } })
         w.signal(d, 'SIGUSR2')
         await w.left(d)
         w.files(`${label} left`)
@@ -702,7 +702,7 @@ export const SCENARIOS: Scenario[] = [
     covers: { periodic: ['the owner watch'], waysOut: ['parkAllThenShutdown (owner-orphaned)'], doors: ['hello', 'processSweep facts'] },
     run: async w => {
       const owner = w.holder('owner')
-      const d = await w.boot('d1', { env: { MERCURY_DAEMON_PERSIST: undefined, MERCURY_DAEMON_OWNER_PID: String(owner.pid) } })
+      const d = await w.boot('d1', { extra: { MERCURY_DAEMON_PERSIST: undefined, MERCURY_DAEMON_OWNER_PID: String(owner.pid) } })
       await w.rpc('hello names the owner', { op: 'hello', clientVersion: '1.0.0', clientBuildTree: null })
       const s = await w.admit('s1')
       await w.rpc('processSweep facts', { op: 'processSweep', action: 'facts' })
@@ -720,7 +720,7 @@ export const SCENARIOS: Scenario[] = [
     seconds: 55,
     covers: { periodic: ['the sessionless beat'], verbs: ['stop'], waysOut: ['sessionless'] },
     run: async w => {
-      const d = await w.boot('d1', { env: { MERCURY_DAEMON_PERSIST: undefined, MERCURY_DAEMON_OWNER_PID: String(process.pid) } })
+      const d = await w.boot('d1', { extra: { MERCURY_DAEMON_PERSIST: undefined, MERCURY_DAEMON_OWNER_PID: String(process.pid) } })
       const s = await w.admit('s1')
       await w.control('stop s1', s.sid, 'stop')
       await w.until('s1 stopped', () => w.record(s.sid)?.stoppedAt !== undefined && !alive(s.pid), 30_000)
@@ -734,7 +734,7 @@ export const SCENARIOS: Scenario[] = [
     seconds: 75,
     covers: { periodic: ['the reconcile tick'], waysOut: ['SIGTERM'] },
     run: async w => {
-      const d = await w.boot('d1', { env: { MERCURY_SESSION_IDLE_RETIRE_MINUTES: '0.2', MERCURY_SESSION_NEWBORN_GRACE_MINUTES: '0.1' } })
+      const d = await w.boot('d1', { extra: { MERCURY_SESSION_IDLE_RETIRE_MINUTES: '0.2', MERCURY_SESSION_NEWBORN_GRACE_MINUTES: '0.1' } })
       const s = await w.admit('s1')
       await w.logged(d, /retired .*empty and idle for/, 100_000)
       await w.gone('s1', s.sid, s.pid, 'stoppedAt')
@@ -750,7 +750,7 @@ export const SCENARIOS: Scenario[] = [
     covers: { doors: ['processSweep facts', 'processSweep end (daemon)', 'processSweep end (runner)'], waysOut: ['control:processSweep'] },
     run: async w => {
       const owner = w.holder('owner')
-      const d = await w.boot('d1', { env: { MERCURY_DAEMON_PERSIST: undefined, MERCURY_DAEMON_OWNER_PID: String(owner.pid) } })
+      const d = await w.boot('d1', { extra: { MERCURY_DAEMON_PERSIST: undefined, MERCURY_DAEMON_OWNER_PID: String(owner.pid) } })
       const state = JSON.parse(read(join(w.daemonDir, 'daemon.json'))) as { startToken?: string; startInstant?: string }
       const self = { kind: 'daemon', process: { pid: d.pid }, startToken: state.startInstant ?? state.startToken }
       await w.rpc('facts', { op: 'processSweep', action: 'facts' })
@@ -849,7 +849,7 @@ export const SCENARIOS: Scenario[] = [
       const b = w.payload('b')
       w.deploy(b)
       await w.logged(older, /the installed build moved to/, 15_000)
-      const newer = await w.boot('newer', { dist: b, env: { MERCURY_DAEMON_HANDOVER_FROM: String(older.pid) } })
+      const newer = await w.boot('newer', { dist: b, extra: { MERCURY_DAEMON_HANDOVER_FROM: String(older.pid) } })
       await w.logged(newer, /took the plane/)
       await w.rpc('hello of the plane', { op: 'hello', clientVersion: '1.0.0', clientBuildTree: null })
       await w.rpc('sessionList across both', { op: 'sessionList' })
@@ -880,7 +880,7 @@ export const SCENARIOS: Scenario[] = [
       await w.logged(older, /the installed build moved to/, 15_000)
       const wait = 5600 - ((Date.now() - started) % 5000)
       await sleep(wait > 5000 ? wait - 5000 : wait)
-      const newer = await w.boot('newer', { dist: b, env: { MERCURY_DAEMON_HANDOVER_FROM: String(older.pid) } })
+      const newer = await w.boot('newer', { dist: b, extra: { MERCURY_DAEMON_HANDOVER_FROM: String(older.pid) } })
       await w.left(older, 30_000)
       await w.logged(newer, /the predecessor released the daemon lock/, 15_000)
       await w.rpc('hello of the plane', { op: 'hello', clientVersion: '1.0.0', clientBuildTree: null })
@@ -899,7 +899,7 @@ export const SCENARIOS: Scenario[] = [
       const a = w.payload('a')
       w.deploy(a)
       const older = await w.boot('older', { dist: a })
-      const newer = await w.boot('newer', { dist: w.payload('b'), env: { MERCURY_DAEMON_HANDOVER_FROM: String(older.pid) }, wait: 'none' })
+      const newer = await w.boot('newer', { dist: w.payload('b'), extra: { MERCURY_DAEMON_HANDOVER_FROM: String(older.pid) }, wait: 'none' })
       await w.logged(older, /taking it back/, 30_000)
       await w.left(newer, 45_000)
       await w.until('the installed build serves again', async () => {
@@ -929,7 +929,7 @@ export const SCENARIOS: Scenario[] = [
       w.signal(d, 'SIGTERM')
       await w.left(d)
       const second = await w.lockHolder('holder2')
-      const e = await w.boot('d2', { wait: 'none', env: { MERCURY_DAEMON_SUCCESSOR_OF: String(second.pid) } })
+      const e = await w.boot('d2', { wait: 'none', extra: { MERCURY_DAEMON_SUCCESSOR_OF: String(second.pid) } })
       await sleep(2000)
       await w.end(second, 'holder2')
       await w.until('d2 serves', async () => {
@@ -939,7 +939,7 @@ export const SCENARIOS: Scenario[] = [
       w.signal(e, 'SIGTERM')
       await w.left(e)
       const third = await w.lockHolder('holder3')
-      const f = await w.boot('d3', { wait: 'exit', waitMs: 30_000, env: { MERCURY_DAEMON_SUCCESSOR_OF: String(third.pid) } })
+      const f = await w.boot('d3', { wait: 'exit', waitMs: 30_000, extra: { MERCURY_DAEMON_SUCCESSOR_OF: String(third.pid) } })
       void f
       w.files('refused')
     },
