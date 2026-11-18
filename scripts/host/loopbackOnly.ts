@@ -1,3 +1,5 @@
+import { isIP } from 'node:net'
+
 const sent = globalThis.fetch
 const asked: string[] = []
 const member = (process.argv[1] ?? 'this process').replace(/^.*[\\/]scripts[\\/]/, 'scripts/')
@@ -12,7 +14,7 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
   const request = input instanceof Request ? input : undefined
   const url = new URL(request ? request.url : String(input))
   const host = url.hostname.replace(/^\[|\]$/g, '')
-  if (host === 'localhost' || host === '::1' || host.startsWith('127.')) return sent(input, init)
+  if (host === 'localhost' || host === '::1' || isIP(host) === 4 && host.startsWith('127.')) return sent(input, init)
   const line = (init?.method ?? request?.method ?? 'GET').toUpperCase() + ' ' + url.origin + url.pathname
   if (asked.length === 0) endsRed()
   asked.push(line)
