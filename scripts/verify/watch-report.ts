@@ -27,6 +27,7 @@ const tracked = graph.listed
 const underSrc = tracked.filter(f => f.startsWith('src/'))
 const manifest = loadImpactManifest(ROOT)
 const bySuite = new Map(graph.suites.map(s => [s.suite, s]))
+const classOf = (suite: string): string => manifest.classes?.[suite] ?? 'undeclared'
 
 const globs = new Map<string, Set<string>>()
 function matchesOf(pattern: string): Set<string> {
@@ -180,7 +181,7 @@ const total = (label: string, set: Row[]): void => {
   say()
 }
 
-const pure = rows.filter(r => r.s.cls === 'pure')
+const pure = rows.filter(r => classOf(r.s.suite) === 'pure')
 const sameGraph = (() => {
   const theirs = buildImportGraph()
   const prefix = `${theirs.root}/`
@@ -209,7 +210,7 @@ say()
 say('## What was read')
 say()
 say(`- files git lists in the work tree ${tracked.length} · under src ${underSrc.length} · under scripts ${tracked.filter(f => f.startsWith('scripts/')).length}`)
-say(`- suites ${rows.length} · by class: ${[...new Set(rows.map(r => r.s.cls))].sort().map(c => `${c} ${rows.filter(r => r.s.cls === c).length}`).join(' · ')}`)
+say(`- suites ${rows.length} · by class: ${[...new Set(rows.map(r => classOf(r.s.suite)))].sort().map(c => `${c} ${rows.filter(r => classOf(r.s.suite) === c).length}`).join(' · ')}`)
 say(`- the module graph: ${graph.files.src} files under src and ${graph.files.other} outside it read, ${graph.edges} resolved edges, ${graph.unread.length} files that did not parse`)
 say(`- the text fence's reader (scripts/lib/sourceTextReads.ts, called here): ${graph.fence.opened} src files opened as text and ${graph.fence.onlyNamed} only named, by ${graph.fence.scripts} scripts`)
 say(`- beside scripts/orphans/graph.ts on src: ${sameGraph.files} files, ${sameGraph.edges} resolved edges there; the targets of ${sameGraph.same} files are the same here, ${sameGraph.differ.length} differ${sameGraph.differ.length > 0 ? `: ${sameGraph.differ.slice(0, 6).join(', ')}${sameGraph.differ.length > 6 ? ', …' : ''}` : ''}`)
@@ -227,7 +228,7 @@ say('|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|-
 for (const r of rows) {
   const b = r.s.blind
   say(
-    `| ${r.s.suite} | ${r.s.cls} | ${r.s.members.length} | ${r.lines.length} | ${r.globs.length} | ${r.hand} | ${r.s.deps.size} | ${r.tiers.touched} | ${r.tiers.deep} | ${r.tiers.lazy} | ${r.missed.touched.length} | ${r.missed.deep.length} | ${r.missed.lazy.length} | ${r.count('covered')} | ${r.count('partial')} | ${r.count('unread') + r.count('dead')} | ${r.s.bundle.length}/${r.s.members.length} | ${wholeOf(r.s).join(' ') || '-'} | i${b.imports} p${b.paths} c${b.children} g${b.git} |`,
+    `| ${r.s.suite} | ${classOf(r.s.suite)} | ${r.s.members.length} | ${r.lines.length} | ${r.globs.length} | ${r.hand} | ${r.s.deps.size} | ${r.tiers.touched} | ${r.tiers.deep} | ${r.tiers.lazy} | ${r.missed.touched.length} | ${r.missed.deep.length} | ${r.missed.lazy.length} | ${r.count('covered')} | ${r.count('partial')} | ${r.count('unread') + r.count('dead')} | ${r.s.bundle.length}/${r.s.members.length} | ${wholeOf(r.s).join(' ') || '-'} | i${b.imports} p${b.paths} c${b.children} g${b.git} |`,
   )
 }
 say()
@@ -331,11 +332,11 @@ const text = out.join('\n') + '\n'
 if (detail) {
   mkdirSync(detail, { recursive: true })
   const tsv = (name: string, lines: string[]): void => writeFileSync(join(detail, name), lines.join('\n') + '\n')
-  tsv('missed-touched.tsv', ['suite\tclass\tfile\thow\tfrom', ...rows.flatMap(r => r.missed.touched.map(f => `${r.s.suite}\t${r.s.cls}\t${f}\t${r.s.deps.get(f)!.how}\t${r.s.deps.get(f)!.via}`))])
-  tsv('missed-deep.tsv', ['suite\tclass\tfile\timports into src\tfrom', ...rows.flatMap(r => r.missed.deep.filter(f => r.s.deps.get(f)!.hops === 1).map(f => `${r.s.suite}\t${r.s.cls}\t${f}\t1\t${r.s.deps.get(f)!.via}`))])
-  tsv('globs.tsv', ['suite\tclass\tglob\tagainst every file\tagainst touched files\tmatches', ...rows.flatMap(r => r.globs.map(g => `${r.s.suite}\t${r.s.cls}\t${g}\t${r.far.get(g)}\t${r.near.get(g)}\t${matchesOf(g).size}`))])
+  tsv('missed-touched.tsv', ['suite\tclass\tfile\thow\tfrom', ...rows.flatMap(r => r.missed.touched.map(f => `${r.s.suite}\t${classOf(r.s.suite)}\t${f}\t${r.s.deps.get(f)!.how}\t${r.s.deps.get(f)!.via}`))])
+  tsv('missed-deep.tsv', ['suite\tclass\tfile\timports into src\tfrom', ...rows.flatMap(r => r.missed.deep.filter(f => r.s.deps.get(f)!.hops === 1).map(f => `${r.s.suite}\t${classOf(r.s.suite)}\t${f}\t1\t${r.s.deps.get(f)!.via}`))])
+  tsv('globs.tsv', ['suite\tclass\tglob\tagainst every file\tagainst touched files\tmatches', ...rows.flatMap(r => r.globs.map(g => `${r.s.suite}\t${classOf(r.s.suite)}\t${g}\t${r.far.get(g)}\t${r.near.get(g)}\t${matchesOf(g).size}`))])
   tsv('paths.tsv', ['path\thand\ttouched', ...changes.map(c => `${c.path}\t${c.hand.join(' ')}\t${c.touched.join(' ')}`)])
-  tsv('roads.tsv', ['suite\tclass\tmember\tnames the bundle', ...rows.flatMap(r => r.s.bundle.map(m => `${r.s.suite}\t${r.s.cls}\t${m}\t${r.s.naming.includes(m) ? 'itself' : 'through a file it reaches'}`))])
-  tsv('whole.tsv', ['suite\tclass\tscope\tfrom', ...rows.flatMap(r => [...new Set(r.s.whole.map(w => `${r.s.suite}\t${r.s.cls}\t${w.scope === '' ? '.' : w.scope}\t${w.via}`))].sort())])
+  tsv('roads.tsv', ['suite\tclass\tmember\tnames the bundle', ...rows.flatMap(r => r.s.bundle.map(m => `${r.s.suite}\t${classOf(r.s.suite)}\t${m}\t${r.s.naming.includes(m) ? 'itself' : 'through a file it reaches'}`))])
+  tsv('whole.tsv', ['suite\tclass\tscope\tfrom', ...rows.flatMap(r => [...new Set(r.s.whole.map(w => `${r.s.suite}\t${classOf(r.s.suite)}\t${w.scope === '' ? '.' : w.scope}\t${w.via}`))].sort())])
 }
 process.stdout.write(text)

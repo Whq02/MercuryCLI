@@ -2,8 +2,8 @@ import { execFileSync } from 'node:child_process'
 import { readdirSync, readFileSync } from 'node:fs'
 import { isAbsolute, join, posix, relative, resolve } from 'node:path'
 import ts from 'typescript'
-import { census } from '../gate/prove-suite-class-census.ts'
 import { calleeName, declarationOf, parseSource, slash, stringText, unwrap } from '../gate/sourceCensus.ts'
+import { runnerLaunches } from '../lib/runnerLaunches.ts'
 import { factsOf, srcOf } from '../lib/sourceTextReads.ts'
 
 type EdgeKind = 'import' | 'run' | 'lazy' | 'type'
@@ -28,6 +28,7 @@ const WALKER = /^(?:Glob|readdir|opendir|scan|walk|glob|ls|list|collect|census|g
 const TOKEN = /(?<![A-Za-z0-9_@./-])(?:[A-Za-z0-9_@.-]+\/)+[A-Za-z0-9_@.*-]+/g
 const WHOLE = /^(?:(src|scripts)\/)?\*\*(?:\/.*)?$/
 const RUNNER = /^scripts\/[^/]+\/run-all\.sh$/
+const SOURCED = /^(?:\.|source)\s/
 const EAGER = new Set<EdgeKind>(['import', 'run'])
 const VALUE = new Set<EdgeKind>(['import', 'run', 'lazy'])
 const EVERY = new Set<EdgeKind>(['import', 'run', 'lazy', 'type'])
@@ -350,7 +351,7 @@ function shellFacts(tree: Tree, rel: string, runner: boolean): Facts {
       const hits = !t.includes('*') ? (tree.files.has(t) ? [t] : []) : tree.dirs.has(t.split('/')[0]!) ? tree.list.filter(f => globOf(t).match(f)) : []
       for (const f of hits) {
         if (!RUNNABLE.test(f)) facts.names.add(f)
-        else if (!runner) facts.edges.push({ to: f, kind: 'run' })
+        else if (!runner || SOURCED.test(line)) facts.edges.push({ to: f, kind: 'run' })
       }
     }
   }
@@ -427,14 +428,18 @@ function readWatchGraph(root: string, tracked: string[], named: Map<string, stri
     }
     return seen
   }
-  const suites = census(root).suites.map(row => {
+  const suites = runnerLaunches(root).map(row => {
     const runner = `scripts/${row.suite}/run-all.sh`
-    const executed = row.executed.map(slash).filter(f => tree.files.has(f))
-    const eager = reach(executed, EAGER)
-    const value = reach(executed, VALUE)
-    const every = reach(executed, EVERY)
+    const executed = row.launched.map(slash).filter(f => tree.files.has(f))
+    const runnerFacts = tree.files.has(runner) ? shellFacts(tree, runner, true) : blank()
+    const sourced = runnerFacts.edges.map(e => e.to)
+    const start = [...new Set([...executed, ...sourced])]
+    const eager = reach(start, EAGER)
+    const value = reach(start, VALUE)
+    const every = reach(start, EVERY)
     const deps = new Map<string, Dep>()
-    for (const f of executed) deps.set(f, { how: f.startsWith('scripts/lib/') ? 'runner' : 'member', hops: 0, via: runner })
+    for (const f of executed) deps.set(f, { how: 'member', hops: 0, via: runner })
+    for (const f of sourced) if (!deps.has(f)) deps.set(f, { how: 'runner', hops: 0, via: runner })
     for (const [f, at] of eager) if (!deps.has(f)) deps.set(f, { how: at.kind === 'run' ? 'run' : 'import', hops: at.hops, via: at.via })
     for (const [f, at] of value) if (!deps.has(f)) deps.set(f, { how: 'lazy', hops: at.hops, via: at.via })
     const whole: Array<{ scope: string; via: string }> = []
@@ -457,9 +462,9 @@ function readWatchGraph(root: string, tracked: string[], named: Map<string, stri
       blind.children += facts.blind.children
       blind.git += facts.blind.git
     }
-    if (tree.files.has(runner)) read(runner, shellFacts(tree, runner, true))
+    read(runner, runnerFacts)
     for (const f of [...value.keys()].sort()) if (!f.startsWith('src/')) read(f, factsAt(f))
-    return { suite: row.suite, cls: row.cls, members: executed.filter(f => !f.startsWith('scripts/lib/')), deps, typed: every.size - value.size, naming, bundle: [] as string[], whole, blind }
+    return { suite: row.suite, members: executed, deps, typed: every.size - value.size, naming, bundle: [] as string[], whole, blind }
   })
   const back = new Map<string, string[]>()
   for (const [from, facts] of memo) {
