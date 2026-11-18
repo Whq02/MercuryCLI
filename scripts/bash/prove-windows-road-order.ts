@@ -207,6 +207,10 @@ try {
         alive = false
       }
       check('…and under Node too that program was killed, not asked: it is gone', Number.isInteger(pid) && !alive, `pid ${String(pid)} alive ${alive}`)
+      const asked = join(scratch, 'asked-at-start')
+      const counting = script('counting-bash', `#!/bin/sh\necho asked >> '${asked}'\nexec ${SYSTEM_BASH} "$@"\n`)
+      const version = spawnSync(nodeBinPath(), [bundle, '--version'], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, MERCURY_CONFIG_DIR: join(scratch, 'version-home'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_SHELL_ENGINE: undefined, MERCURY_WINDOWS_SHELL_ROAD: 'locate', MERCURY_GIT_BASH_PATH: counting } })
+      check('--version on the Windows road asks no bash for its version: nothing is started before a command or the shell line needs the record', version.status === 0 && /^Mercury /.test(version.stdout) && !existsSync(asked), `status ${String(version.status)} · ${version.stdout.slice(0, 60)} · asked ${existsSync(asked)}`)
     }
   }
 } finally {
