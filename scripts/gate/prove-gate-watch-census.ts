@@ -21,9 +21,8 @@ type Glob = { glob: string; line: number; matches: number; covered: boolean }
 type SuiteRow = { suite: string; globs: Glob[] }
 type Miss = { law: 1 | 2; suite: string; text: string }
 type Census = { suites: SuiteRow[]; misses: Miss[] }
-type Row = { globs: number; covered: number }
-type Table = Map<string, Row>
-type Over = { suite: string; what: 'covered' | 'globs'; now: number; row: number; named: Glob[] }
+type Table = Map<string, number>
+type Over = { suite: string; now: number; row: number; covered: Glob[]; hand: Glob[] }
 type Cut = { runner: string; line: number; gone: string[]; left: string[] }
 
 function trackedOf(root: string): string[] {
@@ -92,41 +91,35 @@ function tableOf(text: string): Table | null {
   const table: Table = new Map()
   for (const line of text.split('\n')) {
     if (line === '') continue
-    const m = /^([A-Za-z0-9_-]+)\t([0-9]+)\t([0-9]+)$/.exec(line)
-    if (!m || table.has(m[1]!) || Number(m[2]) === 0 || Number(m[3]) > Number(m[2])) return null
-    table.set(m[1]!, { globs: Number(m[2]), covered: Number(m[3]) })
+    const m = /^([A-Za-z0-9_-]+)\t([1-9][0-9]*)$/.exec(line)
+    if (!m || table.has(m[1]!)) return null
+    table.set(m[1]!, Number(m[2]))
   }
   return table
 }
-
-const rowOf = (s: SuiteRow): Row => ({ globs: s.globs.length, covered: s.globs.filter(g => g.covered).length })
 
 const render = (suites: SuiteRow[]): string =>
   suites
     .filter(s => s.globs.length > 0)
     .sort((a, b) => (a.suite < b.suite ? -1 : 1))
-    .map(s => `${s.suite}\t${rowOf(s).globs}\t${rowOf(s).covered}\n`)
+    .map(s => `${s.suite}\t${s.globs.length}\n`)
     .join('')
 
-function judge(suites: SuiteRow[], table: Table): { over: Over[]; globs: number; covered: number; allowed: Row; slack: number } {
+function judge(suites: SuiteRow[], table: Table): { over: Over[]; globs: number; covered: number; allowed: number; slack: number } {
   const over: Over[] = []
   let globs = 0
   let covered = 0
   for (const s of suites) {
-    const now = rowOf(s)
-    globs += now.globs
-    covered += now.covered
-    const row = table.get(s.suite) ?? { globs: 0, covered: 0 }
-    if (now.covered > row.covered) over.push({ suite: s.suite, what: 'covered', now: now.covered, row: row.covered, named: s.globs.filter(g => g.covered) })
-    if (now.globs > row.globs) over.push({ suite: s.suite, what: 'globs', now: now.globs, row: row.globs, named: s.globs.filter(g => !g.covered) })
+    globs += s.globs.length
+    covered += s.globs.filter(g => g.covered).length
+    const row = table.get(s.suite) ?? 0
+    if (s.globs.length > row) over.push({ suite: s.suite, now: s.globs.length, row, covered: s.globs.filter(g => g.covered), hand: s.globs.filter(g => !g.covered) })
   }
-  const allowed: Row = { globs: 0, covered: 0 }
+  let allowed = 0
   let slack = 0
   for (const [suite, row] of table) {
-    allowed.globs += row.globs
-    allowed.covered += row.covered
-    const now = suites.find(s => s.suite === suite)
-    if (!now || rowOf(now).globs < row.globs || rowOf(now).covered < row.covered) slack++
+    allowed += row
+    if ((suites.find(s => s.suite === suite)?.globs.length ?? 0) < row) slack++
   }
   return { over, globs, covered, allowed, slack }
 }
@@ -135,9 +128,10 @@ const WRITE_WORDS = `bun ${SELF} --write lowers a row and never raises or adds o
 
 function told(o: Over): string {
   const runner = `scripts/${o.suite}/run-all.sh`
-  const names = o.named.slice(0, 24).map(g => `\n      ${runner}:${g.line} ${g.glob} (${g.matches} file${g.matches === 1 ? '' : 's'})`).join('') + (o.named.length > 24 ? `\n      … and ${o.named.length - 24} more` : '')
-  if (o.what === 'covered') return `${runner} holds ${o.now} watch globs the computation covers and ${o.row === 0 ? 'its row allows none' : `its row in ${TABLE} allows ${o.row}`}: the suite's proofs touch every file each of them matches, so the suite wakes without the line (${CHAIN} prints the road) — take them out of the header (bun ${SELF} --cut does it for every runner); ${WRITE_WORDS}:${names}`
-  return `${runner} holds ${o.now} watch globs and ${o.row === 0 ? 'has no row' : `its row in ${TABLE} allows ${o.row}`}: ${HAND_LAW}. For a new line ${CHAIN} says which of the three it is, or prints the road by which the suite wakes already; a line that must stand raises the suite's row by hand in the same commit, where the diff shows it. The globs of this header the computation does not cover:${names}`
+  const names = (list: Glob[]): string => list.slice(0, 24).map(g => `\n      ${runner}:${g.line} ${g.glob} (${g.matches} file${g.matches === 1 ? '' : 's'})`).join('') + (list.length > 24 ? `\n      … and ${list.length - 24} more` : '')
+  const needless = o.covered.length === 0 ? '' : `\n    ${o.covered.length} of its globs the computation covers: the suite's proofs touch every file each of them matches, so the suite wakes with no line (${CHAIN} prints the road). If the new line is one of these, take it out:${names(o.covered)}`
+  const held = o.hand.length === 0 ? '' : `\n    ${o.hand.length} it does not cover. If the new line is one of these, ${CHAIN} says which of the three it stands for; a line that must stand raises the suite's row by hand in the same commit, where the diff shows it:${names(o.hand)}`
+  return `${runner} holds ${o.now} watch globs and ${o.row === 0 ? 'has no row' : `its row in ${TABLE} allows ${o.row}`}: a line was added. ${HAND_LAW}.${needless}${held}`
 }
 
 function cutsOf(root: string, suites: SuiteRow[]): Cut[] {
@@ -202,16 +196,16 @@ function selfTest(): boolean {
   const table = tableOf(text)
   const held = table === null ? null : judge(got.suites, table)
   const bare = judge(got.suites, new Map())
-  const lowered = judge(got.suites, new Map([['alpha', { globs: 6, covered: 3 }], ['beta', { globs: 1, covered: 0 }]]))
-  const fallen = judge(got.suites, new Map([['alpha', { globs: 9, covered: 5 }], ['beta', { globs: 1, covered: 0 }], ['gone', { globs: 2, covered: 1 }]]))
+  const lowered = judge(got.suites, new Map([['alpha', 5], ['beta', 1]]))
+  const fallen = judge(got.suites, new Map([['alpha', 9], ['beta', 1], ['gone', 2]]))
   const judgeOk =
-    text === 'alpha\t6\t4\nbeta\t1\t0\n' &&
-    held !== null && held.over.length === 0 && held.globs === 7 && held.covered === 4 && held.slack === 0 &&
-    bare.over.map(o => `${o.suite} ${o.what} ${o.now}`).join(' · ') === 'alpha covered 4 · alpha globs 6 · beta globs 1' &&
-    lowered.over.length === 1 && lowered.over[0]!.what === 'covered' && told(lowered.over[0]!).includes('scripts/alpha/run-all.sh:3 src/alpha/a.ts (1 file)') && told(lowered.over[0]!).includes('--cut') &&
-    told(bare.over[2]!).includes('scripts/beta/run-all.sh:3 src/area/** (2 files)') && told(bare.over[2]!).includes('has no row') && told(bare.over[2]!).includes('raises the suite') &&
+    text === 'alpha\t6\nbeta\t1\n' &&
+    held !== null && held.over.length === 0 && held.globs === 7 && held.covered === 4 && held.allowed === 7 && held.slack === 0 &&
+    bare.over.map(o => `${o.suite} ${o.now}`).join(' · ') === 'alpha 6 · beta 1' &&
+    lowered.over.length === 1 && lowered.over[0]!.suite === 'alpha' && told(lowered.over[0]!).includes('its row in scripts/gate/watch-hand-list.tsv allows 5') && told(lowered.over[0]!).includes('4 of its globs the computation covers') && told(lowered.over[0]!).includes('scripts/alpha/run-all.sh:3 src/alpha/a.ts (1 file)') && told(lowered.over[0]!).includes('scripts/alpha/run-all.sh:3 src/alpha/** (2 files)') &&
+    told(bare.over[1]!).includes('scripts/beta/run-all.sh:3 src/area/** (2 files)') && told(bare.over[1]!).includes('has no row') && told(bare.over[1]!).includes('raises the suite') &&
     fallen.over.length === 0 && fallen.slack === 2 &&
-    tableOf('a\t2\t1\nb\t3\t0\n')?.get('a')?.covered === 1 && tableOf('a\t0\t0\n') === null && tableOf('a\t1\t2\n') === null && tableOf('a\t1\t0\na\t1\t0\n') === null && tableOf('a 1 0\n') === null
+    tableOf('a\t2\nb\t3\n')?.get('b') === 3 && tableOf('a\t0\n') === null && tableOf('a\t1\t2\n') === null && tableOf('a\t1\na\t1\n') === null && tableOf('a 1\n') === null
   const before = claimantsOf(root, tracked, computed)
   const cuts = cutsOf(root, got.suites)
   applyCuts(root, cuts)
@@ -220,12 +214,12 @@ function selfTest(): boolean {
   const cutOk =
     cuts.map(c => `${c.runner}:${c.line} -${c.gone.join(',')} +${c.left.join(',')}`).join(' · ') === 'scripts/alpha/run-all.sh:3 -src/alpha/a.ts,scripts/lib/helper.ts +src/alpha/** · scripts/alpha/run-all.sh:4 -src/beta/b.ts + · scripts/alpha/run-all.sh:5 -scripts/alpha/notes.txt +src/gone/**' &&
     header === '#!/usr/bin/env bash | # gate-class: pure | # gate-watch: src/alpha/** | # gate-watch: src/gone/** | set -u' &&
-    render(after.suites) === 'alpha\t2\t0\nbeta\t1\t0\n' &&
+    render(after.suites) === 'alpha\t2\nbeta\t1\n' && after.suites.every(s => s.globs.every(g => !g.covered)) &&
     claimantsOf(root, tracked, computedWatch(root)) === before
   rmSync(root, { recursive: true, force: true })
   const ok = seen.join('\n') === want.join('\n') && states === wantStates && judgeOk && cutOk
   console.log(
-    `  [${ok ? 'PASS' : 'FAIL'}] §0 self-test on a planted estate: a glob that names no tracked path and a watch line below the header are named (${seen.length} of ${want.length}) · a glob is covered when the suite's proofs touch every file it matches or the file stands in the suite's own folder, and held by hand when it reaches a file they do not (${String(states === wantStates)}) · the table judges a held row, no row, a row lowered under its suite and a fallen row, and reads back as written (${String(judgeOk)}) · the cut takes the covered globs out of the header, drops a line it empties, and no file of the estate changes its claimants (${String(cutOk)})`,
+    `  [${ok ? 'PASS' : 'FAIL'}] §0 self-test on a planted estate: a glob that names no tracked path and a watch line below the header are named (${seen.length} of ${want.length}) · a glob is covered when the suite's proofs touch every file it matches or the file stands in the suite's own folder, and held by hand when it reaches a file they do not (${String(states === wantStates)}) · the table holds the size of each header: a held row passes, a header above its row or with no row is named with its covered globs and its hand globs apart, a fallen row is counted, and the table reads back as written (${String(judgeOk)}) · the cut takes the covered globs out of the header, drops a line it empties, and no file of the estate changes its claimants (${String(cutOk)})`,
   )
   if (!ok) {
     for (const s of seen) console.log(`         seen: ${s}`)
@@ -266,24 +260,25 @@ if (import.meta.main) {
     if (failures > 0) console.log('  nothing written: the census failed above')
     else if (text !== null && table === null) {
       failures++
-      console.log(`  [FAIL] §2 ${TABLE} reads as rows of a suite, its watch globs and how many the computation covers — put the committed table back, then write`)
+      console.log(`  [FAIL] §2 ${TABLE} reads as rows of a suite and the watch globs of its header — put the committed table back, then write`)
     } else if (against !== null && against.over.length > 0) {
       failures++
       console.log(`  [FAIL] §2 no row rises and none is added, nothing written — ${against.over.map(told).join('\n    ')}`)
     } else {
       writeFileSync(join(REAL_ROOT, TABLE), render(c.suites))
-      console.log(`  wrote ${TABLE}: ${c.suites.filter(s => s.globs.length > 0).length} rows · ${globs} globs · ${covered} covered${against === null ? ' (the first table)' : ` (it allowed ${against.allowed.globs} and ${against.allowed.covered})`}`)
+      console.log(`  wrote ${TABLE}: ${c.suites.filter(s => s.globs.length > 0).length} rows · ${globs} globs${against === null ? ' (the first table)' : ` (it allowed ${against.allowed})`}`)
     }
   } else if (table === null) {
     failures++
-    console.log(`  [FAIL] §2 ${TABLE} reads as rows of a suite, its watch globs and how many the computation covers — ${text === null ? `no table: bun ${SELF} --write writes the first one` : 'a row is not a suite and two counts, the second no higher than the first, or a suite stands twice'}`)
+    console.log(`  [FAIL] §2 ${TABLE} reads as rows of a suite and the watch globs of its header — ${text === null ? `no table: bun ${SELF} --write writes the first one` : 'a row is not a suite and a count of 1 or more, or a suite stands twice'}`)
   } else {
     const found = judge(c.suites, table)
     for (const o of found.over) {
       failures++
       console.log(`  [FAIL] §2 ${told(o)}`)
     }
-    if (found.over.length === 0) console.log(`  [PASS] §2 no header holds more watch globs than its row, and none more that the computation covers (${found.globs} globs, ${found.covered} covered; ${TABLE} allows ${found.allowed.globs} and ${found.allowed.covered}; a suite with no row holds none)`)
+    if (found.over.length === 0) console.log(`  [PASS] §2 no header holds more watch globs than its row in ${TABLE} (${found.globs} globs, ${found.allowed} allowed; a suite with no row holds none): a line cannot be added without a row raised by hand`)
+    console.log(`  of the ${found.globs} globs the computation covers ${found.covered} (bun ${SELF} --cut takes them out of the headers, and no path changes its suites) and ${found.globs - found.covered} are held by hand`)
     if (found.slack > 0) console.log(`  rows above their header's count: ${found.slack} (${WRITE_WORDS})`)
   }
   console.log(`\n${failures === 0 ? '✅' : '❌'} prove-gate-watch-census — ${failures === 0 ? 'all checks pass' : `${failures} check(s) failed`}`)
