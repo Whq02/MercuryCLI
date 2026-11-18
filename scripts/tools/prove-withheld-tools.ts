@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -105,6 +105,25 @@ check('the census reads the adapter table through the memo, never the live probe
   const withheldOwner = await import('../../src/utils/withheldTools.ts')
   const settledList = withheldOwner.withheldTools()
   check("/health's row waits for the toolchain probes before it reads the census", withheldSays?.evidence === withheldOwner.withheldToolsLine(settledList) && (settledList.length === 0 ? withheldSays.status === 'ok' : withheldSays.status === 'info' && withheldSays.detail === settledList.map(w => `${w.tool} — needs ${w.dependency}: ${w.why}`).join('\n')), withheldSays?.evidence)
+  const slowGdb = join(emptyBin, 'gdb')
+  if (process.platform !== 'win32') {
+    writeFileSync(slowGdb, '#!/bin/sh\n/bin/sleep 0.2\necho "GNU gdb (GDB) 9.2"\n')
+    chmodSync(slowGdb, 0o755)
+  }
+  dap._resetLldbDapForTesting()
+  dap._resetGdbProbeForTesting()
+  const pendingAtAsk = dap.dapAdapterProbePending()
+  const asked = await withheldRow?.run()
+  const pendingAtAnswer = dap.dapAdapterProbePending()
+  const debugLine = (asked?.detail ?? '').split('\n').find(row => row.startsWith('Debug — ')) ?? ''
+  if (process.platform !== 'win32') rmSync(slowGdb)
+  dap._resetLldbDapForTesting()
+  dap._resetGdbProbeForTesting()
+  check(
+    "/health's row, asked while a toolchain probe has not answered (a gdb that takes a fifth of a second to name itself), answers once the probe has: nothing is pending at its answer and its Debug line is the settled one",
+    (process.platform === 'win32' || pendingAtAsk) && !pendingAtAnswer && debugLine.includes('so no launch could work') && !debugLine.includes('has not answered'),
+    `pending at the ask ${pendingAtAsk} · at the answer ${pendingAtAnswer} · ${debugLine.slice(0, 220)}`,
+  )
 }
 
 section('§6 the toolchain probes answer in the background: the catalog build reads their memo')

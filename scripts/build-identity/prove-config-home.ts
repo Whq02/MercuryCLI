@@ -91,6 +91,25 @@ console.log('\nhealth coherence keys on the AUTH home (a foreign slot is not a s
   }
   check('/health carries no foreign-home arm', slotted?.status === 'ok', slotted?.evidence)
   check('a live slot is NAMED in the ok evidence, never flagged', slotted?.status === 'ok' && slotted.evidence.includes(`auth scope slotted → ${slotHome}`), slotted?.evidence)
+  const { mock } = await import('bun:test')
+  const keychainPath = join(ROOT, 'src', 'utils', 'secureStorage', 'macOsKeychainHelpers.ts')
+  const keychain = { ...(await import(keychainPath)) }
+  mock.module(keychainPath, () => ({ ...keychain, getMacOsKeychainStorageServiceName: () => 'Mercury' }))
+  envUtils.setAuthScope(join(home, '.claude'))
+  let split: { status: string; evidence: string; fix?: string } | undefined
+  let splitHome = ''
+  try {
+    splitHome = envUtils.getAuthConfigHomeDir()
+    split = await configHomeRow?.run()
+  } finally {
+    envUtils.clearAuthScope()
+    mock.module(keychainPath, () => keychain)
+  }
+  check(
+    'a keychain service that carries no home suffix (the owner stubbed to answer a bare name) fails the row: it names the auth home the service is un-suffixed for, not the session home, and says where to report it',
+    split?.status === 'fail' && splitHome !== envUtils.getMercuryHome() && split.evidence === `keychain service 'Mercury' is UN-suffixed for the auth home ${splitHome} — credential identity split` && split.fix === 'The config home resolved two ways — report this with `mercury health --json`.',
+    `${split?.status}: ${split?.evidence}`,
+  )
   probe(true, undefined, undefined)
 }
 

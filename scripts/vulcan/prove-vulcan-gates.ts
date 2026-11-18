@@ -216,6 +216,20 @@ section('§7 · behavioral seams — harness map, doctrine, boot menu, health, p
   const vulcanCheck = runtimeChecks().find(row => row.id === 'vulcan')
   const vulcanSays = await vulcanCheck?.run()
   check("health: the 'vulcan' check is wired", vulcanCheck?.label === 'Godot control (VULCAN)' && vulcanSays !== undefined && (armedNow() ? vulcanSays.status !== 'off' && vulcanSays.evidence.startsWith('armed (port ') || vulcanSays.evidence.startsWith('project ') : vulcanSays.status === 'off' && vulcanSays.evidence.startsWith('MERCURY_GODOT_TOOLS unset')), vulcanSays?.evidence)
+  const game = path.join(scratch, 'game-health')
+  mkdirSync(game, { recursive: true })
+  writeFileSync(path.join(game, 'project.godot'), '[application]\n\nconfig/name="health"\n')
+  process.env.MERCURY_GODOT_TOOLS = '1'
+  const bare = await runWithCwdOverride(game, async () => vulcanCheck?.run())
+  await installer.applyVulcanInstall(game)
+  const installed = await runWithCwdOverride(game, async () => vulcanCheck?.run())
+  await installer.applyVulcanUninstall(game)
+  delete process.env.MERCURY_GODOT_TOOLS
+  check(
+    "health: armed in a Godot project the row reads the addon's state from the installer: not installed and not enabled before an install, installed and enabled after it",
+    bare?.status === 'warn' && bare.evidence.includes(' · addon NOT installed · addon not enabled · ') && installed?.evidence.includes(' · addon installed · addon enabled · ') === true,
+    `${bare?.evidence} | ${installed?.evidence}`,
+  )
   const promptsSrc = readFileSync(path.join(repo, 'src/constants/prompts.ts'), 'utf8')
   check('prompt: getVulcanSection spliced into modeSections', promptsSrc.includes('getVulcanSection()'))
   const harnessSrc = readFileSync(path.join(repo, 'src/utils/cockpit/harnessMap.ts'), 'utf8')
