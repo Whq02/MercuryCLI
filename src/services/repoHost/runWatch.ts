@@ -32,11 +32,6 @@ function watchKey(owner: OwnerKey, id: string): string {
 }
 
 registerExecutionDomain('host-run-watch', {
-  reconcile(record) {
-    const live = liveWatches.get(watchKey(record.spec.owner, record.spec.id))
-    if (live) return null
-    return { state: 'failed', outcome: { reason: 'watch loop not present in this process' } }
-  },
   requestStop(record) {
     const live = liveWatches.get(watchKey(record.spec.owner, record.spec.id))
     if (!live) return

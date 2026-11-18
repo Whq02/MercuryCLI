@@ -155,7 +155,6 @@ export function installEvidenceProducers(): void {
         details: {
           kind: record.spec.kind,
           generation: record.generation,
-          ...(event.event.reconciled !== undefined && { reconciled: event.event.reconciled }),
         },
       })
     } catch {

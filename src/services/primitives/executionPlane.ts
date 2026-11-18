@@ -67,14 +67,9 @@ function emit(owner: OwnerKey, event: ExecutionEvent): void {
 }
 
 
-type ExecutionReconciler = (
-  record: ExecutionRecord,
-) => { state: ExecutionState; outcome?: ExecutionOutcome; reason?: string } | null
-
 type ExecutionStopHandler = (record: ExecutionRecord) => void
 
 interface DomainHooks {
-  reconcile?: ExecutionReconciler
   requestStop?: ExecutionStopHandler
 }
 
@@ -168,7 +163,6 @@ export interface TransitionOptions {
   externalIdentity?: ExecutionExternalIdentity
   outputRef?: string
   evidenceRefs?: string[]
-  reconciled?: boolean
 }
 
 export function transitionExecution(
@@ -211,7 +205,6 @@ export function transitionExecution(
     record: next,
     from,
     to,
-    ...(opts.reconciled !== undefined && { reconciled: opts.reconciled }),
   })
   return next
 }
@@ -263,55 +256,12 @@ export function settleExecution(
   owner: OwnerKey,
   id: string,
   state: ExecutionState,
-  opts: Omit<TransitionOptions, 'reconciled'> = {},
+  opts: TransitionOptions = {},
 ): ExecutionRecord | undefined {
   if (!isTerminalExecutionState(state)) {
     throw new ExecutionTransitionError(id, store.peek(owner)?.records.get(id)?.state ?? 'queued', state)
   }
   return transitionExecution(owner, id, state, opts)
-}
-
-interface ReconcileReport {
-  owner: OwnerKey
-  checked: number
-  corrected: { id: string; from: ExecutionState; to: ExecutionState }[]
-  unverifiable: string[]
-}
-
-export function reconcileExecutions(owner: OwnerKey): ReconcileReport {
-  const owned = store.peek(owner)
-  const report: ReconcileReport = { owner, checked: 0, corrected: [], unverifiable: [] }
-  if (!owned) return report
-  for (const record of [...owned.records.values()]) {
-    if (isTerminalExecutionState(record.state)) continue
-    report.checked++
-    const reconciler = domainHooks().get(record.spec.kind)?.reconcile
-    if (!reconciler) {
-      report.unverifiable.push(record.spec.id)
-      continue
-    }
-    let observed: ReturnType<ExecutionReconciler>
-    try {
-      observed = reconciler(record)
-    } catch {
-      report.unverifiable.push(record.spec.id)
-      continue
-    }
-    if (observed === null) {
-      report.unverifiable.push(record.spec.id)
-      continue
-    }
-    if (observed.state !== record.state) {
-      const moved = transitionExecution(owner, record.spec.id, observed.state, {
-        reconciled: true,
-        ...(observed.outcome !== undefined && { outcome: observed.outcome }),
-      })
-      if (moved) {
-        report.corrected.push({ id: record.spec.id, from: record.state, to: observed.state })
-      }
-    }
-  }
-  return report
 }
 
 
@@ -367,9 +317,4 @@ function pruneSettled(owned: OwnerExecutions): void {
   for (let i = 0; i < excess; i++) {
     owned.records.delete(settled[i]!.spec.id)
   }
-}
-
-export function _resetExecutionPlaneForTesting(): void {
-  store.clearAllForShutdown()
-  domainHooksMap?.clear()
 }

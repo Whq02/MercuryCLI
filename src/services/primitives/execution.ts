@@ -127,7 +127,6 @@ export type ExecutionEvent =
       record: ExecutionRecord
       from: ExecutionState
       to: ExecutionState
-      reconciled?: boolean
     }
   | {
       type: 'disposed'

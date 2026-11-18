@@ -93,24 +93,9 @@ export function serviceExecutionDrift(
 }
 
 export function installServiceExecutionDomain(hooks: {
-  reconcile: (cwd: string, name: string) => ServiceRecord | null
   stop: (cwd: string, name: string) => Promise<unknown>
 }): void {
   registerExecutionDomain('service', {
-    reconcile: planeRecord => {
-      const cwd = planeRecord.spec.cwd
-      const name = planeRecord.spec.metadata?.name
-      if (!cwd || typeof name !== 'string') return null
-      const record = hooks.reconcile(cwd, name)
-      if (!record) return { state: 'indeterminate', outcome: { reason: 'service record gone' } }
-      return {
-        state: record.state as ExecutionState,
-        outcome: {
-          ...(record.lastExitCode !== null && { code: record.lastExitCode }),
-          reason: record.explicitStop ? 'explicit stop' : `service ${record.state}`,
-        },
-      }
-    },
     requestStop: planeRecord => {
       const cwd = planeRecord.spec.cwd
       const name = planeRecord.spec.metadata?.name

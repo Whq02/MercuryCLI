@@ -90,7 +90,7 @@ src/services/compact/compact.ts	file	-	2245
 src/services/compact/compact.ts	unit	compactConversation	323
 src/services/concourse/concourseSnapshot.ts	unit	buildConcourseSnapshot	444
 src/services/crewBoard/store.ts	unit	open	617
-src/services/dap/dapClient.ts	file	-	2422
+src/services/dap/dapClient.ts	file	-	2413
 src/services/dap/dapClient.ts	unit	DapSession	1161
 src/services/desktop/fakeDesktopDriver.ts	unit	FakeDesktopDriver	408
 src/services/desktop/nativeDriver.ts	unit	NativeDesktopDriver	591
@@ -105,7 +105,7 @@ src/services/host/index.ts	unit	createHostRoad	643
 src/services/host/recipes.ts	unit	HOST_RECIPES	443
 src/services/host/worker.ts	unit	runHostJob	539
 src/services/lsp/LSPClient.ts	unit	createLSPClient	336
-src/services/lsp/LSPServerInstance.ts	unit	createLSPServerInstance	343
+src/services/lsp/LSPServerInstance.ts	unit	createLSPServerInstance	341
 src/services/lsp/LSPServerManager.ts	unit	createLSPServerManager	363
 src/services/lsp/tsSidecar/sidecar.ts	file	-	1822
 src/services/lsp/tsSidecar/sidecar.ts	unit	runTsLspSidecar	1050
