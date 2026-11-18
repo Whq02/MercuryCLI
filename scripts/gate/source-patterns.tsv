@@ -86,7 +86,8 @@ setTimeout	src/native-ts/file-index/index.ts	1
 setTimeout	src/query/scriptedStream.ts	1
 setTimeout	src/rows/turn.ts	1
 setTimeout	src/runner/wire/peer.ts	1
-setTimeout	src/screens/Chat.tsx	6
+setTimeout	src/screens/Chat.tsx	5
+setTimeout	src/screens/chat/useChatAsks.tsx	1
 setTimeout	src/screens/chat/useChatSearch.tsx	2
 setTimeout	src/services/AgentSummary/agentSummary.ts	2
 setTimeout	src/services/acp/childSession.ts	1
@@ -559,8 +560,9 @@ useEffect	src/ink/hooks/use-terminal-title.ts	1
 useEffect	src/ink/terminalWrite.ts	2
 useEffect	src/keybindings/KeybindingProviderSetup.tsx	2
 useEffect	src/keybindings/useKeybinding.ts	2
-useEffect	src/screens/Chat.tsx	39
+useEffect	src/screens/Chat.tsx	35
 useEffect	src/screens/ResumeConversation.tsx	1
+useEffect	src/screens/chat/useChatAsks.tsx	4
 useEffect	src/screens/chat/useChatScroll.ts	1
 useEffect	src/screens/chat/useChatSearch.tsx	7
 useEffect	src/screens/chat/useChatTitle.tsx	2
@@ -609,7 +611,8 @@ useLayoutEffect	src/ink/hooks/use-declared-cursor.ts	2
 useLayoutEffect	src/ink/hooks/use-input.ts	1
 useLayoutEffect	src/ink/hooks/use-terminal-viewport.ts	1
 useLayoutEffect	src/keybindings/KeybindingContext.tsx	1
-useLayoutEffect	src/screens/Chat.tsx	2
+useLayoutEffect	src/screens/Chat.tsx	1
+useLayoutEffect	src/screens/chat/useChatAsks.tsx	1
 useLayoutEffect	src/screens/chat/useChatScroll.ts	1
 useLayoutEffect	src/utils/staticRender.tsx	1
 useInsertionEffect	src/components/FullscreenLayout.tsx	1

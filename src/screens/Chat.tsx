@@ -28,9 +28,7 @@ import {
 } from '../components/messageActions.js';
 import { MessageSelector } from '../components/MessageSelector.js';
 import { Messages } from '../components/Messages.js';
-import { PermissionQueueContext, permissionQueueStatus } from '../components/permissions/PermissionQueueContext.js';
-import { CardQueuedWords } from '../components/permissions/CardQueuedWords.js';
-import { PermissionRequest, type ToolUseConfirm } from '../components/permissions/PermissionRequest.js';
+import type { ToolUseConfirm } from '../components/permissions/PermissionRequest.js';
 import PromptInput from '../components/PromptInput/PromptInput.js';
 import { isVimModeEnabled } from '../components/PromptInput/utils.js';
 import { ScrollKeybindingHandler } from '../components/ScrollKeybindingHandler.js';
@@ -71,8 +69,6 @@ import { LOCAL_COMMAND_STDOUT_TAG, BASH_INPUT_TAG } from '../constants/xml.js';
 import { CockpitBottomStatus } from '../context/cockpitActiveContext.js';
 import { MercuryFrame } from '../components/MercuryFrame.js';
 import { splitWayOut, useNotifications } from '../context/notifications.js';
-import { transitionPermissionMode } from '../utils/permissions/permissionSetup.js';
-import { permissionModeTitle } from '../utils/permissions/PermissionMode.js';
 import { performUiRouteAlias } from '../context/routeAliases.js';
 import { currentSurfaceRoute, settleAbsentChat, subscribeSurfaceRoute } from '../context/surfaceRoute.js';
 import { CancelRequestHandler } from '../hooks/useCancelRequest.js';
@@ -129,13 +125,15 @@ import {
   settleEntryWarmth,
   subscribeSessionWarmth,
 } from '../services/concourse/sessionWarmth.js';
-import type { RewindReceiptV1, SessionAskV1 } from '../services/engine-connector/types.js';
+import type { RewindReceiptV1 } from '../services/engine-connector/types.js';
 import { flagEnv } from '../substrate/flagRegistry.js';
 import { resolveTerminalExperience } from '../ink/session/terminalExperience.js';
-import type { SetToolJSXFn, Tool, ToolPermissionContext } from '../Tool.js';
+import type { SetToolJSXFn, Tool } from '../Tool.js';
 import { resolveToolJSX } from './toolJsxArbitration.js';
 import type { FocusedInputDialog } from './chat/focusedDialog.js';
+import { RECEIPT_TIMEOUT_MS } from './chat/limits.js';
 import type { Screen as ScreenName } from './chat/screen.js';
+import { useChatAsks, useChatAsksCard } from './chat/useChatAsks.js';
 import { useChatScroll, useChatScrollFollow, useChatScrollPin } from './chat/useChatScroll.js';
 import { TranscriptFooter, TranscriptSearchBar, useChatSearch } from './chat/useChatSearch.js';
 import { AnimatedTitle, useChatTitle } from './chat/useChatTitle.js';
@@ -171,8 +169,6 @@ import { createCommandInputMessage, createUserMessage, extractTag, getUserMessag
 import { getTipToShowOnSpinner, recordShownTip } from '../services/tips/tipScheduler.js';
 import { getCurrentWorktreeSession } from '../utils/worktree.js';
 import { registerComposerSeeder, registerComposerSeedTrimmer } from '../utils/cockpit/composerSeed.js';
-import { registerPermissionFocusNotifier } from '../utils/permissions/permissionFocus.js';
-import { recordModeTransition } from '../utils/permissions/modeTransitions.js';
 import type { StreamingToolUse } from '../utils/messages/streaming.js';
 
 export type Screen = ScreenName;
@@ -190,7 +186,6 @@ const RECENT_SCROLL_REPIN_WINDOW_MS = 3000;
 const SWITCH_STATUS_TIMEOUT_MS = 30_000;
 const WORKTREE_TIP_SECONDS = 15;
 const BOOT_WARMUP_MS = 150;
-const RECEIPT_TIMEOUT_MS = 8000;
 const REWIND_SETTLE_WAIT_MS = 5000;
 
 function rewindReceiptLine(receipt: RewindReceiptV1): string {
@@ -211,8 +206,6 @@ const MESSAGE_ACTION_UUID_PREFIX = 24;
 const EMPTY_CONFIRM_QUEUE: ToolUseConfirm[] = [];
 const NO_STREAMING_TOOL_USES: StreamingToolUse[] = [];
 
-const subscribeFocusedAsks = subscribeThroughFocused((connector, listener) => connector.subscribeAsks(listener));
-const getFocusedAsks = (): readonly SessionAskV1[] => getFocusedSessionConnector().asks();
 const subscribeFocusedSeatLive = subscribeThroughFocused((connector, listener) =>
   hasSeatLive(connector) ? connector.subscribeLive(listener) : () => {},
 );
@@ -230,7 +223,6 @@ setCrashConversationLocator(() => {
   }
 });
 const subscribeFocusedModel = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener));
-const subscribeFocusedPermissionMode = subscribeThroughFocused((connector, listener) => connector.subscribePermissionMode(listener));
 const getFocusedEffectiveModel = (): string => getFocusedSessionConnector().modelFacts().effective;
 const subscribeFocusedTail = subscribeThroughFocused((connector, listener) =>
   hasSeatLive(connector) ? connector.tail().subscribe(listener) : () => {},
@@ -418,8 +410,6 @@ export function Chat({
   const setToolJSX: SetToolJSXFn = useCallback(next => {
     setToolJSXState(prev => resolveToolJSX(prev, next));
   }, []);
-  const [permissionStickyFooter, setPermissionStickyFooter] = useState<React.ReactNode>(null);
-  const stickyFooterOwnerUp = permissionStickyFooter !== null;
   const [showMessageSelector, setShowMessageSelector] = useState(false);
   const openMessageSelector = useCallback(() => setShowMessageSelector(true), []);
   const [messageSelectorPreselect, setMessageSelectorPreselect] = useState<UserMessage | undefined>(undefined);
@@ -519,84 +509,15 @@ export function Chat({
       }),
     [],
   );
-
-  useEffect(
-    () =>
-      registerPermissionFocusNotifier(text =>
-        addNotification({ key: 'permission-focus-refusal', text, priority: 'high', timeoutMs: 4000 }),
-      ),
-    [addNotification],
-  );
-
   const prefersReducedMotion = useAppState(state => state.settings.view?.reducedMotion === true);
   const reducedMotion = prefersReducedMotion || isEnvTruthy(flagEnv('MERCURY_REDUCED_MOTION'));
   const streamingSuppressed = streamingRevealSuppressed(reducedMotion, fullscreen);
 
-  const sessionAsks = useSyncExternalStore(subscribeFocusedAsks, getFocusedAsks, getFocusedAsks);
+  const { sessionAsks, toolUseConfirmQueue, resolvedConsentCount, resolveHeadPermission, setToolPermissionContext, elicitationQueue, respondToElicitation, dismissElicitationWaiting } = useChatAsks({ setAppState, addNotification });
   const chatSurfaceCovered = useSyncExternalStore(
     subscribeSurfaceRoute,
     () => currentSurfaceRoute().kind !== 'repl',
     () => currentSurfaceRoute().kind !== 'repl',
-  );
-  const toolUseConfirmQueue = useMemo(() => sessionAsks.map(ask => ask.confirm), [sessionAsks]);
-  const [resolvedConsentCount, setResolvedConsentCount] = useState(0);
-  useEffect(() => {
-    if (toolUseConfirmQueue.length === 0) setResolvedConsentCount(0);
-  }, [toolUseConfirmQueue.length]);
-
-  const resolveHeadPermission = useCallback(() => {
-    setResolvedConsentCount(c => c + 1);
-    const focused = getFocusedSessionConnector();
-    const head = focused.asks()[0];
-    if (head !== undefined) focused.settleAsk(head.id);
-  }, []);
-
-  const adoptRunnerMode = useCallback(() => {
-    const held = getFocusedSessionConnector().permissionMode();
-    if (held === null) return;
-    setAppState(prev => {
-      if (prev.toolPermissionContext.mode === held) return prev;
-      let next = prev.toolPermissionContext;
-      try {
-        next = transitionPermissionMode(prev.toolPermissionContext.mode, held, prev.toolPermissionContext);
-      } catch (error) {
-        logForDebugging(`permission mode adoption ${prev.toolPermissionContext.mode} → ${held} kept the standing context: ${error instanceof Error ? error.message : String(error)}`);
-      }
-      recordModeTransition({ from: prev.toolPermissionContext.mode, to: held, road: 'screen-mirror', detail: "the runner's own mode adopted" });
-      return { ...prev, toolPermissionContext: { ...next, mode: held } };
-    });
-  }, [setAppState]);
-  useEffect(() => subscribeFocusedPermissionMode(adoptRunnerMode), [adoptRunnerMode]);
-
-  const setToolPermissionContext = useCallback(
-    (context: ToolPermissionContext, options?: { preserveMode?: boolean }) => {
-      setAppState(prev => {
-        const preserved = options?.preserveMode ? prev.toolPermissionContext.mode : context.mode;
-        if (preserved !== prev.toolPermissionContext.mode) {
-          recordModeTransition({ from: prev.toolPermissionContext.mode, to: preserved, road: 'screen-mirror' });
-        }
-        return { ...prev, toolPermissionContext: { ...context, mode: preserved } };
-      });
-      if (!options?.preserveMode) {
-        void getFocusedSessionConnector()
-          .setPermissionMode(context.mode)
-          .then(receipt => {
-            if (receipt.outcome !== 'refused') return;
-            adoptRunnerMode();
-            addNotification({
-              key: 'permission-mode-refused',
-              text: `${permissionModeTitle(context.mode)} refused by the session — ${receipt.detail ?? 'the runner did not take it'}`,
-              priority: 'high',
-              color: 'error' as const,
-              timeoutMs: RECEIPT_TIMEOUT_MS,
-            });
-          });
-      }
-      setTimeout(() => {
-        for (const entry of getFocusedSessionConnector().asks()) entry.confirm.recheckPermission?.();
-      }, 0);
-    },
-    [setAppState, adoptRunnerMode, addNotification],
   );
 
   useSeatReceipts({
@@ -606,27 +527,6 @@ export function Chat({
     },
   });
   useAgentNeedsYou(messages, isLoading);
-  const elicitationQueue = useAppState(state => state.elicitation.queue);
-  const respondToElicitation = useCallback(
-    (action: 'accept' | 'decline' | 'cancel', content?: Record<string, string | number | boolean | string[]>) => {
-      const head = elicitationQueue[0];
-      if (!head) return;
-      head.respond({ action, content });
-      const params = head.params as { mode?: string };
-      if (action === 'accept' && params.mode === 'url') return;
-      setAppState(prev => ({ ...prev, elicitation: { queue: prev.elicitation.queue.slice(1) } }));
-    },
-    [elicitationQueue, setAppState],
-  );
-  const dismissElicitationWaiting = useCallback(
-    (action: 'cancel' | 'retry' | 'dismiss') => {
-      const head = elicitationQueue[0];
-      if (!head) return;
-      setAppState(prev => ({ ...prev, elicitation: { queue: prev.elicitation.queue.slice(1) } }));
-      head.onWaitingDismiss?.(action);
-    },
-    [elicitationQueue, setAppState],
-  );
   const focusedInputDialog = getFocusedInputDialog({
     isExiting: isExiting || showExitFlow,
     showMessageSelector,
@@ -668,13 +568,7 @@ export function Chat({
     }
   }, [focusedInputDialog, isLoading]);
 
-  const previousPermissionFocusRef = useRef(false);
-  useLayoutEffect(() => {
-    const now = focusedInputDialog === 'tool-permission';
-    if (now !== previousPermissionFocusRef.current) repinToBottom();
-    previousPermissionFocusRef.current = now;
-  }, [focusedInputDialog, repinToBottom]);
-
+  const { permissionStickyFooter, permissionOverlay } = useChatAsksCard({ focusedInputDialog, repinToBottom, toolUseConfirmQueue, resolvedConsentCount, resolveHeadPermission, chatSurfaceCovered, verbose });
   const readFileStateRef = useRef<FileStateCache | null>(null);
   const getReadFileState = useCallback((): FileStateCache => {
     if (readFileStateRef.current === null) {
@@ -1182,10 +1076,6 @@ export function Chat({
       timeoutMs: RECEIPT_TIMEOUT_MS,
     });
   }, [addNotification]);
-
-  useEffect(() => {
-    if (stickyFooterOwnerUp && focusedInputDialog !== 'tool-permission') setPermissionStickyFooter(null);
-  }, [stickyFooterOwnerUp, focusedInputDialog]);
 
   useEffect(() => {
     recordBootInteractive();
@@ -1720,27 +1610,6 @@ export function Chat({
     ) : spinnerSlotReserved ? <StreamingHoldRow loadingStartTimeRef={seatStartTimeRef} totalPausedMsRef={seatPausedMsRef} pauseStartTimeRef={seatPauseStartRef} responseLengthRef={responseLengthRef} outputTokensRef={outputTokensRef} liveTurnFactsRef={liveTurnFactsRef} /> : null}
     {!isCompact ? <MercuryTurnRollup messages={messages} /> : null}
   </Box>;
-
-  const permissionOverlay =
-    focusedInputDialog === 'tool-permission' && toolUseConfirmQueue[0] && !chatSurfaceCovered ? (
-      <PermissionQueueContext.Provider value={permissionQueueStatus(resolvedConsentCount, toolUseConfirmQueue.length)}>
-        <Box flexDirection="column">
-          <PermissionRequest
-            key={toolUseConfirmQueue[0].toolUseID}
-            toolUseConfirm={toolUseConfirmQueue[0]}
-            toolUseContext={toolUseConfirmQueue[0].toolUseContext}
-            onDone={resolveHeadPermission}
-            onReject={() => {
-              resolveHeadPermission();
-            }}
-            verbose={verbose}
-            workerBadge={toolUseConfirmQueue[0].workerBadge}
-            setStickyFooter={setPermissionStickyFooter}
-          />
-          <CardQueuedWords />
-        </Box>
-      </PermissionQueueContext.Provider>
-    ) : null;
 
   const messageSelector =
     focusedInputDialog === 'message-selector' && !chatSurfaceCovered ? (
