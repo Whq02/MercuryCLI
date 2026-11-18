@@ -12,9 +12,9 @@ const DOOR_EXPORTS = ['Chat', 'Props', 'Screen']
 
 const HOOK_CALLS_IN_CHAT: Record<string, number> = {
   useEffect: 25,
-  useRef: 22,
-  useCallback: 13,
-  useState: 8,
+  useRef: 21,
+  useCallback: 9,
+  useState: 6,
   useSyncExternalStore: 7,
   useAppState: 8,
   useMemo: 5,
@@ -49,8 +49,6 @@ const HOOK_CALLS_IN_CHAT: Record<string, number> = {
   useDeprecationWarningNotification: 1,
   useLspInitializationNotification: 1,
   useTurnEndPing: 1,
-  useMessageCursorActive: 1,
-  useMessageActions: 1,
 }
 
 type Edge = { from: string; to: string; line: number; spec: string }

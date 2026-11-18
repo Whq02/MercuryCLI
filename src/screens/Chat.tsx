@@ -20,16 +20,10 @@ import { ExitFlow } from '../components/ExitFlow.js';
 import { FullscreenLayout } from '../components/FullscreenLayout.js';
 import { TranscriptSwap } from '../components/CrewmateTranscript.js';
 import { MercuryTurnRollup } from '../components/MercuryTurnRollup.js';
-import {
-  useMessageActions,
-  type MessageActionsNav,
-} from '../components/messageActions.js';
-import { MessageSelector } from '../components/MessageSelector.js';
 import { Messages } from '../components/Messages.js';
 import type { ToolUseConfirm } from '../components/permissions/PermissionRequest.js';
 import PromptInput from '../components/PromptInput/PromptInput.js';
 import { MessageActionsBar } from '../components/messageActions.js';
-import { useMessageCursorActive } from '../components/messageCursorStore.js';
 import { FocusedSessionStatusRow, statusLine, statusRowWarns } from '../components/SwitchboardTagBar.js';
 import { useLayoutChrome } from '../context/layoutChromeContext.js';
 import { useCompactWorkControls } from '../components/tasks/CompactWorkSummary.js';
@@ -49,7 +43,6 @@ import { useSeatReceipts } from '../hooks/useSeatReceipts.js';
 import { useAgentNeedsYou } from '../hooks/useAgentNeedsYou.js';
 import { useMcpConnectivityStatus } from '../hooks/notifs/useMcpConnectivityStatus.js';
 import { recordBootInteractive } from '../utils/observability/frictionStopwatch.js';
-import { readAllTranscriptEntries } from '../utils/sessionStorage/materialize.js';
 import { submitTrace } from '../utils/submitTrace.js';
 import { fluxMark, fluxWhy } from '../utils/flux/fluxProbe.js';
 import { SpinnerWithVerb } from '../components/Spinner.js';
@@ -81,14 +74,12 @@ import { useSettingsErrors } from '../hooks/notifs/useSettingsErrors.js';
 import { Box, Text, useTheme } from '../ink.js';
 import { AlternateScreen } from '../ink/components/AlternateScreen.js';
 import { streamingRevealSuppressed } from '../ink/session/capabilities.js';
-import { setClipboardWithReceipt } from '../ink/termio/osc.js';
 import * as pendingInput from '../input-core/pending-input.js';
 import { HELD_FOR_COMPACTION_LINE } from '../components/messages/TranscriptNameplate.js';
 import { KeybindingSetup } from '../keybindings/KeybindingProviderSetup.js';
 import { getShortcutDisplay } from '../keybindings/shortcutFormat.js';
-import { modelDisplayString, renderModelName } from '../utils/model/model.js';
+import { renderModelName } from '../utils/model/model.js';
 import { crossProviderNote, settlePendingAtBoundary } from '../utils/model/modelTransition.js';
-import { createBranchSession } from '../services/branches/branchManifest.js';
 import { hasSeatLive, IDLE_LIVE, IDLE_TURN_FACTS, type LiveTurnFactsV1, type SessionLiveV1 } from '../services/engine-connector/seatLive.js';
 import { interruptFocusedTurn } from '../hooks/useCancelRequest.js';
 import { useFocusedTailAnchor, useFocusedTranscript } from '../hooks/useFocusedTranscript.js';
@@ -102,7 +93,6 @@ import {
   subscribeThroughFocused,
   conversationIdHere,
 } from '../services/engine-connector/focusedConnector.js';
-import type { RewindReceiptV1 } from '../services/engine-connector/types.js';
 import { flagEnv } from '../substrate/flagRegistry.js';
 import { resolveTerminalExperience } from '../ink/session/terminalExperience.js';
 import type { Tool } from '../Tool.js';
@@ -111,15 +101,17 @@ import type { CrashResumeStaged } from './chat/crashResume.js';
 import type { FocusedInputDialog } from './chat/focusedDialog.js';
 import { RECEIPT_TIMEOUT_MS, SWITCH_STATUS_TIMEOUT_MS } from './chat/limits.js';
 import type { Screen as ScreenName } from './chat/screen.js';
+import type { PaintsRows, ResumableLog } from './chat/sessionShapes.js';
 import { useChatAsks, useChatAsksCard } from './chat/useChatAsks.js';
 import { type ToolJSXState, useChatDialogPaints, useChatDialogs, useChatDialogsView } from './chat/useChatDialogs.js';
 import { useChatDraft } from './chat/useChatDraft.js';
 import { useChatScroll, useChatScrollFollow, useChatScrollPin } from './chat/useChatScroll.js';
 import { TranscriptFooter, TranscriptSearchBar, useChatSearch } from './chat/useChatSearch.js';
+import { useChatSelector, useChatSelectorView } from './chat/useChatSelector.js';
 import { useChatConversation, useChatSession } from './chat/useChatSession.js';
 import { AnimatedTitle, useChatTitle } from './chat/useChatTitle.js';
 import type { SessionListing } from '../types/logs.js';
-import type { Message, NormalizedUserMessage, ProgressMessage, UserMessage } from '../types/message.js';
+import type { Message, ProgressMessage, UserMessage } from '../types/message.js';
 import type { PromptInputMode } from '../types/textInputTypes.js';
 import { createAbortController } from '../utils/abortController.js';
 import type { PastedContent } from '../utils/config/schema.js';
@@ -142,11 +134,10 @@ import { formatCommandLoadingMetadata, resolveUnknownSlashName, unavailableComma
 import { addToHistory, expandPastedTextRefs, resolvePastedContents } from '../history.js';
 import { mercuryBootPreflightEnabled, runAndRecordPreflight } from '../utils/healthPreflight.js';
 import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js';
-import { createCommandInputMessage, createUserMessage, extractTag, getUserMessageText, textForResubmit } from '../utils/messages.js';
+import { createCommandInputMessage, createUserMessage, extractTag, getUserMessageText } from '../utils/messages.js';
 import { getTipToShowOnSpinner, recordShownTip } from '../services/tips/tipScheduler.js';
 import { getCurrentWorktreeSession } from '../utils/worktree.js';
 import type { StreamingToolUse } from '../utils/messages/streaming.js';
-import { sleep } from '../utils/sleep.js';
 
 export type Screen = ScreenName;
 
@@ -160,22 +151,8 @@ export type Props = {
 
 const WORKTREE_TIP_SECONDS = 15;
 const BOOT_WARMUP_MS = 150;
-const REWIND_SETTLE_WAIT_MS = 5000;
 
-function rewindReceiptLine(receipt: RewindReceiptV1): string {
-  if (receipt.outcome === 'noop') return receipt.detail ?? 'nothing to restore — the files already match this point';
-  const parts: string[] = [];
-  if (receipt.code !== undefined) {
-    const n = receipt.code.filesChanged.length;
-    parts.push(n === 0 ? 'files already matched' : `${n} file${n === 1 ? '' : 's'} restored (+${receipt.code.insertions} -${receipt.code.deletions})`);
-  }
-  if (receipt.conversation !== undefined) {
-    parts.push(`conversation wound back — ${receipt.conversation.removed} message${receipt.conversation.removed === 1 ? '' : 's'} left the model's view (the transcript keeps them)`);
-  }
-  return `rewound: ${parts.join(' · ')}`;
-}
 const HELD_FOR_LANDING: ReadonlySet<string> = new Set(['swarm', 'swarmchat', 'general', 'team', 'whisper', 'rename', 'title', 'contract', 'crewmates']);
-const MESSAGE_ACTION_UUID_PREFIX = 24;
 const EMPTY_CONFIRM_QUEUE: ToolUseConfirm[] = [];
 const NO_STREAMING_TOOL_USES: StreamingToolUse[] = [];
 
@@ -229,9 +206,7 @@ const INERT_PROMPT_HELPERS: PromptInputHelpers = {
   resetHistory: () => {},
 };
 
-type PaintsRows = { addDisplayRow?: (row: Message) => void; transcriptFile?: () => string };
 
-type ResumableLog = Omit<Partial<SessionListing>, 'messages'> & { messages: Message[] };
 
 function getFocusedInputDialog(args: {
   isExiting: boolean;
@@ -378,9 +353,7 @@ export function Chat({
   const tailAnchor = useFocusedTailAnchor();
   const { conversationId, setConversationId } = useChatConversation(focusedConnector);
   const { toolJSX, setToolJSX, isExiting, showExitFlow, setShowExitFlow, exitCommandJsx, showCostThreshold, setShowCostThreshold, showBashesDialog, setShowBashesDialog, handleExit } = useChatDialogs({ store });
-  const [showMessageSelector, setShowMessageSelector] = useState(false);
-  const openMessageSelector = useCallback(() => setShowMessageSelector(true), []);
-  const [messageSelectorPreselect, setMessageSelectorPreselect] = useState<UserMessage | undefined>(undefined);
+  const { showMessageSelector, setShowMessageSelector, openMessageSelector, messageSelectorPreselect, setMessageSelectorPreselect } = useChatSelector();
   const [submitCount, setSubmitCount] = useState(0);
   const [lastCompletedAt, setLastCompletedAt] = useState<number | null>(null);
   const [crashResumeStaged, setCrashResumeStaged] = useState<CrashResumeStaged | null>(null);
@@ -961,15 +934,6 @@ export function Chat({
   useExtensions({ enabled: true });
   useCostSummary(useFpsMetrics());
 
-  const refuseSessionRewrite = useCallback((what: string): void => {
-    addNotification({
-      key: 'session-rewrite',
-      text: `${what} acts on the session's own conversation — not available for a managed session yet (a named follow-up); /sessions opens another session, /clear starts fresh`,
-      priority: 'high',
-      timeoutMs: RECEIPT_TIMEOUT_MS,
-    });
-  }, [addNotification]);
-
   useEffect(() => {
     recordBootInteractive();
     setTimeout(() => {
@@ -1273,68 +1237,7 @@ export function Chat({
     onTranscriptPillClick,
   } = useChatSearch({ fullscreen, virtualScrollEnabled, columns, mergedTools, messages, focusedInputDialog, captureScrollForFlip, setFlipGeneration, scrollRef, scrollRestoreRef, onScroll });
 
-  const messageActionsDisabled = false;
-  const messageCursorActive = useMessageCursorActive();
-  const messageNavRef = useRef<MessageActionsNav | null>(null);
-  const messageActions = useMessageActions(messageNavRef, {
-    copy: (text: string) => {
-      void setClipboardWithReceipt(text).then(receipt => {
-        process.stdout.write(receipt.sequence);
-        addNotification({ key: 'message-copy', text: receipt.confirmation, color: 'success', priority: 'immediate', timeoutMs: 2000 });
-      });
-    },
-    edit: async (msg: NormalizedUserMessage) => {
-      const prefix = msg.uuid.slice(0, MESSAGE_ACTION_UUID_PREFIX);
-      const raw = getFocusedSessionConnector().records().find(m => m.type === 'user' && m.uuid.startsWith(prefix)) as UserMessage | undefined;
-      if (!raw) return;
-      const resubmit = textForResubmit(raw);
-      if (resubmit) {
-        setInputValue(resubmit.text);
-        setInputMode(resubmit.mode);
-      }
-      refuseSessionRewrite('editing a sent message');
-    },
-  });
-
-  const onRestore = useCallback(
-    async (message: UserMessage | undefined, mode: 'both' | 'conversation' | 'code', files?: { filePath?: string; undo?: boolean; userMessageId?: string }): Promise<RewindReceiptV1> => {
-      const connector = getFocusedSessionConnector();
-      if (connector.turnActive()) {
-        connector.interrupt();
-        const deadline = Date.now() + REWIND_SETTLE_WAIT_MS;
-        while (connector.turnActive() && Date.now() < deadline) {
-          await sleep(100);
-        }
-      }
-      if (message === undefined && files?.userMessageId === undefined) return { outcome: 'refused', mode, refusal: 'not-found', detail: 'no restore point was selected' };
-      const receipt = files === undefined && message !== undefined
-        ? await connector.rewind({ userMessageId: message.uuid, mode })
-        : await connector.rewind({ userMessageId: files?.userMessageId ?? message!.uuid, mode: 'code', ...files });
-      if (receipt.outcome === 'applied' && receipt.conversation !== undefined) {
-        if (message === undefined) return receipt;
-        const resubmit = textForResubmit(message);
-        if (resubmit) {
-          pendingInput.edit(resubmit.text, { restored: true });
-          setInputMode(resubmit.mode);
-        }
-      }
-      if (receipt.outcome !== 'refused') {
-        addNotification({
-          key: 'rewind-receipt',
-          text: rewindReceiptLine(receipt),
-          priority: 'high',
-          timeoutMs: RECEIPT_TIMEOUT_MS,
-        });
-      }
-      return receipt;
-    },
-    [addNotification, setInputMode, setInputValue],
-  );
-  const onSummarize = useCallback(async () => {
-    setShowMessageSelector(false);
-    setMessageSelectorPreselect(undefined);
-    refuseSessionRewrite('summarising a stretch of the conversation');
-  }, [refuseSessionRewrite]);
+  const { messageActionsDisabled, messageCursorActive, messageNavRef, messageActions, messageSelector } = useChatSelectorView({ addNotification, setInputValue, setInputMode, setShowMessageSelector, messageSelectorPreselect, setMessageSelectorPreselect, focusedInputDialog, chatSurfaceCovered, messages, onCancel, focusedEffectiveModel, handleEnterTranscript, setScreen, setShowAllInTranscript, isLoadingRef, resume });
 
   const { warmthVersion, paintedMessages, entryLoadingLine, displayedMessages, slotHasSession } = useChatSession({ focusedConnector, messages, compactWork, unseen, repinToBottom, setConversationId, setToolJSX, toolJSXRef, localJsx, landing, armedMessage, chatSurfaceCovered, inVirtualTranscript, transcriptMessages });
 
@@ -1418,80 +1321,6 @@ export function Chat({
     ) : spinnerSlotReserved ? <StreamingHoldRow loadingStartTimeRef={seatStartTimeRef} totalPausedMsRef={seatPausedMsRef} pauseStartTimeRef={seatPauseStartRef} responseLengthRef={responseLengthRef} outputTokensRef={outputTokensRef} liveTurnFactsRef={liveTurnFactsRef} /> : null}
     {!isCompact ? <MercuryTurnRollup messages={messages} /> : null}
   </Box>;
-
-  const messageSelector =
-    focusedInputDialog === 'message-selector' && !chatSurfaceCovered ? (
-      <MessageSelector
-        messages={messages}
-        onPreRestore={onCancel}
-        onRestore={onRestore}
-        onSummarize={onSummarize}
-        preselectedMessage={messageSelectorPreselect}
-        providerOrigin={modelDisplayString(focusedEffectiveModel)}
-        onViewOnly={() => {
-          handleEnterTranscript();
-          setScreen('transcript');
-          setShowAllInTranscript(true);
-          setShowMessageSelector(false);
-          setMessageSelectorPreselect(undefined);
-          addNotification({
-            key: 'view-only-history',
-            text: `read-only view — ${getShortcutDisplay('app:toggleTranscript', 'Global', 'ctrl+o')} returns; nothing changed`,
-            priority: 'immediate',
-            timeoutMs: 6000,
-          });
-        }}
-        onBranchCreated={manifest => {
-          addNotification({
-            key: 'branch-created',
-            text: `Branch created: ${manifest.branchSessionId.slice(0, 8)} (fork ${manifest.forkOrdinal}) — mercury --resume ${manifest.branchSessionId}; this session is untouched`,
-            priority: 'immediate',
-            timeoutMs: RECEIPT_TIMEOUT_MS,
-          });
-        }}
-        onRerun={async message => {
-          if (isLoadingRef.current) return { ok: false as const, reason: 'a run is in flight — esc to interrupt it first' };
-          const focused = getFocusedSessionConnector() as PaintsRows;
-          const sourceTranscriptPath = typeof focused.transcriptFile === 'function' ? focused.transcriptFile() : null;
-          if (!sourceTranscriptPath) return { ok: false as const, reason: 'no transcript file to branch from — the chat owns no session yet' };
-          const entries = await readAllTranscriptEntries(sourceTranscriptPath);
-          const idx = entries.findIndex(entry => (entry as { uuid?: string }).uuid === message.uuid);
-          if (idx === -1) return { ok: false as const, reason: 'that message is not in the committed transcript' };
-          const branch = createBranchSession({
-            sourceTranscriptPath,
-            forkOrdinal: idx,
-            boundaryKind: 'rewind',
-            cwd: getCwd(),
-            providerOrigin: modelDisplayString(focusedEffectiveModel),
-          });
-          if (!branch.ok) return { ok: false as const, reason: branch.reason };
-          const branchId = branch.manifest.branchSessionId as UUID;
-          const { loadConversationForResume } = await import('../utils/conversationRecovery.js');
-          const loaded = await loadConversationForResume(branchId, branch.branchTranscriptPath);
-          if (!loaded) return { ok: false as const, reason: `branch created but not loadable — mercury --resume ${branchId}` };
-          const branchLog: ResumableLog = { ...loaded, fullPath: branch.branchTranscriptPath };
-          setShowMessageSelector(false);
-          setMessageSelectorPreselect(undefined);
-          await resume(branchId, branchLog, 'fork');
-          const resubmit = textForResubmit(message);
-          if (resubmit) {
-            setInputValue(resubmit.text);
-            setInputMode(resubmit.mode);
-          }
-          addNotification({
-            key: 'rerun-branch-created',
-            text: `Branch created: ${branchId.slice(0, 8)} (fork ${idx}) — prompt staged, Enter reruns; the source session is untouched`,
-            priority: 'immediate',
-            timeoutMs: RECEIPT_TIMEOUT_MS,
-          });
-          return { ok: true as const };
-        }}
-        onClose={() => {
-          setShowMessageSelector(false);
-          setMessageSelectorPreselect(undefined);
-        }}
-      />
-    ) : null;
 
   const promptInput = !disabled && !isExiting && !showExitFlow && !toolJSX?.shouldHidePromptInput && (focusedInputDialog === undefined || compactFocus === 'detail') ? (
     <PromptInput
