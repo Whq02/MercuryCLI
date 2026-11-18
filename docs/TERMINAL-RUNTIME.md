@@ -328,8 +328,11 @@ to another program or runs past the ten seconds carries nothing; commands
 then run without it, and the session says so. A file that hands the shell
 over to zsh (`exec zsh -l`) carries what it defines once it hands over only
 in an interactive shell (`case $- in *i*) exec zsh -l ;; esac`). The login run
-begins as soon as the process that runs a session has settled its tool list
-with the Bash tool in it, at its start, and nothing waits for it there; the
+begins in the first lines of the process that runs a session (a headless
+`mercury run`, or the runner a screen's session is served by), once its
+settings are read and before it takes its tool list, unless its arguments
+already leave the Bash tool out (`--toolset` without it, `--block-tools`
+with it). Nothing waits for it there; the
 first request that carries the Bash tool waits for that same run, so the Bash
 tool's description says there that no call carries your profile; the first
 result of the Bash tool has one line with the reason and what to change; and

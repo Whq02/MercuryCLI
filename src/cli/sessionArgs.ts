@@ -35,6 +35,19 @@ export function readSessionOption(args: readonly string[], name: string): { pres
   return result
 }
 
+export function readSessionOptionValues(args: readonly string[], name: string): string[] | null {
+  let values: string[] | null = null
+  for (const i of optionIndexes(args)) {
+    const token = args[i]!
+    const equal = token.indexOf('=')
+    if ((equal < 0 ? token : token.slice(0, equal)) !== name) continue
+    values ??= []
+    if (equal >= 0) values.push(token.slice(equal + 1))
+    else for (let next = i + 1; args[next] !== undefined && !args[next]!.startsWith('-'); next++) values.push(args[next]!)
+  }
+  return values
+}
+
 export function inspectSessionArgs(args: readonly string[]): { command?: string; format?: string; input?: string; runner: boolean; outputRequest: boolean } {
   let command: string | undefined
   let outputRequest = false

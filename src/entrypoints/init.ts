@@ -1,5 +1,6 @@
 import { memoize } from 'lodash-es'
 import '../bootstrap/state.js'
+import { isSessionRunArgv } from '../cli/sessionArgs.js'
 import { enableConfigs } from '../utils/config.js'
 import { findMostRecentBackup } from '../utils/config/globalConfig.js'
 import { applyExtraCACertsFromConfig } from '../utils/caCertsConfig.js'
@@ -8,8 +9,10 @@ import { registerCleanup } from '../utils/cleanupRegistry.js'
 import { recordFirstStartTime } from '../utils/config/derived.js'
 import { configureGlobalMTLS } from '../utils/mtls.js'
 import { configureGlobalAgents } from '../utils/proxy.js'
+import { beginLoginFiles } from '../utils/shell/shellRecord.js'
 import { armWindowsShellRoad } from '../utils/shell/windowsShellRoad.js'
-import { applyConfigEnvironmentVariables, applySafeConfigEnvironmentVariables } from '../utils/managedEnv.js'
+import { applyConfigEnvironmentVariables, applySafeConfigEnvironmentVariables, configEnvironmentIsApplied } from '../utils/managedEnv.js'
+import { runArgumentsLeaveBashOut } from '../utils/permissions/permissionSetup.js'
 import { ensureLocalSettingsSchema } from '../utils/settings/localSchema.js'
 import { getGithubRepo } from '../utils/git.js'
 import { restoreGatewayAuth } from '../utils/gatewayTrust.js'
@@ -42,6 +45,8 @@ export const init: () => Promise<void> = memoize(async (): Promise<void> => {
     setupGracefulShutdown()
     armScratchpadSweep()
     profileCheckpoint('init_shutdown_installed')
+
+    if (isSessionRunArgv() && !runArgumentsLeaveBashOut(process.argv.slice(2)) && configEnvironmentIsApplied()) beginLoginFiles()
 
     void populateOAuthAccountInfoIfNeeded().catch((error: unknown) =>
       logForDebugging(`init: oauth account populate failed: ${String(error)}`),

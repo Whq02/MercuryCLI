@@ -11,6 +11,7 @@ type Row = { first: Ran; second: Ran; carried: Ran; options: Ran; wiped: Ran; wa
 type Asked = { said: Said | null; ms: number; limit: number | null; snapshotFolder: boolean; tempLeft: number; waitedOnAlive: boolean | null; otherShellStarts: number }
 type First = { withoutBash: number; begunMs: number | null; startsInAll: number; described: string }
 type Listed = { drawnOnAScreen: boolean; offeredWithout: boolean; withoutBash: number; offeredWith: boolean; beforeAnyRequest: number; runsInAll: number; described: string }
+type Lines = { beforeAnyToolList: number; offered: boolean; saw: string[]; described: string }
 
 function waitedOn(home: string): boolean | null {
   if (!existsSync(join(home, 'waited-on.pid'))) return null
@@ -210,6 +211,65 @@ if (process.argv.includes('--tool-list')) {
   process.exit(0)
 }
 
+if (process.argv.includes('--first-lines')) {
+  const kind = process.argv[process.argv.indexOf('--first-lines') + 1] ?? ''
+  const ARGUMENTS: Record<string, string[]> = {
+    run: ['run', '--format', 'text', 'say hi'],
+    runner: ['runner', '--model', 'claude-opus-4-8'],
+    screen: [],
+    toolset: ['run', '--toolset', 'Read', 'Edit', '--', 'say hi'],
+    blocked: ['run', '--block-tools', 'Bash', '--', 'say hi'],
+    pending: ['run', '--format', 'text', 'say hi'],
+    'ends-early': ['run', '--format', 'text', 'say hi'],
+  }
+  process.argv = [process.argv[0]!, 'mercury', ...(ARGUMENTS[kind] ?? [])]
+  ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+  plugin({
+    name: 'stub-color-diff-napi',
+    setup(build) {
+      build.module('color-diff-napi', () => ({ loader: 'object', exports: { ColorDiff: class {}, ColorFile: class {}, getSyntaxTheme: () => ({}) } }))
+    },
+  })
+  const home = homedir()
+  const runs = (): string[] => (existsSync(join(home, 'login-runs')) ? readFileSync(join(home, 'login-runs'), 'utf8').trim().split('\n') : [])
+  const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+  setIsInteractive(kind === 'screen')
+  const { init } = await import('../../src/entrypoints/init.ts')
+  await init()
+  if (kind === 'ends-early') {
+    const began = Date.now()
+    while (!existsSync(join(home, 'waited-on.pid')) && Date.now() - began < 8_000) await pause(25)
+    console.log(`EARLY ${JSON.stringify({ started: existsSync(join(home, 'waited-on.pid')) })}`)
+    process.exit(0)
+  }
+  const early = kind === 'run' || kind === 'runner'
+  const began = Date.now()
+  while (early && runs().length === 0 && Date.now() - began < 8_000) await pause(25)
+  if (!early) await pause(1_500)
+  const beforeAnyToolList = runs().length
+  const { getTools } = await import('../../src/tools.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
+  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+  const empty = getEmptyToolPermissionContext()
+  if (kind === 'pending') {
+    const { getInitialSettings } = await import('../../src/utils/settings/settings.ts')
+    for (const [key, value] of Object.entries(getInitialSettings().environment?.values ?? {})) process.env[key] = String(value)
+  }
+  const list = getTools(kind === 'toolset' ? { ...empty, baseTools: ['Read', 'Edit'] } : kind === 'blocked' ? { ...empty, alwaysDenyRules: { ...empty.alwaysDenyRules, cliArg: ['Bash'] } } : empty)
+  const offered = list.some(tool => tool.name === 'Bash')
+  let described = ''
+  if (offered && kind !== 'screen') {
+    await getSystemPrompt([BashTool] as never, 'claude-opus-4-8')
+    described = (await BashTool.prompt({ tools: [] } as never)).split('\n\n').find(part => part.startsWith('In the main conversation')) ?? ''
+  } else {
+    await pause(1_500)
+  }
+  const lines: Lines = { beforeAnyToolList, offered, saw: runs(), described }
+  console.log(`LINES ${JSON.stringify(lines)}`)
+  process.exit(0)
+}
+
 if (process.argv.includes('--ends-early')) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   plugin({
@@ -326,8 +386,18 @@ const FIRST_PROMPT = home('first-prompt', HANDS_OVER)
 const ENDS_EARLY = home('ends-early', WAITS)
 const ENDS_EARLY_LISTED = home('ends-early-by-the-tool-list', WAITS)
 const TOOL_LIST = home('tool-list', { '.bash_profile': 'echo run >> "$HOME/login-runs"\nmyfunc() { echo fn-from-the-login-file; }\n' })
+const FIRST_LINES_KINDS = ['run', 'runner', 'screen', 'toolset', 'blocked', 'pending']
+const FIRST_LINES: Record<string, string> = Object.fromEntries(
+  FIRST_LINES_KINDS.map(kind => [kind, home(`first-lines-${kind}`, { '.bash_profile': 'echo "run:${ANTHROPIC_BASE_URL:-unset}" >> "$HOME/login-runs"\nmyfunc() { echo fn-from-the-login-file; }\n' })]),
+)
+const ENDS_EARLY_FIRST = home('ends-early-by-the-first-lines', WAITS)
+const projectOf = (dir: string): string => join(dir, 'project')
+for (const dir of [...Object.values(FIRST_LINES), ENDS_EARLY_FIRST]) mkdirSync(projectOf(dir))
+const HOST_MANAGED_VALUE = 'http://127.0.0.1:9/named-by-the-settings'
+mkdirSync(join(FIRST_LINES.pending!, 'config-home'))
+writeFileSync(join(FIRST_LINES.pending!, 'config-home', 'settings.json'), JSON.stringify({ environment: { values: { ANTHROPIC_BASE_URL: HOST_MANAGED_VALUE } } }))
 
-function drive<T>(dir: string, mode: string, mark: string, env: Record<string, string> = {}): Promise<{ row: T | null; said: string }> {
+function drive<T>(dir: string, mode: string, mark: string, env: Record<string, string> = {}, cwd?: string): Promise<{ row: T | null; said: string }> {
   const childEnv: Record<string, string> = {}
   for (const [key, value] of Object.entries(process.env)) {
     if (value === undefined || /^(?:BASH_ENV|ENV|MERCURY_SHELL_PREFIX|MERCURY_SHELL_ENGINE|MERCURY_WINDOWS_SHELL_ROAD)$/.test(key)) continue
@@ -336,7 +406,7 @@ function drive<T>(dir: string, mode: string, mark: string, env: Record<string, s
   mkdirSync(join(dir, 'temp'))
   Object.assign(childEnv, { HOME: dir, SHELL: ZSH, MERCURY_CONFIG_DIR: join(dir, 'config-home'), TMPDIR: join(dir, 'temp') }, env)
   return new Promise(done => {
-    const child = spawn(process.execPath, [import.meta.path, ...mode.split(' ')], { env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] })
+    const child = spawn(process.execPath, [import.meta.path, ...mode.split(' ')], { env: childEnv, stdio: ['ignore', 'pipe', 'pipe'], ...(cwd === undefined ? {} : { cwd }) })
     let said = ''
     child.stdout.on('data', chunk => { said += String(chunk) })
     child.stderr.on('data', chunk => { said += String(chunk) })
@@ -353,7 +423,7 @@ const BOUND_MS = 10_000
 try {
   const names = Object.keys(HOMES)
   const aloneNames = Object.keys(ALONE)
-  const [answers, alone, anotherRow, firstPrompt, endsEarly, endsEarlyListed, toolList] = await Promise.all([
+  const [answers, alone, anotherRow, firstPrompt, endsEarly, endsEarlyListed, toolList, firstLines, endsEarlyFirst] = await Promise.all([
     Promise.all(names.map(name => drive<Row>(HOMES[name]!.dir, '--row', 'ROW ', HOMES[name]!.env))),
     Promise.all(aloneNames.map(name => drive<Asked>(ALONE[name]!, '--asked-alone', 'ASKED '))),
     drive<Asked>(ANOTHER_ROW, '--asked-alone --another-row-asked', 'ASKED '),
@@ -361,9 +431,14 @@ try {
     drive<{ started: boolean }>(ENDS_EARLY, '--ends-early', 'EARLY '),
     drive<{ started: boolean }>(ENDS_EARLY_LISTED, '--ends-early --by-the-tool-list', 'EARLY '),
     drive<Listed>(TOOL_LIST, '--tool-list', 'LIST '),
+    Promise.all(FIRST_LINES_KINDS.map(kind => drive<Lines>(FIRST_LINES[kind]!, `--first-lines ${kind}`, 'LINES ', kind === 'pending' ? { MERCURY_PROVIDER_MANAGED_BY_HOST: '1' } : {}, projectOf(FIRST_LINES[kind]!)))),
+    drive<{ started: boolean }>(ENDS_EARLY_FIRST, '--first-lines ends-early', 'EARLY ', {}, projectOf(ENDS_EARLY_FIRST)),
   ])
   const leftByTheEarlyEnd = waitedOn(ENDS_EARLY)
   const leftByTheEarlyEndListed = waitedOn(ENDS_EARLY_LISTED)
+  const leftByTheEarlyEndFirst = waitedOn(ENDS_EARLY_FIRST)
+  const linesOf = (kind: string): Lines | null => firstLines[FIRST_LINES_KINDS.indexOf(kind)]!.row
+  const shownLines = (...kinds: string[]): string => JSON.stringify(kinds.map(kind => firstLines[FIRST_LINES_KINDS.indexOf(kind)]!.row ?? firstLines[FIRST_LINES_KINDS.indexOf(kind)]!.said)).slice(0, 1_100)
   const of = (name: string): { row: Row | null; said: string } => answers[names.indexOf(name)]!
   const ranInBash = (ran: Ran | undefined): boolean => ran !== undefined && ran.code === 0 && /ran: bash=\d/.test(ran.text) && ran.text.includes('zsh=no')
   const told = (name: string): string => JSON.stringify(of(name).row ?? of(name).said).slice(0, 700)
@@ -633,6 +708,36 @@ try {
     'a process that ends while the run its tool list started is still going leaves no child of it',
     endsEarlyListed.row !== null && endsEarlyListed.row.started && leftByTheEarlyEndListed === false,
     `${JSON.stringify(endsEarlyListed.row ?? endsEarlyListed.said).slice(0, 600)} · alive after the process ended: ${String(leftByTheEarlyEndListed)}`,
+  )
+  check(
+    'a process that knows from its arguments that it is a headless run starts its login run in its first lines, when its settings and environment are read and before any tool list is taken; a runner does the same',
+    linesOf('run')?.beforeAnyToolList === 1 && linesOf('runner')?.beforeAnyToolList === 1,
+    shownLines('run', 'runner'),
+  )
+  check(
+    '…and neither the tool list nor the first request takes a second: one login run in the process, and the description says the files are carried',
+    ['run', 'runner'].every(kind => linesOf(kind) !== null && linesOf(kind)!.offered && linesOf(kind)!.saw.length === 1 && linesOf(kind)!.described.endsWith('and each call starts from your profile (bash).')),
+    shownLines('run', 'runner'),
+  )
+  check(
+    "the screen's own process starts none: neither its first lines nor the tool list it draws its rows from, Bash among them",
+    linesOf('screen') !== null && linesOf('screen')!.beforeAnyToolList === 0 && linesOf('screen')!.offered && linesOf('screen')!.saw.length === 0,
+    shownLines('screen'),
+  )
+  check(
+    'a run whose arguments leave Bash out starts none, in its first lines or at its tool list: --toolset without Bash, and --block-tools with Bash',
+    ['toolset', 'blocked'].every(kind => linesOf(kind) !== null && linesOf(kind)!.beforeAnyToolList === 0 && !linesOf(kind)!.offered && linesOf(kind)!.saw.length === 0),
+    shownLines('toolset', 'blocked'),
+  )
+  check(
+    'where the settings name an environment value that is not in place at the first lines (one a host manages, which the first pass leaves out), the run waits for the tool list as before: the login files see the value a command will see',
+    linesOf('pending') !== null && linesOf('pending')!.beforeAnyToolList === 0 && linesOf('pending')!.saw.length === 1 && linesOf('pending')!.saw[0] === `run:${HOST_MANAGED_VALUE}`,
+    shownLines('pending'),
+  )
+  check(
+    'a process that ends while the run its first lines started is still going leaves no child of it',
+    endsEarlyFirst.row !== null && endsEarlyFirst.row.started && leftByTheEarlyEndFirst === false,
+    `${JSON.stringify(endsEarlyFirst.row ?? endsEarlyFirst.said).slice(0, 600)} · alive after the process ended: ${String(leftByTheEarlyEndFirst)}`,
   )
 } finally {
   rmSync(scratch, { recursive: true, force: true })

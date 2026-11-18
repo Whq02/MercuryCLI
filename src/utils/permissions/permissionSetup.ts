@@ -4,6 +4,7 @@ import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { POWERSHELL_TOOL_NAME } from '../../tools/PowerShellTool/toolName.js'
 import { setSessionPermissionModeResolution } from '../../bootstrap/state.js'
+import { readSessionOptionValues } from '../../cli/sessionArgs.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../debug.js'
 import { holdModeTransition, recordModeTransition, type ModeTransitionRoad } from './modeTransitions.js'
@@ -352,6 +353,15 @@ export function parseToolListFromCLI(tools: string[]): string[] {
   }
   if (current.trim() !== '') result.push(current.trim())
   return result
+}
+
+export function runArgumentsLeaveBashOut(args: readonly string[]): boolean {
+  const toolset = readSessionOptionValues(args, '--toolset')
+  if (toolset !== null && !parseToolListFromCLI(toolset).includes(BASH_TOOL_NAME)) return true
+  return parseToolListFromCLI(readSessionOptionValues(args, '--block-tools') ?? []).some(rule => {
+    const denied = permissionRuleValueFromString(rule)
+    return denied.toolName === BASH_TOOL_NAME && denied.ruleContent === undefined
+  })
 }
 
 export function initialPermissionModeFromCLI({
