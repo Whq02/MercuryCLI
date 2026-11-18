@@ -2013,6 +2013,19 @@ export const SCENARIOS: Scenario[] = [
     },
   },
   {
+    name: 'transcript-torn-line',
+    covers: ['boot'],
+    options: { columns: 200, rows: 40 },
+    run: async stage => {
+      await stage.mark('first frame', has(PLACEHOLDER))
+      const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/loading.ts')
+      const torn = join(stage.project, 'torn.jsonl')
+      writeFileSync(torn, `${JSON.stringify({ schemaVersion: 1, recordId: 'rec-torn-1', payload: { kind: 'message' } })}\n{"schemaVersion": 1, "recordId": "rec-torn-2", "payl\n`)
+      await loadTranscriptFile(torn)
+      await stage.mark('a transcript with a line cut off and a record that fails its shape is told with its counts', has('transcript degraded on load'))
+    },
+  },
+  {
     name: 'crash-resume-staged',
     covers: ['boot', 'dialogs'],
     options: { plant: 'crash-resumable' },
