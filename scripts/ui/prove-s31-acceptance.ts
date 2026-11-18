@@ -472,14 +472,31 @@ check(
     !repl.includes('shouldAutoRestore(') && !repl.includes('removeLastFromHistory'),
   )
 
-  check(
-    '29. a single stop hook names its event, no counter',
-    repl.includes("if (total === 1) return 'running answer hook';"),
-  )
-  check(
-    '29. several stop hooks use the generic plural line with completed/total',
-    repl.includes('running answer hooks · ${ran}/${total}'),
-  )
+  {
+    const { openStatusPart } = await import('./chatScenarios.ts')
+    const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
+    const status = await openStatusPart('s31-stop-hooks', { keepHome: true })
+    const hook = (state: 'running' | 'ran', count: number): never => ({ type: 'progress', data: { type: 'hook_progress', event: 'turn.answer', state, count } }) as never
+    const suffixOf = async (messages: never[]): Promise<string> => {
+      await status.plant({ seatLive: { ...IDLE_LIVE, inFlight: true, phase: 'responding' }, messages })
+      return String(status.handed.spinner?.spinnerSuffix)
+    }
+    const single = await suffixOf([hook('running', 1)])
+    const singleDone = await suffixOf([hook('running', 1), hook('ran', 1)])
+    const severalAtStart = await suffixOf([hook('running', 3), hook('running', 3), hook('running', 3)])
+    const severalAfterOne = await suffixOf([hook('running', 3), hook('running', 3), hook('running', 3), hook('ran', 3)])
+    await status.close()
+    check(
+      '29. a single stop hook names its event, no counter',
+      single === 'running answer hook' && singleDone === 'null',
+      `${single} · ${singleDone}`,
+    )
+    check(
+      '29. several stop hooks use the generic plural line with completed/total',
+      severalAtStart === 'running answer hooks · 0/3' && severalAfterOne === 'running answer hooks · 1/3',
+      `${severalAtStart} · ${severalAfterOne}`,
+    )
+  }
 }
 
 {
