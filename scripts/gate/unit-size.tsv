@@ -87,7 +87,7 @@ src/services/changeTransaction/changeSetPlan.ts	unit	planChangeSet	414
 src/services/compact/compact.ts	file	-	2245
 src/services/compact/compact.ts	unit	compactConversation	323
 src/services/concourse/concourseSnapshot.ts	unit	buildConcourseSnapshot	444
-src/services/crewBoard/store.ts	unit	open	617
+src/services/crewBoard/store.ts	unit	open	615
 src/services/dap/dapClient.ts	file	-	2413
 src/services/dap/dapClient.ts	unit	DapSession	1161
 src/services/desktop/fakeDesktopDriver.ts	unit	FakeDesktopDriver	408

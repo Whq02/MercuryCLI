@@ -81,4 +81,4 @@ await new Promise<void>((resolve, reject) => {
   child.on('exit', code => { if (code !== 0) { clearTimeout(deadline); unsubscribe(); reject(new Error(`writer exited ${code}`)) } })
 })
 readOnly.close(); board.close()
-console.log('PASS same-process and cross-process committed appends notify a read-only SQLite tail without a polling timer')
+console.log('PASS same-process and cross-process committed appends notify a read-only SQLite tail')

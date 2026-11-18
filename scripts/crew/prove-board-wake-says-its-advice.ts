@@ -95,17 +95,18 @@ tally.section('§2 the wire: in a wake\'s turn the rule is read once, at the hea
     board = open(path, sid)
     const sender = { author: { sessionId: sid, agentId: 'poster', executionId: 'run' }, name: 'poster' }
     board.enroll(sender)
-    const ask = (clientOpId: string, text: string): void => {
+    const ask = (clientOpId: string, text: string): number => {
       const receipt = board!.post(sender, { clientOpId, kind: 'ask', text })
       assert(receipt.ok, JSON.stringify(receipt))
+      return receipt.seq
     }
     const alone = raw.length
     ask('alone', '@main ALONE-ASK which file first?')
     await answered('the wake alone was answered', alone, 'ALONE-REPLY.')
     await sleep(500)
     const first = raw.length
-    ask('line-first', '@main LINE-FIRST-ASK is the build green?')
-    await sleep(700)
+    const posted = ask('line-first', '@main LINE-FIRST-ASK is the build green?')
+    await until('the lead read the post before the operator\'s line was sent', () => board!.leadPainted() >= posted)
     await host.prompt('take this line first')
     await answered('the operator\'s line was answered first', first, 'LINE-FIRST-REPLY.')
     await answered('the wake was answered after it', first, 'LATE-WAKE-REPLY.')
