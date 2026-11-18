@@ -356,6 +356,29 @@ class World {
     await this.until(`${daemon.label} goes on`, () => this.logOf(daemon).includes('clock: held no longer'), 15_000)
   }
 
+  window(label: string): { said: () => string } {
+    const script = join(this.root, `${label}.ts`)
+    const lines = [
+      ';(globalThis as Record<string, unknown>).MACRO ??= { VERSION: \'1.0.0\' }',
+      `process.argv[1] = ${JSON.stringify(join(this.dist, 'mercury.mjs'))}`,
+      `try {\n  Object.defineProperty(process, 'execPath', { value: ${JSON.stringify(this.node)}, configurable: true, writable: true })\n} catch {\n  process.execPath = ${JSON.stringify(this.node)}\n}`,
+      `if (process.execPath !== ${JSON.stringify(this.node)}) console.log('the window could not take the node of the build: it runs ' + process.execPath)`,
+      `const { ensureOwnedDaemon } = await import(${JSON.stringify(join(ROOT, 'src/services/switchboard/ensureDaemon.ts'))})`,
+      "console.log('the window asks for its daemon')",
+      'const usable = await ensureOwnedDaemon()',
+      "console.log('the daemon of the window is usable: ' + usable)",
+      'setInterval(() => {}, 1 << 30)',
+    ]
+    writeFileSync(script, lines.join('\n') + '\n')
+    const child = spawn(process.execPath, [script], { cwd: this.work, env: this.env({ MERCURY_DAEMON_PERSIST: undefined }), stdio: ['ignore', 'pipe', 'inherit'] })
+    this.others.push(child)
+    this.pid(child.pid ?? 0, label)
+    let said = ''
+    child.stdout?.on('data', data => (said += String(data)))
+    this.say(`> ${label} opens: it asks for its daemon as a window does`)
+    return { said: () => said }
+  }
+
   async direct(label: string, daemon: Daemon, request: Reply, timeoutMs = 10_000): Promise<Reply> {
     ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
     const { forwardFrame, predecessorSockPath } = await import('../../src/daemon/handover.ts')
@@ -1196,6 +1219,33 @@ const MENDED: Scenario[] = [
       await w.logged(d, /control socket up/, 30_000)
       await w.left(d, 10_000)
       w.files('left')
+    },
+  },
+  {
+    name: 'second-while-first-leaves',
+    about: 'a daemon is held on its way out, its record marked stopping: a second daemon started by hand is refused; a window that opens waits, starts no daemon beside the one that leaves, and has its own once the first has left',
+    seconds: 15,
+    covers: { boot: ['refuse (the record marked stopping)'], waysOut: ['SIGTERM', 'refused start'] },
+    run: async w => {
+      const d = await w.boot('d1', { extra: w.clock(undefined, 'unlink daemon.json') })
+      w.signal(d, 'SIGTERM')
+      await w.logged(d, /clock: held at unlink daemon\.json/, 30_000)
+      w.files('the first is leaving')
+      const second = await w.boot('d2', { wait: 'exit' })
+      void second
+      const opened = w.window('window')
+      await w.until('the window asks for its daemon', () => opened.said().includes('asks for its daemon'), 30_000)
+      await sleep(1500)
+      w.note('what the window has said while the first holds the plane', opened.said().trim())
+      w.files('the window waits')
+      await w.goOn(d)
+      await w.left(d)
+      await w.until('the window has its daemon', () => opened.said().includes('is usable: '), 45_000)
+      w.note('what the window says once the first has left', opened.said().trim().split('\n').at(-1) ?? '')
+      const served = (await w.hello()) as { pid?: number }
+      w.stray(served.pid)
+      await w.rpc('hello of the daemon the window started', { op: 'hello', clientVersion: '1.0.0', clientBuildTree: null })
+      w.files('the window has its daemon')
     },
   },
 ]
