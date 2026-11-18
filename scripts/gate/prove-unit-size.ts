@@ -49,7 +49,7 @@ type Chain = {
   asTree?: (id: string, file: string) => boolean
 }
 type Mark = { at: string; row: Row; allowed: number | null; stood: number | null; arrived: number; moved: number }
-type Walked = { stood: Table; marks: Map<string, Mark>; read: number; writes: number; base: string | null; last: string; since: (row: Row) => { arrived: number; moved: number } | null }
+type Walked = { stood: Table; marks: Map<string, Mark>; read: number; writes: number; base: string | null; since: (row: Row) => { arrived: number; moved: number } | null }
 
 function scriptKind(file: string): ts.ScriptKind {
   return file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS
@@ -418,7 +418,7 @@ function walk(chain: Chain, tree: ReadonlyMap<string, Measure>, data: Data): Wal
     pool ??= pools(last, tip, stood)
     return { arrived: size(arrived), moved: drawn(row.kind === 'file' ? pool.file : pool.unit, arrived, false) }
   }
-  return { stood, marks, read, writes: rest.length - 1, base: first === 0 ? null : base, last, since }
+  return { stood, marks, read, writes: rest.length - 1, base: first === 0 ? null : base, since }
 }
 
 const worth = (kind: Kind): string => (kind === 'table' ? 'entries' : 'lines')
