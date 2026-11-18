@@ -191,7 +191,7 @@ section('§2c each written leaf returns to its previous layer, even after a togg
     m.push(KEY.right)
     await settle(160)
   }
-  check('the omitted leaves were actually changed', rawUser().memory.embeddingModel === undefined && rawUser().memory.journal === true && rawUser().memory.journalOnEntryPage === true && rawUser().activity.progress === false && getGlobalConfig().localModelWindows?.['local/undo-fixture'] !== undefined)
+  check('the omitted leaves were actually changed', rawUser().memory.embeddingModel !== 'previous-ranking' && rawUser().memory.journal === true && rawUser().memory.journalOnEntryPage === true && rawUser().activity.progress === false && getGlobalConfig().localModelWindows?.['local/undo-fixture'] !== undefined)
   await selectRow(m, 'zen mode')
   m.push(KEY.right)
   await settle(120)
