@@ -63,7 +63,6 @@ const { getEngineModel } = await import('../../src/utils/model/model.ts')
 const { resolveEffortTruth } = await import('../../src/utils/effort.ts')
 const { generateSessionTitle } = await import('../../src/utils/sessionTitle.ts')
 const { generateSessionName } = await import('../../src/commands/rename/generateSessionName.ts')
-const { generateToolUseSummary } = await import('../../src/services/toolUseSummary/toolUseSummaryGenerator.ts')
 const { classifyAgentState } = await import('../../src/services/agentNeedsYou.ts')
 const { applyPromptToMarkdown } = await import('../../src/tools/WebFetchTool/utils.ts')
 const { runQuestionHook } = await import('../../src/utils/hooks/questionRunner.ts')
@@ -112,7 +111,6 @@ const fallbackReading = (signal: AbortSignal): Promise<string> =>
 type Site = { name: string; reply: string; run: (signal: AbortSignal) => Promise<unknown>; landed: (result: unknown) => boolean }
 const SITES: Site[] = [
   { name: 'session title', reply: '{"title":"Fix the parser"}', run: signal => generateSessionTitle('The parser drops quoted commas; fix it.', signal), landed: result => result === 'Fix the parser' },
-  { name: 'tool-use summary', reply: 'Fixed parser commas', run: signal => generateToolUseSummary({ tools: [{ name: 'Edit', input: { file: 'parser.ts' }, output: 'ok' }], signal, isNonInteractiveSession: true }), landed: result => result === 'Fixed parser commas' },
   { name: 'needs-you classifier', reply: '{"state":"working","detail":"editing the parser"}', run: signal => classifyAgentState([], 'Editing the parser now and running the checks again', signal), landed: result => (result as { source?: string } | null)?.source === 'llm' },
   { name: 'WebFetch page reading', reply: 'The page says the parser accepts quoted commas.', run: signal => applyPromptToMarkdown('what does the page say?', 'PAGE', signal, true, false), landed: result => typeof result === 'string' && result.includes('[Model reading of the extracted page') && result.includes('accepts quoted commas') },
   { name: 'hook question', reply: '{"note":"fine"}', run: signal => hookQuestion(signal), landed: result => (result as { kind?: string }).kind === 'answered' },

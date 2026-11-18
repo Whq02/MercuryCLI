@@ -448,7 +448,6 @@ export async function plantRun(plan: Plan): Promise<Planted> {
   const open = openRig(plan)
   const { createEventMint } = await import('../../src/run-core/events.ts')
   const { BudgetGuard } = await import('../../src/run-core/budget-guard.ts')
-  const { buildQueryConfig } = await import('../../src/query/config.ts')
   const { FRESH_OVERFLOW_EPISODE } = await import('../../src/services/compact/overflowRecovery.ts')
   const { createSystemMessage } = await import('../../src/utils/messages.ts')
   const emit = createEventMint()
@@ -463,7 +462,6 @@ export async function plantRun(plan: Plan): Promise<Planted> {
     querySource: params.querySource,
     skipCacheWrite: undefined,
     deps: params.deps,
-    config: buildQueryConfig(),
     budgetGuard: new BudgetGuard(),
     emit,
     consumedCommandUuids: open.consumed,
@@ -493,7 +491,6 @@ export async function plantRun(plan: Plan): Promise<Planted> {
     streamFaultRecoveryCount: 0,
     toolCallRefusalRecoveryCount: 0,
     turnCount: 1,
-    pendingToolUseSummary: undefined,
     transition: undefined,
     overflowEpisode: FRESH_OVERFLOW_EPISODE,
     pendingOverflow: undefined,

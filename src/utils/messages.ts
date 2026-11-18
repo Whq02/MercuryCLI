@@ -144,7 +144,6 @@ export {
 } from './messages/streaming.js'
 
 export {
-  createToolUseSummaryMessage,
   ensureToolResultPairing,
   healWalkableForWire,
   isUnsignedThinkingBlock,

@@ -3,7 +3,6 @@ import { readFileSync } from 'node:fs'
 import { createRowStamper, MESSAGE_STAMPER, heartbeatRow } from '../../src/rows/project.ts'
 import * as factories from '../../src/utils/messages/factories.ts'
 import * as system from '../../src/utils/messages/systemMessages.ts'
-import { createToolUseSummaryMessage } from '../../src/utils/messages/pairing.ts'
 
 let clocks = 0
 let ids = 0
@@ -45,7 +44,6 @@ try {
     () => factories.createProgressMessage({ toolUseID: 'use', parentToolUseID: 'parent', data: { type: 'bash_progress', output: 'fixture' } as never }),
     () => factories.createUserInterruptionMessage({}),
     () => factories.createSyntheticUserCaveatMessage(),
-    () => createToolUseSummaryMessage('fixture summary', ['use']),
     () => system.createSystemMessage('fixture notice', 'info'),
     () => system.createRosterTransitionMessage('subagents', true, 'fixture roster'),
     () => system.createStreamCutMessage({ count: 1, content: 'fixture cut' }),

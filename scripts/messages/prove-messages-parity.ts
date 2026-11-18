@@ -440,9 +440,6 @@ add('createMicrocompactBoundaryMessage', 'basic', () =>
 add('createSystemAPIErrorMessage', 'basic', () =>
   snapSafe(() => M.createSystemAPIErrorMessage('api down' as never)),
 );
-add('createToolUseSummaryMessage', 'basic', () =>
-  snapSafe(() => M.createToolUseSummaryMessage('summary', ['toolu_0001', 'toolu_0002'])),
-);
 const CLOSE_USAGE = {
   input_tokens: 1200,
   cache_creation_input_tokens: 0,
@@ -544,8 +541,6 @@ if (unaccounted.length) {
   shape('a memory-saved message carries the path list itself', saved.subtype === 'memory_saved' && JSON.stringify(saved.writtenPaths) === '["/m.md"]', JSON.stringify(saved.writtenPaths));
   const metrics = produced('createApiMetricsMessage/basic');
   shape('an api-metrics message keeps every metric it was given', metrics.subtype === 'api_metrics' && metrics.ttftMs === 320 && metrics.otps === 41.5 && metrics.turnDurationMs === 2200 && metrics.toolCount === 3, JSON.stringify(metrics));
-  const summaryRow = produced('createToolUseSummaryMessage/basic');
-  shape('a tool-use summary carries the summary text and BOTH preceding ids', summaryRow.type === 'tool_use_summary' && summaryRow.summary === 'summary' && JSON.stringify(summaryRow.precedingToolUseIds) === '["toolu_0001","toolu_0002"]', JSON.stringify(summaryRow));
   const closeStored = produced('createCloseUsageMessage/stored');
   const closeUsage = (closeStored.usage ?? {}) as Norm;
   shape('a close-usage row carries its close state, the note length and the usage the close call billed, under its own subtype', closeStored.type === 'system' && closeStored.subtype === 'close_usage' && closeStored.closeState === 'stored' && closeStored.noteChars === 142 && closeUsage.input_tokens === 1200 && closeUsage.cache_read_input_tokens === 900 && closeUsage.output_tokens === 80, JSON.stringify(closeStored));

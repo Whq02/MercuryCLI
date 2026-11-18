@@ -347,7 +347,7 @@ export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext
 
 export async function* holdBlockingLimit(run: RunCtx, state: TurnState, toolUseContext: ToolUseContext, planned: PlannedContext, folded: FoldedContext): AsyncGenerator<RunEvent, FittingRequest | SettledDecision> {
   const { emit, querySource } = run
-  const { autoCompactTracking, maxOutputTokensRecoveryCount, maxOutputTokensOverride, streamFaultRecoveryCount, toolCallRefusalRecoveryCount, pendingToolUseSummary, stopHookActive, turnCount } = state
+  const { autoCompactTracking, maxOutputTokensRecoveryCount, maxOutputTokensOverride, streamFaultRecoveryCount, toolCallRefusalRecoveryCount, stopHookActive, turnCount } = state
   const { prunedTokensFreed } = planned
   const { messagesForQuery, tracking, overflowEpisode, fullSystemPrompt, compactionResult, consecutiveFailures, measuredRawTokenCount, compactionRefusal, foldSplit } = folded
   toolUseContext = {
@@ -431,7 +431,6 @@ export async function* holdBlockingLimit(run: RunCtx, state: TurnState, toolUseC
             maxOutputTokensOverride,
             streamFaultRecoveryCount,
             toolCallRefusalRecoveryCount,
-            pendingToolUseSummary,
             stopHookActive,
             turnCount,
             overflowEpisode: {
@@ -488,9 +487,6 @@ export async function* makeRequest(run: RunCtx, state: TurnState, ordinal: numbe
 
   const callChain = advanceToolCallChain(toolUseContext, () => deps.uuid())
 
-  const chainIdForAnalytics =
-    callChain.key
-
   toolUseContext = {
     ...toolUseContext,
     callChain,
@@ -505,12 +501,10 @@ export async function* makeRequest(run: RunCtx, state: TurnState, ordinal: numbe
   const iter: IterationState = {
     state,
     turnId,
-    ordinal,
     requestPlan: planned.requestPlan,
     messagesForQuery: folded.messagesForQuery,
     toolUseContext: fitting.toolUseContext,
     callChain,
-    chainIdForAnalytics,
     tracking: folded.tracking,
     fullSystemPrompt: folded.fullSystemPrompt,
     appState: fitting.appState,

@@ -12,7 +12,6 @@ import type {
   AttachmentMessage,
   Message,
   ReplyMark,
-  ToolUseSummaryMessage,
   UserMessage,
   RefusedToolCall,
 } from '../../types/message.js'
@@ -23,7 +22,6 @@ import {
 import type { QuerySource } from '../../constants/querySource.js'
 import type { EarlyStarts } from '../../services/tools/earlyStarts.js'
 import type { RequestContextPlan } from '../../services/run/requestContextPlan.js'
-import type { QueryConfig } from '../../query/config.js'
 import type { QueryDeps } from '../../query/deps.js'
 import type { Terminal, Continue } from '../../query/transitions.js'
 import type { BudgetGuard } from '../budget-guard.js'
@@ -43,7 +41,6 @@ export type TurnState = {
   toolCallRefusalRecoveryCount: number
   cutToolCallRecoveryCount?: number
   pauseTurnContinuations?: number
-  pendingToolUseSummary: Promise<ToolUseSummaryMessage | null> | undefined
   stopHookActive: boolean | undefined
   turnCount: number
   transition: Continue | undefined
@@ -63,7 +60,6 @@ export type RunCtx = {
   querySource: QuerySource
   skipCacheWrite: boolean | undefined
   deps: QueryDeps
-  config: QueryConfig
   budgetGuard: BudgetGuard
   emit: EventMint
   consumedCommandUuids: string[]
@@ -78,12 +74,10 @@ export type RunCtx = {
 export type IterationState = {
   state: TurnState
   turnId: string
-  ordinal: number
   requestPlan: RequestContextPlan
   messagesForQuery: Message[]
   toolUseContext: ToolUseContext
   callChain: ToolCallChain
-  chainIdForAnalytics: string
   tracking: AutoCompactTrackingState | undefined
   fullSystemPrompt: SystemPrompt
   appState: ReturnType<ToolUseContext['getAppState']>

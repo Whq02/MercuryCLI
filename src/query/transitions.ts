@@ -16,11 +16,8 @@ export type Terminal =
 
 export type Continue =
   | { reason: 'next_turn' }
-  | { reason: 'collapse_drain_retry'; committed: number }
-  | { reason: 'reactive_compact_retry' }
   | { reason: 'max_output_tokens_recovery'; attempt: number }
   | { reason: 'stop_hook_blocking' }
-  | { reason: 'token_budget_continuation' }
   | { reason: 'stream_fault_recovery'; attempt: number }
   | { reason: 'tool_call_refusal_recovery'; attempt: number }
   | { reason: 'cut_tool_call_recovery'; attempt: number; outputTokens: number }

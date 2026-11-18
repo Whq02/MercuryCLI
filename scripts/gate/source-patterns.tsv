@@ -1838,7 +1838,6 @@ catch-default	src/services/tensorfold/inventory.ts	4
 catch-default	src/services/tensorfold/pull.ts	3
 catch-default	src/services/tensorfold/serve.ts	2
 catch-default	src/services/tips/tipRegistry.ts	3
-catch-default	src/services/toolUseSummary/toolUseSummaryGenerator.ts	1
 catch-default	src/services/tools/loopGuard.ts	4
 catch-default	src/services/unity/bridgeInstaller.ts	1
 catch-default	src/services/unity/bridgeToken.ts	1
@@ -2106,7 +2105,6 @@ handler-default	src/dialogLaunchers.tsx	1
 handler-default	src/hooks/useApiKeyVerification.ts	1
 handler-default	src/main.tsx	2
 handler-default	src/mneme/memoryVerbs.ts	1
-handler-default	src/run-core/turn/afterTools.ts	1
 handler-default	src/services/acp/acpServer.ts	3
 handler-default	src/services/acp/acpSignIn.ts	2
 handler-default	src/services/api/withRetry.ts	1
