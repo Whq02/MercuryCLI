@@ -119,7 +119,7 @@ async function walk(road: 'active' | 'idle'): Promise<void> {
   const ink = new Ink({ stdout: stdout as never, stdin: stdin as never, stderr: new Output() as never, exitOnCtrlC: false, patchConsole: false })
   instances.set(stdout as never, ink)
   ink.setAltScreenActive(true, false)
-  ink.render(h(AppStateProvider as never, { onChangeAppState: () => {} } as never, h(KeybindingSetup as never, {} as never, h(Onboarding as never, { onDone: () => {} } as never))))
+  ink.render(h(AppStateProvider as never, {} as never, h(KeybindingSetup as never, {} as never, h(Onboarding as never, { onDone: () => {} } as never))))
   const sees = (needle: RegExp): Promise<boolean> => waitFor(() => needle.test(composed(ink).join('\n')), 20_000)
 
   const themeUp = await sees(/Choose your theme/)

@@ -64,7 +64,7 @@ try {
   check('the receipt still counts three reads, one search and ctx +34.4k', after.length === 1 && after[0]?.counts.reads === 3 && after[0]?.counts.searches === 1 && after[0]?.contextDelta === 34_400)
   for (const columns of [80, 110]) {
     const composition = compose(resumed)
-    const frame = await renderToString(React.createElement(AppStateProvider, { onChangeAppState: () => {}, children:
+    const frame = await renderToString(React.createElement(AppStateProvider, { children:
       React.createElement(Box, { flexDirection: 'column' },
         ...composition.collapsed.map((message, index) => React.createElement(MessageRow, {
           key: message.uuid, message, isUserContinuation: false,

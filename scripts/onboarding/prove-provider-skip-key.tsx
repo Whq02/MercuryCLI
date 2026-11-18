@@ -23,7 +23,7 @@ if (scenario !== null) {
   const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.js')
   const { Onboarding } = await import('../../src/components/Onboarding.js')
   const h = React.createElement
-  const element = h(AppStateProvider as never, { onChangeAppState: () => {} } as never, h(KeybindingSetup as never, {} as never, h(Onboarding as never, { onDone: () => {} } as never)))
+  const element = h(AppStateProvider as never, {} as never, h(KeybindingSetup as never, {} as never, h(Onboarding as never, { onDone: () => {} } as never)))
   const mounted = await mountOffscreen(element, COLS, ROWS)
   const until = async (needle: string | RegExp): Promise<boolean> => waitFor(() => (typeof needle === 'string' ? mounted.screen().includes(needle) : needle.test(mounted.screen())), 15_000)
   const frames: Record<string, string> = {}

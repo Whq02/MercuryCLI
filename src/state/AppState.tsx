@@ -36,11 +36,9 @@ const HasAppStateProviderContext = React.createContext<boolean>(false)
 export function AppStateProvider({
   children,
   initialState,
-  onChangeAppState: onChangeAppStateProp,
 }: {
   children: React.ReactNode
   initialState?: AppState
-  onChangeAppState?: (change: { newState: AppState; oldState: AppState }) => void
 }): React.ReactNode {
   const alreadyInsideProvider = useContext(HasAppStateProviderContext)
   if (alreadyInsideProvider) {
@@ -54,7 +52,6 @@ export function AppStateProvider({
       change => {
         fluxMark('appstate:set')
         onChangeAppState(change)
-        onChangeAppStateProp?.(change)
       },
     )
   }
