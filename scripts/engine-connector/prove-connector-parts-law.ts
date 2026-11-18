@@ -19,7 +19,7 @@ const PARTS: Readonly<Record<string, { file: string; type: string }>> = {
   workPart: { file: 'work.ts', type: 'WorkPart' },
 }
 
-const OF_THE_DOOR: readonly string[] = ['carrier', 'record', 'attached', 'factsFeed', 'asksFeed', 'tailFeed', 'progressFeed', 'turnInFlight', 'verbChain']
+const OF_THE_DOOR: readonly string[] = ['carrier', 'record', 'hands', 'attached', 'factsFeed', 'asksFeed', 'tailFeed', 'progressFeed', 'turnInFlight', 'verbChain']
 
 const REACHED_BY_PROOFS: readonly string[] = ['textRows', 'liveStateWord']
 
@@ -494,7 +494,7 @@ section('§2 the estate: the class holds the parts and what the door needs; the 
   const methods = connector.members.filter(ts.isMethodDeclaration)
   const privates = methods.filter(method => (ts.getCombinedModifierFlags(method) & ts.ModifierFlags.Private) !== 0).length
   const lines = (n: ts.Node, source: ts.SourceFile): number => source.getLineAndCharacterOfPosition(n.getEnd()).line - source.getLineAndCharacterOfPosition(n.getStart(source)).line + 1
-  console.log(`  the door: ${declared.length - 1} fields declared in the class body · ${methods.length} methods (${privates} private) · the class ${lines(connector, door)} lines · the file ${door.getLineAndCharacterOfPosition(door.getEnd()).line} lines`)
+  console.log(`  the door: ${connector.members.filter(ts.isPropertyDeclaration).length} fields declared in the class body · ${methods.length} methods (${privates} private) · the class ${lines(connector, door)} lines · the file ${door.getLineAndCharacterOfPosition(door.getEnd()).line} lines`)
   for (const source of partFiles(estate)) {
     source.forEachChild(node => {
       if (ts.isClassDeclaration(node)) console.log(`  ${rel(source.fileName)}: ${node.name?.text} · ${fieldsOf(node).length} fields · ${node.members.filter(ts.isMethodDeclaration).length} methods · ${source.getLineAndCharacterOfPosition(source.getEnd()).line} lines`)

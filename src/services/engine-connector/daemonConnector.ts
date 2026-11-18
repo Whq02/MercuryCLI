@@ -304,6 +304,18 @@ export class ProjectionFeed {
   }
 }
 
+interface ConnectorHands {
+  rpc?(req: Record<string, unknown>, timeoutMs: number): Promise<Record<string, unknown>>
+  tickOnce?(pass: () => Promise<void>): Promise<void>
+  armTranscriptWatcher?(): void
+  armTranscriptTimer?(): void
+}
+
+async function carrierRpc(req: Record<string, unknown>, timeoutMs: number): Promise<Record<string, unknown>> {
+  const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
+  return (await daemonControlRpc(req as never, { timeoutMs })) as Record<string, unknown>
+}
+
 export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtensionV1 {
   readonly carrier = 'daemon' as const
 
@@ -414,7 +426,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   private attached = false
 
-  constructor(readonly record: DaemonSessionRecordV1) {
+  constructor(readonly record: DaemonSessionRecordV1, private readonly hands: ConnectorHands = {}) {
     this.transcriptPath = join(record.home, `${record.sessionId}.jsonl`)
     this.facts = readSessionFacts(record.sessionId)
     this.factsBusy = this.facts?.busy ?? false
@@ -524,6 +536,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   private armTranscriptWatcher(): void {
+    if (this.hands.armTranscriptWatcher !== undefined) return this.hands.armTranscriptWatcher()
     if (this.transcriptWatcher !== null) return
     try {
       const dir = dirname(this.transcriptPath)
@@ -545,6 +558,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   private armTranscriptTimer(): void {
+    if (this.hands.armTranscriptTimer !== undefined) return this.hands.armTranscriptTimer()
     if (!this.attached) return
     const ms = this.transcriptWatcher === null || this.turnInFlight ? HEARTBEAT_MS : IDLE_TRANSCRIPT_FLOOR_MS
     if (this.transcriptTimer !== null && this.transcriptTimerMs === ms) return
@@ -638,7 +652,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       try {
         do {
           this.tickDirty = false
-          await this.tickOnce()
+          await (this.hands.tickOnce === undefined ? this.tickOnce() : this.hands.tickOnce(() => this.tickOnce()))
         } while (this.tickDirty && this.attached)
       } finally {
         this.tickInFlight = null
@@ -1114,10 +1128,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.asksPart.readAsks()
   }
 
-
-  private async rpc(req: Record<string, unknown>, timeoutMs = RPC_TIMEOUT_MS): Promise<Record<string, unknown>> {
-    const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
-    return (await daemonControlRpc(req as never, { timeoutMs })) as Record<string, unknown>
+  private rpc(req: Record<string, unknown>, timeoutMs = RPC_TIMEOUT_MS): Promise<Record<string, unknown>> {
+    return this.hands.rpc === undefined ? carrierRpc(req, timeoutMs) : this.hands.rpc(req, timeoutMs)
   }
 
   private verbChain: Promise<unknown> = Promise.resolve()
