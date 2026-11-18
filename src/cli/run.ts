@@ -16,7 +16,6 @@ import {
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { hasConversationTurn } from '../utils/conversationRecovery.js'
-import { caretEscape } from '../utils/caretEscape.js'
 import { reconstructContentReplacementState } from '../utils/toolResultStorage.js'
 import { adoptResumedSessionFile, flushSessionStorage, getSessionMessages, peekProject, recordTranscript } from '../utils/sessionStorage/writer.js'
 import { RunnerQuiescence } from '../daemon/runnerQuiescence.js'
@@ -37,7 +36,7 @@ import {
 } from '../services/engine-connector/seatWire.js'
 import { ask, sessionFactsOf } from '../rows/turn.js'
 import { closeRow, commandOutputRow, compactionClearedRow, compactionRow, heartbeatRow, missionUpdatedRow, modeRow, noticeRow, outcomeRow, rateLimitRow, samplesUpdatedRow, sessionRow, taskRow, turnStartedRow, turnWaitingRow, waitRow, type RowDraft, type RowScope, type Unstamped } from '../rows/project.js'
-import { exitCodeOf, OUTCOME_SENTENCES, type CompactionRow, type InputRow, type OutcomeRow, type Row } from '../rows/vocabulary.js'
+import { OUTCOME_SENTENCES, type CompactionRow, type InputRow, type OutcomeRow, type Row } from '../rows/vocabulary.js'
 import { isOutcome, turnOpened } from '../rows/read.js'
 import type { FoldStatusV1 } from '../services/compact/foldStatus.js'
 import type { RequestWaitV1 } from '../services/providers/streamIdleBudget.js'
@@ -62,6 +61,7 @@ import { createRuleOnlyAsks, createRunnerAsks, type AskHost } from './headless/r
 import { bindRunnerMethods, checkProtocol, DEFAULT_CAPABILITIES, initializeResultOf } from './headless/runnerMethods.js'
 import { createRunnerState, type HeadlessOptions, type RunnerPorts } from './headless/runnerPorts.js'
 import { runnerArmsOf } from './headless/runnerArms.js'
+import { finishPrintRun, pumpOutbound } from './headless/printRunEnd.js'
 import { priorTurnCount } from './headless/claimSession.js'
 import { fileCheckpointsFact } from './headless/sessionFactsArm.js'
 import { createPeer, type Peer } from '../runner/wire/peer.js'
@@ -1417,8 +1417,7 @@ export async function runHeadless(
     if (getCommandQueue().length > 0) quiescence.invalidate()
   })
 
-  let lastOutcome: OutcomeRow | null = null
-  let lastOutcomeWritten: Promise<unknown> = Promise.resolve()
+  live.lastOutcomeWritten = Promise.resolve()
   const writeLine = (message: OutboundLine): Promise<Row | null> => {
     if (peer === null) return io.write(message)
     if (io.stdoutPipeBroken) return Promise.resolve(null)
@@ -1437,14 +1436,14 @@ export async function runHeadless(
     if (options.outputFormat === 'rows') {
       const written = writeLine(message)
       if (isOutcome(message as never)) {
-        lastOutcomeWritten = written.then(line => {
-          if (line !== null) lastOutcome = line as OutcomeRow
+        live.lastOutcomeWritten = written.then(line => {
+          if (line !== null) live.lastOutcome = line as OutcomeRow
         })
       }
       void written.catch(error => logError(error))
       return
     }
-    if (isOutcome(message as never)) lastOutcome = io.rows.stamp(message as never) as OutcomeRow
+    if (isOutcome(message as never)) live.lastOutcome = io.rows.stamp(message as never) as OutcomeRow
   }
 
   const emitTaskNotificationFrames = (payloads: readonly string[]): void => {
@@ -1681,9 +1680,8 @@ export async function runHeadless(
     },
   })
 
-  let signalCode: number | null = null
   const settleOnSignal = async (code: number, cut?: string): Promise<void> => {
-    signalCode = code
+    live.signalCode = code
     const running = live.inFlightAbort !== null
     live.inFlightAbort?.abort(cut)
     if (running) {
@@ -1694,7 +1692,7 @@ export async function runHeadless(
   }
   const outcomeAfterAbort = async (): Promise<void> => {
     while (driver.isRunning()) await new Promise(resolve => setTimeout(resolve, 20))
-    await lastOutcomeWritten
+    await live.lastOutcomeWritten
   }
   const hostCutWords = (): string | undefined => {
     if (!isConcourseWorker) return undefined
@@ -2047,7 +2045,7 @@ export async function runHeadless(
     !live.inputClosed &&
     !driver.isRunning() &&
     getCommandQueue().some(command => isMainThreadCommand(command) && (isHeldNotice(command) || isOperatorLine(command)))
-  const ports: RunnerPorts = { live, options, wire, io, peer, asks, driver, messages, getAppState, setAppState, canUseTool, enqueueRow, liveScope, acceptInputRow, heldNoticeWaits, interruptOutcomes, quiescence, relaunchContext, checkBuildBehind, getReadFileCache, applySeatModel, applySeatEffort, landSpawnSwitch, settleSessionBriefs, armSessionRunnerWiring, hydrateResumedRun, persistBootModelRefusal, settleClearBirth, releaseQueueUntilClaimed, missionGuard, liveMcp, mcpSignIns, elicitationRegistered, permittedMcpConfig, serializeMcpChange, reconnectLiveMcp, resolveServerConfigFromAllSources, applyReconnectedClient, registerPerTurnHandlers, isLocalShellTask, killTask, requestShellBackground }
+  const ports: RunnerPorts = { live, options, wire, io, peer, asks, driver, messages, getAppState, setAppState, canUseTool, enqueueRow, liveScope, acceptInputRow, heldNoticeWaits, interruptOutcomes, quiescence, relaunchContext, checkBuildBehind, getReadFileCache, applySeatModel, applySeatEffort, landSpawnSwitch, settleSessionBriefs, armSessionRunnerWiring, hydrateResumedRun, persistBootModelRefusal, settleClearBirth, releaseQueueUntilClaimed, missionGuard, liveMcp, mcpSignIns, elicitationRegistered, permittedMcpConfig, serializeMcpChange, reconnectLiveMcp, resolveServerConfigFromAllSources, applyReconnectedClient, registerPerTurnHandlers, isLocalShellTask, killTask, requestShellBackground, routeOutbound }
   subscribeToCommandQueue(() => {
     if (heldNoticeWaits()) driver.kick()
   })
@@ -2073,79 +2071,10 @@ export async function runHeadless(
     }
   })()
 
-  const recordFlushFailure = (): Promise<string | null> => Promise.resolve(peekProject()?.flush()).then(() => null, (error: unknown) => errorMessage(error))
-  let unwrittenRecord: string | null = null
-  for await (const outboundMessage of io.outbound) {
-    if (isOutcome(outboundMessage as never)) {
-      unwrittenRecord = await recordFlushFailure()
-      if (unwrittenRecord !== null) {
-        const ended = outboundMessage as Unstamped<OutcomeRow>
-        const unwritten = { level: 'error' as const, text: unwrittenRecord }
-        const told: Unstamped<OutcomeRow> = { ...ended, notices: [...(ended.notices ?? []), unwritten] }
-        routeOutbound(noticeRow({ session_id: ended.session_id, turn: ended.turn }, unwritten.level, unwritten.text))
-        routeOutbound(told)
-        continue
-      }
-    }
-    routeOutbound(outboundMessage)
-  }
+  const unwrittenRecord = await pumpOutbound(ports)
   await stdinLoop.catch((error: unknown) => {
     logError(error)
   })
 
-  const flushWrite = (stream: NodeJS.WriteStream, text: string): Promise<void> =>
-    new Promise((resolve, reject) => {
-      stream.write(text, error => {
-        if (error) {
-          if (isBrokenPipeError(error)) {
-            if (stream === process.stdout) io.markStdoutPipeBroken()
-            else process.exitCode = 1
-            return resolve()
-          }
-          return reject(error)
-        }
-        resolve()
-      })
-    })
-  await lastOutcomeWritten
-  const last: OutcomeRow =
-    lastOutcome ??
-    (io.rows.stamp(
-      outcomeRow(
-        { session_id: getSessionId(), turn: Math.max(1, live.turnsRun) },
-        {
-          turnId: live.currentTurnId ?? randomUUID(),
-          status: 'failed',
-          steps: 0,
-          wallMs: 0,
-          usage: EMPTY_USAGE,
-          models: {},
-          denials: [],
-          error: { message: 'The run produced no outcome', class: 'internal' },
-        },
-      ),
-    ) as OutcomeRow)
-  if (options.outputFormat === 'json') {
-    await flushWrite(process.stdout, `${ndjsonSafeStringify(last)}\n`)
-  } else if (options.outputFormat !== 'rows') {
-    if (last.status === 'completed') {
-      const text = caretEscape(last.answer ?? '')
-      await flushWrite(process.stdout, text.endsWith('\n') ? text : `${text}\n`)
-    } else {
-      if ((last.status === 'blocked' || last.status === 'turn_limit') && last.answer) await flushWrite(process.stdout, caretEscape(last.answer).replace(/\n?$/, '\n'))
-      const sentence =
-        last.status === 'refused' || last.status === 'failed'
-          ? (last.error?.message ?? (last.status === 'refused' ? 'The request was refused' : 'The turn failed'))
-          : OUTCOME_SENTENCES[last.status]({ maxTurns: options.maxTurns, maxBudgetUsd: options.maxBudgetUsd, maxTimeMs: options.maxTimeMs, message: last.error?.message })
-      await flushWrite(process.stderr, `${sentence}\n`)
-    }
-  }
-
-  if (unwrittenRecord !== null) unwrittenRecord = await recordFlushFailure()
-  if (unwrittenRecord !== null) await flushWrite(process.stderr, `Error: ${unwrittenRecord}\n`)
-
-  logHeadlessProfilerTurn()
-  noteRunPhase('flush_exit')
-  logForDebugging(`[run-phases] ${jsonStringify(runPhaseReport(getTotalAPIDuration()))}`)
-  gracefulShutdownSync(io.stdoutPipeBroken ? 1 : (signalCode ?? (unwrittenRecord !== null ? 1 : exitCodeOf(last.status))))
+  await finishPrintRun(unwrittenRecord, ports)
 }

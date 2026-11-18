@@ -1,7 +1,7 @@
 import type { Command } from '../../commands.js'
 import type { RunnerQuiescence } from '../../daemon/runnerQuiescence.js'
 import type { RowDraft, RowScope } from '../../rows/project.js'
-import type { InputRow } from '../../rows/vocabulary.js'
+import type { InputRow, OutcomeRow } from '../../rows/vocabulary.js'
 import type { Peer } from '../../runner/wire/peer.js'
 import type { MCPServerConnection, ScopedMcpServerConfig } from '../../services/mcp/types.js'
 import type { AppState } from '../../state/AppStateStore.js'
@@ -11,7 +11,7 @@ import type { FileStateCache } from '../../utils/fileStateCache.js'
 import type { runSessionStartHooks } from '../../utils/sessionStart.js'
 import type { ThinkingConfig } from '../../utils/thinking.js'
 import { createContentReplacementState, type ContentReplacementState } from '../../utils/toolResultStorage.js'
-import type { StructuredIO } from '../structuredIO.js'
+import type { OutboundLine, StructuredIO } from '../structuredIO.js'
 import type { AskHost } from './runnerAsks.js'
 import type { TurnDriver } from './turnDriver.js'
 
@@ -70,6 +70,9 @@ export type RunnerState = {
   heldSeatModel: { requestId: number; model: string; words?: string } | null
   heldSeatEffort: { requestId: number; effort: string } | null
   deferredSpawnSwitches: Array<{ kind: 'subagents'; on: boolean; requestId: number }>
+  lastOutcome: OutcomeRow | null
+  lastOutcomeWritten: Promise<unknown>
+  signalCode: number | null
 }
 
 export function createRunnerState(): RunnerState {
@@ -95,6 +98,9 @@ export function createRunnerState(): RunnerState {
     heldSeatModel: null,
     heldSeatEffort: null,
     deferredSpawnSwitches: [],
+    lastOutcome: null,
+    lastOutcomeWritten: Promise.resolve(),
+    signalCode: null,
   }
 }
 
@@ -141,4 +147,5 @@ export type RunnerPorts = {
   isLocalShellTask: (task: unknown) => boolean
   killTask: (taskId: string, setAppState: RunnerPorts['setAppState']) => Promise<unknown>
   requestShellBackground: () => number
+  routeOutbound: (message: OutboundLine) => void
 }

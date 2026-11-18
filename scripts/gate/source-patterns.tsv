@@ -742,8 +742,9 @@ as-unknown-as	src/utils/toolResultStorage.ts	1
 as-unknown-as	src/utils/usageHistory.ts	1
 as-unknown-as	src/utils/yaml.ts	1
 as-never	src/cli/exit.ts	3
+as-never	src/cli/headless/printRunEnd.ts	1
 as-never	src/cli/headless/runnerMethods.ts	3
-as-never	src/cli/run.ts	9
+as-never	src/cli/run.ts	8
 as-never	src/cli/structuredIO.ts	1
 as-never	src/commands/contract/contract.ts	2
 as-never	src/commands/model/mercuryModel.tsx	5
