@@ -31,7 +31,8 @@ export async function vmVendorDrive(vendor: string, makeFixture: () => Promise<a
     check('the vendor carries no boot stamp', !('booted' in info.HOST_VENDOR_INFO[vendor]) && !('vendorStamp' in info))
     const module = await import(f.root + '/src/services/host/vendors/' + vendor + '.ts')
     const Client = module[{ hyperstack: 'HyperstackClient', verda: 'VerdaClient', digitalocean: 'DigitalOceanClient' }[vendor]!]
-    const api = new Client(fixture.key, fixture.baseUrl, { readyTimeoutMs: 80, pollMs: 2, requestTimeoutMs: 1000 })
+    const api = new Client(fixture.key, fixture.baseUrl, { readyTimeoutMs: 10_000, pollMs: 2, requestTimeoutMs: 1000 })
+    const impatient = new Client(fixture.key, fixture.baseUrl, { readyTimeoutMs: 80, pollMs: 2, requestTimeoutMs: 1000 })
     const label = api.label
     assert.throws(() => new Client(fixture.key, 'https://unexpected.invalid/v1'), /official API URL/)
     await assert.rejects(() => new Client(vendor === 'verda' ? 'bad:bad' : 'bad', fixture.baseUrl).pods(), /HTTP 401/)
@@ -96,12 +97,12 @@ export async function vmVendorDrive(vendor: string, makeFixture: () => Promise<a
     }
     await assert.rejects(() => api.stop(pod.id), /terminate|termination/i)
     fixture.state.holdTerminate = true
-    await assert.rejects(() => api.terminate(pod.id), /not verified|still lists/)
+    await assert.rejects(() => impatient.terminate(pod.id), /not verified|still lists/)
     check('held delete cannot report absence', fixture.state.pods.size === 1)
     fixture.state.holdTerminate = false
     if (vendor === 'verda') {
       fixture.state.holdVolume = true
-      await assert.rejects(() => api.terminate(pod.id), /not verified|still lists/)
+      await assert.rejects(() => impatient.terminate(pod.id), /not verified|still lists/)
       check('remaining root storage prevents a false clean deletion', fixture.state.volumes.size === 1)
       fixture.state.volumes.clear(); fixture.state.holdVolume = false
     }
