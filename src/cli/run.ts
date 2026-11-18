@@ -62,6 +62,7 @@ import { bindRunnerMethods, checkProtocol, DEFAULT_CAPABILITIES, initializeResul
 import { createRunnerState, type HeadlessOptions, type RunnerPorts } from './headless/runnerPorts.js'
 import { runnerArmsOf } from './headless/runnerArms.js'
 import { finishPrintRun, pumpOutbound } from './headless/printRunEnd.js'
+import { hydrateResumedRun } from './headless/resumeHydration.js'
 import { priorTurnCount } from './headless/claimSession.js'
 import { fileCheckpointsFact } from './headless/sessionFactsArm.js'
 import { createPeer, type Peer } from '../runner/wire/peer.js'
@@ -146,7 +147,6 @@ const BUILD_BEHIND_THROTTLE_MS = 2_000
 const BUILD_BEHIND_CONFIRM_MS = 2_000
 import { getInMemoryErrors, logError, withoutStackFrames } from '../utils/log.js'
 import { processMainOwner } from '../services/run/resolveOwner.js'
-import { getRunSnapshot, reconcileOnResume } from '../services/run/runCoordinator.js'
 import type { Message } from '../types/message.js'
 import type { ContentBlockParam } from '../types/wire.js'
 import {
@@ -209,7 +209,6 @@ import { consumeSessionKindPin } from '../utils/sessionKind.js'
 import { describeArtifactIdentity, runningBuildTree } from '../utils/artifactIdentity.js'
 import { getTranscriptPath, isChainParticipant } from '../utils/sessionStorage/paths.js'
 import { appendSessionReceipt, readSessionReceipts, settleClearModel } from '../services/switchboard/sessionReceipts.js'
-import { wrapInSystemReminder } from '../utils/messages/text.js'
 import { composeBuildBehindLine } from '../tools/MonitorTool/watchReceipts.js'
 import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js'
 import { drainRows, subscribeRows } from '../utils/sdkEventQueue.js'
@@ -307,6 +306,51 @@ export async function runHeadless(
   options: HeadlessOptions,
 ): Promise<void> {
   const live = createRunnerState()
+  const ports: RunnerPorts = {
+    live,
+    options,
+    get wire() { return wire },
+    get io() { return io },
+    get peer() { return peer },
+    get asks() { return asks },
+    get driver() { return driver },
+    get messages() { return messages },
+    getAppState,
+    setAppState,
+    get canUseTool() { return canUseTool },
+    get enqueueRow() { return enqueueRow },
+    get liveScope() { return liveScope },
+    get acceptInputRow() { return acceptInputRow },
+    get heldNoticeWaits() { return heldNoticeWaits },
+    get interruptOutcomes() { return interruptOutcomes },
+    get quiescence() { return quiescence },
+    get relaunchContext() { return relaunchContext },
+    get checkBuildBehind() { return checkBuildBehind },
+    get getReadFileCache() { return getReadFileCache },
+    get applySeatModel() { return applySeatModel },
+    get applySeatEffort() { return applySeatEffort },
+    get landSpawnSwitch() { return landSpawnSwitch },
+    get settleSessionBriefs() { return settleSessionBriefs },
+    get armSessionRunnerWiring() { return armSessionRunnerWiring },
+    hydrateResumedRun: () => hydrateResumedRun(ports),
+    get persistBootModelRefusal() { return persistBootModelRefusal },
+    get settleClearBirth() { return settleClearBirth },
+    get releaseQueueUntilClaimed() { return releaseQueueUntilClaimed },
+    get missionGuard() { return missionGuard },
+    get liveMcp() { return liveMcp },
+    get mcpSignIns() { return mcpSignIns },
+    get elicitationRegistered() { return elicitationRegistered },
+    get permittedMcpConfig() { return permittedMcpConfig },
+    get serializeMcpChange() { return serializeMcpChange },
+    get reconnectLiveMcp() { return reconnectLiveMcp },
+    get resolveServerConfigFromAllSources() { return resolveServerConfigFromAllSources },
+    get applyReconnectedClient() { return applyReconnectedClient },
+    get registerPerTurnHandlers() { return registerPerTurnHandlers },
+    isLocalShellTask,
+    killTask,
+    requestShellBackground,
+    get routeOutbound() { return routeOutbound },
+  }
   const maxTime = options.maxTimeMs === undefined ? undefined : { limitMs: options.maxTimeMs, at: Date.now() + options.maxTimeMs }
   setAskChannel(options.door === 'wire' ? 'sdk' : 'none')
   const kindPin = consumeSessionKindPin()
@@ -678,111 +722,7 @@ export async function runHeadless(
     }
   }
 
-  const hydrateResumedRun = async (): Promise<void> => {
-    if (messages.length === 0) return
-    try {
-      const { runBootRecovery } = await import('../substrate/recoveryOrchestrator.js')
-      await runBootRecovery({
-        scope: 'session',
-        sessionId: getSessionId(),
-        projectDir: getCwd(),
-      })
-    } catch (error) {
-      logError(error)
-    }
-    try {
-      const owner = processMainOwner()
-      if (getRunSnapshot(owner) === null) {
-        await reconcileOnResume(owner, getCwd())
-      }
-    } catch (error) {
-      logError(error)
-    }
-    try {
-      const { coerceRestartReason: carriedReasonOf } = await import('../tasks/LocalAgentTask/launchReceipts.js')
-      const carriedReason = carriedReasonOf(live.runnerRestartReason)
-      if (carriedReason === 'crash' || carriedReason === 'stop' || carriedReason === 'update' || carriedReason === 'ended') {
-        const { carryRunnerAcrossRestart } = await import('./headless/restartCarry.js')
-        const carried = await carryRunnerAcrossRestart({
-          reason: carriedReason,
-          messages,
-          getAppState,
-          setAppState,
-          canUseTool: asks.createCanUseTool(),
-          relaunchContext,
-        })
-        live.recoveredCommandIds = carried.recoveredCommandIds
-        logForDebugging(`[session-runner] resume after ${carriedReason}: ${carried.requeued} line(s) re-queued, ${carried.relaunched} agent(s) relaunched, ${carried.delivered} delivered from the queue log, ${carried.stopped} stopped`)
-      }
-    } catch (error) {
-      logError(error)
-    }
-    try {
-      const { reconcileBackgroundLaunchesOnResume, coerceRestartReason } = await import('../tasks/LocalAgentTask/launchReceipts.js')
-      const settledLaunches = reconcileBackgroundLaunchesOnResume(messages, getAppState, setAppState, Date.now(), coerceRestartReason(live.runnerRestartReason))
-      if (settledLaunches.length > 0) {
-        logForDebugging(`[session-runner] resume: ${settledLaunches.length} background launch(es) without a live record — stop notices written`)
-      }
-    } catch (error) {
-      logError(error)
-    }
-    try {
-      const { carryPausedCrewmatesOnResume } = await import('../tasks/LocalAgentTask/pauseCarry.js')
-      const carried = await carryPausedCrewmatesOnResume({
-        getAppState,
-        setAppState,
-        canUseTool: asks.createCanUseTool(),
-        relaunchContext,
-      })
-      if (carried.length > 0) {
-        logForDebugging(`[session-runner] resume: ${carried.length} paused crewmate(s) re-armed to retry at their stated reset — ${carried.join(', ')}`)
-      }
-    } catch (error) {
-      logError(error)
-    }
-    try {
-      const { reconcileWatchesOnResume, reconcileBackgroundShellsOnResume, composeRestartLine } = await import('../tools/MonitorTool/watchReceipts.js')
-      const { coerceRestartReason } = await import('../tasks/LocalAgentTask/launchReceipts.js')
-      const reason = coerceRestartReason(live.runnerRestartReason)
-      const liveIds = new Set(Object.keys(getAppState().tasks ?? {}))
-      const { reconcileTaskLaunchesOnResume } = await import('../tasks/taskLaunchLedger.js')
-      const launches = await reconcileTaskLaunchesOnResume(String(getSessionId()), liveIds)
-      if (launches.endedPids.length > 0) {
-        logForDebugging(`[session-runner] resume: ${launches.endedPids.length} background process(es) had outlived the runner and were ended — pids ${launches.endedPids.join(', ')}`)
-      }
-      const deadWatches = reconcileWatchesOnResume(messages, liveIds, reason, launches.orphans, launches.settledTaskIds)
-      const deadShells = reconcileBackgroundShellsOnResume(messages, liveIds, reason, launches.orphans, launches.settledTaskIds)
-      if (deadWatches.length > 0 || deadShells.length > 0) {
-        logForDebugging(`[session-runner] resume: ${deadWatches.length} watch(es) and ${deadShells.length} background shell(s) without a live process — dead notices written`)
-      }
-      if (reason === 'update' || reason === 'ended') {
-        const build = runningBuildTree() ?? `v${MACRO.VERSION}`
-        const line = composeRestartLine({ reason, build, watches: deadWatches, shells: deadShells })
-        try {
-          appendSessionReceipt(dirname(getTranscriptPath()), String(getSessionId()), {
-            at: new Date().toISOString(),
-            by: 'runner',
-            kind: 'runner-restart',
-            summary: line,
-            details: { reason, build, watches: deadWatches.length, shells: deadShells.length },
-          })
-        } catch (error) {
-          logError(error)
-        }
-        const { enqueuePendingNotification } = await import('../utils/messageQueueManager.js')
-        enqueuePendingNotification({
-          value: wrapInSystemReminder(line),
-          mode: 'task-notification',
-          priority: 'next',
-          ridesNextWords: true,
-        })
-        enqueueRow(noticeRow(liveScope(), 'warning', line))
-      }
-    } catch (error) {
-      logError(error)
-    }
-  }
-  if (options.continue || options.resume) await hydrateResumedRun()
+  if (options.continue || options.resume) await hydrateResumedRun(ports)
 
   if (!options.agent && !getMainThreadAgentType() && loaded.agentSetting) {
     const restored = restoreAgentFromSession(loaded.agentSetting, undefined, {
@@ -2045,7 +1985,6 @@ export async function runHeadless(
     !live.inputClosed &&
     !driver.isRunning() &&
     getCommandQueue().some(command => isMainThreadCommand(command) && (isHeldNotice(command) || isOperatorLine(command)))
-  const ports: RunnerPorts = { live, options, wire, io, peer, asks, driver, messages, getAppState, setAppState, canUseTool, enqueueRow, liveScope, acceptInputRow, heldNoticeWaits, interruptOutcomes, quiescence, relaunchContext, checkBuildBehind, getReadFileCache, applySeatModel, applySeatEffort, landSpawnSwitch, settleSessionBriefs, armSessionRunnerWiring, hydrateResumedRun, persistBootModelRefusal, settleClearBirth, releaseQueueUntilClaimed, missionGuard, liveMcp, mcpSignIns, elicitationRegistered, permittedMcpConfig, serializeMcpChange, reconnectLiveMcp, resolveServerConfigFromAllSources, applyReconnectedClient, registerPerTurnHandlers, isLocalShellTask, killTask, requestShellBackground, routeOutbound }
   subscribeToCommandQueue(() => {
     if (heldNoticeWaits()) driver.kick()
   })
