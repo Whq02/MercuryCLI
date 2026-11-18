@@ -88,9 +88,8 @@ export function codingLoopFastChecks(): CheckSpec[] {
         if (!mercuryRefsEnabled()) {
           return { status: 'off' as const, evidence: flagAsSet('MERCURY_REFS') }
         }
-        const { resourceAdapterKinds, settleResourceKinds } = await import('../../../services/resources/registry.js')
-        await settleResourceKinds()
-        const kinds = resourceAdapterKinds()
+        const { resourceAdapterKinds } = await import('../../../services/resources/registry.js')
+        const kinds = await resourceAdapterKinds()
         return {
           status: kinds.length >= 10 ? ('ok' as const) : ('warn' as const),
           evidence: `${kinds.length} adapter kind(s): ${kinds.map(k => k.kind).join(' ')}`,
