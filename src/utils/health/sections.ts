@@ -1,4 +1,4 @@
-import type { CheckSpec, HealthContext } from '../healthReport.js'
+import type { HealthSectionRows } from '../healthReport.js'
 import { identityChecks } from './sections/identity.js'
 import { proofsChecks } from './sections/proofs.js'
 import { gitChecks } from './sections/git.js'
@@ -22,13 +22,7 @@ import { axiomDeepChecks } from './sections/axiom-deep.js'
 import { vanguardChecks } from './sections/vanguard.js'
 import { arsenalDeepChecks } from './sections/arsenal-deep.js'
 
-interface HealthSectionRows {
-  id: string
-  title: string
-  checks: (context: HealthContext) => CheckSpec[]
-}
-
-export const HEALTH_SECTIONS: HealthSectionRows[] = [
+const sections: HealthSectionRows[] = [
   { id: 'identity', title: 'IDENTITY', checks: identityChecks },
   { id: 'proofs', title: 'PROOFS', checks: proofsChecks },
   { id: 'git', title: 'GIT', checks: gitChecks },
@@ -52,3 +46,5 @@ export const HEALTH_SECTIONS: HealthSectionRows[] = [
   { id: 'vanguard', title: 'CODING LOOP', checks: vanguardChecks },
   { id: 'arsenal-deep', title: 'TOOL CAPABILITY', checks: arsenalDeepChecks },
 ]
+
+export const HEALTH_SECTIONS: readonly Readonly<HealthSectionRows>[] = Object.freeze(sections.map(section => Object.freeze(section)))

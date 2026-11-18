@@ -1,8 +1,6 @@
-import type { CheckSpec, HealthContext } from '../../healthReport.js'
+import type { CheckSpec } from '../../healthReport.js'
 
-export function vanguardChecks(context: HealthContext): CheckSpec[] {
-  const { probes } = context
-  if (probes === null) return []
+export function vanguardChecks(): CheckSpec[] {
   return [
     {
       id: 'change-transaction',
@@ -10,7 +8,7 @@ export function vanguardChecks(context: HealthContext): CheckSpec[] {
       depth: 'deep',
       probe: 'functional',
       timeoutMs: 15_000,
-      run: () => probes.probeChangeTransaction(),
+      run: async () => (await import('../../healthDeepProbes.js')).probeChangeTransaction(),
     },
     {
       id: 'service-lifecycle',
@@ -18,7 +16,8 @@ export function vanguardChecks(context: HealthContext): CheckSpec[] {
       depth: 'deep',
       probe: 'functional',
       timeoutMs: 25_000,
-      run: () => probes.probeServiceLifecycle(),
+      dependsOn: ['execution-census'],
+      run: async () => (await import('../../healthDeepProbes.js')).probeServiceLifecycle(),
     },
     {
       id: 'agent-envelope',
@@ -26,7 +25,7 @@ export function vanguardChecks(context: HealthContext): CheckSpec[] {
       depth: 'deep',
       probe: 'functional',
       timeoutMs: 15_000,
-      run: () => probes.probeAgentEnvelope(),
+      run: async () => (await import('../../healthDeepProbes.js')).probeAgentEnvelope(),
     },
   ]
 }

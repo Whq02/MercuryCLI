@@ -1,8 +1,6 @@
-import type { CheckSpec, HealthContext } from '../../healthReport.js'
+import type { CheckSpec } from '../../healthReport.js'
 
-export function ideLoopChecks(context: HealthContext): CheckSpec[] {
-  const { probes } = context
-  if (probes === null) return []
+export function ideLoopChecks(): CheckSpec[] {
   return [
     {
       id: 'lsp-engine',
@@ -10,7 +8,7 @@ export function ideLoopChecks(context: HealthContext): CheckSpec[] {
       depth: 'deep',
       probe: 'functional',
       timeoutMs: 20_000,
-      run: () => probes.probeLspEngine(),
+      run: async () => (await import('../../healthDeepProbes.js')).probeLspEngine(),
     },
     {
       id: 'lsp-live-lane',
@@ -18,7 +16,7 @@ export function ideLoopChecks(context: HealthContext): CheckSpec[] {
       depth: 'deep',
       probe: 'functional',
       timeoutMs: 25_000,
-      run: () => probes.probeLspLiveLane(),
+      run: async () => (await import('../../healthDeepProbes.js')).probeLspLiveLane(),
     },
     {
       id: 'dap-engine',
@@ -26,7 +24,7 @@ export function ideLoopChecks(context: HealthContext): CheckSpec[] {
       depth: 'deep',
       probe: 'functional',
       timeoutMs: 30_000,
-      run: ctx => probes.probeDapEngine(ctx?.signal),
+      run: async ctx => (await import('../../healthDeepProbes.js')).probeDapEngine(ctx?.signal),
     },
     {
       id: 'python-debugger',
@@ -34,7 +32,7 @@ export function ideLoopChecks(context: HealthContext): CheckSpec[] {
       depth: 'deep',
       probe: 'functional',
       timeoutMs: 45_000,
-      run: ctx => probes.probePythonDebugger(ctx?.signal),
+      run: async ctx => (await import('../../healthDeepProbes.js')).probePythonDebugger(ctx?.signal),
     },
     {
       id: 'js-debugger',
@@ -42,7 +40,7 @@ export function ideLoopChecks(context: HealthContext): CheckSpec[] {
       depth: 'deep',
       probe: 'functional',
       timeoutMs: 15_000,
-      run: ctx => probes.probeJsDebugBoot(ctx?.signal),
+      run: async ctx => (await import('../../healthDeepProbes.js')).probeJsDebugBoot(ctx?.signal),
     },
   ]
 }

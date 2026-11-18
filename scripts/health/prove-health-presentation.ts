@@ -234,7 +234,7 @@ section('§7 · RICH convergence + LEGACY RETIREMENT (HL-10/19/22/23/25/32/33)')
   const { healthContext: contextOf } = await import('../../src/utils/healthReport.ts')
   const { HEALTH_SECTIONS } = await import('../../src/utils/health/sections.ts')
   const listContext = await contextOf()
-  const listed = HEALTH_SECTIONS.flatMap(entry => entry.checks(listContext))
+  const listed = (await Promise.all(HEALTH_SECTIONS.map(entry => entry.checks(listContext)))).flat()
   for (const id of ['agent-definitions', 'env-limits', 'keybindings', 'version-locks']) {
     check(`the absorbed panel lives as the '${id}' certificate row (HL-32 absorption)`, listed.filter(row => row.id === id).length === 1)
   }

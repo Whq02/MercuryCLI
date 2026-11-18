@@ -394,6 +394,12 @@ interface SectionSpec {
   checks: Array<CheckSpec>
 }
 
+export interface HealthSectionRows {
+  id: string
+  title: string
+  checks: (context: HealthContext) => CheckSpec[] | Promise<CheckSpec[]>
+}
+
 export interface RunHealthReportOptions {
   depth?: 'fast' | 'deep'
   signal?: AbortSignal
@@ -412,12 +418,12 @@ export function flagAsSet(env: string): string {
   return `${env}=${flagEnv(env)?.trim() || '0'}`
 }
 
-export const SHELL_READS = {
+export const SHELL_READS = Object.freeze({
   outputLimits: () => import('./shell/outputLimits.js'),
   engineSession: () => import('./shell/engineSession.js'),
   engineArm: () => import('./shell/shellEngineArm.js'),
   windowsRoad: () => import('./shell/windowsShellRoad.js'),
-}
+})
 
 
 export function unresolvedDefaultRow(): string | null {
@@ -430,7 +436,7 @@ export function unresolvedDefaultRow(): string | null {
   }
 }
 
-async function tensorFoldHealthChecks(): Promise<CheckSpec[]> {
+export async function tensorFoldHealthChecks(): Promise<CheckSpec[]> {
   let rows: import('../services/providers/local/tensorfoldHealth.js').TensorFoldHealthChecks
   let labels: typeof import('../services/providers/local/tensorfoldHealth.js')
   try {
@@ -570,11 +576,9 @@ export interface HealthContext {
   git: Awaited<ReturnType<typeof gitSnapshot>>
   repo: GitRepoState | null
   head: CertHead
-  tensorFoldChecks: CheckSpec[]
-  probes: typeof import('./healthDeepProbes.js') | null
 }
 
-export async function healthContext(depth: 'fast' | 'deep' = 'fast'): Promise<HealthContext> {
+export async function healthContext(): Promise<HealthContext> {
   const cwd = getCwd()
 
   const git = await gitSnapshot({ fresh: true })
@@ -585,18 +589,17 @@ export async function healthContext(depth: 'fast' | 'deep' = 'fast'): Promise<He
 
   const version =
     typeof MACRO !== 'undefined' && typeof MACRO.VERSION === 'string' ? MACRO.VERSION : 'dev'
-  const tensorFoldChecks = await tensorFoldHealthChecks()
-  const probes = depth === 'deep' ? await import('./healthDeepProbes.js') : null
-  return { cwd, version, git, repo, head, tensorFoldChecks, probes }
+  return { cwd, version, git, repo, head }
 }
 
-export async function runHealthReport(opts?: RunHealthReportOptions): Promise<HealthCertificate> {
+export async function runHealthReport(opts?: RunHealthReportOptions, list?: readonly HealthSectionRows[]): Promise<HealthCertificate> {
   const t0 = Date.now()
   const depth = opts?.depth ?? 'fast'
-  const context = await healthContext(depth)
+  const context = await healthContext()
   const { head, version } = context
-  const { HEALTH_SECTIONS } = await import('./health/sections.js')
-  const specs: SectionSpec[] = HEALTH_SECTIONS.map(section => ({ id: section.id, title: section.title, checks: section.checks(context) }))
+  const listed = list ?? (await import('./health/sections.js')).HEALTH_SECTIONS
+  const specs: SectionSpec[] = []
+  for (const section of listed) specs.push({ id: section.id, title: section.title, checks: await section.checks(context) })
 
   const work: Array<{ spec: CheckSpec; sectionId: string; sectionTitle: string; slot: number }> = []
   const resultSlots: Array<HealthCheck | null> = []
@@ -672,11 +675,12 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
 
   const queue = [...work]
   const running: Promise<void>[] = []
+  const fastRows = work.filter(item => (item.spec.depth ?? 'fast') === 'fast').map(item => item.spec.id)
   while (queue.length > 0 || running.length > 0) {
     let launched = false
     for (let i = 0; i < queue.length && running.length < HEALTH_CONCURRENCY; i++) {
       const item = queue[i]!
-      const deps = item.spec.dependsOn ?? []
+      const deps = (item.spec.depth ?? 'fast') === 'deep' ? [...fastRows, ...(item.spec.dependsOn ?? [])] : (item.spec.dependsOn ?? [])
       if (deps.every(d => settled.has(d))) {
         queue.splice(i, 1)
         i--
@@ -690,7 +694,8 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
     if (running.length > 0) {
       await Promise.race(running)
     } else if (!launched && queue.length > 0) {
-      const item = queue.shift()!
+      const stuck = queue.findIndex(waiting => (waiting.spec.depth ?? 'fast') === 'fast')
+      const item = queue.splice(Math.max(stuck, 0), 1)[0]!
       resultSlots[item.slot] = {
         id: item.spec.id,
         label: item.spec.label,

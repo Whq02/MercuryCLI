@@ -1,8 +1,6 @@
-import type { CheckSpec, HealthContext } from '../../healthReport.js'
+import type { CheckSpec } from '../../healthReport.js'
 
-export function arsenalDeepChecks(context: HealthContext): CheckSpec[] {
-  const { probes } = context
-  if (probes === null) return []
+export function arsenalDeepChecks(): CheckSpec[] {
   return [
     {
       id: 'structure-loop',
@@ -10,7 +8,8 @@ export function arsenalDeepChecks(context: HealthContext): CheckSpec[] {
       depth: 'deep',
       probe: 'functional',
       timeoutMs: 25_000,
-      run: () => probes.probeStructureLoop(),
+      dependsOn: ['durable-journals'],
+      run: async () => (await import('../../healthDeepProbes.js')).probeStructureLoop(),
     },
     {
       id: 'git-graph',
@@ -18,7 +17,7 @@ export function arsenalDeepChecks(context: HealthContext): CheckSpec[] {
       depth: 'deep',
       probe: 'functional',
       timeoutMs: 25_000,
-      run: () => probes.probeGitGraph(),
+      run: async () => (await import('../../healthDeepProbes.js')).probeGitGraph(),
     },
     {
       id: 'journey-loop',
@@ -26,7 +25,8 @@ export function arsenalDeepChecks(context: HealthContext): CheckSpec[] {
       depth: 'deep',
       probe: 'functional',
       timeoutMs: 45_000,
-      run: () => probes.probeJourneyLoop(),
+      dependsOn: ['execution-census'],
+      run: async () => (await import('../../healthDeepProbes.js')).probeJourneyLoop(),
     },
   ]
 }
