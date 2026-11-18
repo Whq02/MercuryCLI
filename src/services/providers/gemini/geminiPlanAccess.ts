@@ -1,7 +1,7 @@
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { errorMessageWithCause } from '../../../utils/errors.js'
-import { sleep as wait } from '../../../utils/sleep.js'
+import { sleep } from '../../../utils/sleep.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { antigravityUserAgent } from './antigravityClientContract.js'
 
@@ -272,7 +272,7 @@ async function loadGeminiPlanAccess(io: GeminiPlanIo, projectId?: string): Promi
 
 async function onboardGeminiPlanFreeTier(io: GeminiPlanIo): Promise<void> {
   const now = io.now ?? Date.now
-  const sleep = io.sleep ?? wait
+  const pause = io.sleep ?? sleep
   const deadline = now() + GEMINI_PLAN_ONBOARD_DEADLINE_MS
   const { answer: first, base } = await overBases(io, b => codeAssistCall(io, b, 'onboardUser', { tierId: GEMINI_PLAN_FREE_TIER_ID, metadata: ANTIGRAVITY_CLIENT_METADATA }, 'POST'))
   let operation = record(first) ?? {}
@@ -285,7 +285,7 @@ async function onboardGeminiPlanFreeTier(io: GeminiPlanIo): Promise<void> {
     }
     const remaining = deadline - now()
     if (remaining <= 0) throw new Error(`Google's free-tier provisioning did not finish within ${GEMINI_PLAN_ONBOARD_DEADLINE_MS / 1000} s — sign in again in a moment`)
-    await sleep(Math.min(GEMINI_PLAN_ONBOARD_POLL_MS, remaining))
+    await pause(Math.min(GEMINI_PLAN_ONBOARD_POLL_MS, remaining))
     const name = str(operation.name)
     if (name === undefined) throw new Error('Google answered the free-tier provisioning without an operation name')
     operation = record(await codeAssistCall(io, base, 'onboardUser operation', undefined, 'GET', name)) ?? {}

@@ -1,6 +1,6 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
-import { sleep as wait } from '../../../utils/sleep.js'
+import { sleep } from '../../../utils/sleep.js'
 import { writeStoredHuggingfaceApiKey } from '../providerSecrets.js'
 import {
   fetchHuggingfaceIdentity,
@@ -60,7 +60,7 @@ export async function runHuggingfaceDeviceLogin(
   args: HuggingfaceDeviceLoginArgs = {},
 ): Promise<HuggingfaceDeviceLoginOutcome> {
   const { io, onEvent } = args
-  const sleep = args.sleep ?? wait
+  const pause = args.sleep ?? sleep
   const cancelled = args.cancelled ?? (() => false)
   const refresh = args.refreshCatalogue ?? (() => refreshHuggingfaceCatalogue({ force: true }).catch(() => null))
   const now = (): number => io?.now?.() ?? Date.now()
@@ -89,7 +89,7 @@ export async function runHuggingfaceDeviceLogin(
         receipt: 'Hugging Face sign-in expired before the code was entered — retry from /logins.',
       }
     }
-    await sleep(intervalSec * 1000)
+    await pause(intervalSec * 1000)
     if (cancelled())
       return { ok: false, code: 'cancelled', receipt: 'Hugging Face sign-in cancelled — nothing stored.' }
     polls += 1

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { setTimeout as delay } from 'node:timers/promises'
+import { sleep } from '../../../utils/sleep.js'
 import { z } from 'zod/v4'
 import { recipeFits, type HostRecipe } from '../recipes.js'
 import { currentHostRecipes } from '../recipesFile.js'
@@ -208,7 +208,7 @@ export class HuggingfaceClient implements HostVendor {
       try { rows = await (readOnly ? readOnly('pod listing', signal => this.pods(signal)) : this.pods()) } catch (error) { throw new HostTerminationUnconfirmed(this.label, error) }
       if (!rows.some(row => row.id === id)) return
       if (Date.now() >= deadline) throw new Error('HF termination is not verified; the endpoint may still bill. Check the HF console.')
-      await delay(this.timing.pollMs ?? 1000)
+      await sleep(this.timing.pollMs ?? 1000)
     }
   }
   async logs(id: string, signal?: AbortSignal): Promise<string> {

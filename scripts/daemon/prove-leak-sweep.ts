@@ -565,11 +565,25 @@ section('§B — every arm is paired with its release (the class-B lifecycle cen
     check(`B4 ${rel} pairs its watch with a close`, body.includes('.close()'))
   }
 
-  for (const rel of [join('services', 'providers', 'huggingface', 'huggingfaceLogin.ts'), join('services', 'providers', 'moonshot', 'moonshotLogin.ts')]) {
-    const body = src(rel)
-    const sleepIdx = body.indexOf('await sleep(')
-    const recheck = sleepIdx !== -1 && body.slice(sleepIdx, sleepIdx + 200).includes('cancelled()')
-    check(`B5 ${rel} re-checks cancelled() right after the sleep`, recheck)
+  {
+    ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
+    const { runHuggingfaceDeviceLogin } = await import('../../src/services/providers/huggingface/huggingfaceLogin.ts')
+    const { runKimiDeviceLogin } = await import('../../src/services/providers/moonshot/moonshotLogin.ts')
+    const cancelledInThePause = async (run: (seam: { cancelled: () => boolean; sleep: () => Promise<void>; fetchImpl: typeof fetch }) => Promise<{ ok: boolean; code?: string }>): Promise<string> => {
+      let cancelled = false
+      let pauses = 0
+      let polls = 0
+      const fetchImpl = (async (url: RequestInfo | URL) => {
+        if (String(url).includes('token')) polls++
+        return new Response(JSON.stringify({ device_code: 'DC-B5', user_code: 'USER-B5', verification_uri: 'https://login.example/activate', interval: 0, expires_in: 300 }), { status: 200 })
+      }) as typeof fetch
+      const outcome = await run({ cancelled: () => cancelled, sleep: async () => { pauses++; cancelled = true }, fetchImpl })
+      return `${outcome.code ?? (outcome.ok ? 'signed in' : 'failed')} after ${pauses} pause(s) and ${polls} poll(s)`
+    }
+    const hub = await cancelledInThePause(seam => runHuggingfaceDeviceLogin({ cancelled: seam.cancelled, sleep: seam.sleep, refreshCatalogue: () => Promise.resolve(null), io: { env: { ...process.env, MERCURY_HUGGINGFACE_OAUTH_CLIENT_ID: 'client-fixture' }, fetchImpl: seam.fetchImpl } }))
+    check('B5 the Hugging Face sign-in re-checks cancelled() right after the sleep: a cancel that lands in the pause ends it before any poll', hub === 'cancelled after 1 pause(s) and 0 poll(s)', hub)
+    const kimi = await cancelledInThePause(seam => runKimiDeviceLogin({ region: 'global', cancelled: seam.cancelled, sleep: seam.sleep, io: { fetchImpl: seam.fetchImpl } }))
+    check('B5 the Kimi sign-in re-checks cancelled() right after the sleep: a cancel that lands in the pause ends it before any poll', kimi === 'cancelled after 1 pause(s) and 0 poll(s)', kimi)
   }
   const machine = src(join('components', 'mercury-ui', 'screens', 'anthropicLoginModel.ts'))
   check('B5 the login machine clears its timer registry on BOTH reset and dispose', (machine.match(/for \(const handle of timers\) deps\.clearTimer\(handle\)/g) ?? []).length === 2)

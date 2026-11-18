@@ -13,7 +13,7 @@ import {
   type MoonshotOauthIo,
 } from './moonshotAccounts.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
-import { sleep as wait } from '../../../utils/sleep.js'
+import { sleep } from '../../../utils/sleep.js'
 import {
   fetchKimiManagedUsage,
   fetchMoonshotBalance,
@@ -68,7 +68,7 @@ export function kimiUsageReceiptLine(usage: KimiManagedUsage): string {
 
 export async function runKimiDeviceLogin(args: KimiDeviceLoginArgs): Promise<KimiDeviceLoginOutcome> {
   const { region, io, onEvent } = args
-  const sleep = args.sleep ?? wait
+  const pause = args.sleep ?? sleep
   const cancelled = args.cancelled ?? (() => false)
   const env = io?.env ?? process.env
   const now = (): number => io?.now?.() ?? Date.now()
@@ -100,7 +100,7 @@ export async function runKimiDeviceLogin(args: KimiDeviceLoginArgs): Promise<Kim
         receipt: 'Kimi sign-in expired before the code was entered — retry from /logins moonshot.',
       }
     }
-    await sleep(intervalSec * 1000)
+    await pause(intervalSec * 1000)
     if (cancelled()) return { ok: false, code: 'cancelled', receipt: 'Kimi sign-in cancelled — nothing stored.' }
     polls += 1
     const result = await pollMoonshotDeviceToken(start, { ...io, region })

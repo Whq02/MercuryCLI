@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { setTimeout as delay } from 'node:timers/promises'
+import { sleep } from '../../../utils/sleep.js'
 import type { HostOffer, HostPod } from './vendor.js'
 import { isOpenSshKey, keyMaterial, type VendorTiming } from './http.js'
 import { HostTerminationUnconfirmed, type HostReadOnly } from '../retry.js'
@@ -31,6 +31,6 @@ export async function verifyVmAbsent(label: string, id: string, list: (signal?: 
       last = ' ' + (error instanceof Error ? error.message : String(error))
     }
     if (Date.now() >= deadline) throw new Error(label + ' termination is not verified; the instance or its storage may still bill. Check the console.' + last)
-    await delay(timing.pollMs ?? 2000)
+    await sleep(timing.pollMs ?? 2000)
   }
 }

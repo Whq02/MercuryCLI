@@ -2,7 +2,7 @@ import { isIP } from 'node:net'
 import { runpodOnly } from './vendors/client.js'
 import type { HostVendor } from './vendors/vendor.js'
 import { HostCreateError } from './vendors/http.js'
-import { setTimeout as delay } from 'node:timers/promises'
+import { sleep } from '../../utils/sleep.js'
 import { RunpodClient, cents, clusterCreateRefusal, createRefusal, type HostCluster, type HostClusterPod, type HostOffer, type HostPod, type HostVolumeMount } from './runpod.js'
 import { recipeFits, type HostRecipe } from './recipes.js'
 import { hostNotice } from './notices.js'
@@ -113,7 +113,7 @@ export async function startHostCluster(api: RunpodClient, record: HostRecord, re
         const cuda = node.cudaVersion?.split('.').map(Number)
         if (!cuda || cuda[0]! < floor[0]! || cuda[0] === floor[0] && cuda[1]! < floor[1]!) await endHostCluster(record, 'was placed on node ' + node.id + ' reporting CUDA ' + (node.cudaVersion ?? 'unknown') + ', below the recipe’s ' + recipe.cuda, '')
       }
-      try { await Promise.all(targets.map(target => runner.run('ssh', [...sshArguments(target), 'true'], signal))) } catch (error) { last = String(error); await delay(pauseMs, undefined, { signal }); continue }
+      try { await Promise.all(targets.map(target => runner.run('ssh', [...sshArguments(target), 'true'], signal))) } catch (error) { last = String(error); await sleep(pauseMs, signal, { throwOnAbort: true }); continue }
       const head = nodes[0]!.cluster.ip!
       onHead(targets[0]!)
       onStep('installing on ' + nodes.length + ' nodes')
@@ -139,7 +139,7 @@ export async function startHostCluster(api: RunpodClient, record: HostRecord, re
         return endHostCluster(record, 'failed during engine setup', error instanceof Error ? error.message : String(error))
       }
     }
-    await delay(pauseMs, undefined, { signal })
+    await sleep(pauseMs, signal, { throwOnAbort: true })
   }
   signal.throwIfAborted()
   return endHostCluster(record, 'did not bring all ' + recipe.nodes + ' nodes up with SSH within ' + Math.max(1, Math.round(placementMs / 60_000)) + ' min', last)

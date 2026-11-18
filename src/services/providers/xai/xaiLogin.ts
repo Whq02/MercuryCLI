@@ -3,7 +3,7 @@ import { writeStoredXaiApiKey, writeStoredXaiManagementApiKey } from '../provide
 import { resolveXaiApiKey, xaiApiBase, xaiInferenceBase } from './xaiAccounts.js'
 import { startXaiDeviceAuth, pollXaiDeviceToken, writeXaiTokens, writePreferredXaiSource, type XaiDeviceAuthStart, type XaiOauthIo } from './xaiOauth.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
-import { sleep as wait } from '../../../utils/sleep.js'
+import { sleep } from '../../../utils/sleep.js'
 import { fetchXaiUsage, xaiUsageFailureWords, type XaiUsageIo } from './xaiUsageState.js'
 import { fetchXaiLiveModels, fetchXaiSubscriptionModels, XaiCatalogueHttpError } from './xaiCatalogue.js'
 
@@ -73,7 +73,7 @@ export async function runXaiDeviceLogin(args: {
 } = {}): Promise<{ ok: boolean; receipt: string; settledAfterCancel?: true }> {
   const cancelled = args.cancelled ?? (() => false)
   const now = args.io?.now ?? Date.now
-  const sleep = args.sleep ?? wait
+  const pause = args.sleep ?? sleep
   args.onEvent?.({ phase: 'starting' })
   let start: XaiDeviceAuthStart
   try { start = await startXaiDeviceAuth(args.io) } catch (error) {
@@ -83,7 +83,7 @@ export async function runXaiDeviceLogin(args: {
   let interval = start.intervalSec
   args.onEvent?.({ phase: 'waiting', start, polls })
   while (!cancelled() && now() < start.expiresAtMs) {
-    await sleep(Math.min(interval * 1000, start.expiresAtMs - now()))
+    await pause(Math.min(interval * 1000, start.expiresAtMs - now()))
     if (cancelled() || now() >= start.expiresAtMs) break
     let result: Awaited<ReturnType<typeof pollXaiDeviceToken>>
     try { result = await pollXaiDeviceToken(start, args.io) } catch {

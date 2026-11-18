@@ -6,7 +6,7 @@ import { getSessionId } from '../../bootstrap/state.js'
 import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { getCwd } from '../../utils/cwd.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
-import { sleep as wait } from '../../utils/sleep.js'
+import { sleep } from '../../utils/sleep.js'
 import { announcerMachineName } from '../lan/announcer.js'
 import { startPairingServer } from '../lan/pairing.js'
 import { gibWords } from '../localServer/localServerMemory.js'
@@ -294,7 +294,7 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
   const name = request.name ?? point.shortName
   const cwd = io.cwd ?? getCwd()
   const sessionId = io.sessionId ?? getSessionId()
-  const sleep = io.sleep ?? wait
+  const pause = io.sleep ?? sleep
   const machine = io.machine ?? (await cachedTensorFoldMachineTruth(io))
   if (machine.platform === 'darwin' || io.app !== undefined) {
     const app = await (io.app ?? detectTensorFoldApp)().catch(() => undefined)
@@ -371,7 +371,7 @@ export async function startTensorFold(request: TensorFoldServeRequest, io: Serve
       await stopTensorFold(name, scoped)
       throw new TensorFoldStartError('the model did not finish loading', null)
     }
-    await sleep(0)
+    await pause(0)
   }
   const rememberPort = io.rememberPort ?? rememberTensorFoldPort
   try {

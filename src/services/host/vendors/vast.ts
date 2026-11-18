@@ -1,5 +1,5 @@
 import { isIP } from 'node:net'
-import { setTimeout as delay } from 'node:timers/promises'
+import { sleep } from '../../../utils/sleep.js'
 import { z } from 'zod/v4'
 import { recipeFits, type HostRecipe } from '../recipes.js'
 import { currentHostRecipes } from '../recipesFile.js'
@@ -106,7 +106,7 @@ export class VastClient implements HostVendor {
         return (await this.api.request('/api/v0/bundles/', z.object({ offers: z.array(offerSchema) }), 'POST', body, bounded)).offers
       } catch (error) {
         if (!(error instanceof HostVendorHttpError) || error.status !== 429 || bounded.aborted) throw error
-        await delay(5000, undefined, { signal: bounded })
+        await sleep(5000, bounded, { throwOnAbort: true })
       }
     }
   }
@@ -181,7 +181,7 @@ export class VastClient implements HostVendor {
       if (found.length === 1) return found[0]!
       if (found.length > 1) throw new HostCreateError('Vast.ai lists ' + found.length + ' volumes named ' + name + '; they bill. Check Storage in the Vast.ai console before creating another.', 'ambiguous')
       if (attempt >= 3) throw new HostCreateError('Vast.ai accepted the volume' + (answer.volume_name ? ' (' + this.api.redact(answer.volume_name) + ')' : '') + ' but does not list it yet; it may bill. Check Storage in the Vast.ai console before creating another.', 'ambiguous')
-      await delay(this.timing.pollMs ?? 2500, undefined, { signal })
+      await sleep(this.timing.pollMs ?? 2500, signal, { throwOnAbort: true })
     }
   }
   async deleteVolume(id: number, readOnly?: HostReadOnly): Promise<void> {
@@ -192,7 +192,7 @@ export class VastClient implements HostVendor {
     for (;;) {
       try { if (!(await (readOnly ? readOnly('volume listing', signal => this.volumes(signal)) : this.volumes())).some(row => row.id === id)) return } catch (error) { if (readOnly) throw new HostTerminationUnconfirmed(this.label, error); last = ' ' + (error instanceof Error ? error.message : String(error)) }
       if (Date.now() >= deadline) throw new Error('Vast.ai still lists volume ' + id + '; the deletion is not verified and it may still bill. Check Storage in the Vast.ai console.' + last)
-      await delay(this.timing.pollMs ?? 2000)
+      await sleep(this.timing.pollMs ?? 2000)
     }
   }
   async offers(signal: AbortSignal): Promise<HostOffer[]> {
@@ -319,7 +319,7 @@ export class VastClient implements HostVendor {
     for (;;) {
       try { if (!(await (readOnly ? readOnly('pod listing', signal => this.pods(signal)) : this.pods())).some(row => row.id === id)) return } catch (error) { if (readOnly) throw new HostTerminationUnconfirmed(this.label, error); last = ' ' + (error instanceof Error ? error.message : String(error)) }
       if (Date.now() >= deadline) throw new Error('Vast.ai termination is not verified; check the instance list in the console.' + last)
-      await delay(this.timing.pollMs ?? 2000)
+      await sleep(this.timing.pollMs ?? 2000)
     }
   }
   async logs(id: string, jobSignal?: AbortSignal): Promise<string> {
@@ -347,7 +347,7 @@ export class VastClient implements HostVendor {
         }
         await response.body?.cancel().catch(() => {})
         if (jobSignal) throw new HostVendorHttpError('Vast.ai log read returned HTTP ' + response.status, response.status, retryAfterSeconds(response.headers.get('retry-after')))
-        await delay(300, undefined, { signal })
+        await sleep(300, signal, { throwOnAbort: true })
       }
     } catch (error) { if (jobSignal) throw error; return 'Vast.ai log tail unavailable; open the instance in its console.' }
   }

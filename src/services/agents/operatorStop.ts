@@ -3,7 +3,7 @@ import type { AppState } from '../../state/AppState.js'
 import { stopOrDismissAgent } from '../../state/crewmateViewHelpers.js'
 import { AGENT_STOP_BY_OPERATOR, isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isPausedAgentRow, StopTaskError, stopPausedAgent, stopTask, taskNotFoundWords } from '../../tasks/stopTask.js'
-import { sleep as wait } from '../../utils/sleep.js'
+import { sleep } from '../../utils/sleep.js'
 
 export const AGENT_STOP_SETTLE_MS = 3_000
 const SETTLE_TICK_MS = 50
@@ -44,7 +44,7 @@ export async function stopAgentByOperator(
   options: OperatorStopOptions = {},
 ): Promise<OperatorStopReceipt> {
   const settleMs = options.settleMs ?? AGENT_STOP_SETTLE_MS
-  const sleep = options.sleep ?? wait
+  const pause = options.sleep ?? sleep
   const task = context.getAppState().tasks?.[taskId]
   if (task === undefined) return { outcome: 'refused', reason: await taskNotFoundWords(taskId) }
   const name = nameOf(task)
@@ -65,7 +65,7 @@ export async function stopAgentByOperator(
       if (now === undefined) return { outcome: 'applied', kind: 'agent', status: 'gone' }
       if (now.status !== 'running') return { outcome: 'applied', kind: 'agent', status: now.status }
       if (Date.now() >= until) return { outcome: 'refused', reason: unsettledWords(name, settleMs) }
-      await sleep(SETTLE_TICK_MS)
+      await pause(SETTLE_TICK_MS)
     }
   }
   try {

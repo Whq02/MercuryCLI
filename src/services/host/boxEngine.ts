@@ -1,4 +1,4 @@
-import { setTimeout as delay } from 'node:timers/promises'
+import { sleep } from '../../utils/sleep.js'
 import type { HostBox } from './boxes.js'
 import { boxAbsolutePath, boxJoin, psQuote, runBoxScript, shQuote } from './boxExecution.js'
 import { fitsBox, boxFitWords, type BoxRecipe } from './boxRecipes.js'
@@ -87,7 +87,7 @@ export async function startBoxEngine(box: HostBox, recipe: BoxRecipe, options: B
     await installBoxService(box, boxEngineScript(box, recipe, executable, destination, port, options.bank), runner, signal)
     if (!options.bank && recipe.engine === 'ollama') {
       const deadline = Date.now() + (options.timeoutMs ?? 120_000)
-      for (;;) { try { await boxHttp(box, port, '/api/tags', runner, signal); break } catch (error) { if (Date.now() >= deadline) throw error; await delay(options.pauseMs ?? 1000, undefined, { signal }) } }
+      for (;;) { try { await boxHttp(box, port, '/api/tags', runner, signal); break } catch (error) { if (Date.now() >= deadline) throw error; await sleep(options.pauseMs ?? 1000, signal, { throwOnAbort: true }) } }
       step('pulling ' + recipe.model + ' with Ollama (' + recipe.downloadGb + ' GB)')
       const script = box.os === 'windows' ? '$env:OLLAMA_HOST=' + psQuote('127.0.0.1:' + port) + '; & ' + psQuote(executable) + ' pull ' + psQuote(recipe.model) + '; if ($LASTEXITCODE -ne 0) { throw "Ollama pull failed" }' : 'OLLAMA_HOST=' + shQuote('127.0.0.1:' + port) + ' ' + shQuote(executable) + ' pull ' + shQuote(recipe.model)
       await runBoxScript(box, script, runner, signal, 12 * 3600_000)
@@ -113,7 +113,7 @@ export async function startBoxEngine(box: HostBox, recipe: BoxRecipe, options: B
         record.contextPerSlot = served; record.state = 'running'; writeBoxService(record); return record
       }
       if (Date.now() >= deadline) throw new Error('Engine not ready: ' + last)
-      await delay(options.pauseMs ?? 1000, undefined, { signal })
+      await sleep(options.pauseMs ?? 1000, signal, { throwOnAbort: true })
     }
   } catch (error) {
     const stopped = installed && !signal.aborted && await controlBoxService(box, 'stop', runner, signal).then(() => true, () => false)
@@ -158,7 +158,7 @@ export async function restartBoxEngine(box: HostBox, runner: HostRunner = hostRu
       if (await boxServiceRunning(box, runner, signal) && list.data?.some(model => model.id === record.model)) { record.state = 'running'; record.error = undefined; writeBoxService(record); return record }
     } catch { signal.throwIfAborted() }
     if (Date.now() > deadline) throw new Error('The restarted engine has not loaded its model; mercury host logs ' + box.name)
-    await delay(1000, undefined, { signal })
+    await sleep(1000, signal, { throwOnAbort: true })
   }
 }
 export async function boxEngineLogs(box: HostBox, runner: HostRunner = hostRunner, signal: AbortSignal = new AbortController().signal): Promise<string> {
