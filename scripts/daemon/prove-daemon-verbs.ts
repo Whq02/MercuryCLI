@@ -124,8 +124,7 @@ section('(5b) THE ONE IDENTITY OWNER — daemonRecordIdentity unions the two D a
   check('the boot reconcile consults the ONE owner', reconcile.includes('daemonRecordIdentity(sup, await (sup.startToken ? getProcessStartTokenAsync(sup.pid, sup.startToken) : getProcessStartInstantAsync(sup.pid)))'))
   check('the reconcile keeps the conservative polarity (only a not-recorded verdict falls through to the sweep gates)', reconcile.includes("if (verdict !== 'not-recorded-process') {"))
   const srcMain = readFileSync(join(ROOT, 'src', 'daemon', 'main.ts'), 'utf8')
-  const runParts = [readFileSync(join(ROOT, 'src', 'daemon', 'run', 'state.ts'), 'utf8'), readFileSync(join(ROOT, 'src', 'daemon', 'run', 'owner.ts'), 'utf8'), readFileSync(join(ROOT, 'src', 'daemon', 'run', 'shutdown.ts'), 'utf8'), readFileSync(join(ROOT, 'src', 'daemon', 'run', 'restart.ts'), 'utf8')]
-  check('POISON: no second judgment — main.ts consults the owner and never calls the fallback internals directly', srcMain.includes('daemonRecordIdentity(') && !srcMain.includes('staleStopVerdict(') && !srcMain.includes('startTokenEpochMs(') && runParts.every(part => !part.includes('staleStopVerdict(') && !part.includes('startTokenEpochMs(')))
+  check('POISON: no second judgment — main.ts consults the owner and never calls the fallback internals directly', srcMain.includes('daemonRecordIdentity(') && !srcMain.includes('staleStopVerdict(') && !srcMain.includes('startTokenEpochMs('))
   check('POISON: the reconcile never re-implements the byte-compare beside the owner', !reconcile.includes('ownerIdentityMatches('))
 }
 

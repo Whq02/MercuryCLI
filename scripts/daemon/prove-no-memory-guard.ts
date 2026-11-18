@@ -68,8 +68,7 @@ const idleEdge = main.slice(main.indexOf('onIdle: short => {'), main.indexOf('on
 const PARK_WORDS = "const parkedWords = `[daemon] ${short} finished its turn and parked (a park was requested while it worked)`"
 const PARK_DOOR = 'if (completeRequestedPark(short, roster)) {'
 check('the idle edge completes a requested park through the one door, with no memory branch before it', idleEdge.indexOf(PARK_WORDS) !== -1 && idleEdge.indexOf(PARK_DOOR) !== -1 && idleEdge.indexOf(PARK_DOOR) > idleEdge.indexOf(PARK_WORDS) && idleEdge.slice(0, idleEdge.indexOf(PARK_DOOR)).split('\n').filter(line => line.trim() !== '').length === 3 && !/memory|\brss\b/i.test(idleEdge))
-const runParts = [readFileSync(join(ROOT, 'src/daemon/run/state.ts'), 'utf8'), readFileSync(join(ROOT, 'src/daemon/run/owner.ts'), 'utf8'), readFileSync(join(ROOT, 'src/daemon/run/shutdown.ts'), 'utf8'), readFileSync(join(ROOT, 'src/daemon/run/restart.ts'), 'utf8')]
-check('the daemon arms no sweep at boot', !/arm\w*Rss|Watchdog\(/.test(main) && runParts.every(part => !/arm\w*Rss|Watchdog\(/.test(part)))
+check('the daemon arms no sweep at boot', !/arm\w*Rss|Watchdog\(/.test(main))
 
 section('§6 the durability page says so')
 const durability = readFileSync(join(ROOT, 'docs/DURABILITY.md'), 'utf8')

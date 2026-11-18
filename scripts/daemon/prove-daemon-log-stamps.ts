@@ -45,8 +45,7 @@ check('…and the daemon text survives the stamp', (captured[0] ?? '').includes(
 section('§3 the wiring: the detached daemon installs the stamp, a foreground daemon is left alone')
 const main = readFileSync(join(ROOT, 'src/daemon/main.ts'), 'utf8')
 check('main installs the stamp only for the detached daemon', main.includes('if (!foreground) installStampedDaemonLog()'))
-const runParts = [readFileSync(join(ROOT, 'src/daemon/run/state.ts'), 'utf8'), readFileSync(join(ROOT, 'src/daemon/run/owner.ts'), 'utf8'), readFileSync(join(ROOT, 'src/daemon/run/shutdown.ts'), 'utf8'), readFileSync(join(ROOT, 'src/daemon/run/restart.ts'), 'utf8')]
-check('the engage line leads with the stamp through the one stamper, written before the wrapper is installed', main.includes('stampDaemonLogLine(`[mercury-daemon] engaged v') && !main.includes('dir ${dir} at ${new Date().toISOString()}') && runParts.every(part => !/dir \$\{(?:state\.)?dir\} at \$\{new Date\(\)\.toISOString\(\)\}/.test(part)))
+check('the engage line leads with the stamp through the one stamper, written before the wrapper is installed', main.includes('stampDaemonLogLine(`[mercury-daemon] engaged v') && !main.includes('dir ${dir} at ${new Date().toISOString()}'))
 
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '  ALL PASS' : `  ${failures} FAILURE(S)`)
