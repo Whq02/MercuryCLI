@@ -249,7 +249,7 @@ export class Peer {
   private badLines = 0
   private closedReason: string | null = null
   private initState: 'none' | 'pending' | 'done'
-  private initWaiters: Array<{ id: RpcId; run: () => void; fail: () => void }> = []
+  private initWaiters: Array<{ id: RpcId | null; run: () => void; fail: () => void }> = []
   private readonly pending = new Map<RpcId, Pending>()
   private readonly inFlight = new Map<RpcId, InFlight>()
   private readonly requestHandlers = new Map<string, (params: unknown, ctx: HandlerContext) => unknown>()
@@ -529,9 +529,20 @@ export class Peer {
       this.log(`runner wire: notification ${method} carried params its schema refused`)
       return
     }
-    void Promise.resolve()
-      .then(() => handler(check.value))
-      .catch(error => this.log(`runner wire: notification ${method} failed: ${error instanceof Error ? error.message : String(error)}`))
+    const deliver = (): void => {
+      void Promise.resolve()
+        .then(() => handler(check.value))
+        .catch(error => this.log(`runner wire: notification ${method} failed: ${error instanceof Error ? error.message : String(error)}`))
+    }
+    if (this.initState === 'done') {
+      deliver()
+      return
+    }
+    this.initWaiters.push({
+      id: null,
+      run: deliver,
+      fail: () => this.log(`runner wire: notification ${method} arrived before initialize was answered and is dropped with it`),
+    })
   }
 
   private onRequestLine(id: RpcId, method: string, params: unknown): void {
