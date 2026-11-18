@@ -108,7 +108,7 @@ section('§1 one owner per route — each family prices at its own recorded rate
   const gpt = gptDisplayPin('gpt-5.6-sol')!
   const gptPricing = cost.resolveModelPricing('gpt-5.6-sol')
   check('openai: gpt-5.6-sol at its pin, basis recorded', gptPricing.basis === 'recorded' && gptPricing.costs.inputTokens === gpt.costInPerMtok && gptPricing.costs.outputTokens === gpt.costOutPerMtok)
-  check('openai: the four rows read on the pricing page 2026-10-31 carry that date and the page (gpt-6-astra $10/$50/$1 cached/$12.50 write)', ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'].every(id => gptDisplayPin(id)?.observedAt === '2026-10-31' && gptDisplayPin(id)?.source === 'https://developers.openai.com/api/docs/pricing') && gptDisplayPin('gpt-6-astra')?.costInPerMtok === 10 && gptDisplayPin('gpt-6-astra')?.costOutPerMtok === 50 && gptDisplayPin('gpt-6-astra')?.cachedInPerMtok === 1 && gptDisplayPin('gpt-6-astra')?.cacheWritePerMtok === 12.5)
+  check("openai: a row's date and source cover the fields it holds: GPT-6 Astra cites its own model page as read 2026-11-17 ($10/$50/$1 cached/$12.50 write), the three GPT-5.6 rows theirs as read 2026-11-18, and GPT-6.1 Sol, GPT-6.1 Terra, GPT-6 Sol and GPT-6 Luna carry 2026-11-17", gptDisplayPin('gpt-6-astra')?.observedAt === '2026-11-17' && gptDisplayPin('gpt-6-astra')?.source === 'https://developers.openai.com/api/docs/models/gpt-6-astra' && ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'].every(id => gptDisplayPin(id)?.observedAt === '2026-11-18' && gptDisplayPin(id)?.source === `https://developers.openai.com/api/docs/models/${id}`) && ['gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-sol', 'gpt-6-luna'].every(id => gptDisplayPin(id)?.observedAt === '2026-11-17' && (gptDisplayPin(id)?.source ?? '').startsWith(`https://developers.openai.com/api/docs/models/${id}`)) && gptDisplayPin('gpt-6-astra')?.costInPerMtok === 10 && gptDisplayPin('gpt-6-astra')?.costOutPerMtok === 50 && gptDisplayPin('gpt-6-astra')?.cachedInPerMtok === 1 && gptDisplayPin('gpt-6-astra')?.cacheWritePerMtok === 12.5, JSON.stringify(['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-sol', 'gpt-6-luna', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'].map(id => `${id} ${gptDisplayPin(id)?.observedAt} ${gptDisplayPin(id)?.source}`)))
 
   const anthropicDated = Object.entries(cost.ANTHROPIC_PRICE_OBSERVED_AT)
   check('anthropic: every row on platform.claude.com pricing carries the day it was read and the page (Fable 5.2 on 2026-11-09, the day the vendor released it; the rest on 2026-10-31); the two retired Sonnets the page no longer lists carry none', anthropicDated.length === 17 && anthropicDated.every(([name, row]) => row?.observedAt === (name === 'claude-fable-5-2' ? '2026-11-09' : '2026-10-31') && row?.source === cost.ANTHROPIC_PRICING_PAGE) && cost.ANTHROPIC_PRICE_OBSERVED_AT['claude-3-5-sonnet'] === undefined && cost.ANTHROPIC_PRICE_OBSERVED_AT['claude-3-7-sonnet'] === undefined && anthropicDated.every(([name]) => name in cost.MODEL_COSTS), JSON.stringify(anthropicDated.map(([name, row]) => `${name} ${row?.observedAt}`)))
@@ -385,6 +385,41 @@ section('§6 the cost summary names a mirror by its own id, at its counterpart\'
   const rest = plain()
   check('every other first-party id prints as before: Fable 5.2 and its [1m] spelling on one line, a dated id under its canonical name', (rowOf(rest, 'claude-fable-5-2') ?? '').includes('2.0k input') && rowOf(rest, 'claude-haiku-4-5') !== undefined && rowOf(rest, 'claude-opus-5-5') !== undefined && !rest.includes('mythos'), rest)
   resetCostState()
+}
+
+section('nous — the list\'s own long tier: pricing.overrides chosen by prompt size, at and above min_prompt_tokens')
+{
+  const nous = await import('../../src/services/providers/nous/nousCatalogue.ts')
+  process.env.NOUS_API_KEY = 'fixture-key-not-real'
+  nous.__resetNousCatalogueForTest()
+  const headRows = [
+    { id: 'openai/gpt-6.2-astra', context_length: 1050000, pricing: { prompt: '0.0000080000', completion: '0.0000400000', web_search: '0.0100000000', input_cache_read: '0.0000004000', input_cache_write: '0.0000100000', overrides: [{ min_prompt_tokens: 272000, prompt: '0.000016', completion: '0.00006', input_cache_read: '0.0000008', input_cache_write: '0.00002' }] } },
+    { id: 'openai/gpt-6.2-sol', context_length: 1050000, pricing: { prompt: '0.0000020000', completion: '0.0000100000', web_search: '0.0100000000', input_cache_read: '0.0000001000', input_cache_write: '0.0000025000', overrides: [{ min_prompt_tokens: 272000, prompt: '0.000004', completion: '0.000015', input_cache_read: '0.0000002', input_cache_write: '0.000005' }] } },
+    { id: 'fixture/two-tiers', context_length: 1000000, pricing: { prompt: '0.000001', completion: '0.000002', input_cache_read: '0.0000001', input_cache_write: '0.00000125', overrides: [{ utc_start: '00:00', utc_end: '08:00', prompt: '0.0000005', completion: '0.000001', input_cache_read: '0.00000005' }, { min_prompt_tokens: 400000, prompt: '0.000004', completion: '0.000008', input_cache_read: '0.0000004' }, { min_prompt_tokens: 200000, prompt: '0.000002', completion: '0.000004' }] } },
+    { id: 'fixture/one-tier', context_length: 200000, pricing: { prompt: '0.000003', completion: '0.000015' } },
+  ]
+  const read = await nous.refreshNousCatalogue({ force: true, fetchImpl: (async () => new Response(JSON.stringify({ data: headRows }), { headers: { 'content-type': 'application/json' } })) as typeof fetch })
+  check('the fixture list is read, and the decoder keeps the prompt-size tiers of each row and leaves a time-of-day override out', read !== null && nous.nousListedModel('nous/openai/gpt-6.2-astra')?.pricing?.overrides?.length === 1 && nous.nousListedModel('nous/openai/gpt-6.2-astra')?.pricing?.overrides?.[0]?.minPromptTokens === 272_000 && nous.nousListedModel('nous/fixture/two-tiers')?.pricing?.overrides?.length === 2 && nous.nousListedModel('nous/fixture/one-tier')?.pricing?.overrides === undefined, JSON.stringify(nous.nousListedModel('nous/fixture/two-tiers')?.pricing))
+  const ratesAt = (model: string, promptTokens: number | undefined): number[] => {
+    const c = cost.resolveModelPricing(model, promptTokens === undefined ? undefined : { promptTokens }).costs
+    return [c.inputTokens, c.promptCacheReadTokens, c.promptCacheWriteTokens, c.outputTokens]
+  }
+  const turnOf = (total: number) => ({ input_tokens: total - 70_000, cache_read_input_tokens: 40_000, cache_creation_input_tokens: 30_000, output_tokens: 5_000 })
+  const hand: Array<[string, number[], number[], Array<[number, number]>]> = [
+    ['nous/openai/gpt-6.2-astra', [8, 0.4, 10, 40], [16, 0.8, 20, 60], [[100_000, 0.24 + 0.016 + 0.3 + 0.2], [271_999, 1.615992 + 0.016 + 0.3 + 0.2], [272_000, 3.232 + 0.032 + 0.6 + 0.3], [900_000, 13.28 + 0.032 + 0.6 + 0.3]]],
+    ['nous/openai/gpt-6.2-sol', [2, 0.1, 2.5, 10], [4, 0.2, 5, 15], [[100_000, 0.06 + 0.004 + 0.075 + 0.05], [271_999, 0.403998 + 0.004 + 0.075 + 0.05], [272_000, 0.808 + 0.008 + 0.15 + 0.075], [900_000, 3.32 + 0.008 + 0.15 + 0.075]]],
+  ]
+  for (const [model, short, long, turns] of hand) {
+    check(`${model}: the short tier below 272,000 and with no size given (${short.join(' / ')}), the long tier at 272,000 and above (${long.join(' / ')}), each rate the list's own decimal`, JSON.stringify(ratesAt(model, undefined)) === JSON.stringify(short) && JSON.stringify(ratesAt(model, 100_000)) === JSON.stringify(short) && JSON.stringify(ratesAt(model, 271_999)) === JSON.stringify(short) && JSON.stringify(ratesAt(model, 272_000)) === JSON.stringify(long) && JSON.stringify(ratesAt(model, 900_000)) === JSON.stringify(long), JSON.stringify([ratesAt(model, 271_999), ratesAt(model, 272_000)]))
+    for (const [total, usd] of turns) {
+      const got = cost.calculateUSDCost(model, turnOf(total) as never)
+      check(`${model}: a ${total.toLocaleString('en-US')}-token request (40,000 cached, 30,000 written, 5,000 out) costs ${usd.toFixed(6)} USD by hand`, near(got, usd), String(got))
+    }
+  }
+  check('a row with two tiers takes the highest one its prompt reaches, and a rate a tier does not state stays at the base rate', JSON.stringify(ratesAt('nous/fixture/two-tiers', 199_999)) === JSON.stringify([1, 0.1, 1.25, 2]) && JSON.stringify(ratesAt('nous/fixture/two-tiers', 200_000)) === JSON.stringify([2, 0.1, 1.25, 4]) && JSON.stringify(ratesAt('nous/fixture/two-tiers', 400_000)) === JSON.stringify([4, 0.4, 1.25, 8]), JSON.stringify([ratesAt('nous/fixture/two-tiers', 200_000), ratesAt('nous/fixture/two-tiers', 400_000)]))
+  check('a row with no tier is priced as before at every size', JSON.stringify(ratesAt('nous/fixture/one-tier', 900_000)) === JSON.stringify([3, 3, 3, 15]) && JSON.stringify(ratesAt('nous/fixture/one-tier', undefined)) === JSON.stringify([3, 3, 3, 15]), JSON.stringify(ratesAt('nous/fixture/one-tier', 900_000)))
+  nous.__resetNousCatalogueForTest()
+  delete process.env.NOUS_API_KEY
 }
 
 ollama.stop(true)

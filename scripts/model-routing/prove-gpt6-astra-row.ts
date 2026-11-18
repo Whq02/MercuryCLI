@@ -280,8 +280,8 @@ process.env.OPENAI_API_KEY = 'prover-key'
   resetComputedDefaultMemo()
   const decision = computedDefault()
   check(
-    'an OpenAI sign-in as the most recent ⇒ the fresh-session default lands on the served Astra row (GPT-6.1 Sol is not in this fixture list)',
-    decision.setting === ID && decision.provider === 'openai' && decision.source === 'sign-in' && decision.why.includes('the first row this sign-in can use'),
+    'an OpenAI sign-in as the most recent ⇒ the fresh-session default lands on the served Astra row (GPT-6 is the newest release this fixture list serves and its Sol is not on it), and the reason names the recorded release and the row\'s own date',
+    decision.setting === ID && decision.provider === 'openai' && decision.source === 'sign-in' && decision.why.endsWith('; the newest row this sign-in can use (the recorded release, 2026-11-17)'),
     JSON.stringify({ setting: decision.setting, provider: decision.provider, source: decision.source, why: decision.why }),
   )
 

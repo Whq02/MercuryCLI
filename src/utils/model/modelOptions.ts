@@ -834,13 +834,13 @@ export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 
   }
   if (provider === 'zen') {
     const { zenCatalogueRows } = require('../../services/providers/zen/zenCatalogue.js') as typeof import('../../services/providers/zen/zenCatalogue.js')
-    const { zenDisplayPin, zenQualifiedId, ZEN_OBSERVED_AT } = require('../../services/providers/zen/zenPins.js') as typeof import('../../services/providers/zen/zenPins.js')
+    const { zenDisplayPin, zenQualifiedId, zenPinObservedAt } = require('../../services/providers/zen/zenPins.js') as typeof import('../../services/providers/zen/zenPins.js')
     return zenCatalogueRows().rows.map(row => {
       const pin = zenDisplayPin(row.id)
       return {
         id: zenQualifiedId(row.id),
         displayName: row.free ? `${row.displayName} (free)` : row.displayName,
-        observedAt: pin ? ZEN_OBSERVED_AT : row.observedAt,
+        observedAt: pin ? zenPinObservedAt(pin) : row.observedAt,
         ...(row.contextWindow !== undefined ? { contextWindow: row.contextWindow } : {}),
         listedLive: true,
         ...(pin ? {} : { liveUnknown: true }),

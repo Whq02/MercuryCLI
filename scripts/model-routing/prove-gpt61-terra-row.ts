@@ -41,7 +41,7 @@ try {
     const pin = gptDisplayPin(id)
     assert.ok(pin)
     assert.equal(pin.source, source)
-    assert.equal(pin.observedAt, '2026-10-28')
+    assert.equal(pin.observedAt, '2026-11-17')
     assert.equal(pin.displayName, 'GPT-6.1 Terra')
     assert.equal(pin.contextWindow, 1_050_000)
     assert.equal(pin.outputMax, 128_000)
@@ -112,5 +112,5 @@ try {
 } finally {
   rmSync(home, { recursive: true, force: true })
 }
-console.log(`${checks - failures.length}/${checks} passed; facts read 2026-10-28: ${source}; https://developers.openai.com/api/docs/models/gpt-6.1-sol`)
+console.log(`${checks - failures.length}/${checks} passed; facts read 2026-11-17: ${source}; https://developers.openai.com/api/docs/models/gpt-6.1-sol`)
 process.exit(failures.length ? 1 : 0)

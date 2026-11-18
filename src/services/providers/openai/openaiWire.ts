@@ -166,6 +166,17 @@ interface OpenaiInputTransformation {
   id: string
   action: string
   reason: string
+  type: string
+}
+
+const PROVIDER_WORD_LIMIT = 64
+const TRANSFORMATION_ROWS_LISTED = 32
+const TRANSFORMATION_WORDS_TALLIED = 8
+
+function providerWord(value: unknown, absent: string): string {
+  if (typeof value !== 'string') return absent
+  const clean = value.replace(/[\s\u0000-\u001f\u007f-\u009f]+/g, ' ').trim()
+  return clean === '' ? absent : clean.slice(0, PROVIDER_WORD_LIMIT).toWellFormed()
 }
 
 export function readInputTransformations(response: Record<string, unknown> | undefined): OpenaiInputTransformation[] {
@@ -175,20 +186,33 @@ export function readInputTransformations(response: Record<string, unknown> | und
     const row = asRecord(raw)
     if (!row) continue
     out.push({
-      id: typeof row.id === 'string' ? row.id : 'unnamed',
-      action: typeof row.action === 'string' ? row.action : 'removed',
-      reason: typeof row.reason === 'string' ? row.reason : 'unstated',
+      id: providerWord(row.id, 'unnamed'),
+      action: providerWord(row.action, 'removed'),
+      reason: providerWord(row.reason, 'unstated'),
+      type: providerWord(row.type, 'reasoning'),
     })
   }
   return out
 }
 
-export function inputTransformationsLine(model: string, rows: readonly OpenaiInputTransformation[]): string {
+function tallyWords(words: readonly string[]): string {
   const counts = new Map<string, number>()
-  for (const row of rows) counts.set(row.reason, (counts.get(row.reason) ?? 0) + 1)
-  const reasons = [...counts].map(([reason, count]) => `${reason} ${count}`).join(', ')
-  const items = rows.map(row => `${row.id} ${row.action} ${row.reason}`).join('; ')
-  return `[openai] input_transformations on ${model}: the provider withheld ${rows.length} reasoning item${rows.length === 1 ? '' : 's'} of this request from the model (${reasons}): ${items}`
+  for (const word of words) counts.set(word, (counts.get(word) ?? 0) + 1)
+  const ranked = [...counts].sort((a, b) => b[1] - a[1])
+  const rest = ranked.slice(TRANSFORMATION_WORDS_TALLIED).reduce((sum, [, count]) => sum + count, 0)
+  return [...ranked.slice(0, TRANSFORMATION_WORDS_TALLIED).map(([word, count]) => `${word} ${count}`), ...(rest > 0 ? [`others ${rest}`] : [])].join(', ')
+}
+
+export function inputTransformationsLine(model: string, rows: readonly OpenaiInputTransformation[]): string {
+  const reasoning = rows.filter(row => row.type === 'reasoning')
+  const others = rows.filter(row => row.type !== 'reasoning')
+  const counted = [
+    ...(reasoning.length > 0 ? [`${reasoning.length} reasoning item${reasoning.length === 1 ? '' : 's'}`] : []),
+    ...(others.length > 0 ? [`${others.length} item${others.length === 1 ? '' : 's'} of another type (${tallyWords(others.map(row => row.type))})`] : []),
+  ].join(' and ')
+  const listed = rows.slice(0, TRANSFORMATION_ROWS_LISTED).map(row => `${row.type === 'reasoning' ? '' : `${row.type} `}${row.id} ${row.action} ${row.reason}`)
+  const more = rows.length - listed.length
+  return `[openai] input_transformations on ${model}: the provider lists ${counted} of this request (${tallyWords(rows.map(row => row.action))}; ${tallyWords(rows.map(row => row.reason))}): ${listed.join('; ')}${more > 0 ? `; and ${more} more` : ''}`
 }
 
 export type OpenaiStreamEvent =

@@ -13,10 +13,10 @@ process.env.NODE_ENV = 'test'
 for (const key of ['MERCURY_HOME', 'MERCURY_AUTH_SCOPE_DIR', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'MERCURY_MODEL', 'MERCURY_EFFORT_LEVEL', 'MERCURY_DISABLE_1M_CONTEXT']) delete process.env[key]
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { GPT_DISPLAY_PINS } = await import('../../src/services/providers/openai/gptPins.js')
+const { GPT_DISPLAY_PINS, gptDisplayPin } = await import('../../src/services/providers/openai/gptPins.js')
 const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
 const { computedDefault, resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.js')
-const { providerFrontierFact, openaiFrontierRelease } = await import('../../src/utils/model/providerFrontier.js')
+const { openaiSessionDefault } = await import('../../src/utils/model/providerFrontier.js')
 const { getModelOptions } = await import('../../src/utils/model/modelOptions.js')
 const { resolveModelPricing } = await import('../../src/utils/modelCost.js')
 const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.js')
@@ -29,27 +29,56 @@ async function check(label: string, run: () => void | Promise<void>): Promise<vo
   checks++
   try { await run(); console.log(`PASS ${label}`) } catch (e) { failures.push(label); console.error(`FAIL ${label}: ${String(e)}`) }
 }
-async function startsOn(ids: string[]): Promise<{ setting: string; provider: string | null; source: string }> {
+async function startsOn(ids: string[]): Promise<{ setting: string; provider: string | null; source: string; why: string }> {
   catalogue.__resetOpenaiCatalogueForTest()
-  const rows = ids.map((id, index) => ({ id, priority: index + 1 }))
-  await catalogue.refreshOpenaiCatalogue('api-key', { force: true, fetchImpl: (async () => new Response(JSON.stringify({ data: rows }), { headers: { 'content-type': 'application/json' } })) as typeof fetch })
+  await catalogue.refreshOpenaiCatalogue('api-key', { force: true, fetchImpl: (async () => new Response(JSON.stringify({ data: ids.map(id => ({ id })) }), { headers: { 'content-type': 'application/json' } })) as typeof fetch })
   resetComputedDefaultMemo()
   const decision = computedDefault()
-  return { setting: decision.setting, provider: decision.provider, source: decision.source }
+  return { setting: decision.setting, provider: decision.provider, source: decision.source, why: decision.why }
 }
+const theSolOfTheNewestRelease: Array<[string, string[], string]> = [
+  ['both 6.2 models, Astra first on the list', [astra, sol, 'gpt-6.1-sol'], sol],
+  ['both 6.2 models, last on the list', ['gpt-6.1-sol', 'gpt-5.5', astra, sol], sol],
+  ['neither 6.2 model, GPT-6.1 Sol first', ['gpt-6.1-sol', 'gpt-5.5'], 'gpt-6.1-sol'],
+  ['neither 6.2 model, GPT-5.5 first', ['gpt-5.5', 'gpt-6.1-sol', 'gpt-6-astra'], 'gpt-6.1-sol'],
+  ['neither 6.2 model, GPT-5.4 nano first', ['gpt-5.4-nano', 'gpt-5.5-pro', 'gpt-6.1-sol'], 'gpt-6.1-sol'],
+  ['GPT-6 the newest release served, GPT-5.5 first', ['gpt-5.5', 'gpt-6-astra', 'gpt-6-sol'], 'gpt-6-sol'],
+  ['GPT-5.6 the newest release served, GPT-5.4 first', ['gpt-5.4', 'gpt-5.6-luna', 'gpt-5.6-sol', 'gpt-5.5'], 'gpt-5.6-sol'],
+]
+const theReleaseWithoutItsSol: Array<[string, string[], string]> = [
+  ['6.2 with Astra and not Sol', ['gpt-6.1-sol', astra, 'gpt-5.5'], astra],
+  ['6.1 with Terra and not Sol, GPT-5.4 first', ['gpt-5.4', 'gpt-6.1-terra', 'gpt-6-sol'], 'gpt-6.1-terra'],
+  ['5.6 with Luna and Terra, Luna first on the list', ['gpt-5.4-mini', 'gpt-5.6-luna', 'gpt-5.6-terra'], 'gpt-5.6-terra'],
+  ['5.5 alone, its Pro first on the list', ['gpt-5.4', 'gpt-5.5-pro', 'gpt-5.5'], 'gpt-5.5'],
+]
 try {
   process.env.OPENAI_API_KEY = 'fixture-key-not-real'
   recordSignIn('openai', 'subscription')
-  await check('after an OpenAI sign-in a new session starts on GPT-6.2 Sol when the list serves it, wherever the list ranks it', async () => {
-    assert.deepEqual(await startsOn([astra, sol, 'gpt-6.1-sol']), { setting: sol, provider: 'openai', source: 'sign-in' })
-    assert.deepEqual(await startsOn(['gpt-6.1-sol', 'gpt-5.5', astra, sol]), { setting: sol, provider: 'openai', source: 'sign-in' })
+  for (const [name, list, want] of theSolOfTheNewestRelease) await check(`a new session after an OpenAI sign-in starts on the Sol of the newest release the list serves: ${name} (${list.join(', ')}) starts on ${want}`, async () => {
+    const got = await startsOn(list)
+    assert.deepEqual([got.setting, got.provider, got.source], [want, 'openai', 'sign-in'])
   })
-  await check('a list that serves Astra and not Sol starts on Astra, wherever the list ranks it', async () => {
-    assert.deepEqual(await startsOn([astra, 'gpt-6.1-sol']), { setting: astra, provider: 'openai', source: 'sign-in' })
-    assert.deepEqual(await startsOn(['gpt-6.1-sol', astra, 'gpt-5.5']), { setting: astra, provider: 'openai', source: 'sign-in' })
+  for (const [name, list, want] of theReleaseWithoutItsSol) await check(`where the list serves that release and not its Sol, the release's first served row in the pin table's order: ${name} (${list.join(', ')}) starts on ${want}`, async () => {
+    const got = await startsOn(list)
+    assert.deepEqual([got.setting, got.provider, got.source], [want, 'openai', 'sign-in'])
   })
-  await check('a list that serves neither 6.2 model starts on its own first row', async () => {
-    assert.deepEqual(await startsOn(['gpt-6.1-sol', 'gpt-5.5']), { setting: 'gpt-6.1-sol', provider: 'openai', source: 'sign-in' })
+  await check("the list's first row only when the list serves no row the build knows: gpt-9.8-vega, gpt-9.9-nova starts on gpt-9.8-vega", async () => {
+    const got = await startsOn(['gpt-9.8-vega', 'gpt-9.9-nova'])
+    assert.deepEqual([got.setting, got.provider, got.source], ['gpt-9.8-vega', 'openai', 'sign-in'])
+    assert.ok(got.why.endsWith("; the first row this sign-in can use (the catalogue's own order)"), got.why)
+  })
+  await check('a row the build does not know never outranks one it knows: gpt-9.9-nova, gpt-6.1-sol starts on gpt-6.1-sol', async () => {
+    assert.equal((await startsOn(['gpt-9.9-nova', 'gpt-6.1-sol'])).setting, 'gpt-6.1-sol')
+  })
+  await check('the reason line is true of the row it stands on: the recorded release and that row\'s own date, on Sol, on Astra and on GPT-5.5 alike, and the word frontier is on none', async () => {
+    const dateOf = (id: string): string => gptDisplayPin(id)!.observedAt
+    for (const [list, row] of [[[astra, sol], sol], [[astra, 'gpt-6.1-sol'], astra], [['gpt-5.4', 'gpt-5.5'], 'gpt-5.5']] as Array<[string[], string]>) {
+      const got = await startsOn(list)
+      assert.equal(got.setting, row)
+      assert.ok(got.why.endsWith(`; the newest row this sign-in can use (the recorded release, ${dateOf(row)})`), got.why)
+      assert.equal(got.why.includes('frontier'), false, got.why)
+    }
+    assert.equal(dateOf('gpt-5.5'), '2026-10-25')
   })
   await check('Astra is seated, listed and selectable beside the default', async () => {
     await startsOn([astra, sol])
@@ -60,12 +89,16 @@ try {
       assert.equal(row.unavailable, undefined, id)
     }
   })
-  await check('the rule sits in one place: the default is the first row of the newest release in GPT_DISPLAY_PINS that the list serves, so moving the Astra row above the Sol row turns it', () => {
+  await check('the rule is one function over the served ids: the Sol of the newest served release, else that release\'s first served row in table order, else nothing', () => {
+    assert.equal(openaiSessionDefault([astra, sol])?.modelId, sol)
+    assert.equal(openaiSessionDefault([astra])?.modelId, astra)
+    assert.equal(openaiSessionDefault(['gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-5.5'])?.modelId, 'gpt-5.6-terra')
+    assert.equal(openaiSessionDefault(['gpt-5.5', 'gpt-6.1-sol', 'gpt-6-astra'])?.modelId, 'gpt-6.1-sol')
+    assert.equal(openaiSessionDefault(['whisper-1', 'gpt-9.9-nova']), undefined)
+    assert.equal(openaiSessionDefault([]), undefined)
     assert.deepEqual(GPT_DISPLAY_PINS.slice(0, 2).map(pin => pin.id), [sol, astra])
-    assert.equal(providerFrontierFact('openai')?.modelId, sol)
-    assert.deepEqual(openaiFrontierRelease(), [sol, astra])
   })
-  await check("the default costs what the default before it cost: $2 a million input tokens and $10 output, where Astra is $8 and $40", () => {
+  await check('the default costs what the default before it cost: $2 a million input tokens and $10 output, where Astra is $8 and $40', () => {
     const solCosts = resolveModelPricing(sol).costs
     const before = resolveModelPricing('gpt-6.1-sol').costs
     const astraCosts = resolveModelPricing(astra).costs
@@ -76,5 +109,5 @@ try {
 } finally {
   rmSync(home, { recursive: true, force: true })
 }
-console.log(`${checks - failures.length}/${checks} passed; the rule: after an OpenAI sign-in a new session starts on GPT-6.2 Sol when the list serves it, and a list that serves Astra and not Sol starts on Astra`)
+console.log(`${checks - failures.length}/${checks} passed; the rule: the Sol of the newest release the list serves, then that release's first served row in the pin table's order, then the list's first row when it serves no row the build knows`)
 process.exit(failures.length ? 1 : 0)
