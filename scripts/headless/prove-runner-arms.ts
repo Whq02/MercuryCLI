@@ -91,6 +91,9 @@ const { AGENT_INTERRUPT_BY_OPERATOR, AGENT_RESUME_NOTE, peekOperatorMessages } =
 const { drainRows } = await import('../../src/utils/sdkEventQueue.ts')
 const { dequeue, enqueue } = await import('../../src/utils/messageQueueManager.ts')
 const { runnerParkRefusal } = await import('../../src/cli/headless/parkRefusal.ts')
+const { landSpawnSwitch } = await import('../../src/cli/headless/spawnSwitchLanding.ts')
+const lawful = await import('../../src/services/providers/lawfulPrefixChange.ts')
+const switches = await import('../../src/services/switchboard/spawnSwitches.ts')
 const { capabilityHoldWords, runnerCapabilityHolds } = await import('../../src/daemon/runnerCapabilityCensus.ts')
 const { sessionKitOf, setProcessSessionKit } = await import('../../src/services/mcp/sessionKitPin.ts')
 const { answerSessionFacts } = await import('../../src/cli/headless/sessionFactsArm.ts')
@@ -415,6 +418,25 @@ section('§8b the park: what refuses it, in its order')
   dequeue(command => command.uuid === ('park-line' as never))
   dequeue(command => command.agentId === ('a1' as never))
   check('the quiesce refusal ends on the census (turn, queued prompt, background tasks first; the census closes it)', free === null && census !== null && census === wanted && tasks === '2 background task(s) still running' && agentLine === tasks && queuedLine === 'a prompt is queued' && turn === 'a turn is running', j({ free, census, tasks, agentLine, queuedLine, turn }))
+}
+
+section('§8c the landing of a spawn switch')
+{
+  switches._resetSpawnSwitchesForTesting()
+  lawful.resetLawfulPrefixChanges()
+  const messages: Array<Record<string, unknown>> = []
+  const { ports } = stubPorts({ messages })
+  const before = j(switches.spawnSwitchFacts().subagents)
+  landSpawnSwitch('subagents', false, ports)
+  const words = `you turned ${switches.SPAWN_SWITCH_LABEL.subagents} off`
+  const landed = j(switches.spawnSwitchFacts().subagents)
+  const declared = [lawful.consumeLawfulPrefixChange('main'), lawful.consumeLawfulPrefixChange('agent-1'), lawful.consumeLawfulPrefixChange('agent-1')]
+  check('…the landing moves the switch and marks the transition row', before !== landed && landed === j({ on: false, source: 'in-session' }) && messages.length === 1 && j(messages[0]).includes(switches.spawnSwitchTransitionLine('subagents', false)), `${before} → ${landed} · ${j(messages).slice(0, 200)}`)
+  check('the spawn-switch toggle declares for every owner', j(declared) === j([words, words, null]), j(declared))
+  landSpawnSwitch('subagents', false, ports)
+  check('a toggle to where the switch stands lands no row and declares nothing', messages.length === 1 && lawful.consumeLawfulPrefixChange('main') === null && lawful.consumeLawfulPrefixChange('agent-1') === null, `${messages.length}`)
+  switches._resetSpawnSwitchesForTesting()
+  lawful.resetLawfulPrefixChanges()
 }
 
 section('§9 session/claim: the claim binds and answers, the load runs behind the answer, and every step keeps its place')
