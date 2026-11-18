@@ -66,7 +66,9 @@ const HOOK_CALLS_IN_CHAT: Record<string, number> = {
 
 type Edge = { from: string; to: string; line: number; spec: string }
 type HookCall = { name: string; line: number }
-type Reading = { files: number; edges: Edge[]; hooks: HookCall[] | null; exported: string[] | null; parts: string[] }
+type Exported = { name: string; line: number }
+type Guarded = { file: string; line: number; hook: string; under: string }
+type Reading = { files: number; edges: Edge[]; hooks: HookCall[] | null; exported: Exported[] | null; guarded: Guarded[]; parts: string[] }
 type Fault = { law: string; where: string; fix: string }
 
 const slash = (path: string): string => path.split('\\').join('/')
@@ -87,7 +89,9 @@ function readTree(root: string): Reading {
   }
   const edges: Edge[] = []
   let hooks: HookCall[] | null = null
-  let exported: string[] | null = null
+  let exported: Exported[] | null = null
+  const guarded: Guarded[] = []
+  const isFunction = (node: ts.Node): boolean => ts.isArrowFunction(node) || ts.isFunctionExpression(node) || ts.isFunctionDeclaration(node) || ts.isMethodDeclaration(node) || ts.isGetAccessorDeclaration(node) || ts.isSetAccessorDeclaration(node)
   for (const sf of program.getSourceFiles()) {
     const rel = slash(relative(root, sf.fileName))
     if (!known.has(rel)) continue
@@ -104,19 +108,65 @@ function readTree(root: string): Reading {
       ts.forEachChild(node, walk)
     }
     walk(sf)
+    if (rel === DOOR || rel.startsWith(PARTS)) {
+      const nameOf = (fn: ts.Node, holder: ts.Node | undefined): string => {
+        if (ts.isFunctionDeclaration(fn) || ts.isFunctionExpression(fn) || ts.isMethodDeclaration(fn)) if (fn.name) return fn.name.getText(sf)
+        return holder && ts.isVariableDeclaration(holder) ? holder.name.getText(sf) : ''
+      }
+      const returnsEarly = (node: ts.Node): boolean => {
+        if (ts.isReturnStatement(node)) return true
+        if (isFunction(node)) return false
+        return ts.forEachChild(node, returnsEarly) === true
+      }
+      const rule = (node: ts.Node, above: ts.Node[]): void => {
+        const callee = ts.isCallExpression(node) ? node.expression.getText(sf).replace(/\s+/g, '') : ''
+        if (/^(?:React\.)?use[A-Z]\w*$/.test(callee)) {
+          let under = ''
+          let child: ts.Node = node
+          let at = above.length - 1
+          for (; at >= 0 && !isFunction(above[at]!); at--) {
+            const up = above[at]!
+            if (ts.isIfStatement(up) && child !== up.expression) under ||= 'an if'
+            else if (ts.isConditionalExpression(up) && child !== up.condition) under ||= 'a ? :'
+            else if (ts.isBinaryExpression(up) && child === up.right && [ts.SyntaxKind.AmpersandAmpersandToken, ts.SyntaxKind.BarBarToken, ts.SyntaxKind.QuestionQuestionToken].includes(up.operatorToken.kind)) under ||= `a ${up.operatorToken.getText(sf)}`
+            else if (ts.isIterationStatement(up, false)) under ||= 'a loop'
+            else if (ts.isCaseClause(up) || ts.isDefaultClause(up)) under ||= 'a switch'
+            else if (ts.isCatchClause(up)) under ||= 'a catch'
+            else if (ts.isBlock(up) && at > 0 && isFunction(above[at - 1]!) && up.statements.slice(0, up.statements.indexOf(child as ts.Statement)).some(returnsEarly)) under ||= 'an early return'
+            child = up
+          }
+          if (under === '' && at >= 0 && !/^(?:use[A-Z]|[A-Z])/.test(nameOf(above[at]!, above[at - 1]))) under = 'a nested function'
+          if (under !== '') guarded.push({ file: rel, line: lineOf(node), hook: callee.replace(/^React\./, ''), under })
+        }
+        ts.forEachChild(node, child => rule(child, [...above, node]))
+      }
+      rule(sf, [])
+    }
     if (rel !== DOOR) continue
     exported = []
     for (const statement of sf.statements) {
-      const marked = ts.canHaveModifiers(statement) && (ts.getModifiers(statement) ?? []).some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword)
-      if (!marked) continue
-      if (ts.isFunctionDeclaration(statement) || ts.isTypeAliasDeclaration(statement) || ts.isInterfaceDeclaration(statement) || ts.isClassDeclaration(statement)) exported.push(statement.name?.text ?? 'default')
-      else if (ts.isVariableStatement(statement)) for (const declaration of statement.declarationList.declarations) exported.push(declaration.name.getText(sf))
-      else exported.push(statement.getText(sf).slice(0, 40))
+      const line = lineOf(statement)
+      if (ts.isExportAssignment(statement)) {
+        exported.push({ name: 'default', line })
+        continue
+      }
+      if (ts.isExportDeclaration(statement)) {
+        const clause = statement.exportClause
+        if (clause === undefined) exported.push({ name: '*', line })
+        else if (ts.isNamespaceExport(clause)) exported.push({ name: clause.name.getText(sf), line })
+        else for (const element of clause.elements) exported.push({ name: element.name.getText(sf), line })
+        continue
+      }
+      const modifiers = ts.canHaveModifiers(statement) ? (ts.getModifiers(statement) ?? []) : []
+      if (!modifiers.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword)) continue
+      if (modifiers.some(modifier => modifier.kind === ts.SyntaxKind.DefaultKeyword)) exported.push({ name: 'default', line })
+      else if (ts.isFunctionDeclaration(statement) || ts.isTypeAliasDeclaration(statement) || ts.isInterfaceDeclaration(statement) || ts.isClassDeclaration(statement) || ts.isEnumDeclaration(statement) || ts.isModuleDeclaration(statement)) exported.push({ name: statement.name?.getText(sf) ?? 'default', line })
+      else if (ts.isVariableStatement(statement)) for (const declaration of statement.declarationList.declarations) exported.push({ name: declaration.name.getText(sf), line })
+      else exported.push({ name: statement.getText(sf).slice(0, 40), line })
     }
     const unit = sf.statements.find((statement): statement is ts.FunctionDeclaration => ts.isFunctionDeclaration(statement) && statement.name?.text === UNIT)
     if (!unit) continue
     hooks = []
-    const isFunction = (node: ts.Node): boolean => ts.isArrowFunction(node) || ts.isFunctionExpression(node) || ts.isFunctionDeclaration(node) || ts.isMethodDeclaration(node) || ts.isGetAccessorDeclaration(node) || ts.isSetAccessorDeclaration(node)
     const direct = (node: ts.Node): void => {
       if (ts.isCallExpression(node)) {
         const callee = node.expression.getText(sf).replace(/\s+/g, '')
@@ -130,7 +180,7 @@ function readTree(root: string): Reading {
     }
     if (unit.body) for (const statement of unit.body.statements) direct(statement)
   }
-  return { files: listed.length, edges, hooks, exported, parts: listed.filter(file => file.startsWith(PARTS)).sort() }
+  return { files: listed.length, edges, hooks, exported, guarded, parts: listed.filter(file => file.startsWith(PARTS)).sort() }
 }
 
 function judge(read: Reading, held: Record<string, number>): { faults: Fault[]; slack: string[]; total: number } {
@@ -144,26 +194,30 @@ function judge(read: Reading, held: Record<string, number>): { faults: Fault[]; 
       faults.push({ law: 'no way back', where: `${edge.from}:${edge.line} imports '${edge.spec}'`, fix: `a part never imports the screen: hand ${edge.from} what it needs as a named argument from ${UNIT}, or keep the shared type in a file under ${PARTS}` })
     }
   }
+  for (const call of read.guarded) {
+    faults.push({ law: 'every render', where: `${call.file}:${call.line} calls ${call.hook} under ${call.under}`, fix: `a hook of the chat screen is called on every render, at the top of the hook or component that owns it: call ${call.hook} above the condition and use its value below it` })
+  }
   if (read.hooks === null || read.exported === null) {
     faults.push({ law: 'the door', where: DOOR, fix: `the file must stand and declare the function ${UNIT}` })
     return { faults, slack, total: 0 }
   }
-  const lost = DOOR_EXPORTS.filter(name => !read.exported!.includes(name))
-  const more = read.exported.filter(name => !DOOR_EXPORTS.includes(name))
-  if (lost.length > 0 || more.length > 0) {
-    faults.push({ law: 'the door', where: `${DOOR} exports ${read.exported.join(', ') || 'nothing'}`, fix: `the door exports ${DOOR_EXPORTS.join(', ')} and nothing else${lost.length > 0 ? `: put back ${lost.join(', ')}` : ''}${more.length > 0 ? `: ${more.join(', ')} belongs in a file under ${PARTS} or stays unexported` : ''}` })
+  const names = read.exported.map(entry => entry.name)
+  const lost = DOOR_EXPORTS.filter(name => !names.includes(name))
+  const more = read.exported.filter(entry => !DOOR_EXPORTS.includes(entry.name))
+  if (lost.length > 0) faults.push({ law: 'the door', where: `${DOOR} exports ${names.join(', ') || 'nothing'}`, fix: `the door exports ${DOOR_EXPORTS.join(', ')} and nothing else: put back ${lost.join(', ')}` })
+  for (const entry of more) {
+    faults.push({ law: 'the door', where: `${DOOR}:${entry.line} exports ${entry.name}`, fix: `the door exports ${DOOR_EXPORTS.join(', ')} and nothing else, as a value or as a type, declared or handed on from a part: ${entry.name} stays in its file under ${PARTS}, unexported by the door, and ${UNIT} hands it on by name` })
   }
   const found = new Map<string, number[]>()
   for (const hook of read.hooks) found.set(hook.name, [...(found.get(hook.name) ?? []), hook.line])
   const heldSum = Object.values(held).reduce((sum, count) => sum + count, 0)
-  const risen = read.hooks.length > heldSum
   for (const [name, lines] of found) {
     const allowed = held[name] ?? 0
-    if (lines.length > allowed && risen) {
+    if (lines.length > allowed) {
       faults.push({
         law: 'the count only falls',
         where: `${DOOR}: ${UNIT} calls ${name} ${lines.length} time${lines.length === 1 ? '' : 's'} (lines ${lines.join(', ')}) and the law holds ${allowed}`,
-        fix: `a hook is called in a part under ${PARTS} that owns its state, and ${UNIT} calls the part: move the new ${name} call there; the sum of HOOK_CALLS_IN_CHAT in ${SELF} (${heldSum}) is never raised`,
+        fix: `a hook is called in a part under ${PARTS} that owns its state, and ${UNIT} calls the part: move the new ${name} call there; no row of HOOK_CALLS_IN_CHAT in ${SELF} is raised, whatever another row lost, and their sum (${heldSum}) only falls`,
       })
     } else if (lines.length !== allowed) slack.push(`${name}: ${lines.length} in ${UNIT}, ${allowed} held`)
   }
@@ -207,12 +261,27 @@ section('§0 the reader on a planted estate: each breach is refused by its own l
     told(whole.faults, 'one door'),
   )
   check('a part that imports the screen is refused with its line', told(whole.faults, 'no way back')[0] === "src/screens/chat/back.ts:1 imports '../Chat.js'", told(whole.faults, 'no way back'))
-  check('a part that imports another part, and the screen that imports its parts, are let through', !whole.faults.some(fault => fault.where.startsWith('src/screens/chat/usePart.ts') || fault.where.startsWith('src/screens/Chat.tsx:')))
+  check('a part that imports another part, and the screen that imports its parts, are let through', !whole.faults.some(fault => (fault.law === 'one door' || fault.law === 'no way back') && (fault.where.startsWith('src/screens/chat/usePart.ts') || fault.where.startsWith('src/screens/Chat.tsx:'))))
   const risen = judge(read, { ...held, useState: 0 })
   check('one hook call more than the law holds is refused with the hook and its line', told(risen.faults, 'the count only falls')[0] === 'src/screens/Chat.tsx: Chat calls useState 1 time (lines 6) and the law holds 0', told(risen.faults, 'the count only falls'))
+  const swapped = judge(read, { useState: 0, usePart: 1, useEffect: 2 })
+  check('a row above its count is refused though another row fell by as much and the sum stands (3 found, 3 held)', swapped.total === 3 && told(swapped.faults, 'the count only falls')[0] === 'src/screens/Chat.tsx: Chat calls useState 1 time (lines 6) and the law holds 0', told(swapped.faults, 'the count only falls'))
   check('a count below the number held passes and is named', judge(read, { ...held, useEffect: 3 }).slack.join() === 'useEffect: 1 in Chat, 3 held' && !judge(read, { ...held, useEffect: 3 }).faults.some(fault => fault.law === 'the count only falls'))
+  check('a hook called inside a nested function of the screen is refused with its line', told(whole.faults, 'every render')[0] === 'src/screens/Chat.tsx:9 calls useState under a nested function', told(whole.faults, 'every render'))
+  plant('src/screens/chat/useGuarded.ts', ["import { useState } from 'react'", 'export function useGuarded(on: boolean): number {', '  const a = on ? useState(0)[0] : 0', '  if (on) useState(1)', '  const b = on && useState(2)[0]', '  for (const _ of [on]) useState(3)', '  if (!on) return a', '  return useState(4)[0] + Number(b)', '}'])
+  check(
+    'a hook a part calls under a condition is refused with its line: a ? :, an if, a &&, a loop, an early return',
+    told(judge(readTree(estate), held).faults, 'every render').filter(line => line.startsWith('src/screens/chat/')).join(' | ') === 'src/screens/chat/useGuarded.ts:3 calls useState under a ? : | src/screens/chat/useGuarded.ts:4 calls useState under an if | src/screens/chat/useGuarded.ts:5 calls useState under a && | src/screens/chat/useGuarded.ts:6 calls useState under a loop | src/screens/chat/useGuarded.ts:8 calls useState under an early return',
+    told(judge(readTree(estate), held).faults, 'every render'),
+  )
   plant('src/screens/Chat.tsx', ['export function Chat(): null {', '  return null', '}', 'export const leaked = 1'])
-  check('a door that loses an export or gains one is refused', told(judge(readTree(estate), {}).faults, 'the door')[0] === 'src/screens/Chat.tsx exports Chat, leaked', told(judge(readTree(estate), {}).faults, 'the door'))
+  check('a door that loses an export or gains one is refused', told(judge(readTree(estate), {}).faults, 'the door').filter(line => !line.startsWith('  instead')).join(' | ') === 'src/screens/Chat.tsx exports Chat, leaked | src/screens/Chat.tsx:4 exports leaked', told(judge(readTree(estate), {}).faults, 'the door'))
+  plant('src/screens/Chat.tsx', ['export type Screen = 1', 'export type Props = {}', 'export function Chat(): null {', '  return null', '}', "export { usePart } from './chat/usePart.js'", "export type { Kind } from './chat/kind.js'", "export * from './chat/kind.js'", 'export default Chat'])
+  check(
+    "a door that hands on a part's value, a part's type, a whole part or a default is refused, each with its line",
+    told(judge(readTree(estate), {}).faults, 'the door').filter(line => !line.startsWith('  instead')).join(' | ') === 'src/screens/Chat.tsx:6 exports usePart | src/screens/Chat.tsx:7 exports Kind | src/screens/Chat.tsx:8 exports * | src/screens/Chat.tsx:9 exports default',
+    told(judge(readTree(estate), {}).faults, 'the door'),
+  )
   rmSync(estate, { recursive: true, force: true })
 }
 
@@ -221,9 +290,10 @@ const read = readTree(ROOT)
 const verdict = judge(read, HOOK_CALLS_IN_CHAT)
 check(`no file outside ${DOOR} and ${PARTS} imports a file under ${PARTS} (${read.parts.length} files there, ${read.files} files read under src)`, told(verdict.faults, 'one door').length === 0, told(verdict.faults, 'one door'))
 check(`no file under ${PARTS} imports ${DOOR}`, told(verdict.faults, 'no way back').length === 0, told(verdict.faults, 'no way back'))
-check(`${DOOR} exports ${DOOR_EXPORTS.join(', ')} and nothing else`, told(verdict.faults, 'the door').length === 0, told(verdict.faults, 'the door'))
-check(`the hook calls written directly in ${UNIT} are no more than the law holds (${verdict.total} found, ${heldTotal} held)`, verdict.total <= heldTotal, told(verdict.faults, 'the count only falls'))
-if (verdict.slack.length > 0) console.log(`  the rows differ from the file: ${verdict.slack.join(' · ')} — write them into HOOK_CALLS_IN_CHAT of ${SELF}; its sum only falls`)
+check(`${DOOR} exports ${DOOR_EXPORTS.join(', ')} and nothing else, by a declaration or by a line that hands a name on`, told(verdict.faults, 'the door').length === 0, told(verdict.faults, 'the door'))
+check(`no row of the hook calls written directly in ${UNIT} is above the number the law holds for it (${verdict.total} found, ${heldTotal} held)`, verdict.total <= heldTotal && told(verdict.faults, 'the count only falls').length === 0, told(verdict.faults, 'the count only falls'))
+check(`every hook call in ${DOOR} and under ${PARTS} runs on every render: none under a condition, a loop, an early return or a nested function`, told(verdict.faults, 'every render').length === 0, told(verdict.faults, 'every render'))
+if (verdict.slack.length > 0) console.log(`  the rows differ from the file: ${verdict.slack.join(' · ')} — write them into HOOK_CALLS_IN_CHAT of ${SELF}; no row is raised`)
 
 if (at < 0) {
   section('§2 the door as a running module')
