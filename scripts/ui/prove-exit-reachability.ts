@@ -305,22 +305,34 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
     'src/components/mercury-ui/useFlatList.ts': { reason: 'a list engine; its host prints the composed hints' },
     'src/components/mercury-ui/useInteractiveList.ts': { reason: 'a list engine; its host prints the composed hints' },
     'src/components/mercury-ui/useNavigablePanes.ts': { reason: 'the panes engine; NavigablePanes prints the footer', witness: 'src/components/mercury-ui/NavigablePanes.tsx' },
-    'src/screens/chat/useChatSearch.tsx': { reason: 'the keys of the transcript view; the footer in the same file prints q quits and the toggle chord, which the Transcript row of the exit table reads from the mounted footer' },
     'src/components/ExitHandoff.tsx': { reason: 'prints the one notice it has — "writing the handoff for the next session… (ctrl-c skips)" — through the constant the mneme module owns; ctrl-c is not a spelling the needles know' },
+  }
+
+  const DRAWN_BY_EXIT: Record<string, string> = {
+    'src/screens/chat/useChatSearch.tsx': 'Transcript',
   }
 
   const routeMissing: string[] = []
   const hintMissing: string[] = []
+  const spelled = new Set<string>()
   for (const rel of inputFiles) {
     const src = read(rel)
     const routed = ROUTE_NEEDLES.some(n => n.test(src)) || shellOwned(src)
     if (!routed && !(rel in ROUTE_ROSTER)) routeMissing.push(rel)
     const code = stripComments(src)
     const hinted = HINT_NEEDLES.some(n => n.test(code))
-    if (!hinted && !(rel in HINT_ROSTER)) hintMissing.push(rel)
+    if (hinted) spelled.add(rel)
+    if (!hinted && !(rel in HINT_ROSTER) && !(rel in DRAWN_BY_EXIT)) hintMissing.push(rel)
   }
   check('every raw-input surface decodes an exit (or is a rostered non-surface)', routeMissing.length === 0, routeMissing.join(' · '))
-  check('every raw-input surface prints its way out (or is a rostered non-surface)', hintMissing.length === 0, hintMissing.join(' · '))
+  check('every raw-input surface prints its way out (or is a rostered non-surface, or its exit row reads the hint off its mounted footer)', hintMissing.length === 0, hintMissing.join(' · '))
+  const staleDrawn = Object.entries(DRAWN_BY_EXIT)
+    .filter(([rel, ctx]) => {
+      const exit = EXIT_TABLE[ctx]
+      return !inputFiles.includes(rel) || spelled.has(rel) || exit === undefined || exit.kind !== 'binding' || exit.drawn === undefined
+    })
+    .map(([rel, ctx]) => `${rel} → ${ctx}`)
+  check('every surface whose hint is read off its mounted footer is a raw-input surface, and its exit row draws it (no stale row)', staleDrawn.length === 0, staleDrawn.join(' · '))
   const staleRoute = Object.keys(ROUTE_ROSTER).filter(rel => !inputFiles.includes(rel) || ROUTE_NEEDLES.some(n => n.test(read(rel))) || shellOwned(read(rel)))
   check('the route roster is closed and current (no stale row)', staleRoute.length === 0, staleRoute.join(' · '))
   const staleHint = Object.keys(HINT_ROSTER).filter(rel => !inputFiles.includes(rel) || HINT_NEEDLES.some(n => n.test(stripComments(read(rel)))))
