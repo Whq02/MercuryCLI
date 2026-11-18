@@ -91,6 +91,72 @@ function reconstructedProgressMessage(parentToolUseID: string, entry: SessionPro
   } as ProgressMessage
 }
 
+interface StatusClock {
+  now: number
+  lastEventAtMs: number | null
+  wait: RequestWaitV1 | null
+  waitCountsItsOwnAge(wait: Extract<RequestWaitV1, { kind: 'first-byte' }>): boolean
+  streamIdleTimeoutMs(): number | undefined
+  toolStartedAtMs(inProgress: ReadonlySet<string>): number | null
+  toolBudgets: ReadonlyMap<string, { budgetMs: number; elapsedMs: number; atMs: number }>
+  blockSinceMs: number | null
+  interrupting: boolean
+  hardStopping: boolean
+}
+
+function seatStatusOf(
+  seat: Pick<SeatStatusV1, 'title' | 'projectLabel' | 'isolation' | 'branchLabel' | 'runner'>,
+  live: SessionLiveV1,
+  clock: StatusClock,
+): SeatStatusV1 {
+  const now = clock.now
+  const quietMs = live.inFlight && clock.lastEventAtMs !== null ? Math.max(0, now - clock.lastEventAtMs) : null
+  const wait = clock.wait
+  const waitAgeMs = wait !== null && wait.kind === 'first-byte' && clock.waitCountsItsOwnAge(wait) ? Math.max(0, now - wait.sinceMs) : undefined
+  const watchdogMs =
+    wait?.kind === 'first-byte' ? wait.budgetMs : clock.streamIdleTimeoutMs() ?? null
+  let phaseMs: number | null = null
+  let toolBudgetMs: number | null = null
+  if (live.inFlight) {
+    if (live.phase === 'tool') {
+      const started = clock.toolStartedAtMs(live.inProgressToolUseIDs)
+      if (started !== null) phaseMs = Math.max(0, now - started)
+      for (const [id, budget] of clock.toolBudgets) {
+        if (!live.inProgressToolUseIDs.has(id)) continue
+        toolBudgetMs = Math.max(toolBudgetMs ?? 0, budget.budgetMs)
+        phaseMs = Math.max(phaseMs ?? 0, budget.elapsedMs + Math.max(0, now - budget.atMs))
+      }
+    } else if (clock.blockSinceMs !== null) {
+      phaseMs = Math.max(0, now - clock.blockSinceMs)
+    } else if (live.turnStartedAtMs !== null) {
+      phaseMs = Math.max(0, now - live.turnStartedAtMs)
+    }
+  }
+  const stuck =
+    live.inFlight &&
+    !clock.interrupting &&
+    live.phase !== 'tool' &&
+    quietMs !== null &&
+    watchdogMs !== null &&
+    quietMs >= streamIdleWarningMsOf(watchdogMs)
+  return {
+    title: seat.title,
+    projectLabel: seat.projectLabel,
+    interrupting: clock.interrupting,
+    hardStopping: clock.hardStopping,
+    wait,
+    ...(waitAgeMs !== undefined ? { waitAgeMs } : {}),
+    quietMs,
+    watchdogMs,
+    phaseMs,
+    toolBudgetMs,
+    stuck,
+    ...(seat.isolation !== undefined ? { isolation: seat.isolation } : {}),
+    ...(seat.branchLabel !== undefined ? { branchLabel: seat.branchLabel } : {}),
+    runner: seat.runner,
+  }
+}
+
 export class LivePart {
   private effectiveLive: SessionLiveV1 = IDLE_LIVE
   private readonly liveListeners: Listeners = new Set()
@@ -367,52 +433,18 @@ export class LivePart {
 
   status(seat: Pick<SeatStatusV1, 'title' | 'projectLabel' | 'isolation' | 'branchLabel' | 'runner'>): SeatStatusV1 {
     const live = this.effectiveLive
-    const now = Date.now()
-    const quietMs = live.inFlight && this.lastEventAtMs !== null ? Math.max(0, now - this.lastEventAtMs) : null
-    const wait = live.inFlight ? this.liveWait : null
-    const waitAgeMs = wait !== null && wait.kind === 'first-byte' && this.waitCountsItsOwnAge(wait) ? Math.max(0, now - wait.sinceMs) : undefined
-    const watchdogMs =
-      wait?.kind === 'first-byte' ? wait.budgetMs : this.needs.streamIdleTimeoutMs() ?? null
-    let phaseMs: number | null = null
-    let toolBudgetMs: number | null = null
-    if (live.inFlight) {
-      if (live.phase === 'tool') {
-        const started = this.needs.toolStartedAtMs(live.inProgressToolUseIDs)
-        if (started !== null) phaseMs = Math.max(0, now - started)
-        for (const [id, budget] of this.toolBudgets) {
-          if (!live.inProgressToolUseIDs.has(id)) continue
-          toolBudgetMs = Math.max(toolBudgetMs ?? 0, budget.budgetMs)
-          phaseMs = Math.max(phaseMs ?? 0, budget.elapsedMs + Math.max(0, now - budget.atMs))
-        }
-      } else if (this.blockSinceMs !== null) {
-        phaseMs = Math.max(0, now - this.blockSinceMs)
-      } else if (live.turnStartedAtMs !== null) {
-        phaseMs = Math.max(0, now - live.turnStartedAtMs)
-      }
-    }
-    const stuck =
-      live.inFlight &&
-      !this.interrupting &&
-      live.phase !== 'tool' &&
-      quietMs !== null &&
-      watchdogMs !== null &&
-      quietMs >= streamIdleWarningMsOf(watchdogMs)
-    return {
-      title: seat.title,
-      projectLabel: seat.projectLabel,
+    return seatStatusOf(seat, live, {
+      now: Date.now(),
+      lastEventAtMs: this.lastEventAtMs,
+      wait: live.inFlight ? this.liveWait : null,
+      waitCountsItsOwnAge: wait => this.waitCountsItsOwnAge(wait),
+      streamIdleTimeoutMs: () => this.needs.streamIdleTimeoutMs(),
+      toolStartedAtMs: inProgress => this.needs.toolStartedAtMs(inProgress),
+      toolBudgets: this.toolBudgets,
+      blockSinceMs: this.blockSinceMs,
       interrupting: this.interrupting,
       hardStopping: this.hardStopping,
-      wait,
-      ...(waitAgeMs !== undefined ? { waitAgeMs } : {}),
-      quietMs,
-      watchdogMs,
-      phaseMs,
-      toolBudgetMs,
-      stuck,
-      ...(seat.isolation !== undefined ? { isolation: seat.isolation } : {}),
-      ...(seat.branchLabel !== undefined ? { branchLabel: seat.branchLabel } : {}),
-      runner: seat.runner,
-    }
+    })
   }
 
   private waitCountsItsOwnAge(wait: Extract<RequestWaitV1, { kind: 'first-byte' }>): boolean {
