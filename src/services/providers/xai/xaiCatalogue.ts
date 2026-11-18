@@ -216,12 +216,6 @@ export function xaiCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows: 
   })
   return { rows, source: { kind: 'live', count: rows.length, fetchedAtMs: snapshot.fetchedAtMs } }
 }
-export function xaiCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  const snapshot = getCachedXaiCatalogue(env)
-  if (snapshot?.lastError) return snapshot.lastError
-  const { source } = xaiCatalogueRows(env)
-  return source.kind === 'live' ? `${source.count} ${source.count === 1 ? 'model' : 'models'} live` : undefined
-}
 export function __resetXaiCatalogueForTest(): void {
   catalogueCache.clear()
   catalogueInFlight.clear()

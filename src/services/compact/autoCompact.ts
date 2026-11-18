@@ -130,6 +130,10 @@ function modelMaxWindow(model: string): number {
   return getModelInputCeiling(model, getSdkBetas())
 }
 
+export function autoCompactWindowIsInputLimit(model: string, window: number): boolean {
+  return window === modelMaxWindow(model) && window < getContextWindowForModel(model, getSdkBetas())
+}
+
 export function resolveAutoCompactWindow(
   model: string,
   settingsWindow?: number,

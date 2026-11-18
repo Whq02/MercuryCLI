@@ -154,13 +154,6 @@ export function newestMetaModel(env: NodeJS.ProcessEnv = process.env): string | 
   return metaCatalogueRows(env).rows.find(row => !isMetaContributorModel(row.id))?.id
 }
 
-export function metaCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  const snapshot = getCachedMetaCatalogue(env)
-  if (snapshot?.lastError) return snapshot.lastError
-  const { source } = metaCatalogueRows(env)
-  return source.kind === 'live' ? `${source.count} ${source.count === 1 ? 'model' : 'models'} live` : undefined
-}
-
 export function __resetMetaCatalogueForTest(): void {
   cache.clear()
   inFlight.clear()
