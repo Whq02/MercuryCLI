@@ -127,7 +127,7 @@ export type TokenWarningLevel = 'ok' | 'warn' | 'compact' | 'blocked'
 
 
 function modelMaxWindow(model: string): number {
-  return getModelInputCeiling(model, getContextWindowForModel(model, getSdkBetas()))
+  return getModelInputCeiling(model, getSdkBetas())
 }
 
 export function resolveAutoCompactWindow(
@@ -231,7 +231,7 @@ export function calculateTokenWarningState(
     Math.ceil((ceiling * WARNING_MIN_CEILING_NUMERATOR) / WARNING_MIN_CEILING_DENOMINATOR),
   )
   const blockingLimit = getBlockingLimit(model, settingsWindow)
-  const window = modelMaxWindow(model)
+  const window = getContextWindowForModel(model, getSdkBetas())
   const pctLeft = window > 0 ? Math.max(0, Math.round(((ceiling - tokenUsage) / window) * 100)) : 0
   let level: TokenWarningLevel = 'ok'
   if (tokenUsage >= blockingLimit) level = 'blocked'

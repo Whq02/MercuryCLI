@@ -123,20 +123,26 @@ export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFac
   }
 }
 
-export function openaiFrontierRelease(): string[] {
-  const frontier = providerFrontierFact('openai')
-  const head = frontier ? parseGptModelId(frontier.modelId) : undefined
-  if (!head) return []
-  return GPT_DISPLAY_PINS.filter(pin => {
-    const identity = parseGptModelId(pin.id)
-    return identity !== undefined && identity.major === head.major && identity.minor === head.minor
-  }).map(pin => pin.id)
-}
-
 type GptRank = { id: string; major: number; minor: number }
 
 function newerThan(a: GptRank, b: GptRank): boolean {
   return a.major > b.major || (a.major === b.major && a.minor > b.minor)
+}
+
+const OPENAI_SESSION_TIER = 'sol'
+
+export function openaiSessionDefault(served: readonly string[]): ProviderFrontierFact | undefined {
+  const known: Array<GptRank & { variant: string; pin: (typeof GPT_DISPLAY_PINS)[number] }> = []
+  for (const pin of GPT_DISPLAY_PINS) {
+    const identity = parseGptModelId(pin.id)
+    if (identity && served.includes(pin.id)) known.push({ id: pin.id, major: identity.major, minor: identity.minor, variant: identity.variant, pin })
+  }
+  let newest: GptRank | undefined
+  for (const row of known) if (newest === undefined || newerThan(row, newest)) newest = row
+  if (newest === undefined) return undefined
+  const release = known.filter(row => row.major === newest.major && row.minor === newest.minor)
+  const pick = release.find(row => row.variant === OPENAI_SESSION_TIER) ?? release[0]!
+  return { modelId: pick.pin.id, displayName: pick.pin.displayName, observedAt: pick.pin.observedAt }
 }
 
 function openaiServedIds(): string[] | undefined {

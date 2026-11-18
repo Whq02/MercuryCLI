@@ -23,7 +23,14 @@ export interface NousLiveModel {
   name?: string
   description?: string
   contextLength?: number
-  pricing?: { prompt?: string; completion?: string; request?: string; inputCacheRead?: string; inputCacheWrite?: string }
+  pricing?: {
+    prompt?: string
+    completion?: string
+    request?: string
+    inputCacheRead?: string
+    inputCacheWrite?: string
+    overrides?: ReadonlyArray<{ minPromptTokens: number; prompt?: string; completion?: string; inputCacheRead?: string; inputCacheWrite?: string }>
+  }
   supportedParameters?: readonly string[]
   inputModalities?: readonly string[]
   outputModalities?: readonly string[]
@@ -46,6 +53,23 @@ function record(v: unknown): Record<string, unknown> | undefined {
   return typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : undefined
 }
 
+function decodePromptSizeTiers(raw: unknown): NonNullable<NonNullable<NousLiveModel['pricing']>['overrides']> {
+  const tiers: Array<{ minPromptTokens: number; prompt?: string; completion?: string; inputCacheRead?: string; inputCacheWrite?: string }> = []
+  for (const item of Array.isArray(raw) ? raw : []) {
+    const tier = record(item)
+    const minPromptTokens = num(tier?.min_prompt_tokens)
+    if (!tier || minPromptTokens === undefined || tier.utc_start !== undefined || tier.utc_end !== undefined) continue
+    tiers.push({
+      minPromptTokens,
+      ...(str(tier.prompt) !== undefined ? { prompt: str(tier.prompt)! } : {}),
+      ...(str(tier.completion) !== undefined ? { completion: str(tier.completion)! } : {}),
+      ...(str(tier.input_cache_read) !== undefined ? { inputCacheRead: str(tier.input_cache_read)! } : {}),
+      ...(str(tier.input_cache_write) !== undefined ? { inputCacheWrite: str(tier.input_cache_write)! } : {}),
+    })
+  }
+  return tiers
+}
+
 export function decodeNousModel(raw: unknown): NousLiveModel | undefined {
   const r = record(raw)
   const id = str(r?.id)
@@ -61,6 +85,7 @@ export function decodeNousModel(raw: unknown): NousLiveModel | undefined {
         ...(str(pricing.request) !== undefined ? { request: str(pricing.request)! } : {}),
         ...(str(pricing.input_cache_read) !== undefined ? { inputCacheRead: str(pricing.input_cache_read)! } : {}),
         ...(str(pricing.input_cache_write) !== undefined ? { inputCacheWrite: str(pricing.input_cache_write)! } : {}),
+        ...(decodePromptSizeTiers(pricing.overrides).length > 0 ? { overrides: decodePromptSizeTiers(pricing.overrides) } : {}),
       }
     : undefined
   const reasoning = reasoningRaw

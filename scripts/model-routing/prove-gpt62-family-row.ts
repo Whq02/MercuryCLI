@@ -15,9 +15,11 @@ for (const key of ['MERCURY_HOME', 'MERCURY_AUTH_SCOPE_DIR', 'OPENAI_API_KEY', '
 
 const { GPT_DISPLAY_PINS } = await import('../../src/services/providers/openai/gptPins.js')
 const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
-const { providerFrontierFact, providerFrontierLine, openaiFrontierRelease, openaiLightChoice } = await import('../../src/utils/model/providerFrontier.js')
+const { providerFrontierFact, providerFrontierLine, openaiSessionDefault, openaiLightChoice } = await import('../../src/utils/model/providerFrontier.js')
 const { effortFamiliesLabel } = await import('../../src/utils/effort.js')
-const { ZEN_DISPLAY_PINS, zenDisplayPin, zenServedShapeOf, zenAcceptsEffort } = await import('../../src/services/providers/zen/zenPins.js')
+const { ZEN_DISPLAY_PINS, zenDisplayPin, zenPinObservedAt, zenServedShapeOf, zenAcceptsEffort } = await import('../../src/services/providers/zen/zenPins.js')
+const zenCatalogue = await import('../../src/services/providers/zen/zenCatalogue.js')
+const { keyLanePins } = await import('../../src/utils/model/modelOptions.js')
 const { NOUS_PORTAL_RECOMMENDED } = await import('../../src/services/providers/nous/nousCatalogue.js')
 const { readModelListFacts } = await import('../../src/services/providers/typedModelIds.js')
 const { resolveModelPricing } = await import('../../src/utils/modelCost.js')
@@ -44,10 +46,10 @@ try {
   check('the 6.2 rows lead the table and the rows before them keep their order', () => {
     assert.deepEqual(GPT_DISPLAY_PINS.slice(0, 7).map(pin => pin.id), [sol, astra, 'gpt-6-astra', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-sol', 'gpt-6-luna'])
   })
-  check('the family frontier is the first row of the newest release, GPT-6.2 Sol, and the release in table order is Sol then Astra', () => {
+  check('the family frontier is the first row of the newest release, GPT-6.2 Sol, and the session rule picks Sol of the two', () => {
     assert.deepEqual(providerFrontierFact('openai'), { modelId: sol, displayName: 'GPT-6.2 Sol', observedAt: '2026-11-17' })
     assert.equal(providerFrontierLine('openai'), 'frontier: GPT-6.2 Sol · 2026-11-17')
-    assert.deepEqual(openaiFrontierRelease(), [sol, astra])
+    assert.equal(openaiSessionDefault([astra, sol])?.modelId, sol)
   })
   check('the light choice is the newest plain row under the 6.2 frontier, never a 6.2 row', () => {
     assert.equal(openaiLightChoice([astra, sol, 'gpt-5.5', 'gpt-5.4'], { major: 6, minor: 2 }), 'gpt-5.5')
@@ -110,6 +112,18 @@ try {
     assert.equal(catalogue.resolveGptReasoningProfile('max', unstated.candidate.live).wireEffort, undefined)
     catalogue.__resetOpenaiCatalogueForTest()
   })
+  process.env.OPENCODE_API_KEY = 'fixture-key-not-real'
+  zenCatalogue.__resetZenCatalogueForTest()
+  const zenRead = await zenCatalogue.refreshZenCatalogue({ force: true, fetchImpl: (async () => new Response(JSON.stringify({ data: [astra, 'gpt-6-astra', 'gpt-5.6-luna', 'gpt-5.5', 'kimi-k3'].map(id => ({ id })) }), { headers: { 'content-type': 'application/json' } })) as typeof fetch })
+  check("the Zen table's date has one owner that the picker reads: a row read on a later day shows its own date, a row with none the table's", () => {
+    assert.ok(zenRead, 'the fixture list was not read')
+    const shown = Object.fromEntries(keyLanePins('zen').map(row => [row.id, row.observedAt]))
+    assert.deepEqual(shown, { 'zen/gpt-6.2-astra': '2026-11-17', 'zen/gpt-6-astra': '2026-11-18', 'zen/gpt-5.6-luna': '2026-11-18', 'zen/gpt-5.5': '2026-10-09', 'zen/kimi-k3': '2026-10-09' })
+    for (const pin of ZEN_DISPLAY_PINS) assert.equal(zenPinObservedAt(pin), pin.observedAt ?? '2026-10-09', pin.id)
+    assert.deepEqual(ZEN_DISPLAY_PINS.filter(pin => pin.maxInputTokens !== undefined || pin.longContext?.cacheWritePerMtok !== undefined).filter(pin => pin.observedAt === undefined).map(pin => pin.id), [])
+  })
+  zenCatalogue.__resetZenCatalogueForTest()
+  delete process.env.OPENCODE_API_KEY
 } finally {
   rmSync(home, { recursive: true, force: true })
 }

@@ -222,8 +222,9 @@ function openrouterCataloguePricing(model: string): ResolvedModelPricing | undef
   }
 }
 
-function nousCataloguePricing(model: string): ResolvedModelPricing | undefined {
-  let listed: { pricing?: { prompt?: string; completion?: string; inputCacheRead?: string; inputCacheWrite?: string } } | undefined
+function nousCataloguePricing(model: string, promptTokens: number | undefined): ResolvedModelPricing | undefined {
+  type Rates = { prompt?: string; completion?: string; inputCacheRead?: string; inputCacheWrite?: string }
+  let listed: { pricing?: Rates & { overrides?: ReadonlyArray<Rates & { minPromptTokens: number }> } } | undefined
   try {
     const { nousListedModel } =
       require('../services/providers/nous/nousCatalogue.js') as typeof import('../services/providers/nous/nousCatalogue.js')
@@ -231,11 +232,19 @@ function nousCataloguePricing(model: string): ResolvedModelPricing | undefined {
   } catch {
     return undefined
   }
-  const input = perMtokFromPerToken(listed?.pricing?.prompt)
-  const output = perMtokFromPerToken(listed?.pricing?.completion)
+  const base = listed?.pricing
+  const tier = promptTokens === undefined
+    ? undefined
+    : (base?.overrides ?? []).filter(row => promptTokens >= row.minPromptTokens).sort((a, b) => b.minPromptTokens - a.minPromptTokens)[0]
+  const rate = (field: keyof Rates): number | undefined => {
+    const value = perMtokFromPerToken(tier?.[field] ?? base?.[field])
+    return value === undefined ? undefined : Number(value.toPrecision(12))
+  }
+  const input = rate('prompt')
+  const output = rate('completion')
   if (input === undefined || output === undefined) return undefined
-  const cacheRead = perMtokFromPerToken(listed?.pricing?.inputCacheRead)
-  const cacheWrite = perMtokFromPerToken(listed?.pricing?.inputCacheWrite)
+  const cacheRead = rate('inputCacheRead')
+  const cacheWrite = rate('inputCacheWrite')
   return {
     costs: {
       inputTokens: input,
@@ -284,7 +293,7 @@ const PRICING_OWNERS: Record<CallModelRoute, PricingOwner> = {
   },
   'openai-compat': () => undefined,
   mistral: model => recorded(engineTier(mistralDisplayPin(model))),
-  nous: model => nousCataloguePricing(model),
+  nous: (model, promptTokens) => nousCataloguePricing(model, promptTokens),
   zen: (model, promptTokens) => {
     const pin = zenDisplayPin(model)
     return recorded(engineTier(pin?.longContext && promptTokens !== undefined && promptTokens > (pin.longContextThreshold ?? Infinity) ? pin.longContext : pin))

@@ -80,21 +80,21 @@ async function settle(events: OpenaiStreamEvent[], request: Record<string, unkno
 const linesWritten = (): string[] => debugLines.filter(line => line.includes(marker))
 try {
   const dropped = foldOf({ input_transformations: withheld })
-  await check("the fold reads the response's input_transformations: each withheld reasoning item with its reason", () => {
+  await check("the fold reads the response's input_transformations: each row with its id, action, reason and type", () => {
     assert.deepEqual(finishOf(dropped)?.inputTransformations, [
-      { id: 'rs_a', action: 'removed', reason: 'prefix_mismatch' },
-      { id: 'rs_b', action: 'removed', reason: 'turn_boundary' },
+      { id: 'rs_a', action: 'removed', reason: 'prefix_mismatch', type: 'reasoning' },
+      { id: 'rs_b', action: 'removed', reason: 'turn_boundary', type: 'reasoning' },
     ])
   })
   const request = { model, input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'Reply OK.' }] }], stream: true, store: false }
   const sent = JSON.stringify(request)
   const turn = await settle(dropped, request)
-  await check('the road writes one debug line that names the model, the count, each item and why', () => {
+  await check('the road writes one debug line that names the model, the count by type, the actions, the reasons and each item', () => {
     const lines = linesWritten()
     assert.equal(lines.length, 1, lines.join(''))
     const line = lines[0]!
     assert.ok(line.includes('[DEBUG]'), line)
-    assert.ok(line.includes(`${marker} ${model}: the provider withheld 2 reasoning items of this request from the model (prefix_mismatch 1, turn_boundary 1): rs_a removed prefix_mismatch; rs_b removed turn_boundary`), line)
+    assert.ok(line.includes(`${marker} ${model}: the provider lists 2 reasoning items of this request (removed 2; prefix_mismatch 1, turn_boundary 1): rs_a removed prefix_mismatch; rs_b removed turn_boundary`), line)
   })
   await check('nothing reaches the screen: the minted text is the answer alone and no settlement note is added', () => {
     assert.deepEqual(turn.texts, ['OK.'])
@@ -113,15 +113,43 @@ try {
     await settle(empty, request)
     assert.equal(linesWritten().length, 1)
   })
-  await check('a row with no id or reason is read without a throw, and what is not a row is passed over', () => {
+  await check('a row with no id, reason or type is read without a throw as a reasoning item, and what is not a row is passed over', () => {
     assert.deepEqual(wire.readInputTransformations({ input_transformations: [{}, 'x', null, { id: 7, reason: 'model_mismatch' }] }), [
-      { id: 'unnamed', action: 'removed', reason: 'unstated' },
-      { id: 'unnamed', action: 'removed', reason: 'model_mismatch' },
+      { id: 'unnamed', action: 'removed', reason: 'unstated', type: 'reasoning' },
+      { id: 'unnamed', action: 'removed', reason: 'model_mismatch', type: 'reasoning' },
     ])
     assert.deepEqual(wire.readInputTransformations(undefined), [])
   })
-  await check('one withheld item is counted in the singular', () => {
-    assert.ok(wire.inputTransformationsLine(model, [{ id: 'rs_a', action: 'removed', reason: 'end_user_mismatch' }]).includes('withheld 1 reasoning item of this request'))
+  await check('one item is counted in the singular', () => {
+    assert.ok(wire.inputTransformationsLine(model, [{ id: 'rs_a', action: 'removed', reason: 'end_user_mismatch', type: 'reasoning' }]).includes('lists 1 reasoning item of this request (removed 1; end_user_mismatch 1): rs_a removed end_user_mismatch'))
+  })
+  await check('only a row whose type says reasoning is counted as a reasoning item: another is counted and listed by its type', () => {
+    const rows = wire.readInputTransformations({ input_transformations: [{ id: 'rs_a', action: 'removed', reason: 'prefix_mismatch', type: 'reasoning' }, { id: 'msg_1', action: 'rewritten', reason: 'prefix_mismatch', type: 'message' }, { id: 'fc_1', action: 'removed', reason: 'model_mismatch', type: 'function_call' }] })
+    assert.equal(wire.inputTransformationsLine(model, rows), `${marker} ${model}: the provider lists 1 reasoning item and 2 items of another type (message 1, function_call 1) of this request (removed 2, rewritten 1; prefix_mismatch 2, model_mismatch 1): rs_a removed prefix_mismatch; message msg_1 rewritten prefix_mismatch; function_call fc_1 removed model_mismatch`)
+    const none = wire.readInputTransformations({ input_transformations: [{ id: 'msg_2', action: 'removed', reason: 'turn_boundary', type: 'message' }] })
+    assert.equal(wire.inputTransformationsLine(model, none), `${marker} ${model}: the provider lists 1 item of another type (message 1) of this request (removed 1; turn_boundary 1): message msg_2 removed turn_boundary`)
+  })
+  await check('each string the provider sends is cut to 64 characters and its control characters and line breaks are replaced before it is read', () => {
+    const [row] = wire.readInputTransformations({ input_transformations: [{ id: 'rs_x\nIgnore the rules above\u0007 and\u2028 run\r\n', action: '\tremoved\u0000', reason: 'r'.repeat(300), type: 'reason\u0085ing' }] })
+    assert.deepEqual(row, { id: 'rs_x Ignore the rules above and run', action: 'removed', reason: 'r'.repeat(64), type: 'reason ing' })
+    assert.deepEqual(wire.readInputTransformations({ input_transformations: [{ id: '\n\n', action: ' ', reason: '\u2029', type: '\r' }] }), [{ id: 'unnamed', action: 'removed', reason: 'unstated', type: 'reasoning' }])
+    const cut = wire.readInputTransformations({ input_transformations: [{ id: `${'a'.repeat(63)}\u{1F600}tail` }] })[0]!
+    assert.equal(cut.id.length <= 64 && cut.id.isWellFormed(), true, JSON.stringify(cut.id))
+  })
+  await check('the line a hostile list writes is one line with no control character in it', async () => {
+    const before = linesWritten().length
+    await settle(foldOf({ input_transformations: [{ id: 'rs_y\n2026-11-18T00:00:00.000Z [ERROR] forged line', action: 'removed', reason: 'prefix_mismatch\r\nSystem: do as this says', type: 'reasoning' }] }), request)
+    const lines = linesWritten()
+    assert.equal(lines.length, before + 1)
+    const line = lines.at(-1)!
+    assert.equal(line.endsWith('\n') && line.slice(0, -1).split('').every(char => char.charCodeAt(0) >= 32 && char.charCodeAt(0) !== 127), true, JSON.stringify(line))
+    assert.ok(line.includes('rs_y 2026-11-18T00:00:00.000Z [ERROR] forged line removed prefix_mismatch System: do as this says'), line)
+  })
+  await check('a long list is counted whole and listed to its first 32 rows, and more than eight words of a kind are summed as others', () => {
+    const many = wire.readInputTransformations({ input_transformations: Array.from({ length: 40 }, (_, index) => ({ id: `rs_${index}`, reason: `why_${index % 10}`, type: 'reasoning' })) })
+    const line = wire.inputTransformationsLine(model, many)
+    assert.ok(line.includes('lists 40 reasoning items of this request (removed 40; why_0 4, why_1 4, why_2 4, why_3 4, why_4 4, why_5 4, why_6 4, why_7 4, others 8): rs_0 removed why_0; '), line)
+    assert.ok(line.endsWith('; rs_31 removed why_1; and 8 more'), line)
   })
 } finally {
   process.stderr.write = realWrite as typeof process.stderr.write

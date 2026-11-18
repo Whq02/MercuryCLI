@@ -284,7 +284,7 @@ function pickerRowFor(family: string, rows: ModelOption[] | null): LaneRowVerdic
     const { isProviderActionRow } = require('./modelOptions.js') as typeof import('./modelOptions.js')
     const { declaredRouteOf } =
       require('../../services/providers/routeLaw.js') as typeof import('../../services/providers/routeLaw.js')
-    const { providerFrontierFact, openaiFrontierRelease } =
+    const { providerFrontierFact, openaiSessionDefault } =
       require('./providerFrontier.js') as typeof import('./providerFrontier.js')
     const { normalizeModelStringForAPI } = require('./model.js') as typeof import('./model.js')
     const familyRows = rows.filter(
@@ -308,11 +308,12 @@ function pickerRowFor(family: string, rows: ModelOption[] | null): LaneRowVerdic
       if (gate !== null && !gate.allowed) return { usable: false, why: gate.reason }
       return { usable: false, why: 'no selectable row in the catalogue yet', unfetched: true }
     }
-    const fact = providerFrontierFact(family as CallModelRoute)
     const sameId = (value: string, id: string): boolean =>
       normalizeModelStringForAPI(value).toLowerCase() === normalizeModelStringForAPI(id).toLowerCase()
-    const wanted = family === 'openai' ? openaiFrontierRelease() : fact !== undefined ? [fact.modelId] : []
-    const preferred = wanted.map(id => selectable.find(option => sameId(option.value as string, id))).find(row => row !== undefined)
+    const fact = family === 'openai'
+      ? openaiSessionDefault(selectable.map(option => normalizeModelStringForAPI(option.value as string).toLowerCase()))
+      : providerFrontierFact(family as CallModelRoute)
+    const preferred = fact !== undefined ? selectable.find(option => sameId(option.value as string, fact.modelId)) : undefined
     const { newestGeminiGenerationFirst, geminiGeneration } =
       require('../../services/providers/gemini/geminiCatalogue.js') as typeof import('../../services/providers/gemini/geminiCatalogue.js')
     const byGeneration = newestGeminiGenerationFirst(selectable, option => normalizeModelStringForAPI(option.value as string))
@@ -321,7 +322,7 @@ function pickerRowFor(family: string, rows: ModelOption[] | null): LaneRowVerdic
     const pick = preferred ?? newest
     const why =
       preferred !== undefined && fact !== undefined
-        ? `the newest row this sign-in can use (the recorded frontier${fact.observedAt !== undefined ? `, ${fact.observedAt}` : ''})`
+        ? `the newest row this sign-in can use (the recorded ${family === 'openai' ? 'release' : 'frontier'}${fact.observedAt !== undefined ? `, ${fact.observedAt}` : ''})`
         : generationKnown
           ? "the newest generation this sign-in can use (by the id's version, then the catalogue's order)"
           : "the first row this sign-in can use (the catalogue's own order)"

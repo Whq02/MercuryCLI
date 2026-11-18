@@ -23,6 +23,7 @@
 # gate-watch: src/utils/* src/utils/accounts/signInLedger.ts
 # gate-watch: src/utils/messages/apiView.ts
 # gate-watch: src/utils/messages/attachmentText.ts src/utils/settings/types.ts
+# gate-watch: src/tools/ContextLeftTool/ContextLeftTool.ts src/utils/settings/settingsCache.ts
 # gate-watch: scripts/lib/crossfamilyConcourseFixture.ts src/services/compact/compact.ts
 # gate-watch: scripts/lib/builtProduct.ts
 set -u

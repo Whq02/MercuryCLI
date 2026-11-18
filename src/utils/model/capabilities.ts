@@ -935,10 +935,21 @@ export function getContextWindowForModel(
   return resolveContextWindow(model, betas).effectiveWindow
 }
 
-export function getModelInputCeiling(model: string, window: number): number {
-  const pin = gptDisplayPin(model)
-  if (pin?.maxInputTokens === undefined || pin.contextWindow !== window) return window
-  return Math.min(pin.maxInputTokens, window)
+function statedInputMaximum(model: string, source: ContextResolution['source']): number | undefined {
+  if (source === 'operator') return undefined
+  const id = normalizeForEnginePins(model)
+  if (declaredRouteOf(model) === 'nous') {
+    const openaiId = /^nous\/openai\/(.+)$/.exec(id)?.[1]
+    return openaiId === undefined ? undefined : gptDisplayPin(openaiId)?.maxInputTokens
+  }
+  if (source !== 'static-pin') return undefined
+  return isZenModelId(id) ? zenDisplayPin(id)?.maxInputTokens : gptDisplayPin(id)?.maxInputTokens
+}
+
+export function getModelInputCeiling(model: string, betas?: string[]): number {
+  const resolution = resolveContextWindow(model, betas)
+  const stated = statedInputMaximum(model, resolution.source)
+  return stated === undefined ? resolution.effectiveWindow : Math.min(stated, resolution.effectiveWindow)
 }
 
 function baseGetModelMaxOutputTokens(model: string): {
