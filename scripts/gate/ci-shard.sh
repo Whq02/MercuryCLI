@@ -178,14 +178,21 @@ mkdir -p "$OUT"
 
 shard_temp="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
 shard_temp="${shard_temp%/}"
-ambient_home="${MERCURY_CONFIG_DIR:-$(mktemp -d "$shard_temp/mercury-proof-home.XXXXXX")}"
+new_home() {
+  mktemp -d "$shard_temp/mercury-proof-home.XXXXXX"
+}
+seed_home() {
+  "${BUN:-$HOME/.bun/bin/bun}" run scripts/lib/firstRunSeed.ts "$1" "$(pwd)"
+}
+ambient_home="${MERCURY_CONFIG_DIR:-$(new_home)}"
 export MERCURY_CONFIG_DIR="$ambient_home"
-"${BUN:-$HOME/.bun/bin/bun}" run scripts/lib/firstRunSeed.ts "$ambient_home" "$(pwd)"
+seed_home "$ambient_home"
 
 dead_letter_dir=$(mktemp -d "$shard_temp/mercury-dead-letter.XXXXXX")
 /usr/bin/python3 scripts/gate/dead-letter.py "$dead_letter_dir/port" &
 dead_letter_pid=$!
 shard_compile_cache=""
+retry_home=""
 end_suite_in_flight() {
   local child n
   for child in $(pgrep -P $$ 2>/dev/null); do
@@ -195,7 +202,7 @@ end_suite_in_flight() {
     while kill -0 "$child" 2>/dev/null && [ "$n" -lt 100 ]; do sleep 0.1; n=$((n + 1)); done
   done
 }
-trap 'end_suite_in_flight; kill "$dead_letter_pid" 2>/dev/null; rm -rf "$dead_letter_dir" ${shard_compile_cache:+"$shard_compile_cache"}' EXIT
+trap 'end_suite_in_flight; kill "$dead_letter_pid" 2>/dev/null; rm -rf "$dead_letter_dir" ${shard_compile_cache:+"$shard_compile_cache"} ${retry_home:+"$retry_home"}' EXIT
 for _tick in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
   [ -s "$dead_letter_dir/port" ] && break
   sleep 0.5
@@ -272,7 +279,11 @@ for dom in ${MINE[@]+"${MINE[@]}"}; do
   elif [ "$rc" -ne 0 ]; then
     printf '  ⚠  %-18s RED (rc %s, %ss) — recorded solo re-run, once…\n' "$dom" "$rc" "$secs"
     mkdir -p "$OUT/retry"
-    bash scripts/gate/run-suite.sh "$SUITES_DIR/$dom/run-all.sh" "$(budget_of "$dom")" "$OUT/retry" "$(budget_note_of "$dom")" fixed >/dev/null 2>&1
+    retry_home=$(new_home)
+    seed_home "$retry_home"
+    MERCURY_CONFIG_DIR="$retry_home" bash scripts/gate/run-suite.sh "$SUITES_DIR/$dom/run-all.sh" "$(budget_of "$dom")" "$OUT/retry" "$(budget_note_of "$dom")" fixed >/dev/null 2>&1
+    [ -n "$retry_home" ] && rm -rf "$retry_home"
+    retry_home=""
     retry_rc=$(cat "$OUT/retry/$dom.rc" 2>/dev/null || echo 1)
     retry_secs=$(cat "$OUT/retry/$dom.secs" 2>/dev/null || echo 0)
     case "$retry_rc" in ('' | *[!0-9]*) retry_rc=1 ;; esac
