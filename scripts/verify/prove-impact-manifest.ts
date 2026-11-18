@@ -279,6 +279,10 @@ section('§4 a planted estate: what a suite\'s proofs touch wakes it, with no he
   w('scripts/lib/builtProduct.ts', "export const builtCli = (): string => 'dist/mercury.mjs'\n")
   w('scripts/built/run-all.sh', runner('', each))
   w('scripts/built/prove-built.ts', "import { builtCli } from '../lib/builtProduct.ts'\nconsole.log(builtCli())\n")
+  w('scripts/lister/run-all.sh', runner('', each))
+  w('scripts/lister/prove-lister.ts', ["import { readdirSync, readFileSync } from 'node:fs'", ...head, "const texts = (sub: string): string[] => readdirSync(join(ROOT, sub)).map(f => readFileSync(join(ROOT, sub, f), 'utf8'))", "console.log(texts('src/keys').length)", ''].join('\n'))
+  w('scripts/pyrun/run-all.sh', runner('', '/usr/bin/python3 "$here/prove-py.py"\n'))
+  w('scripts/pyrun/prove-py.py', ['import os', 'import subprocess', 'REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))', "CHILD = os.path.join(REPO, 'scripts', 'lib', 'child.ts')", "page = open(os.path.join(REPO, 'docs', 'page.md')).read()", "ran = subprocess.run(['bun', 'run', CHILD], cwd=REPO)", ''].join('\n'))
   w('scripts/blind/run-all.sh', runner('# gate-watch: src/hidden/**\n', each))
   w(
     'scripts/blind/prove-blind.ts',
@@ -288,7 +292,7 @@ section('§4 a planted estate: what a suite\'s proofs touch wakes it, with no he
       ...head,
       'const name = process.argv[2]',
       "const late = await import(join(ROOT, 'src', 'hidden', `${name}.ts`))",
-      "const built = readFileSync(join(ROOT, 'src', 'hidden', name + '.ts'), 'utf8')",
+      "const built = readFileSync(join(ROOT, name), 'utf8')",
       "const tool = spawnSync('true', [])",
       "const git = spawnSync('git', ['status'])",
       "const bundle = spawnSync(process.execPath, [join(ROOT, 'dist', 'mercury.mjs'), '--version'])",
@@ -307,14 +311,16 @@ section('§4 a planted estate: what a suite\'s proofs touch wakes it, with no he
     built: ['scripts/built/prove-built.ts', 'scripts/lib/builtProduct.ts', SOURCED, 'src/cli/run.ts', 'src/main.tsx'],
     child: ['scripts/child/prove-child.ts', 'scripts/lib/child.ts', SOURCED, 'src/gamma/g.ts'],
     handed: ['scripts/handed/prove-handed.ts', SOURCED, 'src/beta/b.ts'],
+    lister: [SOURCED, 'scripts/lister/prove-lister.ts', 'src/keys/one.ts', 'src/keys/two.ts'],
     named: ['docs/page.md', SOURCED, 'scripts/named/prove-named.ts', 'src/keys/one.ts'],
+    pyrun: ['docs/page.md', 'scripts/lib/child.ts', SOURCED, 'scripts/pyrun/prove-py.py', 'src/gamma/g.ts'],
     template: [SOURCED, 'scripts/template/prove-template.ts', 'src/alpha/a.ts'],
     'template-drives': [SOURCED, 'scripts/template-drives/members.txt', 'scripts/template/prove-drive.ts', 'src/beta/b.ts'],
     walked: [SOURCED, 'scripts/walked/prove-walked.ts', 'src/keys/one.ts', 'src/keys/two.ts'],
   }
   const listOf = (map: Record<string, string[]>): string => Object.keys(map).sort().map(suite => `${suite}: ${map[suite]!.join(' ')}`).join(' · ')
   check(
-    "the computed list of a suite holds what its proofs touch: an import on a template, a path handed to a helper, a child script and what it imports, a name read as text, a walked folder, what the runner sources, a twin's member in its parent's folder, and the two entry files for a proof that runs the bundle through scripts/lib/builtProduct.ts",
+    "the computed list of a suite holds what its proofs touch: an import on a template, a path handed to a helper, a child script and what it imports, a name read as text, a walked folder, what the runner sources, a twin's member in its parent's folder, the two entry files for a proof that runs the bundle through scripts/lib/builtProduct.ts, for a Python member the script it starts through subprocess with what that script imports, and every file of a folder handed to a helper that lists it and opens what it lists",
     listOf(computed) === listOf(want),
     `seen ${listOf(computed)} · want ${listOf(want)}`,
   )
@@ -339,6 +345,11 @@ section('§4 a planted estate: what a suite\'s proofs touch wakes it, with no he
     ['template-drives', 'src/beta/b.ts'],
     ['built', 'src/main.tsx'],
     ['built', 'src/cli/run.ts'],
+    ['pyrun', 'scripts/lib/child.ts'],
+    ['pyrun', 'src/gamma/g.ts'],
+    ['pyrun', 'docs/page.md'],
+    ['lister', 'src/keys/one.ts'],
+    ['lister', 'src/keys/two.ts'],
   ]
   const asleep = TOUCHED.filter(([suite, path]) => claimants(hand, path).includes(suite)).map(([suite, path]) => `${suite} ${path}`)
   check('the hand map alone wakes none of these suites for the file its proof touches (the header holds no line for it)', asleep.length === 0, asleep.join(' · '))
@@ -347,7 +358,7 @@ section('§4 a planted estate: what a suite\'s proofs touch wakes it, with no he
   const hidden = selectImpact(both, ['src/hidden/h.ts'])
   const deep = selectImpact(both, ['src/alpha/deep.ts'])
   check(
-    'a file out of sight (a name built at run time) and a file one import into src are in no computed list: the hand line of the header claims each, and the selection does not name them as computed',
+    'a file out of sight (an import on a name built at run time) and a file one import into src are in no computed list: the hand line of the header claims each, and the selection does not name them as computed',
     !computed.blind!.includes('src/hidden/h.ts') && !computed.template!.includes('src/alpha/deep.ts') && claimants(both, 'src/hidden/h.ts').join() === 'blind' && claimants(both, 'src/alpha/deep.ts').join() === 'template' && hidden.computed.size === 0 && deep.computed.size === 0,
     `${claimants(both, 'src/hidden/h.ts').join()} · ${claimants(both, 'src/alpha/deep.ts').join()} · computed ${[...hidden.computed, ...deep.computed].join()}`,
   )

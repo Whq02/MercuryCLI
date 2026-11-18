@@ -39,10 +39,10 @@ export type Hit = { line: number; file: string }
 type Name = Hit & { asText: boolean }
 type Src = { files: Map<string, string>; folders: Set<string>; names: Set<string>; parts: Set<string> }
 export type Estate = { scripts: string[]; src: Src; listed: boolean }
-export type Facts = { pins: Map<string, number>; events: string[]; searches: Hit[]; namesOnly: Map<string, number>; folder: boolean; fragment: boolean; childText: boolean; shell: boolean; spent: boolean }
+export type Facts = { pins: Map<string, number>; events: string[]; searches: Hit[]; namesOnly: Map<string, number>; folder: boolean; fragment: boolean; listed: Map<string, number>; childText: boolean; shell: boolean; spent: boolean }
 type Value = { paths: string[]; text: string[] }
 type Env = Map<ts.Node, Value>
-type Cx = { root: string; src: Src; modules: ModuleCache; sf: ts.SourceFile; pins: Map<string, number>; events: Set<string>; searches: Hit[]; helpers: Set<ts.FunctionLikeDeclaration>; entered: Set<ts.Node>; stack: Set<ts.Node>; valuing: Set<ts.Node>; fills: Map<ts.Node, ts.Expression[]>; walked: Map<ts.Node, Map<string, Array<{ file: string; search: boolean }>>>; log: Array<{ file: string; search: boolean }>; steps: number; fragment: boolean }
+type Cx = { root: string; src: Src; modules: ModuleCache; sf: ts.SourceFile; pins: Map<string, number>; events: Set<string>; searches: Hit[]; helpers: Set<ts.FunctionLikeDeclaration>; entered: Set<ts.Node>; stack: Set<ts.Node>; valuing: Set<ts.Node>; fills: Map<ts.Node, ts.Expression[]>; walked: Map<ts.Node, Map<string, Array<{ file: string; search: boolean }>>>; log: Array<{ file: string; search: boolean }>; steps: number; fragment: boolean; line: number; listed: Map<string, number> }
 
 const KNOWN = { decls: new WeakMap<ts.Identifier, ts.Node | null>(), fns: new WeakMap<ts.CallExpression, ts.FunctionLikeDeclaration | null>(), paths: new WeakMap<ts.Node, string[]>(), text: new WeakMap<ts.Node, string[]>(), inert: new WeakMap<ts.Node, boolean>(), pathsIn: new WeakMap<Env, Map<ts.Node, string[]>>(), textIn: new WeakMap<Env, Map<ts.Node, string[]>>() }
 
@@ -329,7 +329,10 @@ function fileNamed(cx: Cx, path: string): string | undefined {
     const file = cx.src.files.get(segs.slice(i).join('/').toLowerCase())
     if (file !== undefined) return file
     const hole = segs.findIndex((s, k) => k > i && s.includes(UNKNOWN))
-    if (hole > i + 1 && cx.src.folders.has(segs.slice(i, hole).join('/').toLowerCase())) cx.fragment = true
+    const held = hole > i + 1 ? segs.slice(i, hole).join('/').toLowerCase() : ''
+    if (held === '' || !cx.src.folders.has(held)) continue
+    cx.fragment = true
+    if (!cx.listed.has(held)) cx.listed.set(held, cx.line)
   }
   const rest = segs[0] === UNKNOWN ? segs.slice(1) : []
   return rest.length >= 2 && !rest.some(s => s.toLowerCase() === 'src') ? cx.src.files.get(`src/${rest.join('/')}`.toLowerCase()) : undefined
@@ -678,6 +681,7 @@ function walk(cx: Cx, node: ts.Node, env: Env, at: number | undefined, depth: nu
     }
     if (ts.isCallExpression(n)) {
       const line = at ?? cx.sf.getLineAndCharacterOfPosition(n.getStart(cx.sf)).line + 1
+      cx.line = line
       for (const file of openedBy(cx, n, env)) pin(cx, file, line)
       const callee = unwrap(n.expression)
       if (ts.isPropertyAccessExpression(callee)) {
@@ -701,7 +705,7 @@ function walk(cx: Cx, node: ts.Node, env: Env, at: number | undefined, depth: nu
 function codeFacts(root: string, src: Src, modules: ModuleCache, script: string): Facts {
   const { sf } = parseSource(root, join(root, script))
   const { names, folder, childText } = codeNames(sf, src)
-  const cx: Cx = { root, src, modules, sf, pins: new Map(), events: new Set(), searches: [], helpers: new Set(), entered: new Set(), stack: new Set(), valuing: new Set(), fills: new Map(), walked: new Map(), log: [], steps: 0, fragment: false }
+  const cx: Cx = { root, src, modules, sf, pins: new Map(), events: new Set(), searches: [], helpers: new Set(), entered: new Set(), stack: new Set(), valuing: new Set(), fills: new Map(), walked: new Map(), log: [], steps: 0, fragment: false, line: 0, listed: new Map() }
   for (const n of names) if (n.asText) pin(cx, n.file, n.line)
   walk(cx, sf, new Map(), undefined, 0)
   for (const fn of cx.helpers) {
@@ -711,14 +715,14 @@ function codeFacts(root: string, src: Src, modules: ModuleCache, script: string)
   }
   const namesOnly = new Map<string, number>()
   for (const n of names) if (!cx.pins.has(n.file) && !namesOnly.has(n.file)) namesOnly.set(n.file, n.line)
-  return { pins: cx.pins, events: [...cx.events], searches: cx.searches, namesOnly, folder, fragment: cx.fragment, childText, shell: false, spent: cx.steps > STEPS }
+  return { pins: cx.pins, events: [...cx.events], searches: cx.searches, namesOnly, folder, fragment: cx.fragment, listed: cx.listed, childText, shell: false, spent: cx.steps > STEPS }
 }
 
 function shellFacts(text: string, src: Src): Facts {
   const hits = textReads(text, src)
   const pins = new Map<string, number>()
   for (const h of hits) if (!pins.has(h.file)) pins.set(h.file, h.line)
-  return { pins, events: hits.map(h => `${h.line} ${h.file}`), searches: hits, namesOnly: new Map(), folder: false, fragment: false, childText: false, shell: true, spent: false }
+  return { pins, events: hits.map(h => `${h.line} ${h.file}`), searches: hits, namesOnly: new Map(), folder: false, fragment: false, listed: new Map(), childText: false, shell: true, spent: false }
 }
 
 export function factsOf(root: string, estate: Estate): { facts: Map<string, Facts>; read: number; aside: number } {

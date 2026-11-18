@@ -324,6 +324,12 @@ function plantedEstate(): void {
     read === planted.length - 3 && aside === 2 && holds('scripts/a/out-of-reach.ts') && far?.folder === true && far.fragment === true && far.childText === true && !facts.has('scripts/a/list.txt') && !facts.has('scripts/a/notes.md') && !facts.has('scripts/a/packed.bin'),
     `${differs('scripts/a/out-of-reach.ts')} · folder ${far?.folder} · run-time name ${far?.fragment} · child program ${far?.childText} · read ${read} · aside ${aside}`,
   )
+  const listed = (file: string): string => [...(facts.get(file)?.listed ?? [])].map(([folder, line]) => `${folder}:${line}`).join(' ')
+  check(
+    'a script that opens files of a folder under src by a name made at run time (a listing, a name put together) is kept with the folder and the line of the first such read; a script that opens only files it names keeps none',
+    listed('scripts/a/out-of-reach.ts') === 'src/planted:2' && listed(PINS) === '' && listed('scripts/a/prove-closed.ts') === '',
+    `${listed('scripts/a/out-of-reach.ts')} · ${listed(PINS)} · ${listed('scripts/a/prove-closed.ts')}`,
+  )
   const rows = rowsOf(facts)
   const text = render(rows)
   const table = tableOf(text)
@@ -395,9 +401,12 @@ function readersOf(facts: Map<string, Facts>, files: string[]): void {
   for (const file of files) {
     const opens = [...facts].filter(([, f]) => f.pins.has(file)).sort(byName)
     const names = [...facts].filter(([, f]) => f.namesOnly.has(file)).sort(byName)
-    console.log(`\n  ${file}: ${opens.length} scripts open it as text · ${names.length} only name it`)
+    const folder = dirname(file)
+    const lists = [...facts].filter(([, f]) => f.listed.has(folder.toLowerCase()) && !f.pins.has(file)).sort(byName)
+    console.log(`\n  ${file}: ${opens.length} scripts open it as text · ${names.length} only name it · ${lists.length} open files of its folder by a name made at run time`)
     for (const [script, f] of opens) console.log(`    opens  ${script}:${f.pins.get(file)} · ${f.searches.filter(hit => hit.file === file).length} searches in it`)
     for (const [script, f] of names) console.log(`    names  ${script}:${f.namesOnly.get(file)}`)
+    for (const [script, f] of lists) console.log(`    lists  ${folder} at ${script}:${f.listed.get(folder.toLowerCase())}`)
   }
 }
 
@@ -440,7 +449,7 @@ const count = (of: (f: Facts) => boolean): number => [...facts.values()].filter(
 const totals = { pins: sum(f => f.pins.size), searches: sum(f => (f.pins.size > 0 ? f.searches.length : 0)), namesOnly: sum(f => f.namesOnly.size) }
 const text = existsSync(join(ROOT, TABLE)) ? readFileSync(join(ROOT, TABLE), 'utf8') : null
 const table = text === null ? null : tableOf(text)
-const REACH = `the fence reads scripts/ and counts files under src/: a test in another folder and source outside src/ are not read. Out of reach, with the scripts that do it today: a folder under src that is walked, globbed or searched by a tool, or the base of a name built at run time (${count(f => f.folder)} name one); a name under src assembled at run time (${count(f => f.fragment)} read one); a search in a shell or Python script, where every name counts as opened and every line that names a file as one search (${count(f => f.shell && f.pins.size > 0)}); a text import spelled in the text of a child program (${count(f => f.childText)}); a script whose helper calls outrun the ${STEPS} steps the reader follows them for (${count(f => f.spent)}); a list kept in a data file or a document (${aside} such files name a src file); and with no count a path that arrives from outside the file, a copy of the tree under a named folder, a search by another method than includes, indexOf, match, search, split, startsWith, endsWith, test and exec, and more needles handed to one call`
+const REACH = `the fence reads scripts/ and counts files under src/: a test in another folder and source outside src/ are not read. Out of reach, with the scripts that do it today: a folder under src that is walked, globbed or searched by a tool, or the base of a name built at run time (${count(f => f.folder)} name one); a name under src assembled at run time (${count(f => f.fragment)} read one; --readers prints each for a file of the folder it reads in); a search in a shell or Python script, where every name counts as opened and every line that names a file as one search (${count(f => f.shell && f.pins.size > 0)}); a text import spelled in the text of a child program (${count(f => f.childText)}); a script whose helper calls outrun the ${STEPS} steps the reader follows them for (${count(f => f.spent)}); a list kept in a data file or a document (${aside} such files name a src file); and with no count a path that arrives from outside the file, a copy of the tree under a named folder, a search by another method than includes, indexOf, match, search, split, startsWith, endsWith, test and exec, and more needles handed to one call`
 const REPAIR = `${INSTEAD}; a row is written only when it falls, leaves, holds other files or moves with its file (git mv, then bun ${SELF} --write)`
 console.log(`  ${estate.scripts.length} files under scripts · ${read} read (code by its syntax tree, shell and Python by the line; data files, documents and binary files aside) · ${estate.src.files.size} files under src · ${rows.size} scripts open a src file as text · ${totals.pins} files opened · ${totals.searches} searches · ${totals.namesOnly} names only`)
 const low = floor(estate, read)

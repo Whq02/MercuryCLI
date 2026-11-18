@@ -32,6 +32,8 @@ const TOKEN = /(?<![A-Za-z0-9_@./-])(?:[A-Za-z0-9_@.-]+\/)+[A-Za-z0-9_@.*-]+/g
 const WHOLE = /^(?:(src|scripts)\/)?\*\*(?:\/.*)?$/
 const RUNNER = /^scripts\/[^/]+\/run-all\.sh$/
 const SOURCED = /^(?:\.|source)\s/
+const PY_SPAWNS = /\b(?:subprocess\.(?:run|Popen|call|check_call|check_output)|os\.(?:system|popen|exec[a-z]*|spawn[a-z]*))\s*\(/
+const PY_JOIN = /\bjoin\(\s*([A-Za-z_][\w.]*)\s*((?:,\s*['"][^'"\s]+['"])+)\s*\)/g
 const EAGER = new Set<EdgeKind>(['import', 'run'])
 const VALUE = new Set<EdgeKind>(['import', 'run', 'lazy'])
 const EVERY = new Set<EdgeKind>(['import', 'run', 'lazy', 'type'])
@@ -370,9 +372,17 @@ function pythonFacts(tree: Tree, rel: string): Facts {
     .filter(line => !line.trimStart().startsWith('#'))
     .join('\n')
   if (code.includes(BUNDLE)) facts.bundle = true
-  for (const m of code.matchAll(/['"]([^'"\s]+)['"]/g)) {
-    const t = posix.normalize(m[1]!)
-    if (m[1]!.includes('/') && tree.files.has(t)) facts.names.add(t)
+  const spawns = PY_SPAWNS.test(code)
+  const found = (t: string): void => {
+    if (t === BUNDLE) facts.bundle = true
+    if (!tree.files.has(t)) return
+    if (spawns && RUNNABLE.test(t) && t.startsWith('scripts/')) facts.edges.push({ to: t, kind: 'run' })
+    else facts.names.add(t)
+  }
+  for (const m of code.matchAll(/['"]([^'"\s]+)['"]/g)) if (m[1]!.includes('/')) found(posix.normalize(m[1]!))
+  for (const m of code.matchAll(PY_JOIN)) {
+    const segments = [...m[2]!.matchAll(/['"]([^'"\s]+)['"]/g)].map(s => s[1]!)
+    found(posix.normalize(posix.join(DIR_NAMES.has(m[1]!) ? dir : '', ...segments)))
   }
   for (const m of code.matchAll(/^\s*(?:from\s+([A-Za-z_][\w.]*)\s+import|import\s+([A-Za-z_][\w.]*))/gm)) {
     const mod = (m[1] ?? m[2]!).split('.').join('/')
@@ -389,7 +399,7 @@ function wholeScope(walk: string): string | null {
   return m ? (m[1] ?? '') : null
 }
 
-function readWatchGraph(root: string, tracked: string[], named: Map<string, string[]>) {
+function readWatchGraph(root: string, tracked: string[], named: Map<string, string[]>, listings: Map<string, string[]>) {
   const tree = treeOf(root, tracked)
   const memo = new Map<string, Facts>()
   const unread: string[] = []
@@ -450,11 +460,12 @@ function readWatchGraph(root: string, tracked: string[], named: Map<string, stri
     const naming: string[] = []
     const blind: Blind = { imports: 0, paths: 0, children: 0, git: 0 }
     const note = (f: string, how: How, via: string): void => {
-      if (!deps.has(f)) deps.set(f, { how, hops: 0, via })
+      const was = deps.get(f)
+      if (!was || was.how === 'lazy' || (was.how === 'import' && was.hops > 0)) deps.set(f, { how, hops: 0, via })
     }
     const read = (f: string, facts: Facts): void => {
       for (const name of [...facts.names, ...(named.get(f) ?? [])].sort()) if (tree.files.has(name)) note(name, f === runner ? 'runner' : 'text', f)
-      for (const w of [...facts.walks].sort()) {
+      for (const w of [...facts.walks, ...(listings.get(f) ?? [])].sort()) {
         const scope = wholeScope(w)
         if (scope !== null) {
           whole.push({ scope, via: f })
@@ -569,14 +580,19 @@ export function watchGraphOf(root: string) {
   const listed = listedFiles(root)
   const fence = factsOf(root, { scripts: listed.filter(f => f.startsWith('scripts/')), src: srcOf(listed), listed: true })
   const named = new Map<string, string[]>()
+  const listings = new Map<string, string[]>()
+  const folders = new Map<string, string>()
+  for (const file of listed) if (file.startsWith('src/')) for (let dir = posix.dirname(file); dir !== 'src' && dir !== '.'; dir = posix.dirname(dir)) folders.set(dir.toLowerCase(), dir)
   let opened = 0
   let onlyNamed = 0
   for (const [script, facts] of fence.facts) {
     opened += facts.pins.size
     onlyNamed += facts.namesOnly.size
     if (facts.pins.size + facts.namesOnly.size > 0) named.set(script, [...facts.pins.keys(), ...facts.namesOnly.keys()])
+    const held = [...facts.listed.keys()].flatMap(folder => (folders.has(folder) ? [`${folders.get(folder)}/*`] : []))
+    if (held.length > 0) listings.set(script, held)
   }
-  return { ...readWatchGraph(root, listed, named), listed, fence: { opened, onlyNamed, scripts: named.size } }
+  return { ...readWatchGraph(root, listed, named, listings), listed, fence: { opened, onlyNamed, scripts: named.size, listers: listings.size } }
 }
 
 export function computedWatch(root: string): Record<string, string[]> {
