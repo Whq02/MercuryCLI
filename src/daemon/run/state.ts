@@ -2,7 +2,10 @@ import type { DaemonBreaker } from '../../utils/daemonBreaker.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { ControlServerHandle } from '../controlServer.js'
-import type { OwnerPipeHandleV1, OwnerWatchHandleV1 } from '../ownerWatch.js'
+import { parseOwnerPid, type OwnerPipeHandleV1, type OwnerWatchHandleV1 } from '../ownerWatch.js'
+import type { PlaneOwnerV1 } from '../planeRecords.js'
+import type { TaskRoster } from '../roster.js'
+import { initialSessionlessState } from '../sessionlessExit.js'
 
 export interface DaemonRunBootFacts {
   dir: string
@@ -19,6 +22,7 @@ export interface DaemonRunState extends Readonly<DaemonRunBootFacts> {
   readonly readyPromise: Promise<void>
   readonly wakeReady: () => void
   ready: boolean
+  roster: TaskRoster | null
   controlServer: ControlServerHandle | null
   releaseHeldReading: () => void
   stopPlaneHeal: (() => void) | null
@@ -29,12 +33,20 @@ export interface DaemonRunState extends Readonly<DaemonRunBootFacts> {
   stopHostJobs: (() => void) | null
   restartArmed: boolean
   restartAfterTeardown: boolean
+  planeServedByOther: PlaneOwnerV1 | null
+  birthsInFlight: number
+  sessionless: ReturnType<typeof initialSessionlessState>
+  currentOwnerPid: number | null
   ownerWatch: OwnerWatchHandleV1 | undefined
   ownerPipe: OwnerPipeHandleV1 | undefined
+  orphanParking: boolean
+  shuttingDown: boolean
   teardownComplete: boolean
 }
 
 export function makeDaemonRunState(boot: DaemonRunBootFacts): DaemonRunState {
+  const sessionless = initialSessionlessState()
+  const currentOwnerPid = parseOwnerPid()
   const persist = isEnvTruthy(flagEnv('MERCURY_DAEMON_PERSIST'))
   let wakeReady: () => void = () => {}
   const readyPromise = new Promise<void>(resolve => {
@@ -48,6 +60,7 @@ export function makeDaemonRunState(boot: DaemonRunBootFacts): DaemonRunState {
     readyPromise,
     wakeReady,
     ready: false,
+    roster: null,
     controlServer: null,
     releaseHeldReading: () => {},
     stopPlaneHeal: null,
@@ -58,8 +71,14 @@ export function makeDaemonRunState(boot: DaemonRunBootFacts): DaemonRunState {
     stopHostJobs: null,
     restartArmed: false,
     restartAfterTeardown: false,
+    planeServedByOther: null,
+    birthsInFlight: 0,
+    sessionless,
+    currentOwnerPid,
     ownerWatch: undefined,
     ownerPipe: undefined,
+    orphanParking: false,
+    shuttingDown: false,
     teardownComplete: false,
   }
 }

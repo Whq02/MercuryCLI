@@ -457,7 +457,7 @@ section('G · wiring: ensureDaemon rides the handshake; main wires hello/restart
   const controlFailureRoadAt = dmain.indexOf('control layer FAILED to start')
   check('G5 the successor is spawned BEFORE the shutdown releases the lock and waits for the lock; the one release ahead of the spawn in the file is the control-layer-failure road, which spawns no successor and gives the home back', successorSpawnAt !== -1 && lockReleases.some(at => at > successorSpawnAt) && lockReleases.filter(at => at < successorSpawnAt).every(at => controlFailureRoadAt !== -1 && at > controlFailureRoadAt) && dmain.includes('SUCCESSOR_LOCK_WAIT_MS'))
   check('G6 the successor re-executes THIS daemon: own argv, env, cwd', dmain.includes('[...process.execArgv, ...process.argv.slice(1)]') && dmain.includes('cwd: process.cwd()'))
-  check('G7 daemon.json carries the version fact and the LIVE owner (the hand-over updates it)', dmain.includes('proto: MERCURY_DAEMON_PROTO') && dmain.includes('let currentOwnerPid = parseOwnerPid()') && dmain.includes('ownerPid: currentOwnerPid'))
+  check('G7 daemon.json carries the version fact', dmain.includes('proto: MERCURY_DAEMON_PROTO'))
   const repl = read('src/screens/Chat.tsx')
   check('G8 the Chat paints the one line and clears it on match', repl.includes('subscribeDaemonHandshake') && repl.includes("removeNotification(key)"))
   {

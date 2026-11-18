@@ -1339,11 +1339,12 @@ empty-catch-handler	src/components/tensorfold/tensorfoldModelFacts.ts	2
 empty-catch-handler	src/daemon/concourseDispatch.ts	2
 empty-catch-handler	src/daemon/controlServer.ts	1
 empty-catch-handler	src/daemon/controlSocket.ts	6
-empty-catch-handler	src/daemon/main.ts	13
+empty-catch-handler	src/daemon/main.ts	12
 empty-catch-handler	src/daemon/ownedDaemon.ts	2
 empty-catch-handler	src/daemon/processSweepRun.ts	2
 empty-catch-handler	src/daemon/processSweepWindows.ts	1
 empty-catch-handler	src/daemon/roster.ts	8
+empty-catch-handler	src/daemon/run/owner.ts	1
 empty-catch-handler	src/daemon/workerParentWatch.ts	1
 empty-catch-handler	src/entrypoints/cli.tsx	1
 empty-catch-handler	src/entrypoints/init.ts	2

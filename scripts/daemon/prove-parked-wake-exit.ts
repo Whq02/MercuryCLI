@@ -10,6 +10,8 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
 delete process.env.MERCURY_HOME
 delete process.env.MERCURY_SATURN_DISABLE
+delete process.env.MERCURY_DAEMON_PERSIST
+delete process.env.MERCURY_DAEMON_OWNER_PID
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
@@ -17,15 +19,15 @@ enableConfigs()
 const workers = await import('../../src/daemon/concourseWorkers.ts')
 const saturn = await import('../../src/daemon/saturn.ts')
 const { tickSaturnOnce, saturnDueAtOf } = await import('../../src/daemon/saturnTicker.ts')
-const { decideSessionlessExit, SESSIONLESS_EXIT_GRACE_MS } = await import('../../src/daemon/sessionlessExit.ts')
+const { SESSIONLESS_EXIT_GRACE_MS } = await import('../../src/daemon/sessionlessExit.ts')
+const { makeSessionlessBeat } = await import('../../src/daemon/run/owner.ts')
+const { makeDaemonRunState } = await import('../../src/daemon/run/state.ts')
+const { DaemonBreaker } = await import('../../src/utils/daemonBreaker.ts')
 const { handoverState } = await import('../../src/daemon/handover.ts')
 const bridge = await import('../../src/services/saturn/sessionScheduleBridge.ts')
 const { ScheduleWakeupTool } = await import('../../src/tools/ScheduleWakeupTool/ScheduleWakeupTool.ts')
 const { CronCreateTool } = await import('../../src/tools/ScheduleCronTool/CronCreateTool.ts')
 const main = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../../src/daemon/main.ts'), 'utf8')
-const scheduledInput = main.match(/const scheduled = ([^\n]+)/)?.[1]
-if (!scheduledInput) throw new Error('the sessionless scheduled input is missing')
-const scheduled = new Function('readSessionWorkers', 'candidate', 'superseded', `return ${scheduledInput}`) as (read: typeof workers.readSessionWorkers, candidate: boolean, superseded: boolean) => boolean
 const recordInput = main.slice(main.indexOf('stopSaturnTicker = startSaturnTicker(')).match(/records: \(\) => \{([\s\S]*?)\n\s+\},/)?.[1]
 if (!recordInput) throw new Error('the ticker record input is missing')
 const tickerRecords = new Function('readSessionWorkers', 'planeServedByOther', 'isProcessAlive', 'roster', 'handover', recordInput) as (...args: unknown[]) => ReturnType<typeof workers.readSessionWorkers>[string][]
@@ -42,10 +44,27 @@ function check(label: string, ok: boolean, detail: unknown = ''): void {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${JSON.stringify(detail)}` : ''}`)
 }
 const record = () => workers.readSessionWorkers()[SHORT]!
-const verdict = (superseded = false) => decideSessionlessExit({ hosted: true, emptySince: now - SESSIONLESS_EXIT_GRACE_MS }, {
-  live: 0, birthsInFlight: 0, superseded, persist: false, foreground: false,
-  scheduled: scheduled(workers.readSessionWorkers, true, superseded), now,
-})
+const verdict = (superseded = false): { exit: boolean; hold: string } => {
+  const host = makeDaemonRunState({ dir: home, bootBuildTree: null, foreground: false, breaker: new DaemonBreaker(), maxInflight: 1, controlEnabled: true })
+  host.sessionless = { hosted: true, emptySince: now - SESSIONLESS_EXIT_GRACE_MS }
+  host.currentOwnerPid = process.pid
+  host.planeServedByOther = superseded ? { pid: process.pid, buildTree: null, alive: true } : null
+  const said: string[] = []
+  const realError = console.error
+  console.error = (...args: unknown[]) => void said.push(args.map(String).join(' '))
+  let exit = false
+  try {
+    makeSessionlessBeat(host, {
+      liveWorkers: () => ({ live: 0 }),
+      requestShutdown: () => {
+        exit = true
+      },
+    })()
+  } finally {
+    console.error = realError
+  }
+  return { exit, hold: said.join(' ') }
+}
 const deliveries: Array<{ parked: boolean; sessionId: string; prompt: string }> = []
 const ports = {
   now: () => now,
