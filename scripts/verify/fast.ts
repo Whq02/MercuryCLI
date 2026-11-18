@@ -205,7 +205,7 @@ if (anchor) {
   )
 }
 
-const manifest = loadImpactManifest(ROOT)
+const manifest = loadImpactManifest(ROOT, anchor !== null && paths.length > 0 ? (await import('./watchGraph.ts')).computedWatch(ROOT) : undefined)
 
 function loadDurations(): Record<string, number> {
   const out: Record<string, number> = {}

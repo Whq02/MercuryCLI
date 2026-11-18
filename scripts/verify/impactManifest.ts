@@ -8,6 +8,7 @@ export interface ImpactManifest {
   classes?: Record<string, string>
   narrowed?: string[]
   doors?: Array<{ behind: string; door: string }>
+  computed?: Record<string, string[]>
 }
 
 export const NET_GLOB = 'src/**'
@@ -16,6 +17,7 @@ export const RATCHETS = ['integrity', 'identity', 'consistency-census', 'gate', 
 
 export interface ImpactSelection {
   suites: Set<string>
+  computed: Set<string>
   ignored: string[]
   unclassified: string[]
   perPath: Record<string, string[]>
@@ -51,7 +53,7 @@ function declaredRows(path: string): string[] {
     .filter(l => l && !l.startsWith('#'))
 }
 
-export function loadImpactManifest(root: string): ImpactManifest {
+export function loadImpactManifest(root: string, computed?: Record<string, string[]>): ImpactManifest {
   const watches: Record<string, string[]> = {}
   const classes: Record<string, string> = {}
   const suites: string[] = []
@@ -71,7 +73,7 @@ export function loadImpactManifest(root: string): ImpactManifest {
     const [behind = '', door = ''] = row.split(/\s+/)
     return { behind, door }
   })
-  return { watches, ignores, suites, classes, narrowed, doors }
+  return { watches, ignores, suites, classes, narrowed, doors, ...(computed === undefined ? {} : { computed }) }
 }
 
 function matchesAny(path: string, globs: string[]): boolean {
@@ -113,17 +115,38 @@ export function doorsOf(manifest: ImpactManifest, path: string): string[] {
   return (manifest.doors ?? []).filter(row => row.behind !== '' && row.door !== '' && new Bun.Glob(row.behind).match(path)).map(row => row.door)
 }
 
+function holdersOf(computed: Record<string, string[]>): Map<string, string[]> {
+  const holders = new Map<string, string[]>()
+  for (const [suite, files] of Object.entries(computed)) {
+    for (const file of files) {
+      const held = holders.get(file)
+      if (held) held.push(suite)
+      else holders.set(file, [suite])
+    }
+  }
+  return holders
+}
+
 export function selectImpact(manifest: ImpactManifest, paths: string[]): ImpactSelection {
   const suites = new Set<string>()
+  const computed = new Set<string>()
   const ignored: string[] = []
   const unclassified: string[] = []
   const perPath: Record<string, string[]> = {}
+  const holders = manifest.computed === undefined ? null : holdersOf(manifest.computed)
+  const doms = manifest.computed === undefined ? Object.keys(manifest.watches) : [...new Set([...Object.keys(manifest.watches), ...Object.keys(manifest.computed)])]
   for (const path of paths) {
     const claimants: string[] = []
     const self = path.match(/^scripts\/([A-Za-z0-9_-]+)\//)
     if (self && manifest.suites.includes(self[1]!)) claimants.push(self[1]!)
     const doors = doorsOf(manifest, path)
-    for (const dom of Object.keys(manifest.watches)) {
+    const touching = holders === null ? [] : [path, ...doors].flatMap(file => holders.get(file) ?? [])
+    for (const dom of doms) {
+      if (touching.includes(dom)) {
+        computed.add(dom)
+        if (!claimants.includes(dom)) claimants.push(dom)
+        continue
+      }
       if (claimants.includes(dom)) continue
       if (watchClaims(manifest, dom, path) || doors.some(door => watchClaims(manifest, dom, door))) claimants.push(dom)
     }
@@ -138,5 +161,5 @@ export function selectImpact(manifest: ImpactManifest, paths: string[]): ImpactS
       perPath[path] = ['(UNCLASSIFIED)']
     }
   }
-  return { suites, ignored, unclassified, perPath }
+  return { suites, computed, ignored, unclassified, perPath }
 }

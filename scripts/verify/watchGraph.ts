@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process'
-import { readdirSync, readFileSync } from 'node:fs'
-import { isAbsolute, join, posix, relative, resolve } from 'node:path'
+import { createHash } from 'node:crypto'
+import { mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { dirname, isAbsolute, join, posix, relative, resolve } from 'node:path'
 import ts from 'typescript'
 import { calleeName, declarationOf, parseSource, slash, stringText, unwrap } from '../gate/sourceCensus.ts'
 import { runnerLaunches } from '../lib/runnerLaunches.ts'
@@ -33,6 +34,7 @@ const EAGER = new Set<EdgeKind>(['import', 'run'])
 const VALUE = new Set<EdgeKind>(['import', 'run', 'lazy'])
 const EVERY = new Set<EdgeKind>(['import', 'run', 'lazy', 'type'])
 const UNLISTED = new Set(['.git', '.mercury', 'dist', 'node_modules'])
+const STORE = '.mercury/gate/computed-watch.json'
 
 const blank = (): Facts => ({ edges: [], names: new Set(), walks: new Set(), bundle: false, blind: { imports: 0, paths: 0, children: 0, git: 0 } })
 
@@ -452,9 +454,12 @@ function readWatchGraph(root: string, tracked: string[], named: Map<string, stri
       for (const name of [...facts.names, ...(named.get(f) ?? [])].sort()) if (tree.files.has(name)) note(name, f === runner ? 'runner' : 'text', f)
       for (const w of [...facts.walks].sort()) {
         const scope = wholeScope(w)
-        if (scope !== null) whole.push({ scope, via: f })
-        else if (w.includes('*')) for (const t of tree.list) if (globOf(w).match(t)) note(t, 'walk', f)
-        else for (const t of tree.list) if (t.startsWith(`${w}/`)) note(t, 'walk', f)
+        if (scope !== null) {
+          whole.push({ scope, via: f })
+          continue
+        }
+        const under = w.includes('*') ? globOf(w) : null
+        for (const t of tree.list) if (under === null ? t.startsWith(`${w}/`) : under.match(t)) note(t, 'walk', f)
       }
       if (facts.bundle) naming.push(f)
       blind.imports += facts.blind.imports
@@ -506,15 +511,55 @@ function walkedFiles(root: string): string[] {
   return out.sort()
 }
 
-function listedFiles(root: string): string[] {
-  let out = ''
+function gitOut(root: string, args: string[]): string | null {
   try {
-    out = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8', maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'ignore'] })
+    return execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'ignore'] })
   } catch {
-    out = ''
+    return null
   }
-  const files = [...new Set(out.split('\0').filter(Boolean))].sort()
+}
+
+function listedFiles(root: string): string[] {
+  const files = [...new Set((gitOut(root, ['ls-files', '-z', '--cached', '--others', '--exclude-standard']) ?? '').split('\0').filter(Boolean))].sort()
   return files.length > 0 ? files : walkedFiles(root)
+}
+
+function treeDigest(root: string): string | null {
+  if (gitOut(root, ['check-ignore', STORE]) === null) return null
+  const staged = gitOut(root, ['ls-files', '-s', '-z'])
+  const changed = gitOut(root, ['diff', '--name-only', '-z'])
+  const added = gitOut(root, ['ls-files', '-z', '--others', '--exclude-standard'])
+  if (staged === null || changed === null || added === null) return null
+  const hash = createHash('sha256').update(staged)
+  for (const file of [...new Set(`${changed}${added}`.split('\0').filter(Boolean))].sort()) {
+    hash.update(`\0${file}\0`)
+    try {
+      hash.update(readFileSync(join(root, file)))
+    } catch {
+      hash.update('\0')
+    }
+  }
+  return hash.digest('hex')
+}
+
+function keptWatch(store: string, tree: string): Record<string, string[]> | null {
+  try {
+    const kept = JSON.parse(readFileSync(store, 'utf8')) as { tree?: string; watch?: Record<string, string[]> }
+    return kept.tree === tree && kept.watch !== undefined ? kept.watch : null
+  } catch {
+    return null
+  }
+}
+
+function keepWatch(store: string, tree: string, watch: Record<string, string[]>): void {
+  try {
+    mkdirSync(dirname(store), { recursive: true })
+    const draft = `${store}.${process.pid}`
+    writeFileSync(draft, JSON.stringify({ tree, watch }))
+    renameSync(draft, store)
+  } catch {
+    return
+  }
 }
 
 export function watchGraphOf(root: string) {
@@ -529,4 +574,20 @@ export function watchGraphOf(root: string) {
     if (facts.pins.size + facts.namesOnly.size > 0) named.set(script, [...facts.pins.keys(), ...facts.namesOnly.keys()])
   }
   return { ...readWatchGraph(root, listed, named), listed, fence: { opened, onlyNamed, scripts: named.size } }
+}
+
+export function computedWatch(root: string): Record<string, string[]> {
+  const tree = treeDigest(root)
+  const store = join(root, STORE)
+  const kept = tree === null ? null : keptWatch(store, tree)
+  if (kept !== null) return kept
+  const watch: Record<string, string[]> = {}
+  for (const s of watchGraphOf(root).suites) {
+    watch[s.suite] = [...s.deps]
+      .filter(([, dep]) => dep.how !== 'lazy' && !(dep.how === 'import' && dep.hops > 0))
+      .map(([file]) => file)
+      .sort()
+  }
+  if (tree !== null) keepWatch(store, tree, watch)
+  return watch
 }
