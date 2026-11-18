@@ -1130,6 +1130,17 @@ function report(facts: Map<string, Facts>): void {
   console.log(`\n  the 40 scripts with the most names only:${top(new Map([...facts].map(([script, f]) => [script, f.namesOnly.size])))}`)
 }
 
+function readersOf(facts: Map<string, Facts>, files: string[]): void {
+  const byName = (a: [string, Facts], b: [string, Facts]): number => (a[0] < b[0] ? -1 : 1)
+  for (const file of files) {
+    const opens = [...facts].filter(([, f]) => f.pins.has(file)).sort(byName)
+    const names = [...facts].filter(([, f]) => f.namesOnly.has(file)).sort(byName)
+    console.log(`\n  ${file}: ${opens.length} scripts open it as text · ${names.length} only name it`)
+    for (const [script, f] of opens) console.log(`    opens  ${script}:${f.pins.get(file)} · ${f.searches.filter(hit => hit.file === file).length} searches in it`)
+    for (const [script, f] of names) console.log(`    names  ${script}:${f.namesOnly.get(file)}`)
+  }
+}
+
 if (process.argv.includes('--risen')) {
   const [base, tip] = process.argv.slice(process.argv.indexOf('--risen') + 1)
   const git = (...args: string[]): string => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28 })
@@ -1191,5 +1202,6 @@ if (process.argv.includes('--write')) {
   if (found.slack > 0) console.log(`  rows above their script's count: ${found.slack} (the fold lowers them with bun ${SELF} --write)`)
 }
 if (process.argv.includes('--report')) report(facts)
+if (process.argv.includes('--readers')) readersOf(facts, process.argv.slice(process.argv.indexOf('--readers') + 1).filter(arg => !arg.startsWith('--')))
 console.log(`\nprove-source-text-reads: ${failures === 0 ? 'green' : `${failures} failed`} · pins ${totals.pins} (src files opened as text) · searches ${totals.searches} · names only ${totals.namesOnly} · scripts with a row ${rows.size}`)
 process.exit(failures === 0 ? 0 : 1)
