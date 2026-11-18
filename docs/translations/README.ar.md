@@ -113,16 +113,6 @@ mise use -g npm:mercury-tech-cli                   # mise، عبر حزمة npm
 
 تختار المُشغِّلات Node بهذا الترتيب: الملف التنفيذي `MERCURY_NODE` المحدَّد صراحةً، ثم بيئة التشغيل المرفقة، ثم تثبيت Node متوافق موجود في PATH. وإذا كانت بيئة التشغيل مفقودة، يُبلغ المُشغِّل عن خطأ.
 
-### الصدفات على Windows
-
-تتضمن أرشيفات الإصدارات محرك الصدفة المتوافق مع bash الخاص بـ Mercury (`brush`)، وعلى Windows يُشغّل أداة Bash افتراضيًا: يجد برنامج `.cmd` أو `.bat` مثل `npm` باسمه المجرّد عبر PATHEXT، ويُمرّر `%VAR%` و `^` إلى ملف الدفعات دون تغيير، ويشغّل برنامجًا يُحدَّد بمسار نسبي بعد `cd`، ويحتفظ بحالة الصدفة بين الاستدعاءات. ولا يُشترط وجود `bash.exe` من Git for Windows؛ فإذا كان مثبّتًا، فإن `MERCURY_SHELL_ENGINE=system` أو `system` في `/config` ضمن Shell engine يُشغّل أداة Bash على `bash.exe` وحده.
-
-اقرأ صف `shell` في فحص الصحة لمعرفة الصدفة النشطة وسبب اختيارها: إما المحرك المرفق (الافتراضي على Windows، أو المُفعَّل بالتثبيت المحدَّد (pin) أو بالإعداد)، أو Git Bash عندما يكون المحرك معطّلًا أو تكون حزمته غير موجودة.
-
-على macOS و Linux تكون الصدفة النظامية هي الافتراضية؛ اضبط `MERCURY_SHELL_ENGINE=brush`، أو اختر `brush` في `/config` ضمن Shell engine، لتشغيل أداة Bash على المحرك المرفق هناك أيضًا، مع حالة صدفة دائمة.
-
-ويبدأ البناء من المصدر التشغيل حتى دون حزمة المحرك أو Git for Windows، لكن أداة Bash تبقى غير متاحة. وتبقى أداة PowerShell متاحة، ويشرح التشخيص `shell` كيفية استعادة دعم Bash.
-
 ## البناء من المصدر
 
 يُبنى Mercury باستخدام bun ويعمل على Node 24 LTS. ثبّت [متطلبات البناء من المصدر](#المتطلبات)، بما فيها bun 1.4.4:
@@ -165,7 +155,7 @@ node dist/mercury.mjs health --json
 
 لبناء دعم الصوت، شغّل `setup` مع تثبيت Rust. يُنشئ ذلك `native/voice`. أضِف cmake لبناء `native/whisper` أيضًا. ومع تثبيت Rust، يبني `setup` كذلك إضافة برنامج تشغيل سطح المكتب (`native/desktop`) التي تعمل من خلالها أداة `Computer`. ومع تثبيت Rust، يبني `setup` أيضًا إضافة التضمين المحلي (`native/embed`، عبر `bun run scripts/vendor/build-embed.ts`) ويجلب نموذج BGE بحجم 118 MB (`bun run scripts/vendor/fetch-embed-models.ts --default`)؛ وبدون cargo تُتخطّى الحزمة ويذكر setup ذلك، ويقتصر البحث في ذاكرة Mneme على مطابقة الكلمات فقط. تحمل كل أرشيفات الإصدارات حزمة التضمين المبنية لمنصتها؛ وعلى Linux و Windows تُنفَّذ الحسابات بنواة متجهية (vectorised)، لذلك يستغرق Recall بالمعنى نحو عُشر ثانية (وبضعة أجزاء من مئة من الثانية على macOS الذي يستخدم Accelerate). وإذا كانت أدوات بناء الإضافات الأصلية ناقصة، يتخطّاه setup ويُبلغ فحص الصحة عن الإضافة المفقودة. ويُبنى محرك صدفة Windows على جهازك أيضًا، لأن المشروع الأصلي لا يوفّر ملفًا ثنائيًا لـ Windows.
 
-راجع [الصدفات على Windows](#الصدفات-على-windows) و [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) للاطلاع على محرك الصدفة `brush`.
+راجع [الصدفات على Windows](../INSTALL.md#windows-shells) و [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) للاطلاع على محرك الصدفة `brush`.
 
 لا يكتب البناء إلا داخل `dist/`. تُحفظ الإعدادات والجلسات في `~/.mercury`، أو في المجلد المحدَّد بـ `MERCURY_CONFIG_DIR`، وتُنشأ عند أول تشغيل. على Windows، شغّل `node dist\mercury.mjs` مباشرةً.
 

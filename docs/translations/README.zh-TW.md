@@ -107,16 +107,6 @@ Node 的最低版本已包含 nodejs/node#56645 的修正。低於 24.20.0 時�
 
 啟動器依下列順序選擇 Node：明確指定的 `MERCURY_NODE` 執行檔、內建執行階段，然後是 PATH 上相容的 Node 安裝。若執行階段遺失，啟動器會回報錯誤。
 
-### Windows 中的 shell
-
-發行壓縮檔內建與 bash 相容的 shell 引擎（`brush`）。在 Windows 上，預設由它為 Bash 工具提供服務：它會透過 PATHEXT 以名稱找到 `.cmd` 或 `.bat` 程式（例如 `npm`），將 `%VAR%` 與 `^` 原樣傳給批次檔，在 `cd` 之後執行以相對路徑指定的程式，並在呼叫之間保留 shell 狀態。不需要 Git for Windows 的 `bash.exe`；若已安裝，請設定 `MERCURY_SHELL_ENGINE=system`，或選擇 `system`（於 `/config` 的 Shell engine 項目下），即可讓 Bash 工具只透過 `bash.exe` 執行。
-
-請查看健康檢查的 `shell` 列，了解目前啟用的是哪個 shell，以及原因：是內建引擎（Windows 預設值，或由釘選或設定啟用），還是在引擎已關閉或其元件套件缺少時使用的 Git Bash。
-
-在 macOS 與 Linux 上，預設使用系統 shell；若要讓此處的 Bash 工具也在內建引擎上執行，並保留持續性的 shell 狀態，請設定 `MERCURY_SHELL_ENGINE=brush`，或選擇 `brush`（於 `/config` 的 Shell engine 項目下）。
-
-沒有引擎元件套件、也沒有 Git for Windows 的原始碼建置仍可啟動，但 Bash 工具無法使用。PowerShell 工具仍可使用，`shell` 診斷會說明如何恢復 Bash 支援。
-
 ## 從原始碼建置
 
 Mercury 使用 bun 建置，並在 Node 24 LTS 上執行。請先安裝[原始碼建置所需的需求](#環境需求)，包括 bun 1.4.4：
@@ -151,7 +141,7 @@ node dist/mercury.mjs health --json
 
 要建置語音支援，請在已安裝 Rust 的情況下執行 `setup`，這會建置 `native/voice`。若也要建置 `native/whisper`，請另外安裝 cmake。已安裝 Rust 時，`setup` 也會建置桌面驅動原生外掛（`native/desktop`），供 `Computer` 工具透過它執行。同樣在已安裝 Rust 的情況下，`setup` 還會建置本機嵌入原生外掛（`native/embed`，`bun run scripts/vendor/build-embed.ts`），並取得 118 MB 的 BGE 模型（`bun run scripts/vendor/fetch-embed-models.ts --default`）；若沒有 cargo，該元件套件會被略過，setup 會說明此事，而 Mneme 的記憶查找則只做詞彙比對。每個發行壓縮檔都附帶為其平台建置的嵌入元件套件。在 Linux 與 Windows 上，數學運算由向量化核心執行，因此依語意進行一次 Recall 約需十分之一秒（在使用 Accelerate 的 macOS 上約為數百分之一秒）。若原生建置缺少所需工具，setup 會略過它，健康檢查會回報缺少的原生外掛。由於上游沒有提供 Windows 二進位檔，Windows 的 shell 引擎也會在你的機器上編譯。
 
-關於 `brush` shell 引擎，請參見 [Windows 中的 shell](#windows-中的-shell) 與 [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md)。
+關於 `brush` shell 引擎，請參見 [Windows 中的 shell](../INSTALL.md#windows-shells) 與 [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md)。
 
 建置只會寫入 `dist/`。設定與工作階段存放於 `~/.mercury`，或存放於 `MERCURY_CONFIG_DIR` 指定的目錄，並於首次執行時建立。在 Windows 上，請直接執行 `node dist\mercury.mjs`。
 

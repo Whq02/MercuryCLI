@@ -107,16 +107,6 @@ Node'un asgari sürümü nodejs/node#56645 düzeltmesini içerir. 24.20.0'ın al
 
 Başlatıcılar Node'u şu sırayla seçer: açıkça belirtilen `MERCURY_NODE` ikilisi, paketlenmiş çalışma zamanı, ardından PATH üzerindeki uyumlu bir Node kurulumu. Çalışma zamanı yoksa başlatıcı bir hata bildirir.
 
-### Windows kabukları
-
-Sürüm arşivleri Mercury'nin bash uyumlu shell motorunu (`brush`) içerir ve Windows'ta varsayılan olarak Bash aracına hizmet verir: `.cmd` veya `.bat` uzantılı bir programı (örneğin `npm`) PATHEXT üzerinden yalnızca adıyla bulur, `%VAR%` ve `^` karakterlerini bir batch dosyasına değiştirmeden iletir, `cd` sonrasında göreli bir yolla belirtilen programı çalıştırır ve çağrılar arasında shell durumunu korur. Git for Windows'un `bash.exe` dosyası gerekli değildir; kuruluysa `MERCURY_SHELL_ENGINE=system` ortam değişkeni ya da `system` seçeneği (`/config` içindeki Shell engine ayarında), Bash aracını yalnızca `bash.exe` üzerinde çalıştırır.
-
-Hangi shell'in etkin olduğunu ve nedenini görmek için sağlık denetiminin `shell` satırını okuyun: paketlenmiş motor (Windows varsayılanı ya da sabitleme veya ayar ile etkinleştirilmiş), ya da motor kapalıysa veya paketi yoksa Git Bash.
-
-macOS ve Linux'ta varsayılan olarak sistem shell'i kullanılır; Bash aracını orada da paketlenmiş motorla ve kalıcı shell durumuyla çalıştırmak için `MERCURY_SHELL_ENGINE=brush` ayarlayın ya da `brush` seçeneğini (`/config` içindeki Shell engine bölümünden) belirleyin.
-
-Motor paketi veya Git for Windows olmadan yapılan bir kaynak derlemesi yine de başlar, ancak Bash aracı kullanılamaz. PowerShell aracı kullanılabilir kalır ve `shell` tanılaması Bash desteğinin nasıl geri getirileceğini açıklar.
-
 ## Kaynaktan derleme
 
 Mercury, bun ile derlenir ve Node 24 LTS üzerinde çalışır. bun 1.4.4 dahil [kaynaktan derleme gereksinimlerini](#gereksinimler) kurun:
@@ -151,7 +141,7 @@ Sağlık denetiminin Terminal color satırı, algılanan derinliği ve nedenini 
 
 Ses desteğini derlemek için Rust kurulu iken `setup` komutunu çalıştırın; bu `native/voice` dosyasını derler. `native/whisper`'ı da derlemek için cmake ekleyin. Rust kuruluyken `setup`, masaüstü sürücü eklentisini (`native/desktop`) de derler (`Computer` aracı bunun üzerinden çalışır). Ayrıca Rust kuruluyken `setup`, yerel gömme (embedding) eklentisini (`native/embed`, `bun run scripts/vendor/build-embed.ts`) derler ve 118 MB'lık BGE modelini (`bun run scripts/vendor/fetch-embed-models.ts --default`) indirir. cargo yoksa paket atlanır, setup bunu bildirir ve Mneme bellek aramaları yalnızca kelime eşleştirmesi yapar. Her sürüm arşivi, kendi platformu için derlenmiş gömme paketini içerir. Linux ve Windows'ta hesaplamalar vektörleştirilmiş bir çekirdekte çalışır; bu yüzden anlama dayalı bir Recall yaklaşık saniyenin onda biri kadar sürer (Accelerate kullanan macOS'te birkaç yüzde bir saniye). Yerel bir derlemede araçlar eksikse setup onu atlar ve sağlık denetimi eksik eklentiyi bildirir. Windows shell motoru da upstream'de bir Windows ikilisi bulunmadığından makinenizde derlenir.
 
-`brush` shell motoru için bkz. [Windows kabukları](#windows-kabukları) ve [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md).
+`brush` shell motoru için bkz. [Windows kabukları](../INSTALL.md#windows-shells) ve [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md).
 
 Derleme yalnızca `dist/` dizinine yazar. Yapılandırma ve oturumlar `~/.mercury` dizininde ya da `MERCURY_CONFIG_DIR` ile belirlenen dizinde bulunur ve ilk çalıştırmada oluşturulur. Windows'ta `node dist\mercury.mjs` komutunu doğrudan çalıştırın.
 

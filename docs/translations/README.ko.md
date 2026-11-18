@@ -107,16 +107,6 @@ Node 최소 버전에는 nodejs/node#56645 수정이 포함되어 있습니다. 
 
 런처는 다음 순서로 Node를 고릅니다. 명시적인 `MERCURY_NODE` 바이너리, 번들 런타임, 그리고 PATH에 있는 호환 Node 설치 순서입니다. 런타임이 없으면 런처가 오류를 보고합니다.
 
-### Windows 셸
-
-릴리스 아카이브에는 Mercury의 bash 호환 셸 엔진(`brush`)이 포함되며, Windows에서는 기본적으로 이 엔진이 Bash 도구를 제공합니다. 이 엔진은 PATHEXT를 통해 `.cmd` 또는 `.bat` 프로그램(`npm` 등)을 이름만으로 찾고, `%VAR%`와 `^`를 배치 파일에 그대로 전달하며, `cd` 다음에 상대 경로로 지정된 프로그램을 실행하고, 호출 사이에도 셸 상태를 유지합니다. Git for Windows의 `bash.exe`는 필요하지 않습니다. 설치되어 있는 경우 `MERCURY_SHELL_ENGINE=system`을 지정하거나 `system`을 `/config`의 Shell engine 항목에서 선택하면, Bash 도구는 `bash.exe`만으로 실행됩니다.
-
-어떤 셸이 활성화되어 있고 그 이유가 무엇인지는 헬스 체크의 `shell` 행에서 확인합니다. 활성화된 것은 번들 엔진(Windows 기본값이거나 고정 설정 또는 사용자 설정으로 켜진 경우)이거나, 엔진이 꺼졌거나 팩이 없을 때의 Git Bash입니다.
-
-macOS와 Linux에서는 시스템 셸이 기본값입니다. 이 환경에서도 Bash 도구를 번들 엔진에서 실행하고 셸 상태를 유지하려면 `MERCURY_SHELL_ENGINE=brush`를 설정하거나, `brush`를 `/config`의 Shell engine 항목에서 선택합니다.
-
-엔진 팩이나 Git for Windows가 없는 소스 빌드도 시작은 되지만 Bash 도구는 사용할 수 없습니다. PowerShell 도구는 계속 사용할 수 있으며, `shell` 진단 항목이 Bash 지원을 복구하는 방법을 설명합니다.
-
 ## 소스에서 빌드
 
 Mercury는 bun으로 빌드하며 Node 24 LTS에서 실행됩니다. bun 1.4.4를 포함한 [소스 빌드 요구 사항](#요구-사항)을 설치합니다:
@@ -151,7 +141,7 @@ Mercury는 터미널이 `COLORTERM=truecolor`로 지원을 알리거나, iTerm2,
 
 음성 지원을 빌드하려면 Rust가 설치된 상태에서 `setup`을 실행합니다. 그러면 `native/voice`가 빌드됩니다. `native/whisper`도 빌드하려면 cmake를 설치합니다. Rust가 설치되어 있으면 `setup`은 데스크톱 드라이버 애드온(`native/desktop`)도 빌드하며, `Computer` 도구는 이를 통해 실행됩니다. 또한 Rust가 설치되어 있으면 `setup`은 로컬 임베딩 애드온(`native/embed`, `bun run scripts/vendor/build-embed.ts`)을 빌드하고, 118 MB BGE 모델(`bun run scripts/vendor/fetch-embed-models.ts --default`)을 내려받습니다. cargo가 없으면 해당 팩은 건너뛰며, setup이 이를 알리고, Mneme 메모리 조회는 단어 일치만 사용합니다. 모든 릴리스 아카이브에는 해당 플랫폼용으로 빌드된 임베딩 팩이 들어 있습니다. Linux와 Windows에서는 수치 연산이 벡터화된 커널로 실행되므로, 의미 기반 Recall은 약 10분의 1초가 걸립니다(Accelerate를 사용하는 macOS에서는 백분의 몇 초 정도입니다). 네이티브 빌드에 필요한 도구가 없으면 setup은 그 빌드를 건너뛰고, 헬스 체크가 누락된 애드온을 보고합니다. Windows 셸 엔진은 상류(upstream)에 Windows용 바이너리가 없으므로 사용자의 머신에서도 컴파일됩니다.
 
-`brush` 셸 엔진은 [Windows 셸](#windows-셸)과 [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md)을 참조합니다.
+`brush` 셸 엔진은 [Windows 셸](../INSTALL.md#windows-shells)과 [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md)을 참조합니다.
 
 빌드는 `dist/`에만 씁니다. 설정과 세션은 `~/.mercury`, 또는 `MERCURY_CONFIG_DIR`로 지정한 디렉터리에 저장되며, 처음 실행할 때 만들어집니다. Windows에서는 `node dist\mercury.mjs`를 직접 실행합니다.
 

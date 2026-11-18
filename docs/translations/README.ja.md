@@ -107,16 +107,6 @@ Node の最小バージョンには、nodejs/node#56645 の修正が含まれて
 
 ランチャーは次の順序で Node を選びます：明示的に指定された `MERCURY_NODE` のバイナリ、同梱ランタイム、そして PATH 上の互換性のある Node インストール。ランタイムがない場合、ランチャーはエラーを報告します。
 
-### Windows のシェル
-
-リリースアーカイブには、Mercury の bash 互換シェルエンジン（`brush`）が含まれています。Windows では、既定で Bash ツールにこのエンジンを使います。`.cmd` や `.bat` のプログラム（`npm` など）は、PATHEXT を通じて名前だけで見つけ、`%VAR%` と `^` はそのままバッチファイルに渡し、`cd` の後に相対パスで指定されたプログラムを実行し、呼び出しの間もシェルの状態を保持します。Git for Windows の `bash.exe` は必要ありません。インストールされている場合は、`MERCURY_SHELL_ENGINE=system` を設定するか、`system` を `/config` の Shell engine で選ぶと、Bash ツールは `bash.exe` だけで実行されます。
-
-どのシェルが有効で、その理由が何かは、ヘルスチェックの `shell` の行で確認できます。同梱エンジン（Windows の既定値、またはピン留めや設定で有効化されたもの）か、エンジンが無効になっている、またはそのパックがない場合の Git Bash かのどちらかです。
-
-macOS と Linux では、既定でシステムのシェルを使います。同じく同梱エンジンで Bash ツールを動かし、シェルの状態を保持するには、`MERCURY_SHELL_ENGINE=brush` を設定するか、`brush` を `/config` の Shell engine で選びます。
-
-エンジンパックも Git for Windows もないソースビルドでも起動はしますが、Bash ツールは使えません。PowerShell ツールは引き続き使え、`shell` の診断で Bash サポートを復元する方法が説明されます。
-
 ## ソースからのビルド
 
 Mercury は bun でビルドし、Node 24 LTS 上で動作します。bun 1.4.4 を含む、[ソースビルドの必要条件](#必要条件)をインストールしてください：
@@ -151,7 +141,7 @@ node dist/mercury.mjs health --json
 
 音声サポートをビルドするには、Rust をインストールした状態で `setup` を実行します。これで `native/voice` がビルドされます。`native/whisper` もビルドするには cmake を追加します。Rust がインストールされていると、`setup` はデスクトップドライバーのアドオン（`native/desktop`）もビルドし、`Computer` ツールはこれを通じて動作します。同じく Rust がインストールされていると、`setup` はローカル埋め込みアドオン（`native/embed`、`bun run scripts/vendor/build-embed.ts`）もビルドし、118 MB の BGE モデル（`bun run scripts/vendor/fetch-embed-models.ts --default`）を取得します。cargo がない場合はそのパックがスキップされ、setup がその旨を示します。Mneme のメモリ検索は単語の一致だけで動作します。どのリリースアーカイブにも、そのプラットフォーム向けにビルドされた埋め込みパックが含まれています。Linux と Windows では、計算がベクトル化されたカーネルで実行されるため、意味による Recall は約 0.1 秒で完了します（Accelerate を使う macOS では数百分の一秒）。ネイティブビルドに必要なツールがない場合、setup はそれをスキップし、ヘルスチェックは不足しているアドオンを報告します。上流に Windows 用のバイナリがないため、Windows のシェルエンジンもお使いのマシンでコンパイルされます。
 
-`brush` シェルエンジンについては、[Windows のシェル](#windows-のシェル)と [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) を参照してください。
+`brush` シェルエンジンについては、[Windows のシェル](../INSTALL.md#windows-shells)と [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) を参照してください。
 
 ビルドが書き込むのは `dist/` だけです。設定とセッションは `~/.mercury`、または `MERCURY_CONFIG_DIR` で指定したディレクトリに保存され、初回実行時に作成されます。Windows では `node dist\mercury.mjs` を直接実行してください。
 

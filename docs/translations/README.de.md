@@ -107,16 +107,6 @@ Die Node-Mindestversion enthält die Korrektur für nodejs/node#56645. Unterhalb
 
 Die Launcher wählen Node in dieser Reihenfolge aus: die über `MERCURY_NODE` festgelegte Binärdatei, die mitgelieferte Laufzeitumgebung, dann eine kompatible Node-Installation im PATH. Fehlt die Laufzeitumgebung, meldet der Launcher einen Fehler.
 
-### Windows-Shells
-
-Release-Archive enthalten die Bash-kompatible Shell-Engine von Mercury (`brush`). Unter Windows dient sie standardmäßig dem Bash-Werkzeug: Sie findet ein `.cmd`- oder `.bat`-Programm wie `npm` über seinen einfachen Namen mithilfe von PATHEXT, übergibt `%VAR%` und `^` unverändert an eine Batchdatei, führt ein über einen relativen Pfad benanntes Programm nach `cd` aus und behält den Shell-Zustand zwischen Aufrufen bei. `bash.exe` aus Git für Windows ist nicht erforderlich; ist es installiert, führt `MERCURY_SHELL_ENGINE=system` oder `system` unter Shell engine in `/config` das Bash-Werkzeug ausschließlich über `bash.exe` aus.
-
-Lesen Sie die Zeile `shell` des Health-Checks, um zu sehen, welche Shell aktiv ist und warum: die mitgelieferte Engine (der Windows-Standard oder per Pin bzw. Einstellung aktiviert) oder Git Bash, wenn die Engine ausgeschaltet wurde oder ihr Paket fehlt.
-
-Auf macOS und Linux ist die System-Shell der Standard. Setzen Sie `MERCURY_SHELL_ENGINE=brush` oder wählen Sie `brush` in `/config` unter Shell engine, um das Bash-Werkzeug auch dort über die mitgelieferte Engine mit dauerhaftem Shell-Zustand auszuführen.
-
-Ein Build aus dem Quellcode ohne das Engine-Paket oder Git für Windows startet trotzdem, aber das Bash-Werkzeug ist nicht verfügbar. Das PowerShell-Werkzeug bleibt verfügbar, und die Diagnose `shell` erklärt, wie die Bash-Unterstützung wiederhergestellt wird.
-
 ## Aus dem Quellcode bauen
 
 Mercury wird mit bun gebaut und läuft auf Node 24 LTS. Installieren Sie [die Voraussetzungen für den Build aus dem Quellcode](#voraussetzungen), einschließlich bun 1.4.4:
@@ -151,7 +141,7 @@ Die Zeile Terminal color im Health-Check meldet die erkannte Farbtiefe und den G
 
 Um die Sprachunterstützung zu bauen, führen Sie `setup` mit installiertem Rust aus. Dabei entsteht `native/voice`. Installieren Sie cmake, um außerdem `native/whisper` zu bauen. Mit installiertem Rust baut `setup` außerdem das Desktop-Treiber-Addon (`native/desktop`), über das das Werkzeug `Computer` läuft. Ebenfalls mit installiertem Rust baut `setup` das lokale Embedding-Addon (`native/embed`, `bun run scripts/vendor/build-embed.ts`) und lädt das 118 MB große BGE-Modell (`bun run scripts/vendor/fetch-embed-models.ts --default`). Ohne cargo wird das Pack übersprungen, setup meldet das, und die Suche im Mneme-Gedächtnis arbeitet nur mit Wortabgleich. Jedes Release-Archiv enthält das Embedding-Pack für seine Plattform; unter Linux und Windows läuft die Berechnung in einem vektorisierten Kernel, sodass eine Recall-Suche nach Bedeutung etwa eine Zehntelsekunde dauert (unter macOS, das Accelerate verwendet, einige Hundertstelsekunden). Fehlen einem nativen Build seine Werkzeuge, überspringt setup ihn, und der Health-Check meldet das fehlende Addon. Die Windows-Shell-Engine wird ebenfalls auf Ihrem Rechner kompiliert, weil upstream kein Windows-Binary bereitgestellt wird.
 
-Siehe [Windows-Shells](#windows-shells) und [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) zur `brush`-Shell-Engine.
+Siehe [Windows-Shells](../INSTALL.md#windows-shells) und [docs/TERMINAL-RUNTIME.md](../TERMINAL-RUNTIME.md) zur `brush`-Shell-Engine.
 
 Der Build schreibt ausschließlich in `dist/`. Konfiguration und Sessions liegen in `~/.mercury` oder im Verzeichnis, das `MERCURY_CONFIG_DIR` festlegt, und werden beim ersten Start angelegt. Unter Windows führen Sie `node dist\mercury.mjs` direkt aus.
 
