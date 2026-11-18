@@ -21,7 +21,6 @@ import { handOverForegroundAgentsToQueuedMessage } from '../../tasks/LocalAgentT
 import { emptyInputRow, promptSchemaRefusal } from '../structuredIO.js'
 import { invalidParams } from '../../runner/wire/errors.js'
 import type { InputRow } from '../../rows/vocabulary.js'
-import { logForDebugging } from '../../utils/debug.js'
 import { type LocalWakeFacts, localWakeStep } from '../../tools/ScheduleWakeupTool/localWake.js'
 import { sessionLaneWall } from '../../tools/MonitorTool/laneWall.js'
 import { registerLocalWakeSink } from '../../services/saturn/sessionScheduleBridge.js'
@@ -141,22 +140,6 @@ export async function acceptInputRow(row: InputRow, ports: RunnerPorts): Promise
   }
   if (row.type === 'shell') return acceptInput({ kind: 'shell', command: row.command, ...stamp })
   return acceptInput({ kind: 'prompt', content: promptContentOf(row.content), ...(row.schema !== undefined ? { schema: row.schema } : {}), ...stamp })
-}
-
-export async function* claimGatedInput(source: AsyncGenerator<InputRow, void, unknown>, ports: RunnerPorts): AsyncGenerator<InputRow, void, unknown> {
-  const { live } = ports
-  const parked: InputRow[] = []
-  for await (const row of source) {
-    if (live.awaitingSessionClaim) {
-      logForDebugging('[session-runner] an input row arrived before the claim — parked until the session identity lands')
-      parked.push(row)
-      continue
-    }
-    yield row
-    while (!live.awaitingSessionClaim && parked.length > 0) {
-      yield parked.shift()!
-    }
-  }
 }
 
 export function armLocalWake(ports: RunnerPorts): void {

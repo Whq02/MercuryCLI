@@ -4,6 +4,7 @@ import { wireProcess } from './wireProcess.js'
 import { refuseBadOptions } from './refuseBadOptions.js'
 import { resolveRequestedModel } from './resolveRequestedModel.js'
 import { takeSessionWriter } from './takeSessionWriter.js'
+import { refuseClaimlessRowsDoor } from './refuseClaimlessRowsDoor.js'
 import { openWireDoor } from './openWireDoor.js'
 import { tellMcpNotices } from './tellMcpNotices.js'
 import { sourceRows } from './sourceRows.js'
@@ -60,6 +61,7 @@ const STEPS = [
   refuseBadOptions,
   resolveRequestedModel,
   takeSessionWriter,
+  refuseClaimlessRowsDoor,
   openWireDoor,
   tellMcpNotices,
   sourceRows,

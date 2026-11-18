@@ -16,6 +16,7 @@ const ORDER = [
   'refuseBadOptions',
   'resolveRequestedModel',
   'takeSessionWriter',
+  'refuseClaimlessRowsDoor',
   'openWireDoor',
   'tellMcpNotices',
   'sourceRows',

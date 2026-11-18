@@ -262,7 +262,6 @@ export type RunnerPorts = {
   buildBehindFloor: ReturnType<typeof setInterval> | null
   registerCleanup: typeof import('../../utils/cleanupRegistry.js').registerCleanup
   modelInfos: ModelCatalogueEntry[]
-  claimGatedInput: (source: AsyncGenerator<InputRow, void, unknown>) => AsyncGenerator<InputRow, void, unknown>
   stdinLoop: Promise<void>
 }
 

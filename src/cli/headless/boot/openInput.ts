@@ -2,7 +2,7 @@ import { setRunInputClosed } from '../../../bootstrap/state.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
 
 function run(ports: RunnerPorts): BootMade<'stdinLoop'> {
-  const { acceptInputRow, bootSettled, claimGatedInput, driver, io, live, peer, stopShellsForClose } = ports
+  const { acceptInputRow, bootSettled, driver, io, live, peer, stopShellsForClose } = ports
   const stdinLoop = (async (): Promise<void> => {
     try {
       bootSettled()
@@ -10,7 +10,7 @@ function run(ports: RunnerPorts): BootMade<'stdinLoop'> {
         await peer.done
         return
       }
-      for await (const row of claimGatedInput(io.structuredInput)) {
+      for await (const row of io.structuredInput) {
         await acceptInputRow(row)
       }
     } finally {
