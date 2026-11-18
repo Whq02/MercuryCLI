@@ -43,7 +43,7 @@ const cost = await import('../../src/utils/modelCost.ts')
 const state = await import('../../src/bootstrap/state.ts')
 const { glmPricePin } = await import('../../src/services/providers/zai/glmPins.ts')
 const { geminiPricePin, geminiPriceTierFor } = await import('../../src/services/providers/gemini/geminiPins.ts')
-const { gptDisplayPin } = await import('../../src/services/providers/openai/gptPins.ts')
+const { gptDisplayPin, gptPriceTierFor } = await import('../../src/services/providers/openai/gptPins.ts')
 const { deepseekDisplayPin } = await import('../../src/services/providers/deepseek/deepseekPins.ts')
 const { kimiDisplayPin } = await import('../../src/services/providers/moonshot/kimiPins.ts')
 const { QWEN_SHARED_ENDPOINTS, qwenEndpointBase } = await import('../../src/services/providers/qwen/qwenAccounts.ts')
@@ -107,7 +107,33 @@ section('§1 one owner per route — each family prices at its own recorded rate
   check('with no bound endpoint the Qwen bill is unknowable: unpriced, never a guessed region', cost.resolveModelPricing('qwen3.7-plus', { promptTokens: 256_001 }).basis === 'unpriced')
   const gpt = gptDisplayPin('gpt-5.6-sol')!
   const gptPricing = cost.resolveModelPricing('gpt-5.6-sol')
-  check('openai: gpt-5.6-sol at its pin, basis recorded', gptPricing.basis === 'recorded' && gptPricing.costs.inputTokens === gpt.costInPerMtok && gptPricing.costs.outputTokens === gpt.costOutPerMtok)
+  check('openai: gpt-5.6-sol at the price its pin holds today, basis recorded', gptPricing.basis === 'recorded' && gptPricing.costs.inputTokens === gptPriceTierFor(gpt, undefined).costInPerMtok && gptPricing.costs.outputTokens === gptPriceTierFor(gpt, undefined).costOutPerMtok)
+  const solThrough = gptPriceTierFor(gpt, undefined, '2026-11-30')
+  const solFrom = gptPriceTierFor(gpt, undefined, '2026-12-01')
+  check("openai: GPT-5.6 Sol's price ends on a date: $4/$20, $0.40 cached and $5 write through 30 November 2026, and from 1 December the price its page's reductions give, $5/$30 with the write at 1.25x the input rate, $6.25 (\"a 20% reduction in input pricing and a 33% reduction in output pricing … available until November 30, 2026\", developers.openai.com/api/docs/models/gpt-5.6-sol.md, read 2026-11-18)", JSON.stringify(solThrough) === JSON.stringify({ costInPerMtok: 4, costOutPerMtok: 20, cachedInPerMtok: 0.4, cacheWritePerMtok: 5 }) && JSON.stringify(solFrom) === JSON.stringify({ costInPerMtok: 5, costOutPerMtok: 30, cacheWritePerMtok: 6.25 }) && gpt.announced?.effectiveOn === '2026-12-01', `${JSON.stringify(solThrough)} ${JSON.stringify(solFrom)}`)
+  check('…and past 272,000 input tokens the price that follows doubles its input and write rates and takes 1.5x on output, as the price before it does', JSON.stringify(gptPriceTierFor(gpt, 272_001, '2026-12-01')) === JSON.stringify({ costInPerMtok: 10, costOutPerMtok: 45, cacheWritePerMtok: 12.5 }) && JSON.stringify(gptPriceTierFor(gpt, 272_001, '2026-11-30')) === JSON.stringify({ costInPerMtok: 8, costOutPerMtok: 30, cachedInPerMtok: 0.8, cacheWritePerMtok: 10 }), `${JSON.stringify(gptPriceTierFor(gpt, 272_001, '2026-11-30'))} ${JSON.stringify(gptPriceTierFor(gpt, 272_001, '2026-12-01'))}`)
+  const RealDate = Date
+  const shownOn = (day: string): { words: string | undefined; rates: number[]; turn: number; sibling: number } => {
+    const planted = RealDate.parse(`${day}T12:00:00Z`)
+    globalThis.Date = class extends RealDate {
+      constructor(...args: unknown[]) { super(...((args.length === 0 ? [planted] : args) as [number])) }
+      static override now(): number { return planted }
+    } as DateConstructor
+    try {
+      const rates = cost.resolveModelPricing('gpt-5.6-sol').costs
+      return {
+        words: cost.getModelPricingString('gpt-5.6-sol'),
+        rates: [rates.inputTokens, rates.promptCacheReadTokens, rates.promptCacheWriteTokens, rates.outputTokens],
+        turn: cost.calculateUSDCost('gpt-5.6-sol', { input_tokens: 100_000, cache_read_input_tokens: 40_000, cache_creation_input_tokens: 30_000, output_tokens: 5_000 } as never),
+        sibling: cost.resolveModelPricing('gpt-5.6-terra').costs.inputTokens,
+      }
+    } finally {
+      globalThis.Date = RealDate
+    }
+  }
+  const shownBefore = shownOn('2026-11-30')
+  const shownAfter = shownOn('2026-12-01')
+  check('…and the cost shown follows the date, with the clock planted on each side of it: on 30 November the picker reads $4/$20 per Mtok and a request of 100,000 fresh, 40,000 cached, 30,000 written and 5,000 out costs $0.666; on 1 December it reads $5/$30 per Mtok, the cached rate a tenth of the input rate, and the same request costs $0.8575; GPT-5.6 Terra is $2 on both days', shownBefore.words === '$4/$20 per Mtok' && JSON.stringify(shownBefore.rates) === JSON.stringify([4, 0.4, 5, 20]) && near(shownBefore.turn, 0.666) && shownAfter.words === '$5/$30 per Mtok' && JSON.stringify(shownAfter.rates) === JSON.stringify([5, 0.5, 6.25, 30]) && near(shownAfter.turn, 0.8575) && shownBefore.sibling === 2 && shownAfter.sibling === 2, JSON.stringify([shownBefore, shownAfter]))
   check("openai: a row's date and source cover the fields it holds: GPT-6 Astra cites its own model page as read 2026-11-17 ($10/$50/$1 cached/$12.50 write), the three GPT-5.6 rows theirs as read 2026-11-18, and GPT-6.1 Sol, GPT-6.1 Terra, GPT-6 Sol and GPT-6 Luna carry 2026-11-17", gptDisplayPin('gpt-6-astra')?.observedAt === '2026-11-17' && gptDisplayPin('gpt-6-astra')?.source === 'https://developers.openai.com/api/docs/models/gpt-6-astra' && ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'].every(id => gptDisplayPin(id)?.observedAt === '2026-11-18' && gptDisplayPin(id)?.source === `https://developers.openai.com/api/docs/models/${id}`) && ['gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-sol', 'gpt-6-luna'].every(id => gptDisplayPin(id)?.observedAt === '2026-11-17' && (gptDisplayPin(id)?.source ?? '').startsWith(`https://developers.openai.com/api/docs/models/${id}`)) && gptDisplayPin('gpt-6-astra')?.costInPerMtok === 10 && gptDisplayPin('gpt-6-astra')?.costOutPerMtok === 50 && gptDisplayPin('gpt-6-astra')?.cachedInPerMtok === 1 && gptDisplayPin('gpt-6-astra')?.cacheWritePerMtok === 12.5, JSON.stringify(['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-sol', 'gpt-6-luna', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'].map(id => `${id} ${gptDisplayPin(id)?.observedAt} ${gptDisplayPin(id)?.source}`)))
 
   const anthropicDated = Object.entries(cost.ANTHROPIC_PRICE_OBSERVED_AT)

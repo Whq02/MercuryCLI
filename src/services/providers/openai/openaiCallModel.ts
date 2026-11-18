@@ -805,7 +805,7 @@ async function* openaiTurn(
   let profile: GptReasoningProfile = candidate
     ? resolveGptReasoningProfile(requestedEffort, candidate.live)
     : remembered !== undefined
-      ? resolveGptReasoningProfile(requestedEffort, { supportedReasoningEfforts: [...remembered.vocabulary], ...(remembered.defaultEffort !== undefined ? { defaultReasoningEffort: remembered.defaultEffort } : {}) })
+      ? resolveGptReasoningProfile(requestedEffort, { supportedReasoningEfforts: [...remembered.vocabulary], ...(remembered.defaultEffort !== undefined ? { defaultReasoningEffort: remembered.defaultEffort } : {}), ...(remembered.wordsFromRow === true ? { effortWordsFromRow: true as const } : {}) })
       : { source: 'model-default' }
   const settlementNotes: string[] = []
   const accountRoad = auth.account.label
@@ -1235,6 +1235,23 @@ async function* openaiTurn(
   }
 }
 
+type OpenaiSettledFinish = Pick<Extract<OpenaiStreamEvent, { type: 'finish' }>, 'reason' | 'toolCalls' | 'orderedItems' | 'refusalText' | 'unknownItemTypes' | 'webSearchCalls' | 'citations' | 'incompleteDetail'>
+
+function settledFinishOf(event: Extract<OpenaiStreamEvent, { type: 'finish' }>): OpenaiSettledFinish {
+  return {
+    reason: event.reason,
+    toolCalls: event.toolCalls,
+    orderedItems: event.orderedItems,
+    refusalText: event.refusalText,
+    unknownItemTypes: event.unknownItemTypes,
+    webSearchCalls: event.webSearchCalls ?? [],
+    citations: event.citations ?? [],
+    ...(event.incompleteDetail !== undefined
+      ? { incompleteDetail: event.incompleteDetail }
+      : {}),
+  }
+}
+
 export async function* streamOneOpenaiAttempt(ctx: {
   _eventsForTesting?: AsyncIterable<OpenaiStreamEvent>
   request: OpenaiResponsesRequest
@@ -1323,18 +1340,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
   let usageSeen: OpenaiUsage | undefined
   let responseId: string | undefined
   let refusalStreamed = false
-  let finish:
-    | {
-        reason: OpenaiFinishReason
-        toolCalls: Extract<OpenaiStreamEvent, { type: 'finish' }>['toolCalls']
-        orderedItems: OpenaiInputItem[]
-        refusalText: string
-        unknownItemTypes: string[]
-        webSearchCalls: Array<{ id: string; query?: string }>
-        citations: Array<{ url: string; title: string }>
-        incompleteDetail?: string
-      }
-    | undefined
+  let finish: OpenaiSettledFinish | undefined
   let fault: OpenaiFault | undefined
   let settledOnFault: OpenaiInputItem[] = []
 
@@ -1532,18 +1538,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
         usageSeen = event.usage
         break
       case 'finish':
-        finish = {
-          reason: event.reason,
-          toolCalls: event.toolCalls,
-          orderedItems: event.orderedItems,
-          refusalText: event.refusalText,
-          unknownItemTypes: event.unknownItemTypes,
-          webSearchCalls: event.webSearchCalls ?? [],
-          citations: event.citations ?? [],
-          ...(event.incompleteDetail !== undefined
-            ? { incompleteDetail: event.incompleteDetail }
-            : {}),
-        }
+        finish = settledFinishOf(event)
         if (event.responseId && !responseId) responseId = event.responseId
         if (event.inputTransformations !== undefined) logForDebugging(inputTransformationsLine(modelId, event.inputTransformations))
         break

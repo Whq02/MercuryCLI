@@ -76,9 +76,9 @@ section('§1 THE ROW — the pin states the model-page facts; everything derives
     JSON.stringify(pin?.longContext),
   )
   check(
-    'the row states the levels its page states ("`reasoning.effort` supports `low`, `medium`, `high`, `xhigh`, and `max`.", read 2026-11-18) and no default, since the page names none',
-    JSON.stringify(pin?.supportedReasoningEfforts) === JSON.stringify(LADDER) && pin?.defaultReasoningEffort === undefined,
-    JSON.stringify([pin?.supportedReasoningEfforts, pin?.defaultReasoningEffort]),
+    'the row states the levels its page states ("`reasoning.effort` supports `low`, `medium`, `high`, `xhigh`, and `max`.", read 2026-11-18) and medium as its default, citing the API reference where that word stands ("effort: optional ReasoningEffort or null (default: \"medium\")", read 2026-11-18)',
+    JSON.stringify(pin?.supportedReasoningEfforts) === JSON.stringify(LADDER) && pin?.defaultReasoningEffort === 'medium' && pin.defaultEffortSource === 'https://developers.openai.com/api/reference/resources/responses/methods/create',
+    JSON.stringify([pin?.supportedReasoningEfforts, pin?.defaultReasoningEffort, pin?.defaultEffortSource]),
   )
   check(
     'GPT-6 Sol and GPT-6 Luna state what their pages state: none, low, medium (default), high, xhigh, max (read 2026-11-17)',
@@ -151,14 +151,14 @@ section('§1 THE ROW — the pin states the model-page facts; everything derives
       pins.gptPriceTierFor(pin, 272_001).costInPerMtok === 20 &&
       pins.gptPriceTierFor(pin, 272_001).cacheWritePerMtok === 25,
   )
-  const sol = cost.resolveModelPricing('gpt-5.6-sol')
+  const sol = pins.gptPriceTierFor(pins.gptDisplayPin('gpt-5.6-sol')!, undefined, '2026-11-30')
   check(
-    'the 5.6 rows price at the pricing page (2026-09-05): Sol $4 in · $0.40 cached · $5 write · $20 out, the write at 1.25x the input rate',
-    sol.basis === 'recorded' &&
-      sol.costs.inputTokens === 4 &&
-      sol.costs.promptCacheReadTokens === 0.4 &&
-      sol.costs.promptCacheWriteTokens === 5 &&
-      sol.costs.outputTokens === 20,
+    'the 5.6 rows price at the pricing page: Sol $4 in · $0.40 cached · $5 write · $20 out through 30 November 2026, the write at 1.25x the input rate, and a session on it is priced from the record',
+    cost.resolveModelPricing('gpt-5.6-sol').basis === 'recorded' &&
+      sol.costInPerMtok === 4 &&
+      sol.cachedInPerMtok === 0.4 &&
+      sol.cacheWritePerMtok === 5 &&
+      sol.costOutPerMtok === 20,
     JSON.stringify(sol),
   )
   const terraLong = cost.resolveModelPricing('gpt-5.6-terra', { promptTokens: 300_000 })
@@ -306,14 +306,30 @@ process.env.OPENAI_API_KEY = 'prover-key'
   const bare = catalogue.evaluateGptCandidate(ID, 'api-key')
   const bareLive = bare.ok ? bare.candidate.live : undefined
   check(
-    "on a bare API list the dial is sent as asked: 'max' rides, 'none' answers with 'low', and nothing asked rides the session's own default 'high', the row stating none",
+    "on a bare API list the dial is sent as asked: 'max' rides, 'none' answers with 'low', and nothing asked rides 'medium', the default the row carries, as the dial shows, and never the build's own 'high'",
     bareLive !== undefined &&
-      bareLive.defaultReasoningEffort === undefined &&
+      bareLive.defaultReasoningEffort === 'medium' &&
       catalogue.resolveGptReasoningProfile('max', bareLive).wireEffort === 'max' &&
-      catalogue.resolveGptReasoningProfile(undefined, bareLive).wireEffort === 'high' &&
+      catalogue.resolveGptReasoningProfile(undefined, bareLive).wireEffort === 'medium' &&
       catalogue.resolveGptReasoningProfile(undefined, bareLive).source === 'model-default' &&
+      effort.resolveAppliedEffort(ID, undefined) === 'medium' &&
       catalogue.resolveGptReasoningProfile('none', bareLive).wireEffort === 'low',
-    JSON.stringify(bareLive?.supportedReasoningEfforts),
+    JSON.stringify([bareLive?.supportedReasoningEfforts, bareLive?.defaultReasoningEffort, bareLive === undefined ? null : catalogue.resolveGptReasoningProfile(undefined, bareLive).wireEffort ?? '(nothing sent)']),
+  )
+  const wordsOfARow = { supportedReasoningEfforts: [...LADDER], effortWordsFromRow: true as const }
+  check(
+    "the words a row supplies are marked as the row's, and a row that states words and no default sends nothing when none is chosen: the provider's own default applies, never the build's 'high'; an ask outside the ranked words sends nothing either, and a word the row states is sent as asked",
+    bareLive?.effortWordsFromRow === true &&
+      catalogue.resolveGptReasoningProfile(undefined, wordsOfARow).wireEffort === undefined &&
+      catalogue.resolveGptReasoningProfile(undefined, wordsOfARow).source === 'model-default' &&
+      catalogue.resolveGptReasoningProfile('ultra', wordsOfARow).wireEffort === undefined &&
+      catalogue.resolveGptReasoningProfile('max', wordsOfARow).wireEffort === 'max',
+    JSON.stringify([bareLive?.effortWordsFromRow ?? null, catalogue.resolveGptReasoningProfile(undefined, wordsOfARow), catalogue.resolveGptReasoningProfile('ultra', wordsOfARow)]),
+  )
+  check(
+    "a list that states its own words and no default is as it was: 'high' is sent when none is chosen (the ChatGPT road does not move)",
+    catalogue.resolveGptReasoningProfile(undefined, { supportedReasoningEfforts: [...LADDER] }).wireEffort === 'high',
+    JSON.stringify(catalogue.resolveGptReasoningProfile(undefined, { supportedReasoningEfforts: [...LADDER] })),
   )
   check(
     "on a bare API list GPT-6 Sol and GPT-6 Luna send 'none' and 'max' as asked and 'medium' when nothing is asked",
@@ -324,6 +340,18 @@ process.env.OPENAI_API_KEY = 'prover-key'
         catalogue.resolveGptReasoningProfile('max', row.candidate.live).wireEffort === 'max' &&
         catalogue.resolveGptReasoningProfile(undefined, row.candidate.live).wireEffort === 'medium'
     }),
+  )
+  catalogue.__resetOpenaiCatalogueForTest()
+  await catalogue.refreshOpenaiCatalogue('api-key', { force: true, fetchImpl: fetchOf(pins.GPT_DISPLAY_PINS.map(row => ({ id: row.id }))) })
+  const noneChosen = pins.GPT_DISPLAY_PINS.map(row => {
+    const served = catalogue.evaluateGptCandidate(row.id, 'api-key')
+    return [row.id, served.ok ? catalogue.resolveGptReasoningProfile(undefined, served.candidate.live).wireEffort ?? '(nothing sent)' : '(not served)', row.defaultReasoningEffort ?? '(nothing sent)']
+  })
+  console.log(`  [INFO] with no effort chosen, on a bare API list, each row sends: ${noneChosen.map(([id, sent]) => `${id} ${sent}`).join(' · ')}`)
+  check(
+    "with no effort chosen every GPT row on a bare API list sends the default its row carries, and a row that carries none sends nothing: the provider's own default applies",
+    noneChosen.every(([, sent, stated]) => sent === stated),
+    JSON.stringify(noneChosen.filter(([, sent, stated]) => sent !== stated)),
   )
   catalogue.__resetOpenaiCatalogueForTest()
 }

@@ -81,8 +81,10 @@ export const CONVENTION_WIRE_EFFORT = 'high'
 export function wireEffortForListDefault(
   listDefault: string | undefined,
   supported: readonly string[],
+  wordsFromRow = false,
 ): string | undefined {
   if (listDefault !== undefined && isRankedWireEffort(listDefault)) return listDefault
+  if (wordsFromRow) return undefined
   return nearestSupportedWireEffort(CONVENTION_WIRE_EFFORT, supported)
 }
 
@@ -93,7 +95,10 @@ export interface GptDisplayPin {
   observedAt: string
   source?: string
   priceSource?: string
+  defaultEffortSource?: string
   variantKind?: 'specialised' | 'premium'
+  status?: 'deprecated'
+  statusSource?: string
   contextWindow?: number
   maxInputTokens?: number
   outputMax?: number
@@ -107,17 +112,20 @@ export interface GptDisplayPin {
   knowledgeCutoff?: string
   availabilityNote?: string
   longContext?: { aboveInputTokens: number; inputMultiplier: number; outputMultiplier: number }
+  announced?: { effectiveOn: string } & Pick<GptDisplayPin, 'costInPerMtok' | 'costOutPerMtok' | 'cachedInPerMtok' | 'cacheWritePerMtok'>
 }
 
 export function gptPriceTierFor(
   pin: GptDisplayPin,
   promptTokens: number | undefined,
+  today: string = new Date().toISOString().slice(0, 10),
 ): Pick<GptDisplayPin, 'costInPerMtok' | 'costOutPerMtok' | 'cachedInPerMtok' | 'cacheWritePerMtok'> {
+  const price = pin.announced !== undefined && today >= pin.announced.effectiveOn ? pin.announced : pin
   const base = {
-    ...(pin.costInPerMtok !== undefined ? { costInPerMtok: pin.costInPerMtok } : {}),
-    ...(pin.costOutPerMtok !== undefined ? { costOutPerMtok: pin.costOutPerMtok } : {}),
-    ...(pin.cachedInPerMtok !== undefined ? { cachedInPerMtok: pin.cachedInPerMtok } : {}),
-    ...(pin.cacheWritePerMtok !== undefined ? { cacheWritePerMtok: pin.cacheWritePerMtok } : {}),
+    ...(price.costInPerMtok !== undefined ? { costInPerMtok: price.costInPerMtok } : {}),
+    ...(price.costOutPerMtok !== undefined ? { costOutPerMtok: price.costOutPerMtok } : {}),
+    ...(price.cachedInPerMtok !== undefined ? { cachedInPerMtok: price.cachedInPerMtok } : {}),
+    ...(price.cacheWritePerMtok !== undefined ? { cacheWritePerMtok: price.cacheWritePerMtok } : {}),
   }
   const rule = pin.longContext
   if (rule === undefined || promptTokens === undefined || !(promptTokens > rule.aboveInputTokens)) return base
@@ -145,6 +153,8 @@ export const GPT_DISPLAY_PINS: readonly GptDisplayPin[] = [
     cachedInPerMtok: 1,
     cacheWritePerMtok: 12.5,
     supportedReasoningEfforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+    defaultReasoningEffort: 'medium',
+    defaultEffortSource: 'https://developers.openai.com/api/reference/resources/responses/methods/create',
     knowledgeCutoff: '2026-04-30',
     longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 },
   },
@@ -165,6 +175,7 @@ export const GPT_DISPLAY_PINS: readonly GptDisplayPin[] = [
     costOutPerMtok: 20,
     cachedInPerMtok: 0.4,
     cacheWritePerMtok: 5,
+    announced: { effectiveOn: '2026-12-01', costInPerMtok: 5, costOutPerMtok: 30, cacheWritePerMtok: 6.25 },
     supportedReasoningEfforts: ['none', 'low', 'medium', 'high', 'xhigh', 'max'],
     defaultReasoningEffort: 'medium',
     knowledgeCutoff: '2026-02-16',
@@ -205,14 +216,14 @@ export const GPT_DISPLAY_PINS: readonly GptDisplayPin[] = [
     knowledgeCutoff: '2026-02-16',
     longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 },
   },
-  { id: 'gpt-5.6-cyber', displayName: 'GPT-5.6 Cyber', observedAt: '2026-11-18', source: 'https://developers.openai.com/api/docs/models/gpt-5.6-cyber.md', priceSource: 'https://developers.openai.com/api/docs/pricing', variantKind: 'specialised', contextWindow: 400_000, outputMax: 128_000, costInPerMtok: 12.5, costOutPerMtok: 75, cachedInPerMtok: 1.25, cacheWritePerMtok: 15.625 },
+  { id: 'gpt-5.6-cyber', displayName: 'GPT-5.6 Cyber', observedAt: '2026-11-18', source: 'https://developers.openai.com/api/docs/models/gpt-5.6-cyber.md', priceSource: 'https://developers.openai.com/api/docs/pricing', variantKind: 'specialised', contextWindow: 400_000, maxInputTokens: 272_000, outputMax: 128_000, costInPerMtok: 12.5, costOutPerMtok: 75, cachedInPerMtok: 1.25, cacheWritePerMtok: 15.625 },
   { id: 'gpt-5.5', displayName: 'GPT-5.5', observedAt: '2026-10-25', source: 'https://developers.openai.com/api/docs/models/gpt-5.5.md', contextWindow: 1_050_000, outputMax: 128_000, costInPerMtok: 5, costOutPerMtok: 30, cachedInPerMtok: 0.5, longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 } },
   { id: 'gpt-5.5-pro', displayName: 'GPT-5.5 Pro', observedAt: '2026-11-18', source: 'https://developers.openai.com/api/docs/models/gpt-5.5-pro.md', priceSource: 'https://developers.openai.com/api/docs/pricing', variantKind: 'premium', contextWindow: 1_050_000, outputMax: 128_000, costInPerMtok: 30, costOutPerMtok: 180, longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 } },
-  { id: 'gpt-5.5-cyber', displayName: 'GPT-5.5 Cyber', observedAt: '2026-10-25', source: 'https://developers.openai.com/api/docs/pricing', variantKind: 'specialised', costInPerMtok: 12.5, costOutPerMtok: 75, cachedInPerMtok: 1.25 },
+  { id: 'gpt-5.5-cyber-preview', displayName: 'GPT-5.5 Cyber', observedAt: '2026-11-18', source: 'https://developers.openai.com/api/docs/pricing', variantKind: 'specialised', status: 'deprecated', statusSource: 'https://developers.openai.com/api/docs/deprecations', costInPerMtok: 12.5, costOutPerMtok: 75, cachedInPerMtok: 1.25 },
   { id: 'gpt-5.4', displayName: 'GPT-5.4', observedAt: '2026-10-25', source: 'https://developers.openai.com/api/docs/models/gpt-5.4.md', contextWindow: 1_050_000, outputMax: 128_000, costInPerMtok: 2.5, costOutPerMtok: 15, cachedInPerMtok: 0.25, longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 } },
   { id: 'gpt-5.4-pro', displayName: 'GPT-5.4 Pro', observedAt: '2026-10-25', source: 'https://developers.openai.com/api/docs/models/gpt-5.4-pro.md', variantKind: 'premium', contextWindow: 1_050_000, outputMax: 128_000, costInPerMtok: 30, costOutPerMtok: 180, longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 } },
-  { id: 'gpt-5.4-mini', displayName: 'GPT-5.4 Mini', observedAt: '2026-10-25', source: 'https://developers.openai.com/api/docs/models/gpt-5.4-mini.md', contextWindow: 400_000, outputMax: 128_000, costInPerMtok: 0.75, costOutPerMtok: 4.5, cachedInPerMtok: 0.075 },
-  { id: 'gpt-5.4-nano', displayName: 'GPT-5.4 nano', observedAt: '2026-10-25', source: 'https://developers.openai.com/api/docs/models/gpt-5.4-nano.md', contextWindow: 400_000, outputMax: 128_000, costInPerMtok: 0.2, costOutPerMtok: 1.25, cachedInPerMtok: 0.02 },
+  { id: 'gpt-5.4-mini', displayName: 'GPT-5.4 Mini', observedAt: '2026-11-18', source: 'https://developers.openai.com/api/docs/models/gpt-5.4-mini.md', contextWindow: 400_000, maxInputTokens: 272_000, outputMax: 128_000, costInPerMtok: 0.75, costOutPerMtok: 4.5, cachedInPerMtok: 0.075 },
+  { id: 'gpt-5.4-nano', displayName: 'GPT-5.4 nano', observedAt: '2026-11-18', source: 'https://developers.openai.com/api/docs/models/gpt-5.4-nano.md', status: 'deprecated', contextWindow: 400_000, maxInputTokens: 272_000, outputMax: 128_000, costInPerMtok: 0.2, costOutPerMtok: 1.25, cachedInPerMtok: 0.02 },
 ]
 
 export function gptDisplayPin(id: string): GptDisplayPin | undefined {

@@ -144,7 +144,7 @@ section('§1 the owner: getModelMaxOutputTokens per family — default = min(sta
   stated('gpt-5.6-sol', 128_000, 'the GPT display pin outputMax')
   stated('gpt-6-astra', 128_000, 'the GPT display pin outputMax')
   stated('gpt-5.5', 128_000, 'developers.openai.com/api/docs/models/gpt-5.5.md, read 2026-10-25')
-  unstated('gpt-5.5-cyber', 'a pricing-only GPT pin with no documented outputMax')
+  unstated('gpt-5.5-cyber-preview', 'a pricing-only GPT pin with no documented outputMax')
   stated('claude-fable-5-1', 128_000, 'the first-party table')
   stated('claude-opus-5-5', 128_000, 'the first-party table')
   stated('claude-opus-5', 128_000, 'the first-party table')

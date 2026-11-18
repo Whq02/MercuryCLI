@@ -109,11 +109,11 @@ section('§4 the first-party table and the GPT pins are untouched')
 {
   const sonnet = getModelCosts('claude-sonnet-5')
   check('claude-sonnet-5 keeps the 2/10 tier', sonnet.inputTokens === 2 && sonnet.outputTokens === 10)
-  const { gptDisplayPin } = await import('../../src/services/providers/openai/gptPins.ts')
+  const { gptDisplayPin, gptPriceTierFor } = await import('../../src/services/providers/openai/gptPins.ts')
   const gptId = ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5', 'gpt-5.4'].find(id => gptDisplayPin(id)?.costInPerMtok !== undefined)
   if (gptId !== undefined) {
-    const pin = gptDisplayPin(gptId)!
-    check(`${gptId} keeps its GPT pin price`, getModelCosts(gptId).inputTokens === pin.costInPerMtok && getModelCosts(gptId).outputTokens === pin.costOutPerMtok)
+    const pin = gptPriceTierFor(gptDisplayPin(gptId)!, undefined)
+    check(`${gptId} keeps the price its GPT pin holds today`, getModelCosts(gptId).inputTokens === pin.costInPerMtok && getModelCosts(gptId).outputTokens === pin.costOutPerMtok)
   } else {
     check('a priced GPT pin exists to compare (fixture)', false, 'no priced gpt pin id found among the guesses')
   }

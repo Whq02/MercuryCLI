@@ -167,14 +167,6 @@ export function newestCohereModel(env: NodeJS.ProcessEnv = process.env): string 
   return cohereCatalogueRows(env).rows[0]?.id
 }
 
-export function cohereCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  const snapshot = getCachedCohereCatalogue(env)
-  const { source } = cohereCatalogueRows(env)
-  if (source.kind === 'pins') return `pinned list — ${snapshot?.lastError ? `the live list could not be read: ${snapshot.lastError}` : 'the live list returned no chat models'}`
-  if (snapshot?.lastError) return snapshot.lastError
-  return source.kind === 'live' ? `${source.count} ${source.count === 1 ? 'model' : 'models'} live` : undefined
-}
-
 export function cohereModelFacts(id: string): { contextWindow?: number; outputMax?: number; reasoning?: boolean; images?: boolean; tools?: boolean; efforts: readonly string[] } {
   const pin = cohereDisplayPin(id)
   return {

@@ -2420,7 +2420,7 @@ env-whole	src/services/providers/cerebras/cerebrasAccounts.ts	5
 env-whole	src/services/providers/cerebras/cerebrasCatalogue.ts	4
 env-whole	src/services/providers/cerebras/cerebrasLogin.ts	1
 env-whole	src/services/providers/cohere/cohereAccounts.ts	5
-env-whole	src/services/providers/cohere/cohereCatalogue.ts	7
+env-whole	src/services/providers/cohere/cohereCatalogue.ts	6
 env-whole	src/services/providers/cohere/cohereLogin.ts	1
 env-whole	src/services/providers/deepseek/deepseekAccounts.ts	5
 env-whole	src/services/providers/deepseek/deepseekCatalogue.ts	7
@@ -2454,7 +2454,7 @@ env-whole	src/services/providers/meta/metaCatalogue.ts	6
 env-whole	src/services/providers/meta/metaLogin.ts	5
 env-whole	src/services/providers/meta/metaUsageState.ts	1
 env-whole	src/services/providers/minimax/minimaxAccounts.ts	6
-env-whole	src/services/providers/minimax/minimaxCatalogue.ts	8
+env-whole	src/services/providers/minimax/minimaxCatalogue.ts	7
 env-whole	src/services/providers/minimax/minimaxLogin.ts	1
 env-whole	src/services/providers/minimax/minimaxUsageState.ts	5
 env-whole	src/services/providers/mistral/mistralAccounts.ts	6
@@ -2498,7 +2498,7 @@ env-whole	src/services/providers/together/togetherCatalogue.ts	6
 env-whole	src/services/providers/together/togetherLogin.ts	1
 env-whole	src/services/providers/typedModelIds.ts	1
 env-whole	src/services/providers/xai/xaiAccounts.ts	9
-env-whole	src/services/providers/xai/xaiCatalogue.ts	7
+env-whole	src/services/providers/xai/xaiCatalogue.ts	6
 env-whole	src/services/providers/xai/xaiLogin.ts	2
 env-whole	src/services/providers/xai/xaiOauth.ts	1
 env-whole	src/services/providers/xai/xaiUsageState.ts	6

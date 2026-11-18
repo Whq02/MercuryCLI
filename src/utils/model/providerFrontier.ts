@@ -134,7 +134,7 @@ export function openaiSessionDefault(served: readonly string[]): ProviderFrontie
   const general: Array<GptRank & { variant: string; pin: (typeof GPT_DISPLAY_PINS)[number] }> = []
   for (const pin of GPT_DISPLAY_PINS) {
     const identity = parseGptModelId(pin.id)
-    if (identity && pin.variantKind === undefined && served.includes(pin.id)) general.push({ id: pin.id, major: identity.major, minor: identity.minor, variant: identity.variant, pin })
+    if (identity && pin.variantKind === undefined && pin.status !== 'deprecated' && served.includes(pin.id)) general.push({ id: pin.id, major: identity.major, minor: identity.minor, variant: identity.variant, pin })
   }
   let newest: GptRank | undefined
   for (const row of general) if (newest === undefined || newerThan(row, newest)) newest = row
