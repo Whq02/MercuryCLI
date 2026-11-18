@@ -62,7 +62,7 @@ import { CockpitBottomStatus } from '../context/cockpitActiveContext.js';
 import { MercuryFrame } from '../components/MercuryFrame.js';
 import { splitWayOut, useNotifications } from '../context/notifications.js';
 import { performUiRouteAlias } from '../context/routeAliases.js';
-import { currentSurfaceRoute, settleAbsentChat, subscribeSurfaceRoute } from '../context/surfaceRoute.js';
+import { currentSurfaceRoute, subscribeSurfaceRoute } from '../context/surfaceRoute.js';
 import { useAgentsChange } from '../hooks/useAgentsChange.js';
 import { useApiKeyVerification } from '../hooks/useApiKeyVerification.js';
 import { useEngineModel } from '../hooks/useEngineModel.js';
@@ -83,7 +83,6 @@ import { AlternateScreen } from '../ink/components/AlternateScreen.js';
 import { streamingRevealSuppressed } from '../ink/session/capabilities.js';
 import { setClipboardWithReceipt } from '../ink/termio/osc.js';
 import * as pendingInput from '../input-core/pending-input.js';
-import { rekeyCommandQueueToSession } from '../input-core/command-queue.js';
 import { HELD_FOR_COMPACTION_LINE } from '../components/messages/TranscriptNameplate.js';
 import { KeybindingSetup } from '../keybindings/KeybindingProviderSetup.js';
 import { getShortcutDisplay } from '../keybindings/shortcutFormat.js';
@@ -103,15 +102,6 @@ import {
   subscribeThroughFocused,
   conversationIdHere,
 } from '../services/engine-connector/focusedConnector.js';
-import {
-  enteringWarmth,
-  entryLoadingLineOf,
-  evictSessionWarmth,
-  paintedTranscriptOf,
-  sessionWarmthVersion,
-  settleEntryWarmth,
-  subscribeSessionWarmth,
-} from '../services/concourse/sessionWarmth.js';
 import type { RewindReceiptV1 } from '../services/engine-connector/types.js';
 import { flagEnv } from '../substrate/flagRegistry.js';
 import { resolveTerminalExperience } from '../ink/session/terminalExperience.js';
@@ -126,6 +116,7 @@ import { type ToolJSXState, useChatDialogPaints, useChatDialogs, useChatDialogsV
 import { useChatDraft } from './chat/useChatDraft.js';
 import { useChatScroll, useChatScrollFollow, useChatScrollPin } from './chat/useChatScroll.js';
 import { TranscriptFooter, TranscriptSearchBar, useChatSearch } from './chat/useChatSearch.js';
+import { useChatConversation, useChatSession } from './chat/useChatSession.js';
 import { AnimatedTitle, useChatTitle } from './chat/useChatTitle.js';
 import type { SessionListing } from '../types/logs.js';
 import type { Message, NormalizedUserMessage, ProgressMessage, UserMessage } from '../types/message.js';
@@ -183,7 +174,6 @@ function rewindReceiptLine(receipt: RewindReceiptV1): string {
   }
   return `rewound: ${parts.join(' · ')}`;
 }
-const NO_CHAT_SETTLE_MS = 150;
 const HELD_FOR_LANDING: ReadonlySet<string> = new Set(['swarm', 'swarmchat', 'general', 'team', 'whisper', 'rename', 'title', 'contract', 'crewmates']);
 const MESSAGE_ACTION_UUID_PREFIX = 24;
 const EMPTY_CONFIRM_QUEUE: ToolUseConfirm[] = [];
@@ -386,7 +376,7 @@ export function Chat({
 
   const messages = useFocusedTranscript();
   const tailAnchor = useFocusedTailAnchor();
-  const [conversationId, setConversationId] = useState<string>(() => focusedConnector.sessionId());
+  const { conversationId, setConversationId } = useChatConversation(focusedConnector);
   const { toolJSX, setToolJSX, isExiting, showExitFlow, setShowExitFlow, exitCommandJsx, showCostThreshold, setShowCostThreshold, showBashesDialog, setShowBashesDialog, handleExit } = useChatDialogs({ store });
   const [showMessageSelector, setShowMessageSelector] = useState(false);
   const openMessageSelector = useCallback(() => setShowMessageSelector(true), []);
@@ -1346,53 +1336,7 @@ export function Chat({
     refuseSessionRewrite('summarising a stretch of the conversation');
   }, [refuseSessionRewrite]);
 
-  const warmthVersion = useSyncExternalStore(subscribeSessionWarmth, sessionWarmthVersion, sessionWarmthVersion);
-  const focusedSessionId = focusedConnector.sessionId();
-  const paintedMessages = useMemo(
-    () => paintedTranscriptOf(messages, enteringWarmth(), focusedSessionId),
-    [messages, warmthVersion, focusedSessionId],
-  );
-  const entryLoadingLine = entryLoadingLineOf(enteringWarmth(), messages.length === 0, focusedSessionId);
-  useEffect(() => {
-    const warmth = enteringWarmth();
-    if (warmth === null) return;
-    const focusedId = focusedConnector.sessionId();
-    if (messages.length > 0 && focusedId === warmth.sessionId) {
-      evictSessionWarmth(warmth.sessionId);
-      settleEntryWarmth(warmth.sessionId);
-    } else if (hasFocusedSession() && focusedId !== warmth.sessionId && focusedId !== warmth.coveredSessionId) {
-      settleEntryWarmth(warmth.sessionId);
-    }
-  }, [messages, focusedConnector, warmthVersion]);
-  const displayedMessages = inVirtualTranscript ? transcriptMessages : paintedMessages;
-
-  const rekeyedSessionRef = useRef(focusedSessionId);
-  useEffect(() => {
-    compactWork.set('composer');
-    unseen.onRepin();
-    repinToBottom();
-    setConversationId(focusedSessionId);
-    const landing = rekeyedSessionRef.current === '' && focusedSessionId !== '';
-    if (!landing) setToolJSX(null);
-    if (rekeyedSessionRef.current !== focusedSessionId) {
-      rekeyedSessionRef.current = focusedSessionId;
-      void pendingInput.rekeyToSession(focusedSessionId === '' ? null : focusedSessionId, { landing });
-      rekeyCommandQueueToSession(focusedSessionId === '' ? null : focusedSessionId, { landing });
-    }
-  }, [focusedSessionId]);
-  const slotHasSession = useSyncExternalStore(subscribeFocusedSessionConnector, hasFocusedSession, hasFocusedSession);
-  const armedMessageRef = useRef(armedMessage);
-  armedMessageRef.current = armedMessage;
-  useEffect(() => {
-    if (slotHasSession || landing || chatSurfaceCovered || localJsx || armedMessage !== null) return;
-    if (!isFullscreenEnvEnabled()) return;
-    const settle = setTimeout(() => {
-      if (hasFocusedSession() || landingInFlight() || currentSurfaceRoute().kind !== 'repl') return;
-      if (toolJSXRef.current?.isLocalJSXCommand === true || armedMessageRef.current !== null) return;
-      settleAbsentChat();
-    }, NO_CHAT_SETTLE_MS);
-    return () => clearTimeout(settle);
-  }, [slotHasSession, landing, chatSurfaceCovered, localJsx, armedMessage]);
+  const { warmthVersion, paintedMessages, entryLoadingLine, displayedMessages, slotHasSession } = useChatSession({ focusedConnector, messages, compactWork, unseen, repinToBottom, setConversationId, setToolJSX, toolJSXRef, localJsx, landing, armedMessage, chatSurfaceCovered, inVirtualTranscript, transcriptMessages });
 
   useChatScrollFollow({ messages, repinToBottom });
   const viewInProgressToolUseIDs = seatLive.inProgressToolUseIDs;

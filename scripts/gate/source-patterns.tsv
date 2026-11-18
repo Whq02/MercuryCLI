@@ -81,9 +81,10 @@ setTimeout	src/mneme/mnemeIndex.ts	1
 setTimeout	src/mneme/mnemeMaintenance.ts	1
 setTimeout	src/rows/turn.ts	1
 setTimeout	src/runner/wire/peer.ts	1
-setTimeout	src/screens/Chat.tsx	4
+setTimeout	src/screens/Chat.tsx	3
 setTimeout	src/screens/chat/useChatAsks.tsx	1
 setTimeout	src/screens/chat/useChatSearch.tsx	2
+setTimeout	src/screens/chat/useChatSession.ts	1
 setTimeout	src/services/AgentSummary/agentSummary.ts	2
 setTimeout	src/services/acp/childSession.ts	1
 setTimeout	src/services/acp/ideToolBridge.ts	1
@@ -530,7 +531,7 @@ useEffect	src/ink/hooks/use-terminal-title.ts	1
 useEffect	src/ink/terminalWrite.ts	2
 useEffect	src/keybindings/KeybindingProviderSetup.tsx	2
 useEffect	src/keybindings/useKeybinding.ts	2
-useEffect	src/screens/Chat.tsx	28
+useEffect	src/screens/Chat.tsx	25
 useEffect	src/screens/ResumeConversation.tsx	1
 useEffect	src/screens/chat/ChatKeys.tsx	1
 useEffect	src/screens/chat/useChatAsks.tsx	3
@@ -538,6 +539,7 @@ useEffect	src/screens/chat/useChatDialogs.tsx	2
 useEffect	src/screens/chat/useChatDraft.ts	3
 useEffect	src/screens/chat/useChatScroll.ts	1
 useEffect	src/screens/chat/useChatSearch.tsx	7
+useEffect	src/screens/chat/useChatSession.ts	3
 useEffect	src/screens/chat/useChatTitle.tsx	2
 useEffect	src/services/anthropicLimitsHook.ts	1
 useEffect	src/services/crewBoard/implementation.ts	1
