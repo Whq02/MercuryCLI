@@ -247,8 +247,10 @@ function masked(recording: Recording): Recording {
     return ids.get(key)!
   }
   const temp = [...new Set([tmpdir(), realpathSync(tmpdir())])].sort((x, y) => y.length - x.length)
+  const trees = [...new Set([join(import.meta.dir, '..', '..'), ...(argOf('--tree') !== undefined ? [argOf('--tree')!] : [])])].sort((x, y) => y.length - x.length)
   const words = (text: string): string => {
     let out = text
+    for (const tree of trees) out = out.split(tree).join('<tree>')
     for (const root of temp) out = out.split(root).join('<tmp>')
     return out
       .replace(/\/[A-Za-z0-9._/-]*?\/built-product-/g, '<tmp>/built-product-')
@@ -265,11 +267,11 @@ function masked(recording: Recording): Recording {
       .replace(/\b1[6-9]\d{11}\b/g, '<ms>')
       .replace(/\b[0-9a-f]{40}\b/g, '<digest>')
   }
-  const walk = (value: unknown, key = ''): unknown => {
-    if (typeof value === 'string') return BUILD_KEYS.has(key) ? `<${key}>` : words(value)
+  const walk = (value: unknown, key = '', under = ''): unknown => {
+    if (typeof value === 'string') return BUILD_KEYS.has(key) ? `<${key}>` : key === 'read' && under === 'memory' ? '<read>' : words(value)
     if (typeof value === 'number') return CLOCK_KEYS.test(key) && !FIXED.has(key) ? `<${key}>` : value
-    if (Array.isArray(value)) return value.map(item => walk(item, key))
-    if (value !== null && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, walk(v, k)]))
+    if (Array.isArray(value)) return value.map(item => walk(item, key, under))
+    if (value !== null && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, walk(v, k, key)]))
     return value
   }
   const lines = (text: string): unknown =>
