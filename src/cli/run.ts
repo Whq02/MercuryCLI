@@ -1,12 +1,10 @@
 import { requestShellBackground } from '../tools/BashTool/backgroundRequest.js'
 import { randomUUID, type UUID } from 'node:crypto'
-import { EMPTY_USAGE } from '../services/api/emptyUsage.js'
 import {
   getEngineModelOverride,
   getSessionId,
   setEngineModelOverride,
   getMainThreadAgentType,
-  getTotalAPIDuration,
   isSessionPersistenceDisabled,
   setAskChannel,
   setRunInputClosed,
@@ -33,8 +31,8 @@ import { DRAIN_CUT_WORDS } from '../utils/messages/turnCut.js'
 import {
   scheduleEditToWire,
 } from '../services/engine-connector/seatWire.js'
-import { closeRow, commandOutputRow, compactionClearedRow, compactionRow, heartbeatRow, missionUpdatedRow, modeRow, noticeRow, outcomeRow, rateLimitRow, samplesUpdatedRow, turnStartedRow, turnWaitingRow, waitRow, type RowDraft, type RowScope, type Unstamped } from '../rows/project.js'
-import { OUTCOME_SENTENCES, type CompactionRow, type InputRow, type OutcomeRow, type Row } from '../rows/vocabulary.js'
+import { commandOutputRow, compactionClearedRow, compactionRow, heartbeatRow, missionUpdatedRow, modeRow, noticeRow, rateLimitRow, samplesUpdatedRow, waitRow, type RowDraft, type RowScope, type Unstamped } from '../rows/project.js'
+import { type CompactionRow, type InputRow, type OutcomeRow, type Row } from '../rows/vocabulary.js'
 import { isOutcome } from '../rows/read.js'
 import type { FoldStatusV1 } from '../services/compact/foldStatus.js'
 import type { RequestWaitV1 } from '../services/providers/streamIdleBudget.js'
@@ -63,13 +61,13 @@ import { finishPrintRun, pumpOutbound } from './headless/printRunEnd.js'
 import { hydrateResumedRun } from './headless/resumeHydration.js'
 import * as inputDoor from './headless/inputDoor.js'
 import * as printTurn from './headless/printTurn.js'
+import * as printDriver from './headless/printDriver.js'
 import { priorTurnCount } from './headless/claimSession.js'
 import { fileCheckpointsFact } from './headless/sessionFactsArm.js'
 import { createPeer, type Peer } from '../runner/wire/peer.js'
 import { invalidParams } from '../runner/wire/errors.js'
 import { ndjsonSafeStringify } from './ndjsonSafeStringify.js'
 import { statusListeners, type AnthropicLimits } from '../services/anthropicLimits.js'
-import { sessionLaneWall } from '../tools/MonitorTool/laneWall.js'
 import {
   clearServerCache,
   fetchCommandsForClient,
@@ -86,7 +84,7 @@ import {
 } from '../services/saturn/sessionScheduleBridge.js'
 import { registerIdeToolDoor } from '../services/acp/ideToolBridge.js'
 import { crewBoardNotice } from '../utils/messages/noticeRows.js'
-import { advisorMainTurnSettled, createAdvisorQuietMessage, type AdvisorQuiet, type AdvisorRoad } from '../services/advisor/index.js'
+import { type AdvisorQuiet } from '../services/advisor/index.js'
 import { enqueueBoardWake, swarmSessionEnabled, swarmStore, watchSwarmBoard, watchSwarmLead, watchSwarmResumes } from '../services/crewBoard/seam.js'
 import { partyFeed } from '../services/crewBoard/party.js'
 import {
@@ -117,15 +115,11 @@ import {
 } from '../utils/fileStateCache.js'
 import { getLastCacheSafeParams } from '../utils/forkedAgent.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
-import { crewmateNoticeOwed } from '../tools/AgentTool/agentToolUtils.js'
 import { isBuiltInAgent } from '../tools/AgentTool/loadAgentsDir.js'
 import { gracefulShutdown, gracefulShutdownSync, isShuttingDown, markRunModeSignalsOwned, TERMINAL_GONE_EXIT_CODE } from '../utils/gracefulShutdown.js'
-import { leaveNoteBeforeExit } from '../mneme/exitHandoff.js'
-import { HANDOFF_ASK_BUDGET_MS } from '../mneme/handoffAsk.js'
 import { saveCurrentSessionCosts } from '../cost-tracker.js'
 import {
   headlessProfilerStartTurn,
-  logHeadlessProfilerTurn,
 } from '../utils/headlessProfiler.js'
 import { subscribeHookExecutionEvents } from '../utils/hooks/hookEvents.js'
 import { hookTaskRow } from '../utils/hooks/rows.js'
@@ -137,21 +131,18 @@ const SIGNAL_SETTLE_MS = 5_000
 const BUILD_BEHIND_FLOOR_MS = 60_000
 const BUILD_BEHIND_THROTTLE_MS = 2_000
 const BUILD_BEHIND_CONFIRM_MS = 2_000
-import { getInMemoryErrors, logError, withoutStackFrames } from '../utils/log.js'
+import { logError } from '../utils/log.js'
 import { processMainOwner } from '../services/run/resolveOwner.js'
 import type { Message } from '../types/message.js'
 import type { ContentBlockParam } from '../types/wire.js'
 import {
   dequeue,
   enqueue,
-  peek,
   subscribeToCommandQueue,
   getCommandQueue,
 } from '../utils/messageQueueManager.js'
 import type { QueuedCommand } from '../types/textInputTypes.js'
 import { isHeldNotice, isOperatorLine } from '../input-core/command-queue.js'
-import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
-import { agentRecipientState, MAIN_THREAD_AGENT, nudgeWords, startIdleNudge } from '../services/notices/idleNudge.js'
 import { type NoticeRecord } from '../services/notices/unreadLedger.js'
 import { isLocalShellTask } from '../tasks/LocalShellTask/guards.js'
 import { killTask } from '../tasks/LocalShellTask/killShellTasks.js'
@@ -168,7 +159,7 @@ import {
 } from '../utils/model/capabilities.js'
 import { isEffortLevel, resolveEffortTruth } from '../utils/effort.js'
 import { registerProcessOutputErrorHandlers } from '../utils/process.js'
-import { noteRunPhase, runPhaseReport } from '../utils/runPhases.js'
+import { noteRunPhase } from '../utils/runPhases.js'
 import { getPerformance } from '../utils/profilerBase.js'
 import { buildSideQuestionFallbackParams } from '../utils/queryContext.js'
 import { armLocalWarm } from '../services/providers/local/localWarm.js'
@@ -191,7 +182,7 @@ import { applySettingsChange } from '../utils/settings/applySettingsChange.js'
 import { skillChangeDetector } from '../utils/skills/skillChangeDetector.js'
 import { armRunnerAgentFreshness } from './agentFreshness.js'
 import { installWireStdoutGuard } from '../utils/wireStdoutGuard.js'
-import { getRunningTasks, POLL_INTERVAL_MS } from '../utils/task/framework.js'
+import { getRunningTasks } from '../utils/task/framework.js'
 import { markSessionBootRules, markSessionNonInteractive } from '../utils/cockpit/runtimePosture.js'
 import { consumeSessionKindPin } from '../utils/sessionKind.js'
 import { describeArtifactIdentity, runningBuildTree } from '../utils/artifactIdentity.js'
@@ -360,6 +351,20 @@ export async function runHeadless(
     get party() { return party },
     get swarmLead() { return swarmLead },
     get swarmResumes() { return swarmResumes },
+    get bootReady() { return bootReady },
+    get isConcourseWorker() { return isConcourseWorker },
+    get isMainThreadCommand() { return isMainThreadCommand },
+    get takeMainThread() { return takeMainThread },
+    get executeTurn() { return executeTurn },
+    get settleIdle() { return settleIdle },
+    get idleTimeout() { return idleTimeout },
+    get writeLine() { return writeLine },
+    get disarmAgentFreshness() { return disarmAgentFreshness },
+    get stopDrainedNotificationFrames() { return stopDrainedNotificationFrames },
+    get stopSdkDrain() { return stopSdkDrain },
+    get rateLimitListener() { return rateLimitListener },
+    get carriersOf() { return carriersOf },
+    get retireQueuedCommands() { return retireQueuedCommands },
   }
   const maxTime = options.maxTimeMs === undefined ? undefined : { limitMs: options.maxTimeMs, at: Date.now() + options.maxTimeMs }
   setAskChannel(options.door === 'wire' ? 'sdk' : 'none')
@@ -838,20 +843,8 @@ export async function runHeadless(
   const interruptOutcomes = new Map<string, boolean>()
   asks.setOnControlRequestSent(() => live.hostAsks?.noteParked())
   asks.setOnControlRequestResolved(() => live.hostAsks?.noteSettled())
-  const landAdvisorQuiet = (quiet: AdvisorQuiet): void => {
-    const row = createAdvisorQuietMessage(quiet)
-    messages.push(row)
-    void recordTranscript([row], undefined, messages).catch((error: unknown) => {
-      logForDebugging(`advisor: the quiet row was not recorded — ${error instanceof Error ? error.message : String(error)}`)
-    })
-  }
-  const advisorRoad: AdvisorRoad = {
-    onQuiet: quiet => {
-      if (live.inputClosed) return
-      if (live.inFlightAbort !== null) live.deferredAdvisorQuiet.push(quiet)
-      else landAdvisorQuiet(quiet)
-    },
-  }
+  const landAdvisorQuiet = (quiet: AdvisorQuiet): void => printDriver.landAdvisorQuiet(quiet, ports)
+  const advisorRoad = printDriver.advisorRoadOf(ports)
   const landSpawnSwitch = (kind: 'subagents', on: boolean): void => {
     const landed = setSpawnSwitch(kind, on)
     if (!landed.changed) return
@@ -1085,103 +1078,7 @@ export async function runHeadless(
   const retireQueuedCommands = (commands: QueuedCommand[]): void => inputDoor.retireQueuedCommands(commands, ports)
   const stopDrainedNotificationFrames = inputDoor.watchDrainedNotifications(ports)
 
-  const driver: TurnDriver = createTurnDriver({
-    dequeue: takeMainThread,
-    dequeueCommand: command => dequeue(queued => queued === command),
-    peek: () => peek(isMainThreadCommand),
-    notifyLifecycle: notifyCommandLifecycle,
-    enqueueOutput: message => {
-      if (isOutcome(message as never) && (message as OutcomeRow).status === 'completed' && maxTime !== undefined && Date.now() >= maxTime.at) {
-        io.outbound.enqueue({ ...message, status: 'time_limit', error: { class: 'time_limit', message: OUTCOME_SENTENCES.time_limit({ maxTimeMs: maxTime.limitMs }) } } as RowDraft)
-      } else io.outbound.enqueue(message)
-    },
-    writeDirect: async message => {
-      await writeLine(message)
-    },
-    drainRows: () => drainRows().map(row => ({ ...row, ...(live.currentTurn !== null ? { turn: live.currentTurn } : {}) }) as RowDraft),
-    beforeCycle: () => bootReady,
-    onTurnStart: () => {
-      live.currentTurnId = null
-    },
-    turnIdOf: () => {
-      if (live.currentTurnId === null) live.currentTurnId = randomUUID()
-      return live.currentTurnId
-    },
-    openTurnRow: messageIds => {
-      if (live.currentTurnId === null) live.currentTurnId = randomUUID()
-      return turnStartedRow({ session_id: getSessionId(), turn: live.currentTurn ?? live.turnsRun }, { turnId: live.currentTurnId, messageIds, model: live.activeModel ?? getEngineModel() })
-    },
-    executeTurn: (command, batch, onMessage, initialNotices) =>
-      executeTurn(command, batch, message => {
-        if (message.type === 'block_start') party.blockOpen()
-        else if (message.type === 'text' || message.type === 'reasoning' || message.type === 'tool_call') party.landed()
-        onMessage(message)
-      }, initialNotices),
-    onTurnSettled: command => {
-      logHeadlessProfilerTurn()
-      headlessProfilerStartTurn()
-      if (live.turnReachedModel) void advisorMainTurnSettled(String(getSessionId()), command, messages, advisorRoad)
-    },
-    hasWaitableBackgroundTasks: () =>
-      getRunningTasks(getAppState()).some(task => !(live.inputClosed && isLocalShellTask(task))) || (live.inputClosed && (swarmResumes.hasPending() || crewmateNoticeOwed())),
-    hasHoldableBackgroundAgents: () =>
-      getRunningTasks(getAppState()).some(
-        task => task.type === 'local_agent',
-      ),
-    waitableBackgroundTaskCount: () =>
-      getRunningTasks(getAppState()).filter(task => !(live.inputClosed && isLocalShellTask(task))).length + (live.inputClosed ? swarmResumes.waitingSeats() : 0),
-    onAgentWait: (count, turnId) => {
-      enqueueRow(turnWaitingRow({ session_id: getSessionId(), turn: live.turnsRun }, { turnId, agents: count }))
-    },
-    settleIdle,
-    wakeSettle: () => {},
-    beforeCloseOutput: async () => {
-      if (isConcourseWorker) return
-      const { exitNoteDue } = await import('../mneme/exitHandoff.js')
-      const ranHere = exitNoteDue()
-      let closeUsage: import('../services/api/emptyUsage.js').NonNullableUsage | undefined
-      const outcome = await leaveNoteBeforeExit({
-        budgetMs: HANDOFF_ASK_BUDGET_MS,
-        onNotice: text => io.outbound.enqueue(noticeRow(liveScope(), 'warning', text)),
-        onUsage: usage => { closeUsage = usage },
-      })
-      if (ranHere) io.outbound.enqueue(closeRow(liveScope(), { state: outcome, ...(closeUsage !== undefined ? { usage: closeUsage } : {}) }))
-    },
-    closeOutput: async () => {
-      const { endBackgroundHooks } = await import('../utils/hooks/background.js')
-      await endBackgroundHooks().catch(() => {})
-      skillChangeDetector.dispose()
-      disarmAgentFreshness()
-      stopDrainedNotificationFrames()
-      stopSdkDrain()
-      statusListeners.delete(rateLimitListener)
-      noteRunPhase('flush_exit')
-      logForDebugging(`[run-phases] ${jsonStringify(runPhaseReport(getTotalAPIDuration()))}`)
-      io.outbound.done()
-    },
-    isShuttingDown,
-    idleTimerStop: () => idleTimeout.stop?.(),
-    idleTimerStart: () => idleTimeout.start?.(),
-    onCycleError: (error, turnId) =>
-      outcomeRow(
-        { session_id: getSessionId(), turn: live.currentTurn ?? Math.max(1, live.turnsRun) },
-        {
-          turnId,
-          status: 'failed',
-          steps: 0,
-          wallMs: 0,
-          usage: EMPTY_USAGE,
-          models: {},
-          denials: [],
-          error: { message: errorMessage(error), class: 'internal', detail: getInMemoryErrors().map(entry => withoutStackFrames(entry.error)) },
-        },
-      ),
-    shutdown: code => void gracefulShutdown(code),
-    clock: { sleep: ms => new Promise(resolve => setTimeout(resolve, ms)) },
-    queuedMainThread: () => getCommandQueue().filter(isMainThreadCommand),
-    settleWindowMs: Math.max(POLL_INTERVAL_MS, Number.parseInt(flagEnv('MERCURY_SETTLE_WINDOW_MS') ?? '', 10) || 0),
-    wall: () => sessionLaneWall(),
-  })
+  const driver: TurnDriver = createTurnDriver(printDriver.printDriverPorts(ports))
 
   const stopSdkDrain = subscribeRows(() => {
     for (const row of drainRows()) enqueueRow({ ...row, ...(live.currentTurn !== null ? { turn: live.currentTurn } : {}) } as RowDraft)
@@ -1197,16 +1094,7 @@ export async function runHeadless(
     }
   })
 
-  const carriersOf = (notices: readonly NoticeRecord[]): QueuedCommand[] => {
-    const keys = new Set<string>()
-    for (const notice of notices) {
-      keys.add(notice.key)
-      if (notice.altKey !== undefined) keys.add(notice.altKey)
-    }
-    return getCommandQueue().filter(
-      command => (command.queueId !== undefined && keys.has(command.queueId)) || (command.uuid !== undefined && keys.has(String(command.uuid))),
-    )
-  }
+  const carriersOf = (notices: readonly NoticeRecord[]): QueuedCommand[] => printDriver.carriersOf(notices)
   const { watchHostNotices } = await import('../services/host/notices.js')
   const stopHostNotices = watchHostNotices(() => getSessionId())
   const party = partyFeed({
@@ -1234,28 +1122,7 @@ export async function runHeadless(
       void recordHostNoticeRows([{ value: crewBoardNotice(event.authorName ?? event.author.agentId, event.kind, event.text), mode: 'task-notification', uuid: event.eventId as UUID, sentAt: event.createdAt }])
     },
   )
-  const idleNudge = startIdleNudge({
-    recipient: agentId => {
-      if (agentId !== MAIN_THREAD_AGENT) return agentRecipientState(getAppState().tasks, agentId)
-      if (isShuttingDown()) return { state: 'gone', why: 'the session is shutting down' }
-      if (live.inputClosed) return { state: 'gone', why: "the session's input closed" }
-      if (sessionLaneWall().closed) return { state: 'busy' }
-      return !live.sessionInitialized || driver.isRunning() ? { state: 'busy' } : { state: 'idle' }
-    },
-    wake: (agentId, notices) => {
-      const waitedMs = Date.now() - Math.min(...notices.map(notice => notice.deliveredAtMs))
-      if (agentId === MAIN_THREAD_AGENT) {
-        enqueue({ value: nudgeWords(notices, waitedMs), mode: 'prompt', priority: 'later', isMeta: true, uuid: randomUUID() })
-        driver.endOperatorWait()
-        return true
-      }
-      return false
-    },
-    discard: notices => {
-      const carriers = carriersOf(notices)
-      if (carriers.length > 0) retireQueuedCommands(carriers)
-    },
-  })
+  const idleNudge = printDriver.startRunnerIdleNudge(ports)
 
   const settleOnSignal = async (code: number, cut?: string): Promise<void> => {
     live.signalCode = code

@@ -1,7 +1,9 @@
 import type { Command } from '../../commands.js'
 import type { RunnerQuiescence } from '../../daemon/runnerQuiescence.js'
 import type { RowDraft, RowScope } from '../../rows/project.js'
-import type { InputRow, OutcomeRow } from '../../rows/vocabulary.js'
+import type { InputRow, OutcomeRow, Row } from '../../rows/vocabulary.js'
+import type { AnthropicLimits } from '../../services/anthropicLimits.js'
+import type { NoticeRecord } from '../../services/notices/unreadLedger.js'
 import type { Peer } from '../../runner/wire/peer.js'
 import type { ConnectedMCPServer, MCPServerConnection, ScopedMcpServerConfig } from '../../services/mcp/types.js'
 import type { AppState } from '../../state/AppStateStore.js'
@@ -214,4 +216,18 @@ export type RunnerPorts = {
   party: ReturnType<typeof import('../../services/crewBoard/party.js').partyFeed>
   swarmLead: ReturnType<typeof import('../../services/crewBoard/seam.js').watchSwarmLead>
   swarmResumes: ReturnType<typeof import('../../services/crewBoard/seam.js').watchSwarmResumes>
+  bootReady: Promise<void>
+  isConcourseWorker: boolean
+  isMainThreadCommand: (command: QueuedCommand) => boolean
+  takeMainThread: () => QueuedCommand | undefined
+  executeTurn: (command: QueuedCommand, batch: QueuedCommand[], onMessage: (message: RowDraft) => void, initialNotices?: QueuedCommand[]) => Promise<void>
+  settleIdle: () => Promise<'reenter' | 'close' | 'stay'>
+  idleTimeout: { start(): void; stop(): void }
+  writeLine: (message: OutboundLine) => Promise<Row | null>
+  disarmAgentFreshness: () => void
+  stopDrainedNotificationFrames: () => void
+  stopSdkDrain: () => void
+  rateLimitListener: (limits: AnthropicLimits) => void
+  carriersOf: (notices: readonly NoticeRecord[]) => QueuedCommand[]
+  retireQueuedCommands: (commands: QueuedCommand[]) => void
 }
