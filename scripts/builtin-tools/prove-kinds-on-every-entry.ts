@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { readImports, staticPairs } from '../lib/importCycle.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
+const SELF = 'scripts/builtin-tools/prove-kinds-on-every-entry.ts'
 const LAUNCHER = 'src/entrypoints/cli.tsx'
 const RESOLVER = 'src/services/resources/registry.ts'
 const TABLE = 'src/services/resources/kinds.ts'
@@ -15,6 +16,7 @@ const OWNER = 'src/services/run/resolveOwner.ts'
 const NO_KIND = 'zz-no-such-kind'
 const NO_RECORD = 'zz-no-such-record'
 const POOL = 6
+const HELD_TURNS = 12
 const DOORS = ['resolveResource', 'resourceAdapterKinds', 'listResourceKind', 'getResourceAdapter'] as const
 type Door = (typeof DOORS)[number]
 const ALSO: Array<[string, string]> = [
@@ -24,6 +26,10 @@ const ALSO: Array<[string, string]> = [
   ['src/entrypoints/shellParentGuard.ts', 'the shell parent guard bundle'],
   ['src/entrypoints/tensorfoldAdapter.ts', 'the TensorFold adapter bundle'],
   ['src/services/privateChannel/verifyArtifactStandalone.ts', 'the artifact verifier bundle'],
+]
+const ROWS: Array<[string, string, string]> = [
+  ['resource-plane-fast', 'src/utils/health/sections/coding-loop-fast.ts', 'codingLoopFastChecks'],
+  ['primitive-resources', 'src/utils/health/sections/architecture-fast.ts', 'architectureFastChecks'],
 ]
 
 interface Answer {
@@ -36,6 +42,17 @@ interface Asked {
   control: Answer
   listed: string[]
   exported: Array<{ file: string; kind: string }>
+}
+interface Held {
+  reached: number
+  stood: boolean
+  settled: string
+  listed: Array<string[] | string>
+  resolved: Array<Answer | string>
+  children: string[]
+  rows: Array<{ id: string; found: boolean; said: { status: string; evidence: string } | string }>
+  bare: string[]
+  control: Answer | string
 }
 
 if (process.argv[2] === '--child') {
@@ -74,6 +91,94 @@ if (process.argv[2] === '--child') {
   process.exit(0)
 }
 
+if (process.argv[2] === '--held') {
+  ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+  const out = process.argv[3]!
+  const bare = process.argv[4] === 'bare'
+  const kinds = JSON.parse(process.argv[5]!) as string[]
+  const { plugin } = await import('bun')
+  const gate = { open: (): void => {}, reached: 0, settled: '' }
+  const letGo = new Promise<void>(resolve => (gate.open = resolve))
+  plugin({
+    name: 'the table held',
+    setup(build) {
+      build.onLoad({ filter: new RegExp(`/${TABLE.split('.').join('\\.')}$`) }, async args => {
+        gate.reached++
+        await letGo
+        plugin.clearAll()
+        return { exports: { ...((await import(`${args.path}?let-go`)) as Record<string, unknown>) }, loader: 'object' }
+      })
+    },
+  })
+  const threw = (error: unknown): string => `threw: ${error instanceof Error ? error.message : String(error)}`.split(ROOT).join('')
+  const registry = (await import(join(ROOT, RESOLVER))) as typeof import('../../src/services/resources/registry.ts')
+  const { processMainOwner } = (await import(join(ROOT, OWNER))) as typeof import('../../src/services/run/resolveOwner.ts')
+  const context = { owner: processMainOwner(), cwd: process.cwd() }
+  type Row = { id: string; run: (args: { signal: AbortSignal }) => unknown }
+  const specs: Array<{ id: string; run: Row['run'] | undefined }> = []
+  for (const [id, file, maker] of ROWS) {
+    const made = ((await import(join(ROOT, file))) as Record<string, (() => Row[]) | undefined>)[maker]?.() ?? []
+    specs.push({ id, run: made.find(row => row.id === id)?.run })
+  }
+  const flight = import(join(ROOT, TOOL_LIST)).then(() => (gate.settled = 'loaded'), error => (gate.settled = threw(error)))
+  const turn = (): Promise<void> => new Promise(resolve => setImmediate(resolve))
+  for (let waited = 0; waited < 5000 && gate.reached === 0 && gate.settled === ''; waited++) await turn()
+  const ask = (kind: string): Promise<Answer | string> =>
+    (async (): Promise<Answer> => {
+      const answer = await registry.resolveResource(`mercury://${kind}/${NO_RECORD}`, context)
+      return { state: answer.state, note: 'note' in answer && typeof answer.note === 'string' ? answer.note : '' }
+    })().catch(threw)
+  const rows = bare
+    ? []
+    : specs.map(spec => ({
+        id: spec.id,
+        found: spec.run !== undefined,
+        said: (async (): Promise<{ status: string; evidence: string }> => {
+          const result = (await spec.run!({ signal: new AbortController().signal })) as { status: string; evidence: string }
+          return { status: result.status, evidence: result.evidence }
+        })().catch(threw),
+      }))
+  const listed: Array<Promise<string[] | string>> = []
+  const resolved: Array<Promise<Answer | string>> = []
+  const children: Array<Promise<string>> = []
+  const said: string[] = []
+  for (let at = 0; at < HELD_TURNS; at++) {
+    const kind = kinds[at % kinds.length]!
+    if (bare) {
+      try {
+        registry.resourceAdapterKinds()
+        said.push('answered')
+      } catch (error) {
+        said.push(threw(error))
+      }
+    } else {
+      listed.push((async (): Promise<string[]> => {
+        await registry.settleResourceKinds()
+        return registry.resourceAdapterKinds().map(row => row.kind)
+      })().catch(threw))
+      resolved.push(ask(kind))
+      children.push((async (): Promise<string> => (await registry.listResourceKind(kind, context)).state)().catch(threw))
+    }
+    await turn()
+  }
+  const stood = gate.reached > 0 && gate.settled === ''
+  gate.open()
+  await flight
+  const held: Held = {
+    reached: gate.reached,
+    stood,
+    settled: gate.settled,
+    listed: await Promise.all(listed),
+    resolved: await Promise.all(resolved),
+    children: await Promise.all(children),
+    rows: await Promise.all(rows.map(async row => ({ id: row.id, found: row.found, said: await row.said }))),
+    bare: said,
+    control: await ask(NO_KIND),
+  }
+  writeFileSync(out, JSON.stringify(held))
+  process.exit(0)
+}
+
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail: string[] = []): void {
@@ -105,14 +210,14 @@ const loadedBy = (file: string): string => {
 
 const scratch = mkdtempSync(join(tmpdir(), 'kinds-entries-'))
 let serial = 0
-async function run(first: Door, kinds: string[] | null, scan: string[], load: string[]): Promise<{ asked: Asked | null; why: string }> {
+async function spawned<T>(mode: string, words: string[]): Promise<{ result: T | null; why: string }> {
   const root = join(scratch, String(serial++))
   const home = join(root, 'home')
   const cwd = join(root, 'project')
   mkdirSync(home, { recursive: true })
   mkdirSync(cwd, { recursive: true })
   const out = join(root, 'asked.json')
-  const child = spawn(process.execPath, [import.meta.path, '--child', out, first, JSON.stringify(kinds), JSON.stringify(scan), ...load], { cwd, env: { ...process.env, MERCURY_CONFIG_DIR: home }, stdio: ['ignore', 'pipe', 'pipe'] })
+  const child = spawn(process.execPath, [import.meta.path, mode, out, ...words], { cwd, env: { ...process.env, MERCURY_CONFIG_DIR: home }, stdio: ['ignore', 'pipe', 'pipe'] })
   let said = ''
   child.stdout.on('data', chunk => (said += String(chunk)))
   child.stderr.on('data', chunk => (said += String(chunk)))
@@ -120,10 +225,14 @@ async function run(first: Door, kinds: string[] | null, scan: string[], load: st
   const code = await new Promise<number | null>(resolve => child.on('close', resolve))
   clearTimeout(deadline)
   try {
-    return { asked: JSON.parse(readFileSync(out, 'utf8')) as Asked, why: '' }
+    return { result: JSON.parse(readFileSync(out, 'utf8')) as T, why: '' }
   } catch {
-    return { asked: null, why: `the process wrote no answer (exit ${code}): ${said.trim().split('\n').slice(-3).join(' | ').slice(0, 400)}` }
+    return { result: null, why: `the process wrote no answer (exit ${code}): ${said.trim().split('\n').slice(-3).join(' | ').slice(0, 400)}` }
   }
+}
+async function run(first: Door, kinds: string[] | null, scan: string[], load: string[]): Promise<{ asked: Asked | null; why: string }> {
+  const { result, why } = await spawned<Asked>('--child', [first, JSON.stringify(kinds), JSON.stringify(scan), ...load])
+  return { asked: result, why }
 }
 async function pooled<T, R>(items: T[], work: (item: T) => Promise<R>): Promise<R[]> {
   const results: R[] = []
@@ -161,15 +270,13 @@ const entries: Array<{ file: string; words: string }> = [
 section(`(2) the entries — ${LAUNCHER}, the ${roots.length} files it loads by import(), and ${ALSO.length} programs the build ships beside them: each in a fresh process that loads what the entry imports and starts nothing`)
 {
   const nameless = entries.filter(entry => !known.has(entry.file))
-  check(`every entry names a file under src/: ${entries.length} entries`, nameless.length === 0, nameless.map(entry => `${entry.file} (${entry.words}) names no file: correct its row in ALSO of scripts/builtin-tools/prove-kinds-on-every-entry.ts`))
+  check(`every entry names a file under src/: ${entries.length} entries`, nameless.length === 0, nameless.map(entry => `${entry.file} (${entry.words}) names no file: correct its row in ALSO of ${SELF}`))
 }
-const unknownIn = (asked: Asked): string[] => {
-  const head = asked.control.note.split(NO_KIND)[0]!
-  return kinds.filter(kind => {
-    const answer = asked.answers[kind]
-    return answer === undefined || (answer.state === asked.control.state && head !== '' && answer.note.startsWith(head + kind)) || !asked.listed.includes(kind)
-  })
+const unknownTo = (control: Answer, answer: Answer | undefined, kind: string): boolean => {
+  const head = control.note.split(NO_KIND)[0]!
+  return answer === undefined || (answer.state === control.state && head !== '' && answer.note.startsWith(head + kind))
 }
+const unknownIn = (asked: Asked): string[] => kinds.filter(kind => unknownTo(asked.control, asked.answers[kind], kind) || !asked.listed.includes(kind))
 const remedy = (kind: string): string => `${loadedBy(fileOf(kind))}: put the adapter of '${kind}' in the list resourceKinds() returns in ${TABLE}, which the resolver reads when it is first asked, and take its registration out of the module that held it`
 const listed = entries.filter(entry => known.has(entry.file))
 const answered = await pooled(listed, entry => run('resolveResource', kinds, [], direct(entry.file)))
@@ -190,6 +297,48 @@ DOORS.forEach((door, at) => {
   const unknown = unknownIn(asked)
   check(`${door} asked first: the resolver knows each of the ${kinds.length} kinds`, kinds.length > 0 && unknown.length === 0, unknown.map(kind => `with ${RESOLVER} loaded by itself and ${door} asked first, mercury://${kind} is a kind the resolver does not know — ${remedy(kind)}`))
 })
+
+section(`(4) an import in flight — ${TABLE} held as a module still being fetched inside an import() of ${TOOL_LIST}, and the resolver asked at each of ${HELD_TURNS} turns of the loop before the module is let go (bun cannot require() a module in that state; from the bundle there is no such state)`)
+{
+  const [awaited, unawaited] = await Promise.all([spawned<Held>('--held', ['door', JSON.stringify(kinds)]), spawned<Held>('--held', ['bare', JSON.stringify(kinds)])])
+  const held = awaited.result
+  check(
+    `the import of ${TOOL_LIST} asked for ${TABLE} and was still in flight after the ${HELD_TURNS} turns`,
+    held !== null && held.stood,
+    [held === null ? awaited.why : `the module was asked for ${held.reached} time(s) and the import ${held.settled === '' ? 'did not settle' : `had settled (${held.settled})`}: this section held nothing — it stands on ${TOOL_LIST} importing ${TABLE} and on the plugin in the --held arm of ${SELF}, which keeps that module's fetch open`],
+  )
+  if (held !== null) {
+    const short = held.listed.flatMap((entry, at) => (typeof entry === 'string' ? [`turn ${at + 1}: ${entry}`] : kinds.every(kind => entry.includes(kind)) ? [] : [`turn ${at + 1}: ${entry.length} kinds listed, not ${kinds.length}`]))
+    check(`settleResourceKinds() then resourceAdapterKinds(), asked at each turn: every ask lists the ${kinds.length} kinds`, held.listed.length === HELD_TURNS && short.length === 0, [
+      ...short,
+      `settleResourceKinds() of ${RESOLVER} awaits import() of ${TABLE}, which waits for a module that is still being fetched; a reader that can await calls it before resourceAdapterKinds()`,
+    ])
+    const control = held.control
+    const lost = held.resolved.flatMap((answer, at) => {
+      const kind = kinds[at % kinds.length]!
+      return typeof answer === 'string' ? [`turn ${at + 1}, mercury://${kind}: ${answer}`] : typeof control !== 'string' && unknownTo(control, answer, kind) ? [`turn ${at + 1}: mercury://${kind} is a kind the resolver does not know`] : []
+    })
+    check(`resolveResource asked at each turn: it answers, and knows the kind`, held.resolved.length === HELD_TURNS && typeof control !== 'string' && lost.length === 0, [
+      ...lost,
+      ...(typeof control === 'string' ? [`after the import settled, mercury://${NO_KIND}: ${control}`] : []),
+      `resolveResource of ${RESOLVER} awaits settleResourceKinds() before it reads its table`,
+    ])
+    const mute = held.children.flatMap((state, at) => (state.startsWith('threw: ') ? [`turn ${at + 1}, ${kinds[at % kinds.length]}: ${state}`] : []))
+    check(`listResourceKind asked at each turn: it answers`, held.children.length === HELD_TURNS && mute.length === 0, [...mute, `listResourceKind of ${RESOLVER} awaits settleResourceKinds() before it reads its table`])
+    for (const [id, file] of ROWS) {
+      const row = held.rows.find(entry => entry.id === id)
+      const said = row?.said
+      check(
+        `the health row '${id}', run while the import was in flight, prints the ${kinds.length} kinds`,
+        row !== undefined && row.found && typeof said === 'object' && said.status === 'ok' && said.evidence.includes(String(kinds.length)),
+        [row === undefined || !row.found ? `${file} makes no row '${id}': correct its line in ROWS of ${SELF}` : typeof said === 'string' ? `the row ${said} — in ${file}, await settleResourceKinds() of ${RESOLVER} before the row reads resourceAdapterKinds()` : `the row printed ${said?.status}: ${said?.evidence}`],
+      )
+    }
+  }
+  const bare = unawaited.result
+  const thrown = bare?.bare.filter(answer => answer.startsWith('threw: ')) ?? []
+  console.log(`  in a second process, resourceAdapterKinds() with no await before it, at the same ${HELD_TURNS} turns: ${bare === null ? `no answer (${unawaited.why})` : !bare.stood ? 'the import was not held' : `${thrown.length} of ${bare.bare.length} asks threw${thrown.length > 0 ? ` — ${thrown[0]!.slice('threw: '.length)}` : ''}`}`)
+}
 
 rmSync(scratch, { recursive: true, force: true })
 console.log('')

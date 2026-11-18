@@ -73,6 +73,7 @@ export async function resolveResource(
       note: `not a valid mercury:// ref: '${raw}' — the grammar is mercury://<kind>/<id>[?lines=A-B&q=…&cursor=N&limit=N&child=name]`,
     }
   }
+  await settleResourceKinds()
   const adapter = adapters().get(parsed.kind)
   if (!adapter) {
     const kinds = resourceAdapterKinds().map(k => k.kind).join(', ')
@@ -100,6 +101,7 @@ export async function listResourceKind(
   kind: string,
   ctx: ResourceContext,
 ): Promise<{ state: 'ok'; children: ResourceChild[] } | { state: 'unavailable'; note: string }> {
+  await settleResourceKinds()
   const adapter = adapters().get(kind)
   if (!adapter?.list) {
     return { state: 'unavailable', note: `kind '${kind}' has no listing` }
