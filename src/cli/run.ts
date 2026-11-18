@@ -429,12 +429,10 @@ export async function runHeadless(
     gracefulShutdownSync(1)
     return
   }
-  let bootModel: string | undefined
-  let bootModelRefusal: string | null = null
   if (options.userSpecifiedModel !== undefined) {
     try {
-      bootModel = await resolveHeadlessModel(options.userSpecifiedModel)
-      setEngineModelOverride(bootModel)
+      live.bootModel = await resolveHeadlessModel(options.userSpecifiedModel)
+      setEngineModelOverride(live.bootModel)
     } catch (error) {
       const message = errorMessage(error)
       if (options.door !== 'wire') {
@@ -443,9 +441,9 @@ export async function runHeadless(
         gracefulShutdownSync(1)
         return
       }
-      bootModel = parseUserSpecifiedModel(options.userSpecifiedModel)
-      setEngineModelOverride(bootModel)
-      bootModelRefusal = bootModelRefusalLine(bootModel, message)
+      live.bootModel = parseUserSpecifiedModel(options.userSpecifiedModel)
+      setEngineModelOverride(live.bootModel)
+      live.bootModelRefusal = bootModelRefusalLine(live.bootModel, message)
     }
   }
 
@@ -541,30 +539,29 @@ export async function runHeadless(
         if (live.currentTurn === null) enqueueRow(hookTaskRow(liveScope(), event))
       })
     : undefined
-  let openFold: { trigger: CompactionRow['trigger']; landing: boolean } | null = null
   const foldRow = (fold: FoldStatusV1 | null): RowDraft | null => {
     if (fold !== null && fold.exit !== undefined) {
       if (fold.exit === 'landed') {
-        openFold = { trigger: fold.trigger, landing: true }
+        live.openFold = { trigger: fold.trigger, landing: true }
         return null
       }
-      openFold = null
+      live.openFold = null
       return compactionRow(liveScope(), fold)
     }
-    if (openFold !== null) return fold === null || fold.stage === null ? null : compactionRow(liveScope(), fold)
+    if (live.openFold !== null) return fold === null || fold.stage === null ? null : compactionRow(liveScope(), fold)
     const row = compactionRow(liveScope(), fold)
-    openFold = { trigger: row.trigger, landing: false }
+    live.openFold = { trigger: row.trigger, landing: false }
     return row
   }
   const foldLanded = (row: OutboundLine): void => {
-    if (isRowLine(row) && row.type === 'compaction' && (row as Unstamped<CompactionRow>).state === 'ended') openFold = null
+    if (isRowLine(row) && row.type === 'compaction' && (row as Unstamped<CompactionRow>).state === 'ended') live.openFold = null
   }
   const statusRowOf = (status: unknown): RowDraft | null => {
     if (status === 'compacting') return foldRow(null)
     if (status === null) {
-      if (openFold === null || openFold.landing) return null
-      const row = compactionClearedRow(liveScope(), openFold.trigger)
-      openFold = null
+      if (live.openFold === null || live.openFold.landing) return null
+      const row = compactionClearedRow(liveScope(), live.openFold.trigger)
+      live.openFold = null
       return row
     }
     if (typeof status !== 'object') return null
@@ -674,14 +671,14 @@ export async function runHeadless(
     const recorded = restoreConversationModel({ messages, model: loaded.model })
     if (recorded && !options.userSpecifiedModel) {
       try {
-        bootModel = await resolveHeadlessModel(recorded)
-        setEngineModelOverride(bootModel)
+        live.bootModel = await resolveHeadlessModel(recorded)
+        setEngineModelOverride(live.bootModel)
       } catch (error) {
         if (recorded.toLowerCase().startsWith('compat/')) {
           if (wire) {
-            bootModel = parseUserSpecifiedModel(recorded)
-            setEngineModelOverride(bootModel)
-            bootModelRefusal = bootModelRefusalLine(bootModel, errorMessage(error))
+            live.bootModel = parseUserSpecifiedModel(recorded)
+            setEngineModelOverride(live.bootModel)
+            live.bootModelRefusal = bootModelRefusalLine(live.bootModel, errorMessage(error))
           } else {
             emitLoadError(`The resumed session's model '${recorded}' is not usable: ${errorMessage(error)}`, options.outputFormat)
             gracefulShutdownSync(1)
@@ -710,8 +707,8 @@ export async function runHeadless(
     const { saveCustomTitle } = await import('../utils/sessionStorage/logs.js')
     await saveCustomTitle(getSessionId() as UUID, options.title)
   }
-  if (bootModelRefusal !== null) live.bootRefusalFact = bootModelRefusal
-  if (bootModelRefusal !== null && !live.awaitingSessionClaim) await persistBootModelRefusal(bootModelRefusal)
+  if (live.bootModelRefusal !== null) live.bootRefusalFact = live.bootModelRefusal
+  if (live.bootModelRefusal !== null && !live.awaitingSessionClaim) await persistBootModelRefusal(live.bootModelRefusal)
 
   const relaunchContext = async (): Promise<ToolUseContext> => {
     const { toolUseContext } = await buildSideQuestionFallbackParams({
@@ -822,7 +819,7 @@ export async function runHeadless(
   registerProcessOutputErrorHandlers()
   noteRunPhase('config_auth')
 
-  live.activeModel = bootModel
+  live.activeModel = live.bootModel
   saveSessionModel(live.activeModel ?? getEngineModel())
   const settleClearBirth = (): void => {
     try {
@@ -847,34 +844,33 @@ export async function runHeadless(
   const advisorRoad = printDriver.advisorRoadOf(ports)
   const landSpawnSwitch = (kind: 'subagents', on: boolean): void => landSwitch(kind, on, ports)
 
-  let mcpChangeChain: Promise<unknown> = Promise.resolve()
+  live.mcpChangeChain = Promise.resolve()
   const serializeMcpChange = <T,>(operation: () => Promise<T>): Promise<T> => {
-    const next = mcpChangeChain.then(operation, operation)
-    mcpChangeChain = next.catch(() => {})
+    const next = live.mcpChangeChain.then(operation, operation)
+    live.mcpChangeChain = next.catch(() => {})
     return next
   }
 
   const pendingSeeds = new Map<string, FileState>()
-  let readFileCache: FileStateCache =
-    messages.length > 0
+  live.readFileCache = messages.length > 0
       ? extractReadFilesFromMessages(messages, getCwd(), READ_FILE_STATE_CACHE_SIZE)
       : createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE)
   const getReadFileCache = (): FileStateCache => {
-    if (pendingSeeds.size === 0) return readFileCache
+    if (pendingSeeds.size === 0) return live.readFileCache
     const merged = createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE)
     for (const [key, value] of pendingSeeds) merged.set(key, value)
-    for (const key of readFileCache.keys()) {
-      const value = readFileCache.get(key)
+    for (const key of live.readFileCache.keys()) {
+      const value = live.readFileCache.get(key)
       if (value !== undefined) merged.set(key, value)
     }
     return merged
   }
   const setReadFileCache = (cache: FileStateCache): void => {
-    readFileCache = cache
+    live.readFileCache = cache
     for (const [key, seed] of pendingSeeds) {
-      const existing = readFileCache.get(key)
+      const existing = live.readFileCache.get(key)
       if (!existing || seed.timestamp > existing.timestamp) {
-        readFileCache.set(key, seed)
+        live.readFileCache.set(key, seed)
       }
     }
     pendingSeeds.clear()
@@ -1151,30 +1147,27 @@ export async function runHeadless(
   markRunModeSignalsOwned()
   process.on('exit', () => saveCurrentSessionCosts())
   const buildBehindToldFor = new Set<string>()
-  let buildBehindSeen: string | null = null
-  let buildBehindCheckedAt = 0
-  let buildBehindConfirm: ReturnType<typeof setTimeout> | null = null
   const checkBuildBehind = async (now = false): Promise<void> => {
     if (!isConcourseWorker || live.awaitingSessionClaim || live.inputClosed || live.inFlightAbort !== null) return
-    if (!now && Date.now() - buildBehindCheckedAt < BUILD_BEHIND_THROTTLE_MS) return
-    buildBehindCheckedAt = Date.now()
+    if (!now && Date.now() - live.buildBehindCheckedAt < BUILD_BEHIND_THROTTLE_MS) return
+    live.buildBehindCheckedAt = Date.now()
     const ownTree = runningBuildTree()
     if (ownTree === null) return
     const { deployedRuntime } = await import('../daemon/handover.js')
     const installed = deployedRuntime()
     const installedTree = installed?.buildTree ?? null
     if (installed === null || installedTree === null || installedTree === ownTree || buildBehindToldFor.has(installedTree)) {
-      buildBehindSeen = null
+      live.buildBehindSeen = null
       return
     }
-    if (buildBehindSeen !== installedTree) {
-      buildBehindSeen = installedTree
-      if (buildBehindConfirm === null) {
-        buildBehindConfirm = setTimeout(() => {
-          buildBehindConfirm = null
+    if (live.buildBehindSeen !== installedTree) {
+      live.buildBehindSeen = installedTree
+      if (live.buildBehindConfirm === null) {
+        live.buildBehindConfirm = setTimeout(() => {
+          live.buildBehindConfirm = null
           void checkBuildBehind(true)
         }, BUILD_BEHIND_CONFIRM_MS)
-        buildBehindConfirm.unref?.()
+        live.buildBehindConfirm.unref?.()
       }
       return
     }
@@ -1209,7 +1202,7 @@ export async function runHeadless(
   const { registerCleanup } = await import('../utils/cleanupRegistry.js')
   registerCleanup(async () => {
     if (buildBehindFloor !== null) clearInterval(buildBehindFloor)
-    if (buildBehindConfirm !== null) clearTimeout(buildBehindConfirm)
+    if (live.buildBehindConfirm !== null) clearTimeout(live.buildBehindConfirm)
     releaseHookRows?.()
     idleNudge.stop()
     stopHostNotices()

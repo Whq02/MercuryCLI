@@ -353,7 +353,6 @@ Atomics.wait	src/utils/file.ts	1
 Atomics.wait	src/utils/healthDeepProbes.ts	1
 Atomics.wait	src/utils/healthReport.ts	1
 Atomics.wait	src/utils/settings/settings.ts	1
-hand-built-pause	src/cli/run.ts	4
 useEffect	src/commands/context/context.tsx	1
 useEffect	src/commands/health/HealthCertificate.tsx	1
 useEffect	src/commands/imagesetup/imagesetup.tsx	4

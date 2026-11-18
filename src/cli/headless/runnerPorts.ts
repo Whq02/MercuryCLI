@@ -1,7 +1,7 @@
 import type { Command } from '../../commands.js'
 import type { RunnerQuiescence } from '../../daemon/runnerQuiescence.js'
 import type { RowDraft, RowScope } from '../../rows/project.js'
-import type { InputRow, OutcomeRow, Row } from '../../rows/vocabulary.js'
+import type { CompactionRow, InputRow, OutcomeRow, Row } from '../../rows/vocabulary.js'
 import type { AnthropicLimits } from '../../services/anthropicLimits.js'
 import type { NoticeRecord } from '../../services/notices/unreadLedger.js'
 import type { Peer } from '../../runner/wire/peer.js'
@@ -9,7 +9,7 @@ import type { ConnectedMCPServer, MCPServerConnection, ScopedMcpServerConfig } f
 import type { AppState } from '../../state/AppStateStore.js'
 import type { Tool, ToolUseContext } from '../../Tool.js'
 import type { Message } from '../../types/message.js'
-import type { FileStateCache } from '../../utils/fileStateCache.js'
+import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE, type FileStateCache } from '../../utils/fileStateCache.js'
 import type { runSessionStartHooks } from '../../utils/sessionStart.js'
 import type { ThinkingConfig } from '../../utils/thinking.js'
 import { createContentReplacementState, type ContentReplacementState } from '../../utils/toolResultStorage.js'
@@ -98,6 +98,14 @@ type RunnerState = {
   activeAgents: AgentDefinition[]
   thinkingConfig: ThinkingConfig | undefined
   initializeJsonSchema: Record<string, unknown> | undefined
+  bootModel: string | undefined
+  bootModelRefusal: string | null
+  openFold: { trigger: CompactionRow['trigger']; landing: boolean } | null
+  mcpChangeChain: Promise<unknown>
+  readFileCache: FileStateCache
+  buildBehindSeen: string | null
+  buildBehindCheckedAt: number
+  buildBehindConfirm: ReturnType<typeof setTimeout> | null
 }
 
 export function createRunnerState(): RunnerState {
@@ -140,6 +148,14 @@ export function createRunnerState(): RunnerState {
     activeAgents: [],
     thinkingConfig: undefined,
     initializeJsonSchema: undefined,
+    bootModel: undefined,
+    bootModelRefusal: null,
+    openFold: null,
+    mcpChangeChain: Promise.resolve(),
+    readFileCache: createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE),
+    buildBehindSeen: null,
+    buildBehindCheckedAt: 0,
+    buildBehindConfirm: null,
   }
 }
 
