@@ -18,10 +18,10 @@
 # quiet-box wall at MERCURY_VSHOT_BUDGET_SCALE=3 measured 904 s with
 # the engine truly scaling, so the hosted 2-core
 # run needs the diffws-class slack over that envelope.
-scroll	1500
+scroll-drives	1500
 diffws	1500
-prompts-panel	1200
-cockpit-interaction	1200
+prompts-panel-drives	1200
+cockpit-interaction-drives	1200
 ui-pure-1	1500
 ui-pure-2	1500
 ui-pure-3	1500
@@ -45,7 +45,7 @@ switchboard-6	1200
 ui	2400
 ui-4	2400
 pings-drives	1800
-render-continuity	1800
+render-continuity-drives	1800
 interaction	2400
 switchboard-3	2400
 # The second hosted run on the public tree: interaction was tree-killed at
@@ -109,3 +109,4 @@ crew	1500
 host	1200
 host-2	1200
 command-catalogue-drives	1800
+prompt-input-drives	1800
