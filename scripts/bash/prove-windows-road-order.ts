@@ -38,15 +38,33 @@ if (process.argv.includes('--no-shell-leg')) {
   const pinAsked = process.argv[process.argv.indexOf('--no-shell-leg') + 1]
   const asks = (): number => (pinAsked !== undefined && existsSync(pinAsked) ? readFileSync(pinAsked, 'utf8').trim().split('\n').length : 0)
   const offered = { atStart: 0, whenOffered: 0, toldWhenOffered: 0 }
+  const shells: Record<string, string | null> = {}
   if (pinAsked !== undefined) {
     const road = await import('../../src/utils/shell/windowsShellRoad.ts')
+    const { subprocessEnv } = await import('../../src/utils/subprocessEnv.ts')
+    const reads = (env: NodeJS.ProcessEnv): string => spawnSync('/bin/sh', ['-c', 'printf %s "${SHELL:-unset}"'], { env, encoding: 'utf8' }).stdout
     road.armWindowsShellRoad()
+    shells.armed = process.env.SHELL ?? null
+    const hookPrepared = { ...subprocessEnv({ stripProviderCredentials: true }) }
     offered.atStart = road.bashToolAvailable() ? asks() : -1
     await BashTool.prompt({ tools: [] } as never)
     offered.whenOffered = asks()
     offered.toldWhenOffered = told.length
+    shells.child = reads(subprocessEnv())
+    shells.mcpServer = reads(subprocessEnv({ stripProviderCredentials: true }))
+    shells.hook = reads(road.hookBashEnv(hookPrepared))
   }
-  console.log(`NOSHELL ${JSON.stringify({ first: await call(), second: await call(), told, offered, asksInAll: asks() })}`)
+  const first = await call()
+  const second = await call()
+  if (pinAsked !== undefined) {
+    try {
+      const result = await BashTool.call({ command: 'printf %s "$SHELL"' }, context)
+      shells.command = String(BashTool.mapToolResultToToolResultBlockParam(result.data, 'x').content).split('\n')[0] ?? null
+    } catch (error) {
+      shells.command = formatError(error)
+    }
+  }
+  console.log(`NOSHELL ${JSON.stringify({ first, second, told, offered, asksInAll: asks(), shells })}`)
   process.exit(0)
 }
 
@@ -298,7 +316,7 @@ try {
       env: { ...process.env, MERCURY_CONFIG_DIR: join(scratch, 'pin-passed', 'config'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_SHELL_ENGINE: undefined, MERCURY_SHELL_PREFIX: undefined, MERCURY_GIT_BASH_PATH: noBash, MERCURY_WINDOWS_SHELL_ROAD: 'locate', BASH_ENV: undefined, ENV: undefined },
     })
     const line = (ran.stdout ?? '').split('\n').find(text => text.startsWith('NOSHELL '))
-    const said = line === undefined ? null : (JSON.parse(line.slice(8)) as { first: string; second: string; told: string[]; offered: { atStart: number; whenOffered: number; toldWhenOffered: number }; asksInAll: number })
+    const said = line === undefined ? null : (JSON.parse(line.slice(8)) as { first: string; second: string; told: string[]; offered: { atStart: number; whenOffered: number; toldWhenOffered: number }; asksInAll: number; shells?: Record<string, string | null> })
     const shown = `${JSON.stringify(said)} ${(ran.stderr ?? '').slice(-300)}`
     const version = shipped.state === 'ok' ? shipped.manifest.bashVersion : ''
     check('a pin that is no bash is not started at init: with the road armed and the roster read, it has not been asked', said?.offered.atStart === 0, shown)
@@ -310,6 +328,22 @@ try {
       shown,
     )
     check('the install guide has that way out in the same words', guide.includes(pinWaysOut), pinWaysOut)
+    const shells = said?.shells ?? {}
+    check('at init the road puts the pinned program in SHELL, as before: nothing has asked it yet', shells.armed === noBash, JSON.stringify(shells))
+    check("once the record has settled, a program Mercury starts reads in SHELL the shell that serves and not the program that was passed over: any child, and the environment an MCP server is started with", shells.child === SHIPPED && shells.mcpServer === SHIPPED, JSON.stringify(shells))
+    check('…and so does a hook, whose environment is prepared before the record settles', shells.hook === SHIPPED, JSON.stringify(shells))
+    check('…as a Bash command does', shells.command === SHIPPED, JSON.stringify(shells))
+    mkdirSync(join(scratch, 'restored'), { recursive: true })
+    const settledOnNothing = (before: string | undefined): string => {
+      const restored = spawnSync(
+        process.execPath,
+        ['-e', `;(globalThis).MACRO = { VERSION: '0.0.0' }\nconst road = await import('${source('src/utils/shell/windowsShellRoad.ts')}')\nroad.armWindowsShellRoad()\nconst armed = process.env.SHELL ?? null\nroad.shellFollowsTheRecord(null)\nconsole.log('SHELLS ' + JSON.stringify({ armed, after: process.env.SHELL ?? null }))\nprocess.exit(0)`],
+        { cwd: scratch, encoding: 'utf8', timeout: 60_000, env: { ...process.env, MERCURY_CONFIG_DIR: join(scratch, 'restored', 'config'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_SHELL_ENGINE: undefined, MERCURY_SHELL_PREFIX: undefined, MERCURY_WINDOWS_SHELL_ROAD: 'locate', MERCURY_GIT_BASH_PATH: noBash, SHELL: before, BASH_ENV: undefined, ENV: undefined } },
+      )
+      return (restored.stdout ?? '').split('\n').find(text => text.startsWith('SHELLS ')) ?? `no answer · ${(restored.stderr ?? '').slice(-300)}`
+    }
+    check('where the record settles on nothing, SHELL is what it was before the road was armed', settledOnNothing('/bin/zsh') === `SHELLS ${JSON.stringify({ armed: noBash, after: '/bin/zsh' })}`, settledOnNothing('/bin/zsh'))
+    check('…and empty where it was not set before, as on Windows: no program that was passed over is left in it', settledOnNothing(undefined) === `SHELLS ${JSON.stringify({ armed: noBash, after: '' })}`, settledOnNothing(undefined))
   }
 
   section('(4) the built bundle under Node, which is what a user runs: the same question, the same limit')

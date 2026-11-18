@@ -13,7 +13,7 @@ import { which } from '../which.js'
 import { bashPackProgramsDir, resolveBashPackDir, type BashPackResolution } from './bashPack.js'
 import { resolveBrushPackDir } from './brushPack.js'
 import { shellEngineArmWords, type ShellEngineArm } from './shellEngineArm.js'
-import { NO_SHELL_WAYS_OUT, PIN_WAYS_OUT, bashToolAvailable, describeWindowsShellRoad, engineMayServe, pinPassedOver, settleWindowsShell, shippedWindowsBash, windowsBashCandidates, windowsShellRoadActive, withoutShellStartFiles } from './windowsShellRoad.js'
+import { NO_SHELL_WAYS_OUT, PIN_WAYS_OUT, bashToolAvailable, describeWindowsShellRoad, engineMayServe, pinPassedOver, settleWindowsShell, shellFollowsTheRecord, shippedWindowsBash, windowsBashCandidates, windowsShellRoadActive, withoutShellStartFiles } from './windowsShellRoad.js'
 
 export type ShellDialect = 'bash'
 export type ShellOrigin = 'shipped' | 'system' | 'engine'
@@ -181,6 +181,7 @@ async function windowsSystemRecord(): Promise<ShellRecord> {
   })
   for (const line of choice.passed) logForDebugging(`shell record: ${line}`)
   noneStarts = choice.origin === 'none'
+  shellFollowsTheRecord(choice.origin === 'none' ? null : choice.path)
   if (choice.origin === 'none') {
     logError(NO_WINDOWS_SHELL_MESSAGE)
     throw new Error(NO_WINDOWS_SHELL_MESSAGE)

@@ -276,10 +276,20 @@ export async function hookBashShell(hookCommand: string): Promise<string> {
   return road.path
 }
 
+function withShellOfThisProcess(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const shell = subprocessEnv().SHELL
+  if (env.SHELL === shell) return env
+  const own = { ...env }
+  if (shell === undefined) delete own.SHELL
+  else own.SHELL = shell
+  return own
+}
+
 export function hookBashEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const road = windowsBashRoad()
-  if (road.kind === 'absent' || road.kind === 'git-bash') return env
-  return withRoadPrograms(env, road.kind === 'engine' ? 'engine' : 'shipped', road.path)
+  const own = withShellOfThisProcess(env)
+  if (road.kind === 'absent' || road.kind === 'git-bash') return own
+  return withRoadPrograms(own, road.kind === 'engine' ? 'engine' : 'shipped', road.path)
 }
 
 function engineRoadLine(road: { path: string; arm: RoadEngineArm }): string {
@@ -346,12 +356,28 @@ export function shellEnvForRoad(road: WindowsBashRoad, gitBash: GitBashLocation)
   return null
 }
 
+let armedShell: { before: string | undefined; set: string } | null = null
+
+export function shellFollowsTheRecord(served: string | null): void {
+  if (armedShell === null || firstWindowsBashRoad().kind === 'engine') return
+  const { before, set } = armedShell
+  if (subprocessEnv().SHELL !== set || served === set) return
+  armedShell = null
+  exportShell(served ?? before ?? '')
+  logForDebugging(`windows shell road: SHELL was ${set} and follows the record: ${served ?? before ?? 'empty, the record having settled on nothing'}`)
+}
+
+function exportShell(shell: string): void {
+  process.env.SHELL = shell
+}
+
 export function armWindowsShellRoad(): void {
   if (!windowsShellRoadActive()) return
   const road = firstWindowsBashRoad()
   const shell = shellEnvForRoad(road, locatedWindowsBash())
   if (shell !== null) {
-    process.env.SHELL = shell
+    armedShell = { before: subprocessEnv().SHELL, set: shell }
+    exportShell(shell)
     logForDebugging(`windows shell road: SHELL set to ${shell}`)
   }
   if (road.kind === 'engine') {
