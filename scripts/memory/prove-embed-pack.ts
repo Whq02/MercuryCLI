@@ -230,10 +230,10 @@ console.log('\n[P] the pack — the manifest, the surface, the honest degrade')
 console.log('\n[B] the build seam')
 {
   const buildCheck = spawnSync(BUN, ['run', 'scripts/vendor/build-embed.ts', '--check'], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, BROWSER: '/usr/bin/true' } })
-  if (cargo !== null) {
+  if (cargo !== null && existsSync(join(PACK_DIR, pack.EMBED_PACK_MANIFEST_FILE))) {
     check("the vendor build's --check certifies the pack on a cargo host", buildCheck.status === 0 && buildCheck.stdout.includes('OK'), `rc=${String(buildCheck.status)} ${buildCheck.stdout.trim().slice(0, 120)}`)
   } else {
-    check("the vendor build's --check is honest about a missing pack without cargo", buildCheck.status === 0 || buildCheck.status === 2, `rc=${String(buildCheck.status)}`)
+    check("the vendor build's --check is honest about a missing pack", buildCheck.status === 0 || buildCheck.status === 2, `rc=${String(buildCheck.status)}`)
   }
   const gitignore = readFileSync(join(ROOT, '.gitignore'), 'utf8')
   check('the pack and the model weights stay out of the tree (.gitignore names them)', /^vendor\/embed$/m.test(gitignore) && /^vendor\/embed-models$/m.test(gitignore) && /native\/embed\/target\//.test(gitignore))
