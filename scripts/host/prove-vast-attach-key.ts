@@ -11,9 +11,18 @@ const f = await llmhostFixture()
 const vast = await vastFixture()
 const nativeFetch = globalThis.fetch
 const escaped: string[] = []
+const realNow = Date.now
+let skew = 0
+Date.now = () => realNow() + skew
+const deadlineMs = 60_000
+let instancePath = ''
+let reads = 0
 globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: RequestInit) => {
   const request = new Request(input, init)
-  if (!['127.0.0.1', '[::1]'].includes(new URL(request.url).hostname)) { escaped.push(request.url); throw new Error('Attach-key proof permits loopback only') }
+  const url = new URL(request.url)
+  if (!['127.0.0.1', '[::1]'].includes(url.hostname)) { escaped.push(request.url); throw new Error('Attach-key proof permits loopback only') }
+  if (url.pathname === instancePath + 'ssh/') reads = 0
+  else if (url.pathname === instancePath && request.method === 'GET' && ++reads === 3) { reads = 0; skew += deadlineMs }
   return nativeFetch(request)
 }, nativeFetch)
 const failures: string[] = []
@@ -38,7 +47,9 @@ try {
     const pod = await api.create(offer, key.publicKey, 'key-' + mode)
     const instance = vast.state.pods.get(Number(pod.id))!
     if (mode === 'loading') instance.actual_status = 'loading'
-    const attachPath = '/api/v0/instances/' + pod.id + '/ssh/'
+    instancePath = '/api/v0/instances/' + pod.id + '/'
+    reads = 0
+    const attachPath = instancePath + 'ssh/'
     if (mode === 'attach-failed') vast.state.failNext = { route: 'POST ' + attachPath, times: 1, status: 403 }
     let probesAfterAttach = 0
     const sshTimes: number[] = []
@@ -49,18 +60,20 @@ try {
           sshTimes.push(Date.now())
           if (instance.attachedKey) probesAfterAttach++
           if (mode !== 'accept' || !instance.attachedKey || probesAfterAttach < 3) throw new Error(mode === 'network' ? 'Connection refused' : 'Permission denied (publickey)')
+          instancePath = ''
         }
         return ssh!.runner.run(command, args, signal, timeoutMs)
       },
     }
     const record = queueHostSetup({ id: pod.id, vendor: 'vast', name: pod.name, recipe: offer.recipe.id, price: pod.cost, startedAt: pod.createdAt, status: pod.status, apiBaseUrl: vast.baseUrl, sshKey: key.path, sessionId: 'attach-key-session' })
     const start = Date.now()
-    await runHostJob(record.id, record.generation!, { runner, pauseMs: 20, timeoutMs: 400, engineGraceMs: 100, keepAlive: false })
+    await runHostJob(record.id, record.generation!, { runner, pauseMs: 20, timeoutMs: deadlineMs, engineGraceMs: 100, keepAlive: false })
+    instancePath = ''
     const ended = readHostRecord(pod.id)!
     const sent = vast.requests.filter((row: any) => row.method === 'POST' && row.path === attachPath)
     if (mode === 'accept' || mode === 'refuse') {
       check(mode + ': one attach uses the exact instance path and registered public key body', sent.length === 1 && Object.keys(sent[0]!.body).join(',') === 'ssh_key' && sent[0]!.body.ssh_key === key.publicKey && sent[0]!.authorization === 'Bearer ' + vast.key, JSON.stringify(sent))
-      check(mode + ': attachment waits until the deadline then retries SSH on the same instance', sent.length === 1 && sent[0]!.at - start >= 350 && probesAfterAttach >= 3 && vast.state.pods.has(Number(pod.id)), JSON.stringify({ sent: sent[0]?.at, start, probesAfterAttach, sshTimes }))
+      check(mode + ': attachment waits until the deadline then retries SSH on the same instance', sent.length === 1 && sent[0]!.at - start >= deadlineMs - 50 && probesAfterAttach >= 3 && vast.state.pods.has(Number(pod.id)), JSON.stringify({ sent: sent[0]?.at, start, probesAfterAttach, sshTimes }))
       if (mode === 'accept') check('attachment unblocks setup and registers a ready engine', ended.jobState === 'ready' && ended.provider !== undefined, ended.error)
       else {
         const posted = notices(pod.id)
@@ -76,4 +89,4 @@ try {
   check('all requests stayed on loopback', escaped.length === 0)
   if (failures.length) throw new Error(failures.length + ' attach-key checks failed: ' + failures.join('; '))
   console.log('VAST ATTACH KEY GREEN · ' + checks + ' checks')
-} finally { globalThis.fetch = nativeFetch; ssh?.close(); await vast.close(); f.close() }
+} finally { Date.now = realNow; globalThis.fetch = nativeFetch; ssh?.close(); await vast.close(); f.close() }
