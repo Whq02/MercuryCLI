@@ -116,10 +116,6 @@ export class LivePart {
 
   constructor(private readonly needs: LiveNeeds) {}
 
-  private probeCarrier(): void {
-    this.needs.probeCarrier()
-  }
-
   wake(): void {
     emitAll(this.liveListeners, 'live')
   }
@@ -263,7 +259,7 @@ export class LivePart {
       if (this.livenessTicker !== null) return
       const t = setInterval(() => {
         emitAll(this.liveListeners, 'liveness')
-        this.probeCarrier()
+        this.needs.probeCarrier()
       }, LIVENESS_TICK_MS)
       t.unref?.()
       this.livenessTicker = t
