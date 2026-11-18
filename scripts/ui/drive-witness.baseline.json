@@ -29,7 +29,6 @@
     "scripts/computer/prove-computer-interrupt-drive.ts": 1,
     "scripts/computer/prove-computer-refusal-drive.ts": 2,
     "scripts/core-runtime/prove-boot-mcp-independence.ts": 6,
-    "scripts/crew/render-crew-board.ts": 1,
     "scripts/critters/prove-berth-sprite.ts": 1,
     "scripts/critters/prove-critter-gaze-live.ts": 4,
     "scripts/critters/prove-critter-mini-drive.ts": 3,
