@@ -14,7 +14,7 @@ import { readSessionAsks, type SessionAskProjectionV1, type SessionFactsV1 } fro
 import type { AskAnswerV1, AskReceiptV1, SendReceiptV1, SessionAskV1 } from '../types.js'
 import { emitAll, type Listeners } from './shared.js'
 
-export interface AsksNeeds {
+interface AsksNeeds {
   record(): { readonly sessionId: string; readonly modelKey?: string }
   rows(): Message[]
   facts(): SessionFactsV1 | null

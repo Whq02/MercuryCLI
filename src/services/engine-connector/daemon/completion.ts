@@ -1,6 +1,6 @@
 import { readSessionWorkersSnapshot } from '../../../daemon/concourseWorkers.js'
 
-export interface CompletionNeeds {
+interface CompletionNeeds {
   sessionId(): string
   factsBusy(): boolean
   hasUnreadTranscript(): boolean

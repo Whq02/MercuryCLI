@@ -4,7 +4,7 @@ import { emitAll, type Listeners } from './shared.js'
 
 const UNKNOWN_CHECKPOINTS: CheckpointFactsV1 = Object.freeze({ capture: 'unknown' as const, restorable: Object.freeze(new Set<string>()) as ReadonlySet<string> })
 
-export interface WorkNeeds {
+interface WorkNeeds {
   facts(): SessionFactsV1 | null
   carrierGone(): boolean
 }

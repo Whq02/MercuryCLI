@@ -1,7 +1,7 @@
 import { FOLD_EXIT_LINGER_MS, type FoldStatusV1 } from '../../compact/foldStatus.js'
 import { emitAll } from './shared.js'
 
-export interface FoldNeeds {
+interface FoldNeeds {
   recomputeLive(): void
 }
 
