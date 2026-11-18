@@ -801,6 +801,64 @@ export async function openAsksPart(tag: string, options: { keepHome?: boolean } 
   }
 }
 
+type DraftHook = typeof import('../../src/screens/chat/useChatDraft.ts').useChatDraft
+type DraftArgs = Parameters<DraftHook>[0]
+type DraftValue = ReturnType<DraftHook>
+
+export type DraftPart = {
+  part: PartMount<DraftValue>
+  pending: typeof import('../../src/input-core/pending-input.ts')
+  seed: typeof import('../../src/utils/cockpit/composerSeed.ts')
+  pins: () => number
+  scrolledAt: { current: number }
+  plant: (over: Partial<DraftArgs>) => Promise<void>
+  wallRows: (words: string) => Message[]
+  close: () => Promise<void>
+}
+
+export async function openDraftPart(tag: string, options: { keepHome?: boolean; earlyInput?: string } = {}): Promise<DraftPart> {
+  const home = options.keepHome === true ? null : pinScratchHome(tag)
+  const module = await import('../../src/screens/chat/useChatDraft.ts')
+  const pending = await import('../../src/input-core/pending-input.ts')
+  const seed = await import('../../src/utils/cockpit/composerSeed.ts')
+  const { seedEarlyInput } = await import('../../src/utils/earlyInput.ts')
+  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
+  const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+  slot.setFocusedSessionConnector(Object.assign(new NoSessionConnector(), { sessionId: () => tag }) as never)
+  pending.resetPendingInputForTests()
+  seed.__composerSeedResetForTest()
+  if (options.earlyInput !== undefined) seedEarlyInput(options.earlyInput)
+  let pinned = 0
+  const scrolledAt = { current: 0 }
+  let over: Partial<DraftArgs> = {}
+  const use = (): DraftValue => module.useChatDraft({ messages: [], fullscreen: true, repinToBottom: () => void pinned++, lastUserScrollAtRef: scrolledAt, ...over })
+  const part = await mountPart(use)
+  const stamp = new Date().toISOString()
+  return {
+    part,
+    pending,
+    seed,
+    pins: () => pinned,
+    scrolledAt,
+    plant: async next => {
+      over = next
+      await part.set(use)
+    },
+    wallRows: words =>
+      [
+        { type: 'user', uuid: `${tag}-prompt`, timestamp: stamp, message: { role: 'user', content: [{ type: 'text', text: words }] } },
+        { type: 'assistant', uuid: `${tag}-wall`, timestamp: stamp, isApiErrorMessage: true, error: 'authentication_failed', message: { id: 'err', role: 'assistant', type: 'message', content: [{ type: 'text', text: 'API Error: the sign-in expired' }], usage: {}, model: 'fixture', stop_reason: null, stop_sequence: null } },
+      ] as never,
+    close: async () => {
+      part.unmount()
+      pending.resetPendingInputForTests()
+      seed.__composerSeedResetForTest()
+      slot.releaseFocusedSessionConnector()
+      if (home !== null) await releaseScratchHome(home)
+    },
+  }
+}
+
 export async function closeStage(stage: Stage): Promise<void> {
   stage.view.unmount()
   await releaseScratchHome(stage.home)

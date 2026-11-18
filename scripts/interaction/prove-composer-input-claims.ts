@@ -103,9 +103,14 @@ console.log('\n── §2 wiring pinned in source ──────────
 {
   const repl = read('src/screens/Chat.tsx')
   const prompt = read('src/components/PromptInput/PromptInput.tsx') + read('src/components/PromptInput/useComposerModelDoors.tsx') + read('src/components/PromptInput/useComposerSubmit.ts') + read('src/components/PromptInput/useComposerAttachments.ts')
+  const { openDraftPart } = await import('../ui/chatScenarios.ts')
+  const boot = await openDraftPart('composer-claims-boot-seed', { keepHome: true, earlyInput: 'keys typed while the screen booted' })
+  const bootSeed = boot.pending.text()
+  await boot.close()
   check(
     'the Chat boot seed consumes the early-input capture (a hardcoded empty seed discarded boot keystrokes)',
-    repl.includes('pendingInput.initSession(conversationIdHere(), consumeEarlyInput())'),
+    bootSeed === 'keys typed while the screen booted',
+    JSON.stringify(bootSeed),
   )
   check(
     'the queued notice retires the transition-applied notice (the screen paints no model-switched receipt of its own)',

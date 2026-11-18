@@ -110,9 +110,14 @@ console.log('── composer type-through (shipped artifact) ──')
   const repl = readFileSync('src/screens/Chat.tsx', 'utf8')
   const perm = readFileSync('src/components/permissions/PermissionRequest.tsx', 'utf8')
   const select = readFileSync('src/components/CustomSelect/use-select-input.ts', 'utf8')
+  const { openDraftPart } = await import('../ui/chatScenarios.ts')
+  const composer = await openDraftPart('composer-seed-chokepoint', { keepHome: true })
+  composer.pending.edit('wait')
+  const reached = composer.seed.seedComposerDirect('!') && composer.pending.text() === 'wait!'
+  await composer.close()
   check(
     'Chat registers the seeder through the owner chokepoint (T13 S2: append = edit(text + seed))',
-    /registerComposerSeeder\(seed => pendingInput\.append\(seed\)\)/.test(repl) &&
+    reached &&
       readFileSync('src/input-core/pending-input.ts', 'utf8').includes('edit(draft.text + seed)'),
   )
   check(

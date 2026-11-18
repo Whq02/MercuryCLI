@@ -477,15 +477,29 @@ console.log('native-core T13/T14 — input-scheduling contract')
   check("lock: every road that speaks a notice's frame — the drain, the idle kick and the next operator turn's held deliveries — goes through one announcer that speaks each notice exactly once",
     runner.includes('const announcedNotifications = new WeakSet<QueuedCommand>()') && runner.includes('if (announcedNotifications.has(command)) continue\n      announcedNotifications.add(command)\n      emitTaskNotificationFrames(taskNotificationPayloads(command))') && runner.includes('emitCommandNotifications([...initialNotices, command])') && runner.includes('if (!driver.isRunning()) emitCommandNotifications(queued.filter(isMainThreadCommand))') && !runner.includes('emitTaskNotificationFrames(taskNotificationPayloads(drained))'))
 
+  const { openDraftPart } = await import('../ui/chatScenarios.ts')
+  const { settle: settleDraft } = await import('../lib/settingsPopupHarness.ts')
+  const composer = await openDraftPart('inputsched-draft', { keepHome: true })
+  composer.pending.edit('h')
+  await settleDraft(80)
+  const typed = { active: composer.part.value().isPromptInputActive, text: composer.pending.text(), pins: composer.pins() }
+  composer.pending.edit('')
+  await settleDraft(80)
+  const idle = composer.part.value().isPromptInputActive
+  composer.scrolledAt.current = Date.now()
+  composer.pending.edit('x')
+  await settleDraft(80)
+  const pinsAfterScroll = composer.pins()
+  composer.part.value().setInputValue('set by the screen')
+  const edited = composer.pending.text()
+  const seeded = composer.seed.seedComposerDirect('!') && composer.pending.text() === 'set by the screen!'
+  await composer.close()
   check('lock: Chat registers the chokepoint interceptors (intercept + re-pin gate + active flip)',
-    repl.includes('pendingInput.registerInterceptors({')
-      && repl.includes('interceptSuggestion: () => false')
-      && repl.includes('onActiveChange: setIsPromptInputActive'))
+    typed.active && typed.text === 'h' && !idle)
   check('lock: empty→nonempty is the re-pin gate (with the recent-scroll window)',
-    repl.includes('onEmptyToNonempty: () => {')
-      && repl.includes('RECENT_SCROLL_REPIN_WINDOW_MS'))
+    typed.pins === 1 && pinsAfterScroll === 1)
   check('lock: setInputValue rides the owner edit path',
-    repl.includes('pendingInput.edit(value)'))
+    edited === 'set by the screen')
 
   check('lock: the face runs no auto-restore (no shouldAutoRestore call, no history rewind in the screen)',
     !repl.includes('shouldAutoRestore(') && !repl.includes('removeLastFromHistory'))
@@ -532,7 +546,7 @@ console.log('native-core T13/T14 — input-scheduling contract')
     sendIdx !== -1 && !repl.includes('queryGuard') && receiptBlock.includes("receipt.state !== 'refused'") && receiptBlock.includes("pendingInput.text() === ''") && receiptBlock.includes('setInputValue(input)') && receiptBlock.includes('setPastedContents(seatPastes)'))
 
   check('lock: the composer seeder appends through the owner chokepoint',
-    repl.includes('registerComposerSeeder(seed => pendingInput.append(seed))'))
+    seeded)
 
   check('lock: the queued-pop call site stays retired (or returns WITH its mode restore)',
     !repl.includes('popAllEditable(') ||
