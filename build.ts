@@ -744,6 +744,74 @@ let brushMeta: { source: string; version: string; platform: string; target: stri
   }
 }
 
+const { BASH_PACK_PATH: bashRelPath, bashPackPlatform, bashPatchesDigest, bashPrepareCommand, checkBashPackDir } = await import('./src/utils/shell/bashPack.ts');
+let bashVendored = false;
+let bashOwed = false;
+let bashMeta: { version: string; bashVersion: string; platform: string; target: string; binary: string; binarySha256: string; license: string; tarballSha256: string; links: string[] } | null = null;
+{
+  const bashDest = resolve(OUT, bashRelPath);
+  rmSync(bashDest, { recursive: true, force: true });
+  const forceNo = process.env.MERCURY_BUILD_NO_VENDOR_BASH === '1';
+  const packPlatform = bashPackPlatform(SHIP.platform, SHIP.arch);
+  const packDir = packPlatform ? resolve(ROOT, bashRelPath, packPlatform) : null;
+  const bashPrepare = packPlatform ? bashPrepareCommand(packPlatform, CROSS) : '';
+  bashOwed = packPlatform !== null;
+  if (!forceNo && packPlatform && packDir && statSync(resolve(packDir, '.vendor-manifest.json'), { throwIfNoEntry: false })?.isFile()) {
+    const check = checkBashPackDir(packDir, { digest: true, platform: packPlatform });
+    let lockWhy: string | null = null;
+    if (check.state === 'ok') {
+      try {
+        const lock = JSON.parse(readFileSync(resolve(ROOT, 'vendor', 'bash.lock.json'), 'utf8')) as {
+          version?: string;
+          tarball?: { sha256?: string };
+          patches?: Array<{ file: string; sha256: string }>;
+          build?: { configure?: string[] };
+          platforms?: Record<string, { configure?: string[] }>;
+        };
+        const flags = [...(lock.build?.configure ?? []), ...(lock.platforms?.[packPlatform]?.configure ?? [])];
+        if (lock.version !== check.manifest.version) lockWhy = `the pack is ${check.manifest.version}, the lock pins ${String(lock.version)}`;
+        else if (lock.tarball?.sha256 !== check.manifest.tarballSha256) lockWhy = "the pack's tarball digest is not the lock's";
+        else if (bashPatchesDigest(lock.patches ?? []) !== check.manifest.patchesSha256) lockWhy = "the pack's patch set is not the lock's";
+        else if (JSON.stringify(flags) !== JSON.stringify(check.manifest.configure)) lockWhy = "the pack was configured with other flags than the lock's";
+      } catch (e) {
+        lockWhy = `vendor/bash.lock.json unreadable (${String(e)})`;
+      }
+    }
+    if (check.state === 'ok' && lockWhy === null) {
+      const { cpSync } = await import('node:fs');
+      cpSync(packDir, resolve(bashDest, packPlatform), { recursive: true });
+      chmodSync(resolve(bashDest, packPlatform, check.manifest.binary), 0o755);
+      bashVendored = true;
+      bashMeta = {
+        version: check.manifest.version,
+        bashVersion: check.manifest.bashVersion,
+        platform: packPlatform,
+        target: check.manifest.target,
+        binary: check.manifest.binary,
+        binarySha256: check.manifest.binarySha256,
+        license: check.manifest.license,
+        tarballSha256: check.manifest.tarballSha256,
+        links: check.manifest.links,
+      };
+      console.log(`VENDORED bash ${check.manifest.bashVersion} ${packPlatform} (built from the GNU release tarball and its official patches, sha256-verified; ${check.manifest.license})\n  -> ${resolve(bashDest, packPlatform)}`);
+    } else {
+      const why = check.state !== 'ok' ? check.note : lockWhy;
+      console.error(
+        `BUILD FAILED: vendor/bash/${packPlatform} pack is present but stale — ${why}.\n` +
+          `  remedy: ${bashPrepare}   (then rebuild)\n` +
+          '  (a missing pack degrades honestly instead — only a PRESENT-but-wrong pack fails the build)',
+      );
+      process.exit(1);
+    }
+  } else if (forceNo) {
+    console.warn('MERCURY_BUILD_NO_VENDOR_BASH=1 — bash NOT vendored (degraded: shell-bash; proof seam).');
+  } else if (!packPlatform) {
+    console.warn(`no bash pack is built for ${SHIP_KEY} — the artifact ships without it; the Bash tool's road on that platform is its own.`);
+  } else {
+    console.warn(`no bash pack for ${packPlatform} — the artifact ships WITHOUT the bash Mercury runs commands in (degraded: shell-bash; the Bash tool runs the system's bash, then the bundled engine). Prepare it: ${bashPrepare}`);
+  }
+}
+
 const { WHISPER_PACK_PATH: whisperRelPath, WHISPER_NATIVE_PATH: whisperNativePath, checkWhisperPackDir, whisperPackDirFor, whisperSourceTreeDigest } = await import('./src/services/voice/whisperPack.ts');
 const { whisperDefaultModel } = await import('./src/services/voice/whisperModels.ts');
 let whisperVendored = false;
@@ -1378,6 +1446,30 @@ const manifest = {
         remedy:
           'fetch the shell engine pack (`bun run scripts/vendor/fetch-brush.ts`), then re-run `bun run build.ts` — the Bash tool keeps the system bash meanwhile, and the engine setting refuses to arm naming this',
       },
+  bash: bashVendored && bashMeta
+    ? {
+        vendored: true,
+        name: 'bash',
+        source: 'gnu-tarball',
+        path: `${bashRelPath}/${bashMeta.platform}`,
+        version: bashMeta.version,
+        bashVersion: bashMeta.bashVersion,
+        platform: bashMeta.platform,
+        target: bashMeta.target,
+        binary: bashMeta.binary,
+        binarySha256: bashMeta.binarySha256,
+        license: bashMeta.license,
+        tarballSha256: bashMeta.tarballSha256,
+        links: bashMeta.links,
+      }
+    : {
+        vendored: false,
+        name: 'bash',
+        path: bashRelPath,
+        remedy: bashOwed
+          ? 'build the bash pack (`bun run scripts/vendor/build-bash.ts`; a Mac needs the Xcode command line tools, a Linux pack needs docker), then re-run `bun run build.ts` — the Bash tool runs the system bash meanwhile, then the bundled engine'
+          : 'no bash pack is built for this platform',
+      },
   onDeviceTranscriber: whisperVendored && whisperMeta
     ? {
         vendored: true,
@@ -1483,6 +1575,7 @@ const manifest = {
     ...(desktopVendored ? [] : ['desktop-driver']),
     ...(imagePackVendored ? [] : ['image-processing']),
     ...(brushVendored ? [] : ['shell-engine']),
+    ...(bashVendored || !bashOwed ? [] : ['shell-bash']),
     ...(typescriptVendored ? [] : ['structural-intelligence']),
     ...(treesitterVendored ? [] : ['structure-polyglot']),
     ...(treesitterVendored && !grammarPackVendored ? ['structure-polyglot-extended'] : []),

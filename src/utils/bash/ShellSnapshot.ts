@@ -13,6 +13,7 @@ import { logError } from '../log.js'
 import { getPlatform } from '../platform.js'
 import { ripgrepCommand } from '../ripgrep.js'
 import { subprocessEnv } from '../subprocessEnv.js'
+import { SNAPSHOT_KEEPS_ALIASES, SNAPSHOT_OPTIONS, argv0FunctionBody, snapshotProfileOf, type ShellRecord } from '../shell/shellRecord.js'
 import { quote } from './shellQuote.js'
 
 
@@ -124,13 +125,7 @@ function buildArgv0Function(
 }`
   }
   return `${functionName}() {
-  if [ -n "$ZSH_VERSION" ]; then
-    ARGV0=${argv0Name} ${quotedBinary} ${prepend}"$@"
-  elif [ "\${BASHPID:-$$}" != "$$" ]; then
-    exec -a ${argv0Name} ${quotedBinary} ${prepend}"$@"
-  else
-    ( exec -a ${argv0Name} ${quotedBinary} ${prepend}"$@" )
-  fi
+${argv0FunctionBody(argv0Name, quotedBinary, prepend)}
 }`
 }
 
@@ -217,10 +212,9 @@ function buildCaptureScript(args: {
   snapshotFilePath: string
   configFilePath: string
   configExists: boolean
-  isZshLane: boolean
   mercuryContent: string
 }): string {
-  const { snapshotFilePath, configFilePath, configExists, isZshLane, mercuryContent } = args
+  const { snapshotFilePath, configFilePath, configExists, mercuryContent } = args
   const lines: string[] = []
 
   lines.push(`SNAPSHOT_FILE=${quote([snapshotFilePath])}`)
@@ -236,18 +230,7 @@ function buildCaptureScript(args: {
 
   if (configExists) {
     lines.push('echo "# Functions" >> "$SNAPSHOT_FILE"')
-    if (isZshLane) {
-      lines.push(`for __mercury_fn in \${(k)functions}; do
-  autoload +X -- "$__mercury_fn" >/dev/null 2>&1
-done
-for __mercury_fn in \${(k)functions}; do
-  case "$__mercury_fn" in
-    _[!_]*) ;;
-    *) functions -- "$__mercury_fn" >> "$SNAPSHOT_FILE" ;;
-  esac
-done`)
-    } else {
-      lines.push(`for __mercury_fn in $(declare -F | awk '{print $NF}'); do
+    lines.push(`for __mercury_fn in $(declare -F | awk '{print $NF}'); do
   case "$__mercury_fn" in
     _[!_]*) ;;
     *)
@@ -256,26 +239,15 @@ done`)
       ;;
   esac
 done`)
-    }
 
     lines.push('echo "# Shell Options" >> "$SNAPSHOT_FILE"')
-    if (isZshLane) {
-      lines.push(`setopt | sed 's/^/setopt /' | head -n 1000 >> "$SNAPSHOT_FILE"`)
-    } else {
-      lines.push(`shopt -p | head -n 1000 >> "$SNAPSHOT_FILE"`)
-      lines.push(`set -o | grep on | awk '{print $1}' | sed 's/^/set -o /' | head -n 1000 >> "$SNAPSHOT_FILE"`)
-      lines.push('echo "shopt -s expand_aliases" >> "$SNAPSHOT_FILE"')
-    }
+    lines.push(...SNAPSHOT_OPTIONS)
 
     lines.push('echo "# Aliases" >> "$SNAPSHOT_FILE"')
     const winptyFilter = getPlatform() === 'windows' ? ' | grep -v winpty' : ''
-    if (isZshLane) {
-      lines.push(`alias${winptyFilter} | sed 's/^/alias -- /' | head -n 1000 >> "$SNAPSHOT_FILE"`)
-    } else {
-      lines.push(`alias${winptyFilter} | sed 's/^alias /alias -- /' | head -n 1000 >> "$SNAPSHOT_FILE"`)
-    }
-  } else if (!isZshLane) {
-    lines.push('echo "shopt -s expand_aliases" >> "$SNAPSHOT_FILE"')
+    lines.push(`alias${winptyFilter} | sed 's/^alias /alias -- /' | head -n 1000 >> "$SNAPSHOT_FILE"`)
+  } else {
+    lines.push(SNAPSHOT_KEEPS_ALIASES)
   }
 
   lines.push(`cat >> "$SNAPSHOT_FILE" <<'${MERCURY_CONTENT_DELIMITER}'
@@ -327,22 +299,20 @@ function randomSnapshotSuffix(): string {
   return suffix
 }
 
-export async function createAndSaveSnapshot(shellPath: string): Promise<string | undefined> {
+export async function createAndSaveSnapshot(shell: Pick<ShellRecord, 'path' | 'origin'>): Promise<string | undefined> {
+  const shellPath = shell.path
   try {
     const fs = getFsImplementation()
     const mercuryHome = getMercuryHome()
     const snapshotsDir = join(mercuryHome, 'shell-snapshots')
     await fs.mkdir(snapshotsDir)
 
-    const shellKind = shellPath.includes('zsh') ? 'zsh' : shellPath.includes('bash') ? 'bash' : 'sh'
-    const configFileName =
-      shellKind === 'zsh' ? '.zshrc' : shellKind === 'bash' ? '.bashrc' : '.profile'
-    const configFilePath = join(homedir(), configFileName)
-    const isZshLane = configFileName === '.zshrc'
+    const profile = snapshotProfileOf(shell.origin)
+    const configFilePath = join(homedir(), profile.file)
 
     const snapshotFilePath = join(
       snapshotsDir,
-      `snapshot-${shellKind}-${Date.now()}-${randomSnapshotSuffix()}.sh`,
+      `snapshot-${profile.kind}-${Date.now()}-${randomSnapshotSuffix()}.sh`,
     )
 
     const configExists = await pathExists(configFilePath)
@@ -351,7 +321,6 @@ export async function createAndSaveSnapshot(shellPath: string): Promise<string |
       snapshotFilePath,
       configFilePath,
       configExists,
-      isZshLane,
       mercuryContent,
     })
 

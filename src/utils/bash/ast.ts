@@ -142,7 +142,6 @@ const SPECIAL_VARIABLES: ReadonlySet<string> = new Set(['?', '$', '!', '#', '0',
 
 const ESCAPED_BLANK_RE = /\\[ \t]/
 const MIDWORD_CONTINUATION_RE = /[^ \t\n\\]\\\n/
-const ZSH_EQUALS_EXPANSION_RE = /(^|[ \t\n;&|])=[A-Za-z_]/
 const BRACE_WITH_QUOTE_RE = /\{[^}]*['"]/
 
 function maskQuotedBraces(command: string): string {
@@ -191,8 +190,6 @@ const PRE_CHECKS: ReadonlyArray<readonly [(command: string) => boolean, string]>
     command => ESCAPED_BLANK_RE.test(command) || MIDWORD_CONTINUATION_RE.test(command),
     'Contains backslash-escaped whitespace, which the shell and the parser tokenize differently',
   ],
-  [command => command.includes('~['), 'Contains zsh dynamic named directory syntax (~[), which can run arbitrary code'],
-  [command => ZSH_EQUALS_EXPANSION_RE.test(command), 'Contains word-initial = expansion, which zsh rewrites to a command path'],
   [
     command => command.includes('{') && BRACE_WITH_QUOTE_RE.test(maskQuotedBraces(command)),
     'Bash needs approval for this brace form: it is not a simple command. Run the commands separately with literal arguments.',
@@ -1281,26 +1278,6 @@ const ARITHMETIC_COMPARISONS: ReadonlySet<string> = new Set(['-eq', '-ne', '-lt'
 
 const READ_DATA_FLAGS: ReadonlySet<string> = new Set(['p', 'd', 'n', 'N', 't', 'u', 'i'])
 
-const ZSH_MODULE_BUILTINS: ReadonlySet<string> = new Set([
-  'zmodload',
-  'emulate',
-  'sysopen',
-  'sysread',
-  'syswrite',
-  'sysseek',
-  'zpty',
-  'ztcp',
-  'zsocket',
-  'zf_rm',
-  'zf_mv',
-  'zf_ln',
-  'zf_chmod',
-  'zf_chown',
-  'zf_mkdir',
-  'zf_rmdir',
-  'zf_chgrp',
-])
-
 const EVALUATING_BUILTINS: ReadonlySet<string> = new Set([
   'eval',
   'source',
@@ -1560,9 +1537,6 @@ const jqProgram: SemanticCheck = (name, argv) => {
   return null
 }
 
-const zshModule: SemanticCheck = name =>
-  ZSH_MODULE_BUILTINS.has(name) ? `${name} is a zsh module builtin that can bypass security checks` : null
-
 const evaluatingBuiltin: SemanticCheck = (name, argv) => {
   if (!EVALUATING_BUILTINS.has(name)) return null
   if (name === 'command') {
@@ -1610,7 +1584,6 @@ const SEMANTIC_CHECKS: readonly SemanticCheck[] = [
   reservedName,
   newlineComment,
   jqProgram,
-  zshModule,
   evaluatingBuiltin,
   processEnvironment,
 ]

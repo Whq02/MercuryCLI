@@ -108,7 +108,6 @@ scripts/bash/prove-bash-permissions.ts	1	1	06c62c84a388
 scripts/bash/prove-bash-tool-seams.ts	3	5	a2526c91d1de
 scripts/bash/prove-engine-git-programs.ts	3	4	c31172917653
 scripts/bash/prove-engine-roads.ts	3	10	c4234243b1dc
-scripts/bash/prove-glob-preamble.ts	1	3	1c65c9c98fd8
 scripts/bash/prove-output-budget.ts	6	27	5767cb7dee6a
 scripts/bash/prove-output-tail-truth.ts	4	27	565e3a2a86a7
 scripts/bash/prove-plain-tool-result.ts	4	7	a6da891ffae9
@@ -126,7 +125,6 @@ scripts/bash/prove-shell-providers-detach-alike.ts	3	7	d94ab9651f9c
 scripts/bash/prove-shell-session-env.ts	6	14	5cfb85a8cad1
 scripts/bash/prove-shell-settlement.ts	15	12	99369c95a059
 scripts/bash/prove-shell-snapshot-path.ts	2	17	508c48f7660d
-scripts/bash/prove-shell-split.ts	2	9	ff9554696bb4
 scripts/bash/prove-stop-ends-the-tree.ts	4	12	3ba1e864d9a8
 scripts/bash/prove-teardown-ends-the-tree.ts	4	18	fc303cea8b69
 scripts/bash/prove-win32-console-close-cleanup.ts	3	10	bcf0e2f1667c

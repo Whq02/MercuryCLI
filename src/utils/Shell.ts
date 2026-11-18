@@ -1,8 +1,6 @@
-import { execFile } from 'node:child_process'
 import { spawnOwnedShell } from './shell/parentGuard.js'
 import { closeSync, constants as fsConstants, openSync, readFileSync } from 'node:fs'
-import { access } from 'node:fs/promises'
-import { isAbsolute, join, resolve as resolvePath } from 'node:path'
+import { isAbsolute, resolve as resolvePath } from 'node:path'
 import { memoize } from 'lodash-es'
 import { getOriginalCwd, setCwdState, subscribeCwdState } from '../bootstrap/state.js'
 import { generateTaskId } from '../Task.js'
@@ -10,7 +8,6 @@ import { contextShellCwd, getCwd, getStartingCwd, setContextShellCwd } from './c
 import { logForDebugging } from './debug.js'
 import { errorMessage, isENOENT } from './errors.js'
 import { getFsImplementation, safeResolvePath } from './fsOperations.js'
-import { logError } from './log.js'
 import { getPlatform } from './platform.js'
 import { invalidateSessionEnvCache } from './sessionEnvironment.js'
 import { createBashShellProvider } from './shell/bashProvider.js'
@@ -19,85 +16,22 @@ import { getInitialSettings } from './settings/settings.js'
 import { getCachedPowerShellPath } from './shell/powershellDetection.js'
 import { createPowerShellProvider } from './shell/powershellProvider.js'
 import type { ShellProvider, ShellType } from './shell/shellProvider.js'
+import { fallbackEngineBinary, systemShellRecord } from './shell/shellRecord.js'
 import { wrapSpawn, createAbortedCommand, createFailedCommand, type ShellCommand } from './ShellCommand.js'
 import { toolShellEnv, subprocessEnv } from './subprocessEnv.js'
 import { scrubSessionEnvStamps } from '../substrate/envStamps.js'
 import { getTaskOutputDir } from './task/diskOutput.js'
 import { TaskOutput } from './task/TaskOutput.js'
-import { which } from './which.js'
 import { nativeCwdFromShellRecord, posixPathToWindowsPath } from './windowsPaths.js'
 import { planWindowsBatchInvocation, runWindowsBatchCommand } from './shell/windowsBatchInvocation.js'
 import { withGitPrograms } from './shell/windowsShellRoad.js'
-
-
-
-const SHELL_FALLBACK_DIRECTORIES = ['/bin', '/usr/bin', '/usr/local/bin', '/opt/homebrew/bin']
-
-function namesSupportedShell(path: string): boolean {
-  return path.includes('bash') || path.includes('zsh')
-}
-
-async function isExecutableShell(path: string): Promise<boolean> {
-  try {
-    await access(path, fsConstants.X_OK)
-    return true
-  } catch {
-    try {
-      await new Promise<void>((resolveProbe, rejectProbe) => {
-        execFile(path, ['--version'], { windowsHide: true, timeout: 1000, env: { ...subprocessEnv() } }, error => {
-          if (error) rejectProbe(error)
-          else resolveProbe()
-        })
-      })
-      return true
-    } catch {
-      return false
-    }
-  }
-}
-
-async function findSuitableShell(): Promise<string> {
-  const loginShell = process.env.SHELL
-  const prefersBash = loginShell !== undefined && loginShell.includes('bash')
-  const preferredName = prefersBash ? 'bash' : 'zsh'
-  const otherName = prefersBash ? 'zsh' : 'bash'
-
-  const [locatedZsh, locatedBash] = await Promise.all([which('zsh'), which('bash')])
-  const locatedPreferred = prefersBash ? locatedBash : locatedZsh
-  const locatedOther = prefersBash ? locatedZsh : locatedBash
-
-  const candidates: string[] = []
-  for (const name of [preferredName, otherName]) {
-    for (const directory of SHELL_FALLBACK_DIRECTORIES) {
-      candidates.push(join(directory, name))
-    }
-  }
-  if (locatedPreferred) candidates.unshift(locatedPreferred)
-  if (locatedOther) candidates.push(locatedOther)
-  if (loginShell && namesSupportedShell(loginShell) && (await isExecutableShell(loginShell))) {
-    candidates.unshift(loginShell)
-  }
-
-  for (const candidate of candidates) {
-    if (await isExecutableShell(candidate)) {
-      return candidate
-    }
-  }
-
-  const message =
-    'No suitable shell found. Mercury CLI requires a POSIX shell environment (bash or zsh); install one or point the SHELL environment variable at one, then restart Mercury.'
-  logError(message)
-  throw new Error(message)
-}
-
 
 type ShellConfig = {
   provider: ShellProvider
 }
 
 export const getShellConfig = memoize(async (): Promise<ShellConfig> => {
-  const shellPath = await findSuitableShell()
-  const provider = await createBashShellProvider(shellPath)
+  const provider = await createBashShellProvider(await systemShellRecord())
   return { provider }
 })
 
@@ -110,7 +44,10 @@ const getPsProvider = memoize(async (): Promise<ShellProvider> => {
 })
 
 const PROVIDER_TABLE: Record<ShellType, () => Promise<ShellProvider>> = {
-  bash: async () => (await getShellConfig()).provider,
+  bash: async () => {
+    const fallback = await fallbackEngineBinary()
+    return fallback === null ? (await getShellConfig()).provider : createEngineCommandProvider(fallback)
+  },
   powershell: () => getPsProvider(),
 }
 
@@ -212,9 +149,10 @@ export async function exec(
 
   if (shellType === 'bash' && options.onStdout === undefined && options.backgroundIntent !== true && options.inheritSessionEnv !== true) {
     const engine = resolveShellEngine(getInitialSettings().shell?.engine)
-    if (engine.engine === 'brush') {
+    const sessionBinary = engine.engine === 'brush' ? engine.binaryPath : await fallbackEngineBinary()
+    if (sessionBinary !== null) {
       if (abortSignal.aborted) return createAbortedCommand()
-      return runEngineCommand(engine.binaryPath, command, {
+      return runEngineCommand(sessionBinary, command, {
         timeout,
         signal: abortSignal,
         onProgress: options.onProgress,

@@ -338,6 +338,7 @@ src/utils/settings/snapshot.ts :: lastSessionCache :: keyed-by-truth
 src/utils/settings/snapshot.ts :: lastSnapshot :: keyed-by-truth
 src/utils/shell/engineSession.ts :: snapshotPromise :: static-for-process
 src/utils/shell/powershellDetection.ts :: cachedPowerShellPath :: static-for-process
+src/utils/shell/shellRecord.ts :: systemShellRecord :: static-for-process
 src/utils/shell/windowsShellRoad.ts :: locatedWindowsBash :: static-for-process
 src/utils/shell/windowsShellRoad.ts :: windowsBashRoad :: static-for-process
 src/utils/suggestions/directoryCompletion.ts :: pathCache :: ttl-bounded

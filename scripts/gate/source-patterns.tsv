@@ -1943,7 +1943,7 @@ catch-default	src/tools/WebFetchTool/fetchTransport.ts	1
 catch-default	src/tools/WebFetchTool/privateHost.ts	1
 catch-default	src/tools/WebFetchTool/structuredHosts.ts	2
 catch-default	src/tools/WebFetchTool/utils.ts	3
-catch-default	src/utils/Shell.ts	2
+catch-default	src/utils/Shell.ts	1
 catch-default	src/utils/ShellCommand.ts	1
 catch-default	src/utils/accounts/scopeScan.ts	1
 catch-default	src/utils/accounts/scopedCredentialRead.ts	1
@@ -2079,6 +2079,7 @@ catch-default	src/utils/settings/mdm/rawRead.ts	1
 catch-default	src/utils/shell/brushPack.ts	2
 catch-default	src/utils/shell/outputFilter.ts	1
 catch-default	src/utils/shell/powershellDetection.ts	1
+catch-default	src/utils/shell/shellRecord.ts	1
 catch-default	src/utils/shell/windowsBatchInvocation.ts	1
 catch-default	src/utils/skills/skillChangeDetector.ts	3
 catch-default	src/utils/statusNoticeDefinitions.tsx	2
@@ -2203,7 +2204,6 @@ env-read	src/components/Settings/Jev.tsx	2
 env-read	src/components/Settings/LocalServer.tsx	2
 env-read	src/components/messages/TranscriptNameplate.tsx	2
 env-read	src/constants/oauth.ts	1
-env-read	src/constants/prompts.ts	1
 env-read	src/context.ts	1
 env-read	src/context/surfaceRoute.ts	1
 env-read	src/daemon/headlessRun.ts	2
@@ -2324,11 +2324,9 @@ env-read	src/tools/FileReadTool/sqliteQueryProcess.ts	6
 env-read	src/tools/GrepTool/GrepTool.ts	1
 env-read	src/tools/PowerShellTool/PowerShellTool.tsx	2
 env-read	src/tools/testing/TestingPermissionTool.tsx	1
-env-read	src/utils/Shell.ts	1
 env-read	src/utils/api.ts	1
 env-read	src/utils/auth.ts	15
 env-read	src/utils/bash/ShellSnapshot.ts	1
-env-read	src/utils/bash/shellCompletion.ts	1
 env-read	src/utils/browser.ts	2
 env-read	src/utils/caCerts.ts	3
 env-read	src/utils/caCertsConfig.ts	2
@@ -2365,6 +2363,7 @@ env-read	src/utils/secureStorage/windowsDpapiProtector.ts	1
 env-read	src/utils/sessionStorage/paths.ts	1
 env-read	src/utils/settings/managedPath.ts	1
 env-read	src/utils/shell/powershellProvider.ts	2
+env-read	src/utils/shell/shellRecord.ts	3
 env-read	src/utils/shell/windowsBatchInvocation.ts	2
 env-read	src/utils/shell/windowsShellRoad.ts	1
 env-read	src/utils/slowOperations.ts	1

@@ -44,6 +44,7 @@ const { exec, setCwd, getShellCwd, getShellConfig } = await import('../../src/ut
 const { getCwd } = await import('../../src/utils/cwd.ts')
 const { getPlatform } = await import('../../src/utils/platform.ts')
 const { createBashShellProvider } = await import('../../src/utils/shell/bashProvider.ts')
+const { systemShellAt } = await import('../../src/utils/shell/shellRecord.ts')
 const { createPowerShellProvider } = await import('../../src/utils/shell/powershellProvider.ts')
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'shell-script-bytes-')))
@@ -118,7 +119,7 @@ async function inBatches<T, R>(items: T[], size: number, work: (item: T) => Prom
 
 type Provider = Awaited<ReturnType<typeof createBashShellProvider>>
 async function primed(shell: string): Promise<Provider> {
-  const provider = await createBashShellProvider(shell)
+  const provider = await createBashShellProvider(systemShellAt(shell))
   await provider.buildExecCommand('true', { id: 'prime' })
   return provider
 }
@@ -201,7 +202,7 @@ const run = async (command: string): Promise<{ code: number; out: string }> => {
 section('§4 nothing else changes')
 {
   const withSnapshot = providers.get(primary) as Provider
-  const loginShell = await createBashShellProvider(primary, { skipSnapshot: true })
+  const loginShell = await createBashShellProvider(systemShellAt(primary), { skipSnapshot: true })
   const untouched = ['', 'echo hi', String.raw`echo 'a\b' "c\d" e\.f`, String.raw`printf %s "a\"b"`, String.raw`echo "x\\"`, String.raw`echo x\\`, 'echo a\\\n']
   const flagsOf = (provider: Provider): string[] => provider.getSpawnArgs('x').slice(0, -1)
   const sameArgs = (provider: Provider): boolean => untouched.every(text => JSON.stringify(provider.getSpawnArgs(text)) === JSON.stringify([...flagsOf(provider), text]))
@@ -234,7 +235,8 @@ section('§4 nothing else changes')
       `;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }`,
       `const { readFileSync } = await import('node:fs')`,
       `const { createBashShellProvider } = await import(${JSON.stringify(join(ROOT, 'src', 'utils', 'shell', 'bashProvider.ts'))})`,
-      `const provider = await createBashShellProvider('/bin/bash', { skipSnapshot: true })`,
+      `const { systemShellAt } = await import(${JSON.stringify(join(ROOT, 'src', 'utils', 'shell', 'shellRecord.ts'))})`,
+      `const provider = await createBashShellProvider(systemShellAt('/bin/bash'), { skipSnapshot: true })`,
       `const texts = JSON.parse(readFileSync(process.argv[3] as string, 'utf8')) as string[]`,
       `console.log('ARGS ' + JSON.stringify(texts.map(text => provider.getSpawnArgs(text))))`,
     ].join('\n'),

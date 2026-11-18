@@ -286,15 +286,34 @@ disables the check, the cache and both notices.
 ## The shell engine
 
 The Bash tool runs commands through a shell engine. On macOS and Linux the
-default is the **system** shell: the platform's bash or zsh, spawning a fresh
-child per command where the working directory carries from call to call and
-everything else resets. On Windows the default is the bundled **brush**
+default is the bash Mercury ships (GNU bash 5.3), spawning a fresh child per
+command where the working directory carries from call to call and everything
+else resets; `system` is that road's name in the setting. When the shipped
+bash is absent or does not start, the system's own bash runs the command,
+whatever its version, and when no bash starts the bundled engine does. zsh is
+never run, whatever `$SHELL` names. On Windows the default is the bundled **brush**
 engine whenever its pack is present (every release archive includes it);
 `bash.exe` from Git for Windows serves the Bash tool when the engine is turned
 off by the pin or the setting, or its pack is absent.
 In both modes, the Bash tool tracks its own shell working directory across
 calls: a `cd` inside a Bash command moves where subsequent shell commands run
 without changing the session's starting folder.
+
+The shipped bash is built from the GNU release tarball and its official
+patches, pinned with their digests in `vendor/bash.lock.json`, and rides every
+macOS and Linux archive at `dist/vendor/bash/<platform>/` with its licence
+text (`COPYING`, GPL-3.0-or-later) and a `SOURCE` note naming the tarball, the
+patches and the build's flags. Mercury starts it as a separate program. It
+links nothing outside the operating system: the macOS binary uses the system's
+own libraries and the Linux binary is static. A command starts from the
+environment Mercury was started with, PATH first, and from the aliases,
+functions and options of your bash files (`~/.bash_profile` or `~/.profile`
+at login, `~/.bashrc`); what is written for zsh in `~/.zshrc` or `~/.zshenv`
+is not read. The session's shell line names the shell that runs and its
+version. Inside a command `$SHELL` names the shipped bash; a `bash` the
+command starts by name, or a script that begins `#!/usr/bin/env bash`, runs
+whichever bash PATH finds, which on a Mac is the system's 3.2 unless a newer
+one stands earlier on PATH.
 
 The optional **brush** engine is a vendored Rust bash-compatible shell (MIT),
 shipped as an upstream release binary per platform at
@@ -312,7 +331,7 @@ and runs a program named by a relative path after a `cd`.
 
 A call the long-lived process cannot take runs in a process of its own: a
 Monitor watch, a `run_in_background` command, and a command with
-`inherit_session_env`. That process is the system shell on macOS and Linux,
+`inherit_session_env`. That process is the shipped bash on macOS and Linux,
 and on Windows the `bash.exe` from Git for Windows when one is found; on a
 Windows box with no `bash.exe` it is the engine itself, so every Bash call
 runs without Git for Windows.
@@ -337,9 +356,9 @@ ends.
 
 Select it with the **Shell engine** row in `/config` (setting `shell.engine`:
 `system` | `brush`) or the `MERCURY_SHELL_ENGINE=brush` env pin, which
-outranks the setting; on macOS and Linux the system shell stays the default,
+outranks the setting; on macOS and Linux the shipped bash stays the default,
 on Windows the engine is the default. A `brush` choice whose pack is absent
-degrades to the system shell and the `health` row names why, never falling
+degrades to the default road and the `health` row names why, never falling
 back silently. On a Windows box with no `bash.exe`, `system` written as the
 setting's value or as the env pin turns the engine off and the Bash tool
 leaves the roster; the `/config` row's `system` is the default, which lets

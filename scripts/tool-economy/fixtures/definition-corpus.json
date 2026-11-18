@@ -1,5 +1,5 @@
 {
-  "base": "210c6bfe3dde4cf6179d23201cf2f0d2783b075f",
+  "base": "570b20e10f278e5dd3591f359086f638517def0c",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -95,7 +95,7 @@
     },
     {
       "name": "Bash",
-      "description": "Runs one shell command and returns its output, stdout and stderr merged in the order written. The output comes back to you; the operator sees at most a folded preview.\n\nUp to 30000 characters come back inline; a longer output is saved to a file, and the result carries its path with about 2000 characters from its start and end. A non-zero exit comes back as an error ending `Exited with code N`, except exit 1 when the last command is grep, rg, find, diff, cmp, pgrep, test, `[`, which or `command -v`: a result labelled with what the exit means, such as `no matches found (exit code 1)`.\n\nIn the main conversation the working directory persists between calls (a crewmate's does not); shell variables, functions and options never do, and each call starts from your profile (bash or zsh).",
+      "description": "Runs one shell command and returns its output, stdout and stderr merged in the order written. The output comes back to you; the operator sees at most a folded preview.\n\nUp to 30000 characters come back inline; a longer output is saved to a file, and the result carries its path with about 2000 characters from its start and end. A non-zero exit comes back as an error ending `Exited with code N`, except exit 1 when the last command is grep, rg, find, diff, cmp, pgrep, test, `[`, which or `command -v`: a result labelled with what the exit means, such as `no matches found (exit code 1)`.\n\nIn the main conversation the working directory persists between calls (a crewmate's does not); shell variables, functions and options never do, and each call starts from your profile (bash).",
       "input_schema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",

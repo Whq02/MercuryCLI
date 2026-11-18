@@ -18,7 +18,8 @@ options
   --logs <dir>             per-step logs (default: <root>/release-out/release-local-logs/<target>)
   --unsigned               ship without the release key, by decision (the name says -unsigned)
   --skip <steps>           comma list to leave out: install, fetch, node-pin, rosetta,
-                           shell-engine, native (rust-target voice cmake whisper desktop embed
+                           shell-engine, shell-bash, native (rust-target voice cmake whisper
+                           desktop embed
                            embed-model), build, package, verify, collect, bridge
                            (bridge-rosetta bridge-journey bridge-reader)
   --packager-flag <flag>   handed to package.mjs as given (repeatable):
@@ -228,6 +229,7 @@ step fetch 0 sh -c 'bun run scripts/vendor/fetch-pdfjs.ts && bun run scripts/ven
 step node-pin 0 node_pin
 [ "$CROSS" = 1 ] && step rosetta 0 rosetta_check
 step shell-engine 0 bun run scripts/vendor/fetch-brush.ts --platform "$NODE_PACK"
+step shell-bash 0 bun run scripts/vendor/build-bash.ts --target "$TARGET"
 [ "$CROSS" = 1 ] && step rust-target 1 rust_target
 step voice 1 bun run scripts/vendor/build-voice.ts --target "$TARGET"
 step cmake 1 cmake_check

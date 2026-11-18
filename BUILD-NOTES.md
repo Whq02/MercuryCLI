@@ -213,6 +213,26 @@ against their checked-in lock files before a byte is consumed.
   `desktop-driver` (the Computer tool refuses by name), a publishable
   degradation for the release packager, and `MERCURY_BUILD_NO_VENDOR_DESKTOP=1`
   forces that arm.
+- **Bash pack** (optional at build on macOS and Linux; BUILT, never fetched
+  as a binary). GNU bash at the version `vendor/bash.lock.json` pins, the
+  shell the Bash tool runs there. `bun run scripts/vendor/build-bash.ts` (a
+  link of `bun run setup`) downloads the GNU release tarball and its official
+  patches, verifies each sha256 against the lock, and builds into
+  `vendor/bash/<platform>/`: the binary, the licence text (`COPYING`,
+  GPL-3.0-or-later), a `SOURCE` note naming the tarball, the patches and the
+  flags, on Linux the libc's licence text, and a manifest carrying the
+  binary's sha256 and the lock's digests. A Mac builds with the Xcode command
+  line tools (the Intel pack with `-arch x86_64` under Rosetta); a Linux pack
+  is a static build inside the builder image the lock pins, under docker;
+  `--target <release target>` and `--all` build for other platforms. The
+  build copies the SHIP platform's pack to `dist/vendor/bash/<platform>/` and
+  records it as the manifest's `bash`. Absent ⇒ degraded `shell-bash` (the
+  Bash tool runs the system's bash, then the bundled engine); a PRESENT pack
+  that disagrees with its bytes or with the lock fails the build and names
+  the build command. No compiler or no docker ⇒ the script skips loudly
+  (exit 0). `--check` = validity against the lock.
+  `MERCURY_BUILD_NO_VENDOR_BASH=1` forces the degraded arm. The release
+  packager requires the pack on the four macOS and Linux targets.
 - **debugpy** (optional). The Python debug adapter, an extracted wheel under
   `dist/vendor/debugpy/`. Truth is `vendor/debugpy.lock.json`
   (version · wheel · sha256 · adapter entry); the local cache is reproduced
