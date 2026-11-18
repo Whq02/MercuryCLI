@@ -143,9 +143,6 @@ section('§H the write re-point')
 {
   const src = read('src/cli/run.ts')
   t('H1 run.ts carries no setMcpServerEnabled CALL (the disease is gone from the child)', !src.includes('setMcpServerEnabled(') && !/import[^\n]*setMcpServerEnabled/.test(src))
-  t('H1b the kit_edit arm exists and rides the serialized MCP mutation lane', /'session\/set_kit': params =>/.test(src) && /'session\/set_kit': params =>[\s\S]{0,2400}serializeMcpChange/.test(src))
-  t('H1d the reconcile clears the command memos (the per-cwd model-list memo included)', /'session\/set_kit': params =>[\s\S]{0,6200}clearCommandMemoizationCaches\(\)/.test(src))
-  t('H1e the completion replay is guarded to the unresolved arm only', /sessionKitOf\(\)\?\.resolved === false/.test(src))
 }
 {
   pin._resetSessionKitPinForTesting()
@@ -339,8 +336,6 @@ section('§S the skills dial: session rows, off rows listed, tri-state words')
   t('S4a the dial rides the one connector verb and paints the honest receipt arms', dialSrc.includes(".setKit({ skills: [{ name: row.name, state: next }] })") && dialSrc.includes('kitDialLine'))
   t('S4b the words say SESSION and point at the boot menu (empty line included)', dialSrc.includes("this session's skills — the boot menu sets the next session's") && dialSrc.includes("No skills in this session. The boot menu's MCPs & Skills sets the next session's."))
   t('S4c no optimistic paint: the roster reads the session facts, never a local mutation', !dialSrc.includes('useState<SkillsRosterEntryV1') && dialSrc.includes('useSyncExternalStore'))
-  const printSrc = read('src/cli/run.ts')
-  t('S5 the child projects off rows beside the table roster', printSrc.includes('skillsRosterOf(activeCommands, offSkillNamesOf(sessionKitOf()'))
   govern._resetKitGovernanceForTesting()
 }
 

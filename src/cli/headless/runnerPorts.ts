@@ -1,0 +1,233 @@
+import type { Command } from '../../commands.js'
+import type { RunnerQuiescence } from '../../daemon/runnerQuiescence.js'
+import type { RowDraft, RowScope } from '../../rows/project.js'
+import type { InputRow, OutcomeRow, Row } from '../../rows/vocabulary.js'
+import type { AnthropicLimits } from '../../services/anthropicLimits.js'
+import type { NoticeRecord } from '../../services/notices/unreadLedger.js'
+import type { Peer } from '../../runner/wire/peer.js'
+import type { ConnectedMCPServer, MCPServerConnection, ScopedMcpServerConfig } from '../../services/mcp/types.js'
+import type { AppState } from '../../state/AppStateStore.js'
+import type { Tool, ToolUseContext } from '../../Tool.js'
+import type { Message } from '../../types/message.js'
+import type { FileStateCache } from '../../utils/fileStateCache.js'
+import type { runSessionStartHooks } from '../../utils/sessionStart.js'
+import type { ThinkingConfig } from '../../utils/thinking.js'
+import { createContentReplacementState, type ContentReplacementState } from '../../utils/toolResultStorage.js'
+import type { OutboundLine, StructuredIO } from '../structuredIO.js'
+import type { AdvisorQuiet, AdvisorRoad } from '../../services/advisor/index.js'
+import type { RequestWaitV1 } from '../../services/providers/streamIdleBudget.js'
+import type { Capabilities } from '../../runner/wire/methods.js'
+import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
+import type { HostAskLiveness } from './hostAskLiveness.js'
+import type { AskHost } from './runnerAsks.js'
+import { DEFAULT_CAPABILITIES } from './runnerMethods.js'
+import type { TurnDriver } from './turnDriver.js'
+import type { AcceptedInput, InputVerdict } from './inputDoor.js'
+import type { QueuedCommand } from '../../types/textInputTypes.js'
+import type { ContentBlockParam } from '../../types/wire.js'
+
+export type HeadlessOptions = {
+  continue?: boolean
+  resume?: string | boolean
+  resumeSessionAt?: string
+  outputFormat?: string
+  syntaxInput?: string
+  jsonSchema?: Record<string, unknown>
+  allowedTools?: string[]
+  thinkingConfig?: ThinkingConfig
+  maxTurns?: number
+  maxBudgetUsd?: number
+  maxTimeMs?: number
+  systemPrompt?: string
+  defaultBrief?: true
+  appendSystemPrompt?: string
+  hostAppendSystemPrompt?: string
+  userSpecifiedModel?: string
+  fallbackModel?: string
+  includePartialMessages?: boolean
+  forkSession?: boolean
+  rewindFiles?: string
+  agent?: string
+  workload?: string
+  advise?: boolean
+  bootSessionIdPinned?: boolean
+  title?: string
+  initializeMcp?: () => Promise<void>
+  door?: 'rows' | 'wire'
+  subscribeAppState?: (listener: () => void) => () => void
+  sessionStartHooksPromise?: ReturnType<typeof runSessionStartHooks>
+  setSDKStatus?: unknown
+}
+
+type RunnerState = {
+  awaitingSessionClaim: boolean
+  bootRefusalFact: string | null
+  turnsRun: number
+  currentTurnId: string | null
+  resumeOf: string | undefined
+  turnMessages: (() => readonly Message[]) | null
+  contentReplacementState: ContentReplacementState
+  mcpInitialized: boolean
+  claimSettling: Promise<void> | null
+  sessionFactsHoldSpent: boolean
+  sessionFactsHold: Promise<void> | null
+  runnerRestartReason: string | undefined
+  recoveredCommandIds: string[]
+  activeModel: string | undefined
+  activeCommands: Command[]
+  inputClosed: boolean
+  inFlightAbort: AbortController | null
+  leaveAbort: AbortController | null
+  heldSeatModel: { requestId: number; model: string; words?: string } | null
+  heldSeatEffort: { requestId: number; effort: string } | null
+  deferredSpawnSwitches: Array<{ kind: 'subagents'; on: boolean; requestId: number }>
+  lastOutcome: OutcomeRow | null
+  lastOutcomeWritten: Promise<unknown>
+  signalCode: number | null
+  sessionInitialized: boolean
+  retiringQueuedCommands: boolean
+  currentTurn: number | null
+  sessionRowFor: string | null
+  turnReachedModel: boolean
+  turnAnchor: string | null
+  lastAnswerSchemaKey: string | null
+  hostAsks: HostAskLiveness | null
+  deferredModelBreadcrumb: { to: string; from: string } | null
+  deferredAdvisorQuiet: AdvisorQuiet[]
+  capabilities: Capabilities
+  activeAgents: AgentDefinition[]
+  thinkingConfig: ThinkingConfig | undefined
+  initializeJsonSchema: Record<string, unknown> | undefined
+}
+
+export function createRunnerState(): RunnerState {
+  return {
+    awaitingSessionClaim: false,
+    bootRefusalFact: null,
+    turnsRun: 0,
+    currentTurnId: null,
+    resumeOf: undefined,
+    turnMessages: null,
+    contentReplacementState: createContentReplacementState(),
+    mcpInitialized: false,
+    claimSettling: null,
+    sessionFactsHoldSpent: false,
+    sessionFactsHold: null,
+    runnerRestartReason: undefined,
+    recoveredCommandIds: [],
+    activeModel: undefined,
+    activeCommands: [],
+    inputClosed: false,
+    inFlightAbort: null,
+    leaveAbort: null,
+    heldSeatModel: null,
+    heldSeatEffort: null,
+    deferredSpawnSwitches: [],
+    lastOutcome: null,
+    lastOutcomeWritten: Promise.resolve(),
+    signalCode: null,
+    sessionInitialized: false,
+    retiringQueuedCommands: false,
+    currentTurn: null,
+    sessionRowFor: null,
+    turnReachedModel: false,
+    turnAnchor: null,
+    lastAnswerSchemaKey: null,
+    hostAsks: null,
+    deferredModelBreadcrumb: null,
+    deferredAdvisorQuiet: [],
+    capabilities: { ...DEFAULT_CAPABILITIES },
+    activeAgents: [],
+    thinkingConfig: undefined,
+    initializeJsonSchema: undefined,
+  }
+}
+
+export type RunnerPorts = {
+  live: RunnerState
+  options: HeadlessOptions
+  wire: boolean
+  io: StructuredIO
+  peer: Peer | null
+  asks: AskHost
+  driver: TurnDriver
+  messages: Message[]
+  getAppState: () => AppState
+  setAppState: (updater: (previous: AppState) => AppState) => void
+  canUseTool: ReturnType<AskHost['createCanUseTool']>
+  enqueueRow: (row: RowDraft) => void
+  liveScope: () => RowScope
+  acceptInputRow: (row: InputRow) => Promise<{ accepted: true } | { accepted: false; reason: 'duplicate' }>
+  heldNoticeWaits: () => boolean
+  interruptOutcomes: Map<string, boolean>
+  quiescence: RunnerQuiescence
+  relaunchContext: () => Promise<ToolUseContext>
+  checkBuildBehind: (now?: boolean) => Promise<void>
+  getReadFileCache: () => FileStateCache
+  applySeatModel: (model: string, words?: string) => Promise<void>
+  applySeatEffort: (effort: string) => void
+  landSpawnSwitch: (kind: 'subagents', on: boolean) => void
+  settleSessionBriefs: (kept: { brief?: string; briefAdd?: string }, record: boolean) => void
+  armSessionRunnerWiring: (sid: string) => Promise<void>
+  hydrateResumedRun: () => Promise<void>
+  persistBootModelRefusal: (refusal: string) => Promise<void>
+  settleClearBirth: () => void
+  releaseQueueUntilClaimed: (() => void) | null
+  missionGuard: typeof import('../../guards/mission.js')
+  liveMcp: ReturnType<typeof import('../../services/mcp/liveConfig.js').watchLiveMcpConfig>
+  mcpSignIns: Map<string, { controller: AbortController; authorizationUrl?: string }>
+  elicitationRegistered: Set<string>
+  permittedMcpConfig: (name: string) => Promise<ScopedMcpServerConfig | null>
+  serializeMcpChange: <T>(operation: () => Promise<T>) => Promise<T>
+  reconnectLiveMcp: (name: string, config: ScopedMcpServerConfig) => Promise<MCPServerConnection>
+  resolveServerConfigFromAllSources: (serverName: string) => ScopedMcpServerConfig | null
+  applyReconnectedClient: (serverName: string, client: MCPServerConnection) => Promise<void>
+  registerPerTurnHandlers: (clients: MCPServerConnection[]) => void
+  isLocalShellTask: (task: unknown) => boolean
+  killTask: (taskId: string, setAppState: RunnerPorts['setAppState']) => Promise<unknown>
+  requestShellBackground: () => number
+  routeOutbound: (message: OutboundLine) => void
+  streamingInput: boolean
+  acceptInput: (input: AcceptedInput) => Promise<InputVerdict>
+  receivedUuids: { add(value: string): void; has(value: string): boolean }
+  missionLineOf: (content: string | ContentBlockParam[], cap: number) => string | null
+  localCommandInput: (command: QueuedCommand) => boolean
+  announcedNotifications: WeakSet<QueuedCommand>
+  emitTaskNotificationFrames: (payloads: readonly string[]) => void
+  emitCommandNotifications: (commands: readonly QueuedCommand[]) => void
+  inputPrompt: string | AsyncIterable<string>
+  maxTime: { limitMs: number; at: number } | undefined
+  sessionTools: Tool[]
+  baseToolNames: Set<string>
+  answerSchemaOf: (turnSchema: Record<string, unknown> | undefined) => Record<string, unknown> | undefined
+  assembleTools: (state: AppState, turnSchema?: Record<string, unknown>) => Tool[]
+  registerElicitationHandlersForClient: (client: ConnectedMCPServer, serverName: string) => Promise<void>
+  setReadFileCache: (cache: FileStateCache) => void
+  statusIsProgress: (status: unknown) => boolean
+  promisedWaitOf: (status: unknown) => Extract<RequestWaitV1, { kind: 'first-byte' }> | null | undefined
+  statusRowOf: (status: unknown) => RowDraft | null
+  tellFailedMcpServers: () => void
+  tellSkippedProjectMcpServers: () => void
+  recordNoticeRows: (notices: readonly QueuedCommand[], mark: { isVirtual: true } | { isMeta: true }) => Promise<void>
+  recordHostNoticeRows: (notices: readonly QueuedCommand[]) => Promise<void>
+  injectModelSwitchBreadcrumbs: (toModel: string, fromModel: string, words?: string) => Promise<void>
+  advisorRoad: AdvisorRoad
+  landAdvisorQuiet: (quiet: AdvisorQuiet) => void
+  party: ReturnType<typeof import('../../services/crewBoard/party.js').partyFeed>
+  swarmLead: ReturnType<typeof import('../../services/crewBoard/seam.js').watchSwarmLead>
+  swarmResumes: ReturnType<typeof import('../../services/crewBoard/seam.js').watchSwarmResumes>
+  bootReady: Promise<void>
+  isConcourseWorker: boolean
+  isMainThreadCommand: (command: QueuedCommand) => boolean
+  takeMainThread: () => QueuedCommand | undefined
+  executeTurn: (command: QueuedCommand, batch: QueuedCommand[], onMessage: (message: RowDraft) => void, initialNotices?: QueuedCommand[]) => Promise<void>
+  settleIdle: () => Promise<'reenter' | 'close' | 'stay'>
+  idleTimeout: { start(): void; stop(): void }
+  writeLine: (message: OutboundLine) => Promise<Row | null>
+  disarmAgentFreshness: () => void
+  stopDrainedNotificationFrames: () => void
+  stopSdkDrain: () => void
+  rateLimitListener: (limits: AnthropicLimits) => void
+  carriersOf: (notices: readonly NoticeRecord[]) => QueuedCommand[]
+  retireQueuedCommands: (commands: QueuedCommand[]) => void
+}

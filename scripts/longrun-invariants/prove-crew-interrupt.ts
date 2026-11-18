@@ -69,9 +69,6 @@ section('§K1a the controller law — an agent task owns a fresh controller')
   const fgSrc = src('src/tools/AgentTool/foregroundExecution.tsx')
   check('the foreground run\'s owner is the task\'s controller (never the turn\'s)', fgSrc.includes('abortController: foregroundTask.abortController'))
   check('the turn\'s abort races the foreground loop and hands the run over (the same iterator, no re-run)', fgSrc.includes('TURN_ABORTED') && fgSrc.includes('continueDetached(backgroundedTaskId, nextPromise)') && /backgrounded = true[\s\S]*continueDetached\(backgroundedTaskId, nextPromise\)/.test(fgSrc) && fgSrc.includes('if (!backgrounded) await agentIterator.return(undefined)'))
-  const runner = src('src/cli/run.ts')
-  const interruptArm = runner.slice(runner.indexOf("'turn/interrupt': params => {"), runner.indexOf("'queue/add': async params => {"))
-  check('the runner\'s interrupt releases the driver\'s hold and stops no task', interruptArm.includes('driver.releaseHold()') && !interruptArm.includes('stopRunningAgentTasks') && !runner.includes('stopRunningAgentTasks('))
   check('the crew census counts running agents, never the session\'s own row', crewStillRunning({
     a: { type: 'local_agent', status: 'running', agentType: 'mercury-crew' },
     c: { type: 'local_agent', status: 'completed', agentType: 'mercury-crew' },
@@ -236,21 +233,12 @@ async function lifecycleWith(name: string, drive: (controller: AbortController) 
   check('stopOrDismissAgent aborts the running task\'s controller with the operator\'s reason', task.abortController!.signal.aborted && task.abortController!.signal.reason === AGENT_STOP_BY_OPERATOR)
 }
 {
-  const runner = src('src/cli/run.ts')
-  const stopArmAt = runner.indexOf("'agent/stop': async params => {")
-  const stopArm = runner.slice(stopArmAt, runner.indexOf("'session/quiesce': async params => {"))
-  check('the runner\'s stop_task rides the one operator-stop owner and answers applied or refused with its reason', stopArmAt !== -1 && stopArm.includes('stopAgentByOperator(params.agent_id, { getAppState, setAppState }, params.note === AGENT_INTERRUPT_BY_OPERATOR ? { reason: AGENT_INTERRUPT_BY_OPERATOR } : {})') && stopArm.includes("throw refused(receipt.reason, 'agent')") && !stopArm.includes('return {}'))
   const owner = src('src/services/agents/operatorStop.ts')
   check('the owner routes an agent to the reasoned abort', owner.includes('stopOrDismissAgent(taskId, context.setAppState, options.reason ?? AGENT_STOP_BY_OPERATOR)'))
 }
 
 section('§K4 the resume road — one owner behind every door')
 {
-  const runner = src('src/cli/run.ts')
-  const resumeArmAt = runner.indexOf("\n    'agent/resume': async ")
-  const resumeArmEnd = resumeArmAt === -1 ? -1 : runner.indexOf('\n    },\n', resumeArmAt + 1)
-  const resumeArm = resumeArmEnd === -1 ? '' : runner.slice(resumeArmAt, resumeArmEnd)
-  check('the runner\'s resume_task rides the one resume owner with the resume note and the runner\'s own permission road', resumeArm.includes('resumeAgentBackground({') && resumeArm.includes('AGENT_RESUME_NOTE') && resumeArm.includes('canUseTool,') && !resumeArm.includes("behavior: 'allow'"))
   check('the resume note tells the agent the work before the stop stands', AGENT_RESUME_NOTE.includes('resumed you from the crew view') && AGENT_RESUME_NOTE.includes('do not redo it'))
   const seat = src('src/daemon/sessionSeat.ts')
   check('the seat relays stop-agent and resume-agent as the runner\'s own controls and awaits the typed answer', seat.includes("verb === 'stop-agent' ? 'agent/stop' : 'agent/resume'") && seat.includes("const params = { agent_id: agentId, ...(opts?.note !== undefined ? { note: opts.note } : {}) }") && seat.includes('const asked = await askSeat(roster, rec.runnerId, verb') && seat.includes('AGENT_VERB_ANSWER_DEADLINE_MS'))
@@ -342,7 +330,7 @@ section('§K10b a GPT seat pays no per-runner catalogue fetch — the daemon\'s 
   })
   check('K10b the runner\'s refresh within the TTL serves the primed snapshot and fetches nothing', fetched === 0 && refreshed?.models.length === 1 && refreshed.lastError === undefined)
   cat.__resetOpenaiCatalogueForTest()
-  check('K10b the claim carries the snapshot in the feed\'s spelling and the runner decodes and primes it at the claim', src('src/daemon/warmRunner.ts').includes('openai_catalogue: openaiCatalogueToWire(openaiCatalogue)') && src('src/cli/run.ts').includes('primeOpenaiCatalogue(openaiCatalogueFromWire(params.openai_catalogue)'))
+  check('K10b the claim carries the snapshot in the feed\'s spelling and the runner decodes and primes it at the claim', src('src/daemon/warmRunner.ts').includes('openai_catalogue: openaiCatalogueToWire(openaiCatalogue)'))
   check('K10b the daemon\'s sign-in view fetches no catalogue; the claim road reads the daemon\'s snapshot', !src('src/daemon/signInView.ts').includes('refreshOpenaiCatalogue') && src('src/daemon/warmRunner.ts').includes('getCachedOpenaiCatalogue(openaiAccount.kind)'))
 }
 

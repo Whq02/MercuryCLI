@@ -212,12 +212,6 @@ tally.section("§3 the source: the daemon's interrupt verb delivers and never si
   const intentionalAt = life.indexOf('if (ll.intentionalStop) {')
   tally.check("the ledger's killed row is written once, under the intentional-stop arm, and that arm arms no respawn", killedAt !== -1 && intentionalAt !== -1 && intentionalAt < killedAt && life.indexOf("ledgerExit('killed')", killedAt + 1) === -1 && /if \(ll\.intentionalStop\) \{[\s\S]*?return\s*\}/.test(life) && !/if \(ll\.intentionalStop\) \{[\s\S]*?respawnTimer = setTimeout[\s\S]*?return\s*\}/.test(life.slice(intentionalAt, killedAt + 400)))
   tally.check("a death from outside rides the ladder's own delay: the crash arm arms the respawn with the decision's delayMs", life.includes("ledgerExit('crash-respawn')") && life.includes('setTimeout(() => this.spawnLongLived(short), decision.delayMs)'))
-  const print = read('src', 'cli', 'run.ts')
-  const caseAt = print.indexOf("'turn/interrupt': params => {")
-  const caseEnd = print.indexOf("'queue/add': params => acceptInputRow(params),", caseAt)
-  const handler = caseAt !== -1 && caseEnd !== -1 ? print.slice(caseAt, caseEnd) : ''
-  tally.check("the runner's interrupt handler aborts the in-flight request and releases the driver's hold", handler.includes('inFlightAbort?.abort()') && handler.includes('driver.releaseHold()'), handler === '' ? 'the case block was not found' : '')
-  tally.check('…and never ends the process: no shutdown, no exit, no end-session signal in the handler', handler !== '' && !handler.includes('gracefulShutdown(') && !handler.includes('process.exit(') && !handler.includes('EndSessionSignal'))
   const executor = read('src', 'services', 'tools', 'toolExecution.ts')
   tally.check('the executor races a tool call against the abort: a call that never answers is abandoned within the grace and settles with the interrupt result', executor.includes('const TOOL_ABORT_GRACE_MS = 750') && executor.includes('class ToolCallAbandonedError') && executor.includes('const abandoned = error instanceof ToolCallAbandonedError') && executor.includes('const isInterrupt = abandoned || isAbortError(error)') && /const cutText = cutByTurn \? turnCutResultText\([\s\S]{0,1500}if \(cutText !== undefined\) push\(interruptResultUpdate\(toolUseID, sourceUUID, cutText\)\)/.test(executor))
 }

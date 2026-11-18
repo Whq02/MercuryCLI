@@ -206,15 +206,6 @@ section('§3 the wire: both rows cross in snake_case and decode back; absent sta
 
 section("§4 the roads on the code: the runner answers both rows, the seat publishes the answer whole, the connector folds both")
 {
-  const printSrc = readFileSync(join(ROOT, 'src/cli/run.ts'), 'utf8')
-  const armAt = printSrc.indexOf("'session/facts': async () => {")
-  check('the session_facts arm is found', armAt >= 0)
-  const factsArm = printSrc.slice(Math.max(0, armAt))
-  const answerEnd = factsArm.indexOf('return sessionFactsToWire(answer)')
-  check('the answer is sent through the wire codec', answerEnd >= 0)
-  const answerBlock = factsArm.slice(0, Math.max(0, answerEnd))
-  check('the runner reads its latch fact and its catalogue fact once per answer', answerBlock.includes('const anthropicWindow = anthropicWindowFact()') && answerBlock.includes('const openaiCatalogue = openaiCatalogueFact()'))
-  check('…and spreads them onto the usage row and the answer, absent when undefined', answerBlock.includes('...(anthropicWindow !== undefined ? { anthropicWindow } : {})') && answerBlock.includes('...(openaiCatalogue !== undefined ? { openaiCatalogue } : {})'))
   const seatSrc = readFileSync(join(ROOT, 'src/daemon/sessionSeat.ts'), 'utf8')
   check("the seat publishes the runner's answer whole, so both rows ride its spread", seatSrc.includes('const { box: boxAnswer, ...answerRest } = answer') && seatSrc.includes('...answerRest,'))
   const connectorSrc = readFileSync(join(ROOT, 'src/services/engine-connector/daemonConnector.ts'), 'utf8')

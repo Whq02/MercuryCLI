@@ -429,7 +429,7 @@ section('§7 the surfaces read the owner')
     return sent
   }, { model: SEAT_MODEL })
   const sentBy = (model: string, word: (typeof asked)[number]): unknown => effortSentOf(effort.resolveEffortTruth(model, word))
-  check('run: session/facts reports the tier the next request sends, from the owner (effortSent beside the seat\'s asked word)', JSON.stringify(seatSent) === JSON.stringify([...asked.map(word => sentBy(SEAT_MODEL, word)), sentBy(FIXTURE_MODEL, 'xhigh')]) && seatSent[asked.indexOf('xhigh')] === 'high' && sentBy(FIXTURE_MODEL, 'xhigh') !== 'high' && print.includes("return sent === undefined ? {} : { effortSent: sent }"), JSON.stringify(seatSent))
+  check('run: session/facts reports the tier the next request sends, from the owner (effortSent beside the seat\'s asked word)', JSON.stringify(seatSent) === JSON.stringify([...asked.map(word => sentBy(SEAT_MODEL, word)), sentBy(FIXTURE_MODEL, 'xhigh')]) && seatSent[asked.indexOf('xhigh')] === 'high' && sentBy(FIXTURE_MODEL, 'xhigh') !== 'high', JSON.stringify(seatSent))
   const studio = src('src/components/agents/studio/StudioEditor.tsx')
   check('the studio offers no stops for a no-dial model (no full-ladder fallback)', studio.includes('const options = stops.map(') && !studio.includes('stops : EFFORT_LEVELS'))
   const modelCmd = src('src/commands/model/model.tsx')

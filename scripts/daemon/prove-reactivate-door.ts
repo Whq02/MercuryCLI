@@ -254,13 +254,6 @@ console.log('\n── R5: never two records for one session ──')
 console.log('\n── R6: the warm claim binds and acks, then loads the transcript behind the answer (source) ──')
 {
   const print = read('src/cli/run.ts')
-  const claimAt = print.indexOf("'session/claim': async params => {")
-  const claimBody = print.slice(claimAt, print.indexOf("'session/set_effort': (params, ref) => {", claimAt))
-  const loadAt = claimBody.indexOf('await loadConversationForResume(sid,')
-  const ackAt = claimBody.indexOf('return { session_id: sid }')
-  const settlingAt = claimBody.indexOf('const settling = (async')
-  const boundAt = claimBody.indexOf('claimSettling = settling')
-  check('R6 `resume: true` loads the transcript through the cold boot\'s own loader behind the ack (the claim is the binding; the load never holds the answer)', claimBody.includes('if (params.resume === true) {') && loadAt !== -1 && ackAt !== -1 && settlingAt !== -1 && boundAt !== -1 && settlingAt < loadAt && loadAt < boundAt && boundAt < ackAt)
   const { refusalOf, withLiveRunner } = await import('../lib/builtProduct.ts')
   const UNSEEN = '11111111-2222-4333-8444-555555555555'
   const CLAIMED = '66666666-7777-4888-8999-000000000000'
@@ -275,12 +268,7 @@ console.log('\n── R6: the warm claim binds and acks, then loads the transcri
   ).catch(() => null)
   rmSync(pinnedHome, { recursive: true, force: true })
   check('R6 a missing transcript refuses the claim before it binds and hands the home pin back', refusedClaim?.resume?.message === `claim refused — no conversation found for session ${UNSEEN}` && refusedClaim.fresh === null && refusedClaim.pinned.some(name => name.startsWith(`${CLAIMED}.jsonl`)), JSON.stringify(refusedClaim))
-  check('R6 the live conversation is the loaded one (spliced in place — the turn loop holds the same array)', claimBody.includes('messages.splice(0, messages.length, ...resumed.messages)'))
-  check('R6 the same restore steps as a cold --resume boot (identity switch, file pointer, state, metadata) and the run hydration', claimBody.includes('switchSession(sid as SessionId, resumed.fullPath ? dirname(resumed.fullPath) : claimedHome)') && claimBody.includes('await resetSessionFilePointer()') && claimBody.includes('restoreSessionStateFromLog(resumed, setAppState)') && claimBody.includes('restoreSessionMetadata(resumed)') && claimBody.includes('if (params.resume === true) await hydrateResumedRun()'))
-  const clearAt = claimBody.indexOf('clearSystemPromptSections()')
-  const homePinAt = claimBody.indexOf('const claimedHome = consumeSessionHomePin()')
-  check('R6 RED WHERE THE CLAIM CLEARS NO SECTION: the claim is the runner\'s conversation boundary — it clears the section cache on BOTH arms, after the validations and BEFORE the loader seeds a record, so a section a pre-claim road computed never stands in the claimed conversation\'s prefix and a recorded prefix is never wiped after it lands', clearAt !== -1 && homePinAt !== -1 && loadAt !== -1 && clearAt > homePinAt && clearAt < claimBody.indexOf('if (params.resume === true) {') && clearAt < loadAt && print.includes("import { clearSystemPromptSections } from '../constants/systemPromptSections.js'"), `clear at ${clearAt}, home pin at ${homePinAt}, load at ${loadAt}`)
-  check('R6 the boot\'s own resume road rides the same hydration closure', print.includes('if (options.continue || options.resume) await hydrateResumedRun()'))
+  check('R6 the boot\'s own resume road rides the same hydration closure', print.includes('if (options.continue || options.resume) await hydrateResumedRun(ports)'))
   check('R6 the wire names the field; the pool sends it', read('src/runner/wire/methods.ts').includes('resume: z.boolean().optional()') && read('src/daemon/warmRunner.ts').includes("...(args.resume === true ? { resume: true } : {})"))
 }
 

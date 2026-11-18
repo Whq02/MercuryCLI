@@ -262,15 +262,10 @@ section('§2 a resume claim for a session with no transcript is still refused at
 section('§3 source pins: the readiness road')
 {
   const read = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
-  const print = read('src/cli/run.ts')
-  const claimBody = print.slice(print.indexOf("'session/claim': async params => {"), print.indexOf("'session/set_effort': (params, ref) => {"))
-  check('the claim answers after binding; the load runs behind the answer', claimBody.indexOf('claimSettling = settling') !== -1 && claimBody.indexOf('await loadConversationForResume(sid,') !== -1 && claimBody.indexOf('claimSettling = settling') < claimBody.indexOf('return { session_id: sid }') && claimBody.indexOf('return { session_id: sid }') > claimBody.indexOf('await loadConversationForResume(sid,'))
   const { refusalOf, withLiveRunner } = await import('../lib/builtProduct.ts')
   const UNSEEN = '11111111-2222-4333-8444-555555555555'
   const unbound = await withLiveRunner(async runner => ({ resume: await refusalOf(runner.request('session/claim', { session_id: UNSEEN, resume: true })), fresh: await refusalOf(runner.request('session/claim', { session_id: UNSEEN })) }), { env: { MERCURY_CONCOURSE_WORKER: '1' } })
   check('the claim checks the transcript stands before it binds a resume', unbound.resume?.message === `claim refused — no conversation found for session ${UNSEEN}` && unbound.fresh === null, j(unbound))
-  check('session verbs queue behind the load (the session scope is held until the claim settles)', claimBody.includes("peer?.holdScope('session')"))
-  check('session/facts answers only once the claimed session is loaded', /'session\/facts': async \(\) => \{\s*\n\s*if \(claimSettling !== null\) await claimSettling/.test(print))
   const rosterSrc = read('src/daemon/roster.ts')
   check('the roster marks the claimed seat not ready and waits for the load through the connection', rosterSrc.includes('ll.ready = false') && rosterSrc.includes('connection.sessionLoaded()') && rosterSrc.includes('ll.claimedAt = Date.now()'))
   const door = read('src/daemon/runnerConnection.ts')

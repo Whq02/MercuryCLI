@@ -25,6 +25,7 @@
 # gate-watch: src/substrate/flagRegistry.ts
 # gate-watch: scripts/lib/builtProduct.ts
 # gate-watch: src/utils/health/sections/runtime.ts
+# gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

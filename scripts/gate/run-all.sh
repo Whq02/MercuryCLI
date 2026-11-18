@@ -23,6 +23,7 @@
 # gate-watch: src/utils/permissions/shellRuleMatching.ts src/utils/Shell.ts src/utils/ShellCommand.ts
 # gate-watch: src/cli/run.ts src/main.tsx
 # gate-watch: src/utils/bash/ShellSnapshot.ts src/utils/bash/shellCompletion.ts src/utils/shell/shellRecord.ts
+# gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"
@@ -87,6 +88,7 @@ run_proof "$here/../substrate/prove-flag-registry-readers.ts" "${BUN:-$HOME/.bun
 run_proof "$here/../substrate/prove-flag-registry-split.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/../substrate/prove-flag-registry-split.ts" || fail=1
 run_proof "$here/prove-source-text-reads.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-source-text-reads.ts" || fail=1
 run_proof "$here/prove-source-patterns.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-source-patterns.ts" || fail=1
+run_proof "$here/prove-unit-size.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-unit-size.ts" || fail=1
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ GATE MACHINERY PASS"; else echo "# ❌ GATE MACHINERY FAILED"; fi
 echo "############################################################"

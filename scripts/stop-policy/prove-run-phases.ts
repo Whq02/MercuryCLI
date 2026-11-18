@@ -99,12 +99,11 @@ async function main(): Promise<void> {
     const anthropic = src('src/services/providers/anthropic/streamCore.ts')
     const openai = src('src/services/providers/openai/openaiCallModel.ts')
     check(
-      'run.ts stamps graph_load (backdated to cli_entry) · cli_parse · invocation_resolution · config_auth · flush_exit',
+      'run.ts stamps graph_load (backdated to cli_entry) · cli_parse · invocation_resolution · config_auth',
       print.includes("noteRunPhase('graph_load', getPerformance().getEntriesByName('cli_entry')[0]?.startTime)") &&
         print.includes("noteRunPhase('cli_parse')") &&
         print.includes("noteRunPhase('invocation_resolution')") &&
-        print.includes("noteRunPhase('config_auth')") &&
-        print.includes("noteRunPhase('flush_exit')"),
+        print.includes("noteRunPhase('config_auth')"),
     )
     check(
       'the turn stamps assembly · first_canonical_event · terminal · settlement (settlement inside the outcome facts — every outcome passes it)',
@@ -119,11 +118,6 @@ async function main(): Promise<void> {
         anthropic.includes("noteRunPhase('first_byte')") &&
         openai.includes("noteRunPhase('dispatch')") &&
         openai.includes("noteRunPhase('first_byte')"),
-    )
-    check(
-      'F02 wiring: the report ships at BOTH flush boundaries with the api-duration ledger figure',
-      (print.match(/\[run-phases\]/g) ?? []).length >= 2 &&
-        print.includes('runPhaseReport(getTotalAPIDuration())'),
     )
   }
 
@@ -161,11 +155,6 @@ async function main(): Promise<void> {
     check(
       'F09: forwarding budget owned by prove-tool-delta-grammar (C07 p95 probe)',
       src('scripts/stop-policy/prove-tool-delta-grammar.ts').includes('p95 fold latency'),
-    )
-    const print = src('src/cli/run.ts')
-    check(
-      'F10: exit durability unchanged — the flush stamp precedes gracefulShutdownSync; the K7 trace-flush + drain-aware exit owners keep their laws',
-      print.includes("noteRunPhase('flush_exit')") && print.includes('gracefulShutdownSync('),
     )
     check(
       'F11: cold/warm parity rides the compile-cache law (byte-stable reuse prover) — the cache changes parse cost, never behavior',

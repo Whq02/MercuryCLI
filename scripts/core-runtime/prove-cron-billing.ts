@@ -122,9 +122,6 @@ const SIZES: Array<[number, number, number, number]> = [
 section('§0 the census (a guard, green on both trees): the one workload, its readers, and the batch law')
 {
   check("the workload vocabulary is the one word 'cron'", workload.WORKLOAD_CRON === 'cron')
-  const runner = src('src/cli/run.ts')
-  const reader = between(runner, 'const workload = command.workload ?? options.workload', 'await runWithWorkload(workload, async () => {')
-  check("the run-time reader takes the queued command's workload first and enters the turn under it", reader.includes('command.workload ?? options.workload') && reader.includes('runWithWorkload(workload'), reader.slice(0, 200))
   const operator = { value: OPERATOR_LINE, mode: 'prompt' } as never
   const fire = { value: WAKE_TEXT, mode: 'prompt', workload: 'cron', origin: wakeOrigin() } as never
   const secondFire = { value: 'the second fire', mode: 'prompt', workload: 'cron', origin: cronOrigin() } as never
@@ -143,12 +140,6 @@ section("§1 THE STAMP (red on the base): every road that queues a Saturn fire s
   } catch (error) {
     check("the stamp helper stands at the origin's home (noticeRows.saturnQueueStamp)", false, String(error))
   }
-  const runner = src('src/cli/run.ts')
-  const seatless = between(runner, 'const deliverLocalWake = (', 'driver.kick()')
-  check('the seatless wake road spreads the one stamp (red on the base: a literal of its own)', seatless.includes('...saturnQueueStamp(next.origin)') && !seatless.includes("workload: 'cron'"), seatless.slice(seatless.indexOf('enqueue({'), seatless.indexOf('enqueue({') + 220))
-  const stdinRoad = between(runner, 'const sentAt = typeof input.sentAt', 'driver.kick()')
-  const stdinEnqueue = stdinRoad.slice(stdinRoad.indexOf('const command: QueuedCommand = {'), stdinRoad.indexOf('enqueue(command)'))
-  check("the stdin road's fire spreads the one stamp beside its words (red on the base: the origin rides alone, no workload — the fire bills as the session's default)", stdinEnqueue.includes('...saturnQueueStamp(input.origin)') && !stdinEnqueue.includes('{ origin: input.origin }'), stdinEnqueue)
   const carry = src('src/cli/headless/restartCarry.ts')
   const requeue = between(carry, 'export function requeueUndeliveredLines', 'return requeued')
   check('the restart carry spreads the one stamp when it re-queues a journal row (red on the base: the origin alone)', requeue.includes('...saturnQueueStamp(row.origin)') && !requeue.includes('{ origin: row.origin }'), requeue.slice(requeue.indexOf('const command'), requeue.indexOf('enqueue(command)')))

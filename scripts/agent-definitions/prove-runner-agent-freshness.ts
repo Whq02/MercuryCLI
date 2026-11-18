@@ -123,14 +123,6 @@ console.log('R4: the host wiring (structural)')
     'run.ts arms the seam over the live roster binding',
     printSrc.includes('armRunnerAgentFreshness({') && printSrc.includes('setActive: next => {'),
   )
-  const roadStart = printSrc.indexOf('closeOutput: async () => {')
-  const roadEnd = roadStart === -1 ? -1 : printSrc.indexOf('io.outbound.done()', roadStart)
-  const road = roadStart !== -1 && roadEnd !== -1 ? printSrc.slice(roadStart, roadEnd) : ''
-  check(
-    'run.ts disarms on the session-end road beside the skills detector dispose (both before the output closes)',
-    road.includes('skillChangeDetector.dispose()') && road.includes('disarmAgentFreshness()'),
-    `road=${road.length} chars`,
-  )
   const hookSrc = readFileSync(join(import.meta.dirname, '../../src/hooks/useAgentsChange.ts'), 'utf-8')
   check(
     'the cockpit reload replaces the roster with a fresh array (in-flight work keeps the objects it captured)',

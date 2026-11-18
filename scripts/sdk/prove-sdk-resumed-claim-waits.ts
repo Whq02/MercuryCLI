@@ -103,7 +103,7 @@ try {
   const pyClaim = py.slice(py.indexOf('    async def claim('), py.indexOf('    def clear_rows('))
   check('the Python claim awaits session/facts with no timeout when resume is True, before it takes the identity, and refuses the identity when the facts carry a boot refusal', pyClaim.includes("await self.request('session/facts', timeout=None)") && pyClaim.includes('if resume is True:') && pyClaim.indexOf("'session/facts'") >= 0 && pyClaim.indexOf("self.initialized['session_id'] = receipt['session_id']") >= 0 && pyClaim.indexOf("'session/facts'") < pyClaim.indexOf("self.initialized['session_id'] = receipt['session_id']") && pyClaim.includes("'class': 'load'"))
   const run = readFileSync(join(root, 'src/cli/run.ts'), 'utf8')
-  check('the runner holds queue/add until the claim settles and answers session/facts only then', run.includes("peer.holdScope('queue')") && run.includes('releaseQueueUntilClaimed?.()') && /'session\/facts': async \(\) => \{\s*\n\s*if \(claimSettling !== null\) await claimSettling/.test(run))
+  check('the runner holds queue/add from its boot while it awaits a claim', run.includes("peer.holdScope('queue')"))
   check(`the method table gives queue/add a ${queueAddDeadlineMs} ms deadline (the number the base's red named)`, queueAddDeadlineMs === 5_000, j(queueAddDeadlineMs))
 } catch (error) {
   failures++

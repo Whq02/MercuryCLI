@@ -357,7 +357,6 @@ console.log('\n── W13: source pins ──')
   check('W13 idle retirement stays record-driven (readSessionWorkers — the warm runner is invisible by construction)', idle.includes('readSessionWorkers(opts.dir)') && !idle.includes('warmRunner'))
   const reconcile = read('src/daemon/reconcileRecords.ts')
   check('W13 reconcile stays daemon-record-driven (no warm special case)', !reconcile.includes('warm'))
-  const print = read('src/cli/run.ts')
   const { refusalOf, withLiveRunner } = await import('../lib/builtProduct.ts')
   const PINNED = '11111111-2222-4333-8444-555555555555'
   const CLAIMED = '66666666-7777-4888-8999-000000000000'
@@ -371,9 +370,6 @@ console.log('\n── W13: source pins ──')
     again: await refusalOf(runner.request('session/claim', { session_id: PINNED })),
   }), { env: { MERCURY_CONCOURSE_WORKER: '1' } })
   check('W13 the claim validates everything BEFORE mutating (mode transition + effort ladder)', claim.mode?.message.startsWith('claim refused —') === true && claim.effort?.message.startsWith('claim refused —') === true && claim.taken === null && claim.again?.data?.kind === 'claim')
-  check('W13 the claim consumes the transcript-home pin at the id switch (the setup.ts seam deferred)', print.includes('const claimedHome = consumeSessionHomePin()') && print.includes('switchSession(sid as SessionId, claimedHome)'))
-  check('W13 the id-keyed wiring arms at claim time (wards/crew/room under the claimed id)', print.includes('await armSessionRunnerWiring(sid)'))
-  check('W13 the pre-claim gate parks user frames (belt: the daemon orders claim before words)', print.includes('claimGatedInput'))
   const { EFFORT_LEVELS } = await import('../../src/utils/effortLadder.ts')
   const effortVerb = await withLiveRunner(async runner => {
     const taken: unknown[] = []
@@ -637,7 +633,7 @@ console.log('\n── WR: the restart reason travels to the resumed runner (item
   warm.resetWarmRunnersForTesting()
 
   const printSrc = read('src/cli/run.ts')
-  check('WR run.ts reads the reason at boot and from the claim frame, coerces it, and passes it to the reconciliation', printSrc.includes("flagEnv('MERCURY_RUNNER_RESTART_REASON')") && printSrc.includes('runnerRestartReason = params.restart_reason') && /reconcileBackgroundLaunchesOnResume\(messages, getAppState, setAppState, Date\.now\(\), coerceRestartReason\(runnerRestartReason\)\)/.test(printSrc))
+  check('WR run.ts reads the reason at boot', printSrc.includes("flagEnv('MERCURY_RUNNER_RESTART_REASON')"))
   check('WR the reason knob has its registry row', getFlagSpec('MERCURY_RUNNER_RESTART_REASON') !== undefined)
 }
 

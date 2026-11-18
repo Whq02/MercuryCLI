@@ -1,94 +1,43 @@
 import { requestShellBackground } from '../tools/BashTool/backgroundRequest.js'
 import { randomUUID, type UUID } from 'node:crypto'
-import { keepTurnLiveWhileHostAnswers, type HostAskLiveness } from './headless/hostAskLiveness.js'
-import { SEND_NOW_NOTHING_QUEUED, sendQueuedWordsNow } from './headless/sendNow.js'
-import { EMPTY_USAGE } from '../services/api/emptyUsage.js'
-import { liveSkillRootsOf, pruneSkillSessionHooks } from '../utils/hooks/sessionHooks.js'
 import {
   getEngineModelOverride,
   getSessionId,
   setEngineModelOverride,
   getMainThreadAgentType,
-  getTotalAPIDuration,
-  getTotalCostUSD,
-  getTotalUnpricedTurns,
-  getTotalDuration,
-  getTotalLinesAdded,
-  getTotalLinesRemoved,
-  getTotalInputTokens,
-  getTotalOutputTokens,
-  getTotalCacheReadInputTokens,
-  getTotalCacheCreationInputTokens,
-  hasUnknownModelCost,
-  getOriginalCwd,
-  getProjectRoot,
   isSessionPersistenceDisabled,
   setAskChannel,
   setRunInputClosed,
   setSessionKind,
-  switchSession,
 } from '../bootstrap/state.js'
 import { existsSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import type { SessionId } from '../types/ids.js'
-import { hasConversationTurn, loadConversationForResume } from '../utils/conversationRecovery.js'
-import { caretEscape } from '../utils/caretEscape.js'
+import { dirname } from 'node:path'
+import { hasConversationTurn } from '../utils/conversationRecovery.js'
 import { reconstructContentReplacementState } from '../utils/toolResultStorage.js'
-import { resetSessionFilePointer, restoreSessionMetadata } from '../utils/sessionStorage.js'
-import { adoptResumedSessionFile, flushSessionStorage, getSessionMessages, peekProject, recordTranscript, transcriptStoreHealth } from '../utils/sessionStorage/writer.js'
+import { adoptResumedSessionFile, flushSessionStorage, getSessionMessages, peekProject, recordTranscript } from '../utils/sessionStorage/writer.js'
 import { RunnerQuiescence } from '../daemon/runnerQuiescence.js'
-import { capabilityHoldWords, runnerCapabilityHolds } from '../daemon/runnerCapabilityCensus.js'
-import type { PermissionMode as WirePermissionMode } from '../types/permissions.js'
 import { sessionFilePath } from '../utils/sessionStorage/loading.js'
 import { claimSessionWriter } from '../utils/sessionStorage/sessionWriter.js'
-import { consumeSessionHomePin } from '../utils/sessionStorage/sessionHomePin.js'
-import { SPAWN_SWITCH_LABEL, setSpawnSwitch, spawnSwitchFacts, spawnSwitchTransitionLine } from '../services/switchboard/spawnSwitches.js'
-import { boxReading, refreshBoxReading } from '../utils/boxLock.js'
-import { declareLawfulPrefixChange, declareLawfulPrefixChangeForEveryOwner, requestDeliberateToolChange } from '../services/providers/lawfulPrefixChange.js'
+import { refreshBoxReading } from '../utils/boxLock.js'
+import { requestDeliberateToolChange } from '../services/providers/lawfulPrefixChange.js'
 import { watchLiveMcpConfig } from '../services/mcp/liveConfig.js'
 import { dynamicMcpConfigSnapshot, isStrictMcpConfigSeed } from '../services/mcp/dynamicMcpSeed.js'
 import { bootModelRefusalLine, resolveHeadlessModel } from './headless/model.js'
 import { formatPrintsOutcomeRow, refusedOutcome } from './headless/refusalEnvelope.js'
-import { createRosterTransitionMessage, createSeatReceiptMessage } from '../utils/messages/systemMessages.js'
-import { isToolResultMessage } from '../utils/messages/merge.js'
-import { isLocalCommandCaveat } from '../utils/messages/apiPlan.js'
+import { createSeatReceiptMessage } from '../utils/messages/systemMessages.js'
 import { DRAIN_CUT_WORDS } from '../utils/messages/turnCut.js'
-import { dropCredentialMemos, is1PApiCustomer } from '../utils/auth.js'
-import { noteCrewAccountChange } from '../utils/crew/crewAccountChange.js'
-import { hasClaudeAiBillingAccess, hasConsoleBillingAccess } from '../utils/billing.js'
-import { anthropicSignInEmail } from '../services/providers/providerUsage.js'
-import { readGlobalConfigAgain } from '../utils/config.js'
-import { mcpRosterEntriesOf, skillsRosterOf } from '../services/engine-connector/rosterTerms.js'
-import type { SessionFactsAnswerV1 } from '../services/engine-connector/seatProjections.js'
-import { effortSentOf } from '../services/engine-connector/seatProjections.js'
-import { sessionModelSpendRows } from '../services/engine-connector/modelSpendFacts.js'
-import { contextFillView } from '../utils/contextFill.js'
 import {
-  openaiCatalogueFromWire,
-  rewindOutcomeToWire,
-  sessionFactsToWire,
   scheduleEditToWire,
-  sessionKitFromWire,
 } from '../services/engine-connector/seatWire.js'
-import { openaiObservedUsage } from '../services/providers/openai/openaiLimitState.js'
-import { openaiWindowFact } from '../services/providers/openai/openaiWindowFact.js'
-import { laneWindowFact } from '../services/providers/laneWindowFact.js'
-import { jevLedgerSnapshot } from '../services/jev/jevLedger.js'
-import { jevFactsOf } from '../services/jev/jevSessionFacts.js'
-import { jevStatus } from '../services/jev/jevStatus.js'
-import { ask, sessionFactsOf } from '../rows/turn.js'
-import { closeRow, commandOutputRow, compactionClearedRow, compactionRow, heartbeatRow, missionUpdatedRow, modeRow, noticeRow, outcomeRow, rateLimitRow, samplesUpdatedRow, sessionRow, taskRow, turnStartedRow, turnWaitingRow, waitRow, type RowDraft, type RowScope, type Unstamped } from '../rows/project.js'
-import { exitCodeOf, OUTCOME_SENTENCES, type CompactionRow, type InputRow, type OutcomeRow, type Row } from '../rows/vocabulary.js'
-import { isOutcome, turnOpened } from '../rows/read.js'
+import { commandOutputRow, compactionClearedRow, compactionRow, heartbeatRow, missionUpdatedRow, modeRow, noticeRow, rateLimitRow, samplesUpdatedRow, waitRow, type RowDraft, type RowScope, type Unstamped } from '../rows/project.js'
+import { type CompactionRow, type InputRow, type OutcomeRow, type Row } from '../rows/vocabulary.js'
+import { isOutcome } from '../rows/read.js'
 import type { FoldStatusV1 } from '../services/compact/foldStatus.js'
 import type { RequestWaitV1 } from '../services/providers/streamIdleBudget.js'
 import { clearCommandMemoizationCaches, findCommand, getCommands, isCommandEnabled } from '../commands.js'
 import { parseSlashCommand } from '../utils/slashCommandParsing.js'
 import {
   handleRewindFiles,
-  handleRewindSession,
-  handleFileRestoreSession,
-  resolvePermissionModeTransition,
 } from './headless/controlHandlers.js'
 import {
   emitLoadError,
@@ -101,46 +50,43 @@ import {
   joinPromptValues,
   type TurnDriver,
 } from './headless/turnDriver.js'
-import { emptyInputRow, INPUT_REFUSED_CODE, isBrokenPipeError, isRowLine, promptSchemaRefusal, StructuredIO, type OutboundLine } from './structuredIO.js'
+import { INPUT_REFUSED_CODE, isBrokenPipeError, isRowLine, StructuredIO, type OutboundLine } from './structuredIO.js'
 import { createRuleOnlyAsks, createRunnerAsks, type AskHost } from './headless/runnerAsks.js'
-import { bindRunnerMethods, checkProtocol, DEFAULT_CAPABILITIES, initializeResultOf, type RunnerArms } from './headless/runnerMethods.js'
+import { bindRunnerMethods, checkProtocol, DEFAULT_CAPABILITIES, initializeResultOf } from './headless/runnerMethods.js'
+import { createRunnerState, type HeadlessOptions, type RunnerPorts } from './headless/runnerPorts.js'
+import { runnerArmsOf } from './headless/runnerArms.js'
+import { finishPrintRun, pumpOutbound } from './headless/printRunEnd.js'
+import { hydrateResumedRun } from './headless/resumeHydration.js'
+import * as inputDoor from './headless/inputDoor.js'
+import * as printTurn from './headless/printTurn.js'
+import * as printDriver from './headless/printDriver.js'
+import { runnerParkRefusal } from './headless/parkRefusal.js'
+import { landSpawnSwitch as landSwitch } from './headless/spawnSwitchLanding.js'
+import { priorTurnCount } from './headless/claimSession.js'
+import { fileCheckpointsFact } from './headless/sessionFactsArm.js'
 import { createPeer, type Peer } from '../runner/wire/peer.js'
-import { invalidParams, refused } from '../runner/wire/errors.js'
-import type { Capabilities, FileCheckpointsFact, ParamsOf } from '../runner/wire/methods.js'
+import { invalidParams } from '../runner/wire/errors.js'
 import { ndjsonSafeStringify } from './ndjsonSafeStringify.js'
-import { anthropicObservedUsage, anthropicWindowFact, resetLimitsForCredentialSwitch, statusListeners, type AnthropicLimits } from '../services/anthropicLimits.js'
-import { sessionLaneWall } from '../tools/MonitorTool/laneWall.js'
-import { providerLimitWarning } from '../services/providers/limitWarning.js'
+import { statusListeners, type AnthropicLimits } from '../services/anthropicLimits.js'
 import {
   clearServerCache,
-  connectToServer,
   fetchCommandsForClient,
   fetchResourcesForClient,
   fetchToolsForClient,
   reconnectMcpServerImpl,
 } from '../services/mcp/client.js'
-import { withElicitationEntered } from '../services/mcp/elicitationHandler.js'
 import { getMcpPrefix } from '../services/mcp/mcpStringUtils.js'
 import { isMcpCatalogueMember } from '../services/mcp/membership.js'
-import { completeProcessSessionKit, sessionKitOf, setProcessSessionKit } from '../services/mcp/sessionKitPin.js'
-import { kitDialCandidates, kitEditMcpDelta, dropMcpServerFromAppState } from '../services/mcp/kitDial.js'
-import { validateSessionKit } from '../daemon/sessionKit.js'
-import { sampleRowsOf } from '../services/samples/facts.js'
+import { dropMcpServerFromAppState } from '../services/mcp/kitDial.js'
 import { subscribeSampleChanges } from '../services/samples/store.js'
 import {
-  latchSessionScheduleRoster,
-  markScheduleSeatObserved,
-  registerLocalWakeSink,
   registerScheduleEditDoor,
-  takePendingScheduleEdits,
 } from '../services/saturn/sessionScheduleBridge.js'
 import { registerIdeToolDoor } from '../services/acp/ideToolBridge.js'
-import { crewBoardNotice, saturnQueueStamp, screenCommandQueueStamp } from '../utils/messages/noticeRows.js'
-import { advisorFacts, advisorMainRound, advisorMainTurnSettled, createAdvisorQuietMessage, type AdvisorQuiet, type AdvisorRoad } from '../services/advisor/index.js'
-import { enqueueBoardWake, swarmOwnerPost, swarmSessionEnabled, swarmStore, swarmView, watchSwarmBoard, watchSwarmLead, watchSwarmResumes } from '../services/crewBoard/seam.js'
+import { crewBoardNotice } from '../utils/messages/noticeRows.js'
+import { type AdvisorQuiet } from '../services/advisor/index.js'
+import { enqueueBoardWake, swarmSessionEnabled, swarmStore, watchSwarmBoard, watchSwarmLead, watchSwarmResumes } from '../services/crewBoard/seam.js'
 import { partyFeed } from '../services/crewBoard/party.js'
-import { localWakeStep, type LocalWakeFacts } from '../tools/ScheduleWakeupTool/localWake.js'
-import { offSkillNamesOf } from '../skills/kitGovernance.js'
 import {
   getMcpConfigByName,
   getMercuryMcpConfigs,
@@ -148,7 +94,6 @@ import {
   mcpServersSkippedForApprovalLines,
   mcpServersSkippedForTrustLine,
 } from '../services/mcp/config.js'
-import { performMCPOAuthFlow } from '../services/mcp/auth.js'
 import type {
   ConnectedMCPServer,
   MCPServerConnection,
@@ -156,10 +101,10 @@ import type {
 } from '../services/mcp/types.js'
 import type { AppState } from '../state/AppStateStore.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
-import { getEmptyToolPermissionContext, type Tool, type ToolUseContext } from '../Tool.js'
+import { type Tool, type ToolUseContext } from '../Tool.js'
 import { noteHeadlessActivity } from '../utils/activityLedger.js'
 import { logForDebugging } from '../utils/debug.js'
-import { fileCheckpointSource, fileHistoryEnabled, requestFileCheckpoints } from '../utils/fileHistory.js'
+import { requestFileCheckpoints } from '../utils/fileHistory.js'
 import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
 import { toError, errorMessage } from '../utils/errors.js'
 import {
@@ -170,57 +115,38 @@ import {
 } from '../utils/fileStateCache.js'
 import { getLastCacheSafeParams } from '../utils/forkedAgent.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
-import { crewmateNoticeOwed } from '../tools/AgentTool/agentToolUtils.js'
 import { isBuiltInAgent } from '../tools/AgentTool/loadAgentsDir.js'
 import { gracefulShutdown, gracefulShutdownSync, isShuttingDown, markRunModeSignalsOwned, TERMINAL_GONE_EXIT_CODE } from '../utils/gracefulShutdown.js'
-import { exitNoteCharsKept, leaveNoteBeforeExit } from '../mneme/exitHandoff.js'
-import { HANDOFF_ASK_BUDGET_MS } from '../mneme/handoffAsk.js'
-import { closeLineageSession, lineageKept } from '../mneme/lineageSession.js'
 import { saveCurrentSessionCosts } from '../cost-tracker.js'
 import {
   headlessProfilerStartTurn,
-  logHeadlessProfilerTurn,
 } from '../utils/headlessProfiler.js'
 import { subscribeHookExecutionEvents } from '../utils/hooks/hookEvents.js'
 import { hookTaskRow } from '../utils/hooks/rows.js'
-import { takeFirstPrompt, type runSessionStartHooks } from '../utils/sessionStart.js'
+import { takeFirstPrompt } from '../utils/sessionStart.js'
 import { createIdleTimeoutManager } from '../utils/idleTimeout.js'
-import { armInactivityDeadline, DeadlineExceededError, declaredWaitEnd, holdDeadlineUntil, minutesKnobToMs } from '../utils/deadline.js'
-import { LOCAL_FIRST_BYTE_CAP_MS } from '../services/providers/localLiveness.js'
 import { flagEnv, setFlagEnv } from '../substrate/flagRegistry.js'
-import { AGENT_MESSAGE_STATUS } from '../constants/agentMessage.js'
-import { clearSystemPromptSections } from '../constants/systemPromptSections.js'
 
-const DEFAULT_HEADLESS_IDLE_MINUTES = 20
 const SIGNAL_SETTLE_MS = 5_000
 const BUILD_BEHIND_FLOOR_MS = 60_000
 const BUILD_BEHIND_THROTTLE_MS = 2_000
 const BUILD_BEHIND_CONFIRM_MS = 2_000
-import { getInMemoryErrors, logError, withoutStackFrames } from '../utils/log.js'
+import { logError } from '../utils/log.js'
+import { sleep } from '../utils/sleep.js'
 import { processMainOwner } from '../services/run/resolveOwner.js'
-import { editOutcomeRows } from '../services/changeTransaction/editOutcomeLedger.js'
-import { getRunSnapshot, reconcileOnResume } from '../services/run/runCoordinator.js'
 import type { Message } from '../types/message.js'
 import type { ContentBlockParam } from '../types/wire.js'
 import {
   dequeue,
-  enqueue,
-  peek,
-  popById,
-  remove as removeQueuedCommands,
   subscribeToCommandQueue,
   getCommandQueue,
-  holdQueuedWordsForTurnEnd,
 } from '../utils/messageQueueManager.js'
-import type { BatchedPrompt, QueuedCommand } from '../types/textInputTypes.js'
-import { isHeldNotice, isHostNotice, isOperatorLine, queuedWordsWaitForTurnEnd, subscribeQueueConsumption } from '../input-core/command-queue.js'
-import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
-import { agentRecipientState, MAIN_THREAD_AGENT, nudgeWords, startIdleNudge } from '../services/notices/idleNudge.js'
-import { noticeRows, type NoticeRecord } from '../services/notices/unreadLedger.js'
+import type { QueuedCommand } from '../types/textInputTypes.js'
+import { isHeldNotice, isOperatorLine } from '../input-core/command-queue.js'
+import { type NoticeRecord } from '../services/notices/unreadLedger.js'
 import { isLocalShellTask } from '../tasks/LocalShellTask/guards.js'
 import { killTask } from '../tasks/LocalShellTask/killShellTasks.js'
 import {
-  getDefaultEngineModelSetting,
   getEngineModel,
   parseUserSpecifiedModel,
 } from '../utils/model/model.js'
@@ -233,19 +159,18 @@ import {
 } from '../utils/model/capabilities.js'
 import { isEffortLevel, resolveEffortTruth } from '../utils/effort.js'
 import { registerProcessOutputErrorHandlers } from '../utils/process.js'
-import { noteRunPhase, runPhaseReport } from '../utils/runPhases.js'
+import { noteRunPhase } from '../utils/runPhases.js'
 import { getPerformance } from '../utils/profilerBase.js'
 import { buildSideQuestionFallbackParams } from '../utils/queryContext.js'
 import { armLocalWarm } from '../services/providers/local/localWarm.js'
 import { extractReadFilesFromMessages } from '../utils/queryHelpers.js'
 import {
-  doesMessageExistInSession,
   saveAdvisorSwitch,
   saveAgentSetting,
   saveSessionBrief,
   saveSessionModel,
 } from '../utils/sessionStorage.js'
-import { restoreAgentFromSession, restoreConversationModel, restoreSessionStateFromLog } from '../utils/sessionRestore.js'
+import { restoreAgentFromSession, restoreConversationModel } from '../utils/sessionRestore.js'
 import { setPermissionModeChangedListener } from '../utils/sessionState.js'
 import { getSettingsWithSources } from '../utils/settings/settings.js'
 import { currentSettingsFaults, untoldSettingsFaults } from '../utils/settings/faultNotices.js'
@@ -257,87 +182,29 @@ import { applySettingsChange } from '../utils/settings/applySettingsChange.js'
 import { skillChangeDetector } from '../utils/skills/skillChangeDetector.js'
 import { armRunnerAgentFreshness } from './agentFreshness.js'
 import { installWireStdoutGuard } from '../utils/wireStdoutGuard.js'
-import { getRunningTasks, POLL_INTERVAL_MS } from '../utils/task/framework.js'
-import { AGENT_INTERRUPT_BY_OPERATOR, AGENT_RESUME_NOTE, enqueueAgentReceiptRow, handOverForegroundAgentsToQueuedMessage, isLocalAgentTask, queueOperatorMessage } from '../tasks/LocalAgentTask/LocalAgentTask.js'
-import { stopAgentByOperator } from '../services/agents/operatorStop.js'
-import { openaiCatalogueFact, primeOpenaiCatalogue, readOpenaiAccountAgain } from '../services/providers/openai/openaiCatalogue.js'
-import { markSessionBootRules, markSessionNonInteractive, markSessionPermissionMode, markSessionPermissionModeAtClaim } from '../utils/cockpit/runtimePosture.js'
+import { getRunningTasks } from '../utils/task/framework.js'
+import { markSessionBootRules, markSessionNonInteractive } from '../utils/cockpit/runtimePosture.js'
 import { consumeSessionKindPin } from '../utils/sessionKind.js'
 import { describeArtifactIdentity, runningBuildTree } from '../utils/artifactIdentity.js'
 import { getTranscriptPath, isChainParticipant } from '../utils/sessionStorage/paths.js'
 import { appendSessionReceipt, readSessionReceipts, settleClearModel } from '../services/switchboard/sessionReceipts.js'
-import { wrapInSystemReminder } from '../utils/messages/text.js'
 import { composeBuildBehindLine } from '../tools/MonitorTool/watchReceipts.js'
 import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js'
 import { drainRows, subscribeRows } from '../utils/sdkEventQueue.js'
-import { projectWorkRoster } from '../utils/task/workRoster.js'
-import { listSessionMission, onTasksUpdated } from '../utils/tasks.js'
-import { operatorPauseGate } from '../run-core/pauseGate.js'
+import { onTasksUpdated } from '../utils/tasks.js'
 
-function missionLedgerOf(metadata: Record<string, unknown> | undefined): string | undefined {
-  const ledger = metadata?.ledger
-  if (typeof ledger === 'string' && ledger.trim() !== '') return ledger.trim()
-  const mission = metadata?.missionId
-  if (typeof mission === 'string' && mission.trim() !== '') return mission.trim()
-  return undefined
-}
-import type { ThinkingConfig } from '../utils/thinking.js'
-import { createSyntheticOutputTool, isSyntheticOutputToolEnabled, SYNTHETIC_OUTPUT_TOOL_NAME } from '../tools/SyntheticOutputTool/SyntheticOutputTool.js'
 import { compileJsonSchema } from '../services/schema/jsonSchemaEngine.js'
-import { getAllBaseTools, getTools, mcpToolPartition, toolsWithheldByDeny } from '../tools.js'
-import { ruleSourceWords, ruleSpelling, withheldByRuleWords } from '../utils/permissions/ruleReason.js'
-import { MCP_SERVER_FAILED_CODE, MCP_SERVER_SKIPPED_CODE, TOOL_WITHHELD_CODE } from '../rows/vocabulary.js'
-import { filterToolsByServer, mcpConfigAsWritten, mcpServerFailedWords, mcpServersFailed } from '../services/mcp/utils.js'
-import { withoutMcpToolCardHeader } from '../services/mcp/toolCard.js'
-import { mcpToolsAnswerOf, mcpToolsUnlistedAnswer } from '../services/mcp/toolsAnswer.js'
-import { clearToolRosterLatches, clearToolRosterRestore, heldToolsAtLastPlan } from '../services/providers/toolEconomy.js'
-import { isDeferredToolFor } from '../tools/ToolSearchTool/prompt.js'
+import { getAllBaseTools, toolsWithheldByDeny } from '../tools.js'
+import { withheldByRuleWords } from '../utils/permissions/ruleReason.js'
+import { MCP_SERVER_FAILED_CODE, MCP_SERVER_SKIPPED_CODE } from '../rows/vocabulary.js'
+import { mcpConfigAsWritten, mcpServerFailedWords, mcpServersFailed } from '../services/mcp/utils.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { getCwd } from '../utils/cwd.js'
-import { providerFamilyOfSetting } from '../utils/model/modelTransition.js'
-import { streamIdleTimeoutMsForRoute } from '../services/providers/streamIdleBudget.js'
-import { runWithWorkload } from '../utils/workloadContext.js'
-import { fitCompletionCommands } from '../services/agentResults/summaryRoom.js'
-import { foldNotifications, foldNotificationValues, spokenNotifications } from './headless/turnDriver.js'
 
 export { joinPromptValues, canBatchWith }
 export { removeInterruptedMessage }
 
-const INTERRUPT_DEDUPE_CAP = 200
 const RECEIVED_UUID_CAP = 10_000
-
-type HeadlessOptions = {
-  continue?: boolean
-  resume?: string | boolean
-  resumeSessionAt?: string
-  outputFormat?: string
-  syntaxInput?: string
-  jsonSchema?: Record<string, unknown>
-  allowedTools?: string[]
-  thinkingConfig?: ThinkingConfig
-  maxTurns?: number
-  maxBudgetUsd?: number
-  maxTimeMs?: number
-  systemPrompt?: string
-  defaultBrief?: true
-  appendSystemPrompt?: string
-  hostAppendSystemPrompt?: string
-  userSpecifiedModel?: string
-  fallbackModel?: string
-  includePartialMessages?: boolean
-  forkSession?: boolean
-  rewindFiles?: string
-  agent?: string
-  workload?: string
-  advise?: boolean
-  bootSessionIdPinned?: boolean
-  title?: string
-  initializeMcp?: () => Promise<void>
-  door?: 'rows' | 'wire'
-  subscribeAppState?: (listener: () => void) => () => void
-  sessionStartHooksPromise?: ReturnType<typeof runSessionStartHooks>
-  setSDKStatus?: unknown
-}
 
 type GetAppState = () => AppState
 type SetAppState = (updater: (previous: AppState) => AppState) => void
@@ -401,14 +268,6 @@ function normalizeInputPrompt(
 }
 
 
-function priorTurnCount(messages: readonly Message[]): number {
-  return messages.filter(message => message.type === 'user' && (message as { isMeta?: boolean }).isMeta !== true && !isToolResultMessage(message) && !isLocalCommandCaveat(message)).length
-}
-
-function fileCheckpointsFact(): FileCheckpointsFact {
-  return { capture: fileHistoryEnabled(), source: fileCheckpointSource() }
-}
-
 export async function runHeadless(
   inputPrompt: string | AsyncIterable<string>,
   getAppState: GetAppState,
@@ -418,6 +277,95 @@ export async function runHeadless(
   agents: AgentDefinition[],
   options: HeadlessOptions,
 ): Promise<void> {
+  const live = createRunnerState()
+  const ports: RunnerPorts = {
+    live,
+    options,
+    get wire() { return wire },
+    get io() { return io },
+    get peer() { return peer },
+    get asks() { return asks },
+    get driver() { return driver },
+    get messages() { return messages },
+    getAppState,
+    setAppState,
+    get canUseTool() { return canUseTool },
+    get enqueueRow() { return enqueueRow },
+    get liveScope() { return liveScope },
+    get acceptInputRow() { return acceptInputRow },
+    get heldNoticeWaits() { return heldNoticeWaits },
+    get interruptOutcomes() { return interruptOutcomes },
+    get quiescence() { return quiescence },
+    get relaunchContext() { return relaunchContext },
+    get checkBuildBehind() { return checkBuildBehind },
+    get getReadFileCache() { return getReadFileCache },
+    get applySeatModel() { return applySeatModel },
+    get applySeatEffort() { return applySeatEffort },
+    get landSpawnSwitch() { return landSpawnSwitch },
+    get settleSessionBriefs() { return settleSessionBriefs },
+    get armSessionRunnerWiring() { return armSessionRunnerWiring },
+    hydrateResumedRun: () => hydrateResumedRun(ports),
+    get persistBootModelRefusal() { return persistBootModelRefusal },
+    get settleClearBirth() { return settleClearBirth },
+    get releaseQueueUntilClaimed() { return releaseQueueUntilClaimed },
+    get missionGuard() { return missionGuard },
+    get liveMcp() { return liveMcp },
+    get mcpSignIns() { return mcpSignIns },
+    get elicitationRegistered() { return elicitationRegistered },
+    get permittedMcpConfig() { return permittedMcpConfig },
+    get serializeMcpChange() { return serializeMcpChange },
+    get reconnectLiveMcp() { return reconnectLiveMcp },
+    get resolveServerConfigFromAllSources() { return resolveServerConfigFromAllSources },
+    get applyReconnectedClient() { return applyReconnectedClient },
+    get registerPerTurnHandlers() { return registerPerTurnHandlers },
+    isLocalShellTask,
+    killTask,
+    requestShellBackground,
+    get routeOutbound() { return routeOutbound },
+    get streamingInput() { return streamingInput },
+    get acceptInput() { return acceptInput },
+    get receivedUuids() { return receivedUuids },
+    get missionLineOf() { return missionLineOf },
+    get localCommandInput() { return localCommandInput },
+    get announcedNotifications() { return announcedNotifications },
+    get emitTaskNotificationFrames() { return emitTaskNotificationFrames },
+    get emitCommandNotifications() { return emitCommandNotifications },
+    inputPrompt,
+    get maxTime() { return maxTime },
+    get sessionTools() { return sessionTools },
+    get baseToolNames() { return baseToolNames },
+    get answerSchemaOf() { return answerSchemaOf },
+    get assembleTools() { return assembleTools },
+    get registerElicitationHandlersForClient() { return registerElicitationHandlersForClient },
+    get setReadFileCache() { return setReadFileCache },
+    get statusIsProgress() { return statusIsProgress },
+    get promisedWaitOf() { return promisedWaitOf },
+    get statusRowOf() { return statusRowOf },
+    get tellFailedMcpServers() { return tellFailedMcpServers },
+    get tellSkippedProjectMcpServers() { return tellSkippedProjectMcpServers },
+    get recordNoticeRows() { return recordNoticeRows },
+    get recordHostNoticeRows() { return recordHostNoticeRows },
+    get injectModelSwitchBreadcrumbs() { return injectModelSwitchBreadcrumbs },
+    get advisorRoad() { return advisorRoad },
+    get landAdvisorQuiet() { return landAdvisorQuiet },
+    get party() { return party },
+    get swarmLead() { return swarmLead },
+    get swarmResumes() { return swarmResumes },
+    get bootReady() { return bootReady },
+    get isConcourseWorker() { return isConcourseWorker },
+    get isMainThreadCommand() { return isMainThreadCommand },
+    get takeMainThread() { return takeMainThread },
+    get executeTurn() { return executeTurn },
+    get settleIdle() { return settleIdle },
+    get idleTimeout() { return idleTimeout },
+    get writeLine() { return writeLine },
+    get disarmAgentFreshness() { return disarmAgentFreshness },
+    get stopDrainedNotificationFrames() { return stopDrainedNotificationFrames },
+    get stopSdkDrain() { return stopSdkDrain },
+    get rateLimitListener() { return rateLimitListener },
+    get carriersOf() { return carriersOf },
+    get retireQueuedCommands() { return retireQueuedCommands },
+  }
   const maxTime = options.maxTimeMs === undefined ? undefined : { limitMs: options.maxTimeMs, at: Date.now() + options.maxTimeMs }
   setAskChannel(options.door === 'wire' ? 'sdk' : 'none')
   const kindPin = consumeSessionKindPin()
@@ -483,7 +431,6 @@ export async function runHeadless(
   }
   let bootModel: string | undefined
   let bootModelRefusal: string | null = null
-  let bootRefusalFact: string | null = null
   if (options.userSpecifiedModel !== undefined) {
     try {
       bootModel = await resolveHeadlessModel(options.userSpecifiedModel)
@@ -503,8 +450,8 @@ export async function runHeadless(
   }
 
   const isConcourseWorker = flagEnv('MERCURY_CONCOURSE_WORKER') === '1'
-  let awaitingSessionClaim = isConcourseWorker && !options.continue && !options.resume && options.bootSessionIdPinned !== true
-  if (!awaitingSessionClaim && (!options.continue && !options.resume || options.forkSession) && !isSessionPersistenceDisabled()) {
+  live.awaitingSessionClaim = isConcourseWorker && !options.continue && !options.resume && options.bootSessionIdPinned !== true
+  if (!live.awaitingSessionClaim && (!options.continue && !options.resume || options.forkSession) && !isSessionPersistenceDisabled()) {
     try { await claimSessionWriter(sessionFilePath(getSessionId() as UUID)) }
     catch (error) {
       emitLoadError(errorMessage(error), options.outputFormat)
@@ -514,7 +461,7 @@ export async function runHeadless(
   }
   const io = new StructuredIO(normalizeInputPrompt(inputPrompt), text => enqueueRow(noticeRow(liveScope(), 'error', text, INPUT_REFUSED_CODE)))
   const wire = options.door === 'wire'
-  let capabilities: Capabilities = { ...DEFAULT_CAPABILITIES }
+  live.capabilities = { ...DEFAULT_CAPABILITIES }
   let bootSettled: () => void = () => {}
   const bootReady = new Promise<void>(resolve => {
     bootSettled = resolve
@@ -536,14 +483,14 @@ export async function runHeadless(
         log: logForDebugging,
       })
     : null
-  const asks: AskHost = peer !== null ? createRunnerAsks(peer, () => capabilities) : createRuleOnlyAsks()
+  const asks: AskHost = peer !== null ? createRunnerAsks(peer, () => live.capabilities) : createRuleOnlyAsks()
   if (peer !== null) {
     registerScheduleEditDoor((edit, signal) => peer.request('schedule/edit', { edit: scheduleEditToWire(edit) }, { signal }))
     registerIdeToolDoor({
       capabilities: () => ({
-        readTextFile: capabilities.fs_read_text_file === true,
-        writeTextFile: capabilities.fs_write_text_file === true,
-        terminal: capabilities.terminal === true,
+        readTextFile: live.capabilities.fs_read_text_file === true,
+        writeTextFile: live.capabilities.fs_write_text_file === true,
+        terminal: live.capabilities.terminal === true,
       }),
       readTextFile: (params, signal) => peer.request('fs/read_text_file', params, signal ? { signal } : {}),
       writeTextFile: (params, signal) => peer.request('fs/write_text_file', params, signal ? { signal } : {}),
@@ -555,23 +502,18 @@ export async function runHeadless(
     })
     peer.onRequest('initialize', async params => {
       checkProtocol(params)
-      capabilities = params.capabilities
+      live.capabilities = params.capabilities
       if (params.file_checkpoints !== undefined) requestFileCheckpoints(params.file_checkpoints)
       await bootReady
       if (params.schema !== undefined) {
         const compiled = compileJsonSchema(params.schema)
         if (!compiled.ok) throw invalidParams('initialize', [{ path: ['schema'], message: `not a JSON schema — ${compiled.error}` }])
-        initializeJsonSchema = params.schema
+        live.initializeJsonSchema = params.schema
       }
-      return initializeResultOf(awaitingSessionClaim ? null : String(getSessionId()), fileCheckpointsFact())
+      return initializeResultOf(live.awaitingSessionClaim ? null : String(getSessionId()), fileCheckpointsFact())
     })
-    bindRunnerMethods(peer, () => arms)
+    bindRunnerMethods(peer, () => runnerArmsOf(ports))
   }
-  let turnsRun = 0
-  let currentTurn: number | null = null
-  let currentTurnId: string | null = null
-  let sessionRowFor: string | null = null
-  let resumeOf: string | undefined
   const failedMcpTold = new Set<string>()
   const tellFailedMcpServers = (): void => {
     for (const server of mcpServersFailed(getAppState().mcp.clients)) {
@@ -591,12 +533,12 @@ export async function runHeadless(
       if (options.door !== 'wire') process.stderr.write(`${GLYPH.warn} ${line}\n`)
     }
   }
-  const liveScope = (): RowScope => ({ session_id: getSessionId(), ...(currentTurn !== null ? { turn: currentTurn } : {}) })
+  const liveScope = (): RowScope => ({ session_id: getSessionId(), ...(live.currentTurn !== null ? { turn: live.currentTurn } : {}) })
   const enqueueRow = (row: RowDraft): void => io.outbound.enqueue(row)
   const hookRowsActive = peer !== null || options.outputFormat === 'rows'
   const releaseHookRows = hookRowsActive
     ? subscribeHookExecutionEvents(event => {
-        if (currentTurn === null) enqueueRow(hookTaskRow(liveScope(), event))
+        if (live.currentTurn === null) enqueueRow(hookTaskRow(liveScope(), event))
       })
     : undefined
   let openFold: { trigger: CompactionRow['trigger']; landing: boolean } | null = null
@@ -690,18 +632,13 @@ export async function runHeadless(
     sessionStartHooksPromise: options.sessionStartHooksPromise,
   })
   const messages: Message[] = loaded.messages
-  let turnMessages: (() => readonly Message[]) | null = null
-  resumeOf = loaded.resumedSessionId
-  turnsRun = priorTurnCount(messages)
-  let contentReplacementState = reconstructContentReplacementState(messages, loaded.contentReplacements ?? [])
+  live.resumeOf = loaded.resumedSessionId
+  live.turnsRun = priorTurnCount(messages)
+  live.contentReplacementState = reconstructContentReplacementState(messages, loaded.contentReplacements ?? [])
 
-  let mcpInitialized = !awaitingSessionClaim
-  const releaseQueueUntilClaimed: (() => void) | null = peer !== null && awaitingSessionClaim ? peer.holdScope('queue') : null
-  let claimSettling: Promise<void> | null = null
-  let sessionFactsHoldSpent = false
-  let sessionFactsHold: Promise<void> | null = null
-  let runnerRestartReason: string | undefined = flagEnv('MERCURY_RUNNER_RESTART_REASON')
-  let recoveredCommandIds: string[] = []
+  live.mcpInitialized = !live.awaitingSessionClaim
+  const releaseQueueUntilClaimed: (() => void) | null = peer !== null && live.awaitingSessionClaim ? peer.holdScope('queue') : null
+  live.runnerRestartReason = flagEnv('MERCURY_RUNNER_RESTART_REASON')
   if (isConcourseWorker) void refreshBoxReading()
   const sessionWiringModules = (): Promise<
     [
@@ -722,9 +659,9 @@ export async function runHeadless(
       logForDebugging(`[session-runner] crew identity boot failed (non-blocking): ${e}`)
     })
   }
-  if (isConcourseWorker && !awaitingSessionClaim) {
+  if (isConcourseWorker && !live.awaitingSessionClaim) {
     await armSessionRunnerWiring(String(getSessionId()))
-  } else if (awaitingSessionClaim) {
+  } else if (live.awaitingSessionClaim) {
     void sessionWiringModules().catch(() => {})
   }
 
@@ -769,12 +706,12 @@ export async function runHeadless(
         .catch((error: unknown) => logError(toError(error)))
     }
   }
-  if (options.title && !awaitingSessionClaim && !isSessionPersistenceDisabled()) {
+  if (options.title && !live.awaitingSessionClaim && !isSessionPersistenceDisabled()) {
     const { saveCustomTitle } = await import('../utils/sessionStorage/logs.js')
     await saveCustomTitle(getSessionId() as UUID, options.title)
   }
-  if (bootModelRefusal !== null) bootRefusalFact = bootModelRefusal
-  if (bootModelRefusal !== null && !awaitingSessionClaim) await persistBootModelRefusal(bootModelRefusal)
+  if (bootModelRefusal !== null) live.bootRefusalFact = bootModelRefusal
+  if (bootModelRefusal !== null && !live.awaitingSessionClaim) await persistBootModelRefusal(bootModelRefusal)
 
   const relaunchContext = async (): Promise<ToolUseContext> => {
     const { toolUseContext } = await buildSideQuestionFallbackParams({
@@ -798,111 +735,7 @@ export async function runHeadless(
     }
   }
 
-  const hydrateResumedRun = async (): Promise<void> => {
-    if (messages.length === 0) return
-    try {
-      const { runBootRecovery } = await import('../substrate/recoveryOrchestrator.js')
-      await runBootRecovery({
-        scope: 'session',
-        sessionId: getSessionId(),
-        projectDir: getCwd(),
-      })
-    } catch (error) {
-      logError(error)
-    }
-    try {
-      const owner = processMainOwner()
-      if (getRunSnapshot(owner) === null) {
-        await reconcileOnResume(owner, getCwd())
-      }
-    } catch (error) {
-      logError(error)
-    }
-    try {
-      const { coerceRestartReason: carriedReasonOf } = await import('../tasks/LocalAgentTask/launchReceipts.js')
-      const carriedReason = carriedReasonOf(runnerRestartReason)
-      if (carriedReason === 'crash' || carriedReason === 'stop' || carriedReason === 'update' || carriedReason === 'ended') {
-        const { carryRunnerAcrossRestart } = await import('./headless/restartCarry.js')
-        const carried = await carryRunnerAcrossRestart({
-          reason: carriedReason,
-          messages,
-          getAppState,
-          setAppState,
-          canUseTool: asks.createCanUseTool(),
-          relaunchContext,
-        })
-        recoveredCommandIds = carried.recoveredCommandIds
-        logForDebugging(`[session-runner] resume after ${carriedReason}: ${carried.requeued} line(s) re-queued, ${carried.relaunched} agent(s) relaunched, ${carried.delivered} delivered from the queue log, ${carried.stopped} stopped`)
-      }
-    } catch (error) {
-      logError(error)
-    }
-    try {
-      const { reconcileBackgroundLaunchesOnResume, coerceRestartReason } = await import('../tasks/LocalAgentTask/launchReceipts.js')
-      const settledLaunches = reconcileBackgroundLaunchesOnResume(messages, getAppState, setAppState, Date.now(), coerceRestartReason(runnerRestartReason))
-      if (settledLaunches.length > 0) {
-        logForDebugging(`[session-runner] resume: ${settledLaunches.length} background launch(es) without a live record — stop notices written`)
-      }
-    } catch (error) {
-      logError(error)
-    }
-    try {
-      const { carryPausedCrewmatesOnResume } = await import('../tasks/LocalAgentTask/pauseCarry.js')
-      const carried = await carryPausedCrewmatesOnResume({
-        getAppState,
-        setAppState,
-        canUseTool: asks.createCanUseTool(),
-        relaunchContext,
-      })
-      if (carried.length > 0) {
-        logForDebugging(`[session-runner] resume: ${carried.length} paused crewmate(s) re-armed to retry at their stated reset — ${carried.join(', ')}`)
-      }
-    } catch (error) {
-      logError(error)
-    }
-    try {
-      const { reconcileWatchesOnResume, reconcileBackgroundShellsOnResume, composeRestartLine } = await import('../tools/MonitorTool/watchReceipts.js')
-      const { coerceRestartReason } = await import('../tasks/LocalAgentTask/launchReceipts.js')
-      const reason = coerceRestartReason(runnerRestartReason)
-      const liveIds = new Set(Object.keys(getAppState().tasks ?? {}))
-      const { reconcileTaskLaunchesOnResume } = await import('../tasks/taskLaunchLedger.js')
-      const launches = await reconcileTaskLaunchesOnResume(String(getSessionId()), liveIds)
-      if (launches.endedPids.length > 0) {
-        logForDebugging(`[session-runner] resume: ${launches.endedPids.length} background process(es) had outlived the runner and were ended — pids ${launches.endedPids.join(', ')}`)
-      }
-      const deadWatches = reconcileWatchesOnResume(messages, liveIds, reason, launches.orphans, launches.settledTaskIds)
-      const deadShells = reconcileBackgroundShellsOnResume(messages, liveIds, reason, launches.orphans, launches.settledTaskIds)
-      if (deadWatches.length > 0 || deadShells.length > 0) {
-        logForDebugging(`[session-runner] resume: ${deadWatches.length} watch(es) and ${deadShells.length} background shell(s) without a live process — dead notices written`)
-      }
-      if (reason === 'update' || reason === 'ended') {
-        const build = runningBuildTree() ?? `v${MACRO.VERSION}`
-        const line = composeRestartLine({ reason, build, watches: deadWatches, shells: deadShells })
-        try {
-          appendSessionReceipt(dirname(getTranscriptPath()), String(getSessionId()), {
-            at: new Date().toISOString(),
-            by: 'runner',
-            kind: 'runner-restart',
-            summary: line,
-            details: { reason, build, watches: deadWatches.length, shells: deadShells.length },
-          })
-        } catch (error) {
-          logError(error)
-        }
-        const { enqueuePendingNotification } = await import('../utils/messageQueueManager.js')
-        enqueuePendingNotification({
-          value: wrapInSystemReminder(line),
-          mode: 'task-notification',
-          priority: 'next',
-          ridesNextWords: true,
-        })
-        enqueueRow(noticeRow(liveScope(), 'warning', line))
-      }
-    } catch (error) {
-      logError(error)
-    }
-  }
-  if (options.continue || options.resume) await hydrateResumedRun()
+  if (options.continue || options.resume) await hydrateResumedRun(ports)
 
   if (!options.agent && !getMainThreadAgentType() && loaded.agentSetting) {
     const restored = restoreAgentFromSession(loaded.agentSetting, undefined, {
@@ -926,7 +759,7 @@ export async function runHeadless(
       if (agentPrompt) options.systemPrompt = agentPrompt
     }
   }
-  settleSessionBriefs(loaded, !awaitingSessionClaim)
+  settleSessionBriefs(loaded, !live.awaitingSessionClaim)
   if (options.advise === true) saveAdvisorSwitch(true)
 
   if (messages.length === 0 && process.exitCode !== undefined && process.exitCode !== 0) {
@@ -989,12 +822,11 @@ export async function runHeadless(
   registerProcessOutputErrorHandlers()
   noteRunPhase('config_auth')
 
-  let sessionInitialized = false
-  let activeModel: string | undefined = bootModel
-  saveSessionModel(activeModel ?? getEngineModel())
+  live.activeModel = bootModel
+  saveSessionModel(live.activeModel ?? getEngineModel())
   const settleClearBirth = (): void => {
     try {
-      const row = settleClearModel(dirname(getTranscriptPath()), String(getSessionId()), activeModel ?? getEngineModel())
+      const row = settleClearModel(dirname(getTranscriptPath()), String(getSessionId()), live.activeModel ?? getEngineModel())
       if (row !== null && !messages.some(message => message.uuid === row.uuid)) {
         messages.push(row)
         void recordTranscript([row], undefined, messages).catch((error: unknown) => logError(toError(error)))
@@ -1003,45 +835,17 @@ export async function runHeadless(
       logError(toError(error))
     }
   }
-  if (isConcourseWorker && !awaitingSessionClaim) settleClearBirth()
-  let thinkingConfig: ThinkingConfig | undefined = options.thinkingConfig
-  let initializeJsonSchema: Record<string, unknown> | undefined
-  let lastAnswerSchemaKey: string | null = null
-  let activeCommands = commands
-  let activeAgents: AgentDefinition[] = agents
+  if (isConcourseWorker && !live.awaitingSessionClaim) settleClearBirth()
+  live.thinkingConfig = options.thinkingConfig
+  live.activeCommands = commands
+  live.activeAgents = agents
   const receivedUuids = new BoundedUuidSet(RECEIVED_UUID_CAP)
   const interruptOutcomes = new Map<string, boolean>()
-  let inputClosed = false
-  let inFlightAbort: AbortController | null = null
-  let leaveAbort: AbortController | null = null
-  let hostAsks: HostAskLiveness | null = null
-  asks.setOnControlRequestSent(() => hostAsks?.noteParked())
-  asks.setOnControlRequestResolved(() => hostAsks?.noteSettled())
-  let deferredModelBreadcrumb: { to: string; from: string } | null = null
-  let heldSeatModel: { requestId: number; model: string; words?: string } | null = null
-  let heldSeatEffort: { requestId: number; effort: string } | null = null
-  let deferredSpawnSwitches: Array<{ kind: 'subagents'; on: boolean; requestId: number }> = []
-  let deferredAdvisorQuiet: AdvisorQuiet[] = []
-  const landAdvisorQuiet = (quiet: AdvisorQuiet): void => {
-    const row = createAdvisorQuietMessage(quiet)
-    messages.push(row)
-    void recordTranscript([row], undefined, messages).catch((error: unknown) => {
-      logForDebugging(`advisor: the quiet row was not recorded — ${error instanceof Error ? error.message : String(error)}`)
-    })
-  }
-  const advisorRoad: AdvisorRoad = {
-    onQuiet: quiet => {
-      if (inputClosed) return
-      if (inFlightAbort !== null) deferredAdvisorQuiet.push(quiet)
-      else landAdvisorQuiet(quiet)
-    },
-  }
-  const landSpawnSwitch = (kind: 'subagents', on: boolean): void => {
-    const landed = setSpawnSwitch(kind, on)
-    if (!landed.changed) return
-    messages.push(createRosterTransitionMessage(kind, on, spawnSwitchTransitionLine(kind, on)))
-    declareLawfulPrefixChangeForEveryOwner(`you turned ${SPAWN_SWITCH_LABEL[kind]} ${on ? 'on' : 'off'}`)
-  }
+  asks.setOnControlRequestSent(() => live.hostAsks?.noteParked())
+  asks.setOnControlRequestResolved(() => live.hostAsks?.noteSettled())
+  const landAdvisorQuiet = (quiet: AdvisorQuiet): void => printDriver.landAdvisorQuiet(quiet, ports)
+  const advisorRoad = printDriver.advisorRoadOf(ports)
+  const landSpawnSwitch = (kind: 'subagents', on: boolean): void => landSwitch(kind, on, ports)
 
   let mcpChangeChain: Promise<unknown> = Promise.resolve()
   const serializeMcpChange = <T,>(operation: () => Promise<T>): Promise<T> => {
@@ -1082,74 +886,12 @@ export async function runHeadless(
   statusListeners.add(rateLimitListener)
 
   const elicitationRegistered = new Set<string>()
-  const registerPerTurnHandlers = (clients: MCPServerConnection[]): void => {
-    for (const client of clients) {
-      if (client.type !== 'connected') continue
-      if (elicitationRegistered.has(client.name)) continue
-      try {
-        void registerElicitationHandlersForClient(client, client.name)
-        elicitationRegistered.add(client.name)
-      } catch {
-      }
-    }
-  }
-  const registerElicitationHandlersForClient = async (
-    client: ConnectedMCPServer,
-    serverName: string,
-  ): Promise<void> => {
-    client.client.setRequestHandler(
-      'elicitation/create',
-      (request, ctx) => withElicitationEntered(client.client, async () => {
-        const params = request.params
-        const mode = params.mode === 'url' ? 'url' : 'form'
-        const requestedSchema = params.mode === 'url' ? undefined : params.requestedSchema
-        const url = params.mode === 'url' ? params.url : undefined
-        const elicitationId = params.mode === 'url' ? params.elicitationId : undefined
-        return asks.handleElicitation(
-          serverName,
-          params.message,
-          requestedSchema,
-          ctx.mcpReq.signal,
-          mode,
-          url,
-          elicitationId,
-        )
-      }),
-    )
-    client.client.setNotificationHandler(
-      'notifications/elicitation/complete',
-      async notification => {
-        const elicitationId = notification.params.elicitationId
-        io.outbound.enqueue({ method: 'elicitation/complete', params: { server: serverName, elicitation_id: elicitationId } })
-      },
-    )
-  }
+  const registerPerTurnHandlers = (clients: MCPServerConnection[]): void => printTurn.registerPerTurnHandlers(clients, ports)
+  const registerElicitationHandlersForClient = (client: ConnectedMCPServer, serverName: string): Promise<void> => printTurn.registerElicitationHandlersForClient(client, serverName, ports)
 
   const baseToolNames = new Set(getAllBaseTools().map(tool => tool.name))
-  const answerSchemaOf = (turnSchema: Record<string, unknown> | undefined): Record<string, unknown> | undefined => turnSchema ?? initializeJsonSchema ?? options.jsonSchema
-  const assembleTools = (state: AppState, turnSchema?: Record<string, unknown>): Tool[] => {
-    const mcpPartition = mcpToolPartition(state.mcp.tools as Tool[], state.toolPermissionContext)
-    const pool: Tool[] = [
-      ...getTools(state.toolPermissionContext),
-      ...sessionTools.filter(tool => !baseToolNames.has(tool.name) && !tool.isMcp),
-      ...mcpPartition,
-    ]
-    const seen = new Set<string>()
-    const deduped: Tool[] = []
-    for (const tool of pool) {
-      if (seen.has(tool.name)) continue
-      seen.add(tool.name)
-      deduped.push(tool)
-    }
-    const answerSchema = answerSchemaOf(turnSchema)
-    if (answerSchema === undefined || !isSyntheticOutputToolEnabled({ isNonInteractiveSession: true })) return deduped
-    const synthetic = createSyntheticOutputTool(answerSchema)
-    if (!('tool' in synthetic)) return deduped
-    const at = deduped.findIndex(tool => tool.name === SYNTHETIC_OUTPUT_TOOL_NAME)
-    if (at === -1) return [...deduped, synthetic.tool]
-    if (deduped[at] === synthetic.tool) return deduped
-    return deduped.map((tool, index) => (index === at ? synthetic.tool : tool))
-  }
+  const answerSchemaOf = (turnSchema: Record<string, unknown> | undefined): Record<string, unknown> | undefined => turnSchema ?? live.initializeJsonSchema ?? options.jsonSchema
+  const assembleTools = (state: AppState, turnSchema?: Record<string, unknown>): Tool[] => printTurn.assembleTurnTools(state, turnSchema, ports)
 
   const savedDefaultModel = (): string | null => {
     const stored = getSettingsWithSources().sources.find(source => source.source === 'userSettings')?.settings.engine?.model
@@ -1189,8 +931,8 @@ export async function runHeadless(
   }
 
   const applySeatModel = async (model: string, words?: string): Promise<void> => {
-    const previous = activeModel ?? getEngineModel()
-    activeModel = model
+    const previous = live.activeModel ?? getEngineModel()
+    live.activeModel = model
     setEngineModelOverride(model)
     setFlagEnv('MERCURY_MODEL', model)
     saveSessionModel(model)
@@ -1204,7 +946,7 @@ export async function runHeadless(
     setFlagEnv('MERCURY_EFFORT_LEVEL', effort)
     setAppState(previous => ({ ...previous, effortValue: effort }))
   }
-  armLocalWarm(() => buildSideQuestionFallbackParams({ tools: assembleTools(getAppState()), commands: activeCommands, mcpClients: getAppState().mcp.clients, messages, readFileState: getReadFileCache(), getAppState, setAppState, customSystemPrompt: options.systemPrompt, appendSystemPrompt: options.appendSystemPrompt, thinkingConfig, agents: activeAgents }), { live: () => !awaitingSessionClaim && inFlightAbort === null })
+  armLocalWarm(() => buildSideQuestionFallbackParams({ tools: assembleTools(getAppState()), commands: live.activeCommands, mcpClients: getAppState().mcp.clients, messages, readFileState: getReadFileCache(), getAppState, setAppState, customSystemPrompt: options.systemPrompt, appendSystemPrompt: options.appendSystemPrompt, thinkingConfig: live.thinkingConfig, agents: live.activeAgents }), { live: () => !live.awaitingSessionClaim && live.inFlightAbort === null })
 
   const SDK_MODES = new Set(['default', 'implement', 'sovereign', 'flow', 'dontAsk'])
   setPermissionModeChangedListener(mode => {
@@ -1216,33 +958,21 @@ export async function runHeadless(
   skillChangeDetector.subscribe(() => {
     clearCommandMemoizationCaches()
     void getCommands(getCwd()).then(refreshed => {
-      activeCommands = refreshed
+      live.activeCommands = refreshed
     })
   })
 
   const disarmAgentFreshness = armRunnerAgentFreshness({
     cwd: () => getCwd(),
-    getActive: () => activeAgents,
+    getActive: () => live.activeAgents,
     setActive: next => {
-      activeAgents = next
+      live.activeAgents = next
     },
   })
 
   const isMainThreadCommand = (command: QueuedCommand): boolean =>
     command.agentId === undefined
   const takeMainThread = (): QueuedCommand | undefined => dequeue(isMainThreadCommand)
-
-  const taskNotificationPayloads = (command: QueuedCommand): string[] => {
-    if (command.origin?.kind === 'outside-report') return []
-    const texts =
-      typeof command.value === 'string'
-        ? [command.value]
-        : Array.isArray(command.value)
-          ? command.value.flatMap(block => (block.type === 'text' && typeof block.text === 'string' ? [block.text] : []))
-          : []
-    if (command.mode !== 'task-notification' && !texts.some(text => text.includes('<task-notification>'))) return []
-    return texts.flatMap(text => text.match(/<task-notification>[\s\S]*?<\/task-notification>/g) ?? [text])
-  }
 
   const recordNoticeRows = async (notices: readonly QueuedCommand[], mark: { isVirtual: true } | { isMeta: true }): Promise<void> => {
     const { createUserMessage } = await import('../utils/messages/factories.js')
@@ -1253,13 +983,11 @@ export async function runHeadless(
     })
   }
   const recordHostNoticeRows = (notices: readonly QueuedCommand[]): Promise<void> => recordNoticeRows(notices, { isVirtual: true })
-  let turnReachedModel = false
-  let turnAnchor: string | null = null
   const missionLineOf = (content: string | ContentBlockParam[], cap: number): string | null => {
     const line = typeof content === 'string' ? content : content.find(block => block.type === 'text')?.text
     const parsed = line === undefined ? null : parseSlashCommand(line)
     if (parsed === null || parsed.isMcp) return null
-    const found = findCommand(parsed.commandName, activeCommands)
+    const found = findCommand(parsed.commandName, live.activeCommands)
     if (found === undefined || found.name !== 'mission') return null
     const words = parsed.args.trim()
     return words.length > cap ? null : words
@@ -1271,246 +999,11 @@ export async function runHeadless(
     const line = typeof value === 'string' ? value : value.find(block => block.type === 'text')?.text
     const parsed = line === undefined ? null : parseSlashCommand(line)
     if (parsed === null) return false
-    const found = findCommand(parsed.commandName, [...activeCommands, ...getAppState().mcp.commands])
+    const found = findCommand(parsed.commandName, [...live.activeCommands, ...getAppState().mcp.commands])
     if (found !== undefined) return found.type !== 'prompt' || !isCommandEnabled(found) || found.userInvocable === false
     return /^[a-zA-Z0-9:_-]+$/.test(parsed.commandName) && !existsSync(`/${parsed.commandName}`)
   }
-  const executeTurn = async (
-    command: QueuedCommand,
-    batch: QueuedCommand[],
-    onMessage: (message: RowDraft) => void,
-    initialNotices: QueuedCommand[] = [],
-  ): Promise<void> => {
-    const { applyLiveBootMenuEnv } = await import('../substrate/startupMenu.js')
-    applyLiveBootMenuEnv()
-    const members = batch.length > 0 ? batch : [command]
-    turnReachedModel = false
-    if (members.some(isHostNotice) || initialNotices.some(isHostNotice)) {
-      const hostNotices = [...initialNotices, ...members].filter(isHostNotice)
-      emitCommandNotifications(hostNotices)
-      await recordHostNoticeRows(hostNotices)
-      initialNotices = initialNotices.filter(member => !isHostNotice(member))
-    }
-    const heard = members.filter(member => !isHostNotice(member))
-    if (heard.length === 0) return
-    const spoken = spokenNotifications(heard)
-    if (spoken.length < heard.length) await recordNoticeRows(heard.filter(member => !spoken.includes(member)), { isMeta: true })
-    if (spoken.length < members.length) {
-      batch = spoken.length > 1 ? spoken : []
-      command = foldNotifications(spoken)
-    }
-    turnReachedModel = true
-    const promptUuid = command.uuid ?? randomUUID()
-    const localCommand = localCommandInput(command)
-    turnAnchor = localCommand ? null : promptUuid
-    if (localCommand) party.blockOpen()
-    const delivery = command.mode === 'task-notification' ? fitCompletionCommands(batch.length > 0 ? batch : [command], { messages, model: activeModel ?? getEngineModel() }) : []
-    const promptValue = delivery.length > 1 ? foldNotificationValues(delivery.map(member => member.value)) : delivery[0]?.value ?? command.value
-    const batchUuids = batch.map(member => member.uuid).filter((uuid): uuid is UUID => uuid !== undefined)
-    const batchTail: BatchedPrompt[] =
-      command.mode === 'prompt'
-        ? batch.slice(1).map(member => ({
-            value: member.value,
-            ...(member.uuid !== undefined ? { uuid: member.uuid } : {}),
-            ...(member.origin !== undefined ? { origin: member.origin } : {}),
-          }))
-        : []
-    emitCommandNotifications([...initialNotices, command])
-    const turnAbort = new AbortController()
-    inFlightAbort = turnAbort
-    turnsRun += 1
-    currentTurn = turnsRun
-    currentTurnId = null
-    const turnIdleLimitMs = headlessTurnIdleLimitMs()
-    const turnWatchdog = armInactivityDeadline({
-      seam: 'unattended turn',
-      limitMs: turnIdleLimitMs,
-      advice: 'the turn was aborted and the run exits non-zero; MERCURY_HEADLESS_IDLE_MINUTES tunes the limit (0 disables)',
-      onExpire: error => {
-        logForDebugging(`print: ${error.message}`)
-        turnAbort.abort(error)
-      },
-    })
-    let promiseHold: { cancel(): void } | null = null
-    const holdPromise = (wait: Extract<RequestWaitV1, { kind: 'first-byte' }> | null): void => {
-      promiseHold?.cancel()
-      promiseHold = wait === null || !turnWatchdog.armed ? null : holdDeadlineUntil(turnWatchdog, declaredWaitEnd(wait.sinceMs, wait.budgetMs, LOCAL_FIRST_BYTE_CAP_MS), turnIdleLimitMs / 2)
-    }
-    hostAsks = keepTurnLiveWhileHostAnswers({
-      watchdog: turnWatchdog,
-      limitMs: turnIdleLimitMs,
-      parkedWithHost: () => asks.pendingControlRequestCount(),
-      parkedAsks: () => asks.parkedAsks(),
-      settleParkedAsks: cause => (capabilities.holds_asks ? 0 : asks.denyPendingPermissionRequests(cause)),
-    })
-    const workload = command.workload ?? options.workload
-    try {
-      await runWithWorkload(workload, async () => {
-        const state = getAppState()
-        const turnClients: MCPServerConnection[] = [
-          ...state.mcp.clients,
-        ]
-        registerPerTurnHandlers(turnClients)
-        const answerSchema = answerSchemaOf(command.schema)
-        const answerSchemaKey = answerSchema === undefined ? '' : JSON.stringify(answerSchema)
-        if (lastAnswerSchemaKey !== null && answerSchemaKey !== lastAnswerSchemaKey) {
-          const owner = String(processMainOwner())
-          clearToolRosterLatches(owner)
-          clearToolRosterRestore()
-          declareLawfulPrefixChange(owner, answerSchema === undefined ? 'this turn asked for no structured output' : 'this turn asked for its own structured-output schema')
-        }
-        lastAnswerSchemaKey = answerSchemaKey
-        const assembledTools = assembleTools(state, command.schema)
-        const mcpCommands = state.mcp.commands
-        const dedupedCommands = [
-          ...activeCommands,
-          ...mcpCommands.filter(
-            mcpCommand => !activeCommands.some(existing => existing.name === mcpCommand.name),
-          ),
-        ]
-        if (sessionRowFor !== String(getSessionId())) {
-          sessionRowFor = String(getSessionId())
-          const withheld = toolsWithheldByDeny([...getAllBaseTools(), ...state.mcp.tools], state.toolPermissionContext)
-          const facts = await sessionFactsOf(
-            { cwd: getCwd(), tools: assembledTools, mcpClients: turnClients, commands: dedupedCommands, agents: activeAgents },
-            activeModel ?? getEngineModel(),
-            state.toolPermissionContext.mode,
-            resumeOf,
-            withheld.map(({ tool, rule }) => ({ tool, rule: ruleSpelling(rule.ruleValue), source: ruleSourceWords(rule.source) })),
-          )
-          enqueueRow(sessionRow({ session_id: getSessionId() }, facts))
-          for (const entry of withheld) enqueueRow(noticeRow(liveScope(), 'warning', withheldByRuleWords(entry.tool, entry.rule), TOOL_WITHHELD_CODE))
-        }
-        tellSkippedProjectMcpServers()
-        tellFailedMcpServers()
-        for await (const message of ask({
-          commands: dedupedCommands,
-          prompt: promptValue,
-          ...(options.syntaxInput !== undefined && command.value === inputPrompt ? { syntaxInput: options.syntaxInput } : {}),
-          promptUuid,
-          ...(batchUuids.length > 0 ? { batchUuids } : {}),
-          ...(batchTail.length > 0 ? { batchTail } : {}),
-          ...(initialNotices.length > 0 ? { initialNotices } : {}),
-          isMeta: command.isMeta,
-          operatorPrompt: command.mode === 'prompt' && command.isMeta !== true,
-          ...(command.origin !== undefined ? { origin: command.origin } : {}),
-          ...(command.skipSlashCommands === true ? { skipSlashCommands: true } : {}),
-          ...(command.mode === 'bash' ? { promptMode: 'bash' as const } : {}),
-          cwd: getCwd(),
-          tools: assembledTools,
-          mcpClients: turnClients,
-          thinkingConfig,
-          maxTurns: options.maxTurns,
-          maxBudgetUsd: options.maxBudgetUsd,
-          maxTime,
-          canUseTool,
-          ...(peer !== null ? { hostHoldsAsks: true } : {}),
-          userSpecifiedModel: activeModel,
-          fallbackModel: options.fallbackModel,
-          jsonSchema: answerSchema,
-          mutableMessages: messages,
-          onTurnMessages: read => {
-            turnMessages = read
-          },
-          contentReplacementState,
-          getReadFileCache,
-          setReadFileCache,
-          customSystemPrompt: options.systemPrompt,
-          appendSystemPrompt: options.appendSystemPrompt,
-          getAppState,
-          setAppState,
-          abortController: turnAbort,
-          partialRows: options.includePartialMessages || capabilities.partial_rows,
-          turn: currentTurn ?? undefined,
-          onLiveness: () => turnWatchdog.touch(),
-          onToolRoundSettled: rows => {
-            void advisorMainRound(String(getSessionId()), rows, advisorRoad)
-          },
-          handleElicitation: (
-            serverName: string,
-            params: { message: string; mode?: 'form' | 'url'; url?: string; elicitationId?: string },
-            elicitSignal?: AbortSignal,
-          ) =>
-            asks.handleElicitation(
-              serverName,
-              params.message,
-              undefined,
-              elicitSignal,
-              params.mode,
-              params.url,
-              params.elicitationId,
-            ),
-          agents: activeAgents,
-          setSDKStatus: (status: unknown) => {
-            if (statusIsProgress(status)) turnWatchdog.touch()
-            const promised = promisedWaitOf(status)
-            if (promised !== undefined) holdPromise(promised)
-            else if (typeof status === 'object' && status !== null && 'streamActivity' in status) holdPromise(null)
-            const row = statusRowOf(status)
-            if (row !== null) enqueueRow(row)
-          },
-        })) {
-          turnWatchdog.touch()
-          if (turnOpened(message as never)) {
-            currentTurnId = (message as unknown as { turn_id: string }).turn_id
-            if (options.door !== 'wire') for (const line of untoldHiddenCharacterLines()) process.stderr.write(`${GLYPH.warn} ${line}\n`)
-          }
-          onMessage(message)
-        }
-        tellFailedMcpServers()
-      })
-    } finally {
-      party.turnEnd()
-      turnAnchor = null
-      hostAsks?.stop()
-      hostAsks = null
-      holdPromise(null)
-      turnWatchdog.cancel()
-      inFlightAbort = null
-      currentTurn = null
-      if (heldSeatModel !== null) {
-        const held = heldSeatModel
-        heldSeatModel = null
-        await applySeatModel(held.model, held.words)
-        io.outbound.enqueue({ method: 'session/applied', params: { request_id: held.requestId, verb: 'set_model', model: held.model } })
-      }
-      if (heldSeatEffort !== null) {
-        const held = heldSeatEffort
-        heldSeatEffort = null
-        applySeatEffort(held.effort)
-        io.outbound.enqueue({ method: 'session/applied', params: { request_id: held.requestId, verb: 'set_effort', effort: held.effort } })
-      }
-      holdQueuedWordsForTurnEnd(false)
-      if (deferredModelBreadcrumb !== null) {
-        const crumb = deferredModelBreadcrumb
-        deferredModelBreadcrumb = null
-        await injectModelSwitchBreadcrumbs(crumb.to, crumb.from)
-      }
-      if (deferredSpawnSwitches.length > 0) {
-        const toggles = deferredSpawnSwitches
-        deferredSpawnSwitches = []
-        for (const toggle of toggles) {
-          landSpawnSwitch(toggle.kind, toggle.on)
-          io.outbound.enqueue({ method: 'session/applied', params: { request_id: toggle.requestId, verb: 'set_spawn_switch', switch: toggle.kind, on: toggle.on } })
-        }
-      }
-      if (deferredAdvisorQuiet.length > 0) {
-        const quiets = deferredAdvisorQuiet
-        deferredAdvisorQuiet = []
-        for (const quiet of quiets) landAdvisorQuiet(quiet)
-      }
-      swarmLead.check()
-      swarmResumes.check()
-      void checkBuildBehind(true)
-    }
-    if (turnWatchdog.fired) {
-      throw new DeadlineExceededError('unattended turn', turnIdleLimitMs, turnIdleLimitMs, turnWatchdog.progressCount, 'no engine event for the whole limit — the turn was aborted; MERCURY_HEADLESS_IDLE_MINUTES tunes the limit (0 disables)')
-    }
-  }
-
-  function headlessTurnIdleLimitMs(): number {
-    return minutesKnobToMs(flagEnv('MERCURY_HEADLESS_IDLE_MINUTES'), DEFAULT_HEADLESS_IDLE_MINUTES)
-  }
+  const executeTurn = (command: QueuedCommand, batch: QueuedCommand[], onMessage: (message: RowDraft) => void, initialNotices?: QueuedCommand[]): Promise<void> => printTurn.runPrintTurn(command, batch, onMessage, initialNotices, ports)
 
   const stopShellsForClose = async (): Promise<void> => {
     const shells = getRunningTasks(getAppState()).filter(task => isLocalShellTask(task))
@@ -1520,7 +1013,7 @@ export async function runHeadless(
   }
 
   const settleIdle = async (): Promise<'reenter' | 'close' | 'stay'> => {
-    if (inputClosed) {
+    if (live.inputClosed) {
       await stopShellsForClose()
       return 'close'
     }
@@ -1530,21 +1023,14 @@ export async function runHeadless(
   const idleTimeout = createIdleTimeoutManager(() => !driver.isRunning())
 
   const quiescence = new RunnerQuiescence({
-    refusal: () => {
-      if (driver.isRunning()) return 'a turn is running'
-      if (getCommandQueue().some(isMainThreadCommand)) return 'a prompt is queued'
-      const busy = getRunningTasks(getAppState())
-      if (busy.length > 0) return `${busy.length} background task(s) still running`
-      return capabilityHoldWords(runnerCapabilityHolds(asks))
-    },
+    refusal: () => runnerParkRefusal(ports),
     flush: () => flushSessionStorage(),
   })
   subscribeToCommandQueue(() => {
     if (getCommandQueue().length > 0) quiescence.invalidate()
   })
 
-  let lastOutcome: OutcomeRow | null = null
-  let lastOutcomeWritten: Promise<unknown> = Promise.resolve()
+  live.lastOutcomeWritten = Promise.resolve()
   const writeLine = (message: OutboundLine): Promise<Row | null> => {
     if (peer === null) return io.write(message)
     if (io.stdoutPipeBroken) return Promise.resolve(null)
@@ -1554,7 +1040,7 @@ export async function runHeadless(
       return peer.flush().then(() => row)
     }
     if (message.method === 'elicitation/complete') {
-      if (capabilities.elicitation) peer.notify(message.method, message.params)
+      if (live.capabilities.elicitation) peer.notify(message.method, message.params)
     } else peer.notify(message.method, message.params)
     return peer.flush().then(() => null)
   }
@@ -1563,205 +1049,46 @@ export async function runHeadless(
     if (options.outputFormat === 'rows') {
       const written = writeLine(message)
       if (isOutcome(message as never)) {
-        lastOutcomeWritten = written.then(line => {
-          if (line !== null) lastOutcome = line as OutcomeRow
+        live.lastOutcomeWritten = written.then(line => {
+          if (line !== null) live.lastOutcome = line as OutcomeRow
         })
       }
       void written.catch(error => logError(error))
       return
     }
-    if (isOutcome(message as never)) lastOutcome = io.rows.stamp(message as never) as OutcomeRow
+    if (isOutcome(message as never)) live.lastOutcome = io.rows.stamp(message as never) as OutcomeRow
   }
 
-  const emitTaskNotificationFrames = (payloads: readonly string[]): void => {
-    for (const payload of payloads) {
-      const pick = (tag: string): string | undefined => {
-        const match = payload.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`))
-        return match?.[1]?.trim()
-      }
-      const statusRaw = pick('status')
-      if (statusRaw !== undefined) {
-        const normalized =
-          statusRaw === AGENT_MESSAGE_STATUS || statusRaw === 'paused'
-            ? undefined
-            : ['completed', 'failed', 'stopped', 'killed'].includes(statusRaw)
-              ? statusRaw === 'killed'
-                ? 'stopped'
-                : statusRaw
-              : 'completed'
-        const totalTokens = Number(pick('total-tokens') ?? pick('total_tokens'))
-        const toolUses = Number(pick('tool-uses') ?? pick('tool_uses'))
-        const callId = pick('tool-use-id')
-        enqueueRow(
-          taskRow(liveScope(), {
-            state: normalized !== undefined ? 'ended' : 'progress',
-            taskId: pick('task-id') ?? pick('task_id') ?? '',
-            ...(callId !== undefined ? { callId } : {}),
-            outputFile: pick('output-file') ?? pick('output_file') ?? '',
-            ...(normalized !== undefined ? { status: normalized as 'completed' | 'failed' | 'stopped' } : {}),
-            summary: pick('summary') ?? '',
-            ...(Number.isFinite(totalTokens) && Number.isFinite(toolUses)
-              ? { usage: { tokens: totalTokens, toolUses, durationMs: Number(pick('duration-ms') ?? pick('duration_ms')) || 0 } }
-              : {}),
-          }),
-        )
-      }
-    }
-  }
+  const emitTaskNotificationFrames = (payloads: readonly string[]): void => inputDoor.emitTaskNotificationFrames(payloads, ports)
 
   const announcedNotifications = new WeakSet<QueuedCommand>()
-  const emitCommandNotifications = (commands: readonly QueuedCommand[]): void => {
-    for (const command of commands) {
-      if (announcedNotifications.has(command)) continue
-      announcedNotifications.add(command)
-      emitTaskNotificationFrames(taskNotificationPayloads(command))
-    }
-  }
+  const emitCommandNotifications = (commands: readonly QueuedCommand[]): void => inputDoor.emitCommandNotifications(commands, ports)
 
-  let retiringQueuedCommands = false
-  const retireQueuedCommands = (commands: QueuedCommand[]): void => {
-    retiringQueuedCommands = true
-    try {
-      removeQueuedCommands(commands)
-    } finally {
-      retiringQueuedCommands = false
-    }
-  }
-  const stopDrainedNotificationFrames = subscribeQueueConsumption(event => {
-    if (event.kind !== 'removed' || retiringQueuedCommands) return
-    for (const drained of event.commands) {
-      if (drained.mode !== 'task-notification' || drained.agentId !== undefined) continue
-      emitCommandNotifications([drained])
-    }
-  })
+  const retireQueuedCommands = (commands: QueuedCommand[]): void => inputDoor.retireQueuedCommands(commands, ports)
+  const stopDrainedNotificationFrames = inputDoor.watchDrainedNotifications(ports)
 
-  const driver: TurnDriver = createTurnDriver({
-    dequeue: takeMainThread,
-    dequeueCommand: command => dequeue(queued => queued === command),
-    peek: () => peek(isMainThreadCommand),
-    notifyLifecycle: notifyCommandLifecycle,
-    enqueueOutput: message => {
-      if (isOutcome(message as never) && (message as OutcomeRow).status === 'completed' && maxTime !== undefined && Date.now() >= maxTime.at) {
-        io.outbound.enqueue({ ...message, status: 'time_limit', error: { class: 'time_limit', message: OUTCOME_SENTENCES.time_limit({ maxTimeMs: maxTime.limitMs }) } } as RowDraft)
-      } else io.outbound.enqueue(message)
-    },
-    writeDirect: async message => {
-      await writeLine(message)
-    },
-    drainRows: () => drainRows().map(row => ({ ...row, ...(currentTurn !== null ? { turn: currentTurn } : {}) }) as RowDraft),
-    beforeCycle: () => bootReady,
-    onTurnStart: () => {
-      currentTurnId = null
-    },
-    turnIdOf: () => {
-      if (currentTurnId === null) currentTurnId = randomUUID()
-      return currentTurnId
-    },
-    openTurnRow: messageIds => {
-      if (currentTurnId === null) currentTurnId = randomUUID()
-      return turnStartedRow({ session_id: getSessionId(), turn: currentTurn ?? turnsRun }, { turnId: currentTurnId, messageIds, model: activeModel ?? getEngineModel() })
-    },
-    executeTurn: (command, batch, onMessage, initialNotices) =>
-      executeTurn(command, batch, message => {
-        if (message.type === 'block_start') party.blockOpen()
-        else if (message.type === 'text' || message.type === 'reasoning' || message.type === 'tool_call') party.landed()
-        onMessage(message)
-      }, initialNotices),
-    onTurnSettled: command => {
-      logHeadlessProfilerTurn()
-      headlessProfilerStartTurn()
-      if (turnReachedModel) void advisorMainTurnSettled(String(getSessionId()), command, messages, advisorRoad)
-    },
-    hasWaitableBackgroundTasks: () =>
-      getRunningTasks(getAppState()).some(task => !(inputClosed && isLocalShellTask(task))) || (inputClosed && (swarmResumes.hasPending() || crewmateNoticeOwed())),
-    hasHoldableBackgroundAgents: () =>
-      getRunningTasks(getAppState()).some(
-        task => task.type === 'local_agent',
-      ),
-    waitableBackgroundTaskCount: () =>
-      getRunningTasks(getAppState()).filter(task => !(inputClosed && isLocalShellTask(task))).length + (inputClosed ? swarmResumes.waitingSeats() : 0),
-    onAgentWait: (count, turnId) => {
-      enqueueRow(turnWaitingRow({ session_id: getSessionId(), turn: turnsRun }, { turnId, agents: count }))
-    },
-    settleIdle,
-    wakeSettle: () => {},
-    beforeCloseOutput: async () => {
-      if (isConcourseWorker) return
-      const { exitNoteDue } = await import('../mneme/exitHandoff.js')
-      const ranHere = exitNoteDue()
-      let closeUsage: import('../services/api/emptyUsage.js').NonNullableUsage | undefined
-      const outcome = await leaveNoteBeforeExit({
-        budgetMs: HANDOFF_ASK_BUDGET_MS,
-        onNotice: text => io.outbound.enqueue(noticeRow(liveScope(), 'warning', text)),
-        onUsage: usage => { closeUsage = usage },
-      })
-      if (ranHere) io.outbound.enqueue(closeRow(liveScope(), { state: outcome, ...(closeUsage !== undefined ? { usage: closeUsage } : {}) }))
-    },
-    closeOutput: async () => {
-      const { endBackgroundHooks } = await import('../utils/hooks/background.js')
-      await endBackgroundHooks().catch(() => {})
-      skillChangeDetector.dispose()
-      disarmAgentFreshness()
-      stopDrainedNotificationFrames()
-      stopSdkDrain()
-      statusListeners.delete(rateLimitListener)
-      noteRunPhase('flush_exit')
-      logForDebugging(`[run-phases] ${jsonStringify(runPhaseReport(getTotalAPIDuration()))}`)
-      io.outbound.done()
-    },
-    isShuttingDown,
-    idleTimerStop: () => idleTimeout.stop?.(),
-    idleTimerStart: () => idleTimeout.start?.(),
-    onCycleError: (error, turnId) =>
-      outcomeRow(
-        { session_id: getSessionId(), turn: currentTurn ?? Math.max(1, turnsRun) },
-        {
-          turnId,
-          status: 'failed',
-          steps: 0,
-          wallMs: 0,
-          usage: EMPTY_USAGE,
-          models: {},
-          denials: [],
-          error: { message: errorMessage(error), class: 'internal', detail: getInMemoryErrors().map(entry => withoutStackFrames(entry.error)) },
-        },
-      ),
-    shutdown: code => void gracefulShutdown(code),
-    clock: { sleep: ms => new Promise(resolve => setTimeout(resolve, ms)) },
-    queuedMainThread: () => getCommandQueue().filter(isMainThreadCommand),
-    settleWindowMs: Math.max(POLL_INTERVAL_MS, Number.parseInt(flagEnv('MERCURY_SETTLE_WINDOW_MS') ?? '', 10) || 0),
-    wall: () => sessionLaneWall(),
-  })
+  const driver: TurnDriver = createTurnDriver(printDriver.printDriverPorts(ports))
 
   const stopSdkDrain = subscribeRows(() => {
-    for (const row of drainRows()) enqueueRow({ ...row, ...(currentTurn !== null ? { turn: currentTurn } : {}) } as RowDraft)
+    for (const row of drainRows()) enqueueRow({ ...row, ...(live.currentTurn !== null ? { turn: live.currentTurn } : {}) } as RowDraft)
   })
   subscribeToCommandQueue(() => {
     const queued = getCommandQueue()
     if (queued.some(command => command.priority === 'now')) {
-      inFlightAbort?.abort()
+      live.inFlightAbort?.abort()
     }
-    if (!inputClosed && sessionInitialized && !driver.isRunning() && queued.some(isMainThreadCommand)) {
+    if (!live.inputClosed && live.sessionInitialized && !driver.isRunning() && queued.some(isMainThreadCommand)) {
       driver.kick()
       if (!driver.isRunning()) emitCommandNotifications(queued.filter(isMainThreadCommand))
     }
   })
 
-  const carriersOf = (notices: readonly NoticeRecord[]): QueuedCommand[] => {
-    const keys = new Set<string>()
-    for (const notice of notices) {
-      keys.add(notice.key)
-      if (notice.altKey !== undefined) keys.add(notice.altKey)
-    }
-    return getCommandQueue().filter(
-      command => (command.queueId !== undefined && keys.has(command.queueId)) || (command.uuid !== undefined && keys.has(String(command.uuid))),
-    )
-  }
+  const carriersOf = (notices: readonly NoticeRecord[]): QueuedCommand[] => printDriver.carriersOf(notices)
   const { watchHostNotices } = await import('../services/host/notices.js')
   const stopHostNotices = watchHostNotices(() => getSessionId())
   const party = partyFeed({
-    store: () => (!awaitingSessionClaim && swarmSessionEnabled() ? swarmStore(false) : null),
-    anchor: () => turnAnchor ?? undefined,
+    store: () => (!live.awaitingSessionClaim && swarmSessionEnabled() ? swarmStore(false) : null),
+    anchor: () => live.turnAnchor ?? undefined,
     record: async row => {
       if (messages.some(message => message.uuid === row.uuid)) return
       if ((peekProject()?.sessionFile ?? null) === null && hasConversationTurn(messages) && !isSessionPersistenceDisabled()) adoptResumedSessionFile()
@@ -1774,53 +1101,31 @@ export async function runHeadless(
   const swarmResumes = watchSwarmResumes(
     () => getLastCacheSafeParams()?.toolUseContext as ToolUseContext | undefined ?? null,
     canUseTool,
-    () => sessionInitialized && !quiescence.committed && !isShuttingDown(),
+    () => live.sessionInitialized && !quiescence.committed && !isShuttingDown(),
   )
   const swarmLead = watchSwarmLead(
-    () => sessionInitialized && !inputClosed && !isShuttingDown() && inFlightAbort === null,
+    () => live.sessionInitialized && !live.inputClosed && !isShuttingDown() && live.inFlightAbort === null,
     () => enqueueBoardWake('Read reference-only posts with CrewBoard.'),
     event => {
       if (party.paints(event) || messages.some(message => message.uuid === event.eventId)) return
       void recordHostNoticeRows([{ value: crewBoardNotice(event.authorName ?? event.author.agentId, event.kind, event.text), mode: 'task-notification', uuid: event.eventId as UUID, sentAt: event.createdAt }])
     },
   )
-  const idleNudge = startIdleNudge({
-    recipient: agentId => {
-      if (agentId !== MAIN_THREAD_AGENT) return agentRecipientState(getAppState().tasks, agentId)
-      if (isShuttingDown()) return { state: 'gone', why: 'the session is shutting down' }
-      if (inputClosed) return { state: 'gone', why: "the session's input closed" }
-      if (sessionLaneWall().closed) return { state: 'busy' }
-      return !sessionInitialized || driver.isRunning() ? { state: 'busy' } : { state: 'idle' }
-    },
-    wake: (agentId, notices) => {
-      const waitedMs = Date.now() - Math.min(...notices.map(notice => notice.deliveredAtMs))
-      if (agentId === MAIN_THREAD_AGENT) {
-        enqueue({ value: nudgeWords(notices, waitedMs), mode: 'prompt', priority: 'later', isMeta: true, uuid: randomUUID() })
-        driver.endOperatorWait()
-        return true
-      }
-      return false
-    },
-    discard: notices => {
-      const carriers = carriersOf(notices)
-      if (carriers.length > 0) retireQueuedCommands(carriers)
-    },
-  })
+  const idleNudge = printDriver.startRunnerIdleNudge(ports)
 
-  let signalCode: number | null = null
   const settleOnSignal = async (code: number, cut?: string): Promise<void> => {
-    signalCode = code
-    const running = inFlightAbort !== null
-    inFlightAbort?.abort(cut)
+    live.signalCode = code
+    const running = live.inFlightAbort !== null
+    live.inFlightAbort?.abort(cut)
     if (running) {
-      const deadline = new Promise<void>(resolve => setTimeout(resolve, SIGNAL_SETTLE_MS).unref?.())
+      const deadline = sleep(SIGNAL_SETTLE_MS, undefined, { unref: true })
       await Promise.race([outcomeAfterAbort(), deadline])
     }
     void gracefulShutdown(code)
   }
   const outcomeAfterAbort = async (): Promise<void> => {
-    while (driver.isRunning()) await new Promise(resolve => setTimeout(resolve, 20))
-    await lastOutcomeWritten
+    while (driver.isRunning()) await sleep(20)
+    await live.lastOutcomeWritten
   }
   const hostCutWords = (): string | undefined => {
     if (!isConcourseWorker) return undefined
@@ -1850,7 +1155,7 @@ export async function runHeadless(
   let buildBehindCheckedAt = 0
   let buildBehindConfirm: ReturnType<typeof setTimeout> | null = null
   const checkBuildBehind = async (now = false): Promise<void> => {
-    if (!isConcourseWorker || awaitingSessionClaim || inputClosed || inFlightAbort !== null) return
+    if (!isConcourseWorker || live.awaitingSessionClaim || live.inputClosed || live.inFlightAbort !== null) return
     if (!now && Date.now() - buildBehindCheckedAt < BUILD_BEHIND_THROTTLE_MS) return
     buildBehindCheckedAt = Date.now()
     const ownTree = runningBuildTree()
@@ -1873,7 +1178,7 @@ export async function runHeadless(
       }
       return
     }
-    if (inFlightAbort !== null || inputClosed) return
+    if (live.inFlightAbort !== null || live.inputClosed) return
     buildBehindToldFor.add(installedTree)
     const ownTime = describeArtifactIdentity('', process.argv[1] ?? null).buildTime
     const installedTime = describeArtifactIdentity('', installed.script).buildTime
@@ -1918,30 +1223,7 @@ export async function runHeadless(
     })
   })
 
-  if (streamingInput) {
-    const deliverLocalWake = (prompt: string, facts: LocalWakeFacts | undefined, firedAt: string, heldSince: string | undefined): void => {
-      if (inputClosed) return
-      const nowMs = Date.now()
-      const next = localWakeStep(sessionLaneWall(nowMs), nowMs, firedAt, heldSince, facts)
-      if (next.step === 'wait') {
-        const recheck = setTimeout(() => deliverLocalWake(prompt, facts, firedAt, next.heldSince), next.delayMs)
-        recheck.unref?.()
-        return
-      }
-      enqueue({
-        value: prompt,
-        mode: 'prompt',
-        uuid: randomUUID(),
-        priority: 'later',
-        skipSlashCommands: true,
-        ...saturnQueueStamp(next.origin),
-      })
-      driver.kick()
-    }
-    registerLocalWakeSink((prompt: string, facts?: LocalWakeFacts) => {
-      deliverLocalWake(prompt, facts, new Date().toISOString(), undefined)
-    })
-  }
+  inputDoor.armLocalWake(ports)
 
 
   const modelInfos = buildModelCatalogue()
@@ -2006,7 +1288,7 @@ export async function runHeadless(
   const liveMcp = watchLiveMcpConfig({
     hosted: isConcourseWorker,
     initial: Object.fromEntries(getAppState().mcp.clients.filter(client => ['user', 'local', 'project', 'enterprise'].includes(client.config.scope) || client.config.extensionSource !== undefined).map(client => [client.name, client.config])),
-    ready: () => !awaitingSessionClaim && mcpInitialized,
+    ready: () => !live.awaitingSessionClaim && live.mcpInitialized,
     approve: async (name, config) => {
       const written = mcpConfigAsWritten(config)
       const target = written.url ?? written.command
@@ -2043,758 +1325,17 @@ export async function runHeadless(
     for (const flow of mcpSignIns.values()) flow.controller.abort()
   })
 
-  const SEAT_VERB_AT = (held: boolean): 'now' | 'turn_end' => (held ? 'turn_end' : 'now')
-  const acceptInput = async (
-    input:
-      | { kind: 'prompt'; content: string | ContentBlockParam[]; schema?: Record<string, unknown>; id?: string; priority?: 'now' | 'next' | 'later'; sentAt?: string; origin?: unknown }
-      | { kind: 'shell'; command: string; id?: string; priority?: 'now' | 'next' | 'later'; sentAt?: string; origin?: unknown }
-      | { kind: 'note'; to: string; content: string; id?: string }
-      | { kind: 'outside-report'; sender: string; content: string; id?: string },
-  ): Promise<{ accepted: true } | { accepted: false; reason: 'duplicate' }> => {
-    await options.initializeMcp?.()
-    sessionInitialized = true
-    const missionSync = await import('../guards/mission.js')
-    missionSync.syncMissionFromCard(String(getSessionId()))
-    const uuid = input.id
-    if (uuid) {
-      const historical = await doesMessageExistInSession(
-        getSessionId(),
-        uuid as UUID,
-      ).catch(() => false)
-      const runtime = receivedUuids.has(uuid)
-      if (historical || runtime) {
-        if (historical && !runtime) {
-          notifyCommandLifecycle(uuid, 'completed')
-        }
-        return { accepted: false, reason: 'duplicate' }
-      }
-      receivedUuids.add(uuid)
-    }
-    if (input.kind === 'outside-report') {
-      enqueue({
-        value: input.content,
-        mode: 'task-notification',
-        origin: { kind: 'outside-report', sender: input.sender, via: 'mcp-server' },
-        priority: 'next',
-        ridesNextWords: true,
-        skipSlashCommands: true,
-        ...(uuid !== undefined ? { uuid: uuid as UUID } : {}),
-      })
-      return { accepted: true }
-    }
-    if (input.kind === 'note') {
-      operatorPauseGate.lift(input.to)
-      enqueue({
-        value: input.content,
-        mode: 'task-notification',
-        agentId: input.to as never,
-        origin: { kind: 'human' },
-        priority: 'next',
-        ...(uuid !== undefined ? { uuid: uuid as UUID } : {}),
-      })
-      return { accepted: true }
-    }
-    const sentAt = typeof input.sentAt === 'string' && Number.isFinite(Date.parse(input.sentAt)) ? input.sentAt : new Date().toISOString()
-    const operatorWords = input.kind === 'prompt' && !('origin' in saturnQueueStamp(input.origin))
-    if (operatorWords) operatorPauseGate.resume()
-    if (operatorWords && !('origin' in screenCommandQueueStamp(input.origin))) missionSync.resumeMissionOnOperatorInput(String(getSessionId()))
-    const missionWords = input.kind === 'prompt' ? missionLineOf(input.content, missionSync.MISSION_CONDITION_MAX_LENGTH) : null
-    if (missionWords !== null && missionSync.isMissionClearKeyword(missionWords)) {
-      missionSync.clearActiveMission(String(getSessionId()))
-      if (uuid !== undefined) notifyCommandLifecycle(uuid, 'completed')
-      return { accepted: true }
-    }
-    const missionSet = missionWords !== null && missionWords !== ''
-    const command: QueuedCommand = {
-      value: missionSet ? missionSync.setActiveMission(missionWords, { sessionId: String(getSessionId()) }) : input.kind === 'shell' ? input.command : input.content,
-      mode: input.kind === 'shell' ? 'bash' : 'prompt',
-      sentAt,
-      ...(uuid !== undefined ? { uuid: uuid as UUID } : {}),
-      ...(input.priority !== undefined ? { priority: input.priority } : {}),
-      ...(input.kind === 'prompt' && input.schema !== undefined ? { schema: input.schema } : {}),
-      ...saturnQueueStamp(input.origin),
-      ...screenCommandQueueStamp(input.origin),
-      ...(missionSet ? { isMeta: true } : {}),
-    }
-    if (localCommandInput(command)) command.localCommand = true
-    enqueue(command)
-    if (input.kind === 'prompt' && command.localCommand !== true && input.priority !== 'later' && !('origin' in saturnQueueStamp(input.origin)) && driver.isRunning() && !queuedWordsWaitForTurnEnd()) {
-      handOverForegroundAgentsToQueuedMessage(getAppState, setAppState)
-    }
-    driver.kick()
-    return { accepted: true }
-  }
-  const promptContentOf = (content: Extract<ParamsOf<'queue/add'>, { type: 'prompt' }>['content']): string | ContentBlockParam[] => {
-    if (typeof content === 'string') return content
-    return (content as Array<{ type: string; text?: string; media_type?: string; data?: string }>).map(block =>
-      block.type === 'image'
-        ? ({ type: 'image', source: { type: 'base64', media_type: block.media_type, data: block.data } } as unknown as ContentBlockParam)
-        : ({ type: 'text', text: block.text ?? '' } as ContentBlockParam),
-    )
-  }
+  const acceptInput = (input: inputDoor.AcceptedInput): Promise<inputDoor.InputVerdict> => inputDoor.acceptInput(input, ports)
 
-  const acceptInputRow = async (row: InputRow): Promise<{ accepted: true } | { accepted: false; reason: 'duplicate' }> => {
-    const empty = emptyInputRow(row)
-    if (empty !== null) throw invalidParams('queue/add', [{ path: [row.type === 'shell' ? 'command' : 'content'], message: empty }])
-    const schemaRefusal = promptSchemaRefusal(row)
-    if (schemaRefusal !== null) throw invalidParams('queue/add', [{ path: ['schema'], message: schemaRefusal }])
-    if (row.type === 'outside-report') return acceptInput({ kind: 'outside-report', sender: row.sender, content: row.content, ...(row.id !== undefined ? { id: row.id } : {}) })
-    if (row.type === 'note') return acceptInput({ kind: 'note', to: row.to, content: row.content, ...(row.id !== undefined ? { id: row.id } : {}) })
-    const stamp = {
-      ...(row.id !== undefined ? { id: row.id } : {}),
-      ...(row.priority !== undefined ? { priority: row.priority } : {}),
-      ...(row.sent_at !== undefined ? { sentAt: row.sent_at } : {}),
-      ...(row.origin !== undefined ? { origin: row.origin } : {}),
-    }
-    if (row.type === 'shell') return acceptInput({ kind: 'shell', command: row.command, ...stamp })
-    return acceptInput({ kind: 'prompt', content: promptContentOf(row.content), ...(row.schema !== undefined ? { schema: row.schema } : {}), ...stamp })
-  }
+  const acceptInputRow = (row: InputRow): Promise<inputDoor.InputVerdict> => inputDoor.acceptInputRow(row, ports)
 
-  const arms: RunnerArms = {
-    'project/query': async params => {
-      const { projectQuery } = await import('./headless/projectQuery.js')
-      return projectQuery(params, getAppState().toolPermissionContext)
-    },
-    'turn/interrupt': params => {
-      if (params.op_id !== undefined && interruptOutcomes.has(params.op_id)) return { interrupted: interruptOutcomes.get(params.op_id)! }
-      if (params.turn_id !== undefined && currentTurnId !== null && params.turn_id !== currentTurnId) return { interrupted: false }
-      const interrupted = inFlightAbort !== null || leaveAbort !== null
-      if (params.op_id !== undefined) {
-        interruptOutcomes.set(params.op_id, interrupted)
-        if (interruptOutcomes.size > INTERRUPT_DEDUPE_CAP) interruptOutcomes.delete(interruptOutcomes.keys().next().value!)
-      }
-      inFlightAbort?.abort()
-      leaveAbort?.abort(new Error('the handoff was skipped by ctrl-c'))
-      driver.releaseHold()
-      if (params.hard === true) {
-        for (const task of Object.values(getAppState().tasks)) {
-          if (isLocalShellTask(task) && task.status === 'running') void killTask(task.id, setAppState)
-        }
-      }
-      return { interrupted }
-    },
-    'queue/add': params => acceptInputRow(params),
-    'queue/withdraw': params => {
-      const popped = popById(params.id)
-      return popped.popped ? { withdrawn: true, text: popped.text } : { withdrawn: false, reason: popped.reason }
-    },
-    'session/set_mode': params => {
-      const resolved = resolvePermissionModeTransition(params.mode as WirePermissionMode, getAppState().toolPermissionContext)
-      if (!resolved.ok) throw refused(resolved.error, 'mode')
-      const nextContext = resolved.context
-      setAppState(previous => ({ ...previous, toolPermissionContext: nextContext }))
-      const modeReminder = markSessionPermissionMode(nextContext.mode)
-      if (modeReminder !== null) {
-        void import('../utils/messageQueueManager.js').then(({ enqueuePendingNotification }) => {
-          enqueuePendingNotification({ value: wrapInSystemReminder(modeReminder), mode: 'task-notification', priority: 'next', ridesNextWords: true })
-        })
-      }
-      void asks.recheckPendingPermissionRequests()
-      return { mode: params.mode }
-    },
-    'session/set_model': async (params, ref) => {
-      const requested = params.model
-      let resolved: string
-      try {
-        resolved = await resolveHeadlessModel(requested === undefined || requested === 'default'
-          ? (getDefaultEngineModelSetting() ?? getEngineModel())
-          : requested)
-      } catch (error) {
-        throw refused(errorMessage(error), 'model')
-      }
-      const words = typeof params.words === 'string' && params.words.trim() !== '' ? params.words.trim() : undefined
-      if (inFlightAbort !== null) {
-        heldSeatModel = { requestId: ref.id, model: String(resolved), ...(words === undefined ? {} : { words }) }
-        holdQueuedWordsForTurnEnd(true)
-        return { model: String(resolved), at: SEAT_VERB_AT(true) }
-      }
-      await applySeatModel(String(resolved), words)
-      return { model: String(resolved), at: SEAT_VERB_AT(false) }
-    },
-    'session/claim': async params => {
-      if (!awaitingSessionClaim || claimSettling !== null) throw refused('claim refused — this runner already carries a session identity', 'claim')
-      const sid = String(params.session_id ?? '')
-      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sid)) {
-        throw refused(`claim refused — session_id must be a UUID (got ${JSON.stringify(sid)})`, 'claim')
-      }
-      const claimedMode = typeof params.mode === 'string' && params.mode !== '' ? params.mode : undefined
-      const claimedEffort = typeof params.effort === 'string' && params.effort !== '' ? params.effort : undefined
-      const claimedTitle = typeof params.title === 'string' && params.title.trim() !== '' ? params.title.trim() : undefined
-      let claimedContext: AppState['toolPermissionContext'] | undefined
-      if (claimedMode !== undefined) {
-        const transition = resolvePermissionModeTransition(
-          claimedMode as WirePermissionMode,
-          getAppState().toolPermissionContext,
-          'claim',
-        )
-        if (!transition.ok) throw refused(`claim refused — ${transition.error}`, 'claim')
-        claimedContext = transition.context
-      }
-      if (claimedEffort !== undefined && !isEffortLevel(claimedEffort)) {
-        throw refused(`claim refused — effort '${claimedEffort}' is not on the shared ladder`, 'claim')
-      }
-      dropCredentialMemos()
-      if (params.openai_catalogue !== undefined) {
-        primeOpenaiCatalogue(openaiCatalogueFromWire(params.openai_catalogue) as Parameters<typeof primeOpenaiCatalogue>[0])
-      }
-      let claimedModel: string | undefined
-      if (typeof params.model === 'string' && params.model !== '') {
-        try { claimedModel = await resolveHeadlessModel(params.model) }
-        catch (error) { throw refused(errorMessage(error), 'claim') }
-      }
-      const claimedHome = consumeSessionHomePin()
-      const pinnedFile = claimedHome !== null ? join(claimedHome, `${sid}.jsonl`) : undefined
-      const resumeFile = pinnedFile !== undefined && existsSync(pinnedFile) ? pinnedFile : undefined
-      if (params.resume === true && resumeFile === undefined && !existsSync(sessionFilePath(sid as UUID))) {
-        if (claimedHome !== null) setFlagEnv('MERCURY_SESSION_HOME', claimedHome)
-        throw refused(`claim refused — no conversation found for session ${sid}`, 'claim')
-      }
-      if (!isSessionPersistenceDisabled()) {
-        try { await claimSessionWriter(pinnedFile ?? sessionFilePath(sid as UUID)) }
-        catch (error) { throw refused(errorMessage(error), 'claim') }
-      }
-      if (typeof params.restart_reason === 'string') runnerRestartReason = params.restart_reason
-      const boundAt = Date.now()
-      const releaseSessionVerbs = peer?.holdScope('session') ?? null
-      logForDebugging(`[session-runner] claim bound: session ${sid}${claimedModel !== undefined ? ` on ${claimedModel}` : ''}${params.resume === true ? ' — loading the conversation' : ''}`)
-      const settling = (async (): Promise<void> => {
-        const endAsColdRunnerWould = (message: string): void => {
-          emitLoadError(message, wire ? 'text' : options.outputFormat)
-          gracefulShutdownSync(1)
-        }
-        let recordedModelRefusal: string | null = null
-        try {
-          clearSystemPromptSections()
-          if (params.resume === true) {
-            let resumed: Awaited<ReturnType<typeof loadConversationForResume>> = null
-            try {
-              resumed = await loadConversationForResume(sid, resumeFile)
-            } catch (error) {
-              logError(error)
-            }
-            if (!resumed || resumed.messages.length === 0) {
-              endAsColdRunnerWould(`No conversation found for session id ${sid}`)
-              return
-            }
-            if (claimedModel === undefined) {
-              const recorded = restoreConversationModel(resumed)
-              if (recorded) {
-                try { claimedModel = await resolveHeadlessModel(recorded) }
-                catch (error) {
-                  if (recorded.toLowerCase().startsWith('compat/')) {
-                    claimedModel = parseUserSpecifiedModel(recorded)
-                    recordedModelRefusal = bootModelRefusalLine(claimedModel, errorMessage(error))
-                  } else {
-                    enqueueRow(noticeRow(liveScope(), 'warning', `The resumed session's model '${recorded}' is not usable (${errorMessage(error)}) — this run uses ${getEngineModel()} instead.`))
-                  }
-                }
-              }
-            }
-            switchSession(sid as SessionId, resumed.fullPath ? dirname(resumed.fullPath) : claimedHome)
-            resumeOf = String(resumed.sessionId ?? sid)
-            if (!isSessionPersistenceDisabled()) await resetSessionFilePointer()
-            await restoreSessionStateFromLog(resumed, setAppState)
-            restoreSessionMetadata(resumed)
-            settleSessionBriefs(resumed, true)
-            messages.splice(0, messages.length, ...resumed.messages)
-            turnsRun = priorTurnCount(messages)
-            contentReplacementState = reconstructContentReplacementState(messages, resumed.contentReplacements ?? [])
-          } else {
-            switchSession(sid as SessionId, claimedHome)
-            settleSessionBriefs({}, true)
-          }
-          if (claimedModel !== undefined) {
-            activeModel = claimedModel
-            setEngineModelOverride(claimedModel)
-            saveSessionModel(activeModel)
-            setFlagEnv('MERCURY_MODEL', claimedModel)
-          }
-          if (claimedEffort !== undefined) {
-            setFlagEnv('MERCURY_EFFORT_LEVEL', claimedEffort)
-            setAppState(previous => ({ ...previous, effortValue: claimedEffort }))
-          }
-          if (claimedContext !== undefined) {
-            const nextContext = claimedContext
-            setAppState(previous => ({ ...previous, toolPermissionContext: nextContext }))
-            markSessionPermissionModeAtClaim(nextContext.mode)
-          }
-          await armSessionRunnerWiring(sid)
-          if (params.resume === true) await hydrateResumedRun()
-          void (options.initializeMcp?.() ?? Promise.resolve()).then(() => {
-            mcpInitialized = true
-            return liveMcp.refresh()
-          }).catch(logError)
-          awaitingSessionClaim = false
-          if (claimedTitle !== undefined && !isSessionPersistenceDisabled()) {
-            const { saveCustomTitle } = await import('../utils/sessionStorage/logs.js')
-            await saveCustomTitle(sid as UUID, claimedTitle)
-          }
-          if (recordedModelRefusal !== null) {
-            bootRefusalFact = recordedModelRefusal
-            await persistBootModelRefusal(recordedModelRefusal)
-          }
-          settleClearBirth()
-          sessionFactsHoldSpent = false
-          sessionFactsHold = null
-          releaseQueueUntilClaimed?.()
-          logForDebugging(`[session-runner] claimed: session ${sid}${claimedModel !== undefined ? ` on ${claimedModel}` : ''} — ready ${Date.now() - boundAt}ms after the claim`)
-          if (heldNoticeWaits()) driver.kick()
-        } catch (error) {
-          logError(error)
-          endAsColdRunnerWould(`Failed to resume session: ${errorMessage(error)}`)
-        } finally {
-          releaseSessionVerbs?.()
-        }
-      })()
-      claimSettling = settling
-      void settling.finally(() => {
-        if (claimSettling === settling) claimSettling = null
-      })
-      return { session_id: sid }
-    },
-    'session/set_effort': (params, ref) => {
-      const requestedEffort = String(params.effort ?? '')
-      if (!isEffortLevel(requestedEffort)) throw refused(`effort refused ('${requestedEffort}' is not on the shared ladder)`, 'effort')
-      if (inFlightAbort !== null) {
-        heldSeatEffort = { requestId: ref.id, effort: requestedEffort }
-        holdQueuedWordsForTurnEnd(true)
-        return { effort: requestedEffort, at: SEAT_VERB_AT(true) }
-      }
-      applySeatEffort(requestedEffort)
-      return { effort: requestedEffort, at: SEAT_VERB_AT(false) }
-    },
-    'session/facts': async () => {
-      if (claimSettling !== null) await claimSettling
-      void checkBuildBehind()
-      if (!sessionFactsHoldSpent) {
-        sessionFactsHoldSpent = true
-        const holdMs = Number.parseInt(flagEnv('MERCURY_SESSION_FACTS_HOLD_MS') ?? '', 10)
-        if (Number.isFinite(holdMs) && holdMs > 0) sessionFactsHold = new Promise(resolve => setTimeout(resolve, holdMs))
-      }
-      if (sessionFactsHold !== null) await sessionFactsHold
-      const state = getAppState()
-      const anthropicWindow = anthropicWindowFact()
-      const anthropicObserved = anthropicObservedUsage()
-      const openaiWindow = openaiWindowFact()
-      const geminiWindow = laneWindowFact('gemini')
-      const openrouterWindow = laneWindowFact('openrouter')
-      const huggingfaceWindow = laneWindowFact('huggingface')
-      const openaiCatalogue = openaiCatalogueFact()
-      const factsNow = Date.now()
-      const answer: SessionFactsAnswerV1 = {
-        model: {
-          effective: activeModel ?? getEngineModel(),
-          setting: getEngineModelOverride() ?? null,
-        },
-        ...(bootRefusalFact !== null ? { bootRefusal: bootRefusalFact } : {}),
-        usage: {
-          totalCostUSD: getTotalCostUSD(),
-          totalAPIDurationMs: getTotalAPIDuration(),
-          totalDurationMs: getTotalDuration(),
-          totalLinesAdded: getTotalLinesAdded(),
-          totalLinesRemoved: getTotalLinesRemoved(),
-          totalInputTokens: getTotalInputTokens(),
-          totalOutputTokens: getTotalOutputTokens(),
-          totalCacheReadInputTokens: getTotalCacheReadInputTokens(),
-          totalCacheCreationInputTokens: getTotalCacheCreationInputTokens(),
-          hasUnknownModelCost: hasUnknownModelCost(),
-          unpricedTurns: getTotalUnpricedTurns(),
-          modelSpend: sessionModelSpendRows(),
-          context: { model: activeModel ?? getEngineModel(), ...contextFillView(turnMessages?.() ?? messages, activeModel ?? getEngineModel()) },
-          limitWarning: providerLimitWarning({ model: activeModel ?? getEngineModel() }),
-          ...(() => {
-            const observed = openaiObservedUsage()
-            return observed.primary || observed.secondary ? { openaiObserved: observed } : {}
-          })(),
-          ...(anthropicWindow !== undefined ? { anthropicWindow } : {}),
-          ...(anthropicObserved !== undefined ? { anthropicObserved } : {}),
-          ...(openaiWindow !== undefined ? { openaiWindow } : {}),
-          ...(geminiWindow !== undefined ? { geminiWindow } : {}),
-          ...(openrouterWindow !== undefined ? { openrouterWindow } : {}),
-          ...(huggingfaceWindow !== undefined ? { huggingfaceWindow } : {}),
-          jev: jevFactsOf(jevLedgerSnapshot(factsNow), jevStatus(undefined, factsNow)),
-        },
-        identity: {
-          firstPartyApi: is1PApiCustomer(),
-          consoleBilling: hasConsoleBillingAccess(),
-          claudeAiBilling: hasClaudeAiBillingAccess(),
-          accountEmail: anthropicSignInEmail() ?? null,
-        },
-        skills: skillsRosterOf(activeCommands, offSkillNamesOf(sessionKitOf(), activeCommands.map(c => c.name))),
-        mcp: mcpRosterEntriesOf(state.mcp.clients, []).map(row => ({
-          ...row,
-          toolCount: state.mcp.tools.filter(tool => tool.mcpInfo?.serverName === row.name).length,
-          ...(liveMcp.addedAt.has(row.name) ? { addedAt: liveMcp.addedAt.get(row.name) } : {}),
-          ...(mcpSignIns.has(row.name) ? { signingIn: true, authorizationUrl: mcpSignIns.get(row.name)?.authorizationUrl } : {}),
-        })),
-        permissionMode: state.toolPermissionContext.mode,
-        ...((): { effortSent?: string | null } => {
-          const sent = effortSentOf(resolveEffortTruth(activeModel ?? getEngineModel(), state.effortValue))
-          return sent === undefined ? {} : { effortSent: sent }
-        })(),
-        spawnSwitches: spawnSwitchFacts(),
-        box: boxReading(),
-        ...(openaiCatalogue !== undefined ? { openaiCatalogue } : {}),
-        workspace: {
-          cwd: getCwd(),
-          originalCwd: getOriginalCwd(),
-          projectRoot: getProjectRoot(),
-        },
-        recoveredCommandIds,
-        queue: getCommandQueue().filter(command => command.agentId === undefined).map(command => ({
-          ...(command.uuid !== undefined ? { uuid: String(command.uuid) } : {}),
-          value:
-            typeof command.value === 'string'
-              ? command.value
-              : Array.isArray(command.value)
-                ? command.value
-                    .map(block => ((block as { type?: string; text?: string }).type === 'text' ? ((block as { text?: string }).text ?? '') : ''))
-                    .join('')
-                : '',
-          mode: command.mode,
-          ...(command.origin !== undefined ? { origin: command.origin } : {}),
-          ...(command.priority !== undefined ? { priority: command.priority } : {}),
-          ...(command.isMeta === true ? { isMeta: true as const } : {}),
-        })),
-        work: projectWorkRoster(state.tasks),
-        pauseGate: { paused: operatorPauseGate.paused(), parked: operatorPauseGate.parked().length },
-        advisor: advisorFacts(),
-        ...(swarmSessionEnabled() ? { swarm: swarmView() } : {}),
-        editOutcomes: editOutcomeRows(processMainOwner()),
-        notices: noticeRows(),
-        mission: (await listSessionMission().catch((): Awaited<ReturnType<typeof listSessionMission>> => [])).map(task => ({
-          id: task.id,
-          subject: task.subject.slice(0, 120),
-          ...(task.activeForm !== undefined ? { activeForm: task.activeForm.slice(0, 120) } : {}),
-          status: task.status,
-          ...(task.blocks.length > 0 ? { blocks: task.blocks } : {}),
-          ...(task.blockedBy.length > 0 ? { blockedBy: task.blockedBy } : {}),
-          ...(missionLedgerOf(task.metadata) !== undefined ? { ledger: missionLedgerOf(task.metadata) } : {}),
-        })),
-        samples: await sampleRowsOf(getSessionId()),
-        ...((): { missionCard?: SessionFactsAnswerV1['missionCard'] } => {
-          const card = missionGuard.missionCardView(String(getSessionId()))
-          return card === null ? {} : { missionCard: card }
-        })(),
-        ...(sessionKitOf() !== undefined ? { kit: sessionKitOf() } : {}),
-        ...((): Record<string, unknown> => {
-          const edits = takePendingScheduleEdits()
-          return edits.length > 0 ? { pendingScheduleEdits: edits } : {}
-        })(),
-        streamIdleTimeoutMs: streamIdleTimeoutMsForRoute(providerFamilyOfSetting(activeModel ?? getEngineModel())),
-        buildTree: runningBuildTree(),
-        ...(transcriptStoreHealth().failing ? { transcriptStoreFailing: transcriptStoreHealth().sentence ?? '' } : {}),
-        fileCheckpoints: {
-          ...fileCheckpointsFact(),
-          restorable: state.fileHistory.snapshots.map(snapshot => String(snapshot.messageId)),
-          files: [...state.fileHistory.trackedFiles].sort(),
-          ...(state.fileHistory.rewindUndo === undefined ? {} : { undo: state.fileHistory.rewindUndo.messageId }),
-        },
-      }
-      markScheduleSeatObserved()
-      return sessionFactsToWire(answer) as Record<string, unknown>
-    },
-    'schedule/roster': params => {
-      const rows = Array.isArray(params.schedules)
-        ? (params.schedules as unknown[]).flatMap(raw => {
-            if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return []
-            const r = raw as Record<string, unknown>
-            if (typeof r.id !== 'string' || typeof r.when !== 'string') return []
-            const kind: 'fire' | 'birth' | null = r.kind === 'fire' ? 'fire' : r.kind === 'birth' ? 'birth' : null
-            if (kind === null) return []
-            return [
-              {
-                id: r.id,
-                when: r.when,
-                nextFireMs: typeof r.next_fire_ms === 'number' ? r.next_fire_ms : null,
-                kind,
-                ...(r.paused === true ? { paused: true as const } : {}),
-                ...(typeof r.title === 'string' && r.title !== '' ? { title: r.title } : {}),
-              },
-            ]
-          })
-        : []
-      latchSessionScheduleRoster(rows)
-      return {}
-    },
-    'session/rewind': async params => {
-      const outcome = await handleRewindSession(params, {
-        messages,
-        getAppState,
-        setAppState,
-        drift: getReadFileCache(),
-        turnActive: inFlightAbort !== null,
-      })
-      return rewindOutcomeToWire(outcome) as Record<string, unknown>
-    },
-    'session/file_restore': async params => {
-      const outcome = await handleFileRestoreSession(params, { messages, getAppState, setAppState, drift: getReadFileCache(), turnActive: inFlightAbort !== null })
-      return rewindOutcomeToWire(outcome) as Record<string, unknown>
-    },
-    'session/set_spawn_switch': (params, ref) => {
-      if (params.switch === 'workflows') return { switch: params.switch, on: params.on, at: SEAT_VERB_AT(false) }
-      const toggle = { kind: params.switch, on: params.on }
-      if (inFlightAbort !== null) {
-        deferredSpawnSwitches = [...deferredSpawnSwitches.filter(d => d.kind !== toggle.kind), { ...toggle, requestId: ref.id }]
-        holdQueuedWordsForTurnEnd(true)
-        return { switch: toggle.kind, on: toggle.on, at: SEAT_VERB_AT(true) }
-      }
-      landSpawnSwitch(toggle.kind, toggle.on)
-      return { switch: toggle.kind, on: toggle.on, at: SEAT_VERB_AT(false) }
-    },
-    'credentials/changed': () => {
-      readGlobalConfigAgain()
-      resetLimitsForCredentialSwitch()
-      dropCredentialMemos()
-      readOpenaiAccountAgain()
-      noteCrewAccountChange()
-    },
-    'mcp/action': async (params, _ref, signal) => {
-      const { name, action } = params
-      if (action === 'cancel-auth') {
-        mcpSignIns.get(name)?.controller.abort()
-        return { outcome: 'applied' as const }
-      }
-      const config = await permittedMcpConfig(name)
-      if (!config || !isMcpCatalogueMember(name)) return { outcome: 'refused' as const, detail: 'the server is off, unapproved, denied by policy, or no longer configured' }
-      if (action === 'authenticate' && config.type !== 'http' && config.type !== 'sse') return { outcome: 'refused' as const, detail: 'this server does not use browser sign-in' }
-      if (mcpSignIns.has(name)) return { outcome: 'refused' as const, detail: 'sign-in is already in progress' }
-      const controller = new AbortController()
-      const cancel = (): void => controller.abort(signal.reason)
-      signal.addEventListener('abort', cancel, { once: true })
-      try {
-        if (action === 'authenticate') {
-          const flow: { controller: AbortController; authorizationUrl?: string } = { controller }
-          mcpSignIns.set(name, flow)
-          enqueueRow(noticeRow(liveScope(), 'warning', `Signing in to ${name} (browser)`))
-          await performMCPOAuthFlow(name, config, url => {
-            flow.authorizationUrl = url
-            enqueueRow(noticeRow(liveScope(), 'warning', `Sign-in ready for ${name} (browser)`))
-          }, controller.signal)
-        }
-        const stillAllowed = await permittedMcpConfig(name)
-        if (controller.signal.aborted || !stillAllowed || JSON.stringify(stillAllowed) !== JSON.stringify(config) || !isMcpCatalogueMember(name)) return { outcome: 'refused' as const, detail: 'the server configuration or permission changed during sign-in' }
-        const client = await serializeMcpChange(() => reconnectLiveMcp(name, config))
-        return client.type === 'connected'
-          ? { outcome: 'applied' as const, detail: `${name} connected` }
-          : { outcome: 'refused' as const, detail: client.type === 'failed' ? client.error ?? 'connection failed' : `${name} needs sign-in` }
-      } catch (error) {
-        return { outcome: 'refused' as const, detail: errorMessage(error) }
-      } finally {
-        signal.removeEventListener('abort', cancel)
-        mcpSignIns.delete(name)
-      }
-    },
-    'mcp/tools': async params => {
-      const { name } = params
-      const state = getAppState()
-      const client = state.mcp.clients.find(entry => entry.name === name)
-      if (client?.type !== 'connected') return mcpToolsUnlistedAnswer(name, client)
-      const model = activeModel ?? getEngineModel()
-      const held = new Set(heldToolsAtLastPlan(String(processMainOwner()), messages))
-      const tools = await Promise.all(
-        filterToolsByServer(state.mcp.tools, name).map(async tool => {
-          const carded = await tool
-            .description(
-              {},
-              {
-                isNonInteractiveSession: true,
-                toolPermissionContext: getEmptyToolPermissionContext(),
-                tools: [],
-              },
-            )
-            .catch(() => '')
-          return {
-            name: tool.mcpInfo?.toolName ?? tool.name,
-            registeredAs: tool.name,
-            description: withoutMcpToolCardHeader(name, carded, { openWorldHint: tool.isOpenWorld?.() === true }).trim(),
-            inputSchema: (tool.inputJSONSchema as Record<string, unknown> | undefined) ?? {},
-            loading: held.has(tool.name)
-              ? ('held' as const)
-              : isDeferredToolFor(tool, model, state.toolPermissionContext.mode, messages)
-                ? ('deferred' as const)
-                : ('listed' as const),
-          }
-        }),
-      )
-      return mcpToolsAnswerOf(name, tools)
-    },
-    'session/set_kit': params =>
-      serializeMcpChange(async () => {
-        const verdict = validateSessionKit(sessionKitFromWire(params.kit))
-        if (!verdict.ok) throw refused(`kit refused — ${verdict.reason}`, 'kit')
-        const before = sessionKitOf()
-        const set = setProcessSessionKit(verdict.kit)
-        if (!set.ok) throw refused(`kit refused — ${set.reason}`, 'kit')
-        const rows = getAppState().mcp.clients
-        const delta = kitEditMcpDelta(
-          before,
-          set.kit,
-          kitDialCandidates(before, set.kit, rows.map(row => row.name)),
-        )
-        const connected: string[] = []
-        const disconnected: string[] = []
-        const errors: Record<string, string> = Object.create(null) as Record<string, string>
-        for (const name of delta.disconnect) {
-          const config =
-            rows.find(row => row.name === name)?.config ?? resolveServerConfigFromAllSources(name)
-          if (!config) continue
-          const existing = getAppState().mcp.clients.find(row => row.name === name)
-          if (existing?.type === 'connected') {
-            await clearServerCache(name, config).catch(() => {})
-          }
-          elicitationRegistered.delete(name)
-          setAppState(previous => dropMcpServerFromAppState(previous, name, config))
-          disconnected.push(name)
-        }
-        for (const name of delta.connect) {
-          const config = await permittedMcpConfig(name)
-          if (!config) {
-            errors[name] = 'no configuration found for this server'
-            continue
-          }
-          try {
-            const client = await connectToServer(name, config)
-            await applyReconnectedClient(name, client)
-            if (client.type === 'connected') {
-              registerPerTurnHandlers([client])
-              connected.push(name)
-            } else if (client.type === 'failed') {
-              errors[name] = client.error ?? 'connection failed'
-            } else {
-              errors[name] = `server is ${client.type}`
-            }
-          } catch (error) {
-            errors[name] = errorMessage(error)
-          }
-        }
-        clearCommandMemoizationCaches()
-        activeCommands = await getCommands(getCwd())
-        pruneSkillSessionHooks(setAppState, getSessionId(), liveSkillRootsOf(activeCommands))
-        if (sessionKitOf()?.resolved === false) {
-          const { completeSessionKitFromRoster } = await import('../services/mcp/kitCompletion.js')
-          const { getActiveSet } = await import('../extensions/active.js')
-          completeProcessSessionKit(
-            completeSessionKitFromRoster(sessionKitOf()!, {
-              mcpNames: getAppState().mcp.clients.map(row => row.name),
-              commands: activeCommands,
-              extensions: getActiveSet().active.map(ext => ext.manifest.name),
-            }),
-          )
-        }
-        return { applied: true as const, connected, disconnected, errors }
-      }),
-    'session/pause_gate': params => {
-      const changed = params.paused ? operatorPauseGate.pause() : operatorPauseGate.resume()
-      return { paused: operatorPauseGate.paused(), parked: operatorPauseGate.parked().length, changed }
-    },
-    'shell/background': () => {
-      const taken = requestShellBackground()
-      if (taken > 0) return { taken }
-      throw refused('no shell command is running in the main conversation', 'no-shell')
-    },
-    'session/send_now': () => {
-      if (inFlightAbort === null) return SEND_NOW_NOTHING_QUEUED
-      return sendQueuedWordsNow(getAppState, setAppState)
-    },
-    'session/board_post': params => {
-      const receipt = swarmOwnerPost({ clientOpId: params.client_op_id, channel: params.channel, ...(params.target === undefined ? {} : { target: params.target }), text: params.text })
-      if (!receipt.ok) return { ok: false as const, reason: receipt.reason, ...(receipt.candidates ? { candidates: receipt.candidates } : {}) }
-      return { ok: true as const, event_id: receipt.eventId, seq: receipt.seq, replay: receipt.replay, address: receipt.channel.kind === 'general' ? 'all' : receipt.channel.target, recipients: receipt.recipients }
-    },
-    'agent/stop': async params => {
-      try {
-        const receipt = await stopAgentByOperator(params.agent_id, { getAppState, setAppState }, params.note === AGENT_INTERRUPT_BY_OPERATOR ? { reason: AGENT_INTERRUPT_BY_OPERATOR } : {})
-        if (receipt.outcome !== 'applied') throw refused(receipt.reason, 'agent')
-        return { receipt: 'applied', kind: receipt.kind, status: receipt.status }
-      } finally {
-        for (const row of drainRows()) enqueueRow(row)
-      }
-    },
-    'session/quiesce': async params => {
-      const answer = await quiescence.request({ subtype: 'quiesce', action: params.action, token: params.token })
-      if (!answer.ok) throw refused(answer.reason, 'quiesce')
-      if (answer.phase === 'committed') {
-        inputClosed = true
-        setRunInputClosed(true)
-        setTimeout(() => gracefulShutdownSync(0, 'closed'), 50)
-      }
-      return { token: answer.token, phase: answer.phase }
-    },
-    'session/leave': async (_params, _ref, signal) => {
-      if (inFlightAbort !== null || leaveAbort !== null) return { note: 'skipped', ledger: 'absent' }
-      const controller = new AbortController()
-      leaveAbort = controller
-      const onCancel = (): void => controller.abort(signal.reason)
-      signal.addEventListener('abort', onCancel, { once: true })
-      try {
-        const note = await leaveNoteBeforeExit({ budgetMs: HANDOFF_ASK_BUDGET_MS, signal: controller.signal, onNotice: text => io.outbound.enqueue(noticeRow(liveScope(), 'warning', text)) })
-        const closed = await closeLineageSession('quit')
-        const kept = note === 'stored' ? exitNoteCharsKept() : null
-        return { note, ledger: closed !== null && lineageKept() ? 'closed' : 'absent', ...(kept === null ? {} : { noteChars: kept }) }
-      } finally {
-        signal.removeEventListener('abort', onCancel)
-        if (leaveAbort === controller) leaveAbort = null
-      }
-    },
-    'agent/resume': async (params, _ref, signal) => {
-      const target = getAppState().tasks[params.agent_id]
-      if (target !== undefined && target.status === 'running') {
-        const note = params.note !== undefined ? params.note.trim() : ''
-        if (note === '' || !isLocalAgentTask(target)) throw refused('the crewmate is running — nothing to resume', 'agent')
-        queueOperatorMessage(params.agent_id, note, setAppState)
-        return { queued: true, agent_id: params.agent_id }
-      }
-      if (awaitingSessionClaim) throw refused('nothing to resume from yet — the session is still starting', 'nothing-to-resume')
-      const { resumeAgentBackground, operatorResumeWords } = await import('../tools/AgentTool/resumeAgent.js')
-      let standing = getLastCacheSafeParams()?.toolUseContext as ToolUseContext | undefined
-      if (standing === undefined) {
-        await options.initializeMcp?.()
-        standing = await relaunchContext()
-        if (signal.aborted) throw refused('nothing to resume from yet — the session is still starting', 'nothing-to-resume')
-      }
-      const { toolUseId: _staleToolUseId, ...lastContext } = standing
-      void _staleToolUseId
-      const resumed = await resumeAgentBackground({
-        agentId: params.agent_id,
-        prompt: params.note !== undefined && params.note.trim() !== '' ? params.note : AGENT_RESUME_NOTE,
-        replyTarget: params.note?.trim() ? 'operator' : 'parent',
-        toolUseContext: { ...lastContext, abortController: new AbortController() } as ToolUseContext,
-        canUseTool,
-      })
-      if (!params.note?.trim()) enqueueAgentReceiptRow({ taskId: resumed.agentId, description: resumed.description, summary: operatorResumeWords(resumed.description) + (resumed.note ?? '') })
-      return {
-        agent_id: resumed.agentId,
-        output_file: resumed.outputFile,
-        ...(resumed.cwdFallback !== undefined ? { cwd_fallback: resumed.cwdFallback } : {}),
-        ...(resumed.recordedCwd !== undefined ? { recorded_cwd: resumed.recordedCwd } : {}),
-        ...(resumed.note ? { note: resumed.note } : {}),
-      }
-    },
-  }
-
-  async function* claimGatedInput(
-    source: AsyncGenerator<InputRow, void, unknown>,
-  ): AsyncGenerator<InputRow, void, unknown> {
-    const parked: InputRow[] = []
-    for await (const row of source) {
-      if (awaitingSessionClaim) {
-        logForDebugging('[session-runner] an input row arrived before the claim — parked until the session identity lands')
-        parked.push(row)
-        continue
-      }
-      yield row
-      while (!awaitingSessionClaim && parked.length > 0) {
-        yield parked.shift()!
-      }
-    }
-  }
+  const claimGatedInput = (source: AsyncGenerator<InputRow, void, unknown>): AsyncGenerator<InputRow, void, unknown> => inputDoor.claimGatedInput(source, ports)
 
   const heldNoticeWaits = (): boolean =>
-    !sessionInitialized &&
+    !live.sessionInitialized &&
     isConcourseWorker &&
-    !awaitingSessionClaim &&
-    !inputClosed &&
+    !live.awaitingSessionClaim &&
+    !live.inputClosed &&
     !driver.isRunning() &&
     getCommandQueue().some(command => isMainThreadCommand(command) && (isHeldNotice(command) || isOperatorLine(command)))
   subscribeToCommandQueue(() => {
@@ -2813,7 +1354,7 @@ export async function runHeadless(
         await acceptInputRow(row)
       }
     } finally {
-      inputClosed = true
+      live.inputClosed = true
       setRunInputClosed(true)
       if (!driver.isRunning()) {
         await stopShellsForClose()
@@ -2822,79 +1363,10 @@ export async function runHeadless(
     }
   })()
 
-  const recordFlushFailure = (): Promise<string | null> => Promise.resolve(peekProject()?.flush()).then(() => null, (error: unknown) => errorMessage(error))
-  let unwrittenRecord: string | null = null
-  for await (const outboundMessage of io.outbound) {
-    if (isOutcome(outboundMessage as never)) {
-      unwrittenRecord = await recordFlushFailure()
-      if (unwrittenRecord !== null) {
-        const ended = outboundMessage as Unstamped<OutcomeRow>
-        const unwritten = { level: 'error' as const, text: unwrittenRecord }
-        const told: Unstamped<OutcomeRow> = { ...ended, notices: [...(ended.notices ?? []), unwritten] }
-        routeOutbound(noticeRow({ session_id: ended.session_id, turn: ended.turn }, unwritten.level, unwritten.text))
-        routeOutbound(told)
-        continue
-      }
-    }
-    routeOutbound(outboundMessage)
-  }
+  const unwrittenRecord = await pumpOutbound(ports)
   await stdinLoop.catch((error: unknown) => {
     logError(error)
   })
 
-  const flushWrite = (stream: NodeJS.WriteStream, text: string): Promise<void> =>
-    new Promise((resolve, reject) => {
-      stream.write(text, error => {
-        if (error) {
-          if (isBrokenPipeError(error)) {
-            if (stream === process.stdout) io.markStdoutPipeBroken()
-            else process.exitCode = 1
-            return resolve()
-          }
-          return reject(error)
-        }
-        resolve()
-      })
-    })
-  await lastOutcomeWritten
-  const last: OutcomeRow =
-    lastOutcome ??
-    (io.rows.stamp(
-      outcomeRow(
-        { session_id: getSessionId(), turn: Math.max(1, turnsRun) },
-        {
-          turnId: currentTurnId ?? randomUUID(),
-          status: 'failed',
-          steps: 0,
-          wallMs: 0,
-          usage: EMPTY_USAGE,
-          models: {},
-          denials: [],
-          error: { message: 'The run produced no outcome', class: 'internal' },
-        },
-      ),
-    ) as OutcomeRow)
-  if (options.outputFormat === 'json') {
-    await flushWrite(process.stdout, `${ndjsonSafeStringify(last)}\n`)
-  } else if (options.outputFormat !== 'rows') {
-    if (last.status === 'completed') {
-      const text = caretEscape(last.answer ?? '')
-      await flushWrite(process.stdout, text.endsWith('\n') ? text : `${text}\n`)
-    } else {
-      if ((last.status === 'blocked' || last.status === 'turn_limit') && last.answer) await flushWrite(process.stdout, caretEscape(last.answer).replace(/\n?$/, '\n'))
-      const sentence =
-        last.status === 'refused' || last.status === 'failed'
-          ? (last.error?.message ?? (last.status === 'refused' ? 'The request was refused' : 'The turn failed'))
-          : OUTCOME_SENTENCES[last.status]({ maxTurns: options.maxTurns, maxBudgetUsd: options.maxBudgetUsd, maxTimeMs: options.maxTimeMs, message: last.error?.message })
-      await flushWrite(process.stderr, `${sentence}\n`)
-    }
-  }
-
-  if (unwrittenRecord !== null) unwrittenRecord = await recordFlushFailure()
-  if (unwrittenRecord !== null) await flushWrite(process.stderr, `Error: ${unwrittenRecord}\n`)
-
-  logHeadlessProfilerTurn()
-  noteRunPhase('flush_exit')
-  logForDebugging(`[run-phases] ${jsonStringify(runPhaseReport(getTotalAPIDuration()))}`)
-  gracefulShutdownSync(io.stdoutPipeBroken ? 1 : (signalCode ?? (unwrittenRecord !== null ? 1 : exitCodeOf(last.status))))
+  await finishPrintRun(unwrittenRecord, ports)
 }

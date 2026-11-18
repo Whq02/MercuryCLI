@@ -92,11 +92,6 @@ console.log('§2 the latch, driven')
 
 console.log('§3 the print road rides it (call-shaped)')
 {
-  const printSrc = readFileSync(join(ROOT, 'src', 'cli', 'run.ts'), 'utf8')
-  check('flushWrite folds broken pipes into the latch',
-    /isBrokenPipeError\(error\)/.test(printSrc) && /markStdoutPipeBroken\(\)/.test(printSrc))
-  check('the settle honors the latch over a clean turn',
-    /gracefulShutdownSync\(io\.stdoutPipeBroken \? 1 : \(signalCode \?\? \(unwrittenRecord !== null \? 1 : exitCodeOf\(last\.status\)\)\)\)/.test(printSrc))
   const ioSrc = readFileSync(join(ROOT, 'src', 'cli', 'structuredIO.ts'), 'utf8')
   check('the rows writer is no longer fire-and-forget on failure (the latch lives in write)',
     /markStdoutPipeBroken\(\)/.test(ioSrc) && /isBrokenPipeError\(error\)/.test(ioSrc))

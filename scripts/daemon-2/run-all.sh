@@ -28,6 +28,7 @@
 # gate-watch: src/services/providers/providerDiscovery.ts src/utils/runtime/win32Console.ts src/utils/secureStorage/index.ts src/utils/sessionStorage/paths.ts src/utils/skills/skillChangeDetector.ts
 # gate-watch: src/utils/shell/parentGuard.ts src/utils/subprocessEnv.ts src/utils/worktree.ts
 # gate-watch: src/services/host/jobCredentials.ts
+# gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

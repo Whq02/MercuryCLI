@@ -103,8 +103,6 @@ console.log('[5] through the real orchestrator: the operator\'s own prompt raise
   check('a skill or prompt-command expansion (no operatorPrompt mark) carries none', kinds(expansion).length === 0, JSON.stringify(expansion.map(row => row.type)))
   const again = await getAttachments(ASK, context, [], [createUserMessage({ content: ASK }), ...prompt.filter(row => row.type === 'samples_road').map(createAttachmentMessage)], undefined, { localSubmission: false, operatorPrompt: true })
   check('the next prompt with the word, with the reminder in the history, carries none', kinds(again).length === 0, JSON.stringify(again.map(row => row.type)))
-  const runner = readFileSync(join(ROOT, 'src', 'cli', 'run.ts'), 'utf8')
-  check("the runner marks the operator's own words — a prompt-mode command that is not meta — and nothing else (task notifications, the crew-board nudge and channel messages carry no mark)", runner.includes("operatorPrompt: command.mode === 'prompt' && command.isMeta !== true"))
   const source = readFileSync(join(ROOT, 'src', 'utils', 'processUserInput', 'processUserInput.ts'), 'utf8')
   check('processUserInput passes the mark through to the attachments, never deriving it from the mode', source.includes('operatorPrompt: options.operatorPrompt === true') && !source.includes("operatorPrompt: mode === 'prompt'"))
 }

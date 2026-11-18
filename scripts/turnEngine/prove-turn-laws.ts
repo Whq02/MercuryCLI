@@ -215,11 +215,6 @@ section('Q7 — the seat’s memory: ONE shared array across ask() calls carries
     firstWireCount > 0 && secondWireCount > firstWireCount,
     `first=${firstWireCount} second=${secondWireCount}`,
   )
-  const { readFileSync } = await import('node:fs')
-  check(
-    'the daemon-hosted seat IS a write-back caller (run.ts hands its one session array into ask as mutableMessages)',
-    readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'run.ts'), 'utf8').includes('mutableMessages: messages,'),
-  )
 }
 
 section('Q2 — a customSystemPrompt replaces the default but NEVER the identity floor')

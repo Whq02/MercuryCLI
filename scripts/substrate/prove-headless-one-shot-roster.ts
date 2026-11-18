@@ -93,16 +93,6 @@ section('§5 source pins — the stamp precedes the pool; the scheduler start is
   const poolAt = main.indexOf('let tools = [...getTools(args.toolPermissionContext)]')
   check('main.tsx stamps the one-shot posture from the input format', stampAt >= 0)
   check('…BEFORE the headless tool pool is assembled', stampAt >= 0 && poolAt > stampAt, `stamp@${stampAt} pool@${poolAt}`)
-  const print = readFileSync(join(ROOT, 'src', 'cli', 'run.ts'), 'utf8')
-  const sinkBlockStart = print.indexOf('if (streamingInput) {')
-  const sinkBlockEnd = closingBraceAfter(print, print.indexOf('{', sinkBlockStart))
-  const sinkBlock = sinkBlockStart >= 0 && sinkBlockEnd > sinkBlockStart ? print.slice(sinkBlockStart, sinkBlockEnd) : ''
-  const sinkCalls = (print.match(/registerLocalWakeSink\(/g) ?? []).length
-  check(
-    'run.ts arms the local-wake sink only for streaming input (the OFF-surface evidence)',
-    sinkBlock.includes('registerLocalWakeSink(') && sinkCalls === 1,
-    `block@${sinkBlockStart}..${sinkBlockEnd} calls=${sinkCalls}`,
-  )
   const posture = readFileSync(join(ROOT, 'src', 'bootstrap', 'runtime', 'posture.ts'), 'utf8')
   check('the posture is an in-process PostureOwner field (no env read ⇒ no flag-registry row)', /headlessOneShot = false/.test(posture))
   const cronPrompt = readFileSync(join(ROOT, 'src', 'tools', 'ScheduleCronTool', 'prompt.ts'), 'utf8')

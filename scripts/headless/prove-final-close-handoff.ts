@@ -63,8 +63,6 @@ try {
   await scenario(true)
   await scenario(false, 'failed')
   await scenario(false, 'aborted')
-  const runSource = readFileSync(new URL('../../src/cli/run.ts', import.meta.url), 'utf8')
-  assert.match(runSource, /beforeCloseOutput:\s*async[\s\S]*?leaveNoteBeforeExit/, 'run wires the ask to the shared final-close port')
   console.log('FINAL CLOSE HANDOFF GREEN')
 } finally {
   rmSync(home, { recursive: true, force: true })

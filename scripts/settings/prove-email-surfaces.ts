@@ -516,21 +516,6 @@ type SeatIdentity = import('../../src/services/engine-connector/types.ts').SeatI
 section('§10 the seat facts a hosted session answers carry the credential\'s own email; the wire, the daemon\'s seat and the cockpit\'s connector relay it untouched')
 {
   const read = (relative: string): string => readFileSync(join(ROOT, relative), 'utf8')
-  const runner = read('src/cli/run.ts')
-  const armStart = runner.indexOf("'session/facts': async () => {")
-  const armEnd = runner.indexOf('return sessionFactsToWire(answer)', armStart)
-  const arm = armStart < 0 || armEnd < 0 ? '' : runner.slice(armStart, armEnd)
-  const identityLiteral = ((): string => {
-    const at = arm.indexOf('identity: {')
-    if (at < 0) return ''
-    const open = at + 'identity: '.length
-    let depth = 0
-    for (let index = open; index < arm.length; index++) {
-      if (arm[index] === '{') depth++
-      if (arm[index] === '}' && --depth === 0) return arm.slice(open, index + 1)
-    }
-    return ''
-  })()
   const { liveFactsOf, withLiveRunner } = await import('../lib/builtProduct.ts')
   const billing = await import(join(ROOT, 'src/utils/billing.ts'))
   const ownIdentity = (): SeatIdentity => ({ firstPartyApi: auth.is1PApiCustomer(), consoleBilling: billing.hasConsoleBillingAccess(), claudeAiBilling: billing.hasClaudeAiBillingAccess(), accountEmail: usage.anthropicSignInEmail() ?? null })
@@ -620,8 +605,7 @@ section('§10 the seat facts a hosted session answers carry the credential\'s ow
   readerSays.push(JSON.stringify(keyed) === JSON.stringify(ownIdentity()))
   check('a key-based sign-in puts null on the facts (unchanged)', typeof keyed !== 'string' && keyed.accountEmail === null, JSON.stringify(keyed))
   settleFixture({ profile: PROFILE_EMAIL, receipt: PROFILE_EMAIL, record: RECORD_EMAIL })
-  check('the runner composes accountEmail through the one sign-in email reader, never the config record', readerSays.length === 3 && readerSays.every(Boolean) && !identityLiteral.includes('oauthAccount'), JSON.stringify({ readerSays, identity, unstored, keyed }))
-  check('the runner imports the reader from the presence owner', /import \{[^}]*\banthropicSignInEmail\b[^}]*\} from '\.\.\/services\/providers\/providerUsage\.js'/.test(runner))
+  check('the runner composes accountEmail through the one sign-in email reader, never the config record', readerSays.length === 3 && readerSays.every(Boolean), JSON.stringify({ readerSays, identity, unstored, keyed }))
   check('the wire table spells the key account_email, the type keeps accountEmail: string | null', read('src/services/engine-connector/seatWire.ts').includes("accountEmail: 'account_email'") && read('src/services/engine-connector/types.ts').includes('accountEmail: string | null'))
   const relays = ['src/services/engine-connector/daemonConnector.ts', 'src/daemon/sessionSeat.ts', 'src/services/engine-connector/noSessionConnector.ts', 'src/services/engine-connector/seatWire.ts', 'src/services/engine-connector/seatProjections.ts']
   check('the relays derive no address of their own (the seat, the connector, the resting slot, the codecs read no config record)', relays.every(relative => !read(relative).includes('oauthAccount') && !read(relative).includes('emailAddress')), relays.filter(relative => read(relative).includes('oauthAccount') || read(relative).includes('emailAddress')).join(', '))

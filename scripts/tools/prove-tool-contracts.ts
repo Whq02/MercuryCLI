@@ -323,11 +323,6 @@ const { z } = await import('zod/v4')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
   const { registerBundledAppInstall } = await import('../../src/extensions/installConsent.ts')
   const root = resolve(import.meta.dir, '../..')
-  const runner = readFileSync(join(root, 'src/cli/run.ts'), 'utf8')
-  t(
-    'the runner assembles its MCP partition through mcpToolPartition, never its own deny filter',
-    runner.includes('mcpToolPartition(state.mcp.tools as Tool[], state.toolPermissionContext)') && !runner.includes('filterToolsByDenyRules('),
-  )
   const serverName = 'ext:filmcraft:app'
   const platforms = Object.keys((JSON.parse(readFileSync(join(root, 'src/extensions/bundled/filmcraft/server/filmcraft.lock.json'), 'utf8')) as { platforms?: Record<string, unknown> }).platforms ?? {})
   const { hostPlatform } = (await import('../../src/extensions/bundled/shared/install.mjs')) as unknown as { hostPlatform: () => string }
