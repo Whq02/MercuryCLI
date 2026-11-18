@@ -262,15 +262,14 @@ function buildCaptureScript(args: {
 
   if (definitions) {
     lines.push('echo "# Functions" >> "$SNAPSHOT_FILE"')
+    lines.push('echo "{ :" >> "$SNAPSHOT_FILE"')
     lines.push(`for __mercury_fn in $(declare -F | awk '{print $NF}'); do
   case "$__mercury_fn" in
     _[!_]*) ;;
-    *)
-      __mercury_encoded=$(declare -f -- "$__mercury_fn" | base64 | tr -d '\\n')
-      printf 'eval "$(printf %%s %s | base64 -d)" >/dev/null 2>&1\\n' "$__mercury_encoded" >> "$SNAPSHOT_FILE"
-      ;;
+    *) printf 'eval %q\\n' "$(declare -f -- "$__mercury_fn")" >> "$SNAPSHOT_FILE" ;;
   esac
 done`)
+    lines.push('echo "} >/dev/null 2>&1" >> "$SNAPSHOT_FILE"')
 
     lines.push('echo "# Shell Options" >> "$SNAPSHOT_FILE"')
     lines.push(...(optionsByState ? SNAPSHOT_OPTIONS.map(line => (line.startsWith('set -o ') ? OPTIONS_THAT_ARE_ON : line)) : SNAPSHOT_OPTIONS))

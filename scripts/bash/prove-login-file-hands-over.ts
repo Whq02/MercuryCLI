@@ -1,13 +1,13 @@
 #!/usr/bin/env bun
 import { plugin } from 'bun'
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync, chmodSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 type Ran = { code: number; ms: number; text: string }
 type Said = { status: string; evidence: string; fix?: string }
-type Row = { first: Ran; second: Ran; carried: Ran; options: Ran; wiped: Ran; waitedOnAlive: boolean | null; absence: string | null; snapshots: number; otherShellStarts: number; pathHead: string; described: { ms: number; text: string }; toolFirst: string; toolSecond: string; said: Said | null }
+type Row = { first: Ran; second: Ran; carried: Ran; options: Ran; wiped: Ran; waitedOnAlive: boolean | null; absence: string | null; snapshots: number; otherShellStarts: number; pathHead: string; described: { ms: number; text: string }; toolFirst: string; toolSecond: string; said: Said | null; many: Ran; readWithNoProgram: string }
 type Asked = { said: Said | null; ms: number; limit: number | null; snapshotFolder: boolean; tempLeft: number; waitedOnAlive: boolean | null; otherShellStarts: number }
 type First = { withoutBash: number; begunMs: number | null; startsInAll: number; described: string }
 
@@ -73,11 +73,17 @@ if (process.argv.includes('--row')) {
   const second = await run('echo second-ran')
   const carried = await run('alias ll 2>/dev/null; myfunc 2>/dev/null; above_guard 2>/dev/null; true')
   const options = await run(`set -o | awk '$1 == "braceexpand" || $1 == "monitor" || $1 == "noclobber" || $1 == "onecmd" { printf "%s=%s ", $1, $2 }'`)
+  const many = await run('fn_0 2>&1; fn_299 2>&1; declare -F | grep -c "^declare -f fn_"')
   const wiped = await run('echo wiped; rm -f "$TMPDIR"/mercury-cwd-*; exit 0')
   const toolFirst = await asTool('echo tool-first')
   const toolSecond = await asTool('echo tool-second')
   const said = await record.shellRow().catch(() => null)
   const snapshots = join(process.env.MERCURY_CONFIG_DIR ?? '', 'shell-snapshots')
+  const taken = existsSync(snapshots) ? readdirSync(snapshots)[0] : undefined
+  const readWithNoProgram =
+    taken === undefined
+      ? 'no snapshot'
+      : `${spawnSync((await record.systemShellRecord()).path, ['-c', 'source "$1"; n=0; while read -r _ _ name; do case "$name" in fn_*) n=$((n+1)) ;; esac; done < <(declare -F); echo "$n"', '_', join(snapshots, taken)], { encoding: 'utf8', env: { PATH: '/nonexistent', HOME: home } }).stdout}`.trim()
   const row: Row = {
     first,
     second,
@@ -93,6 +99,8 @@ if (process.argv.includes('--row')) {
     toolFirst,
     toolSecond,
     said,
+    many,
+    readWithNoProgram,
   }
   console.log(`ROW ${JSON.stringify(row)}`)
   process.exit(0)
@@ -226,6 +234,7 @@ const HOMES: Record<string, { dir: string; env?: Record<string, string> }> = {
     dir: home('ends-unread', { '.bashenv': 'case "$BASH_EXECUTION_STRING" in *mercury-cwd-*) exit 0 ;; esac\n' }),
   },
   'login-file-only': { dir: home('login-file-only', DEFINES) },
+  'many-functions': { dir: home('many-functions', { '.bash_profile': `${Array.from({ length: 300 }, (_, index) => `fn_${index}() { echo ${index}; }`).join('\n')}\n` }) },
   'guarded-bashrc': {
     dir: home('guarded-bashrc', {
       '.profile': 'if [ -n "$BASH_VERSION" ]; then\n  if [ -f "$HOME/.bashrc" ]; then\n    . "$HOME/.bashrc"\n  fi\nfi\n',
@@ -340,6 +349,22 @@ try {
     'login-file-only: what ~/.bash_profile defines is carried to a command though no ~/.bashrc exists — its alias and its function',
     loginOnly !== null && loginOnly.carried.text.includes("alias ll='ls -la'") && loginOnly.carried.text.includes('fn-from-the-login-file') && loginOnly.snapshots === 1,
     told('login-file-only'),
+  )
+  const manyFunctions = of('many-functions').row
+  check(
+    'many-functions: all 300 functions of the login file are carried to a command',
+    manyFunctions !== null && manyFunctions.many.text === '0\n299\n300',
+    JSON.stringify(manyFunctions?.many),
+  )
+  check(
+    'many-functions: a command that reads what is carried starts no program for it — the file read with no program on PATH defines all 300',
+    manyFunctions !== null && manyFunctions.readWithNoProgram === '300',
+    JSON.stringify(manyFunctions?.readWithNoProgram),
+  )
+  check(
+    'many-functions: 300 carried functions do not slow a command — its second command starts within 300 ms of the same command where three things are carried',
+    manyFunctions !== null && loginOnly !== null && manyFunctions.second.ms - loginOnly.second.ms < 300,
+    `${manyFunctions?.second.ms} ms with 300 functions, ${loginOnly?.second.ms} ms with one`,
   )
   const guarded = of('guarded-bashrc').row
   check(
