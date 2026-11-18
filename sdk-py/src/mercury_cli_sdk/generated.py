@@ -1076,6 +1076,7 @@ SessionFactsResultOpenai_catalogueModelsItem = TypedDict("SessionFactsResultOpen
     "defaultReasoningEffort": "NotRequired[str]",
     "supportedReasoningEfforts": "list[str]",
     "reasoningEffortsStated": "bool",
+    "effortWordsFromRow": "NotRequired[Literal[True]]",
     "visibility": "NotRequired[str]",
     "supportedInApi": "NotRequired[bool]",
     "priority": "NotRequired[float]",

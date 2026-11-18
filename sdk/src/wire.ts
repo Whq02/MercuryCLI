@@ -407,6 +407,7 @@ export type SessionFactsResult = {
       defaultReasoningEffort?: string
       supportedReasoningEfforts: string[]
       reasoningEffortsStated: boolean
+      effortWordsFromRow?: true
       visibility?: string
       supportedInApi?: boolean
       priority?: number
