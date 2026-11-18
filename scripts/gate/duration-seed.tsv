@@ -29,24 +29,24 @@ ui-census	1
 ui-pure-1	758
 ui-pure-2	741
 ui-pure-3	745
-render-continuity	600
+render-continuity	16
 streaming	61
 streaming-drives	2199
 core-runtime	158
 interview	9
 interview-drives	302
-golden-journeys	143
+golden-journeys	4
 interaction	634
 interaction-pure	1
-cockpit-interaction	274
+cockpit-interaction	27
 diffws	287
-prompts-panel	144
-engine-pass	602
+prompts-panel	4
+engine-pass	5
 # The journey estate on the hosted runner, one row per split suite: the
 # measured hosted wall where a run measured it, else the members' whole
 # stretched capture windows (every measured member of the same family ran
 # its window in full there). journey is the complement of the sibling lists.
-journey	1010
+journey	35
 journey-2	91
 journey-3	50
 journey-4	84
@@ -59,21 +59,21 @@ journey-10	219
 journey-11	282
 notifications	49
 transcript-rows	43
-prompt-input	699
+prompt-input	8
 mission-runner	188
 session-graph	11
 session-graph-drives	29
 typecheck	48
 attention	17
-usage-warning	264
+usage-warning	10
 splash	37
-motion	100
+motion	2
 build	34
 ide	111
 ide-drives	5
 gate	275
 agent-dispatch	164
-terminal-boundary	120
+terminal-boundary	21
 agent-experience	87
 harness-compare	1
 run-recovery	92
@@ -95,7 +95,7 @@ switchboard-5	7
 switchboard-6	5
 builtin-tools	142
 builtin-tools-drives	5
-visual-contract	62
+visual-contract	2
 operator-identity	1
 changesets	7
 changesets-drives	44
@@ -111,7 +111,7 @@ primitives-kernel	27
 eval	77
 editor-bridge	276
 editor-bridge-drives	5
-default-provider	22
+default-provider	2
 default-model	3
 language-sidecars	17
 agent-definitions	17
@@ -124,8 +124,8 @@ project-intel	7
 node-runtime	26
 edit-tools	156
 harness-profiles	23
-repetition-guard	7
-run-continuity	21
+repetition-guard	5
+run-continuity	1
 workbench-board	1
 tools	182
 agents	88
@@ -161,7 +161,7 @@ ops	26
 turnEngine	12
 build-identity	1
 compact	385
-extensions	140
+extensions	66
 providers	233
 settings	541
 api	427
@@ -202,12 +202,12 @@ forge	0
 integrity	0
 crew-governance	0
 update-reliability	0
-winreg	6
+winreg	8
 voice	259
 
 # class-median ESTIMATES — no pooled row yet (pure 4 · cpu 26 · pty 144)
 jev	96
-scroll	303
+scroll	2
 apollo	3
 commit-gate	2
 pings	10
@@ -224,7 +224,7 @@ aseprite	4
 browser	335
 rewind	17
 tool-economy	30
-computer	55
+computer	177
 desktop	64
 local-setup	6
 tensorfold	214
@@ -264,27 +264,28 @@ ui-drives	2735
 local-setup-drives	18
 tensorfold-drives	444
 engine-pass-drives	602
-memory-drives	138
-winreg-drives	6
+memory-drives	139
+winreg-drives	2
 cockpit-interaction-drives	274
 render-continuity-drives	600
 prompt-input-drives	699
 usage-warning-drives	264
-repetition-guard-drives	7
-visual-contract-drives	62
-terminal-boundary-drives	120
-run-continuity-drives	21
+repetition-guard-drives	6
+visual-contract-drives	79
+terminal-boundary-drives	142
+run-continuity-drives	25
 prompts-panel-drives	144
-usage-drives	6
+usage-drives	11
 scroll-drives	303
-motion-drives	100
-default-provider-drives	22
+motion-drives	158
+default-provider-drives	21
 golden-journeys-drives	143
+journey-drives	1010
 docs	4
 host	555
 host-2	605
 host-drives	77
-usage	6
+usage	3
 extensions-drives	600
 document	14
 document-read	15
