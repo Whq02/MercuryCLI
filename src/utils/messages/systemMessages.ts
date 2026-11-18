@@ -176,8 +176,8 @@ export function createSystemMessage(content: string, level: Rows.SystemMessageLe
   return systemRow('informational', { level, toolUseID, content, ...(preventContinuation ? { preventContinuation } : {}) })
 }
 
-export function createCloseUsageMessage(input: { closeState: Rows.SystemCloseUsageMessage['closeState']; noteChars?: number; usage?: import('../../services/api/emptyUsage.js').NonNullableUsage }): Rows.SystemCloseUsageMessage {
-  return systemRow('close_usage', { closeState: input.closeState, ...(input.noteChars !== undefined ? { noteChars: input.noteChars } : {}), ...(input.usage !== undefined ? { usage: input.usage } : {}) })
+export function createCloseUsageMessage(input: { closeState: Rows.SystemCloseUsageMessage['closeState']; noteChars?: number; usage?: import('../../services/api/emptyUsage.js').NonNullableUsage; spent?: import('../../bootstrap/state.js').LedgerMark }): Rows.SystemCloseUsageMessage {
+  return systemRow('close_usage', { closeState: input.closeState, ...(input.noteChars !== undefined ? { noteChars: input.noteChars } : {}), ...(input.usage !== undefined ? { usage: input.usage } : {}), ...(input.spent !== undefined ? { spent: input.spent } : {}) })
 }
 
 export function createCommandInputMessage(content: string): Rows.SystemLocalCommandMessage {

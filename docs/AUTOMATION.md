@@ -115,7 +115,8 @@ The output row types, by their `type` field:
   `skipped` or `none`) and the `usage` of the model calls that wrote it. It
   follows the last `outcome`, whose totals do not include it. When the host
   closes its end while a turn is running, the note is written as that turn
-  ends, and the row comes before that turn's `outcome`. A `mercury run`
+  ends and the row comes before that turn's `outcome`, whose totals do not
+  include it either: every model call is counted once. A `mercury run`
   ends on the model's final answer and leaves no note, so its stream carries
   no `close` row.
 - `wait`: a wait on the model: `state` (`first_byte`, `retry`, `silence`,

@@ -344,6 +344,10 @@ const closedRows = ((scenes.closedMidTurn as { rows?: Array<{ type?: string }> }
 const closeAt = closedRows.findIndex(type => type === 'close')
 const outcomeAt = closedRows.findIndex(type => type === 'outcome')
 check("on the wire door an input closed in the middle of a turn writes the close row before that turn's outcome row, and the turn still ends with its outcome and exit 0 (the SDKs and the daemon's seat read past a close row, so this order is recorded here and not changed)", closeAt !== -1 && outcomeAt !== -1 && closeAt < outcomeAt && (scenes.closedMidTurn as { exit?: unknown }).exit === 0, closedRows.join(' '))
+type SpendRow = { type?: string; usage?: { input_tokens?: number; output_tokens?: number }; cost_usd?: number }
+const spendRows = (type: string): SpendRow[] => ((scenes.closedMidTurn as { rows?: SpendRow[] }).rows ?? []).filter(row => row.type === type)
+const spendOf = (rows: SpendRow[]): string => `${rows.reduce((sum, row) => sum + (row.usage?.input_tokens ?? 0), 0)} in ${rows.reduce((sum, row) => sum + (row.usage?.output_tokens ?? 0), 0)} out`
+check("the outcome of a turn the input closed in counts its steps' model calls and not the note's, which the close row carries: a client that adds each outcome and the close row counts every call once", spendRows('step').length === 1 && spendRows('close').length === 1 && spendOf(spendRows('close')) !== '0 in 0 out' && spendOf(spendRows('outcome')) === spendOf(spendRows('step')), `steps ${spendOf(spendRows('step'))} · close ${spendOf(spendRows('close'))} · outcome ${spendOf(spendRows('outcome'))} at ${spendRows('outcome')[0]?.cost_usd} USD`)
 
 section('§2 four scripted print runs and one refused at boot, in the three formats')
 const prints = await printRuns()

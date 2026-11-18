@@ -58,7 +58,7 @@ import {
   getAgentPendingMessageAttachments,
 } from '../../utils/attachments.js'
 import { getModelMaxOutputTokens } from '../../utils/model/capabilities.js'
-import { getTotalCostUSD } from '../../bootstrap/state.js'
+import { getTotalCostUSD, ledgerMark, ledgerSpentSince } from '../../bootstrap/state.js'
 import { handleStopHooks } from '../../query/stopHooks.js'
 import { announcesNextStep } from '../../services/run/completionEvaluator.js'
 import { NO_CONTENT_MESSAGE } from '../../constants/messages.js'
@@ -887,6 +887,7 @@ export async function* replyStands(run: RunCtx, iter: IterationState): AsyncGene
   await finishMemorySignal(assistantText(assistantMessages))
   if (handoffAskDue({ agentId: toolUseContext.agentId, querySource })) {
     let closeUsage: import('../../services/api/emptyUsage.js').NonNullableUsage | undefined
+    const beforeNote = ledgerMark()
     const note = await askForHandoff({
       cacheSafeParams: createCacheSafeParams({
         messages: [...messagesForQuery, ...assistantMessages],
@@ -906,6 +907,7 @@ export async function* replyStands(run: RunCtx, iter: IterationState): AsyncGene
         closeState: note === null ? 'none' : note.stored ? 'stored' : 'skipped',
         ...(note?.text !== undefined ? { noteChars: note.text.length } : {}),
         ...(closeUsage !== undefined ? { usage: closeUsage } : {}),
+        spent: ledgerSpentSince(beforeNote),
       }),
     })
     if (note?.stored === false) {

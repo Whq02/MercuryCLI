@@ -475,6 +475,7 @@ export type SystemCloseUsageMessage = {
   closeState: 'stored' | 'skipped' | 'none'
   noteChars?: number
   usage?: import('../services/api/emptyUsage.js').NonNullableUsage
+  spent?: import('../bootstrap/state.js').LedgerMark
   uuid: UUID
   timestamp: string
   isMeta?: boolean

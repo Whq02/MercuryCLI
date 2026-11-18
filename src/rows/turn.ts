@@ -58,8 +58,7 @@ import { HOOK_CUT_BUDGET_MS } from '../utils/hooks/contract.js'
 import { getEngineModel } from '../utils/model/model.js'
 import { resolveModelPricing } from '../utils/modelCost.js'
 import { getTokenUsage, messageContextFill } from '../utils/tokens.js'
-import { getModelUsage, getTotalAPIDuration, getTotalCostUSD, getUnpricedTurns } from '../bootstrap/state.js'
-import type { ModelUsage } from '../bootstrap/state.js'
+import { getTotalCostUSD, ledgerMark, ledgerMarkAfter, ledgerSpentSince } from '../bootstrap/state.js'
 import { noteRunPhase } from '../utils/runPhases.js'
 import { processUserInput } from '../utils/processUserInput/processUserInput.js'
 import { getSlashCommandToolSkills } from '../commands.js'
@@ -171,20 +170,6 @@ function isLocalCommandOutputText(text: string): boolean {
   return text.includes(LOCAL_COMMAND_STDOUT_TAG) || text.includes(LOCAL_COMMAND_STDERR_TAG)
 }
 
-
-const LEDGER_COUNTERS = ['inputTokens', 'outputTokens', 'cacheReadInputTokens', 'cacheCreationInputTokens', 'webSearchRequests', 'costUSD'] as const
-
-function usageSince(current: Record<string, ModelUsage>, baseline: Record<string, ModelUsage>): Record<string, ModelUsage> {
-  const result: Record<string, ModelUsage> = {}
-  for (const [model, row] of Object.entries(current)) {
-    const delta = { ...row }
-    for (const counter of LEDGER_COUNTERS) {
-      delta[counter] = Math.max(0, row[counter] - (baseline[model]?.[counter] ?? 0))
-    }
-    if (LEDGER_COUNTERS.some(counter => delta[counter] > 0)) result[model] = delta
-  }
-  return result
-}
 
 function inputFloorUsd(messages: readonly Message[], model: string): number | null {
   const pricing = resolveModelPricing(model)
@@ -392,10 +377,7 @@ export class Conversation {
     setCwd(config.cwd)
     const persistenceDisabled = isSessionPersistenceDisabled()
     const turnStartedAt = Date.now()
-    const apiDurationAtStart = getTotalAPIDuration()
-    const costAtStart = getTotalCostUSD()
-    const modelUsageAtStart = Object.fromEntries(Object.entries(getModelUsage()).map(([model, row]) => [model, { ...row }]))
-    const unpricedAtStart = { ...getUnpricedTurns() }
+    let ledgerAtStart = ledgerMark()
     const eagerFlush = isEnvTruthy(flagEnv('MERCURY_EAGER_FLUSH'))
     const errorWatermark = getInMemoryErrors().at(-1)
     this.turnOrdinal += 1
@@ -688,14 +670,14 @@ export class Conversation {
         this.accumulatedUsage = accumulateUsage(this.accumulatedUsage, usage)
       }
       noteRunPhase('settlement')
-      const unpricedNow = getUnpricedTurns()
-      const unpricedModels = new Set(Object.keys(unpricedNow).filter(model => (unpricedNow[model] ?? 0) > (unpricedAtStart[model] ?? 0)))
-      const apiMs = Math.max(0, getTotalAPIDuration() - apiDurationAtStart)
-      const billed = usageSince(getModelUsage(), modelUsageAtStart)
+      const spent = ledgerSpentSince(ledgerAtStart)
+      const unpricedModels = new Set(Object.keys(spent.unpricedTurns))
+      const apiMs = spent.apiDuration
+      const billed = spent.modelUsage
       const subscriber = isClaudeAISubscriber()
       const hasUnknownCost = (model: string): boolean => unpricedModels.has(model) || (subscriber && declaredRouteOf(model) === 'anthropic')
       const pricedModels = Object.keys(billed).filter(model => !hasUnknownCost(model))
-      const costUsd = subscriber ? pricedModels.reduce((sum, model) => sum + Math.max(0, billed[model]?.costUSD ?? 0), 0) : Math.max(0, getTotalCostUSD() - costAtStart)
+      const costUsd = subscriber ? pricedModels.reduce((sum, model) => sum + Math.max(0, billed[model]?.costUSD ?? 0), 0) : spent.costUSD
       const costKnown = subscriber ? pricedModels.length > 0 : unpricedModels.size === 0 || costUsd > 0
       const usage = Object.values(billed).reduce((sum, row) => ({
         ...sum,
@@ -1076,6 +1058,7 @@ export class Conversation {
             const systemMessage = message
             if (systemMessage.subtype === 'close_usage') {
               const close = systemMessage as import('../types/message.js').SystemCloseUsageMessage
+              if (close.spent !== undefined) ledgerAtStart = ledgerMarkAfter(ledgerAtStart, close.spent)
               yield closeRow(scope, {
                 state: close.closeState,
                 ...(close.noteChars !== undefined ? { noteChars: close.noteChars } : {}),
