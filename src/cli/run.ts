@@ -1126,7 +1126,7 @@ export async function runHeadless(
   const hostCutWords = (): string | undefined => {
     if (!isConcourseWorker) return undefined
     try {
-      const workers = require('../daemon/concourseWorkers.js') as typeof import('../daemon/concourseWorkers.js')
+      const workers = require('src/daemon/concourseWorkers.js') as typeof import('src/daemon/concourseWorkers.js')
       return workers.cutAtDrainCeiling(String(getSessionId()), process.pid) ? DRAIN_CUT_WORDS : undefined
     } catch {
       return undefined
