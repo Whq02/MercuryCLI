@@ -39,8 +39,12 @@ async function main(): Promise<void> {
       cwd: process.cwd(),
       breakpoints: new Map([['/tmp/a.py', [3]]]),
     })
-    const aStop = await a.waitForStopOutcome(5_000)
+    const armed: number[] = []
+    const arm = globalThis.setTimeout
+    globalThis.setTimeout = ((fn: (...args: unknown[]) => void, ms?: number, ...rest: unknown[]) => { armed.push(ms ?? 0); return arm(fn, ms, ...rest) }) as unknown as typeof setTimeout
+    const aStop = await a.waitForStopOutcome(5_000).finally(() => { globalThis.setTimeout = arm })
     check('A stopped at its breakpoint (event-driven)', aStop.state === 'stopped' && aStop.state === 'stopped' && aStop.info.reason === 'breakpoint')
+    check('the wait for the stop asks for no pause: the only timer armed while it stands is its own deadline', armed.length <= 1 && armed.every(ms => ms === 5_000), `armed ${armed.join(', ') || 'none'}`)
     const b = await dap.createDapSession({
       owner: B,
       id: 'main',
@@ -105,7 +109,6 @@ async function main(): Promise<void> {
   section('3. the poll loop is gone (structural pin)')
   {
     const src = readFileSync(join(root, 'src/services/dap/dapClient.ts'), 'utf8')
-    check('no 25ms poll remains', !src.includes('setTimeout(res, 25)'))
     check('event-driven waiter present', src.includes('waitForStopOutcome') && src.includes('#stateWaiters'))
     check('process-exit sweep sync-kills survivors', src.includes("process.on('exit'"))
   }
