@@ -610,8 +610,8 @@ console.log('native-core T13/T14 — input-scheduling contract')
       return consumeNext
     },
     onEmptyToNonempty: () => journal.push('empty->nonempty'),
-    onActiveChange: a => journal.push(`active:${a}`),
   })
+  pi.subscribeActive(() => void journal.push(`active:${pi.active()}`))
 
   pi.edit('a')
   check('choke: order — intercept ≺ empty→nonempty ≺ commit ≺ active flip',

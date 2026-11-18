@@ -1,6 +1,8 @@
 #!/usr/bin/env bun
-import { settle } from '../lib/settingsPopupHarness.ts'
-import { openDraftPart } from './chatScenarios.ts'
+import { settle, waitFor } from '../lib/settingsPopupHarness.ts'
+import { closeStage, openDraftPart, openStage } from './chatScenarios.ts'
+
+process.env.MERCURY_FLUX_PROBE = '1'
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -56,6 +58,17 @@ await t.plant({ fullscreen: false })
 await act(() => pending.edit('z'))
 check('outside the fullscreen layout nothing is pinned', t.pins() === before + 2, `${t.pins() - before} pins`)
 await t.plant({})
+await act(() => pending.edit(''))
+await act(() => pending.edit('typed'))
+const rendersTyped = part.renders()
+for (const more of ['typed a', 'typed an', 'typed and', 'typed and m', 'typed and mo', 'typed and mor', 'typed and more']) pending.edit(more)
+await settle(80)
+check('the flag the part hands on is the store\'s own, and keys typed while it stands render the part not once', part.value().isPromptInputActive === true && pending.active() === true && part.renders() === rendersTyped, `${part.renders() - rendersTyped} renders over seven more keys`)
+const restedAt = Date.now()
+await waitFor(() => !pending.active(), 4000)
+await settle(80)
+check('when the words have rested the store drops the flag by its own timer, and the part follows with one render', part.value().isPromptInputActive === false && part.renders() === rendersTyped + 1 && Date.now() - restedAt >= 1000, `${String(part.value().isPromptInputActive)} · ${part.renders() - rendersTyped} renders · ${Date.now() - restedAt} ms`)
+await act(() => pending.edit(''))
 
 section('§3 the hook alone: words seeded from a card reach the draft')
 await act(() => pending.edit('wait'))
@@ -84,6 +97,32 @@ await t.close()
   await settle(80)
   check('each mode is set by its own setter', second.part.value().vimMode === 'NORMAL' && second.part.value().isSearchingHistory && second.part.value().helpOpen)
   await second.close()
+}
+
+section('§6 the whole screen under typing: how often Chat renders for twenty typed keys')
+{
+  const { __fluxProbeResetForTest, fluxProbeDump } = await import('../../src/utils/flux/fluxProbe.ts')
+  const KEYS = 'twenty keys typed ok'
+  const TYPED_RENDERS = 2
+  const CYCLE_RENDERS = 4
+  __fluxProbeResetForTest()
+  const renders = (): number => fluxProbeDump().allMarks.filter(mark => mark.k === 'render:chat-root').length
+  const stage = await openStage('draft-typing')
+  await stage.mark('first', frame => frame.includes('Type a prompt'))
+  await settle(400)
+  const atRest = renders()
+  await stage.type(KEYS)
+  await waitFor(() => stage.src.pending.text() === KEYS, 4000)
+  await settle(150)
+  const typed = renders() - atRest
+  const stillActive = stage.src.pending.active()
+  await waitFor(() => !stage.src.pending.active(), 6000)
+  await settle(400)
+  const cycle = renders() - atRest
+  await closeStage(stage)
+  check(`the probe counted the renders of Chat: ${atRest} before the first key`, atRest > 0 && KEYS.length === 20, `${atRest} marks`)
+  check(`twenty keys typed in the composer render Chat no more than ${TYPED_RENDERS} times while they are typed (the count on a4c7f8922c, where the screen kept its own copy of the flag)`, stillActive && typed > 0 && typed <= TYPED_RENDERS, `${typed} renders · the words still counted as typed when read: ${stillActive}`)
+  check(`and no more than ${CYCLE_RENDERS} by the time the words have rested`, cycle >= typed && cycle <= CYCLE_RENDERS, `${cycle} renders`)
 }
 
 console.log(`\n${failures === 0 ? 'prove-chat-draft-part: ALL PASS' : `prove-chat-draft-part: ${failures} FAILURE(S)`}`)
