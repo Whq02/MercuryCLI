@@ -164,6 +164,34 @@ section('(4) the sentence a bash before 4.0 is given, held to what that bash doe
   }
 }
 
+section("(5) a reviewer's verification command is wrapped with the shell that runs it")
+{
+  const { canonicalReviewerReceipt, restrictReviewerTools } = await import('../../src/tools/AgentTool/reviewerPolicy.ts')
+  const { BASH_TOOL_NAME } = await import('../../src/tools/BashTool/toolName.ts')
+  const frozen = join(scratch, 'frozen')
+  mkdirSync(join(frozen, 'scripts', 'checks'), { recursive: true })
+  writeFileSync(join(frozen, 'scripts', 'checks', 'prove-read.ts'), 'console.log("review proof ran")\n')
+  const report = join(scratch, 'report.md')
+  writeFileSync(report, '# Report\n\n## Review\npending\n')
+  let handed = ''
+  const standIn = { name: BASH_TOOL_NAME, isReadOnly: () => false, call: async (input: { command: string }) => { handed = input.command; return { data: {} } } }
+  const wrapped = restrictReviewerTools([standIn] as never, canonicalReviewerReceipt(report, frozen), frozen)[0] as unknown as { call: (input: { command: string }, context: unknown) => Promise<unknown> }
+  let refused = ''
+  try {
+    await wrapped.call({ command: ['bun', 'scripts/checks/prove-read.ts'].join(' ') }, {})
+  } catch (error) {
+    refused = error instanceof Error ? error.message : String(error)
+  }
+  if (/confinement/.test(refused)) console.log(`  [SKIP] this host has no confinement for a reviewer's command (${refused})`)
+  else {
+    check(
+      'the line handed to the Bash tool starts, inside the confinement, "${BASH:-/bin/bash}" -c: the shell that runs the line, whose $BASH section (1) holds to the record\'s path, and not /bin/bash by its name',
+      handed.includes(' "${BASH:-/bin/bash}" -c ') && !handed.includes(' /bin/bash -c '),
+      `${refused} ${JSON.stringify(handed.slice(0, 220))}`,
+    )
+  }
+}
+
 rmSync(scratch, { recursive: true, force: true })
 void proofHome
 console.log(failures === 0 ? '\nprove-shell-record: ALL LAWS HOLD' : `\nprove-shell-record: ${failures} FAILURE(S)`)
