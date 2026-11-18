@@ -59,6 +59,7 @@ type DaemonErrorCode =
   | 'ETOOLARGE'
   | 'EPEERUID'
   | 'ENOREPLY'
+  | 'EBADMSG'
   | 'ENOTSUP'
   | 'EUNKNOWN'
 

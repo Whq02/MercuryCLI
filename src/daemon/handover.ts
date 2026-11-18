@@ -198,12 +198,12 @@ export function forwardFrame(sockPath: string, line: string, timeoutMs: number =
           try {
             done(JSON.parse(reply) as DaemonReply)
           } catch {
-            done({ ok: false, code: 'EUNKNOWN', error: 'the daemon that holds this session answered an unreadable frame' })
+            done({ ok: false, code: 'EBADMSG', error: 'the daemon that holds this session answered an unreadable frame' })
           }
           sock.destroy()
         },
         () => {
-          done({ ok: false, code: 'ETOOLARGE', error: 'the daemon that holds this session answered past the frame cap' })
+          done({ ok: false, code: 'EBADMSG', error: 'the daemon that holds this session answered past the frame cap' })
           sock.destroy()
         },
       )

@@ -505,7 +505,7 @@ function rpcOnce(outbound: DaemonRequest & { proto?: number; auth?: string }, ti
       try {
         finish(JSON.parse(line) as DaemonReply)
       } catch {
-        finish({ ok: false, code: 'EUNKNOWN', error: 'malformed daemon reply' }, true)
+        finish({ ok: false, code: 'EBADMSG', error: 'malformed daemon reply' }, true)
       }
     })
     sock.on('error', err => {

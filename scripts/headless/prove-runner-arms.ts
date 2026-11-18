@@ -397,6 +397,42 @@ section('§4b project/query: a folder nobody trusted, a parameter that is missin
   answers.set('daemonControlRpc', async () => daemonUnreached)
   const unreached = await query(letter)
   check('a daemon that cannot be reached stays a fault of the run: the sentence with no code and no kind, which the wire sends as the internal error', unreached !== null && unreached.code === undefined && unreached.data === undefined && unreached.message === daemonUnreached.error, shown(unreached))
+  {
+    const net = await import('node:net')
+    const socket = (await import(at('src/daemon/controlSocket.ts'))) as typeof import('../../src/daemon/controlSocket.ts')
+    const { forwardFrame } = await import('../../src/daemon/handover.ts')
+    const daemonHome = mkdtempSync(join(tmpdir(), 'arms-d-'))
+    const daemonDirBefore = process.env.MERCURY_DAEMON_DIR
+    process.env.MERCURY_DAEMON_DIR = daemonHome
+    const answering = async (reply: string, path: string): Promise<import('node:net').Server> => {
+      const server = net.createServer(sock => {
+        sock.on('error', () => {})
+        sock.on('data', () => sock.write(reply))
+      })
+      await new Promise<void>(done => server.listen(path, done))
+      return server
+    }
+    const codeOf = (reply: unknown): string => String((reply as { ok?: unknown; code?: unknown }).ok === false ? (reply as { code?: unknown }).code : 'answered')
+    const garbled = await answering('not a reply\n', socket.controlSockPath())
+    answers.delete('daemonControlRpc')
+    const pinged = await socket.daemonControlRpc({ op: 'ping' } as never, { timeoutMs: 2_000 })
+    const malformed = await query(letter)
+    const forwarded = await forwardFrame(socket.controlSockPath(), j({ op: 'ping' }), 2_000)
+    await new Promise<void>(done => garbled.close(() => done()))
+    const swollenPath = process.platform === 'win32' ? `\\\\.\\pipe\\runner-arms-swollen-${process.pid}` : join(daemonHome, 'b.sock')
+    const swollen = await answering('x'.repeat((1 << 20) + 64), swollenPath)
+    const overCap = await forwardFrame(swollenPath, j({ op: 'ping' }), 5_000)
+    await new Promise<void>(done => swollen.close(() => done()))
+    if (daemonDirBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
+    else process.env.MERCURY_DAEMON_DIR = daemonDirBefore
+    rmSync(daemonHome, { recursive: true, force: true })
+    check(
+      "a reply on the daemon's socket that cannot be read is a fault on the caller's side with a code of its own (EBADMSG), never a code the daemon's own refusals carry: the socket's client names it for a frame that is no JSON, and the forwarding daemon for one that is no JSON and one past the frame cap",
+      codeOf(pinged) === 'EBADMSG' && codeOf(forwarded) === 'EBADMSG' && codeOf(overCap) === 'EBADMSG',
+      j({ client: pinged, forwarder: forwarded, pastTheCap: overCap }),
+    )
+    check('project/query answers a reply of the daemon that cannot be read as a fault of the run: the sentence with no code and no kind, which the wire sends as the internal error', malformed !== null && malformed.code === undefined && malformed.data === undefined && malformed.message === 'malformed daemon reply', shown(malformed))
+  }
   rmSync(projects, { recursive: true, force: true })
   forget()
   trusted = null
