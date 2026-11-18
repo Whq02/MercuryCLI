@@ -222,7 +222,7 @@ section('§3 verify:fast --plan runs the real selector end-to-end')
   check('--plan never runs a step', !/━━ /.test(out))
 }
 {
-  const s = selectImpact(manifest, [
+  const s = selectImpact(loadImpactManifest(ROOT, computedWatch(ROOT)), [
     'src/services/lsp/config.ts',
     'src/components/anything.tsx',
     'scripts/ui/vshot.py',
