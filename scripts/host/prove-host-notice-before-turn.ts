@@ -1,3 +1,4 @@
+import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, readdirSync, readFileSync } from 'node:fs'
