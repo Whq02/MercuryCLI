@@ -6,6 +6,7 @@ import { isAdvisoryKind, readLedger } from '../gate/ledger.js'
 import { spawnSync } from 'node:child_process'
 import { gitOutOrNull } from '../lib/git.ts'
 import { fullPoolSupport, resolveExecutionProfile } from '../lib/executionProfile.ts'
+import { runnerLaunches } from '../lib/runnerLaunches.ts'
 import { existsSync, readFileSync } from 'node:fs'
 import { cpus } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -206,6 +207,8 @@ if (anchor) {
 }
 
 const manifest = loadImpactManifest(ROOT, anchor !== null && paths.length > 0 ? (await import('./watchGraph.ts')).computedWatch(ROOT) : undefined)
+const launches = anchor !== null && paths.length > 0 ? runnerLaunches(ROOT) : []
+const runsOneMember = (suite: string): boolean => /^\s*drive_members\s/m.test(readFileSync(join(ROOT, 'scripts', suite, 'run-all.sh'), 'utf8'))
 
 function loadDurations(): Record<string, number> {
   const out: Record<string, number> = {}
@@ -239,7 +242,11 @@ const plan = planSlice({
   ptyMax: envInt('MERCURY_GATE_PTY_MAX', 3),
   hubCeiling: envInt('MERCURY_SLICE_HUB_CEILING', DEFAULT_HUB_CEILING),
   clearlyUnderRatio: envFloat('MERCURY_SLICE_RATIO', DEFAULT_CLEARLY_UNDER_RATIO),
+  launched: Object.fromEntries(launches.map(row => [row.suite, row.launched])),
+  alone: launches.map(row => row.suite).filter(runsOneMember),
 })
+const members = plan.kind === 'run' ? plan.ledger.members : []
+const memberName = (file: string): string => file.split('/').slice(2).join('/')
 
 const selection = plan.ledger.selection
 let runtimeChanged = false
@@ -261,6 +268,12 @@ if (plan.ledger.ratchets.length > 0)
   console.log(`  whole-tree ratchets, owed by every change: ${plan.ledger.ratchets.join(', ')}`)
 if (plan.ledger.outside.length > 0)
   console.log(`  not read by the anchor's full run, so not run here: ${plan.ledger.outside.join(', ')}`)
+for (const m of members)
+  console.log(
+    m.alone
+      ? `  but ${m.file} changed and is a member of ${m.suite}: that one member runs here, through scripts/${m.suite}/run-all.sh`
+      : `  ${m.file} changed and is a member of ${m.suite}, whose runner cannot run one member alone: it is not run here`,
+  )
 if (plan.ledger.sliceEstimateS !== null) {
   const pct = Math.round((plan.ledger.sliceEstimateS / Math.max(1, plan.ledger.poolEstimateS)) * 100)
   console.log(
@@ -282,7 +295,8 @@ if (PLAN_ONLY) {
         : `ESCALATE to the FULL gate (${plan.reason}): ${plan.message}`
   console.log(
     `  plan: warm typecheck${runtimeChanged ? ' + build' : ''}${buildFacing ? ' + artifact smoke' : ''}` +
-      `${plan.ledger.suites.length > 0 ? ` + pooled suites [${plan.ledger.suites.join(', ')}]` : ''}`,
+      `${plan.ledger.suites.length > 0 ? ` + pooled suites [${plan.ledger.suites.join(', ')}]` : ''}` +
+      `${members.some(m => m.alone) ? ` + changed members alone [${members.filter(m => m.alone).map(m => `${memberName(m.file)} of ${m.suite}`).join(', ')}]` : ''}`,
   )
   console.log(`  plan verdict: ${verdict}`)
   process.exit(0)
@@ -362,7 +376,7 @@ if (existsSync(join(ROOT, 'scripts/typecheck/run-all.sh'))) {
 }
 
 let distEnsured = false
-if ((plan.suites.length > 0 || runtimeChanged) && existsSync(join(ROOT, 'build.ts')) && steps.every(s => s.ok)) {
+if ((plan.suites.length > 0 || runtimeChanged || members.some(m => m.alone)) && existsSync(join(ROOT, 'build.ts')) && steps.every(s => s.ok)) {
   const cache = spawnSync('bash', ['scripts/gate/dist-cache-check.sh'], { cwd: ROOT, encoding: 'utf8' })
   const cacheLine = (cache.stdout ?? '').trim()
   if (cache.status === 0 && cacheLine.startsWith('HIT ')) {
@@ -377,7 +391,8 @@ if (buildFacing && existsSync(join(ROOT, 'scripts/build/prove-isolated-artifact.
   steps.push(run('isolated artifact smoke', bunBin, ['run', 'scripts/build/prove-isolated-artifact.ts'], 5 * 60_000))
 }
 
-if (plan.suites.length > 0 && steps.every(s => s.ok)) {
+const floorsStand = steps.every(s => s.ok)
+if (plan.suites.length > 0 && floorsStand) {
   const poolSupport = fullPoolSupport(resolveExecutionProfile(ROOT))
   if (!poolSupport.supported) {
     console.log(`\n  ✋ pooled-suite rung REFUSED before any spawn: ${poolSupport.reason}`)
@@ -396,19 +411,33 @@ if (plan.suites.length > 0 && steps.every(s => s.ok)) {
   }
 }
 
+if (floorsStand) {
+  for (const m of members.filter(m => m.alone)) {
+    steps.push(
+      run(`member ${memberName(m.file)} of ${m.suite}, alone through its own runner`, 'bash', [`scripts/${m.suite}/run-all.sh`], 30 * 60_000, {
+        MERCURY_SUITE_MEMBER: memberName(m.file),
+        ...(distEnsured ? { MERCURY_GATE_PREBUILT: '1' } : {}),
+      }),
+    )
+  }
+}
+
 const ok = steps.every(s => s.ok)
 
 console.log('\n════════ verify:fast coverage ════════')
 for (const s of steps) console.log(`  ${s.ok ? '✓' : '✕'} ${s.label} (${s.seconds}s)`)
 const notCovered = ['the full gate (every other domain suite)']
 if (!runtimeChanged) notCovered.unshift('artifact build (no src/ changes)')
+if (plan.ledger.outside.length > 0) notCovered.push(`${plan.ledger.outside.join(', ')}${members.some(m => m.alone) ? ' but for the changed members above' : ''} (the anchor\'s full run does not read ${plan.ledger.outside.length === 1 ? 'it' : 'them'})`)
 console.log(`  NOT covered: ${notCovered.join(' · ')} — release-level proof is \`bun run verify\``)
 
-const floors = steps.filter(s => !s.label.startsWith('pooled suites')).map(s => s.label.split(' (')[0])
+const floors = steps.filter(s => !s.label.startsWith('pooled suites') && !s.label.startsWith('member ')).map(s => s.label.split(' (')[0])
+const ranAlone = members.filter(m => m.alone).map(m => `${memberName(m.file)} of ${m.suite}`)
 await recordRow(
   ok,
   'fast',
   `verify:fast slice — ${plan.suites.length > 0 ? `suites [${plan.suites.join(', ')}]` : 'no suites selected'}` +
+    `${ranAlone.length > 0 ? ` · members alone [${ranAlone.join(', ')}]` : ''}` +
     `${floors.length > 0 ? ` · floors [${floors.join(', ')}]` : ''}`,
 )
 

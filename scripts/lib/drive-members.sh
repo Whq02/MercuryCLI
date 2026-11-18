@@ -36,10 +36,11 @@ drive_member_run() {
 drive_members() {
   local suite="$1" template="$2" members="$3" skip="${4:-}" jobs
   jobs=$(drive_member_jobs)
-  local failed=0 name f
+  local failed=0 name f only="${MERCURY_SUITE_MEMBER:-}"
   local -a names=() files=()
   while IFS= read -r name; do
     case "$name" in (''|'#'*) continue ;; esac
+    [ -n "$only" ] && [ "$name" != "$only" ] && continue
     f="${template//\$name/$name}"
     if [ ! -e "$f" ]; then
       printf '❌ %s: member %s has no file at %s — a stale member row is a red, never a silent skip\n' "$suite" "$name" "$f"
@@ -48,6 +49,13 @@ drive_members() {
     fi
     names+=("$name"); files+=("$f")
   done < "$members"
+  if [ -n "$only" ]; then
+    if [ "${#names[@]}" -eq 0 ] && [ "$failed" -eq 0 ]; then
+      printf '❌ %s: MERCURY_SUITE_MEMBER names %s, which is no member in %s — one member runs alone only by the name its list holds\n' "$suite" "$only" "$members"
+      return 1
+    fi
+    printf '── %s: one member alone by MERCURY_SUITE_MEMBER (%s); the rest of the suite is not run\n' "$suite" "$only"
+  fi
   if [ "$jobs" -le 1 ] || [ "${#names[@]}" -le 1 ]; then
     local i
     for i in "${!names[@]}"; do
