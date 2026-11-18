@@ -10,3 +10,5 @@ prove-swarm-party-rows.ts
 prove-swarm-owner-verbs.ts
 prove-board-wake-rows-drive.ts
 prove-swarm-switch-while-landing-drive.ts
+render-crew-board.ts
+render-swarm-board.ts

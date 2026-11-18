@@ -8,6 +8,7 @@
 # gate-watch: src/components/Message.tsx src/components/messageActions.tsx
 # gate-watch: scripts/crew/prove-board-wake-rows-drive.ts scripts/computer/computerDriveKit.ts src/services/engine-connector/daemonConnector.ts src/services/engine-connector/queuedNotices.ts
 # gate-watch: scripts/crew/prove-swarm-switch-while-landing-drive.ts src/screens/Chat.tsx src/commands/swarmchat/** src/commands/rename/** src/commands/contract/**
+# gate-watch: scripts/crew/render-crew-board.ts scripts/crew/render-swarm-board.ts scripts/lib/spawnCapture.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78
