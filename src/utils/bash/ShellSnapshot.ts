@@ -14,7 +14,7 @@ import { getPlatform } from '../platform.js'
 import { strikeProcessGroupNow } from '../processGroup.js'
 import { ripgrepCommand } from '../ripgrep.js'
 import { subprocessEnv } from '../subprocessEnv.js'
-import { SNAPSHOT_KEEPS_ALIASES, SNAPSHOT_OPTIONS, argv0FunctionBody, noteLoginFiles, snapshotProfileOf, type LoginFilesAbsence, type ShellRecord } from '../shell/shellRecord.js'
+import { SNAPSHOT_KEEPS_ALIASES, SNAPSHOT_OPTIONS, SNAPSHOT_READS_FUNCTIONS, argv0FunctionBody, noteLoginFiles, snapshotProfileOf, type LoginFilesAbsence, type ShellRecord } from '../shell/shellRecord.js'
 import { withRoadPrograms, withShippedPrograms } from '../shell/windowsShellRoad.js'
 import { quote } from './shellQuote.js'
 
@@ -260,7 +260,7 @@ function buildCaptureScript(args: {
 
   if (definitions) {
     lines.push('echo "# Functions" >> "$SNAPSHOT_FILE"')
-    lines.push('echo "{ shopt -s extglob" >> "$SNAPSHOT_FILE"')
+    lines.push(SNAPSHOT_READS_FUNCTIONS)
     lines.push(`for __mercury_fn in $(declare -F | awk '{print $NF}'); do
   printf 'eval %q\\n' "$(declare -f -- "$__mercury_fn")" >> "$SNAPSHOT_FILE"
 done`)

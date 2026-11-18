@@ -378,6 +378,8 @@ export function argv0FunctionBody(argv0Name: string, quotedBinary: string, prepe
   return `  if [ "\${BASHPID:-$$}" != "$$" ]; then
     exec -a ${argv0Name} ${quotedBinary} ${prepend}"$@"
   else
+export const SNAPSHOT_READS_FUNCTIONS = 'echo "{ shopt -s extglob" >> "$SNAPSHOT_FILE"'
+
     ( exec -a ${argv0Name} ${quotedBinary} ${prepend}"$@" )
   fi`
 }
