@@ -421,8 +421,9 @@ The host sends `initialize` first and waits for the answer before sending work:
   `error.data.kind` (`protocol`, `claim`, `model`, `effort`, `mode`,
   `spawn-switch`, `kit`, `rewind`, `pause-gate`, `quiesce`, `queue`, `agent`,
   `no-shell`, `nothing-to-resume`, `already-initialized`, `capability`,
-  `trust` or `project`). A malformed JSON line answers `-32700`; three
-  consecutive malformed lines end the runner.
+  `trust` or `project`). A fault of the runner's own, or of the daemon it
+  asked, answers `-32603` with a sentence in `error.message`. A malformed JSON
+  line answers `-32700`; three consecutive malformed lines end the runner.
 
 ### TypeScript (Node 24, zero dependencies)
 
