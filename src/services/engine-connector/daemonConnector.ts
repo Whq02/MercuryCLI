@@ -1,6 +1,5 @@
 import { existsSync, statSync, watch, mkdirSync, type FSWatcher } from 'node:fs'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
-import { armInactivityDeadline } from '../../utils/deadline.js'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
 import { basename, dirname, join } from 'node:path'
 import type { Message } from '../../types/message.js'
@@ -87,6 +86,7 @@ import { bootBirthFacts, type BootBirthFacts } from '../switchboard/bootBirthFac
 import { seatInitialPermissionMode } from '../../daemon/concourseWorkers.js'
 import { AdmissionPart } from './daemon/admission.js'
 import { AsksPart } from './daemon/asks.js'
+import { CarrierPart } from './daemon/carrier.js'
 import { CompletionPart } from './daemon/completion.js'
 import { FoldPart } from './daemon/fold.js'
 import { connectorTrace, ECHO_RETIRE_MS, emitAll, type Listeners } from './daemon/shared.js'
@@ -304,6 +304,18 @@ export class ProjectionFeed {
   }
 }
 
+interface ConnectorHands {
+  rpc?(req: Record<string, unknown>, timeoutMs: number): Promise<Record<string, unknown>>
+  tickOnce?(pass: () => Promise<void>): Promise<void>
+  armTranscriptWatcher?(): void
+  armTranscriptTimer?(): void
+}
+
+async function carrierRpc(req: Record<string, unknown>, timeoutMs: number): Promise<Record<string, unknown>> {
+  const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
+  return (await daemonControlRpc(req as never, { timeoutMs })) as Record<string, unknown>
+}
+
 export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtensionV1 {
   readonly carrier = 'daemon' as const
 
@@ -314,103 +326,23 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private answeredRows: readonly Message[] = []
   private liveState: SessionLiveV1 = IDLE_LIVE
   private factsBusy = false
-  private busyStallDeadline: ReturnType<typeof armInactivityDeadline> | null = null
-  private static readonly BUSY_STALL_MS = 45_000
-  private carrierGoneTicks = 0
-  private carrierGoneAtFactsMs: number | null = null
-  private carrierProbeInFlight = false
-  private carrierSeen = false
-  private static readonly CARRIER_GONE_TICKS = 3
+  private readonly carrierPart = new CarrierPart({
+    sessionId: () => this.record.sessionId,
+    rpc: req => this.rpc(req),
+    factsBusy: () => this.factsBusy,
+    factsAtMs: () => this.facts?.atMs ?? 0,
+    dropBusy: () => {
+      this.factsBusy = false
+    },
+    recomputeLive: () => this.recomputeLive(),
+    carrierWentAway: () => this.carrierWentAway(),
+  })
 
-  private armBusyStall(): void {
-    if (this.busyStallDeadline !== null) {
-      this.busyStallDeadline.touch()
-      return
-    }
-    const deadline = armInactivityDeadline({
-      seam: 'engine-connector.factsBusy',
-      limitMs: DaemonSessionConnector.BUSY_STALL_MS,
-      advice: 'the chat turn indicator was busy with no facts movement — probing the session host',
-    })
-    this.busyStallDeadline = deadline
-    void deadline.expiry.catch(() => {
-      if (this.busyStallDeadline !== deadline) return
-      this.busyStallDeadline = null
-      this.probeStalledTurn()
-    })
-  }
-
-  private disarmBusyStall(): void {
-    this.busyStallDeadline?.cancel()
-    this.busyStallDeadline = null
-  }
-
-  private probeStalledTurn(): void {
-    void this.rpc({ op: 'sessionControl', action: 'session-facts', sessionId: this.record.sessionId, by: 'operator' })
-      .then(reply => {
-        const r = reply as { ok?: boolean; outcome?: string; detail?: string }
-        if (r.ok === true && r.outcome !== 'refused') {
-          if (this.factsBusy) this.armBusyStall()
-          return
-        }
-        this.settleStalledTurn(`daemon: ${r.detail ?? r.outcome ?? 'refused'}`)
-      })
-      .catch(e => this.settleStalledTurn(`daemon unreachable: ${e}`))
-  }
-
-  private settleStalledTurn(why: string): void {
-    if (!this.factsBusy) return
-    logForDebugging(`[engine-connector] busy turn stalled ${DaemonSessionConnector.BUSY_STALL_MS}ms with no facts and no live runner — settling idle (${why})`)
-    this.factsBusy = false
-    this.recomputeLive()
-  }
-
-  private probeCarrier(): void {
-    if (this.carrierProbeInFlight || this.carrierGoneAtFactsMs !== null) return
-    this.carrierProbeInFlight = true
-    void (async () => {
-      const { readDaemonState } = await import('../../daemon/controlSocket.js')
-      const { isProcessAlive } = await import('../../daemon/ownerWatch.js')
-      const state = await readDaemonState()
-      if (state === null) return this.carrierSeen ? 'gone' : 'unknown'
-      if (state.state === 'stopping' || !isProcessAlive(state.pid)) return 'gone'
-      this.carrierSeen = true
-      return 'alive'
-    })()
-      .then(verdict => {
-        if (verdict !== 'gone') {
-          this.carrierGoneTicks = 0
-          return
-        }
-        this.carrierGoneTicks += 1
-        if (this.carrierGoneTicks >= DaemonSessionConnector.CARRIER_GONE_TICKS) this.settleCarrierGone()
-      })
-      .catch(() => {})
-      .finally(() => {
-        this.carrierProbeInFlight = false
-      })
-  }
-
-  private settleCarrierGone(): void {
-    if (this.carrierGoneAtFactsMs !== null) return
-    this.carrierGoneAtFactsMs = this.facts?.atMs ?? 0
-    logForDebugging(`[engine-connector] the daemon carrying ${this.record.sessionId} is gone (${DaemonSessionConnector.CARRIER_GONE_TICKS} reads) — settling idle, dropping its work rows, saying so`)
-    this.factsBusy = false
-    this.disarmBusyStall()
+  private carrierWentAway(): void {
     if (this.facts !== null) this.facts = { ...this.facts, busy: false, work: [], mission: [], samples: [] }
     this.workPart.refreshWork()
     this.recomputeLive()
     this.addDisplayRow(createSeatReceiptMessage(CARRIER_GONE_WORDS, 'warning') as unknown as Message)
-  }
-
-  private factsFromCarrier(next: SessionFactsV1): SessionFactsV1 {
-    if (this.carrierGoneAtFactsMs === null) return next
-    if (next.atMs !== this.carrierGoneAtFactsMs) {
-      this.carrierGoneAtFactsMs = null
-      this.carrierGoneTicks = 0
-      return next
-    }
-    return { ...next, busy: false, work: [], mission: [], samples: [] }
   }
   private displayRows: Array<{ row: Message; anchor: number }> = []
   private clearModelReceipt: Message | null | undefined
@@ -442,7 +374,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private readonly factsFeed: ProjectionFeed
   private readonly modelListeners: Listeners = new Set()
   private readonly permissionListeners: Listeners = new Set()
-  private readonly workPart = new WorkPart({ facts: () => this.facts, carrierGone: () => this.carrierGoneAtFactsMs !== null })
+  private readonly workPart = new WorkPart({ facts: () => this.facts, carrierGone: () => this.carrierPart.gone() })
 
   private readonly asksPart = new AsksPart({
     record: () => this.record,
@@ -470,7 +402,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     factsBusy: () => this.factsBusy,
     work: () => this.facts?.work ?? [],
     factsTurnStartedAt: () => this.facts?.turnStartedAt,
-    streamIdleTimeoutMs: () => this.facts?.streamIdleTimeoutMs,
+    streamIdleTimeoutMs: () => (typeof this.facts?.streamIdleTimeoutMs === 'number' ? this.facts.streamIdleTimeoutMs : undefined),
     model: () => this.modelFacts().effective,
     anySendDelivered: () => this.sends.some(s => s.state === 'delivered'),
     redressQueuedSends: () => {
@@ -487,14 +419,14 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     dropRunningFoldAtIdle: () => this.foldPart.dropRunningAtIdle(),
     stepTurnCompletion: inFlight => this.completionPart.stepTurnCompletion(inFlight),
     syncFeedCadence: inFlight => this.syncFeedCadence(inFlight),
-    probeCarrier: () => this.probeCarrier(),
+    probeCarrier: () => this.carrierPart.probeCarrier(),
   })
 
   private readonly progressFeed: ProjectionFeed
 
   private attached = false
 
-  constructor(readonly record: DaemonSessionRecordV1) {
+  constructor(readonly record: DaemonSessionRecordV1, private readonly hands: ConnectorHands = {}) {
     this.transcriptPath = join(record.home, `${record.sessionId}.jsonl`)
     this.facts = readSessionFacts(record.sessionId)
     this.factsBusy = this.facts?.busy ?? false
@@ -516,7 +448,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.workPart.refreshCheckpoints()
   }
 
-
   attach(): Promise<void> {
     if (this.attached) return Promise.resolve()
     this.attached = true
@@ -533,7 +464,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   detach(): void {
-    this.disarmBusyStall()
+    this.carrierPart.disarmBusyStall()
     if (!this.attached) return
     this.attached = false
     this.livePart.syncLivenessTicker(false)
@@ -605,6 +536,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   private armTranscriptWatcher(): void {
+    if (this.hands.armTranscriptWatcher !== undefined) return this.hands.armTranscriptWatcher()
     if (this.transcriptWatcher !== null) return
     try {
       const dir = dirname(this.transcriptPath)
@@ -626,6 +558,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   private armTranscriptTimer(): void {
+    if (this.hands.armTranscriptTimer !== undefined) return this.hands.armTranscriptTimer()
     if (!this.attached) return
     const ms = this.transcriptWatcher === null || this.turnInFlight ? HEARTBEAT_MS : IDLE_TRANSCRIPT_FLOOR_MS
     if (this.transcriptTimer !== null && this.transcriptTimerMs === ms) return
@@ -710,7 +643,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     return this.admissionPart.admissionRefusal()
   }
 
-
   private tick(): Promise<void> {
     if (this.tickInFlight !== null) {
       this.tickDirty = true
@@ -720,7 +652,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       try {
         do {
           this.tickDirty = false
-          await this.tickOnce()
+          await (this.hands.tickOnce === undefined ? this.tickOnce() : this.hands.tickOnce(() => this.tickOnce()))
         } while (this.tickDirty && this.attached)
       } finally {
         this.tickInFlight = null
@@ -1041,7 +973,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.rowsAfterTail = afterTail.length
     const kept = withoutRetractedReplies(projectOperatorRewinds(this.rawRecords))
     const dropped = kept.length === this.rawRecords.length ? null : new Set<Message>(kept)
-    const answered = endedRunResults(kept, this.facts, this.carrierGoneAtFactsMs !== null)
+    const answered = endedRunResults(kept, this.facts, this.carrierPart.gone())
     this.keptRecords = kept
     this.answeredRows = answered
     if (echoes.length === 0 && this.displayRows.length === 0 && dropped === null && answered.length === 0) {
@@ -1138,7 +1070,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
     if (!this.admissionPart.factsArrive(next.atMs)) return
     const prev = this.facts
-    this.facts = this.factsFromCarrier(next)
+    this.facts = this.carrierPart.factsFromCarrier(next)
     this.admissionPart.runnerReported(this.facts.runner)
     this.workPart.refreshCheckpoints()
     adoptOpenaiObservedUsage(next.usage?.openaiObserved)
@@ -1177,8 +1109,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       prev.effortSent !== next.effortSent
     const modeMoved = prev === null || prev.permissionMode !== next.permissionMode
     this.factsBusy = this.facts.busy
-    if (this.facts.busy) this.armBusyStall()
-    else this.disarmBusyStall()
+    if (this.facts.busy) this.carrierPart.armBusyStall()
+    else this.carrierPart.disarmBusyStall()
     this.reconcileQueuedSends(next)
     this.completionPart.refreshWorkerTurnMarks()
     this.recomputeLive()
@@ -1186,7 +1118,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (modelMoved) emitAll(this.modelListeners, 'model')
     if (modeMoved) emitAll(this.permissionListeners, 'permission')
     if (!modelMoved) emitAll(this.modelListeners, 'model')
-    const answered = endedRunResults(this.keptRecords, this.facts, this.carrierGoneAtFactsMs !== null)
+    const answered = endedRunResults(this.keptRecords, this.facts, this.carrierPart.gone())
     const answeredMoved = answered.length !== this.answeredRows.length || answered.some((row, at) => row !== this.answeredRows[at])
     if (this.reconcileSends() || this.clearModelReceipt === undefined || answeredMoved) this.paint()
     this.workPart.refreshWork()
@@ -1196,10 +1128,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.asksPart.readAsks()
   }
 
-
-  private async rpc(req: Record<string, unknown>, timeoutMs = RPC_TIMEOUT_MS): Promise<Record<string, unknown>> {
-    const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
-    return (await daemonControlRpc(req as never, { timeoutMs })) as Record<string, unknown>
+  private rpc(req: Record<string, unknown>, timeoutMs = RPC_TIMEOUT_MS): Promise<Record<string, unknown>> {
+    return this.hands.rpc === undefined ? carrierRpc(req, timeoutMs) : this.hands.rpc(req, timeoutMs)
   }
 
   private verbChain: Promise<unknown> = Promise.resolve()
@@ -1677,7 +1607,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       const detail = typeof reply.detail === 'string' && reply.detail !== '' ? reply.detail : undefined
       if (outcome === 'refused') return refuse(detail ?? 'the daemon refused the switch')
       if (outcome !== 'applied' && outcome !== 'queued' && outcome !== 'noop') return refuse(`unexpected outcome ${String(outcome)}`)
-      if ((outcome === 'queued') !== busy) this.readFacts()
+      if (outcome === 'noop' || (outcome === 'queued') !== busy) this.readFacts()
       if (outcome === 'noop') return { state: 'no-op' }
       this.factsFeed.settle(SEAT_VERB_SETTLE_MS)
       if (outcome === 'applied') {

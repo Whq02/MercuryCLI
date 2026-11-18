@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { enableConfigs } = await import('../../src/utils/config.ts')
@@ -45,8 +47,20 @@ assert.equal(state.adoptOpenaiWindowFact({ ...fact, observedAtMs: now + 5 }), fa
 assert.equal(state.openaiObservedWall('chatgpt-subscription')?.resetsAtMs, reset + 10000)
 assert.equal(state.adoptOpenaiWindowFact({ ...fact, observedAtMs: now + 20, resetsAtMs: now - 1 }), true)
 assert.equal(observedFamilyWindow('openai', reads).state, 'allowed')
-const connector = readFileSync(new URL('../../src/services/engine-connector/daemonConnector.ts', import.meta.url), 'utf8')
-assert.ok(connector.includes('adoptOpenaiWindowFact(next.usage?.openaiWindow)'))
+state.__resetOpenaiLimitStateForTest()
+const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
+const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+const plane = mkdtempSync(join(tmpdir(), 'openai-window-relay-'))
+const planeBefore = process.env.MERCURY_DAEMON_DIR
+process.env.MERCURY_DAEMON_DIR = plane
+publishSessionFacts({ schema: 1, sessionId: 'window-relay', atMs: now, busy: false, pendingModel: null, model: { effective: 'fixture', setting: null }, usage: { totalCostUSD: 0, openaiWindow: fact }, queue: [] } as never)
+const hosted = new DaemonSessionConnector({ sessionId: 'window-relay', runnerId: 'runner-1', title: 'window relay', projectLabel: 'proof', workspaceId: plane, home: plane } as never, { rpc: async () => ({ ok: true }), armTranscriptWatcher: () => {}, armTranscriptTimer: () => {} })
+await hosted.attach()
+hosted.detach()
+if (planeBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
+else process.env.MERCURY_DAEMON_DIR = planeBefore
+rmSync(plane, { recursive: true, force: true })
+assert.equal(state.openaiObservedWall('chatgpt-subscription')?.resetsAtMs, reset, "a hosted connector attached over facts whose usage.openaiWindow is the runner's wall holds no wall: its facts read hands usage.openaiWindow to adoptOpenaiWindowFact")
 unsubscribe()
 state.__resetOpenaiLimitStateForTest()
 console.log('PASS runner-to-screen wall adoption, source isolation, recency, expiry and one change signal')

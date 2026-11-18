@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -65,10 +66,13 @@ console.log('\n(2) the connector says when the runner is gone')
 }
 {
   const scratch = mkdtempSync(join(tmpdir(), 'crew-rail-leaves-'))
+  const planeBefore = process.env.MERCURY_DAEMON_DIR
   process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
   mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
   const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
   const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
+  const { daemonStatePath } = await import('../../src/daemon/controlSocket.ts')
+  await import('../../src/daemon/ownerWatch.ts')
   const seat = new DaemonSessionConnector({ sessionId: SID, runnerId: 'runner-air-8b', title: 'the chat', projectLabel: 'proof', workspaceId: scratch, home: scratch })
   publishSessionFacts({
     schema: 1,
@@ -85,13 +89,40 @@ console.log('\n(2) the connector says when the runner is gone')
     queue: [],
     work: [sleeper],
   })
-  const reaches = seat as unknown as { readFacts(): void; settleCarrierGone(): void }
-  reaches.readFacts()
+  const seconds: Array<() => void> = []
+  const realSetInterval = globalThis.setInterval
+  globalThis.setInterval = ((fire: () => void, ms: number) => {
+    if (ms === 1000) seconds.push(fire)
+    const never = realSetInterval(() => {}, 0x3fffffff)
+    never.unref?.()
+    return never
+  }) as typeof setInterval
   const seen: Array<{ rows: number; gone: boolean }> = []
-  seat.subscribeWork(() => seen.push({ rows: seat.workRoster().rows.length, gone: seat.workRoster().gone === true }))
-  const before = { rows: seat.workRoster().rows.length, gone: seat.workRoster().gone === true }
-  reaches.settleCarrierGone()
-  check('settleCarrierGone sets the verdict before it refreshes the work (the roster carries both at once)', before.rows === 1 && !before.gone && seen.length === 1 && seen[0]!.rows === 0 && seen[0]!.gone, JSON.stringify({ before, seen }))
+  let before = { rows: -1, gone: false }
+  try {
+    await seat.attach()
+    before = { rows: seat.workRoster().rows.length, gone: seat.workRoster().gone === true }
+    seat.subscribeWork(() => seen.push({ rows: seat.workRoster().rows.length, gone: seat.workRoster().gone === true }))
+    const aSecondPasses = async (): Promise<void> => {
+      for (const fire of [...seconds]) fire()
+      for (let i = 0; i < 8; i++) await readFile(daemonStatePath(), 'utf8').catch(() => null)
+      await new Promise(resolve => setImmediate(resolve))
+    }
+    writeFileSync(daemonStatePath(), JSON.stringify({ pid: process.pid, version: '1.0.0', origin: 'transient', startedAt: Date.now(), dir: process.env.MERCURY_DAEMON_DIR, controlSock: join(process.env.MERCURY_DAEMON_DIR, 'control.sock') }))
+    for (let i = 0; i < 3; i++) await aSecondPasses()
+    rmSync(daemonStatePath(), { force: true })
+    for (let i = 0; i < 40 && seat.workRoster().gone !== true; i++) await aSecondPasses()
+  } finally {
+    seat.detach()
+    globalThis.setInterval = realSetInterval
+  }
+  check(
+    'settleCarrierGone sets the verdict before it refreshes the work (the roster carries both at once)',
+    before.rows === 1 && !before.gone && seen.length === 1 && seen[0]!.rows === 0 && seen[0]!.gone,
+    `${JSON.stringify({ before, seen, tickers: seconds.length })} — an attached window on a busy turn, its daemon's record read alive once and then gone at each second: the work listener is to wake once, on a roster that is empty and gone together; CarrierPart.settleCarrierGone in src/services/engine-connector/daemon/carrier.ts latches the verdict before it calls carrierWentAway, and carrierWentAway of daemonConnector.ts strips the facts before it refreshes the work`,
+  )
+  if (planeBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
+  else process.env.MERCURY_DAEMON_DIR = planeBefore
   rmSync(scratch, { recursive: true, force: true })
 }
 const types = readFileSync(join(ROOT, 'src/services/engine-connector/types.ts'), 'utf8')

@@ -228,9 +228,8 @@ section("§4c the card's answer: the typing check and the targets run again afte
   await daemon.request('initialize', { protocol: 1, host: { name: 'proof', version: '1' }, capabilities })
   writeFileSync(concourseWorkersPath(), JSON.stringify({ version: 1, workers: { 'concourse-w1': { runnerId: 'concourse-w1', sessionId: 'sess-captcha-card', workspaceId: ROOT, title: 'captcha card', createdAt: Date.now(), startedAt: Date.now(), permissionMode: 'default' } } }))
   daemon.onRequest('permission/request', params => daemonAsks.holdWorkerAsk('concourse-w1', params, undefined, undefined, () => 'attached').answer as never)
-  const connector = new DaemonSessionConnector({ sessionId: 'sess-captcha-card', runnerId: 'concourse-w1', title: 'captcha card', projectLabel: 'proof', workspaceId: ROOT, home: join(scratch, 'sessions'), modelKey: 'claude-opus-4-8' } as never)
-  const cockpit = connector as never as { readAsks: () => void; asks: () => ReadonlyArray<{ confirm: { onReject: (feedback?: string) => Promise<void> } }>; rpc: (req: Record<string, unknown>) => Promise<Record<string, unknown>> }
-  cockpit.rpc = async req => ({ ok: true, ...daemonAsks.answerPermissionAsk(String(req.requestId), req.allow === true, String(req.by), undefined, req.answer as never) })
+  const connector = new DaemonSessionConnector({ sessionId: 'sess-captcha-card', runnerId: 'concourse-w1', title: 'captcha card', projectLabel: 'proof', workspaceId: ROOT, home: join(scratch, 'sessions'), modelKey: 'claude-opus-4-8' } as never, { rpc: async (req: Record<string, unknown>) => ({ ok: true, ...daemonAsks.answerPermissionAsk(String(req.requestId), req.allow === true, String(req.by), undefined, req.answer as never) }) })
+  const cockpit = connector as never as { readAsks: () => void; asks: () => ReadonlyArray<{ confirm: { onReject: (feedback?: string) => Promise<void> } }> }
   const askContext = toolContext({ messages: context.messages })
   const parent = toolUseTurn('captcha-card', 'Computer', { action: 'click', ...firstName })
   const pending = createRunnerAsks(runner, () => capabilities).createCanUseTool()(ComputerTool as never, { action: 'click', ...firstName, captcha: true }, askContext, parent as never, 'captcha-card', (asks[0] ?? { behavior: 'ask', message: 'the challenge question' }) as never)

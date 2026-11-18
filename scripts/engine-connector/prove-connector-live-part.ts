@@ -317,7 +317,7 @@ section('§6 tool progress: read from the projection, each step shown once')
 
 section('§7 the status row: how long quiet, how long in this phase, and stuck only past the warning point')
 {
-  const WATCHDOG = 90_000
+  const WATCHDOG = 900_000
   const { live, world, seen } = part({ idleMs: WATCHDOG })
   const rest = live.status({ ...shown, isolation: 'worktree' as never, branchLabel: 'a-branch' })
   check('at rest the row says who it is and nothing of a turn', j(rest) === j({ title: 'the chat', projectLabel: 'proof', interrupting: false, hardStopping: false, wait: null, quietMs: null, watchdogMs: WATCHDOG, phaseMs: null, toolBudgetMs: null, stuck: false, isolation: 'worktree', branchLabel: 'a-branch', runner: null }), j(rest))

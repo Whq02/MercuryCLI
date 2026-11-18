@@ -52,12 +52,25 @@ console.log('prove-stream-commit-throttle — live tail commits under a delta st
   const { TailPart } = await import('../../src/services/engine-connector/daemon/tail.ts')
   const fed = new TailPart({ sessionId: () => 'throttle', rows: () => [], model: () => 'the-model', paint: () => {} })
   const store = fed.store()
+  let publishes = 0
+  const unsubscribe = store.subscribe(() => publishes++)
+  const clockOfTheStore = Object.getOwnPropertyDescriptor(performance, 'now')
+  Object.defineProperty(performance, 'now', { value: () => 1000, configurable: true, writable: true })
   fed.takeTail({ schema: 1, sessionId: 'throttle', atMs: 1, text: 'the words', messageId: 'msg_1' })
   const opening = store.read()
+  const publishedAtTheOpening = publishes
   fed.takeTail({ schema: 1, sessionId: 'throttle', atMs: 2, text: 'the words grow', messageId: 'msg_1' })
+  const publishedInTheTick = publishes
+  if (clockOfTheStore !== undefined) Object.defineProperty(performance, 'now', clockOfTheStore)
+  else delete (performance as { now?: unknown }).now
+  unsubscribe()
   const seat = readFileSync(join(import.meta.dir, '../../src/daemon/sessionSeat.ts'), 'utf8')
   check('the face holds no stream batcher (no batcher.update, no streaming tool-use reset)', !repl.includes('batcher.update(') && !repl.includes('resetStreamingToolUses'))
-  check('the connector feeds one streaming tail store from the seat tail feed', opening === 'the words' && store.read() === 'the words grow' && fed.store() === store, `${String(opening)} · ${String(store.read())}`)
+  check(
+    'the connector feeds one streaming tail store from the seat tail feed, through its throttle (two feeds in one tick publish once)',
+    opening === 'the words' && store.read() === 'the words grow' && fed.store() === store && publishedAtTheOpening === 1 && publishedInTheTick === 1,
+    `${String(opening)} · ${String(store.read())} · published ${publishedAtTheOpening} at the opening and ${publishedInTheTick} after the second feed of the same tick (1 and 1): TailPart.takeTail in src/services/engine-connector/daemon/tail.ts feeds the store through update, which holds a second change inside the store's interval for one trailing publish; reset publishes every feed at once`,
+  )
   check('the seat publishes its tail on a bounded throttle with a trailing publish', seat.includes('TAIL_PUBLISH_MS = 40') && seat.includes('tailDirty'))
   check('every transcript arm paints the focused tail under the one motion gate (the gate suppresses the text half; the tail mounts on every surface — FN-016 R12)', (repl.match(/streamingTail=\{focusedTail\}/g) ?? []).length === 3 && (repl.match(/streamingTextSuppressed=\{streamingSuppressed\}/g) ?? []).length === 3)
   const streaming = readFileSync(join(import.meta.dir, '../../src/utils/messages/streaming.ts'), 'utf8')

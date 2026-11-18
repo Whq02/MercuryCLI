@@ -164,7 +164,7 @@ console.log('\nL6 structural — no surface reads transcript growth as liveness'
   const realNow = Date.now
   let clock = 5_000_000
   Date.now = () => clock
-  const WATCHDOG = 90_000
+  const WATCHDOG = 900_000
   const seat = { title: 'the chat', projectLabel: 'proof', runner: null }
   let grown = IDLE_LIVE
   const seatLive = liveWith({ streamIdleTimeoutMs: () => WATCHDOG, transcriptLive: () => grown })

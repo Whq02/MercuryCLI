@@ -188,6 +188,7 @@ section('§5 the connector paints every refusal in words — the popup never sho
 const restingConnector = new NoSessionConnector()
 const resting = (await restingConnector.mcpTools('runpod')) as { state?: string; detail?: string; tools: readonly unknown[] }
 check('no chat open: the resting slot answers unavailable with the one sentence', resting.state === 'unavailable' && resting.detail === NO_CHAT_OPEN && resting.tools.length === 0, j(resting))
+let reply: (req: Record<string, unknown>) => Promise<Record<string, unknown>> = async () => ({ ok: false, code: 'EUNKNOWN', error: 'unset' })
 const connector = new DaemonSessionConnector({
   sessionId: SESSION,
   runnerId: RUNNER,
@@ -196,10 +197,7 @@ const connector = new DaemonSessionConnector({
   workspaceId: ROOT,
   home: scratch,
   modelKey: MODEL,
-} as never)
-const guts = connector as unknown as { rpc: (req: Record<string, unknown>) => Promise<Record<string, unknown>> }
-let reply: (req: Record<string, unknown>) => Promise<Record<string, unknown>> = async () => ({ ok: false, code: 'EUNKNOWN', error: 'unset' })
-guts.rpc = req => reply(req)
+} as never, { rpc: (req: Record<string, unknown>) => reply(req) })
 const needs = verbBornAt('sessionControl', 'mcp-tools')
 check('the verb is registered at its own protocol (the client can name an older daemon)', needs === 16, String(needs))
 const olderLine = olderDaemonRefusalLine('sessionControl mcp-tools', needs, { proto: needs - 1, version: '1.0.0-beta.39' })

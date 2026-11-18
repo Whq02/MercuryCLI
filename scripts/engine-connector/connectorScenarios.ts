@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { appendFileSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import net from 'node:net'
 import { tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
@@ -7,7 +8,7 @@ import { join, sep } from 'node:path'
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
 type Reply = Record<string, unknown>
 type Answer = Reply | 'drop' | ((req: Reply) => Reply | 'drop')
-type ScriptedReply = Answer | { apart: Answer }
+type ScriptedReply = Answer | { apart: Answer } | { hold: (release: (reply: Reply | 'drop') => void) => void }
 type Listener = 'records' | 'live' | 'model' | 'permission' | 'work' | 'checkpoints' | 'asks' | 'fold'
 type Row = Record<string, unknown>
 
@@ -72,7 +73,7 @@ const armedByTheProduct = (): boolean => {
   return stack.includes(PRODUCT) || stack.includes(PRODUCT.split(sep).join('/'))
 }
 
-function installClock(): { now: () => number; advance: (ms: number) => void } {
+function installClock(): { now: () => number; advance: (ms: number) => void; begin: (hour: number) => void } {
   let now = CLOCK_ZERO
   let nextId = 1
   const timers: FakeTimer[] = []
@@ -109,8 +110,14 @@ function installClock(): { now: () => number; advance: (ms: number) => void } {
     apply: target => new target(now).toString(),
     get: (target, prop, receiver) => (prop === 'now' ? () => now : Reflect.get(target, prop, receiver)),
   })
+  Object.defineProperty(globalThis.performance, 'now', { value: () => now - CLOCK_ZERO, configurable: true, writable: true })
   return {
     now: () => now,
+    begin: hour => {
+      for (const t of timers) t.dead = true
+      timers.length = 0
+      now = CLOCK_ZERO + hour * 3_600_000
+    },
     advance: ms => {
       const target = now + ms
       for (;;) {
@@ -172,6 +179,16 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
   const { createSeatReceiptMessage } = await import(src('utils/messages/systemMessages.ts'))
   const { mcpToolsAnswerOf } = await import(src('services/mcp/toolsAnswer.ts'))
   const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
+  const carrierCall = async (req: Reply, timeoutMs: number): Promise<Reply> => {
+    const { daemonControlRpc } = await import(src('daemon/controlSocket.ts'))
+    return (await daemonControlRpc(req, { timeoutMs })) as Reply
+  }
+  const carrierThrows = async (message: string): Promise<Reply> => {
+    throw new Error(message)
+  }
+  const progressStore = await import(src('state/ephemeralProgressStore.ts'))
+  await import(src('daemon/ownerWatch.ts'))
+  const WATCHED_TOOLS = ['toolu_attach', 'toolu_run', 'toolu_hook', 'toolu_eval', 'toolu_mcp', 'toolu_ps', 'toolu_fed', 'toolu_old', 'toolu_f']
 
   type Pending = { req: Reply; answer: (reply: Reply | 'drop') => void; closed: Promise<void> }
   const waiting: Pending[] = []
@@ -242,7 +259,8 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
     readonly home: string
     readonly transcriptPath: string
     readonly connector: InstanceType<typeof DaemonSessionConnector>
-    private readonly guts: { attached: boolean; tick: () => Promise<void>; readFacts: () => void; readTail: () => void; readAsks: () => void; settleCarrierGone: () => void; armTranscriptWatcher: () => void; rpc?: (req: Reply) => Promise<Reply> }
+    private readonly guts: { attached: boolean; tick: () => Promise<void>; readFacts: () => void; readTail: () => void; readAsks: () => void }
+    private carrierBroken: string | null = null
     private readonly ids = new Map<string, string>()
     private readonly last = new Map<string, string>()
     private rows: Row[] = []
@@ -253,14 +271,21 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
     private readonly apart: Array<Record<string, unknown>> = []
     private readonly closing: Array<Promise<void>> = []
     private readonly unsubscribe: Array<() => void> = []
+    onWake: ((kind: Listener) => void) | null = null
 
-    constructor(readonly name: string, record: Record<string, unknown> = {}, before: (h: Harness) => void = () => {}) {
+    constructor(readonly name: string, record: Record<string, unknown> = {}, before: (h: Harness) => void = () => {}, watcher: 'real' | 'none' = 'none') {
       this.sessionId = `rec-${name}`
       this.home = join(scratch, 'sessions', name)
       mkdirSync(this.home, { recursive: true })
       this.transcriptPath = join(this.home, `${this.sessionId}.jsonl`)
       before(this)
-      this.connector = new DaemonSessionConnector({ sessionId: this.sessionId, runnerId: `runner-${name}`, title: `the ${name} chat`, projectLabel: 'proof', workspaceId: work, home: this.home, modelKey: 'claude-sonnet-5-5', ...record })
+      this.connector = new DaemonSessionConnector(
+        { sessionId: this.sessionId, runnerId: `runner-${name}`, title: `the ${name} chat`, projectLabel: 'proof', workspaceId: work, home: this.home, modelKey: 'claude-sonnet-5-5', ...record },
+        {
+          rpc: (req: Reply, timeoutMs: number) => (this.carrierBroken === null ? carrierCall(req, timeoutMs) : carrierThrows(this.carrierBroken)),
+          ...(watcher === 'real' ? {} : { armTranscriptWatcher: () => {} }),
+        },
+      )
       this.guts = this.connector as unknown as Harness['guts']
       const subscribe: Record<Listener, (cb: () => void) => () => void> = {
         records: cb => this.connector.subscribeRecords(cb),
@@ -276,9 +301,18 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
         this.unsubscribe.push(subscribe[kind](() => {
           woken.add(kind)
           this.event({ wake: kind, answers: this.changed() })
+          this.onWake?.(kind)
         }))
       }
       for (const method of SUBSCRIBE_METHODS) called.add(method)
+      const store = this.connector.tail() as unknown as { subscribe(cb: () => void): () => void; getSnapshot(): string | null; readSettled(): unknown; readIds(): unknown; readPhases(): unknown }
+      this.unsubscribe.push(store.subscribe(() => this.event({ tailStore: { published: store.getSnapshot(), settled: store.readSettled(), ids: store.readIds(), phases: store.readPhases() } })))
+      for (const id of WATCHED_TOOLS) {
+        this.unsubscribe.push(progressStore.subscribeEphemeralProgress(id, () => {
+          const frame = progressStore.getEphemeralProgressFrame(id) as { toolUseID?: string; data?: unknown } | undefined
+          this.event({ progress: id, frame: frame === undefined ? null : { toolUseID: frame.toolUseID, data: frame.data } })
+        }))
+      }
       this.event({ opened: this.sessionId, answers: this.changed() })
     }
 
@@ -375,7 +409,6 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
     }
 
     private claim(): void {
-      if (!Object.hasOwn(this.guts, 'armTranscriptWatcher')) this.guts.armTranscriptWatcher = () => {}
       this.guts.attached = true
     }
 
@@ -392,6 +425,14 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
           while (waiting.length === 0) await nextArrival()
           const pending = waiting.shift()!
           const scripted = this.script.shift()!
+          if (typeof scripted === 'object' && scripted !== null && 'hold' in scripted) {
+            this.event({ carrier: pending.req, reply: '<held: the carrier is quiet>' })
+            ;(scripted as { hold: (release: (reply: Reply | 'drop') => void) => void }).hold(reply => {
+              this.event({ carrier: pending.req, released: reply })
+              pending.answer(reply)
+            })
+            continue
+          }
           const aside = typeof scripted === 'object' && 'apart' in scripted
           const answer = (aside ? (scripted as { apart: Answer }).apart : scripted) as Answer
           const reply = typeof answer === 'function' ? answer(pending.req) : answer
@@ -406,7 +447,10 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
     private async settle(what: string): Promise<void> {
       await within(`${this.name}: ${what}: the carrier was scripted ${this.script.length} more replies than it was asked for`, this.serving)
       await Promise.all(this.closing.splice(0))
-      for (const entry of this.apart.splice(0)) this.event(entry)
+      const apart = this.apart.splice(0)
+      const place = (entry: Record<string, unknown>): string => JSON.stringify(entry.carrier).replace(new RegExp(UUID.source, 'gi'), '<id>')
+      if (apart.length > 1) apart.sort((a, b) => (place(a) < place(b) ? -1 : place(a) > place(b) ? 1 : 0))
+      for (const entry of apart) this.event(entry)
       if (this.guts.attached) await this.guts.tick.call(this.connector)
       for (let i = 0; i < 4; i++) await turn()
       await pause(1)
@@ -458,9 +502,9 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
       await this.settle(label)
     }
 
-    facts(patch: Record<string, unknown> = {}): Promise<void> {
+    facts(patch: Record<string, unknown> = {}, script: ScriptedReply[] = []): Promise<void> {
       this.publishFacts(patch)
-      return this.step(`facts ${JSON.stringify(this.mask(patch))}`, [], () => this.guts.readFacts.call(this.connector))
+      return this.step(`facts ${JSON.stringify(this.mask(patch))}`, script, () => this.guts.readFacts.call(this.connector))
     }
 
     publishFacts(patch: Record<string, unknown> = {}): void {
@@ -495,8 +539,8 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
       })
     }
 
-    asks(asks: Row[] | null): Promise<void> {
-      return this.step(`asks ${JSON.stringify(this.mask(asks))}`, [], () => {
+    asks(asks: Row[] | null, script: ScriptedReply[] = []): Promise<void> {
+      return this.step(`asks ${JSON.stringify(this.mask(asks))}`, script, () => {
         if (asks === null) rmSync(projections.sessionAsksPath(this.sessionId, daemonDir), { force: true })
         else projections.publishSessionAsks({ schema: 1, sessionId: this.sessionId, asks }, daemonDir)
         this.guts.readAsks.call(this.connector)
@@ -566,6 +610,26 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
       })
     }
 
+    transcriptGrowsWhileRead(label: string, first: Array<() => Row>, then: Array<() => Row>): Promise<void> {
+      return this.step(`transcript: ${label}`, [], async () => {
+        this.write(first)
+        this.claim()
+        const reading = this.guts.tick.call(this.connector)
+        this.write(then)
+        void this.guts.tick.call(this.connector)
+        await reading
+      })
+    }
+
+    watcherFiresTwice(label: string, make: Array<() => Row>): Promise<void> {
+      return this.step(`transcript: ${label}`, [], async () => {
+        if (make.length > 0) this.write(make)
+        this.claim()
+        void this.guts.tick.call(this.connector)
+        await this.guts.tick.call(this.connector)
+      })
+    }
+
     unwrittenTranscript(make: Array<() => Row>): void {
       this.event({ step: 'rows reach the transcript and no tick has read them' })
       this.write(make)
@@ -607,24 +671,30 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
       })
     }
 
-    carrierGone(): Promise<void> {
-      return this.step('the carrier is read gone', [], () => this.guts.settleCarrierGone.call(this.connector))
+    beat(): Promise<void> {
+      return this.step('the clock moves 1000 ms and the probe of the carrier ends', [], async () => {
+        clock.advance(1000)
+        for (let i = 0; i < 4; i++) await turn()
+        for (let round = 0; round < 3; round++) {
+          for (let i = 0; i < 8; i++) await readFile(daemonStatePath(), 'utf8').catch(() => null)
+          await pause(1)
+        }
+        for (let i = 0; i < 4; i++) await turn()
+      })
     }
 
     breakCarrier(message: string): void {
       this.event({ step: `the carrier throws: ${message}` })
-      this.guts.rpc = async () => {
-        throw new Error(message)
-      }
+      this.carrierBroken = message
     }
 
     mendCarrier(): void {
       this.event({ step: 'the carrier answers again' })
-      delete this.guts.rpc
+      this.carrierBroken = null
     }
 
     async close(): Promise<void> {
-      if (this.guts.rpc !== undefined && Object.hasOwn(this.guts, 'rpc')) delete this.guts.rpc
+      this.carrierBroken = null
       this.guts.attached = true
       await this.call('detach')
       for (const off of this.unsubscribe) off()
@@ -642,12 +712,15 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
   const outcome = (word: string, extra: Reply = {}): Reply => ({ ok: true, op: 'sessionControl', outcome: word, ...extra })
   const refusedBy = (error: string, extra: Reply = {}): Reply => ({ ok: false, code: 'EREFUSED', error, ...extra })
   const dispatched: Reply = { ok: true, op: 'sessionDispatch', state: 'delivered' }
-  const scenario = async (name: string, run: (h: Harness) => Promise<void>, record: Record<string, unknown> = {}, before: (h: Harness) => void = () => {}): Promise<void> => {
+  let scenariosSeen = 0
+  const scenario = async (name: string, run: (h: Harness) => Promise<void>, record: Record<string, unknown> = {}, before: (h: Harness) => void = () => {}, watcher: 'real' | 'none' = 'none'): Promise<void> => {
+    const hour = scenariosSeen++
     if (only.length > 0 && !only.includes(name)) return
+    clock.begin(hour)
     _resetDaemonUsableMemoForProofs()
     rmSync(concourseWorkersPath(daemonDir), { force: true })
     rmSync(daemonStatePath(), { force: true })
-    const h = new Harness(name, record, before)
+    const h = new Harness(name, record, before, watcher)
     await run(h)
     await h.close()
   }
@@ -668,7 +741,7 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
     projections.publishSessionTail({ schema: 1, sessionId: h.sessionId, atMs: clock.now(), text: null, turnChars: 12, turnOutputTokens: 3 }, daemonDir)
     h.publishProgress({ toolu_attach: { toolUseID: 'toolu_inner', dataType: 'bash_progress', seq: 1, latestLine: 'one line', elapsedTimeSeconds: 2, totalLines: 1, budgetMs: 120000 } })
     h.seed([h.user('the words before the window opened')])
-  })
+  }, 'real')
 
   await scenario('send-delivered', async h => {
     h.workers({})
@@ -881,7 +954,6 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
     await h.call('setModel', ['gpt-6.2-sol'], [refusedBy('the daemon refused it')])
     await h.call('setModel', ['gpt-6.2-sol'], [outcome('queued')])
     await h.call('setModel', ['gpt-6.2-sol'], [outcome('noop')])
-    await h.call('setModel', ['gpt-6.2-sol'])
     await h.facts({ busy: false, model: { effective: 'claude-opus-5', setting: 'claude-opus-5' } })
     await h.call('setModel', ['gpt-6.2-sol'], [outcome('weird')])
     h.breakCarrier('ECONNREFUSED')
@@ -922,12 +994,13 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
     await h.hold(true)
     await h.transcript('a turn waits on its crew', [h.user('run the errands'), h.assistant('msg_crew', [{ type: 'tool_use', id: 'toolu_crew', name: 'Crewmate', input: { prompt: 'go' } }])])
     await h.facts({ busy: true, turnStartedAt: clock.now(), work: [crewRow('agent-a', 'running')], mission: [{ id: 'm1', title: 'the mission', status: 'running' }], samples: [{ id: 's1', label: 'a sample' }] })
-    await h.advance(1000)
-    await h.carrierGone()
-    await h.carrierGone()
+    await h.beat()
+    h.daemonRecord('gone')
+    for (let i = 0; i < 3; i++) await h.beat()
+    await h.beat()
     await h.rereadFacts()
     await h.facts({ busy: true, turnStartedAt: clock.now(), work: [crewRow('agent-a', 'running')] })
-    await h.carrierGone()
+    for (let i = 0; i < 3; i++) await h.beat()
     await h.dropFacts()
   })
 
@@ -1200,7 +1273,7 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
       toolu_mcp: { toolUseID: 'toolu_mcp_inner', dataType: 'mcp_progress', seq: 1, latestLine: 'half way', mcpProgress: 5, mcpTotal: 10 },
       toolu_ps: { toolUseID: 'toolu_ps_inner', dataType: 'powershell_progress', seq: 1, latestLine: 'a line', totalLines: 1 },
     })
-  })
+  }, 'real')
 
   await scenario('busy-turn-with-no-facts', async h => {
     await h.facts({ busy: true, turnStartedAt: clock.now() })
@@ -1230,6 +1303,244 @@ export async function recordScenarios(only: readonly string[] = []): Promise<Rec
     await h.feed('no tool progress', () => h.publishProgress({}))
     await h.feed('nothing new', () => {})
     await h.call('detach')
+  }, {}, () => {}, 'real')
+
+  await scenario('a-watchdog-the-facts-spell-as-text', async h => {
+    await h.facts({ busy: true, turnStartedAt: clock.now(), streamIdleTimeoutMs: '90000' })
+    await h.tail({ text: 'words', messageId: 'msg_w', streamBlock: 'text', blockSinceMs: clock.now(), lastEventAtMs: clock.now() })
+    await h.advance(44_000)
+    await h.advance(1_000, [applied()])
+    await h.advance(44_000)
+    await h.advance(1_000, [applied()])
+    await h.facts({ busy: false })
+  })
+
+  await scenario('the-setting-chosen-again-while-another-model-serves', async h => {
+    await h.facts({ busy: false, model: { effective: 'claude-haiku-5', setting: 'claude-opus-5' } })
+    await h.call('setModel', ['claude-opus-5'], [outcome('noop')])
+    await h.facts({ busy: true, turnStartedAt: clock.now(), model: { effective: 'claude-haiku-5', setting: 'claude-opus-5' } })
+    await h.call('setModel', ['claude-opus-5'], [outcome('noop')])
+    await h.facts({ busy: false, model: { effective: 'claude-haiku-5', setting: 'claude-opus-5' } })
+  })
+
+  const foldRecord = (extra: Row = {}): Row => ({ schema: 1, trigger: 'auto', startedAtMs: CLOCK_ZERO, stages: ['summarising', 'restoring'], stage: 'summarising', fill: 0.4, summaryTokens: 10, summaryCapTokens: 100, attempt: 1, ...extra })
+
+  await scenario('quiet-carrier-mid-send', async h => {
+    h.workers({})
+    await h.hold(true)
+    await h.facts({ busy: false, runnerGeneration: 1 })
+    let release: (reply: Reply | 'drop') => void = () => {}
+    let sent: Promise<unknown> = Promise.resolve()
+    await h.step('a send begins and the carrier goes quiet', [{ hold: r => (release = r) }], () => {
+      sent = h.connector.sendWords('words into a quiet carrier').then((value: unknown) => h.event({ returned: 'sendWords', value }))
+    })
+    const first = sentId(h)
+    await h.facts({ busy: true, turnStartedAt: clock.now(), runnerGeneration: 1 })
+    await h.tail({ text: 'a reply begins', messageId: 'msg_q', streamBlock: 'text', blockSinceMs: clock.now(), turnChars: 14, lastEventAtMs: clock.now() })
+    await h.call('interrupt', [], [applied()])
+    let recalled: Promise<unknown> = Promise.resolve()
+    await h.step('the pending send is recalled while the carrier is quiet', [], () => {
+      recalled = h.connector.withdrawSend(first).then((value: unknown) => h.event({ returned: 'withdrawSend', value }))
+    })
+    await h.transcript('the runner took the words though the carrier never said so', [h.user('words into a quiet carrier', { uuid: first })])
+    await h.step('the quiet carrier answers at last', [], async () => {
+      release(dispatched)
+      await sent
+      await recalled
+    })
+    await h.facts({ busy: false, runnerGeneration: 1 })
+    await h.step('another send begins and the carrier goes quiet', [{ hold: r => (release = r) }], () => {
+      sent = h.connector.sendWords('second words').then((value: unknown) => h.event({ returned: 'sendWords', value }))
+    })
+    const second = sentId(h)
+    await h.facts({ busy: true, turnStartedAt: clock.now(), runnerGeneration: 1, queue: [{ uuid: second, value: 'second words', mode: 'prompt' }] })
+    await h.advance(700)
+    await h.facts({ busy: false, runnerGeneration: 1 })
+    await h.step('the quiet carrier drops the line', [], async () => {
+      release('drop')
+      await sent
+    })
+    await h.call('sendWords', ['second words'], [dispatched])
+    await h.facts({ busy: false, runnerGeneration: 1 })
+  })
+
+  await scenario('two-answers-to-one-ask', async h => {
+    await h.hold(true)
+    await h.transcript('a turn asks twice', [h.user('build it'), h.assistant('msg_two', [{ type: 'tool_use', id: 'toolu_a', name: 'Bash', input: { command: 'make' } }, { type: 'tool_use', id: 'toolu_b', name: 'Bash', input: { command: 'ls' } }])])
+    await h.facts({ busy: true, turnStartedAt: clock.now() })
+    await h.asks([
+      { requestId: 'ask-a', toolUseId: 'toolu_a', toolName: 'Bash', input: { command: 'make' }, description: 'run make', askedAt: clock.now() },
+      { requestId: 'ask-b', toolUseId: 'toolu_b', toolName: 'Bash', input: { command: 'ls' }, description: 'list the folder', askedAt: clock.now() },
+    ])
+    const card = (id: string): { onAbort: () => void; onAllow: (...a: unknown[]) => Promise<void>; onReject: (...a: unknown[]) => Promise<void> } =>
+      (h.connector.asks() as Array<{ id: string; confirm: never }>).find(a => a.id === id)!.confirm
+    const cardA = card('ask-a')
+    const byRequest = (req: Reply): Reply => (req.op === 'sessionDispatch' ? dispatched : req.allow === true ? applied() : outcome('refused', { detail: 'the ask was already answered' }))
+    await h.step('the card of ask-a is allowed with words and rejected in the same tick', [{ apart: byRequest }, { apart: byRequest }, { apart: byRequest }], async () => {
+      await Promise.all([cardA.onAllow({ command: 'make' }, [], 'go on', undefined), cardA.onReject('no', undefined)])
+      for (let i = 0; i < 2000 && h.connector.queuedSendCount() !== 1; i++) await pause(1)
+    })
+    await h.step('ask-b is answered twice through the door in one tick', [applied()], async () => {
+      const both = await Promise.all([h.connector.answerAsk('ask-b', { kind: 'deny', feedback: 'not now' }), h.connector.answerAsk('ask-b', { kind: 'allow' })])
+      h.event({ returned: 'answerAsk twice', value: both })
+    })
+    await h.rereadAsks()
+    const again = card('ask-a')
+    await h.step('the card that came back is aborted and the daemon says it was answered', [outcome('refused', { detail: 'the ask was already answered' })], () => again.onAbort())
+    await h.call('settleAsk', ['ask-b'])
+    await h.call('answerAsk', ['ask-b', { kind: 'allow' }])
+    await h.asks([])
+    await h.facts({ busy: false })
+  })
+
+  await scenario('transcript-shrinks-mid-turn', async h => {
+    const row = (n: number, content: string): Row => ({ type: 'system', subtype: 'seat_receipt', uuid: `00000000-0000-4000-8000-0000000000c${n}`, timestamp: new Date(clock.now()).toISOString(), content, level: 'info' })
+    await h.hold(true)
+    await h.transcript('two turns stand and a third begins', [h.user('one'), h.assistant('msg_1', [{ type: 'text', text: 'first' }]), h.user('two'), h.assistant('msg_2', [{ type: 'text', text: 'second' }]), h.user('three')])
+    await h.facts({ busy: true, turnStartedAt: clock.now(), runnerGeneration: 1 })
+    await h.call('addDisplayRow', [row(1, 'a line under the third ask')])
+    await h.tail({ text: 'mid words', messageId: 'msg_3', phase: 'commentary', streamBlock: 'text', blockSinceMs: clock.now(), turnChars: 9, lastEventAtMs: clock.now() })
+    await h.tail({ text: null, messageId: 'msg_3', streamBlock: 'tool_use', blockSinceMs: clock.now() })
+    await h.call('sendWords', ['queued under the turn'], [dispatched])
+    const queued = sentId(h)
+    await h.facts({ busy: true, runnerGeneration: 1, queue: [{ uuid: queued, value: 'queued under the turn', mode: 'prompt' }] })
+    await h.tail({ text: 'more words', messageId: 'msg_4', streamBlock: 'text', blockSinceMs: clock.now(), lastEventAtMs: clock.now() })
+    await h.cutTranscript('the transcript shrinks to the first turn while a tail is held', 2)
+    await h.call('addDisplayRow', [row(2, 'a line after the shrink')])
+    await h.cutTranscript('the transcript shrinks to one row', 1)
+    await h.transcript('rows return', [h.user('again'), h.assistant('msg_4', [{ type: 'text', text: 'more words' }])])
+    await h.tail({ text: null, messageId: 'msg_4' })
+    await h.facts({ busy: false, runnerGeneration: 1 })
+  })
+
+  await scenario('daemon-dies-and-restarts', async h => {
+    h.workers({})
+    await h.hold(true)
+    await h.transcript('a turn begins', [h.user('long work')])
+    await h.facts({ busy: true, turnStartedAt: clock.now(), runnerGeneration: 1, work: [crewRow('agent-a', 'running')], mission: [{ id: 'm1', title: 'the mission', status: 'running' }] })
+    await h.call('sendWords', ['queued before the daemon died'], [dispatched])
+    const before = sentId(h)
+    await h.facts({ busy: true, runnerGeneration: 1, queue: [{ uuid: before, value: 'queued before the daemon died', mode: 'prompt' }], work: [crewRow('agent-a', 'running')] })
+    await h.tail({ text: 'words the old daemon carried', messageId: 'msg_old', streamBlock: 'text', blockSinceMs: clock.now(), lastEventAtMs: clock.now(), turnChars: 28 })
+    h.daemonRecord('alive')
+    await h.beat()
+    h.daemonRecord('gone')
+    for (let i = 0; i < 4; i++) await h.beat()
+    await h.rereadFacts('the facts the dead daemon left are read again')
+    await h.facts({ busy: false, runnerGeneration: 2, queue: [] })
+    await h.facts({ busy: true, turnStartedAt: clock.now(), runnerGeneration: 2 })
+    h.daemonRecord('alive')
+    await h.beat()
+    await h.tail({ text: 'the new runner speaks', messageId: 'msg_new', streamBlock: 'text', blockSinceMs: clock.now(), lastEventAtMs: clock.now() })
+    await h.transcript('the new words land', [h.assistant('msg_new', [{ type: 'text', text: 'the new runner speaks' }])])
+    await h.tail({ text: null, messageId: 'msg_new' })
+    h.daemonRecord('gone')
+    await h.facts({ busy: false, runnerGeneration: 2 })
+  })
+
+  await scenario('listeners-that-call-back', async h => {
+    const row = (n: number, content: string): Row => ({ type: 'system', subtype: 'seat_receipt', uuid: `00000000-0000-4000-8000-0000000000d${n}`, timestamp: new Date(clock.now()).toISOString(), content, level: 'info' })
+    await h.hold(true)
+    await h.transcript('a turn asks', [h.user('go'), h.assistant('msg_r', [{ type: 'tool_use', id: 'toolu_r', name: 'Bash', input: { command: 'ls' } }])])
+    await h.facts({ busy: true, turnStartedAt: clock.now(), runnerGeneration: 1 })
+    await h.tail({ text: 'words held', messageId: 'msg_r2', streamBlock: 'text', blockSinceMs: clock.now(), lastEventAtMs: clock.now() })
+    let once: Record<string, boolean> = { asks: true }
+    h.onWake = kind => {
+      if (once[kind] !== true) return
+      once[kind] = false
+      if (kind === 'asks') h.event({ fromListener: 'interrupt', value: h.connector.interrupt() })
+      if (kind === 'records') h.connector.addDisplayRow(row(1, 'a row a records listener added') as never)
+      if (kind === 'live') h.event({ fromListener: 'settleAsk', value: h.connector.settleAsk('ask-r2') ?? null })
+      if (kind === 'fold') h.event({ fromListener: 'status', value: h.connector.status() })
+      if (kind === 'model') h.event({ fromListener: 'interrupt', value: h.connector.interrupt() })
+    }
+    await h.asks(
+      [
+        { requestId: 'ask-r', toolUseId: 'toolu_r', toolName: 'Bash', input: { command: 'ls' }, description: 'list the folder', askedAt: clock.now() },
+        { requestId: 'ask-r2', toolUseId: 'toolu_r2', toolName: 'Bash', input: { command: 'pwd' }, description: 'print the folder', askedAt: clock.now() },
+      ],
+      [applied()],
+    )
+    await h.rereadAsks()
+    once = { live: true }
+    await h.tail({ text: 'more words', messageId: 'msg_r3', streamBlock: 'thinking', blockSinceMs: clock.now(), lastEventAtMs: clock.now() })
+    once = { records: true }
+    await h.transcript('a row lands and its listener adds a row', [h.toolResult('toolu_r', 'listed')])
+    once = { model: true }
+    await h.facts({ busy: true, runnerGeneration: 1 }, [applied()])
+    once = { fold: true }
+    await h.tail({ stateWord: 'compacting', fold: foldRecord(), wait: { kind: 'first-byte', cold: true, promptTokens: 1200, model: 'claude-sonnet-5-5', budgetMs: 60000, sinceMs: clock.now(), attempt: 1, promise: true }, lastEventAtMs: clock.now(), streamBlock: 'text', blockSinceMs: clock.now() })
+    once = {}
+    h.onWake = null
+    await h.facts({ busy: false, runnerGeneration: 1 })
+  })
+
+  await scenario('send-demoted-then-delivered', async h => {
+    h.workers({})
+    await h.hold(true)
+    await h.facts({ busy: false, runnerGeneration: 1 })
+    await h.call('sendWords', ['words the runner queues'], [dispatched])
+    const id = sentId(h)
+    await h.advance(50)
+    await h.facts({ busy: false, runnerGeneration: 1, queue: [{ uuid: id, value: 'words the runner queues', mode: 'prompt' }] })
+    await h.rereadFacts()
+    await h.advance(50)
+    h.workers({ lastDeliveryAt: clock.now() })
+    await h.facts({ busy: true, turnStartedAt: clock.now(), runnerGeneration: 1 })
+    await h.transcript('the words land as the user row', [h.user('words the runner queues', { uuid: id })])
+    await h.tail({ text: 'an answer', messageId: 'msg_later', streamBlock: 'text', blockSinceMs: clock.now(), lastEventAtMs: clock.now() })
+    await h.transcript('the answer lands', [h.assistant('msg_later', [{ type: 'text', text: 'an answer' }])])
+    await h.tail({ text: null, messageId: 'msg_later' })
+    await h.advance(50)
+    h.workers({ lastTurnSettledAt: clock.now(), lastDeliveryAt: clock.now() - 60 })
+    await h.facts({ busy: false, runnerGeneration: 1 })
+  })
+
+  await scenario('an-echo-retired', async h => {
+    await h.hold(true)
+    await h.transcript('a turn begins', [h.user('a long job')])
+    await h.facts({ busy: true, turnStartedAt: clock.now(), runnerGeneration: 1 })
+    await h.call('sendWords', ['words whose row never lands'], [dispatched])
+    const taken = sentId(h)
+    await h.call('sendWords', ['words the queue keeps'], [dispatched])
+    const kept = sentId(h)
+    await h.facts({ busy: true, runnerGeneration: 1, queue: [{ uuid: taken, value: 'words whose row never lands', mode: 'prompt' }, { uuid: kept, value: 'words the queue keeps', mode: 'prompt' }] })
+    await h.facts({ busy: true, runnerGeneration: 1, queue: [{ uuid: kept, value: 'words the queue keeps', mode: 'prompt' }] })
+    await h.facts({ busy: false, runnerGeneration: 1, queue: [{ uuid: kept, value: 'words the queue keeps', mode: 'prompt' }] })
+    await h.advance(600_001)
+    await h.transcript('a row lands ten minutes on', [h.assistant('msg_job', [{ type: 'text', text: 'done' }])])
+    await h.rereadFacts('the same facts are read again after the old echo left')
+  })
+
+  await scenario('transcript-grows-while-it-is-read', async h => {
+    await h.hold(true)
+    await h.transcript('a turn begins', [h.user('count to three')])
+    await h.facts({ busy: true, turnStartedAt: clock.now() })
+    await h.transcriptGrowsWhileRead('one row is being read when two more are written', [h.assistant('msg_one', [{ type: 'text', text: 'one' }])], [h.user('go on'), h.assistant('msg_two', [{ type: 'text', text: 'two' }])])
+    await h.transcriptGrowsWhileRead('a tool call is being read when its result is written', [h.assistant('msg_three', [{ type: 'tool_use', id: 'toolu_three', name: 'Bash', input: { command: 'echo three' } }])], [h.toolResult('toolu_three', 'three')])
+    await h.facts({ busy: false })
+  })
+
+  await scenario('watcher-fires-twice', async h => {
+    await h.hold(true)
+    await h.watcherFiresTwice('a turn begins and the watcher fires twice for it', [h.user('say it once')])
+    await h.facts({ busy: true, turnStartedAt: clock.now() })
+    await h.tail({ text: 'once', messageId: 'msg_once', streamBlock: 'text', blockSinceMs: clock.now(), lastEventAtMs: clock.now() })
+    await h.watcherFiresTwice('the answer lands and the watcher fires twice for it', [h.assistant('msg_once', [{ type: 'text', text: 'once' }])])
+    await h.watcherFiresTwice('the watcher fires twice with nothing new', [])
+    await h.tail({ text: null, messageId: 'msg_once' })
+    await h.facts({ busy: false })
+  })
+
+  await scenario('the-two-turn-starts-differ', async h => {
+    await h.hold(true)
+    await h.transcript('a turn begins', [h.user('a prompt whose row is stamped before the runner starts')])
+    await h.advance(250)
+    await h.facts({ busy: true, turnStartedAt: clock.now() })
+    await h.rereadFacts('the same facts are read again while the two starts differ')
+    await h.rereadFacts('the same facts are read a third time')
+    await h.transcript('a row lands while the two starts differ', [h.assistant('msg_t', [{ type: 'text', text: 'an answer' }])])
+    await h.facts({ busy: false })
   })
 
   server.close()

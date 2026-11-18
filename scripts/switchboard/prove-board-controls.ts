@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -206,10 +206,29 @@ console.log('B — row controls i/p/m: manifest, selection-aware legend, receipt
     'B5 a parked model switch stays the daemon’s HELD truth on the row (queued → held, the daemon’s own sentence)',
     route.includes("reply.ok === true && reply.outcome === 'queued'") && route.includes('applies when this turn ends'),
   )
-  const connector = read('src/services/engine-connector/daemonConnector.ts')
+  ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
+  const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
+  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+  const plane = mkdtempSync(join(tmpdir(), 'board-controls-plane-'))
+  const planeBefore = process.env.MERCURY_DAEMON_DIR
+  process.env.MERCURY_DAEMON_DIR = plane
+  const SETTLING = 'board-controls-settle'
+  writeFileSync(join(plane, `${SETTLING}.jsonl`), '')
+  const told = (atMs: number, more: Record<string, unknown>): void => publishSessionFacts({ schema: 1, sessionId: SETTLING, atMs, busy: false, pendingModel: null, model: { effective: 'claude-opus-5', setting: 'claude-opus-5' }, usage: {}, queue: [], ...more } as never)
+  told(1_000, { pendingModel: 'fable' })
+  const hosted = new DaemonSessionConnector({ sessionId: SETTLING, runnerId: 'runner-1', title: 'board controls', projectLabel: 'proof', workspaceId: plane, home: plane } as never, { rpc: async () => ({ ok: true }), armTranscriptWatcher: () => {}, armTranscriptTimer: () => {} })
+  await hosted.attach()
+  const settleNotes = (): Array<{ boundary?: string; resolution?: string; applied?: string | null }> => hosted.records().filter(m => (m as { type?: string }).type === 'system' && (m as { subtype?: string }).subtype === 'model_transition') as never
+  told(2_000, { modelSettled: { from: 'claude-opus-5', to: 'fable', atMs: 1_900 } })
+  for (let waited = 0; settleNotes().length === 0 && waited < 15_000; waited += 25) await new Promise(resolve => setTimeout(resolve, 25))
+  const settled = settleNotes()
+  hosted.detach()
+  if (planeBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
+  else process.env.MERCURY_DAEMON_DIR = planeBefore
   check(
     'B7 the grey "model switched" note stays the connector’s own settle paint (the ruled shape — not rebuilt here)',
-    connector.includes('createModelTransitionMessage({') && connector.includes("boundary: 'turn-boundary'"),
+    settled.length === 1 && settled[0]!.boundary === 'turn-boundary' && settled[0]!.resolution === 'applied' && settled[0]!.applied === 'fable',
+    `a hosted connector whose facts feed reads a settlement stamp paints ${JSON.stringify(settled)}: its facts read mints one model_transition row, applied at the turn boundary, naming the model as picked`,
   )
   const workerModels = read('src/services/concourse/workerModels.ts')
   check(

@@ -141,9 +141,8 @@ section('§4 the seat verbs that arm the nudge: set-model and set-permission-mod
   ]
   for (const { verb, run, expectedFlip } of verbs) {
     const record = { schema: 1, sessionId: `aaaaaaaa-bbbb-4ccc-8ddd-${String(seqOf(verb)).padStart(12, '0')}`, home, workspaceId: home, isolation: 'exclusive', modelKey: 'claude-opus-5', effort: 'high', spawnedAt: Date.now(), lastLiveAt: Date.now() }
-    const connector = new DaemonSessionConnector(record) as unknown as Record<string, unknown>
+    const connector = new DaemonSessionConnector(record, { rpc: async () => ({ ok: true, outcome: 'applied' }) }) as unknown as Record<string, unknown>
     const feed = connector.factsFeed as { start(): void; stop(): void; heartbeatMs(): number }
-    connector.rpc = async () => ({ ok: true, outcome: 'applied' })
     feed.start()
     const before = feed.heartbeatMs()
     let outcome: unknown = null

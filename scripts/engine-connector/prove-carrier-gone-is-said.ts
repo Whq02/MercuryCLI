@@ -53,19 +53,15 @@ const baseAnswer = {
 const crewRow = { id: 'agent-sleep', agentId: 'agent-sleep', kind: 'agent' as const, name: 'Run sleep command', status: 'running', startTime: Date.now() - 20_000 }
 
 type Guts = {
-  rpc: (req: Record<string, unknown>) => Promise<Record<string, unknown>>
   displayRows: Array<{ row: { type?: string; subtype?: string; content?: string; level?: string } }>
-  factsBusy: boolean
-  carrierGoneAtFactsMs: number | null
   readFacts: () => void
 }
 type Live = { inFlight: boolean; phase: string }
-type Roster = { rows: Array<{ status: string }> }
+type Roster = { rows: Array<{ status: string }>; gone?: boolean }
 
 function mount(sessionId: string): { connector: { attach(): Promise<void>; detach(): void; live(): Live; workRoster(): Roster }; g: Guts } {
-  const connector = new DaemonSessionConnector({ sessionId, runnerId: `runner-${sessionId}`, title: 'the chat', projectLabel: 'proof', workspaceId: work, home: SCRATCH, modelKey: 'claude-sonnet-5-5' })
+  const connector = new DaemonSessionConnector({ sessionId, runnerId: `runner-${sessionId}`, title: 'the chat', projectLabel: 'proof', workspaceId: work, home: SCRATCH, modelKey: 'claude-sonnet-5-5' }, { rpc: async () => { throw new Error('ENOCONN: no daemon answers') } })
   const g = connector as unknown as Guts
-  g.rpc = async () => { throw new Error('ENOCONN: no daemon answers') }
   return { connector, g }
 }
 const publishBusy = (sessionId: string, atMs: number): void => {
@@ -92,12 +88,16 @@ section("§1 the daemon carrying a busy, waiting session is gone (its record cle
   check('the running crew row of the dead daemon is gone from the roster', !connector.workRoster().rows.some(r => r.status === 'running'), j(connector.workRoster().rows))
   check(`one notice row names the daemon's end: "${CARRIER_GONE_WORDS}"`, noticeRows(g).length === 1 && noticeRows(g)[0] === CARRIER_GONE_WORDS, j(noticeRows(g)))
   g.readFacts()
-  check("a re-read of the same stale facts (another road's refresh) does not revive the dead daemon's busy word", connector.live().inFlight === false && g.factsBusy === false && !connector.workRoster().rows.some(r => r.status === 'running'), j(connector.live()))
+  check("a re-read of the same stale facts (another road's refresh) does not revive the dead daemon's busy word", connector.live().inFlight === false && !connector.workRoster().rows.some(r => r.status === 'running'), j(connector.live()))
   await sleep(1_200)
   check('the notice is said once', noticeRows(g).length === 1, j(noticeRows(g)))
   publishBusy(sid, Date.now())
   g.readFacts()
-  check('a FRESH publication (a new daemon speaks: a new stamp) lifts the latch and the busy word is believed again', g.carrierGoneAtFactsMs === null && g.factsBusy === true, j({ latch: g.carrierGoneAtFactsMs, busy: g.factsBusy }))
+  check(
+    'a FRESH publication (a new daemon speaks: a new stamp) lifts the latch and the busy word is believed again',
+    connector.workRoster().gone !== true && connector.workRoster().rows.some(r => r.status === 'running') && connector.live().inFlight === true,
+    `${j({ roster: connector.workRoster(), live: connector.live() })} — the roster is no longer gone, its running row is back and the turn is in flight: CarrierPart.factsFromCarrier in src/services/engine-connector/daemon/carrier.ts lets go of the verdict when the facts carry another stamp`,
+  )
   connector.detach()
 }
 

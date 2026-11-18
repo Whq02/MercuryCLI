@@ -23,7 +23,7 @@ scripts/accounts/prove-signin-names-the-landed-account.ts	1	7	b57029b0a389
 scripts/accounts/prove-slot-signout-scope.ts	2	2	15b6f0eba474
 scripts/accounts/prove-start-wait-note.ts	1	7	1cd8b18798a1
 scripts/accounts/prove-xai-login.ts	2	2	12bf194597d5
-scripts/advisor/prove-advisor-chip.ts	5	5	a5bf23df4dd4
+scripts/advisor/prove-advisor-chip.ts	4	4	202ddada7a02
 scripts/advisor/prove-advisor-roads.ts	10	39	5875ba6c7f0d
 scripts/advisor/prove-advisor-service.ts	1	5	baa9557d3356
 scripts/advisor/prove-advisor-summarizer.ts	3	8	d8df1da6edd4
@@ -395,8 +395,7 @@ scripts/editor-bridge/prove-workbench-projection.ts	1	6	efab24b750a5
 scripts/effort/prove-effort-persistence.ts	5	7	d3bf58b9f0fd
 scripts/effort/prove-effort-slider-ends-at-max.ts	3	4	ecea35fe0738
 scripts/effort/prove-setting-writers-name-their-scope.ts	1	1	135b5ec8f34b
-scripts/engine-connector/prove-busy-stall-deadline.ts	1	10	82bc89e328ff
-scripts/engine-connector/prove-cap-relay-facts.ts	4	11	b2b433767058
+scripts/engine-connector/prove-cap-relay-facts.ts	3	5	bb7872d78a60
 scripts/engine-connector/prove-connector-contract.ts	3	8	65572e5ec3e0
 scripts/engine-connector/prove-crew-rail-leaves-with-runner.ts	2	4	e3a1c6fb1519
 scripts/engine-connector/prove-crew-truth.ts	13	21	6227b4f866c0
@@ -670,7 +669,7 @@ scripts/model-transition/prove-transition-daemon-facts.ts	1	8	3014784cd9cb
 scripts/model-transition/prove-transition-e-reconnect.ts	2	4	ddfa210e11af
 scripts/model-transition/prove-transition-e06-e07-ui.ts	9	23	15891016c15b
 scripts/model-transition/prove-transition-fieldfix-p0.ts	11	22	4fcc2dfa40a6
-scripts/model-transition/prove-transition-g03-pending-projection.ts	2	2	f99b75743e8a
+scripts/model-transition/prove-transition-g03-pending-projection.ts	1	1	314ea96b446e
 scripts/model-transition/prove-transition-g08-cachebreak-reconnected.ts	3	4	230c5a0a983f
 scripts/model-transition/prove-transition-r01-gitbash-native.ts	4	5	988cd0a36d01
 scripts/model-transition/prove-transition-r02-entry.ts	4	33	7b1702fa836e
@@ -757,7 +756,7 @@ scripts/permissions/prove-untrusted-headless-gate.ts	4	5	a0fe79068497
 scripts/permissions/prove-write-ladder-wiring.ts	3	4	e96ab12b62fd
 scripts/pings/prove-ping-rule.ts	7	16	a2f1d57bac4b
 scripts/pings/prove-strip-badge.ts	3	10	0883fffc8925
-scripts/pings/prove-switch-settle-note.ts	6	27	2f4dfa2a2c8e
+scripts/pings/prove-switch-settle-note.ts	6	22	2f4dfa2a2c8e
 scripts/primitives-kernel/prove-primitives-kernel-census.ts	2	12	1d1dacaaade9
 scripts/project-intel/prove-capsule-lifecycle.ts	3	3	125eba31bdcf
 scripts/project-services/inventory.ts	1	4	f260e5e7fe6a
@@ -801,7 +800,7 @@ scripts/provauth/prove-refresh-legs-user-agent.ts	4	5	f2c3afeefab7
 scripts/provauth/prove-status-config-neutrality.ts	1	2	6c2688342547
 scripts/provauth/prove-usage-four-surfaces.ts	1	2	5ff9bc24f38b
 scripts/provauth/prove-usage-truth-surfaces.ts	3	11	bbd596051c5c
-scripts/provauth/prove-vitals-rows-follow-the-turn.ts	4	7	59a3fa372349
+scripts/provauth/prove-vitals-rows-follow-the-turn.ts	3	6	db2029b294fc
 scripts/provider-compat/prove-alias-served-rows.ts	5	10	cb35148e53b8
 scripts/provider-compat/prove-anthropic-own-road.ts	1	1	d4673791bd59
 scripts/provider-compat/prove-auth-honesty.ts	1	2	36a2cc2dff85
@@ -854,11 +853,10 @@ scripts/providers/prove-mock-limits-per-model.ts	1	19	b12a9dc3a943
 scripts/providers/prove-mock-limits-scenario-speaks.ts	1	6	b12a9dc3a943
 scripts/providers/prove-neutral-home.ts	4	4	ace29373fbc9
 scripts/providers/prove-nous-contract.ts	12	19	77d3260c74ca
-scripts/providers/prove-openai-meter-daemon-road.ts	2	4	435b8f5dc1f7
+scripts/providers/prove-openai-meter-daemon-road.ts	1	3	ef71c9c86c8b
 scripts/providers/prove-openai-socket-road.ts	1	1	2df08871ec7d
 scripts/providers/prove-openai-wall-slot-truth.ts	3	5	63ec56b65768
 scripts/providers/prove-openai-window-follows-credential.ts	4	11	11308aea57ab
-scripts/providers/prove-openai-window-relay.ts	1	1	82bc89e328ff
 scripts/providers/prove-provider-deadlines.ts	17	9	96765378973a
 scripts/providers/prove-quiet-boot-roads.ts	7	17	eb29e323944b
 scripts/providers/prove-session-spend-prompt-total.ts	1	1	a2747627ffe3
@@ -948,7 +946,7 @@ scripts/settings/prove-config-popup-esc.ts	2	4	8ca1d80305ca
 scripts/settings/prove-config-popup-rows.ts	3	6	5b8d1aae4955
 scripts/settings/prove-config-unreadable-honesty.ts	1	13	80dbe8bddeaa
 scripts/settings/prove-corrupt-config-backup-road.ts	2	24	f23dcf08bde9
-scripts/settings/prove-email-surfaces.ts	19	26	3b84080e82ff
+scripts/settings/prove-email-surfaces.ts	19	25	3b84080e82ff
 scripts/settings/prove-extra-ca-outcome.ts	1	1	0f62cde00f7a
 scripts/settings/prove-global-config-read-as-written.ts	4	4	3148130ae8f8
 scripts/settings/prove-helper-lifetime.ts	3	7	6d2fe9c1b771
@@ -1054,7 +1052,7 @@ scripts/substrate/prove-wrapper.ts	2	8	02e157cb9035
 scripts/switchboard/prove-background-launch.ts	4	16	50098536bc0e
 scripts/switchboard/prove-birth-flips-first.ts	8	31	bc3e47eb3591
 scripts/switchboard/prove-birth-landing-words.ts	3	30	bfbd71b3ac26
-scripts/switchboard/prove-board-controls.ts	16	95	818acdfab17b
+scripts/switchboard/prove-board-controls.ts	15	93	086803bfb5c6
 scripts/switchboard/prove-board-focus-owns-keys.ts	3	39	b2adb44baa0b
 scripts/switchboard/prove-board-modal-doors.ts	1	17	848e5fc01bab
 scripts/switchboard/prove-broadcast.ts	4	101	a6d516ef068a

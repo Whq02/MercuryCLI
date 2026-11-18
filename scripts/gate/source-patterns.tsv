@@ -1399,7 +1399,8 @@ empty-catch-handler	src/services/crewBoard/party.ts	1
 empty-catch-handler	src/services/dap/dapClient.ts	9
 empty-catch-handler	src/services/desktop/desktopClaim.ts	2
 empty-catch-handler	src/services/engine-connector/daemon/asks.ts	1
-empty-catch-handler	src/services/engine-connector/daemonConnector.ts	4
+empty-catch-handler	src/services/engine-connector/daemon/carrier.ts	1
+empty-catch-handler	src/services/engine-connector/daemonConnector.ts	3
 empty-catch-handler	src/services/eval/kernelManager.ts	2
 empty-catch-handler	src/services/host/boxEngine.ts	1
 empty-catch-handler	src/services/host/ggufHeader.ts	3

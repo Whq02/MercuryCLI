@@ -121,7 +121,18 @@ section("§1 the runner's own facts: advisorFacts() reads the effective test, th
   const projection = src('src/services/engine-connector/seatProjections.ts')
   const types = src('src/services/engine-connector/types.ts')
   check('the answer type and the connector door are declared', projection.includes('advisor?: AdvisorFactsV1') && types.includes('advisorFacts(): AdvisorFactsV1 | null'))
-  check('the daemon connector answers the facts it read, the resting connector null', src('src/services/engine-connector/daemonConnector.ts').includes('return this.facts?.advisor ?? null') && src('src/services/engine-connector/noSessionConnector.ts').includes('advisorFacts(): null'))
+  const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
+  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+  const planeBefore = process.env.MERCURY_DAEMON_DIR
+  process.env.MERCURY_DAEMON_DIR = join(home, 'advisor-plane')
+  const hostedAdvisor = (sessionId: string, facts: Record<string, unknown> | null): AdvisorFacts | null => {
+    if (facts !== null) publishSessionFacts({ schema: 1, sessionId, atMs: Date.now(), busy: false, pendingModel: null, model: { effective: leadModel, setting: null }, usage: {}, queue: [], ...facts } as never)
+    return new DaemonSessionConnector({ sessionId, runnerId: 'runner-1', title: 'advisor chip', projectLabel: 'proof', workspaceId: home, home } as never).advisorFacts()
+  }
+  const hosted = { told: hostedAdvisor('advisor-told', { advisor: on }), untold: hostedAdvisor('advisor-untold', {}), unread: hostedAdvisor('advisor-unread', null) }
+  if (planeBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
+  else process.env.MERCURY_DAEMON_DIR = planeBefore
+  check('the daemon connector answers the facts it read, the resting connector null', j(hosted) === j({ told: on, untold: null, unread: null }) && src('src/services/engine-connector/noSessionConnector.ts').includes('advisorFacts(): null'), `advisorFacts() of the hosted connector answers ${j(hosted)}: it returns the facts' advisor as published, and null when the facts name none or none were read`)
   check("the /advise row of the slash menu reads the focused chat's value from the same facts", src('src/commands/advise/index.ts').includes('getFocusedSessionConnector().advisorFacts()'))
 }
 

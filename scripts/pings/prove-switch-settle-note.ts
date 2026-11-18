@@ -211,15 +211,26 @@ section('§4 the ruled copy and the never-a-bell law (structural)')
     join(ROOT, 'src', 'services', 'engine-connector', 'daemonConnector.ts'),
     'utf8',
   )
+  const onDisk = readFileSync(join(home, `${SID}.jsonl`), 'utf8')
   check(
     'the connector mints the note as a DISPLAY row (addDisplayRow — never a conversation write)',
-    /createModelTransitionMessage\(/.test(connectorSrc) &&
-      /addDisplayRow\(\s*createModelTransitionMessage\(/.test(connectorSrc.replace(/\n\s+/g, ' ').replace(/\( /g, '(')) ||
-      connectorSrc.includes('this.addDisplayRow('),
+    noteRows(connector).length === 1 && onDisk === '',
+    `the painted records hold ${noteRows(connector).length} note row(s) and the transcript on disk ${onDisk.length} byte(s): the facts read mints the note as a display row of the connector and writes nothing of it to the conversation`,
   )
+  publishSessionFacts(
+    facts({
+      effective: 'claude-fable-5',
+      pendingModel: null,
+      busy: false,
+      atMs: 6000,
+      modelSettled: { from: 'claude-opus-5', to: 'fable', atMs: 5900 },
+    }),
+  )
+  const stampedAgain = await until(() => noteRows(connector).length === 2, 4000)
   check(
     "the edge reads the daemon's settlement stamp",
-    connectorSrc.includes('next.modelSettled') && connectorSrc.includes('prev.modelSettled?.atMs'),
+    stampedAgain,
+    `rows=${noteRows(connector).length} after a second settlement of the same pair under a later stamp: the facts read mints one note per modelSettled.atMs, whatever models the stamp names`,
   )
   check(
     'the retired coincidence guard is gone',

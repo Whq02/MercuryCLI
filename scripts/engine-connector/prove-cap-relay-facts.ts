@@ -204,17 +204,10 @@ section('§3 the wire: both rows cross in snake_case and decode back; absent sta
   check('a facts file without them reads back without them', readBare !== null && readBare.usage.anthropicWindow === undefined && readBare.openaiCatalogue === undefined)
 }
 
-section("§4 the roads on the code: the runner answers both rows, the seat publishes the answer whole, the connector folds both")
+section("§4 the roads on the code: the runner answers both rows, the seat publishes the answer whole")
 {
   const seatSrc = readFileSync(join(ROOT, 'src/daemon/sessionSeat.ts'), 'utf8')
   check("the seat publishes the runner's answer whole, so both rows ride its spread", seatSrc.includes('const { box: boxAnswer, ...answerRest } = answer') && seatSrc.includes('...answerRest,'))
-  const connectorSrc = readFileSync(join(ROOT, 'src/services/engine-connector/daemonConnector.ts'), 'utf8')
-  const readAt = connectorSrc.indexOf('private readFacts(): void {')
-  const asksAt = connectorSrc.indexOf('private readAsks(): void {')
-  check('the facts read is found', readAt >= 0 && asksAt >= 0)
-  const readFactsBody = connectorSrc.slice(Math.max(0, readAt), Math.max(0, asksAt))
-  check('the connector folds the verdict on every facts read, beside the OpenAI bands', readFactsBody.includes('adoptOpenaiObservedUsage(next.usage?.openaiObserved)') && readFactsBody.includes('adoptAnthropicWindowFact(next.usage?.anthropicWindow)'))
-  check('…and primes its catalogue when the list moved', readFactsBody.includes('adoptOpenaiCatalogueFact(next.openaiCatalogue)') && readFactsBody.includes('next.openaiCatalogue.fetchedAtMs !== prev?.openaiCatalogue?.fetchedAtMs'))
   const limitsSrc = readFileSync(join(ROOT, 'src/services/anthropicLimits.ts'), 'utf8')
   check('the fold keys on the stamp the latch keys on: the active slot and the observation moment', limitsSrc.includes('if (f.owner !== resolveOwner()) return false') && limitsSrc.includes('if (verdictObservedAtMs !== null && f.observedAtMs <= verdictObservedAtMs) return false'))
   const catalogueSrc = readFileSync(join(ROOT, 'src/services/providers/openai/openaiCatalogue.ts'), 'utf8')
@@ -235,6 +228,49 @@ section("§5 the screen primes its catalogue from the fact: the pinned window be
   check('an older list never replaces a fresher one', catalogue.adoptOpenaiCatalogueFact({ ...list, fetchedAtMs: T0 - 1, models: [{ ...list.models[0], contextWindow: 1 }] }) === false && catalogue.liveGptContextWindow('gpt-6-astra') === 272_000)
   check('the same list again is a no-op', catalogue.adoptOpenaiCatalogueFact(list) === false && epochs.catalogueEpoch() === epoch0 + 1)
   check('the fact this process would answer is the primed list', catalogue.openaiCatalogueFact()?.fetchedAtMs === T0 && catalogue.openaiCatalogueFact()?.models.length === 1)
+}
+
+section('§6 the connector folds both on its facts read: the verdict and the OpenAI bands on every read, the list when it moved')
+{
+  const openaiLimits = await import('../../src/services/providers/openai/openaiLimitState.ts')
+  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
+  const planeBefore = process.env.MERCURY_DAEMON_DIR
+  process.env.MERCURY_DAEMON_DIR = join(scratch, 'plane')
+  limits.resetLimitsForCredentialSwitch()
+  mock.setMockRateLimitScenario('clear')
+  openaiLimits.__resetOpenaiLimitStateForTest()
+  const SESSION = 'cap-relay-hosted'
+  writeFileSync(join(scratch, `${SESSION}.jsonl`), '')
+  const stamp = Date.now()
+  const { permissionMode: _mode, ...answerRest } = baseAnswer
+  void _mode
+  const newer = { ...list, fetchedAtMs: T0 + 5, models: [{ ...list.models[0], contextWindow: 300_000 }] }
+  const publish = (atMs: number, usage: Record<string, unknown>, openaiCatalogue: typeof list): void => {
+    projections.publishSessionFacts({ schema: 1, sessionId: SESSION, atMs, ...answerRest, usage: { ...ZERO_USAGE, ...usage }, openaiCatalogue, pendingModel: null, busy: false } as never)
+  }
+  const band = (usedPct: number, observedAtMs: number): Record<string, unknown> => ({ primary: { usedPct, windowMinutes: 10_080, resetsAtMs: stamp + 600_000_000, observedAtMs } })
+  const settle = async (read: () => boolean): Promise<void> => {
+    for (let waited = 0; !read() && waited < 15_000; waited += 25) await sleep(25)
+  }
+  publish(stamp, { anthropicWindow: relayed, openaiObserved: band(23, stamp - 5_000) }, list)
+  const hosted = new DaemonSessionConnector({ sessionId: SESSION, runnerId: 'runner-1', title: 'cap relay', projectLabel: 'proof', workspaceId: scratch, home: scratch } as never, { rpc: async () => ({ ok: true }), armTranscriptWatcher: () => {}, armTranscriptTimer: () => {} })
+  await hosted.attach()
+  const firstRead = { status: limits.currentLimits.status, observed: limits.anthropicWindowObserved(), band: openaiLimits.openaiObservedUsage().primary?.usedPct }
+  const epochBefore = epochs.catalogueEpoch()
+  publish(stamp + 1, { anthropicWindow: { status: 'allowed', observedAtMs: T0 + 1, owner: OWNER_A }, openaiObserved: band(41, stamp - 1_000) }, newer)
+  await settle(() => limits.currentLimits.status === 'allowed')
+  const laterRead = { status: limits.currentLimits.status, band: openaiLimits.openaiObservedUsage().primary?.usedPct }
+  const primed = { fetchedAtMs: catalogue.openaiCatalogueFact()?.fetchedAtMs, window: catalogue.liveGptContextWindow('gpt-6-astra'), epochs: epochs.catalogueEpoch() - epochBefore }
+  publish(stamp + 2, { openaiObserved: band(55, stamp) }, newer)
+  await settle(() => openaiLimits.openaiObservedUsage().primary?.usedPct === 55)
+  const sameList = { band: openaiLimits.openaiObservedUsage().primary?.usedPct, epochs: epochs.catalogueEpoch() - epochBefore }
+  hosted.detach()
+  if (planeBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
+  else process.env.MERCURY_DAEMON_DIR = planeBefore
+  check('the connector folds the verdict on every facts read, beside the OpenAI bands', j(firstRead) === j({ status: 'rejected', observed: true, band: 23 }) && j(laterRead) === j({ status: 'allowed', band: 41 }), `a hosted connector attached over facts carrying a rejected verdict and a 23% band leaves the screen at ${j(firstRead)}, and after its feed reads a later publication (allowed, 41%) at ${j(laterRead)}: its facts read hands usage.anthropicWindow to adoptAnthropicWindowFact and usage.openaiObserved to adoptOpenaiObservedUsage on every read`)
+  check('…and primes its catalogue when the list moved', j(primed) === j({ fetchedAtMs: T0 + 5, window: 300_000, epochs: 1 }) && j(sameList) === j({ band: 55, epochs: 1 }), `a later publication with a fresher list leaves the catalogue at ${j(primed)}, and one more read of the same list at ${j(sameList)}: its facts read hands a moved openaiCatalogue to adoptOpenaiCatalogueFact`)
+  limits.resetLimitsForCredentialSwitch()
+  openaiLimits.__resetOpenaiLimitStateForTest()
 }
 
 rmSync(scratch, { recursive: true, force: true })

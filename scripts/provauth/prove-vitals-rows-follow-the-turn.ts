@@ -112,11 +112,26 @@ check('after a credential switch nothing of the record is relayed', limits.anthr
 
 section('§5 the seam: the runner relays the record in its facts, the connector adopts it, the rail paints the age tail of the record it reads')
 {
-  const connector = readFileSync(join(REPO, 'src/services/engine-connector/daemonConnector.ts'), 'utf8')
   const types = readFileSync(join(REPO, 'src/services/engine-connector/types.ts'), 'utf8')
   const rail = readFileSync(join(REPO, 'src/utils/cockpit/helmVitalsModel.ts'), 'utf8')
   const seat = readFileSync(join(REPO, 'src/daemon/sessionSeat.ts'), 'utf8')
-  check('the connector adopts it with the window verdict', connector.includes('adoptAnthropicObservedUsage(next.usage?.anthropicObserved)'))
+  const { publishSessionFacts } = await import('../../src/services/engine-connector/seatProjections.js')
+  const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.js')
+  const openedAt = Date.now() - 15 * MINUTE
+  limits.__setRawUtilizationForTest({
+    five_hour: { utilization: 0.2, resets_at: resetsAtS, source: 'headers', observedAtMs: openedAt },
+    seven_day: { utilization: 0.1, resets_at: resetsAtS, source: 'headers', observedAtMs: openedAt },
+  })
+  const planeBefore = process.env.MERCURY_DAEMON_DIR
+  process.env.MERCURY_DAEMON_DIR = join(HOME, 'vitals-plane')
+  publishSessionFacts({ schema: 1, sessionId: 'vitals-rows', atMs: Date.now(), busy: false, pendingModel: null, model: { effective: 'claude-opus-5', setting: null }, usage: { anthropicObserved: fact }, queue: [] } as never)
+  const hosted = new DaemonSessionConnector({ sessionId: 'vitals-rows', runnerId: 'runner-1', title: 'vitals rows', projectLabel: 'proof', workspaceId: HOME, home: HOME } as never, { rpc: async () => ({ ok: true }), armTranscriptWatcher: () => {}, armTranscriptTimer: () => {} })
+  await hosted.attach()
+  hosted.detach()
+  if (planeBefore === undefined) delete process.env.MERCURY_DAEMON_DIR
+  else process.env.MERCURY_DAEMON_DIR = planeBefore
+  check('the connector adopts it with the window verdict', fact !== undefined && Math.round(views().fiveHour.usedPct ?? -1) === 42 && Math.round(views().sevenDay.usedPct ?? -1) === 18 && views().fiveHour.observedAtMs === fact.fiveHour?.observedAtMs, `a hosted connector attached over facts whose usage.anthropicObserved is the runner's record leaves the screen's rows at ${JSON.stringify(views())}: its facts read hands usage.anthropicObserved to adoptAnthropicObservedUsage`)
+  limits.resetLimitsForCredentialSwitch()
   check('the usage facts type names it', types.includes('anthropicObserved?: AnthropicObservedUsageV1'))
   check('the rail\'s meter tail is the freshness owner\'s age tail over the record', rail.includes('const age = usageAgeTail(w, readNow)') && rail.includes('usageViewIsStale(w, readNow)'))
   check('the seat re-asks the facts on assistant frames (the turn\'s receipt is the cadence, no clock added)', seat.includes('export function requestSessionFacts(') && seat.includes('setTimeout(fire, FACTS_DEBOUNCE_MS)') && /case 'step': \{[\s\S]*?requestSessionFacts\(short, roster, undefined, dir\)/.test(seat))

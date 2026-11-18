@@ -42,12 +42,13 @@ type Send = {
 type Guts = {
   sends: Send[]
   echoRows: Map<string, unknown>
-  rpc: (req: Reply) => Promise<Reply>
   reconcileQueuedSends: (facts: Record<string, unknown>) => void
   noteSettled: (id: string) => void
   paint: () => void
 }
 
+const rpcLog: Reply[] = []
+let answer: (req: Reply) => Promise<Reply> = async () => ({ ok: true, op: 'sessionControl', outcome: 'applied' })
 const connector = new DaemonSessionConnector({
   sessionId: 'withdraw-proof',
   runnerId: 'runner-1',
@@ -56,14 +57,13 @@ const connector = new DaemonSessionConnector({
   workspaceId: 'ws',
   home: SCRATCH,
   modelKey: 'claude-sonnet-5',
+}, {
+  rpc: async (req: Reply) => {
+    rpcLog.push(req)
+    return answer(req)
+  },
 })
 const g = connector as unknown as Guts
-const rpcLog: Reply[] = []
-let answer: (req: Reply) => Promise<Reply> = async () => ({ ok: true, op: 'sessionControl', outcome: 'applied' })
-g.rpc = async req => {
-  rpcLog.push(req)
-  return answer(req)
-}
 let liveWakes = 0
 connector.subscribeLive(() => liveWakes++)
 const lastRpc = (): Reply | undefined => rpcLog[rpcLog.length - 1]

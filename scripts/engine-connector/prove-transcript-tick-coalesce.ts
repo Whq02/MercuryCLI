@@ -19,6 +19,9 @@ const sessionId = '12345678-1234-4123-8123-123456789abc'
 const transcriptPath = join(home, `${sessionId}.jsonl`)
 writeFileSync(transcriptPath, 'not-a-record\n')
 
+let passes = 0
+let hold: Promise<void> | null = null
+let entered: (() => void) | null = null
 const conn = new DaemonSessionConnector({
   sessionId,
   runnerId: 'concourse-w1',
@@ -26,27 +29,21 @@ const conn = new DaemonSessionConnector({
   projectLabel: 'scratch',
   workspaceId: home,
   home,
+}, {
+  armTranscriptWatcher: () => {},
+  armTranscriptTimer: () => {},
+  tickOnce: async (pass: () => Promise<void>) => {
+    passes++
+    entered?.()
+    if (hold !== null) await hold
+    return pass()
+  },
 })
 
 type Seam = {
   tick: () => Promise<void>
-  tickOnce: () => Promise<void>
-  armTranscriptWatcher: () => void
-  armTranscriptTimer: () => void
 }
 const seam = conn as unknown as Seam
-seam.armTranscriptWatcher = () => {}
-seam.armTranscriptTimer = () => {}
-const real = seam.tickOnce.bind(conn)
-let passes = 0
-let hold: Promise<void> | null = null
-let entered: (() => void) | null = null
-seam.tickOnce = async () => {
-  passes++
-  entered?.()
-  if (hold !== null) await hold
-  return real()
-}
 
 await conn.attach()
 const passesAfterAttach = passes
