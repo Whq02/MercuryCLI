@@ -102,6 +102,25 @@ function maskerFor(home: string): (line: string) => string {
 const SPINNER_ROW = /^(.*│ )\S [^│…]{1,60}… \(([^)│]*)\)(.*)$/
 const maskTitle = (title: string | null): string | null => (title === null ? null : title.replace(/^[⠂⠐] /, '<frame> '))
 
+const teardownSink: string[] = []
+let teardownSunk = false
+
+async function mountSunk(element: unknown, columns: number, rows: number, opts?: { mouseTracking?: boolean }): Promise<Mounted> {
+  if (!teardownSunk) {
+    teardownSunk = true
+    const real = { ...(await import('../../src/ink/session/delivery.ts')) }
+    mock.module('../../src/ink/session/delivery.ts', () => ({
+      ...real,
+      writeAllSync: (fd: number, data: Buffer, syscalls?: Parameters<typeof real.writeAllSync>[2]): boolean => {
+        if (fd !== 1) return real.writeAllSync(fd, data, syscalls)
+        teardownSink.push(data.toString('utf8'))
+        return true
+      },
+    }))
+  }
+  return mountOffscreen(element, columns, rows, opts)
+}
+
 export async function openStage(tag: string, options: StageOptions = {}): Promise<Stage> {
   const columns = options.columns ?? 120
   const rows = options.rows ?? 40
@@ -424,7 +443,7 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
   }
   const element = h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(StoreTap, null), h(TitleTap, null, h(SurfaceRouter, null, h(Chat, { commands, initialTools: [] }))))
   const mountedAt = performance.now()
-  const view = await mountOffscreen(element, columns, rows, { mouseTracking: true })
+  const view = await mountSunk(element, columns, rows, { mouseTracking: true })
   const mask = maskerFor(home)
   const steps: Step[] = []
   let seen = 0
@@ -589,6 +608,7 @@ type PartMount<T> = {
   store: () => AppStateStore
   view: Mounted
   writes: string[]
+  sunk: string[]
   unmount: () => void
 }
 
@@ -631,7 +651,7 @@ export async function mountPart<T>(use: (store: AppStateStore) => T, options: { 
     )
     return h(TerminalWriteContext.Provider, { value: tapped as never }, props.children)
   }
-  const view = await mountOffscreen(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(WriteTap, null, h(Probe))), options.columns ?? 100, options.rows ?? 30)
+  const view = await mountSunk(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(WriteTap, null, h(Probe))), options.columns ?? 100, options.rows ?? 30)
   await settle(80)
   return {
     value: () => held as T,
@@ -647,6 +667,7 @@ export async function mountPart<T>(use: (store: AppStateStore) => T, options: { 
     },
     view,
     writes,
+    sunk: teardownSink,
     unmount: () => view.unmount(),
   }
 }
