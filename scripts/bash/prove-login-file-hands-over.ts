@@ -5,7 +5,7 @@ import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 type Ran = { code: number; ms: number; text: string }
-type Row = { first: Ran; second: Ran; carried: Ran; options: Ran; wiped: Ran; absence: string | null; snapshots: number; otherShellStarts: number; pathHead: string }
+type Row = { first: Ran; second: Ran; carried: Ran; options: Ran; wiped: Ran; waitedOnAlive: boolean | null; absence: string | null; snapshots: number; otherShellStarts: number; pathHead: string }
 
 if (process.argv.includes('--row')) {
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -20,6 +20,17 @@ if (process.argv.includes('--row')) {
     return { code: result.code, ms: Date.now() - started, text: `${result.stdout ?? ''}${result.stderr ?? ''}`.trim() }
   }
   const first = await run('echo "ran: bash=${BASH_VERSION:-no} zsh=${ZSH_VERSION:-no} path-head=${PATH%%:*}"')
+  let waitedOnAlive: boolean | null = null
+  if (existsSync(join(home, 'waited-on.pid'))) {
+    const pid = Number(readFileSync(join(home, 'waited-on.pid'), 'utf8').trim())
+    try {
+      process.kill(pid, 0)
+      waitedOnAlive = true
+      process.kill(pid, 'SIGKILL')
+    } catch {
+      waitedOnAlive = false
+    }
+  }
   const second = await run('echo second-ran')
   const carried = await run('alias ll 2>/dev/null; myfunc 2>/dev/null; above_guard 2>/dev/null; true')
   const options = await run(`set -o | awk '$1 == "braceexpand" || $1 == "monitor" || $1 == "noclobber" || $1 == "onecmd" { printf "%s=%s ", $1, $2 }'`)
@@ -32,6 +43,7 @@ if (process.argv.includes('--row')) {
     carried,
     options,
     wiped,
+    waitedOnAlive,
     absence: snapshot.shellSnapshotAbsence?.() ?? null,
     snapshots: existsSync(snapshots) ? readdirSync(snapshots).length : 0,
     otherShellStarts: existsSync(marker) ? readFileSync(marker, 'utf8').trim().split('\n').length : 0,
@@ -90,7 +102,9 @@ const HOMES: Record<string, { dir: string; env?: Record<string, string> }> = {
   },
   exits: { dir: home('exits', { '.bash_profile': 'exit 0\n' }) },
   'reads-stdin': { dir: home('reads-stdin', { '.bash_profile': 'read -r answer\necho "got:$answer"\n' }) },
-  slow: { dir: home('slow', { '.bash_profile': 'sleep 11\n' }) },
+  slow: { dir: home('slow', { '.bash_profile': 'sh -c \'echo $$ > "$HOME/waited-on.pid"; exec sleep 600\'\n' }) },
+  'prints-at-length': { dir: home('prints-at-length', { '.bash_profile': 'head -c 2200000 /dev/zero | tr "\\0" x\n' }) },
+  'no-snapshot-folder': { dir: home('no-snapshot-folder', {}) },
   'ends-unread': {
     dir: home('ends-unread', { '.bashenv': 'case "$BASH_EXECUTION_STRING" in *mercury-cwd-*) exit 0 ;; esac\n' }),
   },
@@ -103,6 +117,10 @@ const HOMES: Record<string, { dir: string; env?: Record<string, string> }> = {
   },
 }
 HOMES['ends-unread']!.env = { BASH_ENV: join(HOMES['ends-unread']!.dir, '.bashenv') }
+const locked = join(HOMES['no-snapshot-folder']!.dir, 'locked')
+mkdirSync(locked, { mode: 0o555 })
+HOMES['no-snapshot-folder']!.env = { MERCURY_CONFIG_DIR: join(locked, 'config-home') }
+const isRoot = process.getuid?.() === 0
 
 function drive(name: string): Promise<{ row: Row | null; said: string }> {
   const { dir, env } = HOMES[name]!
@@ -166,6 +184,23 @@ try {
     told('slow'),
   )
   check('slow: no snapshot stands, and the record of why says the login run was killed at the bound', slow !== null && slow.snapshots === 0 && /did not end within 10 s and was killed/.test(slow.absence ?? ''), told('slow'))
+  check('slow: what the login file was waiting on ends with the login run — it is not alive when the first command has returned', slow !== null && slow.waitedOnAlive === false, told('slow'))
+
+  const prints = of('prints-at-length').row
+  check(
+    'prints-at-length: a login file that prints past 1 MiB is ended there, commands run, and the record of why names the limit',
+    ranInBash(prints?.first) && prints !== null && prints.first.ms < FAST_MS && /printed more than 1 MiB and was ended/.test(prints.absence ?? ''),
+    told('prints-at-length'),
+  )
+  const noFolder = of('no-snapshot-folder').row
+  if (isRoot) console.log('  [SKIP] no-snapshot-folder: this run is root, and no folder refuses root')
+  else {
+    check(
+      'no-snapshot-folder: with a config home that cannot be made commands run, and the record of why says the folder could not be made and that no login run was tried',
+      ranInBash(noFolder?.first) && /^the snapshot folder .* could not be made \(.*\), so no login run was tried$/.test(noFolder?.absence ?? ''),
+      told('no-snapshot-folder'),
+    )
+  }
 
   const loginOnly = of('login-file-only').row
   check(

@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -11,6 +11,7 @@ import { pathExists } from '../file.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { logError } from '../log.js'
 import { getPlatform } from '../platform.js'
+import { strikeProcessGroupNow } from '../processGroup.js'
 import { ripgrepCommand } from '../ripgrep.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { SNAPSHOT_KEEPS_ALIASES, SNAPSHOT_OPTIONS, argv0FunctionBody, snapshotProfileOf, type ShellRecord } from '../shell/shellRecord.js'
@@ -52,7 +53,9 @@ const SNAPSHOT_PATH_PROBE_TIMEOUT_MS = 10_000
 const SNAPSHOT_PATH_PROBE_SETTLE_GRACE_MS = 250
 const SNAPSHOT_CAPTURE_BOUND_MS = 10_000
 
-type BoundedRun = { exitCode?: number; stdout: string; stderr: string; killed: boolean }
+const SNAPSHOT_OUTPUT_LIMIT = 1024 * 1024
+
+type BoundedRun = { exitCode?: number; signal?: string; stdout: string; stderr: string; killed: boolean; overflowed: boolean; unstarted?: string }
 
 function runBounded(
   file: string,
@@ -63,50 +66,49 @@ function runBounded(
 ): Promise<BoundedRun> {
   return new Promise(resolve => {
     let settled = false
-    let guard: ReturnType<typeof setTimeout> | null = null
-    const settle = (result: BoundedRun): void => {
-      if (settled) return
-      settled = true
-      if (guard !== null) clearTimeout(guard)
-      resolve(result)
-    }
-    const child = execFile(
-      file,
-      args,
-      {
-        windowsHide: true,
-        encoding: 'utf8',
-        env,
-        timeout: timeoutMs,
-        maxBuffer: 1024 * 1024,
-        ...(login ? { killSignal: 'SIGKILL' as const } : {}),
-      },
-      (error, stdout, stderr) => {
-        if (error) {
-          const exitCode = typeof error.code === 'number' ? error.code : undefined
-          settle({ exitCode, stdout, stderr, killed: error.killed === true })
-          return
-        }
-        settle({ exitCode: 0, stdout, stderr, killed: false })
-      },
-    )
-    if (login) {
-      let said = ''
-      child.stdin?.end()
-      child.stderr?.on('data', (chunk: string) => {
-        said += chunk
-      })
-      child.once('exit', code => {
-        if (code !== null) settle({ exitCode: code, stdout: '', stderr: said, killed: false })
-      })
-    }
-    guard = setTimeout(() => {
+    let stdout = ''
+    let stderr = ''
+    const ownGroup = login && getPlatform() !== 'windows'
+    const child = spawn(file, args, { windowsHide: true, env, stdio: ['ignore', 'pipe', 'pipe'], detached: ownGroup })
+    const end = (): void => {
+      if (ownGroup) {
+        strikeProcessGroupNow(child)
+        return
+      }
       try {
         child.kill(login ? 'SIGKILL' : undefined)
       } catch {
       }
-      settle({ exitCode: undefined, stdout: '', stderr: '', killed: true })
+    }
+    const guard = setTimeout(() => {
+      end()
+      settle({ stdout: '', stderr: '', killed: true, overflowed: false })
     }, timeoutMs + SNAPSHOT_PATH_PROBE_SETTLE_GRACE_MS)
+    const settle = (result: BoundedRun): void => {
+      if (settled) return
+      settled = true
+      clearTimeout(guard)
+      resolve(result)
+    }
+    const read = (stream: NodeJS.ReadableStream, keep: (chunk: string) => void): void => {
+      stream.setEncoding('utf8')
+      stream.on('data', (chunk: string) => {
+        keep(chunk)
+        if (stdout.length + stderr.length <= SNAPSHOT_OUTPUT_LIMIT) return
+        end()
+        settle({ stdout, stderr, killed: false, overflowed: true })
+      })
+    }
+    read(child.stdout, chunk => {
+      stdout += chunk
+    })
+    read(child.stderr, chunk => {
+      stderr += chunk
+    })
+    child.once('error', error => settle({ stdout, stderr, killed: false, overflowed: false, unstarted: errorMessage(error) }))
+    child.once(login ? 'exit' : 'close', (code, signal) =>
+      settle({ ...(code === null ? {} : { exitCode: code }), ...(signal === null ? {} : { signal }), stdout, stderr, killed: false, overflowed: false }),
+    )
   })
 }
 
@@ -312,7 +314,13 @@ export async function createAndSaveSnapshot(shell: Pick<ShellRecord, 'path' | 'o
     const fs = getFsImplementation()
     const mercuryHome = getMercuryHome()
     const snapshotsDir = join(mercuryHome, 'shell-snapshots')
-    await fs.mkdir(snapshotsDir)
+    const unmade = await fs.mkdir(snapshotsDir).then(() => null, (error: unknown) => errorMessage(error))
+    if (unmade !== null) {
+      captureLeftNoFile = `the snapshot folder ${snapshotsDir} could not be made (${unmade}), so no login run was tried`
+      logForDebugging(`shell snapshot capture skipped: ${captureLeftNoFile}`)
+      logError(`shell snapshot creation failed: ${captureLeftNoFile}`)
+      return undefined
+    }
 
     const profile = snapshotProfileOf(shell.origin)
     const configFilePath = join(homedir(), profile.file)
@@ -347,7 +355,13 @@ export async function createAndSaveSnapshot(shell: Pick<ShellRecord, 'path' | 'o
     if (outcome.killed || outcome.exitCode !== 0) {
       captureLeftNoFile = outcome.killed
         ? `the login run of ${shellPath} did not end within ${SNAPSHOT_CAPTURE_BOUND_MS / 1000} s and was killed: a login file waits or runs long`
-        : `the login run of ${shellPath} ended with exit ${String(outcome.exitCode)}`
+        : outcome.overflowed
+          ? `the login run of ${shellPath} printed more than ${SNAPSHOT_OUTPUT_LIMIT / (1024 * 1024)} MiB and was ended: a login file prints at length`
+          : outcome.unstarted !== undefined
+            ? `the login run of ${shellPath} could not be started: ${outcome.unstarted}`
+            : outcome.exitCode === undefined
+              ? `the login run of ${shellPath} was ended by ${outcome.signal ?? 'a signal'}`
+              : `the login run of ${shellPath} ended with exit ${String(outcome.exitCode)}`
       logForDebugging(
         [
           'shell snapshot capture failed',
