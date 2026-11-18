@@ -236,10 +236,10 @@ section('§2 a step that fails is logged and the next step runs; an update or an
 
 type BootPorts = Parameters<(typeof BOOT_STEPS)[number]['run']>[0]
 type Made = Partial<BootPorts>
+const CALLED = ['hydrateColdResume', 'wireSession', 'warnAtBoot', 'wireProcess', 'loadSession', 'poolTools', 'sourceRows', 'watchMission', 'restoreRecordedModel', 'seatSession', 'catalogueModels', 'armWarm', 'armAgentFreshness', 'watchQueue', 'bindNotificationFrames', 'registerBootCleanup', 'armLocalWake']
 const stepOf = (name: string): (typeof BOOT_STEPS)[number] => {
-  const step = BOOT_STEPS.find(candidate => candidate.name === name)
-  if (step === undefined) throw new Error(`BOOT_STEPS of src/cli/headless/boot/bootList.ts holds no step ${name}`)
-  return step
+  if (!CALLED.includes(name)) throw new Error(`${name} is not among the steps this proof says it calls`)
+  return BOOT_STEPS.find(candidate => candidate.name === name) ?? { name, makes: [], run: () => ({}) }
 }
 const handed = (step: string, members: object): BootPorts =>
   new Proxy(members, {
@@ -260,6 +260,8 @@ function fresh(): void {
 
 section('§3 the cold road: the boot reads the restart reason, wires the session it carries, and runs the one resume closure')
 {
+  const absent = CALLED.filter(name => !BOOT_STEPS.some(step => step.name === name))
+  check(`BOOT_STEPS of src/cli/headless/boot/bootList.ts holds the ${CALLED.length} steps this proof calls, each by its name`, absent.length === 0, `${absent.join(', ')} left the list: put the step back, or move its checks with what it did`)
   for (const options of [{ resume: 'the-session' }, { continue: true }]) {
     const resumed = scene('crash')
     await ran('hydrateColdResume', { ...(resumed.ports as object), options })
