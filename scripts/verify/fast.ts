@@ -392,33 +392,33 @@ if (buildFacing && existsSync(join(ROOT, 'scripts/build/prove-isolated-artifact.
 }
 
 const floorsStand = steps.every(s => s.ok)
-if (plan.suites.length > 0 && floorsStand) {
+const aloneNow = members.filter(m => m.alone)
+if ((plan.suites.length > 0 || aloneNow.length > 0) && floorsStand) {
   const poolSupport = fullPoolSupport(resolveExecutionProfile(ROOT))
   if (!poolSupport.supported) {
     console.log(`\n  ✋ pooled-suite rung REFUSED before any spawn: ${poolSupport.reason}`)
     console.log(`     ${poolSupport.remedy}`)
-    steps.push({ label: `pooled suites [${plan.suites.join(', ')}] — refused (${poolSupport.reason})`, ok: false, seconds: 0 })
+    steps.push({ label: `pooled suites [${plan.suites.join(', ')}]${aloneNow.length > 0 ? ' and the changed members' : ''} — refused (${poolSupport.reason})`, ok: false, seconds: 0 })
   } else {
-    steps.push(
-      run(
-        `pooled suites [${plan.suites.join(', ')}]`,
-        'bash',
-        ['scripts/run-all-suites.sh', '--keep-going', ...plan.suites],
-        45 * 60_000,
-        distEnsured ? { MERCURY_GATE_PREBUILT: '1' } : undefined,
-      ),
-    )
-  }
-}
-
-if (floorsStand) {
-  for (const m of members.filter(m => m.alone)) {
-    steps.push(
-      run(`member ${memberName(m.file)} of ${m.suite}, alone through its own runner`, 'bash', [`scripts/${m.suite}/run-all.sh`], 30 * 60_000, {
-        MERCURY_SUITE_MEMBER: memberName(m.file),
-        ...(distEnsured ? { MERCURY_GATE_PREBUILT: '1' } : {}),
-      }),
-    )
+    if (plan.suites.length > 0) {
+      steps.push(
+        run(
+          `pooled suites [${plan.suites.join(', ')}]`,
+          'bash',
+          ['scripts/run-all-suites.sh', '--keep-going', ...plan.suites],
+          45 * 60_000,
+          distEnsured ? { MERCURY_GATE_PREBUILT: '1' } : undefined,
+        ),
+      )
+    }
+    for (const m of aloneNow) {
+      steps.push(
+        run(`member ${memberName(m.file)} of ${m.suite}, alone through its own runner`, 'bash', [`scripts/${m.suite}/run-all.sh`], 45 * 60_000, {
+          MERCURY_SUITE_MEMBER: memberName(m.file),
+          ...(distEnsured ? { MERCURY_GATE_PREBUILT: '1' } : {}),
+        }),
+      )
+    }
   }
 }
 
