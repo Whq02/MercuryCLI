@@ -129,7 +129,7 @@ import { sleep } from '../utils/sleep.js'
 import { makeDaemonRunState, markDaemonReady } from './run/state.js'
 import { armOwnerWatch, makeSessionlessBeat, markHosted } from './run/owner.js'
 import { periodicArmer } from './run/periodic.js'
-import { shutdownDaemon } from './run/shutdown.js'
+import { bindWayOut, shutdownDaemon } from './run/shutdown.js'
 import { armedRestartBeat, restartWhenIdle, spawnSuccessorDaemon, successorRuntime } from './run/restart.js'
 
 function resolveDir(args: string[]): string {
@@ -308,7 +308,7 @@ async function daemonRun(args: string[]): Promise<void> {
   const { persist, readyPromise, startedAt } = state
   const noteHosted = (): void => markHosted(state)
   const armPeriodic = periodicArmer(state)
-  let requestShutdown: (signal: string) => void = () => {}
+  let requestShutdown: (signal: string) => void = signal => void (state.askedToLeave ??= signal)
 
   if (controlEnabled) {
     const successorOf = parseHandoverFrom(flagEnv('MERCURY_DAEMON_SUCCESSOR_OF'))
@@ -1305,7 +1305,7 @@ async function daemonRun(args: string[]): Promise<void> {
     const wayOut = { keepAlive, resolveShutdown, spawnSuccessorDaemon }
     const shutdown = (signal: string): void => shutdownDaemon(state, wayOut, signal)
     const ownerNeeds = { shutdown }
-    requestShutdown = shutdown
+    requestShutdown = bindWayOut(state, shutdown)
     armDaemonHomeWatch(daemonDir(), where => {
       shutdown(`home-gone: the daemon directory ${daemonDir()} is gone, noticed at ${where}; the world ended and nothing more is written`)
     })

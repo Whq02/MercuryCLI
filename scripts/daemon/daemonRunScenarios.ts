@@ -41,14 +41,25 @@ const CLOCK = String.raw`if (process.argv.includes('daemon') && process.argv.inc
   const PLANE = /^(?:daemon\.json|control\.key|daemon\.lock|control\.sock(?:\.\d+)?)$/
   const named = at => (typeof at === 'string' && PLANE.test(path.basename(at)) ? path.basename(at) : null)
   let ticking = false
+  const holds = process.env.DMR_CLOCK_HOLDS
+  let held = false
+  let letGo = null
   const wrap = (holder, fn, at, changes) => {
     const real = holder[fn]
     if (typeof real !== 'function') return
     const wrapped = function (...args) {
       const target = args[at]
-      if (ticking && typeof target === 'string') say('  ' + fn + ' ' + target.replace(/\.\d+\.[0-9a-f]+\.tmp$/, '.<n>.tmp'))
-      else if (changes && named(target) !== null) say(fn + ' ' + named(target) + (fn.startsWith('open') ? ' ' + String(args[1] === undefined ? 'r' : args[1]) : ''))
-      return real.apply(this, args)
+      const run = () => {
+        if (ticking && typeof target === 'string') say('  ' + fn + ' ' + target.replace(/\.\d+\.[0-9a-f]+\.tmp$/, '.<n>.tmp'))
+        else if (changes && named(target) !== null) say(fn + ' ' + named(target) + (fn.startsWith('open') ? ' ' + String(args[1] === undefined ? 'r' : args[1]) : ''))
+        return real.apply(this, args)
+      }
+      if (holds === undefined || held || fn + ' ' + named(target) !== holds) return run()
+      held = true
+      say('held at ' + holds)
+      return new Promise(release => {
+        letGo = release
+      }).then(run)
     }
     holder[fn] = Object.assign(wrapped, real)
   }
@@ -109,6 +120,12 @@ const CLOCK = String.raw`if (process.argv.includes('daemon') && process.argv.inc
     try {
       order = readFileSync(process.env.DMR_CLOCK, 'utf8').trim()
     } catch {}
+    if (order === 'go' && letGo !== null) {
+      say('held no longer')
+      const release = letGo
+      letGo = null
+      return release()
+    }
     const asked = /^tick (\d+)$/.exec(order)
     const row = asked === null ? undefined : rows[Number(asked[1]) - 1]
     if (row === undefined) return say('no interval answers the order "' + order + '"')
@@ -324,10 +341,33 @@ class World {
     } catch {}
   }
 
-  clock(refuses?: number): Record<string, string> {
+  clock(refuses?: number, holds?: string): Record<string, string> {
     const preload = join(this.root, 'clock.cjs')
     if (!existsSync(preload)) writeFileSync(preload, CLOCK)
-    return { NODE_OPTIONS: `--require ${preload}`, DMR_CLOCK: join(this.root, 'clock.order'), ...(refuses === undefined ? {} : { DMR_CLOCK_REFUSES: String(refuses) }) }
+    return { NODE_OPTIONS: `--require ${preload}`, DMR_CLOCK: join(this.root, 'clock.order'), ...(refuses === undefined ? {} : { DMR_CLOCK_REFUSES: String(refuses) }), ...(holds === undefined ? {} : { DMR_CLOCK_HOLDS: holds }) }
+  }
+
+  async goOn(daemon: Daemon): Promise<void> {
+    writeFileSync(join(this.root, 'clock.order'), 'go\n')
+    this.say(`> ${daemon.label} is held no longer`)
+    try {
+      process.kill(daemon.pid, 'SIGUSR2')
+    } catch {}
+    await this.until(`${daemon.label} goes on`, () => this.logOf(daemon).includes('clock: held no longer'), 15_000)
+  }
+
+  async direct(label: string, daemon: Daemon, request: Reply, timeoutMs = 10_000): Promise<Reply> {
+    ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
+    const { forwardFrame, predecessorSockPath } = await import('../../src/daemon/handover.ts')
+    let reply: Reply
+    try {
+      reply = (await forwardFrame(predecessorSockPath(daemon.pid), JSON.stringify(request), timeoutMs)) as Reply
+    } catch (error) {
+      reply = { ok: false, thrown: String(error) }
+    }
+    this.say(`> ${label}`)
+    this.say(`< ${this.mask(JSON.stringify(reply))}`)
+    return reply
   }
 
   armed(daemon: Daemon): number {
@@ -1142,11 +1182,29 @@ export const SCENARIOS: Scenario[] = [
   },
 ]
 
+const MENDED: Scenario[] = [
+  {
+    name: 'stop-during-boot',
+    about: 'a stop that reaches a daemon while it boots: the boot is held where the control server listens and the way out is not yet bound, the stop is sent there and acknowledged, the boot goes on, and the daemon leaves',
+    seconds: 8,
+    covers: { doors: ['onShutdown (during the boot)'], waysOut: ['control:shutdown asked during the boot'] },
+    run: async w => {
+      const d = await w.boot('d1', { wait: 'none', extra: w.clock(undefined, 'rename control.sock') })
+      await w.logged(d, /clock: held at rename control\.sock/, 30_000)
+      await w.direct('shutdown while the boot is held', d, { op: 'shutdown', reapWorkers: true })
+      await w.goOn(d)
+      await w.logged(d, /control socket up/, 30_000)
+      await w.left(d, 10_000)
+      w.files('left')
+    },
+  },
+]
+
 const WORLDS: World[] = []
 
 async function recordScenario(name: string, dist: string, keep = false): Promise<string> {
-  const scenario = SCENARIOS.find(s => s.name === name)
-  if (scenario === undefined) throw new Error(`no scenario named ${name}; the names: ${SCENARIOS.map(s => s.name).join(', ')}`)
+  const scenario = [...SCENARIOS, ...MENDED].find(s => s.name === name)
+  if (scenario === undefined) throw new Error(`no scenario named ${name}; the names: ${[...SCENARIOS, ...MENDED].map(s => s.name).join(', ')}`)
   const w = new World(dist)
   WORLDS.push(w)
   w.say(`# ${scenario.name}: ${scenario.about}`)
@@ -1166,7 +1224,7 @@ if (import.meta.main) {
   const after = (flag: string): string | undefined => (args.includes(flag) ? args[args.indexOf(flag) + 1] : undefined)
   const name = args.find(a => !a.startsWith('--') && a !== after('--dist') && a !== after('--out'))
   if (args.includes('--list') || name === undefined) {
-    for (const s of SCENARIOS) console.log(`${s.name}\t${s.seconds}s\t${s.about}`)
+    for (const s of [...SCENARIOS, ...MENDED]) console.log(`${s.name}\t${s.seconds}s\t${s.about}`)
     process.exit(name === undefined && !args.includes('--list') ? 2 : 0)
   }
   const guard = setTimeout(() => {

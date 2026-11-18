@@ -404,6 +404,23 @@ try {
     const reached = did.filter(effect => effect !== lost)
     check(`${fail.said} the way out goes on: every step after it runs in its order, to the exit timer`, differs.length === 0 && at('timer 250') >= 0 && lost === undefined, lost !== undefined ? `the failure ended the way out there (${lost}): ${reached.length} of ${kept.length} things happened, the last "${reached.at(-1)}", and the exit timer was never armed — in ${PART} ${fail.how}: a daemon that cannot ${fail.neighbour} still does the rest and exits` : differs.join('\n      '))
   }
+
+  section('§5 binding the way out: a stop asked before it is bound was kept, and is taken as it is bound')
+  {
+    reset()
+    const asked: string[] = []
+    const way = (signal: string): void => void asked.push(signal)
+    const quiet = planted()
+    did.length = 0
+    check('with no stop asked, binding hands the way out back and takes it for nobody', part.bindWayOut(quiet, way) === way && asked.length === 0 && did.length === 0, [asked, did])
+    const early = planted({ askedToLeave: 'control:shutdown' })
+    did.length = 0
+    check('a stop asked while the daemon booted is taken once, by its own name, as the way out is bound', part.bindWayOut(early, way) === way && asked.join() === 'control:shutdown' && did.length === 0, `${JSON.stringify(asked)} — a stop that the control server acknowledged before the boot bound the way out is kept in state.askedToLeave and taken by bindWayOut of ${PART}: without it the daemon answers the stop and goes on running`)
+    const leaving = planted({ askedToLeave: 'SIGTERM', restartAfterTeardown: true })
+    part.bindWayOut(leaving, signal => leave(leaving, signal))
+    await settle()
+    check('…and what is taken is the whole way out, to its exit timer', readWayOut(happened()).length === 0 && at('timer 250') >= 0, readWayOut(happened()))
+  }
 } finally {
   console.error = realError
   process.exit = realExit

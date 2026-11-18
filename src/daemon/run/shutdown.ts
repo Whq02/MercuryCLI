@@ -192,6 +192,11 @@ const WAY_OUT_THEN: readonly WayOutStep[] = [
   },
 ]
 
+export function bindWayOut(state: DaemonRunState, shutdown: (signal: string) => void): (signal: string) => void {
+  if (state.askedToLeave !== null) shutdown(state.askedToLeave)
+  return shutdown
+}
+
 export function shutdownDaemon(state: DaemonRunState, needs: ShutdownNeeds, signal: string): void {
   if (state.shuttingDown) return
   state.shuttingDown = true
