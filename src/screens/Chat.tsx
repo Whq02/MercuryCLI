@@ -86,12 +86,12 @@ import { flagEnv } from '../substrate/flagRegistry.js';
 import { resolveTerminalExperience } from '../ink/session/terminalExperience.js';
 import type { Tool } from '../Tool.js';
 import { ChatKeys } from './chat/ChatKeys.js';
-import type { CrashResumeStaged } from './chat/crashResume.js';
 import type { FocusedInputDialog } from './chat/focusedDialog.js';
 import { RECEIPT_TIMEOUT_MS, SWITCH_STATUS_TIMEOUT_MS } from './chat/limits.js';
 import type { Screen as ScreenName } from './chat/screen.js';
 import type { PaintsRows, ResumableLog } from './chat/sessionShapes.js';
 import { useChatAsks, useChatAsksCard } from './chat/useChatAsks.js';
+import { useChatCrashResume } from './chat/useChatBoot.js';
 import { type ToolJSXState, useChatDialogPaints, useChatDialogs, useChatDialogsView } from './chat/useChatDialogs.js';
 import { useChatDraft } from './chat/useChatDraft.js';
 import { useChatScroll, useChatScrollFollow, useChatScrollPin } from './chat/useChatScroll.js';
@@ -279,8 +279,7 @@ export function Chat({
   const { toolJSX, setToolJSX, isExiting, showExitFlow, setShowExitFlow, exitCommandJsx, showCostThreshold, setShowCostThreshold, showBashesDialog, setShowBashesDialog, handleExit } = useChatDialogs({ store });
   const { showMessageSelector, setShowMessageSelector, openMessageSelector, messageSelectorPreselect, setMessageSelectorPreselect } = useChatSelector();
   const [submitCount, setSubmitCount] = useState(0);
-  const [crashResumeStaged, setCrashResumeStaged] = useState<CrashResumeStaged | null>(null);
-  const crashNoticeLatchedRef = useRef(false);
+  const { crashResumeStaged, setCrashResumeStaged, crashNoticeLatchedRef } = useChatCrashResume();
 
   const mcpState = useAppState(state => state.mcp);
   useEffect(() => {

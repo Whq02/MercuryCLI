@@ -12,9 +12,9 @@ const DOOR_EXPORTS = ['Chat', 'Props', 'Screen']
 
 const HOOK_CALLS_IN_CHAT: Record<string, number> = {
   useEffect: 20,
-  useRef: 12,
+  useRef: 11,
   useCallback: 8,
-  useState: 5,
+  useState: 4,
   useSyncExternalStore: 7,
   useAppState: 7,
   useAppStateStore: 1,
