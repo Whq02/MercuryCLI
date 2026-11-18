@@ -1,9 +1,10 @@
-import { execFile } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { basename, join } from 'node:path'
 import memoize from 'lodash-es/memoize.js'
 import { logForDebugging } from '../debug.js'
 import { errorMessage } from '../errors.js'
 import { logError } from '../log.js'
+import { endProcessTree, strikeProcessGroupNow } from '../processGroup.js'
 import { getInitialSettings } from '../settings/settings.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { which } from '../which.js'
@@ -32,27 +33,48 @@ const NO_WINDOWS_SHELL_MESSAGE =
   'No shell found. On Windows Mercury runs commands in a bash 5 that is installed (Git for Windows ships one), then in the bash it ships, then in its bundled engine, and none of the three starts here; install Git for Windows, set MERCURY_GIT_BASH_PATH to a bash.exe, or reinstall Mercury, then restart Mercury.'
 
 const BASH_VERSION_SHAPE = /^\d+\.\d+/
+const VERSION_ANSWER_LIMIT = 1024 * 1024
 
 export function startedBashVersion(path: string, limitMs: number = START_PROBE_TIMEOUT_MS): Promise<string | null> {
   return new Promise(resolve => {
     try {
-      const asked = execFile(
-        path,
-        ['--norc', '--noprofile', '-c', 'printf %s "$BASH_VERSION"'],
-        { windowsHide: true, timeout: limitMs, killSignal: 'SIGKILL', encoding: 'utf8', env: withoutShellStartFiles({ ...subprocessEnv() }) },
-        (error, stdout) => {
-          const version = typeof stdout === 'string' ? (stdout.trim().split(/\r?\n/).pop() ?? '').trim() : ''
-          resolve(error || !BASH_VERSION_SHAPE.test(version) ? null : version)
-        },
-      )
-      AbortSignal.timeout(limitMs).addEventListener(
-        'abort',
-        () => {
-          asked.kill('SIGKILL')
-          resolve(null)
-        },
-        { once: true },
-      )
+      const ownGroup = process.platform !== 'win32'
+      const asked = spawn(path, ['--norc', '--noprofile', '-c', 'printf %s "$BASH_VERSION"'], { windowsHide: true, detached: ownGroup, stdio: ['ignore', 'pipe', 'ignore'], env: withoutShellStartFiles({ ...subprocessEnv() }) })
+      let said = ''
+      let open = true
+      const end = (): void => {
+        if (ownGroup) strikeProcessGroupNow(asked)
+        else void endProcessTree(asked, 'SIGKILL')
+      }
+      const endWithThisProcess = (): void => {
+        if (ownGroup) strikeProcessGroupNow(asked)
+        else asked.kill()
+      }
+      const answer = (version: string | null): void => {
+        if (!open) return
+        open = false
+        process.removeListener('exit', endWithThisProcess)
+        resolve(version)
+      }
+      const unanswered = (): void => {
+        if (!open) return
+        end()
+        answer(null)
+      }
+      process.once('exit', endWithThisProcess)
+      asked.stdout.setEncoding('utf8').on('data', (chunk: string) => {
+        said += chunk
+        if (said.length > VERSION_ANSWER_LIMIT) unanswered()
+      })
+      asked.once('error', error => {
+        logForDebugging(`shell record: ${path} cannot be started — ${errorMessage(error)}`)
+        answer(null)
+      })
+      asked.once('close', code => {
+        const version = (said.trim().split(/\r?\n/).pop() ?? '').trim()
+        answer(code !== 0 || !BASH_VERSION_SHAPE.test(version) ? null : version)
+      })
+      AbortSignal.timeout(limitMs).addEventListener('abort', unanswered, { once: true })
     } catch (error) {
       logForDebugging(`shell record: ${path} cannot be started — ${errorMessage(error)}`)
       resolve(null)

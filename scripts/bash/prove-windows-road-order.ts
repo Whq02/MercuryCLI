@@ -85,6 +85,28 @@ try {
       alive = false
     }
     check('…and that program was killed, not asked: it is gone', Number.isInteger(pid) && !alive, `pid ${String(pid)} alive ${alive}`)
+    const gone = (file: string): { pid: number; alive: boolean } => {
+      const at = existsSync(file) ? Number(readFileSync(file, 'utf8').trim()) : NaN
+      try {
+        process.kill(at, 0)
+        process.kill(at, 'SIGKILL')
+        return { pid: at, alive: true }
+      } catch {
+        return { pid: at, alive: false }
+      }
+    }
+    const launchedFile = join(scratch, 'launched.pid')
+    const launcher = script('launcher-bash', `#!/bin/sh\nsleep 300 &\necho $! > '${launchedFile}'\nwait\n`)
+    const fromLauncher = await ask(launcher, 700)
+    await sleep(400)
+    const launched = gone(launchedFile)
+    check('a candidate that is a launcher: at the limit the program it started is ended with it', fromLauncher === null && Number.isInteger(launched.pid) && !launched.alive, JSON.stringify({ fromLauncher, launched }))
+    const openFile = join(scratch, 'open.pid')
+    const waits = script('waits-bash', `#!/bin/sh\necho $$ > '${openFile}'\nexec sleep 300\n`)
+    spawnSync(process.execPath, ['-e', `;(globalThis).MACRO = { VERSION: '0.0.0' }\nconst record = await import('${source('src/utils/shell/shellRecord.ts')}')\nvoid record.startedBashVersion('${waits}', 20000)\nsetTimeout(() => process.exit(0), 700)`], { cwd: scratch, encoding: 'utf8', timeout: 60_000 })
+    await sleep(300)
+    const leftOpen = gone(openFile)
+    check('a process that ends while a question is open ends the program it asked', Number.isInteger(leftOpen.pid) && !leftOpen.alive, JSON.stringify(leftOpen))
   }
 
   type Leg = { served: { path: string; version: string; origin: string } | null; ran: string | null; error: string | null; row: { status: string; evidence: string }; kind: string; tool: boolean; ms: number }
