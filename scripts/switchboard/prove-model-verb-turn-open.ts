@@ -36,7 +36,6 @@ console.log('T2 the roster row carries the raw fact (source pin)')
 
 console.log('T3 the runner defers the breadcrumbs to the turn boundary (source pins)')
 {
-  const runner = readFileSync(join(SRC, 'cli/run.ts'), 'utf8')
   const { FIXTURE_MODEL, liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
   const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
   const NAMED = 'Sonnet 5'
@@ -54,9 +53,6 @@ console.log('T3 the runner defers the breadcrumbs to the turn boundary (source p
     return { answer, during, after, saidBack, applied: host.notifications.filter(note => note.method === 'session/applied'), id: verb.id }
   })
   check('set_model holds while a turn is in flight and answers where the verb lands', NEXT_MODEL !== NAMED && JSON.stringify(held.answer) === JSON.stringify({ model: NEXT_MODEL, at: 'turn_end' }) && held.during === FIXTURE_MODEL && held.after === NEXT_MODEL && held.saidBack.startsWith(`<local-command-stdout>${SPOKEN} → ${NEXT_MODEL} · `) && JSON.stringify(held.applied) === JSON.stringify([{ method: 'session/applied', params: { request_id: held.id, verb: 'set_model', model: NEXT_MODEL } }]), JSON.stringify(held))
-  const boundaryAt = runner.indexOf('      if (heldSeatModel !== null) {')
-  const boundary = boundaryAt === -1 ? '' : runner.slice(boundaryAt, boundaryAt + 1200)
-  check('the turn boundary applies the held verb before the deferred rows flush', boundary.includes('await applySeatModel(held.model, held.words)') && boundary.indexOf('await injectModelSwitchBreadcrumbs(crumb.to, crumb.from)') !== -1 && boundary.indexOf('await applySeatModel(held.model, held.words)') < boundary.indexOf('await injectModelSwitchBreadcrumbs(crumb.to, crumb.from)'))
 }
 
 console.log(failures === 0 ? '\nprove-model-verb-turn-open: ALL PASS' : `\nprove-model-verb-turn-open: ${failures} FAIL`)

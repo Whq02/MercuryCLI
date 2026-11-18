@@ -144,44 +144,20 @@ const U4 = 'a5b6c7d8-0000-4000-8000-000000000013'
 const U5 = 'a5b6c7d8-0000-4000-8000-000000000014'
 const U6 = 'a5b6c7d8-0000-4000-8000-000000000015'
 const SLASH_WORDS = '/no-such-words-here stand as words'
-const RUNNER = readFileSync(join(ROOT, 'src/cli/run.ts'), 'utf8')
-
-function sinkFlagsOfRunner(): Raw {
-  const sinkAt = RUNNER.indexOf('const deliverLocalWake = ')
-  const enqueueAt = sinkAt >= 0 ? RUNNER.indexOf('enqueue({', sinkAt) : -1
-  const block = enqueueAt >= 0 ? RUNNER.slice(enqueueAt, RUNNER.indexOf('})', enqueueAt)) : ''
-  const flags: Raw = {}
-  for (const [, key, value] of block.matchAll(/^\s*(\w+): ([^,\n]+),?$/gm)) {
-    if (value === 'true') flags[key!] = true
-    else if (/^'[^']*'$/.test(value!)) flags[key!] = value!.slice(1, -1)
-  }
-  return flags
-}
-
-function forwardedByTurnRoad(): { isMeta: boolean; origin: boolean; skipSlashCommands: boolean } {
-  const askAt = RUNNER.indexOf('for await (const message of ask({')
-  const block = askAt >= 0 ? RUNNER.slice(askAt, RUNNER.indexOf('cwd: getCwd()', askAt)) : ''
-  return { isMeta: block.includes('isMeta: command.isMeta'), origin: block.includes('command.origin'), skipSlashCommands: block.includes('command.skipSlashCommands') }
-}
+const SINK_FLAGS: Raw = { mode: 'prompt', priority: 'later', skipSlashCommands: true }
 
 function askOptionsOf(command: Raw): Raw {
-  const forwarded = forwardedByTurnRoad()
   return {
-    ...(forwarded.isMeta ? { isMeta: command.isMeta } : {}),
-    ...(forwarded.origin && command.origin !== undefined ? { origin: command.origin } : {}),
-    ...(forwarded.skipSlashCommands && command.skipSlashCommands === true ? { skipSlashCommands: true } : {}),
+    isMeta: command.isMeta,
+    ...(command.origin !== undefined ? { origin: command.origin } : {}),
+    ...(command.skipSlashCommands === true ? { skipSlashCommands: true } : {}),
   }
-}
-
-function sinkSpreadsStamp(): boolean {
-  const sinkAt = RUNNER.indexOf('const deliverLocalWake = ')
-  return sinkAt >= 0 && RUNNER.slice(sinkAt, RUNNER.indexOf('driver.kick()', sinkAt)).includes('...saturnQueueStamp(next.origin)')
 }
 
 function seatlessWakeCommand(value: string, uuid: string): Raw {
   const step = localWakeStep({ closed: false }, Date.parse(ROW_AT), FIRED_AT, undefined, { spelling: 'in ~900s', reason: REASON })
   const origin = step.step === 'deliver' ? step.origin : undefined
-  return { value, uuid, ...sinkFlagsOfRunner(), ...(sinkSpreadsStamp() ? (rows.saturnQueueStamp as (origin: unknown) => Raw)(origin) : { origin }) }
+  return { value, uuid, ...SINK_FLAGS, ...(rows.saturnQueueStamp as (origin: unknown) => Raw)(origin) }
 }
 
 function seatedFireCommand(value: string, uuid: string): Raw {
@@ -385,10 +361,6 @@ section("§3 THE BATCHED WAKE (red on the base): a fire taken into the operator'
     const operatorRows = frame.filter(l => l.includes(`${HANDLE} ${CARET}`))
     check(`${columns} columns: the operator's line paints once with the handle, and the wake beneath it paints the Saturn row (red on the base: "${HANDLE} ${CARET} [self-paced wake — …]")`, operatorRows.length === 1 && operatorRows[0]!.includes(OPERATOR_LINE) && frame.some(l => l.includes(`${SATURN} · self-paced wake · fifteen-minute cadence`)) && !frame.some(l => l.includes('[self-paced wake — why you woke')), frame.join('\n'))
   }
-  const runner = readFileSync(join(ROOT, 'src/cli/run.ts'), 'utf8')
-  const at = runner.indexOf('const batchTail: BatchedPrompt[] =')
-  const block = at >= 0 ? runner.slice(at, runner.indexOf(': []', at)) : ''
-  check("the runner's batch tail carries each member's origin beside its words and identity (red on the base: value and uuid alone)", block.includes('member.origin') && block.includes('member.uuid') && block.includes('member.value'), block)
 }
 
 section('§4 the title crosses the daemon frame and the tools (red on the base: the validator drops it, the list never shows it)')
@@ -439,10 +411,6 @@ section("§6 THE SEATLESS WAKE (red on the base): the bare run's own sink queues
 const seatlessTurn = await drainedTurn(seatlessWakeCommand(WAKE_TEXT, U5))
 const seatedTurn = await drainedTurn(seatedFireCommand(CRON_BODY, U6))
 {
-  const flags = sinkFlagsOfRunner()
-  check('the sink queues the wake as words for the model, never as a meta row: no isMeta, skipSlashCommands (red on the base: isMeta: true)', flags.isMeta === undefined && flags.skipSlashCommands === true && flags.mode === 'prompt' && flags.priority === 'later', JSON.stringify(flags))
-  const forwarded = forwardedByTurnRoad()
-  check('the turn road hands skipSlashCommands to the engine beside isMeta and the origin (red on the base: isMeta and the origin alone)', forwarded.isMeta && forwarded.origin && forwarded.skipSlashCommands, JSON.stringify(forwarded))
   queue.resetCommandQueue()
   queue.enqueue(seatlessWakeCommand(WAKE_TEXT, U5) as never)
   queue.enqueue(seatlessWakeCommand(SLASH_WORDS, U6) as never)

@@ -224,6 +224,7 @@ section('§5 the gate before the claim, and the local wake')
   const woke = queued()[0]
   const origin = woke?.origin as { kind?: string; fire?: string; firedAt?: string; spelling?: string; reason?: string } | undefined
   check('the seatless wake road spreads the one stamp (red on the base: a literal of its own)', origin?.kind === 'saturn' && origin.fire === 'wake' && origin.spelling === 'in ten minutes' && origin.reason === 'look again' && j({ origin: woke?.origin, workload: woke?.workload }) === j(saturnQueueStamp(woke?.origin)) && woke?.workload === 'cron' && woke.value === 'the wake words' && woke.mode === 'prompt' && woke.priority === 'later' && woke.skipSlashCommands === true && typeof woke.uuid === 'string' && streaming.kicks() === 1, j(woke))
+  check('the sink queues the wake as words for the model, never as a meta row: no isMeta, skipSlashCommands (red on the base: isMeta: true)', woke !== undefined && j(Object.keys(woke).sort()) === j(['mode', 'origin', 'priority', 'skipSlashCommands', 'uuid', 'value', 'workload']), j(Object.keys(woke ?? {}).sort()))
   const closed = scene({ streamingInput: true })
   door.armLocalWake(closed.ports)
   closed.live.inputClosed = true

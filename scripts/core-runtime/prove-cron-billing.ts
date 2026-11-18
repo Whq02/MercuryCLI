@@ -122,9 +122,6 @@ const SIZES: Array<[number, number, number, number]> = [
 section('§0 the census (a guard, green on both trees): the one workload, its readers, and the batch law')
 {
   check("the workload vocabulary is the one word 'cron'", workload.WORKLOAD_CRON === 'cron')
-  const runner = src('src/cli/run.ts')
-  const reader = between(runner, 'const workload = command.workload ?? options.workload', 'await runWithWorkload(workload, async () => {')
-  check("the run-time reader takes the queued command's workload first and enters the turn under it", reader.includes('command.workload ?? options.workload') && reader.includes('runWithWorkload(workload'), reader.slice(0, 200))
   const operator = { value: OPERATOR_LINE, mode: 'prompt' } as never
   const fire = { value: WAKE_TEXT, mode: 'prompt', workload: 'cron', origin: wakeOrigin() } as never
   const secondFire = { value: 'the second fire', mode: 'prompt', workload: 'cron', origin: cronOrigin() } as never

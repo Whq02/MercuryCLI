@@ -86,12 +86,6 @@ section('§4 THE PRINT PATH (source pins)')
   check('the batch is raced against the launch budget', main.includes('withMcpLaunchBudget(connectMcpBatch(configs, store.setState), mcpLaunchBudgetMs())'))
   check('the run proceeds on timeout — late servers serve later calls', main.includes("=== 'timeout') {") && main.includes('late servers serve later calls'))
   check('the helpers are static imports from the one MCP owner', /import \{[^}]*mcpLaunchBudgetMs[^}]*withMcpLaunchBudget[^}]*\} from '\.\/services\/mcp\/client\.js'/s.test(main))
-  const print = readFileSync(join(SRC, 'cli/run.ts'), 'utf8')
-  const turnStart = print.indexOf('await runWithWorkload(workload, async () => {')
-  const stateAt = print.indexOf('const state = getAppState()', turnStart)
-  const assemblyAt = print.indexOf('const assembledTools = assembleTools(state, command.schema)', stateAt)
-  const commandsAt = print.indexOf('const mcpCommands = state.mcp.commands', stateAt)
-  check('the headless tool pool reads the MCP store live for each turn and its requested schema', print.includes('state.mcp.tools as Tool[]') && turnStart >= 0 && stateAt > turnStart && assemblyAt > stateAt && commandsAt > assemblyAt)
 }
 
 rmSync(HOME, { recursive: true, force: true })

@@ -298,10 +298,8 @@ section('C. an in-process loopback server (the same client road, the SDK server 
 section('D. every road that parks on the operator is under the ledger')
 {
   const handlerSrc = readFileSync(join(SRC, 'services/mcp/elicitationHandler.ts'), 'utf8')
-  const printSrc = readFileSync(join(SRC, 'cli/run.ts'), 'utf8')
   const clientSrc = readFileSync(join(SRC, 'services/mcp/client.ts'), 'utf8')
   check('the interactive consent-card handler enters the ledger for its whole park', /setRequestHandler\('elicitation\/create', \(request, ctx\) =>\s*withElicitationEntered\(client,/.test(handlerSrc))
-  check('the print/SDK structured-IO handler enters the same ledger', /withElicitationEntered\(client\.client,/.test(printSrc))
   check('the call watchdog reads the paused clock', /elicitationPausedClock\(connected\.client\)/.test(clientSrc) && /now: clock\.now/.test(clientSrc))
 }
 

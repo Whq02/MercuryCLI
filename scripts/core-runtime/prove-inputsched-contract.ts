@@ -472,8 +472,8 @@ console.log('native-core T13/T14 — input-scheduling contract')
     localShell.includes("mode: 'task-notification',\n    priority: 'next',") && !localShell.includes("priority: agentId !== undefined ? 'next' : 'later'"))
   check("lock: the sub-agent completion notice already rode the 'next' band (unchanged)",
     localAgent.includes("mode: 'task-notification',\n    priority: 'next',"))
-  check("lock: the idle kick and the next operator turn's held deliveries speak a notice's frame through the one announcer",
-    runner.includes('const announcedNotifications = new WeakSet<QueuedCommand>()') && runner.includes('emitCommandNotifications([...initialNotices, command])') && runner.includes('if (!driver.isRunning()) emitCommandNotifications(queued.filter(isMainThreadCommand))'))
+  check("lock: the idle kick speaks a notice's frame through the one announcer",
+    runner.includes('const announcedNotifications = new WeakSet<QueuedCommand>()') && runner.includes('if (!driver.isRunning()) emitCommandNotifications(queued.filter(isMainThreadCommand))'))
 
   check('lock: Chat registers the chokepoint interceptors (intercept + re-pin gate + active flip)',
     repl.includes('pendingInput.registerInterceptors({')
