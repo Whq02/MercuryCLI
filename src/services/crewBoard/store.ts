@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdirSync, renameSync, rmSync, watch, writeFileSync, type FSWatcher } from 'node:fs'
+import { mkdirSync, renameSync, rmSync, watch, writeFileSync } from 'node:fs'
 import { basename, dirname, resolve } from 'node:path'
 import { createRequire } from 'node:module'
 import { BOARD_PACKET_RULE, SEAT_NAME_REFUSAL, boardReachNote, boardSeatName, boardLabelKey, type BoardChannel, type BoardEvent, type BoardPacket, type BoardPost, type BoardPrincipal, type BoardReach, type BoardReceipt, type BoardSeat, type BoardStore, type BoardViewSnapshot } from './contracts.js'
@@ -30,6 +30,12 @@ const normalize = (input: BoardPost) => ({
 })
 const feeds = new Map<string, Set<() => void>>()
 const validTeam = (team: string): boolean => /^[\p{L}\p{N}_][\p{L}\p{N}_.-]{0,79}$/u.test(team) && !['all', 'general'].includes(team.toLowerCase())
+const watchBoard = (path: string, emit: () => void): (() => void) => {
+  const watcher = watch(resolveWatchRoot(dirname(path)), { persistent: false }, (_event, file) => {
+    if (file === null || [basename(path), `${basename(path)}-wal`].includes(String(file)) || (String(file).startsWith(`${basename(path)}.`) && String(file).endsWith('.notify'))) emit()
+  })
+  return () => watcher.close()
+}
 
 export function open(path: string, sessionId: string, now: () => number = Date.now, readOnly = false, live: (agent: string) => boolean = () => true): BoardStore {
   if (!readOnly) mkdirSync(dirname(path), { recursive: true, mode: 0o700 })
@@ -84,7 +90,7 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
   const boardId = `board-${waveId}`
   const listeners = new Set<() => void>()
   const feedKey = resolve(path)
-  let watcher: FSWatcher | undefined
+  let unwatch: (() => void) | undefined
   let closed = false
   const version = (): string => JSON.stringify([db.prepare('SELECT MAX(seq) AS seq FROM events').get()!.seq, db.prepare("SELECT agent, value FROM interests WHERE kind = 'membership' ORDER BY agent").all(), hasCaptains ? db.prepare('SELECT team, agent FROM captains ORDER BY team').all() : [], wakes.version(), db.prepare('SELECT agent FROM members WHERE enrolled = 1 ORDER BY agent').all()])
   let observed = version()
@@ -635,16 +641,14 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
         let feed = feeds.get(feedKey)
         if (!feed) { feed = new Set(); feeds.set(feedKey, feed) }
         feed.add(emit)
-        watcher = watch(resolveWatchRoot(dirname(path)), { persistent: false }, (_event, file) => {
-          if (file === null || [basename(path), `${basename(path)}-wal`].includes(String(file)) || (String(file).startsWith(`${basename(path)}.`) && String(file).endsWith('.notify'))) emit()
-        })
+        unwatch = watchBoard(path, emit)
       }
       return () => {
         listeners.delete(listener)
-        if (!listeners.size) { watcher?.close(); watcher = undefined; feeds.get(feedKey)?.delete(emit); if (!feeds.get(feedKey)?.size) feeds.delete(feedKey) }
+        if (!listeners.size) { unwatch?.(); unwatch = undefined; feeds.get(feedKey)?.delete(emit); if (!feeds.get(feedKey)?.size) feeds.delete(feedKey) }
       }
     },
-    close() { if (closed) return; closed = true; watcher?.close(); listeners.clear(); feeds.get(feedKey)?.delete(emit); if (!feeds.get(feedKey)?.size) feeds.delete(feedKey); db.close() },
+    close() { if (closed) return; closed = true; unwatch?.(); listeners.clear(); feeds.get(feedKey)?.delete(emit); if (!feeds.get(feedKey)?.size) feeds.delete(feedKey); db.close() },
   }
   return store
 }
