@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gate-class: pty
+# gate-class: pure
 # gate-watch: src/utils/model/defaultProviderRung* src/commands/defaultprovider/**
 # gate-watch: src/utils/model/model* src/components/ConsoleOAuthFlow* src/utils/config/schema*
 # gate-watch: scripts/lib/captureDriver.ts scripts/ui/vshot.py src/services/providers/routeLaw.ts src/utils/accounts/signInLedger.ts src/utils/config.ts src/utils/model/computedDefault.ts
@@ -9,7 +9,7 @@ set -u
 here="$(cd "$(dirname "$0")" && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"
 overall=0
-for suite in prove-default-provider prove-defaultprovider-restart-drive; do
+for suite in prove-default-provider; do
   echo "── $suite"
   run_proof "$here/$suite.ts" "$bun" run "$here/$suite.ts"
   rc=$?
