@@ -160,12 +160,32 @@ t.section('§3 — the rail consumes the plan; no lane order is written twice')
     model.includes('hints.slice(0, hintCap)') && model.includes('spent -= costOf(s)') && !model.includes('intents') && !rail.includes('intents'),
     'the cost is the built rows',
   )
-  const repl = readFileSync('src/screens/Chat.tsx', 'utf8')
-  t.check('the Chat publishes all four states', /publishCockpitActivity\(cockpitActivity\)/.test(repl), 'published')
+  const { mountPart } = await import('../ui/chatScenarios.ts')
+  const { useChatTitle } = await import('../../src/screens/chat/useChatTitle.tsx')
+  const { pushOverlay, popOverlay } = await import('../../src/context/overlayStack.ts')
+  type TitleArgs = Parameters<typeof useChatTitle>[0]
+  const seat = { sessionId: () => 'density-proof' } as unknown as TitleArgs['focusedConnector']
+  const planted = (over: Partial<TitleArgs>) => (store: TitleArgs['store']) => useChatTitle({ focusedInputDialog: undefined, focusedConnector: seat, isLoading: false, store, ...over })
+  resetCockpitActivityForTests()
+  const part = await mountPart(planted({}))
+  const published: ActivityState[] = [getCockpitActivity()]
+  await part.set(planted({ isLoading: true }))
+  published.push(getCockpitActivity())
+  const review = pushOverlay({ id: 'diff-dialog', modal: true })
+  await part.set(planted({ isLoading: true }))
+  published.push(getCockpitActivity())
+  await part.set(planted({ isLoading: true, focusedInputDialog: 'tool-permission' }))
+  published.push(getCockpitActivity())
+  popOverlay(review)
+  await part.set(planted({ isLoading: true, focusedInputDialog: 'tool-permission' }))
+  const decided = getCockpitActivity()
+  part.unmount()
+  resetCockpitActivityForTests()
+  t.check('the Chat publishes all four states', published.join(',') === 'calm,active,review,waiting', published.join(','))
   t.check(
     "and a pending decision outranks running work",
-    /isWaitingForApproval[\s\S]{0,40}\? 'waiting'/.test(repl),
-    'ranked',
+    decided === 'waiting',
+    decided,
   )
 }
 

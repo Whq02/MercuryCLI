@@ -501,6 +501,75 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
   return stage
 }
 
+export type PartMount<T> = {
+  value: () => T
+  renders: () => number
+  set: (use: (store: AppStateStore) => T) => Promise<void>
+  store: () => AppStateStore
+  view: Mounted
+  writes: string[]
+  unmount: () => void
+}
+
+export async function mountPart<T>(use: (store: AppStateStore) => T, options: { columns?: number; rows?: number; draw?: (value: T) => import('react').ReactNode } = {}): Promise<PartMount<T>> {
+  const globals = globalThis as Record<string, unknown>
+  globals.MACRO ??= { VERSION: '1.0.0' }
+  const React = await import('react')
+  const h = React.createElement
+  const { App } = await import('../../src/components/App.tsx')
+  const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+  const { useAppStateStore } = await import('../../src/state/AppState.tsx')
+  const { TerminalWriteContext } = await import('../../src/ink/terminalWrite.ts')
+  const { enableConfigs } = await import('../../src/utils/config.ts')
+  enableConfigs()
+  let call = use
+  let held: T | undefined
+  let count = 0
+  let store: AppStateStore | undefined
+  let poke: (() => void) | undefined
+  const writes: string[] = []
+  function Probe(): import('react').ReactNode {
+    const [, setTick] = React.useState(0)
+    poke = () => setTick(tick => tick + 1)
+    store = useAppStateStore()
+    held = call(store)
+    count++
+    return options.draw === undefined ? null : options.draw(held)
+  }
+  function WriteTap(props: { children?: import('react').ReactNode }): import('react').ReactElement {
+    const write = React.useContext(TerminalWriteContext)
+    const tapped = React.useMemo(
+      () =>
+        write === null || write === undefined
+          ? write
+          : (data: string): void => {
+              writes.push(data)
+              write(data)
+            },
+      [write],
+    )
+    return h(TerminalWriteContext.Provider, { value: tapped as never }, props.children)
+  }
+  const view = await mountOffscreen(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(WriteTap, null, h(Probe))), options.columns ?? 100, options.rows ?? 30)
+  await settle(80)
+  return {
+    value: () => held as T,
+    renders: () => count,
+    set: async next => {
+      call = next
+      poke?.()
+      await settle(80)
+    },
+    store: () => {
+      if (store === undefined) throw new Error('the app state store was not tapped')
+      return store
+    },
+    view,
+    writes,
+    unmount: () => view.unmount(),
+  }
+}
+
 export async function closeStage(stage: Stage): Promise<void> {
   stage.view.unmount()
   await releaseScratchHome(stage.home)
