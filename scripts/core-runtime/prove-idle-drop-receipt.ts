@@ -34,7 +34,6 @@ section('§1 the writer: no site arms a thinking-clear latch after the idle thre
   check('streamCore does not arm a thinking-clear latch from the idle-hour completion gap', !/setThinkingClearLatched\(true\)/.test(stream) && !/thinkingClearLatched\s*=\s*true/.test(stream), 'an idle-hour arming survives in streamCore.ts')
   check('bootstrap state exposes no getThinkingClearLatched / setThinkingClearLatched', !state.includes('ThinkingClearLatched'), 'a thinking-clear latch accessor survives in state.ts')
 
-  const ambient = { ...process.env }
   const t = await import('./turnScenarios.ts')
   const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
   const { modelReply } = await import('../../src/run-core/turn/modelReply.ts')
@@ -83,8 +82,6 @@ section('§1 the writer: no site arms a thinking-clear latch after the idle thre
   const pruned = await onThePruneRung(true)
   const unpruned = await onThePruneRung(false)
   resetThinkingDropStates()
-  for (const name of Object.keys(process.env)) if (!(name in ambient)) delete process.env[name]
-  Object.assign(process.env, ambient)
 
   check(
     'a drop the API reports after an idle gap is written by the turn machine at WARNING level and names no idle clear (the mark writer arms no thinking-clear flag)',

@@ -25,7 +25,6 @@ type UtilitySource =
   | 'verification_agent'
   | 'agent_creation'
   | 'agent_summary'
-  | 'tool_use_summary_generation'
   | 'generate_session_title'
   | 'rename_generate_name'
   | 'prompt_suggestion'

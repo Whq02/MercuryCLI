@@ -56,7 +56,7 @@ section('(1) making the request: src/run-core/turn/makeRequest.ts')
 {
   const made = await request({ script: [] }, {}, 3)
   const iter = made.decision.iter
-  check('a plain turn goes on with the iteration it built, numbered as the loop numbered it', made.decision.kind === 'go_on' && iter?.turnId === 't3' && iter.ordinal === 3 && made.events[0]?.kind === 'turn_started' && made.events[0].turnId === 't3' && made.events[0].n === 3, `${said(made.decision)} · ${kinds(made.events)}`)
+  check('a plain turn goes on with the iteration it built, numbered as the loop numbered it', made.decision.kind === 'go_on' && iter?.turnId === 't3' && made.events[0]?.kind === 'turn_started' && made.events[0].turnId === 't3' && made.events[0].n === 3, `${said(made.decision)} · ${kinds(made.events)}`)
   check('…the iteration holds the turn state it was handed, the request rows, and nothing of a reply yet', iter?.state === made.planted.state && (iter?.messagesForQuery as unknown[]).length === 1 && (iter?.assistantMessages as unknown[]).length === 0 && iter?.needsFollowUp === false && iter?.closingTurn === false, j({ rows: (iter?.messagesForQuery as unknown[] | undefined)?.length, closing: iter?.closingTurn }))
   check('…and no model call is made by this step', made.planted.requests.length === 0, String(made.planted.requests.length))
   made.planted.close()

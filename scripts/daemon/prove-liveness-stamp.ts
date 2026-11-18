@@ -172,7 +172,6 @@ console.log('\nL6 structural — no surface reads transcript growth as liveness'
   const watchdog = read('src/services/providers/anthropic/streamCore.ts')
   check('the watchdog reads its budget from the one owner (no second constant)', watchdog.includes("streamIdleTimeoutMsForRoute('anthropic')") && watchdog.includes('streamIdleWarningMsOf(STREAM_IDLE_TIMEOUT_MS)') && !watchdog.includes('parsed >= 1_000 ? parsed : 90_000'))
   check("the stream core relays the transport's liveness beside the watchdog's note (a quiet chunk) and marks every parsed event", watchdog.includes('activityRelay.noteChunk()') && watchdog.includes('activityRelay.noteEvent()'))
-  const ambient = { ...process.env }
   const t = await import('../core-runtime/turnScenarios.ts')
   const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
   const { modelReply } = await import('../../src/run-core/turn/modelReply.ts')
@@ -213,8 +212,6 @@ console.log('\nL6 structural — no surface reads transcript growth as liveness'
   if (asked.decision.kind === 'go_on') await t.drain(modelReply(reader.run as never, asked.decision.iter as never))
   reader.close()
   board?.close()
-  for (const name of Object.keys(process.env)) if (!(name in ambient)) delete process.env[name]
-  Object.assign(process.env, ambient)
   check(
     "the turn machine relays the stream's activity on the runner's status frame, then presents the crew board",
     posted?.ok === true && JSON.stringify(relayed) === JSON.stringify([{ frame: { streamActivity: STREAM_SPOKE_AT }, unpresented: 1 }]) && unpresented.beforeTheStreamSpoke === 1 && unpresented.afterItSpoke === 0,

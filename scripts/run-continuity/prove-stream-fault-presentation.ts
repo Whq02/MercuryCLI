@@ -17,7 +17,6 @@ console.log('recovered stream-fault presentation ──')
   const errors = src('src/services/api/errors.ts')
   check('the nudge is owned beside the marker', errors.includes('export const STREAM_FAULT_RECOVERY_NUDGE'))
   check('the text-level classifier exists', errors.includes('export function isContinuableStreamFaultText'))
-  const envBefore = { ...process.env }
   const t = await import('../core-runtime/turnScenarios.ts')
   const owner = await import('../../src/services/api/errors.ts')
   type Row = Record<string, unknown>
@@ -29,8 +28,6 @@ console.log('recovered stream-fault presentation ──')
       t.fixtures.yields(t.fixtures.says('index rebuild, and last the ', 'stop_sequence'), t.fixtures.faulted()),
     ],
   })
-  for (const name of Object.keys(process.env)) if (!(name in envBefore)) delete process.env[name]
-  Object.assign(process.env, envBefore)
   const asked = (cutTwice.requests[0]?.messages ?? []) as Row[]
   const continuation = (cutTwice.requests[1]?.messages ?? []) as Row[]
   const added = continuation.slice(asked.length)

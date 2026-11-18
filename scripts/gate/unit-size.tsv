@@ -129,7 +129,7 @@ src/services/providers/providerUsage.ts	unit	deriveUsageForProvider	506
 src/services/providers/zai/zaiCallModel.ts	unit	streamOneZaiAttempt	364
 src/services/samples/shell.ts	text	SCRIPT	398
 src/services/tips/tipRegistry.ts	table	GENERAL_TIPS	41
-src/services/tools/toolExecution.ts	unit	runTransactionBody	609
+src/services/tools/toolExecution.ts	unit	runTransactionBody	608
 src/services/unity/bridgeClient.ts	unit	UnityBridgeClient	316
 src/services/vulcan/engine/service.ts	unit	EngineJobService	710
 src/services/vulcan/vulcanClient.ts	unit	VulcanClient	328
@@ -167,7 +167,7 @@ src/utils/bash/ast.ts	unit	Walk	741
 src/utils/capability/declarations.ts	table	TOOL_CAPABILITY_DECLARATIONS	55
 src/utils/cockpit/helmLanesModel.ts	unit	buildLanesModel	311
 src/utils/health/sections/crew.ts	unit	crewChecks	821
-src/utils/health/sections/runtime.ts	unit	runtimeChecks	496
+src/utils/health/sections/runtime.ts	unit	runtimeChecks	494
 src/utils/health/sections/settings.ts	unit	settingsChecks	460
 src/utils/model/validateModel.ts	unit	validateNonAnthropicModel	401
 src/utils/permissions/shellProtectedPaths.ts	file	-	1704

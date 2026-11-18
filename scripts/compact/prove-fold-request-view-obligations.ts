@@ -61,10 +61,9 @@ const schemasOf = async (tools: readonly { name: string }[], model: string): Pro
   const afterAdmission = await planToolPayload({ model: 'local/qwen3.5:9b', tools: pool, messages: admitted, getToolPermissionContext: permission, agents: [], source: 'gauge' })
   const admittedWire = toolsOnTheWire(afterAdmission)
   check('an admitted tool\'s definition rides the text-append wire and so joins the fixed material (one more schema, the tools term itself unmoved)', admittedWire.length === localWire.length + 1 && admittedWire.some(tool => tool.name === 'Retain') && afterAdmission.roster.length === local.roster.length, `${admittedWire.length} vs ${localWire.length}`)
-  const ambient = { ...process.env }
   const t = await import('../core-runtime/turnScenarios.ts')
   const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
-  const { rosterOwnerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
+  const { mainOwnerOfSession, rosterOwnerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
   const LOCAL = 'local/qwen3.5:9b'
   const FIRST_PARTY = 'claude-opus-4-8'
   const gaugedRequest = async (model: string, tools: readonly unknown[]): Promise<{ fixed: number; latched: boolean; key: string; rows: Message[] }> => {
@@ -95,9 +94,7 @@ const schemasOf = async (tools: readonly { name: string }[], model: string): Pro
   const latchingPlannerLatches = toolRosterLatchFor(localRequest.key, localRequest.rows, LOCAL) !== undefined
   const wholeRunRows = [t.fixtures.ask('hello there rig')] as Message[]
   const wholeRun = await t.runScripted({ seed: wholeRunRows, script: [t.fixtures.yields(t.fixtures.calls('tu_1', 'EchoTool', { text: 'x' })), t.fixtures.yields(t.fixtures.says('after tools.'))] })
-  const wholeRunLatched = toolRosterLatchFor(String(rosterOwnerFromToolUseContext(wholeRun.rig.ctx as never)), wholeRunRows, t.MODEL) !== undefined
-  for (const name of Object.keys(process.env)) if (!(name in ambient)) delete process.env[name]
-  Object.assign(process.env, ambient)
+  const wholeRunLatched = toolRosterLatchFor(String(mainOwnerOfSession(wholeRun.session)), wholeRunRows, t.MODEL) !== undefined
   const localEstimator = readFileSync(new URL('../../src/services/providers/local/localCallModel.ts', import.meta.url), 'utf8')
   check(
     'the turn machine builds the gauge\'s fixed material from the tools on the wire, through the one owner the local estimator reads too — planned unseeded, so the gauge never takes a conversation\'s first latch',

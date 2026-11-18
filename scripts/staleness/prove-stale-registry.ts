@@ -238,6 +238,7 @@ src/tools/WebFetchTool/fetchTransport.ts :: robotsCache :: ttl-bounded
 src/tools/WebFetchTool/utils.ts :: urlCache :: ttl-bounded
 src/utils/Shell.ts :: getPsProvider :: static-for-process
 src/utils/Shell.ts :: getShellConfig :: static-for-process
+src/utils/Shell.ts :: loginFilesAsked :: static-for-process
 src/utils/accounts/accountIdentity.ts :: cache :: ttl-bounded
 src/utils/ansiToPng.ts :: fallbackGlyphCache :: static-for-process
 src/utils/ansiToPng.ts :: fontCache :: static-for-process

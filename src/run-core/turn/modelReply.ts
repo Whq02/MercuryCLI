@@ -34,7 +34,7 @@ function cutToolCallOf(assistantMessages: readonly AssistantMessage[], refused: 
 export async function* modelReply(run: RunCtx, iter: IterationState): AsyncGenerator<RunEvent, TurnDecision> {
   const { emit } = run
   const { state, toolUseContext, thinkingRecords, tracking } = iter
-  const { pendingToolUseSummary, maxOutputTokensOverride, turnCount } = state
+  const { maxOutputTokensOverride, turnCount } = state
   let { messagesForQuery } = iter
   const streamOutcome = yield* streamModel(run, iter, emit)
   if (streamOutcome.kind === 'terminal') {
@@ -69,13 +69,6 @@ export async function* modelReply(run: RunCtx, iter: IterationState): AsyncGener
     return { kind: 'end', terminal }
   }
 
-  if (pendingToolUseSummary) {
-    const summary = await pendingToolUseSummary
-    if (summary) {
-      yield emit({ kind: 'notice', message: summary })
-    }
-  }
-
   const cutCall = cutToolCallOf(assistantMessages, refusedToolCalls)
   if (cutCall !== null) {
     const cutToolCallRecoveryCount = state.cutToolCallRecoveryCount ?? 0
@@ -106,7 +99,6 @@ export async function* modelReply(run: RunCtx, iter: IterationState): AsyncGener
         autoCompactTracking: tracking,
         maxOutputTokensOverride: decision.outputTokens,
         cutToolCallRecoveryCount: cutToolCallRecoveryCount + 1,
-        pendingToolUseSummary: undefined,
         stopHookActive: undefined,
         turnCount,
         pendingOverflow: undefined,

@@ -287,7 +287,6 @@ async function* overflowRecovery(run: RunCtx, iter: IterationState, reply: NoToo
         maxOutputTokensOverride,
         streamFaultRecoveryCount,
         toolCallRefusalRecoveryCount,
-        pendingToolUseSummary: undefined,
         stopHookActive: undefined,
         turnCount,
         overflowEpisode: {
@@ -342,7 +341,6 @@ async function* pauseTurnContinuation(run: RunCtx, iter: IterationState, reply: 
         autoCompactTracking: tracking,
         turnCount: nextTurnCount,
         pauseTurnContinuations: pauseTurnContinuations + 1,
-        pendingToolUseSummary: undefined,
         stopHookActive: undefined,
         pendingOverflow: undefined,
         transition: { reason: 'pause_turn_continuation', attempt: decision.attempt },
@@ -394,7 +392,6 @@ async function* reasoningOnlyRecovery(run: RunCtx, iter: IterationState, reply: 
         maxOutputTokensOverride,
         streamFaultRecoveryCount,
         toolCallRefusalRecoveryCount,
-        pendingToolUseSummary: undefined,
         stopHookActive: undefined,
         turnCount,
         overflowEpisode,
@@ -454,7 +451,6 @@ async function* maxOutputTokensRecovery(run: RunCtx, iter: IterationState, reply
         maxOutputTokensOverride,
         streamFaultRecoveryCount,
         toolCallRefusalRecoveryCount,
-        pendingToolUseSummary: undefined,
         stopHookActive: undefined,
         turnCount,
         overflowEpisode,
@@ -512,7 +508,6 @@ async function* streamFaultRecovery(run: RunCtx, iter: IterationState, reply: No
         maxOutputTokensOverride,
         streamFaultRecoveryCount: streamFaultRecoveryCount + 1,
         toolCallRefusalRecoveryCount,
-        pendingToolUseSummary: undefined,
         stopHookActive: undefined,
         turnCount,
         overflowEpisode,
@@ -568,7 +563,6 @@ async function* emptyReplyRetry(run: RunCtx, iter: IterationState, reply: NoTool
         maxOutputTokensOverride,
         streamFaultRecoveryCount,
         toolCallRefusalRecoveryCount,
-        pendingToolUseSummary: undefined,
         stopHookActive: undefined,
         turnCount,
         overflowEpisode,
@@ -617,7 +611,6 @@ async function* toolCallRefusalRecovery(run: RunCtx, iter: IterationState, reply
         maxOutputTokensOverride,
         streamFaultRecoveryCount,
         toolCallRefusalRecoveryCount: toolCallRefusalRecoveryCount + 1,
-        pendingToolUseSummary: undefined,
         stopHookActive: undefined,
         turnCount,
         overflowEpisode,
@@ -672,7 +665,6 @@ async function* chantRecovery(run: RunCtx, iter: IterationState, reply: NoToolRe
         maxOutputTokensOverride,
         streamFaultRecoveryCount,
         toolCallRefusalRecoveryCount,
-        pendingToolUseSummary: undefined,
         stopHookActive: undefined,
         turnCount,
         overflowEpisode,
@@ -774,7 +766,6 @@ async function* announcedStepNudge(run: RunCtx, iter: IterationState, reply: NoT
         ],
         toolUseContext,
         autoCompactTracking: tracking,
-        pendingToolUseSummary: undefined,
         stopHookActive: undefined,
         overflowEpisode,
         pendingOverflow: undefined,
@@ -822,7 +813,6 @@ async function* stopHooks(run: RunCtx, iter: IterationState, reply: NoToolReadin
       streamFaultRecoveryCount,
       toolCallRefusalRecoveryCount,
       maxOutputTokensOverride: undefined,
-      pendingToolUseSummary: undefined,
       stopHookActive: true,
       turnCount,
       overflowEpisode,
@@ -854,7 +844,6 @@ async function* checkpointSettleGuard(run: RunCtx, iter: IterationState, reply: 
         streamFaultRecoveryCount,
         toolCallRefusalRecoveryCount,
         maxOutputTokensOverride: undefined,
-        pendingToolUseSummary: undefined,
         stopHookActive: undefined,
         turnCount,
         overflowEpisode,
@@ -870,27 +859,24 @@ async function* queuedMessage(run: RunCtx, iter: IterationState, reply: NoToolRe
   const { emit } = run
   const { toolUseContext, messagesForQuery, tracking, assistantMessages } = iter
   const { turnCount } = iter.state
-  if (toolUseContext.agentId) {
-    const queued = getAgentPendingMessageAttachments(toolUseContext).map(attachment => createAttachmentMessage(attachment))
-    if (queued.length > 0) {
-      for (const row of queued) yield emit({ kind: 'attachment', message: row })
-      const next: NextTurn = {
-        messages: [...messagesForQuery, ...assistantMessages, ...queued],
-        toolUseContext,
-        autoCompactTracking: tracking,
-        turnCount: turnCount + 1,
-        maxOutputTokensRecoveryCount: 0,
-        streamFaultRecoveryCount: 0,
-        toolCallRefusalRecoveryCount: 0,
-        maxOutputTokensOverride: undefined,
-        pendingToolUseSummary: undefined,
-        stopHookActive: undefined,
-        overflowEpisode: FRESH_OVERFLOW_EPISODE,
-        pendingOverflow: undefined,
-        transition: { reason: 'queued_message', count: queued.length },
-      }
-      return { kind: 'hand_over', next }
+  const queued = getAgentPendingMessageAttachments(toolUseContext).map(attachment => createAttachmentMessage(attachment))
+  if (queued.length > 0) {
+    for (const row of queued) yield emit({ kind: 'attachment', message: row })
+    const next: NextTurn = {
+      messages: [...messagesForQuery, ...assistantMessages, ...queued],
+      toolUseContext,
+      autoCompactTracking: tracking,
+      turnCount: turnCount + 1,
+      maxOutputTokensRecoveryCount: 0,
+      streamFaultRecoveryCount: 0,
+      toolCallRefusalRecoveryCount: 0,
+      maxOutputTokensOverride: undefined,
+      stopHookActive: undefined,
+      overflowEpisode: FRESH_OVERFLOW_EPISODE,
+      pendingOverflow: undefined,
+      transition: { reason: 'queued_message', count: queued.length },
     }
+    return { kind: 'hand_over', next }
   }
 }
 

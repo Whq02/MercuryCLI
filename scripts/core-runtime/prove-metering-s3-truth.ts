@@ -44,7 +44,6 @@ section('§20 one definition of progress.tokenCount')
 
 section('§22 the compaction trace subtracts the true post figure')
 {
-  const ambient = { ...process.env }
   const t = await import('./turnScenarios.ts')
   const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
   const trace = await import('../../src/utils/observability/invocationTrace.ts')
@@ -72,8 +71,6 @@ section('§22 the compaction trace subtracts the true post figure')
   }
   const withTrueFigure = await freedByAFold(120)
   const withoutTrueFigure = await freedByAFold(undefined)
-  for (const name of Object.keys(process.env)) if (!(name in ambient)) delete process.env[name]
-  Object.assign(process.env, ambient)
   check('tokensFreed = pre − (truePostCompactTokenCount ?? postCompactTokenCount)', JSON.stringify(withTrueFigure) === '[780]' && JSON.stringify(withoutTrueFigure) === '[200]', `a fold of 900 tokens whose summary call used 700 and whose true post figure is 120 traced ${JSON.stringify(withTrueFigure)} (780 is right); the same fold with no true figure traced ${JSON.stringify(withoutTrueFigure)} (200 is right) — the auto-compact trace of src/run-core/turn/makeRequest.ts subtracts the true post figure and falls back to the call's own only when there is none`)
   check('…never pre − the summarisation call\'s own usage', withTrueFigure.length === 1 && withTrueFigure[0] !== 900 - 700, `with a true post figure of 120 the trace reads ${JSON.stringify(withTrueFigure)}: 200 is pre − the summary call's own 700`)
 }

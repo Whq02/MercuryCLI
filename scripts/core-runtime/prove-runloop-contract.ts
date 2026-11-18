@@ -1501,16 +1501,6 @@ section('CX2 ABORT BEFORE FIRST DELTA — the pre-dispatch/header-wait stop is c
     userTextMessages(r.yields).filter(t => t === INTERRUPT_MESSAGE).length === 1)
 }
 
-section('L22 STANDING — no tool_use_summary yields anywhere (env gate OFF)')
-{
-  const summaries = allYields.flat().filter(m => (m as AnyMsg).type === 'tool_use_summary')
-  check(
-    'zero tool_use_summary yields across every fixture (characterized default)',
-    summaries.length === 0,
-    String(summaries.length),
-  )
-}
-
 console.log('')
 if (failures > 0) {
   console.log(`native-core runloop contract: RED (${failures}/${checks} checks failed)`)

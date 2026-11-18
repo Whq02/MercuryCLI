@@ -4,7 +4,6 @@ import type {
   RequestStartEvent,
   StreamEvent,
   TombstoneMessage,
-  ToolUseSummaryMessage,
 } from '../types/message.js'
 import type { Terminal } from '../query/transitions.js'
 import type { RunEvent } from './events.js'
@@ -14,7 +13,6 @@ export type LegacyQueryYield =
   | RequestStartEvent
   | Message
   | TombstoneMessage
-  | ToolUseSummaryMessage
 
 export function legacyYieldsOf(event: RunEvent): LegacyQueryYield[] {
   switch (event.kind) {

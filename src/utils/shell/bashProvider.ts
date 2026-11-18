@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, posix as posixPath } from 'node:path'
-import { createAndSaveSnapshot, shellSnapshotAbsence } from '../bash/ShellSnapshot.js'
+import { createAndSaveSnapshot } from '../bash/ShellSnapshot.js'
 import { quote } from '../bash/shellQuote.js'
 import { rearrangePipeCommand } from '../bash/bashPipeCommand.js'
 import {
@@ -9,7 +9,7 @@ import {
   rewriteWindowsNullRedirect,
   shouldAddStdinRedirect,
 } from '../bash/shellQuoting.js'
-import { formatShellPrefixCommand } from '../bash/shellPrefix.js'
+import { formatShellPrefixCommand, shellStartLine } from '../bash/shellPrefix.js'
 import { logForDebugging } from '../debug.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getSessionEnvironmentScript } from '../sessionEnvironment.js'
@@ -18,7 +18,7 @@ import { getPlatform } from '../platform.js'
 import { windowsPathToPosixPath } from '../windowsPaths.js'
 import { getGlobPreambleCommand } from './globPreamble.js'
 import type { BuildExecCommandOptions, ShellProvider } from './shellProvider.js'
-import { PIPELINE_STATUS_ARRAY, type ShellRecord } from './shellRecord.js'
+import { PIPELINE_STATUS_ARRAY, loginFilesNotCarried, type ShellRecord } from './shellRecord.js'
 
 function cwdFileName(id: number | string): string {
   return `mercury-cwd-${id}`
@@ -63,7 +63,7 @@ export async function createBashShellProvider(
         snapshotPath = undefined
       }
       usedSnapshotThisExecution = snapshot !== undefined
-      if (!snapshot) logForDebugging(`no shell snapshot in use${shellSnapshotAbsence() === null ? '' : ` (${shellSnapshotAbsence()})`}`)
+      if (!snapshot) logForDebugging(`no shell snapshot in use${loginFilesNotCarried() === null ? '' : ` (${loginFilesNotCarried()?.why})`}`)
 
       const name = cwdFileName(opts.id)
       const isWindows = getPlatform() === 'windows'
@@ -99,7 +99,7 @@ export async function createBashShellProvider(
 
       let commandString = parts.join(' && ')
       const prefix = shellPrefix()
-      if (prefix) commandString = formatShellPrefixCommand(prefix, isWindows ? commandString : `${quoteShellCommand(shellPath, false)} -c ${quoteShellCommand(commandString, false)}`)
+      if (prefix) commandString = formatShellPrefixCommand(prefix, isWindows ? commandString : shellStartLine(shellPath, commandString))
       if (!isWindows) commandString = `${markFrameRead(cwdFileInShell)}; ${commandString}`
 
       return { commandString, cwdFilePath: cwdFileForEngine, ...(pipelineStatusPath === undefined ? {} : { pipelineStatusPath }) }

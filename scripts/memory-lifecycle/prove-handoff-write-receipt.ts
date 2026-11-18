@@ -36,8 +36,6 @@ try {
   assert.equal(note?.stored, false)
   assert.match(handoff.handoffNotice(note), /the note could not be stored/)
   const t = await import('../core-runtime/turnScenarios.ts')
-  process.env.MERCURY_CONFIG_DIR = home
-  process.env.NODE_ENV = 'test'
   const forked = await import('../../src/utils/forkedAgent.ts')
   const bootstrap = await import('../../src/bootstrap/state.ts')
   const asks: string[] = []
@@ -45,11 +43,12 @@ try {
     asks.push(String(asked.forkLabel))
     return run()
   }) as never)
+  let turnFile = ''
   const lastTurn = await t.runScripted({
     before: () => {
-      chmodSync(file, 0o600)
       noteSessionEngine('fixture')
-      chmodSync(file, 0o400)
+      turnFile = lineagePath(mnemeProjectKey())
+      chmodSync(turnFile, 0o400)
       handoff._resetHandoffAskForTesting()
       bootstrap.setRunInputClosed(true)
       return () => bootstrap.setRunInputClosed(false)
@@ -62,7 +61,7 @@ try {
     .map(event => event.message as { subtype?: string; level?: string; content?: unknown; closeState?: string })
     .map(row => (row.subtype === 'close_usage' ? `close ${String(row.closeState)}` : `${String(row.level)}: ${String(row.content)}`))
   assert.deepEqual(asks, ['handoff'], 'the turn that ends the session asks for its note once')
-  assert.ok(!readFileSync(file, 'utf8').includes('a note that cannot be saved'), 'fixture really refused the append of the turn\'s note')
+  assert.ok(turnFile.startsWith(lastTurn.home) && !readFileSync(turnFile, 'utf8').includes('a note that cannot be saved'), 'fixture really refused the append of the turn\'s note')
   assert.equal(lastTurn.terminal.reason, 'completed')
   assert.deepEqual(
     said,

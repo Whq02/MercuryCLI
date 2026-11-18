@@ -170,7 +170,6 @@ resetSessionEnvNoticeForTesting()
 sessionEnvNoticeForResult({ scrubbed: scrubbedSet, commandText: 'ls' })
 const afterCompaction = (resetSessionEnvNoticeOnCompaction(), sessionEnvNoticeForResult({ scrubbed: scrubbedSet, commandText: 'ls' }))
 check('a compaction resets the latch, so the first result after the fold carries the full note again', afterCompaction === scrubbedSessionEnvNotice(scrubbedSet) && afterCompaction.includes('inherit_session_env'))
-const ambient = { ...process.env }
 const t = await import('../core-runtime/turnScenarios.ts')
 const noticeAfterARun = async (plan: Parameters<typeof t.runScripted>[0]): Promise<{ folded: boolean; notice: string }> => {
   resetSessionEnvNoticeForTesting()
@@ -180,8 +179,6 @@ const noticeAfterARun = async (plan: Parameters<typeof t.runScripted>[0]): Promi
 }
 const acrossAFold = await noticeAfterARun({ seed: [t.fixtures.ask('hello there rig'), t.fixtures.fat('old fat turn', 700)], autocompact: [t.fixtures.folded()], script: [t.fixtures.yields(t.fixtures.says('the turn after the fold.'))] })
 const acrossNoFold = await noticeAfterARun({ script: [t.fixtures.yields(t.fixtures.says('a turn with no fold.'))] })
-for (const name of Object.keys(process.env)) if (!(name in ambient)) delete process.env[name]
-Object.assign(process.env, ambient)
 check(
   'the turn machine resets the notice latch at the compaction boundary',
   acrossAFold.folded && acrossAFold.notice === scrubbedSessionEnvNotice(scrubbedSet) && !acrossNoFold.folded && acrossNoFold.notice === '',

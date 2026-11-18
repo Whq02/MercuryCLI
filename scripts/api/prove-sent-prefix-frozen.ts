@@ -213,9 +213,8 @@ section('§1b the tool roster freeze (pure) — a latched decision holds; a join
   const compactSrc = readFileSync(join(ROOT, 'src', 'services', 'compact', 'compact.ts'), 'utf8')
   const scSrc = readFileSync(join(ROOT, 'src', 'services', 'providers', 'anthropic', 'streamCore.ts'), 'utf8')
   check("the fork runner stamps the parent's roster owner on the fork context (rosterOwner)", forkSrc.includes('rosterOwner: rosterOwnerFromToolUseContext(cacheSafeParams.toolUseContext)'))
-  const ambient = { ...process.env }
   const t = await import('../core-runtime/turnScenarios.ts')
-  const { rosterOwnerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
+  const { mainOwnerOfSession } = await import('../../src/services/run/resolveOwner.ts')
   const ownerKeySentBy = async (owners: Record<string, string>): Promise<{ sent: unknown; processOwner: string }> => {
     const run = await t.runScripted({
       before: rig => {
@@ -223,13 +222,11 @@ section('§1b the tool roster freeze (pure) — a latched decision holds; a join
       },
       script: [t.fixtures.yields(t.fixtures.says('done.'))],
     })
-    return { sent: run.requests[0]?.options.ownerKey, processOwner: String(rosterOwnerFromToolUseContext({ agentId: run.rig.ctx.agentId as string | undefined })) }
+    return { sent: run.requests[0]?.options.ownerKey, processOwner: String(mainOwnerOfSession(run.session)) }
   }
   const forked = await ownerKeySentBy({ owner: 'the-fork', rosterOwner: 'the-parent-conversation' })
   const unforked = await ownerKeySentBy({ owner: 'the-fork' })
   const plain = await ownerKeySentBy({})
-  for (const name of Object.keys(process.env)) if (!(name in ambient)) delete process.env[name]
-  Object.assign(process.env, ambient)
   check(
     'the turn machine keys the roster latch on the roster owner',
     forked.sent === 'the-parent-conversation' && unforked.sent === 'the-fork' && plain.sent === plain.processOwner,

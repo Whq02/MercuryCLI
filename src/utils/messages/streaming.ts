@@ -1,6 +1,6 @@
 import type { ToolUseBlock } from '../../types/wire.js'
 import type { SpinnerMode } from '../../components/Spinner.js'
-import type { Message, RequestStartEvent, StreamEvent, TombstoneMessage, ToolUseSummaryMessage } from '../../types/message.js'
+import type { Message, RequestStartEvent, StreamEvent, TombstoneMessage } from '../../types/message.js'
 import { fluxCount, fluxMark } from '../flux/fluxProbe.js'
 
 export type StreamingThinking = { thinking: string; isStreaming: boolean; streamingEndedAt?: number }
@@ -72,7 +72,7 @@ export function isDroppedLateStreamFrame(message: { type: string }, aborted: boo
 }
 
 export function handleMessageFromStream(
-  message: Message | TombstoneMessage | StreamEvent | RequestStartEvent | ToolUseSummaryMessage,
+  message: Message | TombstoneMessage | StreamEvent | RequestStartEvent,
   onMessage: (message: Message) => void,
   onUpdateLength: (newContent: string) => void,
   onSetStreamMode: (mode: SpinnerMode) => void,
@@ -83,7 +83,6 @@ export function handleMessageFromStream(
   onStreamingText?: UpdateText,
 ): void {
   switch (message.type) {
-    case 'tool_use_summary': return
     case 'tombstone': onTombstone?.(message.message); return
     case 'stream_request_start': onSetStreamMode('requesting'); return
     case 'stream_event': break

@@ -138,10 +138,8 @@ export function runtimeChecks(): CheckSpec[] {
     {
       id: 'shell',
       label: 'Bash tool shell',
-      run: async () => {
-        const { shellRow } = await SHELL_READS.shellRecord()
-        return shellRow()
-      },
+      timeoutMs: 30_000,
+      run: async () => (await SHELL_READS.shellRecord()).shellRow(),
     },
     {
       id: 'eval-kernels',

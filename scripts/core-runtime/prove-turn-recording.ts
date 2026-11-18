@@ -1,11 +1,28 @@
 #!/usr/bin/env bun
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { SCENARIOS, record, type Recording } from './turnScenarios.ts'
+import type { Recording } from './turnScenarios.ts'
 
 const SELF = 'scripts/core-runtime/prove-turn-recording.ts'
 const SCENARIO_FILE = 'scripts/core-runtime/turnScenarios.ts'
+
+const bootstrap = await import('../../src/bootstrap/state.ts')
+const processFacts = (): Record<string, string> => ({
+  ...Object.fromEntries(Object.entries(process.env).map(([name, value]) => [`the name ${name}`, String(value)])),
+  'the session': String(bootstrap.getSessionId()),
+  'the session project folder': String(bootstrap.getSessionProjectDir()),
+  'the session kind': String(bootstrap.getSessionKind()),
+  'the interactive flag': String(bootstrap.getIsInteractive()),
+})
+const movedSince = (before: Record<string, string>): string[] => {
+  const now = processFacts()
+  return [...new Set([...Object.keys(before), ...Object.keys(now)])].filter(fact => before[fact] !== now[fact])
+}
+const atStart = processFacts()
+const { SCENARIOS, record } = await import('./turnScenarios.ts')
+const movedByTheImport = movedSince(atStart)
 
 const TRANSITIONS = [
   'next_turn',
@@ -133,6 +150,19 @@ if (only === undefined) {
   )
 }
 
+section('(4) the harness hands the process back')
+check(
+  'importing the harness changes no name of the environment, nor the session, its project folder, its kind or the interactive flag',
+  movedByTheImport.length === 0,
+  `changed by the import: ${movedByTheImport.join(', ')} — ${SCENARIO_FILE} sets what a rig needs inside openRig and nothing at its top level`,
+)
+const movedByTheRigs = movedSince(atStart)
+check(
+  'with every rig of this run closed the process is as it began: every name, the home, the session, its kind and the interactive flag',
+  movedByTheRigs.length === 0,
+  `not put back: ${movedByTheRigs.join(', ')} — the close of openRig in ${SCENARIO_FILE} puts back every name the rig set, the session and its posture`,
+)
+
 if (writeTo !== undefined) {
   mkdirSync(writeTo, { recursive: true })
   const rows: string[] = []
@@ -146,7 +176,7 @@ if (writeTo !== undefined) {
 }
 
 if (against !== undefined) {
-  section(`(4) the recordings equal the ones in ${against}`)
+  section(`(5) the recordings equal the ones in ${against}`)
   for (const recording of recordings) {
     const path = join(against, `${recording.name}.json`)
     if (!existsSync(path)) {

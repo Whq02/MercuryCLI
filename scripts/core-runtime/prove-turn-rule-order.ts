@@ -12,10 +12,12 @@ process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'turn-rule-order-dae
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 const { NO_TOOL_RULES } = await import('../../src/run-core/turn/noToolReply.ts')
+const { SCENARIOS, record } = await import('./turnScenarios.ts')
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const SELF = 'scripts/core-runtime/prove-turn-rule-order.ts'
 const RULES_FILE = 'src/run-core/turn/noToolReply.ts'
+const SCENARIO_FILE = 'scripts/core-runtime/turnScenarios.ts'
 const DOOR = 'src/run-core/turn-machine.ts'
 const INSIDE = 'src/run-core/turn/'
 
@@ -35,6 +37,31 @@ const ORDER = [
   'checkpoint_settle_guard',
   'queued_message',
 ]
+
+type Held = { first: string; second: string; scenes: string[] } | { first: string; second: string; neverMeet: string }
+
+const HELD: Held[] = [
+  { first: 'overflow_recovery', second: 'pause_turn_continuation', scenes: ['paused_reply_then_overflow'] },
+  { first: 'pause_turn_continuation', second: 'reasoning_only_recovery', scenes: ['paused_thought_without_words'] },
+  { first: 'reasoning_only_recovery', second: 'max_output_tokens_recovery', neverMeet: "the second rule's own guard: it decides only for a reply that is not reasoning-only" },
+  { first: 'max_output_tokens_recovery', second: 'stream_fault_recovery', neverMeet: 'how the rows are made: a withheld output cap comes from the Anthropic lane alone, a stream-fault row from three other lanes' },
+  { first: 'stream_fault_recovery', second: 'empty_reply_retry', neverMeet: 'how the rows are made: an empty mark is put only on a reply with nothing minted or with no tool call at all, never on a stream-fault row' },
+  { first: 'empty_reply_retry', second: 'tool_call_refusal_recovery', neverMeet: 'how the rows are made: a refused call always mints a note, so its reply carries no empty mark' },
+  { first: 'tool_call_refusal_recovery', second: 'chant_recovery', scenes: ['chant_with_refused_call'] },
+  { first: 'chant_recovery', second: 'max_turns', scenes: ['turn_budget_closing_chant'] },
+  { first: 'max_turns', second: 'api_error', scenes: ['turn_budget_closing_api_error'] },
+  { first: 'api_error', second: 'announced_step_nudge', neverMeet: 'how the rows are made: an API-error row is made with the stop reason stop_sequence, and the nudge asks for end_turn' },
+  { first: 'announced_step_nudge', second: 'stop_hooks', scenes: ['announced_step_nudged', 'announced_step_twice', 'announced_step_before_stop_hook'] },
+  { first: 'stop_hooks', second: 'checkpoint_settle_guard', scenes: ['checkpoint_left_open', 'checkpoint_then_queued_message'] },
+  { first: 'checkpoint_settle_guard', second: 'queued_message', scenes: ['checkpoint_then_queued_message'] },
+  { first: 'overflow_recovery', second: 'stream_fault_recovery', scenes: ['stream_fault_stamped_with_an_overflow'] },
+]
+
+const guard = setTimeout(() => {
+  console.log('\nTIMEOUT — the order of the rules exceeded 240s')
+  process.exit(1)
+}, 240_000)
+guard.unref?.()
 
 let failures = 0
 function check(label: string, cond: boolean, detail: string[] = []): void {
@@ -71,7 +98,81 @@ section('(1) the order of the rules is behaviour: the first rule that decides wi
   check('every rule of the list is a function the arm can call', idle.length === 0, idle.map(name => `${name} in NO_TOOL_RULES of ${RULES_FILE} has no decide function`))
 }
 
-section(`(2) one door: nothing outside ${DOOR} and ${INSIDE} imports a file under ${INSIDE}`)
+section('(2) what holds each order: a scene whose recording changes when the two rules are swapped, or the reason the two never meet on one reply')
+{
+  const pairOf = (row: Held): string => `${row.first} before ${row.second}`
+  const adjacent = ORDER.slice(0, -1).map((name, at) => `${name} before ${ORDER[at + 1]}`)
+  const unheld = adjacent.filter(pair => !HELD.some(row => pairOf(row) === pair))
+  const strangers = HELD.filter(row => !ORDER.includes(row.first) || !ORDER.includes(row.second) || ORDER.indexOf(row.first) >= ORDER.indexOf(row.second)).map(pairOf)
+  const twice = HELD.map(pairOf).filter((pair, at, all) => all.indexOf(pair) !== at)
+  check(
+    `each of the ${adjacent.length} adjacent orders of the list has its row in HELD, and ${HELD.length - adjacent.length} order of two rules that do not stand side by side`,
+    unheld.length === 0 && strangers.length === 0 && twice.length === 0,
+    [
+      ...unheld.map(pair => `${pair} has no row in HELD of ${SELF}: name the scenes of ${SCENARIO_FILE} whose recording changes when the two are swapped, or the reason the two never meet on one reply`),
+      ...strangers.map(pair => `${pair} is a row of HELD of ${SELF} and not an order of the list: a row names two rules of ORDER, the earlier first`),
+      ...twice.map(pair => `${pair} stands twice in HELD of ${SELF}`),
+    ],
+  )
+
+  const list = NO_TOOL_RULES as Array<(typeof NO_TOOL_RULES)[number]>
+  const swapped = async <T>(row: Held, work: () => Promise<T>): Promise<T> => {
+    const a = list.findIndex(rule => rule.name === row.first)
+    const b = list.findIndex(rule => rule.name === row.second)
+    const [one, other] = [list[a]!, list[b]!]
+    list[a] = other
+    list[b] = one
+    try {
+      return await work()
+    } finally {
+      list[a] = one
+      list[b] = other
+    }
+  }
+  const textOf = (recording: unknown): string => JSON.stringify(recording)
+  const sceneOf = (name: string): (typeof SCENARIOS)[number] | undefined => SCENARIOS.find(scenario => scenario.name === name)
+  const twiceRecordable = SCENARIOS.filter(scenario => scenario.oncePerProcess !== true)
+  const rows = HELD.filter(row => ORDER.includes(row.first) && ORDER.includes(row.second))
+
+  const asItStands = new Map<string, string>()
+  for (const scenario of twiceRecordable) asItStands.set(scenario.name, textOf(await record(scenario)))
+  for (const row of rows) {
+    if (!('neverMeet' in row)) continue
+    const moved: string[] = []
+    await swapped(row, async () => {
+      for (const scenario of twiceRecordable) if (textOf(await record(scenario)) !== asItStands.get(scenario.name)) moved.push(scenario.name)
+    })
+    check(
+      `${pairOf(row)}: the two never meet on one reply (${row.neverMeet}), and no recording of ${twiceRecordable.length} scenarios changes when they are swapped`,
+      moved.length === 0,
+      [`${moved.join(', ')} of ${SCENARIO_FILE} ${moved.length === 1 ? 'changes' : 'change'} when the two rules are swapped: the two do meet, so the order is behaviour — name the ${moved.length === 1 ? 'scene' : 'scenes'} in this row of HELD of ${SELF} in place of the reason`],
+    )
+  }
+  for (const row of rows) {
+    if (!('scenes' in row)) continue
+    for (const name of row.scenes) {
+      const scenario = sceneOf(name)
+      if (scenario === undefined) {
+        check(`${pairOf(row)}: held by the scene ${name}`, false, [`${SCENARIO_FILE} holds no scenario named ${name}: plan a reply both rules act on there, or name the scene that holds this order in HELD of ${SELF}`])
+        continue
+      }
+      const before = textOf(await record(scenario))
+      const under = textOf(await swapped(row, () => record(scenario)))
+      const after = textOf(await record(scenario))
+      check(
+        `${pairOf(row)}: the recording of ${name} changes when the two rules are swapped, and is itself again when they are put back`,
+        before !== under && before === after,
+        [
+          before === under
+            ? `the recording of ${name} is the same with ${row.second} before ${row.first}: the scene no longer shows this order — plan a reply both rules act on in ${SCENARIO_FILE}, or, if the two can no longer meet, give the reason in this row of HELD of ${SELF}`
+            : `the recording of ${name} differs between two recordings under the list's own order: something of the run is not masked or carries over (${SCENARIO_FILE})`,
+        ],
+      )
+    }
+  }
+}
+
+section(`(3) one door: nothing outside ${DOOR} and ${INSIDE} imports a file under ${INSIDE}`)
 {
   const files: string[] = []
   const walk = (dir: string): void => {

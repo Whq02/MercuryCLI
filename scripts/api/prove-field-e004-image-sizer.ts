@@ -309,8 +309,6 @@ section('§2 the once-per-session notice: the receipt, the transcript mark, the 
     const two = leftOutApi.imagesLeftOutNoticeLine({ count: 2, images: 2, sidePx: 8000 })
     check('…and the plural form', /^2 images could not be sized to the API's 8000 px limit and were left out/.test(two) && /originals/.test(two), two)
 
-    const ambient = { ...process.env }
-    const sessionBefore = bootstrap.getSessionId()
     const t = await import(join(ROOT, 'scripts/core-runtime/turnScenarios.ts'))
     const { makeRequest } = await import(join(ROOT, 'src/run-core/turn/makeRequest.ts'))
     const { modelReply } = await import(join(ROOT, 'src/run-core/turn/modelReply.ts'))
@@ -338,9 +336,6 @@ section('§2 the once-per-session notice: the receipt, the transcript mark, the 
     const alreadyTold = await settledReply(true, [t.fixtures.ask('hello there rig'), createAttachmentMessage(leftOutMark.attachment as never)])
     const nothingLeftOut = await settledReply(false)
     leftOutApi.resetImagesLeftOutForTesting()
-    for (const name of Object.keys(process.env)) if (!(name in ambient)) delete process.env[name]
-    Object.assign(process.env, ambient)
-    bootstrap.switchSession(sessionBefore)
     const receipt = { count: 1, images: MANY_THRESHOLD + 1, sidePx: MANY_CAP }
     check(
       'the turn machine reads the conversation\'s receipt after the stream settles, paints the notice when the transcript carries no mark yet, and writes the mark beside it',
