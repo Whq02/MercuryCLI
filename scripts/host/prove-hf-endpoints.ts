@@ -9,9 +9,15 @@ const f = await llmhostFixture()
 const hf = await hfEndpointsFixture()
 const nativeFetch = globalThis.fetch
 const escaped: string[] = []
+const realNow = Date.now
+const deadlineMs = 60_000
+let skew = 0
+let lapsing: { path: string; reads: number } | undefined
+Date.now = () => realNow() + skew
 globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: RequestInit) => {
   const request = new Request(input, init)
   const url = new URL(request.url)
+  if (lapsing && request.method === 'GET' && url.pathname === lapsing.path && ++lapsing.reads === 3) skew += deadlineMs
   if (url.origin === 'https://api.endpoints.huggingface.cloud' || url.origin === 'https://huggingface.co') return nativeFetch(new Request(hf.origin + url.pathname + url.search, request))
   if (!['127.0.0.1', '[::1]'].includes(url.hostname)) { escaped.push(url.origin); throw new Error('HF proof permits loopback fixtures only') }
   return nativeFetch(input, init)
@@ -78,7 +84,11 @@ try {
   const stuck = await api.create(offer, '', 'hf-never-ready')
   const deletesBeforeSetup = hf.state.deletes
   const queued = queueHostSetup({ id: stuck.id, name: stuck.name, vendor: 'huggingface', recipe: offer.recipe.id, recipeRow: offer.recipe, price: offer.price, startedAt: stuck.createdAt, status: stuck.status, apiBaseUrl: hf.baseUrl, sessionId: 'hf-never-ready' })
-  await runHostJob(queued.id, queued.generation!, { runner, pauseMs: 5, timeoutMs: 120, keepAlive: false })
+  const untilTheDeadline = async (record: { id: string; generation?: string }): Promise<void> => {
+    lapsing = { path: '/v2/endpoint/fixture-owner/' + stuck.name, reads: 0 }
+    try { await runHostJob(record.id, record.generation!, { runner, pauseMs: 5, timeoutMs: deadlineMs, keepAlive: false }) } finally { lapsing = undefined }
+  }
+  await untilTheDeadline(queued)
   const guarded = readHostRecord(queued.id)!
   check('never-running endpoint pauses without deletion', guarded.jobState === 'paused' && guarded.status !== 'TERMINATED' && hf.state.deletes === deletesBeforeSetup && hf.state.pods.has('hf-never-ready'))
   check('a provisioning endpoint names Terminate rather than an unavailable Resume', guarded.status === 'PROVISIONING' && guarded.error?.includes('/hr still billing') && guarded.error.includes('Terminate in /llmhost') && !guarded.error.includes('Resume'))
@@ -86,7 +96,7 @@ try {
   check('never-ready guard publishes exactly one final notice', notices.length === 1 && !JSON.stringify(notices).includes(hf.key))
   const pausedEndpoint = await api.stop(stuck.id)
   const pausedSetup = queueHostSetup({ ...guarded, status: pausedEndpoint.status })
-  await runHostJob(pausedSetup.id, pausedSetup.generation!, { runner, pauseMs: 5, timeoutMs: 120, keepAlive: false })
+  await untilTheDeadline(pausedSetup)
   const pausedRecord = readHostRecord(pausedSetup.id)!
   check('a paused managed endpoint keeps Resume but claims neither a disk nor compute billing', pausedRecord.status === 'EXITED' && pausedRecord.error?.includes('Paused · no compute bills') && pausedRecord.error.includes('Resume or Terminate') && !pausedRecord.error.includes('disk still bills') && !pausedRecord.error.includes('/hr still billing'))
   hf.state.neverReady = false
@@ -128,4 +138,4 @@ try {
   check('vendor factory returns managed HF client', vendorClient('huggingface', { apiBaseUrl: hf.baseUrl }).capabilities.managed)
   check('all HF requests stay on loopback', escaped.length === 0)
   console.log('HF ENDPOINTS GREEN — ' + checks + ' checks; no real token or endpoint')
-} finally { await hf.close(); f.close(); globalThis.fetch = nativeFetch }
+} finally { await hf.close(); f.close(); globalThis.fetch = nativeFetch; Date.now = realNow }
