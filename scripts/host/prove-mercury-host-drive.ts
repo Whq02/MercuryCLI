@@ -1,4 +1,5 @@
 import '../lib/hermetic.ts'
+import './loopbackOnly.ts'
 import assert from 'node:assert/strict'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
