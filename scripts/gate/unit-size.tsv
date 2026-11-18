@@ -74,7 +74,7 @@ src/main.tsx	unit	registerSubcommands	454
 src/rows/turn.ts	unit	Conversation	977
 src/runner/wire/methods.ts	table	METHODS	40
 src/runner/wire/peer.ts	unit	Peer	432
-src/screens/Chat.tsx	unit	Chat	864
+src/screens/Chat.tsx	unit	Chat	478
 src/services/acp/acpServer.ts	file	-	1583
 src/services/acp/acpServer.ts	unit	runAcpServer	822
 src/services/acp/childSession.ts	unit	MercuryChildSession	340

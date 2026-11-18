@@ -11,12 +11,11 @@ const UNIT = 'Chat'
 const DOOR_EXPORTS = ['Chat', 'Props', 'Screen']
 
 const HOOK_CALLS_IN_CHAT: Record<string, number> = {
-  useEffect: 3,
-  useRef: 9,
-  useCallback: 8,
-  useState: 4,
-  useSyncExternalStore: 7,
-  useAppState: 7,
+  useEffect: 1,
+  useRef: 3,
+  useState: 3,
+  useSyncExternalStore: 6,
+  useAppState: 6,
   useAppStateStore: 1,
   useSetAppState: 1,
   useNotifications: 1,
@@ -32,7 +31,6 @@ const HOOK_CALLS_IN_CHAT: Record<string, number> = {
   useMergedCommands: 1,
   useMergedTools: 1,
   useApiKeyVerification: 1,
-  useSeatReceipts: 1,
   useAgentNeedsYou: 1,
   useTurnEndPing: 1,
 }
