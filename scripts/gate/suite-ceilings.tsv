@@ -44,7 +44,7 @@ switchboard-6	1200
 # stretch the unrun tail needs, with the diffws-class slack.
 ui	2400
 ui-4	2400
-pings	1800
+pings-drives	1800
 render-continuity	1800
 interaction	2400
 switchboard-3	2400
@@ -106,6 +106,6 @@ health	2400
 # with the notice, run-wake and isolation work to 821 s on the Mac. The row is
 # its measured hosted envelope (about 1,000 s whole) with the siblings' slack.
 crew	1500
-host	2400
-verify-drives	1500
+host	1200
+host-2	1200
 command-catalogue-drives	1800
